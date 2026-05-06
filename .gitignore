@@ -49,3 +49,4 @@ server/feedback.json
 
 # App/runtime local data.
 /cookie
+pm-electron/data/

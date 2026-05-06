@@ -1,22 +1,24 @@
-import path from "node:path";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-
-const root = __dirname;
+import vue from "@vitejs/plugin-vue";
+import wasm from "vite-plugin-wasm";
+import AutoImport from "unplugin-auto-import/vite";
+import Components from "unplugin-vue-components/vite";
+import { NaiveUiResolver } from "unplugin-vue-components/resolvers";
+import { resolve } from "path";
 
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      lib: {
-        entry: path.resolve(root, "electron/main/index.ts"),
-      },
-    },
-    resolve: {
-      alias: {
-        "@shared": path.resolve(root, "shared"),
-        "@main": path.resolve(root, "electron/main"),
+      rollupOptions: {
+        input: {
+          main: resolve(__dirname, "electron/main.ts"),
+          store: resolve(__dirname, "electron/store/index.ts"),
+          SPlyric: resolve(__dirname, "web/lyric.html"),
+          lyric: resolve(__dirname, "web/lyric-window.html"),
+          operationBridge: resolve(__dirname, "electron/utils/operationBridge.ts"),
+          logger: resolve(__dirname, "electron/utils/logger.ts"),
+        },
       },
     },
   },
@@ -24,28 +26,55 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       lib: {
-        entry: path.resolve(root, "electron/preload/index.ts"),
+        entry: resolve(__dirname, "electron/preload.ts"),
+        formats: ["cjs"],
+        fileName: "index.cjs",
       },
-    },
-    resolve: {
-      alias: {
-        "@shared": path.resolve(root, "shared"),
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, "electron/preload.ts"),
+        },
       },
     },
   },
   renderer: {
-    root,
-    build: {
-      rollupOptions: {
-        input: path.resolve(root, "index.html"),
-      },
+    root: __dirname,
+    server: {
+      port: 30000,
     },
     resolve: {
       alias: {
-        "@": path.resolve(root, "src"),
-        "@shared": path.resolve(root, "shared"),
+        "@": resolve(__dirname, "src"),
       },
     },
-    plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions:{
+        input: {
+          index: resolve(__dirname, "index.html")
+        }
+      }
+    },
+    plugins: [
+      vue(),
+      // @ts-ignore
+      wasm(),
+      AutoImport({
+        imports: [
+          "vue",
+          {
+            "naive-ui": [
+              "useDialog",
+              "useMessage",
+              "useNotification",
+              "useLoadingBar",
+            ],
+          },
+        ],
+      }),
+      Components({
+        resolvers: [NaiveUiResolver()],
+      }),
+    ],
+    
   },
 });
