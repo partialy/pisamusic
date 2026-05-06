@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="blue_selected">#0077ff</color>
+    <color name="gray">#858585</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="transparent">#00000000</color>
+
+    <color name="KG">#4cb0fd</color>
+    <color name="WY">#e895a1</color>
+    <color name="QQ">#22d66e</color>
+    <color name="KW">#ed9929</color>
+    <color name="red">#F44336</color>
+    <!-- 音质选择 Sheet -->
+    <color name="quality_picker_sheet_background">#FFFFFF</color>
+    <color name="quality_picker_item_bg">#F0F2F5</color>
+    <color name="download_quality_selected_stroke">#2196F3</color>
+    <color name="download_cta_button">#2196F3</color>
+    <!-- 设置选项 Bottom Sheet（外观主题、文件命名等） -->
+    <color name="settings_option_picker_sheet_background">#EEEEEE</color>
+    <color name="settings_option_row_bg_normal">#FFFFFF</color>
+    <color name="settings_option_row_bg_selected">#E3F2FD</color>
+    <!-- 设置页：浅灰底 + 卡片内分隔线 -->
+    <color name="settings_page_background">#F2F3F5</color>
+    <color name="settings_card_inset_divider">#EEEEEE</color>
+
+    <color name="colorOnSurface">?attr/colorOnSurface</color>
+    <color name="colorOnBgTitle">#000</color>
+    <color name="colorOnBgNormal">#121212</color>
+    <color name="colorOnBgSecond">#333</color>
+
+    <color name="primary">#2196F3</color>
+    <!-- 设置开关：轨道开/关、滑块（浅色主题） -->
+    <color name="settings_switch_track_on">@color/blue_selected</color>
+    <color name="settings_switch_track_off">#E5E5EA</color>
+    <color name="settings_switch_thumb_checked">#FFFFFFFF</color>
+    <color name="settings_switch_thumb_unchecked">#FFFFFFFF</color>
+    <!-- 设置行右侧摘要：主题主色 @color/blue_selected 约 60% 透明度 -->
+    <color name="settings_row_value_faded_primary">#990077FF</color>
+    <color name="text_secondary">#333</color>
+
+    <color name="home_page_bg">#FEFEFE</color>
+    <color name="home_header_bg">#FEFEFE</color>
+    <color name="home_mini_player_bg">#FFFFFFFF</color>
+    <color name="white_black_bg">#FFFFFFFF</color>
+    <color name="home_mini_player_title">#000000</color>
+    <color name="home_mini_player_subtitle">#8A8A8A</color>
+    <color name="home_tab_selected">#000000</color>
+    <color name="home_tab_unselected">#6E6E6E</color>
+
+    <color name="home_search_field_bg">#EFEFEF</color>
+    <color name="search_history_chip_bg">#F5F5F5</color>
+    <color name="search_history_chip_stroke">#DCDCDC</color>
+    <color name="search_recommend_item_bg">#F8F8F8</color>
+    <color name="search_recommend_item_stroke">#E5E5E5</color>
+
+    <color name="playlist_now_playing_row_bg">#EFEFEF</color>
+    <color name="playlist_playing_text">#0077FF</color>
+    <color name="playlist_item_artist">#757575</color>
+
+    <color name="home_feature_guess_top">#5C1F1F</color>
+    <color name="home_feature_guess_bottom">#3D1414</color>
+    <color name="home_feature_radar_top">#D8D8D8</color>
+    <color name="home_feature_radar_bottom">#757575</color>
+    <color name="home_feature_daily_top">#1E5A7A</color>
+    <color name="home_feature_daily_bottom">#143D52</color>
+    <color name="home_playlist_overlay_scrim">#66000000</color>
+    <color name="home_song_tag_bg">#E3F2FD</color>
+    <color name="home_song_tag_text">#1565C0</color>
+
+    <!-- 歌曲来源 el-tag（浅色表） -->
+    <color name="song_tag_kg_border">#409EFF</color>
+    <color name="song_tag_kg_fill">#ECF5FF</color>
+    <color name="song_tag_kg_text">#409EFF</color>
+    <color name="song_tag_kw_border">#E6A23C</color>
+    <color name="song_tag_kw_fill">#FDF6EC</color>
+    <color name="song_tag_kw_text">#E6A23C</color>
+    <color name="song_tag_wy_border">#F56C6C</color>
+    <color name="song_tag_wy_fill">#FEF0F0</color>
+    <color name="song_tag_wy_text">#F56C6C</color>
+    <color name="song_tag_local_border">#67C23A</color>
+    <color name="song_tag_local_fill">#F0F9EB</color>
+    <color name="song_tag_local_text">#67C23A</color>
+    <!-- 播放页顶栏深色底 -->
+    <color name="song_tag_kg_border_dark">#79BBFF</color>
+    <color name="song_tag_kg_fill_dark">#33409EFF</color>
+    <color name="song_tag_kg_text_dark">#A8D0FF</color>
+    <color name="song_tag_kw_border_dark">#F0C78A</color>
+    <color name="song_tag_kw_fill_dark">#33E6A23C</color>
+    <color name="song_tag_kw_text_dark">#FFD89E</color>
+    <color name="song_tag_wy_border_dark">#FAB6B6</color>
+    <color name="song_tag_wy_fill_dark">#33F56C6C</color>
+    <color name="song_tag_wy_text_dark">#FFC8C8</color>
+    <color name="song_tag_local_border_dark">#95D475</color>
+    <color name="song_tag_local_fill_dark">#3367C23A</color>
+    <color name="song_tag_local_text_dark">#B8E994</color>
+
+    <color name="cache_clean_button_bg">#E53935</color>
+    <color name="import_playlist_start_button">#2E7D32</color>
+    <color name="mine_import_kg_capsule_bg">#3d8bfa</color>
+    <color name="mine_import_wy_capsule_bg">#d81e06</color>
+    <!-- 酷狗导入登录页主色，对齐 music-login-hub App.tsx themeColor -->
+    <color name="playlist_import_kg_brand">#00A9FF</color>
+    <!-- 网易云登录主题色，与 music-login-hub App.tsx #C20C0C 一致 -->
+    <color name="playlist_import_wy_brand">#C20C0C</color>
+    <color name="playlist_import_kg_tab_container">#F3F4F6</color>
+    <color name="playlist_import_kg_input_bg">#F9F9F9</color>
+    <!-- 导入登录：表单滚动区 / 选中 Tab 浮起块（values-night 覆盖） -->
+    <color name="playlist_import_form_bg">#FFFFFF</color>
+    <color name="playlist_import_tab_selected_pill">#FFFFFF</color>
+    <color name="playlist_import_input_divider">#E0E0E0</color>
+    <color name="playlist_import_qr_overlay">#CCFFFFFF</color>
+    <color name="playlist_import_qr_success">#4CAF50</color>
+    <color name="cache_card_stroke">#E8E8E8</color>
+    <color name="cache_usage_bar_app">#F44336</color>
+    <color name="cache_usage_bar_phone_used">#D0D0D0</color>
+    <color name="cache_usage_bar_free">#EEEEEE</color>
+</resources>

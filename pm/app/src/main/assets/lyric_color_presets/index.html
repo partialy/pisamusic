@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>歌词颜色预设</title>
+  <script src="../shared/tailwind.js"></script>
+  <script src="../shared/tailwind-base.js"></script>
+  <script src="colorPicker.js"></script>
+  <style>
+    :root {
+      --bg-flat: #fefefe;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --card-bg: #ffffff;
+      --card-border: rgba(226, 232, 240, 0.95);
+      --pill-bg: rgba(30, 41, 59, 0.03);
+      --pill-border: rgba(100, 116, 139, 0.22);
+      --pill-text: #f8fafc;
+      --pill-code: rgba(241, 245, 249, 0.95);
+      --pill-code-text: #1e293b;
+      --danger-bg: #ef4444;
+      --danger-fg: #ffffff;
+      --danger-border: rgba(255, 255, 255, 0.88);
+      --count-bg: rgba(30, 41, 59, 0.06);
+      --count-fg: #475569;
+      --count-border: rgba(100, 116, 139, 0.2);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-flat: #17191d;
+        --text-main: #e2e8f0;
+        --text-sub: #94a3b8;
+        --card-bg: #1e2126;
+        --card-border: rgba(148, 163, 184, 0.24);
+        --pill-bg: rgba(15, 23, 42, 0.48);
+        --pill-border: rgba(148, 163, 184, 0.32);
+        --pill-text: #f8fafc;
+        --pill-code: rgba(15, 23, 42, 0.70);
+        --pill-code-text: #e2e8f0;
+        --danger-bg: #ef4444;
+        --danger-fg: #ffffff;
+        --danger-border: rgba(226, 232, 240, 0.18);
+        --count-bg: rgba(148, 163, 184, 0.12);
+        --count-fg: #cbd5e1;
+        --count-border: rgba(148, 163, 184, 0.25);
+      }
+    }
+    .page-bg {
+      background: var(--bg-flat);
+    }
+    .card-cp {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    }
+    .txt-main { color: var(--text-main); }
+    .txt-sub { color: var(--text-sub); }
+    .count-badge {
+      background: var(--count-bg);
+      color: var(--count-fg);
+      border: 1px solid var(--count-border);
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 52px;
+    }
+    .color-pill {
+      height: 38px;
+      width: calc(50% - 4px);
+      border-radius: 999px;
+      border: 1px solid var(--pill-border);
+      background: var(--pill-bg);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 6px 4px 5px;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.14);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .color-pill:active {
+      transform: scale(0.97);
+    }
+    .color-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12), 0 4px 10px rgba(0, 0, 0, 0.18);
+      flex: 0 0 auto;
+    }
+    .color-code {
+      border-radius: 999px;
+      padding: 1px 8px;
+      background: var(--pill-code);
+      color: var(--pill-code-text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 20px;
+      letter-spacing: 0.4px;
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      user-select: none;
+    }
+    .del-pill {
+      width: 21px;
+      height: 21px;
+      border-radius: 999px;
+      border: 1px solid var(--danger-border);
+      background: var(--danger-bg);
+      color: var(--danger-fg);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 19px;
+      text-align: center;
+      padding: 0;
+      flex: 0 0 auto;
+    }
+  </style>
+</head>
+<body class="min-h-screen page-bg font-sans antialiased">
+  <div class="max-w-md mx-auto px-3 pt-3 pb-24">
+
+    <!-- 与 cp-modal 一致：大圆角白卡片 -->
+    <section class="card-cp p-4 mb-3">
+      <div class="flex justify-between items-start gap-3 mb-4">
+        <div>
+          <h2 class="font-display text-xl font-bold txt-main m-0 tracking-tight">常规行颜色</h2>
+          <p class="text-[11px] font-bold txt-sub uppercase tracking-widest mt-2">RGB · 最多 <span id="max-hint">12</span> 个</p>
+        </div>
+        <span id="normal-count" class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full count-badge">0</span>
+      </div>
+      <div id="normal-grid" class="pill-row"></div>
+      <button type="button" id="btn-add-normal"
+        class="w-full mt-4 py-2.5 rounded-2xl font-display text-sm font-bold cursor-pointer transition-all duration-300 bg-blue-600 text-white border-none hover:translate-y-[-2px] hover:shadow-xl hover:opacity-90 disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed">
+        添加颜色
+      </button>
+    </section>
+
+    <section class="card-cp p-4 mb-4">
+      <div class="flex justify-between items-start gap-3 mb-4">
+        <div>
+          <h2 class="font-display text-xl font-bold txt-main m-0 tracking-tight">当前行颜色</h2>
+          <p class="text-[11px] font-bold txt-sub uppercase tracking-widest mt-2">含 Alpha</p>
+        </div>
+        <span id="current-count" class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full count-badge">0</span>
+      </div>
+      <div id="current-grid" class="pill-row"></div>
+      <button type="button" id="btn-add-current"
+        class="w-full mt-4 py-2.5 rounded-2xl font-display text-sm font-bold cursor-pointer transition-all duration-300 bg-blue-600 text-white border-none hover:translate-y-[-2px] hover:shadow-xl hover:opacity-90 disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed">
+        添加颜色
+      </button>
+    </section>
+
+    <p id="toast" class="hidden text-center text-sm text-amber-800 py-3 px-4 rounded-2xl bg-amber-100 border border-amber-200/80 shadow-sm"></p>
+  </div>
+
+  <script>
+    var DEFAULT_PRESETS = ['#ef4444','#f97316','#f59e0b','#10b981','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#000000','#64748b','#ffffff'];
+
+    function showToast(msg) {
+      var el = document.getElementById('toast');
+      if (!msg) { el.classList.add('hidden'); return; }
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(window.__toastT);
+      window.__toastT = setTimeout(function () { el.classList.add('hidden'); }, 2600);
+    }
+
+    function parseResult(jsonStr) {
+      try { return JSON.parse(jsonStr); } catch (e) { return { ok: false, message: '数据解析失败' }; }
+    }
+
+    function getState() {
+      if (typeof AndroidLyricColors === 'undefined') {
+        return { maxCount: 12, rowSize: 6, normal: [], current: [] };
+      }
+      return JSON.parse(AndroidLyricColors.getState());
+    }
+
+    function run(action, arg1, arg2) {
+      if (typeof AndroidLyricColors === 'undefined') return { ok: false, message: '未连接' };
+      var s;
+      switch (action) {
+        case 'addNormal': s = AndroidLyricColors.addNormal(arg1); break;
+        case 'addCurrent': s = AndroidLyricColors.addCurrent(arg1); break;
+        case 'removeNormal': s = AndroidLyricColors.removeNormal(arg1); break;
+        case 'removeCurrent': s = AndroidLyricColors.removeCurrent(arg1); break;
+        case 'updateNormal': s = AndroidLyricColors.updateNormal(arg1, arg2); break;
+        case 'updateCurrent': s = AndroidLyricColors.updateCurrent(arg1, arg2); break;
+        default: return { ok: false, message: '未知操作' };
+      }
+      return parseResult(s);
+    }
+
+    /** 常规行：仅 #RRGGBB（8 位 #AARRGGBB 时取 RGB） */
+    function toNormalHex(colorStr) {
+      if (!colorStr) return '#000000';
+      colorStr = String(colorStr).trim();
+      if (colorStr.indexOf('rgba') === 0 || colorStr.indexOf('rgb') === 0) {
+        var m = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (!m) return '#000000';
+        return '#' + [+m[1], +m[2], +m[3]].map(function (x) {
+          return Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0');
+        }).join('').toUpperCase();
+      }
+      var h = colorStr.replace('#', '');
+      if (h.length === 8) h = h.slice(2, 8);
+      if (h.length === 6) return '#' + h.toUpperCase();
+      return '#000000';
+    }
+
+    /** 当前行：#AARRGGBB */
+    function toCurrentHex(colorStr) {
+      if (!colorStr) return '#FFFFFFFF';
+      colorStr = String(colorStr).trim();
+      if (colorStr.indexOf('rgba') === 0 || colorStr.indexOf('rgb') === 0) {
+        var m = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        if (!m) return '#FFFFFFFF';
+        var r = +m[1], g = +m[2], b = +m[3];
+        var a = m[4] !== undefined ? Math.round(parseFloat(m[4]) * 255) : 255;
+        return '#' + [a, r, g, b].map(function (x) {
+          return Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0');
+        }).join('').toUpperCase();
+      }
+      var h = colorStr.replace('#', '');
+      if (h.length === 6) return '#FF' + h.toUpperCase();
+      if (h.length === 8) return '#' + h.toUpperCase();
+      return '#FFFFFFFF';
+    }
+
+    /** #AARRGGBB -> CSS rgba(...)，用于与 colorPicker 的 8 位 hex 语义对齐 */
+    function argbHexToCssColor(colorStr) {
+      if (!colorStr) return 'rgba(255, 255, 255, 1)';
+      var h = String(colorStr).trim().replace('#', '');
+      if (h.length === 6) {
+        var r6 = parseInt(h.slice(0, 2), 16);
+        var g6 = parseInt(h.slice(2, 4), 16);
+        var b6 = parseInt(h.slice(4, 6), 16);
+        return 'rgba(' + r6 + ', ' + g6 + ', ' + b6 + ', 1)';
+      }
+      if (h.length === 8) {
+        var a = parseInt(h.slice(0, 2), 16) / 255;
+        var r = parseInt(h.slice(2, 4), 16);
+        var g = parseInt(h.slice(4, 6), 16);
+        var b = parseInt(h.slice(6, 8), 16);
+        return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + a.toFixed(3) + ')';
+      }
+      return 'rgba(255, 255, 255, 1)';
+    }
+
+    function mergePresets(list) {
+      var out = [];
+      var seen = {};
+      function add(h) {
+        if (!h || seen[h]) return;
+        seen[h] = true;
+        out.push(h);
+      }
+      (list || []).forEach(function (h) {
+        var x = String(h).replace('#', '');
+        if (x.length === 8) x = x.slice(2, 8);
+        if (x.length === 6) add('#' + x.toUpperCase());
+      });
+      DEFAULT_PRESETS.forEach(add);
+      return out.slice(0, 16);
+    }
+
+    function openPickerNormal(initial, title, onPicked) {
+      if (typeof colorPicker === 'undefined') {
+        showToast('取色器未加载');
+        return;
+      }
+      var st = getState();
+      colorPicker.show({
+        initialColor: initial,
+        title: title || '选择颜色',
+        lang: 'zh',
+        onSelect: function (c) { onPicked(toNormalHex(c)); },
+        onCancel: function () {},
+      });
+    }
+
+    function openPickerCurrent(initial, title, onPicked) {
+      if (typeof colorPicker === 'undefined') {
+        showToast('取色器未加载');
+        return;
+      }
+      var st = getState();
+      colorPicker.show({
+        // 当前行在 App 侧使用 #AARRGGBB，colorPicker 的 8 位 hex 按 #RRGGBBAA 解析。
+        // 这里统一先转成 rgba(...)，避免编辑时 alpha 与通道错位。
+        initialColor: argbHexToCssColor(initial),
+        title: title || '选择颜色',
+        lang: 'zh',
+        onSelect: function (c) { onPicked(toCurrentHex(c)); },
+        onCancel: function () {},
+      });
+    }
+
+    function render() {
+      var data = getState();
+      document.getElementById('max-hint').textContent = String(data.maxCount || 12);
+      var normal = data.normal || [];
+      var current = data.current || [];
+      var max = data.maxCount || 12;
+      document.getElementById('normal-count').textContent = normal.length + '/' + max;
+      document.getElementById('current-count').textContent = current.length + '/' + max;
+
+      var ng = document.getElementById('normal-grid');
+      ng.innerHTML = '';
+      normal.forEach(function (hex, idx) {
+        var pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'color-pill';
+        pill.title = '点击修改';
+        pill.onclick = function (e) {
+          e.stopPropagation();
+          openPickerNormal(hex, '常规行颜色', function (out) {
+            var r = run('updateNormal', String(idx), out);
+            if (!r.ok) showToast(r.message || '更新失败');
+            else showToast('');
+            render();
+          });
+        };
+
+        var dot = document.createElement('span');
+        dot.className = 'color-dot';
+        dot.style.backgroundColor = hex;
+
+        var code = document.createElement('span');
+        code.className = 'color-code';
+        code.textContent = toNormalHex(hex);
+
+        var del = document.createElement('span');
+        del.className = 'del-pill';
+        del.textContent = '×';
+        del.onclick = function (e) {
+          e.stopPropagation();
+          var r = run('removeNormal', hex);
+          if (!r.ok) showToast(r.message || '无法删除');
+          else showToast('');
+          render();
+        };
+
+        pill.appendChild(dot);
+        pill.appendChild(code);
+        pill.appendChild(del);
+        ng.appendChild(pill);
+      });
+
+      var cg = document.getElementById('current-grid');
+      cg.innerHTML = '';
+      current.forEach(function (hex, idx) {
+        var pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'color-pill';
+        pill.title = '点击修改';
+        pill.onclick = function (e) {
+          e.stopPropagation();
+          openPickerCurrent(hex, '当前行颜色', function (out) {
+            var r = run('updateCurrent', String(idx), out);
+            if (!r.ok) showToast(r.message || '更新失败');
+            else showToast('');
+            render();
+          });
+        };
+
+        var dot = document.createElement('span');
+        dot.className = 'color-dot';
+        dot.style.background = argbHexToCssColor(hex);
+
+        var code = document.createElement('span');
+        code.className = 'color-code';
+        code.textContent = toCurrentHex(hex);
+
+        var del = document.createElement('span');
+        del.className = 'del-pill';
+        del.textContent = '×';
+        del.onclick = function (e) {
+          e.stopPropagation();
+          var r = run('removeCurrent', hex);
+          if (!r.ok) showToast(r.message || '无法删除');
+          else showToast('');
+          render();
+        };
+
+        pill.appendChild(dot);
+        pill.appendChild(code);
+        pill.appendChild(del);
+        cg.appendChild(pill);
+      });
+
+      document.getElementById('btn-add-normal').disabled = normal.length >= max;
+      document.getElementById('btn-add-current').disabled = current.length >= max;
+    }
+
+    document.getElementById('btn-add-normal').onclick = function () {
+      openPickerNormal('#bfbfbf', '添加常规行颜色', function (out) {
+        var r = run('addNormal', out);
+        if (!r.ok) showToast(r.message || '添加失败');
+        else showToast('');
+        render();
+      });
+    };
+
+    document.getElementById('btn-add-current').onclick = function () {
+      openPickerCurrent('#ffffff', '添加当前行颜色', function (out) {
+        var r = run('addCurrent', out);
+        if (!r.ok) showToast(r.message || '添加失败');
+        else showToast('');
+        render();
+      });
+    };
+
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
+</body>
+</html>

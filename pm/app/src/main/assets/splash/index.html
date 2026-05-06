@@ -1,0 +1,341 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Pisa Music</title>
+  <script src="../shared/tailwind.js"></script>
+  <script src="../shared/tailwind-base.js"></script>
+  <style>
+    .animate-fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .eq-bar {
+      width: 0.25rem;
+      border-radius: 9999px;
+      background: rgb(56 189 248);
+      transform-origin: bottom center;
+      animation: eqStretch var(--eq-dur, 2.2s) cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+      animation-delay: var(--eq-delay, 0s);
+    }
+    @keyframes eqStretch {
+      0% { transform: scaleX(1.0) scaleY(0.3); }
+      50% { transform: scaleX(1.06) scaleY(1); }
+      100% { transform: scaleX(1.0) scaleY(0.3); }
+    }
+
+    .dot-fade { animation: dotFade 1.8s cubic-bezier(0.45, 0.05, 0.25, 1) infinite; opacity: 0.35; }
+    .loading-row .dot-fade:nth-child(1) { animation-delay: 0s; }
+    .loading-row .dot-fade:nth-child(2) { animation-delay: 0.35s; }
+    .loading-row .dot-fade:nth-child(3) { animation-delay: 0.7s; }
+    .loading-row .dot-fade:nth-child(4) { animation-delay: 1.05s; }
+    .loading-row .dot-fade:nth-child(5) { animation-delay: 1.4s; }
+    .loading-row .dot-fade:nth-child(6) { animation-delay: 1.75s; }
+    @keyframes dotFade { 0%, 70%, 100% { opacity: 0.2; } 35% { opacity: 0.95; } }
+
+    .sheet-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.42);
+      backdrop-filter: blur(2px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease;
+      z-index: 40;
+    }
+    .sheet-mask.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .sheet-panel {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      transform: translateY(110%);
+      transition: transform .24s ease-out;
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(226, 232, 240, .9);
+      box-shadow: 0 -10px 30px rgba(15, 23, 42, .18);
+      padding: 18px 16px calc(16px + env(safe-area-inset-bottom));
+      max-height: 80dvh;
+      overflow-y: auto;
+    }
+    @media (prefers-color-scheme: dark) {
+      .sheet-panel {
+        background: rgba(15, 23, 42, 0.94);
+        border-color: rgba(51, 65, 85, .9);
+        box-shadow: 0 -10px 36px rgba(2, 6, 23, .42);
+      }
+    }
+    .sheet-panel.show { transform: translateY(0); }
+
+  </style>
+</head>
+<body class="min-h-[100dvh] flex flex-col items-center bg-gradient-to-b from-sky-50 to-white dark:from-slate-900 dark:to-slate-950 transition-colors duration-500 text-slate-800 dark:text-slate-200 pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))]">
+
+  <div class="flex-1 min-h-4"></div>
+
+  <div class="flex flex-col items-center px-6 animate-fade-in-up">
+    <div class="w-24 h-24 bg-sky-400 rounded-[2rem] flex items-center justify-center shadow-xl shadow-sky-400/30">
+      <svg class="w-12 h-12 text-white rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 18V5l12-2v13" />
+        <circle cx="6" cy="18" r="3" fill="currentColor" />
+        <circle cx="18" cy="16" r="3" fill="currentColor" />
+      </svg>
+    </div>
+
+    <h1 class="mt-8 text-4xl font-bold tracking-tight text-slate-800 dark:text-white">
+      pisa<span class="text-sky-400">music</span>
+    </h1>
+
+    <p class="mt-3 text-sm text-slate-500 dark:text-slate-400 tracking-widest font-light">Simple · Pure</p>
+  </div>
+
+  <div class="flex-1 min-h-4"></div>
+
+  <div class="flex flex-col items-center mb-10 px-6">
+    <div class="flex items-end justify-center gap-1 h-10 mb-4" aria-hidden="true">
+      <div class="eq-bar h-5" style="--eq-dur: 1.6s; --eq-delay: 0ms"></div>
+      <div class="eq-bar h-5" style="--eq-dur: 1.6s; --eq-delay: 250ms"></div>
+      <div class="eq-bar h-5" style="--eq-dur: 1.6s; --eq-delay: 500ms"></div>
+      <div class="eq-bar h-5" style="--eq-dur: 1.6s; --eq-delay: 750ms"></div>
+      <div class="eq-bar h-5" style="--eq-dur: 1.6s; --eq-delay: 1000ms"></div>
+    </div>
+
+    <p class="loading-row text-xs text-sky-600/60 dark:text-sky-400/60 font-medium flex items-center justify-center gap-px" role="status" aria-label="加载中">
+      <span class="dot-fade" aria-hidden="true">加</span>
+      <span class="dot-fade" aria-hidden="true">载</span>
+      <span class="dot-fade" aria-hidden="true">中</span>
+      <span class="dot-fade" aria-hidden="true">.</span>
+      <span class="dot-fade" aria-hidden="true">.</span>
+      <span class="dot-fade" aria-hidden="true">.</span>
+    </p>
+  </div>
+
+  <div id="sheetMask" class="sheet-mask"></div>
+  <div id="sheetPanel" class="sheet-panel" role="dialog" aria-modal="true" aria-label="状态提示弹窗">
+    <div id="sheetContent"></div>
+  </div>
+
+  <script>
+    let sheetType = null;
+    let sheetPayload = null;
+    let downloadingState = { downloading: false, progress: -1, text: '' };
+    const maskEl = document.getElementById('sheetMask');
+    const panelEl = document.getElementById('sheetPanel');
+    const contentEl = document.getElementById('sheetContent');
+
+    function parseUpdateLines(text) {
+      return String(text || '')
+        .split(';')
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function renderSheetContent() {
+      switch (sheetType) {
+        case 'agreement':
+          return `
+            <div class="flex flex-col items-center text-center animate-fade-in-up" style="animation-duration:.3s;">
+              <div class="w-16 h-16 bg-indigo-100 dark:bg-indigo-500/20 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-2">${sheetPayload?.title || '服务协议与隐私政策'}</h3>
+              <div class="text-slate-500 dark:text-slate-400 text-sm mb-6 px-2 text-left space-y-2 w-full max-h-[36vh] overflow-y-auto">${sheetPayload?.content || ''}</div>
+              <div class="w-full flex space-x-3">
+                <button data-action="decline-agreement" class="w-1/3 py-3.5 rounded-2xl bg-gray-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">退出</button>
+                <button data-action="accept-agreement" class="flex-1 py-3.5 rounded-2xl bg-sky-500 text-white font-medium shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-colors">同意并继续</button>
+              </div>
+            </div>
+          `;
+        case 'network':
+          return `
+            <div class="flex flex-col items-center text-center animate-fade-in-up" style="animation-duration:.3s;">
+              <div class="w-16 h-16 bg-orange-100 dark:bg-orange-500/20 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+                </svg>
+              </div>
+              <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-2">网络连接已断开</h3>
+              <p class="text-slate-500 dark:text-slate-400 text-sm mb-6 px-2">${sheetPayload?.message || '无法连接到服务器，请检查您的网络设置，或尝试重新连接。'}</p>
+              <div class="w-full flex flex-col space-y-3">
+                <div class="w-full flex space-x-3">
+                  <button data-action="close" class="flex-1 py-3.5 rounded-2xl bg-gray-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">检查设置</button>
+                  <button data-action="retry" class="flex-1 py-3.5 rounded-2xl bg-sky-500 text-white font-medium shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-colors">重试</button>
+                </div>
+                <button data-action="official-home" class="w-full py-3.5 rounded-2xl bg-white/70 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-white dark:hover:bg-slate-700 transition-colors">前往官网</button>
+              </div>
+            </div>
+          `;
+        case 'error':
+          const unavailable = !!sheetPayload?.unavailable;
+          const actionButton = unavailable
+            ? `<button data-action="exit-app" class="w-full py-3.5 rounded-2xl bg-red-500 text-white font-medium shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors">退出应用</button>`
+            : `<button data-action="retry" class="w-full py-3.5 rounded-2xl bg-sky-500 text-white font-medium shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-colors">重新加载</button>`;
+          const officialHomeButton = `<button data-action="official-home" class="w-full py-3.5 rounded-2xl bg-white/70 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-white dark:hover:bg-slate-700 transition-colors">前往官网</button>`;
+          return `
+            <div class="flex flex-col items-center text-center animate-fade-in-up" style="animation-duration:.3s;">
+              <div class="w-16 h-16 bg-red-100 dark:bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-2">${unavailable ? '当前不可用' : '加载失败'}</h3>
+              <p class="text-slate-500 dark:text-slate-400 text-sm mb-6 px-2">${sheetPayload?.message || '抱歉，我们在获取数据时遇到了未知错误，请稍后重试。'}</p>
+              <div class="w-full flex flex-col space-y-3">
+                ${actionButton}
+                ${officialHomeButton}
+              </div>
+            </div>
+          `;
+        case 'update':
+          const lines = parseUpdateLines(sheetPayload?.updateContent);
+          const notes = lines.map(it => `<div>${it}</div>`).join('');
+          const updateBtnText = downloadingState.downloading
+            ? (downloadingState.progress >= 0 ? `下载中 ${downloadingState.progress}%` : (downloadingState.text || '下载中...'))
+            : '立即更新';
+          const disabledAttr = downloadingState.downloading ? 'disabled' : '';
+          const disabledClass = downloadingState.downloading ? ' opacity-60 pointer-events-none' : '';
+          const skipButton = sheetPayload?.forceUpdate
+            ? ''
+            : `<button data-action="skip" ${disabledAttr} class="w-full py-3.5 rounded-2xl bg-transparent text-slate-500 dark:text-slate-400 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors${disabledClass}">稍后再说</button>`;
+          return `
+            <div class="flex flex-col items-center text-center animate-fade-in-up" style="animation-duration:.3s;">
+              <div class="w-16 h-16 bg-sky-100 dark:bg-sky-500/20 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-sky-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              </div>
+              <h3 class="text-xl font-bold text-slate-800 dark:text-white mb-2">发现新版本 ${sheetPayload?.latestVersion || ''}</h3>
+              <p class="text-xs text-slate-400 dark:text-slate-500 mb-3">${sheetPayload?.updateTime || ''}</p>
+              <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6 w-full text-left">
+                <div class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">${notes || '暂无更新说明'}</div>
+              </div>
+              <div class="w-full flex flex-col space-y-3">
+                <button id="sheetUpdateBtn" data-action="update" ${disabledAttr} class="w-full py-3.5 rounded-2xl bg-sky-500 text-white font-medium shadow-lg shadow-sky-500/30 hover:bg-sky-600 transition-colors${disabledClass}">${updateBtnText}</button>
+                <button id="sheetOfficialBtn" data-action="official" ${disabledAttr} class="w-full py-3.5 rounded-2xl bg-white/70 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-white dark:hover:bg-slate-700 transition-colors${disabledClass}">官网更新</button>
+                ${skipButton}
+              </div>
+            </div>
+          `;
+        default:
+          return '';
+      }
+    }
+
+    function bindSheetActions() {
+      panelEl.querySelectorAll('[data-action]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const action = btn.getAttribute('data-action');
+          if (downloadingState.downloading && action !== 'update') return;
+          if (action === 'retry') {
+            window.AndroidSplash && window.AndroidSplash.retryBootstrap && window.AndroidSplash.retryBootstrap();
+            setSheetType(null);
+            return;
+          }
+          if (action === 'exit-app') {
+            window.AndroidSplash && window.AndroidSplash.exitApp && window.AndroidSplash.exitApp();
+            return;
+          }
+          if (action === 'accept-agreement') {
+            window.AndroidSplash && window.AndroidSplash.acceptAgreement && window.AndroidSplash.acceptAgreement();
+            setSheetType(null);
+            return;
+          }
+          if (action === 'decline-agreement') {
+            window.AndroidSplash && window.AndroidSplash.declineAgreement && window.AndroidSplash.declineAgreement();
+            return;
+          }
+          if (action === 'official') {
+            window.AndroidSplash && window.AndroidSplash.openOfficialSite && window.AndroidSplash.openOfficialSite();
+            return;
+          }
+          if (action === 'official-home') {
+            if (window.AndroidSplash && window.AndroidSplash.openOfficialHome) {
+              window.AndroidSplash.openOfficialHome();
+            } else {
+              window.location.href = 'https://pisamusic.partialy.cn';
+            }
+            return;
+          }
+          if (action === 'update') {
+            window.AndroidSplash && window.AndroidSplash.startAppUpdate && window.AndroidSplash.startAppUpdate();
+            return;
+          }
+          if (action === 'skip') {
+            window.AndroidSplash && window.AndroidSplash.skipUpdate && window.AndroidSplash.skipUpdate();
+            setSheetType(null);
+            return;
+          }
+          setSheetType(null);
+        });
+      });
+    }
+
+    function updateDownloadButtonsOnly() {
+      if (sheetType !== 'update') return;
+      const updateBtn = document.getElementById('sheetUpdateBtn');
+      const officialBtn = document.getElementById('sheetOfficialBtn');
+      const skipBtn = panelEl.querySelector('[data-action="skip"]');
+      if (!updateBtn || !officialBtn) return;
+      const disabled = !!downloadingState.downloading;
+      const text = disabled
+        ? (downloadingState.progress >= 0 ? `下载中 ${downloadingState.progress}%` : (downloadingState.text || '下载中...'))
+        : '立即更新';
+      updateBtn.textContent = text;
+      updateBtn.disabled = disabled;
+      officialBtn.disabled = disabled;
+      if (skipBtn) skipBtn.disabled = disabled;
+      [updateBtn, officialBtn, skipBtn].forEach((btn) => {
+        if (!btn) return;
+        if (disabled) {
+          btn.classList.add('opacity-60', 'pointer-events-none');
+        } else {
+          btn.classList.remove('opacity-60', 'pointer-events-none');
+        }
+      });
+    }
+
+    function setSheetType(type, payload = null) {
+      sheetType = type;
+      sheetPayload = payload;
+      const html = renderSheetContent();
+      contentEl.innerHTML = html;
+      if (sheetType) {
+        maskEl.classList.add('show');
+        panelEl.classList.add('show');
+        bindSheetActions();
+      } else {
+        maskEl.classList.remove('show');
+        panelEl.classList.remove('show');
+      }
+    }
+
+    window.setSheetType = setSheetType;
+    window.splashSheet = {
+      showAgreement: (payload) => setSheetType('agreement', payload || {}),
+      showNetwork: (message) => setSheetType('network', { message }),
+      showError: (payload) => {
+        if (typeof payload === 'string') {
+          setSheetType('error', { message: payload });
+        } else {
+          setSheetType('error', payload || {});
+        }
+      },
+      showUpdate: (payload) => setSheetType('update', payload || {}),
+      setDownloading: (payload) => {
+        downloadingState = Object.assign({ downloading: false, progress: -1, text: '' }, payload || {});
+        updateDownloadButtonsOnly();
+      },
+      close: () => setSheetType(null),
+    };
+  </script>
+</body>
+</html>

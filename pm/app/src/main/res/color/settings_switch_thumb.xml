@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 与常见 Web / iOS 开关一致：白滑块 + 轨道着色 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/settings_switch_thumb_checked" android:state_checked="true" />
+    <item android:color="@color/settings_switch_thumb_unchecked" />
+</selector>

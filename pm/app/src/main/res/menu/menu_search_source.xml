@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/search_source_kg"
+        android:title="@string/search_source_kg" />
+    <item
+        android:id="@+id/search_source_wy"
+        android:title="@string/search_source_wy" />
+    <item
+        android:id="@+id/search_source_kw"
+        android:title="@string/search_source_kw" />
+</menu>

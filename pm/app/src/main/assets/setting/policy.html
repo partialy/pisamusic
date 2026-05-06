@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>协议内容</title>
+    <script>
+        (function() {
+            try {
+                var p = new URLSearchParams(location.search);
+                if (p.get('theme') === 'dark') document.documentElement.classList.add('dark');
+            } catch (_) {}
+        })();
+    </script>
+    <script src="file:///android_asset/shared/tailwind.js"></script>
+    <script src="file:///android_asset/shared/tailwind-base.js"></script>
+    <script defer src="file:///android_asset/shared/message.global.js"></script>
+    <script>
+        tailwind.config.darkMode = 'class';
+    </script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-slate-950 antialiased text-slate-800 dark:text-slate-200">
+<div class="min-h-screen max-w-md mx-auto bg-[#fefefe] dark:bg-[#17191d] px-4 py-4">
+    <h2 id="titleText" class="text-lg font-bold text-slate-800 dark:text-white mb-4">加载中...</h2>
+    <div id="contentBox" class="text-[13px] leading-relaxed text-slate-600 dark:text-slate-300 [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-[15px] [&_h2]:font-bold [&_p]:mb-3 [&_li]:mb-1 [&_a]:text-sky-500"></div>
+</div>
+
+<script>
+    (function() {
+        var titleText = document.getElementById('titleText');
+        var contentBox = document.getElementById('contentBox');
+        window.PM_POLICY = {
+            render: function(data) {
+                if (!data) return;
+                titleText.textContent = data.title || '协议内容';
+                contentBox.innerHTML = data.content || '';
+            },
+            setError: function(message) {
+                titleText.textContent = '加载失败';
+                contentBox.innerHTML = '';
+                if (window.message && typeof window.message.error === 'function') {
+                    window.message.error(message || '加载失败');
+                }
+            }
+        };
+    })();
+</script>
+</body>
+</html>
+

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/discoverRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/home_page_bg"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/discoverHeaderBar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/home_header_bar_height"
+        android:background="@color/home_header_bg">
+
+        <LinearLayout
+            android:id="@+id/discoverHeaderContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp">
+
+            <ImageButton
+                android:id="@+id/discoverMenuButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/open_menu"
+                android:padding="8dp"
+                android:src="@drawable/ic_menu_24"
+                app:tint="@color/home_tab_unselected" />
+
+            <TextView
+                android:id="@+id/discoverTitle"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="@string/discover_title"
+                android:textColor="@color/colorOnBgNormal"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/discoverSearchButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/search"
+                android:padding="8dp"
+                android:src="@drawable/ic_search_24"
+                app:tint="@color/home_tab_unselected" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <WebView
+        android:id="@+id/discoverWebView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/transparent" />
+</LinearLayout>

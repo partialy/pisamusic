@@ -1,0 +1,640 @@
+import { DatabaseSync } from "node:sqlite";
+import { getAppDb } from "./appDb";
+
+export type AppUpdate = {
+  latestVersion: string;
+  updateTime: string;
+  forceUpdate: boolean;
+  downloadUrl: string;
+  officialUrl: string;
+  updateContent: string;
+};
+
+export type GatewaySignConfig = {
+  secret: string;
+  as: string;
+};
+
+export type AvailabilityConfig = {
+  appAvailable: boolean;
+  unavailableReason: string;
+};
+
+export type BootstrapConfig = {
+  version: string;
+  updatedAt: number;
+  endpoints: Record<string, string>;
+  gatewaySign?: GatewaySignConfig;
+};
+
+export type TextContentConfig = {
+  title: string;
+  content: string;
+};
+
+export type AboutConfig = {
+  appName: string;
+  websiteLabel: string;
+  websiteUrl: string;
+  description: string;
+  team: string;
+  copyright: string;
+};
+
+export type DiscoverConfig = {
+  url: string;
+  updatedAt: number;
+};
+
+export type AppConfig = {
+  availability: AvailabilityConfig;
+  bootstrap: BootstrapConfig;
+  update: AppUpdate;
+  agreement: TextContentConfig;
+  privacy: TextContentConfig;
+  about: AboutConfig;
+  discover: DiscoverConfig;
+  encryption?: {
+    plaintextPaths: string[];
+  };
+};
+
+export type EditableAppConfigSections = {
+  availability?: AvailabilityConfig;
+  bootstrap?: Partial<BootstrapConfig>;
+  agreement?: TextContentConfig;
+  privacy?: TextContentConfig;
+  about?: AboutConfig;
+  discover?: DiscoverConfig;
+};
+
+export type UpdateHistoryItem = {
+  id: string;
+  version: string;
+  updateTime: string;
+  forceUpdate: boolean;
+  downloadUrl: string;
+  officialUrl: string;
+  updateContent: string;
+};
+
+export type Announcement = {
+  id: string;
+  content: string;
+  time: string;
+  publisher: string;
+  confirmText: string;
+  showEveryTime?: boolean;
+  showGotoButton: boolean;
+  gotoUrl?: string;
+};
+
+export type AdminUser = {
+  username: string;
+  passwordHash: string;
+};
+
+export type FeedbackItem = {
+  id: string;
+  createdAt: string;
+  feedback_type: string;
+  description: string;
+  contact: string | null;
+  device: Record<string, unknown>;
+  imagePaths: string[];
+};
+
+const DEFAULT_APP_CONFIG: AppConfig = {
+  availability: {
+    appAvailable: true,
+    unavailableReason: "Service is under maintenance",
+  },
+  bootstrap: {
+    version: "v1.0.0",
+    updatedAt: 0,
+    endpoints: {},
+    gatewaySign: {
+      secret: "partialypartialypartialypartialy",
+      as: "yixivip",
+    },
+  },
+  update: {
+    latestVersion: "v0.0.0",
+    updateTime: "",
+    forceUpdate: false,
+    downloadUrl: "",
+    officialUrl: "",
+    updateContent: "",
+  },
+  agreement: { title: "", content: "" },
+  privacy: { title: "", content: "" },
+  about: {
+    appName: "PisaMusic",
+    websiteLabel: "",
+    websiteUrl: "",
+    description: "",
+    team: "",
+    copyright: "",
+  },
+  discover: {
+    url: "USE_LOCAL_FILE",
+    updatedAt: 0,
+  },
+  encryption: {
+    plaintextPaths: [],
+  },
+};
+
+function boolFromDb(value: unknown): boolean {
+  return Number(value) !== 0;
+}
+
+function boolToDb(value: boolean): number {
+  return value ? 1 : 0;
+}
+
+function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const result = fn();
+    db.exec("COMMIT");
+    return result;
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+}
+
+export function getJsonImport(source: string): boolean {
+  const db = getAppDb();
+  const row = db.prepare("SELECT source FROM json_imports WHERE source = ?").get(source) as
+    | { source: string }
+    | undefined;
+  return Boolean(row);
+}
+
+export function markJsonImported(source: string) {
+  const db = getAppDb();
+  db.prepare(
+    `INSERT INTO json_imports (source, imported_at)
+     VALUES (?, ?)
+     ON CONFLICT(source) DO UPDATE SET imported_at = excluded.imported_at`,
+  ).run(source, Date.now());
+}
+
+export function hasAppSettings(): boolean {
+  const db = getAppDb();
+  const row = db.prepare("SELECT id FROM app_settings WHERE id = 1").get() as { id: number } | undefined;
+  return Boolean(row);
+}
+
+export function replaceAppConfig(config: AppConfig) {
+  const db = getAppDb();
+  runInTransaction(db, () => {
+    const now = Date.now();
+    db.prepare(
+      `INSERT INTO app_settings (
+        id, app_available, unavailable_reason, bootstrap_version, bootstrap_updated_at,
+        gateway_secret, gateway_as, created_at, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        app_available = excluded.app_available,
+        unavailable_reason = excluded.unavailable_reason,
+        bootstrap_version = excluded.bootstrap_version,
+        bootstrap_updated_at = excluded.bootstrap_updated_at,
+        gateway_secret = excluded.gateway_secret,
+        gateway_as = excluded.gateway_as,
+        updated_at = excluded.updated_at`,
+    ).run(
+      boolToDb(config.availability.appAvailable),
+      config.availability.unavailableReason,
+      config.bootstrap.version,
+      config.bootstrap.updatedAt,
+      config.bootstrap.gatewaySign?.secret ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.secret ?? "",
+      config.bootstrap.gatewaySign?.as ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.as ?? "",
+      now,
+      now,
+    );
+
+    replaceEndpoints(db, config.bootstrap.endpoints);
+    replaceContentPage(db, "agreement", config.agreement);
+    replaceContentPage(db, "privacy", config.privacy);
+    replaceAbout(db, config.about);
+    replaceCurrentUpdate(db, config.update);
+    replaceDiscover(db, config.discover ?? DEFAULT_APP_CONFIG.discover);
+    replacePlaintextPathsWithDb(db, config.encryption?.plaintextPaths ?? []);
+  });
+}
+
+function replaceEndpoints(db: DatabaseSync, endpoints: Record<string, string>) {
+  db.prepare("DELETE FROM bootstrap_endpoints").run();
+  const insert = db.prepare("INSERT INTO bootstrap_endpoints (key, value, sort_order) VALUES (?, ?, ?)");
+  Object.entries(endpoints).forEach(([key, value], index) => insert.run(key, value, index));
+}
+
+function replaceContentPage(db: DatabaseSync, code: string, page: TextContentConfig) {
+  db.prepare(
+    `INSERT INTO content_pages (code, title, content, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(code) DO UPDATE SET
+       title = excluded.title,
+       content = excluded.content,
+       updated_at = excluded.updated_at`,
+  ).run(code, page.title, page.content, Date.now());
+}
+
+function replaceAbout(db: DatabaseSync, about: AboutConfig) {
+  db.prepare(
+    `INSERT INTO about_config (
+      id, app_name, website_label, website_url, description, team, copyright, updated_at
+    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      app_name = excluded.app_name,
+      website_label = excluded.website_label,
+      website_url = excluded.website_url,
+      description = excluded.description,
+      team = excluded.team,
+      copyright = excluded.copyright,
+      updated_at = excluded.updated_at`,
+  ).run(
+    about.appName,
+    about.websiteLabel,
+    about.websiteUrl,
+    about.description,
+    about.team,
+    about.copyright,
+    Date.now(),
+  );
+}
+
+function replaceCurrentUpdate(db: DatabaseSync, update: AppUpdate) {
+  db.prepare(
+    `INSERT INTO current_update (
+      id, latest_version, update_time, force_update, download_url, official_url, update_content, updated_at
+    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      latest_version = excluded.latest_version,
+      update_time = excluded.update_time,
+      force_update = excluded.force_update,
+      download_url = excluded.download_url,
+      official_url = excluded.official_url,
+      update_content = excluded.update_content,
+      updated_at = excluded.updated_at`,
+  ).run(
+    update.latestVersion,
+    update.updateTime,
+    boolToDb(update.forceUpdate),
+    update.downloadUrl,
+    update.officialUrl,
+    update.updateContent,
+    Date.now(),
+  );
+}
+
+function replaceDiscover(db: DatabaseSync, discover: DiscoverConfig) {
+  db.prepare(
+    `INSERT INTO discover_config (id, url, updated_at)
+     VALUES (1, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       url = excluded.url,
+       updated_at = excluded.updated_at`,
+  ).run(discover.url, discover.updatedAt);
+}
+
+export function readAppConfig(): AppConfig {
+  const db = getAppDb();
+  const settings = db.prepare("SELECT * FROM app_settings WHERE id = 1").get() as
+    | {
+        app_available: number;
+        unavailable_reason: string;
+        bootstrap_version: string;
+        bootstrap_updated_at: number;
+        gateway_secret: string;
+        gateway_as: string;
+      }
+    | undefined;
+  const endpoints = db
+    .prepare("SELECT key, value FROM bootstrap_endpoints ORDER BY sort_order ASC, key ASC")
+    .all() as { key: string; value: string }[];
+  const pages = db.prepare("SELECT code, title, content FROM content_pages").all() as {
+    code: string;
+    title: string;
+    content: string;
+  }[];
+  const about = db.prepare("SELECT * FROM about_config WHERE id = 1").get() as
+    | {
+        app_name: string;
+        website_label: string;
+        website_url: string;
+        description: string;
+        team: string;
+        copyright: string;
+      }
+    | undefined;
+  const update = db.prepare("SELECT * FROM current_update WHERE id = 1").get() as
+    | {
+        latest_version: string;
+        update_time: string;
+        force_update: number;
+        download_url: string;
+        official_url: string;
+        update_content: string;
+      }
+    | undefined;
+  const discover = db.prepare("SELECT * FROM discover_config WHERE id = 1").get() as
+    | {
+        url: string;
+        updated_at: number;
+      }
+    | undefined;
+  const pageByCode = new Map(pages.map((page) => [page.code, page]));
+
+  return {
+    availability: {
+      appAvailable: settings ? boolFromDb(settings.app_available) : DEFAULT_APP_CONFIG.availability.appAvailable,
+      unavailableReason: settings?.unavailable_reason ?? DEFAULT_APP_CONFIG.availability.unavailableReason,
+    },
+    bootstrap: {
+      version: settings?.bootstrap_version ?? DEFAULT_APP_CONFIG.bootstrap.version,
+      updatedAt: settings?.bootstrap_updated_at ?? DEFAULT_APP_CONFIG.bootstrap.updatedAt,
+      endpoints: Object.fromEntries(endpoints.map((row) => [row.key, row.value])),
+      gatewaySign: {
+        secret: settings?.gateway_secret ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.secret ?? "",
+        as: settings?.gateway_as ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.as ?? "",
+      },
+    },
+    update: update
+      ? {
+          latestVersion: update.latest_version,
+          updateTime: update.update_time,
+          forceUpdate: boolFromDb(update.force_update),
+          downloadUrl: update.download_url,
+          officialUrl: update.official_url,
+          updateContent: update.update_content,
+        }
+      : DEFAULT_APP_CONFIG.update,
+    agreement: pageByCode.get("agreement") ?? DEFAULT_APP_CONFIG.agreement,
+    privacy: pageByCode.get("privacy") ?? DEFAULT_APP_CONFIG.privacy,
+    about: about
+      ? {
+          appName: about.app_name,
+          websiteLabel: about.website_label,
+          websiteUrl: about.website_url,
+          description: about.description,
+          team: about.team,
+          copyright: about.copyright,
+        }
+      : DEFAULT_APP_CONFIG.about,
+    discover: discover
+      ? {
+          url: discover.url,
+          updatedAt: discover.updated_at,
+        }
+      : DEFAULT_APP_CONFIG.discover,
+    encryption: {
+      plaintextPaths: readPlaintextPaths(),
+    },
+  };
+}
+
+export function shouldBlock(config: AppConfig): { blocked: boolean; reason: string } {
+  if (config.availability.appAvailable) return { blocked: false, reason: "" };
+  return {
+    blocked: true,
+    reason: config.availability.unavailableReason || "服务暂不可用",
+  };
+}
+
+export function saveAppConfigSections(sections: EditableAppConfigSections): AppConfig {
+  const current = readAppConfig();
+  const next: AppConfig = {
+    ...current,
+    availability: sections.availability ?? current.availability,
+    bootstrap: {
+      ...current.bootstrap,
+      ...(sections.bootstrap ?? {}),
+      endpoints: sections.bootstrap?.endpoints ?? current.bootstrap.endpoints,
+      gatewaySign: sections.bootstrap?.gatewaySign ?? current.bootstrap.gatewaySign,
+    },
+    agreement: sections.agreement ?? current.agreement,
+    privacy: sections.privacy ?? current.privacy,
+    about: sections.about ?? current.about,
+    discover: sections.discover ?? current.discover,
+  };
+  replaceAppConfig(next);
+  return readAppConfig();
+}
+
+export function publishUpdate(update: AppUpdate, historyId: string): UpdateHistoryItem {
+  const db = getAppDb();
+  const item: UpdateHistoryItem = {
+    id: historyId,
+    version: update.latestVersion,
+    updateTime: update.updateTime,
+    forceUpdate: update.forceUpdate,
+    downloadUrl: update.downloadUrl,
+    officialUrl: update.officialUrl,
+    updateContent: update.updateContent,
+  };
+  runInTransaction(db, () => {
+    replaceCurrentUpdate(db, update);
+    insertUpdateHistory(db, item);
+  });
+  return item;
+}
+
+export function insertUpdateHistory(db: DatabaseSync, item: UpdateHistoryItem, createdAt = Date.now()) {
+  db.prepare(
+    `INSERT OR IGNORE INTO update_history (
+      id, version, update_time, force_update, download_url, official_url, update_content, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    item.id,
+    item.version,
+    item.updateTime,
+    boolToDb(item.forceUpdate),
+    item.downloadUrl,
+    item.officialUrl,
+    item.updateContent,
+    createdAt,
+  );
+}
+
+export function readUpdateHistory(): UpdateHistoryItem[] {
+  const db = getAppDb();
+  const rows = db.prepare("SELECT * FROM update_history ORDER BY created_at ASC, rowid ASC").all() as {
+    id: string;
+    version: string;
+    update_time: string;
+    force_update: number;
+    download_url: string;
+    official_url: string;
+    update_content: string;
+  }[];
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    updateTime: row.update_time,
+    forceUpdate: boolFromDb(row.force_update),
+    downloadUrl: row.download_url,
+    officialUrl: row.official_url,
+    updateContent: row.update_content,
+  }));
+}
+
+export function readAnnouncements(): Announcement[] {
+  const db = getAppDb();
+  const rows = db.prepare("SELECT * FROM announcements ORDER BY sort_order ASC, rowid ASC").all() as {
+    id: string;
+    content: string;
+    time: string;
+    publisher: string;
+    confirm_text: string;
+    show_every_time: number;
+    show_goto_button: number;
+    goto_url: string | null;
+  }[];
+  return rows.map((row) => ({
+    id: row.id,
+    content: row.content,
+    time: row.time,
+    publisher: row.publisher,
+    confirmText: row.confirm_text,
+    showEveryTime: boolFromDb(row.show_every_time),
+    showGotoButton: boolFromDb(row.show_goto_button),
+    gotoUrl: row.goto_url ?? "",
+  }));
+}
+
+export function saveAnnouncement(announcement: Announcement): Announcement {
+  const db = getAppDb();
+  const existing = db.prepare("SELECT sort_order FROM announcements WHERE id = ?").get(announcement.id) as
+    | { sort_order: number }
+    | undefined;
+  const maxRow = db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM announcements").get() as {
+    max_order: number;
+  };
+  const sortOrder = existing?.sort_order ?? maxRow.max_order + 1;
+  db.prepare(
+    `INSERT INTO announcements (
+      id, content, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      content = excluded.content,
+      time = excluded.time,
+      publisher = excluded.publisher,
+      confirm_text = excluded.confirm_text,
+      show_every_time = excluded.show_every_time,
+      show_goto_button = excluded.show_goto_button,
+      goto_url = excluded.goto_url`,
+  ).run(
+    announcement.id,
+    announcement.content,
+    announcement.time,
+    announcement.publisher,
+    announcement.confirmText,
+    boolToDb(Boolean(announcement.showEveryTime)),
+    boolToDb(announcement.showGotoButton),
+    announcement.gotoUrl ?? "",
+    sortOrder,
+  );
+  return announcement;
+}
+
+export function deleteAnnouncement(id: string): boolean {
+  const db = getAppDb();
+  const result = db.prepare("DELETE FROM announcements WHERE id = ?").run(id);
+  return result.changes > 0;
+}
+
+export function insertAnnouncement(db: DatabaseSync, announcement: Announcement, sortOrder: number) {
+  db.prepare(
+    `INSERT OR IGNORE INTO announcements (
+      id, content, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    announcement.id,
+    announcement.content,
+    announcement.time,
+    announcement.publisher,
+    announcement.confirmText,
+    boolToDb(Boolean(announcement.showEveryTime)),
+    boolToDb(announcement.showGotoButton),
+    announcement.gotoUrl ?? "",
+    sortOrder,
+  );
+}
+
+export function readPlaintextPaths(): string[] {
+  const db = getAppDb();
+  const rows = db
+    .prepare("SELECT path FROM encryption_plaintext_paths ORDER BY sort_order ASC, path ASC")
+    .all() as { path: string }[];
+  return rows.map((row) => row.path);
+}
+
+export function replacePlaintextPaths(paths: string[]) {
+  const db = getAppDb();
+  runInTransaction(db, () => replacePlaintextPathsWithDb(db, paths));
+}
+
+function replacePlaintextPathsWithDb(db: DatabaseSync, paths: string[]) {
+  db.prepare("DELETE FROM encryption_plaintext_paths").run();
+  const insert = db.prepare("INSERT INTO encryption_plaintext_paths (path, sort_order) VALUES (?, ?)");
+  paths.forEach((path, index) => insert.run(path, index));
+}
+
+export function readAdminUser(username: string): AdminUser | null {
+  const db = getAppDb();
+  const row = db.prepare("SELECT username, password_hash FROM admin_users WHERE username = ?").get(username) as
+    | { username: string; password_hash: string }
+    | undefined;
+  return row ? { username: row.username, passwordHash: row.password_hash } : null;
+}
+
+export function readAnyAdminUser(): AdminUser | null {
+  const db = getAppDb();
+  const row = db.prepare("SELECT username, password_hash FROM admin_users ORDER BY rowid ASC LIMIT 1").get() as
+    | { username: string; password_hash: string }
+    | undefined;
+  return row ? { username: row.username, passwordHash: row.password_hash } : null;
+}
+
+export function upsertAdminUser(user: AdminUser) {
+  const db = getAppDb();
+  db.prepare(
+    `INSERT INTO admin_users (username, password_hash, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(username) DO UPDATE SET
+       password_hash = excluded.password_hash,
+       updated_at = excluded.updated_at`,
+  ).run(user.username, user.passwordHash, Date.now());
+}
+
+export function insertFeedback(item: FeedbackItem) {
+  const db = getAppDb();
+  runInTransaction(db, () => {
+    db.prepare(
+      `INSERT OR IGNORE INTO feedback (
+        id, created_at, feedback_type, description, contact, device_json
+      ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(
+      item.id,
+      item.createdAt,
+      item.feedback_type,
+      item.description,
+      item.contact,
+      JSON.stringify(item.device ?? {}),
+    );
+    const insertImage = db.prepare(
+      `INSERT INTO feedback_images (feedback_id, image_path, sort_order)
+       SELECT ?, ?, ?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM feedback_images WHERE feedback_id = ? AND image_path = ?
+       )`,
+    );
+    item.imagePaths.forEach((imagePath, index) => {
+      insertImage.run(item.id, imagePath, index, item.id, imagePath);
+    });
+  });
+}

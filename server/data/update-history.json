@@ -1,0 +1,29 @@
+[
+  {
+    "id": "init_v2.1.1",
+    "version": "v2.1.1",
+    "updateTime": "2025-6-10 10:00",
+    "forceUpdate": false,
+    "downloadUrl": "https://cloudreve.yixivip.top/f/yMtV/echo_v1.1.0.apk",
+    "officialUrl": "https://pisamusic.partialy.cn",
+    "updateContent": "1, Fix known issues;2, Improve splash flow"
+  },
+  {
+    "id": "c88e4149-7ac0-46b8-849e-0ac6f7457ca5",
+    "version": "v2.1.1",
+    "updateTime": "2026-04-12 12:22",
+    "forceUpdate": false,
+    "downloadUrl": "https://pisamusic.partialy.cn",
+    "officialUrl": "https://pisamusic.partialy.cn",
+    "updateContent": "1"
+  },
+  {
+    "id": "aa9c1d42-0252-4ed4-8e43-6313ff5e8b50",
+    "version": "v2.1.2",
+    "updateTime": "2026-04-12 12:22",
+    "forceUpdate": false,
+    "downloadUrl": "https://pisamusic.partialy.cn",
+    "officialUrl": "https://pisamusic.partialy.cn",
+    "updateContent": "1"
+  }
+]

@@ -1,0 +1,239 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Noto+Sans+SC:wght@500;700;900&family=Sora:wght@700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #101828;
+  background: #f8fcff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  font-family: "Manrope", "Noto Sans SC", system-ui, sans-serif;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img {
+  max-width: 100%;
+}
+
+::selection {
+  color: #ffffff;
+  background: #27b8f4;
+}
+
+.rise-in {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translate3d(0, 28px, 0) scale(0.985);
+  transition:
+    opacity 760ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 760ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity, filter, transform;
+}
+
+.rise-in.is-visible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.rise-delay-2 {
+  transition-delay: 140ms;
+}
+
+.float-soft {
+  animation: floatSoft 7s ease-in-out infinite;
+}
+
+.pill-cta {
+  position: relative;
+  display: inline-flex;
+  min-height: 64px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  overflow: hidden;
+  border-radius: 9999px;
+  padding: 0 28px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  transition:
+    transform 280ms ease,
+    box-shadow 280ms ease,
+    border-color 280ms ease,
+    background-color 280ms ease,
+    color 280ms ease;
+}
+
+.pill-cta::after {
+  position: absolute;
+  inset: -35%;
+  content: "";
+  background: linear-gradient(110deg, transparent 22%, rgba(255, 255, 255, 0.34) 48%, transparent 70%);
+  transform: translateX(-120%) rotate(8deg);
+  animation: pillSweep 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.pill-cta:hover {
+  transform: translateY(-2px) scale(1.01);
+}
+
+.pill-cta:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.pill-cta-primary {
+  color: #ffffff;
+  background: #101828;
+  box-shadow: 0 18px 42px rgba(16, 24, 40, 0.24);
+}
+
+.pill-cta-primary:hover {
+  box-shadow: 0 24px 54px rgba(16, 24, 40, 0.28);
+}
+
+.pill-cta-secondary {
+  color: #101828;
+  border: 1px solid rgba(39, 184, 244, 0.24);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 38px rgba(39, 184, 244, 0.14);
+}
+
+.pill-cta-secondary:hover {
+  color: #0077aa;
+  border-color: rgba(39, 184, 244, 0.55);
+  box-shadow: 0 22px 48px rgba(39, 184, 244, 0.2);
+}
+
+.pill-cta-disabled {
+  cursor: not-allowed;
+  color: #64748b;
+  background: #dbe4ee;
+  box-shadow: none;
+}
+
+.pill-cta-disabled::after {
+  display: none;
+}
+
+.shine-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-line::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  animation: lineShine 3.2s ease-in-out infinite;
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatSoft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes lineShine {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  55%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes pillSweep {
+  0%,
+  38% {
+    transform: translateX(-120%) rotate(8deg);
+  }
+
+  62%,
+  100% {
+    transform: translateX(120%) rotate(8deg);
+  }
+}
+
+@media (min-width: 640px) {
+  .pill-cta {
+    width: auto;
+    min-width: 190px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

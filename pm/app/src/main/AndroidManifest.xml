@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="cn.partialy.pm">
+
+    <!-- Android 13及以上 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+    <!-- Android 13以下 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- 可选：通知权限（Android 13及以上需要） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 可选：网络权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+
+    <!-- 照片和视频权限 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    
+    <!-- 音频文件权限 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Pm"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:targetApi="31"
+        android:requestLegacyExternalStorage="true">
+
+        <!-- 配置 SplashActivity 作为启动页面 -->
+        <activity
+            android:name=".activity.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.App.Splash"
+            android:screenOrientation="fullSensor"
+            tools:ignore="DiscouragedApi">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".activity.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+        </activity>
+        
+        <activity
+            android:name=".activity.SearchActivity"
+            android:label="@string/search"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="stateVisible|adjustResize" />
+
+        <activity
+            android:name=".activity.SettingsActivity"
+            android:label="@string/settings"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.LyricColorPresetsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.WebContentActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.setting.SettingAnnouncementsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.setting.SettingCheckUpdateActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.setting.SettingAboutActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.setting.SettingServiceAgreementActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.setting.SettingPrivacyPolicyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.FeedbackWebActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.DataManagementActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.CacheManagementActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.PlayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.PlaylistDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.WyPlaylistDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.LovedSongsPlaylistActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.LocalPlaylistDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.LocalMusicActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".activity.LocalMusicEditActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.PlaylistImportActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.WyPlaylistLoginActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activity.WyWebPlaylistLoginActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.DevDebugActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.home.HomePlaylistExploreActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.home.HomePlaylistListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <service
+            android:name=".service.MusicService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService"/>
+            </intent-filter>
+        </service>
+    </application>
+
+</manifest>

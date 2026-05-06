@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/miniPlayerCard"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/home_mini_player_height"
+    android:translationY="@dimen/home_mini_player_overlap"
+    app:cardBackgroundColor="@color/home_mini_player_bg"
+    app:cardCornerRadius="48dp"
+    app:cardElevation="4dp"
+    app:cardUseCompatPadding="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="6dp">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/miniPlayerCover"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_pisa_round_24"
+            app:shapeAppearanceOverlay="@style/CircleShape" />
+
+        <TextView
+            android:id="@+id/miniPlayerSongTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/home_mini_player_hint"
+            android:textColor="@color/home_mini_player_title"
+            android:textSize="16sp" />
+
+        <ImageButton
+            android:id="@+id/miniPlayerPlayButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/now_playing"
+            android:padding="8dp"
+            android:src="@drawable/ic_play_24"
+            app:tint="@color/home_tab_selected" />
+
+        <ImageButton
+            android:id="@+id/miniPlayerQueueButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/currentPlayList"
+            android:padding="8dp"
+            android:src="@drawable/ic_playlist_24"
+            app:tint="@color/home_tab_unselected" />
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

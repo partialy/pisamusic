@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 添加底部弹出动画 -->
+    <style name="ActivityAnimation.BottomUp" parent="android:Animation.Activity">
+        <item name="android:windowEnterAnimation">@anim/slide_up</item>
+        <item name="android:windowExitAnimation">@anim/slide_down</item>
+    </style>
+
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight">
+        <item name="customToolbarBackground">@android:color/white</item>
+    </style>
+
+    <style name="CircleShape">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- Keep a base entry to satisfy AAPT style grouping -->
+    <style name="ShapeAppearance.Pm" />
+
+    <!-- Some libraries reference @style/ShapeAppearance directly; define a safe alias. -->
+    <style name="ShapeAppearance" parent="ShapeAppearance.MaterialComponents" />
+
+    <style name="ShapeAppearance.Pm.Corner12">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <!-- 设置页：白滑块 + 蓝轨道（开）/ 灰轨道（关），接近 Web / iOS 开关 -->
+    <style name="Widget.Pm.SettingsSwitch" parent="Widget.Material3.CompoundButton.Switch">
+        <item name="thumbTint">@color/settings_switch_thumb</item>
+        <item name="trackTint">@color/settings_switch_track</item>
+        <item name="useMaterialThemeColors">false</item>
+    </style>
+</resources>

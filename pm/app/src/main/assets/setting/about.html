@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>关于 - pisamusic</title>
+    <script>
+        (function() {
+            try {
+                var p = new URLSearchParams(location.search);
+                if (p.get('theme') === 'dark') document.documentElement.classList.add('dark');
+            } catch (_) {}
+        })();
+    </script>
+    <script src="file:///android_asset/shared/tailwind.js"></script>
+    <script src="file:///android_asset/shared/tailwind-base.js"></script>
+    <script defer src="file:///android_asset/shared/message.global.js"></script>
+    <script>
+        tailwind.config.darkMode = 'class';
+        Object.assign(tailwind.config.theme.extend, {
+            colors: {
+                sky: { 400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7' }
+            }
+        });
+    </script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-slate-950 antialiased text-slate-800 dark:text-slate-200">
+<div class="relative min-h-screen max-w-md mx-auto bg-[#fefefe] dark:bg-[#17191d] overflow-hidden flex flex-col">
+    <main class="flex-1 overflow-y-auto no-scrollbar pt-8 pb-12 px-6 flex flex-col items-center">
+        <div class="animate-fade-in-up flex flex-col items-center">
+            <div class="w-24 h-24 bg-sky-400 rounded-[2rem] flex items-center justify-center shadow-xl shadow-sky-400/30 mb-5 relative">
+                <svg class="w-12 h-12 text-white rotate-12 relative z-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18V5l12-2v13" />
+                    <circle cx="6" cy="18" r="3" fill="currentColor" />
+                    <circle cx="18" cy="16" r="3" fill="currentColor" />
+                </svg>
+            </div>
+
+            <h2 class="text-3xl font-bold tracking-tight text-slate-800 dark:text-white mb-2">
+                pisa<span class="text-sky-400">music</span>
+            </h2>
+            <div class="inline-flex items-center justify-center px-3 py-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shadow-sm rounded-full mb-8">
+                <span id="versionText" class="text-xs font-medium text-slate-500 dark:text-slate-400">Version -</span>
+            </div>
+        </div>
+
+        <div class="w-full bg-white dark:bg-slate-900 rounded-2xl p-5 mb-8 shadow-sm border border-gray-100 dark:border-slate-800 animate-fade-in-up" style="animation-delay: 0.1s;">
+            <p id="descText" class="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed text-center">加载中...</p>
+        </div>
+
+        <div class="w-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 animate-fade-in-up" style="animation-delay: 0.2s;">
+            <button id="officialBtn" class="w-full flex items-center justify-between p-4 active:bg-gray-50 dark:active:bg-slate-800/50 rounded-t-2xl transition-colors group text-left">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-sky-50 dark:bg-sky-500/10 flex items-center justify-center text-sky-500 mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                    </div>
+                    <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">官方网站</span>
+                </div>
+                <div class="flex items-center">
+                    <span id="websiteLabel" class="text-xs text-slate-400 mr-2"></span>
+                    <svg class="w-4 h-4 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </button>
+
+            <div class="h-px bg-gray-50 dark:bg-slate-800/60 mx-4"></div>
+
+            <button id="checkUpdateBtn" class="w-full flex items-center justify-between p-4 active:bg-gray-50 dark:active:bg-slate-800/50 transition-colors group text-left">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-orange-500 mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                    </div>
+                    <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">检查更新</span>
+                </div>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </button>
+
+            <div class="h-px bg-gray-50 dark:bg-slate-800/60 mx-4"></div>
+
+            <button id="serviceBtn" class="w-full flex items-center justify-between p-4 active:bg-gray-50 dark:active:bg-slate-800/50 transition-colors text-left">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">服务协议</span>
+                </div>
+                <svg class="w-4 h-4 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+
+            <div class="h-px bg-gray-50 dark:bg-slate-800/60 mx-4"></div>
+
+            <button id="privacyBtn" class="w-full flex items-center justify-between p-4 active:bg-gray-50 dark:active:bg-slate-800/50 rounded-b-2xl transition-colors text-left">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">隐私政策</span>
+                </div>
+                <svg class="w-4 h-4 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+        </div>
+    </main>
+
+    <footer class="pb-8 pt-4 flex flex-col items-center justify-center animate-fade-in-up" style="animation-delay: 0.3s;">
+        <p id="teamText" class="text-[11px] text-slate-400 dark:text-slate-500 font-medium tracking-widest mb-1"></p>
+        <p id="copyrightText" class="text-[10px] text-slate-400/60 dark:text-slate-600"></p>
+    </footer>
+</div>
+
+<script>
+    (function() {
+        var state = {
+            appName: 'PisaMusic',
+            websiteLabel: '',
+            websiteUrl: '',
+            description: '',
+            team: '',
+            copyright: '',
+            versionName: ''
+        };
+
+        var els = {
+            versionText: document.getElementById('versionText'),
+            descText: document.getElementById('descText'),
+            websiteLabel: document.getElementById('websiteLabel'),
+            teamText: document.getElementById('teamText'),
+            copyrightText: document.getElementById('copyrightText'),
+            officialBtn: document.getElementById('officialBtn'),
+            checkUpdateBtn: document.getElementById('checkUpdateBtn'),
+            serviceBtn: document.getElementById('serviceBtn'),
+            privacyBtn: document.getElementById('privacyBtn')
+        };
+
+        function bindEvents() {
+            els.officialBtn.addEventListener('click', function() {
+                if (window.AndroidAboutHost && state.websiteUrl) {
+                    window.AndroidAboutHost.openUrl(state.websiteUrl);
+                }
+            });
+            els.checkUpdateBtn.addEventListener('click', function() {
+                if (window.AndroidAboutHost) {
+                    window.AndroidAboutHost.openCheckUpdate();
+                }
+            });
+            els.serviceBtn.addEventListener('click', function() {
+                if (window.AndroidAboutHost && typeof window.AndroidAboutHost.openServiceAgreement === 'function') {
+                    window.AndroidAboutHost.openServiceAgreement();
+                }
+            });
+            els.privacyBtn.addEventListener('click', function() {
+                if (window.AndroidAboutHost && typeof window.AndroidAboutHost.openPrivacyPolicy === 'function') {
+                    window.AndroidAboutHost.openPrivacyPolicy();
+                }
+            });
+        }
+
+        window.PM_ABOUT = {
+            render: function(data) {
+                if (!data) return;
+                state.appName = data.appName || state.appName;
+                state.websiteLabel = data.websiteLabel || '';
+                state.websiteUrl = data.websiteUrl || '';
+                state.description = data.description || '';
+                state.team = data.team || '';
+                state.copyright = data.copyright || '';
+                state.versionName = data.versionName || '';
+
+                els.versionText.textContent = 'Version ' + (state.versionName || '-');
+                els.websiteLabel.textContent = state.websiteLabel || '';
+                els.descText.textContent = state.description || '';
+                els.teamText.textContent = state.team ? ('Made with ❤ by ' + state.team) : '';
+                els.copyrightText.textContent = state.copyright || '';
+            },
+            setError: function(message) {
+                if (window.message && typeof window.message.error === 'function') {
+                    window.message.error(message || '关于信息获取失败');
+                }
+            }
+        };
+
+        bindEvents();
+    })();
+</script>
+</body>
+</html>
+

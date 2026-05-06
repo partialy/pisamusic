@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "id": "e07b55d0-91df-4989-a1d5-ff5492672946",
+      "createdAt": "2026-04-10T04:26:59.462Z",
+      "feedback_type": "bug",
+      "description": "12313213",
+      "contact": "111111111111111",
+      "device": {
+        "manufacturer": "Xiaomi",
+        "brand": "Xiaomi",
+        "model": "24031PN0DC",
+        "device": "aurora",
+        "product": "aurora",
+        "display": "V417IR release-keys",
+        "sdkInt": 32,
+        "release": "12",
+        "versionName": "2.1.0",
+        "versionCode": 1,
+        "packageName": "cn.partialy.pm"
+      },
+      "imagePaths": [
+        "uploads\\feedback\\119383a0-f9a0-4d48-bfd4-b825e44bd712.png"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+# Reference code is opt-in only.
+example/
+
+# Local backups and signing assets.
+*.zip
+*.jks
+*.keystore
+
+# OS / editor files.
+.DS_Store
+Thumbs.db
+*.iml
+**/.idea/
+.vscode/
+
+# Logs and crash dumps.
+*.log
+hs_err_pid*.log
+replay_pid*.log
+
+# Android / Gradle.
+**/.gradle/
+**/build/
+**/captures/
+**/.externalNativeBuild/
+**/.cxx/
+**/local.properties
+pm/app/release/*.apk
+pm/app/debug/
+pm/app/release/output-metadata.json
+pm/app/release/baselineProfiles/
+
+# Node / frontend / Electron.
+**/node_modules/
+**/dist/
+**/out/
+
+# Server runtime data.
+server/uploads/
+server/web/
+server/data/*.db
+server/data/*.db-shm
+server/data/*.db-wal
+server/feedback.json
+
+# App/runtime local data.
+/cookie

@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 酷狗自写登录区，布局对齐 music-login-hub/src/App.tsx（仅酷狗主题 #00A9FF） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="32dp"
+    android:paddingTop="24dp"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:id="@+id/kg_login_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/playlist_import_kg_login_title"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <!-- 手机登录 | 扫码登录（对应 App.tsx Method Switcher） -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="40dp"
+        android:background="@drawable/kg_login_method_bar_bg"
+        android:orientation="horizontal"
+        android:padding="4dp">
+
+        <TextView
+            android:id="@+id/kg_tab_phone"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/kg_login_tab_selected_bg"
+            android:gravity="center"
+            android:paddingVertical="10dp"
+            android:text="@string/playlist_import_kg_tab_phone"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/kg_tab_qr"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:paddingVertical="10dp"
+            android:text="@string/playlist_import_kg_tab_qr"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- 手机号 + 验证码（对应 App.tsx method === 'phone'） -->
+    <LinearLayout
+        android:id="@+id/kg_phone_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/kg_login_input_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="12dp"
+                android:text="@string/playlist_import_kg_phone_prefix"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="20dp"
+                android:background="@color/playlist_import_input_divider" />
+
+            <EditText
+                android:id="@+id/kg_phone_input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:hint="@string/playlist_import_kg_phone_hint"
+                android:inputType="phone"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurface"
+                android:textColorHint="?attr/colorOnSurfaceVariant"
+                android:textSize="18sp"
+                tools:text="13800138000" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <EditText
+                android:id="@+id/kg_code_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/kg_login_input_bg"
+                android:hint="@string/playlist_import_kg_code_hint"
+                android:inputType="number"
+                android:maxLines="1"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="16dp"
+                android:paddingEnd="120dp"
+                android:textColor="?attr/colorOnSurface"
+                android:textColorHint="?attr/colorOnSurfaceVariant"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/kg_send_code_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="8dp"
+                android:text="@string/playlist_import_kg_send_code"
+                android:textColor="@color/playlist_import_kg_brand"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </FrameLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/kg_login_submit_btn"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="52dp"
+            android:text="@string/playlist_import_kg_login_now"
+            android:textColor="@android:color/white"
+            android:textSize="17sp"
+            app:backgroundTint="@color/playlist_import_kg_brand"
+            app:cornerRadius="14dp" />
+    </LinearLayout>
+
+    <!-- 扫码（对应 App.tsx method === 'qr'，状态码与 KgQrCheckResponse.data.status 一致） -->
+    <LinearLayout
+        android:id="@+id/kg_qr_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:id="@+id/kg_qr_frame"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/kg_login_input_bg">
+
+            <ImageView
+                android:id="@+id/kg_qr_image"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/playlist_import_kg_qr_cd"
+                android:padding="16dp"
+                android:scaleType="fitCenter"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
+            <!-- status 2：扫码后展示接口返回的头像 pic -->
+            <ImageView
+                android:id="@+id/kg_qr_user_avatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:padding="24dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone"
+                tools:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/kg_qr_placeholder"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_qr_code_placeholder_120"
+                android:contentDescription="@null" />
+
+            <ProgressBar
+                android:id="@+id/kg_qr_loading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
+            <!-- status 0：二维码已过期 -->
+            <LinearLayout
+                android:id="@+id/kg_qr_overlay_expired"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/playlist_import_qr_overlay"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/playlist_import_kg_qr_expired"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/kg_qr_refresh_btn"
+                    style="@style/Widget.Material3.Button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/playlist_import_kg_qr_refresh"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    app:backgroundTint="@color/playlist_import_kg_brand"
+                    app:cornerRadius="20dp" />
+            </LinearLayout>
+
+        </FrameLayout>
+
+        <!-- status 2+：扫码用户昵称 -->
+        <TextView
+            android:id="@+id/kg_qr_nickname"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="用户昵称"
+            tools:visibility="visible" />
+
+        <!-- status 2：左侧橙色感叹号 + 请在手机上确认登录 -->
+        <LinearLayout
+            android:id="@+id/kg_qr_confirm_hint_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_kg_qr_alert_triangle_24" />
+
+            <TextView
+                android:id="@+id/kg_qr_confirm_hint_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/playlist_import_kg_qr_confirm_on_phone"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- status 4 登录成功：绿色打勾 + 提示文案 -->
+        <LinearLayout
+            android:id="@+id/kg_qr_success_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="gone">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_kg_qr_check_circle_24" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/playlist_import_kg_qr_logged_in_hint"
+                android:textColor="@color/playlist_import_qr_success"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/kg_qr_success_return_btn"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="120dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:minWidth="120dp"
+            android:text="@string/playlist_import_kg_qr_return"
+            android:textColor="@android:color/white"
+            android:visibility="gone"
+            app:backgroundTint="@color/playlist_import_kg_brand"
+            app:cornerRadius="10dp"
+            tools:visibility="gone" />
+
+        <TextView
+            android:id="@+id/kg_qr_status_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:gravity="center"
+            android:text="@string/playlist_import_kg_qr_hint_scan"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="14sp" />
+    </LinearLayout>
+</LinearLayout>

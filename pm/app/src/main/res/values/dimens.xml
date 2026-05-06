@@ -1,0 +1,21 @@
+<resources>
+    <!-- Default screen margins, per the Android Design guidelines. -->
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="home_header_bar_height">48dp</dimen>
+    <dimen name="home_bottom_nav_height">48dp</dimen>
+    <dimen name="home_mini_player_height">48dp</dimen>
+    <dimen name="home_mini_player_bottom_margin">8dp</dimen>
+    <!-- Visual overlap toward nav / bottom; must live on included root — <include> ignores translationY -->
+    <dimen name="home_mini_player_overlap">24dp</dimen>
+    <dimen name="search_history_chip_stroke_width">1dp</dimen>
+
+    <dimen name="home_feature_card_width">148dp</dimen>
+    <dimen name="home_feature_card_height">172dp</dimen>
+    <dimen name="home_recommend_playlist_rv_height">300dp</dimen>
+    <dimen name="home_daily_song_row_height">72dp</dimen>
+    <dimen name="home_daily_songs_rv_height">420dp</dimen>
+    <dimen name="home_recommend_bottom_padding">50dp</dimen>
+    <dimen name="main_drawer_width">280dp</dimen>
+
+</resources>

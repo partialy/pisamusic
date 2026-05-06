@@ -1,0 +1,22 @@
+[
+  {
+    "id": "notice_20260408_003",
+    "content": "<div><h3>欢迎使用</h3><p>这是第一条公告，支持 <b>HTML</b> 展示与滚动查看。</p></div>",
+    "time": "2026-04-08 20:00",
+    "publisher": "PisaMusic Team",
+    "confirmText": "我知道了",
+    "showEveryTime": false,
+    "showGotoButton": false,
+    "gotoUrl": ""
+  },
+  {
+    "id": "notice_20260408_007",
+    "content": "<div><p style='color: green;'>这是第二条公告。如果需要可以显示“前往”按钮。</p></div>",
+    "time": "2026-04-08 20:10",
+    "publisher": "PisaMusic Team",
+    "confirmText": "我知道了",
+    "showEveryTime": true,
+    "showGotoButton": true,
+    "gotoUrl": "https://www.baidu.com"
+  }
+]

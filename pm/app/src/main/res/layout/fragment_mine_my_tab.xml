@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <include
+        android:id="@+id/mineFavorites"
+        layout="@layout/item_mine_favorites_row" />
+
+    <include
+        android:id="@+id/mineLocalMusic"
+        layout="@layout/item_mine_local_music_row" />
+
+    <include
+        android:id="@+id/mineSettingsCoverRow"
+        layout="@layout/item_mine_cover_title_row" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="10dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:id="@+id/localPlaylistsHeaderTextView"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/mine_local_playlists_header"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            tools:text="本地歌单" />
+
+        <ImageButton
+            android:id="@+id/addLocalPlaylistButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@color/transparent"
+            android:contentDescription="@string/mine_new_local_playlist_entry"
+            android:padding="8dp"
+            android:tooltipText="@string/mine_new_local_playlist_entry"
+            android:src="@drawable/ic_add_24dp"
+            app:tint="@color/primary" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/localPlaylistsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="never"
+            tools:listitem="@layout/item_mine_playlist_row" />
+
+        <TextView
+            android:id="@+id/localPlaylistsEmptyTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="6dp"
+            android:paddingBottom="10dp"
+            android:text="@string/mine_playlists_empty"
+            android:textColor="?android:textColorSecondary"
+            android:textSize="14sp"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="colorOnBgTitle">#ffffff</color>
+    <color name="colorOnBgNormal">#dedede</color>
+    <color name="colorOnBgSecond">#999</color>
+
+    <color name="home_page_bg">#17191D</color>
+    <color name="home_header_bg">#17191D</color>
+    <color name="white_black_bg">#2A2D34</color>
+    <color name="home_mini_player_bg">#1E2126</color>
+    <color name="home_mini_player_title">#F4F6FA</color>
+    <color name="home_mini_player_subtitle">#A0A8B4</color>
+    <color name="home_tab_selected">#FFFFFF</color>
+    <color name="home_tab_unselected">#8B919B</color>
+
+    <!-- 与默认 values 中 #333 对应；夜间未覆盖会导致深色底上仍是近黑色 -->
+    <color name="text_secondary">#A0A8B4</color>
+
+    <color name="home_search_field_bg">#2A2D34</color>
+    <color name="search_history_chip_bg">#252830</color>
+    <color name="search_history_chip_stroke">#3D424C</color>
+    <color name="search_recommend_item_bg">#22252C</color>
+    <color name="search_recommend_item_stroke">#3D424C</color>
+
+    <color name="playlist_now_playing_row_bg">#1E2126</color>
+
+    <color name="settings_row_value_faded_primary">#8099C8FF</color>
+
+    <color name="settings_page_background">#17191D</color>
+    <color name="settings_card_inset_divider">#3D424C</color>
+
+    <color name="settings_switch_track_off">#3D3D45</color>
+
+    <color name="cache_card_stroke">#3D424C</color>
+    <color name="cache_usage_bar_app">#EF5350</color>
+    <color name="cache_usage_bar_phone_used">#4A4D55</color>
+    <color name="cache_usage_bar_free">#2E3138</color>
+
+    <color name="home_feature_guess_top">#4A1818</color>
+    <color name="home_feature_guess_bottom">#2E0E0E</color>
+    <color name="home_feature_radar_top">#3A3D45</color>
+    <color name="home_feature_radar_bottom">#5C616B</color>
+    <color name="home_feature_daily_top">#1A4D6B</color>
+    <color name="home_feature_daily_bottom">#0F3549</color>
+    <color name="home_song_tag_bg">#1E3A52</color>
+    <color name="home_song_tag_text">#90CAF9</color>
+
+    <color name="song_tag_kg_border">#66B1FF</color>
+    <color name="song_tag_kg_fill">#1A2F4A</color>
+    <color name="song_tag_kg_text">#79BBFF</color>
+    <color name="song_tag_kw_border">#EEBE77</color>
+    <color name="song_tag_kw_fill">#3A3020</color>
+    <color name="song_tag_kw_text">#F0C78A</color>
+    <color name="song_tag_wy_border">#F89898</color>
+    <color name="song_tag_wy_fill">#3A2424</color>
+    <color name="song_tag_wy_text">#FAB6B6</color>
+    <color name="song_tag_local_border">#85CE61</color>
+    <color name="song_tag_local_fill">#243820</color>
+    <color name="song_tag_local_text">#95D475</color>
+    <color name="song_tag_kg_border_dark">#79BBFF</color>
+    <color name="song_tag_kg_fill_dark">#33409EFF</color>
+    <color name="song_tag_kg_text_dark">#A8D0FF</color>
+    <color name="song_tag_kw_border_dark">#F0C78A</color>
+    <color name="song_tag_kw_fill_dark">#33E6A23C</color>
+    <color name="song_tag_kw_text_dark">#FFD89E</color>
+    <color name="song_tag_wy_border_dark">#FAB6B6</color>
+    <color name="song_tag_wy_fill_dark">#33F56C6C</color>
+    <color name="song_tag_wy_text_dark">#FFC8C8</color>
+    <color name="song_tag_local_border_dark">#95D475</color>
+    <color name="song_tag_local_fill_dark">#3367C23A</color>
+    <color name="song_tag_local_text_dark">#B8E994</color>
+
+    <color name="quality_picker_sheet_background">#2A2D34</color>
+    <color name="quality_picker_item_bg">#333741</color>
+    <color name="download_quality_selected_stroke">#2196F3</color>
+    <color name="download_cta_button">#2196F3</color>
+
+    <color name="settings_option_picker_sheet_background">#2A2D34</color>
+    <color name="settings_option_row_bg_normal">#333741</color>
+    <color name="settings_option_row_bg_selected">#1E3A52</color>
+
+    <!-- 导入登录表单（与 include_playlist_import_kg_login 一致） -->
+    <color name="playlist_import_form_bg">#1E2126</color>
+    <color name="playlist_import_tab_selected_pill">#2A2D34</color>
+    <color name="playlist_import_kg_tab_container">#252830</color>
+    <color name="playlist_import_kg_input_bg">#2A2D34</color>
+    <color name="playlist_import_input_divider">#3D424C</color>
+    <color name="playlist_import_qr_overlay">#E617191D</color>
+    <color name="playlist_import_qr_success">#81C784</color>
+</resources>

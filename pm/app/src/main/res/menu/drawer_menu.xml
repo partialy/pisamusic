@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_home"
+            android:icon="@drawable/ic_home_24"
+            android:title="@string/title_home" />
+        
+        <item
+            android:id="@+id/nav_library"
+            android:icon="@drawable/ic_library_24"
+            android:title="@string/title_library" />
+            
+        <item
+            android:id="@+id/nav_local_music"
+            android:icon="@drawable/ic_playlist_24"
+            android:title="@string/title_my_music" />
+    </group>
+
+    <item android:title="@string/other">
+        <menu>
+            <item
+                android:id="@+id/nav_public_info"
+                android:icon="@drawable/ic_info_24"
+                android:title="@string/public_information" />
+
+            <item
+                android:id="@+id/nav_check_update"
+                android:icon="@drawable/ic_update_24"
+                android:title="@string/check_update" />
+
+            <item
+                android:id="@+id/nav_settings"
+                android:icon="@drawable/ic_settings_24"
+                android:title="@string/settings" />
+            
+            <item
+                android:id="@+id/nav_about"
+                android:icon="@drawable/ic_info_24"
+                android:title="@string/about" />
+        </menu>
+    </item>
+</menu> 

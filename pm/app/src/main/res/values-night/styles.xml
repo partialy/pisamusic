@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 添加底部弹出动画 -->
+    <style name="ActivityAnimation.BottomUp" parent="android:Animation.Activity">
+        <item name="android:windowEnterAnimation">@anim/slide_up</item>
+        <item name="android:windowExitAnimation">@anim/slide_down</item>
+    </style>
+
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight">
+        <item name="customToolbarBackground">?attr/colorSurface</item>
+    </style>
+
+    <style name="CircleShape">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- Keep a base entry to satisfy AAPT style grouping -->
+    <style name="ShapeAppearance.Pm" />
+
+    <!-- Some libraries reference @style/ShapeAppearance directly; define a safe alias. -->
+    <style name="ShapeAppearance" parent="ShapeAppearance.MaterialComponents" />
+
+    <style name="ShapeAppearance.Pm.Corner12">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+</resources>

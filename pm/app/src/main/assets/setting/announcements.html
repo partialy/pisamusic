@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>系统公告 - pisamusic</title>
+    <script>
+        (function() {
+            try {
+                var p = new URLSearchParams(location.search);
+                if (p.get('theme') === 'dark') document.documentElement.classList.add('dark');
+            } catch (_) {}
+        })();
+    </script>
+    <script src="file:///android_asset/shared/tailwind.js"></script>
+    <script src="file:///android_asset/shared/tailwind-base.js"></script>
+    <script defer src="file:///android_asset/shared/message.global.js"></script>
+    <script>
+        tailwind.config.darkMode = 'class';
+        Object.assign(tailwind.config.theme.extend, {
+            colors: {
+                sky: {
+                    400: '#38bdf8',
+                    500: '#0ea5e9',
+                    600: '#0284c7'
+                }
+            }
+        });
+    </script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.45s ease-out forwards;
+        }
+        @keyframes fadeOutDown {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.95); }
+        }
+        .animate-fade-out-down {
+            animation: fadeOutDown 0.28s ease-in forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-slate-950 antialiased text-slate-800 dark:text-slate-200">
+<div class="relative min-h-screen max-w-md mx-auto bg-[#fefefe] dark:bg-[#17191d] overflow-hidden flex flex-col">
+    <main class="flex-1 overflow-y-auto no-scrollbar pt-4 pb-12 px-4" id="announcement-list"></main>
+
+    <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300 z-0">
+        <div class="w-24 h-24 bg-gray-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-10 h-10 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 font-medium">暂无最新公告</p>
+    </div>
+</div>
+
+<script>
+    (function() {
+        var announcements = [];
+        var listContainer = document.getElementById('announcement-list');
+        var emptyState = document.getElementById('empty-state');
+
+        function htmlEscape(str) {
+            return String(str || '').replace(/[&<>"']/g, function(s) {
+                return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[s];
+            });
+        }
+
+        function renderAnnouncements() {
+            listContainer.innerHTML = '';
+            if (!announcements.length) {
+                emptyState.classList.remove('opacity-0');
+                return;
+            }
+            emptyState.classList.add('opacity-0');
+
+            announcements.forEach(function(item, index) {
+                var card = document.createElement('div');
+                card.id = item.id;
+                card.className = 'bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5 mb-4 animate-fade-in-up flex flex-col relative z-10';
+                card.style.animationDelay = (index * 0.08) + 's';
+
+                var headerHtml = ''
+                    + '<div class="flex items-center justify-between mb-4">'
+                    + '  <div class="flex items-center space-x-2.5">'
+                    + '    <div class="w-9 h-9 rounded-full bg-sky-50 dark:bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-100 dark:border-sky-500/20">'
+                    + '      <svg class="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">'
+                    + '        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />'
+                    + '      </svg>'
+                    + '    </div>'
+                    + '    <span class="font-bold text-sm text-slate-800 dark:text-white tracking-wide">' + htmlEscape(item.publisher) + '</span>'
+                    + '  </div>'
+                    + '  <div class="flex items-center space-x-3">'
+                    + '    <span class="text-xs text-slate-400 font-medium">' + htmlEscape(item.time) + '</span>'
+                    + '    <button data-id="' + htmlEscape(item.id) + '" class="ann-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 -mr-1">'
+                    + '      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">'
+                    + '        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
+                    + '      </svg>'
+                    + '    </button>'
+                    + '  </div>'
+                    + '</div>';
+
+                var contentHtml = ''
+                    + '<div class="max-h-60 overflow-y-auto no-scrollbar mb-1 pr-1 text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed'
+                    + ' [&>div]:space-y-2 [&_h3]:text-[15px] [&_h3]:font-bold [&_h3]:text-slate-800 dark:[&_h3]:text-white [&_h3]:mb-1'
+                    + ' [&_p]:mb-2 [&_p:last-child]:mb-0 [&_b]:font-semibold [&_b]:text-sky-500">'
+                    + (item.content || '')
+                    + '</div>';
+
+                var actionsHtml = '';
+                var gotoUrl = (item.gotoUrl || '').trim();
+                if (item.showGotoButton && gotoUrl) {
+                    actionsHtml = ''
+                        + '<hr class="my-4 border-gray-100 dark:border-slate-800/60">'
+                        + '<div class="w-full flex">'
+                        + '  <button data-url="' + htmlEscape(gotoUrl) + '" class="ann-goto w-full py-2.5 rounded-xl bg-sky-500 text-white font-semibold text-[13px] shadow-md shadow-sky-500/20 hover:bg-sky-600 transition-colors active:scale-95">前往查看</button>'
+                        + '</div>';
+                }
+
+                card.innerHTML = headerHtml + contentHtml + actionsHtml;
+                listContainer.appendChild(card);
+            });
+        }
+
+        listContainer.addEventListener('click', function(e) {
+            var closeBtn = e.target.closest('.ann-close');
+            if (closeBtn) {
+                var id = closeBtn.getAttribute('data-id');
+                var card = document.getElementById(id);
+                if (card) {
+                    card.classList.remove('animate-fade-in-up');
+                    card.classList.add('animate-fade-out-down');
+                    setTimeout(function() {
+                        announcements = announcements.filter(function(x) { return x.id !== id; });
+                        renderAnnouncements();
+                    }, 280);
+                }
+                return;
+            }
+            var gotoBtn = e.target.closest('.ann-goto');
+            if (gotoBtn) {
+                var url = gotoBtn.getAttribute('data-url') || '';
+                if (window.AndroidAnnouncementHost && url) {
+                    window.AndroidAnnouncementHost.openUrl(url);
+                }
+            }
+        });
+
+        window.PM_ANNOUNCEMENTS = {
+            render: function(data) {
+                announcements = Array.isArray(data) ? data : [];
+                renderAnnouncements();
+            },
+            setError: function(message) {
+                announcements = [];
+                renderAnnouncements();
+                if (window.message && typeof window.message.error === 'function') {
+                    window.message.error(message || '公告获取失败');
+                }
+            }
+        };
+    })();
+</script>
+</body>
+</html>
+
