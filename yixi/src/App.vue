@@ -1,0 +1,224 @@
+<template>
+  <n-config-provider :theme="theme">
+    <n-notification-provider>
+      <n-message-provider>
+        <n-modal-provider>
+          <router-view v-show="!showPlayer" v-slot="{ Component }">
+            <Transition name="main-page" mode="in-out">
+              <component :is="Component" />
+            </Transition>
+          </router-view>
+          <PlayerBar class="player-bar"></PlayerBar>
+          <Transition name="player-slide">
+            <MainPlayer v-if="showPlayer" class="player" />
+          </Transition>
+        </n-modal-provider>
+      </n-message-provider>
+    </n-notification-provider>
+  </n-config-provider>
+</template>
+
+<script setup lang="ts">
+import {
+  NConfigProvider,
+  NNotificationProvider,
+  NModalProvider,
+  type GlobalTheme,
+  lightTheme,
+  darkTheme,
+  NMessageProvider,
+} from "naive-ui";
+import { onBeforeUnmount, ref, Transition, watch } from "vue";
+import { PlayerBar, MainPlayer } from "./components";
+import {
+  useCommonStore,
+  useCollectStore,
+  useAudioStore,
+  useLyricStore,
+} from "./store";
+import { storeToRefs } from "pinia";
+import {
+  message,
+  dialog,
+  notification,
+  modal,
+  loadingBar,
+} from "./utils/common/message";
+import electronAPI from "./utils/electron";
+const player = useAudioStore();
+const commonStore = useCommonStore();
+const collector = useCollectStore();
+const lyric = useLyricStore();
+// 初始化
+commonStore.hidePlayer();
+collector.initStore();
+lyric.loadSetting();
+
+const { showPlayer } = storeToRefs(commonStore);
+const theme = ref<GlobalTheme | null>(lightTheme);
+
+theme.value =
+  localStorage.getItem("pisa-theme") != "dark" ? lightTheme : darkTheme;
+
+async function setupListeners() {
+  const { currentTime, currentSong } = storeToRefs(player);
+  electronAPI.onMediaControl(
+    async (action: "play" | "pause" | "next" | "prev") => {
+      switch (action) {
+        case "play":
+          player.play();
+          break;
+        case "pause":
+          player.pause();
+          break;
+        case "next":
+          player.next();
+          break;
+        case "prev":
+          player.prev();
+          break;
+      }
+    }
+  );
+
+  electronAPI.onLyricWindowStatus((status: boolean) => {
+    lyric.setDesktop(status);
+  });
+
+  watch(currentTime, (newTime) => {
+    electronAPI.updateTime(newTime);
+  });
+
+  watch(
+    () => currentSong.value,
+    (newSong) => {
+      if (newSong) {
+        electronAPI.changeCurrentSong({
+          id: newSong.id,
+          name: newSong.name,
+          singer: newSong.singer,
+          source: newSong.source,
+          duration: newSong.duration,
+          cover: newSong.cover,
+          coverSize: newSong.coverSize,
+        });
+      } else {
+        electronAPI.changeCurrentSong(null);
+      }
+    },
+    {
+      deep: true,
+      immediate: true,
+    }
+  );
+}
+async function setUpWindow() {
+  window.$message = message;
+  window.$notification = notification;
+  window.$modal = modal;
+  window.$dialog = dialog;
+  window.$loadingBar = loadingBar;
+  window.$mainServer = "";
+}
+
+let t: NodeJS.Timeout;
+async function setupAutoSaver() {
+  t = setInterval(() => {
+    player.saveState();
+    if (collector.changed) {
+      collector.save();
+    }
+  }, 1000 * 60 * 10);
+}
+
+setupListeners();
+setUpWindow();
+setupAutoSaver();
+
+// 离开页面保存数据
+onBeforeUnmount(() => {
+  player.saveState();
+  collector.save();
+  clearInterval(t);
+});
+</script>
+
+<style src="./css/animation.css"></style>
+<style scoped lang="scss">
+.player-bar {
+  position: fixed;
+  display: flex;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+}
+
+@keyframes slide-up {
+  0% {
+    transform: translateY(100%);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes player-in {
+  0% {
+    scale: 1;
+    opacity: 1;
+  }
+
+  100% {
+    scale: 0.95;
+    opacity: 0;
+  }
+}
+
+@keyframes player-out {
+  0% {
+    scale: 0.95;
+    opacity: 0;
+  }
+
+  100% {
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+.showPlayer {
+  animation: player-in 0.3s;
+}
+
+.hidePlayer {
+  animation: player-out 0.3s;
+}
+
+.main-page-enter-active {
+  animation: player-out 0.5s ease-in-out;
+}
+
+.main-page-leave-active {
+  animation: player-in 0.5s ease-in-out;
+}
+
+.player-slide-leave-active {
+  animation: slide-down 0.5s ease-in-out;
+}
+
+.player-slide-enter-active {
+  animation: slide-up 0.5s ease-in-out;
+}
+</style>

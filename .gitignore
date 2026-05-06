@@ -1,6 +1,5 @@
 # Reference code is opt-in only.
 example/
-yixi/
 Splayer/
 SPlayer/
 
@@ -38,6 +37,10 @@ pm/app/release/baselineProfiles/
 **/dist/
 **/out/
 pm-electron/release/
+yixi/app/
+yixi/data/
+yixi/logs/
+yixi/package-lock.json
 
 # Server runtime data.
 server/uploads/

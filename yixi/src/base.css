@@ -1,0 +1,158 @@
+/* 去除常见标签默认的 margin 和 padding */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+/* 设置网页统一的字体大小、行高、字体系列相关属性 */
+body {
+  font: 16px/1.5  "Microsoft Yahei",
+    "Hiragino Sans GB", "Heiti SC", "WenQuanYi Micro Hei", sans-serif;
+}
+
+/* 去除列表默认样式 */
+ul,
+ol {
+  list-style: none;
+}
+
+/* 去除默认的倾斜效果 */
+em,
+i {
+  font-style: normal;
+}
+
+/* 去除a标签默认下划线，并设置默认文字颜色 */
+a {
+  text-decoration: none;
+
+}
+
+/* 设置img的垂直对齐方式为居中对齐，去除img默认下间隙 */
+img {
+  width: 100%;
+  height: 100%;
+  vertical-align: middle;
+}
+
+/* 去除input默认样式 */
+input {
+  border: none;
+  outline: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 400;
+}
+
+/* 全局样式 */
+#app {
+  min-width: 1200px;
+  min-height: 800px;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.mw1600 {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+:root {
+  --header-height: 80px;
+  --left-nav-width: 200px;
+  --footer-height: 60px;
+  /* color */
+  --color-text-default: #000;
+  --color-text-track: #ddd;
+  --color-text-track-hover: #ffffff;
+  --color-text-primary: #2897ff;
+  --color-text-primary-hover: #1e6edc;
+  --color-text-secondary: #666;
+  --color-text-third: #999;
+  --color-bg-track: linear-gradient(#EDE0FC,#f5f5f5);
+  --color-bg-default: #fff;
+  --color-bg-active: #dadada;
+  --color-bg-secondary: #f5f5f5;
+  --color-primary: #2897ff;
+  --color-secondary: #999;
+  --color-border-default: #e8e8e8;
+  --color-bg-hover:#eee;
+}
+
+.night {
+  /* color */
+  --color-text-default: #fff;
+  --color-text-track: #ddd;
+  --color-text-track-hover: #ffffff;
+  --color-text-secondary: #999;
+  --color-bg-default: #1f1f1f;
+  --color-bg-secondary: #141414;
+  --color-border-default: #303030;
+  --color-bg-hover:#2a2a2a;
+}
+
+
+/* 整个滚动条 */
+::-webkit-scrollbar {
+  position: absolute;
+  right: 2px;
+  width: 8px; /* 垂直滚动条宽度 */
+  height: 8px; /* 水平滚动条高度 */
+}
+
+/* 滚动条轨道 */
+::-webkit-scrollbar-track {
+  background: transparent; 
+  border-radius: 10px;
+}
+
+/* 滚动条滑块 */
+::-webkit-scrollbar-thumb {
+  width: 4px;
+  background: #aaaaaa3b; 
+  border-radius: 10px;
+  /* border: 1px solid #f1f1f1; */
+}
+
+/* 滚动条滑块悬停效果 */
+::-webkit-scrollbar-thumb:hover {
+  background: #b8b8b8d2; 
+}
+
+.text-line-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+}
+
+.text-line-1 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+}
+
+.glass-blur {
+  background: rgba(255, 255, 255, 0.2); /* 半透明背景 */
+  backdrop-filter: blur(10px); /* 高斯模糊效果 */
+  -webkit-backdrop-filter: blur(10px); /* Safari浏览器兼容 */
+  border-radius: 10px; /* 可选：圆角 */
+  border: 1px solid rgba(255, 255, 255, 0.3); /* 可选：边框 */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 可选：阴影 */
+}
