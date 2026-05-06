@@ -129,6 +129,9 @@ export class AppDatabase {
     if (!normalizedKeyword) return null;
     const now = new Date().toISOString();
     this.db
+      .prepare("DELETE FROM search_history WHERE keyword = ? AND COALESCE(source, '') = COALESCE(?, '')")
+      .run(normalizedKeyword, source ?? null);
+    this.db
       .prepare("INSERT INTO search_history (keyword, source, created_at) VALUES (?, ?, ?)")
       .run(normalizedKeyword, source ?? null, now);
     return this.listSearchHistory(1)[0] ?? null;
@@ -153,6 +156,11 @@ export class AppDatabase {
 
   clearSearchHistory() {
     this.db.prepare("DELETE FROM search_history").run();
+    return true;
+  }
+
+  deleteSearchHistory(id: number) {
+    this.db.prepare("DELETE FROM search_history WHERE id = ?").run(id);
     return true;
   }
 

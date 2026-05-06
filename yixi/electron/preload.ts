@@ -137,6 +137,8 @@ const libraryIpc = {
   listSearchHistory: (limit?: number) =>
     ipcRenderer.invoke("library:search-history:list", limit),
   clearSearchHistory: () => ipcRenderer.invoke("library:search-history:clear"),
+  deleteSearchHistory: (id: number) =>
+    ipcRenderer.invoke("library:search-history:delete", id),
   addPlayHistory: (track: any) =>
     ipcRenderer.invoke("library:play-history:add", track),
   listPlayHistory: (limit?: number) =>

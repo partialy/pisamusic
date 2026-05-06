@@ -3,6 +3,7 @@ import { useCommonStore } from "./commonStore";
 import { useLyricStore } from "./lyricStore";
 import { useAudioStore } from "./audio";
 import { useCollectStore } from "./collect";
+import { useLibraryStore } from "./library";
 import { useUserStore } from './user';
 export {
   useSettingStore,
@@ -10,5 +11,6 @@ export {
   useLyricStore,
   useAudioStore,
   useCollectStore,
+  useLibraryStore,
   useUserStore,
 };

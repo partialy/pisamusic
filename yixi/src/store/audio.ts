@@ -5,12 +5,21 @@ import type { Song } from "@/types/song";
 import { getKgImage } from "../utils/common";
 import { getUrlByProxy, proxyAPI } from "@/utils/api/proxyAPI";
 import electronAPI from "@/utils/electron";
+import { useLibraryStore } from "./library";
 
 
 // 定义重复播放模式的类型
 export type RepeatMode = "all" | "none" | "single" | "random";
 
+type AudioStateSnapshot = {
+  volume: number;
+  repeatMode: RepeatMode;
+  playlist: Song[];
+  currentSongId?: string;
+};
+
 export const useAudioStore = defineStore("audio", () => {
+  const libraryStore = useLibraryStore();
   // State (状态)
   const player = ref<Howl | null>(null); // Howl音频播放器实例
   const currentSong = ref<Song | null>(null); // 当前播放的歌曲
@@ -27,6 +36,7 @@ export const useAudioStore = defineStore("audio", () => {
   // 私有变量 - 用于更新播放进度的定时器
   // @ts-ignore
   let progressInterval: NodeJS.Timeout | null = null;
+  let restoringState = false;
 
   // Getters (计算属性)
   const progress = computed<number>(() => {
@@ -128,6 +138,7 @@ export const useAudioStore = defineStore("audio", () => {
       if (song) {
         song.url = await getUrlByProxy(song);
         currentSong.value = song;
+        recordPlayHistory(song);
         initPlayer(song.url); // 初始化播放器并加载歌曲
         return;
       }
@@ -410,6 +421,7 @@ export const useAudioStore = defineStore("audio", () => {
    * 将状态保存到localStorage
    */
   const saveState = (): void => {
+    if (restoringState) return;
     const state = {
       volume: volume.value,
       repeatMode: repeatMode.value,
@@ -417,24 +429,72 @@ export const useAudioStore = defineStore("audio", () => {
       currentSongId: currentSong.value?.id,
     };
     localStorage.setItem("audioState", JSON.stringify(state));
+    void electronAPI.setSetting("audioState", {
+      volume: volume.value,
+      repeatMode: repeatMode.value,
+      currentSongId: currentSong.value?.id,
+    });
+    void libraryStore.saveQueueSnapshot(
+      getCurrentIndex(),
+      playlist.value.map(toPersistedSong)
+    );
   };
 
   /**
    * 从localStorage加载状态
    */
-  const loadState = (): void => {
+  const loadState = async (): Promise<void> => {
+    restoringState = true;
+    try {
+      restoreFromLocalStorage();
+      const [setting, queueSnapshot] = await Promise.all([
+        electronAPI.getSetting<Pick<AudioStateSnapshot, "volume" | "repeatMode" | "currentSongId">>("audioState"),
+        libraryStore.loadQueueSnapshot(),
+      ]);
+      if (setting?.value) {
+        volume.value = setting.value.volume ?? volume.value;
+        repeatMode.value = setting.value.repeatMode ?? repeatMode.value;
+      }
+      if (queueSnapshot.queue.length) {
+        playlist.value = queueSnapshot.queue as unknown as Song[];
+        currentSong.value =
+          playlist.value[queueSnapshot.currentIndex] || playlist.value[0] || null;
+      } else if (setting?.value?.currentSongId) {
+        currentSong.value =
+          playlist.value.find((s) => s.id === setting.value.currentSongId) ||
+          currentSong.value;
+      }
+    } finally {
+      restoringState = false;
+    }
+  };
+
+  const restoreFromLocalStorage = (): void => {
     const saved = localStorage.getItem("audioState");
-    if (saved) {
-      const state = JSON.parse(saved);
-      volume.value = state.volume;
-      repeatMode.value = state.repeatMode;
-      playlist.value = state.playlist;
+    if (!saved) return;
+    try {
+      const state = JSON.parse(saved) as AudioStateSnapshot;
+      volume.value = state.volume ?? volume.value;
+      repeatMode.value = state.repeatMode ?? repeatMode.value;
+      playlist.value = state.playlist ?? [];
       if (state.currentSongId) {
         // 从播放列表中查找当前歌曲
         currentSong.value =
           playlist.value.find((s) => s.id === state.currentSongId) || null;
       }
+    } catch {
+      localStorage.removeItem("audioState");
     }
+  };
+
+  const toPersistedSong = (song: Song): Song => {
+    const persisted = { ...song };
+    delete persisted.url;
+    return persisted;
+  };
+
+  const recordPlayHistory = (song: Song): void => {
+    void libraryStore.addPlayHistory(toPersistedSong(song));
   };
 
   const getCurrentIndex = (): number => {
@@ -443,7 +503,7 @@ export const useAudioStore = defineStore("audio", () => {
   };
 
   // 初始化 - 加载保存的状态
-  loadState();
+  void loadState();
 
   return {
     // State

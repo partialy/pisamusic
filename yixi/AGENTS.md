@@ -33,6 +33,8 @@
 
 - SQLite 保存用户设置、主题设置、搜索历史、播放历史、队列快照等本地数据。
 - 关键业务数据不要继续使用 localStorage 作为唯一持久化来源；迁移时可保留兼容读取，但写入目标应转向 SQLite。
+- renderer 侧本地曲库相关读写统一经过 `src/store/library.ts`，负责把旧 localStorage 数据兼容迁移到 SQLite。
+- 搜索历史、播放历史、队列快照已经接入 SQLite；新增同类数据不要再新增散落的 localStorage key。
 - 数据库、日志、运行目录、打包产物不纳入 Git。
 - Electron 运行数据统一写入 `app.getPath("userData")/data`，不要依赖源码目录下被忽略的 `yixi/data/`。
 - 迁移脚本必须幂等，重复启动不能重复建表或重复写入默认数据。

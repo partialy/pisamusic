@@ -148,10 +148,11 @@ type ElectronIpcApi = {
   addSearchHistory: (payload: { keyword: string; source?: string | null }) => Promise<SearchHistoryItem | null>;
   listSearchHistory: (limit?: number) => Promise<SearchHistoryItem[]>;
   clearSearchHistory: () => Promise<boolean>;
-  addPlayHistory: (track: TrackSnapshot) => Promise<PlayHistoryItem | null>;
+  deleteSearchHistory: (id: number) => Promise<boolean>;
+  addPlayHistory: (track: any) => Promise<PlayHistoryItem | null>;
   listPlayHistory: (limit?: number) => Promise<PlayHistoryItem[]>;
   getQueueSnapshot: () => Promise<QueueSnapshot>;
-  saveQueueSnapshot: (snapshot: { currentIndex: number; queue: TrackSnapshot[] }) => Promise<QueueSnapshot>;
+  saveQueueSnapshot: (snapshot: { currentIndex: number; queue: any[] }) => Promise<QueueSnapshot>;
 
   getStore: (key: string) => Promise<unknown>;
   setStore: (key: string, value: unknown) => Promise<boolean>;

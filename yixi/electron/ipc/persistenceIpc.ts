@@ -40,6 +40,10 @@ export function setupPersistenceIpc() {
     return getAppDatabase().clearSearchHistory();
   });
 
+  ipcMain.handle("library:search-history:delete", (_event, id: number) => {
+    return getAppDatabase().deleteSearchHistory(id);
+  });
+
   ipcMain.handle("library:play-history:add", (_event, track: TrackSnapshot) => {
     return getAppDatabase().addPlayHistory(track);
   });
