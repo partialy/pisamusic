@@ -132,7 +132,7 @@ export function App() {
   };
 
   return (
-    <div className="grid h-full grid-cols-[316px_minmax(0,1fr)] grid-rows-[72px_minmax(0,1fr)_96px] overflow-hidden bg-background">
+    <div className="grid h-full grid-cols-[276px_minmax(0,1fr)] grid-rows-[72px_minmax(0,1fr)_96px] overflow-hidden bg-background">
       <Sidebar route={route} onRouteChange={handleRouteChange} announcements={announcements.length} />
       <TopBar
         keyword={keyword}
@@ -180,15 +180,15 @@ function TopBar({
   onRouteChange: (route: RouteKey) => void;
 }) {
   return (
-    <header className="app-drag grid min-w-0 grid-cols-[minmax(340px,1fr)_auto] items-center gap-5 border-b border-white/70 bg-[#f6fbff]/88 px-7 backdrop-blur">
-      <div className="app-no-drag flex min-w-0 items-center gap-4">
-        <Button variant="ghost" size="iconSm" className="rounded-full text-muted-foreground">
+    <header className="app-drag grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-5 border-b border-white/70 bg-[#f6fbff]/88 px-6 backdrop-blur">
+      <div className="flex min-w-0 items-center gap-4">
+        <Button variant="ghost" size="iconSm" className="app-no-drag rounded-full text-muted-foreground">
           <ChevronDown className="rotate-90" />
         </Button>
-        <Button variant="ghost" size="iconSm" className="rounded-full text-muted-foreground">
+        <Button variant="ghost" size="iconSm" className="app-no-drag rounded-full text-muted-foreground">
           <RotateCcw />
         </Button>
-        <div className="relative w-[260px] max-w-[36vw]">
+        <div className="app-no-drag relative w-[292px] max-w-[36vw]">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={keyword}
@@ -196,13 +196,13 @@ function TopBar({
             onKeyDown={(event) => {
               if (event.key === "Enter") onSearch();
             }}
-            className="h-12 rounded-lg border-[#d6e5f8] bg-[#edf5ff]/90 pl-11 pr-12 text-[15px] shadow-inner focus-visible:ring-[#80c5ff]"
+            className="h-11 rounded-full border-[#d6e5f8] bg-white/82 pl-11 pr-12 text-[15px] shadow-[inset_0_1px_5px_rgba(65,121,177,0.12)] focus-visible:ring-[#80c5ff]"
             placeholder="搜索"
           />
           <Button
             variant="ghost"
             size="iconSm"
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-[#eaf4ff] text-primary hover:bg-[#ddecff]"
             onClick={onSearch}
             disabled={isSearching}
           >
@@ -214,6 +214,7 @@ function TopBar({
             <button
               key={tab}
               className={cn(
+                "app-no-drag",
                 "text-lg font-medium text-[#2f3338] transition-colors hover:text-primary",
                 index === 0 && activeRoute === "search" && "text-primary",
               )}
@@ -224,16 +225,16 @@ function TopBar({
           ))}
         </nav>
       </div>
-      <div className="app-no-drag flex items-center justify-end gap-3">
+      <div className="flex items-center justify-end gap-3">
         <div className="hidden items-center gap-2 rounded-full bg-white/75 px-3 py-1.5 text-sm text-muted-foreground shadow-sm lg:flex">
           <div className="size-8 rounded-full bg-[linear-gradient(135deg,#52627b,#111827)]" />
           <span>忆昔</span>
           <Badge className="border-none bg-[#ffb238] text-white">VIP5</Badge>
         </div>
-        <Button variant="ghost" size="iconSm" className="rounded-full text-muted-foreground">
+        <Button variant="ghost" size="iconSm" className="app-no-drag rounded-full text-muted-foreground">
           <Bell />
         </Button>
-        <Button variant="ghost" size="iconSm" className="rounded-full text-muted-foreground">
+        <Button variant="ghost" size="iconSm" className="app-no-drag rounded-full text-muted-foreground">
           <Menu />
         </Button>
         <WindowControls />
@@ -244,7 +245,7 @@ function TopBar({
 
 function WindowControls() {
   return (
-    <div className="flex items-center overflow-hidden rounded-lg">
+    <div className="app-no-drag flex items-center overflow-hidden rounded-lg">
       <Button variant="ghost" size="iconSm" className="rounded-none" onClick={() => void window.pisa.window.minimize()}>
         <Minimize2 />
       </Button>
@@ -287,16 +288,16 @@ function Sidebar({
 
   return (
     <aside className="row-span-2 flex min-h-0 flex-col border-r border-[#dce9fb] bg-[#edf5ff] text-sidebar-foreground">
-      <div className="app-drag flex h-[92px] items-center gap-3 px-9">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-[#1688ff] text-white shadow-[0_10px_24px_rgba(22,136,255,0.28)]">
-          <Music2 className="size-6" />
+      <div className="app-drag flex h-[92px] items-center gap-3 px-7">
+        <div className="flex size-9 items-center justify-center rounded-xl bg-[#1688ff] text-white shadow-[0_10px_24px_rgba(22,136,255,0.28)]">
+          <Music2 className="size-5" />
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-[22px] font-semibold text-[#2b333d]">PisaMusic</h1>
+          <h1 className="truncate text-xl font-semibold text-[#2b333d]">PisaMusic</h1>
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-6 px-5 pb-6">
+        <div className="flex flex-col gap-5 px-4 pb-6">
           <nav className="flex flex-col gap-2">
             {nav.map((item) => (
               <SidebarButton
@@ -315,7 +316,7 @@ function Sidebar({
             {secondary.map((item) => (
               <SidebarButton key={item.label} active={false} icon={item.icon} label={item.label} muted />
             ))}
-            <button className="flex h-10 items-center gap-3 rounded-lg px-4 text-left text-sm text-[#5b6570] hover:bg-white/65">
+            <button className="app-no-drag flex h-10 items-center gap-3 rounded-lg px-4 text-left text-sm text-[#5b6570] hover:bg-white/65">
               <ChevronDown className="size-4" />
               更多
             </button>
@@ -323,7 +324,7 @@ function Sidebar({
 
           <div className="flex items-center justify-between px-4 text-sm text-[#5c6571]">
             <span>自建歌单</span>
-            <button className="rounded-md p-1 hover:bg-white">
+            <button className="app-no-drag rounded-md p-1 hover:bg-white">
               <Plus className="size-4" />
             </button>
           </div>
@@ -376,16 +377,16 @@ function SidebarButton({
   return (
     <button
       className={cn(
-        "flex h-12 items-center gap-4 rounded-lg px-4 text-left text-[18px] transition-colors",
+        "app-no-drag flex h-11 items-center gap-3 rounded-lg px-4 text-left text-base transition-colors",
         active
           ? "bg-[#dcecff] font-semibold text-primary shadow-[inset_3px_0_0_#1688ff]"
           : "text-[#5c6570] hover:bg-white/70",
-        muted && "text-[17px]",
+        muted && "text-[15px]",
       )}
       onClick={onClick}
       type="button"
     >
-      <Icon className="size-6" />
+      <Icon className="size-5" />
       <span className="truncate">{label}</span>
     </button>
   );
@@ -409,7 +410,7 @@ function SearchPage({
   return (
     <ScrollArea className="h-full">
       <section className="mx-auto flex w-full max-w-[1240px] flex-col gap-8 px-10 py-7">
-        <div className="grid grid-cols-5 gap-4 2xl:gap-5">
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-5 2xl:gap-5">
           {featureCards.map((card, index) => (
             <FeatureCard key={card.title} card={card} index={index} />
           ))}
