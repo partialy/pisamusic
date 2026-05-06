@@ -130,12 +130,31 @@ const otherIpc = {
   getServerPort: () => ipcRenderer.invoke("get-server-port"),
 };
 
-// 暴露给渲染进程的API
-contextBridge.exposeInMainWorld("electronAPI", {
+const electronAPI = {
   ...collectStoreIpc,
   ...windowIpc,
   ...fileIpc,
   ...lyricIpc,
   ...cookieIpc,
   ...otherIpc,
-});
+};
+
+const pisaApi = {
+  window: {
+    minimize: windowIpc.minimizeWindow,
+    toggleMaximize: windowIpc.maximizeWindow,
+    close: windowIpc.closeWindow,
+    hide: windowIpc.hideWindow,
+    reload: windowIpc.reloadWindow,
+    openDevTools: windowIpc.openDevTools,
+    onMaximized: windowIpc.onWindowMaximized,
+    onUnmaximized: windowIpc.onWindowUnmaximized,
+  },
+  legacy: {
+    electron: electronAPI,
+  },
+};
+
+// 暴露给渲染进程的API
+contextBridge.exposeInMainWorld("electronAPI", electronAPI);
+contextBridge.exposeInMainWorld("pisa", pisaApi);
