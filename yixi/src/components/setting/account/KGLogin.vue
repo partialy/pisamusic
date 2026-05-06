@@ -74,7 +74,11 @@ import {
 import directAPI from "@/utils/api/directAPI";
 import { RefreshOutline } from "@vicons/ionicons5";
 import electronAPI from "@/utils/electron";
-import type { Cookie } from "electron/main";
+
+type Cookie = {
+  name: string;
+  value: string;
+};
 
 const activeName = ref("username-pass");
 const loginParam = ref({

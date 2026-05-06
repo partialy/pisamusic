@@ -22,7 +22,6 @@
 </template>
 
 <script setup lang="ts">
-import { AMLyric } from '@/components';
 import { useLyricStore } from '@/store';
 import electronAPI from '@/utils/electron';
 
@@ -63,7 +62,6 @@ import { storeToRefs } from 'pinia';
 // };
 
 const click = async () => {
-  const p:any = {}
   await electronAPI.openLyricWindow();
   const {AMKrc, AMLrc} = storeToRefs(useLyricStore());
   console.log("send")

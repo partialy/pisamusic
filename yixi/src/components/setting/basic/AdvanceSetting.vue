@@ -121,6 +121,7 @@ onMounted(async () => {
         localStorage.getItem("pisa-use-backup-server") === "true";
     const s = await electronAPI.getServerPort();
     backServer.value = s.backServer;
+    if (!backServer.value) return;
     const t = new Date().getTime()
     const res = await fetch(backServer.value.kgProxy.replace("/proxy/kg", ""));
     const t2 = new Date().getTime()

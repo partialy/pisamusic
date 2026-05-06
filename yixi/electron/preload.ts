@@ -1,5 +1,15 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+type WindowLyricSetting = {
+  maxSize: number;
+  minSize: number;
+  fontSize: number;
+  fontFamily: string;
+  textColor: string;
+  highlightColor: string;
+  fontWeight: number;
+};
+
 const collectStoreIpc = {
   collectSong: (song: any) => ipcRenderer.send("collect-song", song),
   inCollectSong: (song: any) => ipcRenderer.send("incollect-song", song),
@@ -114,6 +124,28 @@ const cookieIpc = {
     ipcRenderer.invoke("refresh-kg-cookie", data),
 };
 
+const settingsIpc = {
+  getSetting: (key: string) => ipcRenderer.invoke("settings:get", key),
+  setSetting: (key: string, value: any, version?: number) =>
+    ipcRenderer.invoke("settings:set", { key, value, version }),
+  deleteSetting: (key: string) => ipcRenderer.invoke("settings:delete", key),
+};
+
+const libraryIpc = {
+  addSearchHistory: (payload: { keyword: string; source?: string | null }) =>
+    ipcRenderer.invoke("library:search-history:add", payload),
+  listSearchHistory: (limit?: number) =>
+    ipcRenderer.invoke("library:search-history:list", limit),
+  clearSearchHistory: () => ipcRenderer.invoke("library:search-history:clear"),
+  addPlayHistory: (track: any) =>
+    ipcRenderer.invoke("library:play-history:add", track),
+  listPlayHistory: (limit?: number) =>
+    ipcRenderer.invoke("library:play-history:list", limit),
+  getQueueSnapshot: () => ipcRenderer.invoke("library:queue-snapshot:get"),
+  saveQueueSnapshot: (snapshot: { currentIndex: number; queue: any[] }) =>
+    ipcRenderer.invoke("library:queue-snapshot:save", snapshot),
+};
+
 const otherIpc = {
   // store
   getStore: (key: string) => ipcRenderer.invoke("store-get", key),
@@ -123,6 +155,7 @@ const otherIpc = {
   clearStore: () => ipcRenderer.invoke("store-clear"),
   // 获取url
   getRequestUrl: () => ipcRenderer.invoke("get-request-url"),
+  getServerPort: () => ipcRenderer.invoke("get-server-port"),
   // 获取播放url
   getPlayUrl: (song: any) => ipcRenderer.invoke("get-play-url", song),
 
@@ -136,5 +169,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...fileIpc,
   ...lyricIpc,
   ...cookieIpc,
+  ...settingsIpc,
+  ...libraryIpc,
   ...otherIpc,
 });

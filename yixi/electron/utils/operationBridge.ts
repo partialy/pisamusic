@@ -40,6 +40,20 @@ export async function ipcMainEventHandle(win: Electron.BrowserWindow) {
     return JSON.parse(res);
   });
 
+  ipcMain.handle("get-server-port", async () => {
+    return {
+      ...electronConfig,
+      backServer: {
+        kgServer: "http://127.0.0.1:31000",
+        wyServer: "http://127.0.0.1:31001",
+        kwServer: "http://127.0.0.1:31002",
+        kgProxy: "http://127.0.0.1:38888/proxy/kg",
+        wyProxy: "http://127.0.0.1:38888/proxy/wy",
+        kwProxy: "http://127.0.0.1:38888/proxy/kw",
+      },
+    };
+  });
+
   ipcMain.handle("get-electron-config", async () => {
     return electronConfig;
   });

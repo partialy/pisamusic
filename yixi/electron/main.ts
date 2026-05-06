@@ -13,11 +13,23 @@ import {
 } from "electron";
 const { ipcRenderer } = require("electron");
 import path, { dirname, join } from "path";
-import { setupFileIpc, ipcMainEventHandle } from "./utils/operationBridge";
+import { setupFileIpc, ipcMainEventHandle, setupStoreIpc } from "./utils/operationBridge";
 import { fileURLToPath } from "url";
 import { logger } from "./utils/logger";
 import { existsSync, mkdirSync, readFileSync, writeFile } from "fs";
 import { appStore, collectStore } from "./store";
+import { closeAppDatabase } from "./database";
+import { setupPersistenceIpc } from "./ipc/persistenceIpc";
+
+type WindowLyricSetting = {
+  maxSize: number;
+  minSize: number;
+  fontSize: number;
+  fontFamily: string;
+  textColor: string;
+  highlightColor: string;
+  fontWeight: number;
+};
 
 // 主窗口
 let mainWindow: BrowserWindow | null = null;
@@ -159,6 +171,8 @@ try {
   }
 
   app.whenReady().then(() => {
+    setupPersistenceIpc();
+    setupStoreIpc();
     createWindow();
     tray = new Tray(iconPath);
     tray.on("click", () => {
@@ -176,6 +190,10 @@ try {
 
   app.on("window-all-closed", async () => {
     if (process.platform !== "darwin") app.quit();
+  });
+
+  app.on("before-quit", () => {
+    closeAppDatabase();
   });
 
   app.on("activate", () => {

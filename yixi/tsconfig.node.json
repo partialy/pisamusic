@@ -2,10 +2,10 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "types": ["vite/client", "vue-router","node"],
-    "moduleResolution": "nodenext",
+    "moduleResolution": "bundler",
     "target": "ES2023",
     "lib": ["ES2023"],
-    "module": "nodenext",
+    "module": "ESNext",
     "skipLibCheck": true,
 
     /* Bundler mode */
