@@ -1,47 +1,22 @@
-# PisaMusic Desktop 计划书
+# PisaMusic Desktop 整体改造计划
 
 ## 目标
 
-`pm-electron` 是 PisaMusic 的桌面端 App。它继承手机端 `pm` 的三音源聚合能力，但不做手机端的简单放大版；桌面端优先提供更适合 PC 的搜索、播放、队列、托盘和本地数据体验。
+`pm-electron` 改为以旧版 `yixi/` 为产品底座，保留它已经形成的播放器体验、歌词能力、队列、音源封装和桌面交互，同时按当前项目标准重整工程结构、安全边界、SQLite 数据层、后端配置、加密和验签。
 
-参考项目为根目录 `../SPlayer/`。参考范围仅限产品体验、工程边界和模块组织思路，不直接复制代码、资源或具体实现。
+这不是简单复制旧代码，而是把旧版可用资产正规化为 PisaMusic 桌面端。
 
-## 已定技术栈
+## 基本决策
 
-- Electron + React + TypeScript
-- electron-vite
-- shadcn/ui + Tailwind CSS + Radix UI + lucide-react
-- howler
-- SQLite，优先使用 main 进程封装访问
-- electron-builder
-- Windows 优先，后续兼容 macOS / Linux
+- 桌面端底座改为：Electron + Vue 3 + TypeScript + Naive UI + Pinia + howler。
+- `yixi/` 只作为迁移源目录，不直接提交到 monorepo。
+- `pm-electron/` 是最终桌面端工程目录。
+- renderer 不再直接访问真实后端、音源网关、SQLite、文件系统或 Node 能力。
+- main 进程负责服务端配置、加密请求、验签、音源请求、SQLite、窗口、托盘和系统能力。
+- preload 只暴露类型安全的 `window.pisa` API。
+- 服务端配置每次启动拉取；本地 SQLite 只保存桌面端用户数据和必要的短期状态，不把服务端配置当长期真源持久化。
 
-## 首版功能
-
-- 三音源聚合搜索：KG / WY / KW。
-- 搜索结果按音源分组展示，交互参考手机端 `pm`。
-- 播放歌曲、暂停、上一首、下一首、进度、音量、播放队列。
-- 播放地址解析失败时提示“播放失败，可尝试切换其他音源”，然后自动下一曲。
-- 歌词先做获取能力，并写入 store，首版暂不展示。
-- SQLite 保存播放历史、搜索历史、队列、用户设置等本地数据。
-- 复用外层 `server` 的配置、公告、反馈接口。
-- 配置每次从服务端拉取，不持久化到 SQLite。
-- 托盘：显示 / 隐藏窗口、播放 / 暂停、上一首、下一首、退出。
-- 默认主题使用 Pisa Blue，不使用 shadcn/ui 默认黑白中性色风格。
-- 预留 App 内主题配色修改能力，后续可在设置中调整主题色、浅色 / 深色模式和部分外观参数。
-
-首版不做：
-
-- 登录 / Cookie 导入。
-- 下载、本地音乐扫描。
-- 歌词展示页。
-- 自动更新。
-- 全局快捷键、媒体键、迷你播放器。
-- 手机端功能的完全对齐。
-
-## 模块边界
-
-建议目录：
+## 最终目录方向
 
 ```text
 pm-electron/
@@ -52,212 +27,141 @@ pm-electron/
       tray/
       ipc/
       db/
+      repositories/
       services/
-      player/
+        config/
+        music/
+        library/
+        settings/
+        feedback/
+        device/
+      security/
       utils/
     preload/
       index.ts
+  shared/
+    ipc.ts
+    music.ts
+    settings.ts
+    system.ts
+    server.ts
   src/
     app/
-    components/
+    layouts/
+    pages/
     features/
-      search/
       player/
-      queue/
+      search/
+      playlist/
+      lyric/
       settings/
-      announcements/
       feedback/
-    hooks/
-    lib/
     stores/
+    services/
+    components/
+    icons/
+    assets/
     styles/
-    types/
-  shared/
-    ipc/
-    music/
-    system/
 ```
 
-职责：
+## 分阶段计划
 
-- `electron/main`：窗口、托盘、SQLite、服务端请求、音源请求、播放地址解析、日志。
-- `electron/preload`：暴露最小安全 IPC API。
-- `src`：React UI、shadcn 组件组合、页面和 renderer 状态。
-- `shared`：跨进程类型、IPC contract、音源统一模型、系统 API 类型。
+### 1. 迁移准备
 
-## 音源策略
+- 把 `yixi/` 加入根 `.gitignore`，避免旧项目 `.git`、`node_modules`、`out`、`app`、日志和运行数据污染主仓库。
+- 用本文档替代旧的 React 版计划，明确桌面端新方向。
+- 保留当前 React 版提交历史作为可回滚点。
+- 更新 `pm-electron/AGENTS.md`，说明桌面端将从 React/shadcn 转为 Vue/Naive UI 底座。
 
-- 统一 `MusicSource`：`kg`、`wy`、`kw`。
-- 统一 `TrackSearchResult`，字段覆盖歌曲名、歌手、专辑、封面、时长、来源、源内 ID、可选音质信息。
-- 搜索结果按音源分组，不做首版跨源去重。
-- 播放地址解析封装为 source service，renderer 不直接关心每个音源的请求细节。
-- 播放失败不自动切换其他音源，只提示并自动下一曲。
+### 2. 底座切换
 
-## 播放器策略
+- 清空或替换 `pm-electron/` 中 React/shadcn 相关实现。
+- 从 `yixi/` 迁入源码、Electron 配置、Vue 入口、资源、图标和必要类型。
+- 不迁入 `node_modules`、`out`、`app`、`logs`、旧 `.git`、旧打包产物。
+- 统一包管理器为 `pnpm`。
+- 修复启动、构建、类型检查和 Windows 打包配置。
 
-- howler 作为播放器核心。
-- 播放器封装为独立 service / store，不直接散在组件里。
-- 远程歌曲优先按流式播放场景设计，避免后续从普通 Audio 迁移。
-- 首版状态包括：当前歌曲、播放中、加载中、错误、进度、时长、音量、队列、当前下标。
-- 歌词获取结果进入 store，后续歌词 UI 直接消费该状态。
+### 3. 工程结构重整
 
-## 数据策略
+- 拆分旧 `electron/main.ts`，按窗口、托盘、IPC、服务、数据库、安全模块分层。
+- 拆分旧 `src/components` 和 `src/views`，按 feature / page / layout 归类。
+- 修复乱码文案，所有用户可见中文恢复为正常 UTF-8。
+- 清理旧 demo、debugger、无用图片、无用工具函数、重复播放器实现。
+- 保留旧版 UI 中成熟的播放器、歌词、搜索、队列体验。
 
-SQLite 存储：
+### 4. IPC 和安全边界
 
-- 用户设置。
-- 最近搜索。
-- 播放历史。
-- 播放队列快照。
-- 歌词缓存可后续加入，首版可先只存内存 store。
+- 建立 `shared/ipc.ts` 作为唯一 IPC contract。
+- preload 暴露 `window.pisa`，废弃旧 `window.electronAPI` 或做临时兼容层。
+- renderer 只能通过 `window.pisa.*` 调用系统能力。
+- 移除 renderer 中直接使用真实 baseURL、`x-key`、验签 secret、Node API 的代码。
+- Electron 默认关闭 `nodeIntegration`，启用 `contextIsolation`。
+- 对桌面歌词等特殊窗口单独评估权限，不复用宽松默认配置。
 
-不存储：
+### 5. SQLite 数据层
 
-- 服务端配置。配置每次启动或需要时重新拉取。
-- 公告内容长期缓存。可以短期内存缓存，但不作为持久化数据。
+- 在 main 进程接入 SQLite。
+- 建立 migrations，保证重复启动幂等。
+- 建立 repositories：
+  - settings
+  - search history
+  - play history
+  - queue snapshot
+  - favorites
+  - lyric cache
+  - device profile
+- 迁移旧 localStorage / electron-store 数据到 SQLite，迁移后 renderer 不再直接持久化关键数据。
 
-## 服务端复用
+### 6. 服务端配置、加密和验签
 
-复用 `../server/`：
+- main 启动时拉取 `server` 的 `/api/config/bootstrap`、公告、更新信息。
+- 实现 `EncryptedHttpClient`，对接 server 当前 AES-GCM 协议：
+  - `x-pm-random`
+  - `x-pm-enc-ver`
+  - `ts`
+  - `nonce`
+  - `p`
+- 实现 `GatewaySignClient`，从 bootstrap 读取 `gatewaySign.secret` 和 `gatewaySign.as`。
+- 替换旧 renderer 中的 `x-key: partialy` 和硬编码 `gateway.partialy.cn`。
+- 所有音源网关 baseURL 从服务端 bootstrap endpoints 获取。
+- 服务端配置不作为长期真源写入 SQLite；最多保留短期 last-known fallback，并标注来源和过期时间。
 
-- 配置。
-- 公告。
-- 反馈。
+### 7. 音源服务重整
 
-独立实现：
+- 把 KG / WY / KW 搜索、播放地址解析、歌词获取移动到 main service。
+- 建立统一类型：
+  - `MusicSource = "kg" | "wy" | "kw"`
+  - `TrackSearchResult`
+  - `PlayUrlResult`
+  - `LyricResult`
+- renderer 不关心每个音源的请求参数，只消费统一结果。
+- 播放失败统一提示“播放失败，可尝试切换其他音源”，然后自动下一曲。
 
-- 桌面端本地设置。
-- 桌面端播放历史。
-- 桌面端队列。
-- 后续桌面端设备信息。
-- 后续桌面端更新逻辑。
+### 8. 播放器和 UI 收束
 
-## UI 规划
+- 保留 howler 在 renderer 的播放引擎。
+- 保留旧版播放器栏、歌词页、桌面歌词、播放模式等可用设计。
+- 播放状态和队列用 Pinia 管理，持久化通过 IPC 写 SQLite。
+- 主布局参考旧版和用户截图，走简洁音乐播放器风格。
+- 设置页接入主题、关闭行为、歌词配置、反馈入口。
 
-主界面：
+### 9. 验证与提交
 
-- 左侧导航：搜索、播放队列、历史、设置。
-- 顶部：搜索框、音源筛选、基础窗口状态。
-- 中央：搜索结果、空状态、错误状态、加载状态。
-- 右侧：当前队列或歌曲详情，首版可作为可收起区域。
-- 底部：播放控制栏，包含封面、歌名、歌手、播放控制、进度、音量。
+- 每个阶段保持小提交。
+- 每次结构性变更后运行：
+  - `pnpm typecheck`
+  - `pnpm build`
+  - Electron 启动预览
+- 涉及 SQLite 时验证首次启动建表和重复启动。
+- 涉及服务端时验证 bootstrap、公告、反馈、设备上报。
+- 涉及播放时验证搜索、解析、播放、暂停、上一首、下一首、进度、音量、失败降级。
 
-视觉原则：
+## 近期执行清单
 
-- 参考主流音乐播放器与 SPlayer 的优秀布局，不复制其界面。
-- PisaMusic 自有风格：干净、轻盈、桌面感、适合长时间使用。
-- 不做后台管理 UI，不做网页式首页。
-- shadcn/ui 负责基础组件，Tailwind 负责整体视觉系统。
-- shadcn/ui 只作为组件基础，不沿用默认黑白主题；所有核心组件必须接入 PisaMusic 的主题 token。
-
-## 主题系统
-
-默认主题：Pisa Blue。
-
-基础方向：
-
-- 主色使用淡蓝 / 天青蓝，而不是黑色。
-- 背景使用冷白、浅蓝灰和低饱和蓝色面板。
-- 深色模式使用深海蓝 / 墨蓝，不使用纯黑。
-- 播放进度、选中导航、主按钮、Slider、焦点环使用主题色。
-- 危险、成功、警告等语义色独立定义，不直接复用主色。
-
-建议初始色板：
-
-```text
-primary: #5AB8FF
-primaryActive: #1686D9
-background: #F6FBFF
-surface: #FFFFFF
-surfaceSoft: #EAF6FF
-text: #102033
-mutedText: #6B7C8F
-border: #D8E8F5
-danger: #EF5A72
-success: #35C58A
-```
-
-实现规则：
-
-- shadcn/ui 初始化时启用 CSS variables。
-- 全局样式提供 `:root` 和 `.dark` 两套基础 token。
-- 主题 token 至少覆盖 `background`、`foreground`、`card`、`popover`、`primary`、`secondary`、`muted`、`accent`、`destructive`、`border`、`input`、`ring`、`sidebar`、`chart`。
-- 不在业务组件里写死大面积颜色；业务组件优先使用语义 token 或封装后的主题工具。
-- 播放器专属颜色使用独立 token，例如 `--player-accent`、`--player-progress`、`--player-surface`，避免后续主题修改影响不可控。
-- 后续 App 内主题修改通过写入 CSS 变量实现，renderer 启动时从设置读取并应用到 `document.documentElement`。
-- 用户主题配置存入 SQLite 的 settings 表，不与服务端配置混用。
-- 主题配置结构需要版本号，方便后续迁移。
-
-建议主题配置类型：
-
-```ts
-type ThemeMode = "light" | "dark" | "system";
-
-interface AppThemeSettings {
-  version: 1;
-  mode: ThemeMode;
-  preset: "pisa-blue" | "custom";
-  primaryColor: string;
-  radius: number;
-  useAlbumAccent: boolean;
-}
-```
-
-预留能力：
-
-- 主题预设：Pisa Blue、后续可扩展 Mint、Violet、Rose 等。
-- 自定义主题色：用户选择主色后生成相关 token。
-- 跟随专辑封面取色：首版可只预留 `useAlbumAccent` 字段，不实现自动取色。
-- 浅色 / 深色 / 跟随系统：首版骨架应保留 mode 字段和切换入口。
-
-## 阶段计划
-
-阶段 1：项目骨架
-
-- 初始化 electron-vite + React + TypeScript。
-- 接入 Tailwind、shadcn/ui、lucide-react。
-- 建立 Pisa Blue 主题 token、浅色 / 深色基础变量和主题设置类型。
-- 配置 electron-builder。
-- 建立 main / preload / renderer / shared 边界。
-- 建立基础 IPC contract。
-
-阶段 2：基础壳和 UI
-
-- 实现窗口、应用壳、左侧导航、底部播放栏。
-- 实现搜索页静态结构和音源分组列表。
-- 实现播放队列面板。
-- 建立全局 store。
-
-阶段 3：服务和数据
-
-- 建立 SQLite 初始化和 migrations。
-- 实现设置、搜索历史、播放历史、队列快照。
-- 实现主题设置读取、保存和 renderer 运行时应用。
-- 接入 server 配置、公告、反馈接口。
-- 建立三音源 service 抽象。
-
-阶段 4：搜索和播放
-
-- 实现 KG / WY / KW 聚合搜索。
-- 实现播放地址解析。
-- 接入 howler 播放控制。
-- 实现播放失败提示和自动下一曲。
-- 获取歌词并写入 store。
-
-阶段 5：桌面能力和打包
-
-- 实现系统托盘菜单。
-- 完成 Windows 打包配置。
-- 补齐基础日志和错误提示。
-- 做首版端到端验证。
-
-## 待后续扩展
-
-- 登录 / Cookie 导入。
-- 歌词展示和桌面歌词。
-- 下载和本地音乐扫描。
-- 自动更新。
-- 全局快捷键和媒体键。
-- 迷你播放器。
-- 更多主题预设、专辑封面取色和高级外观设置。
-- 跨平台打包细节。
+1. 提交迁移准备文档和 `.gitignore`。
+2. 更新 `pm-electron/AGENTS.md` 为 Vue/Naive UI 迁移方向。
+3. 替换 `pm-electron` 底座为清理后的 `yixi` 源码。
+4. 跑通 `pnpm install`、`pnpm typecheck`、`pnpm build`。
+5. 拆分 main 进程，建立新的 IPC contract。
+6. 接入 SQLite 并迁移旧持久化点。
+7. 接入 server bootstrap、加密 client 和验签 client。
