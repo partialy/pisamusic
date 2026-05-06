@@ -31,31 +31,31 @@
 }
 
 :root {
-  --background: 205 100% 98%;
-  --foreground: 212 52% 13%;
+  --background: 216 33% 97%;
+  --foreground: 217 32% 15%;
   --card: 0 0% 100%;
-  --card-foreground: 212 52% 13%;
+  --card-foreground: 217 32% 15%;
   --popover: 0 0% 100%;
-  --popover-foreground: 212 52% 13%;
-  --primary: 203 100% 68%;
+  --popover-foreground: 217 32% 15%;
+  --primary: 202 92% 64%;
   --primary-foreground: 210 100% 98%;
-  --secondary: 203 100% 96%;
-  --secondary-foreground: 209 70% 28%;
-  --muted: 207 48% 94%;
-  --muted-foreground: 210 16% 49%;
-  --accent: 190 90% 92%;
-  --accent-foreground: 204 80% 26%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 215 28% 22%;
+  --muted: 216 32% 94%;
+  --muted-foreground: 216 12% 48%;
+  --accent: 204 86% 94%;
+  --accent-foreground: 207 72% 28%;
   --destructive: 350 84% 65%;
   --destructive-foreground: 0 0% 100%;
-  --border: 205 52% 89%;
-  --input: 205 52% 89%;
-  --ring: 203 100% 68%;
-  --sidebar: 204 100% 96%;
-  --sidebar-foreground: 212 52% 13%;
+  --border: 216 28% 90%;
+  --input: 216 28% 90%;
+  --ring: 202 92% 64%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 217 32% 15%;
   --player-surface: 0 0% 100%;
-  --player-accent: 203 100% 68%;
-  --player-progress: 203 100% 56%;
-  --radius: 8px;
+  --player-accent: 202 92% 64%;
+  --player-progress: 202 90% 52%;
+  --radius: 14px;
 }
 
 * {
@@ -67,9 +67,7 @@ body {
   min-width: 1024px;
   min-height: 680px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top left, hsl(var(--primary) / 0.22), transparent 28rem),
-    linear-gradient(145deg, hsl(var(--background)), hsl(var(--secondary)));
+  background: #f7f8fb;
   color: hsl(var(--foreground));
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -84,4 +82,28 @@ textarea {
 
 #root {
   height: 100vh;
+}
+
+.app-drag {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: hsl(var(--border));
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }

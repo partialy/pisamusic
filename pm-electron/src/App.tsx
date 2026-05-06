@@ -3,10 +3,11 @@ import {
   Bell,
   Clock3,
   History,
-  Library,
   ListMusic,
   Loader2,
+  Maximize2,
   MessageSquare,
+  Minimize2,
   Music2,
   Pause,
   Play,
@@ -15,6 +16,7 @@ import {
   SkipBack,
   SkipForward,
   Volume2,
+  X,
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import type { AnnouncementItem } from "@shared/system";
@@ -77,10 +79,11 @@ export function App() {
   };
 
   return (
-    <div className="grid h-full grid-rows-[1fr_auto] overflow-hidden p-3">
-      <div className="grid min-h-0 grid-cols-[236px_1fr_330px] overflow-hidden rounded-lg border bg-background/80 shadow-xl backdrop-blur">
+    <div className="grid h-full grid-rows-[44px_minmax(0,1fr)_96px] overflow-hidden bg-background p-3 pt-0">
+      <TitleBar />
+      <div className="grid min-h-0 grid-cols-[236px_minmax(0,1fr)_320px] overflow-hidden rounded-2xl border bg-card shadow-sm">
         <Sidebar route={route} onRouteChange={handleRouteChange} announcements={announcements.length} />
-        <main className="min-w-0 border-x bg-background/70">
+        <main className="min-h-0 min-w-0 border-x bg-background">
           {route === "search" && <SearchPage />}
           {route === "queue" && <QueuePage />}
           {route === "history" && <HistoryPage />}
@@ -96,6 +99,30 @@ export function App() {
   );
 }
 
+function TitleBar() {
+  return (
+    <div className="app-drag flex h-11 items-center justify-between px-2">
+      <div className="flex items-center gap-2 px-2">
+        <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <Music2 />
+        </div>
+        <span className="text-sm font-semibold text-foreground">PisaMusic</span>
+      </div>
+      <div className="app-no-drag flex items-center overflow-hidden rounded-lg border bg-card shadow-sm">
+        <Button variant="ghost" size="iconSm" className="rounded-none" onClick={() => void window.pisa.window.minimize()}>
+          <Minimize2 />
+        </Button>
+        <Button variant="ghost" size="iconSm" className="rounded-none" onClick={() => void window.pisa.window.toggleMaximize()}>
+          <Maximize2 />
+        </Button>
+        <Button variant="ghost" size="iconSm" className="rounded-none hover:bg-destructive hover:text-destructive-foreground" onClick={() => void window.pisa.window.close()}>
+          <X />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function Sidebar({ route, onRouteChange, announcements }: { route: RouteKey; onRouteChange: (route: RouteKey) => void; announcements: number }) {
   const nav = [
     { key: "search" as const, label: "聚合搜索", icon: Search },
@@ -106,7 +133,7 @@ function Sidebar({ route, onRouteChange, announcements }: { route: RouteKey; onR
   return (
     <aside className="flex min-h-0 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-20 items-center gap-3 px-5">
-        <div className="flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow">
+        <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
           <Music2 />
         </div>
         <div className="min-w-0">
@@ -121,8 +148,8 @@ function Sidebar({ route, onRouteChange, announcements }: { route: RouteKey; onR
             <button
               key={item.key}
               className={cn(
-                "flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-                route === item.key && "bg-primary/15 text-foreground",
+                "flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                route === item.key && "bg-accent text-foreground shadow-sm",
               )}
               onClick={() => onRouteChange(item.key)}
             >
@@ -133,7 +160,7 @@ function Sidebar({ route, onRouteChange, announcements }: { route: RouteKey; onR
         })}
       </nav>
       <div className="mt-auto flex flex-col gap-3 p-4">
-        <Card className="border-primary/30 bg-primary/10">
+        <Card className="border bg-background">
           <CardHeader className="p-4">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Bell />
@@ -174,7 +201,7 @@ function SearchPage() {
 
   return (
     <section className="flex h-full min-h-0 flex-col">
-      <header className="flex h-20 items-center gap-3 px-6">
+      <header className="flex h-20 items-center gap-3 bg-card px-6">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -197,7 +224,7 @@ function SearchPage() {
         <div className="flex flex-col gap-5 p-6">
           {error && <p className="rounded-md border bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
           {!flattened.length && !error && (
-            <Card className="border-dashed bg-card/70">
+            <Card className="border-dashed bg-card">
               <CardHeader>
                 <CardTitle>开始一次聚合搜索</CardTitle>
                 <CardDescription>结果会按酷狗、网易云、酷我分组展示，点击歌曲即可加入队列并播放。</CardDescription>
@@ -216,7 +243,7 @@ function SearchPage() {
 function SourceSection({ source, tracks, onPlay }: { source: MusicSource; tracks: TrackSearchResult[]; onPlay: (track: TrackSearchResult) => void }) {
   if (!tracks.length) return null;
   return (
-    <Card className="overflow-hidden bg-card/85">
+    <Card className="overflow-hidden bg-card">
       <CardHeader className="flex-row items-center justify-between">
         <div className="flex flex-col gap-1">
           <CardTitle>{MUSIC_SOURCE_LABEL[source]}</CardTitle>
@@ -236,7 +263,7 @@ function SourceSection({ source, tracks, onPlay }: { source: MusicSource; tracks
 function TrackRow({ track, onPlay }: { track: TrackSearchResult; onPlay: () => void }) {
   return (
     <button
-      className="grid h-16 grid-cols-[44px_1fr_auto] items-center gap-3 rounded-md px-2 text-left transition-colors hover:bg-accent"
+      className="grid h-16 grid-cols-[44px_1fr_auto] items-center gap-3 rounded-xl px-2 text-left transition-colors hover:bg-accent"
       onClick={onPlay}
     >
       <Cover track={track} />
@@ -265,7 +292,7 @@ function QueuePage() {
       <ScrollArea className="min-h-0 flex-1">
         <div className="flex flex-col gap-2 p-6">
           {queue.map((track, index) => (
-            <div key={`${track.source}:${track.id}:${index}`} className={cn(index === currentIndex && "rounded-md bg-primary/10")}>
+            <div key={`${track.source}:${track.id}:${index}`} className={cn(index === currentIndex && "rounded-xl bg-accent")}>
               <TrackRow track={track} onPlay={() => void playTrack(track, queue)} />
             </div>
           ))}
@@ -377,7 +404,7 @@ function SettingsPage({ settings, onSettingsChange, announcements }: { settings:
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               {announcements.map((item) => (
-                <div key={item.id} className="rounded-md border bg-background p-3">
+                <div key={item.id} className="rounded-xl border bg-background p-3">
                   <p className="text-sm">{item.content}</p>
                   <p className="mt-2 text-xs text-muted-foreground">{item.publisher} · {item.time}</p>
                 </div>
@@ -397,12 +424,12 @@ function NowPlayingPanel() {
   const lyrics = usePlayerStore((state) => state.lyrics);
   const lyricCount = current ? (lyrics[`${current.source}:${current.id}`]?.text.split("\n").filter(Boolean).length ?? 0) : 0;
   return (
-    <aside className="flex min-h-0 flex-col bg-card/70">
+    <aside className="flex min-h-0 flex-col bg-card">
       <PageHeader title="正在播放" description={current ? current.sourceName : "等待选择歌曲"} compact />
       <div className="flex flex-col gap-4 p-5">
         {current ? (
           <>
-            <div className="aspect-square overflow-hidden rounded-lg border bg-secondary">
+            <div className="aspect-square overflow-hidden rounded-2xl border bg-secondary">
               {current.coverUrl ? <img src={current.coverUrl} alt={current.title} className="size-full object-cover" /> : <div className="flex size-full items-center justify-center"><Music2 /></div>}
             </div>
             <div className="min-w-0">
@@ -448,7 +475,7 @@ function PlayerBar({ settings, onSettingsChange }: { settings: AppSettings; onSe
   };
 
   return (
-    <footer className="mt-3 grid h-24 grid-cols-[320px_1fr_260px] items-center gap-5 rounded-lg border bg-player-surface px-5 shadow-xl">
+    <footer className="mt-3 grid h-[84px] grid-cols-[320px_minmax(0,1fr)_260px] items-center gap-5 rounded-2xl border bg-player-surface px-5 shadow-sm">
       <div className="grid min-w-0 grid-cols-[52px_1fr] items-center gap-3">
         {current ? <Cover track={current} large /> : <div className="flex size-12 items-center justify-center rounded-md bg-secondary"><Music2 /></div>}
         <div className="min-w-0">
@@ -484,7 +511,7 @@ function PlayerBar({ settings, onSettingsChange }: { settings: AppSettings; onSe
 
 function PageHeader({ title, description, compact = false }: { title: string; description: string; compact?: boolean }) {
   return (
-    <header className={cn("flex items-center justify-between border-b px-6", compact ? "h-20" : "h-20")}>
+    <header className={cn("flex items-center justify-between border-b bg-card px-6", compact ? "h-20" : "h-20")}>
       <div className="min-w-0">
         <h2 className="truncate text-xl font-semibold">{title}</h2>
         <p className="truncate text-sm text-muted-foreground">{description}</p>
@@ -495,7 +522,7 @@ function PageHeader({ title, description, compact = false }: { title: string; de
 
 function Cover({ track, large = false }: { track: TrackSearchResult; large?: boolean }) {
   return (
-    <div className={cn("overflow-hidden rounded-md border bg-secondary", large ? "size-12" : "size-11")}>
+    <div className={cn("overflow-hidden rounded-xl border bg-secondary", large ? "size-12" : "size-11")}>
       {track.coverUrl ? (
         <img src={track.coverUrl} alt={track.title} className="size-full object-cover" />
       ) : (
@@ -509,7 +536,7 @@ function Cover({ track, large = false }: { track: TrackSearchResult; large?: boo
 
 function EmptyBlock({ title, description }: { title: string; description: string }) {
   return (
-    <Card className="border-dashed bg-card/60">
+    <Card className="border-dashed bg-card">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -520,7 +547,7 @@ function EmptyBlock({ title, description }: { title: string; description: string
 
 function InfoTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border bg-background p-3">
+    <div className="rounded-xl border bg-background p-3">
       <p className="flex items-center gap-1 text-xs text-muted-foreground">
         <Clock3 />
         {label}

@@ -22,7 +22,7 @@ export const DEFAULT_THEME_SETTINGS: AppThemeSettings = {
   mode: "system",
   preset: "pisa-blue",
   primaryColor: "#5AB8FF",
-  radius: 8,
+  radius: 14,
   useAlbumAccent: false,
 };
 

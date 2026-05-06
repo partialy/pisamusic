@@ -9,8 +9,8 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 1040,
     minHeight: 680,
     title: "PisaMusic",
-    backgroundColor: "#f6fbff",
-    titleBarStyle: "hiddenInset",
+    backgroundColor: "#f7f8fb",
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.mjs"),
       sandbox: false,

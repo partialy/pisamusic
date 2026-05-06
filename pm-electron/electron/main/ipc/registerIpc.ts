@@ -42,4 +42,19 @@ export function registerIpc(win: BrowserWindow): void {
     return writeSettings({ ...current, theme });
   });
   ipcMain.handle(IPC_CHANNELS.playerState, (_event, state: TrayPlaybackState) => setTrayPlaybackState(win, state));
+  ipcMain.handle(IPC_CHANNELS.windowMinimize, () => {
+    win.minimize();
+  });
+  ipcMain.handle(IPC_CHANNELS.windowToggleMaximize, () => {
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+    return win.isMaximized();
+  });
+  ipcMain.handle(IPC_CHANNELS.windowClose, () => {
+    win.close();
+  });
+  ipcMain.handle(IPC_CHANNELS.windowIsMaximized, () => win.isMaximized());
 }

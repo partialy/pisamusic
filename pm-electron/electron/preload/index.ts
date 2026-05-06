@@ -34,6 +34,12 @@ const api: PisaApi = {
     },
     setPlaybackState: (state) => ipcRenderer.invoke(IPC_CHANNELS.playerState, state),
   },
+  window: {
+    minimize: () => ipcRenderer.invoke(IPC_CHANNELS.windowMinimize),
+    toggleMaximize: () => ipcRenderer.invoke(IPC_CHANNELS.windowToggleMaximize),
+    close: () => ipcRenderer.invoke(IPC_CHANNELS.windowClose),
+    isMaximized: () => ipcRenderer.invoke(IPC_CHANNELS.windowIsMaximized),
+  },
 };
 
 contextBridge.exposeInMainWorld("pisa", api);

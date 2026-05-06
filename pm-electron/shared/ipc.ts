@@ -32,6 +32,12 @@ export interface PisaApi {
     onTrayCommand(callback: (command: TrayPlayerCommand) => void): () => void;
     setPlaybackState(state: TrayPlaybackState): Promise<void>;
   };
+  window: {
+    minimize(): Promise<void>;
+    toggleMaximize(): Promise<boolean>;
+    close(): Promise<void>;
+    isMaximized(): Promise<boolean>;
+  };
 }
 
 export type TrayPlayerCommand = "toggle-play" | "previous" | "next";
@@ -60,4 +66,8 @@ export const IPC_CHANNELS = {
   settingsSaveTheme: "settings:save-theme",
   playerTrayCommand: "player:tray-command",
   playerState: "player:state",
+  windowMinimize: "window:minimize",
+  windowToggleMaximize: "window:toggle-maximize",
+  windowClose: "window:close",
+  windowIsMaximized: "window:is-maximized",
 } as const;
