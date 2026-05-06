@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-player-surface: hsl(var(--player-surface));
+  --color-player-accent: hsl(var(--player-accent));
+  --color-player-progress: hsl(var(--player-progress));
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+:root {
+  --background: 205 100% 98%;
+  --foreground: 212 52% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 212 52% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 212 52% 13%;
+  --primary: 203 100% 68%;
+  --primary-foreground: 210 100% 98%;
+  --secondary: 203 100% 96%;
+  --secondary-foreground: 209 70% 28%;
+  --muted: 207 48% 94%;
+  --muted-foreground: 210 16% 49%;
+  --accent: 190 90% 92%;
+  --accent-foreground: 204 80% 26%;
+  --destructive: 350 84% 65%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 205 52% 89%;
+  --input: 205 52% 89%;
+  --ring: 203 100% 68%;
+  --sidebar: 204 100% 96%;
+  --sidebar-foreground: 212 52% 13%;
+  --player-surface: 0 0% 100%;
+  --player-accent: 203 100% 68%;
+  --player-progress: 203 100% 56%;
+  --radius: 8px;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  margin: 0;
+  min-width: 1024px;
+  min-height: 680px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, hsl(var(--primary) / 0.22), transparent 28rem),
+    linear-gradient(145deg, hsl(var(--background)), hsl(var(--secondary)));
+  color: hsl(var(--foreground));
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+#root {
+  height: 100vh;
+}

@@ -1,0 +1,69 @@
+# AGENTS.md
+
+本文件用于指导 Codex / Claude Code 在 `pm-electron/` 桌面端 App 项目内协作。外层总规则见 `../AGENTS.md`。
+
+## App 定位
+
+`pm-electron` 是 PisaMusic 的 PC 桌面端 App。它是手机端 `pm` 的桌面版本，但不要求功能和界面完全一致；桌面端应有自己的窗口布局、播放体验、托盘能力和长期扩展空间。
+
+参考方向是根目录 `../SPlayer/`，仅参考主流桌面音乐播放器体验、页面组织、播放器状态管理、Electron 工程边界等思路。不要直接复制 SPlayer 的代码、资源或具体实现。
+
+## 技术选型
+
+- 框架：Electron + React + TypeScript
+- 构建：electron-vite
+- UI：shadcn/ui + Tailwind CSS + Radix UI + lucide-react
+- 播放：howler
+- 本地数据：SQLite，优先在 main 进程封装数据库访问
+- 打包：electron-builder
+- 平台：Windows 优先，保留 macOS / Linux 扩展空间
+
+## 构建与运行
+
+- 安装依赖：`pnpm install`
+- 开发：`pnpm dev`
+- 预览构建产物：`pnpm start`
+- 类型检查：`pnpm typecheck`
+- 构建：`pnpm build`
+- Windows 打包：`pnpm build:win`
+
+## 首版范围
+
+- 三音源聚合搜索和播放，结果按音源分组展示，交互参考手机端 `pm` 的搜索体验。
+- 仅做公开搜索播放，不做登录 / Cookie 导入。
+- 歌词先实现获取并写入 store，暂时不展示 UI。
+- 播放失败时提示“播放失败，可尝试切换其他音源”，然后自动下一曲。
+- 复用外层 `../server/` 的配置、公告、反馈接口。
+- 桌面端独立实现本地设置、播放历史、搜索历史、队列和后续设备信息等能力。
+- 配置每次启动或需要时从服务端拉取，不写入 SQLite 做持久化。
+- 首版桌面能力只做系统托盘；全局快捷键、自动更新、迷你播放器、媒体键等后续扩展。
+
+## 架构规则
+
+- main 进程负责窗口、托盘、SQLite、文件系统、系统能力、服务层和需要 Node 权限的网络请求。
+- preload 只暴露类型安全的 IPC API，不暴露完整 Node 能力。
+- renderer 只负责 React UI、交互状态、播放器界面和页面组合。
+- shared 放公共类型、IPC contract、音源统一模型和跨进程常量。
+- 三音源搜索、播放地址解析、服务端配置、公告和反馈 API 应封装为服务层，不要散落在组件里。
+- howler 播放控制应封装成独立播放器模块，UI 通过 store 或 service facade 调用。
+- SQLite 访问不要直接写在 React 组件中，必须通过 main IPC 或服务层。
+
+## UI 方向
+
+- 主体采用桌面音乐播放器布局：左侧导航、顶部搜索、中央内容区、可选右侧队列或详情、底部固定播放栏。
+- 风格参考主流音乐播放器和 SPlayer 的优秀体验，但 PisaMusic 要保持自己的视觉语言。
+- 不做后台管理风格，不做网页 landing page；启动后第一屏就是可用的播放器体验。
+- 组件优先复用 shadcn/ui，图标优先使用 lucide-react。
+- 不使用 shadcn/ui 默认黑白中性色主题。默认主题为 Pisa Blue，主色为淡蓝 / 天青蓝，整体要有清晰的音乐播放器色彩识别。
+- 颜色必须通过 CSS variables / 主题 token 管理，不要在业务组件里散落硬编码颜色。
+- 需要预留 App 内主题配色修改能力：主题模式、主题预设、主色、自定义半径等设置应可写入 SQLite，并在 renderer 启动时应用到 `:root`。
+- 播放器专属色彩使用独立 token，例如进度条、播放按钮、当前歌曲高亮，不要直接绑死到单个组件 class。
+- 前端组件要拆分清楚，避免出现上千行大组件。
+
+## 验证要求
+
+- 开发阶段至少运行 TypeScript 检查和构建脚本。
+- UI 改动需要启动 Electron 或浏览器预览检查核心页面。
+- 涉及播放器时要验证播放、暂停、切歌、进度、音量和失败降级。
+- 涉及 SQLite 时要验证首次启动建表、重复启动幂等、读写路径正确。
+- 涉及服务端契约时，同步检查 `../server/` 和手机端 `../pm/` 是否受影响。

@@ -8,6 +8,7 @@
 - `pm-electron/`：PC 端 App 目录。开发时以该目录内实际技术栈和配置为准，不要凭空假设脚手架。
 - `server/`：外层统一服务端，包含 Node.js / TypeScript 后端、管理后台、官网、上传文件与运行数据。
 - `example/`：参考代码。只有用户明确指定某个开发模块需要参考时，才允许进入 `example/` 查找或借鉴代码；用户没有指定时，不要搜索、读取或复制其中的实现。
+- `SPlayer/`：桌面端 App 的参考项目源码，仅用于 `pm-electron/` 的产品与工程思路参考。SPlayer 使用 AGPL-3.0，不要直接复制代码、资源或实现细节进本项目。
 - `pm210.jks`：签名相关文件，视为敏感构建资产。不要移动、删除、上传或改名，除非用户明确要求。
 
 ## 工作区规则
@@ -58,7 +59,11 @@
 PC 端 App：
 
 - 目录：`pm-electron/`
-- 以目录内实际 `package.json`、Electron/Vite 配置或后续项目说明为准；当前总规则只定义它是 PC 端 App 边界。
+- 技术栈：Electron + React + TypeScript + electron-vite + shadcn/ui + Tailwind CSS
+- 开发：`pnpm --dir pm-electron dev`
+- 类型检查：`pnpm --dir pm-electron typecheck`
+- 构建：`pnpm --dir pm-electron build`
+- Windows 打包：`pnpm --dir pm-electron build:win`
 
 ## 验证要求
 

@@ -1,5 +1,7 @@
 # Reference code is opt-in only.
 example/
+Splayer/
+SPlayer/
 
 # Local backups and signing assets.
 *.zip
@@ -34,6 +36,7 @@ pm/app/release/baselineProfiles/
 **/node_modules/
 **/dist/
 **/out/
+pm-electron/release/
 
 # Server runtime data.
 server/uploads/
