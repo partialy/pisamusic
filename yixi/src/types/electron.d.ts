@@ -36,6 +36,34 @@ type QueueSnapshot = {
   updatedAt: string;
 };
 
+type BootstrapConfig = {
+  version: string;
+  updatedAt: number;
+  endpoints: Record<string, string>;
+  gatewaySign?: {
+    secret: string;
+    as: string;
+  };
+};
+
+type Announcement = {
+  id: string;
+  content: string;
+  time: string;
+  publisher: string;
+  confirmText: string;
+  showEveryTime?: boolean;
+  showGotoButton: boolean;
+  gotoUrl?: string;
+};
+
+type FeedbackPayload = {
+  feedback_type: "bug" | "suggestion" | "account" | "other";
+  description: string;
+  contact?: string;
+  device?: Record<string, unknown>;
+};
+
 type SearchHistoryItem = {
   id: number;
   keyword: string;
@@ -107,6 +135,12 @@ type ElectronIpcApi = {
   openCookieWindow: (t: "kg" | "wy") => void;
   readCookie: (t: "kg" | "wy") => Promise<string>;
   refreshKGCookie: (data: string) => Promise<any>;
+
+  getSystemBaseUrl: () => Promise<string>;
+  getBootstrapConfig: () => Promise<BootstrapConfig>;
+  getRuntimeEndpoints: (fresh?: boolean) => Promise<BackServerConfig>;
+  getAnnouncements: () => Promise<Announcement[]>;
+  submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
 
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;

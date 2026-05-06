@@ -1,6 +1,6 @@
 import winston from "winston";
 import "winston-daily-rotate-file";
-import { systemConfig } from "../../config/config";
+import { getLogPath } from "../core/appPaths";
 
 export const logger = winston.createLogger({
   level: "info",
@@ -13,7 +13,7 @@ export const logger = winston.createLogger({
       format: winston.format.simple(),
     }),
     new winston.transports.DailyRotateFile({
-      dirname: systemConfig.logPath,
+      dirname: getLogPath(),
       filename: "application-%DATE%.log",
       datePattern: "YYYY-MM-DD",
       maxSize: "20m",

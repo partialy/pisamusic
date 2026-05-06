@@ -16,3 +16,11 @@ export function getAppDataPath(...paths: string[]) {
 export function getDatabasePath(filename = "pisamusic.db") {
   return path.join(getAppDataPath("db"), filename);
 }
+
+export function getLogPath() {
+  return getAppDataPath("logs");
+}
+
+export function getLegacyDataPath() {
+  return getAppDataPath("legacy");
+}

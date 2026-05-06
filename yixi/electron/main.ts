@@ -20,6 +20,7 @@ import { existsSync, mkdirSync, readFileSync, writeFile } from "fs";
 import { appStore, collectStore } from "./store";
 import { closeAppDatabase } from "./database";
 import { setupPersistenceIpc } from "./ipc/persistenceIpc";
+import { setupSystemIpc } from "./ipc/systemIpc";
 
 type WindowLyricSetting = {
   maxSize: number;
@@ -171,6 +172,7 @@ try {
   }
 
   app.whenReady().then(() => {
+    setupSystemIpc();
     setupPersistenceIpc();
     setupStoreIpc();
     createWindow();

@@ -3,8 +3,9 @@ import { existsSync, readFileSync } from "fs";
 import { logger } from "./logger";
 import fs from "fs";
 import path from "path";
-import { systemConfig, data_path, electronConfig } from "../../config/config";
 import { collectStore } from "../store";
+import { getLegacyDataPath, getLogPath } from "../core/appPaths";
+import { getRuntimeEndpointsFresh, getSystemBaseUrl } from "../system/systemClient";
 
 export async function ipcMainEventHandle(win: Electron.BrowserWindow) {
   // const urlConfig = (await electronAPI.getRequestUrl()).urlConfig;
@@ -36,26 +37,31 @@ export async function ipcMainEventHandle(win: Electron.BrowserWindow) {
 
   // 获取请求url
   ipcMain.handle("get-request-url", async () => {
-    const res = readFileSync("data/config.json", "utf-8");
-    return JSON.parse(res);
+    const endpoints = await getRuntimeEndpointsFresh();
+    return {
+      urlConfig: endpoints,
+      TARGET_URL: {
+        kg: endpoints.kgServer,
+        wy: endpoints.wyServer,
+        kw: endpoints.kwServer,
+      },
+      PORT: "",
+    };
   });
 
   ipcMain.handle("get-server-port", async () => {
+    const backServer = await getRuntimeEndpointsFresh();
     return {
-      ...electronConfig,
-      backServer: {
-        kgServer: "http://127.0.0.1:31000",
-        wyServer: "http://127.0.0.1:31001",
-        kwServer: "http://127.0.0.1:31002",
-        kgProxy: "http://127.0.0.1:38888/proxy/kg",
-        wyProxy: "http://127.0.0.1:38888/proxy/wy",
-        kwProxy: "http://127.0.0.1:38888/proxy/kw",
-      },
+      main_server: getSystemBaseUrl(),
+      backServer,
     };
   });
 
   ipcMain.handle("get-electron-config", async () => {
-    return electronConfig;
+    return {
+      main_server: getSystemBaseUrl(),
+      data_path: getLegacyDataPath(),
+    };
   });
 
   ipcMain.handle("log", async (_, data: any) => {
@@ -69,7 +75,7 @@ export async function setupFileIpc(_win: Electron.BrowserWindow) {
       // 1. 根据日期生成日志文件名
       const dateStr = date.toISOString().split("T")[0]; // 格式化为 YYYY-MM-DD
       const filename = `application-${dateStr}.log`;
-      const filePath = path.join(systemConfig.logPath, filename);
+      const filePath = path.join(getLogPath(), filename);
 
       // 2. 检查文件是否存在
       if (!fs.existsSync(filePath)) {
@@ -104,18 +110,18 @@ export async function setupFileIpc(_win: Electron.BrowserWindow) {
       }
     ) => {
       try {
-        const dir = path.join(data_path, params.folder);
+        const dir = path.join(getLegacyDataPath(), params.folder);
         if (!existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
-        if (!existsSync(path.join(data_path, params.folder, params.filename))) {
+        if (!existsSync(path.join(getLegacyDataPath(), params.folder, params.filename))) {
           fs.writeFileSync(
-            path.join(data_path, params.folder, params.filename),
+            path.join(getLegacyDataPath(), params.folder, params.filename),
             params.dataType === "object" ? "{}" : "[]"
           );
         }
         const res = readFileSync(
-          path.join(data_path, params.folder, params.filename),
+          path.join(getLegacyDataPath(), params.folder, params.filename),
           "utf-8"
         );
         return {
@@ -143,12 +149,12 @@ export async function setupFileIpc(_win: Electron.BrowserWindow) {
       }
     ) => {
       try {
-        const dir = path.join(data_path, params.folder);
+        const dir = path.join(getLegacyDataPath(), params.folder);
         if (!existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
         fs.writeFileSync(
-          path.join(data_path, params.folder, params.filename),
+          path.join(getLegacyDataPath(), params.folder, params.filename),
           params.data
         );
         return {

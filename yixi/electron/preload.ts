@@ -146,6 +146,20 @@ const libraryIpc = {
     ipcRenderer.invoke("library:queue-snapshot:save", snapshot),
 };
 
+const systemIpc = {
+  getSystemBaseUrl: () => ipcRenderer.invoke("system:get-base-url"),
+  getBootstrapConfig: () => ipcRenderer.invoke("system:get-bootstrap"),
+  getRuntimeEndpoints: (fresh?: boolean) =>
+    ipcRenderer.invoke("system:get-runtime-endpoints", fresh),
+  getAnnouncements: () => ipcRenderer.invoke("system:get-announcements"),
+  submitFeedback: (payload: {
+    feedback_type: "bug" | "suggestion" | "account" | "other";
+    description: string;
+    contact?: string;
+    device?: Record<string, unknown>;
+  }) => ipcRenderer.invoke("system:submit-feedback", payload),
+};
+
 const otherIpc = {
   // store
   getStore: (key: string) => ipcRenderer.invoke("store-get", key),
@@ -169,6 +183,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...fileIpc,
   ...lyricIpc,
   ...cookieIpc,
+  ...systemIpc,
   ...settingsIpc,
   ...libraryIpc,
   ...otherIpc,

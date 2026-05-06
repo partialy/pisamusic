@@ -25,12 +25,16 @@
 - shared 类型应抽离到明确目录，IPC 入参和返回值必须有统一类型。
 - 旧代码里从 IPC 获取 baseURL、读取本地 `data/electronConfig.json` 或在 renderer 硬编码网关地址的逻辑，需要逐步迁移到 main 统一服务端 bootstrap。
 - 配置、公告、反馈复用外层 `server/` 的接口；服务端配置每次拉取，不写入 SQLite 持久化。
+- 外层服务端地址由 main 侧读取环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL`，默认 `http://127.0.0.1:53380`。
+- system 能力通过 `system:*` IPC 暴露，包括 bootstrap、runtime endpoints、公告、反馈；旧 `getServerPort` / `getRequestUrl` 仅作为兼容入口保留。
+- 服务端加密、网关验签只允许在 main 侧封装，renderer 不直接持有 `gatewaySign.secret` 或 AES 派生逻辑。
 
 ## 数据规则
 
 - SQLite 保存用户设置、主题设置、搜索历史、播放历史、队列快照等本地数据。
 - 关键业务数据不要继续使用 localStorage 作为唯一持久化来源；迁移时可保留兼容读取，但写入目标应转向 SQLite。
 - 数据库、日志、运行目录、打包产物不纳入 Git。
+- Electron 运行数据统一写入 `app.getPath("userData")/data`，不要依赖源码目录下被忽略的 `yixi/data/`。
 - 迁移脚本必须幂等，重复启动不能重复建表或重复写入默认数据。
 
 ## 音乐与播放规则
