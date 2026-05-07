@@ -5,6 +5,10 @@ import type {
   MusicSearchParams,
   MusicUrlParams,
   PlayableTrackPayload,
+  PlaylistDetailParams,
+  PlaylistSearchParams,
+  PlaylistTracksParams,
+  TopPlaylistParams,
 } from "./types";
 
 export async function searchMusic(params: MusicSearchParams) {
@@ -65,6 +69,104 @@ export async function resolveMusicUrl(params: MusicUrlParams) {
         buildUrl(endpoints.kwProxy, "/song/url", {
           id: params.id,
           quality: params.quality ?? "standard",
+        })
+      );
+  }
+}
+
+export async function searchPlaylists(params: PlaylistSearchParams) {
+  const endpoints = await getRuntimeEndpointsFresh();
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 30;
+
+  switch (params.source) {
+    case "kg":
+      return requestSignedGateway(
+        buildUrl(endpoints.kgServer, "/search", {
+          keywords: params.keywords,
+          page,
+          pagesize: pageSize,
+          type: "special",
+        })
+      );
+    case "wy":
+      return requestSignedGateway(
+        buildUrl(endpoints.wyServer, "/cloudsearch", {
+          keywords: params.keywords,
+          offset: (page - 1) * pageSize,
+          limit: pageSize,
+          type: 1000,
+        })
+      );
+  }
+}
+
+export async function getKgPlaylistTags() {
+  const endpoints = await getRuntimeEndpointsFresh();
+  return requestSignedGateway(buildUrl(endpoints.kgServer, "/playlist/tags", {}));
+}
+
+export async function getTopPlaylists(params: TopPlaylistParams) {
+  const endpoints = await getRuntimeEndpointsFresh();
+  return requestSignedGateway(
+    buildUrl(endpoints.kgServer, "/top/playlist", {
+      category_id: params.categoryId ?? 0,
+      withsong: 0,
+      withtag: 1,
+      page: params.page ?? 1,
+      pagesize: params.pageSize,
+    })
+  );
+}
+
+export async function getKgDailyRecommend(platform?: string) {
+  const endpoints = await getRuntimeEndpointsFresh();
+  return requestSignedGateway(
+    buildUrl(endpoints.kgServer, "/everyday/recommend", {
+      platform,
+    })
+  );
+}
+
+export async function getPlaylistDetail(params: PlaylistDetailParams) {
+  const endpoints = await getRuntimeEndpointsFresh();
+  switch (params.source) {
+    case "kg":
+      return requestSignedGateway(
+        buildUrl(endpoints.kgServer, "/playlist/detail", {
+          ids: params.id,
+        })
+      );
+    case "wy":
+      return requestSignedGateway(
+        buildUrl(endpoints.wyServer, "/playlist/detail", {
+          id: params.id,
+          s: 3,
+        })
+      );
+  }
+}
+
+export async function getPlaylistTracks(params: PlaylistTracksParams) {
+  const endpoints = await getRuntimeEndpointsFresh();
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 30;
+
+  switch (params.source) {
+    case "kg":
+      return requestSignedGateway(
+        buildUrl(endpoints.kgServer, "/playlist/track/all", {
+          id: params.id,
+          page,
+          pagesize: pageSize,
+        })
+      );
+    case "wy":
+      return requestSignedGateway(
+        buildUrl(endpoints.wyServer, "/playlist/track/all", {
+          id: params.id,
+          limit: pageSize,
+          offset: pageSize * (page - 1),
         })
       );
   }

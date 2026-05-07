@@ -27,11 +27,11 @@ import {
   PlaylistCollect,
   WelcomeCard,
 } from "@/components";
-import directAPI from "@/utils/api/directAPI";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { useAudioStore, useCollectStore } from "@/store";
 import { convertor } from "@/utils/convertor";
 import { storeToRefs } from "pinia";
+import { getKgDailyRecommend, getTopPlaylists } from "@/utils/api/musicAPI";
 
 const player = useAudioStore();
 const collector = useCollectStore();
@@ -52,12 +52,11 @@ const getRecPlaylist = async () => {
       return;
     }
   }
-  const res = await directAPI.kg?.topPlaylist({
-    category_id: 0,
-    withsong: 0,
-    withtag: 1,
+  const res: any = await getTopPlaylists({
+    source: "kg",
+    categoryId: 0,
   });
-  recPlaylist.value = (res?.data.special_list || []).map((i) =>
+  recPlaylist.value = (res?.data.special_list || []).map((i: any) =>
     convertor.KG.convertKGPlaylist(i, "item")
   );
   localStorage.setItem("recPlaylist", JSON.stringify({time:new Date().getDate(),data:recPlaylist.value}))
@@ -71,8 +70,8 @@ const getRecSong = async () => {
       return;
     }
   }
-  const res = await directAPI.kg?.everydayRecommend();
-  recSong.value = (res?.data.song_list || []).map((i) =>
+  const res: any = await getKgDailyRecommend();
+  recSong.value = (res?.data.song_list || []).map((i: any) =>
     convertor.KG.convertKGRecommendSong(i)
   );
   localStorage.setItem("recSong", JSON.stringify({time:new Date().getDate(),data:recSong.value}))

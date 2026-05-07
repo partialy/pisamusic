@@ -63,7 +63,6 @@
 <script setup lang="ts">
 import { PlaylistCollect } from "@/components";
 import { NPopover, NButton, NSpin, NBackTop } from "naive-ui";
-import directAPI from "@/utils/api/directAPI";
 import type { KGTag } from "@/utils/webapi";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import {
@@ -79,6 +78,7 @@ import LoadingIcon from "@/icons/common/LoadingIcon.vue";
 import { debounce } from "@/utils/common";
 import type { CommonPlaylist } from "@/types/song";
 import { convertor } from "@/utils/convertor";
+import { getKgPlaylistTags, getTopPlaylists } from "@/utils/api/musicAPI";
 
 const chooseIcon = (tagName: string) => {
   switch (tagName) {
@@ -101,7 +101,7 @@ const chooseIcon = (tagName: string) => {
 const tags = ref<KGTag[]>([]);
 const playlists = ref<CommonPlaylist[]>([]);
 const getTags = async () => {
-  const res = await directAPI.kg?.playlistTags();
+  const res: any = await getKgPlaylistTags();
   tags.value = res?.data || [];
 };
 getTags();
@@ -117,13 +117,12 @@ const pagination = ref({
 const handleClickTag = async (tag: KGTag) => {
   curretTage.value = tag;
   pagination.value.page = 1;
-  const res = await directAPI.kg?.topPlaylist({
-    category_id: tag?.tag_id || 0,
-    withsong: 0,
-    withtag: 1,
+  const res: any = await getTopPlaylists({
+    source: "kg",
+    categoryId: tag?.tag_id || 0,
     page: 1,
   });
-  const l = (res?.data.special_list || []).map((i) =>
+  const l = (res?.data.special_list || []).map((i: any) =>
     convertor.KG.convertKGPlaylist(i, "item")
   );
   playlists.value = l;
@@ -135,17 +134,15 @@ const loadMore = debounce(async () => {
     moreLoading.value = true;
     if (!hasNext.value) return;
     pagination.value.page += 1;
-    const res = await directAPI.kg?.topPlaylist({
-      category_id: curretTage.value?.tag_id || 0,
-      withsong: 0,
-      withtag: 1,
+    const res: any = await getTopPlaylists({
+      source: "kg",
+      categoryId: curretTage.value?.tag_id || 0,
       page: pagination.value.page,
-      // @ts-ignore
-      pagesize: pagination.value.pageSize,
+      pageSize: pagination.value.pageSize,
     });
     if (res?.data.special_list) {
       playlists.value = playlists.value.concat(
-        (res?.data.special_list || []).map((i) =>
+        (res?.data.special_list || []).map((i: any) =>
           convertor.KG.convertKGPlaylist(i, "item")
         )
       );

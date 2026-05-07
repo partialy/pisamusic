@@ -42,9 +42,8 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { NSelect, NRadio, NRadioGroup, NSpace } from "naive-ui";
 import type { CommonPlaylist, Song } from "../types/song";
-import directAPI from "../utils/api/directAPI";
 import { convertor } from "../utils/convertor";
-import { searchMusic } from "@/utils/api/musicAPI";
+import { searchMusic, searchPlaylists } from "@/utils/api/musicAPI";
 
 import { PlaylistCollect, SongList } from "@/components";
 
@@ -278,21 +277,21 @@ const searchList = async () => {
   try {
     switch(origin.value){
       case 'kg':
-        const kres = await directAPI.kg?.search({
+        const kres: any = await searchPlaylists({
+          source: "kg",
           keywords: keywords.value,
           page: 1,
-          pagesize: 30,
-          type: 'special'
+          pageSize: 30,
         })
         list.kg = kres?.data.lists.map((item:any) => convertor.KG.convertSearchList(item)) || []
         page.total = kres?.data.total || 0
         break;
         case 'wy':
-          const wyres = await directAPI.wy?.cloudSearch({
+          const wyres: any = await searchPlaylists({
+            source: "wy",
             keywords: keywords.value,
-            offset: 0,
-            limit: 30,
-            type: 1000,
+            page: 1,
+            pageSize: 30,
           })
           // @ts-ignore
           list.wy = wyres?.result.playlists.map((item:any) => convertor.WY.convertSearchList(item)) || []

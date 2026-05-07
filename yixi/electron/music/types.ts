@@ -7,6 +7,32 @@ export type MusicSearchParams = {
   pageSize?: number;
 };
 
+export type PlaylistSearchParams = {
+  source: Exclude<MusicSource, "kw">;
+  keywords: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type TopPlaylistParams = {
+  source: "kg";
+  categoryId?: string | number;
+  page?: number;
+  pageSize?: number;
+};
+
+export type PlaylistDetailParams = {
+  source: Exclude<MusicSource, "kw">;
+  id: string;
+};
+
+export type PlaylistTracksParams = {
+  source: Exclude<MusicSource, "kw">;
+  id: string;
+  page?: number;
+  pageSize?: number;
+};
+
 export type MusicUrlParams = {
   source: MusicSource;
   id: string;

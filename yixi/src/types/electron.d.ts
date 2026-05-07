@@ -101,6 +101,32 @@ type MusicSearchParams = {
   pageSize?: number;
 };
 
+type PlaylistSearchParams = {
+  source: "kg" | "wy";
+  keywords: string;
+  page?: number;
+  pageSize?: number;
+};
+
+type TopPlaylistParams = {
+  source: "kg";
+  categoryId?: string | number;
+  page?: number;
+  pageSize?: number;
+};
+
+type PlaylistDetailParams = {
+  source: "kg" | "wy";
+  id: string;
+};
+
+type PlaylistTracksParams = {
+  source: "kg" | "wy";
+  id: string;
+  page?: number;
+  pageSize?: number;
+};
+
 type MusicUrlParams = {
   source: SearchableMusicSource;
   id: string;
@@ -168,6 +194,12 @@ type ElectronIpcApi = {
   getAnnouncements: () => Promise<Announcement[]>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
   searchMusic: <T = any>(payload: MusicSearchParams) => Promise<T>;
+  searchPlaylists: <T = any>(payload: PlaylistSearchParams) => Promise<T>;
+  getKgPlaylistTags: <T = any>() => Promise<T>;
+  getTopPlaylists: <T = any>(payload: TopPlaylistParams) => Promise<T>;
+  getKgDailyRecommend: <T = any>(platform?: string) => Promise<T>;
+  getPlaylistDetail: <T = any>(payload: PlaylistDetailParams) => Promise<T>;
+  getPlaylistTracks: <T = any>(payload: PlaylistTracksParams) => Promise<T>;
   resolveMusicUrl: <T = any>(payload: MusicUrlParams) => Promise<T>;
   resolvePlayableUrl: (track: TrackSnapshot | { source: SearchableMusicSource; urlParam?: string; id?: string }) => Promise<string>;
   fetchLyrics: (payload: MusicLyricParams) => Promise<MusicLyricResult>;

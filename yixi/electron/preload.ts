@@ -169,6 +169,29 @@ const musicApiIpc = {
     page?: number;
     pageSize?: number;
   }) => ipcRenderer.invoke("music:search", payload),
+  searchPlaylists: (payload: {
+    source: "kg" | "wy";
+    keywords: string;
+    page?: number;
+    pageSize?: number;
+  }) => ipcRenderer.invoke("music:search-playlists", payload),
+  getKgPlaylistTags: () => ipcRenderer.invoke("music:kg-playlist-tags"),
+  getTopPlaylists: (payload: {
+    source: "kg";
+    categoryId?: string | number;
+    page?: number;
+    pageSize?: number;
+  }) => ipcRenderer.invoke("music:top-playlists", payload),
+  getKgDailyRecommend: (platform?: string) =>
+    ipcRenderer.invoke("music:kg-daily-recommend", platform),
+  getPlaylistDetail: (payload: { source: "kg" | "wy"; id: string }) =>
+    ipcRenderer.invoke("music:playlist-detail", payload),
+  getPlaylistTracks: (payload: {
+    source: "kg" | "wy";
+    id: string;
+    page?: number;
+    pageSize?: number;
+  }) => ipcRenderer.invoke("music:playlist-tracks", payload),
   resolveMusicUrl: (payload: {
     source: "kg" | "wy" | "kw";
     id: string;

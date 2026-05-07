@@ -110,13 +110,13 @@ import { computed, onMounted, ref, watch } from "vue";
 
 import type { KGPlaylistDetailData } from "@/utils/webapi";
 import { debounce, getKgImage } from "@/utils/common";
-import directAPI from "@/utils/api/directAPI";
 import SearchIcon from "@/icons/header/SearchIcon.vue";
 import { CollectIcon, PlayStatic } from "@/icons";
 import { useAudioStore, useCollectStore } from "@/store";
 import { convertor } from "@/utils/convertor";
 import type { CommonPlaylist, Song } from "@/types/song";
 import type { WYPlaylistDetail } from "@/utils/webapi";
+import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
 
 import { SongList } from "..";
 import { storeToRefs } from "pinia";
@@ -193,9 +193,9 @@ const ramdomTagType = ():
 
 const getListDetail = async () => {
   if (route.query.origin == "wy") {
-    const res = await directAPI.wy?.playlistDetail({
+    const res: any = await getPlaylistDetail({
+      source: "wy",
       id: id as string,
-      s: 3,
     });
     wyListDetail.value = res?.playlist;
     page.value.total = res?.playlist.trackCount!!;
@@ -203,7 +203,10 @@ const getListDetail = async () => {
       page.value.size = Math.max(Math.ceil(page.value.total / 5), 60);
     }
   } else {
-    const res = await directAPI.kg?.playListDetail([id as string]);
+    const res: any = await getPlaylistDetail({
+      source: "kg",
+      id: id as string,
+    });
     kgListDetail.value = res?.data[0];
   }
   convertDetail(route.query.origin as "kg" | "wy");
@@ -211,17 +214,23 @@ const getListDetail = async () => {
 
 const getSongList = async () => {
   if (route.query.origin == "wy") {
-    const res = await directAPI.wy?.playlistTrackAll({
+    const res: any = await getPlaylistTracks({
+      source: "wy",
       id: id as string,
-      limit: page.value.size,
-      offset: page.value.size * (page.value.currentPage - 1),
+      page: page.value.currentPage,
+      pageSize: page.value.size,
     });
     const rawList = res?.songs || [];
-    songList.value = rawList.map((i) => convertor.WY.convertPlaylistSong(i));
+    songList.value = rawList.map((i: any) => convertor.WY.convertPlaylistSong(i));
   } else {
-    const res = await directAPI.kg?.playListTracks({ id: id as string });
+    const res: any = await getPlaylistTracks({
+      source: "kg",
+      id: id as string,
+      page: page.value.currentPage,
+      pageSize: page.value.size,
+    });
     const rawList = res?.data.info || [];
-    songList.value = rawList.map((i) => convertor.KG.convertKGPlaylistSong(i));
+    songList.value = rawList.map((i: any) => convertor.KG.convertKGPlaylistSong(i));
     page.value.currentPage = ((res?.data.begin_idx || 0) % page.value.size) + 1;
     page.value.total = res?.data.count || 0;
     if (page.value.total > 300) {
@@ -262,23 +271,25 @@ const loadAll = async () => {
       : Math.floor(page.value.total / page.value.size) + 1;
   if (route.query.origin == "wy") {
     for (let i = 1; i <= times; i++) {
-      const res = await directAPI.wy?.playlistTrackAll({
+      const res: any = await getPlaylistTracks({
+        source: "wy",
         id: id as string,
-        limit: page.value.size,
-        offset: page.value.size * (i - 1),
+        page: i,
+        pageSize: page.value.size,
       });
-      const l = res?.songs.map((i) => convertor.WY.convertPlaylistSong(i));
+      const l = res?.songs.map((i: any) => convertor.WY.convertPlaylistSong(i));
       if (l) allSong.value = [...allSong.value, ...l];
     }
   } else {
     for (let i = 1; i <= times; i++) {
-      const res = await directAPI.kg?.playListTracks({
+      const res: any = await getPlaylistTracks({
+        source: "kg",
         id: id as string,
         page: i,
-        pagesize: page.value.size,
+        pageSize: page.value.size,
       });
       const s = res?.data.info || [];
-      const l = s.map((i) =>
+      const l = s.map((i: any) =>
         convertor.KG.convertKGPlaylistSong(i)
       );
       if (l) allSong.value = [...allSong.value, ...l];
