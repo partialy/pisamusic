@@ -45,6 +45,10 @@ export async function getKgDailyRecommend<T = any>(platform?: string): Promise<T
   return window.electronAPI.getKgDailyRecommend<T>(platform);
 }
 
+export async function getHomeRecommendations<T = any>(): Promise<T> {
+  return window.electronAPI.getHomeRecommendations<T>();
+}
+
 export async function getPlaylistDetail<T = any>(payload: {
   source: "kg" | "wy";
   id: string;

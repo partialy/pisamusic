@@ -188,6 +188,8 @@ const musicApiIpc = {
   }) => ipcRenderer.invoke("music:top-playlists", payload),
   getKgDailyRecommend: (platform?: string) =>
     ipcRenderer.invoke("music:kg-daily-recommend", platform),
+  getHomeRecommendations: () =>
+    ipcRenderer.invoke("music:home-recommendations"),
   getPlaylistDetail: (payload: { source: "kg" | "wy"; id: string }) =>
     ipcRenderer.invoke("music:playlist-detail", payload),
   getPlaylistTracks: (payload: {

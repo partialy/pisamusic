@@ -209,6 +209,7 @@ type ElectronIpcApi = {
   getKgPlaylistTags: <T = any>() => Promise<T>;
   getTopPlaylists: <T = any>(payload: TopPlaylistParams) => Promise<T>;
   getKgDailyRecommend: <T = any>(platform?: string) => Promise<T>;
+  getHomeRecommendations: <T = any>() => Promise<T>;
   getPlaylistDetail: <T = any>(payload: PlaylistDetailParams) => Promise<T>;
   getPlaylistTracks: <T = any>(payload: PlaylistTracksParams) => Promise<T>;
   getDynamicCover: <T = any>(payload: DynamicCoverParams) => Promise<T>;

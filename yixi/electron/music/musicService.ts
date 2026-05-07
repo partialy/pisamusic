@@ -139,6 +139,14 @@ export async function getKgDailyRecommend(platform?: string) {
   );
 }
 
+export async function getHomeRecommendations() {
+  const [playlists, songs] = await Promise.all([
+    getTopPlaylists({ source: "kg", categoryId: 0 }),
+    getKgDailyRecommend(),
+  ]);
+  return { playlists, songs };
+}
+
 export async function getPlaylistDetail(params: PlaylistDetailParams) {
   const endpoints = await getRuntimeEndpointsFresh();
   switch (params.source) {

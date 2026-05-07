@@ -31,50 +31,21 @@ import type { CommonPlaylist, Song } from "@/types/song";
 import { useAudioStore, useCollectStore } from "@/store";
 import { convertor } from "@/utils/convertor";
 import { storeToRefs } from "pinia";
-import { getKgDailyRecommend, getTopPlaylists } from "@/utils/api/musicAPI";
+import { getHomeRecommendations } from "@/utils/api/musicAPI";
 
 const player = useAudioStore();
 const collector = useCollectStore();
 const { songMap } = storeToRefs(collector);
 const recPlaylist = ref<CommonPlaylist[]>([]);
 const recSong = ref<Song[]>([]);
-interface localData {
-  time:number,
-  data:any
-}
-const getRecPlaylist = async () => {
-  const str = localStorage.getItem("recPlaylist");
-  if(str){
-    
-    const data = JSON.parse(str) as localData;
-    if(data.time == new Date().getDate()) {
-      recPlaylist.value = data.data;
-      return;
-    }
-  }
-  const res: any = await getTopPlaylists({
-    source: "kg",
-    categoryId: 0,
-  });
-  recPlaylist.value = (res?.data.special_list || []).map((i: any) =>
+const getHomeRecommend = async () => {
+  const res: any = await getHomeRecommendations();
+  recPlaylist.value = (res?.playlists?.data?.special_list || []).map((i: any) =>
     convertor.KG.convertKGPlaylist(i, "item")
   );
-  localStorage.setItem("recPlaylist", JSON.stringify({time:new Date().getDate(),data:recPlaylist.value}))
-};
-const getRecSong = async () => {
-  const str = localStorage.getItem("recSong");
-  if(str){
-    const data = JSON.parse(str) as localData;
-    if(data.time == new Date().getDate()) {
-      recSong.value = data.data;
-      return;
-    }
-  }
-  const res: any = await getKgDailyRecommend();
-  recSong.value = (res?.data.song_list || []).map((i: any) =>
+  recSong.value = (res?.songs?.data?.song_list || []).map((i: any) =>
     convertor.KG.convertKGRecommendSong(i)
   );
-  localStorage.setItem("recSong", JSON.stringify({time:new Date().getDate(),data:recSong.value}))
 };
 
 const handlePlay = (song: Song) => {
@@ -86,8 +57,7 @@ const handleCollectSong = (song: Song) => {
 };
 
 onMounted(async () => {
-  getRecPlaylist();
-  getRecSong();
+  getHomeRecommend();
 });
 </script>
 

@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import {
   fetchLyrics,
   getDynamicCover,
+  getHomeRecommendations,
   getKgDailyRecommend,
   getKgPlaylistTags,
   getPlaylistDetail,
@@ -44,6 +45,7 @@ export function setupMusicApiIpc() {
   ipcMain.handle("music:kg-daily-recommend", (_event, platform?: string) =>
     getKgDailyRecommend(platform)
   );
+  ipcMain.handle("music:home-recommendations", () => getHomeRecommendations());
   ipcMain.handle("music:playlist-detail", (_event, params: PlaylistDetailParams) =>
     getPlaylistDetail(params)
   );
