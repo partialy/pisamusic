@@ -15,9 +15,15 @@ class MediaItemFactory(private val playUrlGetter: PlayUrlGetter) {
 
     companion object {
         const val PLACEHOLDER_URI_PREFIX = "pm://placeholder/"
+        private const val PLAY_URL_CACHE_TTL_MS = 10 * 60 * 1000L
     }
 
-    private val playUrlCache = ConcurrentHashMap<String, String>()
+    private data class CachedPlayableUrl(
+        val url: String,
+        val savedAtMs: Long,
+    )
+
+    private val playUrlCache = ConcurrentHashMap<String, CachedPlayableUrl>()
 
     /** 生成 type_id 唯一键 */
     fun keyOf(song: SongInfo): String = "${song.type}_${song.id}"
@@ -33,8 +39,8 @@ class MediaItemFactory(private val playUrlGetter: PlayUrlGetter) {
     }
 
     /** 创建真实可播放的 MediaItem（会挂起获取 URL） */
-    suspend fun createMediaItem(song: SongInfo): MediaItem {
-        val url = getOrFetchPlayableUrl(song)
+    suspend fun createMediaItem(song: SongInfo, forceRefreshUrl: Boolean = false): MediaItem {
+        val url = getOrFetchPlayableUrl(song, forceRefreshUrl)
         return buildMediaItem(song, url)
     }
 
@@ -51,10 +57,14 @@ class MediaItemFactory(private val playUrlGetter: PlayUrlGetter) {
     }
 
     /** 获取播放 URL，优先从缓存读取 */
-    suspend fun getOrFetchPlayableUrl(song: SongInfo): String {
+    suspend fun getOrFetchPlayableUrl(song: SongInfo, forceRefreshUrl: Boolean = false): String {
         if (song.type == SongType.LOCAL) return song.id
         val key = keyOf(song)
-        playUrlCache[key]?.takeIf { it.isNotBlank() }?.let { return it }
+        if (!forceRefreshUrl) {
+            playUrlCache[key]?.takeIf { it.isFresh() }?.let { return it.url }
+        } else {
+            playUrlCache.remove(key)
+        }
 
         val url = when (song.type) {
             SongType.KG -> playUrlGetter.getKgUrl(song)
@@ -62,19 +72,31 @@ class MediaItemFactory(private val playUrlGetter: PlayUrlGetter) {
             SongType.KW -> playUrlGetter.getKwUrl(song)
             SongType.LOCAL -> song.id
         }
-        playUrlCache[key] = url
+        if (isCacheablePlayableUrl(url)) {
+            playUrlCache[key] = CachedPlayableUrl(url, System.currentTimeMillis())
+        }
         return url
     }
 
     /** 读取已缓存的 URL（仅内存缓存，不触发网络）。 */
     fun getCachedPlayableUrl(song: SongInfo): String? =
-        playUrlCache[keyOf(song)]?.takeIf { it.isNotBlank() }
+        playUrlCache[keyOf(song)]?.takeIf { it.isFresh() }?.url
 
-    /** 写入 URL 缓存（用于恢复场景注入上次成功地址）。 */
+    /** 写入短期 URL 缓存，仅用于当前进程内复用。 */
     fun putCachedPlayableUrl(song: SongInfo, url: String) {
-        if (url.isBlank()) return
-        playUrlCache[keyOf(song)] = url
+        if (song.type == SongType.LOCAL || !isCacheablePlayableUrl(url)) return
+        playUrlCache[keyOf(song)] = CachedPlayableUrl(url, System.currentTimeMillis())
     }
+
+    fun invalidateCachedPlayableUrl(song: SongInfo) {
+        playUrlCache.remove(keyOf(song))
+    }
+
+    private fun CachedPlayableUrl.isFresh(): Boolean =
+        isCacheablePlayableUrl(url) && System.currentTimeMillis() - savedAtMs < PLAY_URL_CACHE_TTL_MS
+
+    private fun isCacheablePlayableUrl(url: String): Boolean =
+        url.isNotBlank() && url != "error" && url.startsWith("http")
 
     private fun buildMediaItem(
         song: SongInfo,

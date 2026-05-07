@@ -14,6 +14,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import cn.partialy.pm.R
+import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.model.SongType
 import cn.partialy.pm.utils.SettingsPrefs
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -63,6 +65,7 @@ class PlayerEngine(
     private var lastPersistAtMs = 0L
     private var restoreAttempted = false
     private var lastAutoSkipAtMs = 0L
+    private val playbackRefreshRetryKeys = mutableSetOf<String>()
 
     /** 由 MusicController 在构造后调用 */
     fun init() {
@@ -148,6 +151,7 @@ class PlayerEngine(
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_READY) {
                 _isPlaying.value = exoPlayer?.isPlaying == true
+                clearPlaybackRetryForCurrent()
             }
         }
     }
@@ -379,13 +383,66 @@ class PlayerEngine(
 
     private fun handlePlaybackFailureAndSkip() {
         // 恢复态（pause + prepare）若触发 source error，不应自动切歌导致看起来“自动播放”。
-        if (exoPlayer?.playWhenReady != true) return
+        val player = exoPlayer ?: return
+        if (player.playWhenReady != true) return
+        val index = player.currentMediaItemIndex
+        val song = playlistManager.playList.value.getOrNull(index)
+        if (song != null && shouldRetryWithFreshUrl(song)) {
+            retryCurrentSongWithFreshUrl(
+                index = index,
+                song = song,
+                positionMs = player.currentPosition.coerceAtLeast(0L),
+            )
+            return
+        }
+        autoSkipAfterPlaybackFailure()
+    }
+
+    private fun shouldRetryWithFreshUrl(song: SongInfo): Boolean {
+        if (song.type == SongType.LOCAL) return false
+        return playbackRefreshRetryKeys.add(factory.keyOf(song))
+    }
+
+    private fun retryCurrentSongWithFreshUrl(index: Int, song: SongInfo, positionMs: Long) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                factory.invalidateCachedPlayableUrl(song)
+                val resolved = factory.createMediaItem(song, forceRefreshUrl = true)
+                withContext(Dispatchers.Main) {
+                    val player = exoPlayer ?: return@withContext
+                    val currentSong = playlistManager.playList.value.getOrNull(index)
+                    if (currentSong == null || factory.keyOf(currentSong) != factory.keyOf(song)) {
+                        return@withContext
+                    }
+                    if (index !in 0 until player.mediaItemCount) return@withContext
+                    player.replaceMediaItem(index, resolved)
+                    player.seekTo(index, positionMs)
+                    player.prepare()
+                    player.play()
+                    persistState(force = true)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    autoSkipAfterPlaybackFailure()
+                }
+            }
+        }
+    }
+
+    private fun autoSkipAfterPlaybackFailure() {
         val now = System.currentTimeMillis()
         if (now - lastAutoSkipAtMs < 1200L) return
         lastAutoSkipAtMs = now
 
         Toast.makeText(context, context.getString(R.string.play_url_failed_skip_next), Toast.LENGTH_SHORT).show()
         onNext()
+    }
+
+    private fun clearPlaybackRetryForCurrent() {
+        val player = exoPlayer ?: return
+        val song = playlistManager.playList.value.getOrNull(player.currentMediaItemIndex) ?: return
+        playbackRefreshRetryKeys.remove(factory.keyOf(song))
     }
 
     // ==================== 状态持久化 ====================
@@ -401,13 +458,11 @@ class PlayerEngine(
         val dur = exoPlayer?.duration ?: _duration.value
         val playing = exoPlayer?.playWhenReady == true &&
                 (exoPlayer?.isPlaying == true || exoPlayer?.playbackState == Player.STATE_READY)
-        val currentSong = songs.getOrNull(idx)
-        val currentSongUrl = currentSong?.let { factory.getCachedPlayableUrl(it) }
         stateStore.save(
             PersistedPlayerState(
                 songs = songs.map { it.toPersistedSong() },
                 currentIndex = idx,
-                currentSongUrl = currentSongUrl,
+                currentSongUrl = null,
                 positionMs = position,
                 durationMs = dur,
                 playWhenReady = playing,
@@ -428,7 +483,7 @@ class PlayerEngine(
             val pos = state.positionMs.coerceAtLeast(0L)
             try {
                 // 先恢复列表，再尝试解析「当前歌曲」URL；失败则依次尝试后续歌曲作为新的当前项。
-                val resolved = resolveRestoredCurrent(songs, idx, state.currentSongUrl)
+                val resolved = resolveRestoredCurrent(songs, idx)
                 withContext(Dispatchers.Main) {
                     playlistManager.restoreState(songs, resolved.index)
                     exoPlayer?.apply {
@@ -457,16 +512,10 @@ class PlayerEngine(
     )
 
     private suspend fun resolveRestoredCurrent(
-        songs: List<cn.partialy.pm.model.SongInfo>,
+        songs: List<SongInfo>,
         startIndex: Int,
-        persistedCurrentUrl: String?,
     ): ResolvedRestoreTarget {
         val currentSong = songs[startIndex]
-        if (!persistedCurrentUrl.isNullOrBlank() && persistedCurrentUrl != "error") {
-            factory.putCachedPlayableUrl(currentSong, persistedCurrentUrl)
-            return ResolvedRestoreTarget(startIndex, factory.createMediaItem(currentSong))
-        }
-
         val total = songs.size
         for (offset in 0 until total) {
             val index = (startIndex + offset) % total
