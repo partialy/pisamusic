@@ -1,5 +1,4 @@
 import type { Song } from "@/types/song";
-import { getUrlByProxy } from "./proxyAPI";
 
 export type SearchableMusicSource = "kg" | "wy" | "kw";
 
@@ -19,6 +18,10 @@ export type PlaylistSearchPayload = {
 
 export async function searchMusic<T = any>(payload: MusicSearchPayload): Promise<T> {
   return window.electronAPI.searchMusic<T>(payload);
+}
+
+export async function searchSuggest<T = any>(keywords: string): Promise<T> {
+  return window.electronAPI.searchSuggest<T>({ source: "wy", keywords });
 }
 
 export async function searchPlaylists<T = any>(payload: PlaylistSearchPayload): Promise<T> {
@@ -65,9 +68,9 @@ export async function getPlayableUrlByMusicApi(song: Song) {
       id: song.id,
       urlParam: song.urlParam,
     });
-    return url || getUrlByProxy(song);
+    return url || "";
   } catch {
-    return getUrlByProxy(song);
+    return "";
   }
 }
 

@@ -9,11 +9,13 @@ import {
   resolveMusicUrl,
   resolvePlayableUrl,
   searchMusic,
+  searchSuggest,
   searchPlaylists,
 } from "../music/musicService";
 import type {
   MusicLyricParams,
   MusicSearchParams,
+  MusicSuggestParams,
   MusicUrlParams,
   PlayableTrackPayload,
   PlaylistDetailParams,
@@ -29,6 +31,9 @@ export function setupMusicApiIpc() {
   registered = true;
 
   ipcMain.handle("music:search", (_event, params: MusicSearchParams) => searchMusic(params));
+  ipcMain.handle("music:search-suggest", (_event, params: MusicSuggestParams) =>
+    searchSuggest(params)
+  );
   ipcMain.handle("music:search-playlists", (_event, params: PlaylistSearchParams) =>
     searchPlaylists(params)
   );

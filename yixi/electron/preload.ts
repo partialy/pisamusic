@@ -169,6 +169,10 @@ const musicApiIpc = {
     page?: number;
     pageSize?: number;
   }) => ipcRenderer.invoke("music:search", payload),
+  searchSuggest: (payload: {
+    source?: "wy";
+    keywords: string;
+  }) => ipcRenderer.invoke("music:search-suggest", payload),
   searchPlaylists: (payload: {
     source: "kg" | "wy";
     keywords: string;

@@ -7,6 +7,11 @@ export type MusicSearchParams = {
   pageSize?: number;
 };
 
+export type MusicSuggestParams = {
+  source?: "wy";
+  keywords: string;
+};
+
 export type PlaylistSearchParams = {
   source: Exclude<MusicSource, "kw">;
   keywords: string;

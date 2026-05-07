@@ -2,7 +2,7 @@
 
 ## 当前补充规则
 
-- `electron/music/` 封装 KG / WY / KW 三源歌曲搜索、播放地址解析、歌词获取，以及 KG/WY 歌单搜索、列表、详情、歌曲列表等基础接口，renderer 通过 `music:*` IPC 调用；验签、运行端点和后续加密逻辑保留在 main 侧。
+- `electron/music/` 封装 KG / WY / KW 三源歌曲搜索、搜索建议、播放地址解析、歌词获取，以及 KG/WY 歌单搜索、列表、详情、歌曲列表等基础接口，renderer 通过 `music:*` IPC 调用；验签、运行端点和后续加密逻辑保留在 main 侧。
 - renderer 侧 `src/utils/api/musicAPI.ts` 是音乐搜索、取链、歌词获取和歌单基础接口的过渡入口，旧 `directAPI` / `proxyAPI` 仅用于尚未迁移的登录、账号、动态封面等模块或失败兜底。
 
 本文件用于指导 `yixi/` 桌面端 App 的开发。根目录规则仍然有效；本文件只补充桌面端自己的边界和约定。
@@ -33,6 +33,7 @@
 - 外层服务端地址由 main 侧读取环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL`，默认 `http://127.0.0.1:53380`。
 - system 能力通过 `system:*` IPC 暴露，包括 bootstrap、runtime endpoints、公告、反馈；旧 `getServerPort` / `getRequestUrl` 仅作为兼容入口保留。
 - 服务端加密、网关验签只允许在 main 侧封装，renderer 不直接持有 `gatewaySign.secret` 或 AES 派生逻辑。
+- main 侧音源请求统一使用 `requestSignedGateway()`，它会从外层 `server` 每次拉取的 bootstrap 中读取 `gatewaySign`，并按 Android 端一致规则添加 `res-dec=1`、`t`、`n`、`s` 签名信息。
 - renderer 启动后通过 `src/store/runtimeConfig.ts` 拉取 bootstrap/runtime endpoints，并统一应用到现有 `directAPI` / `proxyAPI` 实例；不要在页面里散落硬编码音源 URL。
 
 ## 数据规则

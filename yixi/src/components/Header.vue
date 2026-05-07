@@ -137,8 +137,8 @@ import {
 import { h, onMounted, ref } from "vue";
 import avatarImg from "../assets/defaultAdminAvatar.jpg";
 import { renderIcon } from "@/utils/common";
-import directAPI from "@/utils/api/directAPI";
 import electronAPI from "@/utils/electron";
+import { searchSuggest } from "@/utils/api/musicAPI";
 import { useUserStore } from "@/store";
 import { storeToRefs } from "pinia";
 
@@ -199,17 +199,12 @@ const tips = ref<
   //   singer:"175"
   // }
 ]);
-let controller: AbortController | null = null;
+let suggestRequestId = 0;
 const showTips = async () => {
   if (searchText.value) {
-    if (controller) controller.abort();
-    controller = new AbortController();
-    const res: any = await directAPI.wy?.fetchData(
-      "/search/suggest",
-      { keywords: searchText.value },
-      { signal: controller.signal }
-    );
-    // const res = await directAPI.wy?.searchSuggest({ keywords: searchText.value });
+    const requestId = ++suggestRequestId;
+    const res: any = await searchSuggest(searchText.value);
+    if (requestId !== suggestRequestId) return;
     const l = res?.result.songs.map((s: any) => {
       return {
         key: s.id.toString(),
@@ -219,9 +214,9 @@ const showTips = async () => {
     });
     tips.value = l || [];
   } else {
+    suggestRequestId++;
     tips.value = [];
   }
-  console.log(tips.value, "tips");
 };
 const mouseInTips = ref(false);
 const handleSearch = () => {

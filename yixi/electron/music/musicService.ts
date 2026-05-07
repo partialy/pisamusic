@@ -3,6 +3,7 @@ import type {
   MusicLyricParams,
   MusicLyricResult,
   MusicSearchParams,
+  MusicSuggestParams,
   MusicUrlParams,
   PlayableTrackPayload,
   PlaylistDetailParams,
@@ -43,6 +44,15 @@ export async function searchMusic(params: MusicSearchParams) {
         })
       );
   }
+}
+
+export async function searchSuggest(params: MusicSuggestParams) {
+  const endpoints = await getRuntimeEndpointsFresh();
+  return requestSignedGateway(
+    buildUrl(endpoints.wyServer, "/search/suggest", {
+      keywords: params.keywords,
+    })
+  );
 }
 
 export async function resolveMusicUrl(params: MusicUrlParams) {
