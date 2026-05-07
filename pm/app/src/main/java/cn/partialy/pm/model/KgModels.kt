@@ -48,6 +48,8 @@ data class HomeRecommendPlaylist(
     val name: String,
     val coverUrl: String,
     val playCountLabel: String,
+    val trackCount: Int = 0,
+    val sourceType: CollectedPlaylistType = CollectedPlaylistType.KG,
 )
 
 /** GET top/playlist 接口外层 JSON（Gson） */

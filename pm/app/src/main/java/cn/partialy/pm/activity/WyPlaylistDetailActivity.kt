@@ -256,6 +256,13 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                 playlistCollectionManager.playlistsFlow.collect { syncPlaylistCollectButton() }
             }
         }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                loveManager.loveListFlow.collect {
+                    listAdapter.notifyDataSetChanged()
+                }
+            }
+        }
     }
 
     /** 根据滚动偏移设置状态栏图标颜色 */

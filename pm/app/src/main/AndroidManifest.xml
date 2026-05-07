@@ -154,6 +154,11 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.FavoritePlaylistsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.LocalPlaylistDetailActivity"
             android:exported="false"
             android:theme="@style/Theme.Pm" />

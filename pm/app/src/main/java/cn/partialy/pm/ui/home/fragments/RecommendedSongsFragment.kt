@@ -224,6 +224,15 @@ class RecommendedSongsFragment : BaseSongFragment() {
                 sections.forEach { renderTopCardSection(it) }
             }
         }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            loveManager.loveListFlow.collectLatest {
+                if (::dailySongAdapter.isInitialized) {
+                    dailySongAdapter.refreshLoveStates()
+                }
+                topCardAdapters.values.forEach { it.refreshLoveStates() }
+            }
+        }
     }
 
     override fun onResume() {
@@ -281,8 +290,6 @@ class RecommendedSongsFragment : BaseSongFragment() {
             onLoveClick = { rec, _ ->
                 val song = rec.convertToSongInfo()
                 loveManager.toggleLikeStatus(song)
-                dailySongAdapter.refreshLoveStates()
-                topCardAdapters.values.forEach { it.refreshLoveStates() }
             },
             onMoreClick = { rec, _ ->
                 SongMoreMenu.show(

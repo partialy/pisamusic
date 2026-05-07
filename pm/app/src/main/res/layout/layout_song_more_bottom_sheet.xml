@@ -145,6 +145,7 @@
         android:paddingVertical="10dp">
 
         <ImageView
+            android:id="@+id/songMoreLoveIcon"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:contentDescription="@null"
@@ -152,6 +153,7 @@
             app:tint="?attr/colorOnSurface" />
 
         <TextView
+            android:id="@+id/songMoreLoveText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"

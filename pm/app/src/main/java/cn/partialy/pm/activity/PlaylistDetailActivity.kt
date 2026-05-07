@@ -220,6 +220,17 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
             startObserving(this@PlaylistDetailActivity)
         }
 
+        lifecycleScope.launch {
+            loveManager.loveListFlow.collect {
+                listAdapter.notifyDataSetChanged()
+            }
+        }
+        lifecycleScope.launch {
+            playlistCollectionManager.playlistsFlow.collect {
+                syncPlaylistCollectButton()
+            }
+        }
+
         if (playlistId.startsWith("collection_")) {
             pagingPlaylistId = playlistId
             binding.playlistCollectButton.isVisible = true
@@ -250,7 +261,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
 
     private fun syncPlaylistCollectButton() {
         if (!pagingPlaylistId.startsWith("collection_")) return
-        val collected = playlistCollectionManager.isCollected(CollectedPlaylistType.KG, pagingPlaylistId)
+        val collected = isKgPlaylistCollected()
         binding.playlistCollectButton.setImageResource(
             if (collected) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
         )
@@ -483,12 +494,20 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         private const val EXTRA_PLAY_COUNT_LABEL = "play_count_label"
         private const val EXTRA_TRACK_COUNT = "track_count"
 
-        fun start(context: Context, playlistId: String, title: String, coverUrl: String, playCountLabel: String) {
+        fun start(
+            context: Context,
+            playlistId: String,
+            title: String,
+            coverUrl: String,
+            playCountLabel: String,
+            trackCount: Int = 0,
+        ) {
             val i = Intent(context, PlaylistDetailActivity::class.java).apply {
                 putExtra(EXTRA_PLAYLIST_ID, playlistId)
                 putExtra(EXTRA_TITLE, title)
                 putExtra(EXTRA_COVER_URL, coverUrl)
                 putExtra(EXTRA_PLAY_COUNT_LABEL, playCountLabel)
+                putExtra(EXTRA_TRACK_COUNT, trackCount)
             }
             context.startActivity(i)
             (context as? Activity)?.overridePendingTransition(

@@ -11,6 +11,10 @@
         layout="@layout/item_mine_favorites_row" />
 
     <include
+        android:id="@+id/mineFavoritePlaylists"
+        layout="@layout/item_mine_favorites_row" />
+
+    <include
         android:id="@+id/mineLocalMusic"
         layout="@layout/item_mine_local_music_row" />
 

@@ -109,6 +109,8 @@ class FavoriteSongsFragment : BaseSongFragment() {
             if (songs.isEmpty()) {
                 showEmptyText()
             } else {
+                binding.emptyTextView.visibility = View.GONE
+                binding.favoriteRecyclerView.visibility = View.VISIBLE
                 favoriteAdapter.updateSongs(songs)
             }
         }

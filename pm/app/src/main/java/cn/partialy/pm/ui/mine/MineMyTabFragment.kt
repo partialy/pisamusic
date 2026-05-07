@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.FavoritePlaylistsActivity
 import cn.partialy.pm.activity.LocalMusicActivity
 import cn.partialy.pm.activity.LovedSongsPlaylistActivity
 import cn.partialy.pm.activity.SettingsActivity
@@ -89,6 +90,12 @@ class MineMyTabFragment : Fragment() {
 
         binding.mineFavorites.root.setOnClickListener {
             LovedSongsPlaylistActivity.start(requireActivity())
+        }
+
+        binding.mineFavoritePlaylists.favoritesCoverImageView.setImageResource(R.drawable.my_favorites_cover_peach)
+        binding.mineFavoritePlaylists.titleTextView.setText(R.string.my_favorite_playlists)
+        binding.mineFavoritePlaylists.root.setOnClickListener {
+            FavoritePlaylistsActivity.start(requireActivity())
         }
 
         binding.mineLocalMusic.root.setOnClickListener {

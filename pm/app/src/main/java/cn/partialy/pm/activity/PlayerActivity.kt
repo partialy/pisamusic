@@ -174,10 +174,7 @@ class PlayerActivity : BaseDownloadActivity() {
             lifecycleScope.launch {
                 musicController.currentSong.value?.let { song ->
                     loveManager.toggleLikeStatus(song)
-                    binding.loveButton.setImageResource(
-                        if (loveManager.isSongInLoveList(song)) R.drawable.ic_love_fill_24
-                        else R.drawable.ic_love_24
-                    )
+                    syncLoveButton(song)
                 }
             }
         }
@@ -233,10 +230,7 @@ class PlayerActivity : BaseDownloadActivity() {
                         it.type,
                         SongSourceTagBinder.Surface.ON_DARK,
                     )
-                    binding.loveButton.setImageResource(
-                        if (loveManager.isSongInLoveList(it)) R.drawable.ic_love_fill_24
-                        else R.drawable.ic_love_24
-                    )
+                    syncLoveButton(it)
                     applyLocalMediaFallbacks(it)
                     applyBlurBackground(modelForBlur(it))
                     if (it.type == SongType.LOCAL) {
@@ -267,6 +261,20 @@ class PlayerActivity : BaseDownloadActivity() {
                 binding.totalTimeTextView.text = formatTime(duration.toInt())
             }
         }
+
+        lifecycleScope.launch {
+            loveManager.loveListFlow.collect {
+                musicController.currentSong.value?.let { syncLoveButton(it) }
+            }
+        }
+    }
+
+    private fun syncLoveButton(song: SongInfo) {
+        val liked = loveManager.isSongInLoveList(song)
+        binding.loveButton.setImageResource(if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24)
+        binding.loveButton.setColorFilter(
+            ContextCompat.getColor(this, if (liked) R.color.red else android.R.color.white)
+        )
     }
 
     private fun setupLyricsList() {

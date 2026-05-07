@@ -10,6 +10,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -23,6 +24,7 @@ import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.imageview.ShapeableImageView
 import kotlin.math.roundToInt
 
@@ -56,6 +58,22 @@ object SongMoreMenu {
         loadSongCover(cover, song)
 
         root.findViewById<ImageButton>(R.id.songMoreCloseButton).setOnClickListener { dialog.dismiss() }
+        val loveIcon = root.findViewById<ImageView>(R.id.songMoreLoveIcon)
+        val loveText = root.findViewById<TextView>(R.id.songMoreLoveText)
+
+        fun renderLoveState() {
+            val liked = deps.loveManager.isSongInLoveList(song)
+            loveIcon.setImageResource(if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24)
+            loveIcon.setColorFilter(
+                if (liked) {
+                    ContextCompat.getColor(activity, R.color.red)
+                } else {
+                    MaterialColors.getColor(loveIcon, com.google.android.material.R.attr.colorOnSurface)
+                }
+            )
+            loveText.setText(if (liked) R.string.song_more_cancel_favorite else R.string.song_more_favorite)
+        }
+        renderLoveState()
 
         root.findViewById<LinearLayout>(R.id.songMoreRowPlayNext).setOnClickListener {
             deps.musicController.addPlayNext(song)
@@ -66,9 +84,10 @@ object SongMoreMenu {
             dialog.dismiss()
         }
         root.findViewById<LinearLayout>(R.id.songMoreRowLove).setOnClickListener {
-            deps.loveManager.toggleLikeStatus(song)
+            val liked = deps.loveManager.toggleLikeStatus(song)
+            renderLoveState()
             dialog.dismiss()
-            if(deps.loveManager.isSongInLoveList(song)) {
+            if (liked) {
                 Toast.makeText(activity, "已收藏", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(activity, "已取消收藏", Toast.LENGTH_SHORT).show()

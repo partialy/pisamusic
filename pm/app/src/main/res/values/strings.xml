@@ -223,6 +223,7 @@
     <string name="home_feature_coming">功能即将开放</string>
     <string name="my_playlist">我的歌单</string>
     <string name="my_favorites">我的收藏</string>
+    <string name="my_favorite_playlists">歌单收藏</string>
     <string name="my_favorites_playlist_intro">收藏的歌曲</string>
     <string name="loved_songs_empty_hint">暂无收藏歌曲</string>
     <string name="local_playlist_empty_hint">歌单暂无歌曲</string>
@@ -272,6 +273,7 @@
     <string name="song_more_play_next">下一首播放</string>
     <string name="song_more_download">下载</string>
     <string name="song_more_favorite">收藏</string>
+    <string name="song_more_cancel_favorite">取消收藏</string>
     <string name="song_more_add_to_playlist">添加到歌单</string>
     <string name="pick_local_playlist_title">请选择歌单</string>
     <string name="pick_local_playlist_empty">暂无自建歌单，请先在「我的」中新建</string>

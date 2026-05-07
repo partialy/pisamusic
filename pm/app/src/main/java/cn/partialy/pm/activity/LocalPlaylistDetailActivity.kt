@@ -226,6 +226,13 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                 }
             }
         }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                loveManager.loveListFlow.collect {
+                    listAdapter.notifyDataSetChanged()
+                }
+            }
+        }
     }
 
     private fun openSongMoreMenu(song: SongInfo) {
