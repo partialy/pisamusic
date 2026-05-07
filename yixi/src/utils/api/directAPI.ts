@@ -33,3 +33,16 @@ export function interceptor(config: InternalAxiosRequestConfig) {
 }
 
 export default DirectAPI.getInstanse();
+
+export type DirectApiEndpoints = {
+  kgServer?: string;
+  wyServer?: string;
+  kwServer?: string;
+};
+
+export function applyDirectApiEndpoints(endpoints: DirectApiEndpoints) {
+  const api = DirectAPI.getInstanse();
+  if (endpoints.kgServer) api.kg?.setBaseURL(endpoints.kgServer);
+  if (endpoints.wyServer) api.wy?.setBaseURL(endpoints.wyServer);
+  if (endpoints.kwServer) api.kw?.setBaseURL(endpoints.kwServer);
+}

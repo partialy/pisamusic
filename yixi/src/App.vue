@@ -35,6 +35,7 @@ import {
   useCollectStore,
   useAudioStore,
   useLyricStore,
+  useRuntimeConfigStore,
 } from "./store";
 import { storeToRefs } from "pinia";
 import {
@@ -49,8 +50,10 @@ const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
 const lyric = useLyricStore();
+const runtimeConfig = useRuntimeConfigStore();
 // 初始化
 commonStore.hidePlayer();
+runtimeConfig.refresh();
 collector.initStore();
 lyric.loadSetting();
 

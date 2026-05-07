@@ -28,6 +28,7 @@
 - 外层服务端地址由 main 侧读取环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL`，默认 `http://127.0.0.1:53380`。
 - system 能力通过 `system:*` IPC 暴露，包括 bootstrap、runtime endpoints、公告、反馈；旧 `getServerPort` / `getRequestUrl` 仅作为兼容入口保留。
 - 服务端加密、网关验签只允许在 main 侧封装，renderer 不直接持有 `gatewaySign.secret` 或 AES 派生逻辑。
+- renderer 启动后通过 `src/store/runtimeConfig.ts` 拉取 bootstrap/runtime endpoints，并统一应用到现有 `directAPI` / `proxyAPI` 实例；不要在页面里散落硬编码音源 URL。
 
 ## 数据规则
 

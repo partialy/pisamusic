@@ -4,6 +4,7 @@ import { useLyricStore } from "./lyricStore";
 import { useAudioStore } from "./audio";
 import { useCollectStore } from "./collect";
 import { useLibraryStore } from "./library";
+import { useRuntimeConfigStore } from "./runtimeConfig";
 import { useUserStore } from './user';
 export {
   useSettingStore,
@@ -12,5 +13,6 @@ export {
   useAudioStore,
   useCollectStore,
   useLibraryStore,
+  useRuntimeConfigStore,
   useUserStore,
 };

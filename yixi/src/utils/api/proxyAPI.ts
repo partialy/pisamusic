@@ -30,6 +30,19 @@ class ProxyAPI {
   }
 }
 export const proxyAPI = ProxyAPI.getInstanse();
+
+export type ProxyApiEndpoints = {
+  kgProxy?: string;
+  wyProxy?: string;
+  kwProxy?: string;
+};
+
+export function applyProxyApiEndpoints(endpoints: ProxyApiEndpoints) {
+  if (endpoints.kgProxy) proxyAPI.kg?.setBaseURL(endpoints.kgProxy);
+  if (endpoints.wyProxy) proxyAPI.wy?.setBaseURL(endpoints.wyProxy);
+  if (endpoints.kwProxy) proxyAPI.kw?.setBaseURL(endpoints.kwProxy);
+}
+
 export async function getUrlByProxy(song: Song) {
   try {
     switch (song.source) {
