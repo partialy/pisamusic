@@ -19,6 +19,7 @@ import { logger } from "./utils/logger";
 import { existsSync, mkdirSync, readFileSync, writeFile } from "fs";
 import { appStore, collectStore } from "./store";
 import { closeAppDatabase } from "./database";
+import { setupMusicApiIpc } from "./ipc/musicIpc";
 import { setupPersistenceIpc } from "./ipc/persistenceIpc";
 import { setupSystemIpc } from "./ipc/systemIpc";
 
@@ -173,6 +174,7 @@ try {
 
   app.whenReady().then(() => {
     setupSystemIpc();
+    setupMusicApiIpc();
     setupPersistenceIpc();
     setupStoreIpc();
     createWindow();

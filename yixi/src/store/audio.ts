@@ -3,7 +3,8 @@ import { Howl } from "howler"; // 音频播放库
 import { ref, computed, watch } from "vue";
 import type { Song } from "@/types/song";
 import { getKgImage } from "../utils/common";
-import { getUrlByProxy, proxyAPI } from "@/utils/api/proxyAPI";
+import { proxyAPI } from "@/utils/api/proxyAPI";
+import { getPlayableUrlByMusicApi } from "@/utils/api/musicAPI";
 import electronAPI from "@/utils/electron";
 import { useLibraryStore } from "./library";
 
@@ -37,6 +38,8 @@ export const useAudioStore = defineStore("audio", () => {
   // @ts-ignore
   let progressInterval: NodeJS.Timeout | null = null;
   let restoringState = false;
+  let handlingPlaybackFailure = false;
+  let failureSkipCount = 0;
 
   // Getters (计算属性)
   const progress = computed<number>(() => {
@@ -69,6 +72,8 @@ export const useAudioStore = defineStore("audio", () => {
       html5: true, // 使用HTML5 Audio API
       volume: volume.value,
       onplay: () => {
+        failureSkipCount = 0;
+        handlingPlaybackFailure = false;
         isPlaying.value = true;
         startProgressUpdate(); // 开始更新播放进度
       },
@@ -89,6 +94,8 @@ export const useAudioStore = defineStore("audio", () => {
       onseek: () => {
         updateCurrentTime();
       }, // 跳转时的处理
+      onloaderror: handlePlaybackFailure,
+      onplayerror: handlePlaybackFailure,
     });
   };
 
@@ -124,6 +131,7 @@ export const useAudioStore = defineStore("audio", () => {
    * @param song 要播放的歌曲(可选)
    */
   const play = async (song?: Song | null): Promise<void> => {
+    let shouldSignalPlay = false;
     try {
       loading.value = true;
       if (firstPlay.value) {
@@ -136,24 +144,31 @@ export const useAudioStore = defineStore("audio", () => {
         return;
       }
       if (song) {
-        song.url = await getUrlByProxy(song);
+        song.url = await getPlayableUrlByMusicApi(song);
+        if (!song.url) {
+          throw new Error("play url is empty");
+        }
         currentSong.value = song;
         recordPlayHistory(song);
         initPlayer(song.url); // 初始化播放器并加载歌曲
+        shouldSignalPlay = true;
         return;
       }
 
       if (player.value) {
         player.value.play(); // 开始播放
+        shouldSignalPlay = true;
       }
     } catch (error) {
       loading.value = false;
       console.error("播放歌曲失败:", error);
+      handlePlaybackFailure();
     } finally {
       loading.value = false;
-      isPlaying.value = true;
-      electronAPI.mediaControl("play");
-      electronAPI.isPlaying(true);
+      if (shouldSignalPlay) {
+        electronAPI.mediaControl("play");
+        electronAPI.isPlaying(true);
+      }
     }
   };
 
@@ -438,6 +453,31 @@ export const useAudioStore = defineStore("audio", () => {
       getCurrentIndex(),
       playlist.value.map(toPersistedSong)
     );
+  };
+
+  const handlePlaybackFailure = (): void => {
+    if (handlingPlaybackFailure) return;
+    handlingPlaybackFailure = true;
+    loading.value = false;
+    isPlaying.value = false;
+    electronAPI.isPlaying(false);
+    destroyPlayer();
+    window.$notification?.error({
+      title: "播放失败，可尝试切换其他音源",
+      duration: 2000,
+    });
+
+    if (playlist.value.length > 1 && failureSkipCount < playlist.value.length - 1) {
+      failureSkipCount += 1;
+      setTimeout(() => {
+        handlingPlaybackFailure = false;
+        next();
+      }, 300);
+      return;
+    }
+
+    failureSkipCount = 0;
+    handlingPlaybackFailure = false;
   };
 
   /**

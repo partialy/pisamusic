@@ -44,6 +44,7 @@ import { NSelect, NRadio, NRadioGroup, NSpace } from "naive-ui";
 import type { CommonPlaylist, Song } from "../types/song";
 import directAPI from "../utils/api/directAPI";
 import { convertor } from "../utils/convertor";
+import { searchMusic } from "@/utils/api/musicAPI";
 
 import { PlaylistCollect, SongList } from "@/components";
 
@@ -118,23 +119,25 @@ const search = async (tab: string) => {
     searchLoading.value = true;
     switch (tab) {
       case "kg":
-        const kgres = await directAPI.kg?.search({
+        const kgres: any = await searchMusic({
+          source: "kg",
           keywords: keywords.value,
           page: pagination.page,
-          pagesize: pagination.pageSize,
+          pageSize: pagination.pageSize,
         });
+        const kgList = kgres?.data?.lists ?? kgres?.data?.songs ?? [];
         songs.kg =
-          kgres?.data.lists.map((item:any) =>
+          kgList.map((item:any) =>
             convertor.KG.convertKGSearchSong(item)
           ) || [];
         pagination.total = kgres?.data.total || 0;
         break;
       case "wy":
-        const wyres = await directAPI.wy?.cloudSearch({
+        const wyres: any = await searchMusic({
+          source: "wy",
           keywords: keywords.value,
-          offset: (pagination.page!! - 1) * pagination.pageSize!!,
-          limit: pagination.pageSize,
-          type: 1,
+          page: pagination.page,
+          pageSize: pagination.pageSize,
         });
         songs.wy =
         // @ts-ignore
@@ -145,12 +148,13 @@ const search = async (tab: string) => {
         pagination.total = wyres?.result.songCount || 0;
         break;
       case "kw":
-        const kwres = await directAPI.kw?.search({
+        const kwres: any = await searchMusic({
+          source: "kw",
           keywords: keywords.value,
           page: pagination.page,
-          pagesize: pagination.pageSize,
+          pageSize: pagination.pageSize,
         });
-        songs.kw = kwres?.data.map((item) => convertor.KW(item)) || [];
+        songs.kw = kwres?.data.map((item: any) => convertor.KW(item)) || [];
         pagination.total = 100;
         break;
     }
@@ -184,25 +188,27 @@ const loadMore = async () => {
     pagination.page += 1;
     switch (origin.value) {
       case "kg":
-        const kgres = await directAPI.kg?.search({
+        const kgres: any = await searchMusic({
+          source: "kg",
           keywords: keywords.value,
           page: pagination.page,
-          pagesize: pagination.pageSize,
+          pageSize: pagination.pageSize,
         });
+        const kgList = kgres?.data?.lists ?? kgres?.data?.songs ?? [];
         const kl =
         // @ts-ignore
-          kgres?.data.songs.map((item) =>
+          kgList.map((item) =>
             convertor.KG.convertKGSearchSong(item)
           ) || [];
         songs.kg = [...songs.kg, ...kl];
         pagination.total = kgres?.data.total || 0;
         break;
       case "wy":
-        const wyres = await directAPI.wy?.cloudSearch({
+        const wyres: any = await searchMusic({
+          source: "wy",
           keywords: keywords.value,
-          offset: (pagination.page - 1) * pagination.pageSize,
-          limit: pagination.pageSize,
-          type: 1,
+          page: pagination.page,
+          pageSize: pagination.pageSize,
         });
         const wl =
         // @ts-ignore
@@ -214,12 +220,13 @@ const loadMore = async () => {
         pagination.total = wyres?.result.songCount || 0;
         break;
       case "kw":
-        const kwres = await directAPI.kw?.search({
+        const kwres: any = await searchMusic({
+          source: "kw",
           keywords: keywords.value,
           page: pagination.page,
-          pagesize: pagination.pageSize,
+          pageSize: pagination.pageSize,
         });
-        const kwl = kwres?.data.map((item) => convertor.KW(item)) || [];
+        const kwl = kwres?.data.map((item: any) => convertor.KW(item)) || [];
         songs.kw = [...songs.kw, ...kwl];
         pagination.total = 100;
         break;

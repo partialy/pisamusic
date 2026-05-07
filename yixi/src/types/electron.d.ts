@@ -1,6 +1,7 @@
 export {};
 
 type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
+type SearchableMusicSource = "kg" | "wy" | "kw";
 
 type WindowLyricSettingValue = {
   maxSize: number;
@@ -93,6 +94,20 @@ type BackServerConfig = {
   kwProxy: string;
 };
 
+type MusicSearchParams = {
+  source: SearchableMusicSource;
+  keywords: string;
+  page?: number;
+  pageSize?: number;
+};
+
+type MusicUrlParams = {
+  source: SearchableMusicSource;
+  id: string;
+  quality?: string;
+  br?: number;
+};
+
 type ElectronIpcApi = {
   collectSong: (song: unknown) => void;
   inCollectSong: (song: unknown) => void;
@@ -141,6 +156,9 @@ type ElectronIpcApi = {
   getRuntimeEndpoints: (fresh?: boolean) => Promise<BackServerConfig>;
   getAnnouncements: () => Promise<Announcement[]>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
+  searchMusic: <T = any>(payload: MusicSearchParams) => Promise<T>;
+  resolveMusicUrl: <T = any>(payload: MusicUrlParams) => Promise<T>;
+  resolvePlayableUrl: (track: TrackSnapshot | { source: SearchableMusicSource; urlParam?: string; id?: string }) => Promise<string>;
 
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;

@@ -162,6 +162,23 @@ const systemIpc = {
   }) => ipcRenderer.invoke("system:submit-feedback", payload),
 };
 
+const musicApiIpc = {
+  searchMusic: (payload: {
+    source: "kg" | "wy" | "kw";
+    keywords: string;
+    page?: number;
+    pageSize?: number;
+  }) => ipcRenderer.invoke("music:search", payload),
+  resolveMusicUrl: (payload: {
+    source: "kg" | "wy" | "kw";
+    id: string;
+    quality?: string;
+    br?: number;
+  }) => ipcRenderer.invoke("music:resolve-url", payload),
+  resolvePlayableUrl: (track: any) =>
+    ipcRenderer.invoke("music:resolve-playable-url", track),
+};
+
 const otherIpc = {
   // store
   getStore: (key: string) => ipcRenderer.invoke("store-get", key),
@@ -186,6 +203,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...lyricIpc,
   ...cookieIpc,
   ...systemIpc,
+  ...musicApiIpc,
   ...settingsIpc,
   ...libraryIpc,
   ...otherIpc,

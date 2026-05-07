@@ -73,7 +73,7 @@ export async function requestSignedGateway<T>(
     },
     body: body || undefined,
   });
-  return parseResponse<T>(response);
+  return parseGatewayResponse<T>(response);
 }
 
 export function getRuntimeEndpoints(): RuntimeEndpoints {
@@ -135,6 +135,30 @@ async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
     return JSON.parse(decrypt(respKey, parsed.encData)) as ApiResponse<T>;
   }
   return parsed as ApiResponse<T>;
+}
+
+async function parseGatewayResponse<T>(response: Response): Promise<T> {
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(response.statusText || `gateway request failed: ${response.status}`);
+  }
+  if (!raw) {
+    return null as T;
+  }
+
+  const parsed = JSON.parse(raw) as T | { isEnc?: boolean; encData?: string };
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "isEnc" in parsed &&
+    parsed.isEnc &&
+    typeof parsed.encData === "string"
+  ) {
+    const respKey = response.headers.get("x-pm-random");
+    if (!respKey) throw new Error("encrypted gateway response missing x-pm-random");
+    return JSON.parse(decrypt(respKey, parsed.encData)) as T;
+  }
+  return parsed as T;
 }
 
 function unwrapResponse<T>(response: ApiResponse<T>): T {

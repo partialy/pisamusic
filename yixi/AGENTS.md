@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## 当前补充规则
+
+- `electron/music/` 封装 KG / WY / KW 三源歌曲搜索与播放地址解析，renderer 通过 `music:*` IPC 调用；验签、运行端点和后续加密逻辑保留在 main 侧。
+- renderer 侧 `src/utils/api/musicAPI.ts` 是音乐搜索与取链的过渡入口，旧 `directAPI` / `proxyAPI` 仅用于尚未迁移的歌单、歌词、登录等模块或失败兜底。
+
 本文件用于指导 `yixi/` 桌面端 App 的开发。根目录规则仍然有效；本文件只补充桌面端自己的边界和约定。
 
 ## 项目定位
