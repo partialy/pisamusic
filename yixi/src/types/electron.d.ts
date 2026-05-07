@@ -132,6 +132,11 @@ type PlaylistTracksParams = {
   pageSize?: number;
 };
 
+type DynamicCoverParams = {
+  source: "wy";
+  id: string | number;
+};
+
 type MusicUrlParams = {
   source: SearchableMusicSource;
   id: string;
@@ -206,6 +211,7 @@ type ElectronIpcApi = {
   getKgDailyRecommend: <T = any>(platform?: string) => Promise<T>;
   getPlaylistDetail: <T = any>(payload: PlaylistDetailParams) => Promise<T>;
   getPlaylistTracks: <T = any>(payload: PlaylistTracksParams) => Promise<T>;
+  getDynamicCover: <T = any>(payload: DynamicCoverParams) => Promise<T>;
   resolveMusicUrl: <T = any>(payload: MusicUrlParams) => Promise<T>;
   resolvePlayableUrl: (track: TrackSnapshot | { source: SearchableMusicSource; urlParam?: string; id?: string }) => Promise<string>;
   fetchLyrics: (payload: MusicLyricParams) => Promise<MusicLyricResult>;

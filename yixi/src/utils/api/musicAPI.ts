@@ -61,6 +61,10 @@ export async function getPlaylistTracks<T = any>(payload: {
   return window.electronAPI.getPlaylistTracks<T>(payload);
 }
 
+export async function getDynamicCover<T = any>(id: string | number): Promise<T> {
+  return window.electronAPI.getDynamicCover<T>({ source: "wy", id });
+}
+
 export async function getPlayableUrlByMusicApi(song: Song) {
   try {
     const url = await window.electronAPI.resolvePlayableUrl({

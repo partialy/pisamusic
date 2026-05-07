@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import {
   fetchLyrics,
+  getDynamicCover,
   getKgDailyRecommend,
   getKgPlaylistTags,
   getPlaylistDetail,
@@ -13,6 +14,7 @@ import {
   searchPlaylists,
 } from "../music/musicService";
 import type {
+  DynamicCoverParams,
   MusicLyricParams,
   MusicSearchParams,
   MusicSuggestParams,
@@ -47,6 +49,9 @@ export function setupMusicApiIpc() {
   );
   ipcMain.handle("music:playlist-tracks", (_event, params: PlaylistTracksParams) =>
     getPlaylistTracks(params)
+  );
+  ipcMain.handle("music:dynamic-cover", (_event, params: DynamicCoverParams) =>
+    getDynamicCover(params)
   );
   ipcMain.handle("music:resolve-url", (_event, params: MusicUrlParams) => resolveMusicUrl(params));
   ipcMain.handle("music:resolve-playable-url", (_event, track: PlayableTrackPayload) =>

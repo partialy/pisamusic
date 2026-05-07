@@ -38,6 +38,11 @@ export type PlaylistTracksParams = {
   pageSize?: number;
 };
 
+export type DynamicCoverParams = {
+  source: "wy";
+  id: string | number;
+};
+
 export type MusicUrlParams = {
   source: MusicSource;
   id: string;

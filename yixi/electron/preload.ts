@@ -196,6 +196,10 @@ const musicApiIpc = {
     page?: number;
     pageSize?: number;
   }) => ipcRenderer.invoke("music:playlist-tracks", payload),
+  getDynamicCover: (payload: {
+    source: "wy";
+    id: string | number;
+  }) => ipcRenderer.invoke("music:dynamic-cover", payload),
   resolveMusicUrl: (payload: {
     source: "kg" | "wy" | "kw";
     id: string;

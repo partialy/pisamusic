@@ -3,8 +3,7 @@ import { Howl } from "howler"; // 音频播放库
 import { ref, computed, watch } from "vue";
 import type { Song } from "@/types/song";
 import { getKgImage } from "../utils/common";
-import { proxyAPI } from "@/utils/api/proxyAPI";
-import { getPlayableUrlByMusicApi } from "@/utils/api/musicAPI";
+import { getDynamicCover, getPlayableUrlByMusicApi } from "@/utils/api/musicAPI";
 import electronAPI from "@/utils/electron";
 import { useLibraryStore } from "./library";
 
@@ -422,9 +421,7 @@ export const useAudioStore = defineStore("audio", () => {
   const fetchWYCover = async () => {
     if (!currentSong.value || currentSong.value.source != "wy") return;
 
-    const res = await proxyAPI.wy?.fetchData<any>("/song/dynamic/cover", {
-      id: currentSong.value?.id,
-    });
+    const res: any = await getDynamicCover(currentSong.value.id);
     currentSong.value.d_cover = res?.data?.videoPlayUrl || null;
   };
 

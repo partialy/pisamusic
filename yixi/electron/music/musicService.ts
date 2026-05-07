@@ -1,5 +1,6 @@
 import { getRuntimeEndpointsFresh, requestSignedGateway } from "../system/systemClient";
 import type {
+  DynamicCoverParams,
   MusicLyricParams,
   MusicLyricResult,
   MusicSearchParams,
@@ -180,6 +181,15 @@ export async function getPlaylistTracks(params: PlaylistTracksParams) {
         })
       );
   }
+}
+
+export async function getDynamicCover(params: DynamicCoverParams) {
+  const endpoints = await getRuntimeEndpointsFresh();
+  return requestSignedGateway(
+    buildUrl(endpoints.wyServer, "/song/dynamic/cover", {
+      id: params.id,
+    })
+  );
 }
 
 export async function resolvePlayableUrl(track: PlayableTrackPayload) {
