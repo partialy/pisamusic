@@ -108,6 +108,17 @@ type MusicUrlParams = {
   br?: number;
 };
 
+type MusicLyricParams = {
+  source: SearchableMusicSource;
+  id?: string;
+  hash?: string;
+};
+
+type MusicLyricResult = {
+  krc: string;
+  lrc: string;
+};
+
 type ElectronIpcApi = {
   collectSong: (song: unknown) => void;
   inCollectSong: (song: unknown) => void;
@@ -159,6 +170,7 @@ type ElectronIpcApi = {
   searchMusic: <T = any>(payload: MusicSearchParams) => Promise<T>;
   resolveMusicUrl: <T = any>(payload: MusicUrlParams) => Promise<T>;
   resolvePlayableUrl: (track: TrackSnapshot | { source: SearchableMusicSource; urlParam?: string; id?: string }) => Promise<string>;
+  fetchLyrics: (payload: MusicLyricParams) => Promise<MusicLyricResult>;
 
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;

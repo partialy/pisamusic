@@ -14,6 +14,17 @@ export type MusicUrlParams = {
   br?: number;
 };
 
+export type MusicLyricParams = {
+  source: MusicSource;
+  id?: string;
+  hash?: string;
+};
+
+export type MusicLyricResult = {
+  krc: string;
+  lrc: string;
+};
+
 export type PlayableTrackPayload = {
   source: MusicSource;
   urlParam?: string;

@@ -1,6 +1,11 @@
 import { ipcMain } from "electron";
-import { resolveMusicUrl, resolvePlayableUrl, searchMusic } from "../music/musicService";
-import type { MusicSearchParams, MusicUrlParams, PlayableTrackPayload } from "../music/types";
+import { fetchLyrics, resolveMusicUrl, resolvePlayableUrl, searchMusic } from "../music/musicService";
+import type {
+  MusicLyricParams,
+  MusicSearchParams,
+  MusicUrlParams,
+  PlayableTrackPayload,
+} from "../music/types";
 
 let registered = false;
 
@@ -13,4 +18,5 @@ export function setupMusicApiIpc() {
   ipcMain.handle("music:resolve-playable-url", (_event, track: PlayableTrackPayload) =>
     resolvePlayableUrl(track)
   );
+  ipcMain.handle("music:fetch-lyrics", (_event, params: MusicLyricParams) => fetchLyrics(params));
 }

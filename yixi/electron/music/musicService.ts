@@ -1,5 +1,11 @@
 import { getRuntimeEndpointsFresh, requestSignedGateway } from "../system/systemClient";
-import type { MusicSearchParams, MusicUrlParams, PlayableTrackPayload } from "./types";
+import type {
+  MusicLyricParams,
+  MusicLyricResult,
+  MusicSearchParams,
+  MusicUrlParams,
+  PlayableTrackPayload,
+} from "./types";
 
 export async function searchMusic(params: MusicSearchParams) {
   const endpoints = await getRuntimeEndpointsFresh();
@@ -85,6 +91,67 @@ export async function resolvePlayableUrl(track: PlayableTrackPayload) {
   }
 }
 
+export async function fetchLyrics(params: MusicLyricParams): Promise<MusicLyricResult> {
+  switch (params.source) {
+    case "kg":
+      return fetchKgLyrics(params.hash || params.id || "");
+    case "wy":
+      return fetchWyLyrics(params.id || params.hash || "");
+    case "kw":
+      return emptyLyrics();
+  }
+}
+
+async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
+  if (!hash) return emptyLyrics();
+  const endpoints = await getRuntimeEndpointsFresh();
+  const searchResult: any = await requestSignedGateway(
+    buildUrl(endpoints.kgServer, "/search/lyric", { hash })
+  );
+  const candidate = searchResult?.candidates?.[0];
+  if (!candidate?.id || !candidate?.accesskey) {
+    return emptyLyrics();
+  }
+
+  const [krcResult, lrcResult]: any[] = await Promise.all([
+    requestSignedGateway(
+      buildUrl(endpoints.kgServer, "/lyric", {
+        id: candidate.id,
+        accesskey: candidate.accesskey,
+        decode: "true",
+        fmt: "krc",
+      })
+    ),
+    requestSignedGateway(
+      buildUrl(endpoints.kgServer, "/lyric", {
+        id: candidate.id,
+        accesskey: candidate.accesskey,
+        decode: "true",
+        fmt: "lrc",
+      })
+    ),
+  ]);
+
+  return {
+    krc: krcResult?.decodeContent || "",
+    lrc: lrcResult?.decodeContent || "",
+  };
+}
+
+async function fetchWyLyrics(id: string): Promise<MusicLyricResult> {
+  if (!id) return emptyLyrics();
+  const endpoints = await getRuntimeEndpointsFresh();
+  const [krcResult, lrcResult]: any[] = await Promise.all([
+    requestSignedGateway(buildUrl(endpoints.wyServer, "/lyric/new", { id })),
+    requestSignedGateway(buildUrl(endpoints.wyServer, "/lyric", { id })),
+  ]);
+
+  return {
+    krc: krcResult?.yrc?.lyric || "",
+    lrc: lrcResult?.lrc?.lyric || "",
+  };
+}
+
 function buildUrl(baseUrl: string, path: string, params: Record<string, string | number | undefined>) {
   const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   const url = new URL(path.replace(/^\//, ""), normalizedBase);
@@ -98,4 +165,8 @@ function firstString(values: unknown) {
   if (!Array.isArray(values)) return "";
   const value = values.find((item) => typeof item === "string" && item.length > 0);
   return typeof value === "string" ? value : "";
+}
+
+function emptyLyrics(): MusicLyricResult {
+  return { krc: "", lrc: "" };
 }

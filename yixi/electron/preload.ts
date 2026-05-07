@@ -177,6 +177,11 @@ const musicApiIpc = {
   }) => ipcRenderer.invoke("music:resolve-url", payload),
   resolvePlayableUrl: (track: any) =>
     ipcRenderer.invoke("music:resolve-playable-url", track),
+  fetchLyrics: (payload: {
+    source: "kg" | "wy" | "kw";
+    id?: string;
+    hash?: string;
+  }) => ipcRenderer.invoke("music:fetch-lyrics", payload),
 };
 
 const otherIpc = {

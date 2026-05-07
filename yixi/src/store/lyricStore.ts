@@ -1,6 +1,9 @@
-import type { Song } from "@/types/song";
-import directAPI from "@/utils/api/directAPI";
+import type { LyricLine } from "@applemusic-like-lyrics/core";
 import { parseYrc as amParseYrc } from "@applemusic-like-lyrics/lyric";
+import { defineStore } from "pinia";
+import type { Song } from "@/types/song";
+import { fetchLyricsByMusicApi } from "@/utils/api/musicAPI";
+import electronAPI from "@/utils/electron";
 import {
   convertKrcToAMLyricLine,
   convertLrcToAMLyricLine,
@@ -8,9 +11,6 @@ import {
   parseLrc,
   type MyLyricLine,
 } from "@/utils/lyricUtil";
-import type { LyricLine } from "@applemusic-like-lyrics/core";
-import { defineStore } from "pinia";
-import electronAPI from "@/utils/electron";
 
 export interface LyricSetting {
   useAMLyric: boolean;
@@ -29,6 +29,14 @@ export interface LyricSetting {
   lyricFontShadow?: boolean;
   showTime?: boolean;
 }
+
+type LyricPayload = {
+  krc: string;
+  lrc: string;
+};
+
+const emptyLyric = (): LyricPayload => ({ krc: "", lrc: "" });
+
 export const useLyricStore = defineStore("lyric", {
   state: () => ({
     rawLrc: "",
@@ -38,19 +46,19 @@ export const useLyricStore = defineStore("lyric", {
     AMKrc: [] as LyricLine[],
     AMLrc: [] as LyricLine[],
     currentId: "",
-    currentTime: 0, // 秒
+    currentTime: 0,
     lyricLoading: false,
     currentSong: null as Song | null,
     desktop: false,
     desktopLyric: {
-        maxSize: 64,
-        minSize: 10,
-        fontSize: 28,
-        fontFamily: '"Microsoft YaHei", "PingFang SC", sans-serif',
-        textColor: "#fff",
-        highlightColor: "#1871FD",
-        fontWeight: 600,
-      },
+      maxSize: 64,
+      minSize: 10,
+      fontSize: 28,
+      fontFamily: '"Microsoft YaHei", "PingFang SC", sans-serif',
+      textColor: "#fff",
+      highlightColor: "#1871FD",
+      fontWeight: 600,
+    },
     setting: {
       useAMLyric: true,
       useKRC: true,
@@ -71,14 +79,12 @@ export const useLyricStore = defineStore("lyric", {
 
     get currentIndexLRC() {
       return this.parsedLrc.findIndex(
-        (item) =>
-          item.time <= this.currentTime && item.endTime!! >= this.currentTime
+        (item) => item.time <= this.currentTime && item.endTime!! >= this.currentTime
       );
     },
     get currentIndexKRC() {
       return this.parsedKrc.findIndex(
-        (item) =>
-          item.time <= this.currentTime && item.endTime!! >= this.currentTime
+        (item) => item.time <= this.currentTime && item.endTime!! >= this.currentTime
       );
     },
     get currentLineLRC() {
@@ -90,46 +96,26 @@ export const useLyricStore = defineStore("lyric", {
   }),
   actions: {
     async initLyric() {
-      let lyric = { krc: "暂无歌词", lrc: "暂无歌词" };
-      if (this.currentSong) {
-        if (
-          this.currentSong.id == this.currentId &&
-          (this.rawKrc || this.rawLrc)
-        )
-          return;
-        this.currentId = this.currentSong.id;
-        switch (this.currentSong.source) {
-          case "kg":
-            lyric = await fetchKGLyric(this.currentSong.urlParam);
-            break;
-          case "wy":
-            lyric = await fetchWYLyric({
-              id: this.currentSong.id,
-            });
-            break;
-          case "kw":
-            break;
-          case "qq":
-            break;
-          default:
-        }
-        const { krc, lrc } = lyric;
-        this.rawKrc = krc;
-        this.rawLrc = lrc;
-        this.parsedKrc = krc ? parseKrc(krc) : [];
-        this.parsedLrc = lrc ? parseLrc(lrc) : [];
-        if (this.currentSong.source == "wy") {
-          this.AMKrc = krc ? amParseYrc(this.rawKrc) : [];
-        } else {
-          this.AMKrc = krc ? convertKrcToAMLyricLine(this.parsedKrc) : [];
-        }
-        this.AMLrc = lrc ? convertLrcToAMLyricLine(this.parsedLrc) : [];
-        setTimeout(() => {
-          this.sendToLyricWindow();
-        }, 100);
+      if (!this.currentSong) return;
+      if (this.currentSong.id == this.currentId && (this.rawKrc || this.rawLrc)) return;
+
+      this.currentId = this.currentSong.id;
+      const lyric = await fetchSongLyric(this.currentSong);
+      this.rawKrc = lyric.krc;
+      this.rawLrc = lyric.lrc;
+      this.parsedKrc = lyric.krc ? parseKrc(lyric.krc) : [];
+      this.parsedLrc = lyric.lrc ? parseLrc(lyric.lrc) : [];
+      if (this.currentSong.source == "wy") {
+        this.AMKrc = lyric.krc ? amParseYrc(this.rawKrc) : [];
+      } else {
+        this.AMKrc = lyric.krc ? convertKrcToAMLyricLine(this.parsedKrc) : [];
       }
+      this.AMLrc = lyric.lrc ? convertLrcToAMLyricLine(this.parsedLrc) : [];
+      setTimeout(() => {
+        this.sendToLyricWindow();
+      }, 100);
     },
-    setDesktop(de:boolean) {
+    setDesktop(de: boolean) {
       this.desktop = de;
       electronAPI.setStore("lyricConfig.desktop", de);
     },
@@ -159,72 +145,14 @@ export const useLyricStore = defineStore("lyric", {
         highlightColor: this.desktopLyric.highlightColor,
         fontWeight: this.desktopLyric.fontWeight,
       });
-    }
+    },
   },
 });
 
-async function fetchKGLyric(hash: string): Promise<{
-  krc: string;
-  lrc: string;
-}> {
+async function fetchSongLyric(song: Song): Promise<LyricPayload> {
   try {
-    const r1 = await directAPI.kg?.searchLyric(hash);
-    if (r1) {
-      const [krcRes, lrcRes] = await Promise.all([
-        directAPI.kg?.lyric({
-          id: r1.candidates[0].id,
-          accesskey: r1.candidates[0].accesskey,
-          decode: true,
-          fmt: "krc",
-        }),
-        directAPI.kg?.lyric({
-          id: r1.candidates[0].id,
-          accesskey: r1.candidates[0].accesskey,
-          decode: true,
-          fmt: "lrc",
-        }),
-      ]);
-
-      const res = {
-        krc: "",
-        lrc: "",
-      };
-
-      if (krcRes?.decodeContent) {
-        res.krc = krcRes.decodeContent;
-      }
-
-      if (lrcRes?.decodeContent) {
-        res.lrc = lrcRes.decodeContent;
-      }
-      return res;
-    }
-    return {
-      krc: "网络异常，获取歌词失败",
-      lrc: "网络异常，获取歌词失败",
-    };
-  } catch (error: any) {
-    console.log(error);
-    return {
-      krc: error?.message || "",
-      lrc: error?.message || "",
-    };
-  }
-}
-
-async function fetchWYLyric(params: { id: string }) {
-  try {
-    const [kr, lr] = await Promise.all([
-      directAPI.wy?.lyricNew(params),
-      directAPI.wy?.lyric(params),
-    ]);
-    // @ts-ignore
-    console.log(kr.yrc?.lyric);
-    return {
-      // @ts-ignore
-      krc: kr?.yrc?.lyric || "",
-      lrc: lr?.lrc.lyric,
-    };
+    if (song.source === "qq") return emptyLyric();
+    return fetchLyricsByMusicApi(song);
   } catch (error: any) {
     return {
       krc: error?.message || "",

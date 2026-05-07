@@ -26,3 +26,11 @@ export async function getPlayableUrlByMusicApi(song: Song) {
     return getUrlByProxy(song);
   }
 }
+
+export async function fetchLyricsByMusicApi(song: Song) {
+  return window.electronAPI.fetchLyrics({
+    source: song.source as SearchableMusicSource,
+    id: song.id,
+    hash: song.urlParam,
+  });
+}
