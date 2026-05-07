@@ -23,6 +23,7 @@ type RequestOptions = {
 };
 
 let cachedBootstrap: BootstrapConfig | null = null;
+let bootstrapPromise: Promise<BootstrapConfig> | null = null;
 
 export function getSystemBaseUrl() {
   return normalizeBaseUrl(process.env.PISA_SERVER_URL || process.env.PM_SERVER_URL || DEFAULT_SERVER_URL);
@@ -35,7 +36,7 @@ export async function refreshBootstrap() {
 }
 
 export async function getBootstrap() {
-  return refreshBootstrap();
+  return ensureBootstrap();
 }
 
 export async function getAnnouncements() {
@@ -51,6 +52,7 @@ export async function submitFeedback(payload: FeedbackPayload) {
   form.set("device", JSON.stringify(payload.device ?? {}));
   const response = await fetch(new URL("/api/feedback", getSystemBaseUrl()), {
     method: "POST",
+    headers: createEncryptionHeaders(),
     body: form,
   });
   return unwrapResponse(await parseResponse<{ id: string; createdAt: string }>(response));
@@ -60,7 +62,7 @@ export async function requestSignedGateway<T>(
   rawUrl: string,
   options: Omit<RequestOptions, "encrypted"> = {}
 ) {
-  const bootstrap = cachedBootstrap ?? (await refreshBootstrap());
+  const bootstrap = cachedBootstrap ?? (await ensureBootstrap());
   const signConfig = bootstrap.gatewaySign ?? DEFAULT_GATEWAY_SIGN;
   const method = options.method ?? "GET";
   const body = options.body === undefined ? "" : JSON.stringify(options.body);
@@ -80,6 +82,15 @@ export function getRuntimeEndpoints(): RuntimeEndpoints {
   return toRuntimeEndpoints(cachedBootstrap?.endpoints ?? {});
 }
 
+export async function getRuntimeEndpointsCached() {
+  try {
+    const bootstrap = await ensureBootstrap();
+    return toRuntimeEndpoints(bootstrap.endpoints);
+  } catch {
+    return toRuntimeEndpoints(cachedBootstrap?.endpoints ?? {});
+  }
+}
+
 export async function getRuntimeEndpointsFresh() {
   try {
     const bootstrap = await refreshBootstrap();
@@ -89,16 +100,25 @@ export async function getRuntimeEndpointsFresh() {
   }
 }
 
+async function ensureBootstrap() {
+  if (cachedBootstrap) return cachedBootstrap;
+  if (!bootstrapPromise) {
+    bootstrapPromise = refreshBootstrap().finally(() => {
+      bootstrapPromise = null;
+    });
+  }
+  return bootstrapPromise;
+}
+
 async function requestSystem<T>(path: string, options: RequestOptions = {}) {
   const url = new URL(path, getSystemBaseUrl());
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};
   let body: string | undefined;
+  const useEncryption = options.encrypted !== false;
 
-  if (options.encrypted) {
-    const reqKey = randomFullKey();
-    headers["x-pm-random"] = reqKey;
-    headers["x-pm-enc-ver"] = "1";
+  if (useEncryption) {
+    const reqKey = applyEncryptionHeaders(headers);
     if (options.body !== undefined) {
       headers["content-type"] = "application/json";
       body = JSON.stringify({
@@ -120,6 +140,19 @@ async function requestSystem<T>(path: string, options: RequestOptions = {}) {
 
   const response = await fetch(url, { method, headers, body });
   return parseResponse<T>(response);
+}
+
+function createEncryptionHeaders() {
+  const headers: Record<string, string> = {};
+  applyEncryptionHeaders(headers);
+  return headers;
+}
+
+function applyEncryptionHeaders(headers: Record<string, string>) {
+  const reqKey = randomFullKey();
+  headers["x-pm-random"] = reqKey;
+  headers["x-pm-enc-ver"] = "1";
+  return reqKey;
 }
 
 async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {

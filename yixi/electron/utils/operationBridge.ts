@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 import { collectStore } from "../store";
 import { getLegacyDataPath, getLogPath } from "../core/appPaths";
-import { getRuntimeEndpointsFresh, getSystemBaseUrl } from "../system/systemClient";
+import { getRuntimeEndpointsCached, getSystemBaseUrl } from "../system/systemClient";
 
 export async function ipcMainEventHandle(win: Electron.BrowserWindow) {
   // const urlConfig = (await electronAPI.getRequestUrl()).urlConfig;
@@ -37,7 +37,7 @@ export async function ipcMainEventHandle(win: Electron.BrowserWindow) {
 
   // 获取请求url
   ipcMain.handle("get-request-url", async () => {
-    const endpoints = await getRuntimeEndpointsFresh();
+    const endpoints = await getRuntimeEndpointsCached();
     return {
       urlConfig: endpoints,
       TARGET_URL: {
@@ -50,7 +50,7 @@ export async function ipcMainEventHandle(win: Electron.BrowserWindow) {
   });
 
   ipcMain.handle("get-server-port", async () => {
-    const backServer = await getRuntimeEndpointsFresh();
+    const backServer = await getRuntimeEndpointsCached();
     return {
       main_server: getSystemBaseUrl(),
       backServer,

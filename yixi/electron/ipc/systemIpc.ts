@@ -2,7 +2,7 @@ import { ipcMain } from "electron";
 import {
   getAnnouncements,
   getBootstrap,
-  getRuntimeEndpoints,
+  getRuntimeEndpointsCached,
   getRuntimeEndpointsFresh,
   getSystemBaseUrl,
   submitFeedback,
@@ -24,7 +24,7 @@ export function setupSystemIpc() {
   });
 
   ipcMain.handle("system:get-runtime-endpoints", (_event, fresh?: boolean) => {
-    return fresh ? getRuntimeEndpointsFresh() : getRuntimeEndpoints();
+    return fresh ? getRuntimeEndpointsFresh() : getRuntimeEndpointsCached();
   });
 
   ipcMain.handle("system:get-announcements", () => {

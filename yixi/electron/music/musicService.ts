@@ -1,4 +1,4 @@
-import { getRuntimeEndpointsFresh, requestSignedGateway } from "../system/systemClient";
+import { getRuntimeEndpointsCached, requestSignedGateway } from "../system/systemClient";
 import type {
   DynamicCoverParams,
   MusicLyricParams,
@@ -14,7 +14,7 @@ import type {
 } from "./types";
 
 export async function searchMusic(params: MusicSearchParams) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? 30;
 
@@ -48,7 +48,7 @@ export async function searchMusic(params: MusicSearchParams) {
 }
 
 export async function searchSuggest(params: MusicSuggestParams) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   return requestSignedGateway(
     buildUrl(endpoints.wyServer, "/search/suggest", {
       keywords: params.keywords,
@@ -57,7 +57,7 @@ export async function searchSuggest(params: MusicSuggestParams) {
 }
 
 export async function resolveMusicUrl(params: MusicUrlParams) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
 
   switch (params.source) {
     case "kg":
@@ -86,7 +86,7 @@ export async function resolveMusicUrl(params: MusicUrlParams) {
 }
 
 export async function searchPlaylists(params: PlaylistSearchParams) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? 30;
 
@@ -113,12 +113,12 @@ export async function searchPlaylists(params: PlaylistSearchParams) {
 }
 
 export async function getKgPlaylistTags() {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   return requestSignedGateway(buildUrl(endpoints.kgServer, "/playlist/tags", {}));
 }
 
 export async function getTopPlaylists(params: TopPlaylistParams) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   return requestSignedGateway(
     buildUrl(endpoints.kgServer, "/top/playlist", {
       category_id: params.categoryId ?? 0,
@@ -131,7 +131,7 @@ export async function getTopPlaylists(params: TopPlaylistParams) {
 }
 
 export async function getKgDailyRecommend(platform?: string) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   return requestSignedGateway(
     buildUrl(endpoints.kgServer, "/everyday/recommend", {
       platform,
@@ -148,7 +148,7 @@ export async function getHomeRecommendations() {
 }
 
 export async function getPlaylistDetail(params: PlaylistDetailParams) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   switch (params.source) {
     case "kg":
       return requestSignedGateway(
@@ -167,7 +167,7 @@ export async function getPlaylistDetail(params: PlaylistDetailParams) {
 }
 
 export async function getPlaylistTracks(params: PlaylistTracksParams) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? 30;
 
@@ -192,7 +192,7 @@ export async function getPlaylistTracks(params: PlaylistTracksParams) {
 }
 
 export async function getDynamicCover(params: DynamicCoverParams) {
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   return requestSignedGateway(
     buildUrl(endpoints.wyServer, "/song/dynamic/cover", {
       id: params.id,
@@ -234,7 +234,7 @@ export async function fetchLyrics(params: MusicLyricParams): Promise<MusicLyricR
 
 async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
   if (!hash) return emptyLyrics();
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   const searchResult: any = await requestSignedGateway(
     buildUrl(endpoints.kgServer, "/search/lyric", { hash })
   );
@@ -270,7 +270,7 @@ async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
 
 async function fetchWyLyrics(id: string): Promise<MusicLyricResult> {
   if (!id) return emptyLyrics();
-  const endpoints = await getRuntimeEndpointsFresh();
+  const endpoints = await getRuntimeEndpointsCached();
   const [krcResult, lrcResult]: any[] = await Promise.all([
     requestSignedGateway(buildUrl(endpoints.wyServer, "/lyric/new", { id })),
     requestSignedGateway(buildUrl(endpoints.wyServer, "/lyric", { id })),
