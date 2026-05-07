@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.text.format.Formatter
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
@@ -114,6 +115,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
             }
 
             downloadDialog?.show()
+            Toast.makeText(this, R.string.toast_download_started, Toast.LENGTH_SHORT).show()
 
             DownloadManager.getInstance(this).startDownload(
                 url = url,

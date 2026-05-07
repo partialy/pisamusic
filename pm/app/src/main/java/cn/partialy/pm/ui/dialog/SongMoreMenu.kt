@@ -33,6 +33,7 @@ data class SongMoreMenuDependencies(
     val loveManager: LoveManager,
     val playlistCollectionManager: PlaylistCollectionManager,
     val onDownloadClick: (SongInfo) -> Unit,
+    val showShare: Boolean = false,
 )
 
 /**
@@ -78,6 +79,7 @@ object SongMoreMenu {
         root.findViewById<LinearLayout>(R.id.songMoreRowPlayNext).setOnClickListener {
             deps.musicController.addPlayNext(song)
             dialog.dismiss()
+            Toast.makeText(activity, R.string.toast_song_added_to_play_next, Toast.LENGTH_SHORT).show()
         }
         root.findViewById<LinearLayout>(R.id.songMoreRowDownload).setOnClickListener {
             deps.onDownloadClick(song)
@@ -96,6 +98,13 @@ object SongMoreMenu {
         root.findViewById<LinearLayout>(R.id.songMoreRowAddPlaylist).setOnClickListener {
             openPickPlaylistAfterDismiss = true
             dialog.dismiss()
+        }
+        root.findViewById<LinearLayout>(R.id.songMoreRowShare).apply {
+            visibility = if (deps.showShare) View.VISIBLE else View.GONE
+            setOnClickListener {
+                dialog.dismiss()
+                Toast.makeText(activity, R.string.toast_share_coming_soon, Toast.LENGTH_SHORT).show()
+            }
         }
 
         dialog.setContentView(root)

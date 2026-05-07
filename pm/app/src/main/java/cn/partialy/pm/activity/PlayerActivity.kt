@@ -23,6 +23,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import android.widget.SeekBar
@@ -43,6 +44,8 @@ import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityPlayerBinding
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.ui.dialog.SongMoreMenu
+import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.player.LyricRow
 import cn.partialy.pm.ui.player.LyricSettingsSheet
 import cn.partialy.pm.ui.player.LyricsAdapter
@@ -52,6 +55,7 @@ import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.AudioEmbeddedArtReader
 import cn.partialy.pm.utils.LocalMediaIndexDbStore
 import cn.partialy.pm.utils.SettingsPrefs
+import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
 import coil.request.ImageRequest
 import coil.ImageLoader
@@ -70,6 +74,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class PlayerActivity : BaseDownloadActivity() {
     @Inject lateinit var mediaIndexDb: LocalMediaIndexDbStore
+    @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
 
     private lateinit var binding: ActivityPlayerBinding
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
@@ -132,7 +137,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun setupPlaybackControls() {
         binding.collapseButton.setOnClickListener { finish() }
 
-        binding.moreButton.setOnClickListener { }
+        binding.moreButton.setOnClickListener { openCurrentSongMoreMenu() }
 
         binding.textDecreaseButton.setOnClickListener {
             lyricsAdapter.adjustTextSize(-1f, this)
@@ -208,6 +213,25 @@ class PlayerActivity : BaseDownloadActivity() {
         }
         binding.repeatButton.setImageResource(icon)
         binding.repeatButton.alpha = 1.0f
+    }
+
+    private fun openCurrentSongMoreMenu() {
+        val song = musicController.currentSong.value
+        if (song == null) {
+            Toast.makeText(this, R.string.toast_no_current_song, Toast.LENGTH_SHORT).show()
+            return
+        }
+        SongMoreMenu.show(
+            this,
+            song,
+            SongMoreMenuDependencies(
+                musicController = musicController,
+                loveManager = loveManager,
+                playlistCollectionManager = playlistCollectionManager,
+                onDownloadClick = { startSongDownloadFlow(it) },
+                showShare = true,
+            ),
+        )
     }
 
     private fun observePlaybackState() {

@@ -101,19 +101,15 @@ public class JDownloadManager {
                 response.close();
 
                 if (!embedMetadata) {
-                    new Handler(Looper.getMainLooper()).post(() -> {
-                        Toast.makeText(context, "下载完成: " + file.getPath(), Toast.LENGTH_SHORT).show();
-                        callback.onSuccess(file.getPath());
-                    });
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            callback.onSuccess(file.getPath()));
                     return;
                 }
 
                 String extension = getFileExtension(file.getName()).toLowerCase();
                 if (!isSupportedFormat(extension)) {
-                    new Handler(Looper.getMainLooper()).post(() -> {
-                        Toast.makeText(context, "下载完成: " + file.getPath(), Toast.LENGTH_SHORT).show();
-                        callback.onSuccess(file.getPath());
-                    });
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            callback.onSuccess(file.getPath()));
                     return;
                 }
 
@@ -132,10 +128,8 @@ public class JDownloadManager {
 
                 try {
                     AudioMetadataEmbedder.embed(file, title, artist, album, lyric, cover);
-                    new Handler(Looper.getMainLooper()).post(() -> {
-                        Toast.makeText(context, "下载完成: " + file.getPath(), Toast.LENGTH_SHORT).show();
-                        callback.onSuccess(file.getPath());
-                    });
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            callback.onSuccess(file.getPath()));
                 } catch (Exception e) {
                     e.printStackTrace();
                     new Handler(Looper.getMainLooper()).post(() ->
