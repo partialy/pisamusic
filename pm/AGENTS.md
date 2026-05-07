@@ -66,8 +66,9 @@
 ## 本地数据
 
 - 自建本地歌单及其歌曲关系以 `pm_local_music.db` SQLite 数据库为主存储，由 `LocalPlaylistDbStore` 管理。
-- `PlaylistCollectionManager` 仍是收藏/自建歌单的统一入口；旧版 `collected_playlists.json` 与 `songs_<playlistId>.json` 会在加载时迁移到 SQLite。
-- 本地歌单 JSON 文件仅用于导入导出兼容和备份镜像，不要再作为新的运行时主存储。
+- 收藏歌曲以 `pm_local_music.db` 的 `favorite_songs` 表为主存储，由 `LoveManager` 管理；旧版 `loveList.json` 仅用于迁移、导入导出兼容和备份镜像。
+- `PlaylistCollectionManager` 仍是收藏/自建歌单的统一入口；网络歌单收藏写入 `favorite_playlists`，自建歌单写入本地歌单表。旧版 `collected_playlists.json` 与 `songs_<playlistId>.json` 会在加载时迁移到 SQLite。
+- 本地歌单与收藏 JSON 文件仅用于导入导出兼容和备份镜像，不要再作为新的运行时主存储。
 - 歌词与封面映射以 `pm_media_index.db` SQLite 数据库建索引，由 `LocalMediaIndexDbStore` 管理；歌词文本可入库，封面大图/内嵌图仍保留在文件或音频标签中，数据库只记录来源和引用。
 
 ## 网络与服务端契约

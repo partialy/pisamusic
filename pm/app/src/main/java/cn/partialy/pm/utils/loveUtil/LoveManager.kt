@@ -23,9 +23,10 @@ import javax.inject.Singleton
 class LoveManager @Inject constructor(@ApplicationContext private val context: Context) {
     private val gson = Gson()
     private val fileName = "loveList.json"
+    private val db = FavoriteSongsDbStore(context)
     private val lock = Any()
     private var loaded = false
-    private val songsById = LinkedHashMap<String, SongInfo>()
+    private val songsByKey = LinkedHashMap<String, SongInfo>()
 
     private val _loveListFlow = MutableStateFlow<List<SongInfo>>(emptyList())
     val loveListFlow: StateFlow<List<SongInfo>> = _loveListFlow.asStateFlow()
@@ -51,9 +52,10 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
     private fun ensureLoaded() {
         synchronized(lock) {
             if (loaded) return
-            val list = readListFromDisk()
-            songsById.clear()
-            for (s in list) songsById[s.id] = s
+            db.mergeLegacySongs(readListFromDisk().map { it.forPersistence() })
+            val list = db.getSongs()
+            songsByKey.clear()
+            for (s in list) songsByKey[s.storageKey()] = s
             refreshFlowLocked()
             loaded = true
         }
@@ -75,13 +77,13 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
     }
 
     private fun refreshFlowLocked() {
-        _loveListFlow.value = songsById.values.toList()
+        _loveListFlow.value = songsByKey.values.toList()
     }
 
     fun getLoveList(): List<SongInfo> {
         ensureLoaded()
         synchronized(lock) {
-            return songsById.values.toList()
+            return songsByKey.values.toList()
         }
     }
 
@@ -94,71 +96,96 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
 
     private fun persistAsync() {
         val snapshot = synchronized(lock) {
-            songsById.values.map { it.forPersistence() }
+            songsByKey.values.map { it.forPersistence() }
         }
         scope.launch {
             persistMutex.withLock {
-                try {
-                    val file = loveFile()
-                    file.parentFile?.mkdirs()
-                    file.writeText(gson.toJson(snapshot))
-                } catch (e: Exception) {
-                    Log.e(TAG, "save love list failed", e)
-                }
+                writeLegacyMirror(snapshot)
             }
         }
     }
 
-    fun toggleLikeStatus(songInfo: SongInfo) {
-        if (isSongInLoveList(songInfo)) {
-            removeSongFromLoveList(listOf(songInfo.id))
+    fun syncLegacyMirrorNow() {
+        ensureLoaded()
+        val snapshot = synchronized(lock) {
+            songsByKey.values.map { it.forPersistence() }
+        }
+        writeLegacyMirror(snapshot)
+    }
+
+    private fun writeLegacyMirror(snapshot: List<SongInfo>) {
+        try {
+            val file = loveFile()
+            file.parentFile?.mkdirs()
+            file.writeText(gson.toJson(snapshot))
+        } catch (e: Exception) {
+            Log.e(TAG, "save love list failed", e)
+        }
+    }
+
+    fun mergeLegacySongs(songs: List<SongInfo>): Int {
+        val added = db.mergeLegacySongs(songs.map { it.forPersistence() })
+        reload()
+        persistAsync()
+        return added
+    }
+
+    fun toggleLikeStatus(songInfo: SongInfo): Boolean {
+        return if (isSongInLoveList(songInfo)) {
+            removeSongFromLoveList(songInfo)
+            false
         } else {
             addSongToLoveList(songInfo)
+            true
         }
     }
 
     fun isSongInLoveList(songInfo: SongInfo): Boolean {
         ensureLoaded()
         synchronized(lock) {
-            return songsById.containsKey(songInfo.id)
+            return songsByKey.containsKey(songInfo.storageKey())
         }
     }
 
     private fun addSongToLoveList(song: SongInfo) {
         ensureLoaded()
-        var added = false
+        val persisted = db.addSong(song.forPersistence())
+        if (!persisted) return
         synchronized(lock) {
-            if (!songsById.containsKey(song.id)) {
-                songsById[song.id] = song
+            if (!songsByKey.containsKey(song.storageKey())) {
+                songsByKey[song.storageKey()] = song.forPersistence()
                 refreshFlowLocked()
-                added = true
             }
         }
-        if (added) persistAsync()
+        persistAsync()
     }
 
-    private fun removeSongFromLoveList(songIds: List<String>) {
+    private fun removeSongFromLoveList(song: SongInfo) {
         ensureLoaded()
-        var changed = false
+        val changed = db.removeSong(song)
+        if (!changed) return
         synchronized(lock) {
-            for (id in songIds) {
-                if (songsById.remove(id) != null) changed = true
-            }
-            if (changed) refreshFlowLocked()
+            songsByKey.remove(song.storageKey())
+            refreshFlowLocked()
         }
-        if (changed) persistAsync()
+        persistAsync()
     }
 
     fun clearLoveList() {
         ensureLoaded()
         val hadAny = synchronized(lock) {
-            if (songsById.isEmpty()) return
-            songsById.clear()
+            if (songsByKey.isEmpty()) return
+            songsByKey.clear()
             refreshFlowLocked()
             true
         }
-        if (hadAny) persistAsync()
+        if (hadAny) {
+            db.clearAll()
+            persistAsync()
+        }
     }
+
+    private fun SongInfo.storageKey(): String = "${type.name}:$id"
 
     private companion object {
         private const val TAG = "LoveManager"

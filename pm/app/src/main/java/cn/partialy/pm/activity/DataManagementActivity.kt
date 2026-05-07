@@ -123,14 +123,11 @@ class DataManagementActivity : BaseActivity() {
 
     private fun calculateDataStats(): DataStats {
         val filesDir = this.filesDir
+        loveManager.syncLegacyMirrorNow()
         playlistCollectionManager.syncLegacyMirrorNow()
         val loveFile = File(filesDir, "loveList.json")
         val lovedSize = if (loveFile.exists()) loveFile.length() else 0L
-        val lovedCount = if (loveFile.exists()) {
-            try {
-                gson.fromJson(loveFile.readText(), Array<SongInfo>::class.java)?.size ?: 0
-            } catch (_: Exception) { 0 }
-        } else 0
+        val lovedCount = loveManager.getLoveList().size
 
         val playlists = playlistCollectionManager.getAllPlaylists()
         val indexFile = File(filesDir, "collected_playlists.json")
@@ -174,8 +171,9 @@ class DataManagementActivity : BaseActivity() {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 val filesDir = this@DataManagementActivity.filesDir
-                File(filesDir, "loveList.json").delete()
+                loveManager.clearLoveList()
                 playlistCollectionManager.clearAll()
+                File(filesDir, "loveList.json").delete()
             }
             loveManager.reload()
             loadDataOverview()
@@ -227,6 +225,7 @@ class DataManagementActivity : BaseActivity() {
 
     /** 收集需要打包的文件：loveList + playlists 索引 + 本地歌单曲目 */
     private fun collectExportFiles(filesDir: File): List<Pair<String, File>> {
+        loveManager.syncLegacyMirrorNow()
         playlistCollectionManager.syncLegacyMirrorNow()
         val result = mutableListOf<Pair<String, File>>()
         val loveFile = File(filesDir, "loveList.json")
@@ -293,7 +292,7 @@ class DataManagementActivity : BaseActivity() {
                     val bytes = zip.readBytes()
                     when {
                         entry.name == "loveList.json" -> {
-                            lovedCount = mergeLoveList(filesDir, bytes)
+                            lovedCount = mergeLoveList(bytes)
                         }
                         entry.name == "collected_playlists.json" -> {
                             playlistCount = mergePlaylistIndex(filesDir, bytes)
@@ -317,25 +316,14 @@ class DataManagementActivity : BaseActivity() {
     }
 
     /** 合并收藏歌曲：按 id 去重，追加新歌曲 */
-    private fun mergeLoveList(filesDir: File, importedBytes: ByteArray): Int {
+    private fun mergeLoveList(importedBytes: ByteArray): Int {
         val type = object : TypeToken<List<SongInfo>>() {}.type
         val imported: List<SongInfo> = try {
             gson.fromJson(String(importedBytes), type) ?: emptyList()
         } catch (_: Exception) { emptyList() }
         if (imported.isEmpty()) return 0
 
-        val file = File(filesDir, "loveList.json")
-        val existing: List<SongInfo> = try {
-            if (file.exists()) gson.fromJson(file.readText(), type) ?: emptyList() else emptyList()
-        } catch (_: Exception) { emptyList() }
-
-        val existingIds = existing.map { it.id }.toHashSet()
-        val newSongs = imported.filter { it.id !in existingIds }
-        if (newSongs.isNotEmpty()) {
-            file.writeText(gson.toJson(existing + newSongs))
-        }
-        loveManager.reload()
-        return newSongs.size
+        return loveManager.mergeLegacySongs(imported)
     }
 
     /** 合并歌单索引：按 type+id 去重，追加新歌单 */

@@ -33,6 +33,7 @@ class PlaylistCollectionManager @Inject constructor(
 ) {
     private val gson = Gson()
     private val localDb = LocalPlaylistDbStore(context)
+    private val favoriteDb = FavoritePlaylistsDbStore(context)
     private val indexFileName = "collected_playlists.json"
 
     private val lock = Any()
@@ -77,13 +78,10 @@ class PlaylistCollectionManager @Inject constructor(
     private fun ensureIndexLoaded() {
         synchronized(lock) {
             if (indexLoaded) return
-            migrateLegacyLocalPlaylists()
-            val list = readIndexFromDisk()
+            migrateLegacyPlaylists()
             playlistsByKey.clear()
-            for (p in list) {
-                if (p.id.isNotBlank() && p.type != CollectedPlaylistType.LOCAL) {
-                    playlistsByKey[storageKey(p)] = p
-                }
+            for (p in favoriteDb.getPlaylists()) {
+                if (p.id.isNotBlank()) playlistsByKey[storageKey(p)] = p
             }
             for (p in localDb.getPlaylists()) {
                 if (p.id.isNotBlank()) playlistsByKey[storageKey(p)] = p
@@ -93,8 +91,10 @@ class PlaylistCollectionManager @Inject constructor(
         }
     }
 
-    private fun migrateLegacyLocalPlaylists() {
-        val legacyLocalPlaylists = readIndexFromDisk()
+    private fun migrateLegacyPlaylists() {
+        val legacyPlaylists = readIndexFromDisk()
+        favoriteDb.mergeLegacyPlaylists(legacyPlaylists)
+        val legacyLocalPlaylists = legacyPlaylists
             .filter { it.type == CollectedPlaylistType.LOCAL && it.id.isNotBlank() }
         if (legacyLocalPlaylists.isEmpty()) return
         for (playlist in legacyLocalPlaylists) {
@@ -270,9 +270,11 @@ class PlaylistCollectionManager @Inject constructor(
         synchronized(lock) {
             val key = storageKey(playlist)
             if (!playlistsByKey.containsKey(key)) {
-                playlistsByKey[key] = playlist
-                refreshPlaylistsFlowLocked()
-                added = true
+                added = favoriteDb.addPlaylist(playlist)
+                if (added) {
+                    playlistsByKey[key] = playlist
+                    refreshPlaylistsFlowLocked()
+                }
             }
         }
         if (added) persistIndexAsync()
@@ -300,6 +302,8 @@ class PlaylistCollectionManager @Inject constructor(
                     } catch (e: Exception) {
                         Log.e(TAG, "delete songs file failed id=$id", e)
                     }
+                } else {
+                    favoriteDb.removePlaylist(type, id)
                 }
                 refreshPlaylistsFlowLocked()
                 removed = true
@@ -467,6 +471,7 @@ class PlaylistCollectionManager @Inject constructor(
             refreshPlaylistsFlowLocked()
         }
         localDb.clearAll()
+        favoriteDb.clearAll()
         try {
             context.filesDir.listFiles()
                 ?.filter { it.name.startsWith("songs_") && it.name.endsWith(".json") }

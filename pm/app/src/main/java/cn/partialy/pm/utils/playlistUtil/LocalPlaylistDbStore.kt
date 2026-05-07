@@ -4,14 +4,14 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
 
 internal class LocalPlaylistDbStore(context: Context) {
-    private val helper = Helper(context.applicationContext)
+    private val helper = LocalMusicDbOpenHelper(context.applicationContext)
 
     fun getPlaylists(): List<CollectedPlaylist> {
         val db = helper.readableDatabase
@@ -259,49 +259,4 @@ internal class LocalPlaylistDbStore(context: Context) {
         )
     }
 
-    private class Helper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
-        override fun onCreate(db: SQLiteDatabase) {
-            db.execSQL(
-                """
-                CREATE TABLE local_playlists (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    intro TEXT NOT NULL DEFAULT '',
-                    cover TEXT NOT NULL DEFAULT '',
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL
-                )
-                """.trimIndent()
-            )
-            db.execSQL(
-                """
-                CREATE TABLE local_playlist_songs (
-                    playlist_id TEXT NOT NULL,
-                    song_id TEXT NOT NULL,
-                    song_type TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    artist TEXT NOT NULL,
-                    cover_url TEXT NOT NULL DEFAULT '',
-                    album TEXT,
-                    lyric TEXT,
-                    duration INTEGER,
-                    sort_order INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL,
-                    PRIMARY KEY (playlist_id, song_id),
-                    FOREIGN KEY (playlist_id) REFERENCES local_playlists(id) ON DELETE CASCADE
-                )
-                """.trimIndent()
-            )
-            db.execSQL("CREATE INDEX idx_local_playlist_songs_order ON local_playlist_songs(playlist_id, sort_order)")
-        }
-
-        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            // Future migrations for local data live here.
-        }
-
-        companion object {
-            private const val DB_NAME = "pm_local_music.db"
-            private const val DB_VERSION = 1
-        }
-    }
 }
