@@ -123,6 +123,7 @@ class DataManagementActivity : BaseActivity() {
 
     private fun calculateDataStats(): DataStats {
         val filesDir = this.filesDir
+        playlistCollectionManager.syncLegacyMirrorNow()
         val loveFile = File(filesDir, "loveList.json")
         val lovedSize = if (loveFile.exists()) loveFile.length() else 0L
         val lovedCount = if (loveFile.exists()) {
@@ -131,17 +132,17 @@ class DataManagementActivity : BaseActivity() {
             } catch (_: Exception) { 0 }
         } else 0
 
+        val playlists = playlistCollectionManager.getAllPlaylists()
         val indexFile = File(filesDir, "collected_playlists.json")
         var playlistSize = if (indexFile.exists()) indexFile.length() else 0L
-        val playlistCount = if (indexFile.exists()) {
-            try {
-                gson.fromJson(indexFile.readText(), Array<CollectedPlaylist>::class.java)?.size ?: 0
-            } catch (_: Exception) { 0 }
-        } else 0
+        val playlistCount = playlists.size
 
         filesDir.listFiles()
             ?.filter { it.name.startsWith("songs_") && it.name.endsWith(".json") }
             ?.forEach { playlistSize += it.length() }
+        getDatabasePath("pm_local_music.db").takeIf { it.exists() }?.let {
+            playlistSize += it.length()
+        }
 
         return DataStats(
             lovedCount = lovedCount,
@@ -174,13 +175,9 @@ class DataManagementActivity : BaseActivity() {
             withContext(Dispatchers.IO) {
                 val filesDir = this@DataManagementActivity.filesDir
                 File(filesDir, "loveList.json").delete()
-                File(filesDir, "collected_playlists.json").delete()
-                filesDir.listFiles()
-                    ?.filter { it.name.startsWith("songs_") && it.name.endsWith(".json") }
-                    ?.forEach { it.delete() }
+                playlistCollectionManager.clearAll()
             }
             loveManager.reload()
-            playlistCollectionManager.reload()
             loadDataOverview()
             Toast.makeText(this@DataManagementActivity, R.string.data_delete_success, Toast.LENGTH_SHORT).show()
         }
@@ -230,6 +227,7 @@ class DataManagementActivity : BaseActivity() {
 
     /** 收集需要打包的文件：loveList + playlists 索引 + 本地歌单曲目 */
     private fun collectExportFiles(filesDir: File): List<Pair<String, File>> {
+        playlistCollectionManager.syncLegacyMirrorNow()
         val result = mutableListOf<Pair<String, File>>()
         val loveFile = File(filesDir, "loveList.json")
         if (loveFile.exists() && loveFile.length() > 2) result.add("loveList.json" to loveFile)
@@ -313,6 +311,7 @@ class DataManagementActivity : BaseActivity() {
         for ((name, bytes) in songFiles) {
             mergeSongsFile(filesDir, name, bytes)
         }
+        playlistCollectionManager.reload()
 
         return ImportResult(lovedCount, playlistCount)
     }

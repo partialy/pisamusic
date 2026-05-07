@@ -63,6 +63,12 @@
 - `PlayUrlGetter` 负责 KG / WY / KW / LOCAL 播放地址解析和音质降级。
 - `PlayerStateStore` 使用 SharedPreferences + kotlinx.serialization 持久化跨会话播放状态。
 
+## 本地数据
+
+- 自建本地歌单及其歌曲关系以 `pm_local_music.db` SQLite 数据库为主存储，由 `LocalPlaylistDbStore` 管理。
+- `PlaylistCollectionManager` 仍是收藏/自建歌单的统一入口；旧版 `collected_playlists.json` 与 `songs_<playlistId>.json` 会在加载时迁移到 SQLite。
+- 本地歌单 JSON 文件仅用于导入导出兼容和备份镜像，不要再作为新的运行时主存储。
+
 ## 网络与服务端契约
 
 - KG：`KgApiService`、`KgUrlProxyApiService`、`KgRepository`、`DfidInterceptor`

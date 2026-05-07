@@ -32,6 +32,7 @@ class PlaylistCollectionManager @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private val gson = Gson()
+    private val localDb = LocalPlaylistDbStore(context)
     private val indexFileName = "collected_playlists.json"
 
     private val lock = Any()
@@ -76,15 +77,31 @@ class PlaylistCollectionManager @Inject constructor(
     private fun ensureIndexLoaded() {
         synchronized(lock) {
             if (indexLoaded) return
+            migrateLegacyLocalPlaylists()
             val list = readIndexFromDisk()
             playlistsByKey.clear()
             for (p in list) {
-                if (p.id.isNotBlank()) {
+                if (p.id.isNotBlank() && p.type != CollectedPlaylistType.LOCAL) {
                     playlistsByKey[storageKey(p)] = p
                 }
             }
+            for (p in localDb.getPlaylists()) {
+                if (p.id.isNotBlank()) playlistsByKey[storageKey(p)] = p
+            }
             refreshPlaylistsFlowLocked()
             indexLoaded = true
+        }
+    }
+
+    private fun migrateLegacyLocalPlaylists() {
+        val legacyLocalPlaylists = readIndexFromDisk()
+            .filter { it.type == CollectedPlaylistType.LOCAL && it.id.isNotBlank() }
+        if (legacyLocalPlaylists.isEmpty()) return
+        for (playlist in legacyLocalPlaylists) {
+            localDb.mergeLegacyPlaylist(
+                playlist = playlist,
+                songs = readLocalSongsFromDisk(playlist.id).map { it.forPersistence() },
+            )
         }
     }
 
@@ -165,8 +182,7 @@ class PlaylistCollectionManager @Inject constructor(
     private fun ensureLocalSongsLoaded(playlistId: String) {
         synchronized(lock) {
             if (localSongsLoaded.contains(playlistId)) return
-            val fromDisk = readLocalSongsFromDisk(playlistId)
-            localSongsByPlaylistId[playlistId] = fromDisk.toMutableList()
+            localSongsByPlaylistId[playlistId] = localDb.getSongs(playlistId).toMutableList()
             localSongsLoaded.add(playlistId)
         }
     }
@@ -182,6 +198,25 @@ class PlaylistCollectionManager @Inject constructor(
         ensureIndexLoaded()
         synchronized(lock) {
             return playlistsByKey.values.toList()
+        }
+    }
+
+    /** 将 SQLite 中的本地歌单同步成旧版 JSON 文件，保持备份导出兼容。 */
+    fun syncLegacyMirrorNow() {
+        val playlists = getAllPlaylists()
+        try {
+            val index = indexFile()
+            index.parentFile?.mkdirs()
+            index.writeText(gson.toJson(playlists))
+            playlists
+                .filter { it.type == CollectedPlaylistType.LOCAL }
+                .forEach { playlist ->
+                    songsFile(playlist.id).writeText(
+                        gson.toJson(localDb.getSongs(playlist.id).map { it.forPersistence() })
+                    )
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "sync legacy playlist mirror failed", e)
         }
     }
 
@@ -253,6 +288,7 @@ class PlaylistCollectionManager @Inject constructor(
             val removedPl = playlistsByKey.remove(key)
             if (removedPl != null) {
                 if (type == CollectedPlaylistType.LOCAL) {
+                    localDb.removePlaylist(id)
                     MinePlaylistCoverResolver.localFileForCover(removedPl.cover)?.delete()
                     localSongsByPlaylistId.remove(id)
                     localSongsLoaded.remove(id)
@@ -297,6 +333,8 @@ class PlaylistCollectionManager @Inject constructor(
             localSongsLoaded.add(id)
             refreshPlaylistsFlowLocked()
         }
+        localDb.upsertPlaylist(playlist)
+        localDb.setSongs(id, emptyList())
         persistIndexAsync()
         persistLocalSongsAsync(id)
         return id
@@ -322,6 +360,7 @@ class PlaylistCollectionManager @Inject constructor(
             )
             if (next != cur) {
                 playlistsByKey[key] = next
+                localDb.upsertPlaylist(next)
                 refreshPlaylistsFlowLocked()
                 changed = true
             }
@@ -363,6 +402,10 @@ class PlaylistCollectionManager @Inject constructor(
             }
         }
         if (changed) {
+            val snapshot = synchronized(lock) {
+                localSongsByPlaylistId[playlistId]?.map { it.forPersistence() } ?: emptyList()
+            }
+            localDb.setSongs(playlistId, snapshot)
             persistIndexAsync()
             persistLocalSongsAsync(playlistId)
         }
@@ -386,6 +429,10 @@ class PlaylistCollectionManager @Inject constructor(
             }
         }
         if (changed) {
+            val snapshot = synchronized(lock) {
+                localSongsByPlaylistId[playlistId]?.map { it.forPersistence() } ?: emptyList()
+            }
+            localDb.setSongs(playlistId, snapshot)
             persistIndexAsync()
             persistLocalSongsAsync(playlistId)
         }
@@ -405,6 +452,7 @@ class PlaylistCollectionManager @Inject constructor(
             updateLocalPlaylistCountLocked(playlistId)
             refreshPlaylistsFlowLocked()
         }
+        localDb.setSongs(playlistId, songs.map { it.forPersistence() })
         persistIndexAsync()
         persistLocalSongsAsync(playlistId)
         return true
@@ -412,25 +460,25 @@ class PlaylistCollectionManager @Inject constructor(
 
     fun clearAll() {
         ensureIndexLoaded()
-        val localIds = synchronized(lock) {
-            playlistsByKey.values
-                .filter { it.type == CollectedPlaylistType.LOCAL }
-                .map { it.id }
-        }
         synchronized(lock) {
             playlistsByKey.clear()
             localSongsByPlaylistId.clear()
             localSongsLoaded.clear()
             refreshPlaylistsFlowLocked()
         }
-        for (lid in localIds) {
-            try {
-                songsFile(lid).takeIf { it.exists() }?.delete()
-            } catch (e: Exception) {
-                Log.e(TAG, "delete songs file in clearAll id=$lid", e)
-            }
+        localDb.clearAll()
+        try {
+            context.filesDir.listFiles()
+                ?.filter { it.name.startsWith("songs_") && it.name.endsWith(".json") }
+                ?.forEach { it.delete() }
+        } catch (e: Exception) {
+            Log.e(TAG, "delete songs files in clearAll failed", e)
         }
-        persistIndexAsync()
+        try {
+            indexFile().takeIf { it.exists() }?.delete()
+        } catch (e: Exception) {
+            Log.e(TAG, "delete playlist index in clearAll failed", e)
+        }
     }
 
     private companion object {
