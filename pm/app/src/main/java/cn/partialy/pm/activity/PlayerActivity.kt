@@ -50,6 +50,7 @@ import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.AudioEmbeddedArtReader
+import cn.partialy.pm.utils.LocalMediaIndexDbStore
 import cn.partialy.pm.utils.SettingsPrefs
 import coil.load
 import coil.request.ImageRequest
@@ -64,9 +65,12 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlayerActivity : BaseDownloadActivity() {
+    @Inject lateinit var mediaIndexDb: LocalMediaIndexDbStore
+
     private lateinit var binding: ActivityPlayerBinding
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
     private lateinit var lyricsAdapter: LyricsAdapter
@@ -463,12 +467,26 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private suspend fun applyLocalMediaFallbacks(song: SongInfo) {
+        if (song.coverUrl.isNotBlank()) {
+            withContext(Dispatchers.IO) {
+                mediaIndexDb.upsertCover(song, source = "remote_url", value = song.coverUrl)
+            }
+        }
         if (song.type != SongType.LOCAL) return
         if (song.embeddedCoverArt == null) {
             val bytes = withContext(Dispatchers.IO) {
                 AudioEmbeddedArtReader.readEmbeddedCoverBytes(this@PlayerActivity, File(song.id))
             }
-            if (bytes != null && bytes.isNotEmpty()) song.embeddedCoverArt = bytes
+            if (bytes != null && bytes.isNotEmpty()) {
+                song.embeddedCoverArt = bytes
+                withContext(Dispatchers.IO) {
+                    mediaIndexDb.upsertCover(song, source = "embedded", value = song.id)
+                }
+            }
+        } else {
+            withContext(Dispatchers.IO) {
+                mediaIndexDb.upsertCover(song, source = "embedded", value = song.id)
+            }
         }
     }
 
@@ -537,7 +555,12 @@ class PlayerActivity : BaseDownloadActivity() {
                     ""
                 }
             }
-            if (embedded.isNotEmpty()) return embedded
+            if (embedded.isNotEmpty()) {
+                withContext(Dispatchers.IO) {
+                    mediaIndexDb.upsertLyric(song, embedded, source = "embedded")
+                }
+                return embedded
+            }
             // 2) 尝试读取同目录 .lrc
             val siblingLrc = withContext(Dispatchers.IO) {
                 try {
@@ -548,7 +571,16 @@ class PlayerActivity : BaseDownloadActivity() {
                     ""
                 }
             }
-            if (siblingLrc.isNotBlank()) return siblingLrc
+            if (siblingLrc.isNotBlank()) {
+                withContext(Dispatchers.IO) {
+                    mediaIndexDb.upsertLyric(song, siblingLrc, source = "sibling_lrc")
+                }
+                return siblingLrc
+            }
+
+            withContext(Dispatchers.IO) {
+                mediaIndexDb.getLyric(song)
+            }?.let { return it }
 
             // 3) 读取 app 缓存（local_<文件名含扩展名>）
             val cached = withContext(Dispatchers.IO) {
@@ -561,7 +593,12 @@ class PlayerActivity : BaseDownloadActivity() {
                     ""
                 }
             }
-            if (cached.isNotBlank()) return cached
+            if (cached.isNotBlank()) {
+                withContext(Dispatchers.IO) {
+                    mediaIndexDb.upsertLyric(song, cached, source = "legacy_file")
+                }
+                return cached
+            }
 
             // 4) 终极兜底：按文件名组 keywords 走 KG 搜索歌词（仍按 accesskey 流程取内容）
             val fetched = try {
@@ -578,6 +615,7 @@ class PlayerActivity : BaseDownloadActivity() {
                         val f = File(song.id)
                         val key = "local_${f.name}"
                         File(cacheDir, key).writeText(fetched)
+                        mediaIndexDb.upsertLyric(song, fetched, source = "network_kg")
                     } catch (_: Exception) {
                     }
                 }
@@ -588,29 +626,39 @@ class PlayerActivity : BaseDownloadActivity() {
         }
         val localFile = File(cacheDir, "${song.type.name}_${song.id}")
         if (localFile.exists()) {
-            return localFile.readText()
+            return localFile.readText().also { lyric ->
+                withContext(Dispatchers.IO) {
+                    mediaIndexDb.upsertLyric(song, lyric, source = "legacy_file")
+                }
+            }
+        }
+        withContext(Dispatchers.IO) {
+            mediaIndexDb.getLyric(song)
+        }?.let {
+            return it
         }
         return try {
             when (song.type) {
                 SongType.KG -> {
-                    val res = kgRepository.getLyric(song.id)
-                    res.fold(
-                        onSuccess = { lyric ->
+                    val lyric = kgRepository.getLyric(song.id).getOrElse { "error" }
+                    if (lyric != "error") {
+                        withContext(Dispatchers.IO) {
                             localFile.writeText(lyric)
-                            lyric
-                        },
-                        onFailure = { "error" },
-                    )
+                            mediaIndexDb.upsertLyric(song, lyric, source = "network_kg")
+                        }
+                    }
+                    lyric
                 }
                 SongType.WY -> {
                     val id = song.id.toLongOrNull() ?: return "error"
-                    wyRepository.getLyric(id).fold(
-                        onSuccess = { lyric ->
+                    val lyric = wyRepository.getLyric(id).getOrElse { "error" }
+                    if (lyric != "error") {
+                        withContext(Dispatchers.IO) {
                             if (lyric.isNotEmpty()) localFile.writeText(lyric)
-                            lyric
-                        },
-                        onFailure = { "error" },
-                    )
+                            mediaIndexDb.upsertLyric(song, lyric, source = "network_wy")
+                        }
+                    }
+                    lyric
                 }
                 SongType.KW, SongType.LOCAL -> ""
             }

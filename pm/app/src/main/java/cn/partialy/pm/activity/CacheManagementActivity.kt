@@ -192,7 +192,7 @@ class CacheManagementActivity : BaseActivity() {
             .setPositiveButton(R.string.dialog_ok) { _, _ ->
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) {
-                        AppStorageInspector.clearLyricCache(cacheDir)
+                        AppStorageInspector.clearLyricCache(this@CacheManagementActivity)
                     }
                     loadStats()
                 }

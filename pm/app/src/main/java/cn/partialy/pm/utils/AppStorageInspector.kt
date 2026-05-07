@@ -30,13 +30,14 @@ object AppStorageInspector {
         val downloadedBytes = directorySize(downloadDir)
         val downloadedCount = countAudioFiles(downloadDir)
         val lyricBytes = lyricCacheSize(context.cacheDir)
+        val indexedLyricBytes = LocalMediaIndexDbStore(context).lyricBytes()
         val internalNonLyric = directorySize(context.cacheDir) - lyricBytes
         val ext = context.externalCacheDir?.let { directorySize(it) } ?: 0L
         val songCacheBytes = (internalNonLyric + ext).coerceAtLeast(0L)
         return AppCacheBreakdown(
             phone = phone,
             songCacheBytes = songCacheBytes,
-            lyricCacheBytes = lyricBytes,
+            lyricCacheBytes = lyricBytes + indexedLyricBytes,
             downloadedBytes = downloadedBytes,
             downloadedAudioCount = downloadedCount,
         )
@@ -114,6 +115,11 @@ object AppStorageInspector {
                 f.delete()
             }
         }
+    }
+
+    fun clearLyricCache(context: Context) {
+        clearLyricCache(context.cacheDir)
+        LocalMediaIndexDbStore(context).clearLyrics()
     }
 
     fun clearSongCache(context: Context) {

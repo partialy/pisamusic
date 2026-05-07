@@ -1,6 +1,7 @@
 package cn.partialy.pm.di
 
 import android.content.Context
+import cn.partialy.pm.utils.LocalMediaIndexDbStore
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.ImageLoader
@@ -29,9 +30,15 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideLocalMediaIndexDbStore(@ApplicationContext context: Context): LocalMediaIndexDbStore {
+        return LocalMediaIndexDbStore(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideImageLoader(@ApplicationContext context: Context): ImageLoader {
         return ImageLoader.Builder(context)
             .crossfade(true)
             .build()
     }
-} 
+}
