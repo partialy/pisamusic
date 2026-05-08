@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Environment
 import android.os.StatFs
 import androidx.appcompat.app.AppCompatDelegate
+import cn.partialy.pm.model.SongType
 
 object SettingsPrefs {
     private const val PREFS_NAME = "user_settings"
@@ -16,6 +17,9 @@ object SettingsPrefs {
     private const val KEY_PLAY_MODE = "play_mode"
     private const val KEY_AUDIO_CACHE_MAX_MB = "audio_cache_max_mb"
     private const val KEY_AUDIO_CACHE_MODE = "audio_cache_mode"
+    private const val KEY_PLAYBACK_QUALITY_KG = "playback_quality_kg"
+    private const val KEY_PLAYBACK_QUALITY_WY = "playback_quality_wy"
+    private const val KEY_PLAYBACK_QUALITY_KW = "playback_quality_kw"
 
     private const val DEFAULT_AUDIO_CACHE_MAX_MB = 2048L
     private const val MIN_AUDIO_CACHE_MAX_MB = 100L
@@ -101,6 +105,23 @@ object SettingsPrefs {
 
     fun setPlayMode(context: Context, mode: PlayMode) {
         prefs(context).edit().putInt(KEY_PLAY_MODE, mode.prefValue).apply()
+    }
+
+    fun getPlaybackQualityKey(context: Context, type: SongType): String? {
+        val key = playbackQualityPrefKey(type) ?: return null
+        return prefs(context).getString(key, null)
+    }
+
+    fun setPlaybackQualityKey(context: Context, type: SongType, qualityKey: String) {
+        val key = playbackQualityPrefKey(type) ?: return
+        prefs(context).edit().putString(key, qualityKey).apply()
+    }
+
+    private fun playbackQualityPrefKey(type: SongType): String? = when (type) {
+        SongType.KG -> KEY_PLAYBACK_QUALITY_KG
+        SongType.WY -> KEY_PLAYBACK_QUALITY_WY
+        SongType.KW -> KEY_PLAYBACK_QUALITY_KW
+        SongType.LOCAL -> null
     }
 
     fun getAudioCacheMaxMb(context: Context): Long {

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
+import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -21,7 +22,7 @@ class MusicController @Inject constructor(
     @ApplicationContext private val context: Context,
     playUrlGetter: PlayUrlGetter,
 ) {
-    private val factory = MediaItemFactory(playUrlGetter)
+    private val factory = MediaItemFactory(context, playUrlGetter)
     private val playlistManager = PlaylistManager(factory)
     private val engine: PlayerEngine
 
@@ -110,6 +111,9 @@ class MusicController @Inject constructor(
     fun seekToProgress(progress: Int) = engine.seekToProgress(progress)
 
     fun seekToPositionMs(positionMs: Long) = engine.seekToPositionMs(positionMs)
+
+    suspend fun switchCurrentSongQuality(choice: DownloadQualityChoice): Boolean =
+        engine.switchCurrentSongQuality(choice)
 
     // ==================== 生命周期 ====================
 

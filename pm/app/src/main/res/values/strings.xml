@@ -140,6 +140,14 @@
     <string name="download_current_song">下载当前歌曲</string>
     <string name="select_sound_quality">选择音质</string>
     <string name="download_now">立即下载</string>
+    <string name="playback_quality">播放音质</string>
+    <string name="switch_playback_quality">切换播放音质</string>
+    <string name="switch_and_play">切换并播放</string>
+    <string name="local_song_no_online_quality">本地歌曲不支持在线音质切换</string>
+    <string name="toast_playback_quality_no_options">当前音源暂无可选音质</string>
+    <string name="toast_playback_quality_switching">正在切换音质</string>
+    <string name="toast_playback_quality_changed">已切换播放音质</string>
+    <string name="toast_playback_quality_failed">切换音质失败</string>
     <string name="like">喜欢</string>
     <string name="add_to_playlist">添加到播放列表</string>
     <string name="region">来源</string>

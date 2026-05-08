@@ -221,10 +221,21 @@
                     app:tint="@android:color/white" />
 
                 <ImageButton
-                    android:id="@+id/downloadButton"
+                    android:id="@+id/qualityButton"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="24dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/playback_quality"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_audio_quality_24"
+                    app:tint="@android:color/white" />
+
+                <ImageButton
+                    android:id="@+id/downloadButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="16dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/download"
                     android:padding="12dp"

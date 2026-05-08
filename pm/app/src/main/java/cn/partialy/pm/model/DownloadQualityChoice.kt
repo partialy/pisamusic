@@ -22,6 +22,36 @@ data class DownloadQualityOption(
     val choice: DownloadQualityChoice,
 )
 
+fun DownloadQualityChoice.toPlaybackQualityKey(): String = when (this) {
+    is DownloadQualityChoice.Kugou -> "kg:$quality"
+    is DownloadQualityChoice.NeteaseBr -> "wy-br:$br"
+    is DownloadQualityChoice.NeteaseLevel -> "wy-level:$level"
+    is DownloadQualityChoice.Kuwo -> "kw:$quality"
+}
+
+fun DownloadQualityChoice.matchesSongType(type: SongType): Boolean = when (this) {
+    is DownloadQualityChoice.Kugou -> type == SongType.KG
+    is DownloadQualityChoice.NeteaseBr,
+    is DownloadQualityChoice.NeteaseLevel,
+    -> type == SongType.WY
+    is DownloadQualityChoice.Kuwo -> type == SongType.KW
+}
+
+fun playbackQualityChoiceFromKey(key: String?): DownloadQualityChoice? {
+    if (key.isNullOrBlank()) return null
+    val separator = key.indexOf(':')
+    if (separator <= 0 || separator == key.lastIndex) return null
+    val prefix = key.substring(0, separator)
+    val value = key.substring(separator + 1)
+    return when (prefix) {
+        "kg" -> DownloadQualityChoice.Kugou(value)
+        "kw" -> DownloadQualityChoice.Kuwo(value)
+        "wy-br" -> value.toIntOrNull()?.let { DownloadQualityChoice.NeteaseBr(it) }
+        "wy-level" -> DownloadQualityChoice.NeteaseLevel(value)
+        else -> null
+    }
+}
+
 fun downloadOptionsForSongType(type: SongType): List<DownloadQualityOption> = when (type) {
     SongType.KG -> kgDownloadOptions
     SongType.WY -> wyDownloadOptions

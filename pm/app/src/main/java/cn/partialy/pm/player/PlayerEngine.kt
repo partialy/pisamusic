@@ -13,9 +13,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
+import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.R
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.toPlaybackQualityKey
 import cn.partialy.pm.utils.SettingsPrefs
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -321,6 +323,40 @@ class PlayerEngine(
             val clamped =
                 if (d > 0) positionMs.coerceIn(0L, d) else positionMs.coerceAtLeast(0L)
             player.seekTo(clamped)
+        }
+    }
+
+    suspend fun switchCurrentSongQuality(choice: DownloadQualityChoice): Boolean {
+        val player = exoPlayer ?: return false
+        val index = player.currentMediaItemIndex
+        val song = playlistManager.playList.value.getOrNull(index) ?: return false
+        if (song.type == SongType.LOCAL || index !in 0 until player.mediaItemCount) return false
+
+        val songKey = factory.keyOf(song)
+        val positionMs = player.currentPosition.coerceAtLeast(0L)
+        val shouldPlay = player.playWhenReady || player.isPlaying
+
+        return try {
+            val resolved = withContext(Dispatchers.IO) {
+                factory.createMediaItemWithQuality(song, choice)
+            }
+            val currentSong = playlistManager.playList.value.getOrNull(index) ?: return false
+            if (factory.keyOf(currentSong) != songKey) return false
+
+            player.replaceMediaItem(index, resolved)
+            player.seekTo(index, positionMs)
+            player.prepare()
+            if (shouldPlay) {
+                player.play()
+            } else {
+                player.pause()
+            }
+            SettingsPrefs.setPlaybackQualityKey(context, song.type, choice.toPlaybackQualityKey())
+            persistState(force = true)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 

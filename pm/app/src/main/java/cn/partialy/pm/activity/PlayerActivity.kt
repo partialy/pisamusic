@@ -44,8 +44,10 @@ import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityPlayerBinding
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.downloadOptionsForSongType
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
+import cn.partialy.pm.ui.dialog.showDownloadQualityPicker
 import cn.partialy.pm.ui.player.LyricRow
 import cn.partialy.pm.ui.player.LyricSettingsSheet
 import cn.partialy.pm.ui.player.LyricsAdapter
@@ -184,6 +186,10 @@ class PlayerActivity : BaseDownloadActivity() {
             }
         }
 
+        binding.qualityButton.setOnClickListener {
+            openPlaybackQualityPicker()
+        }
+
         binding.downloadButton.setOnClickListener {
             lifecycleScope.launch {
                 musicController.currentSong.value?.let { song -> onDownloadClick(song) }
@@ -202,6 +208,50 @@ class PlayerActivity : BaseDownloadActivity() {
         }
 
         updatePlayModeIcon()
+    }
+
+    private fun openPlaybackQualityPicker() {
+        val song = musicController.currentSong.value
+        if (song == null) {
+            Toast.makeText(this, R.string.toast_no_current_song, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (song.type == SongType.LOCAL) {
+            Toast.makeText(this, R.string.local_song_no_online_quality, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val options = downloadOptionsForSongType(song.type)
+        if (options.isEmpty()) {
+            Toast.makeText(this, R.string.toast_playback_quality_no_options, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            val selected = showDownloadQualityPicker(
+                context = this@PlayerActivity,
+                songSubtitle = "${song.artist} - ${song.name}",
+                options = options,
+                title = getString(R.string.switch_playback_quality),
+                confirmText = getString(R.string.switch_and_play),
+                selectedQualityKey = SettingsPrefs.getPlaybackQualityKey(this@PlayerActivity, song.type),
+            ) ?: return@launch
+
+            val current = musicController.currentSong.value
+            if (current == null || current.id != song.id || current.type != song.type) return@launch
+
+            Toast.makeText(
+                this@PlayerActivity,
+                R.string.toast_playback_quality_switching,
+                Toast.LENGTH_SHORT,
+            ).show()
+            val success = musicController.switchCurrentSongQuality(selected.choice)
+            Toast.makeText(
+                this@PlayerActivity,
+                if (success) R.string.toast_playback_quality_changed else R.string.toast_playback_quality_failed,
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
     }
 
     private fun updatePlayModeIcon() {

@@ -13,6 +13,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import cn.partialy.pm.R
 import cn.partialy.pm.model.DownloadQualityOption
+import cn.partialy.pm.model.toPlaybackQualityKey
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.card.MaterialCardView
@@ -28,6 +29,9 @@ suspend fun showDownloadQualityPicker(
     context: Context,
     songSubtitle: String,
     options: List<DownloadQualityOption>,
+    title: CharSequence? = null,
+    confirmText: CharSequence? = null,
+    selectedQualityKey: String? = null,
 ): DownloadQualityOption? {
     if (options.isEmpty()) return null
     return suspendCancellableCoroutine { cont ->
@@ -39,7 +43,9 @@ suspend fun showDownloadQualityPicker(
             R.layout.layout_quality_picker_bottom_sheet,
             null,
         )
+        title?.let { root.findViewById<TextView>(R.id.qualityPickerTitle).text = it }
         root.findViewById<TextView>(R.id.qualityPickerSubtitle).text = songSubtitle
+        confirmText?.let { root.findViewById<TextView>(R.id.qualityPickerConfirm).text = it }
         val container = root.findViewById<LinearLayout>(R.id.qualityOptionsContainer)
         val density = context.resources.displayMetrics.density
         val strokeSelected = ContextCompat.getColor(context, R.color.download_quality_selected_stroke)
@@ -50,7 +56,9 @@ suspend fun showDownloadQualityPicker(
             com.google.android.material.R.attr.colorOnSurface,
             Color.BLACK,
         )
-        var selectedIndex = 0
+        var selectedIndex = options.indexOfFirst {
+            it.choice.toPlaybackQualityKey() == selectedQualityKey
+        }.takeIf { it >= 0 } ?: 0
         val cards = mutableListOf<MaterialCardView>()
         val checks = mutableListOf<ImageView>()
         val labels = mutableListOf<TextView>()
@@ -99,7 +107,7 @@ suspend fun showDownloadQualityPicker(
             card.layoutParams = lp
             container.addView(card)
         }
-        applySelection(0)
+        applySelection(selectedIndex)
 
         var confirmed = false
         root.findViewById<ImageButton>(R.id.qualityPickerClose).setOnClickListener {
