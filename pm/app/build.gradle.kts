@@ -75,7 +75,7 @@ dependencies {
     // 图片加载
     implementation(libs.coil)
     implementation(libs.glide)
-    annotationProcessor(libs.compiler)
+    kapt(libs.compiler)
 
     // 网络请求
     implementation(libs.retrofit)
