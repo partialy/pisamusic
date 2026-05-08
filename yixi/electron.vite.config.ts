@@ -16,7 +16,6 @@ export default defineConfig({
           store: resolve(__dirname, "electron/store/index.ts"),
           SPlyric: resolve(__dirname, "web/lyric.html"),
           lyric: resolve(__dirname, "web/lyric-window.html"),
-          operationBridge: resolve(__dirname, "electron/utils/operationBridge.ts"),
           logger: resolve(__dirname, "electron/utils/logger.ts"),
         },
       },

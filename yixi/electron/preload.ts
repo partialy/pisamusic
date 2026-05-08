@@ -10,150 +10,105 @@ type WindowLyricSetting = {
   fontWeight: number;
 };
 
+type Unsubscribe = () => void;
+
+function on(channel: string, callback: (...args: any[]) => void): Unsubscribe {
+  const listener = (_event: unknown, ...args: any[]) => callback(...args);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+}
+
+function cloneIpcPayload<T>(payload: T): T {
+  if (payload === undefined || payload === null) return payload;
+  return JSON.parse(JSON.stringify(payload));
+}
+
 const windowIpc = {
-  // 窗口控制
-  minimizeWindow: () => ipcRenderer.send("minimize-window"),
-  maximizeWindow: () => ipcRenderer.send("maximize-window"),
-  closeWindow: () => ipcRenderer.send("close-window"),
-  hideWindow: () => ipcRenderer.send("hide-window"),
-  // reloadWindow
-  reloadWindow: () => ipcRenderer.send("window-reload"),
-  // openDevTools
-  openDevTools: () => ipcRenderer.send("dev-tools"),
-  onHideWindow: (cb: () => void) => {
-    ipcRenderer.on("hide-window", () => cb());
-    return () => {
-      ipcRenderer.removeAllListeners("hide-window");
-    };
-  },
-  // 窗口状态监听
-  onWindowMaximized: (callback: () => void) => {
-    ipcRenderer.on("window-maximized", () => callback());
-    return () => {
-      ipcRenderer.removeAllListeners("window-maximized");
-    };
-  },
-  onWindowUnmaximized: (callback: () => void) => {
-    ipcRenderer.on("window-unmaximized", () => callback());
-    return () => {
-      ipcRenderer.removeAllListeners("window-unmaximized");
-    };
-  },
-  // 桌面歌词控制
-  onLyricWindowStatus: (callback: (status: boolean) => void) => {
-    ipcRenderer.on("lyric-window-status", (_: any, status: boolean) => {
-      callback(status);
-    });
-    return () => {
-      ipcRenderer.removeAllListeners("lyric-window-status");
-    };
-  },
+  minimizeWindow: () => ipcRenderer.send("window:minimize"),
+  maximizeWindow: () => ipcRenderer.send("window:maximize-toggle"),
+  closeWindow: () => ipcRenderer.send("window:close"),
+  hideWindow: () => ipcRenderer.send("window:hide"),
+  reloadWindow: () => ipcRenderer.send("window:reload"),
+  openDevTools: () => ipcRenderer.send("window:dev-tools"),
+  onHideWindow: (cb: () => void) => on("window:hide", cb),
+  onWindowMaximized: (callback: () => void) => on("window:maximized", callback),
+  onWindowUnmaximized: (callback: () => void) => on("window:unmaximized", callback),
 };
 
-const fileIpc = {
-  // log
-  log: (message: any) => ipcRenderer.send("log", message),
-
-  collectError: (error: any) => ipcRenderer.send("collect-error", error),
-
-  // 读取日志
-  getLogs: (date: Date) => ipcRenderer.invoke("get-logs", date),
-
+const logIpc = {
+  log: (message: unknown) => ipcRenderer.invoke("app:log", message),
+  reportError: (error: unknown, context?: Record<string, unknown>) =>
+    ipcRenderer.invoke("app:log-error", normalizeError(error, context)),
+  getLogs: (date?: Date | string) => ipcRenderer.invoke("logs:list", date),
+  openLogsDir: () => ipcRenderer.invoke("logs:open-dir"),
 };
 
-const lyricIpc = {
-  openLyricWindow: () => ipcRenderer.send("open-lyric-window"),
-  changeCurrentSong: (
-    currentSong: {
-      id: string;
-      name: string;
-      singer: string;
-      cover: string;
-      source: "wy" | "kg" | "kw";
-      duration: number;
-      coverSize?: {
-        s: string;
-        m: string;
-        l: string;
-        xl: string;
-      };
-    } | null
-  ) => ipcRenderer.send("change-current-song", currentSong),
-  isPlaying: (isPlaying: boolean) => ipcRenderer.send("is-playing", isPlaying),
-  updateTime: (t: number) => ipcRenderer.send("update-time", t),
-  mediaControl: (action: "play" | "pause" | "next" | "previous", data?: any) =>
-    ipcRenderer.send("media-control", action, data),
+const desktopLyricIpc = {
+  openLyricWindow: () => ipcRenderer.invoke("desktop-lyric:open"),
+  closeLyricWindow: () => ipcRenderer.invoke("desktop-lyric:close"),
+  toggleLyricWindow: () => ipcRenderer.invoke("desktop-lyric:toggle"),
+  changeCurrentSong: (currentSong: any | null) =>
+    ipcRenderer.send("player:set-current-song", cloneIpcPayload(currentSong)),
+  isPlaying: (isPlaying: boolean) => ipcRenderer.send("player:set-playing", isPlaying),
+  updateTime: (time: number) => ipcRenderer.send("player:update-time", time),
+  mediaControl: (action: "play" | "pause" | "next" | "prev" | "previous") =>
+    ipcRenderer.send("player:set-playing", action === "play"),
   setLyrics: (lyric: { type: "krc" | "lrc"; data: string }) =>
-    ipcRenderer.send("set-lyrics", lyric),
+    ipcRenderer.send("desktop-lyric:set-lyrics", cloneIpcPayload(lyric)),
   setLyricStyle: (config: WindowLyricSetting) =>
-    ipcRenderer.send("set-lyric-style", config),
-  lockLyric: (lock: boolean) => ipcRenderer.send("lock-lyric", lock),
-  onMediaControl: (callback: (...args: any[]) => void) => {
-    // 注意：ipcRenderer.on 用于持续监听事件，ipcRenderer.once 仅监听一次
-    ipcRenderer.on("media-control", (_: any, ...args: any[]) => {
-      // 将主进程传递的参数透传给渲染进程的回调函数
-      callback(...args);
-    });
-    return () => {
-      ipcRenderer.removeAllListeners("media-control");
-    };
-  },
-};
-
-const cookieIpc = {
-  openCookieWindow: (t: "kg" | "wy") => ipcRenderer.send("open-kg-window", t),
-  readCookie: (t: "kg" | "wy") => ipcRenderer.invoke("read-cookie", t),
-  refreshKGCookie: (data: string) =>
-    ipcRenderer.invoke("refresh-kg-cookie", data),
+    ipcRenderer.send("desktop-lyric:set-style", cloneIpcPayload(config)),
+  lockLyric: (lock: boolean) => ipcRenderer.send("desktop-lyric:set-locked", lock),
+  onLyricWindowStatus: (callback: (status: boolean) => void) =>
+    on("desktop-lyric:status", callback),
+  onLyricLockedStatus: (callback: (locked: boolean) => void) =>
+    on("desktop-lyric:locked-status", callback),
+  onMediaControl: (
+    callback: (action: "play" | "pause" | "next" | "prev", ...args: any[]) => void
+  ) => on("media-control", callback),
 };
 
 const settingsIpc = {
   getSetting: (key: string) => ipcRenderer.invoke("settings:get", key),
   setSetting: (key: string, value: any, version?: number) =>
-    ipcRenderer.invoke("settings:set", { key, value, version }),
+    ipcRenderer.invoke("settings:set", { key, value: cloneIpcPayload(value), version }),
   deleteSetting: (key: string) => ipcRenderer.invoke("settings:delete", key),
 };
 
 const libraryIpc = {
   addSearchHistory: (payload: { keyword: string; source?: string | null }) =>
-    ipcRenderer.invoke("library:search-history:add", payload),
+    ipcRenderer.invoke("library:search-history:add", cloneIpcPayload(payload)),
   listSearchHistory: (limit?: number) =>
     ipcRenderer.invoke("library:search-history:list", limit),
   clearSearchHistory: () => ipcRenderer.invoke("library:search-history:clear"),
   deleteSearchHistory: (id: number) =>
     ipcRenderer.invoke("library:search-history:delete", id),
   addPlayHistory: (track: any) =>
-    ipcRenderer.invoke("library:play-history:add", track),
+    ipcRenderer.invoke("library:play-history:add", cloneIpcPayload(track)),
   listPlayHistory: (limit?: number) =>
     ipcRenderer.invoke("library:play-history:list", limit),
   getQueueSnapshot: () => ipcRenderer.invoke("library:queue-snapshot:get"),
   saveQueueSnapshot: (snapshot: { currentIndex: number; queue: any[] }) =>
-    ipcRenderer.invoke("library:queue-snapshot:save", snapshot),
+    ipcRenderer.invoke("library:queue-snapshot:save", cloneIpcPayload(snapshot)),
   listFavoriteSongs: () => ipcRenderer.invoke("library:favorites:songs:list"),
   addFavoriteSong: (track: any) =>
     ipcRenderer.invoke("library:favorites:songs:add", cloneIpcPayload(track)),
   removeFavoriteSong: (payload: { source: string; id: string }) =>
-    ipcRenderer.invoke("library:favorites:songs:remove", payload),
+    ipcRenderer.invoke("library:favorites:songs:remove", cloneIpcPayload(payload)),
   toggleFavoriteSong: (track: any) =>
     ipcRenderer.invoke("library:favorites:songs:toggle", cloneIpcPayload(track)),
   containsFavoriteSong: (payload: { source: string; id: string }) =>
-    ipcRenderer.invoke("library:favorites:songs:contains", payload),
+    ipcRenderer.invoke("library:favorites:songs:contains", cloneIpcPayload(payload)),
   listFavoritePlaylists: () =>
     ipcRenderer.invoke("library:favorites:playlists:list"),
   addFavoritePlaylist: (playlist: any) =>
     ipcRenderer.invoke("library:favorites:playlists:add", cloneIpcPayload(playlist)),
   removeFavoritePlaylist: (payload: { source: string; id: string }) =>
-    ipcRenderer.invoke("library:favorites:playlists:remove", payload),
+    ipcRenderer.invoke("library:favorites:playlists:remove", cloneIpcPayload(payload)),
   toggleFavoritePlaylist: (playlist: any) =>
     ipcRenderer.invoke("library:favorites:playlists:toggle", cloneIpcPayload(playlist)),
   containsFavoritePlaylist: (payload: { source: string; id: string }) =>
-    ipcRenderer.invoke("library:favorites:playlists:contains", payload),
-  onFavoritesChanged: (callback: () => void) => {
-    ipcRenderer.on("favorites:changed", callback);
-    return () => {
-      ipcRenderer.removeListener("favorites:changed", callback);
-    };
-  },
+    ipcRenderer.invoke("library:favorites:playlists:contains", cloneIpcPayload(payload)),
+  onFavoritesChanged: (callback: () => void) => on("favorites:changed", callback),
 };
 
 const systemIpc = {
@@ -167,7 +122,7 @@ const systemIpc = {
     description: string;
     contact?: string;
     device?: Record<string, unknown>;
-  }) => ipcRenderer.invoke("system:submit-feedback", payload),
+  }) => ipcRenderer.invoke("system:submit-feedback", cloneIpcPayload(payload)),
 };
 
 const musicApiIpc = {
@@ -176,85 +131,87 @@ const musicApiIpc = {
     keywords: string;
     page?: number;
     pageSize?: number;
-  }) => ipcRenderer.invoke("music:search", payload),
-  searchSuggest: (payload: {
-    source?: "wy";
-    keywords: string;
-  }) => ipcRenderer.invoke("music:search-suggest", payload),
+  }) => ipcRenderer.invoke("music:search", cloneIpcPayload(payload)),
+  searchSuggest: (payload: { source?: "wy"; keywords: string }) =>
+    ipcRenderer.invoke("music:search-suggest", cloneIpcPayload(payload)),
   searchPlaylists: (payload: {
     source: "kg" | "wy";
     keywords: string;
     page?: number;
     pageSize?: number;
-  }) => ipcRenderer.invoke("music:search-playlists", payload),
+  }) => ipcRenderer.invoke("music:search-playlists", cloneIpcPayload(payload)),
   getKgPlaylistTags: () => ipcRenderer.invoke("music:kg-playlist-tags"),
   getTopPlaylists: (payload: {
     source: "kg";
     categoryId?: string | number;
     page?: number;
     pageSize?: number;
-  }) => ipcRenderer.invoke("music:top-playlists", payload),
+  }) => ipcRenderer.invoke("music:top-playlists", cloneIpcPayload(payload)),
   getKgDailyRecommend: (platform?: string) =>
     ipcRenderer.invoke("music:kg-daily-recommend", platform),
   getHomeRecommendations: () =>
     ipcRenderer.invoke("music:home-recommendations"),
   getPlaylistDetail: (payload: { source: "kg" | "wy"; id: string }) =>
-    ipcRenderer.invoke("music:playlist-detail", payload),
+    ipcRenderer.invoke("music:playlist-detail", cloneIpcPayload(payload)),
   getPlaylistTracks: (payload: {
     source: "kg" | "wy";
     id: string;
     page?: number;
     pageSize?: number;
-  }) => ipcRenderer.invoke("music:playlist-tracks", payload),
-  getDynamicCover: (payload: {
-    source: "wy";
-    id: string | number;
-  }) => ipcRenderer.invoke("music:dynamic-cover", payload),
+  }) => ipcRenderer.invoke("music:playlist-tracks", cloneIpcPayload(payload)),
+  getDynamicCover: (payload: { source: "wy"; id: string | number }) =>
+    ipcRenderer.invoke("music:dynamic-cover", cloneIpcPayload(payload)),
   resolveMusicUrl: (payload: {
     source: "kg" | "wy" | "kw";
     id: string;
     quality?: string;
     br?: number;
-  }) => ipcRenderer.invoke("music:resolve-url", payload),
+  }) => ipcRenderer.invoke("music:resolve-url", cloneIpcPayload(payload)),
   resolvePlayableUrl: (track: any) =>
-    ipcRenderer.invoke("music:resolve-playable-url", track),
+    ipcRenderer.invoke("music:resolve-playable-url", cloneIpcPayload(track)),
   fetchLyrics: (payload: {
     source: "kg" | "wy" | "kw";
     id?: string;
     hash?: string;
-  }) => ipcRenderer.invoke("music:fetch-lyrics", payload),
+  }) => ipcRenderer.invoke("music:fetch-lyrics", cloneIpcPayload(payload)),
 };
 
-const otherIpc = {
-  // store
-  getStore: (key: string) => ipcRenderer.invoke("store-get", key),
-  setStore: (key: string, value: any) =>
-    ipcRenderer.invoke("store-set", key, value),
-  deleteStore: (key: string) => ipcRenderer.invoke("store-delete", key),
-  clearStore: () => ipcRenderer.invoke("store-clear"),
-  // 获取url
-  getRequestUrl: () => ipcRenderer.invoke("get-request-url"),
-  getServerPort: () => ipcRenderer.invoke("get-server-port"),
-  // 获取播放url
-  getPlayUrl: (song: any) => ipcRenderer.invoke("get-play-url", song),
-
-  getElectronConfig: () => ipcRenderer.invoke("get-electron-config"),
-};
-
-function cloneIpcPayload<T>(payload: T): T {
-  if (payload === undefined || payload === null) return payload;
-  return JSON.parse(JSON.stringify(payload));
+function normalizeError(error: unknown, context?: Record<string, unknown>) {
+  const fallback = String(error);
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      context,
+      time: new Date().toISOString(),
+    };
+  }
+  if (typeof error === "object" && error !== null) {
+    const value = error as Record<string, unknown>;
+    return {
+      name: String(value.name || "Error"),
+      message: String(value.message || fallback),
+      stack: String(value.stack || ""),
+      context,
+      time: new Date().toISOString(),
+    };
+  }
+  return {
+    name: "Error",
+    message: fallback,
+    stack: "",
+    context,
+    time: new Date().toISOString(),
+  };
 }
 
-// 暴露给渲染进程的API
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
-  ...fileIpc,
-  ...lyricIpc,
-  ...cookieIpc,
+  ...logIpc,
+  ...desktopLyricIpc,
   ...systemIpc,
   ...musicApiIpc,
   ...settingsIpc,
   ...libraryIpc,
-  ...otherIpc,
 });

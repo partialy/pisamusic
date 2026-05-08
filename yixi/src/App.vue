@@ -86,6 +86,10 @@ async function setupListeners() {
     lyric.setDesktop(status);
   });
 
+  electronAPI.onLyricLockedStatus((locked: boolean) => {
+    lyric.syncDesktopLocked(locked);
+  });
+
   watch(currentTime, (newTime) => {
     electronAPI.updateTime(newTime);
   });

@@ -14,8 +14,8 @@
       :loading="loading"
     >
       <template #icon>
-        <n-icon class="icon" v-if="!isPlaying" :component="PlayAnim" color="var(--color-primary)" size="36px"></n-icon>
-        <n-icon class="icon" v-else :component="PauseAnim" color="var(--color-primary)" size="36px"></n-icon>
+        <n-icon class="icon" v-if="!isPlaying" :component="PlayAnim" :color="sideIconColor" size="36px"></n-icon>
+        <n-icon class="icon" v-else :component="PauseAnim" :color="sideIconColor" size="36px"></n-icon>
       </template>
     </n-button>
     <n-button circle quaternary class="side-btn" @click="player.next" :disabled="loading">
@@ -74,9 +74,8 @@ const sideIconColor = computed(() => props.color ?? "var(--color-text-secondary)
 }
 
 :deep(.play-btn) {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--color-primary) 18%, transparent);
-
+  // background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  // box-shadow: 0 8px 22px color-mix(in srgb, var(--color-primary) 18%, transparent);
   &:hover {
     background: color-mix(in srgb, var(--color-primary) 18%, transparent);
   }

@@ -58,6 +58,7 @@ export const useLyricStore = defineStore("lyric", {
       textColor: "#fff",
       highlightColor: "#1871FD",
       fontWeight: 600,
+      locked: false,
     },
     setting: {
       useAMLyric: true,
@@ -117,7 +118,7 @@ export const useLyricStore = defineStore("lyric", {
     },
     setDesktop(de: boolean) {
       this.desktop = de;
-      electronAPI.setStore("lyricConfig.desktop", de);
+      void electronAPI.setSetting("lyricConfig.desktop", de, 1);
     },
     saveSetting() {
       localStorage.setItem("pisa-lyric-setting", JSON.stringify(this.setting));
@@ -146,6 +147,13 @@ export const useLyricStore = defineStore("lyric", {
         fontWeight: this.desktopLyric.fontWeight,
       });
     },
+    setDesktopLocked(locked: boolean) {
+      this.desktopLyric.locked = locked;
+      electronAPI.lockLyric(locked);
+    },
+    syncDesktopLocked(locked: boolean) {
+      this.desktopLyric.locked = locked;
+    },
   },
 });
 
@@ -154,6 +162,12 @@ async function fetchSongLyric(song: Song): Promise<LyricPayload> {
     if (song.source === "qq") return emptyLyric();
     return fetchLyricsByMusicApi(song);
   } catch (error: any) {
+    void electronAPI.reportError(error, {
+      scope: "lyric",
+      action: "fetchSongLyric",
+      songId: song.id,
+      source: song.source,
+    });
     return {
       krc: error?.message || "",
       lrc: error?.message || "",

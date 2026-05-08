@@ -161,6 +161,15 @@
         </div>
         <div class="setting-item">
           <div class="item-info">
+            <div class="item-title">锁定桌面歌词</div>
+            <div class="item-desc">锁定后鼠标可穿透歌词窗口，关闭后可拖动和显示控制栏。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="desktopLyric.locked" @update:value="handleDesktopLyricLock" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
             <div class="item-title">字体颜色</div>
             <div class="item-desc">未播放歌词颜色。</div>
           </div>
@@ -264,9 +273,17 @@ watch(
 );
 
 const handleOpenDesktopLyric = async (value: boolean) => {
-  await electronAPI.openLyricWindow();
-  lyric.sendToLyricWindow();
+  if (value) {
+    await electronAPI.openLyricWindow();
+    lyric.sendToLyricWindow();
+  } else {
+    await electronAPI.closeLyricWindow();
+  }
   lyric.setDesktop(value);
+};
+
+const handleDesktopLyricLock = (value: boolean) => {
+  lyric.setDesktopLocked(value);
 };
 </script>
 

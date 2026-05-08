@@ -48,6 +48,10 @@ export const useCollectStore = defineStore("collect", () => {
       playlistMap.value = new Map(normalizeFavoritePlaylists(playlistItems));
       changed.value = false;
     } catch (error: any) {
+      void electronAPI.reportError(error, {
+        scope: "collect",
+        action: "reload",
+      });
       window.$notification?.error({
         title: "读取收藏数据失败",
         content: error?.message || String(error),
@@ -113,6 +117,12 @@ export const useCollectStore = defineStore("collect", () => {
       }
       changed.value = true;
     } catch (error: any) {
+      void electronAPI.reportError(error, {
+        scope: "collect",
+        action: "collectList",
+        playlistId: playlist?.id,
+        source: playlist?.source,
+      });
       window.$message.error(error?.message || "歌单收藏失败");
     }
   }

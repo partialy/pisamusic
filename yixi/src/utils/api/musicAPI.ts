@@ -1,4 +1,5 @@
 import type { Song } from "@/types/song";
+import { reportError } from "@/utils/errorReporter";
 
 export type SearchableMusicSource = "kg" | "wy" | "kw";
 
@@ -17,19 +18,20 @@ export type PlaylistSearchPayload = {
 };
 
 export async function searchMusic<T = any>(payload: MusicSearchPayload): Promise<T> {
-  return window.electronAPI.searchMusic<T>(payload);
+  return invokeMusicApi("searchMusic", payload, () => window.electronAPI.searchMusic<T>(payload));
 }
 
 export async function searchSuggest<T = any>(keywords: string): Promise<T> {
-  return window.electronAPI.searchSuggest<T>({ source: "wy", keywords });
+  const payload = { source: "wy" as const, keywords };
+  return invokeMusicApi("searchSuggest", payload, () => window.electronAPI.searchSuggest<T>(payload));
 }
 
 export async function searchPlaylists<T = any>(payload: PlaylistSearchPayload): Promise<T> {
-  return window.electronAPI.searchPlaylists<T>(payload);
+  return invokeMusicApi("searchPlaylists", payload, () => window.electronAPI.searchPlaylists<T>(payload));
 }
 
 export async function getKgPlaylistTags<T = any>(): Promise<T> {
-  return window.electronAPI.getKgPlaylistTags<T>();
+  return invokeMusicApi("getKgPlaylistTags", {}, () => window.electronAPI.getKgPlaylistTags<T>());
 }
 
 export async function getTopPlaylists<T = any>(payload: {
@@ -38,22 +40,26 @@ export async function getTopPlaylists<T = any>(payload: {
   page?: number;
   pageSize?: number;
 }): Promise<T> {
-  return window.electronAPI.getTopPlaylists<T>(payload);
+  return invokeMusicApi("getTopPlaylists", payload, () => window.electronAPI.getTopPlaylists<T>(payload));
 }
 
 export async function getKgDailyRecommend<T = any>(platform?: string): Promise<T> {
-  return window.electronAPI.getKgDailyRecommend<T>(platform);
+  return invokeMusicApi("getKgDailyRecommend", { platform }, () =>
+    window.electronAPI.getKgDailyRecommend<T>(platform)
+  );
 }
 
 export async function getHomeRecommendations<T = any>(): Promise<T> {
-  return window.electronAPI.getHomeRecommendations<T>();
+  return invokeMusicApi("getHomeRecommendations", {}, () =>
+    window.electronAPI.getHomeRecommendations<T>()
+  );
 }
 
 export async function getPlaylistDetail<T = any>(payload: {
   source: "kg" | "wy";
   id: string;
 }): Promise<T> {
-  return window.electronAPI.getPlaylistDetail<T>(payload);
+  return invokeMusicApi("getPlaylistDetail", payload, () => window.electronAPI.getPlaylistDetail<T>(payload));
 }
 
 export async function getPlaylistTracks<T = any>(payload: {
@@ -62,11 +68,12 @@ export async function getPlaylistTracks<T = any>(payload: {
   page?: number;
   pageSize?: number;
 }): Promise<T> {
-  return window.electronAPI.getPlaylistTracks<T>(payload);
+  return invokeMusicApi("getPlaylistTracks", payload, () => window.electronAPI.getPlaylistTracks<T>(payload));
 }
 
 export async function getDynamicCover<T = any>(id: string | number): Promise<T> {
-  return window.electronAPI.getDynamicCover<T>({ source: "wy", id });
+  const payload = { source: "wy" as const, id };
+  return invokeMusicApi("getDynamicCover", payload, () => window.electronAPI.getDynamicCover<T>(payload));
 }
 
 export async function getPlayableUrlByMusicApi(song: Song) {
@@ -77,15 +84,39 @@ export async function getPlayableUrlByMusicApi(song: Song) {
       urlParam: song.urlParam,
     });
     return url || "";
-  } catch {
+  } catch (error) {
+    void reportError(error, {
+      scope: "music",
+      action: "resolvePlayableUrl",
+      songId: song.id,
+      source: song.source,
+    });
     return "";
   }
 }
 
 export async function fetchLyricsByMusicApi(song: Song) {
-  return window.electronAPI.fetchLyrics({
+  const payload = {
     source: song.source as SearchableMusicSource,
     id: song.id,
     hash: song.urlParam,
-  });
+  };
+  return invokeMusicApi("fetchLyrics", payload, () => window.electronAPI.fetchLyrics(payload));
+}
+
+async function invokeMusicApi<T>(
+  action: string,
+  payload: Record<string, unknown>,
+  invoker: () => Promise<T>
+) {
+  try {
+    return await invoker();
+  } catch (error) {
+    void reportError(error, {
+      scope: "music",
+      action,
+      payload,
+    });
+    throw error;
+  }
 }

@@ -281,10 +281,10 @@ const settingOptions = computed(() => [
   {
     label: "热重载",
     props: {
-      style: { color: "red" },
+      style: { color: "#D12604" },
     },
     key: "exit",
-    icon: renderIcon(RefreshIcon, { color: "red" }),
+    icon: renderIcon(RefreshIcon, { color: "#D12604" }),
   },
 ]);
 

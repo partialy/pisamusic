@@ -226,11 +226,14 @@ type ElectronIpcApi = {
   onWindowUnmaximized: (callback: () => void) => () => void;
   onLyricWindowStatus: (callback: (status: boolean) => void) => () => void;
 
-  log: (message: unknown) => void;
-  collectError: (error: unknown) => void;
-  getLogs: (date: Date) => Promise<any>;
+  log: (message: unknown) => Promise<boolean>;
+  reportError: (error: unknown, context?: Record<string, unknown>) => Promise<boolean>;
+  getLogs: (date?: Date | string) => Promise<any>;
+  openLogsDir: () => Promise<boolean>;
 
-  openLyricWindow: () => void;
+  openLyricWindow: () => Promise<unknown>;
+  closeLyricWindow: () => Promise<boolean>;
+  toggleLyricWindow: () => Promise<unknown>;
   changeCurrentSong: (currentSong: TrackSnapshot | null) => void;
   isPlaying: (isPlaying: boolean) => void;
   updateTime: (t: number) => void;
@@ -238,13 +241,10 @@ type ElectronIpcApi = {
   setLyrics: (lyric: { type: "krc" | "lrc"; data: string }) => void;
   setLyricStyle: (config: WindowLyricSettingValue) => void;
   lockLyric: (lock: boolean) => void;
+  onLyricLockedStatus: (callback: (locked: boolean) => void) => () => void;
   onMediaControl: (
     callback: (action: "play" | "pause" | "next" | "prev", ...args: any[]) => void
   ) => () => void;
-
-  openCookieWindow: (t: "kg" | "wy") => void;
-  readCookie: (t: "kg" | "wy") => Promise<string>;
-  refreshKGCookie: (data: string) => Promise<any>;
 
   getSystemBaseUrl: () => Promise<string>;
   getBootstrapConfig: () => Promise<BootstrapConfig>;
@@ -288,14 +288,6 @@ type ElectronIpcApi = {
   containsFavoritePlaylist: (payload: { source: string; id: string }) => Promise<boolean>;
   onFavoritesChanged: (callback: () => void) => () => void;
 
-  getStore: (key: string) => Promise<unknown>;
-  setStore: (key: string, value: unknown) => Promise<boolean>;
-  deleteStore: (key: string) => Promise<boolean>;
-  clearStore: () => Promise<boolean>;
-  getRequestUrl: () => Promise<any>;
-  getPlayUrl: (song: unknown) => Promise<any>;
-  getElectronConfig: () => Promise<any>;
-  getServerPort: () => Promise<{ backServer: BackServerConfig; [key: string]: unknown }>;
 };
 
 declare global {

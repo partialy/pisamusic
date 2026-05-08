@@ -156,9 +156,11 @@ const handleToggleMode = (key: RepeatMode) => {
 };
 
 const handleDesktopLyric = async () => {
-  await electronAPI.openLyricWindow()
-  lyric.setDesktop(!desktop.value);
-  lyric.sendToLyricWindow();
+  const snapshot = (await electronAPI.toggleLyricWindow()) as { visible?: boolean } | undefined;
+  lyric.setDesktop(Boolean(snapshot?.visible));
+  if (snapshot?.visible) {
+    lyric.sendToLyricWindow();
+  }
 }
 
 // 音量控制

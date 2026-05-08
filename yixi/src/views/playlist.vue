@@ -50,7 +50,7 @@
               :component="LoadingIcon"
               color="var(--color-primary)"></n-icon>
           </template>
-          <template #description> 正在加载更多()... </template>
+          <template #description> 正在加载更多... </template>
         </n-spin>
       </template>
 

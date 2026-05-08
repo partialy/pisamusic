@@ -44,7 +44,6 @@ declare module 'vue' {
     NSpin: typeof import('naive-ui')['NSpin']
     NTabPane: typeof import('naive-ui')['NTabPane']
     NTabs: typeof import('naive-ui')['NTabs']
-    NTag: typeof import('naive-ui')['NTag']
     NText: typeof import('naive-ui')['NText']
     NTooltip: typeof import('naive-ui')['NTooltip']
     PlayControlBtn: typeof import('./src/components/player/PlayControlBtn.vue')['default']

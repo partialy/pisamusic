@@ -417,7 +417,6 @@ onBeforeUnmount(() => {
         .cover {
             width: 100%;
             height: 320px;
-            background-color: var(--primary-color-less);
             border-radius: 50%;
             overflow: hidden;
             padding: 10px;

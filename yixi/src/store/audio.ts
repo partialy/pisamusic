@@ -161,6 +161,12 @@ export const useAudioStore = defineStore("audio", () => {
     } catch (error) {
       loading.value = false;
       console.error("播放歌曲失败:", error);
+      void electronAPI.reportError(error, {
+        scope: "audio",
+        action: "play",
+        songId: song?.id || currentSong.value?.id,
+        source: song?.source || currentSong.value?.source,
+      });
       handlePlaybackFailure();
     } finally {
       loading.value = false;
@@ -462,6 +468,13 @@ export const useAudioStore = defineStore("audio", () => {
     window.$notification?.error({
       title: "播放失败，可尝试切换其他音源",
       duration: 2000,
+    });
+
+    void electronAPI.reportError(new Error("playback failed"), {
+      scope: "audio",
+      action: "handlePlaybackFailure",
+      songId: currentSong.value?.id,
+      source: currentSong.value?.source,
     });
 
     if (playlist.value.length > 1 && failureSkipCount < playlist.value.length - 1) {

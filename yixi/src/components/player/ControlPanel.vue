@@ -29,7 +29,7 @@
       <n-popover trigger="hover" style="padding: 0; border-radius: 10px" @wheel="handleWheel">
         <template #trigger>
           <n-button text circle @click="toggleMuted" @wheel="handleWheel">
-            <n-icon size="26" :component="volumeIcon" class="icon"></n-icon>
+            <n-icon :size="32" :component="volumeIcon" class="icon"></n-icon>
           </n-button>
         </template>
         <div style="width: 60px; height: 200px">
@@ -106,9 +106,11 @@ const playModeIcon = computed(() => {
 });
 
 const handleDesktopLyric = async () => {
-  await electronAPI.openLyricWindow()
-  await lyric.sendToLyricWindow();
-  lyric.setDesktop(!desktop.value);
+  const snapshot = (await electronAPI.toggleLyricWindow()) as { visible?: boolean } | undefined;
+  lyric.setDesktop(Boolean(snapshot?.visible));
+  if (snapshot?.visible) {
+    await lyric.sendToLyricWindow();
+  }
 }
 
 const volumeIcon = computed(() => {

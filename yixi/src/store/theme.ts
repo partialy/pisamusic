@@ -64,6 +64,10 @@ export const useThemeStore = defineStore("theme", () => {
       },
       Menu: {
         borderRadius: '16px'
+      },
+      Progress: {
+        railColor: getRuntimeGradientColors()[0],
+        fillColor: color
       }
     };
   });

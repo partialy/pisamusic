@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## Electron IPC 与桌面歌词规则补充
+
+- main 侧 IPC 必须按职责模块化注册：窗口控制放在 `electron/ipc/windowIpc.ts`，日志放在 `electron/ipc/logIpc.ts`，音乐、持久化、system 继续使用各自 `ipc/*` 模块，不要再把新 IPC 堆回 `electron/main.ts`。
+- preload 只暴露最小 typed API，不要恢复旧的 `store-get/store-set`、`get-request-url`、`open-kg-window`、cookie 读取等兼容入口；登录 Cookie 后续需要重新设计专用能力。
+- 桌面歌词统一由 `electron/desktopLyricManager.ts` 管理，窗口必须是透明、置顶、`skipTaskbar: true` 的悬浮层；打开窗口时必须推送最近歌词快照，不能依赖切歌后才刷新。
+- 桌面歌词状态用快照同步，包含当前歌曲、歌词、播放进度、播放状态、样式和锁定状态；renderer 更新歌词时即使窗口未打开，也要把最新歌词送到 main 缓存。
+- renderer 捕获请求、收藏、播放、歌词等错误时，UI 只显示简洁提示，同时必须通过 `reportError()` / `electronAPI.reportError()` 写入 main 日志，便于查询堆栈和上下文。
+
 ## 收藏与侧栏规则补充
 
 - 收藏歌曲、收藏歌单统一写入 SQLite 的 `favorite_songs` / `favorite_playlists`，renderer 通过 `library:favorites:*` IPC 和 `useCollectStore` 访问，不再新增文件式 `collect/*.json` 收藏持久化。
@@ -41,7 +49,7 @@
 ## 技术栈
 
 - 框架：Electron + Vue 3 + TypeScript + electron-vite。
-- UI：Naive UI、Vue 组件、Pinia 状态管理。
+- UI：Naive UI、Vue 组件、Pinia 状态管理；Tailwind CSS 已接入但关闭 preflight，并使用 `tw-` 前缀避免影响旧样式。
 - 播放：howler 放在 renderer 播放层封装。
 - 数据：SQLite 由 main 进程统一管理，renderer 通过 preload 暴露的安全 IPC 调用。
 - 构建：electron-builder，优先保障 Windows 构建。
@@ -81,6 +89,7 @@
 
 - 新增或重构代码优先按 `main / preload / renderer / shared` 边界拆分。
 - 大型 Vue 组件要拆成页面、业务组件、基础组件和 hooks / store，不继续扩大单文件。
+- 新增 Tailwind 样式类时使用 `tw-` 前缀，例如 `tw-flex`、`tw-gap-2`；不要改回无前缀或开启 preflight，避免冲突 Naive UI 和旧全局样式。
 - 旧的无用代码、调试接口、废弃 API 和硬编码配置要在确认无依赖后清理。
 - 涉及后端请求、加密、验签、音源解析的逻辑要集中封装，避免散落在组件里。
 - 修改项目框架、持久化方案、IPC 契约或服务端契约时，必须同步更新本文件。

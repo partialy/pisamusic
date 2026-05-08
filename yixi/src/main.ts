@@ -21,13 +21,11 @@ app.config.errorHandler = (err: any, _vm, info) => {
   // 可以在这里发送错误到主进程或错误收集服务
   if (window.electronAPI) {
     console.log("发送错误到主进程或错误收集服务");
-    const e = {
-      message: err.message,
-      stack: err.stack,
-      name: err.name,
-      status: err.status,
-    };
-    electronAPI.collectError(e);
+    void electronAPI.reportError(err, {
+      scope: "vue",
+      info,
+      status: err?.status,
+    });
   }
 };
 
