@@ -70,7 +70,7 @@
         <CommonLyric v-else-if="lyricStore.rawKrc || lyricStore.rawLrc" ref="playerLyric" class="player-lyric" />
         <!-- 控制面板 -->
         <Transition name="ctlp" mode="default">
-            <ControlPanel ref="controlBtn" class="control-panel" v-show="isMouseActive" />
+            <ControlPanel class="control-panel" v-show="isMouseActive" />
         </Transition>
     </div>
 </template>
@@ -114,7 +114,6 @@ const active = computed(() => {
     return playerStore.isPlaying ? 'running' : 'paused'
 })
 
-const controlBtn = ref<HTMLDivElement>()
 const playerLayout = ref<HTMLDivElement>()
 const infoContainer = ref<HTMLDivElement>()
 const setCoverBgPosition = async () => {

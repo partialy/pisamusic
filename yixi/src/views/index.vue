@@ -13,7 +13,7 @@
         v-for="i in recSong"
         :key="i.id"
         :song="i"
-        :collected="songMap.has(i.id)"
+        :collected="collector.containsSong(i)"
         @play="handlePlay"
         @collect="handleCollectSong" />
     </div>
@@ -30,12 +30,10 @@ import {
 import type { CommonPlaylist, Song } from "@/types/song";
 import { useAudioStore, useCollectStore } from "@/store";
 import { convertor } from "@/utils/convertor";
-import { storeToRefs } from "pinia";
 import { getHomeRecommendations } from "@/utils/api/musicAPI";
 
 const player = useAudioStore();
 const collector = useCollectStore();
-const { songMap } = storeToRefs(collector);
 const recPlaylist = ref<CommonPlaylist[]>([]);
 const recSong = ref<Song[]>([]);
 const getHomeRecommend = async () => {

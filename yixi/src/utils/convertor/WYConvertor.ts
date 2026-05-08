@@ -8,6 +8,7 @@ import type { CommonPlaylist, Song } from "@/types/song";
 import type { WYPlaylistDetail } from "../webapi";
 import { wyUtils } from "../common";
 import type { WYCloudSearchListItem } from "../webapi/types/WY/WYCloudSearchList";
+import { normalizePlaylist } from "../playlist";
 
 const convertCloudSearchSong = (item: WYCloudSearchSong): Song => {
   const { cover, coverSize } = wyUtils.getCoverUrl(item);
@@ -79,7 +80,7 @@ const convertRecommendSong = (item: WYRecommendSong): Song => {
 
 const convertWYPlaylist = (item: WYPlaylistDetail): CommonPlaylist => {
   const { cover, coverSize } = wyUtils.getCoverUrl(item);
-  return {
+  return normalizePlaylist({
     id: item.id.toString(),
     name: item.name,
     cover: cover,
@@ -94,12 +95,12 @@ const convertWYPlaylist = (item: WYPlaylistDetail): CommonPlaylist => {
         id: t,
       };
     }),
-  };
+  });
 };
 
 const convertSearchList = (item: WYCloudSearchListItem): CommonPlaylist => {
   const { cover, coverSize } = wyUtils.getCoverUrl(item);
-  return {
+  return normalizePlaylist({
     id: item.id.toString(),
     name: item.name,
     cover: cover,
@@ -108,7 +109,7 @@ const convertSearchList = (item: WYCloudSearchListItem): CommonPlaylist => {
     play_count: item.playCount,
     song_count: item.trackCount,
     source: "wy",
-  }
+  })
 }
 
 export const WYConvertor = {

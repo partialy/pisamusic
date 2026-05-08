@@ -1,5 +1,5 @@
 <template>
-  <div class="playlist-container mw1600" ref="playlistContainerRef">
+  <div class="playlist-container mw1600">
     <div class="tags" ref="tagsRef">
       <n-popover
         style="max-width: 600px"
@@ -207,8 +207,6 @@ function observeTags() {
     observerTags.observe(tagsRef.value);
   }
 }
-
-const playlistContainerRef = ref<HTMLElement | null>(null);
 
 onBeforeUnmount(() => {
   if (observerEndLine && endLineRef.value) {

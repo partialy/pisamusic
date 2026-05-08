@@ -1,108 +1,228 @@
-import type { Song, CommonPlaylist } from "@/types/song";
+import type { CommonPlaylist, Song } from "@/types/song";
 import electronAPI from "@/utils/electron";
+import { hasPlaylistIdentity, normalizePlaylist } from "@/utils/playlist";
+import { hasSongIdentity, normalizeSong } from "@/utils/song";
 import { defineStore } from "pinia";
-import { watch } from "vue";
+import { computed, ref, toRaw } from "vue";
 
-export const useCollectStore = defineStore("collect", {
-  state: () => ({
-    songMap: new Map<string, Song>(),
-    playlistMap: new Map<string, CommonPlaylist>(),
-    changed: false,
+type FavoriteToggleResult<T> = {
+  collected: boolean;
+  item: T | null;
+};
 
-    get songs() {
-      return Array.from(this.songMap.values());
-    },
-    get playlists() {
-      return Array.from(this.playlistMap.values());
-    },
-  }),
-  actions: {
-    async initStore() {
-      const sres = await electronAPI.readFile({
-        filename: "songs.json",
-        folder: "collect",
+type FavoriteSongRecord = {
+  favoriteKey: string;
+  payload: unknown;
+};
+
+type FavoritePlaylistRecord = {
+  favoriteKey: string;
+  payload: unknown;
+};
+
+export const useCollectStore = defineStore("collect", () => {
+  const songMap = ref(new Map<string, Song>());
+  const playlistMap = ref(new Map<string, CommonPlaylist>());
+  const changed = ref(false);
+  let stopFavoritesListener: (() => void) | null = null;
+
+  const songs = computed(() => Array.from(songMap.value.values()));
+  const playlists = computed(() => Array.from(playlistMap.value.values()));
+
+  async function initStore() {
+    await reload();
+    if (!stopFavoritesListener && electronAPI.onFavoritesChanged) {
+      stopFavoritesListener = electronAPI.onFavoritesChanged(() => {
+        void reload();
       });
-      const pres = await electronAPI.readFile({
-        filename: "playlists.json",
-        folder: "collect",
-      });
-      if (!sres.success || !pres.success) {
-        window.$notification.error({
-          title: "读取收藏数据失败",
-          content: "playlists:" + pres.error + "\nsongs:" + sres.error,
-          duration: 5000,
-        });
-        this.songMap = new Map<string, Song>();
-        this.playlistMap = new Map<string, CommonPlaylist>();
-      } else {
-        const songs = JSON.parse(sres.data) as Song[];
-        const playlists = JSON.parse(pres.data) as CommonPlaylist[];
-        this.songMap = new Map(songs.map((s) => [s.id, s]));
-        this.playlistMap = new Map(playlists.map((s) => [s.id, s]));
-      }
+    }
+  }
 
-      watch(
-        [() => this.songMap, () => this.playlistMap],
-        async () => {
-          this.changed = true;
-        },
-        { deep: true }
-      );
-    },
-
-    async save() {
-      const songs = Array.from(this.songMap.values());
-      const playlists = Array.from(this.playlistMap.values());
-      await Promise.all([
-        electronAPI.writeFile({
-          filename: "songs.json",
-          folder: "collect",
-          data: JSON.stringify(songs),
-        }),
-        electronAPI.writeFile({
-          filename: "playlists.json",
-          folder: "collect",
-          data: JSON.stringify(playlists),
-        }),
+  async function reload() {
+    try {
+      const [songItems, playlistItems] = await Promise.all([
+        electronAPI.listFavoriteSongs(),
+        electronAPI.listFavoritePlaylists(),
       ]);
-      this.changed = false;
-    },
-    async collectSong(song?: Song) {
-      if(!song) return;
-      if (this.containsSong(song)) {
-        this.songMap.delete(song.id);
-        window.$message.success("已取消收藏");
-      } else {
-        this.songMap.set(song.id, song);
-        window.$message.success("已添加到收藏");
-      }
-    },
-    async collectList(playlist?: CommonPlaylist) {
-      if(!playlist) return;
-      if (this.containsPlaylist(playlist)) {
-        this.playlistMap.delete(playlist.id);
-        window.$message.success("已取消收藏");
-      } else {
-        this.playlistMap.set(playlist.id, playlist);
-        window.$message.success("已添加到收藏");
-      }
-    },
+      songMap.value = new Map(normalizeFavoriteSongs(songItems));
+      playlistMap.value = new Map(normalizeFavoritePlaylists(playlistItems));
+      changed.value = false;
+    } catch (error: any) {
+      window.$notification?.error({
+        title: "读取收藏数据失败",
+        content: error?.message || String(error),
+        duration: 5000,
+      });
+      songMap.value = new Map();
+      playlistMap.value = new Map();
+    }
+  }
 
-    containsSong(song?: Song) {
-      if(!song) return false;
-      return this.songMap.has(song.id);
-    },
-    containSongById(id: string) {
-      return this.songMap.has(id);
-    },
-    containsPlaylist(playlist?: CommonPlaylist) {
-      if(!playlist) return false;
-      return this.songMap.has(playlist.id);
-    },
-    containPlaylistById(id: string) {
-      return this.playlistMap.has(id);
-    },
-  },
+  async function save() {
+    changed.value = false;
+  }
+
+  async function collectSong(song?: Song) {
+    if (!song) return;
+    if (!hasSongIdentity(toRaw(song))) {
+      window.$message.error("歌曲收藏失败：缺少来源或 ID");
+      return;
+    }
+
+    const normalizedSong = normalizeSong(toRaw(song));
+    const result = (await electronAPI.toggleFavoriteSong(
+      normalizedSong
+    )) as FavoriteToggleResult<FavoriteSongRecord>;
+    if (result.collected) {
+      const savedSong = result.item?.payload
+        ? normalizeSong(result.item.payload as Record<string, unknown>)
+        : normalizedSong;
+      songMap.value.set(songKey(savedSong), savedSong);
+      window.$message.success("已添加到收藏");
+    } else {
+      songMap.value.delete(songKey(normalizedSong));
+      window.$message.success("已取消收藏");
+    }
+    changed.value = true;
+  }
+
+  async function collectList(playlist?: CommonPlaylist) {
+    if (!playlist) return;
+    if (!hasFavoriteIdentity(playlist)) {
+      window.$message.error("歌单收藏失败：缺少来源或 ID");
+      return;
+    }
+
+    try {
+      const normalizedPlaylist = normalizePlaylist(toRaw(playlist));
+      const result = (await electronAPI.toggleFavoritePlaylist(
+        normalizedPlaylist
+      )) as FavoriteToggleResult<FavoritePlaylistRecord>;
+      if (result.collected) {
+        const savedPlaylist = result.item?.payload
+          ? normalizePlaylist(result.item.payload as Record<string, unknown>)
+          : normalizedPlaylist;
+        playlistMap.value.set(
+          playlistFavoriteKey(savedPlaylist.source, savedPlaylist.id),
+          savedPlaylist
+        );
+        window.$message.success("已添加到收藏");
+      } else {
+        playlistMap.value.delete(playlistFavoriteKey(normalizedPlaylist.source, normalizedPlaylist.id));
+        window.$message.success("已取消收藏");
+      }
+      changed.value = true;
+    } catch (error: any) {
+      window.$message.error(error?.message || "歌单收藏失败");
+    }
+  }
+
+  async function removeSong(song: Song) {
+    if (!hasSongIdentity(toRaw(song))) return;
+    const normalizedSong = normalizeSong(toRaw(song));
+    await electronAPI.removeFavoriteSong({
+      source: normalizedSong.source,
+      id: normalizedSong.id,
+    });
+    songMap.value.delete(songKey(normalizedSong));
+    changed.value = true;
+  }
+
+  async function removeList(playlist: CommonPlaylist) {
+    if (!hasFavoriteIdentity(playlist)) return;
+    const normalizedPlaylist = normalizePlaylist(toRaw(playlist));
+    await electronAPI.removeFavoritePlaylist({
+      source: normalizedPlaylist.source,
+      id: normalizedPlaylist.id,
+    });
+    playlistMap.value.delete(playlistFavoriteKey(normalizedPlaylist.source, normalizedPlaylist.id));
+    changed.value = true;
+  }
+
+  function containsSong(song?: Song) {
+    if (!song) return false;
+    if (!hasSongIdentity(toRaw(song))) return false;
+    const normalizedSong = normalizeSong(toRaw(song));
+    return songMap.value.has(songKey(normalizedSong));
+  }
+
+  function containSongById(id: string, source = "") {
+    if (source) return songMap.value.has(favoriteKey(source, id));
+    return Array.from(songMap.value.values()).some((song) => song.id === id);
+  }
+
+  function containsPlaylist(playlist?: CommonPlaylist) {
+    if (!playlist || !hasFavoriteIdentity(playlist)) return false;
+    const normalizedPlaylist = normalizePlaylist(toRaw(playlist));
+    return playlistMap.value.has(playlistFavoriteKey(normalizedPlaylist.source, normalizedPlaylist.id));
+  }
+
+  function containPlaylistById(id: string, source = "") {
+    if (source) return playlistMap.value.has(playlistFavoriteKey(source, id));
+    return Array.from(playlistMap.value.values()).some((playlist) => playlist.id === id);
+  }
+
+  function songKey(song: Song) {
+    return favoriteKey(song.source, song.id);
+  }
+
+  function playlistFavoriteKey(source: string, id: string) {
+    return favoriteKey(source, id);
+  }
+
+  function favoriteKey(source: string, id: string) {
+    return `${source}:${id}`;
+  }
+
+  function hasFavoriteIdentity(playlist: CommonPlaylist) {
+    return hasPlaylistIdentity(toRaw(playlist));
+  }
+
+  function normalizeFavoritePlaylists(items: FavoritePlaylistRecord[]) {
+    const entries: [string, CommonPlaylist][] = [];
+    items.forEach((item) => {
+      try {
+        const playlist = normalizePlaylist(item.payload as Record<string, unknown>);
+        entries.push([playlistFavoriteKey(playlist.source, playlist.id), playlist]);
+      } catch (error) {
+        console.warn("忽略无效收藏歌单", error);
+      }
+    });
+    return entries;
+  }
+
+  function normalizeFavoriteSongs(items: FavoriteSongRecord[]) {
+    const entries: [string, Song][] = [];
+    items.forEach((item) => {
+      try {
+        const song = normalizeSong(item.payload as Record<string, unknown>);
+        entries.push([songKey(song), song]);
+      } catch (error) {
+        console.warn("忽略无效收藏歌曲", error);
+      }
+    });
+    return entries;
+  }
+
+  return {
+    songMap,
+    playlistMap,
+    changed,
+    songs,
+    playlists,
+    initStore,
+    reload,
+    save,
+    collectSong,
+    collectList,
+    removeSong,
+    removeList,
+    containsSong,
+    containSongById,
+    containsPlaylist,
+    containPlaylistById,
+    playlistFavoriteKey,
+  };
 });
 
 export default useCollectStore;

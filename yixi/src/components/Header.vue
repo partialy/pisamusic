@@ -134,16 +134,17 @@ import {
   LogOutOutline as LogoutIcon,
   PersonCircleOutline as UserIcon,
 } from "@vicons/ionicons5";
-import { h, onMounted, ref } from "vue";
+import { computed, h, onMounted, ref } from "vue";
 import avatarImg from "../assets/defaultAdminAvatar.jpg";
 import { renderIcon } from "@/utils/common";
 import electronAPI from "@/utils/electron";
 import { searchSuggest } from "@/utils/api/musicAPI";
-import { useUserStore } from "@/store";
+import { useThemeStore, useUserStore } from "@/store";
 import { storeToRefs } from "pinia";
 
 const avatar = ref(avatarImg);
 const userStore = useUserStore();
+const themeStore = useThemeStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
 const router = useRouter();
 const development = import.meta.env.DEV;
@@ -262,17 +263,13 @@ const dropDownOptions = [
   },
 ];
 
-const themeIcon = ref(
-  localStorage.getItem("theme") == "light"
-    ? renderIcon(MoonIcon)
-    : renderIcon(SunIcon)
-);
-
-const settingOptions = [
+const settingOptions = computed(() => [
   {
-    label: "切换主题",
+    label: themeStore.resolvedMode === "dark" ? "切换浅色" : "切换深色",
     key: "theme",
-    icon: themeIcon.value,
+    icon: themeStore.resolvedMode === "dark"
+      ? renderIcon(SunIcon)
+      : renderIcon(MoonIcon),
   },
   {
     key: "header-divider",
@@ -297,7 +294,7 @@ const settingOptions = [
     key: "exit",
     icon: renderIcon(RefreshIcon, { color: "red" }),
   },
-];
+]);
 
 const handleSelect = (key: string) => {
   router.push({
@@ -309,14 +306,7 @@ const handleSetting = (key: string) => {
   if (key == "setting") {
     router.push("/setting");
   } else if (key == "theme") {
-    if (localStorage.getItem("theme") == "night") {
-      localStorage.setItem("theme", "light");
-      themeIcon.value = renderIcon(MoonIcon);
-    } else {
-      localStorage.setItem("theme", "night");
-      themeIcon.value = renderIcon(SunIcon);
-    }
-    console.log(themeIcon.value);
+    void themeStore.toggleLightDark();
   } else if (key == "about") {
     router.push("/about");
   } else if (key == "exit") {

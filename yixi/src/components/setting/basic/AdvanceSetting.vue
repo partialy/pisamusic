@@ -1,64 +1,106 @@
 <template>
-  <div class="setting-con">
-    <n-card class="backup-server">
-      <template #header>
-        <div class="tips-header">
-          <span>服务端配置（{{ delay }}ms）</span>
-          <span :style="{ color: serverStatus }">
+  <div class="advance-setting">
+    <section class="setting-card">
+      <div class="section-header">
+        <div>
+          <h3>服务端配置</h3>
+          <p>查看当前网关连接状态，并刷新运行时端点。</p>
+        </div>
+        <div class="status-actions">
+          <span class="status-pill" :class="serverStatusClass">
             {{ backupRes?.status === "OK" ? "在线" : "不可用" }}
           </span>
+          <n-button secondary round @click="refreshRuntimeConfig">
+            刷新
+          </n-button>
         </div>
-      </template>
-      <template #header-extra>
-        <n-button secondary @click="refreshRuntimeConfig">刷新</n-button>
-      </template>
-      <template #default>
-        <div class="server-info">
-          <div>连接状态：{{ backupRes?.message || "-" }}</div>
-          <div>服务状态：{{ backupRes?.status || "-" }}</div>
-          <div>配置版本：{{ backupRes?.version || "-" }}</div>
-          <div>检查时间：{{ backupRes?.currentTime ? new Date(backupRes.currentTime).toLocaleString() : "-" }}</div>
-        </div>
-      </template>
-    </n-card>
+      </div>
 
-    <div class="setting-item">
-      <div>KG URL</div>
-      <div class="item-right">
-        <n-input v-model:value="urlPack.kgUrl" placeholder="KG URL" />
-        <n-button secondary @click="testUrl('kgUrl')">测试</n-button>
-        <n-button secondary color="red" @click="resetUrl('kg')">重置</n-button>
+      <div class="server-grid">
+        <div class="server-info-item">
+          <span>连接状态</span>
+          <strong>{{ backupRes?.message || "-" }}</strong>
+        </div>
+        <div class="server-info-item">
+          <span>服务状态</span>
+          <strong>{{ backupRes?.status || "-" }}</strong>
+        </div>
+        <div class="server-info-item">
+          <span>配置版本</span>
+          <strong>{{ backupRes?.version || "-" }}</strong>
+        </div>
+        <div class="server-info-item">
+          <span>延迟</span>
+          <strong>{{ delay }}ms</strong>
+        </div>
+        <div class="server-info-item wide">
+          <span>检查时间</span>
+          <strong>{{ backupRes?.currentTime ? new Date(backupRes.currentTime).toLocaleString() : "-" }}</strong>
+        </div>
       </div>
-    </div>
-    <div class="setting-item">
-      <div>WY URL</div>
-      <div class="item-right">
-        <n-input v-model:value="urlPack.wyUrl" placeholder="WY URL" />
-        <n-button secondary @click="testUrl('wyUrl')">测试</n-button>
-        <n-button secondary color="red" @click="resetUrl('wy')">重置</n-button>
+    </section>
+
+    <section class="setting-card">
+      <div class="section-header">
+        <div>
+          <h3>运行端点</h3>
+          <p>仅影响当前运行时，通常用于调试音源和代理服务。</p>
+        </div>
       </div>
-    </div>
-    <div class="setting-item">
-      <div>Proxy URL</div>
-      <div class="item-right">
-        <n-input v-model:value="urlPack.proxyUrl" placeholder="Proxy URL" />
-        <n-button secondary @click="testUrl('proxyUrl')">测试</n-button>
-        <n-button secondary color="red" @click="resetUrl('proxy')">重置</n-button>
+
+      <div class="endpoint-list">
+        <div class="setting-item">
+          <div class="item-info">
+            <div class="item-title">KG URL</div>
+            <div class="item-desc">酷狗音源服务地址。</div>
+          </div>
+          <div class="item-right">
+            <n-input v-model:value="urlPack.kgUrl" placeholder="KG URL" />
+            <n-button secondary round @click="testUrl('kgUrl')">测试</n-button>
+            <n-button secondary round type="error" @click="resetUrl('kg')">重置</n-button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
+            <div class="item-title">WY URL</div>
+            <div class="item-desc">网易云音源服务地址。</div>
+          </div>
+          <div class="item-right">
+            <n-input v-model:value="urlPack.wyUrl" placeholder="WY URL" />
+            <n-button secondary round @click="testUrl('wyUrl')">测试</n-button>
+            <n-button secondary round type="error" @click="resetUrl('wy')">重置</n-button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
+            <div class="item-title">Proxy URL</div>
+            <div class="item-desc">统一代理根地址，会自动拼接 /proxy/*。</div>
+          </div>
+          <div class="item-right">
+            <n-input v-model:value="urlPack.proxyUrl" placeholder="Proxy URL" />
+            <n-button secondary round @click="testUrl('proxyUrl')">测试</n-button>
+            <n-button secondary round type="error" @click="resetUrl('proxy')">重置</n-button>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="setting-item">
-      <div>操作</div>
-      <div class="item-right">
-        <n-button type="primary" @click="applyUrl">应用到当前运行时</n-button>
-        <n-button secondary color="red" @click="resetUrl('all')">重置全部</n-button>
+    </section>
+
+    <section class="setting-card action-card">
+      <div class="item-info">
+        <div class="item-title">应用运行时端点</div>
+        <div class="item-desc">保存到当前应用进程，不会覆盖后端下发的配置。</div>
       </div>
-    </div>
+      <div class="item-right">
+        <n-button type="primary" round @click="applyUrl">应用到当前运行时</n-button>
+        <n-button secondary round type="error" @click="resetUrl('all')">重置全部</n-button>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { NInput, NButton, NCard } from "naive-ui";
+import { NInput, NButton } from "naive-ui";
 import electronAPI from "@/utils/electron";
 import { useRuntimeConfigStore } from "@/store";
 
@@ -87,8 +129,8 @@ const urlPack = reactive({
   proxyUrl: "",
 });
 
-const serverStatus = computed(() => {
-  return backupRes.value?.status === "OK" ? "green" : "red";
+const serverStatusClass = computed(() => {
+  return backupRes.value?.status === "OK" ? "is-online" : "is-offline";
 });
 
 const refreshRuntimeConfig = async () => {
@@ -181,52 +223,146 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.setting-con {
+.advance-setting {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  padding-bottom: 20px;
+}
 
-  .backup-server {
-    height: 100%;
-    background: transparent;
-    border: 1px solid #f5f5f5;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+.setting-card {
+  padding: 18px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 14px;
+  background: var(--color-card-bg);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+
+  h3 {
+    margin: 0;
+    color: var(--color-text-default);
+    font-size: 16px;
+    font-weight: 700;
   }
 
-  .tips-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .server-info {
-    display: grid;
-    gap: 6px;
+  p {
+    margin: 4px 0 0;
     color: var(--color-text-secondary);
+    font-size: 12px;
+  }
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+
+  &.is-online {
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.1);
   }
 
-  .setting-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 20px;
-
-    &:hover {
-      background: #f5f5f5;
-      cursor: pointer;
-      border-radius: 8px;
-    }
-
-    .item-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .n-input {
-      width: 400px;
-    }
+  &.is-offline {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
   }
+}
+
+.server-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.server-info-item {
+  min-height: 66px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-bg-secondary);
+
+  &.wide {
+    grid-column: span 4;
+  }
+
+  span {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+  }
+
+  strong {
+    color: var(--color-text-default);
+    font-size: 14px;
+    font-weight: 600;
+    word-break: break-all;
+  }
+}
+
+.endpoint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setting-item,
+.action-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background: var(--color-setting-hover);
+  }
+}
+
+.item-info {
+  min-width: 0;
+}
+
+.item-title {
+  color: var(--color-text-default);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.item-desc {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+:deep(.n-input) {
+  width: min(42vw, 420px);
 }
 </style>

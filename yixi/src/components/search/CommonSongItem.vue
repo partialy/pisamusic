@@ -24,7 +24,7 @@
     </div>
     <div class="collect">
       <n-button text title="收藏" @click="collect.collectSong(song)">
-        <n-icon :component="CollectIcon" :color="songMap.has(song.id) ? 'red' : '#999'" class="icon"></n-icon>
+        <n-icon :component="CollectIcon" :color="collect.containsSong(song) ? 'red' : '#999'" class="icon"></n-icon>
       </n-button>
     </div>
     <div class="album text-line-1" :title="song.album">
@@ -55,7 +55,6 @@ import { NImage, NButton, NIcon, NTag } from "naive-ui";
 import { Playing } from "../playList";
 import { AddToPlaylist, CollectIcon, NextPlayIcon, PlayStatic } from "@/icons";
 import { useCollectStore } from "@/store";
-import { storeToRefs } from "pinia";
 
 const props = defineProps<{
   active: boolean;
@@ -65,7 +64,6 @@ const props = defineProps<{
 }>();
 const isHover = ref(false);
 const collect = useCollectStore();
-const { songMap } = storeToRefs(collect);
 
 const emit = defineEmits<{
   play: [song: Song];

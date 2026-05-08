@@ -1,6 +1,6 @@
-import { ipcMain } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
 import { getAppDatabase } from "../database";
-import type { QueueSnapshot, TrackSnapshot } from "../database/appDatabase";
+import type { PlaylistSnapshot, QueueSnapshot, TrackSnapshot } from "../database/appDatabase";
 
 let registered = false;
 
@@ -58,5 +58,63 @@ export function setupPersistenceIpc() {
 
   ipcMain.handle("library:queue-snapshot:save", (_event, snapshot: QueueSnapshotInput) => {
     return getAppDatabase().saveQueueSnapshot(snapshot);
+  });
+
+  ipcMain.handle("library:favorites:songs:list", () => {
+    return getAppDatabase().listFavoriteSongs();
+  });
+
+  ipcMain.handle("library:favorites:songs:add", (_event, track: TrackSnapshot) => {
+    const result = getAppDatabase().addFavoriteSong(track);
+    notifyFavoritesChanged();
+    return result;
+  });
+
+  ipcMain.handle("library:favorites:songs:remove", (_event, payload: { source: string; id: string }) => {
+    const result = getAppDatabase().removeFavoriteSong(payload.source, payload.id);
+    notifyFavoritesChanged();
+    return result;
+  });
+
+  ipcMain.handle("library:favorites:songs:toggle", (_event, track: TrackSnapshot) => {
+    const result = getAppDatabase().toggleFavoriteSong(track);
+    notifyFavoritesChanged();
+    return result;
+  });
+
+  ipcMain.handle("library:favorites:songs:contains", (_event, payload: { source: string; id: string }) => {
+    return getAppDatabase().containsFavoriteSong(payload.source, payload.id);
+  });
+
+  ipcMain.handle("library:favorites:playlists:list", () => {
+    return getAppDatabase().listFavoritePlaylists();
+  });
+
+  ipcMain.handle("library:favorites:playlists:add", (_event, playlist: PlaylistSnapshot) => {
+    const result = getAppDatabase().addFavoritePlaylist(playlist);
+    notifyFavoritesChanged();
+    return result;
+  });
+
+  ipcMain.handle("library:favorites:playlists:remove", (_event, payload: { source: string; id: string }) => {
+    const result = getAppDatabase().removeFavoritePlaylist(payload.source, payload.id);
+    notifyFavoritesChanged();
+    return result;
+  });
+
+  ipcMain.handle("library:favorites:playlists:toggle", (_event, playlist: PlaylistSnapshot) => {
+    const result = getAppDatabase().toggleFavoritePlaylist(playlist);
+    notifyFavoritesChanged();
+    return result;
+  });
+
+  ipcMain.handle("library:favorites:playlists:contains", (_event, payload: { source: string; id: string }) => {
+    return getAppDatabase().containsFavoritePlaylist(payload.source, payload.id);
+  });
+}
+
+function notifyFavoritesChanged() {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send("favorites:changed");
   });
 }

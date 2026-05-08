@@ -16,12 +16,44 @@ type WindowLyricSettingValue = {
 type TrackSnapshot = {
   id: string;
   source: MusicSource;
+  urlParam?: string;
   name?: string;
   singer?: string;
   album?: string;
   cover?: string;
+  d_cover?: string;
+  coverSize?: {
+    s: string;
+    m: string;
+    l: string;
+    xl: string;
+  };
+  lyric?: string;
+  krc?: string;
+  size?: Record<string, number>;
+  vip?: boolean;
   duration?: number;
-  [key: string]: unknown;
+};
+
+type PlaylistSnapshot = {
+  id: string;
+  source: "kg" | "wy" | "kw" | "qq";
+  name: string;
+  desc: string;
+  cover: string;
+  coverSize?: {
+    s: string;
+    m: string;
+    l: string;
+    xl: string;
+  };
+  tags: {
+    name: string;
+    id: string;
+  }[];
+  song_count?: number | string;
+  play_count?: number | string;
+  collect_count?: number | string;
 };
 
 type SettingRecord<T = unknown> = {
@@ -35,6 +67,33 @@ type QueueSnapshot = {
   currentIndex: number;
   queue: TrackSnapshot[];
   updatedAt: string;
+};
+
+type FavoriteSongItem = {
+  favoriteKey: string;
+  trackId: string;
+  source: string;
+  title: string;
+  artist: string;
+  album: string;
+  artwork: string;
+  duration: number;
+  payload: TrackSnapshot;
+  createdAt: string;
+};
+
+type FavoritePlaylistItem = {
+  favoriteKey: string;
+  playlistId: string;
+  source: string;
+  name: string;
+  description: string;
+  artwork: string;
+  songCount: string;
+  playCount: string;
+  collectCount: string;
+  payload: PlaylistSnapshot;
+  createdAt: string;
 };
 
 type BootstrapConfig = {
@@ -156,15 +215,6 @@ type MusicLyricResult = {
 };
 
 type ElectronIpcApi = {
-  collectSong: (song: unknown) => void;
-  inCollectSong: (song: unknown) => void;
-  removeSong: (song: unknown) => void;
-  collectedSongs: () => Promise<any[]>;
-  collectList: (list: unknown) => void;
-  inCollectList: (list: unknown) => void;
-  removeList: (list: unknown) => void;
-  collectedLists: () => Promise<any[]>;
-
   minimizeWindow: () => void;
   maximizeWindow: () => void;
   closeWindow: () => void;
@@ -179,8 +229,6 @@ type ElectronIpcApi = {
   log: (message: unknown) => void;
   collectError: (error: unknown) => void;
   getLogs: (date: Date) => Promise<any>;
-  readFile: (params: { filename: string; folder: string; dataType?: "object" | "list" }) => Promise<any>;
-  writeFile: (params: { filename: string; folder: string; data: string }) => Promise<any>;
 
   openLyricWindow: () => void;
   changeCurrentSong: (currentSong: TrackSnapshot | null) => void;
@@ -228,6 +276,17 @@ type ElectronIpcApi = {
   listPlayHistory: (limit?: number) => Promise<PlayHistoryItem[]>;
   getQueueSnapshot: () => Promise<QueueSnapshot>;
   saveQueueSnapshot: (snapshot: { currentIndex: number; queue: any[] }) => Promise<QueueSnapshot>;
+  listFavoriteSongs: () => Promise<FavoriteSongItem[]>;
+  addFavoriteSong: (track: TrackSnapshot) => Promise<FavoriteSongItem | null>;
+  removeFavoriteSong: (payload: { source: string; id: string }) => Promise<boolean>;
+  toggleFavoriteSong: (track: TrackSnapshot) => Promise<{ collected: boolean; item: FavoriteSongItem | null }>;
+  containsFavoriteSong: (payload: { source: string; id: string }) => Promise<boolean>;
+  listFavoritePlaylists: () => Promise<FavoritePlaylistItem[]>;
+  addFavoritePlaylist: (playlist: PlaylistSnapshot) => Promise<FavoritePlaylistItem | null>;
+  removeFavoritePlaylist: (payload: { source: string; id: string }) => Promise<boolean>;
+  toggleFavoritePlaylist: (playlist: PlaylistSnapshot) => Promise<{ collected: boolean; item: FavoritePlaylistItem | null }>;
+  containsFavoritePlaylist: (payload: { source: string; id: string }) => Promise<boolean>;
+  onFavoritesChanged: (callback: () => void) => () => void;
 
   getStore: (key: string) => Promise<unknown>;
   setStore: (key: string, value: unknown) => Promise<boolean>;

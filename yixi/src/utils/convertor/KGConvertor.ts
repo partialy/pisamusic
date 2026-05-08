@@ -10,6 +10,7 @@ import type {
 import type { CommonPlaylist, Song } from "@/types/song";
 import type { KGPlaylistDetailData } from "../webapi";
 import { kgUtils } from "../common";
+import { normalizePlaylist } from "../playlist";
 
 const convertKGSearchSong = (item: KGSearchSong): Song => {
   return {
@@ -137,7 +138,7 @@ const convertKGPlaylist = (
 ): CommonPlaylist => {
   if (type == "detail") {
     const i = item as KGPlaylistDetailData;
-    return {
+    return normalizePlaylist({
       id: i.global_collection_id,
       name: i.name,
       cover: kgUtils.getCoverUrl(item),
@@ -151,10 +152,10 @@ const convertKGPlaylist = (
         };
       }),
       source: "kg",
-    };
+    });
   } else {
     const i = item as KGTopPlaylistItem;
-    return {
+    return normalizePlaylist({
       id: i.global_collection_id,
       name: i.specialname,
       cover: kgUtils.getCoverUrl(i),
@@ -168,12 +169,12 @@ const convertKGPlaylist = (
           id: tag.tag_id.toString(),
         };
       }) || [],
-    };
+    });
   }
 };
 
 const convertSearchList = (item: KGSearchListItem): CommonPlaylist => { 
-  return {
+  return normalizePlaylist({
     id: item.gid,
     name: item.specialname,
     cover: kgUtils.getCoverUrl(item),
@@ -188,7 +189,7 @@ const convertSearchList = (item: KGSearchListItem): CommonPlaylist => {
         id: tag.tag_id.toString(),
       }
     })
-  }
+  })
 };
 
 export const KGConverter = {

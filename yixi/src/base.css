@@ -67,37 +67,84 @@ h6 {
 }
 
 :root {
+  /*
+   * PisaMusic 主题变量说明
+   * 1. 品牌强调色：运行时会由主题设置覆盖，默认值保留在这里，方便手动调整。
+   * 2. 浅色/深色主题变量：通过 html[data-theme="light|dark"] 切换。
+   * 3. 播放器和侧栏轨道背景使用 --color-bg-track，深色主题必须单独适配。
+   */
   --header-height: 80px;
   --left-nav-width: 200px;
   --footer-height: 60px;
-  /* color */
+
+  /* 品牌强调色：主题 store 会同步覆盖 Naive UI primary 色 */
+  --color-primary: #2897ff;
+  --color-primary-hover: #4eaaff;
+  --color-text-primary: #2897ff;
+  --color-text-primary-hover: #1e6edc;
+}
+
+:root,
+:root[data-theme="light"] {
+  /* 浅色主题文字 */
   --color-text-default: #000;
   --color-text-track: #ddd;
   --color-text-track-hover: #ffffff;
-  --color-text-primary: #2897ff;
-  --color-text-primary-hover: #1e6edc;
   --color-text-secondary: #666;
   --color-text-third: #999;
-  --color-bg-track: linear-gradient(#EDE0FC,#f5f5f5);
+
+  /* 浅色主题背景 */
+  --color-bg-track: linear-gradient(#edf4ff, #f7fbff 42%, #f5f5f5);
   --color-bg-default: #fff;
   --color-bg-active: #dadada;
   --color-bg-secondary: #f5f5f5;
-  --color-primary: #2897ff;
+  --color-bg-hover: #eee;
+  --color-setting-hover: rgba(40, 151, 255, 0.06);
+  --color-card-bg: rgba(255, 255, 255, 0.86);
+  --color-player-bar-bg: rgba(255, 255, 255, 0.92);
+  --color-player-bar-border: rgba(16, 24, 40, 0.08);
+  --color-slider-rail: #d6e3ee;
+
+  /* 浅色主题辅助色 */
   --color-secondary: #999;
   --color-border-default: #e8e8e8;
-  --color-bg-hover:#eee;
 }
 
-.night {
-  /* color */
+:root[data-theme="dark"] {
+  /* 深色主题文字 */
   --color-text-default: #fff;
-  --color-text-track: #ddd;
+  --color-text-track: #aeb7c5;
   --color-text-track-hover: #ffffff;
-  --color-text-secondary: #999;
-  --color-bg-default: #1f1f1f;
-  --color-bg-secondary: #141414;
-  --color-border-default: #303030;
-  --color-bg-hover:#2a2a2a;
+  --color-text-secondary: #a3a9b5;
+  --color-text-third: #7f8794;
+
+  /* 深色主题背景，--color-bg-track 用于侧栏/应用轨道 */
+  --color-bg-track: linear-gradient(#121826, #151b2b 48%, #10131d);
+  --color-bg-default: #171b24;
+  --color-bg-active: #242b38;
+  --color-bg-secondary: #0f131b;
+  --color-bg-hover: #222a36;
+  --color-setting-hover: rgba(40, 151, 255, 0.11);
+  --color-card-bg: rgba(23, 27, 36, 0.82);
+  --color-player-bar-bg: rgba(18, 23, 32, 0.94);
+  --color-player-bar-border: rgba(255, 255, 255, 0.08);
+  --color-slider-rail: #303b4d;
+
+  /* 深色主题辅助色 */
+  --color-secondary: #8b94a3;
+  --color-border-default: #2c3442;
+}
+
+:root:not([data-theme]) {
+  color-scheme: light;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 

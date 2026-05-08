@@ -1,44 +1,27 @@
 <template>
   <n-space vertical>
-    <n-layout has-sider style="height: 100vh; padding-bottom: 80px;background: var(--color-bg-track);">
-      <n-layout-sider style="margin: 1rem;background: transparent;" bordered collapse-mode="width" :collapsed-width="64"
-        :width="240" :collapsed="collapsed" show-trigger @collapse="collapsed = true" @expand="collapsed = false">
-        <div class="img-container">
-          <n-image :src="logo" class="logo-img" :style="{
-            height: collapsed ? '56px' : '160px',
-            width: collapsed ? '56px' : '160px',
-          }" />
+    <n-layout has-sider class="app-shell">
+      <n-layout-sider
+        class="app-sider"
+        bordered
+        collapse-mode="width"
+        :collapsed-width="72"
+        :width="216"
+        :collapsed="collapsed"
+        show-trigger
+        @collapse="collapsed = true"
+        @expand="collapsed = false">
+        <div class="brand-container" :class="{ collapsed }">
+          <n-image :src="logo" preview-disabled class="brand-logo" />
+          <span v-if="!collapsed" class="brand-title">PisaMusic</span>
         </div>
-        <n-menu :collapsed="collapsed" :collapsed-width="64" :collapsed-icon-size="22" :options="menuOptions"
-          v-model:value="activeTab" v-on:update-value="handleChangeMenu" />
-        <div :style="{ padding: collapsed ? '0' : '8px 18px 0 32px' }">
-          <n-tabs type="bar" animated size="small">
-            <template #prefix>
-              <n-button circle size="small" text title="刷新歌单" @click="handleRefresh">
-                <n-icon :component="RefreshIcon" />
-              </n-button>
-            </template>
-            <template #suffix v-if="!collapsed">
-              <n-button circle size="small" text title="添加歌单">
-                <n-icon :component="AddOutline" />
-              </n-button>
-            </template>
-            <n-tab-pane name="create" tab="自建歌单">
-              <div v-for="i in createdList" @click="handleClickPlaylist(i)">
-                <PlaylistList :key="i.id" :list="i" :hideText="collapsed" :title="i.name"
-                  :active="$route.query.ownList == '1' && $route.query.id == i.id">
-                </PlaylistList>
-              </div>
-            </n-tab-pane>
-            <n-tab-pane name="collect" tab="收藏歌单">
-              <div v-for="i in collectList" @click="handleClickPlaylist(i)">
-                <PlaylistList :key="i.id" :list="i" :hideText="collapsed" :title="i.name"
-                  :active="$route.query.ownList == '1' && $route.query.id == i.id">
-                </PlaylistList>
-              </div>
-            </n-tab-pane>
-          </n-tabs>
-        </div>
+        <n-menu
+          v-model:value="activeTab"
+          :collapsed="collapsed"
+          :collapsed-width="72"
+          :collapsed-icon-size="22"
+          :options="menuOptions"
+          @update:value="handleChangeMenu" />
       </n-layout-sider>
       <n-layout>
         <div class="right-content">
@@ -53,210 +36,92 @@
 </template>
 
 <script setup lang="ts">
-import { NMenu, NLayout, NLayoutSider, NSpace, type MenuOption, NTabs, NTabPane } from 'naive-ui';
-import { computed, h, onMounted, ref, watch, type VNodeChild } from 'vue';
-import { Header } from '../components';
-import { NeteaseIcon, RefreshIcon } from '../icons';
-import { useRouter } from 'vue-router';
-import { AddOutline } from '@vicons/ionicons5';
-import { PlaylistList } from '../components/playList';
-import logo from "@/assets/logo-circle.png"
-import { proxyAPI } from '@/utils/api/proxyAPI';
-import { debounce, getKgImage, renderIcon } from '@/utils/common';
-import electronAPI from '@/utils/electron';
-const router = useRouter()
-const collapsed = ref(false)
-const activeTab = ref('home')
+import { computed, h, ref, watch, type Component } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { NIcon, NImage, NLayout, NLayoutSider, NMenu, NSpace, type MenuOption } from "naive-ui";
+import {
+  Download,
+  Heart,
+  Home,
+  ListMusic,
+  Settings,
+  UserRound,
+  Wrench,
+} from "lucide-vue-next";
+import { Header } from "../components";
+import logo from "@/assets/pisamusic_icon_1024.png";
 
-const atab = computed(() => {
-  return router.currentRoute.value.query.activeTab as string
-})
+const router = useRouter();
+const route = useRoute();
+const collapsed = ref(false);
 
-watch(() => atab.value, (val) => {
-  activeTab.value = val
-})
+const routeToMenuKey = (path: string) => {
+  if (path.startsWith("/playlist")) return "playlist";
+  if (path.startsWith("/favorite")) return "favorite";
+  if (path.startsWith("/mine")) return "mine";
+  if (path.startsWith("/local-download")) return "local-download";
+  if (path.startsWith("/setting")) return "setting";
+  if (path.startsWith("/debugger")) return "debugger";
+  return "home";
+};
 
-const WYUserPlaylist = ref<{
-  label: string,
-  key: string,
-  info: {
-    id: string,
-    name: string,
-    cover: string
+const activeTab = ref(routeToMenuKey(route.path));
+
+const menuOptions = computed<MenuOption[]>(() => {
+  const items: MenuOption[] = [
+    { label: "首页", key: "home", icon: renderMenuIcon(Home) },
+    { label: "歌单", key: "playlist", icon: renderMenuIcon(ListMusic) },
+    { label: "收藏", key: "favorite", icon: renderMenuIcon(Heart) },
+    { label: "我的", key: "mine", icon: renderMenuIcon(UserRound) },
+    { label: "本地与下载", key: "local-download", icon: renderMenuIcon(Download) },
+    { label: "设置", key: "setting", icon: renderMenuIcon(Settings) },
+  ];
+
+  if (process.env.NODE_ENV === "development") {
+    items.push({ label: "dev page", key: "debugger", icon: renderMenuIcon(Wrench) });
   }
-  icon: (() => VNodeChild) | undefined
-}[]>([])
 
+  return items;
+});
 
-const menuOptions: MenuOption[] = [
-  {
-    label: '首页',
-    key: 'home',
-    icon: () => h("span", "🍕")
+watch(
+  () => route.path,
+  (path) => {
+    activeTab.value = routeToMenuKey(path);
   },
-  {
-    label: '歌单',
-    key: 'playlist',
-    icon: () => h("span", "🎵"),
-  },
-  {
-    label: '我的',
-    key: 'mine',
-    icon: () => h("span", "🕹️"),
-    children: [
-      {
-        label: '歌曲收藏',
-        key: 'mine/collectSongs',
-        icon: () => h("span", "❤️")
-      },
-      {
-        label: '歌单收藏',
-        key: 'mine/collectPlaylists',
-        icon: () => h("span", "🎶")
-      },
-      {
-        label: '最近下载',
-        key: 'mine/download',
-        icon: () => h("span", "💾")
-      },
-    ]
-  },
-  {
-    label: 'Netease',
-    key: 'about',
-    icon: renderIcon(NeteaseIcon, { style: { fontSize: '20px', color: "red" } }),
-    children: WYUserPlaylist.value
-  },
-  {
-    label: '设置',
-    key: 'setting',
-    icon: () => h("span", "⚙️")
-  }
-]
+  { immediate: true }
+);
 
-if(process.env.NODE_ENV == 'development'){
-  menuOptions.push({
-    label: 'dev page',
-    key: 'debugger',
-    icon: () => h("span", "🔍")
-  })
+function handleChangeMenu(key: string) {
+  const pathMap: Record<string, string> = {
+    home: "/",
+    playlist: "/playlist",
+    favorite: "/favorite",
+    mine: "/mine",
+    "local-download": "/local-download",
+    setting: "/setting",
+    debugger: "/debugger",
+  };
+  router.push(pathMap[key] || "/");
 }
 
-const handleChangeMenu = (key: string) => {
-  console.log(key)
-  if (key.startsWith('wylist')) {
-    router.push({
-      path: `/playlist/detail`, query: {
-        id: key.split('wylist')[1],
-        ownList: '0',
-        origin: 'wy'
-      }
-    })
-    return;
-  }
-  if (key == 'home') {
-    router.push({ path: '/', query: { activeTab: key } })
-    return;
-  }
-  router.push({ path: `/${key}`, query: { activeTab: key } })
+function renderMenuIcon(icon: Component) {
+  return () => h(NIcon, null, { default: () => h(icon) });
 }
-
-// 歌单
-const collectList = ref<{
-  id: string,
-  name: string,
-  cover: string
-}[]>([])
-
-const createdList = ref<{
-  id: string,
-  name: string,
-  cover: string
-}[]>([])
-
-const handleRefresh = debounce(async () => { 
- 
-  fetchCollectList()
-}, 500)
-
-// kg
-const fetchCollectList = async () => {
-  try {
-    const res = await proxyAPI.kg?.userPlayList();
-    if (res?.status == 1) {
-      collectList.value = res.data.info.filter(i => i.list_create_userid != res.data.userid)
-        .map(i => {
-          return {
-            id: i.global_collection_id,
-            name: i.name,
-            cover: getKgImage(i.pic, 120)
-          }
-        })
-      createdList.value = res.data.info
-        .filter(i => i.list_create_userid == res.data.userid)
-        .map(i => {
-          return {
-            id: i.global_collection_id,
-            name: i.name,
-            cover: getKgImage(i.pic, 120)
-          }
-        })
-    } else {
-      collectList.value = []
-      createdList.value = []
-    }
-  } catch (error: any) {
-    electronAPI.log(error.message)
-    collectList.value = []
-  }
-}
-
-const handleClickPlaylist = (list: { id: string, name: string, cover: string }) => {
-  router.push({ path: `/playlist/detail`, query: { id: list.id, ownList: '1', origin: 'kg' } })
-}
-
-// wy
-const fetchWYUserPlaylist = async () => {
-  try {
-    let uid = localStorage.getItem("wyuid") as string
-    if (!uid) {
-      const res = await proxyAPI.wy?.userAccount();
-      uid = res?.account.id.toString() || "";
-      localStorage.setItem("wyuid", uid);
-    }
-    const res = await proxyAPI.wy?.userPlaylist({
-      uid: localStorage.getItem("wyuid") as string
-    })
-    res?.playlist.forEach(i => {
-      WYUserPlaylist.value.push({
-        label: i.name,
-        key: 'wylist' + i.id.toString(),
-        info: {
-          id: i.id.toString(),
-          name: i.name,
-          cover: i.coverImgUrl
-        },
-        icon: () => h("img", { src: i.coverImgUrl, style: { "border-radius": "4px" } })
-      })
-    })
-  } catch (error: any) {
-    window.$notification.error({
-      title: "获取歌单失败",
-      content: "请检查网络:" + error.message
-    })
-  }
-}
-let t:NodeJS.Timeout;
-onMounted(() => {
-  if(t) clearTimeout(t);
-  t = setTimeout(() => {
-    fetchCollectList()
-    fetchWYUserPlaylist()
-  }, 1000)
-})
 </script>
 
 <style lang="scss" scoped>
+.app-shell {
+  height: 100vh;
+  padding-bottom: 80px;
+  background: var(--color-bg-track);
+}
+
+.app-sider {
+  margin: 1rem;
+  background: transparent;
+}
+
 .right-content {
   height: calc(100vh - 80px);
   background: var(--color-bg-track);
@@ -275,27 +140,35 @@ onMounted(() => {
   }
 }
 
-.img-container {
+.brand-container {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
+  gap: 10px;
+  height: 72px;
+  padding: 0 20px;
   -webkit-app-region: drag;
 
-  .logo-img {
-
-    margin: 0 auto;
-    border-radius: 50%;
-    transition: all 0.3s ease-in-out;
-
-    &:hover {
-      cursor: pointer;
-    }
+  &.collapsed {
+    justify-content: center;
+    padding: 0;
   }
-}
 
-:deep(.n-menu-item-content .n-menu-item-content--selected) {
-  border-radius: 8px;
-  background-color: var(--color-primary);
-  overflow: hidden;
+  .brand-logo {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border-radius: 12px;
+    transition: all 0.3s ease-in-out;
+  }
+
+  .brand-title {
+    color: #2f343d;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
 }
 </style>

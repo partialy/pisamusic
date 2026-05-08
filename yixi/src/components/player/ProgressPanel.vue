@@ -28,7 +28,7 @@ import { useAudioStore } from "@/store";
 import { formatDuration } from "@/utils/common";
 import { NSlider, NImage } from "naive-ui";
 import { storeToRefs } from "pinia";
-import logo from "@/assets/logo-circle.png";
+import logo from "@/assets/pisamusic_icon_1024.png";
 const player = useAudioStore();
 const { currentTime, duration } = storeToRefs(player);
 

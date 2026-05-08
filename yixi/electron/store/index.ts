@@ -38,11 +38,6 @@ interface AppStoreSchema {
   cache: Record<string, any>;
 }
 
-interface CollectStoreSchema {
-  songs: Record<string, any>;
-  playlists: Record<string, any>;
-}
-
 const defaultSettings: AppStoreSchema = {
   // 默认值（推荐配置，避免读取未定义属性）
   appConfig: {
@@ -89,16 +84,4 @@ const appStore = new Store<AppStoreSchema>({
   watch: true,
 });
 
-const collectStore = new Store<CollectStoreSchema>({
-  name: "collect-settings",
-  defaults: {
-    songs: {},
-    playlists: {},
-  },
-  cwd: path.join(app.getPath("userData"), "store"),
-  encryptionKey: "partialy",
-  clearInvalidConfig: true,
-  watch: true,
-});
-
-export { appStore, collectStore };
+export { appStore };

@@ -1,9 +1,7 @@
 import { ipcMain } from "electron";
-import { existsSync, readFileSync } from "fs";
 import { logger } from "./logger";
 import fs from "fs";
 import path from "path";
-import { collectStore } from "../store";
 import { getLegacyDataPath, getLogPath } from "../core/appPaths";
 import { getRuntimeEndpointsCached, getSystemBaseUrl } from "../system/systemClient";
 
@@ -98,115 +96,4 @@ export async function setupFileIpc(_win: Electron.BrowserWindow) {
     }
   });
 
-  // 收藏功能
-  ipcMain.handle(
-    "readFile",
-    async (
-      _,
-      params: {
-        folder: string;
-        filename: string;
-        dataType: "object" | "list";
-      }
-    ) => {
-      try {
-        const dir = path.join(getLegacyDataPath(), params.folder);
-        if (!existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        if (!existsSync(path.join(getLegacyDataPath(), params.folder, params.filename))) {
-          fs.writeFileSync(
-            path.join(getLegacyDataPath(), params.folder, params.filename),
-            params.dataType === "object" ? "{}" : "[]"
-          );
-        }
-        const res = readFileSync(
-          path.join(getLegacyDataPath(), params.folder, params.filename),
-          "utf-8"
-        );
-        return {
-          success: true,
-          data: res,
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message,
-        };
-      }
-    }
-  );
-
-  // 写入文件
-  ipcMain.handle(
-    "writeFile",
-    async (
-      _,
-      params: {
-        folder: string;
-        filename: string;
-        data: string;
-      }
-    ) => {
-      try {
-        const dir = path.join(getLegacyDataPath(), params.folder);
-        if (!existsSync(dir)) {
-          fs.mkdirSync(dir, { recursive: true });
-        }
-        fs.writeFileSync(
-          path.join(getLegacyDataPath(), params.folder, params.filename),
-          params.data
-        );
-        return {
-          success: true,
-        };
-      } catch (error: any) {
-        return {
-          success: false,
-          error: error.message,
-        };
-      }
-    }
-  );
-}
-
-export function setupStoreIpc() {
-  // store
-  ipcMain.on("collect-song", (_, song) => {
-    collectStore.set(`songs.${song.id}`, song);
-  });
-
-  ipcMain.on("incollect-song", (_, song) => {
-    collectStore.set(`songs.${song.id}`, song);
-    collectStore.delete(`songs.${song.id}`); // 直接删除
-  });
-
-  ipcMain.handle("collected-songs", () => {
-    const songsObject = collectStore.get("songs");
-    // 使用 Object.values 获取对象的所有值
-    return Object.values(songsObject || {});
-  });
-
-  ipcMain.on("remove-song", (_, song) => {
-    collectStore.delete(`songs.${song.id}`);
-  });
-
-  // --- playlists 相关 ---
-  ipcMain.on("collect-list", (_, list) => {
-    collectStore.set(`playlists.${list.id}`, list);
-  });
-
-  ipcMain.on("incollect-list", (_, list) => {
-    collectStore.delete(`playlists.${list.id}`);
-  });
-
-  ipcMain.handle("collected-lists", () => {
-    const playlistsObject = collectStore.get("playlists");
-    // 使用 Object.values 获取对象的所有值
-    return Object.values(playlistsObject || {});
-  });
-
-  ipcMain.on("remove-list", (_, list) => {
-    collectStore.delete(`playlists.${list.id}`);
-  });
 }

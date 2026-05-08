@@ -1,7 +1,7 @@
 export default {
   appId: "cn.partialy.pmdesk",
-  productName: "Pisa\sMusic",
-  icon: "public/logo-64.png",
+  productName: "PisaMusic",
+  icon: "public/pisamusic_icon_1024.png",
   directories: {
     output: "app",
     app: "."

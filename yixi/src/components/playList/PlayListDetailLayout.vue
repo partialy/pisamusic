@@ -26,7 +26,7 @@
               style="margin-right: 8px">{{
               item.name }}</n-tag>
           </div>
-          <div class="operate-btn" ref="operateBtn">
+          <div class="operate-btn">
             <div>
               <n-button round type="primary" :loading="moreLoading" style="background-color: var(--color-primary)"
                 @click="playAll">
@@ -40,11 +40,11 @@
                   margin-left: 10px;
                 " @click="collector.collectList(listDetail)">
                 <template #icon>
-                  <n-icon :component="CollectIcon" :color="playlistMap.has(listDetail?.id || '') ? 'red' : 'white'
+                  <n-icon :component="CollectIcon" :color="collector.containsPlaylist(listDetail) ? 'red' : 'white'
                     "></n-icon>
                 </template>
                 {{
-                  playlistMap.has(listDetail?.id || "") ? "取消收藏" : "收藏"
+                  collector.containsPlaylist(listDetail) ? "取消收藏" : "收藏"
                 }}
               </n-button>
             </div>
@@ -119,11 +119,9 @@ import type { WYPlaylistDetail } from "@/utils/webapi";
 import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
 
 import { SongList } from "..";
-import { storeToRefs } from "pinia";
 
 const player = useAudioStore();
 const collector = useCollectStore();
-const { playlistMap } = storeToRefs(collector);
 const message = useMessage();
 const route = useRoute();
 let id = route.query.id;
@@ -314,8 +312,6 @@ onMounted(async () => {
 });
 
 const isMini = ref(false);
-const operateBtn = ref<HTMLElement | null>(null);
-
 // 列表滚动
 const onScroll = (event: Event) => {
   const container = event.target as HTMLElement;

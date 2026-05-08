@@ -10,18 +10,6 @@ type WindowLyricSetting = {
   fontWeight: number;
 };
 
-const collectStoreIpc = {
-  collectSong: (song: any) => ipcRenderer.send("collect-song", song),
-  inCollectSong: (song: any) => ipcRenderer.send("incollect-song", song),
-  removeSong: (song: any) => ipcRenderer.send("remove-song", song),
-  collectedSongs: (): any[] => ipcRenderer.invoke("collected-songs"),
-
-  collectList: (list: any) => ipcRenderer.send("collect-list", list),
-  inCollectList: (list: any) => ipcRenderer.send("incollect-list", list),
-  removeList: (list: any) => ipcRenderer.send("remove-list", list),
-  collectedLists: (): any[] => ipcRenderer.invoke("collected-lists"),
-};
-
 const windowIpc = {
   // 窗口控制
   minimizeWindow: () => ipcRenderer.send("minimize-window"),
@@ -71,11 +59,6 @@ const fileIpc = {
   // 读取日志
   getLogs: (date: Date) => ipcRenderer.invoke("get-logs", date),
 
-  readFile: (params: { filename: string; folder: string }) =>
-    ipcRenderer.invoke("readFile", params),
-
-  writeFile: (params: { filename: string; folder: string; data: string }) =>
-    ipcRenderer.invoke("writeFile", params),
 };
 
 const lyricIpc = {
@@ -146,6 +129,31 @@ const libraryIpc = {
   getQueueSnapshot: () => ipcRenderer.invoke("library:queue-snapshot:get"),
   saveQueueSnapshot: (snapshot: { currentIndex: number; queue: any[] }) =>
     ipcRenderer.invoke("library:queue-snapshot:save", snapshot),
+  listFavoriteSongs: () => ipcRenderer.invoke("library:favorites:songs:list"),
+  addFavoriteSong: (track: any) =>
+    ipcRenderer.invoke("library:favorites:songs:add", cloneIpcPayload(track)),
+  removeFavoriteSong: (payload: { source: string; id: string }) =>
+    ipcRenderer.invoke("library:favorites:songs:remove", payload),
+  toggleFavoriteSong: (track: any) =>
+    ipcRenderer.invoke("library:favorites:songs:toggle", cloneIpcPayload(track)),
+  containsFavoriteSong: (payload: { source: string; id: string }) =>
+    ipcRenderer.invoke("library:favorites:songs:contains", payload),
+  listFavoritePlaylists: () =>
+    ipcRenderer.invoke("library:favorites:playlists:list"),
+  addFavoritePlaylist: (playlist: any) =>
+    ipcRenderer.invoke("library:favorites:playlists:add", cloneIpcPayload(playlist)),
+  removeFavoritePlaylist: (payload: { source: string; id: string }) =>
+    ipcRenderer.invoke("library:favorites:playlists:remove", payload),
+  toggleFavoritePlaylist: (playlist: any) =>
+    ipcRenderer.invoke("library:favorites:playlists:toggle", cloneIpcPayload(playlist)),
+  containsFavoritePlaylist: (payload: { source: string; id: string }) =>
+    ipcRenderer.invoke("library:favorites:playlists:contains", payload),
+  onFavoritesChanged: (callback: () => void) => {
+    ipcRenderer.on("favorites:changed", callback);
+    return () => {
+      ipcRenderer.removeListener("favorites:changed", callback);
+    };
+  },
 };
 
 const systemIpc = {
@@ -233,9 +241,13 @@ const otherIpc = {
   getElectronConfig: () => ipcRenderer.invoke("get-electron-config"),
 };
 
+function cloneIpcPayload<T>(payload: T): T {
+  if (payload === undefined || payload === null) return payload;
+  return JSON.parse(JSON.stringify(payload));
+}
+
 // 暴露给渲染进程的API
 contextBridge.exposeInMainWorld("electronAPI", {
-  ...collectStoreIpc,
   ...windowIpc,
   ...fileIpc,
   ...lyricIpc,

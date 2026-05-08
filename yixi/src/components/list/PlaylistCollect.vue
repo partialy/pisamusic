@@ -2,7 +2,7 @@
   <div class="recommend-playlist">
     <KGRecommendPlaylist
       v-for="i in playlist"
-      :key="i.id"
+      :key="`${i.source}:${i.id}`"
       :item="i"
       @contextmenu.stop="
         contextMenu?.openContextMenu($event, {

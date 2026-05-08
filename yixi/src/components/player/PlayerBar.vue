@@ -45,7 +45,10 @@
       </n-dropdown>
       <n-button quaternary title="桌面歌词" circle @click="handleDesktopLyric">
         <template #icon>
-          <n-icon :component="LyricIcon" :color="desktop ? 'var(--color-primary)':'#000'" size="24px"></n-icon>
+          <n-icon
+            :component="LyricIcon"
+            :color="desktop ? 'var(--color-primary)' : 'var(--color-text-secondary)'"
+            size="24px"></n-icon>
         </template>
       </n-button>
       <!-- 音量 -->
@@ -73,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import logo from "@/assets/logo-circle.png"
+import logo from "@/assets/pisamusic_icon_1024.png"
 import {
   NSlider,
   NImage,
@@ -286,7 +289,11 @@ watch(
   height: 80px;
   display: flex;
   align-items: center;
-  background-color: #fefefe;
+  color: var(--color-text-default);
+  background: var(--color-player-bar-bg);
+  border-top: 1px solid var(--color-player-bar-border);
+  box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
 
   .left,
   .right {
@@ -328,6 +335,7 @@ watch(
     .title {
       height: 28px;
       line-height: 28px;
+      color: var(--color-text-default);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -343,7 +351,7 @@ watch(
       height: 28px;
       line-height: 28px;
       font-size: 16px;
-      color: #666;
+      color: var(--color-text-secondary);
     }
   }
 
@@ -354,13 +362,21 @@ watch(
 
     .time {
       font-size: 14px;
-      color: #666;
+      color: var(--color-text-secondary);
+    }
+  }
+
+  :deep(.n-button) {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-primary);
     }
   }
 }
 
 :deep(.slider.n-slider .n-slider-rail) {
-  background: #cddadd;
+  background: var(--color-slider-rail);
   height: 5px;
   transition: all 0.2s ease-in-out;
   // transform-origin: center;
@@ -380,6 +396,6 @@ watch(
 }
 
 :deep(.n-slider .n-slider-rail .n-slider-rail__fill) {
-  background: rgb(58, 183, 255);
+  background: var(--color-primary);
 }
 </style>

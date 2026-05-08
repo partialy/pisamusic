@@ -12,7 +12,7 @@
         </div>
         <div class="duration">
             <span class="duration-text">{{ formatDuration(item.duration) }}</span>
-            <n-button text circle class="collect-btn" @click="collector.collectSong(props.item)" :style="{ color: songMap.has(item.id) ? 'red' : '#666' }" >
+            <n-button text circle class="collect-btn" @click="collector.collectSong(props.item)" :style="{ color: collector.containsSong(item) ? 'red' : '#666' }" >
                 <n-icon size="22" :component="CollectIcon"></n-icon>
             </n-button>
                 <n-button text circle @click="deleteSong" title="删除" class="delete-btn">
@@ -30,10 +30,8 @@ import { computed } from 'vue';
 import { formatDuration, getKgImage } from '@/utils/common';
 import { useAudioStore, useCollectStore } from '@/store';
 import type { Song } from '@/types/song';
-import { storeToRefs } from 'pinia';
 
 const collector = useCollectStore()
-const { songMap } = storeToRefs(collector)
 const player = useAudioStore()
 const props = defineProps<{
     item: Song,

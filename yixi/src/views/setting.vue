@@ -1,6 +1,6 @@
 <template>
   <div class="setting-con">
-    <n-tabs :v-model:value="activeName" type="line" animated>
+    <n-tabs v-model:value="activeName" type="line" animated>
       <n-tab-pane name="basic" tab="基本设置">
         <BasicSetting></BasicSetting>
       </n-tab-pane>
@@ -34,5 +34,7 @@ const activeName = ref("basic");
 }
 :deep(.n-tab-pane) {
   flex: 1;
+  overflow: auto;
+  padding-right: 8px;
 }
 </style>

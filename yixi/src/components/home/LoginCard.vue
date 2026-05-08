@@ -3,7 +3,7 @@
         <n-tabs default-value="login" animated type="card">
             <template #prefix>
                 <n-image :src="logo" preview-disabled class="login-logo" />
-                <span class="login-title">Pisa Music</span>
+                <span class="login-title">PisaMusic</span>
             </template>
             <n-tab-pane name="login" label="登录">
                 <n-form :model="loginForm">
@@ -61,7 +61,7 @@
 import { ArrowForward } from "@vicons/ionicons5";
 import { reactive, ref } from "vue";
 import { NCard, NTabs, NCheckbox } from "naive-ui";
-import logo from "@/assets/logo-circle.png";
+import logo from "@/assets/pisamusic_icon_1024.png";
 import { mainAPI } from "@/utils/api/mainAPI";
 import { useUserStore } from "@/store";
 const userStore = useUserStore();

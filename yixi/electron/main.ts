@@ -11,14 +11,13 @@ import {
   Tray,
   type BrowserWindowConstructorOptions,
 } from "electron";
-const { ipcRenderer } = require("electron");
 import path, { dirname, join } from "path";
-import { setupFileIpc, ipcMainEventHandle, setupStoreIpc } from "./utils/operationBridge";
+import { setupFileIpc, ipcMainEventHandle } from "./utils/operationBridge";
 import { fileURLToPath } from "url";
 import { logger } from "./utils/logger";
 import { existsSync, mkdirSync, readFileSync, writeFile } from "fs";
-import { appStore, collectStore } from "./store";
-import { closeAppDatabase } from "./database";
+import { appStore } from "./store";
+import { closeAppDatabase, getAppDatabase } from "./database";
 import { setupMusicApiIpc } from "./ipc/musicIpc";
 import { setupPersistenceIpc } from "./ipc/persistenceIpc";
 import { setupSystemIpc } from "./ipc/systemIpc";
@@ -59,7 +58,7 @@ let AMLrc: Array<any> = [];
 let AMKrc: Array<any> = [];
 // 托盘
 let tray: Tray | null = null;
-const iconPath = path.join(__dirname, "../../public/tray", "logo-32.png");
+const iconPath = path.join(__dirname, "../../public/pisamusic_icon_1024.png");
 
 try {
   // const isProd = process.env.NODE_ENV === "production";
@@ -77,6 +76,7 @@ try {
   const preloadPath = join(__dirname, "../preload", "index.cjs");
   function createWindow() {
     mainWindow = new BrowserWindow({
+      icon: iconPath,
       minWidth: 1200,
       minHeight: 800,
       frame: false,
@@ -176,9 +176,8 @@ try {
     setupSystemIpc();
     setupMusicApiIpc();
     setupPersistenceIpc();
-    setupStoreIpc();
     createWindow();
-    tray = new Tray(iconPath);
+    tray = new Tray(nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 }));
     tray.on("click", () => {
       if (mainWindow) {
         if (mainWindow.isVisible()) {
@@ -236,13 +235,14 @@ const getTrayIcon = (name: string) => {
 function refreshMenu() {
   let playingText = `${currentSong?.name} - ${currentSong?.singer}`;
   let rawText = `${currentSong?.name} - ${currentSong?.singer}`
+  const currentCollected = isCurrentSongFavorite();
   if (playingText.length > 20) {
     playingText = playingText.substring(0, 20) + "...";
   }
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: currentSong ? playingText : "Pisa Music",
+      label: currentSong ? playingText : "PisaMusic",
       icon: getTrayIcon("music"),
       click: () => {
         if (mainWindow) {
@@ -252,15 +252,12 @@ function refreshMenu() {
       },
     },
     {
-      label: ((currentSong?.id || "-99") in collectStore.get("songs")) ? "取消收藏" : "加入收藏",
-      icon: getTrayIcon(((currentSong?.id || "-99") in collectStore.get("songs")) ? "unlove":"love"),
+      label: currentCollected ? "取消收藏" : "加入收藏",
+      icon: getTrayIcon(currentCollected ? "unlove":"love"),
       click: () => {
         if (currentSong) {
-          if (((currentSong?.id || "-99") in collectStore.get("songs"))) {
-            ipcRenderer.send("incollect-song", currentSong);
-          } else {
-            ipcRenderer.send("collect-song", currentSong);
-          }
+          getAppDatabase().toggleFavoriteSong(currentSong);
+          notifyFavoritesChanged();
         }
         refreshMenu();
       },
@@ -316,7 +313,18 @@ function refreshMenu() {
     },
   ]);
   tray?.setContextMenu(contextMenu);
-  tray?.setToolTip(isPlaying ? rawText : "Pisa Music");
+  tray?.setToolTip(isPlaying ? rawText : "PisaMusic");
+}
+
+function isCurrentSongFavorite() {
+  if (!currentSong) return false;
+  return getAppDatabase().containsFavoriteSong(currentSong.source, currentSong.id);
+}
+
+function notifyFavoritesChanged() {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send("favorites:changed");
+  });
 }
 function setupMusicIpc() {
   ipcMain.on("change-current-song", (_, song) => {
@@ -444,7 +452,7 @@ function createLyricsWindow() {
     skipTaskbar: false,
     // 窗口不能进入全屏状态
     fullscreenable: false,
-    title: "Pisa Musc桌面歌词",
+    title: "PisaMusic 桌面歌词",
   });
   // 渲染路径
   lyricWindow.loadFile(path.join(__dirname, "./web/lyric-window.html"));
@@ -518,7 +526,8 @@ function createWindow(
   options: BrowserWindowConstructorOptions = {}
 ): BrowserWindow {
   const defaultOptions: BrowserWindowConstructorOptions = {
-    title: "Pisa Music",
+    title: "PisaMusic",
+    icon: iconPath,
     width: 1280,
     height: 720,
     frame: true,

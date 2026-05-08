@@ -1,5 +1,7 @@
 <template>
-  <n-config-provider :theme="theme">
+  <n-config-provider
+    :theme="themeStore.naiveTheme"
+    :theme-overrides="themeStore.naiveThemeOverrides">
     <n-notification-provider>
       <n-message-provider>
         <n-modal-provider>
@@ -23,12 +25,9 @@ import {
   NConfigProvider,
   NNotificationProvider,
   NModalProvider,
-  type GlobalTheme,
-  lightTheme,
-  darkTheme,
   NMessageProvider,
 } from "naive-ui";
-import { onBeforeUnmount, ref, Transition, watch } from "vue";
+import { onBeforeUnmount, Transition, watch } from "vue";
 import { PlayerBar, MainPlayer } from "./components";
 import {
   useCommonStore,
@@ -36,6 +35,7 @@ import {
   useAudioStore,
   useLyricStore,
   useRuntimeConfigStore,
+  useThemeStore,
 } from "./store";
 import { storeToRefs } from "pinia";
 import {
@@ -51,17 +51,15 @@ const commonStore = useCommonStore();
 const collector = useCollectStore();
 const lyric = useLyricStore();
 const runtimeConfig = useRuntimeConfigStore();
+const themeStore = useThemeStore();
 // 初始化
 commonStore.hidePlayer();
 runtimeConfig.refresh();
 collector.initStore();
 lyric.loadSetting();
+themeStore.init();
 
 const { showPlayer } = storeToRefs(commonStore);
-const theme = ref<GlobalTheme | null>(lightTheme);
-
-theme.value =
-  localStorage.getItem("pisa-theme") != "dark" ? lightTheme : darkTheme;
 
 async function setupListeners() {
   const { currentTime, currentSong } = storeToRefs(player);
@@ -142,6 +140,7 @@ setupAutoSaver();
 onBeforeUnmount(() => {
   player.saveState();
   collector.save();
+  themeStore.dispose();
   clearInterval(t);
 });
 </script>

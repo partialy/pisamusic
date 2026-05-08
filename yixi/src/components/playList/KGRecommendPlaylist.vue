@@ -12,6 +12,22 @@
           lazy
           :src="cover" />
       </div>
+      <div class="playlist-source-badge" v-if="showIcon">
+        {{ props.item.source.toUpperCase() }}
+      </div>
+      <n-button
+        v-if="showIcon"
+        class="playlist-favorite-btn"
+        quaternary
+        circle
+        :title="isCollected ? '取消收藏' : '收藏'"
+        @click.stop="toggleCollect">
+        <template #icon>
+          <n-icon
+            :component="Heart"
+            :color="isCollected ? '#ff5c67' : '#6d7684'" />
+        </template>
+      </n-button>
 
       <transition
         name="play-icon"
@@ -46,8 +62,11 @@ import { PlaylistPlayIcon } from "@/icons";
 import { getKgImage } from "@/utils/common";
 import { useRouter } from "vue-router";
 import type { CommonPlaylist } from "@/types/song";
+import { Heart } from "lucide-vue-next";
+import { useCollectStore } from "@/store/collect";
 const router = useRouter();
 const showIcon = ref(false);
+const collector = useCollectStore();
 
 const cover = computed(() => {
   if(props.item.source == "kg") {
@@ -70,11 +89,18 @@ const playCount = computed(() => {
   return w.toFixed(2) + "万";
 });
 
+const isCollected = computed(() => collector.containsPlaylist(props.item));
+
 const handleClick = () => {
   router.push({
     path: "/playlist/detail",
     query: { id: props.item.id, origin: props.item.source },
   });
+};
+
+const toggleCollect = (event: MouseEvent) => {
+  event.stopPropagation();
+  void collector.collectList(props.item);
 };
 </script>
 
@@ -166,6 +192,52 @@ const handleClick = () => {
     font-weight: 600;
     z-index: 10;
     font-size: 14px;
+  }
+
+  .playlist-source-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 20;
+    min-width: 42px;
+    height: 28px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+    background: rgba(15, 23, 42, 0.48);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(12px);
+  }
+
+  .playlist-favorite-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 20;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    color: #6d7684;
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+    backdrop-filter: blur(12px);
+    opacity: 0.92;
+    transition:
+      transform 0.2s ease,
+      opacity 0.2s ease,
+      background-color 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px) scale(1.04);
+      opacity: 1;
+      background: #fff;
+    }
   }
 
   .playlist-item-play-icon {

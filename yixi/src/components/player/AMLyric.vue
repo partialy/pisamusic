@@ -4,7 +4,6 @@
       :key="amLyricsData?.[0]?.startTime"
       :class="['lyric-am', { pure: lyricStore.setting.pureLyricMode }]">
       <LyricPlayer
-        ref="lyricPlayerRef"
         :lyricLines="amLyricsData"
         :currentTime="
           Math.round(currentTime * 1000)
@@ -33,15 +32,13 @@
 <script setup lang="ts">
 import { LyricPlayer } from "@applemusic-like-lyrics/vue";
 import type { LyricLine as AMLyricLine } from "@applemusic-like-lyrics/core";
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useLyricStore, useAudioStore } from "@/store";
 
 const lyricStore = useLyricStore();
 const playerStore = useAudioStore();
 const { isPlaying, currentTime } = storeToRefs(playerStore);
-
-const lyricPlayerRef = ref<any | null>(null);
 
 // 当前歌词
 const amLyricsData = computed<AMLyricLine[]>(() => {
