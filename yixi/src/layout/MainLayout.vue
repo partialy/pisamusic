@@ -163,7 +163,7 @@ function renderMenuIcon(icon: Component) {
   }
 
   .brand-title {
-    color: #2f343d;
+    color: var(--color-primary);
     font-size: 24px;
     font-weight: 800;
     line-height: 1;

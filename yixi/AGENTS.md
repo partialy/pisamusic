@@ -27,6 +27,7 @@
 - Naive UI 主题只通过 `NConfigProvider` 绑定 `useThemeStore().naiveTheme` 和 `naiveThemeOverrides`，不要在单个组件里硬编码 Naive UI 默认绿色或重复覆盖 primary token。
 - 项目自有视觉变量集中写在 `src/base.css`，浅色/深色分别使用 `:root[data-theme="light"]` 与 `:root[data-theme="dark"]`；新增变量时写中文注释，方便后续调整颜色。
 - 强调色通过 `--color-primary` 等运行时变量和 Naive UI overrides 同步，新增播放控件、选中态、进度条时优先使用这些变量。
+- 主题背景渐变由 `src/store/theme.ts` 统一管理并写入 `--color-bg-track`；自动背景开启时根据主题色生成，关闭后才允许自定义渐变方向和最多 5 个颜色，不要在组件里直接硬编码应用轨道背景。
 
 本文件用于指导 `yixi/` 桌面端 App 的开发。根目录规则仍然有效；本文件只补充桌面端自己的边界和约定。
 

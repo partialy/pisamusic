@@ -6,10 +6,10 @@
       class="account-card">
       <div class="account-main">
         <div class="account-avatar-wrap">
-          <n-image
+          <img
             class="account-avatar"
             :src="item.avatar || defaultAvatar"
-            preview-disabled />
+            alt="" />
           <div
             class="source-mark"
             :style="{ color: item.color }">
@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { LogInOutline, Refresh, LogOutOutline } from "@vicons/ionicons5";
-import { NButton, NIcon, NImage, NTag } from "naive-ui";
+import { NButton, NIcon, NTag } from "naive-ui";
 import { h, onMounted, ref } from "vue";
 import KGLogin from "./KGLogin.vue";
 import WYLogin from "./WYLogin.vue";
@@ -198,14 +198,10 @@ onMounted(() => {
 .account-avatar {
   width: 62px;
   height: 62px;
+  display: block;
   overflow: hidden;
   border-radius: 50%;
   background: var(--color-bg-secondary);
-}
-
-:deep(.account-avatar img) {
-  width: 100%;
-  height: 100%;
   object-fit: cover;
 }
 

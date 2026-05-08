@@ -14,42 +14,54 @@
             <div class="item-title">使用 AM Lyric</div>
             <div class="item-desc">启用更细腻的歌词动效渲染。</div>
           </div>
-          <n-switch v-model:value="setting.useAMLyric" />
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="setting.useAMLyric" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">逐字歌词</div>
             <div class="item-desc">优先使用 KRC 逐字歌词数据。</div>
           </div>
-          <n-switch v-model:value="setting.useKRC" />
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="setting.useKRC" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">水平居中</div>
             <div class="item-desc">歌词以纯净居中模式显示。</div>
           </div>
-          <n-switch v-model:value="setting.pureLyricMode" />
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="setting.pureLyricMode" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">对齐位置</div>
             <div class="item-desc">0.5 表示垂直居中。</div>
           </div>
-          <n-input-number v-model:value="setting.alignPosition" :min="0" :max="1" :step="0.1" />
+          <div class="setting-control">
+            <n-input-number v-model:value="setting.alignPosition" :min="0" :max="1" :step="0.1" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">放大效果</div>
             <div class="item-desc">当前歌词行获得轻微缩放。</div>
           </div>
-          <n-switch v-model:value="setting.useAMScale" />
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="setting.useAMScale" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">模糊效果</div>
             <div class="item-desc">弱化非当前歌词行。</div>
           </div>
-          <n-switch v-model:value="setting.useAMBlur" />
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="setting.useAMBlur" />
+          </div>
         </div>
       </div>
     </section>
@@ -68,49 +80,63 @@
             <div class="item-title">字体大小</div>
             <div class="item-desc">主播放器歌词字号。</div>
           </div>
-          <n-input-number v-model:value="setting.lyricFontSize" :min="12" :max="60" />
+          <div class="setting-control">
+            <n-input-number v-model:value="setting.lyricFontSize" :min="12" :max="60" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体样式</div>
             <div class="item-desc">选择歌词显示字体。</div>
           </div>
-          <n-select v-model:value="setting.lyricFont" :options="fontFamily" />
+          <div class="setting-control">
+            <n-select v-model:value="setting.lyricFont" :options="fontFamily" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体颜色</div>
             <div class="item-desc">普通歌词行颜色。</div>
           </div>
-          <n-color-picker v-model:value="setting.lyricFontColor" />
+          <div class="setting-control">
+            <n-color-picker v-model:value="setting.lyricFontColor" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">当前行颜色</div>
             <div class="item-desc">非 AM Lyric 模式下生效。</div>
           </div>
-          <n-color-picker v-model:value="setting.currentLyricColor" />
+          <div class="setting-control">
+            <n-color-picker v-model:value="setting.currentLyricColor" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体加粗</div>
             <div class="item-desc">增强歌词可读性。</div>
           </div>
-          <n-switch v-model:value="setting.lyricFontWeight" />
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="setting.lyricFontWeight" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体阴影</div>
             <div class="item-desc">在复杂封面背景下更清晰。</div>
           </div>
-          <n-switch v-model:value="setting.lyricFontShadow" />
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="setting.lyricFontShadow" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体透明度</div>
             <div class="item-desc">范围 0.01 到 1。</div>
           </div>
-          <n-input-number v-model:value="setting.lyricFontOpacity" :step="0.1" :min="0.01" :max="1" />
+          <div class="setting-control">
+            <n-input-number v-model:value="setting.lyricFontOpacity" :step="0.1" :min="0.01" :max="1" />
+          </div>
         </div>
       </div>
     </section>
@@ -121,51 +147,69 @@
           <h3>桌面歌词</h3>
           <p>独立桌面歌词窗口的显示与文字设置。</p>
         </div>
-        <n-switch v-model:value="desktop" @update:value="handleOpenDesktopLyric" />
       </div>
 
       <div class="setting-grid">
         <div class="setting-item">
           <div class="item-info">
+            <div class="item-title">启用桌面歌词</div>
+            <div class="item-desc">打开独立桌面歌词窗口。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="desktop" @update:value="handleOpenDesktopLyric" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
             <div class="item-title">字体颜色</div>
             <div class="item-desc">未播放歌词颜色。</div>
           </div>
-          <n-color-picker v-model:value="desktopLyric.textColor" />
+          <div class="setting-control">
+            <n-color-picker v-model:value="desktopLyric.textColor" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">已播放颜色</div>
             <div class="item-desc">已唱过部分的高亮色。</div>
           </div>
-          <n-color-picker v-model:value="desktopLyric.highlightColor" />
+          <div class="setting-control">
+            <n-color-picker v-model:value="desktopLyric.highlightColor" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体粗细</div>
             <div class="item-desc">范围 500 到 700。</div>
           </div>
-          <n-input-number v-model:value="desktopLyric.fontWeight" :step="100" :min="500" :max="700" />
+          <div class="setting-control">
+            <n-input-number v-model:value="desktopLyric.fontWeight" :step="100" :min="500" :max="700" />
+          </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体大小</div>
             <div class="item-desc">桌面歌词字号。</div>
           </div>
-          <n-input-number
-            v-model:value="desktopLyric.fontSize"
-            :min="desktopLyric.minSize"
-            :max="desktopLyric.maxSize" />
+          <div class="setting-control">
+            <n-input-number
+              v-model:value="desktopLyric.fontSize"
+              :min="desktopLyric.minSize"
+              :max="desktopLyric.maxSize" />
+          </div>
         </div>
-        <div class="setting-item wide">
+        <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体样式</div>
             <div class="item-desc">桌面歌词字体。</div>
           </div>
-          <n-select
-            v-model:value="desktopLyric.fontFamily"
-            :options="fontFamily"
-            value-field="value"
-            label-field="label" />
+          <div class="setting-control">
+            <n-select
+              v-model:value="desktopLyric.fontFamily"
+              :options="fontFamily"
+              value-field="value"
+              label-field="label" />
+          </div>
         </div>
       </div>
     </section>
@@ -238,7 +282,7 @@ const handleOpenDesktopLyric = async (value: boolean) => {
   padding: 18px;
   border: 1px solid var(--color-border-default);
   border-radius: 12px;
-  background: var(--color-card-bg);
+  // background: var(--color-card-bg);
 }
 
 .section-header {
@@ -288,7 +332,9 @@ const handleOpenDesktopLyric = async (value: boolean) => {
 }
 
 .item-info {
+  flex: 1 1 auto;
   min-width: 0;
+  padding-right: 12px;
 }
 
 .item-title {
@@ -303,14 +349,39 @@ const handleOpenDesktopLyric = async (value: boolean) => {
   font-size: 12px;
 }
 
-:deep(.n-input-number),
-:deep(.n-select),
-:deep(.n-color-picker) {
-  width: 180px;
+.setting-control {
+  width: 150px;
   flex-shrink: 0;
 }
 
-.wide :deep(.n-select) {
-  width: 260px;
+.switch-control {
+  width: auto;
+  min-width: 46px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.wide-control {
+  width: min(420px, 42vw);
+}
+
+:deep(.setting-control .n-input-number),
+:deep(.setting-control .n-select),
+:deep(.setting-control .n-color-picker) {
+  width: 100%;
+}
+
+@media (max-width: 1180px) {
+  .setting-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .setting-item.wide {
+    grid-column: auto;
+  }
+
+  .wide-control {
+    width: min(360px, 44vw);
+  }
 }
 </style>

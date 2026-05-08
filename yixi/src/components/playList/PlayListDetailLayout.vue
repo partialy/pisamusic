@@ -446,6 +446,7 @@ watch(
         flex: 1;
         flex-direction: column;
         position: relative;
+        transition: all 0.3s ease-in-out;
 
         .list-intro {
           height: 35%;

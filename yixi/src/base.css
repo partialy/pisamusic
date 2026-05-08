@@ -99,7 +99,7 @@ h6 {
   --color-bg-active: #dadada;
   --color-bg-secondary: #f5f5f5;
   --color-bg-hover: #eee;
-  --color-setting-hover: rgba(40, 151, 255, 0.06);
+  --color-setting-hover: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-default));
   --color-card-bg: rgba(255, 255, 255, 0.86);
   --color-player-bar-bg: rgba(255, 255, 255, 0.92);
   --color-player-bar-border: rgba(16, 24, 40, 0.08);
@@ -124,7 +124,7 @@ h6 {
   --color-bg-active: #242b38;
   --color-bg-secondary: #0f131b;
   --color-bg-hover: #222a36;
-  --color-setting-hover: rgba(40, 151, 255, 0.11);
+  --color-setting-hover: color-mix(in srgb, var(--color-primary) 16%, var(--color-bg-default));
   --color-card-bg: rgba(23, 27, 36, 0.82);
   --color-player-bar-bg: rgba(18, 23, 32, 0.94);
   --color-player-bar-border: rgba(255, 255, 255, 0.08);

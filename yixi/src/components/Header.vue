@@ -30,15 +30,15 @@
           v-model:value="searchText"
           @keyup.enter="handleSearch()"
         >
-          <template #prefix>
+          <!-- <template #prefix>
             <n-select
               :bordered="false"
               style="width: 60px"
               v-model:value="source"
               :options="sourceOptions"
             />
-          </template>
-          <template #suffix>
+          </template> -->
+          <template #prefix>
             <n-icon
               :component="SearchIcon"
               ref="searchBtn"
@@ -116,7 +116,6 @@ import {
   NIcon,
   NAvatar,
   NDropdown,
-  NSelect,
 } from "naive-ui";
 import { useRouter } from "vue-router";
 import {
@@ -174,14 +173,7 @@ const searchFocus = ref(false);
 const searchText = ref("");
 const keywords = ref("");
 const searchInput = ref<HTMLInputElement>();
-
 const source = ref("kg");
-const sourceOptions = [
-  { label: "G", value: "kg" },
-  { label: "W", value: "wy" },
-  { label: "Q", value: "qq" },
-  { label: "K", value: "kw" },
-];
 
 const tips = ref<
   {
@@ -341,6 +333,7 @@ onMounted(() => {
     .search-input {
       -webkit-app-region: no-drag;
       transition: all 0.3s ease-in-out;
+      
     }
 
     .tips-history {
@@ -352,7 +345,7 @@ onMounted(() => {
       max-height: 500px;
       overflow-y: auto;
       background-color: var(--color-bg-default);
-      border-radius: 4px;
+      border-radius: 12px;
       box-shadow: 0 0 10px #00000033;
       z-index: 100;
     }
