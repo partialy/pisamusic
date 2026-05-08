@@ -24,7 +24,10 @@
     </div>
     <div class="collect">
       <n-button text title="收藏" @click="collect.collectSong(song)">
-        <n-icon :component="CollectIcon" :color="collect.containsSong(song) ? 'red' : '#999'" class="icon"></n-icon>
+        <n-icon
+          :component="CollectIcon"
+          :color="collect.containsSong(song) ? '#ff5d6c' : 'var(--color-text-third)'"
+          class="icon"></n-icon>
       </n-button>
     </div>
     <div class="album text-line-1" :title="song.album">
@@ -104,18 +107,32 @@ const handleTagColor = (source: string) => {
   flex-direction: row;
   width: 100%;
   height: 4rem;
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   overflow: hidden;
   padding: 0 1rem;
   background: transparent;
+  color: var(--color-text-default);
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 
   &:hover {
-    background: #eee;
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-default));
+    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
   }
 
   &.active {
-    background: #fff;
-    box-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-default));
+    border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border-default));
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 16%, transparent);
+
+    .index,
+    .info-title {
+      color: var(--color-primary);
+    }
   }
 
   .index {
@@ -155,12 +172,13 @@ const handleTagColor = (source: string) => {
     .info-title {
       font-size: 1.1rem;
       font-weight: 600;
+      color: var(--color-text-default);
     }
 
     .info-singer {
       font-size: 0.8rem;
       font-weight: 400;
-      color: #666;
+      color: var(--color-text-secondary);
     }
   }
 
@@ -190,13 +208,14 @@ const handleTagColor = (source: string) => {
   .album {
     width: 200px;
     font-size: 0.8rem;
+    color: var(--color-text-secondary);
   }
 
   .time {
     width: 64px;
     font-size: 0.8rem;
     font-weight: 400;
-    color: #666;
+    color: var(--color-text-secondary);
   }
 
   .op-con {
@@ -211,7 +230,7 @@ const handleTagColor = (source: string) => {
       .icon {
         font-size: 24px;
         cursor: pointer;
-        color: #999;
+        color: var(--color-text-third);
 
         &:hover {
           color: var(--color-primary);

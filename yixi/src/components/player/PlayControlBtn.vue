@@ -1,11 +1,12 @@
 <template>
   <div class="btn-con">
-    <n-button circle quaternary @click="player.prev" :disabled="loading">
+    <n-button circle quaternary class="side-btn" @click="player.prev" :disabled="loading">
       <template #icon>
-        <n-icon class="icon" :component="PrevIcon" :color="props.color ?? '#000'" size="24px"></n-icon>
+        <n-icon class="icon" :component="PrevIcon" :color="sideIconColor" size="24px"></n-icon>
       </template>
     </n-button>
     <n-button
+      class="play-btn"
       circle
       tertiary
       @click="player.togglePlay"
@@ -13,13 +14,13 @@
       :loading="loading"
     >
       <template #icon>
-        <n-icon class="icon" v-if="!isPlaying" :component="PlayAnim" :color="props.color ?? '#000'" size="36px"></n-icon>
-        <n-icon class="icon" v-else :component="PauseAnim" :color="props.color ?? '#000'" size="36px"></n-icon>
+        <n-icon class="icon" v-if="!isPlaying" :component="PlayAnim" color="var(--color-primary)" size="36px"></n-icon>
+        <n-icon class="icon" v-else :component="PauseAnim" color="var(--color-primary)" size="36px"></n-icon>
       </template>
     </n-button>
-    <n-button circle quaternary @click="player.next" :disabled="loading">
+    <n-button circle quaternary class="side-btn" @click="player.next" :disabled="loading">
       <template #icon>
-        <n-icon class="icon" :component="NextIcon" :color="props.color ?? '#000'" size="24px"></n-icon>
+        <n-icon class="icon" :component="NextIcon" :color="sideIconColor" size="24px"></n-icon>
       </template>
     </n-button>
   </div>
@@ -30,12 +31,15 @@ import { NButton, NIcon } from "naive-ui";
 import { PrevIcon, PlayAnim, NextIcon, PauseAnim } from "@/icons";
 import { useAudioStore } from "@/store";
 import { storeToRefs } from "pinia";
+import { computed } from "vue";
 const player = useAudioStore();
 const { isPlaying, loading } = storeToRefs(player);
 
 const props = defineProps<{
   color?: string;
 }>();
+
+const sideIconColor = computed(() => props.color ?? "var(--color-text-secondary)");
 </script>
 
 <style lang="scss" scoped>
@@ -58,6 +62,24 @@ const props = defineProps<{
   justify-content: center;
   align-items: center;
   gap: 20px;
+}
+
+:deep(.side-btn) {
+  color: var(--color-text-secondary);
+
+  &:hover {
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+}
+
+:deep(.play-btn) {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--color-primary) 18%, transparent);
+
+  &:hover {
+    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
 }
 
 .icon {

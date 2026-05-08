@@ -63,7 +63,8 @@ const deleteSong = () => {
 <style scoped>
 
 .active {
-    background-color: var(--color-bg-hover) !important;
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-default)) !important;
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border-default)) !important;
 }
 
 .sequence-item {
@@ -73,9 +74,15 @@ const deleteSong = () => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--color-text-default);
+    transition:
+        background-color 0.18s ease,
+        border-color 0.18s ease;
 
     &:hover {
-        background-color: var(--color-bg-hover);
+        background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-default));
 
         .delete-btn,.collect-btn {
             cursor: pointer;
@@ -113,7 +120,7 @@ const deleteSong = () => {
 
         .name {
             font-size: 14px;
-            color: var(--text-color);
+            color: var(--color-text-default);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -121,7 +128,7 @@ const deleteSong = () => {
 
         .artist {
             font-size: 12px;
-            color: var(--text-color-secondary);
+            color: var(--color-text-secondary);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -133,7 +140,7 @@ const deleteSong = () => {
         text-align: center;
         margin-right: 10px;
         width: 50px;
-        color: var(--text-color-secondary);
+        color: var(--color-text-secondary);
         display: flex;
         align-items: center;
         justify-content: center;

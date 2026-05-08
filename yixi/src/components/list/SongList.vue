@@ -204,13 +204,17 @@ onBeforeUnmount(() => {
   height: 100%;
 
   .song-list-header {
-    height: 30px;
+    height: 36px;
     display: flex;
     align-items: center;
     flex-direction: row;
-    background-color: #fefefe;
-    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-default));
+    border: 1px solid var(--color-border-default);
+    border-radius: 12px;
     padding: 0 1rem;
+    margin-bottom: 6px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
 
     .index,
     .img-con,
@@ -220,7 +224,8 @@ onBeforeUnmount(() => {
     .time {
       text-align: center;
       font-size: 0.8rem;
-      color: #666;
+      color: var(--color-text-secondary);
+      font-weight: 600;
     }
 
     .index {
