@@ -35,7 +35,19 @@ type LyricPayload = {
   lrc: string;
 };
 
+type DesktopLyricSetting = {
+  maxSize: number;
+  minSize: number;
+  fontSize: number;
+  fontFamily: string;
+  textColor: string;
+  highlightColor: string;
+  fontWeight: number;
+  locked: boolean;
+};
+
 const emptyLyric = (): LyricPayload => ({ krc: "", lrc: "" });
+const DESKTOP_LYRIC_SETTING_KEY = "desktop-lyric-setting";
 
 export const useLyricStore = defineStore("lyric", {
   state: () => ({
@@ -129,6 +141,26 @@ export const useLyricStore = defineStore("lyric", {
         this.setting = JSON.parse(setting);
       }
     },
+    async loadDesktopLyricSetting() {
+      const record = await electronAPI.getSetting<Partial<DesktopLyricSetting>>(
+        DESKTOP_LYRIC_SETTING_KEY
+      );
+      if (record?.value) {
+        this.desktopLyric = normalizeDesktopLyricSetting({
+          ...this.desktopLyric,
+          ...record.value,
+        });
+      } else {
+        await this.saveDesktopLyricSetting();
+      }
+      await this.sendConfig();
+      electronAPI.lockLyric(this.desktopLyric.locked);
+    },
+    async saveDesktopLyricSetting() {
+      const setting = normalizeDesktopLyricSetting(this.desktopLyric);
+      this.desktopLyric = setting;
+      await electronAPI.setSetting(DESKTOP_LYRIC_SETTING_KEY, setting, 1);
+    },
     async sendToLyricWindow() {
       await electronAPI.setLyrics({
         type: this.setting.useKRC ? "krc" : "lrc",
@@ -150,12 +182,27 @@ export const useLyricStore = defineStore("lyric", {
     setDesktopLocked(locked: boolean) {
       this.desktopLyric.locked = locked;
       electronAPI.lockLyric(locked);
+      void this.saveDesktopLyricSetting();
     },
     syncDesktopLocked(locked: boolean) {
       this.desktopLyric.locked = locked;
+      void this.saveDesktopLyricSetting();
     },
   },
 });
+
+function normalizeDesktopLyricSetting(input: Partial<DesktopLyricSetting>): DesktopLyricSetting {
+  return {
+    maxSize: Number(input.maxSize ?? 64),
+    minSize: Number(input.minSize ?? 10),
+    fontSize: Number(input.fontSize ?? 28),
+    fontFamily: String(input.fontFamily || '"Microsoft YaHei", "PingFang SC", sans-serif'),
+    textColor: String(input.textColor || "#fff"),
+    highlightColor: String(input.highlightColor || "#1871FD"),
+    fontWeight: Number(input.fontWeight ?? 600),
+    locked: Boolean(input.locked),
+  };
+}
 
 async function fetchSongLyric(song: Song): Promise<LyricPayload> {
   try {

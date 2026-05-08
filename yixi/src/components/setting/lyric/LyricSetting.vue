@@ -266,8 +266,10 @@ watch(
 
 watch(
   () => desktopLyric.value,
-  debounce(() => {
-    lyric.sendConfig();
+  debounce(async () => {
+    await lyric.saveDesktopLyricSetting();
+    await lyric.sendConfig();
+    electronAPI.lockLyric(desktopLyric.value.locked);
   }, 500),
   { deep: true }
 );

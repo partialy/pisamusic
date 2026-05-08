@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, nativeImage, nativeTheme, Tray } from "electron";
+import { app, BrowserWindow, Menu, nativeImage, nativeTheme, Tray } from "electron";
 import path from "path";
 import { getAppDatabase } from "../database";
 
@@ -18,6 +18,8 @@ type PlayerTrayOptions = {
   getMainWindow: () => BrowserWindow | null;
   onToggleDesktopLyric: () => void;
   isDesktopLyricVisible: () => boolean;
+  onToggleDesktopLyricLock: () => void;
+  isDesktopLyricLocked: () => boolean;
 };
 
 export class PlayerTray {
@@ -29,6 +31,8 @@ export class PlayerTray {
   private readonly getMainWindow: () => BrowserWindow | null;
   private readonly onToggleDesktopLyric: () => void;
   private readonly isDesktopLyricVisible: () => boolean;
+  private readonly onToggleDesktopLyricLock: () => void;
+  private readonly isDesktopLyricLocked: () => boolean;
 
   constructor(options: PlayerTrayOptions) {
     this.iconPath = options.iconPath;
@@ -36,6 +40,8 @@ export class PlayerTray {
     this.getMainWindow = options.getMainWindow;
     this.onToggleDesktopLyric = options.onToggleDesktopLyric;
     this.isDesktopLyricVisible = options.isDesktopLyricVisible;
+    this.onToggleDesktopLyricLock = options.onToggleDesktopLyricLock;
+    this.isDesktopLyricLocked = options.isDesktopLyricLocked;
   }
 
   create() {
@@ -57,6 +63,11 @@ export class PlayerTray {
   setPlaying(isPlaying: boolean) {
     this.isPlaying = isPlaying;
     this.refresh();
+  }
+
+  destroy() {
+    this.tray?.destroy();
+    this.tray = null;
   }
 
   refresh() {
@@ -114,6 +125,15 @@ export class PlayerTray {
           setTimeout(() => this.refresh(), 50);
         },
       },
+      {
+        label: this.isDesktopLyricLocked() ? "解锁歌词" : "锁定歌词",
+        icon: this.getTrayIcon(this.isDesktopLyricLocked() ? "unlock" : "lock"),
+        enabled: this.isDesktopLyricVisible(),
+        click: () => {
+          this.onToggleDesktopLyricLock();
+          setTimeout(() => this.refresh(), 50);
+        },
+      },
       { type: "separator" },
       {
         label: "设置",
@@ -123,7 +143,7 @@ export class PlayerTray {
       {
         label: "退出",
         icon: this.getTrayIcon("power"),
-        click: () => this.getMainWindow()?.close(),
+        click: () => app.quit(),
       },
     ]);
 

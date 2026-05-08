@@ -20,6 +20,7 @@ const trayIconDir = join(currentDir, "../../public/tray");
 let mainWindow: BrowserWindow | null = null;
 let desktopLyric: DesktopLyricManager;
 let playerTray: PlayerTray;
+let isQuitting = false;
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -60,6 +61,15 @@ function createMainWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  mainWindow.on("close", () => {
+    if (!isQuitting) {
+      isQuitting = true;
+      desktopLyric?.destroy();
+      playerTray?.destroy();
+      app.quit();
+    }
+  });
 }
 
 function setupAppIpc() {
@@ -91,6 +101,7 @@ app.whenReady().then(() => {
   desktopLyric = new DesktopLyricManager({
     iconPath,
     getMainWindow: () => mainWindow,
+    onStateChanged: () => playerTray?.refresh(),
   });
   playerTray = new PlayerTray({
     iconPath,
@@ -98,6 +109,8 @@ app.whenReady().then(() => {
     getMainWindow: () => mainWindow,
     onToggleDesktopLyric: () => desktopLyric.toggle(),
     isDesktopLyricVisible: () => desktopLyric.isVisible(),
+    onToggleDesktopLyricLock: () => desktopLyric.setLocked(!desktopLyric.isLocked()),
+    isDesktopLyricLocked: () => desktopLyric.isLocked(),
   });
 
   setupAppIpc();
@@ -111,6 +124,9 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  isQuitting = true;
+  desktopLyric?.destroy();
+  playerTray?.destroy();
   closeAppDatabase();
 });
 

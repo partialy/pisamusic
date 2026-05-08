@@ -6,6 +6,7 @@
 - preload 只暴露最小 typed API，不要恢复旧的 `store-get/store-set`、`get-request-url`、`open-kg-window`、cookie 读取等兼容入口；登录 Cookie 后续需要重新设计专用能力。
 - 桌面歌词统一由 `electron/desktopLyricManager.ts` 管理，窗口必须是透明、置顶、`skipTaskbar: true` 的悬浮层；打开窗口时必须推送最近歌词快照，不能依赖切歌后才刷新。
 - 桌面歌词状态用快照同步，包含当前歌曲、歌词、播放进度、播放状态、样式和锁定状态；renderer 更新歌词时即使窗口未打开，也要把最新歌词送到 main 缓存。
+- 桌面歌词样式和锁定状态持久化统一使用 SQLite settings 的 `desktop-lyric-setting`；设置页、托盘和歌词窗口必须通过同一份 main 快照同步，不要新增独立 localStorage 或 electron-store 设置来源。
 - renderer 捕获请求、收藏、播放、歌词等错误时，UI 只显示简洁提示，同时必须通过 `reportError()` / `electronAPI.reportError()` 写入 main 日志，便于查询堆栈和上下文。
 
 ## 收藏与侧栏规则补充

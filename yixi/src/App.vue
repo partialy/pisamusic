@@ -57,6 +57,7 @@ commonStore.hidePlayer();
 runtimeConfig.refresh();
 collector.initStore();
 lyric.loadSetting();
+void lyric.loadDesktopLyricSetting();
 themeStore.init();
 
 const { showPlayer } = storeToRefs(commonStore);

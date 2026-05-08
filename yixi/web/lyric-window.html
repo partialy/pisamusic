@@ -34,7 +34,6 @@
       }
 
       #container.is-hover {
-        background: rgba(20, 28, 40, 0.22);
         cursor: move;
       }
 
@@ -101,7 +100,7 @@
         <button class="btn" id="play-btn" title="播放">▶</button>
         <button class="btn" id="pause-btn" title="暂停">⏸</button>
         <button class="btn" id="next-btn" title="下一首">⏭</button>
-        <button class="btn" id="lock-btn" title="锁定">🔒</button>
+        <button class="btn" id="lock-btn" title="锁定"></button>
         <button class="btn" id="close-btn" title="关闭">×</button>
       </div>
       <div id="lyric-wrapper">
@@ -141,6 +140,9 @@
       const wrapperEl = document.getElementById("lyric-wrapper");
       const playBtn = document.getElementById("play-btn");
       const pauseBtn = document.getElementById("pause-btn");
+      const lockBtn = document.getElementById("lock-btn");
+      const lockIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="10" x="5" y="11" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>';
+      const unlockIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="10" x="5" y="11" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.5-2"></path></svg>';
 
       function applySnapshot(snapshot) {
         if (!snapshot) return;
@@ -173,6 +175,8 @@
       function setLocked(locked) {
         state.locked = locked;
         document.body.classList.toggle("locked", locked);
+        lockBtn.innerHTML = locked ? unlockIcon : lockIcon;
+        lockBtn.title = locked ? "解锁" : "锁定";
         if (locked) container.classList.remove("is-hover");
       }
 
@@ -352,6 +356,7 @@
       ipcRenderer.on("desktop-lyric:pause", pause);
 
       setStyle(state.style);
+      setLocked(state.locked);
       pause();
       ipcRenderer.send("desktop-lyric:ready");
     </script>

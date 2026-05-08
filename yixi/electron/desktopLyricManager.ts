@@ -36,18 +36,21 @@ type DesktopLyricSnapshot = {
 type DesktopLyricManagerOptions = {
   iconPath: string;
   getMainWindow: () => BrowserWindow | null;
+  onStateChanged?: () => void;
 };
 
 export class DesktopLyricManager {
   private lyricWindow: BrowserWindow | null = null;
   private readonly iconPath: string;
   private readonly getMainWindow: () => BrowserWindow | null;
+  private readonly onStateChanged?: () => void;
   private registered = false;
   private snapshot: DesktopLyricSnapshot;
 
   constructor(options: DesktopLyricManagerOptions) {
     this.iconPath = options.iconPath;
     this.getMainWindow = options.getMainWindow;
+    this.onStateChanged = options.onStateChanged;
     this.snapshot = {
       song: null,
       lyrics: { type: "lrc", lines: [] },
@@ -185,6 +188,7 @@ export class DesktopLyricManager {
       this.snapshot.visible = false;
       appStore.set("lyricConfig.desktop", false);
       this.notifyStatus(false);
+      this.notifyStateChanged();
     });
 
     this.lyricWindow
@@ -216,6 +220,16 @@ export class DesktopLyricManager {
     this.snapshot.visible = false;
     appStore.set("lyricConfig.desktop", false);
     this.notifyStatus(false);
+  }
+
+  destroy() {
+    this.snapshot.visible = false;
+    this.notifyStateChanged();
+    if (this.lyricWindow && !this.lyricWindow.isDestroyed()) {
+      const win = this.lyricWindow;
+      this.lyricWindow = null;
+      win.close();
+    }
   }
 
   updateSong(song: unknown | null) {
@@ -259,10 +273,15 @@ export class DesktopLyricManager {
     this.applyMouseLock(locked);
     this.sendToWindow("desktop-lyric:set-locked", locked);
     this.getMainWindow()?.webContents.send("desktop-lyric:locked-status", locked);
+    this.notifyStateChanged();
   }
 
   isVisible() {
     return Boolean(this.lyricWindow && !this.lyricWindow.isDestroyed() && this.lyricWindow.isVisible());
+  }
+
+  isLocked() {
+    return this.snapshot.locked;
   }
 
   private move(x: number, y: number, width: number, height: number) {
@@ -308,6 +327,11 @@ export class DesktopLyricManager {
 
   private notifyStatus(status: boolean) {
     this.getMainWindow()?.webContents.send("desktop-lyric:status", status);
+    this.notifyStateChanged();
+  }
+
+  private notifyStateChanged() {
+    this.onStateChanged?.();
   }
 
   private applyMouseLock(locked: boolean) {

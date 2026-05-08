@@ -135,14 +135,13 @@ export const useAudioStore = defineStore("audio", () => {
       loading.value = true;
       if (firstPlay.value) {
         firstPlay.value = false;
-        if (currentSong.value) {
-          await play(currentSong.value);
-        } else {
-          await play(playlist.value[0]);
+        if (!song) {
+          song = currentSong.value || playlist.value[0] || null;
         }
-        return;
       }
       if (song) {
+        currentTime.value = 0;
+        duration.value = 0;
         song.url = await getPlayableUrlByMusicApi(song);
         if (!song.url) {
           throw new Error("play url is empty");
