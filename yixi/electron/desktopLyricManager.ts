@@ -13,6 +13,7 @@ export type PlayerAction = "play" | "pause" | "next" | "prev" | "close";
 type DesktopLyricStyle = {
   width: number;
   height: number;
+  overlayTaskbar: boolean;
   maxSize: number;
   minSize: number;
   fontSize: number;
@@ -313,8 +314,12 @@ export class DesktopLyricManager {
   }
 
   private getScreenSize() {
-    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-    return { width, height };
+    const overlayTaskbar = appStore.get("lyricConfig.overlayTaskbar");
+    const display = screen.getPrimaryDisplay();
+    if (overlayTaskbar) {
+      return { width: display.size.width, height: display.size.height };
+    }
+    return { width: display.workAreaSize.width, height: display.workAreaSize.height };
   }
 
   private handleLyricControl(action: PlayerAction) {
@@ -358,6 +363,7 @@ export class DesktopLyricManager {
     return {
       width: config.width,
       height: config.height,
+      overlayTaskbar: config.overlayTaskbar,
       maxSize: config.maxSize,
       minSize: config.minSize,
       fontSize: config.fontSize,

@@ -46,6 +46,7 @@ type DesktopLyricSetting = {
   highlightColor: string;
   fontWeight: number;
   locked: boolean;
+  overlayTaskbar: boolean;
 };
 
 const emptyLyric = (): LyricPayload => ({ krc: "", lrc: "" });
@@ -70,11 +71,12 @@ export const useLyricStore = defineStore("lyric", {
       maxSize: 64,
       minSize: 10,
       fontSize: 28,
-      fontFamily: '"Microsoft YaHei", "PingFang SC", sans-serif',
+      fontFamily: "Microsoft YaHei",
       textColor: "#fff",
       highlightColor: "#1871FD",
       fontWeight: 600,
       locked: false,
+      overlayTaskbar: false,
     },
     setting: {
       useAMLyric: true,
@@ -176,6 +178,7 @@ export const useLyricStore = defineStore("lyric", {
       await electronAPI.setLyricStyle({
         width: this.desktopLyric.width,
         height: this.desktopLyric.height,
+        overlayTaskbar: this.desktopLyric.overlayTaskbar,
         maxSize: this.desktopLyric.maxSize,
         minSize: this.desktopLyric.minSize,
         fontSize: this.desktopLyric.fontSize,
@@ -204,11 +207,12 @@ function normalizeDesktopLyricSetting(input: Partial<DesktopLyricSetting>): Desk
     maxSize: Number(input.maxSize ?? 64),
     minSize: Number(input.minSize ?? 10),
     fontSize: Number(input.fontSize ?? 28),
-    fontFamily: String(input.fontFamily || '"Microsoft YaHei", "PingFang SC", sans-serif'),
+    fontFamily: String(input.fontFamily || "Microsoft YaHei"),
     textColor: String(input.textColor || "#fff"),
     highlightColor: String(input.highlightColor || "#1871FD"),
     fontWeight: Number(input.fontWeight ?? 600),
     locked: Boolean(input.locked),
+    overlayTaskbar: Boolean(input.overlayTaskbar),
   };
 }
 

@@ -12,6 +12,7 @@ interface AppStoreSchema {
   };
   lyricConfig: {
     desktop: boolean;
+    overlayTaskbar: boolean;
     width: number;
     height: number;
     minWidth: number;
@@ -48,6 +49,7 @@ const defaultSettings: AppStoreSchema = {
   },
   lyricConfig: {
     desktop: false,
+    overlayTaskbar: false,
     width: 800,
     height: 120,
     minHeight: 100,
@@ -62,7 +64,7 @@ const defaultSettings: AppStoreSchema = {
     locked: false,
     textColor: "#ffffff",
     highlightColor: "#ff0000",
-    fontFamily: '"Microsoft YaHei", "PingFang SC", sans-serif',
+    fontFamily: "Microsoft YaHei",
     fontWeight: 600,
   },
   userInfo: {

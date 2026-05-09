@@ -6,6 +6,7 @@ type SearchableMusicSource = "kg" | "wy" | "kw";
 type WindowLyricSettingValue = {
   width: number;
   height: number;
+  overlayTaskbar: boolean;
   maxSize: number;
   minSize: number;
   fontSize: number;

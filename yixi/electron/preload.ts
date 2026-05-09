@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 type WindowLyricSetting = {
   width: number;
   height: number;
+  overlayTaskbar: boolean;
   maxSize: number;
   minSize: number;
   fontSize: number;

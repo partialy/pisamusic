@@ -161,6 +161,15 @@
         </div>
         <div class="setting-item">
           <div class="item-info">
+            <div class="item-title">覆盖任务栏</div>
+            <div class="item-desc">开启后歌词窗口可拖动到任务栏区域。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="desktopLyric.overlayTaskbar" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
             <div class="item-title">锁定桌面歌词</div>
             <div class="item-desc">锁定后鼠标可穿透歌词窗口，关闭后可拖动和显示控制栏。</div>
           </div>
@@ -256,22 +265,28 @@ const { setting, desktop, desktopLyric } = storeToRefs(lyric);
 
 const fontFamily = [
   { key: 1, label: "微软雅黑", value: "Microsoft YaHei" },
-  { key: 2, label: "黑体", value: "黑体" },
-  { key: 3, label: "宋体", value: "宋体" },
-  { key: 4, label: "楷体", value: "楷体" },
-  { key: 5, label: "隶书", value: "隶书" },
-  { key: 6, label: "幼圆", value: "幼圆" },
-  { key: 7, label: "方正舒体", value: "方正舒体" },
-  { key: 8, label: "方正姚体", value: "方正姚体" },
-  { key: 9, label: "华文新魏", value: "华文新魏" },
-  { key: 10, label: "华文细黑", value: "华文细黑" },
-  { key: 11, label: "华文楷体", value: "华文楷体" },
-  { key: 12, label: "华文宋体", value: "华文宋体" },
-  { key: 13, label: "华文隶书", value: "华文隶书" },
-  { key: 14, label: "华文彩云", value: "华文彩云" },
-  { key: 15, label: "华文琥珀", value: "华文琥珀" },
-  { key: 16, label: "华文行楷", value: "华文行楷" },
-  { key: 17, label: "华文仿宋", value: "华文仿宋" },
+  { key: 2, label: "黑体", value: "SimHei" },
+  { key: 3, label: "宋体", value: "SimSun" },
+  { key: 4, label: "楷体", value: "KaiTi" },
+  { key: 5, label: "仿宋", value: "FangSong" },
+  { key: 6, label: "隶书", value: "LiSu" },
+  { key: 7, label: "幼圆", value: "YouYuan" },
+  { key: 8, label: "等线", value: "DengXian" },
+  { key: 9, label: "苹方", value: "PingFang SC" },
+  { key: 10, label: "思源黑体", value: "Source Han Sans SC" },
+  { key: 11, label: "思源宋体", value: "Source Han Serif SC" },
+  { key: 12, label: "华文细黑", value: "STXihei" },
+  { key: 13, label: "华文楷体", value: "STKaiti" },
+  { key: 14, label: "华文宋体", value: "STSong" },
+  { key: 15, label: "华文仿宋", value: "STFangsong" },
+  { key: 16, label: "华文隶书", value: "STLiti" },
+  { key: 17, label: "华文彩云", value: "STCaiyun" },
+  { key: 18, label: "华文琥珀", value: "STHupo" },
+  { key: 19, label: "华文行楷", value: "STXingkai" },
+  { key: 20, label: "华文新魏", value: "STXinwei" },
+  { key: 21, label: "Arial", value: "Arial" },
+  { key: 22, label: "Times New Roman", value: "Times New Roman" },
+  { key: 23, label: "Georgia", value: "Georgia" },
 ];
 
 watch(
