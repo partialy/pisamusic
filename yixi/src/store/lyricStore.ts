@@ -36,6 +36,8 @@ type LyricPayload = {
 };
 
 type DesktopLyricSetting = {
+  width: number;
+  height: number;
   maxSize: number;
   minSize: number;
   fontSize: number;
@@ -63,6 +65,8 @@ export const useLyricStore = defineStore("lyric", {
     currentSong: null as Song | null,
     desktop: false,
     desktopLyric: {
+      width: 800,
+      height: 120,
       maxSize: 64,
       minSize: 10,
       fontSize: 28,
@@ -170,6 +174,8 @@ export const useLyricStore = defineStore("lyric", {
     },
     async sendConfig() {
       await electronAPI.setLyricStyle({
+        width: this.desktopLyric.width,
+        height: this.desktopLyric.height,
         maxSize: this.desktopLyric.maxSize,
         minSize: this.desktopLyric.minSize,
         fontSize: this.desktopLyric.fontSize,
@@ -193,6 +199,8 @@ export const useLyricStore = defineStore("lyric", {
 
 function normalizeDesktopLyricSetting(input: Partial<DesktopLyricSetting>): DesktopLyricSetting {
   return {
+    width: Number(input.width ?? 800),
+    height: Number(input.height ?? 120),
     maxSize: Number(input.maxSize ?? 64),
     minSize: Number(input.minSize ?? 10),
     fontSize: Number(input.fontSize ?? 28),

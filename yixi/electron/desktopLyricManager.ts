@@ -11,6 +11,8 @@ import { logger } from "./utils/logger";
 export type PlayerAction = "play" | "pause" | "next" | "prev" | "close";
 
 type DesktopLyricStyle = {
+  width: number;
+  height: number;
   maxSize: number;
   minSize: number;
   fontSize: number;
@@ -156,11 +158,11 @@ export class DesktopLyricManager {
       resizable: true,
       show: false,
       width: config.width || 800,
-      height: config.height || 150,
+      height: config.height || 120,
       minWidth: config.minWidth || 500,
       minHeight: config.minHeight || 100,
       maxWidth: config.maxWidth || 1200,
-      maxHeight: config.maxHeight || 300,
+      maxHeight: config.maxHeight || 200,
       x: config.x || 100,
       y: config.y || 100,
       webPreferences: {
@@ -256,6 +258,7 @@ export class DesktopLyricManager {
   }
 
   setStyle(style: DesktopLyricStyle) {
+    const prev = this.snapshot.style;
     this.snapshot.style = {
       ...this.snapshot.style,
       ...style,
@@ -264,6 +267,13 @@ export class DesktopLyricManager {
       ...appStore.get("lyricConfig"),
       ...this.snapshot.style,
     });
+    if (
+      this.lyricWindow &&
+      !this.lyricWindow.isDestroyed() &&
+      (style.width !== prev.width || style.height !== prev.height)
+    ) {
+      this.lyricWindow.setSize(style.width, style.height);
+    }
     this.sendToWindow("desktop-lyric:set-style", this.snapshot.style);
   }
 
@@ -346,6 +356,8 @@ export class DesktopLyricManager {
   private readStyle(): DesktopLyricStyle {
     const config = appStore.get("lyricConfig");
     return {
+      width: config.width,
+      height: config.height,
       maxSize: config.maxSize,
       minSize: config.minSize,
       fontSize: config.fontSize,

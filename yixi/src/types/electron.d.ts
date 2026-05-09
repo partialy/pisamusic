@@ -4,6 +4,8 @@ type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
 type SearchableMusicSource = "kg" | "wy" | "kw";
 
 type WindowLyricSettingValue = {
+  width: number;
+  height: number;
   maxSize: number;
   minSize: number;
   fontSize: number;

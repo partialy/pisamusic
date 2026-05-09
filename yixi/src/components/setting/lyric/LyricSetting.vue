@@ -170,6 +170,24 @@
         </div>
         <div class="setting-item">
           <div class="item-info">
+            <div class="item-title">窗口宽度</div>
+            <div class="item-desc">桌面歌词窗口宽度，范围 500~1200。</div>
+          </div>
+          <div class="setting-control">
+            <n-input-number v-model:value="desktopLyric.width" :min="500" :max="1200" :step="10" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
+            <div class="item-title">窗口高度</div>
+            <div class="item-desc">桌面歌词窗口高度，范围 100~200。</div>
+          </div>
+          <div class="setting-control">
+            <n-input-number v-model:value="desktopLyric.height" :min="100" :max="200" :step="10" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
             <div class="item-title">字体颜色</div>
             <div class="item-desc">未播放歌词颜色。</div>
           </div>

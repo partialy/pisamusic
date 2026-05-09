@@ -1,6 +1,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 type WindowLyricSetting = {
+  width: number;
+  height: number;
   maxSize: number;
   minSize: number;
   fontSize: number;

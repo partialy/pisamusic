@@ -52,7 +52,7 @@ const defaultSettings: AppStoreSchema = {
     height: 120,
     minHeight: 100,
     minWidth: 500,
-    maxHeight: 300,
+    maxHeight: 200,
     maxWidth: 1200,
     x: 100,
     y: 100,
