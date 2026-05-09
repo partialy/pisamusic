@@ -19,6 +19,10 @@
         pointer-events: none;
       }
 
+      body.locked .resize-zone {
+        display: none;
+      }
+
       body.locked #controller {
         display: none;
       }
@@ -90,10 +94,92 @@
         -webkit-background-clip: text;
         pointer-events: none;
       }
+
+      .resize-zone {
+        position: absolute;
+        z-index: 3;
+        display: none;
+      }
+
+      #container.is-hover .resize-zone {
+        display: block;
+      }
+
+      .resize-right {
+        right: 0;
+        top: 12px;
+        bottom: 12px;
+        width: 8px;
+        cursor: ew-resize;
+      }
+
+      .resize-bottom {
+        bottom: 0;
+        left: 12px;
+        right: 12px;
+        height: 8px;
+        cursor: ns-resize;
+      }
+
+      .resize-left {
+        left: 0;
+        top: 12px;
+        bottom: 12px;
+        width: 8px;
+        cursor: ew-resize;
+      }
+
+      .resize-top {
+        top: 0;
+        left: 12px;
+        right: 12px;
+        height: 8px;
+        cursor: ns-resize;
+      }
+
+      .resize-corner-tr {
+        right: 0;
+        top: 0;
+        width: 14px;
+        height: 14px;
+        cursor: nesw-resize;
+      }
+
+      .resize-corner-tl {
+        left: 0;
+        top: 0;
+        width: 14px;
+        height: 14px;
+        cursor: nwse-resize;
+      }
+
+      .resize-corner-br {
+        right: 0;
+        bottom: 0;
+        width: 14px;
+        height: 14px;
+        cursor: nwse-resize;
+      }
+
+      .resize-corner-bl {
+        left: 0;
+        bottom: 0;
+        width: 14px;
+        height: 14px;
+        cursor: nesw-resize;
+      }
     </style>
   </head>
   <body>
     <div id="container">
+      <div class="resize-zone resize-top"></div>
+      <div class="resize-zone resize-right"></div>
+      <div class="resize-zone resize-bottom"></div>
+      <div class="resize-zone resize-left"></div>
+      <div class="resize-zone resize-corner-tl"></div>
+      <div class="resize-zone resize-corner-tr"></div>
+      <div class="resize-zone resize-corner-br"></div>
+      <div class="resize-zone resize-corner-bl"></div>
       <div id="controller">
         <button class="btn" id="size-down" title="减小字号">A-</button>
         <button class="btn" id="size-up" title="增大字号">A+</button>
@@ -126,6 +212,10 @@
         rafId: null,
         locked: false,
         style: {
+          width: 800,
+          height: 120,
+          overlayTaskbar: false,
+          autoFontSize: true,
           maxSize: 64,
           minSize: 10,
           fontSize: 28,
@@ -144,6 +234,21 @@
       const lockBtn = document.getElementById("lock-btn");
       const lockIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="10" x="5" y="11" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>';
       const unlockIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="10" x="5" y="11" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.5-2"></path></svg>';
+
+      function calcAutoFontSize() {
+        const h = window.innerHeight;
+        const size = Math.round(h * 0.35);
+        return Math.max(state.style.minSize, Math.min(state.style.maxSize, size));
+      }
+
+      function getEffectiveFontSize() {
+        if (state.style.autoFontSize) return calcAutoFontSize();
+        return state.style.fontSize;
+      }
+
+      function applyFontSize() {
+        lyricTextEl.style.fontSize = `${getEffectiveFontSize()}px`;
+      }
 
       function applySnapshot(snapshot) {
         if (!snapshot) return;
@@ -167,9 +272,9 @@
       function setStyle(style) {
         if (!style || typeof style !== "object") return;
         state.style = { ...state.style, ...style };
-        lyricTextEl.style.fontSize = `${state.style.fontSize}px`;
         lyricTextEl.style.fontFamily = state.style.fontFamily;
         lyricTextEl.style.fontWeight = state.style.fontWeight;
+        applyFontSize();
         renderWithTime(state.baseTime);
       }
 
@@ -283,7 +388,7 @@
       function getTextWidth(text) {
         const span = document.createElement("span");
         span.textContent = text;
-        span.style.fontSize = `${state.style.fontSize}px`;
+        span.style.fontSize = `${getEffectiveFontSize()}px`;
         span.style.fontFamily = state.style.fontFamily;
         span.style.fontWeight = state.style.fontWeight;
         span.style.position = "absolute";
@@ -312,10 +417,12 @@
       function changeFontSize(step) {
         const nextSize = Math.max(
           state.style.minSize,
-          Math.min(state.style.maxSize, Number(state.style.fontSize) + step)
+          Math.min(state.style.maxSize, getEffectiveFontSize() + step)
         );
-        setStyle({ fontSize: nextSize });
-        ipcRenderer.send("desktop-lyric:set-style", { ...state.style, fontSize: nextSize });
+        state.style.autoFontSize = false;
+        state.style.fontSize = nextSize;
+        applyFontSize();
+        ipcRenderer.send("desktop-lyric:set-style", { ...state.style, autoFontSize: false, fontSize: nextSize });
       }
 
       container.addEventListener("mouseenter", () => {
@@ -323,9 +430,10 @@
       });
       container.addEventListener("mouseleave", () => container.classList.remove("is-hover"));
 
+      // --- Drag ---
       let drag = null;
       container.addEventListener("mousedown", async (event) => {
-        if (state.locked || event.target.closest("#controller")) return;
+        if (state.locked || event.target.closest("#controller") || event.target.closest(".resize-zone")) return;
         const bounds = await ipcRenderer.invoke("desktop-lyric:get-bounds");
         if (!bounds) return;
         drag = {
@@ -339,14 +447,80 @@
       });
       document.addEventListener("mouseup", () => {
         drag = null;
+        resizeState = null;
       });
       document.addEventListener("mousemove", async (event) => {
+        if (resizeState) {
+          handleResizeMove(event);
+          return;
+        }
         if (!drag) return;
         const screenSize = await ipcRenderer.invoke("desktop-lyric:get-screen-size");
         const x = Math.max(0, Math.min(screenSize.width - drag.width, drag.x + event.screenX - drag.startX));
         const y = Math.max(0, Math.min(screenSize.height - drag.height, drag.y + event.screenY - drag.startY));
         ipcRenderer.send("desktop-lyric:move", x, y, drag.width, drag.height);
       });
+
+      // --- Resize ---
+      let resizeState = null;
+      const RESIZE_MIN_WIDTH = 500;
+      const RESIZE_MIN_HEIGHT = 60;
+      const RESIZE_MAX_WIDTH = 1600;
+      const RESIZE_MAX_HEIGHT = 200;
+
+      document.querySelectorAll(".resize-zone").forEach((zone) => {
+        zone.addEventListener("mousedown", async (event) => {
+          if (state.locked) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const bounds = await ipcRenderer.invoke("desktop-lyric:get-bounds");
+          if (!bounds) return;
+          const direction = [];
+          if (zone.classList.contains("resize-right") || zone.classList.contains("resize-corner-br") || zone.classList.contains("resize-corner-tr")) direction.push("r");
+          if (zone.classList.contains("resize-bottom") || zone.classList.contains("resize-corner-br") || zone.classList.contains("resize-corner-bl")) direction.push("b");
+          if (zone.classList.contains("resize-left") || zone.classList.contains("resize-corner-bl") || zone.classList.contains("resize-corner-tl")) direction.push("l");
+          if (zone.classList.contains("resize-top") || zone.classList.contains("resize-corner-tr") || zone.classList.contains("resize-corner-tl")) direction.push("t");
+          resizeState = {
+            startX: event.screenX,
+            startY: event.screenY,
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            direction,
+          };
+        });
+      });
+
+      function handleResizeMove(event) {
+        if (!resizeState) return;
+        const dx = event.screenX - resizeState.startX;
+        const dy = event.screenY - resizeState.startY;
+
+        let newX = resizeState.x;
+        let newY = resizeState.y;
+        let newW = resizeState.width;
+        let newH = resizeState.height;
+
+        if (resizeState.direction.includes("r")) {
+          newW = Math.max(RESIZE_MIN_WIDTH, Math.min(RESIZE_MAX_WIDTH, resizeState.width + dx));
+        }
+        if (resizeState.direction.includes("l")) {
+          const wDelta = Math.min(resizeState.width - RESIZE_MIN_WIDTH, Math.max(dx, -(RESIZE_MAX_WIDTH - resizeState.width)));
+          newW = resizeState.width - wDelta;
+          newX = resizeState.x + wDelta;
+        }
+        if (resizeState.direction.includes("b")) {
+          newH = Math.max(RESIZE_MIN_HEIGHT, Math.min(RESIZE_MAX_HEIGHT, resizeState.height + dy));
+        }
+        if (resizeState.direction.includes("t")) {
+          const hDelta = Math.min(resizeState.height - RESIZE_MIN_HEIGHT, Math.max(dy, -(RESIZE_MAX_HEIGHT - resizeState.height)));
+          newH = resizeState.height - hDelta;
+          newY = resizeState.y + hDelta;
+        }
+
+        ipcRenderer.send("desktop-lyric:move", newX, newY, newW, newH);
+      }
 
       ipcRenderer.on("desktop-lyric:snapshot", (_event, snapshot) => applySnapshot(snapshot));
       ipcRenderer.on("desktop-lyric:set-lyrics", (_event, lyrics) => setLyrics(lyrics));

@@ -13,6 +13,7 @@ interface AppStoreSchema {
   lyricConfig: {
     desktop: boolean;
     overlayTaskbar: boolean;
+    autoFontSize: boolean;
     width: number;
     height: number;
     minWidth: number;
@@ -50,12 +51,13 @@ const defaultSettings: AppStoreSchema = {
   lyricConfig: {
     desktop: false,
     overlayTaskbar: false,
+    autoFontSize: true,
     width: 800,
     height: 120,
     minHeight: 100,
     minWidth: 500,
     maxHeight: 200,
-    maxWidth: 1200,
+    maxWidth: 1600,
     x: 100,
     y: 100,
     maxSize: 64,

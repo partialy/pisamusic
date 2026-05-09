@@ -4,6 +4,7 @@ type WindowLyricSetting = {
   width: number;
   height: number;
   overlayTaskbar: boolean;
+  autoFontSize: boolean;
   maxSize: number;
   minSize: number;
   fontSize: number;
@@ -65,6 +66,8 @@ const desktopLyricIpc = {
     on("desktop-lyric:status", callback),
   onLyricLockedStatus: (callback: (locked: boolean) => void) =>
     on("desktop-lyric:locked-status", callback),
+  onBoundsChanged: (callback: (bounds: { width: number; height: number }) => void) =>
+    on("desktop-lyric:bounds-changed", callback),
   onMediaControl: (
     callback: (action: "play" | "pause" | "next" | "prev", ...args: any[]) => void
   ) => on("media-control", callback),

@@ -14,6 +14,7 @@ type DesktopLyricStyle = {
   width: number;
   height: number;
   overlayTaskbar: boolean;
+  autoFontSize: boolean;
   maxSize: number;
   minSize: number;
   fontSize: number;
@@ -162,7 +163,7 @@ export class DesktopLyricManager {
       height: config.height || 120,
       minWidth: config.minWidth || 500,
       minHeight: config.minHeight || 100,
-      maxWidth: config.maxWidth || 1200,
+      maxWidth: config.maxWidth || 1600,
       maxHeight: config.maxHeight || 200,
       x: config.x || 100,
       y: config.y || 100,
@@ -192,6 +193,22 @@ export class DesktopLyricManager {
       appStore.set("lyricConfig.desktop", false);
       this.notifyStatus(false);
       this.notifyStateChanged();
+    });
+
+    this.lyricWindow.on("resize", () => {
+      if (!this.lyricWindow || this.lyricWindow.isDestroyed()) return;
+      const bounds = this.lyricWindow.getBounds();
+      appStore.set("lyricConfig", {
+        ...appStore.get("lyricConfig"),
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+      });
+      this.getMainWindow()?.webContents.send("desktop-lyric:bounds-changed", {
+        width: bounds.width,
+        height: bounds.height,
+      });
     });
 
     this.lyricWindow
@@ -364,6 +381,7 @@ export class DesktopLyricManager {
       width: config.width,
       height: config.height,
       overlayTaskbar: config.overlayTaskbar,
+      autoFontSize: config.autoFontSize,
       maxSize: config.maxSize,
       minSize: config.minSize,
       fontSize: config.fontSize,

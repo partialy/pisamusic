@@ -180,10 +180,10 @@
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">窗口宽度</div>
-            <div class="item-desc">桌面歌词窗口宽度，范围 500~1200。</div>
+            <div class="item-desc">桌面歌词窗口宽度，范围 500~1600。</div>
           </div>
           <div class="setting-control">
-            <n-input-number v-model:value="desktopLyric.width" :min="500" :max="1200" :step="10" />
+            <n-input-number v-model:value="desktopLyric.width" :min="500" :max="1600" :step="10" />
           </div>
         </div>
         <div class="setting-item">
@@ -224,6 +224,15 @@
         </div>
         <div class="setting-item">
           <div class="item-info">
+            <div class="item-title">字号跟随高度</div>
+            <div class="item-desc">开启后字号随窗口高度自动调整，关闭后可手动设定。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="desktopLyric.autoFontSize" />
+          </div>
+        </div>
+        <div class="setting-item" v-if="!desktopLyric.autoFontSize">
+          <div class="item-info">
             <div class="item-title">字体大小</div>
             <div class="item-desc">桌面歌词字号。</div>
           </div>
@@ -256,12 +265,22 @@
 import { NColorPicker, NInputNumber, NSelect, NSwitch } from "naive-ui";
 import { useLyricStore } from "@/store/lyricStore";
 import { storeToRefs } from "pinia";
-import { watch } from "vue";
+import { onMounted, onUnmounted, watch } from "vue";
 import electronAPI from "@/utils/electron";
 import { debounce } from "@/utils/common";
 
 const lyric = useLyricStore();
 const { setting, desktop, desktopLyric } = storeToRefs(lyric);
+
+let unsubscribeBounds: (() => void) | null = null;
+onMounted(() => {
+  unsubscribeBounds = electronAPI.onBoundsChanged((bounds) => {
+    lyric.syncBounds(bounds);
+  });
+});
+onUnmounted(() => {
+  unsubscribeBounds?.();
+});
 
 const fontFamily = [
   { key: 1, label: "微软雅黑", value: "Microsoft YaHei" },

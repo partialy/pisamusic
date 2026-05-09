@@ -38,6 +38,7 @@ type LyricPayload = {
 type DesktopLyricSetting = {
   width: number;
   height: number;
+  autoFontSize: boolean;
   maxSize: number;
   minSize: number;
   fontSize: number;
@@ -68,6 +69,7 @@ export const useLyricStore = defineStore("lyric", {
     desktopLyric: {
       width: 800,
       height: 120,
+      autoFontSize: true,
       maxSize: 64,
       minSize: 10,
       fontSize: 28,
@@ -179,6 +181,7 @@ export const useLyricStore = defineStore("lyric", {
         width: this.desktopLyric.width,
         height: this.desktopLyric.height,
         overlayTaskbar: this.desktopLyric.overlayTaskbar,
+        autoFontSize: this.desktopLyric.autoFontSize,
         maxSize: this.desktopLyric.maxSize,
         minSize: this.desktopLyric.minSize,
         fontSize: this.desktopLyric.fontSize,
@@ -197,6 +200,10 @@ export const useLyricStore = defineStore("lyric", {
       this.desktopLyric.locked = locked;
       void this.saveDesktopLyricSetting();
     },
+    syncBounds(bounds: { width: number; height: number }) {
+      this.desktopLyric.width = bounds.width;
+      this.desktopLyric.height = bounds.height;
+    },
   },
 });
 
@@ -204,6 +211,7 @@ function normalizeDesktopLyricSetting(input: Partial<DesktopLyricSetting>): Desk
   return {
     width: Number(input.width ?? 800),
     height: Number(input.height ?? 120),
+    autoFontSize: Boolean(input.autoFontSize ?? true),
     maxSize: Number(input.maxSize ?? 64),
     minSize: Number(input.minSize ?? 10),
     fontSize: Number(input.fontSize ?? 28),

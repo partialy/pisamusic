@@ -7,6 +7,7 @@ type WindowLyricSettingValue = {
   width: number;
   height: number;
   overlayTaskbar: boolean;
+  autoFontSize: boolean;
   maxSize: number;
   minSize: number;
   fontSize: number;
@@ -245,6 +246,7 @@ type ElectronIpcApi = {
   setLyricStyle: (config: WindowLyricSettingValue) => void;
   lockLyric: (lock: boolean) => void;
   onLyricLockedStatus: (callback: (locked: boolean) => void) => () => void;
+  onBoundsChanged: (callback: (bounds: { width: number; height: number }) => void) => () => void;
   onMediaControl: (
     callback: (action: "play" | "pause" | "next" | "prev", ...args: any[]) => void
   ) => () => void;
