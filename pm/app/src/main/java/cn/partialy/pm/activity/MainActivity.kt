@@ -53,6 +53,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import dagger.hilt.android.AndroidEntryPoint
 import coil.load
 import coil.transform.CircleCropTransformation
@@ -102,6 +104,15 @@ class MainActivity : BaseDownloadActivity() {
     private var drawerKgPlaylistImportInProgress = false
 
     private var drawerWyPlaylistImportInProgress = false
+
+    private val drawerScanLauncher = registerForActivityResult(ScanContract()) { result ->
+        val contents = result.contents
+        if (contents.isNullOrBlank()) {
+            Toast.makeText(this, R.string.drawer_scan_cancelled, Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, getString(R.string.drawer_scan_result, contents), Toast.LENGTH_LONG).show()
+        }
+    }
 
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -307,12 +318,25 @@ class MainActivity : BaseDownloadActivity() {
     private fun ensureDrawerContentInflated(): MainDrawerContentBinding {
         drawerContentBinding?.let { return it }
         val inflated = MainDrawerContentBinding.inflate(layoutInflater, binding.mainDrawerPanel, true)
+        inflated.drawerScanButton.setOnClickListener { startDrawerQrScan() }
         inflated.drawerCloseButton.setOnClickListener { closeMainDrawer() }
         drawerContentBinding = inflated
         setupDrawerFooterActions(inflated)
         setupDrawerPlaylistImportActions(inflated)
         bindMainDrawerAccountUi(drawerImportProfileCacheStore.read())
         return inflated
+    }
+
+    private fun startDrawerQrScan() {
+        hideDrawerMoreMenu()
+        closeMainDrawer()
+        val options = ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt(getString(R.string.drawer_scan_prompt))
+            setBeepEnabled(false)
+            setOrientationLocked(false)
+        }
+        drawerScanLauncher.launch(options)
     }
 
     private fun setupDrawerPlaylistImportActions(b: MainDrawerContentBinding) {

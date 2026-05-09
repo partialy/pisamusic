@@ -15,7 +15,7 @@ android {
         minSdk = 29
         targetSdk = 35
         versionCode = 520
-        versionName = "2.3.1"
+        versionName = "2.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -105,6 +105,9 @@ dependencies {
 
     // 音频标签
     implementation(libs.jaudiotagger)
+
+    // 扫码
+    implementation(libs.zxing.android.embedded)
 
     // 主题
     implementation(libs.material.v1120)

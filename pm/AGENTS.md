@@ -4,7 +4,7 @@
 
 ## App 介绍
 
-`pm` 是 PisaMusic 的手机端 Android App，采用单模块 `:app`。项目以 Kotlin 为主，少量 Java，使用 MVVM、Hilt、ViewBinding、Media3 / ExoPlayer 构建音乐播放、搜索、下载、本地音乐、配置拉取、反馈、公告、更新检测等能力。
+`pm` 是 PisaMusic 的手机端 Android App，采用单模块 `:app`。项目以 Kotlin 为主，少量 Java，使用 MVVM、Hilt、ViewBinding、Media3 / ExoPlayer 构建音乐播放、搜索、下载、本地音乐、扫码入口、配置拉取、反馈、公告、更新检测等能力。
 
 服务端已经迁移到外层 `../server/`。本项目内不再维护 `server/` 后端代码；凡是涉及系统配置、公告、更新、反馈、设备上报、管理后台、官网或服务端加密逻辑的改动，都应到 `../server/` 中处理，并同步检查 Android 端数据模型和接口调用。
 
@@ -42,6 +42,7 @@
 - 播放：Media3 / ExoPlayer / MediaSession
 - 状态：优先使用 `StateFlow` / `MutableStateFlow`
 - 网络：Retrofit + OkHttp，系统服务端和第三方音乐源客户端分开维护
+- 扫码：侧拉抽屉扫码入口使用 JourneyApps ZXing `ScanContract` 拉起扫码界面，结果先回传到 `MainActivity` 处理。
 
 重要目录：
 

@@ -167,6 +167,10 @@
     <string name="open_menu">打开菜单</string>
     <string name="drawer_brand_title">Pisa Music</string>
     <string name="drawer_close">关闭侧栏</string>
+    <string name="drawer_scan">扫码</string>
+    <string name="drawer_scan_prompt">请将二维码放入取景框</string>
+    <string name="drawer_scan_result">扫码结果：%1$s</string>
+    <string name="drawer_scan_cancelled">已取消扫码</string>
     <string name="drawer_badge_kg">KG</string>
     <string name="drawer_badge_wy">WY</string>
     <string name="drawer_not_logged_in">未登录</string>
