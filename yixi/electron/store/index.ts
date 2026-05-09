@@ -49,7 +49,7 @@ const defaultSettings: AppStoreSchema = {
   lyricConfig: {
     desktop: false,
     width: 800,
-    height: 150,
+    height: 120,
     minHeight: 100,
     minWidth: 500,
     maxHeight: 300,
