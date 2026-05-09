@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import type { Song } from "@/types/song";
 import electronAPI from "@/utils/electron";
+import { normalizeSong } from "@/utils/song";
 
 type SearchHistoryView = {
   id: number;
@@ -51,7 +52,7 @@ export const useLibraryStore = defineStore("library", {
     },
 
     async saveQueueSnapshot(currentIndex: number, queue: Song[]) {
-      await electronAPI.saveQueueSnapshot({ currentIndex, queue });
+      await electronAPI.saveQueueSnapshot({ currentIndex, queue: queue.map(normalizeSong) });
     },
 
     async loadQueueSnapshot() {
@@ -59,7 +60,7 @@ export const useLibraryStore = defineStore("library", {
     },
 
     async addPlayHistory(song: Song) {
-      await electronAPI.addPlayHistory(song);
+      await electronAPI.addPlayHistory(normalizeSong(song));
     },
 
     async migrateLegacySearchHistory() {

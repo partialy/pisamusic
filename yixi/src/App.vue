@@ -27,7 +27,7 @@ import {
   NModalProvider,
   NMessageProvider,
 } from "naive-ui";
-import { onBeforeUnmount, Transition, watch } from "vue";
+import { onBeforeUnmount, toRaw, Transition, watch } from "vue";
 import { PlayerBar, MainPlayer } from "./components";
 import {
   useCommonStore,
@@ -99,15 +99,7 @@ async function setupListeners() {
     () => currentSong.value,
     (newSong) => {
       if (newSong) {
-        electronAPI.changeCurrentSong({
-          id: newSong.id,
-          name: newSong.name,
-          singer: newSong.singer,
-          source: newSong.source,
-          duration: newSong.duration,
-          cover: newSong.cover,
-          coverSize: newSong.coverSize,
-        });
+        electronAPI.changeCurrentSong(toRaw(newSong));
       } else {
         electronAPI.changeCurrentSong(null);
       }

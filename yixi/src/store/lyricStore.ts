@@ -122,6 +122,7 @@ export const useLyricStore = defineStore("lyric", {
 
       this.currentId = this.currentSong.id;
       const lyric = await fetchSongLyric(this.currentSong);
+      console.log("拿到歌词",lyric)
       this.rawKrc = lyric.krc;
       this.rawLrc = lyric.lrc;
       this.parsedKrc = lyric.krc ? parseKrc(lyric.krc) : [];
