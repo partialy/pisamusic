@@ -136,6 +136,7 @@ onUnmounted(() => {
     height: 100%;
     display: flex;
     flex-direction: column;
+    color: #eee;
 
     .sequence-header {
         padding: 15px;

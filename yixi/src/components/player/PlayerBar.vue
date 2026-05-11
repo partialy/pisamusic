@@ -166,7 +166,7 @@ const handleDesktopLyric = async () => {
 // 音量控制
 const muted = ref(false);
 const volumeIcon = computed(() => {
-  if (muted.value) {
+  if (muted.value || volume.value === 0) {
     return VolumeMutedIcon;
   } else if (volume.value >= 0.5) {
     return VolumeMaxIcon;

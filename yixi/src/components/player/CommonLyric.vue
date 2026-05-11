@@ -45,7 +45,6 @@ const currentIndex = ref(0)
 const scrollbarRef = ref<HTMLElement | null>(null)
 const userScroll = ref(false)
 
-let ct = 0;
 watch(currentTime, (newVal, oldVal) => {
     if (newVal < oldVal) {
         currentIndex.value = 0
@@ -57,8 +56,7 @@ watch(currentTime, (newVal, oldVal) => {
     if (currentIndex.value == parsedLrc.value.length - 1) {
         return
     }
-    ct = origin.value == 'wy' ? newVal * 1000 : newVal;
-    currentIndex.value = parsedLrc.value.findIndex(line => line.time <= ct && line.endTime!! >= ct)
+    currentIndex.value = parsedLrc.value.findIndex(line => line.time <= newVal && line.endTime!! >= newVal)
 })
 
 const activeRow = ref<HTMLElement | null>(null)
@@ -71,7 +69,6 @@ const lyricsScroll = (index: number) => {
     if (lrcItemDom && scrollbarRef.value) {
         const container = lrcItemDom.parentElement;
         if (!container) return;
-
         lrcItemDom?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 };

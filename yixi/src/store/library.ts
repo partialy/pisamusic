@@ -52,7 +52,7 @@ export const useLibraryStore = defineStore("library", {
     },
 
     async saveQueueSnapshot(currentIndex: number, queue: Song[]) {
-      await electronAPI.saveQueueSnapshot({ currentIndex, queue: queue.map(toRaw) });
+      await electronAPI.saveQueueSnapshot({ currentIndex: toRaw(currentIndex), queue: queue.map(toRaw) });
     },
 
     async loadQueueSnapshot() {

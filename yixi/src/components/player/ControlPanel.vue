@@ -2,10 +2,13 @@
   <div class="control-panel">
     <div class="panel-left">
       <n-button text @click="commonStore.hidePlayer">
-        <n-icon size="24" :component="ArrowDownIcon" class="icon"></n-icon>
+        <n-icon :component="ArrowDownIcon" class="icon"></n-icon>
       </n-button>
-      <n-button text>
-        <n-icon size="26" :component="HeartEmpty" class="icon"></n-icon>
+      <n-button text title="收藏" @click="collect.collectSong(currentSong || undefined)">
+        <n-icon
+          :component="CollectIcon"
+          :color="collect.containsSong(currentSong || undefined) ? '#ff5d6c' : 'var(--color-text-third)'"
+          class="icon"></n-icon>
       </n-button>
     </div>
     <div class="panel-center">
@@ -29,7 +32,7 @@
       <n-popover trigger="hover" style="padding: 0; border-radius: 10px" @wheel="handleWheel">
         <template #trigger>
           <n-button text circle @click="toggleMuted" @wheel="handleWheel">
-            <n-icon :size="32" :component="volumeIcon" class="icon"></n-icon>
+            <n-icon :component="volumeIcon" class="icon"></n-icon>
           </n-button>
         </template>
         <div style="width: 60px; height: 200px">
@@ -40,7 +43,12 @@
       <n-button text circle @click="showSequence = true">
         <n-icon size="24" :component="PlayListIcon" class="icon"></n-icon>
       </n-button>
-      <n-drawer v-model:show="showSequence" placement="right" width="400px" to="body">
+      <n-drawer class="sequence-wrapper" 
+      :style="{
+        'backdrop-filter': 'blur(16px)',
+        'background': '#efefef30 !important'
+      }"
+      v-model:show="showSequence" placement="right" width="400px" to="body">
         <PlaySequence />
       </n-drawer>
     </div>
@@ -49,13 +57,12 @@
 
 <script setup lang="ts">
 import { NPopover, NIcon, NButton } from "naive-ui";
-import { useCommonStore, useAudioStore, useLyricStore } from "@/store";
+import { useCommonStore, useAudioStore, useLyricStore, useCollectStore } from "@/store";
 import { PlayControlBtn, VolumePanel } from ".";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import {
   ArrowDownIcon,
-  HeartEmpty,
   PlayListIcon,
   VolumeMaxIcon,
   VolumeMediumIcon,
@@ -65,16 +72,19 @@ import {
   ListRepeatOneIcon,
   ListScrollIcon,
   LyricIcon,
+  CollectIcon
 } from "@/icons";
 import { renderIcon } from "@/utils/common";
 import type { RepeatMode } from "@/store/audio";
 import electronAPI from "@/utils/electron";
+import PlaySequence from "./PlaySequence.vue";
 
+const collect = useCollectStore();
 const player = useAudioStore();
 const lyric = useLyricStore();
 const commonStore = useCommonStore();
 
-const { volume, repeatMode } = storeToRefs(player);
+const { volume, repeatMode, currentSong } = storeToRefs(player);
 const { desktop } = storeToRefs(lyric)
 const muted = ref(false);
 const showSequence = ref(false);
@@ -114,7 +124,7 @@ const handleDesktopLyric = async () => {
 }
 
 const volumeIcon = computed(() => {
-  if (muted.value) {
+  if (muted.value || volume.value === 0) {
     return VolumeMutedIcon;
   } else if (volume.value >= 0.5) {
     return VolumeMaxIcon;
@@ -164,6 +174,7 @@ const toggleMuted = () => {
 
 .icon {
   color: #ffffff50;
+  font-size: 24px;
 
   &:hover {
     animation: scaleBack 0.3s ease-in-out;
@@ -192,7 +203,7 @@ const toggleMuted = () => {
     align-items: center;
     height: 100%;
     width: 100%;
-    gap: 10px;
+    gap: 16px;
   }
 
   .panel-left {
@@ -212,4 +223,9 @@ const toggleMuted = () => {
     padding-right: 1rem;
   }
 }
+
+  .sequence-wrapper {
+    backdrop-filter: blur(16px);
+    background: rgba($color: #000000, $alpha: 0.3) !important;
+  }
 </style>

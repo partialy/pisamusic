@@ -60,9 +60,10 @@ const deleteSong = () => {
 
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 
 .active {
+  
     background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-default)) !important;
     border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border-default)) !important;
 }
@@ -75,15 +76,13 @@ const deleteSong = () => {
     align-items: center;
     justify-content: space-between;
     border: 1px solid transparent;
-    border-radius: 10px;
-    color: var(--color-text-default);
+    color: var(--color-text-default); 
     transition:
         background-color 0.18s ease,
         border-color 0.18s ease;
 
     &:hover {
         background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-default));
-
         .delete-btn,.collect-btn {
             cursor: pointer;
             display: block !important;
