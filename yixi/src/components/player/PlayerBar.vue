@@ -385,20 +385,6 @@ watch(
   background: var(--color-slider-rail);
   height: 5px;
   transition: all 0.2s ease-in-out;
-  // transform-origin: center;
-
-  // .n-slider-handle-wrapper {
-  //   display: none;
-  // }
-
-  // &:hover {
-  //   height: 6px;
-  //   background: #b4c5d4;
-
-  //   .n-slider-handle-wrapper {
-  //     display: block;
-  //   }
-  // }
 }
 
 :deep(.n-slider .n-slider-rail .n-slider-rail__fill) {

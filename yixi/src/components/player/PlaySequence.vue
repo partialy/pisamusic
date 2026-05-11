@@ -130,9 +130,7 @@ onMounted(async () => {
     locate()
 })
 
-onUnmounted(() => {
-    observer.disconnect()
-})
+onUnmounted(() => observer.disconnect())
 </script>
 
 <style scoped lang="scss">

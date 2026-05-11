@@ -4,6 +4,9 @@
       <n-tab-pane name="basic" tab="基本设置">
         <BasicSetting></BasicSetting>
       </n-tab-pane>
+      <n-tab-pane name="local" tab="本地设置">
+        <LocalSetting></LocalSetting>
+      </n-tab-pane>
       <n-tab-pane name="lyric" tab="歌词设置">
         <LyricSetting></LyricSetting>
       </n-tab-pane>
@@ -18,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { LyricSetting, BasicSetting, AllAccount, AdvanceSetting } from "../components/setting";
+import { LyricSetting, BasicSetting, AllAccount, AdvanceSetting, LocalSetting } from "@/components/setting";
 import { ref } from "vue";
 const activeName = ref("basic");
 </script>

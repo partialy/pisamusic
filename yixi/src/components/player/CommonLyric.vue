@@ -39,7 +39,7 @@ import { onBeforeUnmount, ref, watch } from 'vue';
 
 const playerStore = useAudioStore()
 const lyricStore = useLyricStore()
-const { currentTime, origin } = storeToRefs(playerStore)
+const { currentTime } = storeToRefs(playerStore)
 const { parsedLrc } = storeToRefs(lyricStore)
 const currentIndex = ref(0)
 const scrollbarRef = ref<HTMLElement | null>(null)
