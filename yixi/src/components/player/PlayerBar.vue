@@ -296,7 +296,7 @@ watch(
   display: flex;
   align-items: center;
   color: var(--color-text-default);
-  background: var(--color-player-bar-bg);
+  background: var(--color-bg-track);
   border-top: 1px solid var(--color-player-bar-border);
   box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(16px);

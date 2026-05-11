@@ -293,6 +293,7 @@ type ElectronIpcApi = {
   containsFavoritePlaylist: (payload: { source: string; id: string }) => Promise<boolean>;
   onFavoritesChanged: (callback: () => void) => () => void;
 
+  getColorFromUrl: (url: string) => Promise<string>;
 };
 
 declare global {

@@ -1,3 +1,4 @@
+import type { Song } from "@/types/song";
 import { NIcon } from "naive-ui";
 import { h, type Component } from "vue";
 interface IconOptions {
@@ -94,6 +95,30 @@ export function debounce(fn: Function, delay: number) {
   };
 }
 
+/**
+ * 获取歌曲封面
+ * @param song 歌曲对象
+ * @param size 图片等级
+ * @returns 图片的url
+ */
+export function getSongCover(song: Song, size: 120 | 240 | 360 | 480 = 120) {
+  if (song.source == 'kg') {
+    return getKgImage(song.cover, size);
+  } else if (song.source == 'wy') {
+    const res = wyUtils.getCoverUrl(song);
+    switch (size) {
+      case 120:
+        return res.coverSize.s ?? res.cover;
+      case 240:
+        return res.coverSize.m ?? res.cover;
+      case 360:
+        return res.coverSize.l ?? res.cover;
+      case 480:
+        return res.coverSize.xl ?? res.cover;
+    }
+  }
+}
+
 export const kgUtils = {
   getCoverUrl: (item: any): string => {
     return (
@@ -114,7 +139,15 @@ export const kgUtils = {
 
 export const wyUtils = {
   // 获取图片的 url
-  getCoverUrl: (item: any): { cover: string; coverSize: any } => {
+  getCoverUrl: (item: any): {
+    cover: string;
+    coverSize: {
+      s: string;
+      m: string;
+      l: string;
+      xl: string;
+    }
+  } => {
     const cover =
       item.cover ||
       item.picUrl ||
@@ -180,16 +213,16 @@ export function setThemeVars(vars: Record<string, string>) {
  * @param onProgress 进度回调
  * @param onDone 成功回调
  */
-export async function downloadWithProgress(url: string, filename: string, onProgress?: (percentage: number) => void,onDone?: () => void) {
+export async function downloadWithProgress(url: string, filename: string, onProgress?: (percentage: number) => void, onDone?: () => void) {
   const response = await fetch(url);
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
+
   const contentLength = response.headers.get('Content-Length');
   const totalBytes = contentLength ? parseInt(contentLength) : 0;
-  
+
   const reader = response.body?.getReader();
   if (!reader) throw new Error('无法获取响应体');
 
@@ -198,27 +231,27 @@ export async function downloadWithProgress(url: string, filename: string, onProg
 
   while (true) {
     const { done, value } = await reader.read();
-    
+
     if (done) {
       onDone?.();
       break
     };
-    
+
     chunks.push(value);
     receivedBytes += value.length;
-    
+
     // 计算进度百分比
     const progress = totalBytes > 0 ? Math.round((receivedBytes / totalBytes) * 100) : 0;
-    
+
     // 回调进度
     onProgress?.(progress);
   }
-  
+
   // 合并所有chunk 
   // @ts-ignore
   const blob = new Blob(chunks);
   const downloadUrl = URL.createObjectURL(blob);
-  
+
   const a = document.createElement('a');
   a.href = downloadUrl;
   a.download = filename;
@@ -226,4 +259,8 @@ export async function downloadWithProgress(url: string, filename: string, onProg
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(downloadUrl);
+}
+
+export async function getColorFromUrl(url: string): Promise<string> {
+  return window.electronAPI.getColorFromUrl(url);
 }

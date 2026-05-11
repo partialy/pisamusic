@@ -46,6 +46,7 @@ import {
   loadingBar,
 } from "./utils/common/message";
 import electronAPI from "./utils/electron";
+import { getColorFromUrl, getSongCover } from "./utils/common";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
@@ -99,8 +100,13 @@ async function setupListeners() {
     () => currentSong.value,
     (newSong) => {
       if (newSong) {
+        const coverUrl = getSongCover(newSong);
+        // coverUrl && getColorFromUrl(coverUrl).then((color) => {
+        //   void themeStore.setAccentColor(color);
+        // });
         electronAPI.changeCurrentSong(toRaw(newSong));
       } else {
+        // void themeStore.setAccentColor('#2897ff');
         electronAPI.changeCurrentSong(null);
       }
     },

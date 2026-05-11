@@ -212,6 +212,10 @@ function normalizeError(error: unknown, context?: Record<string, unknown>) {
   };
 }
 
+const utilsIpc = {
+  getColorFromUrl: (url: string) => ipcRenderer.invoke("utils:get-color-from-url", url),
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
   ...logIpc,
@@ -220,4 +224,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...musicApiIpc,
   ...settingsIpc,
   ...libraryIpc,
+  ...utilsIpc,
 });
