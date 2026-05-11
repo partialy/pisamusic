@@ -68,8 +68,12 @@
           <n-icon :component="PlayListIcon" size="24px"></n-icon>
         </template>
       </n-button>
-      <n-drawer v-model:show="showSequence" placement="right" width="400px" to="body">
-        <PlaySequence />
+      <n-drawer :style="{
+        'backdrop-filter': 'blur(16px)',
+        'background': 'color-mix(in srgb, var(--color-primary) 6%, #ffffff20) !important'
+      }"
+      v-model:show="showSequence" placement="right" width="400px" to="body">
+        <PlaySequence class="light" />
       </n-drawer>
     </div>
   </div>

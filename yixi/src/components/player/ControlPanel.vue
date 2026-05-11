@@ -43,8 +43,7 @@
       <n-button text circle @click="showSequence = true">
         <n-icon size="24" :component="PlayListIcon" class="icon"></n-icon>
       </n-button>
-      <n-drawer class="sequence-wrapper" 
-      :style="{
+      <n-drawer :style="{
         'backdrop-filter': 'blur(16px)',
         'background': '#efefef30 !important'
       }"
@@ -223,9 +222,4 @@ const toggleMuted = () => {
     padding-right: 1rem;
   }
 }
-
-  .sequence-wrapper {
-    backdrop-filter: blur(16px);
-    background: rgba($color: #000000, $alpha: 0.3) !important;
-  }
 </style>

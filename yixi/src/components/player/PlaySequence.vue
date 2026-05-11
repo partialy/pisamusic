@@ -1,12 +1,11 @@
 <template>
     <div class="play-sequence">
         <div class="sequence-header">
-            <span>播放队列</span>
-            <span title="清空列表">
-                <n-button text circle @click="clearSequence">
-                    <n-icon size="24" color="red" :component="DeleteIcon"></n-icon>
-                </n-button>
-            </span>
+            <span class="header-text">播放队列</span>
+            <n-button title="清空列表" text circle @click="clearSequence">
+                <n-icon class="delete-icon" :component="DeleteIcon"></n-icon>
+            </n-button>
+
         </div>
         <div class="sequence-toolbar">
             <div class="toolbar-left">
@@ -15,7 +14,7 @@
             </div>
             <div class="toolbar-right">
                 <n-button text circle title="搜索歌曲" @click="search">
-                    <n-icon :component="SearchIcon"></n-icon>
+                    <n-icon class="search-icon" :component="SearchIcon"></n-icon>
                 </n-button>
             </div>
         </div>
@@ -25,7 +24,13 @@
                 :style="{ height: height + 'px' }" item-key="id">
                 <template #stickyHeader v-if="showSearch">
                     <div class="sequence-search" v-if="showSearch">
-                        <n-input v-model:value="searchValue" placeholder="搜索歌曲" />
+                        <n-input round clearable
+                        style="background:transparent;"
+                         v-model:value="searchValue" placeholder="搜索歌曲">
+                         <template #prefix>
+                            <n-icon :component="SearchIcon" color="#eee" class="search-icon"></n-icon>
+                         </template>
+                         </n-input>
                         <span class="clear-search" @click="clearSearch">取消</span>
                     </div>
                 </template>
@@ -130,7 +135,29 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+.light.play-sequence {
+    .delete-icon {
+        color: #efefef !important;
+
+        &:hover {
+            color: red !important;
+        }
+    }
+
+    .search-icon {
+        color: #ddd !important;
+        font-size: 20px;
+
+        &:hover {
+            color: #fff !important;
+        }
+    }
+    .clear-search {
+        color: #ddd !important;
+    }
+}
+
 .play-sequence {
     width: 100%;
     height: 100%;
@@ -146,20 +173,20 @@ onUnmounted(() => {
         align-items: center;
         justify-content: space-between;
 
-        span {
-            font-size: 16px;
+        .header-text {
             font-weight: 600;
             display: flex;
             align-items: center;
         }
 
         .delete-icon {
-            cursor: pointer;
+            color: #efefef !important;
+            font-size: 24px;
 
             &:hover {
-                color: red;
+                color: red !important;
             }
-        }
+        }   
     }
 
     .sequence-toolbar {
@@ -184,8 +211,11 @@ onUnmounted(() => {
             -webkit-app-region: no-drag;
 
             .search-icon {
+                color: #bbb;
+                font-size: 20px;
+
                 &:hover {
-                    color: var(--color-primary);
+                    color: #fff;
                 }
             }
         }
@@ -197,16 +227,15 @@ onUnmounted(() => {
         height: 40px;
         display: flex;
         align-items: center;
-        background-color: #fff;
 
         .clear-search {
             cursor: pointer;
             width: 40px;
             margin-left: 10px;
-            opacity: 0.6;
+            opacity: 0.7;
 
             &:hover {
-                color: var(--color-primary);
+                color: #fff !important;
                 opacity: 1;
             }
         }
@@ -227,5 +256,13 @@ onUnmounted(() => {
             justify-content: center;
         }
     }
+}
+
+:deep(.n-input__placeholder) {
+    color: #dedede;
+}
+
+:deep(.n-input .n-input__input-el, .n-input .n-input__textarea-el) {
+    color: #fff;
 }
 </style>
