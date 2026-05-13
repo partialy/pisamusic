@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import type { CommonPlaylist } from "@/types/song";
 import { KGRecommendPlaylist } from "../playList";
-import { ContextMenu } from "..";
+import ContextMenu from "@/components/common/ContextMenu.vue";
 import { useTemplateRef } from "vue";
 defineProps<{
   playlist: CommonPlaylist[];

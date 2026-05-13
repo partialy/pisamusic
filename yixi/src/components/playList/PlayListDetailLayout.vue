@@ -118,7 +118,7 @@ import type { CommonPlaylist, Song } from "@/types/song";
 import type { WYPlaylistDetail } from "@/utils/webapi";
 import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
 
-import { SongList } from "..";
+import SongList from "@/components/list/SongList.vue";
 
 const player = useAudioStore();
 const collector = useCollectStore();

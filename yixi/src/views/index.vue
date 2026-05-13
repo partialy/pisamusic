@@ -22,11 +22,9 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import {
-  KGRecommendSong,
-  PlaylistCollect,
-  WelcomeCard,
-} from "@/components";
+import KGRecommendSong from "@/components/playList/KGRecommendSong.vue";
+import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
+import WelcomeCard from "@/components/home/WelcomeCard.vue";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { useAudioStore, useCollectStore } from "@/store";
 import { convertor } from "@/utils/convertor";

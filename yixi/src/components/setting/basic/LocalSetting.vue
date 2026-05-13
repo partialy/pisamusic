@@ -3,7 +3,7 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">本地扫描目录</div>
-        <div class="setting-desc">选择本地音乐文件的扫描目录，应用后续会基于这里扩展扫描能力。</div>
+        <div class="setting-desc">选择本地音乐文件的扫描目录</div>
       </div>
       <div class="path-input">
         <n-input
@@ -18,7 +18,7 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">缓存目录</div>
-        <div class="setting-desc">设置音频缓存存储位置，当前先保存配置，后续再对接真实缓存能力。</div>
+        <div class="setting-desc">设置音频缓存存储位置</div>
       </div>
       <div class="path-input">
         <n-input
@@ -33,7 +33,7 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">缓存大小限制</div>
-        <div class="setting-desc">当前仅保存限制值，默认 10 GB，缓存清理逻辑后续接入。</div>
+        <div class="setting-desc">当前仅保存限制值</div>
       </div>
       <n-input-number
         class="size-input"
@@ -47,7 +47,7 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">下载目录</div>
-        <div class="setting-desc">设置下载歌曲的保存位置，当前先建立设置链路。</div>
+        <div class="setting-desc">设置下载歌曲的保存位置</div>
       </div>
       <div class="path-input">
         <n-input
@@ -62,7 +62,7 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">歌曲命名方式</div>
-        <div class="setting-desc">下载或缓存歌曲时的文件命名规则，当前默认使用“歌手 - 歌名”。</div>
+        <div class="setting-desc">下载或缓存歌曲时的文件命名规则</div>
       </div>
       <n-select
         class="naming-select"

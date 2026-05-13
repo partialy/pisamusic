@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import electronAPI from "@/utils/electron";
+import { toRaw } from "vue";
 
 export type SongNamingMode =
   | "artist-title"
@@ -92,8 +93,9 @@ export const useSettingStore = defineStore("setting", {
     },
 
     async persistLocalSetting() {
-      this.local = normalizeLocalSetting(this.local);
-      await electronAPI.setSetting(LOCAL_SETTING_KEY, this.local, 1);
+      const normalized = normalizeLocalSetting(toRaw(this.local));
+      this.local = normalized;
+      await electronAPI.setSetting(LOCAL_SETTING_KEY, normalized, 1);
     },
   },
 });

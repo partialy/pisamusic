@@ -91,7 +91,8 @@
 <script setup lang="ts">
 import { useAudioStore } from "@/store";
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
-import { CommonSongItem, ContextMenu } from "@/components";
+import CommonSongItem from "@/components/search/CommonSongItem.vue";
+import ContextMenu from "@/components/common/ContextMenu.vue";
 import { VirtList } from "vue-virt-list";
 import type { Song } from "@/types/song";
 import { onBeforeRouteLeave } from "vue-router";

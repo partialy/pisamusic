@@ -45,7 +45,8 @@ import type { CommonPlaylist, Song } from "../types/song";
 import { convertor } from "../utils/convertor";
 import { searchMusic, searchPlaylists } from "@/utils/api/musicAPI";
 
-import { PlaylistCollect, SongList } from "@/components";
+import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
+import SongList from "@/components/list/SongList.vue";
 
 const route = useRoute();
 const keywords = ref("");

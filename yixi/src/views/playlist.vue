@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { PlaylistCollect } from "@/components";
+import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import { NPopover, NButton, NSpin, NBackTop } from "naive-ui";
 import type { KGTag } from "@/utils/webapi";
 import { onBeforeUnmount, onMounted, ref } from "vue";
