@@ -11,6 +11,7 @@ import { setupWindowIpc } from "./ipc/windowIpc";
 import { PlayerTray } from "./tray/playerTray";
 import { logger } from "./utils/logger";
 import { setupUtilsIpc } from "./ipc/utilsIpc";
+import { setupDialogIpc } from "./ipc/dialogIpc";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -80,6 +81,7 @@ function setupAppIpc() {
   setupMusicApiIpc();
   setupPersistenceIpc();
   setupUtilsIpc();
+  setupDialogIpc();
   desktopLyric.setupIpc();
 }
 

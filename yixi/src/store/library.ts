@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import type { Song } from "@/types/song";
 import electronAPI from "@/utils/electron";
+import { normalizeSong } from "@/utils/song";
 import { toRaw } from "vue";
 
 type SearchHistoryView = {
@@ -52,7 +53,11 @@ export const useLibraryStore = defineStore("library", {
     },
 
     async saveQueueSnapshot(currentIndex: number, queue: Song[]) {
-      await electronAPI.saveQueueSnapshot({ currentIndex: toRaw(currentIndex), queue: queue.map(toRaw) });
+      const normalizedQueue = queue.map((song) => normalizeSong(toRaw(song)));
+      await electronAPI.saveQueueSnapshot({
+        currentIndex: Number(toRaw(currentIndex)),
+        queue: normalizedQueue,
+      });
     },
 
     async loadQueueSnapshot() {

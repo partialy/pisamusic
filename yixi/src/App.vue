@@ -65,6 +65,7 @@ const { showPlayer } = storeToRefs(commonStore);
 
 async function setupListeners() {
   const { currentTime, currentSong } = storeToRefs(player);
+  const { followSongAccent } = storeToRefs(themeStore);
   electronAPI.onMediaControl(
     async (action: "play" | "pause" | "next" | "prev") => {
       switch (action) {
@@ -97,13 +98,15 @@ async function setupListeners() {
   });
 
   watch(
-    () => currentSong.value,
-    (newSong) => {
+    [() => currentSong.value, followSongAccent],
+    ([newSong, enabled]) => {
       if (newSong) {
         const coverUrl = getSongCover(newSong);
-        // coverUrl && getColorFromUrl(coverUrl).then((color) => {
-        //   void themeStore.setAccentColor(color);
-        // });
+        if (enabled && coverUrl) {
+          void getColorFromUrl(coverUrl).then((color) => {
+            void themeStore.setAccentColor(color);
+          });
+        }
         electronAPI.changeCurrentSong(toRaw(newSong));
       } else {
         // void themeStore.setAccentColor('#2897ff');

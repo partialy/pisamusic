@@ -78,6 +78,7 @@ const settingsIpc = {
   setSetting: (key: string, value: any, version?: number) =>
     ipcRenderer.invoke("settings:set", { key, value: cloneIpcPayload(value), version }),
   deleteSetting: (key: string) => ipcRenderer.invoke("settings:delete", key),
+  selectDirectory: (title?: string) => ipcRenderer.invoke("dialog:select-directory", title),
 };
 
 const libraryIpc = {

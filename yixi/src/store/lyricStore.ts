@@ -1,5 +1,5 @@
 import type { LyricLine } from "@applemusic-like-lyrics/core";
-import { parseYrc as amParseYrc, parseLrc as amParseLrc} from "@applemusic-like-lyrics/lyric";
+import { parseYrc as amParseYrc } from "@applemusic-like-lyrics/lyric";
 import { defineStore } from "pinia";
 import type { Song } from "@/types/song";
 import { fetchLyricsByMusicApi } from "@/utils/api/musicAPI";

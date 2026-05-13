@@ -67,6 +67,20 @@ type SettingRecord<T = unknown> = {
   updatedAt: string;
 };
 
+type LocalSongNamingMode =
+  | "artist-title"
+  | "title-artist"
+  | "title"
+  | "index-title-artist";
+
+type LocalAppSetting = {
+  scanDirectory: string;
+  cacheDirectory: string;
+  cacheLimitGb: number;
+  downloadDirectory: string;
+  songNamingMode: LocalSongNamingMode;
+};
+
 type QueueSnapshot = {
   currentIndex: number;
   queue: TrackSnapshot[];
@@ -273,6 +287,7 @@ type ElectronIpcApi = {
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;
   deleteSetting: (key: string) => Promise<boolean>;
+  selectDirectory: (title?: string) => Promise<string | null>;
   addSearchHistory: (payload: { keyword: string; source?: string | null }) => Promise<SearchHistoryItem | null>;
   listSearchHistory: (limit?: number) => Promise<SearchHistoryItem[]>;
   clearSearchHistory: () => Promise<boolean>;

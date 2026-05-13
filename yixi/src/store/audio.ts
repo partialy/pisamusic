@@ -5,6 +5,7 @@ import type { Song } from "@/types/song";
 import { getKgImage } from "../utils/common";
 import { getDynamicCover, getPlayableUrlByMusicApi } from "@/utils/api/musicAPI";
 import electronAPI from "@/utils/electron";
+import { normalizeSong } from "@/utils/song";
 import { useLibraryStore } from "./library";
 
 
@@ -536,11 +537,7 @@ export const useAudioStore = defineStore("audio", () => {
     }
   };
 
-  const toPersistedSong = (song: Song): Song => {
-    const persisted = { ...song };
-    delete persisted.url;
-    return persisted;
-  };
+  const toPersistedSong = (song: Song): Song => normalizeSong(song);
 
   const recordPlayHistory = (song: Song): void => {
     void libraryStore.addPlayHistory(toPersistedSong(song));

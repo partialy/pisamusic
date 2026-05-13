@@ -21,7 +21,7 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">主题色</div>
-        <div class="setting-desc">用于按钮、进度条、选中态、Naive UI primary 色和自动背景。</div>
+        <div class="setting-desc">用于按钮、进度条、选中态与 Naive UI 主色。</div>
       </div>
       <div class="accent-setting">
         <n-color-picker
@@ -33,6 +33,16 @@
           恢复默认
         </n-button>
       </div>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
+        <div class="setting-title">跟随歌曲自动换色</div>
+        <div class="setting-desc">开启后，切歌时会根据封面自动更新主题强调色。</div>
+      </div>
+      <n-switch
+        :value="themeStore.followSongAccent"
+        @update:value="handleFollowSongAccentChange" />
     </div>
 
     <div class="setting-item">
@@ -96,7 +106,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -123,6 +132,10 @@ const handleThemeModeChange = (value: string | number) => {
 
 const handleAccentColorChange = (value: string) => {
   void themeStore.setAccentColor(value);
+};
+
+const handleFollowSongAccentChange = (value: boolean) => {
+  void themeStore.setFollowSongAccent(value);
 };
 
 const handleAutoBackgroundChange = (value: boolean) => {
@@ -161,7 +174,6 @@ const handleGradientColorChange = (index: number, value: string) => {
     color: var(--color-text-default);
     font-size: 15px;
     font-weight: 600;
-
   }
 
   .setting-desc {

@@ -21,7 +21,6 @@ declare module 'vue' {
     ContextMenu: typeof import('./src/components/common/ContextMenu.vue')['default']
     ControlPanel: typeof import('./src/components/player/ControlPanel.vue')['default']
     DialogWrapper: typeof import('./src/components/common/DialogWrapper.vue')['default']
-    DownloadSetting: typeof import('./src/components/setting/basic/DownloadSetting.vue')['default']
     ElectronOperation: typeof import('./src/components/ElectronOperation.vue')['default']
     Header: typeof import('./src/components/Header.vue')['default']
     KGLogin: typeof import('./src/components/setting/account/KGLogin.vue')['default']

@@ -15,6 +15,7 @@ export type GradientDirection = "to bottom" | "to right" | "135deg" | "45deg";
 export type AppThemeSetting = {
   mode: ThemeMode;
   accentColor: string;
+  followSongAccent: boolean;
   autoBackground: boolean;
   gradientDirection: GradientDirection;
   gradientColors: string[];
@@ -29,6 +30,7 @@ const DEFAULT_DARK_GRADIENT_COLORS = ["#121826", "#151b2b", "#10131d"];
 const DEFAULT_THEME: AppThemeSetting = {
   mode: "light",
   accentColor: DEFAULT_ACCENT_COLOR,
+  followSongAccent: false,
   autoBackground: false,
   gradientDirection: DEFAULT_GRADIENT_DIRECTION,
   gradientColors: DEFAULT_LIGHT_GRADIENT_COLORS,
@@ -37,6 +39,7 @@ const DEFAULT_THEME: AppThemeSetting = {
 export const useThemeStore = defineStore("theme", () => {
   const mode = ref<ThemeMode>(DEFAULT_THEME.mode);
   const accentColor = ref(DEFAULT_THEME.accentColor);
+  const followSongAccent = ref(DEFAULT_THEME.followSongAccent);
   const autoBackground = ref(DEFAULT_THEME.autoBackground);
   const gradientDirection = ref<GradientDirection>(DEFAULT_THEME.gradientDirection);
   const gradientColors = ref<string[]>([...DEFAULT_THEME.gradientColors]);
@@ -102,6 +105,11 @@ export const useThemeStore = defineStore("theme", () => {
     await setAccentColor(DEFAULT_ACCENT_COLOR);
   }
 
+  async function setFollowSongAccent(enabled: boolean) {
+    followSongAccent.value = enabled;
+    await persist();
+  }
+
   async function setAutoBackground(enabled: boolean) {
     autoBackground.value = enabled;
     applyRuntimeTheme();
@@ -159,6 +167,10 @@ export const useThemeStore = defineStore("theme", () => {
   function applyTheme(theme?: Partial<AppThemeSetting> | null) {
     mode.value = isThemeMode(theme?.mode) ? theme.mode : DEFAULT_THEME.mode;
     accentColor.value = normalizeHexColor(theme?.accentColor, DEFAULT_ACCENT_COLOR);
+    followSongAccent.value =
+      typeof theme?.followSongAccent === "boolean"
+        ? theme.followSongAccent
+        : DEFAULT_THEME.followSongAccent;
     autoBackground.value =
       typeof theme?.autoBackground === "boolean"
         ? theme.autoBackground
@@ -189,6 +201,7 @@ export const useThemeStore = defineStore("theme", () => {
     await electronAPI.setSetting(THEME_SETTING_KEY, {
       mode: mode.value,
       accentColor: normalizeHexColor(accentColor.value, DEFAULT_ACCENT_COLOR),
+      followSongAccent: followSongAccent.value,
       autoBackground: autoBackground.value,
       gradientDirection: gradientDirection.value,
       gradientColors: normalizeGradientColors(gradientColors.value, resolvedMode.value),
@@ -234,6 +247,7 @@ export const useThemeStore = defineStore("theme", () => {
   return {
     mode,
     accentColor,
+    followSongAccent,
     autoBackground,
     gradientDirection,
     gradientColors,
@@ -244,6 +258,7 @@ export const useThemeStore = defineStore("theme", () => {
     setMode,
     setAccentColor,
     resetAccentColor,
+    setFollowSongAccent,
     setAutoBackground,
     setGradientDirection,
     setGradientColor,
