@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { getAppDatabase } from "../database";
 import { decrypt, encrypt, randomFullKey } from "./encryption";
 import { signGatewayUrl } from "./gatewaySigner";
 import type {
@@ -50,12 +51,45 @@ export async function submitFeedback(payload: FeedbackPayload) {
   form.set("description", payload.description);
   if (payload.contact) form.set("contact", payload.contact);
   form.set("device", JSON.stringify(payload.device ?? {}));
-  const response = await fetch(new URL("/api/feedback", getSystemBaseUrl()), {
-    method: "POST",
-    headers: createEncryptionHeaders(),
-    body: form,
-  });
-  return unwrapResponse(await parseResponse<{ id: string; createdAt: string }>(response));
+  const url = new URL("/api/feedback", getSystemBaseUrl());
+  let recorded = false;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: createEncryptionHeaders(),
+      body: form,
+    });
+    const raw = await response.text();
+    const parsed = parseResponseRaw<{ id: string; createdAt: string }>(response, raw);
+    if (!response.ok || !isSystemEnvelopeSuccess(parsed)) {
+      recorded = true;
+      recordNetworkError({
+        requestScope: "system",
+        method: "POST",
+        requestUrl: url.toString(),
+        requestPath: url.pathname,
+        requestParams: payload,
+        httpStatus: response.status,
+        businessCode: parsed.code,
+        response: safeParseRaw(raw, parsed),
+        errorMessage: parsed.msg || response.statusText || "feedback request failed",
+      });
+    }
+    return unwrapResponse(parsed);
+  } catch (error) {
+    if (!recorded) {
+      recordNetworkError({
+        requestScope: "system",
+        method: "POST",
+        requestUrl: url.toString(),
+        requestPath: url.pathname,
+        requestParams: payload,
+        response: null,
+        errorMessage: toErrorMessage(error),
+      });
+    }
+    throw error;
+  }
 }
 
 export async function requestSignedGateway<T>(
@@ -67,15 +101,63 @@ export async function requestSignedGateway<T>(
   const method = options.method ?? "GET";
   const body = options.body === undefined ? "" : JSON.stringify(options.body);
   const signed = signGatewayUrl(method, rawUrl, body, signConfig);
-  const response = await fetch(signed.url, {
-    method,
-    headers: {
-      ...signed.headers,
-      ...(body ? { "content-type": "application/json" } : {}),
-    },
-    body: body || undefined,
-  });
-  return parseGatewayResponse<T>(response);
+  const requestUrl = new URL(rawUrl);
+  let recorded = false;
+  try {
+    const response = await fetch(signed.url, {
+      method,
+      headers: {
+        ...signed.headers,
+        ...(body ? { "content-type": "application/json" } : {}),
+      },
+      body: body || undefined,
+    });
+    const raw = await response.text();
+    if (!response.ok) {
+      recorded = true;
+      recordNetworkError({
+        requestScope: "gateway",
+        method,
+        requestUrl: rawUrl,
+        requestPath: requestUrl.pathname,
+        requestParams: options.body ?? Object.fromEntries(requestUrl.searchParams.entries()),
+        httpStatus: response.status,
+        response: safeParseRaw(raw, raw || null),
+        errorMessage: response.statusText || `gateway request failed: ${response.status}`,
+      });
+      throw new Error(response.statusText || `gateway request failed: ${response.status}`);
+    }
+    const parsed = parseGatewayResponseRaw<T>(response, raw);
+    const businessError = getExplicitGatewayBusinessError(parsed);
+    if (!response.ok || businessError) {
+      recorded = true;
+      recordNetworkError({
+        requestScope: "gateway",
+        method,
+        requestUrl: rawUrl,
+        requestPath: requestUrl.pathname,
+        requestParams: options.body ?? Object.fromEntries(requestUrl.searchParams.entries()),
+        httpStatus: response.status,
+        businessCode: businessError?.code ?? null,
+        response: safeParseRaw(raw, parsed),
+        errorMessage: businessError?.message || response.statusText || "gateway request failed",
+      });
+    }
+    return parsed;
+  } catch (error) {
+    if (!recorded) {
+      recordNetworkError({
+        requestScope: "gateway",
+        method,
+        requestUrl: rawUrl,
+        requestPath: requestUrl.pathname,
+        requestParams: options.body ?? Object.fromEntries(requestUrl.searchParams.entries()),
+        response: null,
+        errorMessage: toErrorMessage(error),
+      });
+    }
+    throw error;
+  }
 }
 
 export function getRuntimeEndpoints(): RuntimeEndpoints {
@@ -138,8 +220,36 @@ async function requestSystem<T>(path: string, options: RequestOptions = {}) {
     body = JSON.stringify(options.body);
   }
 
-  const response = await fetch(url, { method, headers, body });
-  return parseResponse<T>(response);
+  try {
+    const response = await fetch(url, { method, headers, body });
+    const raw = await response.text();
+    const parsed = parseResponseRaw<T>(response, raw);
+    if (!response.ok || !isSystemEnvelopeSuccess(parsed)) {
+      recordNetworkError({
+        requestScope: "system",
+        method,
+        requestUrl: url.toString(),
+        requestPath: url.pathname,
+        requestParams: options.body ?? Object.fromEntries(url.searchParams.entries()),
+        httpStatus: response.status,
+        businessCode: parsed.code,
+        response: safeParseRaw(raw, parsed),
+        errorMessage: parsed.msg || response.statusText || "system request failed",
+      });
+    }
+    return parsed;
+  } catch (error) {
+    recordNetworkError({
+      requestScope: "system",
+      method,
+      requestUrl: url.toString(),
+      requestPath: url.pathname,
+      requestParams: options.body ?? Object.fromEntries(url.searchParams.entries()),
+      response: null,
+      errorMessage: toErrorMessage(error),
+    });
+    throw error;
+  }
 }
 
 function createEncryptionHeaders() {
@@ -155,8 +265,7 @@ function applyEncryptionHeaders(headers: Record<string, string>) {
   return reqKey;
 }
 
-async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
-  const raw = await response.text();
+function parseResponseRaw<T>(response: Response, raw: string): ApiResponse<T> {
   if (!raw) {
     return { success: response.ok, code: response.status, msg: response.statusText, data: null };
   }
@@ -170,8 +279,7 @@ async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
   return parsed as ApiResponse<T>;
 }
 
-async function parseGatewayResponse<T>(response: Response): Promise<T> {
-  const raw = await response.text();
+function parseGatewayResponseRaw<T>(response: Response, raw: string): T {
   if (!response.ok) {
     throw new Error(response.statusText || `gateway request failed: ${response.status}`);
   }
@@ -192,6 +300,67 @@ async function parseGatewayResponse<T>(response: Response): Promise<T> {
     return JSON.parse(decrypt(respKey, parsed.encData)) as T;
   }
   return parsed as T;
+}
+
+function isSystemEnvelopeSuccess(response: ApiResponse<unknown>) {
+  return response.success === true && response.code === 0 && response.data !== null;
+}
+
+function getExplicitGatewayBusinessError(response: unknown) {
+  if (!response || typeof response !== "object") return null;
+  const value = response as Record<string, unknown>;
+  const code = typeof value.code === "number" || typeof value.code === "string" ? value.code : null;
+  const status = typeof value.status === "number" || typeof value.status === "string" ? value.status : null;
+  const message = typeof value.message === "string"
+    ? value.message
+    : typeof value.error === "string"
+      ? value.error
+      : "";
+
+  if (value.success === false) {
+    return { code, message: message || "gateway success=false" };
+  }
+  if (typeof code === "number" && code >= 400) {
+    return { code, message: message || `gateway business code ${code}` };
+  }
+  if (typeof status === "number" && status >= 400) {
+    return { code: status, message: message || `gateway business status ${status}` };
+  }
+  if (message && (message.toLowerCase().includes("error") || message.includes("失败"))) {
+    return { code, message };
+  }
+  return null;
+}
+
+function recordNetworkError(input: {
+  requestScope: "system" | "gateway";
+  method: string;
+  requestUrl: string;
+  requestPath: string;
+  requestParams?: unknown;
+  httpStatus?: number | null;
+  businessCode?: number | string | null;
+  response?: unknown;
+  errorMessage: string;
+}) {
+  try {
+    getAppDatabase().addNetworkErrorRecord(input);
+  } catch {
+    // 记录失败不应反过来影响业务请求。
+  }
+}
+
+function safeParseRaw(raw: string, fallback: unknown) {
+  if (!raw) return fallback ?? null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function toErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function unwrapResponse<T>(response: ApiResponse<T>): T {

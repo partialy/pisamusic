@@ -271,14 +271,11 @@ async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
 async function fetchWyLyrics(id: string): Promise<MusicLyricResult> {
   if (!id) return emptyLyrics();
   const endpoints = await getRuntimeEndpointsCached();
-  const [krcResult, lrcResult]: any[] = await Promise.all([
-    requestSignedGateway(buildUrl(endpoints.wyServer, "/lyric/new", { id })),
-    requestSignedGateway(buildUrl(endpoints.wyServer, "/lyric", { id })),
-  ]);
+  const lyricResult: any = await requestSignedGateway(buildUrl(endpoints.wyServer, "/lyric/new", { id }));
 
   return {
-    krc: krcResult?.yrc?.lyric || "",
-    lrc: lrcResult?.lrc?.lyric || "",
+    krc: lyricResult?.yrc?.lyric || "",
+    lrc: lyricResult?.lrc?.lyric || "",
   };
 }
 

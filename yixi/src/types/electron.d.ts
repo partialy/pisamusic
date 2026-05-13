@@ -162,6 +162,36 @@ type PlayHistoryItem = {
   playedAt: string;
 };
 
+type NetworkErrorRecordSummary = {
+  id: number;
+  requestScope: string;
+  method: string;
+  requestPath: string;
+  httpStatus: number | null;
+  businessCode: string | null;
+  errorMessage: string;
+  createdAt: string;
+};
+
+type NetworkErrorRecordDetail = NetworkErrorRecordSummary & {
+  requestUrl: string;
+  requestParams: unknown;
+  response: unknown;
+};
+
+type NetworkErrorRecordPage = {
+  items: NetworkErrorRecordSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+type NetworkErrorExportResult = {
+  exported: boolean;
+  filePath: string | null;
+  count: number;
+};
+
 type BackServerConfig = {
   kgServer: string;
   wyServer: string;
@@ -309,6 +339,10 @@ type ElectronIpcApi = {
   onFavoritesChanged: (callback: () => void) => () => void;
 
   getColorFromUrl: (url: string) => Promise<string>;
+  isDevelopmentRuntime: () => Promise<boolean>;
+  listNetworkErrors: (payload?: { page?: number; pageSize?: number }) => Promise<NetworkErrorRecordPage>;
+  getNetworkErrorDetail: (id: number) => Promise<NetworkErrorRecordDetail | null>;
+  exportNetworkErrors: (limit: 10 | 100) => Promise<NetworkErrorExportResult>;
 };
 
 declare global {

@@ -217,6 +217,15 @@ const utilsIpc = {
   getColorFromUrl: (url: string) => ipcRenderer.invoke("utils:get-color-from-url", url),
 };
 
+const debugIpc = {
+  isDevelopmentRuntime: () => ipcRenderer.invoke("debug:is-development-runtime"),
+  listNetworkErrors: (payload?: { page?: number; pageSize?: number }) =>
+    ipcRenderer.invoke("debug:network-errors:list", cloneIpcPayload(payload)),
+  getNetworkErrorDetail: (id: number) => ipcRenderer.invoke("debug:network-errors:detail", id),
+  exportNetworkErrors: (limit: 10 | 100) =>
+    ipcRenderer.invoke("debug:network-errors:export", limit),
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
   ...logIpc,
@@ -226,4 +235,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...settingsIpc,
   ...libraryIpc,
   ...utilsIpc,
+  ...debugIpc,
 });

@@ -12,6 +12,7 @@ import { PlayerTray } from "./tray/playerTray";
 import { logger } from "./utils/logger";
 import { setupUtilsIpc } from "./ipc/utilsIpc";
 import { setupDialogIpc } from "./ipc/dialogIpc";
+import { setupDebugIpc } from "./ipc/debugIpc";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -82,6 +83,7 @@ function setupAppIpc() {
   setupPersistenceIpc();
   setupUtilsIpc();
   setupDialogIpc();
+  setupDebugIpc();
   desktopLyric.setupIpc();
 }
 

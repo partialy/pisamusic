@@ -7,6 +7,7 @@ import { getDynamicCover, getPlayableUrlByMusicApi } from "@/utils/api/musicAPI"
 import electronAPI from "@/utils/electron";
 import { normalizeSong } from "@/utils/song";
 import { useLibraryStore } from "./library";
+import { reportError } from "@/utils/errorReporter";
 
 
 // 定义重复播放模式的类型
@@ -425,13 +426,24 @@ export const useAudioStore = defineStore("audio", () => {
   );
 
   const fetchWYCover = async () => {
-    if (!currentSong.value || currentSong.value.source != "wy") return;
+    const song = currentSong.value;
+    if (!song || song.source != "wy") return;
 
-    const res: any = await getDynamicCover(currentSong.value.id);
-    currentSong.value.d_cover = res?.data?.videoPlayUrl || null;
+    try {
+      const res: any = await getDynamicCover(song.id);
+      if (currentSong.value?.id !== song.id) return;
+      currentSong.value.d_cover = res?.data?.videoPlayUrl || undefined;
+    } catch (error) {
+      void reportError(error, {
+        scope: "audio",
+        action: "fetchWYCover",
+        songId: song.id,
+        source: song.source,
+      });
+    }
   };
 
-  watch(() => currentSong.value, fetchWYCover, { deep: true });
+  watch(() => currentSong.value?.id, fetchWYCover);
 
   // 状态持久化
 

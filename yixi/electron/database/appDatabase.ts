@@ -94,6 +94,42 @@ export type FavoritePlaylistItem = {
   createdAt: string;
 };
 
+export type NetworkErrorRecordInput = {
+  requestScope: "system" | "gateway";
+  method: string;
+  requestUrl: string;
+  requestPath: string;
+  requestParams?: unknown;
+  httpStatus?: number | null;
+  businessCode?: number | string | null;
+  response?: unknown;
+  errorMessage: string;
+};
+
+export type NetworkErrorRecordSummary = {
+  id: number;
+  requestScope: string;
+  method: string;
+  requestPath: string;
+  httpStatus: number | null;
+  businessCode: string | null;
+  errorMessage: string;
+  createdAt: string;
+};
+
+export type NetworkErrorRecordDetail = NetworkErrorRecordSummary & {
+  requestUrl: string;
+  requestParams: unknown;
+  response: unknown;
+};
+
+export type NetworkErrorRecordPage = {
+  items: NetworkErrorRecordSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 type SettingRow = {
   key: string;
   value_json: string;
@@ -152,6 +188,23 @@ type FavoritePlaylistRow = {
   collect_count: string;
   payload_json: string;
   created_at: string;
+};
+
+type NetworkErrorSummaryRow = {
+  id: number;
+  request_scope: string;
+  method: string;
+  request_path: string;
+  http_status: number | null;
+  business_code: string | null;
+  error_message: string;
+  created_at: string;
+};
+
+type NetworkErrorDetailRow = NetworkErrorSummaryRow & {
+  request_url: string;
+  request_params_json: string;
+  response_json: string;
 };
 
 export class AppDatabase {
@@ -455,6 +508,90 @@ export class AppDatabase {
     return Boolean(row);
   }
 
+  addNetworkErrorRecord(input: NetworkErrorRecordInput) {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO network_error_records (
+           request_scope, method, request_url, request_path, request_params_json,
+           http_status, business_code, response_json, error_message, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        input.requestScope,
+        input.method,
+        input.requestUrl,
+        input.requestPath,
+        this.stringifyJson(input.requestParams ?? null),
+        input.httpStatus ?? null,
+        input.businessCode === undefined || input.businessCode === null ? null : String(input.businessCode),
+        this.stringifyJson(input.response ?? null),
+        input.errorMessage,
+        now
+      );
+
+    this.db.prepare(
+      `DELETE FROM network_error_records
+       WHERE id NOT IN (
+         SELECT id
+         FROM network_error_records
+         ORDER BY created_at DESC, id DESC
+         LIMIT 1000
+       )`
+    ).run();
+    return true;
+  }
+
+  listNetworkErrorRecords(page = 1, pageSize = 10): NetworkErrorRecordPage {
+    const normalizedPageSize = this.normalizeLimit(pageSize);
+    const normalizedPage = Math.max(Math.floor(Number(page) || 1), 1);
+    const offset = (normalizedPage - 1) * normalizedPageSize;
+    const totalRow = this.db
+      .prepare("SELECT COUNT(*) AS total FROM network_error_records")
+      .get() as { total: number } | undefined;
+    const rows = this.db
+      .prepare(
+        `SELECT id, request_scope, method, request_path, http_status, business_code, error_message, created_at
+         FROM network_error_records
+         ORDER BY created_at DESC, id DESC
+         LIMIT ? OFFSET ?`
+      )
+      .all(normalizedPageSize, offset) as NetworkErrorSummaryRow[];
+
+    return {
+      items: rows.map((row) => this.toNetworkErrorSummary(row)),
+      total: totalRow?.total ?? 0,
+      page: normalizedPage,
+      pageSize: normalizedPageSize,
+    };
+  }
+
+  getNetworkErrorRecord(id: number): NetworkErrorRecordDetail | null {
+    const row = this.db
+      .prepare(
+        `SELECT id, request_scope, method, request_url, request_path, request_params_json,
+                http_status, business_code, response_json, error_message, created_at
+         FROM network_error_records
+         WHERE id = ?`
+      )
+      .get(id) as NetworkErrorDetailRow | undefined;
+    if (!row) return null;
+    return this.toNetworkErrorDetail(row);
+  }
+
+  exportNetworkErrorRecords(limit = 10): NetworkErrorRecordDetail[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, request_scope, method, request_url, request_path, request_params_json,
+                http_status, business_code, response_json, error_message, created_at
+         FROM network_error_records
+         ORDER BY created_at DESC, id DESC
+         LIMIT ?`
+      )
+      .all(this.normalizeLimit(limit)) as NetworkErrorDetailRow[];
+    return rows.map((row) => this.toNetworkErrorDetail(row));
+  }
+
   private migrate() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -535,11 +672,35 @@ export class AppDatabase {
 
       CREATE INDEX IF NOT EXISTS idx_favorite_playlists_created_at
         ON favorite_playlists(created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS network_error_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        request_scope TEXT NOT NULL,
+        method TEXT NOT NULL,
+        request_url TEXT NOT NULL,
+        request_path TEXT NOT NULL,
+        request_params_json TEXT NOT NULL,
+        http_status INTEGER,
+        business_code TEXT,
+        response_json TEXT NOT NULL,
+        error_message TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_network_error_records_created_at
+        ON network_error_records(created_at DESC, id DESC);
     `);
     this.db
       .prepare(
         `INSERT INTO schema_migrations (version, name, applied_at)
          VALUES (1, 'initial local library schema', ?)
+         ON CONFLICT(version) DO NOTHING`
+      )
+      .run(new Date().toISOString());
+    this.db
+      .prepare(
+        `INSERT INTO schema_migrations (version, name, applied_at)
+         VALUES (2, 'network error records schema', ?)
          ON CONFLICT(version) DO NOTHING`
       )
       .run(new Date().toISOString());
@@ -556,6 +717,39 @@ export class AppDatabase {
     } catch {
       return fallback;
     }
+  }
+
+  private stringifyJson(value: unknown) {
+    try {
+      return JSON.stringify(value ?? null);
+    } catch {
+      return JSON.stringify({
+        stringifyError: true,
+        fallback: String(value),
+      });
+    }
+  }
+
+  private toNetworkErrorSummary(row: NetworkErrorSummaryRow): NetworkErrorRecordSummary {
+    return {
+      id: row.id,
+      requestScope: row.request_scope,
+      method: row.method,
+      requestPath: row.request_path,
+      httpStatus: row.http_status,
+      businessCode: row.business_code,
+      errorMessage: row.error_message,
+      createdAt: row.created_at,
+    };
+  }
+
+  private toNetworkErrorDetail(row: NetworkErrorDetailRow): NetworkErrorRecordDetail {
+    return {
+      ...this.toNetworkErrorSummary(row),
+      requestUrl: row.request_url,
+      requestParams: this.parseJson<unknown>(row.request_params_json, null),
+      response: this.parseJson<unknown>(row.response_json, null),
+    };
   }
 
   private getFavoriteSong(source: string, id: string) {
