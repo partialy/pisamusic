@@ -20,7 +20,7 @@
         </div>
 
         <div class="sequence-list" ref="sequenceList">
-            <VirtList ref="virtListRef" :buffer="2" :offset="offset" :min-size="64" :list="currentList"
+            <VirtList ref="virtListRef" :buffer="2" :start="startIndex" :min-size="64" :list="currentList"
                 :style="{ height: height + 'px' }" item-key="id">
                 <template #stickyHeader v-if="showSearch">
                     <div class="sequence-search" v-if="showSearch">
@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { SearchIcon, DeleteIcon, LocateIcon } from '@/icons';
-import { ref, computed, onMounted, h, useTemplateRef, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, h, useTemplateRef, onUnmounted } from 'vue';
 import { NInput, NFloatButton, NButton, NIcon } from 'naive-ui';
 import { SequenceItem } from '.';
 import { VirtList } from 'vue-virt-list'
@@ -71,9 +71,12 @@ const currentList = computed(() => {
 
 const sequenceList = useTemplateRef('sequenceList')
 const virtListRef = useTemplateRef('virtListRef')
-const offset = ref(0)
 const searchValue = ref('')
 const showSearch = ref(false)
+const startIndex = computed(() => {
+    const index = currentList.value.findIndex((item) => item.id == currentSong.value?.id)
+    return Math.max(index, 0)
+})
 
 const clearSequence = () => {
     window.$dialog.create({
@@ -115,19 +118,20 @@ const observer = new ResizeObserver(entries => {
         height.value = entries[0].contentRect.height
     }
 })
-const locate = () => {
-    if (currentSong.value) {
-        const index = currentList.value.findIndex((i) => i.id == currentSong.value?.id)
-        virtListRef.value?.scrollToIndex(index)
-    }
+const locate = async () => {
+    if (!currentSong.value) return
+    await nextTick()
+    requestAnimationFrame(() => {
+        virtListRef.value?.forceUpdate()
+        virtListRef.value?.scrollToIndex(startIndex.value)
+    })
 }
 
 const isLoading = ref(false)
 
 onMounted(async () => {
-    offset.value = currentList.value.findIndex((i) => i.id == currentSong.value?.id) || 0
     sequenceList.value && observer.observe(sequenceList.value)
-    locate()
+    await locate()
 })
 
 onUnmounted(() => observer.disconnect())
