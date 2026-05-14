@@ -32,7 +32,11 @@
         :has-more="hasMore"
         @scroll-to-bottom="handleToBottom" />
 
-        <PlaylistCollect style="margin-top: 1rem;" v-else-if="searchType == 'playlist'" :playlist="playlist" />
+        <PlaylistCollect
+          style="margin-top: 1rem;"
+          v-else-if="searchType == 'playlist'"
+          :playlist="playlist"
+          :loading="playlistLoading" />
     </div>
   </div>
 </template>
@@ -44,19 +48,33 @@ import { NSelect, NRadio, NRadioGroup, NSpace } from "naive-ui";
 import type { CommonPlaylist, Song } from "../types/song";
 import { convertor } from "../utils/convertor";
 import { searchMusic, searchPlaylists } from "@/utils/api/musicAPI";
+import type {
+  WYCloudSearchListItem,
+  WYCloudSearchListResponse,
+} from "@/utils/webapi/types/WY/WYCloudSearchList";
 
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import SongList from "@/components/list/SongList.vue";
 
+type MusicOrigin = "kg" | "wy" | "kw";
+type PlaylistOrigin = "kg" | "wy";
+type SearchType = "song" | "playlist" | "artist" | "album" | "lyric";
+
 const route = useRoute();
 const keywords = ref("");
-const origin = ref("kg");
-const originOptions = [
+const origin = ref<MusicOrigin>("kg");
+const allOriginOptions = [
   { label: "kg", value: "kg" },
   { label: "wy", value: "wy" },
   { label: "kw", value: "kw" },
-];
-const searchType = ref("song");
+] as const;
+const originOptions = computed(() => {
+  if (searchType.value === "playlist") {
+    return allOriginOptions.filter((item) => isPlaylistOrigin(item.value));
+  }
+  return allOriginOptions;
+});
+const searchType = ref<SearchType>("song");
 const searchTypeOptions = [
   { label: "单曲", value: "song" },
   { label: "歌单", value: "playlist" },
@@ -96,22 +114,59 @@ const pagination = reactive({
   total: 0,
 });
 
-const handleChangeOringin = (value: string) => {
+const handleChangeOringin = (value: MusicOrigin) => {
   pagination.page = 1;
   change.value = false
-  search(value);
+  if (searchType.value === "playlist") {
+    searchList(normalizePlaylistOrigin(value));
+  } else {
+    search(value);
+  }
   nextTick(() => {
     change.value = true
   })
 };
 
-const handleChangeType = (value: string) => {
-  if(value == "playlist"){
-    searchList()
+const handleChangeType = (value: SearchType) => {
+  if (value === "playlist") {
+    const nextOrigin = normalizePlaylistOrigin(origin.value);
+    if (origin.value !== nextOrigin) origin.value = nextOrigin;
+    searchList(nextOrigin);
+    return;
   }
+  search(origin.value);
 };
 
-const search = async (tab: string) => {
+const isPlaylistOrigin = (value: string): value is PlaylistOrigin => {
+  return value === "kg" || value === "wy";
+};
+
+const normalizePlaylistOrigin = (value: string): PlaylistOrigin => {
+  if (isPlaylistOrigin(value)) return value;
+  return "kg";
+};
+
+const getWyPlaylistResult = (response: WYCloudSearchListResponse) => {
+  const result = response?.result;
+  if (!result || !("playlists" in result) || !Array.isArray(result.playlists)) {
+    return { playlists: [] as WYCloudSearchListItem[], total: 0 };
+  }
+
+  return {
+    playlists: result.playlists,
+    total: Number(result.playlistCount ?? 0),
+  };
+};
+
+const searchByCurrentType = () => {
+  if (searchType.value === "playlist") {
+    searchList(normalizePlaylistOrigin(origin.value));
+    return;
+  }
+  search(origin.value);
+};
+
+const search = async (tab: MusicOrigin) => {
   pagination.page = 1;
   pagination.total = 0;
   pagination.pageSize = 30;
@@ -245,9 +300,10 @@ const loadMore = async () => {
 
 const init = async () => {
   keywords.value = route.query.key as string;
-  origin.value = (route.query.tab as string) || "kg";
+  const queryOrigin = route.query.tab as MusicOrigin | undefined;
+  origin.value = queryOrigin || "kg";
   if (!keywords.value) return;
-  search(origin.value);
+  searchByCurrentType();
 };
 
 // 歌单
@@ -273,35 +329,41 @@ const page = reactive({
   pageSize: 30,
   total: 0,
 })
+const playlistLoading = ref(false);
 
-const searchList = async () => { 
+const searchList = async (tab: PlaylistOrigin = normalizePlaylistOrigin(origin.value)) => {
+  page.page = 1;
+  page.pageSize = 30;
+  page.total = 0;
   try {
-    switch(origin.value){
+    playlistLoading.value = true;
+    switch(tab){
       case 'kg':
         const kres: any = await searchPlaylists({
           source: "kg",
           keywords: keywords.value,
-          page: 1,
-          pageSize: 30,
+          page: page.page,
+          pageSize: page.pageSize,
         })
         list.kg = kres?.data.lists.map((item:any) => convertor.KG.convertSearchList(item)) || []
         page.total = kres?.data.total || 0
         break;
-        case 'wy':
-          const wyres: any = await searchPlaylists({
-            source: "wy",
-            keywords: keywords.value,
-            page: 1,
-            pageSize: 30,
-          })
-          // @ts-ignore
-          list.wy = wyres?.result.playlists.map((item:any) => convertor.WY.convertSearchList(item)) || []
-          // @ts-ignore
-          page.total = wyres?.result.playlistCount || 0
-          break;
+      case 'wy':
+        const wyres = await searchPlaylists<WYCloudSearchListResponse>({
+          source: "wy",
+          keywords: keywords.value,
+          page: page.page,
+          pageSize: page.pageSize,
+        })
+        const wyPlaylistResult = getWyPlaylistResult(wyres);
+        list.wy = wyPlaylistResult.playlists.map((item) => convertor.WY.convertSearchList(item)) || []
+        page.total = wyPlaylistResult.total
+        break;
     }
   } catch (error) {
     console.log("搜索歌单失败："+error);
+  } finally {
+    playlistLoading.value = false;
   }
 }
 

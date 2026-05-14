@@ -65,6 +65,7 @@ export async function getPlaylistDetail<T = any>(payload: {
 export async function getPlaylistTracks<T = any>(payload: {
   source: "kg" | "wy";
   id: string;
+  offset?: number;
   page?: number;
   pageSize?: number;
 }): Promise<T> {

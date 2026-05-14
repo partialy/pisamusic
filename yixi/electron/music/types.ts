@@ -35,6 +35,7 @@ export type PlaylistDetailParams = {
 export type PlaylistTracksParams = {
   source: Exclude<MusicSource, "kw">;
   id: string;
+  offset?: number;
   page?: number;
   pageSize?: number;
 };

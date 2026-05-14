@@ -54,32 +54,26 @@
         </template>
       </VirtList>
       <template v-else>
-        <div
-          style="
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-top: 20px;
-          ">
-          <div
-            v-for="i in 20"
-            :key="i"
-            style="
-              height: 60px;
-              width: 100%;
-              display: flex;
-              flex-direction: column;
-              gap: 5px;
-              justify-content: center;
-            ">
-            <n-skeleton
-              height="32px"
-              width="90%"
-              style="border-radius: 8px"></n-skeleton>
-            <n-skeleton
-              height="20px"
-              width="60%"
-              style="border-radius: 8px"></n-skeleton>
+        <div class="song-skeleton-list">
+          <div class="song-list-header skeleton-header" v-if="showHeader">
+            <n-skeleton text width="24px" />
+            <n-skeleton text width="40px" />
+            <n-skeleton text width="160px" />
+            <n-skeleton text width="42px" />
+            <n-skeleton text width="120px" />
+            <n-skeleton text width="86px" />
+          </div>
+          <div v-for="i in 12" :key="i" class="song-skeleton-row">
+            <n-skeleton circle height="42px" width="42px" />
+            <div class="song-skeleton-main">
+              <n-skeleton text :width="`${68 + (i % 4) * 6}%`" />
+              <n-skeleton text :width="`${42 + (i % 3) * 8}%`" />
+            </div>
+            <n-skeleton class="song-skeleton-album" text :width="`${46 + (i % 4) * 8}%`" />
+            <div class="song-skeleton-actions">
+              <n-skeleton circle height="28px" width="28px" />
+              <n-skeleton circle height="28px" width="28px" />
+            </div>
           </div>
         </div>
       </template>
@@ -203,6 +197,50 @@ onBeforeUnmount(() => {
 .content-container {
   width: 100%;
   height: 100%;
+
+  .song-skeleton-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 4px 0 16px;
+  }
+
+  .skeleton-header {
+    display: grid;
+    grid-template-columns: 48px 64px minmax(180px, 1fr) 64px 200px 114px;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .song-skeleton-row {
+    height: 64px;
+    display: grid;
+    grid-template-columns: 42px minmax(180px, 1fr) minmax(120px, 200px) 76px;
+    gap: 14px;
+    align-items: center;
+    padding: 0 1rem;
+    border: 1px solid var(--color-border-default);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--color-bg-default) 82%, #ffffff 18%);
+  }
+
+  .song-skeleton-main,
+  .song-skeleton-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .song-skeleton-main {
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .song-skeleton-actions {
+    justify-content: flex-end;
+    gap: 10px;
+  }
 
   .song-list-header {
     height: 36px;

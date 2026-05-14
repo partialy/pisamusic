@@ -172,6 +172,7 @@ const musicApiIpc = {
   getPlaylistTracks: (payload: {
     source: "kg" | "wy";
     id: string;
+    offset?: number;
     page?: number;
     pageSize?: number;
   }) => ipcRenderer.invoke("music:playlist-tracks", cloneIpcPayload(payload)),

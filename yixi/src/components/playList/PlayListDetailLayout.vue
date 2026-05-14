@@ -166,9 +166,13 @@ const TagType = {
 
 const songList = ref<Song[]>([]);
 const allSong = ref<Song[]>([]);
+const loadVersion = ref(0);
+const INITIAL_PAGE_SIZE = 30;
+const BACKGROUND_PAGE_SIZE = 1000;
+const VISIBLE_CHUNK_SIZE = 60;
 const page = ref({
   currentPage: 1,
-  size: 30,
+  size: INITIAL_PAGE_SIZE,
   total: 0,
 });
 
@@ -197,43 +201,57 @@ const getListDetail = async () => {
     });
     wyListDetail.value = res?.playlist;
     page.value.total = res?.playlist.trackCount!!;
-    if (page.value.total > 300) {
-      page.value.size = Math.max(Math.ceil(page.value.total / 5), 60);
-    }
   } else {
     const res: any = await getPlaylistDetail({
       source: "kg",
       id: id as string,
     });
     kgListDetail.value = res?.data[0];
+    page.value.total = kgListDetail.value?.count || 0;
   }
   convertDetail(route.query.origin as "kg" | "wy");
 };
 
 const getSongList = async () => {
+  const initialSongs = await fetchPlaylistSongs(0, INITIAL_PAGE_SIZE);
+  songList.value = initialSongs;
+  allSong.value = initialSongs;
+};
+
+const fetchPlaylistSongs = async (offset: number, pageSize: number): Promise<Song[]> => {
   if (route.query.origin == "wy") {
     const res: any = await getPlaylistTracks({
       source: "wy",
       id: id as string,
-      page: page.value.currentPage,
-      pageSize: page.value.size,
+      offset,
+      pageSize,
     });
     const rawList = res?.songs || [];
-    songList.value = rawList.map((i: any) => convertor.WY.convertPlaylistSong(i));
-  } else {
-    const res: any = await getPlaylistTracks({
-      source: "kg",
-      id: id as string,
-      page: page.value.currentPage,
-      pageSize: page.value.size,
-    });
-    const rawList = res?.data.info || [];
-    songList.value = rawList.map((i: any) => convertor.KG.convertKGPlaylistSong(i));
-    page.value.currentPage = ((res?.data.begin_idx || 0) % page.value.size) + 1;
-    page.value.total = res?.data.count || 0;
-    if (page.value.total > 300) {
-      page.value.size = Math.max(Math.ceil(page.value.total / 5), 60);
-    }
+    return rawList.map((i: any) => convertor.WY.convertPlaylistSong(i));
+  }
+
+  const res: any = await getPlaylistTracks({
+    source: "kg",
+    id: id as string,
+    offset,
+    pageSize,
+  });
+  const rawList = res?.data.info || [];
+  page.value.total = res?.data.count || page.value.total;
+  return rawList.map((i: any) => convertor.KG.convertKGPlaylistSong(i));
+};
+
+const appendUniqueSongs = (songs: Song[]) => {
+  const songKeys = new Set(allSong.value.map((song) => `${song.source}:${song.id}`));
+  const newSongs = songs.filter((song) => {
+    const key = `${song.source}:${song.id}`;
+    if (songKeys.has(key)) return false;
+    songKeys.add(key);
+    return true;
+  });
+
+  if (newSongs.length) {
+    allSong.value = [...allSong.value, ...newSongs];
   }
 };
 
@@ -249,6 +267,7 @@ const handlePlay = async (item?: Song) => {
       clearInterval(timer);
       player.switchPlayList(allSong.value, false);
       if (!item) {
+        songList.value = allSong.value;
         player.play(allSong.value[0]);
       }
     }
@@ -262,44 +281,34 @@ const playAll = async () => {
 
 const loadAll = async () => {
   if (allLoading.value) return;
+  const currentVersion = loadVersion.value;
   allLoading.value = true;
-  const times =
-    page.value.total % page.value.size === 0
-      ? Math.floor(page.value.total / page.value.size)
-      : Math.floor(page.value.total / page.value.size) + 1;
-  if (route.query.origin == "wy") {
-    for (let i = 1; i <= times; i++) {
-      const res: any = await getPlaylistTracks({
-        source: "wy",
-        id: id as string,
-        page: i,
-        pageSize: page.value.size,
-      });
-      const l = res?.songs.map((i: any) => convertor.WY.convertPlaylistSong(i));
-      if (l) allSong.value = [...allSong.value, ...l];
+  try {
+    let offset = INITIAL_PAGE_SIZE;
+    while (offset < page.value.total && currentVersion === loadVersion.value) {
+      const songs = await fetchPlaylistSongs(offset, BACKGROUND_PAGE_SIZE);
+      if (!songs.length) break;
+      appendUniqueSongs(songs);
+      offset += BACKGROUND_PAGE_SIZE;
     }
-  } else {
-    for (let i = 1; i <= times; i++) {
-      const res: any = await getPlaylistTracks({
-        source: "kg",
-        id: id as string,
-        page: i,
-        pageSize: page.value.size,
-      });
-      const s = res?.data.info || [];
-      const l = s.map((i: any) =>
-        convertor.KG.convertKGPlaylistSong(i)
-      );
-      if (l) allSong.value = [...allSong.value, ...l];
+  } catch (error) {
+    console.log("后台加载歌单歌曲失败：" + error);
+  } finally {
+    if (currentVersion === loadVersion.value) {
+      allLoading.value = false;
     }
   }
-  allLoading.value = false;
 };
 
 const initData = debounce(async () => {
+  loadVersion.value += 1;
   id = route.query.id;
+  allLoading.value = false;
   allSong.value = [];
   songList.value = [];
+  page.value.currentPage = 1;
+  page.value.size = INITIAL_PAGE_SIZE;
+  page.value.total = 0;
   await getListDetail();
   await getSongList();
   loading.value = false;
@@ -331,17 +340,13 @@ const onToBottom = () => {
 };
 
 const loadSongsInChunks = async () => {
-  const chunkSize = 60;
-  let loadedCount = 0;
-
-  songList.value = allSong.value.slice(0, chunkSize);
-  loadedCount += chunkSize;
+  let loadedCount = songList.value.length;
 
   const loadNextChunk = () => {
     if (loadedCount >= allSong.value.length) return;
 
     const remaining = allSong.value.length - loadedCount;
-    const currentChunkSize = Math.min(chunkSize, remaining);
+    const currentChunkSize = Math.min(VISIBLE_CHUNK_SIZE, remaining);
     const nextChunk = allSong.value.slice(
       loadedCount,
       loadedCount + currentChunkSize

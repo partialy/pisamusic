@@ -171,13 +171,14 @@ export async function getPlaylistTracks(params: PlaylistTracksParams) {
   const endpoints = await getRuntimeEndpointsCached();
   const page = params.page ?? 1;
   const pageSize = params.pageSize ?? 30;
+  const offset = params.offset ?? pageSize * (page - 1);
 
   switch (params.source) {
     case "kg":
       return requestSignedGateway(
         buildUrl(endpoints.kgServer, "/playlist/track/all", {
           id: params.id,
-          page,
+          page: Math.floor(offset / pageSize) + 1,
           pagesize: pageSize,
         })
       );
@@ -186,7 +187,7 @@ export async function getPlaylistTracks(params: PlaylistTracksParams) {
         buildUrl(endpoints.wyServer, "/playlist/track/all", {
           id: params.id,
           limit: pageSize,
-          offset: pageSize * (page - 1),
+          offset,
         })
       );
   }

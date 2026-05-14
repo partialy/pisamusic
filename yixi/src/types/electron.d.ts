@@ -247,6 +247,7 @@ type PlaylistDetailParams = {
 type PlaylistTracksParams = {
   source: "kg" | "wy";
   id: string;
+  offset?: number;
   page?: number;
   pageSize?: number;
 };
