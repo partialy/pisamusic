@@ -236,12 +236,31 @@ export const useAudioStore = defineStore("audio", () => {
    */
   const nextPlay = (song: Song): void => {
     const currentIndex = getCurrentIndex();
+    const targetKey = getSongQueueKey(song);
+    const currentKey = currentSong.value ? getSongQueueKey(currentSong.value) : "";
+    if (targetKey === currentKey) return;
+
     if (currentIndex === -1) {
-      playlist.value.push(song);
-    } else {
-      interCount.value++;
-      playlist.value.splice(currentIndex + 1, 0, song);
+      if (!playlist.value.some((item) => getSongQueueKey(item) === targetKey)) {
+        playlist.value.push(song);
+      }
+      return;
     }
+
+    const nextIndex = currentIndex + 1;
+    const existingIndex = playlist.value.findIndex((item) => getSongQueueKey(item) === targetKey);
+    if (existingIndex === nextIndex) {
+      interCount.value = Math.max(interCount.value, 1);
+      return;
+    }
+
+    const nextPlaylist = playlist.value.filter((item) => getSongQueueKey(item) !== targetKey);
+    const insertIndex =
+      existingIndex !== -1 && existingIndex < currentIndex ? currentIndex : nextIndex;
+    const normalizedInsertIndex = Math.min(insertIndex, nextPlaylist.length);
+    nextPlaylist.splice(normalizedInsertIndex, 0, song);
+    playlist.value = nextPlaylist;
+    interCount.value = 1;
   };
 
   /**
@@ -557,7 +576,13 @@ export const useAudioStore = defineStore("audio", () => {
 
   const getCurrentIndex = (): number => {
     if (!playlist.value.length) return -1;
-    return playlist.value.findIndex((s) => s.id == currentSong.value?.id);
+    if (!currentSong.value) return -1;
+    const currentKey = getSongQueueKey(currentSong.value);
+    return playlist.value.findIndex((s) => getSongQueueKey(s) == currentKey);
+  };
+
+  const getSongQueueKey = (song: Pick<Song, "source" | "id">): string => {
+    return `${song.source}:${song.id}`;
   };
 
   // 初始化 - 加载保存的状态
