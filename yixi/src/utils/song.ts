@@ -3,7 +3,7 @@ import type { Song } from "@/types/song";
 type SongSource = Song["source"];
 type SongInput = Record<string, unknown> | Partial<Song> | null | undefined;
 
-const songSources: SongSource[] = ["kg", "qq", "wy", "kw"];
+const songSources: SongSource[] = ["kg", "qq", "wy", "kw", "local"];
 
 export function normalizeSong(input: SongInput): Song {
   const raw = (input ?? {}) as Record<string, unknown>;
@@ -41,6 +41,9 @@ export function normalizeSong(input: SongInput): Song {
   if (krc) song.krc = krc;
 
   if (typeof raw.vip === "boolean") song.vip = raw.vip;
+
+  const filePath = toStringValue(raw.filePath);
+  if (filePath) song.filePath = filePath;
 
   return song;
 }

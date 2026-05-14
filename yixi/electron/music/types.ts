@@ -1,4 +1,5 @@
 export type MusicSource = "kg" | "wy" | "kw";
+export type PlayableMusicSource = MusicSource | "local";
 
 export type MusicSearchParams = {
   source: MusicSource;
@@ -62,9 +63,10 @@ export type MusicLyricResult = {
 };
 
 export type PlayableTrackPayload = {
-  source: MusicSource;
+  source: PlayableMusicSource;
   urlParam?: string;
   id?: string;
+  filePath?: string;
   quality?: string;
   br?: number;
 };

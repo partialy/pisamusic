@@ -4,7 +4,7 @@
             {{ index + 1 }}
         </div>
         <div class="cover">
-            <n-image class="cover-img" :src="cover" preview-disabled />
+            <n-image class="cover-img" :src="cover" :fallback-src="defaultSongCover" preview-disabled />
         </div>
         <div class="info">
             <div class="name" :title="name">{{ name }}</div>
@@ -28,7 +28,7 @@
 import { CloseIcon, CollectIcon } from '@/icons';
 import { NImage, NIcon } from 'naive-ui';
 import { computed } from 'vue';
-import { formatDuration, getKgImage } from '@/utils/common';
+import { defaultSongCover, formatDuration, getSongCover } from '@/utils/common';
 import { useAudioStore, useCollectStore } from '@/store';
 import type { Song } from '@/types/song';
 
@@ -41,7 +41,7 @@ const props = defineProps<{
 }>()
 
 const cover = computed(() => {
-    return getKgImage(props.item.cover, 120) || '/images/song.jpg'
+    return getSongCover(props.item, 120)
 })
 
 const name = computed(() => {

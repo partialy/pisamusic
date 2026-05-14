@@ -15,7 +15,31 @@ export type TrackSnapshot = {
   album?: string;
   cover?: string;
   duration?: number;
+  filePath?: string;
   [key: string]: unknown;
+};
+
+export type LocalSongItem = {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  duration: number;
+  filePath: string;
+  directory: string;
+  fileName: string;
+  extension: string;
+  size: number;
+  mtimeMs: number;
+  payload: TrackSnapshot;
+  updatedAt: string;
+};
+
+export type LocalLibraryScanMeta = {
+  fingerprint: string;
+  directories: string[];
+  totalFiles: number;
+  scannedAt: string;
 };
 
 export type SearchHistoryItem = {
@@ -188,6 +212,30 @@ type FavoritePlaylistRow = {
   collect_count: string;
   payload_json: string;
   created_at: string;
+};
+
+type LocalSongRow = {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  duration: number;
+  file_path: string;
+  directory: string;
+  file_name: string;
+  extension: string;
+  size: number;
+  mtime_ms: number;
+  payload_json: string;
+  updated_at: string;
+};
+
+type LocalLibraryScanMetaRow = {
+  id: number;
+  fingerprint: string;
+  directories_json: string;
+  total_files: number;
+  scanned_at: string;
 };
 
 type NetworkErrorSummaryRow = {
@@ -508,6 +556,87 @@ export class AppDatabase {
     return Boolean(row);
   }
 
+  listLocalSongs(): LocalSongItem[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, title, artist, album, duration, file_path, directory, file_name,
+                extension, size, mtime_ms, payload_json, updated_at
+         FROM local_songs
+         ORDER BY title COLLATE NOCASE ASC, artist COLLATE NOCASE ASC`
+      )
+      .all() as LocalSongRow[];
+    return rows.map((row) => this.toLocalSong(row));
+  }
+
+  replaceLocalSongs(songs: LocalSongItem[], meta: LocalLibraryScanMeta) {
+    const insertSong = this.db.prepare(
+      `INSERT INTO local_songs (
+         id, title, artist, album, duration, file_path, directory, file_name,
+         extension, size, mtime_ms, payload_json, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const replaceMeta = this.db.prepare(
+      `INSERT INTO local_library_scan_meta (
+         id, fingerprint, directories_json, total_files, scanned_at
+       ) VALUES (1, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         fingerprint = excluded.fingerprint,
+         directories_json = excluded.directories_json,
+         total_files = excluded.total_files,
+         scanned_at = excluded.scanned_at`
+    );
+
+    this.db.exec("BEGIN IMMEDIATE TRANSACTION;");
+    try {
+      this.db.prepare("DELETE FROM local_songs").run();
+      songs.forEach((song) => {
+        insertSong.run(
+          song.id,
+          song.title,
+          song.artist,
+          song.album,
+          song.duration,
+          song.filePath,
+          song.directory,
+          song.fileName,
+          song.extension,
+          song.size,
+          song.mtimeMs,
+          this.stringifyJson(song.payload),
+          song.updatedAt
+        );
+      });
+      replaceMeta.run(
+        meta.fingerprint,
+        this.stringifyJson(meta.directories),
+        meta.totalFiles,
+        meta.scannedAt
+      );
+      this.db.exec("COMMIT;");
+    } catch (error) {
+      this.db.exec("ROLLBACK;");
+      throw error;
+    }
+    return this.listLocalSongs();
+  }
+
+  getLocalLibraryScanMeta(): LocalLibraryScanMeta | null {
+    const row = this.db
+      .prepare(
+        `SELECT id, fingerprint, directories_json, total_files, scanned_at
+         FROM local_library_scan_meta
+         WHERE id = 1`
+      )
+      .get() as LocalLibraryScanMetaRow | undefined;
+    if (!row) return null;
+    return {
+      fingerprint: row.fingerprint,
+      directories: this.parseJson<string[]>(row.directories_json, []),
+      totalFiles: row.total_files,
+      scannedAt: row.scanned_at,
+    };
+  }
+
   addNetworkErrorRecord(input: NetworkErrorRecordInput) {
     const now = new Date().toISOString();
     this.db
@@ -689,11 +818,48 @@ export class AppDatabase {
 
       CREATE INDEX IF NOT EXISTS idx_network_error_records_created_at
         ON network_error_records(created_at DESC, id DESC);
+
+      CREATE TABLE IF NOT EXISTS local_songs (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL DEFAULT '',
+        artist TEXT NOT NULL DEFAULT '',
+        album TEXT NOT NULL DEFAULT '',
+        duration INTEGER NOT NULL DEFAULT 0,
+        file_path TEXT NOT NULL,
+        directory TEXT NOT NULL DEFAULT '',
+        file_name TEXT NOT NULL DEFAULT '',
+        extension TEXT NOT NULL DEFAULT '',
+        size INTEGER NOT NULL DEFAULT 0,
+        mtime_ms REAL NOT NULL DEFAULT 0,
+        payload_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_local_songs_title_artist
+        ON local_songs(title COLLATE NOCASE, artist COLLATE NOCASE);
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_local_songs_file_path
+        ON local_songs(file_path);
+
+      CREATE TABLE IF NOT EXISTS local_library_scan_meta (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        fingerprint TEXT NOT NULL,
+        directories_json TEXT NOT NULL,
+        total_files INTEGER NOT NULL DEFAULT 0,
+        scanned_at TEXT NOT NULL
+      );
     `);
     this.db
       .prepare(
         `INSERT INTO schema_migrations (version, name, applied_at)
          VALUES (1, 'initial local library schema', ?)
+         ON CONFLICT(version) DO NOTHING`
+      )
+      .run(new Date().toISOString());
+    this.db
+      .prepare(
+        `INSERT INTO schema_migrations (version, name, applied_at)
+         VALUES (3, 'local library songs schema', ?)
          ON CONFLICT(version) DO NOTHING`
       )
       .run(new Date().toISOString());
@@ -947,7 +1113,36 @@ export class AppDatabase {
 
     if (typeof input.vip === "boolean") track.vip = input.vip;
 
+    const filePath = this.toStringValue(input.filePath);
+    if (filePath) track.filePath = filePath;
+
     return track;
+  }
+
+  private toLocalSong(row: LocalSongRow): LocalSongItem {
+    const payload = this.normalizeTrackSnapshot(
+      this.parseJson<TrackSnapshot>(row.payload_json, {
+        id: row.id,
+        source: "local",
+        urlParam: row.file_path,
+        filePath: row.file_path,
+      })
+    );
+    return {
+      id: row.id,
+      title: row.title,
+      artist: row.artist,
+      album: row.album,
+      duration: row.duration,
+      filePath: row.file_path,
+      directory: row.directory,
+      fileName: row.file_name,
+      extension: row.extension,
+      size: row.size,
+      mtimeMs: row.mtime_ms,
+      payload,
+      updatedAt: row.updated_at,
+    };
   }
 
   private normalizeTrackSize(value: unknown) {

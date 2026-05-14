@@ -82,7 +82,7 @@
 
 - SQLite 保存用户设置、主题设置、搜索历史、播放历史、队列快照等本地数据。
 - 关键业务数据不要继续使用 localStorage 作为唯一持久化来源；迁移时可保留兼容读取，但写入目标应转向 SQLite。
-- renderer 侧本地曲库相关读写统一经过 `src/store/library.ts`，负责把旧 localStorage 数据兼容迁移到 SQLite。
+- renderer 侧通用历史/队列读写统一经过 `src/store/library.ts`；本地扫描曲库读写统一经过 `src/store/localLibrary.ts` 和 `library:local:*` IPC。
 - 搜索历史、播放历史、队列快照已经接入 SQLite；新增同类数据不要再新增散落的 localStorage key。
 - 数据库、日志、运行目录、打包产物不纳入 Git。
 - Electron 运行数据统一写入 `app.getPath("userData")/data`，不要依赖源码目录下被忽略的 `yixi/data/`。
@@ -111,3 +111,10 @@
 - 构建：`pnpm --dir yixi build`
 - 类型检查加构建：`pnpm --dir yixi build:t`
 - Windows 打包：`pnpm --dir yixi build:win`
+## 本地曲库与下载页规则补充
+
+- “本地与下载”页面位于 `src/views/localDownload.vue`，首版包含“本地歌曲 / 下载歌曲”两个 tab；下载歌曲暂为空态，不要在没有下载落盘链路前伪造下载记录。
+- 本地扫描目录统一存入 SQLite settings 的 `local-setting.scanDirectories`，最多 10 个；旧 `scanDirectory` 读取时只能作为兼容迁移来源，不要继续写入旧字段。
+- 本地曲库扫描只允许在 main 侧实现，入口集中在 `electron/localLibrary/localLibraryService.ts` 和 `library:local:*` IPC；renderer 不直接访问文件系统或 SQLite。
+- 本地歌曲写入 SQLite `local_songs`，扫描指纹写入 `local_library_scan_meta`；启动时智能扫描，设置变更和页面“立即刷新”强制重建。扫描失败必须保留旧库，不要先清空旧数据。
+- 本地歌曲来源使用 `source: "local"`，播放时通过 `music:resolve-playable-url` 直接转换本地文件路径，不要走 KG/WY/KW 在线取链。

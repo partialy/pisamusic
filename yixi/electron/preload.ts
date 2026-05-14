@@ -116,6 +116,15 @@ const libraryIpc = {
   containsFavoritePlaylist: (payload: { source: string; id: string }) =>
     ipcRenderer.invoke("library:favorites:playlists:contains", cloneIpcPayload(payload)),
   onFavoritesChanged: (callback: () => void) => on("favorites:changed", callback),
+  listLocalSongs: () => ipcRenderer.invoke("library:local:songs:list"),
+  getLocalLibraryScanStatus: () => ipcRenderer.invoke("library:local:scan-status"),
+  refreshLocalLibrary: () => ipcRenderer.invoke("library:local:refresh"),
+  onLocalLibraryScanStarted: (callback: (status: any) => void) =>
+    on("local-library:scan-started", callback),
+  onLocalLibraryScanFinished: (callback: (status: any) => void) =>
+    on("local-library:scan-finished", callback),
+  onLocalLibraryScanFailed: (callback: (status: any) => void) =>
+    on("local-library:scan-failed", callback),
 };
 
 const systemIpc = {

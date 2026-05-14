@@ -1,17 +1,32 @@
 <template>
   <div class="setting-con">
-    <div class="setting-item">
+    <div class="setting-item scan-item">
       <div class="setting-info">
         <div class="setting-title">本地扫描目录</div>
-        <div class="setting-desc">选择本地音乐文件的扫描目录</div>
+        <div class="setting-desc">最多添加 10 个本地音乐文件夹，修改后会自动重建本地曲库</div>
       </div>
-      <div class="path-input">
-        <n-input
-          class="path-field"
-          :value="settingStore.local.scanDirectory"
-          placeholder="请选择扫描目录"
-          readonly />
-        <n-button secondary @click="settingStore.chooseScanDirectory">选择</n-button>
+      <div class="scan-list">
+        <div
+          v-for="(directory, index) in scanDirectories"
+          :key="`${directory}-${index}`"
+          class="path-input">
+          <n-input
+            class="path-field"
+            :value="directory"
+            placeholder="请选择扫描目录"
+            readonly />
+          <n-button secondary @click="settingStore.chooseScanDirectory(index)">选择</n-button>
+          <n-button quaternary type="error" @click="settingStore.removeScanDirectory(index)">删除</n-button>
+        </div>
+        <div class="path-input">
+          <n-button
+            secondary
+            :disabled="scanDirectories.length >= maxScanDirectories"
+            @click="handleAddScanDirectory">
+            添加目录
+          </n-button>
+          <span class="scan-count">{{ scanDirectories.length }}/{{ maxScanDirectories }}</span>
+        </div>
       </div>
     </div>
 
@@ -75,16 +90,22 @@
 
 <script setup lang="ts">
 import { NButton, NInput, NInputNumber, NSelect } from "naive-ui";
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import { useSettingStore, type SongNamingMode } from "@/store/settingStore";
 
 const settingStore = useSettingStore();
+const maxScanDirectories = 10;
+const scanDirectories = computed(() => settingStore.local.scanDirectories);
 const songNamingOptions = [
   { label: "歌手 - 歌名", value: "artist-title" },
   { label: "歌名 - 歌手", value: "title-artist" },
   { label: "仅歌曲名", value: "title" },
   { label: "序号 - 歌名 - 歌手", value: "index-title-artist" },
 ];
+
+const handleAddScanDirectory = () => {
+  settingStore.addScanDirectory();
+};
 
 const handleCacheLimitChange = (value: number | null) => {
   void settingStore.updateCacheLimitGb(value);
@@ -114,6 +135,10 @@ onMounted(() => {
     }
   }
 
+  .scan-item {
+    align-items: flex-start;
+  }
+
   .setting-info {
     min-width: 0;
   }
@@ -130,6 +155,14 @@ onMounted(() => {
     font-size: 12px;
   }
 
+  .scan-list {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
   .path-input {
     display: flex;
     align-items: center;
@@ -139,6 +172,13 @@ onMounted(() => {
     .path-field {
       width: 260px;
     }
+  }
+
+  .scan-count {
+    min-width: 42px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    text-align: right;
   }
 
   .size-input {

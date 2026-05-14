@@ -122,11 +122,12 @@ export const useLyricStore = defineStore("lyric", {
 
       this.currentId = this.currentSong.id;
       const lyric = await fetchSongLyric(this.currentSong);
-      console.log("拿到歌词",lyric)
+      
       this.rawKrc = lyric.krc;
       this.rawLrc = lyric.lrc;
       this.parsedKrc = lyric.krc ? parseKrc(lyric.krc) : [];
       this.parsedLrc = lyric.lrc ? parseLrc(lyric.lrc) : [];
+      console.log("拿到歌词",lyric);
       if (this.currentSong.source == "wy") {
         this.AMKrc = lyric.krc ? amParseYrc(this.rawKrc) : [];
       } else {
@@ -227,7 +228,7 @@ function normalizeDesktopLyricSetting(input: Partial<DesktopLyricSetting>): Desk
 
 async function fetchSongLyric(song: Song): Promise<LyricPayload> {
   try {
-    if (song.source === "qq") return emptyLyric();
+    if (song.source === "qq" || song.source === "local") return emptyLyric();
     return fetchLyricsByMusicApi(song);
   } catch (error: any) {
     void electronAPI.reportError(error, {

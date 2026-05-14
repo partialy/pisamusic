@@ -1,6 +1,7 @@
 import type { Song } from "@/types/song";
 import { NIcon } from "naive-ui";
 import { h, type Component } from "vue";
+import defaultCover from "@/assets/images/default-cover.png";
 interface IconOptions {
   style?: Record<string, string | number>;
   class?: string | Record<string, boolean> | Array<string>;
@@ -43,7 +44,7 @@ export function getKgImage(
   url?: string,
   size: 120 | 240 | 360 | 480 = 120
 ): string {
-  if (!url) return "";
+  if (!url) return defaultCover;
   return url.replace("{size}", size.toString());
 }
 /**
@@ -102,22 +103,25 @@ export function debounce(fn: Function, delay: number) {
  * @returns 图片的url
  */
 export function getSongCover(song: Song, size: 120 | 240 | 360 | 480 = 120) {
-  if (song.source == 'kg') {
-    return getKgImage(song.cover, size);
-  } else if (song.source == 'wy') {
+  if (song.source == "local") return defaultCover;
+  if (song.source == "kg") return getKgImage(song.cover, size);
+  if (song.source == "wy") {
     const res = wyUtils.getCoverUrl(song);
     switch (size) {
       case 120:
-        return res.coverSize.s ?? res.cover;
+        return res.coverSize.s || res.cover || defaultCover;
       case 240:
-        return res.coverSize.m ?? res.cover;
+        return res.coverSize.m || res.cover || defaultCover;
       case 360:
-        return res.coverSize.l ?? res.cover;
+        return res.coverSize.l || res.cover || defaultCover;
       case 480:
-        return res.coverSize.xl ?? res.cover;
+        return res.coverSize.xl || res.cover || defaultCover;
     }
   }
+  return song.cover || defaultCover;
 }
+
+export const defaultSongCover = defaultCover;
 
 export const kgUtils = {
   getCoverUrl: (item: any): string => {
@@ -163,13 +167,13 @@ export const wyUtils = {
       l: wyUtils.getCoverSizeUrl(cover, 1024),
       xl: wyUtils.getCoverSizeUrl(cover, 1920),
     };
-    return { cover: cover ? cover : "/images/song.png?assets", coverSize };
+    return { cover: cover ? cover : defaultCover, coverSize };
   },
 
   // 获取图片不同尺寸
   getCoverSizeUrl: (url: string, size: number | null = null) => {
     try {
-      if (!url) return "/images/song.jpg?assets";
+      if (!url) return defaultCover;
       const sizeUrl = size
         ? typeof size === "number"
           ? `?param=${size}y${size}`
@@ -189,7 +193,7 @@ export const wyUtils = {
       return imageUrl;
     } catch (error) {
       console.error("图片链接处理出错：", error);
-      return "/images/song.jpg?assets";
+      return defaultCover;
     }
   },
 };

@@ -79,9 +79,10 @@ export async function getDynamicCover<T = any>(id: string | number): Promise<T> 
 export async function getPlayableUrlByMusicApi(song: Song) {
   try {
     const url = await window.electronAPI.resolvePlayableUrl({
-      source: song.source as SearchableMusicSource,
+      source: song.source,
       id: song.id,
       urlParam: song.urlParam,
+      filePath: song.filePath,
     });
     return url || "";
   } catch (error) {

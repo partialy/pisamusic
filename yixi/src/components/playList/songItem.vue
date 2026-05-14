@@ -13,8 +13,12 @@
       </span>
     </div>
     <div class="song-img">
-      <n-image lazy preview-disabled :src="(origin == 'kg' ? getKgImage(song.cover, 120) : song.cover) || songImg
-        " class="image" />
+      <n-image
+        lazy
+        preview-disabled
+        :src="getSongCover(song, 120)"
+        :fallback-src="defaultSongCover"
+        class="image" />
     </div>
     <div class="song-info">
       <div class="song-name" :style="{
@@ -45,9 +49,8 @@
 
 <script setup lang="ts">
 import { Playing } from ".";
-import { formatDuration, getKgImage } from "@/utils/common";
+import { defaultSongCover, formatDuration, getSongCover } from "@/utils/common";
 import { useAudioStore } from "@/store";
-import songImg from "@/assets/images/song.jpg";
 import type { Song } from "@/types/song";
 import { CollectIcon } from "@/icons";
 const player = useAudioStore();

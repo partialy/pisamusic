@@ -1,4 +1,5 @@
 import { getRuntimeEndpointsCached, requestSignedGateway } from "../system/systemClient";
+import { pathToFileURL } from "url";
 import type {
   DynamicCoverParams,
   MusicLyricParams,
@@ -201,6 +202,11 @@ export async function getDynamicCover(params: DynamicCoverParams) {
 }
 
 export async function resolvePlayableUrl(track: PlayableTrackPayload) {
+  if (track.source === "local") {
+    const filePath = track.filePath || track.urlParam || track.id || "";
+    return filePath ? pathToFileURL(filePath).toString() : "";
+  }
+
   const id = track.urlParam || track.id;
   if (!id) return "";
 

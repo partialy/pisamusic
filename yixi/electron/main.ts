@@ -13,6 +13,8 @@ import { logger } from "./utils/logger";
 import { setupUtilsIpc } from "./ipc/utilsIpc";
 import { setupDialogIpc } from "./ipc/dialogIpc";
 import { setupDebugIpc } from "./ipc/debugIpc";
+import { setupLocalLibraryIpc } from "./ipc/localLibraryIpc";
+import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -84,6 +86,7 @@ function setupAppIpc() {
   setupUtilsIpc();
   setupDialogIpc();
   setupDebugIpc();
+  setupLocalLibraryIpc();
   desktopLyric.setupIpc();
 }
 
@@ -123,6 +126,7 @@ app.whenReady().then(() => {
   setupPlayerStateBridge();
   createMainWindow();
   playerTray.create();
+  startLocalLibrarySmartScan();
 });
 
 app.on("window-all-closed", () => {

@@ -9,7 +9,7 @@ export type SongNamingMode =
   | "index-title-artist";
 
 export type LocalSetting = {
-  scanDirectory: string;
+  scanDirectories: string[];
   cacheDirectory: string;
   cacheLimitGb: number;
   downloadDirectory: string;
@@ -17,8 +17,9 @@ export type LocalSetting = {
 };
 
 const LOCAL_SETTING_KEY = "local-setting";
+const MAX_SCAN_DIRECTORIES = 10;
 const DEFAULT_LOCAL_SETTING: LocalSetting = {
-  scanDirectory: "",
+  scanDirectories: [],
   cacheDirectory: "",
   cacheLimitGb: 10,
   downloadDirectory: "",
@@ -36,17 +37,37 @@ export const useSettingStore = defineStore("setting", {
   actions: {
     async initLocalSetting() {
       if (this.localLoaded) return;
-      const record = await electronAPI.getSetting<Partial<LocalSetting>>(LOCAL_SETTING_KEY);
+      const record = await electronAPI.getSetting<Partial<LocalSetting> & { scanDirectory?: string }>(LOCAL_SETTING_KEY);
       this.local = normalizeLocalSetting(record?.value);
       this.localLoaded = true;
-      if (!record?.value) {
+      if (!record?.value || shouldPersistNormalizedSetting(record.value)) {
         await this.persistLocalSetting();
       }
     },
 
-    async updateScanDirectory(path: string) {
-      this.local.scanDirectory = normalizePath(path);
+    addScanDirectory() {
+      if (this.local.scanDirectories.length >= MAX_SCAN_DIRECTORIES) return;
+      this.local.scanDirectories = [...this.local.scanDirectories, ""];
+    },
+
+    async chooseScanDirectory(index: number) {
+      const selected = await electronAPI.selectDirectory("选择本地扫描目录");
+      if (!selected) return;
+      const next = [...this.local.scanDirectories];
+      next[index] = selected;
+      await this.updateScanDirectories(next);
+    },
+
+    async removeScanDirectory(index: number) {
+      await this.updateScanDirectories(
+        this.local.scanDirectories.filter((_, itemIndex) => itemIndex !== index)
+      );
+    },
+
+    async updateScanDirectories(paths: string[]) {
+      this.local.scanDirectories = normalizeScanDirectories(paths);
       await this.persistLocalSetting();
+      await electronAPI.refreshLocalLibrary();
     },
 
     async updateCacheDirectory(path: string) {
@@ -69,13 +90,6 @@ export const useSettingStore = defineStore("setting", {
         ? value
         : DEFAULT_LOCAL_SETTING.songNamingMode;
       await this.persistLocalSetting();
-    },
-
-    async chooseScanDirectory() {
-      const selected = await electronAPI.selectDirectory("选择本地扫描目录");
-      if (selected) {
-        await this.updateScanDirectory(selected);
-      }
     },
 
     async chooseCacheDirectory() {
@@ -102,9 +116,17 @@ export const useSettingStore = defineStore("setting", {
 
 export default useSettingStore;
 
-function normalizeLocalSetting(input?: Partial<LocalSetting> | null): LocalSetting {
+function normalizeLocalSetting(
+  input?: (Partial<LocalSetting> & { scanDirectory?: unknown }) | null
+): LocalSetting {
   return {
-    scanDirectory: normalizePath(input?.scanDirectory),
+    scanDirectories: normalizeScanDirectories(
+      Array.isArray(input?.scanDirectories)
+        ? input.scanDirectories
+        : input?.scanDirectory
+          ? [input.scanDirectory]
+          : []
+    ),
     cacheDirectory: normalizePath(input?.cacheDirectory),
     cacheLimitGb: normalizeCacheLimit(input?.cacheLimitGb ?? DEFAULT_LOCAL_SETTING.cacheLimitGb),
     downloadDirectory: normalizePath(input?.downloadDirectory),
@@ -112,6 +134,17 @@ function normalizeLocalSetting(input?: Partial<LocalSetting> | null): LocalSetti
       ? input.songNamingMode
       : DEFAULT_LOCAL_SETTING.songNamingMode,
   };
+}
+
+function shouldPersistNormalizedSetting(
+  input: (Partial<LocalSetting> & { scanDirectory?: unknown }) | null
+) {
+  return Boolean(input && (!Array.isArray(input.scanDirectories) || input.scanDirectory));
+}
+
+function normalizeScanDirectories(paths: unknown) {
+  if (!Array.isArray(paths)) return [];
+  return Array.from(new Set(paths.map(normalizePath).filter(Boolean))).slice(0, MAX_SCAN_DIRECTORIES);
 }
 
 function normalizePath(value: unknown) {

@@ -30,7 +30,7 @@
             </div>
         </Transition>
         <div>
-            <img :src="coverUrl || '/default-bg.jpg'" alt="" class="bg-cover" style="width: 100%;height: 100%;object-fit: cover;">
+            <img :src="coverUrl" alt="" class="bg-cover" style="width: 100%;height: 100%;object-fit: cover;" @error="handleCoverError">
         </div>
         
         <div class="model-bg"></div>
@@ -40,13 +40,18 @@
                 <n-progress type="circle" :show-indicator="false" :percentage="progress" processing :stroke-width="3"
                     style="z-index: 100;position: absolute;top: 0;left: 0;" />
                 <div class="img-container">
-                    <img :src="coverUrl || '/images/song.jpg'" alt=""
-                        style="width: 100%;height: 100%;object-fit: cover;">
+                    <img :src="coverUrl" alt=""
+                        style="width: 100%;height: 100%;object-fit: cover;" @error="handleCoverError">
                 </div>
             </div>
             <div class="wy-cover" v-else>
                 <video autoplay loop class="video-cover" v-if="currentSong.d_cover" :src="currentSong.d_cover"></video>
-                <n-image v-else class="video-cover" preview-disabled :src="currentSong.coverSize?.l || currentSong.cover"/>
+                <n-image
+                    v-else
+                    class="video-cover"
+                    preview-disabled
+                    :src="coverUrl"
+                    :fallback-src="defaultSongCover" />
             </div>
             <div class="info-content">
                 <div class="info-title">
@@ -81,7 +86,7 @@ import { NProgress } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { useAudioStore, useCommonStore, useLyricStore } from '@/store';
 import { ControlPanel } from '.';
-import { getKgImage } from '@/utils/common';
+import { defaultSongCover, getSongCover } from '@/utils/common';
 import { AMLyric, CommonLyric } from '.';
 import { ArrowDownIcon, CloseIcon, MiniWindowIcon, RestoreIcon, ScaleIcon } from '@/icons';
 import electronAPI from '@/utils/electron';
@@ -96,9 +101,7 @@ const AMLyricView = computed(() => {
 })
 
 const coverUrl = computed(() => {
-    if (currentSong.value?.cover) {
-        return getKgImage(currentSong.value?.cover, 240)
-    }
+    return currentSong.value ? getSongCover(currentSong.value, 240) : defaultSongCover
 })
 
 const songName = computed(() => {
@@ -123,6 +126,13 @@ const setCoverBgPosition = async () => {
     } else {
         infoContainer.value.style.left = '50%'
     }
+}
+
+const handleCoverError = (event: Event) => {
+    const image = event.target as HTMLImageElement | null
+    if (!image || image.dataset.fallbackCover === "true") return
+    image.dataset.fallbackCover = "true"
+    image.src = defaultSongCover
 }
 
 const isMouseActive = ref(true);

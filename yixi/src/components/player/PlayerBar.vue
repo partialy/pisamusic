@@ -8,7 +8,12 @@
     </n-slider>
     <div class="left">
       <div class="cover" @click="commonStore.openPlayer">
-        <n-image preview-disabled :src="imgSrc" alt="cover" class="cover-image" />
+        <n-image
+          preview-disabled
+          :src="imgSrc"
+          :fallback-src="defaultSongCover"
+          alt="cover"
+          class="cover-image" />
       </div>
       <div class="info">
         <div class="title">
@@ -93,9 +98,8 @@ import {
 import { storeToRefs } from "pinia";
 import { useAudioStore, useLyricStore } from "@/store";
 import { PlayControlBtn, PlaySequence, VolumePanel } from ".";
-import { debounce, formatDuration, getKgImage, renderIcon } from '@/utils/common';
+import { debounce, defaultSongCover, formatDuration, getSongCover, renderIcon } from '@/utils/common';
 import { computed, ref, watch } from "vue";
-import songImg from "@/assets/images/song.jpg";
 import {
   PlayListIcon,
   VolumeMutedIcon,
@@ -119,11 +123,8 @@ const { currentTime, duration, currentSong, isPlaying, volume, repeatMode } =
 const { parsedLrc, desktop } = storeToRefs(lyric);
 const currentIndex = ref(0);
 const imgSrc = computed(() => {
-  if (currentSong.value)
-    return currentSong.value.source == "kg"
-      ? getKgImage(currentSong.value.cover)
-      : currentSong.value.cover;
-  return songImg;
+  if (currentSong.value) return getSongCover(currentSong.value);
+  return defaultSongCover;
 });
 
 const currentLyric = computed(() => {

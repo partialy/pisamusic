@@ -2,6 +2,7 @@ export {};
 
 type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
 type SearchableMusicSource = "kg" | "wy" | "kw";
+type PlayableMusicSource = SearchableMusicSource | "local";
 
 type WindowLyricSettingValue = {
   width: number;
@@ -37,6 +38,7 @@ type TrackSnapshot = {
   size?: Record<string, number>;
   vip?: boolean;
   duration?: number;
+  filePath?: string;
 };
 
 type PlaylistSnapshot = {
@@ -74,11 +76,21 @@ type LocalSongNamingMode =
   | "index-title-artist";
 
 type LocalAppSetting = {
-  scanDirectory: string;
+  scanDirectories: string[];
   cacheDirectory: string;
   cacheLimitGb: number;
   downloadDirectory: string;
   songNamingMode: LocalSongNamingMode;
+};
+
+type LocalLibraryScanStatus = {
+  scanning: boolean;
+  lastStartedAt: string;
+  lastFinishedAt: string;
+  lastError: string;
+  total: number;
+  directories: string[];
+  skipped: boolean;
 };
 
 type QueueSnapshot = {
@@ -311,7 +323,7 @@ type ElectronIpcApi = {
   getPlaylistTracks: <T = any>(payload: PlaylistTracksParams) => Promise<T>;
   getDynamicCover: <T = any>(payload: DynamicCoverParams) => Promise<T>;
   resolveMusicUrl: <T = any>(payload: MusicUrlParams) => Promise<T>;
-  resolvePlayableUrl: (track: TrackSnapshot | { source: SearchableMusicSource; urlParam?: string; id?: string }) => Promise<string>;
+  resolvePlayableUrl: (track: TrackSnapshot | { source: PlayableMusicSource; urlParam?: string; id?: string; filePath?: string }) => Promise<string>;
   fetchLyrics: (payload: MusicLyricParams) => Promise<MusicLyricResult>;
 
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
@@ -337,6 +349,12 @@ type ElectronIpcApi = {
   toggleFavoritePlaylist: (playlist: PlaylistSnapshot) => Promise<{ collected: boolean; item: FavoritePlaylistItem | null }>;
   containsFavoritePlaylist: (payload: { source: string; id: string }) => Promise<boolean>;
   onFavoritesChanged: (callback: () => void) => () => void;
+  listLocalSongs: () => Promise<TrackSnapshot[]>;
+  getLocalLibraryScanStatus: () => Promise<LocalLibraryScanStatus>;
+  refreshLocalLibrary: () => Promise<LocalLibraryScanStatus>;
+  onLocalLibraryScanStarted: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
+  onLocalLibraryScanFinished: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
+  onLocalLibraryScanFailed: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
 
   getColorFromUrl: (url: string) => Promise<string>;
   isDevelopmentRuntime: () => Promise<boolean>;

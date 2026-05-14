@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { Howl } from "howler"; // 音频播放库
 import { ref, computed, watch } from "vue";
 import type { Song } from "@/types/song";
-import { getKgImage } from "../utils/common";
+import { getSongCover } from "../utils/common";
 import { getDynamicCover, getPlayableUrlByMusicApi } from "@/utils/api/musicAPI";
 import electronAPI from "@/utils/electron";
 import { normalizeSong } from "@/utils/song";
@@ -119,7 +119,7 @@ export const useAudioStore = defineStore("audio", () => {
       album: currentSong.value?.album,
       artwork: [
         {
-          src: getKgImage(currentSong.value?.cover, 240),
+          src: currentSong.value ? getSongCover(currentSong.value, 240) : "",
           sizes: "240x240",
           type: "image/png",
         },

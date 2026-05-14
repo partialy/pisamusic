@@ -23,7 +23,8 @@ export interface Song {
   // 单位ms
   duration: number;
   // 来源
-  source: "kg" | "qq" | "wy" | "kw";
+  source: "kg" | "qq" | "wy" | "kw" | "local";
+  filePath?: string;
 }
 
 export interface API {

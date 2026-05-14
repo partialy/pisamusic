@@ -7,8 +7,14 @@
         <Playing />
       </span>
     </div>
-    <div class="img-con" v-if="song?.coverSize?.s || song?.cover">
-      <n-image preview-disabled :src="getKgImage(song?.cover)" lazy alt="image" class="img" />
+    <div class="img-con">
+      <n-image
+        preview-disabled
+        :src="getSongCover(song)"
+        :fallback-src="defaultSongCover"
+        lazy
+        alt="image"
+        class="img" />
     </div>
     <div class="info-con">
       <div class="info-title text-line-1" :title="song.name + '-' + song.source.toUpperCase()">
@@ -53,7 +59,7 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import type { Song } from "@/types/song";
-import { formatDuration, getKgImage } from "@/utils/common";
+import { defaultSongCover, formatDuration, getSongCover } from "@/utils/common";
 import { NImage, NButton, NIcon, NTag } from "naive-ui";
 import { Playing } from "../playList";
 import { AddToPlaylist, CollectIcon, NextPlayIcon, PlayStatic } from "@/icons";
