@@ -4,10 +4,9 @@
             <n-scrollbar ref="scrollbarRef" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
                 <template #default>
                     <div class="lyric-wrapper">
-                        <div v-for="item in parsedLrc" :id="`lyric-${item.index}`" class="lyric-item"
+                        <div v-for="item in displayLyrics" :id="`lyric-${item.index}`" class="lyric-item"
                             @click="playerStore.seek(item.time)" :class="{ 'active': currentIndex === item.index }"
                             :key="item.time" :style="{
-                                color: currentIndex === item.index ? lyricStore.setting.currentLyricColor : lyricStore.setting.lyricFontColor,
                                 'font-size':
                                     lyricStore.setting.lyricFontSize + 'px',
                                 'font-weight': lyricStore.setting.lyricFontWeight ? 'bold' : 'normal',
@@ -16,7 +15,13 @@
                                         ? lyricStore.setting.lyricFont
                                         : '',
                             }">
-                            {{ item.text }}
+                            <span
+                                class="lyric-text"
+                                :class="{ 'karaoke-active': currentIndex === item.index }"
+                                :ref="(el) => setLyricTextRef(item.index, el as HTMLElement | null)"
+                                :style="getLyricTextStyle(item)">
+                                {{ item.text }}
+                            </span>
                             <span v-if="lyricStore.setting.showTime" class="time"
                                 :style="{ opacity: cursorIn ? 0.6 : 0 }">
                                 {{ formatDuration(item.time) }}</span>
@@ -25,6 +30,7 @@
                 </template>
             </n-scrollbar>
         </Transition>
+        <span ref="measurerRef" class="lyric-measurer"></span>
     </div>
 </template>
 
@@ -34,16 +40,21 @@ import { useAudioStore, useLyricStore } from '@/store';
 import { debounce, formatDuration } from '@/utils/common';
 import { NScrollbar } from 'naive-ui';
 import { storeToRefs } from 'pinia';
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import type { MyLyricLine, MyWordTiming } from '@/utils/lyricUtil';
 
 
 const playerStore = useAudioStore()
 const lyricStore = useLyricStore()
 const { currentTime } = storeToRefs(playerStore)
-const { parsedLrc } = storeToRefs(lyricStore)
+const { parsedLrc, parsedKrc } = storeToRefs(lyricStore)
 const currentIndex = ref(0)
 const scrollbarRef = ref<HTMLElement | null>(null)
 const userScroll = ref(false)
+const lyricTextRefs = ref<Record<number, HTMLElement | null>>({})
+const lyricProgress = ref<Record<number, number>>({})
+const textWidthCache = new Map<string, number>()
+const measurerRef = ref<HTMLSpanElement | null>(null)
 
 watch(currentTime, (newVal, oldVal) => {
     if (newVal < oldVal) {
@@ -53,10 +64,10 @@ watch(currentTime, (newVal, oldVal) => {
         currentIndex.value = 0
         return
     }
-    if (currentIndex.value == parsedLrc.value.length - 1) {
+    if (currentIndex.value == displayLyrics.value.length - 1) {
         return
     }
-    currentIndex.value = parsedLrc.value.findIndex(line => line.time <= newVal && line.endTime!! >= newVal)
+    currentIndex.value = displayLyrics.value.findIndex(line => line.time <= newVal && line.endTime!! >= newVal)
 })
 
 const activeRow = ref<HTMLElement | null>(null)
@@ -102,6 +113,156 @@ const endScroll = debounce(() => {
     userScroll.value = false
     window.addEventListener('wheel', handleWheel)
 }, 2000)
+
+const displayLyrics = computed<MyLyricLine[]>(() => {
+    const source =
+        lyricStore.setting.useKRC && parsedKrc.value.length > 0
+            ? parsedKrc.value
+            : parsedLrc.value
+    return source.map(normalizeDisplayLine)
+})
+
+const currentLine = computed(() => displayLyrics.value[currentIndex.value] || null)
+
+const setLyricTextRef = (index: number, el: HTMLElement | null) => {
+    lyricTextRefs.value[index] = el
+}
+
+const getLyricTextStyle = (item: MyLyricLine) => {
+    const baseColor = lyricStore.setting.lyricFontColor || '#ffffff'
+    const activeColor = lyricStore.setting.currentLyricColor || '#ffffff'
+    if (currentIndex.value !== item.index) {
+        return {
+            color: baseColor,
+            backgroundImage: `linear-gradient(to right, ${baseColor}, ${baseColor})`,
+        }
+    }
+
+    const percent = lyricProgress.value[item.index] ?? 0
+    return {
+        color: 'transparent',
+        backgroundImage: `linear-gradient(to right, ${activeColor} ${percent}%, ${baseColor} ${percent}%)`,
+    }
+}
+
+const syncLyricProgress = async () => {
+    const line = currentLine.value
+    if (!line) return
+    await nextTick()
+    lyricProgress.value[line.index] = getLineHighlightPercent(line, currentTime.value)
+}
+
+const getLineHighlightPercent = (line: MyLyricLine, timeSeconds: number) => {
+    const timeline = buildCharTimeline(line)
+    if (!timeline.length) return 0
+
+    const displayTime = timeSeconds * 1000
+    const fullText = timeline.map((item) => item.char).join('')
+    const totalWidth = getTextWidth(fullText, line.index)
+    if (totalWidth <= 0) return 0
+
+    let highlightWidth = 0
+    for (const item of timeline) {
+        if (displayTime >= item.end) {
+            highlightWidth += getTextWidth(item.char, line.index)
+        } else if (displayTime >= item.start) {
+            const progress = (displayTime - item.start) / Math.max(item.end - item.start, 1)
+            highlightWidth += getTextWidth(item.char, line.index) * Math.max(0, Math.min(1, progress))
+            break
+        } else {
+            break
+        }
+    }
+
+    return Math.min(100, (highlightWidth / totalWidth) * 100)
+}
+
+const buildCharTimeline = (line: MyLyricLine) => {
+    const words = getLineWords(line)
+    const chars: Array<{ char: string; start: number; end: number }> = []
+    words.forEach((word) => {
+        const text = String(word.word || '')
+        const len = Math.max(text.length, 1)
+        const startTime = Number(word.startTime || line.time * 1000 || 0)
+        const endTime = Number(word.endTime || getFallbackLineEnd(line))
+        const duration = Math.max(endTime - startTime, 1)
+        for (let i = 0; i < text.length; i += 1) {
+            chars.push({
+                char: text[i],
+                start: startTime + (duration / len) * i,
+                end: startTime + (duration / len) * (i + 1),
+            })
+        }
+    })
+    return chars
+}
+
+const getLineWords = (line: MyLyricLine): MyWordTiming[] => {
+    if (Array.isArray(line.words) && line.words.length > 0) {
+        return line.words.map((word) => ({
+            ...word,
+            startTime: line.time * 1000 + Number(word.startTime || 0),
+            endTime: line.time * 1000 + Number(word.endTime || 0),
+        }))
+    }
+
+    return [{
+        word: line.text,
+        startTime: line.time * 1000,
+        endTime: getFallbackLineEnd(line),
+        duration: Math.max(getFallbackLineEnd(line) - line.time * 1000, 1),
+    }]
+}
+
+const getFallbackLineEnd = (line: MyLyricLine) => {
+    const nextLine = displayLyrics.value.find((item) => item.time > line.time)
+    const fallbackSeconds = Number(line.endTime ?? nextLine?.time ?? line.time + 3)
+    return fallbackSeconds * 1000
+}
+
+const normalizeDisplayLine = (line: MyLyricLine): MyLyricLine => {
+    const isMillisecondLine = line.time > 1000 || Number(line.endTime ?? 0) > 1000
+    if (!isMillisecondLine) return line
+    return {
+        ...line,
+        time: line.time / 1000,
+        endTime: line.endTime ? line.endTime / 1000 : undefined,
+    }
+}
+
+const getTextWidth = (text: string, index: number) => {
+    const target = lyricTextRefs.value[index]
+    const style = target ? window.getComputedStyle(target) : null
+    const cacheKey = [
+        text,
+        style?.fontSize || '',
+        style?.fontFamily || '',
+        style?.fontWeight || '',
+    ].join('|')
+    const cached = textWidthCache.get(cacheKey)
+    if (cached !== undefined) return cached
+
+    const measurer = measurerRef.value
+    if (!measurer) return text.length
+    measurer.textContent = text
+    if (style) {
+        measurer.style.fontSize = style.fontSize
+        measurer.style.fontFamily = style.fontFamily
+        measurer.style.fontWeight = style.fontWeight
+        measurer.style.letterSpacing = style.letterSpacing
+    }
+    const width = measurer.getBoundingClientRect().width
+    textWidthCache.set(cacheKey, width)
+    return width
+}
+
+watch(currentTime, () => {
+    void syncLyricProgress()
+})
+
+watch(currentIndex, () => {
+    void syncLyricProgress()
+})
 
 onBeforeUnmount(() => {
     window.removeEventListener('wheel', handleWheel)
@@ -155,6 +316,28 @@ onBeforeUnmount(() => {
             top: 50%;
             transform: translateY(-50%);
         }
+    }
+
+    .lyric-text {
+        display: inline-block;
+        max-width: calc(100% - 96px);
+        background-clip: text;
+        -webkit-background-clip: text;
+        transition: background-image 0.08s linear, color 0.2s ease;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    }
+
+    .karaoke-active {
+        color: transparent;
+    }
+
+    .lyric-measurer {
+        position: fixed;
+        top: -9999px;
+        left: -9999px;
+        visibility: hidden;
+        white-space: pre;
+        pointer-events: none;
     }
 }
 

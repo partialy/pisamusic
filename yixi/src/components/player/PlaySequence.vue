@@ -118,12 +118,29 @@ const observer = new ResizeObserver(entries => {
         height.value = entries[0].contentRect.height
     }
 })
+
+const renderCurrentWindow = () => {
+    const list = virtListRef.value
+    if (!list || currentList.value.length === 0) return
+
+    const index = startIndex.value
+    const clientSize = list.slotSize?.clientSize || height.value
+    const visibleCount = Math.max(Math.ceil(clientSize / 64), 1)
+    const renderBegin = Math.max(index - 2, 0)
+    const renderEnd = Math.min(index + visibleCount + 2, currentList.value.length - 1)
+
+    list.manualRender(renderBegin, renderEnd)
+    list.forceUpdate()
+}
+
 const locate = async () => {
     if (!currentSong.value) return
     await nextTick()
     requestAnimationFrame(() => {
-        virtListRef.value?.forceUpdate()
         virtListRef.value?.scrollToIndex(startIndex.value)
+        requestAnimationFrame(() => {
+            renderCurrentWindow()
+        })
     })
 }
 

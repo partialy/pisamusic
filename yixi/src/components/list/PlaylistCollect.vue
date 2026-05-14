@@ -57,8 +57,8 @@ const contextMenu = useTemplateRef("contextMenu");
     height: 100%;
     border-radius: 20px;
     overflow: hidden;
-    background: color-mix(in srgb, var(--color-bg-default) 82%, #ffffff 18%);
-    border: 1px solid var(--color-border-default);
+    // background: color-mix(in srgb, var(--color-bg-default) 82%, #ffffff 18%);
+    // border: 1px solid var(--color-border-default);
   }
 
   .playlist-skeleton-cover {
