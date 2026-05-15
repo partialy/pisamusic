@@ -217,6 +217,7 @@ export const useAudioStore = defineStore("audio", () => {
    */
   const switchPlayList = async (list: Song[], autoPlay: Boolean = true) => {
     playlist.value = list;
+    interCount.value = 0;
     if (list.length && autoPlay) {
       await play(list[0]);
     }
@@ -227,7 +228,13 @@ export const useAudioStore = defineStore("audio", () => {
    * @param song
    */
   const removeFromPlaylist = (song: Song): void => {
-    playlist.value = playlist.value.filter((s) => s.id !== song.id);
+    const songKey = getSongQueueKey(song);
+    const currentIndex = getCurrentIndex();
+    const removeIndex = playlist.value.findIndex((s) => getSongQueueKey(s) === songKey);
+    if (removeIndex > currentIndex && removeIndex <= currentIndex + interCount.value) {
+      interCount.value = Math.max(interCount.value - 1, 0);
+    }
+    playlist.value = playlist.value.filter((s) => getSongQueueKey(s) !== songKey);
   };
 
   /**
@@ -247,20 +254,20 @@ export const useAudioStore = defineStore("audio", () => {
       return;
     }
 
-    const nextIndex = currentIndex + 1;
     const existingIndex = playlist.value.findIndex((item) => getSongQueueKey(item) === targetKey);
-    if (existingIndex === nextIndex) {
-      interCount.value = Math.max(interCount.value, 1);
+    const queueStartIndex = currentIndex + 1;
+    const queueEndIndex = Math.min(currentIndex + interCount.value, playlist.value.length - 1);
+    if (existingIndex >= queueStartIndex && existingIndex <= queueEndIndex) {
       return;
     }
 
     const nextPlaylist = playlist.value.filter((item) => getSongQueueKey(item) !== targetKey);
-    const insertIndex =
-      existingIndex !== -1 && existingIndex < currentIndex ? currentIndex : nextIndex;
+    const currentIndexAfterRemove = nextPlaylist.findIndex((item) => getSongQueueKey(item) === currentKey);
+    const insertIndex = currentIndexAfterRemove + interCount.value + 1;
     const normalizedInsertIndex = Math.min(insertIndex, nextPlaylist.length);
     nextPlaylist.splice(normalizedInsertIndex, 0, song);
     playlist.value = nextPlaylist;
-    interCount.value = 1;
+    interCount.value += 1;
   };
 
   /**
@@ -269,6 +276,7 @@ export const useAudioStore = defineStore("audio", () => {
   const reset = (): void => {
     destroyPlayer(); // 销毁播放器
     playlist.value = []; // 清空播放列表
+    interCount.value = 0;
     currentSong.value = null; // 清空当前歌曲
     currentTime.value = 0; // 重置当前播放时间
     duration.value = 0; // 重置歌曲总时长
@@ -309,6 +317,9 @@ export const useAudioStore = defineStore("audio", () => {
       // 顺序播放模式下获取下一首索引
       const currentIndex = getCurrentIndex();
       nextIndex = (currentIndex + 1) % playlist.value.length;
+      if (interCount.value > 0) {
+        interCount.value--;
+      }
     }
     play(playlist.value[nextIndex]);
   };

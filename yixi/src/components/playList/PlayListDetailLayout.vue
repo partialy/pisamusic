@@ -168,7 +168,7 @@ const songList = ref<Song[]>([]);
 const allSong = ref<Song[]>([]);
 const loadVersion = ref(0);
 const INITIAL_PAGE_SIZE = 30;
-const BACKGROUND_PAGE_SIZE = 1000;
+const BACKGROUND_PAGE_SIZE = 300;
 const VISIBLE_CHUNK_SIZE = 60;
 const page = ref({
   currentPage: 1,
@@ -275,6 +275,9 @@ const handlePlay = async (item?: Song) => {
 };
 
 const playAll = async () => {
+  if (!allLoading.value && allSong.value.length < page.value.total) {
+    await loadAll();
+  }
   songList.value = allSong.value;
   handlePlay();
 };
@@ -286,10 +289,11 @@ const loadAll = async () => {
   try {
     let offset = INITIAL_PAGE_SIZE;
     while (offset < page.value.total && currentVersion === loadVersion.value) {
-      const songs = await fetchPlaylistSongs(offset, BACKGROUND_PAGE_SIZE);
+      const pageSize = Math.min(BACKGROUND_PAGE_SIZE, page.value.total - offset);
+      const songs = await fetchPlaylistSongs(offset, pageSize);
       if (!songs.length) break;
       appendUniqueSongs(songs);
-      offset += BACKGROUND_PAGE_SIZE;
+      offset += pageSize;
     }
   } catch (error) {
     console.log("后台加载歌单歌曲失败：" + error);
