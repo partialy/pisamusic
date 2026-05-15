@@ -207,6 +207,8 @@ const cookieApiIpc = {
     ipcRenderer.invoke("cookie:wy-open-login-window", cloneIpcPayload(payload)),
   getCookieAccountProfile: (payload: { source: "kg" | "wy" }) =>
     ipcRenderer.invoke("cookie:account-profile", cloneIpcPayload(payload)),
+  refreshCookieAccount: (payload: { source: "kg" | "wy" }) =>
+    ipcRenderer.invoke("cookie:refresh-account", cloneIpcPayload(payload)),
   getCookieDebugUserInfo: (source: "kg" | "wy") =>
     ipcRenderer.invoke("cookie:debug-user-info", source),
   exportCookieFiles: () => ipcRenderer.invoke("cookie:export-files"),

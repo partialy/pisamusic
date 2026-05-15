@@ -34,7 +34,7 @@
           </template>
           登录
         </n-button>
-        <n-button type="primary" secondary round :loading="item.loading" @click="refreshProfile(item.source)">
+        <n-button type="primary" secondary round :loading="item.loading" @click="refreshAccount(item.source)">
           <template #icon>
             <n-icon :component="Refresh" />
           </template>
@@ -63,6 +63,7 @@ import defaultAvatar from "@/assets/defaultAdminAvatar.jpg";
 import {
   clearUserCookie,
   getCookieAccountProfile,
+  refreshCookieAccount,
   type CookieAccountProfile,
   type CookieSource,
 } from "@/utils/api/cookieMusicAPI";
@@ -82,7 +83,7 @@ type AccountCard = {
 const accounts = reactive<AccountCard[]>([
   {
     source: "kg",
-    name: "酷狗音乐账号",
+    name: "KG状态",
     color: "#0062ff",
     nickname: "",
     avatar: "",
@@ -93,7 +94,7 @@ const accounts = reactive<AccountCard[]>([
   },
   {
     source: "wy",
-    name: "网易云音乐账号",
+    name: "WY状态",
     color: "#d71920",
     nickname: "",
     avatar: "",
@@ -116,7 +117,7 @@ function openLogin(source: CookieSource) {
       h(component, {
         onLoginSuccess: (profile: CookieAccountProfile) => {
           applyProfile(profile);
-          void refreshProfile(source);
+          void loadProfile(source);
           modal.destroy();
         },
       }),
@@ -126,7 +127,7 @@ function openLogin(source: CookieSource) {
   });
 }
 
-async function refreshProfile(source: CookieSource) {
+async function loadProfile(source: CookieSource) {
   const item = findAccount(source);
   item.loading = true;
   try {
@@ -137,6 +138,30 @@ async function refreshProfile(source: CookieSource) {
     }
   } catch (error) {
     window.$message.error(error instanceof Error ? error.message : "账号信息刷新失败");
+  } finally {
+    item.loading = false;
+  }
+}
+
+async function refreshAccount(source: CookieSource) {
+  if (source === "wy") {
+    openLogin("wy");
+    return;
+  }
+
+  const item = findAccount(source);
+  item.loading = true;
+  try {
+    const result = await refreshCookieAccount(source);
+    if (result.success) {
+      window.$message.success(result.message || "酷狗 Cookie 刷新成功");
+      if (result.profile) applyProfile(result.profile);
+      await loadProfile(source);
+    } else {
+      window.$message.info(result.message || `${item.name}暂未登录`);
+    }
+  } catch (error) {
+    window.$message.error(error instanceof Error ? error.message : "账号 Cookie 刷新失败");
   } finally {
     item.loading = false;
   }
@@ -170,8 +195,8 @@ function findAccount(source: CookieSource) {
 }
 
 onMounted(() => {
-  void refreshProfile("kg");
-  void refreshProfile("wy");
+  void loadProfile("kg");
+  void loadProfile("wy");
 });
 </script>
 

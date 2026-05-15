@@ -39,6 +39,14 @@ export class UserCookieStore {
     return this.getHeader();
   }
 
+  replaceCookie(raw: string) {
+    this.ensureLoaded();
+    this.entries.clear();
+    this.mergeRawCookie(raw);
+    this.save();
+    return this.getHeader();
+  }
+
   updateFromHeader(raw: string) {
     if (!raw.trim()) return this.getHeader();
     return this.setCookie(raw);

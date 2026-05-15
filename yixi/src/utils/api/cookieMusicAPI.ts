@@ -13,6 +13,15 @@ export type CookieAccountProfile = {
   raw?: unknown;
 };
 
+export type CookieRefreshResult = {
+  source: CookieSource;
+  success: boolean;
+  refreshed: boolean;
+  message: string;
+  profile?: CookieAccountProfile;
+  lastRefreshAt?: string;
+};
+
 export type KgQrLoginSnapshot = {
   loginId: string;
   qrcodeImg: string;
@@ -79,6 +88,12 @@ export function wyOpenLoginWindow(mode: "pc" | "mobile") {
 export function getCookieAccountProfile(source: CookieSource) {
   return invokeCookieApi("getCookieAccountProfile", { source }, () =>
     window.electronAPI.getCookieAccountProfile({ source })
+  );
+}
+
+export function refreshCookieAccount(source: CookieSource) {
+  return invokeCookieApi("refreshCookieAccount", { source }, () =>
+    window.electronAPI.refreshCookieAccount({ source })
   );
 }
 

@@ -22,6 +22,15 @@ export type CookieAccountProfile = {
   raw?: unknown;
 };
 
+export type CookieRefreshResult = {
+  source: CookieSource;
+  success: boolean;
+  refreshed: boolean;
+  message: string;
+  profile?: CookieAccountProfile;
+  lastRefreshAt?: string;
+};
+
 export type KgQrLoginSnapshot = {
   loginId: string;
   qrcodeImg: string;

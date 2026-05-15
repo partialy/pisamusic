@@ -288,6 +288,15 @@ type CookieAccountProfile = {
   raw?: unknown;
 };
 
+type CookieRefreshResult = {
+  source: CookieSource;
+  success: boolean;
+  refreshed: boolean;
+  message: string;
+  profile?: CookieAccountProfile;
+  lastRefreshAt?: string;
+};
+
 type KgQrLoginSnapshot = {
   loginId: string;
   qrcodeImg: string;
@@ -381,6 +390,7 @@ type ElectronIpcApi = {
   kgCheckQrLogin: (payload: { loginId: string }) => Promise<KgQrLoginStatus>;
   wyOpenLoginWindow: (payload: { mode: "pc" | "mobile" }) => Promise<WyLoginWindowResult>;
   getCookieAccountProfile: (payload: { source: CookieSource }) => Promise<CookieAccountProfile>;
+  refreshCookieAccount: (payload: { source: CookieSource }) => Promise<CookieRefreshResult>;
   getCookieDebugUserInfo: (source: CookieSource) => Promise<CookieDebugApiResult>;
   exportCookieFiles: () => Promise<CookieFileExportResult>;
   getCookieUserPlaylists: <T = any>(payload: {

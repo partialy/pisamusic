@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { copyFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { BrowserWindow, app, dialog, type Cookie, type Session } from "electron";
+import { getAppDatabase } from "../database";
 import { getRuntimeEndpointsCached, requestSignedGateway } from "../system/systemClient";
 import { logger } from "../utils/logger";
 import { parseCookieHeader, UserCookieStore } from "./cookieStore";
@@ -11,6 +12,7 @@ import type {
   CookieSource,
   CookieDebugApiResult,
   CookieFileExportResult,
+  CookieRefreshResult,
   KgQrLoginSnapshot,
   KgQrLoginStatus,
   WyLoginWindowMode,
@@ -19,6 +21,8 @@ import type {
 
 const stores: Partial<Record<CookieSource, UserCookieStore>> = {};
 const kgQrSessions = new Map<string, { key: string; expiresAt: number }>();
+const KG_REFRESH_SETTING_KEY = "cookie-kg-refresh-state";
+const KG_REFRESH_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 const WY_MOBILE_USER_AGENT =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 " +
@@ -29,7 +33,9 @@ export function getUserCookie(source: CookieSource) {
 }
 
 export function clearUserCookie(source: CookieSource) {
-  return getStore(source).clear();
+  const cleared = getStore(source).clear();
+  if (source === "kg") clearKgRefreshState();
+  return cleared;
 }
 
 export async function kgSendCaptcha(payload: { mobile: string }) {
@@ -192,6 +198,48 @@ export async function getCookieAccountProfile(payload: { source: CookieSource })
   return payload.source === "kg" ? getKgAccountProfile() : getWyAccountProfile();
 }
 
+export async function refreshCookieAccount(payload: { source: CookieSource }): Promise<CookieRefreshResult> {
+  if (payload.source === "wy") {
+    return {
+      source: "wy",
+      success: false,
+      refreshed: false,
+      message: "网易云账号需要重新打开网页登录",
+    };
+  }
+  return refreshKgCookieIfNeeded("manual");
+}
+
+export async function refreshKgCookieIfNeeded(
+  trigger: "startup" | "manual" = "manual"
+): Promise<CookieRefreshResult> {
+  try {
+    const cookie = getStore("kg").getHeader();
+    if (!cookie) return kgRefreshResult(false, false, "酷狗账号暂未登录");
+
+    const cookieMap = parseCookieHeader(cookie);
+    const token = cookieMap.get("token") ?? "";
+    const userid = cookieMap.get("userid") ?? "";
+    if (!token || !userid) return kgRefreshResult(false, false, "酷狗 Cookie 缺少 userid 或 token");
+
+    const state = getKgRefreshState();
+    const now = Date.now();
+    if (!shouldRefreshKgCookie(state.lastRefreshAt, now)) {
+      return kgRefreshResult(true, false, "酷狗 Cookie 刷新成功", state.lastRefreshAt);
+    }
+
+    const lastRefreshAt = await finalizeKgLoginSession(token, userid);
+    return kgRefreshResult(true, true, "酷狗 Cookie 刷新成功", lastRefreshAt);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (trigger === "startup") {
+      logger.warn("kg cookie startup refresh skipped", { message });
+      return kgRefreshResult(false, false, message);
+    }
+    throw error;
+  }
+}
+
 export async function getCookieUserPlaylists(payload: {
   source: CookieSource;
   page?: number;
@@ -289,20 +337,32 @@ async function getKgAccountProfile(): Promise<CookieAccountProfile> {
   if (!token || !userid) return emptyProfile("kg");
 
   const endpoints = await getRuntimeEndpointsCached();
-  const response = await requestSignedGatewayWithCookie<KgEnvelope>(
-    buildUrl(endpoints.kgServer, "/login/token", { token, userid }),
+  const response = await requestSignedGatewayWithCookie<Record<string, unknown>>(
+    buildUrl(endpoints.kgServer, "/user/detail", {}),
     {
       store: getStore("kg"),
     }
   );
-  const data = response.data?.data ?? {};
+  const root = objectRecord(response.data) ?? {};
+  const data = objectRecord(root.data) ?? root;
+  const playlistFallback = await getKgProfileFallback(data);
+  const vipType = scalar(data.vip_type) || cookieMap.get("vip_type") || "0";
+  const userId = scalar(data.userid) || scalar(data.user_id) || scalar(data.id) || userid;
+  const nickname = scalar(data.nickname) || scalar(data.username) || scalar(data.user_name) || playlistFallback.nickname;
+  const avatar =
+    scalar(data.arttoy_avatar) ||
+    scalar(data.avatar) ||
+    scalar(data.pic) ||
+    scalar(data.img) ||
+    playlistFallback.avatar;
+
   return {
     source: "kg",
-    loggedIn: response.data?.status === 1,
-    userId: scalar(data.userid) || userid,
-    nickname: scalar(data.nickname) || "酷狗用户",
-    avatar: scalar(data.arttoy_avatar) || scalar(data.avatar) || scalar(data.pic),
-    isVip: Number(data.vip_type ?? 0) > 0,
+    loggedIn: isKgProfileLoggedIn(root, userId, nickname, avatar),
+    userId,
+    nickname: nickname || "酷狗用户",
+    avatar,
+    isVip: Number(vipType) > 0,
     expiresAt: scalar(data.vip_end_time),
     raw: response.data,
   };
@@ -346,9 +406,43 @@ async function finalizeKgLoginSession(token: string, userid: string) {
   const nextToken = scalar(data.token);
   if (!vipToken || !uid || !nextToken) throw new Error("login/token missing vip_token/userid/token");
 
-  getStore("kg").setCookie(
+  getStore("kg").replaceCookie(
     `KUGOU_API_PLATFORM=undefined; token=${nextToken}; userid=${uid}; vip_type=${vipType}; vip_token=${vipToken}`
   );
+  return recordKgRefreshTime();
+}
+
+async function getKgProfileFallback(data: Record<string, unknown>) {
+  const hasNickname = Boolean(scalar(data.nickname) || scalar(data.username) || scalar(data.user_name));
+  const hasAvatar = Boolean(
+    scalar(data.arttoy_avatar) || scalar(data.avatar) || scalar(data.pic) || scalar(data.img)
+  );
+  if (hasNickname && hasAvatar) return { nickname: "", avatar: "" };
+
+  try {
+    const endpoints = await getRuntimeEndpointsCached();
+    const response = await requestSignedGatewayWithCookie<Record<string, unknown>>(
+      buildUrl(endpoints.kgServer, "/user/playlist", { page: 1, pagesize: 30 }),
+      { store: getStore("kg") }
+    );
+    const root = objectRecord(response.data) ?? {};
+    const payload = objectRecord(root.data) ?? root;
+    const info = arrayValue(payload.info) || arrayValue(payload.list) || arrayValue(payload.playlists);
+    const first = objectRecord(info?.[0]) ?? {};
+    return {
+      nickname:
+        scalar(first.list_create_username) ||
+        scalar(first.listCreateUsername) ||
+        scalar(first.nickname),
+      avatar:
+        scalar(first.create_user_pic) ||
+        scalar(first.createUserPic) ||
+        scalar(first.avatar) ||
+        scalar(first.pic),
+    };
+  } catch {
+    return { nickname: "", avatar: "" };
+  }
 }
 
 async function readWyMusicUCookies(loginSession: Session) {
@@ -399,6 +493,70 @@ function scalar(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   if (typeof value === "boolean") return String(value);
   return "";
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function arrayValue(value: unknown): unknown[] | null {
+  return Array.isArray(value) ? value : null;
+}
+
+function isKgProfileLoggedIn(
+  root: Record<string, unknown>,
+  userId: string,
+  nickname: string,
+  avatar: string
+) {
+  const status = Number(root.status ?? root.code ?? 1);
+  if (root.success === false || status === 0 || status >= 400) return false;
+  return Boolean(userId || nickname || avatar);
+}
+
+export function shouldRefreshKgCookie(
+  lastRefreshAt?: string | number | null,
+  now = Date.now(),
+  intervalMs = KG_REFRESH_INTERVAL_MS
+) {
+  const lastTime =
+    typeof lastRefreshAt === "number"
+      ? lastRefreshAt
+      : typeof lastRefreshAt === "string"
+        ? Date.parse(lastRefreshAt)
+        : NaN;
+  return !Number.isFinite(lastTime) || now - lastTime >= intervalMs;
+}
+
+function getKgRefreshState() {
+  const record = getAppDatabase().getSetting<{ lastRefreshAt?: string }>(KG_REFRESH_SETTING_KEY);
+  return record?.value ?? {};
+}
+
+function recordKgRefreshTime() {
+  const lastRefreshAt = new Date().toISOString();
+  getAppDatabase().setSetting(KG_REFRESH_SETTING_KEY, { lastRefreshAt }, 1);
+  return lastRefreshAt;
+}
+
+function clearKgRefreshState() {
+  getAppDatabase().deleteSetting(KG_REFRESH_SETTING_KEY);
+}
+
+function kgRefreshResult(
+  success: boolean,
+  refreshed: boolean,
+  message: string,
+  lastRefreshAt?: string
+): CookieRefreshResult {
+  return {
+    source: "kg",
+    success,
+    refreshed,
+    message,
+    lastRefreshAt,
+  };
 }
 
 function emptyProfile(source: CookieSource): CookieAccountProfile {

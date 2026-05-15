@@ -15,6 +15,7 @@ import { setupDialogIpc } from "./ipc/dialogIpc";
 import { setupDebugIpc } from "./ipc/debugIpc";
 import { setupLocalLibraryIpc } from "./ipc/localLibraryIpc";
 import { setupCookieIpc } from "./ipc/cookieIpc";
+import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 
 const currentFile = fileURLToPath(import.meta.url);
@@ -128,6 +129,7 @@ app.whenReady().then(() => {
   setupPlayerStateBridge();
   createMainWindow();
   playerTray.create();
+  void refreshKgCookieIfNeeded("startup");
   startLocalLibrarySmartScan();
 });
 

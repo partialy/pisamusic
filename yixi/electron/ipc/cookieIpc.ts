@@ -10,6 +10,7 @@ import {
   kgLoginWithCode,
   kgSendCaptcha,
   kgStartQrLogin,
+  refreshCookieAccount,
   wyOpenLoginWindow,
 } from "../cookie/cookieService";
 import type { CookieSource, WyLoginWindowMode } from "../cookie/types";
@@ -37,6 +38,9 @@ export function setupCookieIpc() {
   );
   ipcMain.handle("cookie:account-profile", (_event, payload: { source: CookieSource }) =>
     getCookieAccountProfile(payload)
+  );
+  ipcMain.handle("cookie:refresh-account", (_event, payload: { source: CookieSource }) =>
+    refreshCookieAccount(payload)
   );
   ipcMain.handle("cookie:debug-user-info", (_event, source: CookieSource) =>
     getCookieDebugUserInfo(source)
