@@ -30,6 +30,7 @@ declare module 'vue' {
     LoginCard: typeof import('./src/components/home/LoginCard.vue')['default']
     LyricSetting: typeof import('./src/components/setting/lyric/LyricSetting.vue')['default']
     MainPlayer: typeof import('./src/components/player/MainPlayer.vue')['default']
+    MineAccountCards: typeof import('./src/components/mine/MineAccountCards.vue')['default']
     NButton: typeof import('naive-ui')['NButton']
     NCheckbox: typeof import('naive-ui')['NCheckbox']
     NDrawer: typeof import('naive-ui')['NDrawer']

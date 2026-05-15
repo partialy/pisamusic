@@ -10,6 +10,7 @@
 - renderer 只能通过 preload 暴露的 typed API 和 `src/utils/api/cookieMusicAPI.ts` 访问登录、Cookie、账号资料与用户歌单；不要再用 localStorage 保存 KG/WY 登录态。
 - 需要 Cookie 的 KG/WY 请求直接访问 runtime endpoints 中的 `kgServer` / `wyServer`，并在 main 端通过 `requestSignedGatewayWithCookie()` 追加 Cookie 与签名；不要走 `proxy-service`。
 - 侧边栏 KG / WY 入口是登录态动态菜单：renderer 统一通过 `src/composables/useCookieAccountStatus.ts` 读取账号资料并共享状态；只有对应 Cookie 账号已登录时才显示 `/kg`、`/wy` 入口。
+- `我的` 页使用类似收藏页的标题 + tab 结构，tab 固定为账号、KG云盘、WY云盘、KG歌单、WY歌单；账号页承载 KG / WY 登录卡片，云盘页先放 `SongList` 占位，歌单页通过 Cookie API 拉取用户歌单并复用 `PlaylistCollect` 排版。设置页不再展示账号设置 tab，只保留应用配置与调试能力。
 
 ## Electron IPC 与桌面歌词规则补充
 
