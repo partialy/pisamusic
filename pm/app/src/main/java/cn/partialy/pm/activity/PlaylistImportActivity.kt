@@ -18,6 +18,7 @@ import cn.partialy.pm.databinding.ActivityPlaylistImportBinding
 import cn.partialy.pm.databinding.IncludePlaylistImportKgLoginBinding
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.CookieRequest
+import cn.partialy.pm.network.api.KgApiService
 import cn.partialy.pm.network.cookie.KgQrKeyEnvelope
 import cn.partialy.pm.network.cookie.KgStdEnvelope
 import cn.partialy.pm.network.cookie.KugouCookieRepository
@@ -36,6 +37,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import retrofit2.Response
 import javax.inject.Inject
 
 /**
@@ -49,6 +51,9 @@ class PlaylistImportActivity : BaseActivity() {
 
     @Inject
     lateinit var kugouCookieRepository: KugouCookieRepository
+
+    @Inject
+    lateinit var kgApiService: KgApiService
 
     private lateinit var binding: ActivityPlaylistImportBinding
 
@@ -172,16 +177,12 @@ class PlaylistImportActivity : BaseActivity() {
         kgCaptchaCountdownJob?.cancel()
         lifecycleScope.launch {
             try {
-                val url = "${KugouCookieRepository.API_BASE.trimEnd('/')}/captcha/sent"
-                val r = CookieRequest.get(
-                    url,
-                    mapOf("mobile" to phone),
-                    cookie = null,
-                    extraHeaders = KugouCookieRepository.KG_LOGIN_BROWSER_HEADERS,
-                )
-                val env = kgLoginGson.fromJson(r.body, KgStdEnvelope::class.java)
-                if (env.status != 1) {
-                    val msg = env.msg ?: env.message ?: getString(R.string.playlist_import_kg_captcha_fail)
+                val resp = withContext(Dispatchers.IO) {
+                    kgApiService.sendLoginCaptcha(mobile = phone)
+                }
+                val env = resp.body()
+                if (env?.status != 1) {
+                    val msg = env?.msg ?: env?.message ?: getString(R.string.playlist_import_kg_captcha_fail)
                     Toast.makeText(this@PlaylistImportActivity, msg, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
@@ -221,16 +222,12 @@ class PlaylistImportActivity : BaseActivity() {
         }
         lifecycleScope.launch {
             try {
-                val url = "${KugouCookieRepository.API_BASE.trimEnd('/')}/login/cellphone"
-                val r = CookieRequest.get(
-                    url,
-                    mapOf("mobile" to phone, "code" to code),
-                    cookie = null,
-                    extraHeaders = KugouCookieRepository.KG_LOGIN_BROWSER_HEADERS,
-                )
-                val env = kgLoginGson.fromJson(r.body, KgStdEnvelope::class.java)
-                if (env.status != 1) {
-                    val msg = env.msg ?: env.message ?: getString(R.string.playlist_import_kg_save_fail_generic)
+                val resp = withContext(Dispatchers.IO) {
+                    kgApiService.loginCellphone(mobile = phone, code = code)
+                }
+                val env = resp.body()
+                if (env?.status != 1) {
+                    val msg = env?.msg ?: env?.message ?: getString(R.string.playlist_import_kg_save_fail_generic)
                     Toast.makeText(this@PlaylistImportActivity, msg, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
@@ -241,7 +238,7 @@ class PlaylistImportActivity : BaseActivity() {
                     Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_login_missing_token, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
-                val cookieHeader = r.cookieHeaderForNextRequest
+                val cookieHeader = resp.cookieHeaderForNextRequest()
                 kugouCookieRepository.finalizeKgLoginSession(cookieHeader, token, userid)
                     .onSuccess {
                         Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
@@ -274,15 +271,11 @@ class PlaylistImportActivity : BaseActivity() {
 
         kgQrPollJob = lifecycleScope.launch {
             try {
-                val keyUrl = "${KugouCookieRepository.API_BASE.trimEnd('/')}/login/qr/key"
-                val keyResp = CookieRequest.get(
-                    keyUrl,
-                    mapOf("timestamp" to System.currentTimeMillis().toString()),
-                    cookie = null,
-                    extraHeaders = KugouCookieRepository.KG_LOGIN_BROWSER_HEADERS,
-                )
-                val keyEnv = kgLoginGson.fromJson(keyResp.body, KgQrKeyEnvelope::class.java)
-                if (keyEnv.status != 1 || keyEnv.data == null) {
+                val keyResp = withContext(Dispatchers.IO) {
+                    kgApiService.loginQrKey(timestamp = System.currentTimeMillis().toString())
+                }
+                val keyEnv = keyResp.body()
+                if (keyEnv?.status != 1 || keyEnv.data == null) {
                     b.kgQrLoading.visibility = View.GONE
                     b.kgQrPlaceholder.visibility = View.VISIBLE
                     Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_qr_fetch_fail, Toast.LENGTH_SHORT).show()
@@ -319,15 +312,15 @@ class PlaylistImportActivity : BaseActivity() {
         var cookieForNext: String? = null
         while (true) {
             delay(3000)
-            val checkUrl = "${KugouCookieRepository.API_BASE.trimEnd('/')}/login/qr/check"
-            val r = CookieRequest.get(
-                checkUrl,
-                mapOf("key" to key, "timestamp" to System.currentTimeMillis().toString()),
-                cookie = cookieForNext,
-                extraHeaders = KugouCookieRepository.KG_LOGIN_BROWSER_HEADERS,
-            )
-            cookieForNext = r.cookieHeaderForNextRequest.takeIf { it.isNotBlank() }
-            val env = kgLoginGson.fromJson(r.body, KgStdEnvelope::class.java)
+            val resp = withContext(Dispatchers.IO) {
+                kgApiService.loginQrCheck(
+                    key = key,
+                    timestamp = System.currentTimeMillis().toString(),
+                    cookie = cookieForNext,
+                )
+            }
+            cookieForNext = resp.cookieHeaderForNextRequest(cookieForNext).takeIf { it.isNotBlank() }
+            val env = resp.body() ?: KgStdEnvelope()
             val d = env.data
             val innerStatus = d?.get("status")?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive?.asInt ?: 1
 
@@ -364,7 +357,7 @@ class PlaylistImportActivity : BaseActivity() {
                         Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_login_missing_token, Toast.LENGTH_SHORT).show()
                         return
                     }
-                    val cookieHeader = r.cookieHeaderForNextRequest
+                    val cookieHeader = cookieForNext.orEmpty()
                     val fin = kugouCookieRepository.finalizeKgLoginSession(cookieHeader, token, userid)
                     fin.onSuccess {
                         Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
@@ -387,6 +380,13 @@ class PlaylistImportActivity : BaseActivity() {
             }
         }
     }
+
+    private fun Response<*>.cookieHeaderForNextRequest(previousCookie: String? = null): String =
+        CookieRequest.mergeSetCookiesIntoCookieHeader(
+            httpUrl = raw().request.url,
+            previousCookieHeader = previousCookie,
+            setCookieLines = headers().values("Set-Cookie"),
+        )
 
     private fun resetKugouQrLoginAuxiliaryUi(b: IncludePlaylistImportKgLoginBinding) {
         b.kgQrUserAvatar.setImageDrawable(null)

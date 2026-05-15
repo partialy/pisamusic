@@ -22,6 +22,7 @@ import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.network.cookie.WyQrCheckEnvelope
 import cn.partialy.pm.network.cookie.WyQrCreateEnvelope
 import cn.partialy.pm.network.cookie.WyQrKeyEnvelope
+import cn.partialy.pm.network.wy.WyApiService
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import com.google.android.material.color.MaterialColors
@@ -35,6 +36,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import retrofit2.Response
 import javax.inject.Inject
 
 /**
@@ -46,6 +48,9 @@ class WyPlaylistLoginActivity : BaseActivity() {
 
     @Inject
     lateinit var wyCookieRepository: WyCookieRepository
+
+    @Inject
+    lateinit var wyApiService: WyApiService
 
     private lateinit var binding: ActivityWyPlaylistLoginBinding
     private val wyGson = Gson()
@@ -144,9 +149,6 @@ class WyPlaylistLoginActivity : BaseActivity() {
         b.kgQrSuccessReturnBtn.setOnClickListener { finish() }
     }
 
-    private fun wyRealIpParams(extra: Map<String, String?>): Map<String, String?> =
-        extra + mapOf("realIP" to WyCookieRepository.WY_LOGIN_REAL_IP)
-
     private fun requestWyCaptcha() {
         val phone = binding.wyLogin.kgPhoneInput.text?.toString()?.trim().orEmpty()
         if (phone.length != 11) {
@@ -156,16 +158,16 @@ class WyPlaylistLoginActivity : BaseActivity() {
         wyCaptchaCountdownJob?.cancel()
         lifecycleScope.launch {
             try {
-                val url = "${WyCookieRepository.API_BASE.trimEnd('/')}/captcha/sent"
-                val r = CookieRequest.get(
-                    url,
-                    wyRealIpParams(mapOf("phone" to phone)),
-                    cookie = null,
-                    extraHeaders = WyCookieRepository.WY_LOGIN_BROWSER_HEADERS,
-                )
-                val code = wyParseJsonObject(r.body).get("code")?.asInt ?: -1
+                val resp = withContext(Dispatchers.IO) {
+                    wyApiService.sendLoginCaptcha(
+                        phone = phone,
+                        realIp = WyCookieRepository.WY_LOGIN_REAL_IP,
+                    )
+                }
+                val root = resp.body() ?: JsonObject()
+                val code = root.get("code")?.asInt ?: -1
                 if (code != 200) {
-                    val msg = jsonMessage(r.body) ?: getString(R.string.playlist_import_kg_captcha_fail)
+                    val msg = jsonMessage(root) ?: getString(R.string.playlist_import_kg_captcha_fail)
                     Toast.makeText(this@WyPlaylistLoginActivity, msg, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
@@ -204,22 +206,22 @@ class WyPlaylistLoginActivity : BaseActivity() {
         }
         lifecycleScope.launch {
             try {
-                val url = "${WyCookieRepository.API_BASE.trimEnd('/')}/login/cellphone"
-                val r = CookieRequest.get(
-                    url,
-                    wyRealIpParams(mapOf("phone" to phone, "captcha" to captcha)),
-                    cookie = null,
-                    extraHeaders = WyCookieRepository.WY_LOGIN_BROWSER_HEADERS,
-                )
-                val root = wyParseJsonObject(r.body)
+                val resp = withContext(Dispatchers.IO) {
+                    wyApiService.loginCellphone(
+                        phone = phone,
+                        captcha = captcha,
+                        realIp = WyCookieRepository.WY_LOGIN_REAL_IP,
+                    )
+                }
+                val root = resp.body() ?: JsonObject()
                 val code = root.get("code")?.asInt ?: -1
                 if (code != 200) {
-                    val msg = jsonMessage(r.body) ?: getString(R.string.playlist_import_wy_login_fail)
+                    val msg = jsonMessage(root) ?: getString(R.string.playlist_import_wy_login_fail)
                     Toast.makeText(this@WyPlaylistLoginActivity, msg, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
                 val cookieFromBody = wyJsonStringField(root, "cookie")
-                val merged = mergeWyCookieChain(r.cookieHeaderForNextRequest, cookieFromBody)
+                val merged = mergeWyCookieChain(resp.cookieHeaderForNextRequest(), cookieFromBody)
                 if (merged.isBlank()) {
                     Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_wy_cookie_missing, Toast.LENGTH_SHORT).show()
                     return@launch
@@ -246,36 +248,32 @@ class WyPlaylistLoginActivity : BaseActivity() {
 
         wyQrPollJob = lifecycleScope.launch {
             try {
-                val keyUrl = "${WyCookieRepository.API_BASE.trimEnd('/')}/login/qr/key"
-                val keyResp = CookieRequest.get(
-                    keyUrl,
-                    wyRealIpParams(mapOf("timestamp" to System.currentTimeMillis().toString())),
-                    cookie = null,
-                    extraHeaders = WyCookieRepository.WY_LOGIN_BROWSER_HEADERS,
-                )
-                val keyEnv = wyGson.fromJson(keyResp.body, WyQrKeyEnvelope::class.java)
-                if (keyEnv.code != 200 || keyEnv.data == null) {
+                val keyResp = withContext(Dispatchers.IO) {
+                    wyApiService.loginQrKey(
+                        timestamp = System.currentTimeMillis().toString(),
+                        realIp = WyCookieRepository.WY_LOGIN_REAL_IP,
+                    )
+                }
+                val keyEnv = keyResp.body()
+                if (keyEnv?.code != 200 || keyEnv.data == null) {
                     b.kgQrLoading.visibility = View.GONE
                     b.kgQrPlaceholder.visibility = View.VISIBLE
                     Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_kg_qr_fetch_fail, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
                 val unikey = keyEnv.data.unikey
-                val createUrl = "${WyCookieRepository.API_BASE.trimEnd('/')}/login/qr/create"
-                val createResp = CookieRequest.get(
-                    createUrl,
-                    wyRealIpParams(
-                        mapOf(
-                            "key" to unikey,
-                            "qrimg" to "1",
-                            "timestamp" to System.currentTimeMillis().toString(),
-                        ),
-                    ),
-                    cookie = keyResp.cookieHeaderForNextRequest.takeIf { it.isNotBlank() },
-                    extraHeaders = WyCookieRepository.WY_LOGIN_BROWSER_HEADERS,
-                )
-                val createEnv = wyGson.fromJson(createResp.body, WyQrCreateEnvelope::class.java)
-                if (createEnv.code != 200 || createEnv.data == null) {
+                val keyCookie = keyResp.cookieHeaderForNextRequest().takeIf { it.isNotBlank() }
+                val createResp = withContext(Dispatchers.IO) {
+                    wyApiService.loginQrCreate(
+                        key = unikey,
+                        qrimg = "1",
+                        timestamp = System.currentTimeMillis().toString(),
+                        realIp = WyCookieRepository.WY_LOGIN_REAL_IP,
+                        cookie = keyCookie,
+                    )
+                }
+                val createEnv = createResp.body()
+                if (createEnv?.code != 200 || createEnv.data == null) {
                     b.kgQrLoading.visibility = View.GONE
                     b.kgQrPlaceholder.visibility = View.VISIBLE
                     Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_kg_qr_fetch_fail, Toast.LENGTH_SHORT).show()
@@ -292,7 +290,9 @@ class WyPlaylistLoginActivity : BaseActivity() {
                     b.kgQrPlaceholder.visibility = View.VISIBLE
                 }
                 applyWyQrWaitingScanUi(b)
-                var cookieForPoll = createResp.cookieHeaderForNextRequest.takeIf { it.isNotBlank() }
+                val cookieForPoll = createResp.cookieHeaderForNextRequest(
+                    keyCookie,
+                ).takeIf { it.isNotBlank() }
                 pollWyQrUntilDone(unikey, cookieForPoll)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -308,20 +308,16 @@ class WyPlaylistLoginActivity : BaseActivity() {
         var cookieForNext: String? = initialCookie
         while (true) {
             delay(3000)
-            val checkUrl = "${WyCookieRepository.API_BASE.trimEnd('/')}/login/qr/check"
-            val r = CookieRequest.get(
-                checkUrl,
-                wyRealIpParams(
-                    mapOf(
-                        "key" to unikey,
-                        "timestamp" to System.currentTimeMillis().toString(),
-                    ),
-                ),
-                cookie = cookieForNext,
-                extraHeaders = WyCookieRepository.WY_LOGIN_BROWSER_HEADERS,
-            )
-            cookieForNext = r.cookieHeaderForNextRequest.takeIf { it.isNotBlank() }
-            val env = wyGson.fromJson(r.body, WyQrCheckEnvelope::class.java)
+            val resp = withContext(Dispatchers.IO) {
+                wyApiService.loginQrCheck(
+                    key = unikey,
+                    timestamp = System.currentTimeMillis().toString(),
+                    realIp = WyCookieRepository.WY_LOGIN_REAL_IP,
+                    cookie = cookieForNext,
+                )
+            }
+            cookieForNext = resp.cookieHeaderForNextRequest(cookieForNext).takeIf { it.isNotBlank() }
+            val env = resp.body() ?: WyQrCheckEnvelope()
             when (env.code) {
                 800 -> {
                     resetWyQrAuxiliaryUi(b)
@@ -345,7 +341,7 @@ class WyPlaylistLoginActivity : BaseActivity() {
                 803 -> {
                     b.kgQrOverlayExpired.visibility = View.GONE
                     b.kgQrImage.alpha = 1f
-                    val merged = mergeWyCookieChain(r.cookieHeaderForNextRequest, env.cookie)
+                    val merged = mergeWyCookieChain(cookieForNext.orEmpty(), env.cookie)
                     if (merged.isBlank()) {
                         Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_wy_cookie_missing, Toast.LENGTH_SHORT).show()
                         return
@@ -446,23 +442,21 @@ class WyPlaylistLoginActivity : BaseActivity() {
         return map.entries.joinToString("; ") { e -> "${e.key}=${e.value}" }
     }
 
-    private fun wyParseJsonObject(body: String): JsonObject =
-        JsonParser().parse(body).asJsonObject
-
     private fun wyJsonStringField(obj: JsonObject, key: String): String? {
         val el = obj.get(key) ?: return null
         if (el.isJsonNull) return null
         return if (el.isJsonPrimitive) el.asJsonPrimitive.asString else null
     }
 
-    private fun jsonMessage(body: String): String? {
-        return try {
-            val o = wyParseJsonObject(body)
-            wyJsonStringField(o, "message") ?: wyJsonStringField(o, "msg")
-        } catch (_: Exception) {
-            null
-        }
-    }
+    private fun jsonMessage(obj: JsonObject): String? =
+        wyJsonStringField(obj, "message") ?: wyJsonStringField(obj, "msg")
+
+    private fun Response<*>.cookieHeaderForNextRequest(previousCookie: String? = null): String =
+        CookieRequest.mergeSetCookiesIntoCookieHeader(
+            httpUrl = raw().request.url,
+            previousCookieHeader = previousCookie,
+            setCookieLines = headers().values("Set-Cookie"),
+        )
 
     private fun decodeWyQrBitmap(src: String): android.graphics.Bitmap? {
         val trimmed = src.trim()

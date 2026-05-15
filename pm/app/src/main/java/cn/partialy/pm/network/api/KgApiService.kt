@@ -14,7 +14,11 @@ import cn.partialy.pm.model.SearchLyricResponse
 import cn.partialy.pm.model.SearchSongResponse
 import cn.partialy.pm.model.TopCardApiResponse
 import cn.partialy.pm.model.TopPlaylistApiResponse
+import cn.partialy.pm.network.cookie.KgQrKeyEnvelope
+import cn.partialy.pm.network.cookie.KgStdEnvelope
+import retrofit2.Response
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Query
 
 interface KgApiService {
@@ -101,4 +105,27 @@ interface KgApiService {
         @Query("page") page: Int = 1,
         @Query("pagesize") pagesize: Int = 30,
     ): KgPlaylistTrackAllApiResponse
+
+    @GET("captcha/sent")
+    suspend fun sendLoginCaptcha(
+        @Query("mobile") mobile: String,
+    ): Response<KgStdEnvelope>
+
+    @GET("login/cellphone")
+    suspend fun loginCellphone(
+        @Query("mobile") mobile: String,
+        @Query("code") code: String,
+    ): Response<KgStdEnvelope>
+
+    @GET("login/qr/key")
+    suspend fun loginQrKey(
+        @Query("timestamp") timestamp: String,
+    ): Response<KgQrKeyEnvelope>
+
+    @GET("login/qr/check")
+    suspend fun loginQrCheck(
+        @Query("key") key: String,
+        @Query("timestamp") timestamp: String,
+        @Header("Cookie") cookie: String? = null,
+    ): Response<KgStdEnvelope>
 }
