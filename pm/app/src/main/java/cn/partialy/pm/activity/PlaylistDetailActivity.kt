@@ -468,18 +468,29 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     private fun loadAllRemainingTracks(playlistId: String, totalCount: Int) {
         allTracksLoadJob?.cancel()
         allTracksLoadJob = lifecycleScope.launch {
-            val data = withContext(Dispatchers.IO) {
-                kgRepository.getPlaylistTrackAll(
-                    id = playlistId,
-                    page = 1,
-                    pagesize = maxOf(totalCount, 5000),
-                ).getOrNull()?.data
-            } ?: return@launch
-            val allSongs = data.info.mapNotNull { it.toSongInfoOrNull() }
-            if (allSongs.size <= listAdapter.currentSongs.size) return@launch
-            withContext(Dispatchers.Main) {
-                listAdapter.replaceAllSongs(allSongs)
-                syncStickyPlayAllTrackCount()
+            val pageCount = ((totalCount + KG_TRACK_PAGE_SIZE - 1) / KG_TRACK_PAGE_SIZE).coerceAtLeast(1)
+            for (page in 1..pageCount) {
+                if (!isActive) return@launch
+                val data = withContext(Dispatchers.IO) {
+                    kgRepository.getPlaylistTrackAll(
+                        id = playlistId,
+                        page = page,
+                        pagesize = KG_TRACK_PAGE_SIZE,
+                    ).getOrNull()?.data
+                } ?: return@launch
+                val songs = data.info.mapNotNull { it.toSongInfoOrNull() }
+                if (songs.isEmpty()) return@launch
+                withContext(Dispatchers.Main) {
+                    listAdapter.appendFromApi(
+                        rows = songs,
+                        apiTotal = data.count.takeIf { it > 0 } ?: totalCount,
+                        apiPage = page,
+                        apiPageSize = KG_TRACK_PAGE_SIZE,
+                    )
+                    ensurePlaylistEnriched()
+                    syncStickyPlayAllTrackCount()
+                }
+                if (songs.size < KG_TRACK_PAGE_SIZE) return@launch
             }
         }
     }
@@ -487,6 +498,8 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     companion object {
         /** 首屏快速显示的歌曲数 */
         private const val FIRST_PAGE_SIZE = 30
+        /** KG 歌单歌曲接口单页最多只能稳定返回 300 首。 */
+        private const val KG_TRACK_PAGE_SIZE = 300
 
         private const val EXTRA_PLAYLIST_ID = "playlist_id"
         private const val EXTRA_TITLE = "title"
