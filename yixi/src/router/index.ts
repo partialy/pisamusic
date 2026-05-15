@@ -34,6 +34,18 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: "PisaMusic - 我的" },
       },
       {
+        path: "kg",
+        name: "KgAccount",
+        component: () => import("../views/cookieAccount/index.vue"),
+        meta: { title: "PisaMusic - KG", source: "kg" },
+      },
+      {
+        path: "wy",
+        name: "WyAccount",
+        component: () => import("../views/cookieAccount/index.vue"),
+        meta: { title: "PisaMusic - WY", source: "wy" },
+      },
+      {
         path: "local-download",
         name: "LocalDownload",
         component: () => import("../views/localDownload.vue"),

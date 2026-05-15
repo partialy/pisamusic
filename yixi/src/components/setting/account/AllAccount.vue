@@ -60,6 +60,7 @@ import WYLogin from "./WYLogin.vue";
 import { KGIcon, NeteaseIcon } from "@/icons";
 import { renderIcon } from "@/utils/common";
 import defaultAvatar from "@/assets/defaultAdminAvatar.jpg";
+import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
 import {
   clearUserCookie,
   getCookieAccountProfile,
@@ -79,6 +80,8 @@ type AccountCard = {
   loggedIn: boolean;
   loading: boolean;
 };
+
+const { setCookieAccountStatus } = useCookieAccountStatus();
 
 const accounts = reactive<AccountCard[]>([
   {
@@ -188,6 +191,7 @@ function applyProfile(profile: CookieAccountProfile) {
   item.avatar = profile.avatar;
   item.userId = profile.userId;
   item.isVip = profile.isVip;
+  setCookieAccountStatus(profile);
 }
 
 function findAccount(source: CookieSource) {

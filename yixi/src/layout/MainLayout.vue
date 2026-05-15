@@ -49,16 +49,21 @@ import {
   Wrench,
 } from "lucide-vue-next";
 import { Header } from "../components";
+import { KGIcon, NeteaseIcon } from "@/icons";
 import logo from "@/assets/pisamusic_icon_1024.png";
+import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
 
 const router = useRouter();
 const route = useRoute();
 const collapsed = ref(false);
+const { accounts } = useCookieAccountStatus();
 
 const routeToMenuKey = (path: string) => {
   if (path.startsWith("/playlist")) return "playlist";
   if (path.startsWith("/favorite")) return "favorite";
   if (path.startsWith("/mine")) return "mine";
+  if (path.startsWith("/kg")) return "kg";
+  if (path.startsWith("/wy")) return "wy";
   if (path.startsWith("/local-download")) return "local-download";
   if (path.startsWith("/setting")) return "setting";
   if (path.startsWith("/debugger")) return "debugger";
@@ -75,10 +80,26 @@ const menuOptions = computed<MenuOption[]>(() => {
     { label: "我的", key: "mine", icon: renderMenuIcon(UserRound) },
     { label: "本地与下载", key: "local-download", icon: renderMenuIcon(Download) },
     { label: "设置", key: "setting", icon: renderMenuIcon(Settings) },
+    ...cookieAccountMenuOptions.value,
+
   ];
 
   if (process.env.NODE_ENV === "development") {
     items.push({ label: "dev page", key: "debugger", icon: renderMenuIcon(Wrench) });
+  }
+
+  return items;
+});
+
+const cookieAccountMenuOptions = computed<MenuOption[]>(() => {
+  const items: MenuOption[] = [];
+
+  if (accounts.kg.loggedIn) {
+    items.push({ label: "KG", key: "kg", icon: renderMenuIcon(KGIcon) });
+  }
+
+  if (accounts.wy.loggedIn) {
+    items.push({ label: "WY", key: "wy", icon: renderMenuIcon(NeteaseIcon) });
   }
 
   return items;
@@ -98,6 +119,8 @@ function handleChangeMenu(key: string) {
     playlist: "/playlist",
     favorite: "/favorite",
     mine: "/mine",
+    kg: "/kg",
+    wy: "/wy",
     "local-download": "/local-download",
     setting: "/setting",
     debugger: "/debugger",

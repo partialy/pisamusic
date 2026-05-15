@@ -9,6 +9,7 @@
 - KG Cookie 刷新由 main 侧 `refreshKgCookieIfNeeded()` 统一处理，刷新时间戳写入 SQLite settings 的 `cookie-kg-refresh-state`；12 小时内不要重复请求 `/login/token`，启动时可静默检查一次。
 - renderer 只能通过 preload 暴露的 typed API 和 `src/utils/api/cookieMusicAPI.ts` 访问登录、Cookie、账号资料与用户歌单；不要再用 localStorage 保存 KG/WY 登录态。
 - 需要 Cookie 的 KG/WY 请求直接访问 runtime endpoints 中的 `kgServer` / `wyServer`，并在 main 端通过 `requestSignedGatewayWithCookie()` 追加 Cookie 与签名；不要走 `proxy-service`。
+- 侧边栏 KG / WY 入口是登录态动态菜单：renderer 统一通过 `src/composables/useCookieAccountStatus.ts` 读取账号资料并共享状态；只有对应 Cookie 账号已登录时才显示 `/kg`、`/wy` 入口。
 
 ## Electron IPC 与桌面歌词规则补充
 
