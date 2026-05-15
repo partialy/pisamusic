@@ -6,6 +6,7 @@ import {
   getCookieDebugUserInfo,
   getCookieUserPlaylists,
   getUserCookie,
+  getWyCloudSongs,
   kgCheckQrLogin,
   kgLoginWithCode,
   kgSendCaptcha,
@@ -58,5 +59,10 @@ export function setupCookieIpc() {
         offset?: number;
       }
     ) => getCookieUserPlaylists(payload)
+  );
+  ipcMain.handle(
+    "cookie:wy-cloud-songs",
+    (_event, payload: { page?: number; pageSize?: number; offset?: number }) =>
+      getWyCloudSongs(payload)
   );
 }

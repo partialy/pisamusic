@@ -400,6 +400,11 @@ type ElectronIpcApi = {
     uid?: string | number;
     offset?: number;
   }) => Promise<T>;
+  getWyCloudSongs: <T = any>(payload: {
+    page?: number;
+    pageSize?: number;
+    offset?: number;
+  }) => Promise<T>;
 
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;

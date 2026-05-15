@@ -119,6 +119,16 @@ export function getCookieUserPlaylists<T = any>(payload: {
   );
 }
 
+export function getWyCloudSongs<T = any>(payload: {
+  page?: number;
+  pageSize?: number;
+  offset?: number;
+}) {
+  return invokeCookieApi<T>("getWyCloudSongs", payload, () =>
+    window.electronAPI.getWyCloudSongs<T>(payload)
+  );
+}
+
 async function invokeCookieApi<T>(
   action: string,
   payload: Record<string, unknown>,

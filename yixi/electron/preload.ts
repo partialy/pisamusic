@@ -219,6 +219,11 @@ const cookieApiIpc = {
     uid?: string | number;
     offset?: number;
   }) => ipcRenderer.invoke("cookie:user-playlists", cloneIpcPayload(payload)),
+  getWyCloudSongs: (payload: {
+    page?: number;
+    pageSize?: number;
+    offset?: number;
+  }) => ipcRenderer.invoke("cookie:wy-cloud-songs", cloneIpcPayload(payload)),
 };
 
 function normalizeError(error: unknown, context?: Record<string, unknown>) {

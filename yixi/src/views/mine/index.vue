@@ -19,11 +19,35 @@
       <MineAccountCards v-if="activeTab === 'account'" />
 
       <div v-else-if="activeTab === 'kgCloud' || activeTab === 'wyCloud'" class="cloud-panel">
+        <div class="toolbar">
+          <n-button
+            secondary
+            round
+            :disabled="activeTab === 'kgCloud'"
+            :loading="wyCloudState.loading"
+            @click="loadWyCloud(true)">
+            <template #icon>
+              <n-icon :component="RefreshCw" />
+            </template>
+            {{ activeTab === "kgCloud" ? "待接入" : "刷新" }}
+          </n-button>
+        </div>
         <SongList
-          :songs="cloudSongs"
+          v-if="activeTab === 'wyCloud' && (wyCloudState.songs.length || wyCloudState.loading)"
+          :songs="wyCloudState.songs"
+          :loading="wyCloudState.loading && !wyCloudState.songs.length"
+          :has-more="wyCloudState.hasMore"
+          :min-size="64"
+          show-header
+          show-footer
+          @scroll-to-bottom="loadWyCloudMore" />
+        <SongList
+          v-else-if="activeTab === 'kgCloud'"
+          :songs="emptySongs"
           :min-size="64"
           show-header
           show-footer />
+        <n-empty v-else class="empty-state" :description="wyCloudState.error || '暂无云盘歌曲'" />
       </div>
 
       <div v-else class="playlist-panel">
@@ -58,7 +82,8 @@ import MineAccountCards from "@/components/mine/MineAccountCards.vue";
 import SongList from "@/components/list/SongList.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import type { CommonPlaylist, Song } from "@/types/song";
-import { getCookieUserPlaylists, type CookieSource } from "@/utils/api/cookieMusicAPI";
+import { getCookieUserPlaylists, getWyCloudSongs, type CookieSource } from "@/utils/api/cookieMusicAPI";
+import { convertWyCloudSongs } from "@/utils/cookieCloudSong";
 import { convertCookieUserPlaylists } from "@/utils/cookiePlaylist";
 
 type MineTab = "account" | "kgCloud" | "wyCloud" | "kgPlaylist" | "wyPlaylist";
@@ -68,9 +93,29 @@ type PlaylistState = {
   loaded: boolean;
   error: string;
 };
+type CloudState = {
+  songs: Song[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+  loading: boolean;
+  loaded: boolean;
+  error: string;
+};
 
 const activeTab = ref<MineTab>("account");
-const cloudSongs = ref<Song[]>([]);
+const emptySongs = ref<Song[]>([]);
+const wyCloudState = reactive<CloudState>({
+  songs: [],
+  total: 0,
+  page: 1,
+  pageSize: 200,
+  hasMore: false,
+  loading: false,
+  loaded: false,
+  error: "",
+});
 const playlistState = reactive<Record<CookieSource, PlaylistState>>({
   kg: createPlaylistState(),
   wy: createPlaylistState(),
@@ -78,8 +123,8 @@ const playlistState = reactive<Record<CookieSource, PlaylistState>>({
 
 const tabs = computed(() => [
   { key: "account" as const, label: "账号", meta: "2" },
-  { key: "kgCloud" as const, label: "KG云盘", meta: activeTab.value === "kgCloud" ? cloudSongs.value.length : "待接入" },
-  { key: "wyCloud" as const, label: "WY云盘", meta: activeTab.value === "wyCloud" ? cloudSongs.value.length : "待接入" },
+  { key: "kgCloud" as const, label: "KG云盘", meta: "待接入" },
+  { key: "wyCloud" as const, label: "WY云盘", meta: wyCloudState.total || wyCloudState.songs.length || "待加载" },
   { key: "kgPlaylist" as const, label: "KG歌单", meta: playlistState.kg.items.length || "待加载" },
   { key: "wyPlaylist" as const, label: "WY歌单", meta: playlistState.wy.items.length || "待加载" },
 ]);
@@ -104,6 +149,15 @@ watch(
   { immediate: true }
 );
 
+watch(
+  activeTab,
+  (tab) => {
+    if (tab !== "wyCloud" || wyCloudState.loaded) return;
+    void loadWyCloud();
+  },
+  { immediate: true }
+);
+
 function createPlaylistState(): PlaylistState {
   return {
     items: [],
@@ -111,6 +165,61 @@ function createPlaylistState(): PlaylistState {
     loaded: false,
     error: "",
   };
+}
+
+async function loadWyCloud(force = false) {
+  if (wyCloudState.loading) return;
+  if (wyCloudState.loaded && !force) return;
+
+  wyCloudState.loading = true;
+  wyCloudState.error = "";
+  if (force) {
+    wyCloudState.page = 1;
+    wyCloudState.hasMore = false;
+  }
+
+  try {
+    const response = await getWyCloudSongs({
+      page: wyCloudState.page,
+      pageSize: wyCloudState.pageSize,
+    });
+    const result = convertWyCloudSongs(response);
+    wyCloudState.songs = result.songs;
+    wyCloudState.total = result.total;
+    wyCloudState.hasMore = result.hasMore;
+    wyCloudState.loaded = true;
+  } catch (error) {
+    wyCloudState.songs = [];
+    wyCloudState.loaded = false;
+    wyCloudState.error = error instanceof Error ? error.message : "网易云盘加载失败";
+    window.$message.error(wyCloudState.error);
+  } finally {
+    wyCloudState.loading = false;
+  }
+}
+
+async function loadWyCloudMore() {
+  if (!wyCloudState.loaded || !wyCloudState.hasMore || wyCloudState.loading) return;
+
+  wyCloudState.loading = true;
+  wyCloudState.error = "";
+  const nextPage = wyCloudState.page + 1;
+  try {
+    const response = await getWyCloudSongs({
+      page: nextPage,
+      pageSize: wyCloudState.pageSize,
+    });
+    const result = convertWyCloudSongs(response);
+    wyCloudState.songs = wyCloudState.songs.concat(result.songs);
+    wyCloudState.total = result.total;
+    wyCloudState.hasMore = result.hasMore;
+    wyCloudState.page = nextPage;
+  } catch (error) {
+    wyCloudState.error = error instanceof Error ? error.message : "网易云盘继续加载失败";
+    window.$message.error(wyCloudState.error);
+  } finally {
+    wyCloudState.loading = false;
+  }
 }
 
 function loadActivePlaylists(force = false) {

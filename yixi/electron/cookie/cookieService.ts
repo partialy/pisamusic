@@ -274,6 +274,23 @@ export async function getCookieUserPlaylists(payload: {
   ).then((response) => response.data);
 }
 
+export async function getWyCloudSongs(payload: {
+  page?: number;
+  pageSize?: number;
+  offset?: number;
+}) {
+  const endpoints = await getRuntimeEndpointsCached();
+  return requestSignedGatewayWithCookie(
+    buildUrl(endpoints.wyServer, "/user/cloud", {
+      limit: payload.pageSize,
+      offset: payload.offset ?? ((payload.page ?? 1) - 1) * (payload.pageSize ?? 200),
+    }),
+    {
+      store: getStore("wy"),
+    }
+  ).then((response) => response.data);
+}
+
 export async function getCookieDebugUserInfo(source: CookieSource): Promise<CookieDebugApiResult> {
   const endpoints = await getRuntimeEndpointsCached();
   const endpoint = source === "kg" ? "/user/detail" : "/user/account";
