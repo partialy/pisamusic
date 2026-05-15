@@ -193,6 +193,32 @@ const musicApiIpc = {
   }) => ipcRenderer.invoke("music:fetch-lyrics", cloneIpcPayload(payload)),
 };
 
+const cookieApiIpc = {
+  getUserCookie: (source: "kg" | "wy") => ipcRenderer.invoke("cookie:get-cookie", source),
+  clearUserCookie: (source: "kg" | "wy") => ipcRenderer.invoke("cookie:clear-cookie", source),
+  kgSendCaptcha: (payload: { mobile: string }) =>
+    ipcRenderer.invoke("cookie:kg-send-captcha", cloneIpcPayload(payload)),
+  kgLoginWithCode: (payload: { mobile: string; code: string }) =>
+    ipcRenderer.invoke("cookie:kg-login-with-code", cloneIpcPayload(payload)),
+  kgStartQrLogin: () => ipcRenderer.invoke("cookie:kg-start-qr-login"),
+  kgCheckQrLogin: (payload: { loginId: string }) =>
+    ipcRenderer.invoke("cookie:kg-check-qr-login", cloneIpcPayload(payload)),
+  wyOpenLoginWindow: (payload: { mode: "pc" | "mobile" }) =>
+    ipcRenderer.invoke("cookie:wy-open-login-window", cloneIpcPayload(payload)),
+  getCookieAccountProfile: (payload: { source: "kg" | "wy" }) =>
+    ipcRenderer.invoke("cookie:account-profile", cloneIpcPayload(payload)),
+  getCookieDebugUserInfo: (source: "kg" | "wy") =>
+    ipcRenderer.invoke("cookie:debug-user-info", source),
+  exportCookieFiles: () => ipcRenderer.invoke("cookie:export-files"),
+  getCookieUserPlaylists: (payload: {
+    source: "kg" | "wy";
+    page?: number;
+    pageSize?: number;
+    uid?: string | number;
+    offset?: number;
+  }) => ipcRenderer.invoke("cookie:user-playlists", cloneIpcPayload(payload)),
+};
+
 function normalizeError(error: unknown, context?: Record<string, unknown>) {
   const fallback = String(error);
   if (error instanceof Error) {
@@ -242,6 +268,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...desktopLyricIpc,
   ...systemIpc,
   ...musicApiIpc,
+  ...cookieApiIpc,
   ...settingsIpc,
   ...libraryIpc,
   ...utilsIpc,

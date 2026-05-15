@@ -40,7 +40,6 @@ declare module 'vue' {
     NImage: typeof import('naive-ui')['NImage']
     NInput: typeof import('naive-ui')['NInput']
     NPopover: typeof import('naive-ui')['NPopover']
-    NSelect: typeof import('naive-ui')['NSelect']
     NSkeleton: typeof import('naive-ui')['NSkeleton']
     NSpin: typeof import('naive-ui')['NSpin']
     NTabPane: typeof import('naive-ui')['NTabPane']

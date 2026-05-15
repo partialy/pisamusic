@@ -1,155 +1,177 @@
 <template>
   <div class="account-con">
-    <section
-      v-for="item in info"
-      :key="item.origin"
-      class="account-card">
+    <section v-for="item in accounts" :key="item.source" class="account-card">
       <div class="account-main">
         <div class="account-avatar-wrap">
-          <img
-            class="account-avatar"
-            :src="item.avatar || defaultAvatar"
-            alt="" />
-          <div
-            class="source-mark"
-            :style="{ color: item.color }">
-            <n-icon :component="item.origin === 'kg' ? KGIcon : NeteaseIcon" />
+          <img class="account-avatar" :src="item.avatar || defaultAvatar" alt="" />
+          <div class="source-mark" :style="{ color: item.color }">
+            <n-icon :component="item.source === 'kg' ? KGIcon : NeteaseIcon" />
           </div>
         </div>
         <div class="account-info">
           <div class="account-title-row">
-            <div class="account-title">{{ sourceName(item.origin) }}账号</div>
+            <div class="account-title">{{ item.name }}</div>
             <n-tag
               size="tiny"
               round
               :bordered="false"
-              :color="{ color: `${item.color}18`, textColor: item.color }">
-              {{ item.isVip ? "VIP" : "普通" }}
+              :color="{ color: item.loggedIn ? `${item.color}18` : 'rgba(120, 126, 138, 0.16)', textColor: item.loggedIn ? item.color : '#7d838c' }">
+              {{ item.loggedIn ? (item.isVip ? "VIP" : "已登录") : "未登录" }}
             </n-tag>
           </div>
-          <div class="account-name">{{ item.username || "未登录" }}</div>
-          <div class="account-meta">到期时间：{{ item.time || "-" }}</div>
+          <div class="account-name">{{ item.nickname || "暂未登录" }}</div>
+          <div class="account-meta">
+            <span v-if="item.userId">用户 ID：{{ item.userId }}</span>
+            <span v-else>登录后可获取账号资料与歌单</span>
+          </div>
         </div>
       </div>
 
       <div class="btn-group">
-        <NButton secondary round @click="login(item.origin)">
+        <n-button secondary round @click="openLogin(item.source)">
           <template #icon>
             <n-icon :component="LogInOutline" />
           </template>
           登录
-        </NButton>
-        <NButton type="primary" secondary round @click="handleGetInfo(item.origin)">
+        </n-button>
+        <n-button type="primary" secondary round :loading="item.loading" @click="refreshProfile(item.source)">
           <template #icon>
             <n-icon :component="Refresh" />
           </template>
           刷新
-        </NButton>
-        <NButton type="error" secondary round>
+        </n-button>
+        <n-button type="error" secondary round :disabled="!item.loggedIn" @click="logout(item.source)">
           <template #icon>
             <n-icon :component="LogOutOutline" />
           </template>
           退出
-        </NButton>
+        </n-button>
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import { h, onMounted, reactive } from "vue";
 import { LogInOutline, Refresh, LogOutOutline } from "@vicons/ionicons5";
 import { NButton, NIcon, NTag } from "naive-ui";
-import { h, onMounted, ref } from "vue";
 import KGLogin from "./KGLogin.vue";
 import WYLogin from "./WYLogin.vue";
-import type { KGLoginData } from "@/utils/webapi/types/KG/KGLoginResponse";
-import type { WYUserAccountResponse } from "@/utils/webapi";
-import { proxyAPI } from "@/utils/api/proxyAPI";
-import { renderIcon } from "@/utils/common";
 import { KGIcon, NeteaseIcon } from "@/icons";
+import { renderIcon } from "@/utils/common";
 import defaultAvatar from "@/assets/defaultAdminAvatar.jpg";
+import {
+  clearUserCookie,
+  getCookieAccountProfile,
+  type CookieAccountProfile,
+  type CookieSource,
+} from "@/utils/api/cookieMusicAPI";
 
-const info = ref({
-  kg: {
-    origin: "kg",
-    avatar: "",
-    color: "#0062FF",
-    username: "username",
-    time: "2023-05-05 12:00:00",
-    isVip: false,
-  },
-  wy: {
-    origin: "wy",
-    avatar: "",
-    color: "#FF0000",
-    username: "username",
-    time: "2023-05-05 12:00:00",
-    isVip: false,
-  },
-});
-
-const sourceName = (origin: string) => {
-  return origin === "kg" ? "酷狗音乐" : "网易云音乐";
+type AccountCard = {
+  source: CookieSource;
+  name: string;
+  color: string;
+  nickname: string;
+  avatar: string;
+  userId: string;
+  isVip: boolean;
+  loggedIn: boolean;
+  loading: boolean;
 };
 
-const login = async (origin: string) => {
-  const c = origin == "kg" ? KGLogin : WYLogin;
-  window.$modal.create({
-    title: "登录",
-    icon: origin == "kg" ? renderIcon(KGIcon) : renderIcon(NeteaseIcon, {}, { color: "red" }),
+const accounts = reactive<AccountCard[]>([
+  {
+    source: "kg",
+    name: "酷狗音乐账号",
+    color: "#0062ff",
+    nickname: "",
+    avatar: "",
+    userId: "",
+    isVip: false,
+    loggedIn: false,
+    loading: false,
+  },
+  {
+    source: "wy",
+    name: "网易云音乐账号",
+    color: "#d71920",
+    nickname: "",
+    avatar: "",
+    userId: "",
+    isVip: false,
+    loggedIn: false,
+    loading: false,
+  },
+]);
+
+function openLogin(source: CookieSource) {
+  const component = source === "kg" ? KGLogin : WYLogin;
+  const icon = source === "kg" ? renderIcon(KGIcon) : renderIcon(NeteaseIcon, {}, { color: "#d71920" });
+  const modal = window.$modal.create({
+    title: source === "kg" ? "登录酷狗音乐" : "登录网易云音乐",
+    icon,
     preset: "dialog",
     closable: true,
-    content: () => h(c),
+    content: () =>
+      h(component, {
+        onLoginSuccess: (profile: CookieAccountProfile) => {
+          applyProfile(profile);
+          void refreshProfile(source);
+          modal.destroy();
+        },
+      }),
     show: true,
-    size: "large",
     style: { borderRadius: "10px" },
     closeOnEsc: true,
   });
-};
+}
 
-const getKGInfo = async () => {
-  const s = localStorage.getItem("kg-user-info");
-  if (!s) {
-    return;
+async function refreshProfile(source: CookieSource) {
+  const item = findAccount(source);
+  item.loading = true;
+  try {
+    const profile = await getCookieAccountProfile(source);
+    applyProfile(profile);
+    if (!profile.loggedIn) {
+      window.$message.info(`${item.name}暂未登录`);
+    }
+  } catch (error) {
+    window.$message.error(error instanceof Error ? error.message : "账号信息刷新失败");
+  } finally {
+    item.loading = false;
   }
-  const kgInfo = JSON.parse(s) as KGLoginData;
-  info.value.kg.time = kgInfo?.vip_end_time.toString() || "-";
-  info.value.kg.username = kgInfo?.nickname || "-";
-  info.value.kg.isVip = kgInfo?.vip_type == 6 || false;
-  info.value.kg.avatar = kgInfo?.pic || "";
-};
+}
 
-const getWYInfo = async () => {
-  const linfo = localStorage.getItem("wy-user-info");
-  let wyInfo: WYUserAccountResponse | null | undefined = null;
-  if (linfo) {
-    wyInfo = JSON.parse(linfo) as WYUserAccountResponse;
-  }
-  if (!wyInfo) {
-    wyInfo = await proxyAPI.wy?.userAccount();
-    localStorage.setItem("wyuid", wyInfo?.profile.userId.toString() || "");
-    localStorage.setItem("wy-user-info", JSON.stringify(wyInfo));
-  }
-  const userId = wyInfo?.profile.userId;
-  if (userId) localStorage.setItem("wyuid", userId.toString());
+async function logout(source: CookieSource) {
+  await clearUserCookie(source);
+  applyProfile({
+    source,
+    loggedIn: false,
+    userId: "",
+    nickname: "",
+    avatar: "",
+    isVip: false,
+    expiresAt: "",
+  });
+  window.$message.success("登录 Cookie 已清除");
+}
 
-  info.value.wy.time = new Date(wyInfo?.profile.viptypeVersion || 0).toDateString();
-  info.value.wy.username = wyInfo?.profile.nickname || "-";
-  info.value.wy.isVip = wyInfo?.account.vipType ? true : false;
-  info.value.wy.avatar = wyInfo?.profile.avatarUrl || "";
-};
+function applyProfile(profile: CookieAccountProfile) {
+  const item = findAccount(profile.source);
+  item.loggedIn = profile.loggedIn;
+  item.nickname = profile.nickname;
+  item.avatar = profile.avatar;
+  item.userId = profile.userId;
+  item.isVip = profile.isVip;
+}
 
-const handleGetInfo = async (origin: string) => {
-  if (origin == "kg") {
-    getKGInfo();
-  } else if (origin == "wy") {
-    getWYInfo();
-  }
-};
+function findAccount(source: CookieSource) {
+  return accounts.find((item) => item.source === source) ?? accounts[0];
+}
 
 onMounted(() => {
-  getKGInfo();
-  getWYInfo();
+  void refreshProfile("kg");
+  void refreshProfile("wy");
 });
 </script>
 

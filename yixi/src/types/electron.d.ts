@@ -275,6 +275,53 @@ type MusicLyricResult = {
   lrc: string;
 };
 
+type CookieSource = "kg" | "wy";
+
+type CookieAccountProfile = {
+  source: CookieSource;
+  loggedIn: boolean;
+  userId: string;
+  nickname: string;
+  avatar: string;
+  isVip: boolean;
+  expiresAt: string;
+  raw?: unknown;
+};
+
+type KgQrLoginSnapshot = {
+  loginId: string;
+  qrcodeImg: string;
+};
+
+type KgQrLoginStatus = {
+  status: "waiting" | "confirming" | "expired" | "success" | "failed";
+  message?: string;
+  nickname?: string;
+  avatar?: string;
+  saved: boolean;
+};
+
+type WyLoginWindowResult = {
+  saved: boolean;
+  hasMusicU: boolean;
+};
+
+type CookieDebugApiResult = {
+  source: CookieSource;
+  endpoint: string;
+  httpStatus: number;
+  ok: boolean;
+  cookieHeaderForNextRequest: string;
+  body: unknown;
+};
+
+type CookieFileExportResult = {
+  exported: boolean;
+  directory: string | null;
+  exportedFiles: string[];
+  skippedFiles: string[];
+};
+
 type ElectronIpcApi = {
   minimizeWindow: () => void;
   maximizeWindow: () => void;
@@ -326,6 +373,23 @@ type ElectronIpcApi = {
   resolveMusicUrl: <T = any>(payload: MusicUrlParams) => Promise<T>;
   resolvePlayableUrl: (track: TrackSnapshot | { source: PlayableMusicSource; urlParam?: string; id?: string; filePath?: string }) => Promise<string>;
   fetchLyrics: (payload: MusicLyricParams) => Promise<MusicLyricResult>;
+  getUserCookie: (source: CookieSource) => Promise<string>;
+  clearUserCookie: (source: CookieSource) => Promise<boolean>;
+  kgSendCaptcha: <T = any>(payload: { mobile: string }) => Promise<T>;
+  kgLoginWithCode: (payload: { mobile: string; code: string }) => Promise<CookieAccountProfile>;
+  kgStartQrLogin: () => Promise<KgQrLoginSnapshot>;
+  kgCheckQrLogin: (payload: { loginId: string }) => Promise<KgQrLoginStatus>;
+  wyOpenLoginWindow: (payload: { mode: "pc" | "mobile" }) => Promise<WyLoginWindowResult>;
+  getCookieAccountProfile: (payload: { source: CookieSource }) => Promise<CookieAccountProfile>;
+  getCookieDebugUserInfo: (source: CookieSource) => Promise<CookieDebugApiResult>;
+  exportCookieFiles: () => Promise<CookieFileExportResult>;
+  getCookieUserPlaylists: <T = any>(payload: {
+    source: CookieSource;
+    page?: number;
+    pageSize?: number;
+    uid?: string | number;
+    offset?: number;
+  }) => Promise<T>;
 
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;

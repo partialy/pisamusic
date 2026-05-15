@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## 登录 Cookie 模块规则补充
+
+- KG / WY 登录 Cookie 能力统一放在 `electron/cookie/` 与 `electron/ipc/cookieIpc.ts`，IPC 前缀使用 `cookie:*`；不要把登录 Cookie 逻辑写回 `music:*`、`proxyAPI` 或页面组件。
+- Cookie 持久化使用 `app.getPath("userData")/data` 下的 JSON 文件：`kugou_cookie_user.json`、`wy_cookie_user.json`，结构为 `{ "cookies": [{ "name", "value", "path", "expires" }] }`。
+- WY Cookie JSON 只允许保存 `MUSIC_U`；登录窗口、接口响应或旧文件里出现的其它网易 Cookie 都要在 main 侧过滤掉。
+- renderer 只能通过 preload 暴露的 typed API 和 `src/utils/api/cookieMusicAPI.ts` 访问登录、Cookie、账号资料与用户歌单；不要再用 localStorage 保存 KG/WY 登录态。
+- 需要 Cookie 的 KG/WY 请求直接访问 runtime endpoints 中的 `kgServer` / `wyServer`，并在 main 端通过 `requestSignedGatewayWithCookie()` 追加 Cookie 与签名；不要走 `proxy-service`。
+
 ## Electron IPC 与桌面歌词规则补充
 
 - main 侧 IPC 必须按职责模块化注册：窗口控制放在 `electron/ipc/windowIpc.ts`，日志放在 `electron/ipc/logIpc.ts`，音乐、持久化、system 继续使用各自 `ipc/*` 模块，不要再把新 IPC 堆回 `electron/main.ts`。

@@ -14,6 +14,7 @@ import { setupUtilsIpc } from "./ipc/utilsIpc";
 import { setupDialogIpc } from "./ipc/dialogIpc";
 import { setupDebugIpc } from "./ipc/debugIpc";
 import { setupLocalLibraryIpc } from "./ipc/localLibraryIpc";
+import { setupCookieIpc } from "./ipc/cookieIpc";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 
 const currentFile = fileURLToPath(import.meta.url);
@@ -87,6 +88,7 @@ function setupAppIpc() {
   setupDialogIpc();
   setupDebugIpc();
   setupLocalLibraryIpc();
+  setupCookieIpc();
   desktopLyric.setupIpc();
 }
 

@@ -40,6 +40,15 @@ export async function getBootstrap() {
   return ensureBootstrap();
 }
 
+export async function getGatewaySignConfigCached() {
+  try {
+    const bootstrap = await ensureBootstrap();
+    return bootstrap.gatewaySign ?? DEFAULT_GATEWAY_SIGN;
+  } catch {
+    return cachedBootstrap?.gatewaySign ?? DEFAULT_GATEWAY_SIGN;
+  }
+}
+
 export async function getAnnouncements() {
   const response = await requestSystem<Announcement[]>("/api/config/announcements");
   return unwrapResponse(response);
