@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## 播放音质与下载规则补充
+
+- 播放/下载音质偏好统一写入 SQLite settings 的 `playback-quality-preference`，按来源保存 `kg:*`、`wy-br:*`、`wy-level:*`、`kw:*` 这类 qualityKey；不要再新增 localStorage 音质记忆。
+- `music:resolve-playable-url` 支持 `qualityKey`，KG/WY 高品质取链在 main 端优先使用对应登录 Cookie 直连 `kgServer` / `wyServer`，失败后才回退普通取链；renderer 不直接持有 service URL 或 Cookie。
+- 下载能力集中在 `electron/download/` 和 `download:*` IPC，renderer 只能传规范化歌曲、qualityKey 和下载目录；不要在页面组件里直接写文件或嵌入音频标签。
+- 下载任务由 main 进程内存 Map 管理，`download:start` 只创建任务并返回快照；renderer 通过 `download:tasks` 轮询进度，不要在 renderer 自己维护真实下载 Promise。
+- 下载记录写入 SQLite `download_records`，保存 source/songId/qualityKey、状态、字节数、最终文件、缓存文件、元数据 JSON、歌词、封面和源 song payload 的关联关系。
+- `本地与下载` 页固定包含本地歌曲、下载歌曲、正在下载、下载记录四个 tab；本地歌曲需要合并扫描曲库与已下载歌曲，下载歌曲只显示 `download_records` 中完成的歌曲。
+- 下载歌曲优先用 `@yortyrh/tagpilot-lib` 写入标题、歌手、专辑、封面等音频标签；歌词稳定保存为同名 `.lrc`，标签写入失败时保留缓存侧车文件并在下载记录中标记 `sidecar`。
+
 ## 登录 Cookie 模块规则补充
 
 - KG / WY 登录 Cookie 能力统一放在 `electron/cookie/` 与 `electron/ipc/cookieIpc.ts`，IPC 前缀使用 `cookie:*`；不要把登录 Cookie 逻辑写回 `music:*`、`proxyAPI` 或页面组件。

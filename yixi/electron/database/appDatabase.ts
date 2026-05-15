@@ -42,6 +42,34 @@ export type LocalLibraryScanMeta = {
   scannedAt: string;
 };
 
+export type DownloadMetadataStatus = "embedded" | "sidecar" | "failed";
+export type DownloadRecordStatus = "queued" | "running" | "completed" | "failed";
+
+export type DownloadRecordInput = {
+  source: string;
+  songId: string;
+  qualityKey: string;
+  status: DownloadRecordStatus;
+  downloadDirectory: string;
+  filePath?: string;
+  cachePath?: string;
+  metadataStatus: DownloadMetadataStatus;
+  metadataJsonPath?: string;
+  lyricPath?: string;
+  coverPath?: string;
+  totalBytes?: number;
+  receivedBytes?: number;
+  completedAt?: string;
+  payload: TrackSnapshot;
+  message?: string;
+};
+
+export type DownloadRecordItem = DownloadRecordInput & {
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SearchHistoryItem = {
   id: number;
   keyword: string;
@@ -236,6 +264,28 @@ type LocalLibraryScanMetaRow = {
   directories_json: string;
   total_files: number;
   scanned_at: string;
+};
+
+type DownloadRecordRow = {
+  id: number;
+  source: string;
+  song_id: string;
+  quality_key: string;
+  status: DownloadRecordStatus;
+  download_directory: string;
+  file_path: string;
+  cache_path: string;
+  metadata_status: DownloadMetadataStatus;
+  metadata_json_path: string;
+  lyric_path: string;
+  cover_path: string;
+  total_bytes: number;
+  received_bytes: number;
+  payload_json: string;
+  message: string;
+  completed_at: string;
+  created_at: string;
+  updated_at: string;
 };
 
 type NetworkErrorSummaryRow = {
@@ -637,6 +687,83 @@ export class AppDatabase {
     };
   }
 
+  upsertDownloadRecord(input: DownloadRecordInput): DownloadRecordItem | null {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO download_records (
+           source, song_id, quality_key, status, download_directory, file_path, cache_path,
+           metadata_status, metadata_json_path, lyric_path, cover_path, total_bytes,
+           received_bytes, payload_json, message, completed_at, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(source, song_id, quality_key) DO UPDATE SET
+           status = excluded.status,
+           download_directory = excluded.download_directory,
+           file_path = excluded.file_path,
+           cache_path = excluded.cache_path,
+           metadata_status = excluded.metadata_status,
+           metadata_json_path = excluded.metadata_json_path,
+           lyric_path = excluded.lyric_path,
+           cover_path = excluded.cover_path,
+           total_bytes = excluded.total_bytes,
+           received_bytes = excluded.received_bytes,
+           payload_json = excluded.payload_json,
+           message = excluded.message,
+           completed_at = excluded.completed_at,
+           updated_at = excluded.updated_at`
+      )
+      .run(
+        input.source,
+        input.songId,
+        input.qualityKey,
+        input.status,
+        input.downloadDirectory,
+        input.filePath ?? "",
+        input.cachePath ?? "",
+        input.metadataStatus,
+        input.metadataJsonPath ?? "",
+        input.lyricPath ?? "",
+        input.coverPath ?? "",
+        input.totalBytes ?? 0,
+        input.receivedBytes ?? 0,
+        this.stringifyJson(input.payload),
+        input.message ?? "",
+        input.completedAt ?? "",
+        now,
+        now
+      );
+    return this.getDownloadRecord(input.source, input.songId, input.qualityKey);
+  }
+
+  listDownloadRecords(): DownloadRecordItem[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, source, song_id, quality_key, status, download_directory, file_path,
+                cache_path, metadata_status, metadata_json_path, lyric_path, cover_path,
+                total_bytes, received_bytes, payload_json, message, completed_at,
+                created_at, updated_at
+         FROM download_records
+         ORDER BY updated_at DESC, id DESC`
+      )
+      .all() as DownloadRecordRow[];
+    return rows.map((row) => this.toDownloadRecord(row));
+  }
+
+  listDownloadedSongs(): TrackSnapshot[] {
+    return this.listDownloadRecords()
+      .filter((record) => record.status === "completed" && Boolean(record.filePath))
+      .map((record) => {
+        const payload = this.normalizeTrackSnapshot(record.payload);
+        return {
+          ...payload,
+          source: "local",
+          id: record.filePath || `${record.source}:${record.songId}:${record.qualityKey}`,
+          urlParam: record.filePath,
+          filePath: record.filePath,
+        };
+      });
+  }
+
   addNetworkErrorRecord(input: NetworkErrorRecordInput) {
     const now = new Date().toISOString();
     this.db
@@ -848,7 +975,34 @@ export class AppDatabase {
         total_files INTEGER NOT NULL DEFAULT 0,
         scanned_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS download_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,
+        song_id TEXT NOT NULL,
+        quality_key TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'completed',
+        download_directory TEXT NOT NULL DEFAULT '',
+        file_path TEXT NOT NULL DEFAULT '',
+        cache_path TEXT NOT NULL DEFAULT '',
+        metadata_status TEXT NOT NULL DEFAULT 'sidecar',
+        metadata_json_path TEXT NOT NULL DEFAULT '',
+        lyric_path TEXT NOT NULL DEFAULT '',
+        cover_path TEXT NOT NULL DEFAULT '',
+        total_bytes INTEGER NOT NULL DEFAULT 0,
+        received_bytes INTEGER NOT NULL DEFAULT 0,
+        payload_json TEXT NOT NULL,
+        message TEXT NOT NULL DEFAULT '',
+        completed_at TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(source, song_id, quality_key)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_download_records_updated_at
+        ON download_records(updated_at DESC, id DESC);
     `);
+    this.ensureDownloadRecordColumns();
     this.db
       .prepare(
         `INSERT INTO schema_migrations (version, name, applied_at)
@@ -870,11 +1024,32 @@ export class AppDatabase {
          ON CONFLICT(version) DO NOTHING`
       )
       .run(new Date().toISOString());
+    this.db
+      .prepare(
+        `INSERT INTO schema_migrations (version, name, applied_at)
+         VALUES (4, 'download records schema', ?)
+         ON CONFLICT(version) DO NOTHING`
+      )
+      .run(new Date().toISOString());
   }
 
   private normalizeLimit(limit: number) {
     if (!Number.isFinite(limit)) return 50;
     return Math.min(Math.max(Math.floor(limit), 1), 500);
+  }
+
+  private ensureDownloadRecordColumns() {
+    const rows = this.db.prepare("PRAGMA table_info(download_records)").all() as { name: string }[];
+    const columns = new Set(rows.map((row) => row.name));
+    const additions: Record<string, string> = {
+      status: "ALTER TABLE download_records ADD COLUMN status TEXT NOT NULL DEFAULT 'completed'",
+      total_bytes: "ALTER TABLE download_records ADD COLUMN total_bytes INTEGER NOT NULL DEFAULT 0",
+      received_bytes: "ALTER TABLE download_records ADD COLUMN received_bytes INTEGER NOT NULL DEFAULT 0",
+      completed_at: "ALTER TABLE download_records ADD COLUMN completed_at TEXT NOT NULL DEFAULT ''",
+    };
+    Object.entries(additions).forEach(([column, sql]) => {
+      if (!columns.has(column)) this.db.exec(sql);
+    });
   }
 
   private parseJson<T>(raw: string, fallback: T): T {
@@ -915,6 +1090,47 @@ export class AppDatabase {
       requestUrl: row.request_url,
       requestParams: this.parseJson<unknown>(row.request_params_json, null),
       response: this.parseJson<unknown>(row.response_json, null),
+    };
+  }
+
+  private getDownloadRecord(source: string, songId: string, qualityKey: string) {
+    const row = this.db
+      .prepare(
+        `SELECT id, source, song_id, quality_key, status, download_directory, file_path,
+                cache_path, metadata_status, metadata_json_path, lyric_path,
+                cover_path, total_bytes, received_bytes, payload_json, message,
+                completed_at, created_at, updated_at
+         FROM download_records
+         WHERE source = ? AND song_id = ? AND quality_key = ?`
+      )
+      .get(source, songId, qualityKey) as DownloadRecordRow | undefined;
+    return row ? this.toDownloadRecord(row) : null;
+  }
+
+  private toDownloadRecord(row: DownloadRecordRow): DownloadRecordItem {
+    return {
+      id: row.id,
+      source: row.source,
+      songId: row.song_id,
+      qualityKey: row.quality_key,
+      status: row.status,
+      downloadDirectory: row.download_directory,
+      filePath: row.file_path,
+      cachePath: row.cache_path,
+      metadataStatus: row.metadata_status,
+      metadataJsonPath: row.metadata_json_path,
+      lyricPath: row.lyric_path,
+      coverPath: row.cover_path,
+      totalBytes: row.total_bytes,
+      receivedBytes: row.received_bytes,
+      payload: this.parseJson<TrackSnapshot>(row.payload_json, {
+        id: row.song_id,
+        source: row.source,
+      }),
+      message: row.message,
+      completedAt: row.completed_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 

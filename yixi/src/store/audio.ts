@@ -8,6 +8,15 @@ import electronAPI from "@/utils/electron";
 import { normalizeSong } from "@/utils/song";
 import { useLibraryStore } from "./library";
 import { reportError } from "@/utils/errorReporter";
+import {
+  getDefaultQualityKey,
+  getQualityOption,
+  isQualitySource,
+  PLAYBACK_QUALITY_SETTING_KEY,
+  type MusicQualityOption,
+  type PlaybackQualityPreference,
+  type QualitySource,
+} from "@/utils/musicQuality";
 
 
 // 定义重复播放模式的类型
@@ -18,6 +27,11 @@ type AudioStateSnapshot = {
   repeatMode: RepeatMode;
   playlist: Song[];
   currentSongId?: string;
+};
+
+type InitPlayerOptions = {
+  autoPlay?: boolean;
+  seek?: number;
 };
 
 export const useAudioStore = defineStore("audio", () => {
@@ -34,6 +48,7 @@ export const useAudioStore = defineStore("audio", () => {
   const repeatMode = ref<RepeatMode>("all"); // 重复模式
   const loading = ref(false); // 音频加载状态
   const firstPlay = ref(true);
+  const qualityPreference = ref<PlaybackQualityPreference>({});
 
   // 私有变量 - 用于更新播放进度的定时器
   // @ts-ignore
@@ -65,8 +80,11 @@ export const useAudioStore = defineStore("audio", () => {
    * 初始化音频播放器
    * @param url 音频文件URL
    */
-  const initPlayer = (url: string): void => {
+  const initPlayer = (url: string, options: InitPlayerOptions = {}): void => {
     destroyPlayer(); // 先销毁现有的播放器
+
+    const autoPlay = options.autoPlay ?? true;
+    const seekTo = Math.max(0, options.seek ?? 0);
 
     player.value = new Howl({
       src: [url],
@@ -89,7 +107,16 @@ export const useAudioStore = defineStore("audio", () => {
         if (player.value) {
           duration.value = player.value.duration(); // 获取歌曲总时长
           initMediaSession();
-          player.value.play();
+          if (seekTo > 0) {
+            const targetTime = Math.min(seekTo, duration.value || seekTo);
+            player.value.seek(targetTime);
+            currentTime.value = targetTime;
+          }
+          if (autoPlay) {
+            player.value.play();
+          } else {
+            isPlaying.value = false;
+          }
         }
       },
       onseek: () => {
@@ -144,7 +171,7 @@ export const useAudioStore = defineStore("audio", () => {
       if (song) {
         currentTime.value = 0;
         duration.value = 0;
-        song.url = await getPlayableUrlByMusicApi(song);
+        song.url = await getPlayableUrlByMusicApi(song, getPreferredQualityKey(song.source));
         if (!song.url) {
           throw new Error("play url is empty");
         }
@@ -376,6 +403,57 @@ export const useAudioStore = defineStore("audio", () => {
     repeatMode.value = modes[(currentIndex + 1) % modes.length];
   };
 
+  const switchCurrentQuality = async (option: MusicQualityOption) => {
+    const song = currentSong.value;
+    if (!song || !isQualitySource(song.source) || option.source !== song.source) {
+      window.$message.warning("当前歌曲不支持切换音质");
+      return false;
+    }
+
+    const position = currentTime.value;
+    const shouldResume = isPlaying.value;
+    const previousUrl = song.url;
+    loading.value = true;
+    try {
+      const nextUrl = await getPlayableUrlByMusicApi(song, option.key);
+      if (!nextUrl) throw new Error("play url is empty");
+      await setPreferredQualityKey(option.source, option.key);
+      const nextSong = { ...song, url: nextUrl };
+      currentSong.value = nextSong;
+      replaceSongInPlaylist(nextSong);
+      initPlayer(nextUrl, { autoPlay: shouldResume, seek: position });
+      window.$message.success(`已切换到 ${option.shortLabel}`);
+      return true;
+    } catch (error) {
+      song.url = previousUrl;
+      void electronAPI.reportError(error, {
+        scope: "audio",
+        action: "switchCurrentQuality",
+        songId: song.id,
+        source: song.source,
+        qualityKey: option.key,
+      });
+      window.$message.error("音质切换失败，已保留当前播放");
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const getPreferredQualityKey = (source?: Song["source"]) => {
+    if (!source || !isQualitySource(source)) return undefined;
+    const saved = qualityPreference.value[source];
+    return getQualityOption(saved)?.source === source ? saved : getDefaultQualityKey(source);
+  };
+
+  const setPreferredQualityKey = async (source: QualitySource, qualityKey: string) => {
+    qualityPreference.value = {
+      ...qualityPreference.value,
+      [source]: qualityKey,
+    };
+    await electronAPI.setSetting(PLAYBACK_QUALITY_SETTING_KEY, qualityPreference.value, 1);
+  };
+
   // 私有方法
 
   /**
@@ -539,8 +617,9 @@ export const useAudioStore = defineStore("audio", () => {
     restoringState = true;
     try {
       restoreFromLocalStorage();
-      const [setting, queueSnapshot] = await Promise.all([
+      const [setting, , queueSnapshot] = await Promise.all([
         electronAPI.getSetting<Pick<AudioStateSnapshot, "volume" | "repeatMode" | "currentSongId">>("audioState"),
+        loadQualityPreference(),
         libraryStore.loadQueueSnapshot(),
       ]);
       if (setting?.value) {
@@ -585,6 +664,27 @@ export const useAudioStore = defineStore("audio", () => {
     void libraryStore.addPlayHistory(toPersistedSong(song));
   };
 
+  const loadQualityPreference = async () => {
+    const record = await electronAPI.getSetting<PlaybackQualityPreference>(PLAYBACK_QUALITY_SETTING_KEY);
+    qualityPreference.value = normalizeQualityPreference(record?.value);
+  };
+
+  const normalizeQualityPreference = (value?: PlaybackQualityPreference | null): PlaybackQualityPreference => {
+    const next: PlaybackQualityPreference = {};
+    (["kg", "wy", "kw"] as QualitySource[]).forEach((source) => {
+      const key = value?.[source];
+      if (getQualityOption(key)?.source === source) next[source] = key;
+    });
+    return next;
+  };
+
+  const replaceSongInPlaylist = (song: Song) => {
+    const key = getSongQueueKey(song);
+    playlist.value = playlist.value.map((item) =>
+      getSongQueueKey(item) === key ? { ...item, url: song.url } : item
+    );
+  };
+
   const getCurrentIndex = (): number => {
     if (!playlist.value.length) return -1;
     if (!currentSong.value) return -1;
@@ -611,6 +711,7 @@ export const useAudioStore = defineStore("audio", () => {
     volume,
     repeatMode,
     loading,
+    qualityPreference,
 
     // Getters
     progress,
@@ -630,6 +731,9 @@ export const useAudioStore = defineStore("audio", () => {
     destroyPlayer,
     setPlaylist,
     switchPlayList,
+    switchCurrentQuality,
+    getPreferredQualityKey,
+    setPreferredQualityKey,
     getCurrentIndex,
     removeFromPlaylist,
     reset,

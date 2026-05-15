@@ -32,6 +32,7 @@
     "@pixi/filter-color-matrix": "^7.4.2",
     "@pixi/sprite": "^7.4.2",
     "@vueuse/core": "^13.9.0",
+    "@yortyrh/tagpilot-lib": "^1.0.27",
     "axios": "^1.11.0",
     "cheerio": "^1.1.2",
     "child_process": "^1.0.2",

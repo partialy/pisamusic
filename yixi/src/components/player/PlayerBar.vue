@@ -33,9 +33,50 @@
       </div>
     </div>
     <div class="middle">
+      <n-button
+        quaternary
+        circle
+        class="middle-action"
+        title="收藏"
+        :disabled="!currentSong"
+        @click="collect.collectSong(currentSong || undefined)">
+        <template #icon>
+          <n-icon
+            :component="CollectIcon"
+            :color="collect.containsSong(currentSong || undefined) ? '#ff5d6c' : 'var(--color-text-secondary)'"
+            size="24px" />
+        </template>
+      </n-button>
       <PlayControlBtn></PlayControlBtn>
+      <n-button
+        quaternary
+        circle
+        class="middle-action"
+        title="下载"
+        :disabled="!qualityDropdownOptions.length"
+        @click="songDownload.openDownloadDialog(currentSong || undefined)">
+        <template #icon>
+          <n-icon :component="DownloadIcon" size="22px" />
+        </template>
+      </n-button>
     </div>
     <div class="right">
+      <n-dropdown
+        :options="qualityDropdownOptions"
+        trigger="click"
+        placement="top"
+        :disabled="!qualityDropdownOptions.length"
+        @select="handleSwitchQuality"
+        show-arrow
+        show-on-focus>
+        <n-button
+          quaternary
+          class="quality-pill"
+          :disabled="!qualityDropdownOptions.length"
+          :title="currentQualityOption?.label || '音质'">
+          {{ currentQualityOption?.shortLabel || "AUTO" }}
+        </n-button>
+      </n-dropdown>
       <div class="time">
         {{ formatDuration(currentTime) }}/{{ formatDuration(duration) }}
       </div>
@@ -81,6 +122,7 @@
         <PlaySequence class="light" />
       </n-drawer>
     </div>
+    <DownloadSongDialog :ref="songDownload.downloadDialogRef" />
   </div>
 </template>
 
@@ -100,6 +142,7 @@ import { useAudioStore, useLyricStore } from "@/store";
 import { PlayControlBtn, PlaySequence, VolumePanel } from ".";
 import { debounce, defaultSongCover, formatDuration, getSongCover, renderIcon } from '@/utils/common';
 import { computed, ref, watch } from "vue";
+import { Download as DownloadIcon } from "lucide-vue-next";
 import {
   PlayListIcon,
   VolumeMutedIcon,
@@ -110,18 +153,36 @@ import {
   ListRepeatOneIcon,
   ListScrollIcon,
   LyricIcon,
+  CollectIcon,
 } from "@/icons";
 import { useCommonStore } from "@/store/commonStore";
 import type { RepeatMode } from "@/store/audio";
 import electronAPI from "@/utils/electron";
+import { useCollectStore } from "@/store/collect";
+import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
+import DownloadSongDialog from "./DownloadSongDialog.vue";
+import { useSongDownload } from "@/composables/useSongDownload";
 const player = useAudioStore();
 const lyric = useLyricStore();
+const collect = useCollectStore();
+const songDownload = useSongDownload();
 
 const commonStore = useCommonStore();
 const { currentTime, duration, currentSong, isPlaying, volume, repeatMode } =
   storeToRefs(player);
 const { parsedLrc, desktop } = storeToRefs(lyric);
 const currentIndex = ref(0);
+const qualityOptions = computed(() => getQualityOptionsForSong(currentSong.value));
+const qualityDropdownOptions = computed(() =>
+  qualityOptions.value.map((option) => ({
+    label: option.label,
+    key: option.key,
+  }))
+);
+const currentQualityOption = computed(() => {
+  const key = player.getPreferredQualityKey(currentSong.value?.source);
+  return getQualityOption(key) || qualityOptions.value[0] || null;
+});
 const imgSrc = computed(() => {
   if (currentSong.value) return getSongCover(currentSong.value);
   return defaultSongCover;
@@ -158,6 +219,12 @@ const playModeOptions = [
 
 const handleToggleMode = (key: RepeatMode) => {
   repeatMode.value = key;
+};
+
+const handleSwitchQuality = (key: string) => {
+  const option = getQualityOption(key);
+  if (!option) return;
+  void player.switchCurrentQuality(option);
 };
 
 const handleDesktopLyric = async () => {
@@ -319,6 +386,11 @@ watch(
     display: flex;
     justify-content: center;
     align-items: center;
+    gap: 14px;
+
+    .middle-action {
+      flex-shrink: 0;
+    }
   }
 
   .left .cover {
@@ -366,6 +438,18 @@ watch(
     display: flex;
     justify-content: flex-end;
     padding-right: 20px;
+
+    .quality-pill {
+      min-width: 54px;
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      color: var(--color-primary);
+      background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    }
 
     .time {
       font-size: 14px;

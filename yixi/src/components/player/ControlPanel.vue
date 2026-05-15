@@ -10,6 +10,26 @@
           :color="collect.containsSong(currentSong || undefined) ? '#ff5d6c' : 'var(--color-text-third)'"
           class="icon"></n-icon>
       </n-button>
+      <n-dropdown
+        :options="qualityDropdownOptions"
+        trigger="click"
+        placement="top"
+        :disabled="!qualityDropdownOptions.length"
+        @select="handleSwitchQuality"
+        show-arrow
+        show-on-focus>
+        <n-button text class="quality-pill" :disabled="!qualityDropdownOptions.length">
+          {{ currentQualityOption?.shortLabel || "AUTO" }}
+        </n-button>
+      </n-dropdown>
+      <n-button
+        text
+        circle
+        title="下载"
+        :disabled="!qualityDropdownOptions.length"
+        @click="songDownload.openDownloadDialog(currentSong || undefined)">
+        <n-icon :component="DownloadIcon" class="icon"></n-icon>
+      </n-button>
     </div>
     <div class="panel-center">
       <PlayControlBtn color="#ffffffcc" />
@@ -51,15 +71,17 @@
         <PlaySequence />
       </n-drawer>
     </div>
+    <DownloadSongDialog :ref="songDownload.downloadDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { NPopover, NIcon, NButton } from "naive-ui";
+import { NPopover, NIcon, NButton, NDropdown } from "naive-ui";
 import { useCommonStore, useAudioStore, useLyricStore, useCollectStore } from "@/store";
 import { PlayControlBtn, VolumePanel } from ".";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
+import { Download as DownloadIcon } from "lucide-vue-next";
 import {
   ArrowDownIcon,
   PlayListIcon,
@@ -77,16 +99,31 @@ import { renderIcon } from "@/utils/common";
 import type { RepeatMode } from "@/store/audio";
 import electronAPI from "@/utils/electron";
 import PlaySequence from "./PlaySequence.vue";
+import DownloadSongDialog from "./DownloadSongDialog.vue";
+import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
+import { useSongDownload } from "@/composables/useSongDownload";
 
 const collect = useCollectStore();
 const player = useAudioStore();
 const lyric = useLyricStore();
 const commonStore = useCommonStore();
+const songDownload = useSongDownload();
 
 const { volume, repeatMode, currentSong } = storeToRefs(player);
 const { desktop } = storeToRefs(lyric)
 const muted = ref(false);
 const showSequence = ref(false);
+const qualityOptions = computed(() => getQualityOptionsForSong(currentSong.value));
+const qualityDropdownOptions = computed(() =>
+  qualityOptions.value.map((option) => ({
+    label: option.label,
+    key: option.key,
+  }))
+);
+const currentQualityOption = computed(() => {
+  const key = player.getPreferredQualityKey(currentSong.value?.source);
+  return getQualityOption(key) || qualityOptions.value[0] || null;
+});
 
 const playModeOptions = [
   { label: "列表循环", key: "all", icon: renderIcon(ListScrollIcon) },
@@ -97,6 +134,12 @@ const playModeOptions = [
 
 const handleToggleMode = (key: RepeatMode) => {
   repeatMode.value = key;
+};
+
+const handleSwitchQuality = (key: string) => {
+  const option = getQualityOption(key);
+  if (!option) return;
+  void player.switchCurrentQuality(option);
 };
 
 // 播放模式
@@ -208,6 +251,18 @@ const toggleMuted = () => {
   .panel-left {
     justify-content: flex-start;
     padding-left: 1rem;
+
+    .quality-pill {
+      min-width: 54px;
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 999px;
+      color: #ffffffcc;
+      background: #ffffff18;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
   }
 
   .panel-center {

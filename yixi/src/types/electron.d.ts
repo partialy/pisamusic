@@ -260,8 +260,10 @@ type DynamicCoverParams = {
 type MusicUrlParams = {
   source: SearchableMusicSource;
   id: string;
+  qualityKey?: string;
   quality?: string;
   br?: number;
+  level?: string;
 };
 
 type MusicLyricParams = {
@@ -273,6 +275,54 @@ type MusicLyricParams = {
 type MusicLyricResult = {
   krc: string;
   lrc: string;
+};
+
+type DownloadTrackResult = {
+  success: boolean;
+  filePath?: string;
+  cachePath?: string;
+  metadataStatus: "embedded" | "sidecar" | "failed";
+  message: string;
+};
+
+type DownloadTaskSnapshot = {
+  taskId: string;
+  source: string;
+  songId: string;
+  qualityKey: string;
+  name: string;
+  status: "queued" | "running" | "completed" | "failed";
+  progress: number;
+  receivedBytes: number;
+  totalBytes: number;
+  speedBytesPerSecond: number;
+  directory: string;
+  filePath: string;
+  error: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type DownloadRecordItem = {
+  id: number;
+  source: string;
+  songId: string;
+  qualityKey: string;
+  status: "queued" | "running" | "completed" | "failed";
+  downloadDirectory: string;
+  filePath?: string;
+  cachePath?: string;
+  metadataStatus: "embedded" | "sidecar" | "failed";
+  metadataJsonPath?: string;
+  lyricPath?: string;
+  coverPath?: string;
+  totalBytes?: number;
+  receivedBytes?: number;
+  completedAt?: string;
+  payload: TrackSnapshot;
+  message?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 type CookieSource = "kg" | "wy";
@@ -380,7 +430,16 @@ type ElectronIpcApi = {
   getPlaylistTracks: <T = any>(payload: PlaylistTracksParams) => Promise<T>;
   getDynamicCover: <T = any>(payload: DynamicCoverParams) => Promise<T>;
   resolveMusicUrl: <T = any>(payload: MusicUrlParams) => Promise<T>;
-  resolvePlayableUrl: (track: TrackSnapshot | { source: PlayableMusicSource; urlParam?: string; id?: string; filePath?: string }) => Promise<string>;
+  resolvePlayableUrl: (track: TrackSnapshot | {
+    source: PlayableMusicSource;
+    urlParam?: string;
+    id?: string;
+    filePath?: string;
+    qualityKey?: string;
+    quality?: string;
+    br?: number;
+    level?: string;
+  }) => Promise<string>;
   fetchLyrics: (payload: MusicLyricParams) => Promise<MusicLyricResult>;
   getUserCookie: (source: CookieSource) => Promise<string>;
   clearUserCookie: (source: CookieSource) => Promise<boolean>;
@@ -405,6 +464,14 @@ type ElectronIpcApi = {
     pageSize?: number;
     offset?: number;
   }) => Promise<T>;
+  startDownloadTask: (payload: {
+    song: TrackSnapshot;
+    qualityKey?: string;
+    directory: string;
+  }) => Promise<DownloadTaskSnapshot>;
+  listDownloadTasks: () => Promise<DownloadTaskSnapshot[]>;
+  listDownloadRecords: () => Promise<DownloadRecordItem[]>;
+  listDownloadedSongs: () => Promise<TrackSnapshot[]>;
 
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;

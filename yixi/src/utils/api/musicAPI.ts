@@ -77,13 +77,14 @@ export async function getDynamicCover<T = any>(id: string | number): Promise<T> 
   return invokeMusicApi("getDynamicCover", payload, () => window.electronAPI.getDynamicCover<T>(payload));
 }
 
-export async function getPlayableUrlByMusicApi(song: Song) {
+export async function getPlayableUrlByMusicApi(song: Song, qualityKey?: string) {
   try {
     const url = await window.electronAPI.resolvePlayableUrl({
       source: song.source,
       id: song.id,
       urlParam: song.urlParam,
       filePath: song.filePath,
+      qualityKey,
     });
     return url || "";
   } catch (error) {

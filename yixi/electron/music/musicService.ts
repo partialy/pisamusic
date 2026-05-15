@@ -1,5 +1,8 @@
 import { getRuntimeEndpointsCached, requestSignedGateway } from "../system/systemClient";
 import { pathToFileURL } from "url";
+import { getUserCookie } from "../cookie/cookieService";
+import { requestSignedGatewayWithCookie } from "../cookie/cookieRequest";
+import { toSourceQualityParams } from "./quality";
 import type {
   DynamicCoverParams,
   MusicLyricParams,
@@ -59,28 +62,18 @@ export async function searchSuggest(params: MusicSuggestParams) {
 
 export async function resolveMusicUrl(params: MusicUrlParams) {
   const endpoints = await getRuntimeEndpointsCached();
+  const quality = toSourceQualityParams(params);
 
   switch (params.source) {
     case "kg":
-      return requestSignedGateway(
-        buildUrl(endpoints.kgProxy, "/song/url", {
-          hash: params.id,
-          quality: params.quality ?? "128",
-        })
-      );
+      return resolveKgMusicUrl(endpoints, params.id, quality.quality);
     case "wy":
-      return requestSignedGateway(
-        buildUrl(endpoints.wyProxy, "/song/url", {
-          id: params.id,
-          br: params.br ?? 128000,
-          realIP: "116.25.146.177",
-        })
-      );
+      return resolveWyMusicUrl(endpoints, params.id, quality);
     case "kw":
       return requestSignedGateway(
         buildUrl(endpoints.kwProxy, "/song/url", {
           id: params.id,
-          quality: params.quality ?? "standard",
+          quality: quality.quality ?? "standard",
         })
       );
   }
@@ -214,8 +207,10 @@ export async function resolvePlayableUrl(track: PlayableTrackPayload) {
   const response: any = await resolveMusicUrl({
     source: track.source,
     id,
+    qualityKey: track.qualityKey,
     quality: track.quality,
     br: track.br,
+    level: track.level,
   });
 
   switch (track.source) {
@@ -226,6 +221,52 @@ export async function resolvePlayableUrl(track: PlayableTrackPayload) {
     case "kw":
       return typeof response?.url === "string" ? response.url : "";
   }
+}
+
+async function resolveKgMusicUrl(
+  endpoints: Awaited<ReturnType<typeof getRuntimeEndpointsCached>>,
+  id: string,
+  quality = "128"
+) {
+  const cookie = getUserCookie("kg");
+  const serviceUrl = buildUrl(endpoints.kgServer, "/song/url", {
+    hash: id,
+    quality,
+  });
+  if (cookie) {
+    try {
+      return (await requestSignedGatewayWithCookie(serviceUrl, { cookie })).data;
+    } catch {
+      // 高品质 Cookie 取链失败时沿用普通取链兜底，避免播放被打断。
+    }
+  }
+  return requestSignedGateway(
+    buildUrl(endpoints.kgProxy, "/song/url", {
+      hash: id,
+      quality,
+    })
+  );
+}
+
+async function resolveWyMusicUrl(
+  endpoints: Awaited<ReturnType<typeof getRuntimeEndpointsCached>>,
+  id: string,
+  quality: { br?: number; level?: string }
+) {
+  const cookie = getUserCookie("wy");
+  const endpoint = quality.level ? "/song/url/v1" : "/song/url";
+  const params = quality.level
+    ? { id, level: quality.level, realIP: "116.25.146.177" }
+    : { id, br: quality.br ?? 128000, realIP: "116.25.146.177" };
+  const serviceUrl = buildUrl(endpoints.wyServer, endpoint, params);
+  if (cookie) {
+    try {
+      return (await requestSignedGatewayWithCookie(serviceUrl, { cookie })).data;
+    } catch {
+      // Cookie 取链失败后回退到普通代理，保留原有播放能力。
+    }
+  }
+  return requestSignedGateway(buildUrl(endpoints.wyProxy, endpoint, params));
 }
 
 export async function fetchLyrics(params: MusicLyricParams): Promise<MusicLyricResult> {

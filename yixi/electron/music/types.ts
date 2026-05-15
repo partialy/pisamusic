@@ -48,8 +48,10 @@ export type DynamicCoverParams = {
 export type MusicUrlParams = {
   source: MusicSource;
   id: string;
+  qualityKey?: string;
   quality?: string;
   br?: number;
+  level?: string;
 };
 
 export type MusicLyricParams = {
@@ -68,6 +70,8 @@ export type PlayableTrackPayload = {
   urlParam?: string;
   id?: string;
   filePath?: string;
+  qualityKey?: string;
   quality?: string;
   br?: number;
+  level?: string;
 };

@@ -181,8 +181,10 @@ const musicApiIpc = {
   resolveMusicUrl: (payload: {
     source: "kg" | "wy" | "kw";
     id: string;
+    qualityKey?: string;
     quality?: string;
     br?: number;
+    level?: string;
   }) => ipcRenderer.invoke("music:resolve-url", cloneIpcPayload(payload)),
   resolvePlayableUrl: (track: any) =>
     ipcRenderer.invoke("music:resolve-playable-url", cloneIpcPayload(track)),
@@ -224,6 +226,14 @@ const cookieApiIpc = {
     pageSize?: number;
     offset?: number;
   }) => ipcRenderer.invoke("cookie:wy-cloud-songs", cloneIpcPayload(payload)),
+};
+
+const downloadApiIpc = {
+  startDownloadTask: (payload: { song: any; qualityKey?: string; directory: string }) =>
+    ipcRenderer.invoke("download:start", cloneIpcPayload(payload)),
+  listDownloadTasks: () => ipcRenderer.invoke("download:tasks"),
+  listDownloadRecords: () => ipcRenderer.invoke("download:records"),
+  listDownloadedSongs: () => ipcRenderer.invoke("download:songs"),
 };
 
 function normalizeError(error: unknown, context?: Record<string, unknown>) {
@@ -276,6 +286,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...systemIpc,
   ...musicApiIpc,
   ...cookieApiIpc,
+  ...downloadApiIpc,
   ...settingsIpc,
   ...libraryIpc,
   ...utilsIpc,
