@@ -80,12 +80,13 @@
         >登录</n-button
       >
       <n-button
+        v-if="development"
         circle
         type="warning"
         style="-webkit-app-region: no-drag; margin-right: 16px; cursor: pointer"
         @click="openDevTools"
       >
-        <template #icon v-if="development">
+        <template #icon>
           <n-icon :component="DebugIcon" class="icon" />
         </template>
       </n-button>

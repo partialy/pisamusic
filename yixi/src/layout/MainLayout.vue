@@ -57,6 +57,7 @@ const router = useRouter();
 const route = useRoute();
 const collapsed = ref(false);
 const { accounts } = useCookieAccountStatus();
+const isDev = import.meta.env.DEV;
 
 const routeToMenuKey = (path: string) => {
   if (path.startsWith("/playlist")) return "playlist";
@@ -84,7 +85,7 @@ const menuOptions = computed<MenuOption[]>(() => {
 
   ];
 
-  if (process.env.NODE_ENV === "development") {
+  if (isDev) {
     items.push({ label: "dev page", key: "debugger", icon: renderMenuIcon(Wrench) });
   }
 
@@ -93,6 +94,7 @@ const menuOptions = computed<MenuOption[]>(() => {
 
 const cookieAccountMenuOptions = computed<MenuOption[]>(() => {
   const items: MenuOption[] = [];
+  if (!isDev) return items;
 
   if (accounts.kg.loggedIn) {
     items.push({ label: "KG", key: "kg", icon: renderMenuIcon(KGIcon) });
