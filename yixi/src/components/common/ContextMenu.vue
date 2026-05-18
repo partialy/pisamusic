@@ -3,7 +3,7 @@
     class="song-list-menu"
     placement="bottom-start"
     trigger="manual"
-    style="border-radius: 8px; max-width: 200px"
+    style="border-radius: 8px; max-width: 220px"
     :x="x"
     :y="y"
     :show="show"
@@ -23,6 +23,7 @@ import {
   MusicIcon,
   NextPlayIcon,
   PlayStatic,
+  PlaylistAdd,
   SingerIcon,
 } from "@/icons";
 import { Download, Info } from "lucide-vue-next";
@@ -46,6 +47,7 @@ const emit = defineEmits<{
   removeSong: [song: Song];
   downloadSong: [song: Song];
   detailSong: [song: Song];
+  addToPlaylist: [song: Song];
 }>();
 
 const openContextMenu = (
@@ -57,11 +59,9 @@ const openContextMenu = (
 ) => {
   e.preventDefault();
   nextTick().then(() => {
-    if (prop.type === "song") {
-      options.value = createSongOptions(prop.data as Song);
-    } else {
-      options.value = createPlaylistOptions(prop.data as CommonPlaylist);
-    }
+    options.value = prop.type === "song"
+      ? createSongOptions(prop.data as Song)
+      : createPlaylistOptions(prop.data as CommonPlaylist);
     x.value = e.clientX;
     y.value = e.clientY;
     show.value = true;
@@ -73,18 +73,14 @@ const createSongOptions = (song: Song) => {
     {
       label: song.name,
       disabled: true,
-      props: {
-        title: song.name,
-      },
+      props: { title: song.name },
       icon: renderIcon(MusicIcon, {}, { size: 24 }),
       key: "music",
     },
     {
       label: song.singer,
       disabled: true,
-      props: {
-        title: song.singer,
-      },
+      props: { title: song.singer },
       icon: renderIcon(SingerIcon, {}, { size: 24 }),
       key: "singer",
     },
@@ -108,13 +104,22 @@ const createSongOptions = (song: Song) => {
       key: "nextplay",
     },
     {
-      label: "添加到列表",
+      label: "添加到播放列表",
       props: {
-        title: "添加到列表",
+        title: "添加到播放列表",
         onClick: () => player.setPlaylist([song]),
       },
       icon: renderIcon(AddToPlaylist, {}, { size: 24 }),
       key: "add",
+    },
+    {
+      label: "添加到歌单",
+      props: {
+        title: "添加到歌单",
+        onClick: () => emit("addToPlaylist", song),
+      },
+      icon: renderIcon(PlaylistAdd, {}, { size: 24 }),
+      key: "add-to-mine-playlist",
     },
     {
       label: collector.containsSong(song) ? "取消收藏" : "添加到收藏",
@@ -207,9 +212,7 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
     {
       label: "详情",
       disabled: true,
-      props: {
-        title: "详情",
-      },
+      props: { title: "详情" },
       icon: renderIcon(Info, {}, { size: 22 }),
       key: "playlist-detail",
     },
@@ -262,16 +265,16 @@ defineExpose({ openContextMenu, handlePlayPlaylist });
 
 <style>
 .song-list-menu {
-  max-width: 200px;
+  max-width: 220px;
   overflow: hidden;
 }
 
 .song-list-menu .n-dropdown-option {
-  max-width: 200px;
+  max-width: 220px;
 }
 
 .song-list-menu .n-dropdown-option-body {
-  max-width: 200px;
+  max-width: 220px;
   min-width: 0;
   box-sizing: border-box;
   overflow: hidden;
@@ -285,7 +288,7 @@ defineExpose({ openContextMenu, handlePlayPlaylist });
   display: block;
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 140px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     404: typeof import('./src/components/404.vue')['default']
+    AddToPlaylistDialog: typeof import('./src/components/player/AddToPlaylistDialog.vue')['default']
     AdvanceSetting: typeof import('./src/components/setting/basic/AdvanceSetting.vue')['default']
     AllAccount: typeof import('./src/components/setting/account/AllAccount.vue')['default']
     AMLyric: typeof import('./src/components/player/AMLyric.vue')['default']
@@ -20,6 +21,7 @@ declare module 'vue' {
     CommonSongItem: typeof import('./src/components/search/CommonSongItem.vue')['default']
     ContextMenu: typeof import('./src/components/common/ContextMenu.vue')['default']
     ControlPanel: typeof import('./src/components/player/ControlPanel.vue')['default']
+    CreatePlaylistDialog: typeof import('./src/components/mine/CreatePlaylistDialog.vue')['default']
     DialogWrapper: typeof import('./src/components/common/DialogWrapper.vue')['default']
     DownloadSongDialog: typeof import('./src/components/player/DownloadSongDialog.vue')['default']
     ElectronOperation: typeof import('./src/components/ElectronOperation.vue')['default']
@@ -32,6 +34,8 @@ declare module 'vue' {
     LyricSetting: typeof import('./src/components/setting/lyric/LyricSetting.vue')['default']
     MainPlayer: typeof import('./src/components/player/MainPlayer.vue')['default']
     MineAccountCards: typeof import('./src/components/mine/MineAccountCards.vue')['default']
+    MineCloudPanel: typeof import('./src/components/mine/MineCloudPanel.vue')['default']
+    MinePlaylistPanel: typeof import('./src/components/mine/MinePlaylistPanel.vue')['default']
     NButton: typeof import('naive-ui')['NButton']
     NCheckbox: typeof import('naive-ui')['NCheckbox']
     NDrawer: typeof import('naive-ui')['NDrawer']

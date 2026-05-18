@@ -4,10 +4,16 @@ import { convertor } from "@/utils/convertor";
 
 const PLAYLIST_TRACK_PAGE_SIZE = 300;
 
-type SupportedPlaylistSource = "kg" | "wy";
+type SupportedPlaylistSource = "kg" | "wy" | "local";
+type NetworkPlaylistSource = Exclude<SupportedPlaylistSource, "local">;
 
 export async function fetchAllPlaylistTracks(playlist: CommonPlaylist): Promise<Song[]> {
   const source = assertSupportedSource(playlist.source);
+  if (source === "local") {
+    const tracks = await window.electronAPI.listUserPlaylistTracks({ playlistId: playlist.id });
+    return tracks.map((track) => track.payload as Song);
+  }
+
   const total = await fetchPlaylistTotal(playlist, source);
   const songs: Song[] = [];
   const songKeys = new Set<string>();
@@ -30,14 +36,11 @@ export async function fetchAllPlaylistTracks(playlist: CommonPlaylist): Promise<
 }
 
 function assertSupportedSource(source: CommonPlaylist["source"]): SupportedPlaylistSource {
-  if (source === "kg" || source === "wy") return source;
+  if (source === "kg" || source === "wy" || source === "local") return source;
   throw new Error("暂不支持该来源歌单播放");
 }
 
-async function fetchPlaylistTotal(
-  playlist: CommonPlaylist,
-  source: SupportedPlaylistSource
-) {
+async function fetchPlaylistTotal(playlist: CommonPlaylist, source: NetworkPlaylistSource) {
   try {
     const detail: any = await getPlaylistDetail({
       source,
@@ -56,7 +59,7 @@ async function fetchPlaylistTotal(
 
 async function fetchPlaylistTrackPage(
   id: string,
-  source: SupportedPlaylistSource,
+  source: NetworkPlaylistSource,
   offset: number,
   pageSize: number
 ) {

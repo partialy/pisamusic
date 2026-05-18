@@ -4,7 +4,7 @@ type PlaylistSource = CommonPlaylist["source"];
 type CountValue = number | string;
 type PlaylistInput = Record<string, unknown> | Partial<CommonPlaylist> | null | undefined;
 
-const playlistSources: PlaylistSource[] = ["kg", "qq", "wy", "kw"];
+const playlistSources: PlaylistSource[] = ["kg", "qq", "wy", "kw", "local"];
 
 export function normalizePlaylist(input: PlaylistInput): CommonPlaylist {
   const raw = (input ?? {}) as Record<string, unknown>;

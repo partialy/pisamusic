@@ -34,6 +34,7 @@ import {
   useCollectStore,
   useAudioStore,
   useLyricStore,
+  useMineLibraryStore,
   useRuntimeConfigStore,
   useThemeStore,
 } from "./store";
@@ -51,12 +52,14 @@ const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
 const lyric = useLyricStore();
+const mineLibrary = useMineLibraryStore();
 const runtimeConfig = useRuntimeConfigStore();
 const themeStore = useThemeStore();
 // 初始化
 commonStore.hidePlayer();
 runtimeConfig.refresh();
 collector.initStore();
+void mineLibrary.init();
 lyric.loadSetting();
 void lyric.loadDesktopLyricSetting();
 themeStore.init();

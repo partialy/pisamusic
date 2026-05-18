@@ -36,7 +36,7 @@ export interface API {
 
 export interface CommonPlaylist {
   id: string;
-  source: "kg" | "qq" | "wy" | "kw";
+  source: "kg" | "qq" | "wy" | "kw" | "local";
   name: string;
   desc: string;
   cover: string;

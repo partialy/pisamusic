@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { getAppDatabase } from "../database";
-import type { PlaylistSnapshot, QueueSnapshot, TrackSnapshot } from "../database/appDatabase";
+import type { PlaylistSnapshot, PlaylistSource, QueueSnapshot, TrackSnapshot } from "../database/appDatabase";
 
 let registered = false;
 
@@ -110,6 +110,41 @@ export function setupPersistenceIpc() {
 
   ipcMain.handle("library:favorites:playlists:contains", (_event, payload: { source: string; id: string }) => {
     return getAppDatabase().containsFavoritePlaylist(payload.source, payload.id);
+  });
+
+  ipcMain.handle("library:playlists:list", (_event, payload?: { source?: PlaylistSource | "all" }) => {
+    return getAppDatabase().listUserPlaylists(payload?.source);
+  });
+
+  ipcMain.handle("library:playlists:create", (_event, playlist: Partial<PlaylistSnapshot>) => {
+    return getAppDatabase().createUserPlaylist(playlist);
+  });
+
+  ipcMain.handle("library:playlists:upsert", (_event, playlist: PlaylistSnapshot) => {
+    return getAppDatabase().upsertUserPlaylist(playlist);
+  });
+
+  ipcMain.handle(
+    "library:playlists:replace-source",
+    (_event, payload: { source: Exclude<PlaylistSource, "local">; playlists: PlaylistSnapshot[] }) => {
+      return getAppDatabase().replaceUserPlaylists(payload.source, payload.playlists);
+    }
+  );
+
+  ipcMain.handle("library:playlists:tracks:list", (_event, payload: { playlistId: string }) => {
+    return getAppDatabase().listUserPlaylistTracks(payload.playlistId);
+  });
+
+  ipcMain.handle("library:playlists:tracks:add", (_event, payload: { playlistId: string; track: TrackSnapshot }) => {
+    return getAppDatabase().addUserPlaylistTrack(payload.playlistId, payload.track);
+  });
+
+  ipcMain.handle("library:cloud:songs:list", (_event, payload?: { cloudSource?: string | "all" }) => {
+    return getAppDatabase().listUserCloudSongs(payload?.cloudSource);
+  });
+
+  ipcMain.handle("library:cloud:songs:replace", (_event, payload: { cloudSource: string; songs: TrackSnapshot[] }) => {
+    return getAppDatabase().replaceUserCloudSongs(payload.cloudSource, payload.songs);
   });
 }
 

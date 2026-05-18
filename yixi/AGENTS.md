@@ -147,3 +147,13 @@
 - 本地曲库扫描只允许在 main 侧实现，入口集中在 `electron/localLibrary/localLibraryService.ts` 和 `library:local:*` IPC；renderer 不直接访问文件系统或 SQLite。
 - 本地歌曲写入 SQLite `local_songs`，扫描指纹写入 `local_library_scan_meta`；启动时智能扫描，设置变更和页面“立即刷新”强制重建。扫描失败必须保留旧库，不要先清空旧数据。
 - 本地歌曲来源使用 `source: "local"`，播放时通过 `music:resolve-playable-url` 直接转换本地文件路径，不要走 KG/WY/KW 在线取链。
+
+## 我的页、自建歌单与云盘缓存补充
+- `我的` 页顶层入口固定为 `歌单`、`云盘`、`账号`：账号卡片保留，歌单与云盘内容分别拆到 `src/components/mine/MinePlaylistPanel.vue`、`MineCloudPanel.vue` 等组件内，不要再把大量业务逻辑堆回 `src/views/mine/index.vue`。
+- 歌单分段为 `全部 / 自建 / KG / WY`，云盘分段为 `全部 / 私人 / KG / WY`；私人云盘和 KG 云盘当前只预留入口与空态，未接入真实拉取逻辑时不要伪造数据。
+- 自建歌单使用 `source: "local"`，与 KG/WY 歌单缓存统一写入 SQLite `user_playlists`；自建歌单歌曲写入 `user_playlist_tracks`，云盘歌曲缓存写入 `user_cloud_songs`。
+- `useMineLibraryStore` 负责我的页歌单与云盘缓存：启动时优先读取 SQLite，再在本次 App 生命周期内自动刷新一次网络数据；手动刷新失败时继续展示本地缓存。
+- 自建歌单标签存入 `payload_json.tags`，最多 3 个，保存前需要过滤空标签并去重。
+- 歌曲右键 `添加到歌单` 只允许添加到自建歌单；无自建歌单时从弹窗内引导新建，创建完成后继续执行添加。
+- 自建歌单封面通过 `dialog:select-playlist-cover` 选择并缓存到 `app.getPath("userData")/data/covers/playlists`；renderer 不直接读写文件系统。
+- 歌单播放全部/添加到播放列表统一走 `src/utils/playlistTracks.ts`：自建歌单从 SQLite 读取，KG/WY 从网络分页获取，QQ/KW 等未支持来源需要明确提示暂不支持。

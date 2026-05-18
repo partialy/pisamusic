@@ -79,6 +79,7 @@ const settingsIpc = {
     ipcRenderer.invoke("settings:set", { key, value: cloneIpcPayload(value), version }),
   deleteSetting: (key: string) => ipcRenderer.invoke("settings:delete", key),
   selectDirectory: (title?: string) => ipcRenderer.invoke("dialog:select-directory", title),
+  selectPlaylistCover: () => ipcRenderer.invoke("dialog:select-playlist-cover"),
 };
 
 const libraryIpc = {
@@ -116,6 +117,22 @@ const libraryIpc = {
   containsFavoritePlaylist: (payload: { source: string; id: string }) =>
     ipcRenderer.invoke("library:favorites:playlists:contains", cloneIpcPayload(payload)),
   onFavoritesChanged: (callback: () => void) => on("favorites:changed", callback),
+  listUserPlaylists: (payload?: { source?: "kg" | "wy" | "kw" | "qq" | "local" | "all" }) =>
+    ipcRenderer.invoke("library:playlists:list", cloneIpcPayload(payload ?? {})),
+  createUserPlaylist: (playlist: any) =>
+    ipcRenderer.invoke("library:playlists:create", cloneIpcPayload(playlist)),
+  upsertUserPlaylist: (playlist: any) =>
+    ipcRenderer.invoke("library:playlists:upsert", cloneIpcPayload(playlist)),
+  replaceUserPlaylists: (payload: { source: "kg" | "wy" | "kw" | "qq"; playlists: any[] }) =>
+    ipcRenderer.invoke("library:playlists:replace-source", cloneIpcPayload(payload)),
+  listUserPlaylistTracks: (payload: { playlistId: string }) =>
+    ipcRenderer.invoke("library:playlists:tracks:list", cloneIpcPayload(payload)),
+  addUserPlaylistTrack: (payload: { playlistId: string; track: any }) =>
+    ipcRenderer.invoke("library:playlists:tracks:add", cloneIpcPayload(payload)),
+  listUserCloudSongs: (payload?: { cloudSource?: string | "all" }) =>
+    ipcRenderer.invoke("library:cloud:songs:list", cloneIpcPayload(payload ?? {})),
+  replaceUserCloudSongs: (payload: { cloudSource: string; songs: any[] }) =>
+    ipcRenderer.invoke("library:cloud:songs:replace", cloneIpcPayload(payload)),
   listLocalSongs: () => ipcRenderer.invoke("library:local:songs:list"),
   getLocalLibraryScanStatus: () => ipcRenderer.invoke("library:local:scan-status"),
   refreshLocalLibrary: () => ipcRenderer.invoke("library:local:refresh"),

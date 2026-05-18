@@ -41,9 +41,11 @@ type TrackSnapshot = {
   filePath?: string;
 };
 
+type PlaylistSource = "kg" | "wy" | "kw" | "qq" | "local";
+
 type PlaylistSnapshot = {
   id: string;
-  source: "kg" | "wy" | "kw" | "qq";
+  source: PlaylistSource;
   name: string;
   desc: string;
   cover: string;
@@ -129,6 +131,49 @@ type FavoritePlaylistItem = {
   collectCount: string;
   payload: PlaylistSnapshot;
   createdAt: string;
+};
+
+type UserPlaylistItem = {
+  playlistKey: string;
+  playlistId: string;
+  source: PlaylistSource;
+  name: string;
+  description: string;
+  artwork: string;
+  songCount: string;
+  playCount: string;
+  collectCount: string;
+  payload: PlaylistSnapshot;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type UserPlaylistTrackItem = {
+  playlistId: string;
+  trackKey: string;
+  trackId: string;
+  source: string;
+  title: string;
+  artist: string;
+  album: string;
+  artwork: string;
+  duration: number;
+  payload: TrackSnapshot;
+  createdAt: string;
+};
+
+type UserCloudSongItem = {
+  cloudSource: string;
+  trackKey: string;
+  trackId: string;
+  source: string;
+  title: string;
+  artist: string;
+  album: string;
+  artwork: string;
+  duration: number;
+  payload: TrackSnapshot;
+  updatedAt: string;
 };
 
 type BootstrapConfig = {
@@ -482,6 +527,7 @@ type ElectronIpcApi = {
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;
   deleteSetting: (key: string) => Promise<boolean>;
   selectDirectory: (title?: string) => Promise<string | null>;
+  selectPlaylistCover: () => Promise<string | null>;
   addSearchHistory: (payload: { keyword: string; source?: string | null }) => Promise<SearchHistoryItem | null>;
   listSearchHistory: (limit?: number) => Promise<SearchHistoryItem[]>;
   clearSearchHistory: () => Promise<boolean>;
@@ -501,6 +547,23 @@ type ElectronIpcApi = {
   toggleFavoritePlaylist: (playlist: PlaylistSnapshot) => Promise<{ collected: boolean; item: FavoritePlaylistItem | null }>;
   containsFavoritePlaylist: (payload: { source: string; id: string }) => Promise<boolean>;
   onFavoritesChanged: (callback: () => void) => () => void;
+  listUserPlaylists: (payload?: { source?: PlaylistSource | "all" }) => Promise<UserPlaylistItem[]>;
+  createUserPlaylist: (playlist: Partial<PlaylistSnapshot>) => Promise<UserPlaylistItem | null>;
+  upsertUserPlaylist: (playlist: PlaylistSnapshot) => Promise<UserPlaylistItem | null>;
+  replaceUserPlaylists: (payload: {
+    source: Exclude<PlaylistSource, "local">;
+    playlists: PlaylistSnapshot[];
+  }) => Promise<UserPlaylistItem[]>;
+  listUserPlaylistTracks: (payload: { playlistId: string }) => Promise<UserPlaylistTrackItem[]>;
+  addUserPlaylistTrack: (payload: {
+    playlistId: string;
+    track: TrackSnapshot;
+  }) => Promise<UserPlaylistTrackItem[]>;
+  listUserCloudSongs: (payload?: { cloudSource?: string | "all" }) => Promise<UserCloudSongItem[]>;
+  replaceUserCloudSongs: (payload: {
+    cloudSource: string;
+    songs: TrackSnapshot[];
+  }) => Promise<UserCloudSongItem[]>;
   listLocalSongs: () => Promise<TrackSnapshot[]>;
   getLocalLibraryScanStatus: () => Promise<LocalLibraryScanStatus>;
   refreshLocalLibrary: () => Promise<LocalLibraryScanStatus>;

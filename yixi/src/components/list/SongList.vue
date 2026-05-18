@@ -82,8 +82,10 @@
         :removable="removable"
         @remove-song="emit('removeSong', $event)"
         @download-song="handleDownloadSong"
-        @detail-song="handleDetailSong" />
+        @detail-song="handleDetailSong"
+        @add-to-playlist="handleAddToPlaylist" />
       <DownloadSongDialog :ref="songDownload.downloadDialogRef" />
+      <AddToPlaylistDialog ref="addToPlaylistDialogRef" />
     </div>
   </Transition>
 </template>
@@ -94,6 +96,7 @@ import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import CommonSongItem from "@/components/search/CommonSongItem.vue";
 import ContextMenu from "@/components/common/ContextMenu.vue";
 import DownloadSongDialog from "@/components/player/DownloadSongDialog.vue";
+import AddToPlaylistDialog from "@/components/player/AddToPlaylistDialog.vue";
 import { VirtList } from "vue-virt-list";
 import type { Song } from "@/types/song";
 import { onBeforeRouteLeave } from "vue-router";
@@ -132,6 +135,7 @@ const height = ref(0);
 const contentConRef = useTemplateRef("contentConRef");
 const virtListRef = useTemplateRef("virtListRef");
 const contextMenuRef = useTemplateRef("contextMenuRef");
+const addToPlaylistDialogRef = useTemplateRef("addToPlaylistDialogRef");
 
 const offset = ref(0);
 const observer = new ResizeObserver((entries) => {
@@ -156,6 +160,10 @@ const handleNextPlay = (song: Song) => {
 
 const handleDownloadSong = (song: Song) => {
   songDownload.openDownloadDialog(song);
+};
+
+const handleAddToPlaylist = (song: Song) => {
+  addToPlaylistDialogRef.value?.open(song);
 };
 
 const handleDetailSong = (_song: Song) => {

@@ -7,6 +7,7 @@ import { useLibraryStore } from "./library";
 import { useRuntimeConfigStore } from "./runtimeConfig";
 import { useThemeStore } from "./theme";
 import { useLocalLibraryStore } from "./localLibrary";
+import { useMineLibraryStore } from "./mineLibrary";
 import { useUserStore } from './user';
 export {
   useSettingStore,
@@ -18,5 +19,6 @@ export {
   useRuntimeConfigStore,
   useThemeStore,
   useLocalLibraryStore,
+  useMineLibraryStore,
   useUserStore,
 };
