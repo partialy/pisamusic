@@ -155,8 +155,7 @@ defineExpose({ open });
   width: min(440px, calc(100vw - 32px));
   border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--color-bg-default) 74%, transparent);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-bg-default) 94%, #fff 6%), color-mix(in srgb, var(--color-bg-secondary) 88%, #fff 12%));
+  background: var(--color-bg-track);
   box-shadow:
     0 30px 86px rgba(10, 18, 32, 0.25),
     0 12px 34px rgba(10, 18, 32, 0.16);
@@ -165,8 +164,6 @@ defineExpose({ open });
 
 :global(:root[data-theme="dark"]) .add-dialog-panel {
   border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-bg-default) 90%, #2a3548 10%), color-mix(in srgb, var(--color-bg-secondary) 92%, #23304a 8%));
 }
 
 .dialog-header {

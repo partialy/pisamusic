@@ -1,5 +1,7 @@
 import type { CommonPlaylist, Song } from "@/types/song";
 import { reportError } from "@/utils/errorReporter";
+import { normalizeSong } from "@/utils/song";
+import { toRaw } from "vue";
 
 export type MinePlaylistSource = CommonPlaylist["source"] | "all";
 export type MineCloudSource = "all" | "private" | "kg" | "wy";
@@ -46,17 +48,18 @@ export async function replaceMinePlaylists(source: Exclude<CommonPlaylist["sourc
 export async function listMinePlaylistSongs(playlistId: string) {
   return invokeMineApi("listMinePlaylistSongs", { playlistId }, async () => {
     const items = await window.electronAPI.listUserPlaylistTracks({ playlistId });
-    return items.map((item) => item.payload as Song);
+    return items.map((item) => normalizeSong(item.payload as Record<string, unknown>));
   });
 }
 
 export async function addSongToMinePlaylist(playlistId: string, song: Song) {
-  return invokeMineApi("addSongToMinePlaylist", { playlistId, songId: song.id, source: song.source }, async () => {
+  const normalizedSong = normalizeSong(toRaw(song) as unknown as Record<string, unknown>);
+  return invokeMineApi("addSongToMinePlaylist", { playlistId, songId: normalizedSong.id, source: normalizedSong.source }, async () => {
     const items = await window.electronAPI.addUserPlaylistTrack({
       playlistId,
-      track: song,
+      track: normalizedSong,
     });
-    return items.map((item) => item.payload as Song);
+    return items.map((item) => normalizeSong(item.payload as Record<string, unknown>));
   });
 }
 
@@ -68,12 +71,13 @@ export async function listMineCloudSongs(cloudSource: MineCloudSource = "all") {
 }
 
 export async function replaceMineCloudSongs(cloudSource: Exclude<MineCloudSource, "all">, songs: Song[]) {
+  const normalizedSongs = songs.map((song) => normalizeSong(toRaw(song) as unknown as Record<string, unknown>));
   return invokeMineApi("replaceMineCloudSongs", { cloudSource, count: songs.length }, async () => {
     const items = await window.electronAPI.replaceUserCloudSongs({
       cloudSource,
-      songs,
+      songs: normalizedSongs,
     });
-    return items.map((item) => item.payload as Song);
+    return items.map((item) => normalizeSong(item.payload as Record<string, unknown>));
   });
 }
 

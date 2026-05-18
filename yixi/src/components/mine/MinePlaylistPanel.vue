@@ -51,22 +51,6 @@
       class="empty-state"
       :description="store.playlistError || '暂无歌单内容'" />
 
-    <div v-if="activeLocalPlaylist" class="detail-panel">
-      <div class="detail-header">
-        <button class="back-btn" type="button" @click="activeLocalPlaylist = null">返回</button>
-        <div>
-          <div class="detail-title">{{ activeLocalPlaylist.name }}</div>
-          <div class="detail-meta">{{ activeSongs.length }} 首歌曲</div>
-        </div>
-      </div>
-      <SongList
-        :songs="activeSongs"
-        :loading="detailLoading"
-        :min-size="64"
-        show-header
-        show-footer />
-    </div>
-
     <ContextMenu ref="contextMenuRef" />
     <CreatePlaylistDialog ref="createDialogRef" />
   </div>
@@ -76,11 +60,10 @@
 import { computed, ref } from "vue";
 import { NButton, NEmpty, NIcon, NTabPane, NTabs } from "naive-ui";
 import { Plus, RefreshCw } from "lucide-vue-next";
-import type { CommonPlaylist, Song } from "@/types/song";
+import type { CommonPlaylist } from "@/types/song";
 import { getKgImage } from "@/utils/common";
 import { useMineLibraryStore } from "@/store";
 import { useRouter } from "vue-router";
-import SongList from "@/components/list/SongList.vue";
 import ContextMenu from "@/components/common/ContextMenu.vue";
 import CreatePlaylistDialog from "@/components/mine/CreatePlaylistDialog.vue";
 import defaultCover from "@/assets/images/default-created-playlist-cover.svg";
@@ -90,30 +73,16 @@ type PlaylistFilter = "all" | "local" | "kg" | "wy";
 const store = useMineLibraryStore();
 const router = useRouter();
 const activeSource = ref<PlaylistFilter>("all");
-const activeLocalPlaylist = ref<CommonPlaylist | null>(null);
-const activeSongs = ref<Song[]>([]);
-const detailLoading = ref(false);
 const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null);
 const createDialogRef = ref<InstanceType<typeof CreatePlaylistDialog> | null>(null);
 
 const filteredPlaylists = computed(() => store.getPlaylistsBySource(activeSource.value));
 
 async function openPlaylist(playlist: CommonPlaylist) {
-  if (playlist.source !== "local") {
-    await router.push({
-      path: "/playlist/detail",
-      query: { id: playlist.id, origin: playlist.source },
-    });
-    return;
-  }
-
-  activeLocalPlaylist.value = playlist;
-  detailLoading.value = true;
-  try {
-    activeSongs.value = await store.loadPlaylistSongs(playlist.id, true);
-  } finally {
-    detailLoading.value = false;
-  }
+  await router.push({
+    path: "/playlist/detail",
+    query: { id: playlist.id, origin: playlist.source },
+  });
 }
 
 function openContextMenu(event: MouseEvent, playlist: CommonPlaylist) {
@@ -290,40 +259,4 @@ function sourceLabel(source: CommonPlaylist["source"]) {
   justify-content: center;
 }
 
-.detail-panel {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-bg-default);
-}
-
-.detail-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.back-btn {
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border-default);
-  border-radius: 999px;
-  color: var(--color-text-default);
-  background: transparent;
-  cursor: pointer;
-}
-
-.detail-title {
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.detail-meta {
-  margin-top: 4px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-}
 </style>

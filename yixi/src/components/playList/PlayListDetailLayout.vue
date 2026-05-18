@@ -117,8 +117,12 @@ import { convertor } from "@/utils/convertor";
 import type { CommonPlaylist, Song } from "@/types/song";
 import type { WYPlaylistDetail } from "@/utils/webapi";
 import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
+import { listMinePlaylistSongs, listMinePlaylists } from "@/utils/api/mineLibraryAPI";
+import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 
 import SongList from "@/components/list/SongList.vue";
+
+type DetailOrigin = "kg" | "wy" | "local";
 
 const player = useAudioStore();
 const collector = useCollectStore();
@@ -135,14 +139,22 @@ const wyListDetail = ref<WYPlaylistDetail>();
 
 const listDetail = ref<CommonPlaylist>();
 const detailCover = computed(() => {
-  if (route.query.origin == "wy") {
+  const origin = getDetailOrigin();
+  if (origin === "local") {
+    return listDetail.value?.cover || defaultPlaylistCover;
+  }
+  if (origin == "wy") {
     return listDetail.value?.coverSize?.l || listDetail.value?.cover;
   } else {
     return getKgImage(listDetail.value?.cover, 240);
   }
 });
 
-const convertDetail = (origin: "kg" | "wy") => {
+function getDetailOrigin(): DetailOrigin {
+  return route.query.origin === "wy" || route.query.origin === "local" ? route.query.origin : "kg";
+}
+
+const convertDetail = (origin: Exclude<DetailOrigin, "local">) => {
   if (origin != "wy") {
     if (!kgListDetail.value) return;
     listDetail.value = convertor.KG.convertKGPlaylist(
@@ -166,6 +178,7 @@ const TagType = {
 
 const songList = ref<Song[]>([]);
 const allSong = ref<Song[]>([]);
+const localSongCache = ref<Song[]>([]);
 const loadVersion = ref(0);
 const INITIAL_PAGE_SIZE = 30;
 const BACKGROUND_PAGE_SIZE = 300;
@@ -194,7 +207,18 @@ const ramdomTagType = ():
 };
 
 const getListDetail = async () => {
-  if (route.query.origin == "wy") {
+  const origin = getDetailOrigin();
+  if (origin === "local") {
+    const playlists = await listMinePlaylists("local");
+    const playlist = playlists.find((item) => item.id === id);
+    if (!playlist) throw new Error("自建歌单不存在");
+    listDetail.value = playlist;
+    localSongCache.value = await listMinePlaylistSongs(id as string);
+    page.value.total = localSongCache.value.length;
+    return;
+  }
+
+  if (origin == "wy") {
     const res: any = await getPlaylistDetail({
       source: "wy",
       id: id as string,
@@ -209,7 +233,7 @@ const getListDetail = async () => {
     kgListDetail.value = res?.data[0];
     page.value.total = kgListDetail.value?.count || 0;
   }
-  convertDetail(route.query.origin as "kg" | "wy");
+  convertDetail(origin);
 };
 
 const getSongList = async () => {
@@ -219,7 +243,16 @@ const getSongList = async () => {
 };
 
 const fetchPlaylistSongs = async (offset: number, pageSize: number): Promise<Song[]> => {
-  if (route.query.origin == "wy") {
+  const origin = getDetailOrigin();
+  if (origin === "local") {
+    if (!localSongCache.value.length) {
+      localSongCache.value = await listMinePlaylistSongs(id as string);
+      page.value.total = localSongCache.value.length;
+    }
+    return localSongCache.value.slice(offset, offset + pageSize);
+  }
+
+  if (origin == "wy") {
     const res: any = await getPlaylistTracks({
       source: "wy",
       id: id as string,
@@ -310,6 +343,7 @@ const initData = debounce(async () => {
   allLoading.value = false;
   allSong.value = [];
   songList.value = [];
+  localSongCache.value = [];
   page.value.currentPage = 1;
   page.value.size = INITIAL_PAGE_SIZE;
   page.value.total = 0;
@@ -371,7 +405,7 @@ const onToTop = () => {
 };
 
 watch(
-  () => route.query.id,
+  () => [route.query.id, route.query.origin],
   async () => {
     loading.value = true;
     initData();
