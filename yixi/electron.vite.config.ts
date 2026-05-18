@@ -16,6 +16,7 @@ export default defineConfig({
           store: resolve(__dirname, "electron/store/index.ts"),
           SPlyric: resolve(__dirname, "web/lyric.html"),
           lyric: resolve(__dirname, "web/lyric-window.html"),
+          startup: resolve(__dirname, "web/startup-window.html"),
           logger: resolve(__dirname, "electron/utils/logger.ts"),
         },
       },

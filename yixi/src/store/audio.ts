@@ -54,6 +54,7 @@ export const useAudioStore = defineStore("audio", () => {
   // @ts-ignore
   let progressInterval: NodeJS.Timeout | null = null;
   let restoringState = false;
+  let loadStatePromise: Promise<void> | null = null;
   let handlingPlaybackFailure = false;
   let failureSkipCount = 0;
 
@@ -614,6 +615,14 @@ export const useAudioStore = defineStore("audio", () => {
    * 从localStorage加载状态
    */
   const loadState = async (): Promise<void> => {
+    if (loadStatePromise) return loadStatePromise;
+    loadStatePromise = doLoadState().finally(() => {
+      loadStatePromise = null;
+    });
+    return loadStatePromise;
+  };
+
+  const doLoadState = async (): Promise<void> => {
     restoringState = true;
     try {
       restoreFromLocalStorage();

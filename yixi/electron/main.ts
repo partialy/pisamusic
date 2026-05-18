@@ -18,6 +18,7 @@ import { setupCookieIpc } from "./ipc/cookieIpc";
 import { setupDownloadIpc } from "./ipc/downloadIpc";
 import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
+import { StartupWindowManager } from "./startup/startupWindowManager";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -28,15 +29,26 @@ const trayIconDir = join(currentDir, "../../public/tray");
 let mainWindow: BrowserWindow | null = null;
 let desktopLyric: DesktopLyricManager;
 let playerTray: PlayerTray;
+let startupWindow: StartupWindowManager;
 let isQuitting = false;
+let mainWindowReadyToShow = false;
+let rendererReady = false;
+let startupCompleted = false;
+let appRuntimeStarted = false;
 
 function createMainWindow() {
+  if (mainWindow) return mainWindow;
+  mainWindowReadyToShow = false;
+  rendererReady = false;
+  startupCompleted = false;
+
   mainWindow = new BrowserWindow({
     title: "PisaMusic",
     icon: iconPath,
     minWidth: 1200,
     minHeight: 800,
     frame: false,
+    show: false,
     webPreferences: {
       preload: preloadPath,
       nodeIntegration: false,
@@ -54,6 +66,11 @@ function createMainWindow() {
     void mainWindow.loadFile(join(dirname(currentDir), "renderer", "index.html"));
   }
 
+  mainWindow.once("ready-to-show", () => {
+    mainWindowReadyToShow = true;
+    revealMainWindowIfReady();
+  });
+
   mainWindow.on("maximize", () => {
     mainWindow?.webContents.send("window:maximized");
   });
@@ -68,6 +85,9 @@ function createMainWindow() {
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+    mainWindowReadyToShow = false;
+    rendererReady = false;
+    startupCompleted = false;
   });
 
   mainWindow.on("close", () => {
@@ -75,9 +95,12 @@ function createMainWindow() {
       isQuitting = true;
       desktopLyric?.destroy();
       playerTray?.destroy();
+      startupWindow?.destroy();
       app.quit();
     }
   });
+
+  return mainWindow;
 }
 
 function setupAppIpc() {
@@ -111,6 +134,40 @@ function setupPlayerStateBridge() {
   });
 }
 
+function setupStartupBridge() {
+  ipcMain.on("startup:renderer-ready", () => {
+    rendererReady = true;
+    revealMainWindowIfReady();
+  });
+}
+
+function launchAppRuntime() {
+  if (appRuntimeStarted) return;
+  appRuntimeStarted = true;
+  startupWindow.showLoading();
+  createMainWindow();
+  playerTray.create();
+  void refreshKgCookieIfNeeded("startup");
+  startLocalLibrarySmartScan();
+}
+
+function revealMainWindowIfReady() {
+  if (startupCompleted || !mainWindow || !mainWindowReadyToShow || !rendererReady) return;
+  startupCompleted = true;
+  startupWindow.close();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function quitApplication() {
+  if (isQuitting) return;
+  isQuitting = true;
+  startupWindow?.destroy();
+  desktopLyric?.destroy();
+  playerTray?.destroy();
+  app.quit();
+}
+
 app.whenReady().then(() => {
   desktopLyric = new DesktopLyricManager({
     iconPath,
@@ -126,13 +183,24 @@ app.whenReady().then(() => {
     onToggleDesktopLyricLock: () => desktopLyric.setLocked(!desktopLyric.isLocked()),
     isDesktopLyricLocked: () => desktopLyric.isLocked(),
   });
+  startupWindow = new StartupWindowManager({
+    htmlPath: join(currentDir, "./web/startup-window.html"),
+    iconPath,
+    onAccepted: launchAppRuntime,
+    onRejected: quitApplication,
+  });
 
   setupAppIpc();
   setupPlayerStateBridge();
-  createMainWindow();
-  playerTray.create();
-  void refreshKgCookieIfNeeded("startup");
-  startLocalLibrarySmartScan();
+  setupStartupBridge();
+  startupWindow.setupIpc();
+
+  if (startupWindow.hasAcceptedAgreement()) {
+    startupWindow.open("loading");
+    launchAppRuntime();
+  } else {
+    startupWindow.open("agreement");
+  }
 });
 
 app.on("window-all-closed", () => {
@@ -141,13 +209,19 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  startupWindow?.destroy();
   desktopLyric?.destroy();
   playerTray?.destroy();
   closeAppDatabase();
 });
 
 app.on("activate", () => {
-  if (mainWindow === null) createMainWindow();
+  if (mainWindow !== null || isQuitting) return;
+  if (startupWindow?.hasAcceptedAgreement()) {
+    launchAppRuntime();
+  } else {
+    startupWindow?.open("agreement");
+  }
 });
 
 process.on("uncaughtException", (error) => {

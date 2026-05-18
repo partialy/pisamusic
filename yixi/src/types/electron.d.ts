@@ -438,6 +438,7 @@ type ElectronIpcApi = {
   hideWindow: () => void;
   reloadWindow: () => void;
   openDevTools: () => void;
+  notifyStartupReady: () => void;
   onHideWindow: (cb: () => void) => () => void;
   onWindowMaximized: (callback: () => void) => () => void;
   onWindowUnmaximized: (callback: () => void) => () => void;

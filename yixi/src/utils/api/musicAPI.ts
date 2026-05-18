@@ -1,5 +1,6 @@
 import type { Song } from "@/types/song";
 import { reportError } from "@/utils/errorReporter";
+import { toRaw } from 'vue';
 
 export type SearchableMusicSource = "kg" | "wy" | "kw";
 
@@ -84,7 +85,7 @@ export async function getPlayableUrlByMusicApi(song: Song, qualityKey?: string) 
       id: song.id,
       urlParam: song.urlParam,
       filePath: song.filePath,
-      qualityKey,
+      qualityKey: toRaw(qualityKey),
     });
     return url || "";
   } catch (error) {

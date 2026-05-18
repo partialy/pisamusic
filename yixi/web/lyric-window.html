@@ -30,6 +30,7 @@
       #container {
         width: 100vw;
         height: 100vh;
+        margin-top: 20px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -44,7 +45,7 @@
 
       #controller {
         position: absolute;
-        top: 10px;
+        top: 0px;
         left: 50%;
         display: none;
         align-items: center;
@@ -63,14 +64,16 @@
       }
 
       .btn {
-        width: 28px;
-        height: 28px;
+        width: 32px;
+        height: 32px;
         border: 0;
         border-radius: 50%;
         color: inherit;
         background: transparent;
-        font-size: 15px;
-        line-height: 28px;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
       }
 
@@ -181,14 +184,41 @@
       <div class="resize-zone resize-corner-br"></div>
       <div class="resize-zone resize-corner-bl"></div>
       <div id="controller">
-        <button class="btn" id="size-down" title="减小字号">A-</button>
-        <button class="btn" id="size-up" title="增大字号">A+</button>
-        <button class="btn" id="prev-btn" title="上一首">⏮</button>
-        <button class="btn" id="play-btn" title="播放">▶</button>
-        <button class="btn" id="pause-btn" title="暂停">⏸</button>
-        <button class="btn" id="next-btn" title="下一首">⏭</button>
+        <button class="btn" id="size-down" title="减小字号"><span>A-</span></button>
+        <button class="btn" id="size-up" title="增大字号"><span>A+</span></button>
+        <button class="btn" id="prev-btn" title="上一首">
+  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M3 3.75a.75.75 0 0 1 1.5 0v16.5a.75.75 0 0 1-1.5 0zm18 1.003c0-1.408-1.578-2.24-2.74-1.444L7.763 10.503a1.75 1.75 0 0 0-.01 2.88l10.499 7.302c1.16.807 2.749-.024 2.749-1.437z"/></svg>
+        </button>
+        <button class="btn" id="play-btn" title="播放">
+
+            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 32 32">
+	<path d="M0 0h32v32H0z" fill="none" />
+	<path fill="currentColor" d="M11 23a1 1 0 0 1-1-1V10a1 1 0 0 1 1.447-.894l12 6a1 1 0 0 1 0 1.788l-12 6A1 1 0 0 1 11 23m1-11.382v8.764L20.764 16Z" />
+	<path fill="currentColor" d="M16 4A12 12 0 1 1 4 16A12 12 0 0 1 16 4m0-2a14 14 0 1 0 14 14A14 14 0 0 0 16 2" />
+</svg>
+
+</svg>
+
+        </button>
+        <button class="btn" id="pause-btn" title="暂停">
+          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 32 32">
+	<path d="M0 0h32v32H0z" fill="none" />
+	<path fill="currentColor" d="M14 10h-2v12h2zm6 0h-2v12h2z" />
+	<path fill="currentColor" d="M16 4A12 12 0 1 1 4 16A12 12 0 0 1 16 4m0-2a14 14 0 1 0 14 14A14 14 0 0 0 16 2" />
+</svg>
+
+        </button>
+        <button class="btn" id="next-btn" title="下一首">
+  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M3 4.753c0-1.408 1.578-2.24 2.74-1.444l10.498 7.194a1.75 1.75 0 0 1 .01 2.88L5.749 20.685C4.59 21.492 3 20.66 3 19.248zM21 3.75a.75.75 0 0 0-1.5 0v16.5a.75.75 0 0 0 1.5 0z"/></svg>
+        </button>
         <button class="btn" id="lock-btn" title="锁定"></button>
-        <button class="btn" id="close-btn" title="关闭">×</button>
+        <button class="btn" id="close-btn" title="关闭">
+          <svg t="1740289582268" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+        p-id="1161" width="48" height="48">
+        <path d="M810 274l-238 238 238 238-60 60-238-238-238 238-60-60 238-238-238-238 60-60 238 238 238-238z"
+            p-id="1162" fill="currentColor"></path>
+    </svg>
+        </button>
       </div>
       <div id="lyric-wrapper">
         <div id="lyric-text">暂无歌词</div>

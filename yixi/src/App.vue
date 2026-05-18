@@ -57,16 +57,10 @@ const runtimeConfig = useRuntimeConfigStore();
 const themeStore = useThemeStore();
 // 初始化
 commonStore.hidePlayer();
-runtimeConfig.refresh();
-collector.initStore();
-void mineLibrary.init();
-lyric.loadSetting();
-void lyric.loadDesktopLyricSetting();
-themeStore.init();
 
 const { showPlayer } = storeToRefs(commonStore);
 
-async function setupListeners() {
+function setupListeners() {
   const { currentTime, currentSong } = storeToRefs(player);
   const { followSongAccent } = storeToRefs(themeStore);
   electronAPI.onMediaControl(
@@ -122,7 +116,7 @@ async function setupListeners() {
     }
   );
 }
-async function setUpWindow() {
+function setUpWindow() {
   window.$message = message;
   window.$notification = notification;
   window.$modal = modal;
@@ -132,7 +126,7 @@ async function setUpWindow() {
 }
 
 let t: NodeJS.Timeout;
-async function setupAutoSaver() {
+function setupAutoSaver() {
   t = setInterval(() => {
     player.saveState();
     if (collector.changed) {
@@ -141,9 +135,41 @@ async function setupAutoSaver() {
   }, 1000 * 60 * 10);
 }
 
-setupListeners();
-setUpWindow();
-setupAutoSaver();
+async function bootstrapApp() {
+  try {
+    setUpWindow();
+    setupListeners();
+    setupAutoSaver();
+    lyric.loadSetting();
+
+    const results = await Promise.allSettled([
+      themeStore.init(),
+      runtimeConfig.refresh(),
+      collector.initStore(),
+      mineLibrary.init(),
+      lyric.loadDesktopLyricSetting(),
+      player.loadState(),
+    ]);
+
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") return;
+      void electronAPI.reportError(result.reason, {
+        scope: "startup",
+        action: "bootstrapApp",
+        taskIndex: index,
+      });
+    });
+  } catch (error) {
+    void electronAPI.reportError(error, {
+      scope: "startup",
+      action: "bootstrapApp",
+    });
+  } finally {
+    electronAPI.notifyStartupReady?.();
+  }
+}
+
+void bootstrapApp();
 
 // 离开页面保存数据
 onBeforeUnmount(() => {

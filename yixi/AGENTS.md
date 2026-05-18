@@ -157,3 +157,9 @@
 - 歌曲右键 `添加到歌单` 只允许添加到自建歌单；无自建歌单时从弹窗内引导新建，创建完成后继续执行添加。
 - 自建歌单封面通过 `dialog:select-playlist-cover` 选择并缓存到 `app.getPath("userData")/data/covers/playlists`；renderer 不直接读写文件系统。
 - 歌单播放全部/添加到播放列表统一走 `src/utils/playlistTracks.ts`：自建歌单从 SQLite 读取，KG/WY 从网络分页获取，QQ/KW 等未支持来源需要明确提示暂不支持。
+
+## 启动页与首次协议规则补充
+
+- 桌面端启动页由 `electron/startup/startupWindowManager.ts` 和 `web/startup-window.html` 管理，使用独立 Electron HTML 窗口，不要改回 Vue 页面内覆盖层。
+- 首次用户协议状态统一写入 SQLite settings 的 `startup-user-agreement`，不要使用 localStorage 或 electron-store 另存一份协议状态。
+- 主窗口默认隐藏加载；renderer 完成关键初始化后通过 preload 暴露的 `startup:renderer-ready` 通知 main，再由 main 关闭启动页并显示主窗口。

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PisaMusic 启动</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+        color: #182332;
+        font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+        user-select: none;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+      }
+
+      .startup-card {
+        width: calc(100vw - 48px);
+        height: calc(100vh - 48px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.82);
+        border-radius: 28px;
+        background:
+          linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(250, 254, 255, 0.92)),
+          radial-gradient(circle at 18% 18%, rgba(55, 174, 124, 0.15), transparent 34%),
+          radial-gradient(circle at 86% 20%, rgba(40, 151, 255, 0.16), transparent 30%);
+        box-shadow: 0 8px 10px rgba(24, 35, 50, 0.12);
+        -webkit-app-region: drag;
+      }
+
+      .panel {
+        display: none;
+        height: 100%;
+      }
+
+      body[data-mode="agreement"] .agreement-panel,
+      body[data-mode="loading"] .loading-panel {
+        display: flex;
+      }
+
+      .agreement-panel {
+        flex-direction: column;
+        padding: 38px 42px 34px;
+      }
+
+      .agreement-title {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0;
+        color: #162032;
+      }
+
+      .agreement-subtitle {
+        margin: 8px 0 22px;
+        color: rgba(24, 35, 50, 0.62);
+        font-size: 14px;
+      }
+
+      .agreement-content {
+        flex: 1;
+        padding: 18px 20px;
+        border: 1px solid rgba(31, 41, 55, 0.08);
+        border-radius: 18px;
+        background: rgba(246, 250, 252, 0.92);
+        color: rgba(24, 35, 50, 0.78);
+        font-size: 14px;
+        line-height: 1.85;
+        overflow: hidden;
+      }
+
+      .agreement-content p {
+        margin: 0 0 12px;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 14px;
+        margin-top: 24px;
+        -webkit-app-region: no-drag;
+      }
+
+      .action-button {
+        min-width: 104px;
+        height: 42px;
+        border: 0;
+        border-radius: 999px;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          opacity 0.18s ease;
+      }
+
+      .action-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .action-button:active {
+        transform: translateY(0);
+        opacity: 0.88;
+      }
+
+      .reject-button {
+        background: #e24a4a;
+        box-shadow: 0 12px 24px rgba(226, 74, 74, 0.24);
+      }
+
+      .agree-button {
+        background: #20b46b;
+        box-shadow: 0 12px 24px rgba(32, 180, 107, 0.24);
+      }
+
+      .loading-panel {
+        align-items: center;
+        justify-content: center;
+        padding: 34px;
+      }
+
+      .loading-inner {
+        display: grid;
+        grid-template-columns: 82px auto;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .logo-shell {
+        width: 82px;
+        height: 82px;
+        padding: 8px;
+        border-radius: 24px;
+        background: #fff;
+        box-shadow:
+          inset 0 0 0 1px rgba(24, 35, 50, 0.08),
+          0 16px 38px rgba(40, 151, 255, 0.18);
+      }
+
+      #logo {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 18px;
+        object-fit: cover;
+      }
+
+      .brand-title {
+        margin: 0;
+        color: #64748b;
+        font-family: Georgia, "Times New Roman", "STSong", "Songti SC", serif;
+        font-size: 28px;
+        font-style: italic;
+        font-weight: 500;
+        letter-spacing: 0.25em;
+        line-height: 1;
+      }
+
+      .loading-text {
+        grid-column: 1 / -1;
+        justify-self: center;
+        margin-top: 26px;
+        color: rgba(24, 35, 50, 0.56);
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .loading-text span {
+        display: inline-block;
+        animation: shimmer 1.5s ease-in-out infinite;
+      }
+
+      .loading-text span:nth-child(1) {
+        animation-delay: 0s;
+      }
+
+      .loading-text span:nth-child(2) {
+        animation-delay: 0.12s;
+      }
+
+      .loading-text span:nth-child(3) {
+        animation-delay: 0.24s;
+      }
+
+      .loading-text span:nth-child(4) {
+        animation-delay: 0.36s;
+      }
+
+      .loading-text span:nth-child(5) {
+        animation-delay: 0.48s;
+      }
+
+      .loading-text span:nth-child(6) {
+        animation-delay: 0.6s;
+      }
+
+      .loading-text span:nth-child(7) {
+        animation-delay: 0.72s;
+      }
+
+      @keyframes shimmer {
+        0%,
+        100% {
+          opacity: 0.28;
+          transform: translateY(0);
+        }
+
+        45% {
+          opacity: 1;
+          transform: translateY(-1px);
+        }
+      }
+    </style>
+  </head>
+  <body data-mode="loading">
+    <main class="startup-card">
+      <section class="panel agreement-panel">
+        <h1 class="agreement-title">用户协议与隐私提示</h1>
+        <p class="agreement-subtitle">首次使用 PisaMusic 前，请先确认以下占位协议内容。</p>
+        <div class="agreement-content">
+          <p>欢迎使用 PisaMusic。这里暂时放置用户协议与隐私政策的占位文本，后续可以替换为正式版本。</p>
+          <p>应用会在本地保存必要的设置、播放偏好和缓存信息，用于提供稳定的音乐播放体验。</p>
+          <p>你可以选择同意后继续使用应用；如果拒绝，本次启动将直接退出。</p>
+        </div>
+        <div class="actions">
+          <button class="action-button reject-button" id="reject-button">拒绝</button>
+          <button class="action-button agree-button" id="agree-button">同意</button>
+        </div>
+      </section>
+
+      <section class="panel loading-panel">
+        <div class="loading-inner">
+          <div class="logo-shell">
+            <img id="logo" alt="PisaMusic" />
+          </div>
+          <h1 class="brand-title">Pisa Music</h1>
+          <div class="loading-text" aria-label="正在启动">
+            <span>正</span><span>在</span><span>启</span><span>动</span><span>.</span><span>.</span><span>.</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const { ipcRenderer } = require("electron");
+
+      const logo = document.getElementById("logo");
+      const agreeButton = document.getElementById("agree-button");
+      const rejectButton = document.getElementById("reject-button");
+
+      function applySnapshot(snapshot) {
+        if (!snapshot) return;
+        document.body.dataset.mode = snapshot.mode || "loading";
+        if (snapshot.logoUrl) {
+          logo.src = snapshot.logoUrl;
+        }
+      }
+
+      ipcRenderer.on("startup:snapshot", (_event, snapshot) => {
+        applySnapshot(snapshot);
+      });
+
+      agreeButton.addEventListener("click", () => {
+        ipcRenderer.invoke("startup:agree").catch(() => {});
+      });
+
+      rejectButton.addEventListener("click", () => {
+        ipcRenderer.invoke("startup:reject").catch(() => {});
+      });
+
+      window.addEventListener("DOMContentLoaded", () => {
+        ipcRenderer.send("startup:splash-ready");
+      });
+    </script>
+  </body>
+</html>

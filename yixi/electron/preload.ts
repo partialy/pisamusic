@@ -39,6 +39,10 @@ const windowIpc = {
   onWindowUnmaximized: (callback: () => void) => on("window:unmaximized", callback),
 };
 
+const startupIpc = {
+  notifyStartupReady: () => ipcRenderer.send("startup:renderer-ready"),
+};
+
 const logIpc = {
   log: (message: unknown) => ipcRenderer.invoke("app:log", message),
   reportError: (error: unknown, context?: Record<string, unknown>) =>
@@ -301,6 +305,7 @@ const debugIpc = {
 
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
+  ...startupIpc,
   ...logIpc,
   ...desktopLyricIpc,
   ...systemIpc,
