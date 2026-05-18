@@ -10,6 +10,7 @@
     :options="options"
     @select="show = false"
     @clickoutside="show = false" />
+  <MediaDetailDialog ref="detailDialogRef" />
 </template>
 
 <script lang="ts" setup>
@@ -31,6 +32,7 @@ import { useAudioStore, useCollectStore } from "@/store";
 import { renderIcon } from "@/utils/common";
 import { message } from "@/utils/pure/message";
 import { fetchAllPlaylistTracks } from "@/utils/playlistTracks";
+import MediaDetailDialog from "@/components/common/MediaDetailDialog.vue";
 
 const x = ref(0);
 const y = ref(0);
@@ -38,6 +40,7 @@ const show = ref(false);
 const options = ref<DropdownOption[]>([]);
 const collector = useCollectStore();
 const player = useAudioStore();
+const detailDialogRef = ref<InstanceType<typeof MediaDetailDialog> | null>(null);
 const props = withDefaults(defineProps<{
   removable?: boolean;
 }>(), {
@@ -168,7 +171,7 @@ const createSongOptions = (song: Song) => {
     label: "详情",
     props: {
       title: "详情",
-      onClick: () => emit("detailSong", song),
+      onClick: () => detailDialogRef.value?.openSong(song),
     },
     icon: renderIcon(Info, {}, { size: 22 }),
     key: "detail",
@@ -227,8 +230,10 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
     },
     {
       label: "详情",
-      disabled: true,
-      props: { title: "详情" },
+      props: {
+        title: "详情",
+        onClick: () => detailDialogRef.value?.openPlaylist(playlist),
+      },
       icon: renderIcon(Info, {}, { size: 22 }),
       key: "playlist-detail",
     },
