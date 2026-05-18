@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## 本地与下载补充
+
+- 本地/下载歌曲封面展示优先通过 `library:local:cover` 在 main 侧读取音频元数据图片并缓存；renderer 不直接读磁盘，元数据无封面时才使用默认封面。
+- 本地/下载歌曲右键移除统一走 `library:local:songs:remove`：普通“移除”只删除 SQLite 可见记录，“彻底删除”才删除磁盘文件；本地扫描歌曲下次重建曲库可以重新出现。
+
 ## 播放音质与下载规则补充
 
 - 播放/下载音质偏好统一写入 SQLite settings 的 `playback-quality-preference`，按来源保存 `kg:*`、`wy-br:*`、`wy-level:*`、`kw:*` 这类 qualityKey；不要再新增 localStorage 音质记忆。

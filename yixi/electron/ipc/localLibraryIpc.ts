@@ -1,7 +1,9 @@
 import { ipcMain } from "electron";
 import {
   getLocalLibraryScanStatus,
+  getLocalSongCover,
   listLocalSongs,
+  removeLocalSongFromList,
   refreshLocalLibrary,
 } from "../localLibrary/localLibraryService";
 
@@ -21,5 +23,13 @@ export function setupLocalLibraryIpc() {
 
   ipcMain.handle("library:local:refresh", () => {
     return refreshLocalLibrary();
+  });
+
+  ipcMain.handle("library:local:cover", (_event, filePath: string) => {
+    return getLocalSongCover(filePath);
+  });
+
+  ipcMain.handle("library:local:songs:remove", (_event, payload: { filePath?: string; deleteFile?: boolean }) => {
+    return removeLocalSongFromList(payload);
   });
 }

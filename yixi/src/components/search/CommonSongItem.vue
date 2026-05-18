@@ -10,7 +10,7 @@
     <div class="img-con">
       <n-image
         preview-disabled
-        :src="getSongCover(song)"
+        :src="coverUrl"
         :fallback-src="defaultSongCover"
         lazy
         alt="image"
@@ -57,7 +57,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { Song } from "@/types/song";
 import { defaultSongCover, formatDuration, getSongCover } from "@/utils/common";
 import { NImage, NButton, NIcon, NTag } from "naive-ui";
@@ -72,7 +72,13 @@ const props = defineProps<{
   playing: boolean;
 }>();
 const isHover = ref(false);
+const metadataCover = ref("");
 const collect = useCollectStore();
+
+const coverUrl = computed(() => {
+  if (props.song.source === "local") return metadataCover.value || defaultSongCover;
+  return getSongCover(props.song);
+});
 
 const emit = defineEmits<{
   play: [song: Song];
@@ -105,6 +111,19 @@ const handleTagColor = (source: string) => {
       return "gray";
   }
 };
+
+watch(
+  () => props.song.filePath || props.song.urlParam,
+  async (filePath) => {
+    metadataCover.value = "";
+    if (props.song.source !== "local" || !filePath) return;
+    const cover = await window.electronAPI.getLocalSongCover(String(filePath));
+    if ((props.song.filePath || props.song.urlParam) === filePath) {
+      metadataCover.value = cover;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style lang="scss" scoped>

@@ -77,7 +77,13 @@
           </div>
         </div>
       </template>
-      <ContextMenu ref="contextMenuRef" />
+      <ContextMenu
+        ref="contextMenuRef"
+        :removable="removable"
+        @remove-song="emit('removeSong', $event)"
+        @download-song="handleDownloadSong"
+        @detail-song="handleDetailSong" />
+      <DownloadSongDialog :ref="songDownload.downloadDialogRef" />
     </div>
   </Transition>
 </template>
@@ -87,10 +93,13 @@ import { useAudioStore } from "@/store";
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import CommonSongItem from "@/components/search/CommonSongItem.vue";
 import ContextMenu from "@/components/common/ContextMenu.vue";
+import DownloadSongDialog from "@/components/player/DownloadSongDialog.vue";
 import { VirtList } from "vue-virt-list";
 import type { Song } from "@/types/song";
 import { onBeforeRouteLeave } from "vue-router";
+import { useSongDownload } from "@/composables/useSongDownload";
 const player = useAudioStore();
+const songDownload = useSongDownload();
 
 const props = defineProps<{
   songs: Song[];
@@ -100,12 +109,14 @@ const props = defineProps<{
   showHeader?: boolean;
   showFooter?: boolean;
   hasMore?: boolean;
+  removable?: boolean;
 }>();
 
 const emit = defineEmits<{
   scroll: [e: Event];
   scrollToBottom: [e: Event];
   scrollToTop: [e: Event];
+  removeSong: [song: Song];
 }>();
 
 const filteredSongs = computed(() => {
@@ -141,6 +152,14 @@ const handleAdd = (song: Song) => {
 
 const handleNextPlay = (song: Song) => {
   player.nextPlay(song);
+};
+
+const handleDownloadSong = (song: Song) => {
+  songDownload.openDownloadDialog(song);
+};
+
+const handleDetailSong = (_song: Song) => {
+  window.$message.info("详情功能后续接入");
 };
 
 onMounted(() => {

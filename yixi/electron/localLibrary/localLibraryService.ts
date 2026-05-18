@@ -1,6 +1,6 @@
 import { BrowserWindow } from "electron";
 import { createHash } from "crypto";
-import { readdir, stat } from "fs/promises";
+import { readdir, stat, unlink } from "fs/promises";
 import { basename, dirname, extname, normalize, resolve } from "path";
 import { parseFile } from "music-metadata";
 import { getAppDatabase } from "../database";
@@ -33,6 +33,7 @@ type AudioFileCandidate = {
 
 const LOCAL_SETTING_KEY = "local-setting";
 const AUDIO_EXTENSIONS = new Set([".mp3", ".flac", ".wav", ".ogg", ".aac", ".m4a"]);
+const coverCache = new Map<string, string>();
 
 let scanPromise: Promise<LocalLibraryScanStatus> | null = null;
 let status: LocalLibraryScanStatus = {
@@ -51,6 +52,51 @@ export function getLocalLibraryScanStatus() {
 
 export function listLocalSongs() {
   return getAppDatabase().listLocalSongs().map((item) => item.payload);
+}
+
+export async function getLocalSongCover(filePath: string) {
+  const normalizedPath = normalizeFilePath(filePath);
+  if (!normalizedPath) return "";
+
+  try {
+    const info = await stat(normalizedPath);
+    const cacheKey = `${normalizedPath}|${info.size}|${Math.round(info.mtimeMs)}`;
+    if (coverCache.has(cacheKey)) return coverCache.get(cacheKey) ?? "";
+
+    const metadata = await parseFile(normalizedPath, { duration: false });
+    const picture = metadata.common.picture?.[0];
+    const cover = picture?.data?.length
+      ? `data:${picture.format || "image/jpeg"};base64,${Buffer.from(picture.data).toString("base64")}`
+      : "";
+    coverCache.set(cacheKey, cover);
+    trimCoverCache();
+    return cover;
+  } catch {
+    return "";
+  }
+}
+
+export async function removeLocalSongFromList(payload: { filePath?: string; deleteFile?: boolean }) {
+  const filePath = normalizeFilePath(payload.filePath);
+  if (!filePath) return { removed: false, deleted: false };
+
+  const db = getAppDatabase();
+  db.removeLocalSongByFilePath(filePath);
+  db.removeDownloadRecordsByFilePath(filePath);
+  let deleted = false;
+
+  if (payload.deleteFile) {
+    try {
+      await unlink(filePath);
+      deleted = true;
+    } catch (error: any) {
+      if (error?.code !== "ENOENT") throw error;
+      deleted = true;
+    }
+  }
+
+  clearCoverCache(filePath);
+  return { removed: true, deleted };
 }
 
 export function startLocalLibrarySmartScan() {
@@ -294,4 +340,23 @@ function notifyStatus(channel: string) {
   BrowserWindow.getAllWindows().forEach((win) => {
     win.webContents.send(channel, snapshot);
   });
+}
+
+function normalizeFilePath(filePath?: string) {
+  return typeof filePath === "string" ? normalize(filePath.trim()) : "";
+}
+
+function clearCoverCache(filePath: string) {
+  for (const key of coverCache.keys()) {
+    if (key.startsWith(`${filePath}|`)) coverCache.delete(key);
+  }
+}
+
+function trimCoverCache() {
+  const maxSize = 300;
+  while (coverCache.size > maxSize) {
+    const oldest = coverCache.keys().next().value;
+    if (!oldest) break;
+    coverCache.delete(oldest);
+  }
 }

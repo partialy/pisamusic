@@ -2,6 +2,7 @@ import type { Song } from "@/types/song";
 import { NIcon } from "naive-ui";
 import { h, type Component } from "vue";
 import defaultCover from "@/assets/images/default-cover.png";
+import { getKgImageUrl, getSongCoverUrl, getWyCoverUrl } from "./songCoverUrl";
 interface IconOptions {
   style?: Record<string, string | number>;
   class?: string | Record<string, boolean> | Array<string>;
@@ -44,8 +45,7 @@ export function getKgImage(
   url?: string,
   size: 120 | 240 | 360 | 480 = 120
 ): string {
-  if (!url) return defaultCover;
-  return url.replace("{size}", size.toString());
+  return getKgImageUrl(url, size, defaultCover);
 }
 /**
  * 格式化日期时间
@@ -103,22 +103,7 @@ export function debounce(fn: Function, delay: number) {
  * @returns 图片的url
  */
 export function getSongCover(song: Song, size: 120 | 240 | 360 | 480 = 120) {
-  if (song.source == "local") return defaultCover;
-  if (song.source == "kg") return getKgImage(song.cover, size);
-  if (song.source == "wy") {
-    const res = wyUtils.getCoverUrl(song);
-    switch (size) {
-      case 120:
-        return res.coverSize.s || res.cover || defaultCover;
-      case 240:
-        return res.coverSize.m || res.cover || defaultCover;
-      case 360:
-        return res.coverSize.l || res.cover || defaultCover;
-      case 480:
-        return res.coverSize.xl || res.cover || defaultCover;
-    }
-  }
-  return song.cover || defaultCover;
+  return getSongCoverUrl(song, size, defaultCover);
 }
 
 export const defaultSongCover = defaultCover;
@@ -152,22 +137,7 @@ export const wyUtils = {
       xl: string;
     }
   } => {
-    const cover =
-      item.cover ||
-      item.picUrl ||
-      item.coverUrl ||
-      item.coverImgUrl ||
-      item.imgurl ||
-      item.img1v1Url ||
-      (item.album || item.al)?.picUrl ||
-      item.al?.xInfo?.picUrl;
-    const coverSize = {
-      s: wyUtils.getCoverSizeUrl(cover, 100),
-      m: wyUtils.getCoverSizeUrl(cover, 300),
-      l: wyUtils.getCoverSizeUrl(cover, 1024),
-      xl: wyUtils.getCoverSizeUrl(cover, 1920),
-    };
-    return { cover: cover ? cover : defaultCover, coverSize };
+    return getWyCoverUrl(item, defaultCover);
   },
 
   // 获取图片不同尺寸

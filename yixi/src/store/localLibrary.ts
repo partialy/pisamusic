@@ -57,6 +57,12 @@ export const useLocalLibraryStore = defineStore("localLibrary", {
       await this.loadSongs();
     },
 
+    async removeSongFromList(filePath: string, deleteFile = false) {
+      const result = await electronAPI.removeLocalSongFromList({ filePath, deleteFile });
+      await this.loadSongs();
+      return result;
+    },
+
     bindScanEvents() {
       electronAPI.onLocalLibraryScanStarted((status) => {
         this.status = status;

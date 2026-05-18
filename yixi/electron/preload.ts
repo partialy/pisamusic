@@ -119,6 +119,9 @@ const libraryIpc = {
   listLocalSongs: () => ipcRenderer.invoke("library:local:songs:list"),
   getLocalLibraryScanStatus: () => ipcRenderer.invoke("library:local:scan-status"),
   refreshLocalLibrary: () => ipcRenderer.invoke("library:local:refresh"),
+  getLocalSongCover: (filePath: string) => ipcRenderer.invoke("library:local:cover", filePath),
+  removeLocalSongFromList: (payload: { filePath?: string; deleteFile?: boolean }) =>
+    ipcRenderer.invoke("library:local:songs:remove", cloneIpcPayload(payload)),
   onLocalLibraryScanStarted: (callback: (status: any) => void) =>
     on("local-library:scan-started", callback),
   onLocalLibraryScanFinished: (callback: (status: any) => void) =>

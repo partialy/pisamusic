@@ -68,8 +68,10 @@
         v-if="(activeTab === 'local' || activeTab === 'download') && currentSongs.length"
         :songs="currentSongs"
         :min-size="64"
+        removable
         show-footer
-        show-header />
+        show-header
+        @remove-song="openRemoveConfirm" />
 
       <div v-else-if="activeTab === 'downloading'" class="task-list">
         <div v-if="downloadTasks.length" class="task-rows">
@@ -116,15 +118,35 @@
         class="empty-state"
         :description="activeTab === 'download' ? '暂无下载歌曲' : '暂无本地歌曲'" />
     </div>
+
+    <DialogWrapper v-model:visible="showRemoveConfirm">
+      <template #all-content>
+        <n-card
+          title="移除歌曲"
+          class="remove-song-dialog"
+          closable
+          @close="closeRemoveConfirm">
+          <div class="content">
+            确认从列表移除「{{ removeCandidate?.name || "未知歌曲" }}」？
+          </div>
+          <div class="footer">
+            <n-button tertiary @click="closeRemoveConfirm">取消</n-button>
+            <n-button secondary :loading="removing" @click="confirmRemove(false)">移除</n-button>
+            <n-button type="error" secondary :loading="removing" @click="confirmRemove(true)">彻底删除</n-button>
+          </div>
+        </n-card>
+      </template>
+    </DialogWrapper>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { NButton, NEmpty, NIcon, NInput, NProgress } from "naive-ui";
+import { NButton, NCard, NEmpty, NIcon, NInput, NProgress } from "naive-ui";
 import { Play, RefreshCw, Search } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import SongList from "@/components/list/SongList.vue";
+import DialogWrapper from "@/components/common/DialogWrapper.vue";
 import { useAudioStore, useLocalLibraryStore } from "@/store";
 import type { Song } from "@/types/song";
 import { normalizeSong } from "@/utils/song";
@@ -149,6 +171,9 @@ const searchFocused = ref(false);
 const downloadedSongs = ref<Song[]>([]);
 const downloadTasks = ref<DownloadTaskSnapshot[]>([]);
 const downloadRecords = ref<DownloadRecordItem[]>([]);
+const showRemoveConfirm = ref(false);
+const removeCandidate = ref<Song | null>(null);
+const removing = ref(false);
 let pollingTimer: number | undefined;
 
 const tabs = computed(() => [
@@ -215,6 +240,40 @@ async function reloadDownloadData() {
   downloadRecords.value = records;
 }
 
+function openRemoveConfirm(song: Song) {
+  removeCandidate.value = song;
+  showRemoveConfirm.value = true;
+}
+
+function closeRemoveConfirm() {
+  if (removing.value) return;
+  showRemoveConfirm.value = false;
+  removeCandidate.value = null;
+}
+
+async function confirmRemove(deleteFile: boolean) {
+  const song = removeCandidate.value;
+  const filePath = song?.filePath || song?.urlParam;
+  if (!filePath) {
+    window.$message.warning("当前歌曲没有可移除的本地文件路径");
+    closeRemoveConfirm();
+    return;
+  }
+
+  removing.value = true;
+  try {
+    await localLibrary.removeSongFromList(String(filePath), deleteFile);
+    await reloadDownloadData();
+    window.$message.success(deleteFile ? "已彻底删除" : "已从列表移除");
+    showRemoveConfirm.value = false;
+    removeCandidate.value = null;
+  } catch (error) {
+    window.$message.error(error instanceof Error ? error.message : "移除失败");
+  } finally {
+    removing.value = false;
+  }
+}
+
 function startPolling() {
   stopPolling();
   pollingTimer = window.setInterval(() => {
@@ -279,6 +338,17 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+@keyframes fade-in {
+  from {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .local-download-page {
   width: 100%;
   height: 100%;
@@ -425,5 +495,25 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.remove-song-dialog {
+  width: 500px;
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--color-bg-track);
+  animation: fade-in 0.4s ease-in-out;
+
+  .content {
+    margin-bottom: 20px;
+    color: var(--color-text-default);
+  }
+
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+  }
 }
 </style>

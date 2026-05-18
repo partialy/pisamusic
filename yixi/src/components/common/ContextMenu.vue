@@ -3,7 +3,7 @@
     class="song-list-menu"
     placement="bottom-start"
     trigger="manual"
-    style="border-radius: 8px"
+    style="border-radius: 8px; max-width: 200px"
     :x="x"
     :y="y"
     :show="show"
@@ -19,11 +19,13 @@ import type { CommonPlaylist, Song } from "@/types/song";
 import {
   AddToPlaylist,
   CollectIcon,
+  DeleteIcon,
   MusicIcon,
   NextPlayIcon,
   PlayStatic,
   SingerIcon,
 } from "@/icons";
+import { Download, Info } from "lucide-vue-next";
 import { useAudioStore, useCollectStore } from "@/store";
 import { renderIcon } from "@/utils/common";
 
@@ -33,6 +35,16 @@ const show = ref(false);
 const options = ref<DropdownOption[]>([]);
 const collector = useCollectStore();
 const player = useAudioStore();
+const props = withDefaults(defineProps<{
+  removable?: boolean;
+}>(), {
+  removable: false,
+});
+const emit = defineEmits<{
+  removeSong: [song: Song];
+  downloadSong: [song: Song];
+  detailSong: [song: Song];
+}>();
 
 const openContextMenu = (
   e: MouseEvent,
@@ -55,16 +67,22 @@ const openContextMenu = (
 };
 
 const createSongOptions = (song: Song) => {
-  return [
+  const songOptions: DropdownOption[] = [
     {
       label: song.name,
       disabled: true,
+      props: {
+        title: song.name,
+      },
       icon: renderIcon(MusicIcon, {}, { size: 24 }),
       key: "music",
     },
     {
       label: song.singer,
       disabled: true,
+      props: {
+        title: song.singer,
+      },
       icon: renderIcon(SingerIcon, {}, { size: 24 }),
       key: "singer",
     },
@@ -72,6 +90,7 @@ const createSongOptions = (song: Song) => {
     {
       label: "播放",
       props: {
+        title: "播放",
         onClick: () => player.setPlaylist([song], true),
       },
       icon: renderIcon(PlayStatic, {}, { size: 24 }),
@@ -80,6 +99,7 @@ const createSongOptions = (song: Song) => {
     {
       label: "下一首播放",
       props: {
+        title: "下一首播放",
         onClick: () => player.nextPlay(song),
       },
       icon: renderIcon(NextPlayIcon, {}, { size: 24 }),
@@ -88,6 +108,7 @@ const createSongOptions = (song: Song) => {
     {
       label: "添加到列表",
       props: {
+        title: "添加到列表",
         onClick: () => player.setPlaylist([song]),
       },
       icon: renderIcon(AddToPlaylist, {}, { size: 24 }),
@@ -96,6 +117,7 @@ const createSongOptions = (song: Song) => {
     {
       label: collector.containsSong(song) ? "取消收藏" : "添加到收藏",
       props: {
+        title: collector.containsSong(song) ? "取消收藏" : "添加到收藏",
         onClick: () => collector.collectSong(song),
       },
       icon: renderIcon(
@@ -105,7 +127,46 @@ const createSongOptions = (song: Song) => {
       ),
       key: "collect",
     },
-  ] as DropdownOption[];
+  ];
+
+  if (song.source !== "local") {
+    songOptions.push({
+      label: "下载",
+      props: {
+        title: "下载",
+        onClick: () => emit("downloadSong", song),
+      },
+      icon: renderIcon(Download, {}, { size: 22 }),
+      key: "download",
+    });
+  }
+
+  songOptions.push({
+    label: "详情",
+    props: {
+      title: "详情",
+      onClick: () => emit("detailSong", song),
+    },
+    icon: renderIcon(Info, {}, { size: 22 }),
+    key: "detail",
+  });
+
+  if (props.removable) {
+    songOptions.push(
+      { type: "divider", key: "remove-divider" },
+      {
+        label: "移除",
+        props: {
+          title: "移除",
+          onClick: () => emit("removeSong", song),
+        },
+        icon: renderIcon(DeleteIcon, {}, { size: 24 }),
+        key: "remove",
+      }
+    );
+  }
+
+  return songOptions;
 };
 
 const createPlaylistOptions = (playlist: CommonPlaylist) => {
@@ -121,6 +182,7 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
     {
       label: collector.containsPlaylist(playlist) ? "取消收藏" : "添加到收藏",
       props: {
+        title: collector.containsPlaylist(playlist) ? "取消收藏" : "添加到收藏",
         onClick: () => collector.collectList(playlist),
       },
     },
@@ -129,3 +191,35 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
 
 defineExpose({ openContextMenu });
 </script>
+
+<style>
+.song-list-menu {
+  max-width: 200px;
+  overflow: hidden;
+}
+
+.song-list-menu .n-dropdown-option {
+  max-width: 200px;
+}
+
+.song-list-menu .n-dropdown-option-body {
+  max-width: 200px;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.song-list-menu .n-dropdown-option-body__prefix {
+  flex: 0 0 auto;
+}
+
+.song-list-menu .n-dropdown-option-body__label {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>

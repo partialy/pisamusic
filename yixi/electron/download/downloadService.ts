@@ -13,6 +13,7 @@ import type {
 } from "../database/appDatabase";
 import { fetchLyrics, resolvePlayableUrl } from "../music/musicService";
 import { defaultQualityKeyForSource, qualityKeyMatchesSource } from "../music/quality";
+import { getSongCoverUrl } from "../../src/utils/songCoverUrl";
 
 type DownloadTrackPayload = {
   song: TrackSnapshot;
@@ -481,14 +482,7 @@ async function fetchCover(song: TrackSnapshot): Promise<CoverAsset | null> {
 }
 
 function pickCoverUrl(song: TrackSnapshot) {
-  const coverSize = song.coverSize as Record<string, unknown> | undefined;
-  return (
-    toStringValue(coverSize?.xl) ||
-    toStringValue(coverSize?.l) ||
-    toStringValue(coverSize?.m) ||
-    toStringValue(coverSize?.s) ||
-    toStringValue(song.cover)
-  );
+  return getSongCoverUrl(song, 480);
 }
 
 function inferAudioExtension(url: string, contentType: string | null, qualityKey: string) {

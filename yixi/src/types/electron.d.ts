@@ -93,6 +93,11 @@ type LocalLibraryScanStatus = {
   skipped: boolean;
 };
 
+type RemoveLocalSongResult = {
+  removed: boolean;
+  deleted: boolean;
+};
+
 type QueueSnapshot = {
   currentIndex: number;
   queue: TrackSnapshot[];
@@ -499,6 +504,11 @@ type ElectronIpcApi = {
   listLocalSongs: () => Promise<TrackSnapshot[]>;
   getLocalLibraryScanStatus: () => Promise<LocalLibraryScanStatus>;
   refreshLocalLibrary: () => Promise<LocalLibraryScanStatus>;
+  getLocalSongCover: (filePath: string) => Promise<string>;
+  removeLocalSongFromList: (payload: {
+    filePath?: string;
+    deleteFile?: boolean;
+  }) => Promise<RemoveLocalSongResult>;
   onLocalLibraryScanStarted: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
   onLocalLibraryScanFinished: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
   onLocalLibraryScanFailed: (callback: (status: LocalLibraryScanStatus) => void) => () => void;

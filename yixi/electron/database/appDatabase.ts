@@ -618,6 +618,13 @@ export class AppDatabase {
     return rows.map((row) => this.toLocalSong(row));
   }
 
+  removeLocalSongByFilePath(filePath: string) {
+    const normalizedPath = this.toStringValue(filePath);
+    if (!normalizedPath) return false;
+    this.db.prepare("DELETE FROM local_songs WHERE file_path = ?").run(normalizedPath);
+    return true;
+  }
+
   replaceLocalSongs(songs: LocalSongItem[], meta: LocalLibraryScanMeta) {
     const insertSong = this.db.prepare(
       `INSERT INTO local_songs (
@@ -762,6 +769,13 @@ export class AppDatabase {
           filePath: record.filePath,
         };
       });
+  }
+
+  removeDownloadRecordsByFilePath(filePath: string) {
+    const normalizedPath = this.toStringValue(filePath);
+    if (!normalizedPath) return false;
+    this.db.prepare("DELETE FROM download_records WHERE file_path = ?").run(normalizedPath);
+    return true;
   }
 
   addNetworkErrorRecord(input: NetworkErrorRecordInput) {
