@@ -39,7 +39,6 @@ import {
 } from "./store";
 import { storeToRefs } from "pinia";
 import {
-  message,
   dialog,
   notification,
   modal,
@@ -47,6 +46,7 @@ import {
 } from "./utils/common/message";
 import electronAPI from "./utils/electron";
 import { getColorFromUrl, getSongCover } from "./utils/common";
+import { message } from "./utils/pure/message";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();

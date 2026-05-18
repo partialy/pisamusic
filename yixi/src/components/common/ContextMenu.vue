@@ -28,6 +28,8 @@ import {
 import { Download, Info } from "lucide-vue-next";
 import { useAudioStore, useCollectStore } from "@/store";
 import { renderIcon } from "@/utils/common";
+import { message } from "@/utils/pure/message";
+import { fetchAllPlaylistTracks } from "@/utils/playlistTracks";
 
 const x = ref(0);
 const y = ref(0);
@@ -173,11 +175,21 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
   return [
     {
       label: "播放全部",
-      disabled: true,
+      props: {
+        title: "播放全部",
+        onClick: () => handlePlayPlaylist(playlist),
+      },
+      icon: renderIcon(PlayStatic, {}, { size: 24 }),
+      key: "playlist-play-all",
     },
     {
       label: "添加到播放列表",
-      disabled: true,
+      props: {
+        title: "添加到播放列表",
+        onClick: () => handleAddPlaylist(playlist),
+      },
+      icon: renderIcon(AddToPlaylist, {}, { size: 24 }),
+      key: "playlist-add",
     },
     {
       label: collector.containsPlaylist(playlist) ? "取消收藏" : "添加到收藏",
@@ -185,8 +197,64 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
         title: collector.containsPlaylist(playlist) ? "取消收藏" : "添加到收藏",
         onClick: () => collector.collectList(playlist),
       },
+      icon: renderIcon(
+        CollectIcon,
+        {},
+        { size: 24, color: collector.containsPlaylist(playlist) ? "red" : "#999" }
+      ),
+      key: "playlist-collect",
+    },
+    {
+      label: "详情",
+      disabled: true,
+      props: {
+        title: "详情",
+      },
+      icon: renderIcon(Info, {}, { size: 22 }),
+      key: "playlist-detail",
     },
   ] as DropdownOption[];
+};
+
+const handlePlayPlaylist = async (playlist: CommonPlaylist) => {
+  const loading = message.loading("正在获取歌单歌曲...");
+  try {
+    const songs = await fetchAllPlaylistTracks(playlist);
+    if (!songs.length) {
+      message.warning("歌单暂无可播放歌曲");
+      return;
+    }
+
+    await player.switchPlayList(songs, true);
+    message.success(`已开始播放 ${songs.length} 首歌曲`);
+  } catch (error) {
+    message.error(getPlaylistActionError(error, "播放全部失败"));
+  } finally {
+    loading.close();
+  }
+};
+
+const handleAddPlaylist = async (playlist: CommonPlaylist) => {
+  const loading = message.loading("正在获取歌单歌曲...");
+  try {
+    const songs = await fetchAllPlaylistTracks(playlist);
+    if (!songs.length) {
+      message.warning("歌单暂无可添加歌曲");
+      return;
+    }
+
+    await player.setPlaylist(songs);
+    message.success(`已添加 ${songs.length} 首歌曲到播放列表`);
+  } catch (error) {
+    message.error(getPlaylistActionError(error, "添加到播放列表失败"));
+  } finally {
+    loading.close();
+  }
+};
+
+const getPlaylistActionError = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
 };
 
 defineExpose({ openContextMenu });
