@@ -89,7 +89,10 @@ const createSongOptions = (song: Song) => {
       label: "播放",
       props: {
         title: "播放",
-        onClick: () => player.setPlaylist([song], true),
+        onClick: () => {
+          player.setPlaylist([song], true);
+          message.success(`开始播放 ${song.name}`);
+        },
       },
       icon: renderIcon(PlayStatic, {}, { size: 24 }),
       key: "play",
@@ -98,7 +101,10 @@ const createSongOptions = (song: Song) => {
       label: "下一首播放",
       props: {
         title: "下一首播放",
-        onClick: () => player.nextPlay(song),
+        onClick: () => {
+          player.nextPlay(song);
+          message.success(`已将 ${song.name} 添加到下一首播放`);
+        },
       },
       icon: renderIcon(NextPlayIcon, {}, { size: 24 }),
       key: "nextplay",
@@ -107,7 +113,10 @@ const createSongOptions = (song: Song) => {
       label: "添加到播放列表",
       props: {
         title: "添加到播放列表",
-        onClick: () => player.setPlaylist([song]),
+        onClick: () => {
+          player.setPlaylist([song]);
+          message.success(`已将 ${song.name} 添加到播放列表`);
+        },
       },
       icon: renderIcon(AddToPlaylist, {}, { size: 24 }),
       key: "add",
@@ -125,7 +134,14 @@ const createSongOptions = (song: Song) => {
       label: collector.containsSong(song) ? "取消收藏" : "添加到收藏",
       props: {
         title: collector.containsSong(song) ? "取消收藏" : "添加到收藏",
-        onClick: () => collector.collectSong(song),
+        onClick: () => {
+          collector.collectSong(song);
+          message.success(
+            collector.containsSong(song)
+              ? `已将 ${song.name} 从收藏中移除`
+              : `已将 ${song.name} 添加到收藏`
+          );
+        },
       },
       icon: renderIcon(
         CollectIcon,
