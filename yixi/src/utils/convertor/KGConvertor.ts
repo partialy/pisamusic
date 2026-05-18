@@ -163,12 +163,17 @@ const convertKGPlaylist = (
       play_count: i.play_count,
       collect_count: i.collectcount,
       source: "kg",
-      tags: i.tags?.map((tag) => {
+      tags: Array.isArray(i.tags) ? i.tags?.map((tag) => {
         return {
           name: tag.tag_name,
           id: tag.tag_id.toString(),
         };
-      }) || [],
+      }) : Array.isArray(i.abtags) ? i.abtags.map((tag) => {
+        return {
+          name: tag.name,
+          id: tag.toString(),
+        };
+      }) : [],
     });
   }
 };

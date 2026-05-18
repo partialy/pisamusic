@@ -29,32 +29,15 @@
               </div>
             </div>
 
-            <div class="field-grid">
-              <DetailField label="歌名" :value="song.name" />
-              <DetailField label="歌手" :value="song.singer" />
-              <DetailField label="专辑" :value="song.album" />
-              <DetailField label="音源" :value="sourceLabel(song.source)" />
-              <DetailField label="歌曲 ID" :value="song.id" />
-              <DetailField label="播放参数" :value="song.urlParam" />
-              <DetailField label="时长" :value="formatDuration(song.duration)" />
-              <DetailField label="是否收藏" :value="collector.containsSong(song) ? '是' : '否'" />
-              <DetailField v-if="song.source === 'local'" label="歌曲路径" :value="song.filePath || song.urlParam" wide />
-              <DetailField v-if="song.source === 'local'" label="封面来源" :value="localCoverSource" wide />
-              <DetailField v-else label="封面地址" :value="song.cover" wide />
-              <DetailField v-if="song.d_cover" label="动态封面" :value="song.d_cover" wide />
-              <DetailField v-if="song.lyric" label="歌词" :value="song.lyric" wide />
-              <DetailField v-if="song.krc" label="KRC 歌词" :value="song.krc" wide />
-            </div>
-
-            <div v-if="song.coverSize || song.size" class="extra-section">
-              <div class="section-title">其他字段</div>
-              <div class="field-grid compact">
-                <DetailField
-                  v-for="item in songExtraFields"
-                  :key="item.label"
-                  :label="item.label"
-                  :value="item.value ?? ''" />
-              </div>
+            <div class="description-block">
+              <div class="description-title">信息</div>
+              <button
+                class="description-content"
+                type="button"
+                :title="songDescription"
+                @click="copyFieldValue(songDescription)">
+                {{ songDescription }}
+              </button>
             </div>
           </div>
 
@@ -72,28 +55,15 @@
               </div>
             </div>
 
-            <div class="field-grid">
-              <DetailField label="歌单名" :value="playlist.name" />
-              <DetailField label="来源" :value="sourceLabel(playlist.source)" />
-              <DetailField label="歌单 ID" :value="playlist.id" />
-              <DetailField label="歌曲数" :value="playlist.song_count || 0" />
-              <DetailField label="播放数" :value="playlist.play_count || '暂无'" />
-              <DetailField label="收藏数" :value="playlist.collect_count || '暂无'" />
-              <DetailField label="是否收藏" :value="collector.containsPlaylist(playlist) ? '是' : '否'" />
-              <DetailField label="封面地址" :value="playlist.cover || '默认封面'" wide />
-              <DetailField label="描述" :value="playlist.desc || '暂无描述'" wide />
-              <DetailField label="标签" :value="playlistTags" wide />
-            </div>
-
-            <div v-if="playlist.coverSize" class="extra-section">
-              <div class="section-title">封面尺寸</div>
-              <div class="field-grid compact">
-                <DetailField
-                  v-for="item in playlistCoverFields"
-                  :key="item.label"
-                  :label="item.label"
-                  :value="item.value ?? ''" />
-              </div>
+            <div class="description-block">
+              <div class="description-title">描述</div>
+              <button
+                class="description-content"
+                type="button"
+                :title="playlist.desc || '暂无描述'"
+                @click="copyFieldValue(playlist.desc || '暂无描述')">
+                {{ playlist.desc || "暂无描述" }}
+              </button>
             </div>
           </div>
         </section>
@@ -103,34 +73,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref } from "vue";
+import { computed, ref } from "vue";
 import { NIcon } from "naive-ui";
 import { Info, X } from "lucide-vue-next";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { useCollectStore } from "@/store";
-import { defaultSongCover, formatDuration, formatSize, getKgImage, getSongCover } from "@/utils/common";
+import { defaultSongCover, getKgImage, getSongCover } from "@/utils/common";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 
 type DetailFieldItem = {
   label: string;
   value: string | number | boolean | null | undefined;
 };
-
-const DetailField = defineComponent({
-  name: "DetailField",
-  props: {
-    label: { type: String, required: true },
-    value: { type: [String, Number, Boolean], default: "" },
-    wide: { type: Boolean, default: false },
-  },
-  setup(props) {
-    return () =>
-      h("div", { class: ["detail-field", props.wide ? "wide" : ""] }, [
-        h("div", { class: "field-label" }, props.label),
-        h("div", { class: "field-value", title: stringifyValue(props.value) }, stringifyValue(props.value)),
-      ]);
-  },
-});
 
 const collector = useCollectStore();
 const show = ref(false);
@@ -151,45 +105,27 @@ const playlistCover = computed(() => {
   if (target.source === "kg") return getKgImage(target.cover, 240);
   return target.coverSize?.m || target.cover || defaultPlaylistCover;
 });
-const localCoverSource = computed(() => {
+const songPath = computed(() => {
+  const target = song.value;
+  if (!target) return "";
+  if (target.source === "local") return target.filePath || target.urlParam || "暂无";
+  return "在线音源";
+});
+const songCoverSource = computed(() => {
+  const target = song.value;
+  if (!target) return "";
+  if (target.source !== "local") {
+    return target.cover || target.coverSize ? "在线封面" : "默认封面";
+  }
   if (localCoverLoading.value) return "正在读取内嵌封面";
   if (localCover.value) return "来自内嵌封面";
-  if (song.value?.cover) return song.value.cover;
   return "无内嵌封面，使用默认封面";
 });
-const playlistTags = computed(() => {
-  const tags = playlist.value?.tags || [];
-  return tags.length ? tags.map((tag) => tag.name).join(" / ") : "暂无";
-});
-const songExtraFields = computed<DetailFieldItem[]>(() => {
-  const target = song.value;
-  if (!target) return [];
-  const fields: DetailFieldItem[] = [];
-  if (target.coverSize) {
-    fields.push(
-      { label: "封面 S", value: target.coverSize.s },
-      { label: "封面 M", value: target.coverSize.m },
-      { label: "封面 L", value: target.coverSize.l },
-      { label: "封面 XL", value: target.coverSize.xl }
-    );
-  }
-  if (target.size) {
-    Object.entries(target.size).forEach(([key, value]) => {
-      fields.push({ label: `大小 ${key}`, value: formatSize(value) });
-    });
-  }
-  return fields.filter((item) => stringifyValue(item.value));
-});
-const playlistCoverFields = computed<DetailFieldItem[]>(() => {
-  const coverSize = playlist.value?.coverSize;
-  if (!coverSize) return [];
-  return [
-    { label: "封面 S", value: coverSize.s },
-    { label: "封面 M", value: coverSize.m },
-    { label: "封面 L", value: coverSize.l },
-    { label: "封面 XL", value: coverSize.xl },
-  ].filter((item) => stringifyValue(item.value));
-});
+const songDescription = computed(() => [
+  `音源：${sourceLabel(song.value?.source)}`,
+  `路径：${songPath.value}`,
+  `封面来源：${songCoverSource.value}`,
+].join("\n"));
 
 function openSong(target: Song) {
   song.value = target;
@@ -225,10 +161,10 @@ async function loadLocalCover(target: Song) {
 
 function sourceLabel(source?: Song["source"] | CommonPlaylist["source"]) {
   const labels: Record<string, string> = {
-    kg: "酷狗",
-    wy: "网易云",
-    kw: "酷我",
-    qq: "QQ 音乐",
+    kg: "KG",
+    wy: "WY",
+    kw: "KW",
+    qq: "QQ",
     local: "本地",
   };
   return source ? labels[source] || source.toUpperCase() : "未知";
@@ -238,6 +174,25 @@ function stringifyValue(value: DetailFieldItem["value"]) {
   if (value === undefined || value === null || value === "") return "暂无";
   if (typeof value === "boolean") return value ? "是" : "否";
   return String(value);
+}
+
+async function copyFieldValue(value: DetailFieldItem["value"]) {
+  const text = stringifyValue(value);
+  if (!text || text === "暂无") return;
+  try {
+    await navigator.clipboard.writeText(text);
+    window.$message?.success("已复制");
+  } catch {
+    const input = document.createElement("textarea");
+    input.value = text;
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    document.body.removeChild(input);
+    window.$message?.success("已复制");
+  }
 }
 
 defineExpose({ openSong, openPlaylist });
@@ -395,6 +350,7 @@ defineExpose({ openSong, openPlaylist });
 }
 
 .field-grid {
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
@@ -407,10 +363,16 @@ defineExpose({ openSong, openPlaylist });
 
 .detail-field {
   min-width: 0;
+  max-width: 100%;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--color-border-default) 82%, transparent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--color-bg-default) 44%, transparent);
+  overflow: hidden;
 
   &.wide {
     grid-column: 1 / -1;
@@ -418,13 +380,22 @@ defineExpose({ openSong, openPlaylist });
 }
 
 .field-label {
+  width: 120px;
+  flex: 0 0 120px;
+  overflow: hidden;
   color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .field-value {
-  margin-top: 5px;
+  flex: 1 1 auto;
+  width: calc(100% - 120px);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   overflow: hidden;
   color: var(--color-text-default);
   font-size: 13px;
@@ -432,14 +403,49 @@ defineExpose({ openSong, openPlaylist });
   white-space: nowrap;
 }
 
-.extra-section {
-  margin-top: 18px;
+.field-value-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  text-align: left;
+  background: transparent;
+  cursor: copy;
 }
 
-.section-title {
+.field-value-button:hover {
+  color: var(--color-primary);
+}
+
+.description-block {
+  min-width: 0;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 82%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--color-bg-default) 44%, transparent);
+}
+
+.description-title {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.description-content {
+  width: 100%;
+  max-height: 260px;
+  margin-top: 8px;
+  padding: 0;
+  overflow: auto;
+  border: 0;
   color: var(--color-text-default);
-  font-size: 14px;
-  font-weight: 800;
+  background: transparent;
+  cursor: copy;
+  font-size: 13px;
+  line-height: 1.65;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .media-detail-dialog-enter-active,
