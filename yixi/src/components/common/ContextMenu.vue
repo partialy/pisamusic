@@ -257,7 +257,7 @@ const getPlaylistActionError = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-defineExpose({ openContextMenu });
+defineExpose({ openContextMenu, handlePlayPlaylist });
 </script>
 
 <style>

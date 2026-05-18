@@ -23,9 +23,9 @@
         :title="isCollected ? '取消收藏' : '收藏'"
         @click.stop="toggleCollect">
         <template #icon>
-          <n-icon
-            :component="Heart"
-            :color="isCollected ? '#ff5c67' : '#6d7684'" />
+          <n-icon size="24"
+            :component="CollectIcon"
+            :color="isCollected ? '#ff5c67' : '#fefefe'" />
         </template>
       </n-button>
 
@@ -37,7 +37,7 @@
           <div>
             {{ playCount }}
           </div>
-          <div class="playlist-item-play-icon">
+          <div class="playlist-item-play-icon" title="播放全部" @click.stop="$emit('playAll')">
             <n-icon size="40" :component="PlaylistPlayIcon" />
           </div>
         </div>
@@ -58,15 +58,18 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { PlaylistPlayIcon } from "@/icons";
+import { CollectIcon, PlaylistPlayIcon } from "@/icons";
 import { getKgImage } from "@/utils/common";
 import { useRouter } from "vue-router";
 import type { CommonPlaylist } from "@/types/song";
-import { Heart } from "lucide-vue-next";
 import { useCollectStore } from "@/store/collect";
 const router = useRouter();
 const showIcon = ref(false);
 const collector = useCollectStore();
+
+const emit = defineEmits<{
+  playAll: [];
+}>();
 
 const cover = computed(() => {
   if(props.item.source == "kg") {
@@ -177,6 +180,11 @@ const toggleCollect = (event: MouseEvent) => {
     height: 28%;
     padding: 10px;
     box-sizing: border-box;
+    background-color: var(--color-bg);
+
+    &:hover {
+      background-color: var(--color-bg-hover);
+    }
   }
 
   .collect-icon {
@@ -224,7 +232,7 @@ const toggleCollect = (event: MouseEvent) => {
     height: 34px;
     border-radius: 50%;
     color: #6d7684;
-    background: rgba(255, 255, 255, 0.86);
+    background: rgba(255, 255, 255, 0.5);
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
     backdrop-filter: blur(12px);
     opacity: 0.92;
@@ -252,7 +260,7 @@ const toggleCollect = (event: MouseEvent) => {
   }
 
   &:hover {
-    background-color: #fff;
+    background-color: var(--color-bg-hover);
 
     .playlist-item-image {
       border-radius: 20px 20px 0 0;

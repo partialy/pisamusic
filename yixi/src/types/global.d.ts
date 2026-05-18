@@ -1,9 +1,9 @@
-import type { MessageManager } from "@/utils/pure/message";
+import { message } from "@/utils/pure/message";
 import type { MessageApi, NotificationApi, ModalApi,DialogApi,LoadingBarApi } from "naive-ui";
 
 declare global {
   interface Window {
-    $message: MessageManager;
+    $message: typeof message;
     $notification: NotificationApi;
     $modal: ModalApi;
     $dialog: DialogApi;

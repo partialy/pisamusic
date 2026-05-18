@@ -14,6 +14,7 @@
         v-for="i in playlist"
         :key="`${i.source}:${i.id}`"
         :item="i"
+        @play-all="contextMenu?.handlePlayPlaylist(i)"
         @contextmenu.stop="
           contextMenu?.openContextMenu($event, {
             type: 'playlist',
