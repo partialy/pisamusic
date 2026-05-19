@@ -1,6 +1,6 @@
 <template>
   <div class="local-download-page">
-    <div class="page-header">
+    <div class="page-header" :class="{ collapsed: isHeaderCollapsed }">
       <h1>本地与下载</h1>
       <div class="page-tabs">
         <button
@@ -8,7 +8,7 @@
           :key="tab.key"
           class="tab-btn"
           :class="{ active: activeTab === tab.key }"
-          @click="activeTab = tab.key">
+          @click="switchLocalDownloadTab(tab.key)">
           {{ tab.label }} <span>{{ tab.count }}</span>
         </button>
       </div>
@@ -63,7 +63,7 @@
       {{ statusText }}
     </div>
 
-    <div class="page-content">
+    <div class="page-content" @wheel.passive="handleScrollableContentWheel">
       <SongList
         v-if="(activeTab === 'local' || activeTab === 'download') && currentSongs.length"
         :songs="currentSongs"
@@ -71,9 +71,11 @@
         removable
         show-footer
         show-header
+        @scroll="handleScrollableContentScroll"
+        @scroll-to-top="handleScrollableContentTop"
         @remove-song="openRemoveConfirm" />
 
-      <div v-else-if="activeTab === 'downloading'" class="task-list">
+      <div v-else-if="activeTab === 'downloading'" class="task-list" @scroll="handleScrollableContentScroll">
         <div v-if="downloadTasks.length" class="task-rows">
           <div v-for="task in downloadTasks" :key="task.taskId" class="task-row">
             <div class="task-main">
@@ -96,7 +98,7 @@
         <n-empty v-else class="empty-state" description="暂无正在下载的任务" />
       </div>
 
-      <div v-else-if="activeTab === 'records'" class="record-list">
+      <div v-else-if="activeTab === 'records'" class="record-list" @scroll="handleScrollableContentScroll">
         <div v-if="downloadRecords.length" class="record-rows">
           <div v-for="record in downloadRecords" :key="record.id" class="record-row">
             <div class="record-main">
@@ -141,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { NButton, NCard, NEmpty, NIcon, NInput, NProgress } from "naive-ui";
 import { Play, RefreshCw, Search } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
@@ -158,6 +160,7 @@ import {
   type DownloadTaskSnapshot,
 } from "@/utils/api/downloadAPI";
 import { getQualityOption } from "@/utils/musicQuality";
+import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 
 type LocalDownloadTab = "local" | "download" | "downloading" | "records";
 
@@ -168,6 +171,13 @@ const { songs: localSongs } = storeToRefs(localLibrary);
 const activeTab = ref<LocalDownloadTab>("local");
 const searchKey = ref("");
 const searchFocused = ref(false);
+const {
+  isHeaderCollapsed,
+  expandHeader,
+  handleScrollableContentScroll,
+  handleScrollableContentTop,
+  handleScrollableContentWheel,
+} = useCollapsiblePageHeader();
 const downloadedSongs = ref<Song[]>([]);
 const downloadTasks = ref<DownloadTaskSnapshot[]>([]);
 const downloadRecords = ref<DownloadRecordItem[]>([]);
@@ -222,6 +232,11 @@ function filterSongs(songs: Song[]) {
 function playAll() {
   if (!currentSongs.value.length) return;
   player.switchPlayList(currentSongs.value as Song[], true);
+}
+
+function switchLocalDownloadTab(tab: LocalDownloadTab) {
+  activeTab.value = tab;
+  expandHeader();
 }
 
 async function refreshLocalLibrary() {
@@ -326,6 +341,8 @@ function formatDate(value?: string) {
   return date.toLocaleString();
 }
 
+watch(searchKey, expandHeader);
+
 onMounted(() => {
   void localLibrary.init();
   void reloadDownloadData();
@@ -358,6 +375,22 @@ onBeforeUnmount(() => {
 }
 
 .page-header {
+  max-height: 120px;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height 0.28s ease,
+    opacity 0.2s ease,
+    transform 0.28s ease;
+
+  &.collapsed {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
+
   h1 {
     margin: 0 0 22px;
     font-size: 30px;

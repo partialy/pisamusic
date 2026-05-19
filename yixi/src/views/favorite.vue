@@ -1,18 +1,18 @@
 <template>
   <div class="favorite-page">
-    <div class="favorite-header">
+    <div class="favorite-header" :class="{ collapsed: isHeaderCollapsed }">
       <h1>我的收藏</h1>
       <div class="favorite-tabs">
         <button
           class="tab-btn"
           :class="{ active: activeTab === 'songs' }"
-          @click="activeTab = 'songs'">
+          @click="switchFavoriteTab('songs')">
           单曲 <span>{{ songs.length }}</span>
         </button>
         <button
           class="tab-btn"
           :class="{ active: activeTab === 'playlists' }"
-          @click="activeTab = 'playlists'">
+          @click="switchFavoriteTab('playlists')">
           歌单 <span>{{ playlists.length }}</span>
         </button>
       </div>
@@ -45,13 +45,15 @@
       </n-input>
     </div>
 
-    <div class="favorite-content">
+    <div class="favorite-content" @wheel.passive="handleScrollableContentWheel">
       <SongList
         v-if="activeTab === 'songs' && filteredSongs.length"
         :songs="filteredSongs"
         :min-size="64"
         show-footer
-        show-header />
+        show-header
+        @scroll="handleScrollableContentScroll"
+        @scroll-to-top="handleScrollableContentTop" />
 
       <PlaylistCollect
         v-else-if="activeTab === 'playlists' && filteredPlaylists.length"
@@ -63,13 +65,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { NButton, NEmpty, NIcon, NInput } from "naive-ui";
 import { Play, Search } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import SongList from "@/components/list/SongList.vue";
 import { useAudioStore, useCollectStore } from "@/store";
+import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 
 const player = useAudioStore();
 const collector = useCollectStore();
@@ -78,6 +81,13 @@ const { songs, playlists } = storeToRefs(collector);
 const activeTab = ref<"songs" | "playlists">("songs");
 const searchKey = ref("");
 const searchFocused = ref(false);
+const {
+  isHeaderCollapsed,
+  expandHeader,
+  handleScrollableContentScroll,
+  handleScrollableContentTop,
+  handleScrollableContentWheel,
+} = useCollapsiblePageHeader();
 
 const normalizedSearch = computed(() => searchKey.value.trim().toLowerCase());
 
@@ -106,6 +116,13 @@ function playAll() {
   player.switchPlayList(filteredSongs.value, true);
 }
 
+function switchFavoriteTab(tab: "songs" | "playlists") {
+  activeTab.value = tab;
+  expandHeader();
+}
+
+watch(searchKey, expandHeader);
+
 </script>
 
 <style lang="scss" scoped>
@@ -118,6 +135,22 @@ function playAll() {
 }
 
 .favorite-header {
+  max-height: 120px;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height 0.28s ease,
+    opacity 0.2s ease,
+    transform 0.28s ease;
+
+  &.collapsed {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
+
   h1 {
     margin: 0 0 22px;
     font-size: 30px;

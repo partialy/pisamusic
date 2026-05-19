@@ -163,3 +163,8 @@
 - 桌面端启动页由 `electron/startup/startupWindowManager.ts` 和 `web/startup-window.html` 管理，使用独立 Electron HTML 窗口，不要改回 Vue 页面内覆盖层。
 - 首次用户协议状态统一写入 SQLite settings 的 `startup-user-agreement`，不要使用 localStorage 或 electron-store 另存一份协议状态。
 - 主窗口默认隐藏加载；renderer 完成关键初始化后通过 preload 暴露的 `startup:renderer-ready` 通知 main，再由 main 关闭启动页并显示主窗口。
+
+## 数据库模块拆分补充
+
+- `electron/database/appDatabase.ts` 只保留 SQLite 连接生命周期与对外读写 API；公共类型放在 `types.ts`，建表与迁移放在 `schema.ts`，JSON / limit 工具放在 `json.ts`，DTO 归一化放在 `normalizers.ts`，数据库行到业务对象的映射放在 `mappers.ts`。
+- 后续新增 SQLite 表、字段或本地持久化能力时，按职责更新上述模块，不要把 schema、row type、mapper、normalizer 重新堆回 `appDatabase.ts`。

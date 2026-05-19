@@ -21,7 +21,9 @@
       :loading="store.cloudRefreshing && !filteredSongs.length"
       :min-size="64"
       show-header
-      show-footer />
+      show-footer
+      @scroll="emit('scroll', $event)"
+      @scroll-to-top="emit('scrollToTop', $event)" />
     <n-empty v-else class="empty-state" :description="emptyDescription" />
   </div>
 </template>
@@ -36,6 +38,10 @@ import type { MineCloudSource } from "@/utils/api/mineLibraryAPI";
 
 const store = useMineLibraryStore();
 const activeSource = ref<MineCloudSource>("all");
+const emit = defineEmits<{
+  scroll: [event: Event];
+  scrollToTop: [event: Event];
+}>();
 const filteredSongs = computed(() => store.getCloudSongsBySource(activeSource.value));
 const emptyDescription = computed(() => {
   if (activeSource.value === "private") return "私人云盘后续接入";

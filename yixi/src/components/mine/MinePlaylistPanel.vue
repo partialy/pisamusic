@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <div v-if="filteredPlaylists.length" class="playlist-grid">
+    <div v-if="filteredPlaylists.length" class="playlist-grid" @scroll="emit('scroll', $event)">
       <button
         v-for="playlist in filteredPlaylists"
         :key="`${playlist.source}:${playlist.id}`"
@@ -75,6 +75,9 @@ const router = useRouter();
 const activeSource = ref<PlaylistFilter>("all");
 const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null);
 const createDialogRef = ref<InstanceType<typeof CreatePlaylistDialog> | null>(null);
+const emit = defineEmits<{
+  scroll: [event: Event];
+}>();
 
 const filteredPlaylists = computed(() => store.getPlaylistsBySource(activeSource.value));
 
