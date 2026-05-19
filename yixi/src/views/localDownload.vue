@@ -207,14 +207,16 @@ const mergedLocalSongs = computed(() => {
   return [...map.values()];
 });
 
+const mergedLocalSongCount = computed(() => mergedLocalSongs.value.length);
+
 const statusText = computed(() => {
   const status = localLibrary.status;
   if (status.scanning) return "正在扫描本地音乐...";
   if (status.lastError) return `扫描失败：${status.lastError}`;
   if (status.lastFinishedAt) {
     return status.skipped
-      ? `本地曲库已是最新，共 ${status.total} 首`
-      : `本地曲库已更新，共 ${status.total} 首`;
+      ? `本地曲库已是最新，共 ${mergedLocalSongCount.value} 首`
+      : `本地曲库已更新，共 ${mergedLocalSongCount.value} 首`;
   }
   return "";
 });
