@@ -3,10 +3,13 @@ import {
   ipcMain,
   screen,
   type BrowserWindowConstructorOptions,
+  type Rectangle,
 } from "electron";
 import path from "path";
 import { appStore } from "./store";
 import { logger } from "./utils/logger";
+
+const BOUNDS_SAVE_DELAY_MS = 180;
 
 export type PlayerAction = "play" | "pause" | "next" | "prev" | "close";
 
@@ -49,6 +52,8 @@ export class DesktopLyricManager {
   private readonly getMainWindow: () => BrowserWindow | null;
   private readonly onStateChanged?: () => void;
   private registered = false;
+  private pendingBoundsSave: Rectangle | null = null;
+  private boundsSaveTimer: ReturnType<typeof setTimeout> | null = null;
   private snapshot: DesktopLyricSnapshot;
 
   constructor(options: DesktopLyricManagerOptions) {
@@ -188,6 +193,7 @@ export class DesktopLyricManager {
     });
 
     this.lyricWindow.on("closed", () => {
+      this.flushBoundsSave();
       this.lyricWindow = null;
       this.snapshot.visible = false;
       appStore.set("lyricConfig.desktop", false);
@@ -198,13 +204,7 @@ export class DesktopLyricManager {
     this.lyricWindow.on("resize", () => {
       if (!this.lyricWindow || this.lyricWindow.isDestroyed()) return;
       const bounds = this.lyricWindow.getBounds();
-      appStore.set("lyricConfig", {
-        ...appStore.get("lyricConfig"),
-        width: bounds.width,
-        height: bounds.height,
-        x: bounds.x,
-        y: bounds.y,
-      });
+      this.scheduleBoundsSave(bounds);
       this.getMainWindow()?.webContents.send("desktop-lyric:bounds-changed", {
         width: bounds.width,
         height: bounds.height,
@@ -232,6 +232,7 @@ export class DesktopLyricManager {
   close() {
     if (this.lyricWindow && !this.lyricWindow.isDestroyed()) {
       this.snapshot.visible = false;
+      this.flushBoundsSave();
       appStore.set("lyricConfig.desktop", false);
       this.notifyStatus(false);
       this.lyricWindow.close();
@@ -244,6 +245,7 @@ export class DesktopLyricManager {
 
   destroy() {
     this.snapshot.visible = false;
+    this.flushBoundsSave();
     this.notifyStateChanged();
     if (this.lyricWindow && !this.lyricWindow.isDestroyed()) {
       const win = this.lyricWindow;
@@ -315,6 +317,27 @@ export class DesktopLyricManager {
   private move(x: number, y: number, width: number, height: number) {
     if (!this.lyricWindow || this.lyricWindow.isDestroyed()) return;
     this.lyricWindow.setBounds({ x, y, width, height });
+    this.scheduleBoundsSave({ x, y, width, height });
+  }
+
+  private scheduleBoundsSave(bounds: Rectangle) {
+    this.pendingBoundsSave = { ...bounds };
+    if (this.boundsSaveTimer !== null) {
+      clearTimeout(this.boundsSaveTimer);
+    }
+    this.boundsSaveTimer = setTimeout(() => {
+      this.flushBoundsSave();
+    }, BOUNDS_SAVE_DELAY_MS);
+  }
+
+  private flushBoundsSave() {
+    if (this.boundsSaveTimer !== null) {
+      clearTimeout(this.boundsSaveTimer);
+      this.boundsSaveTimer = null;
+    }
+    if (!this.pendingBoundsSave) return;
+    const { x, y, width, height } = this.pendingBoundsSave;
+    this.pendingBoundsSave = null;
     appStore.set("lyricConfig", {
       ...appStore.get("lyricConfig"),
       x,
@@ -322,7 +345,6 @@ export class DesktopLyricManager {
       width,
       height,
     });
-    this.lyricWindow.setAlwaysOnTop(true, "screen-saver");
   }
 
   private getBounds() {

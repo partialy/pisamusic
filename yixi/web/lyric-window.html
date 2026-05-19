@@ -64,13 +64,15 @@
       }
 
       .btn {
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
+        padding: 0;
         border: 0;
         border-radius: 50%;
         color: inherit;
         background: transparent;
-        font-size: 20px;
+        font-size: 16px;
+        line-height: 1;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -190,34 +192,27 @@
   <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M3 3.75a.75.75 0 0 1 1.5 0v16.5a.75.75 0 0 1-1.5 0zm18 1.003c0-1.408-1.578-2.24-2.74-1.444L7.763 10.503a1.75 1.75 0 0 0-.01 2.88l10.499 7.302c1.16.807 2.749-.024 2.749-1.437z"/></svg>
         </button>
         <button class="btn" id="play-btn" title="播放">
-
-            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 32 32">
-	<path d="M0 0h32v32H0z" fill="none" />
-	<path fill="currentColor" d="M11 23a1 1 0 0 1-1-1V10a1 1 0 0 1 1.447-.894l12 6a1 1 0 0 1 0 1.788l-12 6A1 1 0 0 1 11 23m1-11.382v8.764L20.764 16Z" />
-	<path fill="currentColor" d="M16 4A12 12 0 1 1 4 16A12 12 0 0 1 16 4m0-2a14 14 0 1 0 14 14A14 14 0 0 0 16 2" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+	<path d="M0 0h24v24H0z" fill="none" />
+	<path fill="currentColor" d="M21.409 9.353a2.998 2.998 0 0 1 0 5.294L8.597 21.614C6.534 22.737 4 21.277 4 18.968V5.033c0-2.31 2.534-3.769 4.597-2.648z" />
 </svg>
-
-</svg>
-
         </button>
         <button class="btn" id="pause-btn" title="暂停">
-          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 32 32">
-	<path d="M0 0h32v32H0z" fill="none" />
-	<path fill="currentColor" d="M14 10h-2v12h2zm6 0h-2v12h2z" />
-	<path fill="currentColor" d="M16 4A12 12 0 1 1 4 16A12 12 0 0 1 16 4m0-2a14 14 0 1 0 14 14A14 14 0 0 0 16 2" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+	<path d="M0 0h24v24H0z" fill="none" />
+	<path fill="currentColor" d="M2 6c0-1.886 0-2.828.586-3.414S4.114 2 6 2s2.828 0 3.414.586S10 4.114 10 6v12c0 1.886 0 2.828-.586 3.414S7.886 22 6 22s-2.828 0-3.414-.586S2 19.886 2 18zm12 0c0-1.886 0-2.828.586-3.414S16.114 2 18 2s2.828 0 3.414.586S22 4.114 22 6v12c0 1.886 0 2.828-.586 3.414S19.886 22 18 22s-2.828 0-3.414-.586S14 19.886 14 18z" />
 </svg>
-
         </button>
         <button class="btn" id="next-btn" title="下一首">
   <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M3 4.753c0-1.408 1.578-2.24 2.74-1.444l10.498 7.194a1.75 1.75 0 0 1 .01 2.88L5.749 20.685C4.59 21.492 3 20.66 3 19.248zM21 3.75a.75.75 0 0 0-1.5 0v16.5a.75.75 0 0 0 1.5 0z"/></svg>
         </button>
         <button class="btn" id="lock-btn" title="锁定"></button>
         <button class="btn" id="close-btn" title="关闭">
-          <svg t="1740289582268" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
-        p-id="1161" width="48" height="48">
-        <path d="M810 274l-238 238 238 238-60 60-238-238-238 238-60-60 238-238-238-238 60-60 238 238 238-238z"
-            p-id="1162" fill="currentColor"></path>
-    </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+	<path d="M0 0h24v24H0z" fill="none" />
+	<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m7 7l10 10M7 17L17 7" />
+</svg>
+
         </button>
       </div>
       <div id="lyric-wrapper">
@@ -328,7 +323,7 @@
       function play() {
         state.isPlaying = true;
         playBtn.style.display = "none";
-        pauseBtn.style.display = "inline-block";
+        pauseBtn.style.display = "flex";
         if (state.rafId === null) {
           state.rafId = requestAnimationFrame(animate);
         }
@@ -337,7 +332,7 @@
       function pause() {
         state.isPlaying = false;
         pauseBtn.style.display = "none";
-        playBtn.style.display = "inline-block";
+        playBtn.style.display = "flex";
         if (state.rafId !== null) {
           cancelAnimationFrame(state.rafId);
           state.rafId = null;
@@ -462,10 +457,39 @@
 
       // --- Drag ---
       let drag = null;
+      let isPointerDown = false;
+      let pendingWindowMove = null;
+      let windowMoveRafId = null;
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function requestWindowMove(x, y, width, height) {
+        pendingWindowMove = { x, y, width, height };
+        if (windowMoveRafId !== null) return;
+        windowMoveRafId = requestAnimationFrame(flushWindowMove);
+      }
+
+      function flushWindowMove() {
+        if (windowMoveRafId !== null) {
+          cancelAnimationFrame(windowMoveRafId);
+          windowMoveRafId = null;
+        }
+        if (!pendingWindowMove) return;
+        const { x, y, width, height } = pendingWindowMove;
+        pendingWindowMove = null;
+        ipcRenderer.send("desktop-lyric:move", x, y, width, height);
+      }
+
       container.addEventListener("mousedown", async (event) => {
         if (state.locked || event.target.closest("#controller") || event.target.closest(".resize-zone")) return;
-        const bounds = await ipcRenderer.invoke("desktop-lyric:get-bounds");
-        if (!bounds) return;
+        isPointerDown = true;
+        const [bounds, screenSize] = await Promise.all([
+          ipcRenderer.invoke("desktop-lyric:get-bounds"),
+          ipcRenderer.invoke("desktop-lyric:get-screen-size"),
+        ]);
+        if (!isPointerDown || !bounds || !screenSize) return;
         drag = {
           startX: event.screenX,
           startY: event.screenY,
@@ -473,22 +497,25 @@
           y: bounds.y,
           width: bounds.width,
           height: bounds.height,
+          screenWidth: screenSize.width,
+          screenHeight: screenSize.height,
         };
       });
       document.addEventListener("mouseup", () => {
+        isPointerDown = false;
+        flushWindowMove();
         drag = null;
         resizeState = null;
       });
-      document.addEventListener("mousemove", async (event) => {
+      document.addEventListener("mousemove", (event) => {
         if (resizeState) {
           handleResizeMove(event);
           return;
         }
         if (!drag) return;
-        const screenSize = await ipcRenderer.invoke("desktop-lyric:get-screen-size");
-        const x = Math.max(0, Math.min(screenSize.width - drag.width, drag.x + event.screenX - drag.startX));
-        const y = Math.max(0, Math.min(screenSize.height - drag.height, drag.y + event.screenY - drag.startY));
-        ipcRenderer.send("desktop-lyric:move", x, y, drag.width, drag.height);
+        const x = clamp(drag.x + event.screenX - drag.startX, 0, drag.screenWidth - drag.width);
+        const y = clamp(drag.y + event.screenY - drag.startY, 0, drag.screenHeight - drag.height);
+        requestWindowMove(x, y, drag.width, drag.height);
       });
 
       // --- Resize ---
@@ -503,8 +530,9 @@
           if (state.locked) return;
           event.preventDefault();
           event.stopPropagation();
+          isPointerDown = true;
           const bounds = await ipcRenderer.invoke("desktop-lyric:get-bounds");
-          if (!bounds) return;
+          if (!isPointerDown || !bounds) return;
           const direction = [];
           if (zone.classList.contains("resize-right") || zone.classList.contains("resize-corner-br") || zone.classList.contains("resize-corner-tr")) direction.push("r");
           if (zone.classList.contains("resize-bottom") || zone.classList.contains("resize-corner-br") || zone.classList.contains("resize-corner-bl")) direction.push("b");
@@ -533,7 +561,7 @@
         let newH = resizeState.height;
 
         if (resizeState.direction.includes("r")) {
-          newW = Math.max(RESIZE_MIN_WIDTH, Math.min(RESIZE_MAX_WIDTH, resizeState.width + dx));
+          newW = clamp(resizeState.width + dx, RESIZE_MIN_WIDTH, RESIZE_MAX_WIDTH);
         }
         if (resizeState.direction.includes("l")) {
           const wDelta = Math.min(resizeState.width - RESIZE_MIN_WIDTH, Math.max(dx, -(RESIZE_MAX_WIDTH - resizeState.width)));
@@ -541,7 +569,7 @@
           newX = resizeState.x + wDelta;
         }
         if (resizeState.direction.includes("b")) {
-          newH = Math.max(RESIZE_MIN_HEIGHT, Math.min(RESIZE_MAX_HEIGHT, resizeState.height + dy));
+          newH = clamp(resizeState.height + dy, RESIZE_MIN_HEIGHT, RESIZE_MAX_HEIGHT);
         }
         if (resizeState.direction.includes("t")) {
           const hDelta = Math.min(resizeState.height - RESIZE_MIN_HEIGHT, Math.max(dy, -(RESIZE_MAX_HEIGHT - resizeState.height)));
@@ -549,7 +577,7 @@
           newY = resizeState.y + hDelta;
         }
 
-        ipcRenderer.send("desktop-lyric:move", newX, newY, newW, newH);
+        requestWindowMove(newX, newY, newW, newH);
       }
 
       ipcRenderer.on("desktop-lyric:snapshot", (_event, snapshot) => applySnapshot(snapshot));

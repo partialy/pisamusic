@@ -30,7 +30,6 @@ import {
 import { Download, Info } from "lucide-vue-next";
 import { useAudioStore, useCollectStore } from "@/store";
 import { renderIcon } from "@/utils/common";
-import { message } from "@/utils/pure/message";
 import { fetchAllPlaylistTracks } from "@/utils/playlistTracks";
 import MediaDetailDialog from "@/components/common/MediaDetailDialog.vue";
 
@@ -94,7 +93,7 @@ const createSongOptions = (song: Song) => {
         title: "播放",
         onClick: () => {
           player.setPlaylist([song], true);
-          message.success(`开始播放 ${song.name}`);
+          window.$message.success(`开始播放 ${song.name}`);
         },
       },
       icon: renderIcon(PlayStatic, {}, { size: 24 }),
@@ -106,7 +105,6 @@ const createSongOptions = (song: Song) => {
         title: "下一首播放",
         onClick: () => {
           player.nextPlay(song);
-          message.success(`已将 ${song.name} 添加到下一首播放`);
         },
       },
       icon: renderIcon(NextPlayIcon, {}, { size: 24 }),
@@ -118,7 +116,7 @@ const createSongOptions = (song: Song) => {
         title: "添加到播放列表",
         onClick: () => {
           player.setPlaylist([song]);
-          message.success(`已将 ${song.name} 添加到播放列表`);
+          window.$message.success(`已将 ${song.name} 添加到播放列表`);
         },
       },
       icon: renderIcon(AddToPlaylist, {}, { size: 24 }),
@@ -139,7 +137,7 @@ const createSongOptions = (song: Song) => {
         title: collector.containsSong(song) ? "取消收藏" : "添加到收藏",
         onClick: () => {
           collector.collectSong(song);
-          message.success(
+          window.$message.success(
             collector.containsSong(song)
               ? `已将 ${song.name} 从收藏中移除`
               : `已将 ${song.name} 添加到收藏`
@@ -241,36 +239,36 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
 };
 
 const handlePlayPlaylist = async (playlist: CommonPlaylist) => {
-  const loading = message.loading("正在获取歌单歌曲...");
+  const loading = window.$message.loading("正在获取歌单歌曲...");
   try {
     const songs = await fetchAllPlaylistTracks(playlist);
     if (!songs.length) {
-      message.warning("歌单暂无可播放歌曲");
+      window.$message.warning("歌单暂无可播放歌曲");
       return;
     }
 
     await player.switchPlayList(songs, true);
-    message.success(`已开始播放 ${songs.length} 首歌曲`);
+    window.$message.success(`已开始播放 ${songs.length} 首歌曲`);
   } catch (error) {
-    message.error(getPlaylistActionError(error, "播放全部失败"));
+    window.$message.error(getPlaylistActionError(error, "播放全部失败"));
   } finally {
     loading.close();
   }
 };
 
 const handleAddPlaylist = async (playlist: CommonPlaylist) => {
-  const loading = message.loading("正在获取歌单歌曲...");
+  const loading = window.$message.loading("正在获取歌单歌曲...");
   try {
     const songs = await fetchAllPlaylistTracks(playlist);
     if (!songs.length) {
-      message.warning("歌单暂无可添加歌曲");
+      window.$message.warning("歌单暂无可添加歌曲");
       return;
     }
 
     await player.setPlaylist(songs);
-    message.success(`已添加 ${songs.length} 首歌曲到播放列表`);
+    window.$message.success(`已添加 ${songs.length} 首歌曲到播放列表`);
   } catch (error) {
-    message.error(getPlaylistActionError(error, "添加到播放列表失败"));
+    window.$message.error(getPlaylistActionError(error, "添加到播放列表失败"));
   } finally {
     loading.close();
   }

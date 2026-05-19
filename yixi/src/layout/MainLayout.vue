@@ -5,8 +5,8 @@
         class="app-sider"
         bordered
         collapse-mode="width"
-        :collapsed-width="72"
-        :width="216"
+        :collapsed-width="88"
+        :width="232"
         :collapsed="collapsed"
         show-trigger
         @collapse="collapsed = true"
@@ -18,8 +18,8 @@
         <n-menu
           v-model:value="activeTab"
           :collapsed="collapsed"
-          :collapsed-width="72"
-          :collapsed-icon-size="22"
+          :collapsed-width="80"
+          :collapsed-icon-size="20"
           :options="menuOptions"
           @update:value="handleChangeMenu" />
       </n-layout-sider>
@@ -143,7 +143,7 @@ function renderMenuIcon(icon: Component) {
 }
 
 .app-sider {
-  margin: 1rem;
+  padding: 1rem;
   background: transparent;
 }
 
@@ -195,5 +195,9 @@ function renderMenuIcon(icon: Component) {
     white-space: nowrap;
     letter-spacing: 0;
   }
+}
+
+:deep(.n-menu-item-content) {
+  padding-left: 18px !important;
 }
 </style>

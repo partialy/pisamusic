@@ -30,7 +30,7 @@
             :index="index"
             :active="player.currentSong?.id == itemData.id"
             @play="handlePlay"
-            @add="handleAdd"
+            @add="handleAddToPlaylist"
             @next-play="handleNextPlay"
             @contextmenu.stop="
               contextMenuRef?.openContextMenu($event, {
@@ -104,6 +104,7 @@ import { useSongDownload } from "@/composables/useSongDownload";
 const player = useAudioStore();
 const songDownload = useSongDownload();
 
+
 const props = defineProps<{
   songs: Song[];
   loading?: boolean;
@@ -148,10 +149,6 @@ const observer = new ResizeObserver((entries) => {
 const handlePlay = (song: Song) => {
   player.switchPlayList(props.songs, false);
   player.play(song);
-};
-
-const handleAdd = (song: Song) => {
-  player.setPlaylist([song]);
 };
 
 const handleNextPlay = (song: Song) => {

@@ -270,6 +270,7 @@ export const useAudioStore = defineStore("audio", () => {
    * @param song
    */
   const nextPlay = (song: Song): void => {
+    window.$message.success(`已添加到下一首播放`);
     const currentIndex = getCurrentIndex();
     const targetKey = getSongQueueKey(song);
     const currentKey = currentSong.value ? getSongQueueKey(currentSong.value) : "";
