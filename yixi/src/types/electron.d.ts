@@ -8,9 +8,6 @@ type WindowLyricSettingValue = {
   width: number;
   height: number;
   overlayTaskbar: boolean;
-  autoFontSize: boolean;
-  maxSize: number;
-  minSize: number;
   fontSize: number;
   fontFamily: string;
   textColor: string;
@@ -254,6 +251,19 @@ type NetworkErrorExportResult = {
   count: number;
 };
 
+type LogReadResult = {
+  error: string | null;
+  filePath: string | null;
+  fileName: string | null;
+  updatedAt: string | null;
+  lines: string[];
+};
+
+type LogExportResult = {
+  exported: boolean;
+  filePath: string | null;
+};
+
 type BackServerConfig = {
   kgServer: string;
   wyServer: string;
@@ -446,7 +456,9 @@ type ElectronIpcApi = {
 
   log: (message: unknown) => Promise<boolean>;
   reportError: (error: unknown, context?: Record<string, unknown>) => Promise<boolean>;
-  getLogs: (date?: Date | string) => Promise<any>;
+  getLogs: (date?: Date | string) => Promise<LogReadResult>;
+  getRecentLogs: (limit?: number) => Promise<LogReadResult>;
+  exportRecentLog: () => Promise<LogExportResult>;
   openLogsDir: () => Promise<boolean>;
 
   openLyricWindow: () => Promise<unknown>;

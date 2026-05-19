@@ -27,7 +27,7 @@ import {
   NModalProvider,
   NMessageProvider,
 } from "naive-ui";
-import { onBeforeUnmount, toRaw, Transition, watch } from "vue";
+import { onBeforeUnmount, Transition, watch } from "vue";
 import { PlayerBar, MainPlayer } from "./components";
 import {
   useCommonStore,
@@ -48,6 +48,7 @@ import {
 import electronAPI from "./utils/electron";
 import { getColorFromUrl, getSongCover } from "./utils/common";
 import { message } from "./utils/pure/message";
+import { normalizeSong } from "./utils/song";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
@@ -104,7 +105,7 @@ function setupListeners() {
             void themeStore.setAccentColor(color);
           });
         }
-        electronAPI.changeCurrentSong(toRaw(newSong));
+        electronAPI.changeCurrentSong(normalizeSong(newSong));
       } else {
         // void themeStore.setAccentColor('#2897ff');
         electronAPI.changeCurrentSong(null);

@@ -79,21 +79,24 @@ export async function getDynamicCover<T = any>(id: string | number): Promise<T> 
 }
 
 export async function getPlayableUrlByMusicApi(song: Song, qualityKey?: string) {
+  const rawSong = toRaw(song);
+  const payload = {
+    source: rawSong.source,
+    id: String(rawSong.id || ""),
+    urlParam: rawSong.urlParam ? String(rawSong.urlParam) : undefined,
+    filePath: rawSong.filePath ? String(rawSong.filePath) : undefined,
+    qualityKey: qualityKey ? String(toRaw(qualityKey)) : undefined,
+  };
   try {
-    const url = await window.electronAPI.resolvePlayableUrl({
-      source: song.source,
-      id: song.id,
-      urlParam: song.urlParam,
-      filePath: song.filePath,
-      qualityKey: toRaw(qualityKey),
-    });
+    const url = await window.electronAPI.resolvePlayableUrl(payload);
     return url || "";
   } catch (error) {
     void reportError(error, {
       scope: "music",
       action: "resolvePlayableUrl",
-      songId: song.id,
-      source: song.source,
+      songId: payload.id,
+      source: payload.source,
+      qualityKey: payload.qualityKey,
     });
     return "";
   }

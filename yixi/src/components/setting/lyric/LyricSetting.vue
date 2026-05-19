@@ -224,23 +224,14 @@
         </div>
         <div class="setting-item">
           <div class="item-info">
-            <div class="item-title">字号跟随高度</div>
-            <div class="item-desc">开启后字号随窗口高度自动调整，关闭后可手动设定。</div>
-          </div>
-          <div class="setting-control switch-control">
-            <n-switch v-model:value="desktopLyric.autoFontSize" />
-          </div>
-        </div>
-        <div class="setting-item" v-if="!desktopLyric.autoFontSize">
-          <div class="item-info">
             <div class="item-title">字体大小</div>
             <div class="item-desc">桌面歌词字号。</div>
           </div>
           <div class="setting-control">
             <n-input-number
               v-model:value="desktopLyric.fontSize"
-              :min="desktopLyric.minSize"
-              :max="desktopLyric.maxSize" />
+              :min="10"
+              :max="64" />
           </div>
         </div>
         <div class="setting-item">

@@ -17,9 +17,6 @@ type DesktopLyricStyle = {
   width: number;
   height: number;
   overlayTaskbar: boolean;
-  autoFontSize: boolean;
-  maxSize: number;
-  minSize: number;
   fontSize: number;
   fontFamily: string;
   textColor: string;
@@ -403,9 +400,6 @@ export class DesktopLyricManager {
       width: config.width,
       height: config.height,
       overlayTaskbar: config.overlayTaskbar,
-      autoFontSize: config.autoFontSize,
-      maxSize: config.maxSize,
-      minSize: config.minSize,
       fontSize: config.fontSize,
       fontFamily: config.fontFamily,
       textColor: config.textColor,

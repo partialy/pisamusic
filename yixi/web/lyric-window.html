@@ -240,9 +240,6 @@
           width: 800,
           height: 120,
           overlayTaskbar: false,
-          autoFontSize: true,
-          maxSize: 64,
-          minSize: 10,
           fontSize: 28,
           fontFamily: "Microsoft YaHei",
           textColor: "#fff",
@@ -257,25 +254,16 @@
       const playBtn = document.getElementById("play-btn");
       const pauseBtn = document.getElementById("pause-btn");
       const lockBtn = document.getElementById("lock-btn");
+      const FONT_SIZE_MIN = 10;
+      const FONT_SIZE_MAX = 64;
       const lockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 0 24 24">
           <path fill="currentColor"
             d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2M9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9zm9 14H6V10h12zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2s-2 .9-2 2s.9 2 2 2" />
         </svg>`;
       const unlockIcon = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="10" x="5" y="11" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.5-2"></path></svg>';
 
-      function calcAutoFontSize() {
-        const h = window.innerHeight;
-        const size = Math.round(h * 0.35);
-        return Math.max(state.style.minSize, Math.min(state.style.maxSize, size));
-      }
-
-      function getEffectiveFontSize() {
-        if (state.style.autoFontSize) return calcAutoFontSize();
-        return state.style.fontSize;
-      }
-
       function applyFontSize() {
-        lyricTextEl.style.fontSize = `${getEffectiveFontSize()}px`;
+        lyricTextEl.style.fontSize = `${state.style.fontSize}px`;
       }
 
       function applySnapshot(snapshot) {
@@ -416,7 +404,7 @@
       function getTextWidth(text) {
         const span = document.createElement("span");
         span.textContent = text;
-        span.style.fontSize = `${getEffectiveFontSize()}px`;
+        span.style.fontSize = `${state.style.fontSize}px`;
         span.style.fontFamily = state.style.fontFamily;
         span.style.fontWeight = state.style.fontWeight;
         span.style.position = "absolute";
@@ -444,13 +432,12 @@
 
       function changeFontSize(step) {
         const nextSize = Math.max(
-          state.style.minSize,
-          Math.min(state.style.maxSize, getEffectiveFontSize() + step)
+          FONT_SIZE_MIN,
+          Math.min(FONT_SIZE_MAX, state.style.fontSize + step)
         );
-        state.style.autoFontSize = false;
         state.style.fontSize = nextSize;
         applyFontSize();
-        ipcRenderer.send("desktop-lyric:set-style", { ...state.style, autoFontSize: false, fontSize: nextSize });
+        ipcRenderer.send("desktop-lyric:set-style", { ...state.style, fontSize: nextSize });
       }
 
       container.addEventListener("mouseenter", () => {

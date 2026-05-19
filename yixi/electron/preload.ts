@@ -4,9 +4,6 @@ type WindowLyricSetting = {
   width: number;
   height: number;
   overlayTaskbar: boolean;
-  autoFontSize: boolean;
-  maxSize: number;
-  minSize: number;
   fontSize: number;
   fontFamily: string;
   textColor: string;
@@ -48,6 +45,8 @@ const logIpc = {
   reportError: (error: unknown, context?: Record<string, unknown>) =>
     ipcRenderer.invoke("app:log-error", normalizeError(error, context)),
   getLogs: (date?: Date | string) => ipcRenderer.invoke("logs:list", date),
+  getRecentLogs: (limit?: number) => ipcRenderer.invoke("logs:recent", limit),
+  exportRecentLog: () => ipcRenderer.invoke("logs:export"),
   openLogsDir: () => ipcRenderer.invoke("logs:open-dir"),
 };
 

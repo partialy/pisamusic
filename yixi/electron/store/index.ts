@@ -13,7 +13,6 @@ interface AppStoreSchema {
   lyricConfig: {
     desktop: boolean;
     overlayTaskbar: boolean;
-    autoFontSize: boolean;
     width: number;
     height: number;
     minWidth: number;
@@ -22,8 +21,6 @@ interface AppStoreSchema {
     maxHeight: number;
     x: number;
     y: number;
-    maxSize: number;
-    minSize: number;
     fontSize: number;
     locked: boolean;
     textColor: string;
@@ -51,7 +48,6 @@ const defaultSettings: AppStoreSchema = {
   lyricConfig: {
     desktop: false,
     overlayTaskbar: false,
-    autoFontSize: true,
     width: 800,
     height: 120,
     minHeight: 100,
@@ -60,8 +56,6 @@ const defaultSettings: AppStoreSchema = {
     maxWidth: 1600,
     x: 100,
     y: 100,
-    maxSize: 64,
-    minSize: 10,
     fontSize: 40,
     locked: false,
     textColor: "#ffffff",

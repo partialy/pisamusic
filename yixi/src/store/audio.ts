@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { Howl } from "howler"; // 音频播放库
-import { ref, computed, watch } from "vue";
+import { ref, computed, toRaw, watch } from "vue";
 import type { Song } from "@/types/song";
 import { getSongCover } from "../utils/common";
 import { getDynamicCover, getPlayableUrlByMusicApi } from "@/utils/api/musicAPI";
@@ -190,7 +190,7 @@ export const useAudioStore = defineStore("audio", () => {
     } catch (error) {
       loading.value = false;
       console.error("播放歌曲失败:", error);
-      void electronAPI.reportError(error, {
+      void reportError(error, {
         scope: "audio",
         action: "play",
         songId: song?.id || currentSong.value?.id,
@@ -428,7 +428,7 @@ export const useAudioStore = defineStore("audio", () => {
       return true;
     } catch (error) {
       song.url = previousUrl;
-      void electronAPI.reportError(error, {
+      void reportError(error, {
         scope: "audio",
         action: "switchCurrentQuality",
         songId: song.id,
@@ -436,6 +436,7 @@ export const useAudioStore = defineStore("audio", () => {
         qualityKey: option.key,
       });
       window.$message.error("音质切换失败，已保留当前播放");
+      console.log("切换音质失败:", error);
       return false;
     } finally {
       loading.value = false;
@@ -449,11 +450,12 @@ export const useAudioStore = defineStore("audio", () => {
   };
 
   const setPreferredQualityKey = async (source: QualitySource, qualityKey: string) => {
-    qualityPreference.value = {
-      ...qualityPreference.value,
+    const nextPreference: PlaybackQualityPreference = {
+      ...toRaw(qualityPreference.value),
       [source]: qualityKey,
     };
-    await electronAPI.setSetting(PLAYBACK_QUALITY_SETTING_KEY, qualityPreference.value, 1);
+    qualityPreference.value = nextPreference;
+    await electronAPI.setSetting(PLAYBACK_QUALITY_SETTING_KEY, nextPreference, 1);
   };
 
   // 私有方法
@@ -592,7 +594,7 @@ export const useAudioStore = defineStore("audio", () => {
       duration: 2000,
     });
 
-    void electronAPI.reportError(new Error("playback failed"), {
+    void reportError(new Error("playback failed"), {
       scope: "audio",
       action: "handlePlaybackFailure",
       songId: currentSong.value?.id,
