@@ -140,7 +140,7 @@ import {
 import { storeToRefs } from "pinia";
 import { useAudioStore, useLyricStore } from "@/store";
 import { PlayControlBtn, PlaySequence, VolumePanel } from ".";
-import { debounce, defaultSongCover, formatDuration, getSongCover, renderIcon } from '@/utils/common';
+import { debounce, defaultSongCover, formatDuration, renderIcon } from '@/utils/common';
 import { computed, ref, watch } from "vue";
 import { Download as DownloadIcon } from "lucide-vue-next";
 import {
@@ -162,6 +162,7 @@ import { useCollectStore } from "@/store/collect";
 import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
 import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { useSongDownload } from "@/composables/useSongDownload";
+import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
 const player = useAudioStore();
 const lyric = useLyricStore();
 const collect = useCollectStore();
@@ -183,10 +184,7 @@ const currentQualityOption = computed(() => {
   const key = player.getPreferredQualityKey(currentSong.value?.source);
   return getQualityOption(key) || qualityOptions.value[0] || null;
 });
-const imgSrc = computed(() => {
-  if (currentSong.value) return getSongCover(currentSong.value);
-  return defaultSongCover;
-});
+const imgSrc = useSongCoverUrl(currentSong);
 
 const currentLyric = computed(() => {
   if (currentIndex.value > parsedLrc.value.length || currentIndex.value < 0) {

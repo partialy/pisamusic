@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { writeCoverImageToFile, writeTags } from "@yortyrh/tagpilot-lib";
 import { getAppDataPath } from "../core/appPaths";
 import { getAppDatabase } from "../database";
 import type {
@@ -14,6 +13,7 @@ import type {
 import { fetchLyrics, resolvePlayableUrl } from "../music/musicService";
 import { defaultQualityKeyForSource, qualityKeyMatchesSource } from "../music/quality";
 import { getSongCoverUrl } from "../../src/utils/songCoverUrl";
+import { writeAudioMetadata } from "./audioMetadataWriter";
 
 type DownloadTrackPayload = {
   song: TrackSnapshot;
@@ -58,11 +58,19 @@ type SidecarPaths = {
   metadataJsonPath: string;
   lyricPath: string;
   coverPath: string;
+  finalLyricPath: string;
 };
 
 type CoverAsset = {
   data: Buffer;
   mimeType: string;
+};
+
+type DownloadMetadataSetting = {
+  songNamingMode?: string;
+  embedDownloadCover?: boolean;
+  embedDownloadLyrics?: boolean;
+  saveDownloadLyricsFile?: boolean;
 };
 
 const downloadTasks = new Map<string, DownloadTask>();
@@ -155,14 +163,19 @@ async function runDownloadTask(
     await streamResponseToFile(response, cachePath, snapshot);
     await copyFile(cachePath, filePath);
 
-    const sidecars = sidecarPaths(cacheRoot, baseName);
+    const metadataOptions = getDownloadMetadataOptions();
+    const sidecars = sidecarPaths(cacheRoot, directory, baseName);
     const metadata = await buildDownloadMetadata(song, source, qualityKey);
-    await writeSidecars(sidecars, metadata);
+    await writeSidecars(sidecars, metadata, metadataOptions);
 
     let metadataStatus: DownloadMetadataStatus = "embedded";
     let message = "下载完成";
     try {
-      await embedMetadata(filePath, metadata);
+      const metadataResult = await embedMetadata(filePath, metadata, metadataOptions);
+      if (!metadataResult.ok) {
+        metadataStatus = "sidecar";
+        message = `下载完成，部分元数据未写入：${metadataResult.warnings.join("；")}`;
+      }
     } catch (error) {
       metadataStatus = "sidecar";
       message = `下载完成，元数据已写入缓存：${error instanceof Error ? error.message : String(error)}`;
@@ -182,7 +195,7 @@ async function runDownloadTask(
       metadataStatus,
       cachePath,
       metadataJsonPath: sidecars.metadataJsonPath,
-      lyricPath: sidecars.lyricPath,
+      lyricPath: metadataOptions.saveDownloadLyricsFile && metadata.lyrics ? sidecars.finalLyricPath : "",
       coverPath: sidecars.coverPath,
       message,
       completedAt: new Date().toISOString(),
@@ -370,7 +383,7 @@ function normalizeDirectory(directory: string) {
 }
 
 function buildBaseName(song: TrackSnapshot) {
-  const setting = getAppDatabase().getSetting<{ songNamingMode?: string }>("local-setting")?.value;
+  const setting = getAppDatabase().getSetting<DownloadMetadataSetting>("local-setting")?.value;
   const title = song.name || "未知歌曲";
   const artist = song.singer || "未知歌手";
   switch (setting?.songNamingMode) {
@@ -384,6 +397,15 @@ function buildBaseName(song: TrackSnapshot) {
     default:
       return sanitizeFileName(`${artist} - ${title}`);
   }
+}
+
+function getDownloadMetadataOptions() {
+  const setting = getAppDatabase().getSetting<DownloadMetadataSetting>("local-setting")?.value;
+  return {
+    embedDownloadCover: setting?.embedDownloadCover !== false,
+    embedDownloadLyrics: setting?.embedDownloadLyrics !== false,
+    saveDownloadLyricsFile: setting?.saveDownloadLyricsFile !== false,
+  };
 }
 
 async function createUniqueBaseName(directory: string, baseName: string, extension: string) {
@@ -419,30 +441,19 @@ async function buildDownloadMetadata(song: TrackSnapshot, source: string, qualit
 
 async function embedMetadata(
   filePath: string,
-  metadata: Awaited<ReturnType<typeof buildDownloadMetadata>>
+  metadata: Awaited<ReturnType<typeof buildDownloadMetadata>>,
+  options: ReturnType<typeof getDownloadMetadataOptions>
 ) {
-  await writeTags(filePath, {
-    title: metadata.title,
-    artists: metadata.artist ? [metadata.artist] : [],
-    album: metadata.album,
-    comment: `source=${metadata.source}; songId=${metadata.songId}; quality=${metadata.qualityKey}`,
-    image: metadata.cover
-      ? {
-          data: metadata.cover.data,
-          mimeType: metadata.cover.mimeType,
-          picType: "CoverFront" as any,
-          description: "Cover",
-        }
-      : undefined,
+  return writeAudioMetadata(filePath, metadata, {
+    embedCover: options.embedDownloadCover,
+    embedLyrics: options.embedDownloadLyrics,
   });
-  if (metadata.cover) {
-    await writeCoverImageToFile(filePath, metadata.cover.data);
-  }
 }
 
 async function writeSidecars(
   paths: SidecarPaths,
-  metadata: Awaited<ReturnType<typeof buildDownloadMetadata>>
+  metadata: Awaited<ReturnType<typeof buildDownloadMetadata>>,
+  options: ReturnType<typeof getDownloadMetadataOptions>
 ) {
   await writeFile(paths.metadataJsonPath, JSON.stringify({
     title: metadata.title,
@@ -451,20 +462,22 @@ async function writeSidecars(
     source: metadata.source,
     songId: metadata.songId,
     qualityKey: metadata.qualityKey,
+    lyrics: metadata.lyrics,
     payload: metadata.payload,
   }, null, 2));
-  if (metadata.lyrics) {
-    await writeFile(paths.lyricPath, metadata.lyrics);
+  if (metadata.lyrics && options.saveDownloadLyricsFile) {
+    await writeFile(paths.finalLyricPath, metadata.lyrics);
   }
   if (metadata.cover) {
     await writeFile(paths.coverPath, metadata.cover.data);
   }
 }
 
-function sidecarPaths(cacheRoot: string, baseName: string): SidecarPaths {
+function sidecarPaths(cacheRoot: string, directory: string, baseName: string): SidecarPaths {
   return {
     metadataJsonPath: path.join(cacheRoot, `${baseName}.json`),
     lyricPath: path.join(cacheRoot, `${baseName}.lrc`),
+    finalLyricPath: path.join(directory, `${baseName}.lrc`),
     coverPath: path.join(cacheRoot, `${baseName}.jpg`),
   };
 }

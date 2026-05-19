@@ -85,11 +85,41 @@
         :options="songNamingOptions"
         @update:value="handleSongNamingChange" />
     </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
+        <div class="setting-title">写入封面标签</div>
+        <div class="setting-desc">下载歌曲时将封面写入音频文件元数据</div>
+      </div>
+      <n-switch
+        :value="settingStore.local.embedDownloadCover"
+        @update:value="settingStore.updateEmbedDownloadCover" />
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
+        <div class="setting-title">写入歌词标签</div>
+        <div class="setting-desc">下载歌曲时将歌词写入音频文件元数据</div>
+      </div>
+      <n-switch
+        :value="settingStore.local.embedDownloadLyrics"
+        @update:value="settingStore.updateEmbedDownloadLyrics" />
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
+        <div class="setting-title">下载歌词到同目录</div>
+        <div class="setting-desc">下载歌曲时在歌曲文件旁生成同名 .lrc 文件</div>
+      </div>
+      <n-switch
+        :value="settingStore.local.saveDownloadLyricsFile"
+        @update:value="settingStore.updateSaveDownloadLyricsFile" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { NButton, NInput, NInputNumber, NSelect } from "naive-ui";
+import { NButton, NInput, NInputNumber, NSelect, NSwitch } from "naive-ui";
 import { computed, onMounted } from "vue";
 import { useSettingStore, type SongNamingMode } from "@/store/settingStore";
 

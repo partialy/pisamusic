@@ -14,6 +14,9 @@ export type LocalSetting = {
   cacheLimitGb: number;
   downloadDirectory: string;
   songNamingMode: SongNamingMode;
+  embedDownloadCover: boolean;
+  embedDownloadLyrics: boolean;
+  saveDownloadLyricsFile: boolean;
 };
 
 const LOCAL_SETTING_KEY = "local-setting";
@@ -24,6 +27,9 @@ const DEFAULT_LOCAL_SETTING: LocalSetting = {
   cacheLimitGb: 10,
   downloadDirectory: "",
   songNamingMode: "artist-title",
+  embedDownloadCover: true,
+  embedDownloadLyrics: true,
+  saveDownloadLyricsFile: true,
 };
 
 export const useSettingStore = defineStore("setting", {
@@ -92,6 +98,21 @@ export const useSettingStore = defineStore("setting", {
       await this.persistLocalSetting();
     },
 
+    async updateEmbedDownloadCover(value: boolean) {
+      this.local.embedDownloadCover = Boolean(value);
+      await this.persistLocalSetting();
+    },
+
+    async updateEmbedDownloadLyrics(value: boolean) {
+      this.local.embedDownloadLyrics = Boolean(value);
+      await this.persistLocalSetting();
+    },
+
+    async updateSaveDownloadLyricsFile(value: boolean) {
+      this.local.saveDownloadLyricsFile = Boolean(value);
+      await this.persistLocalSetting();
+    },
+
     async chooseCacheDirectory() {
       const selected = await electronAPI.selectDirectory("选择缓存目录");
       if (selected) {
@@ -133,13 +154,23 @@ function normalizeLocalSetting(
     songNamingMode: isSongNamingMode(input?.songNamingMode)
       ? input.songNamingMode
       : DEFAULT_LOCAL_SETTING.songNamingMode,
+    embedDownloadCover: normalizeBoolean(input?.embedDownloadCover, DEFAULT_LOCAL_SETTING.embedDownloadCover),
+    embedDownloadLyrics: normalizeBoolean(input?.embedDownloadLyrics, DEFAULT_LOCAL_SETTING.embedDownloadLyrics),
+    saveDownloadLyricsFile: normalizeBoolean(input?.saveDownloadLyricsFile, DEFAULT_LOCAL_SETTING.saveDownloadLyricsFile),
   };
 }
 
 function shouldPersistNormalizedSetting(
   input: (Partial<LocalSetting> & { scanDirectory?: unknown }) | null
 ) {
-  return Boolean(input && (!Array.isArray(input.scanDirectories) || input.scanDirectory));
+  return Boolean(
+    input &&
+      (!Array.isArray(input.scanDirectories) ||
+        input.scanDirectory ||
+        typeof input.embedDownloadCover !== "boolean" ||
+        typeof input.embedDownloadLyrics !== "boolean" ||
+        typeof input.saveDownloadLyricsFile !== "boolean")
+  );
 }
 
 function normalizeScanDirectories(paths: unknown) {
@@ -155,6 +186,10 @@ function normalizeCacheLimit(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return DEFAULT_LOCAL_SETTING.cacheLimitGb;
   return Math.max(0, Math.round(parsed * 10) / 10);
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
 }
 
 function isSongNamingMode(value: unknown): value is SongNamingMode {

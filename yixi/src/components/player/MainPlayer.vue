@@ -86,11 +86,12 @@ import { NProgress } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { useAudioStore, useCommonStore, useLyricStore } from '@/store';
 import { ControlPanel } from '.';
-import { defaultSongCover, getSongCover } from '@/utils/common';
+import { defaultSongCover } from '@/utils/common';
 import { AMLyric, CommonLyric } from '.';
 import { ArrowDownIcon, CloseIcon, MiniWindowIcon, RestoreIcon, ScaleIcon } from '@/icons';
 import electronAPI from '@/utils/electron';
 import ProgressPanel from './ProgressPanel.vue';
+import { useSongCoverUrl } from '@/composables/useSongCoverUrl';
 const playerStore = useAudioStore()
 const { currentSong, progress } = storeToRefs(playerStore)
 const commonStore = useCommonStore()
@@ -100,9 +101,7 @@ const AMLyricView = computed(() => {
     return currentSong.value?.id && (lyricStore.rawKrc || lyricStore.rawLrc) && lyricStore.setting.useAMLyric
 })
 
-const coverUrl = computed(() => {
-    return currentSong.value ? getSongCover(currentSong.value, 240) : defaultSongCover
-})
+const coverUrl = useSongCoverUrl(currentSong, 240)
 
 const songName = computed(() => {
     if (currentSong.value?.name && currentSong.value.name.includes(' - ')) {
