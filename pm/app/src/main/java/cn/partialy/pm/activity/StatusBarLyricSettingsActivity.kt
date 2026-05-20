@@ -191,6 +191,7 @@ class StatusBarLyricSettingsBridge(
     fun setWidth(widthPercent: Int): String {
         val current = StatusBarLyricPrefs.read(appContext)
         StatusBarLyricPrefs.write(appContext, current.copy(widthPercent = widthPercent.coerceIn(30, 100)))
+        mainHandler.post { overlayController.showWidthBounds() }
         return jsonOk()
     }
 

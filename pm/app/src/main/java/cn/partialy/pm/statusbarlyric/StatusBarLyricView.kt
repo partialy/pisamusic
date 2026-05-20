@@ -2,7 +2,9 @@ package cn.partialy.pm.statusbarlyric
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.os.SystemClock
 import android.text.TextPaint
 import android.text.TextUtils
@@ -15,6 +17,10 @@ class StatusBarLyricView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
+    private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(46, 30, 144, 255)
+    }
+    private val backgroundRect = RectF()
     private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.LEFT
         isFakeBoldText = true
@@ -30,6 +36,7 @@ class StatusBarLyricView @JvmOverloads constructor(
     private var animationDurationMs = 0L
     private var animationStartAtMs = 0L
     private var animationRunning = false
+    private var boundsVisibleUntilMs = 0L
 
     fun bind(
         config: StatusBarLyricConfig,
@@ -55,6 +62,25 @@ class StatusBarLyricView @JvmOverloads constructor(
         )
     }
 
+    fun bindStaticPreview(config: StatusBarLyricConfig, text: String, progress: Float) {
+        val previousFontSize = fontSizeSp
+        lyricText = text
+        lineIndex = PREVIEW_LINE_INDEX
+        sungColor = config.sungColorArgb
+        unsungColor = config.unsungColorArgb
+        fontSizeSp = StatusBarLyricPrefs.fontSizeSp(config.fontSizeLevel)
+        paint.textSize = sp(fontSizeSp)
+        displayProgress = progress.coerceIn(0f, 1f)
+        animationRunning = false
+        if (previousFontSize != fontSizeSp) requestLayout()
+        invalidate()
+    }
+
+    fun showBounds(durationMs: Long = BOUNDS_VISIBLE_MS) {
+        boundsVisibleUntilMs = SystemClock.uptimeMillis() + durationMs.coerceAtLeast(0L)
+        invalidate()
+    }
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         paint.textSize = sp(fontSizeSp)
         val desiredHeight = (paint.fontMetrics.run { descent - ascent } + dp(8f)).roundToInt()
@@ -65,6 +91,7 @@ class StatusBarLyricView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         updateAnimatedProgress()
+        drawBoundsIfNeeded(canvas)
         val maxTextWidth = (width - paddingLeft - paddingRight).coerceAtLeast(0)
         if (maxTextWidth <= 0 || lyricText.isBlank()) return
 
@@ -83,14 +110,15 @@ class StatusBarLyricView @JvmOverloads constructor(
         canvas.drawText(displayText, x, baseline, paint)
 
         val sungWidth = textWidth * displayProgress
-        if (sungWidth <= 0f) return
-        canvas.save()
-        canvas.clipRect(x, 0f, x + sungWidth, height.toFloat())
-        paint.color = sungColor
-        canvas.drawText(displayText, x, baseline, paint)
-        canvas.restore()
+        if (sungWidth > 0f) {
+            canvas.save()
+            canvas.clipRect(x, 0f, x + sungWidth, height.toFloat())
+            paint.color = sungColor
+            canvas.drawText(displayText, x, baseline, paint)
+            canvas.restore()
+        }
 
-        if (animationRunning) postInvalidateOnAnimation()
+        if (animationRunning || isBoundsVisible()) postInvalidateOnAnimation()
     }
 
     override fun onDetachedFromWindow() {
@@ -127,11 +155,22 @@ class StatusBarLyricView @JvmOverloads constructor(
         }
     }
 
+    private fun drawBoundsIfNeeded(canvas: Canvas) {
+        if (!isBoundsVisible()) return
+        val inset = dp(1f)
+        backgroundRect.set(inset, inset, width - inset, height - inset)
+        canvas.drawRoundRect(backgroundRect, dp(8f), dp(8f), backgroundPaint)
+    }
+
+    private fun isBoundsVisible(): Boolean = SystemClock.uptimeMillis() < boundsVisibleUntilMs
+
     private fun dp(value: Float): Float = value * resources.displayMetrics.density
 
     private fun sp(value: Float): Float = value * resources.displayMetrics.scaledDensity
 
     private companion object {
         private const val SYNC_WINDOW_MS = 1_000L
+        private const val BOUNDS_VISIBLE_MS = 2_000L
+        private const val PREVIEW_LINE_INDEX = -1
     }
 }

@@ -73,6 +73,12 @@ class StatusBarLyricOverlayController @Inject constructor(
         render()
     }
 
+    fun showWidthBounds() {
+        if (!Settings.canDrawOverlays(context)) return
+        render()
+        overlayView?.showBounds()
+    }
+
     private fun ensureStarted() {
         if (scope != null) return
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -127,28 +133,43 @@ class StatusBarLyricOverlayController @Inject constructor(
     }
 
     private fun render() {
-        val current = LyricParser.findCurrentLine(latestLines, latestPositionMs)
-        val shouldShow = (config.enabled || settingsPreviewActive) &&
-            latestPlaying &&
-            current != null &&
-            current.line.text.isNotBlank() &&
-            Settings.canDrawOverlays(context)
-
-        if (!shouldShow || current == null) {
+        if (!Settings.canDrawOverlays(context)) {
             removeOverlay()
             return
         }
 
-        val view = ensureOverlayView()
-        updateOverlayLayout()
-        view.bind(
-            config = config,
-            index = current.index,
-            text = current.line.text,
-            lineProgress = current.progress,
-            elapsedMs = current.elapsedMs,
-            durationMs = current.durationMs,
-        )
+        val current = LyricParser.findCurrentLine(latestLines, latestPositionMs)
+        val shouldShowLiveLyric = (config.enabled || settingsPreviewActive) &&
+            latestPlaying &&
+            current != null &&
+            current.line.text.isNotBlank()
+
+        if (shouldShowLiveLyric && current != null) {
+            val view = ensureOverlayView()
+            updateOverlayLayout()
+            view.bind(
+                config = config,
+                index = current.index,
+                text = current.line.text,
+                lineProgress = current.progress,
+                elapsedMs = current.elapsedMs,
+                durationMs = current.durationMs,
+            )
+            return
+        }
+
+        if (settingsPreviewActive) {
+            val view = ensureOverlayView()
+            updateOverlayLayout()
+            view.bindStaticPreview(config, PREVIEW_TEXT, PREVIEW_PROGRESS)
+            return
+        }
+
+        if (current == null) {
+            removeOverlay()
+            return
+        }
+        removeOverlay()
     }
 
     private fun ensureOverlayView(): StatusBarLyricView {
@@ -201,4 +222,9 @@ class StatusBarLyricOverlayController @Inject constructor(
     private fun songKey(song: SongInfo?): String? = song?.let { "${it.type.name}:${it.id}" }
 
     private fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).roundToInt()
+
+    private companion object {
+        private const val PREVIEW_TEXT = "状态栏歌词预览"
+        private const val PREVIEW_PROGRESS = 0.42f
+    }
 }
