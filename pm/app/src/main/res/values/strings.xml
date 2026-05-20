@@ -120,6 +120,8 @@
     <string name="lyric_settings_hint">字号也可使用播放器上的 A− / A+ 快速调整。</string>
     <string name="lyric_settings_decrease">减小</string>
     <string name="lyric_settings_increase">增大</string>
+    <string name="settings_status_bar_lyric_title">状态栏歌词</string>
+    <string name="settings_status_bar_lyric_summary">悬浮显示当前歌词</string>
     <string name="lyric_color_picker_title_normal">常规行颜色</string>
     <string name="lyric_color_picker_title_current">当前行颜色</string>
     <string name="lyric_color_picker_red">红</string>

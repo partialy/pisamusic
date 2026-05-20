@@ -42,6 +42,8 @@ import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityPlayerBinding
+import cn.partialy.pm.lyric.LyricParser
+import cn.partialy.pm.lyric.LyricRepository
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.downloadOptionsForSongType
@@ -69,14 +71,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.FieldKey
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlayerActivity : BaseDownloadActivity() {
     @Inject lateinit var mediaIndexDb: LocalMediaIndexDbStore
     @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
+    @Inject lateinit var lyricRepository: LyricRepository
 
     private lateinit var binding: ActivityPlayerBinding
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
@@ -310,7 +311,7 @@ class PlayerActivity : BaseDownloadActivity() {
                     if (it.type == SongType.LOCAL) {
                         submitLyricsText("正在获取歌词...")
                     }
-                    submitLyricsText(setUpLyric(it))
+                    submitLyricsText(lyricRepository.loadLyrics(it))
                 } ?: run {
                     SongSourceTagBinder.hide(binding.songSourceTagTextView)
                 }
@@ -469,7 +470,7 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun submitLyricsText(text: String) {
-        lyricRows = parseLyricRows(text)
+        lyricRows = LyricParser.parse(text)
         lyricCurrentIndex = if (lyricRows.isEmpty()) -1 else 0
         lyricsAdapter.submitList(lyricRows) {
             lyricsAdapter.setCurrentIndex(lyricCurrentIndex)
@@ -483,13 +484,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun updateLyricTime(currentTime: Long) {
         val rows = lyricRows
         if (rows.isEmpty()) return
-        var idx = 0
-        for (i in rows.indices) {
-            if (i == rows.lastIndex || currentTime < rows[i + 1].timeMs) {
-                idx = i
-                break
-            }
-        }
+        val idx = LyricParser.findCurrentLine(rows, currentTime)?.index ?: return
         if (idx == lyricCurrentIndex) return
         lyricCurrentIndex = idx
         lyricsAdapter.setCurrentIndex(idx)
@@ -524,24 +519,6 @@ class PlayerActivity : BaseDownloadActivity() {
         scroller.targetPosition = position
         lyricsProgrammaticScrollInProgress = true
         lm.startSmoothScroll(scroller)
-    }
-
-    private fun parseLyricRows(lyricsText: String): List<LyricRow> {
-        val timePattern = "\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})]".toRegex()
-        val out = mutableListOf<LyricRow>()
-        lyricsText.split("\n").forEach { line ->
-            val m = timePattern.find(line) ?: return@forEach
-            val g = m.groupValues
-            val minutes = g[1].toIntOrNull() ?: return@forEach
-            val seconds = g[2].toIntOrNull() ?: return@forEach
-            val ms = g[3].toIntOrNull() ?: 0
-            val t = (minutes * 60 * 1000 + seconds * 1000 + ms).toLong()
-            val text = line.substring(m.range.last + 1).trim()
-            if (text.isNotEmpty()) out.add(LyricRow(t, text))
-        }
-        if (out.isNotEmpty()) return out.sortedBy { it.timeMs }
-        val fallback = lyricsText.trim()
-        return if (fallback.isEmpty()) emptyList() else listOf(LyricRow(0L, fallback))
     }
 
     private fun modelForBlur(song: SongInfo): Any? {
@@ -624,143 +601,6 @@ class PlayerActivity : BaseDownloadActivity() {
         val minutes = seconds / 60
         val remainingSeconds = seconds % 60
         return String.format("%02d:%02d", minutes, remainingSeconds)
-    }
-
-    private suspend fun setUpLyric(song: SongInfo): String {
-        if (song.type == SongType.LOCAL) {
-            // 1) 尝试读取内嵌歌词字段
-            val embedded = withContext(Dispatchers.IO) {
-                try {
-                    val audio = AudioFileIO.read(File(song.id))
-                    audio.tag?.getFirst(FieldKey.LYRICS).orEmpty().trim()
-                } catch (_: Exception) {
-                    ""
-                }
-            }
-            if (embedded.isNotEmpty()) {
-                withContext(Dispatchers.IO) {
-                    mediaIndexDb.upsertLyric(song, embedded, source = "embedded")
-                }
-                return embedded
-            }
-            // 2) 尝试读取同目录 .lrc
-            val siblingLrc = withContext(Dispatchers.IO) {
-                try {
-                    val f = File(song.id)
-                    val lrc = File(f.parentFile, "${f.nameWithoutExtension}.lrc")
-                    if (lrc.exists()) lrc.readText() else ""
-                } catch (_: Exception) {
-                    ""
-                }
-            }
-            if (siblingLrc.isNotBlank()) {
-                withContext(Dispatchers.IO) {
-                    mediaIndexDb.upsertLyric(song, siblingLrc, source = "sibling_lrc")
-                }
-                return siblingLrc
-            }
-
-            withContext(Dispatchers.IO) {
-                mediaIndexDb.getLyric(song)
-            }?.let { return it }
-
-            // 3) 读取 app 缓存（local_<文件名含扩展名>）
-            val cached = withContext(Dispatchers.IO) {
-                try {
-                    val f = File(song.id)
-                    val key = "local_${f.name}"
-                    val cacheFile = File(cacheDir, key)
-                    if (cacheFile.exists()) cacheFile.readText() else ""
-                } catch (_: Exception) {
-                    ""
-                }
-            }
-            if (cached.isNotBlank()) {
-                withContext(Dispatchers.IO) {
-                    mediaIndexDb.upsertLyric(song, cached, source = "legacy_file")
-                }
-                return cached
-            }
-
-            // 4) 终极兜底：按文件名组 keywords 走 KG 搜索歌词（仍按 accesskey 流程取内容）
-            val fetched = try {
-                val f = File(song.id)
-                val keywords = buildLocalLyricKeywords(f)
-                kgRepository.getLyricByKeywords(keywords).getOrNull().orEmpty()
-            } catch (_: Exception) {
-                ""
-            }.trim()
-
-            if (fetched.isNotEmpty()) {
-                withContext(Dispatchers.IO) {
-                    try {
-                        val f = File(song.id)
-                        val key = "local_${f.name}"
-                        File(cacheDir, key).writeText(fetched)
-                        mediaIndexDb.upsertLyric(song, fetched, source = "network_kg")
-                    } catch (_: Exception) {
-                    }
-                }
-                return fetched
-            }
-
-            return "暂无歌词"
-        }
-        val localFile = File(cacheDir, "${song.type.name}_${song.id}")
-        if (localFile.exists()) {
-            return localFile.readText().also { lyric ->
-                withContext(Dispatchers.IO) {
-                    mediaIndexDb.upsertLyric(song, lyric, source = "legacy_file")
-                }
-            }
-        }
-        withContext(Dispatchers.IO) {
-            mediaIndexDb.getLyric(song)
-        }?.let {
-            return it
-        }
-        return try {
-            when (song.type) {
-                SongType.KG -> {
-                    val lyric = kgRepository.getLyric(song.id).getOrElse { "error" }
-                    if (lyric != "error") {
-                        withContext(Dispatchers.IO) {
-                            localFile.writeText(lyric)
-                            mediaIndexDb.upsertLyric(song, lyric, source = "network_kg")
-                        }
-                    }
-                    lyric
-                }
-                SongType.WY -> {
-                    val id = song.id.toLongOrNull() ?: return "error"
-                    val lyric = wyRepository.getLyric(id).getOrElse { "error" }
-                    if (lyric != "error") {
-                        withContext(Dispatchers.IO) {
-                            if (lyric.isNotEmpty()) localFile.writeText(lyric)
-                            mediaIndexDb.upsertLyric(song, lyric, source = "network_wy")
-                        }
-                    }
-                    lyric
-                }
-                SongType.KW, SongType.LOCAL -> ""
-            }
-        } catch (e: Exception) {
-            "error"
-        }
-    }
-
-    private fun buildLocalLyricKeywords(file: File): String {
-        val raw = file.nameWithoutExtension.trim()
-        if (raw.isEmpty()) return ""
-        val sep = " - "
-        val idx = raw.indexOf(sep)
-        if (idx > 0) {
-            val artist = raw.substring(0, idx).trim()
-            val title = raw.substring(idx + sep.length).trim()
-            val joined = listOf(artist, title).filter { it.isNotEmpty() }.joinToString(" ")
-            return joined.ifBlank { raw }
-        }
-        return raw
     }
 
     private fun observePlaylist() {

@@ -11,12 +11,10 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
+import cn.partialy.pm.lyric.LyricLine
 import cn.partialy.pm.utils.LyricDisplayPrefs
 
-data class LyricRow(
-    val timeMs: Long,
-    val text: String,
-)
+typealias LyricRow = LyricLine
 
 class LyricsAdapter : ListAdapter<LyricRow, LyricsAdapter.VH>(Diff()) {
 

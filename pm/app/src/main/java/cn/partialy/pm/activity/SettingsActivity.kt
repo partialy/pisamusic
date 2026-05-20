@@ -180,6 +180,18 @@ class SettingsActivity : BaseActivity() {
             }
         }
 
+        binding.statusBarLyrics.apply {
+            bindNavRow(
+                root,
+                R.drawable.settings_ic_statusbar_lyric,
+                getString(R.string.settings_status_bar_lyric_title),
+                getString(R.string.settings_status_bar_lyric_summary),
+            )
+            root.setOnClickListener {
+                StatusBarLyricSettingsActivity.start(this@SettingsActivity)
+            }
+        }
+
         binding.writeCover.apply {
             bindSwitchRow(
                 root,

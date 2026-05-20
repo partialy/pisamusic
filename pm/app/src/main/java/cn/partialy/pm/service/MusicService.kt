@@ -18,6 +18,7 @@ import androidx.media3.ui.PlayerNotificationManager.MediaDescriptionAdapter
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.PlayerActivity
 import cn.partialy.pm.player.MusicController
+import cn.partialy.pm.statusbarlyric.StatusBarLyricOverlayController
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import dagger.hilt.android.AndroidEntryPoint
@@ -29,6 +30,9 @@ class MusicService : MediaSessionService() {
 
     @Inject
     lateinit var musicController: MusicController
+
+    @Inject
+    lateinit var statusBarLyricOverlayController: StatusBarLyricOverlayController
 
     private val NOTIFICATION_ID = 13
     private val CHANNEL_ID = "music_channel"
@@ -110,6 +114,7 @@ class MusicService : MediaSessionService() {
 
         // 确保服务在前台运行
         startForegroundService()
+        statusBarLyricOverlayController.start()
     }
 
     // 创建通知渠道的方法
@@ -132,6 +137,7 @@ class MusicService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        statusBarLyricOverlayController.stop()
         playerNotificationManager.setPlayer(null)
         musicController.release()
         super.onDestroy()
@@ -140,4 +146,4 @@ class MusicService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return musicController.mediaSession
     }
-} 
+}

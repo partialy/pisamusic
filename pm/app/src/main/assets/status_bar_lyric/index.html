@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>状态栏歌词</title>
+  <script src="../shared/tailwind.js"></script>
+  <script src="../shared/tailwind-base.js"></script>
+  <script src="../lyric_color_presets/colorPicker.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #F4F5F8;
+      --card: #FFFFFF;
+      --text: #333333;
+      --sub: #999999;
+      --blue: #1A7BFF;
+      --thumb-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      --track-bg: #EAF3FF;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --bg: #121212;
+        --card: #1E1E1E;
+        --text: #E0E0E0;
+        --sub: #888888;
+        --blue: #39A1FF;
+        --thumb-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        --track-bg: #333333;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      padding: 12px 16px 40px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px 16px;
+      margin-bottom: 12px;
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      background: var(--card);
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+
+    .top-row h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .switch {
+      position: relative;
+      width: 46px;
+      height: 26px;
+    }
+
+    .switch input { display: none; }
+
+    .switch span {
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      background: #E5E5EA;
+      transition: .2s;
+    }
+
+    .switch span::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: .2s;
+    }
+
+    .switch input:checked + span { background: var(--blue); }
+    .switch input:checked + span::after { transform: translateX(20px); }
+
+    .control {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .control:last-child { margin-bottom: 0; }
+
+    .label {
+      width: 70px;
+      color: var(--sub);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--track-bg);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: var(--thumb-shadow);
+      border: 1px solid var(--track-bg);
+      cursor: pointer;
+    }
+
+    .font-size-control {
+      flex: 1;
+      padding-top: 6px;
+    }
+
+    .levels {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      height: 40px;
+    }
+
+    .levels::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 4px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--track-bg);
+      z-index: 1;
+    }
+
+    .level {
+      position: relative;
+      z-index: 2;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      color: #B0B0B0;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 32px;
+      cursor: pointer;
+    }
+
+    .level::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #D4E8FF;
+      margin-top: 12px;
+      transition: all .2s;
+    }
+
+    .level.active {
+      color: var(--blue);
+      font-weight: bold;
+    }
+
+    .level.active::after {
+      width: 12px;
+      height: 12px;
+      background: var(--blue);
+      box-shadow: 0 0 0 3px rgba(26, 123, 255, 0.15);
+      margin-top: 10px;
+    }
+
+    .seg-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .seg {
+      display: flex;
+      background: var(--bg);
+      border-radius: 20px;
+      padding: 3px;
+    }
+
+    .seg button {
+      border: 0;
+      border-radius: 18px;
+      padding: 6px 20px;
+      background: transparent;
+      color: var(--sub);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .seg button.active {
+      background: var(--card);
+      color: var(--text);
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .color-row:last-child { margin-bottom: 0; }
+
+    .color-button {
+      width: 34px;
+      height: 34px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      box-shadow: var(--thumb-shadow);
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .preset-container {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 18px 14px;
+      padding: 8px 4px 14px;
+      justify-items: center;
+    }
+
+    .preset-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #fff;
+      box-shadow: var(--thumb-shadow);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .preset-circle.active {
+      transform: scale(1.15);
+      box-shadow: 0 0 0 2px var(--blue), var(--thumb-shadow);
+    }
+
+    .hidden { display: none; }
+
+    .reset {
+      display: block;
+      width: 180px;
+      margin: 32px auto 16px;
+      border: 1px solid var(--blue);
+      border-radius: 20px;
+      padding: 10px 0;
+      background: transparent;
+      color: var(--blue);
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .entry {
+      text-align: center;
+      color: var(--sub);
+      font-size: 12px;
+      margin-bottom: 32px;
+    }
+
+    .entry span { color: var(--blue); }
+
+    .tips {
+      color: var(--sub);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .tips p { margin: 4px 0; }
+
+    .tips button {
+      border: 0;
+      background: transparent;
+      color: var(--blue);
+      padding: 0;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 40px;
+      transform: translateX(-50%);
+      border-radius: 8px;
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease;
+      z-index: 1000;
+    }
+
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="top-row">
+      <h1>使用 Pisa Music 状态栏歌词</h1>
+      <label class="switch">
+        <input id="enabled" type="checkbox" />
+        <span></span>
+      </label>
+    </section>
+
+    <section class="card">
+      <div class="control">
+        <div class="label">左右调节</div>
+        <input id="xPercent" type="range" min="0" max="100" value="50" step="1" />
+      </div>
+      <div class="control">
+        <div class="label">上下调节</div>
+        <input id="yDp" type="range" min="0" max="160" value="22" step="1" />
+      </div>
+      <div class="control">
+        <div class="label">显示宽度</div>
+        <input id="widthPercent" type="range" min="30" max="100" value="72" step="1" />
+      </div>
+      <div class="control" style="align-items: flex-start;">
+        <div class="label" style="margin-top: 18px;">字体大小</div>
+        <div class="font-size-control">
+          <div id="levels" class="levels"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="seg-wrapper">
+        <div class="seg">
+          <button type="button" id="tab-preset">预设配色</button>
+          <button type="button" id="tab-custom" class="active">自调颜色</button>
+        </div>
+      </div>
+
+      <div id="view-preset" class="hidden">
+        <div class="preset-container" id="preset-container"></div>
+      </div>
+
+      <div id="view-custom">
+        <div class="color-row">
+          <div class="label">歌词已唱</div>
+          <button id="sungColor" class="color-button" type="button" aria-label="选择歌词已唱颜色"></button>
+        </div>
+        <div class="color-row">
+          <div class="label">歌词未唱</div>
+          <button id="unsungColor" class="color-button" type="button" aria-label="选择歌词未唱颜色"></button>
+        </div>
+      </div>
+    </section>
+
+    <button id="reset" class="reset" type="button">重置参数</button>
+    <p class="entry">设置入口：<span>PisaMusic App-设置－状态栏歌词</span></p>
+
+    <section class="tips">
+      <p>Tips:</p>
+      <p>1.若状态栏歌词不出现，可重新打开悬浮窗权限（若显示为开，可关闭后再开）；</p>
+      <p><button id="permission" type="button">点此前往开启&gt;</button></p>
+      <p>2.状态栏歌词仅在音乐播放时会展示；</p>
+      <p>3.针对水滴屏等异形屏幕，可调整歌词位置及宽度，防止歌词被遮挡。</p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    var state = null;
+    var levelLabels = ['小号', '中号', '大号', '超大', '巨大'];
+    var currentSungArgb = '#FFFF73B4';
+    var currentUnsungArgb = '#FF8AC2FF';
+
+    var presetColors = [
+      { sung: '#FFFF73B4', unsung: '#FF8AC2FF' },
+      { sung: '#FF1A7BFF', unsung: '#FFCCCCCC' },
+      { sung: '#FFFFD700', unsung: '#FFFFFFFF' },
+      { sung: '#FF00D1B2', unsung: '#FF333333' },
+      { sung: '#FFFF4D4F', unsung: '#FFFFA39E' },
+      { sung: '#FF9B5CFF', unsung: '#FFE6D7FF' },
+      { sung: '#FFFF8A00', unsung: '#FFFFF1D6' },
+      { sung: '#FF31C48D', unsung: '#FFD9FBE8' },
+      { sung: '#FF00A9FF', unsung: '#FFE0F4FF' },
+      { sung: '#FFFFFFFF', unsung: '#FF8A8A8A' }
+    ];
+
+    var pickerPresets = [
+      '#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4',
+      '#3b82f6', '#8b5cf6', '#ec4899', '#ffffff', '#64748b'
+    ];
+
+    function bridge() {
+      return typeof AndroidStatusBarLyric !== 'undefined' ? AndroidStatusBarLyric : null;
+    }
+
+    function showToast(message) {
+      var el = document.getElementById('toast');
+      el.textContent = message || '';
+      el.classList.toggle('show', !!message);
+      clearTimeout(window.__toastTimer);
+      if (message) {
+        window.__toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+      }
+    }
+
+    function parseResult(raw) {
+      try { return JSON.parse(raw); } catch (e) { return { ok: false, message: '操作失败' }; }
+    }
+
+    function getState() {
+      var b = bridge();
+      if (!b) {
+        return {
+          hasPermission: true,
+          config: {
+            enabled: false,
+            xPercent: 50,
+            yDp: 22,
+            widthPercent: 72,
+            fontSizeLevel: 1,
+            sungColor: '#FFFF73B4',
+            unsungColor: '#FF8AC2FF'
+          }
+        };
+      }
+      return JSON.parse(b.getState());
+    }
+
+    function run(raw) {
+      var res = parseResult(raw);
+      if (!res.ok && res.message) showToast(res.message);
+      return res;
+    }
+
+    function argbToRgbInput(hex) {
+      var h = String(hex || '#FFFFFFFF').replace('#', '');
+      if (h.length === 8) h = h.slice(2);
+      if (h.length !== 6) h = 'FFFFFF';
+      return '#' + h.toUpperCase();
+    }
+
+    function argbHexToCssColor(hex) {
+      var h = String(hex || '#FFFFFFFF').replace('#', '');
+      if (h.length === 6) return '#' + h.toUpperCase();
+      if (h.length !== 8) return '#FFFFFF';
+      var a = parseInt(h.slice(0, 2), 16) / 255;
+      var r = parseInt(h.slice(2, 4), 16);
+      var g = parseInt(h.slice(4, 6), 16);
+      var b = parseInt(h.slice(6, 8), 16);
+      return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + a.toFixed(3) + ')';
+    }
+
+    function cssColorToArgbHex(colorStr) {
+      if (!colorStr) return '#FFFFFFFF';
+      colorStr = String(colorStr).trim();
+      if (colorStr.indexOf('rgba') === 0 || colorStr.indexOf('rgb') === 0) {
+        var m = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        if (!m) return '#FFFFFFFF';
+        var r = +m[1];
+        var g = +m[2];
+        var b = +m[3];
+        var a = m[4] !== undefined ? Math.round(parseFloat(m[4]) * 255) : 255;
+        return '#' + [a, r, g, b].map(function (x) {
+          return Math.max(0, Math.min(255, x)).toString(16).padStart(2, '0');
+        }).join('').toUpperCase();
+      }
+      var h = colorStr.replace('#', '');
+      if (h.length === 6) return '#FF' + h.toUpperCase();
+      if (h.length === 8) {
+        return '#' + h.slice(6, 8).toUpperCase() + h.slice(0, 6).toUpperCase();
+      }
+      return '#FFFFFFFF';
+    }
+
+    function savePosition() {
+      var b = bridge();
+      if (!b) return;
+      run(b.setPosition(+document.getElementById('xPercent').value, +document.getElementById('yDp').value));
+    }
+
+    function saveColors() {
+      var b = bridge();
+      if (!b) return;
+      run(b.setColors(currentSungArgb, currentUnsungArgb));
+      updateColorButtons();
+      checkPresetActive();
+    }
+
+    function openColorPicker(kind) {
+      if (typeof colorPicker === 'undefined') {
+        showToast('取色器未加载');
+        return;
+      }
+      var initial = kind === 'sung' ? currentSungArgb : currentUnsungArgb;
+      colorPicker.show({
+        initialColor: argbHexToCssColor(initial),
+        title: kind === 'sung' ? '歌词已唱颜色' : '歌词未唱颜色',
+        lang: 'zh',
+        presets: pickerPresets,
+        onSelect: function (picked) {
+          if (kind === 'sung') currentSungArgb = cssColorToArgbHex(picked);
+          else currentUnsungArgb = cssColorToArgbHex(picked);
+          saveColors();
+        },
+        onCancel: function () {}
+      });
+    }
+
+    function updateColorButtons() {
+      document.getElementById('sungColor').style.background = argbHexToCssColor(currentSungArgb);
+      document.getElementById('unsungColor').style.background = argbHexToCssColor(currentUnsungArgb);
+    }
+
+    function updateRangeTrackFill(rangeElement) {
+      var min = rangeElement.min ? parseFloat(rangeElement.min) : 0;
+      var max = rangeElement.max ? parseFloat(rangeElement.max) : 100;
+      var val = parseFloat(rangeElement.value);
+      var percentage = (val - min) / (max - min) * 100;
+      var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var trackBg = isDark ? '#333333' : '#EAF3FF';
+      rangeElement.style.background = 'linear-gradient(to right, var(--blue) ' + percentage + '%, ' + trackBg + ' ' + percentage + '%)';
+    }
+
+    function renderLevels(level) {
+      var wrap = document.getElementById('levels');
+      wrap.innerHTML = '';
+      levelLabels.forEach(function (label, idx) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'level' + (idx === level ? ' active' : '');
+        btn.textContent = label;
+        btn.onclick = function () {
+          var b = bridge();
+          if (b) run(b.setFontSizeLevel(idx));
+          refreshFromAndroid();
+        };
+        wrap.appendChild(btn);
+      });
+    }
+
+    function renderPresets() {
+      var container = document.getElementById('preset-container');
+      container.innerHTML = '';
+      presetColors.forEach(function (preset) {
+        var circle = document.createElement('div');
+        circle.className = 'preset-circle';
+        circle.style.background = 'linear-gradient(to right, ' + argbToRgbInput(preset.sung) + ' 50%, ' + argbToRgbInput(preset.unsung) + ' 50%)';
+        circle.onclick = function () {
+          currentSungArgb = preset.sung;
+          currentUnsungArgb = preset.unsung;
+          saveColors();
+        };
+        container.appendChild(circle);
+      });
+    }
+
+    function checkPresetActive() {
+      var circles = document.querySelectorAll('.preset-circle');
+      circles.forEach(function (circle, index) {
+        var preset = presetColors[index];
+        if (preset.sung.toUpperCase() === currentSungArgb.toUpperCase() &&
+            preset.unsung.toUpperCase() === currentUnsungArgb.toUpperCase()) {
+          circle.classList.add('active');
+        } else {
+          circle.classList.remove('active');
+        }
+      });
+    }
+
+    function bindEvents() {
+      document.getElementById('enabled').addEventListener('change', function (e) {
+        var b = bridge();
+        if (!b) return;
+        var res = run(b.setEnabled(!!e.target.checked));
+        if (!res.ok) e.target.checked = false;
+        refreshFromAndroid();
+      });
+
+      ['xPercent', 'yDp', 'widthPercent'].forEach(function (id) {
+        var el = document.getElementById(id);
+        el.addEventListener('input', function (e) {
+          updateRangeTrackFill(e.target);
+          if (id === 'widthPercent') {
+            var b = bridge();
+            if (b) run(b.setWidth(+e.target.value));
+          } else {
+            savePosition();
+          }
+        });
+      });
+
+      document.getElementById('sungColor').addEventListener('click', function () { openColorPicker('sung'); });
+      document.getElementById('unsungColor').addEventListener('click', function () { openColorPicker('unsung'); });
+
+      var tabPreset = document.getElementById('tab-preset');
+      var tabCustom = document.getElementById('tab-custom');
+      var viewPreset = document.getElementById('view-preset');
+      var viewCustom = document.getElementById('view-custom');
+
+      tabPreset.addEventListener('click', function () {
+        tabPreset.classList.add('active');
+        tabCustom.classList.remove('active');
+        viewPreset.classList.remove('hidden');
+        viewCustom.classList.add('hidden');
+      });
+
+      tabCustom.addEventListener('click', function () {
+        tabCustom.classList.add('active');
+        tabPreset.classList.remove('active');
+        viewCustom.classList.remove('hidden');
+        viewPreset.classList.add('hidden');
+      });
+
+      document.getElementById('reset').addEventListener('click', function () {
+        var b = bridge();
+        if (b) run(b.reset());
+        refreshFromAndroid();
+      });
+
+      document.getElementById('permission').addEventListener('click', function () {
+        var b = bridge();
+        if (b) run(b.openOverlayPermission());
+      });
+
+      window.addEventListener('pagehide', function () {
+        var b = bridge();
+        if (b) run(b.onPageHidden());
+      });
+
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+          ['xPercent', 'yDp', 'widthPercent'].forEach(function (id) {
+            updateRangeTrackFill(document.getElementById(id));
+          });
+        });
+      }
+    }
+
+    function refreshFromAndroid() {
+      state = getState();
+      var cfg = state.config;
+      document.getElementById('enabled').checked = !!cfg.enabled && !!state.hasPermission;
+
+      var elX = document.getElementById('xPercent');
+      var elY = document.getElementById('yDp');
+      var elW = document.getElementById('widthPercent');
+      elX.value = cfg.xPercent;
+      elY.value = cfg.yDp;
+      elW.value = cfg.widthPercent;
+      updateRangeTrackFill(elX);
+      updateRangeTrackFill(elY);
+      updateRangeTrackFill(elW);
+
+      currentSungArgb = String(cfg.sungColor || '#FFFF73B4').toUpperCase();
+      currentUnsungArgb = String(cfg.unsungColor || '#FF8AC2FF').toUpperCase();
+      updateColorButtons();
+      renderLevels(cfg.fontSizeLevel);
+      checkPresetActive();
+    }
+
+    renderPresets();
+    window.PmStatusBarLyric = { refreshFromAndroid: refreshFromAndroid };
+    bindEvents();
+    refreshFromAndroid();
+    var b = bridge();
+    if (b) run(b.onPageVisible());
+  </script>
+</body>
+</html>

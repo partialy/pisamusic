@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,6 +68,7 @@ class PlayerEngine(
     private var lastPersistAtMs = 0L
     private var restoreAttempted = false
     private var lastAutoSkipAtMs = 0L
+    private var progressUpdateJob: Job? = null
     private val playbackRefreshRetryKeys = mutableSetOf<String>()
 
     /** 由 MusicController 在构造后调用 */
@@ -141,7 +143,12 @@ class PlayerEngine(
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
-            if (isPlaying) startProgressUpdate()
+            if (isPlaying) {
+                startProgressUpdate()
+            } else {
+                stopProgressUpdate()
+                updateProgressSnapshot()
+            }
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -361,18 +368,28 @@ class PlayerEngine(
     }
 
     private fun startProgressUpdate() {
-        CoroutineScope(Dispatchers.Main).launch {
+        if (progressUpdateJob?.isActive == true) return
+        progressUpdateJob = CoroutineScope(Dispatchers.Main).launch {
             while (isActive) {
-                exoPlayer?.let { player ->
-                    _currentPosition.value = player.currentPosition
-                    _duration.value = player.duration
-                    _progress.value = if (player.duration > 0) {
-                        (player.currentPosition * 100) / player.duration
-                    } else 0
-                    persistState(force = false)
-                }
-                delay(1000)
+                updateProgressSnapshot()
+                delay(PROGRESS_UPDATE_INTERVAL_MS)
             }
+        }
+    }
+
+    private fun stopProgressUpdate() {
+        progressUpdateJob?.cancel()
+        progressUpdateJob = null
+    }
+
+    private fun updateProgressSnapshot() {
+        exoPlayer?.let { player ->
+            _currentPosition.value = player.currentPosition
+            _duration.value = player.duration
+            _progress.value = if (player.duration > 0) {
+                (player.currentPosition * 100) / player.duration
+            } else 0
+            persistState(force = false)
         }
     }
 
@@ -564,10 +581,15 @@ class PlayerEngine(
 
     /** 释放 ExoPlayer 和 MediaSession */
     fun release() {
+        stopProgressUpdate()
         mediaSession?.release()
         mediaSession = null
         exoPlayer?.release()
         exoPlayer = null
         PlayerCacheProvider.release()
+    }
+
+    private companion object {
+        private const val PROGRESS_UPDATE_INTERVAL_MS = 1_000L
     }
 }
