@@ -15,6 +15,7 @@ object LyricDisplayPrefs {
     private const val KEY_CURRENT_ENLARGED_DX = "current_enlarged_dx"
     private const val KEY_INACTIVE_OPACITY_PERCENT = "inactive_opacity_percent"
     private const val KEY_ALIGNMENT = "alignment"
+    private const val KEY_USE_WORD_LYRIC = "use_word_lyric"
     private const val KEY_NORMAL_PRESETS = "normal_presets"
     private const val KEY_CURRENT_PRESETS = "current_presets"
 
@@ -72,6 +73,13 @@ object LyricDisplayPrefs {
             putInt(KEY_ALIGNMENT, style.alignment.prefValue)
             apply()
         }
+    }
+
+    fun isUseWordLyricEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_USE_WORD_LYRIC, true)
+
+    fun setUseWordLyricEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_USE_WORD_LYRIC, enabled).apply()
     }
 
     fun getNormalColorRgbPresets(context: Context): List<Int> {

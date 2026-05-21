@@ -59,6 +59,7 @@ import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.AudioEmbeddedArtReader
 import cn.partialy.pm.utils.LocalMediaIndexDbStore
+import cn.partialy.pm.utils.LyricDisplayPrefs
 import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
@@ -146,15 +147,18 @@ class PlayerActivity : BaseDownloadActivity() {
 
         binding.textDecreaseButton.setOnClickListener {
             lyricsAdapter.adjustTextSize(-1f, this)
+            updateKaraokeLyricsView(musicController.currentPosition.value)
         }
 
         binding.textIncreaseButton.setOnClickListener {
             lyricsAdapter.adjustTextSize(1f, this)
+            updateKaraokeLyricsView(musicController.currentPosition.value)
         }
 
         binding.lyricSettingsButton.setOnClickListener {
             LyricSettingsSheet.show(this) {
                 lyricsAdapter.applyStyleFromPrefs(this@PlayerActivity)
+                applyLyricDisplayMode()
             }
         }
 
@@ -426,6 +430,10 @@ class PlayerActivity : BaseDownloadActivity() {
         val rv = binding.lyricsRecyclerView
         rv.removeCallbacks(lyricSeekButtonHideRunnable)
         val overlay = binding.lyricCenterSeekOverlay
+        if (binding.karaokeLyricsView.visibility == View.VISIBLE) {
+            overlay.visibility = View.GONE
+            return
+        }
         if (lyricsProgrammaticScrollInProgress) {
             overlay.visibility = View.GONE
             return
@@ -475,6 +483,7 @@ class PlayerActivity : BaseDownloadActivity() {
         lyricContent = content
         lyricRows = content.displayLines
         lyricCurrentIndex = if (lyricRows.isEmpty()) -1 else 0
+        applyLyricDisplayMode()
         lyricsAdapter.submitList(lyricRows) {
             lyricsAdapter.setCurrentIndex(lyricCurrentIndex)
             if (lyricCurrentIndex >= 0) {
@@ -487,7 +496,9 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun updateLyricTime(currentTime: Long) {
         val rows = lyricRows
         if (rows.isEmpty()) return
-        val idx = LyricParser.findCurrentLine(rows, currentTime)?.index ?: return
+        val current = LyricParser.findCurrentLine(rows, currentTime) ?: return
+        updateKaraokeLyricsView(currentTime, current.line)
+        val idx = current.index
         if (idx == lyricCurrentIndex) return
         lyricCurrentIndex = idx
         lyricsAdapter.setCurrentIndex(idx)
@@ -522,6 +533,26 @@ class PlayerActivity : BaseDownloadActivity() {
         scroller.targetPosition = position
         lyricsProgrammaticScrollInProgress = true
         lm.startSmoothScroll(scroller)
+    }
+
+    private fun applyLyricDisplayMode() {
+        val useKaraoke = LyricDisplayPrefs.isUseWordLyricEnabled(this) && lyricContent.hasWordTiming
+        binding.karaokeLyricsView.visibility = if (useKaraoke) View.VISIBLE else View.GONE
+        binding.lyricsRecyclerView.visibility = if (useKaraoke) View.GONE else View.VISIBLE
+        if (useKaraoke) {
+            binding.lyricCenterSeekOverlay.visibility = View.GONE
+            updateKaraokeLyricsView(musicController.currentPosition.value)
+        }
+    }
+
+    private fun updateKaraokeLyricsView(positionMs: Long, line: LyricRow? = null) {
+        if (binding.karaokeLyricsView.visibility != View.VISIBLE) return
+        val currentLine = line ?: LyricParser.findCurrentLine(lyricRows, positionMs)?.line
+        binding.karaokeLyricsView.bind(
+            line = currentLine?.takeIf { it.hasWordTiming },
+            positionMs = positionMs,
+            style = LyricDisplayPrefs.readStyle(this),
+        )
     }
 
     private fun modelForBlur(song: SongInfo): Any? {

@@ -22,6 +22,15 @@
             android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
             android:textColor="?attr/colorOnSurface" />
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/lyricSettingsUseWordLyricSwitch"
+            style="@style/Widget.Pm.SettingsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/lyric_settings_use_word_lyric"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

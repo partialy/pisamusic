@@ -106,6 +106,7 @@
     <string name="lyric_seek_from_line">从该行开始播放</string>
     <string name="lyric_settings_button_cd">歌词样式</string>
     <string name="lyric_settings_title">歌词样式</string>
+    <string name="lyric_settings_use_word_lyric">使用逐字歌词</string>
     <string name="lyric_settings_font_size">字号</string>
     <string name="lyric_settings_normal_color">常规行颜色</string>
     <string name="lyric_settings_current_color">当前行颜色</string>
