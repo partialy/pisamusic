@@ -1,5 +1,8 @@
 package cn.partialy.pm.network.wy
 
+import cn.partialy.pm.lyric.LyricFormat
+import cn.partialy.pm.lyric.LyricParser
+import cn.partialy.pm.lyric.RawLyric
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SearchPlaylistInfo
 import cn.partialy.pm.model.SearchPlaylistResponse
@@ -111,13 +114,31 @@ class WyRepository @Inject constructor(
     }
 
     suspend fun getLyric(id: Long): Result<String> {
+        return getBestLyric(id).map { it.text }
+    }
+
+    suspend fun getBestLyric(id: Long): Result<RawLyric> {
         return try {
             val cacheKey = "wy_lyric_$id"
-            cache.get<String>(cacheKey)?.let { return Result.success(it) }
+            cache.get<RawLyric>(cacheKey)?.let { return Result.success(it) }
             val body = api.lyric(id)
-            val text = body.lrc?.lyric.orEmpty()
-            if (text.isNotEmpty()) cache.set(cacheKey, text)
-            Result.success(text)
+            val yrc = body.yrc?.lyric.orEmpty().trim()
+                .takeIf { it.isNotBlank() }
+                ?.let { RawLyric(it, LyricFormat.YRC, "network_wy_yrc") }
+            if (yrc != null && LyricParser.parseContent(yrc).hasWordTiming) {
+                cache.set(cacheKey, yrc)
+                return Result.success(yrc)
+            }
+
+            val lrc = body.lrc?.lyric.orEmpty().trim()
+                .takeIf { it.isNotBlank() }
+                ?.let { RawLyric(it, LyricFormat.LRC, "network_wy_lrc") }
+            if (lrc != null && LyricParser.parseContent(lrc).hasLyrics) {
+                cache.set(cacheKey, lrc)
+                return Result.success(lrc)
+            }
+
+            Result.success(RawLyric("", LyricFormat.NONE, "network_wy_empty"))
         } catch (e: Exception) {
             Result.failure(e)
         }

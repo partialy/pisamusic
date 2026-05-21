@@ -125,9 +125,9 @@ class StatusBarLyricOverlayController @Inject constructor(
         loadJob?.cancel()
         loadJob = activeScope.launch {
             val key = songKey(song)
-            val text = withContext(Dispatchers.IO) { lyricRepository.loadLyrics(song) }
+            val content = withContext(Dispatchers.IO) { lyricRepository.loadLyrics(song) }
             if (key != latestSongKey) return@launch
-            latestLines = LyricParser.parse(text).filter { it.text != "暂无歌词" && it.text != "error" }
+            latestLines = if (content.hasLyrics) content.lines else emptyList()
             render()
         }
     }
@@ -142,7 +142,7 @@ class StatusBarLyricOverlayController @Inject constructor(
         val shouldShowLiveLyric = (config.enabled || settingsPreviewActive) &&
             latestPlaying &&
             current != null &&
-            current.line.text.isNotBlank()
+            current.line.lineText.isNotBlank()
 
         if (shouldShowLiveLyric && current != null) {
             val view = ensureOverlayView()
@@ -150,7 +150,7 @@ class StatusBarLyricOverlayController @Inject constructor(
             view.bind(
                 config = config,
                 index = current.index,
-                text = current.line.text,
+                text = current.line.lineText,
                 lineProgress = current.progress,
                 elapsedMs = current.elapsedMs,
                 durationMs = current.durationMs,

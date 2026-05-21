@@ -16,11 +16,20 @@ class LocalMediaIndexDbStore(context: Context) {
         val value: String,
     )
 
+    data class LyricIndex(
+        val lyric: String,
+        val source: String,
+    )
+
     fun getLyric(song: SongInfo): String? {
+        return getLyricIndex(song)?.lyric
+    }
+
+    fun getLyricIndex(song: SongInfo): LyricIndex? {
         val key = song.mediaKey()
         helper.readableDatabase.query(
             "lyric_index",
-            arrayOf("lyric"),
+            arrayOf("lyric", "source"),
             "song_key = ?",
             arrayOf(key),
             null,
@@ -29,7 +38,9 @@ class LocalMediaIndexDbStore(context: Context) {
             "1",
         ).use { cursor ->
             if (!cursor.moveToFirst()) return null
-            return cursor.getString(0)?.takeIf { it.isNotBlank() }
+            val lyric = cursor.getString(0).orEmpty()
+            val source = cursor.getString(1).orEmpty()
+            return if (lyric.isNotBlank()) LyricIndex(lyric, source) else null
         }
     }
 

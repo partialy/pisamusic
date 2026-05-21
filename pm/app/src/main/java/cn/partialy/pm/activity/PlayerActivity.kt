@@ -42,6 +42,7 @@ import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityPlayerBinding
+import cn.partialy.pm.lyric.LyricContent
 import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.LyricRepository
 import cn.partialy.pm.model.SongInfo
@@ -83,6 +84,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
     private lateinit var lyricsAdapter: LyricsAdapter
     private var lyricRows: List<LyricRow> = emptyList()
+    private var lyricContent: LyricContent = LyricContent.noLyrics()
     private var lyricCurrentIndex: Int = -1
     private var lastUserLyricScrollAtMs: Long = 0L
     private var lyricScrollState: Int = RecyclerView.SCROLL_STATE_IDLE
@@ -309,9 +311,9 @@ class PlayerActivity : BaseDownloadActivity() {
                     applyLocalMediaFallbacks(it)
                     applyBlurBackground(modelForBlur(it))
                     if (it.type == SongType.LOCAL) {
-                        submitLyricsText("正在获取歌词...")
+                        submitLyrics(LyricContent.message("正在获取歌词..."))
                     }
-                    submitLyricsText(lyricRepository.loadLyrics(it))
+                    submitLyrics(lyricRepository.loadLyrics(it))
                 } ?: run {
                     SongSourceTagBinder.hide(binding.songSourceTagTextView)
                 }
@@ -363,7 +365,7 @@ class PlayerActivity : BaseDownloadActivity() {
             binding.lyricCenterSeekOverlay.visibility = View.GONE
             lastUserLyricScrollAtMs = SystemClock.elapsedRealtime()
             lifecycleScope.launch {
-                musicController.seekToPositionMs(rows[idx].timeMs)
+                musicController.seekToPositionMs(rows[idx].startTime)
             }
         }
         binding.lyricsRecyclerView.apply {
@@ -445,7 +447,7 @@ class PlayerActivity : BaseDownloadActivity() {
         overlay.visibility = if (visible) View.VISIBLE else View.GONE
         if (visible && lyricCenterSeekIndex < rows.size) {
             binding.lyricCenterSeekTimeText.text =
-                formatTime(rows[lyricCenterSeekIndex].timeMs.toInt())
+                formatTime(rows[lyricCenterSeekIndex].startTime.toInt())
         }
         if (show && lyricScrollState == RecyclerView.SCROLL_STATE_IDLE && inBrowseWindow) {
             val delay = (3_000 - since).coerceAtLeast(0L)
@@ -469,8 +471,9 @@ class PlayerActivity : BaseDownloadActivity() {
         }
     }
 
-    private fun submitLyricsText(text: String) {
-        lyricRows = LyricParser.parse(text)
+    private fun submitLyrics(content: LyricContent) {
+        lyricContent = content
+        lyricRows = content.displayLines
         lyricCurrentIndex = if (lyricRows.isEmpty()) -1 else 0
         lyricsAdapter.submitList(lyricRows) {
             lyricsAdapter.setCurrentIndex(lyricCurrentIndex)

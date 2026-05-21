@@ -16,6 +16,9 @@ import cn.partialy.pm.model.KgSongUrlResponse
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.pickKgStreamUrl
+import cn.partialy.pm.lyric.LyricFormat
+import cn.partialy.pm.lyric.LyricParser
+import cn.partialy.pm.lyric.RawLyric
 import cn.partialy.pm.network.api.KgApiService
 import cn.partialy.pm.network.kg.DfidHolder
 import cn.partialy.pm.network.kg.KgUrlProxyApiService
@@ -337,46 +340,73 @@ class KgRepository @Inject constructor(
         }
     }
 
-    suspend fun getLyric(hash: String):Result<String> {
+    suspend fun getBestLyric(hash: String): Result<RawLyric> {
         return try {
             ensureKgDfid()
             val response = api.searchLyric(hash)
             val c = response.candidates.firstOrNull()
                 ?: return Result.failure(IllegalStateException("search/lyric: no candidates"))
-            val lyric = api.getLyric(
-                id = c.id,
-                accesskey = c.accesskey,
-                fmt = "lrc",
-                decode = true,
-            )
-            Result.success(lyric.decodeContent.orEmpty())
+            requestBestLyric(c.id, c.accesskey)
         }catch (e:Exception){
             Result.failure(e)
         }
     }
 
+    suspend fun getLyric(hash: String):Result<String> =
+        getBestLyric(hash).map { it.text }
+
     suspend fun getLyricByKeywords(keywords: String): Result<String> {
+        return getBestLyricByKeywords(keywords).map { it.text }
+    }
+
+    suspend fun getBestLyricByKeywords(keywords: String): Result<RawLyric> {
         val kw = keywords.trim()
-        if (kw.isEmpty()) return Result.success("")
+        if (kw.isEmpty()) return Result.success(RawLyric("", LyricFormat.NONE, "network_kg_empty"))
         return try {
             ensureKgDfid()
             val cacheKey = "kg_lyric_kw_$kw"
-            cache.get<String>(cacheKey)?.let { return Result.success(it) }
+            cache.get<RawLyric>(cacheKey)?.let { return Result.success(it) }
             val response = api.searchLyricByKeywords(kw)
             val c = response.candidates.firstOrNull()
-                ?: return Result.success("")
-            val lyric = api.getLyric(
-                id = c.id,
-                accesskey = c.accesskey,
-                fmt = "lrc",
-                decode = true,
-            )
-            val text = lyric.decodeContent.orEmpty()
-            if (text.isNotEmpty()) cache.set(cacheKey, text)
-            Result.success(text)
+                ?: return Result.success(RawLyric("", LyricFormat.NONE, "network_kg_empty"))
+            val result = requestBestLyric(c.id, c.accesskey).getOrThrow()
+            if (result.text.isNotEmpty()) cache.set(cacheKey, result)
+            Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private suspend fun requestBestLyric(id: String, accesskey: String): Result<RawLyric> {
+        val krc = requestLyric(id, accesskey, LyricFormat.KRC, "krc", "network_kg_krc")
+        if (krc != null && LyricParser.parseContent(krc).hasWordTiming) return Result.success(krc)
+
+        val lrc = requestLyric(id, accesskey, LyricFormat.LRC, "lrc", "network_kg_lrc")
+        return if (lrc != null && LyricParser.parseContent(lrc).hasLyrics) {
+            Result.success(lrc)
+        } else {
+            Result.success(RawLyric("", LyricFormat.NONE, "network_kg_empty"))
+        }
+    }
+
+    private suspend fun requestLyric(
+        id: String,
+        accesskey: String,
+        format: LyricFormat,
+        fmt: String,
+        source: String,
+    ): RawLyric? {
+        return runCatching {
+            val lyric = api.getLyric(
+                id = id,
+                accesskey = accesskey,
+                fmt = fmt,
+                decode = true,
+            )
+            lyric.decodeContent.orEmpty().trim()
+                .takeIf { it.isNotBlank() }
+                ?.let { RawLyric(it, format, source) }
+        }.getOrNull()
     }
 
     suspend fun getHotSongs(): Result<HotSearchResponse> {

@@ -63,7 +63,7 @@ class LyricsAdapter : ListAdapter<LyricRow, LyricsAdapter.VH>(Diff()) {
 
     class VH(private val tv: TextView) : RecyclerView.ViewHolder(tv) {
         fun bind(row: LyricRow, highlighted: Boolean, style: LyricDisplayStyle) {
-            tv.text = row.text
+            tv.text = row.lineText
             applyHighlight(highlighted, style)
         }
 
@@ -99,7 +99,7 @@ class LyricsAdapter : ListAdapter<LyricRow, LyricsAdapter.VH>(Diff()) {
 
     private class Diff : DiffUtil.ItemCallback<LyricRow>() {
         override fun areItemsTheSame(oldItem: LyricRow, newItem: LyricRow): Boolean =
-            oldItem.timeMs == newItem.timeMs && oldItem.text == newItem.text
+            oldItem.startTime == newItem.startTime && oldItem.lineText == newItem.lineText
 
         override fun areContentsTheSame(oldItem: LyricRow, newItem: LyricRow): Boolean = oldItem == newItem
     }

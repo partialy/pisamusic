@@ -67,6 +67,7 @@ typealias WySongUrlV1Response = WySongUrlResponse
 data class WyLyricResponse(
     val code: Int? = null,
     val lrc: WyLrcDto? = null,
+    val yrc: WyLrcDto? = null,
 )
 
 data class WyLrcDto(
