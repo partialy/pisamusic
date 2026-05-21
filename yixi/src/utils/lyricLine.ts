@@ -21,12 +21,15 @@ export function getLyricLineEndTime(lines: LyricLine[], index: number) {
 
 export function findLyricLineIndex(lines: LyricLine[], timeMs: number) {
   if (!lines.length) return -1;
+  if (timeMs < lines[0].startTime) return 0;
 
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     const line = lines[index];
     if (!line || timeMs < line.startTime) continue;
     const endTime = getLyricLineEndTime(lines, index);
-    if (timeMs <= endTime || index === lines.length - 1) return index;
+    if (timeMs <= endTime || timeMs < (lines[index + 1]?.startTime ?? Infinity) || index === lines.length - 1) {
+      return index;
+    }
   }
 
   return 0;

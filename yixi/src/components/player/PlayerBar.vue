@@ -29,7 +29,8 @@
               :key="currentLyricLine?.startTime"
               class="lyric text-line-1"
               :line="currentLyricLine"
-              :current-time="currentTime" />
+              :current-time="currentTime"
+              :is-playing="isPlaying" />
             <span v-else :key="currentLyricText" class="lyric text-line-1">{{
               currentLyricText
             }}</span>
