@@ -1,3 +1,4 @@
+import type { LyricLine as AmLyricLine, LyricWord as AmLyricWord } from '@applemusic-like-lyrics/lyric'
 // ============================================================
 // lyric-parser.ts — 多格式歌词解析工具
 // 支持：LRC 单行歌词 / KRC 逐字歌词 / YRC 逐字歌词（Y 格式）
@@ -254,5 +255,32 @@ export class LyricParser {
     lines.sort((a, b) => a.startTime - b.startTime);
 
     return lines;
+  }
+
+  /**
+   * 转换为 Apple Music Like Lyrics（AMLL）库使用的格式
+   * @param lines LyricLine 数组
+   * @returns AmLyricLine 数组
+   */
+  static toAmLyric(lines: LyricLine[]): AmLyricLine[] {
+      return lines.map(line => {
+        const result: AmLyricLine = {
+          startTime: line.startTime,
+          endTime: line.endTime,
+          words: line.words.map(word => {
+            const amWord: AmLyricWord = {
+              startTime: word.startTime,
+              endTime: word.endTime,
+              word: word.word
+            }
+            return amWord;
+          }),
+          translatedLyric: "",
+          romanLyric: "",
+          isBG: false,
+          isDuet: false
+        }
+        return result;
+      })
   }
 }
