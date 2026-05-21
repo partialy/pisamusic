@@ -24,8 +24,8 @@
             currentSong?.singer || "未知歌手"
           }}</span>
           <transition v-else name="fade" mode="out-in">
-            <span :key="currentLyric?.text" class="lyric text-line-1">{{
-              currentLyric?.text
+            <span :key="currentLyricText" class="lyric text-line-1">{{
+              currentLyricText
             }}</span>
           </transition>
           <!-- <span v-else class="lyric">{{ currentLyric }}</span> -->
@@ -141,6 +141,7 @@ import { storeToRefs } from "pinia";
 import { useAudioStore, useLyricStore } from "@/store";
 import { PlayControlBtn, PlaySequence, VolumePanel } from ".";
 import { debounce, defaultSongCover, formatDuration, renderIcon } from '@/utils/common';
+import { EMPTY_LYRIC_TEXT, getLyricLineText } from "@/utils/lyricLine";
 import { computed, ref, watch } from "vue";
 import { Download as DownloadIcon } from "lucide-vue-next";
 import {
@@ -171,8 +172,7 @@ const songDownload = useSongDownload();
 const commonStore = useCommonStore();
 const { currentTime, duration, currentSong, isPlaying, volume, repeatMode } =
   storeToRefs(player);
-const { parsedLrc, desktop } = storeToRefs(lyric);
-const currentIndex = ref(0);
+const { desktop } = storeToRefs(lyric);
 const qualityOptions = computed(() => getQualityOptionsForSong(currentSong.value));
 const qualityDropdownOptions = computed(() =>
   qualityOptions.value.map((option) => ({
@@ -186,11 +186,9 @@ const currentQualityOption = computed(() => {
 });
 const imgSrc = useSongCoverUrl(currentSong);
 
-const currentLyric = computed(() => {
-  if (currentIndex.value > parsedLrc.value.length || currentIndex.value < 0) {
-    return parsedLrc.value[parsedLrc.value.length - 1];
-  }
-  return parsedLrc.value[currentIndex.value];
+const currentLyricText = computed(() => {
+  const text = getLyricLineText(lyric.currentLine);
+  return text || EMPTY_LYRIC_TEXT;
 });
 
 // 播放模式
@@ -275,19 +273,12 @@ const handleSeek = debounce((val: number) => {
   player.seek(val);
 }, 50);
 
-let v = 0;
 watch(
   () => currentTime.value,
   (val) => {
-    if (val != v && Math.abs(val - v) > 1) {
-      v = val;
-      lyric.currentTime = val;
-      currentIndex.value = parsedLrc.value.findIndex(
-        (item) => item.endTime && item.endTime >= val
-      );
-      // console.log("currentTime", currentTime.value, currentIndex.value, parsedLrc.value[currentIndex.value], lyric.currentTime);
-    }
-  }
+    lyric.currentTime = val;
+  },
+  { immediate: true }
 );
 
 const getLyric = debounce(() => {

@@ -1,4 +1,4 @@
-import type { LyricLine as AmLyricLine, LyricWord as AmLyricWord } from '@applemusic-like-lyrics/lyric'
+import type { LyricLine as AmLyricLine, LyricWord as AmLyricWord } from '@applemusic-like-lyrics/core'
 // ============================================================
 // lyric-parser.ts — 多格式歌词解析工具
 // 支持：LRC 单行歌词 / KRC 逐字歌词 / YRC 逐字歌词（Y 格式）
