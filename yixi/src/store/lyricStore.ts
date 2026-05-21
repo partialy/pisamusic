@@ -235,9 +235,14 @@ export const useLyricStore = defineStore("lyric", {
       await electronAPI.setSetting(DESKTOP_LYRIC_SETTING_KEY, setting, 1);
     },
     async sendToLyricWindow() {
+      const payload = buildDesktopLyricPayload(
+        this.AMWordLyrics,
+        this.AMLineLyrics,
+        this.isKaraokeLyricEnabled
+      );
       await electronAPI.setLyrics({
-        type: this.isKaraokeLyricEnabled ? "krc" : "lrc",
-        data: JSON.stringify(this.preferredAmLyrics),
+        type: payload.type,
+        data: JSON.stringify(payload.lines),
       });
       await electronAPI.updateTime(this.currentTime);
     },
@@ -279,6 +284,42 @@ function getWordLyricFormat(source: Song["source"], rawLyric: string): WordLyric
 function parseWordLyrics(rawLyric: string, format: WordLyricFormat) {
   if (!rawLyric || !format) return [];
   return format === "yrc" ? LyricParser.parseYrc(rawLyric) : LyricParser.parseKrc(rawLyric);
+}
+
+function buildDesktopLyricPayload(
+  wordLyrics: AMLyricLine[],
+  lineLyrics: AMLyricLine[],
+  useWordTiming: boolean
+) {
+  if (useWordTiming && wordLyrics.length > 0) {
+    return { type: "krc" as const, lines: wordLyrics };
+  }
+
+  if (lineLyrics.length > 0) {
+    return { type: "lrc" as const, lines: flattenAmLyrics(lineLyrics) };
+  }
+
+  return { type: "lrc" as const, lines: flattenAmLyrics(wordLyrics) };
+}
+
+function flattenAmLyrics(lines: AMLyricLine[]): AMLyricLine[] {
+  return lines.map((line) => {
+    const text = line.words.map((word) => word.word).join("");
+    const endTime = line.endTime > line.startTime ? line.endTime : line.startTime + 5000;
+    return {
+      ...line,
+      endTime,
+      words: text
+        ? [
+            {
+              word: text,
+              startTime: line.startTime,
+              endTime,
+            },
+          ]
+        : [],
+    };
+  });
 }
 
 function normalizeDesktopLyricSetting(input: Partial<DesktopLyricSetting>): DesktopLyricSetting {

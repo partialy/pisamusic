@@ -55,6 +55,7 @@ declare module 'vue' {
     PlayControlBtn: typeof import('./src/components/player/PlayControlBtn.vue')['default']
     PlayerBackground: typeof import('./src/components/player/PlayerBackground.vue')['default']
     PlayerBar: typeof import('./src/components/player/PlayerBar.vue')['default']
+    PlayerBarKaraokeLyric: typeof import('./src/components/player/PlayerBarKaraokeLyric.vue')['default']
     Playing: typeof import('./src/components/playList/Playing.vue')['default']
     PlaylistCollect: typeof import('./src/components/list/PlaylistCollect.vue')['default']
     PlayListDetailLayout: typeof import('./src/components/playList/PlayListDetailLayout.vue')['default']

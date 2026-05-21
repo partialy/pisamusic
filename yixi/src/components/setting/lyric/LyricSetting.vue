@@ -308,6 +308,13 @@ watch(
 );
 
 watch(
+  () => setting.value.useKRC,
+  () => {
+    void lyric.sendToLyricWindow();
+  }
+);
+
+watch(
   () => desktopLyric.value,
   debounce(async () => {
     await lyric.saveDesktopLyricSetting();
