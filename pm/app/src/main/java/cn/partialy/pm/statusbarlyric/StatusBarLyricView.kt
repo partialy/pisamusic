@@ -10,6 +10,7 @@ import android.text.TextPaint
 import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.View
+import cn.partialy.pm.lyric.LyricLine
 import kotlin.math.roundToInt
 
 class StatusBarLyricView @JvmOverloads constructor(
@@ -26,6 +27,9 @@ class StatusBarLyricView @JvmOverloads constructor(
         isFakeBoldText = true
     }
     private var lyricText = ""
+    private var lyricLine: LyricLine? = null
+    private var positionMs: Long = 0L
+    private var useWordProgress = false
     private var lineIndex = -1
     private var displayProgress = 0f
     private var sungColor = StatusBarLyricPrefs.DEFAULT.sungColorArgb
@@ -35,19 +39,25 @@ class StatusBarLyricView @JvmOverloads constructor(
     private var animationMaxProgress = 0f
     private var animationDurationMs = 0L
     private var animationStartAtMs = 0L
+    private var animationStopAtMs = 0L
     private var animationRunning = false
     private var boundsVisibleUntilMs = 0L
 
     fun bind(
         config: StatusBarLyricConfig,
         index: Int,
-        text: String,
+        line: LyricLine,
+        positionMs: Long,
+        useWordProgress: Boolean,
         lineProgress: Float,
         elapsedMs: Long,
         durationMs: Long,
     ) {
         val previousFontSize = fontSizeSp
-        lyricText = text
+        lyricText = line.lineText
+        lyricLine = line
+        this.positionMs = positionMs
+        this.useWordProgress = useWordProgress
         lineIndex = index
         sungColor = config.sungColorArgb
         unsungColor = config.unsungColorArgb
@@ -65,6 +75,8 @@ class StatusBarLyricView @JvmOverloads constructor(
     fun bindStaticPreview(config: StatusBarLyricConfig, text: String, progress: Float) {
         val previousFontSize = fontSizeSp
         lyricText = text
+        lyricLine = null
+        useWordProgress = false
         lineIndex = PREVIEW_LINE_INDEX
         sungColor = config.sungColorArgb
         unsungColor = config.unsungColorArgb
@@ -109,7 +121,11 @@ class StatusBarLyricView @JvmOverloads constructor(
         paint.color = unsungColor
         canvas.drawText(displayText, x, baseline, paint)
 
-        val sungWidth = textWidth * displayProgress
+        val sungWidth = if (useWordProgress) {
+            calculateWordSungWidth(displayText)
+        } else {
+            textWidth * displayProgress
+        }
         if (sungWidth > 0f) {
             canvas.save()
             canvas.clipRect(x, 0f, x + sungWidth, height.toFloat())
@@ -136,6 +152,7 @@ class StatusBarLyricView @JvmOverloads constructor(
         animationMaxProgress = maxProgress.coerceAtLeast(animationStartProgress)
         animationDurationMs = safeDuration
         animationStartAtMs = SystemClock.uptimeMillis()
+        animationStopAtMs = animationStartAtMs + windowMs
         animationRunning = windowMs > 0L && animationStartProgress < animationMaxProgress
 
         if (!animationRunning) {
@@ -147,6 +164,15 @@ class StatusBarLyricView @JvmOverloads constructor(
 
     private fun updateAnimatedProgress() {
         if (!animationRunning) return
+        if (useWordProgress) {
+            val elapsedWallMs = (SystemClock.uptimeMillis() - animationStartAtMs).coerceAtLeast(0L)
+            positionMs += elapsedWallMs
+            animationStartAtMs = SystemClock.uptimeMillis()
+            if (SystemClock.uptimeMillis() >= animationStopAtMs || positionMs >= (lyricLine?.endTime ?: positionMs)) {
+                animationRunning = false
+            }
+            return
+        }
         val elapsedWallMs = (SystemClock.uptimeMillis() - animationStartAtMs).coerceAtLeast(0L)
         val advanced = elapsedWallMs.toFloat() / animationDurationMs.toFloat()
         displayProgress = (animationStartProgress + advanced).coerceAtMost(animationMaxProgress)
@@ -163,6 +189,29 @@ class StatusBarLyricView @JvmOverloads constructor(
     }
 
     private fun isBoundsVisible(): Boolean = SystemClock.uptimeMillis() < boundsVisibleUntilMs
+
+    private fun calculateWordSungWidth(displayText: String): Float {
+        val line = lyricLine ?: return 0f
+        var visibleChars = 0
+        var width = 0f
+        for (word in line.words) {
+            if (visibleChars >= displayText.length) break
+            val text = word.word.take(displayText.length - visibleChars)
+            if (text.isEmpty()) continue
+            val wordWidth = paint.measureText(text)
+            width += when {
+                positionMs >= word.endTime -> wordWidth
+                positionMs <= word.startTime -> 0f
+                else -> {
+                    val duration = (word.endTime - word.startTime).coerceAtLeast(1L)
+                    val elapsed = (positionMs - word.startTime).coerceIn(0L, duration)
+                    wordWidth * (elapsed.toFloat() / duration.toFloat())
+                }
+            }
+            visibleChars += text.length
+        }
+        return width
+    }
 
     private fun dp(value: Float): Float = value * resources.displayMetrics.density
 

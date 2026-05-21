@@ -12,6 +12,7 @@ import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.LyricRepository
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.player.MusicController
+import cn.partialy.pm.utils.LyricDisplayPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -147,10 +148,14 @@ class StatusBarLyricOverlayController @Inject constructor(
         if (shouldShowLiveLyric && current != null) {
             val view = ensureOverlayView()
             updateOverlayLayout()
+            val useWordProgress =
+                LyricDisplayPrefs.isUseWordLyricEnabled(context) && current.line.hasWordTiming
             view.bind(
                 config = config,
                 index = current.index,
-                text = current.line.lineText,
+                line = current.line,
+                positionMs = latestPositionMs,
+                useWordProgress = useWordProgress,
                 lineProgress = current.progress,
                 elapsedMs = current.elapsedMs,
                 durationMs = current.durationMs,
