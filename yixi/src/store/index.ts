@@ -9,6 +9,7 @@ import { useThemeStore } from "./theme";
 import { useLocalLibraryStore } from "./localLibrary";
 import { useMineLibraryStore } from "./mineLibrary";
 import { useUserStore } from './user';
+import { useShortcutStore } from "./shortcut";
 export {
   useSettingStore,
   useCommonStore,
@@ -21,4 +22,5 @@ export {
   useLocalLibraryStore,
   useMineLibraryStore,
   useUserStore,
+  useShortcutStore,
 };

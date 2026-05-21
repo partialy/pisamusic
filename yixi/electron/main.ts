@@ -16,6 +16,7 @@ import { setupDebugIpc } from "./ipc/debugIpc";
 import { setupLocalLibraryIpc } from "./ipc/localLibraryIpc";
 import { setupCookieIpc } from "./ipc/cookieIpc";
 import { setupDownloadIpc } from "./ipc/downloadIpc";
+import { setupShortcutIpc } from "./ipc/shortcutIpc";
 import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
@@ -115,6 +116,7 @@ function setupAppIpc() {
   setupLocalLibraryIpc();
   setupCookieIpc();
   setupDownloadIpc();
+  setupShortcutIpc(() => mainWindow);
   desktopLyric.setupIpc();
 }
 

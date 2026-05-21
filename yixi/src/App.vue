@@ -36,6 +36,7 @@ import {
   useLyricStore,
   useMineLibraryStore,
   useRuntimeConfigStore,
+  useShortcutStore,
   useThemeStore,
 } from "./store";
 import { storeToRefs } from "pinia";
@@ -56,6 +57,7 @@ const lyric = useLyricStore();
 const mineLibrary = useMineLibraryStore();
 const runtimeConfig = useRuntimeConfigStore();
 const themeStore = useThemeStore();
+const shortcutStore = useShortcutStore();
 // 初始化
 commonStore.hidePlayer();
 
@@ -150,6 +152,7 @@ async function bootstrapApp() {
       mineLibrary.init(),
       lyric.loadDesktopLyricSetting(),
       player.loadState(),
+      shortcutStore.init(),
     ]);
 
     results.forEach((result, index) => {
@@ -177,6 +180,7 @@ onBeforeUnmount(() => {
   player.saveState();
   collector.save();
   themeStore.dispose();
+  shortcutStore.dispose();
   clearInterval(t);
 });
 </script>

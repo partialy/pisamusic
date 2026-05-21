@@ -441,6 +441,27 @@ type CookieFileExportResult = {
   skippedFiles: string[];
 };
 
+type ShortcutAction =
+  | "prev"
+  | "next"
+  | "play-toggle"
+  | "lyric-lock"
+  | "lyric-unlock"
+  | "favorite-song";
+
+type ShortcutSetting = {
+  enabled: boolean;
+  global: boolean;
+  bindings: Record<ShortcutAction, string>;
+};
+
+type ShortcutRegistrationResult = {
+  action: ShortcutAction;
+  accelerator: string;
+  registered: boolean;
+  reason?: string;
+};
+
 type ElectronIpcApi = {
   minimizeWindow: () => void;
   maximizeWindow: () => void;
@@ -541,6 +562,8 @@ type ElectronIpcApi = {
   deleteSetting: (key: string) => Promise<boolean>;
   selectDirectory: (title?: string) => Promise<string | null>;
   selectPlaylistCover: () => Promise<string | null>;
+  applyShortcutSetting: (setting: ShortcutSetting) => Promise<ShortcutRegistrationResult[]>;
+  onShortcutTrigger: (callback: (action: ShortcutAction) => void) => () => void;
   addSearchHistory: (payload: { keyword: string; source?: string | null }) => Promise<SearchHistoryItem | null>;
   listSearchHistory: (limit?: number) => Promise<SearchHistoryItem[]>;
   clearSearchHistory: () => Promise<boolean>;

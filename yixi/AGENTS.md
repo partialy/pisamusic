@@ -168,3 +168,10 @@
 
 - `electron/database/appDatabase.ts` 只保留 SQLite 连接生命周期与对外读写 API；公共类型放在 `types.ts`，建表与迁移放在 `schema.ts`，JSON / limit 工具放在 `json.ts`，DTO 归一化放在 `normalizers.ts`，数据库行到业务对象的映射放在 `mappers.ts`。
 - 后续新增 SQLite 表、字段或本地持久化能力时，按职责更新上述模块，不要把 schema、row type、mapper、normalizer 重新堆回 `appDatabase.ts`。
+
+## 快捷键设置规则补充
+
+- “快捷键设置”位于 `src/components/setting/shortcut/ShortcutSetting.vue`，由 `src/store/shortcut.ts` 统一管理配置、重复校验、App 内按键监听和动作分发，不要把快捷键业务逻辑直接堆到设置页组件里。
+- 快捷键配置统一写入 SQLite settings 的 `app-shortcut-setting`，字段为 `enabled`、`global` 和各动作 `bindings`；不要新增 localStorage 或 electron-store 作为快捷键配置来源。
+- 全局快捷键只在 main 进程 `electron/ipc/shortcutIpc.ts` 中通过 Electron `globalShortcut` 注册；renderer 只通过 preload 的 `applyShortcutSetting` 应用配置，通过 `onShortcutTrigger` 接收动作。
+- 快捷键动作必须复用现有 store：播放控制走 `useAudioStore`，歌词锁定走 `useLyricStore().setDesktopLocked()`，收藏当前歌曲走 `useCollectStore().collectSong()`；不要新建并行的播放、歌词或收藏状态。

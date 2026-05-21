@@ -65,6 +65,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SequenceItem: typeof import('./src/components/player/SequenceItem.vue')['default']
+    ShortcutSetting: typeof import('./src/components/setting/shortcut/ShortcutSetting.vue')['default']
     SongItem: typeof import('./src/components/playList/songItem.vue')['default']
     SongList: typeof import('./src/components/list/SongList.vue')['default']
     TipsHistory: typeof import('./src/components/search/TipsHistory.vue')['default']

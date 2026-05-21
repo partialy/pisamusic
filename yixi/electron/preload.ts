@@ -11,6 +11,20 @@ type WindowLyricSetting = {
   fontWeight: number;
 };
 
+type ShortcutAction =
+  | "prev"
+  | "next"
+  | "play-toggle"
+  | "lyric-lock"
+  | "lyric-unlock"
+  | "favorite-song";
+
+type ShortcutSetting = {
+  enabled: boolean;
+  global: boolean;
+  bindings: Record<ShortcutAction, string>;
+};
+
 type Unsubscribe = () => void;
 
 function on(channel: string, callback: (...args: any[]) => void): Unsubscribe {
@@ -83,6 +97,13 @@ const settingsIpc = {
   deleteSetting: (key: string) => ipcRenderer.invoke("settings:delete", key),
   selectDirectory: (title?: string) => ipcRenderer.invoke("dialog:select-directory", title),
   selectPlaylistCover: () => ipcRenderer.invoke("dialog:select-playlist-cover"),
+};
+
+const shortcutIpc = {
+  applyShortcutSetting: (setting: ShortcutSetting) =>
+    ipcRenderer.invoke("shortcut:apply", cloneIpcPayload(setting)),
+  onShortcutTrigger: (callback: (action: ShortcutAction) => void) =>
+    on("shortcut:trigger", callback),
 };
 
 const libraryIpc = {
@@ -312,6 +333,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...cookieApiIpc,
   ...downloadApiIpc,
   ...settingsIpc,
+  ...shortcutIpc,
   ...libraryIpc,
   ...utilsIpc,
   ...debugIpc,
