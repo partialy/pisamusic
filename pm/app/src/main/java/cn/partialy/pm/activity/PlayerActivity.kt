@@ -583,6 +583,7 @@ class PlayerActivity : BaseDownloadActivity() {
             currentIndex = current.index,
             positionMs = positionMs,
             style = LyricDisplayPrefs.readStyle(this),
+            isPlaying = musicController.isPlaying.value
         )
     }
 
