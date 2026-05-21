@@ -72,7 +72,7 @@
         </div>
         <!-- 歌词 -->
         <AMLyric v-if="AMLyricView" ref="playerLyric" class="player-lyric" />
-        <CommonLyric v-else-if="lyricStore.rawKrc || lyricStore.rawLrc" ref="playerLyric" class="player-lyric" />
+        <CommonLyric v-else-if="lyricStore.hasLyric" ref="playerLyric" class="player-lyric" />
         <!-- 控制面板 -->
         <Transition name="ctlp" mode="default">
             <ControlPanel class="control-panel" v-show="isMouseActive" />
@@ -98,7 +98,7 @@ const commonStore = useCommonStore()
 const lyricStore = useLyricStore()
 
 const AMLyricView = computed(() => {
-    return currentSong.value?.id && (lyricStore.rawKrc || lyricStore.rawLrc) && lyricStore.setting.useAMLyric
+    return Boolean(currentSong.value?.id && lyricStore.hasLyric && lyricStore.setting.useAMLyric)
 })
 
 const coverUrl = useSongCoverUrl(currentSong, 240)
@@ -120,12 +120,16 @@ const playerLayout = ref<HTMLDivElement>()
 const infoContainer = ref<HTMLDivElement>()
 const setCoverBgPosition = async () => {
     if (!infoContainer.value) return
-    if (currentSong.value?.id && (lyricStore.rawKrc || lyricStore.rawLrc)) {
+    if (currentSong.value?.id && lyricStore.hasLyric) {
         infoContainer.value.style.left = '25%'
     } else {
         infoContainer.value.style.left = '50%'
     }
 }
+
+watch([() => currentSong.value?.id, () => lyricStore.hasLyric], () => {
+    void setCoverBgPosition()
+})
 
 const handleCoverError = (event: Event) => {
     const image = event.target as HTMLImageElement | null

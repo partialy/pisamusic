@@ -42,11 +42,7 @@ const { isPlaying, currentTime } = storeToRefs(playerStore);
 
 // 当前歌词
 const amLyricsData = computed<AMLyricLine[]>(() => {
-  return lyricStore.AMKrc.length != 0
-    ? lyricStore.AMKrc
-    : lyricStore.AMLrc.length != 0
-    ? lyricStore.AMLrc
-    : [];
+  return lyricStore.preferredAmLyrics;
 });
 
 // 进度跳转
