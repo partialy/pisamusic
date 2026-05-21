@@ -4,10 +4,8 @@ import type { Song } from "@/types/song";
 import { fetchLyricsByMusicApi } from "@/utils/api/musicAPI";
 import { LyricParser, type LyricLine } from "@/utils/common/LyricParser";
 import electronAPI from "@/utils/electron";
-import type { MyLyricLine, MyWordTiming } from "@/utils/lyricUtil";
 import {
   findLyricLineIndex,
-  getLyricLineEndTime,
   getLyricLineText,
   normalizePlaybackTimeToMs,
 } from "@/utils/lyricLine";
@@ -104,8 +102,6 @@ export const useLyricStore = defineStore("lyric", {
   getters: {
     rawKrc: (state) => state.rawWordLyric,
     rawLrc: (state) => state.rawLineLyric,
-    parsedKrc: (state): MyLyricLine[] => toLegacyLyricLines(state.wordLyrics),
-    parsedLrc: (state): MyLyricLine[] => toLegacyLyricLines(state.lineLyrics),
     AMKrc: (state) => state.AMWordLyrics,
     AMLrc: (state) => state.AMLineLyrics,
     currentTimeMs: (state) => normalizePlaybackTimeToMs(state.currentTime),
@@ -283,31 +279,6 @@ function getWordLyricFormat(source: Song["source"], rawLyric: string): WordLyric
 function parseWordLyrics(rawLyric: string, format: WordLyricFormat) {
   if (!rawLyric || !format) return [];
   return format === "yrc" ? LyricParser.parseYrc(rawLyric) : LyricParser.parseKrc(rawLyric);
-}
-
-function toLegacyLyricLines(lines: LyricLine[]): MyLyricLine[] {
-  return lines.map((line, index) => {
-    const endTime = getLyricLineEndTime(lines, index);
-    const words = line.words.map<MyWordTiming>((word) => {
-      const startTime = Math.max(0, word.startTime - line.startTime);
-      const endTime = Math.max(startTime, word.endTime - line.startTime);
-      return {
-        word: word.word,
-        startTime,
-        endTime,
-        duration: Math.max(endTime - startTime, 1),
-      };
-    });
-
-    return {
-      index,
-      time: line.startTime / 1000,
-      endTime: endTime / 1000,
-      duration: Math.max(endTime - line.startTime, 1),
-      text: getLyricLineText(line),
-      words,
-    };
-  });
 }
 
 function normalizeDesktopLyricSetting(input: Partial<DesktopLyricSetting>): DesktopLyricSetting {
