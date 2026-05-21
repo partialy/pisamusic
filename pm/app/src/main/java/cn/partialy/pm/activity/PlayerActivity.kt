@@ -71,6 +71,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -90,6 +93,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private var lastUserLyricScrollAtMs: Long = 0L
     private var lyricScrollState: Int = RecyclerView.SCROLL_STATE_IDLE
     private var lyricCenterSeekIndex: Int = -1
+    private var karaokeSyncJob: Job? = null
     /** 自动跟唱等代码触发的 [smoothScrollLyricsToCenter] 期间为 true，避免误显中线指示器。 */
     private var lyricsProgrammaticScrollInProgress: Boolean = false
     private val lyricSeekButtonHideRunnable = Runnable { updateLyricCenterSeekUi() }
@@ -497,13 +501,13 @@ class PlayerActivity : BaseDownloadActivity() {
         val rows = lyricRows
         if (rows.isEmpty()) return
         val current = LyricParser.findCurrentLine(rows, currentTime) ?: return
-        updateKaraokeLyricsView(currentTime, current.line)
+        updateKaraokeLyricsView(currentTime, current.index)
         val idx = current.index
         if (idx == lyricCurrentIndex) return
         lyricCurrentIndex = idx
         lyricsAdapter.setCurrentIndex(idx)
         val sinceUser = SystemClock.elapsedRealtime() - lastUserLyricScrollAtMs
-        if (sinceUser >= 3_000) {
+        if (sinceUser >= 3_000 && binding.karaokeLyricsView.visibility != View.VISIBLE) {
             smoothScrollLyricsToCenter(idx)
         }
     }
@@ -541,18 +545,53 @@ class PlayerActivity : BaseDownloadActivity() {
         binding.lyricsRecyclerView.visibility = if (useKaraoke) View.GONE else View.VISIBLE
         if (useKaraoke) {
             binding.lyricCenterSeekOverlay.visibility = View.GONE
-            updateKaraokeLyricsView(musicController.currentPosition.value)
+            updateKaraokeLyricsView(currentPlaybackPositionMs())
+            startKaraokeSync()
+        } else {
+            stopKaraokeSync()
         }
     }
 
-    private fun updateKaraokeLyricsView(positionMs: Long, line: LyricRow? = null) {
+    private fun startKaraokeSync() {
+        if (karaokeSyncJob?.isActive == true) return
+        karaokeSyncJob = lifecycleScope.launch {
+            while (isActive) {
+                updateKaraokeLyricsView(currentPlaybackPositionMs())
+                delay(KARAOKE_SYNC_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun stopKaraokeSync() {
+        karaokeSyncJob?.cancel()
+        karaokeSyncJob = null
+    }
+
+    private fun updateKaraokeLyricsView(positionMs: Long, index: Int? = null) {
         if (binding.karaokeLyricsView.visibility != View.VISIBLE) return
-        val currentLine = line ?: LyricParser.findCurrentLine(lyricRows, positionMs)?.line
+        val current = if (index != null) {
+            LyricParser.findCurrentLine(lyricRows, positionMs)?.takeIf { it.index == index }
+        } else {
+            LyricParser.findCurrentLine(lyricRows, positionMs)
+        } ?: return
+        if (current.index != lyricCurrentIndex) {
+            lyricCurrentIndex = current.index
+            lyricsAdapter.setCurrentIndex(current.index)
+        }
         binding.karaokeLyricsView.bind(
-            line = currentLine?.takeIf { it.hasWordTiming },
+            lines = lyricRows,
+            currentIndex = current.index,
             positionMs = positionMs,
             style = LyricDisplayPrefs.readStyle(this),
         )
+    }
+
+    private fun currentPlaybackPositionMs(): Long =
+        musicController.exoPlayer?.currentPosition ?: musicController.currentPosition.value
+
+    override fun onDestroy() {
+        stopKaraokeSync()
+        super.onDestroy()
     }
 
     private fun modelForBlur(song: SongInfo): Any? {
@@ -748,6 +787,8 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     companion object {
+        private const val KARAOKE_SYNC_INTERVAL_MS = 100L
+
         fun start(context: Context) {
             val intent = Intent(context, PlayerActivity::class.java)
             context.startActivity(intent)

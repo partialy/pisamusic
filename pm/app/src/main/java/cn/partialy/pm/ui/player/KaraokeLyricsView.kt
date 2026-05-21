@@ -2,12 +2,14 @@ package cn.partialy.pm.ui.player
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.View
 import cn.partialy.pm.lyric.LyricLine
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 class KaraokeLyricsView @JvmOverloads constructor(
@@ -17,62 +19,73 @@ class KaraokeLyricsView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
     private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.LEFT
-        isFakeBoldText = true
     }
-    private var line: LyricLine? = null
+    private var lines: List<LyricLine> = emptyList()
+    private var currentIndex: Int = -1
     private var positionMs: Long = 0L
     private var style: LyricDisplayStyle = LyricDisplayStyle.DEFAULT
 
-    fun bind(line: LyricLine?, positionMs: Long, style: LyricDisplayStyle) {
+    fun bind(
+        lines: List<LyricLine>,
+        currentIndex: Int,
+        positionMs: Long,
+        style: LyricDisplayStyle,
+    ) {
         val oldSize = this.style.textSizeSp
-        this.line = line
+        this.lines = lines
+        this.currentIndex = currentIndex
         this.positionMs = positionMs
         this.style = style
-        paint.textSize = sp(style.textSizeSp + style.currentLineEnlargedDxSp)
         if (oldSize != style.textSizeSp) requestLayout()
         invalidate()
     }
 
-    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        paint.textSize = sp(style.textSizeSp + style.currentLineEnlargedDxSp)
-        val desiredHeight = (paint.fontMetrics.run { descent - ascent } + dp(24f)).roundToInt()
-        setMeasuredDimension(
-            MeasureSpec.getSize(widthMeasureSpec),
-            resolveSize(desiredHeight, heightMeasureSpec),
-        )
-    }
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val current = line ?: return
+        if (lines.isEmpty() || currentIndex !in lines.indices) return
         val maxTextWidth = (width - paddingLeft - paddingRight).coerceAtLeast(0)
         if (maxTextWidth <= 0) return
 
-        paint.textSize = sp(style.textSizeSp + style.currentLineEnlargedDxSp)
-        paint.isFakeBoldText = style.currentLineBold
-        val displayText = TextUtils.ellipsize(
-            current.lineText,
-            paint,
-            maxTextWidth.toFloat(),
-            TextUtils.TruncateAt.END,
-        ).toString()
-        if (displayText.isBlank()) return
+        val currentTextSize = currentTextSizePx()
+        val normalTextSize = normalTextSizePx()
+        val rowGap = dp(14f)
+        val currentLineHeight = textHeight(currentTextSize)
+        val normalLineHeight = textHeight(normalTextSize)
+        val rowStride = max(currentLineHeight, normalLineHeight) + rowGap
+        val centerBaseline = height / 2f - textCenterOffset(currentTextSize)
+        val visibleRadius = max(1, (height / rowStride).roundToInt() / 2 + 1)
+        val first = (currentIndex - visibleRadius).coerceAtLeast(0)
+        val last = (currentIndex + visibleRadius).coerceAtMost(lines.lastIndex)
 
-        val textWidth = paint.measureText(displayText)
-        val x = when (style.alignment) {
-            LyricAlignment.START -> paddingLeft.toFloat()
-            LyricAlignment.CENTER -> paddingLeft + (maxTextWidth - textWidth) / 2f
-            LyricAlignment.END -> width - paddingRight - textWidth
+        for (index in first..last) {
+            val isCurrent = index == currentIndex
+            paint.textSize = if (isCurrent) currentTextSize else normalTextSize
+            paint.isFakeBoldText = isCurrent && style.currentLineBold
+            paint.color = if (isCurrent) currentBaseColor() else style.resolvedNormalColor()
+
+            val baseline = centerBaseline + (index - currentIndex) * rowStride
+            val displayText = ellipsize(lines[index].lineText, maxTextWidth)
+            if (displayText.isBlank()) continue
+            val x = lineX(displayText, maxTextWidth)
+            canvas.drawText(displayText, x, baseline, paint)
+
+            if (isCurrent && lines[index].hasWordTiming) {
+                drawSungPart(canvas, lines[index], displayText, x, baseline)
+            }
         }
-        val baseline = height / 2f - (paint.ascent() + paint.descent()) / 2f
+    }
 
-        paint.color = style.resolvedNormalColor()
-        canvas.drawText(displayText, x, baseline, paint)
-
-        val sungWidth = calculateSungWidth(current, displayText)
+    private fun drawSungPart(
+        canvas: Canvas,
+        line: LyricLine,
+        displayText: String,
+        x: Float,
+        baseline: Float,
+    ) {
+        val sungWidth = calculateSungWidth(line, displayText)
         if (sungWidth <= 0f) return
         canvas.save()
-        canvas.clipRect(x, 0f, x + sungWidth.coerceAtMost(textWidth), height.toFloat())
+        canvas.clipRect(x, 0f, x + sungWidth.coerceAtMost(paint.measureText(displayText)), height.toFloat())
         paint.color = style.currentColorArgb
         canvas.drawText(displayText, x, baseline, paint)
         canvas.restore()
@@ -99,6 +112,52 @@ class KaraokeLyricsView @JvmOverloads constructor(
         }
         return width
     }
+
+    private fun ellipsize(text: String, maxTextWidth: Int): String =
+        TextUtils.ellipsize(
+            text,
+            paint,
+            maxTextWidth.toFloat(),
+            TextUtils.TruncateAt.END,
+        ).toString()
+
+    private fun lineX(text: String, maxTextWidth: Int): Float {
+        val textWidth = paint.measureText(text)
+        return when (style.alignment) {
+            LyricAlignment.START -> paddingLeft.toFloat()
+            LyricAlignment.CENTER -> paddingLeft + (maxTextWidth - textWidth) / 2f
+            LyricAlignment.END -> width - paddingRight - textWidth
+        }
+    }
+
+    private fun textHeight(textSize: Float): Float {
+        paint.textSize = textSize
+        return paint.fontMetrics.run { descent - ascent }
+    }
+
+    private fun textCenterOffset(textSize: Float): Float {
+        paint.textSize = textSize
+        return (paint.ascent() + paint.descent()) / 2f
+    }
+
+    private fun currentTextSizePx(): Float =
+        sp(
+            if (style.currentLineEnlarged) {
+                style.textSizeSp + style.currentLineEnlargedDxSp
+            } else {
+                style.textSizeSp
+            },
+        )
+
+    private fun normalTextSizePx(): Float = sp(style.textSizeSp)
+
+    private fun currentBaseColor(): Int =
+        Color.argb(
+            255,
+            Color.red(style.normalColorArgb),
+            Color.green(style.normalColorArgb),
+            Color.blue(style.normalColorArgb),
+        )
 
     private fun dp(value: Float): Float = value * resources.displayMetrics.density
 
