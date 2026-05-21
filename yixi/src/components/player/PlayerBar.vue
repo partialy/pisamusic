@@ -24,7 +24,13 @@
             currentSong?.singer || "未知歌手"
           }}</span>
           <transition v-else name="fade" mode="out-in">
-            <span :key="currentLyricText" class="lyric text-line-1">{{
+            <PlayerBarKaraokeLyric
+              v-if="showKaraokeLyric"
+              :key="currentLyricLine?.startTime"
+              class="lyric text-line-1"
+              :line="currentLyricLine"
+              :current-time="currentTime" />
+            <span v-else :key="currentLyricText" class="lyric text-line-1">{{
               currentLyricText
             }}</span>
           </transition>
@@ -164,6 +170,7 @@ import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality
 import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { useSongDownload } from "@/composables/useSongDownload";
 import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
+import PlayerBarKaraokeLyric from "./PlayerBarKaraokeLyric.vue";
 const player = useAudioStore();
 const lyric = useLyricStore();
 const collect = useCollectStore();
@@ -190,6 +197,8 @@ const currentLyricText = computed(() => {
   const text = getLyricLineText(lyric.currentLine);
   return text || EMPTY_LYRIC_TEXT;
 });
+const currentLyricLine = computed(() => lyric.currentLine);
+const showKaraokeLyric = computed(() => lyric.isKaraokeLyricEnabled && Boolean(currentLyricLine.value));
 
 // 播放模式
 const playModeIcon = computed(() => {
