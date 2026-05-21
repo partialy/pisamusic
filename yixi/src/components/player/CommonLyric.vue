@@ -50,16 +50,20 @@ import {
 } from "@/utils/lyricLine";
 import { NScrollbar } from "naive-ui";
 import { storeToRefs } from "pinia";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 const playerStore = useAudioStore();
 const lyricStore = useLyricStore();
-const { currentTime } = storeToRefs(playerStore);
+const { currentTime, isPlaying } = storeToRefs(playerStore);
 
 const cursorIn = ref(false);
 const userScroll = ref(false);
-const currentTimeMs = computed(() => normalizePlaybackTimeToMs(currentTime.value));
+const currentTimeMs = ref(normalizePlaybackTimeToMs(currentTime.value));
 const useWordProgress = computed(() => lyricStore.isKaraokeLyricEnabled);
+
+let anchorTimeMs = currentTimeMs.value;
+let anchorRafTimeMs = 0;
+let rafId: number | null = null;
 
 const displayLyrics = computed(() =>
   lyricStore.preferredLyrics.map((line, index) => ({
@@ -74,6 +78,35 @@ const displayLyrics = computed(() =>
 const currentIndex = computed(() =>
   findLyricLineIndex(lyricStore.preferredLyrics, currentTimeMs.value)
 );
+
+const stopAnimation = () => {
+  if (rafId === null) return;
+  cancelAnimationFrame(rafId);
+  rafId = null;
+};
+
+const renderFrame = (now: number) => {
+  if (!isPlaying.value) {
+    stopAnimation();
+    return;
+  }
+  currentTimeMs.value = anchorTimeMs + (now - anchorRafTimeMs);
+  rafId = requestAnimationFrame(renderFrame);
+};
+
+const startAnimation = () => {
+  if (!isPlaying.value || rafId !== null) return;
+  anchorTimeMs = normalizePlaybackTimeToMs(currentTime.value);
+  currentTimeMs.value = anchorTimeMs;
+  anchorRafTimeMs = performance.now();
+  rafId = requestAnimationFrame(renderFrame);
+};
+
+const syncTimeAnchor = (time: number) => {
+  anchorTimeMs = normalizePlaybackTimeToMs(time);
+  currentTimeMs.value = anchorTimeMs;
+  anchorRafTimeMs = performance.now();
+};
 
 const getItemStyle = () => ({
   fontSize: `${lyricStore.setting.lyricFontSize}px`,
@@ -128,11 +161,36 @@ watch(currentIndex, (newVal, oldVal) => {
 });
 
 watch(
+  currentTime,
+  (time) => {
+    syncTimeAnchor(time);
+    startAnimation();
+  },
+  { immediate: true }
+);
+
+watch(
+  isPlaying,
+  (playing) => {
+    if (playing) {
+      startAnimation();
+    } else {
+      stopAnimation();
+      syncTimeAnchor(currentTime.value);
+    }
+  },
+  { immediate: true }
+);
+
+watch(
   () => lyricStore.preferredLyrics,
   () => {
+    syncTimeAnchor(currentTime.value);
     lyricsScroll(currentIndex.value);
   }
 );
+
+onBeforeUnmount(stopAnimation);
 
 const handleMouseEnter = () => {
   cursorIn.value = true;
@@ -213,7 +271,7 @@ const endScroll = debounce(() => {
       display: inline;
       background-clip: text;
       -webkit-background-clip: text;
-      transition: background-image 0.04s linear, color 0.2s ease;
+      transition: color 0.2s ease;
     }
   }
 }
