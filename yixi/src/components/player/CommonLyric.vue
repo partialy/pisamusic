@@ -253,6 +253,7 @@ const endScroll = debounce(() => {
       position: absolute;
       right: 10px;
       top: 50%;
+      color: #ffffff9f;
       transform: translateY(-50%);
       transition: opacity 0.2s ease;
     }
