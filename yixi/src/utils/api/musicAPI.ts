@@ -44,6 +44,10 @@ export async function getTopPlaylists<T = any>(payload: {
   return invokeMusicApi("getTopPlaylists", payload, () => window.electronAPI.getTopPlaylists<T>(payload));
 }
 
+export async function getTopSongs<T = any>(payload: { source: "kg" } = { source: "kg" }): Promise<T> {
+  return invokeMusicApi("getTopSongs", payload, () => window.electronAPI.getTopSongs<T>(payload));
+}
+
 export async function getKgDailyRecommend<T = any>(platform?: string): Promise<T> {
   return invokeMusicApi("getKgDailyRecommend", { platform }, () =>
     window.electronAPI.getKgDailyRecommend<T>(platform)

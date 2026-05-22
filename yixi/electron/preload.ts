@@ -45,6 +45,8 @@ const windowIpc = {
   hideWindow: () => ipcRenderer.send("window:hide"),
   reloadWindow: () => ipcRenderer.send("window:reload"),
   openDevTools: () => ipcRenderer.send("window:dev-tools"),
+  openUrl: (payload: { url: string; mode?: "window" | "external" }) =>
+    ipcRenderer.invoke("window:open-url", cloneIpcPayload(payload)),
   onHideWindow: (cb: () => void) => on("window:hide", cb),
   onWindowMaximized: (callback: () => void) => on("window:maximized", callback),
   onWindowUnmaximized: (callback: () => void) => on("window:unmaximized", callback),
@@ -207,6 +209,8 @@ const musicApiIpc = {
     page?: number;
     pageSize?: number;
   }) => ipcRenderer.invoke("music:top-playlists", cloneIpcPayload(payload)),
+  getTopSongs: (payload: { source: "kg" }) =>
+    ipcRenderer.invoke("music:top-songs", cloneIpcPayload(payload)),
   getKgDailyRecommend: (platform?: string) =>
     ipcRenderer.invoke("music:kg-daily-recommend", platform),
   getHomeRecommendations: () =>

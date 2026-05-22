@@ -8,6 +8,7 @@ import {
   getPlaylistDetail,
   getPlaylistTracks,
   getTopPlaylists,
+  getTopSongs,
   resolveMusicUrl,
   resolvePlayableUrl,
   searchMusic,
@@ -25,6 +26,7 @@ import type {
   PlaylistSearchParams,
   PlaylistTracksParams,
   TopPlaylistParams,
+  TopSongsParams,
 } from "../music/types";
 
 let registered = false;
@@ -42,6 +44,9 @@ export function setupMusicApiIpc() {
   );
   ipcMain.handle("music:kg-playlist-tags", () => getKgPlaylistTags());
   ipcMain.handle("music:top-playlists", (_event, params: TopPlaylistParams) => getTopPlaylists(params));
+  ipcMain.handle("music:top-songs", (_event, params: TopSongsParams) =>
+    getTopSongs(params)
+  );
   ipcMain.handle("music:kg-daily-recommend", (_event, platform?: string) =>
     getKgDailyRecommend(platform)
   );

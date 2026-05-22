@@ -27,6 +27,10 @@ export type TopPlaylistParams = {
   pageSize?: number;
 };
 
+export type TopSongsParams = {
+  source: "kg";
+};
+
 export type PlaylistDetailParams = {
   source: Exclude<MusicSource, "kw">;
   id: string;

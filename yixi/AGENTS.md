@@ -175,3 +175,11 @@
 - 快捷键配置统一写入 SQLite settings 的 `app-shortcut-setting`，字段为 `enabled`、`global` 和各动作 `bindings`；不要新增 localStorage 或 electron-store 作为快捷键配置来源。
 - 全局快捷键只在 main 进程 `electron/ipc/shortcutIpc.ts` 中通过 Electron `globalShortcut` 注册；renderer 只通过 preload 的 `applyShortcutSetting` 应用配置，通过 `onShortcutTrigger` 接收动作。
 - 快捷键动作必须复用现有 store：播放控制走 `useAudioStore`，歌词锁定走 `useLyricStore().setDesktopLocked()`，收藏当前歌曲走 `useCollectStore().collectSong()`；不要新建并行的播放、歌词或收藏状态。
+
+## 首页公告与热门歌曲规则补充
+
+- 首页公告位于 `src/components/home/HomeAnnouncementCard.vue`，通过 preload 暴露的 `system:get-announcements` 读取外层 `server/` 公告，不要恢复旧的 `mainAPI.getHomeData()` 公告占位接口。
+- 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；`showEveryTime=false` 的公告确认后不再展示，`showEveryTime=true` 仅允许本次页面临时关闭，不写入长期忽略。
+- 公告链接打开统一走 `window:open-url` IPC：`mode: "window"` 使用 Electron 新窗口，`mode: "external"` 使用系统外部浏览器；只允许 http/https 链接，renderer 不直接使用 Electron `shell`。
+- 首页热门歌曲通过 `music:top-songs` 调用 KG `/top/song`，由 main 侧读取 runtime `kgServer` 并使用 `requestSignedGateway()`；renderer 使用 `src/utils/api/musicAPI.ts` 的 `getTopSongs()`，不要直接持有服务端地址。
+- 首页右侧热门歌曲卡片只展示前 4 首并提供“查看更多”滚动到底部热门歌曲节点；底部“热门歌曲”节点复用推荐音乐的 `HomeSongGrid` / `KGRecommendSong` 模式，默认展示前 12 首。

@@ -15,6 +15,7 @@ import type {
   PlaylistSearchParams,
   PlaylistTracksParams,
   TopPlaylistParams,
+  TopSongsParams,
 } from "./types";
 
 export async function searchMusic(params: MusicSearchParams) {
@@ -122,6 +123,11 @@ export async function getTopPlaylists(params: TopPlaylistParams) {
       pagesize: params.pageSize,
     })
   );
+}
+
+export async function getTopSongs(_params: TopSongsParams = { source: "kg" }) {
+  const endpoints = await getRuntimeEndpointsCached();
+  return requestSignedGateway(buildUrl(endpoints.kgServer, "/top/song", {}));
 }
 
 export async function getKgDailyRecommend(platform?: string) {

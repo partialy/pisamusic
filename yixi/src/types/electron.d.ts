@@ -299,6 +299,15 @@ type TopPlaylistParams = {
   pageSize?: number;
 };
 
+type TopSongsParams = {
+  source: "kg";
+};
+
+type OpenUrlParams = {
+  url: string;
+  mode?: "window" | "external";
+};
+
 type PlaylistDetailParams = {
   source: "kg" | "wy";
   id: string;
@@ -469,6 +478,7 @@ type ElectronIpcApi = {
   hideWindow: () => void;
   reloadWindow: () => void;
   openDevTools: () => void;
+  openUrl: (payload: OpenUrlParams) => Promise<boolean>;
   notifyStartupReady: () => void;
   onHideWindow: (cb: () => void) => () => void;
   onWindowMaximized: (callback: () => void) => () => void;
@@ -508,6 +518,7 @@ type ElectronIpcApi = {
   searchPlaylists: <T = any>(payload: PlaylistSearchParams) => Promise<T>;
   getKgPlaylistTags: <T = any>() => Promise<T>;
   getTopPlaylists: <T = any>(payload: TopPlaylistParams) => Promise<T>;
+  getTopSongs: <T = any>(payload: TopSongsParams) => Promise<T>;
   getKgDailyRecommend: <T = any>(platform?: string) => Promise<T>;
   getHomeRecommendations: <T = any>() => Promise<T>;
   getPlaylistDetail: <T = any>(payload: PlaylistDetailParams) => Promise<T>;
