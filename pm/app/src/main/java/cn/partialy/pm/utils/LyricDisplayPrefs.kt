@@ -13,6 +13,7 @@ object LyricDisplayPrefs {
     private const val KEY_CURRENT_BOLD = "current_bold"
     private const val KEY_CURRENT_ENLARGED = "current_enlarged"
     private const val KEY_CURRENT_ENLARGED_DX = "current_enlarged_dx"
+    private const val KEY_WORD_SCALE_ENABLED = "word_scale_enabled"
     private const val KEY_INACTIVE_OPACITY_PERCENT = "inactive_opacity_percent"
     private const val KEY_ALIGNMENT = "alignment"
     private const val KEY_USE_WORD_LYRIC = "use_word_lyric"
@@ -55,6 +56,7 @@ object LyricDisplayPrefs {
             currentLineBold = p.getBoolean(KEY_CURRENT_BOLD, def.currentLineBold),
             currentLineEnlarged = p.getBoolean(KEY_CURRENT_ENLARGED, def.currentLineEnlarged),
             currentLineEnlargedDxSp = p.getInt(KEY_CURRENT_ENLARGED_DX, def.currentLineEnlargedDxSp).coerceIn(2, 8),
+            wordScaleEnabled = p.getBoolean(KEY_WORD_SCALE_ENABLED, def.wordScaleEnabled),
             inactiveOpacityPercent = p.getInt(KEY_INACTIVE_OPACITY_PERCENT, def.inactiveOpacityPercent),
             alignment = LyricAlignment.fromPref(p.getInt(KEY_ALIGNMENT, def.alignment.prefValue)),
         )
@@ -69,6 +71,7 @@ object LyricDisplayPrefs {
             putBoolean(KEY_CURRENT_BOLD, style.currentLineBold)
             putBoolean(KEY_CURRENT_ENLARGED, style.currentLineEnlarged)
             putInt(KEY_CURRENT_ENLARGED_DX, style.currentLineEnlargedDxSp.coerceIn(2, 8))
+            putBoolean(KEY_WORD_SCALE_ENABLED, style.wordScaleEnabled)
             putInt(KEY_INACTIVE_OPACITY_PERCENT, style.inactiveOpacityPercent.coerceIn(0, 100))
             putInt(KEY_ALIGNMENT, style.alignment.prefValue)
             apply()

@@ -156,6 +156,15 @@
             android:text="@string/lyric_settings_current_enlarged"
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/lyricSettingsWordScaleSwitch"
+            style="@style/Widget.Pm.SettingsSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/lyric_settings_word_scale"
+            android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

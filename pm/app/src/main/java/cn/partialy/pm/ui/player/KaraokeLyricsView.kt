@@ -4,15 +4,24 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.text.TextPaint
 import android.util.AttributeSet
 import android.view.Choreographer
+import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import android.view.ViewConfiguration
+import android.widget.OverScroller
 import cn.partialy.pm.lyric.LyricLine
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 class KaraokeLyricsView @JvmOverloads constructor(
     context: Context,
@@ -20,62 +29,83 @@ class KaraokeLyricsView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : View(context, attrs, defStyleAttr) {
 
+    var onBrowseLineChanged: ((Int) -> Unit)? = null
+    var onBrowseEnded: (() -> Unit)? = null
+
     private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.LEFT
     }
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val scroller = OverScroller(context)
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private val minimumFlingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity
+    private val maximumFlingVelocity = ViewConfiguration.get(context).scaledMaximumFlingVelocity
+
+    private var velocityTracker: VelocityTracker? = null
+    private var lastTouchY = 0f
+    private var touchDownY = 0f
+    private var isDragging = false
+    private var browseCenterPosition = 0f
+    private var browseLineIndex = -1
+    private var isBrowsing = false
 
     private var lines: List<LyricLine> = emptyList()
     private var currentIndex: Int = -1
     private var style: LyricDisplayStyle = LyricDisplayStyle.DEFAULT
 
-    // ── 平滑播放进度 ──────────────────────────────────────────────
     private var anchorPositionMs: Long = 0L
     private var anchorUptimeMs: Long = 0L
     private var isPlaying: Boolean = false
     private var positionMs: Long = 0L
 
-    // ── 换行滚动动画 ──────────────────────────────────────────────
-    /** 上一次的行索引，用于计算滚动方向和距离 */
     private var prevCurrentIndex: Int = -1
-    /** 动画开始时刻（系统 uptimeMs） */
     private var lineAnimStartUptimeMs: Long = 0L
-    /** 动画总时长（ms），跳行超过 2 行时自动缩短，避免动画太慢 */
     private var lineAnimDurationMs: Long = 380L
-    /** 动画进度 0f～1f */
     private var lineAnimProgress: Float = 1f
 
-    // ── 当前行放大动画（独立于滚动，仅对 currentLine 缩放） ───────
     private var scaleAnimProgress: Float = 1f
     private var scaleAnimStartUptimeMs: Long = 0L
-    private val SCALE_ANIM_DURATION_MS = 300L
+    private val scaleAnimDurationMs = 300L
 
-    // ── Choreographer ─────────────────────────────────────────────
     private val choreographer: Choreographer = Choreographer.getInstance()
     private lateinit var frameCallback: Choreographer.FrameCallback
 
+    private val browseTimeoutRunnable = Runnable {
+        finishBrowsing(notify = true)
+    }
+
     init {
+        isClickable = true
         frameCallback = Choreographer.FrameCallback { frameTimeNanos ->
             val frameUptimeMs = frameTimeNanos / 1_000_000L
             var needNextFrame = false
 
-            // 外推播放进度
             if (isPlaying && lines.isNotEmpty() && currentIndex in lines.indices) {
                 positionMs = anchorPositionMs + (frameUptimeMs - anchorUptimeMs)
                 needNextFrame = true
             }
 
-            // 推进整体滚动动画
             if (lineAnimProgress < 1f) {
                 val elapsed = frameUptimeMs - lineAnimStartUptimeMs
                 lineAnimProgress = (elapsed.toFloat() / lineAnimDurationMs).coerceIn(0f, 1f)
                 needNextFrame = true
             }
 
-            // 推进当前行放大动画
             if (scaleAnimProgress < 1f) {
                 val elapsed = frameUptimeMs - scaleAnimStartUptimeMs
-                scaleAnimProgress = (elapsed.toFloat() / SCALE_ANIM_DURATION_MS).coerceIn(0f, 1f)
+                scaleAnimProgress = (elapsed.toFloat() / scaleAnimDurationMs).coerceIn(0f, 1f)
                 needNextFrame = true
+            }
+
+            if (!scroller.isFinished) {
+                if (scroller.computeScrollOffset()) {
+                    browseCenterPosition = (scroller.currY / SCROLLER_ROW_UNIT).coerceIn(0f, lines.lastIndex.toFloat())
+                    notifyBrowseLineChanged()
+                    needNextFrame = true
+                } else {
+                    scroller.forceFinished(true)
+                    snapBrowseCenter()
+                }
             }
 
             if (needNextFrame) {
@@ -85,17 +115,13 @@ class KaraokeLyricsView @JvmOverloads constructor(
         }
     }
 
-    // ── 公开接口 ──────────────────────────────────────────────────
+    val browsedLineIndex: Int
+        get() = if (isBrowsing) browseLineIndex else -1
 
-    /**
-     * 由外部（播放器）驱动刷新，100ms 调用一次即可，内部自动平滑。
-     *
-     * @param lines        歌词行列表
-     * @param currentIndex 当前高亮行索引
-     * @param positionMs   播放器当前位置（毫秒）
-     * @param isPlaying    是否播放中（暂停传 false 防止进度漂移）
-     * @param style        显示样式
-     */
+    fun resumeAutoScroll() {
+        finishBrowsing(notify = true)
+    }
+
     fun bind(
         lines: List<LyricLine>,
         currentIndex: Int,
@@ -107,21 +133,17 @@ class KaraokeLyricsView @JvmOverloads constructor(
         this.lines = lines
         this.style = style
 
-        // 检测到行切换，启动动画
         if (currentIndex != this.currentIndex) {
             val delta = abs(currentIndex - this.currentIndex)
             if (this.currentIndex >= 0) {
-                // 跳行距离越大动画越短，避免慢动作穿越多行
                 lineAnimDurationMs = when {
                     delta == 1 -> 380L
                     delta <= 3 -> 280L
-                    else       -> 180L
+                    else -> 180L
                 }
                 prevCurrentIndex = this.currentIndex
                 lineAnimProgress = 0f
                 lineAnimStartUptimeMs = SystemClock.uptimeMillis()
-
-                // 当前行放大动画同步启动
                 scaleAnimProgress = 0f
                 scaleAnimStartUptimeMs = lineAnimStartUptimeMs
             }
@@ -134,19 +156,85 @@ class KaraokeLyricsView @JvmOverloads constructor(
         anchorUptimeMs = SystemClock.uptimeMillis()
         this.positionMs = positionMs
 
+        if (isBrowsing) {
+            browseCenterPosition = browseCenterPosition.coerceIn(0f, lines.lastIndex.toFloat())
+            notifyBrowseLineChanged()
+        }
+
         if (oldSize != style.textSizeSp) requestLayout()
 
-        if ((isPlaying && !wasPlaying) || lineAnimProgress < 1f || scaleAnimProgress < 1f) {
+        if ((isPlaying && !wasPlaying) || lineAnimProgress < 1f || scaleAnimProgress < 1f || !scroller.isFinished) {
             choreographer.postFrameCallback(frameCallback)
         }
         invalidate()
     }
 
-    // ── 生命周期 ──────────────────────────────────────────────────
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (lines.isEmpty()) return super.onTouchEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                scroller.forceFinished(true)
+                velocityTracker = VelocityTracker.obtain().also { it.addMovement(event) }
+                lastTouchY = event.y
+                touchDownY = event.y
+                isDragging = false
+                beginBrowsing()
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                velocityTracker?.addMovement(event)
+                val dy = event.y - lastTouchY
+                if (!isDragging && abs(event.y - touchDownY) > touchSlop) {
+                    isDragging = true
+                }
+                if (isDragging) {
+                    val stride = rowStride().coerceAtLeast(1f)
+                    browseCenterPosition = (browseCenterPosition - dy / stride)
+                        .coerceIn(0f, lines.lastIndex.toFloat())
+                    notifyBrowseLineChanged()
+                    resetBrowseTimeout()
+                    invalidate()
+                }
+                lastTouchY = event.y
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                velocityTracker?.addMovement(event)
+                velocityTracker?.computeCurrentVelocity(1000, maximumFlingVelocity.toFloat())
+                val velocityY = velocityTracker?.yVelocity ?: 0f
+                recycleVelocityTracker()
+                parent?.requestDisallowInterceptTouchEvent(false)
+                if (!isDragging) performClick()
+                isDragging = false
+                if (abs(velocityY) >= minimumFlingVelocity) {
+                    startBrowseFling(velocityY)
+                } else {
+                    snapBrowseCenter()
+                }
+                resetBrowseTimeout()
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                recycleVelocityTracker()
+                parent?.requestDisallowInterceptTouchEvent(false)
+                isDragging = false
+                snapBrowseCenter()
+                resetBrowseTimeout()
+                return true
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
+    }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        if (visibility == VISIBLE && isPlaying) {
+        if (visibility == VISIBLE && (isPlaying || !scroller.isFinished)) {
             anchorUptimeMs = SystemClock.uptimeMillis()
             choreographer.postFrameCallback(frameCallback)
         } else {
@@ -157,9 +245,9 @@ class KaraokeLyricsView @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         choreographer.removeFrameCallback(frameCallback)
+        mainHandler.removeCallbacks(browseTimeoutRunnable)
+        recycleVelocityTracker()
     }
-
-    // ── 绘制主循环 ────────────────────────────────────────────────
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -168,79 +256,94 @@ class KaraokeLyricsView @JvmOverloads constructor(
         if (maxTextWidth <= 0) return
 
         val currentTextSize = currentTextSizePx()
-        val normalTextSize  = normalTextSizePx()
-        val rowGap    = dp(14f)
-        val rowStride = max(textHeight(currentTextSize), textHeight(normalTextSize)) + rowGap
+        val normalTextSize = normalTextSizePx()
+        val rowStride = rowStride()
         val centerBaseline = height / 2f - textCenterOffset(currentTextSize)
 
-        // ── 整体滚动偏移 ──────────────────────────────────────────
-        // 动画开始时 scrollOffset = (currentIndex - prevCurrentIndex)（正值=向上滚）
-        // 随 animT 从 1→0 线性减小，所有行整体平滑上移到目标位置
         val scrollT = easeOutQuart(lineAnimProgress)
-        val scrollOffset = if (lineAnimProgress < 1f && prevCurrentIndex >= 0) {
+        val scrollOffset = if (!isBrowsing && lineAnimProgress < 1f && prevCurrentIndex >= 0) {
             (currentIndex - prevCurrentIndex) * (1f - scrollT)
         } else {
             0f
         }
 
+        val centerPosition = if (isBrowsing) {
+            browseCenterPosition
+        } else {
+            currentIndex - scrollOffset
+        }.coerceIn(0f, lines.lastIndex.toFloat())
+
+        val selectedIndex = if (isBrowsing) {
+            browseCenterPosition.roundToInt().coerceIn(0, lines.lastIndex)
+        } else {
+            currentIndex
+        }
         val visibleRadius = max(1, (height / rowStride).roundToInt() / 2 + 2)
-        val first = (currentIndex - visibleRadius).coerceAtLeast(0)
-        val last  = (currentIndex + visibleRadius).coerceAtMost(lines.lastIndex)
+        val first = floor(centerPosition - visibleRadius).toInt().coerceAtLeast(0)
+        val last = floor(centerPosition + visibleRadius).toInt().coerceAtMost(lines.lastIndex)
 
         for (index in first..last) {
-            val isCurrent = index == currentIndex
-            paint.textSize      = if (isCurrent) currentTextSize else normalTextSize
-            paint.isFakeBoldText = isCurrent && style.currentLineBold
+            val isSelected = index == selectedIndex
+            paint.textSize = if (isSelected) currentTextSize else normalTextSize
+            paint.isFakeBoldText = isSelected && style.currentLineBold
 
-            // 所有行的 Y 坐标统一加上滚动偏移，实现整体平滑上移
-            val baseline = centerBaseline + (index - currentIndex + scrollOffset) * rowStride
-
-            // 跳过完全超出可见区的行
+            val baseline = centerBaseline + (index - centerPosition) * rowStride
             if (baseline < -rowStride || baseline > height + rowStride) continue
 
-            if (isCurrent && scaleAnimProgress < 1f) {
-                // 当前行在滚动到位的同时，叠加微微放大效果
+            if (isSelected && !isBrowsing && scaleAnimProgress < 1f) {
                 val scale = 0.93f + 0.07f * easeOutQuad(scaleAnimProgress)
                 canvas.save()
                 canvas.translate(width / 2f, baseline)
                 canvas.scale(scale, scale)
                 canvas.translate(-width / 2f, -baseline)
-                drawCurrentLine(canvas, lines[index], baseline, maxTextWidth)
+                drawCurrentLine(canvas, lines[index], baseline, maxTextWidth, showProgress = true)
                 canvas.restore()
-            } else if (isCurrent) {
-                drawCurrentLine(canvas, lines[index], baseline, maxTextWidth)
+            } else if (isSelected) {
+                drawCurrentLine(
+                    canvas = canvas,
+                    line = lines[index],
+                    baseline = baseline,
+                    maxTextWidth = maxTextWidth,
+                    showProgress = !isBrowsing || index == currentIndex,
+                )
             } else {
                 drawNormalLine(canvas, lines[index], baseline, maxTextWidth)
             }
         }
     }
 
-    // ── 行绘制 ────────────────────────────────────────────────────
-
-    /**
-     * 绘制当前高亮行；文字超长时改为跟随演唱进度横向滚动，不省略。
-     */
     private fun drawCurrentLine(
         canvas: Canvas,
         line: LyricLine,
         baseline: Float,
         maxTextWidth: Int,
+        showProgress: Boolean,
     ) {
-        val fullText  = line.lineText
+        val fullText = line.lineText
         paint.textSize = currentTextSizePx()
         val textWidth = paint.measureText(fullText)
 
         if (textWidth > maxTextWidth) {
-            drawScrollingLine(canvas, line, fullText, textWidth, baseline, maxTextWidth)
+            drawScrollingLine(canvas, line, fullText, textWidth, baseline, maxTextWidth, showProgress)
         } else {
             paint.color = currentBaseColor()
             val x = lineX(fullText, maxTextWidth)
             canvas.drawText(fullText, x, baseline, paint)
-            if (line.hasWordTiming) drawSungPart(canvas, line, fullText, x, baseline)
+            if (showProgress && line.hasWordTiming) {
+                drawSungPart(canvas, line, fullText, x, baseline)
+                drawActiveWordScale(
+                    canvas = canvas,
+                    line = line,
+                    displayText = fullText,
+                    originX = x,
+                    baseline = baseline,
+                    clipLeft = paddingLeft.toFloat(),
+                    clipRight = (width - paddingRight).toFloat(),
+                )
+            }
         }
     }
 
-    /** 绘制普通行（非当前行），超出宽度则省略。 */
     private fun drawNormalLine(
         canvas: Canvas,
         line: LyricLine,
@@ -248,17 +351,12 @@ class KaraokeLyricsView @JvmOverloads constructor(
         maxTextWidth: Int,
     ) {
         paint.textSize = normalTextSizePx()
-        paint.color    = style.resolvedNormalColor()
+        paint.color = style.resolvedNormalColor()
         val displayText = ellipsize(line.lineText, maxTextWidth)
         if (displayText.isBlank()) return
         canvas.drawText(displayText, lineX(displayText, maxTextWidth), baseline, paint)
     }
 
-    /**
-     * 绘制超长当前行：横向滚动跟随演唱进度。
-     *
-     * 滚动策略：已唱末尾保持在可视区 40% 处，首尾夹紧不留空白。
-     */
     private fun drawScrollingLine(
         canvas: Canvas,
         line: LyricLine,
@@ -266,36 +364,34 @@ class KaraokeLyricsView @JvmOverloads constructor(
         textWidth: Float,
         baseline: Float,
         maxTextWidth: Int,
+        showProgress: Boolean,
     ) {
-        val sungWidth = calculateSungWidth(line, fullText)
+        val sungWidth = if (showProgress) calculateSungWidth(line, fullText) else 0f
         val maxScroll = textWidth - maxTextWidth
-        // 已唱末尾锁定在可视区 40% 处
         val scrollX = (sungWidth - maxTextWidth * 0.4f).coerceIn(0f, maxScroll)
 
-        val clipLeft  = paddingLeft.toFloat()
+        val clipLeft = paddingLeft.toFloat()
         val clipRight = (width - paddingRight).toFloat()
-        val drawX     = clipLeft - scrollX   // 负向平移实现文字向左滚动
+        val drawX = clipLeft - scrollX
 
         canvas.save()
         canvas.clipRect(clipLeft, 0f, clipRight, height.toFloat())
 
-        // ① 底色文字（全部）
         paint.color = currentBaseColor()
         canvas.drawText(fullText, drawX, baseline, paint)
 
-        // ② 已唱高亮（叠加裁剪层）
-        if (line.hasWordTiming && sungWidth > 0f) {
+        if (showProgress && line.hasWordTiming && sungWidth > 0f) {
             canvas.save()
             canvas.clipRect(clipLeft, 0f, (drawX + sungWidth).coerceAtMost(clipRight), height.toFloat())
             paint.color = style.currentColorArgb
             canvas.drawText(fullText, drawX, baseline, paint)
             canvas.restore()
+            drawActiveWordScale(canvas, line, fullText, drawX, baseline, clipLeft, clipRight)
         }
 
         canvas.restore()
     }
 
-    /** 对普通长度当前行绘制已唱高亮（裁剪叠加法）。 */
     private fun drawSungPart(
         canvas: Canvas,
         line: LyricLine,
@@ -312,7 +408,45 @@ class KaraokeLyricsView @JvmOverloads constructor(
         canvas.restore()
     }
 
-    // ── 进度计算 ──────────────────────────────────────────────────
+    private fun drawActiveWordScale(
+        canvas: Canvas,
+        line: LyricLine,
+        displayText: String,
+        originX: Float,
+        baseline: Float,
+        clipLeft: Float,
+        clipRight: Float,
+    ) {
+        if (!style.wordScaleEnabled || !line.hasWordTiming || line.words.isEmpty()) return
+        var visibleChars = 0
+        var offset = 0f
+        for (word in line.words) {
+            if (visibleChars >= displayText.length) break
+            val text = word.word.take(displayText.length - visibleChars)
+            if (text.isEmpty()) continue
+            val wordWidth = paint.measureText(text)
+            val active = positionMs in word.startTime until word.endTime
+            if (active) {
+                val duration = (word.endTime - word.startTime).coerceAtLeast(1L)
+                val elapsed = (positionMs - word.startTime).coerceIn(0L, duration)
+                val phase = elapsed.toFloat() / duration.toFloat()
+                val scale = 1f + 0.14f * sin(phase.toDouble() * PI).toFloat()
+                val wordX = originX + offset
+                val pivotX = wordX + wordWidth / 2f
+                canvas.save()
+                canvas.clipRect(clipLeft, 0f, clipRight, height.toFloat())
+                canvas.translate(pivotX, baseline)
+                canvas.scale(scale, scale)
+                canvas.translate(-pivotX, -baseline)
+                paint.color = style.currentColorArgb
+                canvas.drawText(text, wordX, baseline, paint)
+                canvas.restore()
+                return
+            }
+            offset += wordWidth
+            visibleChars += text.length
+        }
+    }
 
     private fun calculateSungWidth(line: LyricLine, displayText: String): Float {
         var visibleChars = 0
@@ -323,11 +457,11 @@ class KaraokeLyricsView @JvmOverloads constructor(
             if (text.isEmpty()) continue
             val wordWidth = paint.measureText(text)
             width += when {
-                positionMs >= word.endTime   -> wordWidth
+                positionMs >= word.endTime -> wordWidth
                 positionMs <= word.startTime -> 0f
                 else -> {
                     val duration = (word.endTime - word.startTime).coerceAtLeast(1L)
-                    val elapsed  = (positionMs - word.startTime).coerceIn(0L, duration)
+                    val elapsed = (positionMs - word.startTime).coerceIn(0L, duration)
                     wordWidth * elapsed.toFloat() / duration.toFloat()
                 }
             }
@@ -336,30 +470,96 @@ class KaraokeLyricsView @JvmOverloads constructor(
         return width
     }
 
-    // ── 缓动函数 ──────────────────────────────────────────────────
+    private fun beginBrowsing() {
+        if (!isBrowsing) {
+            browseCenterPosition = currentIndex.coerceIn(0, lines.lastIndex).toFloat()
+            isBrowsing = true
+        }
+        notifyBrowseLineChanged()
+        resetBrowseTimeout()
+    }
 
-    /** easeOutQuad：滚动用，先快后慢，顿感强 */
+    private fun finishBrowsing(notify: Boolean) {
+        if (!isBrowsing) return
+        isBrowsing = false
+        isDragging = false
+        scroller.forceFinished(true)
+        mainHandler.removeCallbacks(browseTimeoutRunnable)
+        if (notify) onBrowseEnded?.invoke()
+        invalidate()
+    }
+
+    private fun resetBrowseTimeout() {
+        mainHandler.removeCallbacks(browseTimeoutRunnable)
+        mainHandler.postDelayed(browseTimeoutRunnable, BROWSE_TIMEOUT_MS)
+    }
+
+    private fun notifyBrowseLineChanged() {
+        if (!isBrowsing || lines.isEmpty()) return
+        val idx = browseCenterPosition.roundToInt().coerceIn(0, lines.lastIndex)
+        if (idx != browseLineIndex) {
+            browseLineIndex = idx
+        }
+        onBrowseLineChanged?.invoke(idx)
+    }
+
+    private fun snapBrowseCenter() {
+        if (!isBrowsing || lines.isEmpty()) return
+        browseCenterPosition = browseCenterPosition.roundToInt().coerceIn(0, lines.lastIndex).toFloat()
+        notifyBrowseLineChanged()
+        invalidate()
+    }
+
+    private fun startBrowseFling(velocityY: Float) {
+        if (!isBrowsing || lines.isEmpty()) return
+        val startY = (browseCenterPosition * SCROLLER_ROW_UNIT).roundToInt()
+        val flingVelocity = (-velocityY / rowStride() * SCROLLER_ROW_UNIT).roundToInt()
+        scroller.fling(
+            0,
+            startY,
+            0,
+            flingVelocity,
+            0,
+            0,
+            0,
+            (lines.lastIndex * SCROLLER_ROW_UNIT).roundToInt(),
+        )
+        choreographer.postFrameCallback(frameCallback)
+    }
+
+    private fun recycleVelocityTracker() {
+        velocityTracker?.recycle()
+        velocityTracker = null
+    }
+
+    private fun rowStride(): Float {
+        val currentTextSize = currentTextSizePx()
+        val normalTextSize = normalTextSizePx()
+        val rowGap = dp(14f)
+        return max(textHeight(currentTextSize), textHeight(normalTextSize)) + rowGap
+    }
+
     private fun easeOutQuad(t: Float) = 1f - (1f - t) * (1f - t)
 
-    /** easeOutQuart：整体滚动用，起步更快，落点更稳 */
     private fun easeOutQuart(t: Float): Float {
         val v = 1f - t
         return 1f - v * v * v * v
     }
 
-    // ── 辅助 ──────────────────────────────────────────────────────
-
     private fun ellipsize(text: String, maxTextWidth: Int): String =
         android.text.TextUtils.ellipsize(
-            text, paint, maxTextWidth.toFloat(), android.text.TextUtils.TruncateAt.END,
+            text,
+            paint,
+            maxTextWidth.toFloat(),
+            android.text.TextUtils.TruncateAt.END,
         ).toString()
 
     private fun lineX(text: String, maxTextWidth: Int): Float {
         val textWidth = paint.measureText(text)
         return when (style.alignment) {
-            LyricAlignment.START  -> paddingLeft.toFloat()
+            LyricAlignment.START -> paddingLeft.toFloat()
             LyricAlignment.CENTER -> paddingLeft + (maxTextWidth - textWidth) / 2f
-            LyricAlignment.END    -> width - paddingRight - textWidth
+            LyricAlignment.END -> width - paddingRight - textWidth
         }
     }
 
@@ -379,8 +579,18 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private fun normalTextSizePx() = sp(style.textSizeSp)
 
     private fun currentBaseColor() =
-        Color.argb(255, Color.red(style.normalColorArgb), Color.green(style.normalColorArgb), Color.blue(style.normalColorArgb))
+        Color.argb(
+            255,
+            Color.red(style.normalColorArgb),
+            Color.green(style.normalColorArgb),
+            Color.blue(style.normalColorArgb),
+        )
 
     private fun dp(value: Float) = value * resources.displayMetrics.density
     private fun sp(value: Float) = value * resources.displayMetrics.scaledDensity
+
+    private companion object {
+        private const val BROWSE_TIMEOUT_MS = 3_000L
+        private const val SCROLLER_ROW_UNIT = 1000f
+    }
 }

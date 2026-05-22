@@ -112,6 +112,7 @@
     <string name="lyric_settings_current_color">当前行颜色</string>
     <string name="lyric_settings_current_bold">当前行加粗</string>
     <string name="lyric_settings_current_enlarged">当前行放大</string>
+    <string name="lyric_settings_word_scale">播放时候逐字放大</string>
     <string name="lyric_settings_current_enlarged_dx">放大字号差值（2-8）</string>
     <string name="lyric_settings_inactive_opacity">非当前行不透明度</string>
     <string name="lyric_settings_alignment">对齐方式</string>

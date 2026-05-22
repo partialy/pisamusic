@@ -182,6 +182,7 @@ object LyricSettingsSheet {
             )
             binding.lyricSettingsBoldSwitch.isChecked = style.currentLineBold
             binding.lyricSettingsCurrentEnlargedSwitch.isChecked = style.currentLineEnlarged
+            binding.lyricSettingsWordScaleSwitch.isChecked = style.wordScaleEnabled
             binding.lyricSettingsUseWordLyricSwitch.isChecked =
                 LyricDisplayPrefs.isUseWordLyricEnabled(activity)
 
@@ -269,6 +270,13 @@ object LyricSettingsSheet {
         binding.lyricSettingsCurrentEnlargedSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (syncing) return@setOnCheckedChangeListener
             val s = LyricDisplayPrefs.readStyle(activity).copy(currentLineEnlarged = isChecked)
+            LyricDisplayPrefs.writeStyle(activity, s)
+            onChanged()
+        }
+
+        binding.lyricSettingsWordScaleSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (syncing) return@setOnCheckedChangeListener
+            val s = LyricDisplayPrefs.readStyle(activity).copy(wordScaleEnabled = isChecked)
             LyricDisplayPrefs.writeStyle(activity, s)
             onChanged()
         }

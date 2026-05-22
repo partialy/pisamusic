@@ -373,7 +373,18 @@ class PlayerActivity : BaseDownloadActivity() {
             binding.lyricCenterSeekOverlay.visibility = View.GONE
             lastUserLyricScrollAtMs = SystemClock.elapsedRealtime()
             lifecycleScope.launch {
+                binding.karaokeLyricsView.resumeAutoScroll()
                 musicController.seekToPositionMs(rows[idx].startTime)
+            }
+        }
+        binding.karaokeLyricsView.onBrowseLineChanged = { idx ->
+            lyricCenterSeekIndex = idx
+            updateKaraokeCenterSeekUi()
+        }
+        binding.karaokeLyricsView.onBrowseEnded = {
+            if (binding.karaokeLyricsView.visibility == View.VISIBLE) {
+                binding.lyricCenterSeekOverlay.visibility = View.GONE
+                lyricCenterSeekIndex = -1
             }
         }
         binding.lyricsRecyclerView.apply {
@@ -435,7 +446,7 @@ class PlayerActivity : BaseDownloadActivity() {
         rv.removeCallbacks(lyricSeekButtonHideRunnable)
         val overlay = binding.lyricCenterSeekOverlay
         if (binding.karaokeLyricsView.visibility == View.VISIBLE) {
-            overlay.visibility = View.GONE
+            updateKaraokeCenterSeekUi()
             return
         }
         if (lyricsProgrammaticScrollInProgress) {
@@ -465,6 +476,19 @@ class PlayerActivity : BaseDownloadActivity() {
             val delay = (3_000 - since).coerceAtLeast(0L)
             rv.postDelayed(lyricSeekButtonHideRunnable, delay)
         }
+    }
+
+    private fun updateKaraokeCenterSeekUi() {
+        val overlay = binding.lyricCenterSeekOverlay
+        val rows = lyricRows
+        val idx = binding.karaokeLyricsView.browsedLineIndex
+        lyricCenterSeekIndex = idx
+        if (binding.karaokeLyricsView.visibility != View.VISIBLE || idx !in rows.indices) {
+            overlay.visibility = View.GONE
+            return
+        }
+        binding.lyricCenterSeekTimeText.text = formatTime(rows[idx].startTime.toInt())
+        overlay.visibility = View.VISIBLE
     }
 
     /** 上下各约为列表可视高度一半，首尾句可滚到与当前高亮相同的竖直中线位置。 */
@@ -548,6 +572,7 @@ class PlayerActivity : BaseDownloadActivity() {
             updateKaraokeLyricsView(currentPlaybackPositionMs())
             startKaraokeSync()
         } else {
+            binding.karaokeLyricsView.resumeAutoScroll()
             stopKaraokeSync()
         }
     }
@@ -777,7 +802,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun applyInsets() {
         binding.playerRoot.applySystemBarsInsets { insets ->
             binding.headerBar.updatePadding(top = insets.top)
-            binding.controlsLayout.updatePadding(bottom = insets.bottom + (resources.displayMetrics.density * 8).toInt())
+            binding.controlsLayout.updatePadding(bottom = insets.bottom + (resources.displayMetrics.density * 16).toInt())
             binding.standardBottomSheet.updatePadding(bottom = insets.bottom)
         }
     }

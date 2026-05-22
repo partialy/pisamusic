@@ -21,6 +21,7 @@ data class LyricDisplayStyle(
     val currentLineBold: Boolean,
     val currentLineEnlarged: Boolean,
     val currentLineEnlargedDxSp: Int,
+    val wordScaleEnabled: Boolean,
     /** 非当前行不透明度 0–100，作用于常规行颜色的 alpha 通道 */
     val inactiveOpacityPercent: Int,
     val alignment: LyricAlignment,
@@ -39,6 +40,7 @@ data class LyricDisplayStyle(
             currentLineBold = true,
             currentLineEnlarged = true,
             currentLineEnlargedDxSp = 4,
+            wordScaleEnabled = false,
             inactiveOpacityPercent = 30,
             alignment = LyricAlignment.CENTER,
         )
