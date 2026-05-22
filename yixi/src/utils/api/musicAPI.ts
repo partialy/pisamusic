@@ -35,6 +35,10 @@ export async function getKgPlaylistTags<T = any>(): Promise<T> {
   return invokeMusicApi("getKgPlaylistTags", {}, () => window.electronAPI.getKgPlaylistTags<T>());
 }
 
+export async function getPlaylistTags<T = any>(payload: { source: "kg" | "wy" }): Promise<T> {
+  return invokeMusicApi("getPlaylistTags", payload, () => window.electronAPI.getPlaylistTags<T>(payload));
+}
+
 export async function getTopPlaylists<T = any>(payload: {
   source: "kg" | "wy";
   categoryId?: string | number;

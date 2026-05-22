@@ -13,6 +13,7 @@ import type {
   PlayableTrackPayload,
   PlaylistDetailParams,
   PlaylistSearchParams,
+  PlaylistTagsParams,
   PlaylistTracksParams,
   TopPlaylistParams,
   TopSongsParams,
@@ -110,8 +111,17 @@ export async function searchPlaylists(params: PlaylistSearchParams) {
 }
 
 export async function getKgPlaylistTags() {
+  return getPlaylistTags({ source: "kg" });
+}
+
+export async function getPlaylistTags(params: PlaylistTagsParams) {
   const endpoints = await getRuntimeEndpointsCached();
-  return requestSignedGateway(buildUrl(endpoints.kgServer, "/playlist/tags", {}));
+  switch (params.source) {
+    case "kg":
+      return requestSignedGateway(buildUrl(endpoints.kgServer, "/playlist/tags", {}));
+    case "wy":
+      return requestSignedGateway(buildUrl(endpoints.wyServer, "/playlist/catlist", {}));
+  }
 }
 
 export async function getTopPlaylists(params: TopPlaylistParams) {

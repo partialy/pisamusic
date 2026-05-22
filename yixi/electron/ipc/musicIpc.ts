@@ -6,6 +6,7 @@ import {
   getKgDailyRecommend,
   getKgPlaylistTags,
   getPlaylistDetail,
+  getPlaylistTags,
   getPlaylistTracks,
   getTopPlaylists,
   getTopSongs,
@@ -26,6 +27,7 @@ import type {
   PlayableTrackPayload,
   PlaylistDetailParams,
   PlaylistSearchParams,
+  PlaylistTagsParams,
   PlaylistTracksParams,
   TopPlaylistParams,
   TopSongsParams,
@@ -47,6 +49,9 @@ export function setupMusicApiIpc() {
     searchPlaylists(params)
   );
   ipcMain.handle("music:kg-playlist-tags", () => getKgPlaylistTags());
+  ipcMain.handle("music:playlist-tags", (_event, params: PlaylistTagsParams) =>
+    getPlaylistTags(params)
+  );
   ipcMain.handle("music:top-playlists", (_event, params: TopPlaylistParams) => getTopPlaylists(params));
   ipcMain.handle("music:top-songs", (_event, params: TopSongsParams) =>
     getTopSongs(params)

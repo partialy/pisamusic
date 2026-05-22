@@ -292,6 +292,10 @@ type PlaylistSearchParams = {
   pageSize?: number;
 };
 
+type PlaylistTagsParams = {
+  source: "kg" | "wy";
+};
+
 type TopPlaylistParams = {
   source: "kg" | "wy";
   categoryId?: string | number;
@@ -527,6 +531,7 @@ type ElectronIpcApi = {
   searchSuggest: <T = any>(payload: MusicSuggestParams) => Promise<T>;
   searchPlaylists: <T = any>(payload: PlaylistSearchParams) => Promise<T>;
   getKgPlaylistTags: <T = any>() => Promise<T>;
+  getPlaylistTags: <T = any>(payload: PlaylistTagsParams) => Promise<T>;
   getTopPlaylists: <T = any>(payload: TopPlaylistParams) => Promise<T>;
   getTopSongs: <T = any>(payload: TopSongsParams) => Promise<T>;
   getWyPersonalizedPlaylists: <T = any>(payload?: WyPersonalizedPlaylistParams) => Promise<T>;

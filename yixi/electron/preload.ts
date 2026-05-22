@@ -203,6 +203,8 @@ const musicApiIpc = {
     pageSize?: number;
   }) => ipcRenderer.invoke("music:search-playlists", cloneIpcPayload(payload)),
   getKgPlaylistTags: () => ipcRenderer.invoke("music:kg-playlist-tags"),
+  getPlaylistTags: (payload: { source: "kg" | "wy" }) =>
+    ipcRenderer.invoke("music:playlist-tags", cloneIpcPayload(payload)),
   getTopPlaylists: (payload: {
     source: "kg" | "wy";
     categoryId?: string | number;

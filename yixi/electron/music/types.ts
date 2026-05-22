@@ -20,6 +20,10 @@ export type PlaylistSearchParams = {
   pageSize?: number;
 };
 
+export type PlaylistTagsParams = {
+  source: "kg" | "wy";
+};
+
 export type TopPlaylistParams = {
   source: "kg" | "wy";
   categoryId?: string | number;
