@@ -2,7 +2,7 @@
   <section class="hot-card">
     <div class="hot-card-header">
       <div>
-        <div class="eyebrow">KG TOP</div>
+        <div class="eyebrow">HOT TOP</div>
         <h3>热门歌曲</h3>
       </div>
       <n-button text type="primary" class="more-btn" @click="emit('showMore')">
@@ -11,7 +11,7 @@
     </div>
 
     <div v-if="loading" class="hot-list">
-      <div v-for="i in 4" :key="i" class="hot-skeleton">
+      <div v-for="i in 3" :key="i" class="hot-skeleton">
         <n-skeleton text width="42px" />
         <n-skeleton circle height="42px" width="42px" />
         <div class="hot-skeleton-main">
@@ -23,7 +23,7 @@
 
     <div v-else-if="songs.length" class="hot-list">
       <button
-        v-for="(song, index) in songs.slice(0, 4)"
+        v-for="(song, index) in songs.slice(0, 3)"
         :key="song.id"
         type="button"
         class="hot-song"

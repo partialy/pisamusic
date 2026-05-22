@@ -75,7 +75,7 @@ const activeTab = ref(routeToMenuKey(route.path));
 
 const menuOptions = computed<MenuOption[]>(() => {
   const items: MenuOption[] = [
-    { label: "首页", key: "home", icon: renderMenuIcon(Home) },
+    { label: "推荐", key: "home", icon: renderMenuIcon(Home) },
     { label: "歌单", key: "playlist", icon: renderMenuIcon(ListMusic) },
     { label: "收藏", key: "favorite", icon: renderMenuIcon(Heart) },
     { label: "我的", key: "mine", icon: renderMenuIcon(UserRound) },

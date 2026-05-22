@@ -66,6 +66,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, useTemplateRef } from "vue";
+import { useRouter } from "vue-router";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import WelcomeCard from "@/components/home/WelcomeCard.vue";
 import HomeSongGrid from "@/components/home/HomeSongGrid.vue";
@@ -84,6 +85,7 @@ import {
 
 const player = useAudioStore();
 const collector = useCollectStore();
+const router = useRouter();
 const recPlaylist = ref<CommonPlaylist[]>([]);
 const recSong = ref<Song[]>([]);
 const topSongs = ref<Song[]>([]);
@@ -211,7 +213,7 @@ const scrollToHotSongs = () => {
 };
 
 const handleSectionMore = () => {
-  window.$message?.info("后续接入");
+  router.push("/playlist")
 };
 
 onMounted(async () => {
