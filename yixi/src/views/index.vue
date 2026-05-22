@@ -4,17 +4,17 @@
       <WelcomeCard
         :hot-songs="topPreviewSongs"
         :hot-loading="topSongsLoading"
-        @show-more-hot-songs="scrollToHotSongs"
+        @show-more-hot-songs="goRecommendSongs('kg-top', '热门歌曲')"
         @play="handlePlay" />
     </div>
 
     <HomeReveal>
-      <HomeSectionTitle title="推荐歌单" show-more @more="handleSectionMore" />
+      <HomeSectionTitle title="推荐歌单" show-more @more="goRecommendPlaylists('kg-top', '推荐歌单')" />
       <PlaylistCollect :playlist="recPlaylist" :loading="homeLoading" :skeleton-count="24" :max-rows="4" />
     </HomeReveal>
 
     <HomeReveal>
-      <HomeSectionTitle title="推荐音乐" />
+      <HomeSectionTitle title="推荐音乐" show-more @more="goRecommendSongs('kg-daily', '推荐音乐')" />
       <HomeSongGrid
         :songs="recSong"
         :loading="homeLoading"
@@ -25,9 +25,7 @@
     </HomeReveal>
 
     <HomeReveal>
-      <div ref="hotSongsSectionRef">
-        <HomeSectionTitle title="热门歌曲" />
-      </div>
+      <HomeSectionTitle title="热门歌曲" show-more @more="goRecommendSongs('kg-top', '热门歌曲')" />
       <HomeSongGrid
         :songs="topSectionSongs"
         :loading="topSongsLoading"
@@ -38,12 +36,12 @@
     </HomeReveal>
 
     <HomeReveal>
-      <HomeSectionTitle title="网友精选碟" show-more @more="handleSectionMore" />
+      <HomeSectionTitle title="网友精选碟" show-more @more="goRecommendPlaylists('wy-top', '网友精选碟')" />
       <PlaylistCollect :playlist="wyTopPlaylists" :loading="wyTopPlaylistLoading" :skeleton-count="24" :max-rows="4" />
     </HomeReveal>
 
     <HomeReveal>
-      <HomeSectionTitle title="WY推荐歌曲" />
+      <HomeSectionTitle title="WY推荐歌曲" show-more @more="goRecommendSongs('wy-new', 'WY推荐歌曲')" />
       <HomeSongGrid
         :songs="wyNewSongs"
         :loading="wyNewSongsLoading"
@@ -54,7 +52,7 @@
     </HomeReveal>
 
     <HomeReveal>
-      <HomeSectionTitle title="WY推荐歌单" show-more @more="handleSectionMore" />
+      <HomeSectionTitle title="WY推荐歌单" show-more @more="goRecommendPlaylists('wy-personalized', 'WY推荐歌单')" />
       <PlaylistCollect
         :playlist="wyPersonalizedPlaylists"
         :loading="wyPersonalizedPlaylistLoading"
@@ -65,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import WelcomeCard from "@/components/home/WelcomeCard.vue";
@@ -82,6 +80,10 @@ import {
   getWyPersonalizedNewSongs,
   getWyPersonalizedPlaylists,
 } from "@/utils/api/musicAPI";
+import type {
+  RecommendPlaylistType,
+  RecommendSongType,
+} from "@/views/recommend/recommendSources";
 
 const player = useAudioStore();
 const collector = useCollectStore();
@@ -97,7 +99,6 @@ const topSongsLoading = ref(false);
 const wyTopPlaylistLoading = ref(false);
 const wyNewSongsLoading = ref(false);
 const wyPersonalizedPlaylistLoading = ref(false);
-const hotSongsSectionRef = useTemplateRef<HTMLElement>("hotSongsSectionRef");
 
 const topPreviewSongs = computed(() => topSongs.value.slice(0, 4));
 const topSectionSongs = computed(() => topSongs.value.slice(0, 12));
@@ -205,15 +206,18 @@ const handleCollectSong = (song: Song) => {
 
 const isSongCollected = (song: Song) => collector.containsSong(song);
 
-const scrollToHotSongs = () => {
-  hotSongsSectionRef.value?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
+const goRecommendPlaylists = (type: RecommendPlaylistType, title: string) => {
+  router.push({
+    path: "/recommend/playlists",
+    query: { type, title },
   });
 };
 
-const handleSectionMore = () => {
-  router.push("/playlist")
+const goRecommendSongs = (type: RecommendSongType, title: string) => {
+  router.push({
+    path: "/recommend/songs",
+    query: { type, title },
+  });
 };
 
 onMounted(async () => {

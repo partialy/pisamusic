@@ -182,7 +182,10 @@
 - 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；`showEveryTime=false` 的公告确认后不再展示，`showEveryTime=true` 仅允许本次页面临时关闭，不写入长期忽略。
 - 公告链接打开统一走 `window:open-url` IPC：`mode: "window"` 使用 Electron 新窗口，`mode: "external"` 使用系统外部浏览器；只允许 http/https 链接，renderer 不直接使用 Electron `shell`。
 - 首页热门歌曲通过 `music:top-songs` 调用 KG `/top/song`，由 main 侧读取 runtime `kgServer` 并使用 `requestSignedGateway()`；renderer 使用 `src/utils/api/musicAPI.ts` 的 `getTopSongs()`，不要直接持有服务端地址。
-- 首页右侧热门歌曲卡片只展示前 4 首并提供“查看更多”滚动到底部热门歌曲节点；底部“热门歌曲”节点复用推荐音乐的 `HomeSongGrid` / `KGRecommendSong` 模式，默认展示前 12 首。
+- 首页右侧热门歌曲卡片展示热门歌曲预览并提供“查看更多”进入 `/recommend/songs?type=kg-top`；底部“热门歌曲”节点复用推荐音乐的 `HomeSongGrid` / `KGRecommendSong` 模式，默认展示前 12 首。
 - 首页 WY 内容包括“网友精选碟”(`/top/playlist`)、“WY推荐歌曲”(`/personalized/newsong`) 和 “WY推荐歌单”(`/personalized`)；统一在 main 侧读取 runtime `wyServer` 并通过 `music:*` IPC 暴露，renderer 不直接请求真实服务地址。
-- 首页歌单类节点使用 `PlaylistCollect`，需要限制最多 4 行并在 `HomeSectionTitle` 右侧显示“查看更多>”占位按钮；按钮在未接模块页前只提示“后续接入”。
+- 首页歌单类节点使用 `PlaylistCollect`，需要限制最多 4 行并在 `HomeSectionTitle` 右侧显示“查看更多>”；按钮进入 `/recommend/playlists`，通过 `type` 区分 `kg-top`、`wy-top`、`wy-personalized` 数据源。
+- 首页歌曲类节点的“查看更多>”进入 `/recommend/songs`，通过 `type` 区分 `kg-daily`、`kg-top`、`wy-new` 数据源；推荐详情页标题优先使用入口 query `title`，否则使用内置映射。
+- `/recommend/playlists` 和 `/recommend/songs` 属于推荐模块详情页，`MainLayout.routeToMenuKey()` 必须保持左侧菜单选中“推荐”；点击左侧“推荐”返回首页，现有 `/playlist/detail` 不改成推荐菜单选中。
+- 推荐详情页数据源映射集中放在 `src/views/recommend/recommendSources.ts`，后续新增入口时优先扩展映射和页面内 fetch 分支，不要在首页散落硬编码接口逻辑。
 - 首页向下滚动内容的进入动画统一使用 `HomeReveal`，通过 `IntersectionObserver` 做一次性轻微上浮淡入，并尊重 `prefers-reduced-motion`。

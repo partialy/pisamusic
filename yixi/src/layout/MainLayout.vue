@@ -60,6 +60,7 @@ const { accounts } = useCookieAccountStatus();
 const isDev = import.meta.env.DEV;
 
 const routeToMenuKey = (path: string) => {
+  if (path.startsWith("/recommend")) return "home";
   if (path.startsWith("/playlist")) return "playlist";
   if (path.startsWith("/favorite")) return "favorite";
   if (path.startsWith("/mine")) return "mine";

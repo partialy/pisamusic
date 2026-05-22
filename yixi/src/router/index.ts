@@ -70,6 +70,18 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: "PisaMusic - 歌单" },
       },
       {
+        path: "recommend/playlists",
+        name: "RecommendPlaylists",
+        component: () => import("../views/recommend/RecommendPlaylistPage.vue"),
+        meta: { title: "PisaMusic - 推荐歌单" },
+      },
+      {
+        path: "recommend/songs",
+        name: "RecommendSongs",
+        component: () => import("../views/recommend/RecommendSongPage.vue"),
+        meta: { title: "PisaMusic - 推荐歌曲" },
+      },
+      {
         path: "playlist/detail",
         name: "PlaylistDetail",
         component: () => import("../components/playList/PlayListDetailLayout.vue"),
