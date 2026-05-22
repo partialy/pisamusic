@@ -23,7 +23,7 @@
 
     <div v-else-if="songs.length" class="hot-list">
       <button
-        v-for="(song, index) in songs.slice(0, 4)"
+        v-for="(song, index) in songs.slice(0, 3)"
         :key="song.id"
         type="button"
         class="hot-song"

@@ -25,31 +25,24 @@
       <div class="notice-content" v-html="sanitizeHtml(activeNotice.content)"></div>
       <div class="notice-actions">
         <div class="notice-switch" v-if="visibleNotices.length > 1">
-          <button
-            v-for="(_, index) in visibleNotices"
-            :key="index"
-            type="button"
-            class="dot"
-            :class="{ active: index === activeIndex }"
-            :aria-label="`切换到第 ${index + 1} 条公告`"
+          <button v-for="(_, index) in visibleNotices" :key="index" type="button" class="dot"
+            :class="{ active: index === activeIndex }" :aria-label="`切换到第 ${index + 1} 条公告`"
             @click="activeIndex = index" />
         </div>
         <div class="action-buttons">
-          <n-button
-            v-if="activeNotice.showGotoButton && activeNotice.gotoUrl"
-            size="small"
-            secondary
-            type="primary"
+          <n-button v-if="activeNotice.showGotoButton && activeNotice.gotoUrl" size="small" secondary type="primary"
             @click="openNoticeUrl('window')">
+            <template #icon>
+              <WebIcon height="1rem" />
+            </template>
             前往
           </n-button>
-          <n-button
-            v-if="activeNotice.showGotoButton && activeNotice.gotoUrl"
-            size="small"
-            text
-            type="primary"
+          <n-button v-if="activeNotice.showGotoButton && activeNotice.gotoUrl" size="small" text type="primary"
             @click="openNoticeUrl('external')">
-            外部浏览器
+            <template #icon>
+              <BrowserShareIcon height="1rem" />
+            </template>
+            浏览器
           </n-button>
           <n-button size="small" type="primary" @click="confirmNotice">
             {{ activeNotice.confirmText || "我知道了" }}
@@ -67,6 +60,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { NButton, NSkeleton } from "naive-ui";
+import BrowserShareIcon from '@iconify-vue/tabler/browser-share';
+import WebIcon from '@iconify-vue/streamline-plump/web';
 
 defineOptions({ name: "HomeAnnouncementCard" });
 

@@ -92,6 +92,7 @@ import { ArrowDownIcon, CloseIcon, MiniWindowIcon, RestoreIcon, ScaleIcon } from
 import electronAPI from '@/utils/electron';
 import ProgressPanel from './ProgressPanel.vue';
 import { useSongCoverUrl } from '@/composables/useSongCoverUrl';
+import PlayerBackground from './PlayerBackground.vue';
 const playerStore = useAudioStore()
 const { currentSong, progress } = storeToRefs(playerStore)
 const commonStore = useCommonStore()

@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "@iconify-vue/streamline-plump": "^1.0.3",
+    "@iconify-vue/tabler": "^1.0.15"
+  }
+}
