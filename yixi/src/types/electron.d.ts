@@ -293,14 +293,24 @@ type PlaylistSearchParams = {
 };
 
 type TopPlaylistParams = {
-  source: "kg";
+  source: "kg" | "wy";
   categoryId?: string | number;
+  cat?: string;
+  order?: "hot" | "new";
   page?: number;
   pageSize?: number;
 };
 
 type TopSongsParams = {
   source: "kg";
+};
+
+type WyPersonalizedPlaylistParams = {
+  limit?: number;
+};
+
+type WyPersonalizedNewSongParams = {
+  limit?: number;
 };
 
 type OpenUrlParams = {
@@ -519,6 +529,8 @@ type ElectronIpcApi = {
   getKgPlaylistTags: <T = any>() => Promise<T>;
   getTopPlaylists: <T = any>(payload: TopPlaylistParams) => Promise<T>;
   getTopSongs: <T = any>(payload: TopSongsParams) => Promise<T>;
+  getWyPersonalizedPlaylists: <T = any>(payload?: WyPersonalizedPlaylistParams) => Promise<T>;
+  getWyPersonalizedNewSongs: <T = any>(payload?: WyPersonalizedNewSongParams) => Promise<T>;
   getKgDailyRecommend: <T = any>(platform?: string) => Promise<T>;
   getHomeRecommendations: <T = any>() => Promise<T>;
   getPlaylistDetail: <T = any>(payload: PlaylistDetailParams) => Promise<T>;

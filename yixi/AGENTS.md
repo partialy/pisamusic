@@ -183,3 +183,6 @@
 - 公告链接打开统一走 `window:open-url` IPC：`mode: "window"` 使用 Electron 新窗口，`mode: "external"` 使用系统外部浏览器；只允许 http/https 链接，renderer 不直接使用 Electron `shell`。
 - 首页热门歌曲通过 `music:top-songs` 调用 KG `/top/song`，由 main 侧读取 runtime `kgServer` 并使用 `requestSignedGateway()`；renderer 使用 `src/utils/api/musicAPI.ts` 的 `getTopSongs()`，不要直接持有服务端地址。
 - 首页右侧热门歌曲卡片只展示前 4 首并提供“查看更多”滚动到底部热门歌曲节点；底部“热门歌曲”节点复用推荐音乐的 `HomeSongGrid` / `KGRecommendSong` 模式，默认展示前 12 首。
+- 首页 WY 内容包括“网友精选碟”(`/top/playlist`)、“WY推荐歌曲”(`/personalized/newsong`) 和 “WY推荐歌单”(`/personalized`)；统一在 main 侧读取 runtime `wyServer` 并通过 `music:*` IPC 暴露，renderer 不直接请求真实服务地址。
+- 首页歌单类节点使用 `PlaylistCollect`，需要限制最多 4 行并在 `HomeSectionTitle` 右侧显示“查看更多>”占位按钮；按钮在未接模块页前只提示“后续接入”。
+- 首页向下滚动内容的进入动画统一使用 `HomeReveal`，通过 `IntersectionObserver` 做一次性轻微上浮淡入，并尊重 `prefers-reduced-motion`。

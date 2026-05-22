@@ -9,6 +9,8 @@ import {
   getPlaylistTracks,
   getTopPlaylists,
   getTopSongs,
+  getWyPersonalizedNewSongs,
+  getWyPersonalizedPlaylists,
   resolveMusicUrl,
   resolvePlayableUrl,
   searchMusic,
@@ -27,6 +29,8 @@ import type {
   PlaylistTracksParams,
   TopPlaylistParams,
   TopSongsParams,
+  WyPersonalizedNewSongParams,
+  WyPersonalizedPlaylistParams,
 } from "../music/types";
 
 let registered = false;
@@ -46,6 +50,12 @@ export function setupMusicApiIpc() {
   ipcMain.handle("music:top-playlists", (_event, params: TopPlaylistParams) => getTopPlaylists(params));
   ipcMain.handle("music:top-songs", (_event, params: TopSongsParams) =>
     getTopSongs(params)
+  );
+  ipcMain.handle("music:wy-personalized-playlists", (_event, params: WyPersonalizedPlaylistParams) =>
+    getWyPersonalizedPlaylists(params)
+  );
+  ipcMain.handle("music:wy-personalized-new-songs", (_event, params: WyPersonalizedNewSongParams) =>
+    getWyPersonalizedNewSongs(params)
   );
   ipcMain.handle("music:kg-daily-recommend", (_event, platform?: string) =>
     getKgDailyRecommend(platform)

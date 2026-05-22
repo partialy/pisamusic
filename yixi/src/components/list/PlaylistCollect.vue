@@ -1,7 +1,7 @@
 <template>
-  <div class="recommend-playlist">
+  <div ref="containerRef" class="recommend-playlist">
     <template v-if="loading">
-      <div v-for="i in skeletonCount" :key="i" class="playlist-skeleton-item">
+      <div v-for="i in visibleSkeletonCount" :key="i" class="playlist-skeleton-item">
         <n-skeleton class="playlist-skeleton-cover" />
         <div class="playlist-skeleton-info">
           <n-skeleton text width="92%" />
@@ -11,7 +11,7 @@
     </template>
     <template v-else>
       <KGRecommendPlaylist
-        v-for="i in playlist"
+        v-for="i in visiblePlaylist"
         :key="`${i.source}:${i.id}`"
         :item="i"
         @play-all="contextMenu?.handlePlayPlaylist(i)"
@@ -31,17 +31,54 @@ import type { CommonPlaylist } from "@/types/song";
 import { KGRecommendPlaylist } from "../playList";
 import ContextMenu from "@/components/common/ContextMenu.vue";
 import { NSkeleton } from "naive-ui";
-import { useTemplateRef } from "vue";
-withDefaults(defineProps<{
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
+
+const props = withDefaults(defineProps<{
   playlist: CommonPlaylist[];
   loading?: boolean;
   skeletonCount?: number;
+  maxRows?: number;
 }>(), {
   loading: false,
   skeletonCount: 12,
 });
 const contextMenu = useTemplateRef("contextMenu");
+const containerRef = useTemplateRef<HTMLElement>("containerRef");
+const columnCount = ref(1);
+let observer: ResizeObserver | null = null;
 
+const visibleLimit = computed(() => {
+  if (!props.maxRows) return props.playlist.length;
+  return Math.max(props.maxRows * columnCount.value, 1);
+});
+
+const visiblePlaylist = computed(() => props.playlist.slice(0, visibleLimit.value));
+
+const visibleSkeletonCount = computed(() => {
+  if (!props.maxRows) return props.skeletonCount;
+  return Math.min(props.skeletonCount, Math.max(props.maxRows * columnCount.value, 1));
+});
+
+function updateColumnCount(width: number) {
+  const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize || "16");
+  const minColumnWidth = 10.2 * rootFontSize;
+  const gap = rootFontSize;
+  columnCount.value = Math.max(1, Math.floor((width + gap) / (minColumnWidth + gap)));
+}
+
+onMounted(() => {
+  const container = containerRef.value;
+  if (!container) return;
+  updateColumnCount(container.clientWidth);
+  observer = new ResizeObserver(([entry]) => {
+    if (entry) updateColumnCount(entry.contentRect.width);
+  });
+  observer.observe(container);
+});
+
+onBeforeUnmount(() => {
+  observer?.disconnect();
+});
 
 </script>
 

@@ -16,6 +16,8 @@ import type {
   PlaylistTracksParams,
   TopPlaylistParams,
   TopSongsParams,
+  WyPersonalizedNewSongParams,
+  WyPersonalizedPlaylistParams,
 } from "./types";
 
 export async function searchMusic(params: MusicSearchParams) {
@@ -114,20 +116,50 @@ export async function getKgPlaylistTags() {
 
 export async function getTopPlaylists(params: TopPlaylistParams) {
   const endpoints = await getRuntimeEndpointsCached();
-  return requestSignedGateway(
-    buildUrl(endpoints.kgServer, "/top/playlist", {
-      category_id: params.categoryId ?? 0,
-      withsong: 0,
-      withtag: 1,
-      page: params.page ?? 1,
-      pagesize: params.pageSize,
-    })
-  );
+  switch (params.source) {
+    case "kg":
+      return requestSignedGateway(
+        buildUrl(endpoints.kgServer, "/top/playlist", {
+          category_id: params.categoryId ?? 0,
+          withsong: 0,
+          withtag: 1,
+          page: params.page ?? 1,
+          pagesize: params.pageSize,
+        })
+      );
+    case "wy":
+      return requestSignedGateway(
+        buildUrl(endpoints.wyServer, "/top/playlist", {
+          cat: params.cat ?? "全部",
+          order: params.order ?? "hot",
+          limit: params.pageSize ?? 24,
+          offset: ((params.page ?? 1) - 1) * (params.pageSize ?? 24),
+        })
+      );
+  }
 }
 
 export async function getTopSongs(_params: TopSongsParams = { source: "kg" }) {
   const endpoints = await getRuntimeEndpointsCached();
   return requestSignedGateway(buildUrl(endpoints.kgServer, "/top/song", {}));
+}
+
+export async function getWyPersonalizedPlaylists(params: WyPersonalizedPlaylistParams = {}) {
+  const endpoints = await getRuntimeEndpointsCached();
+  return requestSignedGateway(
+    buildUrl(endpoints.wyServer, "/personalized", {
+      limit: params.limit ?? 24,
+    })
+  );
+}
+
+export async function getWyPersonalizedNewSongs(params: WyPersonalizedNewSongParams = {}) {
+  const endpoints = await getRuntimeEndpointsCached();
+  return requestSignedGateway(
+    buildUrl(endpoints.wyServer, "/personalized/newsong", {
+      limit: params.limit ?? 12,
+    })
+  );
 }
 
 export async function getKgDailyRecommend(platform?: string) {

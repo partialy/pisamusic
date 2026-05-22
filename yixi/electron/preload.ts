@@ -204,13 +204,19 @@ const musicApiIpc = {
   }) => ipcRenderer.invoke("music:search-playlists", cloneIpcPayload(payload)),
   getKgPlaylistTags: () => ipcRenderer.invoke("music:kg-playlist-tags"),
   getTopPlaylists: (payload: {
-    source: "kg";
+    source: "kg" | "wy";
     categoryId?: string | number;
+    cat?: string;
+    order?: "hot" | "new";
     page?: number;
     pageSize?: number;
   }) => ipcRenderer.invoke("music:top-playlists", cloneIpcPayload(payload)),
   getTopSongs: (payload: { source: "kg" }) =>
     ipcRenderer.invoke("music:top-songs", cloneIpcPayload(payload)),
+  getWyPersonalizedPlaylists: (payload?: { limit?: number }) =>
+    ipcRenderer.invoke("music:wy-personalized-playlists", cloneIpcPayload(payload ?? {})),
+  getWyPersonalizedNewSongs: (payload?: { limit?: number }) =>
+    ipcRenderer.invoke("music:wy-personalized-new-songs", cloneIpcPayload(payload ?? {})),
   getKgDailyRecommend: (platform?: string) =>
     ipcRenderer.invoke("music:kg-daily-recommend", platform),
   getHomeRecommendations: () =>

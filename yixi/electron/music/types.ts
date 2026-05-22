@@ -21,14 +21,24 @@ export type PlaylistSearchParams = {
 };
 
 export type TopPlaylistParams = {
-  source: "kg";
+  source: "kg" | "wy";
   categoryId?: string | number;
+  cat?: string;
+  order?: "hot" | "new";
   page?: number;
   pageSize?: number;
 };
 
 export type TopSongsParams = {
   source: "kg";
+};
+
+export type WyPersonalizedPlaylistParams = {
+  limit?: number;
+};
+
+export type WyPersonalizedNewSongParams = {
+  limit?: number;
 };
 
 export type PlaylistDetailParams = {

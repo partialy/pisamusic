@@ -36,8 +36,10 @@ export async function getKgPlaylistTags<T = any>(): Promise<T> {
 }
 
 export async function getTopPlaylists<T = any>(payload: {
-  source: "kg";
+  source: "kg" | "wy";
   categoryId?: string | number;
+  cat?: string;
+  order?: "hot" | "new";
   page?: number;
   pageSize?: number;
 }): Promise<T> {
@@ -46,6 +48,18 @@ export async function getTopPlaylists<T = any>(payload: {
 
 export async function getTopSongs<T = any>(payload: { source: "kg" } = { source: "kg" }): Promise<T> {
   return invokeMusicApi("getTopSongs", payload, () => window.electronAPI.getTopSongs<T>(payload));
+}
+
+export async function getWyPersonalizedPlaylists<T = any>(payload: { limit?: number } = {}): Promise<T> {
+  return invokeMusicApi("getWyPersonalizedPlaylists", payload, () =>
+    window.electronAPI.getWyPersonalizedPlaylists<T>(payload)
+  );
+}
+
+export async function getWyPersonalizedNewSongs<T = any>(payload: { limit?: number } = {}): Promise<T> {
+  return invokeMusicApi("getWyPersonalizedNewSongs", payload, () =>
+    window.electronAPI.getWyPersonalizedNewSongs<T>(payload)
+  );
 }
 
 export async function getKgDailyRecommend<T = any>(platform?: string): Promise<T> {

@@ -28,6 +28,8 @@ declare module 'vue' {
     Header: typeof import('./src/components/Header.vue')['default']
     HomeAnnouncementCard: typeof import('./src/components/home/HomeAnnouncementCard.vue')['default']
     HomeHotSongCard: typeof import('./src/components/home/HomeHotSongCard.vue')['default']
+    HomeReveal: typeof import('./src/components/home/HomeReveal.vue')['default']
+    HomeSectionTitle: typeof import('./src/components/home/HomeSectionTitle.vue')['default']
     HomeSongGrid: typeof import('./src/components/home/HomeSongGrid.vue')['default']
     KGLogin: typeof import('./src/components/setting/account/KGLogin.vue')['default']
     KGRecommendPlaylist: typeof import('./src/components/playList/KGRecommendPlaylist.vue')['default']
