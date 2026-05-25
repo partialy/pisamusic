@@ -50,7 +50,7 @@
 - 构建：`pnpm --dir server build`
 - 启动构建产物：`pnpm --dir server start`
 - 默认端口：`53380`
-- 同步接口：`/api/sync/spaces` 创建同步码，`/api/sync/spaces/join` 加入同步空间，`/api/sync/changes` 拉取/推送增量，`/api/sync/devices/unbind` 解绑设备；同步 DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准。
+- 同步接口：`/api/sync/spaces` 首次创建同步码，`/api/sync/spaces/reset` 鉴权后重新生成同步码并清空旧同步空间，`/api/sync/spaces/join` 加入同步空间，`/api/sync/changes` 拉取/推送增量，`/api/sync/devices/unbind` 解绑设备；同步 DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准。
 
 管理后台与官网：
 

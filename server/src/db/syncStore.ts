@@ -48,6 +48,7 @@ export type SyncBindResult = SyncAuth & {
 const SYNC_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_CHANGES_PER_PUSH = 500;
 const MAX_CHANGES_PER_PULL = 1000;
+const SYNC_CODE_RESET_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token, "utf8").digest("hex");
@@ -151,6 +152,36 @@ export function createSyncSpace(deviceName?: unknown, platform?: unknown): SyncB
        VALUES (?, ?, 0, ?, ?)`,
     ).run(spaceId, syncCode, now, now);
     return createDevice(db, spaceId, deviceName, platform);
+  });
+}
+
+export function resetSyncSpace(
+  auth: SyncAuth,
+  deviceName?: unknown,
+  platform?: unknown,
+): SyncBindResult {
+  const db = getAppDb();
+  return runInTransaction(db, () => {
+    const now = Date.now();
+    const current = db.prepare("SELECT created_at FROM sync_spaces WHERE id = ?").get(auth.spaceId) as
+      | { created_at: number }
+      | undefined;
+    if (!current) throw new Error("同步空间不存在");
+    const elapsed = now - current.created_at;
+    if (elapsed < SYNC_CODE_RESET_COOLDOWN_MS) {
+      const remainMinutes = Math.ceil((SYNC_CODE_RESET_COOLDOWN_MS - elapsed) / 60000);
+      throw new Error(`同步码 4 小时内只能重新生成一次，请 ${remainMinutes} 分钟后再试`);
+    }
+
+    const nextSpaceId = randomUUID();
+    const nextSyncCode = generateUniqueSyncCode(db);
+    db.prepare(
+      `INSERT INTO sync_spaces (id, sync_code, space_version, created_at, updated_at)
+       VALUES (?, ?, 0, ?, ?)`,
+    ).run(nextSpaceId, nextSyncCode, now, now);
+    const result = createDevice(db, nextSpaceId, deviceName, platform);
+    db.prepare("DELETE FROM sync_spaces WHERE id = ?").run(auth.spaceId);
+    return result;
   });
 }
 

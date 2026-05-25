@@ -6,6 +6,7 @@ import {
   createSyncSpace,
   joinSyncSpace,
   listSyncChanges,
+  resetSyncSpace,
   unbindSyncDevice,
   type SyncAuth,
 } from "../db/syncStore";
@@ -58,6 +59,15 @@ syncRouter.post("/spaces/join", (req, res) => {
     res.json(ok(joinSyncSpace(body.syncCode, body.deviceName, body.platform), "已加入同步空间"));
   } catch (error) {
     handleError(res, error, "加入同步空间失败");
+  }
+});
+
+syncRouter.post("/spaces/reset", requireSyncAuth, (req: AuthedRequest, res) => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    res.json(ok(resetSyncSpace(getAuth(req), body.deviceName, body.platform), "同步码已重新生成"));
+  } catch (error) {
+    handleError(res, error, "重新生成同步码失败");
   }
 });
 

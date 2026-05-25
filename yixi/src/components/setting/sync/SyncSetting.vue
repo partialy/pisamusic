@@ -86,6 +86,24 @@ onUnmounted(() => {
 });
 
 async function handleCreate() {
+  if (state.value.token) {
+    window.$dialog.create({
+      style: { borderRadius: "10px" },
+      title: "重新生成同步码",
+      type: "warning",
+      content: "重新生成后会清空当前同步空间的云端数据，并让旧同步码和旧 token 失效。同步码 4 小时内只能重新生成一次。",
+      positiveText: "重新生成",
+      negativeText: "取消",
+      onPositiveClick: () => {
+        void createOrResetSyncCode();
+      },
+    });
+    return;
+  }
+  await createOrResetSyncCode();
+}
+
+async function createOrResetSyncCode() {
   await runSyncAction(async () => {
     state.value = await window.electronAPI.createSyncSpace();
     await copySyncCode();

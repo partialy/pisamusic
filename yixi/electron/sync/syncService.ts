@@ -8,6 +8,7 @@ import {
   getSyncChanges,
   joinSyncSpace as requestJoinSyncSpace,
   pushSyncChanges,
+  resetSyncSpace as requestResetSyncSpace,
   unbindSyncDevice,
   type SyncChange,
 } from "../system/systemClient";
@@ -45,7 +46,10 @@ export function getSyncState(): SyncState {
 }
 
 export async function createSyncSpace() {
-  const result = await requestCreateSyncSpace(deviceName());
+  const state = getSyncState();
+  const result = state.token
+    ? await requestResetSyncSpace(state.token, deviceName())
+    : await requestCreateSyncSpace(deviceName());
   saveSyncState({
     token: result.token,
     syncCode: result.syncCode,

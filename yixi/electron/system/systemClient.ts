@@ -154,6 +154,20 @@ export async function joinSyncSpace(syncCode: string, deviceName: string) {
   return unwrapResponse(response);
 }
 
+export async function resetSyncSpace(token: string, deviceName: string) {
+  const response = await requestSystem<SyncBindResult>("/api/sync/spaces/reset", {
+    method: "POST",
+    body: {
+      deviceName,
+      platform: "yixi",
+    },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return unwrapResponse(response);
+}
+
 export async function getSyncChanges(token: string, since: number) {
   const response = await requestSystem<{ version: number; changes: SyncChange[] }>(
     `/api/sync/changes?since=${encodeURIComponent(String(since))}`,

@@ -193,6 +193,7 @@
 ## 收藏与歌单同步
 
 - 桌面端同步能力由 main 侧 `electron/sync/syncService.ts` 统一编排，renderer 只能通过 preload 暴露的 `sync:*` typed IPC 创建同步码、加入同步空间、手动同步和解绑。
+- 已绑定设备重新生成同步码必须走服务端 `/api/sync/spaces/reset`，由服务端按当前同步空间限制 4 小时冷却并清空旧同步空间；不要在 renderer 或本地 settings 里自行绕过限制。
 - 同步状态保存到 SQLite settings 的 `sync-state`，本地待推送变更保存到 SQLite `sync_outbox`；收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更后需要写入 outbox 并触发后台增量同步。
 - 同步 payload 只使用 `Song` / `CommonPlaylist` canonical 字段；不推送 `source=local` 歌曲，不推送播放 URL、filePath、歌词正文、内嵌封面；自建歌单本地文件封面同步时置空。
 - 远端 tombstone 应在 main 侧应用到 SQLite 后通知 renderer 刷新 `favorites:changed` / `mine-library:changed`，不要让页面组件直接写同步状态或数据库。
