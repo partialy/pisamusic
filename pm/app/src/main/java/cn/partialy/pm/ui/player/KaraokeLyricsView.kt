@@ -325,16 +325,16 @@ class KaraokeLyricsView @JvmOverloads constructor(
         val segments = wrapText(fullText, maxTextWidth)
         drawWrappedSegmentsCentered(segments, baseline) { segment, segmentBaseline ->
             val x = lineX(segment.text, maxTextWidth)
+            val activeRange = activeWordRange(line, segment)
             paint.color = currentBaseColor()
-            canvas.drawText(segment.text, x, segmentBaseline, paint)
+            drawSegmentExceptRange(canvas, segment.text, x, segmentBaseline, activeRange, currentBaseColor())
 
             if (showProgress && line.hasWordTiming) {
                 val sungWidth = calculateSungWidthInSegment(line, segment)
                 if (sungWidth > 0f) {
                     canvas.save()
                     canvas.clipRect(x, 0f, x + sungWidth.coerceAtMost(paint.measureText(segment.text)), height.toFloat())
-                    paint.color = style.currentColorArgb
-                    canvas.drawText(segment.text, x, segmentBaseline, paint)
+                    drawSegmentExceptRange(canvas, segment.text, x, segmentBaseline, activeRange, style.currentColorArgb)
                     canvas.restore()
                 }
                 drawActiveWordScale(
@@ -390,18 +390,75 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 val phase = elapsed.toFloat() / duration.toFloat()
                 val scale = 1f + 0.14f * sin(phase.toDouble() * PI).toFloat()
                 val pivotX = wordX + wordWidth / 2f
+                val sungRight = (originX + calculateSungWidthInSegment(line, segment))
+                    .coerceIn(clipLeft, clipRight)
+
                 canvas.save()
                 canvas.clipRect(clipLeft, 0f, clipRight, height.toFloat())
                 canvas.translate(pivotX, baseline)
                 canvas.scale(scale, scale)
                 canvas.translate(-pivotX, -baseline)
-                paint.color = style.currentColorArgb
+                paint.color = currentBaseColor()
                 canvas.drawText(text, wordX, baseline, paint)
                 canvas.restore()
+
+                if (sungRight > clipLeft) {
+                    canvas.save()
+                    canvas.clipRect(clipLeft, 0f, sungRight, height.toFloat())
+                    canvas.translate(pivotX, baseline)
+                    canvas.scale(scale, scale)
+                    canvas.translate(-pivotX, -baseline)
+                    paint.color = style.currentColorArgb
+                    canvas.drawText(text, wordX, baseline, paint)
+                    canvas.restore()
+                }
+
                 return
             }
             wordStart = wordEnd
         }
+    }
+
+    private fun drawSegmentExceptRange(
+        canvas: Canvas,
+        text: String,
+        x: Float,
+        baseline: Float,
+        skipRange: IntRange?,
+        color: Int,
+    ) {
+        paint.color = color
+        if (!style.wordScaleEnabled || skipRange == null) {
+            canvas.drawText(text, x, baseline, paint)
+            return
+        }
+        val start = skipRange.first.coerceIn(0, text.length)
+        val endExclusive = (skipRange.last + 1).coerceIn(start, text.length)
+        if (start > 0) {
+            canvas.drawText(text.substring(0, start), x, baseline, paint)
+        }
+        if (endExclusive < text.length) {
+            val suffixX = x + paint.measureText(text.substring(0, endExclusive))
+            canvas.drawText(text.substring(endExclusive), suffixX, baseline, paint)
+        }
+    }
+
+    private fun activeWordRange(line: LyricLine, segment: WrappedSegment): IntRange? {
+        if (!style.wordScaleEnabled || !line.hasWordTiming || line.words.isEmpty()) return null
+        var wordStart = 0
+        for (word in line.words) {
+            val wordEnd = wordStart + word.word.length
+            val active = positionMs in word.startTime until word.endTime
+            val overlapStart = max(segment.startChar, wordStart)
+            val overlapEnd = minOf(segment.endChar, wordEnd)
+            if (active && overlapStart < overlapEnd) {
+                val localStart = overlapStart - segment.startChar
+                val localEndExclusive = overlapEnd - segment.startChar
+                return localStart until localEndExclusive
+            }
+            wordStart = wordEnd
+        }
+        return null
     }
 
     private fun calculateSungWidthInSegment(line: LyricLine, segment: WrappedSegment): Float {
@@ -613,9 +670,9 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private fun currentMaxTextWidth(): Int =
         (width - paddingLeft - paddingRight).coerceAtLeast(0)
 
-    private fun wrappedLineGap() = dp(5f)
+    private fun wrappedLineGap() = dp(8f)
 
-    private fun lyricRowGap() = dp(10f)
+    private fun lyricRowGap() = dp(16f)
 
     private fun currentBaseColor() =
         Color.argb(
