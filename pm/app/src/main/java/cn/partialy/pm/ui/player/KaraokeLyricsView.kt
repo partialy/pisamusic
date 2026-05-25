@@ -672,14 +672,34 @@ class KaraokeLyricsView @JvmOverloads constructor(
         val segments = mutableListOf<WrappedSegment>()
         var start = 0
         while (start < text.length) {
-            val count = paint.breakText(text, start, text.length, true, maxTextWidth.toFloat(), null)
+            val rawCount = paint.breakText(text, start, text.length, true, maxTextWidth.toFloat(), null)
                 .coerceAtLeast(1)
-            val end = (start + count).coerceAtMost(text.length)
+            val rawEnd = (start + rawCount).coerceAtMost(text.length)
+            val end = chooseWrapEnd(text, start, rawEnd).takeIf { it > start } ?: rawEnd
             segments.add(WrappedSegment(text.substring(start, end), start, end))
-            start = end
+            start = skipLeadingWrapSeparators(text, end)
         }
         return segments
     }
+
+    private fun chooseWrapEnd(text: String, start: Int, rawEnd: Int): Int {
+        if (rawEnd >= text.length) return text.length
+        for (i in rawEnd downTo start + 1) {
+            if (isWrapBoundary(text[i - 1])) return i
+        }
+        return rawEnd
+    }
+
+    private fun skipLeadingWrapSeparators(text: String, start: Int): Int {
+        var index = start
+        while (index < text.length && text[index].isWhitespace()) {
+            index++
+        }
+        return index
+    }
+
+    private fun isWrapBoundary(ch: Char): Boolean =
+        ch.isWhitespace() || ch in WRAP_BOUNDARY_CHARS
 
     private fun drawWrappedSegmentsCentered(
         segments: List<WrappedSegment>,
@@ -740,6 +760,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
         private const val BROWSE_TIMEOUT_MS = 3_000L
         private const val RETURN_ANIM_DURATION_MS = 520L
         private const val SCROLLER_ROW_UNIT = 1000f
+        private const val WRAP_BOUNDARY_CHARS = "，。！？、；：,.!?;:)]）】》"
     }
 
     private data class WrappedSegment(

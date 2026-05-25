@@ -7,7 +7,6 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.os.SystemClock
 import android.text.TextPaint
-import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.View
 import cn.partialy.pm.lyric.LyricLine
@@ -108,21 +107,25 @@ class StatusBarLyricView @JvmOverloads constructor(
         if (maxTextWidth <= 0 || lyricText.isBlank()) return
 
         paint.textSize = sp(fontSizeSp)
-        val displayText = TextUtils.ellipsize(
-            lyricText,
-            paint,
-            maxTextWidth.toFloat(),
-            TextUtils.TruncateAt.END,
-        ).toString()
-        val textWidth = paint.measureText(displayText)
-        val x = paddingLeft + (maxTextWidth - textWidth) / 2f
+        val textWidth = paint.measureText(lyricText)
+        val scrollX = calculateTextScrollX(textWidth, maxTextWidth)
+        val x = if (textWidth > maxTextWidth) {
+            paddingLeft - scrollX
+        } else {
+            paddingLeft + (maxTextWidth - textWidth) / 2f
+        }
         val baseline = height / 2f - (paint.ascent() + paint.descent()) / 2f
 
+        val clipLeft = paddingLeft.toFloat()
+        val clipRight = (width - paddingRight).toFloat()
+        canvas.save()
+        canvas.clipRect(clipLeft, 0f, clipRight, height.toFloat())
+
         paint.color = unsungColor
-        canvas.drawText(displayText, x, baseline, paint)
+        canvas.drawText(lyricText, x, baseline, paint)
 
         val sungWidth = if (useWordProgress) {
-            calculateWordSungWidth(displayText)
+            calculateWordSungWidth()
         } else {
             textWidth * displayProgress
         }
@@ -130,9 +133,10 @@ class StatusBarLyricView @JvmOverloads constructor(
             canvas.save()
             canvas.clipRect(x, 0f, x + sungWidth, height.toFloat())
             paint.color = sungColor
-            canvas.drawText(displayText, x, baseline, paint)
+            canvas.drawText(lyricText, x, baseline, paint)
             canvas.restore()
         }
+        canvas.restore()
 
         if (animationRunning || isBoundsVisible()) postInvalidateOnAnimation()
     }
@@ -190,13 +194,24 @@ class StatusBarLyricView @JvmOverloads constructor(
 
     private fun isBoundsVisible(): Boolean = SystemClock.uptimeMillis() < boundsVisibleUntilMs
 
-    private fun calculateWordSungWidth(displayText: String): Float {
+    private fun calculateTextScrollX(textWidth: Float, maxTextWidth: Int): Float {
+        if (textWidth <= maxTextWidth) return 0f
+        val sungWidth = if (useWordProgress) {
+            calculateWordSungWidth()
+        } else {
+            textWidth * displayProgress
+        }
+        val maxScroll = textWidth - maxTextWidth
+        return (sungWidth - maxTextWidth * 0.55f).coerceIn(0f, maxScroll)
+    }
+
+    private fun calculateWordSungWidth(): Float {
         val line = lyricLine ?: return 0f
         var visibleChars = 0
         var width = 0f
         for (word in line.words) {
-            if (visibleChars >= displayText.length) break
-            val text = word.word.take(displayText.length - visibleChars)
+            if (visibleChars >= lyricText.length) break
+            val text = word.word.take(lyricText.length - visibleChars)
             if (text.isEmpty()) continue
             val wordWidth = paint.measureText(text)
             width += when {
