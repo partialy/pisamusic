@@ -590,6 +590,6 @@ class PlayerEngine(
     }
 
     private companion object {
-        private const val PROGRESS_UPDATE_INTERVAL_MS = 1_000L
+        private const val PROGRESS_UPDATE_INTERVAL_MS = 160L
     }
 }
