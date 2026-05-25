@@ -20,6 +20,9 @@ enum class CollectedPlaylistType {
 
     @SerializedName("local")
     LOCAL,
+    ;
+
+    companion object
 }
 
 data class CollectedPlaylist(

@@ -8,15 +8,20 @@ import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.fromCanonicalSource
+import cn.partialy.pm.model.toCanonicalPlaylist
+import cn.partialy.pm.model.toCanonicalSong
 import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
+import com.google.gson.Gson
 
 internal class LocalPlaylistDbStore(context: Context) {
     private val helper = LocalMusicDbOpenHelper(context.applicationContext)
+    private val gson = Gson()
 
     fun getPlaylists(): List<CollectedPlaylist> {
         val db = helper.readableDatabase
         val sql = """
-            SELECT p.id, p.name, p.intro, p.cover, COUNT(s.song_id) AS song_count
+            SELECT p.id, p.name, p.desc, p.intro, p.cover, COUNT(s.song_id) AS song_count
             FROM local_playlists p
             LEFT JOIN local_playlist_songs s ON s.playlist_id = p.id
             GROUP BY p.id
@@ -30,7 +35,9 @@ internal class LocalPlaylistDbStore(context: Context) {
                         type = CollectedPlaylistType.LOCAL,
                         id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
                         name = cursor.getString(cursor.getColumnIndexOrThrow("name")).orEmpty(),
-                        intro = cursor.getString(cursor.getColumnIndexOrThrow("intro")).orEmpty(),
+                        intro = cursor.getOptionalString("desc").ifBlank {
+                            cursor.getString(cursor.getColumnIndexOrThrow("intro")).orEmpty()
+                        },
                         cover = cursor.getString(cursor.getColumnIndexOrThrow("cover")).orEmpty(),
                         count = cursor.getInt(cursor.getColumnIndexOrThrow("song_count")),
                     )
@@ -62,10 +69,14 @@ internal class LocalPlaylistDbStore(context: Context) {
         try {
             val existingCreatedAt = queryCreatedAt(db, playlist.id)
             val values = ContentValues().apply {
+                val canonical = playlist.toCanonicalPlaylist()
                 put("id", playlist.id)
+                put("source", canonical.source)
                 put("name", playlist.name)
+                put("desc", canonical.desc)
                 put("intro", playlist.intro)
                 put("cover", playlist.cover)
+                put("payload_json", gson.toJson(canonical))
                 put("created_at", existingCreatedAt ?: now)
                 put("updated_at", now)
             }
@@ -141,10 +152,14 @@ internal class LocalPlaylistDbStore(context: Context) {
             if (queryCreatedAt(db, playlist.id) == null) {
                 val now = System.currentTimeMillis()
                 val values = ContentValues().apply {
+                    val canonical = playlist.toCanonicalPlaylist()
                     put("id", playlist.id)
+                    put("source", canonical.source)
                     put("name", playlist.name)
+                    put("desc", canonical.desc)
                     put("intro", playlist.intro)
                     put("cover", playlist.cover)
+                    put("payload_json", gson.toJson(canonical))
                     put("created_at", now)
                     put("updated_at", now)
                 }
@@ -229,34 +244,54 @@ internal class LocalPlaylistDbStore(context: Context) {
 
     private fun SongInfo.toValues(playlistId: String, sortOrder: Int): ContentValues =
         ContentValues().apply {
+            val canonical = toCanonicalSong()
             put("playlist_id", playlistId)
             put("song_id", id)
+            put("source", canonical.source)
+            put("url_param", canonical.urlParam)
             put("song_type", type.name)
             put("name", name)
+            put("singer", canonical.singer)
             put("artist", artist)
+            put("cover", canonical.cover)
             put("cover_url", coverUrl)
             put("album", album)
             put("lyric", lyric)
             put("duration", duration)
+            put("payload_json", gson.toJson(canonical))
             put("sort_order", sortOrder)
             put("updated_at", System.currentTimeMillis())
         }
 
     private fun Cursor.toSongInfo(): SongInfo {
-        val type = runCatching {
-            SongType.valueOf(getString(getColumnIndexOrThrow("song_type")))
-        }.getOrDefault(SongType.LOCAL)
+        val source = getOptionalString("source")
+        val type = if (source.isNotBlank()) {
+            SongType.fromCanonicalSource(source)
+        } else {
+            runCatching {
+                SongType.valueOf(getString(getColumnIndexOrThrow("song_type")))
+            }.getOrDefault(SongType.LOCAL)
+        }
         val durationIndex = getColumnIndexOrThrow("duration")
         return SongInfo(
             id = getString(getColumnIndexOrThrow("song_id")).orEmpty(),
             type = type,
             name = getString(getColumnIndexOrThrow("name")).orEmpty(),
-            artist = getString(getColumnIndexOrThrow("artist")).orEmpty(),
-            coverUrl = getString(getColumnIndexOrThrow("cover_url")).orEmpty(),
+            artist = getOptionalString("singer").ifBlank {
+                getString(getColumnIndexOrThrow("artist")).orEmpty()
+            },
+            coverUrl = getOptionalString("cover").ifBlank {
+                getString(getColumnIndexOrThrow("cover_url")).orEmpty()
+            },
             album = getString(getColumnIndexOrThrow("album")),
             lyric = getString(getColumnIndexOrThrow("lyric")),
             duration = if (isNull(durationIndex)) null else getInt(durationIndex),
         )
+    }
+
+    private fun Cursor.getOptionalString(column: String): String {
+        val index = getColumnIndex(column)
+        return if (index >= 0 && !isNull(index)) getString(index).orEmpty() else ""
     }
 
 }

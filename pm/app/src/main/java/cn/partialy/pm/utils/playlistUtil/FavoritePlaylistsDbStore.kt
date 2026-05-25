@@ -6,10 +6,14 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
+import cn.partialy.pm.model.fromCanonicalSource
+import cn.partialy.pm.model.toCanonicalPlaylist
 import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
+import com.google.gson.Gson
 
 internal class FavoritePlaylistsDbStore(context: Context) {
     private val helper = LocalMusicDbOpenHelper(context.applicationContext)
+    private val gson = Gson()
 
     fun getPlaylists(): List<CollectedPlaylist> {
         helper.readableDatabase.query(
@@ -78,28 +82,44 @@ internal class FavoritePlaylistsDbStore(context: Context) {
 
     private fun CollectedPlaylist.toValues(createdAt: Long, updatedAt: Long): ContentValues =
         ContentValues().apply {
+            val canonical = toCanonicalPlaylist()
+            put("source", canonical.source)
             put("playlist_type", type.name)
             put("playlist_id", id)
             put("name", name)
+            put("desc", canonical.desc)
             put("intro", intro)
             put("cover", cover)
             put("song_count", count)
+            put("payload_json", gson.toJson(canonical))
             put("created_at", createdAt)
             put("updated_at", updatedAt)
         }
 
     private fun Cursor.toCollectedPlaylist(): CollectedPlaylist {
-        val type = runCatching {
-            CollectedPlaylistType.valueOf(getString(getColumnIndexOrThrow("playlist_type")))
-        }.getOrDefault(CollectedPlaylistType.KG)
+        val source = getOptionalString("source")
+        val type = if (source.isNotBlank()) {
+            CollectedPlaylistType.fromCanonicalSource(source)
+        } else {
+            runCatching {
+                CollectedPlaylistType.valueOf(getString(getColumnIndexOrThrow("playlist_type")))
+            }.getOrDefault(CollectedPlaylistType.KG)
+        }
         return CollectedPlaylist(
             type = type,
             id = getString(getColumnIndexOrThrow("playlist_id")).orEmpty(),
             name = getString(getColumnIndexOrThrow("name")).orEmpty(),
-            intro = getString(getColumnIndexOrThrow("intro")).orEmpty(),
+            intro = getOptionalString("desc").ifBlank {
+                getString(getColumnIndexOrThrow("intro")).orEmpty()
+            },
             cover = getString(getColumnIndexOrThrow("cover")).orEmpty(),
             count = getInt(getColumnIndexOrThrow("song_count")),
         )
+    }
+
+    private fun Cursor.getOptionalString(column: String): String {
+        val index = getColumnIndex(column)
+        return if (index >= 0 && !isNull(index)) getString(index).orEmpty() else ""
     }
 
     private companion object {

@@ -22,4 +22,7 @@ enum class SongType {
     WY,
     KW,
     LOCAL,
+    ;
+
+    companion object
 }

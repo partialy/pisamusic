@@ -109,3 +109,9 @@
 - 涉及 Release 配置或签名时再运行 `.\gradlew.bat assembleRelease`
 - 涉及后端契约时，配合 `../server/` 验证 `/api/health`、`/api/config/check-update`、`/api/config/discover` 和加密配置接口。
 - UI 密集流程仍需要真机或模拟器手动测试，例如播放、搜索、下载、发现页、反馈、更新弹窗。
+
+## 同步字段模型补充
+
+- 收藏歌曲、收藏歌单和自建歌单持久化需要同时写入与桌面端一致的 canonical 字段：歌曲使用 `id/source/urlParam/name/singer/album/cover/coverSize/duration/size/vip`，歌单使用 `id/source/name/desc/cover/coverSize/tags/song_count/play_count/collect_count`。
+- `SongInfo`、`CollectedPlaylist` 可以作为 Android 播放和旧 UI 的兼容模型，但新增收藏、歌单和同步相关逻辑必须优先通过 `CanonicalSong` / `CanonicalPlaylist` 或对应转换方法处理，避免继续扩散 `artist`、`coverUrl`、`intro` 等旧字段名。
+- `pm_local_music.db` 的收藏与自建歌单表已补齐 canonical 列和 `payload_json`；新增迁移时必须保持旧字段可读，确保历史数据升级后仍能显示和播放。

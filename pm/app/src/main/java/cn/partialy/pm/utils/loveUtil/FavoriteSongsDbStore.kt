@@ -6,10 +6,14 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.fromCanonicalSource
+import cn.partialy.pm.model.toCanonicalSong
 import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
+import com.google.gson.Gson
 
 internal class FavoriteSongsDbStore(context: Context) {
     private val helper = LocalMusicDbOpenHelper(context.applicationContext)
+    private val gson = Gson()
 
     fun getSongs(): List<SongInfo> {
         helper.readableDatabase.query(
@@ -94,33 +98,53 @@ internal class FavoriteSongsDbStore(context: Context) {
 
     private fun SongInfo.toValues(createdAt: Long, updatedAt: Long): ContentValues =
         ContentValues().apply {
+            val canonical = toCanonicalSong()
+            put("source", canonical.source)
+            put("url_param", canonical.urlParam)
             put("song_type", type.name)
             put("song_id", id)
             put("name", name)
+            put("singer", canonical.singer)
             put("artist", artist)
+            put("cover", canonical.cover)
             put("cover_url", coverUrl)
             put("album", album)
             put("lyric", lyric)
             put("duration", duration)
+            put("payload_json", gson.toJson(canonical))
             put("created_at", createdAt)
             put("updated_at", updatedAt)
         }
 
     private fun Cursor.toSongInfo(): SongInfo {
-        val type = runCatching {
-            SongType.valueOf(getString(getColumnIndexOrThrow("song_type")))
-        }.getOrDefault(SongType.KG)
+        val source = getOptionalString("source")
+        val type = if (source.isNotBlank()) {
+            SongType.fromCanonicalSource(source)
+        } else {
+            runCatching {
+                SongType.valueOf(getString(getColumnIndexOrThrow("song_type")))
+            }.getOrDefault(SongType.KG)
+        }
         val durationIndex = getColumnIndexOrThrow("duration")
         return SongInfo(
             id = getString(getColumnIndexOrThrow("song_id")).orEmpty(),
             type = type,
             name = getString(getColumnIndexOrThrow("name")).orEmpty(),
-            artist = getString(getColumnIndexOrThrow("artist")).orEmpty(),
-            coverUrl = getString(getColumnIndexOrThrow("cover_url")).orEmpty(),
+            artist = getOptionalString("singer").ifBlank {
+                getString(getColumnIndexOrThrow("artist")).orEmpty()
+            },
+            coverUrl = getOptionalString("cover").ifBlank {
+                getString(getColumnIndexOrThrow("cover_url")).orEmpty()
+            },
             album = getString(getColumnIndexOrThrow("album")),
             lyric = getString(getColumnIndexOrThrow("lyric")),
             duration = if (isNull(durationIndex)) null else getInt(durationIndex),
         )
+    }
+
+    private fun Cursor.getOptionalString(column: String): String {
+        val index = getColumnIndex(column)
+        return if (index >= 0 && !isNull(index)) getString(index).orEmpty() else ""
     }
 
     private companion object {
