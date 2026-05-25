@@ -40,6 +40,7 @@ import cn.partialy.pm.network.cookie.KugouCookieRepository
 import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.network.repository.SystemRepository
 import cn.partialy.pm.service.MusicService
+import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.ui.dialog.ModernDialog
 import cn.partialy.pm.ui.discover.DiscoverFragment
 import cn.partialy.pm.ui.home.HomeFragmentStateAdapter
@@ -85,6 +86,9 @@ class MainActivity : BaseDownloadActivity() {
 
     @Inject
     lateinit var drawerImportProfileCacheStore: DrawerImportProfileCacheStore
+
+    @Inject
+    lateinit var syncManager: SyncManager
 
     private lateinit var viewPager: ViewPager2
     private lateinit var homeAdapter: HomeFragmentStateAdapter
@@ -168,6 +172,11 @@ class MainActivity : BaseDownloadActivity() {
 
         loveManager.preloadFromDiskAsync()
         playlistCollectionManager.preloadIndexFromDiskAsync()
+        if (syncManager.state().bound) {
+            lifecycleScope.launch {
+                syncManager.syncNow()
+            }
+        }
 
         DownloadPathManager.createDownloadDirectory(
             DownloadPathManager.getDownloadPath(this)

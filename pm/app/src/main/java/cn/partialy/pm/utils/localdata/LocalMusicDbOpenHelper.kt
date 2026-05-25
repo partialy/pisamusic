@@ -10,6 +10,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
     override fun onCreate(db: SQLiteDatabase) {
         createLocalPlaylistTables(db)
         createFavoriteTables(db)
+        createSyncTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -18,6 +19,9 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         }
         if (oldVersion < 3) {
             ensureCanonicalColumns(db)
+        }
+        if (oldVersion < 4) {
+            createSyncTables(db)
         }
     }
 
@@ -110,9 +114,26 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_favorite_playlists_created ON favorite_playlists(created_at)")
     }
 
+    private fun createSyncTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS sync_outbox (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                op_id TEXT NOT NULL UNIQUE,
+                item_type TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                action TEXT NOT NULL,
+                payload_json TEXT NOT NULL DEFAULT '{}',
+                created_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_sync_outbox_created ON sync_outbox(created_at, id)")
+    }
+
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 3
+        private const val DB_VERSION = 4
     }
 
     private fun ensureCanonicalColumns(db: SQLiteDatabase) {

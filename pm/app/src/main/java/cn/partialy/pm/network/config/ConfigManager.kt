@@ -6,6 +6,12 @@ import cn.partialy.pm.model.AboutInfo
 import cn.partialy.pm.model.UpdateInfo
 import cn.partialy.pm.model.DeviceReportRequest
 import cn.partialy.pm.model.DeviceReportResult
+import cn.partialy.pm.model.SyncBindRequest
+import cn.partialy.pm.model.SyncBindResult
+import cn.partialy.pm.model.SyncChangeInput
+import cn.partialy.pm.model.SyncChangesResult
+import cn.partialy.pm.model.SyncPushRequest
+import cn.partialy.pm.model.SyncPushResult
 import cn.partialy.pm.network.api.SystemApiService
 import cn.partialy.pm.network.gateway.GatewaySignConfig
 import cn.partialy.pm.network.gateway.GatewaySignRuntime
@@ -117,6 +123,48 @@ class ConfigManager @Inject constructor(
             throw ApiException(response.code, response.msg.ifBlank { "设备信息上报失败" })
         }
         return response.data
+    }
+
+    suspend fun createSyncSpace(deviceName: String): SyncBindResult {
+        val response = systemApiService.createSyncSpace(SyncBindRequest(deviceName = deviceName))
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "创建同步码失败" })
+        }
+        return response.data
+    }
+
+    suspend fun joinSyncSpace(syncCode: String, deviceName: String): SyncBindResult {
+        val response = systemApiService.joinSyncSpace(
+            SyncBindRequest(syncCode = syncCode, deviceName = deviceName)
+        )
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "加入同步空间失败" })
+        }
+        return response.data
+    }
+
+    suspend fun getSyncChanges(token: String, since: Long): SyncChangesResult {
+        val response = systemApiService.getSyncChanges("Bearer $token", since)
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "拉取同步变更失败" })
+        }
+        return response.data
+    }
+
+    suspend fun pushSyncChanges(token: String, changes: List<SyncChangeInput>): SyncPushResult {
+        val response = systemApiService.pushSyncChanges("Bearer $token", SyncPushRequest(changes))
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "推送同步变更失败" })
+        }
+        return response.data
+    }
+
+    suspend fun unbindSyncDevice(token: String): Boolean {
+        val response = systemApiService.unbindSyncDevice("Bearer $token")
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "解绑同步设备失败" })
+        }
+        return response.data.unbound
     }
 
     /**

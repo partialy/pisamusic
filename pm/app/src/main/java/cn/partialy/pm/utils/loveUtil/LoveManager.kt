@@ -4,6 +4,10 @@ import android.content.Context
 import android.util.Log
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.toSongInfo
+import cn.partialy.pm.sync.SyncOutboxStore
+import cn.partialy.pm.sync.SyncPayloads
+import cn.partialy.pm.sync.SyncWorkRunner
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +28,7 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
     private val gson = Gson()
     private val fileName = "loveList.json"
     private val db = FavoriteSongsDbStore(context)
+    private val syncOutbox = SyncOutboxStore(context)
     private val lock = Any()
     private var loaded = false
     private val songsByKey = LinkedHashMap<String, SongInfo>()
@@ -157,6 +162,7 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
                 refreshFlowLocked()
             }
         }
+        enqueueFavoriteSong(song, SyncPayloads.ACTION_UPSERT)
         persistAsync()
     }
 
@@ -166,6 +172,31 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         if (!changed) return
         synchronized(lock) {
             songsByKey.remove(song.storageKey())
+            refreshFlowLocked()
+        }
+        enqueueFavoriteSong(song, SyncPayloads.ACTION_DELETE)
+        persistAsync()
+    }
+
+    fun upsertFromSync(song: cn.partialy.pm.model.CanonicalSong) {
+        val next = song.toSongInfo().forPersistence()
+        if (next.type == SongType.LOCAL || next.id.isBlank()) return
+        ensureLoaded()
+        db.addSong(next)
+        synchronized(lock) {
+            songsByKey[next.storageKey()] = next
+            refreshFlowLocked()
+        }
+        persistAsync()
+    }
+
+    fun removeFromSync(song: cn.partialy.pm.model.CanonicalSong) {
+        val next = song.toSongInfo()
+        if (next.id.isBlank()) return
+        ensureLoaded()
+        db.removeSong(next)
+        synchronized(lock) {
+            songsByKey.remove(next.storageKey())
             refreshFlowLocked()
         }
         persistAsync()
@@ -186,6 +217,17 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
     }
 
     private fun SongInfo.storageKey(): String = "${type.name}:$id"
+
+    private fun enqueueFavoriteSong(song: SongInfo, action: String) {
+        if (song.type == SongType.LOCAL) return
+        syncOutbox.enqueue(
+            itemType = SyncPayloads.TYPE_FAVORITE_SONG,
+            itemKey = SyncPayloads.songKey(song),
+            action = action,
+            payloadJson = if (action == SyncPayloads.ACTION_DELETE) "{}" else SyncPayloads.songPayload(song),
+        )
+        SyncWorkRunner.request(context)
+    }
 
     private companion object {
         private const val TAG = "LoveManager"

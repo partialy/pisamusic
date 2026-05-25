@@ -8,9 +8,17 @@ import cn.partialy.pm.model.AboutResponse
 import cn.partialy.pm.model.AnnouncementResponse
 import cn.partialy.pm.model.DeviceReportRequest
 import cn.partialy.pm.model.DeviceReportResponse
+import cn.partialy.pm.model.SyncBindRequest
+import cn.partialy.pm.model.SyncBindResponse
+import cn.partialy.pm.model.SyncChangesResponse
+import cn.partialy.pm.model.SyncPushRequest
+import cn.partialy.pm.model.SyncPushResponse
+import cn.partialy.pm.model.SyncUnbindResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface SystemApiService {
     @GET("api/config/bootstrap")
@@ -39,4 +47,27 @@ interface SystemApiService {
 
     @POST("api/device/report")
     suspend fun reportDevice(@Body body: DeviceReportRequest): DeviceReportResponse
+
+    @POST("api/sync/spaces")
+    suspend fun createSyncSpace(@Body body: SyncBindRequest): SyncBindResponse
+
+    @POST("api/sync/spaces/join")
+    suspend fun joinSyncSpace(@Body body: SyncBindRequest): SyncBindResponse
+
+    @GET("api/sync/changes")
+    suspend fun getSyncChanges(
+        @Header("Authorization") authorization: String,
+        @Query("since") since: Long,
+    ): SyncChangesResponse
+
+    @POST("api/sync/changes")
+    suspend fun pushSyncChanges(
+        @Header("Authorization") authorization: String,
+        @Body body: SyncPushRequest,
+    ): SyncPushResponse
+
+    @POST("api/sync/devices/unbind")
+    suspend fun unbindSyncDevice(
+        @Header("Authorization") authorization: String,
+    ): SyncUnbindResponse
 }
