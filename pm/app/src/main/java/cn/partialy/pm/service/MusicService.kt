@@ -19,6 +19,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.PlayerActivity
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.statusbarlyric.StatusBarLyricOverlayController
+import cn.partialy.pm.utils.SongCoverUrl
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import dagger.hilt.android.AndroidEntryPoint
@@ -72,7 +73,8 @@ class MusicService : MediaSessionService() {
                     player: Player,
                     callback: PlayerNotificationManager.BitmapCallback
                 ): Bitmap? {
-                    val coverUrl = musicController.currentSong.value?.coverUrl
+                    val coverUrl = musicController.currentSong.value
+                        ?.let { SongCoverUrl.getSongCover(it, SongCoverUrl.SIZE_SMALL) }
                     if (coverUrl.isNullOrEmpty()) return null
 
                     Glide.with(this@MusicService)

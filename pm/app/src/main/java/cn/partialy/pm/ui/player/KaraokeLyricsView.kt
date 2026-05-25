@@ -252,7 +252,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (lines.isEmpty() || currentIndex !in lines.indices) return
-        val maxTextWidth = (width - paddingLeft - paddingRight).coerceAtLeast(0)
+        val maxTextWidth = currentMaxTextWidth()
         if (maxTextWidth <= 0) return
 
         val currentTextSize = currentTextSizePx()
@@ -287,7 +287,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
             paint.textSize = if (isSelected) currentTextSize else normalTextSize
             paint.isFakeBoldText = isSelected && style.currentLineBold
 
-            val baseline = centerBaseline + (index - centerPosition) * rowStride
+            val baseline = centerBaseline + rowCenterOffset(index, centerPosition, selectedIndex, maxTextWidth)
             if (baseline < -rowStride || baseline > height + rowStride) continue
 
             if (isSelected && !isBrowsing && scaleAnimProgress < 1f) {
@@ -321,22 +321,28 @@ class KaraokeLyricsView @JvmOverloads constructor(
     ) {
         val fullText = line.lineText
         paint.textSize = currentTextSizePx()
-        val textWidth = paint.measureText(fullText)
-
-        if (textWidth > maxTextWidth) {
-            drawScrollingLine(canvas, line, fullText, textWidth, baseline, maxTextWidth, showProgress)
-        } else {
+        paint.color = currentBaseColor()
+        val segments = wrapText(fullText, maxTextWidth)
+        drawWrappedSegmentsCentered(segments, baseline) { segment, segmentBaseline ->
+            val x = lineX(segment.text, maxTextWidth)
             paint.color = currentBaseColor()
-            val x = lineX(fullText, maxTextWidth)
-            canvas.drawText(fullText, x, baseline, paint)
+            canvas.drawText(segment.text, x, segmentBaseline, paint)
+
             if (showProgress && line.hasWordTiming) {
-                drawSungPart(canvas, line, fullText, x, baseline)
+                val sungWidth = calculateSungWidthInSegment(line, segment)
+                if (sungWidth > 0f) {
+                    canvas.save()
+                    canvas.clipRect(x, 0f, x + sungWidth.coerceAtMost(paint.measureText(segment.text)), height.toFloat())
+                    paint.color = style.currentColorArgb
+                    canvas.drawText(segment.text, x, segmentBaseline, paint)
+                    canvas.restore()
+                }
                 drawActiveWordScale(
                     canvas = canvas,
                     line = line,
-                    displayText = fullText,
+                    segment = segment,
                     originX = x,
-                    baseline = baseline,
+                    baseline = segmentBaseline,
                     clipLeft = paddingLeft.toFloat(),
                     clipRight = (width - paddingRight).toFloat(),
                 )
@@ -352,86 +358,37 @@ class KaraokeLyricsView @JvmOverloads constructor(
     ) {
         paint.textSize = normalTextSizePx()
         paint.color = style.resolvedNormalColor()
-        val displayText = ellipsize(line.lineText, maxTextWidth)
-        if (displayText.isBlank()) return
-        canvas.drawText(displayText, lineX(displayText, maxTextWidth), baseline, paint)
-    }
-
-    private fun drawScrollingLine(
-        canvas: Canvas,
-        line: LyricLine,
-        fullText: String,
-        textWidth: Float,
-        baseline: Float,
-        maxTextWidth: Int,
-        showProgress: Boolean,
-    ) {
-        val sungWidth = if (showProgress) calculateSungWidth(line, fullText) else 0f
-        val maxScroll = textWidth - maxTextWidth
-        val scrollX = (sungWidth - maxTextWidth * 0.4f).coerceIn(0f, maxScroll)
-
-        val clipLeft = paddingLeft.toFloat()
-        val clipRight = (width - paddingRight).toFloat()
-        val drawX = clipLeft - scrollX
-
-        canvas.save()
-        canvas.clipRect(clipLeft, 0f, clipRight, height.toFloat())
-
-        paint.color = currentBaseColor()
-        canvas.drawText(fullText, drawX, baseline, paint)
-
-        if (showProgress && line.hasWordTiming && sungWidth > 0f) {
-            canvas.save()
-            canvas.clipRect(clipLeft, 0f, (drawX + sungWidth).coerceAtMost(clipRight), height.toFloat())
-            paint.color = style.currentColorArgb
-            canvas.drawText(fullText, drawX, baseline, paint)
-            canvas.restore()
-            drawActiveWordScale(canvas, line, fullText, drawX, baseline, clipLeft, clipRight)
+        val segments = wrapText(line.lineText, maxTextWidth)
+        drawWrappedSegmentsCentered(segments, baseline) { segment, segmentBaseline ->
+            canvas.drawText(segment.text, lineX(segment.text, maxTextWidth), segmentBaseline, paint)
         }
-
-        canvas.restore()
-    }
-
-    private fun drawSungPart(
-        canvas: Canvas,
-        line: LyricLine,
-        displayText: String,
-        x: Float,
-        baseline: Float,
-    ) {
-        val sungWidth = calculateSungWidth(line, displayText)
-        if (sungWidth <= 0f) return
-        canvas.save()
-        canvas.clipRect(x, 0f, x + sungWidth.coerceAtMost(paint.measureText(displayText)), height.toFloat())
-        paint.color = style.currentColorArgb
-        canvas.drawText(displayText, x, baseline, paint)
-        canvas.restore()
     }
 
     private fun drawActiveWordScale(
         canvas: Canvas,
         line: LyricLine,
-        displayText: String,
+        segment: WrappedSegment,
         originX: Float,
         baseline: Float,
         clipLeft: Float,
         clipRight: Float,
     ) {
         if (!style.wordScaleEnabled || !line.hasWordTiming || line.words.isEmpty()) return
-        var visibleChars = 0
-        var offset = 0f
+        var wordStart = 0
         for (word in line.words) {
-            if (visibleChars >= displayText.length) break
-            val text = word.word.take(displayText.length - visibleChars)
-            if (text.isEmpty()) continue
-            val wordWidth = paint.measureText(text)
+            val wordEnd = wordStart + word.word.length
             val active = positionMs in word.startTime until word.endTime
-            if (active) {
+            val overlapStart = max(segment.startChar, wordStart)
+            val overlapEnd = minOf(segment.endChar, wordEnd)
+            if (active && overlapStart < overlapEnd) {
+                val beforeText = segment.text.take(overlapStart - segment.startChar)
+                val text = word.word.substring(overlapStart - wordStart, overlapEnd - wordStart)
+                val wordX = originX + paint.measureText(beforeText)
+                val wordWidth = paint.measureText(text)
                 val duration = (word.endTime - word.startTime).coerceAtLeast(1L)
                 val elapsed = (positionMs - word.startTime).coerceIn(0L, duration)
                 val phase = elapsed.toFloat() / duration.toFloat()
                 val scale = 1f + 0.14f * sin(phase.toDouble() * PI).toFloat()
-                val wordX = originX + offset
                 val pivotX = wordX + wordWidth / 2f
                 canvas.save()
                 canvas.clipRect(clipLeft, 0f, clipRight, height.toFloat())
@@ -443,18 +400,22 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 canvas.restore()
                 return
             }
-            offset += wordWidth
-            visibleChars += text.length
+            wordStart = wordEnd
         }
     }
 
-    private fun calculateSungWidth(line: LyricLine, displayText: String): Float {
-        var visibleChars = 0
+    private fun calculateSungWidthInSegment(line: LyricLine, segment: WrappedSegment): Float {
         var width = 0f
+        var wordStart = 0
         for (word in line.words) {
-            if (visibleChars >= displayText.length) break
-            val text = word.word.take(displayText.length - visibleChars)
-            if (text.isEmpty()) continue
+            val wordEnd = wordStart + word.word.length
+            val overlapStart = max(segment.startChar, wordStart)
+            val overlapEnd = minOf(segment.endChar, wordEnd)
+            if (overlapStart >= overlapEnd) {
+                wordStart = wordEnd
+                continue
+            }
+            val text = word.word.substring(overlapStart - wordStart, overlapEnd - wordStart)
             val wordWidth = paint.measureText(text)
             width += when {
                 positionMs >= word.endTime -> wordWidth
@@ -465,7 +426,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
                     wordWidth * elapsed.toFloat() / duration.toFloat()
                 }
             }
-            visibleChars += text.length
+            wordStart = wordEnd
         }
         return width
     }
@@ -535,8 +496,60 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private fun rowStride(): Float {
         val currentTextSize = currentTextSizePx()
         val normalTextSize = normalTextSizePx()
-        val rowGap = dp(14f)
-        return max(textHeight(currentTextSize), textHeight(normalTextSize)) + rowGap
+        return max(textHeight(currentTextSize), textHeight(normalTextSize)) + lyricRowGap()
+    }
+
+    private fun rowCenterOffset(
+        index: Int,
+        centerPosition: Float,
+        selectedIndex: Int,
+        maxTextWidth: Int,
+    ): Float {
+        val lower = floor(centerPosition).toInt().coerceIn(0, lines.lastIndex)
+        val upper = (lower + 1).coerceAtMost(lines.lastIndex)
+        val fraction = (centerPosition - lower).coerceIn(0f, 1f)
+        val fromLower = rowCenterOffsetFromAnchor(index, lower, selectedIndex, maxTextWidth)
+        val fromUpper = rowCenterOffsetFromAnchor(index, upper, selectedIndex, maxTextWidth)
+        return fromLower + (fromUpper - fromLower) * fraction
+    }
+
+    private fun rowCenterOffsetFromAnchor(
+        index: Int,
+        anchor: Int,
+        selectedIndex: Int,
+        maxTextWidth: Int,
+    ): Float {
+        if (index == anchor) return 0f
+        var offset = 0f
+        if (index > anchor) {
+            for (i in anchor until index) {
+                offset += distanceBetweenRows(i, i + 1, selectedIndex, maxTextWidth)
+            }
+        } else {
+            for (i in index until anchor) {
+                offset -= distanceBetweenRows(i, i + 1, selectedIndex, maxTextWidth)
+            }
+        }
+        return offset
+    }
+
+    private fun distanceBetweenRows(
+        first: Int,
+        second: Int,
+        selectedIndex: Int,
+        maxTextWidth: Int,
+    ): Float {
+        val firstHeight = rowVisualHeight(first, selectedIndex, maxTextWidth)
+        val secondHeight = rowVisualHeight(second, selectedIndex, maxTextWidth)
+        return (firstHeight + secondHeight) / 2f + lyricRowGap()
+    }
+
+    private fun rowVisualHeight(index: Int, selectedIndex: Int, maxTextWidth: Int): Float {
+        if (index !in lines.indices) return rowStride()
+        paint.textSize = if (index == selectedIndex) currentTextSizePx() else normalTextSizePx()
+        val segmentCount = wrapText(lines[index].lineText, maxTextWidth).size.coerceAtLeast(1)
+        val lineHeight = textHeight(paint.textSize) + wrappedLineGap()
+        return lineHeight * segmentCount - wrappedLineGap()
     }
 
     private fun easeOutQuad(t: Float) = 1f - (1f - t) * (1f - t)
@@ -546,13 +559,32 @@ class KaraokeLyricsView @JvmOverloads constructor(
         return 1f - v * v * v * v
     }
 
-    private fun ellipsize(text: String, maxTextWidth: Int): String =
-        android.text.TextUtils.ellipsize(
-            text,
-            paint,
-            maxTextWidth.toFloat(),
-            android.text.TextUtils.TruncateAt.END,
-        ).toString()
+    private fun wrapText(text: String, maxTextWidth: Int): List<WrappedSegment> {
+        if (text.isBlank() || maxTextWidth <= 0) return emptyList()
+        val segments = mutableListOf<WrappedSegment>()
+        var start = 0
+        while (start < text.length) {
+            val count = paint.breakText(text, start, text.length, true, maxTextWidth.toFloat(), null)
+                .coerceAtLeast(1)
+            val end = (start + count).coerceAtMost(text.length)
+            segments.add(WrappedSegment(text.substring(start, end), start, end))
+            start = end
+        }
+        return segments
+    }
+
+    private fun drawWrappedSegmentsCentered(
+        segments: List<WrappedSegment>,
+        centerBaseline: Float,
+        drawSegment: (WrappedSegment, Float) -> Unit,
+    ) {
+        if (segments.isEmpty()) return
+        val lineHeight = textHeight(paint.textSize) + wrappedLineGap()
+        val startBaseline = centerBaseline - (segments.size - 1) * lineHeight / 2f
+        segments.forEachIndexed { index, segment ->
+            drawSegment(segment, startBaseline + index * lineHeight)
+        }
+    }
 
     private fun lineX(text: String, maxTextWidth: Int): Float {
         val textWidth = paint.measureText(text)
@@ -578,6 +610,13 @@ class KaraokeLyricsView @JvmOverloads constructor(
 
     private fun normalTextSizePx() = sp(style.textSizeSp)
 
+    private fun currentMaxTextWidth(): Int =
+        (width - paddingLeft - paddingRight).coerceAtLeast(0)
+
+    private fun wrappedLineGap() = dp(5f)
+
+    private fun lyricRowGap() = dp(10f)
+
     private fun currentBaseColor() =
         Color.argb(
             255,
@@ -593,4 +632,10 @@ class KaraokeLyricsView @JvmOverloads constructor(
         private const val BROWSE_TIMEOUT_MS = 3_000L
         private const val SCROLLER_ROW_UNIT = 1000f
     }
+
+    private data class WrappedSegment(
+        val text: String,
+        val startChar: Int,
+        val endChar: Int,
+    )
 }

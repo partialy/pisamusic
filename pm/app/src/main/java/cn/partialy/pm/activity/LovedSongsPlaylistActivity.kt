@@ -46,6 +46,7 @@ import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
 import dagger.hilt.android.AndroidEntryPoint
@@ -463,7 +464,7 @@ private class LovedSongsPlaylistAdapter(
             binding.songNameTextView.text = buildLovedSongNameLine(context, indexOneBased, song.name)
             binding.singerTextView.text = song.artist
             SongSourceTagBinder.bind(binding.songSourceTagTextView, song.type)
-            binding.coverImageView.load(song.coverUrl) {
+            binding.coverImageView.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL)) {
                 crossfade(true)
                 placeholder(R.drawable.ic_pm_icon)
                 error(R.drawable.ic_pm_icon)

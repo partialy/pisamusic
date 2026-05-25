@@ -11,6 +11,7 @@ import cn.partialy.pm.model.matchesSongType
 import cn.partialy.pm.model.playbackQualityChoiceFromKey
 import cn.partialy.pm.model.toPlaybackQualityKey
 import cn.partialy.pm.utils.SettingsPrefs
+import cn.partialy.pm.utils.SongCoverUrl
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -167,7 +168,9 @@ class MediaItemFactory(
         mediaId: String? = null,
         qualityKey: String = playbackQualityKeyOf(song),
     ): MediaItem {
-        val coverUri = song.coverUrl.takeIf { it.isNotBlank() }?.toUri()
+        val coverUri = SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_XLARGE)
+            .takeIf { it.isNotBlank() }
+            ?.toUri()
         val meta = MediaMetadata.Builder()
             .setTitle(song.name)
             .setArtist(song.artist)

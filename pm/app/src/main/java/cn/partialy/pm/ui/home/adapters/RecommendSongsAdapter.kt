@@ -10,6 +10,7 @@ import cn.partialy.pm.databinding.ItemRecommendSongBinding
 import cn.partialy.pm.model.RecommendSongInfo
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 import javax.inject.Inject
 
@@ -26,7 +27,7 @@ class RecommendedSongsAdapter @Inject constructor(
                 songNameTextView.text = song.name
                 singerTextView.text = song.artist
                 SongSourceTagBinder.bind(songSourceTagTextView, song.type)
-                coverImageView.load(song.coverUrl.replace("{size}","120"))
+                coverImageView.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL))
                 btnLove.visibility = View.GONE
             }
             val position = bindingAdapterPosition

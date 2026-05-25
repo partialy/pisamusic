@@ -19,6 +19,7 @@ import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.player.MusicController
+import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
@@ -130,8 +131,7 @@ object SongMoreMenu {
     }
 
     private fun loadSongCover(imageView: ImageView, song: SongInfo) {
-        val coverData = song.embeddedCoverArt
-            ?: song.coverUrl.takeIf { it.isNotBlank() }?.replace("{size}", "120")
+        val coverData = SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_SMALL)
         imageView.load(coverData) {
             placeholder(R.drawable.ic_pm_icon)
             error(R.drawable.ic_pm_icon)

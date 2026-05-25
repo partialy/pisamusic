@@ -16,6 +16,7 @@ import cn.partialy.pm.databinding.ItemHomeDailySongBinding
 import cn.partialy.pm.model.RecommendSongInfo
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 
 class HomeDailySongGridAdapter(
@@ -110,7 +111,7 @@ class HomeDailySongGridAdapter(
             binding.songNameTextView.background = null
             binding.artistTextView.text = item.author_name
             binding.artistTextView.background = null
-            binding.coverImageView.load(item.sizable_cover.replace("{size}", "120"))
+            binding.coverImageView.load(SongCoverUrl.getKgImageUrl(item.sizable_cover, SongCoverUrl.SIZE_SMALL))
             SongSourceTagBinder.bind(binding.songSourceTagTextView, song.type)
 
             val liked = isLiked(song)

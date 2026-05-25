@@ -61,6 +61,7 @@ import cn.partialy.pm.utils.AudioEmbeddedArtReader
 import cn.partialy.pm.utils.LocalMediaIndexDbStore
 import cn.partialy.pm.utils.LyricDisplayPrefs
 import cn.partialy.pm.utils.SettingsPrefs
+import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
 import coil.request.ImageRequest
@@ -620,9 +621,8 @@ class PlayerActivity : BaseDownloadActivity() {
         super.onDestroy()
     }
 
-    private fun modelForBlur(song: SongInfo): Any? {
-        return song.embeddedCoverArt ?: song.coverUrl.takeIf { it.isNotBlank() }
-    }
+    private fun modelForBlur(song: SongInfo): Any? =
+        SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_XLARGE)
 
     private suspend fun applyLocalMediaFallbacks(song: SongInfo) {
         if (song.coverUrl.isNotBlank()) {

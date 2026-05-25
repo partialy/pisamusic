@@ -1,6 +1,6 @@
 <template>
   <div class="playlist-container mw1600">
-    <header class="page-header">
+    <header class="page-header" :class="{ collapsed: isHeaderCollapsed }">
       <div class="title-group">
         <h1>{{ currentTagName }}</h1>
         <span class="subtitle">{{ headerSubtitle }}</span>
@@ -9,7 +9,7 @@
         <n-button
           type="primary"
           class="shuffle-btn"
-          :disabled="!playlists.length || initialLoading"
+          :disabled="!filteredPlaylists.length || initialLoading"
           :loading="playingRandom"
           @click="handleRandomPlay">
           <template #icon>
@@ -28,98 +28,129 @@
       </div>
     </header>
 
-    <div class="tags" ref="tagsRef">
-      <template v-if="tagsLoading">
-        <n-skeleton v-for="i in 8" :key="i" class="tag-skeleton" />
-      </template>
-      <template v-else>
-        <template v-for="tag in tags" :key="tag.id">
-          <n-popover
-            v-if="tag.children.length"
-            style="max-width: 640px"
-            placement="bottom"
-            trigger="click"
-            :arrow-style="{ background: 'var(--color-card-bg)' }">
-            <template #trigger>
-              <n-button
-                class="tag-button"
-                :class="{ active: isGroupActive(tag) }">
-                {{ tag.name }}
-                <template #icon>
-                  <n-icon :component="chooseIcon(tag.name)" />
-                </template>
-              </n-button>
-            </template>
-            <div class="tag-popover">
-              <n-button
-                v-for="item in tag.children"
-                :key="item.id"
-                quaternary
-                size="small"
-                round
-                :class="{ active: selectedTag.id === item.id }"
-                @click="handleClickTag(item)">
-                {{ item.name }}
-              </n-button>
-            </div>
-          </n-popover>
-          <n-button
-            v-else
-            class="tag-button"
-            :class="{ active: selectedTag.id === tag.id }"
-            @click="handleClickTag(tag)">
-            {{ tag.name }}
-            <template #icon>
-              <n-icon :component="chooseIcon(tag.name)" />
-            </template>
-          </n-button>
+    <div ref="tagsRef" class="tag-toolbar">
+      <div class="tags">
+        <template v-if="tagsLoading">
+          <n-skeleton v-for="i in 8" :key="i" class="tag-skeleton" />
         </template>
-      </template>
-    </div>
-
-    <PlaylistCollect
-      :playlist="playlists"
-      :loading="initialLoading"
-      :skeleton-count="24" />
-
-    <n-empty
-      v-if="!initialLoading && !playlists.length"
-      class="empty-state"
-      description="暂无歌单" />
-
-    <div class="end-line" ref="endLineRef">
-      <template v-if="!initialLoading && playlists.length && hasNext">
-        <n-spin :show="moreLoading">
-          <template #icon>
-            <n-icon
-              :component="LoadingIcon"
-              color="var(--color-primary)" />
+        <template v-else>
+          <template v-for="tag in tags" :key="tag.id">
+            <n-popover
+              v-if="tag.children.length"
+              style="max-width: 640px"
+              placement="bottom"
+              trigger="click"
+              :arrow-style="{ background: 'var(--color-card-bg)' }">
+              <template #trigger>
+                <n-button
+                  class="tag-button"
+                  :class="{ active: isGroupActive(tag) }">
+                  {{ tag.name }}
+                  <template #icon>
+                    <n-icon :component="chooseIcon(tag.name)" />
+                  </template>
+                </n-button>
+              </template>
+              <div class="tag-popover">
+                <n-button
+                  v-for="item in tag.children"
+                  :key="item.id"
+                  quaternary
+                  size="small"
+                  round
+                  :class="{ active: selectedTag.id === item.id }"
+                  @click="handleClickTag(item)">
+                  {{ item.name }}
+                </n-button>
+              </div>
+            </n-popover>
+            <n-button
+              v-else
+              class="tag-button"
+              :class="{ active: selectedTag.id === tag.id }"
+              @click="handleClickTag(tag)">
+              {{ tag.name }}
+              <template #icon>
+                <n-icon :component="chooseIcon(tag.name)" />
+              </template>
+            </n-button>
           </template>
-          <template #description>正在加载更多...</template>
-        </n-spin>
-      </template>
-      <div v-else-if="!initialLoading && playlists.length" class="no-more">没有更多了~</div>
+        </template>
+      </div>
+
+      <n-input
+        v-model:value="searchKey"
+        class="playlist-search"
+        :class="{ focused: searchFocused || searchKey }"
+        round
+        clearable
+        placeholder="搜索"
+        @focus="searchFocused = true"
+        @blur="searchFocused = false">
+        <template #prefix>
+          <n-icon :component="Search" />
+        </template>
+      </n-input>
     </div>
 
-    <n-back-top class="scroll-top-btn" :right="20" :bottom="120" />
+    <div
+      ref="contentRef"
+      class="playlist-content"
+      @scroll.passive="handleScrollableContentScroll"
+      @wheel.passive="handleScrollableContentWheel">
+      <PlaylistCollect
+        :playlist="filteredPlaylists"
+        :loading="initialLoading"
+        :skeleton-count="24" />
+
+      <n-empty
+        v-if="!initialLoading && !filteredPlaylists.length"
+        class="empty-state"
+        description="暂无歌单" />
+
+      <div ref="endLineRef" class="end-line">
+        <template v-if="!initialLoading && filteredPlaylists.length && hasNext && !normalizedSearch">
+          <n-spin :show="moreLoading">
+            <template #icon>
+              <n-icon
+                :component="LoadingIcon"
+                color="var(--color-primary)" />
+            </template>
+            <template #description>正在加载更多...</template>
+          </n-spin>
+        </template>
+        <div
+          v-else-if="!initialLoading && filteredPlaylists.length && !normalizedSearch"
+          class="no-more">
+          没有更多了~
+        </div>
+      </div>
+    </div>
+
+    <n-back-top
+      class="scroll-top-btn"
+      :right="20"
+      :bottom="120"
+      :listen-to="getBackTopTarget" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { Component } from "vue";
 import {
   NBackTop,
   NButton,
   NEmpty,
   NIcon,
+  NInput,
   NPopover,
   NSelect,
   NSkeleton,
   NSpin,
   type SelectOption,
 } from "naive-ui";
-import { Play } from "lucide-vue-next";
+import { Play, Search } from "lucide-vue-next";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import {
   SceneIcon,
@@ -133,6 +164,7 @@ import {
 import LoadingIcon from "@/icons/common/LoadingIcon.vue";
 import { useAudioStore } from "@/store";
 import type { CommonPlaylist } from "@/types/song";
+import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 import { getPlaylistTags, getTopPlaylists } from "@/utils/api/musicAPI";
 import { debounce } from "@/utils/common";
 import { convertor } from "@/utils/convertor";
@@ -166,16 +198,36 @@ const initialLoading = ref(false);
 const moreLoading = ref(false);
 const playingRandom = ref(false);
 const hasNext = ref(true);
+const searchKey = ref("");
+const searchFocused = ref(false);
 const pagination = ref({
   page: 1,
   pageSize: PAGE_SIZE,
 });
+const contentRef = ref<HTMLElement | null>(null);
 const endLineRef = ref<HTMLElement | null>(null);
 const tagsRef = ref<HTMLElement | null>(null);
 let observerEndLine: IntersectionObserver | null = null;
 let observerTags: IntersectionObserver | null = null;
 let requestVersion = 0;
 
+const {
+  isHeaderCollapsed,
+  expandHeader,
+  handleScrollableContentScroll,
+  handleScrollableContentWheel,
+} = useCollapsiblePageHeader();
+
+const normalizedSearch = computed(() => searchKey.value.trim().toLowerCase());
+const filteredPlaylists = computed(() => {
+  const keyword = normalizedSearch.value;
+  if (!keyword) return playlists.value;
+  return playlists.value.filter((playlist) =>
+    [playlist.name, playlist.desc, playlist.source, ...(playlist.tags || []).map((tag) => tag.name)]
+      .filter(Boolean)
+      .some((text) => String(text).toLowerCase().includes(keyword))
+  );
+});
 const currentTagName = computed(() => selectedTag.value?.name || "全部");
 const headerSubtitle = computed(() => {
   const count = selectedTag.value?.resourceCount || playlists.value.length;
@@ -205,12 +257,16 @@ function chooseIcon(tagName: string): Component {
 async function handleSourceChange(value: string | number | null) {
   const source = value === "wy" ? "wy" : "kg";
   if (activeSource.value !== source) activeSource.value = source;
+  searchKey.value = "";
+  expandHeader();
   await reloadSource(source);
 }
 
 async function handleClickTag(tag: PlaylistTag) {
   if (selectedTag.value.id === tag.id && selectedTag.value.source === tag.source) return;
   selectedTag.value = tag;
+  searchKey.value = "";
+  expandHeader();
   await loadPlaylists(true);
 }
 
@@ -255,7 +311,7 @@ async function loadPlaylists(reset = false, version = requestVersion) {
     hasNext.value = true;
     pagination.value.page = 1;
   } else {
-    if (moreLoading.value || !hasNext.value) return;
+    if (moreLoading.value || !hasNext.value || normalizedSearch.value) return;
     moreLoading.value = true;
   }
 
@@ -328,7 +384,8 @@ function getResponseHasNext(source: PlaylistSource, response: any, loadedCount: 
 }
 
 async function handleRandomPlay() {
-  const playlist = playlists.value[Math.floor(Math.random() * playlists.value.length)];
+  const visiblePlaylists = filteredPlaylists.value;
+  const playlist = visiblePlaylists[Math.floor(Math.random() * visiblePlaylists.length)];
   if (!playlist) return;
   playingRandom.value = true;
   try {
@@ -442,7 +499,7 @@ function observeEndLine() {
       });
     },
     {
-      root: null,
+      root: contentRef.value,
       threshold: 0.3,
     }
   );
@@ -462,6 +519,12 @@ function observeTags() {
   if (tagsRef.value) observerTags.observe(tagsRef.value);
 }
 
+function getBackTopTarget() {
+  return contentRef.value || document;
+}
+
+watch(searchKey, expandHeader);
+
 onMounted(async () => {
   observeEndLine();
   observeTags();
@@ -477,9 +540,11 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .playlist-container {
   width: 100%;
-  min-height: 100%;
-  padding-bottom: 32px;
-  scroll-behavior: smooth;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   will-change: transform;
 }
 
@@ -488,8 +553,25 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
+  max-height: 96px;
   margin-bottom: 20px;
   padding: 8px 0 0;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height 0.28s ease,
+    margin-bottom 0.28s ease,
+    opacity 0.2s ease,
+    transform 0.28s ease;
+
+  &.collapsed {
+    max-height: 0;
+    margin-bottom: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
 }
 
 .title-group {
@@ -529,11 +611,31 @@ onBeforeUnmount(() => {
   width: 96px;
 }
 
+.tag-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0 24px;
+}
+
 .tags {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 10px 0 24px;
+  min-width: 0;
+}
+
+.playlist-search {
+  flex: 0 0 auto;
+  width: 92px;
+  transition: width 0.25s ease;
+
+  &.focused {
+    width: 220px;
+  }
 }
 
 .tag-button {
@@ -557,6 +659,14 @@ onBeforeUnmount(() => {
   :deep(.active) {
     color: var(--color-primary);
   }
+}
+
+.playlist-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: overlay;
+  padding-bottom: 32px;
+  scroll-behavior: smooth;
 }
 
 .tag-skeleton {
@@ -604,6 +714,15 @@ onBeforeUnmount(() => {
   .header-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .tag-toolbar {
+    flex-direction: column;
+  }
+
+  .playlist-search,
+  .playlist-search.focused {
+    width: 100%;
   }
 }
 </style>

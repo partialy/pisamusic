@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.databinding.ItemSearchResultBinding
 import cn.partialy.pm.model.SearchTrackRow
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 
 class SearchResultsAdapter(
@@ -25,8 +26,9 @@ class SearchResultsAdapter(
                 titleTextView.text = row.title
                 artistTextView.text = row.artist
                 SongSourceTagBinder.bind(songSourceTagTextView, row.source)
-                if (row.coverUrl.isNotBlank()) {
-                    coverImageView.load(row.coverUrl)
+                val coverUrl = SongCoverUrl.getSongCover(row.source, row.coverUrl, SongCoverUrl.SIZE_SMALL)
+                if (coverUrl.isNotBlank()) {
+                    coverImageView.load(coverUrl)
                 } else {
                     coverImageView.setImageDrawable(null)
                 }

@@ -81,7 +81,8 @@ class CacheManagementActivity : BaseActivity() {
         songCard.btnClean.setOnClickListener { confirmCleanSongCache() }
         songCard.btnManage.setOnClickListener { showSongCacheLimitDialog() }
         lyricCard.btnClean.setOnClickListener { confirmCleanLyricCache() }
-        downloadedCard.btnClean.setOnClickListener { confirmCleanDownloaded() }
+//        downloadedCard.btnClean.setOnClickListener { confirmCleanDownloaded() }
+        downloadedCard.btnClean.visibility = View.GONE
         downloadedCard.btnManage.setOnClickListener {
             LocalMusicActivity.start(this, LocalMusicActivity.TAB_DOWNLOADED)
         }

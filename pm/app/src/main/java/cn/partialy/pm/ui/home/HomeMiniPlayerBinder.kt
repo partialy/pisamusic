@@ -17,6 +17,7 @@ import cn.partialy.pm.activity.PlayerActivity
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.HomeMiniPlayerBinding
 import cn.partialy.pm.player.MusicController
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 import kotlinx.coroutines.launch
 
@@ -54,7 +55,7 @@ class HomeMiniPlayerBinder(
                     coverRotationAnimator?.cancel()
                     coverRotationAnimator = null
                     mini.miniPlayerCover.rotation = 0f
-                    mini.miniPlayerCover.load(song.coverUrl) {
+                    mini.miniPlayerCover.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL)) {
                         placeholder(R.drawable.ic_pm_icon)
                         error(R.drawable.ic_pm_icon)
                     }

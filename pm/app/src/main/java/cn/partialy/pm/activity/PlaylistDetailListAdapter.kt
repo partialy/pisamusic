@@ -20,6 +20,7 @@ import cn.partialy.pm.databinding.ItemPlaylistDetailStatusBinding
 import cn.partialy.pm.databinding.ItemRecommendSongBinding
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 
 /** 酷狗 / 网易云歌单详情共用列表（头图 + 歌曲 + 加载态），布局见 [R.layout.activity_playlist_detail]。 */
@@ -309,7 +310,7 @@ class PlaylistDetailListAdapter(
             binding.songNameTextView.text = buildPlaylistDetailSongNameLine(context, indexOneBased, song.name)
             binding.singerTextView.text = song.artist
             SongSourceTagBinder.bind(binding.songSourceTagTextView, song.type)
-            binding.coverImageView.load(song.coverUrl) {
+            binding.coverImageView.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL)) {
                 crossfade(true)
                 placeholder(R.drawable.ic_pm_icon)
                 error(R.drawable.ic_pm_icon)
