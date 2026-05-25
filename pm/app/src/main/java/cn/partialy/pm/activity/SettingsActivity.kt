@@ -301,11 +301,11 @@ class SettingsActivity : BaseActivity() {
         binding.syncManagement.apply {
             bindNavRow(
                 root,
-                R.drawable.ic_settings_row_database_24,
+                R.drawable.ic_data_sync,
                 "收藏与歌单同步",
                 syncSummary(syncManager.state()),
             )
-            root.setOnClickListener { showSyncDialog() }
+            root.setOnClickListener { SyncSettingsActivity.start(this@SettingsActivity) }
         }
 
         binding.cacheManagement.apply {

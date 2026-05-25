@@ -143,6 +143,17 @@ class ConfigManager @Inject constructor(
         return response.data
     }
 
+    suspend fun resetSyncSpace(token: String, deviceName: String): SyncBindResult {
+        val response = systemApiService.resetSyncSpace(
+            "Bearer $token",
+            SyncBindRequest(deviceName = deviceName)
+        )
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "重新生成同步码失败" })
+        }
+        return response.data
+    }
+
     suspend fun getSyncChanges(token: String, since: Long): SyncChangesResult {
         val response = systemApiService.getSyncChanges("Bearer $token", since)
         if (!response.success || response.code != 0) {

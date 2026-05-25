@@ -16,7 +16,7 @@ class AuthInterceptor : Interceptor {
     private fun makeRequest(chain: Interceptor.Chain, originalRequest: Request): Response {
         val token = TokenManager.getToken()
         val newRequest = originalRequest.newBuilder().apply {
-            token?.let {
+            token?.takeIf { originalRequest.header("Authorization").isNullOrBlank() }?.let {
                 header("Authorization", "Bearer $it")
             }
             header("Device-Model", encodeDeviceModel())
@@ -42,4 +42,4 @@ class AuthInterceptor : Interceptor {
         }
         return Base64.encodeToString(deviceInfo.toByteArray(), Base64.NO_WRAP)
     }
-} 
+}

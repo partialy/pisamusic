@@ -80,6 +80,11 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.SyncSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.LyricColorPresetsActivity"
             android:exported="false"
             android:theme="@style/Theme.Pm" />

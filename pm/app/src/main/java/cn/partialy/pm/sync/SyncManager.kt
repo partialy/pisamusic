@@ -30,7 +30,12 @@ class SyncManager @Inject constructor(
     fun state(): SyncPrefs.State = SyncPrefs.getState(context)
 
     suspend fun createSyncSpace(): SyncPrefs.State = withContext(Dispatchers.IO) {
-        val result = configManager.createSyncSpace(deviceName())
+        val current = SyncPrefs.getState(context)
+        val result = if (current.bound) {
+            configManager.resetSyncSpace(current.token, deviceName())
+        } else {
+            configManager.createSyncSpace(deviceName())
+        }
         SyncPrefs.saveBinding(
             context = context,
             token = result.token,

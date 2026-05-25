@@ -54,6 +54,12 @@ interface SystemApiService {
     @POST("api/sync/spaces/join")
     suspend fun joinSyncSpace(@Body body: SyncBindRequest): SyncBindResponse
 
+    @POST("api/sync/spaces/reset")
+    suspend fun resetSyncSpace(
+        @Header("Authorization") authorization: String,
+        @Body body: SyncBindRequest,
+    ): SyncBindResponse
+
     @GET("api/sync/changes")
     suspend fun getSyncChanges(
         @Header("Authorization") authorization: String,
