@@ -29,6 +29,7 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
   const cloudRefreshing = ref(false);
   const playlistError = ref("");
   const cloudError = ref("");
+  let stopMineLibraryListener: (() => void) | null = null;
 
   const localPlaylists = computed(() => playlists.value.filter((item) => item.source === "local"));
   const kgPlaylists = computed(() => playlists.value.filter((item) => item.source === "kg"));
@@ -39,6 +40,11 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
     if (initialized.value) return;
     initialized.value = true;
     await loadCache();
+    if (!stopMineLibraryListener && window.electronAPI.onMineLibraryChanged) {
+      stopMineLibraryListener = window.electronAPI.onMineLibraryChanged(() => {
+        void loadCache();
+      });
+    }
     void refreshAll();
   }
 

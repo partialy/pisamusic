@@ -17,9 +17,11 @@ import { setupLocalLibraryIpc } from "./ipc/localLibraryIpc";
 import { setupCookieIpc } from "./ipc/cookieIpc";
 import { setupDownloadIpc } from "./ipc/downloadIpc";
 import { setupShortcutIpc } from "./ipc/shortcutIpc";
+import { setupSyncIpc } from "./ipc/syncIpc";
 import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
+import { startSyncOnStartup } from "./sync/syncService";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -117,6 +119,7 @@ function setupAppIpc() {
   setupCookieIpc();
   setupDownloadIpc();
   setupShortcutIpc(() => mainWindow);
+  setupSyncIpc();
   desktopLyric.setupIpc();
 }
 
@@ -151,6 +154,7 @@ function launchAppRuntime() {
   playerTray.create();
   void refreshKgCookieIfNeeded("startup");
   startLocalLibrarySmartScan();
+  startSyncOnStartup();
 }
 
 function revealMainWindowIfReady() {

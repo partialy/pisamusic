@@ -73,6 +73,7 @@ declare module 'vue' {
     ShortcutSetting: typeof import('./src/components/setting/shortcut/ShortcutSetting.vue')['default']
     SongItem: typeof import('./src/components/playList/songItem.vue')['default']
     SongList: typeof import('./src/components/list/SongList.vue')['default']
+    SyncSetting: typeof import('./src/components/setting/sync/SyncSetting.vue')['default']
     TipsHistory: typeof import('./src/components/search/TipsHistory.vue')['default']
     VolumePanel: typeof import('./src/components/player/VolumePanel.vue')['default']
     WelcomeCard: typeof import('./src/components/home/WelcomeCard.vue')['default']

@@ -464,6 +464,16 @@ type CookieFileExportResult = {
   skippedFiles: string[];
 };
 
+type SyncState = {
+  token: string;
+  syncCode: string;
+  deviceId: string;
+  spaceId: string;
+  lastServerVersion: number;
+  lastSyncAt: string;
+  lastError: string;
+};
+
 type ShortcutAction =
   | "prev"
   | "next"
@@ -527,6 +537,13 @@ type ElectronIpcApi = {
   getRuntimeEndpoints: (fresh?: boolean) => Promise<BackServerConfig>;
   getAnnouncements: () => Promise<Announcement[]>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
+  getSyncState: () => Promise<SyncState>;
+  createSyncSpace: () => Promise<SyncState>;
+  joinSyncSpace: (syncCode: string) => Promise<SyncState>;
+  syncNow: () => Promise<SyncState>;
+  unbindSync: () => Promise<SyncState>;
+  onSyncChanged: (callback: (state: SyncState) => void) => () => void;
+  onMineLibraryChanged: (callback: () => void) => () => void;
   searchMusic: <T = any>(payload: MusicSearchParams) => Promise<T>;
   searchSuggest: <T = any>(payload: MusicSuggestParams) => Promise<T>;
   searchPlaylists: <T = any>(payload: PlaylistSearchParams) => Promise<T>;

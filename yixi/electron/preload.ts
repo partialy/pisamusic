@@ -187,6 +187,16 @@ const systemIpc = {
   }) => ipcRenderer.invoke("system:submit-feedback", cloneIpcPayload(payload)),
 };
 
+const syncIpc = {
+  getSyncState: () => ipcRenderer.invoke("sync:state"),
+  createSyncSpace: () => ipcRenderer.invoke("sync:create-space"),
+  joinSyncSpace: (syncCode: string) => ipcRenderer.invoke("sync:join-space", syncCode),
+  syncNow: () => ipcRenderer.invoke("sync:now"),
+  unbindSync: () => ipcRenderer.invoke("sync:unbind"),
+  onSyncChanged: (callback: (state: any) => void) => on("sync:changed", callback),
+  onMineLibraryChanged: (callback: () => void) => on("mine-library:changed", callback),
+};
+
 const musicApiIpc = {
   searchMusic: (payload: {
     source: "kg" | "wy" | "kw";
@@ -341,6 +351,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...logIpc,
   ...desktopLyricIpc,
   ...systemIpc,
+  ...syncIpc,
   ...musicApiIpc,
   ...cookieApiIpc,
   ...downloadApiIpc,

@@ -1,6 +1,14 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { getAppDatabase } from "../database";
 import type { PlaylistSnapshot, PlaylistSource, QueueSnapshot, TrackSnapshot } from "../database/appDatabase";
+import {
+  recordFavoritePlaylistChange,
+  recordFavoritePlaylistDelete,
+  recordFavoriteSongChange,
+  recordFavoriteSongDelete,
+  recordUserPlaylistChange,
+  recordUserPlaylistTrackChange,
+} from "../sync/syncService";
 
 let registered = false;
 
@@ -66,18 +74,25 @@ export function setupPersistenceIpc() {
 
   ipcMain.handle("library:favorites:songs:add", (_event, track: TrackSnapshot) => {
     const result = getAppDatabase().addFavoriteSong(track);
+    if (result) recordFavoriteSongChange(result.payload, "upsert");
     notifyFavoritesChanged();
     return result;
   });
 
   ipcMain.handle("library:favorites:songs:remove", (_event, payload: { source: string; id: string }) => {
     const result = getAppDatabase().removeFavoriteSong(payload.source, payload.id);
+    recordFavoriteSongDelete(payload.source, payload.id);
     notifyFavoritesChanged();
     return result;
   });
 
   ipcMain.handle("library:favorites:songs:toggle", (_event, track: TrackSnapshot) => {
     const result = getAppDatabase().toggleFavoriteSong(track);
+    if (result.collected && result.item) {
+      recordFavoriteSongChange(result.item.payload, "upsert");
+    } else {
+      recordFavoriteSongChange(track, "delete");
+    }
     notifyFavoritesChanged();
     return result;
   });
@@ -92,18 +107,25 @@ export function setupPersistenceIpc() {
 
   ipcMain.handle("library:favorites:playlists:add", (_event, playlist: PlaylistSnapshot) => {
     const result = getAppDatabase().addFavoritePlaylist(playlist);
+    if (result) recordFavoritePlaylistChange(result.payload, "upsert");
     notifyFavoritesChanged();
     return result;
   });
 
   ipcMain.handle("library:favorites:playlists:remove", (_event, payload: { source: string; id: string }) => {
     const result = getAppDatabase().removeFavoritePlaylist(payload.source, payload.id);
+    recordFavoritePlaylistDelete(payload.source, payload.id);
     notifyFavoritesChanged();
     return result;
   });
 
   ipcMain.handle("library:favorites:playlists:toggle", (_event, playlist: PlaylistSnapshot) => {
     const result = getAppDatabase().toggleFavoritePlaylist(playlist);
+    if (result.collected && result.item) {
+      recordFavoritePlaylistChange(result.item.payload, "upsert");
+    } else {
+      recordFavoritePlaylistChange(playlist, "delete");
+    }
     notifyFavoritesChanged();
     return result;
   });
@@ -117,11 +139,17 @@ export function setupPersistenceIpc() {
   });
 
   ipcMain.handle("library:playlists:create", (_event, playlist: Partial<PlaylistSnapshot>) => {
-    return getAppDatabase().createUserPlaylist(playlist);
+    const result = getAppDatabase().createUserPlaylist(playlist);
+    if (result) recordUserPlaylistChange(result.payload, "upsert");
+    notifyMineLibraryChanged();
+    return result;
   });
 
   ipcMain.handle("library:playlists:upsert", (_event, playlist: PlaylistSnapshot) => {
-    return getAppDatabase().upsertUserPlaylist(playlist);
+    const result = getAppDatabase().upsertUserPlaylist(playlist);
+    if (result) recordUserPlaylistChange(result.payload, "upsert");
+    notifyMineLibraryChanged();
+    return result;
   });
 
   ipcMain.handle(
@@ -136,7 +164,14 @@ export function setupPersistenceIpc() {
   });
 
   ipcMain.handle("library:playlists:tracks:add", (_event, payload: { playlistId: string; track: TrackSnapshot }) => {
-    return getAppDatabase().addUserPlaylistTrack(payload.playlistId, payload.track);
+    const result = getAppDatabase().addUserPlaylistTrack(payload.playlistId, payload.track);
+    recordUserPlaylistTrackChange(payload.playlistId, payload.track, "upsert");
+    const playlist = getAppDatabase()
+      .listUserPlaylists("local")
+      .find((item) => item.playlistId === payload.playlistId);
+    if (playlist) recordUserPlaylistChange(playlist.payload, "upsert");
+    notifyMineLibraryChanged();
+    return result;
   });
 
   ipcMain.handle("library:cloud:songs:list", (_event, payload?: { cloudSource?: string | "all" }) => {
@@ -151,5 +186,11 @@ export function setupPersistenceIpc() {
 function notifyFavoritesChanged() {
   BrowserWindow.getAllWindows().forEach((win) => {
     win.webContents.send("favorites:changed");
+  });
+}
+
+function notifyMineLibraryChanged() {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    win.webContents.send("mine-library:changed");
   });
 }

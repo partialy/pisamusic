@@ -189,3 +189,10 @@
 - `/recommend/playlists` 和 `/recommend/songs` 属于推荐模块详情页，`MainLayout.routeToMenuKey()` 必须保持左侧菜单选中“推荐”；点击左侧“推荐”返回首页，现有 `/playlist/detail` 不改成推荐菜单选中。
 - 推荐详情页数据源映射集中放在 `src/views/recommend/recommendSources.ts`，后续新增入口时优先扩展映射和页面内 fetch 分支，不要在首页散落硬编码接口逻辑。
 - 首页向下滚动内容的进入动画统一使用 `HomeReveal`，通过 `IntersectionObserver` 做一次性轻微上浮淡入，并尊重 `prefers-reduced-motion`。
+ 
+## 收藏与歌单同步
+
+- 桌面端同步能力由 main 侧 `electron/sync/syncService.ts` 统一编排，renderer 只能通过 preload 暴露的 `sync:*` typed IPC 创建同步码、加入同步空间、手动同步和解绑。
+- 同步状态保存到 SQLite settings 的 `sync-state`，本地待推送变更保存到 SQLite `sync_outbox`；收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更后需要写入 outbox 并触发后台增量同步。
+- 同步 payload 只使用 `Song` / `CommonPlaylist` canonical 字段；不推送 `source=local` 歌曲，不推送播放 URL、filePath、歌词正文、内嵌封面；自建歌单本地文件封面同步时置空。
+- 远端 tombstone 应在 main 侧应用到 SQLite 后通知 renderer 刷新 `favorites:changed` / `mine-library:changed`，不要让页面组件直接写同步状态或数据库。

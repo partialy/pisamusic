@@ -118,6 +118,19 @@ export function migrateDatabase(db: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS idx_user_playlist_tracks_playlist_id
       ON user_playlist_tracks(playlist_id, id ASC);
 
+    CREATE TABLE IF NOT EXISTS sync_outbox (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      op_id TEXT NOT NULL UNIQUE,
+      item_type TEXT NOT NULL,
+      item_key TEXT NOT NULL,
+      action TEXT NOT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sync_outbox_created_at
+      ON sync_outbox(created_at ASC, id ASC);
+
     CREATE TABLE IF NOT EXISTS user_cloud_songs (
       cloud_source TEXT NOT NULL,
       track_key TEXT NOT NULL,
@@ -235,6 +248,13 @@ export function migrateDatabase(db: DatabaseSync) {
     .prepare(
       `INSERT INTO schema_migrations (version, name, applied_at)
        VALUES (4, 'download records schema', ?)
+       ON CONFLICT(version) DO NOTHING`
+    )
+    .run(new Date().toISOString());
+  db
+    .prepare(
+      `INSERT INTO schema_migrations (version, name, applied_at)
+       VALUES (5, 'sync outbox schema', ?)
        ON CONFLICT(version) DO NOTHING`
     )
     .run(new Date().toISOString());

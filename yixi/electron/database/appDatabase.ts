@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { normalizeLimit, parseJson, stringifyJson } from "./json";
 import {
@@ -540,6 +541,73 @@ export class AppDatabase {
       );
     this.updateUserPlaylistSongCount(normalizedPlaylistId);
     return this.listUserPlaylistTracks(normalizedPlaylistId);
+  }
+
+  removeUserPlaylist(source: string, id: string) {
+    const { id: playlistId, source: playlistSource } = requireFavoriteKey(source, id, "姝屽崟");
+    this.db.prepare("DELETE FROM user_playlist_tracks WHERE playlist_id = ?").run(playlistId);
+    this.db.prepare("DELETE FROM user_playlists WHERE playlist_key = ?").run(favoriteKey(playlistSource, playlistId));
+    return true;
+  }
+
+  removeUserPlaylistTrack(playlistId: string, source: string, id: string) {
+    const normalizedPlaylistId = toStringValue(playlistId);
+    if (!normalizedPlaylistId) return false;
+    const { id: trackId, source: trackSource } = requireFavoriteKey(source, id, "姝屾洸");
+    this.db
+      .prepare("DELETE FROM user_playlist_tracks WHERE playlist_id = ? AND track_key = ?")
+      .run(normalizedPlaylistId, favoriteKey(trackSource, trackId));
+    this.updateUserPlaylistSongCount(normalizedPlaylistId);
+    return true;
+  }
+
+  enqueueSyncOp(input: {
+    itemType: string;
+    itemKey: string;
+    action: "upsert" | "delete";
+    payload?: unknown;
+  }) {
+    if (!input.itemType || !input.itemKey) return null;
+    const opId = randomUUID();
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO sync_outbox (op_id, item_type, item_key, action, payload_json, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        opId,
+        input.itemType,
+        input.itemKey,
+        input.action,
+        JSON.stringify(input.payload ?? {}),
+        now
+      );
+    return opId;
+  }
+
+  listSyncOutbox(limit = 200) {
+    return this.db
+      .prepare(
+        `SELECT op_id, item_type, item_key, action, payload_json, created_at
+         FROM sync_outbox
+         ORDER BY created_at ASC, id ASC
+         LIMIT ?`
+      )
+      .all(normalizeLimit(limit));
+  }
+
+  removeSyncOps(opIds: string[]) {
+    if (!opIds.length) return;
+    const remove = this.db.prepare("DELETE FROM sync_outbox WHERE op_id = ?");
+    this.db.exec("BEGIN IMMEDIATE TRANSACTION;");
+    try {
+      opIds.forEach((opId) => remove.run(opId));
+      this.db.exec("COMMIT;");
+    } catch (error) {
+      this.db.exec("ROLLBACK;");
+      throw error;
+    }
   }
 
   listUserCloudSongs(cloudSource?: string | "all"): UserCloudSongItem[] {

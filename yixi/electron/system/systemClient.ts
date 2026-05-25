@@ -21,6 +21,7 @@ type RequestOptions = {
   method?: "GET" | "POST";
   body?: unknown;
   encrypted?: boolean;
+  headers?: Record<string, string>;
 };
 
 let cachedBootstrap: BootstrapConfig | null = null;
@@ -99,6 +100,94 @@ export async function submitFeedback(payload: FeedbackPayload) {
     }
     throw error;
   }
+}
+
+export type SyncBindResult = {
+  spaceId: string;
+  deviceId: string;
+  syncCode: string;
+  token: string;
+  version: number;
+};
+
+export type SyncChange = {
+  version: number;
+  opId: string;
+  deviceId: string;
+  itemType: string;
+  itemKey: string;
+  action: "upsert" | "delete";
+  payload: unknown;
+  clientUpdatedAt: string;
+  serverUpdatedAt: number;
+};
+
+export type SyncChangeInput = {
+  opId: string;
+  itemType: string;
+  itemKey: string;
+  action: "upsert" | "delete";
+  payload: unknown;
+  clientUpdatedAt: string;
+};
+
+export async function createSyncSpace(deviceName: string) {
+  const response = await requestSystem<SyncBindResult>("/api/sync/spaces", {
+    method: "POST",
+    body: {
+      deviceName,
+      platform: "yixi",
+    },
+  });
+  return unwrapResponse(response);
+}
+
+export async function joinSyncSpace(syncCode: string, deviceName: string) {
+  const response = await requestSystem<SyncBindResult>("/api/sync/spaces/join", {
+    method: "POST",
+    body: {
+      syncCode,
+      deviceName,
+      platform: "yixi",
+    },
+  });
+  return unwrapResponse(response);
+}
+
+export async function getSyncChanges(token: string, since: number) {
+  const response = await requestSystem<{ version: number; changes: SyncChange[] }>(
+    `/api/sync/changes?since=${encodeURIComponent(String(since))}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return unwrapResponse(response);
+}
+
+export async function pushSyncChanges(token: string, changes: SyncChangeInput[]) {
+  const response = await requestSystem<{ version: number; accepted: number; skipped: number }>(
+    "/api/sync/changes",
+    {
+      method: "POST",
+      body: { changes },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+  return unwrapResponse(response);
+}
+
+export async function unbindSyncDevice(token: string) {
+  const response = await requestSystem<{ unbound: boolean }>("/api/sync/devices/unbind", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return unwrapResponse(response);
 }
 
 export async function requestSignedGateway<T>(
@@ -230,7 +319,14 @@ async function requestSystem<T>(path: string, options: RequestOptions = {}) {
   }
 
   try {
-    const response = await fetch(url, { method, headers, body });
+    const response = await fetch(url, {
+      method,
+      headers: {
+        ...headers,
+        ...(options.headers ?? {}),
+      },
+      body,
+    });
     const raw = await response.text();
     const parsed = parseResponseRaw<T>(response, raw);
     if (!response.ok || !isSystemEnvelopeSuccess(parsed)) {

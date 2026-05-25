@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, nativeImage, nativeTheme, Tray } from "electron";
 import path from "path";
 import { getAppDatabase } from "../database";
+import { recordFavoriteSongChange } from "../sync/syncService";
 
 type TrayTrack = {
   id: string;
@@ -96,7 +97,8 @@ export class PlayerTray {
         icon: this.getTrayIcon(currentCollected ? "unlove" : "love"),
         click: () => {
           if (!this.currentSong) return;
-          getAppDatabase().toggleFavoriteSong(this.currentSong as any);
+          const result = getAppDatabase().toggleFavoriteSong(this.currentSong as any);
+          recordFavoriteSongChange(this.currentSong as any, result.collected ? "upsert" : "delete");
           this.notifyFavoritesChanged();
           this.refresh();
         },
