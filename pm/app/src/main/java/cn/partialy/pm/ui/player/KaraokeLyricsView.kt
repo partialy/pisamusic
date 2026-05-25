@@ -48,6 +48,10 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private var browseCenterPosition = 0f
     private var browseLineIndex = -1
     private var isBrowsing = false
+    private var isAutoReturning = false
+    private var returnStartPosition = 0f
+    private var returnCenterPosition = 0f
+    private var returnStartUptimeMs = 0L
 
     private var lines: List<LyricLine> = emptyList()
     private var currentIndex: Int = -1
@@ -71,7 +75,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private lateinit var frameCallback: Choreographer.FrameCallback
 
     private val browseTimeoutRunnable = Runnable {
-        finishBrowsing(notify = true)
+        startAutoReturnToPlayback(notify = true)
     }
 
     init {
@@ -108,6 +112,21 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 }
             }
 
+            if (isAutoReturning) {
+                val elapsed = frameUptimeMs - returnStartUptimeMs
+                val progress = (elapsed.toFloat() / RETURN_ANIM_DURATION_MS).coerceIn(0f, 1f)
+                val target = currentIndex.coerceIn(0, lines.lastIndex).toFloat()
+                returnCenterPosition = returnStartPosition + (target - returnStartPosition) * easeOutCubic(progress)
+                if (progress >= 1f) {
+                    isAutoReturning = false
+                    isBrowsing = false
+                    browseCenterPosition = target
+                    invalidate()
+                } else {
+                    needNextFrame = true
+                }
+            }
+
             if (needNextFrame) {
                 invalidate()
                 choreographer.postFrameCallback(frameCallback)
@@ -116,7 +135,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
     }
 
     val browsedLineIndex: Int
-        get() = if (isBrowsing) browseLineIndex else -1
+        get() = if (isBrowsing && !isAutoReturning) browseLineIndex else -1
 
     fun resumeAutoScroll() {
         finishBrowsing(notify = true)
@@ -156,14 +175,19 @@ class KaraokeLyricsView @JvmOverloads constructor(
         anchorUptimeMs = SystemClock.uptimeMillis()
         this.positionMs = positionMs
 
-        if (isBrowsing) {
+        if (isBrowsing && !isAutoReturning) {
             browseCenterPosition = browseCenterPosition.coerceIn(0f, lines.lastIndex.toFloat())
             notifyBrowseLineChanged()
         }
 
         if (oldSize != style.textSizeSp) requestLayout()
 
-        if ((isPlaying && !wasPlaying) || lineAnimProgress < 1f || scaleAnimProgress < 1f || !scroller.isFinished) {
+        if ((isPlaying && !wasPlaying) ||
+            lineAnimProgress < 1f ||
+            scaleAnimProgress < 1f ||
+            !scroller.isFinished ||
+            isAutoReturning
+        ) {
             choreographer.postFrameCallback(frameCallback)
         }
         invalidate()
@@ -179,6 +203,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 lastTouchY = event.y
                 touchDownY = event.y
                 isDragging = false
+                isAutoReturning = false
                 beginBrowsing()
                 return true
             }
@@ -267,13 +292,15 @@ class KaraokeLyricsView @JvmOverloads constructor(
             0f
         }
 
-        val centerPosition = if (isBrowsing) {
+        val centerPosition = if (isAutoReturning) {
+            returnCenterPosition
+        } else if (isBrowsing) {
             browseCenterPosition
         } else {
             currentIndex - scrollOffset
         }.coerceIn(0f, lines.lastIndex.toFloat())
 
-        val selectedIndex = if (isBrowsing) {
+        val selectedIndex = if (isBrowsing && !isAutoReturning) {
             browseCenterPosition.roundToInt().coerceIn(0, lines.lastIndex)
         } else {
             currentIndex
@@ -500,10 +527,29 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private fun finishBrowsing(notify: Boolean) {
         if (!isBrowsing) return
         isBrowsing = false
+        isAutoReturning = false
         isDragging = false
         scroller.forceFinished(true)
         mainHandler.removeCallbacks(browseTimeoutRunnable)
         if (notify) onBrowseEnded?.invoke()
+        invalidate()
+    }
+
+    private fun startAutoReturnToPlayback(notify: Boolean) {
+        if (!isBrowsing) return
+        if (currentIndex !in lines.indices) {
+            finishBrowsing(notify)
+            return
+        }
+        isDragging = false
+        scroller.forceFinished(true)
+        mainHandler.removeCallbacks(browseTimeoutRunnable)
+        returnStartPosition = browseCenterPosition.coerceIn(0f, lines.lastIndex.toFloat())
+        returnCenterPosition = returnStartPosition
+        returnStartUptimeMs = SystemClock.uptimeMillis()
+        isAutoReturning = true
+        if (notify) onBrowseEnded?.invoke()
+        choreographer.postFrameCallback(frameCallback)
         invalidate()
     }
 
@@ -616,6 +662,11 @@ class KaraokeLyricsView @JvmOverloads constructor(
         return 1f - v * v * v * v
     }
 
+    private fun easeOutCubic(t: Float): Float {
+        val v = 1f - t
+        return 1f - v * v * v
+    }
+
     private fun wrapText(text: String, maxTextWidth: Int): List<WrappedSegment> {
         if (text.isBlank() || maxTextWidth <= 0) return emptyList()
         val segments = mutableListOf<WrappedSegment>()
@@ -687,6 +738,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
 
     private companion object {
         private const val BROWSE_TIMEOUT_MS = 3_000L
+        private const val RETURN_ANIM_DURATION_MS = 520L
         private const val SCROLLER_ROW_UNIT = 1000f
     }
 
