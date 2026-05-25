@@ -9,6 +9,7 @@ import { adminRouter } from "./routes/admin";
 import { configRouter } from "./routes/config";
 import { deviceRouter } from "./routes/device";
 import { feedbackRouter } from "./routes/feedback";
+import { syncRouter } from "./routes/sync";
 import { fail } from "./types/response";
 
 const app = express();
@@ -59,6 +60,7 @@ app.use("/api/config", configRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/device", deviceRouter);
+app.use("/api/sync", syncRouter);
 
 app.use(
   "/discover",

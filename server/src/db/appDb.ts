@@ -138,6 +138,69 @@ CREATE TABLE IF NOT EXISTS json_imports (
     source      TEXT    PRIMARY KEY,
     imported_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS sync_spaces (
+    id              TEXT    PRIMARY KEY,
+    sync_code       TEXT    NOT NULL UNIQUE,
+    space_version   INTEGER NOT NULL DEFAULT 0,
+    created_at      INTEGER NOT NULL,
+    updated_at      INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sync_devices (
+    id              TEXT    PRIMARY KEY,
+    space_id        TEXT    NOT NULL,
+    token_hash      TEXT    NOT NULL UNIQUE,
+    device_name     TEXT    NOT NULL DEFAULT '',
+    platform        TEXT    NOT NULL DEFAULT '',
+    active          INTEGER NOT NULL DEFAULT 1,
+    created_at      INTEGER NOT NULL,
+    last_seen_at    INTEGER NOT NULL,
+    FOREIGN KEY (space_id) REFERENCES sync_spaces(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_sync_devices_space_id ON sync_devices (space_id);
+
+CREATE TABLE IF NOT EXISTS sync_items (
+    space_id          TEXT    NOT NULL,
+    item_type         TEXT    NOT NULL,
+    item_key          TEXT    NOT NULL,
+    payload_json      TEXT    NOT NULL DEFAULT '{}',
+    deleted           INTEGER NOT NULL DEFAULT 0,
+    last_op_id        TEXT    NOT NULL DEFAULT '',
+    last_device_id    TEXT    NOT NULL DEFAULT '',
+    client_updated_at TEXT    NOT NULL DEFAULT '',
+    server_version    INTEGER NOT NULL,
+    server_updated_at INTEGER NOT NULL,
+    PRIMARY KEY (space_id, item_type, item_key),
+    FOREIGN KEY (space_id) REFERENCES sync_spaces(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_sync_items_space_version ON sync_items (space_id, server_version);
+
+CREATE TABLE IF NOT EXISTS sync_change_log (
+    space_id          TEXT    NOT NULL,
+    version           INTEGER NOT NULL,
+    op_id             TEXT    NOT NULL,
+    device_id         TEXT    NOT NULL,
+    item_type         TEXT    NOT NULL,
+    item_key          TEXT    NOT NULL,
+    action            TEXT    NOT NULL,
+    payload_json      TEXT    NOT NULL DEFAULT '{}',
+    client_updated_at TEXT    NOT NULL DEFAULT '',
+    server_updated_at INTEGER NOT NULL,
+    PRIMARY KEY (space_id, version),
+    FOREIGN KEY (space_id) REFERENCES sync_spaces(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_sync_change_log_space_version ON sync_change_log (space_id, version);
+
+CREATE TABLE IF NOT EXISTS sync_applied_ops (
+    space_id          TEXT    NOT NULL,
+    device_id         TEXT    NOT NULL,
+    op_id             TEXT    NOT NULL,
+    server_version    INTEGER NOT NULL,
+    applied_at        INTEGER NOT NULL,
+    PRIMARY KEY (space_id, device_id, op_id),
+    FOREIGN KEY (space_id) REFERENCES sync_spaces(id) ON DELETE CASCADE
+);
 `;
 
 function getColumnNames(db: DatabaseSync, table: string): Set<string> {
