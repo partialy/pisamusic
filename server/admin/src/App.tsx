@@ -122,6 +122,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [editingUpdateIsNew, setEditingUpdateIsNew] = useState(true);
   const [publishSaving, setPublishSaving] = useState(false);
   const [packageUploading, setPackageUploading] = useState(false);
+  const [packageUploadProgress, setPackageUploadProgress] = useState<number | null>(null);
   const [deletingPackageHistoryId, setDeletingPackageHistoryId] = useState<string | null>(null);
 
   const [encryptionPathsServer, setEncryptionPathsServer] = useState<string[]>([]);
@@ -321,6 +322,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const openNewUpdate = () => {
     const plus8Time = getCurrentPlus8Time();
     setEditingUpdateIsNew(true);
+    setPackageUploadProgress(null);
     setEditingUpdateDraft({
       platform: "android",
       version: "v",
@@ -338,6 +340,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const openEditUpdate = (item: UpdateHistoryItem) => {
     setEditingUpdateIsNew(false);
+    setPackageUploadProgress(null);
     setEditingUpdateDraft(historyItemToDraft(item));
   };
 
@@ -379,8 +382,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const handleUploadReleasePackage = async (file: File) => {
     if (!editingUpdateDraft) return;
     setPackageUploading(true);
+    setPackageUploadProgress(0);
     try {
-      const releaseFile = await uploadReleasePackage(file, editingUpdateDraft.platform);
+      const releaseFile = await uploadReleasePackage(file, editingUpdateDraft.platform, setPackageUploadProgress);
       setEditingUpdateDraft((prev) =>
         prev
           ? {
@@ -393,6 +397,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           : prev,
       );
     } catch (e) {
+      setPackageUploadProgress(null);
       alert(e instanceof Error ? e.message : "上传安装包失败");
     } finally {
       setPackageUploading(false);
@@ -1071,6 +1076,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           themeColor={themeColor}
           saving={publishSaving}
           uploadingPackage={packageUploading}
+          uploadProgress={packageUploadProgress}
           onClose={() => setEditingUpdateDraft(null)}
           onChange={setEditingUpdateDraft}
           onUploadPackage={(file) => void handleUploadReleasePackage(file)}

@@ -182,6 +182,8 @@ type QiniuUploadResponse = {
   bucket?: string;
 };
 
+type UploadProgressHandler = (progress: number) => void;
+
 async function fetchReleaseUploadToken(file: File, platform: ReleasePlatform): Promise<UploadTokenResponse> {
   const res = await fetchWithAuth("/api/admin/release-files/upload-token", {
     method: "POST",
@@ -199,21 +201,43 @@ async function fetchReleaseUploadToken(file: File, platform: ReleasePlatform): P
   return body.data;
 }
 
-async function uploadFileToQiniu(file: File, token: UploadTokenResponse): Promise<QiniuUploadResponse> {
+function uploadFileToQiniu(file: File, token: UploadTokenResponse, onProgress?: UploadProgressHandler): Promise<QiniuUploadResponse> {
   const formData = new FormData();
   formData.append("token", token.uploadToken);
   formData.append("key", token.key);
   formData.append("x:name", file.name);
   formData.append("file", file);
-  const res = await fetch(token.uploadUrl, {
-    method: "POST",
-    body: formData,
+  onProgress?.(0);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", token.uploadUrl);
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || event.total <= 0) return;
+      const progress = Math.min(99, Math.max(0, Math.round((event.loaded / event.total) * 100)));
+      onProgress?.(progress);
+    };
+
+    xhr.onload = () => {
+      let body: QiniuUploadResponse & { error?: string } = {};
+      try {
+        body = JSON.parse(xhr.responseText || "{}") as QiniuUploadResponse & { error?: string };
+      } catch {
+        body = {};
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(body.error || `七牛上传失败：HTTP ${xhr.status}`));
+        return;
+      }
+      onProgress?.(100);
+      resolve(body);
+    };
+
+    xhr.onerror = () => reject(new Error("七牛上传网络异常"));
+    xhr.onabort = () => reject(new Error("七牛上传已取消"));
+    xhr.send(formData);
   });
-  const body = (await res.json().catch(() => ({}))) as QiniuUploadResponse & { error?: string };
-  if (!res.ok) {
-    throw new Error(body.error || `七牛上传失败：HTTP ${res.status}`);
-  }
-  return body;
 }
 
 async function completeReleaseUpload(
@@ -241,9 +265,9 @@ async function completeReleaseUpload(
   return body.data;
 }
 
-export async function uploadReleasePackage(file: File, platform: ReleasePlatform): Promise<ReleaseFileInfo> {
+export async function uploadReleasePackage(file: File, platform: ReleasePlatform, onProgress?: UploadProgressHandler): Promise<ReleaseFileInfo> {
   const token = await fetchReleaseUploadToken(file, platform);
-  const uploaded = await uploadFileToQiniu(file, token);
+  const uploaded = await uploadFileToQiniu(file, token, onProgress);
   return completeReleaseUpload(file, platform, token, uploaded);
 }
 

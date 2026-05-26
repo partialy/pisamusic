@@ -8,14 +8,16 @@ type Props = {
   themeColor: string;
   saving: boolean;
   uploadingPackage: boolean;
+  uploadProgress: number | null;
   onClose: () => void;
   onChange: (next: UpdateFormDraft) => void;
   onUploadPackage: (file: File) => void;
   onSubmit: () => void;
 };
 
-export default function UpdateModal({ draft, isNew, themeColor, saving, uploadingPackage, onClose, onChange, onUploadPackage, onSubmit }: Props) {
+export default function UpdateModal({ draft, isNew, themeColor, saving, uploadingPackage, uploadProgress, onClose, onChange, onUploadPackage, onSubmit }: Props) {
   const acceptTypes = draft.platform === "desktop" ? ".exe,.msi,.zip,.7z" : ".apk,.aab";
+  const progress = uploadProgress == null ? null : Math.min(100, Math.max(0, Math.round(uploadProgress)));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
@@ -85,6 +87,20 @@ export default function UpdateModal({ draft, isNew, themeColor, saving, uploadin
                 </button>
               ))}
             </div>
+            {progress !== null && (
+              <div className="mt-4 rounded-xl border border-white/60 bg-white/50 p-3">
+                <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-600">
+                  <span>{progress >= 100 ? "上传完成" : "上传进度"}</span>
+                  <span className="font-mono">{progress}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-200/80">
+                  <div
+                    className="h-full rounded-full transition-all duration-200"
+                    style={{ width: `${progress}%`, backgroundColor: themeColor }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
