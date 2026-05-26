@@ -29,6 +29,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/health",
   "/api/config/bootstrap",
   "/api/config/check-update",
+  "/api/config/get",
   "/api/config/releases",
   "/api/config/release-files/*",
   "/api/config/discover",
@@ -43,7 +44,13 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/uploads/*",
 ];
 
-const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/release-files/*", "/api/config/discover", "/discover/*"];
+const MANDATORY_PLAINTEXT_PATHS = [
+  "/api/config/get",
+  "/api/config/releases",
+  "/api/config/release-files/*",
+  "/api/config/discover",
+  "/discover/*",
+];
 
 function loadPlaintextPaths(): string[] {
   const paths = readPlaintextPaths().filter((s) => s.length > 0);

@@ -55,3 +55,8 @@ server/feedback.json
 /cookie
 pm-electron/data/
 *-example.md
+.trae/
+.vscode/
+.idea/
+.codex/
+.claude/

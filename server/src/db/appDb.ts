@@ -96,6 +96,15 @@ CREATE TABLE IF NOT EXISTS discover_config (
     updated_at      INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS dynamic_configs (
+    id          TEXT    PRIMARY KEY,
+    type        TEXT    NOT NULL,
+    content     TEXT    NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL,
+    updated_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dynamic_configs_updated_at ON dynamic_configs (updated_at DESC, id ASC);
+
 CREATE TABLE IF NOT EXISTS update_history (
     id              TEXT    PRIMARY KEY,
     platform        TEXT    NOT NULL DEFAULT 'android',
@@ -277,10 +286,25 @@ function migrateUpdateHistory(db: DatabaseSync) {
   }
 }
 
+function migrateDynamicConfigs(db: DatabaseSync) {
+  const cols = getColumnNames(db, "dynamic_configs");
+  const add = (name: string, decl: string) => {
+    if (!cols.has(name)) {
+      db.exec(`ALTER TABLE dynamic_configs ADD COLUMN ${name} ${decl}`);
+    }
+  };
+  add("type", "TEXT NOT NULL DEFAULT 'string'");
+  add("content", "TEXT NOT NULL DEFAULT ''");
+  add("created_at", "INTEGER NOT NULL DEFAULT 0");
+  add("updated_at", "INTEGER NOT NULL DEFAULT 0");
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_dynamic_configs_updated_at ON dynamic_configs (updated_at DESC, id ASC)`);
+}
+
 function initSchema(db: DatabaseSync) {
   db.exec(CREATE_SQL);
   migrateDeviceInfo(db);
   migrateUpdateHistory(db);
+  migrateDynamicConfigs(db);
 }
 
 let singleton: DatabaseSync | null = null;

@@ -4,6 +4,8 @@ import type {
   AppConfigJson,
   AppConfigSectionsPayload,
   AppUpdatePayload,
+  DynamicConfigItem,
+  DynamicConfigPayload,
   DeviceFilter,
   DeviceInfo,
   DeviceListResponse,
@@ -65,6 +67,49 @@ export async function fetchAppConfig(): Promise<AppConfigJson> {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
   return body.data;
+}
+
+export async function fetchDynamicConfigs(): Promise<DynamicConfigItem[]> {
+  const res = await fetchWithAuth("/api/admin/dynamic-configs");
+  const body = await parseJson<DynamicConfigItem[]>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function createDynamicConfig(payload: DynamicConfigPayload): Promise<DynamicConfigItem> {
+  const res = await fetchWithAuth("/api/admin/dynamic-configs", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const body = await parseJson<DynamicConfigItem>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function updateDynamicConfig(id: string, payload: DynamicConfigPayload): Promise<DynamicConfigItem> {
+  const res = await fetchWithAuth(`/api/admin/dynamic-configs/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  const body = await parseJson<DynamicConfigItem>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function deleteDynamicConfig(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/dynamic-configs/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  const body = await parseJson<null>(res);
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
 }
 
 export async function fetchAnnouncements(): Promise<Announcement[]> {

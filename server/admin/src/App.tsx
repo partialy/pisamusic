@@ -5,6 +5,7 @@ import type {
   AppConfigSectionsPayload,
   DeviceFilter,
   DeviceInfo,
+  DynamicConfigItem,
   GatewaySignConfig,
   UpdateFormDraft,
   UpdateHistoryItem,
@@ -13,10 +14,13 @@ import { DEFAULT_PLAINTEXT_PATHS } from "./types/config";
 import { bgPresets, colorPresets, tabs, type TabId } from "./constants/theme";
 import { getCurrentPlus8Time } from "./utils/date";
 import {
+  createDynamicConfig,
+  deleteDynamicConfig as deleteDynamicConfigApi,
   deleteAnnouncement as deleteAnnouncementApi,
   deleteDevice,
   fetchAnnouncements,
   fetchAppConfig,
+  fetchDynamicConfigs,
   fetchDeviceDetail,
   fetchDevices,
   fetchEncryptionConfig,
@@ -28,6 +32,7 @@ import {
   saveAnnouncement as saveAnnouncementApi,
   saveEncryptionConfig,
   uploadReleasePackage,
+  updateDynamicConfig,
   deleteReleasePackage,
 } from "./api/client";
 import { clearStoredToken, getStoredToken } from "./auth/token";
@@ -36,6 +41,7 @@ import { draftToPayload, historyItemToDraft } from "./utils/updatePayload";
 import { loadTheme, saveTheme } from "./utils/themeStorage";
 import LoginPage from "./components/LoginPage";
 import ChangePasswordModal from "./components/modals/ChangePasswordModal";
+import DynamicConfigModal from "./components/modals/DynamicConfigModal";
 import NoticeModal from "./components/modals/NoticeModal";
 import UpdateModal from "./components/modals/UpdateModal";
 import JsonExportModal from "./components/modals/JsonExportModal";
@@ -44,6 +50,7 @@ const SystemTab = lazy(() => import("./components/tabs/SystemTab"));
 const UpdateTab = lazy(() => import("./components/tabs/UpdateTab"));
 const ContentTab = lazy(() => import("./components/tabs/ContentTab"));
 const AnnouncementsTab = lazy(() => import("./components/tabs/AnnouncementsTab"));
+const DynamicConfigTab = lazy(() => import("./components/tabs/DynamicConfigTab"));
 const EncryptionTab = lazy(() => import("./components/tabs/EncryptionTab"));
 const DevicesTab = lazy(() => import("./components/tabs/DevicesTab"));
 
@@ -56,6 +63,13 @@ function tabFallback() {
 }
 
 const initialTheme = loadTheme();
+const NEW_DYNAMIC_CONFIG: DynamicConfigItem = {
+  id: "",
+  type: "string",
+  content: "",
+  createdAt: 0,
+  updatedAt: 0,
+};
 
 export default function App() {
   const [authed, setAuthed] = useState(() => Boolean(getStoredToken()));
@@ -83,6 +97,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [appConfig, setAppConfig] = useState<AppConfigJson>(defaultAppConfig);
   const [appConfigServer, setAppConfigServer] = useState<AppConfigJson>(defaultAppConfig);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [dynamicConfigs, setDynamicConfigs] = useState<DynamicConfigItem[]>([]);
   const [updateHistory, setUpdateHistory] = useState<UpdateHistoryItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -98,6 +113,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const [editingNotice, setEditingNotice] = useState<Announcement | null>(null);
   const [editingNoticeIndex, setEditingNoticeIndex] = useState(-1);
+  const [editingDynamicConfig, setEditingDynamicConfig] = useState<DynamicConfigItem | null>(null);
+  const [editingDynamicConfigIsNew, setEditingDynamicConfigIsNew] = useState(true);
+  const [dynamicConfigLoading, setDynamicConfigLoading] = useState(false);
+  const [dynamicConfigSaving, setDynamicConfigSaving] = useState(false);
 
   const [editingUpdateDraft, setEditingUpdateDraft] = useState<UpdateFormDraft | null>(null);
   const [editingUpdateIsNew, setEditingUpdateIsNew] = useState(true);
@@ -126,12 +145,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const refreshRemote = useCallback(async () => {
     setLoadError(null);
+    setDynamicConfigLoading(true);
     try {
-      const [cfg, ann, hist, enc] = await Promise.all([
+      const [cfg, ann, hist, enc, dyn] = await Promise.all([
         fetchAppConfig(),
         fetchAnnouncements(),
         fetchUpdateHistory(),
         fetchEncryptionConfig(),
+        fetchDynamicConfigs(),
       ]);
       setAppConfig(cfg);
       setAppConfigServer(cfg);
@@ -139,10 +160,12 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       setUpdateHistory(hist);
       setEncryptionPathsServer(enc.plaintextPaths);
       setEncryptionPathsDraft(enc.plaintextPaths);
+      setDynamicConfigs(dyn);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "加载失败";
       setLoadError(msg);
     } finally {
+      setDynamicConfigLoading(false);
       setHydrated(true);
     }
   }, []);
@@ -238,9 +261,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const handleDeleteAnnouncement = async (index: number) => {
     const target = announcements[index];
     if (!target) return;
-    /*
-    if (window.confirm("确定要删除这条公告吗？")) {
-    */
     if (window.confirm("确定要删除这条公告吗？")) {
       try {
         await deleteAnnouncementApi(target.id);
@@ -248,6 +268,53 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       } catch (e) {
         alert(e instanceof Error ? e.message : "删除公告失败");
       }
+    }
+  };
+
+  const handleAddDynamicConfig = () => {
+    setEditingDynamicConfigIsNew(true);
+    setEditingDynamicConfig({ ...NEW_DYNAMIC_CONFIG });
+  };
+
+  const handleEditDynamicConfig = (item: DynamicConfigItem) => {
+    setEditingDynamicConfigIsNew(false);
+    setEditingDynamicConfig({ ...item });
+  };
+
+  const handleSaveDynamicConfig = async () => {
+    if (!editingDynamicConfig) return;
+    setDynamicConfigSaving(true);
+    try {
+      const payload = {
+        id: editingDynamicConfig.id,
+        type: editingDynamicConfig.type,
+        content: editingDynamicConfig.content,
+      };
+      const saved = editingDynamicConfigIsNew
+        ? await createDynamicConfig(payload)
+        : await updateDynamicConfig(editingDynamicConfig.id, payload);
+      setDynamicConfigs((prev) => {
+        const next = prev.filter((item) => item.id !== saved.id);
+        return [saved, ...next];
+      });
+      setEditingDynamicConfig(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "保存动态配置失败");
+    } finally {
+      setDynamicConfigSaving(false);
+    }
+  };
+
+  const handleDeleteDynamicConfig = async (item: DynamicConfigItem) => {
+    if (!window.confirm(`确定要删除动态配置 ${item.id} 吗？`)) return;
+    try {
+      await deleteDynamicConfigApi(item.id);
+      setDynamicConfigs((prev) => prev.filter((current) => current.id !== item.id));
+      if (editingDynamicConfig?.id === item.id) {
+        setEditingDynamicConfig(null);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "删除动态配置失败");
     }
   };
 
@@ -941,6 +1008,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onDelete={handleDeleteAnnouncement}
                 />
               )}
+              {currentTab === "dynamicConfig" && (
+                <DynamicConfigTab
+                  items={dynamicConfigs}
+                  themeColor={themeColor}
+                  loading={dynamicConfigLoading}
+                  onCreate={handleAddDynamicConfig}
+                  onEdit={handleEditDynamicConfig}
+                  onDelete={(item) => void handleDeleteDynamicConfig(item)}
+                />
+              )}
               {currentTab === "encryption" && (
                 <EncryptionTab
                   paths={encryptionPathsDraft}
@@ -998,6 +1075,18 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           onChange={setEditingUpdateDraft}
           onUploadPackage={(file) => void handleUploadReleasePackage(file)}
           onSubmit={() => void handleSubmitPublish()}
+        />
+      )}
+
+      {editingDynamicConfig && (
+        <DynamicConfigModal
+          editing={editingDynamicConfig}
+          isNew={editingDynamicConfigIsNew}
+          themeColor={themeColor}
+          saving={dynamicConfigSaving}
+          onClose={() => setEditingDynamicConfig(null)}
+          onChange={setEditingDynamicConfig}
+          onSave={() => void handleSaveDynamicConfig()}
         />
       )}
 

@@ -14,6 +14,22 @@ export type AppUpdatePayload = {
 
 export type ReleasePlatform = "android" | "desktop";
 
+export type DynamicConfigType = "html" | "string" | "number" | "url";
+
+export type DynamicConfigItem = {
+  id: string;
+  type: DynamicConfigType;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type DynamicConfigPayload = {
+  id: string;
+  type: DynamicConfigType;
+  content: string;
+};
+
 export type ReleaseInfo = {
   latestVersion: string;
   updateTime: string;
@@ -109,6 +125,7 @@ export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
   "/api/health",
   "/api/config/bootstrap",
   "/api/config/check-update",
+  "/api/config/get",
   "/api/config/releases",
   "/api/config/release-files/*",
   "/api/config/discover",

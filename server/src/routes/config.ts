@@ -11,6 +11,7 @@ import {
   readUpdateHistory,
   shouldBlock,
 } from "../db/configStore";
+import { readDynamicConfigById } from "../db/dynamicConfigStore";
 import { createPrivateQiniuDownloadUrl } from "../services/qiniuReleaseFiles";
 import { fail, ok } from "../types/response";
 
@@ -120,6 +121,36 @@ configRouter.get("/discover", (_req, res) => {
       return;
     }
     res.json(ok(cfg.discover));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取配置失败";
+    res.status(500).json(fail(message, 500));
+  }
+});
+
+configRouter.get("/get", (_req, res) => {
+  try {
+    const { state } = blockedResponse();
+    if (state.blocked) {
+      res.status(403).json(fail(state.reason, -233));
+      return;
+    }
+    const id = String(_req.query.id ?? "").trim();
+    if (!id) {
+      res.status(400).json(fail("id 不能为空", 400));
+      return;
+    }
+    const item = readDynamicConfigById(id);
+    if (!item) {
+      res.status(404).json(fail("配置不存在", 404));
+      return;
+    }
+    res.json(
+      ok({
+        id: item.id,
+        type: item.type,
+        content: item.content,
+      }),
+    );
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
     res.status(500).json(fail(message, 500));

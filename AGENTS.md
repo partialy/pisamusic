@@ -54,6 +54,8 @@
 - 启动构建产物：`pnpm --dir server start`
 - 默认端口：`53380`
 - 官网双端发布接口：`/api/config/releases` 返回 Android 与 PC 当前发布信息；`/api/config/check-update` 保留为 Android 旧更新接口。
+- 动态配置模块：公开读取接口为 `GET /api/config/get?id=xxx`，返回 `{ id, type, content }`；后台管理接口挂载在 `GET/POST/PUT/DELETE /api/admin/dynamic-configs`。
+- 动态配置类型：固定为 `html`、`string`、`number`、`url`，数据存储在 SQLite `dynamic_configs` 表；新增实现优先放独立 store / route / admin 组件文件，不要继续堆进通用大文件。
 - 七牛安装包上传：管理后台通过 `/api/admin/release-files/upload-token` 获取上传凭证，客户端直传七牛后调用 `/api/admin/release-files/complete` 登记文件，再发布版本；删除历史安装包使用 `/api/admin/update-history/:id/release-file`。
 - 同步接口：`/api/sync/spaces` 首次创建同步码，`/api/sync/spaces/reset` 鉴权后重新生成同步码并清空旧同步空间，`/api/sync/spaces/join` 加入同步空间，`/api/sync/changes` 拉取/推送增量，`/api/sync/devices/unbind` 解绑设备；同步 DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准。
 
