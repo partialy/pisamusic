@@ -36,10 +36,12 @@
         window.PM_POLICY = {
             render: function(data) {
                 if (!data) return;
-                titleText.textContent = data.title || '协议内容';
+                titleText.style.display = 'none';
+                titleText.textContent = '';
                 contentBox.innerHTML = data.content || '';
             },
             setError: function(message) {
+                titleText.style.display = '';
                 titleText.textContent = '加载失败';
                 contentBox.innerHTML = '';
                 if (window.message && typeof window.message.error === 'function') {

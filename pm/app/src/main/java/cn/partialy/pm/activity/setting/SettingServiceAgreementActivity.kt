@@ -49,7 +49,6 @@ class SettingServiceAgreementActivity : BaseSettingWebActivity() {
         if (!pageReady) return
         val p = payload ?: return
         val json = JSONObject().apply {
-            put("title", p.title)
             put("content", p.content)
         }
         binding.webContentWebView.evaluateJavascript(

@@ -3,6 +3,7 @@ package cn.partialy.pm.network.api
 import cn.partialy.pm.model.BootstrapConfigResponse
 import cn.partialy.pm.model.CheckUpdateResponse
 import cn.partialy.pm.model.DiscoverResponse
+import cn.partialy.pm.model.DynamicConfigResponse
 import cn.partialy.pm.model.AgreementResponse
 import cn.partialy.pm.model.AboutResponse
 import cn.partialy.pm.model.AnnouncementResponse
@@ -41,6 +42,9 @@ interface SystemApiService {
 
     @GET("api/config/about")
     suspend fun getAbout(): AboutResponse
+
+    @GET("api/config/get")
+    suspend fun getDynamicConfig(@Query("id") id: String): DynamicConfigResponse
 
     @GET("api/config/announcements")
     suspend fun getAnnouncements(): AnnouncementResponse

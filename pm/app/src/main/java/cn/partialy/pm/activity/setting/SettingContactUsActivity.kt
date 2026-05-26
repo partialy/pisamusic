@@ -4,7 +4,6 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
-import cn.partialy.pm.model.AgreementInfo
 import cn.partialy.pm.network.config.ConfigManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -12,15 +11,15 @@ import org.json.JSONObject
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class SettingPrivacyPolicyActivity : BaseSettingWebActivity() {
+class SettingContactUsActivity : BaseSettingWebActivity() {
 
     @Inject
     lateinit var configManager: ConfigManager
 
     private var pageReady = false
-    private var payload: AgreementInfo? = null
+    private var htmlContent: String? = null
 
-    override fun headerTitle(): String = "隐私政策"
+    override fun headerTitle(): String = "联系我们"
 
     override fun initialUrl(): String {
         val isDark =
@@ -32,8 +31,10 @@ class SettingPrivacyPolicyActivity : BaseSettingWebActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
-            payload = runCatching { configManager.getPrivacyPolicyInfo() }.getOrElse {
-                showPageError("隐私政策获取失败")
+            htmlContent = runCatching {
+                configManager.getDynamicConfigInfo(CONTACT_CONFIG_ID).content
+            }.getOrElse {
+                showPageError("联系我们信息获取失败")
                 return@launch
             }
             render()
@@ -47,9 +48,9 @@ class SettingPrivacyPolicyActivity : BaseSettingWebActivity() {
 
     private fun render() {
         if (!pageReady) return
-        val p = payload ?: return
+        val content = htmlContent ?: return
         val json = JSONObject().apply {
-            put("content", p.content)
+            put("content", content)
         }
         binding.webContentWebView.evaluateJavascript(
             "window.PM_POLICY && window.PM_POLICY.render($json);",
@@ -68,5 +69,8 @@ class SettingPrivacyPolicyActivity : BaseSettingWebActivity() {
             null,
         )
     }
-}
 
+    companion object {
+        private const val CONTACT_CONFIG_ID = "pm-contact-us"
+    }
+}

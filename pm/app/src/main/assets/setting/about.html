@@ -111,6 +111,22 @@
 
             <div class="h-px bg-gray-50 dark:bg-slate-800/60 mx-4"></div>
 
+            <button id="contactBtn" class="w-full flex items-center justify-between p-4 active:bg-gray-50 dark:active:bg-slate-800/50 transition-colors text-left">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-18 8h18a2 2 0 002-2V6a2 2 0 00-2-2H3a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <span class="text-[15px] font-medium text-slate-700 dark:text-slate-200">联系我们</span>
+                </div>
+                <svg class="w-4 h-4 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+
+            <div class="h-px bg-gray-50 dark:bg-slate-800/60 mx-4"></div>
+
             <button id="privacyBtn" class="w-full flex items-center justify-between p-4 active:bg-gray-50 dark:active:bg-slate-800/50 rounded-b-2xl transition-colors text-left">
                 <div class="flex items-center">
                     <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 mr-3">
@@ -154,6 +170,7 @@
             officialBtn: document.getElementById('officialBtn'),
             checkUpdateBtn: document.getElementById('checkUpdateBtn'),
             serviceBtn: document.getElementById('serviceBtn'),
+            contactBtn: document.getElementById('contactBtn'),
             privacyBtn: document.getElementById('privacyBtn')
         };
 
@@ -171,6 +188,11 @@
             els.serviceBtn.addEventListener('click', function() {
                 if (window.AndroidAboutHost && typeof window.AndroidAboutHost.openServiceAgreement === 'function') {
                     window.AndroidAboutHost.openServiceAgreement();
+                }
+            });
+            els.contactBtn.addEventListener('click', function() {
+                if (window.AndroidAboutHost && typeof window.AndroidAboutHost.openContactUs === 'function') {
+                    window.AndroidAboutHost.openContactUs();
                 }
             });
             els.privacyBtn.addEventListener('click', function() {

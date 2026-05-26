@@ -6,6 +6,7 @@ import cn.partialy.pm.model.AboutInfo
 import cn.partialy.pm.model.UpdateInfo
 import cn.partialy.pm.model.DeviceReportRequest
 import cn.partialy.pm.model.DeviceReportResult
+import cn.partialy.pm.model.DynamicConfigInfo
 import cn.partialy.pm.model.SyncBindRequest
 import cn.partialy.pm.model.SyncBindResult
 import cn.partialy.pm.model.SyncChangeInput
@@ -113,6 +114,14 @@ class ConfigManager @Inject constructor(
         val response = systemApiService.getAbout()
         if (!response.success || response.code != 0) {
             throw ApiException(response.code, response.msg.ifBlank { "关于信息获取失败" })
+        }
+        return response.data
+    }
+
+    suspend fun getDynamicConfigInfo(id: String): DynamicConfigInfo {
+        val response = systemApiService.getDynamicConfig(id)
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "动态配置获取失败" })
         }
         return response.data
     }

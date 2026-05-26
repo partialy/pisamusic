@@ -108,6 +108,13 @@ class SettingAboutActivity : BaseSettingWebActivity() {
         }
 
         @JavascriptInterface
+        fun openContactUs() {
+            runOnUiThread {
+                startActivity(Intent(this@SettingAboutActivity, SettingContactUsActivity::class.java))
+            }
+        }
+
+        @JavascriptInterface
         fun openUrl(url: String?) {
             val target = url?.trim().orEmpty()
             if (!(target.startsWith("http://") || target.startsWith("https://"))) return

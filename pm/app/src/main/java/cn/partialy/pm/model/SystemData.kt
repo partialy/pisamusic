@@ -95,6 +95,19 @@ data class AnnouncementResponse(
     val data: List<AnnouncementItem>,
 )
 
+data class DynamicConfigResponse(
+    val msg: String,
+    val code: Int,
+    val success: Boolean = true,
+    val data: DynamicConfigInfo,
+)
+
+data class DynamicConfigInfo(
+    val id: String,
+    val type: String,
+    val content: String,
+)
+
 data class AnnouncementItem(
     val id: String,
     val content: String,
