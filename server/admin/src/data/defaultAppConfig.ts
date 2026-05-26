@@ -31,6 +31,30 @@ export const defaultAppConfig: AppConfigJson = {
     officialUrl: "https://pisamusic.partialy.cn",
     updateContent: "1, Fix known issues;2, Improve splash flow",
   },
+  releases: {
+    android: {
+      latestVersion: "v2.1.1",
+      updateTime: "2025-6-10 10:00",
+      forceUpdate: false,
+      downloadUrl: "https://cloudreve.yixivip.top/f/yMtV/echo_v1.1.0.apk",
+      officialUrl: "https://pisamusic.partialy.cn",
+      updateContent: "1, Fix known issues;2, Improve splash flow",
+      platformLabel: "Android",
+      fileSizeText: "26.7MB",
+      available: true,
+    },
+    desktop: {
+      latestVersion: "v0.0.0",
+      updateTime: "",
+      forceUpdate: false,
+      downloadUrl: "",
+      officialUrl: "https://pisamusic.partialy.cn",
+      updateContent: "PC 版正在准备中。",
+      platformLabel: "PC 版",
+      fileSizeText: "",
+      available: false,
+    },
+  },
   agreement: {
     title: "Service Agreement and Privacy",
     content:

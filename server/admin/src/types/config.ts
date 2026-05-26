@@ -1,14 +1,35 @@
 export type AppUpdatePayload = {
+  platform?: ReleasePlatform;
   latestVersion: string;
   updateTime: string;
   forceUpdate: boolean;
   downloadUrl: string;
   officialUrl: string;
   updateContent: string;
+  platformLabel?: string;
+  fileSizeText?: string;
+  available?: boolean;
 };
+
+export type ReleasePlatform = "android" | "desktop";
+
+export type ReleaseInfo = {
+  latestVersion: string;
+  updateTime: string;
+  forceUpdate: boolean;
+  downloadUrl: string;
+  officialUrl: string;
+  updateContent: string;
+  platformLabel: string;
+  fileSizeText: string;
+  available: boolean;
+};
+
+export type ReleaseConfig = Record<ReleasePlatform, ReleaseInfo>;
 
 export type UpdateHistoryItem = {
   id: string;
+  platform: ReleasePlatform;
   version: string;
   updateTime: string;
   forceUpdate: boolean;
@@ -34,6 +55,7 @@ export type AppConfigJson = {
     gatewaySign?: GatewaySignConfig;
   };
   update: AppUpdatePayload;
+  releases: ReleaseConfig;
   agreement: {
     title: string;
     content: string;
@@ -59,12 +81,15 @@ export type AppConfigJson = {
   };
 };
 
-export type AppConfigSectionsPayload = Partial<Pick<AppConfigJson, "availability" | "bootstrap" | "agreement" | "privacy" | "about" | "discover">>;
+export type AppConfigSectionsPayload = Partial<
+  Pick<AppConfigJson, "availability" | "bootstrap" | "releases" | "agreement" | "privacy" | "about" | "discover">
+>;
 
 export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
   "/api/health",
   "/api/config/bootstrap",
   "/api/config/check-update",
+  "/api/config/releases",
   "/api/config/discover",
   "/api/config/update-history",
   "/api/config/agreement",
@@ -89,12 +114,16 @@ export type Announcement = {
 };
 
 export type UpdateFormDraft = {
+  platform: ReleasePlatform;
   version: string;
   updateTime: string;
   forceUpdate: boolean;
   downloadUrl: string;
   officialUrl: string;
   updateContent: string;
+  platformLabel: string;
+  fileSizeText: string;
+  available: boolean;
 };
 
 export type DeviceInfo = {

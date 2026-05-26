@@ -13,3 +13,14 @@ export type AppUpdateInfo = {
   officialUrl: string;
   updateContent: string;
 };
+
+export type ReleaseInfo = AppUpdateInfo & {
+  platformLabel: string;
+  fileSizeText: string;
+  available: boolean;
+};
+
+export type ReleaseConfig = {
+  android: ReleaseInfo;
+  desktop: ReleaseInfo;
+};

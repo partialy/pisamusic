@@ -9,7 +9,7 @@ export default function SiteHeader() {
           <img className="h-9 w-9 rounded-lg shadow-sm" src="/assets/app-icon.png" alt="" />
           <span className="font-display text-lg font-black text-pisa-ink">PisaMusic</span>
         </a>
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-6 lg:flex">
           {navItems.map((item) => (
             <a key={item.href} href={item.href} className="text-sm font-bold text-slate-600 transition hover:text-pisa-blue">
               {item.label}

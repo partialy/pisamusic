@@ -6,12 +6,14 @@ import jwt from "jsonwebtoken";
 import {
   type AboutConfig,
   type Announcement,
-  type AppUpdate,
   type AvailabilityConfig,
   type BootstrapConfig,
   type DiscoverConfig,
   type EditableAppConfigSections,
   type GatewaySignConfig,
+  type ReleaseConfig,
+  type ReleaseInfo,
+  type ReleasePlatform,
   type TextContentConfig,
   deleteAnnouncement,
   publishUpdate,
@@ -35,7 +37,7 @@ export const adminRouter = Router();
 const JWT_EXPIRES: jwt.SignOptions["expiresIn"] = "7d";
 const PATH_REGEX = /^\/[A-Za-z0-9._\-/*]*$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MANDATORY_PLAINTEXT_PATHS = ["/api/config/discover", "/discover/*"];
+const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/discover", "/discover/*"];
 
 function getUsernameFromJwt(req: Request): string | null {
   const raw = req.headers.authorization;
@@ -61,19 +63,42 @@ function normalizeRequiredString(value: unknown, field: string, maxLength: numbe
   return { ok: true, value: text };
 }
 
-function normalizePayload(body: unknown): AppUpdate | null {
+function normalizePlatform(value: unknown): ReleasePlatform {
+  return value === "desktop" ? "desktop" : "android";
+}
+
+function normalizePayload(body: unknown): { platform: ReleasePlatform; release: ReleaseInfo } | null {
   const b = body as Record<string, unknown>;
   if (!b || typeof b !== "object") return null;
 
+  const platform = normalizePlatform(b.platform);
   const latestVersion = String(b.latestVersion ?? "").trim();
   const updateTime = String(b.updateTime ?? "").trim();
   const downloadUrl = String(b.downloadUrl ?? "").trim();
   const officialUrl = String(b.officialUrl ?? "").trim();
   const updateContent = String(b.updateContent ?? "").trim();
   const forceUpdate = Boolean(b.forceUpdate);
+  const platformLabel = String(b.platformLabel ?? (platform === "desktop" ? "PC 版" : "Android")).trim();
+  const fileSizeText = String(b.fileSizeText ?? "").trim();
+  const available = Boolean(b.available) && Boolean(downloadUrl);
 
-  if (!latestVersion || !updateTime || !downloadUrl || !officialUrl || !updateContent) return null;
-  return { latestVersion, updateTime, forceUpdate, downloadUrl, officialUrl, updateContent };
+  if (!latestVersion || !updateTime || !officialUrl || !updateContent || !platformLabel) return null;
+  if (available && !downloadUrl) return null;
+  if (platform === "android" && !downloadUrl) return null;
+  return {
+    platform,
+    release: {
+      latestVersion,
+      updateTime,
+      forceUpdate,
+      downloadUrl,
+      officialUrl,
+      updateContent,
+      platformLabel,
+      fileSizeText,
+      available,
+    },
+  };
 }
 
 function normalizeGatewaySignPayload(body: unknown): GatewaySignConfig | null {
@@ -192,6 +217,56 @@ function normalizeBootstrap(input: unknown): { ok: true; value: Partial<Bootstra
   return { ok: true, value: bootstrap };
 }
 
+function normalizeRelease(input: unknown, platform: ReleasePlatform): { ok: true; value: ReleaseInfo } | { ok: false; msg: string } {
+  if (!isRecord(input)) return { ok: false, msg: `releases.${platform} 必须是对象` };
+  const latestVersion = normalizeRequiredString(input.latestVersion, `releases.${platform}.latestVersion`, 100);
+  if (!latestVersion.ok) return latestVersion;
+  const updateTime = normalizeRequiredString(input.updateTime, `releases.${platform}.updateTime`, 100);
+  if (!updateTime.ok) return updateTime;
+  const officialUrl = normalizeRequiredString(input.officialUrl, `releases.${platform}.officialUrl`, 1000);
+  if (!officialUrl.ok) return officialUrl;
+  const updateContent = normalizeRequiredString(input.updateContent, `releases.${platform}.updateContent`, 50000);
+  if (!updateContent.ok) return updateContent;
+  const platformLabel = normalizeRequiredString(input.platformLabel, `releases.${platform}.platformLabel`, 100);
+  if (!platformLabel.ok) return platformLabel;
+  const downloadUrl = typeof input.downloadUrl === "string" ? input.downloadUrl.trim() : "";
+  if (platform === "android" && !downloadUrl) return { ok: false, msg: "Android 下载地址不能为空" };
+  if (downloadUrl.length > 1000) return { ok: false, msg: `releases.${platform}.downloadUrl 长度不能超过 1000` };
+  const fileSizeText = typeof input.fileSizeText === "string" ? input.fileSizeText.trim() : "";
+  if (fileSizeText.length > 60) return { ok: false, msg: `releases.${platform}.fileSizeText 长度不能超过 60` };
+  return {
+    ok: true,
+    value: {
+      latestVersion: latestVersion.value,
+      updateTime: updateTime.value,
+      forceUpdate: Boolean(input.forceUpdate),
+      downloadUrl,
+      officialUrl: officialUrl.value,
+      updateContent: updateContent.value,
+      platformLabel: platformLabel.value,
+      fileSizeText,
+      available: Boolean(input.available) && Boolean(downloadUrl),
+    },
+  };
+}
+
+function normalizeReleases(input: unknown): { ok: true; value: Partial<ReleaseConfig> } | { ok: false; msg: string } {
+  if (!isRecord(input)) return { ok: false, msg: "releases 必须是对象" };
+  const releases: Partial<ReleaseConfig> = {};
+  if ("android" in input) {
+    const android = normalizeRelease(input.android, "android");
+    if (!android.ok) return android;
+    releases.android = android.value;
+  }
+  if ("desktop" in input) {
+    const desktop = normalizeRelease(input.desktop, "desktop");
+    if (!desktop.ok) return desktop;
+    releases.desktop = desktop.value;
+  }
+  if (!releases.android && !releases.desktop) return { ok: false, msg: "releases 至少需要包含 android 或 desktop" };
+  return { ok: true, value: releases };
+}
+
 function normalizeAppConfigSections(input: unknown): { ok: true; value: EditableAppConfigSections } | { ok: false; msg: string } {
   if (!isRecord(input)) return { ok: false, msg: "请求体必须是对象" };
   const sections: EditableAppConfigSections = {};
@@ -204,6 +279,11 @@ function normalizeAppConfigSections(input: unknown): { ok: true; value: Editable
     const bootstrap = normalizeBootstrap(input.bootstrap);
     if (!bootstrap.ok) return bootstrap;
     sections.bootstrap = bootstrap.value;
+  }
+  if ("releases" in input) {
+    const releases = normalizeReleases(input.releases);
+    if (!releases.ok) return releases;
+    sections.releases = releases.value;
   }
   if ("agreement" in input) {
     const agreement = normalizeTextContent(input.agreement, "agreement");
@@ -397,8 +477,8 @@ adminRouter.post("/publish-update", (req, res) => {
   try {
     const payload = normalizePayload(req.body);
     if (!payload) return res.status(400).json(fail("参数不完整或格式不正确", 400));
-    const history = publishUpdate(payload, randomUUID());
-    return res.json(ok({ id: history.id, update: payload }, "发布成功"));
+    const history = publishUpdate(payload.release, randomUUID(), payload.platform);
+    return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform }, "发布成功"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "发布更新失败";
     return res.status(500).json(fail(message, 500));

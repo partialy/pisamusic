@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { fetchLatestUpdate } from "../api/update";
-import type { AppUpdateInfo } from "../types/update";
+import { fetchReleaseConfig } from "../api/update";
+import type { ReleaseConfig } from "../types/update";
 
 export type UpdateState = {
-  data: AppUpdateInfo | null;
+  data: ReleaseConfig | null;
   loading: boolean;
   error: string | null;
 };
@@ -18,7 +18,7 @@ export function useUpdateInfo(): UpdateState {
   useEffect(() => {
     let mounted = true;
 
-    fetchLatestUpdate()
+    fetchReleaseConfig()
       .then((data) => {
         if (mounted) setState({ data, loading: false, error: null });
       })

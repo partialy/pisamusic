@@ -251,12 +251,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     const plus8Time = getCurrentPlus8Time();
     setEditingUpdateIsNew(true);
     setEditingUpdateDraft({
+      platform: "android",
       version: "v",
       updateTime: plus8Time,
       forceUpdate: false,
       downloadUrl: "",
       officialUrl: "https://pisamusic.partialy.cn",
       updateContent: "",
+      platformLabel: "Android",
+      fileSizeText: "",
+      available: true,
     });
   };
 
@@ -271,11 +275,13 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     if (
       !payload.latestVersion ||
       !payload.updateTime ||
-      !payload.downloadUrl ||
       !payload.officialUrl ||
-      !payload.updateContent
+      !payload.updateContent ||
+      !payload.platformLabel ||
+      (payload.platform === "android" && !payload.downloadUrl) ||
+      (payload.available && !payload.downloadUrl)
     ) {
-      alert("请填写完整：版本号、时间、下载地址、官网地址与更新说明。");
+      alert("请填写完整：版本号、时间、官网地址、更新说明；Android 或已开放下载的版本还需要下载地址。");
       return;
     }
     setPublishSaving(true);

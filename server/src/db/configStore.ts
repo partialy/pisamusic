@@ -10,6 +10,16 @@ export type AppUpdate = {
   updateContent: string;
 };
 
+export type ReleasePlatform = "android" | "desktop";
+
+export type ReleaseInfo = AppUpdate & {
+  platformLabel: string;
+  fileSizeText: string;
+  available: boolean;
+};
+
+export type ReleaseConfig = Record<ReleasePlatform, ReleaseInfo>;
+
 export type GatewaySignConfig = {
   secret: string;
   as: string;
@@ -50,6 +60,7 @@ export type AppConfig = {
   availability: AvailabilityConfig;
   bootstrap: BootstrapConfig;
   update: AppUpdate;
+  releases: ReleaseConfig;
   agreement: TextContentConfig;
   privacy: TextContentConfig;
   about: AboutConfig;
@@ -62,6 +73,7 @@ export type AppConfig = {
 export type EditableAppConfigSections = {
   availability?: AvailabilityConfig;
   bootstrap?: Partial<BootstrapConfig>;
+  releases?: Partial<ReleaseConfig>;
   agreement?: TextContentConfig;
   privacy?: TextContentConfig;
   about?: AboutConfig;
@@ -70,6 +82,7 @@ export type EditableAppConfigSections = {
 
 export type UpdateHistoryItem = {
   id: string;
+  platform: ReleasePlatform;
   version: string;
   updateTime: string;
   forceUpdate: boolean;
@@ -77,6 +90,8 @@ export type UpdateHistoryItem = {
   officialUrl: string;
   updateContent: string;
 };
+
+const RELEASE_PLATFORMS: ReleasePlatform[] = ["android", "desktop"];
 
 export type Announcement = {
   id: string;
@@ -126,6 +141,30 @@ const DEFAULT_APP_CONFIG: AppConfig = {
     officialUrl: "",
     updateContent: "",
   },
+  releases: {
+    android: {
+      latestVersion: "v0.0.0",
+      updateTime: "",
+      forceUpdate: false,
+      downloadUrl: "",
+      officialUrl: "https://pisamusic.partialy.cn",
+      updateContent: "",
+      platformLabel: "Android",
+      fileSizeText: "",
+      available: false,
+    },
+    desktop: {
+      latestVersion: "v0.0.0",
+      updateTime: "",
+      forceUpdate: false,
+      downloadUrl: "",
+      officialUrl: "https://pisamusic.partialy.cn",
+      updateContent: "PC 版正在准备中。",
+      platformLabel: "PC 版",
+      fileSizeText: "",
+      available: false,
+    },
+  },
   agreement: { title: "", content: "" },
   privacy: { title: "", content: "" },
   about: {
@@ -151,6 +190,46 @@ function boolFromDb(value: unknown): boolean {
 
 function boolToDb(value: boolean): number {
   return value ? 1 : 0;
+}
+
+function releaseFromUpdate(update: AppUpdate, platform: ReleasePlatform): ReleaseInfo {
+  const defaults = DEFAULT_APP_CONFIG.releases[platform];
+  return {
+    ...update,
+    platformLabel: defaults.platformLabel,
+    fileSizeText: defaults.fileSizeText,
+    available: Boolean(update.downloadUrl),
+  };
+}
+
+function appUpdateFromRelease(release: ReleaseInfo): AppUpdate {
+  return {
+    latestVersion: release.latestVersion,
+    updateTime: release.updateTime,
+    forceUpdate: release.forceUpdate,
+    downloadUrl: release.downloadUrl,
+    officialUrl: release.officialUrl,
+    updateContent: release.updateContent,
+  };
+}
+
+function normalizeRelease(platform: ReleasePlatform, release?: Partial<ReleaseInfo>, fallbackUpdate?: AppUpdate): ReleaseInfo {
+  const defaults = fallbackUpdate ? releaseFromUpdate(fallbackUpdate, platform) : DEFAULT_APP_CONFIG.releases[platform];
+  const next = {
+    ...defaults,
+    ...(release ?? {}),
+  };
+  return {
+    latestVersion: next.latestVersion ?? "",
+    updateTime: next.updateTime ?? "",
+    forceUpdate: Boolean(next.forceUpdate),
+    downloadUrl: next.downloadUrl ?? "",
+    officialUrl: next.officialUrl ?? "",
+    updateContent: next.updateContent ?? "",
+    platformLabel: next.platformLabel || DEFAULT_APP_CONFIG.releases[platform].platformLabel,
+    fileSizeText: next.fileSizeText ?? "",
+    available: Boolean(next.available) && Boolean(next.downloadUrl),
+  };
 }
 
 function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
@@ -221,6 +300,10 @@ export function replaceAppConfig(config: AppConfig) {
     replaceContentPage(db, "privacy", config.privacy);
     replaceAbout(db, config.about);
     replaceCurrentUpdate(db, config.update);
+    replaceReleases(db, {
+      android: normalizeRelease("android", config.releases?.android, config.update),
+      desktop: normalizeRelease("desktop", config.releases?.desktop),
+    });
     replaceDiscover(db, config.discover ?? DEFAULT_APP_CONFIG.discover);
     replacePlaintextPathsWithDb(db, config.encryption?.plaintextPaths ?? []);
   });
@@ -291,6 +374,41 @@ function replaceCurrentUpdate(db: DatabaseSync, update: AppUpdate) {
   );
 }
 
+function replaceReleases(db: DatabaseSync, releases: ReleaseConfig) {
+  for (const platform of RELEASE_PLATFORMS) {
+    const release = normalizeRelease(platform, releases[platform], platform === "android" ? appUpdateFromRelease(releases.android) : undefined);
+    db.prepare(
+      `INSERT INTO release_info (
+        platform, latest_version, update_time, force_update, download_url, official_url,
+        update_content, platform_label, file_size_text, available, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(platform) DO UPDATE SET
+        latest_version = excluded.latest_version,
+        update_time = excluded.update_time,
+        force_update = excluded.force_update,
+        download_url = excluded.download_url,
+        official_url = excluded.official_url,
+        update_content = excluded.update_content,
+        platform_label = excluded.platform_label,
+        file_size_text = excluded.file_size_text,
+        available = excluded.available,
+        updated_at = excluded.updated_at`,
+    ).run(
+      platform,
+      release.latestVersion,
+      release.updateTime,
+      boolToDb(release.forceUpdate),
+      release.downloadUrl,
+      release.officialUrl,
+      release.updateContent,
+      release.platformLabel,
+      release.fileSizeText,
+      boolToDb(release.available),
+      Date.now(),
+    );
+  }
+}
+
 function replaceDiscover(db: DatabaseSync, discover: DiscoverConfig) {
   db.prepare(
     `INSERT INTO discover_config (id, url, updated_at)
@@ -341,6 +459,18 @@ export function readAppConfig(): AppConfig {
         update_content: string;
       }
     | undefined;
+  const releaseRows = db.prepare("SELECT * FROM release_info").all() as {
+    platform: ReleasePlatform;
+    latest_version: string;
+    update_time: string;
+    force_update: number;
+    download_url: string;
+    official_url: string;
+    update_content: string;
+    platform_label: string;
+    file_size_text: string;
+    available: number;
+  }[];
   const discover = db.prepare("SELECT * FROM discover_config WHERE id = 1").get() as
     | {
         url: string;
@@ -348,6 +478,34 @@ export function readAppConfig(): AppConfig {
       }
     | undefined;
   const pageByCode = new Map(pages.map((page) => [page.code, page]));
+  const currentUpdate: AppUpdate = update
+    ? {
+        latestVersion: update.latest_version,
+        updateTime: update.update_time,
+        forceUpdate: boolFromDb(update.force_update),
+        downloadUrl: update.download_url,
+        officialUrl: update.official_url,
+        updateContent: update.update_content,
+      }
+    : DEFAULT_APP_CONFIG.update;
+  const releases: ReleaseConfig = {
+    android: normalizeRelease("android", undefined, currentUpdate),
+    desktop: normalizeRelease("desktop"),
+  };
+  for (const row of releaseRows) {
+    if (row.platform !== "android" && row.platform !== "desktop") continue;
+    releases[row.platform] = normalizeRelease(row.platform, {
+      latestVersion: row.latest_version,
+      updateTime: row.update_time,
+      forceUpdate: boolFromDb(row.force_update),
+      downloadUrl: row.download_url,
+      officialUrl: row.official_url,
+      updateContent: row.update_content,
+      platformLabel: row.platform_label,
+      fileSizeText: row.file_size_text,
+      available: boolFromDb(row.available),
+    });
+  }
 
   return {
     availability: {
@@ -363,16 +521,8 @@ export function readAppConfig(): AppConfig {
         as: settings?.gateway_as ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.as ?? "",
       },
     },
-    update: update
-      ? {
-          latestVersion: update.latest_version,
-          updateTime: update.update_time,
-          forceUpdate: boolFromDb(update.force_update),
-          downloadUrl: update.download_url,
-          officialUrl: update.official_url,
-          updateContent: update.update_content,
-        }
-      : DEFAULT_APP_CONFIG.update,
+    update: currentUpdate,
+    releases,
     agreement: pageByCode.get("agreement") ?? DEFAULT_APP_CONFIG.agreement,
     privacy: pageByCode.get("privacy") ?? DEFAULT_APP_CONFIG.privacy,
     about: about
@@ -416,6 +566,11 @@ export function saveAppConfigSections(sections: EditableAppConfigSections): AppC
       endpoints: sections.bootstrap?.endpoints ?? current.bootstrap.endpoints,
       gatewaySign: sections.bootstrap?.gatewaySign ?? current.bootstrap.gatewaySign,
     },
+    update: sections.releases?.android ? appUpdateFromRelease(normalizeRelease("android", sections.releases.android, current.update)) : current.update,
+    releases: {
+      android: normalizeRelease("android", sections.releases?.android ?? current.releases.android, current.update),
+      desktop: normalizeRelease("desktop", sections.releases?.desktop ?? current.releases.desktop),
+    },
     agreement: sections.agreement ?? current.agreement,
     privacy: sections.privacy ?? current.privacy,
     about: sections.about ?? current.about,
@@ -425,10 +580,13 @@ export function saveAppConfigSections(sections: EditableAppConfigSections): AppC
   return readAppConfig();
 }
 
-export function publishUpdate(update: AppUpdate, historyId: string): UpdateHistoryItem {
+export function publishUpdate(update: AppUpdate, historyId: string, platform: ReleasePlatform = "android"): UpdateHistoryItem {
   const db = getAppDb();
+  const current = readAppConfig();
+  const release = normalizeRelease(platform, update, platform === "android" ? update : undefined);
   const item: UpdateHistoryItem = {
     id: historyId,
+    platform,
     version: update.latestVersion,
     updateTime: update.updateTime,
     forceUpdate: update.forceUpdate,
@@ -437,7 +595,13 @@ export function publishUpdate(update: AppUpdate, historyId: string): UpdateHisto
     updateContent: update.updateContent,
   };
   runInTransaction(db, () => {
-    replaceCurrentUpdate(db, update);
+    if (platform === "android") {
+      replaceCurrentUpdate(db, update);
+    }
+    replaceReleases(db, {
+      android: platform === "android" ? release : current.releases.android,
+      desktop: platform === "desktop" ? release : current.releases.desktop,
+    });
     insertUpdateHistory(db, item);
   });
   return item;
@@ -446,10 +610,11 @@ export function publishUpdate(update: AppUpdate, historyId: string): UpdateHisto
 export function insertUpdateHistory(db: DatabaseSync, item: UpdateHistoryItem, createdAt = Date.now()) {
   db.prepare(
     `INSERT OR IGNORE INTO update_history (
-      id, version, update_time, force_update, download_url, official_url, update_content, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, platform, version, update_time, force_update, download_url, official_url, update_content, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     item.id,
+    item.platform,
     item.version,
     item.updateTime,
     boolToDb(item.forceUpdate),
@@ -464,6 +629,7 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
   const db = getAppDb();
   const rows = db.prepare("SELECT * FROM update_history ORDER BY created_at ASC, rowid ASC").all() as {
     id: string;
+    platform?: ReleasePlatform;
     version: string;
     update_time: string;
     force_update: number;
@@ -473,6 +639,7 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
   }[];
   return rows.map((row) => ({
     id: row.id,
+    platform: row.platform === "desktop" ? "desktop" : "android",
     version: row.version,
     updateTime: row.update_time,
     forceUpdate: boolFromDb(row.force_update),

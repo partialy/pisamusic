@@ -28,6 +28,30 @@
     "officialUrl": "https://pisamusic.partialy.cn",
     "updateContent": "1"
   },
+  "releases": {
+    "android": {
+      "latestVersion": "v2.1.2",
+      "updateTime": "2026-04-12 12:22",
+      "forceUpdate": false,
+      "downloadUrl": "https://pisamusic.partialy.cn",
+      "officialUrl": "https://pisamusic.partialy.cn",
+      "updateContent": "1",
+      "platformLabel": "Android",
+      "fileSizeText": "26.7MB",
+      "available": true
+    },
+    "desktop": {
+      "latestVersion": "v0.0.0",
+      "updateTime": "",
+      "forceUpdate": false,
+      "downloadUrl": "",
+      "officialUrl": "https://pisamusic.partialy.cn",
+      "updateContent": "PC 版正在准备中。",
+      "platformLabel": "PC 版",
+      "fileSizeText": "",
+      "available": false
+    }
+  },
   "agreement": {
     "title": "Service Agreement and Privacy",
     "content": "<div><p>Welcome to PisaMusic. Please read and agree to the User Agreement and Privacy Policy before using the app.</p><p>To provide music playback and download features, network and local storage access are required.</p></div>"
@@ -52,6 +76,7 @@
     "plaintextPaths": [
       "/api/health",
       "/api/config/check-update",
+      "/api/config/releases",
       "/api/config/discover",
       "/discover/*",
       "/uploads/*"

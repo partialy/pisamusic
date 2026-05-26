@@ -51,6 +51,35 @@ export default function UpdateModal({ draft, isNew, themeColor, saving, onClose,
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 no-scrollbar">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">发布平台</label>
+            <div className="grid grid-cols-2 gap-3 rounded-2xl border border-white/60 bg-white/40 p-2 shadow-sm">
+              {[
+                { key: "android" as const, label: "Android" },
+                { key: "desktop" as const, label: "PC 版" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      ...draft,
+                      platform: item.key,
+                      platformLabel: item.key === "desktop" ? "PC 版" : "Android",
+                      available: item.key === "android" ? true : draft.available,
+                    })
+                  }
+                  className={`rounded-xl px-4 py-3 text-sm font-extrabold transition-all ${
+                    draft.platform === item.key ? "text-white shadow-sm" : "bg-white/60 text-slate-600 hover:bg-white"
+                  }`}
+                  style={draft.platform === item.key ? { backgroundColor: themeColor } : undefined}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">版本号 (Version)</label>
@@ -73,12 +102,47 @@ export default function UpdateModal({ draft, isNew, themeColor, saving, onClose,
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">平台显示名</label>
+              <input
+                type="text"
+                value={draft.platformLabel}
+                onChange={(e) => onChange({ ...draft, platformLabel: e.target.value })}
+                className={glassInputClasses}
+                placeholder="Android / PC 版"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">安装包大小</label>
+              <input
+                type="text"
+                value={draft.fileSizeText}
+                onChange={(e) => onChange({ ...draft, fileSizeText: e.target.value })}
+                className={glassInputClasses}
+                placeholder="例如: 26.7MB"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center justify-between bg-white/40 backdrop-blur-md p-4 rounded-2xl border border-white/60 shadow-sm">
             <span className="text-sm font-bold text-slate-700">
               强制更新 (Force Update){" "}
               <span className="text-[10px] font-normal text-slate-400 block mt-0.5">开启后用户必须更新才能继续使用APP</span>
             </span>
             <Switch checked={draft.forceUpdate} onChange={(val) => onChange({ ...draft, forceUpdate: val })} themeColor={themeColor} />
+          </div>
+
+          <div className="flex items-center justify-between bg-white/40 backdrop-blur-md p-4 rounded-2xl border border-white/60 shadow-sm">
+            <span className="text-sm font-bold text-slate-700">
+              开放下载{" "}
+              <span className="text-[10px] font-normal text-slate-400 block mt-0.5">关闭后官网会显示“即将开放”，PC 版可先不填下载地址。</span>
+            </span>
+            <Switch
+              checked={draft.available}
+              onChange={(val) => onChange({ ...draft, available: val || draft.platform === "android" })}
+              themeColor={themeColor}
+            />
           </div>
 
           <div>
@@ -88,7 +152,7 @@ export default function UpdateModal({ draft, isNew, themeColor, saving, onClose,
               value={draft.downloadUrl}
               onChange={(e) => onChange({ ...draft, downloadUrl: e.target.value })}
               className={glassInputClasses + " font-mono"}
-              placeholder="APK直链"
+              placeholder={draft.platform === "desktop" ? "EXE/MSI/ZIP 直链，可暂时留空" : "APK直链"}
             />
           </div>
 

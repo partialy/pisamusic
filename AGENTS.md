@@ -19,6 +19,7 @@
 - 做新增功能、调整模块边界、迁移框架、改变持久化方式或改变运行流程时，必须同步更新相关 `AGENTS.md`，避免项目记忆与实际代码不一致。
 - 修改前先确认目标子项目状态，不要回退、覆盖或清理用户已有的无关改动。
 - 跨端或跨服务改动要明确影响面。接口字段、加密规则、配置结构、更新信息、设备上报、公告、反馈等数据契约变更时，需要同步检查 `pm/`、`server/` 和 `yixi/`。
+- 官网发布信息支持 Android / PC 双端配置，推荐接口为 `GET /api/config/releases`；旧 `GET /api/config/check-update` 必须保持 Android 更新信息兼容，不要改成多端结构。
 - 手机端与桌面端收藏/歌单同步由外层 `server/` 的 `/api/sync/*` 提供服务；同步接口默认走系统加密链路，使用同步码绑定空间、`Authorization: Bearer <syncToken>` 鉴权，变更以增量 op、服务端版本和 tombstone 合并，不要绕过服务端让两端直接互写本地库。
 - 生成或修改构建产物、数据库、日志、上传文件前，先判断它们是否应被 Git 跟踪；运行时产物默认不要纳入源码变更。
 
@@ -50,6 +51,7 @@
 - 构建：`pnpm --dir server build`
 - 启动构建产物：`pnpm --dir server start`
 - 默认端口：`53380`
+- 官网双端发布接口：`/api/config/releases` 返回 Android 与 PC 当前发布信息；`/api/config/check-update` 保留为 Android 旧更新接口。
 - 同步接口：`/api/sync/spaces` 首次创建同步码，`/api/sync/spaces/reset` 鉴权后重新生成同步码并清空旧同步空间，`/api/sync/spaces/join` 加入同步空间，`/api/sync/changes` 拉取/推送增量，`/api/sync/devices/unbind` 解绑设备；同步 DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准。
 
 管理后台与官网：

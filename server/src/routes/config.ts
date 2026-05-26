@@ -43,6 +43,20 @@ configRouter.get("/check-update", (_req, res) => {
   }
 });
 
+configRouter.get("/releases", (_req, res) => {
+  try {
+    const { cfg, state } = blockedResponse();
+    if (state.blocked) {
+      res.json(fail(state.reason, -233));
+      return;
+    }
+    res.json(ok(cfg.releases));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取配置失败";
+    res.status(500).json(fail(message, 500));
+  }
+});
+
 configRouter.get("/discover", (_req, res) => {
   try {
     const { cfg, state } = blockedResponse();

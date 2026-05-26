@@ -35,6 +35,9 @@ export default function UpdateTab({ displayHistory, themeColor, onPublishNew, on
                 <span className="bg-amber-100 text-amber-700 text-xs font-extrabold px-2.5 py-1 rounded-lg">
                   {index === 0 ? "最新版本" : "历史版本"}
                 </span>
+                <span className="bg-sky-100 text-sky-700 text-xs font-extrabold px-2.5 py-1 rounded-lg">
+                  {upd.platform === "desktop" ? "PC 版" : "Android"}
+                </span>
                 <span className="text-lg font-bold text-slate-800">{upd.version}</span>
                 <span className="text-xs text-slate-400 flex items-center">
                   <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

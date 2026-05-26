@@ -6,7 +6,7 @@ export default function SiteFooter() {
           <img className="h-10 w-10 rounded-lg" src="/assets/app-icon.png" alt="" />
           <div>
             <p className="font-display text-lg font-black text-pisa-ink">PisaMusic</p>
-            <p className="text-sm text-slate-500">年轻、干净的安卓多音源音乐播放器。</p>
+            <p className="text-sm text-slate-500">随身版与桌面版，共同抵达同一份热爱。</p>
           </div>
         </div>
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-center text-sm font-bold text-slate-500 md:justify-end md:text-right">

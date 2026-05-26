@@ -110,7 +110,7 @@ export async function publishUpdate(payload: AppUpdatePayload): Promise<{ id: st
     method: "POST",
     body: JSON.stringify(payload),
   });
-  const body = await parseJson<{ id: string; update: AppUpdatePayload }>(res);
+  const body = await parseJson<{ id: string; update: AppUpdatePayload; platform: string }>(res);
   if (!res.ok || !body.success || body.data == null) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }

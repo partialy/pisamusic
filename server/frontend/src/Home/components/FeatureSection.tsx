@@ -1,5 +1,5 @@
 import SectionHeader from "../../common/SectionHeader";
-import { featureItems } from "../../data/siteContent";
+import { sharedFeatures } from "../../data/siteContent";
 
 export default function FeatureSection() {
   return (
@@ -7,15 +7,15 @@ export default function FeatureSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
         <div className="rise-in">
           <SectionHeader
-            eyebrow="What it feels like"
-            title="从想听，到开始播放，中间少一点阻力。"
-            desc="PisaMusic 适合那些经常搜索、收藏、整理歌单，也在意歌词和下载体验的人。它不喧闹，不抢戏，只把高频听歌动作做得更顺手。"
+            eyebrow="使用感受"
+            title="它用起来，是这样的感觉。"
+            desc="搜索、播放、下载与整理，终于归于同一个入口。两端共享同一种产品气质：少些平台间的来回切换，多些稳定而从容的整理。移动端轻快如随笔，桌面端沉静如日记。"
             align="center"
           />
         </div>
 
         <div className="mt-10 grid gap-3 sm:mt-14 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-          {featureItems.map((item, index) => {
+          {sharedFeatures.map((item, index) => {
             const Icon = item.icon;
             return (
               <article

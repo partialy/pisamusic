@@ -76,6 +76,20 @@ CREATE TABLE IF NOT EXISTS current_update (
     updated_at      INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS release_info (
+    platform        TEXT    PRIMARY KEY,
+    latest_version  TEXT    NOT NULL,
+    update_time     TEXT    NOT NULL,
+    force_update    INTEGER NOT NULL DEFAULT 0,
+    download_url    TEXT    NOT NULL,
+    official_url    TEXT    NOT NULL,
+    update_content  TEXT    NOT NULL,
+    platform_label  TEXT    NOT NULL,
+    file_size_text  TEXT    NOT NULL,
+    available       INTEGER NOT NULL DEFAULT 0,
+    updated_at      INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS discover_config (
     id              INTEGER PRIMARY KEY CHECK (id = 1),
     url             TEXT    NOT NULL,
@@ -84,6 +98,7 @@ CREATE TABLE IF NOT EXISTS discover_config (
 
 CREATE TABLE IF NOT EXISTS update_history (
     id              TEXT    PRIMARY KEY,
+    platform        TEXT    NOT NULL DEFAULT 'android',
     version         TEXT    NOT NULL,
     update_time     TEXT    NOT NULL,
     force_update    INTEGER NOT NULL DEFAULT 0,
@@ -231,9 +246,17 @@ function migrateDeviceInfo(db: DatabaseSync) {
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_device_info_fingerprint ON device_info(fingerprint)`);
 }
 
+function migrateUpdateHistory(db: DatabaseSync) {
+  const cols = getColumnNames(db, "update_history");
+  if (!cols.has("platform")) {
+    db.exec(`ALTER TABLE update_history ADD COLUMN platform TEXT NOT NULL DEFAULT 'android'`);
+  }
+}
+
 function initSchema(db: DatabaseSync) {
   db.exec(CREATE_SQL);
   migrateDeviceInfo(db);
+  migrateUpdateHistory(db);
 }
 
 let singleton: DatabaseSync | null = null;
