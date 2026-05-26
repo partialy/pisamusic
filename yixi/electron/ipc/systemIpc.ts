@@ -4,6 +4,7 @@ import {
   getBootstrap,
   getRuntimeEndpointsCached,
   getRuntimeEndpointsFresh,
+  getStartupServiceState,
   getSystemBaseUrl,
   submitFeedback,
 } from "../system/systemClient";
@@ -21,6 +22,10 @@ export function setupSystemIpc() {
 
   ipcMain.handle("system:get-bootstrap", () => {
     return getBootstrap();
+  });
+
+  ipcMain.handle("system:get-startup-service-state", () => {
+    return getStartupServiceState();
   });
 
   ipcMain.handle("system:get-runtime-endpoints", (_event, fresh?: boolean) => {

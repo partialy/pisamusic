@@ -183,6 +183,12 @@ type BootstrapConfig = {
   };
 };
 
+type StartupServiceState = {
+  localMode: boolean;
+  reason: string;
+  deviceId: string;
+};
+
 type Announcement = {
   id: string;
   content: string;
@@ -534,6 +540,7 @@ type ElectronIpcApi = {
 
   getSystemBaseUrl: () => Promise<string>;
   getBootstrapConfig: () => Promise<BootstrapConfig>;
+  getStartupServiceState: () => Promise<StartupServiceState>;
   getRuntimeEndpoints: (fresh?: boolean) => Promise<BackServerConfig>;
   getAnnouncements: () => Promise<Announcement[]>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;

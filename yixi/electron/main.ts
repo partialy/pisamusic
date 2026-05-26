@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { closeAppDatabase } from "./database";
@@ -22,6 +22,7 @@ import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
 import { startSyncOnStartup } from "./sync/syncService";
+import { prepareStartupServiceState } from "./system/systemClient";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -146,10 +147,18 @@ function setupStartupBridge() {
   });
 }
 
-function launchAppRuntime() {
+async function launchAppRuntime() {
   if (appRuntimeStarted) return;
   appRuntimeStarted = true;
   startupWindow.showLoading();
+  try {
+    await prepareStartupServiceState();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "当前设备不可用";
+    dialog.showErrorBox("PisaMusic", message);
+    quitApplication();
+    return;
+  }
   createMainWindow();
   playerTray.create();
   void refreshKgCookieIfNeeded("startup");
@@ -192,7 +201,7 @@ app.whenReady().then(() => {
   startupWindow = new StartupWindowManager({
     htmlPath: join(currentDir, "./web/startup-window.html"),
     iconPath,
-    onAccepted: launchAppRuntime,
+    onAccepted: () => void launchAppRuntime(),
     onRejected: quitApplication,
   });
 
@@ -203,7 +212,7 @@ app.whenReady().then(() => {
 
   if (startupWindow.hasAcceptedAgreement()) {
     startupWindow.open("loading");
-    launchAppRuntime();
+    void launchAppRuntime();
   } else {
     startupWindow.open("agreement");
   }
@@ -224,7 +233,7 @@ app.on("before-quit", () => {
 app.on("activate", () => {
   if (mainWindow !== null || isQuitting) return;
   if (startupWindow?.hasAcceptedAgreement()) {
-    launchAppRuntime();
+    void launchAppRuntime();
   } else {
     startupWindow?.open("agreement");
   }

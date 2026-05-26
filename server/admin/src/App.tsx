@@ -3,6 +3,7 @@ import type {
   Announcement,
   AppConfigJson,
   AppConfigSectionsPayload,
+  DesktopDeviceInfo,
   DeviceFilter,
   DeviceInfo,
   DynamicConfigItem,
@@ -17,14 +18,18 @@ import {
   createDynamicConfig,
   deleteDynamicConfig as deleteDynamicConfigApi,
   deleteAnnouncement as deleteAnnouncementApi,
+  deleteDesktopDevice,
   deleteDevice,
   fetchAnnouncements,
   fetchAppConfig,
   fetchDynamicConfigs,
+  fetchDesktopDeviceDetail,
+  fetchDesktopDevices,
   fetchDeviceDetail,
   fetchDevices,
   fetchEncryptionConfig,
   fetchUpdateHistory,
+  lockDesktopDevice,
   lockDevice,
   publishUpdate,
   registerUnauthorizedHandler,
@@ -134,13 +139,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [discoverSaving, setDiscoverSaving] = useState(false);
   const [contentSaving, setContentSaving] = useState(false);
 
-  const [devices, setDevices] = useState<DeviceInfo[]>([]);
+  const [deviceMode, setDeviceMode] = useState<"android" | "desktop">("android");
+  const [devices, setDevices] = useState<Array<DeviceInfo | DesktopDeviceInfo>>([]);
   const [deviceTotal, setDeviceTotal] = useState(0);
   const [deviceOffset, setDeviceOffset] = useState(0);
   const [deviceLimit] = useState(20);
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>({});
   const [deviceLoading, setDeviceLoading] = useState(false);
-  const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | DesktopDeviceInfo | null>(null);
 
   const displayHistory = useMemo(() => [...updateHistory].reverse(), [updateHistory]);
 
@@ -587,7 +593,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const loadDevices = useCallback(async () => {
     setDeviceLoading(true);
     try {
-      const result = await fetchDevices({ ...deviceFilter, offset: deviceOffset, limit: deviceLimit });
+      const fetcher = deviceMode === "desktop" ? fetchDesktopDevices : fetchDevices;
+      const result = await fetcher({ ...deviceFilter, offset: deviceOffset, limit: deviceLimit });
       setDevices(result.devices);
       setDeviceTotal(result.total);
     } catch (e) {
@@ -596,7 +603,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     } finally {
       setDeviceLoading(false);
     }
-  }, [deviceFilter, deviceOffset, deviceLimit]);
+  }, [deviceFilter, deviceOffset, deviceLimit, deviceMode]);
 
   useEffect(() => {
     void loadDevices();
@@ -611,10 +618,19 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setDeviceOffset(Math.max(0, offset));
   };
 
-  const handleSelectDevice = async (device: DeviceInfo | null) => {
+  const handleDeviceModeChange = (mode: "android" | "desktop") => {
+    setDeviceMode(mode);
+    setSelectedDevice(null);
+    setDeviceFilter({});
+    setDeviceOffset(0);
+  };
+
+  const handleSelectDevice = async (device: DeviceInfo | DesktopDeviceInfo | null) => {
     if (device) {
       try {
-        const detail = await fetchDeviceDetail(device.id);
+        const detail = deviceMode === "desktop"
+          ? await fetchDesktopDeviceDetail(device.id)
+          : await fetchDeviceDetail(device.id);
         setSelectedDevice(detail);
       } catch (e) {
         alert(e instanceof Error ? e.message : "加载设备详情失败");
@@ -626,7 +642,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleLockDevice = async (id: string, locked: boolean, lockEndTime?: number | null) => {
     try {
-      const updated = await lockDevice(id, locked, lockEndTime);
+      const updated = deviceMode === "desktop"
+        ? await lockDesktopDevice(id, locked, lockEndTime)
+        : await lockDevice(id, locked, lockEndTime);
       setDevices(prev => prev.map(d => d.id === id ? updated : d));
       if (selectedDevice?.id === id) {
         setSelectedDevice(updated);
@@ -638,7 +656,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleDeleteDevice = async (id: string) => {
     try {
-      await deleteDevice(id);
+      if (deviceMode === "desktop") await deleteDesktopDevice(id);
+      else await deleteDevice(id);
       setSelectedDevice(null);
       await loadDevices();
     } catch (e) {
@@ -1037,6 +1056,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               )}
               {currentTab === "devices" && (
                 <DevicesTab
+                  deviceMode={deviceMode}
                   devices={devices}
                   totalDevices={deviceTotal}
                   deviceOffset={deviceOffset}
@@ -1045,6 +1065,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   deviceLoading={deviceLoading}
                   themeColor={themeColor}
                   selectedDevice={selectedDevice}
+                  onModeChange={handleDeviceModeChange}
                   onFilterChange={handleFilterChange}
                   onPageChange={handleDevicePageChange}
                   onRefreshDevices={() => void loadDevices()}

@@ -9,6 +9,8 @@ import type {
   DeviceFilter,
   DeviceInfo,
   DeviceListResponse,
+  DesktopDeviceInfo,
+  DesktopDeviceListResponse,
   ReleaseFileInfo,
   ReleasePlatform,
   UpdateHistoryItem,
@@ -342,9 +344,35 @@ export async function fetchDevices(filter: DeviceFilter): Promise<DeviceListResp
   return body.data;
 }
 
+export async function fetchDesktopDevices(filter: DeviceFilter): Promise<DesktopDeviceListResponse> {
+  const params = new URLSearchParams();
+  if (filter.search) params.set("search", filter.search);
+  if (filter.locked !== undefined) params.set("locked", String(filter.locked));
+  if (filter.platform) params.set("platform", filter.platform);
+  if (filter.offset !== undefined) params.set("offset", String(filter.offset));
+  if (filter.limit !== undefined) params.set("limit", String(filter.limit));
+  const qs = params.toString();
+  const url = `/api/admin/desktop-device/list${qs ? `?${qs}` : ""}`;
+  const res = await fetchWithAuth(url);
+  const body = await parseJson<DesktopDeviceListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
 export async function fetchDeviceDetail(id: string): Promise<DeviceInfo> {
   const res = await fetchWithAuth(`/api/admin/device/${id}`);
   const body = await parseJson<DeviceInfo>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchDesktopDeviceDetail(id: string): Promise<DesktopDeviceInfo> {
+  const res = await fetchWithAuth(`/api/admin/desktop-device/${id}`);
+  const body = await parseJson<DesktopDeviceInfo>(res);
   if (!res.ok || !body.success || body.data == null) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
@@ -363,8 +391,30 @@ export async function lockDevice(id: string, locked: boolean, lockEndTime?: numb
   return body.data;
 }
 
+export async function lockDesktopDevice(id: string, locked: boolean, lockEndTime?: number | null): Promise<DesktopDeviceInfo> {
+  const res = await fetchWithAuth(`/api/admin/desktop-device/${id}/lock`, {
+    method: "POST",
+    body: JSON.stringify({ locked, lockEndTime: lockEndTime ?? null }),
+  });
+  const body = await parseJson<DesktopDeviceInfo>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
 export async function deleteDevice(id: string): Promise<void> {
   const res = await fetchWithAuth(`/api/admin/device/${id}`, {
+    method: "DELETE",
+  });
+  const body = await parseJson<null>(res);
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+}
+
+export async function deleteDesktopDevice(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/desktop-device/${id}`, {
     method: "DELETE",
   });
   const body = await parseJson<null>(res);

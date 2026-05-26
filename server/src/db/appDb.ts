@@ -29,6 +29,27 @@ CREATE TABLE IF NOT EXISTS device_info (
 CREATE INDEX IF NOT EXISTS idx_device_info_last_active ON device_info (last_active_at);
 CREATE INDEX IF NOT EXISTS idx_device_info_brand_model ON device_info (brand, model);
 
+CREATE TABLE IF NOT EXISTS desktop_device_info (
+    id                  TEXT        PRIMARY KEY,
+    fingerprint         TEXT        NOT NULL UNIQUE,
+    device_name         TEXT        NOT NULL,
+    hostname            TEXT        NOT NULL,
+    os_name             TEXT        NOT NULL,
+    os_version          TEXT        NOT NULL,
+    platform            TEXT        NOT NULL,
+    arch                TEXT        NOT NULL,
+    app_version         TEXT        NOT NULL,
+    locked              INTEGER     NOT NULL DEFAULT 0,
+    lock_end_time       INTEGER     DEFAULT NULL,
+    first_seen_at       INTEGER     NOT NULL,
+    last_active_at      INTEGER     NOT NULL,
+    first_seen_ip       TEXT,
+    last_seen_ip        TEXT,
+    extra_info          TEXT        NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_desktop_device_info_last_active ON desktop_device_info (last_active_at);
+CREATE INDEX IF NOT EXISTS idx_desktop_device_info_platform_arch ON desktop_device_info (platform, arch);
+
 CREATE TABLE IF NOT EXISTS app_settings (
     id                      INTEGER     PRIMARY KEY CHECK (id = 1),
     app_available           INTEGER     NOT NULL DEFAULT 1,

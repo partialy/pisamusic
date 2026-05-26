@@ -168,6 +168,7 @@ export type UpdateFormDraft = {
 export type DeviceInfo = {
   id: string;
   fingerprint: string;
+  deviceKind?: "android";
   deviceName: string;
   brand: string;
   model: string;
@@ -187,8 +188,35 @@ export type DeviceInfo = {
   extraInfo: Record<string, unknown>;
 };
 
+export type DesktopDeviceInfo = {
+  id: string;
+  fingerprint: string;
+  deviceKind?: "desktop";
+  deviceName: string;
+  hostname: string;
+  osName: string;
+  osVersion: string;
+  platform: string;
+  arch: string;
+  appVersion: string;
+  locked: boolean;
+  lockEndTime: number | null;
+  firstSeenAt: number;
+  lastActiveAt: number;
+  firstSeenIp: string | null;
+  lastSeenIp: string | null;
+  extraInfo: Record<string, unknown>;
+};
+
 export type DeviceListResponse = {
   devices: DeviceInfo[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type DesktopDeviceListResponse = {
+  devices: DesktopDeviceInfo[];
   total: number;
   offset: number;
   limit: number;
@@ -198,6 +226,7 @@ export type DeviceFilter = {
   search?: string;
   locked?: boolean;
   brand?: string;
+  platform?: string;
   offset?: number;
   limit?: number;
 };

@@ -1,24 +1,30 @@
 import { useEffect, useState } from "react";
-import type { DeviceFilter, DeviceInfo } from "../../types/config";
+import type { DesktopDeviceInfo, DeviceFilter, DeviceInfo } from "../../types/config";
 import { glassCardClasses, glassInputClasses } from "../../constants/theme";
 import { formatDateTimeLocal, formatTimestamp, parseDateTimeLocal } from "../../utils/date";
 
 type Props = {
-  devices: DeviceInfo[];
+  deviceMode: "android" | "desktop";
+  devices: Array<DeviceInfo | DesktopDeviceInfo>;
   totalDevices: number;
   deviceOffset: number;
   deviceLimit: number;
   deviceFilter: DeviceFilter;
   deviceLoading: boolean;
   themeColor: string;
-  selectedDevice: DeviceInfo | null;
+  selectedDevice: DeviceInfo | DesktopDeviceInfo | null;
+  onModeChange: (mode: "android" | "desktop") => void;
   onFilterChange: (filter: DeviceFilter) => void;
   onPageChange: (offset: number) => void;
   onRefreshDevices: () => void;
-  onSelectDevice: (device: DeviceInfo | null) => void;
+  onSelectDevice: (device: DeviceInfo | DesktopDeviceInfo | null) => void;
   onLockDevice: (id: string, locked: boolean, lockEndTime?: number | null) => void;
   onDeleteDevice: (id: string) => void;
 };
+
+function isDesktopDevice(device: DeviceInfo | DesktopDeviceInfo): device is DesktopDeviceInfo {
+  return "hostname" in device;
+}
 
 function LockBadge({ locked, lockEndTime }: { locked: boolean; lockEndTime: number | null }) {
   if (!locked) {
@@ -57,6 +63,7 @@ function FieldRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function DevicesTab({
+  deviceMode,
   devices,
   totalDevices,
   deviceOffset,
@@ -65,6 +72,7 @@ export default function DevicesTab({
   deviceLoading,
   themeColor,
   selectedDevice,
+  onModeChange,
   onFilterChange,
   onPageChange,
   onRefreshDevices,
@@ -82,18 +90,21 @@ export default function DevicesTab({
 
   const totalPages = Math.max(1, Math.ceil(totalDevices / deviceLimit));
   const currentPage = Math.floor(deviceOffset / deviceLimit) + 1;
-  const hasActiveFilter = Boolean(deviceFilter.search || deviceFilter.brand || deviceFilter.locked !== undefined);
+  const hasActiveFilter = Boolean(deviceFilter.search || deviceFilter.brand || deviceFilter.platform || deviceFilter.locked !== undefined);
 
   useEffect(() => {
     setLocalSearch(deviceFilter.search ?? "");
-    setLocalBrand(deviceFilter.brand ?? "");
+    setLocalBrand(deviceMode === "desktop" ? deviceFilter.platform ?? "" : deviceFilter.brand ?? "");
     setLocalLockedFilter(deviceFilter.locked === true ? "locked" : deviceFilter.locked === false ? "unlocked" : "all");
-  }, [deviceFilter]);
+  }, [deviceFilter, deviceMode]);
 
   const handleApplyFilter = () => {
     const filter: DeviceFilter = {};
     if (localSearch.trim()) filter.search = localSearch.trim();
-    if (localBrand.trim()) filter.brand = localBrand.trim();
+    if (localBrand.trim()) {
+      if (deviceMode === "desktop") filter.platform = localBrand.trim();
+      else filter.brand = localBrand.trim();
+    }
     if (localLockedFilter === "locked") filter.locked = true;
     if (localLockedFilter === "unlocked") filter.locked = false;
     onFilterChange(filter);
@@ -117,6 +128,11 @@ export default function DevicesTab({
   if (selectedDevice) {
     const d = selectedDevice;
     const extras = Object.entries(d.extraInfo);
+    const desktop = isDesktopDevice(d);
+    const title = desktop ? `${d.deviceName} / ${d.hostname}` : `${d.brand} ${d.model}`;
+    const subtitle = desktop
+      ? `${d.osName} ${d.osVersion} / ${d.platform} ${d.arch}`
+      : `${d.deviceName} / Android ${d.osVersion} / SDK ${d.sdkVersion}`;
 
     return (
       <div className="space-y-8 animate-fade-in-up">
@@ -136,8 +152,8 @@ export default function DevicesTab({
             <div className="flex min-w-0 flex-1 items-center">
               <DeviceIcon />
               <div className="min-w-0">
-                <h2 className="truncate text-xl font-bold text-slate-800">{d.brand} {d.model}</h2>
-                <p className="mt-1 truncate text-xs text-slate-500">{d.deviceName} / Android {d.osVersion} / SDK {d.sdkVersion}</p>
+                <h2 className="truncate text-xl font-bold text-slate-800">{title}</h2>
+                <p className="mt-1 truncate text-xs text-slate-500">{subtitle}</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -149,20 +165,32 @@ export default function DevicesTab({
           <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
             <FieldRow label="ID" value={d.id} />
             <FieldRow label="Fingerprint" value={d.fingerprint} />
-            <FieldRow label="Brand" value={d.brand} />
-            <FieldRow label="Model" value={d.model} />
             <FieldRow label="Device Name" value={d.deviceName} />
-            <FieldRow label="OS Version" value={d.osVersion} />
-            <FieldRow label="SDK Version" value={String(d.sdkVersion)} />
+            {desktop ? (
+              <>
+                <FieldRow label="Hostname" value={d.hostname} />
+                <FieldRow label="OS Name" value={d.osName} />
+                <FieldRow label="OS Version" value={d.osVersion} />
+                <FieldRow label="Platform" value={d.platform} />
+                <FieldRow label="Arch" value={d.arch} />
+              </>
+            ) : (
+              <>
+                <FieldRow label="Brand" value={d.brand} />
+                <FieldRow label="Model" value={d.model} />
+                <FieldRow label="OS Version" value={d.osVersion} />
+                <FieldRow label="SDK Version" value={String(d.sdkVersion)} />
+                <FieldRow label="App Version Code" value={String(d.appVersionCode)} />
+                <FieldRow label="Country Code" value={d.lastCountryCode ?? "N/A"} />
+                <FieldRow label="Timezone" value={d.lastTimezone ?? "N/A"} />
+                <FieldRow label="Locale" value={d.lastLocale ?? "N/A"} />
+              </>
+            )}
             <FieldRow label="App Version" value={d.appVersion} />
-            <FieldRow label="App Version Code" value={String(d.appVersionCode)} />
             <FieldRow label="First Seen At" value={formatTimestamp(d.firstSeenAt)} />
             <FieldRow label="Last Active At" value={formatTimestamp(d.lastActiveAt)} />
             <FieldRow label="First Seen IP" value={d.firstSeenIp ?? "N/A"} />
             <FieldRow label="Last Seen IP" value={d.lastSeenIp ?? "N/A"} />
-            <FieldRow label="Country Code" value={d.lastCountryCode ?? "N/A"} />
-            <FieldRow label="Timezone" value={d.lastTimezone ?? "N/A"} />
-            <FieldRow label="Locale" value={d.lastLocale ?? "N/A"} />
           </div>
 
           {extras.length > 0 && (
@@ -312,18 +340,36 @@ export default function DevicesTab({
           <div className="flex min-w-0 items-center">
             <DeviceIcon />
             <div>
-              <h2 className="text-xl font-bold text-slate-800">设备列表</h2>
+              <h2 className="text-xl font-bold text-slate-800">{deviceMode === "desktop" ? "PC 设备列表" : "Android 设备列表"}</h2>
               <p className="mt-1 text-xs text-slate-500">共 {totalDevices} 台设备</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onRefreshDevices}
-            style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-            className="shrink-0 rounded-2xl px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:opacity-90"
-          >
-            刷新列表
-          </button>
+          <div className="flex shrink-0 flex-wrap gap-3">
+            <div className="rounded-2xl border border-white/60 bg-white/50 p-1 shadow-inner">
+              <button
+                type="button"
+                onClick={() => onModeChange("android")}
+                className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${deviceMode === "android" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                Android
+              </button>
+              <button
+                type="button"
+                onClick={() => onModeChange("desktop")}
+                className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${deviceMode === "desktop" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                PC
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={onRefreshDevices}
+              style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
+              className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:opacity-90"
+            >
+              刷新列表
+            </button>
+          </div>
         </div>
 
         <form
@@ -339,7 +385,7 @@ export default function DevicesTab({
               <input
                 type="text"
                 value={localSearch}
-                placeholder="品牌、型号、设备名、ID"
+                placeholder={deviceMode === "desktop" ? "设备名、主机名、系统、ID" : "品牌、型号、设备名、ID"}
                 onChange={(e) => setLocalSearch(e.target.value)}
                 className={glassInputClasses + " h-11"}
               />
@@ -359,11 +405,11 @@ export default function DevicesTab({
             </label>
 
             <label className="block min-w-0">
-              <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">品牌</span>
+              <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">{deviceMode === "desktop" ? "平台" : "品牌"}</span>
               <input
                 type="text"
                 value={localBrand}
-                placeholder="品牌筛选"
+                placeholder={deviceMode === "desktop" ? "win32 / darwin / linux" : "品牌筛选"}
                 onChange={(e) => setLocalBrand(e.target.value)}
                 className={glassInputClasses + " h-11"}
               />
@@ -392,6 +438,7 @@ export default function DevicesTab({
               <span className="font-bold text-slate-600">当前筛选:</span>
               {deviceFilter.search && <span className="rounded-lg bg-white/70 px-2 py-1 font-mono">搜索: {deviceFilter.search}</span>}
               {deviceFilter.brand && <span className="rounded-lg bg-white/70 px-2 py-1 font-mono">品牌: {deviceFilter.brand}</span>}
+              {deviceFilter.platform && <span className="rounded-lg bg-white/70 px-2 py-1 font-mono">平台: {deviceFilter.platform}</span>}
               {deviceFilter.locked !== undefined && (
                 <span className="rounded-lg bg-white/70 px-2 py-1 font-mono">状态: {deviceFilter.locked ? "已封禁" : "正常"}</span>
               )}
@@ -409,21 +456,23 @@ export default function DevicesTab({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {devices.map((d) => (
+            {devices.map((d) => {
+              const desktop = isDesktopDevice(d);
+              const title = desktop ? `${d.deviceName} / ${d.hostname}` : `${d.brand} ${d.model}`;
+              const subtitle = desktop
+                ? `${d.osName} ${d.osVersion} / ${d.platform} ${d.arch}`
+                : `${d.deviceName} / Android ${d.osVersion} / SDK ${d.sdkVersion}`;
+              return (
               <div key={d.id} className={`${glassCardClasses} group !p-5`}>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <span className="min-w-0 truncate text-sm font-bold text-slate-800">{d.brand} {d.model}</span>
+                      <span className="min-w-0 truncate text-sm font-bold text-slate-800">{title}</span>
                       <LockBadge locked={d.locked} lockEndTime={d.lockEndTime} />
                       <span className="rounded-md border border-slate-200 bg-slate-100/60 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-600">v{d.appVersion}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                      <span>{d.deviceName}</span>
-                      <span className="text-slate-400">/</span>
-                      <span>Android {d.osVersion}</span>
-                      <span className="text-slate-400">/</span>
-                      <span>SDK {d.sdkVersion}</span>
+                      <span>{subtitle}</span>
                       <span className="text-slate-400">/</span>
                       <span>最近活跃 {formatTimestamp(d.lastActiveAt)}</span>
                     </div>
@@ -455,7 +504,7 @@ export default function DevicesTab({
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
 

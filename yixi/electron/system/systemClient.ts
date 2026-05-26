@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import os from "node:os";
+import { app } from "electron";
 import { getAppDatabase } from "../database";
 import { decrypt, encrypt, randomFullKey } from "./encryption";
 import { signGatewayUrl } from "./gatewaySigner";
@@ -6,9 +8,12 @@ import type {
   Announcement,
   ApiResponse,
   BootstrapConfig,
+  DesktopDeviceReportRequest,
+  DesktopDeviceReportResult,
   FeedbackPayload,
   GatewaySignConfig,
   RuntimeEndpoints,
+  StartupServiceState,
 } from "./types";
 
 const DEFAULT_SERVER_URL = "http://127.0.0.1:53380";
@@ -26,6 +31,20 @@ type RequestOptions = {
 
 let cachedBootstrap: BootstrapConfig | null = null;
 let bootstrapPromise: Promise<BootstrapConfig> | null = null;
+let startupServiceState: StartupServiceState = {
+  localMode: false,
+  reason: "",
+  deviceId: "",
+};
+
+class DesktopDeviceLockedError extends Error {
+  readonly report: DesktopDeviceReportResult;
+
+  constructor(report: DesktopDeviceReportResult) {
+    super(desktopLockedMessage(report));
+    this.report = report;
+  }
+}
 
 export function getSystemBaseUrl() {
   return normalizeBaseUrl(process.env.PISA_SERVER_URL || process.env.PM_SERVER_URL || DEFAULT_SERVER_URL);
@@ -39,6 +58,33 @@ export async function refreshBootstrap() {
 
 export async function getBootstrap() {
   return ensureBootstrap();
+}
+
+export async function prepareStartupServiceState() {
+  try {
+    await refreshBootstrap();
+    const deviceReport = await reportDesktopDevice();
+    if (isDesktopDeviceLocked(deviceReport)) {
+      throw new DesktopDeviceLockedError(deviceReport);
+    }
+    startupServiceState = {
+      localMode: false,
+      reason: "",
+      deviceId: deviceReport.id,
+    };
+  } catch (error) {
+    if (error instanceof DesktopDeviceLockedError) throw error;
+    startupServiceState = {
+      localMode: true,
+      reason: toErrorMessage(error) || "服务不可用",
+      deviceId: startupServiceState.deviceId,
+    };
+  }
+  return startupServiceState;
+}
+
+export function getStartupServiceState() {
+  return startupServiceState;
 }
 
 export async function getGatewaySignConfigCached() {
@@ -100,6 +146,14 @@ export async function submitFeedback(payload: FeedbackPayload) {
     }
     throw error;
   }
+}
+
+async function reportDesktopDevice() {
+  const response = await requestSystem<DesktopDeviceReportResult>("/api/device/desktop/report", {
+    method: "POST",
+    body: buildDesktopDeviceReport(),
+  });
+  return unwrapResponse(response);
 }
 
 export type SyncBindResult = {
@@ -480,6 +534,43 @@ function safeParseRaw(raw: string, fallback: unknown) {
 
 function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function buildDesktopDeviceReport(): DesktopDeviceReportRequest {
+  return {
+    clientId: getDesktopDeviceClientId(),
+    deviceName: os.hostname() || `${process.platform}-${process.arch}`,
+    hostname: os.hostname() || "",
+    osName: os.type() || process.platform,
+    osVersion: os.release() || "",
+    platform: process.platform,
+    arch: process.arch,
+    appVersion: app.getVersion(),
+    extras: {
+      homedir: os.homedir(),
+      totalMemory: os.totalmem(),
+      cpus: os.cpus().length,
+    },
+  };
+}
+
+function getDesktopDeviceClientId() {
+  const key = "desktop-device-client-id";
+  const existing = getAppDatabase().getSetting<string>(key)?.value;
+  if (typeof existing === "string" && existing.trim()) return existing.trim();
+  const id = randomUUID();
+  getAppDatabase().setSetting(key, id, 1);
+  return id;
+}
+
+function isDesktopDeviceLocked(report: DesktopDeviceReportResult) {
+  if (!report.locked) return false;
+  return report.lockEndTime === null || report.lockEndTime > Date.now();
+}
+
+function desktopLockedMessage(report: DesktopDeviceReportResult) {
+  if (!report.lockEndTime) return "当前 PC 设备已被封禁，App 服务不可用";
+  return `当前 PC 设备已被封禁，解封时间：${new Date(report.lockEndTime).toLocaleString()}`;
 }
 
 function unwrapResponse<T>(response: ApiResponse<T>): T {

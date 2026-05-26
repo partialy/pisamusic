@@ -665,6 +665,53 @@ function mapDeviceRow(row: DeviceInfoRow) {
   };
 }
 
+type DesktopDeviceInfoRow = {
+  id: string;
+  fingerprint: string;
+  device_name: string;
+  hostname: string;
+  os_name: string;
+  os_version: string;
+  platform: string;
+  arch: string;
+  app_version: string;
+  locked: number;
+  lock_end_time: number | null;
+  first_seen_at: number;
+  last_active_at: number;
+  first_seen_ip: string | null;
+  last_seen_ip: string | null;
+  extra_info: string;
+};
+
+function mapDesktopDeviceRow(row: DesktopDeviceInfoRow) {
+  let extraInfo: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(row.extra_info) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) extraInfo = parsed as Record<string, unknown>;
+  } catch {
+    extraInfo = {};
+  }
+  return {
+    id: row.id,
+    fingerprint: row.fingerprint,
+    deviceName: row.device_name,
+    hostname: row.hostname,
+    osName: row.os_name,
+    osVersion: row.os_version,
+    platform: row.platform,
+    arch: row.arch,
+    appVersion: row.app_version,
+    locked: row.locked !== 0,
+    lockEndTime: row.lock_end_time,
+    firstSeenAt: row.first_seen_at,
+    lastActiveAt: row.last_active_at,
+    firstSeenIp: row.first_seen_ip,
+    lastSeenIp: row.last_seen_ip,
+    extraInfo,
+  };
+}
+
 adminRouter.get("/device/list", (req, res) => {
   try {
     const db = getDeviceDb();
@@ -749,6 +796,94 @@ adminRouter.delete("/device/:id", (req, res) => {
     return res.json(ok(null, "设备已删除"));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "删除设备失败";
+    return res.status(500).json(fail(msg, 500));
+  }
+});
+
+adminRouter.get("/desktop-device/list", (req, res) => {
+  try {
+    const db = getDeviceDb();
+    const search = String(req.query.search ?? "").trim();
+    const lockedParam = req.query.locked;
+    const platform = String(req.query.platform ?? "").trim();
+    const offset = Math.max(0, Number(req.query.offset ?? 0) || 0);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 20) || 20));
+
+    const whereClauses: string[] = [];
+    const params: (string | number)[] = [];
+    if (search) {
+      whereClauses.push("(device_name LIKE ? OR hostname LIKE ? OR os_name LIKE ? OR id LIKE ?)");
+      const term = `%${search}%`;
+      params.push(term, term, term, term);
+    }
+    if (lockedParam === "true" || lockedParam === "1") whereClauses.push("locked = 1");
+    else if (lockedParam === "false" || lockedParam === "0") whereClauses.push("locked = 0");
+    if (platform) {
+      whereClauses.push("platform LIKE ?");
+      params.push(`%${platform}%`);
+    }
+
+    const where = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+    const countRow = db.prepare(`SELECT COUNT(*) as total FROM desktop_device_info ${where}`).get(...params) as { total: number };
+    const rows = db.prepare(`SELECT * FROM desktop_device_info ${where} ORDER BY last_active_at DESC LIMIT ? OFFSET ?`)
+      .all(...params, limit, offset) as DesktopDeviceInfoRow[];
+
+    return res.json(ok({ devices: rows.map(mapDesktopDeviceRow), total: countRow.total, offset, limit }));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "查询 PC 设备列表失败";
+    return res.status(500).json(fail(msg, 500));
+  }
+});
+
+adminRouter.get("/desktop-device/:id", (req, res) => {
+  const id = String(req.params.id ?? "").trim();
+  if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid desktop device ID", 400));
+  try {
+    const db = getDeviceDb();
+    const row = db.prepare("SELECT * FROM desktop_device_info WHERE id = ?").get(id) as DesktopDeviceInfoRow | undefined;
+    if (!row) return res.status(404).json(fail("Desktop device not found", 404));
+    return res.json(ok(mapDesktopDeviceRow(row)));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "查询 PC 设备详情失败";
+    return res.status(500).json(fail(msg, 500));
+  }
+});
+
+adminRouter.post("/desktop-device/:id/lock", (req, res) => {
+  const id = String(req.params.id ?? "").trim();
+  if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid desktop device ID", 400));
+  try {
+    const body = req.body as Record<string, unknown>;
+    const locked = Boolean(body.locked);
+    const lockEndTime = body.lockEndTime != null ? Number(body.lockEndTime) : null;
+    if (lockEndTime !== null && !Number.isFinite(lockEndTime)) {
+      return res.status(400).json(fail("lockEndTime must be a valid timestamp or null", 400));
+    }
+
+    const db = getDeviceDb();
+    const existing = db.prepare("SELECT id FROM desktop_device_info WHERE id = ?").get(id) as { id: string } | undefined;
+    if (!existing) return res.status(404).json(fail("Desktop device not found", 404));
+
+    db.prepare("UPDATE desktop_device_info SET locked = ?, lock_end_time = ? WHERE id = ?").run(locked ? 1 : 0, lockEndTime, id);
+    const updated = db.prepare("SELECT * FROM desktop_device_info WHERE id = ?").get(id) as DesktopDeviceInfoRow;
+    return res.json(ok(mapDesktopDeviceRow(updated)));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "操作 PC 设备失败";
+    return res.status(500).json(fail(msg, 500));
+  }
+});
+
+adminRouter.delete("/desktop-device/:id", (req, res) => {
+  const id = String(req.params.id ?? "").trim();
+  if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid desktop device ID", 400));
+  try {
+    const db = getDeviceDb();
+    const existing = db.prepare("SELECT id FROM desktop_device_info WHERE id = ?").get(id) as { id: string } | undefined;
+    if (!existing) return res.status(404).json(fail("Desktop device not found", 404));
+    db.prepare("DELETE FROM desktop_device_info WHERE id = ?").run(id);
+    return res.json(ok(null, "PC 设备已删除"));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "删除 PC 设备失败";
     return res.status(500).json(fail(msg, 500));
   }
 });

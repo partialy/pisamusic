@@ -43,3 +43,29 @@ export type RuntimeEndpoints = {
   wyProxy: string;
   kwProxy: string;
 };
+
+export type DesktopDeviceReportRequest = {
+  clientId: string;
+  deviceName: string;
+  hostname: string;
+  osName: string;
+  osVersion: string;
+  platform: string;
+  arch: string;
+  appVersion: string;
+  extras?: Record<string, unknown>;
+};
+
+export type DesktopDeviceReportResult = {
+  id: string;
+  locked: boolean;
+  lockEndTime: number | null;
+  lastActiveAt: number;
+  firstSeenAt: number;
+};
+
+export type StartupServiceState = {
+  localMode: boolean;
+  reason: string;
+  deviceId: string;
+};

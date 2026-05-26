@@ -144,10 +144,19 @@ async function bootstrapApp() {
     setupListeners();
     setupAutoSaver();
     lyric.loadSetting();
+    const startupServiceState = await electronAPI.getStartupServiceState?.();
+    const isLocalMode = Boolean(startupServiceState?.localMode);
+    if (isLocalMode) {
+      window.$notification.warning({
+        title: "服务不可用",
+        content: "已进入本地模式，在线功能暂不可用",
+        duration: 5000,
+      });
+    }
 
     const results = await Promise.allSettled([
       themeStore.init(),
-      runtimeConfig.refresh(),
+      isLocalMode ? Promise.resolve(null) : runtimeConfig.refresh(),
       collector.initStore(),
       mineLibrary.init(),
       lyric.loadDesktopLyricSetting(),
