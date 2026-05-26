@@ -200,11 +200,6 @@ CREATE TABLE IF NOT EXISTS feedback_images (
 );
 CREATE INDEX IF NOT EXISTS idx_feedback_images_feedback_id ON feedback_images (feedback_id);
 
-CREATE TABLE IF NOT EXISTS json_imports (
-    source      TEXT    PRIMARY KEY,
-    imported_at INTEGER NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS sync_spaces (
     id              TEXT    PRIMARY KEY,
     sync_code       TEXT    NOT NULL UNIQUE,

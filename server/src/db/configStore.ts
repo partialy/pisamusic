@@ -311,29 +311,6 @@ function downloadUrlBelongsToReleaseFile(downloadUrl: string, file: ReleaseFileI
   return downloadUrl === file.downloadUrl || downloadUrl.includes(`/api/config/release-files/${encodeURIComponent(file.id)}/download`);
 }
 
-export function getJsonImport(source: string): boolean {
-  const db = getAppDb();
-  const row = db.prepare("SELECT source FROM json_imports WHERE source = ?").get(source) as
-    | { source: string }
-    | undefined;
-  return Boolean(row);
-}
-
-export function markJsonImported(source: string) {
-  const db = getAppDb();
-  db.prepare(
-    `INSERT INTO json_imports (source, imported_at)
-     VALUES (?, ?)
-     ON CONFLICT(source) DO UPDATE SET imported_at = excluded.imported_at`,
-  ).run(source, Date.now());
-}
-
-export function hasAppSettings(): boolean {
-  const db = getAppDb();
-  const row = db.prepare("SELECT id FROM app_settings WHERE id = 1").get() as { id: number } | undefined;
-  return Boolean(row);
-}
-
 export function replaceAppConfig(config: AppConfig) {
   const db = getAppDb();
   runInTransaction(db, () => {

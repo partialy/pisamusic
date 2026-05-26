@@ -127,3 +127,8 @@
 
 - 同步设置入口在 `SettingsActivity` 中只展示摘要和跳转，完整操作页为 `SyncSettingsActivity`；已绑定状态下重新生成同步码必须先确认，并通过 `/api/sync/spaces/reset` 走服务端 4 小时限制。
 - `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免把同步接口的 `Bearer <syncToken>` 覆盖为普通登录 token 导致 401。
+
+## 启动本地模式补充
+
+- `SplashActivity` 启动检查遇到没网、服务不可用或服务端 `appAvailable=false` 时进入本地模式，由 `MainActivity` 以非阻塞提示告知用户；设备封禁仍必须阻止进入。
+- 设置-关于中的“联系我们”通过 `/api/config/get?id=pm-contact-us` 获取 HTML 片段并用 WebView 渲染；服务协议和隐私政策页面只显示内容，不显示接口返回的 `title` 字段。

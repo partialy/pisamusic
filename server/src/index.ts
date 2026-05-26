@@ -3,7 +3,6 @@ import cors from "cors";
 import express from "express";
 import path from "node:path";
 import { readPlaintextPaths } from "./db/configStore";
-import { importJsonBackups } from "./db/jsonImport";
 import { logInterceptor } from "./interceptor/logInterceptor";
 import { encryptionMiddleware, setPlaintextPaths } from "./middleware/encryption";
 import { adminRouter } from "./routes/admin";
@@ -58,7 +57,6 @@ function loadPlaintextPaths(): string[] {
   return [...new Set([...base, ...MANDATORY_PLAINTEXT_PATHS])];
 }
 
-importJsonBackups();
 setPlaintextPaths(loadPlaintextPaths());
 app.use(encryptionMiddleware());
 
