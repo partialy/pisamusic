@@ -1,10 +1,12 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { autoUpdater, type ProgressInfo, type UpdateInfo } from "electron-updater";
+import updaterPkg from "electron-updater";
+import type { ProgressInfo, UpdateInfo } from "electron-updater";
 import { getBootstrap, getStartupServiceState, requestSystem } from "../system/systemClient";
 import type { BootstrapConfig } from "../system/types";
 import { logger } from "../utils/logger";
 
 const FALLBACK_FEED_BASE_URL = "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64";
+const { autoUpdater } = updaterPkg;
 
 type DesktopReleaseInfo = {
   latestVersion: string;
