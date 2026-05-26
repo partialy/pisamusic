@@ -44,6 +44,7 @@ const windowIpc = {
   closeWindow: () => ipcRenderer.send("window:close"),
   hideWindow: () => ipcRenderer.send("window:hide"),
   reloadWindow: () => ipcRenderer.send("window:reload"),
+  restartApp: () => ipcRenderer.send("window:restart-app"),
   openDevTools: () => ipcRenderer.send("window:dev-tools"),
   openUrl: (payload: { url: string; mode?: "window" | "external" }) =>
     ipcRenderer.invoke("window:open-url", cloneIpcPayload(payload)),

@@ -507,6 +507,7 @@ type ElectronIpcApi = {
   closeWindow: () => void;
   hideWindow: () => void;
   reloadWindow: () => void;
+  restartApp: () => void;
   openDevTools: () => void;
   openUrl: (payload: OpenUrlParams) => Promise<boolean>;
   notifyStartupReady: () => void;

@@ -148,6 +148,7 @@ const themeStore = useThemeStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
 const router = useRouter();
 const development = import.meta.env.DEV;
+const isLocalMode = ref(false);
 
 const openDevTools = () => {
   if(!development) return;
@@ -256,38 +257,53 @@ const dropDownOptions = [
   },
 ];
 
-const settingOptions = computed(() => [
-  {
-    label: themeStore.resolvedMode === "dark" ? "切换浅色" : "切换深色",
-    key: "theme",
-    icon: themeStore.resolvedMode === "dark"
-      ? renderIcon(SunIcon)
-      : renderIcon(MoonIcon),
-  },
-  {
-    key: "header-divider",
-    type: "divider",
-  },
-  {
-    label: "基本设置",
-    key: "setting",
-    icon: renderIcon(SettingIcon),
-  },
-
-  {
-    label: "关于",
-    key: "about",
-    icon: renderIcon(AboutIcon),
-  },
-  {
-    label: "热重载",
-    props: {
-      style: { color: "#D12604" },
+const settingOptions = computed(() => {
+  const options = [
+    {
+      label: themeStore.resolvedMode === "dark" ? "切换浅色" : "切换深色",
+      key: "theme",
+      icon: themeStore.resolvedMode === "dark"
+        ? renderIcon(SunIcon)
+        : renderIcon(MoonIcon),
     },
-    key: "exit",
-    icon: renderIcon(RefreshIcon, { color: "#D12604" }),
-  },
-]);
+    {
+      key: "header-divider",
+      type: "divider",
+    },
+    {
+      label: "基本设置",
+      key: "setting",
+      icon: renderIcon(SettingIcon),
+    },
+
+    {
+      label: "关于",
+      key: "about",
+      icon: renderIcon(AboutIcon),
+    },
+    {
+      label: "热重载",
+      props: {
+        style: { color: "#D12604" },
+      },
+      key: "exit",
+      icon: renderIcon(RefreshIcon, { color: "#D12604" }),
+    },
+  ];
+
+  if (isLocalMode.value) {
+    options.push({
+      label: "重新链接",
+      props: {
+        style: { color: "#18A058" },
+      },
+      key: "reconnect",
+      icon: renderIcon(RefreshIcon, { color: "#18A058" }),
+    });
+  }
+
+  return options;
+});
 
 const handleSelect = (key: string) => {
   router.push({
@@ -304,10 +320,14 @@ const handleSetting = (key: string) => {
     router.push("/about");
   } else if (key == "exit") {
     electronAPI.reloadWindow();
+  } else if (key == "reconnect") {
+    electronAPI.restartApp();
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  const startupServiceState = await electronAPI.getStartupServiceState?.();
+  isLocalMode.value = Boolean(startupServiceState?.localMode);
   // const token = localStorage.getItem("token");
   // if (token) {
   //   // 获取用户信息

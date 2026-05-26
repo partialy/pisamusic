@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 
 let registered = false;
 
@@ -37,6 +37,11 @@ export function setupWindowIpc(getMainWindow: () => BrowserWindow | null) {
 
   ipcMain.on("window:reload", () => {
     getMainWindow()?.reload();
+  });
+
+  ipcMain.on("window:restart-app", () => {
+    app.relaunch();
+    app.quit();
   });
 
   ipcMain.on("window:dev-tools", () => {
