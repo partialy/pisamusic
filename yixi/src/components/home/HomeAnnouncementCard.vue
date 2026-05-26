@@ -62,6 +62,7 @@ import { computed, onMounted, ref } from "vue";
 import { NButton, NSkeleton } from "naive-ui";
 import BrowserShareIcon from '@iconify-vue/tabler/browser-share';
 import WebIcon from '@iconify-vue/streamline-plump/web';
+import { showLimitedWarning } from "@/utils/limitedMessage";
 
 defineOptions({ name: "HomeAnnouncementCard" });
 
@@ -112,7 +113,7 @@ async function fetchNotices() {
     notices.value = Array.isArray(list) ? list : [];
     activeIndex.value = 0;
   } catch (error) {
-    window.$message?.warning("公告加载失败");
+    showLimitedWarning("公告加载失败");
     void window.electronAPI.reportError(error, {
       scope: "home",
       action: "fetchAnnouncements",

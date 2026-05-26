@@ -8,6 +8,7 @@ import electronAPI from "@/utils/electron";
 import { normalizeSong } from "@/utils/song";
 import { useLibraryStore } from "./library";
 import { reportError } from "@/utils/errorReporter";
+import { showLimitedWarning } from "@/utils/limitedMessage";
 import {
   getDefaultQualityKey,
   getQualityOption,
@@ -196,6 +197,10 @@ export const useAudioStore = defineStore("audio", () => {
         songId: song?.id || currentSong.value?.id,
         source: song?.source || currentSong.value?.source,
       });
+      if (error instanceof Error && error.message === "play url is empty") {
+        stopAfterEmptyPlayUrl();
+        return;
+      }
       handlePlaybackFailure();
     } finally {
       loading.value = false;
@@ -612,6 +617,17 @@ export const useAudioStore = defineStore("audio", () => {
 
     failureSkipCount = 0;
     handlingPlaybackFailure = false;
+  };
+
+  const stopAfterEmptyPlayUrl = (): void => {
+    failureSkipCount = 0;
+    handlingPlaybackFailure = false;
+    loading.value = false;
+    isPlaying.value = false;
+    destroyPlayer();
+    electronAPI.mediaControl("pause");
+    electronAPI.isPlaying(false);
+    showLimitedWarning("播放地址获取失败，已暂停播放");
   };
 
   /**

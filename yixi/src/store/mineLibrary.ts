@@ -15,6 +15,7 @@ import {
 import { getCookieUserPlaylists, getWyCloudSongs, type CookieSource } from "@/utils/api/cookieMusicAPI";
 import { convertCookieUserPlaylists } from "@/utils/cookiePlaylist";
 import { convertWyCloudSongs } from "@/utils/cookieCloudSong";
+import { showLimitedWarning } from "@/utils/limitedMessage";
 
 const PLAYLIST_PAGE_SIZE = 100;
 const CLOUD_PAGE_SIZE = 200;
@@ -84,7 +85,7 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
       playlists.value = await listMinePlaylists("all");
     } catch (error) {
       playlistError.value = error instanceof Error ? error.message : "歌单刷新失败";
-      window.$message?.warning("歌单刷新失败，已显示本地缓存");
+      showLimitedWarning("歌单刷新失败，已显示本地缓存");
     } finally {
       playlistRefreshing.value = false;
     }
@@ -101,7 +102,7 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
       cloudSongs.value = await listMineCloudSongs("all");
     } catch (error) {
       cloudError.value = error instanceof Error ? error.message : "云盘刷新失败";
-      window.$message?.warning("云盘刷新失败，已显示本地缓存");
+      showLimitedWarning("云盘刷新失败，已显示本地缓存");
     } finally {
       cloudRefreshing.value = false;
     }

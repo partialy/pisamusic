@@ -84,6 +84,7 @@ import type {
   RecommendPlaylistType,
   RecommendSongType,
 } from "@/views/recommend/recommendSources";
+import { showLimitedWarning } from "@/utils/limitedMessage";
 
 const player = useAudioStore();
 const collector = useCollectStore();
@@ -126,7 +127,7 @@ const getHotSongs = async () => {
       convertor.KG.convertKGTopSong(item)
     );
   } catch (error) {
-    window.$message?.warning("热门歌曲加载失败");
+    showLimitedWarning("热门歌曲加载失败");
     void window.electronAPI.reportError(error, {
       scope: "home",
       action: "getHotSongs",
@@ -150,7 +151,7 @@ const getWyTopPlaylists = async () => {
       convertor.WY.convertWYTopPlaylist(item)
     );
   } catch (error) {
-    window.$message?.warning("网友精选碟加载失败");
+    showLimitedWarning("网友精选碟加载失败");
     void window.electronAPI.reportError(error, {
       scope: "home",
       action: "getWyTopPlaylists",
@@ -168,7 +169,7 @@ const getWyNewSongs = async () => {
       convertor.WY.convertWYPersonalizedNewSong(item)
     );
   } catch (error) {
-    window.$message?.warning("WY推荐歌曲加载失败");
+    showLimitedWarning("WY推荐歌曲加载失败");
     void window.electronAPI.reportError(error, {
       scope: "home",
       action: "getWyNewSongs",
@@ -186,7 +187,7 @@ const getWyPersonalizedPlaylist = async () => {
       convertor.WY.convertWYPersonalizedPlaylist(item)
     );
   } catch (error) {
-    window.$message?.warning("WY推荐歌单加载失败");
+    showLimitedWarning("WY推荐歌单加载失败");
     void window.electronAPI.reportError(error, {
       scope: "home",
       action: "getWyPersonalizedPlaylist",
