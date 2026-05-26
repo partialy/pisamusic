@@ -15,12 +15,15 @@ import {
   type ReleaseInfo,
   type ReleasePlatform,
   type TextContentConfig,
+  createReleaseFile,
   deleteAnnouncement,
+  markReleaseFileDeletedForHistory,
   publishUpdate,
   readAdminUser,
   readAnnouncements,
   readAnyAdminUser,
   readAppConfig,
+  readReleaseFileForHistory,
   readUpdateHistory,
   replacePlaintextPaths,
   saveAnnouncement,
@@ -30,6 +33,7 @@ import {
 import { getDeviceDb } from "../db/deviceInfoDb";
 import { getPlaintextPaths, setPlaintextPaths } from "../middleware/encryption";
 import { getAdminJwtSecret, requireAdminJwt } from "../middleware/requireAdminJwt";
+import { buildReleaseFileDownloadPath, createQiniuUploadToken, deleteQiniuObject, validateReleaseFile } from "../services/qiniuReleaseFiles";
 import { fail, ok } from "../types/response";
 
 export const adminRouter = Router();
@@ -37,7 +41,7 @@ export const adminRouter = Router();
 const JWT_EXPIRES: jwt.SignOptions["expiresIn"] = "7d";
 const PATH_REGEX = /^\/[A-Za-z0-9._\-/*]*$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/discover", "/discover/*"];
+const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/release-files/*", "/api/config/discover", "/discover/*"];
 
 function getUsernameFromJwt(req: Request): string | null {
   const raw = req.headers.authorization;
@@ -67,7 +71,7 @@ function normalizePlatform(value: unknown): ReleasePlatform {
   return value === "desktop" ? "desktop" : "android";
 }
 
-function normalizePayload(body: unknown): { platform: ReleasePlatform; release: ReleaseInfo } | null {
+function normalizePayload(body: unknown): { platform: ReleasePlatform; release: ReleaseInfo; releaseFileId?: string } | null {
   const b = body as Record<string, unknown>;
   if (!b || typeof b !== "object") return null;
 
@@ -81,12 +85,14 @@ function normalizePayload(body: unknown): { platform: ReleasePlatform; release: 
   const platformLabel = String(b.platformLabel ?? (platform === "desktop" ? "PC 版" : "Android")).trim();
   const fileSizeText = String(b.fileSizeText ?? "").trim();
   const available = Boolean(b.available) && Boolean(downloadUrl);
+  const releaseFileId = typeof b.releaseFileId === "string" ? b.releaseFileId.trim() : "";
 
   if (!latestVersion || !updateTime || !officialUrl || !updateContent || !platformLabel) return null;
   if (available && !downloadUrl) return null;
   if (platform === "android" && !downloadUrl) return null;
   return {
     platform,
+    releaseFileId: releaseFileId || undefined,
     release: {
       latestVersion,
       updateTime,
@@ -99,6 +105,54 @@ function normalizePayload(body: unknown): { platform: ReleasePlatform; release: 
       available,
     },
   };
+}
+
+function normalizeUploadTokenPayload(body: unknown):
+  | { ok: true; value: { platform: ReleasePlatform; fileName: string; fileSize: number; mimeType: string } }
+  | { ok: false; msg: string } {
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  const platform = normalizePlatform(body.platform);
+  const fileName = String(body.fileName ?? "").trim();
+  const fileSize = Number(body.fileSize);
+  const mimeType = String(body.mimeType ?? "").trim();
+  try {
+    validateReleaseFile(platform, fileName, fileSize);
+  } catch (e) {
+    return { ok: false, msg: e instanceof Error ? e.message : "安装包文件不合法" };
+  }
+  return { ok: true, value: { platform, fileName, fileSize, mimeType } };
+}
+
+function normalizeUploadCompletePayload(body: unknown):
+  | {
+      ok: true;
+      value: {
+        platform: ReleasePlatform;
+        bucket: string;
+        key: string;
+        hash: string;
+        fileName: string;
+        mimeType: string;
+        fileSize: number;
+      };
+    }
+  | { ok: false; msg: string } {
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  const platform = normalizePlatform(body.platform);
+  const bucket = String(body.bucket ?? "").trim();
+  const key = String(body.key ?? "").trim();
+  const hash = String(body.hash ?? "").trim();
+  const fileName = String(body.fileName ?? "").trim();
+  const mimeType = String(body.mimeType ?? "").trim();
+  const fileSize = Number(body.fileSize);
+  if (!bucket) return { ok: false, msg: "bucket 不能为空" };
+  if (!key.startsWith(`pisamusic/releases/${platform}/`)) return { ok: false, msg: "七牛文件 key 与发布平台不匹配" };
+  try {
+    validateReleaseFile(platform, fileName, fileSize);
+  } catch (e) {
+    return { ok: false, msg: e instanceof Error ? e.message : "安装包文件不合法" };
+  }
+  return { ok: true, value: { platform, bucket, key, hash, fileName, mimeType, fileSize } };
 }
 
 function normalizeGatewaySignPayload(body: unknown): GatewaySignConfig | null {
@@ -473,14 +527,66 @@ adminRouter.get("/update-history", (_req, res) => {
   }
 });
 
+adminRouter.post("/release-files/upload-token", (req, res) => {
+  try {
+    const payload = normalizeUploadTokenPayload(req.body);
+    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
+    return res.json(ok(createQiniuUploadToken(payload.value), "上传凭证已生成"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "生成上传凭证失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.post("/release-files/complete", (req, res) => {
+  try {
+    const payload = normalizeUploadCompletePayload(req.body);
+    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
+    const fileId = randomUUID();
+    const file = createReleaseFile({
+      id: fileId,
+      platform: payload.value.platform,
+      provider: "qiniu",
+      bucket: payload.value.bucket,
+      objectKey: payload.value.key,
+      hash: payload.value.hash,
+      fileName: payload.value.fileName,
+      mimeType: payload.value.mimeType,
+      fileSize: payload.value.fileSize,
+      downloadUrl: buildReleaseFileDownloadPath(fileId),
+    });
+    return res.json(ok(file, "安装包已登记"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "登记安装包失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
 adminRouter.post("/publish-update", (req, res) => {
   try {
     const payload = normalizePayload(req.body);
     if (!payload) return res.status(400).json(fail("参数不完整或格式不正确", 400));
-    const history = publishUpdate(payload.release, randomUUID(), payload.platform);
+    const history = publishUpdate(payload.release, randomUUID(), payload.platform, payload.releaseFileId);
     return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform }, "发布成功"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "发布更新失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.delete("/update-history/:id/release-file", async (req, res) => {
+  try {
+    const historyId = String(req.params.id ?? "").trim();
+    const file = readReleaseFileForHistory(historyId);
+    if (!file) return res.status(404).json(fail("该发布记录没有可删除的七牛安装包", 404));
+    if (file.provider !== "qiniu") return res.status(400).json(fail("该安装包不是七牛上传文件", 400));
+    if (file.status !== "deleted") {
+      await deleteQiniuObject(file.bucket, file.objectKey);
+    }
+    const deleted = markReleaseFileDeletedForHistory(historyId);
+    return res.json(ok({ releaseFile: deleted }, "安装包已删除"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "删除安装包失败";
     return res.status(500).json(fail(message, 500));
   }
 });

@@ -7,12 +7,16 @@ type Props = {
   isNew: boolean;
   themeColor: string;
   saving: boolean;
+  uploadingPackage: boolean;
   onClose: () => void;
   onChange: (next: UpdateFormDraft) => void;
+  onUploadPackage: (file: File) => void;
   onSubmit: () => void;
 };
 
-export default function UpdateModal({ draft, isNew, themeColor, saving, onClose, onChange, onSubmit }: Props) {
+export default function UpdateModal({ draft, isNew, themeColor, saving, uploadingPackage, onClose, onChange, onUploadPackage, onSubmit }: Props) {
+  const acceptTypes = draft.platform === "desktop" ? ".exe,.msi,.zip,.7z" : ".apk,.aab";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
       <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-md" onClick={onClose} aria-hidden />
@@ -67,6 +71,9 @@ export default function UpdateModal({ draft, isNew, themeColor, saving, onClose,
                       platform: item.key,
                       platformLabel: item.key === "desktop" ? "PC 版" : "Android",
                       available: item.key === "android" ? true : draft.available,
+                      downloadUrl: item.key === draft.platform ? draft.downloadUrl : "",
+                      fileSizeText: item.key === draft.platform ? draft.fileSizeText : "",
+                      releaseFileId: item.key === draft.platform ? draft.releaseFileId : undefined,
                     })
                   }
                   className={`rounded-xl px-4 py-3 text-sm font-extrabold transition-all ${
@@ -150,10 +157,41 @@ export default function UpdateModal({ draft, isNew, themeColor, saving, onClose,
             <input
               type="text"
               value={draft.downloadUrl}
-              onChange={(e) => onChange({ ...draft, downloadUrl: e.target.value })}
+              onChange={(e) => onChange({ ...draft, downloadUrl: e.target.value, releaseFileId: undefined })}
               className={glassInputClasses + " font-mono"}
               placeholder={draft.platform === "desktop" ? "EXE/MSI/ZIP 直链，可暂时留空" : "APK直链"}
             />
+          </div>
+
+          <div className="rounded-2xl border border-white/60 bg-white/40 p-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-700">上传安装包到七牛云</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {draft.platform === "desktop" ? "支持 .exe / .msi / .zip / .7z，上传成功后自动填入下载地址。" : "支持 .apk / .aab，上传成功后自动填入下载地址。"}
+                </p>
+                {draft.releaseFileId && <p className="mt-2 text-xs font-bold text-emerald-600">已关联七牛安装包，发布后可在历史记录中删除。</p>}
+              </div>
+              <label
+                className={`relative inline-flex shrink-0 items-center justify-center rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-opacity ${
+                  uploadingPackage || saving ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:opacity-90"
+                }`}
+                style={{ backgroundColor: themeColor }}
+              >
+                {uploadingPackage ? "上传中…" : "选择文件上传"}
+                <input
+                  type="file"
+                  accept={acceptTypes}
+                  disabled={uploadingPackage || saving}
+                  className="absolute inset-0 opacity-0 disabled:cursor-not-allowed"
+                  onChange={(e) => {
+                    const file = e.currentTarget.files?.[0];
+                    e.currentTarget.value = "";
+                    if (file) onUploadPackage(file);
+                  }}
+                />
+              </label>
+            </div>
           </div>
 
           <div>

@@ -6,10 +6,18 @@ type Props = {
   themeColor: string;
   onPublishNew: () => void;
   onEdit: (item: UpdateHistoryItem) => void;
-  onDeleteAttempt: () => void;
+  onDeletePackage: (item: UpdateHistoryItem) => void;
+  deletingPackageHistoryId: string | null;
 };
 
-export default function UpdateTab({ displayHistory, themeColor, onPublishNew, onEdit, onDeleteAttempt }: Props) {
+function getFileSourceText(item: UpdateHistoryItem): string {
+  if (item.releaseFile?.status === "uploaded") return "七牛上传";
+  if (item.releaseFile?.status === "deleted") return "安装包已删除";
+  if (item.downloadUrl) return "直链地址";
+  return "未配置安装包";
+}
+
+export default function UpdateTab({ displayHistory, themeColor, onPublishNew, onEdit, onDeletePackage, deletingPackageHistoryId }: Props) {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -53,6 +61,9 @@ export default function UpdateTab({ displayHistory, themeColor, onPublishNew, on
                 ) : (
                   <span className="text-[10px] bg-emerald-100/80 border border-emerald-200 text-emerald-600 px-2 py-1 rounded-md font-bold shadow-sm">普通更新</span>
                 )}
+                <span className="text-[10px] bg-white/80 border border-white text-slate-500 px-2 py-1 rounded-md font-bold shadow-sm">
+                  {getFileSourceText(upd)}
+                </span>
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-3 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
@@ -71,21 +82,24 @@ export default function UpdateTab({ displayHistory, themeColor, onPublishNew, on
                 </svg>
                 编辑
               </button>
-              <button
-                type="button"
-                onClick={onDeleteAttempt}
-                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center justify-center"
-              >
-                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-                删除
-              </button>
+              {upd.releaseFile?.status === "uploaded" && (
+                <button
+                  type="button"
+                  disabled={deletingPackageHistoryId === upd.id}
+                  onClick={() => onDeletePackage(upd)}
+                  className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  {deletingPackageHistoryId === upd.id ? "删除中…" : "删除安装包"}
+                </button>
+              )}
             </div>
           </div>
         ))}

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import path from "node:path";
@@ -29,6 +30,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/config/bootstrap",
   "/api/config/check-update",
   "/api/config/releases",
+  "/api/config/release-files/*",
   "/api/config/discover",
   "/api/config/update-history",
   "/api/config/agreement",
@@ -41,7 +43,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/uploads/*",
 ];
 
-const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/discover", "/discover/*"];
+const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/release-files/*", "/api/config/discover", "/discover/*"];
 
 function loadPlaintextPaths(): string[] {
   const paths = readPlaintextPaths().filter((s) => s.length > 0);

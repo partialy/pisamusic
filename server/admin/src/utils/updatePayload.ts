@@ -12,6 +12,7 @@ export function historyItemToDraft(item: UpdateHistoryItem): UpdateFormDraft {
     platformLabel: item.platform === "desktop" ? "PC 版" : "Android",
     fileSizeText: "",
     available: Boolean(item.downloadUrl),
+    releaseFileId: undefined,
   };
 }
 
@@ -27,6 +28,7 @@ export function appUpdateToDraft(u: AppUpdatePayload): UpdateFormDraft {
     platformLabel: u.platformLabel ?? (u.platform === "desktop" ? "PC 版" : "Android"),
     fileSizeText: u.fileSizeText ?? "",
     available: u.available ?? Boolean(u.downloadUrl),
+    releaseFileId: u.releaseFileId,
   };
 }
 
@@ -42,5 +44,6 @@ export function draftToPayload(d: UpdateFormDraft): AppUpdatePayload {
     platformLabel: d.platformLabel.trim(),
     fileSizeText: d.fileSizeText.trim(),
     available: d.available,
+    releaseFileId: d.releaseFileId,
   };
 }

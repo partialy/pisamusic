@@ -9,6 +9,7 @@ export type AppUpdatePayload = {
   platformLabel?: string;
   fileSizeText?: string;
   available?: boolean;
+  releaseFileId?: string;
 };
 
 export type ReleasePlatform = "android" | "desktop";
@@ -27,6 +28,23 @@ export type ReleaseInfo = {
 
 export type ReleaseConfig = Record<ReleasePlatform, ReleaseInfo>;
 
+export type ReleaseFileInfo = {
+  id: string;
+  historyId: string | null;
+  platform: ReleasePlatform;
+  provider: "qiniu";
+  bucket: string;
+  objectKey: string;
+  hash: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  downloadUrl: string;
+  status: "uploaded" | "deleted";
+  createdAt: number;
+  deletedAt: number | null;
+};
+
 export type UpdateHistoryItem = {
   id: string;
   platform: ReleasePlatform;
@@ -36,6 +54,8 @@ export type UpdateHistoryItem = {
   downloadUrl: string;
   officialUrl: string;
   updateContent: string;
+  releaseFileId?: string | null;
+  releaseFile?: ReleaseFileInfo | null;
 };
 
 export type GatewaySignConfig = {
@@ -90,6 +110,7 @@ export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
   "/api/config/bootstrap",
   "/api/config/check-update",
   "/api/config/releases",
+  "/api/config/release-files/*",
   "/api/config/discover",
   "/api/config/update-history",
   "/api/config/agreement",
@@ -124,6 +145,7 @@ export type UpdateFormDraft = {
   platformLabel: string;
   fileSizeText: string;
   available: boolean;
+  releaseFileId?: string;
 };
 
 export type DeviceInfo = {

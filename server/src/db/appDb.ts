@@ -105,8 +105,29 @@ CREATE TABLE IF NOT EXISTS update_history (
     download_url    TEXT    NOT NULL,
     official_url    TEXT    NOT NULL,
     update_content  TEXT    NOT NULL,
+    release_file_id TEXT,
     created_at      INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS release_files (
+    id              TEXT    PRIMARY KEY,
+    history_id      TEXT,
+    platform        TEXT    NOT NULL,
+    provider        TEXT    NOT NULL DEFAULT 'qiniu',
+    bucket          TEXT    NOT NULL,
+    object_key      TEXT    NOT NULL,
+    hash            TEXT    NOT NULL DEFAULT '',
+    file_name       TEXT    NOT NULL,
+    mime_type       TEXT    NOT NULL DEFAULT '',
+    file_size       INTEGER NOT NULL DEFAULT 0,
+    download_url    TEXT    NOT NULL,
+    status          TEXT    NOT NULL DEFAULT 'uploaded',
+    created_at      INTEGER NOT NULL,
+    deleted_at      INTEGER,
+    FOREIGN KEY (history_id) REFERENCES update_history(id) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_release_files_provider_key ON release_files (provider, bucket, object_key);
+CREATE INDEX IF NOT EXISTS idx_release_files_history ON release_files (history_id);
 
 CREATE TABLE IF NOT EXISTS announcements (
     id                  TEXT    PRIMARY KEY,
@@ -250,6 +271,9 @@ function migrateUpdateHistory(db: DatabaseSync) {
   const cols = getColumnNames(db, "update_history");
   if (!cols.has("platform")) {
     db.exec(`ALTER TABLE update_history ADD COLUMN platform TEXT NOT NULL DEFAULT 'android'`);
+  }
+  if (!cols.has("release_file_id")) {
+    db.exec(`ALTER TABLE update_history ADD COLUMN release_file_id TEXT`);
   }
 }
 

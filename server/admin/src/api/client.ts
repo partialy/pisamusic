@@ -7,6 +7,8 @@ import type {
   DeviceFilter,
   DeviceInfo,
   DeviceListResponse,
+  ReleaseFileInfo,
+  ReleasePlatform,
   UpdateHistoryItem,
 } from "../types/config";
 import { clearStoredToken, getStoredToken } from "../auth/token";
@@ -115,6 +117,99 @@ export async function publishUpdate(payload: AppUpdatePayload): Promise<{ id: st
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
   return body.data;
+}
+
+type UploadTokenResponse = {
+  uploadToken: string;
+  uploadUrl: string;
+  key: string;
+  bucket: string;
+  domain: string;
+  cdnDomain: string;
+  downloadUrl: string;
+  expiresAt: number;
+};
+
+type QiniuUploadResponse = {
+  key?: string;
+  hash?: string;
+  fsize?: number;
+  bucket?: string;
+};
+
+async function fetchReleaseUploadToken(file: File, platform: ReleasePlatform): Promise<UploadTokenResponse> {
+  const res = await fetchWithAuth("/api/admin/release-files/upload-token", {
+    method: "POST",
+    body: JSON.stringify({
+      platform,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+    }),
+  });
+  const body = await parseJson<UploadTokenResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+async function uploadFileToQiniu(file: File, token: UploadTokenResponse): Promise<QiniuUploadResponse> {
+  const formData = new FormData();
+  formData.append("token", token.uploadToken);
+  formData.append("key", token.key);
+  formData.append("x:name", file.name);
+  formData.append("file", file);
+  const res = await fetch(token.uploadUrl, {
+    method: "POST",
+    body: formData,
+  });
+  const body = (await res.json().catch(() => ({}))) as QiniuUploadResponse & { error?: string };
+  if (!res.ok) {
+    throw new Error(body.error || `七牛上传失败：HTTP ${res.status}`);
+  }
+  return body;
+}
+
+async function completeReleaseUpload(
+  file: File,
+  platform: ReleasePlatform,
+  token: UploadTokenResponse,
+  uploaded: QiniuUploadResponse,
+): Promise<ReleaseFileInfo> {
+  const res = await fetchWithAuth("/api/admin/release-files/complete", {
+    method: "POST",
+    body: JSON.stringify({
+      platform,
+      bucket: uploaded.bucket || token.bucket,
+      key: uploaded.key || token.key,
+      hash: uploaded.hash || "",
+      fileName: file.name,
+      mimeType: file.type,
+      fileSize: Number(uploaded.fsize || file.size),
+    }),
+  });
+  const body = await parseJson<ReleaseFileInfo>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function uploadReleasePackage(file: File, platform: ReleasePlatform): Promise<ReleaseFileInfo> {
+  const token = await fetchReleaseUploadToken(file, platform);
+  const uploaded = await uploadFileToQiniu(file, token);
+  return completeReleaseUpload(file, platform, token, uploaded);
+}
+
+export async function deleteReleasePackage(historyId: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/update-history/${encodeURIComponent(historyId)}/release-file`, {
+    method: "DELETE",
+  });
+  const body = await parseJson<{ releaseFile: ReleaseFileInfo }>(res);
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
 }
 
 export async function fetchEncryptionConfig(): Promise<{ plaintextPaths: string[] }> {

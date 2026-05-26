@@ -45,6 +45,7 @@ yixi/package-lock.json
 # Server runtime data.
 server/uploads/
 server/web/
+server/.env
 server/data/*.db
 server/data/*.db-shm
 server/data/*.db-wal

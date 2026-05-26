@@ -1,0 +1,149 @@
+import { randomUUID } from "node:crypto";
+import path from "node:path";
+import * as qiniu from "qiniu";
+import type { ReleasePlatform } from "../db/configStore";
+
+const PROVIDER = "qiniu" as const;
+const TOKEN_TTL_SECONDS = 3600;
+const DOWNLOAD_TTL_SECONDS = 3600;
+const ALLOWED_EXTENSIONS: Record<ReleasePlatform, string[]> = {
+  android: [".apk", ".aab"],
+  desktop: [".exe", ".msi", ".zip", ".7z"],
+};
+
+export type QiniuUploadTokenInput = {
+  platform: ReleasePlatform;
+  fileName: string;
+  fileSize: number;
+  mimeType?: string;
+};
+
+export type QiniuUploadTokenInfo = {
+  provider: typeof PROVIDER;
+  uploadToken: string;
+  uploadUrl: string;
+  key: string;
+  bucket: string;
+  domain: string;
+  cdnDomain: string;
+  downloadUrl: string;
+  expiresAt: number;
+};
+
+function requireEnv(name: string): string {
+  const value = String(process.env[name] ?? "").trim();
+  if (!value) throw new Error(`缺少七牛配置：${name}`);
+  return value;
+}
+
+function optionalEnv(name: string): string {
+  return String(process.env[name] ?? "").trim();
+}
+
+function normalizeDomain(domain: string): string {
+  let value = domain.trim();
+  if (!value) return "";
+  if (value.startsWith("//")) value = `https:${value}`;
+  if (!/^https?:\/\//i.test(value)) value = `https://${value}`;
+  return value.replace(/\/+$/, "");
+}
+
+function getPublicDomain(): { domain: string; cdnDomain: string; baseUrl: string } {
+  const domain = normalizeDomain(optionalEnv("QINIU_DOMAIN"));
+  const cdnDomain = normalizeDomain(optionalEnv("QINIU_DOMAIN_CDN"));
+  const baseUrl = cdnDomain || domain;
+  if (!baseUrl) throw new Error("缺少七牛配置：QINIU_DOMAIN 或 QINIU_DOMAIN_CDN");
+  return { domain, cdnDomain, baseUrl };
+}
+
+function getMac(): qiniu.auth.digest.Mac {
+  return new qiniu.auth.digest.Mac(requireEnv("QINIU_ACCESS_KEY"), requireEnv("QINIU_SECRET_KEY"));
+}
+
+function getBucket(): string {
+  return requireEnv("QINIU_BUCKET");
+}
+
+function getUploadUrl(): string {
+  return optionalEnv("QINIU_UPLOAD_URL") || "https://upload.qiniup.com";
+}
+
+function getExtension(fileName: string): string {
+  return path.extname(fileName).toLowerCase();
+}
+
+export function validateReleaseFile(platform: ReleasePlatform, fileName: string, fileSize: number): void {
+  if (!fileName.trim()) throw new Error("文件名不能为空");
+  if (!Number.isFinite(fileSize) || fileSize <= 0) throw new Error("文件大小不正确");
+  const ext = getExtension(fileName);
+  if (!ALLOWED_EXTENSIONS[platform].includes(ext)) {
+    throw new Error(`${platform === "desktop" ? "PC 版" : "Android"} 安装包仅支持 ${ALLOWED_EXTENSIONS[platform].join("、")}`);
+  }
+}
+
+function buildObjectKey(platform: ReleasePlatform, fileName: string): string {
+  const ext = getExtension(fileName);
+  const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  return `pisamusic/releases/${platform}/${day}/${randomUUID()}${ext}`;
+}
+
+export function buildDownloadUrl(key: string): string {
+  const { baseUrl } = getPublicDomain();
+  return `${baseUrl}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+export function buildReleaseFileDownloadPath(fileId: string): string {
+  return `/api/config/release-files/${encodeURIComponent(fileId)}/download`;
+}
+
+export function createQiniuUploadToken(input: QiniuUploadTokenInput): QiniuUploadTokenInfo {
+  validateReleaseFile(input.platform, input.fileName, input.fileSize);
+  const bucket = getBucket();
+  const key = buildObjectKey(input.platform, input.fileName);
+  const { domain, cdnDomain } = getPublicDomain();
+  const putPolicy = new qiniu.rs.PutPolicy({
+    scope: `${bucket}:${key}`,
+    insertOnly: 1,
+    expires: TOKEN_TTL_SECONDS,
+    fsizeLimit: input.fileSize,
+    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
+  });
+  return {
+    provider: PROVIDER,
+    uploadToken: putPolicy.uploadToken(getMac()),
+    uploadUrl: getUploadUrl(),
+    key,
+    bucket,
+    domain,
+    cdnDomain,
+    downloadUrl: "",
+    expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000,
+  };
+}
+
+function isQiniuNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: unknown; statusCode?: unknown; resp?: { statusCode?: unknown } };
+  return e.code === 612 || e.statusCode === 612 || e.resp?.statusCode === 612;
+}
+
+export async function deleteQiniuObject(bucket: string, key: string): Promise<void> {
+  const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
+  try {
+    const result = await bucketManager.delete(bucket, key);
+    const statusCode = result.resp.statusCode;
+    if (statusCode !== 200 && statusCode !== 612) {
+      throw new Error(`七牛删除失败：HTTP ${statusCode}`);
+    }
+  } catch (e) {
+    if (isQiniuNotFoundError(e)) return;
+    throw e;
+  }
+}
+
+export function createPrivateQiniuDownloadUrl(key: string, ttlSeconds = DOWNLOAD_TTL_SECONDS): string {
+  const { baseUrl } = getPublicDomain();
+  const deadline = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
+  return bucketManager.privateDownloadUrl(baseUrl, key, deadline);
+}

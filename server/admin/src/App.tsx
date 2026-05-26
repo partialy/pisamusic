@@ -27,6 +27,8 @@ import {
   saveAppConfigSections,
   saveAnnouncement as saveAnnouncementApi,
   saveEncryptionConfig,
+  uploadReleasePackage,
+  deleteReleasePackage,
 } from "./api/client";
 import { clearStoredToken, getStoredToken } from "./auth/token";
 import { defaultAppConfig } from "./data/defaultAppConfig";
@@ -100,6 +102,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [editingUpdateDraft, setEditingUpdateDraft] = useState<UpdateFormDraft | null>(null);
   const [editingUpdateIsNew, setEditingUpdateIsNew] = useState(true);
   const [publishSaving, setPublishSaving] = useState(false);
+  const [packageUploading, setPackageUploading] = useState(false);
+  const [deletingPackageHistoryId, setDeletingPackageHistoryId] = useState<string | null>(null);
 
   const [encryptionPathsServer, setEncryptionPathsServer] = useState<string[]>([]);
   const [encryptionPathsDraft, setEncryptionPathsDraft] = useState<string[]>([]);
@@ -261,6 +265,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       platformLabel: "Android",
       fileSizeText: "",
       available: true,
+      releaseFileId: undefined,
     });
   };
 
@@ -297,8 +302,48 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  const handleDeleteUpdateAttempt = () => {
-    window.alert("服务端未提供删除更新历史的接口；如需调整请直接在服务器上编辑 data/update-history.json。");
+  const formatFileSizeText = (size: number): string => {
+    if (!Number.isFinite(size) || size <= 0) return "";
+    const mb = size / 1024 / 1024;
+    if (mb >= 1) return `${mb.toFixed(mb >= 10 ? 1 : 2)}MB`;
+    return `${Math.max(1, Math.round(size / 1024))}KB`;
+  };
+
+  const handleUploadReleasePackage = async (file: File) => {
+    if (!editingUpdateDraft) return;
+    setPackageUploading(true);
+    try {
+      const releaseFile = await uploadReleasePackage(file, editingUpdateDraft.platform);
+      setEditingUpdateDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              downloadUrl: releaseFile.downloadUrl,
+              fileSizeText: formatFileSizeText(releaseFile.fileSize),
+              available: true,
+              releaseFileId: releaseFile.id,
+            }
+          : prev,
+      );
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "上传安装包失败");
+    } finally {
+      setPackageUploading(false);
+    }
+  };
+
+  const handleDeleteReleasePackage = async (item: UpdateHistoryItem) => {
+    if (!item.releaseFile || item.releaseFile.status !== "uploaded") return;
+    if (!window.confirm(`确定要删除 ${item.version} 关联的七牛安装包吗？`)) return;
+    setDeletingPackageHistoryId(item.id);
+    try {
+      await deleteReleasePackage(item.id);
+      await refreshRemote();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "删除安装包失败");
+    } finally {
+      setDeletingPackageHistoryId(null);
+    }
   };
 
   const encryptionDirty = useMemo(() => {
@@ -873,7 +918,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   themeColor={themeColor}
                   onPublishNew={openNewUpdate}
                   onEdit={openEditUpdate}
-                  onDeleteAttempt={handleDeleteUpdateAttempt}
+                  onDeletePackage={(item) => void handleDeleteReleasePackage(item)}
+                  deletingPackageHistoryId={deletingPackageHistoryId}
                 />
               )}
               {currentTab === "content" && (
@@ -947,8 +993,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           isNew={editingUpdateIsNew}
           themeColor={themeColor}
           saving={publishSaving}
+          uploadingPackage={packageUploading}
           onClose={() => setEditingUpdateDraft(null)}
           onChange={setEditingUpdateDraft}
+          onUploadPackage={(file) => void handleUploadReleasePackage(file)}
           onSubmit={() => void handleSubmitPublish()}
         />
       )}

@@ -12,6 +12,25 @@ export type AppUpdate = {
 
 export type ReleasePlatform = "android" | "desktop";
 
+export type ReleaseFileStatus = "uploaded" | "deleted";
+
+export type ReleaseFileInfo = {
+  id: string;
+  historyId: string | null;
+  platform: ReleasePlatform;
+  provider: "qiniu";
+  bucket: string;
+  objectKey: string;
+  hash: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  downloadUrl: string;
+  status: ReleaseFileStatus;
+  createdAt: number;
+  deletedAt: number | null;
+};
+
 export type ReleaseInfo = AppUpdate & {
   platformLabel: string;
   fileSizeText: string;
@@ -89,6 +108,8 @@ export type UpdateHistoryItem = {
   downloadUrl: string;
   officialUrl: string;
   updateContent: string;
+  releaseFileId?: string | null;
+  releaseFile?: ReleaseFileInfo | null;
 };
 
 const RELEASE_PLATFORMS: ReleasePlatform[] = ["android", "desktop"];
@@ -242,6 +263,52 @@ function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
     db.exec("ROLLBACK");
     throw e;
   }
+}
+
+type ReleaseFileRow = {
+  id: string;
+  history_id: string | null;
+  platform: ReleasePlatform;
+  provider: string;
+  bucket: string;
+  object_key: string;
+  hash: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  download_url: string;
+  status: string;
+  created_at: number;
+  deleted_at: number | null;
+};
+
+function mapReleaseFile(row?: ReleaseFileRow | null): ReleaseFileInfo | null {
+  if (!row) return null;
+  return {
+    id: row.id,
+    historyId: row.history_id,
+    platform: row.platform === "desktop" ? "desktop" : "android",
+    provider: "qiniu",
+    bucket: row.bucket,
+    objectKey: row.object_key,
+    hash: row.hash,
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    fileSize: Number(row.file_size) || 0,
+    downloadUrl: row.download_url,
+    status: row.status === "deleted" ? "deleted" : "uploaded",
+    createdAt: row.created_at,
+    deletedAt: row.deleted_at,
+  };
+}
+
+function readReleaseFileByIdWithDb(db: DatabaseSync, id: string): ReleaseFileInfo | null {
+  const row = db.prepare("SELECT * FROM release_files WHERE id = ?").get(id) as ReleaseFileRow | undefined;
+  return mapReleaseFile(row);
+}
+
+function downloadUrlBelongsToReleaseFile(downloadUrl: string, file: ReleaseFileInfo): boolean {
+  return downloadUrl === file.downloadUrl || downloadUrl.includes(`/api/config/release-files/${encodeURIComponent(file.id)}/download`);
 }
 
 export function getJsonImport(source: string): boolean {
@@ -580,10 +647,100 @@ export function saveAppConfigSections(sections: EditableAppConfigSections): AppC
   return readAppConfig();
 }
 
-export function publishUpdate(update: AppUpdate, historyId: string, platform: ReleasePlatform = "android"): UpdateHistoryItem {
+export function createReleaseFile(input: Omit<ReleaseFileInfo, "historyId" | "status" | "createdAt" | "deletedAt">): ReleaseFileInfo {
+  const db = getAppDb();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO release_files (
+      id, history_id, platform, provider, bucket, object_key, hash, file_name,
+      mime_type, file_size, download_url, status, created_at, deleted_at
+    ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', ?, NULL)`,
+  ).run(
+    input.id,
+    input.platform,
+    input.provider,
+    input.bucket,
+    input.objectKey,
+    input.hash,
+    input.fileName,
+    input.mimeType,
+    input.fileSize,
+    input.downloadUrl,
+    now,
+  );
+  const saved = readReleaseFileByIdWithDb(db, input.id);
+  if (!saved) throw new Error("安装包文件保存失败");
+  return saved;
+}
+
+export function readReleaseFileById(id: string): ReleaseFileInfo | null {
+  return readReleaseFileByIdWithDb(getAppDb(), id);
+}
+
+export function readReleaseFileForHistory(historyId: string): ReleaseFileInfo | null {
+  const db = getAppDb();
+  const row = db
+    .prepare(
+      `SELECT f.*
+       FROM update_history h
+       JOIN release_files f ON f.id = h.release_file_id
+       WHERE h.id = ?`,
+    )
+    .get(historyId) as ReleaseFileRow | undefined;
+  return mapReleaseFile(row);
+}
+
+export function markReleaseFileDeletedForHistory(historyId: string): ReleaseFileInfo {
+  const db = getAppDb();
+  return runInTransaction(db, () => {
+    const file = readReleaseFileForHistory(historyId);
+    if (!file) throw new Error("该发布记录没有可删除的七牛安装包");
+    if (file.provider !== "qiniu") throw new Error("该安装包不是七牛上传文件");
+
+    const now = Date.now();
+    db.prepare("UPDATE release_files SET status = 'deleted', deleted_at = ? WHERE id = ?").run(now, file.id);
+
+    const current = readAppConfig();
+    const release = current.releases[file.platform];
+    if (downloadUrlBelongsToReleaseFile(release.downloadUrl, file)) {
+      const clearedRelease: ReleaseInfo = {
+        ...release,
+        downloadUrl: "",
+        fileSizeText: "",
+        available: false,
+      };
+      if (file.platform === "android") {
+        replaceCurrentUpdate(db, {
+          ...appUpdateFromRelease(release),
+          downloadUrl: "",
+        });
+      }
+      replaceReleases(db, {
+        android: file.platform === "android" ? clearedRelease : current.releases.android,
+        desktop: file.platform === "desktop" ? clearedRelease : current.releases.desktop,
+      });
+    }
+
+    const deleted = readReleaseFileByIdWithDb(db, file.id);
+    if (!deleted) throw new Error("安装包文件状态更新失败");
+    return deleted;
+  });
+}
+
+export function publishUpdate(
+  update: AppUpdate,
+  historyId: string,
+  platform: ReleasePlatform = "android",
+  releaseFileId?: string | null,
+): UpdateHistoryItem {
   const db = getAppDb();
   const current = readAppConfig();
   const release = normalizeRelease(platform, update, platform === "android" ? update : undefined);
+  const releaseFile = releaseFileId ? readReleaseFileByIdWithDb(db, releaseFileId) : null;
+  if (releaseFileId && !releaseFile) throw new Error("安装包文件不存在");
+  if (releaseFile && releaseFile.status !== "uploaded") throw new Error("安装包文件已删除，不能关联发布");
+  if (releaseFile && releaseFile.platform !== platform) throw new Error("安装包文件平台与发布平台不一致");
+  if (releaseFile && !downloadUrlBelongsToReleaseFile(update.downloadUrl, releaseFile)) throw new Error("安装包文件链接与发布下载地址不一致");
   const item: UpdateHistoryItem = {
     id: historyId,
     platform,
@@ -593,6 +750,8 @@ export function publishUpdate(update: AppUpdate, historyId: string, platform: Re
     downloadUrl: update.downloadUrl,
     officialUrl: update.officialUrl,
     updateContent: update.updateContent,
+    releaseFileId: releaseFile?.id ?? null,
+    releaseFile,
   };
   runInTransaction(db, () => {
     if (platform === "android") {
@@ -603,6 +762,9 @@ export function publishUpdate(update: AppUpdate, historyId: string, platform: Re
       desktop: platform === "desktop" ? release : current.releases.desktop,
     });
     insertUpdateHistory(db, item);
+    if (releaseFile) {
+      db.prepare("UPDATE release_files SET history_id = ? WHERE id = ?").run(historyId, releaseFile.id);
+    }
   });
   return item;
 }
@@ -610,8 +772,8 @@ export function publishUpdate(update: AppUpdate, historyId: string, platform: Re
 export function insertUpdateHistory(db: DatabaseSync, item: UpdateHistoryItem, createdAt = Date.now()) {
   db.prepare(
     `INSERT OR IGNORE INTO update_history (
-      id, platform, version, update_time, force_update, download_url, official_url, update_content, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, platform, version, update_time, force_update, download_url, official_url, update_content, release_file_id, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     item.id,
     item.platform,
@@ -621,32 +783,83 @@ export function insertUpdateHistory(db: DatabaseSync, item: UpdateHistoryItem, c
     item.downloadUrl,
     item.officialUrl,
     item.updateContent,
+    item.releaseFileId ?? null,
     createdAt,
   );
 }
 
 export function readUpdateHistory(): UpdateHistoryItem[] {
   const db = getAppDb();
-  const rows = db.prepare("SELECT * FROM update_history ORDER BY created_at ASC, rowid ASC").all() as {
-    id: string;
-    platform?: ReleasePlatform;
-    version: string;
-    update_time: string;
-    force_update: number;
-    download_url: string;
-    official_url: string;
-    update_content: string;
-  }[];
-  return rows.map((row) => ({
-    id: row.id,
-    platform: row.platform === "desktop" ? "desktop" : "android",
-    version: row.version,
-    updateTime: row.update_time,
-    forceUpdate: boolFromDb(row.force_update),
-    downloadUrl: row.download_url,
-    officialUrl: row.official_url,
-    updateContent: row.update_content,
-  }));
+  const rows = db
+    .prepare(
+      `SELECT
+        h.id, h.platform, h.version, h.update_time, h.force_update, h.download_url,
+        h.official_url, h.update_content, h.release_file_id,
+        f.id AS file_id, f.history_id AS file_history_id, f.platform AS file_platform,
+        f.provider, f.bucket, f.object_key, f.hash, f.file_name, f.mime_type,
+        f.file_size, f.download_url AS file_download_url, f.status, f.created_at,
+        f.deleted_at
+       FROM update_history h
+       LEFT JOIN release_files f ON f.id = h.release_file_id
+       ORDER BY h.created_at ASC, h.rowid ASC`,
+    )
+    .all() as {
+      id: string;
+      platform?: ReleasePlatform;
+      version: string;
+      update_time: string;
+      force_update: number;
+      download_url: string;
+      official_url: string;
+      update_content: string;
+      release_file_id: string | null;
+      file_id: string | null;
+      file_history_id: string | null;
+      file_platform: ReleasePlatform | null;
+      provider: string | null;
+      bucket: string | null;
+      object_key: string | null;
+      hash: string | null;
+      file_name: string | null;
+      mime_type: string | null;
+      file_size: number | null;
+      file_download_url: string | null;
+      status: string | null;
+      created_at: number | null;
+      deleted_at: number | null;
+    }[];
+  return rows.map((row) => {
+    const releaseFile = row.file_id
+      ? mapReleaseFile({
+          id: row.file_id,
+          history_id: row.file_history_id,
+          platform: row.file_platform === "desktop" ? "desktop" : "android",
+          provider: row.provider ?? "qiniu",
+          bucket: row.bucket ?? "",
+          object_key: row.object_key ?? "",
+          hash: row.hash ?? "",
+          file_name: row.file_name ?? "",
+          mime_type: row.mime_type ?? "",
+          file_size: row.file_size ?? 0,
+          download_url: row.file_download_url ?? "",
+          status: row.status ?? "uploaded",
+          created_at: row.created_at ?? 0,
+          deleted_at: row.deleted_at,
+        })
+      : null;
+    return {
+      id: row.id,
+      platform: row.platform === "desktop" ? "desktop" : "android",
+      version: row.version,
+      updateTime: row.update_time,
+      forceUpdate: boolFromDb(row.force_update),
+      downloadUrl: row.download_url,
+      officialUrl: row.official_url,
+      updateContent: row.update_content,
+      releaseFileId: row.release_file_id,
+      releaseFile,
+    };
+  });
 }
 
 export function readAnnouncements(): Announcement[] {
