@@ -1,4 +1,4 @@
-import type { UpdateFormDraft } from "../../types/config";
+import type { DesktopUpdateAssetInfo, DesktopUpdateAssetType, UpdateFormDraft } from "../../types/config";
 import { Switch } from "../ui/Switch";
 import { glassInputClasses } from "../../constants/theme";
 
@@ -9,15 +9,39 @@ type Props = {
   saving: boolean;
   uploadingPackage: boolean;
   uploadProgress: number | null;
+  desktopUpdateUploading: DesktopUpdateAssetType | null;
+  desktopUpdateProgress: Partial<Record<DesktopUpdateAssetType, number>>;
+  desktopUpdateAssets: Partial<Record<DesktopUpdateAssetType, DesktopUpdateAssetInfo>>;
   onClose: () => void;
   onChange: (next: UpdateFormDraft) => void;
   onUploadPackage: (file: File) => void;
+  onUploadDesktopUpdateAsset: (file: File) => void;
   onSubmit: () => void;
 };
 
-export default function UpdateModal({ draft, isNew, themeColor, saving, uploadingPackage, uploadProgress, onClose, onChange, onUploadPackage, onSubmit }: Props) {
+export default function UpdateModal({
+  draft,
+  isNew,
+  themeColor,
+  saving,
+  uploadingPackage,
+  uploadProgress,
+  desktopUpdateUploading,
+  desktopUpdateProgress,
+  desktopUpdateAssets,
+  onClose,
+  onChange,
+  onUploadPackage,
+  onUploadDesktopUpdateAsset,
+  onSubmit,
+}: Props) {
   const acceptTypes = draft.platform === "desktop" ? ".exe,.msi,.zip,.7z" : ".apk,.aab";
   const progress = uploadProgress == null ? null : Math.min(100, Math.max(0, Math.round(uploadProgress)));
+  const desktopUpdateItems: Array<{ type: DesktopUpdateAssetType; label: string; accept: string; required: boolean; hint: string }> = [
+    { type: "latest-yml", label: "latest.yml", accept: ".yml", required: true, hint: "electron-builder 生成的更新元数据，文件名必须是 latest.yml。" },
+    { type: "installer", label: "安装包 EXE", accept: ".exe", required: true, hint: "与 latest.yml 内 files.url 对应的 Windows NSIS 安装包。" },
+    { type: "blockmap", label: "差分 blockmap", accept: ".blockmap", required: false, hint: "可选；上传后支持差分下载，缺失时会走完整包下载。" },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
@@ -209,6 +233,57 @@ export default function UpdateModal({ draft, isNew, themeColor, saving, uploadin
               </label>
             </div>
           </div>
+
+          {draft.platform === "desktop" && (
+            <div className="rounded-2xl border border-white/60 bg-white/40 p-4 shadow-sm">
+              <div className="mb-4">
+                <p className="text-sm font-bold text-slate-700">PC 自动更新文件</p>
+                <p className="mt-1 text-xs text-slate-400">发布 Windows 自动更新需要上传 latest.yml 和安装包 EXE，blockmap 可选。</p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                {desktopUpdateItems.map((item) => {
+                  const asset = desktopUpdateAssets[item.type];
+                  const itemProgress = desktopUpdateProgress[item.type];
+                  const uploading = desktopUpdateUploading === item.type;
+                  return (
+                    <div key={item.type} className="rounded-xl border border-white/60 bg-white/50 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-700">{item.label}</span>
+                        <span className={`text-[10px] font-bold ${item.required ? "text-red-500" : "text-slate-400"}`}>
+                          {item.required ? "必需" : "可选"}
+                        </span>
+                      </div>
+                      <p className="mb-3 min-h-8 text-[11px] leading-4 text-slate-400">{asset ? asset.fileName : item.hint}</p>
+                      {itemProgress !== undefined && (
+                        <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-200/80">
+                          <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.round(itemProgress)}%`, backgroundColor: themeColor }} />
+                        </div>
+                      )}
+                      <label
+                        className={`relative inline-flex w-full items-center justify-center rounded-lg px-3 py-2 text-xs font-bold text-white shadow-sm transition-opacity ${
+                          uploading || saving ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:opacity-90"
+                        }`}
+                        style={{ backgroundColor: asset ? "#059669" : themeColor }}
+                      >
+                        {uploading ? "上传中…" : asset ? "重新上传" : "选择文件"}
+                        <input
+                          type="file"
+                          accept={item.accept}
+                          disabled={uploading || saving}
+                          className="absolute inset-0 opacity-0 disabled:cursor-not-allowed"
+                          onChange={(e) => {
+                            const file = e.currentTarget.files?.[0];
+                            e.currentTarget.value = "";
+                            if (file) onUploadDesktopUpdateAsset(file);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">官网引导地址 (Official URL)</label>

@@ -14,4 +14,19 @@ export default {
       filter: ["**/*"],
     },
   ],
+  win: {
+    target: ["nsis"],
+    artifactName: "${productName} Setup ${version}.${ext}",
+  },
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+  },
+  publish: [
+    {
+      provider: "generic",
+      url: "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64",
+    },
+  ],
 };

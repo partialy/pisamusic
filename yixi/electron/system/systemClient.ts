@@ -358,7 +358,7 @@ async function ensureBootstrap() {
   return bootstrapPromise;
 }
 
-async function requestSystem<T>(path: string, options: RequestOptions = {}) {
+export async function requestSystem<T>(path: string, options: RequestOptions = {}) {
   const url = new URL(path, getSystemBaseUrl());
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};

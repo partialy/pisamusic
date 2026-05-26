@@ -8,6 +8,7 @@ import {
   type Announcement,
   type AvailabilityConfig,
   type BootstrapConfig,
+  type DesktopUpdateAssetType,
   type DiscoverConfig,
   type EditableAppConfigSections,
   type GatewaySignConfig,
@@ -15,6 +16,8 @@ import {
   type ReleaseInfo,
   type ReleasePlatform,
   type TextContentConfig,
+  activateDesktopUpdateVersion,
+  createDesktopUpdateAsset,
   createReleaseFile,
   deleteAnnouncement,
   markReleaseFileDeletedForHistory,
@@ -34,7 +37,14 @@ import { getDeviceDb } from "../db/deviceInfoDb";
 import { getPlaintextPaths, setPlaintextPaths } from "../middleware/encryption";
 import { getAdminJwtSecret, requireAdminJwt } from "../middleware/requireAdminJwt";
 import { adminDynamicConfigRouter } from "./adminDynamicConfig";
-import { buildReleaseFileDownloadPath, createQiniuUploadToken, deleteQiniuObject, validateReleaseFile } from "../services/qiniuReleaseFiles";
+import {
+  buildReleaseFileDownloadPath,
+  createDesktopUpdateUploadToken,
+  createQiniuUploadToken,
+  deleteQiniuObject,
+  validateDesktopUpdateAsset,
+  validateReleaseFile,
+} from "../services/qiniuReleaseFiles";
 import { fail, ok } from "../types/response";
 
 export const adminRouter = Router();
@@ -42,7 +52,7 @@ export const adminRouter = Router();
 const JWT_EXPIRES: jwt.SignOptions["expiresIn"] = "7d";
 const PATH_REGEX = /^\/[A-Za-z0-9._\-/*]*$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/release-files/*", "/api/config/discover", "/discover/*"];
+const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/release-files/*", "/api/config/desktop-updates/*", "/api/config/discover", "/discover/*"];
 
 function getUsernameFromJwt(req: Request): string | null {
   const raw = req.headers.authorization;
@@ -156,6 +166,72 @@ function normalizeUploadCompletePayload(body: unknown):
   return { ok: true, value: { platform, bucket, key, hash, fileName, mimeType, fileSize } };
 }
 
+function normalizeDesktopUpdateUploadTokenPayload(body: unknown):
+  | { ok: true; value: { version: string; platform: "win32"; arch: "x64"; fileType: DesktopUpdateAssetType; fileName: string; fileSize: number; mimeType: string } }
+  | { ok: false; msg: string } {
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  const version = String(body.version ?? "").trim();
+  const platform = body.platform === "win32" ? "win32" : "win32";
+  const arch = body.arch === "x64" ? "x64" : "x64";
+  const fileName = String(body.fileName ?? "").trim();
+  const fileSize = Number(body.fileSize);
+  const mimeType = String(body.mimeType ?? "").trim();
+  if (!version) return { ok: false, msg: "version 不能为空" };
+  try {
+    const fileType = validateDesktopUpdateAsset(fileName, fileSize);
+    return { ok: true, value: { version, platform, arch, fileType, fileName, fileSize, mimeType } };
+  } catch (e) {
+    return { ok: false, msg: e instanceof Error ? e.message : "自动更新文件不合法" };
+  }
+}
+
+function normalizeDesktopUpdateCompletePayload(body: unknown):
+  | {
+      ok: true;
+      value: {
+        version: string;
+        platform: "win32";
+        arch: "x64";
+        fileType: DesktopUpdateAssetType;
+        bucket: string;
+        key: string;
+        hash: string;
+        fileName: string;
+        mimeType: string;
+        fileSize: number;
+      };
+    }
+  | { ok: false; msg: string } {
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  const version = String(body.version ?? "").trim();
+  const platform = body.platform === "win32" ? "win32" : "win32";
+  const arch = body.arch === "x64" ? "x64" : "x64";
+  const bucket = String(body.bucket ?? "").trim();
+  const key = String(body.key ?? "").trim();
+  const hash = String(body.hash ?? "").trim();
+  const fileName = String(body.fileName ?? "").trim();
+  const mimeType = String(body.mimeType ?? "").trim();
+  const fileSize = Number(body.fileSize);
+  if (!version) return { ok: false, msg: "version 不能为空" };
+  if (!bucket) return { ok: false, msg: "bucket 不能为空" };
+  if (!key.startsWith(`pisamusic/desktop-updates/${platform}/${arch}/`)) return { ok: false, msg: "七牛文件 key 与自动更新平台不匹配" };
+  try {
+    const fileType = validateDesktopUpdateAsset(fileName, fileSize);
+    return { ok: true, value: { version, platform, arch, fileType, bucket, key, hash, fileName, mimeType, fileSize } };
+  } catch (e) {
+    return { ok: false, msg: e instanceof Error ? e.message : "自动更新文件不合法" };
+  }
+}
+
+function normalizeDesktopUpdateActivatePayload(body: unknown):
+  | { ok: true; value: { version: string; platform: "win32"; arch: "x64" } }
+  | { ok: false; msg: string } {
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  const version = String(body.version ?? "").trim();
+  if (!version) return { ok: false, msg: "version 不能为空" };
+  return { ok: true, value: { version, platform: "win32", arch: "x64" } };
+}
+
 function normalizeGatewaySignPayload(body: unknown): GatewaySignConfig | null {
   if (!isRecord(body)) return null;
   const secret = String(body.secret ?? "").trim();
@@ -267,6 +343,30 @@ function normalizeBootstrap(input: unknown): { ok: true; value: Partial<Bootstra
     const gatewaySign = normalizeGatewaySignPayload(input.gatewaySign);
     if (!gatewaySign) return { ok: false, msg: "bootstrap.gatewaySign.secret 和 as 不能为空，且长度不能超过 256" };
     bootstrap.gatewaySign = gatewaySign;
+  }
+  if ("updater" in input) {
+    if (!isRecord(input.updater) || !isRecord(input.updater.desktop)) {
+      return { ok: false, msg: "bootstrap.updater.desktop 必须是对象" };
+    }
+    const desktop = input.updater.desktop;
+    const feedBaseUrl = normalizeRequiredString(desktop.feedBaseUrl, "bootstrap.updater.desktop.feedBaseUrl", 1000);
+    if (!feedBaseUrl.ok) return feedBaseUrl;
+    try {
+      const parsed = new URL(feedBaseUrl.value);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return { ok: false, msg: "自动更新地址必须是 http/https 链接" };
+    } catch {
+      return { ok: false, msg: "自动更新地址必须是有效完整链接" };
+    }
+    const startupDelayMs = Number(desktop.startupDelayMs);
+    if (!Number.isFinite(startupDelayMs) || startupDelayMs < 0) return { ok: false, msg: "bootstrap.updater.desktop.startupDelayMs 必须是非负数字" };
+    bootstrap.updater = {
+      desktop: {
+        enabled: Boolean(desktop.enabled),
+        feedBaseUrl: feedBaseUrl.value.replace(/\/+$/, ""),
+        checkOnStartup: Boolean(desktop.checkOnStartup),
+        startupDelayMs,
+      },
+    };
   }
   if (Object.keys(bootstrap).length === 0) return { ok: false, msg: "bootstrap 至少需要包含一个可保存字段" };
   return { ok: true, value: bootstrap };
@@ -560,6 +660,54 @@ adminRouter.post("/release-files/complete", (req, res) => {
     return res.json(ok(file, "安装包已登记"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "登记安装包失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.post("/desktop-updates/upload-token", (req, res) => {
+  try {
+    const payload = normalizeDesktopUpdateUploadTokenPayload(req.body);
+    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
+    return res.json(ok(createDesktopUpdateUploadToken(payload.value), "自动更新上传凭证已生成"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "生成自动更新上传凭证失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.post("/desktop-updates/complete", (req, res) => {
+  try {
+    const payload = normalizeDesktopUpdateCompletePayload(req.body);
+    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
+    const asset = createDesktopUpdateAsset({
+      id: randomUUID(),
+      version: payload.value.version,
+      platform: payload.value.platform,
+      arch: payload.value.arch,
+      fileType: payload.value.fileType,
+      provider: "qiniu",
+      bucket: payload.value.bucket,
+      objectKey: payload.value.key,
+      hash: payload.value.hash,
+      fileName: payload.value.fileName,
+      mimeType: payload.value.mimeType,
+      fileSize: payload.value.fileSize,
+    });
+    return res.json(ok(asset, "自动更新文件已登记"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "登记自动更新文件失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.post("/desktop-updates/activate", (req, res) => {
+  try {
+    const payload = normalizeDesktopUpdateActivatePayload(req.body);
+    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
+    const assets = activateDesktopUpdateVersion(payload.value.version, payload.value.platform, payload.value.arch);
+    return res.json(ok({ assets }, "PC 自动更新版本已启用"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "启用 PC 自动更新版本失败";
     return res.status(500).json(fail(message, 500));
   }
 });

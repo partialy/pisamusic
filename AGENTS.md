@@ -22,6 +22,7 @@
 - 官网发布信息支持 Android / PC 双端配置，推荐接口为 `GET /api/config/releases`；旧 `GET /api/config/check-update` 必须保持 Android 更新信息兼容，不要改成多端结构。
 - 服务端版本发布支持手填直链或后台上传安装包到七牛云。七牛配置使用 `server/.env` 中的 `QINIU_ACCESS_KEY`、`QINIU_SECRET_KEY`、`QINIU_BUCKET`、`QINIU_UPLOAD_URL`、`QINIU_DOMAIN`、`QINIU_DOMAIN_CDN`；`server/.env` 不提交，提交 `server/.env.example` 作为模板。
 - 七牛安装包信息保存在 `release_files` 表，并通过 `update_history.release_file_id` 关联发布历史。上传到七牛的安装包对外下载地址必须使用服务端 `/api/config/release-files/:id/download` 入口，由服务端生成七牛私有空间临时签名 URL 后跳转，不要把七牛对象直链直接下发给客户端。删除发布记录关联安装包时只删除七牛对象与文件状态，不删除历史记录；如果当前 Android / PC 发布配置正引用该文件下载地址，需要同步清空下载地址并关闭下载状态。
+- PC 自动升级使用 `electron-updater` 的 generic feed，服务端公开 `/api/config/desktop-updates/win32/x64/latest.yml` 和同目录文件下载入口；自动更新资源存储在 `desktop_update_assets`，由后台上传 `latest.yml`、安装包 EXE 和可选 blockmap 后启用，不要手写 `latest.yml`。
 - 手机端与桌面端收藏/歌单同步由外层 `server/` 的 `/api/sync/*` 提供服务；同步接口默认走系统加密链路，使用同步码绑定空间、`Authorization: Bearer <syncToken>` 鉴权，变更以增量 op、服务端版本和 tombstone 合并，不要绕过服务端让两端直接互写本地库。
 - 手机端和桌面端启动时如果外层服务不可用、没网或后台关闭 `appAvailable`，应进入本地模式并在主界面给非阻塞提示；设备被封禁仍然阻止进入。
 - 桌面端设备上报使用服务端 `desktop_device_info` 表和 `/api/device/desktop/report`，不要复用 Android 的 `device_info` 表；后台通过 `/api/admin/desktop-device/*` 管理 PC 设备。

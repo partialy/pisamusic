@@ -64,6 +64,12 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: "PisaMusic - 设置" },
       },
       {
+        path: "about",
+        name: "About",
+        component: () => import("../views/about.vue"),
+        meta: { title: "PisaMusic - 关于" },
+      },
+      {
         path: "playlist",
         name: "Playlist",
         component: () => import("../views/playlist.vue"),

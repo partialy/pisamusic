@@ -22,6 +22,14 @@ export const defaultAppConfig: AppConfigJson = {
       secret: "partialypartialypartialypartialy",
       as: "yixivip",
     },
+    updater: {
+      desktop: {
+        enabled: true,
+        feedBaseUrl: "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64",
+        checkOnStartup: true,
+        startupDelayMs: 15000,
+      },
+    },
   },
   update: {
     latestVersion: "v2.1.1",

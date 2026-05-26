@@ -181,12 +181,50 @@ type BootstrapConfig = {
     secret: string;
     as: string;
   };
+  updater?: {
+    desktop?: {
+      enabled: boolean;
+      feedBaseUrl: string;
+      checkOnStartup: boolean;
+      startupDelayMs: number;
+    };
+  };
 };
 
 type StartupServiceState = {
   localMode: boolean;
   reason: string;
   deviceId: string;
+};
+
+type UpdaterStatus =
+  | "idle"
+  | "disabled"
+  | "checking"
+  | "available"
+  | "not-available"
+  | "downloading"
+  | "downloaded"
+  | "error";
+
+type UpdaterState = {
+  status: UpdaterStatus;
+  feedUrl: string;
+  updateInfo: {
+    version?: string;
+    releaseName?: string;
+    releaseNotes?: string;
+    releaseDate?: string;
+  } | null;
+  progress: {
+    percent: number;
+    transferred: number;
+    total: number;
+    bytesPerSecond: number;
+  } | null;
+  forceUpdate: boolean;
+  error: string;
+  manual: boolean;
 };
 
 type Announcement = {
@@ -511,6 +549,11 @@ type ElectronIpcApi = {
   openDevTools: () => void;
   openUrl: (payload: OpenUrlParams) => Promise<boolean>;
   notifyStartupReady: () => void;
+  getUpdaterState: () => Promise<UpdaterState>;
+  checkForUpdates: (options?: { manual?: boolean }) => Promise<UpdaterState>;
+  downloadUpdate: () => Promise<UpdaterState>;
+  quitAndInstallUpdate: () => Promise<void>;
+  onUpdaterState: (callback: (state: UpdaterState) => void) => () => void;
   onHideWindow: (cb: () => void) => () => void;
   onWindowMaximized: (callback: () => void) => () => void;
   onWindowUnmaximized: (callback: () => void) => () => void;

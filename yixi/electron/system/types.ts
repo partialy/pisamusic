@@ -15,6 +15,14 @@ export type BootstrapConfig = {
   updatedAt: number;
   endpoints: Record<string, string>;
   gatewaySign?: GatewaySignConfig;
+  updater?: {
+    desktop?: {
+      enabled: boolean;
+      feedBaseUrl: string;
+      checkOnStartup: boolean;
+      startupDelayMs: number;
+    };
+  };
 };
 
 export type Announcement = {

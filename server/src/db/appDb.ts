@@ -58,6 +58,10 @@ CREATE TABLE IF NOT EXISTS app_settings (
     bootstrap_updated_at    INTEGER     NOT NULL DEFAULT 0,
     gateway_secret          TEXT        NOT NULL DEFAULT 'partialypartialypartialypartialy',
     gateway_as              TEXT        NOT NULL DEFAULT 'yixivip',
+    updater_enabled         INTEGER     NOT NULL DEFAULT 1,
+    updater_feed_base_url   TEXT        NOT NULL DEFAULT 'https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64',
+    updater_check_startup   INTEGER     NOT NULL DEFAULT 1,
+    updater_startup_delay   INTEGER     NOT NULL DEFAULT 15000,
     created_at              INTEGER     NOT NULL,
     updated_at              INTEGER     NOT NULL
 );
@@ -158,6 +162,28 @@ CREATE TABLE IF NOT EXISTS release_files (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_release_files_provider_key ON release_files (provider, bucket, object_key);
 CREATE INDEX IF NOT EXISTS idx_release_files_history ON release_files (history_id);
+
+CREATE TABLE IF NOT EXISTS desktop_update_assets (
+    id              TEXT    PRIMARY KEY,
+    version         TEXT    NOT NULL,
+    platform        TEXT    NOT NULL DEFAULT 'win32',
+    arch            TEXT    NOT NULL DEFAULT 'x64',
+    file_type       TEXT    NOT NULL,
+    provider        TEXT    NOT NULL DEFAULT 'qiniu',
+    bucket          TEXT    NOT NULL,
+    object_key      TEXT    NOT NULL,
+    hash            TEXT    NOT NULL DEFAULT '',
+    file_name       TEXT    NOT NULL,
+    mime_type       TEXT    NOT NULL DEFAULT '',
+    file_size       INTEGER NOT NULL DEFAULT 0,
+    status          TEXT    NOT NULL DEFAULT 'uploaded',
+    active          INTEGER NOT NULL DEFAULT 0,
+    created_at      INTEGER NOT NULL,
+    deleted_at      INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_desktop_update_assets_provider_key ON desktop_update_assets (provider, bucket, object_key);
+CREATE INDEX IF NOT EXISTS idx_desktop_update_assets_active ON desktop_update_assets (platform, arch, active, file_name);
+CREATE INDEX IF NOT EXISTS idx_desktop_update_assets_version ON desktop_update_assets (platform, arch, version);
 
 CREATE TABLE IF NOT EXISTS announcements (
     id                  TEXT    PRIMARY KEY,
@@ -302,6 +328,19 @@ function migrateUpdateHistory(db: DatabaseSync) {
   }
 }
 
+function migrateAppSettings(db: DatabaseSync) {
+  const cols = getColumnNames(db, "app_settings");
+  const add = (name: string, decl: string) => {
+    if (!cols.has(name)) {
+      db.exec(`ALTER TABLE app_settings ADD COLUMN ${name} ${decl}`);
+    }
+  };
+  add("updater_enabled", "INTEGER NOT NULL DEFAULT 1");
+  add("updater_feed_base_url", "TEXT NOT NULL DEFAULT 'https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64'");
+  add("updater_check_startup", "INTEGER NOT NULL DEFAULT 1");
+  add("updater_startup_delay", "INTEGER NOT NULL DEFAULT 15000");
+}
+
 function migrateDynamicConfigs(db: DatabaseSync) {
   const cols = getColumnNames(db, "dynamic_configs");
   const add = (name: string, decl: string) => {
@@ -319,6 +358,7 @@ function migrateDynamicConfigs(db: DatabaseSync) {
 function initSchema(db: DatabaseSync) {
   db.exec(CREATE_SQL);
   migrateDeviceInfo(db);
+  migrateAppSettings(db);
   migrateUpdateHistory(db);
   migrateDynamicConfigs(db);
 }

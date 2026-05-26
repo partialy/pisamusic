@@ -61,6 +61,27 @@ export type ReleaseFileInfo = {
   deletedAt: number | null;
 };
 
+export type DesktopUpdateAssetType = "latest-yml" | "installer" | "blockmap";
+
+export type DesktopUpdateAssetInfo = {
+  id: string;
+  version: string;
+  platform: "win32";
+  arch: "x64";
+  fileType: DesktopUpdateAssetType;
+  provider: "qiniu";
+  bucket: string;
+  objectKey: string;
+  hash: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  status: "uploaded" | "deleted";
+  active: boolean;
+  createdAt: number;
+  deletedAt: number | null;
+};
+
 export type UpdateHistoryItem = {
   id: string;
   platform: ReleasePlatform;
@@ -79,6 +100,13 @@ export type GatewaySignConfig = {
   as: string;
 };
 
+export type DesktopUpdaterConfig = {
+  enabled: boolean;
+  feedBaseUrl: string;
+  checkOnStartup: boolean;
+  startupDelayMs: number;
+};
+
 export type AppConfigJson = {
   availability: {
     appAvailable: boolean;
@@ -89,6 +117,9 @@ export type AppConfigJson = {
     updatedAt: number;
     endpoints: Record<string, string>;
     gatewaySign?: GatewaySignConfig;
+    updater?: {
+      desktop?: DesktopUpdaterConfig;
+    };
   };
   update: AppUpdatePayload;
   releases: ReleaseConfig;
@@ -128,6 +159,7 @@ export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
   "/api/config/get",
   "/api/config/releases",
   "/api/config/release-files/*",
+  "/api/config/desktop-updates/*",
   "/api/config/discover",
   "/api/config/update-history",
   "/api/config/agreement",

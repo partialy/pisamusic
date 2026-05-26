@@ -57,6 +57,15 @@ const startupIpc = {
   notifyStartupReady: () => ipcRenderer.send("startup:renderer-ready"),
 };
 
+const updaterIpc = {
+  getUpdaterState: () => ipcRenderer.invoke("updater:get-state"),
+  checkForUpdates: (options?: { manual?: boolean }) =>
+    ipcRenderer.invoke("updater:check", cloneIpcPayload(options ?? {})),
+  downloadUpdate: () => ipcRenderer.invoke("updater:download"),
+  quitAndInstallUpdate: () => ipcRenderer.invoke("updater:quit-and-install"),
+  onUpdaterState: (callback: (state: any) => void) => on("updater:state", callback),
+};
+
 const logIpc = {
   log: (message: unknown) => ipcRenderer.invoke("app:log", message),
   reportError: (error: unknown, context?: Record<string, unknown>) =>
@@ -350,6 +359,7 @@ const debugIpc = {
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
   ...startupIpc,
+  ...updaterIpc,
   ...logIpc,
   ...desktopLyricIpc,
   ...systemIpc,

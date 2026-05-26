@@ -3,6 +3,8 @@ import type {
   Announcement,
   AppConfigJson,
   AppConfigSectionsPayload,
+  DesktopUpdateAssetInfo,
+  DesktopUpdateAssetType,
   DesktopDeviceInfo,
   DeviceFilter,
   DeviceInfo,
@@ -29,6 +31,7 @@ import {
   fetchDevices,
   fetchEncryptionConfig,
   fetchUpdateHistory,
+  activateDesktopUpdate,
   lockDesktopDevice,
   lockDevice,
   publishUpdate,
@@ -37,6 +40,7 @@ import {
   saveAnnouncement as saveAnnouncementApi,
   saveEncryptionConfig,
   uploadReleasePackage,
+  uploadDesktopUpdateAsset,
   updateDynamicConfig,
   deleteReleasePackage,
 } from "./api/client";
@@ -128,6 +132,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [publishSaving, setPublishSaving] = useState(false);
   const [packageUploading, setPackageUploading] = useState(false);
   const [packageUploadProgress, setPackageUploadProgress] = useState<number | null>(null);
+  const [desktopUpdateUploading, setDesktopUpdateUploading] = useState<DesktopUpdateAssetType | null>(null);
+  const [desktopUpdateProgress, setDesktopUpdateProgress] = useState<Partial<Record<DesktopUpdateAssetType, number>>>({});
+  const [desktopUpdateAssets, setDesktopUpdateAssets] = useState<Partial<Record<DesktopUpdateAssetType, DesktopUpdateAssetInfo>>>({});
   const [deletingPackageHistoryId, setDeletingPackageHistoryId] = useState<string | null>(null);
 
   const [encryptionPathsServer, setEncryptionPathsServer] = useState<string[]>([]);
@@ -329,6 +336,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     const plus8Time = getCurrentPlus8Time();
     setEditingUpdateIsNew(true);
     setPackageUploadProgress(null);
+    setDesktopUpdateProgress({});
+    setDesktopUpdateAssets({});
+    setDesktopUpdateUploading(null);
     setEditingUpdateDraft({
       platform: "android",
       version: "v",
@@ -347,6 +357,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const openEditUpdate = (item: UpdateHistoryItem) => {
     setEditingUpdateIsNew(false);
     setPackageUploadProgress(null);
+    setDesktopUpdateProgress({});
+    setDesktopUpdateAssets({});
+    setDesktopUpdateUploading(null);
     setEditingUpdateDraft(historyItemToDraft(item));
   };
 
@@ -368,6 +381,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setPublishSaving(true);
     try {
       await publishUpdate(payload);
+      if (payload.platform === "desktop" && desktopUpdateAssets["latest-yml"] && desktopUpdateAssets.installer) {
+        await activateDesktopUpdate(payload.latestVersion);
+      }
       setEditingUpdateDraft(null);
       await refreshRemote();
     } catch (e) {
@@ -407,6 +423,37 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       alert(e instanceof Error ? e.message : "上传安装包失败");
     } finally {
       setPackageUploading(false);
+    }
+  };
+
+  const inferDesktopAssetType = (fileName: string): DesktopUpdateAssetType => {
+    const lower = fileName.toLowerCase();
+    if (lower === "latest.yml") return "latest-yml";
+    if (lower.endsWith(".blockmap")) return "blockmap";
+    return "installer";
+  };
+
+  const handleUploadDesktopUpdateAsset = async (file: File) => {
+    if (!editingUpdateDraft) return;
+    if (editingUpdateDraft.platform !== "desktop") return;
+    const fileType = inferDesktopAssetType(file.name);
+    setDesktopUpdateUploading(fileType);
+    setDesktopUpdateProgress((prev) => ({ ...prev, [fileType]: 0 }));
+    try {
+      const asset = await uploadDesktopUpdateAsset(file, editingUpdateDraft.version, (progress) => {
+        setDesktopUpdateProgress((prev) => ({ ...prev, [fileType]: progress }));
+      });
+      setDesktopUpdateAssets((prev) => ({ ...prev, [asset.fileType]: asset }));
+      setDesktopUpdateProgress((prev) => ({ ...prev, [asset.fileType]: 100 }));
+    } catch (e) {
+      setDesktopUpdateProgress((prev) => {
+        const next = { ...prev };
+        delete next[fileType];
+        return next;
+      });
+      alert(e instanceof Error ? e.message : "上传自动更新文件失败");
+    } finally {
+      setDesktopUpdateUploading(null);
     }
   };
 
@@ -467,11 +514,13 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         availability: appConfig.availability,
         version: appConfig.bootstrap.version,
         updatedAt: appConfig.bootstrap.updatedAt,
+        updater: appConfig.bootstrap.updater,
       }) !==
       JSON.stringify({
         availability: appConfigServer.availability,
         version: appConfigServer.bootstrap.version,
         updatedAt: appConfigServer.bootstrap.updatedAt,
+        updater: appConfigServer.bootstrap.updater,
       }),
     [appConfig, appConfigServer],
   );
@@ -532,6 +581,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           ...appConfigServer.bootstrap,
           version: appConfig.bootstrap.version,
           updatedAt: appConfig.bootstrap.updatedAt,
+          updater: appConfig.bootstrap.updater,
         },
       },
       setSystemSaving,
@@ -1098,9 +1148,13 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           saving={publishSaving}
           uploadingPackage={packageUploading}
           uploadProgress={packageUploadProgress}
+          desktopUpdateUploading={desktopUpdateUploading}
+          desktopUpdateProgress={desktopUpdateProgress}
+          desktopUpdateAssets={desktopUpdateAssets}
           onClose={() => setEditingUpdateDraft(null)}
           onChange={setEditingUpdateDraft}
           onUploadPackage={(file) => void handleUploadReleasePackage(file)}
+          onUploadDesktopUpdateAsset={(file) => void handleUploadDesktopUpdateAsset(file)}
           onSubmit={() => void handleSubmitPublish()}
         />
       )}

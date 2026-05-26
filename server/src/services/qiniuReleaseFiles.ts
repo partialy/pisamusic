@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import * as qiniu from "qiniu";
-import type { ReleasePlatform } from "../db/configStore";
+import type { DesktopUpdateAssetType, ReleasePlatform } from "../db/configStore";
 
 const PROVIDER = "qiniu" as const;
 const TOKEN_TTL_SECONDS = 3600;
@@ -10,9 +10,20 @@ const ALLOWED_EXTENSIONS: Record<ReleasePlatform, string[]> = {
   android: [".apk", ".aab"],
   desktop: [".exe", ".msi", ".zip", ".7z"],
 };
+const DESKTOP_UPDATE_ALLOWED_EXTENSIONS = [".yml", ".exe", ".blockmap"];
 
 export type QiniuUploadTokenInput = {
   platform: ReleasePlatform;
+  fileName: string;
+  fileSize: number;
+  mimeType?: string;
+};
+
+export type DesktopUpdateUploadTokenInput = {
+  version: string;
+  platform: "win32";
+  arch: "x64";
+  fileType: DesktopUpdateAssetType;
   fileName: string;
   fileSize: number;
   mimeType?: string;
@@ -81,10 +92,35 @@ export function validateReleaseFile(platform: ReleasePlatform, fileName: string,
   }
 }
 
+export function inferDesktopUpdateAssetType(fileName: string): DesktopUpdateAssetType {
+  const lower = fileName.toLowerCase();
+  if (lower === "latest.yml") return "latest-yml";
+  if (lower.endsWith(".blockmap")) return "blockmap";
+  return "installer";
+}
+
+export function validateDesktopUpdateAsset(fileName: string, fileSize: number): DesktopUpdateAssetType {
+  if (!fileName.trim()) throw new Error("文件名不能为空");
+  if (!Number.isFinite(fileSize) || fileSize <= 0) throw new Error("文件大小不正确");
+  const ext = getExtension(fileName);
+  if (!DESKTOP_UPDATE_ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error(`PC 自动更新文件仅支持 ${DESKTOP_UPDATE_ALLOWED_EXTENSIONS.join("、")}`);
+  }
+  const fileType = inferDesktopUpdateAssetType(fileName);
+  if (fileType === "latest-yml" && fileName !== "latest.yml") throw new Error("YML 文件名必须是 latest.yml");
+  return fileType;
+}
+
 function buildObjectKey(platform: ReleasePlatform, fileName: string): string {
   const ext = getExtension(fileName);
   const day = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   return `pisamusic/releases/${platform}/${day}/${randomUUID()}${ext}`;
+}
+
+function buildDesktopUpdateObjectKey(input: DesktopUpdateUploadTokenInput): string {
+  const ext = getExtension(input.fileName);
+  const safeName = input.fileName.replace(/[^A-Za-z0-9._-]/g, "_");
+  return `pisamusic/desktop-updates/${input.platform}/${input.arch}/${encodeURIComponent(input.version)}/${randomUUID()}-${safeName || `asset${ext}`}`;
 }
 
 export function buildDownloadUrl(key: string): string {
@@ -100,6 +136,31 @@ export function createQiniuUploadToken(input: QiniuUploadTokenInput): QiniuUploa
   validateReleaseFile(input.platform, input.fileName, input.fileSize);
   const bucket = getBucket();
   const key = buildObjectKey(input.platform, input.fileName);
+  const { domain, cdnDomain } = getPublicDomain();
+  const putPolicy = new qiniu.rs.PutPolicy({
+    scope: `${bucket}:${key}`,
+    insertOnly: 1,
+    expires: TOKEN_TTL_SECONDS,
+    fsizeLimit: input.fileSize,
+    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
+  });
+  return {
+    provider: PROVIDER,
+    uploadToken: putPolicy.uploadToken(getMac()),
+    uploadUrl: getUploadUrl(),
+    key,
+    bucket,
+    domain,
+    cdnDomain,
+    downloadUrl: "",
+    expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000,
+  };
+}
+
+export function createDesktopUpdateUploadToken(input: DesktopUpdateUploadTokenInput): QiniuUploadTokenInfo {
+  validateDesktopUpdateAsset(input.fileName, input.fileSize);
+  const bucket = getBucket();
+  const key = buildDesktopUpdateObjectKey(input);
   const { domain, cdnDomain } = getPublicDomain();
   const putPolicy = new qiniu.rs.PutPolicy({
     scope: `${bucket}:${key}`,

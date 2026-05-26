@@ -4,6 +4,7 @@ import type {
   AppConfigJson,
   AppConfigSectionsPayload,
   AppUpdatePayload,
+  DesktopUpdateAssetInfo,
   DynamicConfigItem,
   DynamicConfigPayload,
   DeviceFilter,
@@ -271,6 +272,70 @@ export async function uploadReleasePackage(file: File, platform: ReleasePlatform
   const token = await fetchReleaseUploadToken(file, platform);
   const uploaded = await uploadFileToQiniu(file, token, onProgress);
   return completeReleaseUpload(file, platform, token, uploaded);
+}
+
+async function fetchDesktopUpdateUploadToken(file: File, version: string): Promise<UploadTokenResponse> {
+  const res = await fetchWithAuth("/api/admin/desktop-updates/upload-token", {
+    method: "POST",
+    body: JSON.stringify({
+      version,
+      platform: "win32",
+      arch: "x64",
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+    }),
+  });
+  const body = await parseJson<UploadTokenResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+async function completeDesktopUpdateUpload(
+  file: File,
+  version: string,
+  token: UploadTokenResponse,
+  uploaded: QiniuUploadResponse,
+): Promise<DesktopUpdateAssetInfo> {
+  const res = await fetchWithAuth("/api/admin/desktop-updates/complete", {
+    method: "POST",
+    body: JSON.stringify({
+      version,
+      platform: "win32",
+      arch: "x64",
+      bucket: uploaded.bucket || token.bucket,
+      key: uploaded.key || token.key,
+      hash: uploaded.hash || "",
+      fileName: file.name,
+      mimeType: file.type,
+      fileSize: Number(uploaded.fsize || file.size),
+    }),
+  });
+  const body = await parseJson<DesktopUpdateAssetInfo>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function uploadDesktopUpdateAsset(file: File, version: string, onProgress?: UploadProgressHandler): Promise<DesktopUpdateAssetInfo> {
+  const token = await fetchDesktopUpdateUploadToken(file, version);
+  const uploaded = await uploadFileToQiniu(file, token, onProgress);
+  return completeDesktopUpdateUpload(file, version, token, uploaded);
+}
+
+export async function activateDesktopUpdate(version: string): Promise<DesktopUpdateAssetInfo[]> {
+  const res = await fetchWithAuth("/api/admin/desktop-updates/activate", {
+    method: "POST",
+    body: JSON.stringify({ version, platform: "win32", arch: "x64" }),
+  });
+  const body = await parseJson<{ assets: DesktopUpdateAssetInfo[] }>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data.assets;
 }
 
 export async function deleteReleasePackage(historyId: string): Promise<void> {

@@ -166,6 +166,7 @@
 - main 进程启动阶段负责检查外层服务可用性、刷新 bootstrap 并上报 PC 设备；没网、服务不可用或 `appAvailable=false` 时设置本地模式继续打开主窗口，renderer 只读取 `system:get-startup-service-state` 并用 `window.$notification` 提示。PC 设备封禁必须阻止进入。
 - 本地模式下右上角设置下拉需要显示“重新链接”，点击后通过 main 进程重启整个 App，重新走启动检查流程；不要改成单纯刷新 renderer。
 - PC 设备上报走 `/api/device/desktop/report`，服务端存储在 `desktop_device_info`，不要复用 Android 设备表。
+- PC 在线升级走 `electron-updater`，main 进程读取 bootstrap 的 `updater.desktop.feedBaseUrl`，失败时使用 `https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64` 兜底；开发模式、未打包运行、本地模式都不检查更新。
 
 ## 数据库模块拆分补充
 

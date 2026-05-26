@@ -71,6 +71,22 @@ export default function SystemTab({
   onSaveGatewaySign,
   onSaveDiscover,
 }: Props) {
+  const desktopUpdater = config.bootstrap.updater?.desktop ?? {
+    enabled: true,
+    feedBaseUrl: "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64",
+    checkOnStartup: true,
+    startupDelayMs: 15000,
+  };
+  const updateDesktopUpdater = (patch: Partial<typeof desktopUpdater>) => {
+    updateSection("bootstrap", "updater", {
+      ...(config.bootstrap.updater ?? {}),
+      desktop: {
+        ...desktopUpdater,
+        ...patch,
+      },
+    });
+  };
+
   return (
     <div className="grid grid-cols-1 gap-6 animate-fade-in-up xl:grid-cols-[0.78fr_1.22fr] xl:items-start">
       <div className="space-y-6">
@@ -128,6 +144,42 @@ export default function SystemTab({
                   className={glassInputClasses + " font-mono cursor-pointer"}
                 />
                 <p className="text-[10px] text-slate-400 mt-2 ml-1 font-mono">Timestamp: {config.bootstrap.updatedAt}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-2xl border border-white/60 bg-white/40 p-4 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-800 text-base">PC Auto Update</p>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Desktop updater feed delivered in bootstrap.</p>
+                </div>
+                <Switch checked={desktopUpdater.enabled} onChange={(val) => updateDesktopUpdater({ enabled: val })} themeColor={themeColor} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">Feed Base URL</label>
+                <input
+                  type="text"
+                  value={desktopUpdater.feedBaseUrl}
+                  onChange={(e) => updateDesktopUpdater({ feedBaseUrl: e.target.value })}
+                  className={glassInputClasses + " font-mono text-[13px]"}
+                  placeholder="https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-xl border border-white/60 bg-white/50 p-3">
+                  <span className="text-sm font-bold text-slate-700">启动后检查</span>
+                  <Switch checked={desktopUpdater.checkOnStartup} onChange={(val) => updateDesktopUpdater({ checkOnStartup: val })} themeColor={themeColor} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">启动延迟 ms</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={desktopUpdater.startupDelayMs}
+                    onChange={(e) => updateDesktopUpdater({ startupDelayMs: Number(e.target.value) })}
+                    className={glassInputClasses + " font-mono"}
+                  />
+                </div>
               </div>
             </div>
           </div>

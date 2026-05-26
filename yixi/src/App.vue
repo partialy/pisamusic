@@ -26,8 +26,9 @@ import {
   NNotificationProvider,
   NModalProvider,
   NMessageProvider,
+  NButton,
 } from "naive-ui";
-import { onBeforeUnmount, Transition, watch } from "vue";
+import { h, onBeforeUnmount, Transition, watch } from "vue";
 import { PlayerBar, MainPlayer } from "./components";
 import {
   useCommonStore,
@@ -119,6 +120,71 @@ function setupListeners() {
     }
   );
 }
+
+let lastUpdaterProgressNotice = -1;
+function setupUpdaterNotifications() {
+  electronAPI.onUpdaterState?.((state) => {
+    if (state.status === "available") {
+      window.$notification.info({
+        title: state.forceUpdate ? "发现必须更新版本" : "发现新版本",
+        content: `新版本 ${state.updateInfo?.version || ""} 已可用`,
+        duration: state.forceUpdate ? 0 : 8000,
+        action: () =>
+          h(
+            NButton,
+            {
+              size: "small",
+              type: "primary",
+              onClick: () => void electronAPI.downloadUpdate?.(),
+            },
+            { default: () => "下载更新" },
+          ),
+      });
+    } else if (state.status === "downloading") {
+      const percent = Math.round(state.progress?.percent ?? 0);
+      if (percent === 100 || percent - lastUpdaterProgressNotice >= 20) {
+        lastUpdaterProgressNotice = percent;
+        window.$message.info(`更新下载中 ${percent}%`);
+      }
+    } else if (state.status === "downloaded") {
+      lastUpdaterProgressNotice = -1;
+      window.$notification.success({
+        title: "更新下载完成",
+        content: "重启应用后将安装新版本",
+        duration: state.forceUpdate ? 0 : 10000,
+        action: () =>
+          h(
+            NButton,
+            {
+              size: "small",
+              type: "primary",
+              onClick: () => void electronAPI.quitAndInstallUpdate?.(),
+            },
+            { default: () => "立即重启安装" },
+          ),
+      });
+    } else if (state.status === "error" && state.manual) {
+      window.$notification.warning({
+        title: "检查更新失败",
+        content: state.error || "请稍后重试",
+        duration: 5000,
+      });
+    } else if (state.status === "not-available" && state.manual) {
+      window.$notification.success({
+        title: "当前已是最新版本",
+        content: "暂未发现可用更新",
+        duration: 4000,
+      });
+    } else if (state.status === "disabled" && state.manual) {
+      window.$notification.info({
+        title: "无法检查更新",
+        content: state.error || "当前环境不支持自动更新",
+        duration: 4000,
+      });
+    }
+  });
+}
+
 function setUpWindow() {
   window.$message = message;
   window.$notification = notification;
@@ -142,6 +208,7 @@ async function bootstrapApp() {
   try {
     setUpWindow();
     setupListeners();
+    setupUpdaterNotifications();
     setupAutoSaver();
     lyric.loadSetting();
     const startupServiceState = await electronAPI.getStartupServiceState?.();

@@ -7,6 +7,7 @@ import {
   type UpdateHistoryItem,
   readAnnouncements,
   readAppConfig,
+  readActiveDesktopUpdateAsset,
   readReleaseFileById,
   readUpdateHistory,
   shouldBlock,
@@ -110,6 +111,57 @@ configRouter.get("/releases", (req, res) => {
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
     res.status(500).json(fail(message, 500));
+  }
+});
+
+configRouter.get("/desktop-updates/:platform/:arch/latest.yml", (req, res) => {
+  try {
+    const { state } = blockedResponse();
+    if (state.blocked) {
+      res.status(403).type("text/plain").send(state.reason);
+      return;
+    }
+    const platform = String(req.params.platform ?? "").trim();
+    const arch = String(req.params.arch ?? "").trim();
+    if (platform !== "win32" || arch !== "x64") {
+      res.status(404).type("text/plain").send("Not found");
+      return;
+    }
+    const asset = readActiveDesktopUpdateAsset("latest.yml", platform, arch);
+    if (!asset) {
+      res.status(404).type("text/plain").send("latest.yml not configured");
+      return;
+    }
+    res.redirect(302, createPrivateQiniuDownloadUrl(asset.objectKey));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取自动更新配置失败";
+    res.status(500).type("text/plain").send(message);
+  }
+});
+
+configRouter.get("/desktop-updates/:platform/:arch/:fileName", (req, res) => {
+  try {
+    const { state } = blockedResponse();
+    if (state.blocked) {
+      res.status(403).type("text/plain").send(state.reason);
+      return;
+    }
+    const platform = String(req.params.platform ?? "").trim();
+    const arch = String(req.params.arch ?? "").trim();
+    const fileName = String(req.params.fileName ?? "").trim();
+    if (platform !== "win32" || arch !== "x64" || !fileName || fileName === "latest.yml") {
+      res.status(404).type("text/plain").send("Not found");
+      return;
+    }
+    const asset = readActiveDesktopUpdateAsset(fileName, platform, arch);
+    if (!asset) {
+      res.status(404).type("text/plain").send("update asset not configured");
+      return;
+    }
+    res.redirect(302, createPrivateQiniuDownloadUrl(asset.objectKey));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取自动更新文件失败";
+    res.status(500).type("text/plain").send(message);
   }
 });
 

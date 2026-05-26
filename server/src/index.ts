@@ -31,6 +31,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/config/get",
   "/api/config/releases",
   "/api/config/release-files/*",
+  "/api/config/desktop-updates/*",
   "/api/config/discover",
   "/api/config/update-history",
   "/api/config/agreement",
@@ -47,6 +48,7 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/api/config/get",
   "/api/config/releases",
   "/api/config/release-files/*",
+  "/api/config/desktop-updates/*",
   "/api/config/discover",
   "/discover/*",
 ];

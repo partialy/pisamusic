@@ -23,6 +23,7 @@ import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
 import { startSyncOnStartup } from "./sync/syncService";
 import { prepareStartupServiceState } from "./system/systemClient";
+import { setupUpdaterIpc, startUpdaterOnStartup } from "./updater/updaterService";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -121,6 +122,7 @@ function setupAppIpc() {
   setupDownloadIpc();
   setupShortcutIpc(() => mainWindow);
   setupSyncIpc();
+  setupUpdaterIpc(() => mainWindow);
   desktopLyric.setupIpc();
 }
 
@@ -144,6 +146,7 @@ function setupStartupBridge() {
   ipcMain.on("startup:renderer-ready", () => {
     rendererReady = true;
     revealMainWindowIfReady();
+    void startUpdaterOnStartup(() => mainWindow);
   });
 }
 

@@ -31,6 +31,27 @@ export type ReleaseFileInfo = {
   deletedAt: number | null;
 };
 
+export type DesktopUpdateAssetType = "latest-yml" | "installer" | "blockmap";
+
+export type DesktopUpdateAssetInfo = {
+  id: string;
+  version: string;
+  platform: "win32";
+  arch: "x64";
+  fileType: DesktopUpdateAssetType;
+  provider: "qiniu";
+  bucket: string;
+  objectKey: string;
+  hash: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  status: ReleaseFileStatus;
+  active: boolean;
+  createdAt: number;
+  deletedAt: number | null;
+};
+
 export type ReleaseInfo = AppUpdate & {
   platformLabel: string;
   fileSizeText: string;
@@ -44,6 +65,13 @@ export type GatewaySignConfig = {
   as: string;
 };
 
+export type DesktopUpdaterConfig = {
+  enabled: boolean;
+  feedBaseUrl: string;
+  checkOnStartup: boolean;
+  startupDelayMs: number;
+};
+
 export type AvailabilityConfig = {
   appAvailable: boolean;
   unavailableReason: string;
@@ -54,6 +82,9 @@ export type BootstrapConfig = {
   updatedAt: number;
   endpoints: Record<string, string>;
   gatewaySign?: GatewaySignConfig;
+  updater?: {
+    desktop?: DesktopUpdaterConfig;
+  };
 };
 
 export type TextContentConfig = {
@@ -113,6 +144,7 @@ export type UpdateHistoryItem = {
 };
 
 const RELEASE_PLATFORMS: ReleasePlatform[] = ["android", "desktop"];
+const DEFAULT_DESKTOP_UPDATE_FEED = "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64";
 
 export type Announcement = {
   id: string;
@@ -152,6 +184,14 @@ const DEFAULT_APP_CONFIG: AppConfig = {
     gatewaySign: {
       secret: "partialypartialypartialypartialy",
       as: "yixivip",
+    },
+    updater: {
+      desktop: {
+        enabled: true,
+        feedBaseUrl: DEFAULT_DESKTOP_UPDATE_FEED,
+        checkOnStartup: true,
+        startupDelayMs: 15000,
+      },
     },
   },
   update: {
@@ -253,6 +293,25 @@ function normalizeRelease(platform: ReleasePlatform, release?: Partial<ReleaseIn
   };
 }
 
+function normalizeDesktopUpdaterConfig(input?: Partial<DesktopUpdaterConfig>): DesktopUpdaterConfig {
+  const defaults = DEFAULT_APP_CONFIG.bootstrap.updater?.desktop ?? {
+    enabled: true,
+    feedBaseUrl: DEFAULT_DESKTOP_UPDATE_FEED,
+    checkOnStartup: true,
+    startupDelayMs: 15000,
+  };
+  const next = {
+    ...defaults,
+    ...(input ?? {}),
+  };
+  return {
+    enabled: Boolean(next.enabled),
+    feedBaseUrl: next.feedBaseUrl || DEFAULT_DESKTOP_UPDATE_FEED,
+    checkOnStartup: Boolean(next.checkOnStartup),
+    startupDelayMs: Number.isFinite(Number(next.startupDelayMs)) ? Math.max(0, Number(next.startupDelayMs)) : defaults.startupDelayMs,
+  };
+}
+
 function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -282,6 +341,25 @@ type ReleaseFileRow = {
   deleted_at: number | null;
 };
 
+type DesktopUpdateAssetRow = {
+  id: string;
+  version: string;
+  platform: string;
+  arch: string;
+  file_type: string;
+  provider: string;
+  bucket: string;
+  object_key: string;
+  hash: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  status: string;
+  active: number;
+  created_at: number;
+  deleted_at: number | null;
+};
+
 function mapReleaseFile(row?: ReleaseFileRow | null): ReleaseFileInfo | null {
   if (!row) return null;
   return {
@@ -297,6 +375,29 @@ function mapReleaseFile(row?: ReleaseFileRow | null): ReleaseFileInfo | null {
     fileSize: Number(row.file_size) || 0,
     downloadUrl: row.download_url,
     status: row.status === "deleted" ? "deleted" : "uploaded",
+    createdAt: row.created_at,
+    deletedAt: row.deleted_at,
+  };
+}
+
+function mapDesktopUpdateAsset(row?: DesktopUpdateAssetRow | null): DesktopUpdateAssetInfo | null {
+  if (!row) return null;
+  const fileType = row.file_type === "latest-yml" || row.file_type === "blockmap" ? row.file_type : "installer";
+  return {
+    id: row.id,
+    version: row.version,
+    platform: "win32",
+    arch: "x64",
+    fileType,
+    provider: "qiniu",
+    bucket: row.bucket,
+    objectKey: row.object_key,
+    hash: row.hash,
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    fileSize: Number(row.file_size) || 0,
+    status: row.status === "deleted" ? "deleted" : "uploaded",
+    active: boolFromDb(row.active),
     createdAt: row.created_at,
     deletedAt: row.deleted_at,
   };
@@ -318,8 +419,9 @@ export function replaceAppConfig(config: AppConfig) {
     db.prepare(
       `INSERT INTO app_settings (
         id, app_available, unavailable_reason, bootstrap_version, bootstrap_updated_at,
-        gateway_secret, gateway_as, created_at, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+        gateway_secret, gateway_as, updater_enabled, updater_feed_base_url,
+        updater_check_startup, updater_startup_delay, created_at, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         app_available = excluded.app_available,
         unavailable_reason = excluded.unavailable_reason,
@@ -327,6 +429,10 @@ export function replaceAppConfig(config: AppConfig) {
         bootstrap_updated_at = excluded.bootstrap_updated_at,
         gateway_secret = excluded.gateway_secret,
         gateway_as = excluded.gateway_as,
+        updater_enabled = excluded.updater_enabled,
+        updater_feed_base_url = excluded.updater_feed_base_url,
+        updater_check_startup = excluded.updater_check_startup,
+        updater_startup_delay = excluded.updater_startup_delay,
         updated_at = excluded.updated_at`,
     ).run(
       boolToDb(config.availability.appAvailable),
@@ -335,6 +441,10 @@ export function replaceAppConfig(config: AppConfig) {
       config.bootstrap.updatedAt,
       config.bootstrap.gatewaySign?.secret ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.secret ?? "",
       config.bootstrap.gatewaySign?.as ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.as ?? "",
+      boolToDb(normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).enabled),
+      normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).feedBaseUrl,
+      boolToDb(normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).checkOnStartup),
+      normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).startupDelayMs,
       now,
       now,
     );
@@ -473,6 +583,10 @@ export function readAppConfig(): AppConfig {
         bootstrap_updated_at: number;
         gateway_secret: string;
         gateway_as: string;
+        updater_enabled: number;
+        updater_feed_base_url: string;
+        updater_check_startup: number;
+        updater_startup_delay: number;
       }
     | undefined;
   const endpoints = db
@@ -564,6 +678,14 @@ export function readAppConfig(): AppConfig {
         secret: settings?.gateway_secret ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.secret ?? "",
         as: settings?.gateway_as ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.as ?? "",
       },
+      updater: {
+        desktop: normalizeDesktopUpdaterConfig({
+          enabled: settings ? boolFromDb(settings.updater_enabled) : undefined,
+          feedBaseUrl: settings?.updater_feed_base_url,
+          checkOnStartup: settings ? boolFromDb(settings.updater_check_startup) : undefined,
+          startupDelayMs: settings?.updater_startup_delay,
+        }),
+      },
     },
     update: currentUpdate,
     releases,
@@ -609,6 +731,9 @@ export function saveAppConfigSections(sections: EditableAppConfigSections): AppC
       ...(sections.bootstrap ?? {}),
       endpoints: sections.bootstrap?.endpoints ?? current.bootstrap.endpoints,
       gatewaySign: sections.bootstrap?.gatewaySign ?? current.bootstrap.gatewaySign,
+      updater: {
+        desktop: normalizeDesktopUpdaterConfig(sections.bootstrap?.updater?.desktop ?? current.bootstrap.updater?.desktop),
+      },
     },
     update: sections.releases?.android ? appUpdateFromRelease(normalizeRelease("android", sections.releases.android, current.update)) : current.update,
     releases: {
@@ -652,6 +777,73 @@ export function createReleaseFile(input: Omit<ReleaseFileInfo, "historyId" | "st
 
 export function readReleaseFileById(id: string): ReleaseFileInfo | null {
   return readReleaseFileByIdWithDb(getAppDb(), id);
+}
+
+export function createDesktopUpdateAsset(input: Omit<DesktopUpdateAssetInfo, "status" | "active" | "createdAt" | "deletedAt">): DesktopUpdateAssetInfo {
+  const db = getAppDb();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO desktop_update_assets (
+      id, version, platform, arch, file_type, provider, bucket, object_key,
+      hash, file_name, mime_type, file_size, status, active, created_at, deleted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', 0, ?, NULL)`,
+  ).run(
+    input.id,
+    input.version,
+    input.platform,
+    input.arch,
+    input.fileType,
+    input.provider,
+    input.bucket,
+    input.objectKey,
+    input.hash,
+    input.fileName,
+    input.mimeType,
+    input.fileSize,
+    now,
+  );
+  const row = db.prepare("SELECT * FROM desktop_update_assets WHERE id = ?").get(input.id) as DesktopUpdateAssetRow | undefined;
+  const saved = mapDesktopUpdateAsset(row);
+  if (!saved) throw new Error("自动更新文件保存失败");
+  return saved;
+}
+
+export function readDesktopUpdateAssets(version: string, platform = "win32", arch = "x64"): DesktopUpdateAssetInfo[] {
+  const db = getAppDb();
+  const rows = db
+    .prepare(
+      `SELECT * FROM desktop_update_assets
+       WHERE version = ? AND platform = ? AND arch = ? AND status = 'uploaded'
+       ORDER BY created_at DESC`,
+    )
+    .all(version, platform, arch) as DesktopUpdateAssetRow[];
+  return rows.map((row) => mapDesktopUpdateAsset(row)!).filter(Boolean);
+}
+
+export function activateDesktopUpdateVersion(version: string, platform = "win32", arch = "x64"): DesktopUpdateAssetInfo[] {
+  const db = getAppDb();
+  return runInTransaction(db, () => {
+    const assets = readDesktopUpdateAssets(version, platform, arch);
+    const hasLatest = assets.some((asset) => asset.fileType === "latest-yml" && asset.fileName === "latest.yml");
+    const hasInstaller = assets.some((asset) => asset.fileType === "installer");
+    if (!hasLatest) throw new Error("缺少 latest.yml");
+    if (!hasInstaller) throw new Error("缺少安装包");
+    db.prepare("UPDATE desktop_update_assets SET active = 0 WHERE platform = ? AND arch = ?").run(platform, arch);
+    db.prepare("UPDATE desktop_update_assets SET active = 1 WHERE version = ? AND platform = ? AND arch = ? AND status = 'uploaded'").run(version, platform, arch);
+    return readDesktopUpdateAssets(version, platform, arch).map((asset) => ({ ...asset, active: true }));
+  });
+}
+
+export function readActiveDesktopUpdateAsset(fileName: string, platform = "win32", arch = "x64"): DesktopUpdateAssetInfo | null {
+  const db = getAppDb();
+  const row = db
+    .prepare(
+      `SELECT * FROM desktop_update_assets
+       WHERE platform = ? AND arch = ? AND active = 1 AND status = 'uploaded' AND file_name = ?
+       ORDER BY created_at DESC LIMIT 1`,
+    )
+    .get(platform, arch, fileName) as DesktopUpdateAssetRow | undefined;
+  return mapDesktopUpdateAsset(row);
 }
 
 export function readReleaseFileForHistory(historyId: string): ReleaseFileInfo | null {
