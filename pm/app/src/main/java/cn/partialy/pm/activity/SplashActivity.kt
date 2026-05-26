@@ -142,11 +142,7 @@ class SplashActivity : AppCompatActivity() {
                 }.onSuccess { agreement ->
                     showAgreementSheet(agreement.title, agreement.content)
                 }.onFailure {
-                    if ((it as? ConfigManager.ApiException)?.code == -233) {
-                        showUnavailableErrorSheet(it.message ?: "服务暂不可用")
-                    } else {
-                        showNetworkSheet(getString(R.string.splash_server_connection_failed))
-                    }
+                    showAgreementSheet(FALLBACK_AGREEMENT_TITLE, FALLBACK_AGREEMENT_CONTENT)
                 }
                 return@launch
             }
@@ -176,23 +172,14 @@ class SplashActivity : AppCompatActivity() {
                     return@onSuccess
                 }
                 if (hasNavigated) return@onSuccess
-                hasNavigated = true
-                binding.splashWebView.postDelayed({
-                    if (!isFinishing && !isDestroyed) {
-                        MainActivity.start(this@SplashActivity)
-                        finish()
-                    }
-                }, 1000L)
+                navigateToMainDelayed()
             }.onFailure {
                 when {
                     it is DeviceLockedException -> {
                         showUnavailableErrorSheet(it.report.lockedMessage())
                     }
-                    (it as? ConfigManager.ApiException)?.code == -233 -> {
-                        showUnavailableErrorSheet(it.message ?: "服务暂不可用")
-                    }
                     else -> {
-                        showNetworkSheet(getString(R.string.splash_server_connection_failed))
+                        navigateToMainDelayed(it.message ?: getString(R.string.splash_server_connection_failed))
                     }
                 }
             }
@@ -252,6 +239,17 @@ class SplashActivity : AppCompatActivity() {
     private fun showAgreementSheet(title: String, content: String) {
         val js = "window.splashSheet && window.splashSheet.showAgreement({'title':'${jsSafe(title)}','content':'${jsSafe(content)}'});"
         binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
+    }
+
+    private fun navigateToMainDelayed(localModeReason: String? = null) {
+        if (hasNavigated) return
+        hasNavigated = true
+        binding.splashWebView.postDelayed({
+            if (!isFinishing && !isDestroyed) {
+                MainActivity.start(this@SplashActivity, localModeReason)
+                finish()
+            }
+        }, 1000L)
     }
 
     private fun openOfficialSite() {
@@ -335,11 +333,11 @@ class SplashActivity : AppCompatActivity() {
                         MainActivity.start(this@SplashActivity)
                         finish()
                     }.onFailure {
-                        if ((it as? ConfigManager.ApiException)?.code == -233) {
-                            showUnavailableErrorSheet(it.message ?: "服务暂不可用")
-                        } else {
-                            showErrorSheet(getString(R.string.splash_update_verify_failed))
-                        }
+                        MainActivity.start(
+                            this@SplashActivity,
+                            it.message ?: getString(R.string.splash_update_verify_failed),
+                        )
+                        finish()
                     }
                 }
             }
@@ -376,5 +374,8 @@ class SplashActivity : AppCompatActivity() {
         private const val OFFICIAL_HOME_URL = "https://pisamusic.partialy.cn"
         private const val SPLASH_PREFS = "splash_prefs"
         private const val KEY_AGREEMENT_ACCEPTED = "agreement_accepted"
+        private const val FALLBACK_AGREEMENT_TITLE = "用户协议与隐私提示"
+        private const val FALLBACK_AGREEMENT_CONTENT =
+            "<p>欢迎使用 PisaMusic。当前服务暂不可用，请先确认你已阅读并同意用户协议与隐私政策。进入本地模式后，在线搜索、公告、更新检查、同步等功能可能暂不可用，本地音乐播放等离线功能仍可继续使用。</p>"
     }
 }

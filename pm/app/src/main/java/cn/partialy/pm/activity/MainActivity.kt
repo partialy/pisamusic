@@ -51,6 +51,7 @@ import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.utils.DownloadPathManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -108,6 +109,7 @@ class MainActivity : BaseDownloadActivity() {
     private var drawerKgPlaylistImportInProgress = false
 
     private var drawerWyPlaylistImportInProgress = false
+    private var localModeReason: String? = null
 
     private val drawerScanLauncher = registerForActivityResult(ScanContract()) { result ->
         val contents = result.contents
@@ -148,6 +150,7 @@ class MainActivity : BaseDownloadActivity() {
         setupMiniPlayer()
         setupMainDrawer()
         applyInsets()
+        applyLocalModeFromIntent(intent)
 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
@@ -157,12 +160,14 @@ class MainActivity : BaseDownloadActivity() {
             preloadDrawerImportProfileIfDue()
         }
 
-        lifecycleScope.launch {
-            kgRepository.updateUrl()
+        if (!isLocalMode()) {
+            lifecycleScope.launch {
+                kgRepository.updateUrl()
+            }
         }
 
         // 仅在首次创建时拉公告；避免深色模式等配置变更导致 Activity 重建后重复弹窗
-        if (savedInstanceState == null &&
+        if (!isLocalMode() && savedInstanceState == null &&
             intent.getStringExtra(EXTRA_SETTINGS_ACTION) != ACTION_SETTINGS_ANNOUNCEMENTS
         ) {
             lifecycleScope.launch {
@@ -172,7 +177,7 @@ class MainActivity : BaseDownloadActivity() {
 
         loveManager.preloadFromDiskAsync()
         playlistCollectionManager.preloadIndexFromDiskAsync()
-        if (syncManager.state().bound) {
+        if (!isLocalMode() && syncManager.state().bound) {
             lifecycleScope.launch {
                 syncManager.syncNow()
             }
@@ -185,12 +190,39 @@ class MainActivity : BaseDownloadActivity() {
         startService(Intent(this, MusicService::class.java))
 
         handlePendingSettingsAction(intent)
+        showLocalModeNoticeIfNeeded()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        applyLocalModeFromIntent(intent)
         handlePendingSettingsAction(intent)
+        showLocalModeNoticeIfNeeded()
+    }
+
+    private fun applyLocalModeFromIntent(intent: Intent?) {
+        val reason = intent?.getStringExtra(EXTRA_LOCAL_MODE_REASON)?.trim().orEmpty()
+        if (reason.isNotEmpty()) localModeReason = reason
+    }
+
+    private fun isLocalMode(): Boolean = !localModeReason.isNullOrBlank()
+
+    private fun showLocalModeNoticeIfNeeded() {
+        val reason = localModeReason?.takeIf { it.isNotBlank() } ?: return
+        binding.root.post {
+            Snackbar.make(
+                binding.root,
+                "服务不可用，已进入本地模式。在线功能暂不可用，本地音乐可继续使用。",
+                Snackbar.LENGTH_LONG,
+            ).setAction("详情") {
+                ModernDialog.make(this) {
+                    title = "本地模式"
+                    message = reason
+                    positiveText = "知道了"
+                }.show()
+            }.show()
+        }
     }
 
     private fun handlePendingSettingsAction(intent: Intent?) {
@@ -1079,6 +1111,7 @@ class MainActivity : BaseDownloadActivity() {
 
     companion object {
         const val EXTRA_SETTINGS_ACTION = "cn.partialy.pm.extra.SETTINGS_ACTION"
+        private const val EXTRA_LOCAL_MODE_REASON = "cn.partialy.pm.extra.LOCAL_MODE_REASON"
         const val ACTION_SETTINGS_ANNOUNCEMENTS = "announcements"
         const val ACTION_SETTINGS_CHECK_UPDATE = "check_update"
         const val ACTION_SETTINGS_ABOUT = "about"
@@ -1086,9 +1119,12 @@ class MainActivity : BaseDownloadActivity() {
         private const val APP_NOTICE_PREFS = "app_notice_prefs"
         private const val KEY_READ_ANNOUNCEMENT_IDS = "read_announcement_ids"
 
-        fun start(context: Context) {
+        fun start(context: Context, localModeReason: String? = null) {
             val intent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                if (!localModeReason.isNullOrBlank()) {
+                    putExtra(EXTRA_LOCAL_MODE_REASON, localModeReason)
+                }
             }
             context.startActivity(intent)
             (context as? Activity)?.overridePendingTransition(
