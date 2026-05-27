@@ -1,11 +1,18 @@
 import { ipcMain } from "electron";
 import {
   getAnnouncements,
+  clearAccountSession,
   getBootstrap,
+  getAccountSession,
   getRuntimeEndpointsCached,
   getRuntimeEndpointsFresh,
   getStartupServiceState,
   getSystemBaseUrl,
+  loginAccountByCode,
+  loginAccountByPassword,
+  refreshAccountSession,
+  registerAccount,
+  sendAccountEmailCode,
   submitFeedback,
 } from "../system/systemClient";
 import type { FeedbackPayload } from "../system/types";
@@ -39,4 +46,20 @@ export function setupSystemIpc() {
   ipcMain.handle("system:submit-feedback", (_event, payload: FeedbackPayload) => {
     return submitFeedback(payload);
   });
+
+  ipcMain.handle("account:session", () => getAccountSession());
+  ipcMain.handle("account:refresh", () => refreshAccountSession());
+  ipcMain.handle("account:logout", () => clearAccountSession());
+  ipcMain.handle("account:send-email-code", (_event, payload: { email: string; purpose: "register" | "login" }) =>
+    sendAccountEmailCode(payload)
+  );
+  ipcMain.handle("account:login-password", (_event, payload: { identifier: string; password: string }) =>
+    loginAccountByPassword(payload)
+  );
+  ipcMain.handle("account:login-code", (_event, payload: { email: string; code: string }) =>
+    loginAccountByCode(payload)
+  );
+  ipcMain.handle("account:register", (_event, payload: { email: string; username: string; password: string; code: string }) =>
+    registerAccount(payload)
+  );
 }

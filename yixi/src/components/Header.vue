@@ -142,10 +142,10 @@ import { searchSuggest } from "@/utils/api/musicAPI";
 import { useThemeStore, useUserStore } from "@/store";
 import { storeToRefs } from "pinia";
 
-const avatar = ref(avatarImg);
 const userStore = useUserStore();
 const themeStore = useThemeStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
+const avatar = computed(() => userInfo.value.avatar || avatarImg);
 const router = useRouter();
 const development = import.meta.env.DEV;
 const isLocalMode = ref(false);
@@ -305,7 +305,12 @@ const settingOptions = computed(() => {
   return options;
 });
 
-const handleSelect = (key: string) => {
+const handleSelect = async (key: string) => {
+  if (key === "logout") {
+    await userStore.logout();
+    window.$message.success("已退出登录");
+    return;
+  }
   router.push({
     path: `user/${key}`,
   });

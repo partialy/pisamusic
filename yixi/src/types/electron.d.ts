@@ -245,6 +245,47 @@ type FeedbackPayload = {
   device?: Record<string, unknown>;
 };
 
+type AccountUser = {
+  id: string;
+  username: string;
+  email: string;
+  avatar: string;
+};
+
+type AccountSession = {
+  token: string;
+  expiresAt: number;
+  user: AccountUser;
+  loggedIn: boolean;
+};
+
+type AccountEmailCodePayload = {
+  email: string;
+  purpose: "register" | "login";
+};
+
+type AccountEmailCodeResult = {
+  expiresAt: number;
+  nextSendAt: number;
+};
+
+type AccountPasswordLoginPayload = {
+  identifier: string;
+  password: string;
+};
+
+type AccountCodeLoginPayload = {
+  email: string;
+  code: string;
+};
+
+type AccountRegisterPayload = {
+  email: string;
+  username: string;
+  password: string;
+  code: string;
+};
+
 type SearchHistoryItem = {
   id: number;
   keyword: string;
@@ -510,9 +551,9 @@ type CookieFileExportResult = {
 
 type SyncState = {
   token: string;
-  syncCode: string;
   deviceId: string;
   spaceId: string;
+  seededUserId: string;
   lastServerVersion: number;
   lastSyncAt: string;
   lastError: string;
@@ -588,9 +629,14 @@ type ElectronIpcApi = {
   getRuntimeEndpoints: (fresh?: boolean) => Promise<BackServerConfig>;
   getAnnouncements: () => Promise<Announcement[]>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
+  getAccountSession: () => Promise<AccountSession>;
+  refreshAccountSession: () => Promise<AccountSession>;
+  logoutAccount: () => Promise<AccountSession>;
+  sendAccountEmailCode: (payload: AccountEmailCodePayload) => Promise<AccountEmailCodeResult>;
+  loginAccountByPassword: (payload: AccountPasswordLoginPayload) => Promise<AccountSession>;
+  loginAccountByCode: (payload: AccountCodeLoginPayload) => Promise<AccountSession>;
+  registerAccount: (payload: AccountRegisterPayload) => Promise<AccountSession>;
   getSyncState: () => Promise<SyncState>;
-  createSyncSpace: () => Promise<SyncState>;
-  joinSyncSpace: (syncCode: string) => Promise<SyncState>;
   syncNow: () => Promise<SyncState>;
   unbindSync: () => Promise<SyncState>;
   onSyncChanged: (callback: (state: SyncState) => void) => () => void;

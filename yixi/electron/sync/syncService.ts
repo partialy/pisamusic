@@ -1,15 +1,11 @@
-import { BrowserWindow, app } from "electron";
-import { hostname } from "node:os";
+import { BrowserWindow } from "electron";
 import { getAppDatabase } from "../database";
 import { favoriteKey, normalizePlaylistSnapshot, normalizeTrackSnapshot } from "../database/normalizers";
 import type { PlaylistSnapshot, TrackSnapshot } from "../database/types";
 import {
-  createSyncSpace as requestCreateSyncSpace,
+  getAccountSession,
   getSyncChanges,
-  joinSyncSpace as requestJoinSyncSpace,
   pushSyncChanges,
-  resetSyncSpace as requestResetSyncSpace,
-  unbindSyncDevice,
   type SyncChange,
 } from "../system/systemClient";
 
@@ -21,9 +17,9 @@ const TYPE_PLAYLIST_TRACK = "playlist_track";
 
 type SyncState = {
   token: string;
-  syncCode: string;
   deviceId: string;
   spaceId: string;
+  seededUserId: string;
   lastServerVersion: number;
   lastSyncAt: string;
   lastError: string;
@@ -42,40 +38,15 @@ let syncRunning = false;
 let syncQueued = false;
 
 export function getSyncState(): SyncState {
-  return getAppDatabase().getSetting<SyncState>(SYNC_SETTING_KEY)?.value ?? emptyState();
-}
-
-export async function createSyncSpace() {
-  const state = getSyncState();
-  const result = state.token
-    ? await requestResetSyncSpace(state.token, deviceName())
-    : await requestCreateSyncSpace(deviceName());
-  saveSyncState({
-    token: result.token,
-    syncCode: result.syncCode,
-    deviceId: result.deviceId,
-    spaceId: result.spaceId,
-    lastServerVersion: result.version,
-    lastSyncAt: "",
-    lastError: "",
-  });
-  seedInitialOutbox();
-  return syncNow();
-}
-
-export async function joinSyncSpace(syncCode: string) {
-  const result = await requestJoinSyncSpace(syncCode.trim(), deviceName());
-  saveSyncState({
-    token: result.token,
-    syncCode: result.syncCode,
-    deviceId: result.deviceId,
-    spaceId: result.spaceId,
-    lastServerVersion: 0,
-    lastSyncAt: "",
-    lastError: "",
-  });
-  seedInitialOutbox();
-  return syncNow();
+  const saved = getAppDatabase().getSetting<Partial<SyncState>>(SYNC_SETTING_KEY)?.value ?? {};
+  const account = getAccountSession();
+  return {
+    ...emptyState(),
+    ...saved,
+    token: account.loggedIn ? account.token : "",
+    deviceId: account.loggedIn ? account.user.id : "",
+    spaceId: account.loggedIn ? account.user.id : "",
+  };
 }
 
 export async function syncNow(): Promise<SyncState> {
@@ -85,8 +56,13 @@ export async function syncNow(): Promise<SyncState> {
   }
   syncRunning = true;
   try {
-    const state = getSyncState();
+    let state = getSyncState();
     if (!state.token) return state;
+    if (state.spaceId && state.seededUserId !== state.spaceId) {
+      seedInitialOutbox();
+      saveSyncState({ ...state, seededUserId: state.spaceId });
+      state = getSyncState();
+    }
 
     let nextVersion = state.lastServerVersion || 0;
     try {
@@ -136,10 +112,6 @@ export async function syncNow(): Promise<SyncState> {
 }
 
 export async function unbindSync() {
-  const state = getSyncState();
-  if (state.token) {
-    await unbindSyncDevice(state.token).catch(() => null);
-  }
   getAppDatabase().deleteSetting(SYNC_SETTING_KEY);
   emitSyncChanged();
   return getSyncState();
@@ -267,15 +239,24 @@ function enqueueAndSync(itemType: string, itemKey: string, action: "upsert" | "d
 }
 
 function saveSyncState(state: SyncState) {
-  getAppDatabase().setSetting(SYNC_SETTING_KEY, state, 1);
+  getAppDatabase().setSetting(
+    SYNC_SETTING_KEY,
+    {
+      lastServerVersion: state.lastServerVersion,
+      lastSyncAt: state.lastSyncAt,
+      lastError: state.lastError,
+      seededUserId: state.seededUserId,
+    },
+    1
+  );
 }
 
 function emptyState(): SyncState {
   return {
     token: "",
-    syncCode: "",
     deviceId: "",
     spaceId: "",
+    seededUserId: "",
     lastServerVersion: 0,
     lastSyncAt: "",
     lastError: "",
@@ -359,8 +340,4 @@ function emitSyncChanged() {
     win.webContents.send("favorites:changed");
     win.webContents.send("mine-library:changed");
   });
-}
-
-function deviceName() {
-  return `${app.name || "PisaMusic"} ${hostname()}`.trim();
 }

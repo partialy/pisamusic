@@ -156,13 +156,87 @@ async function reportDesktopDevice() {
   return unwrapResponse(response);
 }
 
-export type SyncBindResult = {
-  spaceId: string;
-  deviceId: string;
-  syncCode: string;
-  token: string;
-  version: number;
+export type AccountUser = {
+  id: string;
+  username: string;
+  email: string;
+  avatar: string;
 };
+
+export type AccountAuthResult = {
+  token: string;
+  expiresAt: number;
+  user: AccountUser;
+};
+
+export type AccountSession = AccountAuthResult & {
+  loggedIn: boolean;
+};
+
+const ACCOUNT_SESSION_KEY = "account-session";
+
+export function getAccountSession(): AccountSession {
+  const saved = getAppDatabase().getSetting<AccountAuthResult>(ACCOUNT_SESSION_KEY)?.value;
+  if (!saved?.token || !saved.user?.id) return emptyAccountSession();
+  return { ...saved, loggedIn: true };
+}
+
+export function saveAccountSession(result: AccountAuthResult): AccountSession {
+  getAppDatabase().setSetting(ACCOUNT_SESSION_KEY, result, 1);
+  return { ...result, loggedIn: true };
+}
+
+export function clearAccountSession(): AccountSession {
+  getAppDatabase().deleteSetting(ACCOUNT_SESSION_KEY);
+  return emptyAccountSession();
+}
+
+export async function sendAccountEmailCode(payload: { email: string; purpose: "register" | "login" }) {
+  const response = await requestSystem<{ expiresAt: number; nextSendAt: number }>("/api/auth/email-code", {
+    method: "POST",
+    body: payload,
+  });
+  return unwrapResponse(response);
+}
+
+export async function registerAccount(payload: { email: string; username: string; password: string; code: string }) {
+  const response = await requestSystem<AccountAuthResult>("/api/auth/register", {
+    method: "POST",
+    body: payload,
+  });
+  return saveAccountSession(unwrapResponse(response));
+}
+
+export async function loginAccountByPassword(payload: { identifier: string; password: string }) {
+  const response = await requestSystem<AccountAuthResult>("/api/auth/login/password", {
+    method: "POST",
+    body: payload,
+  });
+  return saveAccountSession(unwrapResponse(response));
+}
+
+export async function loginAccountByCode(payload: { email: string; code: string }) {
+  const response = await requestSystem<AccountAuthResult>("/api/auth/login/code", {
+    method: "POST",
+    body: payload,
+  });
+  return saveAccountSession(unwrapResponse(response));
+}
+
+export async function refreshAccountSession() {
+  const session = getAccountSession();
+  if (!session.loggedIn) return session;
+  try {
+    const response = await requestSystem<AccountAuthResult>("/api/auth/refresh", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+    return saveAccountSession(unwrapResponse(response));
+  } catch (error) {
+    clearAccountSession();
+    throw error;
+  }
+}
 
 export type SyncChange = {
   version: number;
@@ -185,49 +259,13 @@ export type SyncChangeInput = {
   clientUpdatedAt: string;
 };
 
-export async function createSyncSpace(deviceName: string) {
-  const response = await requestSystem<SyncBindResult>("/api/sync/spaces", {
-    method: "POST",
-    body: {
-      deviceName,
-      platform: "yixi",
-    },
-  });
-  return unwrapResponse(response);
-}
-
-export async function joinSyncSpace(syncCode: string, deviceName: string) {
-  const response = await requestSystem<SyncBindResult>("/api/sync/spaces/join", {
-    method: "POST",
-    body: {
-      syncCode,
-      deviceName,
-      platform: "yixi",
-    },
-  });
-  return unwrapResponse(response);
-}
-
-export async function resetSyncSpace(token: string, deviceName: string) {
-  const response = await requestSystem<SyncBindResult>("/api/sync/spaces/reset", {
-    method: "POST",
-    body: {
-      deviceName,
-      platform: "yixi",
-    },
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  return unwrapResponse(response);
-}
-
 export async function getSyncChanges(token: string, since: number) {
   const response = await requestSystem<{ version: number; changes: SyncChange[] }>(
     `/api/sync/changes?since=${encodeURIComponent(String(since))}`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
+        "x-pm-device-id": getDesktopDeviceClientId(),
       },
     }
   );
@@ -242,19 +280,10 @@ export async function pushSyncChanges(token: string, changes: SyncChangeInput[])
       body: { changes },
       headers: {
         Authorization: `Bearer ${token}`,
+        "x-pm-device-id": getDesktopDeviceClientId(),
       },
     }
   );
-  return unwrapResponse(response);
-}
-
-export async function unbindSyncDevice(token: string) {
-  const response = await requestSystem<{ unbound: boolean }>("/api/sync/devices/unbind", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
   return unwrapResponse(response);
 }
 
@@ -578,6 +607,20 @@ function unwrapResponse<T>(response: ApiResponse<T>): T {
     throw new Error(response.msg || "server request failed");
   }
   return response.data;
+}
+
+function emptyAccountSession(): AccountSession {
+  return {
+    token: "",
+    expiresAt: 0,
+    loggedIn: false,
+    user: {
+      id: "",
+      username: "",
+      email: "",
+      avatar: "",
+    },
+  };
 }
 
 function normalizeBaseUrl(raw: string) {

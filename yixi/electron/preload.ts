@@ -198,10 +198,22 @@ const systemIpc = {
   }) => ipcRenderer.invoke("system:submit-feedback", cloneIpcPayload(payload)),
 };
 
+const accountIpc = {
+  getAccountSession: () => ipcRenderer.invoke("account:session"),
+  refreshAccountSession: () => ipcRenderer.invoke("account:refresh"),
+  logoutAccount: () => ipcRenderer.invoke("account:logout"),
+  sendAccountEmailCode: (payload: { email: string; purpose: "register" | "login" }) =>
+    ipcRenderer.invoke("account:send-email-code", cloneIpcPayload(payload)),
+  loginAccountByPassword: (payload: { identifier: string; password: string }) =>
+    ipcRenderer.invoke("account:login-password", cloneIpcPayload(payload)),
+  loginAccountByCode: (payload: { email: string; code: string }) =>
+    ipcRenderer.invoke("account:login-code", cloneIpcPayload(payload)),
+  registerAccount: (payload: { email: string; username: string; password: string; code: string }) =>
+    ipcRenderer.invoke("account:register", cloneIpcPayload(payload)),
+};
+
 const syncIpc = {
   getSyncState: () => ipcRenderer.invoke("sync:state"),
-  createSyncSpace: () => ipcRenderer.invoke("sync:create-space"),
-  joinSyncSpace: (syncCode: string) => ipcRenderer.invoke("sync:join-space", syncCode),
   syncNow: () => ipcRenderer.invoke("sync:now"),
   unbindSync: () => ipcRenderer.invoke("sync:unbind"),
   onSyncChanged: (callback: (state: any) => void) => on("sync:changed", callback),
@@ -363,6 +375,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...logIpc,
   ...desktopLyricIpc,
   ...systemIpc,
+  ...accountIpc,
   ...syncIpc,
   ...musicApiIpc,
   ...cookieApiIpc,

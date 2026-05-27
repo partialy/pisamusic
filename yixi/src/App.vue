@@ -39,6 +39,7 @@ import {
   useRuntimeConfigStore,
   useShortcutStore,
   useThemeStore,
+  useUserStore,
 } from "./store";
 import { storeToRefs } from "pinia";
 import {
@@ -59,6 +60,7 @@ const mineLibrary = useMineLibraryStore();
 const runtimeConfig = useRuntimeConfigStore();
 const themeStore = useThemeStore();
 const shortcutStore = useShortcutStore();
+const userStore = useUserStore();
 // 初始化
 commonStore.hidePlayer();
 
@@ -226,6 +228,7 @@ async function bootstrapApp() {
       isLocalMode ? Promise.resolve(null) : runtimeConfig.refresh(),
       collector.initStore(),
       mineLibrary.init(),
+      isLocalMode ? Promise.resolve(null) : userStore.init(),
       lyric.loadDesktopLyricSetting(),
       player.loadState(),
       shortcutStore.init(),
