@@ -91,7 +91,7 @@ function handleError(res: Response, error: unknown, fallback: string): void {
   res.status(400).json(fail(message, 400));
 }
 
-authRouter.post("/email-code", (req, res) => {
+authRouter.post("/email-code", async (req, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const email = normalizeEmail(req.body.email);
@@ -107,7 +107,7 @@ authRouter.post("/email-code", (req, res) => {
       return res.status(404).json(fail("该邮箱尚未注册", 404));
     }
 
-    return res.json(ok(sendEmailCode(email, purpose), "验证码已发送"));
+    return res.json(ok(await sendEmailCode(email, purpose), "验证码已发送"));
   } catch (error) {
     handleError(res, error, "验证码发送失败");
   }
@@ -187,7 +187,7 @@ authRouter.get("/me", requireUserJwt, (req: UserAuthedRequest, res) => {
   return res.json(ok(getUserAuth(req).user));
 });
 
-authRouter.post("/profile/email-code", requireUserJwt, (req: UserAuthedRequest, res) => {
+authRouter.post("/profile/email-code", requireUserJwt, async (req: UserAuthedRequest, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const auth = getUserAuth(req);
@@ -196,7 +196,7 @@ authRouter.post("/profile/email-code", requireUserJwt, (req: UserAuthedRequest, 
     if (emailError) return res.status(400).json(fail(emailError, 400));
     if (email === auth.user.email) return res.status(400).json(fail("新邮箱不能与当前邮箱相同", 400));
     if (readUserByEmail(email)) return res.status(400).json(fail("该邮箱已被注册", 400));
-    return res.json(ok(sendEmailCode(email, "profile_email"), "验证码已发送"));
+    return res.json(ok(await sendEmailCode(email, "profile_email"), "验证码已发送"));
   } catch (error) {
     handleError(res, error, "验证码发送失败");
   }
