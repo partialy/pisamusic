@@ -6,6 +6,7 @@ import { readPlaintextPaths } from "./db/configStore";
 import { logInterceptor } from "./interceptor/logInterceptor";
 import { encryptionMiddleware, setPlaintextPaths } from "./middleware/encryption";
 import { adminRouter } from "./routes/admin";
+import { authRouter } from "./routes/auth";
 import { configRouter } from "./routes/config";
 import { deviceRouter } from "./routes/device";
 import { feedbackRouter } from "./routes/feedback";
@@ -67,6 +68,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/config", configRouter);
+app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/device", deviceRouter);
