@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 
-export type EmailCodePurpose = "register" | "login";
+export type EmailCodePurpose = "register" | "login" | "profile_email";
 
 type CodeEntry = {
   code: string;

@@ -250,6 +250,9 @@ type AccountUser = {
   username: string;
   email: string;
   avatar: string;
+  avatarKey: string;
+  avatarUrl: string;
+  createdAt: number;
 };
 
 type AccountSession = {
@@ -284,6 +287,19 @@ type AccountRegisterPayload = {
   username: string;
   password: string;
   code: string;
+};
+
+type AccountAvatarOption = {
+  key: string;
+  label: string;
+  url: string;
+};
+
+type AccountProfileUpdatePayload = {
+  username?: string;
+  email?: string;
+  code?: string;
+  avatarKey?: string;
 };
 
 type SearchHistoryItem = {
@@ -630,12 +646,15 @@ type ElectronIpcApi = {
   getAnnouncements: () => Promise<Announcement[]>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
   getAccountSession: () => Promise<AccountSession>;
+  getAccountAvatarOptions: () => Promise<AccountAvatarOption[]>;
   refreshAccountSession: () => Promise<AccountSession>;
   logoutAccount: () => Promise<AccountSession>;
   sendAccountEmailCode: (payload: AccountEmailCodePayload) => Promise<AccountEmailCodeResult>;
   loginAccountByPassword: (payload: AccountPasswordLoginPayload) => Promise<AccountSession>;
   loginAccountByCode: (payload: AccountCodeLoginPayload) => Promise<AccountSession>;
   registerAccount: (payload: AccountRegisterPayload) => Promise<AccountSession>;
+  sendProfileEmailCode: (payload: { email: string }) => Promise<AccountEmailCodeResult>;
+  updateAccountProfile: (payload: AccountProfileUpdatePayload) => Promise<AccountSession>;
   getSyncState: () => Promise<SyncState>;
   syncNow: () => Promise<SyncState>;
   unbindSync: () => Promise<SyncState>;

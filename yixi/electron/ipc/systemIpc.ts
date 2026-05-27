@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import {
   getAnnouncements,
+  getAccountAvatarOptions,
   clearAccountSession,
   getBootstrap,
   getAccountSession,
@@ -13,7 +14,9 @@ import {
   refreshAccountSession,
   registerAccount,
   sendAccountEmailCode,
+  sendProfileEmailCode,
   submitFeedback,
+  updateAccountProfile,
 } from "../system/systemClient";
 import type { FeedbackPayload } from "../system/types";
 
@@ -48,6 +51,7 @@ export function setupSystemIpc() {
   });
 
   ipcMain.handle("account:session", () => getAccountSession());
+  ipcMain.handle("account:avatar-options", () => getAccountAvatarOptions());
   ipcMain.handle("account:refresh", () => refreshAccountSession());
   ipcMain.handle("account:logout", () => clearAccountSession());
   ipcMain.handle("account:send-email-code", (_event, payload: { email: string; purpose: "register" | "login" }) =>
@@ -61,5 +65,13 @@ export function setupSystemIpc() {
   );
   ipcMain.handle("account:register", (_event, payload: { email: string; username: string; password: string; code: string }) =>
     registerAccount(payload)
+  );
+  ipcMain.handle("account:profile-email-code", (_event, payload: { email: string }) =>
+    sendProfileEmailCode(payload)
+  );
+  ipcMain.handle(
+    "account:update-profile",
+    (_event, payload: { username?: string; email?: string; code?: string; avatarKey?: string }) =>
+      updateAccountProfile(payload)
   );
 }

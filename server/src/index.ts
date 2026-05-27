@@ -20,6 +20,7 @@ app.set("trust proxy", 1);
 
 const uploadsRoot = path.resolve(process.cwd(), "uploads");
 const discoverRoot = path.resolve(process.cwd(), "discover");
+const staticRoot = path.resolve(process.cwd(), "static");
 
 app.use(cors());
 app.use(express.json());
@@ -42,6 +43,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/config/announcements",
   "/api/feedback/*",
   "/discover/*",
+  "/static/*",
   "/uploads/*",
 ];
 
@@ -52,6 +54,7 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/api/config/desktop-updates/*",
   "/api/config/discover",
   "/discover/*",
+  "/static/*",
 ];
 
 function loadPlaintextPaths(): string[] {
@@ -85,6 +88,14 @@ app.use(
 app.use(
   "/uploads",
   express.static(uploadsRoot, {
+    index: false,
+    fallthrough: false,
+  }),
+);
+
+app.use(
+  "/static",
+  express.static(staticRoot, {
     index: false,
     fallthrough: false,
   }),

@@ -200,6 +200,7 @@ const systemIpc = {
 
 const accountIpc = {
   getAccountSession: () => ipcRenderer.invoke("account:session"),
+  getAccountAvatarOptions: () => ipcRenderer.invoke("account:avatar-options"),
   refreshAccountSession: () => ipcRenderer.invoke("account:refresh"),
   logoutAccount: () => ipcRenderer.invoke("account:logout"),
   sendAccountEmailCode: (payload: { email: string; purpose: "register" | "login" }) =>
@@ -210,6 +211,10 @@ const accountIpc = {
     ipcRenderer.invoke("account:login-code", cloneIpcPayload(payload)),
   registerAccount: (payload: { email: string; username: string; password: string; code: string }) =>
     ipcRenderer.invoke("account:register", cloneIpcPayload(payload)),
+  sendProfileEmailCode: (payload: { email: string }) =>
+    ipcRenderer.invoke("account:profile-email-code", cloneIpcPayload(payload)),
+  updateAccountProfile: (payload: { username?: string; email?: string; code?: string; avatarKey?: string }) =>
+    ipcRenderer.invoke("account:update-profile", cloneIpcPayload(payload)),
 };
 
 const syncIpc = {

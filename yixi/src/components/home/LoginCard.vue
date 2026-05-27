@@ -1,5 +1,5 @@
 <template>
-  <n-card class="login-card" :bordered="false">
+  <div class="login-card">
     <div class="login-head">
       <n-image :src="logo" preview-disabled class="login-logo" />
       <div>
@@ -85,11 +85,11 @@
         </n-form>
       </n-tab-pane>
     </n-tabs>
-  </n-card>
+  </div>
 </template>
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { NButton, NCard, NForm, NFormItem, NImage, NInput, NTabPane, NTabs } from "naive-ui";
+import { NButton, NForm, NFormItem, NImage, NInput, NTabPane, NTabs } from "naive-ui";
 import logo from "@/assets/pisamusic_icon_1024.png";
 import { useUserStore } from "@/store";
 
@@ -230,16 +230,9 @@ function errorMessage(error: unknown, fallback: string) {
 
 <style lang="scss" scoped>
 .login-card {
-  width: min(420px, calc(100vw - 48px));
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 249, 255, 0.92)),
-    var(--color-bg-default);
-  box-shadow: 0 24px 70px rgba(20, 102, 180, 0.18);
-
-  :deep(.n-card__content) {
-    padding: 24px;
-  }
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 2px 0;
 }
 
 .login-head {
@@ -293,9 +286,6 @@ function errorMessage(error: unknown, fallback: string) {
 
 html.dark .login-card,
 :global(.dark) .login-card {
-  background:
-    linear-gradient(180deg, rgba(24, 32, 44, 0.98), rgba(13, 21, 31, 0.96)),
-    var(--color-bg-default);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  background: transparent;
 }
 </style>

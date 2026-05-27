@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -63,6 +64,7 @@ class LoginActivity : BaseActivity() {
             loadWithOverviewMode = true
             useWideViewPort = true
         }
+        webView.overScrollMode = View.OVER_SCROLL_NEVER
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
     }

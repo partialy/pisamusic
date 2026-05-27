@@ -34,6 +34,18 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: "PisaMusic - 我的" },
       },
       {
+        path: "user/profile",
+        name: "UserProfile",
+        component: () => import("../views/user/ProfileView.vue"),
+        meta: { title: "PisaMusic - 用户资料" },
+      },
+      {
+        path: "user/editProfile",
+        name: "EditUserProfile",
+        component: () => import("../views/user/EditProfileView.vue"),
+        meta: { title: "PisaMusic - 编辑用户资料" },
+      },
+      {
         path: "kg",
         name: "KgAccount",
         component: () => import("../views/cookieAccount/index.vue"),

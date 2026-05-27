@@ -23,7 +23,7 @@ const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
 };
 
 type RequestOptions = {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PATCH";
   body?: unknown;
   encrypted?: boolean;
   headers?: Record<string, string>;
@@ -161,6 +161,9 @@ export type AccountUser = {
   username: string;
   email: string;
   avatar: string;
+  avatarKey: string;
+  avatarUrl: string;
+  createdAt: number;
 };
 
 export type AccountAuthResult = {
@@ -174,16 +177,31 @@ export type AccountSession = AccountAuthResult & {
 };
 
 const ACCOUNT_SESSION_KEY = "account-session";
+const ACCOUNT_AVATAR_OPTIONS = [
+  { key: "default", label: "默认", path: "/static/account-avatars/default.jpg" },
+  { key: "anime_sky", label: "天空蓝", path: "/static/account-avatars/anime_sky.png" },
+  { key: "anime_mint", label: "薄荷绿", path: "/static/account-avatars/anime_mint.png" },
+  { key: "anime_peach", label: "蜜桃橙", path: "/static/account-avatars/anime_peach.png" },
+  { key: "anime_lilac", label: "丁香紫", path: "/static/account-avatars/anime_lilac.png" },
+  { key: "anime_sun", label: "暖阳黄", path: "/static/account-avatars/anime_sun.png" },
+] as const;
+
+export type AccountAvatarOption = {
+  key: string;
+  label: string;
+  url: string;
+};
 
 export function getAccountSession(): AccountSession {
   const saved = getAppDatabase().getSetting<AccountAuthResult>(ACCOUNT_SESSION_KEY)?.value;
   if (!saved?.token || !saved.user?.id) return emptyAccountSession();
-  return { ...saved, loggedIn: true };
+  return { ...normalizeAccountAuthResult(saved), loggedIn: true };
 }
 
 export function saveAccountSession(result: AccountAuthResult): AccountSession {
-  getAppDatabase().setSetting(ACCOUNT_SESSION_KEY, result, 1);
-  return { ...result, loggedIn: true };
+  const normalized = normalizeAccountAuthResult(result);
+  getAppDatabase().setSetting(ACCOUNT_SESSION_KEY, normalized, 1);
+  return { ...normalized, loggedIn: true };
 }
 
 export function clearAccountSession(): AccountSession {
@@ -197,6 +215,14 @@ export async function sendAccountEmailCode(payload: { email: string; purpose: "r
     body: payload,
   });
   return unwrapResponse(response);
+}
+
+export function getAccountAvatarOptions(): AccountAvatarOption[] {
+  return ACCOUNT_AVATAR_OPTIONS.map((item) => ({
+    key: item.key,
+    label: item.label,
+    url: absoluteSystemUrl(item.path),
+  }));
 }
 
 export async function registerAccount(payload: { email: string; username: string; password: string; code: string }) {
@@ -236,6 +262,28 @@ export async function refreshAccountSession() {
     clearAccountSession();
     throw error;
   }
+}
+
+export async function sendProfileEmailCode(payload: { email: string }) {
+  const session = getAccountSession();
+  if (!session.loggedIn) throw new Error("请先登录账号");
+  const response = await requestSystem<{ expiresAt: number; nextSendAt: number }>("/api/auth/profile/email-code", {
+    method: "POST",
+    body: payload,
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
+  return unwrapResponse(response);
+}
+
+export async function updateAccountProfile(payload: { username?: string; email?: string; code?: string; avatarKey?: string }) {
+  const session = getAccountSession();
+  if (!session.loggedIn) throw new Error("请先登录账号");
+  const response = await requestSystem<AccountAuthResult>("/api/auth/profile", {
+    method: "PATCH",
+    body: payload,
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
+  return saveAccountSession(unwrapResponse(response));
 }
 
 export type SyncChange = {
@@ -619,8 +667,33 @@ function emptyAccountSession(): AccountSession {
       username: "",
       email: "",
       avatar: "",
+      avatarKey: "default",
+      avatarUrl: "",
+      createdAt: 0,
     },
   };
+}
+
+function normalizeAccountAuthResult(result: AccountAuthResult): AccountAuthResult {
+  const avatarUrl = result.user.avatarUrl || result.user.avatar || "";
+  const normalizedAvatarUrl = absoluteSystemUrl(avatarUrl);
+  return {
+    ...result,
+    user: {
+      ...result.user,
+      avatarKey: result.user.avatarKey || "default",
+      avatarUrl: normalizedAvatarUrl,
+      avatar: normalizedAvatarUrl || result.user.avatar || "",
+      createdAt: Number(result.user.createdAt || 0),
+    },
+  };
+}
+
+function absoluteSystemUrl(value: string) {
+  const raw = value.trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
+  return new URL(raw, getSystemBaseUrl()).toString();
 }
 
 function normalizeBaseUrl(raw: string) {

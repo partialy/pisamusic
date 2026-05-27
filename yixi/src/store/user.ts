@@ -5,9 +5,13 @@ export interface PMUserInfo {
   username: string;
   email: string;
   avatar: string;
+  avatarKey: string;
+  avatarUrl: string;
+  createdAt: number;
 }
 
 type AccountSession = Awaited<ReturnType<typeof window.electronAPI.getAccountSession>>;
+type AccountProfileUpdatePayload = Parameters<typeof window.electronAPI.updateAccountProfile>[0];
 
 function emptyUser(): PMUserInfo {
   return {
@@ -15,6 +19,9 @@ function emptyUser(): PMUserInfo {
     username: "",
     email: "",
     avatar: "",
+    avatarKey: "default",
+    avatarUrl: "",
+    createdAt: 0,
   };
 }
 
@@ -45,6 +52,12 @@ export const useUserStore = defineStore("user", {
 
     setSession(session: AccountSession) {
       this.applySession(session);
+    },
+
+    async updateProfile(payload: AccountProfileUpdatePayload) {
+      const session = await window.electronAPI.updateAccountProfile(payload);
+      this.applySession(session);
+      return session;
     },
 
     async logout() {

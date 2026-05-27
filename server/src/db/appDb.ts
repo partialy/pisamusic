@@ -232,6 +232,7 @@ CREATE TABLE IF NOT EXISTS users (
     username        TEXT    NOT NULL UNIQUE,
     password_hash   TEXT    NOT NULL,
     avatar          TEXT    NOT NULL DEFAULT '',
+    avatar_key      TEXT    NOT NULL DEFAULT 'default',
     sync_version    INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,
     updated_at      INTEGER NOT NULL,
@@ -348,6 +349,13 @@ function migrateDynamicConfigs(db: DatabaseSync) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_dynamic_configs_updated_at ON dynamic_configs (updated_at DESC, id ASC)`);
 }
 
+function migrateUsers(db: DatabaseSync) {
+  const cols = getColumnNames(db, "users");
+  if (!cols.has("avatar_key")) {
+    db.exec(`ALTER TABLE users ADD COLUMN avatar_key TEXT NOT NULL DEFAULT 'default'`);
+  }
+}
+
 function initSchema(db: DatabaseSync) {
   db.exec(`
     DROP TABLE IF EXISTS sync_applied_ops;
@@ -361,6 +369,7 @@ function initSchema(db: DatabaseSync) {
   migrateAppSettings(db);
   migrateUpdateHistory(db);
   migrateDynamicConfigs(db);
+  migrateUsers(db);
 }
 
 let singleton: DatabaseSync | null = null;

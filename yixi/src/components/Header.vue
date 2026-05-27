@@ -145,7 +145,7 @@ import { storeToRefs } from "pinia";
 const userStore = useUserStore();
 const themeStore = useThemeStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
-const avatar = computed(() => userInfo.value.avatar || avatarImg);
+const avatar = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
 const router = useRouter();
 const development = import.meta.env.DEV;
 const isLocalMode = ref(false);
@@ -312,7 +312,7 @@ const handleSelect = async (key: string) => {
     return;
   }
   router.push({
-    path: `user/${key}`,
+    path: `/user/${key}`,
   });
 };
 
@@ -407,6 +407,10 @@ onMounted(async () => {
         height: 48px;
         border: 1px solid #66666666;
         box-shadow: 1px 1px 5px #00000022;
+
+        :deep(img) {
+          object-fit: cover;
+        }
       }
 
       .username {
