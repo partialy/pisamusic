@@ -7,14 +7,18 @@ import cn.partialy.pm.model.DynamicConfigResponse
 import cn.partialy.pm.model.AgreementResponse
 import cn.partialy.pm.model.AboutResponse
 import cn.partialy.pm.model.AnnouncementResponse
+import cn.partialy.pm.model.AccountAuthResponse
+import cn.partialy.pm.model.AccountCodeLoginRequest
+import cn.partialy.pm.model.AccountEmailCodeRequest
+import cn.partialy.pm.model.AccountEmailCodeResponse
+import cn.partialy.pm.model.AccountMeResponse
+import cn.partialy.pm.model.AccountPasswordLoginRequest
+import cn.partialy.pm.model.AccountRegisterRequest
 import cn.partialy.pm.model.DeviceReportRequest
 import cn.partialy.pm.model.DeviceReportResponse
-import cn.partialy.pm.model.SyncBindRequest
-import cn.partialy.pm.model.SyncBindResponse
 import cn.partialy.pm.model.SyncChangesResponse
 import cn.partialy.pm.model.SyncPushRequest
 import cn.partialy.pm.model.SyncPushResponse
-import cn.partialy.pm.model.SyncUnbindResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -52,32 +56,35 @@ interface SystemApiService {
     @POST("api/device/report")
     suspend fun reportDevice(@Body body: DeviceReportRequest): DeviceReportResponse
 
-    @POST("api/sync/spaces")
-    suspend fun createSyncSpace(@Body body: SyncBindRequest): SyncBindResponse
+    @POST("api/auth/email-code")
+    suspend fun sendAccountEmailCode(@Body body: AccountEmailCodeRequest): AccountEmailCodeResponse
 
-    @POST("api/sync/spaces/join")
-    suspend fun joinSyncSpace(@Body body: SyncBindRequest): SyncBindResponse
+    @POST("api/auth/register")
+    suspend fun registerAccount(@Body body: AccountRegisterRequest): AccountAuthResponse
 
-    @POST("api/sync/spaces/reset")
-    suspend fun resetSyncSpace(
-        @Header("Authorization") authorization: String,
-        @Body body: SyncBindRequest,
-    ): SyncBindResponse
+    @POST("api/auth/login/password")
+    suspend fun loginAccountByPassword(@Body body: AccountPasswordLoginRequest): AccountAuthResponse
+
+    @POST("api/auth/login/code")
+    suspend fun loginAccountByCode(@Body body: AccountCodeLoginRequest): AccountAuthResponse
+
+    @POST("api/auth/refresh")
+    suspend fun refreshAccountToken(@Header("Authorization") authorization: String): AccountAuthResponse
+
+    @GET("api/auth/me")
+    suspend fun getAccountMe(@Header("Authorization") authorization: String): AccountMeResponse
 
     @GET("api/sync/changes")
     suspend fun getSyncChanges(
         @Header("Authorization") authorization: String,
+        @Header("x-pm-device-id") deviceId: String,
         @Query("since") since: Long,
     ): SyncChangesResponse
 
     @POST("api/sync/changes")
     suspend fun pushSyncChanges(
         @Header("Authorization") authorization: String,
+        @Header("x-pm-device-id") deviceId: String,
         @Body body: SyncPushRequest,
     ): SyncPushResponse
-
-    @POST("api/sync/devices/unbind")
-    suspend fun unbindSyncDevice(
-        @Header("Authorization") authorization: String,
-    ): SyncUnbindResponse
 }

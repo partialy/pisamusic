@@ -38,6 +38,7 @@ import cn.partialy.pm.network.cookie.DrawerImportProfileCache
 import cn.partialy.pm.network.cookie.DrawerImportProfileCacheStore
 import cn.partialy.pm.network.cookie.KugouCookieRepository
 import cn.partialy.pm.network.cookie.WyCookieRepository
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.repository.SystemRepository
 import cn.partialy.pm.service.MusicService
 import cn.partialy.pm.sync.SyncManager
@@ -361,10 +362,15 @@ class MainActivity : BaseDownloadActivity() {
         val inflated = MainDrawerContentBinding.inflate(layoutInflater, binding.mainDrawerPanel, true)
         inflated.drawerScanButton.setOnClickListener { startDrawerQrScan() }
         inflated.drawerCloseButton.setOnClickListener { closeMainDrawer() }
+        inflated.drawerAccountCapsule.setOnClickListener {
+            LoginActivity.start(this)
+            closeMainDrawer()
+        }
         drawerContentBinding = inflated
         setupDrawerFooterActions(inflated)
         setupDrawerPlaylistImportActions(inflated)
         bindMainDrawerAccountUi(drawerImportProfileCacheStore.read())
+        bindPisaAccountUi()
         return inflated
     }
 
@@ -611,6 +617,19 @@ class MainActivity : BaseDownloadActivity() {
         }
     }
 
+    private fun bindPisaAccountUi() {
+        val b = drawerContentBinding ?: return
+        val session = AccountSessionStore.read(this)
+        if (session.loggedIn) {
+            b.drawerAccountTitle.text = session.user.username.ifBlank { "PisaMusic 用户" }
+            b.drawerAccountSubtitle.text = session.user.email.ifBlank { "已登录，收藏与歌单会自动同步" }
+        } else {
+            b.drawerAccountTitle.text = "登录 / 注册"
+            b.drawerAccountSubtitle.text = "账号登录后自动同步收藏与歌单"
+        }
+        b.drawerAccountAvatar.setImageResource(R.drawable.ic_pm_icon)
+    }
+
     private fun shouldRefreshDrawerProfileCache(cache: DrawerImportProfileCache?): Boolean {
         if (cache == null) return true
         if (System.currentTimeMillis() - cache.savedAtMillis > DrawerImportProfileCacheStore.REFRESH_INTERVAL_MS) {
@@ -666,6 +685,7 @@ class MainActivity : BaseDownloadActivity() {
     private fun maybeRefreshDrawerProfilesAfterOpen() {
         val prev = drawerImportProfileCacheStore.read()
         bindMainDrawerAccountUi(prev)
+        bindPisaAccountUi()
         if (!shouldRefreshDrawerProfileCache(prev)) return
         lifecycleScope.launch {
             val updated = syncDrawerImportProfileCache(prev)

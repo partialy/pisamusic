@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.network.auth.TokenManager
 import cn.partialy.pm.utils.DownloadManager
 import cn.partialy.pm.utils.GlobalExceptionHandler
 import cn.partialy.pm.utils.SettingsPrefs
@@ -18,6 +19,7 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        TokenManager.init(this)
         SettingsPrefs.applyAutoAudioCacheIfNeeded(this)
         AppCompatDelegate.setDefaultNightMode(
             SettingsPrefs.toNightMode(SettingsPrefs.getThemeMode(this)),

@@ -1,7 +1,13 @@
 package cn.partialy.pm.network.auth
 
+import android.content.Context
+
 object TokenManager {
-    private var token: String? = "partialy"
+    private var token: String? = null
+
+    fun init(context: Context) {
+        token = AccountSessionStore.read(context).token.ifBlank { null }
+    }
     
     fun getToken(): String? {
         return token
@@ -12,6 +18,6 @@ object TokenManager {
     }
     
     fun clearToken() {
-        token = "partialy"
+        token = null
     }
 } 

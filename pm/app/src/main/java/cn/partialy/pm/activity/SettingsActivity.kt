@@ -305,7 +305,9 @@ class SettingsActivity : BaseActivity() {
                 "收藏与歌单同步",
                 syncSummary(syncManager.state()),
             )
-            root.setOnClickListener { SyncSettingsActivity.start(this@SettingsActivity) }
+            root.setOnClickListener {
+                if (syncManager.state().bound) syncNow() else LoginActivity.start(this@SettingsActivity)
+            }
         }
 
         binding.cacheManagement.apply {

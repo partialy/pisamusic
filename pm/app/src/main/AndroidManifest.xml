@@ -80,9 +80,10 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
-            android:name=".activity.SyncSettingsActivity"
+            android:name=".activity.LoginActivity"
             android:exported="false"
-            android:theme="@style/Theme.Pm" />
+            android:theme="@style/Theme.App.Splash"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".activity.LyricColorPresetsActivity"

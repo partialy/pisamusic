@@ -118,15 +118,16 @@
 
 ## 收藏与歌单同步
 
-- 同步接口通过 `ConfigManager` / `SystemApiService` 访问外层服务端 `/api/sync/*`，继续走系统服务端 AES-GCM 加密链路；同步 token 只放在 `Authorization: Bearer ...` 请求头。
-- `SyncManager` 是手机端同步编排入口，负责创建同步码、加入同步空间、拉取/推送增量、解绑设备和应用远端 tombstone；设置页只通过它操作同步。
+- 账号接口通过 `ConfigManager` / `SystemApiService` 访问外层服务端 `/api/auth/*`，继续走系统服务端 AES-GCM 加密链路；登录 token 由 `AccountSessionStore` 持久化并同步到 `TokenManager`。
+- 同步接口通过外层服务端 `/api/sync/*` 拉取/推送增量，使用账号 `Authorization: Bearer <userToken>` 鉴权；旧同步码创建、加入、重置和解绑设备流程已移除。
+- `SyncManager` 是手机端账号同步编排入口，负责登录后 seed 本地 outbox、拉取/推送增量和应用远端 tombstone；未登录时只记录本地 outbox，不主动推送。
 - `sync_outbox` 表保存本地待推送 op，收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更必须写入 outbox；已绑定同步空间时由 `SyncWorkRunner` 触发后台增量同步。
 - 同步 payload 只允许使用 `CanonicalSong` / `CanonicalPlaylist` 字段；不要同步 `source=local` 歌曲，不要同步播放 URL、filePath、歌词正文、内嵌封面。本地文件封面在自建歌单同步时置空，另一端应显示默认封面。
 
 ## 同步设置页补充
 
-- 同步设置入口在 `SettingsActivity` 中只展示摘要和跳转，完整操作页为 `SyncSettingsActivity`；已绑定状态下重新生成同步码必须先确认，并通过 `/api/sync/spaces/reset` 走服务端 4 小时限制。
-- `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免把同步接口的 `Bearer <syncToken>` 覆盖为普通登录 token 导致 401。
+- 同步设置入口在 `SettingsActivity` 中展示账号同步摘要；未登录时跳转 `LoginActivity`，已登录时执行立即同步，不再提供同步码输入页。
+- `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免覆盖同步或其他显式鉴权请求。
 
 ## 启动本地模式补充
 

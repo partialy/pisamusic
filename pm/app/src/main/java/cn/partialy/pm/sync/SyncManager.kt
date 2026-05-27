@@ -7,6 +7,7 @@ import cn.partialy.pm.model.CanonicalSong
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.utils.ServerDevicePrefs
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -29,47 +30,28 @@ class SyncManager @Inject constructor(
 
     fun state(): SyncPrefs.State = SyncPrefs.getState(context)
 
-    suspend fun createSyncSpace(): SyncPrefs.State = withContext(Dispatchers.IO) {
-        val current = SyncPrefs.getState(context)
-        val result = if (current.bound) {
-            configManager.resetSyncSpace(current.token, deviceName())
-        } else {
-            configManager.createSyncSpace(deviceName())
-        }
-        SyncPrefs.saveBinding(
-            context = context,
-            token = result.token,
-            syncCode = result.syncCode,
-            deviceId = result.deviceId,
-            spaceId = result.spaceId,
-            version = result.version,
-        )
+    suspend fun startAccountSync(): SyncPrefs.State = withContext(Dispatchers.IO) {
+        if (!SyncPrefs.getState(context).bound) return@withContext SyncPrefs.getState(context)
         seedInitialOutbox()
         syncNow()
         SyncPrefs.getState(context)
     }
 
-    suspend fun joinSyncSpace(syncCode: String): SyncPrefs.State = withContext(Dispatchers.IO) {
-        val result = configManager.joinSyncSpace(syncCode.trim(), deviceName())
-        SyncPrefs.saveBinding(
-            context = context,
-            token = result.token,
-            syncCode = result.syncCode,
-            deviceId = result.deviceId,
-            spaceId = result.spaceId,
-            version = 0L,
-        )
-        seedInitialOutbox()
-        syncNow()
-        SyncPrefs.getState(context)
-    }
+    @Deprecated("账号同步已取代同步码，保留用于旧入口编译兼容")
+    suspend fun createSyncSpace(): SyncPrefs.State = startAccountSync()
+
+    @Deprecated("账号同步已取代同步码，保留用于旧入口编译兼容")
+    suspend fun joinSyncSpace(syncCode: String): SyncPrefs.State = startAccountSync()
+
+    @Deprecated("账号同步已取代同步码，保留用于旧入口编译兼容")
+    suspend fun unbind(): SyncPrefs.State = SyncPrefs.getState(context)
 
     suspend fun syncNow(): SyncPrefs.State = withContext(Dispatchers.IO) {
         mutex.withLock {
             val before = SyncPrefs.getState(context)
             if (!before.bound) return@withLock before
             try {
-                val pulled = configManager.getSyncChanges(before.token, before.lastVersion)
+                val pulled = configManager.getSyncChanges(before.token, deviceId(), before.lastVersion)
                 pulled.changes.forEach { change -> applyRemoteChange(change) }
                 var version = pulled.version
 
@@ -78,7 +60,7 @@ class SyncManager @Inject constructor(
                     val changes = pending.map { op ->
                         op.toChangeInput(SyncPayloads.parseJsonObject(op.payloadJson))
                     }
-                    val pushed = configManager.pushSyncChanges(before.token, changes)
+                    val pushed = configManager.pushSyncChanges(before.token, deviceId(), changes)
                     outbox.removeOps(pending.map { it.opId })
                     version = maxOf(version, pushed.version)
                 }
@@ -89,15 +71,6 @@ class SyncManager @Inject constructor(
             }
             SyncPrefs.getState(context)
         }
-    }
-
-    suspend fun unbind(): SyncPrefs.State = withContext(Dispatchers.IO) {
-        val before = SyncPrefs.getState(context)
-        if (before.bound) {
-            runCatching { configManager.unbindSyncDevice(before.token) }
-        }
-        SyncPrefs.clear(context)
-        SyncPrefs.getState(context)
     }
 
     private fun seedInitialOutbox() {
@@ -197,10 +170,10 @@ class SyncManager @Inject constructor(
         return playlist.copy(cover = "")
     }
 
-    private fun deviceName(): String {
-        val model = listOf(Build.MANUFACTURER, Build.MODEL)
-            .joinToString(" ")
-            .trim()
-        return model.ifBlank { "Android" }
+    private fun deviceId(): String {
+        val serverId = ServerDevicePrefs.getDeviceId(context).trim()
+        if (serverId.isNotBlank()) return serverId
+        val model = listOf(Build.MANUFACTURER, Build.MODEL).joinToString("-").trim()
+        return model.ifBlank { "android" }
     }
 }

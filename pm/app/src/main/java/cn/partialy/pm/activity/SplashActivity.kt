@@ -18,6 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ActivitySplashBinding
 import cn.partialy.pm.model.DeviceReportResult
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.util.DeviceInfoCollector
 import cn.partialy.pm.utils.AppUpdateInstaller
@@ -156,6 +157,7 @@ class SplashActivity : AppCompatActivity() {
                     if (deviceReport.isCurrentlyLocked()) {
                         throw DeviceLockedException(deviceReport)
                     }
+                    refreshAccountSessionIfNeeded()
                     configManager.getUpdateInfo()
                 }
             }.onSuccess { updateInfo ->
@@ -188,6 +190,18 @@ class SplashActivity : AppCompatActivity() {
 
     private fun saveServerDeviceUuid(id: String) {
         ServerDevicePrefs.setDeviceId(this, id)
+    }
+
+    private suspend fun refreshAccountSessionIfNeeded() {
+        val session = AccountSessionStore.read(this)
+        if (!session.loggedIn) return
+        runCatching {
+            configManager.refreshAccountToken(session.token)
+        }.onSuccess {
+            AccountSessionStore.save(this, it)
+        }.onFailure {
+            AccountSessionStore.clear(this)
+        }
     }
 
     private fun DeviceReportResult.isCurrentlyLocked(nowMillis: Long = System.currentTimeMillis()): Boolean {

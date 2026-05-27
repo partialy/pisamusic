@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>PisaMusic Account</title>
+  <script src="../shared/tailwind.js"></script>
+  <script src="../shared/tailwind-base.js"></script>
+  <style>
+    .fade { animation: fade .38s ease-out both; }
+    @keyframes fade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .field { width: 100%; border: 1px solid rgba(148,163,184,.28); border-radius: 18px; padding: 14px 16px; background: rgba(255,255,255,.76); outline: none; color: rgb(15 23 42); }
+    .field:focus { border-color: rgb(56 189 248); box-shadow: 0 0 0 4px rgba(56,189,248,.16); }
+    .primary { border-radius: 18px; padding: 14px 18px; background: rgb(14 165 233); color: white; font-weight: 700; box-shadow: 0 12px 30px rgba(14,165,233,.26); }
+    .ghost { border-radius: 18px; padding: 12px 14px; background: rgba(255,255,255,.72); color: rgb(51 65 85); font-weight: 650; }
+    @media (prefers-color-scheme: dark) {
+      .field { background: rgba(15,23,42,.72); color: white; border-color: rgba(71,85,105,.7); }
+      .ghost { background: rgba(30,41,59,.72); color: rgb(226 232 240); }
+    }
+  </style>
+</head>
+<body class="min-h-[100dvh] bg-gradient-to-b from-sky-50 via-white to-white dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 text-slate-900 dark:text-white pt-[max(18px,env(safe-area-inset-top))] pb-[max(18px,env(safe-area-inset-bottom))]">
+  <main class="min-h-[100dvh] flex flex-col px-6">
+    <header class="flex items-center justify-between">
+      <button class="ghost" onclick="host.close()">关闭</button>
+      <div class="text-sm text-slate-400">PisaMusic</div>
+    </header>
+
+    <section class="flex-1 flex flex-col justify-center fade">
+      <div class="w-20 h-20 rounded-[28px] bg-sky-400 flex items-center justify-center shadow-xl shadow-sky-400/25 mb-7">
+        <svg class="w-10 h-10 text-white rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" fill="currentColor" />
+          <circle cx="18" cy="16" r="3" fill="currentColor" />
+        </svg>
+      </div>
+      <h1 class="text-4xl font-bold tracking-tight">登录账号</h1>
+      <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">收藏、歌单与桌面端自动同步</p>
+
+      <div class="grid grid-cols-3 gap-2 mt-8 p-1 rounded-[20px] bg-slate-100/80 dark:bg-slate-800/70">
+        <button id="tabPassword" class="primary !py-3 !shadow-none" onclick="setMode('password')">密码</button>
+        <button id="tabCode" class="ghost !py-3" onclick="setMode('code')">验证码</button>
+        <button id="tabRegister" class="ghost !py-3" onclick="setMode('register')">注册</button>
+      </div>
+
+      <form id="form" class="mt-5 space-y-3" onsubmit="submitForm(event)">
+        <input id="identifier" class="field" autocomplete="username" placeholder="用户名或邮箱" />
+        <input id="email" class="field hidden" autocomplete="email" placeholder="邮箱" inputmode="email" />
+        <input id="username" class="field hidden" autocomplete="username" placeholder="用户名" />
+        <input id="password" class="field" autocomplete="current-password" placeholder="密码" type="password" />
+        <div id="codeRow" class="hidden grid grid-cols-[1fr_auto] gap-2">
+          <input id="code" class="field" placeholder="邮箱验证码" inputmode="numeric" />
+          <button id="sendCodeBtn" class="ghost whitespace-nowrap" type="button" onclick="sendCode()">发送</button>
+        </div>
+        <button id="submitBtn" class="primary w-full mt-2" type="submit">登录</button>
+      </form>
+      <p id="message" class="mt-4 min-h-5 text-sm text-slate-500 dark:text-slate-400"></p>
+    </section>
+  </main>
+
+  <script>
+    let mode = 'password';
+    const host = window.AndroidAccount || { close(){}, sendEmailCode(){}, loginByPassword(){}, loginByCode(){}, registerAccount(){} };
+    const $ = (id) => document.getElementById(id);
+
+    function setMode(next) {
+      mode = next;
+      ['Password','Code','Register'].forEach((name) => {
+        const active = name.toLowerCase() === next;
+        $('tab' + name).className = active ? 'primary !py-3 !shadow-none' : 'ghost !py-3';
+      });
+      $('identifier').classList.toggle('hidden', next !== 'password');
+      $('email').classList.toggle('hidden', next === 'password');
+      $('username').classList.toggle('hidden', next !== 'register');
+      $('password').classList.toggle('hidden', next === 'code');
+      $('codeRow').classList.toggle('hidden', next === 'password');
+      $('submitBtn').textContent = next === 'register' ? '注册并登录' : '登录';
+      setMessage('');
+    }
+
+    function payload() {
+      return {
+        identifier: $('identifier').value.trim(),
+        email: $('email').value.trim(),
+        username: $('username').value.trim(),
+        password: $('password').value,
+        code: $('code').value.trim(),
+      };
+    }
+
+    function sendCode() {
+      const data = payload();
+      setLoading(true);
+      host.sendEmailCode(JSON.stringify({ email: data.email, purpose: mode === 'register' ? 'register' : 'login' }));
+    }
+
+    function submitForm(event) {
+      event.preventDefault();
+      const data = payload();
+      setLoading(true);
+      if (mode === 'password') host.loginByPassword(JSON.stringify(data));
+      else if (mode === 'code') host.loginByCode(JSON.stringify(data));
+      else host.registerAccount(JSON.stringify(data));
+    }
+
+    function setLoading(loading) {
+      $('submitBtn').disabled = loading;
+      $('sendCodeBtn').disabled = loading;
+      $('submitBtn').classList.toggle('opacity-60', loading);
+    }
+
+    function setMessage(text, error) {
+      $('message').textContent = text || '';
+      $('message').className = error ? 'mt-4 min-h-5 text-sm text-red-500' : 'mt-4 min-h-5 text-sm text-slate-500 dark:text-slate-400';
+    }
+
+    window.accountPage = {
+      success(text) { setLoading(false); setMessage(text || '操作成功'); },
+      error(text) { setLoading(false); setMessage(text || '操作失败', true); },
+      loggedIn() { setLoading(false); setMessage('登录成功'); setTimeout(() => host.close(), 350); }
+    };
+  </script>
+</body>
+</html>
