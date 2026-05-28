@@ -618,7 +618,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       as: (appConfig.bootstrap.gatewaySign?.as ?? "").trim(),
     };
     if (!payload.secret || !payload.as) {
-      alert("gatewaySign.secret 和 gatewaySign.as 不能为空");
+      alert("网关签名密钥(secret)和签名算法(as)不能为空");
       return;
     }
 

@@ -77,8 +77,15 @@ export type AvailabilityConfig = {
   unavailableReason: string;
 };
 
+export type EmailProviderConfig = {
+  code: string;
+  name: string;
+};
+
 export type EmailConfig = {
   serviceUrl: string;
+  provider: string;
+  providers: EmailProviderConfig[];
 };
 
 export type BootstrapConfig = {
@@ -151,7 +158,12 @@ export type UpdateHistoryItem = {
 
 const RELEASE_PLATFORMS: ReleasePlatform[] = ["android", "desktop"];
 const DEFAULT_DESKTOP_UPDATE_FEED = "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64";
-const DEFAULT_EMAIL_SERVICE_URL = "https://gateway.partialy.cn/email-service/api/send";
+const DEFAULT_EMAIL_SERVICE_URL = "https://gateway.partialy.cn/auth-service/api/send/email";
+const DEFAULT_EMAIL_PROVIDER = "aliyun";
+const DEFAULT_EMAIL_PROVIDERS: EmailProviderConfig[] = [
+  { code: "aliyun", name: "阿里云" },
+  { code: "resend", name: "Resend" },
+];
 
 export type Announcement = {
   id: string;
@@ -186,6 +198,8 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   },
   email: {
     serviceUrl: DEFAULT_EMAIL_SERVICE_URL,
+    provider: DEFAULT_EMAIL_PROVIDER,
+    providers: DEFAULT_EMAIL_PROVIDERS,
   },
   bootstrap: {
     version: "v1.0.0",
@@ -322,6 +336,45 @@ function normalizeDesktopUpdaterConfig(input?: Partial<DesktopUpdaterConfig>): D
   };
 }
 
+function normalizeEmailProviders(input?: EmailProviderConfig[]): EmailProviderConfig[] {
+  const source = input?.length ? input : DEFAULT_EMAIL_PROVIDERS;
+  const seen = new Set<string>();
+  const providers: EmailProviderConfig[] = [];
+  for (const item of source) {
+    const code = item.code.trim();
+    const name = item.name.trim();
+    if (!code || !name || seen.has(code)) continue;
+    seen.add(code);
+    providers.push({ code, name });
+  }
+  return providers.length ? providers : DEFAULT_EMAIL_PROVIDERS;
+}
+
+function normalizeEmailConfig(input?: Partial<EmailConfig>): EmailConfig {
+  const providers = normalizeEmailProviders(input?.providers);
+  const provider = input?.provider && providers.some((item) => item.code === input.provider) ? input.provider : providers[0].code;
+  return {
+    serviceUrl: input?.serviceUrl || DEFAULT_EMAIL_SERVICE_URL,
+    provider,
+    providers,
+  };
+}
+
+function parseEmailProviders(raw?: string | null): EmailProviderConfig[] {
+  if (!raw) return DEFAULT_EMAIL_PROVIDERS;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return DEFAULT_EMAIL_PROVIDERS;
+    return normalizeEmailProviders(
+      parsed
+        .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null && !Array.isArray(item))
+        .map((item) => ({ code: String(item.code ?? ""), name: String(item.name ?? "") })),
+    );
+  } catch {
+    return DEFAULT_EMAIL_PROVIDERS;
+  }
+}
+
 function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
   db.exec("BEGIN IMMEDIATE");
   try {
@@ -429,9 +482,9 @@ export function replaceAppConfig(config: AppConfig) {
     db.prepare(
       `INSERT INTO app_settings (
         id, app_available, unavailable_reason, bootstrap_version, bootstrap_updated_at,
-        gateway_secret, gateway_as, email_service_url, updater_enabled, updater_feed_base_url,
+        gateway_secret, gateway_as, email_service_url, email_provider, email_providers_json, updater_enabled, updater_feed_base_url,
         updater_check_startup, updater_startup_delay, created_at, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         app_available = excluded.app_available,
         unavailable_reason = excluded.unavailable_reason,
@@ -440,6 +493,8 @@ export function replaceAppConfig(config: AppConfig) {
         gateway_secret = excluded.gateway_secret,
         gateway_as = excluded.gateway_as,
         email_service_url = excluded.email_service_url,
+        email_provider = excluded.email_provider,
+        email_providers_json = excluded.email_providers_json,
         updater_enabled = excluded.updater_enabled,
         updater_feed_base_url = excluded.updater_feed_base_url,
         updater_check_startup = excluded.updater_check_startup,
@@ -452,7 +507,9 @@ export function replaceAppConfig(config: AppConfig) {
       config.bootstrap.updatedAt,
       config.bootstrap.gatewaySign?.secret ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.secret ?? "",
       config.bootstrap.gatewaySign?.as ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.as ?? "",
-      config.email.serviceUrl || DEFAULT_EMAIL_SERVICE_URL,
+      normalizeEmailConfig(config.email).serviceUrl,
+      normalizeEmailConfig(config.email).provider,
+      JSON.stringify(normalizeEmailConfig(config.email).providers),
       boolToDb(normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).enabled),
       normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).feedBaseUrl,
       boolToDb(normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).checkOnStartup),
@@ -596,6 +653,8 @@ export function readAppConfig(): AppConfig {
         gateway_secret: string;
         gateway_as: string;
         email_service_url: string;
+        email_provider: string;
+        email_providers_json: string;
         updater_enabled: number;
         updater_feed_base_url: string;
         updater_check_startup: number;
@@ -683,9 +742,11 @@ export function readAppConfig(): AppConfig {
       appAvailable: settings ? boolFromDb(settings.app_available) : DEFAULT_APP_CONFIG.availability.appAvailable,
       unavailableReason: settings?.unavailable_reason ?? DEFAULT_APP_CONFIG.availability.unavailableReason,
     },
-    email: {
+    email: normalizeEmailConfig({
       serviceUrl: settings?.email_service_url ?? DEFAULT_APP_CONFIG.email.serviceUrl,
-    },
+      provider: settings?.email_provider ?? DEFAULT_APP_CONFIG.email.provider,
+      providers: parseEmailProviders(settings?.email_providers_json),
+    }),
     bootstrap: {
       version: settings?.bootstrap_version ?? DEFAULT_APP_CONFIG.bootstrap.version,
       updatedAt: settings?.bootstrap_updated_at ?? DEFAULT_APP_CONFIG.bootstrap.updatedAt,
@@ -742,7 +803,7 @@ export function saveAppConfigSections(sections: EditableAppConfigSections): AppC
   const next: AppConfig = {
     ...current,
     availability: sections.availability ?? current.availability,
-    email: sections.email ?? current.email,
+    email: normalizeEmailConfig(sections.email ?? current.email),
     bootstrap: {
       ...current.bootstrap,
       ...(sections.bootstrap ?? {}),

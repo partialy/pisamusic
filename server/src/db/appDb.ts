@@ -58,7 +58,9 @@ CREATE TABLE IF NOT EXISTS app_settings (
     bootstrap_updated_at    INTEGER     NOT NULL DEFAULT 0,
     gateway_secret          TEXT        NOT NULL DEFAULT 'partialypartialypartialypartialy',
     gateway_as              TEXT        NOT NULL DEFAULT 'yixivip',
-    email_service_url       TEXT        NOT NULL DEFAULT 'https://gateway.partialy.cn/email-service/api/send',
+    email_service_url       TEXT        NOT NULL DEFAULT 'https://gateway.partialy.cn/auth-service/api/send/email',
+    email_provider          TEXT        NOT NULL DEFAULT 'aliyun',
+    email_providers_json    TEXT        NOT NULL DEFAULT '[{"code":"aliyun","name":"阿里云"},{"code":"resend","name":"Resend"}]',
     updater_enabled         INTEGER     NOT NULL DEFAULT 1,
     updater_feed_base_url   TEXT        NOT NULL DEFAULT 'https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64',
     updater_check_startup   INTEGER     NOT NULL DEFAULT 1,
@@ -334,7 +336,14 @@ function migrateAppSettings(db: DatabaseSync) {
   add("updater_feed_base_url", "TEXT NOT NULL DEFAULT 'https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64'");
   add("updater_check_startup", "INTEGER NOT NULL DEFAULT 1");
   add("updater_startup_delay", "INTEGER NOT NULL DEFAULT 15000");
-  add("email_service_url", "TEXT NOT NULL DEFAULT 'https://gateway.partialy.cn/email-service/api/send'");
+  add("email_service_url", "TEXT NOT NULL DEFAULT 'https://gateway.partialy.cn/auth-service/api/send/email'");
+  add("email_provider", "TEXT NOT NULL DEFAULT 'aliyun'");
+  add("email_providers_json", `TEXT NOT NULL DEFAULT '[{"code":"aliyun","name":"阿里云"},{"code":"resend","name":"Resend"}]'`);
+  db.prepare(
+    `UPDATE app_settings
+     SET email_service_url = 'https://gateway.partialy.cn/auth-service/api/send/email'
+     WHERE email_service_url = 'https://gateway.partialy.cn/email-service/api/send'`,
+  ).run();
 }
 
 function migrateDynamicConfigs(db: DatabaseSync) {

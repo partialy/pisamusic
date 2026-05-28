@@ -109,6 +109,13 @@ export type DesktopUpdaterConfig = {
 
 export type EmailConfig = {
   serviceUrl: string;
+  provider: string;
+  providers: EmailProviderConfig[];
+};
+
+export type EmailProviderConfig = {
+  code: string;
+  name: string;
 };
 
 export type AppConfigJson = {

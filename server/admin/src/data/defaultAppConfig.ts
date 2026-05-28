@@ -7,7 +7,12 @@ export const defaultAppConfig: AppConfigJson = {
     unavailableReason: "Service is under maintenance",
   },
   email: {
-    serviceUrl: "https://gateway.partialy.cn/email-service/api/send",
+    serviceUrl: "https://gateway.partialy.cn/auth-service/api/send/email",
+    provider: "aliyun",
+    providers: [
+      { code: "aliyun", name: "阿里云" },
+      { code: "resend", name: "Resend" },
+    ],
   },
   bootstrap: {
     version: "v1.0.0",

@@ -1,7 +1,8 @@
 import { readAppConfig } from "../db/configStore";
 import { signGatewayUrl, type GatewaySignConfig } from "./gatewaySigner";
 
-const DEFAULT_EMAIL_SERVICE_URL = "https://gateway.partialy.cn/email-service/api/send";
+const DEFAULT_EMAIL_SERVICE_URL = "https://gateway.partialy.cn/auth-service/api/send/email";
+const DEFAULT_EMAIL_PROVIDER = "aliyun";
 const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
   secret: "partialypartialypartialypartialy",
   as: "yixivip",
@@ -16,7 +17,7 @@ type GatewayResponse = {
 
 export async function sendVerifyCodeEmail(to: string, code: string): Promise<void> {
   const body = JSON.stringify({
-    provider: "resend",
+    provider: getEmailProvider(),
     type: "verify_code",
     code,
     to,
@@ -49,6 +50,10 @@ function getGatewaySignConfig(): GatewaySignConfig {
 
 function getEmailServiceUrl(): string {
   return readAppConfig().email.serviceUrl || DEFAULT_EMAIL_SERVICE_URL;
+}
+
+function getEmailProvider(): string {
+  return readAppConfig().email.provider || DEFAULT_EMAIL_PROVIDER;
 }
 
 function parseJson(raw: string): unknown {

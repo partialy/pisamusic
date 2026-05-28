@@ -52,6 +52,7 @@ export const adminRouter = Router();
 
 const JWT_EXPIRES: jwt.SignOptions["expiresIn"] = "7d";
 const PATH_REGEX = /^\/[A-Za-z0-9._\-/*]*$/;
+const EMAIL_PROVIDER_CODE_REGEX = /^[a-z][a-z0-9_-]*$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/release-files/*", "/api/config/desktop-updates/*", "/api/config/discover", "/discover/*"];
 
@@ -262,7 +263,38 @@ function normalizeEmail(input: unknown): { ok: true; value: EmailConfig } | { ok
   } catch {
     return { ok: false, msg: "email.serviceUrl 必须是有效完整链接" };
   }
-  return { ok: true, value: { serviceUrl: serviceUrl.value } };
+  const provider = normalizeRequiredString(input.provider, "email.provider", 64);
+  if (!provider.ok) return provider;
+  if (!EMAIL_PROVIDER_CODE_REGEX.test(provider.value)) {
+    return { ok: false, msg: "email.provider 必须以小写字母开头，且只能包含小写字母、数字、_、-" };
+  }
+  if (!Array.isArray(input.providers) || input.providers.length === 0) {
+    return { ok: false, msg: "email.providers 至少需要配置一个提供商" };
+  }
+  if (input.providers.length > 20) {
+    return { ok: false, msg: "email.providers 不能超过 20 个" };
+  }
+  const providers: EmailConfig["providers"] = [];
+  const codes = new Set<string>();
+  for (const raw of input.providers) {
+    if (!isRecord(raw)) return { ok: false, msg: "email.providers 每一项必须是对象" };
+    const code = normalizeRequiredString(raw.code, "email.providers.code", 64);
+    if (!code.ok) return code;
+    if (!EMAIL_PROVIDER_CODE_REGEX.test(code.value)) {
+      return { ok: false, msg: `email provider code 非法: ${code.value}` };
+    }
+    if (codes.has(code.value)) {
+      return { ok: false, msg: `email provider code 重复: ${code.value}` };
+    }
+    const name = normalizeRequiredString(raw.name, "email.providers.name", 100);
+    if (!name.ok) return name;
+    codes.add(code.value);
+    providers.push({ code: code.value, name: name.value });
+  }
+  if (!codes.has(provider.value)) {
+    return { ok: false, msg: "email.provider 必须存在于 email.providers 列表中" };
+  }
+  return { ok: true, value: { serviceUrl: serviceUrl.value, provider: provider.value, providers } };
 }
 
 function normalizeTextContent(input: unknown, section: string): { ok: true; value: TextContentConfig } | { ok: false; msg: string } {
