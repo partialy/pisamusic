@@ -107,11 +107,16 @@ export type DesktopUpdaterConfig = {
   startupDelayMs: number;
 };
 
+export type EmailConfig = {
+  serviceUrl: string;
+};
+
 export type AppConfigJson = {
   availability: {
     appAvailable: boolean;
     unavailableReason: string;
   };
+  email: EmailConfig;
   bootstrap: {
     version: string;
     updatedAt: number;
@@ -149,7 +154,7 @@ export type AppConfigJson = {
 };
 
 export type AppConfigSectionsPayload = Partial<
-  Pick<AppConfigJson, "availability" | "bootstrap" | "releases" | "agreement" | "privacy" | "about" | "discover">
+  Pick<AppConfigJson, "availability" | "email" | "bootstrap" | "releases" | "agreement" | "privacy" | "about" | "discover">
 >;
 
 export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [

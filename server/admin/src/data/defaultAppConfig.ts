@@ -6,6 +6,9 @@ export const defaultAppConfig: AppConfigJson = {
     appAvailable: true,
     unavailableReason: "Service is under maintenance",
   },
+  email: {
+    serviceUrl: "https://gateway.partialy.cn/email-service/api/send",
+  },
   bootstrap: {
     version: "v1.0.0",
     updatedAt: 1749520800000,

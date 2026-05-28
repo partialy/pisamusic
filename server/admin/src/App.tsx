@@ -512,12 +512,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     () =>
       JSON.stringify({
         availability: appConfig.availability,
+        email: appConfig.email,
         version: appConfig.bootstrap.version,
         updatedAt: appConfig.bootstrap.updatedAt,
         updater: appConfig.bootstrap.updater,
       }) !==
       JSON.stringify({
         availability: appConfigServer.availability,
+        email: appConfigServer.email,
         version: appConfigServer.bootstrap.version,
         updatedAt: appConfigServer.bootstrap.updatedAt,
         updater: appConfigServer.bootstrap.updater,
@@ -577,6 +579,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     await saveConfigSections(
       {
         availability: appConfig.availability,
+        email: appConfig.email,
         bootstrap: {
           ...appConfigServer.bootstrap,
           version: appConfig.bootstrap.version,

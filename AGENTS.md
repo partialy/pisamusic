@@ -25,7 +25,7 @@
 - PC 自动升级使用 `electron-updater` 的 generic feed，服务端公开 `/api/config/desktop-updates/win32/x64/latest.yml` 和同目录文件下载入口；自动更新资源存储在 `desktop_update_assets`，由后台上传 `latest.yml`、安装包 EXE 和可选 blockmap 后启用，不要手写 `latest.yml`。
 - 手机端与桌面端账号由外层 `server/` 的 `/api/auth/*` 提供服务，支持邮箱验证码注册、用户名/邮箱密码登录、邮箱验证码登录和 7 天 token 刷新。收藏/歌单同步由 `/api/sync/*` 提供服务，使用账号 `Authorization: Bearer <userToken>` 鉴权并按用户隔离数据；旧同步码绑定空间流程已废弃，不要恢复 `/api/sync/spaces*`。
 - 账号资料由 `/api/auth/profile*` 提供服务，支持修改昵称、头像 key 和经新邮箱验证码确认后的邮箱；公开用户字段包含 `id`、`username`、`email`、`avatarKey`、`avatarUrl`、`createdAt`。共享头像资源固定放在 `server/static/account-avatars/` 并通过 `/static/account-avatars/*` 下发，不走用户上传。
-- 服务端邮箱验证码通过网关微服务 `https://gateway.partialy.cn/email-service/send` 发送，body 固定为 `{ provider: "resend", type: "verify_code", code, to }`；网关验签复用 bootstrap `gatewaySign` 配置，签名算法与桌面端 `gatewaySigner` 保持一致。
+- 服务端邮箱验证码通过后台“System Status”里的 `email.serviceUrl` 配置发送，默认 `https://gateway.partialy.cn/email-service/api/send`，body 固定为 `{ provider: "resend", type: "verify_code", code, to }`；网关验签复用 bootstrap `gatewaySign` 配置，签名算法与桌面端 `gatewaySigner` 保持一致。
 - 手机端和桌面端启动时如果外层服务不可用、没网或后台关闭 `appAvailable`，应进入本地模式并在主界面给非阻塞提示；设备被封禁仍然阻止进入。
 - 桌面端设备上报使用服务端 `desktop_device_info` 表和 `/api/device/desktop/report`，不要复用 Android 的 `device_info` 表；后台通过 `/api/admin/desktop-device/*` 管理 PC 设备。
 - 服务端历史 JSON 导入 SQLite 迁移已结束，不要恢复 `jsonImport.ts` 或启动时读取 `server/data/*.json` 自动导入数据库的逻辑。

@@ -125,6 +125,18 @@ export default function SystemTab({
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-3 ml-1">Email Service URL</label>
+              <input
+                type="text"
+                value={config.email.serviceUrl}
+                onChange={(e) => updateSection("email", "serviceUrl", e.target.value)}
+                className={glassInputClasses + " font-mono text-[13px]"}
+                placeholder="https://gateway.partialy.cn/email-service/api/send"
+              />
+              <p className="text-xs text-slate-500 mt-2 ml-1 font-medium">Used by /api/auth/email-code and profile email verification.</p>
+            </div>
+
             <div className="grid grid-cols-1 gap-5">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-3 ml-1">Bootstrap Version</label>

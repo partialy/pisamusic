@@ -11,6 +11,7 @@ import {
   type DesktopUpdateAssetType,
   type DiscoverConfig,
   type EditableAppConfigSections,
+  type EmailConfig,
   type GatewaySignConfig,
   type ReleaseConfig,
   type ReleaseInfo,
@@ -249,6 +250,21 @@ function normalizeAvailability(input: unknown): { ok: true; value: AvailabilityC
   return { ok: true, value: { appAvailable: input.appAvailable, unavailableReason: reason.value } };
 }
 
+function normalizeEmail(input: unknown): { ok: true; value: EmailConfig } | { ok: false; msg: string } {
+  if (!isRecord(input)) return { ok: false, msg: "email 必须是对象" };
+  const serviceUrl = normalizeRequiredString(input.serviceUrl, "email.serviceUrl", 1000);
+  if (!serviceUrl.ok) return serviceUrl;
+  try {
+    const parsed = new URL(serviceUrl.value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return { ok: false, msg: "email.serviceUrl 必须是 http/https 链接" };
+    }
+  } catch {
+    return { ok: false, msg: "email.serviceUrl 必须是有效完整链接" };
+  }
+  return { ok: true, value: { serviceUrl: serviceUrl.value } };
+}
+
 function normalizeTextContent(input: unknown, section: string): { ok: true; value: TextContentConfig } | { ok: false; msg: string } {
   if (!isRecord(input)) return { ok: false, msg: `${section} 必须是对象` };
   const title = normalizeRequiredString(input.title, `${section}.title`, 200);
@@ -429,6 +445,11 @@ function normalizeAppConfigSections(input: unknown): { ok: true; value: Editable
     const availability = normalizeAvailability(input.availability);
     if (!availability.ok) return availability;
     sections.availability = availability.value;
+  }
+  if ("email" in input) {
+    const email = normalizeEmail(input.email);
+    if (!email.ok) return email;
+    sections.email = email.value;
   }
   if ("bootstrap" in input) {
     const bootstrap = normalizeBootstrap(input.bootstrap);

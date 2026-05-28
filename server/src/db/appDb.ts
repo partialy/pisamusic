@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
     bootstrap_updated_at    INTEGER     NOT NULL DEFAULT 0,
     gateway_secret          TEXT        NOT NULL DEFAULT 'partialypartialypartialypartialy',
     gateway_as              TEXT        NOT NULL DEFAULT 'yixivip',
+    email_service_url       TEXT        NOT NULL DEFAULT 'https://gateway.partialy.cn/email-service/api/send',
     updater_enabled         INTEGER     NOT NULL DEFAULT 1,
     updater_feed_base_url   TEXT        NOT NULL DEFAULT 'https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64',
     updater_check_startup   INTEGER     NOT NULL DEFAULT 1,
@@ -333,6 +334,7 @@ function migrateAppSettings(db: DatabaseSync) {
   add("updater_feed_base_url", "TEXT NOT NULL DEFAULT 'https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64'");
   add("updater_check_startup", "INTEGER NOT NULL DEFAULT 1");
   add("updater_startup_delay", "INTEGER NOT NULL DEFAULT 15000");
+  add("email_service_url", "TEXT NOT NULL DEFAULT 'https://gateway.partialy.cn/email-service/api/send'");
 }
 
 function migrateDynamicConfigs(db: DatabaseSync) {

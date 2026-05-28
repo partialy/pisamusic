@@ -14,6 +14,7 @@ const TYPE_FAVORITE_SONG = "favorite_song";
 const TYPE_FAVORITE_PLAYLIST = "favorite_playlist";
 const TYPE_USER_PLAYLIST = "user_playlist";
 const TYPE_PLAYLIST_TRACK = "playlist_track";
+const DUPLICATE_PULL_GUARD_MS = 1500;
 
 type SyncState = {
   token: string;
@@ -34,8 +35,17 @@ type SyncOutboxRow = {
   created_at: string;
 };
 
+type SyncRecordOptions = {
+  schedule?: boolean;
+};
+
 let syncRunning = false;
 let syncQueued = false;
+let syncTimer: NodeJS.Timeout | null = null;
+let syncInFlight: Promise<SyncState> | null = null;
+let lastNetworkSyncAt = 0;
+let lastNetworkSyncToken = "";
+let lastNetworkSyncVersion = 0;
 
 export function getSyncState(): SyncState {
   const saved = getAppDatabase().getSetting<Partial<SyncState>>(SYNC_SETTING_KEY)?.value ?? {};
@@ -49,11 +59,16 @@ export function getSyncState(): SyncState {
   };
 }
 
-export async function syncNow(): Promise<SyncState> {
-  if (syncRunning) {
-    syncQueued = true;
-    return getSyncState();
-  }
+export function syncNow(): Promise<SyncState> {
+  clearPendingSyncTimer();
+  if (syncInFlight) return syncInFlight;
+  syncInFlight = runSyncNow().finally(() => {
+    syncInFlight = null;
+  });
+  return syncInFlight;
+}
+
+async function runSyncNow(): Promise<SyncState> {
   syncRunning = true;
   try {
     let state = getSyncState();
@@ -65,6 +80,9 @@ export async function syncNow(): Promise<SyncState> {
     }
 
     let nextVersion = state.lastServerVersion || 0;
+    if (shouldSkipDuplicatePull(state, nextVersion)) {
+      return state;
+    }
     try {
       const pulled = await getSyncChanges(state.token, nextVersion);
       pulled.changes.forEach(applyRemoteChange);
@@ -93,6 +111,7 @@ export async function syncNow(): Promise<SyncState> {
         lastSyncAt: new Date().toISOString(),
         lastError: "",
       });
+      recordNetworkSync(state.token, nextVersion);
       emitSyncChanged();
     } catch (error) {
       saveSyncState({
@@ -106,7 +125,7 @@ export async function syncNow(): Promise<SyncState> {
     syncRunning = false;
     if (syncQueued) {
       syncQueued = false;
-      setTimeout(() => void syncNow(), 250);
+      requestSync(250);
     }
   }
 }
@@ -119,56 +138,58 @@ export async function unbindSync() {
 
 export function startSyncOnStartup() {
   if (!getSyncState().token) return;
-  setTimeout(() => void syncNow(), 1500);
+  requestSync(1500);
 }
 
-export function recordFavoriteSongChange(track: TrackSnapshot, action: "upsert" | "delete") {
+export function recordFavoriteSongChange(track: TrackSnapshot, action: "upsert" | "delete", options?: SyncRecordOptions) {
   const normalized = normalizeTrackSnapshot(track);
   if (normalized.source === "local") return;
-  enqueueAndSync(TYPE_FAVORITE_SONG, favoriteKey(normalized.source, normalized.id), action, action === "delete" ? {} : syncSongPayload(normalized));
+  enqueueAndSync(TYPE_FAVORITE_SONG, favoriteKey(normalized.source, normalized.id), action, action === "delete" ? {} : syncSongPayload(normalized), options);
 }
 
-export function recordFavoriteSongDelete(source: string, id: string) {
+export function recordFavoriteSongDelete(source: string, id: string, options?: SyncRecordOptions) {
   if (source === "local") return;
-  enqueueAndSync(TYPE_FAVORITE_SONG, favoriteKey(source, id), "delete", {});
+  enqueueAndSync(TYPE_FAVORITE_SONG, favoriteKey(source, id), "delete", {}, options);
 }
 
-export function recordFavoritePlaylistChange(playlist: PlaylistSnapshot, action: "upsert" | "delete") {
+export function recordFavoritePlaylistChange(playlist: PlaylistSnapshot, action: "upsert" | "delete", options?: SyncRecordOptions) {
   const normalized = normalizePlaylistSnapshot(playlist);
   if (normalized.source === "local") return;
-  enqueueAndSync(TYPE_FAVORITE_PLAYLIST, favoriteKey(normalized.source, normalized.id), action, action === "delete" ? {} : normalized);
+  enqueueAndSync(TYPE_FAVORITE_PLAYLIST, favoriteKey(normalized.source, normalized.id), action, action === "delete" ? {} : normalized, options);
 }
 
-export function recordFavoritePlaylistDelete(source: string, id: string) {
+export function recordFavoritePlaylistDelete(source: string, id: string, options?: SyncRecordOptions) {
   if (source === "local") return;
-  enqueueAndSync(TYPE_FAVORITE_PLAYLIST, favoriteKey(source, id), "delete", {});
+  enqueueAndSync(TYPE_FAVORITE_PLAYLIST, favoriteKey(source, id), "delete", {}, options);
 }
 
-export function recordUserPlaylistChange(playlist: PlaylistSnapshot, action: "upsert" | "delete") {
+export function recordUserPlaylistChange(playlist: PlaylistSnapshot, action: "upsert" | "delete", options?: SyncRecordOptions) {
   const normalized = clearLocalFileCover(normalizePlaylistSnapshot(playlist));
   if (normalized.source !== "local") return;
-  enqueueAndSync(TYPE_USER_PLAYLIST, favoriteKey(normalized.source, normalized.id), action, action === "delete" ? {} : normalized);
+  enqueueAndSync(TYPE_USER_PLAYLIST, favoriteKey(normalized.source, normalized.id), action, action === "delete" ? {} : normalized, options);
 }
 
-export function recordUserPlaylistTrackChange(playlistId: string, track: TrackSnapshot, action: "upsert" | "delete") {
+export function recordUserPlaylistTrackChange(playlistId: string, track: TrackSnapshot, action: "upsert" | "delete", options?: SyncRecordOptions) {
   const normalized = normalizeTrackSnapshot(track);
   if (normalized.source === "local") return;
   enqueueAndSync(
     TYPE_PLAYLIST_TRACK,
     `${playlistId}|${favoriteKey(normalized.source, normalized.id)}`,
     action,
-    action === "delete" ? {} : syncSongPayload(normalized)
+    action === "delete" ? {} : syncSongPayload(normalized),
+    options
   );
 }
 
 function seedInitialOutbox() {
   const db = getAppDatabase();
-  db.listFavoriteSongs().forEach((item) => recordFavoriteSongChange(item.payload, "upsert"));
-  db.listFavoritePlaylists().forEach((item) => recordFavoritePlaylistChange(item.payload, "upsert"));
+  const seedOptions: SyncRecordOptions = { schedule: false };
+  db.listFavoriteSongs().forEach((item) => recordFavoriteSongChange(item.payload, "upsert", seedOptions));
+  db.listFavoritePlaylists().forEach((item) => recordFavoritePlaylistChange(item.payload, "upsert", seedOptions));
   db.listUserPlaylists("local").forEach((playlist) => {
-    recordUserPlaylistChange(playlist.payload, "upsert");
+    recordUserPlaylistChange(playlist.payload, "upsert", seedOptions);
     db.listUserPlaylistTracks(playlist.playlistId).forEach((track) => {
-      recordUserPlaylistTrackChange(playlist.playlistId, track.payload, "upsert");
+      recordUserPlaylistTrackChange(playlist.playlistId, track.payload, "upsert", seedOptions);
     });
   });
 }
@@ -232,10 +253,43 @@ function applyPlaylistTrack(change: SyncChange) {
   }
 }
 
-function enqueueAndSync(itemType: string, itemKey: string, action: "upsert" | "delete", payload: unknown) {
+function enqueueAndSync(itemType: string, itemKey: string, action: "upsert" | "delete", payload: unknown, options?: SyncRecordOptions) {
   if (!getSyncState().token) return;
   getAppDatabase().enqueueSyncOp({ itemType, itemKey, action, payload });
-  setTimeout(() => void syncNow(), 500);
+  if (options?.schedule === false) return;
+  requestSync(500);
+}
+
+function requestSync(delayMs = 500) {
+  if (!getSyncState().token) return;
+  if (syncRunning || syncInFlight) {
+    syncQueued = true;
+    return;
+  }
+  if (syncTimer) return;
+  syncTimer = setTimeout(() => {
+    syncTimer = null;
+    void syncNow();
+  }, delayMs);
+}
+
+function clearPendingSyncTimer() {
+  if (!syncTimer) return;
+  clearTimeout(syncTimer);
+  syncTimer = null;
+}
+
+function shouldSkipDuplicatePull(state: SyncState, nextVersion: number) {
+  if (getAppDatabase().listSyncOutbox(1).length > 0) return false;
+  if (state.token !== lastNetworkSyncToken) return false;
+  if (nextVersion !== lastNetworkSyncVersion) return false;
+  return Date.now() - lastNetworkSyncAt < DUPLICATE_PULL_GUARD_MS;
+}
+
+function recordNetworkSync(token: string, version: number) {
+  lastNetworkSyncAt = Date.now();
+  lastNetworkSyncToken = token;
+  lastNetworkSyncVersion = version;
 }
 
 function saveSyncState(state: SyncState) {
