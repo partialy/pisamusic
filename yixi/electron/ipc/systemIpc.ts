@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import {
   getAnnouncements,
+  changeAccountPassword,
   getAccountAvatarOptions,
   clearAccountSession,
   getBootstrap,
@@ -13,6 +14,7 @@ import {
   loginAccountByPassword,
   refreshAccountSession,
   registerAccount,
+  resetAccountPassword,
   sendAccountEmailCode,
   sendProfileEmailCode,
   submitFeedback,
@@ -54,7 +56,7 @@ export function setupSystemIpc() {
   ipcMain.handle("account:avatar-options", () => getAccountAvatarOptions());
   ipcMain.handle("account:refresh", () => refreshAccountSession());
   ipcMain.handle("account:logout", () => clearAccountSession());
-  ipcMain.handle("account:send-email-code", (_event, payload: { email: string; purpose: "register" | "login" }) =>
+  ipcMain.handle("account:send-email-code", (_event, payload: { email: string; purpose: "register" | "login" | "reset_password" }) =>
     sendAccountEmailCode(payload)
   );
   ipcMain.handle("account:login-password", (_event, payload: { identifier: string; password: string }) =>
@@ -73,5 +75,11 @@ export function setupSystemIpc() {
     "account:update-profile",
     (_event, payload: { username?: string; email?: string; code?: string; avatarKey?: string }) =>
       updateAccountProfile(payload)
+  );
+  ipcMain.handle("account:change-password", (_event, payload: { currentPassword: string; newPassword: string }) =>
+    changeAccountPassword(payload)
+  );
+  ipcMain.handle("account:reset-password", (_event, payload: { email: string; code: string; newPassword: string }) =>
+    resetAccountPassword(payload)
   );
 }

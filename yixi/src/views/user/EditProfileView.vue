@@ -4,7 +4,7 @@
       <div class="page-head">
         <div>
           <h1>编辑用户资料</h1>
-          <p>UUID 和注册时间由系统生成，不可修改。</p>
+          <p>UUID、注册时间和账号邮箱由系统管理；邮箱请回到资料页单独修改。</p>
         </div>
         <n-button secondary round @click="goProfile">返回资料</n-button>
       </div>
@@ -16,19 +16,11 @@
         <n-form-item label="注册时间">
           <n-input :value="createdAtText" readonly />
         </n-form-item>
+        <n-form-item label="账号邮箱">
+          <n-input :value="userInfo.email" readonly />
+        </n-form-item>
         <n-form-item label="昵称">
           <n-input v-model:value="form.username" maxlength="32" show-count placeholder="请输入昵称" />
-        </n-form-item>
-        <n-form-item label="邮箱">
-          <n-input v-model:value="form.email" placeholder="请输入新邮箱" />
-        </n-form-item>
-        <n-form-item v-if="emailChanged" label="新邮箱验证码">
-          <div class="code-row">
-            <n-input v-model:value="form.code" placeholder="6 位验证码" />
-            <n-button secondary round :disabled="countdown > 0" :loading="sending" @click="sendEmailCode">
-              {{ countdown > 0 ? `${countdown}s` : "发送" }}
-            </n-button>
-          </div>
         </n-form-item>
         <n-form-item label="头像">
           <div class="avatar-options">
@@ -54,7 +46,7 @@
 
     <section v-else class="empty-state">
       <h1>登录后编辑资料</h1>
-      <p>请先登录账号，再修改昵称、邮箱和头像。</p>
+      <p>请先登录账号，再修改昵称和头像。</p>
       <n-button type="primary" round @click="openLogin">登录 / 注册</n-button>
     </section>
   </div>
@@ -77,16 +69,11 @@ const userStore = useUserStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
 const avatarOptions = ref<AvatarOption[]>([]);
 const saving = ref(false);
-const sending = ref(false);
-const countdown = ref(0);
 const form = reactive({
   username: "",
-  email: "",
-  code: "",
   avatarKey: "default",
 });
 
-const emailChanged = computed(() => form.email.trim().toLowerCase() !== userInfo.value.email);
 const createdAtText = computed(() => formatTime(userInfo.value.createdAt));
 
 onMounted(async () => {
@@ -101,44 +88,17 @@ watch(
 
 function resetForm() {
   form.username = userInfo.value.username || "";
-  form.email = userInfo.value.email || "";
-  form.code = "";
   form.avatarKey = userInfo.value.avatarKey || "default";
-}
-
-async function sendEmailCode() {
-  const email = form.email.trim().toLowerCase();
-  if (!assertEmail(email)) return;
-  if (!emailChanged.value) {
-    window.$message.info("邮箱未变化");
-    return;
-  }
-  sending.value = true;
-  try {
-    await window.electronAPI.sendProfileEmailCode({ email });
-    startCountdown();
-    window.$message.success("验证码已发送");
-  } catch (error) {
-    window.$message.error(errorMessage(error, "验证码发送失败"));
-  } finally {
-    sending.value = false;
-  }
 }
 
 async function saveProfile() {
   const username = form.username.trim();
-  const email = form.email.trim().toLowerCase();
   if (!username) {
     window.$message.warning("请输入昵称");
     return;
   }
-  if (!assertEmail(email)) return;
-  if (emailChanged.value && !form.code.trim()) {
-    window.$message.warning("请输入新邮箱验证码");
-    return;
-  }
 
-  const payload = buildPayload(username, email);
+  const payload = buildPayload(username);
   if (!Object.keys(payload).length) {
     window.$message.info("资料未变化");
     return;
@@ -156,14 +116,10 @@ async function saveProfile() {
   }
 }
 
-function buildPayload(username: string, email: string) {
+function buildPayload(username: string) {
   const payload: Parameters<typeof userStore.updateProfile>[0] = {};
   if (username !== userInfo.value.username) payload.username = username;
   if (form.avatarKey !== (userInfo.value.avatarKey || "default")) payload.avatarKey = form.avatarKey;
-  if (emailChanged.value) {
-    payload.email = email;
-    payload.code = form.code.trim();
-  }
   return payload;
 }
 
@@ -178,20 +134,6 @@ function openLogin() {
     closable: true,
     content: () => h(LoginCard),
   });
-}
-
-function assertEmail(email: string) {
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return true;
-  window.$message.warning("请输入有效邮箱");
-  return false;
-}
-
-function startCountdown() {
-  countdown.value = 60;
-  const timer = window.setInterval(() => {
-    countdown.value -= 1;
-    if (countdown.value <= 0) window.clearInterval(timer);
-  }, 1000);
 }
 
 function formatTime(value: number) {
@@ -252,13 +194,6 @@ function errorMessage(error: unknown, fallback: string) {
   column-gap: 16px;
 }
 
-.code-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
-  gap: 10px;
-  width: 100%;
-}
-
 .avatar-options {
   grid-column: 1 / -1;
   display: grid;
@@ -307,5 +242,18 @@ function errorMessage(error: unknown, fallback: string) {
 .empty-state {
   padding: 42px;
   text-align: center;
+}
+
+@media (max-width: 720px) {
+  .profile-form,
+  .avatar-options {
+    grid-template-columns: 1fr;
+  }
+
+  .page-head,
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 </style>

@@ -70,10 +70,11 @@
         show-arrow
       >
         <div class="user">
-          <n-avatar :src="avatar" round size="large" class="avatar" />
-          <span class="username" title="username">{{
-            userInfo.username || "-"
-          }}</span>
+          <n-avatar :src="avatar" round :size="34" class="avatar" />
+          <span class="username" :title="userInfo.username || '-'">
+            {{ userInfo.username || "-" }}
+          </span>
+          <span class="vip-tag" :class="{ active: accountVipActive }">VIP</span>
         </div>
       </n-dropdown>
       <n-button v-else circle type="primary" class="login-btn" @click="login"
@@ -146,6 +147,7 @@ const userStore = useUserStore();
 const themeStore = useThemeStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
 const avatar = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
+const accountVipActive = computed(() => false);
 const router = useRouter();
 const development = import.meta.env.DEV;
 const isLocalMode = ref(false);
@@ -398,13 +400,23 @@ onMounted(async () => {
     .user {
       -webkit-app-region: no-drag;
       margin-right: 1rem;
-      display: flex;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
       align-items: center;
+      gap: 6px;
+      width: 136px;
+      height: 34px;
+      box-sizing: border-box;
+      padding: 0 9px 0 0;
+      border: 1px solid #666;
+      border-radius: 999px;
+      background-color: #fefefe;
+      cursor: pointer;
 
       .avatar {
         z-index: 1;
-        width: 48px;
-        height: 48px;
+        width: 34px;
+        height: 34px;
         border: 1px solid #66666666;
         box-shadow: 1px 1px 5px #00000022;
 
@@ -414,19 +426,29 @@ onMounted(async () => {
       }
 
       .username {
-        cursor: pointer;
-        padding: 0 5px 0 1.5rem;
-        border-radius: 16px;
-        display: inline-block;
-        width: 100px;
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 2rem;
-        position: relative;
-        left: -20px;
-        z-index: 0;
-        border: 1px solid #666;
-        background-color: #fefefe;
+        white-space: nowrap;
+        color: var(--color-text-default);
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .vip-tag {
+        flex: 0 0 auto;
+        padding: 1px 5px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--color-text-muted) 18%, transparent);
+        color: var(--color-text-muted);
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.3;
+
+        &.active {
+          background: rgba(208, 48, 80, 0.14);
+          color: #d03050;
+        }
       }
     }
 

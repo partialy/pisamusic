@@ -161,6 +161,18 @@ export function updateUserProfile(id: string, input: UpdateUserProfileInput): Us
   });
 }
 
+export function updateUserPassword(id: string, passwordHash: string): UserRecord {
+  const db = getAppDb();
+  return runInTransaction(db, () => {
+    const current = readUserById(id);
+    if (!current) throw new Error("用户不存在");
+    db.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").run(passwordHash, Date.now(), id);
+    const updated = readUserById(id);
+    if (!updated) throw new Error("密码更新失败");
+    return updated;
+  });
+}
+
 export function toPublicUser(user: UserRecord): PublicUser {
   const avatarKey = isAccountAvatarKey(user.avatarKey) ? user.avatarKey : "default";
   const avatarUrl = avatarUrlForKey(avatarKey) || user.avatar;

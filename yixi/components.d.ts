@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     404: typeof import('./src/components/404.vue')['default']
+    AccountSecurityDialog: typeof import('./src/components/user/AccountSecurityDialog.vue')['default']
     AddToPlaylistDialog: typeof import('./src/components/player/AddToPlaylistDialog.vue')['default']
     AdvanceSetting: typeof import('./src/components/setting/basic/AdvanceSetting.vue')['default']
     AllAccount: typeof import('./src/components/setting/account/AllAccount.vue')['default']

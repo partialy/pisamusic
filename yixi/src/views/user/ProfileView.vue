@@ -7,7 +7,12 @@
           <h1>{{ userInfo.username }}</h1>
           <p>{{ userInfo.email }}</p>
         </div>
-        <n-button type="primary" round @click="goEdit">编辑资料</n-button>
+        <div class="profile-actions">
+          <n-button type="primary" round @click="goEdit">编辑资料</n-button>
+          <n-button secondary round @click="openSecurityDialog('change-email')">修改邮箱</n-button>
+          <n-button secondary round @click="openSecurityDialog('change-password')">修改密码</n-button>
+          <n-button tertiary round @click="openSecurityDialog('reset-password')">重置密码</n-button>
+        </div>
       </div>
 
       <div class="profile-grid">
@@ -44,10 +49,13 @@ import { useRouter } from "vue-router";
 import { NAvatar, NButton } from "naive-ui";
 import { storeToRefs } from "pinia";
 import { LoginCard } from "@/components";
+import AccountSecurityDialog from "@/components/user/AccountSecurityDialog.vue";
 import { useUserStore } from "@/store";
 import avatarImg from "@/assets/defaultAdminAvatar.jpg";
 
 defineOptions({ name: "UserProfileView" });
+
+type SecurityMode = InstanceType<typeof AccountSecurityDialog>["$props"]["mode"];
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -69,6 +77,20 @@ function openLogin() {
   });
 }
 
+function openSecurityDialog(mode: SecurityMode) {
+  const modal = window.$modal.create({
+    style: { borderRadius: "12px" },
+    preset: "dialog",
+    closable: true,
+    showIcon: false,
+    content: () =>
+      h(AccountSecurityDialog, {
+        mode,
+        onDone: () => modal.destroy(),
+      }),
+  });
+}
+
 function formatTime(value: number) {
   if (!value) return "-";
   const date = new Date(value);
@@ -85,7 +107,7 @@ function formatTime(value: number) {
 
 .profile-shell,
 .empty-state {
-  width: min(760px, 100%);
+  width: min(980px, 100%);
   margin: 0 auto;
   border-radius: 18px;
   background: color-mix(in srgb, var(--color-bg-default) 92%, var(--color-primary) 8%);
@@ -130,6 +152,19 @@ function formatTime(value: number) {
   }
 }
 
+.profile-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 470px;
+
+  :deep(.n-button) {
+    min-width: 92px;
+    white-space: nowrap;
+  }
+}
+
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -171,6 +206,23 @@ function formatTime(value: number) {
   p {
     margin: 10px 0 22px;
     color: var(--color-text-muted);
+  }
+}
+
+@media (max-width: 720px) {
+  .profile-hero,
+  .profile-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-actions {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

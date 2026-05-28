@@ -25,6 +25,9 @@
           <n-button block round type="primary" :loading="loading" @click="loginByPassword">
             登录
           </n-button>
+          <div class="login-extra-actions">
+            <n-button text size="small" @click="openResetPassword">忘记密码</n-button>
+          </div>
         </n-form>
       </n-tab-pane>
 
@@ -88,9 +91,10 @@
   </div>
 </template>
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { h, reactive, ref } from "vue";
 import { NButton, NForm, NFormItem, NImage, NInput, NTabPane, NTabs } from "naive-ui";
 import logo from "@/assets/pisamusic_icon_1024.png";
+import AccountSecurityDialog from "@/components/user/AccountSecurityDialog.vue";
 import { useUserStore } from "@/store";
 
 type Purpose = "login" | "register";
@@ -207,6 +211,20 @@ async function runAuth(request: () => Promise<AccountSession>) {
   }
 }
 
+function openResetPassword() {
+  const modal = window.$modal.create({
+    style: { borderRadius: "12px" },
+    preset: "dialog",
+    closable: true,
+    showIcon: false,
+    content: () =>
+      h(AccountSecurityDialog, {
+        mode: "reset-password",
+        onDone: () => modal.destroy(),
+      }),
+  });
+}
+
 function assertEmail(email: string) {
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return true;
   window.$message.warning("请输入有效邮箱");
@@ -278,6 +296,12 @@ function errorMessage(error: unknown, fallback: string) {
   grid-template-columns: minmax(0, 1fr) 92px;
   gap: 10px;
   width: 100%;
+}
+
+.login-extra-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 
 :deep(.n-button--primary-type) {

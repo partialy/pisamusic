@@ -12,6 +12,7 @@ import {
   readUserByUsername,
   toPublicUser,
   touchUserLogin,
+  updateUserPassword,
   updateUserProfile,
   userExistsForRegister,
   type PublicUser,
@@ -48,7 +49,7 @@ function normalizeText(value: unknown, max: number): string {
 }
 
 function normalizePurpose(value: unknown): EmailCodePurpose | null {
-  return value === "register" || value === "login" ? value : null;
+  return value === "register" || value === "login" || value === "reset_password" ? value : null;
 }
 
 function validateEmail(email: string): string | null {
@@ -103,7 +104,7 @@ authRouter.post("/email-code", async (req, res) => {
     if (purpose === "register" && readUserByEmail(email)) {
       return res.status(400).json(fail("该邮箱已注册", 400));
     }
-    if (purpose === "login" && !readUserByEmail(email)) {
+    if ((purpose === "login" || purpose === "reset_password") && !readUserByEmail(email)) {
       return res.status(404).json(fail("该邮箱尚未注册", 404));
     }
 
@@ -175,6 +176,51 @@ authRouter.post("/login/code", (req, res) => {
     return res.json(ok(loginResult(user), "登录成功"));
   } catch (error) {
     handleError(res, error, "登录失败");
+  }
+});
+
+authRouter.post("/password/change", requireUserJwt, (req: UserAuthedRequest, res) => {
+  try {
+    if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
+    const auth = getUserAuth(req);
+    const current = readUserById(auth.userId);
+    if (!current) return res.status(404).json(fail("用户不存在", 404));
+    const currentPassword = typeof req.body.currentPassword === "string" ? req.body.currentPassword : "";
+    const newPassword = typeof req.body.newPassword === "string" ? req.body.newPassword : "";
+    if (!currentPassword) return res.status(400).json(fail("当前密码不能为空", 400));
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) return res.status(400).json(fail(passwordError, 400));
+    if (currentPassword === newPassword) return res.status(400).json(fail("新密码不能与当前密码相同", 400));
+    if (!bcrypt.compareSync(currentPassword, current.passwordHash)) {
+      return res.status(400).json(fail("当前密码错误", 400));
+    }
+    updateUserPassword(current.id, bcrypt.hashSync(newPassword, 10));
+    return res.json(ok({ updated: true }, "密码已修改"));
+  } catch (error) {
+    handleError(res, error, "密码修改失败");
+  }
+});
+
+authRouter.post("/password/reset", (req, res) => {
+  try {
+    if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
+    const email = normalizeEmail(req.body.email);
+    const code = normalizeText(req.body.code, 16);
+    const newPassword = typeof req.body.newPassword === "string" ? req.body.newPassword : "";
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(newPassword);
+    if (emailError) return res.status(400).json(fail(emailError, 400));
+    if (passwordError) return res.status(400).json(fail(passwordError, 400));
+    if (!code) return res.status(400).json(fail("验证码不能为空", 400));
+    const user = readUserByEmail(email);
+    if (!user) return res.status(404).json(fail("该邮箱尚未注册", 404));
+    if (!verifyEmailCode(email, "reset_password", code)) {
+      return res.status(400).json(fail("验证码错误或已过期", 400));
+    }
+    updateUserPassword(user.id, bcrypt.hashSync(newPassword, 10));
+    return res.json(ok({ updated: true }, "密码已重置"));
+  } catch (error) {
+    handleError(res, error, "密码重置失败");
   }
 });
 

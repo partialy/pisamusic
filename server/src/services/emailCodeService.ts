@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { sendVerifyCodeEmail } from "./emailDeliveryService";
 
-export type EmailCodePurpose = "register" | "login" | "profile_email";
+export type EmailCodePurpose = "register" | "login" | "profile_email" | "reset_password";
 
 type CodeEntry = {
   code: string;

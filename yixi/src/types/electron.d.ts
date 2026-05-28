@@ -264,7 +264,7 @@ type AccountSession = {
 
 type AccountEmailCodePayload = {
   email: string;
-  purpose: "register" | "login";
+  purpose: "register" | "login" | "reset_password";
 };
 
 type AccountEmailCodeResult = {
@@ -300,6 +300,17 @@ type AccountProfileUpdatePayload = {
   email?: string;
   code?: string;
   avatarKey?: string;
+};
+
+type AccountPasswordChangePayload = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+type AccountPasswordResetPayload = {
+  email: string;
+  code: string;
+  newPassword: string;
 };
 
 type SearchHistoryItem = {
@@ -655,6 +666,8 @@ type ElectronIpcApi = {
   registerAccount: (payload: AccountRegisterPayload) => Promise<AccountSession>;
   sendProfileEmailCode: (payload: { email: string }) => Promise<AccountEmailCodeResult>;
   updateAccountProfile: (payload: AccountProfileUpdatePayload) => Promise<AccountSession>;
+  changeAccountPassword: (payload: AccountPasswordChangePayload) => Promise<{ updated: boolean }>;
+  resetAccountPassword: (payload: AccountPasswordResetPayload) => Promise<{ updated: boolean }>;
   getSyncState: () => Promise<SyncState>;
   syncNow: () => Promise<SyncState>;
   unbindSync: () => Promise<SyncState>;

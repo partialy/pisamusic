@@ -63,7 +63,7 @@
 - 动态配置模块：公开读取接口为 `GET /api/config/get?id=xxx`，返回 `{ id, type, content }`；后台管理接口挂载在 `GET/POST/PUT/DELETE /api/admin/dynamic-configs`。
 - 动态配置类型：固定为 `html`、`string`、`number`、`url`，数据存储在 SQLite `dynamic_configs` 表；新增实现优先放独立 store / route / admin 组件文件，不要继续堆进通用大文件。
 - 七牛安装包上传：管理后台通过 `/api/admin/release-files/upload-token` 获取上传凭证，客户端直传七牛后调用 `/api/admin/release-files/complete` 登记文件，再发布版本；删除历史安装包使用 `/api/admin/update-history/:id/release-file`。
-- 账号接口：`/api/auth/email-code` 发送注册/登录邮箱验证码，`/api/auth/register` 注册，`/api/auth/login/password` 支持用户名/邮箱+密码登录，`/api/auth/login/code` 仅支持邮箱验证码登录，`/api/auth/refresh` 刷新 7 天 token，`/api/auth/me` 获取当前账号，`/api/auth/profile/email-code` 和 `PATCH /api/auth/profile` 修改资料。
+- 账号接口：`/api/auth/email-code` 发送注册/登录/重置密码邮箱验证码，其中重置密码用途为 `reset_password`；`/api/auth/register` 注册；`/api/auth/login/password` 支持用户名/邮箱+密码登录；`/api/auth/login/code` 仅支持邮箱验证码登录；`/api/auth/password/change` 登录态修改密码；`/api/auth/password/reset` 邮箱验证码重置密码；`/api/auth/refresh` 刷新 7 天 token；`/api/auth/me` 获取当前账号；`/api/auth/profile/email-code` 和 `PATCH /api/auth/profile` 修改资料。
 - 同步接口：`/api/sync/changes` 通过账号 token 拉取/推送增量，DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准；旧同步码创建、加入、重置和解绑设备接口已移除。
 
 管理后台与官网：

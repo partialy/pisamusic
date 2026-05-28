@@ -209,7 +209,7 @@ export function clearAccountSession(): AccountSession {
   return emptyAccountSession();
 }
 
-export async function sendAccountEmailCode(payload: { email: string; purpose: "register" | "login" }) {
+export async function sendAccountEmailCode(payload: { email: string; purpose: "register" | "login" | "reset_password" }) {
   const response = await requestSystem<{ expiresAt: number; nextSendAt: number }>("/api/auth/email-code", {
     method: "POST",
     body: payload,
@@ -284,6 +284,25 @@ export async function updateAccountProfile(payload: { username?: string; email?:
     headers: { Authorization: `Bearer ${session.token}` },
   });
   return saveAccountSession(unwrapResponse(response));
+}
+
+export async function changeAccountPassword(payload: { currentPassword: string; newPassword: string }) {
+  const session = getAccountSession();
+  if (!session.loggedIn) throw new Error("璇峰厛鐧诲綍璐﹀彿");
+  const response = await requestSystem<{ updated: boolean }>("/api/auth/password/change", {
+    method: "POST",
+    body: payload,
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
+  return unwrapResponse(response);
+}
+
+export async function resetAccountPassword(payload: { email: string; code: string; newPassword: string }) {
+  const response = await requestSystem<{ updated: boolean }>("/api/auth/password/reset", {
+    method: "POST",
+    body: payload,
+  });
+  return unwrapResponse(response);
 }
 
 export type SyncChange = {

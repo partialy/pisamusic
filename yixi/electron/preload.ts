@@ -203,7 +203,7 @@ const accountIpc = {
   getAccountAvatarOptions: () => ipcRenderer.invoke("account:avatar-options"),
   refreshAccountSession: () => ipcRenderer.invoke("account:refresh"),
   logoutAccount: () => ipcRenderer.invoke("account:logout"),
-  sendAccountEmailCode: (payload: { email: string; purpose: "register" | "login" }) =>
+  sendAccountEmailCode: (payload: { email: string; purpose: "register" | "login" | "reset_password" }) =>
     ipcRenderer.invoke("account:send-email-code", cloneIpcPayload(payload)),
   loginAccountByPassword: (payload: { identifier: string; password: string }) =>
     ipcRenderer.invoke("account:login-password", cloneIpcPayload(payload)),
@@ -215,6 +215,10 @@ const accountIpc = {
     ipcRenderer.invoke("account:profile-email-code", cloneIpcPayload(payload)),
   updateAccountProfile: (payload: { username?: string; email?: string; code?: string; avatarKey?: string }) =>
     ipcRenderer.invoke("account:update-profile", cloneIpcPayload(payload)),
+  changeAccountPassword: (payload: { currentPassword: string; newPassword: string }) =>
+    ipcRenderer.invoke("account:change-password", cloneIpcPayload(payload)),
+  resetAccountPassword: (payload: { email: string; code: string; newPassword: string }) =>
+    ipcRenderer.invoke("account:reset-password", cloneIpcPayload(payload)),
 };
 
 const syncIpc = {
