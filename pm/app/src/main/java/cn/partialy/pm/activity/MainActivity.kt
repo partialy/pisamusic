@@ -381,7 +381,8 @@ class MainActivity : BaseDownloadActivity() {
             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
             setPrompt(getString(R.string.drawer_scan_prompt))
             setBeepEnabled(false)
-            setOrientationLocked(false)
+            setOrientationLocked(true)
+            setCaptureActivity(PortraitCaptureActivity::class.java)
         }
         drawerScanLauncher.launch(options)
     }
