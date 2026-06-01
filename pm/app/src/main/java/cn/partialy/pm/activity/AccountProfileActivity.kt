@@ -11,16 +11,16 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.BuildConfig
-import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityAccountProfileBinding
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
-import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -51,17 +51,8 @@ class AccountProfileActivity : BaseActivity() {
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
         )
-        binding.accountProfileRoot.applySystemBarsInsets { insets ->
-            binding.statusBarSpacer.layoutParams = binding.statusBarSpacer.layoutParams.apply {
-                height = insets.top
-            }
-            binding.accountProfileWebView.updatePadding(bottom = insets.bottom)
-        }
+        applySystemBarPadding(binding.accountProfileWebView)
 
-        setSupportActionBar(binding.accountProfileToolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "我的资料"
-        binding.accountProfileToolbar.setNavigationOnClickListener { navigateBackOrFinish() }
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
@@ -90,6 +81,15 @@ class AccountProfileActivity : BaseActivity() {
         webView.overScrollMode = View.OVER_SCROLL_NEVER
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
+    }
+
+    private fun applySystemBarPadding(webView: WebView) {
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(top = bars.top, bottom = bars.bottom)
+            insets
+        }
+        webView.post { ViewCompat.requestApplyInsets(webView) }
     }
 
     private fun sendSuccess(message: String) {

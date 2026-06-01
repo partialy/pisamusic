@@ -43,7 +43,11 @@
     body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
     button, input { font: inherit; }
 
-    .page { min-height: 100vh; padding: 32px 20px 40px; display: flex; flex-direction: column; }
+    .page { min-height: 100vh; padding: 12px 20px 40px; display: flex; flex-direction: column; }
+    .profile-header { height: 52px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; margin-bottom: 20px; }
+    .header-back { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.05); }
+    .header-back:active { transform: scale(0.94); }
+    .header-title { text-align: center; font-size: 18px; font-weight: 700; color: var(--text); }
 
     .avatar-block { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 32px; }
     .avatar-main { width: 104px; height: 104px; border-radius: 50%; object-fit: cover; border: 4px solid var(--panel); background: var(--field); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
@@ -97,6 +101,16 @@
 </head>
 <body>
 <main class="page">
+  <header class="profile-header">
+    <button class="header-back" type="button" aria-label="返回" onclick="host.close()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
+    <div class="header-title">我的资料</div>
+    <div></div>
+  </header>
+
   <div class="avatar-block">
     <img id="avatarPreview" class="avatar-main" alt="" />
     <div id="namePreview" class="name-preview">PisaMusic 用户</div>

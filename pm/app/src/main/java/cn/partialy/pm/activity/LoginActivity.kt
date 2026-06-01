@@ -3,15 +3,17 @@ package cn.partialy.pm.activity
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityLoginBinding
@@ -40,12 +42,17 @@ class LoginActivity : BaseActivity() {
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
+
+        val isNight =
+            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).apply {
-            hide(WindowInsetsCompat.Type.statusBars())
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !isNight
+            isAppearanceLightNavigationBars = !isNight
         }
         setupWebView(binding.accountLoginWebView)
+        applySystemBarPadding(binding.accountLoginWebView)
         binding.accountLoginWebView.addJavascriptInterface(AccountBridge(), "AndroidAccount")
         binding.accountLoginWebView.loadUrl(LOGIN_WEB_URL)
     }
@@ -67,6 +74,15 @@ class LoginActivity : BaseActivity() {
         webView.overScrollMode = View.OVER_SCROLL_NEVER
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
+    }
+
+    private fun applySystemBarPadding(webView: WebView) {
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.updatePadding(top = bars.top, bottom = bars.bottom)
+            insets
+        }
+        webView.post { ViewCompat.requestApplyInsets(webView) }
     }
 
     private fun jsSafe(value: String): String =
