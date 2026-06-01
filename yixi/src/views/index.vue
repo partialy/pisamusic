@@ -71,7 +71,7 @@ import HomeSongGrid from "@/components/home/HomeSongGrid.vue";
 import HomeSectionTitle from "@/components/home/HomeSectionTitle.vue";
 import HomeReveal from "@/components/home/HomeReveal.vue";
 import type { CommonPlaylist, Song } from "@/types/song";
-import { useAudioStore, useCollectStore } from "@/store";
+import { useAudioStore, useCollectStore, useRuntimeConfigStore } from "@/store";
 import { convertor } from "@/utils/convertor";
 import {
   getHomeRecommendations,
@@ -88,6 +88,7 @@ import { showLimitedWarning } from "@/utils/limitedMessage";
 
 const player = useAudioStore();
 const collector = useCollectStore();
+const runtimeConfig = useRuntimeConfigStore();
 const router = useRouter();
 const recPlaylist = ref<CommonPlaylist[]>([]);
 const recSong = ref<Song[]>([]);
@@ -100,6 +101,7 @@ const topSongsLoading = ref(false);
 const wyTopPlaylistLoading = ref(false);
 const wyNewSongsLoading = ref(false);
 const wyPersonalizedPlaylistLoading = ref(false);
+const homeDataLoaded = ref(false);
 
 const topPreviewSongs = computed(() => topSongs.value.slice(0, 4));
 const topSectionSongs = computed(() => topSongs.value.slice(0, 12));
@@ -221,12 +223,28 @@ const goRecommendSongs = (type: RecommendSongType, title: string) => {
   });
 };
 
-onMounted(async () => {
-  void getHomeRecommend();
-  void getHotSongs();
-  void getWyTopPlaylists();
-  void getWyNewSongs();
-  void getWyPersonalizedPlaylist();
+const ensureRuntimeReady = async () => {
+  if (runtimeConfig.loaded) return true;
+  const endpoints = await runtimeConfig.refresh();
+  return Boolean(endpoints || runtimeConfig.loaded);
+};
+
+const loadHomeData = async () => {
+  if (homeDataLoaded.value) return;
+  const ready = await ensureRuntimeReady();
+  if (!ready) return;
+  homeDataLoaded.value = true;
+  await Promise.allSettled([
+    getHomeRecommend(),
+    getHotSongs(),
+    getWyTopPlaylists(),
+    getWyNewSongs(),
+    getWyPersonalizedPlaylist(),
+  ]);
+};
+
+onMounted(() => {
+  void loadHomeData();
 });
 </script>
 

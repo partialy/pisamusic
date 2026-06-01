@@ -12,6 +12,8 @@ type RuntimeEndpoints = {
   kwProxy: string;
 };
 
+let pendingRefresh: Promise<RuntimeEndpoints | null> | null = null;
+
 export const useRuntimeConfigStore = defineStore("runtimeConfig", {
   state: () => ({
     loaded: false,
@@ -21,22 +23,26 @@ export const useRuntimeConfigStore = defineStore("runtimeConfig", {
   }),
   actions: {
     async refresh() {
-      if (this.loading) return this.endpoints;
+      if (pendingRefresh) return pendingRefresh;
       this.loading = true;
       this.error = "";
-      try {
-        await electronAPI.getBootstrapConfig();
-        const endpoints = await electronAPI.getRuntimeEndpoints(true);
-        this.applyEndpoints(endpoints);
-        this.loaded = true;
-        return endpoints;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "服务端配置加载失败";
-        this.error = message;
-        return this.endpoints;
-      } finally {
-        this.loading = false;
-      }
+      pendingRefresh = (async () => {
+        try {
+          await electronAPI.getBootstrapConfig();
+          const endpoints = await electronAPI.getRuntimeEndpoints(true);
+          this.applyEndpoints(endpoints);
+          this.loaded = true;
+          return endpoints;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "服务端配置加载失败";
+          this.error = message;
+          return this.endpoints;
+        } finally {
+          this.loading = false;
+          pendingRefresh = null;
+        }
+      })();
+      return pendingRefresh;
     },
 
     applyEndpoints(endpoints: RuntimeEndpoints) {

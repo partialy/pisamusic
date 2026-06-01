@@ -28,7 +28,8 @@ export async function searchMusic(params: MusicSearchParams) {
 
   switch (params.source) {
     case "kg":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "kg",
         buildUrl(endpoints.kgServer, "/search", {
           keywords: params.keywords,
           page,
@@ -36,7 +37,8 @@ export async function searchMusic(params: MusicSearchParams) {
         })
       );
     case "wy":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "wy",
         buildUrl(endpoints.wyServer, "/cloudsearch", {
           keywords: params.keywords,
           offset: (page - 1) * pageSize,
@@ -57,7 +59,8 @@ export async function searchMusic(params: MusicSearchParams) {
 
 export async function searchSuggest(params: MusicSuggestParams) {
   const endpoints = await getRuntimeEndpointsCached();
-  return requestSignedGateway(
+  return requestMusicGateway(
+    "wy",
     buildUrl(endpoints.wyServer, "/search/suggest", {
       keywords: params.keywords,
     })
@@ -90,7 +93,8 @@ export async function searchPlaylists(params: PlaylistSearchParams) {
 
   switch (params.source) {
     case "kg":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "kg",
         buildUrl(endpoints.kgServer, "/search", {
           keywords: params.keywords,
           page,
@@ -99,7 +103,8 @@ export async function searchPlaylists(params: PlaylistSearchParams) {
         })
       );
     case "wy":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "wy",
         buildUrl(endpoints.wyServer, "/cloudsearch", {
           keywords: params.keywords,
           offset: (page - 1) * pageSize,
@@ -118,9 +123,9 @@ export async function getPlaylistTags(params: PlaylistTagsParams) {
   const endpoints = await getRuntimeEndpointsCached();
   switch (params.source) {
     case "kg":
-      return requestSignedGateway(buildUrl(endpoints.kgServer, "/playlist/tags", {}));
+      return requestMusicGateway("kg", buildUrl(endpoints.kgServer, "/playlist/tags", {}));
     case "wy":
-      return requestSignedGateway(buildUrl(endpoints.wyServer, "/playlist/catlist", {}));
+      return requestMusicGateway("wy", buildUrl(endpoints.wyServer, "/playlist/catlist", {}));
   }
 }
 
@@ -128,7 +133,8 @@ export async function getTopPlaylists(params: TopPlaylistParams) {
   const endpoints = await getRuntimeEndpointsCached();
   switch (params.source) {
     case "kg":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "kg",
         buildUrl(endpoints.kgServer, "/top/playlist", {
           category_id: params.categoryId ?? 0,
           withsong: 0,
@@ -138,7 +144,8 @@ export async function getTopPlaylists(params: TopPlaylistParams) {
         })
       );
     case "wy":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "wy",
         buildUrl(endpoints.wyServer, "/top/playlist", {
           cat: params.cat ?? "全部",
           order: params.order ?? "hot",
@@ -151,12 +158,13 @@ export async function getTopPlaylists(params: TopPlaylistParams) {
 
 export async function getTopSongs(_params: TopSongsParams = { source: "kg" }) {
   const endpoints = await getRuntimeEndpointsCached();
-  return requestSignedGateway(buildUrl(endpoints.kgServer, "/top/song", {}));
+  return requestMusicGateway("kg", buildUrl(endpoints.kgServer, "/top/song", {}));
 }
 
 export async function getWyPersonalizedPlaylists(params: WyPersonalizedPlaylistParams = {}) {
   const endpoints = await getRuntimeEndpointsCached();
-  return requestSignedGateway(
+  return requestMusicGateway(
+    "wy",
     buildUrl(endpoints.wyServer, "/personalized", {
       limit: params.limit ?? 24,
     })
@@ -165,7 +173,8 @@ export async function getWyPersonalizedPlaylists(params: WyPersonalizedPlaylistP
 
 export async function getWyPersonalizedNewSongs(params: WyPersonalizedNewSongParams = {}) {
   const endpoints = await getRuntimeEndpointsCached();
-  return requestSignedGateway(
+  return requestMusicGateway(
+    "wy",
     buildUrl(endpoints.wyServer, "/personalized/newsong", {
       limit: params.limit ?? 12,
     })
@@ -174,7 +183,8 @@ export async function getWyPersonalizedNewSongs(params: WyPersonalizedNewSongPar
 
 export async function getKgDailyRecommend(platform?: string) {
   const endpoints = await getRuntimeEndpointsCached();
-  return requestSignedGateway(
+  return requestMusicGateway(
+    "kg",
     buildUrl(endpoints.kgServer, "/everyday/recommend", {
       platform,
     })
@@ -193,13 +203,15 @@ export async function getPlaylistDetail(params: PlaylistDetailParams) {
   const endpoints = await getRuntimeEndpointsCached();
   switch (params.source) {
     case "kg":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "kg",
         buildUrl(endpoints.kgServer, "/playlist/detail", {
           ids: params.id,
         })
       );
     case "wy":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "wy",
         buildUrl(endpoints.wyServer, "/playlist/detail", {
           id: params.id,
           s: 3,
@@ -216,7 +228,8 @@ export async function getPlaylistTracks(params: PlaylistTracksParams) {
 
   switch (params.source) {
     case "kg":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "kg",
         buildUrl(endpoints.kgServer, "/playlist/track/all", {
           id: params.id,
           page: Math.floor(offset / pageSize) + 1,
@@ -224,7 +237,8 @@ export async function getPlaylistTracks(params: PlaylistTracksParams) {
         })
       );
     case "wy":
-      return requestSignedGateway(
+      return requestMusicGateway(
+        "wy",
         buildUrl(endpoints.wyServer, "/playlist/track/all", {
           id: params.id,
           limit: pageSize,
@@ -236,7 +250,8 @@ export async function getPlaylistTracks(params: PlaylistTracksParams) {
 
 export async function getDynamicCover(params: DynamicCoverParams) {
   const endpoints = await getRuntimeEndpointsCached();
-  return requestSignedGateway(
+  return requestMusicGateway(
+    "wy",
     buildUrl(endpoints.wyServer, "/song/dynamic/cover", {
       id: params.id,
     })
@@ -331,7 +346,8 @@ export async function fetchLyrics(params: MusicLyricParams): Promise<MusicLyricR
 async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
   if (!hash) return emptyLyrics();
   const endpoints = await getRuntimeEndpointsCached();
-  const searchResult: any = await requestSignedGateway(
+  const searchResult: any = await requestMusicGateway(
+    "kg",
     buildUrl(endpoints.kgServer, "/search/lyric", { hash })
   );
   const candidate = searchResult?.candidates?.[0];
@@ -340,7 +356,8 @@ async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
   }
 
   const [krcResult, lrcResult]: any[] = await Promise.all([
-    requestSignedGateway(
+    requestMusicGateway(
+      "kg",
       buildUrl(endpoints.kgServer, "/lyric", {
         id: candidate.id,
         accesskey: candidate.accesskey,
@@ -348,7 +365,8 @@ async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
         fmt: "krc",
       })
     ),
-    requestSignedGateway(
+    requestMusicGateway(
+      "kg",
       buildUrl(endpoints.kgServer, "/lyric", {
         id: candidate.id,
         accesskey: candidate.accesskey,
@@ -367,12 +385,34 @@ async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
 async function fetchWyLyrics(id: string): Promise<MusicLyricResult> {
   if (!id) return emptyLyrics();
   const endpoints = await getRuntimeEndpointsCached();
-  const lyricResult: any = await requestSignedGateway(buildUrl(endpoints.wyServer, "/lyric/new", { id }));
+  const lyricResult: any = await requestMusicGateway(
+    "wy",
+    buildUrl(endpoints.wyServer, "/lyric/new", { id })
+  );
 
   return {
     krc: lyricResult?.yrc?.lyric || "",
     lrc: lyricResult?.lrc?.lyric || "",
   };
+}
+
+type CookieMusicSource = "kg" | "wy";
+
+type MusicGatewayOptions = {
+  method?: "GET" | "POST";
+  body?: unknown;
+};
+
+async function requestMusicGateway<T>(
+  source: CookieMusicSource,
+  url: string,
+  options: MusicGatewayOptions = {}
+) {
+  const cookie = getUserCookie(source);
+  if (cookie) {
+    return (await requestSignedGatewayWithCookie<T>(url, { ...options, cookie })).data;
+  }
+  return requestSignedGateway<T>(url, options);
 }
 
 function buildUrl(baseUrl: string, path: string, params: Record<string, string | number | undefined>) {
