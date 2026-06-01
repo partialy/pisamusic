@@ -7,10 +7,15 @@ import cn.partialy.pm.network.cookie.model.WyAccountResponse
 import cn.partialy.pm.network.cookie.model.WyPlaylistItem
 import cn.partialy.pm.network.cookie.model.WyPlaylistTrackAllResponse
 import cn.partialy.pm.network.cookie.model.WyUserPlaylistResponse
+import cn.partialy.pm.network.wy.WyCloudSearchResponse
+import cn.partialy.pm.network.wy.WyLyricResponse
+import cn.partialy.pm.network.wy.WyPersonalizedNewSongResponse
+import cn.partialy.pm.network.wy.WyPersonalizedPlaylistResponse
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.lang.reflect.Type
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,6 +39,8 @@ class WyCookieRepository @Inject constructor(
     }
 
     fun getCookie(): String = store.getCookie()
+
+    fun hasCookie(): Boolean = getCookie().isNotBlank()
 
     /** 丢弃内存条目并从磁盘 JSON 重新加载（与 [getCookie] 同源）。 */
     fun reloadPersistedCookieFromDisk() {
@@ -132,6 +139,42 @@ class WyCookieRepository @Inject constructor(
         }
     }
 
+    suspend fun cloudSearch(
+        keywords: String,
+        limit: Int? = null,
+        offset: Int? = null,
+        type: Int? = null,
+    ): Result<WyCloudSearchResponse> = requestJson(
+        path = "cloudSearch",
+        params = mapOf(
+            "keywords" to keywords,
+            "limit" to limit?.toString(),
+            "offset" to offset?.toString(),
+            "type" to type?.toString(),
+        ),
+        type = WyCloudSearchResponse::class.java,
+    )
+
+    suspend fun personalizedPlaylists(limit: Int? = null): Result<WyPersonalizedPlaylistResponse> =
+        requestJson(
+            path = "personalized",
+            params = mapOf("limit" to limit?.toString()),
+            type = WyPersonalizedPlaylistResponse::class.java,
+        )
+
+    suspend fun personalizedNewSongs(limit: Int? = null): Result<WyPersonalizedNewSongResponse> =
+        requestJson(
+            path = "personalized/newsong",
+            params = mapOf("limit" to limit?.toString()),
+            type = WyPersonalizedNewSongResponse::class.java,
+        )
+
+    suspend fun lyric(id: Long): Result<WyLyricResponse> = requestJson(
+        path = "lyric",
+        params = mapOf("id" to id.toString()),
+        type = WyLyricResponse::class.java,
+    )
+
     private fun CookieHttpResult.parseAccountOrThrow(): WyAccountResponse {
         if (!isSuccessful) error("HTTP $code")
         return gson.fromJson(body, WyAccountResponse::class.java) ?: error("empty json")
@@ -146,6 +189,21 @@ class WyCookieRepository @Inject constructor(
         if (!isSuccessful) error("HTTP $code")
         return gson.fromJson(body, WyPlaylistTrackAllResponse::class.java) ?: error("empty json")
     }
+
+    private suspend fun <T> requestJson(
+        path: String,
+        params: Map<String, String?>,
+        type: Type,
+    ): Result<T> = withContext(Dispatchers.IO) {
+        runCatching {
+            val result = http.getBlocking(urlFor(path), params)
+            if (!result.isSuccessful) error("HTTP ${result.code}")
+            gson.fromJson<T>(result.body, type) ?: error("empty json")
+        }
+    }
+
+    private fun urlFor(path: String): String =
+        "${API_BASE.trimEnd('/')}/${path.trimStart('/')}"
 
     private val urlUserAccount: String
         get() = "${API_BASE.trimEnd('/')}/user/account"

@@ -60,7 +60,7 @@ class RecommendedSongsAdapter @Inject constructor(
 
 class RecommendSongDiffCallback : DiffUtil.ItemCallback<RecommendSongInfo>() {
     override fun areItemsTheSame(oldItem: RecommendSongInfo, newItem: RecommendSongInfo): Boolean {
-        return oldItem.hash == newItem.hash
+        return oldItem.hash == newItem.hash && oldItem.sourceType == newItem.sourceType
     }
 
     override fun areContentsTheSame(oldItem: RecommendSongInfo, newItem: RecommendSongInfo): Boolean {

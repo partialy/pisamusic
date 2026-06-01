@@ -24,6 +24,7 @@ import cn.partialy.pm.network.kg.DfidHolder
 import cn.partialy.pm.network.kg.KgUrlProxyApiService
 import cn.partialy.pm.network.cache.Cache
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.network.cookie.KugouCookieRepository
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,6 +35,7 @@ class KgRepository @Inject constructor(
     private val urlProxyApi: KgUrlProxyApiService,
     private val configManager: ConfigManager,
     private val dfidHolder: DfidHolder,
+    private val cookieRepository: KugouCookieRepository,
 ) {
     data class TopPlaylistPageResult(
         val list: List<HomeRecommendPlaylist>,
@@ -58,8 +60,12 @@ class KgRepository @Inject constructor(
 
     suspend fun getRecommendSongs(): Result<RecommendSongResponse> {
         return try {
-            val response = api.getRecommendSongs()
-            Result.success(response.data)
+            val data = cookieFirst(
+                operationName = "kg everyday/recommend",
+                cookieCall = { cookieRepository.getRecommendSongs() },
+                anonymousCall = { api.getRecommendSongs().data },
+            )
+            Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -67,7 +73,12 @@ class KgRepository @Inject constructor(
 
     suspend fun getTopCardSongs(cardId: Int): Result<TopCardData> {
         return try {
-            val response = api.getTopCard(cardId = cardId)
+            val response = cookieFirst(
+                operationName = "kg top/card",
+                cookieCall = { cookieRepository.getTopCard(cardId) },
+                isValid = { it.errorCode == 0 && it.status == 1 && it.data != null },
+                anonymousCall = { api.getTopCard(cardId = cardId) },
+            )
             val data = response.data
             if (response.errorCode != 0 || response.status != 1 || data == null) {
                 return Result.failure(
@@ -91,11 +102,25 @@ class KgRepository @Inject constructor(
         pagesize: Int? = null,
     ): Result<List<HomeRecommendPlaylist>> {
         return try {
-            val response = api.getTopPlaylists(
-                categoryId = categoryId,
-                withsong = 0,
-                page = page,
-                pagesize = pagesize,
+            val response = cookieFirst(
+                operationName = "kg top/playlist",
+                cookieCall = {
+                    cookieRepository.getTopPlaylists(
+                        categoryId = categoryId,
+                        withsong = 0,
+                        page = page,
+                        pagesize = pagesize,
+                    )
+                },
+                isValid = { it.errorCode == 0 && it.status == 1 && it.data != null },
+                anonymousCall = {
+                    api.getTopPlaylists(
+                        categoryId = categoryId,
+                        withsong = 0,
+                        page = page,
+                        pagesize = pagesize,
+                    )
+                },
             )
             if (response.errorCode != 0 || response.status != 1 || response.data == null) {
                 return Result.failure(
@@ -116,11 +141,25 @@ class KgRepository @Inject constructor(
         page: Int = 1,
     ): Result<TopPlaylistPageResult> {
         return try {
-            val response = api.getTopPlaylists(
-                categoryId = categoryId,
-                withsong = 0,
-                page = page,
-                pagesize = null,
+            val response = cookieFirst(
+                operationName = "kg top/playlist page",
+                cookieCall = {
+                    cookieRepository.getTopPlaylists(
+                        categoryId = categoryId,
+                        withsong = 0,
+                        page = page,
+                        pagesize = null,
+                    )
+                },
+                isValid = { it.errorCode == 0 && it.status == 1 && it.data != null },
+                anonymousCall = {
+                    api.getTopPlaylists(
+                        categoryId = categoryId,
+                        withsong = 0,
+                        page = page,
+                        pagesize = null,
+                    )
+                },
             )
             val data = response.data
             if (response.errorCode != 0 || response.status != 1 || data == null) {
@@ -145,7 +184,12 @@ class KgRepository @Inject constructor(
 
     suspend fun getPlaylistTags(): Result<List<KgPlaylistTagParent>> {
         return try {
-            val response = api.getPlaylistTags()
+            val response = cookieFirst(
+                operationName = "kg playlist/tags",
+                cookieCall = { cookieRepository.getPlaylistTags() },
+                isValid = { it.status == 1 && it.errorCode == 0 },
+                anonymousCall = { api.getPlaylistTags() },
+            )
             if (response.status != 1 || response.errorCode != 0) {
                 Result.failure(
                     IllegalStateException("歌单分类失败: status=${response.status} error=${response.errorCode}"),
@@ -167,7 +211,13 @@ class KgRepository @Inject constructor(
             return Result.failure(IllegalArgumentException("ids is empty"))
         }
         return try {
-            val resp = api.getPlaylistDetail(ids = normalized.joinToString(","))
+            val joinedIds = normalized.joinToString(",")
+            val resp = cookieFirst(
+                operationName = "kg playlist/detail",
+                cookieCall = { cookieRepository.getPlaylistDetail(joinedIds) },
+                isValid = { it.status == 1 && it.errorCode == 0 },
+                anonymousCall = { api.getPlaylistDetail(ids = joinedIds) },
+            )
             if (resp.status != 1 || resp.errorCode != 0) {
                 Result.failure(IllegalStateException("playlist/detail failed: status=${resp.status} error=${resp.errorCode}"))
             } else {
@@ -187,7 +237,12 @@ class KgRepository @Inject constructor(
         val pid = id.trim()
         if (pid.isEmpty()) return Result.failure(IllegalArgumentException("id is empty"))
         return try {
-            val resp = api.getPlaylistTrackAll(id = pid, page = page, pagesize = pagesize)
+            val resp = cookieFirst(
+                operationName = "kg playlist/track/all",
+                cookieCall = { cookieRepository.getPlaylistTrackAll(id = pid, page = page, pagesize = pagesize) },
+                isValid = { it.status == 1 && it.errorCode == 0 },
+                anonymousCall = { api.getPlaylistTrackAll(id = pid, page = page, pagesize = pagesize) },
+            )
             if (resp.status != 1 || resp.errorCode != 0) {
                 Result.failure(IllegalStateException("playlist/track/all failed: status=${resp.status} error=${resp.errorCode}"))
             } else {
@@ -231,15 +286,21 @@ class KgRepository @Inject constructor(
         pagesize: Int = 20
     ): Result<SearchSongResponse> {
         return try {
-            ensureKgDfid()
             val cacheKey = "searchSong_${keyword}_${page}_${pagesize}"
             cache.get<SearchSongResponse>(cacheKey)?.let {
                 return Result.success(it)
             }
 
-            val response = api.searchSong(keyword, page, pagesize)
-            cache.set(cacheKey, response.data)
-            Result.success(response.data)
+            val data = cookieFirst(
+                operationName = "kg search",
+                cookieCall = { cookieRepository.searchSong(keyword, page, pagesize) },
+                anonymousCall = {
+                    ensureKgDfid()
+                    api.searchSong(keyword, page, pagesize).data
+                },
+            )
+            cache.set(cacheKey, data)
+            Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -251,14 +312,19 @@ class KgRepository @Inject constructor(
         pagesize: Int = 20,
     ): Result<SearchPlaylistResponse> {
         return try {
-            ensureKgDfid()
-            val response = api.searchPlaylist(
-                keyword = keyword,
-                page = page,
-                pagesize = pagesize,
-                type = "special",
+            val data = cookieFirst(
+                operationName = "kg search special",
+                cookieCall = { cookieRepository.searchPlaylist(keyword, page, pagesize, type = "special") },
+                anonymousCall = {
+                    ensureKgDfid()
+                    api.searchPlaylist(
+                        keyword = keyword,
+                        page = page,
+                        pagesize = pagesize,
+                        type = "special",
+                    ).data
+                },
             )
-            val data = response.data
             val mapped = data.lists.map { item ->
                 val cover = normalizePlaylistCoverUrl(item.img)
                 val includeName = item.contain.substringBefore("、")
@@ -342,8 +408,15 @@ class KgRepository @Inject constructor(
 
     suspend fun getBestLyric(hash: String): Result<RawLyric> {
         return try {
-            ensureKgDfid()
-            val response = api.searchLyric(hash)
+            val response = cookieFirst(
+                operationName = "kg search/lyric",
+                cookieCall = { cookieRepository.searchLyric(hash) },
+                isValid = { it.candidates.isNotEmpty() },
+                anonymousCall = {
+                    ensureKgDfid()
+                    api.searchLyric(hash)
+                },
+            )
             val c = response.candidates.firstOrNull()
                 ?: return Result.failure(IllegalStateException("search/lyric: no candidates"))
             requestBestLyric(c.id, c.accesskey)
@@ -363,10 +436,16 @@ class KgRepository @Inject constructor(
         val kw = keywords.trim()
         if (kw.isEmpty()) return Result.success(RawLyric("", LyricFormat.NONE, "network_kg_empty"))
         return try {
-            ensureKgDfid()
             val cacheKey = "kg_lyric_kw_$kw"
             cache.get<RawLyric>(cacheKey)?.let { return Result.success(it) }
-            val response = api.searchLyricByKeywords(kw)
+            val response = cookieFirst(
+                operationName = "kg search/lyric keywords",
+                cookieCall = { cookieRepository.searchLyricByKeywords(kw) },
+                anonymousCall = {
+                    ensureKgDfid()
+                    api.searchLyricByKeywords(kw)
+                },
+            )
             val c = response.candidates.firstOrNull()
                 ?: return Result.success(RawLyric("", LyricFormat.NONE, "network_kg_empty"))
             val result = requestBestLyric(c.id, c.accesskey).getOrThrow()
@@ -397,11 +476,17 @@ class KgRepository @Inject constructor(
         source: String,
     ): RawLyric? {
         return runCatching {
-            val lyric = api.getLyric(
-                id = id,
-                accesskey = accesskey,
-                fmt = fmt,
-                decode = true,
+            val lyric = cookieFirst(
+                operationName = "kg lyric",
+                cookieCall = { cookieRepository.getLyric(id = id, accesskey = accesskey, fmt = fmt, decode = true) },
+                anonymousCall = {
+                    api.getLyric(
+                        id = id,
+                        accesskey = accesskey,
+                        fmt = fmt,
+                        decode = true,
+                    )
+                },
             )
             lyric.decodeContent.orEmpty().trim()
                 .takeIf { it.isNotBlank() }
@@ -415,8 +500,11 @@ class KgRepository @Inject constructor(
             cache.get<HotSearchResponse>(cacheKey)?.let {
                 return Result.success(it)
             }
-            val response = api.getHotSongs()
-            val data = response.data
+            val data = cookieFirst(
+                operationName = "kg search/hot",
+                cookieCall = { cookieRepository.getHotSongs() },
+                anonymousCall = { api.getHotSongs().data },
+            )
             cache.set(cacheKey, data)
             Result.success(data)
 
@@ -432,8 +520,11 @@ class KgRepository @Inject constructor(
                 return Result.success(it)
             }
 
-            val response = api.getNewSongs()
-            val data = response.data
+            val data = cookieFirst(
+                operationName = "kg top/song",
+                cookieCall = { cookieRepository.getNewSongs() },
+                anonymousCall = { api.getNewSongs().data },
+            )
             cache.set(cacheKey, data)
             Result.success(data)
 
@@ -444,11 +535,40 @@ class KgRepository @Inject constructor(
 
     suspend fun getLinkKeyword(keywords: String): Result<SearchSongResponse> {
         return try {
-            ensureKgDfid()
-            val response = api.getLinkKeyword(keywords)
-            Result.success(response.data)
+            val data = cookieFirst(
+                operationName = "kg search/suggest",
+                cookieCall = { cookieRepository.getLinkKeyword(keywords) },
+                anonymousCall = {
+                    ensureKgDfid()
+                    api.getLinkKeyword(keywords).data
+                },
+            )
+            Result.success(data)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private suspend fun <T> cookieFirst(
+        operationName: String,
+        cookieCall: suspend () -> Result<T>,
+        isValid: (T) -> Boolean = { true },
+        anonymousCall: suspend () -> T,
+    ): T {
+        if (cookieRepository.hasCookie()) {
+            val result = runCatching { cookieCall() }
+                .getOrElse { Result.failure(it) }
+            result.fold(
+                onSuccess = { value ->
+                    if (isValid(value)) return value
+                    println("Cookie 请求业务失败，回退匿名接口：$operationName")
+                },
+                onFailure = { e ->
+                    println("Cookie 请求失败，回退匿名接口：$operationName ${e.message}")
+                    e.printStackTrace()
+                },
+            )
+        }
+        return anonymousCall()
     }
 }

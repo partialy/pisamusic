@@ -114,7 +114,9 @@ class HomeRecommendPlaylistAdapter(
     }
 
     private object Diff : DiffUtil.ItemCallback<HomeRecommendPlaylist>() {
-        override fun areItemsTheSame(a: HomeRecommendPlaylist, b: HomeRecommendPlaylist) = a.id == b.id
+        override fun areItemsTheSame(a: HomeRecommendPlaylist, b: HomeRecommendPlaylist) =
+            a.id == b.id && a.sourceType == b.sourceType
+
         override fun areContentsTheSame(a: HomeRecommendPlaylist, b: HomeRecommendPlaylist) = a == b
     }
 }

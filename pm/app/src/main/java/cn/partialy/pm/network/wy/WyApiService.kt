@@ -25,6 +25,16 @@ interface WyApiService {
         @Query("type") type: Int? = null,
     ): WyCloudSearchResponse
 
+    @GET("personalized")
+    suspend fun personalizedPlaylists(
+        @Query("limit") limit: Int? = null,
+    ): WyPersonalizedPlaylistResponse
+
+    @GET("personalized/newsong")
+    suspend fun personalizedNewSongs(
+        @Query("limit") limit: Int? = null,
+    ): WyPersonalizedNewSongResponse
+
     @GET("lyric")
     suspend fun lyric(
         @Query("id") id: Long,

@@ -46,6 +46,41 @@ data class WyPlaylistCreatorDto(
     val nickname: String = "",
 )
 
+// --- personalized & personalized/newsong ---
+
+data class WyPersonalizedPlaylistResponse(
+    val code: Int = 0,
+    val result: List<WyPersonalizedPlaylistDto> = emptyList(),
+)
+
+data class WyPersonalizedPlaylistDto(
+    val id: Long = 0L,
+    val name: String = "",
+    @SerializedName("picUrl") val picUrl: String = "",
+    @SerializedName("playCount") val playCount: Long = 0L,
+    @SerializedName("trackCount") val trackCount: Int = 0,
+)
+
+data class WyPersonalizedNewSongResponse(
+    val code: Int = 0,
+    val result: List<WyPersonalizedNewSongDto> = emptyList(),
+)
+
+data class WyPersonalizedNewSongDto(
+    val id: Long = 0L,
+    val name: String = "",
+    @SerializedName("picUrl") val picUrl: String = "",
+    val song: WyPersonalizedSongDto? = null,
+)
+
+data class WyPersonalizedSongDto(
+    val id: Long = 0L,
+    val name: String = "",
+    val artists: List<WyArtistDto> = emptyList(),
+    val album: WyAlbumDto? = null,
+    val duration: Int? = null,
+)
+
 // --- song/url & v1 & download（与 pmNative WySongUrl* 对齐） ---
 
 data class WySongUrlResponse(

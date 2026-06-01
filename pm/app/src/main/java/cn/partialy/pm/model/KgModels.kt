@@ -9,15 +9,21 @@ data class RecommendSongInfo(
     val songname: String,
     val author_name: String,
     val hash: String,
-    val sizable_cover: String
+    val sizable_cover: String,
+    val sourceType: SongType? = null,
+    val albumName: String? = null,
+    val duration: Int? = null,
 ) {
     fun convertToSongInfo(): SongInfo {
+        val source = sourceType ?: SongType.KG
         return SongInfo(
             id = hash,
-            type = SongType.KG,
+            type = source,
             name = songname,
             artist = author_name,
-            coverUrl = sizable_cover.replace("{size}", "240"),
+            coverUrl = sizable_cover,
+            album = albumName,
+            duration = duration,
         )
     }
 }

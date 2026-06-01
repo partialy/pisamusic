@@ -1,6 +1,19 @@
 package cn.partialy.pm.network.cookie
 
 import android.content.Context
+import cn.partialy.pm.model.BaseResponse
+import cn.partialy.pm.model.HotSearchResponse
+import cn.partialy.pm.model.KgPlaylistDetailApiResponse
+import cn.partialy.pm.model.KgPlaylistTagsApiResponse
+import cn.partialy.pm.model.KgPlaylistTrackAllApiResponse
+import cn.partialy.pm.model.KgSearchPlaylistResponse
+import cn.partialy.pm.model.LyricResponse
+import cn.partialy.pm.model.NewSongResponse
+import cn.partialy.pm.model.RecommendSongResponse
+import cn.partialy.pm.model.SearchLyricResponse
+import cn.partialy.pm.model.SearchSongResponse
+import cn.partialy.pm.model.TopCardApiResponse
+import cn.partialy.pm.model.TopPlaylistApiResponse
 import cn.partialy.pm.network.CookieHttpResult
 import cn.partialy.pm.network.CookieRequest
 import cn.partialy.pm.network.CookieSessionHttp
@@ -10,9 +23,11 @@ import cn.partialy.pm.network.cookie.model.KgUserPlaylistResponse
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.lang.reflect.Type
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,6 +54,8 @@ class KugouCookieRepository @Inject constructor(
 
     /** 读取当前持久化后的 `Cookie` 请求头字符串。 */
     fun getCookie(): String = store.getCookie()
+
+    fun hasCookie(): Boolean = getCookie().isNotBlank()
 
     /** 丢弃内存条目并从磁盘 JSON 重新加载（与 [getCookie] 同源）。 */
     fun reloadPersistedCookieFromDisk() {
@@ -100,6 +117,140 @@ class KugouCookieRepository @Inject constructor(
         }
         http.getBlocking(urlUserPlaylist, params)
     }
+
+    suspend fun getRecommendSongs(): Result<RecommendSongResponse> = requestBase(
+        path = "everyday/recommend",
+        params = emptyMap(),
+        dataClass = RecommendSongResponse::class.java,
+    )
+
+    suspend fun getTopCard(cardId: Int): Result<TopCardApiResponse> = requestJson(
+        path = "top/card",
+        params = mapOf("card_id" to cardId.toString()),
+        type = TopCardApiResponse::class.java,
+    )
+
+    suspend fun searchSong(
+        keyword: String,
+        page: Int = 1,
+        pagesize: Int = 20,
+        type: String? = null,
+    ): Result<SearchSongResponse> = requestBase(
+        path = "search",
+        params = mapOf(
+            "keywords" to keyword,
+            "page" to page.toString(),
+            "pagesize" to pagesize.toString(),
+            "type" to type,
+        ),
+        dataClass = SearchSongResponse::class.java,
+    )
+
+    suspend fun searchPlaylist(
+        keyword: String,
+        page: Int = 1,
+        pagesize: Int = 20,
+        type: String = "special",
+    ): Result<KgSearchPlaylistResponse> = requestBase(
+        path = "search",
+        params = mapOf(
+            "keywords" to keyword,
+            "page" to page.toString(),
+            "pagesize" to pagesize.toString(),
+            "type" to type,
+        ),
+        dataClass = KgSearchPlaylistResponse::class.java,
+    )
+
+    suspend fun searchLyric(hash: String, man: String? = null): Result<SearchLyricResponse> =
+        requestJson(
+            path = "search/lyric",
+            params = mapOf("hash" to hash, "man" to man),
+            type = SearchLyricResponse::class.java,
+        )
+
+    suspend fun searchLyricByKeywords(keywords: String, man: String? = null): Result<SearchLyricResponse> =
+        requestJson(
+            path = "search/lyric",
+            params = mapOf("keywords" to keywords, "man" to man),
+            type = SearchLyricResponse::class.java,
+        )
+
+    suspend fun getLyric(
+        id: String,
+        accesskey: String,
+        fmt: String? = null,
+        decode: Boolean? = null,
+    ): Result<LyricResponse> = requestJson(
+        path = "lyric",
+        params = mapOf(
+            "id" to id,
+            "accesskey" to accesskey,
+            "fmt" to fmt,
+            "decode" to decode?.toString(),
+        ),
+        type = LyricResponse::class.java,
+    )
+
+    suspend fun getHotSongs(): Result<HotSearchResponse> = requestBase(
+        path = "search/hot",
+        params = emptyMap(),
+        dataClass = HotSearchResponse::class.java,
+    )
+
+    suspend fun getNewSongs(): Result<NewSongResponse> = requestBase(
+        path = "top/song",
+        params = emptyMap(),
+        dataClass = NewSongResponse::class.java,
+    )
+
+    suspend fun getLinkKeyword(keywords: String): Result<SearchSongResponse> = requestBase(
+        path = "search/suggest",
+        params = mapOf("keywords" to keywords),
+        dataClass = SearchSongResponse::class.java,
+    )
+
+    suspend fun getTopPlaylists(
+        categoryId: Int = 0,
+        withsong: Int? = 0,
+        page: Int? = null,
+        pagesize: Int? = null,
+    ): Result<TopPlaylistApiResponse> = requestJson(
+        path = "top/playlist",
+        params = mapOf(
+            "category_id" to categoryId.toString(),
+            "withsong" to withsong?.toString(),
+            "page" to page?.toString(),
+            "pagesize" to pagesize?.toString(),
+        ),
+        type = TopPlaylistApiResponse::class.java,
+    )
+
+    suspend fun getPlaylistTags(): Result<KgPlaylistTagsApiResponse> = requestJson(
+        path = "playlist/tags",
+        params = emptyMap(),
+        type = KgPlaylistTagsApiResponse::class.java,
+    )
+
+    suspend fun getPlaylistDetail(ids: String): Result<KgPlaylistDetailApiResponse> = requestJson(
+        path = "playlist/detail",
+        params = mapOf("ids" to ids),
+        type = KgPlaylistDetailApiResponse::class.java,
+    )
+
+    suspend fun getPlaylistTrackAll(
+        id: String,
+        page: Int = 1,
+        pagesize: Int = 30,
+    ): Result<KgPlaylistTrackAllApiResponse> = requestJson(
+        path = "playlist/track/all",
+        params = mapOf(
+            "id" to id,
+            "page" to page.toString(),
+            "pagesize" to pagesize.toString(),
+        ),
+        type = KgPlaylistTrackAllApiResponse::class.java,
+    )
 
     /** 调试：`GET /user/detail`（无额外 query，可按需扩展 [params]）。 */
     suspend fun getUserDetailRaw(params: Map<String, String?> = emptyMap()): CookieHttpResult =
@@ -258,6 +409,44 @@ class KugouCookieRepository @Inject constructor(
         return gson.fromJson(body, KgUserPlaylistResponse::class.java)
             ?: error("empty json")
     }
+
+    private suspend fun <T> requestBase(
+        path: String,
+        params: Map<String, String?>,
+        dataClass: Class<T>,
+    ): Result<T> = withContext(Dispatchers.IO) {
+        runCatching {
+            val type = TypeToken.getParameterized(BaseResponse::class.java, dataClass).type
+            val response = requestJsonEnvelope<BaseResponse<T>>(path, params, type)
+            if (response.code != 0) {
+                error(response.message.ifBlank { "error_code=${response.code}" })
+            }
+            response.data
+        }
+    }
+
+    private suspend fun <T> requestJson(
+        path: String,
+        params: Map<String, String?>,
+        type: Type,
+    ): Result<T> = withContext(Dispatchers.IO) {
+        runCatching {
+            requestJsonEnvelope(path, params, type)
+        }
+    }
+
+    private fun <T> requestJsonEnvelope(
+        path: String,
+        params: Map<String, String?>,
+        type: Type,
+    ): T {
+        val result = http.getBlocking(urlFor(path), params)
+        if (!result.isSuccessful) error("HTTP ${result.code}")
+        return gson.fromJson<T>(result.body, type) ?: error("empty json")
+    }
+
+    private fun urlFor(path: String): String =
+        "${API_BASE.trimEnd('/')}/${path.trimStart('/')}"
 
     private val urlUserPlaylist: String
         get() = "${API_BASE.trimEnd('/')}/user/playlist"

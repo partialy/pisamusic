@@ -3,12 +3,17 @@ package cn.partialy.pm.network.wy
 import cn.partialy.pm.lyric.LyricFormat
 import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.RawLyric
+import cn.partialy.pm.model.CollectedPlaylistType
+import cn.partialy.pm.model.HomeRecommendPlaylist
+import cn.partialy.pm.model.RecommendSongInfo
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SearchPlaylistInfo
 import cn.partialy.pm.model.SearchPlaylistResponse
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.cache.Cache
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.network.cookie.WyCookieRepository
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,6 +22,7 @@ class WyRepository @Inject constructor(
     private val api: WyApiService,
     private val urlProxy: WyUrlProxyApiService,
     private val configManager: ConfigManager,
+    private val cookieRepository: WyCookieRepository,
 ) {
     private val cache = Cache(timeout = 2 * 60 * 1000)
 
@@ -28,7 +34,12 @@ class WyRepository @Inject constructor(
         return try {
             val cacheKey = "wy_cloud_${keywords}_${limit}_$offset"
             cache.get<List<WySongDto>>(cacheKey)?.let { return Result.success(it) }
-            val body = api.cloudSearch(keywords, limit, offset, type = null)
+            val body = cookieFirst(
+                operationName = "wy cloudSearch",
+                cookieCall = { cookieRepository.cloudSearch(keywords, limit, offset, type = null) },
+                isValid = { it.code == null || it.code == 200 },
+                anonymousCall = { api.cloudSearch(keywords, limit, offset, type = null) },
+            )
             val songs = body.result?.songs.orEmpty()
             cache.set(cacheKey, songs)
             Result.success(songs)
@@ -45,7 +56,12 @@ class WyRepository @Inject constructor(
         return try {
             val cacheKey = "wy_cloud_playlist_${keywords}_${limit}_$offset"
             cache.get<SearchPlaylistResponse>(cacheKey)?.let { return Result.success(it) }
-            val body = api.cloudSearch(keywords, limit, offset, type = 1000)
+            val body = cookieFirst(
+                operationName = "wy cloudSearch playlist",
+                cookieCall = { cookieRepository.cloudSearch(keywords, limit, offset, type = 1000) },
+                isValid = { it.code == null || it.code == 200 },
+                anonymousCall = { api.cloudSearch(keywords, limit, offset, type = 1000) },
+            )
             val result = body.result
             val playlists = result?.playlists.orEmpty().mapNotNull { dto ->
                 val id = dto.id.toString()
@@ -68,6 +84,48 @@ class WyRepository @Inject constructor(
             )
             cache.set(cacheKey, mapped)
             Result.success(mapped)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRecommendPlaylists(limit: Int = 30): Result<List<HomeRecommendPlaylist>> {
+        return try {
+            val cacheKey = "wy_personalized_playlists_$limit"
+            cache.get<List<HomeRecommendPlaylist>>(cacheKey)?.let { return Result.success(it) }
+            val body = cookieFirst(
+                operationName = "wy personalized",
+                cookieCall = { cookieRepository.personalizedPlaylists(limit = limit) },
+                isValid = { it.code == 200 },
+                anonymousCall = { api.personalizedPlaylists(limit = limit) },
+            )
+            if (body.code != 200) {
+                return Result.failure(IllegalStateException("wy personalized failed: code=${body.code}"))
+            }
+            val playlists = body.result.mapNotNull { it.toHomeRecommendPlaylistOrNull() }
+            cache.set(cacheKey, playlists)
+            Result.success(playlists)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRecommendNewSongs(limit: Int = 30): Result<List<RecommendSongInfo>> {
+        return try {
+            val cacheKey = "wy_personalized_newsongs_$limit"
+            cache.get<List<RecommendSongInfo>>(cacheKey)?.let { return Result.success(it) }
+            val body = cookieFirst(
+                operationName = "wy personalized/newsong",
+                cookieCall = { cookieRepository.personalizedNewSongs(limit = limit) },
+                isValid = { it.code == 200 },
+                anonymousCall = { api.personalizedNewSongs(limit = limit) },
+            )
+            if (body.code != 200) {
+                return Result.failure(IllegalStateException("wy personalized/newsong failed: code=${body.code}"))
+            }
+            val songs = body.result.mapNotNull { it.toRecommendSongInfoOrNull() }
+            cache.set(cacheKey, songs)
+            Result.success(songs)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -121,7 +179,12 @@ class WyRepository @Inject constructor(
         return try {
             val cacheKey = "wy_lyric_$id"
             cache.get<RawLyric>(cacheKey)?.let { return Result.success(it) }
-            val body = api.lyric(id)
+            val body = cookieFirst(
+                operationName = "wy lyric",
+                cookieCall = { cookieRepository.lyric(id) },
+                isValid = { it.code == null || it.code == 200 },
+                anonymousCall = { api.lyric(id) },
+            )
             val yrc = body.yrc?.lyric.orEmpty().trim()
                 .takeIf { it.isNotBlank() }
                 ?.let { RawLyric(it, LyricFormat.YRC, "network_wy_yrc") }
@@ -167,6 +230,70 @@ class WyRepository @Inject constructor(
         } catch (e: Exception) {
             wyDownloadErrorMap()
         }
+    }
+
+    private suspend fun <T> cookieFirst(
+        operationName: String,
+        cookieCall: suspend () -> Result<T>,
+        isValid: (T) -> Boolean = { true },
+        anonymousCall: suspend () -> T,
+    ): T {
+        if (cookieRepository.hasCookie()) {
+            val result = runCatching { cookieCall() }
+                .getOrElse { Result.failure(it) }
+            result.fold(
+                onSuccess = { value ->
+                    if (isValid(value)) return value
+                    println("Cookie 请求业务失败，回退匿名接口：$operationName")
+                },
+                onFailure = { e ->
+                    println("Cookie 请求失败，回退匿名接口：$operationName ${e.message}")
+                    e.printStackTrace()
+                },
+            )
+        }
+        return anonymousCall()
+    }
+}
+
+private fun WyPersonalizedPlaylistDto.toHomeRecommendPlaylistOrNull(): HomeRecommendPlaylist? {
+    if (id <= 0L || name.isBlank()) return null
+    return HomeRecommendPlaylist(
+        id = id.toString(),
+        name = name,
+        coverUrl = picUrl,
+        playCountLabel = formatWyPlayCount(playCount),
+        trackCount = trackCount,
+        sourceType = CollectedPlaylistType.WY,
+    )
+}
+
+private fun WyPersonalizedNewSongDto.toRecommendSongInfoOrNull(): RecommendSongInfo? {
+    val rawSong = song
+    val songId = (rawSong?.id ?: id).takeIf { it > 0L } ?: return null
+    val title = rawSong?.name.orEmpty().ifBlank { name }
+    if (title.isBlank()) return null
+    val artists = rawSong?.artists.orEmpty()
+        .map { it.name.trim() }
+        .filter { it.isNotEmpty() }
+        .joinToString("、")
+    return RecommendSongInfo(
+        songname = title,
+        author_name = artists,
+        hash = songId.toString(),
+        sizable_cover = rawSong?.album?.picUrl.orEmpty().ifBlank { picUrl },
+        sourceType = SongType.WY,
+        albumName = rawSong?.album?.name?.takeIf { it.isNotBlank() },
+        duration = rawSong?.duration?.let { (it / 1000).coerceAtLeast(0) },
+    )
+}
+
+private fun formatWyPlayCount(n: Long): String {
+    if (n <= 0L) return "播放"
+    return when {
+        n >= 100_000_000L -> String.format(Locale.CHINA, "%.1f亿播放", n / 100_000_000.0)
+        n >= 10_000L -> String.format(Locale.CHINA, "%.1f万播放", n / 10_000.0)
+        else -> String.format(Locale.CHINA, "%d播放", n)
     }
 }
 

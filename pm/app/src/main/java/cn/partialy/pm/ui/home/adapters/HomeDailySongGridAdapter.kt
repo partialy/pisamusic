@@ -111,7 +111,8 @@ class HomeDailySongGridAdapter(
             binding.songNameTextView.background = null
             binding.artistTextView.text = item.author_name
             binding.artistTextView.background = null
-            binding.coverImageView.load(SongCoverUrl.getKgImageUrl(item.sizable_cover, SongCoverUrl.SIZE_SMALL))
+            binding.coverImageView.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL))
+            binding.songSourceTagTextView.visibility = View.VISIBLE
             SongSourceTagBinder.bind(binding.songSourceTagTextView, song.type)
 
             val liked = isLiked(song)
@@ -151,7 +152,9 @@ class HomeDailySongGridAdapter(
     }
 
     private object Diff : DiffUtil.ItemCallback<RecommendSongInfo>() {
-        override fun areItemsTheSame(a: RecommendSongInfo, b: RecommendSongInfo) = a.hash == b.hash
+        override fun areItemsTheSame(a: RecommendSongInfo, b: RecommendSongInfo) =
+            a.hash == b.hash && a.sourceType == b.sourceType
+
         override fun areContentsTheSame(a: RecommendSongInfo, b: RecommendSongInfo) = a == b
     }
 }

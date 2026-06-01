@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import cn.partialy.pm.model.HomeRecommendPlaylist
 import cn.partialy.pm.model.RecommendSongInfo
 import cn.partialy.pm.network.repository.KgRepository
+import cn.partialy.pm.network.wy.WyRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -26,6 +27,7 @@ data class TopCardSectionState(
 @HiltViewModel
 class RecommendedSongsViewModel @Inject constructor(
     private val kgRepository: KgRepository,
+    private val wyRepository: WyRepository,
 ) : ViewModel() {
     private val topCardIds = listOf(3, 4, 5, 6)
 
@@ -59,29 +61,28 @@ class RecommendedSongsViewModel @Inject constructor(
             _recommendLoadFailed.value = false
             try {
                 coroutineScope {
-                    val songsDef = async { kgRepository.getRecommendSongs() }
-                    val playlistsDef = async { kgRepository.getRecommendPlaylists() }
+                    val kgSongsDef = async { kgRepository.getRecommendSongs() }
+                    val kgPlaylistsDef = async { kgRepository.getRecommendPlaylists() }
+                    val wyPlaylistsDef = async { wyRepository.getRecommendPlaylists(limit = 18) }
+                    val wyNewSongsDef = async { wyRepository.getRecommendNewSongs(limit = 18) }
 
-                    playlistsDef.await().fold(
-                        onSuccess = { list -> _recommendPlaylists.value = list },
+                    val kgPlaylists = kgPlaylistsDef.await().getOrEmptyWithLog()
+                    val wyPlaylists = wyPlaylistsDef.await().getOrEmptyWithLog()
+                    _recommendPlaylists.value = interleave(kgPlaylists, wyPlaylists)
+
+                    val kgSongsResult = kgSongsDef.await()
+                    val kgSongs = kgSongsResult.fold(
+                        onSuccess = { it.song_list },
                         onFailure = { e ->
                             e.printStackTrace()
-                            _recommendPlaylists.value = emptyList()
+                            emptyList()
                         },
                     )
-
-                    songsDef.await().fold(
-                        onSuccess = { response ->
-                            _recommendedSongs.value = response.song_list
-                            _dailyRecommendSongs.value = response.song_list.take(30)
-                        },
-                        onFailure = { e ->
-                            e.printStackTrace()
-                            _recommendedSongs.value = emptyList()
-                            _dailyRecommendSongs.value = emptyList()
-                            _recommendLoadFailed.value = true
-                        },
-                    )
+                    val wyNewSongs = wyNewSongsDef.await().getOrEmptyWithLog()
+                    val mergedSongs = interleave(kgSongs, wyNewSongs)
+                    _recommendedSongs.value = mergedSongs
+                    _dailyRecommendSongs.value = mergedSongs.take(30)
+                    _recommendLoadFailed.value = mergedSongs.isEmpty()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -144,5 +145,26 @@ class RecommendedSongsViewModel @Inject constructor(
         _topCardSections.value = _topCardSections.value.map { section ->
             if (section.cardId == cardId) transform(section) else section
         }
+    }
+
+    private fun <T> Result<List<T>>.getOrEmptyWithLog(): List<T> =
+        fold(
+            onSuccess = { it },
+            onFailure = { e ->
+                e.printStackTrace()
+                emptyList()
+            },
+        )
+
+    private fun <T> interleave(primary: List<T>, secondary: List<T>): List<T> {
+        if (primary.isEmpty()) return secondary
+        if (secondary.isEmpty()) return primary
+        val merged = ArrayList<T>(primary.size + secondary.size)
+        val maxSize = maxOf(primary.size, secondary.size)
+        for (index in 0 until maxSize) {
+            primary.getOrNull(index)?.let(merged::add)
+            secondary.getOrNull(index)?.let(merged::add)
+        }
+        return merged
     }
 }

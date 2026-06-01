@@ -15,8 +15,10 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.FeedbackWebActivity
 import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.activity.PlaylistDetailActivity
+import cn.partialy.pm.activity.WyPlaylistDetailActivity
 import cn.partialy.pm.activity.home.HomePlaylistExploreActivity
 import cn.partialy.pm.databinding.FragmentRecommendedSongsBinding
+import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.RecommendSongInfo
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.ui.base.BaseSongFragment
@@ -121,13 +123,29 @@ class RecommendedSongsFragment : BaseSongFragment() {
             }
         }
         playlistAdapter = HomeRecommendPlaylistAdapter { item ->
-            PlaylistDetailActivity.start(
-                requireActivity(),
-                playlistId = item.id,
-                title = item.name,
-                coverUrl = item.coverUrl,
-                playCountLabel = item.playCountLabel,
-            )
+            when (item.sourceType) {
+                CollectedPlaylistType.WY, CollectedPlaylistType.IMPORT_WY -> {
+                    WyPlaylistDetailActivity.start(
+                        context = requireActivity(),
+                        playlistId = item.id,
+                        title = item.name,
+                        coverUrl = item.coverUrl,
+                        playCountLabel = item.playCountLabel,
+                        trackCount = item.trackCount,
+                        storageType = CollectedPlaylistType.WY,
+                    )
+                }
+                else -> {
+                    PlaylistDetailActivity.start(
+                        requireActivity(),
+                        playlistId = item.id,
+                        title = item.name,
+                        coverUrl = item.coverUrl,
+                        playCountLabel = item.playCountLabel,
+                        trackCount = item.trackCount,
+                    )
+                }
+            }
         }
         dailySongAdapter = createDailySongAdapter()
         adapter = dailySongAdapter
