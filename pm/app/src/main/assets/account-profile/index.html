@@ -62,6 +62,7 @@
     .button.secondary { background: var(--field); color: var(--text); border: 1px solid var(--line); }
     .button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
     .save { width: 100%; margin-top: 12px; font-size: 16px; }
+    .logout { width: 100%; margin-top: 0; background: transparent; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); }
 
     /* 邮箱展示行 */
     .email-display-row { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 4px 0 16px; background: var(--field); border-radius: 14px; border: 1.5px solid var(--line); }
@@ -129,6 +130,7 @@
     </section>
 
     <button id="saveButton" class="button save" type="submit">保存资料</button>
+    <button class="button logout" type="button" onclick="logout()">退出登录</button>
   </form>
 </main>
 
@@ -155,6 +157,7 @@
     getInitialProfile() { return '{}'; },
     sendEmailCode() {},
     saveProfile() {},
+    logout() {},
     close() {}
   };
   let state = { user: {}, avatars: [] };
@@ -295,6 +298,10 @@
 
     setLoading(true);
     host.saveProfile(JSON.stringify(payload));
+  }
+
+  function logout() {
+    host.logout();
   }
 
   window.profilePage = {
