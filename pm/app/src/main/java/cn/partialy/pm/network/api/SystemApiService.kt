@@ -13,6 +13,8 @@ import cn.partialy.pm.model.AccountEmailCodeRequest
 import cn.partialy.pm.model.AccountEmailCodeResponse
 import cn.partialy.pm.model.AccountMeResponse
 import cn.partialy.pm.model.AccountPasswordLoginRequest
+import cn.partialy.pm.model.AccountProfileEmailCodeRequest
+import cn.partialy.pm.model.AccountProfileUpdateRequest
 import cn.partialy.pm.model.AccountRegisterRequest
 import cn.partialy.pm.model.DeviceReportRequest
 import cn.partialy.pm.model.DeviceReportResponse
@@ -22,6 +24,7 @@ import cn.partialy.pm.model.SyncPushResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Query
 
@@ -73,6 +76,18 @@ interface SystemApiService {
 
     @GET("api/auth/me")
     suspend fun getAccountMe(@Header("Authorization") authorization: String): AccountMeResponse
+
+    @POST("api/auth/profile/email-code")
+    suspend fun sendAccountProfileEmailCode(
+        @Header("Authorization") authorization: String,
+        @Body body: AccountProfileEmailCodeRequest,
+    ): AccountEmailCodeResponse
+
+    @PATCH("api/auth/profile")
+    suspend fun updateAccountProfile(
+        @Header("Authorization") authorization: String,
+        @Body body: AccountProfileUpdateRequest,
+    ): AccountAuthResponse
 
     @GET("api/sync/changes")
     suspend fun getSyncChanges(

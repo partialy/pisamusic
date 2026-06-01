@@ -362,15 +362,10 @@ class MainActivity : BaseDownloadActivity() {
         val inflated = MainDrawerContentBinding.inflate(layoutInflater, binding.mainDrawerPanel, true)
         inflated.drawerScanButton.setOnClickListener { startDrawerQrScan() }
         inflated.drawerCloseButton.setOnClickListener { closeMainDrawer() }
-        inflated.drawerAccountCapsule.setOnClickListener {
-            LoginActivity.start(this)
-            closeMainDrawer()
-        }
         drawerContentBinding = inflated
         setupDrawerFooterActions(inflated)
         setupDrawerPlaylistImportActions(inflated)
         bindMainDrawerAccountUi(drawerImportProfileCacheStore.read())
-        bindPisaAccountUi()
         return inflated
     }
 

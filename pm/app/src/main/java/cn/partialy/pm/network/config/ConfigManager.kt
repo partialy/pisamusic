@@ -5,6 +5,8 @@ import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.model.AccountCodeLoginRequest
 import cn.partialy.pm.model.AccountEmailCodeRequest
 import cn.partialy.pm.model.AccountPasswordLoginRequest
+import cn.partialy.pm.model.AccountProfileEmailCodeRequest
+import cn.partialy.pm.model.AccountProfileUpdateRequest
 import cn.partialy.pm.model.AccountRegisterRequest
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.model.AgreementInfo
@@ -155,6 +157,38 @@ class ConfigManager @Inject constructor(
     suspend fun getAccountMe(token: String): AccountUser {
         val response = systemApiService.getAccountMe("Bearer $token")
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "账号信息获取失败" })
+        return response.data
+    }
+
+    suspend fun sendAccountProfileEmailCode(token: String, email: String) {
+        val response = systemApiService.sendAccountProfileEmailCode(
+            authorization = "Bearer $token",
+            body = AccountProfileEmailCodeRequest(email),
+        )
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "验证码发送失败" })
+        }
+    }
+
+    suspend fun updateAccountProfile(
+        token: String,
+        username: String?,
+        email: String?,
+        code: String?,
+        avatarKey: String?,
+    ): AccountAuthResult {
+        val response = systemApiService.updateAccountProfile(
+            authorization = "Bearer $token",
+            body = AccountProfileUpdateRequest(
+                username = username,
+                email = email,
+                code = code,
+                avatarKey = avatarKey,
+            ),
+        )
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "资料更新失败" })
+        }
         return response.data
     }
 

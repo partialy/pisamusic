@@ -86,6 +86,12 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".activity.AccountProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".activity.PortraitCaptureActivity"
             android:exported="false"
             android:screenOrientation="portrait"

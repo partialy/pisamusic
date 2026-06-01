@@ -18,10 +18,15 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.AccountProfileActivity
+import cn.partialy.pm.activity.LoginActivity
 import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.activity.SearchActivity
 import cn.partialy.pm.databinding.FragmentMineBinding
+import cn.partialy.pm.model.AccountUser
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.cookie.DrawerImportProfileCacheStore
 import cn.partialy.pm.ui.widget.MineViewPagerNestedHost
 import coil.load
@@ -84,6 +89,8 @@ class MineFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         (activity as? MainActivity)?.refreshMineProfileBackgroundFromDrawerCache()
+        applyMineProfileTexts()
+        applyMineAvatarDisplay()
     }
 
     override fun onCreateView(
@@ -130,9 +137,7 @@ class MineFragment : Fragment() {
             SearchActivity.start(requireActivity())
         }
 
-        binding.avatarImageView.setOnClickListener {
-            showMineAvatarBottomSheet()
-        }
+        binding.avatarImageView.setOnClickListener { openAccountEntry() }
 
         applyMineProfileTexts()
 
@@ -195,6 +200,15 @@ class MineFragment : Fragment() {
         adjustMineViewPagerHeightForCurrentPage()
     }
 
+    private fun openAccountEntry() {
+        val session = AccountSessionStore.read(requireContext())
+        if (session.loggedIn) {
+            AccountProfileActivity.start(requireContext())
+        } else {
+            LoginActivity.start(requireContext())
+        }
+    }
+
     private fun showMineAvatarBottomSheet() {
         val ctx = requireContext()
         val dialog = BottomSheetDialog(
@@ -230,58 +244,38 @@ class MineFragment : Fragment() {
     /** 昵称：侧栏缓存的酷狗；副标题：侧栏缓存的网易。 */
     fun applyMineProfileTexts() {
         val b = _binding ?: return
-        val cache = drawerImportProfileCacheStore.read()
-        b.nicknameTextView.text = cache?.kgNickname?.takeIf { it.isNotBlank() }
-            ?: getString(R.string.mine_profile_kg_nickname_empty)
-        b.subtitleTextView.text = cache?.wyNickname?.takeIf { it.isNotBlank() }
-            ?: getString(R.string.mine_profile_wy_subtitle_empty)
+        val session = AccountSessionStore.read(requireContext())
+        if (session.loggedIn) {
+            b.nicknameTextView.text = session.user.username.ifBlank { "PisaMusic 用户" }
+            b.subtitleTextView.text = session.user.email.ifBlank { "已登录，收藏与歌单会自动同步" }
+        } else {
+            b.nicknameTextView.text = "登录 / 注册"
+            b.subtitleTextView.text = "账号登录后自动同步收藏与歌单"
+        }
     }
 
     /** 按持久化的来源与 [DrawerImportProfileCacheStore] / 本地文件刷新头像。 */
     fun applyMineAvatarDisplay() {
         val b = _binding ?: return
-        val cache = drawerImportProfileCacheStore.read()
-        when (mineAvatarSettings.getSource()) {
-            MineAvatarSource.NONE -> {
-                b.avatarImageView.setImageResource(R.drawable.ic_pm_icon)
-            }
-            MineAvatarSource.KUGOU -> {
-                val url = cache?.kgAvatarUrl?.takeIf { it.isNotBlank() }
-                if (url == null) {
-                    b.avatarImageView.setImageResource(R.drawable.ic_pm_icon)
-                } else {
-                    b.avatarImageView.load(url) {
-                        placeholder(R.drawable.ic_pm_icon)
-                        error(R.drawable.ic_pm_icon)
-                        transformations(CircleCropTransformation())
-                    }
-                }
-            }
-            MineAvatarSource.WY -> {
-                val url = cache?.wyAvatarUrl?.takeIf { it.isNotBlank() }
-                if (url == null) {
-                    b.avatarImageView.setImageResource(R.drawable.ic_pm_icon)
-                } else {
-                    b.avatarImageView.load(url) {
-                        placeholder(R.drawable.ic_pm_icon)
-                        error(R.drawable.ic_pm_icon)
-                        transformations(CircleCropTransformation())
-                    }
-                }
-            }
-            MineAvatarSource.LOCAL -> {
-                val f = mineAvatarSettings.localAvatarFile
-                if (f.exists() && f.length() > 0L) {
-                    b.avatarImageView.load(f) {
-                        placeholder(R.drawable.ic_pm_icon)
-                        error(R.drawable.ic_pm_icon)
-                        transformations(CircleCropTransformation())
-                    }
-                } else {
-                    b.avatarImageView.setImageResource(R.drawable.ic_pm_icon)
-                }
+        val session = AccountSessionStore.read(requireContext())
+        val avatarUrl = if (session.loggedIn) resolveAccountAvatarUrl(session.user) else null
+        if (avatarUrl == null) {
+            b.avatarImageView.setImageResource(R.drawable.ic_pm_icon)
+        } else {
+            b.avatarImageView.load(avatarUrl) {
+                placeholder(R.drawable.ic_pm_icon)
+                error(R.drawable.ic_pm_icon)
+                transformations(CircleCropTransformation())
             }
         }
+    }
+
+    private fun resolveAccountAvatarUrl(user: AccountUser): String? {
+        val raw = user.avatarUrl.ifBlank { user.avatar }.trim()
+        if (raw.isBlank()) return null
+        if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
+        if (!raw.startsWith("/")) return null
+        return BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + raw
     }
 
     /** 选中：onSurface、加粗。未选：onSurfaceVariant（随浅色/深色主题变化，避免夜间仍用 #333）。 */

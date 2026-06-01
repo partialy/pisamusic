@@ -5,6 +5,10 @@ data class AccountEmailCodeRequest(
     val purpose: String,
 )
 
+data class AccountProfileEmailCodeRequest(
+    val email: String,
+)
+
 data class AccountRegisterRequest(
     val email: String,
     val username: String,
@@ -20,6 +24,13 @@ data class AccountPasswordLoginRequest(
 data class AccountCodeLoginRequest(
     val email: String,
     val code: String,
+)
+
+data class AccountProfileUpdateRequest(
+    val username: String? = null,
+    val email: String? = null,
+    val code: String? = null,
+    val avatarKey: String? = null,
 )
 
 data class AccountAuthResponse(
@@ -59,4 +70,7 @@ data class AccountUser(
     val username: String,
     val email: String,
     val avatar: String = "",
+    val avatarKey: String = "default",
+    val avatarUrl: String = "",
+    val createdAt: Long = 0L,
 )

@@ -130,6 +130,9 @@
 
 - 同步设置入口在 `SettingsActivity` 中展示账号同步摘要；未登录时跳转 `LoginActivity`，已登录时执行立即同步，不再提供同步码输入页。
 - `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免覆盖同步或其他显式鉴权请求。
+- 自有账号主入口在“我的”页头像区域，不再放在侧拉栏；未登录点击头像打开 `LoginActivity`，已登录点击头像打开 `AccountProfileActivity`。
+- “我的”页头像、昵称和邮箱优先读取 `AccountSessionStore` 中服务端账号字段；账号头像使用服务端 `avatarKey/avatarUrl`，相对路径按 `SYSTEM_SERVICE_BASE_URL` 拼接。
+- `AccountProfileActivity` 使用 edge-to-edge 原生 headerbar + 本地 `assets/account-profile/` 全屏 WebView 表单；资料修改走 `/api/auth/profile/email-code` 与 `PATCH /api/auth/profile`，成功后必须覆盖本地账号 session。
 
 ## 启动本地模式补充
 
