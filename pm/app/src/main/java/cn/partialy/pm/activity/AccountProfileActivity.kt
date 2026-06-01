@@ -22,7 +22,6 @@ import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -158,18 +157,6 @@ class AccountProfileActivity : BaseActivity() {
     private fun absoluteAvatarPath(fileName: String): String =
         BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + "/static/account-avatars/$fileName"
 
-    private fun showLogoutConfirmDialog() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("退出登录")
-            .setMessage("确定要退出当前账号吗？")
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确定") { _, _ ->
-                AccountSessionStore.clear(this)
-                finish()
-            }
-            .show()
-    }
-
     override fun onDestroy() {
         if (::binding.isInitialized) {
             binding.accountProfileWebView.removeJavascriptInterface(JS_INTERFACE_NAME)
@@ -194,7 +181,10 @@ class AccountProfileActivity : BaseActivity() {
         @JavascriptInterface
         fun logout() {
             val activity = ref.get() ?: return
-            activity.runOnUiThread { activity.showLogoutConfirmDialog() }
+            activity.runOnUiThread {
+                AccountSessionStore.clear(activity)
+                activity.finish()
+            }
         }
 
         @JavascriptInterface
