@@ -10,10 +10,10 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityLoginBinding
@@ -31,6 +31,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LoginActivity : BaseActivity() {
     private lateinit var binding: ActivityLoginBinding
+    private var statusBarInsets: Insets = Insets.NONE
+    private var navigationBarInsets: Insets = Insets.NONE
 
     @Inject
     lateinit var configManager: ConfigManager
@@ -52,7 +54,7 @@ class LoginActivity : BaseActivity() {
             isAppearanceLightNavigationBars = !isNight
         }
         setupWebView(binding.accountLoginWebView)
-        applySystemBarPadding(binding.accountLoginWebView)
+        applySystemBarInsets(binding.accountLoginWebView)
         binding.accountLoginWebView.addJavascriptInterface(AccountBridge(), "AndroidAccount")
         binding.accountLoginWebView.loadUrl(LOGIN_WEB_URL)
     }
@@ -72,17 +74,30 @@ class LoginActivity : BaseActivity() {
             useWideViewPort = true
         }
         webView.overScrollMode = View.OVER_SCROLL_NEVER
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String?) {
+                applyInsetCssVariables(view)
+            }
+        }
         webView.webChromeClient = WebChromeClient()
     }
 
-    private fun applySystemBarPadding(webView: WebView) {
-        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(top = bars.top, bottom = bars.bottom)
+    private fun applySystemBarInsets(webView: WebView) {
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+            statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            navigationBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            applyInsetCssVariables(webView)
             insets
         }
         webView.post { ViewCompat.requestApplyInsets(webView) }
+    }
+
+    private fun applyInsetCssVariables(webView: WebView) {
+        val js = """
+            document.documentElement.style.setProperty('--native-status-bar-height', '${statusBarInsets.top}px');
+            document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarInsets.bottom}px');
+        """.trimIndent()
+        webView.evaluateJavascript(js, null)
     }
 
     private fun jsSafe(value: String): String =
@@ -97,6 +112,15 @@ class LoginActivity : BaseActivity() {
     private fun notifyError(message: String) {
         binding.accountLoginWebView.post {
             binding.accountLoginWebView.evaluateJavascript("window.accountPage && window.accountPage.error('${jsSafe(message)}')", null)
+        }
+    }
+
+    private fun notifyPasswordReset(email: String) {
+        binding.accountLoginWebView.post {
+            binding.accountLoginWebView.evaluateJavascript(
+                "window.accountPage && window.accountPage.passwordReset('${jsSafe(email)}')",
+                null,
+            )
         }
     }
 
@@ -181,6 +205,28 @@ class LoginActivity : BaseActivity() {
                     .onFailure { notifyError(it.message ?: "注册失败") }
             }
         }
+
+        @JavascriptInterface
+        fun resetPassword(raw: String) {
+            lifecycleScope.launch {
+                var email = ""
+                runCatching {
+                    val json = JSONObject(raw)
+                    email = json.optString("email")
+                    withContext(Dispatchers.IO) {
+                        configManager.resetAccountPassword(
+                            email = email,
+                            code = json.optString("code"),
+                            password = json.optString("password"),
+                        )
+                    }
+                }.onSuccess {
+                    notifyPasswordReset(email)
+                }.onFailure {
+                    notifyError(it.message ?: "密码重置失败")
+                }
+            }
+        }
     }
 
     companion object {
@@ -188,6 +234,7 @@ class LoginActivity : BaseActivity() {
 
         fun start(context: Context) {
             context.startActivity(Intent(context, LoginActivity::class.java))
+            AppActivityTransitions.applyForward(context)
         }
     }
 }

@@ -26,6 +26,23 @@ data class AccountCodeLoginRequest(
     val code: String,
 )
 
+data class AccountPasswordResetRequest(
+    val email: String,
+    val code: String,
+    val newPassword: String,
+)
+
+data class AccountPasswordResetResponse(
+    val msg: String,
+    val code: Int,
+    val success: Boolean = true,
+    val data: AccountPasswordResetResult,
+)
+
+data class AccountPasswordResetResult(
+    val updated: Boolean,
+)
+
 data class AccountProfileUpdateRequest(
     val username: String? = null,
     val email: String? = null,

@@ -1,26 +1,5 @@
 package cn.partialy.pm.model
 
-data class SyncBindRequest(
-    val syncCode: String? = null,
-    val deviceName: String,
-    val platform: String = "pm",
-)
-
-data class SyncBindResponse(
-    val msg: String,
-    val code: Int,
-    val success: Boolean = true,
-    val data: SyncBindResult,
-)
-
-data class SyncBindResult(
-    val spaceId: String,
-    val deviceId: String,
-    val syncCode: String,
-    val token: String,
-    val version: Long,
-)
-
 data class SyncChangesResponse(
     val msg: String,
     val code: Int,
@@ -48,17 +27,6 @@ data class SyncPushResult(
     val version: Long,
     val accepted: Int,
     val skipped: Int,
-)
-
-data class SyncUnbindResponse(
-    val msg: String,
-    val code: Int,
-    val success: Boolean = true,
-    val data: SyncUnbindResult,
-)
-
-data class SyncUnbindResult(
-    val unbound: Boolean,
 )
 
 data class SyncChangeInput(

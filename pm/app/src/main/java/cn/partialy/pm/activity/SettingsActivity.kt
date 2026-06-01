@@ -12,9 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
-import android.text.InputType
 import android.view.View
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -333,6 +331,7 @@ class SettingsActivity : BaseActivity() {
                 )
                 root.setOnClickListener {
                     startActivity(Intent(this@SettingsActivity, DevDebugActivity::class.java))
+                    AppActivityTransitions.applyForward(this@SettingsActivity)
                 }
             }
         } else {
@@ -361,6 +360,7 @@ class SettingsActivity : BaseActivity() {
             )
             root.setOnClickListener {
                 startActivity(Intent(this@SettingsActivity, SettingAnnouncementsActivity::class.java))
+                AppActivityTransitions.applyForward(this@SettingsActivity)
             }
         }
 
@@ -373,6 +373,7 @@ class SettingsActivity : BaseActivity() {
             )
             root.setOnClickListener {
                 startActivity(Intent(this@SettingsActivity, SettingCheckUpdateActivity::class.java))
+                AppActivityTransitions.applyForward(this@SettingsActivity)
             }
         }
 
@@ -385,6 +386,7 @@ class SettingsActivity : BaseActivity() {
             )
             root.setOnClickListener {
                 startActivity(Intent(this@SettingsActivity, SettingAboutActivity::class.java))
+                AppActivityTransitions.applyForward(this@SettingsActivity)
             }
         }
 
@@ -407,91 +409,6 @@ class SettingsActivity : BaseActivity() {
         }
     }
 
-    private fun showSyncDialog() {
-        val state = syncManager.state()
-        if (state.bound) {
-            showBoundSyncDialog(state)
-        } else {
-            showUnboundSyncDialog()
-        }
-    }
-
-    private fun showUnboundSyncDialog() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("收藏与歌单同步")
-            .setItems(arrayOf("创建同步码", "输入同步码加入")) { _, which ->
-                when (which) {
-                    0 -> createSyncSpace()
-                    1 -> showJoinSyncDialog()
-                }
-            }
-            .show()
-    }
-
-    private fun showBoundSyncDialog(state: SyncPrefs.State) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("收藏与歌单同步")
-            .setMessage(syncDetail(state))
-            .setPositiveButton("立即同步") { _, _ -> syncNow() }
-            .setNeutralButton("复制同步码") { _, _ -> copySyncCode(state.syncCode) }
-            .setNegativeButton("解绑") { _, _ -> unbindSync() }
-            .show()
-    }
-
-    private fun showJoinSyncDialog() {
-        val input = EditText(this).apply {
-            hint = "输入同步码"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
-            setSingleLine(true)
-        }
-        MaterialAlertDialogBuilder(this)
-            .setTitle("加入同步空间")
-            .setView(input)
-            .setPositiveButton("加入") { _, _ ->
-                val code = input.text?.toString().orEmpty().trim()
-                if (code.isBlank()) {
-                    Toast.makeText(this, "同步码不能为空", Toast.LENGTH_SHORT).show()
-                } else {
-                    joinSyncSpace(code)
-                }
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    private fun createSyncSpace() {
-        uiScope.launch {
-            Toast.makeText(this@SettingsActivity, "正在创建同步码", Toast.LENGTH_SHORT).show()
-            runCatching { syncManager.createSyncSpace() }
-                .onSuccess { state ->
-                    refreshSyncRow()
-                    copySyncCode(state.syncCode)
-                    Toast.makeText(this@SettingsActivity, "同步码已创建并复制", Toast.LENGTH_SHORT).show()
-                }
-                .onFailure {
-                    Toast.makeText(this@SettingsActivity, it.message ?: "创建失败", Toast.LENGTH_SHORT).show()
-                }
-        }
-    }
-
-    private fun joinSyncSpace(code: String) {
-        uiScope.launch {
-            Toast.makeText(this@SettingsActivity, "正在加入同步空间", Toast.LENGTH_SHORT).show()
-            runCatching { syncManager.joinSyncSpace(code) }
-                .onSuccess { state ->
-                    refreshSyncRow()
-                    Toast.makeText(
-                        this@SettingsActivity,
-                        if (state.lastError.isBlank()) "同步完成" else state.lastError,
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
-                .onFailure {
-                    Toast.makeText(this@SettingsActivity, it.message ?: "加入失败", Toast.LENGTH_SHORT).show()
-                }
-        }
-    }
-
     private fun syncNow() {
         uiScope.launch {
             Toast.makeText(this@SettingsActivity, "正在同步", Toast.LENGTH_SHORT).show()
@@ -505,20 +422,6 @@ class SettingsActivity : BaseActivity() {
         }
     }
 
-    private fun unbindSync() {
-        uiScope.launch {
-            syncManager.unbind()
-            refreshSyncRow()
-            Toast.makeText(this@SettingsActivity, "已解绑同步设备", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun copySyncCode(syncCode: String) {
-        if (syncCode.isBlank()) return
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("同步码", syncCode))
-    }
-
     private fun syncSummary(state: SyncPrefs.State): String {
         if (!state.bound) return "未开启"
         val time = if (state.lastSyncAt > 0L) {
@@ -530,21 +433,6 @@ class SettingsActivity : BaseActivity() {
             "已开启 · $time"
         } else {
             "异常 · ${state.lastError}"
-        }
-    }
-
-    private fun syncDetail(state: SyncPrefs.State): String {
-        val time = if (state.lastSyncAt > 0L) {
-            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(state.lastSyncAt))
-        } else {
-            "尚未同步"
-        }
-        return buildString {
-            append("同步码：").append(state.syncCode.ifBlank { "未知" })
-            append('\n').append("最后同步：").append(time)
-            if (state.lastError.isNotBlank()) {
-                append('\n').append("错误：").append(state.lastError)
-            }
         }
     }
 
@@ -689,12 +577,12 @@ class SettingsActivity : BaseActivity() {
             val intent = Intent(context, SettingsActivity::class.java)
             context.startActivity(intent)
             // 设置启动动画
-            (context as? Activity)?.overridePendingTransition(R.anim.slide_up, R.anim.dim_and_scale_out)
+            AppActivityTransitions.applyForward(context)
         }
     }
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.dim_and_scale_in,R.anim.slide_down)
+        AppActivityTransitions.applyBack(this)
     }
 } 

@@ -5,6 +5,7 @@ import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.model.AccountCodeLoginRequest
 import cn.partialy.pm.model.AccountEmailCodeRequest
 import cn.partialy.pm.model.AccountPasswordLoginRequest
+import cn.partialy.pm.model.AccountPasswordResetRequest
 import cn.partialy.pm.model.AccountProfileEmailCodeRequest
 import cn.partialy.pm.model.AccountProfileUpdateRequest
 import cn.partialy.pm.model.AccountRegisterRequest
@@ -146,6 +147,11 @@ class ConfigManager @Inject constructor(
         val response = systemApiService.loginAccountByCode(AccountCodeLoginRequest(email, code))
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "登录失败" })
         return response.data
+    }
+
+    suspend fun resetAccountPassword(email: String, code: String, password: String) {
+        val response = systemApiService.resetAccountPassword(AccountPasswordResetRequest(email, code, password))
+        if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "密码重置失败" })
     }
 
     suspend fun refreshAccountToken(token: String): AccountAuthResult {

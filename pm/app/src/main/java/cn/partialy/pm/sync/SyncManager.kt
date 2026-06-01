@@ -37,15 +37,6 @@ class SyncManager @Inject constructor(
         SyncPrefs.getState(context)
     }
 
-    @Deprecated("账号同步已取代同步码，保留用于旧入口编译兼容")
-    suspend fun createSyncSpace(): SyncPrefs.State = startAccountSync()
-
-    @Deprecated("账号同步已取代同步码，保留用于旧入口编译兼容")
-    suspend fun joinSyncSpace(syncCode: String): SyncPrefs.State = startAccountSync()
-
-    @Deprecated("账号同步已取代同步码，保留用于旧入口编译兼容")
-    suspend fun unbind(): SyncPrefs.State = SyncPrefs.getState(context)
-
     suspend fun syncNow(): SyncPrefs.State = withContext(Dispatchers.IO) {
         mutex.withLock {
             val before = SyncPrefs.getState(context)

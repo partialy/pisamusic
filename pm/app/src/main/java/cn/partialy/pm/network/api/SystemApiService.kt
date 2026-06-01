@@ -13,6 +13,8 @@ import cn.partialy.pm.model.AccountEmailCodeRequest
 import cn.partialy.pm.model.AccountEmailCodeResponse
 import cn.partialy.pm.model.AccountMeResponse
 import cn.partialy.pm.model.AccountPasswordLoginRequest
+import cn.partialy.pm.model.AccountPasswordResetRequest
+import cn.partialy.pm.model.AccountPasswordResetResponse
 import cn.partialy.pm.model.AccountProfileEmailCodeRequest
 import cn.partialy.pm.model.AccountProfileUpdateRequest
 import cn.partialy.pm.model.AccountRegisterRequest
@@ -70,6 +72,9 @@ interface SystemApiService {
 
     @POST("api/auth/login/code")
     suspend fun loginAccountByCode(@Body body: AccountCodeLoginRequest): AccountAuthResponse
+
+    @POST("api/auth/password/reset")
+    suspend fun resetAccountPassword(@Body body: AccountPasswordResetRequest): AccountPasswordResetResponse
 
     @POST("api/auth/refresh")
     suspend fun refreshAccountToken(@Header("Authorization") authorization: String): AccountAuthResponse

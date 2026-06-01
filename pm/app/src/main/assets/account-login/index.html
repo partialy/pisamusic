@@ -9,6 +9,11 @@
   <script src="../shared/tailwind-base.js"></script>
   <script defer src="file:///android_asset/shared/message.global.js"></script>
   <style>
+    :root {
+      --native-status-bar-height: env(safe-area-inset-top);
+      --native-navigation-bar-height: env(safe-area-inset-bottom);
+    }
+
     /* 移除了强行的 transition: none，让 UI 活起来 */
     html, body {
       overscroll-behavior: none;
@@ -19,10 +24,12 @@
       height: 100dvh;
       overflow: hidden;
       overflow-x: hidden;
+      padding-top: max(14px, var(--native-status-bar-height)) !important;
+      padding-bottom: max(10px, var(--native-navigation-bar-height)) !important;
     }
 
     .login-shell {
-      height: calc(100dvh - max(14px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom)));
+      height: calc(100dvh - max(14px, var(--native-status-bar-height)) - max(10px, var(--native-navigation-bar-height)));
       min-height: 0;
       overflow-y: auto;
       scrollbar-width: none;
@@ -210,10 +217,11 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-2 mt-6 p-1.5 rounded-[22px] bg-slate-100/80 dark:bg-slate-800/70 shadow-inner">
+    <div class="grid grid-cols-4 gap-2 mt-6 p-1.5 rounded-[22px] bg-slate-100/80 dark:bg-slate-800/70 shadow-inner">
       <button id="tabPassword" class="primary !py-3 !shadow-none" onclick="setMode('password')">密码</button>
       <button id="tabCode" class="ghost !py-3" onclick="setMode('code')">验证码</button>
       <button id="tabRegister" class="ghost !py-3" onclick="setMode('register')">注册</button>
+      <button id="tabReset" class="ghost !py-3" onclick="setMode('reset')">找回</button>
     </div>
 
     <form id="form" class="mt-5 space-y-3" onsubmit="submitForm(event)">
@@ -236,12 +244,12 @@
   let mode = 'password';
   let countdownInterval = null; // 用于存储倒计时的定时器
 
-  const host = window.AndroidAccount || { close(){}, sendEmailCode(){}, loginByPassword(){}, loginByCode(){}, registerAccount(){} };
+  const host = window.AndroidAccount || { close(){}, sendEmailCode(){}, loginByPassword(){}, loginByCode(){}, registerAccount(){}, resetPassword(){} };
   const $ = (id) => document.getElementById(id);
 
   function setMode(next) {
     mode = next;
-    ['Password','Code','Register'].forEach((name) => {
+    ['Password','Code','Register','Reset'].forEach((name) => {
       const active = name.toLowerCase() === next;
       $('tab' + name).className = active ? 'primary !py-3 !shadow-none' : 'ghost !py-3 hover:bg-white/90 dark:hover:bg-slate-800';
     });
@@ -250,8 +258,16 @@
     $('username').classList.toggle('hidden', next !== 'register');
     $('password').classList.toggle('hidden', next === 'code');
     $('codeRow').classList.toggle('hidden', next === 'password');
+    $('password').placeholder = next === 'reset' ? '新密码' : '密码';
+    $('password').autocomplete = next === 'reset' || next === 'register' ? 'new-password' : 'current-password';
 
-    $('submitBtn').textContent = next === 'register' ? '注册并登录' : '登录';
+    $('submitBtn').textContent = submitText();
+  }
+
+  function submitText() {
+    if (mode === 'register') return '注册并登录';
+    if (mode === 'reset') return '重置密码';
+    return '登录';
   }
 
   function payload() {
@@ -276,7 +292,8 @@
     const btn = $('sendCodeBtn');
 
     // 触发底层接口
-    host.sendEmailCode(JSON.stringify({ email: data.email, purpose: mode === 'register' ? 'register' : 'login' }));
+    const purpose = mode === 'register' ? 'register' : (mode === 'reset' ? 'reset_password' : 'login');
+    host.sendEmailCode(JSON.stringify({ email: data.email, purpose }));
 
     // 开启 60s 倒计时
     let timeLeft = 60;
@@ -302,10 +319,36 @@
   function submitForm(event) {
     event.preventDefault();
     const data = payload();
+    if (!validateForm(data)) return;
     setSubmitLoading(true);
     if (mode === 'password') host.loginByPassword(JSON.stringify(data));
     else if (mode === 'code') host.loginByCode(JSON.stringify(data));
-    else host.registerAccount(JSON.stringify(data));
+    else if (mode === 'register') host.registerAccount(JSON.stringify(data));
+    else host.resetPassword(JSON.stringify(data));
+  }
+
+  function validateForm(data) {
+    if (mode === 'password' && (!data.identifier || !data.password)) {
+      showMessage('请输入账号和密码', 'warning');
+      return false;
+    }
+    if ((mode === 'code' || mode === 'register' || mode === 'reset') && !data.email) {
+      showMessage('请先输入邮箱地址', 'warning');
+      return false;
+    }
+    if (mode === 'register' && !data.username) {
+      showMessage('请输入用户名', 'warning');
+      return false;
+    }
+    if ((mode === 'register' || mode === 'reset') && !data.password) {
+      showMessage(mode === 'reset' ? '请输入新密码' : '请输入密码', 'warning');
+      return false;
+    }
+    if ((mode === 'code' || mode === 'register' || mode === 'reset') && !data.code) {
+      showMessage('请输入邮箱验证码', 'warning');
+      return false;
+    }
+    return true;
   }
 
   // 将 loading 状态限制在提交按钮上，防止干扰倒计时按钮
@@ -317,7 +360,7 @@
     if (loading) {
       btn.textContent = '处理中...';
     } else {
-      btn.textContent = mode === 'register' ? '注册并登录' : '登录';
+      btn.textContent = submitText();
     }
   }
 
@@ -349,6 +392,14 @@
       setSubmitLoading(false);
       showMessage('登录成功', 'success');
       host.close();
+    },
+    passwordReset(email) {
+      setSubmitLoading(false);
+      showMessage('密码已重置，请使用新密码登录', 'success');
+      setMode('password');
+      $('identifier').value = email || $('email').value.trim();
+      $('password').value = '';
+      $('code').value = '';
     }
   };
 </script>
