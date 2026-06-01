@@ -60,3 +60,5 @@ pm-electron/data/
 .idea/
 .codex/
 .claude/
+
+gitpush.sh

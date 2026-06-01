@@ -8,11 +8,9 @@
         @play="handlePlay" />
     </div>
 
-    <HomeReveal>
-      <HomeSectionTitle title="推荐歌单" show-more @more="goRecommendPlaylists('kg-top', '推荐歌单')" />
-      <PlaylistCollect :playlist="recPlaylist" :loading="homeLoading" :skeleton-count="24" :max-rows="4" />
-    </HomeReveal>
-
+    <HomeSectionTitle title="推荐歌单" show-more @more="goRecommendPlaylists('kg-top', '推荐歌单')" />
+    <PlaylistCollect :playlist="recPlaylist" :loading="homeLoading" :skeleton-count="24" :max-rows="4" />
+    
     <HomeReveal>
       <HomeSectionTitle title="推荐音乐" show-more @more="goRecommendSongs('kg-daily', '推荐音乐')" />
       <HomeSongGrid

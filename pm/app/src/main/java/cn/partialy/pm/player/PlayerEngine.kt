@@ -13,6 +13,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionResult
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.R
 import cn.partialy.pm.model.SongInfo
@@ -68,6 +69,8 @@ class PlayerEngine(
     private var lastPersistAtMs = 0L
     private var restoreAttempted = false
     private var lastAutoSkipAtMs = 0L
+    private var lastManualNextAtMs = 0L
+    private var lastManualPreviousAtMs = 0L
     private var progressUpdateJob: Job? = null
     private val playbackRefreshRetryKeys = mutableSetOf<String>()
 
@@ -178,13 +181,45 @@ class PlayerEngine(
                 val keyEvent = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
                 if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
                     when (keyEvent.keyCode) {
-                        KeyEvent.KEYCODE_MEDIA_NEXT -> onNext()
-                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> onPrevious()
-                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> onTogglePlayPause()
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            if (keyEvent.repeatCount == 0) next(manual = true)
+                            return true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            if (keyEvent.repeatCount == 0) previous(manual = true)
+                            return true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                            if (keyEvent.repeatCount == 0) onTogglePlayPause()
+                            return true
+                        }
                     }
                 }
             }
-            return super.onMediaButtonEvent(session, controllerInfo, intent)
+            return false
+        }
+
+        @Deprecated("Media3 deprecated this hook, but it is still needed to keep system controls on the app entrypoint.")
+        override fun onPlayerCommandRequest(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            playerCommand: Int,
+        ): Int {
+            return when (playerCommand) {
+                Player.COMMAND_SEEK_TO_NEXT -> {
+                    next(manual = true)
+                    SessionResult.RESULT_INFO_SKIPPED
+                }
+                Player.COMMAND_SEEK_TO_PREVIOUS -> {
+                    previous(manual = true)
+                    SessionResult.RESULT_INFO_SKIPPED
+                }
+                Player.COMMAND_PLAY_PAUSE -> {
+                    onTogglePlayPause()
+                    SessionResult.RESULT_INFO_SKIPPED
+                }
+                else -> super.onPlayerCommandRequest(session, controller, playerCommand)
+            }
         }
 
         @SuppressLint("WrongConstant")
@@ -216,9 +251,10 @@ class PlayerEngine(
     // ==================== 播放控制 ====================
 
     /** 下一曲：优先消费插播队列，其次走 shuffle / 顺序逻辑 */
-    fun next() {
+    fun next(manual: Boolean = false) {
         val player = exoPlayer ?: return
         if (playlistManager.playList.value.isEmpty() || player.mediaItemCount == 0) return
+        if (manual && shouldIgnoreManualNavigation(next = true)) return
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -246,9 +282,10 @@ class PlayerEngine(
     }
 
     /** 上一曲 */
-    fun previous() {
+    fun previous(manual: Boolean = false) {
         val player = exoPlayer ?: return
         if (playlistManager.playList.value.isEmpty() || player.mediaItemCount == 0) return
+        if (manual && shouldIgnoreManualNavigation(next = false)) return
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -330,6 +367,25 @@ class PlayerEngine(
             val clamped =
                 if (d > 0) positionMs.coerceIn(0L, d) else positionMs.coerceAtLeast(0L)
             player.seekTo(clamped)
+        }
+    }
+
+    private fun shouldIgnoreManualNavigation(next: Boolean): Boolean {
+        val now = System.currentTimeMillis()
+        return if (next) {
+            if (now - lastManualNextAtMs < MANUAL_NAVIGATION_DEBOUNCE_MS) {
+                true
+            } else {
+                lastManualNextAtMs = now
+                false
+            }
+        } else {
+            if (now - lastManualPreviousAtMs < MANUAL_NAVIGATION_DEBOUNCE_MS) {
+                true
+            } else {
+                lastManualPreviousAtMs = now
+                false
+            }
         }
     }
 
@@ -591,5 +647,6 @@ class PlayerEngine(
 
     private companion object {
         private const val PROGRESS_UPDATE_INTERVAL_MS = 160L
+        private const val MANUAL_NAVIGATION_DEBOUNCE_MS = 650L
     }
 }

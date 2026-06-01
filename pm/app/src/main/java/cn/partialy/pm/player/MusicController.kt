@@ -58,10 +58,10 @@ class MusicController @Inject constructor(
     fun togglePlayPause() = engine.togglePlayPause()
 
     @Suppress("UNUSED_PARAMETER")
-    fun next(auto: Boolean = true) = engine.next()
+    fun next(auto: Boolean = true) = engine.next(manual = !auto)
 
     @Suppress("UNUSED_PARAMETER")
-    fun previous(auto: Boolean = true) = engine.previous()
+    fun previous(auto: Boolean = true) = engine.previous(manual = !auto)
 
     // ==================== 播放模式 ====================
 
