@@ -2,6 +2,7 @@ package cn.partialy.pm.ui.search
 
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -17,6 +18,9 @@ import cn.partialy.pm.network.search.*
 import cn.partialy.pm.network.wy.WyRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 @HiltViewModel
@@ -354,7 +358,7 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             val prefs = getApplication<Application>().getSharedPreferences("search_history", Context.MODE_PRIVATE)
 
-            val historySet = prefs.getStringSet("history", mutableSetOf())?.toMutableList() ?: mutableListOf()
+            val historySet = readSearchHistory(prefs).toMutableList()
 
             historySet.remove(keyword)
 
@@ -364,7 +368,7 @@ class SearchViewModel @Inject constructor(
                 historySet.removeAt(historySet.size - 1)
             }
 
-            prefs.edit().putStringSet("history", historySet.toSet()).apply()
+            writeSearchHistory(prefs, historySet)
 
             _searchHistory.value = historySet
         }
@@ -373,15 +377,19 @@ class SearchViewModel @Inject constructor(
     fun loadSearchHistory() {
         viewModelScope.launch {
             val prefs = getApplication<Application>().getSharedPreferences("search_history", Context.MODE_PRIVATE)
-            val historySet = prefs.getStringSet("history", mutableSetOf())?.toList() ?: emptyList()
-            _searchHistory.value = historySet
+            val historyList = readSearchHistory(prefs)
+            writeSearchHistory(prefs, historyList)
+            _searchHistory.value = historyList
         }
     }
 
     fun clearSearchHistory() {
         viewModelScope.launch {
             val prefs = getApplication<Application>().getSharedPreferences("search_history", Context.MODE_PRIVATE)
-            prefs.edit().remove("history").apply()
+            prefs.edit()
+                .remove(HISTORY_KEY_ORDERED)
+                .remove(HISTORY_KEY_LEGACY)
+                .apply()
             _searchHistory.value = emptyList()
         }
     }
@@ -389,16 +397,50 @@ class SearchViewModel @Inject constructor(
     fun deleteHistoryItem(keyword: String) {
         viewModelScope.launch {
             val prefs = getApplication<Application>().getSharedPreferences("search_history", Context.MODE_PRIVATE)
-            val historySet = prefs.getStringSet("history", mutableSetOf())?.toMutableList() ?: mutableListOf()
+            val historySet = readSearchHistory(prefs).toMutableList()
 
             historySet.remove(keyword)
 
-            prefs.edit().putStringSet("history", historySet.toSet()).apply()
+            writeSearchHistory(prefs, historySet)
             _searchHistory.value = historySet
         }
     }
 
+    private fun readSearchHistory(prefs: SharedPreferences): List<String> {
+        val orderedJson = prefs.getString(HISTORY_KEY_ORDERED, null)
+        if (!orderedJson.isNullOrBlank()) {
+            return runCatching {
+                Json.decodeFromString<List<String>>(orderedJson)
+            }.getOrDefault(emptyList())
+                .normalizedHistory()
+        }
+
+        val legacyHistory = prefs.getStringSet(HISTORY_KEY_LEGACY, emptySet())
+            ?.toList()
+            .orEmpty()
+        return legacyHistory
+            .asReversed()
+            .normalizedHistory()
+    }
+
+    private fun writeSearchHistory(
+        prefs: SharedPreferences,
+        history: List<String>,
+    ) {
+        prefs.edit()
+            .putString(HISTORY_KEY_ORDERED, Json.encodeToString(history.normalizedHistory()))
+            .remove(HISTORY_KEY_LEGACY)
+            .apply()
+    }
+
+    private fun List<String>.normalizedHistory(): List<String> =
+        filter { it.isNotBlank() }
+            .distinct()
+            .take(maxHistorySize)
+
     companion object {
+        private const val HISTORY_KEY_LEGACY = "history"
+        private const val HISTORY_KEY_ORDERED = "history_ordered"
         private const val WY_PAGE_LIMIT = 30
         private const val PLAYLIST_PAGE_LIMIT = 30
     }

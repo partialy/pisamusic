@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -56,7 +55,7 @@ class MusicService : MediaSessionService() {
                 }
 
                 override fun createCurrentContentIntent(player: Player): PendingIntent? {
-                    val intent = Intent(this@MusicService, PlayerActivity::class.java)
+                    val intent = PlayerActivity.createLaunchIntent(this@MusicService)
                     return PendingIntent.getActivity(
                         this@MusicService,
                         0,

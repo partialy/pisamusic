@@ -144,6 +144,11 @@ class PlayerActivity : BaseDownloadActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
     @OptIn(UnstableApi::class)
     private fun setupPlaybackControls() {
         binding.collapseButton.setOnClickListener { finish() }
@@ -815,10 +820,18 @@ class PlayerActivity : BaseDownloadActivity() {
     companion object {
         private const val KARAOKE_SYNC_INTERVAL_MS = 100L
 
+        fun createLaunchIntent(context: Context): Intent =
+            Intent(context, PlayerActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+
         fun start(context: Context) {
-            val intent = Intent(context, PlayerActivity::class.java)
+            val intent = createLaunchIntent(context)
+            if (context !is Activity) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
             context.startActivity(intent)
-            (context as Activity).overridePendingTransition(R.anim.slide_up, R.anim.dim_and_scale_out)
+            (context as? Activity)?.overridePendingTransition(R.anim.slide_up, R.anim.dim_and_scale_out)
         }
     }
 }
