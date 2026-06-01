@@ -1,6 +1,5 @@
 package cn.partialy.pm.activity
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -375,7 +374,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
 
     private fun finishAnimated() {
         finish()
-        overridePendingTransition(R.anim.playlist_previous_scale_from_95, R.anim.slide_to_right)
+        AppActivityTransitions.applyBack(this)
     }
 
     override fun onDestroy() {
@@ -523,10 +522,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 putExtra(EXTRA_TRACK_COUNT, trackCount)
             }
             context.startActivity(i)
-            (context as? Activity)?.overridePendingTransition(
-                R.anim.slide_to_left,
-                R.anim.dim_and_scale_out,
-            )
+            AppActivityTransitions.applyForward(context)
         }
     }
 }

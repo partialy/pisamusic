@@ -1,7 +1,6 @@
 package cn.partialy.pm.activity
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -93,13 +92,13 @@ class LyricColorPresetsActivity : BaseActivity() {
     companion object {
         fun start(context: Context) {
             context.startActivity(Intent(context, LyricColorPresetsActivity::class.java))
-            (context as? Activity)?.overridePendingTransition(R.anim.slide_to_left, R.anim.dim_and_scale_out)
+            AppActivityTransitions.applyForward(context)
         }
     }
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.dim_and_scale_in, R.anim.slide_to_right)
+        AppActivityTransitions.applyBack(this)
     }
 }
 

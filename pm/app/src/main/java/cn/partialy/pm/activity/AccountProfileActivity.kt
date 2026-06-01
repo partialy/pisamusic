@@ -269,6 +269,7 @@ class AccountProfileActivity : BaseActivity() {
 
         fun start(context: Context) {
             context.startActivity(Intent(context, AccountProfileActivity::class.java))
+            AppActivityTransitions.applyForward(context)
         }
     }
 }

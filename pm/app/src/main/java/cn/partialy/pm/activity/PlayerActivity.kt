@@ -81,6 +81,8 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlayerActivity : BaseDownloadActivity() {
+    protected override val defaultActivityTransitionEnabled: Boolean = false
+
     @Inject lateinit var mediaIndexDb: LocalMediaIndexDbStore
     @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
     @Inject lateinit var lyricRepository: LyricRepository
@@ -814,7 +816,7 @@ class PlayerActivity : BaseDownloadActivity() {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.dim_and_scale_in, R.anim.slide_down)
+        AppActivityTransitions.applyPlayerBack(this)
     }
 
     companion object {
@@ -831,7 +833,7 @@ class PlayerActivity : BaseDownloadActivity() {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-            (context as? Activity)?.overridePendingTransition(R.anim.slide_up, R.anim.dim_and_scale_out)
+            AppActivityTransitions.applyPlayerForward(context)
         }
     }
 }

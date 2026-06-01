@@ -1,6 +1,5 @@
 package cn.partialy.pm.activity
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -138,7 +137,7 @@ class FavoritePlaylistsActivity : BaseActivity() {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.playlist_previous_scale_from_95, R.anim.slide_to_right)
+        AppActivityTransitions.applyBack(this)
     }
 
     private fun dp(v: Int): Int = (resources.displayMetrics.density * v).toInt()
@@ -147,10 +146,7 @@ class FavoritePlaylistsActivity : BaseActivity() {
         fun start(context: Context) {
             val intent = Intent(context, FavoritePlaylistsActivity::class.java)
             context.startActivity(intent)
-            (context as? Activity)?.overridePendingTransition(
-                R.anim.slide_to_left,
-                R.anim.dim_and_scale_out,
-            )
+            AppActivityTransitions.applyForward(context)
         }
     }
 }

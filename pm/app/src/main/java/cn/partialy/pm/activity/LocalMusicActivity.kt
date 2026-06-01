@@ -1,7 +1,6 @@
 package cn.partialy.pm.activity
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -156,7 +155,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
 
             btnEditLocal.setOnClickListener {
                 localMusicEditLauncher.launch(Intent(this@LocalMusicActivity, LocalMusicEditActivity::class.java))
-                overridePendingTransition(R.anim.slide_to_left, R.anim.dim_and_scale_out)
+                AppActivityTransitions.applyForward(this@LocalMusicActivity)
             }
         }
     }
@@ -306,7 +305,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.playlist_previous_scale_from_95, R.anim.slide_to_right)
+        AppActivityTransitions.applyBack(this)
     }
 
     private fun updateTabSelection(position: Int) {
@@ -339,10 +338,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
                 putExtra(EXTRA_INITIAL_TAB, initialTab.coerceIn(TAB_LOCAL, TAB_DOWNLOADED))
             }
             context.startActivity(intent)
-            (context as? Activity)?.overridePendingTransition(
-                R.anim.slide_to_left,
-                R.anim.dim_and_scale_out,
-            )
+            AppActivityTransitions.applyForward(context)
         }
     }
 }

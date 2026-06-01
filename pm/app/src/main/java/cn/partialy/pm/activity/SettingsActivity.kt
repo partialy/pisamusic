@@ -1,7 +1,6 @@
 package cn.partialy.pm.activity
 
 import android.Manifest
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context

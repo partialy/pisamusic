@@ -71,6 +71,7 @@ import kotlin.coroutines.suspendCoroutine
 
 @AndroidEntryPoint
 class MainActivity : BaseDownloadActivity() {
+    protected override val defaultActivityTransitionEnabled: Boolean = false
 
     private lateinit var binding: ActivityMainBinding
 
@@ -380,6 +381,7 @@ class MainActivity : BaseDownloadActivity() {
             setCaptureActivity(PortraitCaptureActivity::class.java)
         }
         drawerScanLauncher.launch(options)
+        AppActivityTransitions.applyForward(this)
     }
 
     private fun setupDrawerPlaylistImportActions(b: MainDrawerContentBinding) {

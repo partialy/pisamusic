@@ -1,6 +1,5 @@
 package cn.partialy.pm.activity.home
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -13,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.AppActivityTransitions
 import cn.partialy.pm.activity.FeedbackWebActivity
 import cn.partialy.pm.activity.PlaylistDetailActivity
 import cn.partialy.pm.activity.SearchActivity
@@ -168,7 +168,7 @@ class HomePlaylistListActivity : BaseActivity() {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.playlist_previous_scale_from_95, R.anim.slide_to_right)
+        AppActivityTransitions.applyBack(this)
     }
 
     private fun dp(v: Int): Int = (resources.displayMetrics.density * v).toInt()
@@ -183,10 +183,7 @@ class HomePlaylistListActivity : BaseActivity() {
                 putExtra(EXTRA_CATEGORY_NAME, categoryName)
             }
             context.startActivity(intent)
-            (context as? Activity)?.overridePendingTransition(
-                R.anim.slide_to_left,
-                R.anim.dim_and_scale_out,
-            )
+            AppActivityTransitions.applyForward(context)
         }
     }
 }

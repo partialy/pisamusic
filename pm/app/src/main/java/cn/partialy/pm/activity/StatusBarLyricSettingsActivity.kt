@@ -121,13 +121,13 @@ class StatusBarLyricSettingsActivity : BaseActivity() {
     companion object {
         fun start(context: Context) {
             context.startActivity(Intent(context, StatusBarLyricSettingsActivity::class.java))
-            (context as? Activity)?.overridePendingTransition(R.anim.slide_to_left, R.anim.dim_and_scale_out)
+            AppActivityTransitions.applyForward(context)
         }
     }
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.dim_and_scale_in, R.anim.slide_to_right)
+        AppActivityTransitions.applyBack(this)
     }
 }
 

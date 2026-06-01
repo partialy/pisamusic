@@ -1,6 +1,5 @@
 package cn.partialy.pm.activity.home
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.GradientDrawable
@@ -14,6 +13,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.AppActivityTransitions
 import cn.partialy.pm.activity.LocalMusicActivity
 import cn.partialy.pm.activity.LocalMusicActivity.Companion.EXTRA_INITIAL_TAB
 import cn.partialy.pm.activity.LocalMusicActivity.Companion.TAB_DOWNLOADED
@@ -138,7 +138,7 @@ class HomePlaylistExploreActivity : BaseActivity() {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.playlist_previous_scale_from_95, R.anim.slide_to_right)
+        AppActivityTransitions.applyBack(this)
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -147,10 +147,7 @@ class HomePlaylistExploreActivity : BaseActivity() {
         fun start(context: Context) {
             val intent = Intent(context, HomePlaylistExploreActivity::class.java)
             context.startActivity(intent)
-            (context as? Activity)?.overridePendingTransition(
-                R.anim.slide_to_left,
-                R.anim.dim_and_scale_out,
-            )
+            AppActivityTransitions.applyForward(context)
         }
     }
 }

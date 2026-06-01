@@ -136,6 +136,6 @@ class LocalMusicEditActivity : BaseActivity() {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.slide_to_right_out, R.anim.slide_to_right)
+        AppActivityTransitions.applyBack(this)
     }
 }

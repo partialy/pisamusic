@@ -8,6 +8,7 @@ import android.webkit.JavascriptInterface
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.AppActivityTransitions
 import cn.partialy.pm.model.AboutInfo
 import cn.partialy.pm.network.config.ConfigManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -90,6 +91,7 @@ class SettingAboutActivity : BaseSettingWebActivity() {
         fun openCheckUpdate() {
             runOnUiThread {
                 startActivity(Intent(this@SettingAboutActivity, SettingCheckUpdateActivity::class.java))
+                AppActivityTransitions.applyForward(this@SettingAboutActivity)
             }
         }
 
@@ -97,6 +99,7 @@ class SettingAboutActivity : BaseSettingWebActivity() {
         fun openServiceAgreement() {
             runOnUiThread {
                 startActivity(Intent(this@SettingAboutActivity, SettingServiceAgreementActivity::class.java))
+                AppActivityTransitions.applyForward(this@SettingAboutActivity)
             }
         }
 
@@ -104,6 +107,7 @@ class SettingAboutActivity : BaseSettingWebActivity() {
         fun openPrivacyPolicy() {
             runOnUiThread {
                 startActivity(Intent(this@SettingAboutActivity, SettingPrivacyPolicyActivity::class.java))
+                AppActivityTransitions.applyForward(this@SettingAboutActivity)
             }
         }
 
@@ -111,6 +115,7 @@ class SettingAboutActivity : BaseSettingWebActivity() {
         fun openContactUs() {
             runOnUiThread {
                 startActivity(Intent(this@SettingAboutActivity, SettingContactUsActivity::class.java))
+                AppActivityTransitions.applyForward(this@SettingAboutActivity)
             }
         }
 

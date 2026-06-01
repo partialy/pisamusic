@@ -54,6 +54,8 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class SearchActivity : BaseDownloadActivity() {
+    protected override val defaultActivityTransitionEnabled: Boolean = false
+
     private lateinit var binding: ActivitySearchBinding
     private val viewModel: SearchViewModel by viewModels()
 

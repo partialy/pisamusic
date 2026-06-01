@@ -174,6 +174,7 @@ class FeedbackWebActivity : BaseActivity() {
 
         fun start(context: Context) {
             context.startActivity(Intent(context, FeedbackWebActivity::class.java))
+            AppActivityTransitions.applyForward(context)
         }
     }
 }

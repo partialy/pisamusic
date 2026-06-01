@@ -137,6 +137,7 @@ class WebContentActivity : BaseActivity() {
             context.startActivity(
                 Intent(context, WebContentActivity::class.java).putExtra(EXTRA_URL, url),
             )
+            AppActivityTransitions.applyForward(context)
         }
 
         fun start(context: Context, url: String, title: String) {
@@ -145,6 +146,7 @@ class WebContentActivity : BaseActivity() {
                     .putExtra(EXTRA_URL, url)
                     .putExtra(EXTRA_TITLE, title),
             )
+            AppActivityTransitions.applyForward(context)
         }
 
         private fun urlToHttpUri(raw: String): Uri? {

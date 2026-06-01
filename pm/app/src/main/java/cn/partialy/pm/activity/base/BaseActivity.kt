@@ -2,6 +2,7 @@ package cn.partialy.pm.activity.base
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import cn.partialy.pm.activity.AppActivityTransitions
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -18,5 +19,14 @@ open class BaseActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+    }
+
+    protected open val defaultActivityTransitionEnabled: Boolean = true
+
+    override fun finish() {
+        super.finish()
+        if (defaultActivityTransitionEnabled) {
+            AppActivityTransitions.applyBack(this)
+        }
     }
 }
