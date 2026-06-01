@@ -7,21 +7,29 @@
   <title>PisaMusic Account</title>
   <script src="../shared/tailwind.js"></script>
   <script src="../shared/tailwind-base.js"></script>
+  <script defer src="file:///android_asset/shared/message.global.js"></script>
   <style>
-    *, *::before, *::after {
-      animation: none !important;
-      transition: none !important;
-      scroll-behavior: auto !important;
-    }
-
+    /* 移除了强行的 transition: none，让 UI 活起来 */
     html, body {
       overscroll-behavior: none;
       -webkit-overflow-scrolling: auto;
     }
 
     body {
-      min-height: 100dvh;
+      height: 100dvh;
+      overflow: hidden;
       overflow-x: hidden;
+    }
+
+    .login-shell {
+      height: calc(100dvh - max(14px, env(safe-area-inset-top)) - max(10px, env(safe-area-inset-bottom)));
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .login-shell::-webkit-scrollbar {
+      display: none;
     }
 
     .back-button {
@@ -37,6 +45,11 @@
       box-shadow: 0 14px 32px rgba(15, 23, 42, .08);
       -webkit-backdrop-filter: blur(18px);
       backdrop-filter: blur(18px);
+      transition: all 0.2s ease;
+    }
+
+    .back-button:active {
+      transform: scale(0.92);
     }
 
     .brand-row {
@@ -90,11 +103,13 @@
       background: rgba(255, 255, 255, .76);
       outline: none;
       color: rgb(15 23 42);
+      transition: all 0.2s ease;
     }
 
     .field:focus {
       border-color: rgb(56 189 248);
       box-shadow: 0 0 0 4px rgba(56, 189, 248, .16);
+      background: #ffffff;
     }
 
     .primary {
@@ -104,6 +119,11 @@
       color: white;
       font-weight: 700;
       box-shadow: 0 12px 30px rgba(14, 165, 233, .26);
+      transition: all 0.2s ease;
+    }
+
+    .primary:active:not(:disabled) {
+      transform: scale(0.97);
     }
 
     .ghost {
@@ -112,6 +132,7 @@
       background: rgba(255, 255, 255, .72);
       color: rgb(51 65 85);
       font-weight: 650;
+      transition: all 0.2s ease;
     }
 
     @media (max-width: 360px) {
@@ -152,6 +173,10 @@
         border-color: rgba(71, 85, 105, .7);
       }
 
+      .field:focus {
+        background: rgba(30, 41, 59, 1);
+      }
+
       .ghost {
         background: rgba(30, 41, 59, .72);
         color: rgb(226 232 240);
@@ -159,114 +184,173 @@
     }
   </style>
 </head>
-<body class="min-h-[100dvh] bg-gradient-to-b from-sky-50 via-white to-white dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 text-slate-900 dark:text-white pt-[max(18px,env(safe-area-inset-top))] pb-[max(18px,env(safe-area-inset-bottom))]">
-  <main class="min-h-[100dvh] flex flex-col px-6">
-    <header class="flex items-center justify-between">
-      <button class="back-button" type="button" aria-label="返回" onclick="host.close()">
-        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M15 18l-6-6 6-6" />
+<body class="bg-gradient-to-b from-sky-50 via-white to-white dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 text-slate-900 dark:text-white pt-[max(14px,env(safe-area-inset-top))] pb-[max(10px,env(safe-area-inset-bottom))]">
+<main class="login-shell flex flex-col px-6">
+  <header class="flex items-center justify-between">
+    <button class="back-button" type="button" aria-label="返回" onclick="host.close()">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+    </button>
+    <div class="text-sm font-medium text-slate-400">PisaMusic</div>
+  </header>
+
+  <section class="flex-1 flex flex-col justify-center py-4">
+    <div class="brand-row">
+      <div class="app-logo">
+        <svg class="w-9 h-9 rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" fill="currentColor" />
+          <circle cx="18" cy="16" r="3" fill="currentColor" />
         </svg>
-      </button>
-      <div class="text-sm text-slate-400">PisaMusic</div>
-    </header>
+      </div>
+      <div class="brand-copy">
+        <h1>登录账号</h1>
+        <p>收藏、歌单与桌面端自动同步</p>
+      </div>
+    </div>
 
-    <section class="flex-1 flex flex-col justify-center">
-      <div class="brand-row">
-        <div class="app-logo">
-          <svg class="w-9 h-9 rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 18V5l12-2v13" />
-            <circle cx="6" cy="18" r="3" fill="currentColor" />
-            <circle cx="18" cy="16" r="3" fill="currentColor" />
-          </svg>
-        </div>
-        <div class="brand-copy">
-          <h1>登录账号</h1>
-          <p>收藏、歌单与桌面端自动同步</p>
-        </div>
+    <div class="grid grid-cols-3 gap-2 mt-6 p-1.5 rounded-[22px] bg-slate-100/80 dark:bg-slate-800/70 shadow-inner">
+      <button id="tabPassword" class="primary !py-3 !shadow-none" onclick="setMode('password')">密码</button>
+      <button id="tabCode" class="ghost !py-3" onclick="setMode('code')">验证码</button>
+      <button id="tabRegister" class="ghost !py-3" onclick="setMode('register')">注册</button>
+    </div>
+
+    <form id="form" class="mt-5 space-y-3" onsubmit="submitForm(event)">
+      <input id="identifier" class="field" autocomplete="username" placeholder="用户名或邮箱" />
+      <input id="email" class="field hidden" autocomplete="email" placeholder="邮箱" inputmode="email" />
+      <input id="username" class="field hidden" autocomplete="username" placeholder="用户名" />
+      <input id="password" class="field" autocomplete="current-password" placeholder="密码" type="password" />
+
+      <div id="codeRow" class="hidden grid grid-cols-[1fr_auto] gap-2">
+        <input id="code" class="field" placeholder="邮箱验证码" inputmode="numeric" />
+        <button id="sendCodeBtn" class="ghost whitespace-nowrap min-w-[90px]" type="button" onclick="sendCode()">发送</button>
       </div>
 
-      <div class="grid grid-cols-3 gap-2 mt-8 p-1 rounded-[20px] bg-slate-100/80 dark:bg-slate-800/70">
-        <button id="tabPassword" class="primary !py-3 !shadow-none" onclick="setMode('password')">密码</button>
-        <button id="tabCode" class="ghost !py-3" onclick="setMode('code')">验证码</button>
-        <button id="tabRegister" class="ghost !py-3" onclick="setMode('register')">注册</button>
-      </div>
+      <button id="submitBtn" class="primary w-full mt-3" type="submit">登录</button>
+    </form>
+  </section>
+</main>
 
-      <form id="form" class="mt-5 space-y-3" onsubmit="submitForm(event)">
-        <input id="identifier" class="field" autocomplete="username" placeholder="用户名或邮箱" />
-        <input id="email" class="field hidden" autocomplete="email" placeholder="邮箱" inputmode="email" />
-        <input id="username" class="field hidden" autocomplete="username" placeholder="用户名" />
-        <input id="password" class="field" autocomplete="current-password" placeholder="密码" type="password" />
-        <div id="codeRow" class="hidden grid grid-cols-[1fr_auto] gap-2">
-          <input id="code" class="field" placeholder="邮箱验证码" inputmode="numeric" />
-          <button id="sendCodeBtn" class="ghost whitespace-nowrap" type="button" onclick="sendCode()">发送</button>
-        </div>
-        <button id="submitBtn" class="primary w-full mt-2" type="submit">登录</button>
-      </form>
-      <p id="message" class="mt-4 min-h-5 text-sm text-slate-500 dark:text-slate-400"></p>
-    </section>
-  </main>
+<script>
+  let mode = 'password';
+  let countdownInterval = null; // 用于存储倒计时的定时器
 
-  <script>
-    let mode = 'password';
-    const host = window.AndroidAccount || { close(){}, sendEmailCode(){}, loginByPassword(){}, loginByCode(){}, registerAccount(){} };
-    const $ = (id) => document.getElementById(id);
+  const host = window.AndroidAccount || { close(){}, sendEmailCode(){}, loginByPassword(){}, loginByCode(){}, registerAccount(){} };
+  const $ = (id) => document.getElementById(id);
 
-    function setMode(next) {
-      mode = next;
-      ['Password','Code','Register'].forEach((name) => {
-        const active = name.toLowerCase() === next;
-        $('tab' + name).className = active ? 'primary !py-3 !shadow-none' : 'ghost !py-3';
-      });
-      $('identifier').classList.toggle('hidden', next !== 'password');
-      $('email').classList.toggle('hidden', next === 'password');
-      $('username').classList.toggle('hidden', next !== 'register');
-      $('password').classList.toggle('hidden', next === 'code');
-      $('codeRow').classList.toggle('hidden', next === 'password');
-      $('submitBtn').textContent = next === 'register' ? '注册并登录' : '登录';
-      setMessage('');
-    }
+  function setMode(next) {
+    mode = next;
+    ['Password','Code','Register'].forEach((name) => {
+      const active = name.toLowerCase() === next;
+      $('tab' + name).className = active ? 'primary !py-3 !shadow-none' : 'ghost !py-3 hover:bg-white/90 dark:hover:bg-slate-800';
+    });
+    $('identifier').classList.toggle('hidden', next !== 'password');
+    $('email').classList.toggle('hidden', next === 'password');
+    $('username').classList.toggle('hidden', next !== 'register');
+    $('password').classList.toggle('hidden', next === 'code');
+    $('codeRow').classList.toggle('hidden', next === 'password');
 
-    function payload() {
-      return {
-        identifier: $('identifier').value.trim(),
-        email: $('email').value.trim(),
-        username: $('username').value.trim(),
-        password: $('password').value,
-        code: $('code').value.trim(),
-      };
-    }
+    $('submitBtn').textContent = next === 'register' ? '注册并登录' : '登录';
+  }
 
-    function sendCode() {
-      const data = payload();
-      setLoading(true);
-      host.sendEmailCode(JSON.stringify({ email: data.email, purpose: mode === 'register' ? 'register' : 'login' }));
-    }
-
-    function submitForm(event) {
-      event.preventDefault();
-      const data = payload();
-      setLoading(true);
-      if (mode === 'password') host.loginByPassword(JSON.stringify(data));
-      else if (mode === 'code') host.loginByCode(JSON.stringify(data));
-      else host.registerAccount(JSON.stringify(data));
-    }
-
-    function setLoading(loading) {
-      $('submitBtn').disabled = loading;
-      $('sendCodeBtn').disabled = loading;
-      $('submitBtn').classList.toggle('opacity-60', loading);
-    }
-
-    function setMessage(text, error) {
-      $('message').textContent = text || '';
-      $('message').className = error ? 'mt-4 min-h-5 text-sm text-red-500' : 'mt-4 min-h-5 text-sm text-slate-500 dark:text-slate-400';
-    }
-
-    window.accountPage = {
-      success(text) { setLoading(false); setMessage(text || '操作成功'); },
-      error(text) { setLoading(false); setMessage(text || '操作失败', true); },
-      loggedIn() { setLoading(false); setMessage('登录成功'); host.close(); }
+  function payload() {
+    return {
+      identifier: $('identifier').value.trim(),
+      email: $('email').value.trim(),
+      username: $('username').value.trim(),
+      password: $('password').value,
+      code: $('code').value.trim(),
     };
-  </script>
+  }
+
+  function sendCode() {
+    const data = payload();
+
+    // 发送前先校验邮箱是否为空
+    if (!data.email) {
+      showMessage('请先输入邮箱地址', 'warning');
+      return;
+    }
+
+    const btn = $('sendCodeBtn');
+
+    // 触发底层接口
+    host.sendEmailCode(JSON.stringify({ email: data.email, purpose: mode === 'register' ? 'register' : 'login' }));
+
+    // 开启 60s 倒计时
+    let timeLeft = 60;
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+    btn.textContent = `${timeLeft}s`;
+
+    clearInterval(countdownInterval); // 清除可能存在的旧定时器
+
+    countdownInterval = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) {
+        clearInterval(countdownInterval);
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        btn.textContent = '重新发送';
+      } else {
+        btn.textContent = `${timeLeft}s`;
+      }
+    }, 1000);
+  }
+
+  function submitForm(event) {
+    event.preventDefault();
+    const data = payload();
+    setSubmitLoading(true);
+    if (mode === 'password') host.loginByPassword(JSON.stringify(data));
+    else if (mode === 'code') host.loginByCode(JSON.stringify(data));
+    else host.registerAccount(JSON.stringify(data));
+  }
+
+  // 将 loading 状态限制在提交按钮上，防止干扰倒计时按钮
+  function setSubmitLoading(loading) {
+    const btn = $('submitBtn');
+    btn.disabled = loading;
+    btn.classList.toggle('opacity-60', loading);
+    btn.classList.toggle('cursor-not-allowed', loading);
+    if (loading) {
+      btn.textContent = '处理中...';
+    } else {
+      btn.textContent = mode === 'register' ? '注册并登录' : '登录';
+    }
+  }
+
+  function showMessage(text, type = 'info') {
+    const msg = text || '';
+    if (!msg) return;
+    if (window.message && typeof window.message[type] === 'function') {
+      window.message[type](msg);
+      return;
+    }
+    if (window.message && typeof window.message.info === 'function') {
+      window.message.info(msg);
+      return;
+    }
+    console.log(msg);
+  }
+
+  // 暴露给 Native 调用的回调
+  window.accountPage = {
+    success(text) {
+      setSubmitLoading(false);
+      showMessage(text || '操作成功', 'success');
+    },
+    error(text) {
+      setSubmitLoading(false);
+      showMessage(text || '操作失败', 'error');
+    },
+    loggedIn() {
+      setSubmitLoading(false);
+      showMessage('登录成功', 'success');
+      host.close();
+    }
+  };
+</script>
 </body>
 </html>
