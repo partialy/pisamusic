@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import os from "node:os";
 import { app } from "electron";
 import { getAppDatabase } from "../database";
+import { logDebugRequest } from "../utils/requestDebug";
 import { decrypt, encrypt, randomFullKey } from "./encryption";
 import { signGatewayUrl } from "./gatewaySigner";
 import type {
@@ -110,9 +111,17 @@ export async function submitFeedback(payload: FeedbackPayload) {
   const url = new URL("/api/feedback", getSystemBaseUrl());
   let recorded = false;
   try {
+    const requestHeaders = createEncryptionHeaders();
+    logDebugRequest({
+      scope: "system:feedback",
+      method: "POST",
+      url: url.toString(),
+      headers: requestHeaders,
+      body: payload,
+    });
     const response = await fetch(url, {
       method: "POST",
-      headers: createEncryptionHeaders(),
+      headers: requestHeaders,
       body: form,
     });
     const raw = await response.text();
@@ -366,12 +375,20 @@ export async function requestSignedGateway<T>(
   const requestUrl = new URL(rawUrl);
   let recorded = false;
   try {
+    const requestHeaders = {
+      ...signed.headers,
+      ...(body ? { "content-type": "application/json" } : {}),
+    };
+    logDebugRequest({
+      scope: "gateway",
+      method,
+      url: rawUrl,
+      headers: requestHeaders,
+      body: options.body,
+    });
     const response = await fetch(signed.url, {
       method,
-      headers: {
-        ...signed.headers,
-        ...(body ? { "content-type": "application/json" } : {}),
-      },
+      headers: requestHeaders,
       body: body || undefined,
     });
     const raw = await response.text();
@@ -483,12 +500,20 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
   }
 
   try {
+    const requestHeaders = {
+      ...headers,
+      ...(options.headers ?? {}),
+    };
+    logDebugRequest({
+      scope: "system",
+      method,
+      url: url.toString(),
+      headers: requestHeaders,
+      body: options.body,
+    });
     const response = await fetch(url, {
       method,
-      headers: {
-        ...headers,
-        ...(options.headers ?? {}),
-      },
+      headers: requestHeaders,
       body,
     });
     const raw = await response.text();

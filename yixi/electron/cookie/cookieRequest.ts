@@ -1,6 +1,7 @@
 import { signGatewayUrl } from "../system/gatewaySigner";
 import { getGatewaySignConfigCached } from "../system/systemClient";
 import { decrypt } from "../system/encryption";
+import { logDebugRequest } from "../utils/requestDebug";
 import { UserCookieStore } from "./cookieStore";
 
 export type CookieRequestResult<T = unknown> = {
@@ -26,13 +27,21 @@ export async function requestSignedGatewayWithCookie<T>(
   const body = options.body === undefined ? "" : JSON.stringify(options.body);
   const currentCookie = options.cookie ?? options.store?.getHeader() ?? "";
   const signed = signGatewayUrl(method, rawUrl, body, await getGatewaySignConfigCached());
+  const requestHeaders = {
+    ...signed.headers,
+    ...(body ? { "content-type": "application/json" } : {}),
+    ...(currentCookie ? { Cookie: currentCookie } : {}),
+  };
+  logDebugRequest({
+    scope: "gateway:cookie",
+    method,
+    url: rawUrl,
+    headers: requestHeaders,
+    body: options.body,
+  });
   const response = await fetch(signed.url, {
     method,
-    headers: {
-      ...signed.headers,
-      ...(body ? { "content-type": "application/json" } : {}),
-      ...(currentCookie ? { Cookie: currentCookie } : {}),
-    },
+    headers: requestHeaders,
     body: body || undefined,
   });
   const raw = await response.text();
