@@ -578,7 +578,6 @@ type CookieFileExportResult = {
 
 type SyncState = {
   token: string;
-  deviceId: string;
   userId: string;
   seededAccountId: string;
   lastVersion: number;

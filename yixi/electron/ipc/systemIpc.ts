@@ -20,6 +20,7 @@ import {
   submitFeedback,
   updateAccountProfile,
 } from "../system/systemClient";
+import { clearSyncState } from "../sync/syncService";
 import type { FeedbackPayload } from "../system/types";
 
 let registered = false;
@@ -55,7 +56,11 @@ export function setupSystemIpc() {
   ipcMain.handle("account:session", () => getAccountSession());
   ipcMain.handle("account:avatar-options", () => getAccountAvatarOptions());
   ipcMain.handle("account:refresh", () => refreshAccountSession());
-  ipcMain.handle("account:logout", () => clearAccountSession());
+  ipcMain.handle("account:logout", async () => {
+    const session = clearAccountSession();
+    await clearSyncState();
+    return session;
+  });
   ipcMain.handle("account:send-email-code", (_event, payload: { email: string; purpose: "register" | "login" | "reset_password" }) =>
     sendAccountEmailCode(payload)
   );

@@ -610,6 +610,10 @@ export class AppDatabase {
     }
   }
 
+  clearSyncOutbox() {
+    this.db.prepare("DELETE FROM sync_outbox").run();
+  }
+
   listUserCloudSongs(cloudSource?: string | "all"): UserCloudSongItem[] {
     const rows = cloudSource && cloudSource !== "all"
       ? this.db

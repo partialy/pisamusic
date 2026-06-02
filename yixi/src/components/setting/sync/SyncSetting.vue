@@ -19,21 +19,21 @@
 
     <div class="setting-item">
       <div class="setting-info">
-        <div class="setting-title">同步状态</div>
+        <div class="setting-title">账号同步状态</div>
         <div class="setting-desc">{{ statusText }}</div>
       </div>
     </div>
 
     <div class="setting-item">
       <div class="setting-info">
-        <div class="setting-title">最近同步</div>
+        <div class="setting-title">最近账号同步</div>
         <div class="setting-desc">{{ lastSyncText }}</div>
       </div>
     </div>
 
     <div v-if="state.lastError" class="setting-item error-item">
       <div class="setting-info">
-        <div class="setting-title">同步错误</div>
+        <div class="setting-title">账号同步错误</div>
         <div class="setting-desc">{{ state.lastError }}</div>
       </div>
     </div>
@@ -52,7 +52,6 @@ type SyncState = Awaited<ReturnType<typeof window.electronAPI.getSyncState>>;
 
 const emptyState: SyncState = {
   token: "",
-  deviceId: "",
   userId: "",
   seededAccountId: "",
   lastVersion: 0,
@@ -68,15 +67,15 @@ const logoutLoading = ref(false);
 let stopSyncListener: (() => void) | null = null;
 
 const accountDesc = computed(() => {
-  if (!isLogin.value) return "登录后自动同步收藏、歌单和本地创建的歌单";
+  if (!isLogin.value) return "登录账号后自动同步收藏、歌单和本地创建的歌单";
   return userInfo.value.email || userInfo.value.id;
 });
 
 const statusText = computed(() => {
-  if (!isLogin.value || !state.value.token) return "未开启，登录账号后可同步";
-  if (state.value.lastError) return "同步异常";
-  if (!state.value.lastSyncAt) return "已登录，尚未同步";
-  return "同步正常";
+  if (!isLogin.value || !state.value.token) return "未开启，登录账号后启用账号同步";
+  if (state.value.lastError) return "账号同步异常";
+  if (!state.value.lastSyncAt) return "已登录账号，尚未完成同步";
+  return "账号同步正常";
 });
 
 const lastSyncText = computed(() => {
@@ -107,7 +106,7 @@ function openLogin() {
 async function handleSyncNow() {
   await runSyncAction(async () => {
     state.value = await window.electronAPI.syncNow();
-    window.$message.success(state.value.lastError ? "同步完成，但存在错误" : "同步完成");
+    window.$message.success(state.value.lastError ? "账号同步完成，但存在错误" : "账号同步完成");
   });
 }
 
@@ -139,7 +138,7 @@ async function runSyncAction(action: () => Promise<void>) {
   try {
     await action();
   } catch (error) {
-    window.$message.error(errorMessage(error, "同步操作失败"));
+    window.$message.error(errorMessage(error, "账号同步操作失败"));
   } finally {
     loading.value = false;
   }

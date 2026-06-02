@@ -18,7 +18,6 @@ const DUPLICATE_PULL_GUARD_MS = 1500;
 
 type SyncState = {
   token: string;
-  deviceId: string;
   userId: string;
   seededAccountId: string;
   lastVersion: number;
@@ -51,16 +50,15 @@ export function getSyncState(): SyncState {
   const saved = getAppDatabase().getSetting<Partial<SyncState> & Record<string, unknown>>(SYNC_SETTING_KEY)?.value ?? {};
   const account = getAccountSession();
   const userId = account.loggedIn ? account.user.id : "";
-  const seededAccountId = saved.seededAccountId ?? legacyString(saved, ["seeded", "UserId"]) ?? "";
+  const seededAccountId = saved.seededAccountId ?? "";
   const sameAccount = Boolean(userId && seededAccountId === userId);
   return {
     ...emptyState(),
     ...saved,
     token: account.loggedIn ? account.token : "",
-    deviceId: userId,
     userId,
     seededAccountId,
-    lastVersion: sameAccount ? (saved.lastVersion ?? legacyNumber(saved, ["last", "ServerVersion"]) ?? 0) : 0,
+    lastVersion: sameAccount ? (saved.lastVersion ?? 0) : 0,
     lastSyncAt: sameAccount ? saved.lastSyncAt ?? "" : "",
     lastError: sameAccount ? saved.lastError ?? "" : "",
   };
@@ -81,6 +79,7 @@ async function runSyncNow(): Promise<SyncState> {
     let state = getSyncState();
     if (!state.token) return state;
     if (state.userId && state.seededAccountId !== state.userId) {
+      getAppDatabase().clearSyncOutbox();
       seedInitialOutbox();
       saveSyncState({ ...state, seededAccountId: state.userId, lastVersion: 0, lastSyncAt: "", lastError: "" });
       state = getSyncState();
@@ -138,6 +137,12 @@ async function runSyncNow(): Promise<SyncState> {
 }
 
 export async function clearSyncState() {
+  clearPendingSyncTimer();
+  syncQueued = false;
+  lastNetworkSyncAt = 0;
+  lastNetworkSyncToken = "";
+  lastNetworkSyncVersion = 0;
+  getAppDatabase().clearSyncOutbox();
   getAppDatabase().deleteSetting(SYNC_SETTING_KEY);
   emitSyncChanged();
   return getSyncState();
@@ -299,16 +304,6 @@ function recordNetworkSync(token: string, version: number) {
   lastNetworkSyncVersion = version;
 }
 
-function legacyString(saved: Record<string, unknown>, parts: string[]) {
-  const value = saved[parts.join("")];
-  return typeof value === "string" ? value : undefined;
-}
-
-function legacyNumber(saved: Record<string, unknown>, parts: string[]) {
-  const value = saved[parts.join("")];
-  return typeof value === "number" ? value : undefined;
-}
-
 function saveSyncState(state: SyncState) {
   getAppDatabase().setSetting(
     SYNC_SETTING_KEY,
@@ -325,7 +320,6 @@ function saveSyncState(state: SyncState) {
 function emptyState(): SyncState {
   return {
     token: "",
-    deviceId: "",
     userId: "",
     seededAccountId: "",
     lastVersion: 0,
