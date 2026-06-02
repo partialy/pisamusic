@@ -23,12 +23,12 @@
       height: 100dvh;
       overflow: hidden;
       overflow-x: hidden;
-      padding-top: calc(var(--native-status-bar-height) + 6px) !important;
+      padding-top: var(--native-status-bar-height) !important;
       padding-bottom: calc(var(--native-navigation-bar-height) + 10px) !important;
     }
 
     .assist-shell {
-      height: calc(100dvh - var(--native-status-bar-height) - var(--native-navigation-bar-height) - 16px);
+      height: calc(100dvh - var(--native-status-bar-height) - var(--native-navigation-bar-height) - 10px);
       min-height: 0;
       overflow-y: auto;
       scrollbar-width: none;
@@ -161,7 +161,7 @@
     <div class="text-sm font-medium text-slate-400">PisaMusic</div>
   </header>
 
-  <section class="flex-1 flex flex-col justify-center py-4">
+  <section class="flex-1 flex flex-col pt-6 pb-4">
     <div class="card p-5">
       <div class="flex items-center gap-4">
         <div class="icon-badge">

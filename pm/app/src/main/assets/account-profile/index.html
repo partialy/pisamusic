@@ -45,7 +45,7 @@
     body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
     button, input { font: inherit; }
 
-    .page { min-height: 100vh; padding: calc(var(--native-status-bar-height) + 8px) 20px calc(32px + var(--native-navigation-bar-height)); display: flex; flex-direction: column; }
+    .page { min-height: 100vh; padding: var(--native-status-bar-height) 20px calc(32px + var(--native-navigation-bar-height)); display: flex; flex-direction: column; }
     .profile-header { height: 52px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 4px; margin-bottom: 20px; }
     .header-back { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--text); display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.05); }
     .header-back:active { transform: scale(0.94); }

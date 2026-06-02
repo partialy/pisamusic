@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -75,6 +76,7 @@ class AccountProfileActivity : BaseActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView(webView: WebView) {
+        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -101,9 +103,41 @@ class AccountProfileActivity : BaseActivity() {
     }
 
     private fun applyInsetCssVariables(webView: WebView) {
+        val statusBarHeight = statusBarInsets.top
+        val navigationBarHeight = navigationBarInsets.bottom
+        Log.d(
+            LOG_TAG,
+            "${javaClass.simpleName} --native-status-bar-height=${statusBarHeight}px, " +
+                "--native-navigation-bar-height=${navigationBarHeight}px",
+        )
         val js = """
-            document.documentElement.style.setProperty('--native-status-bar-height', '${statusBarInsets.top}px');
-            document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarInsets.bottom}px');
+            document.documentElement.style.setProperty('--native-status-bar-height', '${statusBarHeight}px');
+            document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarHeight}px');
+            console.log('[AccountInsets] ${javaClass.simpleName} --native-status-bar-height=${statusBarHeight}px, --native-navigation-bar-height=${navigationBarHeight}px');
+            (function() {
+                const rect = (selector) => {
+                    const node = document.querySelector(selector);
+                    if (!node) return null;
+                    const value = node.getBoundingClientRect();
+                    return {
+                        top: Math.round(value.top),
+                        bottom: Math.round(value.bottom),
+                        height: Math.round(value.height)
+                    };
+                };
+                const styles = getComputedStyle(document.body);
+                console.log('[AccountLayout] ${javaClass.simpleName} ' + JSON.stringify({
+                    innerHeight: window.innerHeight,
+                    statusCss: getComputedStyle(document.documentElement).getPropertyValue('--native-status-bar-height').trim(),
+                    navigationCss: getComputedStyle(document.documentElement).getPropertyValue('--native-navigation-bar-height').trim(),
+                    bodyPaddingTop: styles.paddingTop,
+                    bodyPaddingBottom: styles.paddingBottom,
+                    main: rect('main'),
+                    header: rect('header'),
+                    section: rect('section'),
+                    form: rect('form')
+                }));
+            })();
         """.trimIndent()
         webView.evaluateJavascript(js, null)
     }
@@ -266,6 +300,7 @@ class AccountProfileActivity : BaseActivity() {
     }
 
     companion object {
+        private const val LOG_TAG = "AccountInsets"
         private const val PROFILE_WEB_URL = "file:///android_asset/account-profile/index.html"
         private const val JS_INTERFACE_NAME = "AndroidAccountProfile"
 
