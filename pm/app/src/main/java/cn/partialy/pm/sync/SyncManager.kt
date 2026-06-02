@@ -44,7 +44,7 @@ class SyncManager @Inject constructor(
                 pulled.changes.forEach { change -> applyRemoteChange(change) }
                 var version = pulled.version
 
-                val pending = outbox.listPending()
+                val pending = outbox.listPending(before.userId)
                 if (pending.isNotEmpty()) {
                     val changes = pending.map { op ->
                         op.toChangeInput(SyncPayloads.parseJsonObject(op.payloadJson))
@@ -65,11 +65,17 @@ class SyncManager @Inject constructor(
     private fun prepareAccountState(): SyncPrefs.State? {
         val state = SyncPrefs.getState(context)
         if (!state.loggedIn) return null
+        outbox.clearForAccountBoundary(state.userId)
         if (state.needsAccountSeed) {
             SyncPrefs.resetForAccount(context, state.userId)
             seedInitialOutbox()
         }
         return SyncPrefs.getState(context)
+    }
+
+    fun clearLocalSyncState() {
+        outbox.clearAll()
+        SyncPrefs.clearAccountState(context)
     }
 
     private fun seedInitialOutbox() {

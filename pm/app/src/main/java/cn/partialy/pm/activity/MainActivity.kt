@@ -52,7 +52,6 @@ import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.utils.DownloadPathManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
@@ -211,19 +210,9 @@ class MainActivity : BaseDownloadActivity() {
     private fun isLocalMode(): Boolean = !localModeReason.isNullOrBlank()
 
     private fun showLocalModeNoticeIfNeeded() {
-        val reason = localModeReason?.takeIf { it.isNotBlank() } ?: return
+        localModeReason?.takeIf { it.isNotBlank() } ?: return
         binding.root.post {
-            Snackbar.make(
-                binding.root,
-                "服务不可用，已进入本地模式。在线功能暂不可用，本地音乐可继续使用。",
-                Snackbar.LENGTH_LONG,
-            ).setAction("详情") {
-                ModernDialog.make(this) {
-                    title = "本地模式"
-                    message = reason
-                    positiveText = "知道了"
-                }.show()
-            }.show()
+            Toast.makeText(this, "当前无网络或服务不可用，已进入本地模式", Toast.LENGTH_SHORT).show()
         }
     }
 

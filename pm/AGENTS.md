@@ -124,6 +124,7 @@
 - 同步接口通过外层服务端 `/api/sync/*` 拉取/推送增量，使用账号 `Authorization: Bearer <userToken>` 鉴权；旧同步码创建、加入、重置和解绑设备流程已移除。
 - `SyncManager` 是手机端账号同步编排入口，负责登录后 seed 本地 outbox、拉取/推送增量和应用远端 tombstone；未登录时只记录本地 outbox，不主动推送；同步游标按账号隔离，账号切换时必须重置游标并重新 seed 本地 outbox。
 - `sync_outbox` 表保存本地待推送 op，收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更必须写入 outbox；已登录账号时由 `SyncWorkRunner` 触发后台增量同步。
+- `sync_outbox` 按账号 `account_id` 隔离读取和推送；账号切换、退出登录或 refresh 失效时必须清理旧账号/未归属 outbox，避免把上一账号待同步操作推给新账号。
 - 同步 payload 只允许使用 `CanonicalSong` / `CanonicalPlaylist` 字段；不要同步 `source=local` 歌曲，不要同步播放 URL、filePath、歌词正文、内嵌封面。本地文件封面在自建歌单同步时置空，另一端应显示默认封面。
 
 ## 同步设置页补充

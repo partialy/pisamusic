@@ -23,6 +23,9 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         if (oldVersion < 4) {
             createSyncTables(db)
         }
+        if (oldVersion < 5) {
+            ensureSyncOutboxAccountColumn(db)
+        }
     }
 
     private fun createLocalPlaylistTables(db: SQLiteDatabase) {
@@ -123,17 +126,24 @@ internal class LocalMusicDbOpenHelper(context: Context) :
                 item_type TEXT NOT NULL,
                 item_key TEXT NOT NULL,
                 action TEXT NOT NULL,
+                account_id TEXT NOT NULL DEFAULT '',
                 payload_json TEXT NOT NULL DEFAULT '{}',
                 created_at INTEGER NOT NULL
             )
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_sync_outbox_created ON sync_outbox(created_at, id)")
+        addColumnIfMissing(db, "sync_outbox", "account_id", "TEXT NOT NULL DEFAULT ''")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_sync_outbox_account_created ON sync_outbox(account_id, created_at, id)")
     }
 
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 4
+        private const val DB_VERSION = 5
+    }
+
+    private fun ensureSyncOutboxAccountColumn(db: SQLiteDatabase) {
+        createSyncTables(db)
     }
 
     private fun ensureCanonicalColumns(db: SQLiteDatabase) {
