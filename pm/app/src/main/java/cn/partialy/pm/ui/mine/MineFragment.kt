@@ -202,10 +202,11 @@ class MineFragment : Fragment() {
 
     private fun openAccountEntry() {
         val session = AccountSessionStore.read(requireContext())
+        val hostActivity = requireActivity()
         if (session.loggedIn) {
-            AccountProfileActivity.start(requireContext())
+            AccountProfileActivity.start(hostActivity)
         } else {
-            LoginActivity.start(requireContext())
+            LoginActivity.start(hostActivity)
         }
     }
 
