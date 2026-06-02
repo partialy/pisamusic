@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -22,7 +21,7 @@ import cn.partialy.pm.databinding.ActivityAccountProfileBinding
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
-import cn.partialy.pm.sync.SyncPrefs
+import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +40,9 @@ class AccountProfileActivity : BaseActivity() {
 
     @Inject
     lateinit var configManager: ConfigManager
+
+    @Inject
+    lateinit var syncManager: SyncManager
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,7 +78,6 @@ class AccountProfileActivity : BaseActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView(webView: WebView) {
-        WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -86,7 +87,7 @@ class AccountProfileActivity : BaseActivity() {
         webView.overScrollMode = View.OVER_SCROLL_NEVER
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String?) {
-                applyInsetCssVariables(view)
+                applySystemBarStyles(view)
             }
         }
         webView.webChromeClient = WebChromeClient()
@@ -96,50 +97,33 @@ class AccountProfileActivity : BaseActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
             statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
             navigationBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
-            applyInsetCssVariables(webView)
+            applySystemBarStyles(webView)
             insets
         }
         webView.post { ViewCompat.requestApplyInsets(webView) }
     }
 
-    private fun applyInsetCssVariables(webView: WebView) {
-        val statusBarHeight = statusBarInsets.top
-        val navigationBarHeight = navigationBarInsets.bottom
-        Log.d(
-            LOG_TAG,
-            "${javaClass.simpleName} --native-status-bar-height=${statusBarHeight}px, " +
-                "--native-navigation-bar-height=${navigationBarHeight}px",
-        )
+    private fun applySystemBarStyles(webView: WebView) {
+        val density = resources.displayMetrics.density
+        val statusBarPhysicalPx = statusBarHeightPhysicalPx(this).takeIf { it > 0 } ?: statusBarInsets.top
+        val statusBarCssPx = if (statusBarPhysicalPx > 0) (statusBarPhysicalPx / density + 0.5f).toInt() else 24
+        val navigationBarPhysicalPx = navigationBarInsets.bottom
+        val navigationBarCssPx = if (navigationBarPhysicalPx > 0) (navigationBarPhysicalPx / density + 0.5f).toInt() else 0
         val js = """
-            document.documentElement.style.setProperty('--native-status-bar-height', '${statusBarHeight}px');
-            document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarHeight}px');
-            console.log('[AccountInsets] ${javaClass.simpleName} --native-status-bar-height=${statusBarHeight}px, --native-navigation-bar-height=${navigationBarHeight}px');
             (function() {
-                const rect = (selector) => {
-                    const node = document.querySelector(selector);
-                    if (!node) return null;
-                    const value = node.getBoundingClientRect();
-                    return {
-                        top: Math.round(value.top),
-                        bottom: Math.round(value.bottom),
-                        height: Math.round(value.height)
-                    };
-                };
-                const styles = getComputedStyle(document.body);
-                console.log('[AccountLayout] ${javaClass.simpleName} ' + JSON.stringify({
-                    innerHeight: window.innerHeight,
-                    statusCss: getComputedStyle(document.documentElement).getPropertyValue('--native-status-bar-height').trim(),
-                    navigationCss: getComputedStyle(document.documentElement).getPropertyValue('--native-navigation-bar-height').trim(),
-                    bodyPaddingTop: styles.paddingTop,
-                    bodyPaddingBottom: styles.paddingBottom,
-                    main: rect('main'),
-                    header: rect('header'),
-                    section: rect('section'),
-                    form: rect('form')
-                }));
+                var statusBar = document.getElementById('android-status-bar');
+                if (statusBar) {
+                    statusBar.style.setProperty('height', '${statusBarCssPx}px', 'important');
+                }
             })();
+            document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarCssPx}px');
         """.trimIndent()
         webView.evaluateJavascript(js, null)
+    }
+
+    private fun statusBarHeightPhysicalPx(context: Context): Int {
+        val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
     }
 
     private fun sendSuccess(message: String) {
@@ -155,6 +139,15 @@ class AccountProfileActivity : BaseActivity() {
         binding.accountProfileWebView.post {
             binding.accountProfileWebView.evaluateJavascript(
                 "window.profilePage && window.profilePage.error(${JSONObject.quote(message)})",
+                null,
+            )
+        }
+    }
+
+    private fun sendEmailCodeSent() {
+        binding.accountProfileWebView.post {
+            binding.accountProfileWebView.evaluateJavascript(
+                "window.profilePage && window.profilePage.emailCodeSent()",
                 null,
             )
         }
@@ -232,9 +225,13 @@ class AccountProfileActivity : BaseActivity() {
         fun logout() {
             val activity = ref.get() ?: return
             activity.runOnUiThread {
-                SyncPrefs.clearAccountState(activity)
-                AccountSessionStore.clear(activity)
-                activity.finish()
+                activity.lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        activity.syncManager.clearLocalSyncState()
+                        AccountSessionStore.clear(activity)
+                    }
+                    activity.finish()
+                }
             }
         }
 
@@ -259,6 +256,7 @@ class AccountProfileActivity : BaseActivity() {
                         activity.configManager.sendAccountProfileEmailCode(session.token, email)
                     }
                 }.onSuccess {
+                    activity.sendEmailCodeSent()
                     activity.sendSuccess("验证码已发送")
                 }.onFailure {
                     activity.sendError(it.message ?: "验证码发送失败")
@@ -300,7 +298,6 @@ class AccountProfileActivity : BaseActivity() {
     }
 
     companion object {
-        private const val LOG_TAG = "AccountInsets"
         private const val PROFILE_WEB_URL = "file:///android_asset/account-profile/index.html"
         private const val JS_INTERFACE_NAME = "AndroidAccountProfile"
 

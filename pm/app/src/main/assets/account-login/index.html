@@ -10,7 +10,6 @@
   <script defer src="file:///android_asset/shared/message.global.js"></script>
   <style>
     :root {
-      --native-status-bar-height: 0px;
       --native-navigation-bar-height: 0px;
     }
 
@@ -21,21 +20,45 @@
 
     body {
       height: 100dvh;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
       overflow-x: hidden;
-      padding-top: var(--native-status-bar-height) !important;
-      padding-bottom: calc(var(--native-navigation-bar-height) + 10px) !important;
     }
 
-    .login-shell {
-      height: calc(100dvh - var(--native-status-bar-height) - var(--native-navigation-bar-height) - 10px);
+    #android-status-bar {
+      height: 0;
+      flex: 0 0 auto;
+      background: transparent;
+    }
+
+    .account-header {
+      height: 56px;
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: transparent;
+    }
+
+    .account-content {
+      flex: 1;
       min-height: 0;
       overflow-y: auto;
       scrollbar-width: none;
+      display: flex;
+      padding: 8px 24px calc(16px + var(--native-navigation-bar-height));
     }
 
-    .login-shell::-webkit-scrollbar {
+    .account-content::-webkit-scrollbar {
       display: none;
+    }
+
+    .login-panel {
+      width: 100%;
+      max-width: 520px;
+      margin: auto;
     }
 
     .back-button {
@@ -203,17 +226,18 @@
   </style>
 </head>
 <body class="bg-gradient-to-b from-sky-50 via-white to-white dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 text-slate-900 dark:text-white">
-<main class="login-shell flex flex-col px-6">
-  <header class="flex items-center justify-between">
-    <button class="back-button" type="button" aria-label="返回" onclick="host.close()">
-      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M15 18l-6-6 6-6" />
-      </svg>
-    </button>
-    <div class="text-sm font-medium text-slate-400">PisaMusic</div>
-  </header>
+<div id="android-status-bar"></div>
+<header class="account-header">
+  <button class="back-button" type="button" aria-label="返回" onclick="host.close()">
+    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  </button>
+  <div class="text-sm font-medium text-slate-400">PisaMusic</div>
+</header>
 
-  <section class="flex-1 flex flex-col pt-6 pb-4">
+<main class="account-content">
+  <section class="login-panel">
     <div class="brand-row">
       <div class="app-logo">
         <svg class="w-9 h-9 rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -300,9 +324,11 @@
       return;
     }
 
-    const btn = $('sendCodeBtn');
     host.sendEmailCode(JSON.stringify({ email: data.email, purpose: 'login' }));
+  }
 
+  function startCooldown() {
+    const btn = $('sendCodeBtn');
     let timeLeft = 60;
     btn.disabled = true;
     btn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -377,6 +403,9 @@
     error(text) {
       setSubmitLoading(false);
       showMessage(text || '操作失败', 'error');
+    },
+    emailCodeSent() {
+      startCooldown();
     },
     loggedIn() {
       setSubmitLoading(false);
