@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## 服务端地址规则补充
+
+- 桌面端 main 进程统一通过 `electron/system/systemClient.ts` 的 `getSystemBaseUrl()` 访问外层服务端；开发环境默认 `http://127.0.0.1:53380`，正式打包环境默认 `http://pm-server.hs.partialy.cn/`。
+- 如需临时覆盖服务端地址，仍然优先使用进程环境变量 `PISA_SERVER_URL` 或 `PM_SERVER_URL`；renderer 不要直接持有或拼接服务端 baseURL。
+
 ## 本地与下载补充
 
 - 本地/下载歌曲封面展示优先通过 `library:local:cover` 在 main 侧读取音频元数据图片并缓存；renderer 不直接读磁盘，元数据无封面时才使用默认封面。

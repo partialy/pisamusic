@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import { createRouter, createWebHashHistory, createWebHistory, type RouteRecordRaw } from "vue-router";
 import MainLayout from "../layout/MainLayout.vue";
 import { NotFound } from "../components";
 
@@ -123,7 +123,7 @@ const routes: Array<RouteRecordRaw> = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: import.meta.env.DEV ? createWebHistory() : createWebHashHistory(),
   routes,
 });
 

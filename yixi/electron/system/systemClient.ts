@@ -17,7 +17,8 @@ import type {
   StartupServiceState,
 } from "./types";
 
-const DEFAULT_SERVER_URL = "http://127.0.0.1:53380";
+const DEV_SERVER_URL = "http://127.0.0.1:53380";
+const PRODUCTION_SERVER_URL = "http://pm-server.hs.partialy.cn/";
 const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
   secret: "partialypartialypartialypartialy",
   as: "yixivip",
@@ -48,7 +49,8 @@ class DesktopDeviceLockedError extends Error {
 }
 
 export function getSystemBaseUrl() {
-  return normalizeBaseUrl(process.env.PISA_SERVER_URL || process.env.PM_SERVER_URL || DEFAULT_SERVER_URL);
+  const defaultServerUrl = app.isPackaged ? PRODUCTION_SERVER_URL : DEV_SERVER_URL;
+  return normalizeBaseUrl(process.env.PISA_SERVER_URL || process.env.PM_SERVER_URL || defaultServerUrl);
 }
 
 export async function refreshBootstrap() {
