@@ -10,13 +10,14 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.OnBackPressedCallback
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.activity.base.BaseActivity
-import cn.partialy.pm.databinding.ActivityLoginBinding
+import cn.partialy.pm.databinding.ActivityAccountAssistBinding
 import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
@@ -29,10 +30,12 @@ import org.json.JSONObject
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class LoginActivity : BaseActivity() {
-    private lateinit var binding: ActivityLoginBinding
+class AccountAssistActivity : BaseActivity() {
+    private lateinit var binding: ActivityAccountAssistBinding
     private var statusBarInsets: Insets = Insets.NONE
     private var navigationBarInsets: Insets = Insets.NONE
+    private val mode: String
+        get() = intent.getStringExtra(EXTRA_MODE)?.takeIf { it == MODE_RESET } ?: MODE_REGISTER
 
     @Inject
     lateinit var configManager: ConfigManager
@@ -40,8 +43,9 @@ class LoginActivity : BaseActivity() {
     @Inject
     lateinit var syncManager: SyncManager
 
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
-        binding = ActivityLoginBinding.inflate(layoutInflater)
+        binding = ActivityAccountAssistBinding.inflate(layoutInflater)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
 
@@ -53,15 +57,25 @@ class LoginActivity : BaseActivity() {
             isAppearanceLightStatusBars = !isNight
             isAppearanceLightNavigationBars = !isNight
         }
-        setupWebView(binding.accountLoginWebView)
-        applySystemBarInsets(binding.accountLoginWebView)
-        binding.accountLoginWebView.addJavascriptInterface(AccountBridge(), "AndroidAccount")
-        binding.accountLoginWebView.loadUrl(LOGIN_WEB_URL)
+
+        setupWebView(binding.accountAssistWebView)
+        applySystemBarInsets(binding.accountAssistWebView)
+        binding.accountAssistWebView.addJavascriptInterface(AccountAssistBridge(), JS_INTERFACE_NAME)
+        binding.accountAssistWebView.loadUrl(ASSIST_WEB_URL)
+
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = navigateBackOrFinish()
+            },
+        )
     }
 
     override fun onDestroy() {
-        binding.accountLoginWebView.removeJavascriptInterface("AndroidAccount")
-        binding.accountLoginWebView.destroy()
+        if (::binding.isInitialized) {
+            binding.accountAssistWebView.removeJavascriptInterface(JS_INTERFACE_NAME)
+            binding.accountAssistWebView.destroy()
+        }
         super.onDestroy()
     }
 
@@ -100,50 +114,47 @@ class LoginActivity : BaseActivity() {
         webView.evaluateJavascript(js, null)
     }
 
-    private fun jsSafe(value: String): String =
-        value.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
+    private fun navigateBackOrFinish() {
+        val webView = binding.accountAssistWebView
+        if (webView.canGoBack()) webView.goBack() else finish()
+    }
 
     private fun notifySuccess(message: String) {
-        binding.accountLoginWebView.post {
-            binding.accountLoginWebView.evaluateJavascript("window.accountPage && window.accountPage.success('${jsSafe(message)}')", null)
+        binding.accountAssistWebView.post {
+            binding.accountAssistWebView.evaluateJavascript(
+                "window.assistPage && window.assistPage.success(${JSONObject.quote(message)})",
+                null,
+            )
         }
     }
 
     private fun notifyError(message: String) {
-        binding.accountLoginWebView.post {
-            binding.accountLoginWebView.evaluateJavascript("window.accountPage && window.accountPage.error('${jsSafe(message)}')", null)
+        binding.accountAssistWebView.post {
+            binding.accountAssistWebView.evaluateJavascript(
+                "window.assistPage && window.assistPage.error(${JSONObject.quote(message)})",
+                null,
+            )
         }
     }
 
-    private fun notifyLoggedIn(result: AccountAuthResult) {
+    private fun notifyRegistered(result: AccountAuthResult) {
         AccountSessionStore.save(this, result)
         lifecycleScope.launch {
             withContext(Dispatchers.IO) { syncManager.startAccountSync() }
-            binding.accountLoginWebView.post {
-                binding.accountLoginWebView.evaluateJavascript("window.accountPage && window.accountPage.loggedIn()", null)
+            binding.accountAssistWebView.post {
+                binding.accountAssistWebView.evaluateJavascript("window.assistPage && window.assistPage.registered()", null)
             }
         }
     }
 
-    inner class AccountBridge {
+    inner class AccountAssistBridge {
         @JavascriptInterface
         fun close() {
             runOnUiThread { finish() }
         }
 
         @JavascriptInterface
-        fun openRegister() {
-            runOnUiThread {
-                AccountAssistActivity.start(this@LoginActivity, AccountAssistActivity.MODE_REGISTER)
-            }
-        }
-
-        @JavascriptInterface
-        fun openResetPassword() {
-            runOnUiThread {
-                AccountAssistActivity.start(this@LoginActivity, AccountAssistActivity.MODE_RESET)
-            }
-        }
+        fun getMode(): String = mode
 
         @JavascriptInterface
         fun sendEmailCode(raw: String) {
@@ -151,7 +162,7 @@ class LoginActivity : BaseActivity() {
                 runCatching {
                     val json = JSONObject(raw)
                     val email = json.optString("email")
-                    val purpose = json.optString("purpose")
+                    val purpose = if (mode == MODE_RESET) "reset_password" else "register"
                     withContext(Dispatchers.IO) { configManager.sendAccountEmailCode(email, purpose) }
                 }.onSuccess {
                     notifySuccess("验证码已发送")
@@ -162,44 +173,58 @@ class LoginActivity : BaseActivity() {
         }
 
         @JavascriptInterface
-        fun loginByPassword(raw: String) {
+        fun registerAccount(raw: String) {
             lifecycleScope.launch {
                 runCatching {
                     val json = JSONObject(raw)
                     withContext(Dispatchers.IO) {
-                        configManager.loginAccountByPassword(
-                            identifier = json.optString("identifier"),
+                        configManager.registerAccount(
+                            email = json.optString("email"),
+                            username = json.optString("username"),
                             password = json.optString("password"),
+                            code = json.optString("code"),
                         )
                     }
-                }.onSuccess(::notifyLoggedIn)
-                    .onFailure { notifyError(it.message ?: "登录失败") }
+                }.onSuccess(::notifyRegistered)
+                    .onFailure { notifyError(it.message ?: "注册失败") }
             }
         }
 
         @JavascriptInterface
-        fun loginByCode(raw: String) {
+        fun resetPassword(raw: String) {
             lifecycleScope.launch {
                 runCatching {
                     val json = JSONObject(raw)
                     withContext(Dispatchers.IO) {
-                        configManager.loginAccountByCode(
+                        configManager.resetAccountPassword(
                             email = json.optString("email"),
                             code = json.optString("code"),
+                            password = json.optString("password"),
                         )
                     }
-                }.onSuccess(::notifyLoggedIn)
-                    .onFailure { notifyError(it.message ?: "登录失败") }
+                }.onSuccess {
+                    binding.accountAssistWebView.post {
+                        binding.accountAssistWebView.evaluateJavascript("window.assistPage && window.assistPage.resetDone()", null)
+                    }
+                }.onFailure {
+                    notifyError(it.message ?: "密码重置失败")
+                }
             }
         }
-
     }
 
     companion object {
-        private const val LOGIN_WEB_URL = "file:///android_asset/account-login/index.html"
+        const val MODE_REGISTER = "register"
+        const val MODE_RESET = "reset"
+        private const val EXTRA_MODE = "cn.partialy.pm.extra.ACCOUNT_ASSIST_MODE"
+        private const val ASSIST_WEB_URL = "file:///android_asset/account-assist/index.html"
+        private const val JS_INTERFACE_NAME = "AndroidAccountAssist"
 
-        fun start(context: Context) {
-            context.startActivity(Intent(context, LoginActivity::class.java))
+        fun start(context: Context, mode: String) {
+            context.startActivity(
+                Intent(context, AccountAssistActivity::class.java)
+                    .putExtra(EXTRA_MODE, if (mode == MODE_RESET) MODE_RESET else MODE_REGISTER),
+            )
             AppActivityTransitions.applyForward(context)
         }
     }

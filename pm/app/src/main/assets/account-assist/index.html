@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" />
-  <title>PisaMusic Account</title>
+  <title>PisaMusic Account Assist</title>
   <script src="../shared/tailwind.js"></script>
   <script src="../shared/tailwind-base.js"></script>
   <script defer src="file:///android_asset/shared/message.global.js"></script>
@@ -27,14 +27,14 @@
       padding-bottom: calc(var(--native-navigation-bar-height) + 10px) !important;
     }
 
-    .login-shell {
+    .assist-shell {
       height: calc(100dvh - var(--native-status-bar-height) - var(--native-navigation-bar-height) - 16px);
       min-height: 0;
       overflow-y: auto;
       scrollbar-width: none;
     }
 
-    .login-shell::-webkit-scrollbar {
+    .assist-shell::-webkit-scrollbar {
       display: none;
     }
 
@@ -58,47 +58,13 @@
       transform: scale(0.92);
     }
 
-    .brand-row {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
-    }
-
-    .app-logo {
-      width: 66px;
-      height: 66px;
-      border-radius: 24px;
-      background: rgb(56 189 248);
-      color: white;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex: 0 0 auto;
-      box-shadow: 0 16px 34px rgba(14, 165, 233, .24);
-    }
-
-    .brand-copy {
-      min-width: 0;
-    }
-
-    .brand-copy h1 {
-      margin: 0;
-      font-size: 30px;
-      line-height: 1.08;
-      font-weight: 800;
-      letter-spacing: 0;
-      color: rgb(15 23 42);
-    }
-
-    .brand-copy p {
-      margin: 7px 0 0;
-      font-size: 14px;
-      line-height: 1.45;
-      color: rgb(100 116 139);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .card {
+      border: 1px solid rgba(148, 163, 184, .2);
+      background: rgba(255, 255, 255, .74);
+      border-radius: 28px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, .08);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
     }
 
     .field {
@@ -141,32 +107,16 @@
       transition: all 0.2s ease;
     }
 
-    .text-link {
-      color: rgb(14 165 233);
-      font-size: 14px;
-      font-weight: 650;
-      padding: 4px 8px;
-      border-radius: 999px;
-    }
-
-    .text-link:active {
-      background: rgba(14, 165, 233, .1);
-    }
-
-    @media (max-width: 360px) {
-      .app-logo {
-        width: 58px;
-        height: 58px;
-        border-radius: 21px;
-      }
-
-      .brand-copy h1 {
-        font-size: 26px;
-      }
-
-      .brand-copy p {
-        font-size: 13px;
-      }
+    .icon-badge {
+      width: 62px;
+      height: 62px;
+      border-radius: 22px;
+      background: rgb(56 189 248);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 16px 34px rgba(14, 165, 233, .24);
     }
 
     @media (prefers-color-scheme: dark) {
@@ -177,12 +127,10 @@
         box-shadow: 0 14px 32px rgba(0, 0, 0, .24);
       }
 
-      .brand-copy h1 {
-        color: white;
-      }
-
-      .brand-copy p {
-        color: rgb(148 163 184);
+      .card {
+        border-color: rgba(71, 85, 105, .42);
+        background: rgba(15, 23, 42, .68);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, .24);
       }
 
       .field {
@@ -203,7 +151,7 @@
   </style>
 </head>
 <body class="bg-gradient-to-b from-sky-50 via-white to-white dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 text-slate-900 dark:text-white">
-<main class="login-shell flex flex-col px-6">
+<main class="assist-shell flex flex-col px-6">
   <header class="flex items-center justify-between">
     <button class="back-button" type="button" aria-label="返回" onclick="host.close()">
       <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
@@ -214,80 +162,70 @@
   </header>
 
   <section class="flex-1 flex flex-col justify-center py-4">
-    <div class="brand-row">
-      <div class="app-logo">
-        <svg class="w-9 h-9 rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 18V5l12-2v13" />
-          <circle cx="6" cy="18" r="3" fill="currentColor" />
-          <circle cx="18" cy="16" r="3" fill="currentColor" />
-        </svg>
-      </div>
-      <div class="brand-copy">
-        <h1>登录账号</h1>
-        <p>收藏、歌单与桌面端自动同步</p>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 gap-2 mt-6 p-1.5 rounded-[22px] bg-slate-100/80 dark:bg-slate-800/70 shadow-inner">
-      <button id="tabPassword" class="primary !py-3 !shadow-none" type="button" onclick="setMode('password')">密码登录</button>
-      <button id="tabCode" class="ghost !py-3" type="button" onclick="setMode('code')">验证码登录</button>
-    </div>
-
-    <form id="form" class="mt-5 space-y-3" onsubmit="submitForm(event)">
-      <input id="identifier" class="field" autocomplete="username" placeholder="用户名或邮箱" />
-      <input id="email" class="field hidden" autocomplete="email" placeholder="邮箱" inputmode="email" />
-      <input id="password" class="field" autocomplete="current-password" placeholder="密码" type="password" />
-
-      <div id="codeRow" class="hidden grid grid-cols-[1fr_auto] gap-2">
-        <input id="code" class="field" placeholder="邮箱验证码" inputmode="numeric" />
-        <button id="sendCodeBtn" class="ghost whitespace-nowrap min-w-[90px]" type="button" onclick="sendCode()">发送</button>
+    <div class="card p-5">
+      <div class="flex items-center gap-4">
+        <div class="icon-badge">
+          <svg id="modeIcon" class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M19 8v6" />
+            <path d="M22 11h-6" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <h1 id="title" class="m-0 text-[28px] leading-tight font-extrabold tracking-normal text-slate-900 dark:text-white">注册账号</h1>
+          <p id="subtitle" class="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">创建 PisaMusic 账号</p>
+        </div>
       </div>
 
-      <button id="submitBtn" class="primary w-full mt-3" type="submit">登录</button>
-    </form>
+      <form id="form" class="mt-6 space-y-3" onsubmit="submitForm(event)">
+        <input id="email" class="field" autocomplete="email" placeholder="邮箱" inputmode="email" />
+        <input id="username" class="field" autocomplete="username" placeholder="用户名" />
+        <input id="password" class="field" autocomplete="new-password" placeholder="密码" type="password" />
 
-    <div class="mt-4 flex items-center justify-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-      <button class="text-link" type="button" onclick="host.openRegister()">注册账号</button>
-      <span class="h-3 w-px bg-slate-300 dark:bg-slate-700"></span>
-      <button class="text-link" type="button" onclick="host.openResetPassword()">找回密码</button>
+        <div class="grid grid-cols-[1fr_auto] gap-2">
+          <input id="code" class="field" placeholder="邮箱验证码" inputmode="numeric" />
+          <button id="sendCodeBtn" class="ghost whitespace-nowrap min-w-[90px]" type="button" onclick="sendCode()">发送</button>
+        </div>
+
+        <button id="submitBtn" class="primary w-full mt-3" type="submit">注册并登录</button>
+      </form>
     </div>
   </section>
 </main>
 
 <script>
-  let mode = 'password';
-  let countdownInterval = null;
-  const host = window.AndroidAccount || {
+  const host = window.AndroidAccountAssist || {
     close(){},
+    getMode(){ return 'register'; },
     sendEmailCode(){},
-    loginByPassword(){},
-    loginByCode(){},
-    openRegister(){},
-    openResetPassword(){}
+    registerAccount(){},
+    resetPassword(){}
   };
+  const mode = host.getMode && host.getMode() === 'reset' ? 'reset' : 'register';
+  let countdownInterval = null;
   const $ = (id) => document.getElementById(id);
 
-  function setMode(next) {
-    mode = next;
-    ['Password','Code'].forEach((name) => {
-      const active = name.toLowerCase() === next;
-      $('tab' + name).className = active ? 'primary !py-3 !shadow-none' : 'ghost !py-3 hover:bg-white/90 dark:hover:bg-slate-800';
-    });
-    $('identifier').classList.toggle('hidden', next !== 'password');
-    $('email').classList.toggle('hidden', next === 'password');
-    $('password').classList.toggle('hidden', next === 'code');
-    $('codeRow').classList.toggle('hidden', next === 'password');
+  function applyMode() {
+    const isReset = mode === 'reset';
+    $('title').textContent = isReset ? '找回密码' : '注册账号';
+    $('subtitle').textContent = isReset ? '验证邮箱后设置新密码' : '创建 PisaMusic 账号';
+    $('username').classList.toggle('hidden', isReset);
+    $('password').placeholder = isReset ? '新密码' : '密码';
     $('submitBtn').textContent = submitText();
+    if (isReset) {
+      $('modeIcon').innerHTML = '<path d="M2 12a10 10 0 1 0 4-8" /><path d="M2 4v6h6" /><path d="M12 8v5l3 2" />';
+    }
   }
 
   function submitText() {
-    return '登录';
+    return mode === 'reset' ? '重置密码' : '注册并登录';
   }
 
   function payload() {
     return {
-      identifier: $('identifier').value.trim(),
       email: $('email').value.trim(),
+      username: $('username').value.trim(),
       password: $('password').value,
       code: $('code').value.trim(),
     };
@@ -301,7 +239,7 @@
     }
 
     const btn = $('sendCodeBtn');
-    host.sendEmailCode(JSON.stringify({ email: data.email, purpose: 'login' }));
+    host.sendEmailCode(JSON.stringify({ email: data.email }));
 
     let timeLeft = 60;
     btn.disabled = true;
@@ -327,20 +265,24 @@
     const data = payload();
     if (!validateForm(data)) return;
     setSubmitLoading(true);
-    if (mode === 'password') host.loginByPassword(JSON.stringify(data));
-    else host.loginByCode(JSON.stringify(data));
+    if (mode === 'reset') host.resetPassword(JSON.stringify(data));
+    else host.registerAccount(JSON.stringify(data));
   }
 
   function validateForm(data) {
-    if (mode === 'password' && (!data.identifier || !data.password)) {
-      showMessage('请输入账号和密码', 'warning');
-      return false;
-    }
-    if (mode === 'code' && !data.email) {
+    if (!data.email) {
       showMessage('请先输入邮箱地址', 'warning');
       return false;
     }
-    if (mode === 'code' && !data.code) {
+    if (mode === 'register' && !data.username) {
+      showMessage('请输入用户名', 'warning');
+      return false;
+    }
+    if (!data.password) {
+      showMessage(mode === 'reset' ? '请输入新密码' : '请输入密码', 'warning');
+      return false;
+    }
+    if (!data.code) {
       showMessage('请输入邮箱验证码', 'warning');
       return false;
     }
@@ -369,7 +311,7 @@
     console.log(msg);
   }
 
-  window.accountPage = {
+  window.assistPage = {
     success(text) {
       setSubmitLoading(false);
       showMessage(text || '操作成功', 'success');
@@ -378,12 +320,19 @@
       setSubmitLoading(false);
       showMessage(text || '操作失败', 'error');
     },
-    loggedIn() {
+    registered() {
       setSubmitLoading(false);
-      showMessage('登录成功', 'success');
-      host.close();
+      showMessage('注册成功', 'success');
+      setTimeout(() => host.close(), 300);
+    },
+    resetDone() {
+      setSubmitLoading(false);
+      showMessage('密码已重置，请使用新密码登录', 'success');
+      setTimeout(() => host.close(), 600);
     }
   };
+
+  applyMode();
 </script>
 </body>
 </html>

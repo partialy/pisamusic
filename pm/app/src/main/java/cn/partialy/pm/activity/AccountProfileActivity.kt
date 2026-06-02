@@ -11,9 +11,9 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
+import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.activity.base.BaseActivity
@@ -35,6 +35,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class AccountProfileActivity : BaseActivity() {
     private lateinit var binding: ActivityAccountProfileBinding
+    private var statusBarInsets: Insets = Insets.NONE
+    private var navigationBarInsets: Insets = Insets.NONE
 
     @Inject
     lateinit var configManager: ConfigManager
@@ -52,7 +54,7 @@ class AccountProfileActivity : BaseActivity() {
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
         )
-        applySystemBarPadding(binding.accountProfileWebView)
+        applySystemBarInsets(binding.accountProfileWebView)
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -80,17 +82,30 @@ class AccountProfileActivity : BaseActivity() {
             useWideViewPort = true
         }
         webView.overScrollMode = View.OVER_SCROLL_NEVER
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String?) {
+                applyInsetCssVariables(view)
+            }
+        }
         webView.webChromeClient = WebChromeClient()
     }
 
-    private fun applySystemBarPadding(webView: WebView) {
-        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.updatePadding(top = bars.top, bottom = bars.bottom)
+    private fun applySystemBarInsets(webView: WebView) {
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+            statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            navigationBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            applyInsetCssVariables(webView)
             insets
         }
         webView.post { ViewCompat.requestApplyInsets(webView) }
+    }
+
+    private fun applyInsetCssVariables(webView: WebView) {
+        val js = """
+            document.documentElement.style.setProperty('--native-status-bar-height', '${statusBarInsets.top}px');
+            document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarInsets.bottom}px');
+        """.trimIndent()
+        webView.evaluateJavascript(js, null)
     }
 
     private fun sendSuccess(message: String) {
