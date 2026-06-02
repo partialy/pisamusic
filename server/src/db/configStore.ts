@@ -16,6 +16,7 @@ export type ReleaseFileStatus = "uploaded" | "deleted";
 
 export type ReleaseFileInfo = {
   id: string;
+  fileRecordId?: string | null;
   historyId: string | null;
   platform: ReleasePlatform;
   provider: "qiniu";
@@ -35,6 +36,7 @@ export type DesktopUpdateAssetType = "latest-yml" | "installer" | "blockmap";
 
 export type DesktopUpdateAssetInfo = {
   id: string;
+  fileRecordId?: string | null;
   version: string;
   platform: "win32";
   arch: "x64";
@@ -50,6 +52,46 @@ export type DesktopUpdateAssetInfo = {
   active: boolean;
   createdAt: number;
   deletedAt: number | null;
+  releaseFile?: ReleaseFileInfo | null;
+};
+
+export type FileRecordUsageType = "release-package" | "desktop-update";
+
+export type FileRecordInfo = {
+  id: string;
+  usageType: FileRecordUsageType;
+  platform: string;
+  version: string;
+  assetType: string;
+  provider: "qiniu";
+  bucket: string;
+  objectKey: string;
+  hash: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  downloadUrl: string;
+  status: ReleaseFileStatus;
+  referencedBy: string;
+  createdAt: number;
+  deletedAt: number | null;
+};
+
+export type FileRecordListQuery = {
+  status?: ReleaseFileStatus | "all";
+  usageType?: FileRecordUsageType | "all";
+  platform?: string;
+  version?: string;
+  keyword?: string;
+  offset?: number;
+  limit?: number;
+};
+
+export type FileRecordListResult = {
+  items: FileRecordInfo[];
+  total: number;
+  offset: number;
+  limit: number;
 };
 
 export type ReleaseInfo = AppUpdate & {
@@ -389,6 +431,7 @@ function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
 
 type ReleaseFileRow = {
   id: string;
+  file_record_id: string | null;
   history_id: string | null;
   platform: ReleasePlatform;
   provider: string;
@@ -406,6 +449,7 @@ type ReleaseFileRow = {
 
 type DesktopUpdateAssetRow = {
   id: string;
+  file_record_id: string | null;
   version: string;
   platform: string;
   arch: string;
@@ -423,10 +467,31 @@ type DesktopUpdateAssetRow = {
   deleted_at: number | null;
 };
 
+type FileRecordRow = {
+  id: string;
+  usage_type: string;
+  platform: string;
+  version: string;
+  asset_type: string;
+  provider: string;
+  bucket: string;
+  object_key: string;
+  hash: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  download_url: string;
+  status: string;
+  referenced_by: string;
+  created_at: number;
+  deleted_at: number | null;
+};
+
 function mapReleaseFile(row?: ReleaseFileRow | null): ReleaseFileInfo | null {
   if (!row) return null;
   return {
     id: row.id,
+    fileRecordId: row.file_record_id,
     historyId: row.history_id,
     platform: row.platform === "desktop" ? "desktop" : "android",
     provider: "qiniu",
@@ -448,6 +513,7 @@ function mapDesktopUpdateAsset(row?: DesktopUpdateAssetRow | null): DesktopUpdat
   const fileType = row.file_type === "latest-yml" || row.file_type === "blockmap" ? row.file_type : "installer";
   return {
     id: row.id,
+    fileRecordId: row.file_record_id,
     version: row.version,
     platform: "win32",
     arch: "x64",
@@ -466,9 +532,53 @@ function mapDesktopUpdateAsset(row?: DesktopUpdateAssetRow | null): DesktopUpdat
   };
 }
 
+function mapFileRecord(row?: FileRecordRow | null): FileRecordInfo | null {
+  if (!row) return null;
+  return {
+    id: row.id,
+    usageType: row.usage_type === "desktop-update" ? "desktop-update" : "release-package",
+    platform: row.platform,
+    version: row.version,
+    assetType: row.asset_type,
+    provider: "qiniu",
+    bucket: row.bucket,
+    objectKey: row.object_key,
+    hash: row.hash,
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    fileSize: Number(row.file_size) || 0,
+    downloadUrl: row.download_url,
+    status: row.status === "deleted" ? "deleted" : "uploaded",
+    referencedBy: row.referenced_by,
+    createdAt: row.created_at,
+    deletedAt: row.deleted_at,
+  };
+}
+
 function readReleaseFileByIdWithDb(db: DatabaseSync, id: string): ReleaseFileInfo | null {
   const row = db.prepare("SELECT * FROM release_files WHERE id = ?").get(id) as ReleaseFileRow | undefined;
   return mapReleaseFile(row);
+}
+
+function readFileRecordByProviderKey(provider: "qiniu", bucket: string, objectKey: string): FileRecordInfo | null {
+  const row = getAppDb()
+    .prepare("SELECT * FROM file_records WHERE provider = ? AND bucket = ? AND object_key = ?")
+    .get(provider, bucket, objectKey) as FileRecordRow | undefined;
+  return mapFileRecord(row);
+}
+
+function readReleaseFileByObjectKey(db: DatabaseSync, provider: "qiniu", bucket: string, objectKey: string): ReleaseFileInfo | null {
+  const row = db
+    .prepare("SELECT * FROM release_files WHERE provider = ? AND bucket = ? AND object_key = ? ORDER BY created_at DESC LIMIT 1")
+    .get(provider, bucket, objectKey) as ReleaseFileRow | undefined;
+  return mapReleaseFile(row);
+}
+
+function readDesktopUpdateAssetByObjectKey(db: DatabaseSync, provider: "qiniu", bucket: string, objectKey: string): DesktopUpdateAssetInfo | null {
+  const row = db
+    .prepare("SELECT * FROM desktop_update_assets WHERE provider = ? AND bucket = ? AND object_key = ? ORDER BY created_at DESC LIMIT 1")
+    .get(provider, bucket, objectKey) as DesktopUpdateAssetRow | undefined;
+  return mapDesktopUpdateAsset(row);
 }
 
 function downloadUrlBelongsToReleaseFile(downloadUrl: string, file: ReleaseFileInfo): boolean {
@@ -886,6 +996,131 @@ export function createDesktopUpdateAsset(input: Omit<DesktopUpdateAssetInfo, "st
   return saved;
 }
 
+export function createFileRecord(input: Omit<FileRecordInfo, "status" | "createdAt" | "deletedAt">): FileRecordInfo {
+  const db = getAppDb();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO file_records (
+      id, usage_type, platform, version, asset_type, provider, bucket, object_key,
+      hash, file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', ?, ?, NULL)
+    ON CONFLICT(provider, bucket, object_key) DO UPDATE SET
+      usage_type = excluded.usage_type,
+      platform = excluded.platform,
+      version = excluded.version,
+      asset_type = excluded.asset_type,
+      hash = excluded.hash,
+      file_name = excluded.file_name,
+      mime_type = excluded.mime_type,
+      file_size = excluded.file_size,
+      download_url = excluded.download_url,
+      status = 'uploaded',
+      referenced_by = excluded.referenced_by,
+      deleted_at = NULL`,
+  ).run(
+    input.id,
+    input.usageType,
+    input.platform,
+    input.version,
+    input.assetType,
+    input.provider,
+    input.bucket,
+    input.objectKey,
+    input.hash,
+    input.fileName,
+    input.mimeType,
+    input.fileSize,
+    input.downloadUrl,
+    input.referencedBy,
+    now,
+  );
+  const saved = readFileRecordByProviderKey(input.provider, input.bucket, input.objectKey);
+  if (!saved) throw new Error("文件记录保存失败");
+  return saved;
+}
+
+export function createOrUpdateReleaseFile(
+  input: Omit<ReleaseFileInfo, "historyId" | "status" | "createdAt" | "deletedAt">,
+): ReleaseFileInfo {
+  const db = getAppDb();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO release_files (
+      id, file_record_id, history_id, platform, provider, bucket, object_key, hash, file_name,
+      mime_type, file_size, download_url, status, created_at, deleted_at
+    ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', ?, NULL)
+    ON CONFLICT(provider, bucket, object_key) DO UPDATE SET
+      file_record_id = excluded.file_record_id,
+      platform = excluded.platform,
+      hash = excluded.hash,
+      file_name = excluded.file_name,
+      mime_type = excluded.mime_type,
+      file_size = excluded.file_size,
+      download_url = excluded.download_url,
+      status = 'uploaded',
+      deleted_at = NULL`,
+  ).run(
+    input.id,
+    input.fileRecordId ?? null,
+    input.platform,
+    input.provider,
+    input.bucket,
+    input.objectKey,
+    input.hash,
+    input.fileName,
+    input.mimeType,
+    input.fileSize,
+    input.downloadUrl,
+    now,
+  );
+  const saved = readReleaseFileByIdWithDb(db, input.id) ?? readReleaseFileByObjectKey(db, input.provider, input.bucket, input.objectKey);
+  if (!saved) throw new Error("安装包文件保存失败");
+  return saved;
+}
+
+export function createOrUpdateDesktopUpdateAsset(
+  input: Omit<DesktopUpdateAssetInfo, "status" | "active" | "createdAt" | "deletedAt" | "releaseFile">,
+): DesktopUpdateAssetInfo {
+  const db = getAppDb();
+  const now = Date.now();
+  db.prepare(
+    `INSERT INTO desktop_update_assets (
+      id, file_record_id, version, platform, arch, file_type, provider, bucket, object_key,
+      hash, file_name, mime_type, file_size, status, active, created_at, deleted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', 0, ?, NULL)
+    ON CONFLICT(provider, bucket, object_key) DO UPDATE SET
+      file_record_id = excluded.file_record_id,
+      version = excluded.version,
+      platform = excluded.platform,
+      arch = excluded.arch,
+      file_type = excluded.file_type,
+      hash = excluded.hash,
+      file_name = excluded.file_name,
+      mime_type = excluded.mime_type,
+      file_size = excluded.file_size,
+      status = 'uploaded',
+      deleted_at = NULL`,
+  ).run(
+    input.id,
+    input.fileRecordId ?? null,
+    input.version,
+    input.platform,
+    input.arch,
+    input.fileType,
+    input.provider,
+    input.bucket,
+    input.objectKey,
+    input.hash,
+    input.fileName,
+    input.mimeType,
+    input.fileSize,
+    now,
+  );
+  const saved = readDesktopUpdateAssetByObjectKey(db, input.provider, input.bucket, input.objectKey);
+  if (!saved) throw new Error("自动更新文件保存失败");
+  return saved;
+}
+
 export function readDesktopUpdateAssets(version: string, platform = "win32", arch = "x64"): DesktopUpdateAssetInfo[] {
   const db = getAppDb();
   const rows = db
@@ -924,6 +1159,119 @@ export function readActiveDesktopUpdateAsset(fileName: string, platform = "win32
   return mapDesktopUpdateAsset(row);
 }
 
+function readFileRecordByIdWithDb(db: DatabaseSync, id: string): FileRecordInfo | null {
+  const row = db.prepare("SELECT * FROM file_records WHERE id = ?").get(id) as FileRecordRow | undefined;
+  return mapFileRecord(row);
+}
+
+export function readFileRecordById(id: string): FileRecordInfo | null {
+  return readFileRecordByIdWithDb(getAppDb(), id);
+}
+
+export function listFileRecords(query: FileRecordListQuery = {}): FileRecordListResult {
+  const db = getAppDb();
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+  const offset = Math.max(0, Number(query.offset) || 0);
+  const where: string[] = [];
+  const params: Array<string | number> = [];
+  if (query.status && query.status !== "all") {
+    where.push("status = ?");
+    params.push(query.status);
+  }
+  if (query.usageType && query.usageType !== "all") {
+    where.push("usage_type = ?");
+    params.push(query.usageType);
+  }
+  if (query.platform?.trim()) {
+    where.push("platform LIKE ?");
+    params.push(`%${query.platform.trim()}%`);
+  }
+  if (query.version?.trim()) {
+    where.push("version = ?");
+    params.push(query.version.trim());
+  }
+  if (query.keyword?.trim()) {
+    where.push("(file_name LIKE ? OR object_key LIKE ?)");
+    const keyword = `%${query.keyword.trim()}%`;
+    params.push(keyword, keyword);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM file_records ${whereSql}`).get(...params) as { total: number };
+  const rows = db
+    .prepare(
+      `SELECT * FROM file_records ${whereSql}
+       ORDER BY created_at DESC, rowid DESC
+       LIMIT ? OFFSET ?`,
+    )
+    .all(...params, limit, offset) as FileRecordRow[];
+  return {
+    items: rows.map((row) => mapFileRecord(row)!).filter(Boolean),
+    total: Number(totalRow.total) || 0,
+    offset,
+    limit,
+  };
+}
+
+export function findFileRecordDeleteBlockers(id: string): string[] {
+  const db = getAppDb();
+  const file = readFileRecordByIdWithDb(db, id);
+  if (!file || file.status === "deleted") return [];
+  const blockers: string[] = [];
+  const current = readAppConfig();
+  const releaseRows = db
+    .prepare(
+      `SELECT * FROM release_files
+       WHERE status = 'uploaded'
+         AND (file_record_id = ? OR (provider = ? AND bucket = ? AND object_key = ?))`,
+    )
+    .all(id, file.provider, file.bucket, file.objectKey) as ReleaseFileRow[];
+  for (const row of releaseRows) {
+    const releaseFile = mapReleaseFile(row);
+    if (!releaseFile) continue;
+    const release = current.releases[releaseFile.platform];
+    if (downloadUrlBelongsToReleaseFile(release.downloadUrl, releaseFile)) {
+      blockers.push(`当前${releaseFile.platform === "desktop" ? "PC" : "Android"}发布版本`);
+    }
+  }
+  const activeAssets = db
+    .prepare(
+      `SELECT * FROM desktop_update_assets
+       WHERE status = 'uploaded'
+         AND active = 1
+         AND (file_record_id = ? OR (provider = ? AND bucket = ? AND object_key = ?))`,
+    )
+    .all(id, file.provider, file.bucket, file.objectKey) as DesktopUpdateAssetRow[];
+  for (const asset of activeAssets) {
+    blockers.push(`当前 PC 自动更新 ${asset.version} ${asset.file_name}`);
+  }
+  return Array.from(new Set(blockers));
+}
+
+export function markFileRecordDeleted(id: string): FileRecordInfo {
+  const db = getAppDb();
+  return runInTransaction(db, () => {
+    const file = readFileRecordByIdWithDb(db, id);
+    if (!file) throw new Error("文件记录不存在");
+    const blockers = findFileRecordDeleteBlockers(id);
+    if (blockers.length) throw new Error(`文件正在被引用，不能删除：${blockers.join("、")}`);
+    const now = Date.now();
+    db.prepare("UPDATE file_records SET status = 'deleted', deleted_at = ? WHERE id = ?").run(now, id);
+    db.prepare(
+      `UPDATE release_files
+       SET status = 'deleted', deleted_at = ?
+       WHERE file_record_id = ? OR (provider = ? AND bucket = ? AND object_key = ?)`,
+    ).run(now, id, file.provider, file.bucket, file.objectKey);
+    db.prepare(
+      `UPDATE desktop_update_assets
+       SET status = 'deleted', active = 0, deleted_at = ?
+       WHERE file_record_id = ? OR (provider = ? AND bucket = ? AND object_key = ?)`,
+    ).run(now, id, file.provider, file.bucket, file.objectKey);
+    const deleted = readFileRecordByIdWithDb(db, id);
+    if (!deleted) throw new Error("文件状态更新失败");
+    return deleted;
+  });
+}
+
 export function readReleaseFileForHistory(historyId: string): ReleaseFileInfo | null {
   const db = getAppDb();
   const row = db
@@ -946,6 +1294,9 @@ export function markReleaseFileDeletedForHistory(historyId: string): ReleaseFile
 
     const now = Date.now();
     db.prepare("UPDATE release_files SET status = 'deleted', deleted_at = ? WHERE id = ?").run(now, file.id);
+    if (file.fileRecordId) {
+      db.prepare("UPDATE file_records SET status = 'deleted', deleted_at = ? WHERE id = ?").run(now, file.fileRecordId);
+    }
 
     const current = readAppConfig();
     const release = current.releases[file.platform];
@@ -1011,6 +1362,9 @@ export function publishUpdate(
     insertUpdateHistory(db, item);
     if (releaseFile) {
       db.prepare("UPDATE release_files SET history_id = ? WHERE id = ?").run(historyId, releaseFile.id);
+      if (releaseFile.fileRecordId) {
+        db.prepare("UPDATE file_records SET referenced_by = ? WHERE id = ?").run(historyId, releaseFile.fileRecordId);
+      }
     }
   });
   return item;
@@ -1042,7 +1396,7 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
       `SELECT
         h.id, h.platform, h.version, h.update_time, h.force_update, h.download_url,
         h.official_url, h.update_content, h.release_file_id,
-        f.id AS file_id, f.history_id AS file_history_id, f.platform AS file_platform,
+        f.id AS file_id, f.file_record_id AS file_record_id, f.history_id AS file_history_id, f.platform AS file_platform,
         f.provider, f.bucket, f.object_key, f.hash, f.file_name, f.mime_type,
         f.file_size, f.download_url AS file_download_url, f.status, f.created_at,
         f.deleted_at
@@ -1061,6 +1415,7 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
       update_content: string;
       release_file_id: string | null;
       file_id: string | null;
+      file_record_id: string | null;
       file_history_id: string | null;
       file_platform: ReleasePlatform | null;
       provider: string | null;
@@ -1079,6 +1434,7 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
     const releaseFile = row.file_id
       ? mapReleaseFile({
           id: row.file_id,
+          file_record_id: row.file_record_id,
           history_id: row.file_history_id,
           platform: row.file_platform === "desktop" ? "desktop" : "android",
           provider: row.provider ?? "qiniu",

@@ -19,14 +19,21 @@ import {
   type TextContentConfig,
   activateDesktopUpdateVersion,
   createDesktopUpdateAsset,
+  createFileRecord,
+  createOrUpdateDesktopUpdateAsset,
+  createOrUpdateReleaseFile,
   createReleaseFile,
   deleteAnnouncement,
+  findFileRecordDeleteBlockers,
+  listFileRecords,
   markReleaseFileDeletedForHistory,
+  markFileRecordDeleted,
   publishUpdate,
   readAdminUser,
   readAnnouncements,
   readAnyAdminUser,
   readAppConfig,
+  readFileRecordById,
   readReleaseFileForHistory,
   readUpdateHistory,
   replacePlaintextPaths,
@@ -147,6 +154,7 @@ function normalizeUploadCompletePayload(body: unknown):
         fileName: string;
         mimeType: string;
         fileSize: number;
+        version?: string;
       };
     }
   | { ok: false; msg: string } {
@@ -158,6 +166,7 @@ function normalizeUploadCompletePayload(body: unknown):
   const fileName = String(body.fileName ?? "").trim();
   const mimeType = String(body.mimeType ?? "").trim();
   const fileSize = Number(body.fileSize);
+  const version = String(body.version ?? "").trim();
   if (!bucket) return { ok: false, msg: "bucket 不能为空" };
   if (!key.startsWith(`pisamusic/releases/${platform}/`)) return { ok: false, msg: "七牛文件 key 与发布平台不匹配" };
   try {
@@ -165,7 +174,7 @@ function normalizeUploadCompletePayload(body: unknown):
   } catch (e) {
     return { ok: false, msg: e instanceof Error ? e.message : "安装包文件不合法" };
   }
-  return { ok: true, value: { platform, bucket, key, hash, fileName, mimeType, fileSize } };
+  return { ok: true, value: { platform, bucket, key, hash, fileName, mimeType, fileSize, version: version || undefined } };
 }
 
 function normalizeDesktopUpdateUploadTokenPayload(body: unknown):
@@ -682,6 +691,49 @@ adminRouter.get("/update-history", (_req, res) => {
   }
 });
 
+adminRouter.get("/files", (req, res) => {
+  try {
+    const status = String(req.query.status ?? "uploaded");
+    const usageType = String(req.query.usageType ?? "all");
+    const platform = String(req.query.platform ?? "");
+    const version = String(req.query.version ?? "");
+    const keyword = String(req.query.keyword ?? "");
+    const offset = Number(req.query.offset ?? 0);
+    const limit = Number(req.query.limit ?? 20);
+    return res.json(ok(listFileRecords({
+      status: status === "deleted" || status === "all" ? status : "uploaded",
+      usageType: usageType === "release-package" || usageType === "desktop-update" ? usageType : "all",
+      platform,
+      version,
+      keyword,
+      offset,
+      limit,
+    })));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取文件记录失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.delete("/files/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id ?? "").trim();
+    if (!id) return res.status(400).json(fail("文件 ID 不能为空", 400));
+    const file = readFileRecordById(id);
+    if (!file) return res.status(404).json(fail("文件记录不存在", 404));
+    const blockers = findFileRecordDeleteBlockers(id);
+    if (blockers.length) return res.status(409).json(fail(`文件正在被引用，不能删除：${blockers.join("、")}`, 409));
+    if (file.status !== "deleted" && file.provider === "qiniu") {
+      await deleteQiniuObject(file.bucket, file.objectKey);
+    }
+    const deleted = markFileRecordDeleted(id);
+    return res.json(ok({ file: deleted }, "文件已删除"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "删除文件失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
 adminRouter.post("/release-files/upload-token", (req, res) => {
   try {
     const payload = normalizeUploadTokenPayload(req.body);
@@ -689,6 +741,66 @@ adminRouter.post("/release-files/upload-token", (req, res) => {
     return res.json(ok(createQiniuUploadToken(payload.value), "上传凭证已生成"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "生成上传凭证失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.post("/release-files/complete", (req, res) => {
+  try {
+    const payload = normalizeUploadCompletePayload(req.body);
+    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
+    const fileId = randomUUID();
+    const downloadUrl = buildReleaseFileDownloadPath(fileId);
+    const fileRecord = createFileRecord({
+      id: randomUUID(),
+      usageType: "release-package",
+      platform: payload.value.platform,
+      version: payload.value.version ?? "",
+      assetType: "installer",
+      provider: "qiniu",
+      bucket: payload.value.bucket,
+      objectKey: payload.value.key,
+      hash: payload.value.hash,
+      fileName: payload.value.fileName,
+      mimeType: payload.value.mimeType,
+      fileSize: payload.value.fileSize,
+      downloadUrl,
+      referencedBy: "",
+    });
+    const file = createOrUpdateReleaseFile({
+      id: fileId,
+      fileRecordId: fileRecord.id,
+      platform: payload.value.platform,
+      provider: "qiniu",
+      bucket: payload.value.bucket,
+      objectKey: payload.value.key,
+      hash: payload.value.hash,
+      fileName: payload.value.fileName,
+      mimeType: payload.value.mimeType,
+      fileSize: payload.value.fileSize,
+      downloadUrl,
+    });
+    const desktopUpdateAsset =
+      payload.value.platform === "desktop" && payload.value.version && payload.value.fileName.toLowerCase().endsWith(".exe")
+        ? createOrUpdateDesktopUpdateAsset({
+            id: randomUUID(),
+            fileRecordId: fileRecord.id,
+            version: payload.value.version,
+            platform: "win32",
+            arch: "x64",
+            fileType: "installer",
+            provider: "qiniu",
+            bucket: payload.value.bucket,
+            objectKey: payload.value.key,
+            hash: payload.value.hash,
+            fileName: payload.value.fileName,
+            mimeType: payload.value.mimeType,
+            fileSize: payload.value.fileSize,
+          })
+        : undefined;
+    return res.json(ok({ ...file, desktopUpdateAsset }, "安装包已登记"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "登记安装包失败";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -724,6 +836,66 @@ adminRouter.post("/desktop-updates/upload-token", (req, res) => {
     return res.json(ok(createDesktopUpdateUploadToken(payload.value), "自动更新上传凭证已生成"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "生成自动更新上传凭证失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.post("/desktop-updates/complete", (req, res) => {
+  try {
+    const payload = normalizeDesktopUpdateCompletePayload(req.body);
+    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
+    const isInstaller = payload.value.fileType === "installer";
+    const releaseFileId = isInstaller ? randomUUID() : "";
+    const releaseDownloadUrl = releaseFileId ? buildReleaseFileDownloadPath(releaseFileId) : "";
+    const fileRecord = createFileRecord({
+      id: randomUUID(),
+      usageType: "desktop-update",
+      platform: `${payload.value.platform}/${payload.value.arch}`,
+      version: payload.value.version,
+      assetType: payload.value.fileType,
+      provider: "qiniu",
+      bucket: payload.value.bucket,
+      objectKey: payload.value.key,
+      hash: payload.value.hash,
+      fileName: payload.value.fileName,
+      mimeType: payload.value.mimeType,
+      fileSize: payload.value.fileSize,
+      downloadUrl: releaseDownloadUrl,
+      referencedBy: "",
+    });
+    const asset = createOrUpdateDesktopUpdateAsset({
+      id: randomUUID(),
+      fileRecordId: fileRecord.id,
+      version: payload.value.version,
+      platform: payload.value.platform,
+      arch: payload.value.arch,
+      fileType: payload.value.fileType,
+      provider: "qiniu",
+      bucket: payload.value.bucket,
+      objectKey: payload.value.key,
+      hash: payload.value.hash,
+      fileName: payload.value.fileName,
+      mimeType: payload.value.mimeType,
+      fileSize: payload.value.fileSize,
+    });
+    const releaseFile = isInstaller
+      ? createOrUpdateReleaseFile({
+          id: releaseFileId,
+          fileRecordId: fileRecord.id,
+          platform: "desktop",
+          provider: "qiniu",
+          bucket: payload.value.bucket,
+          objectKey: payload.value.key,
+          hash: payload.value.hash,
+          fileName: payload.value.fileName,
+          mimeType: payload.value.mimeType,
+          fileSize: payload.value.fileSize,
+          downloadUrl: releaseDownloadUrl,
+        })
+      : null;
+    return res.json(ok({ ...asset, releaseFile }, "自动更新文件已登记"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "登记自动更新文件失败";
     return res.status(500).json(fail(message, 500));
   }
 });

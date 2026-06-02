@@ -7,6 +7,7 @@ import type {
   DesktopUpdateAssetInfo,
   DynamicConfigItem,
   DynamicConfigPayload,
+  FileRecordListResponse,
   DeviceFilter,
   DeviceInfo,
   DeviceListResponse,
@@ -246,6 +247,7 @@ function uploadFileToQiniu(file: File, token: UploadTokenResponse, onProgress?: 
 async function completeReleaseUpload(
   file: File,
   platform: ReleasePlatform,
+  version: string | undefined,
   token: UploadTokenResponse,
   uploaded: QiniuUploadResponse,
 ): Promise<ReleaseFileInfo> {
@@ -259,6 +261,7 @@ async function completeReleaseUpload(
       fileName: file.name,
       mimeType: file.type,
       fileSize: Number(uploaded.fsize || file.size),
+      version,
     }),
   });
   const body = await parseJson<ReleaseFileInfo>(res);
@@ -268,10 +271,10 @@ async function completeReleaseUpload(
   return body.data;
 }
 
-export async function uploadReleasePackage(file: File, platform: ReleasePlatform, onProgress?: UploadProgressHandler): Promise<ReleaseFileInfo> {
+export async function uploadReleasePackage(file: File, platform: ReleasePlatform, version?: string, onProgress?: UploadProgressHandler): Promise<ReleaseFileInfo> {
   const token = await fetchReleaseUploadToken(file, platform);
   const uploaded = await uploadFileToQiniu(file, token, onProgress);
-  return completeReleaseUpload(file, platform, token, uploaded);
+  return completeReleaseUpload(file, platform, version, token, uploaded);
 }
 
 async function fetchDesktopUpdateUploadToken(file: File, version: string): Promise<UploadTokenResponse> {
@@ -343,6 +346,37 @@ export async function deleteReleasePackage(historyId: string): Promise<void> {
     method: "DELETE",
   });
   const body = await parseJson<{ releaseFile: ReleaseFileInfo }>(res);
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+}
+
+export async function fetchFileRecords(params: {
+  status?: "uploaded" | "deleted" | "all";
+  usageType?: "release-package" | "desktop-update" | "all";
+  platform?: string;
+  version?: string;
+  keyword?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<FileRecordListResponse> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  });
+  const res = await fetchWithAuth(`/api/admin/files?${query.toString()}`);
+  const body = await parseJson<FileRecordListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function deleteFileRecord(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/files/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  const body = await parseJson<{ file: unknown }>(res);
   if (!res.ok || !body.success) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }

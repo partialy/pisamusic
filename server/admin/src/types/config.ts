@@ -46,6 +46,7 @@ export type ReleaseConfig = Record<ReleasePlatform, ReleaseInfo>;
 
 export type ReleaseFileInfo = {
   id: string;
+  fileRecordId?: string | null;
   historyId: string | null;
   platform: ReleasePlatform;
   provider: "qiniu";
@@ -59,12 +60,14 @@ export type ReleaseFileInfo = {
   status: "uploaded" | "deleted";
   createdAt: number;
   deletedAt: number | null;
+  desktopUpdateAsset?: DesktopUpdateAssetInfo;
 };
 
 export type DesktopUpdateAssetType = "latest-yml" | "installer" | "blockmap";
 
 export type DesktopUpdateAssetInfo = {
   id: string;
+  fileRecordId?: string | null;
   version: string;
   platform: "win32";
   arch: "x64";
@@ -80,6 +83,34 @@ export type DesktopUpdateAssetInfo = {
   active: boolean;
   createdAt: number;
   deletedAt: number | null;
+  releaseFile?: ReleaseFileInfo | null;
+};
+
+export type FileRecordInfo = {
+  id: string;
+  usageType: "release-package" | "desktop-update";
+  platform: string;
+  version: string;
+  assetType: string;
+  provider: "qiniu";
+  bucket: string;
+  objectKey: string;
+  hash: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  downloadUrl: string;
+  status: "uploaded" | "deleted";
+  referencedBy: string;
+  createdAt: number;
+  deletedAt: number | null;
+};
+
+export type FileRecordListResponse = {
+  items: FileRecordInfo[];
+  total: number;
+  offset: number;
+  limit: number;
 };
 
 export type UpdateHistoryItem = {

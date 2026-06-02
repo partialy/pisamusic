@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## 后台文件管理与 PC 发布补充
+
+- 七牛上传文件统一登记到 `server` SQLite 的 `file_records` 表，后台管理接口为 `GET /api/admin/files` 和 `DELETE /api/admin/files/:id`。
+- PC 发布页的“上传安装包到七牛云”和“PC 自动更新文件 / 安装包 EXE”必须联动复用同一七牛对象；上传任意一处的 EXE 后，需要自动同步另一处的下载地址、文件大小、`releaseFileId` 或 installer 资产状态。
+- 文件管理删除只允许删除未被当前 Android / PC 发布版本、未被 active PC 自动更新引用的七牛对象；删除时调用七牛删除对象并把本地记录标记为 `deleted`，不要物理删除数据库记录。
+
 本文件用于指导 Codex / Claude Code 在 `pisamusic` 根工作区内协作。子目录如果有自己的 `AGENTS.md`，以更近的文件为准。
 
 ## 项目概览

@@ -9,6 +9,7 @@ import type {
   DeviceFilter,
   DeviceInfo,
   DynamicConfigItem,
+  FileRecordInfo,
   GatewaySignConfig,
   UpdateFormDraft,
   UpdateHistoryItem,
@@ -30,6 +31,7 @@ import {
   fetchDeviceDetail,
   fetchDevices,
   fetchEncryptionConfig,
+  fetchFileRecords,
   fetchUpdateHistory,
   activateDesktopUpdate,
   lockDesktopDevice,
@@ -43,6 +45,7 @@ import {
   uploadDesktopUpdateAsset,
   updateDynamicConfig,
   deleteReleasePackage,
+  deleteFileRecord,
 } from "./api/client";
 import { clearStoredToken, getStoredToken } from "./auth/token";
 import { defaultAppConfig } from "./data/defaultAppConfig";
@@ -57,6 +60,7 @@ import JsonExportModal from "./components/modals/JsonExportModal";
 
 const SystemTab = lazy(() => import("./components/tabs/SystemTab"));
 const UpdateTab = lazy(() => import("./components/tabs/UpdateTab"));
+const FileManagementTab = lazy(() => import("./components/tabs/FileManagementTab"));
 const ContentTab = lazy(() => import("./components/tabs/ContentTab"));
 const AnnouncementsTab = lazy(() => import("./components/tabs/AnnouncementsTab"));
 const DynamicConfigTab = lazy(() => import("./components/tabs/DynamicConfigTab"));
@@ -154,6 +158,17 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>({});
   const [deviceLoading, setDeviceLoading] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | DesktopDeviceInfo | null>(null);
+  const [files, setFiles] = useState<FileRecordInfo[]>([]);
+  const [fileTotal, setFileTotal] = useState(0);
+  const [fileOffset, setFileOffset] = useState(0);
+  const [fileLimit] = useState(20);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [fileFilters, setFileFilters] = useState<{
+    status: "uploaded" | "deleted" | "all";
+    usageType: "release-package" | "desktop-update" | "all";
+    keyword: string;
+  }>({ status: "uploaded", usageType: "all", keyword: "" });
 
   const displayHistory = useMemo(() => [...updateHistory].reverse(), [updateHistory]);
 
@@ -380,10 +395,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
     setPublishSaving(true);
     try {
-      await publishUpdate(payload);
-      if (payload.platform === "desktop" && desktopUpdateAssets["latest-yml"] && desktopUpdateAssets.installer) {
+      if (payload.platform === "desktop" && payload.available) {
         await activateDesktopUpdate(payload.latestVersion);
       }
+      await publishUpdate(payload);
       setEditingUpdateDraft(null);
       await refreshRemote();
     } catch (e) {
@@ -406,7 +421,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     setPackageUploading(true);
     setPackageUploadProgress(0);
     try {
-      const releaseFile = await uploadReleasePackage(file, editingUpdateDraft.platform, setPackageUploadProgress);
+      const releaseFile = await uploadReleasePackage(file, editingUpdateDraft.platform, editingUpdateDraft.version, setPackageUploadProgress);
       setEditingUpdateDraft((prev) =>
         prev
           ? {
@@ -418,6 +433,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             }
           : prev,
       );
+      if (releaseFile.desktopUpdateAsset) {
+        setDesktopUpdateAssets((prev) => ({ ...prev, [releaseFile.desktopUpdateAsset!.fileType]: releaseFile.desktopUpdateAsset }));
+        setDesktopUpdateProgress((prev) => ({ ...prev, [releaseFile.desktopUpdateAsset!.fileType]: 100 }));
+      }
     } catch (e) {
       setPackageUploadProgress(null);
       alert(e instanceof Error ? e.message : "上传安装包失败");
@@ -445,6 +464,19 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       });
       setDesktopUpdateAssets((prev) => ({ ...prev, [asset.fileType]: asset }));
       setDesktopUpdateProgress((prev) => ({ ...prev, [asset.fileType]: 100 }));
+      if (asset.releaseFile) {
+        setEditingUpdateDraft((prev) =>
+          prev
+            ? {
+                ...prev,
+                downloadUrl: asset.releaseFile!.downloadUrl,
+                fileSizeText: formatFileSizeText(asset.releaseFile!.fileSize),
+                available: true,
+                releaseFileId: asset.releaseFile!.id,
+              }
+            : prev,
+        );
+      }
     } catch (e) {
       setDesktopUpdateProgress((prev) => {
         const next = { ...prev };
@@ -669,6 +701,45 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleDevicePageChange = (offset: number) => {
     setDeviceOffset(Math.max(0, offset));
+  };
+
+  const loadFiles = useCallback(async () => {
+    setFileLoading(true);
+    try {
+      const result = await fetchFileRecords({
+        ...fileFilters,
+        offset: fileOffset,
+        limit: fileLimit,
+      });
+      setFiles(result.items);
+      setFileTotal(result.total);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加载文件记录失败");
+    } finally {
+      setFileLoading(false);
+    }
+  }, [fileFilters, fileOffset, fileLimit]);
+
+  useEffect(() => {
+    if (currentTab === "files") void loadFiles();
+  }, [currentTab, loadFiles]);
+
+  const handleFileFilterChange = (next: typeof fileFilters) => {
+    setFileFilters(next);
+    setFileOffset(0);
+  };
+
+  const handleDeleteFileRecord = async (file: FileRecordInfo) => {
+    if (!window.confirm(`确定要删除七牛文件 ${file.fileName} 吗？`)) return;
+    setDeletingFileId(file.id);
+    try {
+      await deleteFileRecord(file.id);
+      await Promise.all([loadFiles(), refreshRemote()]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "删除文件失败");
+    } finally {
+      setDeletingFileId(null);
+    }
   };
 
   const handleDeviceModeChange = (mode: "android" | "desktop") => {
@@ -1064,6 +1135,22 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onEdit={openEditUpdate}
                   onDeletePackage={(item) => void handleDeleteReleasePackage(item)}
                   deletingPackageHistoryId={deletingPackageHistoryId}
+                />
+              )}
+              {currentTab === "files" && (
+                <FileManagementTab
+                  files={files}
+                  total={fileTotal}
+                  offset={fileOffset}
+                  limit={fileLimit}
+                  filters={fileFilters}
+                  loading={fileLoading}
+                  deletingId={deletingFileId}
+                  themeColor={themeColor}
+                  onFilterChange={handleFileFilterChange}
+                  onPageChange={setFileOffset}
+                  onRefresh={() => void loadFiles()}
+                  onDelete={(file) => void handleDeleteFileRecord(file)}
                 />
               )}
               {currentTab === "content" && (
