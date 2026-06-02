@@ -262,13 +262,13 @@ class ConfigManager @Inject constructor(
 
     companion object {
         private val DEFAULT_ENDPOINTS = RuntimeEndpoints(
-            kgBaseUrl = "",
-            wyBaseUrl = "",
-            proxyBaseUrl = "",
-            kwBaseUrl = "",
-            kgSongUrl = "",
-            wySongUrl = "",
-            wySongUrlV1 = "",
+            kgBaseUrl = "http://127.0.0.1/",
+            wyBaseUrl = "http://127.0.0.1/",
+            proxyBaseUrl = "http://127.0.0.1/",
+            kwBaseUrl = "http://127.0.0.1/",
+            kgSongUrl = "http://127.0.0.1/",
+            wySongUrl = "http://127.0.0.1/",
+            wySongUrlV1 = "http://127.0.0.1/",
         )
         private val DEFAULT_GATEWAY_SIGN = RuntimeGatewaySign(
             secret = "partialypartialypartialypartialy",
