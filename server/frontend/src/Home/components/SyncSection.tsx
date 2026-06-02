@@ -3,37 +3,53 @@ import { syncFeatures } from "../../data/siteContent";
 
 export default function SyncSection() {
   return (
-    <section id="sync" className="bg-[#101828] py-20 text-white sm:py-28">
-      <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
-        <div className="rise-in flex flex-col lg:flex-row lg:items-end lg:justify-between">
+    <section id="sync" className="relative overflow-hidden bg-gradient-to-b from-[#fbfcff] via-white to-sky-50/20 py-24 text-slate-900 sm:py-32 border-t border-slate-100/80">
+      {/* Soft elegant background sky-glow overlay */}
+      <div className="absolute left-1/2 top-0 h-[500px] w-full max-w-7xl -translate-x-1/2 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.06)_0%,_transparent_65%)] pointer-events-none" />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
+        <div className="rise-in flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <SectionHeader
             eyebrow="云端为桥"
             title="跨端同步，云端为桥。"
-            desc="两端不直接触碰彼此的本地世界，一切同步交由云端悄然完成。手机与桌面端登录同一账号后，收藏歌曲、收藏歌单、自建歌单及其曲目由云端统一承载，经授权、增量合并与版本协调，各自的数据始终清楚。"
-            tone="dark"
+            desc="手机与桌面端的陪伴不再孤立。只需登陆您的专属账号，个人歌单与红心收藏即可在多端悄然同步、随时畅连。无论您是在行进的路上还是在沉静的书房，您的倾听世界始终温润贯通，没有边界。"
+            tone="light"
           />
-          <div className="mt-6 lg:mt-0 rise-in rounded-lg border border-sky-300/20 bg-sky-300/10 p-5 max-w-xl shrink-0">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-sky-300">同步范围</p>
-            <p className="mt-3 text-sm leading-7 text-white/72">
-              仅同步稳定的核心数据：收藏歌曲、收藏歌单、自建歌单及其曲目。播放链接、本地路径、歌词正文与本地封面，不作为跨端数据推送。
+          <div className="rise-in rounded-3xl border border-sky-100/85 bg-gradient-to-br from-sky-50/60 to-white/90 p-6 sm:p-8 max-w-xl shrink-0 shadow-xl shadow-sky-100/20 backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-600">实时无缝连接</p>
+            </div>
+            <h4 className="mt-2 text-base font-bold text-slate-800 tracking-tight">守护纯净听觉</h4>
+            <p className="mt-3 text-sm leading-8 text-slate-600 font-medium">
+              仅为您同步最核心的个人音乐数据：如收藏歌曲、自建歌单及曲目列表。至于其他临时的本地设置、播放路径与本地缓存，一概不会上传，只为守护您纯粹、省电且无比轻盈的听觉世界。
             </p>
           </div>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-3 lg:gap-5 lg:mt-12">
+        <div className="mt-12 grid gap-6 sm:grid-cols-3 lg:gap-8 lg:mt-16">
           {syncFeatures.map((item, index) => {
             const Icon = item.icon;
             return (
               <article
                 key={item.title}
-                className="rise-in rounded-lg border border-white/10 bg-white/[0.07] p-5 sm:p-6"
+                className="rise-in group relative overflow-hidden rounded-[2rem] border border-slate-150/40 bg-white p-6 shadow-[0_12px_40px_rgba(148,163,184,0.04)] hover:border-sky-200 hover:-translate-y-1.5 hover:shadow-[0_20px_50px_rgba(14,165,233,0.06)] transition-all duration-500 md:p-8"
                 style={{ transitionDelay: `${index * 70}ms` }}
               >
-                <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-lg ${item.accent}`}>
+                {/* Micro accent corner flash hover glow */}
+                <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-sky-100/20 opacity-0 group-hover:opacity-100 blur-xl transition-all duration-500" />
+
+                <div className={`mb-6 flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-500 group-hover:scale-110 ${item.accent} shadow-sm`}>
                   <Icon className="h-6 w-6" aria-hidden="true" />
                 </div>
-                <h3 className="text-xl font-black">{item.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-white/68">{item.desc}</p>
+                
+                <h3 className="text-lg font-bold text-slate-800 tracking-tight sm:text-xl group-hover:text-sky-600 transition-colors duration-300">
+                  {item.title}
+                </h3>
+                
+                <p className="mt-3.5 text-sm leading-8 text-slate-500 font-medium">
+                  {item.desc}
+                </p>
               </article>
             );
           })}

@@ -3,7 +3,7 @@ import { sharedFeatures } from "../../data/siteContent";
 
 export default function FeatureSection() {
   return (
-    <section id="features" className="bg-white py-20 sm:py-28">
+    <section id="features" className="bg-white py-20 sm:py-28 border-t border-slate-100/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
         <div className="rise-in">
           <SectionHeader
@@ -14,20 +14,29 @@ export default function FeatureSection() {
           />
         </div>
 
-        <div className="mt-10 grid gap-3 sm:mt-14 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <div className="mt-12 grid gap-5 sm:mt-16 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
           {sharedFeatures.map((item, index) => {
             const Icon = item.icon;
             return (
               <article
                 key={item.title}
-                className="rise-in group rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-200 hover:shadow-panel sm:p-6"
+                className="rise-in group relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-6 shadow-[0_10px_35px_rgba(148,163,184,0.05)] transition-all duration-500 hover:-translate-y-1.5 hover:border-sky-100 hover:shadow-[0_25px_50px_rgba(14,165,233,0.08)] sm:p-8"
                 style={{ transitionDelay: `${80 + index * 55}ms` }}
               >
-                <div className={`mb-5 flex h-11 w-11 items-center justify-center rounded-lg sm:mb-6 sm:h-12 sm:w-12 ${item.accent}`}>
+                {/* Visual Accent Corner Glow */}
+                <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-sky-100/10 opacity-0 group-hover:opacity-100 blur-xl transition-all duration-500" />
+
+                <div className={`mb-6 flex h-12 w-12 items-center justify-center rounded-2xl transition-all duration-500 group-hover:scale-110 ${item.accent} shadow-sm`}>
                   <Icon className="h-6 w-6" aria-hidden="true" />
                 </div>
-                <h3 className="text-lg font-black text-pisa-ink sm:text-xl">{item.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{item.desc}</p>
+                
+                <h3 className="text-lg font-bold text-slate-800 tracking-tight sm:text-xl group-hover:text-sky-700 transition duration-300">
+                  {item.title}
+                </h3>
+                
+                <p className="mt-3.5 text-sm leading-8 text-slate-500 font-medium">
+                  {item.desc}
+                </p>
               </article>
             );
           })}

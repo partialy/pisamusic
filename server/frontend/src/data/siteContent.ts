@@ -104,33 +104,62 @@ export const sharedFeatures: FeatureItem[] = [
 
 export const syncFeatures: FeatureItem[] = [
   {
-    title: "账号登录，云端同步",
-    desc: "手机与 PC 登录同一账号后，由云端同步收藏与歌单，无需额外绑定流程。",
+    title: "一处登录，开启音乐私域",
+    desc: "通过同一款账号连接手机与电脑，无需任何繁杂的配对步骤，让倾听的世界从此不设分界。",
     icon: ShieldCheck,
     accent: "bg-sky-100 text-sky-700",
   },
   {
-    title: "收藏与歌单，增量合并",
-    desc: "收藏歌曲、收藏歌单与自建歌单的变化按次序悄然合并，版本有序，冲突有解。",
+    title: "心动歌单，随时轻装随行",
+    desc: "您的收藏列表与自建歌单在云端静静守护，无论置身于哪台设备，您的挚爱旋律皆能如约而至。",
     icon: Heart,
     accent: "bg-rose-100 text-rose-700",
   },
   {
-    title: "跨端内容，统一口径",
-    desc: "同步只关注稳定的音乐与歌单信息，播放地址、本地文件等临时内容不会进入同步流。",
+    title: "纯净同步，只留最爱余音",
+    desc: "我们只专注于同步歌词与曲目的名字本身，绝不夹带冗余的路径与本地缓存，保证同步一气呵成。",
     icon: Cloud,
     accent: "bg-emerald-100 text-emerald-700",
   },
 ];
 
 export const desktopHighlights = [
-  { icon: Waves, text: "桌面歌词置顶透明，听歌不必总切回主界面。" },
-  { icon: FileAudio, text: "本地扫描、下载记录与已存歌曲统一收纳，长期整理，井井有条。" },
-  { icon: Disc3, text: "自建歌单与 KG / WY 歌单缓存共用桌面曲库能力，收藏不再零散。" },
-  { icon: ListMusic, text: "推荐、歌单、收藏、我的、本地与下载、设置，清晰如书架分类。" },
-  { icon: Keyboard, text: "托盘常驻，快捷键响应，适合一边工作一边听。" },
-  { icon: MonitorDown, text: "Windows 先行，macOS 与 Linux 版本已在路上。" },
-  { icon: Radio, text: "账号、云盘、公告与反馈继续沿用统一服务，一处登录，处处通行。" },
+  {
+    title: "极简悬浮歌词",
+    desc: "支持桌面置顶、虚化与透明度微调，歌词如流水般在屏幕一隅静静吟唱，无需切回主界面。",
+    icon: Waves,
+    accent: "bg-sky-50 text-sky-600 border border-sky-100/40",
+  },
+  {
+    title: "全景本地收纳",
+    desc: "一键扫描本地硬盘音频，与线上歌单和下载记录融为一体，长年累月的累积依旧井然有序。",
+    icon: FileAudio,
+    accent: "bg-emerald-50 text-emerald-600 border border-emerald-100/40",
+  },
+  {
+    title: "合流统一曲库",
+    desc: "心动红心、自制列表以及外部歌单本地缓存一网打尽，统一承载，再也不怕挚爱曲目零落失散。",
+    icon: Disc3,
+    accent: "bg-purple-50 text-purple-600 border border-purple-100/40",
+  },
+  {
+    title: "书架层级导航",
+    desc: "为你精心准备的书架式极简导航。收藏、推荐、本地与设置纵向层叠，让整理习惯如呼吸般自然。",
+    icon: ListMusic,
+    accent: "bg-rose-50 text-rose-600 border border-rose-100/40",
+  },
+  {
+    title: "托盘常驻与热键",
+    desc: "支持系统托盘常驻与系统全局快捷键。不论你在写作、编程或设计，旋律始终在指尖听令。",
+    icon: Keyboard,
+    accent: "bg-amber-50 text-amber-600 border border-amber-100/40",
+  },
+  {
+    title: "多端贯通体验",
+    desc: "倾听报告、云盘空间及新版特性公告均深度贯通。只需一次登录，即可无拘无束地在多端徜徉。",
+    icon: Radio,
+    accent: "bg-cyan-50 text-cyan-600 border border-cyan-100/40",
+  },
 ];
 
 export const sourcePills = [

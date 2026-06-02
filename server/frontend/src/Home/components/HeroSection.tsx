@@ -19,29 +19,30 @@ export default function HeroSection({ updateState }: HeroSectionProps) {
   const desktopVersion = desktop?.available ? desktop.latestVersion : "即将开放";
 
   return (
-    <section id="top" className="relative min-h-screen pt-20 sm:pt-24">
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,#f8fcff_0%,#ecf8fe_44%,#fff7ed_100%)]" aria-hidden="true" />
+    <section id="top" className="relative min-h-screen pt-20 sm:pt-24 select-none">
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,#fbfcff_0%,#f0f9ff_44%,#fffbf7_100%)]" aria-hidden="true" />
       <div
-        className="absolute inset-0 opacity-[0.2] [background-image:linear-gradient(#27B8F4_1px,transparent_1px),linear-gradient(90deg,#27B8F4_1px,transparent_1px)] [background-size:44px_44px] sm:[background-size:56px_56px]"
+        className="absolute inset-0 opacity-[0.14] [background-image:linear-gradient(#27B8F4_1px,transparent_1px),linear-gradient(90deg,#27B8F4_1px,transparent_1px)] [background-size:44px_44px] sm:[background-size:56px_56px]"
         aria-hidden="true"
       />
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 pb-20 pt-7 sm:px-8 sm:pb-24 lg:grid-cols-[0.96fr_1.04fr] lg:px-10 lg:pb-28 lg:pt-16">
         <div className="rise-in text-center lg:text-left">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-4 py-2 text-xs font-extrabold text-sky-700 shadow-sm sm:mb-8 sm:text-sm">
-            <MonitorDown className="h-4 w-4" aria-hidden="true" />
-            双端一体，各得其所
+          {/* Refined Custom Badge with animations */}
+          <div className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-sky-200/60 bg-sky-50/60 px-4 py-1.5 text-xs font-bold text-sky-600 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] sm:mb-8">
+            <MonitorDown className="h-4 w-4 text-sky-500 animate-pulse" aria-hidden="true" />
+            <span className="tracking-wider">双端一体 · 各得其所</span>
           </div>
 
-          <h1 className="mx-auto max-w-4xl font-display text-[2.7rem] font-black leading-[0.98] text-pisa-ink sm:text-6xl lg:mx-0 lg:text-7xl">
+          <h1 className="mx-auto max-w-4xl font-display text-[2.7rem] font-bold tracking-tight leading-[1.06] text-slate-900 sm:text-6xl lg:mx-0 lg:text-7xl">
             PisaMusic
-            <span className="mt-3 block text-[1.65rem] leading-tight text-slate-700 sm:text-4xl lg:text-5xl">
+            <span className="mt-3 block text-[1.65rem] font-medium leading-tight text-slate-600 tracking-tight sm:text-4xl lg:text-5xl">
               同一份热爱，不因设备而割裂。
             </span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:mt-7 sm:text-lg sm:leading-9 lg:mx-0">
-            手机是随身的唱片盒，电脑是私人的音乐书房。PisaMusic 以「Android 随身版」与「PisaMusic 桌面版」共同构成你的音乐入口，两端各自独立，又通过云端悄然相连。
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-slate-500 font-medium sm:mt-7 sm:text-lg sm:leading-9 lg:mx-0">
+            手机是随身的唱片盒，电脑是私人的音乐书房。PisaMusic 以「Android 随身版」与「PisaMusic 桌面版」共同构成你的音乐入口，两端各自独立，又通过云端跨端直达。
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:items-center lg:justify-start">
@@ -62,7 +63,7 @@ export default function HeroSection({ updateState }: HeroSectionProps) {
               <span className="relative z-10">{desktop?.available ? "下载 PisaMusic 桌面版" : "桌面版即将开放"}</span>
             </a>
           </div>
-          <div className="mt-6 flex flex-wrap justify-center gap-3 text-sm font-bold text-slate-500 lg:justify-start">
+          <div className="mt-6 flex flex-wrap justify-center gap-3 text-xs font-semibold text-slate-400 lg:justify-start">
             <span>Android：{androidVersion}</span>
             <span className="hidden text-slate-300 sm:inline">/</span>
             <span>PC：{desktopVersion}</span>
@@ -70,17 +71,21 @@ export default function HeroSection({ updateState }: HeroSectionProps) {
             <span>{updateState.error ? "下载信息暂不可用" : "双端版本信息保持同步"}</span>
           </div>
 
-          <div className="mt-10 grid max-w-2xl grid-cols-3 gap-2 sm:mt-12 sm:gap-3">
+          <div className="mt-10 grid max-w-2xl grid-cols-3 gap-3 sm:mt-12 sm:gap-4">
             {appStats.map((stat) => (
-              <div key={stat.label} className="rounded-lg border border-white bg-white/72 p-3 shadow-sm backdrop-blur sm:p-4">
-                <p className="text-sm font-black text-pisa-ink sm:text-base">{stat.value}</p>
-                <p className="mt-1 text-[11px] font-bold text-slate-500 sm:text-sm">{stat.label}</p>
+              <div 
+                key={stat.label} 
+                className="group relative overflow-hidden rounded-2xl border border-white/60 bg-white/40 p-4 shadow-[0_2px_12px_rgba(39,184,244,0.03)] backdrop-blur-md transition-all duration-300 hover:bg-white/60 hover:shadow-[0_12px_24px_rgba(39,184,244,0.08)]"
+              >
+                <div className="absolute top-0 left-0 w-1 h-0 bg-sky-400 group-hover:h-full transition-all duration-300" />
+                <p className="text-base font-bold text-slate-800 sm:text-lg">{stat.value}</p>
+                <p className="mt-1 text-[11px] font-semibold text-slate-400 uppercase tracking-widest sm:text-xs">{stat.label}</p>
               </div>
             ))}
           </div>
 
-          <a href="#products" className="mt-8 inline-flex items-center gap-2 text-sm font-black text-sky-700 transition hover:text-sky-500">
-            <Sparkles className="h-4 w-4" aria-hidden="true" />
+          <a href="#products" className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-sky-600 transition hover:text-sky-500">
+            <Sparkles className="h-4 w-4 text-sky-500 animate-pulse" aria-hidden="true" />
             了解双端体验
           </a>
         </div>
