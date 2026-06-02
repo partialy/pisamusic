@@ -179,7 +179,7 @@ class MainActivity : BaseDownloadActivity() {
 
         loveManager.preloadFromDiskAsync()
         playlistCollectionManager.preloadIndexFromDiskAsync()
-        if (!isLocalMode() && syncManager.state().bound) {
+        if (!isLocalMode() && syncManager.state().loggedIn) {
             lifecycleScope.launch {
                 syncManager.syncNow()
             }

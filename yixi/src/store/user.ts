@@ -62,7 +62,7 @@ export const useUserStore = defineStore("user", {
 
     async logout() {
       this.applySession(await window.electronAPI.logoutAccount());
-      await window.electronAPI.unbindSync();
+      await window.electronAPI.clearSyncState();
     },
   },
 });

@@ -199,7 +199,7 @@
 - 桌面端账号登录由 main 侧 `electron/system/systemClient.ts` 统一访问外层 `server/` 的 `/api/auth/*`，renderer 只能通过 preload 暴露的账号 IPC 发送验证码、注册、登录、刷新和退出；不要在页面、store 或旧 `mainAPI` 中直接持有 server baseURL、token 加密细节或 `/api/system/login/register` 旧接口。
 - 账号登录状态持久化到 main 侧 SQLite settings 的 `account-session`，启动后由 `useUserStore().init()` 通过 IPC 刷新 7 天账号 token；刷新失败必须清理账号态但不阻塞本地播放。
 - 用户资料页面固定为 `/user/profile` 和 `/user/editProfile`；资料读写走 main 侧账号 IPC，支持昵称、邮箱验证码换绑和有限头像 key。头像选项由 main 侧返回服务端 `/static/account-avatars/*` 绝对地址，renderer 不直接拼 server baseURL，也不支持自定义上传头像。
-- 桌面端同步能力由 main 侧 `electron/sync/syncService.ts` 统一编排，使用账号 token 调用服务端 `/api/sync/changes`，按账号 `user_id` 隔离数据；renderer 只能通过 preload 暴露的 `sync:state`、`sync:now`、`sync:unbind` typed IPC 查看状态、手动同步和清理本地同步状态，不再提供同步码创建、加入或重置流程。
+- 桌面端同步能力由 main 侧 `electron/sync/syncService.ts` 统一编排，使用账号 token 调用服务端 `/api/sync/changes`，按账号 `user_id` 隔离数据；renderer 只能通过 preload 暴露的 `sync:state`、`sync:now`、`sync:clear-state` typed IPC 查看状态、手动同步和清理本地同步状态，不再提供同步码创建、加入或重置流程；本地同步游标必须按账号隔离，账号切换时重新 seed 本地 outbox。
 - 同步状态保存到 SQLite settings 的 `sync-state`，本地待推送变更保存到 SQLite `sync_outbox`；收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更后需要写入 outbox 并触发后台增量同步。
 - 同步 payload 只使用 `Song` / `CommonPlaylist` canonical 字段；不推送 `source=local` 歌曲，不推送播放 URL、filePath、歌词正文、内嵌封面；自建歌单本地文件封面同步时置空。
 - 远端 tombstone 应在 main 侧应用到 SQLite 后通知 renderer 刷新 `favorites:changed` / `mine-library:changed`，不要让页面组件直接写同步状态或数据库。

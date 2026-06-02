@@ -21,6 +21,7 @@ import cn.partialy.pm.databinding.ActivityAccountProfileBinding
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -182,6 +183,7 @@ class AccountProfileActivity : BaseActivity() {
         fun logout() {
             val activity = ref.get() ?: return
             activity.runOnUiThread {
+                SyncPrefs.clearAccountState(activity)
                 AccountSessionStore.clear(activity)
                 activity.finish()
             }

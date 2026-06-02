@@ -303,7 +303,7 @@ class SettingsActivity : BaseActivity() {
                 syncSummary(syncManager.state()),
             )
             root.setOnClickListener {
-                if (syncManager.state().bound) syncNow() else LoginActivity.start(this@SettingsActivity)
+                if (syncManager.state().loggedIn) syncNow() else LoginActivity.start(this@SettingsActivity)
             }
         }
 
@@ -422,16 +422,16 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun syncSummary(state: SyncPrefs.State): String {
-        if (!state.bound) return "未开启"
+        if (!state.loggedIn) return "未登录"
         val time = if (state.lastSyncAt > 0L) {
             SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(state.lastSyncAt))
         } else {
             "未同步"
         }
         return if (state.lastError.isBlank()) {
-            "已开启 · $time"
+            if (state.lastSyncAt > 0L) "已同步 · $time" else "已登录 · $time"
         } else {
-            "异常 · ${state.lastError}"
+            "同步异常 · ${state.lastError}"
         }
     }
 

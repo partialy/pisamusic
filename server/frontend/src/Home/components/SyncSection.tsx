@@ -9,7 +9,7 @@ export default function SyncSection() {
           <SectionHeader
             eyebrow="云端为桥"
             title="跨端同步，云端为桥。"
-            desc="两端不直接触碰彼此的本地世界，一切同步交由云端悄然完成。手机与桌面端的收藏、歌单，由云端统一承载；以同步码绑定个人空间，经授权、增量合并与版本协调，各自的空间始终清楚。"
+            desc="两端不直接触碰彼此的本地世界，一切同步交由云端悄然完成。手机与桌面端登录同一账号后，收藏歌曲、收藏歌单、自建歌单及其曲目由云端统一承载，经授权、增量合并与版本协调，各自的数据始终清楚。"
             tone="dark"
           />
           <div className="mt-6 lg:mt-0 rise-in rounded-lg border border-sky-300/20 bg-sky-300/10 p-5 max-w-xl shrink-0">

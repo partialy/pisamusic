@@ -104,8 +104,8 @@ export const sharedFeatures: FeatureItem[] = [
 
 export const syncFeatures: FeatureItem[] = [
   {
-    title: "同步码，绑定一方天地",
-    desc: "手机与 PC 通过云端空间绑定，无需两端互相触碰彼此的本地世界。",
+    title: "账号登录，云端同步",
+    desc: "手机与 PC 登录同一账号后，由云端同步收藏与歌单，无需额外绑定流程。",
     icon: ShieldCheck,
     accent: "bg-sky-100 text-sky-700",
   },

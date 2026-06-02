@@ -20,6 +20,7 @@ import cn.partialy.pm.databinding.ActivitySplashBinding
 import cn.partialy.pm.model.DeviceReportResult
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.util.DeviceInfoCollector
 import cn.partialy.pm.utils.AppUpdateInstaller
 import cn.partialy.pm.utils.ServerDevicePrefs
@@ -200,6 +201,7 @@ class SplashActivity : AppCompatActivity() {
         }.onSuccess {
             AccountSessionStore.save(this, it)
         }.onFailure {
+            SyncPrefs.clearAccountState(this)
             AccountSessionStore.clear(this)
         }
     }

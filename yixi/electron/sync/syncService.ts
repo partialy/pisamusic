@@ -19,9 +19,9 @@ const DUPLICATE_PULL_GUARD_MS = 1500;
 type SyncState = {
   token: string;
   deviceId: string;
-  spaceId: string;
-  seededUserId: string;
-  lastServerVersion: number;
+  userId: string;
+  seededAccountId: string;
+  lastVersion: number;
   lastSyncAt: string;
   lastError: string;
 };
@@ -48,14 +48,21 @@ let lastNetworkSyncToken = "";
 let lastNetworkSyncVersion = 0;
 
 export function getSyncState(): SyncState {
-  const saved = getAppDatabase().getSetting<Partial<SyncState>>(SYNC_SETTING_KEY)?.value ?? {};
+  const saved = getAppDatabase().getSetting<Partial<SyncState> & Record<string, unknown>>(SYNC_SETTING_KEY)?.value ?? {};
   const account = getAccountSession();
+  const userId = account.loggedIn ? account.user.id : "";
+  const seededAccountId = saved.seededAccountId ?? legacyString(saved, ["seeded", "UserId"]) ?? "";
+  const sameAccount = Boolean(userId && seededAccountId === userId);
   return {
     ...emptyState(),
     ...saved,
     token: account.loggedIn ? account.token : "",
-    deviceId: account.loggedIn ? account.user.id : "",
-    spaceId: account.loggedIn ? account.user.id : "",
+    deviceId: userId,
+    userId,
+    seededAccountId,
+    lastVersion: sameAccount ? (saved.lastVersion ?? legacyNumber(saved, ["last", "ServerVersion"]) ?? 0) : 0,
+    lastSyncAt: sameAccount ? saved.lastSyncAt ?? "" : "",
+    lastError: sameAccount ? saved.lastError ?? "" : "",
   };
 }
 
@@ -73,13 +80,13 @@ async function runSyncNow(): Promise<SyncState> {
   try {
     let state = getSyncState();
     if (!state.token) return state;
-    if (state.spaceId && state.seededUserId !== state.spaceId) {
+    if (state.userId && state.seededAccountId !== state.userId) {
       seedInitialOutbox();
-      saveSyncState({ ...state, seededUserId: state.spaceId });
+      saveSyncState({ ...state, seededAccountId: state.userId, lastVersion: 0, lastSyncAt: "", lastError: "" });
       state = getSyncState();
     }
 
-    let nextVersion = state.lastServerVersion || 0;
+    let nextVersion = state.lastVersion || 0;
     if (shouldSkipDuplicatePull(state, nextVersion)) {
       return state;
     }
@@ -107,7 +114,7 @@ async function runSyncNow(): Promise<SyncState> {
 
       saveSyncState({
         ...state,
-        lastServerVersion: nextVersion,
+        lastVersion: nextVersion,
         lastSyncAt: new Date().toISOString(),
         lastError: "",
       });
@@ -130,7 +137,7 @@ async function runSyncNow(): Promise<SyncState> {
   }
 }
 
-export async function unbindSync() {
+export async function clearSyncState() {
   getAppDatabase().deleteSetting(SYNC_SETTING_KEY);
   emitSyncChanged();
   return getSyncState();
@@ -292,14 +299,24 @@ function recordNetworkSync(token: string, version: number) {
   lastNetworkSyncVersion = version;
 }
 
+function legacyString(saved: Record<string, unknown>, parts: string[]) {
+  const value = saved[parts.join("")];
+  return typeof value === "string" ? value : undefined;
+}
+
+function legacyNumber(saved: Record<string, unknown>, parts: string[]) {
+  const value = saved[parts.join("")];
+  return typeof value === "number" ? value : undefined;
+}
+
 function saveSyncState(state: SyncState) {
   getAppDatabase().setSetting(
     SYNC_SETTING_KEY,
     {
-      lastServerVersion: state.lastServerVersion,
+      lastVersion: state.lastVersion,
       lastSyncAt: state.lastSyncAt,
       lastError: state.lastError,
-      seededUserId: state.seededUserId,
+      seededAccountId: state.seededAccountId,
     },
     1
   );
@@ -309,9 +326,9 @@ function emptyState(): SyncState {
   return {
     token: "",
     deviceId: "",
-    spaceId: "",
-    seededUserId: "",
-    lastServerVersion: 0,
+    userId: "",
+    seededAccountId: "",
+    lastVersion: 0,
     lastSyncAt: "",
     lastError: "",
   };

@@ -579,9 +579,9 @@ type CookieFileExportResult = {
 type SyncState = {
   token: string;
   deviceId: string;
-  spaceId: string;
-  seededUserId: string;
-  lastServerVersion: number;
+  userId: string;
+  seededAccountId: string;
+  lastVersion: number;
   lastSyncAt: string;
   lastError: string;
 };
@@ -670,7 +670,7 @@ type ElectronIpcApi = {
   resetAccountPassword: (payload: AccountPasswordResetPayload) => Promise<{ updated: boolean }>;
   getSyncState: () => Promise<SyncState>;
   syncNow: () => Promise<SyncState>;
-  unbindSync: () => Promise<SyncState>;
+  clearSyncState: () => Promise<SyncState>;
   onSyncChanged: (callback: (state: SyncState) => void) => () => void;
   onMineLibraryChanged: (callback: () => void) => () => void;
   searchMusic: <T = any>(payload: MusicSearchParams) => Promise<T>;

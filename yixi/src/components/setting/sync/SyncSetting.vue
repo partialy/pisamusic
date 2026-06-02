@@ -53,9 +53,9 @@ type SyncState = Awaited<ReturnType<typeof window.electronAPI.getSyncState>>;
 const emptyState: SyncState = {
   token: "",
   deviceId: "",
-  spaceId: "",
-  seededUserId: "",
-  lastServerVersion: 0,
+  userId: "",
+  seededAccountId: "",
+  lastVersion: 0,
   lastSyncAt: "",
   lastError: "",
 };

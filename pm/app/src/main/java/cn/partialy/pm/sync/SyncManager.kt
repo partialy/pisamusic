@@ -31,16 +31,14 @@ class SyncManager @Inject constructor(
     fun state(): SyncPrefs.State = SyncPrefs.getState(context)
 
     suspend fun startAccountSync(): SyncPrefs.State = withContext(Dispatchers.IO) {
-        if (!SyncPrefs.getState(context).bound) return@withContext SyncPrefs.getState(context)
-        seedInitialOutbox()
+        prepareAccountState() ?: return@withContext SyncPrefs.getState(context)
         syncNow()
         SyncPrefs.getState(context)
     }
 
     suspend fun syncNow(): SyncPrefs.State = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val before = SyncPrefs.getState(context)
-            if (!before.bound) return@withLock before
+            val before = prepareAccountState() ?: return@withLock SyncPrefs.getState(context)
             try {
                 val pulled = configManager.getSyncChanges(before.token, deviceId(), before.lastVersion)
                 pulled.changes.forEach { change -> applyRemoteChange(change) }
@@ -56,12 +54,22 @@ class SyncManager @Inject constructor(
                     version = maxOf(version, pushed.version)
                 }
 
-                SyncPrefs.markSyncSuccess(context, version)
+                SyncPrefs.markSyncSuccess(context, before.userId, version)
             } catch (e: Exception) {
-                SyncPrefs.markSyncError(context, e.message ?: "同步失败")
+                SyncPrefs.markSyncError(context, before.userId, e.message ?: "同步失败")
             }
             SyncPrefs.getState(context)
         }
+    }
+
+    private fun prepareAccountState(): SyncPrefs.State? {
+        val state = SyncPrefs.getState(context)
+        if (!state.loggedIn) return null
+        if (state.needsAccountSeed) {
+            SyncPrefs.resetForAccount(context, state.userId)
+            seedInitialOutbox()
+        }
+        return SyncPrefs.getState(context)
     }
 
     private fun seedInitialOutbox() {

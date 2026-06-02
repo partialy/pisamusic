@@ -16,7 +16,7 @@ object SyncWorkRunner {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun request(context: Context) {
-        if (!SyncPrefs.getState(context).bound) return
+        if (!SyncPrefs.getState(context).loggedIn) return
         if (!running.compareAndSet(false, true)) return
         val appContext = context.applicationContext
         scope.launch {
