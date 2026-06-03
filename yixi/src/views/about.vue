@@ -48,16 +48,34 @@
 
     <section class="entry-list">
       <button type="button" class="entry-item" @click="openFeedback">
-        <span>意见反馈</span>
-        <small>提交问题、建议和截图</small>
+        <span class="entry-icon">
+          <n-icon :component="MessageSquareText" size="22" />
+        </span>
+        <span class="entry-content">
+          <span>意见反馈</span>
+          <small>提交问题、建议和截图</small>
+        </span>
+        <n-icon class="entry-arrow" :component="ChevronRight" size="18" />
       </button>
       <button type="button" class="entry-item" @click="openContentDialog('agreement')">
-        <span>用户协议</span>
-        <small>查看服务条款</small>
+        <span class="entry-icon">
+          <n-icon :component="FileText" size="22" />
+        </span>
+        <span class="entry-content">
+          <span>用户协议</span>
+          <small>查看服务条款</small>
+        </span>
+        <n-icon class="entry-arrow" :component="ChevronRight" size="18" />
       </button>
       <button type="button" class="entry-item" @click="openContentDialog('privacy')">
-        <span>隐私政策</span>
-        <small>查看数据与隐私说明</small>
+        <span class="entry-icon">
+          <n-icon :component="ShieldCheck" size="22" />
+        </span>
+        <span class="entry-content">
+          <span>隐私政策</span>
+          <small>查看数据与隐私说明</small>
+        </span>
+        <n-icon class="entry-arrow" :component="ChevronRight" size="18" />
       </button>
     </section>
 
@@ -78,7 +96,8 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { NButton, NSkeleton } from "naive-ui";
+import { NButton, NIcon, NSkeleton } from "naive-ui";
+import { ChevronRight, FileText, MessageSquareText, ShieldCheck } from "lucide-vue-next";
 import AboutContentDialog from "@/components/about/AboutContentDialog.vue";
 import AboutFeedbackDialog from "@/components/about/AboutFeedbackDialog.vue";
 import electronAPI from "@/utils/electron";
@@ -245,8 +264,7 @@ onBeforeUnmount(() => {
 
 .hero-panel,
 .info-card,
-.update-card,
-.entry-list {
+.update-card {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg-elevated);
@@ -387,45 +405,76 @@ h2 {
 .entry-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
+  gap: 14px;
   max-width: 860px;
   margin-top: 18px;
-  overflow: hidden;
 }
 
 .entry-item {
-  min-height: 86px;
-  border: 0;
-  border-right: 1px solid var(--color-border);
-  background: transparent;
+  min-height: 96px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 58%),
+    color-mix(in srgb, var(--color-bg-elevated) 78%, transparent);
   color: var(--color-text);
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 18px 20px;
+  gap: 12px;
+  padding: 18px;
   text-align: left;
-  transition: background 0.2s ease;
-
-  &:last-child {
-    border-right: 0;
-  }
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
 
   &:hover {
-    background: var(--color-setting-hover);
+    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border));
+    background:
+      linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 62%),
+      color-mix(in srgb, var(--color-bg-elevated) 86%, transparent);
+    box-shadow: 0 16px 34px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    transform: translateY(-2px);
   }
+}
+
+.entry-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.entry-content {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 7px;
 
   span {
+    color: var(--color-text);
     font-size: 15px;
     font-weight: 800;
+    line-height: 1.2;
   }
 
   small {
     color: var(--color-text-2);
     font-size: 12px;
+    line-height: 1.4;
   }
+}
+
+.entry-arrow {
+  color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text-2));
+  flex: 0 0 auto;
 }
 
 @media (max-width: 760px) {
@@ -446,15 +495,6 @@ h2 {
 
   .entry-list {
     grid-template-columns: 1fr;
-  }
-
-  .entry-item {
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-
-    &:last-child {
-      border-bottom: 0;
-    }
   }
 
   .update-actions {
