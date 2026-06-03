@@ -91,13 +91,58 @@
       :loading="contentDialog.loading"
     />
     <AboutFeedbackDialog v-model:show="feedbackDialogVisible" :app-version="appVersion" />
+    <n-modal
+      v-model:show="updateDialogVisible"
+      class="update-modal"
+      transform-origin="center"
+      :mask-closable="false"
+      :mask-style="updateModalMaskStyle"
+    >
+      <section class="update-dialog-card" role="dialog" aria-modal="true">
+        <div class="update-dialog-title">
+          <span class="update-title-icon">
+            <n-icon :component="Sparkles" size="24" />
+          </span>
+          <h2>{{ updateDialogTitle }}</h2>
+        </div>
+        <div class="update-dialog-notes">{{ updateReleaseNotes }}</div>
+        <div class="update-dialog-actions">
+          <n-button
+            class="update-primary-button"
+            type="primary"
+            :disabled="Boolean(updateDialogState?.simulated)"
+            @click="updateImmediately"
+          >
+            <template #icon>
+              <n-icon :component="Download" />
+            </template>
+            立即更新
+          </n-button>
+          <n-button class="update-glass-button" secondary @click="openOfficialDownload">
+            <template #icon>
+              <n-icon :component="ExternalLink" />
+            </template>
+            官网下载
+          </n-button>
+          <n-button class="update-glass-button" tertiary @click="closeUpdateDialog">关闭</n-button>
+        </div>
+      </section>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { NButton, NIcon, NSkeleton } from "naive-ui";
-import { ChevronRight, FileText, MessageSquareText, ShieldCheck } from "lucide-vue-next";
+import { NButton, NIcon, NModal, NSkeleton } from "naive-ui";
+import {
+  ChevronRight,
+  Download,
+  ExternalLink,
+  FileText,
+  MessageSquareText,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-vue-next";
 import AboutContentDialog from "@/components/about/AboutContentDialog.vue";
 import AboutFeedbackDialog from "@/components/about/AboutFeedbackDialog.vue";
 import electronAPI from "@/utils/electron";
@@ -120,6 +165,8 @@ const appVersion = ref("");
 const aboutLoading = ref(false);
 const developmentRuntime = ref(false);
 const feedbackDialogVisible = ref(false);
+const updateDialogVisible = ref(false);
+const updateDialogState = ref<LocalUpdaterState | null>(null);
 const contentDialog = ref({
   show: false,
   title: "",
@@ -127,9 +174,19 @@ const contentDialog = ref({
   loading: false,
 });
 
+const updateModalMaskStyle = {
+  backdropFilter: "blur(18px)",
+  background: "rgba(8, 12, 20, 0.34)",
+};
+
 const checking = computed(() => state.value?.status === "checking");
 const canDownload = computed(() => state.value?.status === "available" && !state.value?.simulated);
 const canInstall = computed(() => state.value?.status === "downloaded");
+const updateDialogTitle = computed(() => {
+  const version = updateDialogState.value?.updateInfo?.version || appVersion.value || "-";
+  return `Pisa Music v${version}版本`;
+});
+const updateReleaseNotes = computed(() => normalizeReleaseNotes(updateDialogState.value?.updateInfo?.releaseNotes));
 const updateText = computed(() => {
   const current = state.value;
   if (!current) return "点击检查更新，查看是否有新的桌面端版本。";
@@ -149,6 +206,53 @@ const updateText = computed(() => {
 });
 
 let disposeUpdaterState: (() => void) | undefined;
+let lastHandledManualResult = "";
+
+function normalizeReleaseNotes(value: unknown) {
+  if (Array.isArray(value)) {
+    const text = value
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object" && "note" in item) return String(item.note ?? "");
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n");
+    return text || "暂无更新说明";
+  }
+  const text = String(value ?? "").trim();
+  return text || "暂无更新说明";
+}
+
+function getManualResultKey(next: LocalUpdaterState) {
+  return [
+    next.status,
+    next.updateInfo?.version || "",
+    next.error || "",
+    next.simulated ? "simulated" : "real",
+  ].join(":");
+}
+
+function handleManualCheckResult(next: LocalUpdaterState) {
+  if (!next.manual) return;
+  if (next.status === "checking") {
+    lastHandledManualResult = "";
+    return;
+  }
+  const resultKey = getManualResultKey(next);
+  if (resultKey === lastHandledManualResult) return;
+  lastHandledManualResult = resultKey;
+
+  if (next.status === "not-available") {
+    window.$message?.success("已是最新版本");
+    return;
+  }
+
+  if (next.status === "available") {
+    updateDialogState.value = next;
+    updateDialogVisible.value = true;
+  }
+}
 
 async function loadAboutInfo() {
   aboutLoading.value = true;
@@ -193,15 +297,37 @@ async function openWebsite() {
 }
 
 async function checkUpdate() {
-  state.value = await electronAPI.checkForUpdates({ manual: true });
+  const next = await electronAPI.checkForUpdates({ manual: true });
+  state.value = next;
+  handleManualCheckResult(next);
 }
 
 async function simulateCheckUpdate() {
-  state.value = await electronAPI.simulateCheckForUpdates();
+  const next = await electronAPI.simulateCheckForUpdates();
+  state.value = next;
+  handleManualCheckResult(next);
 }
 
 async function downloadUpdate() {
   state.value = await electronAPI.downloadUpdate();
+}
+
+async function updateImmediately() {
+  updateDialogVisible.value = false;
+  await downloadUpdate();
+}
+
+async function openOfficialDownload() {
+  const url = about.value.websiteUrl?.trim();
+  if (!url) {
+    window.$message?.warning("暂未配置官网地址");
+    return;
+  }
+  await openWebsite();
+}
+
+function closeUpdateDialog() {
+  updateDialogVisible.value = false;
 }
 
 function installUpdate() {
@@ -245,6 +371,7 @@ onMounted(async () => {
   state.value = await electronAPI.getUpdaterState();
   disposeUpdaterState = electronAPI.onUpdaterState((next) => {
     state.value = next;
+    handleManualCheckResult(next);
   });
 });
 
@@ -509,5 +636,108 @@ h2 {
   color: var(--color-text-2);
   font-size: 12px;
   line-height: 1.7;
+}
+
+.update-modal {
+  width: min(520px, calc(100vw - 44px));
+}
+
+.update-dialog-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 34%, rgba(255, 255, 255, 0.38));
+  border-radius: 8px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 18% 0, color-mix(in srgb, #ffffff 36%, transparent), transparent 32%),
+    linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 92%, #ffffff 8%), color-mix(in srgb, var(--color-primary) 48%, var(--color-bg-elevated)) 72%);
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.28);
+  color: #ffffff;
+}
+
+.update-dialog-card::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+.update-dialog-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+
+  h2 {
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 850;
+    line-height: 1.3;
+  }
+}
+
+.update-title-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.16);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.update-dialog-notes {
+  position: relative;
+  max-height: 240px;
+  overflow: auto;
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.update-dialog-actions {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.update-primary-button {
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
+}
+
+.update-glass-button {
+  --n-text-color: #ffffff !important;
+  --n-text-color-hover: #ffffff !important;
+  --n-text-color-pressed: #ffffff !important;
+  --n-border: 1px solid rgba(255, 255, 255, 0.34) !important;
+  --n-border-hover: 1px solid rgba(255, 255, 255, 0.56) !important;
+  --n-border-pressed: 1px solid rgba(255, 255, 255, 0.56) !important;
+  --n-color: rgba(255, 255, 255, 0.12) !important;
+  --n-color-hover: rgba(255, 255, 255, 0.2) !important;
+  --n-color-pressed: rgba(255, 255, 255, 0.18) !important;
+}
+
+@media (max-width: 560px) {
+  .update-dialog-card {
+    padding: 22px;
+  }
+
+  .update-dialog-actions {
+    flex-direction: column;
+  }
 }
 </style>

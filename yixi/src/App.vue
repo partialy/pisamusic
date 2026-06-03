@@ -127,6 +127,7 @@ let lastUpdaterProgressNotice = -1;
 function setupUpdaterNotifications() {
   electronAPI.onUpdaterState?.((state) => {
     if (state.status === "available") {
+      if (state.manual) return;
       if (state.simulated) {
         window.$notification.info({
           title: "发现新版本",
@@ -180,11 +181,7 @@ function setupUpdaterNotifications() {
         duration: 5000,
       });
     } else if (state.status === "not-available" && state.manual) {
-      window.$notification.success({
-        title: "当前已是最新版本",
-        content: "暂未发现可用更新",
-        duration: 4000,
-      });
+      return;
     } else if (state.status === "disabled" && state.manual) {
       window.$notification.info({
         title: "无法检查更新",
