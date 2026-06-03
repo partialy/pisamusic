@@ -20,8 +20,14 @@ function formatDate(ts: number | null): string {
 }
 
 function usageText(file: FileRecordInfo): string {
-  if (file.usageType === "desktop-update") return "PC 自动更新";
-  return "发布安装包";
+  return file.usageType === "desktop-update" ? "PC 自动更新文件" : "发布安装包";
+}
+
+function assetTypeText(file: FileRecordInfo): string {
+  if (file.assetType === "installer") return "安装包";
+  if (file.assetType === "latest-yml") return "latest.yml";
+  if (file.assetType === "blockmap") return "blockmap";
+  return file.assetType || "-";
 }
 
 function statusText(file: FileRecordInfo): string {
@@ -29,7 +35,7 @@ function statusText(file: FileRecordInfo): string {
 }
 
 function referencesText(file: FileRecordInfo): string {
-  return file.referencedBy.length ? file.referencedBy.join("、") : "-";
+  return file.referencedBy.length ? file.referencedBy.join("、") : "无引用";
 }
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
@@ -97,13 +103,13 @@ export default function FileRecordDetailModal({ file, themeColor, onClose }: Pro
 
         <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-8">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <ReadOnlyField label="ID" value={file.id} />
+            <ReadOnlyField label="记录 ID" value={file.id} />
             <ReadOnlyField label="文件名" value={file.fileName} />
             <ReadOnlyField label="用途" value={usageText(file)} />
             <ReadOnlyField label="平台" value={file.platform} />
             <ReadOnlyField label="版本" value={file.version} />
-            <ReadOnlyField label="资产类型" value={file.assetType} />
-            <ReadOnlyField label="Provider" value={file.provider} />
+            <ReadOnlyField label="资源类型" value={assetTypeText(file)} />
+            <ReadOnlyField label="存储服务" value={file.provider} />
             <ReadOnlyField label="Bucket" value={file.bucket} />
             <ReadOnlyField label="MIME" value={file.mimeType} />
             <ReadOnlyField label="文件大小" value={`${formatFileSize(file.fileSize)} (${file.fileSize || 0} bytes)`} />
@@ -113,11 +119,10 @@ export default function FileRecordDetailModal({ file, themeColor, onClose }: Pro
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            <ReadOnlyTextArea label="Object Key" value={file.objectKey} />
-            <ReadOnlyTextArea label="Hash" value={file.hash} />
-            <ReadOnlyLinkField label="链接地址" value={file.downloadUrl} />
-            <ReadOnlyTextArea label="下载地址" value={file.downloadUrl} />
-            <ReadOnlyTextArea label="引用" value={referencesText(file)} rows={4} />
+            <ReadOnlyTextArea label="七牛对象 key" value={file.objectKey} />
+            <ReadOnlyTextArea label="Hash / ETag" value={file.hash} />
+            <ReadOnlyLinkField label="下载入口" value={file.downloadUrl} />
+            <ReadOnlyTextArea label="当前引用" value={referencesText(file)} rows={4} />
           </div>
         </div>
 

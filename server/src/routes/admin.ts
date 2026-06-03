@@ -21,17 +21,12 @@ import {
   createDesktopUpdateUploadRecord,
   createReleaseUploadRecord,
   deleteAnnouncement,
-  findFileRecordDeleteBlockers,
   listFileRecords,
-  markReleaseFileDeletedForHistory,
-  markFileRecordDeleted,
   publishUpdate,
   readAdminUser,
   readAnnouncements,
   readAnyAdminUser,
   readAppConfig,
-  readFileRecordById,
-  readReleaseFileForHistory,
   readUpdateHistory,
   replacePlaintextPaths,
   saveAnnouncement,
@@ -47,10 +42,10 @@ import {
   buildReleaseFileDownloadPath,
   createDesktopUpdateUploadToken,
   createQiniuUploadToken,
-  deleteQiniuObject,
   validateDesktopUpdateAsset,
   validateReleaseFile,
 } from "../services/qiniuReleaseFiles";
+import { deleteManagedFileRecord, deleteManagedReleaseFileForHistory } from "../services/fileManagementService";
 import { fail, ok } from "../types/response";
 
 export const adminRouter = Router();
@@ -128,7 +123,7 @@ function normalizePayload(body: unknown): { platform: ReleasePlatform; release: 
 function normalizeUploadTokenPayload(body: unknown):
   | { ok: true; value: { platform: ReleasePlatform; fileName: string; fileSize: number; mimeType: string } }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
   const platform = normalizePlatform(body.platform);
   const fileName = String(body.fileName ?? "").trim();
   const fileSize = Number(body.fileSize);
@@ -136,7 +131,7 @@ function normalizeUploadTokenPayload(body: unknown):
   try {
     validateReleaseFile(platform, fileName, fileSize);
   } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "瀹夎鍖呮枃浠朵笉鍚堟硶" };
+    return { ok: false, msg: e instanceof Error ? e.message : "安装包文件不合法" };
   }
   return { ok: true, value: { platform, fileName, fileSize, mimeType } };
 }
@@ -156,7 +151,7 @@ function normalizeUploadCompletePayload(body: unknown):
       };
     }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
   const platform = normalizePlatform(body.platform);
   const bucket = String(body.bucket ?? "").trim();
   const key = String(body.key ?? "").trim();
@@ -165,12 +160,12 @@ function normalizeUploadCompletePayload(body: unknown):
   const mimeType = String(body.mimeType ?? "").trim();
   const fileSize = Number(body.fileSize);
   const version = String(body.version ?? "").trim();
-  if (!bucket) return { ok: false, msg: "bucket 涓嶈兘涓虹┖" };
-  if (!key.startsWith(`pisamusic/releases/${platform}/`)) return { ok: false, msg: "涓冪墰鏂囦欢 key 涓庡彂甯冨钩鍙颁笉鍖归厤" };
+  if (!bucket) return { ok: false, msg: "bucket 不能为空" };
+  if (!key.startsWith(`pisamusic/releases/${platform}/`)) return { ok: false, msg: "七牛文件 key 与发布平台不匹配" };
   try {
     validateReleaseFile(platform, fileName, fileSize);
   } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "瀹夎鍖呮枃浠朵笉鍚堟硶" };
+    return { ok: false, msg: e instanceof Error ? e.message : "安装包文件不合法" };
   }
   return { ok: true, value: { platform, bucket, key, hash, fileName, mimeType, fileSize, version: version || undefined } };
 }
@@ -178,19 +173,19 @@ function normalizeUploadCompletePayload(body: unknown):
 function normalizeDesktopUpdateUploadTokenPayload(body: unknown):
   | { ok: true; value: { version: string; platform: "win32"; arch: "x64"; fileType: DesktopUpdateAssetType; fileName: string; fileSize: number; mimeType: string } }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
   const version = String(body.version ?? "").trim();
   const platform = body.platform === "win32" ? "win32" : "win32";
   const arch = body.arch === "x64" ? "x64" : "x64";
   const fileName = String(body.fileName ?? "").trim();
   const fileSize = Number(body.fileSize);
   const mimeType = String(body.mimeType ?? "").trim();
-  if (!version) return { ok: false, msg: "version 涓嶈兘涓虹┖" };
+  if (!version) return { ok: false, msg: "version 不能为空" };
   try {
     const fileType = validateDesktopUpdateAsset(fileName, fileSize);
     return { ok: true, value: { version, platform, arch, fileType, fileName, fileSize, mimeType } };
   } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "?????????" };
+    return { ok: false, msg: e instanceof Error ? e.message : "自动更新文件不合法" };
   }
 }
 
@@ -211,7 +206,7 @@ function normalizeDesktopUpdateCompletePayload(body: unknown):
       };
     }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
+  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
   const version = String(body.version ?? "").trim();
   const platform = body.platform === "win32" ? "win32" : "win32";
   const arch = body.arch === "x64" ? "x64" : "x64";
@@ -221,14 +216,14 @@ function normalizeDesktopUpdateCompletePayload(body: unknown):
   const fileName = String(body.fileName ?? "").trim();
   const mimeType = String(body.mimeType ?? "").trim();
   const fileSize = Number(body.fileSize);
-  if (!version) return { ok: false, msg: "version 涓嶈兘涓虹┖" };
-  if (!bucket) return { ok: false, msg: "bucket 涓嶈兘涓虹┖" };
-  if (!key.startsWith(`pisamusic/desktop-updates/${platform}/${arch}/`)) return { ok: false, msg: "涓冪墰鏂囦欢 key 涓庤嚜鍔ㄦ洿鏂板钩鍙颁笉鍖归厤" };
+  if (!version) return { ok: false, msg: "version 不能为空" };
+  if (!bucket) return { ok: false, msg: "bucket 不能为空" };
+  if (!key.startsWith(`pisamusic/desktop-updates/${platform}/${arch}/`)) return { ok: false, msg: "七牛文件 key 与自动更新平台不匹配" };
   try {
     const fileType = validateDesktopUpdateAsset(fileName, fileSize);
     return { ok: true, value: { version, platform, arch, fileType, bucket, key, hash, fileName, mimeType, fileSize } };
   } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "?????????" };
+    return { ok: false, msg: e instanceof Error ? e.message : "自动更新文件不合法" };
   }
 }
 
@@ -707,7 +702,7 @@ adminRouter.get("/files", (req, res) => {
       limit,
     })));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "璇诲彇鏂囦欢璁板綍澶辫触";
+    const message = e instanceof Error ? e.message : "读取文件记录失败";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -715,19 +710,13 @@ adminRouter.get("/files", (req, res) => {
 adminRouter.delete("/files/:id", async (req, res) => {
   try {
     const id = String(req.params.id ?? "").trim();
-    if (!id) return res.status(400).json(fail("鏂囦欢 ID 涓嶈兘涓虹┖", 400));
-    const file = readFileRecordById(id);
-    if (!file) return res.status(404).json(fail("???????", 404));
-    const blockers = findFileRecordDeleteBlockers(id);
-    if (blockers.length) return res.status(409).json(fail(`?????????????${blockers.join("?")}`, 409));
-    if (file.status !== "deleted" && file.provider === "qiniu") {
-      await deleteQiniuObject(file.bucket, file.objectKey);
-    }
-    const deleted = markFileRecordDeleted(id);
-    return res.json(ok({ file: deleted }, "?????"));
+    if (!id) return res.status(400).json(fail("文件记录 ID 不能为空", 400));
+    const deleted = await deleteManagedFileRecord(id);
+    return res.json(ok({ file: deleted }, "文件已删除"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "鍒犻櫎鏂囦欢澶辫触";
-    return res.status(500).json(fail(message, 500));
+    const message = e instanceof Error ? e.message : "删除文件失败";
+    const status = message === "文件记录不存在" ? 404 : 500;
+    return res.status(status).json(fail(message, status));
   }
 });
 
@@ -735,9 +724,9 @@ adminRouter.post("/release-files/upload-token", (req, res) => {
   try {
     const payload = normalizeUploadTokenPayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    return res.json(ok(createQiniuUploadToken(payload.value), "???????"));
+    return res.json(ok(createQiniuUploadToken(payload.value), "上传凭证已生成"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "鐢熸垚涓婁紶鍑瘉澶辫触";
+    const message = e instanceof Error ? e.message : "生成上传凭证失败";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -768,9 +757,9 @@ adminRouter.post("/desktop-updates/upload-token", (req, res) => {
   try {
     const payload = normalizeDesktopUpdateUploadTokenPayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    return res.json(ok(createDesktopUpdateUploadToken(payload.value), "???????????"));
+    return res.json(ok(createDesktopUpdateUploadToken(payload.value), "自动更新上传凭证已生成"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "鐢熸垚鑷姩鏇存柊涓婁紶鍑瘉澶辫触";
+    const message = e instanceof Error ? e.message : "生成自动更新上传凭证失败";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -804,9 +793,9 @@ adminRouter.post("/desktop-updates/activate", (req, res) => {
     const payload = normalizeDesktopUpdateActivatePayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
     const assets = activateDesktopUpdateVersion(payload.value.version, payload.value.platform, payload.value.arch);
-    return res.json(ok({ assets }, "PC ?????????"));
+    return res.json(ok({ assets }, "PC 自动更新版本已启用"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "鍚敤 PC 鑷姩鏇存柊鐗堟湰澶辫触";
+    const message = e instanceof Error ? e.message : "启用 PC 自动更新版本失败";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -814,11 +803,11 @@ adminRouter.post("/desktop-updates/activate", (req, res) => {
 adminRouter.post("/publish-update", (req, res) => {
   try {
     const payload = normalizePayload(req.body);
-    if (!payload) return res.status(400).json(fail("???????????", 400));
+    if (!payload) return res.status(400).json(fail("发布信息不完整", 400));
     const history = publishUpdate(payload.release, randomUUID(), payload.platform, payload.releaseFileId);
-    return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform }, "鍙戝竷鎴愬姛"));
+    return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform }, "发布成功"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "鍙戝竷鏇存柊澶辫触";
+    const message = e instanceof Error ? e.message : "发布更新失败";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -841,17 +830,13 @@ adminRouter.put("/update-history/:id", (req, res) => {
 adminRouter.delete("/update-history/:id/release-file", async (req, res) => {
   try {
     const historyId = String(req.params.id ?? "").trim();
-    const file = readReleaseFileForHistory(historyId);
-    if (!file) return res.status(404).json(fail("璇ュ彂甯冭褰曟病鏈夊彲鍒犻櫎鐨勪竷鐗涘畨瑁呭寘", 404));
-    if (file.provider !== "qiniu") return res.status(400).json(fail("璇ュ畨瑁呭寘涓嶆槸涓冪墰涓婁紶鏂囦欢", 400));
-    if (file.status !== "deleted") {
-      await deleteQiniuObject(file.bucket, file.objectKey);
-    }
-    const deleted = markReleaseFileDeletedForHistory(historyId);
-    return res.json(ok({ releaseFile: deleted }, "瀹夎鍖呭凡鍒犻櫎"));
+    if (!historyId) return res.status(400).json(fail("发布记录 ID 不能为空", 400));
+    const deleted = await deleteManagedReleaseFileForHistory(historyId);
+    return res.json(ok({ releaseFile: deleted }, "安装包已删除"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "???????";
-    return res.status(500).json(fail(message, 500));
+    const message = e instanceof Error ? e.message : "删除安装包失败";
+    const status = message === "该发布记录没有可删除的安装包" ? 404 : 500;
+    return res.status(status).json(fail(message, status));
   }
 });
 

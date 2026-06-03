@@ -20,15 +20,15 @@ function getFileSourceText(item: UpdateHistoryItem): string {
 export default function UpdateTab({ displayHistory, themeColor, onPublishNew, onEdit, onDeletePackage, deletingPackageHistoryId }: Props) {
   return (
     <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-extrabold text-slate-800">版本发布与更新历史</h2>
         <button
           type="button"
           onClick={onPublishNew}
           style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-          className="text-white px-5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:-translate-y-0.5 hover:opacity-90 flex items-center justify-center sm:justify-start"
+          className="flex items-center justify-center rounded-2xl px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:opacity-90 sm:justify-start"
         >
-          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
           发布新版本
@@ -37,42 +37,32 @@ export default function UpdateTab({ displayHistory, themeColor, onPublishNew, on
 
       <div className="grid grid-cols-1 gap-6">
         {displayHistory.map((upd, index) => (
-          <div key={upd.id} className={`${glassCardClasses} flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center group`}>
-            <div className="flex-1 min-w-0 sm:pr-6">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
-                <span className="bg-amber-100 text-amber-700 text-xs font-extrabold px-2.5 py-1 rounded-lg">
-                  {index === 0 ? "最新版本" : "历史版本"}
-                </span>
-                <span className="bg-sky-100 text-sky-700 text-xs font-extrabold px-2.5 py-1 rounded-lg">
-                  {upd.platform === "desktop" ? "PC 版" : "Android"}
-                </span>
+          <div key={upd.id} className={`${glassCardClasses} group flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
+            <div className="min-w-0 flex-1 sm:pr-6">
+              <div className="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                <span className="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700">{index === 0 ? "最新版本" : "历史版本"}</span>
+                <span className="rounded-lg bg-sky-100 px-2.5 py-1 text-xs font-extrabold text-sky-700">{upd.platform === "desktop" ? "PC 版" : "Android"}</span>
                 <span className="text-lg font-bold text-slate-800">{upd.version}</span>
-                <span className="text-xs text-slate-400 flex items-center">
-                  <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="flex items-center text-xs text-slate-400">
+                  <svg className="mr-1 h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {upd.updateTime}
                 </span>
               </div>
-              <p className="text-slate-500 text-sm font-medium truncate mt-1">日志: {upd.updateContent}</p>
-              <div className="flex flex-wrap gap-3 mt-3">
+              <p className="mt-1 truncate text-sm font-medium text-slate-500">日志：{upd.updateContent}</p>
+              <div className="mt-3 flex flex-wrap gap-3">
                 {upd.forceUpdate ? (
-                  <span className="text-[10px] bg-red-100/80 border border-red-200 text-red-600 px-2 py-1 rounded-md font-bold shadow-sm">强制更新</span>
+                  <span className="rounded-md border border-red-200 bg-red-100/80 px-2 py-1 text-[10px] font-bold text-red-600 shadow-sm">强制更新</span>
                 ) : (
-                  <span className="text-[10px] bg-emerald-100/80 border border-emerald-200 text-emerald-600 px-2 py-1 rounded-md font-bold shadow-sm">普通更新</span>
+                  <span className="rounded-md border border-emerald-200 bg-emerald-100/80 px-2 py-1 text-[10px] font-bold text-emerald-600 shadow-sm">普通更新</span>
                 )}
-                <span className="text-[10px] bg-white/80 border border-white text-slate-500 px-2 py-1 rounded-md font-bold shadow-sm">
-                  {getFileSourceText(upd)}
-                </span>
+                <span className="rounded-md border border-white bg-white/80 px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm">{getFileSourceText(upd)}</span>
               </div>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-              <button
-                type="button"
-                onClick={() => onEdit(upd)}
-                className="bg-white/80 hover:bg-white text-slate-700 border border-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center justify-center"
-              >
-                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex flex-col gap-2 transition-opacity sm:flex-row sm:gap-3 lg:opacity-0 lg:group-hover:opacity-100">
+              <button type="button" onClick={() => onEdit(upd)} className="flex items-center justify-center rounded-xl border border-white bg-white/80 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-white">
+                <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -87,9 +77,9 @@ export default function UpdateTab({ displayHistory, themeColor, onPublishNew, on
                   type="button"
                   disabled={deletingPackageHistoryId === upd.id}
                   onClick={() => onDeletePackage(upd)}
-                  className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center justify-center disabled:opacity-50"
+                  className="flex items-center justify-center rounded-xl border border-red-100 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 shadow-sm transition-all hover:bg-red-100 disabled:opacity-50"
                 >
-                  <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -97,7 +87,7 @@ export default function UpdateTab({ displayHistory, themeColor, onPublishNew, on
                       d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                     />
                   </svg>
-                  {deletingPackageHistoryId === upd.id ? "删除中…" : "删除安装包"}
+                  {deletingPackageHistoryId === upd.id ? "删除中..." : "删除安装包"}
                 </button>
               )}
             </div>
@@ -106,8 +96,8 @@ export default function UpdateTab({ displayHistory, themeColor, onPublishNew, on
       </div>
 
       {displayHistory.length === 0 && (
-        <div className="text-center py-16 bg-white/40 backdrop-blur-md rounded-3xl border border-white/60 shadow-inner">
-          <p className="text-slate-500 font-bold">当前暂无版本记录，点击右上角发布</p>
+        <div className="rounded-3xl border border-white/60 bg-white/40 py-16 text-center shadow-inner backdrop-blur-md">
+          <p className="font-bold text-slate-500">当前暂无版本记录，点击右上角发布</p>
         </div>
       )}
     </div>

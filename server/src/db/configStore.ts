@@ -503,9 +503,9 @@ function serializeFileReferences(refs: FileRecordReference[]): string {
 }
 
 function fileReferenceLabel(ref: FileRecordReference): string {
-  if (ref.type === "current-release") return "??" + (ref.platform === "desktop" ? "PC" : "Android") + "????";
-  if (ref.type === "active-desktop-update") return "?? PC ????" + (ref.version ? " " + ref.version : "") + (ref.fileName ? " " + ref.fileName : "");
-  return ref.id ? "???? " + ref.id : "????";
+  if (ref.type === "current-release") return `当前${ref.platform === "desktop" ? "PC" : "Android"}发布`;
+  if (ref.type === "active-desktop-update") return `PC 自动更新${ref.version ? ` ${ref.version}` : ""}${ref.fileName ? ` ${ref.fileName}` : ""}`;
+  return ref.id ? `发布记录 ${ref.id}` : "发布记录";
 }
 
 function hasFileReference(refs: FileRecordReference[], type: FileRecordReferenceType, predicate: (ref: FileRecordReference) => boolean = () => true): boolean {
@@ -598,7 +598,7 @@ function desktopAssetFromRecord(record?: FileRecordInfo | null): DesktopUpdateAs
     mimeType: record.mimeType,
     fileSize: record.fileSize,
     status: record.status,
-    active: record.referencedBy.some((label) => label.startsWith("?? PC ????")),
+    active: record.referencedBy.some((label) => label.startsWith("PC 自动更新")),
     createdAt: record.createdAt,
     deletedAt: record.deletedAt,
     releaseFile: fileType === "installer" ? releaseFileFromRecord(record) : undefined,
@@ -623,7 +623,7 @@ function readFileRecordByProviderKey(provider: "qiniu", bucket: string, objectKe
 
 function updateFileReferences(db: DatabaseSync, id: string, updater: (refs: FileRecordReference[]) => FileRecordReference[]): void {
   const row = readFileRecordRowById(db, id);
-  if (!row) throw new Error("???????");
+  if (!row) throw new Error("文件记录不存在");
   const refs = updater(parseFileReferences(row.referenced_by));
   db.prepare("UPDATE file_records SET referenced_by = ? WHERE id = ?").run(serializeFileReferences(refs), id);
 }
@@ -1248,13 +1248,59 @@ export function findFileRecordDeleteBlockers(id: string): string[] {
 }
 
 export function markFileRecordDeleted(id: string): FileRecordInfo {
+  return deleteFileRecordAndCleanupReferences(id);
+}
+
+function downloadUrlMatchesFile(downloadUrl: string, fileId: string): boolean {
+  const filePath = buildReleaseDownloadPath(fileId);
+  return Boolean(downloadUrl) && (downloadUrl === filePath || downloadUrl.includes(filePath));
+}
+
+function clearHistoryFileReferences(db: DatabaseSync, fileId: string): void {
+  const rows = db
+    .prepare("SELECT id, download_url FROM update_history WHERE release_file_id = ?")
+    .all(fileId) as Array<{ id: string; download_url: string }>;
+  for (const row of rows) {
+    db.prepare("UPDATE update_history SET release_file_id = NULL, download_url = ? WHERE id = ?").run(
+      downloadUrlMatchesFile(row.download_url, fileId) ? "" : row.download_url,
+      row.id,
+    );
+  }
+}
+
+function clearCurrentReleaseFileReferences(db: DatabaseSync, fileId: string): void {
+  const now = Date.now();
+  const releaseRows = db
+    .prepare("SELECT platform, download_url FROM release_info")
+    .all() as Array<{ platform: ReleasePlatform; download_url: string }>;
+  let clearAndroidCurrentUpdate = false;
+
+  for (const row of releaseRows) {
+    if (!downloadUrlMatchesFile(row.download_url, fileId)) continue;
+    db.prepare(
+      `UPDATE release_info
+       SET download_url = '', file_size_text = '', available = 0, updated_at = ?
+       WHERE platform = ?`,
+    ).run(now, row.platform);
+    if (row.platform === "android") clearAndroidCurrentUpdate = true;
+  }
+
+  const currentUpdate = db.prepare("SELECT download_url FROM current_update WHERE id = 1").get() as
+    | { download_url: string }
+    | undefined;
+  if (clearAndroidCurrentUpdate || downloadUrlMatchesFile(currentUpdate?.download_url ?? "", fileId)) {
+    db.prepare("UPDATE current_update SET download_url = '', updated_at = ? WHERE id = 1").run(now);
+  }
+}
+
+export function deleteFileRecordAndCleanupReferences(id: string): FileRecordInfo {
   const db = getAppDb();
   return runInTransaction(db, () => {
     const file = readFileRecordByIdWithDb(db, id);
     if (!file) throw new Error("文件记录不存在");
-    const blockers = findFileRecordDeleteBlockers(id);
-    if (blockers.length) throw new Error(`文件正在被引用，不能删除：${blockers.join("、")}`);
     const now = Date.now();
+    clearHistoryFileReferences(db, id);
+    clearCurrentReleaseFileReferences(db, id);
     db.prepare("UPDATE file_records SET status = 'deleted', referenced_by = ?, deleted_at = ? WHERE id = ?").run(serializeFileReferences([]), now, id);
     const deleted = readFileRecordByIdWithDb(db, id);
     if (!deleted) throw new Error("文件状态更新失败");
@@ -1277,20 +1323,12 @@ export function readReleaseFileForHistory(historyId: string): ReleaseFileInfo | 
 }
 
 export function markReleaseFileDeletedForHistory(historyId: string): ReleaseFileInfo {
-  const db = getAppDb();
-  return runInTransaction(db, () => {
-    const file = readReleaseFileForHistory(historyId);
-    if (!file) throw new Error("该发布记录没有可删除的七牛安装包");
-    if (file.provider !== "qiniu") throw new Error("该安装包不是七牛上传文件");
-    const blockers = findFileRecordDeleteBlockers(file.id);
-    if (blockers.length) throw new Error(`安装包正在被引用，不能删除：${blockers.join("、")}`);
-
-    const now = Date.now();
-    db.prepare("UPDATE file_records SET status = 'deleted', referenced_by = ?, deleted_at = ? WHERE id = ?").run(serializeFileReferences([]), now, file.id);
-    const deleted = readReleaseFileById(file.id);
-    if (!deleted) throw new Error("安装包文件状态更新失败");
-    return { ...deleted, historyId };
-  });
+  const file = readReleaseFileForHistory(historyId);
+  if (!file) throw new Error("该发布记录没有可删除的七牛安装包");
+  const deleted = deleteFileRecordAndCleanupReferences(file.id);
+  const releaseFile = releaseFileFromRecord(deleted);
+  if (!releaseFile) throw new Error("安装包文件状态更新失败");
+  return { ...releaseFile, historyId };
 }
 
 function findDesktopInstallerForVersion(version: string): ReleaseFileInfo | null {
@@ -1312,9 +1350,9 @@ export function publishUpdate(
     : platform === "desktop" && initialRelease.available
       ? findDesktopInstallerForVersion(initialRelease.latestVersion)
       : null;
-  if (releaseFileId && !releaseFile) throw new Error("????????");
-  if (releaseFile && releaseFile.status !== "uploaded") throw new Error("???????????????");
-  if (releaseFile && releaseFile.platform !== platform) throw new Error("???????????????");
+  if (releaseFileId && !releaseFile) throw new Error("安装包文件不存在");
+  if (releaseFile && releaseFile.status !== "uploaded") throw new Error("安装包文件已删除");
+  if (releaseFile && releaseFile.platform !== platform) throw new Error("安装包文件平台不匹配");
   const release = releaseFile
     ? normalizeRelease(platform, { ...update, downloadUrl: releaseFile.downloadUrl }, platform === "android" ? { ...update, downloadUrl: releaseFile.downloadUrl } : undefined)
     : initialRelease;

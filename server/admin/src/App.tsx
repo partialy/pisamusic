@@ -522,11 +522,11 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleDeleteReleasePackage = async (item: UpdateHistoryItem) => {
     if (!item.releaseFile || item.releaseFile.status !== "uploaded") return;
-    if (!window.confirm(`确定要删除 ${item.version} 关联的七牛安装包吗？`)) return;
+    if (!window.confirm(`确定要删除 ${item.version} 关联的七牛安装包吗？删除后会清理发布引用和当前下载状态。`)) return;
     setDeletingPackageHistoryId(item.id);
     try {
       await deleteReleasePackage(item.id);
-      await refreshRemote();
+      await Promise.all([refreshRemote(), loadFiles()]);
     } catch (e) {
       alert(e instanceof Error ? e.message : "删除安装包失败");
     } finally {
@@ -761,7 +761,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   const handleDeleteFileRecord = async (file: FileRecordInfo) => {
-    if (!window.confirm(`确定要删除七牛文件 ${file.fileName} 吗？`)) return;
+    if (!window.confirm(`确定要删除七牛文件 ${file.fileName} 吗？删除后会清理发布历史、当前发布和自动更新引用。`)) return;
     setDeletingFileId(file.id);
     try {
       await deleteFileRecord(file.id);
