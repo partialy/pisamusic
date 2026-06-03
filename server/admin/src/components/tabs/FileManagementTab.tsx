@@ -48,6 +48,10 @@ function statusBadge(file: FileRecordInfo) {
   );
 }
 
+function referencesText(file: FileRecordInfo): string {
+  return file.referencedBy.length ? file.referencedBy.join("、") : "-";
+}
+
 export default function FileManagementTab({
   files,
   total,
@@ -71,41 +75,23 @@ export default function FileManagementTab({
             <h3 className="text-2xl font-extrabold text-slate-800">文件管理</h3>
             <p className="mt-1 text-sm text-slate-500">统一查看七牛上传文件、引用版本和存储信息。</p>
           </div>
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-sm"
-            style={{ backgroundColor: themeColor }}
-          >
+          <button type="button" onClick={onRefresh} className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-sm" style={{ backgroundColor: themeColor }}>
             刷新
           </button>
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <select
-            className={glassInputClasses}
-            value={filters.status}
-            onChange={(e) => onFilterChange({ ...filters, status: e.target.value as FileFilters["status"] })}
-          >
+          <select className={glassInputClasses} value={filters.status} onChange={(e) => onFilterChange({ ...filters, status: e.target.value as FileFilters["status"] })}>
             <option value="uploaded">已上传</option>
             <option value="deleted">已删除</option>
             <option value="all">全部状态</option>
           </select>
-          <select
-            className={glassInputClasses}
-            value={filters.usageType}
-            onChange={(e) => onFilterChange({ ...filters, usageType: e.target.value as FileFilters["usageType"] })}
-          >
+          <select className={glassInputClasses} value={filters.usageType} onChange={(e) => onFilterChange({ ...filters, usageType: e.target.value as FileFilters["usageType"] })}>
             <option value="all">全部用途</option>
             <option value="release-package">发布安装包</option>
             <option value="desktop-update">PC 自动更新</option>
           </select>
-          <input
-            className={glassInputClasses}
-            value={filters.keyword}
-            onChange={(e) => onFilterChange({ ...filters, keyword: e.target.value })}
-            placeholder="搜索文件名或七牛 key"
-          />
+          <input className={glassInputClasses} value={filters.keyword} onChange={(e) => onFilterChange({ ...filters, keyword: e.target.value })} placeholder="搜索文件名或七牛 key" />
         </div>
       </div>
 
@@ -126,7 +112,7 @@ export default function FileManagementTab({
                     <p>版本：{file.version || "-"}</p>
                     <p>大小：{formatFileSize(file.fileSize)}</p>
                     <p>上传时间：{formatDate(file.createdAt)}</p>
-                    <p>引用：{file.referencedBy || "-"}</p>
+                    <p>引用：{referencesText(file)}</p>
                     <p>Provider：{file.provider}</p>
                   </div>
                   <p className="mt-3 break-all rounded-xl bg-white/50 p-3 font-mono text-xs text-slate-500">{file.objectKey}</p>

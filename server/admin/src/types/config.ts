@@ -101,7 +101,7 @@ export type FileRecordInfo = {
   fileSize: number;
   downloadUrl: string;
   status: "uploaded" | "deleted";
-  referencedBy: string;
+  referencedBy: string[];
   createdAt: number;
   deletedAt: number | null;
 };

@@ -18,11 +18,8 @@ import {
   type ReleasePlatform,
   type TextContentConfig,
   activateDesktopUpdateVersion,
-  createDesktopUpdateAsset,
-  createFileRecord,
-  createOrUpdateDesktopUpdateAsset,
-  createOrUpdateReleaseFile,
-  createReleaseFile,
+  createDesktopUpdateUploadRecord,
+  createReleaseUploadRecord,
   deleteAnnouncement,
   findFileRecordDeleteBlockers,
   listFileRecords,
@@ -82,8 +79,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeRequiredString(value: unknown, field: string, maxLength: number): { ok: true; value: string } | { ok: false; msg: string } {
   const text = typeof value === "string" ? value.trim() : "";
-  if (!text) return { ok: false, msg: `${field} 不能为空` };
-  if (text.length > maxLength) return { ok: false, msg: `${field} 长度不能超过 ${maxLength}` };
+  if (!text) return { ok: false, msg: `${field} 涓嶈兘涓虹┖` };
+  if (text.length > maxLength) return { ok: false, msg: `${field} 闀垮害涓嶈兘瓒呰繃 ${maxLength}` };
   return { ok: true, value: text };
 }
 
@@ -102,7 +99,7 @@ function normalizePayload(body: unknown): { platform: ReleasePlatform; release: 
   const officialUrl = String(b.officialUrl ?? "").trim();
   const updateContent = String(b.updateContent ?? "").trim();
   const forceUpdate = Boolean(b.forceUpdate);
-  const platformLabel = String(b.platformLabel ?? (platform === "desktop" ? "PC 版" : "Android")).trim();
+  const platformLabel = String(b.platformLabel ?? (platform === "desktop" ? "PC ?" : "Android")).trim();
   const fileSizeText = String(b.fileSizeText ?? "").trim();
   const available = Boolean(b.available) && Boolean(downloadUrl);
   const releaseFileId = typeof b.releaseFileId === "string" ? b.releaseFileId.trim() : "";
@@ -130,7 +127,7 @@ function normalizePayload(body: unknown): { platform: ReleasePlatform; release: 
 function normalizeUploadTokenPayload(body: unknown):
   | { ok: true; value: { platform: ReleasePlatform; fileName: string; fileSize: number; mimeType: string } }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
   const platform = normalizePlatform(body.platform);
   const fileName = String(body.fileName ?? "").trim();
   const fileSize = Number(body.fileSize);
@@ -138,7 +135,7 @@ function normalizeUploadTokenPayload(body: unknown):
   try {
     validateReleaseFile(platform, fileName, fileSize);
   } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "安装包文件不合法" };
+    return { ok: false, msg: e instanceof Error ? e.message : "瀹夎鍖呮枃浠朵笉鍚堟硶" };
   }
   return { ok: true, value: { platform, fileName, fileSize, mimeType } };
 }
@@ -158,7 +155,7 @@ function normalizeUploadCompletePayload(body: unknown):
       };
     }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
   const platform = normalizePlatform(body.platform);
   const bucket = String(body.bucket ?? "").trim();
   const key = String(body.key ?? "").trim();
@@ -167,12 +164,12 @@ function normalizeUploadCompletePayload(body: unknown):
   const mimeType = String(body.mimeType ?? "").trim();
   const fileSize = Number(body.fileSize);
   const version = String(body.version ?? "").trim();
-  if (!bucket) return { ok: false, msg: "bucket 不能为空" };
-  if (!key.startsWith(`pisamusic/releases/${platform}/`)) return { ok: false, msg: "七牛文件 key 与发布平台不匹配" };
+  if (!bucket) return { ok: false, msg: "bucket 涓嶈兘涓虹┖" };
+  if (!key.startsWith(`pisamusic/releases/${platform}/`)) return { ok: false, msg: "涓冪墰鏂囦欢 key 涓庡彂甯冨钩鍙颁笉鍖归厤" };
   try {
     validateReleaseFile(platform, fileName, fileSize);
   } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "安装包文件不合法" };
+    return { ok: false, msg: e instanceof Error ? e.message : "瀹夎鍖呮枃浠朵笉鍚堟硶" };
   }
   return { ok: true, value: { platform, bucket, key, hash, fileName, mimeType, fileSize, version: version || undefined } };
 }
@@ -180,19 +177,19 @@ function normalizeUploadCompletePayload(body: unknown):
 function normalizeDesktopUpdateUploadTokenPayload(body: unknown):
   | { ok: true; value: { version: string; platform: "win32"; arch: "x64"; fileType: DesktopUpdateAssetType; fileName: string; fileSize: number; mimeType: string } }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
   const version = String(body.version ?? "").trim();
   const platform = body.platform === "win32" ? "win32" : "win32";
   const arch = body.arch === "x64" ? "x64" : "x64";
   const fileName = String(body.fileName ?? "").trim();
   const fileSize = Number(body.fileSize);
   const mimeType = String(body.mimeType ?? "").trim();
-  if (!version) return { ok: false, msg: "version 不能为空" };
+  if (!version) return { ok: false, msg: "version 涓嶈兘涓虹┖" };
   try {
     const fileType = validateDesktopUpdateAsset(fileName, fileSize);
     return { ok: true, value: { version, platform, arch, fileType, fileName, fileSize, mimeType } };
   } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "自动更新文件不合法" };
+    return { ok: false, msg: e instanceof Error ? e.message : "?????????" };
   }
 }
 
@@ -213,7 +210,7 @@ function normalizeDesktopUpdateCompletePayload(body: unknown):
       };
     }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
   const version = String(body.version ?? "").trim();
   const platform = body.platform === "win32" ? "win32" : "win32";
   const arch = body.arch === "x64" ? "x64" : "x64";
@@ -223,23 +220,23 @@ function normalizeDesktopUpdateCompletePayload(body: unknown):
   const fileName = String(body.fileName ?? "").trim();
   const mimeType = String(body.mimeType ?? "").trim();
   const fileSize = Number(body.fileSize);
-  if (!version) return { ok: false, msg: "version 不能为空" };
-  if (!bucket) return { ok: false, msg: "bucket 不能为空" };
-  if (!key.startsWith(`pisamusic/desktop-updates/${platform}/${arch}/`)) return { ok: false, msg: "七牛文件 key 与自动更新平台不匹配" };
+  if (!version) return { ok: false, msg: "version 涓嶈兘涓虹┖" };
+  if (!bucket) return { ok: false, msg: "bucket 涓嶈兘涓虹┖" };
+  if (!key.startsWith(`pisamusic/desktop-updates/${platform}/${arch}/`)) return { ok: false, msg: "涓冪墰鏂囦欢 key 涓庤嚜鍔ㄦ洿鏂板钩鍙颁笉鍖归厤" };
   try {
     const fileType = validateDesktopUpdateAsset(fileName, fileSize);
     return { ok: true, value: { version, platform, arch, fileType, bucket, key, hash, fileName, mimeType, fileSize } };
   } catch (e) {
-    return { ok: false, msg: e instanceof Error ? e.message : "自动更新文件不合法" };
+    return { ok: false, msg: e instanceof Error ? e.message : "?????????" };
   }
 }
 
 function normalizeDesktopUpdateActivatePayload(body: unknown):
   | { ok: true; value: { version: string; platform: "win32"; arch: "x64" } }
   | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
+  if (!isRecord(body)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
   const version = String(body.version ?? "").trim();
-  if (!version) return { ok: false, msg: "version 不能为空" };
+  if (!version) return { ok: false, msg: "version 涓嶈兘涓虹┖" };
   return { ok: true, value: { version, platform: "win32", arch: "x64" } };
 }
 
@@ -253,7 +250,7 @@ function normalizeGatewaySignPayload(body: unknown): GatewaySignConfig | null {
 
 function normalizeAvailability(input: unknown): { ok: true; value: AvailabilityConfig } | { ok: false; msg: string } {
   if (!isRecord(input) || typeof input.appAvailable !== "boolean") {
-    return { ok: false, msg: "availability.appAvailable 必须是布尔值" };
+    return { ok: false, msg: "availability.appAvailable ??????" };
   }
   const reason = normalizeRequiredString(input.unavailableReason, "availability.unavailableReason", 500);
   if (!reason.ok) return reason;
@@ -261,39 +258,39 @@ function normalizeAvailability(input: unknown): { ok: true; value: AvailabilityC
 }
 
 function normalizeEmail(input: unknown): { ok: true; value: EmailConfig } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: "email 必须是对象" };
+  if (!isRecord(input)) return { ok: false, msg: "email ?????" };
   const serviceUrl = normalizeRequiredString(input.serviceUrl, "email.serviceUrl", 1000);
   if (!serviceUrl.ok) return serviceUrl;
   try {
     const parsed = new URL(serviceUrl.value);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return { ok: false, msg: "email.serviceUrl 必须是 http/https 链接" };
+      return { ok: false, msg: "email.serviceUrl 蹇呴』鏄?http/https 閾炬帴" };
     }
   } catch {
-    return { ok: false, msg: "email.serviceUrl 必须是有效完整链接" };
+    return { ok: false, msg: "email.serviceUrl ?????????" };
   }
   const provider = normalizeRequiredString(input.provider, "email.provider", 64);
   if (!provider.ok) return provider;
   if (!EMAIL_PROVIDER_CODE_REGEX.test(provider.value)) {
-    return { ok: false, msg: "email.provider 必须以小写字母开头，且只能包含小写字母、数字、_、-" };
+    return { ok: false, msg: "email.provider 蹇呴』浠ュ皬鍐欏瓧姣嶅紑澶达紝涓斿彧鑳藉寘鍚皬鍐欏瓧姣嶃€佹暟瀛椼€乢銆?" };
   }
   if (!Array.isArray(input.providers) || input.providers.length === 0) {
-    return { ok: false, msg: "email.providers 至少需要配置一个提供商" };
+    return { ok: false, msg: "email.providers 鑷冲皯闇€瑕侀厤缃竴涓彁渚涘晢" };
   }
   if (input.providers.length > 20) {
-    return { ok: false, msg: "email.providers 不能超过 20 个" };
+    return { ok: false, msg: "email.providers ???? 20 ?" };
   }
   const providers: EmailConfig["providers"] = [];
   const codes = new Set<string>();
   for (const raw of input.providers) {
-    if (!isRecord(raw)) return { ok: false, msg: "email.providers 每一项必须是对象" };
+    if (!isRecord(raw)) return { ok: false, msg: "email.providers 姣忎竴椤瑰繀椤绘槸瀵硅薄" };
     const code = normalizeRequiredString(raw.code, "email.providers.code", 64);
     if (!code.ok) return code;
     if (!EMAIL_PROVIDER_CODE_REGEX.test(code.value)) {
-      return { ok: false, msg: `email provider code 非法: ${code.value}` };
+      return { ok: false, msg: `email provider code 闈炴硶: ${code.value}` };
     }
     if (codes.has(code.value)) {
-      return { ok: false, msg: `email provider code 重复: ${code.value}` };
+      return { ok: false, msg: `email provider code 閲嶅: ${code.value}` };
     }
     const name = normalizeRequiredString(raw.name, "email.providers.name", 100);
     if (!name.ok) return name;
@@ -301,13 +298,13 @@ function normalizeEmail(input: unknown): { ok: true; value: EmailConfig } | { ok
     providers.push({ code: code.value, name: name.value });
   }
   if (!codes.has(provider.value)) {
-    return { ok: false, msg: "email.provider 必须存在于 email.providers 列表中" };
+    return { ok: false, msg: "email.provider ????? email.providers ???" };
   }
   return { ok: true, value: { serviceUrl: serviceUrl.value, provider: provider.value, providers } };
 }
 
 function normalizeTextContent(input: unknown, section: string): { ok: true; value: TextContentConfig } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: `${section} 必须是对象` };
+  if (!isRecord(input)) return { ok: false, msg: `${section} ?????` };
   const title = normalizeRequiredString(input.title, `${section}.title`, 200);
   if (!title.ok) return title;
   const content = normalizeRequiredString(input.content, `${section}.content`, 50000);
@@ -316,7 +313,7 @@ function normalizeTextContent(input: unknown, section: string): { ok: true; valu
 }
 
 function normalizeAbout(input: unknown): { ok: true; value: AboutConfig } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: "about 必须是对象" };
+  if (!isRecord(input)) return { ok: false, msg: "about ?????" };
   const appName = normalizeRequiredString(input.appName, "about.appName", 100);
   if (!appName.ok) return appName;
   const websiteLabel = normalizeRequiredString(input.websiteLabel, "about.websiteLabel", 200);
@@ -343,34 +340,33 @@ function normalizeAbout(input: unknown): { ok: true; value: AboutConfig } | { ok
 }
 
 function normalizeDiscover(input: unknown): { ok: true; value: DiscoverConfig } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: "discover 必须是对象" };
+  if (!isRecord(input)) return { ok: false, msg: "discover ?????" };
   const url = normalizeRequiredString(input.url, "discover.url", 1000);
   if (!url.ok) return url;
   const value = url.value;
   if (value === "USE_LOCAL_FILE") {
-    // App 端识别该标记后加载内置 assets 示例页。
-  } else {
+    // App 绔瘑鍒鏍囪鍚庡姞杞藉唴缃?assets 绀轰緥椤点€?  } else {
     try {
       const parsed = new URL(value);
       if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        return { ok: false, msg: "discover.url 仅支持 USE_LOCAL_FILE 或完整 http/https 链接" };
+        return { ok: false, msg: "discover.url 浠呮敮鎸?USE_LOCAL_FILE 鎴栧畬鏁?http/https 閾炬帴" };
       }
     } catch {
-      return { ok: false, msg: "discover.url 必须是 USE_LOCAL_FILE 或有效完整链接" };
+      return { ok: false, msg: "discover.url ??? USE_LOCAL_FILE ???????" };
     }
   }
   const updatedAt = Number(input.updatedAt);
   if (!Number.isFinite(updatedAt) || updatedAt < 0) {
-    return { ok: false, msg: "discover.updatedAt 必须是有效时间戳" };
+    return { ok: false, msg: "discover.updatedAt 蹇呴』鏄湁鏁堟椂闂存埑" };
   }
   return { ok: true, value: { url: value, updatedAt } };
 }
 
 function normalizeEndpointRecord(input: unknown): { ok: true; value: Record<string, string> } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: "bootstrap.endpoints 必须是字符串字典" };
+  if (!isRecord(input)) return { ok: false, msg: "bootstrap.endpoints 蹇呴』鏄瓧绗︿覆瀛楀吀" };
   const endpoints: Record<string, string> = {};
   for (const [key, rawValue] of Object.entries(input)) {
-    if (!key.trim()) return { ok: false, msg: "bootstrap.endpoints 不能包含空 key" };
+    if (!key.trim()) return { ok: false, msg: "bootstrap.endpoints 涓嶈兘鍖呭惈绌?key" };
     const value = normalizeRequiredString(rawValue, `bootstrap.endpoints.${key}`, 1000);
     if (!value.ok) return value;
     endpoints[key] = value.value;
@@ -379,7 +375,7 @@ function normalizeEndpointRecord(input: unknown): { ok: true; value: Record<stri
 }
 
 function normalizeBootstrap(input: unknown): { ok: true; value: Partial<BootstrapConfig> } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: "bootstrap 必须是对象" };
+  if (!isRecord(input)) return { ok: false, msg: "bootstrap ?????" };
   const bootstrap: Partial<BootstrapConfig> = {};
   if ("version" in input) {
     const version = normalizeRequiredString(input.version, "bootstrap.version", 100);
@@ -388,7 +384,7 @@ function normalizeBootstrap(input: unknown): { ok: true; value: Partial<Bootstra
   }
   if ("updatedAt" in input) {
     const updatedAt = Number(input.updatedAt);
-    if (!Number.isFinite(updatedAt) || updatedAt < 0) return { ok: false, msg: "bootstrap.updatedAt 必须是有效时间戳" };
+    if (!Number.isFinite(updatedAt) || updatedAt < 0) return { ok: false, msg: "bootstrap.updatedAt 蹇呴』鏄湁鏁堟椂闂存埑" };
     bootstrap.updatedAt = updatedAt;
   }
   if ("endpoints" in input) {
@@ -398,24 +394,24 @@ function normalizeBootstrap(input: unknown): { ok: true; value: Partial<Bootstra
   }
   if ("gatewaySign" in input) {
     const gatewaySign = normalizeGatewaySignPayload(input.gatewaySign);
-    if (!gatewaySign) return { ok: false, msg: "bootstrap.gatewaySign.secret 和 as 不能为空，且长度不能超过 256" };
+    if (!gatewaySign) return { ok: false, msg: "bootstrap.gatewaySign.secret 鍜?as 涓嶈兘涓虹┖锛屼笖闀垮害涓嶈兘瓒呰繃 256" };
     bootstrap.gatewaySign = gatewaySign;
   }
   if ("updater" in input) {
     if (!isRecord(input.updater) || !isRecord(input.updater.desktop)) {
-      return { ok: false, msg: "bootstrap.updater.desktop 必须是对象" };
+      return { ok: false, msg: "bootstrap.updater.desktop ?????" };
     }
     const desktop = input.updater.desktop;
     const feedBaseUrl = normalizeRequiredString(desktop.feedBaseUrl, "bootstrap.updater.desktop.feedBaseUrl", 1000);
     if (!feedBaseUrl.ok) return feedBaseUrl;
     try {
       const parsed = new URL(feedBaseUrl.value);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return { ok: false, msg: "自动更新地址必须是 http/https 链接" };
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return { ok: false, msg: "鑷姩鏇存柊鍦板潃蹇呴』鏄?http/https 閾炬帴" };
     } catch {
-      return { ok: false, msg: "自动更新地址必须是有效完整链接" };
+      return { ok: false, msg: "???????????????" };
     }
     const startupDelayMs = Number(desktop.startupDelayMs);
-    if (!Number.isFinite(startupDelayMs) || startupDelayMs < 0) return { ok: false, msg: "bootstrap.updater.desktop.startupDelayMs 必须是非负数字" };
+    if (!Number.isFinite(startupDelayMs) || startupDelayMs < 0) return { ok: false, msg: "bootstrap.updater.desktop.startupDelayMs ???????" };
     bootstrap.updater = {
       desktop: {
         enabled: Boolean(desktop.enabled),
@@ -425,12 +421,12 @@ function normalizeBootstrap(input: unknown): { ok: true; value: Partial<Bootstra
       },
     };
   }
-  if (Object.keys(bootstrap).length === 0) return { ok: false, msg: "bootstrap 至少需要包含一个可保存字段" };
+  if (Object.keys(bootstrap).length === 0) return { ok: false, msg: "bootstrap 鑷冲皯闇€瑕佸寘鍚竴涓彲淇濆瓨瀛楁" };
   return { ok: true, value: bootstrap };
 }
 
 function normalizeRelease(input: unknown, platform: ReleasePlatform): { ok: true; value: ReleaseInfo } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: `releases.${platform} 必须是对象` };
+  if (!isRecord(input)) return { ok: false, msg: `releases.${platform} ?????` };
   const latestVersion = normalizeRequiredString(input.latestVersion, `releases.${platform}.latestVersion`, 100);
   if (!latestVersion.ok) return latestVersion;
   const updateTime = normalizeRequiredString(input.updateTime, `releases.${platform}.updateTime`, 100);
@@ -442,10 +438,10 @@ function normalizeRelease(input: unknown, platform: ReleasePlatform): { ok: true
   const platformLabel = normalizeRequiredString(input.platformLabel, `releases.${platform}.platformLabel`, 100);
   if (!platformLabel.ok) return platformLabel;
   const downloadUrl = typeof input.downloadUrl === "string" ? input.downloadUrl.trim() : "";
-  if (platform === "android" && !downloadUrl) return { ok: false, msg: "Android 下载地址不能为空" };
-  if (downloadUrl.length > 1000) return { ok: false, msg: `releases.${platform}.downloadUrl 长度不能超过 1000` };
+  if (platform === "android" && !downloadUrl) return { ok: false, msg: "Android 涓嬭浇鍦板潃涓嶈兘涓虹┖" };
+  if (downloadUrl.length > 1000) return { ok: false, msg: `releases.${platform}.downloadUrl 闀垮害涓嶈兘瓒呰繃 1000` };
   const fileSizeText = typeof input.fileSizeText === "string" ? input.fileSizeText.trim() : "";
-  if (fileSizeText.length > 60) return { ok: false, msg: `releases.${platform}.fileSizeText 长度不能超过 60` };
+  if (fileSizeText.length > 60) return { ok: false, msg: `releases.${platform}.fileSizeText 闀垮害涓嶈兘瓒呰繃 60` };
   return {
     ok: true,
     value: {
@@ -463,7 +459,7 @@ function normalizeRelease(input: unknown, platform: ReleasePlatform): { ok: true
 }
 
 function normalizeReleases(input: unknown): { ok: true; value: Partial<ReleaseConfig> } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: "releases 必须是对象" };
+  if (!isRecord(input)) return { ok: false, msg: "releases ?????" };
   const releases: Partial<ReleaseConfig> = {};
   if ("android" in input) {
     const android = normalizeRelease(input.android, "android");
@@ -475,12 +471,12 @@ function normalizeReleases(input: unknown): { ok: true; value: Partial<ReleaseCo
     if (!desktop.ok) return desktop;
     releases.desktop = desktop.value;
   }
-  if (!releases.android && !releases.desktop) return { ok: false, msg: "releases 至少需要包含 android 或 desktop" };
+  if (!releases.android && !releases.desktop) return { ok: false, msg: "releases 鑷冲皯闇€瑕佸寘鍚?android 鎴?desktop" };
   return { ok: true, value: releases };
 }
 
 function normalizeAppConfigSections(input: unknown): { ok: true; value: EditableAppConfigSections } | { ok: false; msg: string } {
-  if (!isRecord(input)) return { ok: false, msg: "请求体必须是对象" };
+  if (!isRecord(input)) return { ok: false, msg: "璇锋眰浣撳繀椤绘槸瀵硅薄" };
   const sections: EditableAppConfigSections = {};
   if ("availability" in input) {
     const availability = normalizeAvailability(input.availability);
@@ -522,12 +518,12 @@ function normalizeAppConfigSections(input: unknown): { ok: true; value: Editable
     if (!discover.ok) return discover;
     sections.discover = discover.value;
   }
-  if (Object.keys(sections).length === 0) return { ok: false, msg: "至少需要提交一个可保存的配置 section" };
+  if (Object.keys(sections).length === 0) return { ok: false, msg: "鑷冲皯闇€瑕佹彁浜や竴涓彲淇濆瓨鐨勯厤缃?section" };
   return { ok: true, value: sections };
 }
 
 function normalizeAnnouncement(body: unknown): { ok: true; value: Announcement } | { ok: false; msg: string } {
-  if (!isRecord(body)) return { ok: false, msg: "公告必须是对象" };
+  if (!isRecord(body)) return { ok: false, msg: "???????" };
   const id = normalizeRequiredString(body.id, "id", 120);
   if (!id.ok) return id;
   const content = normalizeRequiredString(body.content, "content", 50000);
@@ -554,22 +550,22 @@ function normalizeAnnouncement(body: unknown): { ok: true; value: Announcement }
 }
 
 function sanitizePathList(input: unknown): { ok: true; paths: string[] } | { ok: false; msg: string } {
-  if (!Array.isArray(input)) return { ok: false, msg: "plaintextPaths 必须是字符串数组" };
+  if (!Array.isArray(input)) return { ok: false, msg: "plaintextPaths 蹇呴』鏄瓧绗︿覆鏁扮粍" };
   const seen = new Set<string>();
   const cleaned: string[] = [];
   for (const raw of input) {
-    if (typeof raw !== "string") return { ok: false, msg: "白名单项必须是字符串" };
+    if (typeof raw !== "string") return { ok: false, msg: "鐧藉悕鍗曢」蹇呴』鏄瓧绗︿覆" };
     const t = raw.trim();
     if (!t) continue;
-    if (t.length > 256) return { ok: false, msg: `路径过长: ${t.slice(0, 32)}...` };
-    if (!PATH_REGEX.test(t)) return { ok: false, msg: `非法路径格式: ${t}` };
+    if (t.length > 256) return { ok: false, msg: `璺緞杩囬暱: ${t.slice(0, 32)}...` };
+    if (!PATH_REGEX.test(t)) return { ok: false, msg: `闈炴硶璺緞鏍煎紡: ${t}` };
     const starIdx = t.indexOf("*");
-    if (starIdx !== -1 && starIdx !== t.length - 1) return { ok: false, msg: `通配符 * 仅允许出现在末尾: ${t}` };
+    if (starIdx !== -1 && starIdx !== t.length - 1) return { ok: false, msg: `閫氶厤绗?* 浠呭厑璁稿嚭鐜板湪鏈熬: ${t}` };
     if (seen.has(t)) continue;
     seen.add(t);
     cleaned.push(t);
   }
-  if (cleaned.length > 200) return { ok: false, msg: "白名单条目过多（上限 200 条）" };
+  if (cleaned.length > 200) return { ok: false, msg: "鐧藉悕鍗曟潯鐩繃澶氾紙涓婇檺 200 鏉★級" };
   return { ok: true, paths: cleaned };
 }
 
@@ -578,17 +574,17 @@ adminRouter.post("/login", async (req, res) => {
     const body = req.body as Record<string, unknown>;
     const username = String(body?.username ?? "").trim();
     const password = String(body?.password ?? "");
-    if (!username || !password) return res.status(400).json(fail("请输入用户名和密码", 400));
+    if (!username || !password) return res.status(400).json(fail("?????????", 400));
 
     const auth = readAdminUser(username);
     if (!auth || !bcrypt.compareSync(password, auth.passwordHash)) {
-      return res.status(401).json(fail("用户名或密码错误", 401));
+      return res.status(401).json(fail("鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒", 401));
     }
 
     const token = jwt.sign({ sub: username }, getAdminJwtSecret(), { expiresIn: JWT_EXPIRES });
-    return res.json(ok({ token, username }, "登录成功"));
+    return res.json(ok({ token, username }, "鐧诲綍鎴愬姛"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "登录失败";
+    const message = e instanceof Error ? e.message : "鐧诲綍澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -599,23 +595,23 @@ adminRouter.use("/dynamic-configs", adminDynamicConfigRouter);
 adminRouter.post("/change-password", async (req, res) => {
   try {
     const username = getUsernameFromJwt(req);
-    if (!username) return res.status(401).json(fail("未登录", 401));
+    if (!username) return res.status(401).json(fail("???", 401));
     const body = req.body as Record<string, unknown>;
     const currentPassword = String(body?.currentPassword ?? "");
     const newPassword = String(body?.newPassword ?? "");
-    if (!currentPassword || !newPassword) return res.status(400).json(fail("请填写当前密码和新密码", 400));
-    if (newPassword.length < 6) return res.status(400).json(fail("新密码至少 6 位", 400));
-    if (newPassword.length > 128) return res.status(400).json(fail("新密码过长", 400));
-    if (currentPassword === newPassword) return res.status(400).json(fail("新密码不能与当前密码相同", 400));
+    if (!currentPassword || !newPassword) return res.status(400).json(fail("???????????", 400));
+    if (newPassword.length < 6) return res.status(400).json(fail("????? 6 ?", 400));
+    if (newPassword.length > 128) return res.status(400).json(fail("?????", 400));
+    if (currentPassword === newPassword) return res.status(400).json(fail("鏂板瘑鐮佷笉鑳戒笌褰撳墠瀵嗙爜鐩稿悓", 400));
 
     const auth = readAnyAdminUser();
-    if (!auth || auth.username !== username) return res.status(500).json(fail("账号配置异常", 500));
-    if (!bcrypt.compareSync(currentPassword, auth.passwordHash)) return res.status(400).json(fail("当前密码错误", 400));
+    if (!auth || auth.username !== username) return res.status(500).json(fail("璐﹀彿閰嶇疆寮傚父", 500));
+    if (!bcrypt.compareSync(currentPassword, auth.passwordHash)) return res.status(400).json(fail("褰撳墠瀵嗙爜閿欒", 400));
 
     upsertAdminUser({ username: auth.username, passwordHash: bcrypt.hashSync(newPassword, 10) });
-    return res.json(ok({ updated: true }, "密码已更新"));
+    return res.json(ok({ updated: true }, "?????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "修改密码失败";
+    const message = e instanceof Error ? e.message : "淇敼瀵嗙爜澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -624,7 +620,7 @@ adminRouter.get("/app-config", (_req, res) => {
   try {
     return res.json(ok(readAppConfig()));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "读取配置失败";
+    const message = e instanceof Error ? e.message : "璇诲彇閰嶇疆澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -633,9 +629,9 @@ adminRouter.post("/app-config-sections", (req, res) => {
   try {
     const result = normalizeAppConfigSections(req.body);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(saveAppConfigSections(result.value), "配置已保存"));
+    return res.json(ok(saveAppConfigSections(result.value), "?????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "保存配置失败";
+    const message = e instanceof Error ? e.message : "淇濆瓨閰嶇疆澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -644,7 +640,7 @@ adminRouter.get("/announcements", (_req, res) => {
   try {
     return res.json(ok(readAnnouncements()));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "读取公告失败";
+    const message = e instanceof Error ? e.message : "璇诲彇鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -653,9 +649,9 @@ adminRouter.post("/announcements", (req, res) => {
   try {
     const result = normalizeAnnouncement(req.body);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(saveAnnouncement(result.value), "公告已保存"));
+    return res.json(ok(saveAnnouncement(result.value), "?????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "保存公告失败";
+    const message = e instanceof Error ? e.message : "淇濆瓨鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -664,9 +660,9 @@ adminRouter.put("/announcements/:id", (req, res) => {
   try {
     const result = normalizeAnnouncement({ ...(req.body as Record<string, unknown>), id: req.params.id });
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(saveAnnouncement(result.value), "公告已保存"));
+    return res.json(ok(saveAnnouncement(result.value), "?????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "保存公告失败";
+    const message = e instanceof Error ? e.message : "淇濆瓨鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -674,10 +670,10 @@ adminRouter.put("/announcements/:id", (req, res) => {
 adminRouter.delete("/announcements/:id", (req, res) => {
   try {
     const deleted = deleteAnnouncement(String(req.params.id ?? "").trim());
-    if (!deleted) return res.status(404).json(fail("公告不存在", 404));
-    return res.json(ok(null, "公告已删除"));
+    if (!deleted) return res.status(404).json(fail("?????", 404));
+    return res.json(ok(null, "?????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "删除公告失败";
+    const message = e instanceof Error ? e.message : "鍒犻櫎鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -686,7 +682,7 @@ adminRouter.get("/update-history", (_req, res) => {
   try {
     return res.json(ok(readUpdateHistory()));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "读取更新历史失败";
+    const message = e instanceof Error ? e.message : "璇诲彇鏇存柊鍘嗗彶澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -710,7 +706,7 @@ adminRouter.get("/files", (req, res) => {
       limit,
     })));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "读取文件记录失败";
+    const message = e instanceof Error ? e.message : "璇诲彇鏂囦欢璁板綍澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -718,18 +714,18 @@ adminRouter.get("/files", (req, res) => {
 adminRouter.delete("/files/:id", async (req, res) => {
   try {
     const id = String(req.params.id ?? "").trim();
-    if (!id) return res.status(400).json(fail("文件 ID 不能为空", 400));
+    if (!id) return res.status(400).json(fail("鏂囦欢 ID 涓嶈兘涓虹┖", 400));
     const file = readFileRecordById(id);
-    if (!file) return res.status(404).json(fail("文件记录不存在", 404));
+    if (!file) return res.status(404).json(fail("???????", 404));
     const blockers = findFileRecordDeleteBlockers(id);
-    if (blockers.length) return res.status(409).json(fail(`文件正在被引用，不能删除：${blockers.join("、")}`, 409));
+    if (blockers.length) return res.status(409).json(fail(`?????????????${blockers.join("?")}`, 409));
     if (file.status !== "deleted" && file.provider === "qiniu") {
       await deleteQiniuObject(file.bucket, file.objectKey);
     }
     const deleted = markFileRecordDeleted(id);
-    return res.json(ok({ file: deleted }, "文件已删除"));
+    return res.json(ok({ file: deleted }, "?????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "删除文件失败";
+    const message = e instanceof Error ? e.message : "鍒犻櫎鏂囦欢澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -738,9 +734,9 @@ adminRouter.post("/release-files/upload-token", (req, res) => {
   try {
     const payload = normalizeUploadTokenPayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    return res.json(ok(createQiniuUploadToken(payload.value), "上传凭证已生成"));
+    return res.json(ok(createQiniuUploadToken(payload.value), "???????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "生成上传凭证失败";
+    const message = e instanceof Error ? e.message : "鐢熸垚涓婁紶鍑瘉澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -749,14 +745,10 @@ adminRouter.post("/release-files/complete", (req, res) => {
   try {
     const payload = normalizeUploadCompletePayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    const fileId = randomUUID();
-    const downloadUrl = buildReleaseFileDownloadPath(fileId);
-    const fileRecord = createFileRecord({
+    const file = createReleaseUploadRecord({
       id: randomUUID(),
-      usageType: "release-package",
       platform: payload.value.platform,
-      version: payload.value.version ?? "",
-      assetType: "installer",
+      version: payload.value.version,
       provider: "qiniu",
       bucket: payload.value.bucket,
       objectKey: payload.value.key,
@@ -764,63 +756,6 @@ adminRouter.post("/release-files/complete", (req, res) => {
       fileName: payload.value.fileName,
       mimeType: payload.value.mimeType,
       fileSize: payload.value.fileSize,
-      downloadUrl,
-      referencedBy: "",
-    });
-    const file = createOrUpdateReleaseFile({
-      id: fileId,
-      fileRecordId: fileRecord.id,
-      platform: payload.value.platform,
-      provider: "qiniu",
-      bucket: payload.value.bucket,
-      objectKey: payload.value.key,
-      hash: payload.value.hash,
-      fileName: payload.value.fileName,
-      mimeType: payload.value.mimeType,
-      fileSize: payload.value.fileSize,
-      downloadUrl,
-    });
-    const desktopUpdateAsset =
-      payload.value.platform === "desktop" && payload.value.version && payload.value.fileName.toLowerCase().endsWith(".exe")
-        ? createOrUpdateDesktopUpdateAsset({
-            id: randomUUID(),
-            fileRecordId: fileRecord.id,
-            version: payload.value.version,
-            platform: "win32",
-            arch: "x64",
-            fileType: "installer",
-            provider: "qiniu",
-            bucket: payload.value.bucket,
-            objectKey: payload.value.key,
-            hash: payload.value.hash,
-            fileName: payload.value.fileName,
-            mimeType: payload.value.mimeType,
-            fileSize: payload.value.fileSize,
-          })
-        : undefined;
-    return res.json(ok({ ...file, desktopUpdateAsset }, "安装包已登记"));
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "登记安装包失败";
-    return res.status(500).json(fail(message, 500));
-  }
-});
-
-adminRouter.post("/release-files/complete", (req, res) => {
-  try {
-    const payload = normalizeUploadCompletePayload(req.body);
-    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    const fileId = randomUUID();
-    const file = createReleaseFile({
-      id: fileId,
-      platform: payload.value.platform,
-      provider: "qiniu",
-      bucket: payload.value.bucket,
-      objectKey: payload.value.key,
-      hash: payload.value.hash,
-      fileName: payload.value.fileName,
-      mimeType: payload.value.mimeType,
-      fileSize: payload.value.fileSize,
-      downloadUrl: buildReleaseFileDownloadPath(fileId),
     });
     return res.json(ok(file, "安装包已登记"));
   } catch (e) {
@@ -828,14 +763,13 @@ adminRouter.post("/release-files/complete", (req, res) => {
     return res.status(500).json(fail(message, 500));
   }
 });
-
 adminRouter.post("/desktop-updates/upload-token", (req, res) => {
   try {
     const payload = normalizeDesktopUpdateUploadTokenPayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    return res.json(ok(createDesktopUpdateUploadToken(payload.value), "自动更新上传凭证已生成"));
+    return res.json(ok(createDesktopUpdateUploadToken(payload.value), "???????????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "生成自动更新上传凭证失败";
+    const message = e instanceof Error ? e.message : "鐢熸垚鑷姩鏇存柊涓婁紶鍑瘉澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -844,67 +778,7 @@ adminRouter.post("/desktop-updates/complete", (req, res) => {
   try {
     const payload = normalizeDesktopUpdateCompletePayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    const isInstaller = payload.value.fileType === "installer";
-    const releaseFileId = isInstaller ? randomUUID() : "";
-    const releaseDownloadUrl = releaseFileId ? buildReleaseFileDownloadPath(releaseFileId) : "";
-    const fileRecord = createFileRecord({
-      id: randomUUID(),
-      usageType: "desktop-update",
-      platform: `${payload.value.platform}/${payload.value.arch}`,
-      version: payload.value.version,
-      assetType: payload.value.fileType,
-      provider: "qiniu",
-      bucket: payload.value.bucket,
-      objectKey: payload.value.key,
-      hash: payload.value.hash,
-      fileName: payload.value.fileName,
-      mimeType: payload.value.mimeType,
-      fileSize: payload.value.fileSize,
-      downloadUrl: releaseDownloadUrl,
-      referencedBy: "",
-    });
-    const asset = createOrUpdateDesktopUpdateAsset({
-      id: randomUUID(),
-      fileRecordId: fileRecord.id,
-      version: payload.value.version,
-      platform: payload.value.platform,
-      arch: payload.value.arch,
-      fileType: payload.value.fileType,
-      provider: "qiniu",
-      bucket: payload.value.bucket,
-      objectKey: payload.value.key,
-      hash: payload.value.hash,
-      fileName: payload.value.fileName,
-      mimeType: payload.value.mimeType,
-      fileSize: payload.value.fileSize,
-    });
-    const releaseFile = isInstaller
-      ? createOrUpdateReleaseFile({
-          id: releaseFileId,
-          fileRecordId: fileRecord.id,
-          platform: "desktop",
-          provider: "qiniu",
-          bucket: payload.value.bucket,
-          objectKey: payload.value.key,
-          hash: payload.value.hash,
-          fileName: payload.value.fileName,
-          mimeType: payload.value.mimeType,
-          fileSize: payload.value.fileSize,
-          downloadUrl: releaseDownloadUrl,
-        })
-      : null;
-    return res.json(ok({ ...asset, releaseFile }, "自动更新文件已登记"));
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "登记自动更新文件失败";
-    return res.status(500).json(fail(message, 500));
-  }
-});
-
-adminRouter.post("/desktop-updates/complete", (req, res) => {
-  try {
-    const payload = normalizeDesktopUpdateCompletePayload(req.body);
-    if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    const asset = createDesktopUpdateAsset({
+    const asset = createDesktopUpdateUploadRecord({
       id: randomUUID(),
       version: payload.value.version,
       platform: payload.value.platform,
@@ -924,15 +798,14 @@ adminRouter.post("/desktop-updates/complete", (req, res) => {
     return res.status(500).json(fail(message, 500));
   }
 });
-
 adminRouter.post("/desktop-updates/activate", (req, res) => {
   try {
     const payload = normalizeDesktopUpdateActivatePayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
     const assets = activateDesktopUpdateVersion(payload.value.version, payload.value.platform, payload.value.arch);
-    return res.json(ok({ assets }, "PC 自动更新版本已启用"));
+    return res.json(ok({ assets }, "PC ?????????"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "启用 PC 自动更新版本失败";
+    const message = e instanceof Error ? e.message : "鍚敤 PC 鑷姩鏇存柊鐗堟湰澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -940,11 +813,11 @@ adminRouter.post("/desktop-updates/activate", (req, res) => {
 adminRouter.post("/publish-update", (req, res) => {
   try {
     const payload = normalizePayload(req.body);
-    if (!payload) return res.status(400).json(fail("参数不完整或格式不正确", 400));
+    if (!payload) return res.status(400).json(fail("???????????", 400));
     const history = publishUpdate(payload.release, randomUUID(), payload.platform, payload.releaseFileId);
-    return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform }, "发布成功"));
+    return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform }, "鍙戝竷鎴愬姛"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "发布更新失败";
+    const message = e instanceof Error ? e.message : "鍙戝竷鏇存柊澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -953,15 +826,15 @@ adminRouter.delete("/update-history/:id/release-file", async (req, res) => {
   try {
     const historyId = String(req.params.id ?? "").trim();
     const file = readReleaseFileForHistory(historyId);
-    if (!file) return res.status(404).json(fail("该发布记录没有可删除的七牛安装包", 404));
-    if (file.provider !== "qiniu") return res.status(400).json(fail("该安装包不是七牛上传文件", 400));
+    if (!file) return res.status(404).json(fail("璇ュ彂甯冭褰曟病鏈夊彲鍒犻櫎鐨勪竷鐗涘畨瑁呭寘", 404));
+    if (file.provider !== "qiniu") return res.status(400).json(fail("璇ュ畨瑁呭寘涓嶆槸涓冪墰涓婁紶鏂囦欢", 400));
     if (file.status !== "deleted") {
       await deleteQiniuObject(file.bucket, file.objectKey);
     }
     const deleted = markReleaseFileDeletedForHistory(historyId);
-    return res.json(ok({ releaseFile: deleted }, "安装包已删除"));
+    return res.json(ok({ releaseFile: deleted }, "瀹夎鍖呭凡鍒犻櫎"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "删除安装包失败";
+    const message = e instanceof Error ? e.message : "???????";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -978,9 +851,9 @@ adminRouter.post("/encryption-config", (req, res) => {
     const paths = [...new Set([...result.paths, ...MANDATORY_PLAINTEXT_PATHS])];
     replacePlaintextPaths(paths);
     setPlaintextPaths(paths);
-    return res.json(ok({ plaintextPaths: paths }, "白名单已更新"));
+    return res.json(ok({ plaintextPaths: paths }, "鐧藉悕鍗曞凡鏇存柊"));
   } catch (e) {
-    const message = e instanceof Error ? e.message : "保存白名单失败";
+    const message = e instanceof Error ? e.message : "???????";
     return res.status(500).json(fail(message, 500));
   }
 });
@@ -1115,7 +988,7 @@ adminRouter.get("/device/list", (req, res) => {
 
     return res.json(ok({ devices: rows.map(mapDeviceRow), total: countRow.total, offset, limit }));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "查询设备列表失败";
+    const msg = e instanceof Error ? e.message : "鏌ヨ璁惧鍒楄〃澶辫触";
     return res.status(500).json(fail(msg, 500));
   }
 });
@@ -1129,7 +1002,7 @@ adminRouter.get("/device/:id", (req, res) => {
     if (!row) return res.status(404).json(fail("Device not found", 404));
     return res.json(ok(mapDeviceRow(row)));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "查询设备详情失败";
+    const msg = e instanceof Error ? e.message : "鏌ヨ璁惧璇︽儏澶辫触";
     return res.status(500).json(fail(msg, 500));
   }
 });
@@ -1153,7 +1026,7 @@ adminRouter.post("/device/:id/lock", (req, res) => {
     const updated = db.prepare("SELECT * FROM device_info WHERE id = ?").get(id) as DeviceInfoRow;
     return res.json(ok(mapDeviceRow(updated)));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "操作失败";
+    const msg = e instanceof Error ? e.message : "鎿嶄綔澶辫触";
     return res.status(500).json(fail(msg, 500));
   }
 });
@@ -1166,9 +1039,9 @@ adminRouter.delete("/device/:id", (req, res) => {
     const existing = db.prepare("SELECT id FROM device_info WHERE id = ?").get(id) as { id: string } | undefined;
     if (!existing) return res.status(404).json(fail("Device not found", 404));
     db.prepare("DELETE FROM device_info WHERE id = ?").run(id);
-    return res.json(ok(null, "设备已删除"));
+    return res.json(ok(null, "?????"));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "删除设备失败";
+    const msg = e instanceof Error ? e.message : "鍒犻櫎璁惧澶辫触";
     return res.status(500).json(fail(msg, 500));
   }
 });
@@ -1203,7 +1076,7 @@ adminRouter.get("/desktop-device/list", (req, res) => {
 
     return res.json(ok({ devices: rows.map(mapDesktopDeviceRow), total: countRow.total, offset, limit }));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "查询 PC 设备列表失败";
+    const msg = e instanceof Error ? e.message : "鏌ヨ PC 璁惧鍒楄〃澶辫触";
     return res.status(500).json(fail(msg, 500));
   }
 });
@@ -1217,7 +1090,7 @@ adminRouter.get("/desktop-device/:id", (req, res) => {
     if (!row) return res.status(404).json(fail("Desktop device not found", 404));
     return res.json(ok(mapDesktopDeviceRow(row)));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "查询 PC 设备详情失败";
+    const msg = e instanceof Error ? e.message : "鏌ヨ PC 璁惧璇︽儏澶辫触";
     return res.status(500).json(fail(msg, 500));
   }
 });
@@ -1241,7 +1114,7 @@ adminRouter.post("/desktop-device/:id/lock", (req, res) => {
     const updated = db.prepare("SELECT * FROM desktop_device_info WHERE id = ?").get(id) as DesktopDeviceInfoRow;
     return res.json(ok(mapDesktopDeviceRow(updated)));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "操作 PC 设备失败";
+    const msg = e instanceof Error ? e.message : "鎿嶄綔 PC 璁惧澶辫触";
     return res.status(500).json(fail(msg, 500));
   }
 });
@@ -1254,9 +1127,10 @@ adminRouter.delete("/desktop-device/:id", (req, res) => {
     const existing = db.prepare("SELECT id FROM desktop_device_info WHERE id = ?").get(id) as { id: string } | undefined;
     if (!existing) return res.status(404).json(fail("Desktop device not found", 404));
     db.prepare("DELETE FROM desktop_device_info WHERE id = ?").run(id);
-    return res.json(ok(null, "PC 设备已删除"));
+    return res.json(ok(null, "PC ?????"));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "删除 PC 设备失败";
+    const msg = e instanceof Error ? e.message : "鍒犻櫎 PC 璁惧澶辫触";
     return res.status(500).json(fail(msg, 500));
   }
 });
+

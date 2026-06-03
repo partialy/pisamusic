@@ -146,52 +146,6 @@ CREATE TABLE IF NOT EXISTS update_history (
     created_at      INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS release_files (
-    id              TEXT    PRIMARY KEY,
-    file_record_id  TEXT,
-    history_id      TEXT,
-    platform        TEXT    NOT NULL,
-    provider        TEXT    NOT NULL DEFAULT 'qiniu',
-    bucket          TEXT    NOT NULL,
-    object_key      TEXT    NOT NULL,
-    hash            TEXT    NOT NULL DEFAULT '',
-    file_name       TEXT    NOT NULL,
-    mime_type       TEXT    NOT NULL DEFAULT '',
-    file_size       INTEGER NOT NULL DEFAULT 0,
-    download_url    TEXT    NOT NULL,
-    status          TEXT    NOT NULL DEFAULT 'uploaded',
-    created_at      INTEGER NOT NULL,
-    deleted_at      INTEGER,
-    FOREIGN KEY (history_id) REFERENCES update_history(id) ON DELETE SET NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_release_files_provider_key ON release_files (provider, bucket, object_key);
-CREATE INDEX IF NOT EXISTS idx_release_files_history ON release_files (history_id);
-CREATE INDEX IF NOT EXISTS idx_release_files_record ON release_files (file_record_id);
-
-CREATE TABLE IF NOT EXISTS desktop_update_assets (
-    id              TEXT    PRIMARY KEY,
-    file_record_id  TEXT,
-    version         TEXT    NOT NULL,
-    platform        TEXT    NOT NULL DEFAULT 'win32',
-    arch            TEXT    NOT NULL DEFAULT 'x64',
-    file_type       TEXT    NOT NULL,
-    provider        TEXT    NOT NULL DEFAULT 'qiniu',
-    bucket          TEXT    NOT NULL,
-    object_key      TEXT    NOT NULL,
-    hash            TEXT    NOT NULL DEFAULT '',
-    file_name       TEXT    NOT NULL,
-    mime_type       TEXT    NOT NULL DEFAULT '',
-    file_size       INTEGER NOT NULL DEFAULT 0,
-    status          TEXT    NOT NULL DEFAULT 'uploaded',
-    active          INTEGER NOT NULL DEFAULT 0,
-    created_at      INTEGER NOT NULL,
-    deleted_at      INTEGER
-);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_desktop_update_assets_provider_key ON desktop_update_assets (provider, bucket, object_key);
-CREATE INDEX IF NOT EXISTS idx_desktop_update_assets_active ON desktop_update_assets (platform, arch, active, file_name);
-CREATE INDEX IF NOT EXISTS idx_desktop_update_assets_version ON desktop_update_assets (platform, arch, version);
-CREATE INDEX IF NOT EXISTS idx_desktop_update_assets_record ON desktop_update_assets (file_record_id);
-
 CREATE TABLE IF NOT EXISTS file_records (
     id              TEXT    PRIMARY KEY,
     usage_type      TEXT    NOT NULL,
@@ -352,65 +306,6 @@ function migrateUpdateHistory(db: DatabaseSync) {
   }
 }
 
-function migrateFileRecords(db: DatabaseSync) {
-  const releaseCols = getColumnNames(db, "release_files");
-  if (!releaseCols.has("file_record_id")) {
-    db.exec(`ALTER TABLE release_files ADD COLUMN file_record_id TEXT`);
-  }
-  const assetCols = getColumnNames(db, "desktop_update_assets");
-  if (!assetCols.has("file_record_id")) {
-    db.exec(`ALTER TABLE desktop_update_assets ADD COLUMN file_record_id TEXT`);
-  }
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_release_files_record ON release_files (file_record_id)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_desktop_update_assets_record ON desktop_update_assets (file_record_id)`);
-  db.exec(`
-    INSERT OR IGNORE INTO file_records (
-      id, usage_type, platform, version, asset_type, provider, bucket, object_key,
-      hash, file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
-    )
-    SELECT
-      id, 'release-package', platform, '', 'installer', provider, bucket, object_key,
-      hash, file_name, mime_type, file_size, download_url, status,
-      COALESCE(history_id, ''), created_at, deleted_at
-    FROM release_files
-  `);
-  db.exec(`
-    INSERT OR IGNORE INTO file_records (
-      id, usage_type, platform, version, asset_type, provider, bucket, object_key,
-      hash, file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
-    )
-    SELECT
-      id, 'desktop-update', platform || '/' || arch, version, file_type, provider, bucket, object_key,
-      hash, file_name, mime_type, file_size, '', status,
-      CASE WHEN active = 1 THEN 'active-desktop-update' ELSE '' END, created_at, deleted_at
-    FROM desktop_update_assets
-  `);
-  db.exec(`
-    UPDATE release_files
-    SET file_record_id = (
-      SELECT fr.id
-      FROM file_records fr
-      WHERE fr.provider = release_files.provider
-        AND fr.bucket = release_files.bucket
-        AND fr.object_key = release_files.object_key
-      LIMIT 1
-    )
-    WHERE file_record_id IS NULL OR file_record_id = ''
-  `);
-  db.exec(`
-    UPDATE desktop_update_assets
-    SET file_record_id = (
-      SELECT fr.id
-      FROM file_records fr
-      WHERE fr.provider = desktop_update_assets.provider
-        AND fr.bucket = desktop_update_assets.bucket
-        AND fr.object_key = desktop_update_assets.object_key
-      LIMIT 1
-    )
-    WHERE file_record_id IS NULL OR file_record_id = ''
-  `);
-}
-
 function migrateAppSettings(db: DatabaseSync) {
   const cols = getColumnNames(db, "app_settings");
   const add = (name: string, decl: string) => {
@@ -453,6 +348,70 @@ function migrateUsers(db: DatabaseSync) {
   }
 }
 
+function repairFileRecords(db: DatabaseSync) {
+  db.exec(`
+    UPDATE file_records
+    SET download_url = '/api/config/release-files/' || id || '/download'
+    WHERE asset_type = 'installer';
+
+    UPDATE file_records
+    SET download_url = ''
+    WHERE asset_type <> 'installer';
+
+    UPDATE update_history
+    SET download_url = (
+      SELECT f.download_url
+      FROM file_records f
+      WHERE f.id = update_history.release_file_id
+        AND f.status = 'uploaded'
+      LIMIT 1
+    )
+    WHERE release_file_id IS NOT NULL
+      AND EXISTS (
+        SELECT 1
+        FROM file_records f
+        WHERE f.id = update_history.release_file_id
+          AND f.status = 'uploaded'
+      );
+
+    UPDATE release_info
+    SET download_url = (
+      SELECT f.download_url
+      FROM update_history h
+      JOIN file_records f ON f.id = h.release_file_id
+      WHERE h.platform = release_info.platform
+        AND f.status = 'uploaded'
+      ORDER BY h.created_at DESC
+      LIMIT 1
+    )
+    WHERE EXISTS (
+      SELECT 1
+      FROM update_history h
+      JOIN file_records f ON f.id = h.release_file_id
+      WHERE h.platform = release_info.platform
+        AND f.status = 'uploaded'
+    );
+
+    UPDATE current_update
+    SET download_url = (
+      SELECT f.download_url
+      FROM update_history h
+      JOIN file_records f ON f.id = h.release_file_id
+      WHERE h.platform = 'android'
+        AND f.status = 'uploaded'
+      ORDER BY h.created_at DESC
+      LIMIT 1
+    )
+    WHERE EXISTS (
+      SELECT 1
+      FROM update_history h
+      JOIN file_records f ON f.id = h.release_file_id
+      WHERE h.platform = 'android'
+        AND f.status = 'uploaded'
+    );
+  `);
+}
+
 function initSchema(db: DatabaseSync) {
   db.exec(`
     DROP TABLE IF EXISTS sync_applied_ops;
@@ -460,14 +419,16 @@ function initSchema(db: DatabaseSync) {
     DROP TABLE IF EXISTS sync_items;
     DROP TABLE IF EXISTS sync_devices;
     DROP TABLE IF EXISTS sync_spaces;
+    DROP TABLE IF EXISTS release_files;
+    DROP TABLE IF EXISTS desktop_update_assets;
   `);
   db.exec(CREATE_SQL);
   migrateDeviceInfo(db);
   migrateAppSettings(db);
   migrateUpdateHistory(db);
-  migrateFileRecords(db);
   migrateDynamicConfigs(db);
   migrateUsers(db);
+  repairFileRecords(db);
 }
 
 let singleton: DatabaseSync | null = null;
