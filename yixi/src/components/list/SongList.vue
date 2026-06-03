@@ -8,7 +8,7 @@
         :offset="offset"
         :min-size="minSize || 64"
         :list="searchKey ? filteredSongs : songs"
-        :style="{ height: height + 'px' }"
+        :style="{ height: height + 'px' , 'padding-right': '8px' }"
         @scroll="emit('scroll', $event)"
         @toBottom="emit('scrollToBottom', $event)"
         @toTop="emit('scrollToTop', $event)"

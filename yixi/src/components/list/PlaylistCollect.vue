@@ -88,6 +88,7 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(auto-fill, minmax(10.2rem, 1fr));
   gap: 1rem;
   width: 100%;
+  padding-right: 8px;
 
   .playlist-skeleton-item {
     aspect-ratio: 7/10;

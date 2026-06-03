@@ -20,6 +20,7 @@ export const useRuntimeConfigStore = defineStore("runtimeConfig", {
     loading: false,
     error: "",
     endpoints: null as RuntimeEndpoints | null,
+    isDev: true,
   }),
   actions: {
     async refresh() {
@@ -30,8 +31,10 @@ export const useRuntimeConfigStore = defineStore("runtimeConfig", {
         try {
           await electronAPI.getBootstrapConfig();
           const endpoints = await electronAPI.getRuntimeEndpoints(true);
+          const isDev = await electronAPI.isDevelopmentRuntime();
           this.applyEndpoints(endpoints);
           this.loaded = true;
+          this.isDev = isDev;
           return endpoints;
         } catch (error) {
           const message = error instanceof Error ? error.message : "服务端配置加载失败";

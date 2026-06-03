@@ -143,6 +143,7 @@ function sourceLabel(source: CommonPlaylist["source"]) {
   align-content: start;
   align-items: start;
   gap: 1rem;
+  padding-right: 8px;
   overflow: auto;
   padding-bottom: 18px;
 }

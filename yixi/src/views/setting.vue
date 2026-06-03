@@ -16,7 +16,7 @@
       <n-tab-pane name="shortcut" tab="快捷键设置">
         <ShortcutSetting></ShortcutSetting>
       </n-tab-pane>
-      <n-tab-pane name="advance" tab="高级设置">
+      <n-tab-pane name="advance" tab="高级设置" v-if="isDev">
         <AdvanceSetting></AdvanceSetting>
       </n-tab-pane>
     </n-tabs>
@@ -25,8 +25,11 @@
 
 <script setup lang="ts">
 import { LyricSetting, BasicSetting, AdvanceSetting, LocalSetting, ShortcutSetting, SyncSetting } from "@/components/setting";
+import { storeToRefs } from "pinia";
+import { useRuntimeConfigStore } from "@/store/runtimeConfig";
 import { ref } from "vue";
 const activeName = ref("basic");
+const { isDev } = storeToRefs(useRuntimeConfigStore());
 </script>
 
 <style lang="scss" scoped>

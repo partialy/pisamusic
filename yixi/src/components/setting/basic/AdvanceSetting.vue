@@ -1,6 +1,6 @@
 <template>
   <div class="advance-setting">
-    <template v-if="developmentRuntime">
+    <template v-if="isDev">
       <section class="debug-section">
         <div class="section-head">
           <div>
@@ -140,6 +140,8 @@ import {
   getUserCookie,
   type CookieSource,
 } from "@/utils/api/cookieMusicAPI";
+import { storeToRefs } from "pinia";
+import { useRuntimeConfigStore } from "@/store/runtimeConfig";
 
 type NetworkErrorRecordSummary = {
   id: number;
@@ -165,7 +167,7 @@ type NetworkErrorRecordPage = {
   pageSize: number;
 };
 
-const developmentRuntime = ref(false);
+const { isDev } = storeToRefs(useRuntimeConfigStore());
 const loading = ref(false);
 const exporting = ref(false);
 const cookieExporting = ref(false);
@@ -245,10 +247,7 @@ const columns: DataTableColumns<NetworkErrorRecordSummary> = [
 ];
 
 onMounted(async () => {
-  developmentRuntime.value = await window.electronAPI.isDevelopmentRuntime();
-  if (developmentRuntime.value) {
     await loadPage(1);
-  }
 });
 
 async function showCookie(source: CookieSource) {
@@ -307,6 +306,7 @@ async function exportCookies() {
 }
 
 async function loadPage(page: number) {
+  if (!isDev.value) return;
   loading.value = true;
   try {
     pageData.value = await window.electronAPI.listNetworkErrors({
