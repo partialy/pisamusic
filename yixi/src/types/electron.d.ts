@@ -225,6 +225,7 @@ type UpdaterState = {
   forceUpdate: boolean;
   error: string;
   manual: boolean;
+  simulated?: boolean;
 };
 
 type Announcement = {
@@ -236,6 +237,15 @@ type Announcement = {
   showEveryTime?: boolean;
   showGotoButton: boolean;
   gotoUrl?: string;
+};
+
+type AboutInfo = {
+  appName: string;
+  websiteLabel: string;
+  websiteUrl: string;
+  description: string;
+  team: string;
+  copyright: string;
 };
 
 type FeedbackPayload = {
@@ -618,6 +628,7 @@ type ElectronIpcApi = {
   notifyStartupReady: () => void;
   getUpdaterState: () => Promise<UpdaterState>;
   checkForUpdates: (options?: { manual?: boolean }) => Promise<UpdaterState>;
+  simulateCheckForUpdates: () => Promise<UpdaterState>;
   downloadUpdate: () => Promise<UpdaterState>;
   quitAndInstallUpdate: () => Promise<void>;
   onUpdaterState: (callback: (state: UpdaterState) => void) => () => void;
@@ -650,10 +661,12 @@ type ElectronIpcApi = {
   ) => () => void;
 
   getSystemBaseUrl: () => Promise<string>;
+  getAppVersion: () => Promise<string>;
   getBootstrapConfig: () => Promise<BootstrapConfig>;
   getStartupServiceState: () => Promise<StartupServiceState>;
   getRuntimeEndpoints: (fresh?: boolean) => Promise<BackServerConfig>;
   getAnnouncements: () => Promise<Announcement[]>;
+  getAboutInfo: () => Promise<AboutInfo>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
   getAccountSession: () => Promise<AccountSession>;
   getAccountAvatarOptions: () => Promise<AccountAvatarOption[]>;

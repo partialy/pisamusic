@@ -7,6 +7,7 @@ import { decrypt, encrypt, randomFullKey } from "./encryption";
 import { signGatewayUrl } from "./gatewaySigner";
 import type {
   Announcement,
+  AboutInfo,
   ApiResponse,
   BootstrapConfig,
   DesktopDeviceReportRequest,
@@ -51,6 +52,10 @@ class DesktopDeviceLockedError extends Error {
 export function getSystemBaseUrl() {
   const defaultServerUrl = app.isPackaged ? PRODUCTION_SERVER_URL : DEV_SERVER_URL;
   return normalizeBaseUrl(process.env.PISA_SERVER_URL || process.env.PM_SERVER_URL || defaultServerUrl);
+}
+
+export function getAppVersion() {
+  return app.getVersion();
 }
 
 export async function refreshBootstrap() {
@@ -101,6 +106,11 @@ export async function getGatewaySignConfigCached() {
 
 export async function getAnnouncements() {
   const response = await requestSystem<Announcement[]>("/api/config/announcements");
+  return unwrapResponse(response);
+}
+
+export async function getAboutInfo() {
+  const response = await requestSystem<AboutInfo>("/api/config/about");
   return unwrapResponse(response);
 }
 

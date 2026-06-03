@@ -1,8 +1,10 @@
 import { ipcMain } from "electron";
 import {
   getAnnouncements,
+  getAboutInfo,
   changeAccountPassword,
   getAccountAvatarOptions,
+  getAppVersion,
   clearAccountSession,
   getBootstrap,
   getAccountSession,
@@ -33,6 +35,10 @@ export function setupSystemIpc() {
     return getSystemBaseUrl();
   });
 
+  ipcMain.handle("system:get-app-version", () => {
+    return getAppVersion();
+  });
+
   ipcMain.handle("system:get-bootstrap", () => {
     return getBootstrap();
   });
@@ -47,6 +53,10 @@ export function setupSystemIpc() {
 
   ipcMain.handle("system:get-announcements", () => {
     return getAnnouncements();
+  });
+
+  ipcMain.handle("system:get-about-info", () => {
+    return getAboutInfo();
   });
 
   ipcMain.handle("system:submit-feedback", (_event, payload: FeedbackPayload) => {

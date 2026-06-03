@@ -127,6 +127,14 @@ let lastUpdaterProgressNotice = -1;
 function setupUpdaterNotifications() {
   electronAPI.onUpdaterState?.((state) => {
     if (state.status === "available") {
+      if (state.simulated) {
+        window.$notification.info({
+          title: "发现新版本",
+          content: `新版本 ${state.updateInfo?.version || ""} 已可用`,
+          duration: 8000,
+        });
+        return;
+      }
       window.$notification.info({
         title: state.forceUpdate ? "发现必须更新版本" : "发现新版本",
         content: `新版本 ${state.updateInfo?.version || ""} 已可用`,

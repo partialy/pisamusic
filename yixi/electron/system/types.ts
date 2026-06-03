@@ -36,6 +36,15 @@ export type Announcement = {
   gotoUrl?: string;
 };
 
+export type AboutInfo = {
+  appName: string;
+  websiteLabel: string;
+  websiteUrl: string;
+  description: string;
+  team: string;
+  copyright: string;
+};
+
 export type FeedbackPayload = {
   feedback_type: "bug" | "suggestion" | "account" | "other";
   description: string;

@@ -12,6 +12,9 @@ type DesktopReleaseInfo = {
   latestVersion: string;
   forceUpdate: boolean;
   updateContent: string;
+  updateTime?: string;
+  downloadUrl?: string;
+  officialUrl?: string;
 };
 
 export type UpdaterStatus =
@@ -32,6 +35,7 @@ export type UpdaterState = {
   forceUpdate: boolean;
   error: string;
   manual: boolean;
+  simulated?: boolean;
 };
 
 type CheckOptions = {
@@ -48,6 +52,7 @@ let currentState: UpdaterState = {
   forceUpdate: false,
   error: "",
   manual: false,
+  simulated: false,
 };
 
 function canUseUpdater() {
@@ -64,6 +69,21 @@ function setState(getMainWindow: () => BrowserWindow | null, patch: Partial<Upda
     ...patch,
   };
   emitState(getMainWindow);
+}
+
+function createSimulatedUpdateInfo(release: DesktopReleaseInfo | null): UpdateInfo {
+  const version = release?.latestVersion?.trim() || app.getVersion();
+  const releaseNotes = release?.updateContent?.trim() || "开发环境模拟更新";
+  const releaseDate = release?.updateTime?.trim() || new Date().toISOString();
+  return {
+    version,
+    releaseName: `PisaMusic ${version}`,
+    releaseNotes,
+    releaseDate,
+    files: [],
+    path: release?.downloadUrl || "",
+    sha512: "",
+  } as UpdateInfo;
 }
 
 function normalizeFeedUrl(raw?: string) {
@@ -146,7 +166,7 @@ export function setupUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
   autoUpdater.autoInstallOnAppQuit = false;
 
   autoUpdater.on("checking-for-update", () => {
-    setState(getMainWindow, { status: "checking", progress: null, error: "" });
+    setState(getMainWindow, { status: "checking", progress: null, error: "", simulated: false });
   });
   autoUpdater.on("update-available", (info) => {
     void getDesktopReleaseInfo().then((release) => {
@@ -156,17 +176,18 @@ export function setupUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
         progress: null,
         forceUpdate: Boolean(release?.forceUpdate),
         error: "",
+        simulated: false,
       });
     });
   });
   autoUpdater.on("update-not-available", (info) => {
-    setState(getMainWindow, { status: "not-available", updateInfo: info, progress: null, forceUpdate: false, error: "" });
+    setState(getMainWindow, { status: "not-available", updateInfo: info, progress: null, forceUpdate: false, error: "", simulated: false });
   });
   autoUpdater.on("download-progress", (progress) => {
-    setState(getMainWindow, { status: "downloading", progress, error: "" });
+    setState(getMainWindow, { status: "downloading", progress, error: "", simulated: false });
   });
   autoUpdater.on("update-downloaded", (info) => {
-    setState(getMainWindow, { status: "downloaded", updateInfo: info, progress: null, error: "" });
+    setState(getMainWindow, { status: "downloaded", updateInfo: info, progress: null, error: "", simulated: false });
   });
   autoUpdater.on("error", (error) => {
     const message = error instanceof Error ? error.message : String(error);
@@ -181,8 +202,38 @@ export function setupUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
     await autoUpdater.checkForUpdates();
     return currentState;
   });
+  ipcMain.handle("updater:simulate-check", async () => {
+    if (app.isPackaged) {
+      setState(getMainWindow, {
+        status: "disabled",
+        manual: true,
+        error: "模拟检查更新仅支持开发环境",
+        simulated: false,
+      });
+      return currentState;
+    }
+
+    setState(getMainWindow, {
+      status: "checking",
+      manual: true,
+      progress: null,
+      error: "",
+      simulated: true,
+    });
+    const release = await getDesktopReleaseInfo();
+    setState(getMainWindow, {
+      status: "available",
+      updateInfo: createSimulatedUpdateInfo(release),
+      progress: null,
+      forceUpdate: Boolean(release?.forceUpdate),
+      error: "",
+      manual: true,
+      simulated: true,
+    });
+    return currentState;
+  });
   ipcMain.handle("updater:download", async () => {
-    if (currentState.status !== "available") return currentState;
+    if (currentState.status !== "available" || currentState.simulated) return currentState;
     await autoUpdater.downloadUpdate();
     return currentState;
   });

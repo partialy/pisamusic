@@ -61,6 +61,7 @@ const updaterIpc = {
   getUpdaterState: () => ipcRenderer.invoke("updater:get-state"),
   checkForUpdates: (options?: { manual?: boolean }) =>
     ipcRenderer.invoke("updater:check", cloneIpcPayload(options ?? {})),
+  simulateCheckForUpdates: () => ipcRenderer.invoke("updater:simulate-check"),
   downloadUpdate: () => ipcRenderer.invoke("updater:download"),
   quitAndInstallUpdate: () => ipcRenderer.invoke("updater:quit-and-install"),
   onUpdaterState: (callback: (state: any) => void) => on("updater:state", callback),
@@ -185,11 +186,13 @@ const libraryIpc = {
 
 const systemIpc = {
   getSystemBaseUrl: () => ipcRenderer.invoke("system:get-base-url"),
+  getAppVersion: () => ipcRenderer.invoke("system:get-app-version"),
   getBootstrapConfig: () => ipcRenderer.invoke("system:get-bootstrap"),
   getStartupServiceState: () => ipcRenderer.invoke("system:get-startup-service-state"),
   getRuntimeEndpoints: (fresh?: boolean) =>
     ipcRenderer.invoke("system:get-runtime-endpoints", fresh),
   getAnnouncements: () => ipcRenderer.invoke("system:get-announcements"),
+  getAboutInfo: () => ipcRenderer.invoke("system:get-about-info"),
   submitFeedback: (payload: {
     feedback_type: "bug" | "suggestion" | "account" | "other";
     description: string;
