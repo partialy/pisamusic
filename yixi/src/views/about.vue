@@ -23,8 +23,8 @@
       <div class="info-card">
         <div>
           <p class="card-label">官方网站</p>
-          <h2>{{ about.websiteLabel || "PisaMusic" }}</h2>
-          <p class="card-desc">{{ about.websiteUrl || "暂未配置官网地址" }}</p>
+          <h2>PisaMusic官网</h2>
+          <p class="card-desc">{{ about.websiteUrl || "https://pisamsuic.partialy.cn" }}</p>
         </div>
         <n-button secondary :disabled="!about.websiteUrl" @click="openWebsite">打开</n-button>
       </div>
@@ -689,7 +689,7 @@ h2 {
 .update-title-icon {
   width: 40px;
   height: 40px;
-  border-radius: 999px;
+  border-radius: 12px;
   overflow: hidden;
   background: color-mix(in srgb, #ffffff 70%, var(--color-primary) 14%);
   display: inline-flex;
