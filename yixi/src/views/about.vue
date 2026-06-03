@@ -101,7 +101,7 @@
       <section class="update-dialog-card" role="dialog" aria-modal="true">
         <div class="update-dialog-title">
           <span class="update-title-icon">
-            <n-icon :component="CircleArrowUp" size="24" />
+            <img src="@/assets/pisamusic_icon_1024.png" alt="Pisa Music" />
           </span>
           <h2>{{ updateDialogTitle }}</h2>
         </div>
@@ -139,7 +139,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { NButton, NIcon, NModal, NSkeleton } from "naive-ui";
 import {
   ChevronRight,
-  CircleArrowUp,
   Download,
   ExternalLink,
   FileText,
@@ -691,12 +690,19 @@ h2 {
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  color: #ffffff;
-  background: var(--color-primary);
+  overflow: hidden;
+  background: color-mix(in srgb, #ffffff 70%, var(--color-primary) 14%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 10px 22px color-mix(in srgb, var(--color-primary) 28%, transparent);
+
+  img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
 }
 
 .update-dialog-notes {
