@@ -91,7 +91,9 @@ export default function UpdateModal({
                 <button
                   key={item.key}
                   type="button"
+                  disabled={!isNew}
                   onClick={() =>
+                    isNew &&
                     onChange({
                       ...draft,
                       platform: item.key,
@@ -104,7 +106,7 @@ export default function UpdateModal({
                   }
                   className={`rounded-xl px-4 py-3 text-sm font-extrabold transition-all ${
                     draft.platform === item.key ? "text-white shadow-sm" : "bg-white/60 text-slate-600 hover:bg-white"
-                  }`}
+                  } ${isNew ? "" : "cursor-not-allowed opacity-70"}`}
                   style={draft.platform === item.key ? { backgroundColor: themeColor } : undefined}
                 >
                   {item.label}
@@ -318,7 +320,7 @@ export default function UpdateModal({
             style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
             className="px-8 py-3 rounded-xl text-white font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {saving ? "提交中…" : "保存并发布"}
+            {saving ? "提交中..." : isNew ? "保存并发布" : "保存修改"}
           </button>
         </div>
       </div>

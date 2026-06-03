@@ -36,6 +36,7 @@ import {
   replacePlaintextPaths,
   saveAnnouncement,
   saveAppConfigSections,
+  updatePublishedUpdate,
   upsertAdminUser,
 } from "../db/configStore";
 import { getDeviceDb } from "../db/deviceInfoDb";
@@ -822,6 +823,21 @@ adminRouter.post("/publish-update", (req, res) => {
   }
 });
 
+adminRouter.put("/update-history/:id", (req, res) => {
+  try {
+    const historyId = String(req.params.id ?? "").trim();
+    if (!historyId) return res.status(400).json(fail("发布记录 ID 不能为空", 400));
+    const payload = normalizePayload(req.body);
+    if (!payload) return res.status(400).json(fail("发布信息不完整", 400));
+    const history = updatePublishedUpdate(historyId, payload.release, payload.platform, payload.releaseFileId);
+    return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform, history }, "发布记录已保存"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "保存发布记录失败";
+    const status = message === "发布记录不存在" ? 404 : message === "发布记录平台不能修改" ? 400 : 500;
+    return res.status(status).json(fail(message, status));
+  }
+});
+
 adminRouter.delete("/update-history/:id/release-file", async (req, res) => {
   try {
     const historyId = String(req.params.id ?? "").trim();
@@ -1133,4 +1149,3 @@ adminRouter.delete("/desktop-device/:id", (req, res) => {
     return res.status(500).json(fail(msg, 500));
   }
 });
-

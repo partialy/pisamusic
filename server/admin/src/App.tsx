@@ -41,6 +41,7 @@ import {
   saveAppConfigSections,
   saveAnnouncement as saveAnnouncementApi,
   saveEncryptionConfig,
+  updatePublishedUpdate,
   uploadReleasePackage,
   uploadDesktopUpdateAsset,
   updateDynamicConfig,
@@ -134,6 +135,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const [editingUpdateDraft, setEditingUpdateDraft] = useState<UpdateFormDraft | null>(null);
   const [editingUpdateIsNew, setEditingUpdateIsNew] = useState(true);
+  const [editingUpdateHistoryId, setEditingUpdateHistoryId] = useState<string | null>(null);
+  const [editingUpdateIsCurrent, setEditingUpdateIsCurrent] = useState(false);
   const [publishSaving, setPublishSaving] = useState(false);
   const [packageUploading, setPackageUploading] = useState(false);
   const [packageUploadProgress, setPackageUploadProgress] = useState<number | null>(null);
@@ -173,6 +176,21 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   }>({ status: "uploaded", usageType: "all", keyword: "" });
 
   const displayHistory = useMemo(() => [...updateHistory].reverse(), [updateHistory]);
+
+  const isCurrentReleaseHistory = useCallback(
+    (item: UpdateHistoryItem) => {
+      const current = appConfigServer.releases[item.platform];
+      return (
+        current.latestVersion === item.version &&
+        current.updateTime === item.updateTime &&
+        current.forceUpdate === item.forceUpdate &&
+        current.downloadUrl === item.downloadUrl &&
+        current.officialUrl === item.officialUrl &&
+        current.updateContent === item.updateContent
+      );
+    },
+    [appConfigServer.releases],
+  );
 
   const refreshRemote = useCallback(async () => {
     setLoadError(null);
@@ -352,6 +370,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const openNewUpdate = () => {
     const plus8Time = getCurrentPlus8Time();
     setEditingUpdateIsNew(true);
+    setEditingUpdateHistoryId(null);
+    setEditingUpdateIsCurrent(false);
     setPackageUploadProgress(null);
     setDesktopUpdateProgress({});
     setDesktopUpdateAssets({});
@@ -373,6 +393,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const openEditUpdate = (item: UpdateHistoryItem) => {
     setEditingUpdateIsNew(false);
+    setEditingUpdateHistoryId(item.id);
+    setEditingUpdateIsCurrent(isCurrentReleaseHistory(item));
     setPackageUploadProgress(null);
     setDesktopUpdateProgress({});
     setDesktopUpdateAssets({});
@@ -382,6 +404,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const handleSubmitPublish = async () => {
     if (!editingUpdateDraft) return;
+    if (!editingUpdateIsNew && !editingUpdateHistoryId) return;
     const payload = draftToPayload(editingUpdateDraft);
     if (
       !payload.latestVersion ||
@@ -397,11 +420,17 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
     setPublishSaving(true);
     try {
-      if (payload.platform === "desktop" && payload.available) {
+      if (payload.platform === "desktop" && payload.available && (editingUpdateIsNew || editingUpdateIsCurrent)) {
         await activateDesktopUpdate(payload.latestVersion);
       }
-      await publishUpdate(payload);
+      if (editingUpdateIsNew) {
+        await publishUpdate(payload);
+      } else {
+        await updatePublishedUpdate(editingUpdateHistoryId!, payload);
+      }
       setEditingUpdateDraft(null);
+      setEditingUpdateHistoryId(null);
+      setEditingUpdateIsCurrent(false);
       await refreshRemote();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "发布失败";
@@ -1244,7 +1273,11 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           desktopUpdateUploading={desktopUpdateUploading}
           desktopUpdateProgress={desktopUpdateProgress}
           desktopUpdateAssets={desktopUpdateAssets}
-          onClose={() => setEditingUpdateDraft(null)}
+          onClose={() => {
+            setEditingUpdateDraft(null);
+            setEditingUpdateHistoryId(null);
+            setEditingUpdateIsCurrent(false);
+          }}
           onChange={setEditingUpdateDraft}
           onUploadPackage={(file) => void handleUploadReleasePackage(file)}
           onUploadDesktopUpdateAsset={(file) => void handleUploadDesktopUpdateAsset(file)}

@@ -1348,6 +1348,84 @@ export function publishUpdate(
   return item;
 }
 
+function releaseMatchesHistory(release: ReleaseInfo, item: UpdateHistoryItem): boolean {
+  return (
+    release.latestVersion === item.version &&
+    release.updateTime === item.updateTime &&
+    release.forceUpdate === item.forceUpdate &&
+    release.downloadUrl === item.downloadUrl &&
+    release.officialUrl === item.officialUrl &&
+    release.updateContent === item.updateContent
+  );
+}
+
+export function updatePublishedUpdate(
+  historyId: string,
+  update: AppUpdate,
+  platform: ReleasePlatform = "android",
+  releaseFileId?: string | null,
+): UpdateHistoryItem {
+  const db = getAppDb();
+  const current = readAppConfig();
+  const existing = readUpdateHistory().find((item) => item.id === historyId);
+  if (!existing) throw new Error("发布记录不存在");
+  if (existing.platform !== platform) throw new Error("发布记录平台不能修改");
+
+  const releaseFile = releaseFileId ? readReleaseFileById(releaseFileId) : null;
+  if (releaseFileId && !releaseFile) throw new Error("安装包文件不存在");
+  if (releaseFile && releaseFile.status !== "uploaded") throw new Error("安装包文件已删除");
+  if (releaseFile && releaseFile.platform !== platform) throw new Error("安装包文件平台不匹配");
+
+  const initialRelease = normalizeRelease(platform, update, platform === "android" ? update : undefined);
+  const release = releaseFile
+    ? normalizeRelease(platform, { ...update, downloadUrl: releaseFile.downloadUrl }, platform === "android" ? { ...update, downloadUrl: releaseFile.downloadUrl } : undefined)
+    : initialRelease;
+  const shouldSyncCurrent = releaseMatchesHistory(current.releases[platform], existing);
+  const currentRelease = shouldSyncCurrent && !release.fileSizeText
+    ? { ...release, fileSizeText: current.releases[platform].fileSizeText }
+    : release;
+
+  runInTransaction(db, () => {
+    db.prepare(
+      `UPDATE update_history
+       SET version = ?, update_time = ?, force_update = ?, download_url = ?, official_url = ?, update_content = ?, release_file_id = ?
+       WHERE id = ?`,
+    ).run(
+      release.latestVersion,
+      release.updateTime,
+      boolToDb(release.forceUpdate),
+      release.downloadUrl,
+      release.officialUrl,
+      release.updateContent,
+      releaseFile?.id ?? null,
+      historyId,
+    );
+
+    removeFileReferences(db, (ref) => ref.type === "history" && ref.id === historyId);
+    if (releaseFile) {
+      addFileReference(db, releaseFile.id, { type: "history", id: historyId, platform, version: release.latestVersion });
+    }
+
+    if (shouldSyncCurrent) {
+      if (platform === "android") {
+        replaceCurrentUpdate(db, appUpdateFromRelease(currentRelease));
+      }
+      replaceReleases(db, {
+        android: platform === "android" ? currentRelease : current.releases.android,
+        desktop: platform === "desktop" ? currentRelease : current.releases.desktop,
+      });
+      removeFileReferences(db, (ref) => ref.type === "current-release" && ref.platform === platform);
+      if (releaseFile) {
+        addFileReference(db, releaseFile.id, { type: "current-release", platform, version: release.latestVersion });
+      }
+    }
+  });
+
+  const updated = readUpdateHistory().find((item) => item.id === historyId);
+  if (!updated) throw new Error("发布记录更新失败");
+  return updated;
+}
+
 export function insertUpdateHistory(db: DatabaseSync, item: UpdateHistoryItem, createdAt = Date.now()) {
   db.prepare(
     `INSERT OR IGNORE INTO update_history (
@@ -1599,4 +1677,3 @@ export function insertFeedback(item: FeedbackItem) {
     });
   });
 }
-

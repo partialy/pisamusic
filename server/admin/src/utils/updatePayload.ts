@@ -12,7 +12,7 @@ export function historyItemToDraft(item: UpdateHistoryItem): UpdateFormDraft {
     platformLabel: item.platform === "desktop" ? "PC 版" : "Android",
     fileSizeText: "",
     available: Boolean(item.downloadUrl),
-    releaseFileId: undefined,
+    releaseFileId: item.releaseFileId ?? undefined,
   };
 }
 

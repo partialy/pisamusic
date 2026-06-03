@@ -168,6 +168,18 @@ export async function publishUpdate(payload: AppUpdatePayload): Promise<{ id: st
   return body.data;
 }
 
+export async function updatePublishedUpdate(historyId: string, payload: AppUpdatePayload): Promise<UpdateHistoryItem> {
+  const res = await fetchWithAuth(`/api/admin/update-history/${encodeURIComponent(historyId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  const body = await parseJson<{ id: string; update: AppUpdatePayload; platform: string; history: UpdateHistoryItem }>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data.history;
+}
+
 type UploadTokenResponse = {
   uploadToken: string;
   uploadUrl: string;
