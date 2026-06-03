@@ -101,11 +101,14 @@
       <section class="update-dialog-card" role="dialog" aria-modal="true">
         <div class="update-dialog-title">
           <span class="update-title-icon">
-            <n-icon :component="Sparkles" size="24" />
+            <n-icon :component="CircleArrowUp" size="24" />
           </span>
           <h2>{{ updateDialogTitle }}</h2>
         </div>
-        <div class="update-dialog-notes">{{ updateReleaseNotes }}</div>
+        <div class="update-dialog-notes">
+          <strong>更新日志：</strong>
+          <div>{{ updateReleaseNotes }}</div>
+        </div>
         <div class="update-dialog-actions">
           <n-button
             class="update-primary-button"
@@ -136,12 +139,12 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { NButton, NIcon, NModal, NSkeleton } from "naive-ui";
 import {
   ChevronRight,
+  CircleArrowUp,
   Download,
   ExternalLink,
   FileText,
   MessageSquareText,
   ShieldCheck,
-  Sparkles,
 } from "lucide-vue-next";
 import AboutContentDialog from "@/components/about/AboutContentDialog.vue";
 import AboutFeedbackDialog from "@/components/about/AboutFeedbackDialog.vue";
@@ -175,8 +178,8 @@ const contentDialog = ref({
 });
 
 const updateModalMaskStyle = {
-  backdropFilter: "blur(18px)",
-  background: "rgba(8, 12, 20, 0.34)",
+  backdropFilter: "blur(16px)",
+  background: "rgba(8, 12, 20, 0.42)",
 };
 
 const checking = computed(() => state.value?.status === "checking");
@@ -184,7 +187,7 @@ const canDownload = computed(() => state.value?.status === "available" && !state
 const canInstall = computed(() => state.value?.status === "downloaded");
 const updateDialogTitle = computed(() => {
   const version = updateDialogState.value?.updateInfo?.version || appVersion.value || "-";
-  return `Pisa Music v${version}版本`;
+  return `Pisa Music v${normalizeVersionLabel(version)}版本`;
 });
 const updateReleaseNotes = computed(() => normalizeReleaseNotes(updateDialogState.value?.updateInfo?.releaseNotes));
 const updateText = computed(() => {
@@ -222,6 +225,10 @@ function normalizeReleaseNotes(value: unknown) {
   }
   const text = String(value ?? "").trim();
   return text || "暂无更新说明";
+}
+
+function normalizeVersionLabel(value: string) {
+  return value.trim().replace(/^v/i, "") || "-";
 }
 
 function getManualResultKey(next: LocalUpdaterState) {
@@ -639,28 +646,28 @@ h2 {
 }
 
 .update-modal {
-  width: min(520px, calc(100vw - 44px));
+  width: min(400px, calc(100vw - 44px));
 }
 
 .update-dialog-card {
   position: relative;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 34%, rgba(255, 255, 255, 0.38));
-  border-radius: 8px;
-  padding: 28px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 16%, rgba(255, 255, 255, 0.75));
+  border-radius: 20px;
+  padding: 36px 30px 30px;
   background:
-    radial-gradient(circle at 18% 0, color-mix(in srgb, #ffffff 36%, transparent), transparent 32%),
-    linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 92%, #ffffff 8%), color-mix(in srgb, var(--color-primary) 48%, var(--color-bg-elevated)) 72%);
-  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.28);
-  color: #ffffff;
+    radial-gradient(circle at 16% 0, color-mix(in srgb, #ffffff 74%, transparent), transparent 34%),
+    linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 16%, #ffffff 84%), color-mix(in srgb, var(--color-primary) 28%, #ffffff 72%));
+  box-shadow: 0 26px 72px rgba(0, 0, 0, 0.34);
+  color: color-mix(in srgb, var(--color-primary) 72%, #033a5f);
 }
 
 .update-dialog-card::before {
   content: "";
   position: absolute;
   inset: 1px;
-  border-radius: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 19px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
   pointer-events: none;
 }
 
@@ -673,7 +680,7 @@ h2 {
   text-align: center;
 
   h2 {
-    color: #ffffff;
+    color: color-mix(in srgb, var(--color-primary) 80%, #064466);
     font-size: 20px;
     font-weight: 850;
     line-height: 1.3;
@@ -683,61 +690,79 @@ h2 {
 .update-title-icon {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--color-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-primary) 28%, transparent);
 }
 
 .update-dialog-notes {
   position: relative;
-  max-height: 240px;
+  max-height: 180px;
   overflow: auto;
   margin-top: 22px;
-  padding: 18px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.9);
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.8));
+  border-radius: 14px;
+  background: color-mix(in srgb, #ffffff 66%, var(--color-primary) 7%);
+  color: color-mix(in srgb, var(--color-primary) 72%, #16415e);
   font-size: 13px;
   line-height: 1.8;
   white-space: pre-wrap;
   word-break: break-word;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  box-shadow: inset -4px 0 0 color-mix(in srgb, var(--color-primary) 14%, transparent);
+
+  strong {
+    display: block;
+    margin-bottom: 8px;
+    color: color-mix(in srgb, var(--color-primary) 88%, #07384f);
+    font-weight: 850;
+  }
 }
 
 .update-dialog-actions {
   position: relative;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   gap: 10px;
-  margin-top: 22px;
+  margin-top: 26px;
+
+  :deep(.n-button) {
+    width: 100%;
+    height: 46px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 800;
+  }
 }
 
 .update-primary-button {
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
+  --n-color: var(--color-primary) !important;
+  --n-color-hover: var(--color-primary-hover) !important;
+  --n-color-pressed: color-mix(in srgb, var(--color-primary) 82%, #000000 18%) !important;
+  --n-border: 1px solid var(--color-primary) !important;
+  --n-border-hover: 1px solid var(--color-primary-hover) !important;
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-primary) 26%, transparent);
 }
 
 .update-glass-button {
-  --n-text-color: #ffffff !important;
-  --n-text-color-hover: #ffffff !important;
-  --n-text-color-pressed: #ffffff !important;
-  --n-border: 1px solid rgba(255, 255, 255, 0.34) !important;
-  --n-border-hover: 1px solid rgba(255, 255, 255, 0.56) !important;
-  --n-border-pressed: 1px solid rgba(255, 255, 255, 0.56) !important;
-  --n-color: rgba(255, 255, 255, 0.12) !important;
-  --n-color-hover: rgba(255, 255, 255, 0.2) !important;
-  --n-color-pressed: rgba(255, 255, 255, 0.18) !important;
+  --n-text-color: color-mix(in srgb, var(--color-primary) 86%, #064466) !important;
+  --n-text-color-hover: color-mix(in srgb, var(--color-primary) 94%, #03324c) !important;
+  --n-text-color-pressed: color-mix(in srgb, var(--color-primary) 94%, #03324c) !important;
+  --n-border: 1px solid color-mix(in srgb, var(--color-primary) 14%, rgba(255, 255, 255, 0.9)) !important;
+  --n-border-hover: 1px solid color-mix(in srgb, var(--color-primary) 28%, rgba(255, 255, 255, 0.9)) !important;
+  --n-border-pressed: 1px solid color-mix(in srgb, var(--color-primary) 28%, rgba(255, 255, 255, 0.9)) !important;
+  --n-color: rgba(255, 255, 255, 0.7) !important;
+  --n-color-hover: rgba(255, 255, 255, 0.86) !important;
+  --n-color-pressed: rgba(255, 255, 255, 0.78) !important;
 }
 
 @media (max-width: 560px) {
   .update-dialog-card {
-    padding: 22px;
-  }
-
-  .update-dialog-actions {
-    flex-direction: column;
+    padding: 28px 22px 24px;
   }
 }
 </style>
