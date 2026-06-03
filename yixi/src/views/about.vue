@@ -15,6 +15,7 @@
           <span>当前版本 {{ appVersion || "-" }}</span>
           <span v-if="about.team">{{ about.team }}</span>
         </div>
+        <n-button class="hero-refresh" tertiary :loading="aboutLoading" @click="loadAboutInfo">刷新信息</n-button>
       </div>
     </section>
 
@@ -26,15 +27,6 @@
           <p class="card-desc">{{ about.websiteUrl || "暂未配置官网地址" }}</p>
         </div>
         <n-button secondary :disabled="!about.websiteUrl" @click="openWebsite">打开</n-button>
-      </div>
-
-      <div class="info-card">
-        <div>
-          <p class="card-label">版权信息</p>
-          <h2>{{ about.copyright || "PisaMusic" }}</h2>
-          <p class="card-desc">关于信息来自服务器配置。</p>
-        </div>
-        <n-button secondary :loading="aboutLoading" @click="loadAboutInfo">刷新</n-button>
       </div>
     </section>
 
@@ -68,6 +60,11 @@
         <small>查看数据与隐私说明</small>
       </button>
     </section>
+
+    <footer class="copyright-footer">
+      <p class="card-label">版权信息</p>
+      <p>{{ about.copyright || "PisaMusic" }}</p>
+    </footer>
 
     <AboutContentDialog
       v-model:show="contentDialog.show"
@@ -340,9 +337,13 @@ h2 {
   }
 }
 
+.hero-refresh {
+  margin-top: 14px;
+}
+
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 16px;
   max-width: 860px;
   margin-top: 18px;
@@ -459,5 +460,14 @@ h2 {
   .update-actions {
     justify-content: flex-start;
   }
+}
+
+.copyright-footer {
+  max-width: 860px;
+  margin-top: 22px;
+  padding: 0 2px 6px;
+  color: var(--color-text-2);
+  font-size: 12px;
+  line-height: 1.7;
 }
 </style>
