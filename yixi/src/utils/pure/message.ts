@@ -12,6 +12,12 @@ export interface MessageOptions {
   closable?: boolean;
 }
 
+export interface MessageHandle {
+  el: HTMLDivElement;
+  close: () => void;
+  update: (content: string, type?: MessageType) => void;
+}
+
 const messageCss = `
 .native-msg-wrapper {
   position: fixed;
@@ -139,7 +145,7 @@ function injectStyles() {
   }
 }
 
-export class MessageManager {
+class MessageManager {
   private container: HTMLDivElement | null = null;
 
   constructor() {
@@ -166,7 +172,7 @@ export class MessageManager {
     if (customColor) {
       iconWrapper.style.color = customColor;
     }
-    
+
     const paths = {
       success: 'm9 12 2 2 4-4',
       error: 'm15 9-6 6m0-6 6 6',
@@ -181,7 +187,7 @@ export class MessageManager {
         <path d="${paths[type]}"/>
       </svg>
     `;
-    
+
     return iconWrapper;
   }
 
@@ -196,7 +202,8 @@ export class MessageManager {
     const messageEl = document.createElement('div');
     messageEl.className = 'native-msg-item';
 
-    const iconPart = this.createIcon(type, color);
+    let currentType = type;
+    let iconPart = this.createIcon(type, color);
     const textPart = document.createElement('span');
     textPart.className = 'native-msg-text';
     textPart.textContent = content;
@@ -217,7 +224,7 @@ export class MessageManager {
     }
 
     this.container!.appendChild(messageEl);
-    
+
     // 触发入场动画
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -225,14 +232,33 @@ export class MessageManager {
       });
     });
 
+    let timer: ReturnType<typeof setTimeout> | null = null;
     if (duration > 0) {
-      setTimeout(() => this.remove(messageEl), duration);
+      timer = setTimeout(() => this.remove(messageEl), duration);
     }
+
+    const update = (newContent: string, newType?: MessageType) => {
+      textPart.textContent = newContent;
+      if (newType && newType !== currentType) {
+        const newIcon = this.createIcon(newType, color);
+        messageEl.replaceChild(newIcon, iconPart);
+        iconPart = newIcon;
+        currentType = newType;
+      }
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      if (currentType !== 'loading') {
+        timer = setTimeout(() => this.remove(messageEl), 3000);
+      }
+    };
 
     return {
       el: messageEl,
-      close: () => this.remove(messageEl)
-    };
+      close: () => this.remove(messageEl),
+      update
+    } as MessageHandle;
   }
 
   private remove(el: HTMLElement) {

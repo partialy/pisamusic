@@ -123,10 +123,26 @@ function setupListeners() {
   );
 }
 
-let lastUpdaterProgressNotice = -1;
+let updaterProgressMessage: ReturnType<typeof message.loading> | null = null;
+let lastUpdaterProgressPercent = -1;
+
+function resetUpdaterProgressMessage(
+  finalText?: string,
+  finalType?: "success" | "error" | "info" | "warning",
+) {
+  if (finalText) {
+    updaterProgressMessage?.update(finalText, finalType);
+  } else {
+    updaterProgressMessage?.close();
+  }
+  updaterProgressMessage = null;
+  lastUpdaterProgressPercent = -1;
+}
+
 function setupUpdaterNotifications() {
   electronAPI.onUpdaterState?.((state) => {
     if (state.status === "available") {
+      resetUpdaterProgressMessage();
       if (state.manual) return;
       if (state.simulated) {
         window.$notification.info({
@@ -153,12 +169,17 @@ function setupUpdaterNotifications() {
       });
     } else if (state.status === "downloading") {
       const percent = Math.round(state.progress?.percent ?? 0);
-      if (percent === 100 || percent - lastUpdaterProgressNotice >= 20) {
-        lastUpdaterProgressNotice = percent;
-        window.$message.info(`更新下载中 ${percent}%`);
+      if (percent !== lastUpdaterProgressPercent) {
+        lastUpdaterProgressPercent = percent;
+        const content = `更新下载中 ${percent}%`;
+        if (updaterProgressMessage) {
+          updaterProgressMessage.update(content);
+        } else {
+          updaterProgressMessage = window.$message.loading(content);
+        }
       }
     } else if (state.status === "downloaded") {
-      lastUpdaterProgressNotice = -1;
+      resetUpdaterProgressMessage("更新下载完成", "success");
       window.$notification.success({
         title: "更新下载完成",
         content: "重启应用后将安装新版本",
@@ -174,15 +195,20 @@ function setupUpdaterNotifications() {
             { default: () => "立即重启安装" },
           ),
       });
-    } else if (state.status === "error" && state.manual) {
-      window.$notification.warning({
-        title: "检查更新失败",
-        content: state.error || "请稍后重试",
-        duration: 5000,
-      });
+    } else if (state.status === "error") {
+      resetUpdaterProgressMessage(state.error || "更新下载失败", "error");
+      if (state.manual) {
+        window.$notification.warning({
+          title: "检查更新失败",
+          content: state.error || "请稍后重试",
+          duration: 5000,
+        });
+      }
     } else if (state.status === "not-available" && state.manual) {
+      resetUpdaterProgressMessage();
       return;
     } else if (state.status === "disabled" && state.manual) {
+      resetUpdaterProgressMessage();
       window.$notification.info({
         title: "无法检查更新",
         content: state.error || "当前环境不支持自动更新",
