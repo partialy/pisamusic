@@ -53,12 +53,37 @@
         <n-button v-if="canInstall" type="primary" @click="installUpdate">重启安装</n-button>
       </div>
     </section>
+
+    <section class="entry-list">
+      <button type="button" class="entry-item" @click="openFeedback">
+        <span>意见反馈</span>
+        <small>提交问题、建议和截图</small>
+      </button>
+      <button type="button" class="entry-item" @click="openContentDialog('agreement')">
+        <span>用户协议</span>
+        <small>查看服务条款</small>
+      </button>
+      <button type="button" class="entry-item" @click="openContentDialog('privacy')">
+        <span>隐私政策</span>
+        <small>查看数据与隐私说明</small>
+      </button>
+    </section>
+
+    <AboutContentDialog
+      v-model:show="contentDialog.show"
+      :title="contentDialog.title"
+      :content="contentDialog.content"
+      :loading="contentDialog.loading"
+    />
+    <AboutFeedbackDialog v-model:show="feedbackDialogVisible" :app-version="appVersion" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { NButton, NSkeleton } from "naive-ui";
+import AboutContentDialog from "@/components/about/AboutContentDialog.vue";
+import AboutFeedbackDialog from "@/components/about/AboutFeedbackDialog.vue";
 import electronAPI from "@/utils/electron";
 
 type LocalUpdaterState = Awaited<ReturnType<ElectronIpc["getUpdaterState"]>>;
@@ -78,6 +103,13 @@ const about = ref<AboutInfo>({ ...defaultAbout });
 const appVersion = ref("");
 const aboutLoading = ref(false);
 const developmentRuntime = ref(false);
+const feedbackDialogVisible = ref(false);
+const contentDialog = ref({
+  show: false,
+  title: "",
+  content: "",
+  loading: false,
+});
 
 const checking = computed(() => state.value?.status === "checking");
 const canDownload = computed(() => state.value?.status === "available" && !state.value?.simulated);
@@ -160,6 +192,38 @@ function installUpdate() {
   void electronAPI.quitAndInstallUpdate();
 }
 
+function openFeedback() {
+  feedbackDialogVisible.value = true;
+}
+
+async function openContentDialog(type: "agreement" | "privacy") {
+  contentDialog.value = {
+    show: true,
+    title: type === "agreement" ? "用户协议" : "隐私政策",
+    content: "",
+    loading: true,
+  };
+  try {
+    const data = type === "agreement"
+      ? await electronAPI.getServiceAgreement()
+      : await electronAPI.getPrivacyPolicy();
+    contentDialog.value = {
+      show: true,
+      title: data.title || (type === "agreement" ? "用户协议" : "隐私政策"),
+      content: data.content || "<p>暂无内容</p>",
+      loading: false,
+    };
+  } catch (error) {
+    contentDialog.value.loading = false;
+    contentDialog.value.content = "<p>内容加载失败，请稍后重试。</p>";
+    window.$message?.warning("内容加载失败");
+    void electronAPI.reportError(error, {
+      scope: "about",
+      action: type === "agreement" ? "loadServiceAgreement" : "loadPrivacyPolicy",
+    });
+  }
+}
+
 onMounted(async () => {
   await Promise.all([loadBaseInfo(), loadAboutInfo()]);
   state.value = await electronAPI.getUpdaterState();
@@ -184,7 +248,8 @@ onBeforeUnmount(() => {
 
 .hero-panel,
 .info-card,
-.update-card {
+.update-card,
+.entry-list {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg-elevated);
@@ -318,6 +383,50 @@ h2 {
   justify-content: flex-end;
 }
 
+.entry-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  max-width: 860px;
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.entry-item {
+  min-height: 86px;
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  padding: 18px 20px;
+  text-align: left;
+  transition: background 0.2s ease;
+
+  &:last-child {
+    border-right: 0;
+  }
+
+  &:hover {
+    background: var(--color-setting-hover);
+  }
+
+  span {
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  small {
+    color: var(--color-text-2);
+    font-size: 12px;
+  }
+}
+
 @media (max-width: 760px) {
   .about-page {
     padding: 18px;
@@ -332,6 +441,19 @@ h2 {
 
   .info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .entry-list {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-item {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+
+    &:last-child {
+      border-bottom: 0;
+    }
   }
 
   .update-actions {

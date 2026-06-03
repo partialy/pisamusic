@@ -8,8 +8,10 @@ import {
   clearAccountSession,
   getBootstrap,
   getAccountSession,
+  getPrivacyPolicy,
   getRuntimeEndpointsCached,
   getRuntimeEndpointsFresh,
+  getServiceAgreement,
   getStartupServiceState,
   getSystemBaseUrl,
   loginAccountByCode,
@@ -57,6 +59,14 @@ export function setupSystemIpc() {
 
   ipcMain.handle("system:get-about-info", () => {
     return getAboutInfo();
+  });
+
+  ipcMain.handle("system:get-service-agreement", () => {
+    return getServiceAgreement();
+  });
+
+  ipcMain.handle("system:get-privacy-policy", () => {
+    return getPrivacyPolicy();
   });
 
   ipcMain.handle("system:submit-feedback", (_event, payload: FeedbackPayload) => {

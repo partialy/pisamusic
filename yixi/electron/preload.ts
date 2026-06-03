@@ -193,12 +193,20 @@ const systemIpc = {
     ipcRenderer.invoke("system:get-runtime-endpoints", fresh),
   getAnnouncements: () => ipcRenderer.invoke("system:get-announcements"),
   getAboutInfo: () => ipcRenderer.invoke("system:get-about-info"),
+  getServiceAgreement: () => ipcRenderer.invoke("system:get-service-agreement"),
+  getPrivacyPolicy: () => ipcRenderer.invoke("system:get-privacy-policy"),
   submitFeedback: (payload: {
     feedback_type: "bug" | "suggestion" | "account" | "other";
     description: string;
     contact?: string;
     device?: Record<string, unknown>;
-  }) => ipcRenderer.invoke("system:submit-feedback", cloneIpcPayload(payload)),
+    images?: {
+      name: string;
+      type: string;
+      size: number;
+      data: ArrayBuffer;
+    }[];
+  }) => ipcRenderer.invoke("system:submit-feedback", payload),
 };
 
 const accountIpc = {

@@ -16,6 +16,7 @@ import type {
   GatewaySignConfig,
   RuntimeEndpoints,
   StartupServiceState,
+  TextContentConfig,
 } from "./types";
 
 const DEV_SERVER_URL = "http://127.0.0.1:53380";
@@ -114,12 +115,25 @@ export async function getAboutInfo() {
   return unwrapResponse(response);
 }
 
+export async function getServiceAgreement() {
+  const response = await requestSystem<TextContentConfig>("/api/config/service-agreement");
+  return unwrapResponse(response);
+}
+
+export async function getPrivacyPolicy() {
+  const response = await requestSystem<TextContentConfig>("/api/config/privacy-policy");
+  return unwrapResponse(response);
+}
+
 export async function submitFeedback(payload: FeedbackPayload) {
   const form = new FormData();
   form.set("feedback_type", payload.feedback_type);
   form.set("description", payload.description);
   if (payload.contact) form.set("contact", payload.contact);
   form.set("device", JSON.stringify(payload.device ?? {}));
+  normalizeFeedbackImages(payload.images).forEach((image) => {
+    form.append("images", new Blob([image.data], { type: image.type }), image.name);
+  });
   const url = new URL("/api/feedback", getSystemBaseUrl());
   let recorded = false;
   try {
@@ -167,6 +181,17 @@ export async function submitFeedback(payload: FeedbackPayload) {
     }
     throw error;
   }
+}
+
+function normalizeFeedbackImages(images: FeedbackPayload["images"]) {
+  const allowedMimes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  return (images ?? [])
+    .filter((image) => {
+      if (!image?.data || !image.name || !image.type) return false;
+      if (!allowedMimes.has(image.type)) return false;
+      return image.size > 0 && image.size <= 5 * 1024 * 1024;
+    })
+    .slice(0, 3);
 }
 
 async function reportDesktopDevice() {

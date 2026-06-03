@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## 关于页、协议与反馈规则补充
+
+- `src/views/about.vue` 负责桌面端关于页入口，当前版本通过 main 侧 `system:get-app-version` 读取 Electron `app.getVersion()`，服务端关于信息通过 `system:get-about-info` 请求 `/api/config/about`；renderer 不直接拼接或请求 server 地址。
+- 开发环境的“模拟检查更新”走 `updater:simulate-check`，只用于未打包运行时触发有更新提示，不影响正式 `electron-updater` 下载和安装流程。
+- 用户协议、隐私政策和意见反馈入口固定放在关于页内；协议/隐私通过 main 侧 system IPC 拉取 `/api/config/service-agreement`、`/api/config/privacy-policy` 后在弹窗展示，反馈表单通过 `system:submit-feedback` 提交 `/api/feedback`。
+- 反馈图片由 renderer 读取为可序列化二进制后交给 main 侧组装 `FormData`，最多 3 张，格式限定 JPEG/PNG/WebP，单张不超过 5MB；不要让 renderer 直接持有反馈接口 URL。
+
 ## 服务端地址规则补充
 
 - 桌面端 main 进程统一通过 `electron/system/systemClient.ts` 的 `getSystemBaseUrl()` 访问外层服务端；开发环境默认 `http://127.0.0.1:53380`，正式打包环境默认 `http://pm-server.hs.partialy.cn/`。

@@ -248,11 +248,24 @@ type AboutInfo = {
   copyright: string;
 };
 
+type TextContentConfig = {
+  title: string;
+  content: string;
+};
+
+type FeedbackImagePayload = {
+  name: string;
+  type: string;
+  size: number;
+  data: ArrayBuffer;
+};
+
 type FeedbackPayload = {
   feedback_type: "bug" | "suggestion" | "account" | "other";
   description: string;
   contact?: string;
   device?: Record<string, unknown>;
+  images?: FeedbackImagePayload[];
 };
 
 type AccountUser = {
@@ -667,6 +680,8 @@ type ElectronIpcApi = {
   getRuntimeEndpoints: (fresh?: boolean) => Promise<BackServerConfig>;
   getAnnouncements: () => Promise<Announcement[]>;
   getAboutInfo: () => Promise<AboutInfo>;
+  getServiceAgreement: () => Promise<TextContentConfig>;
+  getPrivacyPolicy: () => Promise<TextContentConfig>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
   getAccountSession: () => Promise<AccountSession>;
   getAccountAvatarOptions: () => Promise<AccountAvatarOption[]>;

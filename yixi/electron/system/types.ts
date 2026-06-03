@@ -45,11 +45,24 @@ export type AboutInfo = {
   copyright: string;
 };
 
+export type TextContentConfig = {
+  title: string;
+  content: string;
+};
+
+export type FeedbackImagePayload = {
+  name: string;
+  type: string;
+  size: number;
+  data: ArrayBuffer;
+};
+
 export type FeedbackPayload = {
   feedback_type: "bug" | "suggestion" | "account" | "other";
   description: string;
   contact?: string;
   device?: Record<string, unknown>;
+  images?: FeedbackImagePayload[];
 };
 
 export type RuntimeEndpoints = {
