@@ -19,36 +19,42 @@ type Props = {
   onFilterChange: (filters: FileFilters) => void;
   onPageChange: (offset: number) => void;
   onRefresh: () => void;
+  onView: (file: FileRecordInfo) => void;
   onDelete: (file: FileRecordInfo) => void;
 };
 
-function formatFileSize(size: number): string {
+export function formatFileSize(size: number): string {
   if (!Number.isFinite(size) || size <= 0) return "-";
   const mb = size / 1024 / 1024;
   if (mb >= 1) return `${mb.toFixed(mb >= 10 ? 1 : 2)} MB`;
   return `${Math.max(1, Math.round(size / 1024))} KB`;
 }
 
-function formatDate(ts: number): string {
+export function formatDate(ts: number | null): string {
   if (!ts) return "-";
   return new Date(ts).toLocaleString();
 }
 
-function usageText(file: FileRecordInfo): string {
-  if (file.usageType === "desktop-update") return `PC 自动更新 / ${file.assetType || "-"}`;
-  return `发布安装包 / ${file.platform || "-"}`;
+export function usageText(file: FileRecordInfo): string {
+  if (file.usageType === "desktop-update") return "PC 自动更新";
+  return "发布安装包";
 }
 
 function statusBadge(file: FileRecordInfo) {
   const uploaded = file.status === "uploaded";
   return (
-    <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${uploaded ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"}`}>
+    <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold ${uploaded ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"}`}>
       {uploaded ? "已上传" : "已删除"}
     </span>
   );
 }
 
-function referencesText(file: FileRecordInfo): string {
+function versionText(file: FileRecordInfo): string {
+  const values = [file.platform, file.version].filter(Boolean);
+  return values.length ? values.join(" / ") : "-";
+}
+
+export function referencesText(file: FileRecordInfo): string {
   return file.referencedBy.length ? file.referencedBy.join("、") : "-";
 }
 
@@ -64,9 +70,11 @@ export default function FileManagementTab({
   onFilterChange,
   onPageChange,
   onRefresh,
+  onView,
   onDelete,
 }: Props) {
   const pageEnd = Math.min(total, offset + limit);
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className={glassCardClasses}>
@@ -95,39 +103,68 @@ export default function FileManagementTab({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {loading && <div className={glassCardClasses}>加载中...</div>}
-        {!loading && files.length === 0 && <div className={glassCardClasses}>暂无文件记录</div>}
-        {!loading &&
-          files.map((file) => (
-            <div key={file.id} className={glassCardClasses}>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <h4 className="max-w-full truncate text-lg font-extrabold text-slate-800">{file.fileName}</h4>
-                    {statusBadge(file)}
-                  </div>
-                  <div className="grid grid-cols-1 gap-2 text-sm text-slate-600 md:grid-cols-2">
-                    <p>用途：{usageText(file)}</p>
-                    <p>版本：{file.version || "-"}</p>
-                    <p>大小：{formatFileSize(file.fileSize)}</p>
-                    <p>上传时间：{formatDate(file.createdAt)}</p>
-                    <p>引用：{referencesText(file)}</p>
-                    <p>Provider：{file.provider}</p>
-                  </div>
-                  <p className="mt-3 break-all rounded-xl bg-white/50 p-3 font-mono text-xs text-slate-500">{file.objectKey}</p>
-                </div>
-                <button
-                  type="button"
-                  disabled={file.status === "deleted" || deletingId === file.id}
-                  onClick={() => onDelete(file)}
-                  className="shrink-0 rounded-xl bg-red-500 px-4 py-2 text-sm font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {deletingId === file.id ? "删除中" : "删除七牛文件"}
-                </button>
-              </div>
-            </div>
-          ))}
+      <div className={glassCardClasses}>
+        {loading ? (
+          <div className="py-8 text-center text-sm font-semibold text-slate-500">加载中...</div>
+        ) : files.length === 0 ? (
+          <div className="py-8 text-center text-sm font-semibold text-slate-500">暂无文件记录</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-[560px] w-full border-separate border-spacing-0 text-left text-sm sm:min-w-[620px]">
+              <thead>
+                <tr className="text-xs font-bold uppercase text-slate-500">
+                  <th className="border-b border-slate-200/70 px-4 py-3">文件名</th>
+                  <th className="border-b border-slate-200/70 px-4 py-3">用途</th>
+                  <th className="hidden border-b border-slate-200/70 px-4 py-3 xl:table-cell">平台 / 版本</th>
+                  <th className="hidden border-b border-slate-200/70 px-4 py-3 xl:table-cell">资产类型</th>
+                  <th className="hidden border-b border-slate-200/70 px-4 py-3 xl:table-cell">大小</th>
+                  <th className="border-b border-slate-200/70 px-4 py-3">状态</th>
+                  <th className="border-b border-slate-200/70 px-4 py-3">上传时间</th>
+                  <th className="sticky right-0 z-10 border-b border-slate-200/70 bg-white/80 px-4 py-3 text-right backdrop-blur">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {files.map((file) => (
+                  <tr key={file.id} className="group transition-colors hover:bg-white/50">
+                    <td className="max-w-[18rem] border-b border-slate-100/80 px-4 py-4">
+                      <div className="truncate font-bold text-slate-800" title={file.fileName}>
+                        {file.fileName || "-"}
+                      </div>
+                      <div className="mt-1 truncate font-mono text-xs text-slate-400" title={file.objectKey}>
+                        {file.objectKey || "-"}
+                      </div>
+                    </td>
+                    <td className="border-b border-slate-100/80 px-4 py-4 font-semibold text-slate-600">{usageText(file)}</td>
+                    <td className="hidden border-b border-slate-100/80 px-4 py-4 text-slate-600 xl:table-cell">{versionText(file)}</td>
+                    <td className="hidden border-b border-slate-100/80 px-4 py-4 text-slate-600 xl:table-cell">{file.assetType || "-"}</td>
+                    <td className="hidden border-b border-slate-100/80 px-4 py-4 text-slate-600 xl:table-cell">{formatFileSize(file.fileSize)}</td>
+                    <td className="border-b border-slate-100/80 px-4 py-4">{statusBadge(file)}</td>
+                    <td className="border-b border-slate-100/80 px-4 py-4 text-slate-600">{formatDate(file.createdAt)}</td>
+                    <td className="sticky right-0 z-10 border-b border-slate-100/80 bg-white/80 px-4 py-4 backdrop-blur">
+                      <div className="flex justify-end gap-2 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => onView(file)}
+                          className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-white"
+                        >
+                          查看
+                        </button>
+                        <button
+                          type="button"
+                          disabled={file.status === "deleted" || deletingId === file.id}
+                          onClick={() => onDelete(file)}
+                          className="rounded-xl bg-red-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingId === file.id ? "删除中" : "删除"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/50 p-4 text-sm font-bold text-slate-600">

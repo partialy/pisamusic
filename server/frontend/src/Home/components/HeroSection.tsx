@@ -37,12 +37,12 @@ export default function HeroSection({ updateState }: HeroSectionProps) {
           <h1 className="mx-auto max-w-4xl font-display text-[2.7rem] font-bold tracking-tight leading-[1.06] text-slate-900 sm:text-6xl lg:mx-0 lg:text-7xl">
             PisaMusic
             <span className="mt-3 block text-[1.65rem] font-medium leading-tight text-slate-600 tracking-tight sm:text-4xl lg:text-5xl">
-              同一份热爱，不因设备而割裂。
+              同一份热爱，自此不在喧嚣中割裂。
             </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-slate-500 font-medium sm:mt-7 sm:text-lg sm:leading-9 lg:mx-0">
-            手机是随身的唱片盒，电脑是私人的音乐书房。PisaMusic 以「Android 随身版」与「PisaMusic 桌面版」共同构成你的音乐入口，两端各自独立，又通过云端跨端直达。
+            手心里的唱片盒，案头前的音乐书房。PisaMusic 致力于拨开设备与场景的繁复。如行云般随身的移动客户端，与宛若书香般长伴的桌面版，各自素雅独立，又因云端和弦而默契相连。
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:items-center lg:justify-start">

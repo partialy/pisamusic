@@ -54,9 +54,9 @@ export default function ProductShowcaseSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
         <div className="rise-in">
           <SectionHeader
-            eyebrow="双端一体"
-            title="手机是随身的唱片盒，电脑是私人的音乐书房。"
-            desc="PisaMusic 不再只是一款 Android 应用。如今，它以「Android 随身版」与「PisaMusic 桌面版」共同构成你的音乐入口。两端各自独立，又通过云端跨屏互通。"
+            eyebrow="随身与长伴"
+            title="手心里的唱片盒，案头前的音乐书房。"
+            desc="PisaMusic 让听觉超越设备与场景的疆界。掌中的微光与案头的沉静，共同织就你通向万籁乐海的入口。轻量客户端温柔随行，桌面客户端深厚守候，各自独立深耕，却又在云端交弦时，流淌出完全一致的默契音符。"
             align="center"
           />
         </div>

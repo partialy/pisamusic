@@ -7,9 +7,9 @@ export default function FeatureSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-8 lg:px-10">
         <div className="rise-in">
           <SectionHeader
-            eyebrow="使用感受"
-            title="它用起来，是这样的感觉。"
-            desc="搜索、播放、下载与整理，终于归于同一个入口。两端共享同一种产品气质：少些平台间的来回切换，多些稳定而从容的整理。移动端轻快如随笔，桌面端沉静如日记。"
+            eyebrow="听觉温度"
+            title="万籁交融，皆在指尖流淌得恰如其分。"
+            desc="寻词、览曲、裁切与收纳，繁琐的交互终于复归单纯。两端共享同一种优雅、笃定而本真的设计风骨。少了几分在平台缝隙里辗转的局促，多了几缕温润持久的抚慰。移动端随性洒脱如随笔，桌面版沉静扎实如长记。"
             align="center"
           />
         </div>

@@ -54,6 +54,7 @@ import { loadTheme, saveTheme } from "./utils/themeStorage";
 import LoginPage from "./components/LoginPage";
 import ChangePasswordModal from "./components/modals/ChangePasswordModal";
 import DynamicConfigModal from "./components/modals/DynamicConfigModal";
+import FileRecordDetailModal from "./components/modals/FileRecordDetailModal";
 import NoticeModal from "./components/modals/NoticeModal";
 import UpdateModal from "./components/modals/UpdateModal";
 import JsonExportModal from "./components/modals/JsonExportModal";
@@ -164,6 +165,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [fileLimit] = useState(20);
   const [fileLoading, setFileLoading] = useState(false);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [selectedFileRecord, setSelectedFileRecord] = useState<FileRecordInfo | null>(null);
   const [fileFilters, setFileFilters] = useState<{
     status: "uploaded" | "deleted" | "all";
     usageType: "release-package" | "desktop-update" | "all";
@@ -806,7 +808,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const themePanel = (
     <div className="absolute right-0 top-12 w-[min(16rem,calc(100vw-2rem))] rounded-3xl border border-white/60 bg-white/90 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.1)] backdrop-blur-2xl z-50 animate-fade-in-up lg:left-6 lg:right-auto lg:top-20 lg:w-64 lg:before:content-[''] lg:before:absolute lg:before:-top-2 lg:before:right-6 lg:before:w-4 lg:before:h-4 lg:before:bg-white/90 lg:before:rotate-45 lg:before:border-l lg:before:border-t lg:before:border-white/60">
-      <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">鑳屾櫙娓愬彉</h3>
+      <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">背景变化</h3>
       <div className="grid grid-cols-4 gap-2 mb-6">
         {bgPresets.map((bg, idx) => (
           <button
@@ -818,7 +820,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         ))}
       </div>
 
-      <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">涓婚棰滆壊</h3>
+      <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">主题颜色</h3>
       <div className="grid grid-cols-4 gap-3">
         {colorPresets.map((color) => (
           <button
@@ -904,16 +906,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           }}
           className="w-full py-3 rounded-2xl text-sm font-bold border border-white/60 bg-white/50 text-slate-700 hover:bg-white/80 transition-colors shadow-sm"
         >
-          淇敼瀵嗙爜
+          修改密码
         </button>
         <button
           type="button"
           onClick={onLogout}
           className="w-full py-3 rounded-2xl text-sm font-bold border border-white/60 bg-white/50 text-slate-700 hover:bg-white/80 transition-colors shadow-sm"
         >
-          閫€鍑虹櫥褰?        </button>
+          退出登录        </button>
         <div className="bg-white/50 backdrop-blur-md rounded-2xl p-5 border border-white/60 shadow-sm">
-          <p className="text-[11px] font-bold text-slate-500 mb-2 uppercase tracking-widest">鐜</p>
+          <p className="text-[11px] font-bold text-slate-500 mb-2 uppercase tracking-widest">环境</p>
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
             <span className="text-sm font-extrabold text-slate-800">Production</span>
@@ -941,7 +943,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            aria-label="鍏抽棴鑿滃崟"
+            aria-label="关闭菜单"
             className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
             onClick={() => setMobileNavOpen(false)}
           />
@@ -1150,6 +1152,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onFilterChange={handleFileFilterChange}
                   onPageChange={setFileOffset}
                   onRefresh={() => void loadFiles()}
+                  onView={setSelectedFileRecord}
                   onDelete={(file) => void handleDeleteFileRecord(file)}
                 />
               )}
@@ -1262,6 +1265,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       )}
 
       {showJsonModal && <JsonExportModal exportData={exportPayload} themeColor={themeColor} onClose={() => setShowJsonModal(false)} />}
+
+      {selectedFileRecord && (
+        <FileRecordDetailModal
+          file={selectedFileRecord}
+          themeColor={themeColor}
+          onClose={() => setSelectedFileRecord(null)}
+        />
+      )}
 
       {showChangePasswordModal && (
         <ChangePasswordModal

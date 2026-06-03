@@ -11,18 +11,18 @@ export default function SyncSection() {
         <div className="rise-in flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
           <SectionHeader
             eyebrow="云端为桥"
-            title="跨端同步，云端为桥。"
-            desc="手机与桌面端的陪伴不再孤立。只需登陆您的专属账号，个人歌单与红心收藏即可在多端悄然同步、随时畅连。无论您是在行进的路上还是在沉静的书房，您的倾听世界始终温润贯通，没有边界。"
+            title="以云为桥，让两端的陪伴温柔交织。"
+            desc="当脚步从嘈杂的街头步入静谧的书房，音轨无需重新寻找。PisaMusic 通过云端轻盈渡引，将你钟爱的旋律与不经意的红心，在掌心与桌面无缝衔接。不必费心同步，随心而动，让属于你的私享乐章如水流般温润贯通。"
             tone="light"
           />
           <div className="rise-in rounded-3xl border border-sky-100/85 bg-gradient-to-br from-sky-50/60 to-white/90 p-6 sm:p-8 max-w-xl shrink-0 shadow-xl shadow-sky-100/20 backdrop-blur-md">
             <div className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-600">实时无缝连接</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-600">呼吸之间 温柔相连</p>
             </div>
-            <h4 className="mt-2 text-base font-bold text-slate-800 tracking-tight">守护纯净听觉</h4>
+            <h4 className="mt-2 text-base font-bold text-slate-800 tracking-tight">去繁留简，不惊扰片刻</h4>
             <p className="mt-3 text-sm leading-8 text-slate-600 font-medium">
-              仅为您同步最核心的个人音乐数据：如收藏歌曲、自建歌单及曲目列表。至于其他临时的本地设置、播放路径与本地缓存，一概不会上传，只为守护您纯粹、省电且无比轻盈的听觉世界。
+              我们只轻手抚平云端的数据：仅为您同步心爱的红心旋律与珍藏歌单。至于那些世俗的偏好设置、繁冗的本地路径与多余缓存，均被妥善留存于各自的设备中。克制而体贴，只为您留存一席明澈而轻盈的听序净土。
             </p>
           </div>
         </div>

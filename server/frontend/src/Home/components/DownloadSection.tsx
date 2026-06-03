@@ -84,8 +84,8 @@ export default function DownloadSection({ updateState }: DownloadSectionProps) {
         <div className="rise-in">
           <SectionHeader
             eyebrow="下载"
-            title="按你的设备，选择当下的版本。"
-            desc="Android 与 PC 版各自独立维护。旧版 App 仍沿用原有更新通道，官网优先展示双端最新发布信息。"
+            title="旋律在指尖流转，温暖在多端重逢。"
+            desc="无论是窗前的一室安宁，还是步履不停的随身陪伴。PisaMusic 为不同载体倾心雕琢，在纷扰世界中静候跳动的音符，指引你寻回内心的纯净与共鸣。"
             align="center"
           />
         </div>

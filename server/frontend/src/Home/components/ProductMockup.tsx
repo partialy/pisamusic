@@ -141,35 +141,35 @@ function DesktopMockup() {
   ];
 
   return (
-    <div className="relative w-full rounded-[24px] border border-white/80 bg-white/90 p-2 shadow-panel backdrop-blur-md sm:rounded-[28px] sm:p-2.5">
+    <div className="relative w-full rounded-[24px] border border-white/80 bg-white/90 p-1.5 shadow-panel backdrop-blur-md sm:rounded-[28px] sm:p-2.5">
       <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-[#f4f9fd] sm:rounded-[22px] flex flex-col">
         
         {/* Top Header Controls Bar */}
-        <div className="flex h-12 items-center justify-between border-b border-slate-200 bg-white px-4">
+        <div className="flex h-12 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-4">
           <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-rose-400/90" />
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-400/90" />
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
+            <span className="h-2 w-2 rounded-full bg-rose-400/90" />
+            <span className="h-2 w-2 rounded-full bg-amber-400/90" />
+            <span className="h-2 w-2 rounded-full bg-emerald-400/90" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-400">PisaMusic Client Preview</p>
+          <div className="flex items-center gap-1.5 min-w-0 px-2">
+            <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-sky-400 animate-pulse" />
+            <p className="text-[9px] font-extrabold uppercase tracking-[0.1em] text-slate-400 truncate max-w-[120px] xs:max-w-[180px] sm:tracking-[0.2em] sm:max-w-none">PisaMusic Client Preview</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-3 rounded-full bg-slate-300" />
-            <div className="h-2.5 w-2.5 border border-slate-300 rounded-sm" />
-            <div className="h-2.5 w-2.5 text-slate-300 font-sans text-[10px] leading-none">✕</div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="hidden xs:block h-1 w-2 rounded-full bg-slate-300" />
+            <div className="hidden xs:block h-2 w-2 border border-slate-300 rounded-sm" />
+            <div className="h-2 w-2 text-slate-300 font-sans text-[9px] leading-none">✕</div>
           </div>
         </div>
 
         {/* App Main Area (Sidebar + Workspace Split) */}
-        <div className="grid grid-cols-[100px_1fr] sm:grid-cols-[144px_1fr] min-h-[380px] bg-[#f5fbfe]">
+        <div className="grid grid-cols-[48px_1fr] sm:grid-cols-[144px_1fr] min-h-[360px] bg-[#f5fbfe]">
           
           {/* Main Left Sidebar */}
-          <aside className="border-r border-slate-200/80 bg-white/85 p-3.5 flex flex-col justify-between">
+          <aside className="border-r border-slate-200/80 bg-white/85 p-2 sm:p-3.5 flex flex-col justify-between">
             <div>
-              <div className="mb-6 flex items-center gap-2">
-                <img className="h-7 w-7 rounded-lg shadow-sm" src="/assets/app-icon.png" alt="" />
+              <div className="mb-6 flex items-center justify-center sm:justify-start gap-2">
+                <img className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg shadow-sm" src="/assets/app-icon.png" alt="" />
                 <span className="hidden text-xs font-black tracking-tight text-slate-800 sm:inline">PisaMusic</span>
               </div>
               
@@ -179,13 +179,14 @@ function DesktopMockup() {
                   return (
                     <div
                       key={item.label}
-                      className={`flex items-center gap-2 rounded-xl px-2.5 py-1.8 text-[11px] font-extrabold transition duration-300 cursor-pointer ${
+                      className={`flex items-center justify-center sm:justify-start gap-2 rounded-xl p-2 sm:px-2.5 sm:py-1.8 text-[11px] font-extrabold transition duration-300 cursor-pointer ${
                         item.active 
                           ? "bg-sky-500/10 text-sky-600 shadow-inner" 
                           : "text-slate-500 hover:bg-slate-100/50 hover:text-slate-800"
                       }`}
+                      title={item.label}
                     >
-                      <MenuIcon className={`h-3.8 w-3.8 ${item.active ? "text-sky-500" : "text-slate-400"}`} />
+                      <MenuIcon className={`h-4 w-4 sm:h-3.8 sm:w-3.8 ${item.active ? "text-sky-500" : "text-slate-400"}`} />
                       <span className="hidden sm:inline">{item.label}</span>
                     </div>
                   );
@@ -200,14 +201,14 @@ function DesktopMockup() {
           </aside>
 
           {/* Right Workspace Client Content */}
-          <main className="p-4 sm:p-5 flex flex-col gap-4 overflow-hidden">
+          <main className="p-3 sm:p-5 flex flex-col gap-4 overflow-hidden">
             
             {/* Top Workspace Header Controls */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center justify-between gap-2.5">
               
               {/* Back navigation and search bar area */}
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="hidden sm:flex gap-1.5 shrink-0">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm">
                     <ChevronLeft className="h-3 w-3" />
                   </div>
@@ -217,27 +218,27 @@ function DesktopMockup() {
                 </div>
                 
                 {/* Simulated Search Pill */}
-                <div className="relative flex items-center">
-                  <Search className="absolute left-2.5 h-3 w-3 text-slate-400" />
-                  <div className="rounded-full bg-white border border-slate-100 pl-7 pr-3 py-1 text-[10px] w-28 sm:w-36 text-slate-400 shadow-sm">
+                <div className="relative flex items-center min-w-0">
+                  <Search className="absolute left-2.5 h-3 w-3 text-slate-400 pointer-events-none" />
+                  <div className="rounded-full bg-white border border-slate-100 pl-7 pr-3 py-1 text-[10px] w-24 xs:w-28 sm:w-36 text-slate-400 shadow-sm truncate">
                     搜索
                   </div>
                 </div>
               </div>
 
               {/* User Account panel */}
-              <div className="flex items-center justify-end gap-1.5 sm:gap-2.5">
+              <div className="flex items-center gap-1.5 shrink-0">
                 
                 {/* Partial VIP badge */}
-                <div className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white border border-slate-100 py-1 pl-1.5 pr-2.5 shadow-sm">
+                <div className="shrink-0 inline-flex items-center gap-1 rounded-full bg-white border border-slate-100 py-0.5 sm:py-1 pl-1 pr-2 sm:pl-1.5 sm:pr-2.5 shadow-sm">
                   {/* Custom beautifully drawn user icon avatar */}
-                  <img className="h-5 w-5 shrink-0 rounded-full object-cover shadow-inner" src="/assets/app-icon.png" alt="Partial" />
-                  <span className="text-[10px] font-black text-slate-700 truncate max-w-[48px] sm:max-w-none">Partial</span>
-                  <span className="shrink-0 rounded bg-gradient-to-r from-amber-500 to-amber-400 px-1 py-0.5 text-[7px] font-black tracking-wider text-slate-950 shadow-sm shadow-amber-500/10 scale-90">VIP</span>
+                  <img className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 rounded-full object-cover shadow-inner" src="/assets/app-icon.png" alt="Partial" />
+                  <span className="text-[9px] sm:text-[10px] font-black text-slate-700 truncate max-w-[32px] xs:max-w-[48px] sm:max-w-none">Partial</span>
+                  <span className="shrink-0 rounded bg-gradient-to-r from-amber-500 to-amber-400 px-0.5 py-0.2 sm:px-1 sm:py-0.5 text-[6px] sm:text-[7px] font-black tracking-wider text-slate-950 shadow-sm shadow-amber-500/10 scale-90">VIP</span>
                 </div>
 
-                <div className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm cursor-pointer hover:text-slate-600">
-                  <Settings className="h-3.5 w-3.5" />
+                <div className="shrink-0 flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm cursor-pointer hover:text-slate-600">
+                  <Settings className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </div>
               </div>
             </div>
@@ -246,21 +247,21 @@ function DesktopMockup() {
             <div className="grid gap-3 sm:grid-cols-[1.5fr_1fr]">
               
               {/* Left Notice Column */}
-              <article className="rounded-2xl border border-sky-100/70 bg-white p-3.5 shadow-[0_4px_16px_rgba(39,184,244,0.03)] relative flex flex-col justify-between h-[124px]">
+              <article className="rounded-2xl border border-sky-100/70 bg-white p-3.5 shadow-[0_4px_16px_rgba(39,184,244,0.03)] relative flex flex-col justify-between min-h-[124px] h-auto pb-4">
                 <div>
                   <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-[0.16em]">
                     <span className="text-sky-500">Notice 1/3</span>
                     <span className="text-slate-400 font-mono">2026-04-08 20:00</span>
                   </div>
                   <h4 className="mt-1 text-xs font-black text-slate-800 flex items-center gap-1">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse"></span>
-                    公告栏：最新升级通告
+                    <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500 animate-pulse"></span>
+                    <span className="truncate">公告栏：最新升级通告</span>
                   </h4>
                   <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500 font-semibold line-clamp-2">
                     欢迎使用 PisaMusic！本端支持富媒体展示与本地/在线歌单合并，多设备云端歌单实时联动。
                   </p>
                 </div>
-                <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-50/80">
+                <div className="flex items-center justify-between mt-3 pt-1.5 border-t border-slate-50/80">
                   <div className="flex gap-1 items-center">
                     <span className="h-1.5 w-3 rounded-full bg-sky-500" />
                     <span className="h-1 w-1 rounded-full bg-slate-200" />
@@ -271,17 +272,17 @@ function DesktopMockup() {
                   </button>
                 </div>
               </article>
-
+ 
               {/* Right Hot Top Column */}
-              <article className="rounded-2xl border border-sky-100/70 bg-white p-3.5 shadow-[0_4px_16px_rgba(39,184,244,0.03)] flex flex-col justify-between h-[124px]">
+              <article className="rounded-2xl border border-sky-100/70 bg-white p-3.5 shadow-[0_4px_16px_rgba(39,184,244,0.03)] flex flex-col justify-between min-h-[124px] h-auto pb-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
                     Hot Top 热门
                   </h4>
-                  <span className="text-[9px] font-black text-sky-500 hover:underline cursor-pointer">查看更多</span>
+                  <span className="text-[9px] font-black text-sky-500 hover:underline cursor-pointer shrink-0">查看更多</span>
                 </div>
-                <div className="flex flex-col items-center justify-center flex-1 py-1">
+                <div className="flex flex-col items-center justify-center flex-1 py-1.5">
                   <div className="text-center">
                     <p className="text-[10px] text-slate-400 font-semibold">暂无热门歌曲</p>
                     <p className="text-[8px] text-slate-300 mt-0.5">为您同步全球曲库动态</p>
@@ -289,7 +290,7 @@ function DesktopMockup() {
                 </div>
               </article>
             </div>
-
+ 
             {/* Panel Row 2: "推荐歌单" Card Rows */}
             <div className="mt-1">
               <div className="flex items-center justify-between mb-2">
@@ -302,12 +303,13 @@ function DesktopMockup() {
                 </span>
               </div>
               
-              {/* 5-Column layout of vector cards representation */}
-              <div className="grid grid-cols-5 gap-2.5">
+              {/* Responsive 3-to-5-Column layout of vector cards representation */}
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-2.5">
                 {playlistCards.map((p, idx) => {
                   const isSelected = idx === 1;
+                  const isHiddenOnMobile = idx >= 3;
                   return (
-                    <div key={idx} className="group/card cursor-pointer relative">
+                    <div key={idx} className={`group/card cursor-pointer relative ${isHiddenOnMobile ? "hidden sm:block" : ""}`}>
                       <div className={`aspect-square rounded-xl bg-gradient-to-br ${p.grad} relative overflow-hidden flex items-center justify-center transition-all duration-500 ${
                         isSelected 
                           ? "border-2 border-sky-400/90 -translate-y-1 shadow-[0_8px_18px_rgba(14,165,233,0.12)] ring-2 ring-sky-500/10" 
@@ -323,7 +325,7 @@ function DesktopMockup() {
                             <span className="w-[1.5px] bg-sky-400 rounded-full animate-pulse h-1.5 bg-gradient-to-t from-sky-400 to-indigo-400" style={{ animationDelay: '0.5s', animationDuration: '0.5s' }} />
                           </div>
                         )}
-
+ 
                         <div className={`rounded-full shadow-sm text-slate-700 p-1.5 transition duration-350 ${
                           isSelected 
                             ? "bg-sky-500 text-white scale-110 shadow-sky-500/20" 
@@ -349,40 +351,40 @@ function DesktopMockup() {
                 })}
               </div>
             </div>
-
+ 
           </main>
         </div>
-
+ 
         {/* Bottom Audio Player Bar */}
-        <div className="h-14 bg-white border-t border-slate-200 px-4 flex items-center justify-between">
+        <div className="h-14 bg-white border-t border-slate-200 px-3 sm:px-4 flex items-center justify-between">
           
           {/* Active Album cover and track details */}
-          <div className="flex items-center gap-2 max-w-[170px] min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-500 via-sky-400 to-emerald-400 relative overflow-hidden shadow-inner flex items-center justify-center flex-none">
-              <Disc className="h-5 w-5 text-white/90 animate-spin-slow" />
+          <div className="flex items-center gap-1.5 sm:gap-2 max-w-[90px] xs:max-w-[170px] min-w-0">
+            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-gradient-to-br from-indigo-500 via-sky-400 to-emerald-400 relative overflow-hidden shadow-inner flex items-center justify-center flex-none">
+              <Disc className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white/90 animate-spin-slow" />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-black text-slate-800 truncate leading-tight">Hanabi (烟火)</p>
               <p className="text-[8px] text-slate-400 font-semibold truncate mt-0.5">Sharman Rock</p>
             </div>
-            <div className="flex gap-1 flex-none ml-1">
+            <div className="hidden xs:flex gap-1 flex-none ml-1">
               <Heart className="h-3 w-3 text-slate-400 hover:text-red-500 transition cursor-pointer" />
             </div>
           </div>
-
+ 
           {/* Central Play/pause controllers */}
-          <div className="flex items-center gap-3">
-            <button className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-all duration-300 transform -scale-x-100 hover:scale-110 active:scale-90" aria-label="上一首">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <button className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-all duration-300 transform -scale-x-100 hover:scale-110 active:scale-90 animate-none" aria-label="上一首">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-3.5 sm:w-3.5" viewBox="0 0 24 24">
                 <path d="M0 0h24v24H0z" fill="none" />
                 <path fill="currentColor" d="M5 7.766c0-1.554 1.696-2.515 3.029-1.715l7.056 4.234c1.295.777 1.295 2.653 0 3.43L8.03 17.949c-1.333.8-3.029-.16-3.029-1.715zM14.056 12L7 7.766v8.468zM18 6a1 1 0 0 1 1 1v10a1 1 0 1 1-2 0V7a1 1 0 0 1 1-1" />
               </svg>
             </button>
-            <button className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-white shadow-md hover:bg-sky-600 transition hover:scale-105" aria-label="播放">
-              <Play className="h-3 w-3 fill-current ml-0.5" />
+            <button className="flex h-6.5 w-6.5 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-slate-800 text-white shadow-md hover:bg-sky-600 transition hover:scale-105" aria-label="播放">
+              <Play className="h-2.5 w-2.5 sm:h-3 sm:w-3 fill-current ml-0.5" />
             </button>
-            <button className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-all duration-300 hover:scale-110 active:scale-90" aria-label="下一首">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24">
+            <button className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-slate-400 hover:text-sky-600 hover:bg-sky-50 transition-all duration-300 hover:scale-110 active:scale-90 animate-none" aria-label="下一首">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-3.5 sm:w-3.5" viewBox="0 0 24 24">
                 <path d="M0 0h24v24H0z" fill="none" />
                 <path fill="currentColor" d="M5 7.766c0-1.554 1.696-2.515 3.029-1.715l7.056 4.234c1.295.777 1.295 2.653 0 3.43L8.03 17.949c-1.333.8-3.029-.16-3.029-1.715zM14.056 12L7 7.766v8.468zM18 6a1 1 0 0 1 1 1v10a1 1 0 1 1-2 0V7a1 1 0 0 1 1-1" />
               </svg>
@@ -391,9 +393,9 @@ function DesktopMockup() {
               <Download className="h-3.5 w-3.5" />
             </button>
           </div>
-
+ 
           {/* Right Status Information */}
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
             <span className="rounded bg-sky-50 px-1 py-0.5 text-[8px] font-black text-sky-600 tracking-wider">AUTO</span>
             <span className="text-[9px] font-mono text-slate-400 font-bold">00:00/00:00</span>
             <div className="hidden sm:flex items-center gap-2 ml-2 border-l border-slate-100 pl-2">
@@ -401,7 +403,7 @@ function DesktopMockup() {
               <Repeat className="h-3 w-3 text-slate-400" />
             </div>
           </div>
-
+ 
         </div>
 
       </div>
@@ -418,13 +420,13 @@ export default function ProductMockup() {
       {/* Float design layout */}
       <div className="float-soft relative flex flex-col items-center justify-center px-2 py-6 sm:px-4">
         
-        {/* Main Desktop Player App Preview */}
-        <div className="w-full z-10 transition duration-500 hover:scale-[1.008]">
+        {/* Main Desktop Player App Preview - hidden on mobile, visible on sm and up */}
+        <div className="w-full z-10 transition duration-500 hover:scale-[1.008] hidden sm:block">
           <DesktopMockup />
         </div>
 
-        {/* Android App overlaps on bottom right, absolute positioned floating elegantly below */}
-        <div className="absolute -bottom-10 right-4 hidden sm:block lg:-right-6 z-20">
+        {/* Android App overlaps on bottom right on screens sm and up, and is shown dynamically centered in place of desktop on mobile */}
+        <div className="block sm:absolute sm:-bottom-10 sm:right-4 lg:-right-6 z-20">
           <AndroidMockup />
         </div>
       </div>

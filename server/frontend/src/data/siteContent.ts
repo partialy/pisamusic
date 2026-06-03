@@ -42,19 +42,19 @@ export const navItems = [
 ];
 
 export const androidProduct: ProductInfo = {
-  label: "Android · 随身而行",
-  title: "为此刻而生的随身唱片盒。",
-  desc: "通勤路上、睡前的片刻、突然想起一段旋律的瞬间，手机端都能快速回应。首页随心情推荐，歌词随指尖流淌，本地曲库与下载管理围绕移动场景中最自然的动作展开：找歌、收藏、带走。",
+  label: "Android · 轻盈随身",
+  title: "掌心微光，温柔回应每一个旋律的呼唤。",
+  desc: "无论是行色匆匆的晨间通勤，还是悄然拂面的深夜枕边，手机端都在口袋里随时等候。歌词如露水般聚散于指尖，本地歌单与下载随触随得，围绕你最自然的倾听本能进行延展：发现、触碰、安顿。",
   icon: Smartphone,
-  points: ["多音源，一站抵达", "沉浸式歌词页", "本地曲库与下载", "推荐歌单，常换常新"],
+  points: ["多源寻音，一键即达", "沉浸歌词，触手可及", "随身曲库，离线无阻", "每日新声，不期而遇"],
 };
 
 export const desktopProduct: ProductInfo = {
-  label: "PC 桌面版 · 久坐长听",
-  title: "为整理与停留而生的音乐书房。",
-  desc: "PisaMusic 桌面版为长时间陪伴而设计。Windows 优先上线，它把曲库、歌单、桌面歌词、托盘常驻和快捷键放进一个更适合久坐长听的桌面环境里。",
+  label: "PC 桌面版 · 案头长伴",
+  title: "伏案停留，用旋律构筑一方专注之境。",
+  desc: "为长时间的静默流淌与专注陪伴而谱写。桌面客户端如同一位老友默默常驻于屏幕一角。开阔的宏观歌单视域、莹澈剔透的桌面悬浮歌词，以及行云流水的全局快捷键，让你在静心劳作或沉思时，声声相伴，温润自然。",
   icon: Computer,
-  points: ["桌面歌词，置顶透明", "SQLite 本地库", "自建歌单，云端入口", "托盘与快捷键"],
+  points: ["莹澈置顶，悬浮歌词", "轻巧高效，本地仓储", "自建歌单，全景视域", "托盘常驻，随切随听"],
 };
 
 export const appStats = [
@@ -65,38 +65,38 @@ export const appStats = [
 
 export const sharedFeatures: FeatureItem[] = [
   {
-    title: "多音源，一站搜索",
-    desc: "KG / WY / KW 等来源统一汇入搜索与播放入口，化繁为简，不必在几个平台之间来回跳转。",
+    title: "群音汇流，无界探寻",
+    desc: "各方来源音乐轻快合流，汇入轻敏快捷的检索与播放轴心。化繁为简，省去设备与客户端之间繁重无序的仓促辗转。",
     icon: Search,
     accent: "bg-sky-100 text-sky-700",
   },
   {
-    title: "推荐内容，不断档",
-    desc: "推荐歌单、热门歌曲与个性化入口，同时服务于手机与桌面，总有新的音乐在路上。",
+    title: "潮汐涌动，灵感常新",
+    desc: "推荐歌单与全球热门曲库兼修并蓄，同步递送。旋律不知停驻，每一次滑动都是与未曾谋面的挚爱心弦悄然邂逅。",
     icon: Sparkles,
     accent: "bg-rose-100 text-rose-700",
   },
   {
-    title: "歌词体验，更完整",
-    desc: "移动端沉浸播放，桌面端辅以悬浮歌词窗口，旋律与文字始终在场。",
+    title: "词句在场，见字如面",
+    desc: "在移动设备中深深浸溺于温暖的微浪，并在电脑前以剔透浮光轻栖桌面。音符流转，文字相依，声声在耳，诗情在目。",
     icon: Mic2,
     accent: "bg-indigo-100 text-indigo-700",
   },
   {
-    title: "本地曲库，更可靠",
-    desc: "桌面端以本地资料库收纳歌曲、收藏、自建歌单与下载记录，适合长年累月的沉淀。",
+    title: "万家风雨，安稳栖息",
+    desc: "以稳定的持久存储，妥帖盛装你的自建歌单与红心收藏。它是不随网络流失的内心壁垒，岁月累加，长久相伴。",
     icon: Database,
     accent: "bg-emerald-100 text-emerald-700",
   },
   {
-    title: "下载管理，更省心",
-    desc: "音质自选、封面嵌入、歌词伴生文件与下载记录，让离线听歌也条理分明。",
+    title: "高洁归纳，落袋为安",
+    desc: "细致音质自调、高精专辑封面内敛封装及歌词伴生下载。每一次离线都是从浩瀚里将一首心头好庄重地拾进衣兜。",
     icon: Download,
     accent: "bg-amber-100 text-amber-700",
   },
   {
-    title: "桌面操作，更顺手",
-    desc: "托盘常驻、快捷键响应、窗口自由控制与细致设置项，为后台持续播放而生。",
+    title: "隐音常伴，如臂使指",
+    desc: "专为静默相守而琢磨。托盘隐介、全局热键一触即达。当她在后台悠悠吟唱，绝不惊动你专心耕耘的笔尖。 ",
     icon: Keyboard,
     accent: "bg-cyan-100 text-cyan-700",
   },
@@ -104,20 +104,20 @@ export const sharedFeatures: FeatureItem[] = [
 
 export const syncFeatures: FeatureItem[] = [
   {
-    title: "一处登录，开启音乐私域",
-    desc: "通过同一款账号连接手机与电脑，无需任何繁杂的配对步骤，让倾听的世界从此不设分界。",
+    title: "一言一默，开启私属音境",
+    desc: "一个账号，即是多重空间的温柔回响。无需惊动任何繁琐的配置流程，让掌心里的雀跃与深夜里的安宁从此没有边界。",
     icon: ShieldCheck,
     accent: "bg-sky-100 text-sky-700",
   },
   {
-    title: "心动歌单，随时轻装随行",
-    desc: "您的收藏列表与自建歌单在云端静静守护，无论置身于哪台设备，您的挚爱旋律皆能如约而至。",
+    title: "私藏岛屿，随时轻装随行",
+    desc: "红心标注的热烈，自建歌单的浅唱。数据在云端默契守护，在你换下行装、切换屏幕的一瞬，挚爱歌曲依然紧随身侧。",
     icon: Heart,
     accent: "bg-rose-100 text-rose-700",
   },
   {
-    title: "纯净同步，只留最爱余音",
-    desc: "我们只专注于同步歌词与曲目的名字本身，绝不夹带冗余的路径与本地缓存，保证同步一气呵成。",
+    title: "风过无痕，只为你留住余音",
+    desc: "克制而纯净的轻量同步，仅携同那份至关重要的曲目魂灵。不留恋冗杂缓存，不占据宝贵空间，只有纯粹音符在设备间流转。",
     icon: Cloud,
     accent: "bg-emerald-100 text-emerald-700",
   },
@@ -125,38 +125,38 @@ export const syncFeatures: FeatureItem[] = [
 
 export const desktopHighlights = [
   {
-    title: "极简悬浮歌词",
-    desc: "支持桌面置顶、虚化与透明度微调，歌词如流水般在屏幕一隅静静吟唱，无需切回主界面。",
+    title: "莹澈悬浮歌词",
+    desc: "支持桌面置顶、毛玻璃虚化与透光度微调。字句如水流般在屏幕一隅静静泛起，与你的视线温和共处，不必频频切换。",
     icon: Waves,
     accent: "bg-sky-50 text-sky-600 border border-sky-100/40",
   },
   {
-    title: "全景本地收纳",
-    desc: "一键扫描本地硬盘音频，与线上歌单和下载记录融为一体，长年累月的累积依旧井然有序。",
+    title: "万籁尽数归仓",
+    desc: "智能扫描本地硬盘音频，与云端线上歌单、下载记录和红心曲目无缝合流，纵有岁月累加，检索依然瞬息即得。",
     icon: FileAudio,
     accent: "bg-emerald-50 text-emerald-600 border border-emerald-100/40",
   },
   {
-    title: "合流统一曲库",
-    desc: "心动红心、自制列表以及外部歌单本地缓存一网打尽，统一承载，再也不怕挚爱曲目零落失散。",
+    title: "无界合流曲库",
+    desc: "打破平台界限，多音源一网打尽。收藏、心动、自建歌单均在这里温润聚首，让你的挚爱曲目再不流落失散。",
     icon: Disc3,
     accent: "bg-purple-50 text-purple-600 border border-purple-100/40",
   },
   {
-    title: "书架层级导航",
-    desc: "为你精心准备的书架式极简导航。收藏、推荐、本地与设置纵向层叠，让整理习惯如呼吸般自然。",
+    title: "书阁层叠导航",
+    desc: "书架式的极简立体导航，推荐、本地、歌单与系统设置轻柔舒展，将每一次寻乐整理折叠得如同翻阅书卷般舒适。",
     icon: ListMusic,
     accent: "bg-rose-50 text-rose-600 border border-rose-100/40",
   },
   {
-    title: "托盘常驻与热键",
-    desc: "支持系统托盘常驻与系统全局快捷键。不论你在写作、编程或设计，旋律始终在指尖听令。",
+    title: "托盘轻栖与热键",
+    desc: "支持系统托盘轻量化驻留与全局快捷键响应。不论你在指间写下代码、描摹设计，只需轻轻一触，旋律便听令流淌。",
     icon: Keyboard,
     accent: "bg-amber-50 text-amber-600 border border-amber-100/40",
   },
   {
-    title: "多端贯通体验",
-    desc: "倾听报告、云盘空间及新版特性公告均深度贯通。只需一次登录，即可无拘无束地在多端徜徉。",
+    title: "多端贯通鸣奏",
+    desc: "深度连接，不只是数据一致。自建歌单云盘、听歌记录和双端特性公告全然贯通，一次起航，双端皆自在徜徉。",
     icon: Radio,
     accent: "bg-cyan-50 text-cyan-600 border border-cyan-100/40",
   },
