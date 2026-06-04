@@ -24,7 +24,8 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.2",
-    "qiniu": "^7.15.2"
+    "qiniu": "^7.15.2",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",

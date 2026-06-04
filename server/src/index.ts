@@ -1,15 +1,18 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
+import { createServer } from "node:http";
 import path from "node:path";
 import { readPlaintextPaths } from "./db/configStore";
 import { logInterceptor } from "./interceptor/logInterceptor";
 import { encryptionMiddleware, setPlaintextPaths } from "./middleware/encryption";
+import { initRealtimeServer } from "./realtime";
 import { adminRouter } from "./routes/admin";
 import { authRouter } from "./routes/auth";
 import { configRouter } from "./routes/config";
 import { deviceRouter } from "./routes/device";
 import { feedbackRouter } from "./routes/feedback";
+import { listenTogetherRouter } from "./routes/listenTogether";
 import { syncRouter } from "./routes/sync";
 import { fail } from "./types/response";
 
@@ -41,6 +44,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/config/privacy-policy",
   "/api/config/about",
   "/api/config/announcements",
+  "/api/listen-together/config",
   "/api/feedback/*",
   "/discover/*",
   "/static/*",
@@ -53,6 +57,7 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
   "/api/config/discover",
+  "/api/listen-together/config",
   "/discover/*",
   "/static/*",
 ];
@@ -76,6 +81,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/device", deviceRouter);
 app.use("/api/sync", syncRouter);
+app.use("/api/listen-together", listenTogetherRouter);
 
 app.use(
   "/discover",
@@ -110,7 +116,10 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json(fail(message, 500));
 });
 
-app.listen(port, () => {
+const httpServer = createServer(app);
+initRealtimeServer(httpServer);
+
+httpServer.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`[bootstrap-server] listening on http://localhost:${port}`);
 });
