@@ -61,4 +61,4 @@ pm-electron/data/
 .codex/
 .claude/
 
-gitpush.sh
+gitpush.*
