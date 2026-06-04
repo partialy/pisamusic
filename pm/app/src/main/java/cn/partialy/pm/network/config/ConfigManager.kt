@@ -23,6 +23,8 @@ import cn.partialy.pm.model.UpdateInfo
 import cn.partialy.pm.network.api.SystemApiService
 import cn.partialy.pm.network.gateway.GatewaySignConfig
 import cn.partialy.pm.network.gateway.GatewaySignRuntime
+import org.json.JSONObject
+import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,7 +32,11 @@ import javax.inject.Singleton
 class ConfigManager @Inject constructor(
     private val systemApiService: SystemApiService,
 ) {
-    class ApiException(val code: Int, override val message: String) : RuntimeException(message)
+    class ApiException(
+        val code: Int,
+        override val message: String,
+        val httpStatus: Int? = null,
+    ) : RuntimeException(message)
 
     data class RuntimeEndpoints(
         val kgBaseUrl: String,
@@ -63,8 +69,29 @@ class ConfigManager @Inject constructor(
     fun getWySongUrl(): String = runtimeEndpoints.wySongUrl
     fun getWySongUrlV1(): String = runtimeEndpoints.wySongUrlV1
 
+    private suspend fun <T> systemCall(fallbackMessage: String, block: suspend () -> T): T {
+        return try {
+            block()
+        } catch (e: HttpException) {
+            throw e.toApiException(fallbackMessage)
+        }
+    }
+
+    private fun HttpException.toApiException(fallbackMessage: String): ApiException {
+        val httpStatus = code()
+        val parsed = response()?.errorBody()?.string()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { raw -> runCatching { JSONObject(raw) }.getOrNull() }
+        val apiCode = parsed?.optInt("code", httpStatus) ?: httpStatus
+        val apiMessage = parsed?.optString("msg").orEmpty()
+        val message = apiMessage.ifBlank {
+            message().takeIf { it.isNotBlank() } ?: fallbackMessage
+        }
+        return ApiException(apiCode, message, httpStatus)
+    }
+
     suspend fun refreshBootstrapConfig() {
-        val response = systemApiService.getBootstrapConfig()
+        val response = systemCall("配置下发失败") { systemApiService.getBootstrapConfig() }
         if (!response.success || response.code != 0) {
             throw ApiException(response.code, response.msg.ifBlank { "配置下发失败" })
         }
@@ -85,92 +112,106 @@ class ConfigManager @Inject constructor(
     }
 
     suspend fun getUpdateInfo(): UpdateInfo {
-        val response = systemApiService.getCheckUpdate()
+        val response = systemCall("更新信息获取失败") { systemApiService.getCheckUpdate() }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "更新信息获取失败" })
         return response.data
     }
 
     suspend fun getAgreementInfo(): AgreementInfo {
-        val response = systemApiService.getAgreement()
+        val response = systemCall("用户协议获取失败") { systemApiService.getAgreement() }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "用户协议获取失败" })
         return response.data
     }
 
     suspend fun getServiceAgreementInfo(): AgreementInfo {
-        val response = systemApiService.getServiceAgreement()
+        val response = systemCall("服务协议获取失败") { systemApiService.getServiceAgreement() }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "服务协议获取失败" })
         return response.data
     }
 
     suspend fun getPrivacyPolicyInfo(): AgreementInfo {
-        val response = systemApiService.getPrivacyPolicy()
+        val response = systemCall("隐私政策获取失败") { systemApiService.getPrivacyPolicy() }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "隐私政策获取失败" })
         return response.data
     }
 
     suspend fun getAboutInfo(): AboutInfo {
-        val response = systemApiService.getAbout()
+        val response = systemCall("关于信息获取失败") { systemApiService.getAbout() }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "关于信息获取失败" })
         return response.data
     }
 
     suspend fun getDynamicConfigInfo(id: String): DynamicConfigInfo {
-        val response = systemApiService.getDynamicConfig(id)
+        val response = systemCall("动态配置获取失败") { systemApiService.getDynamicConfig(id) }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "动态配置获取失败" })
         return response.data
     }
 
     suspend fun reportDevice(body: DeviceReportRequest): DeviceReportResult {
-        val response = systemApiService.reportDevice(body)
+        val response = systemCall("设备信息上报失败") { systemApiService.reportDevice(body) }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "设备信息上报失败" })
         return response.data
     }
 
     suspend fun sendAccountEmailCode(email: String, purpose: String) {
-        val response = systemApiService.sendAccountEmailCode(AccountEmailCodeRequest(email, purpose))
+        val response = systemCall("验证码发送失败") {
+            systemApiService.sendAccountEmailCode(AccountEmailCodeRequest(email, purpose))
+        }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "验证码发送失败" })
     }
 
     suspend fun registerAccount(email: String, username: String, password: String, code: String): AccountAuthResult {
-        val response = systemApiService.registerAccount(AccountRegisterRequest(email, username, password, code))
+        val response = systemCall("注册失败") {
+            systemApiService.registerAccount(AccountRegisterRequest(email, username, password, code))
+        }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "注册失败" })
         return response.data
     }
 
     suspend fun loginAccountByPassword(identifier: String, password: String): AccountAuthResult {
-        val response = systemApiService.loginAccountByPassword(AccountPasswordLoginRequest(identifier, password))
+        val response = systemCall("登录失败") {
+            systemApiService.loginAccountByPassword(AccountPasswordLoginRequest(identifier, password))
+        }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "登录失败" })
         return response.data
     }
 
     suspend fun loginAccountByCode(email: String, code: String): AccountAuthResult {
-        val response = systemApiService.loginAccountByCode(AccountCodeLoginRequest(email, code))
+        val response = systemCall("登录失败") {
+            systemApiService.loginAccountByCode(AccountCodeLoginRequest(email, code))
+        }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "登录失败" })
         return response.data
     }
 
     suspend fun resetAccountPassword(email: String, code: String, password: String) {
-        val response = systemApiService.resetAccountPassword(AccountPasswordResetRequest(email, code, password))
+        val response = systemCall("密码重置失败") {
+            systemApiService.resetAccountPassword(AccountPasswordResetRequest(email, code, password))
+        }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "密码重置失败" })
     }
 
     suspend fun refreshAccountToken(token: String): AccountAuthResult {
-        val response = systemApiService.refreshAccountToken("Bearer $token")
+        val response = systemCall("刷新登录失败") {
+            systemApiService.refreshAccountToken("Bearer $token")
+        }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "刷新登录失败" })
         return response.data
     }
 
     suspend fun getAccountMe(token: String): AccountUser {
-        val response = systemApiService.getAccountMe("Bearer $token")
+        val response = systemCall("账号信息获取失败") { systemApiService.getAccountMe("Bearer $token") }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "账号信息获取失败" })
         return response.data
     }
 
     suspend fun sendAccountProfileEmailCode(token: String, email: String) {
-        val response = systemApiService.sendAccountProfileEmailCode(
-            authorization = "Bearer $token",
-            body = AccountProfileEmailCodeRequest(email),
-        )
+        val response = systemCall("验证码发送失败") {
+            systemApiService.sendAccountProfileEmailCode(
+                authorization = "Bearer $token",
+                body = AccountProfileEmailCodeRequest(email),
+            )
+        }
         if (!response.success || response.code != 0) {
             throw ApiException(response.code, response.msg.ifBlank { "验证码发送失败" })
         }
@@ -183,15 +224,17 @@ class ConfigManager @Inject constructor(
         code: String?,
         avatarKey: String?,
     ): AccountAuthResult {
-        val response = systemApiService.updateAccountProfile(
-            authorization = "Bearer $token",
-            body = AccountProfileUpdateRequest(
-                username = username,
-                email = email,
-                code = code,
-                avatarKey = avatarKey,
-            ),
-        )
+        val response = systemCall("资料更新失败") {
+            systemApiService.updateAccountProfile(
+                authorization = "Bearer $token",
+                body = AccountProfileUpdateRequest(
+                    username = username,
+                    email = email,
+                    code = code,
+                    avatarKey = avatarKey,
+                ),
+            )
+        }
         if (!response.success || response.code != 0) {
             throw ApiException(response.code, response.msg.ifBlank { "资料更新失败" })
         }
@@ -199,13 +242,17 @@ class ConfigManager @Inject constructor(
     }
 
     suspend fun getSyncChanges(token: String, deviceId: String, since: Long): SyncChangesResult {
-        val response = systemApiService.getSyncChanges("Bearer $token", deviceId, since)
+        val response = systemCall("拉取同步变更失败") {
+            systemApiService.getSyncChanges("Bearer $token", deviceId, since)
+        }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "拉取同步变更失败" })
         return response.data
     }
 
     suspend fun pushSyncChanges(token: String, deviceId: String, changes: List<SyncChangeInput>): SyncPushResult {
-        val response = systemApiService.pushSyncChanges("Bearer $token", deviceId, SyncPushRequest(changes))
+        val response = systemCall("推送同步变更失败") {
+            systemApiService.pushSyncChanges("Bearer $token", deviceId, SyncPushRequest(changes))
+        }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "推送同步变更失败" })
         return response.data
     }

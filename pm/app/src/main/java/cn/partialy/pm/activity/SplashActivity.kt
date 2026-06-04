@@ -205,11 +205,18 @@ class SplashActivity : AppCompatActivity() {
                 SyncPrefs.clearAccountState(this)
             }
             AccountSessionStore.save(this, refreshed)
-        }.onFailure {
-            SyncOutboxStore(this).clearAll()
-            SyncPrefs.clearAccountState(this)
-            AccountSessionStore.clear(this)
+        }.onFailure { error ->
+            if (error.isAccountAuthExpired()) {
+                SyncOutboxStore(this).clearAll()
+                SyncPrefs.clearAccountState(this)
+                AccountSessionStore.clear(this)
+            }
         }
+    }
+
+    private fun Throwable.isAccountAuthExpired(): Boolean {
+        val apiError = this as? ConfigManager.ApiException ?: return false
+        return apiError.httpStatus == 401 || apiError.code == 401
     }
 
     private fun DeviceReportResult.isCurrentlyLocked(nowMillis: Long = System.currentTimeMillis()): Boolean {
