@@ -23,10 +23,13 @@ import cn.partialy.pm.model.DeviceReportResponse
 import cn.partialy.pm.model.SyncChangesResponse
 import cn.partialy.pm.model.SyncPushRequest
 import cn.partialy.pm.model.SyncPushResponse
+import cn.partialy.pm.listen.ListenTogetherCreateRoomRequest
+import cn.partialy.pm.listen.ListenTogetherRoomResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
+import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.Query
 
@@ -107,4 +110,16 @@ interface SystemApiService {
         @Header("x-pm-device-id") deviceId: String,
         @Body body: SyncPushRequest,
     ): SyncPushResponse
+
+    @POST("api/listen-together/rooms")
+    suspend fun createListenTogetherRoom(
+        @Header("Authorization") authorization: String,
+        @Body body: ListenTogetherCreateRoomRequest,
+    ): ListenTogetherRoomResponse
+
+    @GET("api/listen-together/rooms/{roomId}")
+    suspend fun getListenTogetherRoom(
+        @Header("Authorization") authorization: String,
+        @Path("roomId") roomId: String,
+    ): ListenTogetherRoomResponse
 }

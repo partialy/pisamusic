@@ -1,6 +1,7 @@
 package cn.partialy.pm.di
 
 import cn.partialy.pm.BuildConfig
+import cn.partialy.pm.listen.ListenTogetherConfigApiService
 import cn.partialy.pm.network.api.KgApiService
 import cn.partialy.pm.network.api.SystemApiService
 import cn.partialy.pm.network.config.ConfigManager
@@ -104,6 +105,25 @@ object NetworkModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(SystemApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideListenTogetherConfigApiService(
+        @Named("system_api_base_url") systemApiBaseUrl: String,
+    ): ListenTogetherConfigApiService {
+        val plainClient = OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                redactHeader("Authorization")
+                level = HttpLoggingInterceptor.Level.BODY
+            })
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(systemApiBaseUrl)
+            .client(plainClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(ListenTogetherConfigApiService::class.java)
     }
 
     @Provides

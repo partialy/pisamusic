@@ -2,6 +2,8 @@ package cn.partialy.pm.activity
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -42,6 +44,10 @@ import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityPlayerBinding
+import cn.partialy.pm.databinding.LayoutListenTogetherBottomSheetBinding
+import cn.partialy.pm.listen.ListenTogetherManager
+import cn.partialy.pm.listen.ListenTogetherState
+import cn.partialy.pm.listen.ListenTogetherUiEvent
 import cn.partialy.pm.lyric.LyricContent
 import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.LyricRepository
@@ -67,6 +73,7 @@ import coil.load
 import coil.request.ImageRequest
 import coil.ImageLoader
 import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.abs
@@ -86,9 +93,12 @@ class PlayerActivity : BaseDownloadActivity() {
     @Inject lateinit var mediaIndexDb: LocalMediaIndexDbStore
     @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
     @Inject lateinit var lyricRepository: LyricRepository
+    @Inject lateinit var listenTogetherManager: ListenTogetherManager
 
     private lateinit var binding: ActivityPlayerBinding
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
+    private var listenTogetherDialog: BottomSheetDialog? = null
+    private var listenTogetherSheetBinding: LayoutListenTogetherBottomSheetBinding? = null
     private lateinit var lyricsAdapter: LyricsAdapter
     private var lyricRows: List<LyricRow> = emptyList()
     private var lyricContent: LyricContent = LyricContent.noLyrics()
@@ -97,6 +107,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private var lyricScrollState: Int = RecyclerView.SCROLL_STATE_IDLE
     private var lyricCenterSeekIndex: Int = -1
     private var karaokeSyncJob: Job? = null
+    private var pendingSeekProgress: Int? = null
     /** 自动跟唱等代码触发的 [smoothScrollLyricsToCenter] 期间为 true，避免误显中线指示器。 */
     private var lyricsProgrammaticScrollInProgress: Boolean = false
     private val lyricSeekButtonHideRunnable = Runnable { updateLyricCenterSeekUi() }
@@ -119,7 +130,7 @@ class PlayerActivity : BaseDownloadActivity() {
                     currentPlayingId = musicController.currentSong.value?.id,
                     onItemClick = { song, _ ->
                         lifecycleScope.launch {
-                            musicController.play(song)
+                            listenTogetherManager.requestPlaySong(song)
                             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
                         }
                     },
@@ -132,6 +143,7 @@ class PlayerActivity : BaseDownloadActivity() {
             setupPlaybackControls()
             setupLyricsList()
             observePlaybackState()
+            observeListenTogether()
 
             onBackPressedDispatcher.addCallback(this) {
                 if (bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN) {
@@ -156,6 +168,7 @@ class PlayerActivity : BaseDownloadActivity() {
         binding.collapseButton.setOnClickListener { finish() }
 
         binding.moreButton.setOnClickListener { openCurrentSongMoreMenu() }
+        binding.listenTogetherChip.setOnClickListener { showListenTogetherSheet() }
 
         binding.textDecreaseButton.setOnClickListener {
             lyricsAdapter.adjustTextSize(-1f, this)
@@ -177,23 +190,29 @@ class PlayerActivity : BaseDownloadActivity() {
         binding.progressBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    lifecycleScope.launch { musicController.seekToProgress(progress) }
+                    pendingSeekProgress = progress
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                val progress = pendingSeekProgress ?: seekBar?.progress ?: return
+                pendingSeekProgress = null
+                val duration = musicController.duration.value
+                val target = if (duration > 0L) (progress.toLong() * duration) / 100L else 0L
+                listenTogetherManager.requestSeek(target)
+            }
         })
 
         binding.playPauseButton.setOnClickListener {
-            lifecycleScope.launch { musicController.togglePlayPause() }
+            listenTogetherManager.requestTogglePlayPause()
         }
 
         binding.previousButton.setOnClickListener {
-            lifecycleScope.launch { musicController.previous(auto = false) }
+            listenTogetherManager.requestPrevious()
         }
 
         binding.nextButton.setOnClickListener {
-            lifecycleScope.launch { musicController.next(auto = false) }
+            listenTogetherManager.requestNext()
         }
 
         binding.loveButton.setOnClickListener {
@@ -299,6 +318,7 @@ class PlayerActivity : BaseDownloadActivity() {
                 playlistCollectionManager = playlistCollectionManager,
                 onDownloadClick = { startSongDownloadFlow(it) },
                 showShare = true,
+                onListenTogetherClick = { showListenTogetherSheet() },
             ),
         )
     }
@@ -362,6 +382,139 @@ class PlayerActivity : BaseDownloadActivity() {
         }
     }
 
+    private fun observeListenTogether() {
+        lifecycleScope.launch {
+            listenTogetherManager.state.collect { state ->
+                renderListenTogetherChip(state)
+                listenTogetherSheetBinding?.let { renderListenTogetherSheet(it, state) }
+            }
+        }
+        lifecycleScope.launch {
+            listenTogetherManager.uiEvents.collect { event ->
+                when (event) {
+                    is ListenTogetherUiEvent.Toast -> {
+                        Toast.makeText(this@PlayerActivity, event.message, Toast.LENGTH_SHORT).show()
+                    }
+                    is ListenTogetherUiEvent.RequireLogin -> {
+                        Toast.makeText(this@PlayerActivity, event.message, Toast.LENGTH_SHORT).show()
+                        LoginActivity.start(this@PlayerActivity)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun renderListenTogetherChip(state: ListenTogetherState) {
+        val room = state.room
+        if (room == null) {
+            binding.listenTogetherChip.visibility = View.GONE
+            return
+        }
+        binding.listenTogetherChip.visibility = View.VISIBLE
+        val status = if (state.socketConnected) "同步正常" else "重连中"
+        binding.listenTogetherChip.text = "一起听中 · ${room.displayPeople()}人 · $status"
+    }
+
+    private fun showListenTogetherSheet() {
+        val dialog = BottomSheetDialog(
+            this,
+            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+        )
+        val sheetBinding = LayoutListenTogetherBottomSheetBinding.inflate(layoutInflater)
+        listenTogetherDialog = dialog
+        listenTogetherSheetBinding = sheetBinding
+
+        sheetBinding.listenTogetherCloseButton.setOnClickListener { dialog.dismiss() }
+        sheetBinding.listenTogetherCreateButton.setOnClickListener {
+            lifecycleScope.launch {
+                listenTogetherManager.createRoom(musicController.currentSong.value)
+            }
+        }
+        sheetBinding.listenTogetherJoinButton.setOnClickListener {
+            val roomId = sheetBinding.listenTogetherRoomInput.text?.toString().orEmpty()
+            lifecycleScope.launch { listenTogetherManager.joinRoom(roomId) }
+        }
+        sheetBinding.listenTogetherCopyButton.setOnClickListener {
+            val roomId = listenTogetherManager.state.value.room?.roomId ?: return@setOnClickListener
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Pisa Music 一起听房间号", roomId))
+            Toast.makeText(this, "房间号已复制", Toast.LENGTH_SHORT).show()
+        }
+        sheetBinding.listenTogetherShareButton.setOnClickListener {
+            val text = listenTogetherManager.shareText() ?: return@setOnClickListener
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+            }, getString(R.string.listen_together_share_room)))
+        }
+        sheetBinding.listenTogetherLeaveButton.setOnClickListener {
+            listenTogetherManager.leaveRoom()
+            dialog.dismiss()
+        }
+
+        renderListenTogetherSheet(sheetBinding, listenTogetherManager.state.value)
+        dialog.setContentView(sheetBinding.root)
+        dialog.setOnShowListener { applyListenTogetherSheetBehavior(dialog) }
+        dialog.setOnDismissListener {
+            if (listenTogetherDialog === dialog) {
+                listenTogetherDialog = null
+                listenTogetherSheetBinding = null
+            }
+        }
+        dialog.show()
+    }
+
+    private fun renderListenTogetherSheet(
+        sheetBinding: LayoutListenTogetherBottomSheetBinding,
+        state: ListenTogetherState,
+    ) {
+        val room = state.room
+        val currentSong = musicController.currentSong.value
+        sheetBinding.listenTogetherCreateButton.isEnabled = !state.joining
+        sheetBinding.listenTogetherJoinButton.isEnabled = !state.joining
+        sheetBinding.listenTogetherCurrentSongView.text = currentSong?.let { "${it.name} - ${it.artist}" }
+            ?: "暂无正在播放的歌曲"
+
+        if (room == null) {
+            sheetBinding.listenTogetherIdleGroup.visibility = View.VISIBLE
+            sheetBinding.listenTogetherRoomGroup.visibility = View.GONE
+            sheetBinding.listenTogetherSubtitleView.text = getString(R.string.listen_together_subtitle)
+            return
+        }
+
+        sheetBinding.listenTogetherIdleGroup.visibility = View.GONE
+        sheetBinding.listenTogetherRoomGroup.visibility = View.VISIBLE
+        sheetBinding.listenTogetherSubtitleView.text = room.roomName
+        sheetBinding.listenTogetherRoomInfoView.text = "房间 ${room.roomId} · ${room.displayPeople()} 人在线"
+        val connection = if (state.socketConnected) "同步正常" else "正在重连"
+        val control = if (state.isHost) "你是房主" else "仅房主控制"
+        sheetBinding.listenTogetherSyncStatusView.text = "$connection · $control"
+        sheetBinding.listenTogetherRoomSongView.text = room.song?.let {
+            "当前同步：${it.name} - ${it.singer}"
+        } ?: "当前同步：等待房主播放歌曲"
+        val memberText = room.members.takeIf { it.isNotEmpty() }
+            ?.joinToString("、") { member ->
+                val suffix = if (member.userId == room.hostUserId) "（房主）" else ""
+                member.displayName() + suffix
+            }
+        sheetBinding.listenTogetherMembersView.text = if (memberText.isNullOrBlank()) {
+            "成员：${room.displayPeople()} 人在线"
+        } else {
+            "成员：$memberText"
+        }
+    }
+
+    private fun applyListenTogetherSheetBehavior(dialog: BottomSheetDialog) {
+        val bottomSheet = dialog.findViewById<View>(
+            com.google.android.material.R.id.design_bottom_sheet,
+        ) ?: return
+        BottomSheetBehavior.from(bottomSheet as ViewGroup).apply {
+            skipCollapsed = true
+            maxHeight = (resources.displayMetrics.heightPixels * 0.72f).toInt()
+            state = BottomSheetBehavior.STATE_EXPANDED
+        }
+    }
+
     private fun syncLoveButton(song: SongInfo) {
         val liked = loveManager.isSongInLoveList(song)
         binding.loveButton.setImageResource(if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24)
@@ -382,7 +535,7 @@ class PlayerActivity : BaseDownloadActivity() {
             lastUserLyricScrollAtMs = SystemClock.elapsedRealtime()
             lifecycleScope.launch {
                 binding.karaokeLyricsView.resumeAutoScroll()
-                musicController.seekToPositionMs(rows[idx].startTime)
+                listenTogetherManager.requestSeek(rows[idx].startTime)
             }
         }
         binding.karaokeLyricsView.onBrowseLineChanged = { idx ->

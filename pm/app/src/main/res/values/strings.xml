@@ -370,4 +370,14 @@
     <string name="dev_debug_test_wy_account">网易 /user/account</string>
     <string name="dev_debug_api_result_hint">响应正文</string>
     <string name="dev_debug_api_requesting">请求中…</string>
+    <string name="listen_together_title">一起听</string>
+    <string name="listen_together_subtitle">和朋友同步播放当前歌曲</string>
+    <string name="listen_together_current_song">当前歌曲</string>
+    <string name="listen_together_create_room">创建房间</string>
+    <string name="listen_together_join_title">加入房间</string>
+    <string name="listen_together_room_hint">输入房间号</string>
+    <string name="listen_together_join_room">加入</string>
+    <string name="listen_together_copy_room">复制房间号</string>
+    <string name="listen_together_share_room">分享</string>
+    <string name="listen_together_leave_room">退出一起听</string>
 </resources>

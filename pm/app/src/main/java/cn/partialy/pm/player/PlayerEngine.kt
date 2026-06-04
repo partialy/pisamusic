@@ -55,6 +55,8 @@ class PlayerEngine(
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying = _isPlaying.asStateFlow()
+    private val _playbackState = MutableStateFlow(Player.STATE_IDLE)
+    val playbackState = _playbackState.asStateFlow()
 
     private val _progress = MutableStateFlow(0L)
     val progress = _progress.asStateFlow()
@@ -161,6 +163,7 @@ class PlayerEngine(
 
         @SuppressLint("SwitchIntDef")
         override fun onPlaybackStateChanged(playbackState: Int) {
+            _playbackState.value = playbackState
             if (playbackState == Player.STATE_READY) {
                 _isPlaying.value = exoPlayer?.isPlaying == true
                 clearPlaybackRetryForCurrent()
@@ -367,6 +370,28 @@ class PlayerEngine(
             val clamped =
                 if (d > 0) positionMs.coerceIn(0L, d) else positionMs.coerceAtLeast(0L)
             player.seekTo(clamped)
+        }
+    }
+
+    fun playCurrent() {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                ensurePlayableAtIndex(playlistManager.currentIndex.value, autoPlay = true)
+                persistState(force = true)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun pauseCurrent() {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                exoPlayer?.pause()
+                persistState(force = true)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

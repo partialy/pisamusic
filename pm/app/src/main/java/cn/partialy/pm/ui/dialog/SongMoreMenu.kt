@@ -35,6 +35,7 @@ data class SongMoreMenuDependencies(
     val playlistCollectionManager: PlaylistCollectionManager,
     val onDownloadClick: (SongInfo) -> Unit,
     val showShare: Boolean = false,
+    val onListenTogetherClick: ((SongInfo) -> Unit)? = null,
 )
 
 /**
@@ -99,6 +100,13 @@ object SongMoreMenu {
         root.findViewById<LinearLayout>(R.id.songMoreRowAddPlaylist).setOnClickListener {
             openPickPlaylistAfterDismiss = true
             dialog.dismiss()
+        }
+        root.findViewById<LinearLayout>(R.id.songMoreRowListenTogether).apply {
+            visibility = if (deps.onListenTogetherClick != null) View.VISIBLE else View.GONE
+            setOnClickListener {
+                dialog.dismiss()
+                deps.onListenTogetherClick?.invoke(song)
+            }
         }
         root.findViewById<LinearLayout>(R.id.songMoreRowShare).apply {
             visibility = if (deps.showShare) View.VISIBLE else View.GONE

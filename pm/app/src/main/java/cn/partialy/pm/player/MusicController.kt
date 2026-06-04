@@ -51,11 +51,16 @@ class MusicController @Inject constructor(
     val progress: StateFlow<Long> get() = engine.progress
     val currentPosition: StateFlow<Long> get() = engine.currentPosition
     val duration: StateFlow<Long> get() = engine.duration
+    val playbackState: StateFlow<Int> get() = engine.playbackState
     val playNextQueue: StateFlow<List<SongInfo>> get() = playlistManager.playNextQueue
 
     // ==================== 播放控制 ====================
 
     fun togglePlayPause() = engine.togglePlayPause()
+
+    fun playCurrent() = engine.playCurrent()
+
+    fun pauseCurrent() = engine.pauseCurrent()
 
     @Suppress("UNUSED_PARAMETER")
     fun next(auto: Boolean = true) = engine.next(manual = !auto)
@@ -92,9 +97,9 @@ class MusicController @Inject constructor(
     }
 
     /** 播放单曲：设置为当前歌曲，不在列表则追加到尾部 */
-    fun play(songInfo: SongInfo) {
+    fun play(songInfo: SongInfo, autoPlay: Boolean = true) {
         playlistManager.playSingle(songInfo) { index ->
-            engine.ensurePlayableAtIndex(index, autoPlay = true)
+            engine.ensurePlayableAtIndex(index, autoPlay = autoPlay)
             engine.persistState(force = true)
         }
     }

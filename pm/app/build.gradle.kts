@@ -82,6 +82,9 @@ dependencies {
     implementation(libs.converter.gson)
     implementation(libs.logging.interceptor)
     implementation(libs.okhttp)
+    implementation(libs.socket.io.client) {
+        exclude(group = "org.json", module = "json")
+    }
 
     // 序列化
     implementation(libs.kotlinx.serialization.json)
