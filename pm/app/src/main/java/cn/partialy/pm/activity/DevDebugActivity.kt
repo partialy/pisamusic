@@ -139,7 +139,7 @@ class DevDebugActivity : BaseActivity() {
         append(r.body)
         if (r.cookieHeaderForNextRequest.isNotBlank()) {
             appendLine()
-            appendLine("--- cookieHeaderForNextRequest (合并后) ---")
+            appendLine("--- cookieHeaderForNextRequest ---")
             append(r.cookieHeaderForNextRequest)
         }
     }

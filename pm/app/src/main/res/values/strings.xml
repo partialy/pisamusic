@@ -182,8 +182,8 @@
     <string name="drawer_more_login_kg">登录KG</string>
     <string name="drawer_more_login_wy_web">登录WY（优）</string>
     <string name="drawer_more_login_wy_api">登录WY（备）</string>
-    <string name="drawer_wy_web_login_title">网页登录网易云</string>
-    <string name="drawer_wy_web_import_cookie">导入 Cookie</string>
+    <string name="drawer_wy_web_login_title">登录成功后点击导入</string>
+    <string name="drawer_wy_web_import_cookie">导入Cookie</string>
     <string name="drawer_wy_web_cookie_empty">未读取到 Cookie，请在网页完成登录后再试</string>
     <string name="drawer_import_kg_playlists_cd">导入酷狗歌单到收藏</string>
     <string name="drawer_import_wy_playlists_cd">导入网易云歌单到收藏</string>

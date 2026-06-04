@@ -18,13 +18,14 @@ import java.util.concurrent.TimeUnit
 /**
  * 带可控 `Cookie` 请求头的简易 HTTP 客户端（GET + query）。
  *
- * 需**自动携带并回写本地持久化 Cookie**时，使用 [CookieSessionHttp]（由
- * [cn.partialy.pm.network.cookie.KugouCookieRepository] / [cn.partialy.pm.network.cookie.WyCookieRepository] 持有）。
+ * 需**只携带本地持久化 Cookie**时，使用 [CookieSessionHttp]（由
+ * [cn.partialy.pm.network.cookie.KugouCookieRepository] / [cn.partialy.pm.network.cookie.WyCookieRepository] 持有）；
+ * 登录流程需要吸收响应 `Set-Cookie` 时，直接使用本类并保留 [mergeResponseSetCookie] 默认值。
  *
  * 用法：
  * ```
  * val result = CookieRequest.get("https://...", mapOf("a" to "1"), cookieHeader)
- * // result.cookieHeaderForNextRequest：响应 Set-Cookie 已把过期拉到约 50 年后并与原 cookie 合并
+ * // result.cookieHeaderForNextRequest：默认会把响应 Set-Cookie 与原 cookie 合并
  * ```
  *
  * 传入的 cookie 形如：`a=1; b=2`（与 WebView `CookieManager.getCookie` 一致）。
@@ -42,14 +43,17 @@ object CookieRequest {
      * @param params 查询参数（value 为 null 时跳过该 key）
      * @param cookie 可选，非空则设置请求头 `Cookie: ...`
      * @param extraHeaders 额外请求头（如 Referer、User-Agent；与 [cookie] 可同时存在）
+     * @param mergeResponseSetCookie 是否把响应 `Set-Cookie` 合并到 [CookieHttpResult.cookieHeaderForNextRequest]。
+     *   普通业务请求应设为 false，避免服务端响应污染本地登录态；登录流程可保留 true。
      */
     suspend fun get(
         url: String,
         params: Map<String, String?> = emptyMap(),
         cookie: String? = null,
         extraHeaders: Map<String, String> = emptyMap(),
+        mergeResponseSetCookie: Boolean = true,
     ): CookieHttpResult = withContext(Dispatchers.IO) {
-        getBlocking(url, params, cookie, extraHeaders)
+        getBlocking(url, params, cookie, extraHeaders, mergeResponseSetCookie)
     }
 
     /**
@@ -60,6 +64,7 @@ object CookieRequest {
         params: Map<String, String?> = emptyMap(),
         cookie: String? = null,
         extraHeaders: Map<String, String> = emptyMap(),
+        mergeResponseSetCookie: Boolean = true,
     ): CookieHttpResult {
         val httpUrl = url.toHttpUrlOrNull()
             ?: throw IllegalArgumentException("Invalid url: $url")
@@ -100,11 +105,15 @@ object CookieRequest {
         val request = reqBuilder.build()
         client.newCall(request).execute().use { response ->
             val bodyStr = response.body?.string().orEmpty()
-            val nextCookie = mergeWithSetCookieExtendedExpiry(
-                httpUrl = finalUrl,
-                previousCookieHeader = cookie,
-                response = response,
-            )
+            val nextCookie = if (mergeResponseSetCookie) {
+                mergeWithSetCookieExtendedExpiry(
+                    httpUrl = finalUrl,
+                    previousCookieHeader = cookie,
+                    response = response,
+                )
+            } else {
+                cookie?.trim().orEmpty()
+            }
             return CookieHttpResult(
                 isSuccessful = response.isSuccessful,
                 code = response.code,

@@ -5,8 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 在每次请求中自动附加持久化 Cookie，并在响应含 `Set-Cookie` 时用 [CookieRequest] 的规则合并、
- * 延长过期后写回 [PersistedUserCookieStore]。
+ * 在每次请求中自动附加持久化 Cookie。
+ *
+ * 普通业务接口只允许读取本地文件/内存中的登录 Cookie，忽略响应 `Set-Cookie`，避免不同设备或账号
+ * 被服务端响应头污染。登录态变更应由登录流程或 WebView 导入显式写入 [PersistedUserCookieStore]。
  */
 class CookieSessionHttp(
     private val store: PersistedUserCookieStore,
@@ -21,11 +23,11 @@ class CookieSessionHttp(
 
     fun getBlocking(url: String, params: Map<String, String?> = emptyMap()): CookieHttpResult {
         val current = store.getCookie().trim().takeIf { it.isNotEmpty() }
-        val result = CookieRequest.getBlocking(url, params, current)
-        val next = result.cookieHeaderForNextRequest.trim()
-        if (next.isNotEmpty() && next != current) {
-            store.updateFromMergedHeader(next)
-        }
-        return result
+        return CookieRequest.getBlocking(
+            url = url,
+            params = params,
+            cookie = current,
+            mergeResponseSetCookie = false,
+        )
     }
 }

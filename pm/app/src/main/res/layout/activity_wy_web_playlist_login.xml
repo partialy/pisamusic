@@ -24,6 +24,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="@color/home_page_bg"
+            app:title="@string/drawer_wy_web_login_title"
             app:navigationIcon="@drawable/ic_back_24" />
     </com.google.android.material.appbar.AppBarLayout>
 
