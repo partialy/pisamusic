@@ -1,12 +1,12 @@
 # PISA Music
 
-An Android application that aggregates music from multiple platforms, supporting search, playback, and download of songs from Kugou Music, NetEase Cloud Music, and Kuwo Music.
+An Android multi-source music player for learning and communication purposes, supporting song search, online playback, lyrics display, download management, and playlist management.
 
 ## Features
 
 ### Core Features
-- **Multi-source Music Search**: Simultaneously search for songs across Kugou, NetEase Cloud, and Kuwo platforms
-- **Online Playback**: Smooth playback of music from all platforms with quality selection options
+- **Multi-source Music Search**: Search songs across multiple compatible audio sources
+- **Online Playback**: Smooth playback from multiple audio sources with quality selection options
 - **Lyrics Display**: Scrolling lyrics with customizable color themes
 - **Song Download**: Download high-quality music to your device
 - **Playlist Management**: Favorite playlists and manage local playback lists
@@ -23,7 +23,7 @@ An Android application that aggregates music from multiple platforms, supporting
 
 ### Other Features
 - **Theme Switching**: Support for light, dark, and system-following themes
-- **Playlist Import**: Import playlists from Kugou and NetEase Cloud Music
+- **Playlist Import**: Import playlists from compatible audio sources
 
 ## Project Structure
 
@@ -117,11 +117,7 @@ npm run build
 
 ## Network APIs
 
-The project uses a multi-source aggregation architecture with primary data sources:
-
-- **Kugou Music**: Recommended songs, playlist search, song playback
-- **NetEase Cloud Music**: Cloud storage search, lyric retrieval
-- **Kuwo Music**: Music search
+The project uses a multi-source aggregation architecture that modularizes search, playback, lyrics, playlists, and related capabilities for learning, communication, and feature validation.
 
 ## License
 

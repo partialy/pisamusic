@@ -62,3 +62,4 @@ pm-electron/data/
 .claude/
 
 gitpush.*
+*-plan.md
