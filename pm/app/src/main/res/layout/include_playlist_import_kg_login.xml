@@ -214,6 +214,7 @@
                 android:visibility="gone">
 
                 <TextView
+                    android:id="@+id/kg_qr_overlay_message"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/playlist_import_kg_qr_expired"

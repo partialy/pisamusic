@@ -41,7 +41,7 @@ import javax.inject.Inject
 
 /**
  * 网易云歌单导入登录：手机验证码 + 扫码，布局复用 [R.layout.include_playlist_import_kg_login]，
- * 接口与 music-login-hub [musicApi.ts] / [App.tsx] 一致（网关 [WyCookieRepository.API_BASE]，query 带 realIP）。
+ * 接口与 music-login-hub [musicApi.ts] / [App.tsx] 一致，网关使用系统配置下发的 WY 地址，query 带 realIP。
  */
 @AndroidEntryPoint
 class WyPlaylistLoginActivity : BaseActivity() {

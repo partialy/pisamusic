@@ -182,7 +182,7 @@
     <string name="drawer_more_login_kg">登录KG</string>
     <string name="drawer_more_login_wy_web">登录WY（优）</string>
     <string name="drawer_more_login_wy_api">登录WY（备）</string>
-    <string name="drawer_wy_web_login_title">登录成功后点击右侧按钮导入cookie</string>
+    <string name="drawer_wy_web_login_title">登录后点击导入cookie</string>
     <string name="drawer_wy_web_import_cookie">导入Cookie</string>
     <string name="drawer_wy_web_cookie_empty">未读取到 Cookie，请在网页完成登录后再试</string>
     <string name="drawer_import_all_playlists">导入歌单</string>
@@ -338,6 +338,7 @@
     <string name="playlist_import_kg_login_now">立即登录</string>
     <string name="playlist_import_kg_qr_cd">登录二维码</string>
     <string name="playlist_import_kg_qr_expired">二维码已过期</string>
+    <string name="playlist_import_kg_qr_retry_after_fail">登录失败，请刷新二维码重试</string>
     <string name="playlist_import_kg_qr_refresh">点击刷新</string>
     <string name="playlist_import_kg_qr_confirming">已扫码，请在手机上确认</string>
     <string name="playlist_import_kg_qr_confirm_on_phone">请在手机上确认登录</string>

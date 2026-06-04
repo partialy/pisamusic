@@ -3,6 +3,7 @@ package cn.partialy.pm.network.cookie
 import cn.partialy.pm.network.CookieHttpResult
 import cn.partialy.pm.network.CookieRequest
 import cn.partialy.pm.network.CookieSessionHttp
+import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.cookie.model.WyAccountResponse
 import cn.partialy.pm.network.cookie.model.WyPlaylistItem
 import cn.partialy.pm.network.cookie.model.WyPlaylistTrackAllResponse
@@ -22,11 +23,12 @@ import javax.inject.Singleton
  * 独立网易「需登录 Cookie」接口（与现有 [cn.partialy.pm.network.wy.WyApiService] 无关）。
  *
  * 流程：[needCookieAPI.md] 先 [getAccount] 取 uid，再 [getUserPlaylists]。
- * Base 默认 `https://music.163.com/api`，若与你环境不一致请改 [API_BASE]。
+ * Base URL 使用系统配置下发的 WY 业务地址。
  */
 @Singleton
 class WyCookieRepository @Inject constructor(
     private val cookieManager: MusicCookieManager,
+    private val configManager: ConfigManager,
 ) {
 
     private val http = CookieSessionHttp(MusicCookieManager.SOURCE_WY, cookieManager)
@@ -237,35 +239,24 @@ class WyCookieRepository @Inject constructor(
     }
 
     private fun urlFor(path: String): String =
-        "${API_BASE.trimEnd('/')}/${path.trimStart('/')}"
+        "${apiBaseUrl.trimEnd('/')}/${path.trimStart('/')}"
 
     private val urlUserAccount: String
-        get() = "${API_BASE.trimEnd('/')}/user/account"
+        get() = urlFor("user/account")
 
     private val urlUserPlaylist: String
-        get() = "${API_BASE.trimEnd('/')}/user/playlist"
+        get() = urlFor("user/playlist")
 
     private val urlPlaylistTrackAll: String
-        get() = "${API_BASE.trimEnd('/')}/playlist/track/all"
+        get() = urlFor("playlist/track/all")
+
+    private val apiBaseUrl: String
+        get() = configManager.getWyBaseUrl()
 
     companion object {
-        const val API_BASE: String = "https://gateway.partialy.cn/wy-service"
-
         /** 与 music-login-hub `musicApi.ts` 中 `realIP` 查询参数一致 */
         const val WY_LOGIN_REAL_IP: String = "116.25.146.177"
 
-        /** 网关登录类接口请求头（Referer / Origin 指向 music.163.com） */
-        val WY_LOGIN_BROWSER_HEADERS: Map<String, String> = mapOf(
-            "User-Agent" to
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-                "Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
-            "Referer" to "https://music.163.com",
-            "Origin" to "https://music.163.com",
-            "Accept" to "application/json, text/plain, */*",
-            "Accept-Language" to "zh-CN,zh;q=0.9",
-            "Content-Type" to "application/json",
-            "Cache-Control" to "no-cache",
-            "Pragma" to "no-cache",
-        )
+        val WY_LOGIN_BROWSER_HEADERS: Map<String, String> = emptyMap()
     }
 }

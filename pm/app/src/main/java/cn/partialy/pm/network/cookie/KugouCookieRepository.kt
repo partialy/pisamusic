@@ -1,5 +1,6 @@
 package cn.partialy.pm.network.cookie
 
+import android.util.Log
 import cn.partialy.pm.model.BaseResponse
 import cn.partialy.pm.model.HotSearchResponse
 import cn.partialy.pm.model.KgPlaylistDetailApiResponse
@@ -16,12 +17,11 @@ import cn.partialy.pm.model.TopPlaylistApiResponse
 import cn.partialy.pm.network.CookieHttpResult
 import cn.partialy.pm.network.CookieRequest
 import cn.partialy.pm.network.CookieSessionHttp
+import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.cookie.model.KgDrawerUserInfo
 import cn.partialy.pm.network.cookie.model.KgUserPlaylistInfoItem
 import cn.partialy.pm.network.cookie.model.KgUserPlaylistResponse
 import com.google.gson.Gson
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -32,15 +32,17 @@ import javax.inject.Singleton
 /**
  * 独立酷狗「需登录 Cookie」接口（与现有 [cn.partialy.pm.network.api.KgApiService] 无关）。
  *
- * 接口说明见项目根目录 [needCookieAPI.md]。Base URL 需与登录 Cookie 域一致，可按实际网关调整 [API_BASE].
+ * 接口说明见项目根目录 [needCookieAPI.md]。Base URL 使用系统配置下发的 KG 业务地址。
  */
 @Singleton
 class KugouCookieRepository @Inject constructor(
     private val cookieManager: MusicCookieManager,
+    private val configManager: ConfigManager,
 ) {
 
     private val http = CookieSessionHttp(MusicCookieManager.SOURCE_KG, cookieManager)
     private val gson = Gson()
+    private val loginSessionFinalizer = KugouLoginSessionFinalizer()
 
     /**
      * 写入 Cookie 串，保留已有账号资料；主要用于调试入口，正式登录请走 [finalizeKgLoginSession]。
@@ -267,43 +269,29 @@ class KugouCookieRepository @Inject constructor(
         }
     }
 
-    private fun JsonObject.stringFromKeys(vararg keys: String): String? {
-        for (k in keys) {
-            val el = get(k) ?: continue
-            val s = el.jsonPrimitiveTrimmed() ?: continue
-            if (s.isNotEmpty()) return s
-        }
-        return null
-    }
-
-    private fun JsonElement.jsonPrimitiveTrimmed(): String? {
-        if (isJsonNull || !isJsonPrimitive) return null
-        val p = asJsonPrimitive
-        return when {
-            p.isString -> p.asString.trim()
-            p.isNumber -> p.asNumber.toString().trim()
-            else -> null
-        }
-    }
-
     /**
-     * 手机/扫码登录成功并已拿到响应体中的 [token]、[userid] 与合并后的 `Cookie` 请求头串（含 Set-Cookie）后：
-     * 1. 解析 [cookieHeaderAfterAuth] 暂存；2. 携带该 Cookie 请求 `/login/token`；
-     * 3. 从响应体取 vip_type、vip_token、userid、token；4. 拼 synthetic 串再解析；
-     * 5. 以同名覆盖合并入步骤 1；6. 保存 Cookie 与账号资料到 SQLite。
+     * 手机/扫码登录成功后用 [token]、[userid] 请求 `/login/token`，再合成持久化 Cookie。
+     * `vip_token` 可能为空，不能把空值视为登录失败。
      */
     suspend fun finalizeKgLoginSession(
         cookieHeaderAfterAuth: String,
         token: String,
         userid: String,
+        nickname: String = "",
+        avatarUrl: String = "",
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            // 1. 解析登录成功后的 Cookie 串（含服务端 Set-Cookie 合并结果）暂存为 map
-            val step1Map = CookieRequest.parseCookieHeader(cookieHeaderAfterAuth)
-            val cookieForTokenRequest = step1Map.entries.joinToString("; ") { "${it.key}=${it.value}" }
+            val authPayload = KugouLoginAuthPayload(
+                token = token,
+                userid = userid,
+                nickname = nickname,
+                avatarUrl = avatarUrl,
+            )
+            val cookieForTokenRequest = CookieRequest.parseCookieHeader(cookieHeaderAfterAuth)
+                .entries
+                .joinToString("; ") { "${it.key}=${it.value}" }
 
-            // 2. 携带步骤 1 的 Cookie 请求 /login/token（对齐网关 query：token、userid）
-            val tokenUrl = "${API_BASE.trimEnd('/')}/login/token"
+            val tokenUrl = urlFor("login/token")
             val tokenResp = CookieRequest.getBlocking(
                 tokenUrl,
                 mapOf("token" to token, "userid" to userid),
@@ -311,6 +299,7 @@ class KugouCookieRepository @Inject constructor(
                 KG_LOGIN_BROWSER_HEADERS,
             )
             if (!tokenResp.isSuccessful) {
+                Log.w(TAG, "login/token HTTP ${tokenResp.code}, body=${tokenResp.body.take(MAX_LOG_BODY_LENGTH)}")
                 error("login/token HTTP ${tokenResp.code}")
             }
             val envelope = gson.fromJson(tokenResp.body, KgStdEnvelope::class.java)
@@ -318,50 +307,25 @@ class KugouCookieRepository @Inject constructor(
                 error(envelope.msg ?: envelope.message ?: "login/token status=${envelope.status}")
             }
             val data = envelope.data ?: error("login/token 无 data")
-
-            // 3. 从 data 取出 vip_type、vip_token、userid、token（兼容数值/字符串）
-            val vipType = data.get("vip_type").toCookieValueString().ifBlank { "0" }
-            val vipToken = data.get("vip_token").toCookieValueString()
-            val uid = data.get("userid").toCookieValueString()
-            val tok = data.get("token").toCookieValueString()
-            if (vipToken.isBlank() || uid.isBlank() || tok.isBlank()) {
-                error("login/token 缺少 vip_token/userid/token")
-            }
-
-            // 4. 按产品约定拼一段「类 Cookie」串并解析（与 TS 侧一致）
-            val synthetic =
-                "KUGOU_API_PLATFORM=undefined; token=$tok; userid=$uid; vip_type=$vipType; vip_token=$vipToken"
-            val syntheticMap = CookieRequest.parseCookieHeader(synthetic)
-
-            // 5. 将解析结果并入步骤 1（同名覆盖）
-            val merged = LinkedHashMap(step1Map)
-            for ((k, v) in syntheticMap) {
-                merged[k] = v
-            }
-            val finalHeader = merged.entries.joinToString("; ") { "${it.key}=${it.value}" }
-
-            var nickname = data.stringFromKeys("nickname", "username", "user_name")
-            var username = data.stringFromKeys("username", "user_name", "nickname")
-            var avatarUrl = data.stringFromKeys("arttoy_avatar", "avatar")
-            if (nickname.isNullOrBlank() || avatarUrl.isNullOrBlank()) {
-                val fallback = runCatching { fetchPlaylistOwnerInfoForCookie(finalHeader) }.getOrNull()
-                if (nickname.isNullOrBlank()) nickname = fallback?.nickname
-                if (username.isNullOrBlank()) username = fallback?.nickname
-                if (avatarUrl.isNullOrBlank()) avatarUrl = fallback?.avatarUrl
+            val finalized = loginSessionFinalizer.buildSession(
+                cookieHeaderAfterAuth = cookieHeaderAfterAuth,
+                authPayload = authPayload,
+                tokenData = data,
+            )
+            var profile = finalized.profile
+            if (profile.avatarUrl.isBlank()) {
+                val fallback = runCatching { fetchPlaylistOwnerInfoForCookie(finalized.cookie) }.getOrNull()
+                profile = profile.copy(
+                    nickname = profile.nickname.ifBlank { fallback?.nickname.orEmpty() },
+                    username = profile.username.ifBlank { fallback?.nickname.orEmpty() },
+                    avatarUrl = fallback?.avatarUrl.orEmpty(),
+                )
             }
 
             cookieManager.saveSession(
                 source = MusicCookieManager.SOURCE_KG,
-                cookie = finalHeader,
-                profile = MusicLoginProfile(
-                    userId = uid,
-                    username = username.orEmpty(),
-                    nickname = nickname.orEmpty(),
-                    avatarUrl = avatarUrl.orEmpty(),
-                    isVip = vipType.toIntOrNull()?.let { it > 0 } ?: (vipType.isNotBlank() && vipType != "0"),
-                    vipType = vipType,
-                    rawProfileJson = data.toString(),
-                ),
+                cookie = finalized.cookie,
+                profile = profile,
             )
         }
     }
@@ -382,18 +346,6 @@ class KugouCookieRepository @Inject constructor(
             nickname = nickname.takeIf { it.isNotBlank() } ?: "酷狗用户",
             avatarUrl = avatarUrl.takeIf { it.isNotBlank() },
         )
-    }
-
-    private fun JsonElement?.toCookieValueString(): String {
-        if (this == null || isJsonNull) return ""
-        if (!isJsonPrimitive) return ""
-        val p = asJsonPrimitive
-        return when {
-            p.isString -> p.asString
-            p.isNumber -> p.asNumber.toString()
-            p.isBoolean -> p.asBoolean.toString()
-            else -> ""
-        }
     }
 
     private fun CookieHttpResult.parseOrThrow(): KgUserPlaylistResponse {
@@ -440,30 +392,21 @@ class KugouCookieRepository @Inject constructor(
     }
 
     private fun urlFor(path: String): String =
-        "${API_BASE.trimEnd('/')}/${path.trimStart('/')}"
+        "${apiBaseUrl.trimEnd('/')}/${path.trimStart('/')}"
 
     private val urlUserPlaylist: String
-        get() = "${API_BASE.trimEnd('/')}/user/playlist"
+        get() = urlFor("user/playlist")
 
     private val urlUserDetail: String
-        get() = "${API_BASE.trimEnd('/')}/user/vip/detail"
+        get() = urlFor("user/vip/detail")
+
+    private val apiBaseUrl: String
+        get() = configManager.getKgBaseUrl()
 
     companion object {
-        /** 与 [cn.partialy.pm.activity.PlaylistImportActivity] 登录域一致，可按实际接口主机修改 */
-        const val API_BASE: String = "https://gateway.partialy.cn/kg-service"
+        private const val TAG = "KugouCookieRepository"
+        private const val MAX_LOG_BODY_LENGTH = 4000
 
-        /** 与 music-login-hub `musicApi.ts` 中酷狗请求头一致，便于网关校验 */
-        val KG_LOGIN_BROWSER_HEADERS: Map<String, String> = mapOf(
-            "User-Agent" to
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-                "Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
-            "Referer" to "https://www.kugou.com",
-            "Origin" to "https://www.kugou.com",
-            "Accept" to "application/json, text/plain, */*",
-            "Accept-Language" to "zh-CN,zh;q=0.9",
-            "Content-Type" to "application/json",
-            "Cache-Control" to "no-cache",
-            "Pragma" to "no-cache",
-        )
+        val KG_LOGIN_BROWSER_HEADERS: Map<String, String> = emptyMap()
     }
 }

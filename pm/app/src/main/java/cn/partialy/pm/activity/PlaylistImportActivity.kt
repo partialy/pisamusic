@@ -114,7 +114,7 @@ class PlaylistImportActivity : BaseActivity() {
 
     /**
      * 酷狗：展示自写登录区，隐藏 WebView 与缩放条。
-     * 接口路径与 music-login-hub/src/services/musicApi.ts 一致（网关前缀为 [KugouCookieRepository.API_BASE]）。
+     * 接口路径与 music-login-hub/src/services/musicApi.ts 一致，网关前缀使用系统配置下发的 KG 地址。
      */
     private fun configureKugouImportUi() {
         binding.tvImportHint.setText(R.string.playlist_import_hint_kg_login)
@@ -238,8 +238,10 @@ class PlaylistImportActivity : BaseActivity() {
                     Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_login_missing_token, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
+                val nickname = data?.get("nickname")?.toScalarString().orEmpty()
+                val pic = data?.get("pic")?.toScalarString().orEmpty()
                 val cookieHeader = resp.cookieHeaderForNextRequest()
-                kugouCookieRepository.finalizeKgLoginSession(cookieHeader, token, userid)
+                kugouCookieRepository.finalizeKgLoginSession(cookieHeader, token, userid, nickname, pic)
                     .onSuccess {
                         Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
                     }
@@ -327,6 +329,7 @@ class PlaylistImportActivity : BaseActivity() {
             when (innerStatus) {
                 0 -> {
                     resetKugouQrLoginAuxiliaryUi(b)
+                    b.kgQrOverlayMessage.setText(R.string.playlist_import_kg_qr_expired)
                     b.kgQrOverlayExpired.visibility = View.VISIBLE
                     if (b.kgQrImage.drawable != null) {
                         b.kgQrImage.visibility = View.VISIBLE
@@ -357,8 +360,10 @@ class PlaylistImportActivity : BaseActivity() {
                         Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_login_missing_token, Toast.LENGTH_SHORT).show()
                         return
                     }
+                    val nickname = payload.get("nickname")?.toScalarString().orEmpty()
+                    val pic = payload.get("pic")?.toScalarString().orEmpty()
                     val cookieHeader = cookieForNext.orEmpty()
-                    val fin = kugouCookieRepository.finalizeKgLoginSession(cookieHeader, token, userid)
+                    val fin = kugouCookieRepository.finalizeKgLoginSession(cookieHeader, token, userid, nickname, pic)
                     fin.onSuccess {
                         Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
                         applyKugouQrLoggedInUi(b)
@@ -369,10 +374,9 @@ class PlaylistImportActivity : BaseActivity() {
                             e.message ?: getString(R.string.playlist_import_kg_save_fail_generic),
                             Toast.LENGTH_SHORT,
                         ).show()
+                        applyKugouQrFinalizeFailedUi(b)
                     }
-                    if (fin.isSuccess) {
-                        return
-                    }
+                    return
                 }
                 else -> {
                     applyKugouQrWaitingScanUi(b)
@@ -450,10 +454,26 @@ class PlaylistImportActivity : BaseActivity() {
 
     /** data.status == 4 且 finalize 成功：绿色打勾 + 文案 + 返回按钮。 */
     private fun applyKugouQrLoggedInUi(b: IncludePlaylistImportKgLoginBinding) {
+        b.kgQrOverlayExpired.visibility = View.GONE
         b.kgQrConfirmHintRow.visibility = View.GONE
         b.kgQrSuccessRow.visibility = View.VISIBLE
         b.kgQrSuccessReturnBtn.visibility = View.VISIBLE
         b.kgQrStatusHint.visibility = View.GONE
+    }
+
+    private fun applyKugouQrFinalizeFailedUi(b: IncludePlaylistImportKgLoginBinding) {
+        resetKugouQrLoginAuxiliaryUi(b)
+        b.kgQrOverlayMessage.setText(R.string.playlist_import_kg_qr_retry_after_fail)
+        b.kgQrOverlayExpired.visibility = View.VISIBLE
+        if (b.kgQrImage.drawable != null) {
+            b.kgQrImage.visibility = View.VISIBLE
+            b.kgQrPlaceholder.visibility = View.GONE
+        } else {
+            b.kgQrImage.visibility = View.GONE
+            b.kgQrPlaceholder.visibility = View.VISIBLE
+        }
+        b.kgQrStatusHint.visibility = View.VISIBLE
+        b.kgQrStatusHint.setText(R.string.playlist_import_kg_qr_retry_after_fail)
     }
 
     private fun decodeKugouQrBitmap(src: String): android.graphics.Bitmap? {
