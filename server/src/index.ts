@@ -4,6 +4,7 @@ import express from "express";
 import { createServer } from "node:http";
 import path from "node:path";
 import { readPlaintextPaths } from "./db/configStore";
+import { repairOpenListenTogetherRecords } from "./db/listenTogetherRecordStore";
 import { logInterceptor } from "./interceptor/logInterceptor";
 import { encryptionMiddleware, setPlaintextPaths } from "./middleware/encryption";
 import { initRealtimeServer } from "./realtime";
@@ -69,6 +70,7 @@ function loadPlaintextPaths(): string[] {
 }
 
 setPlaintextPaths(loadPlaintextPaths());
+repairOpenListenTogetherRecords();
 app.use(encryptionMiddleware());
 
 app.get("/api/health", (_req, res) => {

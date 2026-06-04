@@ -44,6 +44,7 @@ export type ListenTogetherSocketUser = {
 };
 
 export type ListenTogetherMember = ListenTogetherSocketUser & {
+  recordId?: string;
   role: ListenTogetherMemberRole;
   online: boolean;
   joinedAt: number;
@@ -51,6 +52,7 @@ export type ListenTogetherMember = ListenTogetherSocketUser & {
 };
 
 export type ListenTogetherRoom = {
+  recordId?: string;
   roomId: string;
   roomName: string;
   hostUserId: string;

@@ -13,6 +13,15 @@ import {
   setUserRoom,
   updateRoom,
 } from "../db/listenTogetherStore";
+import {
+  closeListenTogetherRoomRecord,
+  closeListenTogetherUserRecord,
+  closeOpenListenTogetherUserRecordsForRoom,
+  createListenTogetherRoomRecord,
+  createListenTogetherUserRecord,
+  updateListenTogetherRoomRecordConfig,
+  type ListenTogetherRecordReason,
+} from "../db/listenTogetherRecordStore";
 import type { PublicUser } from "../db/userStore";
 import {
   LISTEN_TOGETHER_CONFIG_ID,
@@ -81,10 +90,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function publicRoom(room: ListenTogetherRoom): ListenTogetherPublicRoom {
   return {
-    ...room,
+    roomId: room.roomId,
+    roomName: room.roomName,
+    hostUserId: room.hostUserId,
     song: room.song ? { ...room.song } : null,
+    status: room.status,
+    position: room.position,
+    maxPeople: room.maxPeople,
     currentPeople: room.members.length,
-    members: room.members.map((member) => ({ ...member })),
+    memberOperation: room.memberOperation,
+    createdAt: room.createdAt,
+    updatedAt: room.updatedAt,
+    version: room.version,
+    members: room.members.map((member) => ({
+      userId: member.userId,
+      username: member.username,
+      nickname: member.nickname,
+      avatarUrl: member.avatarUrl,
+      role: member.role,
+      online: member.online,
+      joinedAt: member.joinedAt,
+      lastSeenAt: member.lastSeenAt,
+    })),
   };
 }
 
@@ -162,6 +189,28 @@ function memberFromUser(user: ListenTogetherSocketUser, role: ListenTogetherMemb
   };
 }
 
+function roomRecordConfig(room: Pick<ListenTogetherRoom, "roomName" | "maxPeople" | "memberOperation" | "hostUserId" | "createdAt" | "version">): Record<string, unknown> {
+  return {
+    roomName: room.roomName,
+    maxPeople: room.maxPeople,
+    memberOperation: room.memberOperation,
+    hostUserId: room.hostUserId,
+    createdAt: room.createdAt,
+    version: room.version,
+  };
+}
+
+function syncRoomRecordConfig(room: ListenTogetherRoom): void {
+  if (!room.recordId) return;
+  updateListenTogetherRoomRecordConfig(room.recordId, {
+    roomName: room.roomName,
+    maxPeople: room.maxPeople,
+    memberOperation: room.memberOperation,
+    latestConfig: roomRecordConfig(room),
+    finalHostUserId: room.hostUserId,
+  });
+}
+
 function updateMemberIdentity(member: ListenTogetherMember, user: ListenTogetherSocketUser, timestamp: number): void {
   member.username = user.username;
   member.nickname = user.nickname;
@@ -186,9 +235,11 @@ function transferHostIfNeeded(room: ListenTogetherRoom, removedUserId: string): 
   return { oldHostUserId, newHostUserId: nextHost.userId };
 }
 
-function removeMemberFromRoom(room: ListenTogetherRoom, userId: string): LeaveRoomResult {
+function removeMemberFromRoom(room: ListenTogetherRoom, userId: string, reason: ListenTogetherRecordReason): LeaveRoomResult {
   const member = requireMember(room, userId);
   const roomName = room.roomId;
+  const timestamp = now();
+  closeListenTogetherUserRecord(member.recordId, timestamp, reason, { roomId: room.roomId });
   room.members = room.members.filter((item) => item.userId !== userId);
   removeUserRoom(userId);
   clearOfflineTimer(userId);
@@ -199,6 +250,10 @@ function removeMemberFromRoom(room: ListenTogetherRoom, userId: string): LeaveRo
   if (room.members.length === 0) {
     const destroyedRoom = publicRoom(room);
     const destroyed = broadcast(room, "ROOM_DESTROYED", { room: destroyedRoom, removedUserId: userId });
+    if (room.recordId) {
+      closeOpenListenTogetherUserRecordsForRoom(room.recordId, timestamp, "room_destroyed", { roomId: room.roomId });
+      closeListenTogetherRoomRecord(room.recordId, timestamp, "room_destroyed", room.hostUserId);
+    }
     deleteRoom(room.roomId);
     return {
       roomName,
@@ -210,6 +265,7 @@ function removeMemberFromRoom(room: ListenTogetherRoom, userId: string): LeaveRo
   }
 
   updateRoom(room);
+  syncRoomRecordConfig(room);
   const current = publicRoom(room);
   const broadcasts: ListenTogetherBroadcast[] = [
     broadcast(room, "MEMBER_LEFT", {
@@ -270,19 +326,51 @@ export function createListenTogetherRoom(user: PublicUser, input: ListenTogether
     throw new ListenTogetherError("房间号生成失败", "INTERNAL_ERROR", 500);
   }
   const timestamp = now();
-  const room: ListenTogetherRoom = {
-    roomId,
+  const initialConfig = {
     roomName: validateRoomName(input.roomName),
+    maxPeople: normalizeMaxPeople(input.maxPeople, config.maxPeopleLimit),
+    memberOperation: normalizeMemberOperation(input.memberOperation),
+  };
+  const roomRecordId = createListenTogetherRoomRecord({
+    roomId,
+    ownerUserId: authUser.userId,
+    roomName: initialConfig.roomName,
+    maxPeople: initialConfig.maxPeople,
+    memberOperation: initialConfig.memberOperation,
+    config: {
+      ...initialConfig,
+      hostUserId: authUser.userId,
+      createdAt: timestamp,
+      version: 0,
+    },
+    startedAt: timestamp,
+    finalHostUserId: authUser.userId,
+  });
+  const hostMember = memberFromUser(authUser, "host", timestamp);
+  hostMember.recordId = createListenTogetherUserRecord({
+    roomRecordId,
+    roomId,
+    userId: authUser.userId,
+    username: authUser.username,
+    nickname: authUser.nickname,
+    avatarUrl: authUser.avatarUrl,
+    role: "host",
+    joinedAt: timestamp,
+  });
+  const room: ListenTogetherRoom = {
+    recordId: roomRecordId,
+    roomId,
+    roomName: initialConfig.roomName,
     hostUserId: authUser.userId,
     song: null,
     status: "paused",
     position: 0,
-    maxPeople: normalizeMaxPeople(input.maxPeople, config.maxPeopleLimit),
-    memberOperation: normalizeMemberOperation(input.memberOperation),
+    maxPeople: initialConfig.maxPeople,
+    memberOperation: initialConfig.memberOperation,
     createdAt: timestamp,
     updatedAt: timestamp,
     version: 0,
-    members: [memberFromUser(authUser, "host", timestamp)],
+    members: [hostMember],
   };
   return publicRoom(createRoomInStore(room));
 }
@@ -328,6 +416,18 @@ export function joinListenTogetherRoom(user: ListenTogetherSocketUser, roomIdInp
     throw new ListenTogetherError("房间人数已满", "ROOM_FULL", 400);
   }
   const member = memberFromUser(user, "member", timestamp);
+  if (room.recordId) {
+    member.recordId = createListenTogetherUserRecord({
+      roomRecordId: room.recordId,
+      roomId: room.roomId,
+      userId: user.userId,
+      username: user.username,
+      nickname: user.nickname,
+      avatarUrl: user.avatarUrl,
+      role: "member",
+      joinedAt: timestamp,
+    });
+  }
   room.members.push(member);
   setUserRoom(user.userId, room.roomId);
   incrementRoom(room);
@@ -345,7 +445,7 @@ export function joinListenTogetherRoom(user: ListenTogetherSocketUser, roomIdInp
 export function leaveListenTogetherRoom(userId: string, roomIdInput: unknown): LeaveRoomResult {
   const room = requireRoom(roomIdInput);
   ensureUserInRoom(room, userId);
-  return removeMemberFromRoom(room, userId);
+  return removeMemberFromRoom(room, userId, "leave");
 }
 
 export function playListenTogether(user: ListenTogetherSocketUser, payload: unknown): RoomChangeResult {
@@ -485,6 +585,7 @@ export function updateListenTogetherRoom(user: ListenTogetherSocketUser, payload
   }
   incrementRoom(room);
   updateRoom(room);
+  syncRoomRecordConfig(room);
   return {
     room: publicRoom(room),
     broadcast: broadcast(room, "ROOM_UPDATED", {
@@ -513,12 +614,14 @@ export function kickListenTogetherMember(user: ListenTogetherSocketUser, payload
   if (target.role === "host") {
     throw new ListenTogetherError("不能踢出房主", "HOST_CANNOT_BE_KICKED", 400);
   }
+  closeListenTogetherUserRecord(target.recordId, now(), "kick", { operatorUserId: user.userId, roomId: room.roomId });
   const targetSocketIds = getUserSockets(targetUserId);
   room.members = room.members.filter((member) => member.userId !== targetUserId);
   removeUserRoom(targetUserId);
   clearOfflineTimer(targetUserId);
   incrementRoom(room);
   updateRoom(room);
+  syncRoomRecordConfig(room);
   const current = publicRoom(room);
   return {
     roomName: room.roomId,
@@ -552,6 +655,7 @@ export function transferListenTogetherHost(user: ListenTogetherSocketUser, paylo
   }
   incrementRoom(room);
   updateRoom(room);
+  syncRoomRecordConfig(room);
   return {
     room: publicRoom(room),
     broadcast: broadcast(room, "HOST_TRANSFERRED", {
@@ -599,5 +703,5 @@ export function expireOfflineListenTogetherMember(userId: string): ExpireUserRes
   if (!room) return null;
   const member = findMember(room, userId);
   if (!member || member.online) return null;
-  return removeMemberFromRoom(room, userId);
+  return removeMemberFromRoom(room, userId, "offline_timeout");
 }

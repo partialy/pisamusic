@@ -70,6 +70,7 @@
 - 动态配置模块：公开读取接口为 `GET /api/config/get?id=xxx`，返回 `{ id, type, content }`；后台管理接口挂载在 `GET/POST/PUT/DELETE /api/admin/dynamic-configs`。
 - 动态配置类型：固定为 `html`、`string`、`number`、`url`，数据存储在 SQLite `dynamic_configs` 表；新增实现优先放独立 store / route / admin 组件文件，不要继续堆进通用大文件。
 - 实时通信模块：`server/src/realtime/` 使用 Socket.IO 绑定 HTTP server；一起听接口挂载 `/api/listen-together`，房间状态第一版由 `server/src/db/listenTogetherStore.ts` 内存维护，人数上限读取动态配置 `listen_together_max_people`，仅 `/api/listen-together/config` 默认明文开放。
+- 一起听记录落库使用 `listen_together_room_records` 和 `listen_together_user_records` 两张 SQLite 表，只记录历史房间和用户真实加入/退出记录，不用于服务重启后恢复运行时房间；时长字段统一为秒级 `duration_seconds`，房间归属固定记录原始创建者。
 - 用户管理模块：后台接口挂载在 `/api/admin/users*`，支持用户分页查询、资料编辑、详情统计和硬删除；详情统计读取 `user_sync_items` 中未删除的 `favorite_song`、`favorite_playlist`、`user_playlist`，详情表格数据通过 `/api/admin/users/:id/library` 按分类分页加载，默认每页 30 条；不要暴露 `password_hash`，不要把用户管理逻辑继续堆进通用 admin 大文件。
 - 七牛安装包上传：管理后台通过 `/api/admin/release-files/upload-token` 获取上传凭证，客户端直传七牛后调用 `/api/admin/release-files/complete` 登记文件，再发布版本；删除历史安装包使用 `/api/admin/update-history/:id/release-file`。
 - 账号接口：`/api/auth/email-code` 发送注册/登录/重置密码邮箱验证码，其中重置密码用途为 `reset_password`；`/api/auth/register` 注册；`/api/auth/login/password` 支持用户名/邮箱+密码登录；`/api/auth/login/code` 仅支持邮箱验证码登录；`/api/auth/password/change` 登录态修改密码；`/api/auth/password/reset` 邮箱验证码重置密码；`/api/auth/refresh` 刷新 7 天 token；`/api/auth/me` 获取当前账号；`/api/auth/profile/email-code` 和 `PATCH /api/auth/profile` 修改资料。

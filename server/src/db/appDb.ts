@@ -266,6 +266,50 @@ CREATE TABLE IF NOT EXISTS user_sync_applied_ops (
     PRIMARY KEY (user_id, device_id, op_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS listen_together_room_records (
+    id                   TEXT    PRIMARY KEY,
+    room_id              TEXT    NOT NULL,
+    owner_user_id        TEXT    NOT NULL,
+    room_name            TEXT    NOT NULL,
+    max_people           INTEGER NOT NULL,
+    member_operation     INTEGER NOT NULL DEFAULT 1,
+    initial_config_json  TEXT    NOT NULL DEFAULT '{}',
+    latest_config_json   TEXT    NOT NULL DEFAULT '{}',
+    started_at           INTEGER NOT NULL,
+    ended_at             INTEGER,
+    duration_seconds     INTEGER,
+    end_reason           TEXT    NOT NULL DEFAULT '',
+    final_host_user_id   TEXT    NOT NULL DEFAULT '',
+    created_at           INTEGER NOT NULL,
+    updated_at           INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_listen_room_records_owner_started ON listen_together_room_records (owner_user_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_listen_room_records_room_started ON listen_together_room_records (room_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_listen_room_records_open ON listen_together_room_records (ended_at);
+
+CREATE TABLE IF NOT EXISTS listen_together_user_records (
+    id                  TEXT    PRIMARY KEY,
+    room_record_id      TEXT    NOT NULL,
+    room_id             TEXT    NOT NULL,
+    user_id             TEXT    NOT NULL,
+    username            TEXT    NOT NULL,
+    nickname            TEXT    NOT NULL,
+    avatar_url          TEXT    NOT NULL DEFAULT '',
+    role                TEXT    NOT NULL,
+    joined_at           INTEGER NOT NULL,
+    left_at             INTEGER,
+    duration_seconds    INTEGER,
+    leave_reason        TEXT    NOT NULL DEFAULT '',
+    extra_json          TEXT    NOT NULL DEFAULT '{}',
+    created_at          INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    FOREIGN KEY (room_record_id) REFERENCES listen_together_room_records(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_listen_user_records_user_joined ON listen_together_user_records (user_id, joined_at DESC);
+CREATE INDEX IF NOT EXISTS idx_listen_user_records_room_joined ON listen_together_user_records (room_record_id, joined_at ASC);
+CREATE INDEX IF NOT EXISTS idx_listen_user_records_room_id ON listen_together_user_records (room_id, joined_at DESC);
+CREATE INDEX IF NOT EXISTS idx_listen_user_records_open ON listen_together_user_records (left_at);
 `;
 
 function getColumnNames(db: DatabaseSync, table: string): Set<string> {
