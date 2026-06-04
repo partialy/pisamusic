@@ -38,6 +38,7 @@ import { getDeviceDb } from "../db/deviceInfoDb";
 import { getPlaintextPaths, setPlaintextPaths } from "../middleware/encryption";
 import { getAdminJwtSecret, requireAdminJwt } from "../middleware/requireAdminJwt";
 import { adminDynamicConfigRouter } from "./adminDynamicConfig";
+import { adminUsersRouter } from "./adminUsers";
 import {
   buildReleaseFileDownloadPath,
   createDesktopUpdateUploadToken,
@@ -587,6 +588,7 @@ adminRouter.post("/login", async (req, res) => {
 
 adminRouter.use(requireAdminJwt);
 adminRouter.use("/dynamic-configs", adminDynamicConfigRouter);
+adminRouter.use("/users", adminUsersRouter);
 
 adminRouter.post("/change-password", async (req, res) => {
   try {

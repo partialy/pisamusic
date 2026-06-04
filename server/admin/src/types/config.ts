@@ -306,6 +306,69 @@ export type DeviceFilter = {
   limit?: number;
 };
 
+export type AdminUserStats = {
+  favoriteSongs: number;
+  favoritePlaylists: number;
+  userPlaylists: number;
+};
+
+export type AdminUserListItem = {
+  id: string;
+  email: string;
+  username: string;
+  avatar: string;
+  avatarKey: string;
+  avatarUrl: string;
+  syncVersion: number;
+  createdAt: number;
+  updatedAt: number;
+  lastLoginAt: number | null;
+  stats: AdminUserStats;
+};
+
+export type AdminUserLibraryItem = {
+  itemKey: string;
+  itemId: string;
+  source: string;
+  name: string;
+  subtitle: string;
+  cover: string;
+  serverUpdatedAt: number;
+  clientUpdatedAt: string;
+};
+
+export type AdminUserDetail = AdminUserListItem & {
+  library?: never;
+};
+
+export type AdminUserListResponse = {
+  users: AdminUserListItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type AdminUserFilter = {
+  keyword?: string;
+  offset?: number;
+  limit?: number;
+};
+
+export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists";
+
+export type AdminUserLibraryPage = {
+  items: AdminUserLibraryItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type AdminUserUpdatePayload = {
+  username: string;
+  email: string;
+  avatarKey: string;
+};
+
 export type PisaAdminExport = AppConfigJson & {
   announcements: Announcement[];
   updateHistory: UpdateHistoryItem[];

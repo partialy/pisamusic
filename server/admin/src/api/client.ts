@@ -4,6 +4,13 @@ import type {
   AppConfigJson,
   AppConfigSectionsPayload,
   AppUpdatePayload,
+  AdminUserDetail,
+  AdminUserFilter,
+  AdminUserLibraryKind,
+  AdminUserLibraryPage,
+  AdminUserListItem,
+  AdminUserListResponse,
+  AdminUserUpdatePayload,
   DesktopUpdateAssetInfo,
   DynamicConfigItem,
   DynamicConfigPayload,
@@ -526,6 +533,66 @@ export async function deleteDevice(id: string): Promise<void> {
 
 export async function deleteDesktopDevice(id: string): Promise<void> {
   const res = await fetchWithAuth(`/api/admin/desktop-device/${id}`, {
+    method: "DELETE",
+  });
+  const body = await parseJson<null>(res);
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+}
+
+export async function fetchAdminUsers(filter: AdminUserFilter): Promise<AdminUserListResponse> {
+  const params = new URLSearchParams();
+  if (filter.keyword) params.set("keyword", filter.keyword);
+  if (filter.offset !== undefined) params.set("offset", String(filter.offset));
+  if (filter.limit !== undefined) params.set("limit", String(filter.limit));
+  const qs = params.toString();
+  const res = await fetchWithAuth(`/api/admin/users${qs ? `?${qs}` : ""}`);
+  const body = await parseJson<AdminUserListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminUserDetail(id: string): Promise<AdminUserDetail> {
+  const res = await fetchWithAuth(`/api/admin/users/${encodeURIComponent(id)}`);
+  const body = await parseJson<AdminUserDetail>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminUserLibrary(
+  id: string,
+  kind: AdminUserLibraryKind,
+  offset = 0,
+  limit = 30,
+): Promise<AdminUserLibraryPage> {
+  const params = new URLSearchParams({ kind, offset: String(offset), limit: String(limit) });
+  const res = await fetchWithAuth(`/api/admin/users/${encodeURIComponent(id)}/library?${params.toString()}`);
+  const body = await parseJson<AdminUserLibraryPage>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function updateAdminUser(id: string, payload: AdminUserUpdatePayload): Promise<AdminUserListItem> {
+  const res = await fetchWithAuth(`/api/admin/users/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  const body = await parseJson<AdminUserListItem>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function deleteAdminUser(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/users/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
   const body = await parseJson<null>(res);
