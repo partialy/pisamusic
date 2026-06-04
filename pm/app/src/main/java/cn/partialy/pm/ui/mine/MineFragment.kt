@@ -27,7 +27,6 @@ import cn.partialy.pm.activity.SearchActivity
 import cn.partialy.pm.databinding.FragmentMineBinding
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
-import cn.partialy.pm.network.cookie.DrawerImportProfileCacheStore
 import cn.partialy.pm.ui.widget.MineViewPagerNestedHost
 import coil.load
 import coil.transform.CircleCropTransformation
@@ -44,9 +43,6 @@ class MineFragment : Fragment() {
 
     @Inject
     lateinit var mineAvatarSettings: MineAvatarSettings
-
-    @Inject
-    lateinit var drawerImportProfileCacheStore: DrawerImportProfileCacheStore
 
     private var _binding: FragmentMineBinding? = null
     private val binding get() = _binding!!
@@ -88,7 +84,7 @@ class MineFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        (activity as? MainActivity)?.refreshMineProfileBackgroundFromDrawerCache()
+        (activity as? MainActivity)?.refreshMineProfileBackgroundFromLogin()
         applyMineProfileTexts()
         applyMineAvatarDisplay()
     }
@@ -255,7 +251,7 @@ class MineFragment : Fragment() {
         }
     }
 
-    /** 按持久化的来源与 [DrawerImportProfileCacheStore] / 本地文件刷新头像。 */
+    /** 按账号登录状态刷新头像。 */
     fun applyMineAvatarDisplay() {
         val b = _binding ?: return
         val session = AccountSessionStore.read(requireContext())

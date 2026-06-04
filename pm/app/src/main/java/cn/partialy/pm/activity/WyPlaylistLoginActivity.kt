@@ -226,8 +226,17 @@ class WyPlaylistLoginActivity : BaseActivity() {
                     Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_wy_cookie_missing, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
-                wyCookieRepository.setCookie(merged)
-                Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
+                wyCookieRepository.saveLoginSession(merged)
+                    .onSuccess {
+                        Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
+                    }
+                    .onFailure { e ->
+                        Toast.makeText(
+                            this@WyPlaylistLoginActivity,
+                            e.message ?: getString(R.string.playlist_import_wy_cookie_missing),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_kg_network_error, Toast.LENGTH_SHORT).show()
@@ -346,9 +355,18 @@ class WyPlaylistLoginActivity : BaseActivity() {
                         Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_wy_cookie_missing, Toast.LENGTH_SHORT).show()
                         return
                     }
-                    wyCookieRepository.setCookie(merged)
-                    Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
-                    applyWyQrLoggedInUi(b)
+                    val saveResult = wyCookieRepository.saveLoginSession(merged)
+                    saveResult.onSuccess {
+                        Toast.makeText(this@WyPlaylistLoginActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
+                        applyWyQrLoggedInUi(b)
+                    }
+                    saveResult.onFailure { e ->
+                        Toast.makeText(
+                            this@WyPlaylistLoginActivity,
+                            e.message ?: getString(R.string.playlist_import_wy_cookie_missing),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
                     return
                 }
                 else -> {

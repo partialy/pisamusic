@@ -21,6 +21,8 @@ import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import androidx.core.view.updatePadding
 import cn.partialy.pm.network.cookie.WyCookieRepository
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -116,9 +118,20 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
             Toast.makeText(this, R.string.drawer_wy_web_cookie_empty, Toast.LENGTH_SHORT).show()
             return
         }
-        wyCookieRepository.setCookie(chunks.joinToString("; "))
-        Toast.makeText(this, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
-        finish()
+        lifecycleScope.launch {
+            wyCookieRepository.saveLoginSession(chunks.joinToString("; "))
+                .onSuccess {
+                    Toast.makeText(this@WyWebPlaylistLoginActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+                .onFailure { e ->
+                    Toast.makeText(
+                        this@WyWebPlaylistLoginActivity,
+                        e.message ?: getString(R.string.drawer_wy_web_cookie_empty),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+        }
     }
 
     override fun finish() {

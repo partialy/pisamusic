@@ -34,9 +34,8 @@ import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
-import cn.partialy.pm.network.cookie.DrawerImportProfileCache
-import cn.partialy.pm.network.cookie.DrawerImportProfileCacheStore
 import cn.partialy.pm.network.cookie.KugouCookieRepository
+import cn.partialy.pm.network.cookie.MusicCookieManager
 import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.repository.SystemRepository
@@ -87,7 +86,7 @@ class MainActivity : BaseDownloadActivity() {
     lateinit var wyCookieRepository: WyCookieRepository
 
     @Inject
-    lateinit var drawerImportProfileCacheStore: DrawerImportProfileCacheStore
+    lateinit var musicCookieManager: MusicCookieManager
 
     @Inject
     lateinit var syncManager: SyncManager
@@ -107,10 +106,13 @@ class MainActivity : BaseDownloadActivity() {
 
     private var drawerMoreMenuVisible = false
 
-    private var drawerKgPlaylistImportInProgress = false
-
-    private var drawerWyPlaylistImportInProgress = false
+    private var drawerPlaylistImportInProgress = false
     private var localModeReason: String? = null
+
+    private data class DrawerPlaylistImportSummary(
+        val added: Int,
+        val skipped: Int,
+    )
 
     private val drawerScanLauncher = registerForActivityResult(ScanContract()) { result ->
         val contents = result.contents
@@ -153,13 +155,7 @@ class MainActivity : BaseDownloadActivity() {
         applyInsets()
         applyLocalModeFromIntent(intent)
 
-        lifecycleScope.launch {
-            withContext(Dispatchers.IO) {
-                kugouCookieRepository.reloadPersistedCookieFromDisk()
-                wyCookieRepository.reloadPersistedCookieFromDisk()
-            }
-            preloadDrawerImportProfileIfDue()
-        }
+        applyWyProfileBackgroundFromLogin()
 
         if (!isLocalMode()) {
             lifecycleScope.launch {
@@ -354,8 +350,8 @@ class MainActivity : BaseDownloadActivity() {
         inflated.drawerCloseButton.setOnClickListener { closeMainDrawer() }
         drawerContentBinding = inflated
         setupDrawerFooterActions(inflated)
-        setupDrawerPlaylistImportActions(inflated)
-        bindMainDrawerAccountUi(drawerImportProfileCacheStore.read())
+        setupDrawerThirdPartyActions(inflated)
+        bindMainDrawerAccountUi()
         return inflated
     }
 
@@ -373,133 +369,136 @@ class MainActivity : BaseDownloadActivity() {
         AppActivityTransitions.applyForward(this)
     }
 
-    private fun setupDrawerPlaylistImportActions(b: MainDrawerContentBinding) {
-        b.drawerKgImportPlaylistsButton.setOnClickListener {
-            importKgPlaylistsFromDrawer()
+    private fun setupDrawerThirdPartyActions(b: MainDrawerContentBinding) {
+        b.drawerImportPlaylistsButton.setOnClickListener {
+            importLoggedInPlaylistsFromDrawer()
         }
-        b.drawerWyImportPlaylistsButton.setOnClickListener {
-            importWyPlaylistsFromDrawer()
+        b.drawerLogoutThirdPartyButton.setOnClickListener {
+            logoutThirdPartyFromDrawer()
         }
     }
 
-    private fun importKgPlaylistsFromDrawer() {
-        if (drawerKgPlaylistImportInProgress) return
-        if (kugouCookieRepository.getCookie().isBlank()) {
+    private fun importLoggedInPlaylistsFromDrawer() {
+        if (drawerPlaylistImportInProgress) return
+        val sources = listOf(MusicCookieManager.SOURCE_KG, MusicCookieManager.SOURCE_WY)
+            .filter { musicCookieManager.getCookie(it).exist }
+        if (sources.isEmpty()) {
             Toast.makeText(this, R.string.drawer_import_kg_need_login, Toast.LENGTH_SHORT).show()
             return
         }
-        drawerKgPlaylistImportInProgress = true
-        drawerContentBinding?.drawerKgImportPlaylistsButton?.isEnabled = false
-        Toast.makeText(this, R.string.drawer_import_kg_running, Toast.LENGTH_SHORT).show()
+        drawerPlaylistImportInProgress = true
+        setDrawerThirdPartyActionsEnabled(false)
+        Toast.makeText(this, R.string.drawer_import_all_running, Toast.LENGTH_SHORT).show()
         closeMainDrawer()
         lifecycleScope.launch {
+            var added = 0
+            var skipped = 0
+            var failed = false
             try {
-                val items = withContext(Dispatchers.IO) {
-                    kugouCookieRepository.fetchAllUserPlaylists().getOrNull()
-                }
-                if (items == null) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        R.string.drawer_import_kg_failed,
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    return@launch
-                }
-                var added = 0
-                var skipped = 0
-                for (item in items) {
-                    val id = item.globalCollectionId?.takeIf { it.isNotBlank() }
-                        ?: item.listid?.takeIf { it > 0 }?.toString()
-                        ?: continue
-                    val name = item.name?.trim()?.takeIf { it.isNotEmpty() } ?: continue
-                    val rawCover = item.pic?.takeIf { it.isNotBlank() }
-                        ?: item.createUserPic?.takeIf { it.isNotBlank() }
-                        ?: ""
-                    val cover = rawCover.replace("{size}", "240")
-                    val count = item.count ?: 0
-                    val cp = CollectedPlaylist(
-                        type = CollectedPlaylistType.IMPORT_KG,
-                        id = id,
-                        name = name,
-                        intro = "",
-                        cover = cover,
-                        count = count,
-                    )
-                    if (playlistCollectionManager.addNetworkPlaylist(cp)) {
-                        added++
-                    } else {
-                        skipped++
+                val summaries = withContext(Dispatchers.IO) {
+                    sources.map { source ->
+                        when (source) {
+                            MusicCookieManager.SOURCE_KG -> importKgPlaylistsForLoggedInSource()
+                            MusicCookieManager.SOURCE_WY -> importWyPlaylistsForLoggedInSource()
+                            else -> null
+                        }
                     }
                 }
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(R.string.drawer_import_kg_done, added, skipped),
-                    Toast.LENGTH_LONG,
-                ).show()
+                for (summary in summaries) {
+                    if (summary == null) {
+                        failed = true
+                    } else {
+                        added += summary.added
+                        skipped += summary.skipped
+                    }
+                }
+                val message = if (failed) {
+                    getString(R.string.drawer_import_all_failed)
+                } else {
+                    getString(R.string.drawer_import_all_done, added, skipped)
+                }
+                Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
             } finally {
-                drawerKgPlaylistImportInProgress = false
-                drawerContentBinding?.drawerKgImportPlaylistsButton?.isEnabled = true
+                drawerPlaylistImportInProgress = false
+                setDrawerThirdPartyActionsEnabled(true)
             }
         }
     }
 
-    private fun importWyPlaylistsFromDrawer() {
-        if (drawerWyPlaylistImportInProgress) return
-        if (wyCookieRepository.getCookie().isBlank()) {
-            Toast.makeText(this, R.string.drawer_import_wy_need_login, Toast.LENGTH_SHORT).show()
-            return
-        }
-        drawerWyPlaylistImportInProgress = true
-        drawerContentBinding?.drawerWyImportPlaylistsButton?.isEnabled = false
-        Toast.makeText(this, R.string.drawer_import_wy_running, Toast.LENGTH_SHORT).show()
-        closeMainDrawer()
-        lifecycleScope.launch {
-            try {
-                val items = withContext(Dispatchers.IO) {
-                    val acc = wyCookieRepository.getAccount().getOrNull() ?: return@withContext null
-                    val uid = wyCookieRepository.resolveUid(acc) ?: return@withContext null
-                    wyCookieRepository.fetchAllUserPlaylists(uid).getOrNull()
-                }
-                if (items == null) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        R.string.drawer_import_wy_failed,
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    return@launch
-                }
-                var added = 0
-                var skipped = 0
-                for (item in items) {
-                    val id = item.id?.takeIf { it > 0 }?.toString() ?: continue
-                    val name = item.name?.trim()?.takeIf { it.isNotEmpty() } ?: continue
-                    val cover = item.coverImgUrl?.trim().orEmpty()
-                    val count = item.trackCount ?: 0
-                    val intro = item.description?.trim().orEmpty()
-                    val cp = CollectedPlaylist(
-                        type = CollectedPlaylistType.IMPORT_WY,
-                        id = id,
-                        name = name,
-                        intro = intro,
-                        cover = cover,
-                        count = count,
-                    )
-                    if (playlistCollectionManager.addNetworkPlaylist(cp)) {
-                        added++
-                    } else {
-                        skipped++
-                    }
-                }
-                Toast.makeText(
-                    this@MainActivity,
-                    getString(R.string.drawer_import_wy_done, added, skipped),
-                    Toast.LENGTH_LONG,
-                ).show()
-            } finally {
-                drawerWyPlaylistImportInProgress = false
-                drawerContentBinding?.drawerWyImportPlaylistsButton?.isEnabled = true
+    private suspend fun importKgPlaylistsForLoggedInSource(): DrawerPlaylistImportSummary? {
+        val items = kugouCookieRepository.fetchAllUserPlaylists().getOrNull() ?: return null
+        var added = 0
+        var skipped = 0
+        for (item in items) {
+            val id = item.globalCollectionId?.takeIf { it.isNotBlank() }
+                ?: item.listid?.takeIf { it > 0 }?.toString()
+                ?: continue
+            val name = item.name?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+            val rawCover = item.pic?.takeIf { it.isNotBlank() }
+                ?: item.createUserPic?.takeIf { it.isNotBlank() }
+                ?: ""
+            val cover = rawCover.replace("{size}", "240")
+            val count = item.count ?: 0
+            val cp = CollectedPlaylist(
+                type = CollectedPlaylistType.IMPORT_KG,
+                id = id,
+                name = name,
+                intro = "",
+                cover = cover,
+                count = count,
+            )
+            if (playlistCollectionManager.addNetworkPlaylist(cp)) {
+                added++
+            } else {
+                skipped++
             }
         }
+        return DrawerPlaylistImportSummary(added, skipped)
+    }
+
+    private suspend fun importWyPlaylistsForLoggedInSource(): DrawerPlaylistImportSummary? {
+        val uid = wyCookieRepository.getProfile()?.userId?.toLongOrNull() ?: return null
+        val items = wyCookieRepository.fetchAllUserPlaylists(uid).getOrNull() ?: return null
+        var added = 0
+        var skipped = 0
+        for (item in items) {
+            val id = item.id?.takeIf { it > 0 }?.toString() ?: continue
+            val name = item.name?.trim()?.takeIf { it.isNotEmpty() } ?: continue
+            val cover = item.coverImgUrl?.trim().orEmpty()
+            val count = item.trackCount ?: 0
+            val intro = item.description?.trim().orEmpty()
+            val cp = CollectedPlaylist(
+                type = CollectedPlaylistType.IMPORT_WY,
+                id = id,
+                name = name,
+                intro = intro,
+                cover = cover,
+                count = count,
+            )
+            if (playlistCollectionManager.addNetworkPlaylist(cp)) {
+                added++
+            } else {
+                skipped++
+            }
+        }
+        return DrawerPlaylistImportSummary(added, skipped)
+    }
+
+    private fun logoutThirdPartyFromDrawer() {
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                musicCookieManager.clearAll()
+            }
+            bindMainDrawerAccountUi()
+            applyWyProfileBackgroundFromLogin()
+            Toast.makeText(this@MainActivity, R.string.drawer_logout_third_party_done, Toast.LENGTH_SHORT).show()
+            closeMainDrawer()
+        }
+    }
+
+    private fun setDrawerThirdPartyActionsEnabled(enabled: Boolean) {
+        drawerContentBinding?.drawerImportPlaylistsButton?.isEnabled = enabled
+        drawerContentBinding?.drawerLogoutThirdPartyButton?.isEnabled = enabled
     }
 
     private fun setupDrawerFooterActions(b: MainDrawerContentBinding) {
@@ -539,42 +538,25 @@ class MainActivity : BaseDownloadActivity() {
         drawerContentBinding?.drawerMoreMenuCard?.visibility = View.GONE
     }
 
-    private suspend fun preloadDrawerImportProfileIfDue() {
-        val prev = drawerImportProfileCacheStore.read()
-        if (!shouldRefreshDrawerProfileCache(prev)) return
-        val hasAnyCookie = kugouCookieRepository.getCookie().isNotBlank() ||
-            wyCookieRepository.getCookie().isNotBlank()
-        if (!hasAnyCookie) {
-            drawerImportProfileCacheStore.write(
-                DrawerImportProfileCache(savedAtMillis = System.currentTimeMillis()),
-            )
-            bindMainDrawerAccountUi(drawerImportProfileCacheStore.read())
-            applyWyProfileBackgroundFromCache(null)
-            return
-        }
-        val updated = syncDrawerImportProfileCache(prev)
-        drawerImportProfileCacheStore.write(updated)
-        bindMainDrawerAccountUi(updated)
-        applyWyProfileBackgroundFromCache(updated.wyBackgroundUrl)
-    }
-
-    private fun bindMainDrawerAccountUi(cache: DrawerImportProfileCache?) {
+    private fun bindMainDrawerAccountUi() {
         val b = drawerContentBinding ?: return
         val notLogged = getString(R.string.drawer_not_logged_in)
-        val loading = getString(R.string.loading)
-        val kgCookie = kugouCookieRepository.getCookie().isNotBlank()
-        val wyCookie = wyCookieRepository.getCookie().isNotBlank()
+        val kgCookie = musicCookieManager.getCookie(MusicCookieManager.SOURCE_KG)
+        val wyCookie = musicCookieManager.getCookie(MusicCookieManager.SOURCE_WY)
+        val kgProfile = kugouCookieRepository.getProfile()
+        val wyProfile = wyCookieRepository.getProfile()
+        val hasAnyThirdPartyLogin = kgCookie.exist || wyCookie.exist
 
-        b.drawerKgImportPlaylistsButton.visibility = if (kgCookie) View.VISIBLE else View.GONE
-        b.drawerWyImportPlaylistsButton.visibility = if (wyCookie) View.VISIBLE else View.GONE
+        b.drawerThirdPartyActionBar.visibility = if (hasAnyThirdPartyLogin) View.VISIBLE else View.GONE
 
-        if (!kgCookie) {
+        if (!kgCookie.exist) {
             b.drawerKgNickname.text = notLogged
             b.drawerKgAvatar.setImageResource(R.drawable.ic_pm_icon)
         } else {
-            // 已有 Cookie 但缓存里还没有昵称时，不应显示「未登录」（多为刚登录或空缓存时间戳占坑）
-            b.drawerKgNickname.text = cache?.kgNickname?.takeIf { it.isNotBlank() } ?: loading
-            val kgUrl = cache?.kgAvatarUrl?.takeIf { it.isNotBlank() }
+            b.drawerKgNickname.text = kgProfile?.nickname?.takeIf { it.isNotBlank() }
+                ?: kgProfile?.username?.takeIf { it.isNotBlank() }
+                ?: "酷狗用户"
+            val kgUrl = kgProfile?.avatarUrl?.takeIf { it.isNotBlank() }
             if (kgUrl != null) {
                 b.drawerKgAvatar.load(kgUrl) {
                     transformations(CircleCropTransformation())
@@ -586,12 +568,14 @@ class MainActivity : BaseDownloadActivity() {
             }
         }
 
-        if (!wyCookie) {
+        if (!wyCookie.exist) {
             b.drawerWyNickname.text = notLogged
             b.drawerWyAvatar.setImageResource(R.drawable.ic_pm_icon)
         } else {
-            b.drawerWyNickname.text = cache?.wyNickname?.takeIf { it.isNotBlank() } ?: loading
-            val wyUrl = cache?.wyAvatarUrl?.takeIf { it.isNotBlank() }
+            b.drawerWyNickname.text = wyProfile?.nickname?.takeIf { it.isNotBlank() }
+                ?: wyProfile?.username?.takeIf { it.isNotBlank() }
+                ?: "网易用户"
+            val wyUrl = wyProfile?.avatarUrl?.takeIf { it.isNotBlank() }
             if (wyUrl != null) {
                 b.drawerWyAvatar.load(wyUrl) {
                     transformations(CircleCropTransformation())
@@ -617,82 +601,24 @@ class MainActivity : BaseDownloadActivity() {
         b.drawerAccountAvatar.setImageResource(R.drawable.ic_pm_icon)
     }
 
-    private fun shouldRefreshDrawerProfileCache(cache: DrawerImportProfileCache?): Boolean {
-        if (cache == null) return true
-        if (System.currentTimeMillis() - cache.savedAtMillis > DrawerImportProfileCacheStore.REFRESH_INTERVAL_MS) {
-            return true
-        }
-        val kgCookie = kugouCookieRepository.getCookie().isNotBlank()
-        val wyCookie = wyCookieRepository.getCookie().isNotBlank()
-        // 无 Cookie 时 preload 会写入「仅时间戳」的空缓存；登录后 24h 内若不强制刷新，胶囊会一直显示未登录/无昵称
-        if (kgCookie && cache.kgNickname.isNullOrBlank()) return true
-        if (wyCookie && cache.wyNickname.isNullOrBlank()) return true
-        return false
-    }
-
-    private suspend fun syncDrawerImportProfileCache(
-        previous: DrawerImportProfileCache?,
-    ): DrawerImportProfileCache {
-        return withContext(Dispatchers.IO) {
-            val kgCookie = kugouCookieRepository.getCookie().isNotBlank()
-            val wyCookie = wyCookieRepository.getCookie().isNotBlank()
-
-            var kgNick: String? = if (!kgCookie) null else previous?.kgNickname
-            var kgAvatar: String? = if (!kgCookie) null else previous?.kgAvatarUrl
-            if (kgCookie) {
-                kugouCookieRepository.fetchDrawerUserInfo().onSuccess { info ->
-                    kgNick = info.nickname
-                    kgAvatar = info.avatarUrl
-                }
-            }
-
-            var wyNick: String? = if (!wyCookie) null else previous?.wyNickname
-            var wyAvatar: String? = if (!wyCookie) null else previous?.wyAvatarUrl
-            var wyBg: String? = if (!wyCookie) null else previous?.wyBackgroundUrl
-            if (wyCookie) {
-                wyCookieRepository.getAccount().onSuccess { acc ->
-                    val p = acc.profile
-                    wyNick = p?.nickname
-                    wyAvatar = p?.avatarUrl
-                    wyBg = p?.backgroundUrl
-                }
-            }
-
-            DrawerImportProfileCache(
-                savedAtMillis = System.currentTimeMillis(),
-                kgNickname = kgNick,
-                kgAvatarUrl = kgAvatar,
-                wyNickname = wyNick,
-                wyAvatarUrl = wyAvatar,
-                wyBackgroundUrl = wyBg,
-            )
-        }
-    }
-
     private fun maybeRefreshDrawerProfilesAfterOpen() {
-        val prev = drawerImportProfileCacheStore.read()
-        bindMainDrawerAccountUi(prev)
+        bindMainDrawerAccountUi()
         bindPisaAccountUi()
-        if (!shouldRefreshDrawerProfileCache(prev)) return
-        lifecycleScope.launch {
-            val updated = syncDrawerImportProfileCache(prev)
-            drawerImportProfileCacheStore.write(updated)
-            bindMainDrawerAccountUi(updated)
-            applyWyProfileBackgroundFromCache(updated.wyBackgroundUrl)
-        }
+        applyWyProfileBackgroundFromLogin()
     }
 
-    /** 「我的」顶部背景图：与侧栏缓存的网易云 `backgroundUrl` 一致。 */
-    fun applyWyProfileBackgroundFromCache(backgroundUrl: String?) {
+    /** 「我的」顶部背景图：与本地保存的网易云 `backgroundUrl` 一致。 */
+    fun applyWyProfileBackgroundFromLogin() {
+        val backgroundUrl = wyCookieRepository.getProfile()?.backgroundUrl
         val frag = supportFragmentManager.findFragmentById(R.id.mineContainer) as? MineFragment
         frag?.setWyProfileBackgroundUrl(backgroundUrl)
         frag?.applyMineAvatarDisplay()
         frag?.applyMineProfileTexts()
     }
 
-    /** 进入「我的」时从本地缓存刷新顶部背景（无需先打开侧栏）。 */
-    fun refreshMineProfileBackgroundFromDrawerCache() {
-        applyWyProfileBackgroundFromCache(drawerImportProfileCacheStore.read()?.wyBackgroundUrl)
+    /** 进入「我的」时从本地登录态刷新顶部背景（无需先打开侧栏）。 */
+    fun refreshMineProfileBackgroundFromLogin() {
+        applyWyProfileBackgroundFromLogin()
     }
 
     /** 打开左侧抽屉（首页菜单、我的页左上角等可调用）。 */

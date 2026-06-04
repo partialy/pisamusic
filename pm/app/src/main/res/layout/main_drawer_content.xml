@@ -130,18 +130,6 @@
             android:paddingHorizontal="8dp"
             android:paddingVertical="10dp">
 
-            <ImageButton
-                android:id="@+id/drawerKgImportPlaylistsButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginEnd="4dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/drawer_import_kg_playlists_cd"
-                android:padding="8dp"
-                android:visibility="gone"
-                android:src="@drawable/ic_playlist_24"
-                app:tint="@color/text_secondary" />
-
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/drawerKgAvatar"
                 android:layout_width="44dp"
@@ -188,18 +176,6 @@
             android:layout_marginVertical="4dp"
             android:paddingHorizontal="8dp"
             android:paddingVertical="10dp">
-
-            <ImageButton
-                android:id="@+id/drawerWyImportPlaylistsButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginEnd="4dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/drawer_import_wy_playlists_cd"
-                android:padding="8dp"
-                android:visibility="gone"
-                android:src="@drawable/ic_playlist_24"
-                app:tint="@color/text_secondary" />
 
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/drawerWyAvatar"
@@ -316,6 +292,78 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/drawerThirdPartyActionBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/drawerImportPlaylistsButton"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_drawer_bottom_pill_ripple"
+            android:clickable="true"
+            android:contentDescription="@string/drawer_import_all_playlists_cd"
+            android:elevation="1dp"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_playlist_24"
+                app:tint="@color/text_secondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/drawer_import_all_playlists"
+                android:textColor="@color/colorOnBgNormal"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/drawerLogoutThirdPartyButton"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginHorizontal="4dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_drawer_bottom_pill_ripple"
+            android:clickable="true"
+            android:contentDescription="@string/drawer_logout_third_party_cd"
+            android:elevation="1dp"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_delete_24"
+                app:tint="@color/text_secondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/drawer_logout_third_party"
+                android:textColor="@color/colorOnBgNormal"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/drawerBottomBar"

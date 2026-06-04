@@ -1,6 +1,5 @@
 package cn.partialy.pm.network.cookie
 
-import android.content.Context
 import cn.partialy.pm.model.BaseResponse
 import cn.partialy.pm.model.HotSearchResponse
 import cn.partialy.pm.model.KgPlaylistDetailApiResponse
@@ -24,7 +23,6 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.lang.reflect.Type
@@ -38,29 +36,29 @@ import javax.inject.Singleton
  */
 @Singleton
 class KugouCookieRepository @Inject constructor(
-    @ApplicationContext context: Context,
+    private val cookieManager: MusicCookieManager,
 ) {
 
-    private val store = PersistedUserCookieStore(context, CookiePersistenceFileNames.KUGOU)
-    private val http = CookieSessionHttp(store)
+    private val http = CookieSessionHttp(MusicCookieManager.SOURCE_KG, cookieManager)
     private val gson = Gson()
 
     /**
-     * 写入 WebView 等来源的 Cookie 串：解析、过期约 50 年、落盘。
+     * 写入 Cookie 串，保留已有账号资料；主要用于调试入口，正式登录请走 [finalizeKgLoginSession]。
      */
     fun setCookie(raw: String) {
-        store.setCookie(raw)
+        cookieManager.saveSession(
+            source = MusicCookieManager.SOURCE_KG,
+            cookie = raw,
+            profile = cookieManager.getProfile(MusicCookieManager.SOURCE_KG) ?: MusicLoginProfile(),
+        )
     }
 
     /** 读取当前持久化后的 `Cookie` 请求头字符串。 */
-    fun getCookie(): String = store.getCookie()
+    fun getCookie(): String = cookieManager.getCookie(MusicCookieManager.SOURCE_KG).cookie
 
-    fun hasCookie(): Boolean = getCookie().isNotBlank()
+    fun hasCookie(): Boolean = cookieManager.getCookie(MusicCookieManager.SOURCE_KG).exist
 
-    /** 丢弃内存条目并从磁盘 JSON 重新加载（与 [getCookie] 同源）。 */
-    fun reloadPersistedCookieFromDisk() {
-        store.reloadFromDisk()
-    }
+    fun getProfile(): MusicLoginProfile? = cookieManager.getProfile(MusicCookieManager.SOURCE_KG)
 
     /**
      * 获取用户歌单：`/user/playlist`
@@ -106,7 +104,7 @@ class KugouCookieRepository @Inject constructor(
             }
         }
 
-    /** 原始 HTTP 结果（含 body、合并后的 Cookie 建议值）。 */
+    /** 原始 HTTP 结果（含 body 与本次沿用的 Cookie 请求头）。 */
     suspend fun getUserPlaylistsRaw(
         page: Int? = null,
         pagesize: Int? = null,
@@ -258,56 +256,13 @@ class KugouCookieRepository @Inject constructor(
             http.getBlocking(urlUserDetail, params)
         }
 
-    /**
-     * 侧栏展示：Cookie 中 `userid` + `token` 请求 `/login/token`，从 `data` 解析昵称与头像；
-     * 缺省时用 `/user/playlist` 首条里的 `list_create_username` / `create_user_pic`。
-     */
+    /** 侧栏展示直接读取登录成功时保存的账号摘要。 */
     suspend fun fetchDrawerUserInfo(): Result<KgDrawerUserInfo> = withContext(Dispatchers.IO) {
         runCatching {
-            val cookie = getCookie().trim()
-            if (cookie.isEmpty()) error("no cookie")
-            val map = CookieRequest.parseCookieHeader(cookie)
-            val byLowerKey = map.entries.associate { it.key.lowercase().trim() to it.value.trim() }
-            fun cookieVal(vararg keys: String): String? {
-                for (k in keys) {
-                    byLowerKey[k.lowercase()]?.takeIf { it.isNotEmpty() }?.let { return it }
-                }
-                return null
-            }
-            val userid = cookieVal("userid") ?: error("no userid in cookie")
-            val token = cookieVal("token") ?: error("no token in cookie")
-
-            val tokenUrl = "${API_BASE.trimEnd('/')}/login/token"
-            val tokenResp = CookieRequest.getBlocking(
-                tokenUrl,
-                mapOf("token" to token, "userid" to userid),
-                cookie,
-                KG_LOGIN_BROWSER_HEADERS,
-            )
-            if (!tokenResp.isSuccessful) error("login/token HTTP ${tokenResp.code}")
-            val envelope = gson.fromJson(tokenResp.body, KgStdEnvelope::class.java)
-            val data = envelope.data ?: error("login/token no data")
-            var nickname = data.stringFromKeys(
-                "nickname"
-            )
-            var avatarUrl = data.stringFromKeys(
-                "arttoy_avatar", "avatar"
-            )
-
-            if (nickname.isNullOrBlank() || avatarUrl.isNullOrBlank()) {
-                val playlists = getUserPlaylists(page = 1, pagesize = 30).getOrNull()
-                val first = playlists?.data?.info?.firstOrNull()
-                if (nickname.isNullOrBlank()) {
-                    nickname = first?.listCreateUsername?.trim().orEmpty()
-                }
-                if (avatarUrl.isNullOrBlank()) {
-                    avatarUrl = first?.createUserPic?.trim()?.takeIf { it.isNotEmpty() }
-                }
-            }
-
+            val profile = getProfile() ?: error("no profile")
             KgDrawerUserInfo(
-                nickname = nickname.takeIf { it.isNotBlank() } ?: "酷狗用户",
-                avatarUrl = avatarUrl?.takeIf { it.isNotBlank() },
+                nickname = profile.nickname.ifBlank { profile.username.ifBlank { "酷狗用户" } },
+                avatarUrl = profile.avatarUrl.takeIf { it.isNotBlank() },
             )
         }
     }
@@ -335,7 +290,7 @@ class KugouCookieRepository @Inject constructor(
      * 手机/扫码登录成功并已拿到响应体中的 [token]、[userid] 与合并后的 `Cookie` 请求头串（含 Set-Cookie）后：
      * 1. 解析 [cookieHeaderAfterAuth] 暂存；2. 携带该 Cookie 请求 `/login/token`；
      * 3. 从响应体取 vip_type、vip_token、userid、token；4. 拼 synthetic 串再解析；
-     * 5. 以同名覆盖合并入步骤 1；6. [setCookie] 落盘。
+     * 5. 以同名覆盖合并入步骤 1；6. 保存 Cookie 与账号资料到 SQLite。
      */
     suspend fun finalizeKgLoginSession(
         cookieHeaderAfterAuth: String,
@@ -385,9 +340,48 @@ class KugouCookieRepository @Inject constructor(
             }
             val finalHeader = merged.entries.joinToString("; ") { "${it.key}=${it.value}" }
 
-            // 6. 写入本地文件（走现有 PersistedUserCookieStore）
-            setCookie(finalHeader)
+            var nickname = data.stringFromKeys("nickname", "username", "user_name")
+            var username = data.stringFromKeys("username", "user_name", "nickname")
+            var avatarUrl = data.stringFromKeys("arttoy_avatar", "avatar")
+            if (nickname.isNullOrBlank() || avatarUrl.isNullOrBlank()) {
+                val fallback = runCatching { fetchPlaylistOwnerInfoForCookie(finalHeader) }.getOrNull()
+                if (nickname.isNullOrBlank()) nickname = fallback?.nickname
+                if (username.isNullOrBlank()) username = fallback?.nickname
+                if (avatarUrl.isNullOrBlank()) avatarUrl = fallback?.avatarUrl
+            }
+
+            cookieManager.saveSession(
+                source = MusicCookieManager.SOURCE_KG,
+                cookie = finalHeader,
+                profile = MusicLoginProfile(
+                    userId = uid,
+                    username = username.orEmpty(),
+                    nickname = nickname.orEmpty(),
+                    avatarUrl = avatarUrl.orEmpty(),
+                    isVip = vipType.toIntOrNull()?.let { it > 0 } ?: (vipType.isNotBlank() && vipType != "0"),
+                    vipType = vipType,
+                    rawProfileJson = data.toString(),
+                ),
+            )
         }
+    }
+
+    private fun fetchPlaylistOwnerInfoForCookie(cookie: String): KgDrawerUserInfo? {
+        val result = CookieRequest.getBlocking(
+            url = urlUserPlaylist,
+            params = mapOf("page" to "1", "pagesize" to "30"),
+            cookie = cookie,
+            mergeResponseSetCookie = false,
+        )
+        if (!result.isSuccessful) return null
+        val playlists = gson.fromJson(result.body, KgUserPlaylistResponse::class.java) ?: return null
+        val first = playlists.data?.info?.firstOrNull() ?: return null
+        val nickname = first.listCreateUsername?.trim().orEmpty()
+        val avatarUrl = first.createUserPic?.trim().orEmpty()
+        return KgDrawerUserInfo(
+            nickname = nickname.takeIf { it.isNotBlank() } ?: "酷狗用户",
+            avatarUrl = avatarUrl.takeIf { it.isNotBlank() },
+        )
     }
 
     private fun JsonElement?.toCookieValueString(): String {

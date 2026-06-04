@@ -1,7 +1,7 @@
 package cn.partialy.pm.network.cookie
 
-import android.content.Context
 import cn.partialy.pm.network.CookieHttpResult
+import cn.partialy.pm.network.CookieRequest
 import cn.partialy.pm.network.CookieSessionHttp
 import cn.partialy.pm.network.cookie.model.WyAccountResponse
 import cn.partialy.pm.network.cookie.model.WyPlaylistItem
@@ -12,7 +12,6 @@ import cn.partialy.pm.network.wy.WyLyricResponse
 import cn.partialy.pm.network.wy.WyPersonalizedNewSongResponse
 import cn.partialy.pm.network.wy.WyPersonalizedPlaylistResponse
 import com.google.gson.Gson
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.lang.reflect.Type
@@ -27,24 +26,38 @@ import javax.inject.Singleton
  */
 @Singleton
 class WyCookieRepository @Inject constructor(
-    @ApplicationContext context: Context,
+    private val cookieManager: MusicCookieManager,
 ) {
 
-    private val store = PersistedUserCookieStore(context, CookiePersistenceFileNames.WY)
-    private val http = CookieSessionHttp(store)
+    private val http = CookieSessionHttp(MusicCookieManager.SOURCE_WY, cookieManager)
     private val gson = Gson()
 
+    /** 写入 Cookie 串，保留已有账号资料；正式登录请走 [saveLoginSession]。 */
     fun setCookie(raw: String) {
-        store.setCookie(raw)
+        cookieManager.saveSession(
+            source = MusicCookieManager.SOURCE_WY,
+            cookie = raw,
+            profile = cookieManager.getProfile(MusicCookieManager.SOURCE_WY) ?: MusicLoginProfile(),
+        )
     }
 
-    fun getCookie(): String = store.getCookie()
+    fun getCookie(): String = cookieManager.getCookie(MusicCookieManager.SOURCE_WY).cookie
 
-    fun hasCookie(): Boolean = getCookie().isNotBlank()
+    fun hasCookie(): Boolean = cookieManager.getCookie(MusicCookieManager.SOURCE_WY).exist
 
-    /** 丢弃内存条目并从磁盘 JSON 重新加载（与 [getCookie] 同源）。 */
-    fun reloadPersistedCookieFromDisk() {
-        store.reloadFromDisk()
+    fun getProfile(): MusicLoginProfile? = cookieManager.getProfile(MusicCookieManager.SOURCE_WY)
+
+    suspend fun saveLoginSession(rawCookie: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val cookie = rawCookie.trim()
+            if (cookie.isBlank()) error("empty cookie")
+            val profile = fetchProfileForCookie(cookie).getOrElse { MusicLoginProfile() }
+            cookieManager.saveSession(
+                source = MusicCookieManager.SOURCE_WY,
+                cookie = cookie,
+                profile = profile,
+            )
+        }
     }
 
     /** 第一步：`/user/account` */
@@ -178,6 +191,27 @@ class WyCookieRepository @Inject constructor(
     private fun CookieHttpResult.parseAccountOrThrow(): WyAccountResponse {
         if (!isSuccessful) error("HTTP $code")
         return gson.fromJson(body, WyAccountResponse::class.java) ?: error("empty json")
+    }
+
+    private fun fetchProfileForCookie(cookie: String): Result<MusicLoginProfile> = runCatching {
+        val result = CookieRequest.getBlocking(
+            url = urlUserAccount,
+            params = emptyMap(),
+            cookie = cookie,
+            mergeResponseSetCookie = false,
+        )
+        if (!result.isSuccessful) error("HTTP ${result.code}")
+        val account = result.parseAccountOrThrow()
+        val p = account.profile
+        val a = account.account
+        MusicLoginProfile(
+            userId = (p?.userId ?: a?.id)?.toString().orEmpty(),
+            username = a?.userName.orEmpty(),
+            nickname = p?.nickname.orEmpty(),
+            avatarUrl = p?.avatarUrl.orEmpty(),
+            backgroundUrl = p?.backgroundUrl.orEmpty(),
+            rawProfileJson = result.body.ifBlank { "{}" },
+        )
     }
 
     private fun CookieHttpResult.parsePlaylistOrThrow(): WyUserPlaylistResponse {

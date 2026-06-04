@@ -11,6 +11,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         createLocalPlaylistTables(db)
         createFavoriteTables(db)
         createSyncTables(db)
+        createThirdPartyLoginTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -25,6 +26,9 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         }
         if (oldVersion < 5) {
             ensureSyncOutboxAccountColumn(db)
+        }
+        if (oldVersion < 6) {
+            createThirdPartyLoginTables(db)
         }
     }
 
@@ -137,9 +141,29 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_sync_outbox_account_created ON sync_outbox(account_id, created_at, id)")
     }
 
+    private fun createThirdPartyLoginTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS third_party_login_sessions (
+                source TEXT PRIMARY KEY,
+                cookie TEXT NOT NULL DEFAULT '',
+                user_id TEXT NOT NULL DEFAULT '',
+                username TEXT NOT NULL DEFAULT '',
+                nickname TEXT NOT NULL DEFAULT '',
+                avatar_url TEXT NOT NULL DEFAULT '',
+                background_url TEXT NOT NULL DEFAULT '',
+                is_vip INTEGER NOT NULL DEFAULT 0,
+                vip_type TEXT NOT NULL DEFAULT '',
+                raw_profile_json TEXT NOT NULL DEFAULT '{}',
+                updated_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+    }
+
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 5
+        private const val DB_VERSION = 6
     }
 
     private fun ensureSyncOutboxAccountColumn(db: SQLiteDatabase) {
