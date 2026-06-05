@@ -59,6 +59,7 @@ import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.downloadOptionsForSongType
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
+import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.showDownloadQualityPicker
 import cn.partialy.pm.ui.player.LyricRow
 import cn.partialy.pm.ui.player.LyricSettingsSheet
@@ -526,8 +527,15 @@ class PlayerActivity : BaseDownloadActivity() {
             }, getString(R.string.listen_together_share_room)))
         }
         sheetBinding.listenTogetherLeaveButton.setOnClickListener {
-            listenTogetherManager.leaveRoom()
-            dialog.dismiss()
+            PmMinimalDialog.show(
+                context = this,
+                title = "退出当前一起听吗？",
+                message = "退出后你将无法与朋友实时同步播放当前歌曲。",
+                confirmText = "确认",
+            ) {
+                listenTogetherManager.leaveRoom()
+                dialog.dismiss()
+            }
         }
 
         renderListenTogetherSheet(sheetBinding, listenTogetherManager.state.value)

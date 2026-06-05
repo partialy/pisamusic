@@ -115,4 +115,11 @@
     <color name="cache_usage_bar_app">#F44336</color>
     <color name="cache_usage_bar_phone_used">#D0D0D0</color>
     <color name="cache_usage_bar_free">#EEEEEE</color>
+    <color name="pm_dialog_background">#FFFFFF</color>
+    <color name="pm_dialog_stroke">#F3F4F6</color>
+    <color name="pm_dialog_title">#1C1F1D</color>
+    <color name="pm_dialog_message">#7C827E</color>
+    <color name="pm_dialog_cancel">#7C827E</color>
+    <color name="pm_dialog_confirm">#0284C7</color>
+    <color name="pm_dialog_divider">#F3F4F6</color>
 </resources>
