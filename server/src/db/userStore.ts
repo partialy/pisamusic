@@ -24,6 +24,7 @@ export type PublicUser = {
   avatarKey: string;
   avatarUrl: string;
   createdAt: number;
+  lastLoginAt: number | null;
 };
 
 export type CreateUserInput = {
@@ -193,6 +194,7 @@ export function toPublicUser(user: UserRecord): PublicUser {
     avatarKey,
     avatarUrl,
     createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt,
   };
 }
 

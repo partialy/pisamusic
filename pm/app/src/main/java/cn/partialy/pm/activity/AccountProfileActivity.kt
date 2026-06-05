@@ -1,37 +1,49 @@
 package cn.partialy.pm.activity
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.text.InputType
 import android.view.View
-import android.webkit.JavascriptInterface
+import android.view.ViewGroup
 import android.webkit.MimeTypeMap
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.graphics.Insets
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.BuildConfig
+import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityAccountProfileBinding
 import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.model.AccountUser
+import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.sync.SyncManager
+import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
+import coil.load
+import coil.transform.CircleCropTransformation
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import dagger.hilt.android.AndroidEntryPoint
-import java.lang.ref.WeakReference
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -39,27 +51,22 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 
 @AndroidEntryPoint
 class AccountProfileActivity : BaseActivity() {
     private lateinit var binding: ActivityAccountProfileBinding
-    private var statusBarInsets: Insets = Insets.NONE
-    private var navigationBarInsets: Insets = Insets.NONE
     private val avatarHttpClient = OkHttpClient()
+    private var pendingNewEmail: String? = null
 
     private val pickAvatarLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            if (uri != null) uploadSelectedAvatar(uri) else sendAvatarCanceled()
+            if (uri != null) uploadSelectedAvatar(uri)
         }
 
-    @Inject
-    lateinit var configManager: ConfigManager
+    @Inject lateinit var configManager: ConfigManager
+    @Inject lateinit var syncManager: SyncManager
+    @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
 
-    @Inject
-    lateinit var syncManager: SyncManager
-
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityAccountProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -72,191 +79,410 @@ class AccountProfileActivity : BaseActivity() {
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
         )
-        applySystemBarInsets(binding.accountProfileWebView)
+        binding.accountProfileRoot.applySystemBarsInsets { insets ->
+            val lp = binding.accountProfileStatusBarSpacer.layoutParams
+            lp.height = insets.top
+            binding.accountProfileStatusBarSpacer.layoutParams = lp
+            binding.accountProfileScrollView.setPadding(0, 0, 0, insets.bottom)
+        }
 
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() = navigateBackOrFinish()
+                override fun handleOnBackPressed() = finish()
             },
         )
 
-        setupWebView(binding.accountProfileWebView)
-        binding.accountProfileWebView.addJavascriptInterface(ProfileBridge(this), JS_INTERFACE_NAME)
-        binding.accountProfileWebView.loadUrl(PROFILE_WEB_URL)
+        binding.accountProfileBackButton.setOnClickListener { finish() }
+        binding.accountProfileAvatar.setOnClickListener { showAvatarPicker() }
+        binding.accountProfileAvatarChip.setOnClickListener { showAvatarPicker() }
+        binding.accountProfileUsernameRow.setOnClickListener { showEditUsernameDialog() }
+        binding.accountProfileEmailRow.setOnClickListener { showEditEmailDialog() }
+        binding.accountProfileSaveButton.setOnClickListener { saveProfile() }
+        binding.accountProfileLogoutButton.setOnClickListener { confirmLogout() }
     }
 
-    private fun navigateBackOrFinish() {
-        val webView = binding.accountProfileWebView
-        if (webView.canGoBack()) webView.goBack() else finish()
+    override fun onResume() {
+        super.onResume()
+        renderProfile()
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun setupWebView(webView: WebView) {
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadWithOverviewMode = true
-            useWideViewPort = true
+    private fun currentSessionOrFinish(): AccountSessionStore.Session? {
+        val session = AccountSessionStore.read(this)
+        if (!session.loggedIn) {
+            Toast.makeText(this, R.string.account_profile_not_logged_in, Toast.LENGTH_SHORT).show()
+            finish()
+            return null
         }
-        webView.overScrollMode = View.OVER_SCROLL_NEVER
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView, url: String?) {
-                applySystemBarStyles(view)
+        return session
+    }
+
+    private fun renderProfile() {
+        val session = currentSessionOrFinish() ?: return
+        val user = session.user
+        binding.accountProfileUsernameValue.text = user.username
+        binding.accountProfileEmailValue.text = user.email
+        binding.accountProfileIdValue.text = user.id
+        binding.accountProfileCreatedAtValue.text = formatDate(user.createdAt)
+        binding.accountProfileLastLoginValue.text = formatDateTime(user.lastLoginAt)
+
+        val avatarUrl = resolveAccountAvatarUrl(user)
+        if (avatarUrl == null) {
+            binding.accountProfileAvatar.setImageResource(R.drawable.ic_pm_icon)
+        } else {
+            binding.accountProfileAvatar.load(avatarUrl) {
+                placeholder(R.drawable.ic_pm_icon)
+                error(R.drawable.ic_pm_icon)
+                transformations(CircleCropTransformation())
             }
         }
-        webView.webChromeClient = WebChromeClient()
+
+        renderStats()
     }
 
-    private fun applySystemBarInsets(webView: WebView) {
-        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
-            statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
-            navigationBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
-            applySystemBarStyles(webView)
-            insets
+    private fun renderStats() {
+        val loveCount = loveManager.loveListFlow.value.size
+        val playlists = playlistCollectionManager.playlistsFlow.value
+        val localCount = playlists.count { it.type == CollectedPlaylistType.LOCAL }
+        val collectedCount = playlists.size - localCount
+        binding.accountProfileLoveCountValue.text =
+            "${formatCount(loveCount)} ${getString(R.string.account_profile_unit_song)}"
+        binding.accountProfileCollectedPlaylistsValue.text =
+            "${formatCount(collectedCount)} ${getString(R.string.account_profile_unit_playlist)}"
+        binding.accountProfileLocalPlaylistsValue.text =
+            "${formatCount(localCount)} ${getString(R.string.account_profile_unit_playlist)}"
+    }
+
+    private fun formatCount(value: Int): String = String.format(Locale.US, "%,d", value)
+
+    private fun formatDate(timestamp: Long): String {
+        if (timestamp <= 0L) return getString(R.string.account_profile_value_placeholder)
+        return SimpleDateFormat("yyyy年MM月dd日", Locale.CHINA).format(Date(timestamp))
+    }
+
+    private fun formatDateTime(timestamp: Long?): String {
+        if (timestamp == null || timestamp <= 0L) {
+            return getString(R.string.account_profile_value_placeholder)
         }
-        webView.post { ViewCompat.requestApplyInsets(webView) }
+        return SimpleDateFormat("yyyy年MM月dd日 HH:mm", Locale.CHINA).format(Date(timestamp))
     }
 
-    private fun applySystemBarStyles(webView: WebView) {
-        val density = resources.displayMetrics.density
-        val statusBarPhysicalPx = statusBarHeightPhysicalPx(this).takeIf { it > 0 } ?: statusBarInsets.top
-        val statusBarCssPx = if (statusBarPhysicalPx > 0) (statusBarPhysicalPx / density + 0.5f).toInt() else 24
-        val navigationBarPhysicalPx = navigationBarInsets.bottom
-        val navigationBarCssPx = if (navigationBarPhysicalPx > 0) (navigationBarPhysicalPx / density + 0.5f).toInt() else 0
-        val js = """
-            (function() {
-                var statusBar = document.getElementById('android-status-bar');
-                if (statusBar) {
-                    statusBar.style.setProperty('height', '${statusBarCssPx}px', 'important');
-                }
-            })();
-            document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarCssPx}px');
-        """.trimIndent()
-        webView.evaluateJavascript(js, null)
-    }
-
-    private fun statusBarHeightPhysicalPx(context: Context): Int {
-        val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
-    }
-
-    private fun sendSuccess(message: String) {
-        binding.accountProfileWebView.post {
-            binding.accountProfileWebView.evaluateJavascript(
-                "window.profilePage && window.profilePage.success(${JSONObject.quote(message)})",
-                null,
-            )
-        }
-    }
-
-    private fun sendError(message: String) {
-        binding.accountProfileWebView.post {
-            binding.accountProfileWebView.evaluateJavascript(
-                "window.profilePage && window.profilePage.error(${JSONObject.quote(message)})",
-                null,
-            )
-        }
-    }
-
-    private fun sendEmailCodeSent() {
-        binding.accountProfileWebView.post {
-            binding.accountProfileWebView.evaluateJavascript(
-                "window.profilePage && window.profilePage.emailCodeSent()",
-                null,
-            )
-        }
-    }
-
-    private fun sendSaved(user: AccountUser) {
-        binding.accountProfileWebView.post {
-            binding.accountProfileWebView.evaluateJavascript(
-                "window.profilePage && window.profilePage.saved(${profileJson(user)})",
-                null,
-            )
-        }
-    }
-
-    private fun sendAvatarSaved(user: AccountUser) {
-        binding.accountProfileWebView.post {
-            binding.accountProfileWebView.evaluateJavascript(
-                "window.profilePage && window.profilePage.avatarSaved(${profileJson(user)})",
-                null,
-            )
-        }
-    }
-
-    private fun sendAvatarCanceled() {
-        binding.accountProfileWebView.post {
-            binding.accountProfileWebView.evaluateJavascript(
-                "window.profilePage && window.profilePage.avatarCanceled()",
-                null,
-            )
-        }
-    }
-
-    private fun profileJson(user: AccountUser): String =
-        JSONObject()
-            .put(
-                "user",
-                JSONObject()
-                    .put("id", user.id)
-                    .put("username", user.username)
-                    .put("email", user.email)
-                    .put("avatarKey", user.avatarKey.ifBlank { "default" })
-                    .put("avatarUrl", resolveAccountAvatarUrl(user)),
-            )
-            .toString()
-
-    private fun resolveAccountAvatarUrl(user: AccountUser): String {
+    private fun resolveAccountAvatarUrl(user: AccountUser): String? {
         val raw = user.avatarUrl.ifBlank { user.avatar }.trim()
-        return when {
-            raw.startsWith("http://") || raw.startsWith("https://") -> raw
-            raw.startsWith("/") -> BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + raw
-            else -> absoluteAvatarPath("default.jpg")
+        if (raw.isBlank()) return null
+        if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
+        if (!raw.startsWith("/")) return null
+        return BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + raw
+    }
+
+    private fun showAvatarPicker() {
+        val dialog = BottomSheetDialog(this)
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dpToPx(12), 0, dpToPx(24))
+        }
+        container.addView(
+            makeSheetItem(getString(R.string.account_profile_avatar_pick)) {
+                dialog.dismiss()
+                pickAvatarLauncher.launch("image/*")
+            },
+        )
+        container.addView(
+            makeSheetItem(
+                text = getString(R.string.account_profile_avatar_restore),
+                tintRes = R.color.account_profile_logout_text,
+            ) {
+                dialog.dismiss()
+                restoreDefaultAvatar()
+            },
+        )
+        dialog.setContentView(container)
+        dialog.show()
+    }
+
+    private fun makeSheetItem(
+        text: String,
+        tintRes: Int = R.color.account_profile_value,
+        onClick: () -> Unit,
+    ): TextView {
+        val item = TextView(this)
+        val lp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dpToPx(52),
+        )
+        item.layoutParams = lp
+        item.gravity = android.view.Gravity.CENTER
+        item.text = text
+        item.textSize = 15f
+        item.setTextColor(ContextCompat.getColor(this, tintRes))
+        val outValue = android.util.TypedValue()
+        theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+        item.setBackgroundResource(outValue.resourceId)
+        item.isClickable = true
+        item.setOnClickListener { onClick() }
+        return item
+    }
+
+    private fun dpToPx(dp: Int): Int =
+        (dp * resources.displayMetrics.density + 0.5f).toInt()
+
+    private fun showEditUsernameDialog() {
+        val edit = makeDialogEditText(
+            initial = binding.accountProfileUsernameValue.text?.toString().orEmpty(),
+            hint = getString(R.string.account_profile_edit_username_hint),
+            inputType = InputType.TYPE_CLASS_TEXT,
+            maxLength = 32,
+        )
+        val container = wrapDialogContent(edit)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.account_profile_edit_username_title)
+            .setView(container)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("确认") { _, _ ->
+                val newName = edit.text?.toString()?.trim().orEmpty()
+                if (newName.isBlank()) {
+                    Toast.makeText(this, R.string.account_profile_username_required, Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                binding.accountProfileUsernameValue.text = newName
+            }
+            .show()
+    }
+
+    private fun showEditEmailDialog() {
+        val emailEdit = makeDialogEditText(
+            initial = "",
+            hint = getString(R.string.account_profile_edit_email_hint),
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            maxLength = 64,
+        )
+        val codeEdit = makeDialogEditText(
+            initial = "",
+            hint = getString(R.string.account_profile_edit_code_hint),
+            inputType = InputType.TYPE_CLASS_NUMBER,
+            maxLength = 6,
+        )
+        val sendCodeButton = TextView(this).apply {
+            text = getString(R.string.account_profile_send_code)
+            setTextColor(ContextCompat.getColor(this@AccountProfileActivity, R.color.account_profile_save_button_bg))
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(8))
+            isClickable = true
+            val outValue = android.util.TypedValue()
+            this@AccountProfileActivity.theme.resolveAttribute(
+                android.R.attr.selectableItemBackground, outValue, true,
+            )
+            setBackgroundResource(outValue.resourceId)
+        }
+
+        val codeRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            val params = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+            params.topMargin = dpToPx(12)
+            layoutParams = params
+            val codeLp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            addView(codeEdit, codeLp)
+            addView(sendCodeButton)
+        }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(24), dpToPx(8), dpToPx(24), 0)
+            addView(emailEdit)
+            addView(codeRow)
+        }
+
+        var cooldownJob: Job? = null
+        sendCodeButton.setOnClickListener {
+            val emailText = emailEdit.text?.toString()?.trim().orEmpty()
+            if (emailText.isBlank()) {
+                Toast.makeText(this, R.string.account_profile_email_required, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val session = AccountSessionStore.read(this)
+            if (!session.loggedIn) {
+                Toast.makeText(this, R.string.account_profile_not_logged_in, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            sendCodeButton.isEnabled = false
+            lifecycleScope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        configManager.sendAccountProfileEmailCode(session.token, emailText)
+                    }
+                }.onSuccess {
+                    Toast.makeText(
+                        this@AccountProfileActivity,
+                        R.string.account_profile_email_code_sent,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    cooldownJob?.cancel()
+                    cooldownJob = startCooldown(sendCodeButton)
+                }.onFailure {
+                    sendCodeButton.isEnabled = true
+                    Toast.makeText(this@AccountProfileActivity, it.message ?: "验证码发送失败", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.account_profile_edit_email_title)
+            .setView(container)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("确定更改") { _, _ ->
+                val newEmail = emailEdit.text?.toString()?.trim().orEmpty()
+                val code = codeEdit.text?.toString()?.trim().orEmpty()
+                if (newEmail.isBlank()) {
+                    Toast.makeText(this, R.string.account_profile_email_required, Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                if (code.isBlank()) {
+                    Toast.makeText(this, R.string.account_profile_email_code_required, Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                pendingNewEmail = newEmail
+                binding.accountProfileEmailValue.text = newEmail
+                commitProfile(
+                    username = binding.accountProfileUsernameValue.text?.toString()?.trim().orEmpty(),
+                    email = newEmail,
+                    code = code,
+                )
+            }
+            .setOnDismissListener { cooldownJob?.cancel() }
+            .show()
+    }
+
+    private fun startCooldown(button: TextView): Job {
+        return lifecycleScope.launch {
+            var remaining = 60
+            while (remaining > 0) {
+                button.text = getString(R.string.account_profile_send_code_countdown, remaining)
+                delay(1000)
+                remaining--
+            }
+            button.text = getString(R.string.account_profile_resend_code)
+            button.isEnabled = true
         }
     }
 
-    private fun absoluteAvatarPath(fileName: String): String =
-        BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + "/static/account-avatars/$fileName"
+    private fun makeDialogEditText(
+        initial: String,
+        hint: String,
+        inputType: Int,
+        maxLength: Int,
+    ): EditText {
+        return EditText(this).apply {
+            this.inputType = inputType
+            this.hint = hint
+            setText(initial)
+            setSelection(text.length)
+            filters = arrayOf(android.text.InputFilter.LengthFilter(maxLength))
+            val params = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+            layoutParams = params
+        }
+    }
 
-    private fun requestPickAvatar() {
-        pickAvatarLauncher.launch("image/*")
+    private fun wrapDialogContent(child: View): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(24), dpToPx(8), dpToPx(24), 0)
+            addView(child)
+        }
+    }
+
+    private fun saveProfile() {
+        val username = binding.accountProfileUsernameValue.text?.toString()?.trim().orEmpty()
+        val email = binding.accountProfileEmailValue.text?.toString()?.trim().orEmpty()
+        if (username.isBlank()) {
+            Toast.makeText(this, R.string.account_profile_username_required, Toast.LENGTH_SHORT).show()
+            return
+        }
+        commitProfile(username = username, email = email, code = null)
+    }
+
+    private fun commitProfile(username: String, email: String, code: String?) {
+        val session = currentSessionOrFinish() ?: return
+        binding.accountProfileSaveButton.isEnabled = false
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    configManager.updateAccountProfile(
+                        token = session.token,
+                        username = username,
+                        email = email,
+                        code = code,
+                        avatarKey = null,
+                    )
+                }
+            }.onSuccess { result ->
+                AccountSessionStore.save(this@AccountProfileActivity, result)
+                pendingNewEmail = null
+                renderProfile()
+                Toast.makeText(
+                    this@AccountProfileActivity,
+                    R.string.account_profile_save_success,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }.onFailure {
+                Toast.makeText(this@AccountProfileActivity, it.message ?: "资料保存失败", Toast.LENGTH_SHORT).show()
+            }
+            binding.accountProfileSaveButton.isEnabled = true
+        }
     }
 
     private fun uploadSelectedAvatar(uri: Uri) {
+        val session = currentSessionOrFinish() ?: return
         lifecycleScope.launch {
             runCatching {
-                val session = AccountSessionStore.read(this@AccountProfileActivity)
-                require(session.loggedIn) { "请先登录账号" }
                 val result = withContext(Dispatchers.IO) {
                     uploadAccountAvatar(session.token, uri)
                 }
                 AccountSessionStore.save(this@AccountProfileActivity, result)
                 result.user
-            }.onSuccess { user ->
-                sendAvatarSaved(user)
-                sendSuccess("头像已更新")
+            }.onSuccess { _ ->
+                renderProfile()
+                Toast.makeText(
+                    this@AccountProfileActivity,
+                    R.string.account_profile_avatar_updated,
+                    Toast.LENGTH_SHORT,
+                ).show()
             }.onFailure {
-                sendError(it.message ?: "头像上传失败")
+                Toast.makeText(this@AccountProfileActivity, it.message ?: "头像上传失败", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private suspend fun restoreDefaultAvatar() {
-        val session = AccountSessionStore.read(this)
-        require(session.loggedIn) { "请先登录账号" }
-        val result = withContext(Dispatchers.IO) {
-            configManager.updateAccountProfile(
-                token = session.token,
-                username = null,
-                email = null,
-                code = null,
-                avatarKey = "default",
-            )
+    private fun restoreDefaultAvatar() {
+        val session = currentSessionOrFinish() ?: return
+        lifecycleScope.launch {
+            runCatching {
+                val result = withContext(Dispatchers.IO) {
+                    configManager.updateAccountProfile(
+                        token = session.token,
+                        username = null,
+                        email = null,
+                        code = null,
+                        avatarKey = "default",
+                    )
+                }
+                AccountSessionStore.save(this@AccountProfileActivity, result)
+            }.onSuccess {
+                renderProfile()
+                Toast.makeText(
+                    this@AccountProfileActivity,
+                    R.string.account_profile_avatar_restored,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }.onFailure {
+                Toast.makeText(this@AccountProfileActivity, it.message ?: "恢复默认头像失败", Toast.LENGTH_SHORT).show()
+            }
         }
-        AccountSessionStore.save(this, result)
-        sendAvatarSaved(result.user)
     }
 
     private suspend fun uploadAccountAvatar(token: String, uri: Uri): AccountAuthResult {
@@ -324,17 +550,22 @@ class AccountProfileActivity : BaseActivity() {
         return if (hasExtension) cleanName else "$cleanName.${extensionForMime(mimeType)}"
     }
 
-    override fun onDestroy() {
-        if (::binding.isInitialized) {
-            binding.accountProfileWebView.removeJavascriptInterface(JS_INTERFACE_NAME)
-            binding.accountProfileWebView.apply {
-                stopLoading()
-                loadUrl("about:blank")
-                removeAllViews()
-                destroy()
+    private fun confirmLogout() {
+        PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.account_profile_logout_title),
+            message = getString(R.string.account_profile_logout_message),
+            confirmText = "确定退出",
+            confirmColor = ContextCompat.getColor(this, R.color.account_profile_logout_text),
+        ) {
+            lifecycleScope.launch {
+                withContext(Dispatchers.IO) {
+                    syncManager.clearLocalSyncState()
+                    AccountSessionStore.clear(this@AccountProfileActivity)
+                }
+                finish()
             }
         }
-        super.onDestroy()
     }
 
     private data class PickedAvatar(
@@ -343,113 +574,7 @@ class AccountProfileActivity : BaseActivity() {
         val bytes: ByteArray,
     )
 
-    private class ProfileBridge(activity: AccountProfileActivity) {
-        private val ref = WeakReference(activity)
-
-        @JavascriptInterface
-        fun close() {
-            ref.get()?.runOnUiThread { ref.get()?.finish() }
-        }
-
-        @JavascriptInterface
-        fun logout() {
-            val activity = ref.get() ?: return
-            activity.runOnUiThread {
-                activity.lifecycleScope.launch {
-                    withContext(Dispatchers.IO) {
-                        activity.syncManager.clearLocalSyncState()
-                        AccountSessionStore.clear(activity)
-                    }
-                    activity.finish()
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun getInitialProfile(): String {
-            val activity = ref.get() ?: return "{}"
-            val session = AccountSessionStore.read(activity)
-            if (!session.loggedIn) return "{}"
-            return activity.profileJson(session.user)
-        }
-
-        @JavascriptInterface
-        fun pickAvatar() {
-            ref.get()?.runOnUiThread { ref.get()?.requestPickAvatar() }
-        }
-
-        @JavascriptInterface
-        fun restoreDefaultAvatar() {
-            val activity = ref.get() ?: return
-            activity.runOnUiThread {
-                activity.lifecycleScope.launch {
-                    runCatching {
-                        activity.restoreDefaultAvatar()
-                    }.onSuccess {
-                        activity.sendSuccess("已恢复默认头像")
-                    }.onFailure {
-                        activity.sendError(it.message ?: "恢复默认头像失败")
-                    }
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun sendEmailCode(raw: String) {
-            val activity = ref.get() ?: return
-            activity.lifecycleScope.launch {
-                runCatching {
-                    val session = AccountSessionStore.read(activity)
-                    require(session.loggedIn) { "请先登录账号" }
-                    val email = JSONObject(raw).optString("email").trim()
-                    require(email.isNotBlank()) { "请输入新邮箱" }
-                    withContext(Dispatchers.IO) {
-                        activity.configManager.sendAccountProfileEmailCode(session.token, email)
-                    }
-                }.onSuccess {
-                    activity.sendEmailCodeSent()
-                    activity.sendSuccess("验证码已发送")
-                }.onFailure {
-                    activity.sendError(it.message ?: "验证码发送失败")
-                }
-            }
-        }
-
-        @JavascriptInterface
-        fun saveProfile(raw: String) {
-            val activity = ref.get() ?: return
-            activity.lifecycleScope.launch {
-                runCatching {
-                    val session = AccountSessionStore.read(activity)
-                    require(session.loggedIn) { "请先登录账号" }
-                    val json = JSONObject(raw)
-                    val username = json.optString("username").trim()
-                    val email = json.optString("email").trim()
-                    val code = json.optString("code").trim().ifBlank { null }
-                    require(username.isNotBlank()) { "请输入昵称" }
-                    require(email.isNotBlank()) { "请输入邮箱" }
-                    withContext(Dispatchers.IO) {
-                        activity.configManager.updateAccountProfile(
-                            token = session.token,
-                            username = username,
-                            email = email,
-                            code = code,
-                            avatarKey = null,
-                        )
-                    }
-                }.onSuccess { result ->
-                    AccountSessionStore.save(activity, result)
-                    activity.sendSaved(result.user)
-                }.onFailure {
-                    activity.sendError(it.message ?: "资料保存失败")
-                }
-            }
-        }
-    }
-
     companion object {
-        private const val PROFILE_WEB_URL = "file:///android_asset/account-profile/index.html"
-        private const val JS_INTERFACE_NAME = "AndroidAccountProfile"
         private const val MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
         fun start(context: Context) {
