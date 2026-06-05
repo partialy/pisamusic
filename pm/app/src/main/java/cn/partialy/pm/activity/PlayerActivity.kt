@@ -843,12 +843,15 @@ class PlayerActivity : BaseDownloadActivity() {
         val bottomSheet = dialog.findViewById<View>(
             com.google.android.material.R.id.design_bottom_sheet,
         ) ?: return
+        val capHeight = (resources.displayMetrics.heightPixels * 0.8f).toInt()
         bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
             height = ViewGroup.LayoutParams.WRAP_CONTENT
         }
         BottomSheetBehavior.from(bottomSheet as ViewGroup).apply {
             skipCollapsed = true
             isFitToContents = true
+            isDraggable = true
+            maxHeight = capHeight
             state = BottomSheetBehavior.STATE_EXPANDED
         }
         bottomSheet.requestLayout()
