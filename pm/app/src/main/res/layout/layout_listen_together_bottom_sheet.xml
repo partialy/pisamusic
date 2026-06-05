@@ -252,20 +252,56 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 创建房间按钮 -->
-            <TextView
-                android:id="@+id/listenTogetherCreateButton"
+            <!-- 创建房间 + 扫码加入 同一行 -->
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/bg_listen_together_create_button"
-                android:clickable="true"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="@string/listen_together_create_room"
-                android:textColor="@color/listen_together_create_button_text"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/listenTogetherCreateButton"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_listen_together_create_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:text="@string/listen_together_create_room"
+                    android:textColor="@color/listen_together_create_button_text"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/listenTogetherScanJoinButton"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_listen_together_create_card"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_qr_scan_24"
+                        app:tint="@color/listen_together_field_value" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/listen_together_scan_join"
+                        android:textColor="@color/listen_together_field_value"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
 
             <!-- 邀请码 + 加入 -->
             <LinearLayout
@@ -305,24 +341,6 @@
                     android:textSize="15sp"
                     android:textStyle="bold" />
             </LinearLayout>
-
-            <!-- 扫码加入 -->
-            <TextView
-                android:id="@+id/listenTogetherScanJoinButton"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/bg_listen_together_create_card"
-                android:clickable="true"
-                android:drawablePadding="8dp"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="@string/listen_together_scan_join"
-                android:textColor="@color/listen_together_field_value"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                app:drawableStartCompat="@drawable/ic_qr_scan_24"
-                app:drawableTint="@color/listen_together_field_value" />
 
             <!-- 底部当前歌曲卡片 -->
             <LinearLayout

@@ -98,9 +98,9 @@
 
     <!-- 一起听 创建房间面板 -->
     <color name="listen_together_card_bg">#22252C</color>
-    <color name="listen_together_create_button_start">#2F5A45</color>
-    <color name="listen_together_create_button_end">#3F6648</color>
-    <color name="listen_together_create_button_text">#E8F5EC</color>
+    <color name="listen_together_create_button_start">#0EA5E9</color>
+    <color name="listen_together_create_button_end">#38BDF8</color>
+    <color name="listen_together_create_button_text">#FFFFFF</color>
     <color name="listen_together_join_button_bg">#33363D</color>
     <color name="listen_together_join_button_text">#C8CCD2</color>
     <color name="listen_together_stepper_bg">#2E3138</color>

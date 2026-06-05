@@ -712,11 +712,15 @@ class PlayerActivity : BaseDownloadActivity() {
         val bottomSheet = dialog.findViewById<View>(
             com.google.android.material.R.id.design_bottom_sheet,
         ) ?: return
+        bottomSheet.layoutParams = bottomSheet.layoutParams.apply {
+            height = ViewGroup.LayoutParams.WRAP_CONTENT
+        }
         BottomSheetBehavior.from(bottomSheet as ViewGroup).apply {
             skipCollapsed = true
-            maxHeight = (resources.displayMetrics.heightPixels * 0.72f).toInt()
+            isFitToContents = true
             state = BottomSheetBehavior.STATE_EXPANDED
         }
+        bottomSheet.requestLayout()
     }
 
     private fun generateRandomRoomId(): String = (100000..999999).random().toString()
