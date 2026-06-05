@@ -8,19 +8,18 @@
     android:background="@drawable/bg_account_login_gradient"
     tools:context=".activity.LoginActivity">
 
-    <TextView
+    <ImageButton
         android:id="@+id/accountLoginBackButton"
         android:layout_width="44dp"
         android:layout_height="44dp"
-        android:layout_marginStart="24dp"
+        android:layout_marginStart="12dp"
         android:layout_marginTop="36dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:gravity="center"
-        android:text="&lt;"
-        android:textColor="@color/account_login_text_primary"
-        android:textSize="34sp"
-        android:textStyle="bold"
         android:contentDescription="@string/account_login_back"
+        android:padding="10dp"
+        android:scaleType="center"
+        android:src="@drawable/ic_back_24"
+        app:tint="@color/account_login_text_primary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -43,19 +42,12 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <FrameLayout
+            <ImageView
                 android:layout_width="66dp"
                 android:layout_height="66dp"
-                android:background="@drawable/bg_account_login_icon_holder"
-                android:elevation="4dp">
-
-                <ImageView
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_gravity="center"
-                    android:contentDescription="@null"
-                    android:src="@drawable/ic_pm_icon" />
-            </FrameLayout>
+                android:contentDescription="@null"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_pm_icon" />
 
             <LinearLayout
                 android:layout_width="0dp"
