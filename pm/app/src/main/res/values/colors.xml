@@ -135,6 +135,30 @@
     <color name="listen_together_field_label">#7C828A</color>
     <color name="listen_together_switch_track_on">#28C56B</color>
 
+    <!-- 一起听 房间状态面板 -->
+    <color name="listen_together_room_inner_card_bg">#FFFFFF</color>
+    <color name="listen_together_room_inner_card_stroke">#EDEBE4</color>
+    <color name="listen_together_section_label">#7C827E</color>
+    <color name="listen_together_member_chip_bg">#F4F3EE</color>
+    <color name="listen_together_member_chip_stroke">#EDEBE4</color>
+    <color name="listen_together_member_chip_text">#5C625F</color>
+    <color name="listen_together_member_chip_host_bg">#FBF2DA</color>
+    <color name="listen_together_member_chip_host_stroke">#F5E4BC</color>
+    <color name="listen_together_member_chip_host_text">#73561B</color>
+    <color name="listen_together_invite_button_bg">#F4F3EE</color>
+    <color name="listen_together_invite_button_stroke">#EDEBE4</color>
+    <color name="listen_together_invite_button_icon">#5C625F</color>
+    <color name="listen_together_latency_bg">#ECFDF5</color>
+    <color name="listen_together_latency_text">#059669</color>
+    <color name="listen_together_latency_dot">#10B981</color>
+    <color name="listen_together_position_text">#5C625F</color>
+    <color name="listen_together_divider">#EDEBE4</color>
+    <color name="listen_together_leave_bg">#FFF1F2</color>
+    <color name="listen_together_leave_stroke">#FFE4E6</color>
+    <color name="listen_together_leave_text">#E11D48</color>
+    <color name="listen_together_cover_grad_start">#D1FAE5</color>
+    <color name="listen_together_cover_grad_end">#BAE6FD</color>
+
     <!-- 我的资料页面 -->
     <color name="account_profile_page_bg">#F2F3F5</color>
     <color name="account_profile_card_bg">#FFFFFF</color>
