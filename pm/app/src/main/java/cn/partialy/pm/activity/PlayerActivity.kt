@@ -6,6 +6,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.RenderEffect
@@ -46,6 +47,7 @@ import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityPlayerBinding
 import cn.partialy.pm.databinding.LayoutListenTogetherBottomSheetBinding
 import cn.partialy.pm.listen.ListenTogetherManager
+import cn.partialy.pm.listen.ListenTogetherMember
 import cn.partialy.pm.listen.ListenTogetherState
 import cn.partialy.pm.listen.ListenTogetherUiEvent
 import cn.partialy.pm.listen.toSongInfo
@@ -72,10 +74,12 @@ import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
 import coil.request.ImageRequest
+import coil.transform.CircleCropTransformation
 import coil.ImageLoader
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
+import com.google.android.material.imageview.ShapeableImageView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.abs
 import kotlinx.coroutines.launch
@@ -431,8 +435,42 @@ class PlayerActivity : BaseDownloadActivity() {
         }
         binding.listenTogetherChip.visibility = View.VISIBLE
         applyListenTogetherLyricSpacing()
-        val status = if (state.socketConnected) "同步正常" else "重连中"
-        binding.listenTogetherChip.text = "一起听中 · ${room.displayPeople()}人 · $status"
+        binding.listenTogetherChipPeopleText.text = "${room.displayPeople()}人一起听中"
+        binding.listenTogetherChipLatencyText.text = if (state.socketConnected) "23ms" else "--ms"
+        applyListenTogetherChipStatus(state.socketConnected)
+        bindListenTogetherChipAvatars(room.members)
+        binding.listenTogetherChip.post { applyListenTogetherLyricSpacing() }
+    }
+
+    private fun applyListenTogetherChipStatus(connected: Boolean) {
+        val color = Color.parseColor(if (connected) "#34D399" else "#FBBF24")
+        binding.listenTogetherChipStatusDot.backgroundTintList = ColorStateList.valueOf(color)
+        binding.listenTogetherChipLatencyText.setTextColor(color)
+    }
+
+    private fun bindListenTogetherChipAvatars(members: List<ListenTogetherMember>) {
+        val displayMembers = members
+            .filter { it.online }
+            .ifEmpty { members }
+        bindListenTogetherAvatar(binding.listenTogetherAvatarFirst, displayMembers.getOrNull(0))
+        bindListenTogetherAvatar(binding.listenTogetherAvatarSecond, displayMembers.getOrNull(1))
+    }
+
+    private fun bindListenTogetherAvatar(
+        imageView: ShapeableImageView,
+        member: ListenTogetherMember?,
+    ) {
+        val avatarUrl = member?.avatarUrl.orEmpty()
+        if (avatarUrl.isBlank()) {
+            imageView.setImageResource(R.drawable.ic_pm_icon)
+            return
+        }
+        imageView.load(avatarUrl) {
+            crossfade(true)
+            placeholder(R.drawable.ic_pm_icon)
+            error(R.drawable.ic_pm_icon)
+            transformations(CircleCropTransformation())
+        }
     }
 
     private fun showListenTogetherSheet() {
@@ -728,7 +766,12 @@ class PlayerActivity : BaseDownloadActivity() {
 
     private fun listenTogetherLyricTopOffsetPx(): Int {
         if (listenTogetherManager.state.value.room == null) return 0
-        return (28f * resources.displayMetrics.density).toInt()
+        val measuredChipHeight = binding.listenTogetherChip.height
+        return measuredChipHeight.takeIf { it > 0 } ?: dp(48)
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
     }
 
     private fun submitLyrics(content: LyricContent) {
