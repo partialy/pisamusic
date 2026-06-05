@@ -234,6 +234,7 @@
                             app:strokeWidth="1dp" />
 
                         <FrameLayout
+                            android:id="@+id/listenTogetherAvatarMoreBadge"
                             android:layout_width="10dp"
                             android:layout_height="10dp"
                             android:layout_gravity="bottom|end"

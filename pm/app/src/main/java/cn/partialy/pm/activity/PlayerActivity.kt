@@ -457,9 +457,11 @@ class PlayerActivity : BaseDownloadActivity() {
         binding.listenTogetherChip.visibility = View.VISIBLE
         applyListenTogetherLyricSpacing()
         binding.listenTogetherChipPeopleText.text = "${room.displayPeople()}人一起听中"
-        binding.listenTogetherChipLatencyText.text = if (state.socketConnected) "23ms" else "--ms"
-        applyListenTogetherChipStatus(state.socketConnected)
-        bindListenTogetherChipAvatars(room.members)
+        val latencyMs = state.latencyMs
+        val latencyReady = state.socketConnected && latencyMs != null
+        binding.listenTogetherChipLatencyText.text = if (latencyReady) "${latencyMs}ms" else "--ms"
+        applyListenTogetherChipStatus(latencyReady)
+        bindListenTogetherChipAvatars(room, state.currentUserId)
         binding.listenTogetherChip.post { applyListenTogetherLyricSpacing() }
     }
 
@@ -469,12 +471,30 @@ class PlayerActivity : BaseDownloadActivity() {
         binding.listenTogetherChipLatencyText.setTextColor(color)
     }
 
-    private fun bindListenTogetherChipAvatars(members: List<ListenTogetherMember>) {
-        val displayMembers = members
+    private fun bindListenTogetherChipAvatars(
+        room: cn.partialy.pm.listen.ListenTogetherRoom,
+        currentUserId: String,
+    ) {
+        val displayMembers = room.members
             .filter { it.online }
-            .ifEmpty { members }
+            .ifEmpty { room.members }
+            .sortedWith(
+                compareBy<ListenTogetherMember> {
+                    when (it.userId) {
+                        room.hostUserId -> 0
+                        currentUserId -> 1
+                        else -> 2
+                    }
+                }.thenBy { it.joinedAt.takeIf { joinedAt -> joinedAt > 0L } ?: Long.MAX_VALUE }
+                    .thenBy { it.displayName() },
+            )
         bindListenTogetherAvatar(binding.listenTogetherAvatarFirst, displayMembers.getOrNull(0))
         bindListenTogetherAvatar(binding.listenTogetherAvatarSecond, displayMembers.getOrNull(1))
+        binding.listenTogetherAvatarMoreBadge.visibility = if (displayMembers.size > 2) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
     }
 
     private fun bindListenTogetherAvatar(

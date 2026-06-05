@@ -1,5 +1,6 @@
 package cn.partialy.pm.listen
 
+import android.os.SystemClock
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import io.socket.client.Ack
@@ -19,6 +20,7 @@ class ListenTogetherSocketClient @Inject constructor(
         fun onConnected()
         fun onDisconnected()
         fun onConnectError(message: String)
+        fun onLatencyUpdated(latencyMs: Long)
         fun onBroadcast(event: String, raw: JsonObject)
     }
 
@@ -149,7 +151,9 @@ class ListenTogetherSocketClient @Inject constructor(
             action = action,
             data = data,
         )
+        val sentAt = SystemClock.elapsedRealtime()
         socket.emit(event, JSONObject(gson.toJson(payload)), Ack { args ->
+            listener?.onLatencyUpdated((SystemClock.elapsedRealtime() - sentAt).coerceAtLeast(0L))
             ack(parseAck(args.firstOrNull(), dataClass))
         })
     }

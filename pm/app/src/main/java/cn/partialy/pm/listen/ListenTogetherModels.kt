@@ -107,6 +107,7 @@ data class ListenTogetherState(
     val room: ListenTogetherRoom? = null,
     val queue: ListenTogetherQueueState = ListenTogetherQueueState(),
     val socketConnected: Boolean = false,
+    val latencyMs: Long? = null,
     val joining: Boolean = false,
     val syncingFromRemote: Boolean = false,
     val lastVersion: Long = -1L,

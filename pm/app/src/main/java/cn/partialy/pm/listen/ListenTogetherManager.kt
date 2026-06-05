@@ -247,16 +247,22 @@ class ListenTogetherManager @Inject constructor(
 
             override fun onDisconnected() {
                 scope.launch {
-                    _state.value = _state.value.copy(socketConnected = false)
+                    _state.value = _state.value.copy(socketConnected = false, latencyMs = null)
                     updateHeartbeat()
                 }
             }
 
             override fun onConnectError(message: String) {
                 scope.launch {
-                    _state.value = _state.value.copy(socketConnected = false, joining = false)
+                    _state.value = _state.value.copy(socketConnected = false, latencyMs = null, joining = false)
                     updateHeartbeat()
                     emitToast(if (message.isBlank()) "一起听连接失败" else message)
+                }
+            }
+
+            override fun onLatencyUpdated(latencyMs: Long) {
+                scope.launch {
+                    _state.value = _state.value.copy(latencyMs = latencyMs)
                 }
             }
 
