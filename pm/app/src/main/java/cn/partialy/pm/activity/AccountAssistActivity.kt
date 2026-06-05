@@ -1,21 +1,18 @@
 package cn.partialy.pm.activity
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.view.View
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import androidx.activity.OnBackPressedCallback
-import androidx.core.graphics.Insets
+import android.widget.Toast
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityAccountAssistBinding
 import cn.partialy.pm.model.AccountAuthResult
@@ -26,16 +23,15 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class AccountAssistActivity : BaseActivity() {
     private lateinit var binding: ActivityAccountAssistBinding
-    private var statusBarInsets: Insets = Insets.NONE
-    private var navigationBarInsets: Insets = Insets.NONE
-    private val mode: String
-        get() = intent.getStringExtra(EXTRA_MODE)?.takeIf { it == MODE_RESET } ?: MODE_REGISTER
+    private var codeCountDownTimer: CountDownTimer? = null
+    private var codeCountingDown = false
+    private val isResetMode: Boolean
+        get() = intent.getStringExtra(EXTRA_MODE) == MODE_RESET
 
     @Inject
     lateinit var configManager: ConfigManager
@@ -43,121 +39,153 @@ class AccountAssistActivity : BaseActivity() {
     @Inject
     lateinit var syncManager: SyncManager
 
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityAccountAssistBinding.inflate(layoutInflater)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
 
+        setupSystemBars()
+        bindActions()
+        applyMode()
+    }
+
+    override fun onDestroy() {
+        codeCountDownTimer?.cancel()
+        super.onDestroy()
+    }
+
+    private fun setupSystemBars() {
         val isNight =
             (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = !isNight
             isAppearanceLightNavigationBars = !isNight
         }
-
-        setupWebView(binding.accountAssistWebView)
-        applySystemBarInsets(binding.accountAssistWebView)
-        binding.accountAssistWebView.addJavascriptInterface(AccountAssistBridge(), JS_INTERFACE_NAME)
-        binding.accountAssistWebView.loadUrl(ASSIST_WEB_URL)
-
-        onBackPressedDispatcher.addCallback(
-            this,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() = navigateBackOrFinish()
-            },
-        )
-    }
-
-    override fun onDestroy() {
-        if (::binding.isInitialized) {
-            binding.accountAssistWebView.removeJavascriptInterface(JS_INTERFACE_NAME)
-            binding.accountAssistWebView.destroy()
-        }
-        super.onDestroy()
-    }
-
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun setupWebView(webView: WebView) {
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadWithOverviewMode = true
-            useWideViewPort = true
-        }
-        webView.overScrollMode = View.OVER_SCROLL_NEVER
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView, url: String?) {
-                applySystemBarStyles(view)
-            }
-        }
-        webView.webChromeClient = WebChromeClient()
-    }
-
-    private fun applySystemBarInsets(webView: WebView) {
-        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
-            statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
-            navigationBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
-            applySystemBarStyles(webView)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.accountAssistRoot) { view, insets ->
+            val navigationBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            view.setPadding(0, 0, 0, navigationBar.bottom)
             insets
         }
-        webView.post { ViewCompat.requestApplyInsets(webView) }
+        ViewCompat.requestApplyInsets(binding.accountAssistRoot)
     }
 
-    private fun applySystemBarStyles(webView: WebView) {
-        val density = resources.displayMetrics.density
-        val statusBarPhysicalPx = statusBarHeightPhysicalPx(this).takeIf { it > 0 } ?: statusBarInsets.top
-        val statusBarCssPx = if (statusBarPhysicalPx > 0) (statusBarPhysicalPx / density + 0.5f).toInt() else 24
-        val navigationBarPhysicalPx = navigationBarInsets.bottom
-        val navigationBarCssPx = if (navigationBarPhysicalPx > 0) (navigationBarPhysicalPx / density + 0.5f).toInt() else 0
-        val js = """
-            (function() {
-                var statusBar = document.getElementById('android-status-bar');
-                if (statusBar) {
-                    statusBar.style.setProperty('height', '${statusBarCssPx}px', 'important');
+    private fun bindActions() {
+        binding.accountAssistBackButton.setOnClickListener { finish() }
+        binding.accountAssistSendCodeButton.setOnClickListener { sendEmailCode() }
+        binding.accountAssistSubmitButton.setOnClickListener {
+            if (isResetMode) resetPassword() else registerAccount()
+        }
+    }
+
+    private fun applyMode() {
+        if (isResetMode) {
+            binding.accountAssistTitleText.setText(R.string.account_assist_reset_title)
+            binding.accountAssistSubtitleText.setText(R.string.account_assist_reset_subtitle)
+            binding.accountAssistModeIcon.setImageResource(R.drawable.ic_account_assist_reset_24)
+            binding.accountAssistUsernameLayout.visibility = View.GONE
+            binding.accountAssistPasswordLayout.hint = getString(R.string.account_assist_new_password_hint)
+            binding.accountAssistSubmitButton.setText(R.string.account_assist_reset_submit)
+        } else {
+            binding.accountAssistTitleText.setText(R.string.account_assist_register_title)
+            binding.accountAssistSubtitleText.setText(R.string.account_assist_register_subtitle)
+            binding.accountAssistModeIcon.setImageResource(R.drawable.ic_account_assist_register_24)
+            binding.accountAssistUsernameLayout.visibility = View.VISIBLE
+            binding.accountAssistPasswordLayout.hint = getString(R.string.account_login_password_hint)
+            binding.accountAssistSubmitButton.setText(R.string.account_assist_register_submit)
+        }
+    }
+
+    private fun sendEmailCode() {
+        val email = emailText()
+        if (email.isBlank()) {
+            toast(R.string.account_login_email_required)
+            return
+        }
+        binding.accountAssistSendCodeButton.isEnabled = false
+        lifecycleScope.launch {
+            runCatching {
+                val purpose = if (isResetMode) "reset_password" else "register"
+                withContext(Dispatchers.IO) {
+                    configManager.sendAccountEmailCode(email, purpose)
                 }
-            })();
-            document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarCssPx}px');
-        """.trimIndent()
-        webView.evaluateJavascript(js, null)
-    }
-
-    private fun statusBarHeightPhysicalPx(context: Context): Int {
-        val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
-    }
-
-    private fun navigateBackOrFinish() {
-        val webView = binding.accountAssistWebView
-        if (webView.canGoBack()) webView.goBack() else finish()
-    }
-
-    private fun notifySuccess(message: String) {
-        binding.accountAssistWebView.post {
-            binding.accountAssistWebView.evaluateJavascript(
-                "window.assistPage && window.assistPage.success(${JSONObject.quote(message)})",
-                null,
-            )
+            }.onSuccess {
+                toast(R.string.account_login_code_sent)
+                startCodeCountDown()
+            }.onFailure { error ->
+                binding.accountAssistSendCodeButton.isEnabled = true
+                toast(error.message ?: getString(R.string.account_assist_code_send_failed))
+            }
         }
     }
 
-    private fun notifyError(message: String) {
-        binding.accountAssistWebView.post {
-            binding.accountAssistWebView.evaluateJavascript(
-                "window.assistPage && window.assistPage.error(${JSONObject.quote(message)})",
-                null,
-            )
+    private fun registerAccount() {
+        val email = emailText()
+        val username = usernameText()
+        val password = passwordText()
+        val code = codeText()
+        if (email.isBlank()) {
+            toast(R.string.account_login_email_required)
+            return
+        }
+        if (username.isBlank()) {
+            toast(R.string.account_assist_username_required)
+            return
+        }
+        if (password.isBlank()) {
+            toast(R.string.account_login_password_required)
+            return
+        }
+        if (code.isBlank()) {
+            toast(R.string.account_login_code_required)
+            return
+        }
+        setLoading(true)
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    configManager.registerAccount(email, username, password, code)
+                }
+            }.onSuccess(::notifyRegistered)
+                .onFailure { error ->
+                    setLoading(false)
+                    toast(error.message ?: getString(R.string.account_assist_register_failed))
+                }
         }
     }
 
-    private fun notifyEmailCodeSent() {
-        binding.accountAssistWebView.post {
-            binding.accountAssistWebView.evaluateJavascript(
-                "window.assistPage && window.assistPage.emailCodeSent()",
-                null,
-            )
+    private fun resetPassword() {
+        val email = emailText()
+        val password = passwordText()
+        val code = codeText()
+        if (email.isBlank()) {
+            toast(R.string.account_login_email_required)
+            return
+        }
+        if (password.isBlank()) {
+            toast(R.string.account_login_password_required)
+            return
+        }
+        if (code.isBlank()) {
+            toast(R.string.account_login_code_required)
+            return
+        }
+        setLoading(true)
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    configManager.resetAccountPassword(email, code, password)
+                }
+            }.onSuccess {
+                toast(R.string.account_assist_reset_success)
+                finish()
+            }.onFailure { error ->
+                setLoading(false)
+                toast(error.message ?: getString(R.string.account_assist_reset_failed))
+            }
         }
     }
 
@@ -171,85 +199,61 @@ class AccountAssistActivity : BaseActivity() {
                 AccountSessionStore.save(this@AccountAssistActivity, result)
                 syncManager.startAccountSync()
             }
-            binding.accountAssistWebView.post {
-                binding.accountAssistWebView.evaluateJavascript("window.assistPage && window.assistPage.registered()", null)
-            }
+            toast(R.string.account_login_success)
+            finish()
         }
     }
 
-    inner class AccountAssistBridge {
-        @JavascriptInterface
-        fun close() {
-            runOnUiThread { finish() }
-        }
-
-        @JavascriptInterface
-        fun getMode(): String = mode
-
-        @JavascriptInterface
-        fun sendEmailCode(raw: String) {
-            lifecycleScope.launch {
-                runCatching {
-                    val json = JSONObject(raw)
-                    val email = json.optString("email")
-                    val purpose = if (mode == MODE_RESET) "reset_password" else "register"
-                    withContext(Dispatchers.IO) { configManager.sendAccountEmailCode(email, purpose) }
-                }.onSuccess {
-                    notifyEmailCodeSent()
-                    notifySuccess("验证码已发送")
-                }.onFailure {
-                    notifyError(it.message ?: "验证码发送失败")
-                }
+    private fun startCodeCountDown() {
+        codeCountDownTimer?.cancel()
+        codeCountingDown = true
+        codeCountDownTimer = object : CountDownTimer(CODE_COUNTDOWN_MS, 1000L) {
+            override fun onTick(millisUntilFinished: Long) {
+                val seconds = (millisUntilFinished / 1000L).coerceAtLeast(1L)
+                binding.accountAssistSendCodeButton.text =
+                    getString(R.string.account_login_send_code_countdown, seconds)
             }
-        }
 
-        @JavascriptInterface
-        fun registerAccount(raw: String) {
-            lifecycleScope.launch {
-                runCatching {
-                    val json = JSONObject(raw)
-                    withContext(Dispatchers.IO) {
-                        configManager.registerAccount(
-                            email = json.optString("email"),
-                            username = json.optString("username"),
-                            password = json.optString("password"),
-                            code = json.optString("code"),
-                        )
-                    }
-                }.onSuccess(::notifyRegistered)
-                    .onFailure { notifyError(it.message ?: "注册失败") }
+            override fun onFinish() {
+                codeCountingDown = false
+                binding.accountAssistSendCodeButton.isEnabled = true
+                binding.accountAssistSendCodeButton.setText(R.string.account_assist_send_code)
             }
-        }
+        }.also { it.start() }
+    }
 
-        @JavascriptInterface
-        fun resetPassword(raw: String) {
-            lifecycleScope.launch {
-                runCatching {
-                    val json = JSONObject(raw)
-                    withContext(Dispatchers.IO) {
-                        configManager.resetAccountPassword(
-                            email = json.optString("email"),
-                            code = json.optString("code"),
-                            password = json.optString("password"),
-                        )
-                    }
-                }.onSuccess {
-                    binding.accountAssistWebView.post {
-                        binding.accountAssistWebView.evaluateJavascript("window.assistPage && window.assistPage.resetDone()", null)
-                    }
-                }.onFailure {
-                    notifyError(it.message ?: "密码重置失败")
-                }
-            }
-        }
+    private fun setLoading(loading: Boolean) {
+        binding.accountAssistSubmitButton.isEnabled = !loading
+        binding.accountAssistBackButton.isEnabled = !loading
+        binding.accountAssistSendCodeButton.isEnabled = !loading && !codeCountingDown
+        binding.accountAssistSubmitButton.alpha = if (loading) 0.72f else 1f
+    }
+
+    private fun emailText(): String =
+        binding.accountAssistEmailEditText.text?.toString()?.trim().orEmpty()
+
+    private fun usernameText(): String =
+        binding.accountAssistUsernameEditText.text?.toString()?.trim().orEmpty()
+
+    private fun passwordText(): String =
+        binding.accountAssistPasswordEditText.text?.toString().orEmpty()
+
+    private fun codeText(): String =
+        binding.accountAssistCodeEditText.text?.toString()?.trim().orEmpty()
+
+    private fun toast(messageRes: Int) {
+        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun toast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     companion object {
         const val MODE_REGISTER = "register"
         const val MODE_RESET = "reset"
         private const val EXTRA_MODE = "cn.partialy.pm.extra.ACCOUNT_ASSIST_MODE"
-        private const val ASSIST_WEB_URL = "file:///android_asset/account-assist/index.html"
-        private const val JS_INTERFACE_NAME = "AndroidAccountAssist"
+        private const val CODE_COUNTDOWN_MS = 60_000L
 
         fun start(context: Context, mode: String) {
             context.startActivity(

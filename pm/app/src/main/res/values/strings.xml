@@ -396,6 +396,20 @@
     <string name="listen_together_room_name_invalid">房间名 2-16 个字</string>
     <string name="listen_together_room_id_invalid">房间号需为 4-8 位数字</string>
     <string name="listen_together_scan_unavailable">扫码加入暂未开放</string>
+    <string name="listen_together_active_title">一起听中</string>
+    <string name="listen_together_room_meta">房间 %1$s · %2$d 人在线</string>
+    <string name="listen_together_section_now_playing">当前同步</string>
+    <string name="listen_together_section_members">成员</string>
+    <string name="listen_together_section_invite">邀请朋友</string>
+    <string name="listen_together_section_permission">播放权限</string>
+    <string name="listen_together_permission_subtitle">允许成员操作歌曲</string>
+    <string name="listen_together_latency_value">%1$dms</string>
+    <string name="listen_together_position_value">%1$s / %2$s</string>
+    <string name="listen_together_role_host">房主</string>
+    <string name="listen_together_role_me">我</string>
+    <string name="listen_together_room_empty_song">等待房主播放歌曲</string>
+    <string name="listen_together_only_host">仅房主控制</string>
+    <string name="listen_together_reconnecting">正在重连</string>
 
     <!-- 我的资料 -->
     <string name="account_profile_title">我的资料</string>
@@ -465,4 +479,21 @@
     <string name="account_login_success">登录成功</string>
     <string name="account_login_failed">登录失败</string>
     <string name="account_login_phone_unavailable">暂未实现，请使用其他登录方式</string>
+
+    <!-- 自有账号注册 / 找回密码 -->
+    <string name="account_assist_register_title">注册账号</string>
+    <string name="account_assist_register_subtitle">创建 PisaMusic 账号</string>
+    <string name="account_assist_reset_title">找回密码</string>
+    <string name="account_assist_reset_subtitle">验证邮箱后设置新密码</string>
+    <string name="account_assist_username_hint">用户名</string>
+    <string name="account_assist_new_password_hint">新密码</string>
+    <string name="account_assist_email_code_hint">邮箱验证码</string>
+    <string name="account_assist_send_code">发送</string>
+    <string name="account_assist_register_submit">注册并登录</string>
+    <string name="account_assist_reset_submit">重置密码</string>
+    <string name="account_assist_username_required">请输入用户名</string>
+    <string name="account_assist_reset_success">密码已重置，请使用新密码登录</string>
+    <string name="account_assist_register_failed">注册失败</string>
+    <string name="account_assist_reset_failed">密码重置失败</string>
+    <string name="account_assist_code_send_failed">验证码发送失败</string>
 </resources>
