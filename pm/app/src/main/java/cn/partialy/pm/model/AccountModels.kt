@@ -115,4 +115,5 @@ data class AccountUser(
     val avatarKey: String = "default",
     val avatarUrl: String = "",
     val createdAt: Long = 0L,
+    val lastLoginAt: Long? = null,
 )

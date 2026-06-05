@@ -26,6 +26,11 @@
         <item name="cornerSize">12dp</item>
     </style>
 
+    <style name="ShapeAppearance.Pm.Circular">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
     <!-- 设置页：白滑块 + 蓝轨道（开）/ 灰轨道（关），接近 Web / iOS 开关 -->
     <style name="Widget.Pm.SettingsSwitch" parent="Widget.Material3.CompoundButton.Switch">
         <item name="thumbTint">@color/settings_switch_thumb</item>

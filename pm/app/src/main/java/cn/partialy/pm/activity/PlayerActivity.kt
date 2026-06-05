@@ -57,6 +57,7 @@ import cn.partialy.pm.lyric.LyricRepository
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.downloadOptionsForSongType
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
@@ -523,15 +524,77 @@ class PlayerActivity : BaseDownloadActivity() {
         listenTogetherDialog = dialog
         listenTogetherSheetBinding = sheetBinding
 
+        val session = AccountSessionStore.read(this)
+        val username = session.user.username.ifBlank { "我的" }
+        sheetBinding.listenTogetherRoomNameInput.hint = "${username}的音乐房"
+        sheetBinding.listenTogetherRoomIdInput.setText(generateRandomRoomId())
+        sheetBinding.listenTogetherRoomIdInput.setSelection(
+            sheetBinding.listenTogetherRoomIdInput.text?.length ?: 0,
+        )
+
+        val minPeople = 2
+        val maxPeopleLimit = 8
+        var currentMaxPeople = minPeople
+        fun refreshMaxPeople() {
+            sheetBinding.listenTogetherMaxPeopleValue.text =
+                getString(R.string.listen_together_max_people_value, currentMaxPeople)
+            sheetBinding.listenTogetherMaxPeopleMinus.isEnabled = currentMaxPeople > minPeople
+            sheetBinding.listenTogetherMaxPeopleMinus.alpha =
+                if (sheetBinding.listenTogetherMaxPeopleMinus.isEnabled) 1f else 0.4f
+            sheetBinding.listenTogetherMaxPeoplePlus.isEnabled = currentMaxPeople < maxPeopleLimit
+            sheetBinding.listenTogetherMaxPeoplePlus.alpha =
+                if (sheetBinding.listenTogetherMaxPeoplePlus.isEnabled) 1f else 0.4f
+        }
+        refreshMaxPeople()
+        sheetBinding.listenTogetherMaxPeopleMinus.setOnClickListener {
+            if (currentMaxPeople > minPeople) {
+                currentMaxPeople--
+                refreshMaxPeople()
+            }
+        }
+        sheetBinding.listenTogetherMaxPeoplePlus.setOnClickListener {
+            if (currentMaxPeople < maxPeopleLimit) {
+                currentMaxPeople++
+                refreshMaxPeople()
+            }
+        }
+
+        sheetBinding.listenTogetherMemberOperationSwitchCreate.isChecked = true
+        sheetBinding.listenTogetherMemberOperationStatus.text =
+            getString(R.string.listen_together_member_op_on)
+        sheetBinding.listenTogetherMemberOperationSwitchCreate.setOnCheckedChangeListener { _, checked ->
+            sheetBinding.listenTogetherMemberOperationStatus.text = getString(
+                if (checked) R.string.listen_together_member_op_on
+                else R.string.listen_together_member_op_off,
+            )
+        }
+
         sheetBinding.listenTogetherCloseButton.setOnClickListener { dialog.dismiss() }
         sheetBinding.listenTogetherCreateButton.setOnClickListener {
+            val nameInput = sheetBinding.listenTogetherRoomNameInput.text?.toString()?.trim().orEmpty()
+            val roomName = nameInput.ifBlank {
+                sheetBinding.listenTogetherRoomNameInput.hint?.toString().orEmpty()
+            }
+            val roomId = sheetBinding.listenTogetherRoomIdInput.text?.toString()?.trim()
+                ?.takeIf { it.isNotBlank() }
+            val memberOperation = sheetBinding.listenTogetherMemberOperationSwitchCreate.isChecked
+            val people = currentMaxPeople
             lifecycleScope.launch {
-                listenTogetherManager.createRoom(musicController.currentSong.value)
+                listenTogetherManager.createRoom(
+                    currentSong = musicController.currentSong.value,
+                    roomName = roomName,
+                    roomId = roomId,
+                    maxPeople = people,
+                    memberOperation = memberOperation,
+                )
             }
         }
         sheetBinding.listenTogetherJoinButton.setOnClickListener {
             val roomId = sheetBinding.listenTogetherRoomInput.text?.toString().orEmpty()
             lifecycleScope.launch { listenTogetherManager.joinRoom(roomId) }
+        }
+        sheetBinding.listenTogetherScanJoinButton.setOnClickListener {
+            Toast.makeText(this, R.string.listen_together_scan_unavailable, Toast.LENGTH_SHORT).show()
         }
         sheetBinding.listenTogetherCopyButton.setOnClickListener {
             val roomId = listenTogetherManager.state.value.room?.roomId ?: return@setOnClickListener
@@ -577,9 +640,24 @@ class PlayerActivity : BaseDownloadActivity() {
         val room = state.room
         val currentSong = musicController.currentSong.value
         sheetBinding.listenTogetherCreateButton.isEnabled = !state.joining
+        sheetBinding.listenTogetherCreateButton.alpha = if (state.joining) 0.6f else 1f
         sheetBinding.listenTogetherJoinButton.isEnabled = !state.joining
-        sheetBinding.listenTogetherCurrentSongView.text = currentSong?.let { "${it.name} - ${it.artist}" }
-            ?: "暂无正在播放的歌曲"
+        sheetBinding.listenTogetherJoinButton.alpha = if (state.joining) 0.6f else 1f
+
+        if (currentSong != null) {
+            sheetBinding.listenTogetherCurrentSongName.text = currentSong.name
+            sheetBinding.listenTogetherCurrentSongArtist.text = currentSong.artist
+            val cover = currentSong.coverUrl
+            if (cover.isNotBlank()) {
+                sheetBinding.listenTogetherCurrentSongCover.load(cover)
+            } else {
+                sheetBinding.listenTogetherCurrentSongCover.setImageDrawable(null)
+            }
+        } else {
+            sheetBinding.listenTogetherCurrentSongName.text = "暂无正在播放的歌曲"
+            sheetBinding.listenTogetherCurrentSongArtist.text = ""
+            sheetBinding.listenTogetherCurrentSongCover.setImageDrawable(null)
+        }
 
         if (room == null) {
             sheetBinding.listenTogetherTitleView.text = getString(R.string.listen_together_title)
@@ -640,6 +718,8 @@ class PlayerActivity : BaseDownloadActivity() {
             state = BottomSheetBehavior.STATE_EXPANDED
         }
     }
+
+    private fun generateRandomRoomId(): String = (100000..999999).random().toString()
 
     private fun syncLoveButton(song: SongInfo) {
         val liked = loveManager.isSongInLoveList(song)

@@ -57,7 +57,14 @@ class ListenTogetherManager @Inject constructor(
         observeLocalPlayer()
     }
 
-    suspend fun createRoom(currentSong: SongInfo?, replaceExisting: Boolean = false) {
+    suspend fun createRoom(
+        currentSong: SongInfo?,
+        roomName: String? = null,
+        roomId: String? = null,
+        maxPeople: Int? = null,
+        memberOperation: Boolean? = null,
+        replaceExisting: Boolean = false,
+    ) {
         val session = requireSession() ?: return
         val song = currentSong ?: run {
             emitToast("先播放一首在线歌曲，再创建一起听房间")
@@ -68,16 +75,32 @@ class ListenTogetherManager @Inject constructor(
             return
         }
 
+        val trimmedName = roomName?.trim()
+        if (trimmedName != null && (trimmedName.length < 2 || trimmedName.length > 16)) {
+            emitToast("房间名 2-16 个字")
+            return
+        }
+        val trimmedRoomId = roomId?.trim()?.takeIf { it.isNotBlank() }
+        if (trimmedRoomId != null && !trimmedRoomId.matches(Regex("\\d{4,8}"))) {
+            emitToast("房间号需为 4-8 位数字")
+            return
+        }
+
         runCatching {
             _state.value = _state.value.copy(joining = true, currentUserId = session.user.id)
             val config = repository.getConfig()
-            val name = "${session.user.username.ifBlank { "我的" }}的听歌房".take(40)
+            val defaultName = "${session.user.username.ifBlank { "我的" }}的音乐房".take(40)
+            val effectiveName = (trimmedName ?: defaultName).take(40)
+            val peopleLimit = config.maxPeopleLimit.coerceAtLeast(2)
+            val effectiveMaxPeople = (maxPeople ?: config.defaultMaxPeople).coerceIn(2, peopleLimit)
+            val effectiveMemberOperation = memberOperation ?: false
             val room = repository.createRoom(
                 token = session.token,
                 request = ListenTogetherCreateRoomRequest(
-                    roomName = name,
-                    maxPeople = config.defaultMaxPeople.coerceIn(2, config.maxPeopleLimit.coerceAtLeast(2)),
-                    memberOperation = false,
+                    roomName = effectiveName,
+                    roomId = trimmedRoomId,
+                    maxPeople = effectiveMaxPeople,
+                    memberOperation = effectiveMemberOperation,
                     replaceExisting = replaceExisting,
                 ),
             )

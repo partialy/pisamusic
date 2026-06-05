@@ -95,4 +95,29 @@
     <color name="pm_dialog_cancel">#66FFFFFF</color>
     <color name="pm_dialog_confirm">#38BDF8</color>
     <color name="pm_dialog_divider">#10FFFFFF</color>
+
+    <!-- 一起听 创建房间面板 -->
+    <color name="listen_together_card_bg">#22252C</color>
+    <color name="listen_together_create_button_start">#2F5A45</color>
+    <color name="listen_together_create_button_end">#3F6648</color>
+    <color name="listen_together_create_button_text">#E8F5EC</color>
+    <color name="listen_together_join_button_bg">#33363D</color>
+    <color name="listen_together_join_button_text">#C8CCD2</color>
+    <color name="listen_together_stepper_bg">#2E3138</color>
+    <color name="listen_together_field_value">#F4F6FA</color>
+    <color name="listen_together_field_label">#8B919B</color>
+    <color name="listen_together_switch_track_on">#28C56B</color>
+
+    <!-- 我的资料页面 -->
+    <color name="account_profile_page_bg">#17191D</color>
+    <color name="account_profile_card_bg">#1E2126</color>
+    <color name="account_profile_avatar_chip_bg">#2A2D34</color>
+    <color name="account_profile_avatar_chip_stroke">#3D424C</color>
+    <color name="account_profile_avatar_chip_text">#F4F6FA</color>
+    <color name="account_profile_label">#8B919B</color>
+    <color name="account_profile_value">#F4F6FA</color>
+    <color name="account_profile_save_button_bg">#3B62F0</color>
+    <color name="account_profile_save_button_text">#FFFFFF</color>
+    <color name="account_profile_logout_text">#FF7A8A</color>
+    <color name="account_profile_chevron_tint">#5C616B</color>
 </resources>
