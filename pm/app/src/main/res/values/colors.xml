@@ -31,7 +31,7 @@
 
     <color name="primary">#2196F3</color>
     <!-- 设置开关：轨道开/关、滑块（浅色主题） -->
-    <color name="settings_switch_track_on">@color/blue_selected</color>
+    <color name="settings_switch_track_on">@color/primary</color>
     <color name="settings_switch_track_off">#E5E5EA</color>
     <color name="settings_switch_thumb_checked">#FFFFFFFF</color>
     <color name="settings_switch_thumb_unchecked">#FFFFFFFF</color>

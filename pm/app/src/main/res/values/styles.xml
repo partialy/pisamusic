@@ -31,10 +31,14 @@
         <item name="cornerSize">50%</item>
     </style>
 
-    <!-- 设置页：白滑块 + 蓝轨道（开）/ 灰轨道（关），接近 Web / iOS 开关 -->
-    <style name="Widget.Pm.SettingsSwitch" parent="Widget.Material3.CompoundButton.Switch">
-        <item name="thumbTint">@color/settings_switch_thumb</item>
-        <item name="trackTint">@color/settings_switch_track</item>
+    <!-- 设置开关：自定义厚轨道 + 白色内嵌滑块 -->
+    <style name="Widget.Pm.SettingsSwitch" parent="Widget.MaterialComponents.CompoundButton.Switch">
+        <item name="track">@drawable/switch_track</item>
+        <item name="android:thumb">@drawable/switch_thumb</item>
+        <item name="switchMinWidth">52dp</item>
+        <item name="thumbTextPadding">0dp</item>
+        <item name="trackTint">@null</item>
+        <item name="thumbTint">@null</item>
         <item name="useMaterialThemeColors">false</item>
     </style>
 </resources>
