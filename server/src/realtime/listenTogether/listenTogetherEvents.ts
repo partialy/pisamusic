@@ -8,6 +8,7 @@ export const listenTogetherClientEvents = {
   ended: "listen:ended",
   sync: "listen:sync",
   updateRoom: "listen:update_room",
+  queue: "listen:queue",
   kickMember: "listen:kick_member",
   transferHost: "listen:transfer_host",
 } as const;

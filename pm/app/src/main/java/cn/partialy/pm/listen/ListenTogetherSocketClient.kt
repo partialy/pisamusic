@@ -117,6 +117,20 @@ class ListenTogetherSocketClient @Inject constructor(
         )
     }
 
+    fun emitQueueEvent(
+        roomId: String,
+        kind: String,
+        targetUserId: String? = null,
+        data: Map<String, Any?> = emptyMap(),
+        ack: (ListenTogetherAck<Unit>) -> Unit = {},
+    ) {
+        val eventData = data.toMutableMap().apply {
+            put("kind", kind)
+            if (!targetUserId.isNullOrBlank()) put("targetUserId", targetUserId)
+        }
+        emit("listen:queue", roomId, "QUEUE", eventData, Unit::class.java, ack)
+    }
+
     private fun <T> emit(
         event: String,
         roomId: String,
@@ -169,6 +183,7 @@ class ListenTogetherSocketClient @Inject constructor(
             "MEMBER_KICKED",
             "HOST_TRANSFERRED",
             "ROOM_DESTROYED",
+            "QUEUE_EVENT",
             "ERROR_MESSAGE",
         )
     }

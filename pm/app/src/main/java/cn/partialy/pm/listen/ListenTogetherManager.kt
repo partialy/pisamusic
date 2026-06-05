@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
+import java.util.UUID
 
 @OptIn(UnstableApi::class)
 @Singleton
@@ -48,6 +49,9 @@ class ListenTogetherManager @Inject constructor(
     private var lastEndedSongKey: String? = null
     private var suppressedLocalSongKey: String? = null
     private var heartbeatJob: Job? = null
+    private var pendingSnapshotId: String? = null
+    private var pendingSnapshotChunkCount: Int = 0
+    private val pendingSnapshotChunks = mutableMapOf<Int, List<ListenTogetherQueueItem>>()
 
     init {
         observeLocalPlayer()
@@ -126,8 +130,11 @@ class ListenTogetherManager @Inject constructor(
             musicController.previous(auto = false)
             return
         }
-        val target = targetQueueSong(offset = -1) ?: return
-        playAndBroadcastSong(target)
+        if (_state.value.isHost) {
+            playOffsetQueueItemAsHost(offset = -1)
+        } else {
+            emitQueueCommand(ListenTogetherQueueCommand(command = QUEUE_COMMAND_PREVIOUS))
+        }
     }
 
     fun requestNext() {
@@ -137,11 +144,18 @@ class ListenTogetherManager @Inject constructor(
             musicController.next(auto = false)
             return
         }
-        val target = targetQueueSong(offset = 1) ?: return
-        playAndBroadcastSong(target)
+        if (_state.value.isHost) {
+            playOffsetQueueItemAsHost(offset = 1)
+        } else {
+            emitQueueCommand(ListenTogetherQueueCommand(command = QUEUE_COMMAND_NEXT))
+        }
     }
 
     fun requestPlaySong(song: SongInfo) {
+        requestQueueSong(song)
+    }
+
+    fun requestQueueSong(song: SongInfo) {
         if (!guardControl()) return
         if (song.type == SongType.LOCAL && _state.value.enabled) {
             emitToast("本地歌曲暂不支持一起听")
@@ -151,7 +165,36 @@ class ListenTogetherManager @Inject constructor(
             musicController.play(song)
             return
         }
-        playAndBroadcastSong(song)
+        if (_state.value.isHost) {
+            addSongAndPlayAsHost(song)
+        } else {
+            emitQueueCommand(
+                ListenTogetherQueueCommand(
+                    command = QUEUE_COMMAND_ADD_AND_PLAY,
+                    song = song.toListenTogetherSong(musicController.duration.value),
+                ),
+            )
+        }
+    }
+
+    fun requestPlayQueueItem(queueItemId: String) {
+        if (!guardControl()) return
+        if (_state.value.room == null) return
+        if (_state.value.isHost) {
+            playQueueItemAsHost(queueItemId)
+        } else {
+            emitQueueCommand(ListenTogetherQueueCommand(command = QUEUE_COMMAND_PLAY_ITEM, queueItemId = queueItemId))
+        }
+    }
+
+    fun requestRemoveQueueItem(queueItemId: String) {
+        if (!guardControl()) return
+        if (_state.value.room == null) return
+        if (_state.value.isHost) {
+            removeQueueItemAsHost(queueItemId)
+        } else {
+            emitQueueCommand(ListenTogetherQueueCommand(command = QUEUE_COMMAND_REMOVE_ITEM, queueItemId = queueItemId))
+        }
     }
 
     fun updateMemberOperation(enabled: Boolean) {
@@ -232,6 +275,7 @@ class ListenTogetherManager @Inject constructor(
                 }
                 applyRoom(room, joining = false)
                 syncPlayerToRoom(room, operatorUserId = null)
+                requestQueueSnapshot()
             }
         }
     }
@@ -246,6 +290,7 @@ class ListenTogetherManager @Inject constructor(
                 val room = ack.data?.room ?: return@launch
                 applyRoom(room, joining = false)
                 syncPlayerToRoom(room, operatorUserId = null)
+                requestQueueSnapshot()
             }
         }
     }
@@ -293,11 +338,14 @@ class ListenTogetherManager @Inject constructor(
         }
         scope.launch {
             musicController.playbackState.collect { playbackState ->
-                if (playbackState != Player.STATE_ENDED || !shouldEmitLocalPlayback()) return@collect
+                if (playbackState != Player.STATE_ENDED) return@collect
+                val state = _state.value
+                if (!state.enabled || !state.socketConnected || state.syncingFromRemote || !state.isHost) return@collect
                 val room = _state.value.room ?: return@collect
                 val key = musicController.currentSong.value.key()
                 if (key == null || lastEndedSongKey == key) return@collect
                 lastEndedSongKey = key
+                if (playOffsetQueueItemAsHost(offset = 1)) return@collect
                 socketClient.emitEnded(room.roomId, musicController.duration.value) { handleRoomAck(it) }
             }
         }
@@ -321,6 +369,276 @@ class ListenTogetherManager @Inject constructor(
             song = song.toListenTogetherSong(musicController.duration.value),
             autoPlay = autoPlay,
         ) { handleRoomAck(it) }
+    }
+
+    private fun ensureHostQueueInitialized() {
+        val state = _state.value
+        if (!state.isHost || state.queue.items.isNotEmpty()) return
+        val currentSong = musicController.currentSong.value
+        val songs = musicController.playList.value
+            .filter { it.type != SongType.LOCAL }
+            .toMutableList()
+        if (currentSong != null && currentSong.type != SongType.LOCAL) {
+            val exists = songs.any { it.type == currentSong.type && it.id == currentSong.id }
+            if (!exists) songs.add(0, currentSong)
+        }
+        val items = songs.map { it.toQueueItem(state.currentUserId) }
+        val currentItemId = currentSong?.let { song ->
+            items.firstOrNull { it.song.source == song.type.name.lowercase() && it.song.id == song.id }?.queueItemId
+        } ?: items.firstOrNull()?.queueItemId
+        _state.value = state.copy(
+            queue = ListenTogetherQueueState(
+                queueVersion = state.queue.queueVersion + 1,
+                currentItemId = currentItemId,
+                items = items,
+            ),
+        )
+    }
+
+    private fun addSongAndPlayAsHost(song: SongInfo, addedByUserId: String = _state.value.currentUserId) {
+        if (song.type == SongType.LOCAL) {
+            emitToast("本地歌曲暂不支持一起听")
+            return
+        }
+        ensureHostQueueInitialized()
+        val item = song.toQueueItem(addedByUserId)
+        val state = _state.value
+        val queue = state.queue.copy(
+            queueVersion = state.queue.queueVersion + 1,
+            currentItemId = item.queueItemId,
+            items = state.queue.items + item,
+            syncing = false,
+            snapshotId = null,
+        )
+        _state.value = state.copy(queue = queue)
+        playQueueSongAsHost(item, queue)
+    }
+
+    private fun playQueueItemAsHost(queueItemId: String) {
+        ensureHostQueueInitialized()
+        val state = _state.value
+        val item = state.queue.items.firstOrNull { it.queueItemId == queueItemId } ?: return
+        val queue = state.queue.copy(
+            queueVersion = state.queue.queueVersion + 1,
+            currentItemId = item.queueItemId,
+            syncing = false,
+            snapshotId = null,
+        )
+        _state.value = state.copy(queue = queue)
+        playQueueSongAsHost(item, queue)
+    }
+
+    private fun playOffsetQueueItemAsHost(offset: Int): Boolean {
+        ensureHostQueueInitialized()
+        val queue = _state.value.queue
+        if (queue.items.isEmpty()) return false
+        val currentIndex = queue.currentIndex().takeIf { it >= 0 } ?: currentQueueIndexFromSong(queue)
+        val targetIndex = when {
+            offset > 0 && currentIndex >= queue.items.lastIndex -> 0
+            offset > 0 -> currentIndex + 1
+            offset < 0 && currentIndex <= 0 -> queue.items.lastIndex
+            offset < 0 -> currentIndex - 1
+            else -> currentIndex
+        }
+        val target = queue.items.getOrNull(targetIndex) ?: return false
+        playQueueItemAsHost(target.queueItemId)
+        return true
+    }
+
+    private fun removeQueueItemAsHost(queueItemId: String) {
+        ensureHostQueueInitialized()
+        val state = _state.value
+        val queue = state.queue
+        val removeIndex = queue.items.indexOfFirst { it.queueItemId == queueItemId }
+        if (removeIndex < 0) return
+        val wasCurrent = queue.currentItemId == queueItemId
+        val nextItems = queue.items.filterNot { it.queueItemId == queueItemId }
+        val nextCurrent = when {
+            !wasCurrent -> queue.currentItemId
+            nextItems.isEmpty() -> null
+            else -> nextItems[removeIndex.coerceAtMost(nextItems.lastIndex)].queueItemId
+        }
+        val nextQueue = queue.copy(
+            queueVersion = queue.queueVersion + 1,
+            currentItemId = nextCurrent,
+            items = nextItems,
+            syncing = false,
+            snapshotId = null,
+        )
+        _state.value = state.copy(queue = nextQueue)
+        emitQueueDelta(nextQueue)
+        if (!wasCurrent) return
+        val nextItem = nextItems.firstOrNull { it.queueItemId == nextCurrent }
+        if (nextItem != null) {
+            playQueueSongAsHost(nextItem, nextQueue, emitDelta = false)
+        } else {
+            musicController.pauseCurrent()
+            state.room?.roomId?.let { socketClient.emitPause(it, musicController.currentPosition.value) { handleRoomAck(it) } }
+        }
+    }
+
+    private fun playQueueSongAsHost(
+        item: ListenTogetherQueueItem,
+        queue: ListenTogetherQueueState,
+        emitDelta: Boolean = true,
+    ) {
+        val song = item.song.toSongInfo()
+        suppressedLocalSongKey = song.key().takeIf { it != musicController.currentSong.value.key() }
+        musicController.play(song, autoPlay = true)
+        if (emitDelta) emitQueueDelta(queue)
+        emitChangeSong(song, autoPlay = true)
+    }
+
+    private fun emitQueueCommand(command: ListenTogetherQueueCommand) {
+        val room = _state.value.room ?: return
+        socketClient.emitQueueEvent(
+            roomId = room.roomId,
+            kind = QUEUE_KIND_COMMAND,
+            targetUserId = room.hostUserId,
+            data = mapOf(
+                "command" to command.command,
+                "queueItemId" to command.queueItemId,
+                "song" to command.song,
+            ),
+        ) { ack ->
+            scope.launch {
+                if (!ack.success) handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "一起听队列操作失败" })
+            }
+        }
+    }
+
+    private fun requestQueueSnapshot() {
+        val room = _state.value.room ?: return
+        if (_state.value.isHost) return
+        _state.value = _state.value.copy(queue = _state.value.queue.copy(syncing = true))
+        socketClient.emitQueueEvent(
+            roomId = room.roomId,
+            kind = QUEUE_KIND_SNAPSHOT_REQUEST,
+            targetUserId = room.hostUserId,
+        ) { ack ->
+            scope.launch {
+                if (!ack.success) handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "请求房间队列失败" })
+            }
+        }
+    }
+
+    private fun sendQueueSnapshot(targetUserId: String) {
+        ensureHostQueueInitialized()
+        val room = _state.value.room ?: return
+        val queue = _state.value.queue
+        val snapshotId = UUID.randomUUID().toString()
+        val chunks = queue.items.chunked(QUEUE_SNAPSHOT_CHUNK_SIZE).ifEmpty { listOf(emptyList()) }
+        scope.launch {
+            chunks.forEachIndexed { index, items ->
+                socketClient.emitQueueEvent(
+                    roomId = room.roomId,
+                    kind = QUEUE_KIND_SNAPSHOT_CHUNK,
+                    targetUserId = targetUserId,
+                    data = mapOf(
+                        "snapshotId" to snapshotId,
+                        "queueVersion" to queue.queueVersion,
+                        "total" to queue.items.size,
+                        "chunkIndex" to index,
+                        "chunkCount" to chunks.size,
+                        "currentItemId" to queue.currentItemId,
+                        "items" to items,
+                    ),
+                )
+                if (index < chunks.lastIndex) delay(QUEUE_SNAPSHOT_CHUNK_DELAY_MS)
+            }
+        }
+    }
+
+    private fun emitQueueDelta(queue: ListenTogetherQueueState = _state.value.queue) {
+        val room = _state.value.room ?: return
+        socketClient.emitQueueEvent(
+            roomId = room.roomId,
+            kind = QUEUE_KIND_DELTA,
+            data = mapOf(
+                "queueVersion" to queue.queueVersion,
+                "currentItemId" to queue.currentItemId,
+                "items" to queue.items,
+            ),
+        )
+    }
+
+    private fun handleQueueEvent(data: JsonObject?) {
+        val kind = data.getString("kind")
+        val fromUserId = data.getString("fromUserId")
+        if (fromUserId == _state.value.currentUserId) return
+        when (kind) {
+            QUEUE_KIND_SNAPSHOT_REQUEST -> {
+                if (_state.value.isHost && fromUserId.isNotBlank()) sendQueueSnapshot(fromUserId)
+            }
+            QUEUE_KIND_SNAPSHOT_CHUNK -> applyQueueSnapshotChunk(
+                gson.fromJson(data, ListenTogetherQueueSnapshotChunk::class.java),
+            )
+            QUEUE_KIND_COMMAND -> {
+                if (_state.value.isHost && fromUserId.isNotBlank()) {
+                    handleQueueCommand(fromUserId, gson.fromJson(data, ListenTogetherQueueCommand::class.java))
+                }
+            }
+            QUEUE_KIND_DELTA -> applyQueueDelta(gson.fromJson(data, ListenTogetherQueueDelta::class.java))
+        }
+    }
+
+    private fun handleQueueCommand(fromUserId: String, command: ListenTogetherQueueCommand) {
+        val room = _state.value.room ?: return
+        if (!room.memberOperation) return
+        when (command.command) {
+            QUEUE_COMMAND_ADD_AND_PLAY -> command.song?.toSongInfo()?.let { addSongAndPlayAsHost(it, fromUserId) }
+            QUEUE_COMMAND_PLAY_ITEM -> command.queueItemId?.let { playQueueItemAsHost(it) }
+            QUEUE_COMMAND_REMOVE_ITEM -> command.queueItemId?.let { removeQueueItemAsHost(it) }
+            QUEUE_COMMAND_NEXT -> playOffsetQueueItemAsHost(offset = 1)
+            QUEUE_COMMAND_PREVIOUS -> playOffsetQueueItemAsHost(offset = -1)
+        }
+    }
+
+    private fun applyQueueSnapshotChunk(chunk: ListenTogetherQueueSnapshotChunk) {
+        if (chunk.snapshotId.isBlank() || chunk.chunkCount <= 0) return
+        if (pendingSnapshotId != chunk.snapshotId) {
+            pendingSnapshotId = chunk.snapshotId
+            pendingSnapshotChunkCount = chunk.chunkCount
+            pendingSnapshotChunks.clear()
+            _state.value = _state.value.copy(
+                queue = _state.value.queue.copy(syncing = true, snapshotId = chunk.snapshotId),
+            )
+        }
+        pendingSnapshotChunks[chunk.chunkIndex] = chunk.items
+        if (pendingSnapshotChunks.size < pendingSnapshotChunkCount) return
+        val items = (0 until pendingSnapshotChunkCount).flatMap { pendingSnapshotChunks[it].orEmpty() }
+        _state.value = _state.value.copy(
+            queue = ListenTogetherQueueState(
+                queueVersion = chunk.queueVersion,
+                currentItemId = chunk.currentItemId,
+                items = items,
+                syncing = false,
+                snapshotId = null,
+            ),
+        )
+        pendingSnapshotId = null
+        pendingSnapshotChunkCount = 0
+        pendingSnapshotChunks.clear()
+    }
+
+    private fun applyQueueDelta(delta: ListenTogetherQueueDelta) {
+        if (delta.queueVersion < _state.value.queue.queueVersion) return
+        _state.value = _state.value.copy(
+            queue = ListenTogetherQueueState(
+                queueVersion = delta.queueVersion,
+                currentItemId = delta.currentItemId,
+                items = delta.items,
+                syncing = false,
+                snapshotId = null,
+            ),
+        )
+    }
+
+    private fun currentQueueIndexFromSong(queue: ListenTogetherQueueState): Int {
+        val song = musicController.currentSong.value ?: return 0
+        return queue.items.indexOfFirst {
+            it.song.source == song.type.name.lowercase() && it.song.id == song.id
+        }.takeIf { it >= 0 } ?: 0
     }
 
     private fun targetQueueSong(offset: Int): SongInfo? {
@@ -398,9 +716,13 @@ class ListenTogetherManager @Inject constructor(
         val roomId = raw.getString("roomId")
         val currentRoomId = _state.value.room?.roomId ?: return
         if (roomId != currentRoomId) return
+        val data = raw.getAsJsonObject("data")
+        if (event == "QUEUE_EVENT") {
+            handleQueueEvent(data)
+            return
+        }
         val version = raw.getLong("version")
         if (version < _state.value.lastVersion) return
-        val data = raw.getAsJsonObject("data")
 
         when (event) {
             "ROOM_STATE_CHANGED" -> {
@@ -413,8 +735,11 @@ class ListenTogetherManager @Inject constructor(
                 applyRoom(payload.room, joining = false, version = version)
             }
             "MEMBER_JOINED" -> {
-                updateMembers(data, version)
+                val payload = updateMembers(data, version)
                 emitHostHeartbeat()
+                if (_state.value.isHost) {
+                    payload.member?.userId?.takeIf { it != _state.value.currentUserId }?.let { sendQueueSnapshot(it) }
+                }
             }
             "MEMBER_LEFT" -> updateMembers(data, version)
             "MEMBER_KICKED" -> {
@@ -438,7 +763,7 @@ class ListenTogetherManager @Inject constructor(
         }
     }
 
-    private fun updateMembers(data: JsonObject?, version: Long) {
+    private fun updateMembers(data: JsonObject?, version: Long): ListenTogetherMembersData {
         val payload = gson.fromJson(data, ListenTogetherMembersData::class.java)
         updateCurrentRoom(version) { room ->
             room.copy(
@@ -446,6 +771,7 @@ class ListenTogetherManager @Inject constructor(
                 members = payload.members,
             )
         }
+        return payload
     }
 
     private fun syncPlayerToRoom(room: ListenTogetherRoom, operatorUserId: String?) {
@@ -493,12 +819,14 @@ class ListenTogetherManager @Inject constructor(
             joining = joining,
             lastVersion = version.coerceAtLeast(room.version),
         )
+        ensureHostQueueInitialized()
         updateHeartbeat()
     }
 
     private fun updateCurrentRoom(version: Long, block: (ListenTogetherRoom) -> ListenTogetherRoom) {
         val room = _state.value.room ?: return
         _state.value = _state.value.copy(room = block(room), lastVersion = version)
+        ensureHostQueueInitialized()
         updateHeartbeat()
     }
 
@@ -551,6 +879,9 @@ class ListenTogetherManager @Inject constructor(
         socketClient.disconnect()
         heartbeatJob?.cancel()
         heartbeatJob = null
+        pendingSnapshotId = null
+        pendingSnapshotChunkCount = 0
+        pendingSnapshotChunks.clear()
         _state.value = ListenTogetherState(currentUserId = AccountSessionStore.read(context).user.id)
     }
 
@@ -589,7 +920,26 @@ class ListenTogetherManager @Inject constructor(
     private fun JsonObject?.getLong(name: String): Long =
         this?.get(name)?.takeIf { !it.isJsonNull }?.asLong ?: 0L
 
+    private fun SongInfo.toQueueItem(addedByUserId: String): ListenTogetherQueueItem =
+        ListenTogetherQueueItem(
+            queueItemId = UUID.randomUUID().toString(),
+            song = toListenTogetherSong(duration?.toLong()?.times(1000L)),
+            addedByUserId = addedByUserId,
+            addedAt = System.currentTimeMillis(),
+        )
+
     companion object {
         private const val HOST_HEARTBEAT_INTERVAL_MS = 6_000L
+        private const val QUEUE_SNAPSHOT_CHUNK_SIZE = 200
+        private const val QUEUE_SNAPSHOT_CHUNK_DELAY_MS = 50L
+        private const val QUEUE_KIND_SNAPSHOT_REQUEST = "SNAPSHOT_REQUEST"
+        private const val QUEUE_KIND_SNAPSHOT_CHUNK = "SNAPSHOT_CHUNK"
+        private const val QUEUE_KIND_COMMAND = "QUEUE_COMMAND"
+        private const val QUEUE_KIND_DELTA = "QUEUE_DELTA"
+        private const val QUEUE_COMMAND_ADD_AND_PLAY = "ADD_AND_PLAY"
+        private const val QUEUE_COMMAND_PLAY_ITEM = "PLAY_ITEM"
+        private const val QUEUE_COMMAND_REMOVE_ITEM = "REMOVE_ITEM"
+        private const val QUEUE_COMMAND_NEXT = "NEXT"
+        private const val QUEUE_COMMAND_PREVIOUS = "PREVIOUS"
     }
 }

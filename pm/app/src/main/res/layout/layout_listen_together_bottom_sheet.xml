@@ -149,24 +149,42 @@
                 tools:text="同步正常 · 仅房主控制" />
 
             <TextView
-                android:id="@+id/listenTogetherRoomSongView"
+                android:id="@+id/listenTogetherCurrentPlayingLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
+                android:text="当前播放"
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <TextView
+                android:id="@+id/listenTogetherRoomSongView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
                 android:ellipsize="end"
                 android:maxLines="2"
                 android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                 android:textColor="?attr/colorOnSurface"
-                tools:text="当前同步：歌曲名 - 歌手" />
+                tools:text="歌曲名 - 歌手" />
+
+            <TextView
+                android:id="@+id/listenTogetherMembersLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="成员"
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
             <TextView
                 android:id="@+id/listenTogetherMembersView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="6dp"
                 android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="成员：我（房主）、小明" />
+                tools:text="我 房主   小明" />
 
             <TextView
                 android:id="@+id/listenTogetherPermissionLabel"
@@ -199,10 +217,19 @@
                     android:layout_height="wrap_content" />
             </LinearLayout>
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/listenTogetherInviteLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="18dp"
+                android:text="邀请朋友"
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:orientation="horizontal">
 
                 <com.google.android.material.button.MaterialButton
@@ -219,10 +246,22 @@
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="12dp"
+                    android:layout_marginStart="8dp"
                     android:layout_weight="1"
+                    android:enabled="false"
                     android:text="@string/listen_together_share_room"
                     app:icon="@drawable/ic_share_24" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/listenTogetherQrButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:enabled="false"
+                    android:text="@string/listen_together_qr_placeholder"
+                    app:icon="@drawable/ic_qr_scan_24" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton

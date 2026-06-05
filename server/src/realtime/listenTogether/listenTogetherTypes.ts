@@ -114,6 +114,7 @@ export type ListenTogetherBroadcastEvent =
   | "MEMBER_KICKED"
   | "HOST_TRANSFERRED"
   | "ROOM_DESTROYED"
+  | "QUEUE_EVENT"
   | "ERROR_MESSAGE";
 
 export type ListenTogetherBroadcast<T = unknown> = {

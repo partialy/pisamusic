@@ -377,8 +377,9 @@
     <string name="listen_together_join_title">加入房间</string>
     <string name="listen_together_room_hint">输入房间号</string>
     <string name="listen_together_join_room">加入</string>
-    <string name="listen_together_copy_room">复制房间号</string>
-    <string name="listen_together_share_room">分享</string>
+    <string name="listen_together_copy_room">复制邀请码</string>
+    <string name="listen_together_share_room">分享（占位）</string>
+    <string name="listen_together_qr_placeholder">二维码（占位）</string>
     <string name="listen_together_member_permission">成员权限</string>
     <string name="listen_together_member_can_control">可操作</string>
     <string name="listen_together_leave_room">退出一起听</string>

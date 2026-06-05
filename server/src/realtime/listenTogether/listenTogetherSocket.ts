@@ -1,4 +1,5 @@
 import type { Server } from "socket.io";
+import { getRoom, getUserSockets } from "../../db/listenTogetherStore";
 import {
   changeListenTogetherSong,
   connectListenTogetherSocket,
@@ -59,6 +60,10 @@ function roomIdFromPayload(payload: unknown): unknown {
   return isRecord(payload) ? payload.roomId : undefined;
 }
 
+function stringFromPayload(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function emitBroadcast(io: Server, message: ListenTogetherBroadcast): void {
   io.to(listenRoomName(message.roomId)).emit(message.event, message);
 }
@@ -102,6 +107,46 @@ function registerRoomChangeEvent(
   });
 }
 
+function registerQueueEvent(io: Server, socket: AuthedRealtimeSocket): void {
+  socket.on(listenTogetherClientEvents.queue, (payload: unknown, ack?: AckFn) => {
+    try {
+      const body = isRecord(payload) ? payload : {};
+      const roomId = stringFromPayload(body.roomId);
+      const room = getRoom(roomId);
+      if (!room) throw new ListenTogetherError("房间不存在", "ROOM_NOT_FOUND", 400);
+      const member = room.members.find((item) => item.userId === socket.data.user.userId);
+      if (!member) throw new ListenTogetherError("用户不在房间内", "NOT_IN_ROOM", 400);
+
+      const data = isRecord(body.data) ? body.data : {};
+      const targetUserId = stringFromPayload(data.targetUserId);
+      if (targetUserId && !room.members.some((item) => item.userId === targetUserId)) {
+        throw new ListenTogetherError("目标用户不在房间内", "TARGET_USER_NOT_FOUND", 400);
+      }
+
+      const message: ListenTogetherBroadcast = {
+        event: "QUEUE_EVENT",
+        roomId,
+        serverTime: Date.now(),
+        version: 0,
+        data: {
+          ...data,
+          fromUserId: socket.data.user.userId,
+        },
+      };
+      ackOk(ack, { serverTime: message.serverTime });
+      if (targetUserId) {
+        for (const socketId of getUserSockets(targetUserId)) {
+          io.sockets.sockets.get(socketId)?.emit(message.event, message);
+        }
+      } else {
+        emitBroadcastFromSocket(socket, message);
+      }
+    } catch (error) {
+      ackError(ack, error);
+    }
+  });
+}
+
 export function registerListenTogetherSocket(io: Server, socket: AuthedRealtimeSocket): void {
   const user = socket.data.user;
   connectListenTogetherSocket(user.userId, socket.id);
@@ -137,6 +182,7 @@ export function registerListenTogetherSocket(io: Server, socket: AuthedRealtimeS
   registerRoomChangeEvent(io, socket, listenTogetherClientEvents.ended, endListenTogether);
   registerRoomChangeEvent(io, socket, listenTogetherClientEvents.updateRoom, updateListenTogetherRoom);
   registerRoomChangeEvent(io, socket, listenTogetherClientEvents.transferHost, transferListenTogetherHost);
+  registerQueueEvent(io, socket);
 
   socket.on(listenTogetherClientEvents.sync, (payload: unknown, ack?: AckFn) => {
     try {

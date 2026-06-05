@@ -104,6 +104,7 @@ data class ListenTogetherCoverSize(
 
 data class ListenTogetherState(
     val room: ListenTogetherRoom? = null,
+    val queue: ListenTogetherQueueState = ListenTogetherQueueState(),
     val socketConnected: Boolean = false,
     val joining: Boolean = false,
     val syncingFromRemote: Boolean = false,
@@ -113,6 +114,45 @@ data class ListenTogetherState(
     val enabled: Boolean get() = room != null
     val isHost: Boolean get() = room?.hostUserId?.isNotBlank() == true && currentUserId == room.hostUserId
 }
+
+data class ListenTogetherQueueItem(
+    val queueItemId: String = "",
+    val song: ListenTogetherSong = ListenTogetherSong(),
+    val addedByUserId: String = "",
+    val addedAt: Long = 0L,
+)
+
+data class ListenTogetherQueueState(
+    val queueVersion: Long = 0L,
+    val currentItemId: String? = null,
+    val items: List<ListenTogetherQueueItem> = emptyList(),
+    val syncing: Boolean = false,
+    val snapshotId: String? = null,
+) {
+    fun currentIndex(): Int = items.indexOfFirst { it.queueItemId == currentItemId }
+}
+
+data class ListenTogetherQueueSnapshotChunk(
+    val snapshotId: String = "",
+    val queueVersion: Long = 0L,
+    val total: Int = 0,
+    val chunkIndex: Int = 0,
+    val chunkCount: Int = 0,
+    val currentItemId: String? = null,
+    val items: List<ListenTogetherQueueItem> = emptyList(),
+)
+
+data class ListenTogetherQueueDelta(
+    val queueVersion: Long = 0L,
+    val currentItemId: String? = null,
+    val items: List<ListenTogetherQueueItem> = emptyList(),
+)
+
+data class ListenTogetherQueueCommand(
+    val command: String = "",
+    val queueItemId: String? = null,
+    val song: ListenTogetherSong? = null,
+)
 
 data class ListenTogetherSocketPayload(
     val requestId: String,

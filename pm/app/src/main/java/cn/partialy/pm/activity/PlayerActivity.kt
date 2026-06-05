@@ -48,6 +48,7 @@ import cn.partialy.pm.databinding.LayoutListenTogetherBottomSheetBinding
 import cn.partialy.pm.listen.ListenTogetherManager
 import cn.partialy.pm.listen.ListenTogetherState
 import cn.partialy.pm.listen.ListenTogetherUiEvent
+import cn.partialy.pm.listen.toSongInfo
 import cn.partialy.pm.lyric.LyricContent
 import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.LyricRepository
@@ -130,13 +131,27 @@ class PlayerActivity : BaseDownloadActivity() {
                 adapter = PlaylistAdapter(
                     songs = emptyList(),
                     currentPlayingId = musicController.currentSong.value?.id,
-                    onItemClick = { song, _ ->
+                    onItemClick = { song, index ->
                         lifecycleScope.launch {
-                            listenTogetherManager.requestPlaySong(song)
+                            val state = listenTogetherManager.state.value
+                            val queueItemId = state.queue.items.getOrNull(index)?.queueItemId
+                            if (state.enabled && queueItemId != null) {
+                                listenTogetherManager.requestPlayQueueItem(queueItemId)
+                            } else {
+                                listenTogetherManager.requestPlaySong(song)
+                            }
                             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
                         }
                     },
-                    onRemoveClick = { song -> musicController.removeFromPlayList(song) },
+                    onRemoveClick = { song, index ->
+                        val state = listenTogetherManager.state.value
+                        val queueItemId = state.queue.items.getOrNull(index)?.queueItemId
+                        if (state.enabled && queueItemId != null) {
+                            listenTogetherManager.requestRemoveQueueItem(queueItemId)
+                        } else {
+                            musicController.removeFromPlayList(song)
+                        }
+                    },
                 )
             }
 
@@ -389,6 +404,7 @@ class PlayerActivity : BaseDownloadActivity() {
             listenTogetherManager.state.collect { state ->
                 renderListenTogetherChip(state)
                 listenTogetherSheetBinding?.let { renderListenTogetherSheet(it, state) }
+                updateEffectivePlaylist()
             }
         }
         lifecycleScope.launch {
@@ -480,12 +496,14 @@ class PlayerActivity : BaseDownloadActivity() {
             ?: "暂无正在播放的歌曲"
 
         if (room == null) {
+            sheetBinding.listenTogetherTitleView.text = getString(R.string.listen_together_title)
             sheetBinding.listenTogetherIdleGroup.visibility = View.VISIBLE
             sheetBinding.listenTogetherRoomGroup.visibility = View.GONE
             sheetBinding.listenTogetherSubtitleView.text = getString(R.string.listen_together_subtitle)
             return
         }
 
+        sheetBinding.listenTogetherTitleView.text = "一起听中"
         sheetBinding.listenTogetherIdleGroup.visibility = View.GONE
         sheetBinding.listenTogetherRoomGroup.visibility = View.VISIBLE
         sheetBinding.listenTogetherSubtitleView.text = room.roomName
@@ -499,18 +517,21 @@ class PlayerActivity : BaseDownloadActivity() {
         }
         sheetBinding.listenTogetherSyncStatusView.text = "$connection · $control"
         sheetBinding.listenTogetherRoomSongView.text = room.song?.let {
-            "当前同步：${it.name} - ${it.singer}"
-        } ?: "当前同步：等待房主播放歌曲"
+            "${it.name} - ${it.singer}"
+        } ?: "等待房主播放歌曲"
         val memberText = room.members.takeIf { it.isNotEmpty() }
-            ?.joinToString("、") { member ->
-                val suffix = if (member.userId == room.hostUserId) "（房主）" else ""
-                member.displayName() + suffix
+            ?.joinToString("   ") { member ->
+                val self = if (member.userId == state.currentUserId) "我 " else ""
+                val role = if (member.userId == room.hostUserId) " 房主" else ""
+                self + member.displayName() + role
             }
         sheetBinding.listenTogetherMembersView.text = if (memberText.isNullOrBlank()) {
-            "成员：${room.displayPeople()} 人在线"
+            "${room.displayPeople()} 人在线"
         } else {
-            "成员：$memberText"
+            memberText
         }
+        sheetBinding.listenTogetherShareButton.isEnabled = false
+        sheetBinding.listenTogetherQrButton.isEnabled = false
         sheetBinding.listenTogetherMemberOperationSwitch.apply {
             setOnCheckedChangeListener(null)
             isChecked = room.memberOperation
@@ -907,15 +928,32 @@ class PlayerActivity : BaseDownloadActivity() {
 
     private fun observePlaylist() {
         lifecycleScope.launch {
-            musicController.playList.collect { songs ->
-                updatePlaylist(songs)
+            musicController.playList.collect {
+                updateEffectivePlaylist()
             }
         }
+    }
+
+    private fun updateEffectivePlaylist() {
+        val state = listenTogetherManager.state.value
+        val songs = if (state.enabled) {
+            state.queue.items.map { it.song.toSongInfo() }
+        } else {
+            musicController.playList.value
+        }
+        updatePlaylist(songs)
     }
 
     private fun updatePlaylist(songs: List<SongInfo>) {
         val adapter = binding.playlistBottomSheet.playlistRecyclerView.adapter as? PlaylistAdapter ?: return
         adapter.updateSongs(songs)
+        findViewById<TextView>(R.id.playingQueueTitle)?.text = if (listenTogetherManager.state.value.enabled) {
+            "一起听队列(${songs.size}首)"
+        } else {
+            "播放队列(${songs.size}首)"
+        }
+        binding.playlistBottomSheet.clearPlayList.isEnabled = !listenTogetherManager.state.value.enabled
+        binding.playlistBottomSheet.clearPlayList.alpha = if (listenTogetherManager.state.value.enabled) 0.36f else 1f
         if (songs.isEmpty()) {
             binding.playlistBottomSheet.playlistEmptyText.visibility = View.VISIBLE
             binding.playlistBottomSheet.playlistRecyclerView.visibility = View.GONE
@@ -927,7 +965,8 @@ class PlayerActivity : BaseDownloadActivity() {
 
     private fun scrollPlaylistToNowPlaying() {
         val rv = binding.playlistBottomSheet.playlistRecyclerView
-        val songs = musicController.playList.value
+        val state = listenTogetherManager.state.value
+        val songs = if (state.enabled) state.queue.items.map { it.song.toSongInfo() } else musicController.playList.value
         if (songs.isEmpty()) return
         val currentId = musicController.currentSong.value?.id ?: return
         val idx = songs.indexOfFirst { it.id == currentId }
@@ -962,8 +1001,12 @@ class PlayerActivity : BaseDownloadActivity() {
         }
 
         binding.playlistBottomSheet.clearPlayList.setOnClickListener {
-            musicController.clearPlayList()
-            bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+            if (listenTogetherManager.state.value.enabled) {
+                Toast.makeText(this, "一起听暂不支持清空队列", Toast.LENGTH_SHORT).show()
+            } else {
+                musicController.clearPlayList()
+                bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
+            }
         }
 
         binding.dimOverlay.setOnClickListener {
@@ -1038,7 +1081,7 @@ class PlaylistAdapter(
     private var songs: List<SongInfo>,
     private var currentPlayingId: String?,
     private val onItemClick: (SongInfo, Int) -> Unit,
-    private val onRemoveClick: (SongInfo) -> Unit,
+    private val onRemoveClick: (SongInfo, Int) -> Unit,
 ) : RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
 
     fun updateSongs(newSongs: List<SongInfo>) {
@@ -1088,7 +1131,7 @@ class PlaylistAdapter(
 
     class ViewHolder(
         view: View,
-        private val onRemoveClick: (SongInfo) -> Unit,
+        private val onRemoveClick: (SongInfo, Int) -> Unit,
     ) : RecyclerView.ViewHolder(view) {
         private val lineText: TextView = view.findViewById(R.id.songLineText)
         private val tagView: TextView = view.findViewById(R.id.songSourceTagTextView)
@@ -1097,7 +1140,10 @@ class PlaylistAdapter(
         fun bind(song: SongInfo, isCurrent: Boolean) {
             val ctx = itemView.context
             val separator = " - "
-            removeButton.setOnClickListener { onRemoveClick(song) }
+            removeButton.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onRemoveClick(song, pos)
+            }
             SongSourceTagBinder.bind(tagView, song.type)
 
             if (isCurrent) {
