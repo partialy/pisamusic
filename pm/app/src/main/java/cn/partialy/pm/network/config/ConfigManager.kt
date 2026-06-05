@@ -2,6 +2,8 @@ package cn.partialy.pm.network.config
 
 import cn.partialy.pm.model.AboutInfo
 import cn.partialy.pm.model.AccountAuthResult
+import cn.partialy.pm.model.AccountAvatarUploadToken
+import cn.partialy.pm.model.AccountAvatarUploadTokenRequest
 import cn.partialy.pm.model.AccountCodeLoginRequest
 import cn.partialy.pm.model.AccountEmailCodeRequest
 import cn.partialy.pm.model.AccountPasswordLoginRequest
@@ -202,6 +204,28 @@ class ConfigManager @Inject constructor(
     suspend fun getAccountMe(token: String): AccountUser {
         val response = systemCall("账号信息获取失败") { systemApiService.getAccountMe("Bearer $token") }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "账号信息获取失败" })
+        return response.data
+    }
+
+    suspend fun requestAccountAvatarUploadToken(
+        token: String,
+        fileName: String,
+        fileSize: Long,
+        mimeType: String?,
+    ): AccountAvatarUploadToken {
+        val response = systemCall("头像上传凭证获取失败") {
+            systemApiService.getAccountAvatarUploadToken(
+                authorization = "Bearer $token",
+                body = AccountAvatarUploadTokenRequest(
+                    fileName = fileName,
+                    fileSize = fileSize,
+                    mimeType = mimeType,
+                ),
+            )
+        }
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "头像上传凭证获取失败" })
+        }
         return response.data
     }
 

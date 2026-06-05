@@ -4,13 +4,17 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.view.View
 import android.webkit.JavascriptInterface
+import android.webkit.MimeTypeMap
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -18,25 +22,36 @@ import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityAccountProfileBinding
+import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import dagger.hilt.android.AndroidEntryPoint
+import java.lang.ref.WeakReference
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.lang.ref.WeakReference
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class AccountProfileActivity : BaseActivity() {
     private lateinit var binding: ActivityAccountProfileBinding
     private var statusBarInsets: Insets = Insets.NONE
     private var navigationBarInsets: Insets = Insets.NONE
+    private val avatarHttpClient = OkHttpClient()
+
+    private val pickAvatarLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri != null) uploadSelectedAvatar(uri) else sendAvatarCanceled()
+        }
 
     @Inject
     lateinit var configManager: ConfigManager
@@ -162,6 +177,24 @@ class AccountProfileActivity : BaseActivity() {
         }
     }
 
+    private fun sendAvatarSaved(user: AccountUser) {
+        binding.accountProfileWebView.post {
+            binding.accountProfileWebView.evaluateJavascript(
+                "window.profilePage && window.profilePage.avatarSaved(${profileJson(user)})",
+                null,
+            )
+        }
+    }
+
+    private fun sendAvatarCanceled() {
+        binding.accountProfileWebView.post {
+            binding.accountProfileWebView.evaluateJavascript(
+                "window.profilePage && window.profilePage.avatarCanceled()",
+                null,
+            )
+        }
+    }
+
     private fun profileJson(user: AccountUser): String =
         JSONObject()
             .put(
@@ -173,32 +206,123 @@ class AccountProfileActivity : BaseActivity() {
                     .put("avatarKey", user.avatarKey.ifBlank { "default" })
                     .put("avatarUrl", resolveAccountAvatarUrl(user)),
             )
-            .put("avatars", avatarOptionsJson())
             .toString()
-
-    private fun avatarOptionsJson(): JSONArray =
-        JSONArray().apply {
-            AVATARS.forEach { option ->
-                put(
-                    JSONObject()
-                        .put("key", option.key)
-                        .put("label", option.label)
-                        .put("url", absoluteAvatarPath(option.fileName)),
-                )
-            }
-        }
 
     private fun resolveAccountAvatarUrl(user: AccountUser): String {
         val raw = user.avatarUrl.ifBlank { user.avatar }.trim()
         return when {
             raw.startsWith("http://") || raw.startsWith("https://") -> raw
             raw.startsWith("/") -> BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + raw
-            else -> absoluteAvatarPath(if (user.avatarKey == "default") "default.jpg" else "${user.avatarKey}.png")
+            else -> absoluteAvatarPath("default.jpg")
         }
     }
 
     private fun absoluteAvatarPath(fileName: String): String =
         BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + "/static/account-avatars/$fileName"
+
+    private fun requestPickAvatar() {
+        pickAvatarLauncher.launch("image/*")
+    }
+
+    private fun uploadSelectedAvatar(uri: Uri) {
+        lifecycleScope.launch {
+            runCatching {
+                val session = AccountSessionStore.read(this@AccountProfileActivity)
+                require(session.loggedIn) { "请先登录账号" }
+                val result = withContext(Dispatchers.IO) {
+                    uploadAccountAvatar(session.token, uri)
+                }
+                AccountSessionStore.save(this@AccountProfileActivity, result)
+                result.user
+            }.onSuccess { user ->
+                sendAvatarSaved(user)
+                sendSuccess("头像已更新")
+            }.onFailure {
+                sendError(it.message ?: "头像上传失败")
+            }
+        }
+    }
+
+    private suspend fun restoreDefaultAvatar() {
+        val session = AccountSessionStore.read(this)
+        require(session.loggedIn) { "请先登录账号" }
+        val result = withContext(Dispatchers.IO) {
+            configManager.updateAccountProfile(
+                token = session.token,
+                username = null,
+                email = null,
+                code = null,
+                avatarKey = "default",
+            )
+        }
+        AccountSessionStore.save(this, result)
+        sendAvatarSaved(result.user)
+    }
+
+    private suspend fun uploadAccountAvatar(token: String, uri: Uri): AccountAuthResult {
+        val picked = readPickedAvatar(uri)
+        val uploadToken = configManager.requestAccountAvatarUploadToken(
+            token = token,
+            fileName = picked.fileName,
+            fileSize = picked.bytes.size.toLong(),
+            mimeType = picked.mimeType,
+        )
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("token", uploadToken.uploadToken)
+            .addFormDataPart("key", uploadToken.key)
+            .addFormDataPart(
+                "file",
+                picked.fileName,
+                picked.bytes.toRequestBody(picked.mimeType.toMediaTypeOrNull()),
+            )
+            .build()
+        val request = Request.Builder()
+            .url(uploadToken.uploadUrl)
+            .post(body)
+            .build()
+        avatarHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IllegalStateException("七牛上传失败：HTTP ${response.code}")
+            }
+        }
+        return configManager.updateAccountProfile(
+            token = token,
+            username = null,
+            email = null,
+            code = null,
+            avatarKey = uploadToken.key,
+        )
+    }
+
+    private fun readPickedAvatar(uri: Uri): PickedAvatar {
+        val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
+        val fileName = normalizeAvatarFileName(queryDisplayName(uri), mimeType)
+        val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: throw IllegalStateException("头像文件读取失败")
+        require(bytes.isNotEmpty()) { "头像文件为空" }
+        require(bytes.size <= MAX_AVATAR_BYTES) { "头像文件不能超过 5MB" }
+        return PickedAvatar(fileName, mimeType, bytes)
+    }
+
+    private fun queryDisplayName(uri: Uri): String {
+        return runCatching {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use ""
+                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (index >= 0) cursor.getString(index).orEmpty() else ""
+            }.orEmpty()
+        }.getOrDefault("")
+    }
+
+    private fun extensionForMime(mimeType: String): String =
+        MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)?.takeIf { it.isNotBlank() } ?: "jpg"
+
+    private fun normalizeAvatarFileName(rawName: String, mimeType: String): String {
+        val cleanName = rawName.trim().ifBlank { "avatar" }
+        val hasExtension = cleanName.substringAfterLast('.', "").isNotBlank()
+        return if (hasExtension) cleanName else "$cleanName.${extensionForMime(mimeType)}"
+    }
 
     override fun onDestroy() {
         if (::binding.isInitialized) {
@@ -212,6 +336,12 @@ class AccountProfileActivity : BaseActivity() {
         }
         super.onDestroy()
     }
+
+    private data class PickedAvatar(
+        val fileName: String,
+        val mimeType: String,
+        val bytes: ByteArray,
+    )
 
     private class ProfileBridge(activity: AccountProfileActivity) {
         private val ref = WeakReference(activity)
@@ -241,6 +371,27 @@ class AccountProfileActivity : BaseActivity() {
             val session = AccountSessionStore.read(activity)
             if (!session.loggedIn) return "{}"
             return activity.profileJson(session.user)
+        }
+
+        @JavascriptInterface
+        fun pickAvatar() {
+            ref.get()?.runOnUiThread { ref.get()?.requestPickAvatar() }
+        }
+
+        @JavascriptInterface
+        fun restoreDefaultAvatar() {
+            val activity = ref.get() ?: return
+            activity.runOnUiThread {
+                activity.lifecycleScope.launch {
+                    runCatching {
+                        activity.restoreDefaultAvatar()
+                    }.onSuccess {
+                        activity.sendSuccess("已恢复默认头像")
+                    }.onFailure {
+                        activity.sendError(it.message ?: "恢复默认头像失败")
+                    }
+                }
+            }
         }
 
         @JavascriptInterface
@@ -275,7 +426,6 @@ class AccountProfileActivity : BaseActivity() {
                     val username = json.optString("username").trim()
                     val email = json.optString("email").trim()
                     val code = json.optString("code").trim().ifBlank { null }
-                    val avatarKey = json.optString("avatarKey").trim().ifBlank { "default" }
                     require(username.isNotBlank()) { "请输入昵称" }
                     require(email.isNotBlank()) { "请输入邮箱" }
                     withContext(Dispatchers.IO) {
@@ -284,7 +434,7 @@ class AccountProfileActivity : BaseActivity() {
                             username = username,
                             email = email,
                             code = code,
-                            avatarKey = avatarKey,
+                            avatarKey = null,
                         )
                     }
                 }.onSuccess { result ->
@@ -300,21 +450,7 @@ class AccountProfileActivity : BaseActivity() {
     companion object {
         private const val PROFILE_WEB_URL = "file:///android_asset/account-profile/index.html"
         private const val JS_INTERFACE_NAME = "AndroidAccountProfile"
-
-        private data class AvatarOption(
-            val key: String,
-            val label: String,
-            val fileName: String,
-        )
-
-        private val AVATARS = listOf(
-            AvatarOption("default", "默认", "default.jpg"),
-            AvatarOption("anime_sky", "天青", "anime_sky.png"),
-            AvatarOption("anime_mint", "薄荷", "anime_mint.png"),
-            AvatarOption("anime_peach", "蜜桃", "anime_peach.png"),
-            AvatarOption("anime_lilac", "浅紫", "anime_lilac.png"),
-            AvatarOption("anime_sun", "暖阳", "anime_sun.png"),
-        )
+        private const val MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
         fun start(context: Context) {
             context.startActivity(Intent(context, AccountProfileActivity::class.java))

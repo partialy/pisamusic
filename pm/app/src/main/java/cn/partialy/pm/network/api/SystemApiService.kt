@@ -8,6 +8,8 @@ import cn.partialy.pm.model.AgreementResponse
 import cn.partialy.pm.model.AboutResponse
 import cn.partialy.pm.model.AnnouncementResponse
 import cn.partialy.pm.model.AccountAuthResponse
+import cn.partialy.pm.model.AccountAvatarUploadTokenRequest
+import cn.partialy.pm.model.AccountAvatarUploadTokenResponse
 import cn.partialy.pm.model.AccountCodeLoginRequest
 import cn.partialy.pm.model.AccountEmailCodeRequest
 import cn.partialy.pm.model.AccountEmailCodeResponse
@@ -84,6 +86,12 @@ interface SystemApiService {
 
     @GET("api/auth/me")
     suspend fun getAccountMe(@Header("Authorization") authorization: String): AccountMeResponse
+
+    @POST("api/auth/avatar/upload-token")
+    suspend fun getAccountAvatarUploadToken(
+        @Header("Authorization") authorization: String,
+        @Body body: AccountAvatarUploadTokenRequest,
+    ): AccountAvatarUploadTokenResponse
 
     @POST("api/auth/profile/email-code")
     suspend fun sendAccountProfileEmailCode(

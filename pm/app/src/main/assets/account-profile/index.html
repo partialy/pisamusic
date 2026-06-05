@@ -18,12 +18,9 @@
       --line: #e2e8f0;
       --field: #f8fafc;
       --primary: #0ea5e9;
-      --primary-hover: #0284c7;
       --danger: #ef4444;
-      --ok: #10b981;
     }
 
-    /* 还原为你指定的深色模式色系 */
     @media (prefers-color-scheme: dark) {
       :root {
         --bg: #17191d;
@@ -33,9 +30,7 @@
         --line: #343943;
         --field: #292d35;
         --primary: #66aaff;
-        --primary-hover: #80bfff;
         --danger: #ff8a80;
-        --ok: #7bd88f;
       }
     }
 
@@ -51,40 +46,28 @@
     .header-back:active { transform: scale(0.94); }
     .header-title { text-align: center; font-size: 18px; font-weight: 700; color: var(--text); }
 
-    .avatar-block { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 32px; }
+    .avatar-block { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 28px; }
     .avatar-main { width: 104px; height: 104px; border-radius: 50%; object-fit: cover; border: 4px solid var(--panel); background: var(--field); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-    .name-preview { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .name-preview { font-size: 22px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .email-preview { color: var(--muted); font-size: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .form { max-width: 520px; width: 100%; margin: 0 auto; display: grid; gap: 16px; flex: 1; }
     .section { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
     .label { display: block; color: var(--muted); font-size: 13px; font-weight: 500; margin-bottom: 10px; }
-
     .input { width: 100%; height: 48px; border: 1.5px solid var(--line); border-radius: 14px; padding: 0 16px; color: var(--text); background: var(--field); outline: none; transition: all 0.2s; }
     .input:focus { border-color: var(--primary); background: var(--panel); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent); }
-
     .button { height: 48px; border: 0; border-radius: 14px; padding: 0 18px; background: var(--primary); color: white; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
     .button:active { transform: scale(0.97); }
     .button.secondary { background: var(--field); color: var(--text); border: 1px solid var(--line); }
+    .button.danger { background: transparent; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); }
     .button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
     .save { width: 100%; margin-top: 12px; font-size: 16px; }
-    .logout { width: 100%; margin-top: 0; background: transparent; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); }
-
-    /* 邮箱展示行 */
+    .logout { width: 100%; margin-top: 0; }
+    .avatar-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .email-display-row { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 4px 0 16px; background: var(--field); border-radius: 14px; border: 1.5px solid var(--line); }
     .email-text { color: var(--text); font-size: 15px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    /* 图标按钮 */
     .icon-button { width: 40px; height: 40px; border-radius: 10px; border: none; background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
     .icon-button:hover, .icon-button:active { background: var(--line); color: var(--text); }
-
-    .avatars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-    .avatar-choice { border: 1.5px solid var(--line); background: var(--field); border-radius: 16px; padding: 10px 4px; display: grid; justify-items: center; gap: 8px; color: var(--muted); cursor: pointer; transition: all 0.2s; }
-    .avatar-choice.active { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 15%, transparent); transform: translateY(-2px); box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 15%, transparent); }
-    .avatar-choice img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
-    .avatar-choice span { font-size: 12px; font-weight: 500; white-space: nowrap; }
-
-    /* 弹窗样式 */
     .modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; padding: 20px; }
     .modal.open { opacity: 1; pointer-events: auto; }
     .modal-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
@@ -96,8 +79,7 @@
     .modal-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
 
     @media (max-width: 380px) {
-      .avatars { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .code-row { grid-template-columns: 1fr; }
+      .avatar-actions, .code-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -126,7 +108,10 @@
   <form class="form" onsubmit="event.preventDefault(); saveProfile();">
     <section class="section">
       <label class="label">头像</label>
-      <div id="avatarChoices" class="avatars"></div>
+      <div class="avatar-actions">
+        <button id="uploadAvatarButton" class="button secondary" type="button" onclick="pickAvatar()">上传头像</button>
+        <button id="defaultAvatarButton" class="button secondary" type="button" onclick="restoreDefaultAvatar()">恢复默认</button>
+      </div>
     </section>
 
     <section class="section">
@@ -147,7 +132,7 @@
     </section>
 
     <button id="saveButton" class="button save" type="submit">保存资料</button>
-    <button class="button logout" type="button" onclick="logout()">退出登录</button>
+    <button class="button logout danger" type="button" onclick="logout()">退出登录</button>
   </form>
 </main>
 
@@ -188,11 +173,12 @@
     getInitialProfile() { return '{}'; },
     sendEmailCode() {},
     saveProfile() {},
+    pickAvatar() {},
+    restoreDefaultAvatar() {},
     logout() {},
     close() {}
   };
-  let state = { user: {}, avatars: [] };
-  let selectedAvatarKey = 'default';
+  let state = { user: {} };
   let codeCooldown = 0;
   let cooldownTimer = null;
 
@@ -220,42 +206,31 @@
     $('saveButton').disabled = loading;
   }
 
+  function setAvatarLoading(loading) {
+    $('uploadAvatarButton').disabled = loading;
+    $('defaultAvatarButton').disabled = loading;
+    $('uploadAvatarButton').textContent = loading ? '处理中...' : '上传头像';
+  }
+
   function render(data) {
     state = data || state;
     const user = state.user || {};
-    selectedAvatarKey = user.avatarKey || 'default';
-
     $('usernameInput').value = user.username || '';
     $('emailInput').value = user.email || '';
     $('mainEmailDisplay').textContent = user.email || '未绑定邮箱';
     $('namePreview').textContent = user.username || 'PisaMusic 用户';
     $('emailPreview').textContent = user.email || '';
-
-    renderAvatarChoices();
-    updateAvatarPreview();
+    $('avatarPreview').src = user.avatarUrl || '';
   }
 
-  function renderAvatarChoices() {
-    const wrap = $('avatarChoices');
-    wrap.innerHTML = '';
-    (state.avatars || []).forEach((item) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = `avatar-choice ${item.key === selectedAvatarKey ? 'active' : ''}`;
-      button.onclick = () => {
-        selectedAvatarKey = item.key;
-        renderAvatarChoices();
-        updateAvatarPreview();
-      };
-      button.innerHTML = `<img src="${item.url}" alt=""><span>${item.label}</span>`;
-      wrap.appendChild(button);
-    });
+  function pickAvatar() {
+    setAvatarLoading(true);
+    host.pickAvatar();
   }
 
-  function updateAvatarPreview() {
-    const chosen = (state.avatars || []).find((item) => item.key === selectedAvatarKey);
-    const url = chosen ? chosen.url : state.user.avatarUrl;
-    $('avatarPreview').src = url || '';
+  function restoreDefaultAvatar() {
+    setAvatarLoading(true);
+    host.restoreDefaultAvatar();
   }
 
   function openEmailModal() {
@@ -289,10 +264,8 @@
     codeCooldown = 60;
     const button = $('codeButton');
     clearInterval(cooldownTimer);
-
     button.disabled = true;
     button.textContent = `${codeCooldown}s`;
-
     cooldownTimer = setInterval(() => {
       codeCooldown -= 1;
       if (codeCooldown > 0) {
@@ -308,16 +281,13 @@
   function confirmEmailChange() {
     const newEmail = $('modalEmailInput').value.trim();
     const code = $('modalCodeInput').value.trim();
-
     if (!newEmail || !code) {
       showMessage('请完整填写邮箱和验证码', 'error');
       return;
     }
-
     $('emailInput').value = newEmail;
     $('codeInput').value = code;
     closeEmailModal();
-
     saveProfile();
   }
 
@@ -325,15 +295,12 @@
     const payload = {
       username: $('usernameInput').value.trim(),
       email: $('emailInput').value.trim(),
-      code: $('codeInput').value.trim(),
-      avatarKey: selectedAvatarKey
+      code: $('codeInput').value.trim()
     };
-
     if (!payload.username || !payload.email) {
       showMessage('昵称和邮箱不能为空', 'error');
       return;
     }
-
     setLoading(true);
     host.saveProfile(JSON.stringify(payload));
   }
@@ -352,6 +319,7 @@
     },
     error(text) {
       setLoading(false);
+      setAvatarLoading(false);
       showMessage(text || '操作失败', 'error');
     },
     emailCodeSent() {
@@ -362,6 +330,13 @@
       showMessage('资料已保存', 'ok');
       $('codeInput').value = '';
       render(data);
+    },
+    avatarSaved(data) {
+      setAvatarLoading(false);
+      render(data);
+    },
+    avatarCanceled() {
+      setAvatarLoading(false);
     }
   };
 

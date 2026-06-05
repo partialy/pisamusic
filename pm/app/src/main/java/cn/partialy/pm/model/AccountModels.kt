@@ -9,6 +9,12 @@ data class AccountProfileEmailCodeRequest(
     val email: String,
 )
 
+data class AccountAvatarUploadTokenRequest(
+    val fileName: String,
+    val fileSize: Long,
+    val mimeType: String? = null,
+)
+
 data class AccountRegisterRequest(
     val email: String,
     val username: String,
@@ -71,9 +77,28 @@ data class AccountEmailCodeResponse(
     val data: AccountEmailCodeResult,
 )
 
+data class AccountAvatarUploadTokenResponse(
+    val msg: String,
+    val code: Int,
+    val success: Boolean = true,
+    val data: AccountAvatarUploadToken,
+)
+
 data class AccountEmailCodeResult(
     val expiresAt: Long,
     val nextSendAt: Long,
+)
+
+data class AccountAvatarUploadToken(
+    val provider: String,
+    val uploadToken: String,
+    val uploadUrl: String,
+    val key: String,
+    val bucket: String,
+    val domain: String = "",
+    val cdnDomain: String = "",
+    val downloadUrl: String = "",
+    val expiresAt: Long,
 )
 
 data class AccountAuthResult(
