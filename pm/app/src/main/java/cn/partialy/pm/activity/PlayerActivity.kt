@@ -26,6 +26,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
@@ -50,6 +52,7 @@ import cn.partialy.pm.listen.ListenTogetherManager
 import cn.partialy.pm.listen.ListenTogetherMember
 import cn.partialy.pm.listen.ListenTogetherState
 import cn.partialy.pm.listen.ListenTogetherUiEvent
+import cn.partialy.pm.listen.targetPosition
 import cn.partialy.pm.listen.toSongInfo
 import cn.partialy.pm.lyric.LyricContent
 import cn.partialy.pm.lyric.LyricParser
@@ -667,35 +670,75 @@ class PlayerActivity : BaseDownloadActivity() {
             return
         }
 
-        sheetBinding.listenTogetherTitleView.text = "一起听中"
+        sheetBinding.listenTogetherTitleView.text = getString(R.string.listen_together_active_title)
         sheetBinding.listenTogetherIdleGroup.visibility = View.GONE
         sheetBinding.listenTogetherRoomGroup.visibility = View.VISIBLE
         sheetBinding.listenTogetherSubtitleView.text = room.roomName
-        sheetBinding.listenTogetherRoomInfoView.text = "房间 ${room.roomId} · ${room.displayPeople()} 人在线"
-        val connection = if (state.socketConnected) "同步正常" else "正在重连"
+        sheetBinding.listenTogetherRoomInfoView.text = getString(
+            R.string.listen_together_room_meta,
+            room.roomId,
+            room.displayPeople(),
+        )
+        val connection = if (state.socketConnected) {
+            "同步正常"
+        } else {
+            getString(R.string.listen_together_reconnecting)
+        }
         val control = when {
             state.isHost && room.memberOperation -> "你是房主 · 成员可操作"
             state.isHost -> "你是房主 · 仅房主控制"
             room.memberOperation -> "成员可操作"
-            else -> "仅房主控制"
+            else -> getString(R.string.listen_together_only_host)
         }
         sheetBinding.listenTogetherSyncStatusView.text = "$connection · $control"
-        sheetBinding.listenTogetherRoomSongView.text = room.song?.let {
-            "${it.name} - ${it.singer}"
-        } ?: "等待房主播放歌曲"
-        val memberText = room.members.takeIf { it.isNotEmpty() }
-            ?.joinToString("   ") { member ->
-                val self = if (member.userId == state.currentUserId) "我 " else ""
-                val role = if (member.userId == room.hostUserId) " 房主" else ""
-                self + member.displayName() + role
+
+        val roomSong = room.song
+        if (roomSong != null) {
+            sheetBinding.listenTogetherRoomSongView.text = roomSong.name
+            sheetBinding.listenTogetherRoomSongArtist.text = roomSong.singer
+            sheetBinding.listenTogetherRoomSongArtist.visibility = View.VISIBLE
+            val cover = roomSong.cover
+            if (cover.isNotBlank()) {
+                sheetBinding.listenTogetherRoomSongCover.load(cover) {
+                    crossfade(true)
+                }
+            } else {
+                sheetBinding.listenTogetherRoomSongCover.setImageDrawable(null)
             }
-        sheetBinding.listenTogetherMembersView.text = if (memberText.isNullOrBlank()) {
-            "${room.displayPeople()} 人在线"
         } else {
-            memberText
+            sheetBinding.listenTogetherRoomSongView.text =
+                getString(R.string.listen_together_room_empty_song)
+            sheetBinding.listenTogetherRoomSongArtist.text = ""
+            sheetBinding.listenTogetherRoomSongArtist.visibility = View.GONE
+            sheetBinding.listenTogetherRoomSongCover.setImageDrawable(null)
         }
-        sheetBinding.listenTogetherShareButton.isEnabled = false
+        val durationMs = roomSong?.duration?.takeIf { it > 0L } ?: musicController.duration.value
+        val positionMs = if (state.isHost) {
+            musicController.currentPosition.value
+        } else {
+            room.targetPosition()
+        }
+        sheetBinding.listenTogetherRoomPositionView.text = getString(
+            R.string.listen_together_position_value,
+            formatListenTogetherTime(positionMs),
+            formatListenTogetherTime(durationMs),
+        )
+        val latencyMs = state.latencyMs
+        if (state.socketConnected && latencyMs != null && latencyMs >= 0) {
+            sheetBinding.listenTogetherLatencyBadge.visibility = View.VISIBLE
+            sheetBinding.listenTogetherLatencyView.text = getString(
+                R.string.listen_together_latency_value,
+                latencyMs,
+            )
+        } else {
+            sheetBinding.listenTogetherLatencyBadge.visibility = View.GONE
+        }
+
+        populateListenTogetherMemberChips(sheetBinding.listenTogetherMembersView, room, state)
+
+        sheetBinding.listenTogetherShareButton.isEnabled = true
         sheetBinding.listenTogetherQrButton.isEnabled = false
+        sheetBinding.listenTogetherQrButton.alpha = 0.4f
         sheetBinding.listenTogetherMemberOperationSwitch.apply {
             setOnCheckedChangeListener(null)
             isChecked = room.memberOperation
@@ -706,6 +749,94 @@ class PlayerActivity : BaseDownloadActivity() {
                 if (latest != checked) listenTogetherManager.updateMemberOperation(checked)
             }
         }
+    }
+
+    private fun populateListenTogetherMemberChips(
+        container: LinearLayout,
+        room: cn.partialy.pm.listen.ListenTogetherRoom,
+        state: ListenTogetherState,
+    ) {
+        container.removeAllViews()
+        val members = room.members
+        if (members.isEmpty()) return
+        val density = resources.displayMetrics.density
+        fun dp(value: Float): Int = (value * density + 0.5f).toInt()
+        val sorted = members.sortedWith(
+            compareBy<ListenTogetherMember> {
+                if (it.userId == room.hostUserId) 0 else 1
+            }.thenBy {
+                if (it.userId == state.currentUserId) 0 else 1
+            }.thenBy { it.displayName() },
+        )
+        sorted.forEachIndexed { index, member ->
+            val isHost = member.userId == room.hostUserId
+            val isMe = member.userId == state.currentUserId
+            val chip = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                background = ContextCompat.getDrawable(
+                    this@PlayerActivity,
+                    if (isHost) R.drawable.bg_listen_together_member_chip_host
+                    else R.drawable.bg_listen_together_member_chip,
+                )
+                setPadding(dp(10f), dp(5f), dp(12f), dp(5f))
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                )
+                if (index > 0) lp.marginStart = dp(8f)
+                layoutParams = lp
+            }
+            val avatar = ImageView(this).apply {
+                val size = dp(20f)
+                layoutParams = LinearLayout.LayoutParams(size, size)
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                contentDescription = member.displayName()
+                val url = member.avatarUrl
+                if (url.isNotBlank()) {
+                    load(url) {
+                        transformations(coil.transform.CircleCropTransformation())
+                        placeholder(R.drawable.ic_pm_icon)
+                        error(R.drawable.ic_pm_icon)
+                    }
+                } else {
+                    load(R.drawable.ic_pm_icon) {
+                        transformations(coil.transform.CircleCropTransformation())
+                    }
+                }
+            }
+            chip.addView(avatar)
+            val nameLabel = if (isMe) getString(R.string.listen_together_role_me)
+            else member.displayName()
+            val nameView = TextView(this).apply {
+                text = if (isHost && !isMe) "$nameLabel ${getString(R.string.listen_together_role_host)}" else nameLabel
+                textSize = 12f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(
+                    ContextCompat.getColor(
+                        this@PlayerActivity,
+                        if (isHost) R.color.listen_together_member_chip_host_text
+                        else R.color.listen_together_member_chip_text,
+                    ),
+                )
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                )
+                lp.marginStart = dp(6f)
+                layoutParams = lp
+            }
+            chip.addView(nameView)
+            container.addView(chip)
+        }
+    }
+
+    private fun formatListenTogetherTime(ms: Long): String {
+        val safe = ms.coerceAtLeast(0L)
+        val totalSec = safe / 1000L
+        val mm = totalSec / 60L
+        val ss = totalSec % 60L
+        return String.format(java.util.Locale.US, "%02d:%02d", mm, ss)
     }
 
     private fun applyListenTogetherSheetBehavior(dialog: BottomSheetDialog) {

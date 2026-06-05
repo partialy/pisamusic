@@ -404,7 +404,7 @@
             android:id="@+id/listenTogetherRoomGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="14dp"
             android:orientation="vertical"
             android:visibility="gone"
             tools:visibility="visible">
@@ -413,97 +413,153 @@
                 android:id="@+id/listenTogetherRoomInfoView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                android:textColor="?attr/colorOnSurface"
-                android:textStyle="bold"
-                tools:text="房间 123456 · 2 人在线" />
+                android:textColor="@color/listen_together_section_label"
+                android:textSize="13sp"
+                tools:text="房间 8K42Q · 3 人在线" />
 
-            <TextView
-                android:id="@+id/listenTogetherSyncStatusView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="同步正常 · 仅房主控制" />
-
+            <!-- 当前同步 -->
             <TextView
                 android:id="@+id/listenTogetherCurrentPlayingLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="当前播放"
-                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:layout_marginTop="20dp"
+                android:letterSpacing="0.05"
+                android:text="@string/listen_together_section_now_playing"
+                android:textColor="@color/listen_together_section_label"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/listenTogetherRoomSongView"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                android:textColor="?attr/colorOnSurface"
-                tools:text="歌曲名 - 歌手" />
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_listen_together_room_inner_card"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp">
 
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:id="@+id/listenTogetherRoomSongCover"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_listen_together_room_song_cover"
+                    android:scaleType="centerCrop"
+                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Pm.Corner12" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/listenTogetherRoomSongView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/listen_together_field_value"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="歌名" />
+
+                    <TextView
+                        android:id="@+id/listenTogetherRoomSongArtist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/listen_together_section_label"
+                        android:textSize="12sp"
+                        tools:text="歌手" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:gravity="end"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/listenTogetherRoomPositionView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:textColor="@color/listen_together_position_text"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        tools:text="02:13 / 04:20" />
+
+                    <LinearLayout
+                        android:id="@+id/listenTogetherLatencyBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_listen_together_latency_badge"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="6dp"
+                        android:paddingVertical="2dp">
+
+                        <View
+                            android:layout_width="4dp"
+                            android:layout_height="4dp"
+                            android:background="@drawable/bg_listen_together_latency_dot" />
+
+                        <TextView
+                            android:id="@+id/listenTogetherLatencyView"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:fontFamily="monospace"
+                            android:textColor="@color/listen_together_latency_text"
+                            android:textSize="11sp"
+                            android:textStyle="bold"
+                            tools:text="23ms" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- 成员 -->
             <TextView
                 android:id="@+id/listenTogetherMembersLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="成员"
-                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:layout_marginTop="20dp"
+                android:letterSpacing="0.05"
+                android:text="@string/listen_together_section_members"
+                android:textColor="@color/listen_together_section_label"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/listenTogetherMembersView"
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="我 房主   小明" />
+                android:layout_marginTop="8dp"
+                android:overScrollMode="never"
+                android:scrollbars="none">
 
-            <TextView
-                android:id="@+id/listenTogetherPermissionLabel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="@string/listen_together_member_permission"
-                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <LinearLayout
-                android:id="@+id/listenTogetherPermissionRow"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/listenTogetherPermissionText"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/listen_together_member_can_control"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                    android:textColor="?attr/colorOnSurface" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/listenTogetherMemberOperationSwitch"
+                <LinearLayout
+                    android:id="@+id/listenTogetherMembersView"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
 
+            <!-- 邀请朋友 -->
             <TextView
                 android:id="@+id/listenTogetherInviteLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:text="邀请朋友"
-                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:layout_marginTop="20dp"
+                android:letterSpacing="0.05"
+                android:text="@string/listen_together_section_invite"
+                android:textColor="@color/listen_together_section_label"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -511,46 +567,144 @@
                 android:layout_marginTop="8dp"
                 android:orientation="horizontal">
 
-                <com.google.android.material.button.MaterialButton
+                <FrameLayout
                     android:id="@+id/listenTogetherCopyButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
                     android:layout_weight="1"
-                    android:text="@string/listen_together_copy_room"
-                    app:icon="@drawable/ic_copy_24" />
+                    android:background="@drawable/bg_listen_together_invite_icon_button"
+                    android:clickable="true"
+                    android:focusable="true">
 
-                <com.google.android.material.button.MaterialButton
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/listen_together_copy_room"
+                        android:src="@drawable/ic_copy_24"
+                        app:tint="@color/listen_together_invite_button_icon" />
+                </FrameLayout>
+
+                <FrameLayout
                     android:id="@+id/listenTogetherShareButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="10dp"
                     android:layout_weight="1"
-                    android:enabled="false"
-                    android:text="@string/listen_together_share_room"
-                    app:icon="@drawable/ic_share_24" />
+                    android:background="@drawable/bg_listen_together_invite_icon_button"
+                    android:clickable="true"
+                    android:focusable="true">
 
-                <com.google.android.material.button.MaterialButton
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/listen_together_share_room"
+                        android:src="@drawable/ic_share_24"
+                        app:tint="@color/listen_together_invite_button_icon" />
+                </FrameLayout>
+
+                <FrameLayout
                     android:id="@+id/listenTogetherQrButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="10dp"
                     android:layout_weight="1"
-                    android:enabled="false"
-                    android:text="@string/listen_together_qr_placeholder"
-                    app:icon="@drawable/ic_qr_scan_24" />
+                    android:background="@drawable/bg_listen_together_invite_icon_button"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@string/listen_together_qr_placeholder"
+                        android:src="@drawable/ic_qr_scan_24"
+                        app:tint="@color/listen_together_invite_button_icon" />
+                </FrameLayout>
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/listenTogetherLeaveButton"
-                style="@style/Widget.Material3.Button.TextButton"
+            <!-- 播放权限 -->
+            <TextView
+                android:id="@+id/listenTogetherPermissionLabel"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="12dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:letterSpacing="0.05"
+                android:text="@string/listen_together_section_permission"
+                android:textColor="@color/listen_together_section_label"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/listenTogetherPermissionRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_listen_together_room_inner_card"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/listenTogetherPermissionText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/listen_together_member_permission"
+                        android:textColor="@color/listen_together_field_value"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/listen_together_permission_subtitle"
+                        android:textColor="@color/listen_together_section_label"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/listenTogetherMemberOperationSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="18dp"
+                android:background="@color/listen_together_divider" />
+
+            <TextView
+                android:id="@+id/listenTogetherLeaveButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_listen_together_leave_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:letterSpacing="0.05"
                 android:text="@string/listen_together_leave_room"
-                android:textColor="@color/red" />
+                android:textColor="@color/listen_together_leave_text"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/listenTogetherSyncStatusView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center"
+                android:textColor="@color/listen_together_section_label"
+                android:textSize="11sp"
+                tools:text="同步正常 · 仅房主控制" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
