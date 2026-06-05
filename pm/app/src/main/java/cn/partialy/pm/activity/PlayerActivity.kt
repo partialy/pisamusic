@@ -529,7 +529,7 @@ class PlayerActivity : BaseDownloadActivity() {
 
         val session = AccountSessionStore.read(this)
         val username = session.user.username.ifBlank { "我的" }
-        sheetBinding.listenTogetherRoomNameInput.hint = "${username}的音乐房"
+        sheetBinding.listenTogetherRoomNameLayout.placeholderText = "${username}的音乐房"
         sheetBinding.listenTogetherRoomIdInput.setText(generateRandomRoomId())
         sheetBinding.listenTogetherRoomIdInput.setSelection(
             sheetBinding.listenTogetherRoomIdInput.text?.length ?: 0,
@@ -576,7 +576,7 @@ class PlayerActivity : BaseDownloadActivity() {
         sheetBinding.listenTogetherCreateButton.setOnClickListener {
             val nameInput = sheetBinding.listenTogetherRoomNameInput.text?.toString()?.trim().orEmpty()
             val roomName = nameInput.ifBlank {
-                sheetBinding.listenTogetherRoomNameInput.hint?.toString().orEmpty()
+                sheetBinding.listenTogetherRoomNameLayout.placeholderText?.toString().orEmpty()
             }
             val roomId = sheetBinding.listenTogetherRoomIdInput.text?.toString()?.trim()
                 ?.takeIf { it.isNotBlank() }

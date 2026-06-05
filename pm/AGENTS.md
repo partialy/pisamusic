@@ -135,7 +135,7 @@
 - `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免覆盖同步或其他显式鉴权请求。
 - 自有账号主入口在“我的”页头像区域，不再放在侧拉栏；未登录点击头像打开 `LoginActivity`，已登录点击头像打开 `AccountProfileActivity`。
 - “我的”页头像、昵称和邮箱优先读取 `AccountSessionStore` 中服务端账号字段；账号头像使用服务端 `avatarKey/avatarUrl`，相对路径按 `SYSTEM_SERVICE_BASE_URL` 拼接，自定义头像的 `avatarUrl` 为七牛公开图片空间直链。
-- `LoginActivity` 与 `AccountAssistActivity` 使用原生 XML + ViewBinding 的 edge-to-edge 界面；注册/找回输入框使用 Material `TextInputLayout` 浮动标签样式。`AccountProfileActivity` 继续使用 edge-to-edge 全屏 WebView 容器；Native 统一注入 `--native-status-bar-height` 与 `--native-navigation-bar-height` CSS 变量，WebView 本身不要再额外设置系统栏 padding。个人资料页顶部 headerbar 由 `assets/account-profile/` 内的网页实现；资料修改走 `/api/auth/profile/email-code` 与 `PATCH /api/auth/profile`，头像上传先走 `/api/auth/avatar/upload-token` 获取七牛 token 后由 Native 直传公开图片空间，再把返回 key 写入资料，成功后必须覆盖本地账号 session。旧的多张内置头像自选功能已废弃，不要恢复。
+- `LoginActivity` 与 `AccountAssistActivity` 使用原生 XML + ViewBinding 的 edge-to-edge 界面；账号登录、注册、找回密码输入框统一使用 Material `TextInputLayout` 浮动标签样式。`AccountProfileActivity` 继续使用 edge-to-edge 全屏 WebView 容器；Native 统一注入 `--native-status-bar-height` 与 `--native-navigation-bar-height` CSS 变量，WebView 本身不要再额外设置系统栏 padding。个人资料页顶部 headerbar 由 `assets/account-profile/` 内的网页实现；资料修改走 `/api/auth/profile/email-code` 与 `PATCH /api/auth/profile`，头像上传先走 `/api/auth/avatar/upload-token` 获取七牛 token 后由 Native 直传公开图片空间，再把返回 key 写入资料，成功后必须覆盖本地账号 session。旧的多张内置头像自选功能已废弃，不要恢复。
 
 ## 启动本地模式补充
 
@@ -145,6 +145,7 @@
 ## 一起听补充
 
 - Android 端一起听代码集中在 `listen/` 模块，包含 HTTP 仓库、Socket.IO 客户端、状态管理和服务端字段模型；播放器页只负责展示入口、房间面板和播放控制意图转发。
+- 播放器页一起听底部面板里的房间名、房间号、邀请码输入框使用 Material `TextInputLayout` 浮动标签样式；房间名默认值通过 `TextInputLayout.placeholderText` 承载，创建时空输入回退该占位值。
 - 一起听 HTTP 接口沿用外层服务端地址；`GET /api/listen-together/config` 是明文接口，使用独立明文 Retrofit client；`POST /api/listen-together/rooms` 和 `GET /api/listen-together/rooms/:roomId` 继续走 `SystemApiService` 的 AES-GCM 加密链路。创建房间遇到 `USER_ALREADY_HAS_ROOM` 时先由播放器弹确认框，用户确认后才带 `replaceExisting=true` 重新创建。
 - 一起听实时连接使用 `io.socket:socket.io-client`，连接时通过 Socket.IO `auth.token` 传 `Bearer <userToken>`；账号切换、退出房间、被踢出或房间销毁时必须断开 socket 并清空本地一起听状态。
 - 一起听只支持在线歌曲，不支持 `SongType.LOCAL`；创建房间默认 `memberOperation=false`，房主可在房间面板切换“成员可操作”。成员未获授权时必须提示无权限并向服务端同步房间状态，不要本地抢控制权。

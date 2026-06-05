@@ -61,90 +61,67 @@
             android:layout_marginTop="20dp"
             android:orientation="vertical">
 
-            <!-- 房间名称 -->
-            <LinearLayout
-                android:id="@+id/listenTogetherRoomNameRow"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/listenTogetherRoomNameLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
-                android:background="@drawable/bg_listen_together_create_card"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
+                android:layout_height="wrap_content"
+                android:hint="@string/listen_together_room_name_label"
+                android:textColorHint="@color/account_login_text_hint"
+                app:boxBackgroundColor="@color/account_login_field_bg"
+                app:boxCornerRadiusBottomEnd="18dp"
+                app:boxCornerRadiusBottomStart="18dp"
+                app:boxCornerRadiusTopEnd="18dp"
+                app:boxCornerRadiusTopStart="18dp"
+                app:boxStrokeColor="@color/account_text_input_stroke"
+                app:hintTextColor="@color/account_text_input_stroke"
+                tools:placeholderText="张三的音乐房">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/listen_together_room_name_label"
-                    android:textColor="@color/listen_together_field_label"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <EditText
+                <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/listenTogetherRoomNameInput"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:background="@null"
-                    android:gravity="end|center_vertical"
                     android:imeOptions="actionDone"
                     android:inputType="text"
                     android:maxLength="16"
-                    android:paddingHorizontal="0dp"
                     android:singleLine="true"
                     android:textColor="@color/listen_together_field_value"
-                    android:textColorHint="@color/listen_together_field_label"
                     android:textSize="15sp"
                     android:textStyle="bold"
                     tools:text="张三的音乐房" />
-            </LinearLayout>
+            </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- 房间号 -->
-            <LinearLayout
-                android:id="@+id/listenTogetherRoomIdRow"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/listenTogetherRoomIdLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="60dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:background="@drawable/bg_listen_together_create_card"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="16dp">
+                android:hint="@string/listen_together_room_id_label"
+                android:textColorHint="@color/account_login_text_hint"
+                app:boxBackgroundColor="@color/account_login_field_bg"
+                app:boxCornerRadiusBottomEnd="18dp"
+                app:boxCornerRadiusBottomStart="18dp"
+                app:boxCornerRadiusTopEnd="18dp"
+                app:boxCornerRadiusTopStart="18dp"
+                app:boxStrokeColor="@color/account_text_input_stroke"
+                app:helperText="@string/listen_together_room_id_suffix"
+                app:helperTextTextColor="@color/listen_together_field_label"
+                app:hintTextColor="@color/account_text_input_stroke">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/listen_together_room_id_label"
-                    android:textColor="@color/listen_together_field_label"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text="@string/listen_together_room_id_suffix"
-                    android:textColor="@color/listen_together_field_label"
-                    android:textSize="12sp" />
-
-                <EditText
+                <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/listenTogetherRoomIdInput"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:background="@null"
-                    android:gravity="end|center_vertical"
                     android:imeOptions="actionDone"
                     android:inputType="number"
                     android:maxLength="8"
-                    android:paddingHorizontal="0dp"
                     android:singleLine="true"
                     android:textColor="@color/listen_together_field_value"
-                    android:textColorHint="@color/listen_together_field_label"
                     android:textSize="15sp"
                     android:textStyle="bold"
                     tools:text="123456" />
-            </LinearLayout>
+            </com.google.android.material.textfield.TextInputLayout>
 
             <!-- 最大人数 + 成员控制切歌 -->
             <LinearLayout
@@ -311,26 +288,38 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/listenTogetherRoomInput"
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/listenTogetherRoomInputLayout"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="0dp"
-                    android:layout_height="52dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:background="@drawable/bg_listen_together_pill_input"
                     android:hint="@string/listen_together_invite_hint"
-                    android:imeOptions="actionDone"
-                    android:inputType="number"
-                    android:maxLength="8"
-                    android:paddingHorizontal="18dp"
-                    android:singleLine="true"
-                    android:textColor="@color/listen_together_field_value"
-                    android:textColorHint="@color/listen_together_field_label"
-                    android:textSize="14sp" />
+                    android:textColorHint="@color/account_login_text_hint"
+                    app:boxBackgroundColor="@color/account_login_field_bg"
+                    app:boxCornerRadiusBottomEnd="18dp"
+                    app:boxCornerRadiusBottomStart="18dp"
+                    app:boxCornerRadiusTopEnd="18dp"
+                    app:boxCornerRadiusTopStart="18dp"
+                    app:boxStrokeColor="@color/account_text_input_stroke"
+                    app:hintTextColor="@color/account_text_input_stroke">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/listenTogetherRoomInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:imeOptions="actionDone"
+                        android:inputType="number"
+                        android:maxLength="8"
+                        android:singleLine="true"
+                        android:textColor="@color/listen_together_field_value"
+                        android:textSize="14sp" />
+                </com.google.android.material.textfield.TextInputLayout>
 
                 <TextView
                     android:id="@+id/listenTogetherJoinButton"
                     android:layout_width="80dp"
-                    android:layout_height="52dp"
+                    android:layout_height="56dp"
                     android:layout_marginStart="10dp"
                     android:background="@drawable/bg_listen_together_join_button"
                     android:clickable="true"

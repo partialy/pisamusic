@@ -110,14 +110,14 @@ class LoginActivity : BaseActivity() {
                 LoginMode.PHONE -> R.string.account_login_phone_title
             },
         )
+        binding.accountLoginIdentifierLayout.hint = getString(
+            when (next) {
+                LoginMode.PASSWORD -> R.string.account_login_identifier_hint
+                LoginMode.EMAIL_CODE -> R.string.account_login_email_hint
+                LoginMode.PHONE -> R.string.account_login_phone_hint
+            },
+        )
         binding.accountLoginIdentifierEditText.apply {
-            hint = getString(
-                when (next) {
-                    LoginMode.PASSWORD -> R.string.account_login_identifier_hint
-                    LoginMode.EMAIL_CODE -> R.string.account_login_email_hint
-                    LoginMode.PHONE -> R.string.account_login_phone_hint
-                },
-            )
             inputType = when (next) {
                 LoginMode.PASSWORD -> InputType.TYPE_CLASS_TEXT
                 LoginMode.EMAIL_CODE -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
@@ -125,7 +125,7 @@ class LoginActivity : BaseActivity() {
             }
             setSelection(text?.length ?: 0)
         }
-        binding.accountLoginPasswordEditText.visibility =
+        binding.accountLoginPasswordLayout.visibility =
             if (next == LoginMode.PASSWORD) View.VISIBLE else View.GONE
         binding.accountLoginCodeRow.visibility =
             if (next == LoginMode.PASSWORD) View.GONE else View.VISIBLE

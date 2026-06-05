@@ -75,69 +75,108 @@
             </LinearLayout>
         </LinearLayout>
 
-        <EditText
-            android:id="@+id/accountLoginIdentifierEditText"
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/accountLoginIdentifierLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="36dp"
-            android:background="@drawable/bg_account_login_field"
             android:hint="@string/account_login_identifier_hint"
-            android:imeOptions="actionNext"
-            android:inputType="text"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:textColor="@color/account_login_text_primary"
             android:textColorHint="@color/account_login_text_hint"
-            android:textSize="15sp" />
+            app:boxBackgroundColor="@color/account_login_field_bg"
+            app:boxCornerRadiusBottomEnd="18dp"
+            app:boxCornerRadiusBottomStart="18dp"
+            app:boxCornerRadiusTopEnd="18dp"
+            app:boxCornerRadiusTopStart="18dp"
+            app:boxStrokeColor="@color/account_text_input_stroke"
+            app:hintTextColor="@color/account_text_input_stroke">
 
-        <EditText
-            android:id="@+id/accountLoginPasswordEditText"
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/accountLoginIdentifierEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeOptions="actionNext"
+                android:inputType="text"
+                android:singleLine="true"
+                android:textColor="@color/account_login_text_primary"
+                android:textSize="15sp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/accountLoginPasswordLayout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/bg_account_login_field"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
             android:hint="@string/account_login_password_hint"
-            android:imeOptions="actionDone"
-            android:inputType="textPassword"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:singleLine="true"
-            android:textColor="@color/account_login_text_primary"
             android:textColorHint="@color/account_login_text_hint"
-            android:textSize="15sp" />
+            app:boxBackgroundColor="@color/account_login_field_bg"
+            app:boxCornerRadiusBottomEnd="18dp"
+            app:boxCornerRadiusBottomStart="18dp"
+            app:boxCornerRadiusTopEnd="18dp"
+            app:boxCornerRadiusTopStart="18dp"
+            app:boxStrokeColor="@color/account_text_input_stroke"
+            app:endIconMode="password_toggle"
+            app:endIconTint="@color/account_login_text_hint"
+            app:hintTextColor="@color/account_text_input_stroke">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/accountLoginPasswordEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeOptions="actionDone"
+                android:inputType="textPassword"
+                android:singleLine="true"
+                android:textColor="@color/account_login_text_primary"
+                android:textSize="15sp" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <LinearLayout
             android:id="@+id/accountLoginCodeRow"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginTop="12dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
             android:visibility="gone"
             tools:visibility="visible">
 
-            <EditText
-                android:id="@+id/accountLoginCodeEditText"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/accountLoginCodeLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="0dp"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:background="@drawable/bg_account_login_field"
                 android:hint="@string/account_login_code_hint"
-                android:imeOptions="actionDone"
-                android:inputType="number"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:singleLine="true"
-                android:textColor="@color/account_login_text_primary"
                 android:textColorHint="@color/account_login_text_hint"
-                android:textSize="15sp" />
+                app:boxBackgroundColor="@color/account_login_field_bg"
+                app:boxCornerRadiusBottomEnd="18dp"
+                app:boxCornerRadiusBottomStart="18dp"
+                app:boxCornerRadiusTopEnd="18dp"
+                app:boxCornerRadiusTopStart="18dp"
+                app:boxStrokeColor="@color/account_text_input_stroke"
+                app:hintTextColor="@color/account_text_input_stroke">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/accountLoginCodeEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionDone"
+                    android:inputType="number"
+                    android:maxLength="6"
+                    android:singleLine="true"
+                    android:textColor="@color/account_login_text_primary"
+                    android:textSize="15sp" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
                 android:id="@+id/accountLoginSendCodeButton"
                 android:layout_width="104dp"
-                android:layout_height="match_parent"
+                android:layout_height="56dp"
                 android:layout_marginStart="10dp"
-                android:background="@drawable/bg_account_login_field"
+                android:background="@drawable/bg_account_assist_ghost_button"
                 android:gravity="center"
                 android:text="@string/account_login_send_code"
                 android:textColor="@color/account_login_brand"
