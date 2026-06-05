@@ -147,4 +147,16 @@
     <color name="account_profile_save_button_text">#FFFFFF</color>
     <color name="account_profile_logout_text">#E94B5C</color>
     <color name="account_profile_chevron_tint">#B7BBC2</color>
+    <!-- 自有账号原生登录页 -->
+    <color name="account_login_grad_start">#EFF9FF</color>
+    <color name="account_login_grad_center">#FAFDFF</color>
+    <color name="account_login_grad_end">#FFFFFF</color>
+    <color name="account_login_text_primary">#07152D</color>
+    <color name="account_login_text_secondary">#536681</color>
+    <color name="account_login_text_hint">#96A4B8</color>
+    <color name="account_login_field_bg">#F7FBFF</color>
+    <color name="account_login_field_stroke">#DDE6F0</color>
+    <color name="account_login_divider">#D9E2EE</color>
+    <color name="account_login_brand">#18A9E6</color>
+    <color name="account_login_method_bg">#FCFEFF</color>
 </resources>

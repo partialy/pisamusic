@@ -1,20 +1,21 @@
 package cn.partialy.pm.activity
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Bundle
+import android.os.CountDownTimer
+import android.text.InputType
 import android.view.View
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import androidx.core.graphics.Insets
+import android.widget.ImageButton
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityLoginBinding
 import cn.partialy.pm.model.AccountAuthResult
@@ -25,14 +26,13 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class LoginActivity : BaseActivity() {
     private lateinit var binding: ActivityLoginBinding
-    private var statusBarInsets: Insets = Insets.NONE
-    private var navigationBarInsets: Insets = Insets.NONE
+    private var loginMode: LoginMode = LoginMode.PASSWORD
+    private var codeCountDownTimer: CountDownTimer? = null
 
     @Inject
     lateinit var configManager: ConfigManager
@@ -45,95 +45,201 @@ class LoginActivity : BaseActivity() {
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
 
+        setupSystemBars()
+        bindActions()
+        applyMode(LoginMode.PASSWORD, showPhoneToast = false)
+    }
+
+    override fun onDestroy() {
+        codeCountDownTimer?.cancel()
+        super.onDestroy()
+    }
+
+    private fun setupSystemBars() {
         val isNight =
             (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = !isNight
             isAppearanceLightNavigationBars = !isNight
         }
-        setupWebView(binding.accountLoginWebView)
-        applySystemBarInsets(binding.accountLoginWebView)
-        binding.accountLoginWebView.addJavascriptInterface(AccountBridge(), "AndroidAccount")
-        binding.accountLoginWebView.loadUrl(LOGIN_WEB_URL)
-    }
-
-    override fun onDestroy() {
-        binding.accountLoginWebView.removeJavascriptInterface("AndroidAccount")
-        binding.accountLoginWebView.destroy()
-        super.onDestroy()
-    }
-
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun setupWebView(webView: WebView) {
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadWithOverviewMode = true
-            useWideViewPort = true
-        }
-        webView.overScrollMode = View.OVER_SCROLL_NEVER
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView, url: String?) {
-                applySystemBarStyles(view)
-            }
-        }
-        webView.webChromeClient = WebChromeClient()
-    }
-
-    private fun applySystemBarInsets(webView: WebView) {
-        ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
-            statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
-            navigationBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
-            applySystemBarStyles(webView)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.accountLoginRoot) { view, insets ->
+            val navigationBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            view.setPadding(0, 0, 0, navigationBar.bottom)
             insets
         }
-        webView.post { ViewCompat.requestApplyInsets(webView) }
+        ViewCompat.requestApplyInsets(binding.accountLoginRoot)
     }
 
-    private fun applySystemBarStyles(webView: WebView) {
-        val density = resources.displayMetrics.density
-        val statusBarPhysicalPx = statusBarHeightPhysicalPx(this).takeIf { it > 0 } ?: statusBarInsets.top
-        val statusBarCssPx = if (statusBarPhysicalPx > 0) (statusBarPhysicalPx / density + 0.5f).toInt() else 24
-        val navigationBarPhysicalPx = navigationBarInsets.bottom
-        val navigationBarCssPx = if (navigationBarPhysicalPx > 0) (navigationBarPhysicalPx / density + 0.5f).toInt() else 0
-        val js = """
-            (function() {
-                var statusBar = document.getElementById('android-status-bar');
-                if (statusBar) {
-                    statusBar.style.setProperty('height', '${statusBarCssPx}px', 'important');
+    private fun bindActions() {
+        binding.accountLoginBackButton.setOnClickListener { finish() }
+        binding.accountLoginRegisterButton.setOnClickListener {
+            AccountAssistActivity.start(this, AccountAssistActivity.MODE_REGISTER)
+        }
+        binding.accountLoginResetButton.setOnClickListener {
+            AccountAssistActivity.start(this, AccountAssistActivity.MODE_RESET)
+        }
+        binding.accountLoginPasswordModeButton.setOnClickListener {
+            applyMode(LoginMode.PASSWORD)
+        }
+        binding.accountLoginEmailModeButton.setOnClickListener {
+            applyMode(LoginMode.EMAIL_CODE)
+        }
+        binding.accountLoginPhoneModeButton.setOnClickListener {
+            applyMode(LoginMode.PHONE, showPhoneToast = true)
+        }
+        binding.accountLoginSendCodeButton.setOnClickListener {
+            when (loginMode) {
+                LoginMode.EMAIL_CODE -> sendEmailCode()
+                LoginMode.PHONE -> showPhoneUnavailable()
+                LoginMode.PASSWORD -> Unit
+            }
+        }
+        binding.accountLoginSubmitButton.setOnClickListener { submitLogin() }
+    }
+
+    private fun applyMode(next: LoginMode, showPhoneToast: Boolean = false) {
+        loginMode = next
+        binding.accountLoginTitleText.setText(
+            when (next) {
+                LoginMode.PASSWORD -> R.string.account_login_password_title
+                LoginMode.EMAIL_CODE -> R.string.account_login_email_title
+                LoginMode.PHONE -> R.string.account_login_phone_title
+            },
+        )
+        binding.accountLoginIdentifierEditText.apply {
+            hint = getString(
+                when (next) {
+                    LoginMode.PASSWORD -> R.string.account_login_identifier_hint
+                    LoginMode.EMAIL_CODE -> R.string.account_login_email_hint
+                    LoginMode.PHONE -> R.string.account_login_phone_hint
+                },
+            )
+            inputType = when (next) {
+                LoginMode.PASSWORD -> InputType.TYPE_CLASS_TEXT
+                LoginMode.EMAIL_CODE -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                LoginMode.PHONE -> InputType.TYPE_CLASS_PHONE
+            }
+            setSelection(text?.length ?: 0)
+        }
+        binding.accountLoginPasswordEditText.visibility =
+            if (next == LoginMode.PASSWORD) View.VISIBLE else View.GONE
+        binding.accountLoginCodeRow.visibility =
+            if (next == LoginMode.PASSWORD) View.GONE else View.VISIBLE
+        styleModeButton(binding.accountLoginPhoneModeButton, next == LoginMode.PHONE)
+        styleModeButton(binding.accountLoginEmailModeButton, next == LoginMode.EMAIL_CODE)
+        styleModeButton(binding.accountLoginPasswordModeButton, next == LoginMode.PASSWORD)
+        if (showPhoneToast) showPhoneUnavailable()
+    }
+
+    private fun styleModeButton(button: ImageButton, selected: Boolean) {
+        button.setBackgroundResource(
+            if (selected) R.drawable.bg_account_login_method_button_selected
+            else R.drawable.bg_account_login_method_button,
+        )
+        button.imageTintList = ContextCompat.getColorStateList(
+            this,
+            if (selected) R.color.account_login_brand else R.color.account_login_text_secondary,
+        )
+    }
+
+    private fun submitLogin() {
+        when (loginMode) {
+            LoginMode.PASSWORD -> submitPasswordLogin()
+            LoginMode.EMAIL_CODE -> submitEmailCodeLogin()
+            LoginMode.PHONE -> showPhoneUnavailable()
+        }
+    }
+
+    private fun submitPasswordLogin() {
+        val identifier = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
+        val password = binding.accountLoginPasswordEditText.text?.toString().orEmpty()
+        if (identifier.isBlank()) {
+            toast(R.string.account_login_identifier_required)
+            return
+        }
+        if (password.isBlank()) {
+            toast(R.string.account_login_password_required)
+            return
+        }
+        setLoading(true)
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    configManager.loginAccountByPassword(identifier, password)
                 }
-                document.documentElement.style.setProperty('--native-navigation-bar-height', '${navigationBarCssPx}px');
-            })();
-        """.trimIndent()
-        webView.evaluateJavascript(js, null)
-    }
-
-    private fun statusBarHeightPhysicalPx(context: Context): Int {
-        val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
-    }
-
-    private fun jsSafe(value: String): String =
-        value.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
-
-    private fun notifySuccess(message: String) {
-        binding.accountLoginWebView.post {
-            binding.accountLoginWebView.evaluateJavascript("window.accountPage && window.accountPage.success('${jsSafe(message)}')", null)
+            }.onSuccess(::notifyLoggedIn)
+                .onFailure { error ->
+                    setLoading(false)
+                    toast(error.message ?: getString(R.string.account_login_failed))
+                }
         }
     }
 
-    private fun notifyError(message: String) {
-        binding.accountLoginWebView.post {
-            binding.accountLoginWebView.evaluateJavascript("window.accountPage && window.accountPage.error('${jsSafe(message)}')", null)
+    private fun submitEmailCodeLogin() {
+        val email = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
+        val code = binding.accountLoginCodeEditText.text?.toString()?.trim().orEmpty()
+        if (email.isBlank()) {
+            toast(R.string.account_login_email_required)
+            return
+        }
+        if (code.isBlank()) {
+            toast(R.string.account_login_code_required)
+            return
+        }
+        setLoading(true)
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    configManager.loginAccountByCode(email, code)
+                }
+            }.onSuccess(::notifyLoggedIn)
+                .onFailure { error ->
+                    setLoading(false)
+                    toast(error.message ?: getString(R.string.account_login_failed))
+                }
         }
     }
 
-    private fun notifyEmailCodeSent() {
-        binding.accountLoginWebView.post {
-            binding.accountLoginWebView.evaluateJavascript("window.accountPage && window.accountPage.emailCodeSent()", null)
+    private fun sendEmailCode() {
+        val email = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
+        if (email.isBlank()) {
+            toast(R.string.account_login_email_required)
+            return
         }
+        binding.accountLoginSendCodeButton.isEnabled = false
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    configManager.sendAccountEmailCode(email, "login")
+                }
+            }.onSuccess {
+                toast(R.string.account_login_code_sent)
+                startCodeCountDown()
+            }.onFailure { error ->
+                binding.accountLoginSendCodeButton.isEnabled = true
+                toast(error.message ?: getString(R.string.account_login_failed))
+            }
+        }
+    }
+
+    private fun startCodeCountDown() {
+        codeCountDownTimer?.cancel()
+        codeCountDownTimer = object : CountDownTimer(CODE_COUNTDOWN_MS, 1000L) {
+            override fun onTick(millisUntilFinished: Long) {
+                val seconds = (millisUntilFinished / 1000L).coerceAtLeast(1L)
+                binding.accountLoginSendCodeButton.text =
+                    getString(R.string.account_login_send_code_countdown, seconds)
+            }
+
+            override fun onFinish() {
+                binding.accountLoginSendCodeButton.isEnabled = true
+                binding.accountLoginSendCodeButton.setText(R.string.account_login_send_code)
+            }
+        }.also { it.start() }
     }
 
     private fun notifyLoggedIn(result: AccountAuthResult) {
@@ -146,85 +252,41 @@ class LoginActivity : BaseActivity() {
                 AccountSessionStore.save(this@LoginActivity, result)
                 syncManager.startAccountSync()
             }
-            binding.accountLoginWebView.post {
-                binding.accountLoginWebView.evaluateJavascript("window.accountPage && window.accountPage.loggedIn()", null)
-            }
+            toast(R.string.account_login_success)
+            finish()
         }
     }
 
-    inner class AccountBridge {
-        @JavascriptInterface
-        fun close() {
-            runOnUiThread { finish() }
-        }
+    private fun setLoading(loading: Boolean) {
+        binding.accountLoginSubmitButton.isEnabled = !loading
+        binding.accountLoginPhoneModeButton.isEnabled = !loading
+        binding.accountLoginEmailModeButton.isEnabled = !loading
+        binding.accountLoginPasswordModeButton.isEnabled = !loading
+        binding.accountLoginRegisterButton.isEnabled = !loading
+        binding.accountLoginResetButton.isEnabled = !loading
+        binding.accountLoginSubmitButton.alpha = if (loading) 0.72f else 1f
+    }
 
-        @JavascriptInterface
-        fun openRegister() {
-            runOnUiThread {
-                AccountAssistActivity.start(this@LoginActivity, AccountAssistActivity.MODE_REGISTER)
-            }
-        }
+    private fun showPhoneUnavailable() {
+        toast(R.string.account_login_phone_unavailable)
+    }
 
-        @JavascriptInterface
-        fun openResetPassword() {
-            runOnUiThread {
-                AccountAssistActivity.start(this@LoginActivity, AccountAssistActivity.MODE_RESET)
-            }
-        }
+    private fun toast(messageRes: Int) {
+        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
+    }
 
-        @JavascriptInterface
-        fun sendEmailCode(raw: String) {
-            lifecycleScope.launch {
-                runCatching {
-                    val json = JSONObject(raw)
-                    val email = json.optString("email")
-                    val purpose = json.optString("purpose")
-                    withContext(Dispatchers.IO) { configManager.sendAccountEmailCode(email, purpose) }
-                }.onSuccess {
-                    notifyEmailCodeSent()
-                    notifySuccess("验证码已发送")
-                }.onFailure {
-                    notifyError(it.message ?: "验证码发送失败")
-                }
-            }
-        }
+    private fun toast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
 
-        @JavascriptInterface
-        fun loginByPassword(raw: String) {
-            lifecycleScope.launch {
-                runCatching {
-                    val json = JSONObject(raw)
-                    withContext(Dispatchers.IO) {
-                        configManager.loginAccountByPassword(
-                            identifier = json.optString("identifier"),
-                            password = json.optString("password"),
-                        )
-                    }
-                }.onSuccess(::notifyLoggedIn)
-                    .onFailure { notifyError(it.message ?: "登录失败") }
-            }
-        }
-
-        @JavascriptInterface
-        fun loginByCode(raw: String) {
-            lifecycleScope.launch {
-                runCatching {
-                    val json = JSONObject(raw)
-                    withContext(Dispatchers.IO) {
-                        configManager.loginAccountByCode(
-                            email = json.optString("email"),
-                            code = json.optString("code"),
-                        )
-                    }
-                }.onSuccess(::notifyLoggedIn)
-                    .onFailure { notifyError(it.message ?: "登录失败") }
-            }
-        }
-
+    private enum class LoginMode {
+        PASSWORD,
+        EMAIL_CODE,
+        PHONE,
     }
 
     companion object {
-        private const val LOGIN_WEB_URL = "file:///android_asset/account-login/index.html"
+        private const val CODE_COUNTDOWN_MS = 60_000L
 
         fun start(context: Context) {
             context.startActivity(Intent(context, LoginActivity::class.java))
