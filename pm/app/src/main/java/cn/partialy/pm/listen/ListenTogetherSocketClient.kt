@@ -102,6 +102,21 @@ class ListenTogetherSocketClient @Inject constructor(
         emit("listen:sync", roomId, "SYNC", emptyMap(), ListenTogetherJoinAckData::class.java, ack)
     }
 
+    fun emitUpdateRoom(
+        roomId: String,
+        memberOperation: Boolean,
+        ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit,
+    ) {
+        emit(
+            "listen:update_room",
+            roomId,
+            "UPDATE_ROOM",
+            mapOf("memberOperation" to memberOperation),
+            ListenTogetherRoomAckData::class.java,
+            ack,
+        )
+    }
+
     private fun <T> emit(
         event: String,
         roomId: String,

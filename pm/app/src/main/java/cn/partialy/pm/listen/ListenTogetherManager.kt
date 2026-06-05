@@ -154,6 +154,17 @@ class ListenTogetherManager @Inject constructor(
         playAndBroadcastSong(song)
     }
 
+    fun updateMemberOperation(enabled: Boolean) {
+        val state = _state.value
+        val room = state.room ?: return
+        if (!state.isHost) {
+            emitToast("只有房主可以设置成员权限")
+            return
+        }
+        if (room.memberOperation == enabled) return
+        socketClient.emitUpdateRoom(room.roomId, enabled) { handleRoomAck(it) }
+    }
+
     fun requestSeek(positionMs: Long) {
         if (!guardControl()) return
         musicController.seekToPositionMs(positionMs)

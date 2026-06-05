@@ -491,7 +491,12 @@ class PlayerActivity : BaseDownloadActivity() {
         sheetBinding.listenTogetherSubtitleView.text = room.roomName
         sheetBinding.listenTogetherRoomInfoView.text = "房间 ${room.roomId} · ${room.displayPeople()} 人在线"
         val connection = if (state.socketConnected) "同步正常" else "正在重连"
-        val control = if (state.isHost) "你是房主" else "仅房主控制"
+        val control = when {
+            state.isHost && room.memberOperation -> "你是房主 · 成员可操作"
+            state.isHost -> "你是房主 · 仅房主控制"
+            room.memberOperation -> "成员可操作"
+            else -> "仅房主控制"
+        }
         sheetBinding.listenTogetherSyncStatusView.text = "$connection · $control"
         sheetBinding.listenTogetherRoomSongView.text = room.song?.let {
             "当前同步：${it.name} - ${it.singer}"
@@ -505,6 +510,16 @@ class PlayerActivity : BaseDownloadActivity() {
             "成员：${room.displayPeople()} 人在线"
         } else {
             "成员：$memberText"
+        }
+        sheetBinding.listenTogetherMemberOperationSwitch.apply {
+            setOnCheckedChangeListener(null)
+            isChecked = room.memberOperation
+            isEnabled = state.isHost && state.socketConnected
+            alpha = if (state.isHost) 1f else 0.48f
+            setOnCheckedChangeListener { _, checked ->
+                val latest = listenTogetherManager.state.value.room?.memberOperation
+                if (latest != checked) listenTogetherManager.updateMemberOperation(checked)
+            }
         }
     }
 
