@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { getAppDb } from "./appDb";
-import { buildPublicQiniuUrl, isAccountAvatarObjectKey } from "../services/qiniuReleaseFiles";
+import { buildUrl, isAccountAvatarObjectKey } from "../services/qiniuReleaseFiles";
 
 export type UserRecord = {
   id: string;
@@ -78,7 +78,7 @@ export function accountAvatarUrl(userId: string, key: string, updatedAt = 0): st
   if (key === "default") return avatarUrlForKey(key);
   if (!isAccountAvatarObjectKey(userId, key)) return avatarUrlForKey("default");
   const suffix = updatedAt > 0 ? `?v=${encodeURIComponent(String(updatedAt))}` : "";
-  return `${buildPublicQiniuUrl(key)}${suffix}`;
+  return `${buildUrl(key, "public-image")}${suffix}`;
 }
 
 function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {

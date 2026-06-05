@@ -51,6 +51,25 @@ export type QiniuUploadTokenInfo = {
   expiresAt: number;
 };
 
+export type QiniuSpace = "release" | "public-image";
+
+const SPACE_ENV_MAP: Record<QiniuSpace, { bucket: string; domain: string; cdnDomain: string }> = {
+  release: { bucket: "QINIU_BUCKET", domain: "QINIU_DOMAIN", cdnDomain: "QINIU_DOMAIN_CDN" },
+  "public-image": { bucket: "QINIU_PUBLIC_IMAGE_BUCKET", domain: "QINIU_PUBLIC_IMAGE_DOMAIN", cdnDomain: "QINIU_PUBLIC_IMAGE_DOMAIN_CDN" },
+};
+
+type SpaceConfig = { bucket: string; domain: string; cdnDomain: string; baseUrl: string };
+
+function getSpaceConfig(space: QiniuSpace): SpaceConfig {
+  const envMap = SPACE_ENV_MAP[space];
+  const bucket = requireEnv(envMap.bucket);
+  const domain = normalizeDomain(optionalEnv(envMap.domain));
+  const cdnDomain = normalizeDomain(optionalEnv(envMap.cdnDomain));
+  const baseUrl = cdnDomain || domain;
+  if (!baseUrl) throw new Error(`缺少七牛配置：${envMap.domain} 或 ${envMap.cdnDomain}`);
+  return { bucket, domain, cdnDomain, baseUrl };
+}
+
 function requireEnv(name: string): string {
   const value = String(process.env[name] ?? "").trim();
   if (!value) throw new Error(`缺少七牛配置：${name}`);
@@ -69,24 +88,8 @@ function normalizeDomain(domain: string): string {
   return value.replace(/\/+$/, "");
 }
 
-function getPublicDomain(): { domain: string; cdnDomain: string; baseUrl: string } {
-  const domain = normalizeDomain(optionalEnv("QINIU_DOMAIN"));
-  const cdnDomain = normalizeDomain(optionalEnv("QINIU_DOMAIN_CDN"));
-  const baseUrl = cdnDomain || domain;
-  if (!baseUrl) throw new Error("缺少七牛配置：QINIU_DOMAIN 或 QINIU_DOMAIN_CDN");
-  return { domain, cdnDomain, baseUrl };
-}
-
 function getMac(): qiniu.auth.digest.Mac {
   return new qiniu.auth.digest.Mac(requireEnv("QINIU_ACCESS_KEY"), requireEnv("QINIU_SECRET_KEY"));
-}
-
-function getBucket(): string {
-  return requireEnv("QINIU_BUCKET");
-}
-
-function getPublicImageBucket(): string {
-  return requireEnv("QINIU_PUBLIC_IMAGE_BUCKET");
 }
 
 function getUploadUrl(): string {
@@ -142,13 +145,9 @@ function buildAccountAvatarObjectKey(input: AccountAvatarUploadTokenInput): stri
   return `pisamusic/account-avatars/${input.userId}/${randomUUID()}${ext}`;
 }
 
-export function buildDownloadUrl(key: string): string {
-  const { baseUrl } = getPublicDomain();
+export function buildUrl(key: string, space: QiniuSpace): string {
+  const { baseUrl } = getSpaceConfig(space);
   return `${baseUrl}/${key.split("/").map(encodeURIComponent).join("/")}`;
-}
-
-export function buildPublicQiniuUrl(key: string): string {
-  return buildDownloadUrl(key);
 }
 
 export function buildReleaseFileDownloadPath(fileId: string): string {
@@ -157,9 +156,8 @@ export function buildReleaseFileDownloadPath(fileId: string): string {
 
 export function createQiniuUploadToken(input: QiniuUploadTokenInput): QiniuUploadTokenInfo {
   validateReleaseFile(input.platform, input.fileName, input.fileSize);
-  const bucket = getBucket();
+  const { bucket, domain, cdnDomain } = getSpaceConfig("release");
   const key = buildObjectKey(input.platform, input.fileName);
-  const { domain, cdnDomain } = getPublicDomain();
   const putPolicy = new qiniu.rs.PutPolicy({
     scope: `${bucket}:${key}`,
     insertOnly: 1,
@@ -182,9 +180,8 @@ export function createQiniuUploadToken(input: QiniuUploadTokenInput): QiniuUploa
 
 export function createDesktopUpdateUploadToken(input: DesktopUpdateUploadTokenInput): QiniuUploadTokenInfo {
   validateDesktopUpdateAsset(input.fileName, input.fileSize);
-  const bucket = getBucket();
+  const { bucket, domain, cdnDomain } = getSpaceConfig("release");
   const key = buildDesktopUpdateObjectKey(input);
-  const { domain, cdnDomain } = getPublicDomain();
   const putPolicy = new qiniu.rs.PutPolicy({
     scope: `${bucket}:${key}`,
     insertOnly: 1,
@@ -225,9 +222,8 @@ export function validateAccountAvatarFile(fileName: string, fileSize: number, mi
 
 export function createAccountAvatarUploadToken(input: AccountAvatarUploadTokenInput): QiniuUploadTokenInfo {
   validateAccountAvatarFile(input.fileName, input.fileSize, input.mimeType);
-  const bucket = getPublicImageBucket();
+  const { bucket, domain, cdnDomain } = getSpaceConfig("public-image");
   const key = buildAccountAvatarObjectKey(input);
-  const { domain, cdnDomain } = getPublicDomain();
   const putPolicy = new qiniu.rs.PutPolicy({
     scope: `${bucket}:${key}`,
     insertOnly: 1,
@@ -243,7 +239,7 @@ export function createAccountAvatarUploadToken(input: AccountAvatarUploadTokenIn
     bucket,
     domain,
     cdnDomain,
-    downloadUrl: buildPublicQiniuUrl(key),
+    downloadUrl: buildUrl(key, "public-image"),
     expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000,
   };
 }
@@ -269,11 +265,11 @@ export async function deleteQiniuObject(bucket: string, key: string): Promise<vo
 }
 
 export async function deleteAccountAvatarObject(key: string): Promise<void> {
-  await deleteQiniuObject(getPublicImageBucket(), key);
+  await deleteQiniuObject(getSpaceConfig("public-image").bucket, key);
 }
 
 export function createPrivateQiniuDownloadUrl(key: string, ttlSeconds = DOWNLOAD_TTL_SECONDS): string {
-  const { baseUrl } = getPublicDomain();
+  const { baseUrl } = getSpaceConfig("release");
   const deadline = Math.floor(Date.now() / 1000) + ttlSeconds;
   const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
   return bucketManager.privateDownloadUrl(baseUrl, key, deadline);
