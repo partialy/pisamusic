@@ -107,6 +107,8 @@ class PlayerActivity : BaseDownloadActivity() {
     private var lyricScrollState: Int = RecyclerView.SCROLL_STATE_IDLE
     private var lyricCenterSeekIndex: Int = -1
     private var karaokeSyncJob: Job? = null
+    private var karaokeBasePaddingTop: Int = -1
+    private var karaokeBasePaddingBottom: Int = -1
     private var pendingSeekProgress: Int? = null
     /** 自动跟唱等代码触发的 [smoothScrollLyricsToCenter] 期间为 true，避免误显中线指示器。 */
     private var lyricsProgrammaticScrollInProgress: Boolean = false
@@ -408,9 +410,11 @@ class PlayerActivity : BaseDownloadActivity() {
         val room = state.room
         if (room == null) {
             binding.listenTogetherChip.visibility = View.GONE
+            applyListenTogetherLyricSpacing()
             return
         }
         binding.listenTogetherChip.visibility = View.VISIBLE
+        applyListenTogetherLyricSpacing()
         val status = if (state.socketConnected) "同步正常" else "重连中"
         binding.listenTogetherChip.text = "一起听中 · ${room.displayPeople()}人 · $status"
     }
@@ -657,15 +661,38 @@ class PlayerActivity : BaseDownloadActivity() {
         val rv = binding.lyricsRecyclerView
         val h = rv.height
         if (h <= 0) return
-        val pad = h / 2
-        if (rv.paddingTop == pad && rv.paddingBottom == pad) return
-        rv.updatePadding(top = pad, bottom = pad)
+        val bottomPad = h / 2
+        val topPad = bottomPad + listenTogetherLyricTopOffsetPx()
+        if (rv.paddingTop == topPad && rv.paddingBottom == bottomPad) return
+        rv.updatePadding(top = topPad, bottom = bottomPad)
         if (lyricCurrentIndex >= 0) {
             rv.post {
                 smoothScrollLyricsToCenter(lyricCurrentIndex)
                 updateLyricCenterSeekUi()
             }
         }
+    }
+
+    private fun applyListenTogetherLyricSpacing() {
+        binding.lyricsRecyclerView.post { applyLyricsRecyclerVerticalPadding() }
+        applyKaraokeListenTogetherPadding()
+    }
+
+    private fun applyKaraokeListenTogetherPadding() {
+        val view = binding.karaokeLyricsView
+        if (karaokeBasePaddingTop < 0) {
+            karaokeBasePaddingTop = view.paddingTop
+            karaokeBasePaddingBottom = view.paddingBottom
+        }
+        view.updatePadding(
+            top = karaokeBasePaddingTop + listenTogetherLyricTopOffsetPx(),
+            bottom = karaokeBasePaddingBottom,
+        )
+    }
+
+    private fun listenTogetherLyricTopOffsetPx(): Int {
+        if (listenTogetherManager.state.value.room == null) return 0
+        return (28f * resources.displayMetrics.density).toInt()
     }
 
     private fun submitLyrics(content: LyricContent) {
@@ -728,6 +755,7 @@ class PlayerActivity : BaseDownloadActivity() {
         val useKaraoke = LyricDisplayPrefs.isUseWordLyricEnabled(this) && lyricContent.hasWordTiming
         binding.karaokeLyricsView.visibility = if (useKaraoke) View.VISIBLE else View.GONE
         binding.lyricsRecyclerView.visibility = if (useKaraoke) View.GONE else View.VISIBLE
+        applyListenTogetherLyricSpacing()
         if (useKaraoke) {
             binding.lyricCenterSeekOverlay.visibility = View.GONE
             updateKaraokeLyricsView(currentPlaybackPositionMs())

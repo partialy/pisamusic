@@ -13,6 +13,7 @@ import com.google.gson.JsonObject
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,6 +46,8 @@ class ListenTogetherManager @Inject constructor(
     private var lastSongKey: String? = null
     private var lastPlaying: Boolean? = null
     private var lastEndedSongKey: String? = null
+    private var suppressedLocalSongKey: String? = null
+    private var heartbeatJob: Job? = null
 
     init {
         observeLocalPlayer()
@@ -117,12 +121,24 @@ class ListenTogetherManager @Inject constructor(
 
     fun requestPrevious() {
         if (!guardControl()) return
-        musicController.previous(auto = false)
+        val room = _state.value.room
+        if (room == null) {
+            musicController.previous(auto = false)
+            return
+        }
+        val target = targetQueueSong(offset = -1) ?: return
+        playAndBroadcastSong(target)
     }
 
     fun requestNext() {
         if (!guardControl()) return
-        musicController.next(auto = false)
+        val room = _state.value.room
+        if (room == null) {
+            musicController.next(auto = false)
+            return
+        }
+        val target = targetQueueSong(offset = 1) ?: return
+        playAndBroadcastSong(target)
     }
 
     fun requestPlaySong(song: SongInfo) {
@@ -131,7 +147,11 @@ class ListenTogetherManager @Inject constructor(
             emitToast("本地歌曲暂不支持一起听")
             return
         }
-        musicController.play(song)
+        if (_state.value.room == null) {
+            musicController.play(song)
+            return
+        }
+        playAndBroadcastSong(song)
     }
 
     fun requestSeek(positionMs: Long) {
@@ -161,6 +181,7 @@ class ListenTogetherManager @Inject constructor(
             override fun onConnected() {
                 scope.launch {
                     _state.value = _state.value.copy(socketConnected = true)
+                    updateHeartbeat()
                     if (_state.value.joining) emitJoin(roomId) else emitSync(roomId)
                 }
             }
@@ -168,12 +189,14 @@ class ListenTogetherManager @Inject constructor(
             override fun onDisconnected() {
                 scope.launch {
                     _state.value = _state.value.copy(socketConnected = false)
+                    updateHeartbeat()
                 }
             }
 
             override fun onConnectError(message: String) {
                 scope.launch {
                     _state.value = _state.value.copy(socketConnected = false, joining = false)
+                    updateHeartbeat()
                     emitToast(if (message.isBlank()) "一起听连接失败" else message)
                 }
             }
@@ -231,7 +254,11 @@ class ListenTogetherManager @Inject constructor(
                     emitToast("本地歌曲暂不支持一起听")
                     return@collect
                 }
-                emitChangeSong(song)
+                if (key == suppressedLocalSongKey) {
+                    suppressedLocalSongKey = null
+                    return@collect
+                }
+                emitChangeSong(song, autoPlay = musicController.isPlaying.value)
             }
         }
         scope.launch {
@@ -265,13 +292,85 @@ class ListenTogetherManager @Inject constructor(
         }
     }
 
-    private fun emitChangeSong(song: SongInfo) {
+    private fun playAndBroadcastSong(song: SongInfo, autoPlay: Boolean = true) {
+        if (song.type == SongType.LOCAL) {
+            emitToast("本地歌曲暂不支持一起听")
+            return
+        }
+        val targetKey = song.key()
+        suppressedLocalSongKey = targetKey.takeIf { it != musicController.currentSong.value.key() }
+        musicController.play(song, autoPlay = autoPlay)
+        emitChangeSong(song, autoPlay = autoPlay)
+    }
+
+    private fun emitChangeSong(song: SongInfo, autoPlay: Boolean) {
         val room = _state.value.room ?: return
         socketClient.emitChangeSong(
             roomId = room.roomId,
             song = song.toListenTogetherSong(musicController.duration.value),
-            autoPlay = musicController.isPlaying.value,
+            autoPlay = autoPlay,
         ) { handleRoomAck(it) }
+    }
+
+    private fun targetQueueSong(offset: Int): SongInfo? {
+        val songs = musicController.playList.value
+        if (songs.isEmpty()) return null
+        val current = musicController.currentSong.value
+        val currentIndex = songs.indexOfFirst { current != null && it.type == current.type && it.id == current.id }
+            .takeIf { it >= 0 }
+            ?: musicController.currentIndex.value.coerceIn(0, songs.lastIndex)
+        val targetIndex = when {
+            offset > 0 && currentIndex >= songs.lastIndex -> 0
+            offset > 0 -> currentIndex + 1
+            offset < 0 && currentIndex <= 0 -> songs.lastIndex
+            offset < 0 -> currentIndex - 1
+            else -> currentIndex
+        }
+        return songs.getOrNull(targetIndex)
+    }
+
+    private fun updateHeartbeat() {
+        val state = _state.value
+        val shouldRun = state.room != null &&
+            state.socketConnected &&
+            state.room.hostUserId == state.currentUserId
+        if (!shouldRun) {
+            heartbeatJob?.cancel()
+            heartbeatJob = null
+            return
+        }
+        if (heartbeatJob?.isActive == true) return
+        heartbeatJob = scope.launch {
+            while (isActive) {
+                delay(HOST_HEARTBEAT_INTERVAL_MS)
+                emitHostHeartbeat()
+            }
+        }
+    }
+
+    private fun emitHostHeartbeat() {
+        val room = _state.value.room ?: return
+        if (!_state.value.socketConnected || room.hostUserId != _state.value.currentUserId) return
+        val song = musicController.currentSong.value ?: return
+        if (song.type == SongType.LOCAL) return
+        val position = musicController.currentPosition.value.coerceAtLeast(0L)
+        if (musicController.isPlaying.value) {
+            socketClient.emitPlay(
+                roomId = room.roomId,
+                song = song.toListenTogetherSong(musicController.duration.value),
+                position = position,
+            ) { handleRoomAck(it) }
+            return
+        }
+        if (room.song == null) {
+            socketClient.emitChangeSong(
+                roomId = room.roomId,
+                song = song.toListenTogetherSong(musicController.duration.value),
+                autoPlay = false,
+            ) { handleRoomAck(it) }
+        } else {
+            socketClient.emitPause(room.roomId, position) { handleRoomAck(it) }
+        }
     }
 
     private fun handleRoomAck(ack: ListenTogetherAck<ListenTogetherRoomAckData>) {
@@ -302,7 +401,11 @@ class ListenTogetherManager @Inject constructor(
                 val payload = gson.fromJson(data, ListenTogetherRoomDataPayload::class.java)
                 applyRoom(payload.room, joining = false, version = version)
             }
-            "MEMBER_JOINED", "MEMBER_LEFT" -> updateMembers(data, version)
+            "MEMBER_JOINED" -> {
+                updateMembers(data, version)
+                emitHostHeartbeat()
+            }
+            "MEMBER_LEFT" -> updateMembers(data, version)
             "MEMBER_KICKED" -> {
                 val payload = gson.fromJson(data, ListenTogetherKickedData::class.java)
                 if (payload.targetUserId == _state.value.currentUserId) {
@@ -379,11 +482,13 @@ class ListenTogetherManager @Inject constructor(
             joining = joining,
             lastVersion = version.coerceAtLeast(room.version),
         )
+        updateHeartbeat()
     }
 
     private fun updateCurrentRoom(version: Long, block: (ListenTogetherRoom) -> ListenTogetherRoom) {
         val room = _state.value.room ?: return
         _state.value = _state.value.copy(room = block(room), lastVersion = version)
+        updateHeartbeat()
     }
 
     private fun shouldEmitLocalPlayback(): Boolean {
@@ -433,6 +538,8 @@ class ListenTogetherManager @Inject constructor(
 
     private fun clearState() {
         socketClient.disconnect()
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         _state.value = ListenTogetherState(currentUserId = AccountSessionStore.read(context).user.id)
     }
 
@@ -470,4 +577,8 @@ class ListenTogetherManager @Inject constructor(
 
     private fun JsonObject?.getLong(name: String): Long =
         this?.get(name)?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+
+    companion object {
+        private const val HOST_HEARTBEAT_INTERVAL_MS = 6_000L
+    }
 }
