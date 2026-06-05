@@ -248,8 +248,13 @@ export function readListenTogetherConfig(): ListenTogetherConfig {
 
 export function createListenTogetherRoom(user: PublicUser, input: ListenTogetherCreateRoomInput): ListenTogetherPublicRoom {
   const authUser = userFromPublicUser(user);
-  if (getUserRoom(authUser.userId)) {
+  const existingRoomId = getUserRoom(authUser.userId);
+  const replaceExisting = input.replaceExisting === true;
+  if (existingRoomId && !replaceExisting) {
     throw new ListenTogetherError("用户已经在其它房间内", "USER_ALREADY_HAS_ROOM", 400);
+  }
+  if (existingRoomId) {
+    leaveListenTogetherRoom(authUser.userId, existingRoomId);
   }
   const config = readListenTogetherConfig();
   const requestedRoomId = normalizeOptionalRoomId(input.roomId);

@@ -82,6 +82,7 @@ export type ListenTogetherCreateRoomInput = {
   roomId?: unknown;
   maxPeople?: unknown;
   memberOperation?: unknown;
+  replaceExisting?: unknown;
 };
 
 export type ListenTogetherSocketPayload<TData = Record<string, unknown>> = {

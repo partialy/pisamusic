@@ -57,7 +57,7 @@ class ListenTogetherManager @Inject constructor(
         observeLocalPlayer()
     }
 
-    suspend fun createRoom(currentSong: SongInfo?) {
+    suspend fun createRoom(currentSong: SongInfo?, replaceExisting: Boolean = false) {
         val session = requireSession() ?: return
         val song = currentSong ?: run {
             emitToast("先播放一首在线歌曲，再创建一起听房间")
@@ -78,12 +78,17 @@ class ListenTogetherManager @Inject constructor(
                     roomName = name,
                     maxPeople = config.defaultMaxPeople.coerceIn(2, config.maxPeopleLimit.coerceAtLeast(2)),
                     memberOperation = false,
+                    replaceExisting = replaceExisting,
                 ),
             )
             connectAndEnter(session, room.roomId, room)
         }.onFailure {
             _state.value = _state.value.copy(joining = false)
-            emitToast(errorMessage(it, "创建房间失败"))
+            if (!replaceExisting && it is ListenTogetherApiException && it.errorMsg == "USER_ALREADY_HAS_ROOM") {
+                _events.tryEmit(ListenTogetherUiEvent.ConfirmReplaceRoom("当前已加入房间，继续创建将退出之前房间"))
+            } else {
+                emitToast(errorMessage(it, "创建房间失败"))
+            }
         }
     }
 

@@ -27,6 +27,7 @@ data class ListenTogetherCreateRoomRequest(
     val roomId: String? = null,
     val maxPeople: Int? = null,
     val memberOperation: Boolean = false,
+    val replaceExisting: Boolean = false,
 )
 
 data class ListenTogetherConfig(
@@ -222,6 +223,7 @@ data class ListenTogetherOperator(
 sealed class ListenTogetherUiEvent {
     data class Toast(val message: String) : ListenTogetherUiEvent()
     data class RequireLogin(val message: String) : ListenTogetherUiEvent()
+    data class ConfirmReplaceRoom(val message: String) : ListenTogetherUiEvent()
 }
 
 class ListenTogetherApiException(

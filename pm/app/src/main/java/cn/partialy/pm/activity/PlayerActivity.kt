@@ -80,6 +80,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.imageview.ShapeableImageView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.abs
 import kotlinx.coroutines.launch
@@ -421,9 +422,28 @@ class PlayerActivity : BaseDownloadActivity() {
                         Toast.makeText(this@PlayerActivity, event.message, Toast.LENGTH_SHORT).show()
                         LoginActivity.start(this@PlayerActivity)
                     }
+                    is ListenTogetherUiEvent.ConfirmReplaceRoom -> {
+                        showReplaceListenTogetherRoomDialog(event.message)
+                    }
                 }
             }
         }
+    }
+
+    private fun showReplaceListenTogetherRoomDialog(message: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("创建新的听歌房")
+            .setMessage(message)
+            .setNegativeButton("取消", null)
+            .setPositiveButton("确认") { _, _ ->
+                lifecycleScope.launch {
+                    listenTogetherManager.createRoom(
+                        currentSong = musicController.currentSong.value,
+                        replaceExisting = true,
+                    )
+                }
+            }
+            .show()
     }
 
     private fun renderListenTogetherChip(state: ListenTogetherState) {
