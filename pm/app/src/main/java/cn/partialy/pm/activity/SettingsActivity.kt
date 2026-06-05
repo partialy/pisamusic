@@ -33,6 +33,7 @@ import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
+import cn.partialy.pm.ui.widget.PmSwitch
 import cn.partialy.pm.utils.DownloadPathManager
 import cn.partialy.pm.utils.LyricDisplayPrefs
 import cn.partialy.pm.utils.ServerDevicePrefs
@@ -207,7 +208,7 @@ class SettingsActivity : BaseActivity() {
                 "写入封面",
                 getString(R.string.settings_write_cover_summary),
             )
-            val sw = root.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchView)
+            val sw = root.findViewById<PmSwitch>(R.id.switchView)
             sw.isChecked = SettingsPrefs.isWriteCoverEnabled(this@SettingsActivity)
             root.setOnClickListener { sw.toggle() }
             sw.setOnCheckedChangeListener { _, isChecked ->
@@ -222,7 +223,7 @@ class SettingsActivity : BaseActivity() {
                 "写入标签",
                 getString(R.string.settings_write_tags_summary),
             )
-            val sw = root.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchView)
+            val sw = root.findViewById<PmSwitch>(R.id.switchView)
             sw.isChecked = SettingsPrefs.isWriteTagsEnabled(this@SettingsActivity)
             root.setOnClickListener { sw.toggle() }
             sw.setOnCheckedChangeListener { _, isChecked ->
@@ -237,7 +238,7 @@ class SettingsActivity : BaseActivity() {
                 "写入歌词",
                 getString(R.string.settings_write_lyrics_summary),
             )
-            val sw = root.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchView)
+            val sw = root.findViewById<PmSwitch>(R.id.switchView)
             sw.isChecked = SettingsPrefs.isWriteLyricsEnabled(this@SettingsActivity)
             root.setOnClickListener { sw.toggle() }
             sw.setOnCheckedChangeListener { _, isChecked ->

@@ -22,7 +22,7 @@
             android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
             android:textColor="?attr/colorOnSurface" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
+        <cn.partialy.pm.ui.widget.PmSwitch
             android:id="@+id/lyricSettingsUseWordLyricSwitch"
             style="@style/Widget.Pm.SettingsSwitch"
             android:layout_width="match_parent"
@@ -137,7 +137,7 @@
                 android:orientation="horizontal" />
         </HorizontalScrollView>
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
+        <cn.partialy.pm.ui.widget.PmSwitch
             android:id="@+id/lyricSettingsBoldSwitch"
             style="@style/Widget.Pm.SettingsSwitch"
             android:layout_width="match_parent"
@@ -147,7 +147,7 @@
             android:text="@string/lyric_settings_current_bold"
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
+        <cn.partialy.pm.ui.widget.PmSwitch
             android:id="@+id/lyricSettingsCurrentEnlargedSwitch"
             style="@style/Widget.Pm.SettingsSwitch"
             android:layout_width="match_parent"
@@ -156,7 +156,7 @@
             android:text="@string/lyric_settings_current_enlarged"
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
+        <cn.partialy.pm.ui.widget.PmSwitch
             android:id="@+id/lyricSettingsWordScaleSwitch"
             style="@style/Widget.Pm.SettingsSwitch"
             android:layout_width="match_parent"

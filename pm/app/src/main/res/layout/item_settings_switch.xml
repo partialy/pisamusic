@@ -56,7 +56,7 @@
             tools:visibility="visible" />
     </LinearLayout>
 
-    <com.google.android.material.switchmaterial.SwitchMaterial
+    <cn.partialy.pm.ui.widget.PmSwitch
         android:id="@+id/switchView"
         style="@style/Widget.Pm.SettingsSwitch"
         android:layout_width="wrap_content"

@@ -223,8 +223,9 @@
                             tools:text="已开启" />
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <cn.partialy.pm.ui.widget.PmSwitch
                         android:id="@+id/listenTogetherMemberOperationSwitchCreate"
+                        style="@style/Widget.Pm.SettingsSwitch"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -660,8 +661,9 @@
                         android:textSize="12sp" />
                 </LinearLayout>
 
-                <com.google.android.material.switchmaterial.SwitchMaterial
+                <cn.partialy.pm.ui.widget.PmSwitch
                     android:id="@+id/listenTogetherMemberOperationSwitch"
+                    style="@style/Widget.Pm.SettingsSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content" />
             </LinearLayout>
