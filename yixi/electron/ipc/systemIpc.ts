@@ -3,7 +3,6 @@ import {
   getAnnouncements,
   getAboutInfo,
   changeAccountPassword,
-  getAccountAvatarOptions,
   getAppVersion,
   clearAccountSession,
   getBootstrap,
@@ -22,6 +21,7 @@ import {
   sendAccountEmailCode,
   sendProfileEmailCode,
   submitFeedback,
+  uploadAccountAvatar,
   updateAccountProfile,
 } from "../system/systemClient";
 import { clearSyncState } from "../sync/syncService";
@@ -74,7 +74,7 @@ export function setupSystemIpc() {
   });
 
   ipcMain.handle("account:session", () => getAccountSession());
-  ipcMain.handle("account:avatar-options", () => getAccountAvatarOptions());
+  ipcMain.handle("account:upload-avatar", () => uploadAccountAvatar());
   ipcMain.handle("account:refresh", () => refreshAccountSession());
   ipcMain.handle("account:logout", async () => {
     const session = clearAccountSession();

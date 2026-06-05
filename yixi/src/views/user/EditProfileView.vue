@@ -22,18 +22,17 @@
         <n-form-item label="昵称">
           <n-input v-model:value="form.username" maxlength="32" show-count placeholder="请输入昵称" />
         </n-form-item>
-        <n-form-item label="头像">
-          <div class="avatar-options">
-            <button
-              v-for="item in avatarOptions"
-              :key="item.key"
-              type="button"
-              class="avatar-option"
-              :class="{ active: form.avatarKey === item.key }"
-              @click="form.avatarKey = item.key">
-              <img :src="item.url" alt="" />
-              <span>{{ item.label }}</span>
-            </button>
+        <n-form-item class="avatar-form-item" label="头像">
+          <div class="avatar-editor">
+            <n-avatar :src="avatarSrc" round :size="72" class="avatar-preview" />
+            <div class="avatar-meta">
+              <strong>{{ avatarKindText }}</strong>
+              <span>{{ userInfo.avatarKey === "default" ? "使用内置默认头像" : "使用自定义上传头像" }}</span>
+            </div>
+            <div class="avatar-actions">
+              <n-button secondary round :loading="avatarSaving" @click="uploadAvatar">上传头像</n-button>
+              <n-button tertiary round :disabled="avatarSaving || userInfo.avatarKey === 'default'" @click="restoreDefaultAvatar">恢复默认</n-button>
+            </div>
           </div>
         </n-form-item>
       </n-form>
@@ -53,42 +52,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref, watch } from "vue";
+import { computed, h, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { NButton, NForm, NFormItem, NInput } from "naive-ui";
+import { NAvatar, NButton, NForm, NFormItem, NInput } from "naive-ui";
 import { storeToRefs } from "pinia";
 import { LoginCard } from "@/components";
 import { useUserStore } from "@/store";
+import avatarImg from "@/assets/defaultAdminAvatar.jpg";
 
 defineOptions({ name: "EditUserProfileView" });
-
-type AvatarOption = Awaited<ReturnType<typeof window.electronAPI.getAccountAvatarOptions>>[number];
 
 const router = useRouter();
 const userStore = useUserStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
-const avatarOptions = ref<AvatarOption[]>([]);
 const saving = ref(false);
+const avatarSaving = ref(false);
 const form = reactive({
   username: "",
-  avatarKey: "default",
 });
 
 const createdAtText = computed(() => formatTime(userInfo.value.createdAt));
-
-onMounted(async () => {
-  resetForm();
-  avatarOptions.value = await window.electronAPI.getAccountAvatarOptions();
-});
+const avatarSrc = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
+const avatarKindText = computed(() => (userInfo.value.avatarKey === "default" ? "默认头像" : "自定义头像"));
 
 watch(
   () => userInfo.value.id,
   () => resetForm(),
+  { immediate: true },
 );
 
 function resetForm() {
   form.username = userInfo.value.username || "";
-  form.avatarKey = userInfo.value.avatarKey || "default";
 }
 
 async function saveProfile() {
@@ -116,10 +110,39 @@ async function saveProfile() {
   }
 }
 
+async function uploadAvatar() {
+  avatarSaving.value = true;
+  try {
+    const result = await window.electronAPI.uploadAccountAvatar();
+    if (result.canceled) return;
+    userStore.setSession(result.session);
+    window.$message.success("头像已更新");
+  } catch (error) {
+    window.$message.error(errorMessage(error, "头像上传失败"));
+  } finally {
+    avatarSaving.value = false;
+  }
+}
+
+async function restoreDefaultAvatar() {
+  if (userInfo.value.avatarKey === "default") {
+    window.$message.info("当前已是默认头像");
+    return;
+  }
+  avatarSaving.value = true;
+  try {
+    await userStore.updateProfile({ avatarKey: "default" });
+    window.$message.success("已恢复默认头像");
+  } catch (error) {
+    window.$message.error(errorMessage(error, "恢复默认头像失败"));
+  } finally {
+    avatarSaving.value = false;
+  }
+}
+
 function buildPayload(username: string) {
   const payload: Parameters<typeof userStore.updateProfile>[0] = {};
   if (username !== userInfo.value.username) payload.username = username;
-  if (form.avatarKey !== (userInfo.value.avatarKey || "default")) payload.avatarKey = form.avatarKey;
   return payload;
 }
 
@@ -194,48 +217,58 @@ function errorMessage(error: unknown, fallback: string) {
   column-gap: 16px;
 }
 
-.avatar-options {
+.avatar-form-item {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(84px, 1fr));
-  gap: 12px;
-  width: 100%;
 }
 
-.avatar-option {
+.avatar-editor {
   display: grid;
-  place-items: center;
-  gap: 8px;
-  padding: 10px 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
   border: 1px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--color-bg-default) 76%, transparent);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease;
+}
 
-  img {
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
+.avatar-preview {
+  box-shadow: 0 10px 24px rgba(40, 151, 255, 0.16);
+
+  :deep(img) {
     object-fit: cover;
-  }
-
-  span {
-    font-size: 12px;
-  }
-
-  &.active {
-    border-color: var(--color-primary);
-    color: var(--color-text-default);
-    transform: translateY(-2px);
   }
 }
 
+.avatar-meta {
+  min-width: 0;
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: var(--color-text-default);
+    font-size: 15px;
+  }
+
+  span {
+    margin-top: 4px;
+    color: var(--color-text-muted);
+    font-size: 12px;
+  }
+}
+
+.avatar-actions,
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.actions {
   margin-top: 8px;
 }
 
@@ -245,14 +278,20 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 @media (max-width: 720px) {
-  .profile-form,
-  .avatar-options {
+  .profile-form {
     grid-template-columns: 1fr;
   }
 
+  .avatar-editor,
   .page-head,
   .actions {
     align-items: stretch;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .avatar-actions {
+    justify-content: stretch;
     flex-direction: column;
   }
 }

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
-import { app } from "electron";
+import path from "node:path";
+import { app, dialog } from "electron";
 import { getAppDatabase } from "../database";
 import { logDebugRequest } from "../utils/requestDebug";
 import { decrypt, encrypt, randomFullKey } from "./encryption";
@@ -223,19 +225,23 @@ export type AccountSession = AccountAuthResult & {
 };
 
 const ACCOUNT_SESSION_KEY = "account-session";
-const ACCOUNT_AVATAR_OPTIONS = [
-  { key: "default", label: "默认", path: "/static/account-avatars/default.jpg" },
-  { key: "anime_sky", label: "天空蓝", path: "/static/account-avatars/anime_sky.png" },
-  { key: "anime_mint", label: "薄荷绿", path: "/static/account-avatars/anime_mint.png" },
-  { key: "anime_peach", label: "蜜桃橙", path: "/static/account-avatars/anime_peach.png" },
-  { key: "anime_lilac", label: "丁香紫", path: "/static/account-avatars/anime_lilac.png" },
-  { key: "anime_sun", label: "暖阳黄", path: "/static/account-avatars/anime_sun.png" },
-] as const;
+const ACCOUNT_AVATAR_MAX_SIZE = 5 * 1024 * 1024;
 
-export type AccountAvatarOption = {
+type AccountAvatarUploadToken = {
+  provider: "qiniu";
+  uploadToken: string;
+  uploadUrl: string;
   key: string;
-  label: string;
-  url: string;
+  bucket: string;
+  domain: string;
+  cdnDomain: string;
+  downloadUrl: string;
+  expiresAt: number;
+};
+
+export type AccountAvatarUploadResult = {
+  canceled: boolean;
+  session: AccountSession;
 };
 
 export function getAccountSession(): AccountSession {
@@ -261,14 +267,6 @@ export async function sendAccountEmailCode(payload: { email: string; purpose: "r
     body: payload,
   });
   return unwrapResponse(response);
-}
-
-export function getAccountAvatarOptions(): AccountAvatarOption[] {
-  return ACCOUNT_AVATAR_OPTIONS.map((item) => ({
-    key: item.key,
-    label: item.label,
-    url: absoluteSystemUrl(item.path),
-  }));
 }
 
 export async function registerAccount(payload: { email: string; username: string; password: string; code: string }) {
@@ -332,6 +330,45 @@ export async function updateAccountProfile(payload: { username?: string; email?:
   return saveAccountSession(unwrapResponse(response));
 }
 
+export async function uploadAccountAvatar(): Promise<AccountAvatarUploadResult> {
+  const session = getAccountSession();
+  if (!session.loggedIn) throw new Error("请先登录账号");
+  const selected = await dialog.showOpenDialog({
+    title: "选择账号头像",
+    properties: ["openFile"],
+    filters: [
+      {
+        name: "Images",
+        extensions: ["jpg", "jpeg", "png", "webp"],
+      },
+    ],
+  });
+  if (selected.canceled || !selected.filePaths.length) {
+    return { canceled: true, session };
+  }
+
+  const filePath = selected.filePaths[0];
+  const fileStat = await stat(filePath);
+  if (!fileStat.isFile() || fileStat.size <= 0) throw new Error("头像文件无效");
+  if (fileStat.size > ACCOUNT_AVATAR_MAX_SIZE) throw new Error("头像文件不能超过 5MB");
+
+  const fileName = path.basename(filePath);
+  const mimeType = inferImageMimeType(fileName);
+  const tokenResponse = await requestSystem<AccountAvatarUploadToken>("/api/auth/avatar/upload-token", {
+    method: "POST",
+    body: {
+      fileName,
+      fileSize: fileStat.size,
+      mimeType,
+    },
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
+  const uploadToken = unwrapResponse(tokenResponse);
+  await uploadQiniuPublicFile(uploadToken, filePath, fileName, mimeType);
+  const nextSession = await updateAccountProfile({ avatarKey: uploadToken.key });
+  return { canceled: false, session: nextSession };
+}
+
 export async function changeAccountPassword(payload: { currentPassword: string; newPassword: string }) {
   const session = getAccountSession();
   if (!session.loggedIn) throw new Error("璇峰厛鐧诲綍璐﹀彿");
@@ -349,6 +386,30 @@ export async function resetAccountPassword(payload: { email: string; code: strin
     body: payload,
   });
   return unwrapResponse(response);
+}
+
+function inferImageMimeType(fileName: string) {
+  const ext = path.extname(fileName).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  return "image/jpeg";
+}
+
+async function uploadQiniuPublicFile(token: AccountAvatarUploadToken, filePath: string, fileName: string, mimeType: string) {
+  const buffer = await readFile(filePath);
+  const data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const form = new FormData();
+  form.set("token", token.uploadToken);
+  form.set("key", token.key);
+  form.set("file", new Blob([data], { type: mimeType }), fileName);
+  const response = await fetch(token.uploadUrl, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`七牛上传失败：HTTP ${response.status}${text ? ` ${text}` : ""}`);
+  }
 }
 
 export type SyncChange = {

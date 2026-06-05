@@ -26,7 +26,7 @@
         </div>
         <div class="info-item">
           <span>头像类型</span>
-          <strong>{{ userInfo.avatarKey || "default" }}</strong>
+          <strong>{{ avatarKindText }}</strong>
         </div>
         <div class="info-item">
           <span>账号邮箱</span>
@@ -37,7 +37,7 @@
 
     <section v-else class="empty-state">
       <h1>登录账号后查看资料</h1>
-      <p>账号资料包含 UUID、注册时间、昵称、邮箱和头像选择。</p>
+      <p>账号资料包含 UUID、注册时间、昵称、邮箱和账号头像。</p>
       <n-button type="primary" round @click="openLogin">登录 / 注册</n-button>
     </section>
   </div>
@@ -63,6 +63,7 @@ const { isLogin, userInfo } = storeToRefs(userStore);
 
 const avatarSrc = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
 const createdAtText = computed(() => formatTime(userInfo.value.createdAt));
+const avatarKindText = computed(() => (userInfo.value.avatarKey === "default" ? "默认头像" : "自定义头像"));
 
 function goEdit() {
   router.push("/user/editProfile");

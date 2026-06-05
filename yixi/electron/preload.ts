@@ -211,7 +211,7 @@ const systemIpc = {
 
 const accountIpc = {
   getAccountSession: () => ipcRenderer.invoke("account:session"),
-  getAccountAvatarOptions: () => ipcRenderer.invoke("account:avatar-options"),
+  uploadAccountAvatar: () => ipcRenderer.invoke("account:upload-avatar"),
   refreshAccountSession: () => ipcRenderer.invoke("account:refresh"),
   logoutAccount: () => ipcRenderer.invoke("account:logout"),
   sendAccountEmailCode: (payload: { email: string; purpose: "register" | "login" | "reset_password" }) =>

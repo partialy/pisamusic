@@ -312,10 +312,9 @@ type AccountRegisterPayload = {
   code: string;
 };
 
-type AccountAvatarOption = {
-  key: string;
-  label: string;
-  url: string;
+type AccountAvatarUploadResult = {
+  canceled: boolean;
+  session: AccountSession;
 };
 
 type AccountProfileUpdatePayload = {
@@ -684,7 +683,7 @@ type ElectronIpcApi = {
   getPrivacyPolicy: () => Promise<TextContentConfig>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;
   getAccountSession: () => Promise<AccountSession>;
-  getAccountAvatarOptions: () => Promise<AccountAvatarOption[]>;
+  uploadAccountAvatar: () => Promise<AccountAvatarUploadResult>;
   refreshAccountSession: () => Promise<AccountSession>;
   logoutAccount: () => Promise<AccountSession>;
   sendAccountEmailCode: (payload: AccountEmailCodePayload) => Promise<AccountEmailCodeResult>;
