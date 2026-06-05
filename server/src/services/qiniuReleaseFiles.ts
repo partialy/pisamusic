@@ -6,11 +6,14 @@ import type { DesktopUpdateAssetType, ReleasePlatform } from "../db/configStore"
 const PROVIDER = "qiniu" as const;
 const TOKEN_TTL_SECONDS = 3600;
 const DOWNLOAD_TTL_SECONDS = 3600;
+const ACCOUNT_AVATAR_MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_EXTENSIONS: Record<ReleasePlatform, string[]> = {
   android: [".apk", ".aab"],
   desktop: [".exe", ".msi", ".zip", ".7z"],
 };
 const DESKTOP_UPDATE_ALLOWED_EXTENSIONS = [".yml", ".exe", ".blockmap"];
+const ACCOUNT_AVATAR_ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+const ACCOUNT_AVATAR_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export type QiniuUploadTokenInput = {
   platform: ReleasePlatform;
@@ -24,6 +27,13 @@ export type DesktopUpdateUploadTokenInput = {
   platform: "win32";
   arch: "x64";
   fileType: DesktopUpdateAssetType;
+  fileName: string;
+  fileSize: number;
+  mimeType?: string;
+};
+
+export type AccountAvatarUploadTokenInput = {
+  userId: string;
   fileName: string;
   fileSize: number;
   mimeType?: string;
@@ -75,6 +85,10 @@ function getBucket(): string {
   return requireEnv("QINIU_BUCKET");
 }
 
+function getPublicImageBucket(): string {
+  return requireEnv("QINIU_PUBLIC_IMAGE_BUCKET");
+}
+
 function getUploadUrl(): string {
   return optionalEnv("QINIU_UPLOAD_URL") || "https://upload.qiniup.com";
 }
@@ -123,9 +137,18 @@ function buildDesktopUpdateObjectKey(input: DesktopUpdateUploadTokenInput): stri
   return `pisamusic/desktop-updates/${input.platform}/${input.arch}/${encodeURIComponent(input.version)}/${randomUUID()}-${safeName || `asset${ext}`}`;
 }
 
+function buildAccountAvatarObjectKey(input: AccountAvatarUploadTokenInput): string {
+  const ext = getExtension(input.fileName);
+  return `pisamusic/account-avatars/${input.userId}/${randomUUID()}${ext}`;
+}
+
 export function buildDownloadUrl(key: string): string {
   const { baseUrl } = getPublicDomain();
   return `${baseUrl}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+export function buildPublicQiniuUrl(key: string): string {
+  return buildDownloadUrl(key);
 }
 
 export function buildReleaseFileDownloadPath(fileId: string): string {
@@ -182,6 +205,49 @@ export function createDesktopUpdateUploadToken(input: DesktopUpdateUploadTokenIn
   };
 }
 
+export function isAccountAvatarObjectKey(userId: string, key: string): boolean {
+  return key.startsWith(`pisamusic/account-avatars/${userId}/`) && ACCOUNT_AVATAR_ALLOWED_EXTENSIONS.includes(getExtension(key));
+}
+
+export function validateAccountAvatarFile(fileName: string, fileSize: number, mimeType?: string): void {
+  if (!fileName.trim()) throw new Error("头像文件名不能为空");
+  if (!Number.isFinite(fileSize) || fileSize <= 0) throw new Error("头像文件大小不正确");
+  if (fileSize > ACCOUNT_AVATAR_MAX_SIZE) throw new Error("头像文件不能超过 5MB");
+  const ext = getExtension(fileName);
+  if (!ACCOUNT_AVATAR_ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error("头像仅支持 jpg、png、webp");
+  }
+  const normalizedMime = (mimeType ?? "").trim().toLowerCase();
+  if (normalizedMime && !ACCOUNT_AVATAR_ALLOWED_MIME_TYPES.includes(normalizedMime)) {
+    throw new Error("头像文件类型不支持");
+  }
+}
+
+export function createAccountAvatarUploadToken(input: AccountAvatarUploadTokenInput): QiniuUploadTokenInfo {
+  validateAccountAvatarFile(input.fileName, input.fileSize, input.mimeType);
+  const bucket = getPublicImageBucket();
+  const key = buildAccountAvatarObjectKey(input);
+  const { domain, cdnDomain } = getPublicDomain();
+  const putPolicy = new qiniu.rs.PutPolicy({
+    scope: `${bucket}:${key}`,
+    insertOnly: 1,
+    expires: TOKEN_TTL_SECONDS,
+    fsizeLimit: input.fileSize,
+    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
+  });
+  return {
+    provider: PROVIDER,
+    uploadToken: putPolicy.uploadToken(getMac()),
+    uploadUrl: getUploadUrl(),
+    key,
+    bucket,
+    domain,
+    cdnDomain,
+    downloadUrl: buildPublicQiniuUrl(key),
+    expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000,
+  };
+}
+
 function isQiniuNotFoundError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const e = error as { code?: unknown; statusCode?: unknown; resp?: { statusCode?: unknown } };
@@ -200,6 +266,10 @@ export async function deleteQiniuObject(bucket: string, key: string): Promise<vo
     if (isQiniuNotFoundError(e)) return;
     throw e;
   }
+}
+
+export async function deleteAccountAvatarObject(key: string): Promise<void> {
+  await deleteQiniuObject(getPublicImageBucket(), key);
 }
 
 export function createPrivateQiniuDownloadUrl(key: string, ttlSeconds = DOWNLOAD_TTL_SECONDS): string {

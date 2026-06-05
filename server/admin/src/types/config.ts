@@ -366,7 +366,6 @@ export type AdminUserLibraryPage = {
 export type AdminUserUpdatePayload = {
   username: string;
   email: string;
-  avatarKey: string;
 };
 
 export type PisaAdminExport = AppConfigJson & {

@@ -3,9 +3,8 @@ import type { Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import {
-  ACCOUNT_AVATAR_KEYS,
   createUser,
-  isAccountAvatarKey,
+  isValidAccountAvatarKey,
   readUserByEmail,
   readUserById,
   readUserByIdentifier,
@@ -20,6 +19,7 @@ import {
 } from "../db/userStore";
 import { getUserAuth, getUserJwtSecret, requireUserJwt, type UserAuthedRequest } from "../middleware/requireUserJwt";
 import { sendEmailCode, verifyEmailCode, type EmailCodePurpose } from "../services/emailCodeService";
+import { createAccountAvatarUploadToken, deleteAccountAvatarObject, isAccountAvatarObjectKey } from "../services/qiniuReleaseFiles";
 import { fail, ok } from "../types/response";
 
 export const authRouter = Router();
@@ -233,6 +233,24 @@ authRouter.get("/me", requireUserJwt, (req: UserAuthedRequest, res) => {
   return res.json(ok(getUserAuth(req).user));
 });
 
+authRouter.post("/avatar/upload-token", requireUserJwt, (req: UserAuthedRequest, res) => {
+  try {
+    if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
+    const auth = getUserAuth(req);
+    const fileName = normalizeText(req.body.fileName, 255);
+    const fileSize = Number(req.body.fileSize);
+    const mimeType = normalizeText(req.body.mimeType, 64);
+    return res.json(ok(createAccountAvatarUploadToken({
+      userId: auth.userId,
+      fileName,
+      fileSize,
+      mimeType,
+    })));
+  } catch (error) {
+    handleError(res, error, "头像上传凭证获取失败");
+  }
+});
+
 authRouter.post("/profile/email-code", requireUserJwt, async (req: UserAuthedRequest, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
@@ -248,7 +266,7 @@ authRouter.post("/profile/email-code", requireUserJwt, async (req: UserAuthedReq
   }
 });
 
-authRouter.patch("/profile", requireUserJwt, (req: UserAuthedRequest, res) => {
+authRouter.patch("/profile", requireUserJwt, async (req: UserAuthedRequest, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const auth = getUserAuth(req);
@@ -266,9 +284,9 @@ authRouter.patch("/profile", requireUserJwt, (req: UserAuthedRequest, res) => {
     }
 
     if ("avatarKey" in req.body) {
-      const avatarKey = normalizeText(req.body.avatarKey, 64);
-      if (!isAccountAvatarKey(avatarKey)) {
-        return res.status(400).json(fail(`头像不存在，可选值：${ACCOUNT_AVATAR_KEYS.join(", ")}`, 400));
+      const avatarKey = normalizeText(req.body.avatarKey, 512).replace(/\\/g, "/");
+      if (!isValidAccountAvatarKey(current.id, avatarKey)) {
+        return res.status(400).json(fail("头像不存在或不属于当前账号", 400));
       }
       patch.avatarKey = avatarKey;
     }
@@ -293,6 +311,9 @@ authRouter.patch("/profile", requireUserJwt, (req: UserAuthedRequest, res) => {
       return res.json(ok(issueToken(current), "资料未变化"));
     }
 
+    if ("avatarKey" in patch && patch.avatarKey !== current.avatarKey && isAccountAvatarObjectKey(current.id, current.avatarKey)) {
+      await deleteAccountAvatarObject(current.avatarKey);
+    }
     const updated = updateUserProfile(current.id, patch);
     return res.json(ok(issueToken(updated), "资料已更新"));
   } catch (error) {

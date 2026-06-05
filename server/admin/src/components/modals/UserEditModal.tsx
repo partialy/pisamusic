@@ -10,17 +10,10 @@ type Props = {
   onSave: (payload: AdminUserUpdatePayload) => void;
 };
 
-const AVATAR_KEYS = ["default", "anime_sky", "anime_mint", "anime_peach", "anime_lilac", "anime_sun"];
-
-function avatarUrl(key: string): string {
-  return key === "default" ? "/static/account-avatars/default.jpg" : `/static/account-avatars/${key}.png`;
-}
-
 export default function UserEditModal({ user, themeColor, saving, onClose, onSave }: Props) {
   const [draft, setDraft] = useState<AdminUserUpdatePayload>({
     username: user.username,
     email: user.email,
-    avatarKey: user.avatarKey,
   });
 
   return (
@@ -66,20 +59,12 @@ export default function UserEditModal({ user, themeColor, saving, onClose, onSav
 
           <div>
             <span className="mb-3 ml-1 block text-sm font-semibold text-slate-700">头像</span>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {AVATAR_KEYS.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setDraft((prev) => ({ ...prev, avatarKey: key }))}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
-                    draft.avatarKey === key ? "border-slate-800 bg-white text-slate-900 shadow-sm" : "border-white/60 bg-white/50 text-slate-600 hover:bg-white/80"
-                  }`}
-                >
-                  <img src={avatarUrl(key)} alt={key} className="h-10 w-10 rounded-xl object-cover" />
-                  <span className="min-w-0 truncate font-mono text-xs font-bold">{key}</span>
-                </button>
-              ))}
+            <div className="flex items-center gap-4 rounded-2xl border border-white/60 bg-white/50 p-4">
+              <img src={user.avatarUrl || user.avatar} alt={user.username} className="h-14 w-14 rounded-2xl object-cover shadow-sm" />
+              <div className="min-w-0">
+                <div className="font-bold text-slate-800">当前头像</div>
+                <div className="mt-1 truncate font-mono text-xs text-slate-500">{user.avatarKey === "default" ? "default" : "custom"}</div>
+              </div>
             </div>
           </div>
         </div>

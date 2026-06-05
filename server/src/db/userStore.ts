@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { getAppDb } from "./appDb";
+import { buildPublicQiniuUrl, isAccountAvatarObjectKey } from "../services/qiniuReleaseFiles";
 
 export type UserRecord = {
   id: string;
@@ -46,14 +47,7 @@ type UserRow = {
   last_login_at: number | null;
 };
 
-export const ACCOUNT_AVATAR_KEYS = [
-  "default",
-  "anime_sky",
-  "anime_mint",
-  "anime_peach",
-  "anime_lilac",
-  "anime_sun",
-] as const;
+export const ACCOUNT_AVATAR_KEYS = ["default"] as const;
 
 export type AccountAvatarKey = typeof ACCOUNT_AVATAR_KEYS[number];
 
@@ -69,8 +63,22 @@ export function isAccountAvatarKey(value: string): value is AccountAvatarKey {
 
 function avatarUrlForKey(key: string): string {
   if (key === "default") return "/static/account-avatars/default.jpg";
-  if (isAccountAvatarKey(key)) return `/static/account-avatars/${key}.png`;
   return "";
+}
+
+export function isValidAccountAvatarKey(userId: string, key: string): boolean {
+  return key === "default" || isAccountAvatarObjectKey(userId, key);
+}
+
+export function normalizeAccountAvatarKey(userId: string, key: string): string {
+  return isValidAccountAvatarKey(userId, key) ? key : "default";
+}
+
+export function accountAvatarUrl(userId: string, key: string, updatedAt = 0): string {
+  if (key === "default") return avatarUrlForKey(key);
+  if (!isAccountAvatarObjectKey(userId, key)) return avatarUrlForKey("default");
+  const suffix = updatedAt > 0 ? `?v=${encodeURIComponent(String(updatedAt))}` : "";
+  return `${buildPublicQiniuUrl(key)}${suffix}`;
 }
 
 function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
@@ -99,8 +107,8 @@ export function createUser(input: CreateUserInput): UserRecord {
       input.email,
       input.username,
       input.passwordHash,
-      input.avatar ?? "",
-      input.avatarKey && isAccountAvatarKey(input.avatarKey) ? input.avatarKey : "default",
+      input.avatar ?? avatarUrlForKey("default"),
+      "default",
       now,
       now,
       now,
@@ -148,13 +156,14 @@ export function updateUserProfile(id: string, input: UpdateUserProfileInput): Us
     if (!current) throw new Error("用户不存在");
     const nextEmail = input.email ?? current.email;
     const nextUsername = input.username ?? current.username;
-    const nextAvatarKey = input.avatarKey ?? current.avatarKey;
+    const nextAvatarKey = normalizeAccountAvatarKey(id, input.avatarKey ?? current.avatarKey);
     const now = Date.now();
+    const nextAvatarUrl = accountAvatarUrl(id, nextAvatarKey, now);
     db.prepare(
       `UPDATE users
        SET email = ?, username = ?, avatar_key = ?, avatar = ?, updated_at = ?
        WHERE id = ?`,
-    ).run(nextEmail, nextUsername, nextAvatarKey, avatarUrlForKey(nextAvatarKey), now, id);
+    ).run(nextEmail, nextUsername, nextAvatarKey, nextAvatarUrl, now, id);
     const updated = readUserById(id);
     if (!updated) throw new Error("用户资料更新失败");
     return updated;
@@ -174,8 +183,8 @@ export function updateUserPassword(id: string, passwordHash: string): UserRecord
 }
 
 export function toPublicUser(user: UserRecord): PublicUser {
-  const avatarKey = isAccountAvatarKey(user.avatarKey) ? user.avatarKey : "default";
-  const avatarUrl = avatarUrlForKey(avatarKey) || user.avatar;
+  const avatarKey = normalizeAccountAvatarKey(user.id, user.avatarKey);
+  const avatarUrl = accountAvatarUrl(user.id, avatarKey, user.updatedAt);
   return {
     id: user.id,
     email: user.email,
