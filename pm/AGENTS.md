@@ -157,3 +157,9 @@
 - 居中确认类弹窗优先使用 `cn.partialy.pm.ui.dialog.PmMinimalDialog`；它是 280dp 简约卡片样式，支持单/双按钮、隐藏标题、确认按钮文字颜色和深浅色资源自动适配。
 - 需要居中承载自定义表单、列表、封面选择等内容时，使用 `cn.partialy.pm.ui.dialog.PmSlotDialog`；它复用 `PmMinimalDialog` 的 280dp 卡片、深浅色资源、入退场动画和底部 T 形按钮区，中间 `slotContainer` 内容由调用方布局自行负责。
 - 旧 `ModernDialog` 仍保留给下载进度、底部弹窗和单选弹窗等既有场景；不要为了普通确认弹窗继续扩展它。
+
+## 全局异常处理补充
+
+- Android 全局未捕获异常统一由 `cn.partialy.pm.utils.GlobalExceptionHandler` 处理，并在 `App.onCreate()` 中通过 `GlobalExceptionHandler.init(this, BuildConfig.DEBUG)` 初始化；不要在 `App` 或 Activity 中再次调用 `Thread.setDefaultUncaughtExceptionHandler` 覆盖它。
+- Debug 模式下主线程异常使用 SafeLooper 风格保护并通过 `PmMinimalDialog` 展示可滚动、可选择、可复制的堆栈；后台线程异常也会记录日志并弹出同样的堆栈提示。Release 模式下主线程致命异常仍交给系统默认处理，避免强行继续运行导致黑屏或卡死。
+- `PmMinimalDialog` 的长文本、可选择文本和按钮点击后不关闭能力用于异常弹窗等特殊场景；普通确认弹窗继续保持默认居中短文案和点击按钮关闭的行为。

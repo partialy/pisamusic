@@ -5,6 +5,8 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
+import android.text.method.ScrollingMovementMethod
+import android.view.Gravity
 import android.view.View
 import android.view.Window
 import android.view.WindowManager
@@ -14,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.DialogPmMinimalBinding
+import kotlin.math.roundToInt
 
 class PmMinimalDialog private constructor(
     private val context: Context,
@@ -54,6 +57,13 @@ class PmMinimalDialog private constructor(
             }
         }
         binding.dialogMessage.text = config.message
+        binding.dialogMessage.gravity = config.messageGravity
+        binding.dialogMessage.setTextIsSelectable(config.messageSelectable)
+        binding.dialogMessage.isVerticalScrollBarEnabled = config.messageMaxHeightDp != null
+        if (config.messageMaxHeightDp != null) {
+            binding.dialogMessage.maxHeight = config.messageMaxHeightDp.dp()
+            binding.dialogMessage.movementMethod = ScrollingMovementMethod.getInstance()
+        }
 
         binding.cancelButton.text = config.cancelText
         binding.confirmButton.text = config.confirmText
@@ -72,13 +82,16 @@ class PmMinimalDialog private constructor(
 
         binding.cancelButton.setOnClickListener {
             config.onCancel?.invoke()
-            dialog.dismiss()
+            if (config.dismissOnCancel) dialog.dismiss()
         }
         binding.confirmButton.setOnClickListener {
             config.onConfirm?.invoke()
-            dialog.dismiss()
+            if (config.dismissOnConfirm) dialog.dismiss()
         }
     }
+
+    private fun Int.dp(): Int =
+        (this * context.resources.displayMetrics.density).roundToInt()
 
     data class Config(
         val title: String? = null,
@@ -86,8 +99,13 @@ class PmMinimalDialog private constructor(
         val cancelText: String = "取消",
         val confirmText: String = "确认",
         @ColorInt val confirmColor: Int? = null,
+        val messageGravity: Int = Gravity.CENTER,
+        val messageSelectable: Boolean = false,
+        val messageMaxHeightDp: Int? = null,
         val singleButton: Boolean = false,
         val cancelable: Boolean = true,
+        val dismissOnCancel: Boolean = true,
+        val dismissOnConfirm: Boolean = true,
         val onCancel: (() -> Unit)? = null,
         val onConfirm: (() -> Unit)? = null,
     )
@@ -98,8 +116,13 @@ class PmMinimalDialog private constructor(
         private var cancelText: String = "取消"
         private var confirmText: String = "确认"
         @ColorInt private var confirmColor: Int? = null
+        private var messageGravity: Int = Gravity.CENTER
+        private var messageSelectable: Boolean = false
+        private var messageMaxHeightDp: Int? = null
         private var singleButton: Boolean = false
         private var cancelable: Boolean = true
+        private var dismissOnCancel: Boolean = true
+        private var dismissOnConfirm: Boolean = true
         private var onCancel: (() -> Unit)? = null
         private var onConfirm: (() -> Unit)? = null
 
@@ -119,6 +142,12 @@ class PmMinimalDialog private constructor(
             confirmColor = textColor
             onConfirm = action
         }
+        fun setMessageGravity(value: Int) = apply { messageGravity = value }
+        fun setMessageSelectable(value: Boolean) = apply { messageSelectable = value }
+        fun setMessageMaxHeightDp(value: Int?) = apply { messageMaxHeightDp = value }
+        fun setDismissOnCancel(value: Boolean) = apply { dismissOnCancel = value }
+        fun setDismissOnConfirm(value: Boolean) = apply { dismissOnConfirm = value }
+
         fun setSingleButton(
             text: String = "确认",
             @ColorInt textColor: Int? = null,
@@ -139,8 +168,13 @@ class PmMinimalDialog private constructor(
             cancelText = cancelText,
             confirmText = confirmText,
             confirmColor = confirmColor,
+            messageGravity = messageGravity,
+            messageSelectable = messageSelectable,
+            messageMaxHeightDp = messageMaxHeightDp,
             singleButton = singleButton,
             cancelable = cancelable,
+            dismissOnCancel = dismissOnCancel,
+            dismissOnConfirm = dismissOnConfirm,
             onCancel = onCancel,
             onConfirm = onConfirm,
         )
@@ -154,8 +188,13 @@ class PmMinimalDialog private constructor(
             cancelText: String = "取消",
             confirmText: String = "确认",
             @ColorInt confirmColor: Int? = null,
+            messageGravity: Int = Gravity.CENTER,
+            messageSelectable: Boolean = false,
+            messageMaxHeightDp: Int? = null,
             singleButton: Boolean = false,
             cancelable: Boolean = true,
+            dismissOnCancel: Boolean = true,
+            dismissOnConfirm: Boolean = true,
             onCancel: (() -> Unit)? = null,
             onConfirm: (() -> Unit)? = null,
         ): Dialog {
@@ -167,8 +206,13 @@ class PmMinimalDialog private constructor(
                     cancelText = cancelText,
                     confirmText = confirmText,
                     confirmColor = confirmColor,
+                    messageGravity = messageGravity,
+                    messageSelectable = messageSelectable,
+                    messageMaxHeightDp = messageMaxHeightDp,
                     singleButton = singleButton,
                     cancelable = cancelable,
+                    dismissOnCancel = dismissOnCancel,
+                    dismissOnConfirm = dismissOnConfirm,
                     onCancel = onCancel,
                     onConfirm = onConfirm,
                 ),
