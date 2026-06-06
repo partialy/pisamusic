@@ -6,6 +6,11 @@
         <item name="android:windowExitAnimation">@anim/slide_down</item>
     </style>
 
+    <style name="PmMinimalDialogAnimationStyle" parent="@android:style/Animation.Dialog">
+        <item name="android:windowEnterAnimation">@anim/pm_minimal_dialog_enter</item>
+        <item name="android:windowExitAnimation">@anim/pm_minimal_dialog_exit</item>
+    </style>
+
     <style name="AppTheme" parent="Theme.MaterialComponents.DayNight">
         <item name="customToolbarBackground">@android:color/white</item>
     </style>
