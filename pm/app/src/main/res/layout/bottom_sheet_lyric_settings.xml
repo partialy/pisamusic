@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/bg_lyric_settings_sheet"
     android:paddingBottom="24dp"
     android:scrollbars="none">
 
@@ -12,15 +13,16 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingHorizontal="24dp"
-        android:paddingTop="8dp">
+        android:paddingTop="16dp">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingBottom="12dp"
+            android:paddingBottom="16dp"
             android:text="@string/lyric_settings_title"
             android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-            android:textColor="?attr/colorOnSurface" />
+            android:textColor="?attr/colorOnSurface"
+            android:textStyle="bold" />
 
         <cn.partialy.pm.ui.widget.PmSwitch
             android:id="@+id/lyricSettingsUseWordLyricSwitch"
@@ -34,69 +36,59 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             android:text="@string/lyric_settings_font_size"
             android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_lyric_settings_stepper"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="6dp">
 
             <ImageButton
                 android:id="@+id/lyricSettingsFontSizeMinus"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/lyric_settings_decrease"
-                android:padding="8dp"
+                android:padding="6dp"
                 android:src="@drawable/ic_remove_24dp"
-                app:tint="?attr/colorOnSurface" />
+                app:tint="?attr/colorPrimary" />
 
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                android:layout_width="92dp"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="8dp"
-                android:hint=""
-                app:boxCornerRadiusBottomEnd="20dp"
-                app:boxCornerRadiusBottomStart="20dp"
-                app:boxCornerRadiusTopEnd="20dp"
-                app:boxCornerRadiusTopStart="20dp"
-                app:boxStrokeWidth="1dp"
-                app:boxStrokeWidthFocused="1dp"
-                app:endIconMode="none">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/lyricSettingsFontSizeInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:imeOptions="actionDone"
-                    android:inputType="number"
-                    android:maxLines="1"
-                    android:minHeight="40dp"
-                    android:paddingVertical="8dp"
-                    android:textAlignment="center"
-                    tools:text="16" />
-            </com.google.android.material.textfield.TextInputLayout>
+            <EditText
+                android:id="@+id/lyricSettingsFontSizeInput"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:background="@null"
+                android:imeOptions="actionDone"
+                android:inputType="number"
+                android:maxLines="1"
+                android:textAlignment="center"
+                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                android:textColor="?attr/colorOnSurface"
+                android:textStyle="bold"
+                tools:text="16" />
 
             <ImageButton
                 android:id="@+id/lyricSettingsFontSizePlus"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/lyric_settings_increase"
-                android:padding="8dp"
+                android:padding="6dp"
                 android:src="@drawable/ic_add_24dp"
-                app:tint="?attr/colorOnSurface" />
+                app:tint="?attr/colorPrimary" />
         </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="16dp"
             android:text="@string/lyric_settings_normal_color"
             android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
@@ -168,172 +160,155 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             android:text="@string/lyric_settings_current_enlarged_dx"
             android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_lyric_settings_stepper"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="6dp">
 
             <ImageButton
                 android:id="@+id/lyricSettingsCurrentEnlargedDxMinus"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/lyric_settings_decrease"
-                android:padding="8dp"
+                android:padding="6dp"
                 android:src="@drawable/ic_remove_24dp"
-                app:tint="?attr/colorOnSurface" />
+                app:tint="?attr/colorPrimary" />
 
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                android:layout_width="92dp"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="8dp"
-                android:hint=""
-                app:boxCornerRadiusBottomEnd="20dp"
-                app:boxCornerRadiusBottomStart="20dp"
-                app:boxCornerRadiusTopEnd="20dp"
-                app:boxCornerRadiusTopStart="20dp"
-                app:boxStrokeWidth="1dp"
-                app:boxStrokeWidthFocused="1dp"
-                app:endIconMode="none">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/lyricSettingsCurrentEnlargedDxInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:imeOptions="actionDone"
-                    android:inputType="number"
-                    android:maxLines="1"
-                    android:minHeight="40dp"
-                    android:paddingVertical="8dp"
-                    android:textAlignment="center"
-                    tools:text="4" />
-            </com.google.android.material.textfield.TextInputLayout>
+            <EditText
+                android:id="@+id/lyricSettingsCurrentEnlargedDxInput"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:background="@null"
+                android:imeOptions="actionDone"
+                android:inputType="number"
+                android:maxLines="1"
+                android:textAlignment="center"
+                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                android:textColor="?attr/colorOnSurface"
+                android:textStyle="bold"
+                tools:text="4" />
 
             <ImageButton
                 android:id="@+id/lyricSettingsCurrentEnlargedDxPlus"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/lyric_settings_increase"
-                android:padding="8dp"
+                android:padding="6dp"
                 android:src="@drawable/ic_add_24dp"
-                app:tint="?attr/colorOnSurface" />
+                app:tint="?attr/colorPrimary" />
         </LinearLayout>
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/lyric_settings_inactive_opacity"
-            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="16dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <ImageButton
-                android:id="@+id/lyricSettingsOpacityMinus"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/lyric_settings_decrease"
-                android:padding="8dp"
-                android:src="@drawable/ic_remove_24dp"
-                app:tint="?attr/colorOnSurface" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                android:layout_width="92dp"
+            <TextView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="8dp"
-                android:hint=""
-                app:boxCornerRadiusBottomEnd="20dp"
-                app:boxCornerRadiusBottomStart="20dp"
-                app:boxCornerRadiusTopEnd="20dp"
-                app:boxCornerRadiusTopStart="20dp"
-                app:boxStrokeWidth="1dp"
-                app:boxStrokeWidthFocused="1dp"
-                app:endIconMode="none">
+                android:layout_weight="1"
+                android:text="@string/lyric_settings_inactive_opacity"
+                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/lyricSettingsOpacityInput"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:imeOptions="actionDone"
-                    android:inputType="number"
-                    android:maxLines="1"
-                    android:minHeight="40dp"
-                    android:paddingVertical="8dp"
-                    android:textAlignment="center"
-                    tools:text="85" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <ImageButton
-                android:id="@+id/lyricSettingsOpacityPlus"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/lyric_settings_increase"
-                android:padding="8dp"
-                android:src="@drawable/ic_add_24dp"
-                app:tint="?attr/colorOnSurface" />
+            <TextView
+                android:id="@+id/lyricSettingsOpacityValueText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold"
+                tools:text="85%" />
         </LinearLayout>
 
-        <TextView
+        <SeekBar
+            android:id="@+id/lyricSettingsOpacitySlider"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="32dp"
             android:layout_marginTop="8dp"
-            android:text="@string/lyric_settings_alignment"
-            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-            android:textColor="?attr/colorOnSurfaceVariant" />
-
-        <RadioGroup
-            android:id="@+id/lyricSettingsAlignGroup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:orientation="horizontal">
-
-            <RadioButton
-                android:id="@+id/lyricSettingsAlignStart"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/lyric_settings_align_start" />
-
-            <RadioButton
-                android:id="@+id/lyricSettingsAlignCenter"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/lyric_settings_align_center" />
-
-            <RadioButton
-                android:id="@+id/lyricSettingsAlignEnd"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/lyric_settings_align_end" />
-        </RadioGroup>
+            android:max="100"
+            android:paddingStart="0dp"
+            android:paddingEnd="0dp"
+            android:progressDrawable="@drawable/bg_lyric_settings_seekbar_progress"
+            android:splitTrack="false"
+            android:thumb="@drawable/bg_lyric_settings_seekbar_thumb"
+            android:thumbOffset="6dp"
+            tools:progress="85" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
+            android:text="@string/lyric_settings_alignment"
+            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/lyricSettingsAlignGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            app:selectionRequired="true"
+            app:singleSelection="true">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/lyricSettingsAlignStart"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lyric_settings_align_start"
+                android:textColor="@color/lyric_settings_segment_text"
+                app:backgroundTint="@color/lyric_settings_segment_bg"
+                app:rippleColor="@color/settings_row_value_faded_primary"
+                app:strokeColor="@color/lyric_settings_segment_stroke" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/lyricSettingsAlignCenter"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lyric_settings_align_center"
+                android:textColor="@color/lyric_settings_segment_text"
+                app:backgroundTint="@color/lyric_settings_segment_bg"
+                app:rippleColor="@color/settings_row_value_faded_primary"
+                app:strokeColor="@color/lyric_settings_segment_stroke" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/lyricSettingsAlignEnd"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lyric_settings_align_end"
+                android:textColor="@color/lyric_settings_segment_text"
+                app:backgroundTint="@color/lyric_settings_segment_bg"
+                app:rippleColor="@color/settings_row_value_faded_primary"
+                app:strokeColor="@color/lyric_settings_segment_stroke" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:alpha="0.72"
             android:text="@string/lyric_settings_hint"
             android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            android:textColor="?android:attr/textColorSecondary"
+            android:textColor="?attr/colorOnSurfaceVariant"
             tools:text="提示" />
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

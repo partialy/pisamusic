@@ -8,6 +8,10 @@
     <color name="home_page_bg">#17191D</color>
     <color name="home_header_bg">#17191D</color>
     <color name="white_black_bg">#2A2D34</color>
+    <color name="lyric_settings_sheet_bg">#FF000000</color>
+    <color name="lyric_settings_stepper_bg">#1F1F1F</color>
+    <color name="lyric_settings_slider_inactive">#3A3A3A</color>
+    <color name="lyric_settings_segment_selected_bg">#330077FF</color>
     <color name="home_mini_player_bg">#1E2126</color>
     <color name="home_mini_player_title">#F4F6FA</color>
     <color name="home_mini_player_subtitle">#A0A8B4</color>

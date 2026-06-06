@@ -8,6 +8,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -25,7 +26,7 @@ object LyricSettingsSheet {
             activity,
             com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
         )
-        binding.root.setBackgroundResource(R.drawable.bg_bottom_sheet)
+        binding.root.setBackgroundResource(R.drawable.bg_lyric_settings_sheet)
         dialog.setContentView(binding.root)
 
         val dm = activity.resources.displayMetrics.density
@@ -103,6 +104,14 @@ object LyricSettingsSheet {
             if (view.text?.toString() != text) view.text = text
         }
 
+        fun updateOpacityUi(value: Int) {
+            val clamped = value.coerceIn(0, 100)
+            binding.lyricSettingsOpacityValueText.text = "$clamped%"
+            if (binding.lyricSettingsOpacitySlider.progress != clamped) {
+                binding.lyricSettingsOpacitySlider.progress = clamped
+            }
+        }
+
         fun applyFontSizeFromUser(value: Int) {
             val clamped = value.coerceIn(12, 30)
             updateIntInput(binding.lyricSettingsFontSizeInput, clamped)
@@ -114,7 +123,7 @@ object LyricSettingsSheet {
 
         fun applyOpacityFromUser(value: Int) {
             val clamped = value.coerceIn(0, 100)
-            updateIntInput(binding.lyricSettingsOpacityInput, clamped)
+            updateOpacityUi(clamped)
             if (syncing) return
             val s = LyricDisplayPrefs.readStyle(activity).copy(inactiveOpacityPercent = clamped)
             LyricDisplayPrefs.writeStyle(activity, s)
@@ -172,10 +181,7 @@ object LyricSettingsSheet {
                 binding.lyricSettingsFontSizeInput,
                 style.textSizeSp.roundToInt().coerceIn(12, 30),
             )
-            updateIntInput(
-                binding.lyricSettingsOpacityInput,
-                style.inactiveOpacityPercent.coerceIn(0, 100),
-            )
+            updateOpacityUi(style.inactiveOpacityPercent.coerceIn(0, 100))
             updateIntInput(
                 binding.lyricSettingsCurrentEnlargedDxInput,
                 style.currentLineEnlargedDxSp.coerceIn(2, 8),
@@ -208,18 +214,6 @@ object LyricSettingsSheet {
             applyFontSizeFromUser(current + 1)
         }
 
-        binding.lyricSettingsOpacityMinus.setOnClickListener {
-            val current = binding.lyricSettingsOpacityInput.text?.toString()?.toIntOrNull()
-                ?: LyricDisplayPrefs.readStyle(activity).inactiveOpacityPercent
-            applyOpacityFromUser(current - 1)
-        }
-
-        binding.lyricSettingsOpacityPlus.setOnClickListener {
-            val current = binding.lyricSettingsOpacityInput.text?.toString()?.toIntOrNull()
-                ?: LyricDisplayPrefs.readStyle(activity).inactiveOpacityPercent
-            applyOpacityFromUser(current + 1)
-        }
-
         binding.lyricSettingsCurrentEnlargedDxMinus.setOnClickListener {
             val current = binding.lyricSettingsCurrentEnlargedDxInput.text?.toString()?.toIntOrNull()
                 ?: LyricDisplayPrefs.readStyle(activity).currentLineEnlargedDxSp
@@ -238,13 +232,6 @@ object LyricSettingsSheet {
             30,
             fallbackOnInvalid = 20,
             onApply = ::applyFontSizeFromUser,
-        )
-        bindNumericInput(
-            binding.lyricSettingsOpacityInput,
-            0,
-            100,
-            fallbackOnInvalid = 50,
-            onApply = ::applyOpacityFromUser,
         )
         bindNumericInput(
             binding.lyricSettingsCurrentEnlargedDxInput,
@@ -281,8 +268,20 @@ object LyricSettingsSheet {
             onChanged()
         }
 
-        binding.lyricSettingsAlignGroup.setOnCheckedChangeListener { _, checkedId ->
-            if (syncing) return@setOnCheckedChangeListener
+        binding.lyricSettingsOpacitySlider.setOnSeekBarChangeListener(
+            object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    applyOpacityFromUser(progress)
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+            },
+        )
+
+        binding.lyricSettingsAlignGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (syncing || !isChecked) return@addOnButtonCheckedListener
             val align = when (checkedId) {
                 R.id.lyricSettingsAlignStart -> LyricAlignment.START
                 R.id.lyricSettingsAlignEnd -> LyricAlignment.END
