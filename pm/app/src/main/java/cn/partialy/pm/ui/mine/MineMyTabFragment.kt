@@ -1,6 +1,5 @@
 package cn.partialy.pm.ui.mine
 
-import android.app.AlertDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -20,11 +19,11 @@ import cn.partialy.pm.activity.LovedSongsPlaylistActivity
 import cn.partialy.pm.activity.SettingsActivity
 import cn.partialy.pm.databinding.FragmentMineMyTabBinding
 import cn.partialy.pm.model.CollectedPlaylistType
+import cn.partialy.pm.ui.dialog.PmSlotDialog
+import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.imageview.ShapeableImageView
-import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -177,25 +176,17 @@ class MineMyTabFragment : Fragment() {
             refreshCreateDialogCustomCoverUi(dialogView, ctx)
         }
 
-        val dialog = MaterialAlertDialogBuilder(ctx)
-            .setTitle(R.string.dialog_create_local_playlist_title)
-            .setBackground(requireContext().getDrawable(R.drawable.bg_search))
-            .setView(dialogView)
-            .setPositiveButton(R.string.dialog_ok, null)
-            .setNegativeButton(R.string.cancel, null)
-            .create()
-
-        dialog.setOnDismissListener {
-            createLocalPlaylistDialogView = null
-            MinePlaylistCoverResolver.pendingNewCoverFile(ctx).delete()
-        }
-
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+        val dialog = PmSlotDialog.Builder(ctx)
+            .setContentView(dialogView)
+            .setCancelButton(getString(R.string.cancel))
+            .setConfirmButton(
+                text = getString(R.string.dialog_ok),
+                dismissOnConfirm = false,
+            ) { dialog ->
                 val name = titleEt.text?.toString()?.trim().orEmpty()
                 if (name.isEmpty()) {
                     Toast.makeText(ctx, R.string.toast_playlist_name_required, Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
+                    return@setConfirmButton
                 }
                 val intro = introEt.text?.toString()?.trim().orEmpty()
                 val coverTemplate = MinePlaylistCoverResolver.coverStorageValue(coverAdapter.selectedSuffix)
@@ -222,7 +213,11 @@ class MineMyTabFragment : Fragment() {
                     dialog.dismiss()
                 }
             }
+            .show()
+
+        dialog.setOnDismissListener {
+            createLocalPlaylistDialogView = null
+            MinePlaylistCoverResolver.pendingNewCoverFile(ctx).delete()
         }
-        dialog.show()
     }
 }

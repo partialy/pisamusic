@@ -4,24 +4,35 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/home_page_bg"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/home_page_bg"
         android:orientation="vertical"
         android:paddingHorizontal="20dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp">
+        android:paddingTop="20dp"
+        android:paddingBottom="18dp">
+
+        <TextView
+            android:id="@+id/createPlaylistTitleText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:includeFontPadding="false"
+            android:text="@string/dialog_create_local_playlist_title"
+            android:textColor="@color/pm_dialog_title"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:includeFontPadding="false"
             android:text="@string/dialog_select_playlist_cover"
-            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-            android:textColor="?attr/colorOnSurface" />
+            android:textColor="@color/pm_dialog_message"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/coverPickerRecyclerView"
@@ -37,25 +48,35 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center_vertical"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/pickCustomCoverButton"
-                android:background="@color/home_mini_player_bg"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/action_pick_playlist_cover_from_gallery" />
+                android:layout_height="36dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minHeight="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="@string/action_pick_playlist_cover_from_gallery"
+                android:textColor="@color/pm_dialog_confirm"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:strokeColor="@color/pm_dialog_divider" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/clearCustomCoverButton"
                 style="@style/Widget.Material3.Button.IconButton"
-                android:background="@color/home_mini_player_bg"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
                 android:text="@string/action_clear_custom_playlist_cover"
                 android:textColor="@color/red"
                 android:visibility="gone" />
@@ -66,51 +87,65 @@
             android:layout_width="72dp"
             android:layout_height="72dp"
             android:layout_marginTop="8dp"
+            android:layout_gravity="center_horizontal"
             android:scaleType="centerCrop"
             android:visibility="gone"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
 
-        <TextView
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/playlistTitleInputLayout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="@string/hint_local_playlist_name_label"
-            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-            android:textColor="?attr/colorOnSurface" />
-
-        <EditText
-            android:id="@+id/playlistTitleEdit"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
             android:hint="@string/hint_local_playlist_name"
-            android:importantForAutofill="no"
-            android:inputType="text|textCapSentences"
-            android:maxLines="2"
-            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-            android:textColor="?attr/colorOnSurface"
-            android:textColorHint="?attr/colorOnSurfaceVariant" />
+            app:boxCornerRadiusBottomEnd="8dp"
+            app:boxCornerRadiusBottomStart="8dp"
+            app:boxCornerRadiusTopEnd="8dp"
+            app:boxCornerRadiusTopStart="8dp"
+            app:boxStrokeColor="@color/pm_dialog_confirm"
+            app:hintTextColor="@color/pm_dialog_message">
 
-        <TextView
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/playlistTitleEdit"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:importantForAutofill="no"
+                android:inputType="text|textCapSentences"
+                android:maxLines="1"
+                android:paddingHorizontal="12dp"
+                android:singleLine="true"
+                android:textColor="@color/pm_dialog_title"
+                android:textColorHint="@color/pm_dialog_message"
+                android:textSize="14sp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/playlistIntroInputLayout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:text="@string/hint_local_playlist_intro_label"
-            android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-            android:textColor="?attr/colorOnSurface" />
-
-        <EditText
-            android:id="@+id/playlistIntroEdit"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:gravity="top|start"
+            android:layout_marginTop="12dp"
             android:hint="@string/hint_local_playlist_intro"
-            android:importantForAutofill="no"
-            android:inputType="textMultiLine|textCapSentences"
-            android:minLines="2"
-            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-            android:textColor="?attr/colorOnSurface"
-            android:textColorHint="?attr/colorOnSurfaceVariant" />
+            app:boxCornerRadiusBottomEnd="8dp"
+            app:boxCornerRadiusBottomStart="8dp"
+            app:boxCornerRadiusTopEnd="8dp"
+            app:boxCornerRadiusTopStart="8dp"
+            app:boxStrokeColor="@color/pm_dialog_confirm"
+            app:hintTextColor="@color/pm_dialog_message">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/playlistIntroEdit"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:importantForAutofill="no"
+                android:inputType="text|textCapSentences"
+                android:maxLines="1"
+                android:paddingHorizontal="12dp"
+                android:singleLine="true"
+                android:textColor="@color/pm_dialog_title"
+                android:textColorHint="@color/pm_dialog_message"
+                android:textSize="14sp" />
+        </com.google.android.material.textfield.TextInputLayout>
     </LinearLayout>
 </ScrollView>
