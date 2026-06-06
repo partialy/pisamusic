@@ -25,6 +25,7 @@
 - 不允许使用脚本批量删除工作区之外的文件或文件夹。删除外部文件、外部工作树、用户目录缓存等，必须先得到用户批准。
 - 做新增功能、调整模块边界、迁移框架、改变持久化方式或改变运行流程时，必须同步更新相关 `AGENTS.md`，避免项目记忆与实际代码不一致。
 - 修改前先确认目标子项目状态，不要回退、覆盖或清理用户已有的无关改动。
+- 新构建 `pm` UI 界面、弹窗、表单、列表行、按钮、开关、卡片等视觉或交互单元前，先查看 `pm/design-html/components.md`；有同款或近似 UI 时优先复用对应 layout、drawable、style、Kotlin 封装或交互模式，只有没有合适参考时才新建，新建可复用 UI 后同步补充该索引。
 - 跨端或跨服务改动要明确影响面。接口字段、加密规则、配置结构、更新信息、设备上报、公告、反馈等数据契约变更时，需要同步检查 `pm/`、`server/` 和 `yixi/`。
 - 官网发布信息支持 Android / PC 双端配置，推荐接口为 `GET /api/config/releases`；旧 `GET /api/config/check-update` 必须保持 Android 更新信息兼容，不要改成多端结构。
 - 服务端版本发布支持手填直链或后台上传安装包到七牛云。七牛配置使用 `server/.env` 中的 `QINIU_ACCESS_KEY`、`QINIU_SECRET_KEY`、`QINIU_BUCKET`、`QINIU_UPLOAD_URL`、`QINIU_DOMAIN`、`QINIU_DOMAIN_CDN`；`server/.env` 不提交，提交 `server/.env.example` 作为模板。
