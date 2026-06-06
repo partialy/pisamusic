@@ -139,7 +139,7 @@ class SyncManager @Inject constructor(
     }
 
     private fun applyFavoriteSong(itemKey: String, action: String, payload: Any?) {
-        val song = SyncPayloads.parseSong(payload) ?: SyncPayloads.songFromKey(itemKey) ?: return
+        val song = SyncPayloads.parseSong(payload, itemKey) ?: SyncPayloads.songFromKey(itemKey) ?: return
         if (song.source == "local") return
         if (action == SyncPayloads.ACTION_DELETE) {
             loveManager.removeFromSync(song)
@@ -149,7 +149,7 @@ class SyncManager @Inject constructor(
     }
 
     private fun applyPlaylist(itemKey: String, action: String, payload: Any?, favorite: Boolean) {
-        val playlist = SyncPayloads.parsePlaylist(payload) ?: SyncPayloads.playlistFromKey(itemKey) ?: return
+        val playlist = SyncPayloads.parsePlaylist(payload, itemKey) ?: SyncPayloads.playlistFromKey(itemKey) ?: return
         if (action == SyncPayloads.ACTION_DELETE) {
             playlistCollectionManager.removePlaylistFromSync(playlist, favorite)
         } else {
@@ -159,7 +159,7 @@ class SyncManager @Inject constructor(
 
     private fun applyPlaylistTrack(itemKey: String, action: String, payload: Any?) {
         val keyParts = SyncPayloads.playlistTrackFromKey(itemKey) ?: return
-        val song = SyncPayloads.parseSong(payload) ?: keyParts.second
+        val song = SyncPayloads.parseSong(payload, itemKey.substringAfter("|", "")) ?: keyParts.second
         if (song.source == "local") return
         if (action == SyncPayloads.ACTION_DELETE) {
             playlistCollectionManager.removeTrackFromSync(keyParts.first, song)
