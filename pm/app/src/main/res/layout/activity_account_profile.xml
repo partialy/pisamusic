@@ -66,8 +66,9 @@
 
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/accountProfileAvatar"
-                    android:layout_width="96dp"
-                    android:layout_height="96dp"
+                    android:layout_width="106dp"
+                    android:layout_height="106dp"
+                    android:padding="10dp"
                     android:background="@color/account_profile_card_bg"
                     android:scaleType="centerCrop"
                     app:shapeAppearanceOverlay="@style/ShapeAppearance.Pm.Circular"
@@ -79,7 +80,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="26dp"
                     android:layout_gravity="bottom|center_horizontal"
-                    android:layout_marginBottom="-4dp"
+                    android:layout_marginBottom="1dp"
                     android:background="@drawable/bg_account_profile_avatar_chip"
                     android:clickable="true"
                     android:focusable="true"
@@ -88,10 +89,10 @@
                     android:paddingHorizontal="10dp">
 
                     <ImageView
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
                         android:contentDescription="@null"
-                        android:src="@drawable/ic_camera_16"
+                        android:src="@drawable/ic_camera_24"
                         app:tint="@color/account_profile_avatar_chip_text" />
 
                     <TextView
