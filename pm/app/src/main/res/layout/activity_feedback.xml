@@ -246,40 +246,39 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <FrameLayout
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/feedbackDescInputLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:background="@drawable/bg_listen_together_room_inner_card">
+                android:hint="@string/feedback_desc_hint"
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxCornerRadiusBottomEnd="14dp"
+                app:boxCornerRadiusBottomStart="14dp"
+                app:boxCornerRadiusTopEnd="14dp"
+                app:boxCornerRadiusTopStart="14dp"
+                app:boxStrokeColor="@color/feedback_input_box_stroke"
+                app:counterEnabled="true"
+                app:counterMaxLength="500"
+                app:hintTextColor="@color/feedback_chip_selected_text">
 
-                <EditText
+                <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/feedbackDescInput"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@null"
                     android:gravity="top|start"
-                    android:hint="@string/feedback_desc_hint"
+                    android:importantForAutofill="no"
                     android:inputType="textMultiLine|textCapSentences"
                     android:maxLength="500"
                     android:minLines="5"
-                    android:paddingHorizontal="14dp"
-                    android:paddingTop="12dp"
-                    android:paddingBottom="34dp"
+                    android:paddingHorizontal="4dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
                     android:textColor="@color/account_profile_value"
                     android:textColorHint="@color/feedback_counter_text"
                     android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/feedbackDescCounter"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom|end"
-                    android:layout_marginEnd="14dp"
-                    android:layout_marginBottom="10dp"
-                    android:textColor="@color/feedback_counter_text"
-                    android:textSize="11sp"
-                    tools:text="0 / 500" />
-            </FrameLayout>
+            </com.google.android.material.textfield.TextInputLayout>
 
             <!-- 添加图片 -->
             <LinearLayout
@@ -338,21 +337,36 @@
                     android:textSize="12sp" />
             </LinearLayout>
 
-            <EditText
-                android:id="@+id/feedbackContactInput"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/feedbackContactInputLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:background="@drawable/bg_listen_together_room_inner_card"
                 android:hint="@string/feedback_contact_hint"
-                android:imeOptions="actionDone"
-                android:inputType="textEmailAddress"
-                android:maxLength="64"
-                android:paddingHorizontal="14dp"
-                android:singleLine="true"
-                android:textColor="@color/account_profile_value"
-                android:textColorHint="@color/feedback_counter_text"
-                android:textSize="14sp" />
+                app:boxBackgroundColor="@android:color/transparent"
+                app:boxCornerRadiusBottomEnd="14dp"
+                app:boxCornerRadiusBottomStart="14dp"
+                app:boxCornerRadiusTopEnd="14dp"
+                app:boxCornerRadiusTopStart="14dp"
+                app:boxStrokeColor="@color/feedback_input_box_stroke"
+                app:hintTextColor="@color/feedback_chip_selected_text">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/feedbackContactInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionDone"
+                    android:importantForAutofill="no"
+                    android:inputType="textEmailAddress"
+                    android:maxLength="64"
+                    android:minHeight="52dp"
+                    android:paddingHorizontal="4dp"
+                    android:singleLine="true"
+                    android:textColor="@color/account_profile_value"
+                    android:textColorHint="@color/feedback_counter_text"
+                    android:textSize="14sp" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <!-- 提交按钮 -->
             <TextView

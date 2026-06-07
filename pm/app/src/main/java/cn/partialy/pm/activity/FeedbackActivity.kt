@@ -7,8 +7,6 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -95,7 +93,6 @@ class FeedbackActivity : BaseActivity() {
 
         binding.feedbackBackButton.setOnClickListener { finish() }
         bindTypeChips()
-        bindDescCounter()
         renderImagePreviews()
 
         binding.feedbackSubmitButton.setOnClickListener { onSubmitClicked() }
@@ -130,21 +127,6 @@ class FeedbackActivity : BaseActivity() {
             textIcon.first.setTextColor(color)
             textIcon.second.setColorFilter(color)
         }
-    }
-
-    private fun bindDescCounter() {
-        updateCounter(binding.feedbackDescInput.text?.length ?: 0)
-        binding.feedbackDescInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) {
-                updateCounter(s?.length ?: 0)
-            }
-        })
-    }
-
-    private fun updateCounter(len: Int) {
-        binding.feedbackDescCounter.text = getString(R.string.feedback_counter_format, len)
     }
 
     private fun renderImagePreviews() {
