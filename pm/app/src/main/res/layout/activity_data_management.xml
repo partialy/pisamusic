@@ -42,154 +42,17 @@
             android:orientation="vertical"
             android:paddingBottom="24dp">
 
-            <!-- 数据概览卡片 -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@color/home_mini_player_bg"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/cache_card_stroke"
-                app:strokeWidth="1dp">
+            <include
+                android:id="@+id/cardDataOverview"
+                layout="@layout/include_data_management_card" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
+            <include
+                android:id="@+id/cardDataExport"
+                layout="@layout/include_data_management_card" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/data_overview_title"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        android:textColor="?android:attr/textColorPrimary" />
-
-                    <TextView
-                        android:id="@+id/dataOverviewText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:lineSpacingExtra="4dp"
-                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                        android:textColor="?android:attr/textColorSecondary" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnDeleteAll"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/data_delete_button"
-                        android:textColor="@color/red" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- 导出卡片 -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@color/home_mini_player_bg"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/cache_card_stroke"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/data_export_title"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        android:textColor="?android:attr/textColorPrimary" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/data_export_desc"
-                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                        android:textColor="?android:attr/textColorSecondary" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnExport"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/data_export_button" />
-
-                    <TextView
-                        android:id="@+id/exportStatusText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:visibility="gone" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- 导入卡片 -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="12dp"
-                app:cardBackgroundColor="@color/home_mini_player_bg"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/cache_card_stroke"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/data_import_title"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        android:textColor="?android:attr/textColorPrimary" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/data_import_desc"
-                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                        android:textColor="?android:attr/textColorSecondary" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnImport"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/data_import_button" />
-
-                    <TextView
-                        android:id="@+id/importStatusText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                        android:textColor="?android:attr/textColorSecondary"
-                        android:visibility="gone" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+            <include
+                android:id="@+id/cardDataImport"
+                layout="@layout/include_data_management_card" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

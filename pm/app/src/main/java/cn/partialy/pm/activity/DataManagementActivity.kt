@@ -2,23 +2,26 @@ package cn.partialy.pm.activity
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityDataManagementBinding
+import cn.partialy.pm.databinding.IncludeDataManagementCardBinding
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,6 +52,9 @@ class DataManagementActivity : BaseActivity() {
     @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
 
     private lateinit var binding: ActivityDataManagementBinding
+    private lateinit var overviewCard: IncludeDataManagementCardBinding
+    private lateinit var exportCard: IncludeDataManagementCardBinding
+    private lateinit var importCard: IncludeDataManagementCardBinding
     private val gson = Gson()
 
     /** 导出：让用户选择保存位置 */
@@ -68,6 +74,7 @@ class DataManagementActivity : BaseActivity() {
 
         setupSystemBars()
         setupToolbar()
+        setupCards()
         setupButtons()
         loadDataOverview()
     }
@@ -93,9 +100,32 @@ class DataManagementActivity : BaseActivity() {
     }
 
     private fun setupButtons() {
-        binding.btnExport.setOnClickListener { startExport() }
-        binding.btnImport.setOnClickListener { startImport() }
-        binding.btnDeleteAll.setOnClickListener { confirmDeleteAll() }
+        exportCard.dataCardActionButton.setOnClickListener { startExport() }
+        importCard.dataCardActionButton.setOnClickListener { startImport() }
+        overviewCard.dataCardActionButton.setOnClickListener { confirmDeleteAll() }
+    }
+
+    private fun setupCards() {
+        overviewCard = binding.cardDataOverview
+        exportCard = binding.cardDataExport
+        importCard = binding.cardDataImport
+
+        overviewCard.dataCardIcon.setImageResource(R.drawable.settings_ic_data)
+        overviewCard.dataCardTitle.text = getString(R.string.data_overview_title)
+        overviewCard.dataCardActionButton.text = getString(R.string.data_delete_button)
+        overviewCard.dataCardActionButton.setTextColor(ContextCompat.getColor(this, R.color.red))
+        overviewCard.dataCardActionButton.backgroundTintList =
+            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.listen_together_leave_bg))
+
+        exportCard.dataCardIcon.setImageResource(R.drawable.ic_download_24)
+        exportCard.dataCardTitle.text = getString(R.string.data_export_title)
+        exportCard.dataCardBody.text = getString(R.string.data_export_desc)
+        exportCard.dataCardActionButton.text = getString(R.string.data_export_button)
+
+        importCard.dataCardIcon.setImageResource(R.drawable.ic_data_sync)
+        importCard.dataCardTitle.text = getString(R.string.data_import_title)
+        importCard.dataCardBody.text = getString(R.string.data_import_desc)
+        importCard.dataCardActionButton.text = getString(R.string.data_import_button)
     }
 
     // ==================== 数据概览 ====================
@@ -104,7 +134,7 @@ class DataManagementActivity : BaseActivity() {
     private fun loadDataOverview() {
         lifecycleScope.launch {
             val stats = withContext(Dispatchers.IO) { calculateDataStats() }
-            binding.dataOverviewText.text = buildString {
+            overviewCard.dataCardBody.text = buildString {
                 append("收藏歌曲：${stats.lovedCount} 首（${formatSize(stats.lovedSize)}）")
                 append("\n歌单：${stats.playlistCount} 个（${formatSize(stats.playlistSize)}）")
                 append("\n总占用：${formatSize(stats.totalSize)}")
@@ -158,12 +188,15 @@ class DataManagementActivity : BaseActivity() {
     // ==================== 删除数据 ====================
 
     private fun confirmDeleteAll() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.data_delete_confirm_title)
-            .setMessage(R.string.data_delete_confirm_msg)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.dialog_ok) { _, _ -> performDeleteAll() }
-            .show()
+        PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.data_delete_confirm_title),
+            message = getString(R.string.data_delete_confirm_msg),
+            cancelText = getString(R.string.cancel),
+            confirmText = getString(R.string.dialog_ok),
+            confirmColor = ContextCompat.getColor(this, R.color.red),
+            onConfirm = { performDeleteAll() },
+        )
     }
 
     private fun performDeleteAll() {
@@ -188,17 +221,17 @@ class DataManagementActivity : BaseActivity() {
     }
 
     private fun performExport(uri: Uri) {
-        binding.btnExport.isEnabled = false
-        binding.exportStatusText.visibility = View.VISIBLE
-        binding.exportStatusText.text = "正在导出…"
+        exportCard.dataCardActionButton.isEnabled = false
+        exportCard.dataCardStatusText.visibility = View.VISIBLE
+        exportCard.dataCardStatusText.text = "正在导出…"
 
         lifecycleScope.launch {
             try {
                 val filesDir = this@DataManagementActivity.filesDir
                 val filesToPack = withContext(Dispatchers.IO) { collectExportFiles(filesDir) }
                 if (filesToPack.isEmpty()) {
-                    binding.exportStatusText.text = getString(R.string.data_export_empty)
-                    binding.btnExport.isEnabled = true
+                    exportCard.dataCardStatusText.text = getString(R.string.data_export_empty)
+                    exportCard.dataCardActionButton.isEnabled = true
                     return@launch
                 }
                 withContext(Dispatchers.IO) {
@@ -212,12 +245,12 @@ class DataManagementActivity : BaseActivity() {
                         }
                     }
                 }
-                binding.exportStatusText.text = getString(R.string.data_export_success, uri.lastPathSegment ?: "backup.zip")
+                exportCard.dataCardStatusText.text = getString(R.string.data_export_success, uri.lastPathSegment ?: "backup.zip")
             } catch (e: Exception) {
                 e.printStackTrace()
-                binding.exportStatusText.text = getString(R.string.data_export_fail)
+                exportCard.dataCardStatusText.text = getString(R.string.data_export_fail)
             } finally {
-                binding.btnExport.isEnabled = true
+                exportCard.dataCardActionButton.isEnabled = true
             }
         }
     }
@@ -246,31 +279,33 @@ class DataManagementActivity : BaseActivity() {
     }
 
     private fun confirmAndImport(uri: Uri) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.data_import_confirm_title)
-            .setMessage(R.string.data_import_confirm_msg)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.dialog_ok) { _, _ -> performImport(uri) }
-            .show()
+        PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.data_import_confirm_title),
+            message = getString(R.string.data_import_confirm_msg),
+            cancelText = getString(R.string.cancel),
+            confirmText = getString(R.string.dialog_ok),
+            onConfirm = { performImport(uri) },
+        )
     }
 
     private fun performImport(uri: Uri) {
-        binding.btnImport.isEnabled = false
-        binding.importStatusText.visibility = View.VISIBLE
-        binding.importStatusText.text = "正在导入…"
+        importCard.dataCardActionButton.isEnabled = false
+        importCard.dataCardStatusText.visibility = View.VISIBLE
+        importCard.dataCardStatusText.text = "正在导入…"
 
         lifecycleScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) { parseAndMerge(uri) }
-                binding.importStatusText.text = getString(
+                importCard.dataCardStatusText.text = getString(
                     R.string.data_import_success, result.lovedCount, result.playlistCount
                 )
                 loadDataOverview()
             } catch (e: Exception) {
                 e.printStackTrace()
-                binding.importStatusText.text = getString(R.string.data_import_fail)
+                importCard.dataCardStatusText.text = getString(R.string.data_import_fail)
             } finally {
-                binding.btnImport.isEnabled = true
+                importCard.dataCardActionButton.isEnabled = true
             }
         }
     }
