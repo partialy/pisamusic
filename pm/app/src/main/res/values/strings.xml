@@ -4,6 +4,26 @@
     <string name="feedback_submitted">提交成功</string>
     <string name="feedback_submit_failed">提交失败，请稍后重试</string>
     <string name="feedback_pick_image">选择图片</string>
+    <string name="feedback_section_type">反馈类型</string>
+    <string name="feedback_type_bug">异常/报错</string>
+    <string name="feedback_type_suggestion">功能建议</string>
+    <string name="feedback_type_account">账号相关</string>
+    <string name="feedback_type_other">其他问题</string>
+    <string name="feedback_section_desc">问题描述</string>
+    <string name="feedback_desc_hint">请详细描述您遇到的问题或建议，我们将尽快为您处理…</string>
+    <string name="feedback_section_images">添加图片</string>
+    <string name="feedback_images_hint">(选填，最多 3 张)</string>
+    <string name="feedback_section_contact">联系方式</string>
+    <string name="feedback_contact_optional_hint">(选填)</string>
+    <string name="feedback_contact_hint">请输入手机号或邮箱</string>
+    <string name="feedback_submit">提交反馈</string>
+    <string name="feedback_required_mark">*</string>
+    <string name="feedback_counter_format">%1$d / 500</string>
+    <string name="feedback_desc_required">请填写问题描述</string>
+    <string name="feedback_network_error">网络错误</string>
+    <string name="feedback_thanks_hint">感谢您的反馈，我们将认真评估每一条建议。</string>
+    <string name="feedback_image_delete">删除图片</string>
+    <string name="feedback_back">返回</string>
     <string name="play_url_failed_skip_next">获取地址失败，已自动切换下一曲</string>
 
     <string name="splash_server_connection_failed">服务器连接失败</string>

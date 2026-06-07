@@ -173,6 +173,22 @@
     <color name="account_profile_save_button_text">#FFFFFF</color>
     <color name="account_profile_logout_text">#E94B5C</color>
     <color name="account_profile_chevron_tint">#B7BBC2</color>
+
+    <!-- 意见反馈页面 -->
+    <color name="feedback_chip_default_bg">#FFFFFF</color>
+    <color name="feedback_chip_default_stroke">#E5E7EB</color>
+    <color name="feedback_chip_default_text">#5C625F</color>
+    <color name="feedback_chip_selected_bg">#E0F2FE</color>
+    <color name="feedback_chip_selected_stroke">#38BDF8</color>
+    <color name="feedback_chip_selected_text">#0284C7</color>
+    <color name="feedback_pick_button_stroke">#CBD5E1</color>
+    <color name="feedback_pick_button_bg">#F8FAFC</color>
+    <color name="feedback_pick_button_icon">#94A3B8</color>
+    <color name="feedback_required_mark">#EF4444</color>
+    <color name="feedback_counter_text">#94A3B8</color>
+    <color name="feedback_image_delete_bg">#80000000</color>
+    <color name="feedback_thanks_text">#94A3B8</color>
+
     <!-- 自有账号原生登录页 -->
     <color name="account_login_grad_start">#EFF9FF</color>
     <color name="account_login_grad_center">#FAFDFF</color>

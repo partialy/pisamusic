@@ -347,7 +347,7 @@ class SettingsActivity : BaseActivity() {
                 null,
             )
             root.setOnClickListener {
-                FeedbackWebActivity.start(this@SettingsActivity)
+                FeedbackActivity.start(this@SettingsActivity)
             }
         }
 

@@ -25,7 +25,7 @@ import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
-import cn.partialy.pm.activity.FeedbackWebActivity
+import cn.partialy.pm.activity.FeedbackActivity
 import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.activity.SearchActivity
 import cn.partialy.pm.databinding.FragmentDiscoverBinding
@@ -123,7 +123,7 @@ class DiscoverFragment : Fragment() {
         errorController = LocalGenericErrorWebViewController(
             webView = binding.discoverWebView,
             onRetry = { loadDiscover(forceRefresh = true) },
-            onFeedback = { FeedbackWebActivity.start(requireContext()) },
+            onFeedback = { FeedbackActivity.start(requireContext()) },
         )
     }
 

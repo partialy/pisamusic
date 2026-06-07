@@ -108,7 +108,7 @@ class SearchActivity : BaseDownloadActivity() {
         errorWebController = LocalGenericErrorWebViewController(
             binding.searchErrorWebView,
             onRetry = { retryCurrentSearch() },
-            onFeedback = { FeedbackWebActivity.start(this) },
+            onFeedback = { FeedbackActivity.start(this) },
         ).also { it.attach() }
     }
 

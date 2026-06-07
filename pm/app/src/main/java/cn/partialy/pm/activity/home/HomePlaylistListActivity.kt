@@ -13,7 +13,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.AppActivityTransitions
-import cn.partialy.pm.activity.FeedbackWebActivity
+import cn.partialy.pm.activity.FeedbackActivity
 import cn.partialy.pm.activity.PlaylistDetailActivity
 import cn.partialy.pm.activity.SearchActivity
 import cn.partialy.pm.activity.base.BaseActivity
@@ -109,7 +109,7 @@ class HomePlaylistListActivity : BaseActivity() {
         errorWebController = LocalGenericErrorWebViewController(
             webView = errorWebView,
             onRetry = { viewModel.refresh() },
-            onFeedback = { FeedbackWebActivity.start(this) },
+            onFeedback = { FeedbackActivity.start(this) },
         ).also { it.attach() }
     }
 

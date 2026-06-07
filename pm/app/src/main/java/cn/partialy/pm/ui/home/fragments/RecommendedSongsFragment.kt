@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
-import cn.partialy.pm.activity.FeedbackWebActivity
+import cn.partialy.pm.activity.FeedbackActivity
 import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.activity.PlaylistDetailActivity
 import cn.partialy.pm.activity.WyPlaylistDetailActivity
@@ -99,7 +99,7 @@ class RecommendedSongsFragment : BaseSongFragment() {
             binding.recommendErrorWebView,
             onRetry = { viewModel.refresh() },
             onFeedback = {
-                FeedbackWebActivity.start(requireContext())
+                FeedbackActivity.start(requireContext())
             },
         ).also { it.attach() }
         super.onViewCreated(view, savedInstanceState)
