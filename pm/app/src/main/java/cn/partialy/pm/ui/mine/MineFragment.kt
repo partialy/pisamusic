@@ -7,15 +7,12 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import cn.partialy.pm.BuildConfig
@@ -30,44 +27,14 @@ import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.ui.widget.MineViewPagerNestedHost
 import coil.load
 import coil.transform.CircleCropTransformation
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MineFragment : Fragment() {
 
-    @Inject
-    lateinit var mineAvatarSettings: MineAvatarSettings
-
     private var _binding: FragmentMineBinding? = null
     private val binding get() = _binding!!
-
-    private val pickLocalAvatarLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent(),
-    ) { uri ->
-        if (uri == null) return@registerForActivityResult
-        lifecycleScope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                mineAvatarSettings.saveLocalAvatarFromUri(uri)
-            }
-            if (_binding == null) return@launch
-            if (ok) {
-                mineAvatarSettings.setSource(MineAvatarSource.LOCAL)
-                applyMineAvatarDisplay()
-            } else {
-                Toast.makeText(
-                    requireContext(),
-                    R.string.mine_avatar_local_save_failed,
-                    Toast.LENGTH_SHORT,
-                ).show()
-            }
-        }
-    }
 
     /** 与侧栏缓存的网易云 `backgroundUrl` 同步（无 URL 时用默认头图）。 */
     fun setWyProfileBackgroundUrl(url: String?) {
@@ -204,38 +171,6 @@ class MineFragment : Fragment() {
         } else {
             LoginActivity.start(hostActivity)
         }
-    }
-
-    private fun showMineAvatarBottomSheet() {
-        val ctx = requireContext()
-        val dialog = BottomSheetDialog(
-            ctx,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
-        )
-        val sheet = layoutInflater.inflate(R.layout.bottom_sheet_mine_avatar, null)
-        dialog.setContentView(sheet)
-        dialog.setOnShowListener {
-            dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                ?.setBackgroundResource(R.drawable.bg_mine_avatar_bottom_sheet)
-        }
-        sheet.findViewById<View>(R.id.mineAvatarOptionKg).setOnClickListener {
-            mineAvatarSettings.setSource(MineAvatarSource.KUGOU)
-            applyMineAvatarDisplay()
-            dialog.dismiss()
-        }
-        sheet.findViewById<View>(R.id.mineAvatarOptionWy).setOnClickListener {
-            mineAvatarSettings.setSource(MineAvatarSource.WY)
-            applyMineAvatarDisplay()
-            dialog.dismiss()
-        }
-        sheet.findViewById<View>(R.id.mineAvatarOptionLocal).setOnClickListener {
-            dialog.dismiss()
-            pickLocalAvatarLauncher.launch("image/*")
-        }
-        sheet.findViewById<View>(R.id.mineAvatarSheetCancel).setOnClickListener {
-            dialog.dismiss()
-        }
-        dialog.show()
     }
 
     /** 昵称：侧栏缓存的酷狗；副标题：侧栏缓存的网易。 */
