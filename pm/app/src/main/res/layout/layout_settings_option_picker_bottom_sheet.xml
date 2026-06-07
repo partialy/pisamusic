@@ -6,22 +6,27 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg_settings_option_picker_sheet"
     android:orientation="vertical"
-    android:paddingBottom="12dp">
+    android:paddingBottom="0dp">
 
     <TextView
         android:id="@+id/settingsOptionPickerTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="20dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
         android:gravity="center"
-        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-        android:textColor="?attr/colorOnSurface" />
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="16sp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/settings_option_row_divider" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
         android:layout_weight="1"
         android:clipToPadding="false"
         android:fillViewport="true"
@@ -32,24 +37,24 @@
             android:id="@+id/settingsOptionsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="20dp"
             android:orientation="vertical"
-            android:paddingBottom="6dp" />
+            android:paddingBottom="0dp" />
     </androidx.core.widget.NestedScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="@color/settings_option_cancel_divider" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/settingsOptionPickerCancel"
         style="@style/Widget.Material3.Button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="6dp"
         android:minHeight="48dp"
         android:text="@string/cancel"
         android:textColor="?attr/colorOnSurface"
+        android:textStyle="bold"
         app:backgroundTint="@android:color/transparent"
-        app:cornerRadius="24dp"
-        app:strokeColor="?attr/colorOutlineVariant"
-        app:strokeWidth="1dp" />
+        app:cornerRadius="0dp" />
 </LinearLayout>
-

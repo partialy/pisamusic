@@ -75,14 +75,13 @@
     <color name="song_tag_local_fill_dark">#3367C23A</color>
     <color name="song_tag_local_text_dark">#B8E994</color>
 
-    <color name="quality_picker_sheet_background">#2A2D34</color>
-    <color name="quality_picker_item_bg">#333741</color>
     <color name="download_quality_selected_stroke">#2196F3</color>
     <color name="download_cta_button">#2196F3</color>
 
     <color name="settings_option_picker_sheet_background">#2A2D34</color>
     <color name="settings_option_row_bg_normal">#333741</color>
-    <color name="settings_option_row_bg_selected">#1E3A52</color>
+    <color name="settings_option_row_divider">#383D46</color>
+    <color name="settings_option_cancel_divider">#424752</color>
 
     <!-- 导入登录表单（与 include_playlist_import_kg_login 一致） -->
     <color name="playlist_import_form_bg">#1E2126</color>

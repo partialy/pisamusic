@@ -13,7 +13,7 @@ import cn.partialy.pm.network.kw.KwRepository
 import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.network.wy.WyRepository
 import cn.partialy.pm.ui.dialog.ModernDialog
-import cn.partialy.pm.ui.dialog.showDownloadQualityPicker
+import cn.partialy.pm.ui.dialog.showDownloadQualityConfirmDialog
 import cn.partialy.pm.utils.DownloadManager
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.AndroidEntryPoint
@@ -51,7 +51,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 return@launch
             }
             val subtitle = "${songInfo.artist} - ${songInfo.name}"
-            val selected = showDownloadQualityPicker(
+            val selected = showDownloadQualityConfirmDialog(
                 this@BaseDownloadActivity,
                 subtitle,
                 options,

@@ -6,40 +6,40 @@
     android:layout_height="match_parent"
     android:background="@drawable/bg_settings_option_picker_sheet"
     android:orientation="vertical"
-    android:paddingBottom="12dp">
+    android:paddingBottom="0dp">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/qualityPickerTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="20dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:layout_marginTop="28dp"
+        android:gravity="center"
+        android:text="@string/download_current_song"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="16sp" />
 
-        <TextView
-            android:id="@+id/qualityPickerTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/download_current_song"
-            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-            android:textColor="?attr/colorOnSurface" />
+    <TextView
+        android:id="@+id/qualityPickerSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="20dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="2"
+        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
 
-        <ImageButton
-            android:id="@+id/qualityPickerClose"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/cancel"
-            android:padding="8dp"
-            android:src="@drawable/ic_close_24dp"
-            app:tint="?attr/colorOnSurfaceVariant" />
-    </LinearLayout>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/settings_option_row_divider" />
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="2dp"
         android:layout_weight="1"
         android:clipToPadding="false"
         android:fillViewport="true"
@@ -47,51 +47,27 @@
         android:scrollbars="vertical">
 
         <LinearLayout
+            android:id="@+id/qualityOptionsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingBottom="6dp">
-
-            <TextView
-                android:id="@+id/qualityPickerSubtitle"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="3"
-                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="10dp"
-                android:text="@string/select_sound_quality"
-                android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <LinearLayout
-                android:id="@+id/qualityOptionsContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="8dp"
-                android:orientation="vertical" />
-        </LinearLayout>
+            android:paddingBottom="0dp" />
     </androidx.core.widget.NestedScrollView>
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="@color/settings_option_cancel_divider" />
+
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/qualityPickerConfirm"
+        android:id="@+id/qualityPickerCancel"
         style="@style/Widget.Material3.Button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="6dp"
-        android:minHeight="48dp"
-        android:text="@string/download_now"
-        android:textColor="@color/white"
-        app:backgroundTint="@color/primary"
-        app:cornerRadius="24dp" />
+        android:minHeight="60dp"
+        android:text="@string/cancel"
+        android:textColor="?attr/colorOnSurface"
+        android:textStyle="bold"
+        app:backgroundTint="@android:color/transparent"
+        app:cornerRadius="0dp" />
 </LinearLayout>
