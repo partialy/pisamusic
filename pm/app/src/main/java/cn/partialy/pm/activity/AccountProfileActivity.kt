@@ -6,17 +6,13 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
-import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.BuildConfig
@@ -28,14 +24,19 @@ import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.network.cookie.KugouCookieRepository
+import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.dialog.PmSlotDialog
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
 import coil.transform.CircleCropTransformation
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.textfield.TextInputEditText
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -66,6 +67,8 @@ class AccountProfileActivity : BaseActivity() {
     @Inject lateinit var configManager: ConfigManager
     @Inject lateinit var syncManager: SyncManager
     @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
+    @Inject lateinit var kugouCookieRepository: KugouCookieRepository
+    @Inject lateinit var wyCookieRepository: WyCookieRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityAccountProfileBinding.inflate(layoutInflater)
@@ -94,8 +97,8 @@ class AccountProfileActivity : BaseActivity() {
         )
 
         binding.accountProfileBackButton.setOnClickListener { finish() }
-        binding.accountProfileAvatar.setOnClickListener { showAvatarPicker() }
-        binding.accountProfileAvatarChip.setOnClickListener { showAvatarPicker() }
+        binding.accountProfileAvatar.setOnClickListener { showAvatarOptionsSheet() }
+        binding.accountProfileAvatarChip.setOnClickListener { showAvatarOptionsSheet() }
         binding.accountProfileUsernameRow.setOnClickListener { showEditUsernameDialog() }
         binding.accountProfileEmailRow.setOnClickListener { showEditEmailDialog() }
         binding.accountProfileSaveButton.setOnClickListener { saveProfile() }
@@ -110,7 +113,7 @@ class AccountProfileActivity : BaseActivity() {
     private fun currentSessionOrFinish(): AccountSessionStore.Session? {
         val session = AccountSessionStore.read(this)
         if (!session.loggedIn) {
-            Toast.makeText(this, R.string.account_profile_not_logged_in, Toast.LENGTH_SHORT).show()
+            showMessage(getString(R.string.account_profile_not_logged_in))
             finish()
             return null
         }
@@ -175,173 +178,169 @@ class AccountProfileActivity : BaseActivity() {
         return BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + raw
     }
 
-    private fun showAvatarPicker() {
-        val dialog = BottomSheetDialog(this)
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dpToPx(12), 0, dpToPx(24))
+    private data class AvatarOption(
+        val label: String,
+        val action: () -> Unit,
+    )
+
+    private fun showAvatarOptionsSheet() {
+        val dialog = BottomSheetDialog(
+            this,
+            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+        )
+        val root = layoutInflater.inflate(
+            R.layout.layout_settings_option_picker_bottom_sheet,
+            null,
+            false,
+        ) as ViewGroup
+        root.findViewById<TextView>(R.id.settingsOptionPickerTitle).text =
+            getString(R.string.account_profile_avatar_picker_title)
+        val container = root.findViewById<LinearLayout>(R.id.settingsOptionsContainer)
+        root.findViewById<View>(R.id.settingsOptionPickerCancel).setOnClickListener {
+            dialog.dismiss()
         }
-        container.addView(
-            makeSheetItem(getString(R.string.account_profile_avatar_pick)) {
-                dialog.dismiss()
-                pickAvatarLauncher.launch("image/*")
-            },
-        )
-        container.addView(
-            makeSheetItem(
-                text = getString(R.string.account_profile_avatar_restore),
-                tintRes = R.color.account_profile_logout_text,
-            ) {
-                dialog.dismiss()
-                restoreDefaultAvatar()
-            },
-        )
-        dialog.setContentView(container)
+
+        val options = buildAvatarOptions()
+        options.forEachIndexed { index, opt ->
+            val row = layoutInflater.inflate(
+                R.layout.item_account_profile_avatar_option,
+                container,
+                false,
+            )
+            row.findViewById<TextView>(R.id.avatarOptionLabel).apply {
+                text = opt.label
+                setOnClickListener {
+                    dialog.dismiss()
+                    opt.action()
+                }
+            }
+            if (index == options.lastIndex) {
+                row.findViewById<View>(R.id.avatarOptionDivider).visibility = View.GONE
+            }
+            container.addView(row)
+        }
+
+        dialog.setContentView(root)
+        dialog.setOnShowListener {
+            val sheet = dialog.findViewById<View>(
+                com.google.android.material.R.id.design_bottom_sheet,
+            ) ?: return@setOnShowListener
+            BottomSheetBehavior.from(sheet as ViewGroup).apply {
+                skipCollapsed = true
+                state = BottomSheetBehavior.STATE_EXPANDED
+            }
+        }
         dialog.show()
     }
 
-    private fun makeSheetItem(
-        text: String,
-        tintRes: Int = R.color.account_profile_value,
-        onClick: () -> Unit,
-    ): TextView {
-        val item = TextView(this)
-        val lp = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            dpToPx(52),
+    private fun buildAvatarOptions(): List<AvatarOption> = buildList {
+        add(
+            AvatarOption(getString(R.string.account_profile_avatar_pick)) {
+                pickAvatarLauncher.launch("image/*")
+            },
         )
-        item.layoutParams = lp
-        item.gravity = android.view.Gravity.CENTER
-        item.text = text
-        item.textSize = 15f
-        item.setTextColor(ContextCompat.getColor(this, tintRes))
-        val outValue = android.util.TypedValue()
-        theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
-        item.setBackgroundResource(outValue.resourceId)
-        item.isClickable = true
-        item.setOnClickListener { onClick() }
-        return item
+        add(
+            AvatarOption(getString(R.string.account_profile_avatar_restore)) {
+                restoreDefaultAvatar()
+            },
+        )
+        val kgUrl = kugouCookieRepository.getProfile()?.avatarUrl?.trim().orEmpty()
+        if (kugouCookieRepository.hasCookie() && kgUrl.isNotBlank()) {
+            add(
+                AvatarOption(getString(R.string.account_profile_avatar_use_kg)) {
+                    useExternalAvatar(kgUrl)
+                },
+            )
+        }
+        val wyUrl = wyCookieRepository.getProfile()?.avatarUrl?.trim().orEmpty()
+        if (wyCookieRepository.hasCookie() && wyUrl.isNotBlank()) {
+            add(
+                AvatarOption(getString(R.string.account_profile_avatar_use_wy)) {
+                    useExternalAvatar(wyUrl)
+                },
+            )
+        }
     }
 
-    private fun dpToPx(dp: Int): Int =
-        (dp * resources.displayMetrics.density + 0.5f).toInt()
-
     private fun showEditUsernameDialog() {
-        val edit = makeDialogEditText(
-            initial = binding.accountProfileUsernameValue.text?.toString().orEmpty(),
-            hint = getString(R.string.account_profile_edit_username_hint),
-            inputType = InputType.TYPE_CLASS_TEXT,
-            maxLength = 32,
-        )
-        val container = wrapDialogContent(edit)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.account_profile_edit_username_title)
-            .setView(container)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确认") { _, _ ->
-                val newName = edit.text?.toString()?.trim().orEmpty()
+        PmSlotDialog.Builder(this)
+            .setContentLayout(R.layout.dialog_account_profile_edit_username) { view, _ ->
+                val input = view.findViewById<TextInputEditText>(R.id.usernameInput)
+                val initial = binding.accountProfileUsernameValue.text?.toString().orEmpty()
+                input.setText(initial)
+                input.setSelection(initial.length)
+                input.requestFocus()
+            }
+            .setCancelButton(getString(R.string.account_profile_edit_cancel))
+            .setConfirmButton(
+                text = getString(R.string.account_profile_edit_confirm),
+                dismissOnConfirm = false,
+            ) { dialog ->
+                val input = dialog.findViewById<TextInputEditText>(R.id.usernameInput)
+                    ?: return@setConfirmButton
+                val newName = input.text?.toString()?.trim().orEmpty()
                 if (newName.isBlank()) {
-                    Toast.makeText(this, R.string.account_profile_username_required, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    showMessage(getString(R.string.account_profile_username_required))
+                    return@setConfirmButton
                 }
                 binding.accountProfileUsernameValue.text = newName
+                dialog.dismiss()
             }
             .show()
     }
 
     private fun showEditEmailDialog() {
-        val emailEdit = makeDialogEditText(
-            initial = "",
-            hint = getString(R.string.account_profile_edit_email_hint),
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-            maxLength = 64,
-        )
-        val codeEdit = makeDialogEditText(
-            initial = "",
-            hint = getString(R.string.account_profile_edit_code_hint),
-            inputType = InputType.TYPE_CLASS_NUMBER,
-            maxLength = 6,
-        )
-        val sendCodeButton = TextView(this).apply {
-            text = getString(R.string.account_profile_send_code)
-            setTextColor(ContextCompat.getColor(this@AccountProfileActivity, R.color.account_profile_save_button_bg))
-            textSize = 14f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setPadding(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(8))
-            isClickable = true
-            val outValue = android.util.TypedValue()
-            this@AccountProfileActivity.theme.resolveAttribute(
-                android.R.attr.selectableItemBackground, outValue, true,
-            )
-            setBackgroundResource(outValue.resourceId)
-        }
-
-        val codeRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            val params = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            )
-            params.topMargin = dpToPx(12)
-            layoutParams = params
-            val codeLp = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            addView(codeEdit, codeLp)
-            addView(sendCodeButton)
-        }
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dpToPx(24), dpToPx(8), dpToPx(24), 0)
-            addView(emailEdit)
-            addView(codeRow)
-        }
-
         var cooldownJob: Job? = null
-        sendCodeButton.setOnClickListener {
-            val emailText = emailEdit.text?.toString()?.trim().orEmpty()
-            if (emailText.isBlank()) {
-                Toast.makeText(this, R.string.account_profile_email_required, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val session = AccountSessionStore.read(this)
-            if (!session.loggedIn) {
-                Toast.makeText(this, R.string.account_profile_not_logged_in, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            sendCodeButton.isEnabled = false
-            lifecycleScope.launch {
-                runCatching {
-                    withContext(Dispatchers.IO) {
-                        configManager.sendAccountProfileEmailCode(session.token, emailText)
+        PmSlotDialog.Builder(this)
+            .setContentLayout(R.layout.dialog_account_profile_edit_email) { view, dialog ->
+                val emailInput = view.findViewById<TextInputEditText>(R.id.emailInput)
+                val sendCodeButton = view.findViewById<TextView>(R.id.sendCodeButton)
+                sendCodeButton.setOnClickListener {
+                    val emailText = emailInput.text?.toString()?.trim().orEmpty()
+                    if (emailText.isBlank()) {
+                        showMessage(getString(R.string.account_profile_email_required))
+                        return@setOnClickListener
                     }
-                }.onSuccess {
-                    Toast.makeText(
-                        this@AccountProfileActivity,
-                        R.string.account_profile_email_code_sent,
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    cooldownJob?.cancel()
-                    cooldownJob = startCooldown(sendCodeButton)
-                }.onFailure {
-                    sendCodeButton.isEnabled = true
-                    Toast.makeText(this@AccountProfileActivity, it.message ?: "验证码发送失败", Toast.LENGTH_SHORT).show()
+                    val session = AccountSessionStore.read(this)
+                    if (!session.loggedIn) {
+                        showMessage(getString(R.string.account_profile_not_logged_in))
+                        return@setOnClickListener
+                    }
+                    sendCodeButton.isEnabled = false
+                    lifecycleScope.launch {
+                        runCatching {
+                            withContext(Dispatchers.IO) {
+                                configManager.sendAccountProfileEmailCode(session.token, emailText)
+                            }
+                        }.onSuccess {
+                            showMessage(getString(R.string.account_profile_email_code_sent))
+                            cooldownJob?.cancel()
+                            cooldownJob = startCooldown(sendCodeButton)
+                        }.onFailure {
+                            sendCodeButton.isEnabled = true
+                            showMessage(it.message ?: getString(R.string.account_profile_email_code_failed))
+                        }
+                    }
                 }
+                dialog.setOnDismissListener { cooldownJob?.cancel() }
             }
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle(R.string.account_profile_edit_email_title)
-            .setView(container)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确定更改") { _, _ ->
-                val newEmail = emailEdit.text?.toString()?.trim().orEmpty()
-                val code = codeEdit.text?.toString()?.trim().orEmpty()
+            .setCancelButton(getString(R.string.account_profile_edit_cancel))
+            .setConfirmButton(
+                text = getString(R.string.account_profile_edit_confirm),
+                dismissOnConfirm = false,
+            ) { dialog ->
+                val emailInput = dialog.findViewById<TextInputEditText>(R.id.emailInput)
+                val codeInput = dialog.findViewById<TextInputEditText>(R.id.codeInput)
+                if (emailInput == null || codeInput == null) return@setConfirmButton
+                val newEmail = emailInput.text?.toString()?.trim().orEmpty()
+                val code = codeInput.text?.toString()?.trim().orEmpty()
                 if (newEmail.isBlank()) {
-                    Toast.makeText(this, R.string.account_profile_email_required, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    showMessage(getString(R.string.account_profile_email_required))
+                    return@setConfirmButton
                 }
                 if (code.isBlank()) {
-                    Toast.makeText(this, R.string.account_profile_email_code_required, Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    showMessage(getString(R.string.account_profile_email_code_required))
+                    return@setConfirmButton
                 }
                 pendingNewEmail = newEmail
                 binding.accountProfileEmailValue.text = newEmail
@@ -350,8 +349,8 @@ class AccountProfileActivity : BaseActivity() {
                     email = newEmail,
                     code = code,
                 )
+                dialog.dismiss()
             }
-            .setOnDismissListener { cooldownJob?.cancel() }
             .show()
     }
 
@@ -368,39 +367,11 @@ class AccountProfileActivity : BaseActivity() {
         }
     }
 
-    private fun makeDialogEditText(
-        initial: String,
-        hint: String,
-        inputType: Int,
-        maxLength: Int,
-    ): EditText {
-        return EditText(this).apply {
-            this.inputType = inputType
-            this.hint = hint
-            setText(initial)
-            setSelection(text.length)
-            filters = arrayOf(android.text.InputFilter.LengthFilter(maxLength))
-            val params = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            )
-            layoutParams = params
-        }
-    }
-
-    private fun wrapDialogContent(child: View): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dpToPx(24), dpToPx(8), dpToPx(24), 0)
-            addView(child)
-        }
-    }
-
     private fun saveProfile() {
         val username = binding.accountProfileUsernameValue.text?.toString()?.trim().orEmpty()
         val email = binding.accountProfileEmailValue.text?.toString()?.trim().orEmpty()
         if (username.isBlank()) {
-            Toast.makeText(this, R.string.account_profile_username_required, Toast.LENGTH_SHORT).show()
+            showMessage(getString(R.string.account_profile_username_required))
             return
         }
         commitProfile(username = username, email = email, code = null)
@@ -424,13 +395,9 @@ class AccountProfileActivity : BaseActivity() {
                 AccountSessionStore.save(this@AccountProfileActivity, result)
                 pendingNewEmail = null
                 renderProfile()
-                Toast.makeText(
-                    this@AccountProfileActivity,
-                    R.string.account_profile_save_success,
-                    Toast.LENGTH_SHORT,
-                ).show()
+                showMessage(getString(R.string.account_profile_save_success))
             }.onFailure {
-                Toast.makeText(this@AccountProfileActivity, it.message ?: "资料保存失败", Toast.LENGTH_SHORT).show()
+                showMessage(it.message ?: getString(R.string.account_profile_save_failed))
             }
             binding.accountProfileSaveButton.isEnabled = true
         }
@@ -441,19 +408,38 @@ class AccountProfileActivity : BaseActivity() {
         lifecycleScope.launch {
             runCatching {
                 val result = withContext(Dispatchers.IO) {
-                    uploadAccountAvatar(session.token, uri)
+                    val picked = readPickedAvatar(uri)
+                    uploadAvatarBytes(session.token, picked)
                 }
                 AccountSessionStore.save(this@AccountProfileActivity, result)
-                result.user
-            }.onSuccess { _ ->
+            }.onSuccess {
                 renderProfile()
-                Toast.makeText(
-                    this@AccountProfileActivity,
-                    R.string.account_profile_avatar_updated,
-                    Toast.LENGTH_SHORT,
-                ).show()
+                showMessage(getString(R.string.account_profile_avatar_updated))
             }.onFailure {
-                Toast.makeText(this@AccountProfileActivity, it.message ?: "头像上传失败", Toast.LENGTH_SHORT).show()
+                showMessage(it.message ?: getString(R.string.account_profile_avatar_upload_failed))
+            }
+        }
+    }
+
+    private fun useExternalAvatar(sourceUrl: String) {
+        if (sourceUrl.isBlank()) {
+            showMessage(getString(R.string.account_profile_avatar_no_source))
+            return
+        }
+        val session = currentSessionOrFinish() ?: return
+        lifecycleScope.launch {
+            runCatching {
+                val result = withContext(Dispatchers.IO) {
+                    val picked = downloadExternalAvatar(sourceUrl)
+                        ?: throw IllegalStateException(getString(R.string.account_profile_avatar_use_failed))
+                    uploadAvatarBytes(session.token, picked)
+                }
+                AccountSessionStore.save(this@AccountProfileActivity, result)
+            }.onSuccess {
+                renderProfile()
+                showMessage(getString(R.string.account_profile_avatar_updated))
+            }.onFailure {
+                showMessage(it.message ?: getString(R.string.account_profile_avatar_use_failed))
             }
         }
     }
@@ -474,19 +460,14 @@ class AccountProfileActivity : BaseActivity() {
                 AccountSessionStore.save(this@AccountProfileActivity, result)
             }.onSuccess {
                 renderProfile()
-                Toast.makeText(
-                    this@AccountProfileActivity,
-                    R.string.account_profile_avatar_restored,
-                    Toast.LENGTH_SHORT,
-                ).show()
+                showMessage(getString(R.string.account_profile_avatar_restored))
             }.onFailure {
-                Toast.makeText(this@AccountProfileActivity, it.message ?: "恢复默认头像失败", Toast.LENGTH_SHORT).show()
+                showMessage(it.message ?: getString(R.string.account_profile_avatar_restore_failed))
             }
         }
     }
 
-    private suspend fun uploadAccountAvatar(token: String, uri: Uri): AccountAuthResult {
-        val picked = readPickedAvatar(uri)
+    private suspend fun uploadAvatarBytes(token: String, picked: PickedAvatar): AccountAuthResult {
         val uploadToken = configManager.requestAccountAvatarUploadToken(
             token = token,
             fileName = picked.fileName,
@@ -531,6 +512,21 @@ class AccountProfileActivity : BaseActivity() {
         return PickedAvatar(fileName, mimeType, bytes)
     }
 
+    private fun downloadExternalAvatar(url: String): PickedAvatar? {
+        val request = Request.Builder().url(url).build()
+        avatarHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return null
+            val rawMime = response.header("Content-Type").orEmpty()
+            val mimeType = rawMime.substringBefore(';').trim().takeIf { it.startsWith("image/") }
+                ?: "image/jpeg"
+            val bytes = response.body?.bytes() ?: return null
+            if (bytes.isEmpty()) return null
+            require(bytes.size <= MAX_AVATAR_BYTES) { "头像文件不能超过 5MB" }
+            val fileName = "external_avatar.${extensionForMime(mimeType)}"
+            return PickedAvatar(fileName, mimeType, bytes)
+        }
+    }
+
     private fun queryDisplayName(uri: Uri): String {
         return runCatching {
             contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
@@ -555,7 +551,7 @@ class AccountProfileActivity : BaseActivity() {
             context = this,
             title = getString(R.string.account_profile_logout_title),
             message = getString(R.string.account_profile_logout_message),
-            confirmText = "确定退出",
+            confirmText = getString(R.string.account_profile_logout_confirm),
             confirmColor = ContextCompat.getColor(this, R.color.account_profile_logout_text),
         ) {
             lifecycleScope.launch {
