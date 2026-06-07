@@ -197,15 +197,7 @@ class PlayerActivity : BaseDownloadActivity() {
         binding.moreButton.setOnClickListener { openCurrentSongMoreMenu() }
         binding.listenTogetherChip.setOnClickListener { showListenTogetherSheet() }
 
-        binding.textDecreaseButton.setOnClickListener {
-            lyricsAdapter.adjustTextSize(-1f, this)
-            updateKaraokeLyricsView(musicController.currentPosition.value)
-        }
-
-        binding.textIncreaseButton.setOnClickListener {
-            lyricsAdapter.adjustTextSize(1f, this)
-            updateKaraokeLyricsView(musicController.currentPosition.value)
-        }
+        binding.listenTogetherButton.setOnClickListener { showListenTogetherSheet() }
 
         binding.lyricSettingsButton.setOnClickListener {
             LyricSettingsSheet.show(this) {

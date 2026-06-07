@@ -316,20 +316,9 @@
                 android:orientation="horizontal">
 
                 <ImageButton
-                    android:id="@+id/textDecreaseButton"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/song_name"
-                    android:padding="10dp"
-                    android:src="@drawable/ic_text_decrease_24"
-                    app:tint="#99FFFFFF" />
-
-                <ImageButton
                     android:id="@+id/qualityButton"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="24dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/playback_quality"
                     android:padding="12dp"
@@ -362,25 +351,25 @@
 
                 <ImageButton
                     android:id="@+id/lyricSettingsButton"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_marginStart="16dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/lyric_settings_button_cd"
-                    android:padding="10dp"
+                    android:padding="12dp"
                     android:src="@drawable/ic_lyric_setting"
-                    app:tint="#99FFFFFF" />
+                    app:tint="@android:color/white" />
 
                 <ImageButton
-                    android:id="@+id/textIncreaseButton"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
+                    android:id="@+id/listenTogetherButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_marginStart="16dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/song_name"
-                    android:padding="10dp"
-                    android:src="@drawable/ic_text_increase_24"
-                    app:tint="#99FFFFFF" />
+                    android:contentDescription="@string/listen_together_title"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_listen_together_24"
+                    app:tint="@android:color/white" />
             </LinearLayout>
 
             <Space

@@ -1,15 +1,5 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="24dp" android:viewportHeight="48" android:viewportWidth="48" android:width="24dp">
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="24dp" android:viewportHeight="2048" android:viewportWidth="2048" android:width="24dp">
       
-    <path android:fillColor="#00000000" android:pathData="M10,21A14,14 0,0 1,38 21" android:strokeColor="@color/colorOnSurface" android:strokeLineCap="round" android:strokeWidth="2"/>
-      
-    <path android:fillColor="#00000000" android:pathData="M10,21L10,21A2,2 0,0 1,12 23L12,30A2,2 0,0 1,10 32L10,32A2,2 0,0 1,8 30L8,23A2,2 0,0 1,10 21z" android:strokeColor="@color/colorOnSurface" android:strokeLineJoin="round" android:strokeWidth="2"/>
-      
-    <path android:fillColor="#00000000" android:pathData="M38,21L38,21A2,2 0,0 1,40 23L40,30A2,2 0,0 1,38 32L38,32A2,2 0,0 1,36 30L36,23A2,2 0,0 1,38 21z" android:strokeColor="@color/colorOnSurface" android:strokeLineJoin="round" android:strokeWidth="2"/>
-      
-    <path android:fillColor="#00000000" android:pathData="M19,20m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" android:strokeColor="@color/colorOnSurface" android:strokeWidth="2"/>
-      
-    <path android:fillColor="#00000000" android:pathData="M15,31V28C15,25.8 16.8,24 19,24C21.2,24 23,25.8 23,28V31" android:strokeColor="@color/colorOnSurface" android:strokeLineCap="round" android:strokeWidth="2"/>
-      
-    <path android:fillColor="#00000000" android:pathData="M27,26H33M30,23V29" android:strokeColor="@color/colorOnSurface" android:strokeLineCap="round" android:strokeWidth="2"/>
+    <path android:fillColor="@color/colorOnSurface" android:pathData="M1280,896q-80,0 -149,30t-122,82t-83,123t-30,149q0,92 -41,173t-115,136q65,33 117,81t90,108t57,128t20,142H896q0,-79 -30,-149t-82,-122t-123,-83t-149,-30q-80,0 -149,30t-122,82t-83,123t-30,149H0q0,-73 20,-141t57,-128t89,-108t118,-82q-74,-55 -115,-136t-41,-173q0,-79 30,-149t82,-122t122,-83t150,-30q92,0 173,41t136,115q38,-75 97,-134t134,-97q-74,-55 -115,-136t-41,-173q0,-79 30,-149t82,-122t122,-83t150,-30q79,0 149,30t122,82t83,123t30,149q0,92 -41,173t-115,136q65,33 117,81t90,108t57,128t20,142h-128q0,-79 -30,-149t-82,-122t-123,-83t-149,-30m-256,-384q0,53 20,99t55,82t81,55t100,20q53,0 99,-20t82,-55t55,-81t20,-100q0,-53 -20,-99t-55,-82t-81,-55t-100,-20q-53,0 -99,20t-82,55t-55,81t-20,100M512,1536q53,0 99,-20t82,-55t55,-81t20,-100q0,-53 -20,-99t-55,-82t-81,-55t-100,-20q-53,0 -99,20t-82,55t-55,81t-20,100q0,53 20,99t55,82t81,55t100,20m1536,256h-256v256h-128v-256h-256v-128h256v-256h128v256h256z"/>
     
 </vector>
