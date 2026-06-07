@@ -288,9 +288,8 @@ class PlayerActivity : BaseDownloadActivity() {
                 context = this@PlayerActivity,
                 songSubtitle = "${song.artist} - ${song.name}",
                 options = options,
-                title = getString(R.string.switch_playback_quality),
-                confirmText = getString(R.string.switch_and_play),
                 selectedQualityKey = SettingsPrefs.getPlaybackQualityKey(this@PlayerActivity, song.type),
+                song = song,
             ) ?: return@launch
 
             val current = musicController.currentSong.value

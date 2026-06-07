@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import cn.partialy.pm.R
 import cn.partialy.pm.model.DownloadQualityOption
+import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.toPlaybackQualityKey
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -28,6 +29,7 @@ suspend fun showDownloadQualityPicker(
     title: CharSequence? = null,
     confirmText: CharSequence? = null,
     selectedQualityKey: String? = null,
+    song: SongInfo? = null,
 ): DownloadQualityOption? {
     if (options.isEmpty()) return null
     return suspendCancellableCoroutine { cont ->
@@ -39,11 +41,12 @@ suspend fun showDownloadQualityPicker(
             R.layout.layout_quality_picker_bottom_sheet,
             null,
         )
-        title?.let { root.findViewById<TextView>(R.id.qualityPickerTitle).text = it }
-        root.findViewById<TextView>(R.id.qualityPickerSubtitle).apply {
-            text = songSubtitle
-            visibility = if (songSubtitle.isBlank()) View.GONE else View.VISIBLE
-        }
+        SongInfoHeaderBinder.bind(
+            root = root,
+            song = song,
+            fallbackTitle = title ?: context.getString(R.string.download_current_song),
+            fallbackSubtitle = songSubtitle,
+        )
         val container = root.findViewById<LinearLayout>(R.id.qualityOptionsContainer)
         val labelNormal = MaterialColors.getColor(
             root,
@@ -126,6 +129,7 @@ suspend fun showDownloadQualityConfirmDialog(
     songSubtitle: String,
     options: List<DownloadQualityOption>,
     selectedQualityKey: String? = null,
+    song: SongInfo? = null,
 ): DownloadQualityOption? {
     if (options.isEmpty()) return null
     return suspendCancellableCoroutine { cont ->
@@ -134,10 +138,12 @@ suspend fun showDownloadQualityConfirmDialog(
             null,
             false,
         )
-        content.findViewById<TextView>(R.id.downloadQualitySubtitle).apply {
-            text = songSubtitle
-            visibility = if (songSubtitle.isBlank()) View.GONE else View.VISIBLE
-        }
+        SongInfoHeaderBinder.bind(
+            root = content,
+            song = song,
+            fallbackTitle = context.getString(R.string.download_current_song),
+            fallbackSubtitle = songSubtitle,
+        )
         val container = content.findViewById<LinearLayout>(R.id.downloadQualityOptionsContainer)
         val labelNormal = MaterialColors.getColor(
             content,

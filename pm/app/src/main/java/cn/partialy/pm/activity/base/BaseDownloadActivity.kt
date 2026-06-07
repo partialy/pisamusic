@@ -55,6 +55,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 this@BaseDownloadActivity,
                 subtitle,
                 options,
+                song = songInfo,
             ) ?: return@launch
 
             val downloadInfo = when (val c = selected.choice) {

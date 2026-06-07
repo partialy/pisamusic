@@ -8,29 +8,14 @@
     android:orientation="vertical"
     android:paddingBottom="0dp">
 
-    <TextView
-        android:id="@+id/qualityPickerTitle"
+    <include
+        android:id="@+id/qualityPickerSongHeader"
+        layout="@layout/include_song_info_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
         android:layout_marginTop="28dp"
-        android:gravity="center"
-        android:text="@string/download_current_song"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="16sp" />
-
-    <TextView
-        android:id="@+id/qualityPickerSubtitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="20dp"
-        android:ellipsize="end"
-        android:gravity="center"
-        android:maxLines="2"
-        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-        android:textColor="?attr/colorOnSurfaceVariant" />
+        android:layout_marginBottom="20dp" />
 
     <View
         android:layout_width="match_parent"

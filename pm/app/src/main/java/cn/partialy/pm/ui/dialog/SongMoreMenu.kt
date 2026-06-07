@@ -19,14 +19,11 @@ import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.player.MusicController
-import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
-import coil.load
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
-import com.google.android.material.imageview.ShapeableImageView
 import kotlin.math.roundToInt
 
 data class SongMoreMenuDependencies(
@@ -53,12 +50,7 @@ object SongMoreMenu {
         /** 第一个 sheet 关闭后再打开选歌单；不能用已 detach 的 contentView.post。 */
         var openPickPlaylistAfterDismiss = false
 
-        val cover = root.findViewById<ShapeableImageView>(R.id.songMoreCoverView)
-        val title = root.findViewById<TextView>(R.id.songMoreTitleView)
-        val artist = root.findViewById<TextView>(R.id.songMoreArtistView)
-        title.text = song.name
-        artist.text = song.artist
-        loadSongCover(cover, song)
+        SongInfoHeaderBinder.bind(root, song)
 
         root.findViewById<ImageButton>(R.id.songMoreCloseButton).setOnClickListener { dialog.dismiss() }
         val loveIcon = root.findViewById<ImageView>(R.id.songMoreLoveIcon)
@@ -136,14 +128,6 @@ object SongMoreMenu {
             }
         }
         dialog.show()
-    }
-
-    private fun loadSongCover(imageView: ImageView, song: SongInfo) {
-        val coverData = SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_SMALL)
-        imageView.load(coverData) {
-            placeholder(R.drawable.ic_pm_icon)
-            error(R.drawable.ic_pm_icon)
-        }
     }
 
     private fun applyBottomSheetMaxBehavior(dialog: BottomSheetDialog, fraction: Float) {

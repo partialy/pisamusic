@@ -5,27 +5,13 @@
     android:orientation="vertical"
     android:paddingTop="22dp">
 
-    <TextView
-        android:id="@+id/downloadQualityTitle"
+    <include
+        android:id="@+id/downloadQualitySongHeader"
+        layout="@layout/include_song_info_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="20dp"
-        android:gravity="center"
-        android:text="@string/download_current_song"
-        android:textColor="@color/pm_dialog_title"
-        android:textSize="16sp" />
-
-    <TextView
-        android:id="@+id/downloadQualitySubtitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="8dp"
-        android:ellipsize="end"
-        android:gravity="center"
-        android:maxLines="2"
-        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-        android:textColor="@color/pm_dialog_message" />
+        android:layout_marginTop="0dp" />
 
     <LinearLayout
         android:id="@+id/downloadQualityOptionsContainer"
