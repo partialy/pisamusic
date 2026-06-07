@@ -85,7 +85,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.imageview.ShapeableImageView
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.abs
 import kotlinx.coroutines.launch
@@ -428,19 +427,21 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun showReplaceListenTogetherRoomDialog(message: String) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("创建新的听歌房")
-            .setMessage(message)
-            .setNegativeButton("取消", null)
-            .setPositiveButton("确认") { _, _ ->
+        PmMinimalDialog.show(
+            context = this,
+            title = "创建新的听歌房",
+            message = message,
+            cancelText = "取消",
+            confirmText = "确认",
+            onConfirm = {
                 lifecycleScope.launch {
                     listenTogetherManager.createRoom(
                         currentSong = musicController.currentSong.value,
                         replaceExisting = true,
                     )
                 }
-            }
-            .show()
+            },
+        )
     }
 
     private fun renderListenTogetherChip(state: ListenTogetherState) {
