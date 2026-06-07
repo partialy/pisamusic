@@ -157,6 +157,7 @@
 - 居中确认类弹窗优先使用 `cn.partialy.pm.ui.dialog.PmMinimalDialog`；它是 280dp 简约卡片样式，支持单/双按钮、隐藏标题、确认按钮文字颜色和深浅色资源自动适配。
 - 需要居中承载自定义表单、列表、封面选择等内容时，使用 `cn.partialy.pm.ui.dialog.PmSlotDialog`；它复用 `PmMinimalDialog` 的 280dp 卡片、深浅色资源、入退场动画和底部 T 形按钮区，中间 `slotContainer` 内容由调用方布局自行负责。
 - 旧 `ModernDialog` 仍保留给下载进度、底部弹窗和单选弹窗等既有场景；不要为了普通确认弹窗继续扩展它。
+- 业务消息或自定义通知优先调用 `BaseActivity.showMessage(content, durationMs)`；它用于区别于系统默认 `Toast` 的业务提示，展示为屏幕高度 25% 处的半透明黑色胶囊轻通知，并返回可立即淡出关闭的函数。
 
 ## 全局异常处理补充
 
