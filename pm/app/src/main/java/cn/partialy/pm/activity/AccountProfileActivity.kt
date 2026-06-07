@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -101,6 +103,7 @@ class AccountProfileActivity : BaseActivity() {
         binding.accountProfileAvatarChip.setOnClickListener { showAvatarOptionsSheet() }
         binding.accountProfileUsernameRow.setOnClickListener { showEditUsernameDialog() }
         binding.accountProfileEmailRow.setOnClickListener { showEditEmailDialog() }
+        binding.accountProfileIdRow.setOnClickListener { copyUserIdToClipboard() }
         binding.accountProfileSaveButton.setOnClickListener { saveProfile() }
         binding.accountProfileLogoutButton.setOnClickListener { confirmLogout() }
     }
@@ -168,6 +171,14 @@ class AccountProfileActivity : BaseActivity() {
             return getString(R.string.account_profile_value_placeholder)
         }
         return SimpleDateFormat("yyyy年MM月dd日 HH:mm", Locale.CHINA).format(Date(timestamp))
+    }
+
+    private fun copyUserIdToClipboard() {
+        val userId = binding.accountProfileIdValue.text?.toString()?.trim().orEmpty()
+        if (userId.isBlank()) return
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+        clipboard.setPrimaryClip(ClipData.newPlainText("Pisa Music 用户 ID", userId))
+        showMessage(getString(R.string.account_profile_id_copied))
     }
 
     private fun resolveAccountAvatarUrl(user: AccountUser): String? {

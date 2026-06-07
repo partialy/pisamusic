@@ -306,12 +306,6 @@
     <string name="mine_notification">通知</string>
     <string name="mine_upgrade">升级</string>
     <string name="mine_avatar_cd_change">更改头像</string>
-    <string name="mine_avatar_sheet_title">选择头像</string>
-    <string name="mine_avatar_sheet_subtitle">使用在线头像或者本地图片</string>
-    <string name="mine_avatar_use_kg">使用KG头像</string>
-    <string name="mine_avatar_use_wy">使用WY头像</string>
-    <string name="mine_avatar_use_local">使用本地图片</string>
-    <string name="mine_avatar_local_save_failed">保存图片失败，请重试</string>
     <string name="mine_profile_kg_nickname_empty">暂无酷狗昵称</string>
     <string name="mine_profile_wy_subtitle_empty">暂无网易昵称</string>
     <string name="song_more_play_next">下一首播放</string>
@@ -470,6 +464,8 @@
     <string name="account_profile_email_code_failed">验证码发送失败</string>
     <string name="account_profile_avatar_upload_failed">头像上传失败</string>
     <string name="account_profile_avatar_restore_failed">恢复默认头像失败</string>
+    <string name="account_profile_copy_id">复制用户 ID</string>
+    <string name="account_profile_id_copied">用户 ID 已复制</string>
     <string name="account_profile_logout_title">退出登录</string>
     <string name="account_profile_logout_message">确定要退出当前账号吗？</string>
     <string name="account_profile_username_required">请输入昵称</string>

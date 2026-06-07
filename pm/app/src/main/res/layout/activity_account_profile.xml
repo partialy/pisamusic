@@ -207,8 +207,12 @@
                 android:paddingHorizontal="18dp">
 
                 <LinearLayout
+                    android:id="@+id/accountProfileIdRow"
                     android:layout_width="match_parent"
                     android:layout_height="52dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -233,6 +237,14 @@
                         android:textSize="14sp"
                         android:textStyle="bold"
                         tools:text="549090146" />
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="6dp"
+                        android:contentDescription="@string/account_profile_copy_id"
+                        android:src="@drawable/ic_copy_24"
+                        app:tint="@color/account_profile_chevron_tint" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -389,12 +401,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
                 android:layout_marginTop="28dp"
-                android:background="@drawable/bg_account_profile_save_button"
+                android:background="@drawable/bg_listen_together_create_button"
                 android:clickable="true"
                 android:focusable="true"
                 android:gravity="center"
                 android:text="@string/account_profile_save"
-                android:textColor="@color/account_profile_save_button_text"
+                android:textColor="@color/listen_together_create_button_text"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
