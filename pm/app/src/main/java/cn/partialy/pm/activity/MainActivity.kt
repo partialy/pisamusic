@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.PopupMenu
 import android.webkit.WebChromeClient
@@ -854,9 +855,21 @@ class MainActivity : BaseDownloadActivity() {
         val sheet = BottomSheetDialog(this@MainActivity).apply {
             setContentView(R.layout.layout_announcement_bottom_sheet)
             setCancelable(false)
-            behavior.state = BottomSheetBehavior.STATE_EXPANDED
-            behavior.skipCollapsed = true
-            behavior.isDraggable = false
+        }
+        sheet.setOnShowListener {
+            val bottomSheetView = sheet.findViewById<View>(
+                com.google.android.material.R.id.design_bottom_sheet,
+            ) ?: return@setOnShowListener
+            bottomSheetView.layoutParams = bottomSheetView.layoutParams.apply {
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            BottomSheetBehavior.from(bottomSheetView as ViewGroup).apply {
+                skipCollapsed = true
+                isFitToContents = true
+                isDraggable = false
+                state = BottomSheetBehavior.STATE_EXPANDED
+            }
+            bottomSheetView.requestLayout()
         }
 
         val webView = sheet.findViewById<WebView>(R.id.announcementWebView)
