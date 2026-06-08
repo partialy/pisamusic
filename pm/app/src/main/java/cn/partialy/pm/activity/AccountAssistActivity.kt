@@ -67,7 +67,8 @@ class AccountAssistActivity : BaseActivity() {
         }
         ViewCompat.setOnApplyWindowInsetsListener(binding.accountAssistRoot) { view, insets ->
             val navigationBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
-            view.setPadding(0, 0, 0, navigationBar.bottom)
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            view.setPadding(0, 0, 0, maxOf(navigationBar.bottom, ime.bottom))
             insets
         }
         ViewCompat.requestApplyInsets(binding.accountAssistRoot)
