@@ -31,6 +31,7 @@ import {
   replacePlaintextPaths,
   saveAnnouncement,
   saveAppConfigSections,
+  softDeleteUpdateHistory,
   updatePublishedUpdate,
   upsertAdminUser,
 } from "../db/configStore";
@@ -839,6 +840,22 @@ adminRouter.delete("/update-history/:id/release-file", async (req, res) => {
     const message = e instanceof Error ? e.message : "删除安装包失败";
     const status = message === "该发布记录没有可删除的安装包" ? 404 : 500;
     return res.status(status).json(fail(message, status));
+  }
+});
+
+adminRouter.delete("/update-history/:id", (req, res) => {
+  try {
+    const historyId = String(req.params.id ?? "").trim();
+    if (!historyId) return res.status(400).json(fail("发布记录 ID 不能为空", 400));
+    const result = softDeleteUpdateHistory(historyId);
+    if (result.ok) return res.json(ok({ id: historyId }, "版本记录已删除"));
+    if (result.reason === "NOT_FOUND") {
+      return res.status(404).json(fail("发布记录不存在", 404));
+    }
+    return res.status(400).json(fail("当前最新版本不可删除", 400));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "删除版本记录失败";
+    return res.status(500).json(fail(message, 500));
   }
 });
 

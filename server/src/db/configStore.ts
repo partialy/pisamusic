@@ -1464,6 +1464,32 @@ export function updatePublishedUpdate(
   return updated;
 }
 
+/**
+ * 逻辑删除版本历史条目。
+ * 每个平台的"当前发布版本" = 该平台未删除历史里 created_at 最大的那条（也就是 readUpdateHistory
+ * ORDER BY created_at ASC 之后该平台的最后一条），它对应 release_info / current_update 的实时引用，
+ * 删除会破坏 Android 端检查更新与桌面端 feed，所以禁止。
+ */
+export function softDeleteUpdateHistory(
+  historyId: string,
+): { ok: true } | { ok: false; reason: "NOT_FOUND" | "LATEST_NOT_DELETABLE" } {
+  const db = getAppDb();
+  const all = readUpdateHistory();
+  const target = all.find((item) => item.id === historyId);
+  if (!target) return { ok: false, reason: "NOT_FOUND" };
+  const samePlatform = all.filter((item) => item.platform === target.platform);
+  // readUpdateHistory 用 created_at ASC 排序，同平台最后一条即最新
+  const latestForPlatform = samePlatform[samePlatform.length - 1];
+  if (latestForPlatform && latestForPlatform.id === target.id) {
+    return { ok: false, reason: "LATEST_NOT_DELETABLE" };
+  }
+  db.prepare(`UPDATE update_history SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`).run(
+    Date.now(),
+    historyId,
+  );
+  return { ok: true };
+}
+
 export function insertUpdateHistory(db: DatabaseSync, item: UpdateHistoryItem, createdAt = Date.now()) {
   db.prepare(
     `INSERT OR IGNORE INTO update_history (
@@ -1493,6 +1519,7 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
         f.deleted_at AS file_deleted_at
        FROM update_history h
        LEFT JOIN file_records f ON f.id = h.release_file_id
+       WHERE h.deleted_at IS NULL
        ORDER BY h.created_at ASC, h.rowid ASC`,
     )
     .all() as Array<{

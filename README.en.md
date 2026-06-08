@@ -21,6 +21,12 @@ An Android multi-source music player for learning and communication purposes, su
 - **Quality Selection**: Automatically select optimal audio quality based on network conditions
 - **Mini Player**: Persistent mini player at the bottom of the screen
 
+### Listen Together
+- **Create a Room**: Custom room name (2–16 chars), 6-digit random room ID (editable 4–8 digits), max 2–8 members, member-control switch
+- **Real-time Sync**: Socket.IO long connection — host's song change, pause, and seek propagate to members in < 200ms
+- **Room Panel**: Synced song card with latency badge; member chips with gold host badge and self highlight; copy invite / share / QR shortcuts
+- **Permission Toggle**: Host can grant or revoke "members can change songs" anytime
+
 ### Other Features
 - **Theme Switching**: Support for light, dark, and system-following themes
 - **Playlist Import**: Import playlists from compatible audio sources

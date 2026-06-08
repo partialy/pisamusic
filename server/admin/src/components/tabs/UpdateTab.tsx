@@ -8,6 +8,8 @@ type Props = {
   onEdit: (item: UpdateHistoryItem) => void;
   onDeletePackage: (item: UpdateHistoryItem) => void;
   deletingPackageHistoryId: string | null;
+  onDeleteHistory: (item: UpdateHistoryItem) => void;
+  deletingHistoryId: string | null;
 };
 
 function getFileSourceText(item: UpdateHistoryItem): string {
@@ -17,7 +19,16 @@ function getFileSourceText(item: UpdateHistoryItem): string {
   return "未配置安装包";
 }
 
-export default function UpdateTab({ displayHistory, themeColor, onPublishNew, onEdit, onDeletePackage, deletingPackageHistoryId }: Props) {
+export default function UpdateTab({
+  displayHistory,
+  themeColor,
+  onPublishNew,
+  onEdit,
+  onDeletePackage,
+  deletingPackageHistoryId,
+  onDeleteHistory,
+  deletingHistoryId,
+}: Props) {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -90,6 +101,31 @@ export default function UpdateTab({ displayHistory, themeColor, onPublishNew, on
                   {deletingPackageHistoryId === upd.id ? "删除中..." : "删除安装包"}
                 </button>
               )}
+              <button
+                type="button"
+                disabled={index === 0 || deletingHistoryId === upd.id}
+                title={index === 0 ? "最新版本不可删除" : "逻辑删除该版本记录"}
+                onClick={() => {
+                  if (index === 0) return;
+                  if (typeof window !== "undefined" && !window.confirm("删除该版本历史？此操作为逻辑删除，可联系开发恢复。")) return;
+                  onDeleteHistory(upd);
+                }}
+                className={`flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition-all ${
+                  index === 0
+                    ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+                    : "border-red-200 bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                }`}
+              >
+                <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3 6h18M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2m2 0v14a2 2 0 01-2 2H8a2 2 0 01-2-2V6h12z"
+                  />
+                </svg>
+                {deletingHistoryId === upd.id ? "删除中..." : "删除版本"}
+              </button>
             </div>
           </div>
         ))}

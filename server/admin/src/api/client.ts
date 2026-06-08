@@ -370,6 +370,16 @@ export async function deleteReleasePackage(historyId: string): Promise<void> {
   }
 }
 
+export async function softDeleteUpdateHistory(historyId: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/update-history/${encodeURIComponent(historyId)}`, {
+    method: "DELETE",
+  });
+  const body = await parseJson<{ id: string }>(res);
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+}
+
 export async function fetchFileRecords(params: {
   status?: "uploaded" | "deleted" | "all";
   usageType?: "release-package" | "desktop-update" | "all";

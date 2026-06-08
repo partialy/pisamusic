@@ -58,6 +58,7 @@ import {
   updateDynamicConfig,
   deleteReleasePackage,
   deleteFileRecord,
+  softDeleteUpdateHistory,
 } from "./api/client";
 import { clearStoredToken, getStoredToken } from "./auth/token";
 import { defaultAppConfig } from "./data/defaultAppConfig";
@@ -158,6 +159,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [desktopUpdateProgress, setDesktopUpdateProgress] = useState<Partial<Record<DesktopUpdateAssetType, number>>>({});
   const [desktopUpdateAssets, setDesktopUpdateAssets] = useState<Partial<Record<DesktopUpdateAssetType, DesktopUpdateAssetInfo>>>({});
   const [deletingPackageHistoryId, setDeletingPackageHistoryId] = useState<string | null>(null);
+  const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
 
   const [encryptionPathsServer, setEncryptionPathsServer] = useState<string[]>([]);
   const [encryptionPathsDraft, setEncryptionPathsDraft] = useState<string[]>([]);
@@ -558,6 +560,18 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       alert(e instanceof Error ? e.message : "删除安装包失败");
     } finally {
       setDeletingPackageHistoryId(null);
+    }
+  };
+
+  const handleDeleteUpdateHistory = async (item: UpdateHistoryItem) => {
+    setDeletingHistoryId(item.id);
+    try {
+      await softDeleteUpdateHistory(item.id);
+      await refreshRemote();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "删除版本记录失败");
+    } finally {
+      setDeletingHistoryId(null);
     }
   };
 
@@ -1285,6 +1299,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onEdit={openEditUpdate}
                   onDeletePackage={(item) => void handleDeleteReleasePackage(item)}
                   deletingPackageHistoryId={deletingPackageHistoryId}
+                  onDeleteHistory={(item) => void handleDeleteUpdateHistory(item)}
+                  deletingHistoryId={deletingHistoryId}
                 />
               )}
               {currentTab === "files" && (

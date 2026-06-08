@@ -143,7 +143,8 @@ CREATE TABLE IF NOT EXISTS update_history (
     official_url    TEXT    NOT NULL,
     update_content  TEXT    NOT NULL,
     release_file_id TEXT,
-    created_at      INTEGER NOT NULL
+    created_at      INTEGER NOT NULL,
+    deleted_at      INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS file_records (
@@ -303,6 +304,10 @@ function migrateUpdateHistory(db: DatabaseSync) {
   }
   if (!cols.has("release_file_id")) {
     db.exec(`ALTER TABLE update_history ADD COLUMN release_file_id TEXT`);
+  }
+  // 逻辑删除时间戳：NULL 表示未删；非 NULL 即为软删时间
+  if (!cols.has("deleted_at")) {
+    db.exec(`ALTER TABLE update_history ADD COLUMN deleted_at INTEGER`);
   }
 }
 
