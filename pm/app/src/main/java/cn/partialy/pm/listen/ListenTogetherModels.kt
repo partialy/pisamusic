@@ -112,6 +112,8 @@ data class ListenTogetherState(
     val syncingFromRemote: Boolean = false,
     val lastVersion: Long = -1L,
     val currentUserId: String = "",
+    /** 切歌防抖：上一首/下一首/点歌触发后 ~450ms 窗口内置 true；UI 据此灰显切歌按钮 */
+    val pendingTransition: Boolean = false,
 ) {
     val enabled: Boolean get() = room != null
     val isHost: Boolean get() = room?.hostUserId?.isNotBlank() == true && currentUserId == room.hostUserId

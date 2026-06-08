@@ -405,6 +405,7 @@ class PlayerActivity : BaseDownloadActivity() {
                 renderListenTogetherChip(state)
                 listenTogetherSheetBinding?.let { renderListenTogetherSheet(it, state) }
                 updateEffectivePlaylist()
+                applyListenTogetherTransitionLock(state.pendingTransition && state.enabled)
             }
         }
         lifecycleScope.launch {
@@ -465,6 +466,18 @@ class PlayerActivity : BaseDownloadActivity() {
         val color = Color.parseColor(if (connected) "#34D399" else "#FBBF24")
         binding.listenTogetherChipStatusDot.backgroundTintList = ColorStateList.valueOf(color)
         binding.listenTogetherChipLatencyText.setTextColor(color)
+    }
+
+    /**
+     * 一起听切歌防抖窗口期内灰显上一首/下一首按钮，避免用户快速连点造成 song 来回跳动。
+     * 房间未启用（独立播放）时不做处理。
+     */
+    private fun applyListenTogetherTransitionLock(locked: Boolean) {
+        val alphaValue = if (locked) 0.4f else 1f
+        binding.previousButton.isEnabled = !locked
+        binding.previousButton.alpha = alphaValue
+        binding.nextButton.isEnabled = !locked
+        binding.nextButton.alpha = alphaValue
     }
 
     private fun bindListenTogetherChipAvatars(

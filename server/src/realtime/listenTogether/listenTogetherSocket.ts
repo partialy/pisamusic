@@ -100,7 +100,10 @@ function registerRoomChangeEvent(
     try {
       const result = handler(socket.data.user, payload);
       ackOk(ack, { room: result.room });
-      emitBroadcast(io, result.broadcast);
+      // 排除发送者，避免 host 自己 emit change_song / play / pause 后还收到自己的回声，
+      // 触发 syncPlayerToRoom 在客户端做二次播放器同步，引发快速连点时两首歌反复跳动。
+      // 发送者已经通过 ack(result.room) 拿到最新房间状态。
+      emitBroadcastFromSocket(socket, result.broadcast);
     } catch (error) {
       ackError(ack, error);
     }
