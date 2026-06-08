@@ -21,8 +21,9 @@ import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityFeedbackBinding
-import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import cn.partialy.pm.utils.ServerDevicePrefs
 import coil.load
 import com.google.android.material.imageview.ShapeableImageView
@@ -77,12 +78,16 @@ class FeedbackActivity : BaseActivity() {
             lightStatusBarIcons = !isNight,
             lightNavigationBarIcons = !isNight,
         )
-        binding.feedbackRoot.applySystemBarsInsets { insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(binding.feedbackRoot) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             val lp = binding.feedbackStatusBarSpacer.layoutParams
-            lp.height = insets.top
+            lp.height = bars.top
             binding.feedbackStatusBarSpacer.layoutParams = lp
-            binding.feedbackScrollView.setPadding(0, 0, 0, insets.bottom)
+            binding.feedbackScrollView.setPadding(0, 0, 0, maxOf(bars.bottom, ime.bottom))
+            insets
         }
+        ViewCompat.requestApplyInsets(binding.feedbackRoot)
 
         onBackPressedDispatcher.addCallback(
             this,

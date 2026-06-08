@@ -26,15 +26,13 @@ class PmSlotDialog private constructor(
         val binding = DialogPmSlotBinding.inflate(dialog.layoutInflater)
         bindContent(binding, dialog)
         dialog.setContentView(binding.root)
-        dialog.window?.setWindowAnimations(R.style.PmMinimalDialogAnimationStyle)
-        dialog.setCancelable(config.cancelable)
-        dialog.setOnShowListener {
-            dialog.window?.apply {
-                setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-                setDimAmount(0.32f)
-                setLayout(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT)
-            }
+        dialog.window?.apply {
+            setWindowAnimations(R.style.PmMinimalDialogAnimationStyle)
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setDimAmount(0.32f)
+            setLayout(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT)
         }
+        dialog.setCancelable(config.cancelable)
         dialog.show()
         return dialog
     }
