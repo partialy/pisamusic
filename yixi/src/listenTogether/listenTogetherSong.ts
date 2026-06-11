@@ -78,3 +78,8 @@ export function sameSongRef(
 export function songKeyOf(song: Pick<Song, "source" | "id">): string {
   return `${song.source}:${song.id}`;
 }
+
+/** 协议歌曲再净化：转发/落队列时不携带任何播放 URL */
+export function sanitizeProtocolSong(song: ListenTogetherSong): ListenTogetherSong {
+  return { ...song, url: "" };
+}
