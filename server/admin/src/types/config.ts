@@ -368,6 +368,42 @@ export type AdminUserUpdatePayload = {
   email: string;
 };
 
+export type FeedbackType = "bug" | "suggestion" | "account" | "other";
+
+export type FeedbackStatus = "pending" | "processed";
+
+export type AdminFeedbackListItem = {
+  id: string;
+  createdAt: string;
+  feedbackType: FeedbackType;
+  description: string;
+  contact: string | null;
+  status: FeedbackStatus;
+  processedAt: string | null;
+  imageCount: number;
+  firstImageUrl: string | null;
+};
+
+export type AdminFeedbackDetail = AdminFeedbackListItem & {
+  device: Record<string, unknown>;
+  images: string[];
+};
+
+export type AdminFeedbackListResponse = {
+  items: AdminFeedbackListItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type AdminFeedbackFilter = {
+  status?: FeedbackStatus;
+  type?: FeedbackType;
+  keyword?: string;
+  offset?: number;
+  limit?: number;
+};
+
 export type PisaAdminExport = AppConfigJson & {
   announcements: Announcement[];
   updateHistory: UpdateHistoryItem[];

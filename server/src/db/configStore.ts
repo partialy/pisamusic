@@ -224,16 +224,6 @@ export type AdminUser = {
   passwordHash: string;
 };
 
-export type FeedbackItem = {
-  id: string;
-  createdAt: string;
-  feedback_type: string;
-  description: string;
-  contact: string | null;
-  device: Record<string, unknown>;
-  imagePaths: string[];
-};
-
 const DEFAULT_APP_CONFIG: AppConfig = {
   availability: {
     appAvailable: true,
@@ -1713,32 +1703,4 @@ export function upsertAdminUser(user: AdminUser) {
        password_hash = excluded.password_hash,
        updated_at = excluded.updated_at`,
   ).run(user.username, user.passwordHash, Date.now());
-}
-
-export function insertFeedback(item: FeedbackItem) {
-  const db = getAppDb();
-  runInTransaction(db, () => {
-    db.prepare(
-      `INSERT OR IGNORE INTO feedback (
-        id, created_at, feedback_type, description, contact, device_json
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(
-      item.id,
-      item.createdAt,
-      item.feedback_type,
-      item.description,
-      item.contact,
-      JSON.stringify(item.device ?? {}),
-    );
-    const insertImage = db.prepare(
-      `INSERT INTO feedback_images (feedback_id, image_path, sort_order)
-       SELECT ?, ?, ?
-       WHERE NOT EXISTS (
-         SELECT 1 FROM feedback_images WHERE feedback_id = ? AND image_path = ?
-       )`,
-    );
-    item.imagePaths.forEach((imagePath, index) => {
-      insertImage.run(item.id, imagePath, index, item.id, imagePath);
-    });
-  });
 }

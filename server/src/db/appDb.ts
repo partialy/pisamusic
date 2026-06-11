@@ -199,7 +199,9 @@ CREATE TABLE IF NOT EXISTS feedback (
     feedback_type  TEXT    NOT NULL,
     description    TEXT    NOT NULL,
     contact        TEXT,
-    device_json    TEXT    NOT NULL DEFAULT '{}'
+    device_json    TEXT    NOT NULL DEFAULT '{}',
+    status         TEXT    NOT NULL DEFAULT 'pending',
+    processed_at   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS feedback_images (
@@ -353,6 +355,18 @@ function migrateUsers(db: DatabaseSync) {
   }
 }
 
+function migrateFeedback(db: DatabaseSync) {
+  const cols = getColumnNames(db, "feedback");
+  if (!cols.has("status")) {
+    db.exec(`ALTER TABLE feedback ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'`);
+  }
+  if (!cols.has("processed_at")) {
+    db.exec(`ALTER TABLE feedback ADD COLUMN processed_at TEXT`);
+  }
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback (created_at DESC)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_status_created_at ON feedback (status, created_at DESC)`);
+}
+
 function repairFileRecords(db: DatabaseSync) {
   db.exec(`
     UPDATE file_records
@@ -433,6 +447,7 @@ function initSchema(db: DatabaseSync) {
   migrateUpdateHistory(db);
   migrateDynamicConfigs(db);
   migrateUsers(db);
+  migrateFeedback(db);
   repairFileRecords(db);
 }
 

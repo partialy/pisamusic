@@ -2,6 +2,7 @@ package cn.partialy.pm.ui.dialog
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Rect
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +10,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.widget.NestedScrollView
 import cn.partialy.pm.R
 import cn.partialy.pm.model.DownloadQualityOption
 import cn.partialy.pm.model.SongInfo
@@ -145,6 +147,9 @@ suspend fun showDownloadQualityConfirmDialog(
             fallbackSubtitle = songSubtitle,
         )
         val container = content.findViewById<LinearLayout>(R.id.downloadQualityOptionsContainer)
+        val optionsScroll = content.findViewById<NestedScrollView>(
+            R.id.downloadQualityOptionsScroll,
+        )
         val labelNormal = MaterialColors.getColor(
             content,
             com.google.android.material.R.attr.colorOnSurface,
@@ -203,9 +208,50 @@ suspend fun showDownloadQualityConfirmDialog(
             }
             .show()
 
+        constrainDownloadQualityDialogHeight(
+            dialog = dialog,
+            content = content,
+            optionsScroll = optionsScroll,
+            optionsContainer = container,
+        )
         dialog.setOnDismissListener {
             if (cont.isActive && !confirmed) cont.resume(null)
         }
         cont.invokeOnCancellation { dialog.dismiss() }
+    }
+}
+
+private fun constrainDownloadQualityDialogHeight(
+    dialog: android.app.Dialog,
+    content: View,
+    optionsScroll: NestedScrollView,
+    optionsContainer: LinearLayout,
+) {
+    content.post {
+        val window = dialog.window ?: return@post
+        val visibleFrame = Rect()
+        window.decorView.getWindowVisibleDisplayFrame(visibleFrame)
+
+        val density = content.resources.displayMetrics.density
+        val verticalMargin = (24f * density).roundToInt()
+        val maxDialogHeight = (visibleFrame.height() - verticalMargin * 2).coerceAtLeast(0)
+        val buttonContainer = dialog.findViewById<View>(R.id.buttonContainer)
+        val divider = dialog.findViewById<View>(R.id.horizontalDivider)
+        val fixedHeight = (content.measuredHeight - optionsScroll.measuredHeight).coerceAtLeast(0) +
+            buttonContainer.measuredHeight +
+            divider.measuredHeight
+        val availableOptionsHeight = (maxDialogHeight - fixedHeight).coerceAtLeast(0)
+        val naturalOptionsHeight = optionsContainer.measuredHeight
+
+        if (naturalOptionsHeight <= availableOptionsHeight) return@post
+
+        val firstRowHeight = optionsContainer.getChildAt(0)?.measuredHeight ?: 0
+        val preferredMinimumHeight = firstRowHeight * 3
+        optionsScroll.minimumHeight = preferredMinimumHeight.coerceAtMost(availableOptionsHeight)
+        val targetHeight = availableOptionsHeight.coerceAtMost(naturalOptionsHeight)
+        optionsScroll.layoutParams = optionsScroll.layoutParams.apply {
+            height = targetHeight
+        }
+        optionsScroll.requestLayout()
     }
 }

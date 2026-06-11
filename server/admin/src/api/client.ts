@@ -1,5 +1,8 @@
 import type { ApiResponse } from "../types/api";
 import type {
+  AdminFeedbackDetail,
+  AdminFeedbackFilter,
+  AdminFeedbackListResponse,
   Announcement,
   AppConfigJson,
   AppConfigSectionsPayload,
@@ -15,6 +18,7 @@ import type {
   DynamicConfigItem,
   DynamicConfigPayload,
   FileRecordListResponse,
+  FeedbackStatus,
   DeviceFilter,
   DeviceInfo,
   DeviceListResponse,
@@ -609,4 +613,41 @@ export async function deleteAdminUser(id: string): Promise<void> {
   if (!res.ok || !body.success) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
+}
+
+export async function fetchAdminFeedback(filter: AdminFeedbackFilter): Promise<AdminFeedbackListResponse> {
+  const params = new URLSearchParams();
+  if (filter.status) params.set("status", filter.status);
+  if (filter.type) params.set("type", filter.type);
+  if (filter.keyword) params.set("keyword", filter.keyword);
+  if (filter.offset !== undefined) params.set("offset", String(filter.offset));
+  if (filter.limit !== undefined) params.set("limit", String(filter.limit));
+  const query = params.toString();
+  const res = await fetchWithAuth(`/api/admin/feedback${query ? `?${query}` : ""}`);
+  const body = await parseJson<AdminFeedbackListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminFeedbackDetail(id: string): Promise<AdminFeedbackDetail> {
+  const res = await fetchWithAuth(`/api/admin/feedback/${encodeURIComponent(id)}`);
+  const body = await parseJson<AdminFeedbackDetail>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function updateAdminFeedbackStatus(id: string, status: FeedbackStatus): Promise<AdminFeedbackDetail> {
+  const res = await fetchWithAuth(`/api/admin/feedback/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+  const body = await parseJson<AdminFeedbackDetail>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
 }

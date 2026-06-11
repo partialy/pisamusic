@@ -60,6 +60,7 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/api/listen-together/config",
   "/discover/*",
   "/static/*",
+  "/uploads/*",
 ];
 
 function loadPlaintextPaths(): string[] {

@@ -1,5 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  AdminFeedbackDetail,
+  AdminFeedbackFilter,
+  AdminFeedbackListItem,
   AdminUserDetail,
   AdminUserFilter,
   AdminUserLibraryKind,
@@ -16,6 +19,7 @@ import type {
   DeviceInfo,
   DynamicConfigItem,
   FileRecordInfo,
+  FeedbackStatus,
   GatewaySignConfig,
   UpdateFormDraft,
   UpdateHistoryItem,
@@ -31,6 +35,8 @@ import {
   deleteDesktopDevice,
   deleteDevice,
   fetchAnnouncements,
+  fetchAdminFeedback,
+  fetchAdminFeedbackDetail,
   fetchAdminUserDetail,
   fetchAdminUserLibrary,
   fetchAdminUsers,
@@ -52,6 +58,7 @@ import {
   saveAnnouncement as saveAnnouncementApi,
   saveEncryptionConfig,
   updatePublishedUpdate,
+  updateAdminFeedbackStatus,
   updateAdminUser,
   uploadReleasePackage,
   uploadDesktopUpdateAsset,
@@ -68,6 +75,7 @@ import LoginPage from "./components/LoginPage";
 import ChangePasswordModal from "./components/modals/ChangePasswordModal";
 import DynamicConfigModal from "./components/modals/DynamicConfigModal";
 import FileRecordDetailModal from "./components/modals/FileRecordDetailModal";
+import FeedbackDetailModal from "./components/modals/FeedbackDetailModal";
 import NoticeModal from "./components/modals/NoticeModal";
 import UpdateModal from "./components/modals/UpdateModal";
 import JsonExportModal from "./components/modals/JsonExportModal";
@@ -77,6 +85,7 @@ import UserEditModal from "./components/modals/UserEditModal";
 const SystemTab = lazy(() => import("./components/tabs/SystemTab"));
 const UpdateTab = lazy(() => import("./components/tabs/UpdateTab"));
 const FileManagementTab = lazy(() => import("./components/tabs/FileManagementTab"));
+const FeedbackManagementTab = lazy(() => import("./components/tabs/FeedbackManagementTab"));
 const UserManagementTab = lazy(() => import("./components/tabs/UserManagementTab"));
 const ContentTab = lazy(() => import("./components/tabs/ContentTab"));
 const AnnouncementsTab = lazy(() => import("./components/tabs/AnnouncementsTab"));
@@ -190,6 +199,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     usageType: "release-package" | "desktop-update" | "all";
     keyword: string;
   }>({ status: "uploaded", usageType: "all", keyword: "" });
+  const [feedbackItems, setFeedbackItems] = useState<AdminFeedbackListItem[]>([]);
+  const [feedbackTotal, setFeedbackTotal] = useState(0);
+  const [feedbackOffset, setFeedbackOffset] = useState(0);
+  const [feedbackLimit] = useState(20);
+  const [feedbackFilter, setFeedbackFilter] = useState<AdminFeedbackFilter>({});
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [updatingFeedbackId, setUpdatingFeedbackId] = useState<string | null>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState<AdminFeedbackDetail | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUserListItem[]>([]);
   const [adminUserTotal, setAdminUserTotal] = useState(0);
   const [adminUserOffset, setAdminUserOffset] = useState(0);
@@ -814,6 +831,53 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const loadFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    try {
+      const result = await fetchAdminFeedback({
+        ...feedbackFilter,
+        offset: feedbackOffset,
+        limit: feedbackLimit,
+      });
+      setFeedbackItems(result.items);
+      setFeedbackTotal(result.total);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加载反馈列表失败");
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, [feedbackFilter, feedbackOffset, feedbackLimit]);
+
+  useEffect(() => {
+    if (currentTab === "feedback") void loadFeedback();
+  }, [currentTab, loadFeedback]);
+
+  const handleFeedbackFilterChange = (next: AdminFeedbackFilter) => {
+    setFeedbackFilter(next);
+    setFeedbackOffset(0);
+  };
+
+  const handleViewFeedback = async (feedback: AdminFeedbackListItem) => {
+    try {
+      setSelectedFeedback(await fetchAdminFeedbackDetail(feedback.id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加载反馈详情失败");
+    }
+  };
+
+  const handleFeedbackStatusChange = async (id: string, status: FeedbackStatus) => {
+    setUpdatingFeedbackId(id);
+    try {
+      const updated = await updateAdminFeedbackStatus(id, status);
+      if (selectedFeedback?.id === id) setSelectedFeedback(updated);
+      await loadFeedback();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "更新反馈状态失败");
+    } finally {
+      setUpdatingFeedbackId(null);
+    }
+  };
+
   const loadAdminUsers = useCallback(async () => {
     setAdminUserLoading(true);
     try {
@@ -1320,6 +1384,23 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onDelete={(file) => void handleDeleteFileRecord(file)}
                 />
               )}
+              {currentTab === "feedback" && (
+                <FeedbackManagementTab
+                  items={feedbackItems}
+                  total={feedbackTotal}
+                  offset={feedbackOffset}
+                  limit={feedbackLimit}
+                  filter={feedbackFilter}
+                  loading={feedbackLoading}
+                  updatingId={updatingFeedbackId}
+                  themeColor={themeColor}
+                  onFilterChange={handleFeedbackFilterChange}
+                  onPageChange={setFeedbackOffset}
+                  onRefresh={() => void loadFeedback()}
+                  onView={(feedback) => void handleViewFeedback(feedback)}
+                  onStatusChange={(feedback, status) => void handleFeedbackStatusChange(feedback.id, status)}
+                />
+              )}
               {currentTab === "users" && (
                 <UserManagementTab
                   users={adminUsers}
@@ -1457,6 +1538,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           file={selectedFileRecord}
           themeColor={themeColor}
           onClose={() => setSelectedFileRecord(null)}
+        />
+      )}
+
+      {selectedFeedback && (
+        <FeedbackDetailModal
+          feedback={selectedFeedback}
+          updating={updatingFeedbackId === selectedFeedback.id}
+          themeColor={themeColor}
+          onStatusChange={(status) => void handleFeedbackStatusChange(selectedFeedback.id, status)}
+          onClose={() => setSelectedFeedback(null)}
         />
       )}
 

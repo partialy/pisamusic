@@ -3,14 +3,14 @@ import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import multer from "multer";
-import { insertFeedback } from "../db/configStore";
+import { FEEDBACK_TYPES, insertFeedback, type FeedbackType } from "../db/feedbackStore";
 import { fail, ok } from "../types/response";
 
 export const feedbackRouter = Router();
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const FEEDBACK_TYPES = new Set(["bug", "suggestion", "account", "other"]);
+const FEEDBACK_TYPE_SET = new Set<string>(FEEDBACK_TYPES);
 const UPLOAD_DIR = path.resolve(process.cwd(), "uploads", "feedback");
 
 function extForMime(mime: string): string {
@@ -81,7 +81,7 @@ feedbackRouter.post(
       if (description.length < 1 || description.length > 500) {
         return res.status(400).json(fail("问题描述长度应为 1-500 字", 400));
       }
-      if (!FEEDBACK_TYPES.has(feedback_type)) {
+      if (!FEEDBACK_TYPE_SET.has(feedback_type)) {
         return res.status(400).json(fail("无效的反馈类型", 400));
       }
 
@@ -107,7 +107,15 @@ feedbackRouter.post(
       const id = randomUUID();
       const createdAt = new Date().toISOString();
       const imagePaths = files.map((f) => path.posix.join("uploads", "feedback", f.filename));
-      insertFeedback({ id, createdAt, feedback_type, description, contact, device, imagePaths });
+      insertFeedback({
+        id,
+        createdAt,
+        feedbackType: feedback_type as FeedbackType,
+        description,
+        contact,
+        device,
+        imagePaths,
+      });
 
       return res.json(ok({ id, createdAt }, "提交成功"));
     } catch (e) {
