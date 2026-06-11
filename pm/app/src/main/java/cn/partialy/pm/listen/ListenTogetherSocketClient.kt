@@ -74,30 +74,108 @@ class ListenTogetherSocketClient @Inject constructor(
         roomId: String,
         song: ListenTogetherSong,
         position: Long,
+        transitionId: String? = null,
         ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit,
     ) {
-        emit("listen:play", roomId, "PLAY", mapOf("song" to song, "position" to position), ListenTogetherRoomAckData::class.java, ack)
+        emit(
+            "listen:play",
+            roomId,
+            "PLAY",
+            mapOf(
+                "song" to song,
+                "songRef" to song.toSongRef(),
+                "position" to position,
+                "transitionId" to transitionId,
+            ),
+            ListenTogetherRoomAckData::class.java,
+            ack,
+        )
     }
 
-    fun emitPause(roomId: String, position: Long, ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit) {
-        emit("listen:pause", roomId, "PAUSE", mapOf("position" to position), ListenTogetherRoomAckData::class.java, ack)
+    fun emitPause(
+        roomId: String,
+        songRef: ListenTogetherSongRef,
+        position: Long,
+        transitionId: String? = null,
+        ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit,
+    ) {
+        emit(
+            "listen:pause",
+            roomId,
+            "PAUSE",
+            mapOf(
+                "songRef" to songRef,
+                "position" to position,
+                "transitionId" to transitionId,
+            ),
+            ListenTogetherRoomAckData::class.java,
+            ack,
+        )
     }
 
     fun emitChangeSong(
         roomId: String,
         song: ListenTogetherSong,
         autoPlay: Boolean,
+        transitionId: String? = null,
+        queueItemId: String? = null,
         ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit,
     ) {
-        emit("listen:change_song", roomId, "CHANGE_SONG", mapOf("song" to song, "autoPlay" to autoPlay), ListenTogetherRoomAckData::class.java, ack)
+        emit(
+            "listen:change_song",
+            roomId,
+            "CHANGE_SONG",
+            mapOf(
+                "song" to song,
+                "autoPlay" to autoPlay,
+                "transitionId" to transitionId,
+                "queueItemId" to queueItemId,
+            ),
+            ListenTogetherRoomAckData::class.java,
+            ack,
+        )
     }
 
-    fun emitSeek(roomId: String, position: Long, ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit) {
-        emit("listen:seek", roomId, "SEEK", mapOf("position" to position), ListenTogetherRoomAckData::class.java, ack)
+    fun emitSeek(
+        roomId: String,
+        songRef: ListenTogetherSongRef,
+        position: Long,
+        transitionId: String? = null,
+        ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit,
+    ) {
+        emit(
+            "listen:seek",
+            roomId,
+            "SEEK",
+            mapOf(
+                "songRef" to songRef,
+                "position" to position,
+                "transitionId" to transitionId,
+            ),
+            ListenTogetherRoomAckData::class.java,
+            ack,
+        )
     }
 
-    fun emitEnded(roomId: String, position: Long, ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit) {
-        emit("listen:ended", roomId, "ENDED", mapOf("position" to position), ListenTogetherRoomAckData::class.java, ack)
+    fun emitEnded(
+        roomId: String,
+        songRef: ListenTogetherSongRef,
+        position: Long,
+        transitionId: String? = null,
+        ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit,
+    ) {
+        emit(
+            "listen:ended",
+            roomId,
+            "ENDED",
+            mapOf(
+                "songRef" to songRef,
+                "position" to position,
+                "transitionId" to transitionId,
+            ),
+            ListenTogetherRoomAckData::class.java,
+            ack,
+        )
     }
 
     fun emitSync(roomId: String, ack: (ListenTogetherAck<ListenTogetherJoinAckData>) -> Unit) {

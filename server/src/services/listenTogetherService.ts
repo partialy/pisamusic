@@ -27,6 +27,8 @@ import {
   type ListenTogetherMember,
   type ListenTogetherPublicRoom,
   type ListenTogetherRoom,
+  type ListenTogetherSong,
+  type ListenTogetherSongRef,
   type ListenTogetherSocketUser,
   userFromPublicUser,
 } from "../realtime/listenTogether/listenTogetherTypes";
@@ -44,7 +46,9 @@ import {
 
 type RoomChangeResult = {
   room: ListenTogetherPublicRoom;
-  broadcast: ListenTogetherBroadcast;
+  broadcast?: ListenTogetherBroadcast;
+  transitionId?: string;
+  applied: boolean;
 };
 
 type LeaveRoomResult = {
@@ -77,6 +81,61 @@ function clampMaxPeople(value: unknown): number {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function optionalString(value: unknown, maxLength = 128): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized ? normalized.slice(0, maxLength) : undefined;
+}
+
+function readTransitionId(data: Record<string, unknown>): string | undefined {
+  return optionalString(data.transitionId);
+}
+
+function readSongRef(data: Record<string, unknown>): ListenTogetherSongRef | null {
+  if (!Object.prototype.hasOwnProperty.call(data, "songRef")) return null;
+  if (!isRecord(data.songRef)) {
+    throw new ListenTogetherError("歌曲标识无效", "INVALID_SONG", 400);
+  }
+  const source = optionalString(data.songRef.source, 16);
+  const id = optionalString(data.songRef.id, 256);
+  if (!source || !id || !["kg", "qq", "wy", "kw", "local"].includes(source)) {
+    throw new ListenTogetherError("歌曲标识无效", "INVALID_SONG", 400);
+  }
+  return { source: source as ListenTogetherSongRef["source"], id };
+}
+
+function songRefOf(song: ListenTogetherSong): ListenTogetherSongRef {
+  return { source: song.source, id: song.id };
+}
+
+function sameSongRef(song: ListenTogetherSong | null, ref: ListenTogetherSongRef | null): boolean {
+  if (!song || !ref) return false;
+  return song.source === ref.source && song.id === ref.id;
+}
+
+function unchangedRoomResult(
+  room: ListenTogetherRoom,
+  transitionId?: string,
+): RoomChangeResult {
+  return {
+    room: publicRoom(room),
+    transitionId,
+    applied: false,
+  };
+}
+
+function progressEventMatchesRoomSong(
+  room: ListenTogetherRoom,
+  data: Record<string, unknown>,
+  fallbackSong?: ListenTogetherSong,
+): boolean {
+  const explicitRef = readSongRef(data);
+  if (explicitRef) return sameSongRef(room.song, explicitRef);
+  if (fallbackSong) return sameSongRef(room.song, songRefOf(fallbackSong));
+  // Legacy clients did not send songRef for pause/seek/ended.
+  return room.song !== null;
 }
 
 function publicRoom(room: ListenTogetherRoom): ListenTogetherPublicRoom {
@@ -359,8 +418,18 @@ export function playListenTogether(user: ListenTogetherSocketUser, payload: unkn
   ensureCanControl(room, user.userId);
   const data = isRecord(body.data) ? body.data : {};
   const song = normalizeSong(data.song);
-  const position = normalizePosition(data.position, song.duration);
-  room.song = song;
+  const transitionId = readTransitionId(data);
+  if (room.song && !progressEventMatchesRoomSong(room, data, song)) {
+    return unchangedRoomResult(room, transitionId);
+  }
+  if (!room.song) {
+    const explicitRef = readSongRef(data);
+    if (explicitRef && !sameSongRef(song, explicitRef)) {
+      return unchangedRoomResult(room, transitionId);
+    }
+    room.song = song;
+  }
+  const position = normalizePosition(data.position, room.song.duration);
   room.status = "playing";
   room.position = position;
   incrementRoom(room);
@@ -371,7 +440,10 @@ export function playListenTogether(user: ListenTogetherSocketUser, payload: unkn
       action: "PLAY",
       room: publicRoom(room),
       operator: operator(user),
+      transitionId,
     }),
+    transitionId,
+    applied: true,
   };
 }
 
@@ -380,6 +452,10 @@ export function pauseListenTogether(user: ListenTogetherSocketUser, payload: unk
   const room = requireRoom(body.roomId);
   ensureCanControl(room, user.userId);
   const data = isRecord(body.data) ? body.data : {};
+  const transitionId = readTransitionId(data);
+  if (!progressEventMatchesRoomSong(room, data)) {
+    return unchangedRoomResult(room, transitionId);
+  }
   room.status = "paused";
   room.position = normalizePosition(data.position, room.song?.duration);
   incrementRoom(room);
@@ -390,7 +466,10 @@ export function pauseListenTogether(user: ListenTogetherSocketUser, payload: unk
       action: "PAUSE",
       room: publicRoom(room),
       operator: operator(user),
+      transitionId,
     }),
+    transitionId,
+    applied: true,
   };
 }
 
@@ -399,6 +478,8 @@ export function changeListenTogetherSong(user: ListenTogetherSocketUser, payload
   const room = requireRoom(body.roomId);
   ensureCanControl(room, user.userId);
   const data = isRecord(body.data) ? body.data : {};
+  const transitionId = readTransitionId(data);
+  const queueItemId = optionalString(data.queueItemId);
   room.song = normalizeSong(data.song);
   room.position = 0;
   room.status = data.autoPlay === false ? "paused" : "playing";
@@ -410,7 +491,11 @@ export function changeListenTogetherSong(user: ListenTogetherSocketUser, payload
       action: "CHANGE_SONG",
       room: publicRoom(room),
       operator: operator(user),
+      transitionId,
+      queueItemId,
     }),
+    transitionId,
+    applied: true,
   };
 }
 
@@ -419,6 +504,10 @@ export function seekListenTogether(user: ListenTogetherSocketUser, payload: unkn
   const room = requireRoom(body.roomId);
   ensureCanControl(room, user.userId);
   const data = isRecord(body.data) ? body.data : {};
+  const transitionId = readTransitionId(data);
+  if (!progressEventMatchesRoomSong(room, data)) {
+    return unchangedRoomResult(room, transitionId);
+  }
   room.position = normalizePosition(data.position, room.song?.duration);
   incrementRoom(room);
   updateRoom(room);
@@ -428,7 +517,10 @@ export function seekListenTogether(user: ListenTogetherSocketUser, payload: unkn
       action: "SEEK",
       room: publicRoom(room),
       operator: operator(user),
+      transitionId,
     }),
+    transitionId,
+    applied: true,
   };
 }
 
@@ -437,6 +529,10 @@ export function endListenTogether(user: ListenTogetherSocketUser, payload: unkno
   const room = requireRoom(body.roomId);
   ensureCanControl(room, user.userId);
   const data = isRecord(body.data) ? body.data : {};
+  const transitionId = readTransitionId(data);
+  if (!progressEventMatchesRoomSong(room, data)) {
+    return unchangedRoomResult(room, transitionId);
+  }
   room.status = "ended";
   room.position = normalizePosition(data.position, room.song?.duration);
   incrementRoom(room);
@@ -447,7 +543,10 @@ export function endListenTogether(user: ListenTogetherSocketUser, payload: unkno
       action: "ENDED",
       room: publicRoom(room),
       operator: operator(user),
+      transitionId,
     }),
+    transitionId,
+    applied: true,
   };
 }
 
@@ -496,6 +595,7 @@ export function updateListenTogetherRoom(user: ListenTogetherSocketUser, payload
       room: publicRoom(room),
       operator: operator(user),
     }),
+    applied: true,
   };
 }
 
@@ -564,6 +664,7 @@ export function transferListenTogetherHost(user: ListenTogetherSocketUser, paylo
       newHostUserId: target.userId,
       members: publicRoom(room).members,
     }),
+    applied: true,
   };
 }
 

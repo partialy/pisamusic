@@ -138,11 +138,12 @@ class PlayerEngine(
             }
 
             playlistManager.updateCurrentIndex(newIndex)
+            val shouldContinuePlaying = player.playWhenReady
             when (reason) {
                 Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
                 Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
                 Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT,
-                -> ensurePlayableAtIndex(newIndex, autoPlay = true)
+                -> ensurePlayableAtIndex(newIndex, autoPlay = shouldContinuePlaying)
             }
         }
 
@@ -393,6 +394,17 @@ class PlayerEngine(
                 e.printStackTrace()
             }
         }
+    }
+
+    fun setPlaying(playing: Boolean) {
+        val player = exoPlayer ?: return
+        if (playing) {
+            player.prepare()
+            player.play()
+        } else {
+            player.pause()
+        }
+        persistState(force = true)
     }
 
     private fun shouldIgnoreManualNavigation(next: Boolean): Boolean {

@@ -36,6 +36,11 @@ export type ListenTogetherSong = {
   filePath?: string;
 };
 
+export type ListenTogetherSongRef = {
+  id: string;
+  source: ListenTogetherSongSource;
+};
+
 export type ListenTogetherSocketUser = {
   userId: string;
   username: string;

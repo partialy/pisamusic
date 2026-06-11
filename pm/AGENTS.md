@@ -151,6 +151,8 @@
 - 一起听只支持在线歌曲，不支持 `SongType.LOCAL`；创建房间默认 `memberOperation=false`，房主可在房间面板切换“成员可操作”。成员未获授权时必须提示无权限并向服务端同步房间状态，不要本地抢控制权。
 - 一起听开启后播放器队列面板展示房间专属队列，不能再使用本地 `MusicController.playList` 作为上一首、下一首、点歌或删除依据。房间队列不落服务端，由房主设备维护权威队列；服务端 `listen:queue` / `QUEUE_EVENT` 只负责校验成员并转发快照、增量和成员命令。
 - 新成员加入时由房主通过 `QUEUE_EVENT` 分片发送队列快照，单片默认 200 首；常规队列变更由房主广播 `QUEUE_DELTA`，自然播放结束只允许房主决定下一首并发送 `listen:change_song`。
+- 一起听切歌采用 latest-wins：`MusicController.playLatest` 是可等待、可取消的同步播放入口，旧 URL 解析结果不得覆盖后发歌曲。歌曲与队列指针只跟随 `CHANGE_SONG`，切歌链路使用 `transitionId`，队列指针优先使用 `queueItemId`；只有 ID 匹配的 `CHANGE_SONG` 广播或 ACK 可以提前解除切歌锁，心跳及其他进度事件不能解除。
+- 新版 Android 对 `PLAY`、`PAUSE`、`SEEK`、`ENDED` 始终发送 `songRef { source, id }`；房主本地切歌尚未完成时暂停 6 秒心跳，待目标歌曲确认并发出 `CHANGE_SONG` 后再恢复，避免旧歌曲心跳污染新歌曲进度。
 
 ## 通用 UI 组件补充
 

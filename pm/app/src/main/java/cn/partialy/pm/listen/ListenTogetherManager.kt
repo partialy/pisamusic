@@ -11,6 +11,7 @@ import cn.partialy.pm.player.MusicController
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -52,6 +53,12 @@ class ListenTogetherManager @Inject constructor(
     private val expectedLocalSongKeys: MutableSet<String> = mutableSetOf()
     private var heartbeatJob: Job? = null
     private var transitionResetJob: Job? = null
+    private var hostPlaybackJob: Job? = null
+    private var activeHostTransitionId: String? = null
+    // sync 协程串行化：每次同步领一个递增令牌并取消上一个协程，
+    // 只有持最新令牌的协程才允许清除 syncingFromRemote，避免被取消的旧协程把抑制标志踩回 false。
+    private var syncJob: Job? = null
+    private var syncSeq = 0L
     private var pendingSnapshotId: String? = null
     private var pendingSnapshotChunkCount: Int = 0
     private val pendingSnapshotChunks = mutableMapOf<Int, List<ListenTogetherQueueItem>>()
@@ -161,11 +168,16 @@ class ListenTogetherManager @Inject constructor(
             musicController.previous(auto = false)
             return
         }
-        if (!beginTransition()) return
+        val transitionId = beginTransition() ?: return
         if (_state.value.isHost) {
-            playOffsetQueueItemAsHost(offset = -1)
+            playOffsetQueueItemAsHost(offset = -1, transitionId = transitionId)
         } else {
-            emitQueueCommand(ListenTogetherQueueCommand(command = QUEUE_COMMAND_PREVIOUS))
+            emitQueueCommand(
+                ListenTogetherQueueCommand(
+                    command = QUEUE_COMMAND_PREVIOUS,
+                    transitionId = transitionId,
+                ),
+            )
         }
     }
 
@@ -176,11 +188,16 @@ class ListenTogetherManager @Inject constructor(
             musicController.next(auto = false)
             return
         }
-        if (!beginTransition()) return
+        val transitionId = beginTransition() ?: return
         if (_state.value.isHost) {
-            playOffsetQueueItemAsHost(offset = 1)
+            playOffsetQueueItemAsHost(offset = 1, transitionId = transitionId)
         } else {
-            emitQueueCommand(ListenTogetherQueueCommand(command = QUEUE_COMMAND_NEXT))
+            emitQueueCommand(
+                ListenTogetherQueueCommand(
+                    command = QUEUE_COMMAND_NEXT,
+                    transitionId = transitionId,
+                ),
+            )
         }
     }
 
@@ -198,14 +215,15 @@ class ListenTogetherManager @Inject constructor(
             musicController.play(song)
             return
         }
-        if (!beginTransition()) return
+        val transitionId = beginTransition() ?: return
         if (_state.value.isHost) {
-            addSongAndPlayAsHost(song)
+            addSongAndPlayAsHost(song, transitionId = transitionId)
         } else {
             emitQueueCommand(
                 ListenTogetherQueueCommand(
                     command = QUEUE_COMMAND_ADD_AND_PLAY,
                     song = song.toListenTogetherSong(musicController.duration.value),
+                    transitionId = transitionId,
                 ),
             )
         }
@@ -214,11 +232,17 @@ class ListenTogetherManager @Inject constructor(
     fun requestPlayQueueItem(queueItemId: String) {
         if (!guardControl()) return
         if (_state.value.room == null) return
-        if (!beginTransition()) return
+        val transitionId = beginTransition() ?: return
         if (_state.value.isHost) {
-            playQueueItemAsHost(queueItemId)
+            playQueueItemAsHost(queueItemId, transitionId)
         } else {
-            emitQueueCommand(ListenTogetherQueueCommand(command = QUEUE_COMMAND_PLAY_ITEM, queueItemId = queueItemId))
+            emitQueueCommand(
+                ListenTogetherQueueCommand(
+                    command = QUEUE_COMMAND_PLAY_ITEM,
+                    queueItemId = queueItemId,
+                    transitionId = transitionId,
+                ),
+            )
         }
     }
 
@@ -245,9 +269,14 @@ class ListenTogetherManager @Inject constructor(
 
     fun requestSeek(positionMs: Long) {
         if (!guardControl()) return
+        val song = musicController.currentSong.value ?: return
         musicController.seekToPositionMs(positionMs)
         val roomId = _state.value.room?.roomId ?: return
-        socketClient.emitSeek(roomId, positionMs.coerceAtLeast(0L)) { handleRoomAck(it) }
+        socketClient.emitSeek(
+            roomId = roomId,
+            songRef = song.toListenTogetherSongRef(),
+            position = positionMs.coerceAtLeast(0L),
+        ) { handleRoomAck(it) }
     }
 
     fun shareText(): String? {
@@ -354,7 +383,14 @@ class ListenTogetherManager @Inject constructor(
                 if (key != null && expectedLocalSongKeys.remove(key)) {
                     return@collect
                 }
-                emitChangeSong(song, autoPlay = musicController.isPlaying.value)
+                val transitionId = beginTransition() ?: return@collect
+                val queueItemId = uniqueQueueItemIdForSong(song)
+                emitChangeSong(
+                    song = song,
+                    autoPlay = musicController.isPlaying.value,
+                    transitionId = transitionId,
+                    queueItemId = queueItemId,
+                )
             }
         }
         scope.launch {
@@ -372,7 +408,11 @@ class ListenTogetherManager @Inject constructor(
                         position = musicController.currentPosition.value,
                     ) { handleRoomAck(it) }
                 } else {
-                    socketClient.emitPause(room.roomId, musicController.currentPosition.value) { handleRoomAck(it) }
+                    socketClient.emitPause(
+                        roomId = room.roomId,
+                        songRef = song.toListenTogetherSongRef(),
+                        position = musicController.currentPosition.value,
+                    ) { handleRoomAck(it) }
                 }
             }
         }
@@ -386,33 +426,40 @@ class ListenTogetherManager @Inject constructor(
                 if (key == null || lastEndedSongKey == key) return@collect
                 lastEndedSongKey = key
                 // 自动续播与用户手动 next 共用防抖窗口，避免一首歌尾 500ms 内手动 next 撞自动 advance 出双切。
-                if (!beginTransition()) return@collect
-                if (playOffsetQueueItemAsHost(offset = 1)) return@collect
-                socketClient.emitEnded(room.roomId, musicController.duration.value) { handleRoomAck(it) }
+                val transitionId = beginTransition() ?: return@collect
+                if (playOffsetQueueItemAsHost(offset = 1, transitionId = transitionId)) return@collect
+                val song = musicController.currentSong.value ?: return@collect
+                socketClient.emitEnded(
+                    roomId = room.roomId,
+                    songRef = song.toListenTogetherSongRef(),
+                    position = musicController.duration.value,
+                    transitionId = transitionId,
+                ) { handleRoomAck(it) }
             }
         }
     }
 
-    private fun playAndBroadcastSong(song: SongInfo, autoPlay: Boolean = true) {
-        if (song.type == SongType.LOCAL) {
-            emitToast("本地歌曲暂不支持一起听")
-            return
-        }
-        val targetKey = song.key()
-        if (targetKey != null && targetKey != musicController.currentSong.value.key()) {
-            expectedLocalSongKeys.add(targetKey)
-        }
-        musicController.play(song, autoPlay = autoPlay)
-        emitChangeSong(song, autoPlay = autoPlay)
-    }
-
-    private fun emitChangeSong(song: SongInfo, autoPlay: Boolean) {
+    private fun emitChangeSong(
+        song: SongInfo,
+        autoPlay: Boolean,
+        transitionId: String,
+        queueItemId: String?,
+    ) {
         val room = _state.value.room ?: return
         socketClient.emitChangeSong(
             roomId = room.roomId,
             song = song.toListenTogetherSong(musicController.duration.value),
             autoPlay = autoPlay,
-        ) { handleRoomAck(it) }
+            transitionId = transitionId,
+            queueItemId = queueItemId,
+        ) { ack ->
+            handleRoomAck(ack)
+            if (ack.success && ack.data?.applied != false) {
+                scope.launch {
+                    endTransition(ack.data?.transitionId ?: transitionId, action = ACTION_CHANGE_SONG)
+                }
+            }
+        }
     }
 
     private fun ensureHostQueueInitialized() {
@@ -439,7 +486,11 @@ class ListenTogetherManager @Inject constructor(
         )
     }
 
-    private fun addSongAndPlayAsHost(song: SongInfo, addedByUserId: String = _state.value.currentUserId) {
+    private fun addSongAndPlayAsHost(
+        song: SongInfo,
+        addedByUserId: String = _state.value.currentUserId,
+        transitionId: String,
+    ) {
         if (song.type == SongType.LOCAL) {
             emitToast("本地歌曲暂不支持一起听")
             return
@@ -455,24 +506,25 @@ class ListenTogetherManager @Inject constructor(
             snapshotId = null,
         )
         _state.value = state.copy(queue = queue)
-        playQueueSongAsHost(item, queue)
+        playQueueSongAsHost(item, queue, transitionId)
     }
 
-    private fun playQueueItemAsHost(queueItemId: String) {
+    private fun playQueueItemAsHost(queueItemId: String, transitionId: String) {
         ensureHostQueueInitialized()
         val state = _state.value
         val item = state.queue.items.firstOrNull { it.queueItemId == queueItemId } ?: return
         val queue = state.queue.copy(
-            queueVersion = state.queue.queueVersion + 1,
             currentItemId = item.queueItemId,
             syncing = false,
             snapshotId = null,
         )
         _state.value = state.copy(queue = queue)
-        playQueueSongAsHost(item, queue)
+        // 纯指针移动（next/prev/play-item，items 不变）只发 change_song，
+        // 队列当前指针由接收端跟随 room.song 推导，避免两通道分叉导致信息不一致。
+        playQueueSongAsHost(item, queue, transitionId, emitDelta = false)
     }
 
-    private fun playOffsetQueueItemAsHost(offset: Int): Boolean {
+    private fun playOffsetQueueItemAsHost(offset: Int, transitionId: String): Boolean {
         ensureHostQueueInitialized()
         val queue = _state.value.queue
         if (queue.items.isEmpty()) return false
@@ -485,7 +537,7 @@ class ListenTogetherManager @Inject constructor(
             else -> currentIndex
         }
         val target = queue.items.getOrNull(targetIndex) ?: return false
-        playQueueItemAsHost(target.queueItemId)
+        playQueueItemAsHost(target.queueItemId, transitionId)
         return true
     }
 
@@ -514,16 +566,27 @@ class ListenTogetherManager @Inject constructor(
         if (!wasCurrent) return
         val nextItem = nextItems.firstOrNull { it.queueItemId == nextCurrent }
         if (nextItem != null) {
-            playQueueSongAsHost(nextItem, nextQueue, emitDelta = false)
+            val transitionId = beginTransition() ?: UUID.randomUUID().toString().also(::adoptTransition)
+            playQueueSongAsHost(nextItem, nextQueue, transitionId, emitDelta = false)
         } else {
             musicController.pauseCurrent()
-            state.room?.roomId?.let { socketClient.emitPause(it, musicController.currentPosition.value) { handleRoomAck(it) } }
+            val song = musicController.currentSong.value
+            if (song != null) {
+                state.room?.roomId?.let { roomId ->
+                    socketClient.emitPause(
+                        roomId = roomId,
+                        songRef = song.toListenTogetherSongRef(),
+                        position = musicController.currentPosition.value,
+                    ) { handleRoomAck(it) }
+                }
+            }
         }
     }
 
     private fun playQueueSongAsHost(
         item: ListenTogetherQueueItem,
         queue: ListenTogetherQueueState,
+        transitionId: String,
         emitDelta: Boolean = true,
     ) {
         val song = item.song.toSongInfo()
@@ -531,11 +594,31 @@ class ListenTogetherManager @Inject constructor(
         if (targetKey != null && targetKey != musicController.currentSong.value.key()) {
             expectedLocalSongKeys.add(targetKey)
         }
-        musicController.play(song, autoPlay = true)
-        if (emitDelta) emitQueueDelta(queue)
-        emitChangeSong(song, autoPlay = true)
-        // host 本地播放器已落地，立即解锁防抖；成员侧靠 ROOM_STATE_CHANGED 回声解锁。
-        endTransition()
+        activeHostTransitionId = transitionId
+        hostPlaybackJob?.cancel()
+        hostPlaybackJob = scope.launch {
+            var applied = false
+            try {
+                applied = musicController.playLatest(song, autoPlay = true)
+                if (!applied || activeHostTransitionId != transitionId) return@launch
+                if (emitDelta) emitQueueDelta(queue)
+                emitChangeSong(
+                    song = song,
+                    autoPlay = true,
+                    transitionId = transitionId,
+                    queueItemId = item.queueItemId,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                emitToast(error.message ?: "切歌失败")
+            } finally {
+                if (!applied && targetKey != null) expectedLocalSongKeys.remove(targetKey)
+                if (activeHostTransitionId == transitionId) {
+                    activeHostTransitionId = null
+                }
+            }
+        }
     }
 
     private fun emitQueueCommand(command: ListenTogetherQueueCommand) {
@@ -548,6 +631,7 @@ class ListenTogetherManager @Inject constructor(
                 "command" to command.command,
                 "queueItemId" to command.queueItemId,
                 "song" to command.song,
+                "transitionId" to command.transitionId,
             ),
         ) { ack ->
             scope.launch {
@@ -634,12 +718,27 @@ class ListenTogetherManager @Inject constructor(
     private fun handleQueueCommand(fromUserId: String, command: ListenTogetherQueueCommand) {
         val room = _state.value.room ?: return
         if (!room.memberOperation) return
+        val transitionId = command.transitionId
+            ?.takeIf { it.isNotBlank() }
+            ?: UUID.randomUUID().toString()
         when (command.command) {
-            QUEUE_COMMAND_ADD_AND_PLAY -> command.song?.toSongInfo()?.let { addSongAndPlayAsHost(it, fromUserId) }
-            QUEUE_COMMAND_PLAY_ITEM -> command.queueItemId?.let { playQueueItemAsHost(it) }
+            QUEUE_COMMAND_ADD_AND_PLAY -> command.song?.toSongInfo()?.let {
+                adoptTransition(transitionId)
+                addSongAndPlayAsHost(it, fromUserId, transitionId)
+            }
+            QUEUE_COMMAND_PLAY_ITEM -> command.queueItemId?.let {
+                adoptTransition(transitionId)
+                playQueueItemAsHost(it, transitionId)
+            }
             QUEUE_COMMAND_REMOVE_ITEM -> command.queueItemId?.let { removeQueueItemAsHost(it) }
-            QUEUE_COMMAND_NEXT -> playOffsetQueueItemAsHost(offset = 1)
-            QUEUE_COMMAND_PREVIOUS -> playOffsetQueueItemAsHost(offset = -1)
+            QUEUE_COMMAND_NEXT -> {
+                adoptTransition(transitionId)
+                playOffsetQueueItemAsHost(offset = 1, transitionId = transitionId)
+            }
+            QUEUE_COMMAND_PREVIOUS -> {
+                adoptTransition(transitionId)
+                playOffsetQueueItemAsHost(offset = -1, transitionId = transitionId)
+            }
         }
     }
 
@@ -672,15 +771,42 @@ class ListenTogetherManager @Inject constructor(
 
     private fun applyQueueDelta(delta: ListenTogetherQueueDelta) {
         if (delta.queueVersion < _state.value.queue.queueVersion) return
+        val currentQueue = _state.value.queue
+        val retainedCurrentItemId = currentQueue.currentItemId
+            ?.takeIf { currentId -> delta.items.any { it.queueItemId == currentId } }
         _state.value = _state.value.copy(
             queue = ListenTogetherQueueState(
                 queueVersion = delta.queueVersion,
-                currentItemId = delta.currentItemId,
+                currentItemId = retainedCurrentItemId,
                 items = delta.items,
                 syncing = false,
                 snapshotId = null,
             ),
         )
+    }
+
+    /**
+     * 让队列当前指针跟随权威的 room.song：纯指针移动类操作不再单独广播 QUEUE_DELTA，
+     * 当前项由这条 change_song 推导，保证「显示的歌」与「播放的歌」始终一致。
+     * items 列表仍由 snapshot / 结构性 delta 维护，互不冲突。
+     */
+    private fun alignQueuePointerToRoomSong(song: ListenTogetherSong?, queueItemId: String?) {
+        val queue = _state.value.queue
+        val resolution = resolveQueuePointer(queue, song, queueItemId)
+        val resolvedItemId = resolution.queueItemId
+        if (resolvedItemId != null && queue.currentItemId != resolvedItemId) {
+            _state.value = _state.value.copy(queue = queue.copy(currentItemId = resolvedItemId))
+        }
+        if (resolution.requestSnapshot && !_state.value.isHost) {
+            requestQueueSnapshot()
+        }
+    }
+
+    private fun uniqueQueueItemIdForSong(song: SongInfo): String? {
+        val matches = _state.value.queue.items.filter {
+            it.song.source.equals(song.type.name, ignoreCase = true) && it.song.id == song.id
+        }
+        return matches.singleOrNull()?.queueItemId
     }
 
     private fun currentQueueIndexFromSong(queue: ListenTogetherQueueState): Int {
@@ -729,6 +855,7 @@ class ListenTogetherManager @Inject constructor(
     private fun emitHostHeartbeat() {
         val room = _state.value.room ?: return
         if (!_state.value.socketConnected || room.hostUserId != _state.value.currentUserId) return
+        if (activeHostTransitionId != null || hostPlaybackJob?.isActive == true) return
         val song = musicController.currentSong.value ?: return
         if (song.type == SongType.LOCAL) return
         val position = musicController.currentPosition.value.coerceAtLeast(0L)
@@ -741,13 +868,20 @@ class ListenTogetherManager @Inject constructor(
             return
         }
         if (room.song == null) {
+            val transitionId = UUID.randomUUID().toString()
             socketClient.emitChangeSong(
                 roomId = room.roomId,
                 song = song.toListenTogetherSong(musicController.duration.value),
                 autoPlay = false,
+                transitionId = transitionId,
+                queueItemId = uniqueQueueItemIdForSong(song),
             ) { handleRoomAck(it) }
         } else {
-            socketClient.emitPause(room.roomId, position) { handleRoomAck(it) }
+            socketClient.emitPause(
+                roomId = room.roomId,
+                songRef = song.toListenTogetherSongRef(),
+                position = position,
+            ) { handleRoomAck(it) }
         }
     }
 
@@ -757,7 +891,9 @@ class ListenTogetherManager @Inject constructor(
                 handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "一起听同步失败" })
                 return@launch
             }
-            ack.data?.room?.let { applyRoom(it, joining = false) }
+            ack.data?.room
+                ?.takeIf { it.version >= _state.value.lastVersion }
+                ?.let { applyRoom(it, joining = false) }
         }
     }
 
@@ -777,10 +913,11 @@ class ListenTogetherManager @Inject constructor(
             "ROOM_STATE_CHANGED" -> {
                 val payload = gson.fromJson(data, ListenTogetherStateChangedData::class.java)
                 applyRoom(payload.room, joining = false, version = version)
+                if (payload.action == ACTION_CHANGE_SONG) {
+                    alignQueuePointerToRoomSong(payload.room.song, payload.queueItemId)
+                }
                 syncPlayerToRoom(payload.room, payload.operator?.userId)
-                // 服务端确认了一次切歌，成员侧防抖窗口提前解锁，比 450ms timeout 体感更顺；
-                // host 端这里是 no-op（playQueueSongAsHost 已经清过）。
-                endTransition()
+                endTransition(payload.transitionId, payload.action)
             }
             "ROOM_UPDATED" -> {
                 val payload = gson.fromJson(data, ListenTogetherRoomDataPayload::class.java)
@@ -833,33 +970,42 @@ class ListenTogetherManager @Inject constructor(
         // 二次 emit 引起两首歌之间反复跳动。
         if (!operatorUserId.isNullOrBlank() && operatorUserId == _state.value.currentUserId) return
         val target = room.targetPosition()
-        val localSong = musicController.currentSong.value
-        val sameSong = localSong?.type?.name?.lowercase() == remoteSong.source.lowercase()
-            && localSong.id == remoteSong.id
-
-        scope.launch {
+        // 串行化：领取最新令牌并取消上一个尚未完成的 sync 协程，避免快速连切时多个协程
+        // 重叠把 syncingFromRemote 标志互相踩踏，导致抑制失效引发回发 change_song 的反馈环。
+        val seq = ++syncSeq
+        syncJob?.cancel()
+        syncJob = scope.launch {
+            val localSong = musicController.currentSong.value
+            val sameSong = localSong?.type?.name?.lowercase() == remoteSong.source.lowercase() &&
+                localSong.id == remoteSong.id
             _state.value = _state.value.copy(syncingFromRemote = true)
             try {
                 if (!sameSong) {
-                    musicController.play(remoteSong.toSongInfo(), autoPlay = false)
-                    delay(300)
+                    val applied = musicController.playLatest(remoteSong.toSongInfo(), autoPlay = false)
+                    if (!applied || seq != syncSeq) return@launch
                 }
                 val current = musicController.currentPosition.value
                 if (abs(current - target) > 1000L) {
                     musicController.seekToPositionMs(target)
-                    delay(100)
                 }
                 when (room.status) {
-                    ListenTogetherRoom.STATUS_PLAYING -> musicController.playCurrent()
-                    ListenTogetherRoom.STATUS_PAUSED -> musicController.pauseCurrent()
+                    ListenTogetherRoom.STATUS_PLAYING -> musicController.setPlaying(true)
+                    ListenTogetherRoom.STATUS_PAUSED -> musicController.setPlaying(false)
                     ListenTogetherRoom.STATUS_ENDED -> {
-                        musicController.pauseCurrent()
+                        musicController.setPlaying(false)
                         musicController.seekToPositionMs(room.position)
                     }
                 }
-            } finally {
                 delay(250)
-                _state.value = _state.value.copy(syncingFromRemote = false)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                emitToast(error.message ?: "同步歌曲失败")
+            } finally {
+                // 只有持最新令牌的协程才清除抑制标志；被取消的旧协程 seq 已过期，不会误清。
+                if (seq == syncSeq) {
+                    _state.value = _state.value.copy(syncingFromRemote = false)
+                }
             }
         }
     }
@@ -903,32 +1049,30 @@ class ListenTogetherManager @Inject constructor(
         return false
     }
 
-    /**
-     * 切歌防抖闸：第一次点击置 true 并安排 ~450ms 后自动复位；
-     * 窗口内的后续点击直接 return false，由调用方 swallow。
-     * 房间未启用时不防抖（本地播放器自有逻辑）。
-     */
-    private fun beginTransition(): Boolean {
+    private fun beginTransition(): String? {
         val state = _state.value
-        if (!state.enabled) return true
-        if (state.pendingTransition) return false
-        _state.value = state.copy(pendingTransition = true)
+        if (!state.enabled || state.pendingTransition) return null
+        val transitionId = UUID.randomUUID().toString()
+        adoptTransition(transitionId)
+        return transitionId
+    }
+
+    private fun adoptTransition(transitionId: String) {
+        _state.value = _state.value.copy(pendingTransitionId = transitionId)
         transitionResetJob?.cancel()
         transitionResetJob = scope.launch {
             delay(TRANSITION_DEBOUNCE_MS)
-            if (_state.value.pendingTransition) {
-                _state.value = _state.value.copy(pendingTransition = false)
+            if (_state.value.pendingTransitionId == transitionId) {
+                _state.value = _state.value.copy(pendingTransitionId = null)
             }
         }
-        return true
     }
 
-    /** 成功落地一次切歌后立即解锁，体验比等 timeout 顺；防抖窗口的 job 同步取消。 */
-    private fun endTransition() {
-        if (!_state.value.pendingTransition) return
+    private fun endTransition(transitionId: String?, action: String) {
+        if (!shouldCompleteTransition(action, _state.value.pendingTransitionId, transitionId)) return
         transitionResetJob?.cancel()
         transitionResetJob = null
-        _state.value = _state.value.copy(pendingTransition = false)
+        _state.value = _state.value.copy(pendingTransitionId = null)
     }
 
     private fun canControl(state: ListenTogetherState): Boolean {
@@ -960,6 +1104,12 @@ class ListenTogetherManager @Inject constructor(
         heartbeatJob = null
         transitionResetJob?.cancel()
         transitionResetJob = null
+        hostPlaybackJob?.cancel()
+        hostPlaybackJob = null
+        activeHostTransitionId = null
+        syncSeq += 1
+        syncJob?.cancel()
+        syncJob = null
         pendingSnapshotId = null
         pendingSnapshotChunkCount = 0
         pendingSnapshotChunks.clear()
@@ -1026,5 +1176,6 @@ class ListenTogetherManager @Inject constructor(
         private const val QUEUE_COMMAND_REMOVE_ITEM = "REMOVE_ITEM"
         private const val QUEUE_COMMAND_NEXT = "NEXT"
         private const val QUEUE_COMMAND_PREVIOUS = "PREVIOUS"
+        private const val ACTION_CHANGE_SONG = "CHANGE_SONG"
     }
 }

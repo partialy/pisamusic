@@ -94,16 +94,28 @@ function registerRoomChangeEvent(
   io: Server,
   socket: AuthedRealtimeSocket,
   eventName: string,
-  handler: (user: AuthedRealtimeSocket["data"]["user"], payload: unknown) => { broadcast: ListenTogetherBroadcast; room: unknown },
+  handler: (
+    user: AuthedRealtimeSocket["data"]["user"],
+    payload: unknown,
+  ) => {
+    broadcast?: ListenTogetherBroadcast;
+    room: unknown;
+    transitionId?: string;
+    applied: boolean;
+  },
 ): void {
   socket.on(eventName, (payload: unknown, ack?: AckFn) => {
     try {
       const result = handler(socket.data.user, payload);
-      ackOk(ack, { room: result.room });
+      ackOk(ack, {
+        room: result.room,
+        transitionId: result.transitionId,
+        applied: result.applied,
+      });
       // 排除发送者，避免 host 自己 emit change_song / play / pause 后还收到自己的回声，
       // 触发 syncPlayerToRoom 在客户端做二次播放器同步，引发快速连点时两首歌反复跳动。
       // 发送者已经通过 ack(result.room) 拿到最新房间状态。
-      emitBroadcastFromSocket(socket, result.broadcast);
+      if (result.broadcast) emitBroadcastFromSocket(socket, result.broadcast);
     } catch (error) {
       ackError(ack, error);
     }

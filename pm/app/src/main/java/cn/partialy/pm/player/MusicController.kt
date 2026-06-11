@@ -8,7 +8,15 @@ import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +33,10 @@ class MusicController @Inject constructor(
     private val factory = MediaItemFactory(context, playUrlGetter)
     private val playlistManager = PlaylistManager(factory)
     private val engine: PlayerEngine
+    private val playbackScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val playRequestGate = LatestRequestGate()
+    private val playJobLock = Any()
+    private var playJob: Job? = null
 
     init {
         engine = PlayerEngine(
@@ -98,9 +110,48 @@ class MusicController @Inject constructor(
 
     /** 播放单曲：设置为当前歌曲，不在列表则追加到尾部 */
     fun play(songInfo: SongInfo, autoPlay: Boolean = true) {
-        playlistManager.playSingle(songInfo) { index ->
-            engine.ensurePlayableAtIndex(index, autoPlay = autoPlay)
-            engine.persistState(force = true)
+        playbackScope.launch {
+            try {
+                performLatestPlay(songInfo, autoPlay)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                error.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Awaitable playback entrypoint used by synchronized playback flows.
+     * Starting another direct play request cancels this request and makes its result ineligible to apply.
+     */
+    suspend fun playLatest(songInfo: SongInfo, autoPlay: Boolean = true): Boolean =
+        performLatestPlay(songInfo, autoPlay)
+
+    private suspend fun performLatestPlay(songInfo: SongInfo, autoPlay: Boolean): Boolean {
+        val currentJob = currentCoroutineContext()[Job]
+            ?: error("playLatest requires a coroutine Job")
+        val token = synchronized(playJobLock) {
+            val nextToken = playRequestGate.next()
+            val previous = playJob
+            playJob = currentJob
+            if (previous !== currentJob) previous?.cancel()
+            nextToken
+        }
+        return try {
+            val applied = playlistManager.playSingleLatest(
+                song = songInfo,
+                autoPlay = autoPlay,
+                isLatest = {
+                    playRequestGate.isLatest(token) && currentJob.isActive
+                },
+            )
+            if (applied) engine.persistState(force = true)
+            applied
+        } finally {
+            synchronized(playJobLock) {
+                if (playJob === currentJob) playJob = null
+            }
         }
     }
 
@@ -117,12 +168,21 @@ class MusicController @Inject constructor(
 
     fun seekToPositionMs(positionMs: Long) = engine.seekToPositionMs(positionMs)
 
+    fun setPlaying(playing: Boolean) = engine.setPlaying(playing)
+
     suspend fun switchCurrentSongQuality(choice: DownloadQualityChoice): Boolean =
         engine.switchCurrentSongQuality(choice)
 
     // ==================== 生命周期 ====================
 
-    fun release() = engine.release()
+    fun release() {
+        synchronized(playJobLock) {
+            playRequestGate.invalidate()
+            playJob?.cancel()
+            playJob = null
+        }
+        engine.release()
+    }
 
     // ==================== 向后兼容 ====================
 

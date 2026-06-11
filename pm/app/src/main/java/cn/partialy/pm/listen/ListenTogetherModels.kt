@@ -96,6 +96,11 @@ data class ListenTogetherSong(
     val filePath: String? = null,
 )
 
+data class ListenTogetherSongRef(
+    val source: String = "",
+    val id: String = "",
+)
+
 data class ListenTogetherCoverSize(
     val s: String = "",
     val m: String = "",
@@ -112,11 +117,11 @@ data class ListenTogetherState(
     val syncingFromRemote: Boolean = false,
     val lastVersion: Long = -1L,
     val currentUserId: String = "",
-    /** 切歌防抖：上一首/下一首/点歌触发后 ~450ms 窗口内置 true；UI 据此灰显切歌按钮 */
-    val pendingTransition: Boolean = false,
+    val pendingTransitionId: String? = null,
 ) {
     val enabled: Boolean get() = room != null
     val isHost: Boolean get() = room?.hostUserId?.isNotBlank() == true && currentUserId == room.hostUserId
+    val pendingTransition: Boolean get() = pendingTransitionId != null
 }
 
 data class ListenTogetherQueueItem(
@@ -156,6 +161,7 @@ data class ListenTogetherQueueCommand(
     val command: String = "",
     val queueItemId: String? = null,
     val song: ListenTogetherSong? = null,
+    val transitionId: String? = null,
 )
 
 data class ListenTogetherSocketPayload(
@@ -180,6 +186,8 @@ data class ListenTogetherJoinAckData(
 
 data class ListenTogetherRoomAckData(
     val room: ListenTogetherRoom = ListenTogetherRoom(),
+    val transitionId: String? = null,
+    val applied: Boolean = true,
 )
 
 data class ListenTogetherBroadcast<T>(
@@ -194,6 +202,8 @@ data class ListenTogetherStateChangedData(
     val action: String = "",
     val room: ListenTogetherRoom = ListenTogetherRoom(),
     val operator: ListenTogetherOperator? = null,
+    val transitionId: String? = null,
+    val queueItemId: String? = null,
 )
 
 data class ListenTogetherRoomDataPayload(
@@ -263,6 +273,12 @@ fun ListenTogetherSong.toSongInfo(): SongInfo =
         album = album,
         duration = (duration / 1000L).coerceAtLeast(0L).toInt(),
     )
+
+fun ListenTogetherSong.toSongRef(): ListenTogetherSongRef =
+    ListenTogetherSongRef(source = source.lowercase(), id = id)
+
+fun SongInfo.toListenTogetherSongRef(): ListenTogetherSongRef =
+    ListenTogetherSongRef(source = type.name.lowercase(), id = id)
 
 fun ListenTogetherRoom.targetPosition(nowMs: Long = System.currentTimeMillis()): Long {
     if (status != ListenTogetherRoom.STATUS_PLAYING) return position.coerceAtLeast(0L)

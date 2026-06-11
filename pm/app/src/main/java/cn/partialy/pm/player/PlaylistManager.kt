@@ -120,41 +120,41 @@ class PlaylistManager(private val factory: MediaItemFactory) {
     }
 
     /**
-     * 播放单曲：已在列表则跳转播放，否则追加到尾部并播放。
-     * [onEnsurePlayable] 回调让 engine 按需解析 URL。
+     * Resolve first, then atomically apply the song on the main thread.
+     * [isLatest] prevents a late URL response from an older request replacing a newer song.
      */
-    fun playSingle(song: SongInfo, onEnsurePlayable: (Int) -> Unit) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                _currentSong.value = song
-                val index = _playList.value.indexOfFirst {
-                    it.type == song.type && it.id == song.id
-                }
-                if (index != -1) {
-                    withContext(Dispatchers.Main) {
-                        _currentIndex.value = index
-                        exoPlayer?.seekTo(index, 0)
-                        onEnsurePlayable(index)
-                    }
-                } else {
-                    val mediaItem = factory.createMediaItem(song)
-                    withContext(Dispatchers.Main) {
-                        _sourceId = "list_updated"
-                        val newList = _playList.value.toMutableList().apply { add(song) }
-                        _playList.value = newList
-                        val newIdx = newList.size - 1
-                        _currentIndex.value = newIdx
-                        exoPlayer?.apply {
-                            addMediaItem(mediaItem)
-                            seekTo(newIdx, 0)
-                            prepare()
-                            play()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+    suspend fun playSingleLatest(
+        song: SongInfo,
+        autoPlay: Boolean,
+        isLatest: () -> Boolean,
+    ): Boolean {
+        val mediaItem = withContext(Dispatchers.IO) {
+            factory.createMediaItem(song)
+        }
+        return withContext(Dispatchers.Main.immediate) {
+            if (!isLatest()) return@withContext false
+            val player = exoPlayer ?: return@withContext false
+            var index = _playList.value.indexOfFirst {
+                it.type == song.type && it.id == song.id
             }
+            if (index < 0) {
+                _sourceId = "list_updated"
+                val newList = _playList.value + song
+                _playList.value = newList
+                index = newList.lastIndex
+                player.addMediaItem(mediaItem)
+            } else {
+                if (index !in 0 until player.mediaItemCount) return@withContext false
+                player.replaceMediaItem(index, mediaItem)
+            }
+            if (!isLatest()) return@withContext false
+            if (!autoPlay) player.pause()
+            _currentIndex.value = index
+            _currentSong.value = song
+            player.seekTo(index, 0L)
+            player.prepare()
+            if (autoPlay) player.play() else player.pause()
+            true
         }
     }
 
