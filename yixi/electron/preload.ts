@@ -379,6 +379,27 @@ const utilsIpc = {
   getColorFromUrl: (url: string) => ipcRenderer.invoke("utils:get-color-from-url", url),
 };
 
+const listenTogetherIpc = {
+  getListenTogetherConfig: () => ipcRenderer.invoke("listen-together:get-config"),
+  createListenTogetherRoom: (payload: {
+    roomName: string;
+    roomId?: string;
+    maxPeople?: number;
+    memberOperation: boolean;
+    replaceExisting?: boolean;
+  }) => ipcRenderer.invoke("listen-together:create-room", cloneIpcPayload(payload)),
+  getListenTogetherRoom: (roomId: string) =>
+    ipcRenderer.invoke("listen-together:get-room", roomId),
+  connectListenTogetherSocket: () => ipcRenderer.invoke("listen-together:connect-socket"),
+  disconnectListenTogetherSocket: () => ipcRenderer.invoke("listen-together:disconnect-socket"),
+  emitListenTogetherCommand: (command: { type: string; roomId: string } & Record<string, unknown>) =>
+    ipcRenderer.invoke("listen-together:emit", cloneIpcPayload(command)),
+  onListenTogetherConnectionState: (callback: (event: unknown) => void) =>
+    on("listen-together:connection", callback),
+  onListenTogetherBroadcast: (callback: (message: unknown) => void) =>
+    on("listen-together:broadcast", callback),
+};
+
 const debugIpc = {
   isDevelopmentRuntime: () => ipcRenderer.invoke("debug:is-development-runtime"),
   listNetworkErrors: (payload?: { page?: number; pageSize?: number }) =>
@@ -404,5 +425,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...shortcutIpc,
   ...libraryIpc,
   ...utilsIpc,
+  ...listenTogetherIpc,
   ...debugIpc,
 });

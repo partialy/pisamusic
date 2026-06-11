@@ -24,6 +24,7 @@ import {
   uploadAccountAvatar,
   updateAccountProfile,
 } from "../system/systemClient";
+import { closeListenTogetherSocket } from "../listenTogether/listenTogetherService";
 import { clearSyncState } from "../sync/syncService";
 import type { FeedbackPayload } from "../system/types";
 
@@ -77,6 +78,8 @@ export function setupSystemIpc() {
   ipcMain.handle("account:upload-avatar", () => uploadAccountAvatar());
   ipcMain.handle("account:refresh", () => refreshAccountSession());
   ipcMain.handle("account:logout", async () => {
+    // 退出账号前先断开一起听 socket，避免旧账号连接残留
+    closeListenTogetherSocket();
     const session = clearAccountSession();
     await clearSyncState();
     return session;

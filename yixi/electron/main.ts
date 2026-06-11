@@ -3,6 +3,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { closeAppDatabase } from "./database";
 import { DesktopLyricManager } from "./desktopLyricManager";
+import { setupListenTogetherIpc } from "./ipc/listenTogetherIpc";
 import { setupLogIpc } from "./ipc/logIpc";
 import { setupMusicApiIpc } from "./ipc/musicIpc";
 import { setupPersistenceIpc } from "./ipc/persistenceIpc";
@@ -18,6 +19,7 @@ import { setupCookieIpc } from "./ipc/cookieIpc";
 import { setupDownloadIpc } from "./ipc/downloadIpc";
 import { setupShortcutIpc } from "./ipc/shortcutIpc";
 import { setupSyncIpc } from "./ipc/syncIpc";
+import { closeListenTogetherSocket } from "./listenTogether/listenTogetherService";
 import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
@@ -122,6 +124,7 @@ function setupAppIpc() {
   setupDownloadIpc();
   setupShortcutIpc(() => mainWindow);
   setupSyncIpc();
+  setupListenTogetherIpc(() => mainWindow);
   setupUpdaterIpc(() => mainWindow);
   desktopLyric.setupIpc();
 }
@@ -227,6 +230,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  closeListenTogetherSocket();
   startupWindow?.destroy();
   desktopLyric?.destroy();
   playerTray?.destroy();

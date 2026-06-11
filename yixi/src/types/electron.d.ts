@@ -1,5 +1,16 @@
 export {};
 
+import type {
+  ListenTogetherBroadcast,
+  ListenTogetherCommandResult,
+  ListenTogetherConfig,
+  ListenTogetherConnectionEvent,
+  ListenTogetherCreateRoomPayload,
+  ListenTogetherHttpResult,
+  ListenTogetherRoom,
+  ListenTogetherSocketCommand,
+} from "./listenTogether";
+
 type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
 type SearchableMusicSource = "kg" | "wy" | "kw";
 type PlayableMusicSource = SearchableMusicSource | "local";
@@ -811,6 +822,23 @@ type ElectronIpcApi = {
   onLocalLibraryScanStarted: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
   onLocalLibraryScanFinished: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
   onLocalLibraryScanFailed: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
+
+  getListenTogetherConfig: () => Promise<ListenTogetherHttpResult<ListenTogetherConfig>>;
+  createListenTogetherRoom: (
+    payload: ListenTogetherCreateRoomPayload
+  ) => Promise<ListenTogetherHttpResult<ListenTogetherRoom>>;
+  getListenTogetherRoom: (roomId: string) => Promise<ListenTogetherHttpResult<ListenTogetherRoom>>;
+  connectListenTogetherSocket: () => Promise<{ ok: boolean; msg?: string }>;
+  disconnectListenTogetherSocket: () => Promise<boolean>;
+  emitListenTogetherCommand: <T = unknown>(
+    command: ListenTogetherSocketCommand
+  ) => Promise<ListenTogetherCommandResult<T>>;
+  onListenTogetherConnectionState: (
+    callback: (event: ListenTogetherConnectionEvent) => void
+  ) => () => void;
+  onListenTogetherBroadcast: (
+    callback: (message: ListenTogetherBroadcast) => void
+  ) => () => void;
 
   getColorFromUrl: (url: string) => Promise<string>;
   isDevelopmentRuntime: () => Promise<boolean>;
