@@ -1,4 +1,12 @@
+import { useState } from "react";
+import LegalDialog from "./LegalDialog";
+import type { LegalPageKind } from "../../api/content";
+
+type LegalTarget = { kind: LegalPageKind; title: string };
+
 export default function SiteFooter() {
+  const [legal, setLegal] = useState<LegalTarget | null>(null);
+
   return (
     <footer className="rise-in border-t border-slate-100 bg-white py-12 select-none">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
@@ -14,12 +22,20 @@ export default function SiteFooter() {
             <a className="hover:text-sky-600 transition duration-300" href="mailto:pisamusic23@gmail.com" title="pisamusic23@gmail.com">
               联系邮箱
             </a>
-            <a className="hover:text-sky-600 transition duration-300" href="/api/config/service-agreement">
+            <button
+              type="button"
+              className="cursor-pointer font-semibold text-slate-500 transition duration-300 hover:text-sky-600"
+              onClick={() => setLegal({ kind: "service-agreement", title: "用户协议" })}
+            >
               用户协议
-            </a>
-            <a className="hover:text-sky-600 transition duration-300" href="/api/config/privacy-policy">
+            </button>
+            <button
+              type="button"
+              className="cursor-pointer font-semibold text-slate-500 transition duration-300 hover:text-sky-600"
+              onClick={() => setLegal({ kind: "privacy-policy", title: "隐私政策" })}
+            >
               隐私政策
-            </a>
+            </button>
             <a className="hover:text-sky-600 transition duration-300" href="https://pisamusic.partialy.cn">
               pisamusic.partialy.cn
             </a>
@@ -29,6 +45,14 @@ export default function SiteFooter() {
           </p>
         </div>
       </div>
+
+      {legal && (
+        <LegalDialog
+          kind={legal.kind}
+          fallbackTitle={legal.title}
+          onClose={() => setLegal(null)}
+        />
+      )}
     </footer>
   );
 }
