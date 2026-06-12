@@ -159,9 +159,25 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   async function emitCommand<T = unknown>(
     command: ListenTogetherSocketCommand,
   ): Promise<ListenTogetherAck<T>> {
-    const result = await electronAPI.emitListenTogetherCommand<T>(command);
-    if (result.rttMs !== null) latencyMs.value = result.rttMs;
-    return result.ack;
+    try {
+      const result = await electronAPI.emitListenTogetherCommand<T>(command);
+      if (result.rttMs !== null) latencyMs.value = result.rttMs;
+      return result.ack;
+    } catch (error) {
+      void reportError(error, {
+        scope: "listenTogether",
+        action: "emitCommand",
+        commandType: command.type,
+        roomId: command.roomId,
+      });
+      return {
+        success: false,
+        code: -1,
+        msg: "一起听操作失败",
+        errorMsg: "INTERNAL_ERROR",
+        data: null,
+      };
+    }
   }
 
   function ensureListeners(): void {
@@ -186,7 +202,12 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
         stopHeartbeat();
         if (joining.value) {
           joining.value = false;
-          toastError(event.message || "一起听连接失败");
+          toastError(
+            event.message === "UNAUTHORIZED"
+              ? "登录已失效，请重新登录"
+              : event.message || "一起听连接失败",
+          );
+          clearState();
         }
       }
     });
@@ -217,6 +238,9 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
 
   async function createRoom(options: CreateRoomOptions = {}): Promise<ListenTogetherActionResult> {
     ensureListeners();
+    if (!onlineServiceAvailable.value) {
+      return { status: "error", message: "在线服务不可用，一起听暂不可用" };
+    }
     if (!userStore.isLogin) return { status: "need-login" };
     const currentSong = audio.currentSong;
     if (!currentSong) {
@@ -276,6 +300,9 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
 
   async function joinRoom(roomId: string): Promise<ListenTogetherActionResult> {
     ensureListeners();
+    if (!onlineServiceAvailable.value) {
+      return { status: "error", message: "在线服务不可用，一起听暂不可用" };
+    }
     if (!userStore.isLogin) return { status: "need-login" };
     const cleanRoomId = roomId.trim();
     if (!/^\d{4,8}$/.test(cleanRoomId)) {
@@ -471,9 +498,12 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
         toastError("登录已失效，请重新登录");
         return;
       case "ROOM_NOT_FOUND":
+        clearState();
+        toast("房间不存在或已关闭");
+        return;
       case "NOT_IN_ROOM":
         clearState();
-        toast(message || "房间不存在或已关闭");
+        toast("房间身份已失效，请重新加入");
         return;
       case "NO_PERMISSION": {
         toast("房主正在控制播放");
@@ -488,20 +518,22 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
         toast("一起听操作超时，请重试");
         return;
       default:
-        toast(message || "一起听操作失败");
+        toast(getErrorMessage(errorMsg, message, "一起听操作失败"));
     }
   }
 
-  function mapApiErrorMessage(
-    errorMsg: ListenTogetherErrorCode | null,
-    msg: string,
+  function getErrorMessage(
+    errorMsg: ListenTogetherErrorCode | null | undefined,
+    message: string,
     fallback: string,
   ): string {
     switch (errorMsg) {
-      case "ROOM_FULL":
-        return "房间人数已满";
+      case "UNAUTHORIZED":
+        return "请先登录账号";
       case "ROOM_NOT_FOUND":
         return "房间不存在";
+      case "ROOM_FULL":
+        return "房间人数已满";
       case "ROOM_ID_EXISTS":
         return "房间号已存在";
       case "INVALID_ROOM_ID":
@@ -510,13 +542,39 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
         return "房间名不合法";
       case "INVALID_MAX_PEOPLE":
         return "房间人数超出允许范围";
+      case "INVALID_SONG":
+        return "当前歌曲不支持一起听";
+      case "INVALID_POSITION":
+        return "播放进度无效，请重试";
+      case "NO_PERMISSION":
+        return "房主正在控制播放";
+      case "NOT_IN_ROOM":
+        return "房间身份已失效，请重新加入";
+      case "ALREADY_IN_ROOM":
+        return "你已经在当前房间";
       case "USER_ALREADY_HAS_ROOM":
         return "请先退出当前房间";
-      case "UNAUTHORIZED":
-        return "请先登录账号";
+      case "TARGET_USER_NOT_FOUND":
+        return "目标成员不在房间内";
+      case "HOST_CANNOT_BE_KICKED":
+        return "不能移出房主";
+      case "INTERNAL_ERROR":
+        return "一起听服务异常，请稍后重试";
+      case "SOCKET_DISCONNECTED":
+        return "一起听正在重连";
+      case "ACK_TIMEOUT":
+        return "一起听操作超时，请重试";
       default:
-        return msg || fallback;
+        return message || fallback;
     }
+  }
+
+  function mapApiErrorMessage(
+    errorMsg: ListenTogetherErrorCode | null,
+    msg: string,
+    fallback: string,
+  ): string {
+    return getErrorMessage(errorMsg, msg, fallback);
   }
 
   function handleRoomAck(ack: ListenTogetherAck<ListenTogetherRoomAckData>): void {

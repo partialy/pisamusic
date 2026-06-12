@@ -61,10 +61,22 @@
         </div>
         <template
           v-if="listenTogether.isHost && member.userId !== listenTogether.currentUserId">
-          <n-button text class="member-action" title="转让房主" @click="confirmTransfer(member)">
+          <n-button
+            text
+            class="member-action"
+            title="转让房主"
+            :disabled="Boolean(memberAction)"
+            :loading="isMemberAction('transfer', member.userId)"
+            @click="confirmTransfer(member)">
             <Crown :size="16" />
           </n-button>
-          <n-button text class="member-action danger" title="移出房间" @click="confirmKick(member)">
+          <n-button
+            text
+            class="member-action danger"
+            title="移出房间"
+            :disabled="Boolean(memberAction)"
+            :loading="isMemberAction('kick', member.userId)"
+            @click="confirmKick(member)">
             <UserX :size="16" />
           </n-button>
         </template>
@@ -159,15 +171,30 @@ function confirmLeave(): void {
 
 // 房主管理：成员控制开关、踢人、转让（均二次确认/ACK 失败自动回到 room 实际状态）
 const memberOperationUpdating = ref(false);
+const memberAction = ref<{ type: "kick" | "transfer"; userId: string } | null>(null);
 
-async function handleMemberOperation(enabled: boolean): Promise<void> {
+function handleMemberOperation(enabled: boolean): void {
   if (memberOperationUpdating.value) return;
-  memberOperationUpdating.value = true;
-  try {
-    await listenTogether.updateMemberOperation(enabled);
-  } finally {
-    memberOperationUpdating.value = false;
-  }
+  window.$dialog.warning({
+    title: enabled ? "允许成员控制" : "关闭成员控制",
+    content: enabled
+      ? "开启后，房间成员可以控制播放、切歌、点歌和调整进度。确定开启吗？"
+      : "关闭后，只有房主可以控制播放。确定关闭吗？",
+    positiveText: "确定",
+    negativeText: "取消",
+    onPositiveClick: async () => {
+      memberOperationUpdating.value = true;
+      try {
+        await listenTogether.updateMemberOperation(enabled);
+      } finally {
+        memberOperationUpdating.value = false;
+      }
+    },
+  });
+}
+
+function isMemberAction(type: "kick" | "transfer", userId: string): boolean {
+  return memberAction.value?.type === type && memberAction.value.userId === userId;
 }
 
 function confirmKick(member: ListenTogetherMember): void {
@@ -177,8 +204,13 @@ function confirmKick(member: ListenTogetherMember): void {
     positiveText: "移出",
     negativeText: "取消",
     onPositiveClick: async () => {
-      const ok = await listenTogether.kickMember(member.userId);
-      if (ok) window.$message.success(`已移出 ${displayName(member)}`);
+      memberAction.value = { type: "kick", userId: member.userId };
+      try {
+        const ok = await listenTogether.kickMember(member.userId);
+        if (ok) window.$message.success(`已移出 ${displayName(member)}`);
+      } finally {
+        memberAction.value = null;
+      }
     },
   });
 }
@@ -190,8 +222,13 @@ function confirmTransfer(member: ListenTogetherMember): void {
     positiveText: "转让",
     negativeText: "取消",
     onPositiveClick: async () => {
-      const ok = await listenTogether.transferHost(member.userId);
-      if (ok) window.$message.success(`已将房主转让给 ${displayName(member)}`);
+      memberAction.value = { type: "transfer", userId: member.userId };
+      try {
+        const ok = await listenTogether.transferHost(member.userId);
+        if (ok) window.$message.success(`已将房主转让给 ${displayName(member)}`);
+      } finally {
+        memberAction.value = null;
+      }
     },
   });
 }
