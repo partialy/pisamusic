@@ -5,23 +5,19 @@
     :class="{ active: listenTogether.enabled, overlay: variant === 'overlay', disabled: serviceUnavailable }"
     :title="entryTitle"
     @click="handleEntryClick">
-    <Headphones :size="18" />
     <template v-if="listenTogether.enabled">
-      <span class="entry-label">一起听</span>
       <div class="avatar-stack">
         <n-avatar
           v-for="member in visibleMembers"
           :key="member.userId"
           round
-          :size="22"
-          :src="member.avatarUrl">
-          {{ (member.nickname || member.username || "成").slice(0, 1) }}
-        </n-avatar>
-        <span v-if="extraMemberCount" class="extra-members">+{{ extraMemberCount }}</span>
+          :size="24"
+          :src="member.avatarUrl"
+          :fallback-src="defaultAvatar" />
+        <span v-if="hasMoreMembers" class="more-members">...</span>
       </div>
-      <span class="latency">{{ latencyText }}</span>
-      <span class="status-dot" :class="{ offline: !listenTogether.socketConnected }"></span>
     </template>
+    <Headphones v-else :size="18" />
   </button>
 
   <n-modal v-model:show="showPanel" transform-origin="center">
@@ -37,6 +33,7 @@ import { computed, ref } from "vue";
 import { NAvatar, NCard, NModal } from "naive-ui";
 import { Headphones } from "lucide-vue-next";
 import { useListenTogetherStore } from "@/store";
+import defaultAvatar from "@/assets/defaultAdminAvatar.jpg";
 import ListenTogetherLobbyPanel from "./ListenTogetherLobbyPanel.vue";
 import ListenTogetherRoomPanel from "./ListenTogetherRoomPanel.vue";
 
@@ -48,13 +45,8 @@ withDefaults(defineProps<{
 
 const listenTogether = useListenTogetherStore();
 const showPanel = ref(false);
-const visibleMembers = computed(() => listenTogether.displayMembers.slice(0, 3));
-const extraMemberCount = computed(() =>
-  Math.max(0, listenTogether.displayMembers.length - visibleMembers.value.length),
-);
-const latencyText = computed(() =>
-  listenTogether.latencyMs == null ? "--" : `${Math.round(listenTogether.latencyMs)}ms`,
-);
+const visibleMembers = computed(() => listenTogether.displayMembers.slice(0, 2));
+const hasMoreMembers = computed(() => listenTogether.displayMembers.length > 2);
 // 本地模式（在线服务不可用）时禁用入口；已在房间内的状态展示不受影响
 const serviceUnavailable = computed(
   () => !listenTogether.onlineServiceAvailable && !listenTogether.enabled,
@@ -124,12 +116,6 @@ function handleEntered(): void {
   background: transparent;
 }
 
-.entry-label,
-.latency {
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .avatar-stack {
   display: flex;
   align-items: center;
@@ -144,22 +130,12 @@ function handleEntered(): void {
   margin-left: 0;
 }
 
-.extra-members {
+.more-members {
   margin-left: 4px;
-  font-size: 11px;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #18a058;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #18a058 18%, transparent);
-}
-
-.status-dot.offline {
-  background: #f0a020;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #f0a020 18%, transparent);
+  color: currentColor;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 :global(.listen-card.n-card) {

@@ -13,6 +13,7 @@
 - 房间队列为房主权威：服务端只转发 `QUEUE_EVENT`（SNAPSHOT_REQUEST/SNAPSHOT_CHUNK/QUEUE_COMMAND/QUEUE_DELTA），不持久化队列；快照 200 项/块、块间 50ms；纯指针移动（NEXT/PREVIOUS/PLAY_ITEM）不 bump queueVersion、不发 DELTA，指针靠 `CHANGE_SONG` 的 `queueItemId` 对齐。
 - 协议硬约束：`PLAY/PAUSE/SEEK/ENDED` 必须携带 `songRef`；`CHANGE_SONG` 携带 `transitionId` 与 `queueItemId`；只有匹配 pending 的 CHANGE_SONG 才能结束切歌防抖；ACK `applied=false` 不得当成功处理；广播不回发起方，发起方用 ACK 中的 room 更新状态；`QUEUE_EVENT.version` 恒为 0，队列排序只看 `queueVersion`。
 - 本地歌曲（`source: "local"`）不支持一起听：不能创建房间、不能点播进房间、协议歌曲不携带 `filePath` 与真实播放 URL（`url` 发空串，接收端自行取链）。
+- 一起听成员头像由 main 侧 `electron/listenTogether/listenTogetherAvatar.ts` 统一把服务端相对地址转为绝对地址，空值使用服务端默认账号头像；renderer 只展示图片并使用本地默认头像作为加载失败兜底，不要回退成姓名文字。
 - 所有新增播放入口（按钮、托盘、快捷键、MediaSession、歌词点击、右键菜单、列表/队列操作、自动续播与失败跳过）必须经过 `src/listenTogether/playbackCommands.ts` 统一命令层，禁止直接调用 `useAudioStore` 的 play/next/prev/seek/switchPlayList/setPlaylist/nextPlay/removeFromPlaylist/reset；一起听权限守卫在命令层与 store，不允许只靠 disabled UI。
 - 一起听中“仅添加到队列/下一首播放/清空队列/整列表播放”因 PM 协议无对应命令而禁用或降级为单曲点播，不要自创 PM 不认识的队列命令。
 - 验证命令：`pnpm --dir yixi test:listen-together`（纯规则单测）与 `pnpm --dir yixi build:t`；涉及协议字段或队列行为改动时，必须与 PM 真机做跨端联调（双向房主/成员、重复歌曲 queueItemId、快速连续切歌、30 秒断线重连、权限关闭旁路审计）。

@@ -11,6 +11,7 @@ import type {
   ListenTogetherRoom,
 } from "../../src/types/listenTogether";
 import { getAccountSession, requestSystem } from "../system/systemClient";
+import { normalizeListenTogetherAvatars } from "./listenTogetherAvatar";
 
 const SERVER_ERROR_CODES: ReadonlySet<string> = new Set([
   "ROOM_NOT_FOUND",
@@ -114,7 +115,7 @@ export async function createListenTogetherRoom(
     if (!response.success || response.code !== 0 || !response.data?.room) {
       return { ok: false, error: envelopeError(response, "创建房间失败") };
     }
-    return { ok: true, data: response.data.room };
+    return { ok: true, data: normalizeListenTogetherAvatars(response.data.room) };
   } catch (error) {
     return { ok: false, error: networkError(error, "创建房间失败") };
   }
@@ -141,7 +142,7 @@ export async function getListenTogetherRoom(
     if (!response.success || response.code !== 0 || !response.data?.room) {
       return { ok: false, error: envelopeError(response, "查询房间失败") };
     }
-    return { ok: true, data: response.data.room };
+    return { ok: true, data: normalizeListenTogetherAvatars(response.data.room) };
   } catch (error) {
     return { ok: false, error: networkError(error, "查询房间失败") };
   }

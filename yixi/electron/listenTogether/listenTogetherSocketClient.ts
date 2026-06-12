@@ -11,6 +11,7 @@ import type {
   ListenTogetherSocketCommand,
 } from "../../src/types/listenTogether";
 import { getSystemBaseUrl } from "../system/systemClient";
+import { normalizeListenTogetherAvatars } from "./listenTogetherAvatar";
 
 export type ListenTogetherSocketListener = {
   onConnected: () => void;
@@ -50,7 +51,9 @@ export function connectListenTogetherSocket(token: string, listener: ListenToget
     listener.onConnectError(message || "一起听连接失败");
   });
   for (const event of BROADCAST_EVENTS) {
-    client.on(event, (message: ListenTogetherBroadcast) => listener.onBroadcast(event, message));
+    client.on(event, (message: ListenTogetherBroadcast) =>
+      listener.onBroadcast(event, normalizeListenTogetherAvatars(message)),
+    );
   }
   socket = client;
 }
@@ -162,7 +165,7 @@ function normalizeAck(raw: unknown): ListenTogetherAck {
     success: value.success === true,
     code: typeof value.code === "number" ? value.code : -1,
     msg: typeof value.msg === "string" ? value.msg : "",
-    data: value.data,
+    data: normalizeListenTogetherAvatars(value.data),
     ...(typeof value.errorMsg === "string" ? { errorMsg: value.errorMsg } : {}),
   } as ListenTogetherAck;
 }

@@ -52,9 +52,11 @@
     </div>
     <div class="members">
       <div v-for="member in listenTogether.displayMembers" :key="member.userId" class="member-row">
-        <n-avatar round :size="36" :src="member.avatarUrl">
-          {{ displayName(member).slice(0, 1) }}
-        </n-avatar>
+        <n-avatar
+          round
+          :size="36"
+          :src="member.avatarUrl"
+          :fallback-src="defaultAvatar" />
         <div class="member-name">
           <strong>{{ displayName(member) }}</strong>
           <span v-if="member.userId === listenTogether.currentUserId">我</span>
@@ -104,6 +106,7 @@ import { useListenTogetherStore } from "@/store";
 import type { ListenTogetherMember } from "@/types/listenTogether";
 import { fromListenTogetherSong } from "@/listenTogether/listenTogetherSong";
 import { defaultSongCover, getSongCover } from "@/utils/common";
+import defaultAvatar from "@/assets/defaultAdminAvatar.jpg";
 
 const emit = defineEmits<{
   left: [];
