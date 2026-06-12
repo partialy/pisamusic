@@ -211,6 +211,67 @@ export function createListenTogetherRoomActions(ctx: ListenTogetherRoomActionsCo
     return true;
   }
 
+  // ------------------------------------------------------------------
+  // 房主管理动作（成员权限、踢人、转让）
+  // ------------------------------------------------------------------
+
+  /** 房主开关成员控制权限；ACK 失败由 handleRoomAck 提示，开关状态以 room.memberOperation 为准自动恢复 */
+  async function updateMemberOperation(enabled: boolean): Promise<boolean> {
+    const currentRoom = ctx.room.value;
+    if (!currentRoom || !ctx.isHost.value) {
+      ctx.toast("只有房主可以设置成员权限");
+      return false;
+    }
+    if (currentRoom.memberOperation === enabled) return true;
+    const ack = await ctx.emitCommand<ListenTogetherRoomAckData>({
+      type: "updateRoom",
+      roomId: currentRoom.roomId,
+      memberOperation: enabled,
+    });
+    ctx.handleRoomAck(ack);
+    return ack.success;
+  }
+
+  /** 房主踢出成员：不能踢自己；成员列表更新依赖 MEMBER_KICKED 广播（服务端会发给含发起方的整个房间） */
+  async function kickMember(targetUserId: string): Promise<boolean> {
+    const currentRoom = ctx.room.value;
+    if (!currentRoom || !ctx.isHost.value) {
+      ctx.toast("只有房主可以移出成员");
+      return false;
+    }
+    if (targetUserId === ctx.currentUserId.value) {
+      ctx.toast("不能移出自己");
+      return false;
+    }
+    const ack = await ctx.emitCommand<ListenTogetherRoomAckData>({
+      type: "kickMember",
+      roomId: currentRoom.roomId,
+      targetUserId,
+    });
+    ctx.handleRoomAck(ack);
+    return ack.success;
+  }
+
+  /** 房主转让：不能转让给自己；成为成员后的心跳停止与队列快照请求由 applyRoom 的角色交接处理 */
+  async function transferHost(targetUserId: string): Promise<boolean> {
+    const currentRoom = ctx.room.value;
+    if (!currentRoom || !ctx.isHost.value) {
+      ctx.toast("只有房主可以转让");
+      return false;
+    }
+    if (targetUserId === ctx.currentUserId.value) {
+      ctx.toast("不能把房主转让给自己");
+      return false;
+    }
+    const ack = await ctx.emitCommand<ListenTogetherRoomAckData>({
+      type: "transferHost",
+      roomId: currentRoom.roomId,
+      targetUserId,
+    });
+    ctx.handleRoomAck(ack);
+    return ack.success;
+  }
+
   return {
     setPlayingInRoom,
     seekInRoom,
@@ -219,6 +280,9 @@ export function createListenTogetherRoomActions(ctx: ListenTogetherRoomActionsCo
     playQueueItemInRoom,
     removeQueueItemInRoom,
     onTrackEndedInRoom,
+    updateMemberOperation,
+    kickMember,
+    transferHost,
   };
 }
 

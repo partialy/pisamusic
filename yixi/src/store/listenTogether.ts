@@ -101,6 +101,12 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
   const currentUserId = ref(userStore.userInfo.id || "");
   const pendingTransitionId = ref<string | null>(null);
   const config = ref<ListenTogetherConfig | null>(null);
+  /** 启动本地模式（外层服务不可用）时一起听入口禁用 */
+  const onlineServiceAvailable = ref(true);
+
+  void electronAPI.getStartupServiceState?.().then((state) => {
+    onlineServiceAvailable.value = !state?.localMode;
+  });
 
   // 非响应式内部状态
   let listenersReady = false;
@@ -887,6 +893,16 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     },
   );
 
+  // token 刷新（同一账号）：旧 socket 仍持旧 token，重连后由 connected 事件触发 sync 恢复房间
+  watch(
+    () => userStore.token,
+    (nextToken, prevToken) => {
+      if (!room.value || !nextToken || !prevToken || nextToken === prevToken) return;
+      if (userStore.userInfo.id !== currentUserId.value) return;
+      void electronAPI.connectListenTogetherSocket();
+    },
+  );
+
   return {
     // 状态
     room,
@@ -899,6 +915,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     currentUserId,
     pendingTransitionId,
     config,
+    onlineServiceAvailable,
     // 派生
     enabled,
     isHost,

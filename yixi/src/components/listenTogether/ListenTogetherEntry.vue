@@ -2,9 +2,9 @@
   <button
     type="button"
     class="listen-entry"
-    :class="{ active: listenTogether.enabled, overlay: variant === 'overlay' }"
-    :title="listenTogether.enabled ? '查看一起听房间' : '开始一起听'"
-    @click="showPanel = true">
+    :class="{ active: listenTogether.enabled, overlay: variant === 'overlay', disabled: serviceUnavailable }"
+    :title="entryTitle"
+    @click="handleEntryClick">
     <Headphones :size="18" />
     <template v-if="listenTogether.enabled">
       <span class="entry-label">一起听</span>
@@ -55,6 +55,22 @@ const extraMemberCount = computed(() =>
 const latencyText = computed(() =>
   listenTogether.latencyMs == null ? "--" : `${Math.round(listenTogether.latencyMs)}ms`,
 );
+// 本地模式（在线服务不可用）时禁用入口；已在房间内的状态展示不受影响
+const serviceUnavailable = computed(
+  () => !listenTogether.onlineServiceAvailable && !listenTogether.enabled,
+);
+const entryTitle = computed(() => {
+  if (serviceUnavailable.value) return "在线服务不可用，一起听暂不可用";
+  return listenTogether.enabled ? "查看一起听房间" : "开始一起听";
+});
+
+function handleEntryClick(): void {
+  if (serviceUnavailable.value) {
+    window.$message?.warning?.("在线服务不可用，一起听暂不可用");
+    return;
+  }
+  showPanel.value = true;
+}
 
 function handleEntered(): void {
   showPanel.value = true;
@@ -95,6 +111,17 @@ function handleEntered(): void {
   border-color: #ffffff40;
   color: #fff;
   background: #ffffff20;
+}
+
+.listen-entry.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.listen-entry.disabled:hover {
+  border-color: transparent;
+  color: var(--color-text-secondary);
+  background: transparent;
 }
 
 .entry-label,

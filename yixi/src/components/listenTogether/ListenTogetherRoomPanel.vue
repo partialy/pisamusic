@@ -35,6 +35,17 @@
       <div><strong>{{ room.memberOperation ? "允许" : "关闭" }}</strong><span>成员控制</span></div>
     </div>
 
+    <div v-if="listenTogether.isHost" class="member-operation-row">
+      <div>
+        <div class="operation-title">允许成员控制</div>
+        <div class="operation-desc">开启后成员可播放、暂停、切歌、点歌和调整进度</div>
+      </div>
+      <n-switch
+        :value="room.memberOperation"
+        :loading="memberOperationUpdating"
+        @update:value="handleMemberOperation" />
+    </div>
+
     <div class="members-header">
       <span>房间成员</span>
       <span>{{ room.currentPeople }}/{{ room.maxPeople }}</span>
@@ -48,6 +59,15 @@
           <strong>{{ displayName(member) }}</strong>
           <span v-if="member.userId === listenTogether.currentUserId">我</span>
         </div>
+        <template
+          v-if="listenTogether.isHost && member.userId !== listenTogether.currentUserId">
+          <n-button text class="member-action" title="转让房主" @click="confirmTransfer(member)">
+            <Crown :size="16" />
+          </n-button>
+          <n-button text class="member-action danger" title="移出房间" @click="confirmKick(member)">
+            <UserX :size="16" />
+          </n-button>
+        </template>
         <n-tag v-if="member.userId === room.hostUserId" round size="small" type="warning">房主</n-tag>
         <span v-else class="online-label">{{ member.online ? "在线" : "离线" }}</span>
       </div>
@@ -64,9 +84,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { NAvatar, NButton, NTag } from "naive-ui";
-import { Copy, LogOut } from "lucide-vue-next";
+import { computed, ref } from "vue";
+import { NAvatar, NButton, NSwitch, NTag } from "naive-ui";
+import { Copy, Crown, LogOut, UserX } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import { useListenTogetherStore } from "@/store";
 import type { ListenTogetherMember } from "@/types/listenTogether";
@@ -133,6 +153,45 @@ function confirmLeave(): void {
     onPositiveClick: async () => {
       await listenTogether.leaveRoom();
       emit("left");
+    },
+  });
+}
+
+// 房主管理：成员控制开关、踢人、转让（均二次确认/ACK 失败自动回到 room 实际状态）
+const memberOperationUpdating = ref(false);
+
+async function handleMemberOperation(enabled: boolean): Promise<void> {
+  if (memberOperationUpdating.value) return;
+  memberOperationUpdating.value = true;
+  try {
+    await listenTogether.updateMemberOperation(enabled);
+  } finally {
+    memberOperationUpdating.value = false;
+  }
+}
+
+function confirmKick(member: ListenTogetherMember): void {
+  window.$dialog.warning({
+    title: "移出成员",
+    content: `确定把「${displayName(member)}」移出房间吗？`,
+    positiveText: "移出",
+    negativeText: "取消",
+    onPositiveClick: async () => {
+      const ok = await listenTogether.kickMember(member.userId);
+      if (ok) window.$message.success(`已移出 ${displayName(member)}`);
+    },
+  });
+}
+
+function confirmTransfer(member: ListenTogetherMember): void {
+  window.$dialog.warning({
+    title: "转让房主",
+    content: `确定把房主转让给「${displayName(member)}」吗？转让后你将成为普通成员。`,
+    positiveText: "转让",
+    negativeText: "取消",
+    onPositiveClick: async () => {
+      const ok = await listenTogether.transferHost(member.userId);
+      if (ok) window.$message.success(`已将房主转让给 ${displayName(member)}`);
     },
   });
 }
@@ -260,6 +319,41 @@ function confirmLeave(): void {
 .online-label {
   color: var(--color-text-secondary);
   font-size: 12px;
+}
+
+.member-operation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 12px;
+}
+
+.operation-title {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.operation-desc {
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.member-action {
+  color: var(--color-text-secondary);
+}
+
+.member-action:hover {
+  color: var(--color-primary);
+}
+
+.member-action.danger:hover {
+  color: #e88080;
 }
 
 .members-header {
