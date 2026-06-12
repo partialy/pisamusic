@@ -162,7 +162,7 @@ import {
   QuestionIcon,
 } from "@/icons";
 import LoadingIcon from "@/icons/common/LoadingIcon.vue";
-import { useAudioStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import type { CommonPlaylist } from "@/types/song";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 import { getPlaylistTags, getTopPlaylists } from "@/utils/api/musicAPI";
@@ -188,7 +188,7 @@ const sourceOptions: SelectOption[] = [
   { label: "WY", value: "wy" },
 ];
 
-const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const activeSource = ref<PlaylistSource>("kg");
 const tags = ref<PlaylistTag[]>([]);
 const selectedTag = ref<PlaylistTag>(createAllTag("kg"));
@@ -394,7 +394,7 @@ async function handleRandomPlay() {
       window.$message?.warning("歌单暂无可播放歌曲");
       return;
     }
-    await player.switchPlayList(songs, true);
+    playbackCommands.playAll(songs);
   } catch (error) {
     window.$message?.warning("随机播放失败");
     void reportError(error, {

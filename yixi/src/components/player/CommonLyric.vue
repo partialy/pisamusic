@@ -11,7 +11,7 @@
               class="lyric-item"
               :class="{ active: currentIndex === item.index }"
               :style="getItemStyle()"
-              @click="playerStore.seek(item.time)">
+              @click="playbackCommands.seekSeconds(item.time)">
               <span v-if="useWordProgress" class="lyric-text word-line">
                 <span
                   v-for="(word, wordIndex) in item.line.words"
@@ -51,9 +51,11 @@ import {
 import { NScrollbar } from "naive-ui";
 import { storeToRefs } from "pinia";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 
 const playerStore = useAudioStore();
 const lyricStore = useLyricStore();
+const playbackCommands = usePlaybackCommands();
 const { currentTime, isPlaying } = storeToRefs(playerStore);
 
 const cursorIn = ref(false);

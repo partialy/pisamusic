@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, ref, toRaw } from "vue";
 import electronAPI from "@/utils/electron";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { useAudioStore } from "./audio";
 import { useCollectStore } from "./collect";
 import { useLyricStore } from "./lyricStore";
@@ -120,16 +121,18 @@ export const useShortcutStore = defineStore("shortcut", () => {
     const player = useAudioStore();
     const lyric = useLyricStore();
     const collect = useCollectStore();
+    // 全局/应用内快捷键统一走播放命令层，一起听模式下服从房间权限
+    const playbackCommands = usePlaybackCommands();
 
     switch (action) {
       case "prev":
-        player.prev();
+        playbackCommands.prev();
         break;
       case "next":
-        player.next();
+        playbackCommands.next();
         break;
       case "play-toggle":
-        player.togglePlay();
+        playbackCommands.togglePlayPause();
         break;
       case "lyric-lock":
         lyric.setDesktopLocked(true);

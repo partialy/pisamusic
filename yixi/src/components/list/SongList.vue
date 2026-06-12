@@ -101,7 +101,9 @@ import { VirtList } from "vue-virt-list";
 import type { Song } from "@/types/song";
 import { onBeforeRouteLeave } from "vue-router";
 import { useSongDownload } from "@/composables/useSongDownload";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const songDownload = useSongDownload();
 
 
@@ -147,12 +149,11 @@ const observer = new ResizeObserver((entries) => {
 });
 
 const handlePlay = (song: Song) => {
-  player.switchPlayList(props.songs, false);
-  player.play(song);
+  playbackCommands.playSongFromList(props.songs, song);
 };
 
 const handleNextPlay = (song: Song) => {
-  player.nextPlay(song);
+  playbackCommands.playNext(song);
 };
 
 const handleDownloadSong = (song: Song) => {

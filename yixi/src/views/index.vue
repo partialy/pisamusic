@@ -69,7 +69,8 @@ import HomeSongGrid from "@/components/home/HomeSongGrid.vue";
 import HomeSectionTitle from "@/components/home/HomeSectionTitle.vue";
 import HomeReveal from "@/components/home/HomeReveal.vue";
 import type { CommonPlaylist, Song } from "@/types/song";
-import { useAudioStore, useCollectStore, useRuntimeConfigStore } from "@/store";
+import { useCollectStore, useRuntimeConfigStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { convertor } from "@/utils/convertor";
 import {
   getHomeRecommendations,
@@ -84,7 +85,7 @@ import type {
 } from "@/views/recommend/recommendSources";
 import { showLimitedWarning } from "@/utils/limitedMessage";
 
-const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const collector = useCollectStore();
 const runtimeConfig = useRuntimeConfigStore();
 const router = useRouter();
@@ -198,7 +199,7 @@ const getWyPersonalizedPlaylist = async () => {
 };
 
 const handlePlay = (song: Song) => {
-  player.setPlaylist([song], true);
+  playbackCommands.playSingle(song);
 };
 
 const handleCollectSong = (song: Song) => {

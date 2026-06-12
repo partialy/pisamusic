@@ -35,6 +35,21 @@ type InitPlayerOptions = {
   seek?: number;
 };
 
+/**
+ * 播放器内部旁路桥接（由统一播放命令层安装）：
+ * MediaSession、自然结束续播、失败自动跳过在一起听模式下交给房间状态机接管。
+ * 各回调返回 true 表示已接管，audio store 跳过默认行为。
+ */
+type PlaybackBridge = {
+  onTrackEnded: () => boolean;
+  onPlaybackFailureAutoSkip: () => boolean;
+  mediaPlay: () => boolean;
+  mediaPause: () => boolean;
+  mediaNext: () => boolean;
+  mediaPrev: () => boolean;
+  mediaSeek: (seconds: number) => boolean;
+};
+
 export const useAudioStore = defineStore("audio", () => {
   const libraryStore = useLibraryStore();
   // State (状态)
@@ -58,6 +73,12 @@ export const useAudioStore = defineStore("audio", () => {
   let loadStatePromise: Promise<void> | null = null;
   let handlingPlaybackFailure = false;
   let failureSkipCount = 0;
+  let playbackBridge: PlaybackBridge | null = null;
+
+  /** 由统一播放命令层安装一起听旁路桥接 */
+  const setPlaybackBridge = (bridge: PlaybackBridge | null): void => {
+    playbackBridge = bridge;
+  };
 
   // Getters (计算属性)
   const progress = computed<number>(() => {
@@ -134,13 +155,28 @@ export const useAudioStore = defineStore("audio", () => {
    */
   const initMediaSession = () => {
     if (!("mediaSession" in navigator)) return;
-    navigator.mediaSession.setActionHandler("play", () => play());
-    navigator.mediaSession.setActionHandler("pause", () => pause());
-    navigator.mediaSession.setActionHandler("previoustrack", () => prev());
-    navigator.mediaSession.setActionHandler("nexttrack", () => next());
+    // MediaSession 是系统级旁路入口：一起听模式必须先交给房间状态机
+    navigator.mediaSession.setActionHandler("play", () => {
+      if (playbackBridge?.mediaPlay()) return;
+      play();
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      if (playbackBridge?.mediaPause()) return;
+      pause();
+    });
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      if (playbackBridge?.mediaPrev()) return;
+      prev();
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      if (playbackBridge?.mediaNext()) return;
+      next();
+    });
     // 跳转进度
     navigator.mediaSession.setActionHandler("seekto", (event) => {
-      if (event.seekTime) seek(event.seekTime);
+      if (event.seekTime == null) return;
+      if (playbackBridge?.mediaSeek(event.seekTime)) return;
+      seek(event.seekTime);
     });
     navigator.mediaSession.metadata = new window.MediaMetadata({
       title: currentSong.value?.name,
@@ -492,6 +528,8 @@ export const useAudioStore = defineStore("audio", () => {
    * 处理歌曲结束时的逻辑
    */
   const handleTrackEnd = (): void => {
+    // 一起听模式：房主按房间队列推进 / 成员等待房主指令，本地 repeatMode 不生效
+    if (playbackBridge?.onTrackEnded()) return;
     if (repeatMode.value === "single") {
       // 单曲循环模式下重新播放当前歌曲
       play(currentSong.value);
@@ -605,6 +643,13 @@ export const useAudioStore = defineStore("audio", () => {
       songId: currentSong.value?.id,
       source: currentSong.value?.source,
     });
+
+    // 一起听模式下禁止本地失败自动跳下一曲，避免成员与房间状态脱节
+    if (playbackBridge?.onPlaybackFailureAutoSkip()) {
+      failureSkipCount = 0;
+      handlingPlaybackFailure = false;
+      return;
+    }
 
     if (playlist.value.length > 1 && failureSkipCount < playlist.value.length - 1) {
       failureSkipCount += 1;
@@ -767,6 +812,7 @@ export const useAudioStore = defineStore("audio", () => {
     reset,
     saveState,
     loadState,
+    setPlaybackBridge,
   };
 });
 

@@ -149,7 +149,8 @@ import { Play, RefreshCw, Search } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import SongList from "@/components/list/SongList.vue";
 import DialogWrapper from "@/components/common/DialogWrapper.vue";
-import { useAudioStore, useLocalLibraryStore } from "@/store";
+import { useLocalLibraryStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import type { Song } from "@/types/song";
 import { normalizeSong } from "@/utils/song";
 import {
@@ -164,7 +165,7 @@ import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader
 
 type LocalDownloadTab = "local" | "download" | "downloading" | "records";
 
-const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const localLibrary = useLocalLibraryStore();
 const { songs: localSongs } = storeToRefs(localLibrary);
 
@@ -233,7 +234,7 @@ function filterSongs(songs: Song[]) {
 
 function playAll() {
   if (!currentSongs.value.length) return;
-  player.switchPlayList(currentSongs.value as Song[], true);
+  playbackCommands.playAll(currentSongs.value as Song[]);
 }
 
 function switchLocalDownloadTab(tab: LocalDownloadTab) {

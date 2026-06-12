@@ -10,6 +10,7 @@ import { useLocalLibraryStore } from "./localLibrary";
 import { useMineLibraryStore } from "./mineLibrary";
 import { useUserStore } from './user';
 import { useShortcutStore } from "./shortcut";
+import { useListenTogetherStore } from "./listenTogether";
 export {
   useSettingStore,
   useCommonStore,
@@ -23,4 +24,5 @@ export {
   useMineLibraryStore,
   useUserStore,
   useShortcutStore,
+  useListenTogetherStore,
 };

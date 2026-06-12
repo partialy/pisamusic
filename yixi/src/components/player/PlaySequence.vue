@@ -1,8 +1,9 @@
 <template>
     <div class="play-sequence">
         <div class="sequence-header">
-            <span class="header-text">播放队列</span>
-            <n-button title="清空列表" text circle @click="clearSequence">
+            <span class="header-text">{{ listenTogether.enabled ? "一起听队列" : "播放队列" }}</span>
+            <n-button :title="listenTogether.enabled ? '一起听中不能清空队列' : '清空列表'" text circle
+                :disabled="listenTogether.enabled" @click="clearSequence">
                 <n-icon class="delete-icon" :component="DeleteIcon"></n-icon>
             </n-button>
 
@@ -21,7 +22,7 @@
 
         <div class="sequence-list" ref="sequenceList">
             <VirtList ref="virtListRef" :buffer="2" :start="startIndex" :min-size="64" :list="currentList"
-                :style="{ height: height + 'px' }" item-key="id">
+                :style="{ height: height + 'px' }" item-key="key">
                 <template #stickyHeader v-if="showSearch">
                     <div class="sequence-search" v-if="showSearch">
                         <n-input round clearable
@@ -35,7 +36,8 @@
                     </div>
                 </template>
                 <template #default="{ itemData, index }">
-                    <SequenceItem :item="itemData" :index="index" :active="currentSong?.id == itemData.id" />
+                    <SequenceItem :item="itemData.song" :queue-item-id="itemData.queueItemId"
+                        :index="index" :active="itemData.key === activeItemKey" />
                 </template>
                 <template #empty>
                     <div class="sequence-empty">
@@ -59,22 +61,55 @@ import { ref, computed, nextTick, onMounted, h, useTemplateRef, onUnmounted } fr
 import { NInput, NFloatButton, NButton, NIcon } from 'naive-ui';
 import { SequenceItem } from '.';
 import { VirtList } from 'vue-virt-list'
-import { useAudioStore } from '@/store';
+import { useAudioStore, useListenTogetherStore } from '@/store';
 import { storeToRefs } from 'pinia';
+import type { Song } from '@/types/song';
+import { fromListenTogetherSong } from '@/listenTogether/listenTogetherSong';
+import { usePlaybackCommands } from '@/listenTogether/playbackCommands';
 
 const player = useAudioStore()
+const listenTogether = useListenTogetherStore()
+const playbackCommands = usePlaybackCommands()
 const { playlist, currentSong } = storeToRefs(player)
 
+type SequenceDisplayItem = {
+    key: string;
+    queueItemId: string | null;
+    song: Song;
+}
+
+const sourceList = computed<SequenceDisplayItem[]>(() => {
+    if (listenTogether.enabled) {
+        return listenTogether.queue.items.map((item) => ({
+            key: item.queueItemId,
+            queueItemId: item.queueItemId,
+            song: fromListenTogetherSong(item.song),
+        }))
+    }
+    return playlist.value.map((song, index) => ({
+        key: `${song.source}:${song.id}:${index}`,
+        queueItemId: null,
+        song,
+    }))
+})
+
 const currentList = computed(() => {
-    return searchValue.value ? filterList.value : playlist.value
+    return searchValue.value ? filterList.value : sourceList.value
 })
 
 const sequenceList = useTemplateRef('sequenceList')
 const virtListRef = useTemplateRef('virtListRef')
 const searchValue = ref('')
 const showSearch = ref(false)
+const activeItemKey = computed(() => {
+    if (listenTogether.enabled) return listenTogether.queue.currentItemId
+    const index = playlist.value.findIndex((song) =>
+        song.source === currentSong.value?.source && song.id === currentSong.value?.id
+    )
+    return index >= 0 ? `${playlist.value[index].source}:${playlist.value[index].id}:${index}` : null
+})
 const startIndex = computed(() => {
-    const index = currentList.value.findIndex((item) => item.id == currentSong.value?.id)
+    const index = currentList.value.findIndex((item) => item.key === activeItemKey.value)
     return Math.max(index, 0)
 })
 
@@ -92,7 +127,7 @@ const clearSequence = () => {
         positiveText: '确定',
         negativeText: '取消',
         onPositiveClick: () => {
-            player.reset()
+            playbackCommands.clearPlaylist()
         }
     })
 }
@@ -103,7 +138,9 @@ const search = () => {
 }
 
 const filterList = computed(() => {
-    return playlist.value.filter(item => (item.name.includes(searchValue.value)) || item.singer.includes(searchValue.value)) || []
+    return sourceList.value.filter(item =>
+        item.song.name.includes(searchValue.value) || item.song.singer.includes(searchValue.value)
+    )
 })
 
 const clearSearch = () => {

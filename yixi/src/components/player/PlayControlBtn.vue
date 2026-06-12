@@ -1,6 +1,6 @@
 <template>
   <div class="btn-con">
-    <n-button circle quaternary class="side-btn" @click="player.prev" :disabled="loading">
+    <n-button circle quaternary class="side-btn" @click="playbackCommands.prev" :disabled="loading || switching">
       <template #icon>
         <n-icon class="icon" :component="PrevIcon" :color="sideIconColor" size="24px"></n-icon>
       </template>
@@ -9,7 +9,7 @@
       class="play-btn"
       circle
       tertiary
-      @click="player.togglePlay"
+      @click="playbackCommands.togglePlayPause"
       style="width: 48px; height: 48px"
       :loading="loading"
     >
@@ -18,7 +18,7 @@
         <n-icon class="icon" v-else :component="PauseAnim" :color="sideIconColor" size="36px"></n-icon>
       </template>
     </n-button>
-    <n-button circle quaternary class="side-btn" @click="player.next" :disabled="loading">
+    <n-button circle quaternary class="side-btn" @click="playbackCommands.next" :disabled="loading || switching">
       <template #icon>
         <n-icon class="icon" :component="NextIcon" :color="sideIconColor" size="24px"></n-icon>
       </template>
@@ -29,11 +29,16 @@
 <script setup lang="ts">
 import { NButton, NIcon } from "naive-ui";
 import { PrevIcon, PlayAnim, NextIcon, PauseAnim } from "@/icons";
-import { useAudioStore } from "@/store";
+import { useAudioStore, useListenTogetherStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
 const player = useAudioStore();
+const listenTogether = useListenTogetherStore();
+const playbackCommands = usePlaybackCommands();
 const { isPlaying, loading } = storeToRefs(player);
+// 一起听切歌 pending 期间禁用重复切歌按钮
+const switching = computed(() => listenTogether.pendingTransition);
 
 const props = defineProps<{
   color?: string;

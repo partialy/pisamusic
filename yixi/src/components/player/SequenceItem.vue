@@ -29,15 +29,17 @@ import { CloseIcon, CollectIcon } from '@/icons';
 import { NImage, NIcon } from 'naive-ui';
 import { computed } from 'vue';
 import { defaultSongCover, formatDuration, getSongCover } from '@/utils/common';
-import { useAudioStore, useCollectStore } from '@/store';
+import { useCollectStore } from '@/store';
 import type { Song } from '@/types/song';
+import { usePlaybackCommands } from '@/listenTogether/playbackCommands';
 
 const collector = useCollectStore()
-const player = useAudioStore()
+const playbackCommands = usePlaybackCommands()
 const props = defineProps<{
     item: Song,
     index: number,
-    active: boolean
+    active: boolean,
+    queueItemId?: string | null
 }>()
 
 const cover = computed(() => {
@@ -52,11 +54,11 @@ const name = computed(() => {
 })
 
 const playSong = () => {
-    player.play(props.item)
+    playbackCommands.playQueueItem(props.queueItemId ?? null, props.item)
 }
 
 const deleteSong = () => {
-    player.removeFromPlaylist(props.item)
+    playbackCommands.removeQueueItem(props.queueItemId ?? null, props.item)
 }
 
 </script>

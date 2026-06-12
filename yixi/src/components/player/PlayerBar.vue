@@ -1,7 +1,7 @@
 <template>
   <div class="bar-container">
-    <n-slider class="slider" :tooltip="false" v-model:value="currentTime" :max="duration" :step="0.01"
-      v-on:update-value="handleSeek">
+    <n-slider class="slider" :tooltip="false" :value="currentTime" :max="duration" :step="0.01"
+      @update:value="handleSeek">
       <template #thumb>
         <n-image class="rail-img" preview-disabled :src="logo" style="width: 16px; height: 16px; border-radius: 50%" />
       </template>
@@ -172,7 +172,9 @@ import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { useSongDownload } from "@/composables/useSongDownload";
 import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
 import PlayerBarKaraokeLyric from "./PlayerBarKaraokeLyric.vue";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const lyric = useLyricStore();
 const collect = useCollectStore();
 const songDownload = useSongDownload();
@@ -280,7 +282,7 @@ const toggleMuted = () => {
 const showSequence = ref(false);
 
 const handleSeek = debounce((val: number) => {
-  player.seek(val);
+  playbackCommands.seekSeconds(val);
 }, 50);
 
 watch(

@@ -71,10 +71,11 @@ import { Play, Search } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import SongList from "@/components/list/SongList.vue";
-import { useAudioStore, useCollectStore } from "@/store";
+import { useCollectStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 
-const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const collector = useCollectStore();
 const { songs, playlists } = storeToRefs(collector);
 
@@ -113,7 +114,7 @@ const filteredPlaylists = computed(() => {
 
 function playAll() {
   if (!filteredSongs.value.length) return;
-  player.switchPlayList(filteredSongs.value, true);
+  playbackCommands.playAll(filteredSongs.value);
 }
 
 function switchFavoriteTab(tab: "songs" | "playlists") {

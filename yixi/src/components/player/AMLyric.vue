@@ -34,10 +34,13 @@ import { LyricPlayer } from "@applemusic-like-lyrics/vue";
 import type { LyricLine as AMLyricLine } from "@applemusic-like-lyrics/core";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
-import { useLyricStore, useAudioStore } from "@/store";
+import { useLyricStore, useAudioStore, useListenTogetherStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 
 const lyricStore = useLyricStore();
 const playerStore = useAudioStore();
+const listenTogether = useListenTogetherStore();
+const playbackCommands = usePlaybackCommands();
 const { isPlaying, currentTime } = storeToRefs(playerStore);
 
 // 当前歌词
@@ -45,13 +48,12 @@ const amLyricsData = computed<AMLyricLine[]>(() => {
   return lyricStore.preferredAmLyrics;
 });
 
-// 进度跳转
+// 进度跳转（统一播放命令层：一起听模式服从房间权限与同步）
 const jumpSeek = (line: any) => {
-  console.log(line, "jumpSeek");
   if (!line?.line?.lyricLine?.startTime) return;
   const time = line.line.lyricLine.startTime;
-  playerStore.seek(time > 1000 ? time / 1000 : time);
-  playerStore.isPlaying = true;
+  playbackCommands.seekSeconds(time > 1000 ? time / 1000 : time);
+  if (!listenTogether.enabled) playerStore.isPlaying = true;
 };
 </script>
 

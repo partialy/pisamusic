@@ -52,6 +52,7 @@ import electronAPI from "./utils/electron";
 import { getColorFromUrl, getSongCover } from "./utils/common";
 import { message } from "./utils/pure/message";
 import { normalizeSong } from "./utils/song";
+import { setupPlaybackBridge, usePlaybackCommands } from "./listenTogether/playbackCommands";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
@@ -69,20 +70,23 @@ const { showPlayer } = storeToRefs(commonStore);
 function setupListeners() {
   const { currentTime, currentSong } = storeToRefs(player);
   const { followSongAccent } = storeToRefs(themeStore);
+  // 托盘/桌面歌词的媒体控制统一走播放命令层，一起听模式下服从房间状态
+  const playbackCommands = usePlaybackCommands();
+  setupPlaybackBridge();
   electronAPI.onMediaControl(
     async (action: "play" | "pause" | "next" | "prev") => {
       switch (action) {
         case "play":
-          player.play();
+          playbackCommands.setPlaying(true);
           break;
         case "pause":
-          player.pause();
+          playbackCommands.setPlaying(false);
           break;
         case "next":
-          player.next();
+          playbackCommands.next();
           break;
         case "prev":
-          player.prev();
+          playbackCommands.prev();
           break;
       }
     }

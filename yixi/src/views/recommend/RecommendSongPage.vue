@@ -85,7 +85,8 @@ import { Play } from "lucide-vue-next";
 import AddToPlaylistDialog from "@/components/player/AddToPlaylistDialog.vue";
 import { CollectIcon, MoreIcon, PlaylistPlayIcon } from "@/icons";
 import type { Song } from "@/types/song";
-import { useAudioStore, useCollectStore } from "@/store";
+import { useCollectStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { getSongCover } from "@/utils/common";
 import { convertor } from "@/utils/convertor";
 import {
@@ -101,7 +102,7 @@ import {
 } from "./recommendSources";
 
 const route = useRoute();
-const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const collector = useCollectStore();
 const songs = ref<Song[]>([]);
 const loading = ref(false);
@@ -151,12 +152,11 @@ async function fetchSongSource(type: RecommendSongType) {
 }
 
 function handlePlay(song: Song) {
-  void player.switchPlayList(songs.value, false);
-  void player.play(song);
+  playbackCommands.playSongFromList(songs.value, song);
 }
 
 function handlePlayAll() {
-  void player.switchPlayList(songs.value, true);
+  playbackCommands.playAll(songs.value);
 }
 
 function handleCollectSong(song: Song) {

@@ -112,7 +112,8 @@ import type { KGPlaylistDetailData } from "@/utils/webapi";
 import { debounce, getKgImage } from "@/utils/common";
 import SearchIcon from "@/icons/header/SearchIcon.vue";
 import { CollectIcon, PlayStatic } from "@/icons";
-import { useAudioStore, useCollectStore } from "@/store";
+import { useCollectStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { convertor } from "@/utils/convertor";
 import type { CommonPlaylist, Song } from "@/types/song";
 import type { WYPlaylistDetail } from "@/utils/webapi";
@@ -124,7 +125,7 @@ import SongList from "@/components/list/SongList.vue";
 
 type DetailOrigin = "kg" | "wy" | "local";
 
-const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const collector = useCollectStore();
 const message = useMessage();
 const route = useRoute();
@@ -289,7 +290,10 @@ const appendUniqueSongs = (songs: Song[]) => {
 };
 
 const handlePlay = async (item?: Song) => {
-  if (item) player.play(item);
+  if (item) {
+    playbackCommands.playSongFromList(allSong.value, item);
+    return;
+  }
   // 等待播放列表加载完成
   let timer: any;
   if (allLoading.value) {
@@ -298,10 +302,9 @@ const handlePlay = async (item?: Song) => {
   timer = setInterval(() => {
     if (!allLoading.value) {
       clearInterval(timer);
-      player.switchPlayList(allSong.value, false);
       if (!item) {
         songList.value = allSong.value;
-        player.play(allSong.value[0]);
+        playbackCommands.playAll(allSong.value);
       }
     }
   }, 300);

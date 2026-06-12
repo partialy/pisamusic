@@ -28,17 +28,18 @@ import {
   SingerIcon,
 } from "@/icons";
 import { Download, Info } from "lucide-vue-next";
-import { useAudioStore, useCollectStore } from "@/store";
+import { useCollectStore } from "@/store";
 import { renderIcon } from "@/utils/common";
 import { fetchAllPlaylistTracks } from "@/utils/playlistTracks";
 import MediaDetailDialog from "@/components/common/MediaDetailDialog.vue";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 
 const x = ref(0);
 const y = ref(0);
 const show = ref(false);
 const options = ref<DropdownOption[]>([]);
 const collector = useCollectStore();
-const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const detailDialogRef = ref<InstanceType<typeof MediaDetailDialog> | null>(null);
 const props = withDefaults(defineProps<{
   removable?: boolean;
@@ -92,8 +93,7 @@ const createSongOptions = (song: Song) => {
       props: {
         title: "播放",
         onClick: () => {
-          player.setPlaylist([song], true);
-          window.$message.success(`开始播放 ${song.name}`);
+          playbackCommands.playSingle(song);
         },
       },
       icon: renderIcon(PlayStatic, {}, { size: 24 }),
@@ -104,7 +104,7 @@ const createSongOptions = (song: Song) => {
       props: {
         title: "下一首播放",
         onClick: () => {
-          player.nextPlay(song);
+          playbackCommands.playNext(song);
         },
       },
       icon: renderIcon(NextPlayIcon, {}, { size: 24 }),
@@ -114,9 +114,10 @@ const createSongOptions = (song: Song) => {
       label: "添加到播放列表",
       props: {
         title: "添加到播放列表",
-        onClick: () => {
-          player.setPlaylist([song]);
-          window.$message.success(`已将 ${song.name} 添加到播放列表`);
+        onClick: async () => {
+          if (await playbackCommands.appendToPlaylist([song])) {
+            window.$message.success(`已将 ${song.name} 添加到播放列表`);
+          }
         },
       },
       icon: renderIcon(AddToPlaylist, {}, { size: 24 }),
@@ -247,8 +248,9 @@ const handlePlayPlaylist = async (playlist: CommonPlaylist) => {
       return;
     }
 
-    await player.switchPlayList(songs, true);
-    window.$message.success(`已开始播放 ${songs.length} 首歌曲`);
+    if (await playbackCommands.playAll(songs)) {
+      window.$message.success(`已开始播放 ${songs.length} 首歌曲`);
+    }
   } catch (error) {
     window.$message.error(getPlaylistActionError(error, "播放全部失败"));
   } finally {
@@ -265,8 +267,9 @@ const handleAddPlaylist = async (playlist: CommonPlaylist) => {
       return;
     }
 
-    await player.setPlaylist(songs);
-    window.$message.success(`已添加 ${songs.length} 首歌曲到播放列表`);
+    if (await playbackCommands.appendToPlaylist(songs)) {
+      window.$message.success(`已添加 ${songs.length} 首歌曲到播放列表`);
+    }
   } catch (error) {
     window.$message.error(getPlaylistActionError(error, "添加到播放列表失败"));
   } finally {

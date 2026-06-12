@@ -46,7 +46,7 @@ import { NButton, NEmpty, NIcon } from "naive-ui";
 import { Play } from "lucide-vue-next";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import type { CommonPlaylist } from "@/types/song";
-import { useAudioStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { convertor } from "@/utils/convertor";
 import {
   getHomeRecommendations,
@@ -65,7 +65,7 @@ type PlaylistFilter = "recommend" | "hot" | "new";
 
 const route = useRoute();
 const router = useRouter();
-const player = useAudioStore();
+const playbackCommands = usePlaybackCommands();
 const playlists = ref<CommonPlaylist[]>([]);
 const loading = ref(false);
 const playingRandom = ref(false);
@@ -139,7 +139,7 @@ async function handleRandomPlay() {
       window.$message?.warning("歌单暂无可播放歌曲");
       return;
     }
-    await player.switchPlayList(songs, true);
+    playbackCommands.playAll(songs);
   } catch (error) {
     window.$message?.warning("随机播放失败");
     void window.electronAPI.reportError(error, {
