@@ -1,5 +1,22 @@
 # AGENTS.md
 
+## 一起听模块规则补充
+
+- 一起听用于与 `pm/` Android 端进入同一房间、共享房主权威队列并同步播放状态；协议基线以 `server/src/realtime/listenTogether/` 与 `pm/app/.../listen/` 实际代码为准。
+- 模块目录与职责：
+  - `electron/listenTogether/`：HTTP 客户端（config 明文、创建/查询房间走账号加密请求）、Socket.IO 客户端（单例、websocket-only、ACK 10s 超时、真实 RTT）、service（连接事件与广播经 `listen-together:connection/broadcast` 推送主窗口）；HTTP 与 Socket 连接只允许在 main，renderer 不持有服务端地址与 token。
+  - `electron/ipc/listenTogetherIpc.ts`：`listen-together:*` IPC，emit 命令经联合类型白名单校验。
+  - `src/types/listenTogether.ts`：两端共享协议类型（main 与 renderer 共同引用，禁止引入 Vue/Electron/Node 依赖）。
+  - `src/listenTogether/`：纯规则（`listenTogetherRules/Queue/Song`，vitest 覆盖）、队列引擎（`listenTogetherQueueEngine`）、房间动作（`listenTogetherRoomActions`）与统一播放命令层（`playbackCommands`）。
+  - `src/store/listenTogether.ts`：renderer 状态机（房间生命周期、广播/ACK 版本过滤、远端同步竞态保护、450ms 切歌防抖、6s 房主心跳、账号联动清理）。
+  - `src/components/listenTogether/`：入口（双形态 chip）、未入房面板、房间面板。
+- 房间队列为房主权威：服务端只转发 `QUEUE_EVENT`（SNAPSHOT_REQUEST/SNAPSHOT_CHUNK/QUEUE_COMMAND/QUEUE_DELTA），不持久化队列；快照 200 项/块、块间 50ms；纯指针移动（NEXT/PREVIOUS/PLAY_ITEM）不 bump queueVersion、不发 DELTA，指针靠 `CHANGE_SONG` 的 `queueItemId` 对齐。
+- 协议硬约束：`PLAY/PAUSE/SEEK/ENDED` 必须携带 `songRef`；`CHANGE_SONG` 携带 `transitionId` 与 `queueItemId`；只有匹配 pending 的 CHANGE_SONG 才能结束切歌防抖；ACK `applied=false` 不得当成功处理；广播不回发起方，发起方用 ACK 中的 room 更新状态；`QUEUE_EVENT.version` 恒为 0，队列排序只看 `queueVersion`。
+- 本地歌曲（`source: "local"`）不支持一起听：不能创建房间、不能点播进房间、协议歌曲不携带 `filePath` 与真实播放 URL（`url` 发空串，接收端自行取链）。
+- 所有新增播放入口（按钮、托盘、快捷键、MediaSession、歌词点击、右键菜单、列表/队列操作、自动续播与失败跳过）必须经过 `src/listenTogether/playbackCommands.ts` 统一命令层，禁止直接调用 `useAudioStore` 的 play/next/prev/seek/switchPlayList/setPlaylist/nextPlay/removeFromPlaylist/reset；一起听权限守卫在命令层与 store，不允许只靠 disabled UI。
+- 一起听中“仅添加到队列/下一首播放/清空队列/整列表播放”因 PM 协议无对应命令而禁用或降级为单曲点播，不要自创 PM 不认识的队列命令。
+- 验证命令：`pnpm --dir yixi test:listen-together`（纯规则单测）与 `pnpm --dir yixi build:t`；涉及协议字段或队列行为改动时，必须与 PM 真机做跨端联调（双向房主/成员、重复歌曲 queueItemId、快速连续切歌、30 秒断线重连、权限关闭旁路审计）。
+
 ## 关于页、协议与反馈规则补充
 
 - `src/views/about.vue` 负责桌面端关于页入口，当前版本通过 main 侧 `system:get-app-version` 读取 Electron `app.getVersion()`，服务端关于信息通过 `system:get-about-info` 请求 `/api/config/about`；renderer 不直接拼接或请求 server 地址。
