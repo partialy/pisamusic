@@ -145,10 +145,12 @@
 ## 一起听补充
 
 - Android 端一起听代码集中在 `listen/` 模块，包含 HTTP 仓库、Socket.IO 客户端、状态管理和服务端字段模型；播放器页只负责展示入口、房间面板和播放控制意图转发。
+- 一起听二维码与扫码链接统一由 `ListenTogetherScanLink` 生成和解析：分享链接使用 `https://pisamusic.partialy.cn/scan?type=listen-together-join&roomId=<房间号>`，外部唤起使用 `pisamusic://scan`。侧栏扫码、播放器扫码和 Scheme 冷启动最终都交给 `PlayerActivity` 的同一加入流程；跨房间必须先确认、验证目标房间并等待旧房间离开 ACK。
 - 播放器页一起听底部面板里的房间名、房间号、邀请码输入框使用 Material `TextInputLayout` 浮动标签样式；房间名默认值通过 `TextInputLayout.placeholderText` 承载，创建时空输入回退该占位值。
 - 一起听 HTTP 接口沿用外层服务端地址；`GET /api/listen-together/config` 是明文接口，使用独立明文 Retrofit client；`POST /api/listen-together/rooms` 和 `GET /api/listen-together/rooms/:roomId` 继续走 `SystemApiService` 的 AES-GCM 加密链路。创建房间遇到 `USER_ALREADY_HAS_ROOM` 时先由播放器弹确认框，用户确认后才带 `replaceExisting=true` 重新创建。
 - 一起听实时连接使用 `io.socket:socket.io-client`，连接时通过 Socket.IO `auth.token` 传 `Bearer <userToken>`；账号切换、退出房间、被踢出或房间销毁时必须断开 socket 并清空本地一起听状态。
 - 一起听只支持在线歌曲，不支持 `SongType.LOCAL`；创建房间默认 `memberOperation=false`，房主可在房间面板切换“成员可操作”。成员未获授权时必须提示无权限并向服务端同步房间状态，不要本地抢控制权。
+- 房主点击房间面板内其他成员的胶囊时，通过通用操作菜单执行“转让房主”或“移出成员”；自己的胶囊和普通成员看到的胶囊不可操作。两个动作必须二次确认，不做本地乐观更新，成员列表和房主身份继续以 Socket ACK 及 `MEMBER_KICKED` / `HOST_TRANSFERRED` 广播为准。
 - 一起听开启后播放器队列面板展示房间专属队列，不能再使用本地 `MusicController.playList` 作为上一首、下一首、点歌或删除依据。房间队列不落服务端，由房主设备维护权威队列；服务端 `listen:queue` / `QUEUE_EVENT` 只负责校验成员并转发快照、增量和成员命令。
 - 新成员加入时由房主通过 `QUEUE_EVENT` 分片发送队列快照，单片默认 200 首；常规队列变更由房主广播 `QUEUE_DELTA`，自然播放结束只允许房主决定下一首并发送 `listen:change_song`。
 - 一起听切歌采用 latest-wins：`MusicController.playLatest` 是可等待、可取消的同步播放入口，旧 URL 解析结果不得覆盖后发歌曲。歌曲与队列指针只跟随 `CHANGE_SONG`，切歌链路使用 `transitionId`，队列指针优先使用 `queueItemId`；只有 ID 匹配的 `CHANGE_SONG` 广播或 ACK 可以提前解除切歌锁，心跳及其他进度事件不能解除。
@@ -158,6 +160,8 @@
 
 - 居中确认类弹窗优先使用 `cn.partialy.pm.ui.dialog.PmMinimalDialog`；它是 280dp 简约卡片样式，支持单/双按钮、隐藏标题、确认按钮文字颜色和深浅色资源自动适配。
 - 需要居中承载自定义表单、列表、封面选择等内容时，使用 `cn.partialy.pm.ui.dialog.PmSlotDialog`；它复用 `PmMinimalDialog` 的 280dp 卡片、深浅色资源、入退场动画和底部 T 形按钮区，中间 `slotContainer` 内容由调用方布局自行负责。
+- 一起听房间二维码使用 `ListenTogetherQrDialog`，内容承载在 `PmSlotDialog` 中，二维码编码官网加入链接并提供房间号复制。
+- 带头像/封面信息头部、左侧图标和右侧文案的操作菜单使用 `cn.partialy.pm.ui.dialog.ActionMenuBottomSheet`；菜单动作在 Sheet 关闭后执行，歌曲更多菜单和一起听成员管理菜单复用该容器。
 - 旧 `ModernDialog` 仍保留给下载进度、底部弹窗和单选弹窗等既有场景；不要为了普通确认弹窗继续扩展它。
 - 业务消息或自定义通知优先调用 `BaseActivity.showMessage(content, durationMs)`；它用于区别于系统默认 `Toast` 的业务提示，展示为屏幕高度 25% 处的半透明黑色胶囊轻通知，并返回可立即淡出关闭的函数。
 

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f7fbff" />
+  <title>加入一起听房间 - Pisa Music</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #10233f;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(56, 189, 248, .2), transparent 34%),
+        linear-gradient(160deg, #f7fbff 0%, #fff 58%, #eef8ff 100%);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    main {
+      width: min(420px, 100%);
+      padding: 36px 28px 30px;
+      border: 1px solid rgba(148, 163, 184, .18);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, .9);
+      box-shadow: 0 24px 70px rgba(71, 111, 145, .15);
+      text-align: center;
+    }
+    .icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 20px;
+      display: grid;
+      place-items: center;
+      border-radius: 22px;
+      color: #fff;
+      background: linear-gradient(135deg, #38bdf8, #0284c7);
+      box-shadow: 0 14px 30px rgba(14, 165, 233, .24);
+      font-size: 32px;
+      font-weight: 800;
+    }
+    h1 { margin: 0; font-size: 25px; }
+    p { margin: 12px 0 0; color: #64748b; line-height: 1.7; }
+    .room {
+      margin: 22px 0;
+      padding: 14px;
+      border-radius: 16px;
+      color: #0369a1;
+      background: #f0f9ff;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .actions { display: grid; gap: 10px; }
+    button, a {
+      width: 100%;
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      font: inherit;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button {
+      border: 0;
+      color: #fff;
+      background: linear-gradient(90deg, #0ea5e9, #0284c7);
+    }
+    button:disabled { cursor: not-allowed; opacity: .45; }
+    a {
+      border: 1px solid #dbe7f1;
+      color: #334155;
+      background: #fff;
+    }
+    #status { min-height: 24px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="icon" aria-hidden="true">P</div>
+    <h1 id="title">正在打开 Pisa Music...</h1>
+    <p id="status">如果没有自动打开，请点击下方按钮。</p>
+    <div class="room" id="room">正在读取房间信息</div>
+    <div class="actions">
+      <button id="openButton" type="button">打开 App</button>
+      <a href="/download/">下载 App</a>
+    </div>
+  </main>
+
+  <script>
+    const JOIN_TYPE = "listen-together-join";
+    const params = new URLSearchParams(window.location.search);
+    const type = params.get("type") || "";
+    const roomId = params.get("roomId") || "";
+    const valid = type === JOIN_TYPE && /^\d{4,8}$/.test(roomId);
+    const title = document.getElementById("title");
+    const status = document.getElementById("status");
+    const room = document.getElementById("room");
+    const openButton = document.getElementById("openButton");
+    let leftPage = false;
+    let fallbackTimer = 0;
+
+    const appScheme = valid
+      ? `pisamusic://scan?type=${encodeURIComponent(type)}&roomId=${encodeURIComponent(roomId)}`
+      : "";
+
+    function markPageLeft() {
+      leftPage = true;
+      window.clearTimeout(fallbackTimer);
+    }
+
+    function openApp() {
+      if (!valid) return;
+      leftPage = false;
+      title.innerText = "正在打开 Pisa Music...";
+      status.innerText = "如果没有自动打开，请点击下方按钮。";
+      window.location.href = appScheme;
+      window.clearTimeout(fallbackTimer);
+      fallbackTimer = window.setTimeout(() => {
+        if (leftPage || document.hidden) return;
+        title.innerText = "未检测到 App";
+        status.innerText = "你可以重新尝试，或先下载并安装 Pisa Music。";
+      }, 1500);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) markPageLeft();
+    });
+    window.addEventListener("pagehide", markPageLeft);
+    openButton.addEventListener("click", openApp);
+
+    if (valid) {
+      room.innerText = `一起听房间 ${roomId}`;
+      window.setTimeout(openApp, 120);
+    } else {
+      title.innerText = "链接无效";
+      status.innerText = "该邀请链接缺少有效的房间信息。";
+      room.innerText = "无法读取房间号";
+      openButton.disabled = true;
+    }
+  </script>
+</body>
+</html>

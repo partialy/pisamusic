@@ -197,6 +197,36 @@ class ListenTogetherSocketClient @Inject constructor(
         )
     }
 
+    fun emitKickMember(
+        roomId: String,
+        targetUserId: String,
+        ack: (ListenTogetherAck<Unit>) -> Unit,
+    ) {
+        emit(
+            "listen:kick_member",
+            roomId,
+            "KICK_MEMBER",
+            mapOf("targetUserId" to targetUserId),
+            Unit::class.java,
+            ack,
+        )
+    }
+
+    fun emitTransferHost(
+        roomId: String,
+        targetUserId: String,
+        ack: (ListenTogetherAck<ListenTogetherRoomAckData>) -> Unit,
+    ) {
+        emit(
+            "listen:transfer_host",
+            roomId,
+            "TRANSFER_HOST",
+            mapOf("targetUserId" to targetUserId),
+            ListenTogetherRoomAckData::class.java,
+            ack,
+        )
+    }
+
     fun emitQueueEvent(
         roomId: String,
         kind: String,

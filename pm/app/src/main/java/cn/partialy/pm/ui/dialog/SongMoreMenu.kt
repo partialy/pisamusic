@@ -1,16 +1,10 @@
 package cn.partialy.pm.ui.dialog
 
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -23,7 +17,6 @@ import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.color.MaterialColors
 import kotlin.math.roundToInt
 
 data class SongMoreMenuDependencies(
@@ -41,93 +34,62 @@ data class SongMoreMenuDependencies(
 object SongMoreMenu {
 
     fun show(activity: FragmentActivity, song: SongInfo, deps: SongMoreMenuDependencies) {
-        val dialog = BottomSheetDialog(
-            activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+        val liked = deps.loveManager.isSongInLoveList(song)
+        val actions = buildList {
+            add(ActionMenuItem(R.drawable.ic_next_24, activity.getString(R.string.song_more_play_next)) {
+                deps.musicController.addPlayNext(song)
+                Toast.makeText(activity, R.string.toast_song_added_to_play_next, Toast.LENGTH_SHORT).show()
+            })
+            add(ActionMenuItem(R.drawable.ic_download_24, activity.getString(R.string.song_more_download)) {
+                deps.onDownloadClick(song)
+            })
+            add(ActionMenuItem(
+                iconRes = if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
+                text = activity.getString(
+                    if (liked) R.string.song_more_cancel_favorite else R.string.song_more_favorite,
+                ),
+                colorRes = if (liked) R.color.red else null,
+            ) {
+                val liked = deps.loveManager.toggleLikeStatus(song)
+                Toast.makeText(
+                    activity,
+                    if (liked) "已收藏" else "已取消收藏",
+                    Toast.LENGTH_SHORT,
+                ).show()
+            })
+            add(ActionMenuItem(
+                R.drawable.ic_playlist_24,
+                activity.getString(R.string.song_more_add_to_playlist),
+            ) {
+                showPickLocalPlaylistSheet(activity, song, deps.playlistCollectionManager)
+            })
+            deps.onListenTogetherClick?.let { onListenTogetherClick ->
+                add(ActionMenuItem(
+                    R.drawable.ic_listen_together_24,
+                    activity.getString(R.string.listen_together_title),
+                ) {
+                    onListenTogetherClick(song)
+                })
+            }
+            if (deps.showShare) {
+                add(ActionMenuItem(
+                    R.drawable.ic_share_24,
+                    activity.getString(R.string.song_more_share),
+                ) {
+                    Toast.makeText(
+                        activity,
+                        R.string.toast_share_coming_soon,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                })
+            }
+        }
+
+        ActionMenuBottomSheet.show(
+            activity = activity,
+            items = actions,
+            bindHeader = { root -> SongInfoHeaderBinder.bind(root, song) },
         )
-        val root = LayoutInflater.from(activity).inflate(R.layout.layout_song_more_bottom_sheet, null)
-
-        /** 第一个 sheet 关闭后再打开选歌单；不能用已 detach 的 contentView.post。 */
-        var openPickPlaylistAfterDismiss = false
-
-        SongInfoHeaderBinder.bind(root, song)
-
-        root.findViewById<ImageButton>(R.id.songMoreCloseButton).setOnClickListener { dialog.dismiss() }
-        val loveIcon = root.findViewById<ImageView>(R.id.songMoreLoveIcon)
-        val loveText = root.findViewById<TextView>(R.id.songMoreLoveText)
-
-        fun renderLoveState() {
-            val liked = deps.loveManager.isSongInLoveList(song)
-            loveIcon.setImageResource(if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24)
-            loveIcon.setColorFilter(
-                if (liked) {
-                    ContextCompat.getColor(activity, R.color.red)
-                } else {
-                    MaterialColors.getColor(loveIcon, com.google.android.material.R.attr.colorOnSurface)
-                }
-            )
-            loveText.setText(if (liked) R.string.song_more_cancel_favorite else R.string.song_more_favorite)
-        }
-        renderLoveState()
-
-        root.findViewById<LinearLayout>(R.id.songMoreRowPlayNext).setOnClickListener {
-            deps.musicController.addPlayNext(song)
-            dialog.dismiss()
-            Toast.makeText(activity, R.string.toast_song_added_to_play_next, Toast.LENGTH_SHORT).show()
-        }
-        root.findViewById<LinearLayout>(R.id.songMoreRowDownload).setOnClickListener {
-            deps.onDownloadClick(song)
-            dialog.dismiss()
-        }
-        root.findViewById<LinearLayout>(R.id.songMoreRowLove).setOnClickListener {
-            val liked = deps.loveManager.toggleLikeStatus(song)
-            renderLoveState()
-            dialog.dismiss()
-            if (liked) {
-                Toast.makeText(activity, "已收藏", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(activity, "已取消收藏", Toast.LENGTH_SHORT).show()
-            }
-        }
-        root.findViewById<LinearLayout>(R.id.songMoreRowAddPlaylist).setOnClickListener {
-            openPickPlaylistAfterDismiss = true
-            dialog.dismiss()
-        }
-        root.findViewById<LinearLayout>(R.id.songMoreRowListenTogether).apply {
-            visibility = if (deps.onListenTogetherClick != null) View.VISIBLE else View.GONE
-            setOnClickListener {
-                dialog.dismiss()
-                deps.onListenTogetherClick?.invoke(song)
-            }
-        }
-        root.findViewById<LinearLayout>(R.id.songMoreRowShare).apply {
-            visibility = if (deps.showShare) View.VISIBLE else View.GONE
-            setOnClickListener {
-                dialog.dismiss()
-                Toast.makeText(activity, R.string.toast_share_coming_soon, Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        dialog.setContentView(root)
-        dialog.setOnShowListener {
-            applyBottomSheetMaxBehavior(dialog, fraction = 0.72f)
-        }
-        dialog.setOnDismissListener {
-            if (!openPickPlaylistAfterDismiss) return@setOnDismissListener
-            openPickPlaylistAfterDismiss = false
-            val runOpenPick: () -> Unit = {
-                if (!(activity.isFinishing || activity.isDestroyed)) {
-                    showPickLocalPlaylistSheet(activity, song, deps.playlistCollectionManager)
-                }
-            }
-            val decor = activity.window?.decorView
-            if (decor != null) {
-                decor.post(runOpenPick)
-            } else {
-                Handler(Looper.getMainLooper()).postDelayed(runOpenPick, 50)
-            }
-        }
-        dialog.show()
     }
 
     private fun applyBottomSheetMaxBehavior(dialog: BottomSheetDialog, fraction: Float) {

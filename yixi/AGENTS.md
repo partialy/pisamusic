@@ -3,6 +3,7 @@
 ## 一起听模块规则补充
 
 - 一起听用于与 `pm/` Android 端进入同一房间、共享房主权威队列并同步播放状态；协议基线以 `server/src/realtime/listenTogether/` 与 `pm/app/.../listen/` 实际代码为准。
+- 一起听二维码只负责生成官网加入链接 `https://pisamusic.partialy.cn/scan?type=listen-together-join&roomId=<房间号>`；链接构造统一走 `src/listenTogether/listenTogetherShareLink.ts`，桌面端当前不处理扫码或自定义 Scheme。
 - 模块目录与职责：
   - `electron/listenTogether/`：HTTP 客户端（config 明文、创建/查询房间走账号加密请求）、Socket.IO 客户端（单例、websocket-only、ACK 10s 超时、真实 RTT）、service（连接事件与广播经 `listen-together:connection/broadcast` 推送主窗口）；HTTP 与 Socket 连接只允许在 main，renderer 不持有服务端地址与 token。
   - `electron/ipc/listenTogetherIpc.ts`：`listen-together:*` IPC，emit 命令经联合类型白名单校验。

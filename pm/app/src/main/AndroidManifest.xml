@@ -53,12 +53,23 @@
         <activity
             android:name=".activity.SplashActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.App.Splash"
             android:screenOrientation="fullSensor"
             tools:ignore="DiscouragedApi">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="scan"
+                    android:scheme="pisamusic" />
             </intent-filter>
         </activity>
 

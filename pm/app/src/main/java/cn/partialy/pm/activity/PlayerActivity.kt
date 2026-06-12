@@ -2,6 +2,7 @@ package cn.partialy.pm.activity
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.Dialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -50,6 +51,7 @@ import cn.partialy.pm.databinding.ActivityPlayerBinding
 import cn.partialy.pm.databinding.LayoutListenTogetherBottomSheetBinding
 import cn.partialy.pm.listen.ListenTogetherManager
 import cn.partialy.pm.listen.ListenTogetherMember
+import cn.partialy.pm.listen.ListenTogetherScanLink
 import cn.partialy.pm.listen.ListenTogetherState
 import cn.partialy.pm.listen.ListenTogetherUiEvent
 import cn.partialy.pm.listen.targetPosition
@@ -61,6 +63,8 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.downloadOptionsForSongType
 import cn.partialy.pm.network.auth.AccountSessionStore
+import cn.partialy.pm.ui.dialog.ListenTogetherMemberActionMenu
+import cn.partialy.pm.ui.dialog.ListenTogetherQrDialog
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
@@ -85,6 +89,8 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.imageview.ShapeableImageView
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.abs
 import kotlinx.coroutines.launch
@@ -109,6 +115,9 @@ class PlayerActivity : BaseDownloadActivity() {
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
     private var listenTogetherDialog: BottomSheetDialog? = null
     private var listenTogetherSheetBinding: LayoutListenTogetherBottomSheetBinding? = null
+    private var pendingListenTogetherRoomId: String? = null
+    private var waitingForListenTogetherLogin = false
+    private var switchListenTogetherDialog: Dialog? = null
     private lateinit var lyricsAdapter: LyricsAdapter
     private var lyricRows: List<LyricRow> = emptyList()
     private var lyricContent: LyricContent = LyricContent.noLyrics()
@@ -123,6 +132,14 @@ class PlayerActivity : BaseDownloadActivity() {
     /** 自动跟唱等代码触发的 [smoothScrollLyricsToCenter] 期间为 true，避免误显中线指示器。 */
     private var lyricsProgrammaticScrollInProgress: Boolean = false
     private val lyricSeekButtonHideRunnable = Runnable { updateLyricCenterSeekUi() }
+    private val listenTogetherScanLauncher = registerForActivityResult(ScanContract()) { result ->
+        val contents = result.contents
+        if (contents.isNullOrBlank()) {
+            Toast.makeText(this, R.string.drawer_scan_cancelled, Toast.LENGTH_SHORT).show()
+        } else {
+            handleListenTogetherScanContent(contents)
+        }
+    }
 
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -170,6 +187,7 @@ class PlayerActivity : BaseDownloadActivity() {
             setupLyricsList()
             observePlaybackState()
             observeListenTogether()
+            consumePendingListenTogetherJoin(intent)
 
             onBackPressedDispatcher.addCallback(this) {
                 if (bottomSheetBehavior.state != BottomSheetBehavior.STATE_HIDDEN) {
@@ -187,6 +205,15 @@ class PlayerActivity : BaseDownloadActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        consumePendingListenTogetherJoin(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (waitingForListenTogetherLogin && AccountSessionStore.read(this).loggedIn) {
+            waitingForListenTogetherLogin = false
+            attemptPendingListenTogetherJoin()
+        }
     }
 
     @OptIn(UnstableApi::class)
@@ -602,7 +629,8 @@ class PlayerActivity : BaseDownloadActivity() {
             lifecycleScope.launch { listenTogetherManager.joinRoom(roomId) }
         }
         sheetBinding.listenTogetherScanJoinButton.setOnClickListener {
-            Toast.makeText(this, R.string.listen_together_scan_unavailable, Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+            openListenTogetherScanner()
         }
         sheetBinding.listenTogetherCopyButton.setOnClickListener {
             val roomId = listenTogetherManager.state.value.room?.roomId ?: return@setOnClickListener
@@ -616,6 +644,14 @@ class PlayerActivity : BaseDownloadActivity() {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, text)
             }, getString(R.string.listen_together_share_room)))
+        }
+        sheetBinding.listenTogetherQrButton.setOnClickListener {
+            val room = listenTogetherManager.state.value.room ?: return@setOnClickListener
+            ListenTogetherQrDialog.show(
+                context = this,
+                roomName = room.roomName,
+                roomId = room.roomId,
+            )
         }
         sheetBinding.listenTogetherLeaveButton.setOnClickListener {
             PmMinimalDialog.show(
@@ -742,8 +778,8 @@ class PlayerActivity : BaseDownloadActivity() {
         populateListenTogetherMemberChips(sheetBinding.listenTogetherMembersView, room, state)
 
         sheetBinding.listenTogetherShareButton.isEnabled = true
-        sheetBinding.listenTogetherQrButton.isEnabled = false
-        sheetBinding.listenTogetherQrButton.alpha = 0.4f
+        sheetBinding.listenTogetherQrButton.isEnabled = true
+        sheetBinding.listenTogetherQrButton.alpha = 1f
         sheetBinding.listenTogetherMemberOperationSwitch.apply {
             setOnCheckedChangeListener(null)
             isChecked = room.memberOperation
@@ -832,6 +868,22 @@ class PlayerActivity : BaseDownloadActivity() {
                 layoutParams = lp
             }
             chip.addView(nameView)
+            if (state.isHost && !isMe) {
+                chip.isClickable = true
+                chip.isFocusable = true
+                chip.contentDescription = getString(
+                    R.string.listen_together_manage_member,
+                    member.displayName(),
+                )
+                chip.setOnClickListener {
+                    ListenTogetherMemberActionMenu.show(
+                        activity = this,
+                        member = member,
+                        onTransferHost = { listenTogetherManager.transferHost(member.userId) },
+                        onKickMember = { listenTogetherManager.kickMember(member.userId) },
+                    )
+                }
+            }
             container.addView(chip)
         }
     }
@@ -1043,6 +1095,85 @@ class PlayerActivity : BaseDownloadActivity() {
 
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
+    }
+
+    private fun openListenTogetherScanner() {
+        val options = ScanOptions().apply {
+            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            setPrompt(getString(R.string.drawer_scan_prompt))
+            setBeepEnabled(false)
+            setOrientationLocked(true)
+            setCaptureActivity(PortraitCaptureActivity::class.java)
+        }
+        listenTogetherScanLauncher.launch(options)
+        AppActivityTransitions.applyForward(this)
+    }
+
+    private fun handleListenTogetherScanContent(raw: String) {
+        when (val action = ListenTogetherScanLink.parse(raw)) {
+            is ListenTogetherScanLink.Action.JoinRoom -> queueListenTogetherJoin(action.roomId)
+            null -> Toast.makeText(
+                this,
+                R.string.listen_together_scan_invalid,
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    private fun consumePendingListenTogetherJoin(intent: Intent?) {
+        val roomId = intent?.getStringExtra(EXTRA_LISTEN_TOGETHER_ROOM_ID)?.trim().orEmpty()
+        if (roomId.isEmpty()) return
+        intent?.removeExtra(EXTRA_LISTEN_TOGETHER_ROOM_ID)
+        queueListenTogetherJoin(roomId)
+    }
+
+    private fun queueListenTogetherJoin(roomId: String) {
+        pendingListenTogetherRoomId = roomId
+        waitingForListenTogetherLogin = false
+        attemptPendingListenTogetherJoin()
+    }
+
+    private fun attemptPendingListenTogetherJoin() {
+        val targetRoomId = pendingListenTogetherRoomId ?: return
+        if (!AccountSessionStore.read(this).loggedIn) {
+            waitingForListenTogetherLogin = true
+            LoginActivity.start(this)
+            return
+        }
+
+        val currentRoomId = listenTogetherManager.state.value.room?.roomId
+        if (currentRoomId == targetRoomId) {
+            pendingListenTogetherRoomId = null
+            showListenTogetherSheet()
+            return
+        }
+        if (currentRoomId != null) {
+            showSwitchListenTogetherRoomDialog(targetRoomId)
+            return
+        }
+
+        pendingListenTogetherRoomId = null
+        lifecycleScope.launch { listenTogetherManager.joinRoom(targetRoomId) }
+    }
+
+    private fun showSwitchListenTogetherRoomDialog(targetRoomId: String) {
+        if (switchListenTogetherDialog?.isShowing == true) return
+        switchListenTogetherDialog = PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.listen_together_switch_room_title),
+            message = getString(R.string.listen_together_switch_room_confirm, targetRoomId),
+            cancelText = getString(R.string.listen_together_cancel),
+            confirmText = getString(R.string.listen_together_confirm),
+            onCancel = { pendingListenTogetherRoomId = null },
+            onConfirm = {
+                pendingListenTogetherRoomId = null
+                lifecycleScope.launch { listenTogetherManager.switchRoom(targetRoomId) }
+            },
+        ).also { dialog ->
+            dialog.setOnDismissListener {
+                if (switchListenTogetherDialog === dialog) switchListenTogetherDialog = null
+            }
+        }
     }
 
     private fun submitLyrics(content: LyricContent) {
@@ -1374,6 +1505,8 @@ class PlayerActivity : BaseDownloadActivity() {
 
     companion object {
         private const val KARAOKE_SYNC_INTERVAL_MS = 100L
+        private const val EXTRA_LISTEN_TOGETHER_ROOM_ID =
+            "cn.partialy.pm.extra.LISTEN_TOGETHER_ROOM_ID"
 
         fun createLaunchIntent(context: Context): Intent =
             Intent(context, PlayerActivity::class.java).apply {
@@ -1384,6 +1517,15 @@ class PlayerActivity : BaseDownloadActivity() {
             val intent = createLaunchIntent(context)
             if (context !is Activity) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            AppActivityTransitions.applyPlayerForward(context)
+        }
+
+        fun startForListenTogetherJoin(context: Context, roomId: String) {
+            val intent = createLaunchIntent(context).apply {
+                putExtra(EXTRA_LISTEN_TOGETHER_ROOM_ID, roomId)
+                if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
             AppActivityTransitions.applyPlayerForward(context)

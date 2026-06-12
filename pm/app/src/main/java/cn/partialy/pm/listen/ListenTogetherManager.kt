@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import cn.partialy.pm.R
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.auth.AccountSessionStore
@@ -27,6 +28,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import kotlin.math.abs
 import java.util.UUID
 
@@ -140,6 +143,43 @@ class ListenTogetherManager @Inject constructor(
             _state.value = _state.value.copy(joining = false)
             emitToast(errorMessage(it, "加入房间失败"))
         }
+    }
+
+    suspend fun switchRoom(roomId: String) {
+        val session = requireSession() ?: return
+        val cleanRoomId = roomId.trim()
+        if (!cleanRoomId.matches(Regex("\\d{4,8}"))) {
+            emitToast("请输入 4-8 位数字房间号")
+            return
+        }
+        if (_state.value.room?.roomId == cleanRoomId) return
+
+        _state.value = _state.value.copy(joining = true, currentUserId = session.user.id)
+        val targetRoom = runCatching {
+            repository.getRoom(session.token, cleanRoomId)
+        }.getOrElse {
+            _state.value = _state.value.copy(joining = false)
+            emitToast(errorMessage(it, "查询房间失败"))
+            return
+        }
+
+        val currentRoomId = _state.value.room?.roomId
+        if (currentRoomId != null && currentRoomId != cleanRoomId) {
+            val leaveAck = suspendCoroutine<ListenTogetherAck<Unit>> { continuation ->
+                socketClient.emitLeave(currentRoomId) { continuation.resume(it) }
+            }
+            if (!leaveAck.success) {
+                _state.value = _state.value.copy(joining = false)
+                handleAckFailure(
+                    leaveAck.errorMsg,
+                    leaveAck.msg.ifBlank { "退出当前房间失败，请重试" },
+                )
+                return
+            }
+            clearState()
+        }
+
+        connectAndEnter(session, targetRoom.roomId, targetRoom)
     }
 
     fun leaveRoom() {
@@ -267,6 +307,49 @@ class ListenTogetherManager @Inject constructor(
         socketClient.emitUpdateRoom(room.roomId, enabled) { handleRoomAck(it) }
     }
 
+    fun kickMember(targetUserId: String) {
+        val target = requireManageableMember(
+            targetUserId = targetUserId,
+            permissionMessage = "只有房主可以移出成员",
+            selfMessage = "不能移出自己",
+        ) ?: return
+        val roomId = _state.value.room?.roomId ?: return
+        socketClient.emitKickMember(roomId, target.userId) { ack ->
+            scope.launch {
+                if (ack.success) {
+                    emitToast(context.getString(R.string.listen_together_remove_member_success, target.displayName()))
+                } else {
+                    handleMemberManagementAckFailure(
+                        errorMsg = ack.errorMsg,
+                        message = ack.msg.ifBlank { "移出成员失败" },
+                    )
+                }
+            }
+        }
+    }
+
+    fun transferHost(targetUserId: String) {
+        val target = requireManageableMember(
+            targetUserId = targetUserId,
+            permissionMessage = "只有房主可以转让房主",
+            selfMessage = "不能把房主转让给自己",
+        ) ?: return
+        val roomId = _state.value.room?.roomId ?: return
+        socketClient.emitTransferHost(roomId, target.userId) { ack ->
+            scope.launch {
+                if (ack.success) {
+                    handleRoomAck(ack)
+                    emitToast(context.getString(R.string.listen_together_transfer_host_success, target.displayName()))
+                } else {
+                    handleMemberManagementAckFailure(
+                        errorMsg = ack.errorMsg,
+                        message = ack.msg.ifBlank { "转让房主失败" },
+                    )
+                }
+            }
+        }
+    }
+
     fun requestSeek(positionMs: Long) {
         if (!guardControl()) return
         val song = musicController.currentSong.value ?: return
@@ -281,7 +364,8 @@ class ListenTogetherManager @Inject constructor(
 
     fun shareText(): String? {
         val room = _state.value.room ?: return null
-        return "来 Pisa Music 和我一起听歌，房间号：${room.roomId}"
+        return "来 Pisa Music 和我一起听歌，房间号：${room.roomId}\n" +
+            ListenTogetherScanLink.buildWebLink(room.roomId)
     }
 
     private fun connectAndEnter(
@@ -335,6 +419,7 @@ class ListenTogetherManager @Inject constructor(
         socketClient.emitJoin(roomId) { ack ->
             scope.launch {
                 if (!ack.success) {
+                    clearState()
                     handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "加入房间失败" })
                     return@launch
                 }
@@ -1078,6 +1163,49 @@ class ListenTogetherManager @Inject constructor(
     private fun canControl(state: ListenTogetherState): Boolean {
         val room = state.room ?: return false
         return room.hostUserId == state.currentUserId || room.memberOperation
+    }
+
+    private fun requireManageableMember(
+        targetUserId: String,
+        permissionMessage: String,
+        selfMessage: String,
+    ): ListenTogetherMember? {
+        val state = _state.value
+        val room = state.room ?: return null
+        if (!state.isHost) {
+            emitToast(permissionMessage)
+            return null
+        }
+        val cleanTargetUserId = targetUserId.trim()
+        if (cleanTargetUserId.isBlank()) {
+            emitToast("目标成员不存在")
+            return null
+        }
+        if (cleanTargetUserId == state.currentUserId) {
+            emitToast(selfMessage)
+            return null
+        }
+        return room.members.firstOrNull { it.userId == cleanTargetUserId } ?: run {
+            emitToast("目标成员已不在房间")
+            null
+        }
+    }
+
+    private fun handleMemberManagementAckFailure(errorMsg: String?, message: String) {
+        when (errorMsg) {
+            "UNAUTHORIZED" -> handleAckFailure(errorMsg, message)
+            "ROOM_NOT_FOUND", "NOT_IN_ROOM" -> handleAckFailure(errorMsg, message)
+            "NO_PERMISSION" -> {
+                emitToast("当前账号已不是房主")
+                _state.value.room?.roomId?.let { emitSync(it) }
+            }
+            "TARGET_USER_NOT_FOUND" -> {
+                emitToast("目标成员已不在房间")
+                _state.value.room?.roomId?.let { emitSync(it) }
+            }
+            "HOST_CANNOT_BE_KICKED" -> emitToast("不能移出房主")
+            else -> emitToast(message.ifBlank { "成员管理操作失败" })
+        }
     }
 
     private fun handleAckFailure(errorMsg: String?, message: String) {

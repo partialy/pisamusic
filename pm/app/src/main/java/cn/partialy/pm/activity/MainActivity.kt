@@ -35,6 +35,7 @@ import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.listen.ListenTogetherScanLink
 import cn.partialy.pm.network.cookie.KugouCookieRepository
 import cn.partialy.pm.network.cookie.MusicCookieManager
 import cn.partialy.pm.network.cookie.WyCookieRepository
@@ -120,7 +121,7 @@ class MainActivity : BaseDownloadActivity() {
         if (contents.isNullOrBlank()) {
             Toast.makeText(this, R.string.drawer_scan_cancelled, Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(this, getString(R.string.drawer_scan_result, contents), Toast.LENGTH_LONG).show()
+            handleScanContent(contents)
         }
     }
 
@@ -188,6 +189,7 @@ class MainActivity : BaseDownloadActivity() {
         startService(Intent(this, MusicService::class.java))
 
         handlePendingSettingsAction(intent)
+        handlePendingScanLink(intent)
         showLocalModeNoticeIfNeeded()
     }
 
@@ -196,6 +198,7 @@ class MainActivity : BaseDownloadActivity() {
         setIntent(intent)
         applyLocalModeFromIntent(intent)
         handlePendingSettingsAction(intent)
+        handlePendingScanLink(intent)
         showLocalModeNoticeIfNeeded()
     }
 
@@ -368,6 +371,26 @@ class MainActivity : BaseDownloadActivity() {
         }
         drawerScanLauncher.launch(options)
         AppActivityTransitions.applyForward(this)
+    }
+
+    private fun handlePendingScanLink(intent: Intent?) {
+        val raw = intent?.getStringExtra(EXTRA_SCAN_LINK)?.trim().orEmpty()
+        if (raw.isEmpty()) return
+        intent?.removeExtra(EXTRA_SCAN_LINK)
+        handleScanContent(raw)
+    }
+
+    private fun handleScanContent(raw: String) {
+        when (val action = ListenTogetherScanLink.parse(raw)) {
+            is ListenTogetherScanLink.Action.JoinRoom -> {
+                PlayerActivity.startForListenTogetherJoin(this, action.roomId)
+            }
+            null -> Toast.makeText(
+                this,
+                R.string.listen_together_scan_invalid,
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
     }
 
     private fun setupDrawerThirdPartyActions(b: MainDrawerContentBinding) {
@@ -1058,6 +1081,7 @@ class MainActivity : BaseDownloadActivity() {
     companion object {
         const val EXTRA_SETTINGS_ACTION = "cn.partialy.pm.extra.SETTINGS_ACTION"
         private const val EXTRA_LOCAL_MODE_REASON = "cn.partialy.pm.extra.LOCAL_MODE_REASON"
+        private const val EXTRA_SCAN_LINK = "cn.partialy.pm.extra.SCAN_LINK"
         const val ACTION_SETTINGS_ANNOUNCEMENTS = "announcements"
         const val ACTION_SETTINGS_CHECK_UPDATE = "check_update"
         const val ACTION_SETTINGS_ABOUT = "about"
@@ -1065,11 +1089,18 @@ class MainActivity : BaseDownloadActivity() {
         private const val APP_NOTICE_PREFS = "app_notice_prefs"
         private const val KEY_READ_ANNOUNCEMENT_IDS = "read_announcement_ids"
 
-        fun start(context: Context, localModeReason: String? = null) {
+        fun start(
+            context: Context,
+            localModeReason: String? = null,
+            scanLink: String? = null,
+        ) {
             val intent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 if (!localModeReason.isNullOrBlank()) {
                     putExtra(EXTRA_LOCAL_MODE_REASON, localModeReason)
+                }
+                if (!scanLink.isNullOrBlank()) {
+                    putExtra(EXTRA_SCAN_LINK, scanLink)
                 }
             }
             context.startActivity(intent)

@@ -88,6 +88,28 @@
     </div>
 
     <div class="room-actions">
+      <n-tooltip trigger="hover" placement="top" :show-arrow="false">
+        <template #trigger>
+          <n-button
+            secondary
+            circle
+            aria-label="显示房间二维码"
+            :disabled="!inviteLink">
+            <template #icon><QrCode :size="17" /></template>
+          </n-button>
+        </template>
+        <div class="qr-tooltip">
+          <qrcode-vue
+            v-if="inviteLink"
+            :value="inviteLink"
+            :size="184"
+            level="M"
+            render-as="svg"
+            :margin="2" />
+          <strong>手机扫码加入房间</strong>
+          <span>房间号 {{ room.roomId }}</span>
+        </div>
+      </n-tooltip>
       <n-button secondary round @click="copyInvite">复制邀请文案</n-button>
       <n-button secondary round type="error" @click="confirmLeave">
         <template #icon><LogOut :size="16" /></template>
@@ -99,11 +121,13 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { NAvatar, NButton, NSwitch, NTag } from "naive-ui";
-import { Copy, Crown, LogOut, UserX } from "lucide-vue-next";
+import { NAvatar, NButton, NSwitch, NTag, NTooltip } from "naive-ui";
+import { Copy, Crown, LogOut, QrCode, UserX } from "lucide-vue-next";
+import QrcodeVue from "qrcode.vue";
 import { storeToRefs } from "pinia";
 import { useListenTogetherStore } from "@/store";
 import type { ListenTogetherMember } from "@/types/listenTogether";
+import { buildListenTogetherJoinLink } from "@/listenTogether/listenTogetherShareLink";
 import { fromListenTogetherSong } from "@/listenTogether/listenTogetherSong";
 import { defaultSongCover, getSongCover } from "@/utils/common";
 import defaultAvatar from "@/assets/defaultAdminAvatar.jpg";
@@ -131,6 +155,9 @@ const songCover = computed(() =>
     ? getSongCover(fromListenTogetherSong(room.value.song), 240)
     : defaultSongCover,
 );
+const inviteLink = computed(() =>
+  room.value ? buildListenTogetherJoinLink(room.value.roomId) : "",
+);
 
 function displayName(member: ListenTogetherMember): string {
   return member.nickname || member.username || "成员";
@@ -152,7 +179,7 @@ function copyRoomId(): void {
 function copyInvite(): void {
   if (!room.value) return;
   void copyText(
-    `来 PisaMusic 一起听「${room.value.roomName}」，房间号：${room.value.roomId}`,
+    `来 PisaMusic 一起听「${room.value.roomName}」，房间号：${room.value.roomId}\n${inviteLink.value}`,
     "邀请文案已复制",
   );
 }
@@ -435,5 +462,30 @@ function confirmTransfer(member: ListenTogetherMember): void {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+}
+
+.qr-tooltip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  color: var(--color-text-primary);
+}
+
+.qr-tooltip :deep(svg) {
+  display: block;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.qr-tooltip strong {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.qr-tooltip span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 </style>

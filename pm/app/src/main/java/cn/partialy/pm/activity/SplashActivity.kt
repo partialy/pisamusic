@@ -47,6 +47,7 @@ class SplashActivity : AppCompatActivity() {
     private var latestDownloadUrl: String = ""
     private var latestOfficialUrl: String = ""
     private var pendingAgreementAccepted = false
+    private var pendingScanLink: String? = null
     private lateinit var appUpdateInstaller: AppUpdateInstaller
 
     @Inject
@@ -56,6 +57,7 @@ class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        captureScanLink(intent)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         hideStatusBar()
 
@@ -92,6 +94,12 @@ class SplashActivity : AppCompatActivity() {
                 }
             }
         )
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        captureScanLink(intent)
     }
 
     override fun onResume() {
@@ -275,10 +283,23 @@ class SplashActivity : AppCompatActivity() {
         hasNavigated = true
         binding.splashWebView.postDelayed({
             if (!isFinishing && !isDestroyed) {
-                MainActivity.start(this@SplashActivity, localModeReason)
+                startMainActivity(localModeReason)
                 finish()
             }
         }, 1000L)
+    }
+
+    private fun captureScanLink(intent: Intent?) {
+        intent?.dataString?.trim()?.takeIf { it.isNotEmpty() }?.let { pendingScanLink = it }
+    }
+
+    private fun startMainActivity(localModeReason: String? = null) {
+        MainActivity.start(
+            context = this,
+            localModeReason = localModeReason,
+            scanLink = pendingScanLink,
+        )
+        pendingScanLink = null
     }
 
     private fun openOfficialSite() {
@@ -359,13 +380,10 @@ class SplashActivity : AppCompatActivity() {
                         }
                         if (hasNavigated) return@onSuccess
                         hasNavigated = true
-                        MainActivity.start(this@SplashActivity)
+                        startMainActivity()
                         finish()
                     }.onFailure {
-                        MainActivity.start(
-                            this@SplashActivity,
-                            it.message ?: getString(R.string.splash_update_verify_failed),
-                        )
+                        startMainActivity(it.message ?: getString(R.string.splash_update_verify_failed))
                         finish()
                     }
                 }
