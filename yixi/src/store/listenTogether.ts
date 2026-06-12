@@ -39,6 +39,7 @@ import {
 } from "@/listenTogether/listenTogetherRules";
 import { emptyQueueState, uniqueQueueItemIdForSong } from "@/listenTogether/listenTogetherQueue";
 import { createListenTogetherQueueEngine } from "@/listenTogether/listenTogetherQueueEngine";
+import { toSerializableListenTogetherCommand } from "@/listenTogether/listenTogetherIpcPayload";
 import { createListenTogetherRoomActions } from "@/listenTogether/listenTogetherRoomActions";
 import {
   canShareSong,
@@ -160,7 +161,8 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     command: ListenTogetherSocketCommand,
   ): Promise<ListenTogetherAck<T>> {
     try {
-      const result = await electronAPI.emitListenTogetherCommand<T>(command);
+      const serializableCommand = toSerializableListenTogetherCommand(command);
+      const result = await electronAPI.emitListenTogetherCommand<T>(serializableCommand);
       if (result.rttMs !== null) latencyMs.value = result.rttMs;
       return result.ack;
     } catch (error) {
