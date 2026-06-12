@@ -68,6 +68,7 @@
       </n-button>
     </div>
     <div class="right">
+      <ListenTogetherEntry />
       <n-dropdown
         :options="qualityDropdownOptions"
         trigger="click"
@@ -173,6 +174,7 @@ import { useSongDownload } from "@/composables/useSongDownload";
 import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
 import PlayerBarKaraokeLyric from "./PlayerBarKaraokeLyric.vue";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
+import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
 const player = useAudioStore();
 const playbackCommands = usePlaybackCommands();
 const lyric = useLyricStore();

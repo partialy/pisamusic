@@ -35,6 +35,7 @@
       <PlayControlBtn color="#ffffffcc" />
     </div>
     <div class="panel-right">
+      <ListenTogetherEntry variant="overlay" />
       <!-- 播放模式 -->
       <n-dropdown :options="playModeOptions" trigger="click" placement="top" @select="handleToggleMode" show-arrow
         show-on-focus>
@@ -102,6 +103,7 @@ import PlaySequence from "./PlaySequence.vue";
 import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
 import { useSongDownload } from "@/composables/useSongDownload";
+import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
 
 const collect = useCollectStore();
 const player = useAudioStore();
