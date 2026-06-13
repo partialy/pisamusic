@@ -1,11 +1,21 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import LegalDialog from "./LegalDialog";
 import type { LegalPageKind } from "../../api/content";
 
-type LegalTarget = { kind: LegalPageKind; title: string };
+type LegalTarget = {
+  kind: LegalPageKind;
+  title: string;
+  requestId: number;
+};
 
 export default function SiteFooter() {
   const [legal, setLegal] = useState<LegalTarget | null>(null);
+  const legalRequestId = useRef(0);
+
+  const openLegal = (kind: LegalPageKind, title: string) => {
+    legalRequestId.current += 1;
+    setLegal({ kind, title, requestId: legalRequestId.current });
+  };
 
   return (
     <footer className="rise-in border-t border-slate-100 bg-white py-12 select-none">
@@ -25,14 +35,14 @@ export default function SiteFooter() {
             <button
               type="button"
               className="cursor-pointer font-semibold text-slate-500 transition duration-300 hover:text-sky-600"
-              onClick={() => setLegal({ kind: "service-agreement", title: "用户协议" })}
+              onClick={() => openLegal("service-agreement", "用户协议")}
             >
               用户协议
             </button>
             <button
               type="button"
               className="cursor-pointer font-semibold text-slate-500 transition duration-300 hover:text-sky-600"
-              onClick={() => setLegal({ kind: "privacy-policy", title: "隐私政策" })}
+              onClick={() => openLegal("privacy-policy", "隐私政策")}
             >
               隐私政策
             </button>
@@ -50,6 +60,7 @@ export default function SiteFooter() {
         <LegalDialog
           kind={legal.kind}
           fallbackTitle={legal.title}
+          requestId={legal.requestId}
           onClose={() => setLegal(null)}
         />
       )}

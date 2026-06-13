@@ -7,9 +7,10 @@ export type ContentPage = {
   content: string;
 };
 
-export async function fetchContentPage(kind: LegalPageKind): Promise<ContentPage> {
+export async function fetchContentPage(kind: LegalPageKind, signal?: AbortSignal): Promise<ContentPage> {
   const res = await fetch(`/api/config/${kind}`, {
     headers: { Accept: "application/json" },
+    signal,
   });
   const body = (await res.json()) as ApiResponse<ContentPage>;
 
