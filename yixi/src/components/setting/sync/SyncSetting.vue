@@ -98,6 +98,7 @@ function openLogin() {
   window.$modal.create({
     style: { borderRadius: "12px" },
     preset: "dialog",
+    showIcon: false,
     closable: true,
     content: () => h(LoginCard),
   });
