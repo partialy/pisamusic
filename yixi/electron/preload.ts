@@ -398,6 +398,8 @@ const listenTogetherIpc = {
     on("listen-together:connection", callback),
   onListenTogetherBroadcast: (callback: (message: unknown) => void) =>
     on("listen-together:broadcast", callback),
+  onListenTogetherInvite: (callback: (invite: unknown) => void) =>
+    on("listen-together:invite", callback),
 };
 
 const debugIpc = {

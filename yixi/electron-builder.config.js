@@ -7,6 +7,12 @@ export default {
     app: "."
   },
   files: ["out/**/*","package.json","public/**/*"],
+  protocols: [
+    {
+      name: "PisaMusic 一起听邀请",
+      schemes: ["pisamusic"],
+    },
+  ],
   extraResources: [
     {
       from: "data",
@@ -17,6 +23,9 @@ export default {
   win: {
     target: ["nsis"],
     artifactName: "${productName} Setup ${version}.${ext}",
+  },
+  mac: {
+    category: "public.app-category.music",
   },
   nsis: {
     oneClick: false,

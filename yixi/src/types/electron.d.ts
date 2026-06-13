@@ -10,6 +10,7 @@ import type {
   ListenTogetherRoom,
   ListenTogetherSocketCommand,
 } from "./listenTogether";
+import type { ListenTogetherInvite } from "../listenTogether/listenTogetherShareLink";
 
 type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
 type SearchableMusicSource = "kg" | "wy" | "kw";
@@ -838,6 +839,9 @@ type ElectronIpcApi = {
   ) => () => void;
   onListenTogetherBroadcast: (
     callback: (message: ListenTogetherBroadcast) => void
+  ) => () => void;
+  onListenTogetherInvite: (
+    callback: (invite: ListenTogetherInvite) => void
   ) => () => void;
 
   getColorFromUrl: (url: string) => Promise<string>;

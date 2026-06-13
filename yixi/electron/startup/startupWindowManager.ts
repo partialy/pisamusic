@@ -130,6 +130,12 @@ export class StartupWindowManager {
     this.close();
   }
 
+  focus() {
+    if (!this.startupWindow || this.startupWindow.isDestroyed()) return;
+    this.startupWindow.show();
+    this.startupWindow.focus();
+  }
+
   private acceptAgreement() {
     getAppDatabase().setSetting(
       STARTUP_AGREEMENT_SETTING_KEY,

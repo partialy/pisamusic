@@ -331,6 +331,67 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     }
   }
 
+  /** 外部邀请切房：先验证目标房间，旧房间离开 ACK 成功后再建立新连接。 */
+  async function switchRoom(roomId: string): Promise<ListenTogetherActionResult> {
+    ensureListeners();
+    if (!onlineServiceAvailable.value) {
+      return { status: "error", message: "在线服务不可用，一起听暂不可用" };
+    }
+    if (!userStore.isLogin) return { status: "need-login" };
+    const cleanRoomId = roomId.trim();
+    if (!/^\d{4,8}$/.test(cleanRoomId)) {
+      return { status: "error", message: "请输入 4-8 位数字房间号" };
+    }
+    const currentRoomId = room.value?.roomId;
+    if (!currentRoomId) return joinRoom(cleanRoomId);
+    if (currentRoomId === cleanRoomId) return { status: "ok" };
+
+    joining.value = true;
+    currentUserId.value = userStore.userInfo.id;
+    try {
+      const targetResult = await electronAPI.getListenTogetherRoom(cleanRoomId);
+      if (!targetResult.ok) {
+        joining.value = false;
+        if (targetResult.error.errorMsg === "UNAUTHORIZED") return { status: "need-login" };
+        return {
+          status: "error",
+          message: mapApiErrorMessage(
+            targetResult.error.errorMsg,
+            targetResult.error.msg,
+            "查询目标房间失败",
+          ),
+        };
+      }
+
+      const leaveAck = await emitCommand({ type: "leave", roomId: currentRoomId });
+      if (!leaveAck.success) {
+        joining.value = false;
+        return {
+          status: "error",
+          message: getErrorMessage(
+            leaveAck.errorMsg,
+            leaveAck.msg,
+            "退出当前房间失败，请重试",
+          ),
+        };
+      }
+
+      await electronAPI.disconnectListenTogetherSocket();
+      resetState(false);
+      enterRoom(targetResult.data);
+      return { status: "ok" };
+    } catch (error) {
+      joining.value = false;
+      void reportError(error, {
+        scope: "listenTogether",
+        action: "switchRoom",
+        roomId: cleanRoomId,
+        currentRoomId,
+      });
+      return { status: "error", message: "切换一起听房间失败" };
+    }
+  }
+
   /** HTTP 拿到房间后进入：设初始状态并打开 socket；join 由 connected 事件驱动 */
   function enterRoom(initialRoom: ListenTogetherRoom): void {
     room.value = initialRoom;
@@ -436,7 +497,11 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
 
   /** 清理一起听状态：不动普通本地播放队列 */
   function clearState(): void {
-    void electronAPI.disconnectListenTogetherSocket();
+    resetState(true);
+  }
+
+  function resetState(disconnectSocket: boolean): void {
+    if (disconnectSocket) void electronAPI.disconnectListenTogetherSocket();
     stopHeartbeat();
     if (transitionResetTimer) {
       clearTimeout(transitionResetTimer);
@@ -989,6 +1054,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     loadConfig,
     createRoom,
     joinRoom,
+    switchRoom,
     leaveRoom,
     clearState,
     // 房间内动作（统一播放命令层调用）

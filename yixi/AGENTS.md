@@ -3,7 +3,9 @@
 ## 一起听模块规则补充
 
 - 一起听用于与 `pm/` Android 端进入同一房间、共享房主权威队列并同步播放状态；协议基线以 `server/src/realtime/listenTogether/` 与 `pm/app/.../listen/` 实际代码为准。
-- 一起听二维码只负责生成官网加入链接 `https://pisamusic.partialy.cn/scan?type=listen-together-join&roomId=<房间号>`；链接构造统一走 `src/listenTogether/listenTogetherShareLink.ts`，桌面端当前不处理扫码或自定义 Scheme。
+- 一起听二维码与邀请文案统一生成官网加入链接 `https://pisamusic.partialy.cn/scan?type=listen-together-join&roomId=<房间号>`；链接构造、官网链接和 `pisamusic://scan` Scheme 解析统一走 `src/listenTogether/listenTogetherShareLink.ts`，只接受 `listen-together-join` 与 4-8 位数字房间号。
+- 桌面端深链由 Electron main 申请单实例锁并处理冷启动参数、`second-instance` 和 macOS `open-url`；renderer 未就绪或首次用户协议未确认时保留最新有效邀请，主窗口初始化完成后通过只读 `listen-together:invite` 事件投递，不允许 renderer 自行读取 `process.argv`。
+- 外部邀请只由播放器栏默认 `ListenTogetherEntry` 消费：未登录时保留房间号并打开现有登录卡，登录后自动续接；同房只打开房间面板；异房必须二次确认，并按“查询目标房间 → 等待旧房间离开 ACK → 断开旧连接 → 加入目标房间”执行，离开失败不得清空当前房间。
 - 模块目录与职责：
   - `electron/listenTogether/`：HTTP 客户端（config 明文、创建/查询房间走账号加密请求）、Socket.IO 客户端（单例、websocket-only、ACK 10s 超时、真实 RTT）、service（连接事件与广播经 `listen-together:connection/broadcast` 推送主窗口）；HTTP 与 Socket 连接只允许在 main，renderer 不持有服务端地址与 token。
   - `electron/ipc/listenTogetherIpc.ts`：`listen-together:*` IPC，emit 命令经联合类型白名单校验。

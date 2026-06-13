@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
-import { dirname, join } from "path";
+import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { closeAppDatabase } from "./database";
 import { DesktopLyricManager } from "./desktopLyricManager";
@@ -20,6 +20,7 @@ import { setupDownloadIpc } from "./ipc/downloadIpc";
 import { setupShortcutIpc } from "./ipc/shortcutIpc";
 import { setupSyncIpc } from "./ipc/syncIpc";
 import { closeListenTogetherSocket } from "./listenTogether/listenTogetherService";
+import { ListenTogetherInviteCoordinator } from "./listenTogether/listenTogetherInviteCoordinator";
 import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
@@ -42,12 +43,16 @@ let mainWindowReadyToShow = false;
 let rendererReady = false;
 let startupCompleted = false;
 let appRuntimeStarted = false;
+const inviteCoordinator = new ListenTogetherInviteCoordinator({
+  getMainWindow: () => mainWindow,
+});
 
 function createMainWindow() {
   if (mainWindow) return mainWindow;
   mainWindowReadyToShow = false;
   rendererReady = false;
   startupCompleted = false;
+  inviteCoordinator.resetRenderer();
 
   mainWindow = new BrowserWindow({
     title: "PisaMusic",
@@ -95,6 +100,7 @@ function createMainWindow() {
     mainWindowReadyToShow = false;
     rendererReady = false;
     startupCompleted = false;
+    inviteCoordinator.resetRenderer();
   });
 
   mainWindow.on("close", () => {
@@ -148,6 +154,7 @@ function setupPlayerStateBridge() {
 function setupStartupBridge() {
   ipcMain.on("startup:renderer-ready", () => {
     rendererReady = true;
+    inviteCoordinator.markRendererReady();
     revealMainWindowIfReady();
     void startUpdaterOnStartup(() => mainWindow);
   });
@@ -180,6 +187,24 @@ function revealMainWindowIfReady() {
   mainWindow.focus();
 }
 
+function focusApplicationWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    return;
+  }
+  startupWindow?.focus();
+}
+
+function registerDefaultProtocolClient() {
+  if (process.defaultApp && process.argv[1]) {
+    app.setAsDefaultProtocolClient("pisamusic", process.execPath, [resolve(process.argv[1])]);
+    return;
+  }
+  app.setAsDefaultProtocolClient("pisamusic");
+}
+
 function quitApplication() {
   if (isQuitting) return;
   isQuitting = true;
@@ -189,62 +214,82 @@ function quitApplication() {
   app.quit();
 }
 
-app.whenReady().then(() => {
-  desktopLyric = new DesktopLyricManager({
-    iconPath,
-    getMainWindow: () => mainWindow,
-    onStateChanged: () => playerTray?.refresh(),
-  });
-  playerTray = new PlayerTray({
-    iconPath,
-    trayIconDir,
-    getMainWindow: () => mainWindow,
-    onToggleDesktopLyric: () => desktopLyric.toggle(),
-    isDesktopLyricVisible: () => desktopLyric.isVisible(),
-    onToggleDesktopLyricLock: () => desktopLyric.setLocked(!desktopLyric.isLocked()),
-    isDesktopLyricLocked: () => desktopLyric.isLocked(),
-  });
-  startupWindow = new StartupWindowManager({
-    htmlPath: join(currentDir, "./web/startup-window.html"),
-    iconPath,
-    onAccepted: () => void launchAppRuntime(),
-    onRejected: quitApplication,
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  registerDefaultProtocolClient();
+  inviteCoordinator.captureArguments(process.argv);
+
+  app.on("second-instance", (_event, commandLine) => {
+    inviteCoordinator.captureArguments(commandLine);
+    focusApplicationWindow();
   });
 
-  setupAppIpc();
-  setupPlayerStateBridge();
-  setupStartupBridge();
-  startupWindow.setupIpc();
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    inviteCoordinator.captureUrl(url);
+    focusApplicationWindow();
+  });
 
-  if (startupWindow.hasAcceptedAgreement()) {
-    startupWindow.open("loading");
-    void launchAppRuntime();
-  } else {
-    startupWindow.open("agreement");
-  }
-});
+  app.whenReady().then(() => {
+    desktopLyric = new DesktopLyricManager({
+      iconPath,
+      getMainWindow: () => mainWindow,
+      onStateChanged: () => playerTray?.refresh(),
+    });
+    playerTray = new PlayerTray({
+      iconPath,
+      trayIconDir,
+      getMainWindow: () => mainWindow,
+      onToggleDesktopLyric: () => desktopLyric.toggle(),
+      isDesktopLyricVisible: () => desktopLyric.isVisible(),
+      onToggleDesktopLyricLock: () => desktopLyric.setLocked(!desktopLyric.isLocked()),
+      isDesktopLyricLocked: () => desktopLyric.isLocked(),
+    });
+    startupWindow = new StartupWindowManager({
+      htmlPath: join(currentDir, "./web/startup-window.html"),
+      iconPath,
+      onAccepted: () => void launchAppRuntime(),
+      onRejected: quitApplication,
+    });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+    setupAppIpc();
+    setupPlayerStateBridge();
+    setupStartupBridge();
+    startupWindow.setupIpc();
 
-app.on("before-quit", () => {
-  isQuitting = true;
-  closeListenTogetherSocket();
-  startupWindow?.destroy();
-  desktopLyric?.destroy();
-  playerTray?.destroy();
-  closeAppDatabase();
-});
+    if (startupWindow.hasAcceptedAgreement()) {
+      startupWindow.open("loading");
+      void launchAppRuntime();
+    } else {
+      startupWindow.open("agreement");
+    }
+  });
 
-app.on("activate", () => {
-  if (mainWindow !== null || isQuitting) return;
-  if (startupWindow?.hasAcceptedAgreement()) {
-    void launchAppRuntime();
-  } else {
-    startupWindow?.open("agreement");
-  }
-});
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
+
+  app.on("before-quit", () => {
+    isQuitting = true;
+    closeListenTogetherSocket();
+    startupWindow?.destroy();
+    desktopLyric?.destroy();
+    playerTray?.destroy();
+    closeAppDatabase();
+  });
+
+  app.on("activate", () => {
+    if (mainWindow !== null || isQuitting) return;
+    if (startupWindow?.hasAcceptedAgreement()) {
+      void launchAppRuntime();
+    } else {
+      startupWindow?.open("agreement");
+    }
+  });
+}
 
 process.on("uncaughtException", (error) => {
   logger.error("main uncaught exception", {

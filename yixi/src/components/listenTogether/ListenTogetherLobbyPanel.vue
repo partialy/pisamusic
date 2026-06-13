@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from "vue";
+import { computed, h, onMounted, reactive, ref, watch } from "vue";
 import {
   NButton,
   NForm,
@@ -74,6 +74,12 @@ import {
 } from "naive-ui";
 import { useAudioStore, useListenTogetherStore } from "@/store";
 import LoginCard from "@/components/home/LoginCard.vue";
+
+const props = withDefaults(defineProps<{
+  initialRoomId?: string;
+}>(), {
+  initialRoomId: "",
+});
 
 const emit = defineEmits<{
   entered: [];
@@ -96,6 +102,17 @@ const createDisabledReason = computed(() => {
   if (audio.currentSong.source === "local") return "本地歌曲暂不支持一起听";
   return "";
 });
+
+watch(
+  () => props.initialRoomId,
+  (roomId) => {
+    const cleanRoomId = roomId.trim();
+    if (!cleanRoomId) return;
+    joinRoomId.value = cleanRoomId;
+    mode.value = "join";
+  },
+  { immediate: true },
+);
 
 onMounted(async () => {
   const config = await listenTogether.loadConfig();
