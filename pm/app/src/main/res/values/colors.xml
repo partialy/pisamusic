@@ -12,8 +12,11 @@
     <color name="KW">#ed9929</color>
     <color name="red">#F44336</color>
     <color name="download_cta_button">#2196F3</color>
-    <!-- 设置选项 Bottom Sheet（外观主题、文件命名等） -->
-    <color name="bottom_radius_options_sheet_background">#FFFFFF</color>
+    <!-- 通用弹层与操作按钮 -->
+    <color name="modal_surface_background">#FFFFFFFF</color>
+    <color name="action_secondary_background">#FFF5F5F5</color>
+    <color name="action_secondary_text">#FF4A4A4A</color>
+    <color name="action_primary_text">#FFFFFFFF</color>
     <color name="settings_option_row_divider">#F4F4F4</color>
     <!-- 设置页：浅灰底 + 卡片内分隔线 -->
     <color name="settings_page_background">#F2F3F5</color>
@@ -127,8 +130,8 @@
     <color name="listen_together_create_button_start">#38BDF8</color>
     <color name="listen_together_create_button_end">#7DD3FC</color>
     <color name="listen_together_create_button_text">#FFFFFF</color>
-    <color name="listen_together_join_button_bg">#D8DBDF</color>
-    <color name="listen_together_join_button_text">#3F4248</color>
+    <color name="listen_together_join_button_bg">@color/primary</color>
+    <color name="listen_together_join_button_text">@color/white</color>
     <color name="listen_together_stepper_bg">#FFFFFF</color>
     <color name="listen_together_field_value">#16181C</color>
     <color name="listen_together_field_label">#7C828A</color>

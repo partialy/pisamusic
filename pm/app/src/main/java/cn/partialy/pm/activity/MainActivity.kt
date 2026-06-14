@@ -3,9 +3,7 @@ package cn.partialy.pm.activity
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -56,6 +54,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.color.MaterialColors
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import dagger.hilt.android.AndroidEntryPoint
@@ -899,6 +898,18 @@ class MainActivity : BaseDownloadActivity() {
         val confirmButton = sheet.findViewById<MaterialButton>(R.id.confirmButton)
         val gotoButton = sheet.findViewById<MaterialButton>(R.id.gotoButton)
         val spacer = sheet.findViewById<Space>(R.id.buttonSpacer)
+        val sheetBackgroundColor = ContextCompat.getColor(this, R.color.modal_surface_background)
+        val primaryColor = MaterialColors.getColor(
+            this,
+            com.google.android.material.R.attr.colorPrimary,
+            ContextCompat.getColor(this, R.color.blue_selected),
+        )
+        val titleColor = MaterialColors.getColor(
+            this,
+            com.google.android.material.R.attr.colorOnSurface,
+            ContextCompat.getColor(this, R.color.pm_dialog_title),
+        )
+        val bodyColor = ContextCompat.getColor(this, R.color.pm_dialog_message)
 
         webView?.apply {
             settings.javaScriptEnabled = false
@@ -907,19 +918,24 @@ class MainActivity : BaseDownloadActivity() {
             isHorizontalScrollBarEnabled = false
             webViewClient = WebViewClient()
             webChromeClient = WebChromeClient()
-            val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-            setBackgroundColor(if (dark) Color.parseColor("#17191d") else Color.WHITE)
-            loadDataWithBaseURL(null, buildAnnouncementHtml(item, remaining), "text/html", "utf-8", null)
+            setBackgroundColor(sheetBackgroundColor)
+            loadDataWithBaseURL(
+                null,
+                buildAnnouncementHtml(
+                    item = item,
+                    remaining = remaining,
+                    backgroundColor = sheetBackgroundColor,
+                    titleColor = titleColor,
+                    bodyColor = bodyColor,
+                    primaryColor = primaryColor,
+                ),
+                "text/html",
+                "utf-8",
+                null,
+            )
         }
 
         confirmButton?.text = positiveText
-        if ((resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES) {
-            confirmButton?.setTextColor(Color.WHITE)
-            gotoButton?.setTextColor(Color.WHITE)
-            gotoButton?.strokeColor = ColorStateList.valueOf(Color.parseColor("#4b5563"))
-            sheet.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                ?.setBackgroundColor(Color.parseColor("#17191d"))
-        }
         confirmButton?.setOnClickListener {
             if (!sheet.isShowing) return@setOnClickListener
             cont.resume(true)
@@ -955,15 +971,32 @@ class MainActivity : BaseDownloadActivity() {
         sheet.show()
     }
 
-    private fun buildAnnouncementHtml(item: AnnouncementItem, remaining: Int): String {
+    private fun buildAnnouncementHtml(
+        item: AnnouncementItem,
+        remaining: Int,
+        backgroundColor: Int,
+        titleColor: Int,
+        bodyColor: Int,
+        primaryColor: Int,
+    ): String {
         fun escape(input: String): String = input
             .replace("&", "&amp;")
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\"", "&quot;")
 
+        fun cssColor(color: Int): String = String.format("#%06X", 0xFFFFFF and color)
+        fun cssColorWithAlpha(color: Int, alpha: Float): String =
+            "rgba(${android.graphics.Color.red(color)}, ${android.graphics.Color.green(color)}, " +
+                "${android.graphics.Color.blue(color)}, $alpha)"
+
         val publisher = escape(item.publisher)
         val time = escape(item.time)
+        val backgroundCss = cssColor(backgroundColor)
+        val titleCss = cssColor(titleColor)
+        val bodyCss = cssColor(bodyColor)
+        val primaryCss = cssColor(primaryColor)
+        val primaryBackgroundCss = cssColorWithAlpha(primaryColor, 0.14f)
         return """
             <!doctype html>
             <html lang="zh-CN">
@@ -972,22 +1005,12 @@ class MainActivity : BaseDownloadActivity() {
               <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
               <style>
                 :root {
-                  --bg: #ffffff;
-                  --text-main: #0f172a;
-                  --text-sub: #64748b;
-                  --title: #0f172a;
-                  --accent-bg: rgba(14, 165, 233, 0.12);
-                  --accent: #0ea5e9;
-                }
-                @media (prefers-color-scheme: dark) {
-                  :root {
-                    --bg: #17191d;
-                    --text-main: #e2e8f0;
-                    --text-sub: #94a3b8;
-                    --title: #f8fafc;
-                    --accent-bg: rgba(14, 165, 233, 0.2);
-                    --accent: #38bdf8;
-                  }
+                  --bg: $backgroundCss;
+                  --text-main: $bodyCss;
+                  --text-sub: $bodyCss;
+                  --title: $titleCss;
+                  --accent-bg: $primaryBackgroundCss;
+                  --accent: $primaryCss;
                 }
                 * { box-sizing: border-box; }
                 html, body {

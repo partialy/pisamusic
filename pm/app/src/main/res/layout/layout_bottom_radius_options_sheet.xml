@@ -52,9 +52,9 @@
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:text="@string/cancel"
-            android:textColor="?attr/colorOnSurface"
+            android:textColor="@color/action_secondary_text"
             android:textStyle="bold"
-            app:backgroundTint="?attr/colorButtonNormal"
+            app:backgroundTint="@color/action_secondary_background"
             app:cornerRadius="25dp" />
 
         <com.google.android.material.button.MaterialButton
@@ -65,7 +65,7 @@
             android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:text="@string/dialog_ok"
-            android:textColor="?attr/colorOnPrimary"
+            android:textColor="@color/action_primary_text"
             android:textStyle="bold"
             app:backgroundTint="?attr/colorPrimary"
             app:cornerRadius="25dp" />

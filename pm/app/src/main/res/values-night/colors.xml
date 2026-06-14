@@ -77,7 +77,11 @@
 
     <color name="download_cta_button">#2196F3</color>
 
-    <color name="bottom_radius_options_sheet_background">#2A2D34</color>
+    <!-- 通用弹层与操作按钮 -->
+    <color name="modal_surface_background">#FF2A2D34</color>
+    <color name="action_secondary_background">#FF5A595B</color>
+    <color name="action_secondary_text">#FFFFFFFF</color>
+    <color name="action_primary_text">#FFFFFFFF</color>
     <color name="settings_option_row_divider">#383D46</color>
 
     <!-- 导入登录表单（与 include_playlist_import_kg_login 一致） -->
@@ -88,13 +92,13 @@
     <color name="playlist_import_input_divider">#3D424C</color>
     <color name="playlist_import_qr_overlay">#E617191D</color>
     <color name="playlist_import_qr_success">#81C784</color>
-    <color name="pm_dialog_background">#17191D</color>
-    <color name="pm_dialog_stroke">#0AFFFFFF</color>
-    <color name="pm_dialog_title">#FFFFFFFF</color>
-    <color name="pm_dialog_message">#66FFFFFF</color>
-    <color name="pm_dialog_cancel">#66FFFFFF</color>
+    <color name="pm_dialog_background">#2A2D34</color>
+    <color name="pm_dialog_stroke">#3D424C</color>
+    <color name="pm_dialog_title">#F4F6FA</color>
+    <color name="pm_dialog_message">#A0A8B4</color>
+    <color name="pm_dialog_cancel">#A0A8B4</color>
     <color name="pm_dialog_confirm">#38BDF8</color>
-    <color name="pm_dialog_divider">#10FFFFFF</color>
+    <color name="pm_dialog_divider">#3D424C</color>
 
     <!-- 一起听 创建房间面板 -->
     <color name="listen_together_card_bg">#22252C</color>
