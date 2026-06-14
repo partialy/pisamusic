@@ -200,16 +200,17 @@ class AccountProfileActivity : BaseActivity() {
             com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
         )
         val root = layoutInflater.inflate(
-            R.layout.layout_settings_option_picker_bottom_sheet,
+            R.layout.layout_bottom_radius_options_sheet,
             null,
             false,
         ) as ViewGroup
-        root.findViewById<TextView>(R.id.settingsOptionPickerTitle).text =
+        root.findViewById<TextView>(R.id.bottomRadiusOptionsSheetTitle).text =
             getString(R.string.account_profile_avatar_picker_title)
-        val container = root.findViewById<LinearLayout>(R.id.settingsOptionsContainer)
-        root.findViewById<View>(R.id.settingsOptionPickerCancel).setOnClickListener {
+        val container = root.findViewById<LinearLayout>(R.id.bottomRadiusOptionsSheetContainer)
+        root.findViewById<View>(R.id.bottomRadiusOptionsSheetCancel).setOnClickListener {
             dialog.dismiss()
         }
+        root.findViewById<View>(R.id.bottomRadiusOptionsSheetConfirm).visibility = View.GONE
 
         val options = buildAvatarOptions()
         options.forEachIndexed { index, opt ->

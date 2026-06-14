@@ -1,19 +1,10 @@
 package cn.partialy.pm.ui.dialog
 
 import android.content.Context
-import android.graphics.Color
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import cn.partialy.pm.R
+import cn.partialy.pm.databinding.LayoutBottomRadiusOptionsSheetBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.color.MaterialColors
 import kotlin.coroutines.resume
 import kotlin.math.roundToInt
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -35,66 +26,24 @@ suspend fun showSettingsOptionPicker(
             context,
             com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
         )
-        val root = LayoutInflater.from(context).inflate(
-            R.layout.layout_settings_option_picker_bottom_sheet,
-            null,
-        )
-        root.findViewById<TextView>(R.id.settingsOptionPickerTitle).text = title
-        val container = root.findViewById<LinearLayout>(R.id.settingsOptionsContainer)
-        val labelNormal = MaterialColors.getColor(
-            root,
-            com.google.android.material.R.attr.colorOnSurface,
-            Color.BLACK,
+        val binding = LayoutBottomRadiusOptionsSheetBinding.inflate(dialog.layoutInflater)
+        binding.bottomRadiusOptionsSheetTitle.text = title
+        val selection = OptionPickerRows.bind(
+            context = context,
+            container = binding.bottomRadiusOptionsSheetContainer,
+            labels = options.map { it.label },
+            selectedIndex = selectedIndex,
         )
 
-        var selected = selectedIndex.coerceIn(options.indices)
-        val cards = mutableListOf<MaterialCardView>()
-        val checks = mutableListOf<ImageView>()
-        val labels = mutableListOf<TextView>()
-
-        fun applySelection(index: Int) {
-            selected = index.coerceIn(options.indices)
-            cards.forEachIndexed { i, card ->
-                val checked = i == selected
-                card.strokeWidth = 0
-                card.cardElevation = 0f
-                labels[i].setTextColor(labelNormal)
-                checks.getOrNull(i)?.visibility = if (checked) View.VISIBLE else View.GONE
-            }
+        binding.bottomRadiusOptionsSheetCancel.setOnClickListener {
+            dialog.dismiss()
         }
-
-        options.forEachIndexed { index, opt ->
-            val card = LayoutInflater.from(context).inflate(
-                R.layout.item_settings_option_sheet_row,
-                container,
-                false,
-            ) as MaterialCardView
-            val label = card.findViewById<TextView>(R.id.optionLabel)
-            label.text = opt.label
-            val check = card.findViewById<ImageView>(R.id.optionCheck)
-            cards.add(card)
-            checks.add(check)
-            labels.add(label)
-
-            card.setOnClickListener {
-                applySelection(index)
-                if (cont.isActive) cont.resume(options[selected])
-                dialog.dismiss()
-            }
-
-            card.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            )
-            container.addView(card)
-        }
-        applySelection(selected)
-
-        root.findViewById<View>(R.id.settingsOptionPickerCancel).setOnClickListener {
+        binding.bottomRadiusOptionsSheetConfirm.setOnClickListener {
+            if (cont.isActive) cont.resume(options[selection.selectedIndex])
             dialog.dismiss()
         }
 
-        dialog.setContentView(root)
+        dialog.setContentView(binding.root)
         dialog.setOnShowListener {
             val bottomSheet = dialog.findViewById<FrameLayout>(
                 com.google.android.material.R.id.design_bottom_sheet,

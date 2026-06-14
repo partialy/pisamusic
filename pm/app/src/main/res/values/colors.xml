@@ -11,13 +11,10 @@
     <color name="QQ">#22d66e</color>
     <color name="KW">#ed9929</color>
     <color name="red">#F44336</color>
-    <color name="download_quality_selected_stroke">#2196F3</color>
     <color name="download_cta_button">#2196F3</color>
     <!-- 设置选项 Bottom Sheet（外观主题、文件命名等） -->
-    <color name="settings_option_picker_sheet_background">#FFFFFF</color>
-    <color name="settings_option_row_bg_normal">#EDEDED</color>
+    <color name="bottom_radius_options_sheet_background">#FFFFFF</color>
     <color name="settings_option_row_divider">#F4F4F4</color>
-    <color name="settings_option_cancel_divider">#f2f3f5</color>
     <!-- 设置页：浅灰底 + 卡片内分隔线 -->
     <color name="settings_page_background">#F2F3F5</color>
     <color name="settings_card_inset_divider">#EEEEEE</color>

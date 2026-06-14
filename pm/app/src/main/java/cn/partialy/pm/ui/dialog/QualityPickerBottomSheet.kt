@@ -1,23 +1,19 @@
 package cn.partialy.pm.ui.dialog
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.Rect
 import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.core.widget.NestedScrollView
 import cn.partialy.pm.R
+import cn.partialy.pm.databinding.LayoutBottomRadiusOptionsSheetBinding
 import cn.partialy.pm.model.DownloadQualityOption
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.toPlaybackQualityKey
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
 import kotlin.coroutines.resume
 import kotlin.math.roundToInt
@@ -39,72 +35,32 @@ suspend fun showDownloadQualityPicker(
             context,
             com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
         )
-        val root = LayoutInflater.from(context).inflate(
-            R.layout.layout_quality_picker_bottom_sheet,
-            null,
-        )
-        SongInfoHeaderBinder.bind(
-            root = root,
-            song = song,
-            fallbackTitle = title ?: context.getString(R.string.download_current_song),
-            fallbackSubtitle = songSubtitle,
-        )
-        val container = root.findViewById<LinearLayout>(R.id.qualityOptionsContainer)
-        val labelNormal = MaterialColors.getColor(
-            root,
-            com.google.android.material.R.attr.colorOnSurface,
-            Color.BLACK,
-        )
-        var selectedIndex = options.indexOfFirst {
+        val binding = LayoutBottomRadiusOptionsSheetBinding.inflate(dialog.layoutInflater)
+        binding.bottomRadiusOptionsSheetTitle.text =
+            title ?: context.getString(R.string.playback_quality)
+        val initialIndex = options.indexOfFirst {
             it.choice.toPlaybackQualityKey() == selectedQualityKey
         }.takeIf { it >= 0 } ?: 0
-        val cards = mutableListOf<MaterialCardView>()
-        val checks = mutableListOf<ImageView>()
-        val labels = mutableListOf<TextView>()
-
-        fun applySelection(index: Int) {
-            selectedIndex = index.coerceIn(options.indices)
-            cards.forEachIndexed { i, card ->
-                val checked = i == selectedIndex
-                card.strokeWidth = 0
-                card.cardElevation = 0f
-                labels[i].setTextColor(labelNormal)
-                checks.getOrNull(i)?.visibility = if (checked) View.VISIBLE else View.GONE
-            }
-        }
-
+        val selection = OptionPickerRows.bind(
+            context = context,
+            container = binding.bottomRadiusOptionsSheetContainer,
+            labels = options.map { it.label },
+            selectedIndex = initialIndex,
+        )
         var confirmed = false
-        options.forEachIndexed { index, opt ->
-            val card = LayoutInflater.from(context).inflate(
-                R.layout.item_settings_option_sheet_row,
-                container,
-                false,
-            ) as MaterialCardView
-            val label = card.findViewById<TextView>(R.id.optionLabel)
-            label.text = opt.label
-            val check = card.findViewById<ImageView>(R.id.optionCheck)
-            cards.add(card)
-            checks.add(check)
-            labels.add(label)
-            card.setOnClickListener {
-                applySelection(index)
-                confirmed = true
-                if (cont.isActive) cont.resume(options[selectedIndex])
-                dialog.dismiss()
-            }
-            card.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            )
-            container.addView(card)
-        }
-        applySelection(selectedIndex)
-
-        root.findViewById<View>(R.id.qualityPickerCancel).setOnClickListener {
+        binding.bottomRadiusOptionsSheetCancel.setOnClickListener {
             dialog.dismiss()
         }
+        binding.bottomRadiusOptionsSheetConfirm.apply {
+            text = confirmText ?: context.getString(R.string.dialog_ok)
+            setOnClickListener {
+                confirmed = true
+                if (cont.isActive) cont.resume(options[selection.selectedIndex])
+                dialog.dismiss()
+            }
+        }
 
-        dialog.setContentView(root)
+        dialog.setContentView(binding.root)
         dialog.setOnShowListener {
             val bottomSheet = dialog.findViewById<FrameLayout>(
                 com.google.android.material.R.id.design_bottom_sheet,
@@ -150,49 +106,20 @@ suspend fun showDownloadQualityConfirmDialog(
         val optionsScroll = content.findViewById<NestedScrollView>(
             R.id.downloadQualityOptionsScroll,
         )
-        val labelNormal = MaterialColors.getColor(
-            content,
-            com.google.android.material.R.attr.colorOnSurface,
-            Color.BLACK,
-        )
-        var selectedIndex = options.indexOfFirst {
+        val initialIndex = options.indexOfFirst {
             it.choice.toPlaybackQualityKey() == selectedQualityKey
         }.takeIf { it >= 0 } ?: 0
-        val cards = mutableListOf<MaterialCardView>()
-        val checks = mutableListOf<ImageView>()
-        val labels = mutableListOf<TextView>()
-
-        fun applySelection(index: Int) {
-            selectedIndex = index.coerceIn(options.indices)
-            cards.forEachIndexed { i, card ->
-                val checked = i == selectedIndex
-                card.strokeWidth = 0
-                card.cardElevation = 0f
-                labels[i].setTextColor(labelNormal)
-                checks.getOrNull(i)?.visibility = if (checked) View.VISIBLE else View.GONE
-            }
-        }
-
-        options.forEachIndexed { index, opt ->
-            val card = LayoutInflater.from(context).inflate(
-                R.layout.item_settings_option_sheet_row,
-                container,
-                false,
-            ) as MaterialCardView
-            val label = card.findViewById<TextView>(R.id.optionLabel)
-            label.text = opt.label
-            val check = card.findViewById<ImageView>(R.id.optionCheck)
-            cards.add(card)
-            checks.add(check)
-            labels.add(label)
-            card.setOnClickListener { applySelection(index) }
-            card.layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            )
-            container.addView(card)
-        }
-        applySelection(selectedIndex)
+        val selection = OptionPickerRows.bind(
+            context = context,
+            container = container,
+            labels = options.map { it.label },
+            selectedIndex = initialIndex,
+        )
+        val primaryColor = MaterialColors.getColor(
+            content,
+            com.google.android.material.R.attr.colorPrimary,
+            0,
+        )
 
         var confirmed = false
         val dialog = PmSlotDialog.Builder(context)
@@ -200,10 +127,11 @@ suspend fun showDownloadQualityConfirmDialog(
             .setCancelButton(context.getString(R.string.cancel))
             .setConfirmButton(
                 text = context.getString(R.string.dialog_ok),
+                textColor = primaryColor,
                 dismissOnConfirm = false,
             ) { slotDialog ->
                 confirmed = true
-                if (cont.isActive) cont.resume(options[selectedIndex])
+                if (cont.isActive) cont.resume(options[selection.selectedIndex])
                 slotDialog.dismiss()
             }
             .show()
