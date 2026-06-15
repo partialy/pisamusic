@@ -2,7 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-const DB_PATH = path.resolve(process.cwd(), "data/pm.db");
+function getDbPath(): string {
+  const configuredPath = String(process.env.PISA_APP_DB_PATH ?? "").trim();
+  return path.resolve(configuredPath || path.join(process.cwd(), "data/pm.db"));
+}
 
 const CREATE_SQL = `
 CREATE TABLE IF NOT EXISTS device_info (
@@ -455,9 +458,10 @@ let singleton: DatabaseSync | null = null;
 
 export function getAppDb(): DatabaseSync {
   if (singleton) return singleton;
-  const dir = path.dirname(DB_PATH);
+  const dbPath = getDbPath();
+  const dir = path.dirname(dbPath);
   fs.mkdirSync(dir, { recursive: true });
-  const db = new DatabaseSync(DB_PATH);
+  const db = new DatabaseSync(dbPath);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
   initSchema(db);

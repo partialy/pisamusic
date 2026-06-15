@@ -17,6 +17,7 @@ import type {
   DesktopUpdateAssetInfo,
   DynamicConfigItem,
   DynamicConfigPayload,
+  FileRecordInfo,
   FileRecordListResponse,
   FeedbackStatus,
   DeviceFilter,
@@ -374,14 +375,15 @@ export async function deleteReleasePackage(historyId: string): Promise<void> {
   }
 }
 
-export async function softDeleteUpdateHistory(historyId: string): Promise<void> {
+export async function deleteUpdateHistory(historyId: string): Promise<{ id: string; deletedFiles: FileRecordInfo[] }> {
   const res = await fetchWithAuth(`/api/admin/update-history/${encodeURIComponent(historyId)}`, {
     method: "DELETE",
   });
-  const body = await parseJson<{ id: string }>(res);
-  if (!res.ok || !body.success) {
+  const body = await parseJson<{ id: string; deletedFiles: FileRecordInfo[] }>(res);
+  if (!res.ok || !body.success || body.data == null) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
+  return body.data;
 }
 
 export async function fetchFileRecords(params: {

@@ -31,7 +31,6 @@ import {
   replacePlaintextPaths,
   saveAnnouncement,
   saveAppConfigSections,
-  softDeleteUpdateHistory,
   updatePublishedUpdate,
   upsertAdminUser,
 } from "../db/configStore";
@@ -48,7 +47,7 @@ import {
   validateDesktopUpdateAsset,
   validateReleaseFile,
 } from "../services/qiniuReleaseFiles";
-import { deleteManagedFileRecord, deleteManagedReleaseFileForHistory } from "../services/fileManagementService";
+import { deleteManagedFileRecord, deleteManagedReleaseFileForHistory, deleteManagedUpdateHistory } from "../services/fileManagementService";
 import { fail, ok } from "../types/response";
 
 export const adminRouter = Router();
@@ -845,19 +844,16 @@ adminRouter.delete("/update-history/:id/release-file", async (req, res) => {
   }
 });
 
-adminRouter.delete("/update-history/:id", (req, res) => {
+adminRouter.delete("/update-history/:id", async (req, res) => {
   try {
     const historyId = String(req.params.id ?? "").trim();
     if (!historyId) return res.status(400).json(fail("发布记录 ID 不能为空", 400));
-    const result = softDeleteUpdateHistory(historyId);
-    if (result.ok) return res.json(ok({ id: historyId }, "版本记录已删除"));
-    if (result.reason === "NOT_FOUND") {
-      return res.status(404).json(fail("发布记录不存在", 404));
-    }
-    return res.status(400).json(fail("当前最新版本不可删除", 400));
+    const result = await deleteManagedUpdateHistory(historyId);
+    return res.json(ok(result, "版本记录及相关文件已删除"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "删除版本记录失败";
-    return res.status(500).json(fail(message, 500));
+    const status = message === "发布记录不存在" ? 404 : message === "当前最新版本不可删除" ? 400 : 500;
+    return res.status(status).json(fail(message, status));
   }
 });
 

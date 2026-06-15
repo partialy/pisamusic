@@ -6,6 +6,7 @@
 - 旧 `release_files` / `desktop_update_assets` 表已废弃，启动时会删除；发布安装包、PC 自动更新 `latest.yml` / EXE / blockmap 都直接读写 `file_records`，不要恢复旧表或旧表迁移逻辑。
 - PC 发布页的“上传安装包到七牛云”和“PC 自动更新文件 / 安装包 EXE”必须联动复用同一七牛对象；上传任意一处的 EXE 后，需要自动同步另一处的下载地址、文件大小、`releaseFileId` 或 installer 资产状态。
 - 文件管理允许删除被历史、当前 Android / PC 发布版本或 active PC 自动更新引用的七牛对象；删除时必须调用七牛删除对象，把本地记录标记为 `deleted`，同步清理 `update_history.release_file_id`、`file_records.referenced_by`、当前发布下载地址和 active 自动更新引用，不要物理删除数据库记录。
+- 发布历史的完整删除仅允许非当前版本：`update_history` 使用 `deleted_at` 逻辑删除，Android 同步删除关联安装包，PC 同步删除该版本安装包、`latest.yml` 和 blockmap；七牛对象实际删除，`file_records` 保留并标记为 `deleted`。当前 Android / PC 版本必须先发布替代版本后才能删除。
 
 本文件用于指导 Codex / Claude Code 在 `pisamusic` 根工作区内协作。子目录如果有自己的 `AGENTS.md`，以更近的文件为准。
 
@@ -71,7 +72,7 @@
 - 动态配置模块：公开读取接口为 `GET /api/config/get?id=xxx`，返回 `{ id, type, content }`；后台管理接口挂载在 `GET/POST/PUT/DELETE /api/admin/dynamic-configs`。
 - 动态配置类型：固定为 `html`、`string`、`number`、`url`，数据存储在 SQLite `dynamic_configs` 表；新增实现优先放独立 store / route / admin 组件文件，不要继续堆进通用大文件。
 - 实时通信模块：`server/src/realtime/` 使用 Socket.IO 绑定 HTTP server；一起听接口挂载 `/api/listen-together`，房间状态由 `server/src/db/listenTogetherStore.ts` 内存维护，人数上限读取动态配置 `listen_together_max_people`，仅 `/api/listen-together/config` 默认明文开放。创建房间接口默认不覆盖用户已有房间，客户端确认替换时才传 `replaceExisting=true` 由服务端先退出旧房间再创建。一起听房间队列不存服务端，`listen:queue` / `QUEUE_EVENT` 只做房间成员校验和转发。
-- 一起听二维码统一编码 `https://pisamusic.partialy.cn/scan?type=listen-together-join&roomId=<房间号>`；Android App 与 `yixi/` 桌面端同时识别 `pisamusic://scan` Scheme。官网 `server/frontend/public/scan/` 负责浏览器唤起与下载降级，`public/download/` 负责读取当前 Android 发布信息并跳转安装包。
+- 一起听二维码统一编码 `https://pisamusic.partialy.cn/scan?type=listen-together-join&roomId=<房间号>`；Android App 与 `yixi/` 桌面端同时识别 `pisamusic://scan` Scheme。官网 `server/frontend/public/scan/` 负责浏览器唤起、复制房间号及安装后继续加入引导，`public/download/` 只按 Windows / Android 设备类型跳转官网并推荐对应下载项，不直接下载安装包；有效邀请参数需要贯穿下载页并可返回 `/scan/` 继续加入。
 - 一起听歌曲身份只允许 `listen:change_song` / `CHANGE_SONG` 改写；`PLAY`、`PAUSE`、`SEEK`、`ENDED` 必须携带当前 `songRef { source, id }`，服务端发现与 `room.song` 不一致时返回 `applied=false` 且不得修改版本、进度或广播。切歌使用 `transitionId` 关联成员命令、房主执行、广播与 ACK，`CHANGE_SONG` 同时携带 `queueItemId` 作为房间队列当前指针的权威标识。
 - 用户管理模块：后台接口挂载在 `/api/admin/users*`，支持用户分页查询、资料编辑、详情统计和硬删除；详情统计读取 `user_sync_items` 中未删除的 `favorite_song`、`favorite_playlist`、`user_playlist`，详情表格数据通过 `/api/admin/users/:id/library` 按分类分页加载，默认每页 30 条；不要暴露 `password_hash`，不要把用户管理逻辑继续堆进通用 admin 大文件。
 - 反馈管理模块：客户端继续通过 `POST /api/feedback` 提交反馈，记录保存在 SQLite 的 `feedback` / `feedback_images` 表，图片位于 `server/uploads/feedback/` 并通过 `/uploads/feedback/*` 访问；后台鉴权接口挂载在 `GET /api/admin/feedback`、`GET /api/admin/feedback/:id` 和 `PATCH /api/admin/feedback/:id/status`，支持类型、状态、关键词筛选及 `pending` / `processed` 两态处理流转。反馈持久化和后台查询统一放在独立 feedback store，不要重新堆进通用 `configStore` 或 `admin.ts`。

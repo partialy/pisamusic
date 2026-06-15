@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "pnpm build && node --test dist/services/listenTogetherService.test.js",
+    "test:file-management": "pnpm build && node --test dist/services/fileManagementService.spec.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",

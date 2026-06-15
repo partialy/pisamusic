@@ -65,7 +65,7 @@ import {
   updateDynamicConfig,
   deleteReleasePackage,
   deleteFileRecord,
-  softDeleteUpdateHistory,
+  deleteUpdateHistory,
 } from "./api/client";
 import { clearStoredToken, getStoredToken } from "./auth/token";
 import { defaultAppConfig } from "./data/defaultAppConfig";
@@ -583,10 +583,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const handleDeleteUpdateHistory = async (item: UpdateHistoryItem) => {
     setDeletingHistoryId(item.id);
     try {
-      await softDeleteUpdateHistory(item.id);
-      await refreshRemote();
+      await deleteUpdateHistory(item.id);
+      await Promise.all([refreshRemote(), loadFiles()]);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "删除版本记录失败");
+      alert(e instanceof Error ? e.message : "删除版本及相关文件失败");
     } finally {
       setDeletingHistoryId(null);
     }

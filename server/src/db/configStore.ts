@@ -199,6 +199,11 @@ export type UpdateHistoryItem = {
   releaseFile?: ReleaseFileInfo | null;
 };
 
+export type UpdateHistoryDeletionPlan = {
+  history: UpdateHistoryItem;
+  files: FileRecordInfo[];
+};
+
 const RELEASE_PLATFORMS: ReleasePlatform[] = ["android", "desktop"];
 const DEFAULT_DESKTOP_UPDATE_FEED = "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64";
 const DEFAULT_EMAIL_SERVICE_URL = "https://gateway.partialy.cn/auth-service/api/send/email";
@@ -1283,19 +1288,20 @@ function clearCurrentReleaseFileReferences(db: DatabaseSync, fileId: string): vo
   }
 }
 
+function deleteFileRecordAndCleanupReferencesWithDb(db: DatabaseSync, id: string, now = Date.now()): FileRecordInfo {
+  const file = readFileRecordByIdWithDb(db, id);
+  if (!file) throw new Error("文件记录不存在");
+  clearHistoryFileReferences(db, id);
+  clearCurrentReleaseFileReferences(db, id);
+  db.prepare("UPDATE file_records SET status = 'deleted', referenced_by = ?, deleted_at = ? WHERE id = ?").run(serializeFileReferences([]), now, id);
+  const deleted = readFileRecordByIdWithDb(db, id);
+  if (!deleted) throw new Error("文件状态更新失败");
+  return deleted;
+}
+
 export function deleteFileRecordAndCleanupReferences(id: string): FileRecordInfo {
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const file = readFileRecordByIdWithDb(db, id);
-    if (!file) throw new Error("文件记录不存在");
-    const now = Date.now();
-    clearHistoryFileReferences(db, id);
-    clearCurrentReleaseFileReferences(db, id);
-    db.prepare("UPDATE file_records SET status = 'deleted', referenced_by = ?, deleted_at = ? WHERE id = ?").run(serializeFileReferences([]), now, id);
-    const deleted = readFileRecordByIdWithDb(db, id);
-    if (!deleted) throw new Error("文件状态更新失败");
-    return deleted;
-  });
+  return runInTransaction(db, () => deleteFileRecordAndCleanupReferencesWithDb(db, id));
 }
 
 export function readReleaseFileForHistory(historyId: string): ReleaseFileInfo | null {
@@ -1454,30 +1460,74 @@ export function updatePublishedUpdate(
   return updated;
 }
 
-/**
- * 逻辑删除版本历史条目。
- * 每个平台的"当前发布版本" = 该平台未删除历史里 created_at 最大的那条（也就是 readUpdateHistory
- * ORDER BY created_at ASC 之后该平台的最后一条），它对应 release_info / current_update 的实时引用，
- * 删除会破坏 Android 端检查更新与桌面端 feed，所以禁止。
- */
-export function softDeleteUpdateHistory(
-  historyId: string,
-): { ok: true } | { ok: false; reason: "NOT_FOUND" | "LATEST_NOT_DELETABLE" } {
+function findLatestHistoryForPlatform(items: UpdateHistoryItem[], platform: ReleasePlatform): UpdateHistoryItem | null {
+  const samePlatform = items.filter((item) => item.platform === platform);
+  return samePlatform[samePlatform.length - 1] ?? null;
+}
+
+function readFilesForHistoryDeletion(history: UpdateHistoryItem): FileRecordInfo[] {
   const db = getAppDb();
-  const all = readUpdateHistory();
-  const target = all.find((item) => item.id === historyId);
+  const ids = new Set<string>();
+  if (history.releaseFileId) ids.add(history.releaseFileId);
+
+  if (history.platform === "desktop") {
+    const rows = db
+      .prepare(
+        `SELECT id
+         FROM file_records
+         WHERE version = ?
+           AND status = 'uploaded'
+           AND asset_type IN ('latest-yml', 'installer', 'blockmap')
+           AND platform IN ('desktop', ?)`,
+      )
+      .all(history.version, DESKTOP_UPDATE_PLATFORM) as Array<{ id: string }>;
+    for (const row of rows) ids.add(row.id);
+  }
+
+  return [...ids]
+    .map((id) => readFileRecordByIdWithDb(db, id))
+    .filter((file): file is FileRecordInfo => Boolean(file && file.status === "uploaded"));
+}
+
+export function prepareUpdateHistoryDeletion(
+  historyId: string,
+): { ok: true; plan: UpdateHistoryDeletionPlan } | { ok: false; reason: "NOT_FOUND" | "LATEST_NOT_DELETABLE" } {
+  const history = readUpdateHistory();
+  const target = history.find((item) => item.id === historyId);
   if (!target) return { ok: false, reason: "NOT_FOUND" };
-  const samePlatform = all.filter((item) => item.platform === target.platform);
-  // readUpdateHistory 用 created_at ASC 排序，同平台最后一条即最新
-  const latestForPlatform = samePlatform[samePlatform.length - 1];
-  if (latestForPlatform && latestForPlatform.id === target.id) {
+  if (findLatestHistoryForPlatform(history, target.platform)?.id === target.id) {
     return { ok: false, reason: "LATEST_NOT_DELETABLE" };
   }
-  db.prepare(`UPDATE update_history SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`).run(
-    Date.now(),
-    historyId,
-  );
-  return { ok: true };
+  return {
+    ok: true,
+    plan: {
+      history: target,
+      files: readFilesForHistoryDeletion(target),
+    },
+  };
+}
+
+export function completeUpdateHistoryDeletion(historyId: string, fileIds: string[]): FileRecordInfo[] {
+  const db = getAppDb();
+  return runInTransaction(db, () => {
+    const history = readUpdateHistory();
+    const target = history.find((item) => item.id === historyId);
+    if (!target) throw new Error("发布记录不存在");
+    if (findLatestHistoryForPlatform(history, target.platform)?.id === target.id) {
+      throw new Error("当前最新版本不可删除");
+    }
+
+    const now = Date.now();
+    const deletedFiles: FileRecordInfo[] = [];
+    for (const fileId of new Set(fileIds)) {
+      const file = readFileRecordByIdWithDb(db, fileId);
+      if (!file || file.status === "deleted") continue;
+      deletedFiles.push(deleteFileRecordAndCleanupReferencesWithDb(db, fileId, now));
+    }
+    removeFileReferences(db, (ref) => ref.type === "history" && ref.id === historyId);
+    db.prepare("UPDATE update_history SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL").run(now, historyId);
+    return deletedFiles;
+  });
 }
 
 export function insertUpdateHistory(db: DatabaseSync, item: UpdateHistoryItem, createdAt = Date.now()) {
