@@ -1,13 +1,37 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 const dbPath = path.resolve(process.cwd(), "data/share-store-test.db");
 for (const suffix of ["", "-shm", "-wal"]) {
   fs.rmSync(`${dbPath}${suffix}`, { force: true });
 }
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 process.env.PISA_APP_DB_PATH = dbPath;
+
+const legacyDb = new DatabaseSync(dbPath);
+legacyDb.exec(`
+  CREATE TABLE share_records (
+    uuid                  TEXT    PRIMARY KEY,
+    type                  TEXT    NOT NULL,
+    source                TEXT    NOT NULL,
+    source_id             TEXT    NOT NULL,
+    title                 TEXT    NOT NULL,
+    description           TEXT    NOT NULL DEFAULT '',
+    cover_url             TEXT    NOT NULL DEFAULT '',
+    raw_json              TEXT    NOT NULL,
+    sharer_user_id        TEXT    NOT NULL,
+    sharer_snapshot_json  TEXT    NOT NULL DEFAULT '{}',
+    created_at            INTEGER NOT NULL,
+    updated_at            INTEGER NOT NULL,
+    access_count          INTEGER NOT NULL DEFAULT 0,
+    valid                 INTEGER NOT NULL DEFAULT 1,
+    invalidated_at        INTEGER
+  );
+`);
+legacyDb.close();
 
 const sharer = {
   userId: "user-1",

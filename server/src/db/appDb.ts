@@ -237,7 +237,6 @@ CREATE TABLE IF NOT EXISTS share_records (
 CREATE INDEX IF NOT EXISTS idx_share_records_user_created ON share_records (sharer_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_share_records_valid_created ON share_records (valid, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_share_records_type_source ON share_records (type, source, source_id);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_share_records_active_subject ON share_records (sharer_user_id, type, subject_key) WHERE valid = 1;
 
 CREATE TABLE IF NOT EXISTS users (
     id              TEXT    PRIMARY KEY,
