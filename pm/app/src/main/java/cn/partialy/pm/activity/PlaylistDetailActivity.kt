@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.ColorStateList
 import android.os.Bundle
-import android.widget.Toast
 import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
@@ -28,12 +27,13 @@ import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.toCanonicalPlaylist
+import cn.partialy.pm.ui.dialog.PlaylistActionBottomSheet
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
-import cn.partialy.pm.ui.mine.MinePlaylistMoreBottomSheet
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -124,14 +124,15 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         binding.backButton.setOnClickListener { finishAnimated() }
         binding.playlistCollectButton.setOnClickListener { togglePlaylistCollect() }
         binding.moreButton.setOnClickListener {
-            val pl = playlistCollectionManager.findKgLikeCollected(pagingPlaylistId)
-            if (pl == null) {
-                Toast.makeText(this, R.string.mine_playlist_delete_not_collected, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            MinePlaylistMoreBottomSheet.show(this, pl, playlistCollectionManager) {
-                finishAnimated()
-            }
+            val playlist = buildKgCollectedPlaylistForStorage()
+            val deleteTarget = playlistCollectionManager.findKgLikeCollected(pagingPlaylistId)
+            PlaylistActionBottomSheet.show(
+                activity = this,
+                playlist = playlist.toCanonicalPlaylist(),
+                deleteTarget = deleteTarget,
+                manager = playlistCollectionManager,
+                onDeleted = { finishAnimated() },
+            )
         }
 
         listAdapter.onHeaderUpdated = {

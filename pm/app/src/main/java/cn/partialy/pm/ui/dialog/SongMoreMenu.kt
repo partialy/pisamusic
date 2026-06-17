@@ -24,7 +24,8 @@ data class SongMoreMenuDependencies(
     val loveManager: LoveManager,
     val playlistCollectionManager: PlaylistCollectionManager,
     val onDownloadClick: (SongInfo) -> Unit,
-    val showShare: Boolean = false,
+    val showShare: Boolean = true,
+    val onShareClick: ((SongInfo) -> Unit)? = null,
     val onListenTogetherClick: ((SongInfo) -> Unit)? = null,
 )
 
@@ -76,11 +77,7 @@ object SongMoreMenu {
                     R.drawable.ic_share_24,
                     activity.getString(R.string.song_more_share),
                 ) {
-                    Toast.makeText(
-                        activity,
-                        R.string.toast_share_coming_soon,
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    deps.onShareClick?.invoke(song) ?: ShareBottomSheet.showSong(activity, song)
                 })
             }
         }

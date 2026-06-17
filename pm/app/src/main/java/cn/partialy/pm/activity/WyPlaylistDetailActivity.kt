@@ -6,7 +6,6 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -29,14 +28,15 @@ import cn.partialy.pm.databinding.ActivityPlaylistDetailBinding
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.model.toCanonicalPlaylist
 import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.network.cookie.model.toSongInfoOrNull
+import cn.partialy.pm.ui.dialog.PlaylistActionBottomSheet
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
-import cn.partialy.pm.ui.mine.MinePlaylistMoreBottomSheet
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -146,12 +146,15 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         binding.backButton.setOnClickListener { finishAnimated() }
         binding.playlistCollectButton.setOnClickListener { togglePlaylistCollect() }
         binding.moreButton.setOnClickListener {
-            val pl = playlistCollectionManager.findWyLikeCollected(pagingPlaylistId)
-            if (pl == null) {
-                Toast.makeText(this, R.string.mine_playlist_delete_not_collected, Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            MinePlaylistMoreBottomSheet.show(this, pl, playlistCollectionManager) { finishAnimated() }
+            val playlist = buildWyCollectedPlaylistForStorage()
+            val deleteTarget = playlistCollectionManager.findWyLikeCollected(pagingPlaylistId)
+            PlaylistActionBottomSheet.show(
+                activity = this,
+                playlist = playlist.toCanonicalPlaylist(),
+                deleteTarget = deleteTarget,
+                manager = playlistCollectionManager,
+                onDeleted = { finishAnimated() },
+            )
         }
 
         binding.headerBg.alpha = 0f

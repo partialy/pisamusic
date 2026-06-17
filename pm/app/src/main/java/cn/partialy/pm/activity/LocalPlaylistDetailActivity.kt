@@ -41,6 +41,8 @@ import cn.partialy.pm.databinding.ItemPlaylistDetailStatusBinding
 import cn.partialy.pm.databinding.ItemRecommendSongBinding
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.model.toCanonicalPlaylist
+import cn.partialy.pm.ui.dialog.PlaylistActionBottomSheet
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
@@ -48,7 +50,6 @@ import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
-import cn.partialy.pm.ui.mine.MinePlaylistMoreBottomSheet
 import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
@@ -133,9 +134,13 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                 Toast.makeText(this, R.string.mine_playlist_delete_failed, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            MinePlaylistMoreBottomSheet.show(this, pl, playlistCollectionManager) {
-                finishAnimated()
-            }
+            PlaylistActionBottomSheet.show(
+                activity = this,
+                playlist = pl.toCanonicalPlaylist(),
+                deleteTarget = pl,
+                manager = playlistCollectionManager,
+                onDeleted = { finishAnimated() },
+            )
         }
 
         listAdapter.onHeaderUpdated = {

@@ -316,6 +316,13 @@
     <string name="song_more_share">分享</string>
     <string name="toast_song_added_to_play_next">已添加到下一曲播放</string>
     <string name="toast_share_coming_soon">分享功能暂未开放</string>
+    <string name="share_login_required">请先登录后再分享</string>
+    <string name="share_create_failed">创建分享失败</string>
+    <string name="share_link_label">链接分享</string>
+    <string name="share_copy_link">复制分享链接</string>
+    <string name="share_link_copied">链接已复制</string>
+    <string name="share_qr_code">分享二维码</string>
+    <string name="share_playlist_fallback_desc">%1$s · %2$d 首</string>
     <string name="toast_no_current_song">暂无正在播放的歌曲</string>
     <string name="toast_download_started">开始下载</string>
     <string name="pick_local_playlist_title">请选择歌单</string>
