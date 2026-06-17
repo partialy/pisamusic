@@ -66,13 +66,21 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/shareSheetLinkLayout"
-        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/share_link_label"
+        android:textColorHint="@color/account_login_text_hint"
+        app:boxBackgroundColor="@color/account_login_field_bg"
+        app:boxCornerRadiusBottomEnd="18dp"
+        app:boxCornerRadiusBottomStart="18dp"
+        app:boxCornerRadiusTopEnd="18dp"
+        app:boxCornerRadiusTopStart="18dp"
+        app:boxStrokeColor="@color/account_text_input_stroke"
         app:endIconContentDescription="@string/share_copy_link"
         app:endIconDrawable="@drawable/ic_copy_24"
-        app:endIconMode="custom">
+        app:endIconMode="custom"
+        app:hintTextColor="@color/account_text_input_stroke">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/shareSheetLinkEditText"
@@ -84,6 +92,8 @@
             android:maxLines="1"
             android:singleLine="true"
             android:textIsSelectable="true"
+            android:textColor="@color/listen_together_field_value"
+            android:textSize="14sp"
             tools:text="https://pisamusic.partialy.cn/scan?type=music-share&amp;uuid=..." />
     </com.google.android.material.textfield.TextInputLayout>
 </LinearLayout>
