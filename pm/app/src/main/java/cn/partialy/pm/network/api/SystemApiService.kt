@@ -27,6 +27,9 @@ import cn.partialy.pm.model.SyncPushRequest
 import cn.partialy.pm.model.SyncPushResponse
 import cn.partialy.pm.listen.ListenTogetherCreateRoomRequest
 import cn.partialy.pm.listen.ListenTogetherRoomResponse
+import cn.partialy.pm.share.ShareCreateRequest
+import cn.partialy.pm.share.ShareCreateResponse
+import cn.partialy.pm.share.SharePublicResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -130,4 +133,15 @@ interface SystemApiService {
         @Header("Authorization") authorization: String,
         @Path("roomId") roomId: String,
     ): ListenTogetherRoomResponse
+
+    @POST("api/shares")
+    suspend fun createShare(
+        @Header("Authorization") authorization: String,
+        @Body body: ShareCreateRequest,
+    ): ShareCreateResponse
+
+    @GET("api/shares/public/{uuid}")
+    suspend fun getPublicShare(
+        @Path("uuid") uuid: String,
+    ): SharePublicResponse
 }
