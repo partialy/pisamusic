@@ -41,6 +41,7 @@ export type SharePublicSharer = {
 type NormalizedSharePayload = {
   source: string;
   sourceId: string;
+  subjectKey: string;
   title: string;
   description: string;
   coverUrl: string;
@@ -53,6 +54,7 @@ type ShareRow = {
   type: ShareType;
   source: string;
   source_id: string;
+  subject_key: string;
   title: string;
   description: string;
   cover_url: string;
@@ -215,6 +217,7 @@ export function normalizeSharePayload(type: ShareType, rawJson: unknown): Normal
   return {
     source,
     sourceId,
+    subjectKey: `${source}:${sourceId}`,
     title,
     description,
     coverUrl,
@@ -226,19 +229,69 @@ export function normalizeSharePayload(type: ShareType, rawJson: unknown): Normal
 export function createShareRecord(input: ShareCreateInput, sharer: ShareSharer): ShareRecord {
   const normalized = normalizeSharePayload(input.type, input.rawJson);
   const now = Date.now();
-  const uuid = randomUUID();
   const sharerSnapshot = buildSharerSnapshot(sharer.user);
   const db = getAppDb();
+  return runInTransaction(db, () => {
+    const existing = db
+      .prepare(
+        `SELECT *
+         FROM share_records
+         WHERE sharer_user_id = ?
+           AND type = ?
+           AND subject_key = ?
+           AND valid = 1
+         LIMIT 1`,
+      )
+      .get(sharer.userId, input.type, normalized.subjectKey) as ShareRow | undefined;
+    if (existing) {
+      const sharerSnapshotJson = JSON.stringify(sharerSnapshot);
+      db.prepare(
+        `UPDATE share_records
+         SET source = ?,
+             source_id = ?,
+             title = ?,
+             description = ?,
+             cover_url = ?,
+             raw_json = ?,
+             sharer_snapshot_json = ?,
+             updated_at = ?
+         WHERE uuid = ?`,
+      ).run(
+        normalized.source,
+        normalized.sourceId,
+        normalized.title,
+        normalized.description,
+        normalized.coverUrl,
+        normalized.rawJsonText,
+        sharerSnapshotJson,
+        now,
+        existing.uuid,
+      );
+      return mapRow({
+        ...existing,
+        source: normalized.source,
+        source_id: normalized.sourceId,
+        title: normalized.title,
+        description: normalized.description,
+        cover_url: normalized.coverUrl,
+        raw_json: normalized.rawJsonText,
+        sharer_snapshot_json: sharerSnapshotJson,
+        updated_at: now,
+      });
+    }
+
+    const uuid = randomUUID();
   db.prepare(
     `INSERT INTO share_records (
-      uuid, type, source, source_id, title, description, cover_url, raw_json,
+      uuid, type, source, source_id, subject_key, title, description, cover_url, raw_json,
       sharer_user_id, sharer_snapshot_json, created_at, updated_at, access_count, valid, invalidated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NULL)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NULL)`,
   ).run(
     uuid,
     input.type,
     normalized.source,
     normalized.sourceId,
+    normalized.subjectKey,
     normalized.title,
     normalized.description,
     normalized.coverUrl,
@@ -251,6 +304,7 @@ export function createShareRecord(input: ShareCreateInput, sharer: ShareSharer):
   const created = readPublicShare(uuid);
   if (!created) throw new Error("分享记录创建失败");
   return created;
+  });
 }
 
 export function readPublicShare(uuid: string): ShareRecord | null {

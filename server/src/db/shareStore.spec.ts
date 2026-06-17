@@ -23,6 +23,20 @@ const sharer = {
   },
 };
 
+const otherSharer = {
+  userId: "user-2",
+  user: {
+    id: "user-2",
+    email: "other-share@example.com",
+    username: "other-share-user",
+    avatar: "/static/account-avatars/default.jpg",
+    avatarKey: "default",
+    avatarUrl: "/static/account-avatars/default.jpg",
+    createdAt: 1,
+    lastLoginAt: null,
+  },
+};
+
 const song = {
   id: "song-1",
   source: "kg",
@@ -96,4 +110,40 @@ test("非法分享数据会被拒绝", async () => {
     () => store.createShareRecord({ type: "song", rawJson: { ...song, extra: "x".repeat(70 * 1024) } }, sharer),
     /分享数据字段过长|不能超过64KB/,
   );
+});
+test("reuses active share uuid for same user and same subject", async () => {
+  const store = await import("./shareStore.js");
+  const firstSongShare = store.createShareRecord({ type: "song", rawJson: song }, sharer);
+  const secondSongShare = store.createShareRecord(
+    { type: "song", rawJson: { ...song, name: "updated song title" } },
+    sharer,
+  );
+  assert.equal(secondSongShare.uuid, firstSongShare.uuid);
+  assert.equal(secondSongShare.title, "updated song title");
+});
+test("keeps separate share records for different sharers", async () => {
+  const store = await import("./shareStore.js");
+  const first = store.createShareRecord({ type: "song", rawJson: song }, sharer);
+  const second = store.createShareRecord({ type: "song", rawJson: song }, otherSharer);
+  assert.notEqual(second.uuid, first.uuid);
+  assert.equal(first.sharer.id, sharer.userId);
+  assert.equal(second.sharer.id, otherSharer.userId);
+});
+
+test("creates a new active record after previous share is invalidated", async () => {
+  const store = await import("./shareStore.js");
+  const { getAppDb } = await import("./appDb.js");
+  const first = store.createShareRecord(
+    { type: "song", rawJson: { ...song, id: "song-invalidated" } },
+    sharer,
+  );
+  getAppDb()
+    .prepare("UPDATE share_records SET valid = 0, invalidated_at = ? WHERE uuid = ?")
+    .run(Date.now(), first.uuid);
+  const second = store.createShareRecord(
+    { type: "song", rawJson: { ...song, id: "song-invalidated" } },
+    sharer,
+  );
+  assert.notEqual(second.uuid, first.uuid);
+  assert.equal(store.readPublicShare(second.uuid)?.valid, true);
 });

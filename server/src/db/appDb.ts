@@ -221,6 +221,7 @@ CREATE TABLE IF NOT EXISTS share_records (
     type                  TEXT    NOT NULL,
     source                TEXT    NOT NULL,
     source_id             TEXT    NOT NULL,
+    subject_key           TEXT    NOT NULL DEFAULT '',
     title                 TEXT    NOT NULL,
     description           TEXT    NOT NULL DEFAULT '',
     cover_url             TEXT    NOT NULL DEFAULT '',
@@ -236,6 +237,7 @@ CREATE TABLE IF NOT EXISTS share_records (
 CREATE INDEX IF NOT EXISTS idx_share_records_user_created ON share_records (sharer_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_share_records_valid_created ON share_records (valid, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_share_records_type_source ON share_records (type, source, source_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_share_records_active_subject ON share_records (sharer_user_id, type, subject_key) WHERE valid = 1;
 
 CREATE TABLE IF NOT EXISTS users (
     id              TEXT    PRIMARY KEY,
@@ -391,6 +393,37 @@ function migrateFeedback(db: DatabaseSync) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_status_created_at ON feedback (status, created_at DESC)`);
 }
 
+function migrateShareRecords(db: DatabaseSync) {
+  const cols = getColumnNames(db, "share_records");
+  if (!cols.has("subject_key")) {
+    db.exec(`ALTER TABLE share_records ADD COLUMN subject_key TEXT NOT NULL DEFAULT ''`);
+  }
+  const now = Date.now();
+  db.prepare(
+    `UPDATE share_records
+     SET subject_key = source || ':' || source_id
+     WHERE subject_key IS NULL OR subject_key = ''`,
+  ).run();
+  db.prepare(
+    `UPDATE share_records
+     SET valid = 0,
+         invalidated_at = COALESCE(invalidated_at, ?),
+         updated_at = ?
+     WHERE valid = 1
+       AND uuid NOT IN (
+         SELECT MIN(uuid)
+         FROM share_records
+         WHERE valid = 1
+         GROUP BY sharer_user_id, type, subject_key
+       )`,
+  ).run(now, now);
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS ux_share_records_active_subject
+     ON share_records (sharer_user_id, type, subject_key)
+     WHERE valid = 1`,
+  );
+}
+
 function repairFileRecords(db: DatabaseSync) {
   db.exec(`
     UPDATE file_records
@@ -472,6 +505,7 @@ function initSchema(db: DatabaseSync) {
   migrateDynamicConfigs(db);
   migrateUsers(db);
   migrateFeedback(db);
+  migrateShareRecords(db);
   repairFileRecords(db);
 }
 
