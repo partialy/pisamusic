@@ -156,6 +156,14 @@
 - 一起听切歌采用 latest-wins：`MusicController.playLatest` 是可等待、可取消的同步播放入口，旧 URL 解析结果不得覆盖后发歌曲。歌曲与队列指针只跟随 `CHANGE_SONG`，切歌链路使用 `transitionId`，队列指针优先使用 `queueItemId`；只有 ID 匹配的 `CHANGE_SONG` 广播或 ACK 可以提前解除切歌锁，心跳及其他进度事件不能解除。
 - 新版 Android 对 `PLAY`、`PAUSE`、`SEEK`、`ENDED` 始终发送 `songRef { source, id }`；房主本地切歌尚未完成时暂停 6 秒心跳，待目标歌曲确认并发出 `CHANGE_SONG` 后再恢复，避免旧歌曲心跳污染新歌曲进度。
 
+## 分享补充
+
+- Android 音乐分享代码集中在 `share/` 模块：`ShareLink` 解析 / 生成 `https://pisamusic.partialy.cn/scan?type=music-share&uuid=<uuid>` 与 `pisamusic://scan?type=music-share&uuid=<uuid>`，`ShareRepository` 通过 `SystemApiService` 访问 `/api/shares`，`ShareQrBitmapFactory` 统一生成二维码并被一起听二维码复用。
+- 歌曲和歌单分享入口复用 `SongMoreMenu`、`PlaylistActionBottomSheet` 与 `ShareBottomSheet`。创建分享必须读取 `AccountSessionStore`，未登录时只提示“请先登录后再分享”，不得创建分享记录。
+- 分享 Sheet 使用 `bottom_sheet_share.xml` 与 `include_share_info_header.xml`：顶部封面 + 标题 / 描述，二维码居中，链接区域使用 Material `TextInputLayout` 的“链接分享”标签和右侧复制图标。
+- 分享详情页为 `ShareDetailActivity`，使用原生 XML + ViewBinding，不使用 WebView。外部链接继续由 `SplashActivity` / `MainActivity` 的 `pisamusic://scan` 分发处理：先尝试一起听，再尝试 `ShareLink`，命中分享后进入 `ShareDetailActivity`。
+- 分享 rawJson 只能使用 `CanonicalSong` / `CanonicalPlaylist` 快照，不要上传播放 URL、filePath、歌词正文、内嵌封面二进制；本地封面无法跨设备访问时应清空或显示默认封面。
+
 ## 通用 UI 组件补充
 
 - 居中确认类弹窗优先使用 `cn.partialy.pm.ui.dialog.PmMinimalDialog`；它是 280dp 简约卡片样式，支持单/双按钮、隐藏标题、确认按钮文字颜色和深浅色资源自动适配。
