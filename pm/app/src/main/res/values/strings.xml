@@ -342,6 +342,8 @@
     <string name="share_detail_favorite_unavailable">该歌曲暂时无法收藏</string>
     <string name="share_detail_favorited">已收藏</string>
     <string name="share_detail_unfavorited">已取消收藏</string>
+    <string name="playlist_more_favorite_failed">收藏歌单失败</string>
+    <string name="playlist_more_unfavorite_failed">取消收藏失败</string>
     <string name="share_detail_playlist_unavailable">该歌单暂时无法打开</string>
     <string name="share_detail_local_playlist_only">该歌单只能在原设备查看</string>
     <string name="share_detail_id_copied">ID 已复制</string>

@@ -8,6 +8,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.ShareDetailActivity
 import cn.partialy.pm.model.CanonicalPlaylist
 import cn.partialy.pm.model.CollectedPlaylist
+import cn.partialy.pm.model.toCollectedPlaylist
 import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
@@ -25,6 +26,18 @@ object PlaylistActionBottomSheet {
             add(ActionMenuItem(R.drawable.ic_info_24, activity.getString(R.string.song_more_detail)) {
                 ShareDetailActivity.startPlaylistDetail(activity, playlist)
             })
+            val favoriteTarget = manager?.let { findCollectedPlaylist(it, playlist) }
+            if (manager != null && playlist.source.lowercase() != "local" && playlist.id.isNotBlank()) {
+                add(ActionMenuItem(
+                    iconRes = if (favoriteTarget == null) R.drawable.ic_love_24 else R.drawable.ic_love_fill_24,
+                    text = activity.getString(
+                        if (favoriteTarget == null) R.string.collect_playlist else R.string.song_more_cancel_favorite,
+                    ),
+                    colorRes = if (favoriteTarget == null) null else R.color.red,
+                ) {
+                    toggleFavorite(activity, playlist, favoriteTarget, manager)
+                })
+            }
             add(ActionMenuItem(R.drawable.ic_share_24, activity.getString(R.string.song_more_share)) {
                 ShareBottomSheet.showPlaylist(activity, playlist)
             })
@@ -52,6 +65,39 @@ object PlaylistActionBottomSheet {
                 bindCover(coverView, playlist.cover)
             },
         )
+    }
+
+    private fun findCollectedPlaylist(
+        manager: PlaylistCollectionManager,
+        playlist: CanonicalPlaylist,
+    ): CollectedPlaylist? =
+        when (playlist.source.lowercase()) {
+            "kg" -> manager.findKgLikeCollected(playlist.id)
+            "wy" -> manager.findWyLikeCollected(playlist.id)
+            else -> manager.getCollectedPlaylist(playlist.toCollectedPlaylist().type, playlist.id)
+        }
+
+    private fun toggleFavorite(
+        activity: FragmentActivity,
+        playlist: CanonicalPlaylist,
+        favoriteTarget: CollectedPlaylist?,
+        manager: PlaylistCollectionManager,
+    ) {
+        if (favoriteTarget == null) {
+            val ok = manager.addNetworkPlaylist(playlist.toCollectedPlaylist())
+            Toast.makeText(
+                activity,
+                if (ok) R.string.share_detail_favorited else R.string.playlist_more_favorite_failed,
+                Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
+        val ok = manager.removePlaylist(favoriteTarget.type, favoriteTarget.id)
+        Toast.makeText(
+            activity,
+            if (ok) R.string.share_detail_unfavorited else R.string.playlist_more_unfavorite_failed,
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 
     private fun confirmDelete(
