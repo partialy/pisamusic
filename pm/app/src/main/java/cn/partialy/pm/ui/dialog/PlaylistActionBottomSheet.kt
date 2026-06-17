@@ -5,6 +5,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.ShareDetailActivity
 import cn.partialy.pm.model.CanonicalPlaylist
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
@@ -21,6 +22,9 @@ object PlaylistActionBottomSheet {
         onDeleted: () -> Unit = {},
     ) {
         val items = buildList {
+            add(ActionMenuItem(R.drawable.ic_info_24, activity.getString(R.string.song_more_detail)) {
+                ShareDetailActivity.startPlaylistDetail(activity, playlist)
+            })
             add(ActionMenuItem(R.drawable.ic_share_24, activity.getString(R.string.song_more_share)) {
                 ShareBottomSheet.showPlaylist(activity, playlist)
             })

@@ -9,9 +9,11 @@ import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.ShareDetailActivity
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.model.toCanonicalSong
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
@@ -72,6 +74,12 @@ object SongMoreMenu {
                     onListenTogetherClick(song)
                 })
             }
+            add(ActionMenuItem(
+                R.drawable.ic_info_24,
+                activity.getString(R.string.song_more_detail),
+            ) {
+                ShareDetailActivity.startSongDetail(activity, song.toCanonicalSong())
+            })
             if (deps.showShare) {
                 add(ActionMenuItem(
                     R.drawable.ic_share_24,

@@ -312,6 +312,7 @@
     <string name="song_more_download">下载</string>
     <string name="song_more_favorite">收藏</string>
     <string name="song_more_cancel_favorite">取消收藏</string>
+    <string name="song_more_detail">详情</string>
     <string name="song_more_add_to_playlist">添加到歌单</string>
     <string name="song_more_share">分享</string>
     <string name="toast_song_added_to_play_next">已添加到下一曲播放</string>

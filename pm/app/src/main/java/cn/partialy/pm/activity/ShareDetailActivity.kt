@@ -20,6 +20,7 @@ import cn.partialy.pm.share.ShareRepository
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import coil.load
+import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -32,6 +33,7 @@ class ShareDetailActivity : BaseActivity() {
     private lateinit var binding: ActivityShareDetailBinding
     private var uuid: String = ""
     private var currentShare: SharePublicData? = null
+    private val gson = Gson()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,12 +47,29 @@ class ShareDetailActivity : BaseActivity() {
         binding.shareDetailBackButton.setOnClickListener { finish() }
         binding.shareDetailRetryButton.setOnClickListener { loadShare() }
 
+        if (renderLocalDetailFromIntent()) {
+            return
+        }
+
         uuid = intent.getStringExtra(EXTRA_UUID).orEmpty()
         if (uuid.isBlank()) {
             showError(getString(R.string.share_detail_invalid), getString(R.string.share_detail_invalid_message), false)
         } else {
             loadShare()
         }
+    }
+
+    private fun renderLocalDetailFromIntent(): Boolean {
+        val type = intent.getStringExtra(EXTRA_LOCAL_TYPE).orEmpty()
+        val raw = intent.getStringExtra(EXTRA_LOCAL_JSON).orEmpty()
+        if (type.isBlank() || raw.isBlank()) return false
+        return runCatching {
+            when (type) {
+                LOCAL_TYPE_SONG -> renderLocalSong(gson.fromJson(raw, CanonicalSong::class.java))
+                LOCAL_TYPE_PLAYLIST -> renderLocalPlaylist(gson.fromJson(raw, CanonicalPlaylist::class.java))
+                else -> showError(getString(R.string.share_detail_invalid), getString(R.string.share_detail_invalid_message), false)
+            }
+        }.isSuccess
     }
 
     private fun loadShare() {
@@ -98,16 +117,64 @@ class ShareDetailActivity : BaseActivity() {
         }
     }
 
+    private fun renderLocalSong(song: CanonicalSong) {
+        currentShare = null
+        binding.shareDetailLoading.isVisible = false
+        binding.shareDetailErrorGroup.isVisible = false
+        binding.shareDetailContent.isVisible = true
+        binding.shareDetailName.text = song.name
+        binding.shareDetailSubtitle.text = song.singer.ifBlank { sourceLabel(song.source) }
+        bindCover(song.cover)
+        renderSongDetail(
+            song = song.toSongInfo(),
+            artist = song.singer,
+            album = song.album,
+            duration = song.duration.toDouble(),
+        )
+    }
+
+    private fun renderLocalPlaylist(playlist: CanonicalPlaylist) {
+        currentShare = null
+        binding.shareDetailLoading.isVisible = false
+        binding.shareDetailErrorGroup.isVisible = false
+        binding.shareDetailContent.isVisible = true
+        binding.shareDetailName.text = playlist.name
+        binding.shareDetailSubtitle.text = playlist.desc.ifBlank { sourceLabel(playlist.source) }
+        bindCover(playlist.cover)
+        renderPlaylistDetail(
+            playlist = playlist,
+            source = playlist.source,
+            songCount = playlist.song_count,
+            info3Label = getString(R.string.share_detail_copy_id),
+            info3 = playlist.id,
+            copyText = playlist.id,
+        )
+    }
+
     private fun renderSongShare(share: SharePublicData) {
         val song = share.toCanonicalSongOrNull()?.toSongInfo()
+        renderSongDetail(
+            song = song,
+            artist = share.rawString("singer").ifBlank { share.description },
+            album = share.rawString("album"),
+            duration = share.rawNumber("duration"),
+        )
+    }
+
+    private fun renderSongDetail(
+        song: SongInfo?,
+        artist: String,
+        album: String,
+        duration: Double,
+    ) {
         binding.shareDetailToolbarTitle.setText(R.string.share_detail_song_title)
         binding.shareDetailPrimaryButton.setText(R.string.share_detail_play)
         binding.shareDetailSecondaryButton.setText(R.string.share_detail_favorite)
         binding.shareDetailPrimaryButton.setIconResource(R.drawable.ic_play_24)
         binding.shareDetailSecondaryButton.setIconResource(R.drawable.ic_love_24)
-        binding.shareDetailInfoRow1.text = infoLine(getString(R.string.singer), share.rawString("singer").ifBlank { share.description })
-        binding.shareDetailInfoRow2.text = infoLine(getString(R.string.share_detail_album), share.rawString("album"))
-        binding.shareDetailInfoRow3.text = infoLine(getString(R.string.share_detail_duration), formatDuration(share.rawNumber("duration")))
+        binding.shareDetailInfoRow1.text = infoLine(getString(R.string.singer), artist)
+        binding.shareDetailInfoRow2.text = infoLine(getString(R.string.share_detail_album), album)
+        binding.shareDetailInfoRow3.text = infoLine(getString(R.string.share_detail_duration), formatDuration(duration))
         binding.shareDetailPrimaryButton.setOnClickListener {
             if (song == null || song.type == SongType.LOCAL) {
                 showMessage(getString(R.string.share_detail_song_unplayable))
@@ -128,14 +195,32 @@ class ShareDetailActivity : BaseActivity() {
 
     private fun renderPlaylistShare(share: SharePublicData) {
         val playlist = share.toCanonicalPlaylistOrNull()
+        renderPlaylistDetail(
+            playlist = playlist,
+            source = share.source,
+            songCount = share.rawNumber("song_count").takeIf { it > 0 }?.toInt() ?: 0,
+            info3Label = getString(R.string.share_detail_sharer),
+            info3 = share.sharer.username,
+            copyText = share.sourceId.ifBlank { share.uuid },
+        )
+    }
+
+    private fun renderPlaylistDetail(
+        playlist: CanonicalPlaylist?,
+        source: String,
+        songCount: Int,
+        info3Label: String,
+        info3: String,
+        copyText: String,
+    ) {
         binding.shareDetailToolbarTitle.setText(R.string.share_detail_playlist_title)
         binding.shareDetailPrimaryButton.setText(R.string.share_detail_open_playlist)
         binding.shareDetailSecondaryButton.setText(R.string.share_detail_copy_id)
         binding.shareDetailPrimaryButton.setIconResource(R.drawable.ic_playlist_24)
         binding.shareDetailSecondaryButton.setIconResource(R.drawable.ic_copy_24)
-        binding.shareDetailInfoRow1.text = infoLine(getString(R.string.region), sourceLabel(share.source))
-        binding.shareDetailInfoRow2.text = infoLine(getString(R.string.share_detail_song_count), share.rawNumber("song_count").takeIf { it > 0 }?.toInt()?.toString().orEmpty())
-        binding.shareDetailInfoRow3.text = infoLine(getString(R.string.share_detail_sharer), share.sharer.username)
+        binding.shareDetailInfoRow1.text = infoLine(getString(R.string.region), sourceLabel(source))
+        binding.shareDetailInfoRow2.text = infoLine(getString(R.string.share_detail_song_count), songCount.takeIf { it > 0 }?.toString().orEmpty())
+        binding.shareDetailInfoRow3.text = infoLine(info3Label, info3)
         binding.shareDetailPrimaryButton.setOnClickListener {
             if (playlist == null) {
                 showMessage(getString(R.string.share_detail_playlist_unavailable))
@@ -144,9 +229,8 @@ class ShareDetailActivity : BaseActivity() {
             openPlaylist(playlist)
         }
         binding.shareDetailSecondaryButton.setOnClickListener {
-            val text = share.sourceId.ifBlank { share.uuid }
             val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.share_detail_copy_id), text))
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.share_detail_copy_id), copyText))
             showMessage(getString(R.string.share_detail_id_copied))
         }
     }
@@ -170,6 +254,7 @@ class ShareDetailActivity : BaseActivity() {
                 playlist.song_count,
                 CollectedPlaylistType.WY,
             )
+            "local" -> LocalPlaylistDetailActivity.start(this, playlist.id)
             else -> showMessage(getString(R.string.share_detail_local_playlist_only))
         }
     }
@@ -250,10 +335,33 @@ class ShareDetailActivity : BaseActivity() {
 
     companion object {
         private const val EXTRA_UUID = "cn.partialy.pm.extra.SHARE_UUID"
+        private const val EXTRA_LOCAL_TYPE = "cn.partialy.pm.extra.SHARE_LOCAL_TYPE"
+        private const val EXTRA_LOCAL_JSON = "cn.partialy.pm.extra.SHARE_LOCAL_JSON"
+        private const val LOCAL_TYPE_SONG = "song"
+        private const val LOCAL_TYPE_PLAYLIST = "playlist"
+        private val intentGson = Gson()
 
         fun start(context: Context, uuid: String) {
             val intent = Intent(context, ShareDetailActivity::class.java).apply {
                 putExtra(EXTRA_UUID, uuid)
+            }
+            context.startActivity(intent)
+            AppActivityTransitions.applyForward(context)
+        }
+
+        fun startSongDetail(context: Context, song: CanonicalSong) {
+            val intent = Intent(context, ShareDetailActivity::class.java).apply {
+                putExtra(EXTRA_LOCAL_TYPE, LOCAL_TYPE_SONG)
+                putExtra(EXTRA_LOCAL_JSON, intentGson.toJson(song))
+            }
+            context.startActivity(intent)
+            AppActivityTransitions.applyForward(context)
+        }
+
+        fun startPlaylistDetail(context: Context, playlist: CanonicalPlaylist) {
+            val intent = Intent(context, ShareDetailActivity::class.java).apply {
+                putExtra(EXTRA_LOCAL_TYPE, LOCAL_TYPE_PLAYLIST)
+                putExtra(EXTRA_LOCAL_JSON, intentGson.toJson(playlist))
             }
             context.startActivity(intent)
             AppActivityTransitions.applyForward(context)
