@@ -34,6 +34,7 @@ import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.listen.ListenTogetherScanLink
+import cn.partialy.pm.share.ShareLink
 import cn.partialy.pm.network.cookie.KugouCookieRepository
 import cn.partialy.pm.network.cookie.MusicCookieManager
 import cn.partialy.pm.network.cookie.WyCookieRepository
@@ -384,11 +385,18 @@ class MainActivity : BaseDownloadActivity() {
             is ListenTogetherScanLink.Action.JoinRoom -> {
                 PlayerActivity.startForListenTogetherJoin(this, action.roomId)
             }
-            null -> Toast.makeText(
-                this,
-                R.string.listen_together_scan_invalid,
-                Toast.LENGTH_SHORT,
-            ).show()
+            null -> {
+                val share = ShareLink.parse(raw)
+                if (share != null) {
+                    ShareDetailActivity.start(this, share.uuid)
+                } else {
+                    Toast.makeText(
+                        this,
+                        R.string.listen_together_scan_invalid,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
         }
     }
 

@@ -216,6 +216,11 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.ShareDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.LocalMusicActivity"
             android:exported="false" />
 

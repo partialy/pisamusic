@@ -52,6 +52,7 @@ import cn.partialy.pm.databinding.LayoutListenTogetherBottomSheetBinding
 import cn.partialy.pm.listen.ListenTogetherManager
 import cn.partialy.pm.listen.ListenTogetherMember
 import cn.partialy.pm.listen.ListenTogetherScanLink
+import cn.partialy.pm.share.ShareLink
 import cn.partialy.pm.listen.ListenTogetherState
 import cn.partialy.pm.listen.ListenTogetherUiEvent
 import cn.partialy.pm.listen.targetPosition
@@ -1112,11 +1113,18 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun handleListenTogetherScanContent(raw: String) {
         when (val action = ListenTogetherScanLink.parse(raw)) {
             is ListenTogetherScanLink.Action.JoinRoom -> queueListenTogetherJoin(action.roomId)
-            null -> Toast.makeText(
-                this,
-                R.string.listen_together_scan_invalid,
-                Toast.LENGTH_SHORT,
-            ).show()
+            null -> {
+                val share = ShareLink.parse(raw)
+                if (share != null) {
+                    ShareDetailActivity.start(this, share.uuid)
+                } else {
+                    Toast.makeText(
+                        this,
+                        R.string.listen_together_scan_invalid,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
         }
     }
 
