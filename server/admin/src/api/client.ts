@@ -27,6 +27,7 @@ import type {
   DesktopDeviceListResponse,
   ReleaseFileInfo,
   ReleasePlatform,
+  UpdateHistoryDeletionPreview,
   UpdateHistoryItem,
 } from "../types/config";
 import { clearStoredToken, getStoredToken } from "../auth/token";
@@ -373,6 +374,15 @@ export async function deleteReleasePackage(historyId: string): Promise<void> {
   if (!res.ok || !body.success) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
+}
+
+export async function fetchUpdateHistoryDeletePreview(historyId: string): Promise<UpdateHistoryDeletionPreview> {
+  const res = await fetchWithAuth(`/api/admin/update-history/${encodeURIComponent(historyId)}/delete-preview`);
+  const body = await parseJson<UpdateHistoryDeletionPreview>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
 }
 
 export async function deleteUpdateHistory(historyId: string): Promise<{ id: string; deletedFiles: FileRecordInfo[] }> {

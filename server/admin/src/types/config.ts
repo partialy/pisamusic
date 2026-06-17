@@ -126,6 +126,11 @@ export type UpdateHistoryItem = {
   releaseFile?: ReleaseFileInfo | null;
 };
 
+export type UpdateHistoryDeletionPreview = {
+  history: UpdateHistoryItem;
+  files: FileRecordInfo[];
+};
+
 export type GatewaySignConfig = {
   secret: string;
   as: string;

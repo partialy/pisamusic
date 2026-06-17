@@ -7,6 +7,7 @@ import {
   readReleaseFileForHistory,
   type FileRecordInfo,
   type ReleaseFileInfo,
+  type UpdateHistoryDeletionPlan,
 } from "../db/configStore";
 import { deleteQiniuObject } from "./qiniuReleaseFiles";
 
@@ -16,6 +17,15 @@ export type DeletedUpdateHistory = {
   id: string;
   deletedFiles: FileRecordInfo[];
 };
+
+export function previewManagedUpdateHistoryDeletion(historyId: string): UpdateHistoryDeletionPlan {
+  const prepared = prepareUpdateHistoryDeletion(historyId);
+  if (!prepared.ok) {
+    if (prepared.reason === "NOT_FOUND") throw new Error("发布记录不存在");
+    throw new Error("当前最新版本不可删除");
+  }
+  return prepared.plan;
+}
 
 export async function deleteManagedFileRecord(id: string): Promise<FileRecordInfo> {
   const file = readFileRecordById(id);
@@ -43,13 +53,9 @@ export async function deleteManagedUpdateHistory(
   historyId: string,
   deleteObject: DeleteObject = deleteQiniuObject,
 ): Promise<DeletedUpdateHistory> {
-  const prepared = prepareUpdateHistoryDeletion(historyId);
-  if (!prepared.ok) {
-    if (prepared.reason === "NOT_FOUND") throw new Error("发布记录不存在");
-    throw new Error("当前最新版本不可删除");
-  }
+  const plan = previewManagedUpdateHistoryDeletion(historyId);
 
-  for (const file of prepared.plan.files) {
+  for (const file of plan.files) {
     if (file.provider === "qiniu") {
       await deleteObject(file.bucket, file.objectKey);
     }
@@ -59,7 +65,7 @@ export async function deleteManagedUpdateHistory(
     id: historyId,
     deletedFiles: completeUpdateHistoryDeletion(
       historyId,
-      prepared.plan.files.map((file) => file.id),
+      plan.files.map((file) => file.id),
     ),
   };
 }

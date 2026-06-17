@@ -47,7 +47,7 @@ import {
   validateDesktopUpdateAsset,
   validateReleaseFile,
 } from "../services/qiniuReleaseFiles";
-import { deleteManagedFileRecord, deleteManagedReleaseFileForHistory, deleteManagedUpdateHistory } from "../services/fileManagementService";
+import { deleteManagedFileRecord, deleteManagedReleaseFileForHistory, deleteManagedUpdateHistory, previewManagedUpdateHistoryDeletion } from "../services/fileManagementService";
 import { fail, ok } from "../types/response";
 
 export const adminRouter = Router();
@@ -827,6 +827,18 @@ adminRouter.put("/update-history/:id", (req, res) => {
   } catch (e) {
     const message = e instanceof Error ? e.message : "保存发布记录失败";
     const status = message === "发布记录不存在" ? 404 : message === "发布记录平台不能修改" ? 400 : 500;
+    return res.status(status).json(fail(message, status));
+  }
+});
+
+adminRouter.get("/update-history/:id/delete-preview", (req, res) => {
+  try {
+    const historyId = String(req.params.id ?? "").trim();
+    if (!historyId) return res.status(400).json(fail("发布记录 ID 不能为空", 400));
+    return res.json(ok(previewManagedUpdateHistoryDeletion(historyId)));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取版本删除预览失败";
+    const status = message === "发布记录不存在" ? 404 : message === "当前最新版本不可删除" ? 400 : 500;
     return res.status(status).json(fail(message, status));
   }
 });

@@ -22,6 +22,7 @@ import type {
   FeedbackStatus,
   GatewaySignConfig,
   UpdateFormDraft,
+  UpdateHistoryDeletionPreview,
   UpdateHistoryItem,
 } from "./types/config";
 import { DEFAULT_PLAINTEXT_PATHS } from "./types/config";
@@ -48,6 +49,7 @@ import {
   fetchDevices,
   fetchEncryptionConfig,
   fetchFileRecords,
+  fetchUpdateHistoryDeletePreview,
   fetchUpdateHistory,
   activateDesktopUpdate,
   lockDesktopDevice,
@@ -78,6 +80,7 @@ import FileRecordDetailModal from "./components/modals/FileRecordDetailModal";
 import FeedbackDetailModal from "./components/modals/FeedbackDetailModal";
 import NoticeModal from "./components/modals/NoticeModal";
 import UpdateModal from "./components/modals/UpdateModal";
+import UpdateHistoryDeletePreviewModal from "./components/modals/UpdateHistoryDeletePreviewModal";
 import JsonExportModal from "./components/modals/JsonExportModal";
 import UserDetailModal from "./components/modals/UserDetailModal";
 import UserEditModal from "./components/modals/UserEditModal";
@@ -169,6 +172,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [desktopUpdateAssets, setDesktopUpdateAssets] = useState<Partial<Record<DesktopUpdateAssetType, DesktopUpdateAssetInfo>>>({});
   const [deletingPackageHistoryId, setDeletingPackageHistoryId] = useState<string | null>(null);
   const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
+  const [updateHistoryDeletePreview, setUpdateHistoryDeletePreview] = useState<UpdateHistoryDeletionPreview | null>(null);
 
   const [encryptionPathsServer, setEncryptionPathsServer] = useState<string[]>([]);
   const [encryptionPathsDraft, setEncryptionPathsDraft] = useState<string[]>([]);
@@ -580,10 +584,25 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  const handleDeleteUpdateHistory = async (item: UpdateHistoryItem) => {
+  const handleOpenUpdateHistoryDeletePreview = async (item: UpdateHistoryItem) => {
     setDeletingHistoryId(item.id);
     try {
-      await deleteUpdateHistory(item.id);
+      const preview = await fetchUpdateHistoryDeletePreview(item.id);
+      setUpdateHistoryDeletePreview(preview);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "读取版本删除预览失败");
+    } finally {
+      setDeletingHistoryId(null);
+    }
+  };
+
+  const handleConfirmDeleteUpdateHistory = async () => {
+    if (!updateHistoryDeletePreview) return;
+    const historyId = updateHistoryDeletePreview.history.id;
+    setDeletingHistoryId(historyId);
+    try {
+      await deleteUpdateHistory(historyId);
+      setUpdateHistoryDeletePreview(null);
       await Promise.all([refreshRemote(), loadFiles()]);
     } catch (e) {
       alert(e instanceof Error ? e.message : "删除版本及相关文件失败");
@@ -1363,7 +1382,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onEdit={openEditUpdate}
                   onDeletePackage={(item) => void handleDeleteReleasePackage(item)}
                   deletingPackageHistoryId={deletingPackageHistoryId}
-                  onDeleteHistory={(item) => void handleDeleteUpdateHistory(item)}
+                  onDeleteHistory={(item) => void handleOpenUpdateHistoryDeletePreview(item)}
                   deletingHistoryId={deletingHistoryId}
                 />
               )}
@@ -1516,6 +1535,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           onUploadPackage={(file) => void handleUploadReleasePackage(file)}
           onUploadDesktopUpdateAsset={(file) => void handleUploadDesktopUpdateAsset(file)}
           onSubmit={() => void handleSubmitPublish()}
+        />
+      )}
+
+      {updateHistoryDeletePreview && (
+        <UpdateHistoryDeletePreviewModal
+          preview={updateHistoryDeletePreview}
+          themeColor={themeColor}
+          deleting={deletingHistoryId === updateHistoryDeletePreview.history.id}
+          onClose={() => setUpdateHistoryDeletePreview(null)}
+          onConfirm={() => void handleConfirmDeleteUpdateHistory()}
         />
       )}
 

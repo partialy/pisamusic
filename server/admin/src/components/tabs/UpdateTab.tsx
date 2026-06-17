@@ -62,10 +62,6 @@ export default function UpdateTab({
       <div className="grid grid-cols-1 gap-6">
         {displayHistory.map((upd) => {
           const isCurrentVersion = currentHistoryIds.has(upd.id);
-          const deleteDescription =
-            upd.platform === "desktop"
-              ? `确定删除 ${upd.version} 的发布记录及相关文件吗？安装包、latest.yml 和 blockmap 将从七牛删除，此操作不可恢复。`
-              : `确定删除 ${upd.version} 的发布记录及相关安装包吗？七牛文件将被删除，此操作不可恢复。`;
           return (
             <div key={upd.id} className={`${glassCardClasses} group flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
               <div className="min-w-0 flex-1 sm:pr-6">
@@ -126,7 +122,6 @@ export default function UpdateTab({
                   title={isCurrentVersion ? "当前发布版本不可删除，请先发布替代版本" : "删除版本记录及相关七牛文件"}
                   onClick={() => {
                     if (isCurrentVersion) return;
-                    if (typeof window !== "undefined" && !window.confirm(deleteDescription)) return;
                     onDeleteHistory(upd);
                   }}
                   className={`flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-bold shadow-sm transition-all ${
@@ -143,7 +138,7 @@ export default function UpdateTab({
                       d="M3 6h18M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2m2 0v14a2 2 0 01-2 2H8a2 2 0 01-2-2V6h12z"
                     />
                   </svg>
-                  {deletingHistoryId === upd.id ? "删除中..." : "删除版本及文件"}
+                  {deletingHistoryId === upd.id ? "处理中..." : "删除版本及文件"}
                 </button>
               </div>
             </div>
