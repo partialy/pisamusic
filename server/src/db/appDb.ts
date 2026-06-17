@@ -216,6 +216,27 @@ CREATE TABLE IF NOT EXISTS feedback_images (
 );
 CREATE INDEX IF NOT EXISTS idx_feedback_images_feedback_id ON feedback_images (feedback_id);
 
+CREATE TABLE IF NOT EXISTS share_records (
+    uuid                  TEXT    PRIMARY KEY,
+    type                  TEXT    NOT NULL,
+    source                TEXT    NOT NULL,
+    source_id             TEXT    NOT NULL,
+    title                 TEXT    NOT NULL,
+    description           TEXT    NOT NULL DEFAULT '',
+    cover_url             TEXT    NOT NULL DEFAULT '',
+    raw_json              TEXT    NOT NULL,
+    sharer_user_id        TEXT    NOT NULL,
+    sharer_snapshot_json  TEXT    NOT NULL DEFAULT '{}',
+    created_at            INTEGER NOT NULL,
+    updated_at            INTEGER NOT NULL,
+    access_count          INTEGER NOT NULL DEFAULT 0,
+    valid                 INTEGER NOT NULL DEFAULT 1,
+    invalidated_at        INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_share_records_user_created ON share_records (sharer_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_share_records_valid_created ON share_records (valid, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_share_records_type_source ON share_records (type, source, source_id);
+
 CREATE TABLE IF NOT EXISTS users (
     id              TEXT    PRIMARY KEY,
     email           TEXT    NOT NULL UNIQUE,

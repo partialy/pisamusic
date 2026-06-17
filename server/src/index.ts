@@ -13,6 +13,7 @@ import { configRouter } from "./routes/config";
 import { deviceRouter } from "./routes/device";
 import { feedbackRouter } from "./routes/feedback";
 import { listenTogetherRouter } from "./routes/listenTogether";
+import { sharesRouter } from "./routes/shares";
 import { syncRouter } from "./routes/sync";
 import { fail } from "./types/response";
 
@@ -45,6 +46,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/config/about",
   "/api/config/announcements",
   "/api/listen-together/config",
+  "/api/shares/public/*",
   "/api/feedback/*",
   "/discover/*",
   "/static/*",
@@ -58,6 +60,7 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/api/config/desktop-updates/*",
   "/api/config/discover",
   "/api/listen-together/config",
+  "/api/shares/public/*",
   "/discover/*",
   "/static/*",
   "/uploads/*",
@@ -83,6 +86,7 @@ app.use("/api/feedback", feedbackRouter);
 app.use("/api/device", deviceRouter);
 app.use("/api/sync", syncRouter);
 app.use("/api/listen-together", listenTogetherRouter);
+app.use("/api/shares", sharesRouter);
 
 app.use(
   "/discover",
