@@ -35,8 +35,8 @@
 | 底部圆角选项选择器 | 设置、播放音质等单选列表 | `pm/app/src/main/res/layout/layout_bottom_radius_options_sheet.xml` | `SettingsOptionPickerBottomSheet.kt`、`QualityPickerBottomSheet.kt`、`item_settings_option_sheet_row.xml` | 顶部标题、无分割线选项、底部取消/确定按钮；点击选项只暂存，确定后才提交。弹层使用通用 `modal_surface_background`，取消按钮使用 `action_secondary_background` / `action_secondary_text`，确定按钮使用主题 `colorPrimary` / `action_primary_text`；浅色分别为 `#FFFFFF`、`#F5F5F5`、`#4A4A4A`、白字，深色分别为 `#2A2D34`、`#5A595B`、白字、白字。 |
 | 下载音质选择弹窗 | 下载歌曲前选择音质 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/QualityPickerBottomSheet.kt` | `dialog_download_quality_picker.xml`、`item_settings_option_sheet_row.xml` | 保留歌曲信息和居中弹窗容器，复用通用主题色选项行且无选项分割线。 |
 | 歌曲更多菜单 | 歌曲操作菜单 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/SongMoreMenu.kt` | `ActionMenuBottomSheet` | 歌曲业务保留在该入口，外观和操作行复用通用操作菜单。 |
-| 音乐分享 Sheet | 歌曲 / 歌单链接与二维码分享 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ShareBottomSheet.kt` | `bottom_sheet_share.xml`、`include_share_info_header.xml`、`ShareQrBitmapFactory` | 顶部封面信息、居中二维码、M3 链接输入框和复制图标；未登录不创建分享记录。 |
-| 歌单操作菜单 | 歌单分享、收藏歌单删除 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PlaylistActionBottomSheet.kt` | `ActionMenuBottomSheet`、`ShareBottomSheet` | 在线歌单未收藏时也允许分享；删除动作仅在传入本地收藏记录时显示。 |
+| 音乐分享 Sheet | 歌曲 / 歌单链接与二维码分享 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ShareBottomSheet.kt` | `bottom_sheet_share.xml`、`include_share_info_header.xml`、`ShareQrBitmapFactory` | 顶部封面信息、居中二维码、一起听同款蓝色 M3 链接输入框和复制图标；未登录不创建分享记录。 |
+| 歌单操作菜单 | 歌单详情、分享、收藏、删除 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PlaylistActionBottomSheet.kt` | `ActionMenuBottomSheet`、`ShareBottomSheet`、`ShareDetailActivity` | 网络歌单支持收藏 / 取消收藏、详情和分享；本地歌单不显示收藏，删除动作仅在传入本地收藏记录时显示。 |
 | 一起听成员管理菜单 | 房主转让、移出成员 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ListenTogetherMemberActionMenu.kt` | `ActionMenuBottomSheet`、`PmMinimalDialog` | 仅房主点击其他成员时显示，危险操作使用红色并二次确认。 |
 | 歌单更多菜单 | 我的歌单操作菜单 | `pm/app/src/main/java/cn/partialy/pm/ui/mine/MinePlaylistMoreBottomSheet.kt` | `bottom_sheet_mine_playlist_more.xml` | 歌单重命名、删除等菜单参考。 |
 | 公告底部弹窗 | 公告内容展示 | `pm/app/src/main/res/layout/layout_announcement_bottom_sheet.xml` | `MainActivity` 中公告弹窗逻辑、`bg_bottom_radius_sheet.xml` | 复用选项 Sheet 的圆角背景、日夜弹层色和胶囊按钮；“我知道了”使用次级操作色，“前往查看”及 WebView 强调色跟随 `colorPrimary`。 |
@@ -84,7 +84,7 @@
 | 列表空状态 | 播放队列、详情页、列表无数据 | `bottom_sheet_playlist.xml`、`item_playlist_detail_status.xml`、`item_playlist_detail_list_status.xml` | 对应 Activity / Adapter | 空状态文案和可见性处理参考。 |
 | 列表加载 / 错误状态 | 歌单详情、列表加载失败 | `item_playlist_detail_status.xml`、`item_playlist_detail_list_status.xml` | `PlaylistDetailActivity` 等 | 加载、重试、错误展示参考。 |
 | 通用 WebView 页面 | 协议、隐私、配置 HTML 内容 | `pm/app/src/main/res/layout/activity_web_content.xml` | `activity/web` 相关页面 | WebView 内容承载参考。 |
-| 分享详情页 | App 内打开音乐分享链接 | `pm/app/src/main/java/cn/partialy/pm/activity/ShareDetailActivity.kt` | `activity_share_detail.xml`、`bg_share_detail_*` | 原生页面展示歌曲 / 歌单分享详情；通过 `pisamusic://scan?type=music-share` 分发进入。 |
+| 分享详情页 | App 内打开音乐分享链接或本地查看详情 | `pm/app/src/main/java/cn/partialy/pm/activity/ShareDetailActivity.kt` | `activity_share_detail.xml`、`bg_share_detail_*` | 原生页面展示歌曲 / 歌单详情；外链通过 `pisamusic://scan?type=music-share` 分发，本地详情由更多菜单传 canonical 快照进入。 |
 | WebView 本地错误页 | WebView 加载失败兜底 | `pm/app/src/main/java/cn/partialy/pm/ui/web/LocalGenericErrorWebViewController.kt` | `assets/` 内本地错误页面 | WebView 错误兜底优先用这个控制器。 |
 | 安全区 / 系统栏适配 | edge-to-edge padding | `pm/app/src/main/java/cn/partialy/pm/ui/insets/SystemBarsExt.kt` | `applySystemBarsInsets` 等扩展 | 新全屏页面先参考。 |
 
