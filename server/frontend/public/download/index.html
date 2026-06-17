@@ -53,6 +53,7 @@
   </main>
   <script>
     const JOIN_TYPE = "listen-together-join";
+    const SHARE_TYPE = "music-share";
     const fallback = document.getElementById("fallback");
 
     function getDownloadPlatform() {
@@ -68,6 +69,7 @@
       const platform = getDownloadPlatform();
       const type = sourceParams.get("type") || "";
       const roomId = sourceParams.get("roomId") || "";
+      const uuid = sourceParams.get("uuid") || "";
 
       if (platform) {
         targetParams.set("downloadPlatform", platform);
@@ -75,6 +77,10 @@
       if (type === JOIN_TYPE && /^\d{4,8}$/.test(roomId)) {
         targetParams.set("type", type);
         targetParams.set("roomId", roomId);
+      }
+      if (type === SHARE_TYPE && /^[0-9a-f-]{32,40}$/i.test(uuid)) {
+        targetParams.set("type", type);
+        targetParams.set("uuid", uuid);
       }
 
       const query = targetParams.toString();

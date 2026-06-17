@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#f7fbff" />
-  <title>加入一起听房间 - Pisa Music</title>
+  <title>Pisa Music 扫码</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -20,14 +20,15 @@
       font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
     }
     main {
-      width: min(420px, 100%);
-      padding: 36px 28px 30px;
+      width: min(430px, 100%);
+      padding: 34px 28px 30px;
       border: 1px solid rgba(148, 163, 184, .18);
       border-radius: 28px;
       background: rgba(255, 255, 255, .9);
       box-shadow: 0 24px 70px rgba(71, 111, 145, .15);
       text-align: center;
     }
+    .hidden { display: none !important; }
     .icon {
       width: 72px;
       height: 72px;
@@ -64,7 +65,7 @@
     .actions { display: grid; gap: 10px; }
     button, a {
       width: 100%;
-      height: 48px;
+      min-height: 48px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -93,29 +94,153 @@
       font-weight: 700;
     }
     #status { min-height: 24px; font-size: 13px; }
+    .share-loading,
+    .share-error {
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+    }
+    .cover-wrap {
+      width: min(260px, 74vw);
+      aspect-ratio: 1;
+      margin: 0 auto 24px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, .72);
+      background: linear-gradient(145deg, #e3f2fd, #fff);
+      box-shadow: 0 22px 42px rgba(33, 150, 243, .18);
+    }
+    .cover-wrap img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+    .cover-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #0284c7;
+      font-size: 56px;
+      font-weight: 800;
+    }
+    .share-title {
+      margin: 0;
+      color: #10233f;
+      font-size: 24px;
+      line-height: 1.22;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .share-subtitle {
+      margin: 8px 0 0;
+      color: #0284c7;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .info-panel {
+      margin: 26px 0 24px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, .62);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .5);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 12px 30px rgba(71, 111, 145, .08);
+    }
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, .22);
+      font-size: 14px;
+    }
+    .info-row:last-child { border-bottom: 0; }
+    .info-row span:first-child {
+      flex: 0 0 auto;
+      color: #94a3b8;
+      font-weight: 700;
+    }
+    .info-row span:last-child {
+      min-width: 0;
+      color: #334155;
+      font-weight: 700;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
   <main>
-    <div class="icon" aria-hidden="true">P</div>
-    <h1 id="title">正在打开 Pisa Music...</h1>
-    <p id="status">如果没有自动打开，请点击下方按钮。</p>
-    <div class="room" id="room">正在读取房间信息</div>
-    <p class="guide" id="guide">安装 Pisa Music 后，请返回此页面再次打开 App，即可继续加入房间。</p>
-    <div class="actions">
-      <button id="openButton" type="button">打开 App</button>
-      <button class="secondary" id="copyButton" type="button">复制房间号</button>
-      <a id="downloadLink" href="/download/">前往官网下载</a>
-    </div>
-    <div class="copy-status" id="copyStatus" role="status" aria-live="polite"></div>
+    <section id="listenView">
+      <div class="icon" aria-hidden="true">P</div>
+      <h1 id="title">正在打开 Pisa Music...</h1>
+      <p id="status">如果没有自动打开，请点击下方按钮。</p>
+      <div class="room" id="room">正在读取房间信息</div>
+      <p class="guide" id="guide">安装 Pisa Music 后，请返回此页面再次打开 App，即可继续加入房间。</p>
+      <div class="actions">
+        <button id="openButton" type="button">打开 App</button>
+        <button class="secondary" id="copyButton" type="button">复制房间号</button>
+        <a id="downloadLink" href="/download/">前往官网下载</a>
+      </div>
+      <div class="copy-status" id="copyStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <section id="shareView" class="hidden">
+      <div id="shareLoading" class="share-loading">
+        <div class="icon" aria-hidden="true">P</div>
+        <h1>正在读取分享...</h1>
+        <p>请稍候，正在加载音乐信息。</p>
+      </div>
+      <div id="shareError" class="share-error hidden">
+        <div class="icon" aria-hidden="true">!</div>
+        <h1 id="shareErrorTitle">分享链接无效</h1>
+        <p id="shareErrorText">请确认链接是否完整。</p>
+        <div class="actions">
+          <a href="/#download">前往官网下载</a>
+        </div>
+      </div>
+      <div id="shareContent" class="hidden">
+        <div class="cover-wrap">
+          <div class="cover-fallback" id="shareCoverFallback">♪</div>
+          <img id="shareCover" alt="音乐封面" class="hidden" />
+        </div>
+        <h1 id="shareTitle" class="share-title"></h1>
+        <p id="shareSubtitle" class="share-subtitle"></p>
+        <div class="info-panel" id="shareInfo"></div>
+        <div class="actions">
+          <button id="shareOpenButton" type="button">打开 App</button>
+          <button class="secondary" id="shareCopyButton" type="button">复制链接</button>
+          <a id="shareDownloadLink" href="/download/">前往官网下载</a>
+        </div>
+        <div class="copy-status" id="shareCopyStatus" role="status" aria-live="polite"></div>
+      </div>
+    </section>
   </main>
 
   <script>
     const JOIN_TYPE = "listen-together-join";
+    const SHARE_TYPE = "music-share";
     const params = new URLSearchParams(window.location.search);
     const type = params.get("type") || "";
     const roomId = params.get("roomId") || "";
-    const valid = type === JOIN_TYPE && /^\d{4,8}$/.test(roomId);
+    const uuid = params.get("uuid") || "";
+    const validRoom = type === JOIN_TYPE && /^\d{4,8}$/.test(roomId);
+    const validShare = type === SHARE_TYPE && /^[0-9a-f-]{32,40}$/i.test(uuid);
+    const listenView = document.getElementById("listenView");
+    const shareView = document.getElementById("shareView");
     const title = document.getElementById("title");
     const status = document.getElementById("status");
     const room = document.getElementById("room");
@@ -124,11 +249,31 @@
     const copyButton = document.getElementById("copyButton");
     const copyStatus = document.getElementById("copyStatus");
     const downloadLink = document.getElementById("downloadLink");
+    const shareLoading = document.getElementById("shareLoading");
+    const shareError = document.getElementById("shareError");
+    const shareErrorTitle = document.getElementById("shareErrorTitle");
+    const shareErrorText = document.getElementById("shareErrorText");
+    const shareContent = document.getElementById("shareContent");
+    const shareCover = document.getElementById("shareCover");
+    const shareCoverFallback = document.getElementById("shareCoverFallback");
+    const shareTitle = document.getElementById("shareTitle");
+    const shareSubtitle = document.getElementById("shareSubtitle");
+    const shareInfo = document.getElementById("shareInfo");
+    const shareOpenButton = document.getElementById("shareOpenButton");
+    const shareCopyButton = document.getElementById("shareCopyButton");
+    const shareCopyStatus = document.getElementById("shareCopyStatus");
+    const shareDownloadLink = document.getElementById("shareDownloadLink");
     let leftPage = false;
     let fallbackTimer = 0;
 
-    const appScheme = valid
+    const appScheme = validRoom
       ? `pisamusic://scan?type=${encodeURIComponent(type)}&roomId=${encodeURIComponent(roomId)}`
+      : "";
+    const shareUrl = validShare
+      ? `${window.location.origin}/scan/?type=${encodeURIComponent(SHARE_TYPE)}&uuid=${encodeURIComponent(uuid)}`
+      : "";
+    const shareAppScheme = validShare
+      ? `pisamusic://scan?type=${encodeURIComponent(SHARE_TYPE)}&uuid=${encodeURIComponent(uuid)}`
       : "";
 
     function getDeviceType() {
@@ -138,15 +283,16 @@
       return "other";
     }
 
-    function getFailureMessage() {
+    function getFailureMessage(target) {
       const deviceType = getDeviceType();
+      const action = target === "share" ? "查看分享" : "继续加入";
       if (deviceType === "android") {
-        return "手机端未检测到 Pisa Music。请先前往官网下载 Android 版，安装后返回本页继续加入。";
+        return `手机端未检测到 Pisa Music。请先前往官网下载 Android 版，安装后返回本页${action}。`;
       }
       if (deviceType === "windows") {
-        return "桌面端未检测到 Pisa Music。请先前往官网下载 PC 版，安装后返回本页继续加入。";
+        return `桌面端未检测到 Pisa Music。请先前往官网下载 PC 版，安装后返回本页${action}。`;
       }
-      return "当前设备未检测到 Pisa Music。请前往官网选择适用版本，安装后返回本页继续加入。";
+      return `当前设备未检测到 Pisa Music。请前往官网选择适用版本，安装后返回本页${action}。`;
     }
 
     function markPageLeft() {
@@ -155,7 +301,7 @@
     }
 
     function openApp() {
-      if (!valid) return;
+      if (!validRoom) return;
       leftPage = false;
       title.innerText = "正在打开 Pisa Music...";
       status.innerText = "如果没有自动打开，请点击下方按钮。";
@@ -164,8 +310,20 @@
       fallbackTimer = window.setTimeout(() => {
         if (leftPage || document.hidden) return;
         title.innerText = "未检测到 Pisa Music";
-        status.innerText = getFailureMessage();
+        status.innerText = getFailureMessage("room");
         openButton.innerText = "重新打开 App";
+      }, 1500);
+    }
+
+    function openShareInApp() {
+      if (!validShare) return;
+      leftPage = false;
+      window.location.href = shareAppScheme;
+      window.clearTimeout(fallbackTimer);
+      fallbackTimer = window.setTimeout(() => {
+        if (leftPage || document.hidden) return;
+        shareCopyStatus.innerText = getFailureMessage("share");
+        shareOpenButton.innerText = "重新打开 App";
       }, 1500);
     }
 
@@ -182,28 +340,127 @@
       return copied;
     }
 
+    async function copyText(text) {
+      let copied = false;
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+      if (!copied) copied = copyWithFallback(text);
+      if (!copied) throw new Error("copy unavailable");
+    }
+
     async function copyRoomId() {
-      if (!valid) return;
+      if (!validRoom) return;
       try {
-        let copied = false;
-        if (navigator.clipboard && window.isSecureContext) {
-          try {
-            await navigator.clipboard.writeText(roomId);
-            copied = true;
-          } catch {
-            copied = false;
-          }
-        }
-        if (!copied) {
-          copied = copyWithFallback(roomId);
-        }
-        if (!copied) {
-          throw new Error("copy unavailable");
-        }
+        await copyText(roomId);
         copyButton.innerText = "已复制房间号";
         copyStatus.innerText = "安装后返回此页面，重新打开 App 即可继续加入。";
       } catch {
         copyStatus.innerText = `复制失败，请手动记录房间号 ${roomId}。`;
+      }
+    }
+
+    async function copyShareLink() {
+      if (!validShare) return;
+      try {
+        await copyText(shareUrl);
+        shareCopyButton.innerText = "已复制链接";
+        shareCopyStatus.innerText = "完整分享链接已复制。";
+      } catch {
+        shareCopyStatus.innerText = "复制失败，请手动复制浏览器地址栏链接。";
+      }
+    }
+
+    function formatDuration(value) {
+      const duration = Number(value) || 0;
+      if (duration <= 0) return "";
+      const seconds = duration > 10000 ? Math.round(duration / 1000) : Math.round(duration);
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}:${String(s).padStart(2, "0")}`;
+    }
+
+    function sourceLabel(source) {
+      const value = String(source || "").toLowerCase();
+      if (value === "kg") return "酷狗音乐";
+      if (value === "wy") return "网易云音乐";
+      if (value === "kw") return "酷我音乐";
+      if (value === "local") return "本地音乐";
+      return source || "未知来源";
+    }
+
+    function row(label, value) {
+      const text = value == null ? "" : String(value).trim();
+      if (!text) return "";
+      return `<div class="info-row"><span>${label}</span><span>${text}</span></div>`;
+    }
+
+    function showShareError(titleText, bodyText) {
+      shareLoading.classList.add("hidden");
+      shareContent.classList.add("hidden");
+      shareError.classList.remove("hidden");
+      shareErrorTitle.innerText = titleText;
+      shareErrorText.innerText = bodyText;
+    }
+
+    function renderShare(share) {
+      const raw = share.rawJson || {};
+      shareTitle.innerText = share.title || "未命名分享";
+      shareSubtitle.innerText = share.description || sourceLabel(share.source);
+      if (share.coverUrl) {
+        shareCover.src = share.coverUrl;
+        shareCover.classList.remove("hidden");
+        shareCoverFallback.classList.add("hidden");
+      } else {
+        shareCover.classList.add("hidden");
+        shareCoverFallback.classList.remove("hidden");
+      }
+      shareCover.onerror = () => {
+        shareCover.classList.add("hidden");
+        shareCoverFallback.classList.remove("hidden");
+      };
+      if (share.type === "song") {
+        shareInfo.innerHTML = [
+          row("歌手", raw.singer || share.description),
+          row("专辑", raw.album),
+          row("时长", formatDuration(raw.duration)),
+          row("来源", sourceLabel(share.source)),
+        ].join("");
+      } else {
+        shareInfo.innerHTML = [
+          row("描述", share.description),
+          row("歌曲数", raw.song_count || raw.songCount),
+          row("来源", sourceLabel(share.source)),
+          row("分享人", share.sharer && share.sharer.username),
+        ].join("");
+      }
+      const downloadParams = new URLSearchParams({ type: SHARE_TYPE, uuid });
+      shareDownloadLink.href = `/download/?${downloadParams.toString()}`;
+      shareLoading.classList.add("hidden");
+      shareError.classList.add("hidden");
+      shareContent.classList.remove("hidden");
+    }
+
+    async function loadShare() {
+      if (!validShare) {
+        showShareError("分享链接无效", "该链接缺少有效的分享标识。");
+        return;
+      }
+      try {
+        const response = await fetch(`/api/shares/public/${encodeURIComponent(uuid)}`);
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload || !payload.success || !payload.data) {
+          showShareError("分享不存在或已失效", payload && payload.msg ? payload.msg : "请让分享人重新发送链接。");
+          return;
+        }
+        renderShare(payload.data);
+      } catch {
+        showShareError("网络连接失败", "暂时无法读取分享信息，请稍后重试。");
       }
     }
 
@@ -213,8 +470,14 @@
     window.addEventListener("pagehide", markPageLeft);
     openButton.addEventListener("click", openApp);
     copyButton.addEventListener("click", copyRoomId);
+    shareOpenButton.addEventListener("click", openShareInApp);
+    shareCopyButton.addEventListener("click", copyShareLink);
 
-    if (valid) {
+    if (type === SHARE_TYPE) {
+      listenView.classList.add("hidden");
+      shareView.classList.remove("hidden");
+      loadShare();
+    } else if (validRoom) {
       room.innerText = `一起听房间 · 房间号 ${roomId}`;
       const downloadParams = new URLSearchParams({ type, roomId });
       downloadLink.href = `/download/?${downloadParams.toString()}`;
