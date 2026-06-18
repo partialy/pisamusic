@@ -1,12 +1,10 @@
 package cn.partialy.pm.ui.dialog
 
 import android.content.Context
-import android.graphics.Rect
 import android.view.LayoutInflater
-import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import androidx.core.widget.NestedScrollView
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.LayoutBottomRadiusOptionsSheetBinding
 import cn.partialy.pm.model.DownloadQualityOption
@@ -91,21 +89,35 @@ suspend fun showDownloadQualityConfirmDialog(
 ): DownloadQualityOption? {
     if (options.isEmpty()) return null
     return suspendCancellableCoroutine { cont ->
-        val content = LayoutInflater.from(context).inflate(
-            R.layout.dialog_download_quality_picker,
+        val inflater = LayoutInflater.from(context)
+        val header = inflater.inflate(
+            R.layout.include_song_info_header,
             null,
             false,
         )
+        val headerMarginHorizontal = (20f * context.resources.displayMetrics.density).roundToInt()
+        val headerMarginTop = (22f * context.resources.displayMetrics.density).roundToInt()
+        header.layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+        ).apply {
+            leftMargin = headerMarginHorizontal
+            rightMargin = headerMarginHorizontal
+            topMargin = headerMarginTop
+        }
         SongInfoHeaderBinder.bind(
-            root = content,
+            root = header,
             song = song,
             fallbackTitle = context.getString(R.string.download_current_song),
             fallbackSubtitle = songSubtitle,
         )
-        val container = content.findViewById<LinearLayout>(R.id.downloadQualityOptionsContainer)
-        val optionsScroll = content.findViewById<NestedScrollView>(
-            R.id.downloadQualityOptionsScroll,
+
+        val content = inflater.inflate(
+            R.layout.dialog_download_quality_picker,
+            null,
+            false,
         )
+        val container = content.findViewById<LinearLayout>(R.id.downloadQualityOptionsContainer)
         val initialIndex = options.indexOfFirst {
             it.choice.toPlaybackQualityKey() == selectedQualityKey
         }.takeIf { it >= 0 } ?: 0
@@ -123,6 +135,7 @@ suspend fun showDownloadQualityConfirmDialog(
 
         var confirmed = false
         val dialog = PmSlotDialog.Builder(context)
+            .setHeaderView(header)
             .setContentView(content)
             .setCancelButton(context.getString(R.string.cancel))
             .setConfirmButton(
@@ -136,50 +149,9 @@ suspend fun showDownloadQualityConfirmDialog(
             }
             .show()
 
-        constrainDownloadQualityDialogHeight(
-            dialog = dialog,
-            content = content,
-            optionsScroll = optionsScroll,
-            optionsContainer = container,
-        )
         dialog.setOnDismissListener {
             if (cont.isActive && !confirmed) cont.resume(null)
         }
         cont.invokeOnCancellation { dialog.dismiss() }
-    }
-}
-
-private fun constrainDownloadQualityDialogHeight(
-    dialog: android.app.Dialog,
-    content: View,
-    optionsScroll: NestedScrollView,
-    optionsContainer: LinearLayout,
-) {
-    content.post {
-        val window = dialog.window ?: return@post
-        val visibleFrame = Rect()
-        window.decorView.getWindowVisibleDisplayFrame(visibleFrame)
-
-        val density = content.resources.displayMetrics.density
-        val verticalMargin = (24f * density).roundToInt()
-        val maxDialogHeight = (visibleFrame.height() - verticalMargin * 2).coerceAtLeast(0)
-        val buttonContainer = dialog.findViewById<View>(R.id.buttonContainer)
-        val divider = dialog.findViewById<View>(R.id.horizontalDivider)
-        val fixedHeight = (content.measuredHeight - optionsScroll.measuredHeight).coerceAtLeast(0) +
-            buttonContainer.measuredHeight +
-            divider.measuredHeight
-        val availableOptionsHeight = (maxDialogHeight - fixedHeight).coerceAtLeast(0)
-        val naturalOptionsHeight = optionsContainer.measuredHeight
-
-        if (naturalOptionsHeight <= availableOptionsHeight) return@post
-
-        val firstRowHeight = optionsContainer.getChildAt(0)?.measuredHeight ?: 0
-        val preferredMinimumHeight = firstRowHeight * 3
-        optionsScroll.minimumHeight = preferredMinimumHeight.coerceAtMost(availableOptionsHeight)
-        val targetHeight = availableOptionsHeight.coerceAtMost(naturalOptionsHeight)
-        optionsScroll.layoutParams = optionsScroll.layoutParams.apply {
-            height = targetHeight
-        }
-        optionsScroll.requestLayout()
     }
 }

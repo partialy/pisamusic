@@ -1,33 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/downloadQualityOptionsContainer"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="22dp">
-
-    <include
-        android:id="@+id/downloadQualitySongHeader"
-        layout="@layout/include_song_info_header"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginTop="0dp" />
-
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/downloadQualityOptionsScroll"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:layout_marginBottom="8dp"
-        android:clipToPadding="false"
-        android:fillViewport="false"
-        android:overScrollMode="ifContentScrolls"
-        android:scrollbars="vertical">
-
-        <LinearLayout
-            android:id="@+id/downloadQualityOptionsContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-    </androidx.core.widget.NestedScrollView>
+    android:paddingTop="14dp"
+    android:paddingBottom="8dp">
 </LinearLayout>

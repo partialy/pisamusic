@@ -41,6 +41,15 @@ class PmSlotDialog private constructor(
     }
 
     private fun bindContent(binding: DialogPmSlotBinding, dialog: Dialog) {
+        val headerView = when {
+            config.headerView != null -> config.headerView
+            config.headerLayoutRes != null -> dialog.layoutInflater.inflate(
+                config.headerLayoutRes,
+                binding.headerSlotContainer,
+                false,
+            )
+            else -> null
+        }
         val slotView = when {
             config.contentView != null -> config.contentView
             config.contentLayoutRes != null -> dialog.layoutInflater.inflate(
@@ -51,6 +60,14 @@ class PmSlotDialog private constructor(
             else -> null
         }
 
+        binding.headerSlotContainer.isVisible = headerView != null
+        headerView?.let { view ->
+            (view.parent as? ViewGroup)?.removeView(view)
+            binding.headerSlotContainer.addView(view)
+            config.onHeaderBind?.invoke(view, dialog)
+        }
+
+        binding.slotContainer.isVisible = slotView != null
         slotView?.let { view ->
             (view.parent as? ViewGroup)?.removeView(view)
             binding.slotContainer.addView(buildScrollableSlot(view, binding))
@@ -94,7 +111,7 @@ class PmSlotDialog private constructor(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             )
-            maxHeightPx = calculateMaxSlotHeight(binding)
+            maxHeightProvider = { calculateMaxSlotHeight(binding) }
             isFillViewport = false
             isVerticalScrollBarEnabled = true
             overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
@@ -114,13 +131,18 @@ class PmSlotDialog private constructor(
 
     private fun calculateMaxSlotHeight(binding: DialogPmSlotBinding): Int {
         val dialogMaxHeight = (context.resources.displayMetrics.heightPixels * 0.5f).roundToInt()
-        val buttonHeight = binding.buttonContainer.layoutParams.height.coerceAtLeast(0)
-        val dividerHeight = binding.horizontalDivider.layoutParams.height.coerceAtLeast(0)
-        return (dialogMaxHeight - buttonHeight - dividerHeight).coerceAtLeast(1)
+        val headerHeight = binding.headerSlotContainer.measuredHeight.takeIf {
+            binding.headerSlotContainer.isVisible
+        } ?: 0
+        val buttonHeight = binding.buttonContainer.measuredHeight.takeIf { it > 0 }
+            ?: binding.buttonContainer.layoutParams.height.coerceAtLeast(0)
+        val dividerHeight = binding.horizontalDivider.measuredHeight.takeIf { it > 0 }
+            ?: binding.horizontalDivider.layoutParams.height.coerceAtLeast(0)
+        return (dialogMaxHeight - headerHeight - buttonHeight - dividerHeight).coerceAtLeast(1)
     }
 
     private class MaxHeightNestedScrollView(context: Context) : NestedScrollView(context) {
-        var maxHeightPx: Int = 0
+        var maxHeightProvider: (() -> Int)? = null
             set(value) {
                 field = value
                 requestLayout()
@@ -131,6 +153,7 @@ class PmSlotDialog private constructor(
         }
 
         private fun constrainedHeightMeasureSpec(heightMeasureSpec: Int): Int {
+            val maxHeightPx = maxHeightProvider?.invoke() ?: 0
             if (maxHeightPx <= 0) return heightMeasureSpec
 
             val mode = View.MeasureSpec.getMode(heightMeasureSpec)
@@ -144,6 +167,9 @@ class PmSlotDialog private constructor(
     }
 
     data class Config(
+        @LayoutRes val headerLayoutRes: Int? = null,
+        val headerView: View? = null,
+        val onHeaderBind: ((View, Dialog) -> Unit)? = null,
         @LayoutRes val contentLayoutRes: Int? = null,
         val contentView: View? = null,
         val onBind: ((View, Dialog) -> Unit)? = null,
@@ -159,6 +185,9 @@ class PmSlotDialog private constructor(
     )
 
     class Builder(private val context: Context) {
+        @LayoutRes private var headerLayoutRes: Int? = null
+        private var headerView: View? = null
+        private var onHeaderBind: ((View, Dialog) -> Unit)? = null
         @LayoutRes private var contentLayoutRes: Int? = null
         private var contentView: View? = null
         private var onBind: ((View, Dialog) -> Unit)? = null
@@ -171,6 +200,24 @@ class PmSlotDialog private constructor(
         private var dismissOnConfirm: Boolean = true
         private var onCancel: ((Dialog) -> Unit)? = null
         private var onConfirm: ((Dialog) -> Unit)? = null
+
+        fun setHeaderLayout(
+            @LayoutRes layoutRes: Int,
+            onBind: ((View, Dialog) -> Unit)? = null,
+        ) = apply {
+            headerLayoutRes = layoutRes
+            headerView = null
+            onHeaderBind = onBind
+        }
+
+        fun setHeaderView(
+            view: View,
+            onBind: ((View, Dialog) -> Unit)? = null,
+        ) = apply {
+            headerView = view
+            headerLayoutRes = null
+            onHeaderBind = onBind
+        }
 
         fun setContentLayout(
             @LayoutRes layoutRes: Int,
@@ -231,6 +278,9 @@ class PmSlotDialog private constructor(
         fun show(): Dialog = PmSlotDialog(context, build()).show()
 
         private fun build(): Config = Config(
+            headerLayoutRes = headerLayoutRes,
+            headerView = headerView,
+            onHeaderBind = onHeaderBind,
             contentLayoutRes = contentLayoutRes,
             contentView = contentView,
             onBind = onBind,

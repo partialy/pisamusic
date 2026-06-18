@@ -17,6 +17,14 @@
         android:orientation="vertical">
 
         <FrameLayout
+            android:id="@+id/headerSlotContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            tools:layout_height="80dp"
+            tools:visibility="visible" />
+
+        <FrameLayout
             android:id="@+id/slotContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
