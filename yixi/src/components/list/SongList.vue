@@ -99,12 +99,14 @@ import DownloadSongDialog from "@/components/player/DownloadSongDialog.vue";
 import AddToPlaylistDialog from "@/components/player/AddToPlaylistDialog.vue";
 import { VirtList } from "vue-virt-list";
 import type { Song } from "@/types/song";
-import { onBeforeRouteLeave } from "vue-router";
+import { onBeforeRouteLeave, useRouter } from "vue-router";
 import { useSongDownload } from "@/composables/useSongDownload";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
+import { openSongDetail } from "@/share/mediaDetailRoute";
 const player = useAudioStore();
 const playbackCommands = usePlaybackCommands();
 const songDownload = useSongDownload();
+const router = useRouter();
 
 
 const props = defineProps<{
@@ -164,8 +166,8 @@ const handleAddToPlaylist = (song: Song) => {
   addToPlaylistDialogRef.value?.open(song);
 };
 
-const handleDetailSong = (_song: Song) => {
-  window.$message.info("详情功能后续接入");
+const handleDetailSong = (song: Song) => {
+  void openSongDetail(router, song);
 };
 
 onMounted(() => {

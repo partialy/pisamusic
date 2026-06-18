@@ -18,6 +18,7 @@ import { setupLocalLibraryIpc } from "./ipc/localLibraryIpc";
 import { setupCookieIpc } from "./ipc/cookieIpc";
 import { setupDownloadIpc } from "./ipc/downloadIpc";
 import { setupShortcutIpc } from "./ipc/shortcutIpc";
+import { setupShareIpc } from "./ipc/shareIpc";
 import { setupSyncIpc } from "./ipc/syncIpc";
 import { closeListenTogetherSocket } from "./listenTogether/listenTogetherService";
 import { ListenTogetherInviteCoordinator } from "./listenTogether/listenTogetherInviteCoordinator";
@@ -129,6 +130,7 @@ function setupAppIpc() {
   setupCookieIpc();
   setupDownloadIpc();
   setupShortcutIpc(() => mainWindow);
+  setupShareIpc();
   setupSyncIpc();
   setupListenTogetherIpc(() => mainWindow);
   setupUpdaterIpc(() => mainWindow);

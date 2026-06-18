@@ -29,6 +29,14 @@
 - 用户协议、隐私政策和意见反馈入口固定放在关于页内；协议/隐私通过 main 侧 system IPC 拉取 `/api/config/service-agreement`、`/api/config/privacy-policy` 后在弹窗展示，反馈表单通过 `system:submit-feedback` 提交 `/api/feedback`。
 - 反馈图片由 renderer 读取为可序列化二进制后交给 main 侧组装 `FormData`，最多 3 张，格式限定 JPEG/PNG/WebP，单张不超过 5MB；不要让 renderer 直接持有反馈接口 URL。
 
+## 歌曲/歌单详情与分享规则补充
+
+- 桌面端歌曲/歌单详情统一使用主区域路由 `/media/detail`，菜单进入时只在 query 中携带经过白名单裁剪的 canonical payload；分享外链进入时使用 `kind=share&uuid=<uuid>` 后由 main 侧读取公开分享接口。
+- 分享创建和公开读取只走 main/preload 暴露的 `share:*` IPC：`electron/system/systemClient.ts` 访问外层 `server` 的 `/api/shares` 和 `/api/shares/public/:uuid`，renderer 不直接拼接 server 地址、账号 token 或加密请求。
+- 分享链接继续复用官网扫码入口 `https://pisamusic.partialy.cn/scan?type=music-share&uuid=<uuid>` 与 `pisamusic://scan?type=music-share&uuid=<uuid>`；解析规则集中在 `src/share/shareLink.ts`，不要新增 `pisamusic://share` 或顶层 `/share`。
+- 分享 payload 必须通过 `src/share/shareModels.ts` 白名单裁剪；不得包含本地 `filePath`、播放 URL、歌词正文、内嵌封面二进制或 renderer 响应式对象。
+- Electron 外部扫码动作由 main 侧协调器缓冲冷启动/二次启动参数：一起听继续投递 `listen-together:invite`，音乐分享投递 `share:invite`，renderer 只消费只读事件并跳转详情页。
+
 ## 服务端地址规则补充
 
 - 桌面端 main 进程统一通过 `electron/system/systemClient.ts` 的 `getSystemBaseUrl()` 访问外层服务端；开发环境默认 `http://127.0.0.1:53380`，正式打包环境默认 `http://pm-server.hs.partialy.cn/`。

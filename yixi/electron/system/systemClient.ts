@@ -224,6 +224,35 @@ export type AccountSession = AccountAuthResult & {
   loggedIn: boolean;
 };
 
+export type ShareType = "song" | "playlist";
+
+export type ShareCreateResult = {
+  uuid: string;
+  shareUrl: string;
+  appUrl: string;
+  share: PublicShareRecord;
+};
+
+export type PublicShareRecord = {
+  uuid: string;
+  type: ShareType;
+  source: string;
+  sourceId: string;
+  title: string;
+  description: string;
+  coverUrl: string;
+  rawJson: Record<string, unknown>;
+  sharer: {
+    id: string;
+    username: string;
+    avatarUrl: string;
+  };
+  createdAt: number;
+  updatedAt: number;
+  accessCount: number;
+  valid: boolean;
+};
+
 const ACCOUNT_SESSION_KEY = "account-session";
 const ACCOUNT_AVATAR_MAX_SIZE = 5 * 1024 * 1024;
 
@@ -385,6 +414,25 @@ export async function resetAccountPassword(payload: { email: string; code: strin
     method: "POST",
     body: payload,
   });
+  return unwrapResponse(response);
+}
+
+export async function createShare(type: ShareType, rawJson: unknown) {
+  const session = getAccountSession();
+  if (!session.loggedIn || !session.token) throw new Error("请先登录账号");
+  const response = await requestSystem<ShareCreateResult>("/api/shares", {
+    method: "POST",
+    body: { type, rawJson },
+    headers: { Authorization: `Bearer ${session.token}` },
+  });
+  return unwrapResponse(response);
+}
+
+export async function getPublicShare(uuid: string) {
+  const response = await requestSystem<PublicShareRecord>(
+    `/api/shares/public/${encodeURIComponent(uuid)}`,
+    { encrypted: false },
+  );
   return unwrapResponse(response);
 }
 

@@ -195,6 +195,11 @@
     <string name="drawer_scan_prompt">请将二维码放入取景框</string>
     <string name="drawer_scan_result">扫码结果：%1$s</string>
     <string name="drawer_scan_cancelled">已取消扫码</string>
+    <string name="scan_back">返回</string>
+    <string name="scan_torch">手电筒</string>
+    <string name="scan_album">从相册选择</string>
+    <string name="scan_album_decode_failed">未识别到二维码</string>
+    <string name="scan_album_open_failed">无法打开相册</string>
     <string name="drawer_badge_kg">KG</string>
     <string name="drawer_badge_wy">WY</string>
     <string name="drawer_not_logged_in">未登录</string>

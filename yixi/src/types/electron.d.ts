@@ -11,6 +11,7 @@ import type {
   ListenTogetherSocketCommand,
 } from "./listenTogether";
 import type { ListenTogetherInvite } from "../listenTogether/listenTogetherShareLink";
+import type { ExternalShareInvite } from "../share/shareLink";
 
 type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
 type SearchableMusicSource = "kg" | "wy" | "kw";
@@ -619,6 +620,35 @@ type SyncState = {
   lastError: string;
 };
 
+type ShareType = "song" | "playlist";
+
+type SharePublicRecord = {
+  uuid: string;
+  type: ShareType;
+  source: string;
+  sourceId: string;
+  title: string;
+  description: string;
+  coverUrl: string;
+  rawJson: Record<string, unknown>;
+  sharer: {
+    id: string;
+    username: string;
+    avatarUrl: string;
+  };
+  createdAt: number;
+  updatedAt: number;
+  accessCount: number;
+  valid: boolean;
+};
+
+type ShareCreateResult = {
+  uuid: string;
+  shareUrl: string;
+  appUrl: string;
+  share: SharePublicRecord;
+};
+
 type ShortcutAction =
   | "prev"
   | "next"
@@ -711,6 +741,11 @@ type ElectronIpcApi = {
   clearSyncState: () => Promise<SyncState>;
   onSyncChanged: (callback: (state: SyncState) => void) => () => void;
   onMineLibraryChanged: (callback: () => void) => () => void;
+  createShare: (payload: { type: ShareType; rawJson: unknown }) => Promise<ShareCreateResult>;
+  getPublicShare: (uuid: string) => Promise<SharePublicRecord>;
+  onExternalShareInvite: (
+    callback: (invite: ExternalShareInvite) => void
+  ) => () => void;
   searchMusic: <T = any>(payload: MusicSearchParams) => Promise<T>;
   searchSuggest: <T = any>(payload: MusicSuggestParams) => Promise<T>;
   searchPlaylists: <T = any>(payload: PlaylistSearchParams) => Promise<T>;

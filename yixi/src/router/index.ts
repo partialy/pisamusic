@@ -105,6 +105,12 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import("../components/playList/PlayListDetailLayout.vue"),
         meta: { title: "PisaMusic - 歌单详情" },
       },
+      {
+        path: "media/detail",
+        name: "MediaDetail",
+        component: () => import("../views/media/MediaDetailView.vue"),
+        meta: { title: "PisaMusic - 音乐详情" },
+      },
     ],
   },
   {

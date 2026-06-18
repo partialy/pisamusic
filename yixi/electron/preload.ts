@@ -240,6 +240,14 @@ const syncIpc = {
   onMineLibraryChanged: (callback: () => void) => on("mine-library:changed", callback),
 };
 
+const shareIpc = {
+  createShare: (payload: { type: "song" | "playlist"; rawJson: unknown }) =>
+    ipcRenderer.invoke("share:create", cloneIpcPayload(payload)),
+  getPublicShare: (uuid: string) => ipcRenderer.invoke("share:public", uuid),
+  onExternalShareInvite: (callback: (invite: unknown) => void) =>
+    on("share:invite", callback),
+};
+
 const musicApiIpc = {
   searchMusic: (payload: {
     source: "kg" | "wy" | "kw";
@@ -420,6 +428,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...systemIpc,
   ...accountIpc,
   ...syncIpc,
+  ...shareIpc,
   ...musicApiIpc,
   ...cookieApiIpc,
   ...downloadApiIpc,

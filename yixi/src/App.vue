@@ -29,6 +29,7 @@ import {
   NButton,
 } from "naive-ui";
 import { h, onBeforeUnmount, Transition, watch } from "vue";
+import { useRouter } from "vue-router";
 import { PlayerBar, MainPlayer } from "./components";
 import {
   useCommonStore,
@@ -53,6 +54,7 @@ import { getColorFromUrl, getSongCover } from "./utils/common";
 import { message } from "./utils/pure/message";
 import { normalizeSong } from "./utils/song";
 import { setupPlaybackBridge, usePlaybackCommands } from "./listenTogether/playbackCommands";
+import { openSharedMediaDetail } from "./share/mediaDetailRoute";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
@@ -62,6 +64,7 @@ const runtimeConfig = useRuntimeConfigStore();
 const themeStore = useThemeStore();
 const shortcutStore = useShortcutStore();
 const userStore = useUserStore();
+const router = useRouter();
 // 初始化
 commonStore.hidePlayer();
 
@@ -129,6 +132,7 @@ function setupListeners() {
 
 let updaterProgressMessage: ReturnType<typeof message.loading> | null = null;
 let lastUpdaterProgressPercent = -1;
+let stopShareInviteListener: (() => void) | null = null;
 
 function resetUpdaterProgressMessage(
   finalText?: string,
@@ -222,6 +226,14 @@ function setupUpdaterNotifications() {
   });
 }
 
+function setupShareInviteListener() {
+  if (stopShareInviteListener) return;
+  stopShareInviteListener = electronAPI.onExternalShareInvite?.((invite) => {
+    if (!invite?.uuid) return;
+    void openSharedMediaDetail(router, invite.uuid);
+  }) ?? null;
+}
+
 function setUpWindow() {
   window.$message = message;
   window.$notification = notification;
@@ -246,6 +258,7 @@ async function bootstrapApp() {
     setUpWindow();
     setupListeners();
     setupUpdaterNotifications();
+    setupShareInviteListener();
     setupAutoSaver();
     lyric.loadSetting();
     const startupServiceState = await electronAPI.getStartupServiceState?.();
@@ -295,6 +308,7 @@ onBeforeUnmount(() => {
   collector.save();
   themeStore.dispose();
   shortcutStore.dispose();
+  stopShareInviteListener?.();
   clearInterval(t);
 });
 </script>

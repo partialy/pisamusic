@@ -8,13 +8,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.annotation.ColorInt
 import androidx.annotation.LayoutRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import androidx.core.widget.NestedScrollView
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.DialogPmSlotBinding
+import kotlin.math.roundToInt
 
 class PmSlotDialog private constructor(
     private val context: Context,
@@ -50,7 +53,7 @@ class PmSlotDialog private constructor(
 
         slotView?.let { view ->
             (view.parent as? ViewGroup)?.removeView(view)
-            binding.slotContainer.addView(view)
+            binding.slotContainer.addView(buildScrollableSlot(view, binding))
             config.onBind?.invoke(view, dialog)
         }
 
@@ -80,6 +83,62 @@ class PmSlotDialog private constructor(
             config.onConfirm?.invoke(dialog)
             if (config.dismissOnConfirm) {
                 dialog.dismiss()
+            }
+        }
+    }
+
+    private fun buildScrollableSlot(view: View, binding: DialogPmSlotBinding): View {
+        val contentHeight = view.layoutParams?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT
+        return MaxHeightNestedScrollView(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+            maxHeightPx = calculateMaxSlotHeight(binding)
+            isFillViewport = false
+            isVerticalScrollBarEnabled = true
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            addView(
+                view,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    if (contentHeight == ViewGroup.LayoutParams.MATCH_PARENT) {
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    } else {
+                        contentHeight
+                    },
+                ),
+            )
+        }
+    }
+
+    private fun calculateMaxSlotHeight(binding: DialogPmSlotBinding): Int {
+        val dialogMaxHeight = (context.resources.displayMetrics.heightPixels * 0.5f).roundToInt()
+        val buttonHeight = binding.buttonContainer.layoutParams.height.coerceAtLeast(0)
+        val dividerHeight = binding.horizontalDivider.layoutParams.height.coerceAtLeast(0)
+        return (dialogMaxHeight - buttonHeight - dividerHeight).coerceAtLeast(1)
+    }
+
+    private class MaxHeightNestedScrollView(context: Context) : NestedScrollView(context) {
+        var maxHeightPx: Int = 0
+            set(value) {
+                field = value
+                requestLayout()
+            }
+
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            super.onMeasure(widthMeasureSpec, constrainedHeightMeasureSpec(heightMeasureSpec))
+        }
+
+        private fun constrainedHeightMeasureSpec(heightMeasureSpec: Int): Int {
+            if (maxHeightPx <= 0) return heightMeasureSpec
+
+            val mode = View.MeasureSpec.getMode(heightMeasureSpec)
+            val size = View.MeasureSpec.getSize(heightMeasureSpec)
+            return if (mode == View.MeasureSpec.UNSPECIFIED || size > maxHeightPx) {
+                View.MeasureSpec.makeMeasureSpec(maxHeightPx, View.MeasureSpec.AT_MOST)
+            } else {
+                heightMeasureSpec
             }
         }
     }

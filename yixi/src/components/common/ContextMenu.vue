@@ -10,11 +10,12 @@
     :options="options"
     @select="show = false"
     @clickoutside="show = false" />
-  <MediaDetailDialog ref="detailDialogRef" />
+  <ShareDialog ref="shareDialogRef" />
 </template>
 
 <script lang="ts" setup>
 import { nextTick, ref } from "vue";
+import { useRouter } from "vue-router";
 import { NDropdown, type DropdownOption } from "naive-ui";
 import type { CommonPlaylist, Song } from "@/types/song";
 import {
@@ -27,12 +28,13 @@ import {
   PlaylistAdd,
   SingerIcon,
 } from "@/icons";
-import { Download, Info } from "lucide-vue-next";
+import { Download, Info, Share2 } from "lucide-vue-next";
 import { useCollectStore } from "@/store";
 import { renderIcon } from "@/utils/common";
 import { fetchAllPlaylistTracks } from "@/utils/playlistTracks";
-import MediaDetailDialog from "@/components/common/MediaDetailDialog.vue";
+import ShareDialog from "@/components/common/ShareDialog.vue";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
+import { openPlaylistDetail, openSongDetail } from "@/share/mediaDetailRoute";
 
 const x = ref(0);
 const y = ref(0);
@@ -40,7 +42,8 @@ const show = ref(false);
 const options = ref<DropdownOption[]>([]);
 const collector = useCollectStore();
 const playbackCommands = usePlaybackCommands();
-const detailDialogRef = ref<InstanceType<typeof MediaDetailDialog> | null>(null);
+const router = useRouter();
+const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
 const props = withDefaults(defineProps<{
   removable?: boolean;
 }>(), {
@@ -167,10 +170,20 @@ const createSongOptions = (song: Song) => {
   }
 
   songOptions.push({
+    label: "分享",
+    props: {
+      title: "分享",
+      onClick: () => shareDialogRef.value?.openForSong(song),
+    },
+    icon: renderIcon(Share2, {}, { size: 22 }),
+    key: "share",
+  });
+
+  songOptions.push({
     label: "详情",
     props: {
       title: "详情",
-      onClick: () => detailDialogRef.value?.openSong(song),
+      onClick: () => void openSongDetail(router, song),
     },
     icon: renderIcon(Info, {}, { size: 22 }),
     key: "detail",
@@ -228,10 +241,19 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
       key: "playlist-collect",
     },
     {
+      label: "分享",
+      props: {
+        title: "分享",
+        onClick: () => shareDialogRef.value?.openForPlaylist(playlist),
+      },
+      icon: renderIcon(Share2, {}, { size: 22 }),
+      key: "playlist-share",
+    },
+    {
       label: "详情",
       props: {
         title: "详情",
-        onClick: () => detailDialogRef.value?.openPlaylist(playlist),
+        onClick: () => void openPlaylistDetail(router, playlist),
       },
       icon: renderIcon(Info, {}, { size: 22 }),
       key: "playlist-detail",

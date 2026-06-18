@@ -47,6 +47,18 @@
                   collector.containsPlaylist(listDetail) ? "取消收藏" : "收藏"
                 }}
               </n-button>
+              <n-button round secondary style="margin-left: 10px" @click="openDetailPage">
+                <template #icon>
+                  <n-icon :component="Info"></n-icon>
+                </template>
+                详情
+              </n-button>
+              <n-button round secondary style="margin-left: 10px" @click="openShareDialog">
+                <template #icon>
+                  <n-icon :component="Share2"></n-icon>
+                </template>
+                分享
+              </n-button>
             </div>
 
             <n-input round :style="{
@@ -67,6 +79,7 @@
       <SongList :songs="songList" :loading="loading" :has-more="songList.length < page.total" :search-key="searchText"
         show-footer show-header @scroll="onScroll" @scroll-to-bottom="onToBottom" />
     </div>
+    <ShareDialog ref="shareDialogRef" />
   </div>
   <!-- 骨架屏 -->
   <div class="play-list-detail-layout" v-else>
@@ -96,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
   NButton,
   NInput,
@@ -120,6 +133,9 @@ import type { WYPlaylistDetail } from "@/utils/webapi";
 import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
 import { listMinePlaylistSongs, listMinePlaylists } from "@/utils/api/mineLibraryAPI";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
+import { Info, Share2 } from "lucide-vue-next";
+import ShareDialog from "@/components/common/ShareDialog.vue";
+import { openPlaylistDetail } from "@/share/mediaDetailRoute";
 
 import SongList from "@/components/list/SongList.vue";
 
@@ -129,6 +145,7 @@ const playbackCommands = usePlaybackCommands();
 const collector = useCollectStore();
 const message = useMessage();
 const route = useRoute();
+const router = useRouter();
 let id = route.query.id;
 const searchText = ref("");
 const searchFocus = ref(false);
@@ -139,6 +156,7 @@ const kgListDetail = ref<KGPlaylistDetailData>();
 const wyListDetail = ref<WYPlaylistDetail>();
 
 const listDetail = ref<CommonPlaylist>();
+const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
 const detailCover = computed(() => {
   const origin = getDetailOrigin();
   if (origin === "local") {
@@ -317,6 +335,16 @@ const playAll = async () => {
   songList.value = allSong.value;
   handlePlay();
 };
+
+function openDetailPage() {
+  if (!listDetail.value) return;
+  void openPlaylistDetail(router, listDetail.value);
+}
+
+function openShareDialog() {
+  if (!listDetail.value) return;
+  shareDialogRef.value?.openForPlaylist(listDetail.value);
+}
 
 const loadAll = async () => {
   if (allLoading.value) return;
