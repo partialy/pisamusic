@@ -11,12 +11,18 @@ import android.view.animation.AnimationUtils
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.AppActivityTransitions
 import cn.partialy.pm.player.MusicController
+import cn.partialy.pm.player.PlaybackUiEvent
+import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 open class BaseActivity : AppCompatActivity() {
@@ -31,6 +37,28 @@ open class BaseActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        observePlaybackUiEvents()
+    }
+
+    private fun observePlaybackUiEvents() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                musicController.playbackEvents.collect { event ->
+                    when (event) {
+                        PlaybackUiEvent.NetworkPoorPaused -> showNetworkPoorPausedDialog()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showNetworkPoorPausedDialog() {
+        PmMinimalDialog.show(
+            context = this,
+            message = "网络不佳，先听听本地音乐吧。",
+            confirmText = "我知道了",
+            singleButton = true,
+        )
     }
 
     fun showMessage(content: String, durationMs: Long = 2000L): () -> Unit {

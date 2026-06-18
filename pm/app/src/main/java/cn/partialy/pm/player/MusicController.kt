@@ -14,11 +14,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+
+sealed class PlaybackUiEvent {
+    object NetworkPoorPaused : PlaybackUiEvent()
+}
 
 /**
  * 统一播放控制入口（薄 Facade）。
@@ -36,6 +42,7 @@ class MusicController @Inject constructor(
     private val playbackScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val playRequestGate = LatestRequestGate()
     private val playJobLock = Any()
+    private val _playbackEvents = MutableSharedFlow<PlaybackUiEvent>(extraBufferCapacity = 1)
     private var playJob: Job? = null
 
     init {
@@ -46,6 +53,7 @@ class MusicController @Inject constructor(
             onNext = { next() },
             onPrevious = { previous() },
             onTogglePlayPause = { togglePlayPause() },
+            onPlaybackEvent = { event -> _playbackEvents.tryEmit(event) },
         )
         engine.init()
     }
@@ -65,6 +73,7 @@ class MusicController @Inject constructor(
     val duration: StateFlow<Long> get() = engine.duration
     val playbackState: StateFlow<Int> get() = engine.playbackState
     val playNextQueue: StateFlow<List<SongInfo>> get() = playlistManager.playNextQueue
+    val playbackEvents: SharedFlow<PlaybackUiEvent> get() = _playbackEvents
 
     // ==================== 播放控制 ====================
 

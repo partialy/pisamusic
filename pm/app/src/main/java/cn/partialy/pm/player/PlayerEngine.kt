@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.view.KeyEvent
-import android.widget.Toast
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -15,7 +14,6 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionResult
 import cn.partialy.pm.model.DownloadQualityChoice
-import cn.partialy.pm.R
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.toPlaybackQualityKey
@@ -47,6 +45,7 @@ class PlayerEngine(
     private val onNext: () -> Unit,
     private val onPrevious: () -> Unit,
     private val onTogglePlayPause: () -> Unit,
+    private val onPlaybackEvent: (PlaybackUiEvent) -> Unit,
 ) {
     var exoPlayer: ExoPlayer? = null
         private set
@@ -70,7 +69,7 @@ class PlayerEngine(
     private val stateStore = PlayerStateStore(context)
     private var lastPersistAtMs = 0L
     private var restoreAttempted = false
-    private var lastAutoSkipAtMs = 0L
+    private var lastFailurePauseAtMs = 0L
     private var lastManualNextAtMs = 0L
     private var lastManualPreviousAtMs = 0L
     private var progressUpdateJob: Job? = null
@@ -541,7 +540,7 @@ class PlayerEngine(
             )
             return
         }
-        autoSkipAfterPlaybackFailure()
+        pauseAfterPlaybackFailure()
     }
 
     private fun shouldRetryWithFreshUrl(song: SongInfo): Boolean {
@@ -570,19 +569,20 @@ class PlayerEngine(
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    autoSkipAfterPlaybackFailure()
+                    pauseAfterPlaybackFailure()
                 }
             }
         }
     }
 
-    private fun autoSkipAfterPlaybackFailure() {
+    private fun pauseAfterPlaybackFailure() {
         val now = System.currentTimeMillis()
-        if (now - lastAutoSkipAtMs < 1200L) return
-        lastAutoSkipAtMs = now
+        if (now - lastFailurePauseAtMs < 1200L) return
+        lastFailurePauseAtMs = now
 
-        Toast.makeText(context, context.getString(R.string.play_url_failed_skip_next), Toast.LENGTH_SHORT).show()
-        onNext()
+        exoPlayer?.pause()
+        persistState(force = true)
+        onPlaybackEvent(PlaybackUiEvent.NetworkPoorPaused)
     }
 
     private fun clearPlaybackRetryForCurrent() {
