@@ -3,6 +3,9 @@ import type {
   AdminFeedbackDetail,
   AdminFeedbackFilter,
   AdminFeedbackListResponse,
+  AdminShareFilter,
+  AdminShareListItem,
+  AdminShareListResponse,
   Announcement,
   AppConfigJson,
   AppConfigSectionsPayload,
@@ -658,6 +661,33 @@ export async function updateAdminFeedbackStatus(id: string, status: FeedbackStat
     body: JSON.stringify({ status }),
   });
   const body = await parseJson<AdminFeedbackDetail>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminShares(filter: AdminShareFilter): Promise<AdminShareListResponse> {
+  const params = new URLSearchParams();
+  if (filter.type) params.set("type", filter.type);
+  if (filter.sharer) params.set("sharer", filter.sharer);
+  if (filter.valid) params.set("valid", filter.valid);
+  if (filter.offset !== undefined) params.set("offset", String(filter.offset));
+  if (filter.limit !== undefined) params.set("limit", String(filter.limit));
+  const query = params.toString();
+  const res = await fetchWithAuth(`/api/admin/shares${query ? `?${query}` : ""}`);
+  const body = await parseJson<AdminShareListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function invalidateAdminShare(uuid: string): Promise<AdminShareListItem> {
+  const res = await fetchWithAuth(`/api/admin/shares/${encodeURIComponent(uuid)}/invalid`, {
+    method: "PATCH",
+  });
+  const body = await parseJson<AdminShareListItem>(res);
   if (!res.ok || !body.success || body.data == null) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }

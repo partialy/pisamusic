@@ -23,6 +23,7 @@ import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.share.ShareLink
 import cn.partialy.pm.share.ShareQrBitmapFactory
 import cn.partialy.pm.share.ShareRepository
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -37,17 +38,18 @@ import kotlin.math.roundToInt
 
 object ShareBottomSheet {
     fun showSong(activity: FragmentActivity, song: SongInfo) {
-        showSong(activity, song.toCanonicalSong().shareSafe())
+        showSong(activity, song.toCanonicalSong())
     }
 
     fun showSong(activity: FragmentActivity, song: CanonicalSong) {
+        val safe = song.shareSafe()
         show(
             activity = activity,
-            title = song.name,
-            description = song.singer,
-            cover = song.cover,
+            title = safe.name,
+            description = safe.singer,
+            cover = safe.cover,
         ) { repository, token ->
-            repository.createSongShare(token, song.shareSafe())
+            repository.createSongShare(token, safe)
         }
     }
 
@@ -169,11 +171,15 @@ object ShareBottomSheet {
             ShareEntryPoint::class.java,
         ).shareRepository()
 
-    private fun CanonicalSong.shareSafe(): CanonicalSong =
-        copy(cover = cover.remoteOrEmpty(), coverSize = coverSize.takeIf { cover.remoteOrEmpty().isNotBlank() })
+    private fun CanonicalSong.shareSafe(): CanonicalSong {
+        val safeCover = SongCoverUrl.getRemoteCover(source, cover, SongCoverUrl.SIZE_MEDIUM)
+        return copy(cover = safeCover, coverSize = coverSize.takeIf { safeCover.isNotBlank() })
+    }
 
-    private fun CanonicalPlaylist.shareSafe(): CanonicalPlaylist =
-        copy(cover = cover.remoteOrEmpty(), coverSize = coverSize.takeIf { cover.remoteOrEmpty().isNotBlank() })
+    private fun CanonicalPlaylist.shareSafe(): CanonicalPlaylist {
+        val safeCover = SongCoverUrl.getRemoteCover(source, cover, SongCoverUrl.SIZE_MEDIUM)
+        return copy(cover = safeCover, coverSize = coverSize.takeIf { safeCover.isNotBlank() })
+    }
 
     private fun String.remoteOrEmpty(): String {
         val value = trim()

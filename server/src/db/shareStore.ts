@@ -32,6 +32,37 @@ export type ShareRecord = {
   valid: boolean;
 };
 
+export type AdminShareFilter = {
+  type?: ShareType;
+  sharer?: string;
+  valid?: boolean;
+  offset?: unknown;
+  limit?: unknown;
+};
+
+export type AdminShareListItem = {
+  uuid: string;
+  type: ShareType;
+  source: string;
+  sourceId: string;
+  title: string;
+  description: string;
+  coverUrl: string;
+  sharer: SharePublicSharer;
+  createdAt: number;
+  updatedAt: number;
+  accessCount: number;
+  valid: boolean;
+  invalidatedAt: number | null;
+};
+
+export type AdminShareListResult = {
+  items: AdminShareListItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
 export type SharePublicSharer = {
   id: string;
   username: string;
@@ -64,6 +95,11 @@ type ShareRow = {
   updated_at: number;
   access_count: number;
   valid: number;
+};
+
+type AdminShareRow = ShareRow & {
+  sharer_user_id: string;
+  invalidated_at: number | null;
 };
 
 const SHARE_TYPE_SET = new Set<string>(SHARE_TYPES);
@@ -114,6 +150,13 @@ function requiredString(value: unknown, label: string): string {
 function optionalString(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, 2048);
+}
+
+function normalizeShareCoverUrl(source: string, coverUrl: string): string {
+  const cover = optionalString(coverUrl);
+  if (!cover) return "";
+  if (source.trim().toLowerCase() === "kg") return cover.replace(/\{size\}/g, "240");
+  return cover;
 }
 
 function assertNoForbiddenFields(value: unknown, path: string[] = []): void {
@@ -174,13 +217,67 @@ function mapRow(row: ShareRow): ShareRecord {
     sourceId: row.source_id,
     title: row.title,
     description: row.description,
-    coverUrl: row.cover_url,
+    coverUrl: normalizeShareCoverUrl(row.source, row.cover_url),
     rawJson: parseRawJson(row.raw_json),
     sharer: parseSharer(row.sharer_snapshot_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     accessCount: Number(row.access_count) || 0,
     valid: row.valid === 1,
+  };
+}
+
+function mapAdminRow(row: AdminShareRow): AdminShareListItem {
+  const sharer = parseSharer(row.sharer_snapshot_json);
+  return {
+    uuid: row.uuid,
+    type: row.type,
+    source: row.source,
+    sourceId: row.source_id,
+    title: row.title,
+    description: row.description,
+    coverUrl: row.cover_url,
+    sharer: {
+      ...sharer,
+      id: sharer.id || row.sharer_user_id,
+    },
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    accessCount: Number(row.access_count) || 0,
+    valid: row.valid === 1,
+    invalidatedAt: row.invalidated_at ?? null,
+  };
+}
+
+function normalizePagination(offset: unknown, limit: unknown): { offset: number; limit: number } {
+  return {
+    offset: Math.max(0, Math.trunc(Number(offset) || 0)),
+    limit: Math.min(100, Math.max(1, Math.trunc(Number(limit) || 20))),
+  };
+}
+
+function buildAdminWhere(filter: AdminShareFilter): { sql: string; params: Array<string | number> } {
+  const clauses: string[] = [];
+  const params: Array<string | number> = [];
+  if (filter.type) {
+    clauses.push("s.type = ?");
+    params.push(filter.type);
+  }
+  if (typeof filter.valid === "boolean") {
+    clauses.push("s.valid = ?");
+    params.push(filter.valid ? 1 : 0);
+  }
+  const sharer = typeof filter.sharer === "string" ? filter.sharer.trim() : "";
+  if (sharer) {
+    const term = `%${sharer}%`;
+    clauses.push(
+      "(s.sharer_user_id LIKE ? OR s.sharer_snapshot_json LIKE ? OR COALESCE(u.username, '') LIKE ? OR COALESCE(u.email, '') LIKE ?)",
+    );
+    params.push(term, term, term, term);
+  }
+  return {
+    sql: clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "",
+    params,
   };
 }
 
@@ -338,4 +435,46 @@ export function readPublicShareAndIncrement(uuid: string): ShareRecord | null {
       .run(nextAccessCount, Date.now(), uuid);
     return mapRow({ ...row, access_count: nextAccessCount });
   });
+}
+
+export function listAdminShares(filter: AdminShareFilter): AdminShareListResult {
+  const db = getAppDb();
+  const { offset, limit } = normalizePagination(filter.offset, filter.limit);
+  const where = buildAdminWhere(filter);
+  const fromSql = `FROM share_records s LEFT JOIN users u ON u.id = s.sharer_user_id ${where.sql}`;
+  const totalRow = db.prepare(`SELECT COUNT(*) AS total ${fromSql}`).get(...where.params) as { total: number };
+  const rows = db
+    .prepare(
+      `SELECT s.*
+       ${fromSql}
+       ORDER BY s.updated_at DESC, s.created_at DESC, s.uuid ASC
+       LIMIT ? OFFSET ?`,
+    )
+    .all(...where.params, limit, offset) as AdminShareRow[];
+  return {
+    items: rows.map(mapAdminRow),
+    total: Number(totalRow.total) || 0,
+    offset,
+    limit,
+  };
+}
+
+export function readAdminShareRecord(uuid: string): AdminShareListItem | null {
+  if (!UUID_PATTERN.test(uuid)) return null;
+  const row = getAppDb()
+    .prepare("SELECT * FROM share_records WHERE uuid = ? LIMIT 1")
+    .get(uuid) as AdminShareRow | undefined;
+  return row ? mapAdminRow(row) : null;
+}
+
+export function invalidateShareRecord(uuid: string): AdminShareListItem | null {
+  if (!UUID_PATTERN.test(uuid)) return null;
+  const existing = readAdminShareRecord(uuid);
+  if (!existing) return null;
+  if (!existing.valid) return existing;
+  const now = Date.now();
+  getAppDb()
+    .prepare("UPDATE share_records SET valid = 0, invalidated_at = ?, updated_at = ? WHERE uuid = ?")
+    .run(now, now, uuid);
+  return readAdminShareRecord(uuid);
 }

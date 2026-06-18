@@ -373,6 +373,45 @@ export type AdminUserUpdatePayload = {
   email: string;
 };
 
+export type ShareType = "song" | "playlist";
+
+export type AdminShareSharer = {
+  id: string;
+  username: string;
+  avatarUrl: string;
+};
+
+export type AdminShareListItem = {
+  uuid: string;
+  type: ShareType;
+  source: string;
+  sourceId: string;
+  title: string;
+  description: string;
+  coverUrl: string;
+  sharer: AdminShareSharer;
+  createdAt: number;
+  updatedAt: number;
+  accessCount: number;
+  valid: boolean;
+  invalidatedAt: number | null;
+};
+
+export type AdminShareListResponse = {
+  items: AdminShareListItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type AdminShareFilter = {
+  type?: ShareType;
+  sharer?: string;
+  valid?: "true" | "false" | "all";
+  offset?: number;
+  limit?: number;
+};
+
 export type FeedbackType = "bug" | "suggestion" | "account" | "other";
 
 export type FeedbackStatus = "pending" | "processed";

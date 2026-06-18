@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
@@ -19,6 +20,7 @@ import cn.partialy.pm.share.SharePublicData
 import cn.partialy.pm.share.ShareRepository
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,7 +42,11 @@ class ShareDetailActivity : BaseActivity() {
         binding = ActivityShareDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = true, lightNavigationBarIcons = true)
+        val toolbarContentHeightPx = resources.getDimensionPixelSize(R.dimen.share_detail_toolbar_content_height)
         binding.shareDetailRoot.applySystemBarsInsets { insets ->
+            binding.shareDetailToolbar.updateLayoutParams {
+                height = toolbarContentHeightPx + insets.top
+            }
             binding.shareDetailToolbar.updatePadding(top = insets.top)
             binding.shareDetailContent.updatePadding(bottom = insets.bottom)
         }
@@ -109,7 +115,7 @@ class ShareDetailActivity : BaseActivity() {
         binding.shareDetailContent.isVisible = true
         binding.shareDetailName.text = share.title
         binding.shareDetailSubtitle.text = share.description.ifBlank { sourceLabel(share.source) }
-        bindCover(share.coverUrl)
+        bindCover(share.source, share.coverUrl)
         if (share.type == "playlist") {
             renderPlaylistShare(share)
         } else {
@@ -118,36 +124,42 @@ class ShareDetailActivity : BaseActivity() {
     }
 
     private fun renderLocalSong(song: CanonicalSong) {
+        val safeSong = song.copy(
+            cover = SongCoverUrl.getRemoteCover(song.source, song.cover, SongCoverUrl.SIZE_MEDIUM),
+        )
         currentShare = null
         binding.shareDetailLoading.isVisible = false
         binding.shareDetailErrorGroup.isVisible = false
         binding.shareDetailContent.isVisible = true
-        binding.shareDetailName.text = song.name
-        binding.shareDetailSubtitle.text = song.singer.ifBlank { sourceLabel(song.source) }
-        bindCover(song.cover)
+        binding.shareDetailName.text = safeSong.name
+        binding.shareDetailSubtitle.text = safeSong.singer.ifBlank { sourceLabel(safeSong.source) }
+        bindCover(safeSong.source, safeSong.cover)
         renderSongDetail(
-            song = song.toSongInfo(),
-            artist = song.singer,
-            album = song.album,
-            duration = song.duration.toDouble(),
+            song = safeSong.toSongInfo(),
+            artist = safeSong.singer,
+            album = safeSong.album,
+            duration = safeSong.duration.toDouble(),
         )
     }
 
     private fun renderLocalPlaylist(playlist: CanonicalPlaylist) {
+        val safePlaylist = playlist.copy(
+            cover = SongCoverUrl.getRemoteCover(playlist.source, playlist.cover, SongCoverUrl.SIZE_MEDIUM),
+        )
         currentShare = null
         binding.shareDetailLoading.isVisible = false
         binding.shareDetailErrorGroup.isVisible = false
         binding.shareDetailContent.isVisible = true
-        binding.shareDetailName.text = playlist.name
-        binding.shareDetailSubtitle.text = playlist.desc.ifBlank { sourceLabel(playlist.source) }
-        bindCover(playlist.cover)
+        binding.shareDetailName.text = safePlaylist.name
+        binding.shareDetailSubtitle.text = safePlaylist.desc.ifBlank { sourceLabel(safePlaylist.source) }
+        bindCover(safePlaylist.source, safePlaylist.cover)
         renderPlaylistDetail(
-            playlist = playlist,
-            source = playlist.source,
-            songCount = playlist.song_count,
+            playlist = safePlaylist,
+            source = safePlaylist.source,
+            songCount = safePlaylist.song_count,
             info3Label = getString(R.string.share_detail_copy_id),
-            info3 = playlist.id,
-            copyText = playlist.id,
+            info3 = safePlaylist.id,
+            copyText = safePlaylist.id,
         )
     }
 
@@ -259,9 +271,9 @@ class ShareDetailActivity : BaseActivity() {
         }
     }
 
-    private fun bindCover(coverUrl: String) {
-        val cover = coverUrl.trim()
-        if (cover.startsWith("http://") || cover.startsWith("https://")) {
+    private fun bindCover(source: String, coverUrl: String) {
+        val cover = SongCoverUrl.getRemoteCover(source, coverUrl, SongCoverUrl.SIZE_MEDIUM)
+        if (cover.isNotBlank()) {
             binding.shareDetailCover.load(cover) {
                 placeholder(R.drawable.ic_pm_icon)
                 error(R.drawable.ic_pm_icon)
@@ -284,7 +296,7 @@ class ShareDetailActivity : BaseActivity() {
             name = name,
             singer = singer,
             album = rawString("album"),
-            cover = coverUrl,
+            cover = SongCoverUrl.getRemoteCover(source, coverUrl, SongCoverUrl.SIZE_MEDIUM),
             duration = rawNumber("duration").toInt(),
         )
     }
@@ -299,7 +311,7 @@ class ShareDetailActivity : BaseActivity() {
             source = source,
             name = name,
             desc = rawString("desc").ifBlank { description },
-            cover = coverUrl,
+            cover = SongCoverUrl.getRemoteCover(source, coverUrl, SongCoverUrl.SIZE_MEDIUM),
             song_count = rawNumber("song_count").toInt(),
         )
     }

@@ -3,6 +3,8 @@ import type {
   AdminFeedbackDetail,
   AdminFeedbackFilter,
   AdminFeedbackListItem,
+  AdminShareFilter,
+  AdminShareListItem,
   AdminUserDetail,
   AdminUserFilter,
   AdminUserLibraryKind,
@@ -68,6 +70,8 @@ import {
   deleteReleasePackage,
   deleteFileRecord,
   deleteUpdateHistory,
+  fetchAdminShares,
+  invalidateAdminShare,
 } from "./api/client";
 import { clearStoredToken, getStoredToken } from "./auth/token";
 import { defaultAppConfig } from "./data/defaultAppConfig";
@@ -89,6 +93,7 @@ const SystemTab = lazy(() => import("./components/tabs/SystemTab"));
 const UpdateTab = lazy(() => import("./components/tabs/UpdateTab"));
 const FileManagementTab = lazy(() => import("./components/tabs/FileManagementTab"));
 const FeedbackManagementTab = lazy(() => import("./components/tabs/FeedbackManagementTab"));
+const ShareManagementTab = lazy(() => import("./components/tabs/ShareManagementTab"));
 const UserManagementTab = lazy(() => import("./components/tabs/UserManagementTab"));
 const ContentTab = lazy(() => import("./components/tabs/ContentTab"));
 const AnnouncementsTab = lazy(() => import("./components/tabs/AnnouncementsTab"));
@@ -211,6 +216,13 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [updatingFeedbackId, setUpdatingFeedbackId] = useState<string | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<AdminFeedbackDetail | null>(null);
+  const [shareItems, setShareItems] = useState<AdminShareListItem[]>([]);
+  const [shareTotal, setShareTotal] = useState(0);
+  const [shareOffset, setShareOffset] = useState(0);
+  const [shareLimit] = useState(20);
+  const [shareFilter, setShareFilter] = useState<AdminShareFilter>({ valid: "all" });
+  const [shareLoading, setShareLoading] = useState(false);
+  const [invalidatingShareId, setInvalidatingShareId] = useState<string | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUserListItem[]>([]);
   const [adminUserTotal, setAdminUserTotal] = useState(0);
   const [adminUserOffset, setAdminUserOffset] = useState(0);
@@ -897,6 +909,46 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const loadShares = useCallback(async () => {
+    setShareLoading(true);
+    try {
+      const result = await fetchAdminShares({
+        ...shareFilter,
+        offset: shareOffset,
+        limit: shareLimit,
+      });
+      setShareItems(result.items);
+      setShareTotal(result.total);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加载分享记录失败");
+    } finally {
+      setShareLoading(false);
+    }
+  }, [shareFilter, shareOffset, shareLimit]);
+
+  useEffect(() => {
+    if (currentTab === "shares") void loadShares();
+  }, [currentTab, loadShares]);
+
+  const handleShareFilterChange = (next: AdminShareFilter) => {
+    setShareFilter(next);
+    setShareOffset(0);
+  };
+
+  const handleInvalidateShare = async (share: AdminShareListItem) => {
+    if (!share.valid) return;
+    if (!window.confirm(`确定要将分享“${share.title || share.uuid}”标记为失效吗？失效后公开链接将不可继续读取。`)) return;
+    setInvalidatingShareId(share.uuid);
+    try {
+      await invalidateAdminShare(share.uuid);
+      await loadShares();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "标记分享失效失败");
+    } finally {
+      setInvalidatingShareId(null);
+    }
+  };
+
   const loadAdminUsers = useCallback(async () => {
     setAdminUserLoading(true);
     try {
@@ -1418,6 +1470,22 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onRefresh={() => void loadFeedback()}
                   onView={(feedback) => void handleViewFeedback(feedback)}
                   onStatusChange={(feedback, status) => void handleFeedbackStatusChange(feedback.id, status)}
+                />
+              )}
+              {currentTab === "shares" && (
+                <ShareManagementTab
+                  items={shareItems}
+                  total={shareTotal}
+                  offset={shareOffset}
+                  limit={shareLimit}
+                  filter={shareFilter}
+                  loading={shareLoading}
+                  invalidatingId={invalidatingShareId}
+                  themeColor={themeColor}
+                  onFilterChange={handleShareFilterChange}
+                  onPageChange={setShareOffset}
+                  onRefresh={() => void loadShares()}
+                  onInvalidate={(share) => void handleInvalidateShare(share)}
                 />
               )}
               {currentTab === "users" && (

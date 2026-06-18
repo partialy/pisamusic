@@ -26,6 +26,18 @@ object SongCoverUrl {
             SongType.KW -> coverUrl?.trim().orEmpty().ifBlank { fallback }
         }
 
+    fun getRemoteCover(source: String, coverUrl: String?, size: Int = SIZE_MEDIUM, fallback: String = ""): String {
+        val raw = coverUrl?.trim().orEmpty()
+        if (raw.isBlank() || (!raw.startsWith("http://") && !raw.startsWith("https://"))) return fallback
+        return when (source.trim().lowercase()) {
+            "kg" -> getKgImageUrl(raw, size, fallback)
+            "wy" -> getWyCoverSizeUrl(raw, wySizeOf(size), fallback)
+            "kw" -> raw
+            "local" -> fallback
+            else -> raw
+        }.ifBlank { fallback }
+    }
+
     fun getSongCoverData(song: SongInfo, size: Int = SIZE_SMALL, fallback: String = ""): Any? =
         song.embeddedCoverArt ?: getSongCover(song, size, fallback).takeIf { it.isNotBlank() }
 

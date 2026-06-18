@@ -18,6 +18,7 @@ export const glassInputClasses =
   "w-full min-w-0 rounded-2xl border border-white/60 bg-white/50 px-4 sm:px-5 py-3 text-sm text-slate-800 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-slate-400/30 transition-all shadow-inner";
 
 export const tabs = [
+  { id: "shares" as const, name: "分享管理", icon: "M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.46.596.8.761l7.032 3.516m-7.032-4.277l7.032-3.516a2.25 2.25 0 10-.966-1.78m.966 1.78a2.25 2.25 0 000 3.22m0 0a2.25 2.25 0 10.966 1.78" },
   { id: "feedback" as const, name: "反馈管理", icon: "M8 10h8M8 14h5m8-2a9 9 0 11-4.219-7.624L21 3v9z" },
   { id: "files" as const, name: "文件管理", icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" },
   { id: "users" as const, name: "用户管理", icon: "M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m0-4a4 4 0 100-8 4 4 0 000 8zm8 0a3 3 0 100-6 3 3 0 000 6z" },

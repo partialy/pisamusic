@@ -385,13 +385,17 @@
       return `${m}:${String(s).padStart(2, "0")}`;
     }
 
-    function sourceLabel(source) {
-      const value = String(source || "").toLowerCase();
-      if (value === "kg") return "酷狗音乐";
-      if (value === "wy") return "网易云音乐";
-      if (value === "kw") return "酷我音乐";
-      if (value === "local") return "本地音乐";
-      return source || "未知来源";
+    function normalizeShareCoverUrl(source, coverUrl) {
+      const cover = String(coverUrl || "").trim();
+      if (!cover) return "";
+      if (String(source || "").toLowerCase() === "kg") return cover.replace(/\{size\}/g, "240");
+      return cover;
+    }
+
+    function formatAccessCount(value) {
+      const count = Number(value);
+      if (!Number.isFinite(count) || count < 0) return "";
+      return String(Math.floor(count));
     }
 
     function row(label, value) {
@@ -410,10 +414,12 @@
 
     function renderShare(share) {
       const raw = share.rawJson || {};
+      const subtitle = raw.singer || share.description || "";
+      const coverUrl = normalizeShareCoverUrl(share.source, share.coverUrl);
       shareTitle.innerText = share.title || "未命名分享";
-      shareSubtitle.innerText = share.description || sourceLabel(share.source);
-      if (share.coverUrl) {
-        shareCover.src = share.coverUrl;
+      shareSubtitle.innerText = subtitle;
+      if (coverUrl) {
+        shareCover.src = coverUrl;
         shareCover.classList.remove("hidden");
         shareCoverFallback.classList.add("hidden");
       } else {
@@ -426,17 +432,18 @@
       };
       if (share.type === "song") {
         shareInfo.innerHTML = [
+          row("歌名", raw.name || share.title),
           row("歌手", raw.singer || share.description),
           row("专辑", raw.album),
           row("时长", formatDuration(raw.duration)),
-          row("来源", sourceLabel(share.source)),
+          row("访问次数", formatAccessCount(share.accessCount)),
         ].join("");
       } else {
         shareInfo.innerHTML = [
           row("描述", share.description),
           row("歌曲数", raw.song_count || raw.songCount),
-          row("来源", sourceLabel(share.source)),
           row("分享人", share.sharer && share.sharer.username),
+          row("访问次数", formatAccessCount(share.accessCount)),
         ].join("");
       }
       const downloadParams = new URLSearchParams({ type: SHARE_TYPE, uuid });

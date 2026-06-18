@@ -39,6 +39,7 @@ import { getPlaintextPaths, setPlaintextPaths } from "../middleware/encryption";
 import { getAdminJwtSecret, requireAdminJwt } from "../middleware/requireAdminJwt";
 import { adminDynamicConfigRouter } from "./adminDynamicConfig";
 import { adminFeedbackRouter } from "./adminFeedback";
+import { adminSharesRouter } from "./adminShares";
 import { adminUsersRouter } from "./adminUsers";
 import {
   buildReleaseFileDownloadPath,
@@ -590,6 +591,7 @@ adminRouter.post("/login", async (req, res) => {
 adminRouter.use(requireAdminJwt);
 adminRouter.use("/dynamic-configs", adminDynamicConfigRouter);
 adminRouter.use("/feedback", adminFeedbackRouter);
+adminRouter.use("/shares", adminSharesRouter);
 adminRouter.use("/users", adminUsersRouter);
 
 adminRouter.post("/change-password", async (req, res) => {
