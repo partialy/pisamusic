@@ -3,6 +3,7 @@ package cn.partialy.pm.utils
 import android.content.Context
 import android.os.Environment
 import android.os.StatFs
+import cn.partialy.pm.utils.localdata.CachedPlaybackStore
 import java.io.File
 
 object AppStorageInspector {
@@ -123,6 +124,7 @@ object AppStorageInspector {
     }
 
     fun clearSongCache(context: Context) {
+        CachedPlaybackStore(context).clear()
         context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }
         context.cacheDir.listFiles()?.forEach { entry ->
             if (entry.isDirectory) {

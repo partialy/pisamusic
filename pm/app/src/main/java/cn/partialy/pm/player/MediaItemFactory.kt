@@ -68,6 +68,9 @@ class MediaItemFactory(
             forceRefreshUrl = forceRefreshUrl,
             allowFallback = true,
         )
+        if (song.type != SongType.LOCAL && !isCacheablePlayableUrl(url)) {
+            throw IllegalStateException("play url resolve failed")
+        }
         return buildMediaItem(song, url, qualityKey = qualityKey)
     }
 
@@ -145,8 +148,12 @@ class MediaItemFactory(
 
     /** 写入短期 URL 缓存，仅用于当前进程内复用。 */
     fun putCachedPlayableUrl(song: SongInfo, url: String) {
+        putCachedPlayableUrl(song, playbackQualityKeyOf(song), url)
+    }
+
+    fun putCachedPlayableUrl(song: SongInfo, qualityKey: String, url: String) {
         if (song.type == SongType.LOCAL || !isCacheablePlayableUrl(url)) return
-        playUrlCache[cacheKeyOf(song)] = CachedPlayableUrl(url, System.currentTimeMillis())
+        playUrlCache[cacheKeyOf(song, qualityKey)] = CachedPlayableUrl(url, System.currentTimeMillis())
     }
 
     fun invalidateCachedPlayableUrl(song: SongInfo) {

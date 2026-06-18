@@ -6,6 +6,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.utils.localdata.CachedPlaybackStore
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -24,6 +25,7 @@ import javax.inject.Singleton
 
 sealed class PlaybackUiEvent {
     object NetworkPoorPaused : PlaybackUiEvent()
+    data class AutoSwitched(val mode: SettingsPrefs.AutoSwitchListMode) : PlaybackUiEvent()
 }
 
 /**
@@ -35,6 +37,8 @@ sealed class PlaybackUiEvent {
 class MusicController @Inject constructor(
     @ApplicationContext private val context: Context,
     playUrlGetter: PlayUrlGetter,
+    playbackFallbackProvider: PlaybackFallbackProvider,
+    cachedPlaybackStore: CachedPlaybackStore,
 ) {
     private val factory = MediaItemFactory(context, playUrlGetter)
     private val playlistManager = PlaylistManager(factory)
@@ -50,6 +54,8 @@ class MusicController @Inject constructor(
             context = context,
             playlistManager = playlistManager,
             factory = factory,
+            fallbackProvider = playbackFallbackProvider,
+            cachedPlaybackStore = cachedPlaybackStore,
             onNext = { next() },
             onPrevious = { previous() },
             onTogglePlayPause = { togglePlayPause() },
@@ -157,6 +163,12 @@ class MusicController @Inject constructor(
             )
             if (applied) engine.persistState(force = true)
             applied
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            error.printStackTrace()
+            if (autoPlay) engine.handlePlaybackRequestFailure()
+            false
         } finally {
             synchronized(playJobLock) {
                 if (playJob === currentJob) playJob = null

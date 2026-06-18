@@ -19,6 +19,7 @@ import cn.partialy.pm.activity.AppActivityTransitions
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.player.PlaybackUiEvent
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -46,6 +47,7 @@ open class BaseActivity : AppCompatActivity() {
                 musicController.playbackEvents.collect { event ->
                     when (event) {
                         PlaybackUiEvent.NetworkPoorPaused -> showNetworkPoorPausedDialog()
+                        is PlaybackUiEvent.AutoSwitched -> showAutoSwitchedDialog(event)
                     }
                 }
             }
@@ -56,6 +58,21 @@ open class BaseActivity : AppCompatActivity() {
         PmMinimalDialog.show(
             context = this,
             message = "网络不佳，先听听本地音乐吧。",
+            confirmText = "我知道了",
+            singleButton = true,
+        )
+    }
+
+    private fun showAutoSwitchedDialog(event: PlaybackUiEvent.AutoSwitched) {
+        val label = when (event.mode) {
+            SettingsPrefs.AutoSwitchListMode.Local -> "本地"
+            SettingsPrefs.AutoSwitchListMode.Cached -> "已缓存"
+            SettingsPrefs.AutoSwitchListMode.Downloaded -> "已下载"
+            SettingsPrefs.AutoSwitchListMode.Off -> "本地"
+        }
+        PmMinimalDialog.show(
+            context = this,
+            message = "网络不佳，已自动切换到${label}歌曲。",
             confirmText = "我知道了",
             singleButton = true,
         )

@@ -3,6 +3,7 @@ package cn.partialy.pm.player
 import android.content.Context
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
@@ -15,6 +16,7 @@ import java.io.File
  */
 object PlayerCacheProvider {
     private const val AUDIO_CACHE_DIR = "audio_player_cache"
+    private const val AUDIO_HTTP_TIMEOUT_MS = 20_000
 
     @Volatile
     private var simpleCache: SimpleCache? = null
@@ -42,10 +44,20 @@ object PlayerCacheProvider {
 
     fun buildCacheDataSourceFactory(context: Context): CacheDataSource.Factory {
         val appCtx = context.applicationContext
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setConnectTimeoutMs(AUDIO_HTTP_TIMEOUT_MS)
+            .setReadTimeoutMs(AUDIO_HTTP_TIMEOUT_MS)
         return CacheDataSource.Factory()
             .setCache(cache(appCtx))
-            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(appCtx))
+            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(appCtx, httpDataSourceFactory))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+    }
+
+    fun cachedBytes(context: Context, cacheKey: String): Long {
+        if (cacheKey.isBlank()) return 0L
+        return runCatching {
+            cache(context.applicationContext).getCachedBytes(cacheKey, 0L, Long.MAX_VALUE)
+        }.getOrDefault(0L).coerceAtLeast(0L)
     }
 
     @Synchronized

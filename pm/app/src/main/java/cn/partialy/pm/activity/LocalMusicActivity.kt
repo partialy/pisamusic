@@ -7,8 +7,6 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
-import android.content.ContentUris
-import android.provider.MediaStore
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.core.view.updatePadding
@@ -22,16 +20,16 @@ import cn.partialy.pm.databinding.ActivityLocalMusicBinding
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.model.SongInfo
-import cn.partialy.pm.model.SongType
 import cn.partialy.pm.ui.local.LocalFragmentStateAdapter
 import cn.partialy.pm.ui.local.viewModels.DownloadedMusicViewModel
 import cn.partialy.pm.ui.local.viewModels.LocalMusicViewModel
-import cn.partialy.pm.utils.AudioEmbeddedArtReader
 import cn.partialy.pm.utils.DownloadManager
+import cn.partialy.pm.utils.LocalSongProvider
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class LocalMusicActivity : BaseDownloadActivity() {
@@ -42,6 +40,9 @@ class LocalMusicActivity : BaseDownloadActivity() {
     private val PERMISSION_REQUEST_CODE = 123
     private val localSongs = mutableListOf<SongInfo>()
     private val downloadedSongs = mutableListOf<SongInfo>()
+
+    @Inject
+    lateinit var localSongProvider: LocalSongProvider
 
     private val localMusicEditLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -225,59 +226,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
 
     // 搜索本地歌曲
     private fun queryLocalMusic(): List<SongInfo> {
-        val songs = mutableListOf<SongInfo>()
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.DURATION
-        )
-
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-        val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
-
-        contentResolver.query(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            selection,
-            null,
-            sortOrder
-        )?.use { cursor ->
-            val appCtx = applicationContext
-            while (cursor.moveToNext()) {
-                val mediaId = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID))
-                val title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE))
-                val artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST))
-                val path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA))
-                val duration = cursor.getInt(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION))
-
-                val contentUri = ContentUris.withAppendedId(
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                    mediaId,
-                )
-                var coverBytes = AudioEmbeddedArtReader.readEmbeddedCoverBytes(appCtx, contentUri)
-                if (coverBytes == null) {
-                    val f = java.io.File(path)
-                    if (f.exists()) {
-                        coverBytes = AudioEmbeddedArtReader.readEmbeddedCoverBytes(appCtx, f)
-                    }
-                }
-
-                songs.add(
-                    SongInfo(
-                        name = title,
-                        artist = artist,
-                        id = path,
-                        coverUrl = "",
-                        embeddedCoverArt = coverBytes,
-                        duration = duration,
-                        type = SongType.LOCAL
-                    )
-                )
-            }
-        }
-        return songs
+        return localSongProvider.queryLocalSongs()
     }
 
     // 更新列表

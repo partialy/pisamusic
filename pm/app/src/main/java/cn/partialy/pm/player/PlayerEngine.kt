@@ -18,6 +18,7 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.toPlaybackQualityKey
 import cn.partialy.pm.utils.SettingsPrefs
+import cn.partialy.pm.utils.localdata.CachedPlaybackStore
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -42,6 +43,8 @@ class PlayerEngine(
     private val context: Context,
     private val playlistManager: PlaylistManager,
     private val factory: MediaItemFactory,
+    private val fallbackProvider: PlaybackFallbackProvider,
+    private val cachedPlaybackStore: CachedPlaybackStore,
     private val onNext: () -> Unit,
     private val onPrevious: () -> Unit,
     private val onTogglePlayPause: () -> Unit,
@@ -124,6 +127,9 @@ class PlayerEngine(
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
             val player = exoPlayer ?: return
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                recordCachedPlaybackAt(playlistManager.currentIndex.value)
+            }
             val newIndex = player.currentMediaItemIndex
 
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
@@ -167,6 +173,8 @@ class PlayerEngine(
             if (playbackState == Player.STATE_READY) {
                 _isPlaying.value = exoPlayer?.isPlaying == true
                 clearPlaybackRetryForCurrent()
+            } else if (playbackState == Player.STATE_ENDED) {
+                recordCachedPlaybackAt(playlistManager.currentIndex.value)
             }
         }
     }
@@ -395,6 +403,10 @@ class PlayerEngine(
         }
     }
 
+    fun handlePlaybackRequestFailure() {
+        handleExhaustedPlaybackFailure()
+    }
+
     fun setPlaying(playing: Boolean) {
         val player = exoPlayer ?: return
         if (playing) {
@@ -540,7 +552,7 @@ class PlayerEngine(
             )
             return
         }
-        pauseAfterPlaybackFailure()
+        handleExhaustedPlaybackFailure()
     }
 
     private fun shouldRetryWithFreshUrl(song: SongInfo): Boolean {
@@ -569,20 +581,65 @@ class PlayerEngine(
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    pauseAfterPlaybackFailure()
+                    handleExhaustedPlaybackFailure()
                 }
             }
         }
     }
 
-    private fun pauseAfterPlaybackFailure() {
+    private fun handleExhaustedPlaybackFailure() {
         val now = System.currentTimeMillis()
         if (now - lastFailurePauseAtMs < 1200L) return
         lastFailurePauseAtMs = now
 
+        val mode = SettingsPrefs.getAutoSwitchListMode(context)
+        if (mode == SettingsPrefs.AutoSwitchListMode.Off) {
+            pauseCurrentAfterPlaybackFailure()
+            return
+        }
+
+        CoroutineScope(Dispatchers.Main).launch {
+            val fallback = withContext(Dispatchers.IO) {
+                fallbackProvider.load(mode, factory)
+            }
+            if (fallback.songs.isEmpty()) {
+                pauseCurrentAfterPlaybackFailure()
+                return@launch
+            }
+            fallback.cachedRecords.forEach { record ->
+                factory.putCachedPlayableUrl(record.song, record.qualityKey, record.playUrl)
+            }
+            playlistManager.setPlayListLazy(
+                songs = fallback.songs,
+                startIndex = 0,
+                newSourceId = "auto_switch_${mode.name}_${System.currentTimeMillis()}",
+            )
+            persistState(force = true)
+            ensurePlayableAtIndex(0, autoPlay = true)
+            onPlaybackEvent(PlaybackUiEvent.AutoSwitched(mode))
+        }
+    }
+
+    private fun pauseCurrentAfterPlaybackFailure() {
         exoPlayer?.pause()
         persistState(force = true)
         onPlaybackEvent(PlaybackUiEvent.NetworkPoorPaused)
+    }
+
+    private fun recordCachedPlaybackAt(index: Int) {
+        val song = playlistManager.playList.value.getOrNull(index) ?: return
+        if (song.type == SongType.LOCAL) return
+        val playUrl = factory.getCachedPlayableUrl(song) ?: return
+        val cacheKey = factory.cacheKeyOf(song)
+        val cachedBytes = PlayerCacheProvider.cachedBytes(context, cacheKey)
+        cachedPlaybackStore.upsert(
+            song = song,
+            songKey = factory.keyOf(song),
+            qualityKey = factory.playbackQualityKeyOf(song),
+            playUrl = playUrl,
+            cacheKey = cacheKey,
+            cachedBytes = cachedBytes,
+        )
     }
 
     private fun clearPlaybackRetryForCurrent() {

@@ -63,6 +63,7 @@
 - `MediaItemFactory` 创建延迟解析的 `MediaItem`。
 - `PlayUrlGetter` 负责 KG / WY / KW / LOCAL 播放地址解析和音质降级。
 - `PlayerStateStore` 使用 SharedPreferences + kotlinx.serialization 持久化跨会话播放状态。
+- 在线歌曲播放失败不再自动跳到当前队列下一曲；失败后按设置里的“自动切换列表”处理，关闭时暂停并提示，开启时切换到本地 / 已缓存 / 已下载歌曲列表。已缓存歌曲索引写入 `pm_local_music.db` 的 `cached_playback_records`，清除歌曲缓存时必须同步清空该表。
 
 ## 本地数据
 
