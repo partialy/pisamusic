@@ -8,6 +8,7 @@ import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.utils.localdata.CachedPlaybackStore
 import cn.partialy.pm.utils.SettingsPrefs
+import cn.partialy.pm.fault.PlaybackFaultRecorder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +40,7 @@ class MusicController @Inject constructor(
     playUrlGetter: PlayUrlGetter,
     playbackFallbackProvider: PlaybackFallbackProvider,
     cachedPlaybackStore: CachedPlaybackStore,
+    playbackFaultRecorder: PlaybackFaultRecorder,
 ) {
     private val factory = MediaItemFactory(context, playUrlGetter)
     private val playlistManager = PlaylistManager(factory)
@@ -56,6 +58,7 @@ class MusicController @Inject constructor(
             factory = factory,
             fallbackProvider = playbackFallbackProvider,
             cachedPlaybackStore = cachedPlaybackStore,
+            playbackFaultRecorder = playbackFaultRecorder,
             onNext = { next() },
             onPrevious = { previous() },
             onTogglePlayPause = { togglePlayPause() },

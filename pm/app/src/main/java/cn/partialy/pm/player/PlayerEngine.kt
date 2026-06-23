@@ -19,6 +19,7 @@ import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.toPlaybackQualityKey
 import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.utils.localdata.CachedPlaybackStore
+import cn.partialy.pm.fault.PlaybackFaultRecorder
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +46,7 @@ class PlayerEngine(
     private val factory: MediaItemFactory,
     private val fallbackProvider: PlaybackFallbackProvider,
     private val cachedPlaybackStore: CachedPlaybackStore,
+    private val playbackFaultRecorder: PlaybackFaultRecorder,
     private val onNext: () -> Unit,
     private val onPrevious: () -> Unit,
     private val onTogglePlayPause: () -> Unit,
@@ -164,6 +166,7 @@ class PlayerEngine(
 
         override fun onPlayerError(error: PlaybackException) {
             super.onPlayerError(error)
+            recordPlaybackFailure(error)
             handlePlaybackFailureAndSkip()
         }
 
@@ -176,6 +179,18 @@ class PlayerEngine(
             } else if (playbackState == Player.STATE_ENDED) {
                 recordCachedPlaybackAt(playlistManager.currentIndex.value)
             }
+        }
+    }
+
+    private fun recordPlaybackFailure(error: PlaybackException) {
+        val player = exoPlayer ?: return
+        val song = playlistManager.playList.value.getOrNull(player.currentMediaItemIndex) ?: return
+        if (song.type == SongType.LOCAL) return
+        val resolvedUrl = player.currentMediaItem?.localConfiguration?.uri?.toString().orEmpty()
+        val trace = factory.getPlaybackTrace(song)
+        val quality = factory.playbackQualityKeyOf(song)
+        CoroutineScope(Dispatchers.IO).launch {
+            playbackFaultRecorder.recordPlayerFailure(song, resolvedUrl, quality, trace, error)
         }
     }
 

@@ -15,6 +15,7 @@ import cn.partialy.pm.network.kw.KwSearchApiService
 import cn.partialy.pm.network.kw.KwUrlProxyApiService
 import cn.partialy.pm.network.wy.WyApiService
 import cn.partialy.pm.network.wy.WyUrlProxyApiService
+import cn.partialy.pm.fault.PlaybackTraceInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -42,10 +43,12 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         gatewaySignInterceptor: GatewaySignInterceptor,
+        playbackTraceInterceptor: PlaybackTraceInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor())
             .addInterceptor(gatewaySignInterceptor)
+            .addInterceptor(playbackTraceInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
@@ -82,11 +85,13 @@ object NetworkModule {
     fun provideKgProxyOkHttpClient(
         dfidHolder: DfidHolder,
         gatewaySignInterceptor: GatewaySignInterceptor,
+        playbackTraceInterceptor: PlaybackTraceInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor())
             .addInterceptor(DfidInterceptor(dfidHolder))
             .addInterceptor(gatewaySignInterceptor)
+            .addInterceptor(playbackTraceInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })

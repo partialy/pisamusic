@@ -1,6 +1,7 @@
 package cn.partialy.pm.network.wy
 
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Query
 import retrofit2.http.Url
 
@@ -16,6 +17,8 @@ interface WyUrlProxyApiService {
         @Url url: String,
         @Query("id") id: String,
         @Query("br") br: Int? = null,
+        @Header("X-PM-Playback-Trace-Id") playbackTraceId: String? = null,
+        @Header("X-PM-Playback-Method") playbackMethodName: String? = null,
     ): WySongUrlResponse
 
     @GET
@@ -24,6 +27,8 @@ interface WyUrlProxyApiService {
         @Query("id") id: Long,
         @Query("level") level: String,
         @Query("br") br: Int? = null,
+        @Header("X-PM-Playback-Trace-Id") playbackTraceId: String? = null,
+        @Header("X-PM-Playback-Method") playbackMethodName: String? = null,
     ): WySongUrlV1Response
 
     /** 仅支持单曲 id */

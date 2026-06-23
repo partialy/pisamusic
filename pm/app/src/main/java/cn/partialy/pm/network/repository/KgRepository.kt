@@ -19,6 +19,7 @@ import cn.partialy.pm.model.pickKgStreamUrl
 import cn.partialy.pm.lyric.LyricFormat
 import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.RawLyric
+import cn.partialy.pm.fault.PlaybackDiagnosticRequest
 import cn.partialy.pm.network.api.KgApiService
 import cn.partialy.pm.network.kg.DfidHolder
 import cn.partialy.pm.network.kg.KgUrlProxyApiService
@@ -365,13 +366,19 @@ class KgRepository @Inject constructor(
         return if (f != null && f > 0L) f else 0L
     }
 
-    suspend fun getSongUrl(hash: String, quality: String = "128"): Result<KgSongUrlResponse> {
+    suspend fun getSongUrl(
+        hash: String,
+        quality: String = "128",
+        diagnostic: PlaybackDiagnosticRequest? = null,
+    ): Result<KgSongUrlResponse> {
         return try {
             ensureKgDfid()
             val response = urlProxyApi.getSongUrl(
                 url = configManager.getKgSongUrl(),
                 hash = hash,
                 quality = quality,
+                playbackTraceId = diagnostic?.traceId,
+                playbackMethodName = diagnostic?.methodName,
             )
             Result.success(response)
         } catch (e: Exception) {
@@ -379,11 +386,15 @@ class KgRepository @Inject constructor(
         }
     }
 
-    suspend fun getDownloadUrl(songInfo: SongInfo,quality:String = "128"):Map<String,String> {
+    suspend fun getDownloadUrl(
+        songInfo: SongInfo,
+        quality: String = "128",
+        diagnostic: PlaybackDiagnosticRequest? = null,
+    ): Map<String, String> {
         return try {
             var url = ""
             var extName = ""
-            val response = getSongUrl(songInfo.id, quality)
+            val response = getSongUrl(songInfo.id, quality, diagnostic)
             response.onSuccess { res ->
                 if (res.failProcess?.isNotEmpty() == true && res.failProcess.contains("buy")) {
                     return buildMap {

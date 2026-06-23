@@ -13,6 +13,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         createSyncTables(db)
         createThirdPartyLoginTables(db)
         createCachedPlaybackTables(db)
+        createPlaybackFaultTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -33,6 +34,9 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         }
         if (oldVersion < 7) {
             createCachedPlaybackTables(db)
+        }
+        if (oldVersion < 8) {
+            createPlaybackFaultTables(db)
         }
     }
 
@@ -190,9 +194,49 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_cached_playback_updated ON cached_playback_records(updated_at)")
     }
 
+    private fun createPlaybackFaultTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS playback_fault_logs (
+                id TEXT PRIMARY KEY,
+                scene TEXT NOT NULL,
+                failure_type TEXT NOT NULL,
+                occurred_at INTEGER NOT NULL,
+                method_name TEXT NOT NULL DEFAULT '',
+                request_method TEXT NOT NULL DEFAULT '',
+                request_url TEXT NOT NULL DEFAULT '',
+                request_params_json TEXT NOT NULL DEFAULT '{}',
+                nonce_id TEXT NOT NULL DEFAULT '',
+                response_code INTEGER,
+                response_body TEXT NOT NULL DEFAULT '',
+                resolved_url TEXT NOT NULL DEFAULT '',
+                error_type TEXT NOT NULL DEFAULT '',
+                error_message TEXT NOT NULL DEFAULT '',
+                stack_trace TEXT NOT NULL DEFAULT '',
+                song_source TEXT NOT NULL DEFAULT '',
+                song_id TEXT NOT NULL DEFAULT '',
+                quality TEXT NOT NULL DEFAULT '',
+                is_upload INTEGER NOT NULL DEFAULT 0,
+                uploaded_at INTEGER
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_playback_fault_upload_time ON playback_fault_logs(is_upload, occurred_at)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_playback_fault_occurred ON playback_fault_logs(occurred_at DESC)")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS playback_fault_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                last_reported_at INTEGER
+            )
+            """.trimIndent()
+        )
+        db.execSQL("INSERT OR IGNORE INTO playback_fault_state(id, last_reported_at) VALUES (1, NULL)")
+    }
+
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 7
+        private const val DB_VERSION = 8
     }
 
     private fun ensureSyncOutboxAccountColumn(db: SQLiteDatabase) {

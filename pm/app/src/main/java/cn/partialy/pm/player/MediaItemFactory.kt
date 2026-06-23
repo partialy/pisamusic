@@ -10,6 +10,8 @@ import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.matchesSongType
 import cn.partialy.pm.model.playbackQualityChoiceFromKey
 import cn.partialy.pm.model.toPlaybackQualityKey
+import cn.partialy.pm.fault.PlaybackRequestTrace
+import cn.partialy.pm.fault.ResolvedPlayUrl
 import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.utils.SongCoverUrl
 import java.util.concurrent.ConcurrentHashMap
@@ -29,7 +31,7 @@ class MediaItemFactory(
     }
 
     private data class CachedPlayableUrl(
-        val url: String,
+        val resolved: ResolvedPlayUrl,
         val savedAtMs: Long,
     )
 
@@ -61,17 +63,17 @@ class MediaItemFactory(
     suspend fun createMediaItem(song: SongInfo, forceRefreshUrl: Boolean = false): MediaItem {
         val choice = savedPlaybackQualityChoice(song)
         val qualityKey = choice?.toPlaybackQualityKey() ?: "auto"
-        val url = getOrFetchPlayableUrl(
+        val resolved = getOrFetchPlayableUrlResolution(
             song = song,
             choice = choice,
             qualityKey = qualityKey,
             forceRefreshUrl = forceRefreshUrl,
             allowFallback = true,
         )
-        if (song.type != SongType.LOCAL && !isCacheablePlayableUrl(url)) {
+        if (song.type != SongType.LOCAL && !isCacheablePlayableUrl(resolved.url)) {
             throw IllegalStateException("play url resolve failed")
         }
-        return buildMediaItem(song, url, qualityKey = qualityKey)
+        return buildMediaItem(song, resolved.url, qualityKey = qualityKey)
     }
 
     suspend fun createMediaItemWithQuality(
@@ -82,17 +84,17 @@ class MediaItemFactory(
             throw IllegalArgumentException("quality does not match song type")
         }
         val qualityKey = choice.toPlaybackQualityKey()
-        val url = getOrFetchPlayableUrl(
+        val resolved = getOrFetchPlayableUrlResolution(
             song = song,
             choice = choice,
             qualityKey = qualityKey,
             forceRefreshUrl = true,
             allowFallback = false,
         )
-        if (song.type != SongType.LOCAL && !isCacheablePlayableUrl(url)) {
+        if (song.type != SongType.LOCAL && !isCacheablePlayableUrl(resolved.url)) {
             throw IllegalStateException("play url resolve failed")
         }
-        return buildMediaItem(song, url, qualityKey = qualityKey)
+        return buildMediaItem(song, resolved.url, qualityKey = qualityKey)
     }
 
     /** 创建占位 MediaItem（不请求 URL，切歌时再按需获取） */
@@ -111,40 +113,43 @@ class MediaItemFactory(
     suspend fun getOrFetchPlayableUrl(song: SongInfo, forceRefreshUrl: Boolean = false): String {
         val choice = savedPlaybackQualityChoice(song)
         val qualityKey = choice?.toPlaybackQualityKey() ?: "auto"
-        return getOrFetchPlayableUrl(
+        return getOrFetchPlayableUrlResolution(
             song = song,
             choice = choice,
             qualityKey = qualityKey,
             forceRefreshUrl = forceRefreshUrl,
             allowFallback = true,
-        )
+        ).url
     }
 
-    private suspend fun getOrFetchPlayableUrl(
+    private suspend fun getOrFetchPlayableUrlResolution(
         song: SongInfo,
         choice: DownloadQualityChoice?,
         qualityKey: String,
         forceRefreshUrl: Boolean,
         allowFallback: Boolean,
-    ): String {
-        if (song.type == SongType.LOCAL) return song.id
+    ): ResolvedPlayUrl {
+        if (song.type == SongType.LOCAL) return ResolvedPlayUrl(song.id)
         val key = cacheKeyOf(song, qualityKey)
         if (!forceRefreshUrl) {
-            playUrlCache[key]?.takeIf { it.isFresh() }?.let { return it.url }
+            playUrlCache[key]?.takeIf { it.isFresh() }?.let { return it.resolved }
         } else {
             playUrlCache.remove(key)
         }
 
-        val url = playUrlGetter.getUrl(song, choice, allowFallback)
-        if (isCacheablePlayableUrl(url)) {
-            playUrlCache[key] = CachedPlayableUrl(url, System.currentTimeMillis())
+        val resolved = playUrlGetter.getUrl(song, choice, allowFallback)
+        if (isCacheablePlayableUrl(resolved.url)) {
+            playUrlCache[key] = CachedPlayableUrl(resolved, System.currentTimeMillis())
         }
-        return url
+        return resolved
     }
 
     /** 读取已缓存的 URL（仅内存缓存，不触发网络）。 */
     fun getCachedPlayableUrl(song: SongInfo): String? =
-        playUrlCache[cacheKeyOf(song)]?.takeIf { it.isFresh() }?.url
+        playUrlCache[cacheKeyOf(song)]?.takeIf { it.isFresh() }?.resolved?.url
+
+    fun getPlaybackTrace(song: SongInfo): PlaybackRequestTrace? =
+        playUrlCache[cacheKeyOf(song)]?.takeIf { it.isFresh() }?.resolved?.trace
 
     /** 写入短期 URL 缓存，仅用于当前进程内复用。 */
     fun putCachedPlayableUrl(song: SongInfo, url: String) {
@@ -153,7 +158,7 @@ class MediaItemFactory(
 
     fun putCachedPlayableUrl(song: SongInfo, qualityKey: String, url: String) {
         if (song.type == SongType.LOCAL || !isCacheablePlayableUrl(url)) return
-        playUrlCache[cacheKeyOf(song, qualityKey)] = CachedPlayableUrl(url, System.currentTimeMillis())
+        playUrlCache[cacheKeyOf(song, qualityKey)] = CachedPlayableUrl(ResolvedPlayUrl(url), System.currentTimeMillis())
     }
 
     fun invalidateCachedPlayableUrl(song: SongInfo) {
@@ -164,7 +169,7 @@ class MediaItemFactory(
     }
 
     private fun CachedPlayableUrl.isFresh(): Boolean =
-        isCacheablePlayableUrl(url) && System.currentTimeMillis() - savedAtMs < PLAY_URL_CACHE_TTL_MS
+        isCacheablePlayableUrl(resolved.url) && System.currentTimeMillis() - savedAtMs < PLAY_URL_CACHE_TTL_MS
 
     private fun isCacheablePlayableUrl(url: String): Boolean =
         url.isNotBlank() && url != "error" && url.startsWith("http")

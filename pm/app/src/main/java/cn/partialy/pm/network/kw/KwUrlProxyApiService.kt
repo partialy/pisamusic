@@ -1,6 +1,7 @@
 package cn.partialy.pm.network.kw
 
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Query
 
 /**
@@ -12,5 +13,7 @@ interface KwUrlProxyApiService {
     suspend fun getPlayUrl(
         @Query("id") id: Long,
         @Query("quality") quality: String = "standard",
+        @Header("X-PM-Playback-Trace-Id") playbackTraceId: String? = null,
+        @Header("X-PM-Playback-Method") playbackMethodName: String? = null,
     ): KwUrlResponse
 }

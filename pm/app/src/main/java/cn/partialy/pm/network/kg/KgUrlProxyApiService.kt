@@ -2,6 +2,7 @@ package cn.partialy.pm.network.kg
 
 import cn.partialy.pm.model.KgSongUrlResponse
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Query
 import retrofit2.http.Url
 
@@ -18,5 +19,7 @@ interface KgUrlProxyApiService {
         @Query("free_part") freePart: Boolean? = null,
         @Query("album_audio_id") albumAudioId: Long? = null,
         @Query("quality") quality: String? = null,
+        @Header("X-PM-Playback-Trace-Id") playbackTraceId: String? = null,
+        @Header("X-PM-Playback-Method") playbackMethodName: String? = null,
     ): KgSongUrlResponse
 }

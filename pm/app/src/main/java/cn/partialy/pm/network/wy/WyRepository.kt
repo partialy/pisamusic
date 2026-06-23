@@ -16,6 +16,7 @@ import cn.partialy.pm.network.cookie.WyCookieRepository
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import cn.partialy.pm.fault.PlaybackDiagnosticRequest
 
 @Singleton
 class WyRepository @Inject constructor(
@@ -131,11 +132,18 @@ class WyRepository @Inject constructor(
         }
     }
 
-    suspend fun getSongUrl(id: String, br: Int? = null): Result<WySongUrlResponse> {
+    suspend fun getSongUrl(
+        id: String,
+        br: Int? = null,
+        diagnostic: PlaybackDiagnosticRequest? = null,
+    ): Result<WySongUrlResponse> {
         return try {
             val cacheKey = "wy_url_${id}_$br"
             cache.get<WySongUrlResponse>(cacheKey)?.let { return Result.success(it) }
-            val body = urlProxy.songUrl(configManager.getWySongUrl(), id, br)
+            val body = urlProxy.songUrl(
+                configManager.getWySongUrl(), id, br,
+                diagnostic?.traceId, diagnostic?.methodName,
+            )
             cache.set(cacheKey, body)
             Result.success(body)
         } catch (e: Exception) {
@@ -143,13 +151,20 @@ class WyRepository @Inject constructor(
         }
     }
 
-    suspend fun getSongUrlV1(id: String, level: String): Result<WySongUrlResponse> {
+    suspend fun getSongUrlV1(
+        id: String,
+        level: String,
+        diagnostic: PlaybackDiagnosticRequest? = null,
+    ): Result<WySongUrlResponse> {
         return try {
             val numericId = id.toLongOrNull()
                 ?: return Result.failure(IllegalArgumentException("wy songUrlV1: invalid id $id"))
             val cacheKey = "wy_url_v1_${id}_$level"
             cache.get<WySongUrlResponse>(cacheKey)?.let { return Result.success(it) }
-            val body = urlProxy.songUrlV1(configManager.getWySongUrlV1(), numericId, level)
+            val body = urlProxy.songUrlV1(
+                configManager.getWySongUrlV1(), numericId, level, null,
+                diagnostic?.traceId, diagnostic?.methodName,
+            )
             cache.set(cacheKey, body)
             Result.success(body)
         } catch (e: Exception) {
@@ -208,9 +223,13 @@ class WyRepository @Inject constructor(
     }
 
     /** song/url + br（与 pmNative 下载解析一致） */
-    suspend fun getDownloadUrlWithBr(songInfo: SongInfo, br: Int): Map<String, String> {
+    suspend fun getDownloadUrlWithBr(
+        songInfo: SongInfo,
+        br: Int,
+        diagnostic: PlaybackDiagnosticRequest? = null,
+    ): Map<String, String> {
         return try {
-            val res = getSongUrl(songInfo.id, br).getOrNull() ?: return wyDownloadErrorMap()
+            val res = getSongUrl(songInfo.id, br, diagnostic).getOrNull() ?: return wyDownloadErrorMap()
             val url = res.pickFirstWyStreamUrl().orEmpty()
             if (url.isEmpty()) return wyDownloadErrorMap()
             wySuccessMap(songInfo, url, "mp3")
@@ -220,9 +239,13 @@ class WyRepository @Inject constructor(
     }
 
     /** song/url/v1 + level */
-    suspend fun getDownloadUrlWithLevel(songInfo: SongInfo, level: String): Map<String, String> {
+    suspend fun getDownloadUrlWithLevel(
+        songInfo: SongInfo,
+        level: String,
+        diagnostic: PlaybackDiagnosticRequest? = null,
+    ): Map<String, String> {
         return try {
-            val res = getSongUrlV1(songInfo.id, level).getOrNull() ?: return wyDownloadErrorMap()
+            val res = getSongUrlV1(songInfo.id, level, diagnostic).getOrNull() ?: return wyDownloadErrorMap()
             val url = res.pickFirstWyStreamUrl().orEmpty()
             if (url.isEmpty()) return wyDownloadErrorMap()
             val ext = wyExtForLevel(level)

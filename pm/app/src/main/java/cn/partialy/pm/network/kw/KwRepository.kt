@@ -4,6 +4,7 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.network.cache.Cache
 import javax.inject.Inject
 import javax.inject.Singleton
+import cn.partialy.pm.fault.PlaybackDiagnosticRequest
 
 @Singleton
 class KwRepository @Inject constructor(
@@ -25,11 +26,15 @@ class KwRepository @Inject constructor(
         }
     }
 
-    suspend fun getPlayUrl(id: Long, quality: String = "standard"): Result<KwUrlResponse> {
+    suspend fun getPlayUrl(
+        id: Long,
+        quality: String = "standard",
+        diagnostic: PlaybackDiagnosticRequest? = null,
+    ): Result<KwUrlResponse> {
         return try {
             val cacheKey = "kw_url_${id}_$quality"
             cache.get<KwUrlResponse>(cacheKey)?.let { return Result.success(it) }
-            val body = urlProxyApi.getPlayUrl(id, quality)
+            val body = urlProxyApi.getPlayUrl(id, quality, diagnostic?.traceId, diagnostic?.methodName)
             cache.set(cacheKey, body)
             Result.success(body)
         } catch (e: Exception) {
@@ -37,11 +42,15 @@ class KwRepository @Inject constructor(
         }
     }
 
-    suspend fun getDownloadUrl(songInfo: SongInfo, quality: String): Map<String, String> {
+    suspend fun getDownloadUrl(
+        songInfo: SongInfo,
+        quality: String,
+        diagnostic: PlaybackDiagnosticRequest? = null,
+    ): Map<String, String> {
         return try {
             val id = songInfo.id.toLongOrNull()
                 ?: return mapOf("url" to "error", "songName" to "error")
-            val res = getPlayUrl(id, quality).getOrNull()
+            val res = getPlayUrl(id, quality, diagnostic).getOrNull()
                 ?: return mapOf("url" to "error", "songName" to "error")
             val url = res.pickUrl().orEmpty()
             if (!url.startsWith("http")) return mapOf("url" to "error", "songName" to "error")
