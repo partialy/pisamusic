@@ -143,6 +143,13 @@
 - `SplashActivity` 启动检查遇到没网、服务不可用或服务端 `appAvailable=false` 时进入本地模式，由 `MainActivity` 以非阻塞提示告知用户；设备封禁仍必须阻止进入。
 - 设置-关于中的“联系我们”通过 `/api/config/get?id=pm-contact-us` 获取 HTML 片段并用 WebView 渲染；服务协议和隐私政策页面只显示内容，不显示接口返回的 `title` 字段。
 
+## 播放故障上报
+
+- `fault/` 模块负责播放取链诊断、敏感字段脱敏、SQLite 持久化和故障批次上报；`playback_fault_logs` 位于 `pm_local_music.db`，只记录 KG / WY / KW 取链失败、空/非法 URL 和在线歌曲 ExoPlayer 播放失败，最多保留 300 条。
+- 播放请求通过 `PlaybackTraceInterceptor` 在 Gateway 签名后采集真实请求地址、参数、`n` nonce 和限长响应；内部追踪头发出请求前必须移除。下载请求不启用追踪，成功取链的追踪信息随 URL 缓存以关联后续播放器错误。
+- 设置页“播放切换”继续沿用原自动切换列表行为；“更多设置”当前只提示暂未开放；“故障上报”进入 `FaultReportActivity`，展示当前总数、最近 7 天、待上报数、最近错误和上次上报时间。
+- 故障上传走 `SystemApiService` 的 AES-GCM `POST /api/fault-reports`。未登录可匿名上报，登录时只携带 Bearer token 供服务端绑定用户 ID；成功后只能按本次提交的日志 UUID 更新 `is_upload=1`，不能全表无条件更新。
+
 ## 一起听补充
 
 - Android 端一起听代码集中在 `listen/` 模块，包含 HTTP 仓库、Socket.IO 客户端、状态管理和服务端字段模型；播放器页只负责展示入口、房间面板和播放控制意图转发。

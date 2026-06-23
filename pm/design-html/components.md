@@ -52,6 +52,7 @@
 | 登录表单 | 账号/第三方导入登录表单 | `pm/app/src/main/res/layout/activity_login.xml`、`pm/app/src/main/res/layout/include_playlist_import_kg_login.xml` | `LoginActivity`、`WyPlaylistLoginActivity` | 输入框、验证码按钮、扫码占位可参考。 |
 | 本地歌单创建表单 | 新建歌单、封面选择表单 | `pm/app/src/main/res/layout/dialog_create_local_playlist.xml` | `PmSlotDialog` 调用场景 | 居中表单优先参考。 |
 | 账号资料 WebView 容器 | 资料页 WebView 承载 | `pm/app/src/main/res/layout/activity_account_profile.xml` | `AccountProfileActivity` | 全屏 WebView 容器和系统栏处理参考。 |
+| 故障数据概览页 | 本地故障统计、隐私说明和立即上报 | `pm/app/src/main/res/layout/activity_fault_report.xml` | `FaultReportActivity`、`PmMinimalDialog` | 使用单张圆角统计卡展示总数、最近 7 天、待上报和时间信息；无待上报数据时禁用主按钮，确认上传复用通用居中弹窗。 |
 
 ## 列表、卡片与行项目
 
