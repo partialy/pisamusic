@@ -91,6 +91,12 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.FaultReportActivity"
+            android:exported="false"
+            android:label="@string/fault_report_title"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.LoginActivity"
             android:exported="false"
             android:theme="@style/Theme.App.Splash"

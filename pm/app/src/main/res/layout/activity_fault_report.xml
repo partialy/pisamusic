@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/faultReportRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/home_page_bg"
+    android:fitsSystemWindows="false"
+    android:orientation="vertical">
+
+    <View
+        android:id="@+id/statusBarSpacer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/home_page_bg" />
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/home_page_bg"
+        app:navigationIcon="@drawable/ic_back_24"
+        app:title="@string/fault_report_title" />
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="24dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/home_mini_player_bg"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/settings_card_inset_divider"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fault_report_overview"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                        android:textStyle="bold" />
+
+                    <TextView android:id="@+id/totalCountText" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" />
+                    <TextView android:id="@+id/recentCountText" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" />
+                    <TextView android:id="@+id/pendingCountText" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" />
+                    <TextView android:id="@+id/latestErrorText" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" />
+                    <TextView android:id="@+id/sceneText" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" />
+                    <TextView android:id="@+id/lastReportText" style="@style/TextAppearance.Material3.BodyLarge" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/reportHintText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center"
+                android:text="@string/fault_report_privacy_hint"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="13sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/reportNowButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="16dp"
+                android:text="@string/fault_report_now"
+                android:textStyle="bold"
+                app:cornerRadius="16dp" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

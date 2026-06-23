@@ -579,4 +579,23 @@
     <string name="account_assist_register_failed">注册失败</string>
     <string name="account_assist_reset_failed">密码重置失败</string>
     <string name="account_assist_code_send_failed">验证码发送失败</string>
+    <string name="fault_report_title">故障上报</string>
+    <string name="fault_report_overview">故障数据概览</string>
+    <string name="fault_report_total_count">总条数：%1$d / 300</string>
+    <string name="fault_report_recent_count">最近 7 天：%1$d 条</string>
+    <string name="fault_report_pending_count">待上报：%1$d 条</string>
+    <string name="fault_report_latest_error">最近错误时间：%1$s</string>
+    <string name="fault_report_scene">场景：%1$s</string>
+    <string name="fault_report_scene_play_url">获取播放地址</string>
+    <string name="fault_report_last_time">上次上报时间：%1$s</string>
+    <string name="fault_report_never">暂无</string>
+    <string name="fault_report_now">立即上报</string>
+    <string name="fault_report_uploading">正在上报…</string>
+    <string name="fault_report_privacy_hint">仅上报播放故障和非个人化运行环境信息</string>
+    <string name="fault_report_empty">当前没有待上报的故障信息</string>
+    <string name="fault_report_confirm_title">确认上报错误信息吗？</string>
+    <string name="fault_report_confirm_message">错误信息仅用于App维护、修复Bug，且不包含个人数据，可放心上报。</string>
+    <string name="fault_report_success">故障信息上报成功</string>
+    <string name="fault_report_failed">故障信息上报失败</string>
+    <string name="fault_report_load_failed">故障信息读取失败</string>
 </resources>

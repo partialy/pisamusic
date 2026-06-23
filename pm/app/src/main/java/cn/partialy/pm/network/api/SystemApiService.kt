@@ -30,6 +30,8 @@ import cn.partialy.pm.listen.ListenTogetherRoomResponse
 import cn.partialy.pm.share.ShareCreateRequest
 import cn.partialy.pm.share.ShareCreateResponse
 import cn.partialy.pm.share.SharePublicResponse
+import cn.partialy.pm.fault.FaultReportRequest
+import cn.partialy.pm.fault.FaultReportSubmitResponse
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -68,6 +70,12 @@ interface SystemApiService {
 
     @POST("api/device/report")
     suspend fun reportDevice(@Body body: DeviceReportRequest): DeviceReportResponse
+
+    @POST("api/fault-reports")
+    suspend fun submitFaultReport(
+        @Header("Authorization") authorization: String?,
+        @Body body: FaultReportRequest,
+    ): FaultReportSubmitResponse
 
     @POST("api/auth/email-code")
     suspend fun sendAccountEmailCode(@Body body: AccountEmailCodeRequest): AccountEmailCodeResponse

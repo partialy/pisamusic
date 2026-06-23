@@ -205,8 +205,8 @@ class SettingsActivity : BaseActivity() {
         binding.autoSwitchList.apply {
             bindNavRow(
                 root,
-                R.drawable.ic_playlist_24,
-                "自动切换列表",
+                R.drawable.settings_ic_playback,
+                "播放切换",
                 autoSwitchListModeSummary(SettingsPrefs.getAutoSwitchListMode(this@SettingsActivity)),
             )
             root.setOnClickListener {
@@ -214,7 +214,7 @@ class SettingsActivity : BaseActivity() {
                     val current = SettingsPrefs.getAutoSwitchListMode(this@SettingsActivity)
                     val picked = showSettingsOptionPicker(
                         context = this@SettingsActivity,
-                        title = "自动切换列表",
+                        title = "播放切换",
                         options = listOf(
                             SettingsOption("off", "关闭（默认）"),
                             SettingsOption("local", "本地歌曲"),
@@ -240,6 +240,11 @@ class SettingsActivity : BaseActivity() {
                     showAutoSwitchModeSavedDialog(mode)
                 }
             }
+        }
+
+        binding.moreSettings.apply {
+            bindNavRow(root, R.drawable.settings_ic_more_settings, "更多设置", null)
+            root.setOnClickListener { showMessage("暂未开放") }
         }
 
         binding.writeCover.apply {
@@ -378,6 +383,11 @@ class SettingsActivity : BaseActivity() {
         } else {
             binding.devDebugDivider.visibility = View.GONE
             binding.devDebugEntry.root.visibility = View.GONE
+        }
+
+        binding.faultReportEntry.apply {
+            bindNavRow(root, R.drawable.settings_ic_fault_report, getString(R.string.fault_report_title), null)
+            root.setOnClickListener { FaultReportActivity.start(this@SettingsActivity) }
         }
 
         binding.feedbackEntry.apply {
