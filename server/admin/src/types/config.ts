@@ -448,6 +448,57 @@ export type AdminFeedbackFilter = {
   limit?: number;
 };
 
+export type FaultReportStatus = "pending" | "processed";
+export type FaultReportScene = "play_url";
+
+export type FaultReportLog = {
+  clientLogId: string;
+  occurredAt: number;
+  scene: FaultReportScene;
+  failureType: string;
+  methodName: string;
+  requestMethod: string;
+  requestUrl: string;
+  requestParamsJson: string;
+  nonceId: string;
+  responseCode: number | null;
+  responseBody: string;
+  resolvedUrl: string;
+  errorType: string;
+  errorMessage: string;
+  stackTrace: string;
+  songSource: string;
+  songId: string;
+  quality: string;
+};
+
+export type AdminFaultReportListItem = {
+  id: string;
+  userId: string | null;
+  scene: FaultReportScene;
+  appVersion: string;
+  appVersionCode: number;
+  osVersion: string;
+  sdkInt: number;
+  brand: string;
+  model: string;
+  networkType: string;
+  logCount: number;
+  status: FaultReportStatus;
+  createdAt: number;
+  processedAt: number | null;
+};
+
+export type AdminFaultReportDetail = AdminFaultReportListItem & { logs: FaultReportLog[] };
+export type AdminFaultReportListResponse = { items: AdminFaultReportListItem[]; total: number; offset: number; limit: number };
+export type AdminFaultReportFilter = {
+  status?: FaultReportStatus;
+  scene?: FaultReportScene;
+  keyword?: string;
+  offset?: number;
+  limit?: number;
+};
+
 export type PisaAdminExport = AppConfigJson & {
   announcements: Announcement[];
   updateHistory: UpdateHistoryItem[];

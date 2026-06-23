@@ -93,6 +93,7 @@ const SystemTab = lazy(() => import("./components/tabs/SystemTab"));
 const UpdateTab = lazy(() => import("./components/tabs/UpdateTab"));
 const FileManagementTab = lazy(() => import("./components/tabs/FileManagementTab"));
 const FeedbackManagementTab = lazy(() => import("./components/tabs/FeedbackManagementTab"));
+const FaultReportsManagementTab = lazy(() => import("./components/tabs/FaultReportsManagementTab"));
 const ShareManagementTab = lazy(() => import("./components/tabs/ShareManagementTab"));
 const UserManagementTab = lazy(() => import("./components/tabs/UserManagementTab"));
 const ContentTab = lazy(() => import("./components/tabs/ContentTab"));
@@ -1472,6 +1473,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onStatusChange={(feedback, status) => void handleFeedbackStatusChange(feedback.id, status)}
                 />
               )}
+              {currentTab === "faultReports" && <FaultReportsManagementTab themeColor={themeColor} />}
               {currentTab === "shares" && (
                 <ShareManagementTab
                   items={shareItems}

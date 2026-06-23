@@ -3,6 +3,9 @@ import type {
   AdminFeedbackDetail,
   AdminFeedbackFilter,
   AdminFeedbackListResponse,
+  AdminFaultReportDetail,
+  AdminFaultReportFilter,
+  AdminFaultReportListResponse,
   AdminShareFilter,
   AdminShareListItem,
   AdminShareListResponse,
@@ -23,6 +26,7 @@ import type {
   FileRecordInfo,
   FileRecordListResponse,
   FeedbackStatus,
+  FaultReportStatus,
   DeviceFilter,
   DeviceInfo,
   DeviceListResponse,
@@ -665,6 +669,43 @@ export async function updateAdminFeedbackStatus(id: string, status: FeedbackStat
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
   return body.data;
+}
+
+export async function fetchAdminFaultReports(filter: AdminFaultReportFilter): Promise<AdminFaultReportListResponse> {
+  const params = new URLSearchParams();
+  if (filter.status) params.set("status", filter.status);
+  if (filter.scene) params.set("scene", filter.scene);
+  if (filter.keyword) params.set("keyword", filter.keyword);
+  if (filter.offset !== undefined) params.set("offset", String(filter.offset));
+  if (filter.limit !== undefined) params.set("limit", String(filter.limit));
+  const query = params.toString();
+  const res = await fetchWithAuth(`/api/admin/fault-reports${query ? `?${query}` : ""}`);
+  const body = await parseJson<AdminFaultReportListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) throw new Error(body.msg || `HTTP ${res.status}`);
+  return body.data;
+}
+
+export async function fetchAdminFaultReportDetail(id: string): Promise<AdminFaultReportDetail> {
+  const res = await fetchWithAuth(`/api/admin/fault-reports/${encodeURIComponent(id)}`);
+  const body = await parseJson<AdminFaultReportDetail>(res);
+  if (!res.ok || !body.success || body.data == null) throw new Error(body.msg || `HTTP ${res.status}`);
+  return body.data;
+}
+
+export async function updateAdminFaultReportStatus(id: string, status: FaultReportStatus): Promise<AdminFaultReportDetail> {
+  const res = await fetchWithAuth(`/api/admin/fault-reports/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+  const body = await parseJson<AdminFaultReportDetail>(res);
+  if (!res.ok || !body.success || body.data == null) throw new Error(body.msg || `HTTP ${res.status}`);
+  return body.data;
+}
+
+export async function deleteAdminFaultReport(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/fault-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
+  const body = await parseJson<null>(res);
+  if (!res.ok || !body.success) throw new Error(body.msg || `HTTP ${res.status}`);
 }
 
 export async function fetchAdminShares(filter: AdminShareFilter): Promise<AdminShareListResponse> {
