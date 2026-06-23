@@ -73,11 +73,13 @@ class SearchActivity : BaseDownloadActivity() {
     private var sourcePopup: PopupWindow? = null
     private var errorWebController: LocalGenericErrorWebViewController? = null
     private var searchScreenMode: SearchScreenMode = SearchScreenMode.INITIAL
+    private var shouldRequestInitialSearchFocus = true
 
     /** 0 单曲，1 歌单 */
     private var searchResultCategory: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        shouldRequestInitialSearchFocus = savedInstanceState == null
         binding = ActivitySearchBinding.inflate(layoutInflater)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
@@ -101,6 +103,19 @@ class SearchActivity : BaseDownloadActivity() {
         homeMiniPlayerBinder = HomeMiniPlayerBinder(this, binding.homeMiniPlayer, musicController).apply {
             setupClicks()
             startObserving(this@SearchActivity)
+        }
+    }
+
+    override fun onEnterAnimationComplete() {
+        super.onEnterAnimationComplete()
+        if (!shouldRequestInitialSearchFocus) return
+
+        shouldRequestInitialSearchFocus = false
+        binding.searchEditText.post {
+            if (isFinishing || isDestroyed) return@post
+            binding.searchEditText.requestFocus()
+            val inputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            inputMethodManager.showSoftInput(binding.searchEditText, InputMethodManager.SHOW_IMPLICIT)
         }
     }
 

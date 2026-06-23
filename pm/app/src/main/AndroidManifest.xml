@@ -83,7 +83,7 @@
             android:name=".activity.SearchActivity"
             android:label="@string/search"
             android:theme="@style/Theme.Pm"
-            android:windowSoftInputMode="stateVisible|adjustResize" />
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".activity.SettingsActivity"
