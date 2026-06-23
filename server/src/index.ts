@@ -12,6 +12,7 @@ import { authRouter } from "./routes/auth";
 import { configRouter } from "./routes/config";
 import { deviceRouter } from "./routes/device";
 import { feedbackRouter } from "./routes/feedback";
+import { faultReportsRouter } from "./routes/faultReports";
 import { listenTogetherRouter } from "./routes/listenTogether";
 import { sharesRouter } from "./routes/shares";
 import { syncRouter } from "./routes/sync";
@@ -27,6 +28,7 @@ const discoverRoot = path.resolve(process.cwd(), "discover");
 const staticRoot = path.resolve(process.cwd(), "static");
 
 app.use(cors());
+app.use("/api/fault-reports", express.json({ limit: "5mb" }));
 app.use(express.json());
 app.use(logInterceptor);
 
@@ -83,6 +85,7 @@ app.use("/api/config", configRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/feedback", feedbackRouter);
+app.use("/api/fault-reports", faultReportsRouter);
 app.use("/api/device", deviceRouter);
 app.use("/api/sync", syncRouter);
 app.use("/api/listen-together", listenTogetherRouter);

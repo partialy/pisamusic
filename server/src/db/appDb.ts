@@ -216,6 +216,51 @@ CREATE TABLE IF NOT EXISTS feedback_images (
 );
 CREATE INDEX IF NOT EXISTS idx_feedback_images_feedback_id ON feedback_images (feedback_id);
 
+CREATE TABLE IF NOT EXISTS fault_reports (
+    id                TEXT    PRIMARY KEY,
+    user_id           TEXT,
+    scene             TEXT    NOT NULL,
+    app_version       TEXT    NOT NULL DEFAULT '',
+    app_version_code  INTEGER NOT NULL DEFAULT 0,
+    os_version        TEXT    NOT NULL DEFAULT '',
+    sdk_int           INTEGER NOT NULL DEFAULT 0,
+    brand             TEXT    NOT NULL DEFAULT '',
+    model             TEXT    NOT NULL DEFAULT '',
+    network_type      TEXT    NOT NULL DEFAULT '',
+    log_count         INTEGER NOT NULL DEFAULT 0,
+    status            TEXT    NOT NULL DEFAULT 'pending',
+    created_at        INTEGER NOT NULL,
+    processed_at      INTEGER,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fault_reports_status_created ON fault_reports (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fault_reports_user_created ON fault_reports (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS fault_report_logs (
+    client_log_id       TEXT    PRIMARY KEY,
+    report_id           TEXT    NOT NULL,
+    occurred_at         INTEGER NOT NULL,
+    scene               TEXT    NOT NULL,
+    failure_type        TEXT    NOT NULL,
+    method_name         TEXT    NOT NULL DEFAULT '',
+    request_method      TEXT    NOT NULL DEFAULT '',
+    request_url         TEXT    NOT NULL DEFAULT '',
+    request_params_json TEXT    NOT NULL DEFAULT '{}',
+    nonce_id            TEXT    NOT NULL DEFAULT '',
+    response_code       INTEGER,
+    response_body       TEXT    NOT NULL DEFAULT '',
+    resolved_url        TEXT    NOT NULL DEFAULT '',
+    error_type          TEXT    NOT NULL DEFAULT '',
+    error_message       TEXT    NOT NULL DEFAULT '',
+    stack_trace         TEXT    NOT NULL DEFAULT '',
+    song_source         TEXT    NOT NULL DEFAULT '',
+    song_id             TEXT    NOT NULL DEFAULT '',
+    quality             TEXT    NOT NULL DEFAULT '',
+    FOREIGN KEY (report_id) REFERENCES fault_reports(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_fault_report_logs_report_time ON fault_report_logs (report_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fault_report_logs_scene_time ON fault_report_logs (scene, occurred_at DESC);
+
 CREATE TABLE IF NOT EXISTS share_records (
     uuid                  TEXT    PRIMARY KEY,
     type                  TEXT    NOT NULL,
