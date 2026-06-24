@@ -56,7 +56,7 @@
       <main class="info-panel">
         <div class="type-row">
           <span>{{ song ? "歌曲详情" : "歌单详情" }}</span>
-          <span>{{ sourceLabel }}</span>
+          <span v-if="!shareRecord">{{ sourceLabel }}</span>
           <span v-if="shareRecord">来自分享</span>
         </div>
         <h1 :title="title">{{ title }}</h1>
@@ -69,20 +69,6 @@
           </div>
         </div>
 
-        <div v-if="shareRecord" class="share-card">
-          <div>
-            <span>分享人</span>
-            <strong>{{ shareRecord.sharer.username || "PisaMusic 用户" }}</strong>
-          </div>
-          <div>
-            <span>分享时间</span>
-            <strong>{{ formatTime(shareRecord.createdAt) }}</strong>
-          </div>
-          <div>
-            <span>访问次数</span>
-            <strong>{{ shareRecord.accessCount }}</strong>
-          </div>
-        </div>
       </main>
     </section>
 
@@ -99,7 +85,7 @@ import type { CommonPlaylist, Song } from "@/types/song";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import { useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
-import { defaultSongCover, formatDuration, formatTime, getKgImage, getSongCover } from "@/utils/common";
+import { defaultSongCover, formatDuration, getKgImage, getSongCover } from "@/utils/common";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { getPublicShare } from "@/share/shareApi";
 import {
@@ -138,6 +124,15 @@ const coverUrl = computed(() => {
 });
 const metaItems = computed(() => {
   if (song.value) {
+    if (shareRecord.value) {
+      return [
+        { label: "歌手", value: song.value.singer || shareRecord.value.description },
+        { label: "歌名", value: song.value.name || shareRecord.value.title },
+        { label: "专辑", value: song.value.album },
+        { label: "时长", value: formatDuration(song.value.duration) },
+        { label: "访问次数", value: String(shareRecord.value.accessCount) },
+      ];
+    }
     return [
       { label: "歌手", value: song.value.singer },
       { label: "专辑", value: song.value.album },
@@ -146,6 +141,13 @@ const metaItems = computed(() => {
     ];
   }
   if (playlist.value) {
+    if (shareRecord.value) {
+      return [
+        { label: "描述", value: shareRecord.value.description || playlist.value.desc },
+        { label: "分享人", value: shareRecord.value.sharer.username || "PisaMusic 用户" },
+        { label: "访问次数", value: String(shareRecord.value.accessCount) },
+      ];
+    }
     return [
       { label: "来源", value: sourceLabel.value },
       { label: "歌曲数", value: String(playlist.value.song_count || 0) },
@@ -386,8 +388,7 @@ h1 {
   margin-top: 30px;
 }
 
-.meta-item,
-.share-card > div {
+.meta-item {
   min-width: 0;
   display: grid;
   gap: 8px;
@@ -412,13 +413,6 @@ h1 {
   }
 }
 
-.share-card {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 18px;
-}
-
 @media (max-width: 900px) {
   .detail-shell,
   .state-panel {
@@ -431,8 +425,7 @@ h1 {
     margin: 0 auto;
   }
 
-  .meta-grid,
-  .share-card {
+  .meta-grid {
     grid-template-columns: 1fr;
   }
 }

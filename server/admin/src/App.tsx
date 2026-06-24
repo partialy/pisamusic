@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  AdminFaultReportDetail,
   AdminFeedbackDetail,
   AdminFeedbackFilter,
   AdminFeedbackListItem,
@@ -20,6 +21,7 @@ import type {
   DeviceFilter,
   DeviceInfo,
   DynamicConfigItem,
+  FaultReportStatus,
   FileRecordInfo,
   FeedbackStatus,
   GatewaySignConfig,
@@ -38,6 +40,7 @@ import {
   deleteDesktopDevice,
   deleteDevice,
   fetchAnnouncements,
+  fetchAdminFaultReportDetail,
   fetchAdminFeedback,
   fetchAdminFeedbackDetail,
   fetchAdminUserDetail,
@@ -62,6 +65,8 @@ import {
   saveAnnouncement as saveAnnouncementApi,
   saveEncryptionConfig,
   updatePublishedUpdate,
+  updateAdminFaultReportStatus,
+  deleteAdminFaultReport,
   updateAdminFeedbackStatus,
   updateAdminUser,
   uploadReleasePackage,
@@ -82,6 +87,7 @@ import ChangePasswordModal from "./components/modals/ChangePasswordModal";
 import DynamicConfigModal from "./components/modals/DynamicConfigModal";
 import FileRecordDetailModal from "./components/modals/FileRecordDetailModal";
 import FeedbackDetailModal from "./components/modals/FeedbackDetailModal";
+import FaultReportDetailModal from "./components/modals/FaultReportDetailModal";
 import NoticeModal from "./components/modals/NoticeModal";
 import UpdateModal from "./components/modals/UpdateModal";
 import UpdateHistoryDeletePreviewModal from "./components/modals/UpdateHistoryDeletePreviewModal";
@@ -217,6 +223,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [updatingFeedbackId, setUpdatingFeedbackId] = useState<string | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<AdminFeedbackDetail | null>(null);
+  const [selectedFaultReport, setSelectedFaultReport] = useState<AdminFaultReportDetail | null>(null);
+  const [faultReportBusy, setFaultReportBusy] = useState(false);
+  const [faultReportsRefreshKey, setFaultReportsRefreshKey] = useState(0);
   const [shareItems, setShareItems] = useState<AdminShareListItem[]>([]);
   const [shareTotal, setShareTotal] = useState(0);
   const [shareOffset, setShareOffset] = useState(0);
@@ -910,6 +919,41 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const handleViewFaultReport = async (id: string) => {
+    try {
+      setSelectedFaultReport(await fetchAdminFaultReportDetail(id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加载故障上报详情失败");
+    }
+  };
+
+  const handleFaultReportStatusChange = async (status: FaultReportStatus) => {
+    if (!selectedFaultReport) return;
+    setFaultReportBusy(true);
+    try {
+      setSelectedFaultReport(await updateAdminFaultReportStatus(selectedFaultReport.id, status));
+      setFaultReportsRefreshKey((k) => k + 1);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "状态更新失败");
+    } finally {
+      setFaultReportBusy(false);
+    }
+  };
+
+  const handleFaultReportDelete = async () => {
+    if (!selectedFaultReport || !window.confirm("确定永久删除这批故障上报及全部日志吗？此操作不可撤销。")) return;
+    setFaultReportBusy(true);
+    try {
+      await deleteAdminFaultReport(selectedFaultReport.id);
+      setSelectedFaultReport(null);
+      setFaultReportsRefreshKey((k) => k + 1);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setFaultReportBusy(false);
+    }
+  };
+
   const loadShares = useCallback(async () => {
     setShareLoading(true);
     try {
@@ -1473,7 +1517,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onStatusChange={(feedback, status) => void handleFeedbackStatusChange(feedback.id, status)}
                 />
               )}
-              {currentTab === "faultReports" && <FaultReportsManagementTab themeColor={themeColor} />}
+              {currentTab === "faultReports" && <FaultReportsManagementTab themeColor={themeColor} onView={(id) => void handleViewFaultReport(id)} refreshKey={faultReportsRefreshKey} />}
               {currentTab === "shares" && (
                 <ShareManagementTab
                   items={shareItems}
@@ -1670,6 +1714,17 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           saving={adminUserSaving}
           onClose={() => setEditingAdminUser(null)}
           onSave={(payload) => void handleSaveAdminUser(payload)}
+        />
+      )}
+
+      {selectedFaultReport && (
+        <FaultReportDetailModal
+          report={selectedFaultReport}
+          busy={faultReportBusy}
+          themeColor={themeColor}
+          onStatusChange={(status) => void handleFaultReportStatusChange(status)}
+          onDelete={() => void handleFaultReportDelete()}
+          onClose={() => setSelectedFaultReport(null)}
         />
       )}
 

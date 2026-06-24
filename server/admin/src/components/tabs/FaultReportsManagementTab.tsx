@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
-import { deleteAdminFaultReport, fetchAdminFaultReportDetail, fetchAdminFaultReports, updateAdminFaultReportStatus } from "../../api/client";
+import { fetchAdminFaultReports } from "../../api/client";
 import { glassCardClasses, glassInputClasses } from "../../constants/theme";
-import type { AdminFaultReportDetail, AdminFaultReportFilter, AdminFaultReportListItem, FaultReportStatus } from "../../types/config";
+import type { AdminFaultReportFilter, AdminFaultReportListItem, FaultReportStatus } from "../../types/config";
 import { FAULT_REPORT_SCENE_LABELS, FAULT_REPORT_STATUS_LABELS, formatFaultReportTime } from "../../utils/faultReports";
-import FaultReportDetailModal from "../modals/FaultReportDetailModal";
 
 const LIMIT = 20;
 
-export default function FaultReportsManagementTab({ themeColor }: { themeColor: string }) {
+type Props = {
+  themeColor: string;
+  onView: (id: string) => void;
+  refreshKey?: number;
+};
+
+export default function FaultReportsManagementTab({ themeColor, onView, refreshKey }: Props) {
   const [items, setItems] = useState<AdminFaultReportListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [filter, setFilter] = useState<AdminFaultReportFilter>({});
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState<AdminFaultReportDetail | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,40 +35,11 @@ export default function FaultReportsManagementTab({ themeColor }: { themeColor: 
     }
   }, [filter, offset]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load, refreshKey]);
 
   const updateFilter = (next: AdminFaultReportFilter) => {
     setFilter(next);
     setOffset(0);
-  };
-
-  const openDetail = async (id: string) => {
-    setError("");
-    try { setSelected(await fetchAdminFaultReportDetail(id)); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "详情读取失败"); }
-  };
-
-  const changeStatus = async (status: FaultReportStatus) => {
-    if (!selected) return;
-    setBusy(true);
-    try {
-      setSelected(await updateAdminFaultReportStatus(selected.id, status));
-      await load();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "状态更新失败");
-    } finally { setBusy(false); }
-  };
-
-  const remove = async () => {
-    if (!selected || !window.confirm("确定永久删除这批故障上报及全部日志吗？此操作不可撤销。")) return;
-    setBusy(true);
-    try {
-      await deleteAdminFaultReport(selected.id);
-      setSelected(null);
-      await load();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "删除失败");
-    } finally { setBusy(false); }
   };
 
   const pageEnd = Math.min(total, offset + LIMIT);
@@ -100,14 +74,13 @@ export default function FaultReportsManagementTab({ themeColor }: { themeColor: 
               <td className="px-4 py-4 text-slate-600">{item.appVersion} ({item.appVersionCode})<div className="text-xs text-slate-400">Android {item.osVersion} · {item.brand} {item.model}</div></td>
               <td className="px-4 py-4 font-bold text-slate-700">{item.logCount}</td><td className="px-4 py-4 text-xs text-slate-500">{formatFaultReportTime(item.createdAt)}</td>
               <td className="px-4 py-4"><span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${item.status === "processed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{FAULT_REPORT_STATUS_LABELS[item.status]}</span></td>
-              <td className="px-4 py-4 text-right"><button type="button" onClick={() => void openDetail(item.id)} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm">详情</button></td>
+              <td className="px-4 py-4 text-right"><button type="button" onClick={() => onView(item.id)} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm">详情</button></td>
             </tr>)}</tbody>
           </table></div>
         )}
       </section>
 
       <div className="flex items-center justify-between rounded-2xl bg-white/50 p-4 text-sm font-bold text-slate-600"><span>{total === 0 ? "0" : `${offset + 1}-${pageEnd}`} / {total}</span><div className="flex gap-2"><button type="button" disabled={offset <= 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))} className="rounded-xl bg-white px-4 py-2 disabled:opacity-50">上一页</button><button type="button" disabled={pageEnd >= total} onClick={() => setOffset(offset + LIMIT)} className="rounded-xl bg-white px-4 py-2 disabled:opacity-50">下一页</button></div></div>
-      {selected ? <FaultReportDetailModal report={selected} busy={busy} themeColor={themeColor} onStatusChange={(status) => void changeStatus(status)} onDelete={() => void remove()} onClose={() => setSelected(null)} /> : null}
     </div>
   );
 }

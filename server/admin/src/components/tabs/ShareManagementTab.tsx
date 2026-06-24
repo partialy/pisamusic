@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { glassCardClasses, glassInputClasses } from "../../constants/theme";
 import type { AdminShareFilter, AdminShareListItem, ShareType } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
+import { buildMusicShareWebLink } from "../../utils/shareLink";
 
 type Props = {
   items: AdminShareListItem[];
@@ -54,6 +55,7 @@ export default function ShareManagementTab({
   onInvalidate,
 }: Props) {
   const [sharer, setSharer] = useState(filter.sharer ?? "");
+  const [copiedUuid, setCopiedUuid] = useState<string | null>(null);
   const pageEnd = Math.min(total, offset + limit);
 
   useEffect(() => {
@@ -64,6 +66,17 @@ export default function ShareManagementTab({
   const resetFilter = () => {
     setSharer("");
     onFilterChange({ valid: "all" });
+  };
+  const copyShareLink = async (item: AdminShareListItem) => {
+    try {
+      await navigator.clipboard.writeText(buildMusicShareWebLink(item.uuid));
+      setCopiedUuid(item.uuid);
+      window.setTimeout(() => {
+        setCopiedUuid((current) => (current === item.uuid ? null : current));
+      }, 1800);
+    } catch {
+      window.alert("复制分享链接失败，请检查浏览器的剪贴板权限。");
+    }
   };
 
   return (
@@ -170,6 +183,21 @@ export default function ShareManagementTab({
                     </td>
                     <td className="sticky right-0 border-b border-slate-100/80 bg-white/80 px-4 py-4 backdrop-blur">
                       <div className="flex justify-end gap-2 whitespace-nowrap">
+                        <a
+                          href={buildMusicShareWebLink(item.uuid)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700 shadow-sm hover:bg-sky-100"
+                        >
+                          预览公开页
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => void copyShareLink(item)}
+                          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50"
+                        >
+                          {copiedUuid === item.uuid ? "已复制" : "复制分享链接"}
+                        </button>
                         <button
                           type="button"
                           disabled={!item.valid || invalidatingId === item.uuid}
