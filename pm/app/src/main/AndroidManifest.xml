@@ -109,6 +109,12 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.DataSettingsActivity"
+            android:exported="false"
+            android:label="数据管理"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.FaultReportActivity"
             android:exported="false"
             android:label="@string/fault_report_title"

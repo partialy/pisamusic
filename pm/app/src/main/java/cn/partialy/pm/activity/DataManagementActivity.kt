@@ -39,7 +39,7 @@ import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 
 /**
- * 数据管理：导入 / 导出收藏歌曲和歌单数据（ZIP 格式）。
+ * 导入与导出：备份、恢复或清除收藏歌曲和歌单数据（ZIP 格式）。
  *
  * 压缩包结构：
  * - loveList.json          收藏歌曲

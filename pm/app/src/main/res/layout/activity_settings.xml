@@ -37,22 +37,7 @@
             android:paddingTop="8dp"
             android:paddingBottom="24dp">
 
-            <!-- 下载 -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="@color/home_mini_player_bg"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/settings_card_inset_divider"
-                app:strokeWidth="1dp">
-
-                <include
-                    android:id="@+id/downloadSettings"
-                    layout="@layout/item_settings_row" />
-            </com.google.android.material.card.MaterialCardView>
-
+            <!-- 播放与歌词 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -81,20 +66,10 @@
                     <include
                         android:id="@+id/lyricSettings"
                         layout="@layout/item_settings_row" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="50dp"
-                        android:background="@color/settings_card_inset_divider" />
-
-                    <include
-                        android:id="@+id/moreSettings"
-                        layout="@layout/item_settings_row" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 外观 -->
+            <!-- 下载与外观 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -111,13 +86,23 @@
                     android:orientation="vertical">
 
                     <include
+                        android:id="@+id/downloadSettings"
+                        layout="@layout/item_settings_row" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="50dp"
+                        android:background="@color/settings_card_inset_divider" />
+
+                    <include
                         android:id="@+id/themeMode"
                         layout="@layout/item_settings_row" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 数据与调试 -->
+            <!-- 数据与更多 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -144,33 +129,12 @@
                         android:background="@color/settings_card_inset_divider" />
 
                     <include
-                        android:id="@+id/syncManagement"
-                        layout="@layout/item_settings_row" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="50dp"
-                        android:background="@color/settings_card_inset_divider" />
-
-                    <include
-                        android:id="@+id/cacheManagement"
-                        layout="@layout/item_settings_row" />
-
-                    <View
-                        android:id="@+id/devDebugDivider"
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="50dp"
-                        android:background="@color/settings_card_inset_divider" />
-
-                    <include
-                        android:id="@+id/devDebugEntry"
+                        android:id="@+id/moreSettings"
                         layout="@layout/item_settings_row" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- 公告与关于 -->
+            <!-- 调试、反馈与关于 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -184,6 +148,17 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
+
+                    <include
+                        android:id="@+id/devDebugEntry"
+                        layout="@layout/item_settings_row" />
+
+                    <View
+                        android:id="@+id/devDebugDivider"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="50dp"
+                        android:background="@color/settings_card_inset_divider" />
 
                     <include
                         android:id="@+id/faultReportEntry"

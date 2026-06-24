@@ -18,8 +18,6 @@ import cn.partialy.pm.activity.setting.SettingAboutActivity
 import cn.partialy.pm.activity.setting.SettingAnnouncementsActivity
 import cn.partialy.pm.activity.setting.SettingCheckUpdateActivity
 import cn.partialy.pm.databinding.ActivitySettingsBinding
-import cn.partialy.pm.sync.SyncManager
-import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
 import cn.partialy.pm.utils.ServerDevicePrefs
@@ -27,18 +25,11 @@ import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class SettingsActivity : BaseActivity() {
     private lateinit var binding: ActivitySettingsBinding
     private val uiScope = MainScope()
-
-    @Inject
-    lateinit var syncManager: SyncManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 先创建绑定
@@ -57,14 +48,6 @@ class SettingsActivity : BaseActivity() {
         }
 
         bindSettingsItems()
-    }
-
-    private fun openMainFromSettings(action: String) {
-        startActivity(Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(MainActivity.EXTRA_SETTINGS_ACTION, action)
-        })
-        finish()
     }
 
     private fun bindNavRow(
@@ -173,32 +156,7 @@ class SettingsActivity : BaseActivity() {
                 null,
             )
             root.setOnClickListener {
-                DataManagementActivity.start(this@SettingsActivity)
-            }
-        }
-
-        binding.syncManagement.apply {
-            bindNavRow(
-                root,
-                R.drawable.ic_data_sync,
-                "收藏与歌单同步",
-                syncSummary(syncManager.state()),
-            )
-            root.setOnClickListener {
-                if (syncManager.state().loggedIn) syncNow() else LoginActivity.start(this@SettingsActivity)
-            }
-        }
-
-        binding.cacheManagement.apply {
-            bindNavRow(
-                root,
-                R.drawable.settings_ic_cache,
-                getString(R.string.settings_cache_management),
-                null,
-            )
-            root.setOnClickListener {
-//                startActivity(Intent(this@SettingsActivity, CacheManagementActivity::class.java))
-                CacheManagementActivity.start(this@SettingsActivity)
+                DataSettingsActivity.start(this@SettingsActivity)
             }
         }
 
@@ -281,44 +239,7 @@ class SettingsActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        refreshSyncRow()
         bindDeviceIdLabel()
-    }
-
-    private fun refreshSyncRow() {
-        if (!::binding.isInitialized) return
-        binding.syncManagement.root.findViewById<TextView>(R.id.valueTextView).apply {
-            val summary = syncSummary(syncManager.state())
-            visibility = if (summary.isBlank()) View.GONE else View.VISIBLE
-            text = summary
-        }
-    }
-
-    private fun syncNow() {
-        uiScope.launch {
-            Toast.makeText(this@SettingsActivity, "正在同步", Toast.LENGTH_SHORT).show()
-            val state = syncManager.syncNow()
-            refreshSyncRow()
-            Toast.makeText(
-                this@SettingsActivity,
-                if (state.lastError.isBlank()) "同步完成" else state.lastError,
-                Toast.LENGTH_SHORT,
-            ).show()
-        }
-    }
-
-    private fun syncSummary(state: SyncPrefs.State): String {
-        if (!state.loggedIn) return "未登录"
-        val time = if (state.lastSyncAt > 0L) {
-            SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(state.lastSyncAt))
-        } else {
-            "未同步"
-        }
-        return if (state.lastError.isBlank()) {
-            if (state.lastSyncAt > 0L) "已同步 · $time" else "已登录 · $time"
-        } else {
-            "同步异常 · ${state.lastError}"
-        }
     }
 
     private fun bindDeviceIdLabel() {

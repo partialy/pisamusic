@@ -58,6 +58,7 @@
     <string name="check_update">检查更新</string>
     <string name="about">关于</string>
     <string name="settings_data_management">数据管理</string>
+    <string name="settings_import_export">导入与导出</string>
     <string name="settings_cache_management">缓存管理</string>
     <string name="settings_feature_coming_soon">敬请期待</string>
     <string name="data_overview_title">数据概览</string>

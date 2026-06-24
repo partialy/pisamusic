@@ -25,7 +25,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/home_page_bg"
             app:navigationIcon="@drawable/ic_back_24"
-            app:title="@string/settings_data_management" />
+            app:title="@string/settings_import_export" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView

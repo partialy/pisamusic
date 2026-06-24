@@ -68,6 +68,7 @@
 - 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation 和 Switch 列表；下载、歌词等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。
 - “设置 - 下载设置”由 `DownloadSettingsActivity` 聚合下载位置、文件名命名规则、写入封面、写入标签和写入歌词；主设置页只保留一个“下载设置”入口。二级设置项的 `summary` 可选，不传时保持单行居中，传入时标题在上、较小且较淡的说明在下。
 - “设置 - 歌词设置”由 `LyricSettingsActivity` 聚合状态栏歌词和歌词颜色预设；主设置页只保留无图标二级页入口，二级页继续导航到各自现有功能页面。
+- “设置 - 数据管理”由 `DataSettingsActivity` 聚合“导入与导出”、收藏与同步、缓存管理；原 `DataManagementActivity` 的页面标题改为“导入与导出”，继续负责本地收藏和歌单的备份、恢复及清除。主设置页入口顺序为播放设置、歌词设置、下载设置、外观主题、数据管理、更多设置；Debug 构建中的开发者调试位于故障上报之前。
 
 ## 本地数据
 
@@ -151,7 +152,7 @@
 
 - `fault/` 模块负责播放取链诊断、敏感字段脱敏、SQLite 持久化和故障批次上报；`playback_fault_logs` 位于 `pm_local_music.db`，只记录 KG / WY / KW 取链失败、空/非法 URL 和在线歌曲 ExoPlayer 播放失败，最多保留 300 条。
 - 播放请求通过 `PlaybackTraceInterceptor` 在 Gateway 签名后采集真实请求地址、参数、`n` nonce 和限长响应；内部追踪头发出请求前必须移除。下载请求不启用追踪，成功取链的追踪信息随 URL 缓存以关联后续播放器错误。
-- 设置页“播放设置”进入 `PlaybackSettingsActivity`，其中“播放切换”继续沿用原自动切换列表行为；“更多设置”当前只提示暂未开放；“故障上报”进入 `FaultReportActivity`，展示当前总数、最近 7 天、待上报数、最近错误和上次上报时间。
+- 设置页“播放设置”进入 `PlaybackSettingsActivity`，其中“播放切换”继续沿用原自动切换列表行为；“更多设置”当前只提示暂未开放；Debug 构建中的“开发者调试”位于“故障上报”之前，“故障上报”进入 `FaultReportActivity`，展示当前总数、最近 7 天、待上报数、最近错误和上次上报时间。
 - 故障上传走 `SystemApiService` 的 AES-GCM `POST /api/fault-reports`。未登录可匿名上报，登录时只携带 Bearer token 供服务端绑定用户 ID；成功后只能按本次提交的日志 UUID 更新 `is_upload=1`，不能全表无条件更新。
 
 ## 一起听补充
