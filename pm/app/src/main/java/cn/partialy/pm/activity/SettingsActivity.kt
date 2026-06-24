@@ -1,27 +1,16 @@
 package cn.partialy.pm.activity
 
-import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.provider.Settings
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.DrawableRes
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.core.net.toUri
-import androidx.documentfile.provider.DocumentFile
 import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
@@ -33,13 +22,9 @@ import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
-import cn.partialy.pm.ui.widget.PmSwitch
-import cn.partialy.pm.utils.DownloadPathManager
 import cn.partialy.pm.utils.LyricDisplayPrefs
 import cn.partialy.pm.utils.ServerDevicePrefs
 import cn.partialy.pm.utils.SettingsPrefs
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
@@ -55,21 +40,6 @@ class SettingsActivity : BaseActivity() {
 
     @Inject
     lateinit var syncManager: SyncManager
-
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        when {
-            permissions.getOrDefault(Manifest.permission.READ_MEDIA_AUDIO, false) ||
-            permissions.getOrDefault(Manifest.permission.READ_EXTERNAL_STORAGE, false) -> {
-                // 音频权限被授予
-                showDirectoryPicker()
-            }
-            else -> {
-                showPermissionDeniedMessage()
-            }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 先创建绑定
@@ -87,16 +57,6 @@ class SettingsActivity : BaseActivity() {
             finish()
         }
 
-        binding.downloadLocation.apply {
-            bindNavRow(
-                root,
-                R.drawable.settings_ic_download,
-                getString(R.string.download_location),
-                DownloadPathManager.getDisplayPath(this@SettingsActivity),
-            )
-            root.setOnClickListener { checkStoragePermission() }
-        }
-
         bindSettingsItems()
     }
 
@@ -106,24 +66,6 @@ class SettingsActivity : BaseActivity() {
             putExtra(MainActivity.EXTRA_SETTINGS_ACTION, action)
         })
         finish()
-    }
-
-    private fun bindSwitchRow(
-        row: View,
-        @DrawableRes iconRes: Int,
-        title: CharSequence,
-        summary: CharSequence?,
-    ) {
-        row.findViewById<ImageView>(R.id.iconImageView).setImageResource(iconRes)
-        row.findViewById<TextView>(R.id.titleTextView).text = title
-        val summaryTv = row.findViewById<TextView>(R.id.summaryTextView)
-        if (summary.isNullOrEmpty()) {
-            summaryTv.visibility = View.GONE
-            summaryTv.text = ""
-        } else {
-            summaryTv.visibility = View.VISIBLE
-            summaryTv.text = summary
-        }
     }
 
     private fun bindNavRow(
@@ -145,35 +87,15 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun bindSettingsItems() {
-        binding.fileNamingRule.apply {
+        binding.downloadSettings.apply {
             bindNavRow(
                 root,
-                R.drawable.settings_ic_naming,
-                "文件名命名规则",
-                fileNamingRuleSummary(SettingsPrefs.getFileNamingRule(this@SettingsActivity)),
+                R.drawable.settings_ic_download_settings,
+                "下载设置",
+                null,
             )
             root.setOnClickListener {
-                uiScope.launch {
-                    val picked = showSettingsOptionPicker(
-                        context = this@SettingsActivity,
-                        title = "文件名命名规则",
-                        options = listOf(
-                            SettingsOption("title_artist", "歌名 - 歌手"),
-                            SettingsOption("artist_title", "歌手 - 歌名"),
-                        ),
-                        selectedIndex = when (SettingsPrefs.getFileNamingRule(this@SettingsActivity)) {
-                            SettingsPrefs.FileNamingRule.TitleDashArtist -> 0
-                            SettingsPrefs.FileNamingRule.ArtistDashTitle -> 1
-                        },
-                    )
-                    val rule = when (picked?.id) {
-                        "title_artist" -> SettingsPrefs.FileNamingRule.TitleDashArtist
-                        "artist_title" -> SettingsPrefs.FileNamingRule.ArtistDashTitle
-                        else -> return@launch
-                    }
-                    SettingsPrefs.setFileNamingRule(this@SettingsActivity, rule)
-                    root.findViewById<TextView>(R.id.valueTextView).text = fileNamingRuleSummary(rule)
-                }
+                DownloadSettingsActivity.start(this@SettingsActivity)
             }
         }
 
@@ -216,51 +138,6 @@ class SettingsActivity : BaseActivity() {
         binding.moreSettings.apply {
             bindNavRow(root, R.drawable.settings_ic_more_settings, "更多设置", null)
             root.setOnClickListener { showMessage("暂未开放") }
-        }
-
-        binding.writeCover.apply {
-            bindSwitchRow(
-                root,
-                R.drawable.settings_ic_cover,
-                "写入封面",
-                getString(R.string.settings_write_cover_summary),
-            )
-            val sw = root.findViewById<PmSwitch>(R.id.switchView)
-            sw.isChecked = SettingsPrefs.isWriteCoverEnabled(this@SettingsActivity)
-            root.setOnClickListener { sw.toggle() }
-            sw.setOnCheckedChangeListener { _, isChecked ->
-                SettingsPrefs.setWriteCoverEnabled(this@SettingsActivity, isChecked)
-            }
-        }
-
-        binding.writeTags.apply {
-            bindSwitchRow(
-                root,
-                R.drawable.settings_ic_tag,
-                "写入标签",
-                getString(R.string.settings_write_tags_summary),
-            )
-            val sw = root.findViewById<PmSwitch>(R.id.switchView)
-            sw.isChecked = SettingsPrefs.isWriteTagsEnabled(this@SettingsActivity)
-            root.setOnClickListener { sw.toggle() }
-            sw.setOnCheckedChangeListener { _, isChecked ->
-                SettingsPrefs.setWriteTagsEnabled(this@SettingsActivity, isChecked)
-            }
-        }
-
-        binding.writeLyrics.apply {
-            bindSwitchRow(
-                root,
-                R.drawable.settings_ic_lyric,
-                "写入歌词",
-                getString(R.string.settings_write_lyrics_summary),
-            )
-            val sw = root.findViewById<PmSwitch>(R.id.switchView)
-            sw.isChecked = SettingsPrefs.isWriteLyricsEnabled(this@SettingsActivity)
-            root.setOnClickListener { sw.toggle() }
-            sw.setOnCheckedChangeListener { _, isChecked ->
-                SettingsPrefs.setWriteLyricsEnabled(this@SettingsActivity, isChecked)
-            }
         }
 
         binding.themeMode.apply {
@@ -475,11 +352,6 @@ class SettingsActivity : BaseActivity() {
         }
     }
 
-    private fun fileNamingRuleSummary(rule: SettingsPrefs.FileNamingRule): String = when (rule) {
-        SettingsPrefs.FileNamingRule.TitleDashArtist -> "歌名 - 歌手"
-        SettingsPrefs.FileNamingRule.ArtistDashTitle -> "歌手 - 歌名（默认）"
-    }
-
     private fun themeModeSummary(mode: SettingsPrefs.ThemeMode): String = when (mode) {
         SettingsPrefs.ThemeMode.Dark -> "深色"
         SettingsPrefs.ThemeMode.Light -> "浅色"
@@ -492,109 +364,7 @@ class SettingsActivity : BaseActivity() {
         return getString(R.string.settings_lyric_color_presets_summary, normalCount, currentCount)
     }
 
-    private fun checkStoragePermission() {
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
-                Manifest.permission.READ_MEDIA_AUDIO,
-                Manifest.permission.READ_MEDIA_IMAGES,
-                Manifest.permission.READ_MEDIA_VIDEO
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.READ_EXTERNAL_STORAGE,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            )
-        }
-
-        when {
-            permissions.all { permission ->
-                ContextCompat.checkSelfPermission(this, permission) == 
-                    PackageManager.PERMISSION_GRANTED
-            } -> {
-                showDirectoryPicker()
-            }
-            permissions.any { permission ->
-                ActivityCompat.shouldShowRequestPermissionRationale(this, permission)
-            } -> {
-                showPermissionRationaleDialog(permissions)
-            }
-            else -> {
-                requestPermissionLauncher.launch(permissions)
-            }
-        }
-    }
-
-    private fun showDirectoryPicker() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            // 可选：添加初始位置
-            putExtra("android.provider.extra.INITIAL_URI", 
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toUri())
-        }
-        startActivityForResult(intent, PICK_DIRECTORY_REQUEST_CODE)
-    }
-
-    private fun showPermissionRationaleDialog(permissions: Array<String>) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.storage_permission_required)
-            .setMessage(R.string.storage_permission_rationale)
-            .setPositiveButton("授予权限") { _, _ ->
-                requestPermissionLauncher.launch(permissions)
-            }
-            .setNegativeButton("取消", null)
-            .show()
-    }
-
-    private fun showPermissionDeniedMessage() {
-        Snackbar.make(
-            binding.root,
-            R.string.storage_permission_denied,
-            Snackbar.LENGTH_LONG
-        ).setAction("设置") {
-            openAppSettings()
-        }.show()
-    }
-
-    private fun openAppSettings() {
-        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
-            startActivity(this)
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == PICK_DIRECTORY_REQUEST_CODE && resultCode == RESULT_OK) {
-            data?.data?.let { uri ->
-                // 将 Uri 转换为实际路径
-                val path = getPathFromUri(uri)
-                // 保存新的下载路径
-                DownloadPathManager.setDownloadPath(this, path)
-                // 创建目录
-                DownloadPathManager.createDownloadDirectory(path)
-                // 更新显示
-                binding.downloadLocation.root.findViewById<TextView>(R.id.valueTextView).apply {
-                    visibility = View.VISIBLE
-                    text = DownloadPathManager.getDisplayPath(this@SettingsActivity)
-                }
-            }
-        }
-    }
-
-    private fun getPathFromUri(uri: Uri): String {
-        // 从 Uri 获取实际文件路径
-        val docFile = DocumentFile.fromTreeUri(this, uri)
-        return if (docFile?.exists() == true) {
-            // 如果是外部存储路径，尝试获取实际路径
-            val path = uri.path?.replace("/tree/primary:", "/storage/emulated/0/")
-            path ?: DownloadPathManager.getDefaultPath()
-        } else {
-            DownloadPathManager.getDefaultPath()
-        }
-    }
-
     companion object {
-        private const val PICK_DIRECTORY_REQUEST_CODE = 1
         fun start(context: Context) {
             val intent = Intent(context, SettingsActivity::class.java)
             context.startActivity(intent)

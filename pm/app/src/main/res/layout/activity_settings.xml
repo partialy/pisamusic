@@ -37,7 +37,7 @@
             android:paddingTop="8dp"
             android:paddingBottom="24dp">
 
-            <!-- 下载与文件 -->
+            <!-- 下载 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -48,25 +48,9 @@
                 app:strokeColor="@color/settings_card_inset_divider"
                 app:strokeWidth="1dp">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <include
-                        android:id="@+id/downloadLocation"
-                        layout="@layout/item_settings_row" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="50dp"
-                        android:background="@color/settings_card_inset_divider" />
-
-                    <include
-                        android:id="@+id/fileNamingRule"
-                        layout="@layout/item_settings_row" />
-                </LinearLayout>
+                <include
+                    android:id="@+id/downloadSettings"
+                    layout="@layout/item_settings_row" />
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
@@ -97,48 +81,6 @@
                     <include
                         android:id="@+id/moreSettings"
                         layout="@layout/item_settings_row" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- 元数据写入 -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardBackgroundColor="@color/home_mini_player_bg"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/settings_card_inset_divider"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-                    <include
-                        android:id="@+id/writeCover"
-                        layout="@layout/item_settings_switch" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="50dp"
-                        android:background="@color/settings_card_inset_divider" />
-
-                    <include
-                        android:id="@+id/writeTags"
-                        layout="@layout/item_settings_switch" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="50dp"
-                        android:background="@color/settings_card_inset_divider" />
-
-                    <include
-                        android:id="@+id/writeLyrics"
-                        layout="@layout/item_settings_switch" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

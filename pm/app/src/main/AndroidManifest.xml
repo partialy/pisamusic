@@ -97,6 +97,12 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.DownloadSettingsActivity"
+            android:exported="false"
+            android:label="下载设置"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.FaultReportActivity"
             android:exported="false"
             android:label="@string/fault_report_title"
