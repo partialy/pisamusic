@@ -40,6 +40,7 @@ internal class OptionPickerRows private constructor(
     private data class Row(
         val card: MaterialCardView,
         val label: TextView,
+        val summary: TextView,
         val check: ImageView,
     )
 
@@ -48,6 +49,20 @@ internal class OptionPickerRows private constructor(
             context: Context,
             container: LinearLayout,
             labels: List<CharSequence>,
+            selectedIndex: Int,
+        ): OptionPickerRows = bindOptions(
+            context = context,
+            container = container,
+            options = labels.mapIndexed { index, label ->
+                SettingsOption(id = index.toString(), label = label.toString())
+            },
+            selectedIndex = selectedIndex,
+        )
+
+        fun bindOptions(
+            context: Context,
+            container: LinearLayout,
+            options: List<SettingsOption>,
             selectedIndex: Int,
         ): OptionPickerRows {
             val primaryColor = MaterialColors.getColor(
@@ -60,29 +75,32 @@ internal class OptionPickerRows private constructor(
                 com.google.android.material.R.attr.colorOnSurface,
                 Color.BLACK,
             )
-            val rows = labels.map { text ->
+            val rows = options.map { option ->
                 val card = LayoutInflater.from(context).inflate(
                     R.layout.item_settings_option_sheet_row,
                     container,
                     false,
                 ) as MaterialCardView
                 val label = card.findViewById<TextView>(R.id.optionLabel)
+                val summary = card.findViewById<TextView>(R.id.optionSummary)
                 val check = card.findViewById<ImageView>(R.id.optionCheck)
-                label.text = text
+                label.text = option.label
+                summary.text = option.summary.orEmpty()
+                summary.visibility = if (option.summary.isNullOrEmpty()) View.GONE else View.VISIBLE
                 ImageViewCompat.setImageTintList(check, ColorStateList.valueOf(primaryColor))
                 card.layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 )
                 container.addView(card)
-                Row(card, label, check)
+                Row(card, label, summary, check)
             }
             val selection = OptionPickerRows(
                 rows = rows,
                 selectedBackgroundColor = ColorUtils.setAlphaComponent(primaryColor, 24),
                 selectedTextColor = primaryColor,
                 normalTextColor = normalTextColor,
-                selectedIndex = selectedIndex.coerceIn(labels.indices),
+                selectedIndex = selectedIndex.coerceIn(options.indices),
             )
             rows.forEachIndexed { index, row ->
                 row.card.setOnClickListener { selection.select(index) }

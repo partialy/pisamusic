@@ -194,6 +194,11 @@ class MusicController @Inject constructor(
 
     fun setPlaying(playing: Boolean) = engine.setPlaying(playing)
 
+    fun applyAudioCoexistenceMode(mode: SettingsPrefs.AudioCoexistenceMode) {
+        SettingsPrefs.setAudioCoexistenceMode(context, mode)
+        engine.applyAudioCoexistenceMode(mode)
+    }
+
     suspend fun switchCurrentSongQuality(choice: DownloadQualityChoice): Boolean =
         engine.switchCurrentSongQuality(choice)
 

@@ -12,6 +12,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 data class SettingsOption(
     val id: String,
     val label: String,
+    val summary: String? = null,
 )
 
 suspend fun showSettingsOptionPicker(
@@ -28,10 +29,10 @@ suspend fun showSettingsOptionPicker(
         )
         val binding = LayoutBottomRadiusOptionsSheetBinding.inflate(dialog.layoutInflater)
         binding.bottomRadiusOptionsSheetTitle.text = title
-        val selection = OptionPickerRows.bind(
+        val selection = OptionPickerRows.bindOptions(
             context = context,
             container = binding.bottomRadiusOptionsSheetContainer,
-            labels = options.map { it.label },
+            options = options,
             selectedIndex = selectedIndex,
         )
 

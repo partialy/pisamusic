@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.view.KeyEvent
 import androidx.media3.common.C
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -79,6 +80,18 @@ class PlayerEngine(
     private var lastManualPreviousAtMs = 0L
     private var progressUpdateJob: Job? = null
     private val playbackRefreshRetryKeys = mutableSetOf<String>()
+    private val playbackAudioAttributes = AudioAttributes.Builder()
+        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+        .setUsage(C.USAGE_MEDIA)
+        .build()
+    private val audioCoexistenceController = AudioCoexistenceController(
+        context = context,
+        isPlaybackActive = {
+            exoPlayer?.let { it.playWhenReady || it.isPlaying } == true
+        },
+        pausePlayback = { exoPlayer?.pause() },
+        resumePlayback = { exoPlayer?.play() },
+    )
 
     /** 由 MusicController 在构造后调用 */
     fun init() {
@@ -91,17 +104,15 @@ class PlayerEngine(
     // ==================== ExoPlayer / MediaSession 初始化 ====================
 
     private fun initPlayer() {
+        val coexistenceMode = SettingsPrefs.getAudioCoexistenceMode(context)
         val mediaSourceFactory = DefaultMediaSourceFactory(
             PlayerCacheProvider.buildCacheDataSourceFactory(context)
         )
         exoPlayer = ExoPlayer.Builder(context)
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(
-                androidx.media3.common.AudioAttributes.Builder()
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .setUsage(C.USAGE_MEDIA)
-                    .build(),
-                true
+                playbackAudioAttributes,
+                coexistenceMode == SettingsPrefs.AudioCoexistenceMode.Off,
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
@@ -111,6 +122,7 @@ class PlayerEngine(
             }
 
         playlistManager.exoPlayer = exoPlayer
+        audioCoexistenceController.applyMode(coexistenceMode)
 
         mediaSession = MediaSession.Builder(context, exoPlayer!!)
             .setId("MusicSession-${System.currentTimeMillis()}")
@@ -157,6 +169,7 @@ class PlayerEngine(
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
             if (isPlaying) {
+                audioCoexistenceController.onPlaybackStarted()
                 startProgressUpdate()
             } else {
                 stopProgressUpdate()
@@ -333,6 +346,7 @@ class PlayerEngine(
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 if (exoPlayer?.isPlaying == true) {
+                    audioCoexistenceController.onUserPauseRequested()
                     exoPlayer?.pause()
                 } else {
                     ensurePlayableAtIndex(playlistManager.currentIndex.value, autoPlay = true)
@@ -410,6 +424,7 @@ class PlayerEngine(
     fun pauseCurrent() {
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                audioCoexistenceController.onUserPauseRequested()
                 exoPlayer?.pause()
                 persistState(force = true)
             } catch (e: Exception) {
@@ -428,9 +443,18 @@ class PlayerEngine(
             player.prepare()
             player.play()
         } else {
+            audioCoexistenceController.onUserPauseRequested()
             player.pause()
         }
         persistState(force = true)
+    }
+
+    fun applyAudioCoexistenceMode(mode: SettingsPrefs.AudioCoexistenceMode) {
+        exoPlayer?.setAudioAttributes(
+            playbackAudioAttributes,
+            mode == SettingsPrefs.AudioCoexistenceMode.Off,
+        )
+        audioCoexistenceController.applyMode(mode)
     }
 
     private fun shouldIgnoreManualNavigation(next: Boolean): Boolean {
@@ -747,6 +771,7 @@ class PlayerEngine(
     /** 释放 ExoPlayer 和 MediaSession */
     fun release() {
         stopProgressUpdate()
+        audioCoexistenceController.release()
         mediaSession?.release()
         mediaSession = null
         exoPlayer?.release()

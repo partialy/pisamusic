@@ -91,6 +91,12 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.PlaybackSettingsActivity"
+            android:exported="false"
+            android:label="播放设置"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.FaultReportActivity"
             android:exported="false"
             android:label="@string/fault_report_title"

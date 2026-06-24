@@ -31,7 +31,6 @@ import cn.partialy.pm.activity.setting.SettingCheckUpdateActivity
 import cn.partialy.pm.databinding.ActivitySettingsBinding
 import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.sync.SyncPrefs
-import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
 import cn.partialy.pm.ui.widget.PmSwitch
@@ -202,43 +201,15 @@ class SettingsActivity : BaseActivity() {
             }
         }
 
-        binding.autoSwitchList.apply {
+        binding.playbackSettings.apply {
             bindNavRow(
                 root,
                 R.drawable.settings_ic_playback,
-                "播放切换",
-                autoSwitchListModeSummary(SettingsPrefs.getAutoSwitchListMode(this@SettingsActivity)),
+                "播放设置",
+                null,
             )
             root.setOnClickListener {
-                uiScope.launch {
-                    val current = SettingsPrefs.getAutoSwitchListMode(this@SettingsActivity)
-                    val picked = showSettingsOptionPicker(
-                        context = this@SettingsActivity,
-                        title = "播放切换",
-                        options = listOf(
-                            SettingsOption("off", "关闭（默认）"),
-                            SettingsOption("local", "本地歌曲"),
-                            SettingsOption("cached", "已缓存歌曲"),
-                            SettingsOption("downloaded", "已下载歌曲"),
-                        ),
-                        selectedIndex = when (current) {
-                            SettingsPrefs.AutoSwitchListMode.Off -> 0
-                            SettingsPrefs.AutoSwitchListMode.Local -> 1
-                            SettingsPrefs.AutoSwitchListMode.Cached -> 2
-                            SettingsPrefs.AutoSwitchListMode.Downloaded -> 3
-                        },
-                    )
-                    val mode = when (picked?.id) {
-                        "off" -> SettingsPrefs.AutoSwitchListMode.Off
-                        "local" -> SettingsPrefs.AutoSwitchListMode.Local
-                        "cached" -> SettingsPrefs.AutoSwitchListMode.Cached
-                        "downloaded" -> SettingsPrefs.AutoSwitchListMode.Downloaded
-                        else -> return@launch
-                    }
-                    SettingsPrefs.setAutoSwitchListMode(this@SettingsActivity, mode)
-                    root.findViewById<TextView>(R.id.valueTextView).text = autoSwitchListModeSummary(mode)
-                    showAutoSwitchModeSavedDialog(mode)
-                }
+                PlaybackSettingsActivity.start(this@SettingsActivity)
             }
         }
 
@@ -513,26 +484,6 @@ class SettingsActivity : BaseActivity() {
         SettingsPrefs.ThemeMode.Dark -> "深色"
         SettingsPrefs.ThemeMode.Light -> "浅色"
         SettingsPrefs.ThemeMode.System -> "跟随系统（默认）"
-    }
-
-    private fun autoSwitchListModeSummary(mode: SettingsPrefs.AutoSwitchListMode): String = when (mode) {
-        SettingsPrefs.AutoSwitchListMode.Off -> "关闭（默认）"
-        SettingsPrefs.AutoSwitchListMode.Local -> "本地歌曲"
-        SettingsPrefs.AutoSwitchListMode.Cached -> "已缓存歌曲"
-        SettingsPrefs.AutoSwitchListMode.Downloaded -> "已下载歌曲"
-    }
-
-    private fun showAutoSwitchModeSavedDialog(mode: SettingsPrefs.AutoSwitchListMode) {
-        PmMinimalDialog.show(
-            context = this,
-            message = if (mode == SettingsPrefs.AutoSwitchListMode.Off) {
-                "在线歌曲播放失败时将自动暂停。"
-            } else {
-                "在线歌曲播放失败时将自动播放对应歌曲列表。"
-            },
-            confirmText = "我知道了",
-            singleButton = true,
-        )
     }
 
     private fun lyricColorPresetSummary(): String {

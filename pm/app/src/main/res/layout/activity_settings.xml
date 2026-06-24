@@ -85,7 +85,7 @@
                     android:orientation="vertical">
 
                     <include
-                        android:id="@+id/autoSwitchList"
+                        android:id="@+id/playbackSettings"
                         layout="@layout/item_settings_row" />
 
                     <View

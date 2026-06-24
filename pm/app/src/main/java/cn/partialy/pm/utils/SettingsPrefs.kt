@@ -18,6 +18,7 @@ object SettingsPrefs {
     private const val KEY_AUDIO_CACHE_MAX_MB = "audio_cache_max_mb"
     private const val KEY_AUDIO_CACHE_MODE = "audio_cache_mode"
     private const val KEY_AUTO_SWITCH_LIST_MODE = "auto_switch_list_mode"
+    private const val KEY_AUDIO_COEXISTENCE_MODE = "audio_coexistence_mode"
     private const val KEY_PLAYBACK_QUALITY_KG = "playback_quality_kg"
     private const val KEY_PLAYBACK_QUALITY_WY = "playback_quality_wy"
     private const val KEY_PLAYBACK_QUALITY_KW = "playback_quality_kw"
@@ -56,6 +57,19 @@ object SettingsPrefs {
         Local(1),
         Cached(2),
         Downloaded(3),
+    }
+
+    enum class AudioCoexistenceMode(val prefValue: Int) {
+        Off(0),
+        Partial(1),
+        All(2),
+
+        ;
+
+        companion object {
+            fun fromPrefValue(value: Int): AudioCoexistenceMode =
+                values().firstOrNull { it.prefValue == value } ?: Off
+        }
     }
 
     private fun prefs(context: Context) =
@@ -161,6 +175,15 @@ object SettingsPrefs {
 
     fun setAutoSwitchListMode(context: Context, mode: AutoSwitchListMode) {
         prefs(context).edit().putInt(KEY_AUTO_SWITCH_LIST_MODE, mode.prefValue).apply()
+    }
+
+    fun getAudioCoexistenceMode(context: Context): AudioCoexistenceMode {
+        val value = prefs(context).getInt(KEY_AUDIO_COEXISTENCE_MODE, AudioCoexistenceMode.Off.prefValue)
+        return AudioCoexistenceMode.fromPrefValue(value)
+    }
+
+    fun setAudioCoexistenceMode(context: Context, mode: AudioCoexistenceMode) {
+        prefs(context).edit().putInt(KEY_AUDIO_COEXISTENCE_MODE, mode.prefValue).apply()
     }
 
     fun computeAutoAudioCacheMb(): Long {
