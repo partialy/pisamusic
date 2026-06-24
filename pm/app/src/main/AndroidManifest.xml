@@ -103,6 +103,12 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.LyricSettingsActivity"
+            android:exported="false"
+            android:label="歌词设置"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.FaultReportActivity"
             android:exported="false"
             android:label="@string/fault_report_title"

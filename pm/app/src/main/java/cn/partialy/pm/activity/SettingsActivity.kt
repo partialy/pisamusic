@@ -22,7 +22,6 @@ import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
-import cn.partialy.pm.utils.LyricDisplayPrefs
 import cn.partialy.pm.utils.ServerDevicePrefs
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.AndroidEntryPoint
@@ -99,27 +98,15 @@ class SettingsActivity : BaseActivity() {
             }
         }
 
-        binding.lyricColorPresets.apply {
+        binding.lyricSettings.apply {
             bindNavRow(
                 root,
-                R.drawable.settings_ic_color_preset,
-                getString(R.string.settings_lyric_color_presets_title),
-                lyricColorPresetSummary(),
+                R.drawable.settings_ic_lyric_settings,
+                "歌词设置",
+                null,
             )
             root.setOnClickListener {
-                LyricColorPresetsActivity.start(this@SettingsActivity)
-            }
-        }
-
-        binding.statusBarLyrics.apply {
-            bindNavRow(
-                root,
-                R.drawable.settings_ic_statusbar_lyric,
-                getString(R.string.settings_status_bar_lyric_title),
-                getString(R.string.settings_status_bar_lyric_summary),
-            )
-            root.setOnClickListener {
-                StatusBarLyricSettingsActivity.start(this@SettingsActivity)
+                LyricSettingsActivity.start(this@SettingsActivity)
             }
         }
 
@@ -294,7 +281,6 @@ class SettingsActivity : BaseActivity() {
 
     override fun onResume() {
         super.onResume()
-        binding.lyricColorPresets.root.findViewById<TextView>(R.id.valueTextView).text = lyricColorPresetSummary()
         refreshSyncRow()
         bindDeviceIdLabel()
     }
@@ -356,12 +342,6 @@ class SettingsActivity : BaseActivity() {
         SettingsPrefs.ThemeMode.Dark -> "深色"
         SettingsPrefs.ThemeMode.Light -> "浅色"
         SettingsPrefs.ThemeMode.System -> "跟随系统（默认）"
-    }
-
-    private fun lyricColorPresetSummary(): String {
-        val normalCount = LyricDisplayPrefs.getNormalColorRgbPresets(this).size
-        val currentCount = LyricDisplayPrefs.getCurrentColorArgbPresets(this).size
-        return getString(R.string.settings_lyric_color_presets_summary, normalCount, currentCount)
     }
 
     companion object {
