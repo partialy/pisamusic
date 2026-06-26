@@ -599,4 +599,15 @@
     <string name="fault_report_success">故障信息上报成功</string>
     <string name="fault_report_failed">故障信息上报失败</string>
     <string name="fault_report_load_failed">故障信息读取失败</string>
+    <string name="audio_effects_title">音效设置</string>
+    <string name="audio_effects_button_cd">3D 音效</string>
+    <string name="audio_effects_master_switch">音效总开关</string>
+    <string name="audio_effects_presets">预设音效</string>
+    <string name="audio_effects_add_preset">添加自定义预设</string>
+    <string name="audio_effects_eq_title">10 段均衡器</string>
+    <string name="audio_effects_bass">低音</string>
+    <string name="audio_effects_vocal">人声</string>
+    <string name="audio_effect_preset_edit_title">自定义音效</string>
+    <string name="audio_effect_preset_name">预设名称</string>
+    <string name="audio_effect_preset_save">保存预设</string>
 </resources>

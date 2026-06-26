@@ -102,6 +102,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import cn.partialy.pm.audioeffect.AudioEffectsManager
 
 @AndroidEntryPoint
 class PlayerActivity : BaseDownloadActivity() {
@@ -111,6 +112,7 @@ class PlayerActivity : BaseDownloadActivity() {
     @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
     @Inject lateinit var lyricRepository: LyricRepository
     @Inject lateinit var listenTogetherManager: ListenTogetherManager
+    @Inject lateinit var audioEffectsManager: AudioEffectsManager
 
     private lateinit var binding: ActivityPlayerBinding
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
@@ -188,6 +190,7 @@ class PlayerActivity : BaseDownloadActivity() {
             setupLyricsList()
             observePlaybackState()
             observeListenTogether()
+            observeAudioEffects()
             consumePendingListenTogetherJoin(intent)
 
             onBackPressedDispatcher.addCallback(this) {
@@ -274,6 +277,10 @@ class PlayerActivity : BaseDownloadActivity() {
             openPlaybackQualityPicker()
         }
 
+        binding.audioEffectsButton.setOnClickListener {
+            AudioEffectsActivity.start(this)
+        }
+
         binding.downloadButton.setOnClickListener {
             lifecycleScope.launch {
                 musicController.currentSong.value?.let { song -> onDownloadClick(song) }
@@ -292,6 +299,20 @@ class PlayerActivity : BaseDownloadActivity() {
         }
 
         updatePlayModeIcon()
+    }
+
+    private fun observeAudioEffects() {
+        lifecycleScope.launch {
+            audioEffectsManager.state.collect { state ->
+                binding.audioEffectsButton.setTextColor(
+                    if (state.enabled) {
+                        ContextCompat.getColor(this@PlayerActivity, R.color.blue_selected)
+                    } else {
+                        Color.WHITE
+                    },
+                )
+            }
+        }
     }
 
     private fun openPlaybackQualityPicker() {

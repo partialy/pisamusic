@@ -97,6 +97,19 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.AudioEffectsActivity"
+            android:exported="false"
+            android:label="@string/audio_effects_title"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
+            android:name=".activity.AudioEffectPresetEditActivity"
+            android:exported="false"
+            android:label="@string/audio_effect_preset_edit_title"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".activity.DownloadSettingsActivity"
             android:exported="false"
             android:label="下载设置"

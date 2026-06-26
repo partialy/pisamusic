@@ -14,6 +14,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionResult
+import cn.partialy.pm.audioeffect.AudioEffectsManager
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
@@ -48,6 +49,7 @@ class PlayerEngine(
     private val fallbackProvider: PlaybackFallbackProvider,
     private val cachedPlaybackStore: CachedPlaybackStore,
     private val playbackFaultRecorder: PlaybackFaultRecorder,
+    private val audioEffectsManager: AudioEffectsManager,
     private val onNext: () -> Unit,
     private val onPrevious: () -> Unit,
     private val onTogglePlayPause: () -> Unit,
@@ -119,6 +121,7 @@ class PlayerEngine(
             .apply {
                 applyPlayMode(SettingsPrefs.getPlayMode(context))
                 addListener(playerListener)
+                audioEffectsManager.bindAudioSession(audioSessionId)
             }
 
         playlistManager.exoPlayer = exoPlayer
@@ -175,6 +178,10 @@ class PlayerEngine(
                 stopProgressUpdate()
                 updateProgressSnapshot()
             }
+        }
+
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            audioEffectsManager.bindAudioSession(audioSessionId)
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -772,6 +779,7 @@ class PlayerEngine(
     fun release() {
         stopProgressUpdate()
         audioCoexistenceController.release()
+        audioEffectsManager.release()
         mediaSession?.release()
         mediaSession = null
         exoPlayer?.release()

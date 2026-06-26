@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
+import cn.partialy.pm.audioeffect.AudioEffectsManager
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.utils.localdata.CachedPlaybackStore
@@ -41,6 +42,7 @@ class MusicController @Inject constructor(
     playbackFallbackProvider: PlaybackFallbackProvider,
     cachedPlaybackStore: CachedPlaybackStore,
     playbackFaultRecorder: PlaybackFaultRecorder,
+    audioEffectsManager: AudioEffectsManager,
 ) {
     private val factory = MediaItemFactory(context, playUrlGetter)
     private val playlistManager = PlaylistManager(factory)
@@ -59,6 +61,7 @@ class MusicController @Inject constructor(
             fallbackProvider = playbackFallbackProvider,
             cachedPlaybackStore = cachedPlaybackStore,
             playbackFaultRecorder = playbackFaultRecorder,
+            audioEffectsManager = audioEffectsManager,
             onNext = { next() },
             onPrevious = { previous() },
             onTogglePlayPause = { togglePlayPause() },

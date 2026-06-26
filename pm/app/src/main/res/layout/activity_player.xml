@@ -325,11 +325,24 @@
                     android:src="@drawable/ic_audio_quality_24"
                     app:tint="@android:color/white" />
 
+                <TextView
+                    android:id="@+id/audioEffectsButton"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/audio_effects_button_cd"
+                    android:gravity="center"
+                    android:text="3D"
+                    android:textColor="@android:color/white"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
                 <ImageButton
                     android:id="@+id/loveButton"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/like"
                     android:padding="12dp"
@@ -340,7 +353,7 @@
                     android:id="@+id/downloadButton"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/download"
                     android:padding="12dp"
@@ -353,7 +366,7 @@
                     android:id="@+id/lyricSettingsButton"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/lyric_settings_button_cd"
                     android:padding="12dp"
@@ -364,7 +377,7 @@
                     android:id="@+id/listenTogetherButton"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="8dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/listen_together_title"
                     android:padding="12dp"
