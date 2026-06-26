@@ -63,7 +63,7 @@
 - `MediaItemFactory` 创建延迟解析的 `MediaItem`。
 - `PlayUrlGetter` 负责 KG / WY / KW / LOCAL 播放地址解析和音质降级。
 - `PlayerStateStore` 使用 SharedPreferences + kotlinx.serialization 持久化跨会话播放状态。
-- 播放页 3D 音效入口进入 `AudioEffectsActivity`；音效配置集中在 `audioeffect/` 模块，本地通过 SharedPreferences + kotlinx.serialization 保存，不同步到服务端。`AudioEffectsManager` 绑定 ExoPlayer `audioSessionId` 后使用系统 `DynamicsProcessing` / `Equalizer`、`BassBoost`、`Virtualizer` 生效；新增音效能力优先扩展该模块，不要把 AudioEffect 生命周期放进 Activity。
+- 播放页 3D 音效入口进入 `AudioEffectsActivity`；音效配置集中在 `audioeffect/` 模块，本地通过 SharedPreferences + kotlinx.serialization 保存，不同步到服务端。`AudioEffectsManager` 绑定 ExoPlayer `audioSessionId` 后使用系统 `DynamicsProcessing` / `Equalizer`、`BassBoost` 生效；宽声场由 Media3 `StereoWidenerAudioProcessor` 在 `DefaultAudioSink` 前做双声道 PCM Mid/Side 处理。新增音效能力优先扩展该模块，不要把 AudioEffect 生命周期放进 Activity。
 - 在线歌曲播放失败不再自动跳到当前队列下一曲；失败后按设置里的“自动切换列表”处理，关闭时暂停并提示，开启时切换到本地 / 已缓存 / 已下载歌曲列表。已缓存歌曲索引写入 `pm_local_music.db` 的 `cached_playback_records`，清除歌曲缓存时必须同步清空该表。
 - “设置 - 播放设置 - 与其他应用同时播放”由 `AudioCoexistenceController` 管理：关闭时沿用 Media3 音频焦点，所有场景和部分场景不主动申请焦点；部分场景仅在匿名播放用途、活动录音配置或系统音频模式表明正在录音/音视频通话时暂停，并且只能恢复由该策略暂停的播放。系统或厂商仍可能在通话期间强制静音，不要把该限制描述为 App 可完全绕过。
 - 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation、Info 和 Switch 列表；下载、歌词、同步等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。

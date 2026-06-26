@@ -9,6 +9,10 @@ data class AudioEffectState(
     val eqGains: List<Int> = flatEqGains(),
     val bass: Int = 0,
     val vocal: Int = 0,
+    val stereoWidth: Int = STEREO_WIDTH_DEFAULT,
+    val centerRetention: Int = CENTER_RETENTION_DEFAULT,
+    val spatialDelayUs: Int = SPATIAL_DELAY_DEFAULT_US,
+    val bassMonoProtectHz: Int = BASS_MONO_PROTECT_DEFAULT_HZ,
     val customPresets: List<AudioEffectPreset> = emptyList(),
 ) {
     fun normalized(): AudioEffectState =
@@ -16,8 +20,21 @@ data class AudioEffectState(
             eqGains = normalizeEqGains(eqGains),
             bass = bass.coerceIn(EFFECT_MIN, EFFECT_MAX),
             vocal = vocal.coerceIn(EFFECT_MIN, EFFECT_MAX),
+            stereoWidth = stereoWidth.coerceIn(STEREO_WIDTH_MIN, STEREO_WIDTH_MAX),
+            centerRetention = centerRetention.coerceIn(CENTER_RETENTION_MIN, CENTER_RETENTION_MAX),
+            spatialDelayUs = spatialDelayUs.coerceIn(SPATIAL_DELAY_MIN_US, SPATIAL_DELAY_MAX_US),
+            bassMonoProtectHz = normalizeBassMonoProtectHz(bassMonoProtectHz),
             customPresets = customPresets.map { it.normalized() },
         )
+
+    fun toStereoWidenerSettings(): StereoWidenerSettings =
+        StereoWidenerSettings(
+            enabled = enabled,
+            stereoWidth = stereoWidth,
+            centerRetention = centerRetention,
+            spatialDelayUs = spatialDelayUs,
+            bassMonoProtectHz = bassMonoProtectHz,
+        ).normalized()
 
     fun toManual(): AudioEffectState =
         copy(selectedPresetId = AudioEffectPreset.ID_MANUAL).normalized()
@@ -27,6 +44,18 @@ data class AudioEffectState(
         const val EQ_MAX_DB = 12
         const val EFFECT_MIN = 0
         const val EFFECT_MAX = 100
+        const val STEREO_WIDTH_MIN = 100
+        const val STEREO_WIDTH_DEFAULT = 100
+        const val STEREO_WIDTH_MAX = 180
+        const val CENTER_RETENTION_MIN = 70
+        const val CENTER_RETENTION_DEFAULT = 100
+        const val CENTER_RETENTION_MAX = 100
+        const val SPATIAL_DELAY_MIN_US = 0
+        const val SPATIAL_DELAY_DEFAULT_US = 0
+        const val SPATIAL_DELAY_MAX_US = 1200
+        const val BASS_MONO_PROTECT_DEFAULT_HZ = 0
+
+        val BASS_MONO_PROTECT_OPTIONS_HZ = listOf(0, 120, 180, 250)
 
         val EQ_FREQUENCIES_HZ = listOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
 
@@ -36,6 +65,9 @@ data class AudioEffectState(
             List(EQ_FREQUENCIES_HZ.size) { index ->
                 values.getOrNull(index)?.coerceIn(EQ_MIN_DB, EQ_MAX_DB) ?: 0
             }
+
+        fun normalizeBassMonoProtectHz(value: Int): Int =
+            BASS_MONO_PROTECT_OPTIONS_HZ.minBy { kotlin.math.abs(it - value) }
     }
 }
 
@@ -46,6 +78,10 @@ data class AudioEffectPreset(
     val eqGains: List<Int>,
     val bass: Int = 0,
     val vocal: Int = 0,
+    val stereoWidth: Int = AudioEffectState.STEREO_WIDTH_DEFAULT,
+    val centerRetention: Int = AudioEffectState.CENTER_RETENTION_DEFAULT,
+    val spatialDelayUs: Int = AudioEffectState.SPATIAL_DELAY_DEFAULT_US,
+    val bassMonoProtectHz: Int = AudioEffectState.BASS_MONO_PROTECT_DEFAULT_HZ,
     val builtIn: Boolean = false,
 ) {
     fun normalized(): AudioEffectPreset =
@@ -53,6 +89,19 @@ data class AudioEffectPreset(
             eqGains = AudioEffectState.normalizeEqGains(eqGains),
             bass = bass.coerceIn(AudioEffectState.EFFECT_MIN, AudioEffectState.EFFECT_MAX),
             vocal = vocal.coerceIn(AudioEffectState.EFFECT_MIN, AudioEffectState.EFFECT_MAX),
+            stereoWidth = stereoWidth.coerceIn(
+                AudioEffectState.STEREO_WIDTH_MIN,
+                AudioEffectState.STEREO_WIDTH_MAX,
+            ),
+            centerRetention = centerRetention.coerceIn(
+                AudioEffectState.CENTER_RETENTION_MIN,
+                AudioEffectState.CENTER_RETENTION_MAX,
+            ),
+            spatialDelayUs = spatialDelayUs.coerceIn(
+                AudioEffectState.SPATIAL_DELAY_MIN_US,
+                AudioEffectState.SPATIAL_DELAY_MAX_US,
+            ),
+            bassMonoProtectHz = AudioEffectState.normalizeBassMonoProtectHz(bassMonoProtectHz),
         )
 
     companion object {
@@ -77,6 +126,10 @@ data class AudioEffectPreset(
                 eqGains = listOf(2, 2, 1, 0, -1, 2, 3, 4, 3, 2),
                 bass = 32,
                 vocal = 36,
+                stereoWidth = 140,
+                centerRetention = 85,
+                spatialDelayUs = 500,
+                bassMonoProtectHz = 180,
                 builtIn = true,
             ),
             AudioEffectPreset(
@@ -118,6 +171,10 @@ data class AudioEffectPreset(
                 eqGains = state.eqGains,
                 bass = state.bass,
                 vocal = state.vocal,
+                stereoWidth = state.stereoWidth,
+                centerRetention = state.centerRetention,
+                spatialDelayUs = state.spatialDelayUs,
+                bassMonoProtectHz = state.bassMonoProtectHz,
                 builtIn = true,
             )
     }

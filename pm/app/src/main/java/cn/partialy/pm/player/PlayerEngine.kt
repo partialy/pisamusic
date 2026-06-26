@@ -14,6 +14,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionResult
+import cn.partialy.pm.audioeffect.AudioEffectsRenderersFactory
 import cn.partialy.pm.audioeffect.AudioEffectsManager
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
@@ -111,6 +112,12 @@ class PlayerEngine(
             PlayerCacheProvider.buildCacheDataSourceFactory(context)
         )
         exoPlayer = ExoPlayer.Builder(context)
+            .setRenderersFactory(
+                AudioEffectsRenderersFactory(
+                    context,
+                    audioEffectsManager.stereoWidenerAudioProcessor,
+                ),
+            )
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(
                 playbackAudioAttributes,

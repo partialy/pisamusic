@@ -607,6 +607,13 @@
     <string name="audio_effects_eq_title">10 段均衡器</string>
     <string name="audio_effects_bass">低音</string>
     <string name="audio_effects_vocal">人声</string>
+    <string name="audio_effects_stereo_width">声场宽度</string>
+    <string name="audio_effects_advanced_spatial">高级声场</string>
+    <string name="audio_effects_center_retention">中心保留</string>
+    <string name="audio_effects_spatial_delay">空间延迟</string>
+    <string name="audio_effects_bass_mono_protect">低频保护</string>
+    <string name="audio_effects_expand">展开</string>
+    <string name="audio_effects_collapse">收起</string>
     <string name="audio_effect_preset_edit_title">自定义音效</string>
     <string name="audio_effect_preset_name">预设名称</string>
     <string name="audio_effect_preset_save">保存预设</string>

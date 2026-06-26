@@ -28,6 +28,7 @@ class AudioEffectsActivity : BaseActivity() {
     private lateinit var binding: ActivityAudioEffectsBinding
     private val eqRows = mutableListOf<EqControlRow>()
     private var rendering = false
+    private var advancedSpatialExpanded = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityAudioEffectsBinding.inflate(layoutInflater)
@@ -56,6 +57,26 @@ class AudioEffectsActivity : BaseActivity() {
         binding.vocalSeekBar.setOnSeekBarChangeListener(simpleSeekListener { value ->
             audioEffectsManager.updateVocal(value)
         })
+        binding.stereoWidthSeekBar.setOnSeekBarChangeListener(simpleSeekListener { value ->
+            audioEffectsManager.updateStereoWidth(value + AudioEffectState.STEREO_WIDTH_MIN)
+        })
+        binding.centerRetentionSeekBar.setOnSeekBarChangeListener(simpleSeekListener { value ->
+            audioEffectsManager.updateCenterRetention(value + AudioEffectState.CENTER_RETENTION_MIN)
+        })
+        binding.spatialDelaySeekBar.setOnSeekBarChangeListener(simpleSeekListener { value ->
+            audioEffectsManager.updateSpatialDelayUs(value)
+        })
+        binding.bassMonoProtectSeekBar.setOnSeekBarChangeListener(simpleSeekListener { value ->
+            audioEffectsManager.updateBassMonoProtectHz(
+                AudioEffectState.BASS_MONO_PROTECT_OPTIONS_HZ.getOrElse(value) {
+                    AudioEffectState.BASS_MONO_PROTECT_DEFAULT_HZ
+                },
+            )
+        })
+        binding.advancedSpatialHeader.setOnClickListener {
+            advancedSpatialExpanded = !advancedSpatialExpanded
+            renderAdvancedSpatialVisibility()
+        }
     }
 
     private fun setupEqRows() {
@@ -120,6 +141,8 @@ class AudioEffectsActivity : BaseActivity() {
         renderPresetRow(state)
         renderEqRows(state)
         renderStrengthControls(state)
+        renderSpatialControls(state)
+        renderAdvancedSpatialVisibility()
         rendering = false
     }
 
@@ -186,6 +209,27 @@ class AudioEffectsActivity : BaseActivity() {
         binding.vocalValueText.text = "${state.vocal}%"
     }
 
+    private fun renderSpatialControls(state: AudioEffectState) {
+        binding.stereoWidthSeekBar.progress = state.stereoWidth - AudioEffectState.STEREO_WIDTH_MIN
+        binding.stereoWidthValueText.text = "${state.stereoWidth}%"
+        binding.centerRetentionSeekBar.progress = state.centerRetention - AudioEffectState.CENTER_RETENTION_MIN
+        binding.centerRetentionValueText.text = "${state.centerRetention}%"
+        binding.spatialDelaySeekBar.progress = state.spatialDelayUs
+        binding.spatialDelayValueText.text = "${state.spatialDelayUs}us"
+        val protectIndex = AudioEffectState.BASS_MONO_PROTECT_OPTIONS_HZ.indexOf(state.bassMonoProtectHz)
+            .coerceAtLeast(0)
+        binding.bassMonoProtectSeekBar.progress = protectIndex
+        binding.bassMonoProtectValueText.text = formatBassProtect(state.bassMonoProtectHz)
+    }
+
+    private fun renderAdvancedSpatialVisibility() {
+        binding.advancedSpatialContainer.visibility =
+            if (advancedSpatialExpanded) View.VISIBLE else View.GONE
+        binding.advancedSpatialToggleText.setText(
+            if (advancedSpatialExpanded) R.string.audio_effects_collapse else R.string.audio_effects_expand,
+        )
+    }
+
     private fun simpleSeekListener(onChanged: (Int) -> Unit): SeekBar.OnSeekBarChangeListener =
         object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -217,3 +261,6 @@ private fun formatFrequency(frequency: Int): String =
 
 private fun formatDb(value: Int): String =
     if (value > 0) "+${value}dB" else "${value}dB"
+
+private fun formatBassProtect(value: Int): String =
+    if (value <= 0) "关闭" else "${value}Hz"

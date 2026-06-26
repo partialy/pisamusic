@@ -233,6 +233,7 @@ class PlayerActivity : BaseDownloadActivity() {
             LyricSettingsSheet.show(this) {
                 lyricsAdapter.applyStyleFromPrefs(this@PlayerActivity)
                 applyLyricDisplayMode()
+                updateAudioEffectsButtonColor(audioEffectsManager.state.value.enabled)
             }
         }
 
@@ -304,15 +305,15 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun observeAudioEffects() {
         lifecycleScope.launch {
             audioEffectsManager.state.collect { state ->
-                binding.audioEffectsButton.setTextColor(
-                    if (state.enabled) {
-                        ContextCompat.getColor(this@PlayerActivity, R.color.blue_selected)
-                    } else {
-                        Color.WHITE
-                    },
-                )
+                updateAudioEffectsButtonColor(state.enabled)
             }
         }
+    }
+
+    private fun updateAudioEffectsButtonColor(enabled: Boolean) {
+        binding.audioEffectsButton.setTextColor(
+            if (enabled) LyricDisplayPrefs.readStyle(this).currentColorArgb else Color.WHITE,
+        )
     }
 
     private fun openPlaybackQualityPicker() {

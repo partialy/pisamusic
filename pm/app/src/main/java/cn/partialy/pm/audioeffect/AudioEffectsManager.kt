@@ -21,10 +21,15 @@ class AudioEffectsManager @Inject constructor(
     val state: StateFlow<AudioEffectState> = _state.asStateFlow()
 
     private var audioSessionId: Int = 0
+    val stereoWidenerAudioProcessor = StereoWidenerAudioProcessor()
     private var dynamicsProcessing: DynamicsProcessing? = null
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
+
+    init {
+        stereoWidenerAudioProcessor.updateSettings(_state.value.toStereoWidenerSettings())
+    }
 
     fun bindAudioSession(sessionId: Int) {
         if (sessionId <= 0 || sessionId == audioSessionId) return
@@ -46,6 +51,10 @@ class AudioEffectsManager @Inject constructor(
                 eqGains = preset.eqGains,
                 bass = preset.bass,
                 vocal = preset.vocal,
+                stereoWidth = preset.stereoWidth,
+                centerRetention = preset.centerRetention,
+                spatialDelayUs = preset.spatialDelayUs,
+                bassMonoProtectHz = preset.bassMonoProtectHz,
             ),
         )
     }
@@ -68,13 +77,46 @@ class AudioEffectsManager @Inject constructor(
         updateState(current.copy(vocal = value).toManual())
     }
 
-    fun addCustomPreset(name: String, eqGains: List<Int>, bass: Int, vocal: Int): AudioEffectPreset {
+    fun updateStereoWidth(value: Int) {
+        val current = _state.value
+        updateState(current.copy(stereoWidth = value).toManual())
+    }
+
+    fun updateCenterRetention(value: Int) {
+        val current = _state.value
+        updateState(current.copy(centerRetention = value).toManual())
+    }
+
+    fun updateSpatialDelayUs(value: Int) {
+        val current = _state.value
+        updateState(current.copy(spatialDelayUs = value).toManual())
+    }
+
+    fun updateBassMonoProtectHz(value: Int) {
+        val current = _state.value
+        updateState(current.copy(bassMonoProtectHz = value).toManual())
+    }
+
+    fun addCustomPreset(
+        name: String,
+        eqGains: List<Int>,
+        bass: Int,
+        vocal: Int,
+        stereoWidth: Int,
+        centerRetention: Int,
+        spatialDelayUs: Int,
+        bassMonoProtectHz: Int,
+    ): AudioEffectPreset {
         val preset = AudioEffectPreset(
             id = "custom_${System.currentTimeMillis()}",
             name = name.trim().ifBlank { "自定义音效" },
             eqGains = eqGains,
             bass = bass,
             vocal = vocal,
+            stereoWidth = stereoWidth,
+            centerRetention = centerRetention,
+            spatialDelayUs = spatialDelayUs,
+            bassMonoProtectHz = bassMonoProtectHz,
         ).normalized()
         val current = _state.value
         updateState(
@@ -83,6 +125,10 @@ class AudioEffectsManager @Inject constructor(
                 eqGains = preset.eqGains,
                 bass = preset.bass,
                 vocal = preset.vocal,
+                stereoWidth = preset.stereoWidth,
+                centerRetention = preset.centerRetention,
+                spatialDelayUs = preset.spatialDelayUs,
+                bassMonoProtectHz = preset.bassMonoProtectHz,
                 customPresets = current.customPresets + preset,
             ),
         )
@@ -109,11 +155,13 @@ class AudioEffectsManager @Inject constructor(
         val normalized = next.normalized()
         _state.value = normalized
         AudioEffectsPrefs.saveState(context, normalized)
+        stereoWidenerAudioProcessor.updateSettings(normalized.toStereoWidenerSettings())
         applyCurrentState()
     }
 
     private fun applyCurrentState() {
         val current = _state.value.normalized()
+        stereoWidenerAudioProcessor.updateSettings(current.toStereoWidenerSettings())
         if (!current.enabled || audioSessionId <= 0) {
             releaseEffects()
             return
@@ -126,7 +174,7 @@ class AudioEffectsManager @Inject constructor(
             releaseEqualizer()
         }
         applyBassBoost(current.bass)
-        applyVirtualizer(current.selectedPresetId == AudioEffectPreset.ID_3D)
+        applyVirtualizer(false)
     }
 
     private fun applyDynamicsProcessing(gains: List<Float>): Boolean =

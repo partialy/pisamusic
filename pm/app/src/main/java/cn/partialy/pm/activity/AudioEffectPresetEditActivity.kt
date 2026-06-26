@@ -27,6 +27,10 @@ class AudioEffectPresetEditActivity : BaseActivity() {
     private val eqRows = mutableListOf<EqControlRow>()
     private var bass = 0
     private var vocal = 0
+    private var stereoWidth = AudioEffectState.STEREO_WIDTH_DEFAULT
+    private var centerRetention = AudioEffectState.CENTER_RETENTION_DEFAULT
+    private var spatialDelayUs = AudioEffectState.SPATIAL_DELAY_DEFAULT_US
+    private var bassMonoProtectHz = AudioEffectState.BASS_MONO_PROTECT_DEFAULT_HZ
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityAudioEffectPresetEditBinding.inflate(layoutInflater)
@@ -41,6 +45,7 @@ class AudioEffectPresetEditActivity : BaseActivity() {
 
         setupEqRows()
         setupStrengthControls()
+        setupSpatialControls()
         binding.savePresetButton.setOnClickListener { savePreset() }
     }
 
@@ -121,12 +126,66 @@ class AudioEffectPresetEditActivity : BaseActivity() {
         })
     }
 
+    private fun setupSpatialControls() {
+        binding.stereoWidthSeekBar.progress = stereoWidth - AudioEffectState.STEREO_WIDTH_MIN
+        binding.stereoWidthValueText.text = "${stereoWidth}%"
+        binding.centerRetentionSeekBar.progress = centerRetention - AudioEffectState.CENTER_RETENTION_MIN
+        binding.centerRetentionValueText.text = "${centerRetention}%"
+        binding.spatialDelaySeekBar.progress = spatialDelayUs
+        binding.spatialDelayValueText.text = "${spatialDelayUs}us"
+        binding.bassMonoProtectSeekBar.progress = 0
+        binding.bassMonoProtectValueText.text = formatBassProtect(bassMonoProtectHz)
+
+        binding.stereoWidthSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                stereoWidth = progress + AudioEffectState.STEREO_WIDTH_MIN
+                binding.stereoWidthValueText.text = "${stereoWidth}%"
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+        })
+        binding.centerRetentionSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                centerRetention = progress + AudioEffectState.CENTER_RETENTION_MIN
+                binding.centerRetentionValueText.text = "${centerRetention}%"
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+        })
+        binding.spatialDelaySeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                spatialDelayUs = progress
+                binding.spatialDelayValueText.text = "${spatialDelayUs}us"
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+        })
+        binding.bassMonoProtectSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                bassMonoProtectHz = AudioEffectState.BASS_MONO_PROTECT_OPTIONS_HZ.getOrElse(progress) {
+                    AudioEffectState.BASS_MONO_PROTECT_DEFAULT_HZ
+                }
+                binding.bassMonoProtectValueText.text = formatBassProtect(bassMonoProtectHz)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+        })
+    }
+
     private fun savePreset() {
         audioEffectsManager.addCustomPreset(
             name = binding.presetNameEditText.text?.toString().orEmpty(),
             eqGains = eqGains,
             bass = bass,
             vocal = vocal,
+            stereoWidth = stereoWidth,
+            centerRetention = centerRetention,
+            spatialDelayUs = spatialDelayUs,
+            bassMonoProtectHz = bassMonoProtectHz,
         )
         finish()
     }
@@ -152,3 +211,6 @@ private fun formatFrequency(frequency: Int): String =
 
 private fun formatDb(value: Int): String =
     if (value > 0) "+${value}dB" else "${value}dB"
+
+private fun formatBassProtect(value: Int): String =
+    if (value <= 0) "关闭" else "${value}Hz"

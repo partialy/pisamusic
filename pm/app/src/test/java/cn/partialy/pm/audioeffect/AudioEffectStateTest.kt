@@ -19,6 +19,23 @@ class AudioEffectStateTest {
         assertTrue(state.eqGains.drop(5).all { it == 0 })
         assertEquals(100, state.bass)
         assertEquals(0, state.vocal)
+        assertEquals(AudioEffectState.STEREO_WIDTH_DEFAULT, state.stereoWidth)
+        assertEquals(AudioEffectState.CENTER_RETENTION_DEFAULT, state.centerRetention)
+    }
+
+    @Test
+    fun `normalizes spatial values`() {
+        val state = AudioEffectState(
+            stereoWidth = 260,
+            centerRetention = 10,
+            spatialDelayUs = 3000,
+            bassMonoProtectHz = 170,
+        ).normalized()
+
+        assertEquals(AudioEffectState.STEREO_WIDTH_MAX, state.stereoWidth)
+        assertEquals(AudioEffectState.CENTER_RETENTION_MIN, state.centerRetention)
+        assertEquals(AudioEffectState.SPATIAL_DELAY_MAX_US, state.spatialDelayUs)
+        assertEquals(180, state.bassMonoProtectHz)
     }
 
     @Test
@@ -39,12 +56,20 @@ class AudioEffectStateTest {
             eqGains = listOf(1, 2, 3),
             bass = 40,
             vocal = 50,
+            stereoWidth = 142,
+            centerRetention = 84,
+            spatialDelayUs = 520,
+            bassMonoProtectHz = 180,
         )
         val state = AudioEffectState(
             selectedPresetId = custom.id,
             customPresets = listOf(custom),
             bass = custom.bass,
             vocal = custom.vocal,
+            stereoWidth = custom.stereoWidth,
+            centerRetention = custom.centerRetention,
+            spatialDelayUs = custom.spatialDelayUs,
+            bassMonoProtectHz = custom.bassMonoProtectHz,
         )
 
         val restored = AudioEffectsPrefs.decodeState(AudioEffectsPrefs.encodeState(state))
@@ -54,6 +79,23 @@ class AudioEffectStateTest {
         assertEquals(AudioEffectState.EQ_FREQUENCIES_HZ.size, restored.customPresets[0].eqGains.size)
         assertEquals(40, restored.customPresets[0].bass)
         assertEquals(50, restored.customPresets[0].vocal)
+        assertEquals(142, restored.customPresets[0].stereoWidth)
+        assertEquals(84, restored.customPresets[0].centerRetention)
+        assertEquals(520, restored.customPresets[0].spatialDelayUs)
+        assertEquals(180, restored.customPresets[0].bassMonoProtectHz)
+    }
+
+    @Test
+    fun `restores old state without spatial fields`() {
+        val restored = AudioEffectsPrefs.decodeState(
+            """{"enabled":true,"selectedPresetId":"default","eqGains":[0],"bass":1,"vocal":2,"customPresets":[]}""",
+        )
+
+        assertEquals(true, restored.enabled)
+        assertEquals(AudioEffectState.STEREO_WIDTH_DEFAULT, restored.stereoWidth)
+        assertEquals(AudioEffectState.CENTER_RETENTION_DEFAULT, restored.centerRetention)
+        assertEquals(AudioEffectState.SPATIAL_DELAY_DEFAULT_US, restored.spatialDelayUs)
+        assertEquals(AudioEffectState.BASS_MONO_PROTECT_DEFAULT_HZ, restored.bassMonoProtectHz)
     }
 
     @Test
