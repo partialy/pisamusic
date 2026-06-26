@@ -66,10 +66,10 @@
 - 播放页 3D 音效入口进入 `AudioEffectsActivity`；音效配置集中在 `audioeffect/` 模块，本地通过 SharedPreferences + kotlinx.serialization 保存，不同步到服务端。`AudioEffectsManager` 绑定 ExoPlayer `audioSessionId` 后使用系统 `DynamicsProcessing` / `Equalizer`、`BassBoost`、`Virtualizer` 生效；新增音效能力优先扩展该模块，不要把 AudioEffect 生命周期放进 Activity。
 - 在线歌曲播放失败不再自动跳到当前队列下一曲；失败后按设置里的“自动切换列表”处理，关闭时暂停并提示，开启时切换到本地 / 已缓存 / 已下载歌曲列表。已缓存歌曲索引写入 `pm_local_music.db` 的 `cached_playback_records`，清除歌曲缓存时必须同步清空该表。
 - “设置 - 播放设置 - 与其他应用同时播放”由 `AudioCoexistenceController` 管理：关闭时沿用 Media3 音频焦点，所有场景和部分场景不主动申请焦点；部分场景仅在匿名播放用途、活动录音配置或系统音频模式表明正在录音/音视频通话时暂停，并且只能恢复由该策略暂停的播放。系统或厂商仍可能在通话期间强制静音，不要把该限制描述为 App 可完全绕过。
-- 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation 和 Switch 列表；下载、歌词等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。
+- 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation、Info 和 Switch 列表；下载、歌词、同步等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。
 - “设置 - 下载设置”由 `DownloadSettingsActivity` 聚合下载位置、文件名命名规则、写入封面、写入标签和写入歌词；主设置页只保留一个“下载设置”入口。二级设置项的 `summary` 可选，不传时保持单行居中，传入时标题在上、较小且较淡的说明在下。
 - “设置 - 歌词设置”由 `LyricSettingsActivity` 聚合状态栏歌词和歌词颜色预设；主设置页只保留无图标二级页入口，二级页继续导航到各自现有功能页面。
-- “设置 - 数据管理”由 `DataSettingsActivity` 聚合“导入与导出”、收藏与同步、缓存管理；原 `DataManagementActivity` 的页面标题改为“导入与导出”，继续负责本地收藏和歌单的备份、恢复及清除。主设置页入口顺序为播放设置、歌词设置、下载设置、外观主题、数据管理、更多设置；Debug 构建中的开发者调试位于故障上报之前。
+- “设置 - 数据管理”由 `DataSettingsActivity` 聚合“导入与导出”、收藏与同步、缓存管理；“收藏与同步”进入 `FavoritesSyncSettingsActivity`，展示登录状态、最近同步、错误状态并提供“立即同步 / 去登录”入口；原 `DataManagementActivity` 的页面标题改为“导入与导出”，继续负责本地收藏和歌单的备份、恢复及清除。主设置页入口顺序为播放设置、歌词设置、下载设置、外观主题、数据管理、更多设置；Debug 构建中的开发者调试位于故障上报之前。
 
 ## 本地数据
 
@@ -138,7 +138,7 @@
 
 ## 同步设置页补充
 
-- 同步设置入口在 `SettingsActivity` 中展示账号同步摘要；未登录时跳转 `LoginActivity`，已登录时执行立即同步，不再提供同步码输入、同步码复制、同步码生成或解绑设备入口。
+- 同步设置入口位于 `DataSettingsActivity` 的“收藏与同步”，只展示账号同步摘要并进入 `FavoritesSyncSettingsActivity`；独立同步页展示登录状态、最近同步时间和错误状态，未登录时跳转 `LoginActivity`，已登录时执行 `SyncManager.syncNow()` 立即同步，不再提供同步码输入、同步码复制、同步码生成或解绑设备入口。
 - `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免覆盖同步或其他显式鉴权请求。
 - 自有账号主入口在“我的”页头像区域，不再放在侧拉栏；未登录点击头像打开 `LoginActivity`，已登录点击头像打开 `AccountProfileActivity`。
 - “我的”页头像、昵称和邮箱优先读取 `AccountSessionStore` 中服务端账号字段；账号头像使用服务端 `avatarKey/avatarUrl`，相对路径按 `SYSTEM_SERVICE_BASE_URL` 拼接，自定义头像的 `avatarUrl` 为七牛公开图片空间直链。

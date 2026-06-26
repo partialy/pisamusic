@@ -53,15 +53,18 @@ class SubSettingsAdapter(
         }
 
         private fun createItemView(parent: ViewGroup, item: SubSettingsItem): View = when (item) {
-            is SubSettingsItem.Option -> createOptionView(parent, item, item.value)
-            is SubSettingsItem.Navigation -> createOptionView(parent, item, null)
+            is SubSettingsItem.Option -> createTextRow(parent, item, item.value, showChevron = true, clickable = true)
+            is SubSettingsItem.Navigation -> createTextRow(parent, item, item.value, showChevron = true, clickable = true)
+            is SubSettingsItem.Info -> createTextRow(parent, item, item.value, showChevron = false, clickable = false)
             is SubSettingsItem.Switch -> createSwitchView(parent, item)
         }
 
-        private fun createOptionView(
+        private fun createTextRow(
             parent: ViewGroup,
             item: SubSettingsItem,
             value: CharSequence?,
+            showChevron: Boolean,
+            clickable: Boolean,
         ): View {
             val row = ItemSubSettingsOptionBinding.inflate(
                 LayoutInflater.from(parent.context),
@@ -71,9 +74,18 @@ class SubSettingsAdapter(
             row.titleTextView.text = item.title
             bindOptionalText(row.summaryTextView, item.summary)
             bindOptionalText(row.valueTextView, value)
+            row.chevronImageView.visibility = if (showChevron) View.VISIBLE else View.GONE
             row.root.isEnabled = item.enabled
+            row.root.isClickable = clickable && item.enabled
+            row.root.isFocusable = clickable && item.enabled
             row.root.alpha = if (item.enabled) 1f else DISABLED_ALPHA
-            row.root.setOnClickListener { if (item.enabled) onItemClick(item) }
+            if (clickable) {
+                row.root.setOnClickListener {
+                    if (item.enabled) onItemClick(item)
+                }
+            } else {
+                row.root.setOnClickListener(null)
+            }
             return row.root
         }
 

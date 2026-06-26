@@ -154,6 +154,7 @@ class PlayerEngine(
             ) {
                 val song = playlistManager.dequeuePlayNext()!!
                 playlistManager.insertAtIndex(newIndex, song)
+                playlistManager.updateCurrentIndex(newIndex)
                 player.seekTo(newIndex, 0)
                 ensurePlayableAtIndex(newIndex, autoPlay = true)
                 return
@@ -500,7 +501,7 @@ class PlayerEngine(
             val currentSong = playlistManager.playList.value.getOrNull(index) ?: return false
             if (factory.keyOf(currentSong) != songKey) return false
 
-            player.replaceMediaItem(index, resolved)
+            replaceMediaItemAndRefreshCurrent(index, resolved, positionMs)
             player.seekTo(index, positionMs)
             player.prepare()
             if (shouldPlay) {
@@ -568,7 +569,8 @@ class PlayerEngine(
                     withContext(Dispatchers.Main) {
                         val p = exoPlayer ?: return@withContext
                         if (index !in 0 until p.mediaItemCount) return@withContext
-                        p.replaceMediaItem(index, resolved)
+                        playlistManager.updateCurrentIndex(index)
+                        replaceMediaItemAndRefreshCurrent(index, resolved, 0L)
                         p.seekTo(index, 0)
                         p.prepare()
                         if (autoPlay) p.play()
@@ -618,7 +620,7 @@ class PlayerEngine(
                         return@withContext
                     }
                     if (index !in 0 until player.mediaItemCount) return@withContext
-                    player.replaceMediaItem(index, resolved)
+                    replaceMediaItemAndRefreshCurrent(index, resolved, positionMs)
                     player.seekTo(index, positionMs)
                     player.prepare()
                     player.play()
@@ -686,6 +688,24 @@ class PlayerEngine(
             cacheKey = cacheKey,
             cachedBytes = cachedBytes,
         )
+    }
+
+    private fun replaceMediaItemAndRefreshCurrent(
+        index: Int,
+        mediaItem: MediaItem,
+        startPositionMs: Long,
+    ) {
+        val player = exoPlayer ?: return
+        if (index !in 0 until player.mediaItemCount) return
+        if (index != player.currentMediaItemIndex) {
+            player.replaceMediaItem(index, mediaItem)
+            return
+        }
+
+        val items = (0 until player.mediaItemCount).map { itemIndex ->
+            if (itemIndex == index) mediaItem else player.getMediaItemAt(itemIndex)
+        }
+        player.setMediaItems(items, index, startPositionMs.coerceAtLeast(0L))
     }
 
     private fun clearPlaybackRetryForCurrent() {

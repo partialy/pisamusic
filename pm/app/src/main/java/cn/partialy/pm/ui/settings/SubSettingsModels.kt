@@ -23,6 +23,15 @@ sealed interface SubSettingsItem {
     data class Navigation(
         override val id: String,
         override val title: CharSequence,
+        val value: CharSequence? = null,
+        override val summary: CharSequence? = null,
+        override val enabled: Boolean = true,
+    ) : SubSettingsItem
+
+    data class Info(
+        override val id: String,
+        override val title: CharSequence,
+        val value: CharSequence? = null,
         override val summary: CharSequence? = null,
         override val enabled: Boolean = true,
     ) : SubSettingsItem

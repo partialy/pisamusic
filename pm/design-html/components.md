@@ -48,7 +48,7 @@
 | --- | --- | --- | --- | --- |
 | 设置普通行 | 设置页入口、右侧摘要、箭头 | `pm/app/src/main/res/layout/item_settings_row.xml` | `SettingsActivity` | 新增设置入口优先复用。 |
 | 设置开关行 | 设置页开关项 | `pm/app/src/main/res/layout/item_settings_switch.xml` | `PmSwitch`、`Widget.Pm.SettingsSwitch` | 不要为设置开关另写一套样式。 |
-| 无图标二级设置页 | 播放、下载、歌词、数据等分组设置页 | `pm/app/src/main/res/layout/activity_sub_settings.xml`、`item_sub_settings_*.xml` | `SubSettingsActivity`、`SubSettingsAdapter`、`SubSettingsItem`、`DownloadSettingsActivity`、`LyricSettingsActivity`、`DataSettingsActivity` | 子页只声明标题、分组和 Option / Navigation / Switch；`summary` 可选，有说明时使用较小、较淡的第二行，无说明时保持原单行布局。 |
+| 无图标二级设置页 | 播放、下载、歌词、数据、同步等分组设置页 | `pm/app/src/main/res/layout/activity_sub_settings.xml`、`item_sub_settings_*.xml` | `SubSettingsActivity`、`SubSettingsAdapter`、`SubSettingsItem`、`DownloadSettingsActivity`、`LyricSettingsActivity`、`DataSettingsActivity`、`FavoritesSyncSettingsActivity` | 子页只声明标题、分组和 Option / Navigation / Info / Switch；`Info` 是只读信息行，不显示箭头、不响应点击；`summary` 可选，有说明时使用较小、较淡的第二行，无说明时保持原单行布局。 |
 | 缓存分类卡片 | 设置/工具页统计卡片 | `pm/app/src/main/res/layout/include_cache_category_card.xml` | `CacheManagementActivity` | 有标题、说明、大小、操作按钮。 |
 | 登录表单 | 账号/第三方导入登录表单 | `pm/app/src/main/res/layout/activity_login.xml`、`pm/app/src/main/res/layout/include_playlist_import_kg_login.xml` | `LoginActivity`、`WyPlaylistLoginActivity` | 输入框、验证码按钮、扫码占位可参考。 |
 | 本地歌单创建表单 | 新建歌单、封面选择表单 | `pm/app/src/main/res/layout/dialog_create_local_playlist.xml` | `PmSlotDialog` 调用场景 | 居中表单优先参考。 |
