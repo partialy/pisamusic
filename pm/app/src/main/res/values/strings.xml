@@ -242,6 +242,7 @@
     <string name="collect_playlist">收藏歌单</string>
     <string name="playing_queue_title">正在播放</string>
     <string name="clear_playlist">清空列表</string>
+    <string name="playlist_search_hint">请输入关键字</string>
     <string name="playlist_empty_hint">暂无歌曲</string>
     <string name="search_tab_single">单曲</string>
     <string name="search_tab_playlist">歌单</string>

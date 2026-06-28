@@ -12,8 +12,10 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.text.Editable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.os.Build
 import android.os.Bundle
@@ -103,6 +105,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import cn.partialy.pm.audioeffect.AudioEffectsManager
+import androidx.core.view.isGone
 
 @AndroidEntryPoint
 class PlayerActivity : BaseDownloadActivity() {
@@ -132,6 +135,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private var karaokeBasePaddingTop: Int = -1
     private var karaokeBasePaddingBottom: Int = -1
     private var pendingSeekProgress: Int? = null
+    private var allPlaylistSongs: List<SongInfo> = emptyList()
     /** 自动跟唱等代码触发的 [smoothScrollLyricsToCenter] 期间为 true，避免误显中线指示器。 */
     private var lyricsProgrammaticScrollInProgress: Boolean = false
     private val lyricSeekButtonHideRunnable = Runnable { updateLyricCenterSeekUi() }
@@ -1420,8 +1424,15 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun updatePlaylist(songs: List<SongInfo>) {
+        allPlaylistSongs = songs
         val adapter = binding.playlistBottomSheet.playlistRecyclerView.adapter as? PlaylistAdapter ?: return
-        adapter.updateSongs(songs)
+        val keyword = binding.playlistBottomSheet.searchInput.text?.toString().orEmpty().trim()
+        val displaySongs = if (keyword.isNotEmpty()) {
+            songs.filter { it.name.contains(keyword, ignoreCase = true) || it.artist.contains(keyword, ignoreCase = true) }
+        } else {
+            songs
+        }
+        adapter.updateSongs(displaySongs)
         findViewById<TextView>(R.id.playingQueueTitle)?.text = if (listenTogetherManager.state.value.enabled) {
             "一起听队列(${songs.size}首)"
         } else {
@@ -1490,6 +1501,8 @@ class PlayerActivity : BaseDownloadActivity() {
 
         binding.playlistBottomSheet.root.setOnClickListener { }
 
+        setupPlaylistSearch()
+
         bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
                 when (newState) {
@@ -1518,6 +1531,69 @@ class PlayerActivity : BaseDownloadActivity() {
                 }
             }
         })
+    }
+
+    private fun setupPlaylistSearch() {
+        val searchButton = binding.playlistBottomSheet.searchPlaylistButton
+        val searchBar = binding.playlistBottomSheet.searchBarLayout
+        val searchInput = binding.playlistBottomSheet.searchInput
+        val cancelText = binding.playlistBottomSheet.searchCancelText
+
+        searchButton.setOnClickListener {
+            if (searchBar.isGone) {
+                searchBar.visibility = View.VISIBLE
+                searchInput.requestFocus()
+                showSoftKeyboard(searchInput)
+            } else {
+                hidePlaylistSearch()
+            }
+        }
+
+        cancelText.setOnClickListener {
+            hidePlaylistSearch()
+        }
+
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                applyPlaylistSearchFilter(s?.toString().orEmpty())
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+    }
+
+    private fun hidePlaylistSearch() {
+        binding.playlistBottomSheet.searchBarLayout.visibility = View.GONE
+        binding.playlistBottomSheet.searchInput.text?.clear()
+        binding.playlistBottomSheet.searchInput.clearFocus()
+        hideSoftKeyboard()
+        applyPlaylistSearchFilter("")
+    }
+
+    private fun applyPlaylistSearchFilter(keyword: String) {
+        val adapter = binding.playlistBottomSheet.playlistRecyclerView.adapter as? PlaylistAdapter ?: return
+        val trimmed = keyword.trim()
+        val filtered = if (trimmed.isEmpty()) {
+            allPlaylistSongs
+        } else {
+            allPlaylistSongs.filter { song ->
+                song.name.contains(trimmed, ignoreCase = true) ||
+                song.artist.contains(trimmed, ignoreCase = true)
+            }
+        }
+        adapter.updateSongs(filtered)
+    }
+
+    private fun showSoftKeyboard(view: View) {
+        (getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+            ?.showSoftInput(view, 0)
+    }
+
+    private fun hideSoftKeyboard() {
+        currentFocus?.let { view ->
+            (getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+                ?.hideSoftInputFromWindow(view.windowToken, 0)
+        }
     }
 
     private fun applyInsets() {

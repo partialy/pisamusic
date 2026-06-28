@@ -29,9 +29,22 @@
             android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
             android:textColor="?attr/colorOnSurface"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/clearPlayList"
+            app:layout_constraintEnd_toStartOf="@id/searchPlaylistButton"
             app:layout_constraintStart_toEndOf="@id/headerStartSpace"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageButton
+            android:id="@+id/searchPlaylistButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/search"
+            android:padding="12dp"
+            android:src="@drawable/ic_search_24"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/clearPlayList"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="?attr/colorOnSurface" />
 
         <ImageButton
             android:id="@+id/clearPlayList"
@@ -46,6 +59,46 @@
             app:layout_constraintTop_toTopOf="parent"
             app:tint="?attr/colorOnSurface" />
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/searchBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/searchInput"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_listen_together_create_card"
+            android:hint="@string/playlist_search_hint"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingStart="12dp"
+            android:paddingEnd="8dp"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="@color/account_login_text_hint"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/searchCancelText"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/cancel"
+            android:textColor="@color/blue_selected"
+            android:textSize="14sp" />
+    </LinearLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
