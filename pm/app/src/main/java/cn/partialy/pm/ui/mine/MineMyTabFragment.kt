@@ -87,22 +87,24 @@ class MineMyTabFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        binding.mineFavorites.favoritesCoverImageView.setImageResource(R.drawable.mine_entry_favorite_songs)
         binding.mineFavorites.root.setOnClickListener {
             LovedSongsPlaylistActivity.start(requireActivity())
         }
 
-        binding.mineFavoritePlaylists.favoritesCoverImageView.setImageResource(R.drawable.my_favorites_cover_peach)
+        binding.mineFavoritePlaylists.favoritesCoverImageView.setImageResource(R.drawable.mine_entry_favorite_playlists)
         binding.mineFavoritePlaylists.titleTextView.setText(R.string.my_favorite_playlists)
         binding.mineFavoritePlaylists.root.setOnClickListener {
             FavoritePlaylistsActivity.start(requireActivity())
         }
 
+        binding.mineLocalMusic.localMusicCoverImageView.setImageResource(R.drawable.mine_entry_my_songs)
         binding.mineLocalMusic.root.setOnClickListener {
             LocalMusicActivity.start(requireActivity())
         }
 
         val settings = binding.mineSettingsCoverRow
-        settings.entryCoverImageView.setImageResource(R.drawable.icon_settings)
+        settings.entryCoverImageView.setImageResource(R.drawable.mine_entry_app_settings)
         settings.titleTextView.setText(R.string.settings)
         settings.root.setOnClickListener {
             SettingsActivity.start(requireActivity())

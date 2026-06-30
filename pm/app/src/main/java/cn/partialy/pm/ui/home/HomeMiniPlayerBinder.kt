@@ -55,7 +55,7 @@ class HomeMiniPlayerBinder(
                     coverRotationAnimator?.cancel()
                     coverRotationAnimator = null
                     mini.miniPlayerCover.rotation = 0f
-                    mini.miniPlayerCover.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL)) {
+                    mini.miniPlayerCover.load(SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_SMALL)) {
                         placeholder(R.drawable.ic_pm_icon)
                         error(R.drawable.ic_pm_icon)
                     }

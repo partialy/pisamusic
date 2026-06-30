@@ -18,7 +18,7 @@
         android:layout_height="46dp"
         android:contentDescription="@string/my_favorites"
         android:scaleType="centerCrop"
-        android:src="@drawable/my_favorites_cover_peach"
+        android:src="@drawable/mine_entry_favorite_songs"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
 
     <TextView

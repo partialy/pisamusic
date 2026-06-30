@@ -18,7 +18,7 @@
         android:layout_height="46dp"
         android:contentDescription="@string/title_my_music"
         android:scaleType="centerCrop"
-        android:src="@drawable/playlist_cover_focus"
+        android:src="@drawable/mine_entry_my_songs"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
 
     <TextView

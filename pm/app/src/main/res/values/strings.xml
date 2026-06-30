@@ -28,6 +28,8 @@
 
     <string name="splash_server_connection_failed">服务器连接失败</string>
     <string name="splash_update_verify_failed">更新校验失败，请稍后重试</string>
+    <string name="splash_enter_local_mode">本地模式进入</string>
+    <string name="splash_local_mode_manual_reason">已手动进入本地模式</string>
     <string name="title_home">首页</string>
     <string name="title_mine">我的</string>
     <string name="toolbar_title">标题</string>

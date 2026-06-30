@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -27,8 +28,12 @@ import cn.partialy.pm.utils.AppUpdateInstaller
 import cn.partialy.pm.utils.ServerDevicePrefs
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,6 +53,7 @@ class SplashActivity : AppCompatActivity() {
     private var latestOfficialUrl: String = ""
     private var pendingAgreementAccepted = false
     private var pendingScanLink: String? = null
+    private var localModeButtonJob: Job? = null
     private lateinit var appUpdateInstaller: AppUpdateInstaller
 
     @Inject
@@ -81,6 +87,8 @@ class SplashActivity : AppCompatActivity() {
         )
 
         setupWebView(binding.splashWebView)
+        setupLocalModeButton()
+        scheduleLocalModeButtonIfNeeded()
         binding.splashWebView.loadUrl(SPLASH_WEB_URL)
         binding.splashWebView.addJavascriptInterface(SplashJsBridge(), "AndroidSplash")
 
@@ -113,6 +121,7 @@ class SplashActivity : AppCompatActivity() {
         if (::appUpdateInstaller.isInitialized) {
             appUpdateInstaller.destroy()
         }
+        localModeButtonJob?.cancel()
         binding.splashWebView.removeJavascriptInterface("AndroidSplash")
         super.onDestroy()
     }
@@ -148,6 +157,7 @@ class SplashActivity : AppCompatActivity() {
     private fun tryBootstrapAndUpdate() {
         lifecycleScope.launch {
             if (!isAgreementAccepted()) {
+                cancelLocalModeButton()
                 runCatching {
                     withContext(Dispatchers.IO) { configManager.getAgreementInfo() }
                 }.onSuccess { agreement ->
@@ -158,21 +168,26 @@ class SplashActivity : AppCompatActivity() {
                 return@launch
             }
 
+            scheduleLocalModeButtonIfNeeded()
             runCatching {
-                withContext(Dispatchers.IO) {
-                    configManager.refreshBootstrapConfig()
-                    val body = DeviceInfoCollector.build(this@SplashActivity)
-                    val deviceReport = configManager.reportDevice(body)
-                    saveServerDeviceUuid(deviceReport.id)
-                    if (deviceReport.isCurrentlyLocked()) {
-                        throw DeviceLockedException(deviceReport)
+                withTimeout(SPLASH_BOOTSTRAP_TIMEOUT_MS) {
+                    withContext(Dispatchers.IO) {
+                        configManager.refreshBootstrapConfig()
+                        val body = DeviceInfoCollector.build(this@SplashActivity)
+                        val deviceReport = configManager.reportDevice(body)
+                        saveServerDeviceUuid(deviceReport.id)
+                        if (deviceReport.isCurrentlyLocked()) {
+                            throw DeviceLockedException(deviceReport)
+                        }
+                        refreshAccountSessionIfNeeded()
+                        configManager.getUpdateInfo()
                     }
-                    refreshAccountSessionIfNeeded()
-                    configManager.getUpdateInfo()
                 }
             }.onSuccess { updateInfo ->
+                if (hasNavigated) return@onSuccess
                 val localVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
                 if (isVersionChanged(localVersion, updateInfo.latestVersion)) {
+                    cancelLocalModeButton()
                     latestDownloadUrl = updateInfo.downloadUrl
                     latestOfficialUrl = updateInfo.officialUrl
                     showUpdateSheet(
@@ -183,12 +198,17 @@ class SplashActivity : AppCompatActivity() {
                     )
                     return@onSuccess
                 }
-                if (hasNavigated) return@onSuccess
+                cancelLocalModeButton()
                 navigateToMainDelayed()
             }.onFailure {
+                if (hasNavigated) return@onFailure
                 when {
                     it is DeviceLockedException -> {
+                        cancelLocalModeButton()
                         showUnavailableErrorSheet(it.report.lockedMessage())
+                    }
+                    it is TimeoutCancellationException -> {
+                        enterLocalModeImmediately(getString(R.string.splash_server_connection_failed))
                     }
                     else -> {
                         navigateToMainDelayed(it.message ?: getString(R.string.splash_server_connection_failed))
@@ -200,6 +220,41 @@ class SplashActivity : AppCompatActivity() {
 
     private fun saveServerDeviceUuid(id: String) {
         ServerDevicePrefs.setDeviceId(this, id)
+    }
+
+    private fun setupLocalModeButton() {
+        binding.localModeEnterButton.setOnClickListener {
+            enterLocalModeImmediately(getString(R.string.splash_local_mode_manual_reason))
+        }
+    }
+
+    private fun scheduleLocalModeButtonIfNeeded() {
+        if (!isAgreementAccepted() || hasNavigated || binding.localModeEnterButton.visibility == View.VISIBLE) return
+        if (localModeButtonJob?.isActive == true) return
+        localModeButtonJob = lifecycleScope.launch {
+            delay(LOCAL_MODE_BUTTON_DELAY_MS)
+            if (!hasNavigated && !isFinishing && !isDestroyed && isAgreementAccepted()) {
+                binding.localModeEnterButton.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun cancelLocalModeButton() {
+        localModeButtonJob?.cancel()
+        localModeButtonJob = null
+        if (::binding.isInitialized) {
+            binding.localModeEnterButton.visibility = View.GONE
+        }
+    }
+
+    private fun enterLocalModeImmediately(localModeReason: String) {
+        if (hasNavigated) return
+        hasNavigated = true
+        cancelLocalModeButton()
+        if (!isFinishing && !isDestroyed) {
+            startMainActivity(localModeReason)
+            finish()
+        }
     }
 
     private suspend fun refreshAccountSessionIfNeeded() {
@@ -281,6 +336,7 @@ class SplashActivity : AppCompatActivity() {
     private fun navigateToMainDelayed(localModeReason: String? = null) {
         if (hasNavigated) return
         hasNavigated = true
+        cancelLocalModeButton()
         binding.splashWebView.postDelayed({
             if (!isFinishing && !isDestroyed) {
                 startMainActivity(localModeReason)
@@ -383,6 +439,8 @@ class SplashActivity : AppCompatActivity() {
                         startMainActivity()
                         finish()
                     }.onFailure {
+                        if (hasNavigated) return@onFailure
+                        hasNavigated = true
                         startMainActivity(it.message ?: getString(R.string.splash_update_verify_failed))
                         finish()
                     }
@@ -421,6 +479,8 @@ class SplashActivity : AppCompatActivity() {
         private const val OFFICIAL_HOME_URL = "https://pisamusic.partialy.cn"
         private const val SPLASH_PREFS = "splash_prefs"
         private const val KEY_AGREEMENT_ACCEPTED = "agreement_accepted"
+        private const val LOCAL_MODE_BUTTON_DELAY_MS = 3_000L
+        private const val SPLASH_BOOTSTRAP_TIMEOUT_MS = 10_000L
         private const val FALLBACK_AGREEMENT_TITLE = "用户协议与隐私提示"
         private const val FALLBACK_AGREEMENT_CONTENT =
             "<p>欢迎使用 PisaMusic。当前服务暂不可用，请先确认你已阅读并同意用户协议与隐私政策。进入本地模式后，在线搜索、公告、更新检查、同步等功能可能暂不可用，本地音乐播放等离线功能仍可继续使用。</p>"

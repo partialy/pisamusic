@@ -18,6 +18,7 @@
         android:layout_height="46dp"
         android:contentDescription="@null"
         android:scaleType="centerCrop"
+        android:src="@drawable/mine_entry_app_settings"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small"
         tools:src="@drawable/icon_notification" />
 
