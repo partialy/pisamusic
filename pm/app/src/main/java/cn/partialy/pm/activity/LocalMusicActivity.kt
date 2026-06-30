@@ -254,7 +254,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
             openEditLocalMusic()
         }
 
-        val width = (resources.displayMetrics.density * 220).toInt()
+        val width = (resources.displayMetrics.density * 120).toInt()
         localMenuPopup = PopupWindow(
             content,
             width,
@@ -278,7 +278,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
         text: CharSequence,
         onClick: () -> Unit,
     ) {
-        val row = LayoutInflater.from(this).inflate(R.layout.item_action_menu_row, container, false)
+        val row = LayoutInflater.from(this).inflate(R.layout.item_compact_action_menu_row, container, false)
         val color = MaterialColors.getColor(
             container,
             com.google.android.material.R.attr.colorOnSurface,

@@ -45,6 +45,7 @@
     <string name="cd_refresh_recommendations">换一批推荐</string>
     <string name="delete">删除</string>
     <string name="dialog_ok">确定</string>
+    <string name="dialog_i_know">我知道了</string>
     <string name="cancel">取消</string>
     <string name="nav_header_subtitle">v2.1.0</string>
     <string name="settings">设置</string>
@@ -171,6 +172,7 @@
     <string name="switch_playback_quality">切换播放音质</string>
     <string name="switch_and_play">切换并播放</string>
     <string name="local_song_no_online_quality">本地歌曲不支持在线音质切换</string>
+    <string name="local_song_share_unsupported">本地歌曲不支持分享</string>
     <string name="toast_playback_quality_no_options">当前音源暂无可选音质</string>
     <string name="toast_playback_quality_switching">正在切换音质</string>
     <string name="toast_playback_quality_changed">已切换播放音质</string>

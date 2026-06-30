@@ -13,6 +13,7 @@ import cn.partialy.pm.activity.ShareDetailActivity
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.toCanonicalSong
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.utils.loveUtil.LoveManager
@@ -85,7 +86,11 @@ object SongMoreMenu {
                     R.drawable.ic_share_24,
                     activity.getString(R.string.song_more_share),
                 ) {
-                    deps.onShareClick?.invoke(song) ?: ShareBottomSheet.showSong(activity, song)
+                    if (song.type == SongType.LOCAL) {
+                        showLocalSongShareUnsupported(activity)
+                    } else {
+                        deps.onShareClick?.invoke(song) ?: ShareBottomSheet.showSong(activity, song)
+                    }
                 })
             }
         }
@@ -95,6 +100,13 @@ object SongMoreMenu {
             items = actions,
             bindHeader = { root -> SongInfoHeaderBinder.bind(root, song) },
         )
+    }
+
+    private fun showLocalSongShareUnsupported(activity: FragmentActivity) {
+        PmMinimalDialog.Builder(activity)
+            .setMessage(activity.getString(R.string.local_song_share_unsupported))
+            .setSingleButton(activity.getString(R.string.dialog_i_know))
+            .show()
     }
 
     private fun applyBottomSheetMaxBehavior(dialog: BottomSheetDialog, fraction: Float) {
