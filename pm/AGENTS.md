@@ -195,3 +195,9 @@
 - Android 全局未捕获异常统一由 `cn.partialy.pm.utils.GlobalExceptionHandler` 处理，并在 `App.onCreate()` 中通过 `GlobalExceptionHandler.init(this, BuildConfig.DEBUG)` 初始化；不要在 `App` 或 Activity 中再次调用 `Thread.setDefaultUncaughtExceptionHandler` 覆盖它。
 - Debug 模式下主线程异常使用 SafeLooper 风格保护并通过 `PmMinimalDialog` 展示可滚动、可选择、可复制的堆栈；后台线程异常也会记录日志并弹出同样的堆栈提示。Release 模式下主线程致命异常仍交给系统默认处理，避免强行继续运行导致黑屏或卡死。
 - `PmMinimalDialog` 的长文本、可选择文本和按钮点击后不关闭能力用于异常弹窗等特殊场景；普通确认弹窗继续保持默认居中短文案和点击按钮关闭的行为。
+## 本地歌曲索引补充
+
+- 本地歌曲列表不再直接把 MediaStore 查询结果作为运行时唯一来源；`pm_local_music.db` 的 `local_songs` 表是本地歌曲索引，`origin=media_store` 表示系统媒体库扫描项，`origin=imported_uri` 表示用户通过文件选择器导入的外部文档引用。
+- 进入本地歌曲页或编辑页时需要先同步 MediaStore 到 `local_songs`；系统库中已消失的 `media_store` 记录标记 `is_deleted=1`，不要物理删除历史记录。
+- “导入歌曲”只记录 `content://` 引用和元信息，并申请持久读取权限，不复制音频文件；重复过滤优先按 `content_uri`，其次按 `media_store_id`，再按 `display_name + size + duration` 兜底。
+- 编辑列表删除默认只移除 SQLite 引用；用户勾选“一并删除本地文件”时再尝试删除原始文件。删除授权失败时仍保留列表移除结果，并提示原文件可能未删除。

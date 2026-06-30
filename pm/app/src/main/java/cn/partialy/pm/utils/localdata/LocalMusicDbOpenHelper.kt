@@ -14,6 +14,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         createThirdPartyLoginTables(db)
         createCachedPlaybackTables(db)
         createPlaybackFaultTables(db)
+        createLocalSongTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -37,6 +38,9 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         }
         if (oldVersion < 8) {
             createPlaybackFaultTables(db)
+        }
+        if (oldVersion < 9) {
+            createLocalSongTables(db)
         }
     }
 
@@ -234,9 +238,36 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         db.execSQL("INSERT OR IGNORE INTO playback_fault_state(id, last_reported_at) VALUES (1, NULL)")
     }
 
+    private fun createLocalSongTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS local_songs (
+                id TEXT PRIMARY KEY,
+                origin TEXT NOT NULL,
+                media_store_id INTEGER,
+                content_uri TEXT NOT NULL DEFAULT '',
+                file_path TEXT NOT NULL DEFAULT '',
+                title TEXT NOT NULL DEFAULT '',
+                artist TEXT NOT NULL DEFAULT '',
+                duration INTEGER,
+                size INTEGER,
+                mime_type TEXT NOT NULL DEFAULT '',
+                display_name TEXT NOT NULL DEFAULT '',
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_local_songs_origin_deleted ON local_songs(origin, is_deleted)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_local_songs_content_uri ON local_songs(content_uri)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_local_songs_media_store_id ON local_songs(media_store_id)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_local_songs_fallback ON local_songs(display_name, size, duration)")
+    }
+
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 8
+        private const val DB_VERSION = 9
     }
 
     private fun ensureSyncOutboxAccountColumn(db: SQLiteDatabase) {

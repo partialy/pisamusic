@@ -59,6 +59,17 @@
 
             </LinearLayout>
 
+            <ImageButton
+                android:id="@+id/localMoreButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="end|center_vertical"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/more"
+                android:padding="12dp"
+                android:src="@drawable/ic_more_vert_24"
+                app:tint="?attr/colorOnSurface" />
+
         </androidx.appcompat.widget.Toolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -110,17 +121,47 @@
             android:alpha="0.8"
             app:tint="?attr/colorOnSurface" />
 
-        <ImageButton
-            android:id="@+id/btn_edit_local"
-            android:layout_width="30dp"
-            android:layout_height="match_parent"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/local_music_edit"
-            android:padding="4dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_edit_24"
-            android:alpha="0.8"
-            app:tint="?attr/colorOnSurface" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/localSearchBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="0dp"
+        android:paddingBottom="8dp"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/localSearchInput"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_listen_together_create_card"
+            android:hint="@string/playlist_search_hint"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingStart="12dp"
+            android:paddingEnd="8dp"
+            android:singleLine="true"
+            android:textColor="?attr/colorOnSurface"
+            android:textColorHint="@color/account_login_text_hint"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/localSearchCancelText"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="@string/cancel"
+            android:textColor="@color/blue_selected"
+            android:textSize="14sp" />
     </LinearLayout>
 
     <androidx.viewpager2.widget.ViewPager2

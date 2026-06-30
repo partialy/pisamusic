@@ -16,6 +16,7 @@ import android.text.Editable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
+import android.net.Uri
 import android.text.style.ForegroundColorSpan
 import android.os.Build
 import android.os.Bundle
@@ -1337,7 +1338,11 @@ class PlayerActivity : BaseDownloadActivity() {
         if (song.type != SongType.LOCAL) return
         if (song.embeddedCoverArt == null) {
             val bytes = withContext(Dispatchers.IO) {
-                AudioEmbeddedArtReader.readEmbeddedCoverBytes(this@PlayerActivity, File(song.id))
+                if (song.id.startsWith("content://")) {
+                    AudioEmbeddedArtReader.readEmbeddedCoverBytes(this@PlayerActivity, Uri.parse(song.id))
+                } else {
+                    AudioEmbeddedArtReader.readEmbeddedCoverBytes(this@PlayerActivity, File(song.id))
+                }
             }
             if (bytes != null && bytes.isNotEmpty()) {
                 song.embeddedCoverArt = bytes

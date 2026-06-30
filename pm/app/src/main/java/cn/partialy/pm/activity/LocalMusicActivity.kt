@@ -5,29 +5,44 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.PopupWindow
+import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.core.content.ContextCompat
+import androidx.core.view.isGone
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityLocalMusicBinding
-import cn.partialy.pm.ui.insets.applySystemBarsInsets
-import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
+import cn.partialy.pm.ui.insets.applySystemBarsInsets
+import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.local.LocalFragmentStateAdapter
 import cn.partialy.pm.ui.local.viewModels.DownloadedMusicViewModel
 import cn.partialy.pm.ui.local.viewModels.LocalMusicViewModel
 import cn.partialy.pm.utils.DownloadManager
 import cn.partialy.pm.utils.LocalSongProvider
+import com.google.android.material.color.MaterialColors
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,11 +54,11 @@ class LocalMusicActivity : BaseDownloadActivity() {
     private lateinit var binding: ActivityLocalMusicBinding
     private val localMusicViewModel by lazy { ViewModelProvider(this)[LocalMusicViewModel::class.java] }
     private val downloadedViewModel by lazy { ViewModelProvider(this)[DownloadedMusicViewModel::class.java] }
-    private val downloadManager : DownloadManager = DownloadManager.getInstance(context = this)
-    private val PERMISSION_REQUEST_CODE = 123
+    private val downloadManager: DownloadManager = DownloadManager.getInstance(context = this)
     private val localSongs = mutableListOf<SongInfo>()
     private val downloadedSongs = mutableListOf<SongInfo>()
     private var miniPlayerBinder: HomeMiniPlayerBinder? = null
+    private var localMenuPopup: PopupWindow? = null
 
     @Inject
     lateinit var localSongProvider: LocalSongProvider
@@ -56,12 +71,16 @@ class LocalMusicActivity : BaseDownloadActivity() {
         }
     }
 
+    private val importSongsLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris ->
+        if (uris.isNullOrEmpty()) return@registerForActivityResult
+        importSelectedSongs(uris)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // 先创建绑定
         binding = ActivityLocalMusicBinding.inflate(layoutInflater)
-        // 在调用 super.onCreate 之前设置 contentView，这样父类就能找到根视图
         setContentView(binding.root)
-        // 调用父类的 onCreate，它会添加悬浮按钮
         super.onCreate(savedInstanceState)
 
         val isNight =
@@ -77,38 +96,23 @@ class LocalMusicActivity : BaseDownloadActivity() {
             startObserving(this@LocalMusicActivity)
         }
 
-        // 设置工具栏
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = ""
+        binding.toolbar.setNavigationOnClickListener { finish() }
 
-        // 设置返回按钮点击事件
-        binding.toolbar.setNavigationOnClickListener {
-            finish()
-        }
-
-        // 设置viewPager2
         binding.viewPager.adapter = LocalFragmentStateAdapter(this)
         binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
                 updateTabSelection(position)
-                updateEditButtonVisibility()
-                when (position) {
-                    0 -> updateSongCount(localMusicViewModel.getSongInfos())
-                    1 -> updateSongCount(downloadedViewModel.getSongInfos())
-                }
+                applyCurrentSearchFilter()
             }
         })
         val initialTab = intent.getIntExtra(EXTRA_INITIAL_TAB, TAB_LOCAL).coerceIn(TAB_LOCAL, TAB_DOWNLOADED)
         binding.viewPager.setCurrentItem(initialTab, false)
-        updateEditButtonVisibility()
 
-        // 设置ui
         setupUIAndListener()
-
-        // 检查权限
-//        checkPermissionAndLoadMusic()
         loadLocalMusic()
     }
 
@@ -116,9 +120,9 @@ class LocalMusicActivity : BaseDownloadActivity() {
         val miniBottomBase = resources.getDimensionPixelSize(R.dimen.home_mini_player_bottom_margin)
         val overlapPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_overlap)
         binding.localMusicRoot.applySystemBarsInsets { insets ->
-            val lp = binding.localMusicStatusBarSpacer.layoutParams
-            lp.height = insets.top
-            binding.localMusicStatusBarSpacer.layoutParams = lp
+            binding.localMusicStatusBarSpacer.layoutParams = binding.localMusicStatusBarSpacer.layoutParams.apply {
+                height = insets.top
+            }
             binding.viewPager.updatePadding(bottom = 0)
             binding.homeMiniPlayer.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
                 bottomMargin = miniBottomBase + overlapPx + insets.bottom
@@ -128,37 +132,24 @@ class LocalMusicActivity : BaseDownloadActivity() {
 
     @OptIn(UnstableApi::class)
     @SuppressLint("SetTextI18n")
-    private fun setupUIAndListener(){
+    private fun setupUIAndListener() {
         binding.apply {
-            // 观察本地音乐数量变化
             localMusicViewModel.songInfos.observe(this@LocalMusicActivity) { songs ->
-                if (viewPager.currentItem == 0) {
+                if (viewPager.currentItem == TAB_LOCAL) {
                     updateSongCount(songs)
                 }
             }
-
-            // 观察下载音乐数量变化
             downloadedViewModel.songInfos.observe(this@LocalMusicActivity) { songs ->
-                if (viewPager.currentItem == 1) {
+                if (viewPager.currentItem == TAB_DOWNLOADED) {
                     updateSongCount(songs)
                 }
             }
 
-            // 监听器
-            mineMusic.setOnClickListener {
-                viewPager.setCurrentItem(0, true)
-            }
-            downloadMusic.setOnClickListener {
-                viewPager.setCurrentItem(1, true)
-            }
+            mineMusic.setOnClickListener { viewPager.setCurrentItem(TAB_LOCAL, true) }
+            downloadMusic.setOnClickListener { viewPager.setCurrentItem(TAB_DOWNLOADED, true) }
 
-            // 播放全部按钮点击事件
             btnPlayAll.setOnClickListener {
-                val songs = when (viewPager.currentItem) {
-                    0 -> localMusicViewModel.getSongInfos()
-                    1 -> downloadedViewModel.getSongInfos()
-                    else -> emptyList()
-                }
+                val songs = currentDisplayedSongs()
                 if (songs.isNotEmpty()) {
                     lifecycleScope.launch {
                         musicController.setPlayList(songs)
@@ -167,64 +158,185 @@ class LocalMusicActivity : BaseDownloadActivity() {
             }
             btnPlayAll.imageTintList = ColorStateList.valueOf(getColor(R.color.primary))
 
-            btnEditLocal.setOnClickListener {
-                localMusicEditLauncher.launch(Intent(this@LocalMusicActivity, LocalMusicEditActivity::class.java))
-                AppActivityTransitions.applyForward(this@LocalMusicActivity)
+            search.setOnClickListener { toggleSearchBar() }
+            localSearchCancelText.setOnClickListener { hideSearchBar() }
+            localSearchInput.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    applyCurrentSearchFilter()
+                }
+                override fun afterTextChanged(s: Editable?) = Unit
+            })
+
+            localMoreButton.setOnClickListener { showLocalMenu() }
+        }
+    }
+
+    private fun toggleSearchBar() {
+        if (binding.localSearchBarLayout.isGone) {
+            binding.localSearchBarLayout.visibility = View.VISIBLE
+            binding.localSearchInput.requestFocus()
+            showSoftKeyboard(binding.localSearchInput)
+        } else {
+            hideSearchBar()
+        }
+    }
+
+    private fun hideSearchBar() {
+        binding.localSearchBarLayout.visibility = View.GONE
+        binding.localSearchInput.text?.clear()
+        binding.localSearchInput.clearFocus()
+        hideSoftKeyboard()
+        applyCurrentSearchFilter()
+    }
+
+    private fun applyCurrentSearchFilter() {
+        val keyword = binding.localSearchInput.text?.toString().orEmpty().trim()
+        when (binding.viewPager.currentItem) {
+            TAB_LOCAL -> localMusicViewModel.setSongInfos(filterSongs(localSongs, keyword))
+            TAB_DOWNLOADED -> downloadedViewModel.setSongInfos(filterSongs(downloadedSongs, keyword))
+        }
+    }
+
+    private fun filterSongs(songs: List<SongInfo>, keyword: String): List<SongInfo> {
+        if (keyword.isBlank()) return songs
+        return songs.filter { song ->
+            song.name.contains(keyword, ignoreCase = true) ||
+                song.artist.contains(keyword, ignoreCase = true)
+        }
+    }
+
+    private fun currentDisplayedSongs(): List<SongInfo> =
+        when (binding.viewPager.currentItem) {
+            TAB_LOCAL -> localMusicViewModel.getSongInfos()
+            TAB_DOWNLOADED -> downloadedViewModel.getSongInfos()
+            else -> emptyList()
+        }
+
+    private fun showSoftKeyboard(view: View) {
+        (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun hideSoftKeyboard() {
+        currentFocus?.let { view ->
+            (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
+                ?.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+    }
+
+    private fun showLocalMenu() {
+        localMenuPopup?.dismiss()
+        val content = LayoutInflater.from(this).inflate(R.layout.layout_search_source_dropdown, null, false)
+        val container = content.findViewById<LinearLayout>(R.id.searchSourceOptionsContainer)
+        addLocalMenuRow(
+            container = container,
+            iconRes = R.drawable.ic_scan_radio_24,
+            text = getString(R.string.local_music_import_songs),
+        ) {
+            localMenuPopup?.dismiss()
+            importSongsLauncher.launch(arrayOf("audio/*"))
+        }
+        addLocalMenuRow(
+            container = container,
+            iconRes = R.drawable.ic_scan_qrcode_24,
+            text = getString(R.string.local_music_scan_songs),
+        ) {
+            localMenuPopup?.dismiss()
+            Toast.makeText(this, R.string.local_music_scan_not_ready, Toast.LENGTH_SHORT).show()
+        }
+        addLocalMenuRow(
+            container = container,
+            iconRes = R.drawable.ic_edit_24,
+            text = getString(R.string.local_music_edit_list),
+        ) {
+            localMenuPopup?.dismiss()
+            openEditLocalMusic()
+        }
+
+        val width = (resources.displayMetrics.density * 220).toInt()
+        localMenuPopup = PopupWindow(
+            content,
+            width,
+            RecyclerView.LayoutParams.WRAP_CONTENT,
+            true,
+        ).apply {
+            isOutsideTouchable = true
+            elevation = resources.displayMetrics.density * 8f
+        }
+        localMenuPopup?.showAsDropDown(
+            binding.localMoreButton,
+            0,
+            (resources.displayMetrics.density * 6).toInt(),
+            Gravity.END,
+        )
+    }
+
+    private fun addLocalMenuRow(
+        container: LinearLayout,
+        iconRes: Int,
+        text: CharSequence,
+        onClick: () -> Unit,
+    ) {
+        val row = LayoutInflater.from(this).inflate(R.layout.item_action_menu_row, container, false)
+        val color = MaterialColors.getColor(
+            container,
+            com.google.android.material.R.attr.colorOnSurface,
+            ContextCompat.getColor(this, R.color.colorOnBgNormal),
+        )
+        row.findViewById<ImageView>(R.id.actionMenuItemIcon).apply {
+            setImageResource(iconRes)
+            setColorFilter(color)
+        }
+        row.findViewById<TextView>(R.id.actionMenuItemText).apply {
+            this.text = text
+            setTextColor(color)
+        }
+        row.setOnClickListener { onClick() }
+        container.addView(row)
+    }
+
+    private fun openEditLocalMusic() {
+        localMusicEditLauncher.launch(Intent(this, LocalMusicEditActivity::class.java))
+        AppActivityTransitions.applyForward(this)
+    }
+
+    private fun importSelectedSongs(uris: List<Uri>) {
+        uris.forEach(::takeReadPersistablePermission)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = localSongProvider.importSongs(uris)
+            val songsLocal = queryLocalMusic()
+            withContext(Dispatchers.Main) {
+                localSongs.clear()
+                localSongs.addAll(songsLocal)
+                applyCurrentSearchFilter()
+                Toast.makeText(
+                    this@LocalMusicActivity,
+                    getString(R.string.local_music_import_done, result.importedCount, result.skippedCount),
+                    Toast.LENGTH_SHORT,
+                ).show()
             }
         }
     }
 
-    private fun updateEditButtonVisibility() {
-        binding.btnEditLocal.visibility =
-            if (binding.viewPager.currentItem == TAB_LOCAL) View.VISIBLE else View.GONE
-    }
-
-    // 更新歌曲数量显示
-    @SuppressLint("SetTextI18n")
-    private fun updateSongCount(songs: List<SongInfo>) {
-        binding.apply {
-            if (songs.isEmpty()) {
-                songCountTextView.text = if (viewPager.currentItem == 0) "没有本地歌曲" else "没有下载的歌曲"
-                btnPlayAll.isClickable = false
-                btnPlayAll.alpha = 0.5f
-            } else {
-                songCountTextView.text = "共${songs.size}首歌曲"
-                btnPlayAll.isClickable = true
-                btnPlayAll.alpha = 1.0f
-            }
+    private fun takeReadPersistablePermission(uri: Uri) {
+        runCatching {
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }
 
-//    // 检查权限
-//    private fun checkPermissionAndLoadMusic() {
-//        if (ContextCompat.checkSelfPermission(
-//                this,
-//                Manifest.permission.READ_EXTERNAL_STORAGE
-//            ) != PackageManager.PERMISSION_GRANTED
-//        ) {
-//            ActivityCompat.requestPermissions(
-//                this,
-//                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
-//                PERMISSION_REQUEST_CODE
-//            )
-//        } else {
-//            loadLocalMusic()
-//        }
-//    }
-
-    // 加载本地歌曲和下载的歌曲
     private fun loadLocalMusic() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val songs_local = queryLocalMusic()
-                val songs_download = queryDownloadedMusic()
+                val songsLocal = queryLocalMusic()
+                val songsDownload = queryDownloadedMusic()
 
                 withContext(Dispatchers.Main) {
                     localSongs.clear()
                     downloadedSongs.clear()
-                    localSongs.addAll(songs_local)
-                    downloadedSongs.addAll(songs_download)
-                    updateUI()
+                    localSongs.addAll(songsLocal)
+                    downloadedSongs.addAll(songsDownload)
+                    applyCurrentSearchFilter()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -232,40 +344,34 @@ class LocalMusicActivity : BaseDownloadActivity() {
         }
     }
 
-    //获取已下载的歌曲
     private fun queryDownloadedMusic(): List<SongInfo> {
         return downloadManager.getDownloadedFiles()
     }
 
-    // 搜索本地歌曲
     private fun queryLocalMusic(): List<SongInfo> {
-        return localSongProvider.queryLocalSongs()
+        return localSongProvider.refreshLocalSongs()
     }
 
-    // 更新列表
-    private fun updateUI() {
-        localMusicViewModel.setSongInfos(localSongs)
-        downloadedViewModel.setSongInfos(downloadedSongs)
-        setupUIAndListener() // 更新UI后重新设置界面
+    @SuppressLint("SetTextI18n")
+    private fun updateSongCount(songs: List<SongInfo>) {
+        binding.apply {
+            if (songs.isEmpty()) {
+                songCountTextView.text =
+                    if (viewPager.currentItem == TAB_LOCAL) getString(R.string.local_music_empty)
+                    else getString(R.string.downloaded_music_empty)
+                btnPlayAll.isClickable = false
+                btnPlayAll.alpha = 0.5f
+            } else {
+                songCountTextView.text = getString(R.string.local_music_song_count, songs.size)
+                btnPlayAll.isClickable = true
+                btnPlayAll.alpha = 1.0f
+            }
+        }
     }
-
-//    override fun onRequestPermissionsResult(
-//        requestCode: Int,
-//        permissions: Array<out String>,
-//        grantResults: IntArray
-//    ) {
-//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-//        if (requestCode == PERMISSION_REQUEST_CODE) {
-//            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-//                loadLocalMusic()
-//            } else {
-//                Toast.makeText(this, "需要存储权限才能访问本地音乐", Toast.LENGTH_SHORT).show()
-//                finish()
-//            }
-//        }
-//    }
 
     override fun onDestroy() {
+        localMenuPopup?.dismiss()
+        localMenuPopup = null
         miniPlayerBinder?.onDestroy()
         miniPlayerBinder = null
         super.onDestroy()
@@ -279,13 +385,13 @@ class LocalMusicActivity : BaseDownloadActivity() {
     private fun updateTabSelection(position: Int) {
         binding.apply {
             when (position) {
-                0 -> {
+                TAB_LOCAL -> {
                     mineMusic.alpha = 1.0f
                     mineMusic.setTextColor(getColor(R.color.primary))
                     downloadMusic.alpha = 0.5f
                     downloadMusic.setTextColor(getColor(R.color.text_secondary))
                 }
-                1 -> {
+                TAB_DOWNLOADED -> {
                     downloadMusic.alpha = 1.0f
                     downloadMusic.setTextColor(getColor(R.color.primary))
                     mineMusic.alpha = 0.5f
@@ -300,7 +406,6 @@ class LocalMusicActivity : BaseDownloadActivity() {
         const val TAB_LOCAL = 0
         const val TAB_DOWNLOADED = 1
 
-        /** 与 [PlaylistDetailActivity.start] 一致的进入动画。 */
         fun start(context: Context, initialTab: Int = TAB_LOCAL) {
             val intent = Intent(context, LocalMusicActivity::class.java).apply {
                 putExtra(EXTRA_INITIAL_TAB, initialTab.coerceIn(TAB_LOCAL, TAB_DOWNLOADED))

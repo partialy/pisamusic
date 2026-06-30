@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
@@ -179,6 +180,10 @@ class MineMyTabFragment : Fragment() {
         }
 
         val dialog = PmSlotDialog.Builder(ctx)
+            .setHeaderLayout(R.layout.dialog_pm_title_header) { view, _ ->
+                view.findViewById<TextView>(R.id.dialogTitleText)
+                    .setText(R.string.dialog_create_local_playlist_title)
+            }
             .setContentView(dialogView)
             .setCancelButton(getString(R.string.cancel))
             .setConfirmButton(
