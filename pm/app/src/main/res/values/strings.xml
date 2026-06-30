@@ -618,4 +618,9 @@
     <string name="audio_effect_preset_edit_title">自定义音效</string>
     <string name="audio_effect_preset_name">预设名称</string>
     <string name="audio_effect_preset_save">保存预设</string>
+    <string name="audio_effects_save_preset_button">保存当前参数</string>
+    <string name="audio_effects_save_preset_dialog_title">保存预设</string>
+    <string name="audio_effects_save_preset_hint">请输入预设名称</string>
+    <string name="audio_effects_save_preset_name_required">请输入预设名称</string>
+    <string name="audio_effects_save_preset_name_duplicate">预设名称已存在</string>
 </resources>

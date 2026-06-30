@@ -17,6 +17,7 @@ import cn.partialy.pm.audioeffect.AudioEffectPreset
 import cn.partialy.pm.audioeffect.AudioEffectState
 import cn.partialy.pm.audioeffect.AudioEffectsManager
 import cn.partialy.pm.databinding.ActivityAudioEffectsBinding
+import cn.partialy.pm.ui.dialog.PmSlotDialog
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.launch
@@ -77,6 +78,8 @@ class AudioEffectsActivity : BaseActivity() {
             advancedSpatialExpanded = !advancedSpatialExpanded
             renderAdvancedSpatialVisibility()
         }
+
+        binding.savePresetButton.setOnClickListener { showSavePresetDialog() }
     }
 
     private fun setupEqRows() {
@@ -191,6 +194,47 @@ class AudioEffectsActivity : BaseActivity() {
             setOnClickListener { AudioEffectPresetEditActivity.start(this@AudioEffectsActivity) }
         }
         binding.presetRow.addView(addButton, LinearLayout.LayoutParams(dp(44), dp(36)))
+
+        binding.savePresetButton.visibility =
+            if (state.selectedPresetId == AudioEffectPreset.ID_MANUAL) View.VISIBLE else View.GONE
+    }
+
+    private fun showSavePresetDialog() {
+        val currentState = audioEffectsManager.state.value
+        PmSlotDialog.Builder(this)
+            .setContentLayout(R.layout.dialog_save_audio_preset) { view, _ ->
+                view.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.presetNameInput)
+                    .requestFocus()
+            }
+            .setCancelButton(getString(R.string.cancel))
+            .setConfirmButton(
+                text = getString(R.string.listen_together_confirm),
+                dismissOnConfirm = false,
+            ) { dialog ->
+                val input = dialog.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.presetNameInput)
+                    ?: return@setConfirmButton
+                val name = input.text?.toString()?.trim().orEmpty()
+                if (name.isBlank()) {
+                    showMessage(getString(R.string.audio_effects_save_preset_name_required))
+                    return@setConfirmButton
+                }
+                if (currentState.customPresets.any { it.name.equals(name, ignoreCase = true) }) {
+                    showMessage(getString(R.string.audio_effects_save_preset_name_duplicate))
+                    return@setConfirmButton
+                }
+                audioEffectsManager.addCustomPreset(
+                    name = name,
+                    eqGains = currentState.eqGains,
+                    bass = currentState.bass,
+                    vocal = currentState.vocal,
+                    stereoWidth = currentState.stereoWidth,
+                    centerRetention = currentState.centerRetention,
+                    spatialDelayUs = currentState.spatialDelayUs,
+                    bassMonoProtectHz = currentState.bassMonoProtectHz,
+                )
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun renderEqRows(state: AudioEffectState) {

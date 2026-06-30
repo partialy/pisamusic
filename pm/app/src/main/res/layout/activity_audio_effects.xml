@@ -363,6 +363,17 @@
                         android:thumbOffset="6dp" />
                 </LinearLayout>
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/savePresetButton"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="20dp"
+                android:text="@string/audio_effects_save_preset_button"
+                android:textColor="@color/white"
+                android:visibility="gone"
+                app:backgroundTint="@color/blue_selected"
+                app:cornerRadius="12dp" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
