@@ -67,8 +67,8 @@
         android:layout_width="match_parent"
         android:layout_height="30dp"
         android:gravity="center_horizontal"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="12dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
         >
@@ -98,12 +98,12 @@
 
         <ImageButton
             android:id="@+id/search"
-            android:layout_width="48dp"
+            android:layout_width="30dp"
             android:layout_height="match_parent"
             android:layout_gravity="end"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/search"
-            android:padding="6dp"
+            android:padding="4dp"
             android:scaleType="centerInside"
             android:src="@drawable/ic_search_24"
             android:layout_marginStart="4dp"
@@ -112,11 +112,11 @@
 
         <ImageButton
             android:id="@+id/btn_edit_local"
-            android:layout_width="48dp"
+            android:layout_width="30dp"
             android:layout_height="match_parent"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/local_music_edit"
-            android:padding="6dp"
+            android:padding="4dp"
             android:scaleType="centerInside"
             android:src="@drawable/ic_edit_24"
             android:alpha="0.8"
@@ -126,8 +126,19 @@
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
+    <include
+        android:id="@+id/homeMiniPlayer"
+        layout="@layout/home_mini_player"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/home_mini_player_height"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="@dimen/home_mini_player_bottom_margin"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </LinearLayout> 

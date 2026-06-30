@@ -7,8 +7,10 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -20,6 +22,7 @@ import cn.partialy.pm.databinding.ActivityLocalMusicBinding
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.local.LocalFragmentStateAdapter
 import cn.partialy.pm.ui.local.viewModels.DownloadedMusicViewModel
 import cn.partialy.pm.ui.local.viewModels.LocalMusicViewModel
@@ -40,6 +43,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
     private val PERMISSION_REQUEST_CODE = 123
     private val localSongs = mutableListOf<SongInfo>()
     private val downloadedSongs = mutableListOf<SongInfo>()
+    private var miniPlayerBinder: HomeMiniPlayerBinder? = null
 
     @Inject
     lateinit var localSongProvider: LocalSongProvider
@@ -68,6 +72,10 @@ class LocalMusicActivity : BaseDownloadActivity() {
             lightNavigationBarIcons = !isNight,
         )
         applyLocalMusicInsets()
+        miniPlayerBinder = HomeMiniPlayerBinder(this, binding.homeMiniPlayer, musicController).apply {
+            setupClicks()
+            startObserving(this@LocalMusicActivity)
+        }
 
         // 设置工具栏
         setSupportActionBar(binding.toolbar)
@@ -105,11 +113,16 @@ class LocalMusicActivity : BaseDownloadActivity() {
     }
 
     private fun applyLocalMusicInsets() {
+        val miniBottomBase = resources.getDimensionPixelSize(R.dimen.home_mini_player_bottom_margin)
+        val overlapPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_overlap)
         binding.localMusicRoot.applySystemBarsInsets { insets ->
             val lp = binding.localMusicStatusBarSpacer.layoutParams
             lp.height = insets.top
             binding.localMusicStatusBarSpacer.layoutParams = lp
-            binding.viewPager.updatePadding(bottom = insets.bottom)
+            binding.viewPager.updatePadding(bottom = 0)
+            binding.homeMiniPlayer.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = miniBottomBase + overlapPx + insets.bottom
+            }
         }
     }
 
@@ -251,6 +264,12 @@ class LocalMusicActivity : BaseDownloadActivity() {
 //            }
 //        }
 //    }
+
+    override fun onDestroy() {
+        miniPlayerBinder?.onDestroy()
+        miniPlayerBinder = null
+        super.onDestroy()
+    }
 
     override fun finish() {
         super.finish()
