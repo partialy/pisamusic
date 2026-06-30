@@ -140,7 +140,6 @@ class MusicService : MediaSessionService() {
     override fun onDestroy() {
         statusBarLyricOverlayController.stop()
         playerNotificationManager.setPlayer(null)
-        musicController.release()
         super.onDestroy()
     }
 

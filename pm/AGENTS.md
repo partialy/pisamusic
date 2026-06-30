@@ -57,7 +57,7 @@
 
 ## 播放器规则
 
-- `MusicController` 是 UI 和 Service 使用的统一播放器门面。
+- `MusicController` 是 UI 和 Service 使用的统一播放器门面，也是 App 级播放单例；`MusicService` 只负责前台通知、MediaSessionService 承载和状态栏歌词，不在 `onDestroy()` 中释放播放器。只有明确的应用级退出 / 进程级清理流程才调用 `MusicController.release()`。
 - `PlaylistManager` 管理播放列表、当前下标、下一首队列和 `StateFlow`。
 - `PlayerEngine` 管理 ExoPlayer、MediaSession、播放事件、进度、播放模式和状态持久化。
 - `MediaItemFactory` 创建延迟解析的 `MediaItem`。

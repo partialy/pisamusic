@@ -82,6 +82,7 @@ class PlayerEngine(
     private var lastManualNextAtMs = 0L
     private var lastManualPreviousAtMs = 0L
     private var progressUpdateJob: Job? = null
+    private var released = false
     private val playbackRefreshRetryKeys = mutableSetOf<String>()
     private val playbackAudioAttributes = AudioAttributes.Builder()
         .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -804,13 +805,17 @@ class PlayerEngine(
 
     /** 释放 ExoPlayer 和 MediaSession */
     fun release() {
+        if (released) return
+        released = true
         stopProgressUpdate()
+        val player = exoPlayer
+        exoPlayer = null
+        playlistManager.exoPlayer = null
         audioCoexistenceController.release()
         audioEffectsManager.release()
         mediaSession?.release()
         mediaSession = null
-        exoPlayer?.release()
-        exoPlayer = null
+        player?.release()
         PlayerCacheProvider.release()
     }
 

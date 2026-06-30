@@ -164,10 +164,10 @@ class PlayerActivity : BaseDownloadActivity() {
                 adapter = PlaylistAdapter(
                     songs = emptyList(),
                     currentPlayingId = musicController.currentSong.value?.id,
-                    onItemClick = { song, index ->
+                    onItemClick = { song ->
                         lifecycleScope.launch {
                             val state = listenTogetherManager.state.value
-                            val queueItemId = state.queue.items.getOrNull(index)?.queueItemId
+                            val queueItemId = findListenTogetherQueueItemId(song)
                             if (state.enabled && queueItemId != null) {
                                 listenTogetherManager.requestPlayQueueItem(queueItemId)
                             } else {
@@ -176,11 +176,12 @@ class PlayerActivity : BaseDownloadActivity() {
                             bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN
                         }
                     },
-                    onRemoveClick = { song, index ->
+                    onRemoveClick = { song ->
                         val state = listenTogetherManager.state.value
-                        val queueItemId = state.queue.items.getOrNull(index)?.queueItemId
-                        if (state.enabled && queueItemId != null) {
-                            listenTogetherManager.requestRemoveQueueItem(queueItemId)
+                        if (state.enabled) {
+                            findListenTogetherQueueItemId(song)?.let {
+                                listenTogetherManager.requestRemoveQueueItem(it)
+                            }
                         } else {
                             musicController.removeFromPlayList(song)
                         }
@@ -1449,6 +1450,12 @@ class PlayerActivity : BaseDownloadActivity() {
         }
     }
 
+    private fun findListenTogetherQueueItemId(song: SongInfo): String? =
+        listenTogetherManager.state.value.queue.items.firstOrNull { item ->
+            val queueSong = item.song.toSongInfo()
+            queueSong.type == song.type && queueSong.id == song.id
+        }?.queueItemId
+
     private fun scrollPlaylistToNowPlaying() {
         val rv = binding.playlistBottomSheet.playlistRecyclerView
         val state = listenTogetherManager.state.value
@@ -1642,8 +1649,8 @@ class PlayerActivity : BaseDownloadActivity() {
 class PlaylistAdapter(
     private var songs: List<SongInfo>,
     private var currentPlayingId: String?,
-    private val onItemClick: (SongInfo, Int) -> Unit,
-    private val onRemoveClick: (SongInfo, Int) -> Unit,
+    private val onItemClick: (SongInfo) -> Unit,
+    private val onRemoveClick: (SongInfo) -> Unit,
 ) : RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
 
     fun updateSongs(newSongs: List<SongInfo>) {
@@ -1685,7 +1692,7 @@ class PlaylistAdapter(
         holder.bind(song, isCurrent)
         holder.itemView.setOnClickListener {
             val pos = holder.bindingAdapterPosition
-            if (pos != RecyclerView.NO_POSITION) onItemClick(song, pos)
+            if (pos != RecyclerView.NO_POSITION) onItemClick(song)
         }
     }
 
@@ -1693,7 +1700,7 @@ class PlaylistAdapter(
 
     class ViewHolder(
         view: View,
-        private val onRemoveClick: (SongInfo, Int) -> Unit,
+        private val onRemoveClick: (SongInfo) -> Unit,
     ) : RecyclerView.ViewHolder(view) {
         private val lineText: TextView = view.findViewById(R.id.songLineText)
         private val tagView: TextView = view.findViewById(R.id.songSourceTagTextView)
@@ -1704,7 +1711,7 @@ class PlaylistAdapter(
             val separator = " - "
             removeButton.setOnClickListener {
                 val pos = bindingAdapterPosition
-                if (pos != RecyclerView.NO_POSITION) onRemoveClick(song, pos)
+                if (pos != RecyclerView.NO_POSITION) onRemoveClick(song)
             }
             SongSourceTagBinder.bind(tagView, song.type)
 
