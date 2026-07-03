@@ -23,6 +23,11 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 @UnstableApi
@@ -36,6 +41,7 @@ class MusicService : MediaSessionService() {
 
     private val NOTIFICATION_ID = 13
     private val CHANNEL_ID = "music_channel"
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var playerNotificationManager: PlayerNotificationManager
 
     override fun onCreate() {
@@ -108,9 +114,11 @@ class MusicService : MediaSessionService() {
             })
             .build()
 
-        playerNotificationManager.setPlayer(musicController.exoPlayer)
-        musicController.mediaSession?.sessionCompatToken?.let {
-            playerNotificationManager.setMediaSessionToken(it)
+        bindNotificationPlayer()
+        serviceScope.launch {
+            musicController.playerEvents.collect {
+                bindNotificationPlayer()
+            }
         }
 
         // 确保服务在前台运行
@@ -134,10 +142,18 @@ class MusicService : MediaSessionService() {
     // 启动前台服务的方法
     private fun startForegroundService() {
         // 直接设置播放器即可，PlayerNotificationManager 会自动处理前台服务
+        bindNotificationPlayer()
+    }
+
+    private fun bindNotificationPlayer() {
         playerNotificationManager.setPlayer(musicController.exoPlayer)
+        musicController.mediaSession?.sessionCompatToken?.let {
+            playerNotificationManager.setMediaSessionToken(it)
+        }
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
         statusBarLyricOverlayController.stop()
         playerNotificationManager.setPlayer(null)
         super.onDestroy()

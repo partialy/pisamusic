@@ -35,15 +35,17 @@ class StereoWidenerAudioProcessor : BaseAudioProcessor() {
     }
 
     override fun queueInput(inputBuffer: ByteBuffer) {
-        val outputBuffer = replaceOutputBuffer(inputBuffer.remaining())
+        val inputSize = inputBuffer.remaining()
+        val input = inputBuffer.slice().order(ByteOrder.LITTLE_ENDIAN)
+        inputBuffer.position(inputBuffer.limit())
+
+        val outputBuffer = replaceOutputBuffer(inputSize)
         val current = settings
-        if (!current.enabled || !isWideningUseful(current)) {
-            outputBuffer.put(inputBuffer)
-            outputBuffer.flip()
+        if (!current.requiresAudioProcessor()) {
+            copyInputToOutput(input, outputBuffer)
             return
         }
 
-        val input = inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
         val output = outputBuffer.order(ByteOrder.LITTLE_ENDIAN)
         val sideGain = current.stereoWidth / 100f
         val centerGain = current.centerRetention / 100f
@@ -74,6 +76,13 @@ class StereoWidenerAudioProcessor : BaseAudioProcessor() {
         output.flip()
     }
 
+    private fun copyInputToOutput(input: ByteBuffer, output: ByteBuffer) {
+        val bytes = ByteArray(input.remaining())
+        input.get(bytes)
+        output.put(bytes)
+        output.flip()
+    }
+
     override fun onFlush() {
         clearRuntimeState()
     }
@@ -82,12 +91,6 @@ class StereoWidenerAudioProcessor : BaseAudioProcessor() {
         delayBuffer = FloatArray(1)
         clearRuntimeState()
     }
-
-    private fun isWideningUseful(current: StereoWidenerSettings): Boolean =
-        current.stereoWidth != AudioEffectState.STEREO_WIDTH_DEFAULT ||
-            current.centerRetention != AudioEffectState.CENTER_RETENTION_DEFAULT ||
-            current.spatialDelayUs > 0 ||
-            current.bassMonoProtectHz > 0
 
     private fun readDelayedSide(side: Float): Float {
         if (delayBuffer.size <= 1) return side

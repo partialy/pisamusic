@@ -27,6 +27,24 @@ class StereoWidenerAudioProcessorTest {
     }
 
     @Test
+    fun `bypass accepts previous output buffer as next input`() {
+        val processor = StereoWidenerAudioProcessor()
+        processor.configure(stereoPcmFormat())
+        processor.flush()
+
+        processor.queueInput(stereoBuffer(1000, -1000, -2000, 2000))
+        val previousOutput = processor.getOutput()
+
+        processor.queueInput(previousOutput)
+        val output = processor.getOutput().order(ByteOrder.LITTLE_ENDIAN)
+
+        assertEquals(1000, output.short.toInt())
+        assertEquals(-1000, output.short.toInt())
+        assertEquals(-2000, output.short.toInt())
+        assertEquals(2000, output.short.toInt())
+    }
+
+    @Test
     fun `widens stereo pcm without clipping`() {
         val processor = StereoWidenerAudioProcessor()
         processor.updateSettings(

@@ -26,8 +26,18 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 sealed class PlaybackUiEvent {
-    object NetworkPoorPaused : PlaybackUiEvent()
+    data class NetworkPoorPaused(val summary: PlaybackErrorSummary? = null) : PlaybackUiEvent()
     data class AutoSwitched(val mode: SettingsPrefs.AutoSwitchListMode) : PlaybackUiEvent()
+}
+
+data class PlaybackErrorSummary(
+    val songType: String,
+    val uriScheme: String,
+    val errorCodeName: String,
+    val cause: String,
+) {
+    fun toDebugString(): String =
+        "songType=$songType, uriScheme=$uriScheme, errorCodeName=$errorCodeName, cause=$cause"
 }
 
 /**
@@ -51,6 +61,7 @@ class MusicController @Inject constructor(
     private val playRequestGate = LatestRequestGate()
     private val playJobLock = Any()
     private val _playbackEvents = MutableSharedFlow<PlaybackUiEvent>(extraBufferCapacity = 1)
+    private val _playerEvents = MutableSharedFlow<ExoPlayer>(extraBufferCapacity = 1)
     private var playJob: Job? = null
 
     init {
@@ -66,6 +77,7 @@ class MusicController @Inject constructor(
             onPrevious = { previous() },
             onTogglePlayPause = { togglePlayPause() },
             onPlaybackEvent = { event -> _playbackEvents.tryEmit(event) },
+            onPlayerChanged = { player -> _playerEvents.tryEmit(player) },
         )
         engine.init()
     }
@@ -86,6 +98,7 @@ class MusicController @Inject constructor(
     val playbackState: StateFlow<Int> get() = engine.playbackState
     val playNextQueue: StateFlow<List<SongInfo>> get() = playlistManager.playNextQueue
     val playbackEvents: SharedFlow<PlaybackUiEvent> get() = _playbackEvents
+    val playerEvents: SharedFlow<ExoPlayer> get() = _playerEvents
 
     // ==================== 播放控制 ====================
 

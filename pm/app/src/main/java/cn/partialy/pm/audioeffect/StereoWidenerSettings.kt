@@ -24,6 +24,15 @@ data class StereoWidenerSettings(
             bassMonoProtectHz = AudioEffectState.normalizeBassMonoProtectHz(bassMonoProtectHz),
         )
 
+    fun requiresAudioProcessor(): Boolean {
+        val current = normalized()
+        return current.enabled &&
+            (current.stereoWidth != AudioEffectState.STEREO_WIDTH_DEFAULT ||
+                current.centerRetention != AudioEffectState.CENTER_RETENTION_DEFAULT ||
+                current.spatialDelayUs > 0 ||
+                current.bassMonoProtectHz > 0)
+    }
+
     companion object {
         val DISABLED = StereoWidenerSettings()
     }

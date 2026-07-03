@@ -48,7 +48,13 @@ class PlaybackFaultRecorder @Inject constructor(
         quality: String,
         trace: PlaybackRequestTrace?,
         error: Throwable,
+        diagnosticSummary: String = "",
     ) {
+        val diagnosticError = if (diagnosticSummary.isBlank()) {
+            error
+        } else {
+            PlaybackDiagnosticException(diagnosticSummary, error)
+        }
         store.insert(
             buildLog(
                 song = song,
@@ -57,7 +63,7 @@ class PlaybackFaultRecorder @Inject constructor(
                 trace = trace,
                 methodName = "PlayerEngine.onPlayerError",
                 resolvedUrl = PlaybackFaultSanitizer.limit(resolvedUrl, PlaybackFaultSanitizer.MAX_URL_LENGTH),
-                error = error,
+                error = diagnosticError,
                 fallbackMessage = "播放器加载失败",
             ),
         )
@@ -92,6 +98,11 @@ class PlaybackFaultRecorder @Inject constructor(
         songId = PlaybackFaultSanitizer.limit(song.id, 256),
         quality = PlaybackFaultSanitizer.limit(quality, 64),
     )
+
+    private class PlaybackDiagnosticException(
+        message: String,
+        cause: Throwable,
+    ) : RuntimeException(message, cause)
 
     companion object {
         const val SCENE_PLAY_URL = "play_url"

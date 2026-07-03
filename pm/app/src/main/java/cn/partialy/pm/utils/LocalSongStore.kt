@@ -482,12 +482,7 @@ class LocalSongStore @Inject constructor(
     }
 
     private fun LocalMusicMediaRow.toSongInfo(): SongInfo {
-        val playId = when {
-            origin == ORIGIN_IMPORTED_URI && contentUri.isNotBlank() -> contentUri
-            filePath.isNotBlank() -> filePath
-            contentUri.isNotBlank() -> contentUri
-            else -> recordId
-        }
+        val playId = resolvePlaybackId(contentUri, filePath, recordId)
         val coverBytes = readCoverBytes(this)
         return SongInfo(
             id = playId,
@@ -643,6 +638,17 @@ class LocalSongStore @Inject constructor(
         const val ORIGIN_IMPORTED_URI = "imported_uri"
         private const val MIN_SCAN_DURATION_MS = 60_000L
         private const val TABLE = "local_songs"
+
+        internal fun resolvePlaybackId(
+            contentUri: String,
+            filePath: String,
+            recordId: String,
+        ): String = when {
+            contentUri.isNotBlank() -> contentUri
+            filePath.isNotBlank() -> filePath
+            else -> recordId
+        }
+
         private val AUDIO_EXTENSIONS = setOf(
             ".mp3",
             ".flac",

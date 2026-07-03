@@ -3,6 +3,7 @@ package cn.partialy.pm.player
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.view.KeyEvent
 import androidx.media3.common.C
 import androidx.media3.common.AudioAttributes
@@ -55,6 +56,7 @@ class PlayerEngine(
     private val onPrevious: () -> Unit,
     private val onTogglePlayPause: () -> Unit,
     private val onPlaybackEvent: (PlaybackUiEvent) -> Unit,
+    private val onPlayerChanged: (ExoPlayer) -> Unit,
 ) {
     var exoPlayer: ExoPlayer? = null
         private set
@@ -82,7 +84,11 @@ class PlayerEngine(
     private var lastManualNextAtMs = 0L
     private var lastManualPreviousAtMs = 0L
     private var progressUpdateJob: Job? = null
+    private var audioRendererStateJob: Job? = null
     private var released = false
+    private var usingAudioEffectsRenderer = false
+    private var audioEffectsRendererDisabledForSession = false
+    private val audioRendererRetryKeys = mutableSetOf<String>()
     private val playbackRefreshRetryKeys = mutableSetOf<String>()
     private val playbackAudioAttributes = AudioAttributes.Builder()
         .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -100,6 +106,7 @@ class PlayerEngine(
     /** 由 MusicController 在构造后调用 */
     fun init() {
         initPlayer()
+        observeAudioRendererPolicy()
         restoreIfPossible()
     }
 
@@ -108,17 +115,30 @@ class PlayerEngine(
     // ==================== ExoPlayer / MediaSession 初始化 ====================
 
     private fun initPlayer() {
-        val coexistenceMode = SettingsPrefs.getAudioCoexistenceMode(context)
+        replacePlayer(
+            useAudioEffectsRenderer = shouldUseAudioEffectsRenderer(),
+            mediaItems = emptyList(),
+            startIndex = 0,
+            startPositionMs = 0L,
+        )
+        audioCoexistenceController.applyMode(SettingsPrefs.getAudioCoexistenceMode(context))
+    }
+
+    private fun buildPlayer(useAudioEffectsRenderer: Boolean): ExoPlayer {
         val mediaSourceFactory = DefaultMediaSourceFactory(
             PlayerCacheProvider.buildCacheDataSourceFactory(context)
         )
-        exoPlayer = ExoPlayer.Builder(context)
-            .setRenderersFactory(
+        val builder = ExoPlayer.Builder(context)
+        if (useAudioEffectsRenderer) {
+            builder.setRenderersFactory(
                 AudioEffectsRenderersFactory(
                     context,
                     audioEffectsManager.stereoWidenerAudioProcessor,
                 ),
             )
+        }
+        val coexistenceMode = SettingsPrefs.getAudioCoexistenceMode(context)
+        return builder
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(
                 playbackAudioAttributes,
@@ -131,14 +151,104 @@ class PlayerEngine(
                 addListener(playerListener)
                 audioEffectsManager.bindAudioSession(audioSessionId)
             }
+    }
 
-        playlistManager.exoPlayer = exoPlayer
-        audioCoexistenceController.applyMode(coexistenceMode)
+    private fun replacePlayer(
+        useAudioEffectsRenderer: Boolean,
+        mediaItems: List<MediaItem>,
+        startIndex: Int,
+        startPositionMs: Long,
+    ): ExoPlayer {
+        val oldPlayer = exoPlayer
+        val oldSession = mediaSession
+        oldPlayer?.removeListener(playerListener)
+        oldSession?.release()
+        mediaSession = null
+        audioEffectsManager.release()
 
-        mediaSession = MediaSession.Builder(context, exoPlayer!!)
+        val player = buildPlayer(useAudioEffectsRenderer)
+        usingAudioEffectsRenderer = useAudioEffectsRenderer
+        if (mediaItems.isNotEmpty()) {
+            player.setMediaItems(
+                mediaItems,
+                startIndex.coerceIn(0, mediaItems.lastIndex),
+                startPositionMs.coerceAtLeast(0L),
+            )
+        }
+        exoPlayer = player
+        playlistManager.exoPlayer = player
+
+        mediaSession = MediaSession.Builder(context, player)
             .setId("MusicSession-${System.currentTimeMillis()}")
             .setCallback(sessionCallback)
             .build()
+        oldPlayer?.release()
+        onPlayerChanged(player)
+        return player
+    }
+
+    private fun shouldUseAudioEffectsRenderer(): Boolean =
+        !audioEffectsRendererDisabledForSession &&
+            AudioRendererPolicy.shouldUseAudioEffectsRenderer(audioEffectsManager.state.value)
+
+    private fun observeAudioRendererPolicy() {
+        if (audioRendererStateJob?.isActive == true) return
+        audioRendererStateJob = CoroutineScope(Dispatchers.Main).launch {
+            audioEffectsManager.state.collect { state ->
+                val stateRequiresRenderer = AudioRendererPolicy.shouldUseAudioEffectsRenderer(state)
+                if (!stateRequiresRenderer) {
+                    audioEffectsRendererDisabledForSession = false
+                }
+                val target = !audioEffectsRendererDisabledForSession && stateRequiresRenderer
+                if (exoPlayer != null && target != usingAudioEffectsRenderer) {
+                    rebuildPlayerForRendererPolicy(target)
+                }
+            }
+        }
+    }
+
+    private fun rebuildPlayerForRendererPolicy(useAudioEffectsRenderer: Boolean) {
+        val player = exoPlayer ?: return
+        val mediaItems = (0 until player.mediaItemCount).map { index -> player.getMediaItemAt(index) }
+        val startIndex = if (mediaItems.isEmpty()) 0 else player.currentMediaItemIndex.coerceIn(0, mediaItems.lastIndex)
+        val startPositionMs = player.currentPosition.coerceAtLeast(0L)
+        val shouldPlay = player.playWhenReady
+        val replacement = replacePlayer(
+            useAudioEffectsRenderer = useAudioEffectsRenderer,
+            mediaItems = mediaItems,
+            startIndex = startIndex,
+            startPositionMs = startPositionMs,
+        )
+        if (mediaItems.isNotEmpty()) {
+            replacement.prepare()
+            if (shouldPlay) replacement.play() else replacement.pause()
+        }
+    }
+
+    private fun retryWithNativeRendererIfNeeded(error: PlaybackException): Boolean {
+        if (!usingAudioEffectsRenderer || !AudioRendererPolicy.isAudioRendererError(error)) return false
+        val player = exoPlayer ?: return false
+        val mediaItems = (0 until player.mediaItemCount).map { index -> player.getMediaItemAt(index) }
+        if (mediaItems.isEmpty()) return false
+        val startIndex = player.currentMediaItemIndex.coerceIn(0, mediaItems.lastIndex)
+        val song = playlistManager.playList.value.getOrNull(startIndex)
+        val retryKey = song?.let { factory.keyOf(it) } ?: "index:$startIndex"
+        if (!audioRendererRetryKeys.add(retryKey)) return false
+
+        audioEffectsRendererDisabledForSession = true
+        val startPositionMs = player.currentPosition.coerceAtLeast(0L)
+        val shouldPlay = player.playWhenReady
+        Log.w(TAG, "Retry playback with native renderer: ${buildPlaybackErrorSummary(error)?.toDebugString()}")
+        val replacement = replacePlayer(
+            useAudioEffectsRenderer = false,
+            mediaItems = mediaItems,
+            startIndex = startIndex,
+            startPositionMs = startPositionMs,
+        )
+        replacement.prepare()
+        if (shouldPlay) replacement.play() else replacement.pause()
+        persistState(force = true)
+        return true
     }
 
     // ==================== Player.Listener ====================
@@ -195,8 +305,11 @@ class PlayerEngine(
 
         override fun onPlayerError(error: PlaybackException) {
             super.onPlayerError(error)
-            recordPlaybackFailure(error)
-            handlePlaybackFailureAndSkip()
+            val summary = buildPlaybackErrorSummary(error)
+            recordPlaybackFailure(error, summary)
+            logPlaybackFailure(summary)
+            if (retryWithNativeRendererIfNeeded(error)) return
+            handlePlaybackFailureAndSkip(error, summary)
         }
 
         @SuppressLint("SwitchIntDef")
@@ -211,7 +324,7 @@ class PlayerEngine(
         }
     }
 
-    private fun recordPlaybackFailure(error: PlaybackException) {
+    private fun recordPlaybackFailure(error: PlaybackException, summary: PlaybackErrorSummary?) {
         val player = exoPlayer ?: return
         val song = playlistManager.playList.value.getOrNull(player.currentMediaItemIndex) ?: return
         if (song.type == SongType.LOCAL) return
@@ -219,9 +332,58 @@ class PlayerEngine(
         val trace = factory.getPlaybackTrace(song)
         val quality = factory.playbackQualityKeyOf(song)
         CoroutineScope(Dispatchers.IO).launch {
-            playbackFaultRecorder.recordPlayerFailure(song, resolvedUrl, quality, trace, error)
+            playbackFaultRecorder.recordPlayerFailure(
+                song = song,
+                resolvedUrl = resolvedUrl,
+                quality = quality,
+                trace = trace,
+                error = error,
+                diagnosticSummary = summary?.toDebugString().orEmpty(),
+            )
         }
     }
+
+    private fun buildPlaybackErrorSummary(error: Throwable?): PlaybackErrorSummary? {
+        val player = exoPlayer
+        val index = player?.currentMediaItemIndex ?: playlistManager.currentIndex.value
+        val song = playlistManager.playList.value.getOrNull(index)
+        if (song == null && error == null) return null
+        val uri = player?.currentMediaItem?.localConfiguration?.uri?.toString()
+            .orEmpty()
+            .ifBlank { song?.id.orEmpty() }
+        return PlaybackErrorSummary(
+            songType = song?.type?.name ?: "UNKNOWN",
+            uriScheme = uriSchemeOf(uri),
+            errorCodeName = (error as? PlaybackException)?.errorCodeName
+                ?: error?.javaClass?.simpleName
+                ?: "unknown",
+            cause = summarizeCause(error),
+        )
+    }
+
+    private fun logPlaybackFailure(summary: PlaybackErrorSummary?) {
+        if (summary == null) return
+        Log.w(TAG, "Playback failure: ${summary.toDebugString()}")
+    }
+
+    private fun uriSchemeOf(value: String): String {
+        val separator = value.indexOf(':')
+        return if (separator > 0) value.substring(0, separator).lowercase() else "none"
+    }
+
+    private fun summarizeCause(error: Throwable?): String {
+        var target = error
+        while (target?.cause != null) {
+            target = target.cause
+        }
+        if (target == null) return "unknown"
+        val type = target.javaClass.name
+        val message = target.message?.takeIf { it.isNotBlank() }
+        return limitDiagnostic(if (message == null) type else "$type: $message")
+    }
+
+    private fun limitDiagnostic(value: String): String =
+        if (value.length <= MAX_DIAGNOSTIC_LENGTH) value else value.take(MAX_DIAGNOSTIC_LENGTH)
 
     // ==================== MediaSession.Callback ====================
 
@@ -450,7 +612,7 @@ class PlayerEngine(
     }
 
     fun handlePlaybackRequestFailure() {
-        handleExhaustedPlaybackFailure()
+        handleExhaustedPlaybackFailure(null)
     }
 
     fun setPlaying(playing: Boolean) {
@@ -587,28 +749,35 @@ class PlayerEngine(
                 } catch (e: Exception) {
                     e.printStackTrace()
                     withContext(Dispatchers.Main) {
-                        handlePlaybackFailureAndSkip()
+                        val summary = buildPlaybackErrorSummary(e)
+                        logPlaybackFailure(summary)
+                        handlePlaybackFailureAndSkip(e, summary)
                     }
                 }
             }
         }
     }
 
-    private fun handlePlaybackFailureAndSkip() {
+    private fun handlePlaybackFailureAndSkip(
+        error: Throwable? = null,
+        previousSummary: PlaybackErrorSummary? = null,
+    ) {
         // 恢复态（pause + prepare）若触发 source error，不应自动切歌导致看起来“自动播放”。
         val player = exoPlayer ?: return
         if (player.playWhenReady != true) return
         val index = player.currentMediaItemIndex
         val song = playlistManager.playList.value.getOrNull(index)
+        val summary = previousSummary ?: buildPlaybackErrorSummary(error)
         if (song != null && shouldRetryWithFreshUrl(song)) {
             retryCurrentSongWithFreshUrl(
                 index = index,
                 song = song,
                 positionMs = player.currentPosition.coerceAtLeast(0L),
+                previousSummary = summary,
             )
             return
         }
-        handleExhaustedPlaybackFailure()
+        handleExhaustedPlaybackFailure(summary)
     }
 
     private fun shouldRetryWithFreshUrl(song: SongInfo): Boolean {
@@ -616,7 +785,12 @@ class PlayerEngine(
         return playbackRefreshRetryKeys.add(factory.keyOf(song))
     }
 
-    private fun retryCurrentSongWithFreshUrl(index: Int, song: SongInfo, positionMs: Long) {
+    private fun retryCurrentSongWithFreshUrl(
+        index: Int,
+        song: SongInfo,
+        positionMs: Long,
+        previousSummary: PlaybackErrorSummary?,
+    ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 factory.invalidateCachedPlayableUrl(song)
@@ -637,20 +811,22 @@ class PlayerEngine(
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    handleExhaustedPlaybackFailure()
+                    val summary = buildPlaybackErrorSummary(e) ?: previousSummary
+                    logPlaybackFailure(summary)
+                    handleExhaustedPlaybackFailure(summary)
                 }
             }
         }
     }
 
-    private fun handleExhaustedPlaybackFailure() {
+    private fun handleExhaustedPlaybackFailure(summary: PlaybackErrorSummary?) {
         val now = System.currentTimeMillis()
         if (now - lastFailurePauseAtMs < 1200L) return
         lastFailurePauseAtMs = now
 
         val mode = SettingsPrefs.getAutoSwitchListMode(context)
         if (mode == SettingsPrefs.AutoSwitchListMode.Off) {
-            pauseCurrentAfterPlaybackFailure()
+            pauseCurrentAfterPlaybackFailure(summary)
             return
         }
 
@@ -659,7 +835,7 @@ class PlayerEngine(
                 fallbackProvider.load(mode, factory)
             }
             if (fallback.songs.isEmpty()) {
-                pauseCurrentAfterPlaybackFailure()
+                pauseCurrentAfterPlaybackFailure(summary)
                 return@launch
             }
             fallback.cachedRecords.forEach { record ->
@@ -676,10 +852,10 @@ class PlayerEngine(
         }
     }
 
-    private fun pauseCurrentAfterPlaybackFailure() {
+    private fun pauseCurrentAfterPlaybackFailure(summary: PlaybackErrorSummary?) {
         exoPlayer?.pause()
         persistState(force = true)
-        onPlaybackEvent(PlaybackUiEvent.NetworkPoorPaused)
+        onPlaybackEvent(PlaybackUiEvent.NetworkPoorPaused(summary))
     }
 
     private fun recordCachedPlaybackAt(index: Int) {
@@ -807,6 +983,8 @@ class PlayerEngine(
     fun release() {
         if (released) return
         released = true
+        audioRendererStateJob?.cancel()
+        audioRendererStateJob = null
         stopProgressUpdate()
         val player = exoPlayer
         exoPlayer = null
@@ -820,7 +998,9 @@ class PlayerEngine(
     }
 
     private companion object {
+        private const val TAG = "PlayerEngine"
         private const val PROGRESS_UPDATE_INTERVAL_MS = 160L
         private const val MANUAL_NAVIGATION_DEBOUNCE_MS = 650L
+        private const val MAX_DIAGNOSTIC_LENGTH = 512
     }
 }

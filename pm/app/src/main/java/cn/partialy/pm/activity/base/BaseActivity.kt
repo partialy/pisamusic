@@ -46,7 +46,7 @@ open class BaseActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 musicController.playbackEvents.collect { event ->
                     when (event) {
-                        PlaybackUiEvent.NetworkPoorPaused -> showNetworkPoorPausedDialog()
+                        is PlaybackUiEvent.NetworkPoorPaused -> showNetworkPoorPausedDialog()
                         is PlaybackUiEvent.AutoSwitched -> showAutoSwitchedDialog(event)
                     }
                 }
