@@ -125,7 +125,6 @@ class LocalMusicEditActivity : BaseActivity() {
 
     private fun loadRows() {
         lifecycleScope.launch(Dispatchers.IO) {
-            localSongStore.syncMediaStore()
             val rows = localSongStore.queryRows()
             withContext(Dispatchers.Main) {
                 allRows = rows

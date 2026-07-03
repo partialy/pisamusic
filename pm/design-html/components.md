@@ -59,7 +59,7 @@
 
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
-| 歌曲列表行 | 搜索、歌单、收藏、本地歌曲列表 | `item_playlist_song.xml`、`item_search_result.xml`、`item_favorite_song.xml`、`item_local_music.xml` | 对应 Adapter | 新增歌曲行先找最接近业务的现有行。 |
+| 歌曲列表行 | 搜索、歌单、收藏、本地歌曲列表、扫描结果列表 | `item_playlist_song.xml`、`item_search_result.xml`、`item_favorite_song.xml`、`item_local_music.xml`、`item_local_music_scan_result.xml` | 对应 Adapter | 新增歌曲行先找最接近业务的现有行；扫描结果行使用左侧 `MaterialCheckBox`、中间歌曲信息、右侧“已存在”标记。 |
 | 歌单列表行 | 我的歌单、选择歌单、搜索歌单 | `item_mine_playlist_row.xml`、`item_pick_local_playlist_row.xml`、`item_search_playlist.xml` | `MinePlaylistsAdapter`、`SearchPlaylistAdapter` | 封面、标题、副标题、更多按钮参考。 |
 | 首页推荐歌单卡片 | 首页横向/网格歌单卡片 | `item_home_recommend_playlist.xml` | `HomeRecommendPlaylistAdapter`、`HomePlaylistGridAdapter` | 首页歌单卡片优先复用。 |
 | 首页功能卡片 | 每日推荐、雷达、猜你喜欢等入口 | `item_home_feature_card.xml` | `HomeFeatureCardsAdapter` | 首页功能入口卡片参考。 |
@@ -101,5 +101,6 @@
 | 图片裁剪 / 头像选择 | 图片选择、头像裁剪 | 待补充 | 待补充 | 需要确认当前推荐实现。 |
 ## 最近补充
 
+- 本地歌曲扫描页：`pm/app/src/main/res/layout/activity_local_music_scan.xml`，用于扫描歌曲初始页、扫描中、结果列表和底部导入栏；`LocalMusicScanActivity` 复用 edge-to-edge、安全区、Material 主按钮、`PmSwitch` 过滤设置和歌曲结果行。
 - 导入与导出卡片：`pm/app/src/main/res/layout/include_data_management_card.xml`，用于数据概览、导出、导入这类带图标、说明、操作按钮和状态提示的设置卡片；`DataManagementActivity` 复用该布局并使用 `PmMinimalDialog` 统一确认弹窗。
 - 信息操作头部：`pm/app/src/main/res/layout/include_song_info_header.xml` 用于左侧图片、右侧标题/副标题；`SongInfoHeaderBinder` 绑定歌曲，通用操作菜单也可绑定圆形成员头像和在线状态。

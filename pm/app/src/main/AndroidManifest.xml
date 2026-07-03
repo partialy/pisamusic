@@ -279,6 +279,11 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.LocalMusicScanActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm" />
+
+        <activity
             android:name=".activity.PlaylistImportActivity"
             android:exported="false"
             android:theme="@style/Theme.Pm" />

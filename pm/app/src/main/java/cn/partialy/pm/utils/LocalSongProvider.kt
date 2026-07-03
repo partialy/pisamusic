@@ -24,4 +24,19 @@ class LocalSongProvider @Inject constructor(
     fun importSongs(uris: List<Uri>): LocalSongImportResult {
         return localSongStore.importSongs(uris)
     }
+
+    fun scanMediaStoreSongs(filterShortSongs: Boolean): List<LocalSongScanCandidate> {
+        return localSongStore.scanMediaStoreSongs(filterShortSongs)
+    }
+
+    fun scanDocumentTreeSongs(
+        treeUri: Uri,
+        filterShortSongs: Boolean,
+    ): List<LocalSongScanCandidate> {
+        return localSongStore.scanDocumentTreeSongs(treeUri, filterShortSongs)
+    }
+
+    fun importScannedSongs(candidates: List<LocalSongScanCandidate>): LocalSongImportResult {
+        return localSongStore.importScannedSongs(candidates)
+    }
 }

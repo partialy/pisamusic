@@ -198,6 +198,7 @@
 ## 本地歌曲索引补充
 
 - 本地歌曲列表不再直接把 MediaStore 查询结果作为运行时唯一来源；`pm_local_music.db` 的 `local_songs` 表是本地歌曲索引，`origin=media_store` 表示系统媒体库扫描项，`origin=imported_uri` 表示用户通过文件选择器导入的外部文档引用。
-- 进入本地歌曲页或编辑页时需要先同步 MediaStore 到 `local_songs`；系统库中已消失的 `media_store` 记录标记 `is_deleted=1`，不要物理删除历史记录。
+- 进入本地歌曲页或编辑页时只读取 `local_songs` 中未删除的已导入记录，不再自动同步 MediaStore 入库；系统媒体库歌曲必须通过“扫描歌曲”页预览、勾选并点击“导入”后才写入。
+- “扫描歌曲”页支持全盘 MediaStore 扫描和自定义文件夹扫描，默认过滤 60s 以下歌曲；扫描结果先展示为可取消勾选的候选列表，已存在歌曲标记为“已存在”且不重复导入。系统库中已消失的 `media_store` 记录如需清理时标记 `is_deleted=1`，不要物理删除历史记录。
 - “导入歌曲”只记录 `content://` 引用和元信息，并申请持久读取权限，不复制音频文件；重复过滤优先按 `content_uri`，其次按 `media_store_id`，再按 `display_name + size + duration` 兜底。
 - 编辑列表删除默认只移除 SQLite 引用；用户勾选“一并删除本地文件”时再尝试删除原始文件。删除授权失败时仍保留列表移除结果，并提示原文件可能未删除。

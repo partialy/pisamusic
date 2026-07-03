@@ -7,6 +7,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import androidx.documentfile.provider.DocumentFile
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
@@ -19,6 +20,21 @@ import javax.inject.Singleton
 data class LocalSongImportResult(
     val importedCount: Int,
     val skippedCount: Int,
+)
+
+data class LocalSongScanCandidate(
+    val scanKey: String,
+    val origin: String,
+    val mediaStoreId: Long?,
+    val contentUri: String,
+    val filePath: String,
+    val title: String,
+    val artist: String,
+    val duration: Long?,
+    val size: Long?,
+    val mimeType: String,
+    val displayName: String,
+    val isExisting: Boolean,
 )
 
 @Singleton
@@ -102,6 +118,75 @@ class LocalSongStore @Inject constructor(
                     size = meta.size,
                     mimeType = meta.mimeType,
                     displayName = meta.displayName,
+                    createdAt = if (duplicate == null) now else null,
+                    updatedAt = now,
+                )
+                imported++
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        return LocalSongImportResult(imported, skipped)
+    }
+
+    fun scanMediaStoreSongs(filterShortSongs: Boolean): List<LocalSongScanCandidate> =
+        queryMediaStoreRows()
+            .asSequence()
+            .filter { row -> shouldKeepByDuration(row.duration, filterShortSongs) }
+            .map { row -> row.toScanCandidate() }
+            .distinctBy { it.playIdentity() }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title.ifBlank { it.displayName } })
+            .toList()
+
+    fun scanDocumentTreeSongs(
+        treeUri: Uri,
+        filterShortSongs: Boolean,
+    ): List<LocalSongScanCandidate> {
+        val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
+        val candidates = mutableListOf<LocalSongScanCandidate>()
+        collectDocumentSongs(root, candidates, filterShortSongs)
+        return candidates
+            .distinctBy { it.playIdentity() }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title.ifBlank { it.displayName } })
+    }
+
+    fun importScannedSongs(candidates: List<LocalSongScanCandidate>): LocalSongImportResult {
+        var imported = 0
+        var skipped = 0
+        val now = System.currentTimeMillis()
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            candidates.forEach { candidate ->
+                val duplicate = findDuplicateLocked(
+                    contentUri = candidate.contentUri,
+                    mediaStoreId = candidate.mediaStoreId,
+                    displayName = candidate.displayName,
+                    size = candidate.size,
+                    duration = candidate.duration,
+                )
+                if (duplicate != null && !duplicate.isDeleted) {
+                    skipped++
+                    return@forEach
+                }
+                val id = duplicate?.id ?: if (candidate.mediaStoreId != null) {
+                    mediaRecordId(candidate.mediaStoreId)
+                } else {
+                    importedRecordId(candidate.contentUri)
+                }
+                upsertRowLocked(
+                    id = id,
+                    origin = candidate.origin,
+                    mediaStoreId = candidate.mediaStoreId,
+                    contentUri = candidate.contentUri,
+                    filePath = candidate.filePath,
+                    title = candidate.title,
+                    artist = candidate.artist,
+                    duration = candidate.duration,
+                    size = candidate.size,
+                    mimeType = candidate.mimeType,
+                    displayName = candidate.displayName,
                     createdAt = if (duplicate == null) now else null,
                     updatedAt = now,
                 )
@@ -242,6 +327,38 @@ class LocalSongStore @Inject constructor(
             duration = mediaMeta.duration,
             size = size,
             mimeType = context.contentResolver.getType(uri).orEmpty(),
+            displayName = displayName,
+        )
+    }
+
+    private fun collectDocumentSongs(
+        document: DocumentFile,
+        candidates: MutableList<LocalSongScanCandidate>,
+        filterShortSongs: Boolean,
+    ) {
+        if (document.isDirectory) {
+            document.listFiles().forEach { child ->
+                collectDocumentSongs(child, candidates, filterShortSongs)
+            }
+            return
+        }
+        if (!document.isFile || !isAudioDocument(document)) return
+
+        val meta = readDocumentMetadata(document)
+        if (!shouldKeepByDuration(meta.duration, filterShortSongs)) return
+        candidates.add(meta.toDocumentScanCandidate())
+    }
+
+    private fun readDocumentMetadata(document: DocumentFile): ImportedSongMetadata {
+        val meta = readImportMetadata(document.uri)
+        val displayName = meta.displayName.ifBlank { document.name.orEmpty() }
+        val title = meta.title.ifBlank { displayName.substringBeforeLast('.', displayName) }
+        val size = meta.size ?: document.length().takeIf { it > 0L }
+        val mimeType = meta.mimeType.ifBlank { document.type.orEmpty() }
+        return meta.copy(
+            title = title,
+            size = size,
+            mimeType = mimeType,
             displayName = displayName,
         )
     }
@@ -412,6 +529,69 @@ class LocalSongStore @Inject constructor(
     private fun LocalMusicMediaRow.playIdentity(): String =
         contentUri.ifBlank { filePath.ifBlank { "${displayName}:${size}:${duration}" } }
 
+    private fun LocalSongScanCandidate.playIdentity(): String =
+        contentUri.ifBlank { filePath.ifBlank { "${displayName}:${size}:${duration}" } }
+
+    private fun MediaStoreRow.toScanCandidate(): LocalSongScanCandidate {
+        val duplicate = findDuplicateLocked(
+            contentUri = contentUri,
+            mediaStoreId = mediaId,
+            displayName = displayName,
+            size = size,
+            duration = duration,
+        )
+        return LocalSongScanCandidate(
+            scanKey = "media_store:$mediaId",
+            origin = ORIGIN_MEDIA_STORE,
+            mediaStoreId = mediaId,
+            contentUri = contentUri,
+            filePath = filePath,
+            title = title,
+            artist = artist,
+            duration = duration,
+            size = size,
+            mimeType = mimeType,
+            displayName = displayName,
+            isExisting = duplicate != null && !duplicate.isDeleted,
+        )
+    }
+
+    private fun ImportedSongMetadata.toDocumentScanCandidate(): LocalSongScanCandidate {
+        val duplicate = findDuplicateLocked(
+            contentUri = contentUri,
+            mediaStoreId = null,
+            displayName = displayName,
+            size = size,
+            duration = duration,
+        )
+        return LocalSongScanCandidate(
+            scanKey = importedRecordId(contentUri),
+            origin = ORIGIN_IMPORTED_URI,
+            mediaStoreId = null,
+            contentUri = contentUri,
+            filePath = "",
+            title = title,
+            artist = artist,
+            duration = duration,
+            size = size,
+            mimeType = mimeType,
+            displayName = displayName,
+            isExisting = duplicate != null && !duplicate.isDeleted,
+        )
+    }
+
+    private fun shouldKeepByDuration(duration: Long?, filterShortSongs: Boolean): Boolean {
+        if (!filterShortSongs || duration == null) return true
+        return duration >= MIN_SCAN_DURATION_MS
+    }
+
+    private fun isAudioDocument(document: DocumentFile): Boolean {
+        val mimeType = document.type.orEmpty()
+        if (mimeType.startsWith("audio/")) return true
+        val name = document.name.orEmpty().lowercase()
+        return AUDIO_EXTENSIONS.any { extension -> name.endsWith(extension) }
+    }
+
     private fun Cursor.getNullableLong(column: Int): Long? =
         if (isNull(column)) null else getLong(column)
 
@@ -461,7 +641,18 @@ class LocalSongStore @Inject constructor(
     companion object {
         const val ORIGIN_MEDIA_STORE = "media_store"
         const val ORIGIN_IMPORTED_URI = "imported_uri"
+        private const val MIN_SCAN_DURATION_MS = 60_000L
         private const val TABLE = "local_songs"
+        private val AUDIO_EXTENSIONS = setOf(
+            ".mp3",
+            ".flac",
+            ".wav",
+            ".m4a",
+            ".aac",
+            ".ogg",
+            ".opus",
+            ".wma",
+        )
         private val LOCAL_SONG_COLUMNS = arrayOf(
             "id",
             "origin",

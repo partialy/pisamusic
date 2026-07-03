@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { decrypt } from "../../api/crypto";
 import { glassCardClasses, glassInputClasses } from "../../constants/theme";
 import { DEFAULT_PLAINTEXT_PATHS } from "../../types/config";
 
@@ -14,6 +15,7 @@ type Props = {
 };
 
 const PATH_REGEX = /^\/[A-Za-z0-9._\-/*]*$/;
+const FULL_KEY_REGEX = /^[0-9a-fA-F]{128}$/;
 
 function validatePath(input: string): string | null {
   const t = input.trim();
@@ -24,6 +26,33 @@ function validatePath(input: string): string | null {
   const starIdx = t.indexOf("*");
   if (starIdx !== -1 && starIdx !== t.length - 1) return "* 只能出现在末尾";
   return null;
+}
+
+function extractEncData(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (typeof parsed === "string") return parsed.trim();
+    if (parsed && typeof parsed === "object") {
+      const encData = (parsed as { encData?: unknown }).encData;
+      if (typeof encData === "string") return encData.trim();
+      throw new Error("未找到 encData 字段");
+    }
+  } catch (e) {
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      throw e;
+    }
+  }
+  return trimmed;
+}
+
+function formatPlainText(plain: string): string {
+  try {
+    return JSON.stringify(JSON.parse(plain) as unknown, null, 2);
+  } catch {
+    return plain;
+  }
 }
 
 export default function EncryptionTab({
@@ -38,6 +67,11 @@ export default function EncryptionTab({
 }: Props) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [decryptKey, setDecryptKey] = useState("");
+  const [cipherInput, setCipherInput] = useState("");
+  const [decryptResult, setDecryptResult] = useState("");
+  const [decryptError, setDecryptError] = useState<string | null>(null);
+  const [decrypting, setDecrypting] = useState(false);
 
   const stats = useMemo(() => {
     let exact = 0;
@@ -68,6 +102,41 @@ export default function EncryptionTab({
   const handleRemove = (idx: number) => {
     const next = paths.filter((_, i) => i !== idx);
     onChange(next);
+  };
+
+  const handleDecrypt = async () => {
+    const fullKey = decryptKey.trim();
+    if (!FULL_KEY_REGEX.test(fullKey)) {
+      setDecryptError("x-pm-random 必须是 128 位 hex 字符串");
+      setDecryptResult("");
+      return;
+    }
+
+    let encData = "";
+    try {
+      encData = extractEncData(cipherInput);
+    } catch {
+      setDecryptError("密文格式不正确，请输入 encData 或完整的加密 JSON");
+      setDecryptResult("");
+      return;
+    }
+    if (!encData) {
+      setDecryptError("密文不能为空");
+      setDecryptResult("");
+      return;
+    }
+
+    setDecrypting(true);
+    setDecryptError(null);
+    try {
+      const plain = await decrypt(fullKey, encData);
+      setDecryptResult(formatPlainText(plain));
+    } catch {
+      setDecryptResult("");
+      setDecryptError("解密失败，请检查密文和 x-pm-random 是否匹配");
+    } finally {
+      setDecrypting(false);
+    }
   };
 
   return (
@@ -220,6 +289,86 @@ export default function EncryptionTab({
           提示：保存后立即热更新生效，不需要重启服务；同时会写入 <code className="font-mono">data/app-config.json</code> 的 <code className="font-mono">encryption.plaintextPaths</code> 字段。
           推荐默认值：<span className="font-mono">{DEFAULT_PLAINTEXT_PATHS.length}</span> 条。
         </p>
+      </div>
+
+      <div className={glassCardClasses}>
+        <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div className="flex min-w-0 items-center">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-700 to-slate-950 text-white flex items-center justify-center mr-4 shadow-lg shadow-slate-900/20 shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">加密响应解密工具</h2>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                输入接口响应里的 <code className="px-1 py-0.5 bg-white/60 rounded text-[11px] font-mono">encData</code> 和响应头
+                <code className="px-1 py-0.5 bg-white/60 rounded text-[11px] font-mono">x-pm-random</code>，在浏览器本地解出明文，不会提交到服务端。
+              </p>
+            </div>
+          </div>
+          <span className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-1.5 text-xs font-bold text-emerald-700">
+            本地解密
+          </span>
+        </div>
+
+        <div className="grid gap-4">
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold text-slate-500">x-pm-random</span>
+            <input
+              type="text"
+              value={decryptKey}
+              placeholder="128 位 hex 字符串"
+              onChange={(e) => {
+                setDecryptKey(e.target.value);
+                if (decryptError) setDecryptError(null);
+              }}
+              className={glassInputClasses + " font-mono text-[13px]"}
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold text-slate-500">密文 / 加密 JSON</span>
+            <textarea
+              value={cipherInput}
+              placeholder='可粘贴 encData，或完整 {"isEnc":true,"encData":"..."}'
+              onChange={(e) => {
+                setCipherInput(e.target.value);
+                if (decryptError) setDecryptError(null);
+              }}
+              className={glassInputClasses + " min-h-36 resize-y font-mono text-[13px] leading-relaxed"}
+            />
+          </label>
+
+          {decryptError && (
+            <p className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 text-xs font-bold text-red-600">
+              {decryptError}
+            </p>
+          )}
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => void handleDecrypt()}
+              disabled={decrypting}
+              style={!decrypting ? { backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` } : undefined}
+              className={`px-6 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+                decrypting
+                  ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  : "text-white hover:-translate-y-0.5 hover:opacity-90"
+              }`}
+            >
+              {decrypting ? "解密中…" : "解密"}
+            </button>
+          </div>
+
+          <label className="block">
+            <span className="mb-2 block text-xs font-bold text-slate-500">明文结果</span>
+            <pre className="min-h-36 overflow-auto whitespace-pre-wrap break-words rounded-2xl border border-white/60 bg-slate-950 px-4 py-4 font-mono text-[12px] leading-relaxed text-emerald-300 shadow-inner">
+              {decryptResult || "解密成功后会显示明文；JSON 明文会自动格式化。"}
+            </pre>
+          </label>
+        </div>
       </div>
     </div>
   );

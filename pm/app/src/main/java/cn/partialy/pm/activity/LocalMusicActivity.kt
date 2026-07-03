@@ -71,6 +71,14 @@ class LocalMusicActivity : BaseDownloadActivity() {
         }
     }
 
+    private val localMusicScanLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            loadLocalMusic()
+        }
+    }
+
     private val importSongsLauncher = registerForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris ->
@@ -243,7 +251,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
             text = getString(R.string.local_music_scan_songs),
         ) {
             localMenuPopup?.dismiss()
-            Toast.makeText(this, R.string.local_music_scan_not_ready, Toast.LENGTH_SHORT).show()
+            openScanLocalMusic()
         }
         addLocalMenuRow(
             container = container,
@@ -301,6 +309,11 @@ class LocalMusicActivity : BaseDownloadActivity() {
         AppActivityTransitions.applyForward(this)
     }
 
+    private fun openScanLocalMusic() {
+        localMusicScanLauncher.launch(Intent(this, LocalMusicScanActivity::class.java))
+        AppActivityTransitions.applyForward(this)
+    }
+
     private fun importSelectedSongs(uris: List<Uri>) {
         uris.forEach(::takeReadPersistablePermission)
         lifecycleScope.launch(Dispatchers.IO) {
@@ -349,7 +362,7 @@ class LocalMusicActivity : BaseDownloadActivity() {
     }
 
     private fun queryLocalMusic(): List<SongInfo> {
-        return localSongProvider.refreshLocalSongs()
+        return localSongProvider.queryLocalSongs()
     }
 
     @SuppressLint("SetTextI18n")
