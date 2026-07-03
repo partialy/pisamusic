@@ -82,6 +82,7 @@ import { clearStoredToken, getStoredToken } from "./auth/token";
 import { defaultAppConfig } from "./data/defaultAppConfig";
 import { draftToPayload, historyItemToDraft } from "./utils/updatePayload";
 import { loadTheme, saveTheme } from "./utils/themeStorage";
+import { downloadFaultReportLogJson, downloadFaultReportLogsZip } from "./utils/faultReportExport";
 import LoginPage from "./components/LoginPage";
 import ChangePasswordModal from "./components/modals/ChangePasswordModal";
 import DynamicConfigModal from "./components/modals/DynamicConfigModal";
@@ -940,6 +941,24 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const handleFaultReportLogExport = (index: number) => {
+    if (!selectedFaultReport) return;
+    try {
+      downloadFaultReportLogJson(selectedFaultReport, index);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "导出故障日志失败");
+    }
+  };
+
+  const handleFaultReportExportAll = () => {
+    if (!selectedFaultReport) return;
+    try {
+      downloadFaultReportLogsZip(selectedFaultReport);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "导出故障日志压缩包失败");
+    }
+  };
+
   const handleFaultReportDelete = async () => {
     if (!selectedFaultReport || !window.confirm("确定永久删除这批故障上报及全部日志吗？此操作不可撤销。")) return;
     setFaultReportBusy(true);
@@ -1723,6 +1742,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           busy={faultReportBusy}
           themeColor={themeColor}
           onStatusChange={(status) => void handleFaultReportStatusChange(status)}
+          onExportLog={handleFaultReportLogExport}
+          onExportAll={handleFaultReportExportAll}
           onDelete={() => void handleFaultReportDelete()}
           onClose={() => setSelectedFaultReport(null)}
         />

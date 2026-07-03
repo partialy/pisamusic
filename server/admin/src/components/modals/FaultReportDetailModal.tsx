@@ -6,6 +6,8 @@ type Props = {
   busy: boolean;
   themeColor: string;
   onStatusChange: (status: FaultReportStatus) => void;
+  onExportLog: (index: number) => void;
+  onExportAll: () => void;
   onDelete: () => void;
   onClose: () => void;
 };
@@ -19,7 +21,7 @@ function Block({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function FaultReportDetailModal({ report, busy, themeColor, onStatusChange, onDelete, onClose }: Props) {
+export default function FaultReportDetailModal({ report, busy, themeColor, onStatusChange, onExportLog, onExportAll, onDelete, onClose }: Props) {
   const nextStatus: FaultReportStatus = report.status === "processed" ? "pending" : "processed";
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6">
@@ -50,9 +52,23 @@ export default function FaultReportDetailModal({ report, busy, themeColor, onSta
           <section className="space-y-4">
             {report.logs.map((log, index) => (
               <details key={log.clientLogId} className="rounded-2xl border border-white/60 bg-white/55 p-4 shadow-sm" open={index === 0}>
-                <summary className="cursor-pointer list-none font-bold text-slate-700">
-                  <span className="mr-3 text-slate-400">#{index + 1}</span>{log.methodName || log.failureType}
-                  <span className="ml-3 text-xs font-normal text-slate-400">{formatFaultReportTime(log.occurredAt)} · {log.songSource}/{log.songId} · {log.quality || "auto"}</span>
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 font-bold text-slate-700">
+                  <span className="min-w-0">
+                    <span className="mr-3 text-slate-400">#{index + 1}</span>{log.methodName || log.failureType}
+                    <span className="ml-3 text-xs font-normal text-slate-400">{formatFaultReportTime(log.occurredAt)} · {log.songSource}/{log.songId} · {log.quality || "auto"}</span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onExportLog(index);
+                    }}
+                    className="shrink-0 rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm disabled:opacity-50"
+                  >
+                    导出
+                  </button>
                 </summary>
                 <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <Block label="失败类型" value={log.failureType} />
@@ -70,6 +86,7 @@ export default function FaultReportDetailModal({ report, busy, themeColor, onSta
         </div>
 
         <footer className="flex flex-col-reverse gap-3 border-t border-white/50 p-5 sm:flex-row sm:justify-end">
+          <button type="button" disabled={busy} onClick={onExportAll} className="rounded-xl bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm disabled:opacity-50">导出全部</button>
           <button type="button" disabled={busy} onClick={onDelete} className="rounded-xl bg-rose-500 px-6 py-3 text-sm font-bold text-white disabled:opacity-50">删除批次</button>
           <button type="button" disabled={busy} onClick={() => onStatusChange(nextStatus)} className="rounded-xl px-6 py-3 text-sm font-bold text-white disabled:opacity-50" style={{ backgroundColor: report.status === "processed" ? "#f59e0b" : themeColor }}>
             {busy ? "处理中..." : report.status === "processed" ? "恢复为待处理" : "标记为已处理"}
