@@ -36,6 +36,7 @@
 - 分享链接继续复用官网扫码入口 `https://pisamusic.partialy.cn/scan?type=music-share&uuid=<uuid>` 与 `pisamusic://scan?type=music-share&uuid=<uuid>`；解析规则集中在 `src/share/shareLink.ts`，不要新增 `pisamusic://share` 或顶层 `/share`。
 - 分享 payload 必须通过 `src/share/shareModels.ts` 白名单裁剪；不得包含本地 `filePath`、播放 URL、歌词正文、内嵌封面二进制或 renderer 响应式对象。
 - `/media/detail` 的分享态不展示或强调音源：歌曲展示歌手、歌名、专辑、时长和访问次数；歌单展示描述、分享人和访问次数。本地 payload 详情仍可保留来源及本地统计信息。
+- `/media/detail` 同时承载本地歌曲/歌单详情和接收分享详情，页面内不再提供独立返回按钮，统一使用全局 Header 返回；详情入口不得另建重复页面。
 - Electron 外部扫码动作由 main 侧协调器缓冲冷启动/二次启动参数：一起听继续投递 `listen-together:invite`，音乐分享投递 `share:invite`，renderer 只消费只读事件并跳转详情页。
 
 ## 服务端地址规则补充
