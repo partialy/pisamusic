@@ -56,7 +56,7 @@ class MineFragment : Fragment() {
         (activity as? MainActivity)?.refreshMineProfileBackgroundFromLogin()
         applyMineProfileTexts()
         applyMineAvatarDisplay()
-        if (_binding != null) applyStatusBarIconStyle(currentHeaderAlpha)
+        restoreSystemBarStyleForCurrentHeader()
     }
 
     override fun onCreateView(
@@ -166,6 +166,12 @@ class MineFragment : Fragment() {
                 Configuration.UI_MODE_NIGHT_YES
         val controller = WindowInsetsControllerCompat(requireActivity().window, requireView())
         controller.isAppearanceLightStatusBars = !isDarkMode && headerAlpha >= 0.5f
+    }
+
+    /** 容器由隐藏切回可见时，按当前折叠进度恢复状态栏图标颜色。 */
+    fun restoreSystemBarStyleForCurrentHeader() {
+        if (_binding == null || view == null) return
+        applyStatusBarIconStyle(currentHeaderAlpha)
     }
 
     private fun openAccountEntry() {

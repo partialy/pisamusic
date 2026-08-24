@@ -308,11 +308,14 @@ class MainActivity : BaseDownloadActivity() {
         binding.discoverContainer.visibility = View.GONE
         binding.mineContainer.visibility = View.VISIBLE
 
-        if (supportFragmentManager.findFragmentById(R.id.mineContainer) == null) {
+        var mineFragment = supportFragmentManager.findFragmentById(R.id.mineContainer) as? MineFragment
+        if (mineFragment == null) {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.mineContainer, MineFragment())
                 .commitNowAllowingStateLoss()
+            mineFragment = supportFragmentManager.findFragmentById(R.id.mineContainer) as? MineFragment
         }
+        mineFragment?.restoreSystemBarStyleForCurrentHeader()
     }
 
     private fun showDiscoverContent() {
