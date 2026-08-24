@@ -35,7 +35,7 @@
 
     <div v-else-if="songs.length" class="song-grid">
       <template
-        v-for="(song, index) in songs"
+        v-for="song in songs"
         :key="`${song.source}:${song.id}`">
         <article class="song-item" @dblclick="handlePlay(song)">
           <div class="cover-wrap">
@@ -80,7 +80,6 @@
             </div>
           </div>
         </article>
-        <div v-if="index === 8 && songs.length > 9" class="section-divider" aria-hidden="true"></div>
       </template>
     </div>
 
@@ -416,13 +415,6 @@ onMounted(() => {
   gap: 7px;
 }
 
-.section-divider {
-  grid-column: 1 / -1;
-  height: 1px;
-  margin: 8px 0;
-  background: color-mix(in srgb, var(--color-border-default) 84%, transparent);
-}
-
 .empty-state {
   min-height: 240px;
   margin-top: 8px;
@@ -433,9 +425,6 @@ onMounted(() => {
     grid-template-columns: repeat(2, minmax(280px, 1fr));
   }
 
-  .section-divider {
-    display: none;
-  }
 }
 
 @media (max-width: 820px) {

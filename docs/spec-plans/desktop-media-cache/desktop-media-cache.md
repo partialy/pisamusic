@@ -8,7 +8,7 @@
 
 **Tech Stack:** Electron 37 `protocol.handle`、Node.js Web Streams/文件流、`node:sqlite`、Vue 3 + Pinia、Vitest、TypeScript。
 
-**Execution Status:** 全部完成；缓存协议无扩展名导致 Howler 拒绝加载的问题已补充格式提示，连续播放失败已增加最多 3 首熔断。11 项聚焦测试、`build:t`、`build:win` 和 `git diff --check` 已通过。当前集成测试包（含热门歌曲扁平布局与内容区刷新优化）SHA-256：`ADAC946910E3E49A2F7DF9BE89D6048F31AFD49E78A5A471EF2D8A720BEE509D`。
+**Execution Status:** 全部完成；缓存协议无扩展名导致 Howler 拒绝加载的问题已补充格式提示，连续播放失败已增加最多 3 首熔断。11 项聚焦测试、`build:t`、`build:win` 和 `git diff --check` 已通过。当前 `1.0.2` 集成测试包（含热门歌曲扁平布局与内容区刷新优化）SHA-256：`2F63E5B75F00D93A8ED4D4B51C9C4B5802D79AC90CD541447DF4A84BF27A9D03`。
 
 ## Global Constraints
 
