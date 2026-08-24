@@ -32,7 +32,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
     private var _sourceId: String? = null
     val sourceId: String? get() = _sourceId
 
-    /** 插播队列内部存储（FIFO），允许同一首歌重复入队 */
+    /** 插播队列内部存储（FIFO），同一音源的同一首歌只保留一次 */
     private val playNextQueueInternal = ArrayDeque<SongInfo>()
     private val _playNextQueue = MutableStateFlow<List<SongInfo>>(emptyList())
     val playNextQueue = _playNextQueue.asStateFlow()
@@ -41,12 +41,19 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /**
      * 添加到插播队列尾部（FIFO）。
-     * 队列内允许重复；若歌曲不在主列表则同时追加一份占位项到主列表尾部。
+     * 重复点击同一首歌不会重复入队；若歌曲不在主列表则追加一份占位项到主列表尾部。
      */
     fun addPlayNext(song: SongInfo) {
         CoroutineScope(Dispatchers.Main).launch {
-            playNextQueueInternal.addLast(song)
-            _playNextQueue.value = playNextQueueInternal.toList()
+            val updatedQueue = enqueueUniqueBy(
+                items = playNextQueueInternal.toList(),
+                item = song,
+                keyOf = ::songIdentityKey,
+            )
+            if (updatedQueue.size == playNextQueueInternal.size) return@launch
+            playNextQueueInternal.clear()
+            playNextQueueInternal.addAll(updatedQueue)
+            _playNextQueue.value = updatedQueue
 
             val player = exoPlayer ?: return@launch
             val exists = _playList.value.any { factory.keyOf(it) == factory.keyOf(song) }
@@ -199,12 +206,30 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         stateStore.clear()
     }
 
-    /** 在指定位置插入歌曲（同步 ExoPlayer MediaItem） */
-    fun insertAtIndex(index: Int, song: SongInfo) {
-        val list = _playList.value.toMutableList()
-        list.add(index, song)
-        _playList.value = list
-        exoPlayer?.addMediaItem(index, factory.createPlaceholderMediaItem(song))
+    /** 把插播歌曲移动或插入指定位置，并保持业务列表与 ExoPlayer 列表一致。 */
+    fun placePlayNextAt(index: Int, song: SongInfo): Int {
+        val placement = planPlayNextPlacement(
+            songs = _playList.value,
+            requestedIndex = index,
+            song = song,
+            keyOf = factory::keyOf,
+        )
+        _sourceId = "list_updated"
+        _playList.value = placement.songs
+        val player = exoPlayer
+        val previousIndex = placement.previousIndex
+        when {
+            player == null -> Unit
+            previousIndex == null -> player.addMediaItem(
+                placement.targetIndex,
+                factory.createPlaceholderMediaItem(song),
+            )
+            previousIndex != placement.targetIndex -> player.moveMediaItem(
+                previousIndex,
+                placement.targetIndex,
+            )
+        }
+        return placement.targetIndex
     }
 
     /** 更新当前播放索引和对应歌曲信息 */

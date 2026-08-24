@@ -95,6 +95,17 @@ type LocalAppSetting = {
   songNamingMode: LocalSongNamingMode;
 };
 
+type MediaCacheStatusValue = {
+  enabled: boolean;
+  directory: string;
+  limitBytes: number;
+  usedBytes: number;
+  entryCount: number;
+  readyCount: number;
+  writingCount: number;
+  fallbackDirectory: boolean;
+};
+
 type LocalLibraryScanStatus = {
   scanning: boolean;
   lastStartedAt: string;
@@ -714,7 +725,6 @@ type ElectronIpcApi = {
     callback: (action: "play" | "pause" | "next" | "prev", ...args: any[]) => void
   ) => () => void;
 
-  getSystemBaseUrl: () => Promise<string>;
   getAppVersion: () => Promise<string>;
   getBootstrapConfig: () => Promise<BootstrapConfig>;
   getStartupServiceState: () => Promise<StartupServiceState>;
@@ -804,6 +814,10 @@ type ElectronIpcApi = {
   listDownloadRecords: () => Promise<DownloadRecordItem[]>;
   listDownloadedSongs: () => Promise<TrackSnapshot[]>;
 
+  getMediaCacheStatus: () => Promise<MediaCacheStatusValue>;
+  refreshMediaCachePolicy: () => Promise<MediaCacheStatusValue>;
+  clearMediaCache: () => Promise<MediaCacheStatusValue>;
+
   getSetting: <T = unknown>(key: string) => Promise<SettingRecord<T> | null>;
   setSetting: (key: string, value: unknown, version?: number) => Promise<SettingRecord | null>;
   deleteSetting: (key: string) => Promise<boolean>;
@@ -889,6 +903,7 @@ type ElectronIpcApi = {
 declare global {
   type WindowLyricSetting = WindowLyricSettingValue;
   type ElectronIpc = ElectronIpcApi;
+  type MediaCacheStatus = MediaCacheStatusValue;
 
   interface Window {
     electronAPI: ElectronIpcApi;

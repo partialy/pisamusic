@@ -13,7 +13,6 @@ import {
   getWyPersonalizedNewSongs,
   getWyPersonalizedPlaylists,
   resolveMusicUrl,
-  resolvePlayableUrl,
   searchMusic,
   searchSuggest,
   searchPlaylists,
@@ -34,6 +33,7 @@ import type {
   WyPersonalizedNewSongParams,
   WyPersonalizedPlaylistParams,
 } from "../music/types";
+import { prepareMediaPlaybackUrl } from "../mediaCache";
 
 let registered = false;
 
@@ -77,7 +77,7 @@ export function setupMusicApiIpc() {
   );
   ipcMain.handle("music:resolve-url", (_event, params: MusicUrlParams) => resolveMusicUrl(params));
   ipcMain.handle("music:resolve-playable-url", (_event, track: PlayableTrackPayload) =>
-    resolvePlayableUrl(track)
+    prepareMediaPlaybackUrl(track)
   );
   ipcMain.handle("music:fetch-lyrics", (_event, params: MusicLyricParams) => fetchLyrics(params));
 }

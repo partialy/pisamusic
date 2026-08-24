@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
@@ -71,6 +72,14 @@ class MineMyTabFragment : Fragment() {
         },
     )
 
+    private val overviewAdapter = MineMyOverviewAdapter(
+        onFavoriteSongsClick = { LovedSongsPlaylistActivity.start(requireActivity()) },
+        onFavoritePlaylistsClick = { FavoritePlaylistsActivity.start(requireActivity()) },
+        onLocalMusicClick = { LocalMusicActivity.start(requireActivity()) },
+        onSettingsClick = { SettingsActivity.start(requireActivity()) },
+        onAddLocalPlaylistClick = ::showCreateLocalPlaylistDialog,
+    )
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -88,48 +97,17 @@ class MineMyTabFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.mineFavorites.favoritesCoverImageView.setImageResource(R.drawable.mine_entry_favorite_songs)
-        binding.mineFavorites.root.setOnClickListener {
-            LovedSongsPlaylistActivity.start(requireActivity())
+        binding.mineMyRecyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = ConcatAdapter(overviewAdapter, localPlaylistsAdapter)
+            itemAnimator = null
         }
-
-        binding.mineFavoritePlaylists.favoritesCoverImageView.setImageResource(R.drawable.mine_entry_favorite_playlists)
-        binding.mineFavoritePlaylists.titleTextView.setText(R.string.my_favorite_playlists)
-        binding.mineFavoritePlaylists.root.setOnClickListener {
-            FavoritePlaylistsActivity.start(requireActivity())
-        }
-
-        binding.mineLocalMusic.localMusicCoverImageView.setImageResource(R.drawable.mine_entry_my_songs)
-        binding.mineLocalMusic.root.setOnClickListener {
-            LocalMusicActivity.start(requireActivity())
-        }
-
-        val settings = binding.mineSettingsCoverRow
-        settings.entryCoverImageView.setImageResource(R.drawable.mine_entry_app_settings)
-        settings.titleTextView.setText(R.string.settings)
-        settings.root.setOnClickListener {
-            SettingsActivity.start(requireActivity())
-        }
-        val addButtonId = resources.getIdentifier("addLocalPlaylistButton", "id", requireContext().packageName)
-        view.findViewById<View>(addButtonId).setOnClickListener {
-            showCreateLocalPlaylistDialog()
-        }
-
-        val localRv = binding.localPlaylistsRecyclerView
-        localRv.layoutManager = LinearLayoutManager(requireContext())
-        localRv.adapter = localPlaylistsAdapter
-        localRv.itemAnimator = null
 
         viewLifecycleOwner.lifecycleScope.launch {
             playlistCollectionManager.playlistsFlow.collectLatest { list ->
                 val localOnly = list.filter { it.type == CollectedPlaylistType.LOCAL }
-                binding.localPlaylistsHeaderTextView.isVisible = true
-                binding.localPlaylistsEmptyTextView.isVisible = localOnly.isEmpty()
-                localPlaylistsAdapter.submitList(localOnly) {
-                    binding.localPlaylistsRecyclerView.post {
-                        (parentFragment as? MineFragment)?.requestMineViewPagerHeightUpdate()
-                    }
-                }
+                overviewAdapter.setLocalPlaylistEmpty(localOnly.isEmpty())
+                localPlaylistsAdapter.submitList(localOnly)
             }
         }
     }

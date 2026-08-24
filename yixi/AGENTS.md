@@ -40,8 +40,12 @@
 
 ## 服务端地址规则补充
 
-- 桌面端 main 进程统一通过 `electron/system/systemClient.ts` 的 `getSystemBaseUrl()` 访问外层服务端；开发环境默认 `http://127.0.0.1:53380`，正式打包环境默认 `http://pm-server.hs.partialy.cn/`。
-- 如需临时覆盖服务端地址，仍然优先使用进程环境变量 `PISA_SERVER_URL` 或 `PM_SERVER_URL`；renderer 不要直接持有或拼接服务端 baseURL。
+- 正式包通过 `https://pisamusic.partialy.cn/pm-config/config-v1.json` 做第 0 层服务发现；`systemClient`、一起听 Socket、账号相对头像和 updater 只能读取 `serviceDiscovery` 快照。
+- 远程失败按 cache → embedded 降级，业务探测失败才进入本地模式。
+- 本地模式仍允许自动更新，避免 API 故障时失去客户端恢复通道。
+- 开发环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL` 仍可覆盖本地服务地址。
+- API、realtime 与环境变量覆盖必须是纯 origin，不得包含路径、认证信息、query 或 hash；自动更新 feed 可包含路径，但必须是无认证信息、query、hash 的 HTTPS URL。
+- renderer 不持有或拼接服务端 baseURL；不再暴露 `system:get-base-url` 或 `getSystemBaseUrl` 兼容接口。
 
 ## 本地与下载补充
 
@@ -98,6 +102,7 @@
 
 ## 当前补充规则
 
+- 顶栏刷新按钮只允许由 `MainLayout` 重建当前子路由内容，不得调用 `window.location.reload()` 或 Electron 窗口重载；刷新过程中必须保留 App 级 PlayerBar、播放状态和一起听连接。
 - `electron/music/` 封装 KG / WY / KW 三源歌曲搜索、搜索建议、播放地址解析、歌词获取，以及主页推荐、KG/WY 歌单搜索、列表、详情、歌曲列表、动态封面等基础接口，renderer 通过 `music:*` IPC 调用；验签、运行端点和后续加密逻辑保留在 main 侧。
 - `music:playlist-tracks` 支持 `page/pageSize` 旧分页参数，也支持可选 `offset` 精确偏移；歌单详情页首屏固定快速加载 30 首，后台按最大 1000 首一批继续补齐，避免大量小分页请求。
 - renderer 侧 `src/utils/api/musicAPI.ts` 是音乐搜索、取链、歌词获取、歌单基础接口和动态封面的过渡入口，旧 `directAPI` / `proxyAPI` 仅用于尚未迁移的登录、账号等模块或失败兜底。
@@ -109,7 +114,11 @@
 - “跟随歌曲自动换色”属于主题设置的一部分，统一写入 SQLite settings 的 `app-theme.followSongAccent`，默认关闭；renderer 监听当前歌曲时必须先判断该开关，再决定是否根据封面更新强调色。
 - “本地设置”统一通过 `src/store/settingStore.ts` 管理，并写入 SQLite settings 的 `local-setting`；当前字段包含本地扫描目录、缓存目录、缓存大小上限、下载目录和歌曲命名方式。
 - 目录选择能力统一走 `dialog:select-directory` IPC，由 `electron/ipc/dialogIpc.ts` 注册、preload 暴露 typed API；不要在 renderer 侧直接接触 Electron 原始 `dialog` 对象。
-- 当前“本地设置”只负责配置保存与界面联动，不提前实现扫描、缓存清理、下载落盘或命名规则消费逻辑。
+- 在线歌曲播放缓存统一由 main 侧 `electron/mediaCache/` 管理：`music:resolve-playable-url` 返回 `pisacache://media/<cacheKey>`，协议层负责 Range、本地分片命中和远端流式落盘；renderer 不得取得源站 URL、真实缓存文件路径或索引数据库。
+- 播放缓存键固定使用 `source + songId + qualityKey`，索引独立存放在 `media-cache-index.db`，分片只允许写入缓存目录下的 `.pisamusic-cache/v1`；用户未配置目录时使用 `userData/data/media-cache` 默认目录。
+- `cacheLimitGb=0` 表示关闭播放缓存；超限按 LRU 清理到上限的 90%。`media-cache:clear` 只允许清理受管播放缓存，不能删除下载歌曲、Chromium Cache、收藏、账号或主业务数据库。
+- 播放缓存、下载中间文件和 Chromium `Cache` 是三套独立数据；不要复用 `download_records.cache_path` 或尝试通过移动 `userData/sessionData` 实现播放缓存。
+- 媒体缓存验证命令为 `pnpm --dir yixi test:media-cache` 和 `pnpm --dir yixi build:t`；Range 拖动、断网完整命中、目录切换和 LRU 需要安装包手测。
 
 ## 主题规则补充
 
@@ -142,10 +151,9 @@
 - preload 只暴露稳定、最小化的 typed API，不暴露 Node、Electron 原始对象或内部密钥。
 - renderer 负责 UI、交互状态和播放控制，不直接读取真实 baseURL、密钥、文件系统或数据库。
 - shared 类型应抽离到明确目录，IPC 入参和返回值必须有统一类型。
-- 旧代码里从 IPC 获取 baseURL、读取本地 `data/electronConfig.json` 或在 renderer 硬编码网关地址的逻辑，需要逐步迁移到 main 统一服务端 bootstrap。
-- 配置、公告、反馈复用外层 `server/` 的接口；服务端配置每次拉取，不写入 SQLite 持久化。
-- 外层服务端地址由 main 侧读取环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL`，默认 `http://127.0.0.1:53380`。
-- system 能力通过 `system:*` IPC 暴露，包括 bootstrap、runtime endpoints、公告、反馈；旧 `getServerPort` / `getRequestUrl` 仅作为兼容入口保留。
+- 旧代码里从 IPC 获取 baseURL、读取本地 `data/electronConfig.json` 或在 renderer 硬编码网关地址的逻辑，必须迁移为 main 侧读取 `serviceDiscovery` 快照；不得在调用方重新硬编码业务域名。
+- 配置、公告、反馈复用外层 `server/` 接口；第 0 层发现文档按 `environment/development → remote → cache → embedded` 解析，SQLite 仅在 main-only `service_discovery_cache` 独立表缓存发现文档，不得使用 renderer 可访问的通用 settings key，也不把 bootstrap/runtime 作为持久化替代。
+- system 能力通过最小化 `system:*` IPC 暴露，包括 bootstrap、runtime endpoints、公告、反馈；不得重新新增 renderer 可见的 baseURL 获取接口。
 - 服务端加密、网关验签只允许在 main 侧封装，renderer 不直接持有 `gatewaySign.secret` 或 AES 派生逻辑。
 - main 侧音源请求统一使用 `requestSignedGateway()`，它会从外层 `server` 每次拉取的 bootstrap 中读取 `gatewaySign`，并按 Android 端一致规则添加 `res-dec=1`、`t`、`n`、`s` 签名信息。
 - renderer 启动后通过 `src/store/runtimeConfig.ts` 拉取 bootstrap/runtime endpoints，并统一应用到现有 `directAPI` / `proxyAPI` 实例；不要在页面里散落硬编码音源 URL。
@@ -163,7 +171,7 @@
 ## 音乐与播放规则
 
 - 音源优先保持 `kg`、`wy`、`kw` 三源分组搜索，不做跨源去重。
-- 播放失败统一提示“播放失败，可尝试切换其他音源”，然后自动下一曲。
+- 播放失败统一提示“播放失败，可尝试切换其他音源”；普通模式连续失败最多尝试 3 首，之后保持停止，只有成功播放后才重置失败熔断，避免无限切歌和重复提示；一起听模式不做本地自动切歌。
 - 歌词可以先获取并进入 store，不要求首版展示歌词 UI。
 - 需要保留 howler 作为播放引擎，避免后续再迁移。
 
@@ -206,14 +214,15 @@
 - 桌面端启动页由 `electron/startup/startupWindowManager.ts` 和 `web/startup-window.html` 管理，使用独立 Electron HTML 窗口，不要改回 Vue 页面内覆盖层。
 - 首次用户协议状态统一写入 SQLite settings 的 `startup-user-agreement`，不要使用 localStorage 或 electron-store 另存一份协议状态。
 - 主窗口默认隐藏加载；renderer 完成关键初始化后通过 preload 暴露的 `startup:renderer-ready` 通知 main，再由 main 关闭启动页并显示主窗口。
-- main 进程启动阶段负责检查外层服务可用性、刷新 bootstrap 并上报 PC 设备；没网、服务不可用或 `appAvailable=false` 时设置本地模式继续打开主窗口，renderer 只读取 `system:get-startup-service-state` 并用 `window.$notification` 提示。PC 设备封禁必须阻止进入。
+- main 进程启动阶段先完成第 0 层服务发现，再检查外层服务可用性、刷新 bootstrap 并上报 PC 设备；没网、服务不可用或 `appAvailable=false` 时才设置本地模式继续打开主窗口，renderer 只读取 `system:get-startup-service-state` 并用 `window.$notification` 提示。PC 设备封禁必须阻止进入。
 - 本地模式下右上角设置下拉需要显示“重新链接”，点击后通过 main 进程重启整个 App，重新走启动检查流程；不要改成单纯刷新 renderer。
 - PC 设备上报走 `/api/device/desktop/report`，服务端存储在 `desktop_device_info`，不要复用 Android 设备表。
-- PC 在线升级走 `electron-updater`，main 进程读取 bootstrap 的 `updater.desktop.feedBaseUrl`，失败时使用 `https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64` 兜底；开发模式、未打包运行、本地模式都不检查更新。
+- PC 在线升级走 `electron-updater`，main 进程只能从 `serviceDiscovery` 快照和 bootstrap 的 `updater.desktop.feedBaseUrl` 组合候选 feed；候选必须逐个校验，非法 bootstrap feed 不得阻断有效 discovery fallback；开发模式、未打包运行不检查更新，本地模式仍允许检查更新以保留恢复通道。
 
 ## 数据库模块拆分补充
 
 - `electron/database/appDatabase.ts` 只保留 SQLite 连接生命周期与对外读写 API；公共类型放在 `types.ts`，建表与迁移放在 `schema.ts`，JSON / limit 工具放在 `json.ts`，DTO 归一化放在 `normalizers.ts`，数据库行到业务对象的映射放在 `mappers.ts`。
+- 服务发现缓存只能通过 `AppDatabase.getServiceDiscoveryCache()` / `setServiceDiscoveryCache()` 在 main 进程访问；写入必须以 `configVersion` 条件更新，禁止通过 settings IPC 暴露。
 - 后续新增 SQLite 表、字段或本地持久化能力时，按职责更新上述模块，不要把 schema、row type、mapper、normalizer 重新堆回 `appDatabase.ts`。
 
 ## 快捷键设置规则补充

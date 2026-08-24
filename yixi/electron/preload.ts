@@ -112,6 +112,12 @@ const settingsIpc = {
   selectPlaylistCover: () => ipcRenderer.invoke("dialog:select-playlist-cover"),
 };
 
+const mediaCacheIpc = {
+  getMediaCacheStatus: () => ipcRenderer.invoke("media-cache:status"),
+  refreshMediaCachePolicy: () => ipcRenderer.invoke("media-cache:refresh-policy"),
+  clearMediaCache: () => ipcRenderer.invoke("media-cache:clear"),
+};
+
 const shortcutIpc = {
   applyShortcutSetting: (setting: ShortcutSetting) =>
     ipcRenderer.invoke("shortcut:apply", cloneIpcPayload(setting)),
@@ -185,7 +191,6 @@ const libraryIpc = {
 };
 
 const systemIpc = {
-  getSystemBaseUrl: () => ipcRenderer.invoke("system:get-base-url"),
   getAppVersion: () => ipcRenderer.invoke("system:get-app-version"),
   getBootstrapConfig: () => ipcRenderer.invoke("system:get-bootstrap"),
   getStartupServiceState: () => ipcRenderer.invoke("system:get-startup-service-state"),
@@ -432,6 +437,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...musicApiIpc,
   ...cookieApiIpc,
   ...downloadApiIpc,
+  ...mediaCacheIpc,
   ...settingsIpc,
   ...shortcutIpc,
   ...libraryIpc,

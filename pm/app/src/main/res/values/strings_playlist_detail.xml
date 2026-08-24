@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playlist_detail_search_empty">未找到匹配歌曲</string>
+    <string name="playlist_detail_search_cd">搜索歌单内歌曲</string>
+</resources>

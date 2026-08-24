@@ -25,9 +25,11 @@
       </n-layout-sider>
       <n-layout>
         <div class="right-content">
-          <Header class="header" />
+          <Header class="header" @refresh="refreshContent" />
           <div class="content">
-            <router-view />
+            <router-view v-slot="{ Component }">
+              <component :is="Component" :key="`${route.fullPath}:${contentRefreshKey}`" />
+            </router-view>
           </div>
         </div>
       </n-layout>
@@ -56,6 +58,7 @@ import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
 const router = useRouter();
 const route = useRoute();
 const collapsed = ref(false);
+const contentRefreshKey = ref(0);
 const { accounts } = useCookieAccountStatus();
 const isDev = import.meta.env.DEV;
 
@@ -130,6 +133,10 @@ function handleChangeMenu(key: string) {
     debugger: "/debugger",
   };
   router.push(pathMap[key] || "/");
+}
+
+function refreshContent() {
+  contentRefreshKey.value += 1;
 }
 
 function renderMenuIcon(icon: Component) {

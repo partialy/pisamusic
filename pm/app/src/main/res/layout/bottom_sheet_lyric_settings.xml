@@ -24,6 +24,39 @@
             android:textColor="?attr/colorOnSurface"
             android:textStyle="bold" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/settings_status_bar_lyric_title"
+                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                android:textColor="?attr/colorOnSurface" />
+
+            <ImageButton
+                android:id="@+id/lyricSettingsStatusBarSettingsButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:alpha="0.8"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/settings_status_bar_lyric_title"
+                android:padding="8dp"
+                android:src="@drawable/ic_settings_24"
+                app:tint="?attr/colorPrimary" />
+
+            <cn.partialy.pm.ui.widget.PmSwitch
+                android:id="@+id/lyricSettingsStatusBarSwitch"
+                style="@style/Widget.Pm.SettingsSwitch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp" />
+        </LinearLayout>
+
         <cn.partialy.pm.ui.widget.PmSwitch
             android:id="@+id/lyricSettingsUseWordLyricSwitch"
             style="@style/Widget.Pm.SettingsSwitch"
@@ -93,19 +126,37 @@
             android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
-        <HorizontalScrollView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingVertical="8dp"
-            android:scrollbars="none">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <LinearLayout
-                android:id="@+id/lyricSettingsNormalColorRow"
-                android:layout_width="wrap_content"
+            <HorizontalScrollView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal" />
-        </HorizontalScrollView>
+                android:layout_weight="1"
+                android:paddingVertical="8dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/lyricSettingsNormalColorRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <ImageButton
+                android:id="@+id/lyricSettingsNormalColorPresetsButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/settings_lyric_color_presets_title"
+                android:padding="8dp"
+                android:src="@drawable/ic_add_24dp"
+                app:tint="?attr/colorPrimary" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
@@ -115,19 +166,37 @@
             android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
-        <HorizontalScrollView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingVertical="8dp"
-            android:scrollbars="none">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <LinearLayout
-                android:id="@+id/lyricSettingsCurrentColorRow"
-                android:layout_width="wrap_content"
+            <HorizontalScrollView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal" />
-        </HorizontalScrollView>
+                android:layout_weight="1"
+                android:paddingVertical="8dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/lyricSettingsCurrentColorRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <ImageButton
+                android:id="@+id/lyricSettingsCurrentColorPresetsButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/settings_lyric_color_presets_title"
+                android:padding="8dp"
+                android:src="@drawable/ic_add_24dp"
+                app:tint="?attr/colorPrimary" />
+        </LinearLayout>
 
         <cn.partialy.pm.ui.widget.PmSwitch
             android:id="@+id/lyricSettingsBoldSwitch"

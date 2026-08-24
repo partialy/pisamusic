@@ -1,11 +1,12 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import updaterPkg from "electron-updater";
 import type { ProgressInfo, UpdateInfo } from "electron-updater";
-import { getBootstrap, getStartupServiceState, requestSystem } from "../system/systemClient";
+import { getServiceDiscoverySnapshot } from "../system/serviceDiscovery";
+import { getBootstrap, requestSystem } from "../system/systemClient";
 import type { BootstrapConfig } from "../system/types";
 import { logger } from "../utils/logger";
+import { resolveUpdaterFeedCandidates } from "./updaterConfig";
 
-const FALLBACK_FEED_BASE_URL = "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64";
 const { autoUpdater } = updaterPkg;
 
 type DesktopReleaseInfo = {
@@ -44,6 +45,8 @@ type CheckOptions = {
 
 let registered = false;
 let startupTimer: NodeJS.Timeout | null = null;
+let checkingFallbackFeeds = false;
+let updateCheckInFlight: Promise<void> | null = null;
 let currentState: UpdaterState = {
   status: "idle",
   feedUrl: "",
@@ -86,16 +89,11 @@ function createSimulatedUpdateInfo(release: DesktopReleaseInfo | null): UpdateIn
   } as UpdateInfo;
 }
 
-function normalizeFeedUrl(raw?: string) {
-  const value = String(raw ?? "").trim() || FALLBACK_FEED_BASE_URL;
-  return value.replace(/\/+$/, "");
-}
-
 function resolveDesktopUpdaterConfig(bootstrap: BootstrapConfig | null) {
   const desktop = bootstrap?.updater?.desktop;
   return {
     enabled: desktop?.enabled ?? true,
-    feedBaseUrl: normalizeFeedUrl(desktop?.feedBaseUrl),
+    bootstrapFeedBaseUrl: desktop?.feedBaseUrl ?? "",
     checkOnStartup: desktop?.checkOnStartup ?? true,
     startupDelayMs: Number.isFinite(Number(desktop?.startupDelayMs)) ? Math.max(0, Number(desktop?.startupDelayMs)) : 15000,
   };
@@ -119,7 +117,7 @@ async function getDesktopReleaseInfo(): Promise<DesktopReleaseInfo | null> {
   }
 }
 
-async function prepareFeed(getMainWindow: () => BrowserWindow | null, manual: boolean) {
+async function prepareFeeds(getMainWindow: () => BrowserWindow | null, manual: boolean) {
   if (!canUseUpdater()) {
     setState(getMainWindow, {
       status: "disabled",
@@ -128,35 +126,71 @@ async function prepareFeed(getMainWindow: () => BrowserWindow | null, manual: bo
     });
     return false;
   }
-  if (getStartupServiceState().localMode) {
-    setState(getMainWindow, {
-      status: "disabled",
-      manual,
-      error: "本地模式不检查自动更新",
-    });
-    return false;
-  }
-
   const config = resolveDesktopUpdaterConfig(await getUpdaterBootstrap());
   if (!config.enabled) {
     setState(getMainWindow, {
       status: "disabled",
       manual,
-      feedUrl: config.feedBaseUrl,
+      feedUrl: config.bootstrapFeedBaseUrl.trim(),
       error: "自动更新已关闭",
     });
-    return false;
+    return null;
   }
-  autoUpdater.setFeedURL({
-    provider: "generic",
-    url: config.feedBaseUrl,
-  });
-  setState(getMainWindow, {
-    feedUrl: config.feedBaseUrl,
-    manual,
-    error: "",
-  });
-  return true;
+  const discoveryFeeds = getServiceDiscoverySnapshot().updateFeedBaseUrls;
+  const feeds = resolveUpdaterFeedCandidates(config.bootstrapFeedBaseUrl, discoveryFeeds);
+  return feeds;
+}
+
+async function checkForUpdatesWithFallback(
+  feeds: string[],
+  getMainWindow: () => BrowserWindow | null,
+  manual: boolean,
+) {
+  let lastError: unknown = new Error("没有可用的自动更新地址");
+  checkingFallbackFeeds = true;
+  try {
+    for (const feedUrl of feeds) {
+      try {
+        autoUpdater.setFeedURL({ provider: "generic", url: feedUrl });
+        setState(getMainWindow, { feedUrl, manual, error: "" });
+        await autoUpdater.checkForUpdates();
+        return;
+      } catch (error) {
+        lastError = error;
+        logger.warn(`自动更新源不可用，准备尝试下一个：${feedUrl}`);
+      }
+    }
+    throw lastError;
+  } finally {
+    checkingFallbackFeeds = false;
+  }
+}
+
+async function runUpdateCheck(getMainWindow: () => BrowserWindow | null, manual: boolean) {
+  try {
+    const feeds = await prepareFeeds(getMainWindow, manual);
+    if (!feeds) return;
+    await checkForUpdatesWithFallback(feeds, getMainWindow, manual);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(`自动检查更新失败：${message}`);
+    setState(getMainWindow, { status: "error", error: message, progress: null, manual });
+  }
+}
+
+function requestUpdateCheck(getMainWindow: () => BrowserWindow | null, manual: boolean) {
+  if (updateCheckInFlight) return updateCheckInFlight;
+  const task = runUpdateCheck(getMainWindow, manual);
+  updateCheckInFlight = task;
+  void task.then(
+    () => {
+      if (updateCheckInFlight === task) updateCheckInFlight = null;
+    },
+    () => {
+      if (updateCheckInFlight === task) updateCheckInFlight = null;
+    },
+  );
+  return task;
 }
 
 export function setupUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
@@ -192,14 +226,14 @@ export function setupUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
   autoUpdater.on("error", (error) => {
     const message = error instanceof Error ? error.message : String(error);
     logger.warn(`自动更新失败：${message}`);
+    if (checkingFallbackFeeds) return;
     setState(getMainWindow, { status: "error", error: message, progress: null });
   });
 
   ipcMain.handle("updater:get-state", () => currentState);
   ipcMain.handle("updater:check", async (_event, options?: CheckOptions) => {
     const manual = Boolean(options?.manual);
-    if (!(await prepareFeed(getMainWindow, manual))) return currentState;
-    await autoUpdater.checkForUpdates();
+    await requestUpdateCheck(getMainWindow, manual);
     return currentState;
   });
   ipcMain.handle("updater:simulate-check", async () => {
@@ -247,13 +281,6 @@ export async function startUpdaterOnStartup(getMainWindow: () => BrowserWindow |
   const config = resolveDesktopUpdaterConfig(await getUpdaterBootstrap());
   if (!config.checkOnStartup) return;
   startupTimer = setTimeout(() => {
-    void (async () => {
-      if (!(await prepareFeed(getMainWindow, false))) return;
-      await autoUpdater.checkForUpdates();
-    })().catch((error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.warn(`启动自动检查更新失败：${message}`);
-      setState(getMainWindow, { status: "error", error: message, progress: null, manual: false });
-    });
+    void requestUpdateCheck(getMainWindow, false);
   }, config.startupDelayMs);
 }

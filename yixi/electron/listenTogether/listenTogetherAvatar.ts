@@ -1,15 +1,19 @@
-import { getSystemBaseUrl } from "../system/systemClient";
+import { getServiceDiscoverySnapshot } from "../system/serviceDiscovery";
 
 const DEFAULT_ACCOUNT_AVATAR_PATH = "/static/account-avatars/default.jpg";
+
+function getAccountAssetBaseUrl() {
+  return `${getServiceDiscoverySnapshot().apiBaseUrl}/`;
+}
 
 function resolveAvatarUrl(value: unknown): string {
   const raw = typeof value === "string" ? value.trim() : "";
   const target = raw || DEFAULT_ACCOUNT_AVATAR_PATH;
   if (/^(https?:|data:|blob:)/i.test(target)) return target;
   try {
-    return new URL(target, getSystemBaseUrl()).toString();
+    return new URL(target, getAccountAssetBaseUrl()).toString();
   } catch {
-    return new URL(DEFAULT_ACCOUNT_AVATAR_PATH, getSystemBaseUrl()).toString();
+    return new URL(DEFAULT_ACCOUNT_AVATAR_PATH, getAccountAssetBaseUrl()).toString();
   }
 }
 

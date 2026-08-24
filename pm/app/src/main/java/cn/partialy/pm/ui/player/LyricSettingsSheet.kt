@@ -3,6 +3,7 @@ package cn.partialy.pm.ui.player
 import android.app.Activity
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.provider.Settings
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -14,7 +15,10 @@ import androidx.core.content.ContextCompat
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.LyricColorPresetsActivity
+import cn.partialy.pm.activity.StatusBarLyricSettingsActivity
 import cn.partialy.pm.databinding.BottomSheetLyricSettingsBinding
+import cn.partialy.pm.statusbarlyric.StatusBarLyricPrefs
 import cn.partialy.pm.utils.LyricDisplayPrefs
 import kotlin.math.roundToInt
 
@@ -191,6 +195,7 @@ object LyricSettingsSheet {
             binding.lyricSettingsWordScaleSwitch.isChecked = style.wordScaleEnabled
             binding.lyricSettingsUseWordLyricSwitch.isChecked =
                 LyricDisplayPrefs.isUseWordLyricEnabled(activity)
+            binding.lyricSettingsStatusBarSwitch.isChecked = StatusBarLyricPrefs.isEnabled(activity)
 
             when (style.alignment) {
                 LyricAlignment.START -> binding.lyricSettingsAlignGroup.check(R.id.lyricSettingsAlignStart)
@@ -246,6 +251,29 @@ object LyricSettingsSheet {
             val s = LyricDisplayPrefs.readStyle(activity).copy(currentLineBold = isChecked)
             LyricDisplayPrefs.writeStyle(activity, s)
             onChanged()
+        }
+
+        binding.lyricSettingsStatusBarSettingsButton.setOnClickListener {
+            StatusBarLyricSettingsActivity.start(activity)
+        }
+
+        val openColorPresets = View.OnClickListener {
+            LyricColorPresetsActivity.start(activity)
+        }
+        binding.lyricSettingsNormalColorPresetsButton.setOnClickListener(openColorPresets)
+        binding.lyricSettingsCurrentColorPresetsButton.setOnClickListener(openColorPresets)
+
+        binding.lyricSettingsStatusBarSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (syncing) return@setOnCheckedChangeListener
+            if (isChecked && !Settings.canDrawOverlays(activity)) {
+                syncing = true
+                binding.lyricSettingsStatusBarSwitch.isChecked = false
+                syncing = false
+                StatusBarLyricSettingsActivity.start(activity)
+                return@setOnCheckedChangeListener
+            }
+            val current = StatusBarLyricPrefs.read(activity)
+            StatusBarLyricPrefs.write(activity, current.copy(enabled = isChecked))
         }
 
         binding.lyricSettingsUseWordLyricSwitch.setOnCheckedChangeListener { _, isChecked ->

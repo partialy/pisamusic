@@ -149,6 +149,9 @@ const { isLogin, userInfo } = storeToRefs(userStore);
 const avatar = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
 const accountVipActive = computed(() => false);
 const router = useRouter();
+const emit = defineEmits<{
+  refresh: [];
+}>();
 const development = import.meta.env.DEV;
 const isLocalMode = ref(false);
 
@@ -170,7 +173,7 @@ const goBack = () => {
 };
 
 const refresh = () => {
-  window.location.reload();
+  emit("refresh");
 };
 
 const searchFocus = ref(false);

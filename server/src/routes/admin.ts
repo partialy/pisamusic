@@ -51,6 +51,7 @@ import {
 } from "../services/qiniuReleaseFiles";
 import { deleteManagedFileRecord, deleteManagedReleaseFileForHistory, deleteManagedUpdateHistory, previewManagedUpdateHistoryDeletion } from "../services/fileManagementService";
 import { fail, ok } from "../types/response";
+import { normalizeDesktopUpdateFeedUrl } from "./adminValidation";
 
 export const adminRouter = Router();
 
@@ -404,18 +405,14 @@ function normalizeBootstrap(input: unknown): { ok: true; value: Partial<Bootstra
     const desktop = input.updater.desktop;
     const feedBaseUrl = normalizeRequiredString(desktop.feedBaseUrl, "bootstrap.updater.desktop.feedBaseUrl", 1000);
     if (!feedBaseUrl.ok) return feedBaseUrl;
-    try {
-      const parsed = new URL(feedBaseUrl.value);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return { ok: false, msg: "鑷姩鏇存柊鍦板潃蹇呴』鏄?http/https 閾炬帴" };
-    } catch {
-      return { ok: false, msg: "???????????????" };
-    }
+    const normalizedFeedBaseUrl = normalizeDesktopUpdateFeedUrl(feedBaseUrl.value);
+    if (!normalizedFeedBaseUrl.ok) return normalizedFeedBaseUrl;
     const startupDelayMs = Number(desktop.startupDelayMs);
     if (!Number.isFinite(startupDelayMs) || startupDelayMs < 0) return { ok: false, msg: "bootstrap.updater.desktop.startupDelayMs ???????" };
     bootstrap.updater = {
       desktop: {
         enabled: Boolean(desktop.enabled),
-        feedBaseUrl: feedBaseUrl.value.replace(/\/+$/, ""),
+        feedBaseUrl: normalizedFeedBaseUrl.value,
         checkOnStartup: Boolean(desktop.checkOnStartup),
         startupDelayMs,
       },

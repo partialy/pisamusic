@@ -12,7 +12,6 @@ import {
   getRuntimeEndpointsFresh,
   getServiceAgreement,
   getStartupServiceState,
-  getSystemBaseUrl,
   loginAccountByCode,
   loginAccountByPassword,
   refreshAccountSession,
@@ -33,10 +32,6 @@ let registered = false;
 export function setupSystemIpc() {
   if (registered) return;
   registered = true;
-
-  ipcMain.handle("system:get-base-url", () => {
-    return getSystemBaseUrl();
-  });
 
   ipcMain.handle("system:get-app-version", () => {
     return getAppVersion();

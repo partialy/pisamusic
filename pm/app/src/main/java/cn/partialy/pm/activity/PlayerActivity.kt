@@ -12,6 +12,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.graphics.drawable.Drawable
 import android.text.Editable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -67,6 +68,7 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.downloadOptionsForSongType
 import cn.partialy.pm.network.auth.AccountSessionStore
+import cn.partialy.pm.player.songIdentityKey
 import cn.partialy.pm.ui.dialog.ListenTogetherMemberActionMenu
 import cn.partialy.pm.ui.dialog.ListenTogetherQrDialog
 import cn.partialy.pm.ui.dialog.SongMoreMenu
@@ -164,7 +166,7 @@ class PlayerActivity : BaseDownloadActivity() {
                 layoutManager = LinearLayoutManager(this@PlayerActivity)
                 adapter = PlaylistAdapter(
                     songs = emptyList(),
-                    currentPlayingId = musicController.currentSong.value?.id,
+                    currentPlayingKey = musicController.currentSong.value?.let(::songIdentityKey),
                     onItemClick = { song ->
                         lifecycleScope.launch {
                             val state = listenTogetherManager.state.value
@@ -407,7 +409,7 @@ class PlayerActivity : BaseDownloadActivity() {
         lifecycleScope.launch {
             musicController.currentSong.collect { song ->
                 (binding.playlistBottomSheet.playlistRecyclerView.adapter as? PlaylistAdapter)
-                    ?.setCurrentPlayingId(song?.id)
+                    ?.setCurrentPlayingSong(song)
                 song?.let {
                     binding.songTitleTextView.text = it.name
                     binding.artistTextView.text = it.artist
@@ -1358,26 +1360,36 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun applyBlurBackground(model: Any?) {
+        val backgroundModel = model ?: R.drawable.ic_pm_icon
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            binding.blurredBgImageView.load(model) {
+            binding.blurredBgImageView.load(backgroundModel) {
                 crossfade(true)
-                placeholder(R.drawable.ic_pisa_piece_24)
-                error(R.drawable.ic_pisa_piece_24)
+                placeholder(R.drawable.ic_pm_icon)
+                error(R.drawable.ic_pm_icon)
+                fallback(R.drawable.ic_pm_icon)
             }
             binding.blurredBgImageView.setRenderEffect(
                 RenderEffect.createBlurEffect(400f, 400f, Shader.TileMode.CLAMP)
             )
         } else {
             val request = ImageRequest.Builder(this)
-                .data(model)
-                .target { drawable ->
-                    val bitmap = drawable.toBitmap()
-                    val blurred = blurBitmapWithRenderScript(bitmap, 25f)
-                    binding.blurredBgImageView.setImageBitmap(blurred)
-                }
+                .data(backgroundModel)
+                .error(R.drawable.ic_pm_icon)
+                .fallback(R.drawable.ic_pm_icon)
+                .target(
+                    onSuccess = ::applyLegacyBlurBackground,
+                    onError = ::applyLegacyBlurBackground,
+                )
                 .build()
             ImageLoader(this).enqueue(request)
         }
+    }
+
+    private fun applyLegacyBlurBackground(drawable: Drawable?) {
+        drawable ?: return
+        val bitmap = drawable.toBitmap()
+        val blurred = blurBitmapWithRenderScript(bitmap, 25f)
+        binding.blurredBgImageView.setImageBitmap(blurred)
     }
 
     @Suppress("DEPRECATION")
@@ -1466,8 +1478,8 @@ class PlayerActivity : BaseDownloadActivity() {
         val state = listenTogetherManager.state.value
         val songs = if (state.enabled) state.queue.items.map { it.song.toSongInfo() } else musicController.playList.value
         if (songs.isEmpty()) return
-        val currentId = musicController.currentSong.value?.id ?: return
-        val idx = songs.indexOfFirst { it.id == currentId }
+        val currentKey = musicController.currentSong.value?.let(::songIdentityKey) ?: return
+        val idx = songs.indexOfFirst { songIdentityKey(it) == currentKey }
         if (idx < 0) return
 
         rv.post {
@@ -1653,7 +1665,7 @@ class PlayerActivity : BaseDownloadActivity() {
 
 class PlaylistAdapter(
     private var songs: List<SongInfo>,
-    private var currentPlayingId: String?,
+    private var currentPlayingKey: String?,
     private val onItemClick: (SongInfo) -> Unit,
     private val onRemoveClick: (SongInfo) -> Unit,
 ) : RecyclerView.Adapter<PlaylistAdapter.ViewHolder>() {
@@ -1664,11 +1676,12 @@ class PlaylistAdapter(
         diff.dispatchUpdatesTo(this)
     }
 
-    fun setCurrentPlayingId(id: String?) {
-        if (currentPlayingId == id) return
-        val oldIdx = songs.indexOfFirst { it.id == currentPlayingId }
-        val newIdx = songs.indexOfFirst { it.id == id }
-        currentPlayingId = id
+    fun setCurrentPlayingSong(song: SongInfo?) {
+        val key = song?.let(::songIdentityKey)
+        if (currentPlayingKey == key) return
+        val oldIdx = songs.indexOfFirst { songIdentityKey(it) == currentPlayingKey }
+        val newIdx = songs.indexOfFirst { songIdentityKey(it) == key }
+        currentPlayingKey = key
         if (oldIdx >= 0) notifyItemChanged(oldIdx)
         if (newIdx >= 0) notifyItemChanged(newIdx)
     }
@@ -1693,7 +1706,7 @@ class PlaylistAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val song = songs[position]
-        val isCurrent = song.id == currentPlayingId
+        val isCurrent = songIdentityKey(song) == currentPlayingKey
         holder.bind(song, isCurrent)
         holder.itemView.setOnClickListener {
             val pos = holder.bindingAdapterPosition

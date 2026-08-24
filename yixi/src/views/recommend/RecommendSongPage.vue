@@ -1,12 +1,13 @@
 <template>
   <div class="recommend-song-page mw1600">
     <header class="page-header">
-      <div>
+      <div class="header-copy">
+        <span class="header-kicker">CURATED FOR YOU</span>
         <h1>{{ pageTitle }}</h1>
-        <span class="subtitle">{{ headerSubtitle }}</span>
       </div>
       <n-button
         type="primary"
+        secondary
         class="play-all-btn"
         :disabled="!songs.length"
         @click="handlePlayAll">
@@ -24,52 +25,62 @@
           <n-skeleton text :width="`${72 + (index % 3) * 6}%`" />
           <n-skeleton text :width="`${42 + (index % 4) * 8}%`" />
           <div class="skeleton-actions">
-            <n-skeleton circle height="20px" width="20px" />
-            <n-skeleton circle height="20px" width="20px" />
-            <n-skeleton circle height="20px" width="20px" />
+            <n-skeleton circle height="18px" width="18px" />
+            <n-skeleton circle height="18px" width="18px" />
+            <n-skeleton circle height="18px" width="18px" />
           </div>
         </div>
       </div>
     </div>
 
     <div v-else-if="songs.length" class="song-grid">
-      <article
-        v-for="(song, index) in songs"
-        :key="`${song.source}:${song.id}`"
-        class="song-item"
-        :class="{ featured: index === 0 }"
-        @dblclick="handlePlay(song)">
-        <div class="cover-wrap">
-          <img :src="getSongCover(song, 120)" :alt="song.name" />
-          <button
-            v-if="index === 0"
-            type="button"
-            class="featured-play"
-            title="播放"
-            @click.stop="handlePlay(song)">
-            <n-icon :component="Play" />
-          </button>
-        </div>
-        <div class="song-info">
-          <div class="song-name" :title="song.name">{{ song.name }}</div>
-          <div class="song-singer" :title="song.singer">{{ song.singer }}</div>
-          <div class="song-actions">
-            <button type="button" title="播放" @click.stop="handlePlay(song)">
-              <n-icon :component="PlaylistPlayIcon" />
-            </button>
+      <template
+        v-for="song in songs"
+        :key="`${song.source}:${song.id}`">
+        <article class="song-item" @dblclick="handlePlay(song)">
+          <div class="cover-wrap">
+            <img :src="getSongCover(song, 120)" :alt="song.name" />
             <button
               type="button"
-              :title="isSongCollected(song) ? '取消收藏' : '收藏'"
-              :class="{ collected: isSongCollected(song) }"
-              @click.stop="handleCollectSong(song)">
-              <n-icon :component="CollectIcon" />
-            </button>
-            <button type="button" title="添加到歌单" @click.stop="handleAddToPlaylist(song)">
-              <n-icon :component="MoreIcon" />
+              class="cover-play"
+              :aria-label="`播放 ${song.name}`"
+              @click.stop="handlePlay(song)">
+              <n-icon :component="Play" />
             </button>
           </div>
-        </div>
-      </article>
+          <div class="song-info">
+            <div class="song-name" :title="song.name">{{ song.name }}</div>
+            <div class="song-meta" :title="song.album ? `${song.singer} · ${song.album}` : song.singer">
+              <span>{{ song.singer }}</span>
+              <template v-if="song.album">
+                <span class="song-meta-divider" aria-hidden="true">·</span>
+                <span class="song-album">{{ song.album }}</span>
+              </template>
+            </div>
+            <div class="song-actions">
+              <button type="button" :aria-label="`播放 ${song.name}`" title="播放" @click.stop="handlePlay(song)">
+                <n-icon :component="PlaylistPlayIcon" />
+              </button>
+              <button
+                type="button"
+                :aria-label="isSongCollected(song) ? `取消收藏 ${song.name}` : `收藏 ${song.name}`"
+                :title="isSongCollected(song) ? '取消收藏' : '收藏'"
+                :class="{ collected: isSongCollected(song) }"
+                :aria-pressed="isSongCollected(song)"
+                @click.stop="handleCollectSong(song)">
+                <n-icon :component="CollectIcon" />
+              </button>
+              <button
+                type="button"
+                :aria-label="`添加 ${song.name} 到歌单`"
+                title="添加到歌单"
+                @click.stop="handleAddToPlaylist(song)">
+                <n-icon :component="MoreIcon" />
+              </button>
+            </div>
+          </div>
+        </article>
+      </template>
     </div>
 
     <n-empty v-else class="empty-state" description="暂无推荐歌曲" />
@@ -111,11 +122,6 @@ const addToPlaylistDialogRef = useTemplateRef("addToPlaylistDialogRef");
 const sourceType = computed(() => normalizeSongType(route.query.type));
 const sourceMeta = computed(() => SONG_SOURCE_META[sourceType.value]);
 const pageTitle = computed(() => queryString(route.query.title) || sourceMeta.value.title);
-const headerSubtitle = computed(() => {
-  if (sourceType.value === "kg-top") return "KG 热门榜单歌曲";
-  if (sourceType.value === "wy-new") return "WY 推荐新歌";
-  return "KG 每日推荐音乐";
-});
 
 async function loadSongs() {
   loading.value = true;
@@ -187,73 +193,84 @@ onMounted(() => {
 .recommend-song-page {
   width: 100%;
   min-height: 100%;
-  padding-bottom: 32px;
+  padding-bottom: 40px;
 }
 
 .page-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 26px;
-  padding: 8px 0 0;
+  margin-bottom: 18px;
+  padding: 4px 4px 10px;
 
   h1 {
-    margin: 0;
+    margin: 4px 0 0;
     color: var(--color-text-default);
-    font-size: 30px;
-    line-height: 1.25;
-    font-weight: 700;
-    letter-spacing: 0;
+    font-size: clamp(26px, 2vw, 32px);
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.025em;
   }
 }
 
-.subtitle {
-  display: inline-block;
-  margin-top: 8px;
-  color: var(--color-text-secondary);
-  font-size: 14px;
+.header-copy {
+  min-width: 0;
+}
+
+.header-kicker {
+  color: var(--color-primary);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
 .play-all-btn {
-  height: 34px;
-  border-radius: 5px;
-  padding: 0 18px;
+  height: 36px;
+  border-radius: 9px;
+  padding: 0 16px;
   flex-shrink: 0;
+  font-weight: 650;
 }
 
 .song-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(230px, 1fr));
-  column-gap: 42px;
-  row-gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 22px;
+  row-gap: 8px;
 }
 
 .song-item,
 .song-skeleton {
   min-width: 0;
-  height: 76px;
+  height: 80px;
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
-  padding: 0;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 2px 8px 2px 2px;
+  border-radius: 7px;
 }
 
 .song-item {
   cursor: pointer;
-  transition:
-    background-color 0.18s ease,
-    transform 0.18s ease;
+  outline: none;
+  background: transparent;
+  transition: background-color 0.18s ease;
 
   &:hover,
-  &.featured {
+  &:focus-within {
     background: color-mix(in srgb, var(--color-primary) 7%, transparent);
-  }
 
-  &:hover {
-    transform: translateY(-1px);
+    .cover-play {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .cover-wrap img {
+      filter: brightness(0.74);
+    }
   }
 }
 
@@ -261,40 +278,58 @@ onMounted(() => {
   position: relative;
   width: 76px;
   height: 76px;
-  border-radius: 4px;
+  border-radius: 5px;
   overflow: hidden;
+  background: var(--color-bg-secondary);
 
   img {
     width: 100%;
     height: 100%;
     display: block;
     object-fit: cover;
+    transition: filter 0.18s ease;
   }
 }
 
-.featured-play {
+.cover-play {
   position: absolute;
   inset: 0;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   margin: auto;
-  border: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.62);
   border-radius: 50%;
   color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.92);
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  transform: scale(0.9);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    background-color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: #fff;
+    transform: scale(1.06);
+  }
 }
 
 .song-info {
   min-width: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 .song-name,
-.song-singer {
+.song-meta,
+.song-album {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -302,37 +337,57 @@ onMounted(() => {
 
 .song-name {
   color: var(--color-text-default);
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 600;
 }
 
-.song-singer {
-  margin-top: 5px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-}
-
-.song-actions,
-.skeleton-actions {
+.song-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
+  min-width: 0;
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.song-meta-divider {
+  margin: 0 6px;
+  color: var(--color-text-third);
+}
+
+.song-album {
+  min-width: 0;
+  color: var(--color-text-third);
 }
 
 .song-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+
   button {
     width: 20px;
     height: 20px;
+    display: grid;
+    place-items: center;
     padding: 0;
     border: 0;
-    color: var(--color-text-secondary);
+    border-radius: 5px;
+    color: var(--color-text-third);
     background: transparent;
     cursor: pointer;
-    transition: color 0.18s ease;
+    transition:
+      color 0.18s ease,
+      background-color 0.18s ease,
+      opacity 0.18s ease;
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       color: var(--color-primary);
+      background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+      outline: none;
     }
 
     &.collected {
@@ -344,25 +399,35 @@ onMounted(() => {
 .skeleton-cover {
   width: 76px;
   height: 76px;
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .skeleton-info {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeleton-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .empty-state {
-  margin-top: 80px;
+  min-height: 240px;
+  margin-top: 8px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1080px) {
   .song-grid {
-    grid-template-columns: repeat(2, minmax(230px, 1fr));
-    column-gap: 26px;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
   }
+
 }
 
-@media (max-width: 700px) {
+@media (max-width: 820px) {
   .page-header {
     align-items: flex-start;
     flex-direction: column;
@@ -370,6 +435,10 @@ onMounted(() => {
 
   .song-grid {
     grid-template-columns: 1fr;
+  }
+
+  .play-all-btn {
+    width: 100%;
   }
 }
 </style>

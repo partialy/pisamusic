@@ -3,7 +3,7 @@
   "private": true,
   "author": "Partial",
   "description": "PisaMusic",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "main": "out/main/main.js",
   "scripts": {
@@ -16,7 +16,9 @@
     "electron:dev": "electron-vite --mode electron",
     "copy:assets": "copy data\\* dist\\win-unpacked\\data && xcopy dist-electron\\servers dist\\win-unpacked\\resources\\servers /E /I /Y",
     "preview": "electron-vite preview",
-    "test:listen-together": "vitest run --config vitest.config.ts"
+    "test:listen-together": "vitest run --config vitest.config.ts",
+    "test:service-discovery": "vitest run --config vitest.service-discovery.config.ts",
+    "test:media-cache": "vitest run --config vitest.media-cache.config.ts"
   },
   "dependencies": {
     "@applemusic-like-lyrics/core": "^0.1.3",

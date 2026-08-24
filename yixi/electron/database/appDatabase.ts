@@ -47,6 +47,8 @@ import type {
   QueueSnapshotRow,
   SearchHistoryItem,
   SearchHistoryRow,
+  ServiceDiscoveryCacheRecord,
+  ServiceDiscoveryCacheRow,
   SettingRecord,
   SettingRow,
   TrackSnapshot,
@@ -77,6 +79,7 @@ export type {
   QueueSnapshot,
   SearchHistoryItem,
   SettingRecord,
+  ServiceDiscoveryCacheRecord,
   TrackSnapshot,
   UserCloudSongItem,
   UserPlaylistItem,
@@ -128,6 +131,41 @@ export class AppDatabase {
   deleteSetting(key: string) {
     this.db.prepare("DELETE FROM settings WHERE key = ?").run(key);
     return true;
+  }
+
+  getServiceDiscoveryCache<T = unknown>(): ServiceDiscoveryCacheRecord<T> | null {
+    const row = this.db
+      .prepare(
+        `SELECT document_json, config_version, updated_at
+         FROM service_discovery_cache
+         WHERE id = 1`
+      )
+      .get() as ServiceDiscoveryCacheRow | undefined;
+    if (!row) return null;
+    return {
+      document: parseJson<T>(row.document_json, null as T),
+      configVersion: row.config_version,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  setServiceDiscoveryCache(document: unknown, configVersion: number) {
+    if (!Number.isInteger(configVersion) || configVersion <= 0) {
+      throw new Error("服务发现缓存版本必须是正整数");
+    }
+    const result = this.db
+      .prepare(
+        `INSERT INTO service_discovery_cache (
+           id, document_json, config_version, updated_at
+         ) VALUES (1, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           document_json = excluded.document_json,
+           config_version = excluded.config_version,
+           updated_at = excluded.updated_at
+         WHERE excluded.config_version >= service_discovery_cache.config_version`
+      )
+      .run(JSON.stringify(document), configVersion, new Date().toISOString());
+    return Number(result.changes) > 0;
   }
 
   addSearchHistory(keyword: string, source?: string | null) {

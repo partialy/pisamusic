@@ -79,6 +79,7 @@ export const useSettingStore = defineStore("setting", {
     async updateCacheDirectory(path: string) {
       this.local.cacheDirectory = normalizePath(path);
       await this.persistLocalSetting();
+      await electronAPI.refreshMediaCachePolicy().catch(() => null);
     },
 
     async updateDownloadDirectory(path: string) {
@@ -89,6 +90,7 @@ export const useSettingStore = defineStore("setting", {
     async updateCacheLimitGb(value: number | null) {
       this.local.cacheLimitGb = normalizeCacheLimit(value);
       await this.persistLocalSetting();
+      await electronAPI.refreshMediaCachePolicy().catch(() => null);
     },
 
     async updateSongNamingMode(value: SongNamingMode) {

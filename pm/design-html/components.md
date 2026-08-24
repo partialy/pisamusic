@@ -66,13 +66,14 @@
 | 首页每日歌曲卡片 | 每日歌曲小卡 | `item_home_daily_song.xml` | `HomeDailySongGridAdapter` | 小型歌曲卡片参考。 |
 | 搜索建议 / 热搜项 | 搜索页建议和热搜 | `item_search_suggestion.xml`、`item_hot_search.xml`、`item_search_recommend.xml` | `SuggestionsAdapter`、`HotSearchAdapter` | 搜索页列表项参考。 |
 | 封面缩略图 | 封面选择、歌单封面列表 | `item_dialog_local_cover_thumb.xml` | `CreateLocalPlaylistCoverPickerAdapter` | 封面选择网格参考。 |
-| 我的页面入口行 | 我的页收藏、本地、歌单入口 | `item_mine_favorites_row.xml`、`item_mine_local_music_row.xml`、`item_mine_new_local_playlist_row.xml` | `MineMyTabFragment` | 我的页入口行参考。 |
+| 我的页面入口行 | 我的页收藏、本地、设置和自建歌单入口 | `item_mine_favorites_row.xml`、`item_mine_local_music_row.xml`、`item_mine_cover_title_row.xml`、`item_mine_local_playlist_section_header.xml`、`item_mine_playlist_empty.xml` | `MineMyOverviewAdapter`、`MineMyTabFragment` | 固定入口和分组头由 Overview Adapter 承载，自建歌单行通过 ConcatAdapter 接在后面，保持 RecyclerView 回收。 |
 
 ## 播放相关
 
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
 | 播放队列 BottomSheet | 当前播放列表、清空、队列空状态 | `pm/app/src/main/res/layout/bottom_sheet_playlist.xml` | `PlayerActivity`、`PlaylistAdapter` | 播放队列面板参考。 |
+| 歌单详情搜索栏 | 歌单内按歌名/歌手过滤 | `pm/app/src/main/res/layout/item_playlist_detail_header.xml`、`playlist_detail_sticky_play_all.xml` | `ui/playlistdetail/PlaylistDetailHeaderAdapter`、`PlaylistDetailContentAdapter`、`PlaylistDetailInteractionController` | 复用播放队列的 40dp 输入框和右侧取消样式；吸顶搜索入口先回顶并展开同一个输入框，不维护两份查询状态。 |
 | 歌词设置面板 | 歌词样式设置、滑轨、分段按钮、步进器 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `LyricSettingsSheet` | 歌词相关设置优先参考。 |
 | 迷你播放器 | 底部迷你播放器 | `pm/app/src/main/res/layout/home_mini_player.xml` | `HomeMiniPlayerBinder` | 首页/主界面底部播放入口参考。 |
 | 歌词行 | 普通歌词 RecyclerView 行 | `pm/app/src/main/res/layout/item_lyric_line.xml` | `LyricsAdapter` | 非卡拉 OK View 的普通歌词行。 |

@@ -1,37 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/home_page_bg">
 
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/mineScrollView"
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/mineAppBar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingBottom="30dp"
-        android:overScrollMode="never">
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
 
-        <LinearLayout
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/mineCollapsingHeader"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="320dp"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed">
 
-            <!-- Top header image + profile -->
             <FrameLayout
                 android:id="@+id/profileHeader"
                 android:layout_width="match_parent"
-                android:layout_height="320dp">
+                android:layout_height="match_parent"
+                app:layout_collapseMode="parallax">
 
                 <ImageView
                     android:id="@+id/profileBgImageView"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
+                    android:contentDescription="@null"
                     android:scaleType="centerCrop"
-                    android:src="@drawable/bg_mine_header"
-                    android:contentDescription="@null" />
+                    android:src="@drawable/bg_mine_header" />
 
                 <View
                     android:layout_width="match_parent"
@@ -80,122 +80,112 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- Content sheet（无卡片描边/阴影，仅上圆角与页面背景一致） -->
-            <LinearLayout
+            <FrameLayout
+                android:id="@+id/mineHeaderBar"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="-24dp"
-                android:background="@drawable/bg_mine_playlist_sheet"
-                android:orientation="vertical"
-                android:paddingBottom="24dp">
+                android:layout_height="@dimen/home_header_bar_height"
+                android:elevation="8dp"
+                app:layout_collapseMode="pin">
+
+                <View
+                    android:id="@+id/mineHeaderBg"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:alpha="0"
+                    android:background="@color/home_header_bg" />
 
                 <LinearLayout
+                    android:id="@+id/mineHeaderContent"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center"
+                    android:layout_height="match_parent"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingTop="16dp"
-                    android:paddingBottom="10dp">
+                    android:paddingHorizontal="8dp">
+
+                    <ImageButton
+                        android:id="@+id/mineMenuButton"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="@android:color/transparent"
+                        android:contentDescription="@string/open_menu"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_menu_24"
+                        app:tint="@android:color/white" />
+
+                    <Space
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1" />
 
                     <TextView
-                        android:id="@+id/tabMineText"
+                        android:id="@+id/title_text"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="4dp"
-                        android:text="@string/mine_tab_mine"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        android:textColor="@color/colorOnBgNormal"
-                        tools:alpha="1" />
+                        android:layout_height="match_parent"
+                        android:gravity="center_vertical"
+                        android:text="@string/app_name"
+                        android:textColor="@color/white"
+                        android:textSize="18sp"
+                        android:visibility="gone" />
 
-                    <TextView
-                        android:id="@+id/tabPlaylistsText"
-                        android:layout_width="wrap_content"
+                    <Space
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="4dp"
-                        android:paddingHorizontal="14dp"
-                        android:paddingVertical="4dp"
-                        android:text="@string/mine_tab_playlists"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        android:textColor="@color/colorOnBgNormal"
-                        tools:alpha="0.8" />
+                        android:layout_weight="1" />
+
+                    <ImageButton
+                        android:id="@+id/mineSearchButton"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="@android:color/transparent"
+                        android:contentDescription="@string/search"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_search_24"
+                        app:tint="@android:color/white" />
                 </LinearLayout>
-
-                <cn.partialy.pm.ui.widget.MineViewPagerNestedHost
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <androidx.viewpager2.widget.ViewPager2
-                        android:id="@+id/mineTabViewPager"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
-                </cn.partialy.pm.ui.widget.MineViewPagerNestedHost>
-            </LinearLayout>
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
-
-    <!-- Floating header bar (extends into status bar) -->
-    <FrameLayout
-        android:id="@+id/mineHeaderBar"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/home_header_bar_height">
-
-        <View
-            android:id="@+id/mineHeaderBg"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@color/home_header_bg"
-            android:alpha="0" />
+            </FrameLayout>
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
 
         <LinearLayout
-            android:id="@+id/mineHeaderContent"
+            android:id="@+id/mineTabsSheet"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-24dp"
+            android:background="@drawable/bg_mine_playlist_sheet"
+            android:gravity="center"
             android:orientation="horizontal"
-            android:paddingHorizontal="8dp">
-
-            <ImageButton
-                android:id="@+id/mineMenuButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@android:color/transparent"
-                android:contentDescription="@string/open_menu"
-                android:padding="8dp"
-                android:src="@drawable/ic_menu_24"
-                app:tint="@android:color/white" />
-
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1" />
+            android:paddingTop="16dp"
+            android:paddingBottom="10dp">
 
             <TextView
-                android:id="@+id/title_text"
+                android:id="@+id/tabMineText"
                 android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:text="@string/app_name"
-                android:textColor="@color/white"
-                android:textSize="18sp"
-                android:visibility="gone"
-                android:gravity="center_vertical"
-                />
-
-            <Space
-                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1" />
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="4dp"
+                android:text="@string/mine_tab_mine"
+                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                android:textColor="@color/colorOnBgNormal"
+                tools:alpha="1" />
 
-            <ImageButton
-                android:id="@+id/mineSearchButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@android:color/transparent"
-                android:contentDescription="@string/search"
-                android:padding="8dp"
-                android:src="@drawable/ic_search_24"
-                app:tint="@android:color/white" />
+            <TextView
+                android:id="@+id/tabPlaylistsText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="4dp"
+                android:text="@string/mine_tab_playlists"
+                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                android:textColor="@color/colorOnBgNormal"
+                tools:alpha="0.8" />
         </LinearLayout>
-    </FrameLayout>
+    </com.google.android.material.appbar.AppBarLayout>
 
-</FrameLayout>
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/mineTabViewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/home_page_bg"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

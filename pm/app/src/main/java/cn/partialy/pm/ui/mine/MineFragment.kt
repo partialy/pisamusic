@@ -13,7 +13,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
@@ -24,9 +23,9 @@ import cn.partialy.pm.activity.SearchActivity
 import cn.partialy.pm.databinding.FragmentMineBinding
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
-import cn.partialy.pm.ui.widget.MineViewPagerNestedHost
 import coil.load
 import coil.transform.CircleCropTransformation
+import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.color.MaterialColors
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -35,6 +34,7 @@ class MineFragment : Fragment() {
 
     private var _binding: FragmentMineBinding? = null
     private val binding get() = _binding!!
+    private var appBarOffsetListener: AppBarLayout.OnOffsetChangedListener? = null
 
     /** 与侧栏缓存的网易云 `backgroundUrl` 同步（无 URL 时用默认头图）。 */
     fun setWyProfileBackgroundUrl(url: String?) {
@@ -66,6 +66,8 @@ class MineFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        appBarOffsetListener?.let { binding.mineAppBar.removeOnOffsetChangedListener(it) }
+        appBarOffsetListener = null
         super.onDestroyView()
         _binding = null
     }
@@ -90,6 +92,7 @@ class MineFragment : Fragment() {
             val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
             v.layoutParams = v.layoutParams.apply { height = baseHeaderHeightPx + top }
             binding.mineHeaderContent.updatePadding(top = top)
+            binding.mineCollapsingHeader.minimumHeight = baseHeaderHeightPx + top
             insets
         }
 
@@ -105,7 +108,8 @@ class MineFragment : Fragment() {
         applyMineProfileTexts()
 
         val triggerPx = (200f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        binding.mineScrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+        appBarOffsetListener = AppBarLayout.OnOffsetChangedListener { _, verticalOffset ->
+            val scrollY = -verticalOffset
             val a = (scrollY.toFloat() / triggerPx).coerceIn(0f, 1f)
             binding.mineHeaderBg.alpha = a
             applyStatusBarIconStyle(a)
@@ -125,6 +129,7 @@ class MineFragment : Fragment() {
             binding.mineSearchButton.setColorFilter(color)
             binding.titleText.setTextColor(requireContext().getColor(R.color.colorOnBgNormal))
         }
+        appBarOffsetListener?.let(binding.mineAppBar::addOnOffsetChangedListener)
 
         binding.mineHeaderBg.alpha = 0f
         applyStatusBarIconStyle(0f)
@@ -140,12 +145,10 @@ class MineFragment : Fragment() {
             object : ViewPager2.OnPageChangeCallback() {
                 override fun onPageSelected(position: Int) {
                     applyMineTabStyle(position)
-                    adjustMineViewPagerHeightForCurrentPage()
                 }
             },
         )
         applyMineTabStyle(0)
-        adjustMineViewPagerHeightForCurrentPage()
 
         binding.tabMineText.setOnClickListener {
             binding.mineTabViewPager.setCurrentItem(0, true)
@@ -155,12 +158,6 @@ class MineFragment : Fragment() {
         }
 
         applyMineAvatarDisplay()
-    }
-
-    /** 歌单列表高度更新后回调，用于刷新包裹在 NestedScrollView 内的 ViewPager2 高度。 */
-    fun requestMineViewPagerHeightUpdate() {
-        if (_binding == null) return
-        adjustMineViewPagerHeightForCurrentPage()
     }
 
     private fun openAccountEntry() {
@@ -232,24 +229,4 @@ class MineFragment : Fragment() {
         styleTab(binding.tabPlaylistsText, selectedIndex == 1)
     }
 
-    private fun adjustMineViewPagerHeightForCurrentPage() {
-        val pager = binding.mineTabViewPager
-        pager.post {
-            val recycler = pager.getChildAt(0) as? RecyclerView ?: return@post
-            val currentItemView = recycler.findViewHolderForAdapterPosition(pager.currentItem)?.itemView
-                ?: return@post
-
-            val widthSpec = View.MeasureSpec.makeMeasureSpec(pager.width, View.MeasureSpec.EXACTLY)
-            val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-            currentItemView.measure(widthSpec, heightSpec)
-
-            val targetHeight = currentItemView.measuredHeight
-            if (pager.layoutParams.height != targetHeight) {
-                pager.layoutParams = pager.layoutParams.apply { height = targetHeight }
-            }
-
-            (pager.parent as? MineViewPagerNestedHost)?.layoutParams =
-                (pager.parent as? MineViewPagerNestedHost)?.layoutParams?.apply { height = targetHeight }
-        }
-    }
 }
