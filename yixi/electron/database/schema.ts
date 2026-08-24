@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 export function migrateDatabase(db: DatabaseSync) {
@@ -158,6 +159,7 @@ export function migrateDatabase(db: DatabaseSync) {
 
     CREATE TABLE IF NOT EXISTS network_error_records (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_log_id TEXT,
       request_scope TEXT NOT NULL,
       method TEXT NOT NULL,
       request_url TEXT NOT NULL,
@@ -167,7 +169,9 @@ export function migrateDatabase(db: DatabaseSync) {
       business_code TEXT,
       response_json TEXT NOT NULL,
       error_message TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      is_uploaded INTEGER NOT NULL DEFAULT 0,
+      uploaded_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_network_error_records_created_at
@@ -232,6 +236,7 @@ export function migrateDatabase(db: DatabaseSync) {
   // 旧缓存曾位于 renderer 可读写的通用 settings 中；升级后直接清除，避免再次信任该通道。
   db.prepare("DELETE FROM settings WHERE key = 'desktop-service-discovery-cache-v1'").run();
   ensureDownloadRecordColumns(db);
+  ensureNetworkErrorUploadColumns(db);
   db
     .prepare(
       `INSERT INTO schema_migrations (version, name, applied_at)
@@ -274,6 +279,13 @@ export function migrateDatabase(db: DatabaseSync) {
        ON CONFLICT(version) DO NOTHING`
     )
     .run(new Date().toISOString());
+  db
+    .prepare(
+      `INSERT INTO schema_migrations (version, name, applied_at)
+       VALUES (7, 'network error upload state', ?)
+       ON CONFLICT(version) DO NOTHING`
+    )
+    .run(new Date().toISOString());
 }
 
 function ensureDownloadRecordColumns(db: DatabaseSync) {
@@ -288,4 +300,31 @@ function ensureDownloadRecordColumns(db: DatabaseSync) {
   Object.entries(additions).forEach(([column, sql]) => {
     if (!columns.has(column)) db.exec(sql);
   });
+}
+
+function ensureNetworkErrorUploadColumns(db: DatabaseSync) {
+  const rows = db.prepare("PRAGMA table_info(network_error_records)").all() as { name: string }[];
+  const columns = new Set(rows.map((row) => row.name));
+  if (!columns.has("client_log_id")) {
+    db.exec("ALTER TABLE network_error_records ADD COLUMN client_log_id TEXT");
+  }
+  if (!columns.has("is_uploaded")) {
+    db.exec("ALTER TABLE network_error_records ADD COLUMN is_uploaded INTEGER NOT NULL DEFAULT 0");
+  }
+  if (!columns.has("uploaded_at")) {
+    db.exec("ALTER TABLE network_error_records ADD COLUMN uploaded_at TEXT");
+  }
+
+  const missingIds = db
+    .prepare("SELECT id FROM network_error_records WHERE client_log_id IS NULL OR client_log_id = ''")
+    .all() as { id: number }[];
+  const updateId = db.prepare("UPDATE network_error_records SET client_log_id = ? WHERE id = ?");
+  missingIds.forEach((row) => updateId.run(randomUUID(), row.id));
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_network_error_client_log_id
+      ON network_error_records(client_log_id);
+    CREATE INDEX IF NOT EXISTS idx_network_error_upload_created_at
+      ON network_error_records(is_uploaded, created_at ASC, id ASC);
+  `);
 }

@@ -449,7 +449,8 @@ export type AdminFeedbackFilter = {
 };
 
 export type FaultReportStatus = "pending" | "processed";
-export type FaultReportScene = "play_url";
+export type FaultReportScene = "play_url" | "desktop_network";
+export type FaultReportPlatform = "android" | "desktop";
 
 export type FaultReportLog = {
   clientLogId: string;
@@ -476,6 +477,8 @@ export type AdminFaultReportListItem = {
   id: string;
   userId: string | null;
   scene: FaultReportScene;
+  platform: FaultReportPlatform;
+  arch: string;
   appVersion: string;
   appVersionCode: number;
   osVersion: string;

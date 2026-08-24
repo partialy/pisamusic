@@ -166,6 +166,8 @@ function createLogExportData(report: AdminFaultReportDetail, log: FaultReportLog
       id: report.id,
       userId: report.userId,
       scene: report.scene,
+      platform: report.platform,
+      arch: report.arch,
       appVersion: report.appVersion,
       appVersionCode: report.appVersionCode,
       osVersion: report.osVersion,

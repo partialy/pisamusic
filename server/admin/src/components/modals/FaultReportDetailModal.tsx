@@ -23,6 +23,7 @@ function Block({ label, value }: { label: string; value: string }) {
 
 export default function FaultReportDetailModal({ report, busy, themeColor, onStatusChange, onExportLog, onExportAll, onDelete, onClose }: Props) {
   const nextStatus: FaultReportStatus = report.status === "processed" ? "pending" : "processed";
+  const desktop = report.platform === "desktop";
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6">
       <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-md" onClick={onClose} aria-hidden />
@@ -42,9 +43,9 @@ export default function FaultReportDetailModal({ report, busy, themeColor, onSta
         <div className="flex-1 space-y-5 overflow-y-auto p-5 sm:p-8">
           <section className="grid grid-cols-1 gap-3 rounded-2xl border border-white/60 bg-white/45 p-5 text-sm md:grid-cols-3">
             <div><b className="text-slate-500">用户：</b>{report.userId || "匿名"}</div>
-            <div><b className="text-slate-500">App：</b>{report.appVersion} ({report.appVersionCode})</div>
-            <div><b className="text-slate-500">系统：</b>Android {report.osVersion} / SDK {report.sdkInt}</div>
-            <div><b className="text-slate-500">设备：</b>{report.brand} {report.model}</div>
+            <div><b className="text-slate-500">App：</b>{report.appVersion}{report.appVersionCode > 0 ? ` (${report.appVersionCode})` : ""}</div>
+            <div><b className="text-slate-500">系统：</b>{desktop ? `${report.brand} ${report.osVersion}` : `Android ${report.osVersion} / SDK ${report.sdkInt}`}</div>
+            <div><b className="text-slate-500">设备：</b>{desktop ? `${report.model} / ${report.arch}` : `${report.brand} ${report.model}`}</div>
             <div><b className="text-slate-500">网络：</b>{report.networkType || "-"}</div>
             <div><b className="text-slate-500">提交：</b>{formatFaultReportTime(report.createdAt)}</div>
           </section>
@@ -55,7 +56,11 @@ export default function FaultReportDetailModal({ report, busy, themeColor, onSta
                 <summary className="flex cursor-pointer list-none items-start justify-between gap-3 font-bold text-slate-700">
                   <span className="min-w-0">
                     <span className="mr-3 text-slate-400">#{index + 1}</span>{log.methodName || log.failureType}
-                    <span className="ml-3 text-xs font-normal text-slate-400">{formatFaultReportTime(log.occurredAt)} · {log.songSource}/{log.songId} · {log.quality || "auto"}</span>
+                    <span className="ml-3 text-xs font-normal text-slate-400">
+                      {desktop
+                        ? `${formatFaultReportTime(log.occurredAt)} · ${log.requestMethod || "-"} · ${log.errorType || "network"}`
+                        : `${formatFaultReportTime(log.occurredAt)} · ${log.songSource}/${log.songId} · ${log.quality || "auto"}`}
+                    </span>
                   </span>
                   <button
                     type="button"
@@ -72,9 +77,9 @@ export default function FaultReportDetailModal({ report, busy, themeColor, onSta
                 </summary>
                 <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
                   <Block label="失败类型" value={log.failureType} />
-                  <Block label="HTTP / nonce" value={`${log.requestMethod || "-"} ${log.responseCode ?? "-"} / ${log.nonceId || "-"}`} />
+                  <Block label={desktop ? "HTTP / 业务码" : "HTTP / nonce"} value={`${log.requestMethod || "-"} ${log.responseCode ?? "-"} / ${log.nonceId || "-"}`} />
                   <Block label="请求地址" value={log.requestUrl} />
-                  <Block label="解析地址" value={log.resolvedUrl} />
+                  {!desktop ? <Block label="解析地址" value={log.resolvedUrl} /> : null}
                   <Block label="请求参数" value={log.requestParamsJson} />
                   <Block label="响应" value={log.responseBody} />
                   <Block label="异常" value={`${log.errorType}\n${log.errorMessage}`.trim()} />

@@ -22,6 +22,7 @@ import {
   toStringValue,
 } from "./normalizers";
 import { migrateDatabase } from "./schema";
+import { sanitizeNetworkErrorInput } from "../faultReport/sanitizer";
 import type {
   DownloadRecordInput,
   DownloadRecordItem,
@@ -38,6 +39,8 @@ import type {
   NetworkErrorRecordInput,
   NetworkErrorRecordDetail,
   NetworkErrorRecordPage,
+  DesktopFaultReportStats,
+  PendingNetworkErrorRecord,
   NetworkErrorSummaryRow,
   PlayHistoryItem,
   PlayHistoryRow,
@@ -73,6 +76,8 @@ export type {
   NetworkErrorRecordInput,
   NetworkErrorRecordPage,
   NetworkErrorRecordSummary,
+  DesktopFaultReportStats,
+  PendingNetworkErrorRecord,
   PlayHistoryItem,
   PlaylistSnapshot,
   PlaylistSource,
@@ -885,23 +890,26 @@ export class AppDatabase {
 
   addNetworkErrorRecord(input: NetworkErrorRecordInput) {
     const now = new Date().toISOString();
+    const clientLogId = randomUUID();
+    const sanitized = sanitizeNetworkErrorInput(input);
     this.db
       .prepare(
         `INSERT INTO network_error_records (
-           request_scope, method, request_url, request_path, request_params_json,
-           http_status, business_code, response_json, error_message, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           client_log_id, request_scope, method, request_url, request_path, request_params_json,
+           http_status, business_code, response_json, error_message, created_at, is_uploaded, uploaded_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL)`
       )
       .run(
-        input.requestScope,
-        input.method,
-        input.requestUrl,
-        input.requestPath,
-        stringifyJson(input.requestParams ?? null),
-        input.httpStatus ?? null,
-        input.businessCode === undefined || input.businessCode === null ? null : String(input.businessCode),
-        stringifyJson(input.response ?? null),
-        input.errorMessage,
+        clientLogId,
+        sanitized.requestScope,
+        sanitized.method,
+        sanitized.requestUrl,
+        sanitized.requestPath,
+        stringifyJson(sanitized.requestParams ?? null),
+        sanitized.httpStatus ?? null,
+        sanitized.businessCode === undefined || sanitized.businessCode === null ? null : String(sanitized.businessCode),
+        stringifyJson(sanitized.response ?? null),
+        sanitized.errorMessage,
         now
       );
 
@@ -914,7 +922,68 @@ export class AppDatabase {
          LIMIT 1000
        )`
     ).run();
-    return true;
+    return clientLogId;
+  }
+
+  getNetworkErrorFaultStats(): DesktopFaultReportStats {
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const row = this.db
+      .prepare(
+        `SELECT
+           COUNT(*) AS total_count,
+           SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS recent_count,
+           SUM(CASE WHEN is_uploaded = 0 THEN 1 ELSE 0 END) AS pending_count,
+           MAX(created_at) AS latest_at,
+           MAX(uploaded_at) AS last_reported_at
+         FROM network_error_records`
+      )
+      .get(cutoff) as {
+        total_count: number;
+        recent_count: number | null;
+        pending_count: number | null;
+        latest_at: string | null;
+        last_reported_at: string | null;
+      };
+    return {
+      totalCount: Number(row.total_count) || 0,
+      recentSevenDaysCount: Number(row.recent_count) || 0,
+      pendingCount: Number(row.pending_count) || 0,
+      latestOccurredAt: toTimestamp(row.latest_at),
+      lastReportedAt: toTimestamp(row.last_reported_at),
+    };
+  }
+
+  listPendingNetworkErrors(limit = 300): PendingNetworkErrorRecord[] {
+    const safeLimit = Math.min(300, Math.max(1, Math.floor(Number(limit) || 300)));
+    const rows = this.db
+      .prepare(
+        `SELECT id, client_log_id, request_scope, method, request_url, request_path,
+                request_params_json, http_status, business_code, response_json,
+                error_message, created_at, is_uploaded, uploaded_at
+         FROM network_error_records
+         WHERE is_uploaded = 0
+         ORDER BY created_at ASC, id ASC
+         LIMIT ?`
+      )
+      .all(safeLimit) as NetworkErrorDetailRow[];
+    return rows.map((row) => ({
+      ...toNetworkErrorDetail(row),
+      clientLogId: row.client_log_id ?? "",
+    })).filter((row) => Boolean(row.clientLogId));
+  }
+
+  markNetworkErrorsUploaded(clientLogIds: string[], uploadedAt = new Date().toISOString()) {
+    const ids = [...new Set(clientLogIds.filter(Boolean))];
+    if (ids.length === 0) return 0;
+    const placeholders = ids.map(() => "?").join(",");
+    const result = this.db
+      .prepare(
+        `UPDATE network_error_records
+         SET is_uploaded = 1, uploaded_at = ?
+         WHERE client_log_id IN (${placeholders})`
+      )
+      .run(uploadedAt, ...ids);
+    return Number(result.changes) || 0;
   }
 
   listNetworkErrorRecords(page = 1, pageSize = 10): NetworkErrorRecordPage {
@@ -1044,4 +1113,10 @@ export class AppDatabase {
     return row ? toFavoritePlaylist(row) : null;
   }
 
+}
+
+function toTimestamp(value: string | null) {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
 }

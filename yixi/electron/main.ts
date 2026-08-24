@@ -21,6 +21,7 @@ import { setupShortcutIpc } from "./ipc/shortcutIpc";
 import { setupShareIpc } from "./ipc/shareIpc";
 import { setupSyncIpc } from "./ipc/syncIpc";
 import { setupMediaCacheIpc } from "./ipc/mediaCacheIpc";
+import { setupFaultReportIpc } from "./ipc/faultReportIpc";
 import { closeListenTogetherSocket } from "./listenTogether/listenTogetherService";
 import { ListenTogetherInviteCoordinator } from "./listenTogether/listenTogetherInviteCoordinator";
 import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
@@ -144,6 +145,7 @@ function setupAppIpc() {
   setupListenTogetherIpc(() => mainWindow);
   setupUpdaterIpc(() => mainWindow);
   setupMediaCacheIpc();
+  setupFaultReportIpc();
   desktopLyric.setupIpc();
 }
 

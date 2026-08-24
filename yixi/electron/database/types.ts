@@ -229,6 +229,18 @@ export type NetworkErrorRecordPage = {
   pageSize: number;
 };
 
+export type PendingNetworkErrorRecord = NetworkErrorRecordDetail & {
+  clientLogId: string;
+};
+
+export type DesktopFaultReportStats = {
+  totalCount: number;
+  recentSevenDaysCount: number;
+  pendingCount: number;
+  latestOccurredAt: number | null;
+  lastReportedAt: number | null;
+};
+
 export type SettingRow = {
   key: string;
   value_json: string;
@@ -396,7 +408,10 @@ export type NetworkErrorSummaryRow = {
 };
 
 export type NetworkErrorDetailRow = NetworkErrorSummaryRow & {
+  client_log_id?: string;
   request_url: string;
   request_params_json: string;
   response_json: string;
+  is_uploaded?: number;
+  uploaded_at?: string | null;
 };

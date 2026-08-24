@@ -14,15 +14,18 @@ export function setupDebugIpc() {
   ipcMain.handle(
     "debug:network-errors:list",
     (_event, payload?: { page?: number; pageSize?: number }) => {
+      assertDevelopmentRuntime();
       return getAppDatabase().listNetworkErrorRecords(payload?.page, payload?.pageSize);
     }
   );
 
   ipcMain.handle("debug:network-errors:detail", (_event, id: number) => {
+    assertDevelopmentRuntime();
     return getAppDatabase().getNetworkErrorRecord(id);
   });
 
   ipcMain.handle("debug:network-errors:export", async (_event, limit: number) => {
+    assertDevelopmentRuntime();
     const safeLimit = limit === 100 ? 100 : 10;
     const timestamp = formatExportTimestamp(new Date());
     const fileName = `pisa-network-errors-${safeLimit}-${timestamp}.json`;
@@ -51,6 +54,10 @@ export function setupDebugIpc() {
     );
     return { exported: true, filePath: result.filePath, count: records.length };
   });
+}
+
+function assertDevelopmentRuntime() {
+  if (app.isPackaged) throw new Error("该调试功能仅开发环境可用");
 }
 
 function formatExportTimestamp(date: Date) {

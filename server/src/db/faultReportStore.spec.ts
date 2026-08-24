@@ -17,6 +17,8 @@ function input(id: string, logIds: string[]) {
     reportId: id,
     scene: "play_url" as const,
     environment: {
+      platform: "android" as const,
+      arch: "arm64-v8a",
       appVersion: "1.2.3",
       appVersionCode: 123,
       osVersion: "15",

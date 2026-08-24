@@ -2,12 +2,16 @@ import { randomUUID } from "node:crypto";
 import { getAppDb } from "./appDb";
 
 export const FAULT_REPORT_STATUSES = ["pending", "processed"] as const;
-export const FAULT_REPORT_SCENES = ["play_url"] as const;
+export const FAULT_REPORT_SCENES = ["play_url", "desktop_network"] as const;
+export const FAULT_REPORT_PLATFORMS = ["android", "desktop"] as const;
 
 export type FaultReportStatus = (typeof FAULT_REPORT_STATUSES)[number];
 export type FaultReportScene = (typeof FAULT_REPORT_SCENES)[number];
+export type FaultReportPlatform = (typeof FAULT_REPORT_PLATFORMS)[number];
 
 export type FaultReportEnvironment = {
+  platform: FaultReportPlatform;
+  arch: string;
   appVersion: string;
   appVersionCode: number;
   osVersion: string;
@@ -65,6 +69,8 @@ export type AdminFaultReportListItem = {
   id: string;
   userId: string | null;
   scene: FaultReportScene;
+  platform: FaultReportPlatform;
+  arch: string;
   appVersion: string;
   appVersionCode: number;
   osVersion: string;
@@ -118,6 +124,16 @@ function scene(value: unknown): FaultReportScene {
   throw new FaultReportValidationError("scene无效");
 }
 
+function platform(value: unknown, reportScene: FaultReportScene): FaultReportPlatform {
+  if (value === undefined || value === null || value === "") {
+    return reportScene === "desktop_network" ? "desktop" : "android";
+  }
+  if (typeof value === "string" && FAULT_REPORT_PLATFORMS.includes(value as FaultReportPlatform)) {
+    return value as FaultReportPlatform;
+  }
+  throw new FaultReportValidationError("platform无效");
+}
+
 export function normalizeFaultReportCreateInput(value: unknown): FaultReportCreateInput {
   const body = record(value);
   const reportId = text(body.reportId, 64, "reportId", true);
@@ -125,6 +141,8 @@ export function normalizeFaultReportCreateInput(value: unknown): FaultReportCrea
   const reportScene = scene(body.scene);
   const rawEnvironment = record(body.environment);
   const environment: FaultReportEnvironment = {
+    platform: platform(rawEnvironment.platform, reportScene),
+    arch: text(rawEnvironment.arch, 32, "arch"),
     appVersion: text(rawEnvironment.appVersion, 64, "appVersion"),
     appVersionCode: integer(rawEnvironment.appVersionCode ?? 0, 0, Number.MAX_SAFE_INTEGER, "appVersionCode"),
     osVersion: text(rawEnvironment.osVersion, 64, "osVersion"),
@@ -195,13 +213,15 @@ export function createFaultReport(input: FaultReportCreateInput, userId: string 
   try {
     db.prepare(
       `INSERT INTO fault_reports (
-        id, user_id, scene, app_version, app_version_code, os_version, sdk_int,
+        id, user_id, scene, platform, arch, app_version, app_version_code, os_version, sdk_int,
         brand, model, network_type, log_count, status, created_at, processed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL)`,
     ).run(
       reportId,
       userId,
       input.scene,
+      input.environment.platform,
+      input.environment.arch,
       input.environment.appVersion,
       input.environment.appVersionCode,
       input.environment.osVersion,
@@ -251,6 +271,7 @@ function pagination(offset: unknown, limit: unknown): { offset: number; limit: n
 
 type FaultReportRow = {
   id: string; user_id: string | null; scene: FaultReportScene; app_version: string;
+  platform: FaultReportPlatform; arch: string;
   app_version_code: number; os_version: string; sdk_int: number; brand: string; model: string;
   network_type: string; log_count: number; status: FaultReportStatus; created_at: number; processed_at: number | null;
 };
@@ -258,6 +279,7 @@ type FaultReportRow = {
 function mapReport(row: FaultReportRow): AdminFaultReportListItem {
   return {
     id: row.id, userId: row.user_id, scene: row.scene, appVersion: row.app_version,
+    platform: row.platform, arch: row.arch,
     appVersionCode: row.app_version_code, osVersion: row.os_version, sdkInt: row.sdk_int,
     brand: row.brand, model: row.model, networkType: row.network_type, logCount: row.log_count,
     status: row.status, createdAt: row.created_at, processedAt: row.processed_at,

@@ -424,6 +424,11 @@ const debugIpc = {
     ipcRenderer.invoke("debug:network-errors:export", limit),
 };
 
+const faultReportIpc = {
+  getFaultReportStats: () => ipcRenderer.invoke("fault-report:stats"),
+  submitPendingFaultReport: () => ipcRenderer.invoke("fault-report:submit-pending"),
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
   ...startupIpc,
@@ -444,4 +449,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...utilsIpc,
   ...listenTogetherIpc,
   ...debugIpc,
+  ...faultReportIpc,
 });

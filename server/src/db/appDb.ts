@@ -220,6 +220,8 @@ CREATE TABLE IF NOT EXISTS fault_reports (
     id                TEXT    PRIMARY KEY,
     user_id           TEXT,
     scene             TEXT    NOT NULL,
+    platform          TEXT    NOT NULL DEFAULT 'android',
+    arch              TEXT    NOT NULL DEFAULT '',
     app_version       TEXT    NOT NULL DEFAULT '',
     app_version_code  INTEGER NOT NULL DEFAULT 0,
     os_version        TEXT    NOT NULL DEFAULT '',
@@ -437,6 +439,16 @@ function migrateFeedback(db: DatabaseSync) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_status_created_at ON feedback (status, created_at DESC)`);
 }
 
+function migrateFaultReports(db: DatabaseSync) {
+  const cols = getColumnNames(db, "fault_reports");
+  if (!cols.has("platform")) {
+    db.exec(`ALTER TABLE fault_reports ADD COLUMN platform TEXT NOT NULL DEFAULT 'android'`);
+  }
+  if (!cols.has("arch")) {
+    db.exec(`ALTER TABLE fault_reports ADD COLUMN arch TEXT NOT NULL DEFAULT ''`);
+  }
+}
+
 function migrateShareRecords(db: DatabaseSync) {
   const cols = getColumnNames(db, "share_records");
   if (!cols.has("subject_key")) {
@@ -549,6 +561,7 @@ function initSchema(db: DatabaseSync) {
   migrateDynamicConfigs(db);
   migrateUsers(db);
   migrateFeedback(db);
+  migrateFaultReports(db);
   migrateShareRecords(db);
   repairFileRecords(db);
 }

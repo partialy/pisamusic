@@ -409,6 +409,23 @@ type NetworkErrorExportResult = {
   count: number;
 };
 
+type DesktopFaultReportStats = {
+  totalCount: number;
+  recentSevenDaysCount: number;
+  pendingCount: number;
+  latestOccurredAt: number | null;
+  lastReportedAt: number | null;
+};
+
+type DesktopFaultReportSubmitResult = {
+  reportId: string | null;
+  acceptedCount: number;
+  duplicateCount: number;
+  receivedCount: number;
+  createdAt: number;
+  remainingCount: number;
+};
+
 type LogReadResult = {
   error: string | null;
   filePath: string | null;
@@ -898,6 +915,8 @@ type ElectronIpcApi = {
   listNetworkErrors: (payload?: { page?: number; pageSize?: number }) => Promise<NetworkErrorRecordPage>;
   getNetworkErrorDetail: (id: number) => Promise<NetworkErrorRecordDetail | null>;
   exportNetworkErrors: (limit: 10 | 100) => Promise<NetworkErrorExportResult>;
+  getFaultReportStats: () => Promise<DesktopFaultReportStats>;
+  submitPendingFaultReport: () => Promise<DesktopFaultReportSubmitResult>;
 };
 
 declare global {

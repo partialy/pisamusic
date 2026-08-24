@@ -28,6 +28,7 @@ declare module 'vue' {
     DialogWrapper: typeof import('./src/components/common/DialogWrapper.vue')['default']
     DownloadSongDialog: typeof import('./src/components/player/DownloadSongDialog.vue')['default']
     ElectronOperation: typeof import('./src/components/ElectronOperation.vue')['default']
+    FaultReportSection: typeof import('./src/components/setting/basic/FaultReportSection.vue')['default']
     Header: typeof import('./src/components/Header.vue')['default']
     HomeAnnouncementCard: typeof import('./src/components/home/HomeAnnouncementCard.vue')['default']
     HomeHotSongCard: typeof import('./src/components/home/HomeHotSongCard.vue')['default']

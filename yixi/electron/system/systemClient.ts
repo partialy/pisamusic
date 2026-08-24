@@ -21,6 +21,7 @@ import type {
   StartupServiceState,
   TextContentConfig,
 } from "./types";
+import type { FaultReportRequest, FaultReportSubmitData } from "../faultReport/types";
 
 const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
   secret: "partialypartialypartialypartialy",
@@ -32,6 +33,7 @@ type RequestOptions = {
   body?: unknown;
   encrypted?: boolean;
   headers?: Record<string, string>;
+  recordFailure?: boolean;
 };
 
 let cachedBootstrap: BootstrapConfig | null = null;
@@ -183,6 +185,17 @@ export async function submitFeedback(payload: FeedbackPayload) {
     }
     throw error;
   }
+}
+
+export async function submitDesktopFaultReport(body: FaultReportRequest) {
+  const session = getAccountSession();
+  const response = await requestSystem<FaultReportSubmitData>("/api/fault-reports", {
+    method: "POST",
+    body,
+    recordFailure: false,
+    headers: session.loggedIn ? { Authorization: `Bearer ${session.token}` } : undefined,
+  });
+  return unwrapResponse(response);
 }
 
 function normalizeFeedbackImages(images: FeedbackPayload["images"]) {
@@ -665,7 +678,7 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
     });
     const raw = await response.text();
     const parsed = parseResponseRaw<T>(response, raw);
-    if (!response.ok || !isSystemEnvelopeSuccess(parsed)) {
+    if ((!response.ok || !isSystemEnvelopeSuccess(parsed)) && options.recordFailure !== false) {
       recordNetworkError({
         requestScope: "system",
         method,
@@ -680,15 +693,17 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
     }
     return parsed;
   } catch (error) {
-    recordNetworkError({
-      requestScope: "system",
-      method,
-      requestUrl: url.toString(),
-      requestPath: url.pathname,
-      requestParams: options.body ?? Object.fromEntries(url.searchParams.entries()),
-      response: null,
-      errorMessage: toErrorMessage(error),
-    });
+    if (options.recordFailure !== false) {
+      recordNetworkError({
+        requestScope: "system",
+        method,
+        requestUrl: url.toString(),
+        requestPath: url.pathname,
+        requestParams: options.body ?? Object.fromEntries(url.searchParams.entries()),
+        response: null,
+        errorMessage: toErrorMessage(error),
+      });
+    }
     throw error;
   }
 }

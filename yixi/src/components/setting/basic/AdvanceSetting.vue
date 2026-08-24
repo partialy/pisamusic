@@ -1,5 +1,7 @@
 <template>
   <div class="advance-setting">
+    <FaultReportSection />
+
     <template v-if="isDev">
       <section class="debug-section">
         <div class="section-head">
@@ -63,12 +65,8 @@
       </section>
     </template>
 
-    <section v-else class="empty-state">
-      <h3>高级设置</h3>
-      <p>当前暂无需要在正式环境展示的高级配置。</p>
-    </section>
-
     <n-modal
+      v-if="isDev"
       v-model:show="detailVisible"
       preset="card"
       title="网络错误详情"
@@ -142,6 +140,7 @@ import {
 } from "@/utils/api/cookieMusicAPI";
 import { storeToRefs } from "pinia";
 import { useRuntimeConfigStore } from "@/store/runtimeConfig";
+import FaultReportSection from "./FaultReportSection.vue";
 
 type NetworkErrorRecordSummary = {
   id: number;
@@ -373,8 +372,7 @@ function prettyJson(value: unknown) {
   gap: 16px;
 }
 
-.debug-section,
-.empty-state {
+.debug-section {
   padding: 18px 20px;
   border-radius: 8px;
   background: var(--color-card-bg);
@@ -388,15 +386,13 @@ function prettyJson(value: unknown) {
   margin-bottom: 16px;
 }
 
-.section-head h3,
-.empty-state h3 {
+.section-head h3 {
   color: var(--color-text-default);
   font-size: 16px;
   font-weight: 600;
 }
 
-.section-head p,
-.empty-state p {
+.section-head p {
   margin-top: 6px;
   color: var(--color-text-secondary);
   font-size: 12px;

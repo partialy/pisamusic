@@ -107,7 +107,8 @@
 - `music:playlist-tracks` 支持 `page/pageSize` 旧分页参数，也支持可选 `offset` 精确偏移；歌单详情页首屏固定快速加载 30 首，后台按最大 1000 首一批继续补齐，避免大量小分页请求。
 - renderer 侧 `src/utils/api/musicAPI.ts` 是音乐搜索、取链、歌词获取、歌单基础接口和动态封面的过渡入口，旧 `directAPI` / `proxyAPI` 仅用于尚未迁移的登录、账号等模块或失败兜底。
 - WY 歌词获取统一只调用 `/lyric/new`，该接口响应中的 `yrc.lyric` 和 `lrc.lyric` 分别作为逐字歌词与普通歌词来源；不要再为同一首歌额外请求 `/lyric`。
-- Electron 主进程网络请求失败统一写入 SQLite `network_error_records`，当前覆盖 `systemClient.ts` 内的系统接口、反馈提交和签名网关请求；默认只保留最近 1000 条。高级设置中的 Debug 网络错误面板只允许在未打包环境展示，并通过 debug IPC 分页读取、查看详情和导出 JSON。
+- Electron 主进程网络请求失败统一写入 SQLite `network_error_records`，当前覆盖 `systemClient.ts` 内的系统接口、反馈提交和签名网关请求；默认只保留最近 1000 条。`electron/faultReport/` 为正式故障上报边界，负责递归脱敏、DTO 映射、最多 300 条批次提交和按 `client_log_id` 精确回写；上报使用 `scene=desktop_network` 的加密 `/api/fault-reports`，不得上传完整应用日志、Cookie、本地文件或主机名，上报请求自身失败也不得再次写入错误记录。
+- “高级设置”在开发和打包环境都显示，故障汇总与上报入口始终可用；Cookie 调试、原始网络错误列表、详情和导出只允许未打包环境展示。`debug:network-errors:*` 除 renderer 条件渲染外，还必须由 main IPC 检查 `app.isPackaged` 并拒绝正式版调用；正式 IPC 只允许 `fault-report:stats` 和 `fault-report:submit-pending`，不得向 renderer 暴露原始错误明细。
 
 ## 设置与目录选择规则补充
 
