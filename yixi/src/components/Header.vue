@@ -359,6 +359,7 @@ onMounted(async () => {
   .left {
     display: flex;
     align-items: center;
+    padding-left: 16px;
     -webkit-app-region: drag;
 
     .search-input {

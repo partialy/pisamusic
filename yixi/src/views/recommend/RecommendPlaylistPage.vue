@@ -1,9 +1,9 @@
 <template>
   <div class="recommend-playlist-page mw1600">
     <header class="page-header">
-      <div class="title-group">
+      <div class="header-copy">
+        <span class="header-kicker">CURATED FOR YOU</span>
         <h1>{{ pageTitle }}</h1>
-        <span class="subtitle">{{ headerSubtitle }}</span>
       </div>
       <div class="header-actions">
         <n-button
@@ -74,11 +74,6 @@ const activeFilter = ref<PlaylistFilter>("recommend");
 const sourceType = computed(() => normalizePlaylistType(route.query.type));
 const sourceMeta = computed(() => PLAYLIST_SOURCE_META[sourceType.value]);
 const pageTitle = computed(() => queryString(route.query.title) || sourceMeta.value.title);
-const headerSubtitle = computed(() => {
-  if (sourceType.value === "wy-top") return "来自 WY 网友精选歌单";
-  if (sourceType.value === "wy-personalized") return "来自 WY 推荐歌单";
-  return "来自 KG 推荐歌单";
-});
 const filterOptions = computed(() => {
   if (sourceType.value === "wy-top") {
     return [
@@ -193,31 +188,32 @@ onMounted(() => {
 
 .page-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 26px;
-  padding: 8px 0 0;
-}
-
-.title-group {
-  min-width: 0;
+  margin-bottom: 18px;
+  padding: 4px 4px 10px;
 
   h1 {
-    margin: 0;
+    margin: 4px 0 0;
     color: var(--color-text-default);
-    font-size: 30px;
-    line-height: 1.25;
-    font-weight: 700;
-    letter-spacing: 0;
+    font-size: clamp(26px, 2vw, 32px);
+    line-height: 1.2;
+    font-weight: 650;
+    letter-spacing: -0.025em;
   }
 }
 
-.subtitle {
-  display: inline-block;
-  margin-top: 8px;
-  color: var(--color-text-secondary);
-  font-size: 14px;
+.header-copy {
+  min-width: 0;
+}
+
+.header-kicker {
+  color: var(--color-primary);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
 .header-actions {
