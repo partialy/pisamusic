@@ -66,7 +66,7 @@
 | 首页每日歌曲卡片 | 每日歌曲小卡 | `item_home_daily_song.xml` | `HomeDailySongGridAdapter` | 小型歌曲卡片参考。 |
 | 搜索建议 / 热搜项 | 搜索页建议和热搜 | `item_search_suggestion.xml`、`item_hot_search.xml`、`item_search_recommend.xml` | `SuggestionsAdapter`、`HotSearchAdapter` | 搜索页列表项参考。 |
 | 封面缩略图 | 封面选择、歌单封面列表 | `item_dialog_local_cover_thumb.xml` | `CreateLocalPlaylistCoverPickerAdapter` | 封面选择网格参考。 |
-| 我的页面入口行 | 我的页收藏、本地、设置和自建歌单入口 | `item_mine_favorites_row.xml`、`item_mine_local_music_row.xml`、`item_mine_cover_title_row.xml`、`item_mine_local_playlist_section_header.xml`、`item_mine_playlist_empty.xml` | `MineMyOverviewAdapter`、`MineMyTabFragment` | 固定入口和分组头由 Overview Adapter 承载，自建歌单行通过 ConcatAdapter 接在后面，保持 RecyclerView 回收。 |
+| 我的页面入口行 | 我的页收藏、本地、设置和自建歌单入口 | `item_mine_favorites_row.xml`、`item_mine_local_music_row.xml`、`item_mine_cover_title_row.xml`、`item_mine_local_playlist_section_header.xml`、`item_mine_playlist_empty.xml` | `MineMyOverviewAdapter`、`MineMyTabFragment` | 固定入口和分组头由 Overview Adapter 承载，自建歌单行通过 ConcatAdapter 接在后面；页面级 RecyclerView 保持回收，Mine 根层固定 Header Overlay，AppBar 只负责头像折叠与 Tab 吸顶。 |
 
 ## 播放相关
 
