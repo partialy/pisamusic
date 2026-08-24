@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.content.res.ColorStateList
 import android.os.Bundle
-import android.view.View
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -18,6 +17,7 @@ import androidx.core.view.updatePadding
 import androidx.core.widget.ImageViewCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
@@ -34,6 +34,10 @@ import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.ui.playlistdetail.PlaylistDetailContentAdapter
+import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderAdapter
+import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
+import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -66,21 +70,22 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
      * 在 [mergeToolbarScrollStable] 里按本帧 [dy] 限制单步变化，过滤与手指位移不匹配的跳变。
      */
     private var toolbarScrollOffsetStablePx: Int = 0
-    private var stickyPlayAllShown: Boolean = false
     /** 与返回/更多一致；未收藏歌单时爱心用此色，已收藏时用红色。 */
     private var lastHeaderIconTint: Int = android.graphics.Color.WHITE
 
-    private val listAdapter = PlaylistDetailListAdapter(
-        onItemClick = { song, pos -> playPlaylistFromSong(song, pos) },
+    private val headerAdapter = PlaylistDetailHeaderAdapter()
+    private lateinit var contentAdapter: PlaylistDetailContentAdapter
+    private lateinit var interactionController: PlaylistDetailInteractionController
+
+    private fun createContentAdapter() = PlaylistDetailContentAdapter(
+        onSongClick = ::playPlaylistFromSong,
         isSongLiked = { loveManager.isSongInLoveList(it) },
-        onLoveClick = { song, pos ->
+        onLoveClick = { song ->
             loveManager.toggleLikeStatus(song)
-            binding.recyclerView.post {
-                binding.recyclerView.adapter?.notifyItemChanged(pos)
-            }
+            contentAdapter.notifySongChanged(song)
         },
-        onDownloadClick = { song, _ -> onDownloadClick(song) },
-        onMoreClick = { song, _ -> openSongMoreMenu(song) },
+        onDownloadClick = ::onDownloadClick,
+        onMoreClick = ::openSongMoreMenu,
     )
 
     @OptIn(UnstableApi::class)
@@ -96,6 +101,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
             this,
             object : OnBackPressedCallback(enabled = true) {
                 override fun handleOnBackPressed() {
+                    if (::interactionController.isInitialized && interactionController.closeSearchIfOpen()) return
                     finishAnimated()
                 }
             },
@@ -135,47 +141,45 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
             )
         }
 
-        listAdapter.onHeaderUpdated = {
-            syncStickyPlayAllTrackCount()
-            syncHeaderBarPlaylistTitle()
-        }
-
         val coverUrl = intent.getStringExtra(EXTRA_COVER_URL).orEmpty()
         val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "歌单" }
         val desc = intent.getStringExtra(EXTRA_PLAY_COUNT_LABEL).orEmpty().ifBlank { "歌单描述" }
         val trackCount = intent.getIntExtra(EXTRA_TRACK_COUNT, 0)
         val playlistId = intent.getStringExtra(EXTRA_PLAYLIST_ID).orEmpty()
 
+        contentAdapter = createContentAdapter()
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(this@PlaylistDetailActivity)
-            adapter = listAdapter
+            adapter = ConcatAdapter(headerAdapter, contentAdapter)
             itemAnimator = null
         }
         // 先用 Intent 里的信息填充 Header，保证页面立刻可见
-        listAdapter.updateHeader(
+        headerAdapter.updateHeader(
             title = title,
-            desc = desc,
-            coverUrl = coverUrl,
+            description = desc,
+            artwork = PlaylistHeaderArtwork.Remote(coverUrl),
             trackCountText = if (trackCount > 0) "${trackCount}首" else "",
         )
-        listAdapter.showInitialLoading()
+        contentAdapter.showInitialLoading()
 
         val playAll: () -> Unit = {
-            val list = listAdapter.currentSongs
+            val list = contentAdapter.currentSongs
             if (list.isNotEmpty()) {
                 musicController.setPlayListLazy(list, startIndex = 0, sourceId = pagingPlaylistId)
                 ensurePlaylistEnriched()
             }
         }
-        listAdapter.onPlayAllClick = playAll
+        interactionController = PlaylistDetailInteractionController.attach(
+            activity = this,
+            binding = binding,
+            headerAdapter = headerAdapter,
+            contentAdapter = contentAdapter,
+            onPlayAll = playAll,
+        )
         ImageViewCompat.setImageTintList(
             binding.stickyPlayAllBar.btnPlayAllSticky,
             ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
         )
-        binding.stickyPlayAllBar.btnPlayAllSticky.setOnClickListener { playAll() }
-        binding.stickyPlayAllBar.stickyPlayAllRow.setOnClickListener { playAll() }
-        syncStickyPlayAllTrackCount()
-        syncHeaderBarPlaylistTitle()
 
         val triggerPx = (180f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
         binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -222,7 +226,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
 
         lifecycleScope.launch {
             loveManager.loveListFlow.collect {
-                listAdapter.notifyDataSetChanged()
+                contentAdapter.notifyDataSetChanged()
             }
         }
         lifecycleScope.launch {
@@ -240,7 +244,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
             }
         } else {
             binding.playlistCollectButton.isVisible = false
-            listAdapter.setFirstPageFailed()
+            contentAdapter.setFirstPageFailed()
         }
     }
 
@@ -271,14 +275,14 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     private fun buildKgCollectedPlaylistForStorage(): CollectedPlaylist {
         val count = when {
             playlistApiTotalCount > 0 -> playlistApiTotalCount
-            else -> listAdapter.currentSongs.size
+            else -> contentAdapter.currentSongs.size
         }
         return CollectedPlaylist(
             type = CollectedPlaylistType.KG,
             id = pagingPlaylistId,
-            name = listAdapter.headerTitleText,
-            intro = listAdapter.headerDescText,
-            cover = listAdapter.headerCoverUrl,
+            name = headerAdapter.state.title,
+            intro = headerAdapter.state.description,
+            cover = (headerAdapter.state.artwork as? PlaylistHeaderArtwork.Remote)?.url.orEmpty(),
             count = count.coerceAtLeast(0),
         )
     }
@@ -294,14 +298,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 playlistCollectionManager.addNetworkPlaylist(buildKgCollectedPlaylistForStorage())
         }
         syncPlaylistCollectButton()
-    }
-
-    private fun syncStickyPlayAllTrackCount() {
-        binding.stickyPlayAllBar.trackCountTextViewSticky.text = listAdapter.headerTrackCountText
-    }
-
-    private fun syncHeaderBarPlaylistTitle() {
-        binding.playlistTitleHeaderTextView.text = listAdapter.headerTitleText
     }
 
     /**
@@ -340,18 +336,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     }
 
     private fun applyStickyPlayAllVisibility(show: Boolean) {
-        binding.stickyPlayAllBar.root.isVisible = show
-        if (stickyPlayAllShown == show) return
-        stickyPlayAllShown = show
-        listAdapter.hideInlinePlayAllWhenSticky = show
-        if (listAdapter.itemCount > 0) {
-            val rv = binding.recyclerView
-            rv.post {
-                if (listAdapter.itemCount > 0) {
-                    listAdapter.notifyItemChanged(0)
-                }
-            }
-        }
+        interactionController.setStickyVisible(show)
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -383,6 +368,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         allTracksLoadJob = null
         miniPlayerBinder?.onDestroy()
         miniPlayerBinder = null
+        if (::interactionController.isInitialized) interactionController.dispose()
         super.onDestroy()
     }
 
@@ -401,11 +387,9 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
 
     /**
      * 清空队列并从所点歌曲起播：当前曲立即拉 URL，其后已加载的曲目与后续分页均以占位入队（不预取 URL）。
-     * [adapterPosition] 为 RecyclerView 位置（0 为头图，歌曲从 1 起）。
      */
-    private fun playPlaylistFromSong(song: SongInfo, adapterPosition: Int) {
-        if (adapterPosition <= 0) return
-        val songs = listAdapter.currentSongs
+    private fun playPlaylistFromSong(song: SongInfo) {
+        val songs = contentAdapter.currentSongs
         val idx = songs.indexOfFirst { it.id == song.id && it.type == song.type }
         if (idx < 0) return
         musicController.setPlayListLazy(songs, startIndex = idx, sourceId = pagingPlaylistId)
@@ -414,7 +398,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
 
     /** 如果播放队列比 adapter 少（后台还没加载完时点击），把差量补上 */
     private fun ensurePlaylistEnriched() {
-        val adapterSongs = listAdapter.currentSongs
+        val adapterSongs = contentAdapter.currentSongs
         val queueSize = musicController.playList.value.size
         if (queueSize >= adapterSongs.size) return
         musicController.appendSongsLazy(adapterSongs.subList(queueSize, adapterSongs.size))
@@ -429,7 +413,11 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                     val d = item.intro.ifBlank { item.tags }.ifBlank { "" }
                     val cover = item.pic.ifBlank { fallbackCoverUrl }.replace("{size}", "240")
                     withContext(Dispatchers.Main) {
-                        listAdapter.updateHeader(title = t, desc = d, coverUrl = cover)
+                        headerAdapter.updateHeader(
+                            title = t,
+                            description = d,
+                            artwork = PlaylistHeaderArtwork.Remote(cover),
+                        )
                     }
                 }
             }
@@ -443,15 +431,15 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         }
         withContext(Dispatchers.Main) {
             if (first == null) {
-                listAdapter.setFirstPageFailed()
+                contentAdapter.setFirstPageFailed()
                 return@withContext
             }
             val mapped = first.info.mapNotNull { it.toSongInfoOrNull() }
             val total = first.count
             playlistApiTotalCount = total
             val label = if (total > 0) "${total}首" else "${mapped.size}首"
-            listAdapter.updateHeader(trackCountText = label)
-            listAdapter.setFirstPageSuccess(
+            headerAdapter.updateHeader(trackCountText = label)
+            contentAdapter.setFirstPageSuccess(
                 rows = mapped,
                 apiTotal = total,
                 apiPage = 1,
@@ -481,14 +469,13 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 val songs = data.info.mapNotNull { it.toSongInfoOrNull() }
                 if (songs.isEmpty()) return@launch
                 withContext(Dispatchers.Main) {
-                    listAdapter.appendFromApi(
+                    contentAdapter.appendFromApi(
                         rows = songs,
                         apiTotal = data.count.takeIf { it > 0 } ?: totalCount,
                         apiPage = page,
                         apiPageSize = KG_TRACK_PAGE_SIZE,
                     )
                     ensurePlaylistEnriched()
-                    syncStickyPlayAllTrackCount()
                 }
                 if (songs.size < KG_TRACK_PAGE_SIZE) return@launch
             }
