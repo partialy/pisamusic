@@ -271,10 +271,10 @@ class PlayerEngine(
                 && playlistManager.hasPlayNext()
             ) {
                 val song = playlistManager.dequeuePlayNext()!!
-                playlistManager.insertAtIndex(newIndex, song)
-                playlistManager.updateCurrentIndex(newIndex)
-                player.seekTo(newIndex, 0)
-                ensurePlayableAtIndex(newIndex, autoPlay = true)
+                val targetIndex = playlistManager.placePlayNextAt(newIndex, song)
+                playlistManager.updateCurrentIndex(targetIndex)
+                player.seekTo(targetIndex, 0)
+                ensurePlayableAtIndex(targetIndex, autoPlay = true)
                 return
             }
 
@@ -478,9 +478,9 @@ class PlayerEngine(
                 val queued = playlistManager.dequeuePlayNext()
                 if (queued != null) {
                     val insertAt = player.currentMediaItemIndex + 1
-                    playlistManager.insertAtIndex(insertAt, queued)
-                    player.seekTo(insertAt, 0)
-                    ensurePlayableAtIndex(insertAt, autoPlay = true)
+                    val targetIndex = playlistManager.placePlayNextAt(insertAt, queued)
+                    player.seekTo(targetIndex, 0)
+                    ensurePlayableAtIndex(targetIndex, autoPlay = true)
                     return@launch
                 }
 
@@ -931,8 +931,13 @@ class PlayerEngine(
         CoroutineScope(Dispatchers.IO).launch {
             val state = stateStore.load() ?: return@launch
             if (state.songs.isEmpty()) return@launch
-            val songs = state.songs.map { it.toSongInfo() }
-            val idx = state.currentIndex.coerceIn(0, (songs.size - 1).coerceAtLeast(0))
+            val normalized = normalizePlaylist(
+                songs = state.songs.map { it.toSongInfo() },
+                currentIndex = state.currentIndex,
+                keyOf = factory::keyOf,
+            )
+            val songs = normalized.songs
+            val idx = normalized.currentIndex
             val pos = state.positionMs.coerceAtLeast(0L)
             try {
                 // 先恢复列表，再尝试解析「当前歌曲」URL；失败则依次尝试后续歌曲作为新的当前项。

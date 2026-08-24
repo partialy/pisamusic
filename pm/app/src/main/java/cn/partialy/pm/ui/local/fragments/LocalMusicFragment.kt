@@ -61,7 +61,11 @@ class LocalMusicFragment : BaseSongFragment() {
     override fun setupRecyclerView() {
         localMusicAdapter = LocalMusicAdapter(
             onSongClick = { songInfo, _ ->
-                musicController.addToPlayList(songInfo, true)
+                val songs = viewModel.getSongInfos()
+                val index = songs.indexOfFirst { it.id == songInfo.id && it.type == songInfo.type }
+                if (index >= 0) {
+                    musicController.setPlayListLazy(songs, startIndex = index, sourceId = "local_music")
+                }
             },
             onDownloadBtnClick = { _, _ -> },
             onMoreBtnClick = { songInfo, _ ->
