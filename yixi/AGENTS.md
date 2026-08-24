@@ -102,6 +102,7 @@
 
 ## 当前补充规则
 
+- 顶栏刷新按钮只允许由 `MainLayout` 重建当前子路由内容，不得调用 `window.location.reload()` 或 Electron 窗口重载；刷新过程中必须保留 App 级 PlayerBar、播放状态和一起听连接。
 - `electron/music/` 封装 KG / WY / KW 三源歌曲搜索、搜索建议、播放地址解析、歌词获取，以及主页推荐、KG/WY 歌单搜索、列表、详情、歌曲列表、动态封面等基础接口，renderer 通过 `music:*` IPC 调用；验签、运行端点和后续加密逻辑保留在 main 侧。
 - `music:playlist-tracks` 支持 `page/pageSize` 旧分页参数，也支持可选 `offset` 精确偏移；歌单详情页首屏固定快速加载 30 首，后台按最大 1000 首一批继续补齐，避免大量小分页请求。
 - renderer 侧 `src/utils/api/musicAPI.ts` 是音乐搜索、取链、歌词获取、歌单基础接口和动态封面的过渡入口，旧 `directAPI` / `proxyAPI` 仅用于尚未迁移的登录、账号等模块或失败兜底。
@@ -113,7 +114,11 @@
 - “跟随歌曲自动换色”属于主题设置的一部分，统一写入 SQLite settings 的 `app-theme.followSongAccent`，默认关闭；renderer 监听当前歌曲时必须先判断该开关，再决定是否根据封面更新强调色。
 - “本地设置”统一通过 `src/store/settingStore.ts` 管理，并写入 SQLite settings 的 `local-setting`；当前字段包含本地扫描目录、缓存目录、缓存大小上限、下载目录和歌曲命名方式。
 - 目录选择能力统一走 `dialog:select-directory` IPC，由 `electron/ipc/dialogIpc.ts` 注册、preload 暴露 typed API；不要在 renderer 侧直接接触 Electron 原始 `dialog` 对象。
-- 当前“本地设置”只负责配置保存与界面联动，不提前实现扫描、缓存清理、下载落盘或命名规则消费逻辑。
+- 在线歌曲播放缓存统一由 main 侧 `electron/mediaCache/` 管理：`music:resolve-playable-url` 返回 `pisacache://media/<cacheKey>`，协议层负责 Range、本地分片命中和远端流式落盘；renderer 不得取得源站 URL、真实缓存文件路径或索引数据库。
+- 播放缓存键固定使用 `source + songId + qualityKey`，索引独立存放在 `media-cache-index.db`，分片只允许写入缓存目录下的 `.pisamusic-cache/v1`；用户未配置目录时使用 `userData/data/media-cache` 默认目录。
+- `cacheLimitGb=0` 表示关闭播放缓存；超限按 LRU 清理到上限的 90%。`media-cache:clear` 只允许清理受管播放缓存，不能删除下载歌曲、Chromium Cache、收藏、账号或主业务数据库。
+- 播放缓存、下载中间文件和 Chromium `Cache` 是三套独立数据；不要复用 `download_records.cache_path` 或尝试通过移动 `userData/sessionData` 实现播放缓存。
+- 媒体缓存验证命令为 `pnpm --dir yixi test:media-cache` 和 `pnpm --dir yixi build:t`；Range 拖动、断网完整命中、目录切换和 LRU 需要安装包手测。
 
 ## 主题规则补充
 
@@ -166,7 +171,7 @@
 ## 音乐与播放规则
 
 - 音源优先保持 `kg`、`wy`、`kw` 三源分组搜索，不做跨源去重。
-- 播放失败统一提示“播放失败，可尝试切换其他音源”，然后自动下一曲。
+- 播放失败统一提示“播放失败，可尝试切换其他音源”；普通模式连续失败最多尝试 3 首，之后保持停止，只有成功播放后才重置失败熔断，避免无限切歌和重复提示；一起听模式不做本地自动切歌。
 - 歌词可以先获取并进入 store，不要求首版展示歌词 UI。
 - 需要保留 howler 作为播放引擎，避免后续再迁移。
 

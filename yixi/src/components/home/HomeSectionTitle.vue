@@ -2,13 +2,15 @@
   <div class="home-section-title">
     <h2>{{ title }}</h2>
     <n-button v-if="showMore" text type="primary" class="more-btn" @click="emit('more')">
-      查看更多&gt;
+      <span>查看更多</span>
+      <n-icon class="more-icon" :component="ChevronRight" />
     </n-button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { NButton } from "naive-ui";
+import { NButton, NIcon } from "naive-ui";
+import { ChevronRight } from "lucide-vue-next";
 
 defineOptions({ name: "HomeSectionTitle" });
 
@@ -46,5 +48,10 @@ const emit = defineEmits<{
 
 .more-btn {
   flex-shrink: 0;
+}
+
+.more-icon {
+  margin-left: 2px;
+  font-size: 16px;
 }
 </style>

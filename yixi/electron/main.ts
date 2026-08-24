@@ -20,6 +20,7 @@ import { setupDownloadIpc } from "./ipc/downloadIpc";
 import { setupShortcutIpc } from "./ipc/shortcutIpc";
 import { setupShareIpc } from "./ipc/shareIpc";
 import { setupSyncIpc } from "./ipc/syncIpc";
+import { setupMediaCacheIpc } from "./ipc/mediaCacheIpc";
 import { closeListenTogetherSocket } from "./listenTogether/listenTogetherService";
 import { ListenTogetherInviteCoordinator } from "./listenTogether/listenTogetherInviteCoordinator";
 import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
@@ -29,6 +30,11 @@ import { startSyncOnStartup } from "./sync/syncService";
 import { initializeServiceDiscovery } from "./system/serviceDiscovery";
 import { prepareStartupServiceState } from "./system/systemClient";
 import { setupUpdaterIpc, startUpdaterOnStartup } from "./updater/updaterService";
+import {
+  closeMediaCache,
+  registerMediaCacheScheme,
+  setupMediaCacheProtocol,
+} from "./mediaCache";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -48,6 +54,8 @@ let appRuntimeStarted = false;
 const inviteCoordinator = new ListenTogetherInviteCoordinator({
   getMainWindow: () => mainWindow,
 });
+
+registerMediaCacheScheme();
 
 function createMainWindow() {
   if (mainWindow) return mainWindow;
@@ -135,6 +143,7 @@ function setupAppIpc() {
   setupSyncIpc();
   setupListenTogetherIpc(() => mainWindow);
   setupUpdaterIpc(() => mainWindow);
+  setupMediaCacheIpc();
   desktopLyric.setupIpc();
 }
 
@@ -237,7 +246,8 @@ if (!hasSingleInstanceLock) {
     focusApplicationWindow();
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    await setupMediaCacheProtocol();
     desktopLyric = new DesktopLyricManager({
       iconPath,
       getMainWindow: () => mainWindow,
@@ -279,6 +289,7 @@ if (!hasSingleInstanceLock) {
   app.on("before-quit", () => {
     isQuitting = true;
     closeListenTogetherSocket();
+    closeMediaCache();
     startupWindow?.destroy();
     desktopLyric?.destroy();
     playerTray?.destroy();

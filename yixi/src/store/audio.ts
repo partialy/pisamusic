@@ -10,6 +10,11 @@ import { useLibraryStore } from "./library";
 import { reportError } from "@/utils/errorReporter";
 import { showLimitedWarning } from "@/utils/limitedMessage";
 import {
+  getHowlerFormatHint,
+  MAX_CONSECUTIVE_PLAYBACK_FAILURES,
+  shouldAutoSkipPlaybackFailure,
+} from "@/utils/audioPlaybackPolicy";
+import {
   getDefaultQualityKey,
   getQualityOption,
   isQualitySource,
@@ -111,6 +116,7 @@ export const useAudioStore = defineStore("audio", () => {
 
     player.value = new Howl({
       src: [url],
+      format: getHowlerFormatHint(url),
       html5: true, // 使用HTML5 Audio API
       volume: volume.value,
       onplay: () => {
@@ -632,10 +638,6 @@ export const useAudioStore = defineStore("audio", () => {
     isPlaying.value = false;
     electronAPI.isPlaying(false);
     destroyPlayer();
-    window.$notification?.error({
-      title: "播放失败，可尝试切换其他音源",
-      duration: 2000,
-    });
 
     void reportError(new Error("playback failed"), {
       scope: "audio",
@@ -648,11 +650,19 @@ export const useAudioStore = defineStore("audio", () => {
     if (playbackBridge?.onPlaybackFailureAutoSkip()) {
       failureSkipCount = 0;
       handlingPlaybackFailure = false;
+      showLimitedWarning("播放失败，可尝试切换其他音源");
       return;
     }
 
-    if (playlist.value.length > 1 && failureSkipCount < playlist.value.length - 1) {
-      failureSkipCount += 1;
+    failureSkipCount = Math.min(
+      failureSkipCount + 1,
+      MAX_CONSECUTIVE_PLAYBACK_FAILURES,
+    );
+    if (failureSkipCount === 1) {
+      showLimitedWarning("播放失败，可尝试切换其他音源");
+    }
+
+    if (shouldAutoSkipPlaybackFailure(failureSkipCount, playlist.value.length)) {
       setTimeout(() => {
         handlingPlaybackFailure = false;
         next();
@@ -660,8 +670,11 @@ export const useAudioStore = defineStore("audio", () => {
       return;
     }
 
-    failureSkipCount = 0;
     handlingPlaybackFailure = false;
+    electronAPI.mediaControl("pause");
+    if (failureSkipCount > 1) {
+      showLimitedWarning("连续播放失败，已停止自动切歌");
+    }
   };
 
   const stopAfterEmptyPlayUrl = (): void => {

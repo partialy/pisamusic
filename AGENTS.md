@@ -101,8 +101,11 @@ PC 桌面端 App：
 - `serviceOrigins[].apiBaseUrl`、`realtimeBaseUrl` 和开发环境变量覆盖必须是纯 origin：仅 HTTPS（开发 localhost 可用 HTTP），且不得包含认证信息、路径、query 或 hash；自动更新 feed 允许路径，但仍只允许不含认证信息、query、hash 的 HTTPS URL，后台保存时执行同样校验。
 - `systemClient`、一起听 Socket、相对账号头像和 updater 必须读取服务发现快照；不得在调用方重新硬编码业务域名，renderer 不得取得服务端 base URL。
 - 远程发现或业务 API 故障进入本地模式时，自动更新仍可使用发现快照中的更新 feed；`minimumSupportedVersion` 目前仅是发现元数据，不在本轮强制升级。
+- PC 在线歌曲播放缓存由 `yixi/electron/mediaCache/` 独立管理：renderer 只使用 `pisacache://media/<cacheKey>`，main 负责源站取链、Range 流式转发、分片落盘、独立 SQLite 索引和 LRU；缓存身份为 `source + songId + qualityKey`。
+- PC 播放缓存只写入用户缓存目录下的 `.pisamusic-cache/v1`，空配置回退 `userData/data/media-cache`；`cacheLimitGb=0` 关闭缓存，清理操作不得影响下载、本地歌曲、Chromium Cache 或业务数据库。
 - 开发：`pnpm --dir yixi dev`
 - 类型检查 / 构建：优先使用 `yixi/package.json` 中现有脚本，例如 `pnpm --dir yixi build:t`。
+- 媒体缓存聚焦测试：`pnpm --dir yixi test:media-cache`
 - Windows 打包：`pnpm --dir yixi build:win`
 
 ## 验证要求
