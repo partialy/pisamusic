@@ -22,6 +22,13 @@ class MinePlaylistsAdapter(
         stateRestorationPolicy = RecyclerView.Adapter.StateRestorationPolicy.PREVENT_WHEN_EMPTY
     }
 
+    /** 首个权威快照提交生效前阻止恢复；提交完成后空列表同样属于已加载状态。 */
+    fun submitAuthoritativeList(list: List<CollectedPlaylist>) {
+        submitList(list) {
+            stateRestorationPolicy = RecyclerView.Adapter.StateRestorationPolicy.ALLOW
+        }
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Vh {
         val binding = ItemMinePlaylistRowBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return Vh(binding, onMoreClick)

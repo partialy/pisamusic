@@ -108,7 +108,7 @@ class MineMyTabFragment : Fragment() {
             playlistCollectionManager.playlistsFlow.collectLatest { list ->
                 val localOnly = list.filter { it.type == CollectedPlaylistType.LOCAL }
                 overviewAdapter.setLocalPlaylistEmpty(localOnly.isEmpty())
-                localPlaylistsAdapter.submitList(localOnly)
+                localPlaylistsAdapter.submitAuthoritativeList(localOnly)
             }
         }
     }

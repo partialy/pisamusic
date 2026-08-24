@@ -110,6 +110,7 @@ class MainActivity : BaseDownloadActivity() {
 
     private var drawerPlaylistImportInProgress = false
     private var localModeReason: String? = null
+    private var currentTopLevelDestination = MainTopLevelDestination.HOME
 
     private data class DrawerPlaylistImportSummary(
         val added: Int,
@@ -127,8 +128,12 @@ class MainActivity : BaseDownloadActivity() {
 
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        currentTopLevelDestination = MainTopLevelDestination.restore(
+            savedInstanceState?.getString(STATE_TOP_LEVEL_DESTINATION),
+        )
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applyTopLevelContainerVisibility(currentTopLevelDestination)
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = true, lightNavigationBarIcons = true)
@@ -202,6 +207,11 @@ class MainActivity : BaseDownloadActivity() {
         showLocalModeNoticeIfNeeded()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(STATE_TOP_LEVEL_DESTINATION, currentTopLevelDestination.savedValue)
+        super.onSaveInstanceState(outState)
+    }
+
     private fun applyLocalModeFromIntent(intent: Intent?) {
         val reason = intent?.getStringExtra(EXTRA_LOCAL_MODE_REASON)?.trim().orEmpty()
         if (reason.isNotEmpty()) localModeReason = reason
@@ -258,34 +268,32 @@ class MainActivity : BaseDownloadActivity() {
 
     private fun setupBottomNavigationBar() {
         binding.navHomeContainer.setOnClickListener {
-            selectBottomNavigation(R.id.navHomeContainer)
             showHomeContent()
             viewPager.setCurrentItem(0, true)
         }
         binding.navSearchContainer.setOnClickListener {
-            selectBottomNavigation(R.id.navSearchContainer)
             showHomeContent()
+            selectBottomNavigation(R.id.navSearchContainer)
             SearchActivity.start(this)
         }
         binding.navNoteContainer.setOnClickListener {
-            selectBottomNavigation(R.id.navNoteContainer)
             showDiscoverContent()
         }
         binding.navMineContainer.setOnClickListener {
-            selectBottomNavigation(R.id.navMineContainer)
             showMineContent()
         }
-        selectBottomNavigation(R.id.navHomeContainer)
-        showHomeContent()
+        when (currentTopLevelDestination) {
+            MainTopLevelDestination.HOME -> showHomeContent()
+            MainTopLevelDestination.DISCOVER -> showDiscoverContent()
+            MainTopLevelDestination.MINE -> showMineContent()
+        }
     }
 
     private fun showHomeContent() {
+        currentTopLevelDestination = MainTopLevelDestination.HOME
+        selectBottomNavigation(R.id.navHomeContainer)
         applyHomeTabSystemBarAppearance()
-        binding.statusBarSpacer.visibility = View.VISIBLE
-        binding.headerBar.visibility = View.VISIBLE
-        binding.viewPager.visibility = View.VISIBLE
-        binding.mineContainer.visibility = View.GONE
-        binding.discoverContainer.visibility = View.GONE
+        applyTopLevelContainerVisibility(currentTopLevelDestination)
     }
 
     /**
@@ -302,11 +310,9 @@ class MainActivity : BaseDownloadActivity() {
     }
 
     private fun showMineContent() {
-        binding.statusBarSpacer.visibility = View.GONE
-        binding.headerBar.visibility = View.GONE
-        binding.viewPager.visibility = View.GONE
-        binding.discoverContainer.visibility = View.GONE
-        binding.mineContainer.visibility = View.VISIBLE
+        currentTopLevelDestination = MainTopLevelDestination.MINE
+        selectBottomNavigation(R.id.navMineContainer)
+        applyTopLevelContainerVisibility(currentTopLevelDestination)
 
         var mineFragment = supportFragmentManager.findFragmentById(R.id.mineContainer) as? MineFragment
         if (mineFragment == null) {
@@ -319,18 +325,38 @@ class MainActivity : BaseDownloadActivity() {
     }
 
     private fun showDiscoverContent() {
-        binding.statusBarSpacer.visibility = View.GONE
-        binding.headerBar.visibility = View.GONE
-        binding.viewPager.visibility = View.GONE
-        binding.mineContainer.visibility = View.GONE
-        binding.discoverContainer.visibility = View.VISIBLE
+        currentTopLevelDestination = MainTopLevelDestination.DISCOVER
+        selectBottomNavigation(R.id.navNoteContainer)
+        applyTopLevelContainerVisibility(currentTopLevelDestination)
 
-        if (supportFragmentManager.findFragmentById(R.id.discoverContainer) == null) {
+        var discoverFragment =
+            supportFragmentManager.findFragmentById(R.id.discoverContainer) as? DiscoverFragment
+        if (discoverFragment == null) {
             supportFragmentManager.beginTransaction()
                 .replace(R.id.discoverContainer, DiscoverFragment())
                 .commitNowAllowingStateLoss()
+            discoverFragment =
+                supportFragmentManager.findFragmentById(R.id.discoverContainer) as? DiscoverFragment
         }
+        discoverFragment?.restoreSystemBarStyle()
     }
+
+    private fun applyTopLevelContainerVisibility(destination: MainTopLevelDestination) {
+        val homeVisible = destination == MainTopLevelDestination.HOME
+        binding.statusBarSpacer.visibility = if (homeVisible) View.VISIBLE else View.GONE
+        binding.headerBar.visibility = if (homeVisible) View.VISIBLE else View.GONE
+        binding.viewPager.visibility = if (homeVisible) View.VISIBLE else View.GONE
+        binding.mineContainer.visibility =
+            if (destination == MainTopLevelDestination.MINE) View.VISIBLE else View.GONE
+        binding.discoverContainer.visibility =
+            if (destination == MainTopLevelDestination.DISCOVER) View.VISIBLE else View.GONE
+    }
+
+    fun isMineContentActive(): Boolean =
+        currentTopLevelDestination == MainTopLevelDestination.MINE
+
+    fun isDiscoverContentActive(): Boolean =
+        currentTopLevelDestination == MainTopLevelDestination.DISCOVER
 
     private fun setupMiniPlayer() {
         homeMiniPlayerBinder = HomeMiniPlayerBinder(this, binding.homeMiniPlayer, musicController).apply {
@@ -765,7 +791,9 @@ class MainActivity : BaseDownloadActivity() {
             binding.tabPodcastUnderline,
             selected == 2,
         )
-        selectBottomNavigation(R.id.navHomeContainer)
+        if (currentTopLevelDestination == MainTopLevelDestination.HOME) {
+            selectBottomNavigation(R.id.navHomeContainer)
+        }
     }
 
     private fun updateTabState(tab: TextView, underline: View, isSelected: Boolean) {
@@ -1113,6 +1141,7 @@ class MainActivity : BaseDownloadActivity() {
     }
 
     companion object {
+        private const val STATE_TOP_LEVEL_DESTINATION = "main.top_level_destination"
         const val EXTRA_SETTINGS_ACTION = "cn.partialy.pm.extra.SETTINGS_ACTION"
         private const val EXTRA_LOCAL_MODE_REASON = "cn.partialy.pm.extra.LOCAL_MODE_REASON"
         private const val EXTRA_SCAN_LINK = "cn.partialy.pm.extra.SCAN_LINK"

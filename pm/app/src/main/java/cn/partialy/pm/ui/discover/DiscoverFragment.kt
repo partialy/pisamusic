@@ -67,7 +67,9 @@ class DiscoverFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        applySystemBarIconStyle()
+        if ((activity as? MainActivity)?.isDiscoverContentActive() == true) {
+            applySystemBarIconStyle()
+        }
     }
 
     private fun setupInsets(view: View) {
@@ -83,12 +85,19 @@ class DiscoverFragment : Fragment() {
     }
 
     private fun applySystemBarIconStyle() {
+        if ((activity as? MainActivity)?.isDiscoverContentActive() != true) return
         val isNight =
             (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
                 Configuration.UI_MODE_NIGHT_YES
         val controller = WindowInsetsControllerCompat(requireActivity().window, requireView())
         controller.isAppearanceLightStatusBars = !isNight
         controller.isAppearanceLightNavigationBars = !isNight
+    }
+
+    /** MainActivity 复用已创建的发现页时，显式恢复本页的系统栏样式。 */
+    fun restoreSystemBarStyle() {
+        if (_binding == null || view == null) return
+        applySystemBarIconStyle()
     }
 
     private fun setupHeaderActions() {

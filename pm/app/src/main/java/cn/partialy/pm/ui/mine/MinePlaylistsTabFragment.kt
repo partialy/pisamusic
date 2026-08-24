@@ -58,7 +58,7 @@ class MinePlaylistsTabFragment : Fragment() {
             playlistCollectionManager.playlistsFlow.collectLatest { list ->
                 val nonLocalList = list.filter { it.type != CollectedPlaylistType.LOCAL }
                 binding.emptyTextView.isVisible = nonLocalList.isEmpty()
-                adapter.submitList(nonLocalList)
+                adapter.submitAuthoritativeList(nonLocalList)
             }
         }
     }
