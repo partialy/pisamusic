@@ -25,7 +25,9 @@
         android:id="@+id/headerBar"
         android:layout_width="0dp"
         android:layout_height="56dp"
+        android:clickable="true"
         android:elevation="8dp"
+        android:focusable="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -41,6 +43,8 @@
             android:id="@+id/headerBarContent"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:clickable="true"
+            android:focusable="true"
             android:paddingHorizontal="8dp">
 
             <ImageButton
