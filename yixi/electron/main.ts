@@ -26,6 +26,7 @@ import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
 import { startSyncOnStartup } from "./sync/syncService";
+import { initializeServiceDiscovery } from "./system/serviceDiscovery";
 import { prepareStartupServiceState } from "./system/systemClient";
 import { setupUpdaterIpc, startUpdaterOnStartup } from "./updater/updaterService";
 
@@ -167,6 +168,7 @@ async function launchAppRuntime() {
   appRuntimeStarted = true;
   startupWindow.showLoading();
   try {
+    await initializeServiceDiscovery();
     await prepareStartupServiceState();
   } catch (error) {
     const message = error instanceof Error ? error.message : "当前设备不可用";

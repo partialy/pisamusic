@@ -7,6 +7,7 @@ import { getAppDatabase } from "../database";
 import { logDebugRequest } from "../utils/requestDebug";
 import { decrypt, encrypt, randomFullKey } from "./encryption";
 import { signGatewayUrl } from "./gatewaySigner";
+import { getServiceDiscoverySnapshot } from "./serviceDiscovery";
 import type {
   Announcement,
   AboutInfo,
@@ -21,8 +22,6 @@ import type {
   TextContentConfig,
 } from "./types";
 
-const DEV_SERVER_URL = "http://127.0.0.1:53380";
-const PRODUCTION_SERVER_URL = "http://pm-server.hs.partialy.cn/";
 const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
   secret: "partialypartialypartialypartialy",
   as: "yixivip",
@@ -52,9 +51,13 @@ class DesktopDeviceLockedError extends Error {
   }
 }
 
+function getApiBaseUrl() {
+  return `${getServiceDiscoverySnapshot().apiBaseUrl}/`;
+}
+
+// Task 5 移除 renderer 兼容 IPC 前暂时保留，确保当前任务可独立构建。
 export function getSystemBaseUrl() {
-  const defaultServerUrl = app.isPackaged ? PRODUCTION_SERVER_URL : DEV_SERVER_URL;
-  return normalizeBaseUrl(process.env.PISA_SERVER_URL || process.env.PM_SERVER_URL || defaultServerUrl);
+  return getApiBaseUrl();
 }
 
 export function getAppVersion() {
@@ -62,7 +65,8 @@ export function getAppVersion() {
 }
 
 export async function refreshBootstrap() {
-  const response = await requestSystem<BootstrapConfig>("/api/config/bootstrap");
+  const { bootstrapPath } = getServiceDiscoverySnapshot();
+  const response = await requestSystem<BootstrapConfig>(bootstrapPath);
   cachedBootstrap = unwrapResponse(response);
   return cachedBootstrap;
 }
@@ -136,7 +140,7 @@ export async function submitFeedback(payload: FeedbackPayload) {
   normalizeFeedbackImages(payload.images).forEach((image) => {
     form.append("images", new Blob([image.data], { type: image.type }), image.name);
   });
-  const url = new URL("/api/feedback", getSystemBaseUrl());
+  const url = new URL("/api/feedback", getApiBaseUrl());
   let recorded = false;
   try {
     const requestHeaders = createEncryptionHeaders();
@@ -151,6 +155,7 @@ export async function submitFeedback(payload: FeedbackPayload) {
       method: "POST",
       headers: requestHeaders,
       body: form,
+      redirect: "error",
     });
     const raw = await response.text();
     const parsed = parseResponseRaw<{ id: string; createdAt: string }>(response, raw);
@@ -618,7 +623,7 @@ async function ensureBootstrap() {
 }
 
 export async function requestSystem<T>(path: string, options: RequestOptions = {}) {
-  const url = new URL(path, getSystemBaseUrl());
+  const url = new URL(path, getApiBaseUrl());
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};
   let body: string | undefined;
@@ -661,6 +666,7 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
       method,
       headers: requestHeaders,
       body,
+      redirect: "error",
     });
     const raw = await response.text();
     const parsed = parseResponseRaw<T>(response, raw);
@@ -883,12 +889,7 @@ function absoluteSystemUrl(value: string) {
   const raw = value.trim();
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
-  return new URL(raw, getSystemBaseUrl()).toString();
-}
-
-function normalizeBaseUrl(raw: string) {
-  const trimmed = raw.trim();
-  return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
+  return new URL(raw, getApiBaseUrl()).toString();
 }
 
 function endpoint(endpoints: Record<string, string>, key: string, fallback: string) {
