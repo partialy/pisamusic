@@ -36,6 +36,7 @@ class PlaylistDetailContentAdapter(
     private var phase: Phase = Phase.InitialLoading
     private var hasMore: Boolean = false
     private var loadingMore: Boolean = false
+    private var showEndFooter: Boolean = true
     @StringRes
     private var emptyMessageRes: Int = R.string.no_data
 
@@ -59,6 +60,7 @@ class PlaylistDetailContentAdapter(
         phase = if (songs.isEmpty()) Phase.Empty else Phase.Content
         hasMore = false
         loadingMore = false
+        showEndFooter = false
         rebuildRows()
     }
 
@@ -67,6 +69,7 @@ class PlaylistDetailContentAdapter(
         allSongs = emptyList()
         hasMore = false
         loadingMore = false
+        showEndFooter = true
         rebuildRows()
     }
 
@@ -75,6 +78,7 @@ class PlaylistDetailContentAdapter(
         allSongs = emptyList()
         hasMore = false
         loadingMore = false
+        showEndFooter = true
         rebuildRows()
     }
 
@@ -88,6 +92,7 @@ class PlaylistDetailContentAdapter(
         phase = if (rows.isEmpty()) Phase.Empty else Phase.Content
         hasMore = hasMoreFromApiPagination(apiTotal, apiPage, apiPageSize, rows.size)
         loadingMore = false
+        showEndFooter = true
         rebuildRows()
     }
 
@@ -113,6 +118,7 @@ class PlaylistDetailContentAdapter(
         allSongs = allSongs + appended
         phase = Phase.Content
         hasMore = hasMoreFromApiPagination(apiTotal, apiPage, apiPageSize, rows.size)
+        showEndFooter = true
         rebuildRows()
     }
 
@@ -121,6 +127,7 @@ class PlaylistDetailContentAdapter(
         phase = if (songs.isEmpty()) Phase.Empty else Phase.Content
         hasMore = false
         loadingMore = false
+        showEndFooter = true
         rebuildRows()
     }
 
@@ -173,7 +180,7 @@ class PlaylistDetailContentAdapter(
 
     private val showFooter: Boolean
         get() = query.isEmpty() && phase == Phase.Content &&
-            (loadingMore || (!hasMore && allSongs.isNotEmpty()))
+            (loadingMore || (showEndFooter && !hasMore && allSongs.isNotEmpty()))
 
     override fun getItemViewType(position: Int): Int =
         if (position < visibleRows.size) VIEW_TYPE_SONG else VIEW_TYPE_STATUS
