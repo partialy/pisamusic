@@ -46,8 +46,10 @@ const router = useRouter();
 const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
 const props = withDefaults(defineProps<{
   removable?: boolean;
+  showDownload?: boolean;
 }>(), {
   removable: false,
+  showDownload: true,
 });
 const emit = defineEmits<{
   removeSong: [song: Song];
@@ -114,26 +116,13 @@ const createSongOptions = (song: Song) => {
       key: "nextplay",
     },
     {
-      label: "添加到播放列表",
+      label: "分享",
       props: {
-        title: "添加到播放列表",
-        onClick: async () => {
-          if (await playbackCommands.appendToPlaylist([song])) {
-            window.$message.success(`已将 ${song.name} 添加到播放列表`);
-          }
-        },
+        title: "分享",
+        onClick: () => shareDialogRef.value?.openForSong(song),
       },
-      icon: renderIcon(AddToPlaylist, {}, { size: 24 }),
-      key: "add",
-    },
-    {
-      label: "添加到歌单",
-      props: {
-        title: "添加到歌单",
-        onClick: () => emit("addToPlaylist", song),
-      },
-      icon: renderIcon(PlaylistAdd, {}, { size: 24 }),
-      key: "add-to-mine-playlist",
+      icon: renderIcon(Share2, {}, { size: 22 }),
+      key: "share",
     },
     {
       label: collector.containsSong(song) ? "取消收藏" : "添加到收藏",
@@ -155,9 +144,31 @@ const createSongOptions = (song: Song) => {
       ),
       key: "collect",
     },
+    {
+      label: "添加到歌单",
+      props: {
+        title: "添加到歌单",
+        onClick: () => emit("addToPlaylist", song),
+      },
+      icon: renderIcon(PlaylistAdd, {}, { size: 24 }),
+      key: "add-to-mine-playlist",
+    },
+    {
+      label: "添加到播放队列",
+      props: {
+        title: "添加到播放队列",
+        onClick: async () => {
+          if (await playbackCommands.appendToPlaylist([song])) {
+            window.$message.success(`已将 ${song.name} 添加到播放队列`);
+          }
+        },
+      },
+      icon: renderIcon(AddToPlaylist, {}, { size: 24 }),
+      key: "add",
+    },
   ];
 
-  if (song.source !== "local") {
+  if (props.showDownload && song.source !== "local") {
     songOptions.push({
       label: "下载",
       props: {
@@ -168,16 +179,6 @@ const createSongOptions = (song: Song) => {
       key: "download",
     });
   }
-
-  songOptions.push({
-    label: "分享",
-    props: {
-      title: "分享",
-      onClick: () => shareDialogRef.value?.openForSong(song),
-    },
-    icon: renderIcon(Share2, {}, { size: 22 }),
-    key: "share",
-  });
 
   songOptions.push({
     label: "详情",

@@ -20,15 +20,25 @@
         :song="song"
         :collected="isCollected(song)"
         @play="emit('play', $event)"
-        @collect="emit('collect', $event)" />
+        @collect="emit('collect', $event)"
+        @more="openSongMenu"
+        @contextmenu="openSongMenu" />
       <div v-if="songs.length === 0" class="empty-state">暂无歌曲</div>
     </template>
+    <ContextMenu
+      ref="contextMenuRef"
+      :show-download="false"
+      @add-to-playlist="handleAddToPlaylist" />
+    <AddToPlaylistDialog ref="addToPlaylistDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { NSkeleton } from "naive-ui";
+import { useTemplateRef } from "vue";
 import KGRecommendSong from "@/components/playList/KGRecommendSong.vue";
+import ContextMenu from "@/components/common/ContextMenu.vue";
+import AddToPlaylistDialog from "@/components/player/AddToPlaylistDialog.vue";
 import type { Song } from "@/types/song";
 
 defineOptions({ name: "HomeSongGrid" });
@@ -49,8 +59,19 @@ const emit = defineEmits<{
   collect: [song: Song];
 }>();
 
+const contextMenuRef = useTemplateRef("contextMenuRef");
+const addToPlaylistDialogRef = useTemplateRef("addToPlaylistDialogRef");
+
 function isCollected(song: Song) {
   return props.isCollected(song);
+}
+
+function openSongMenu(event: MouseEvent, song: Song) {
+  contextMenuRef.value?.openContextMenu(event, { type: "song", data: song });
+}
+
+function handleAddToPlaylist(song: Song) {
+  addToPlaylistDialogRef.value?.open(song);
 }
 </script>
 

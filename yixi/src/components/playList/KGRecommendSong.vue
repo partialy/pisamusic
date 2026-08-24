@@ -1,5 +1,8 @@
 <template>
-  <div class="kg-recommend-song" @dblclick="handlePlay">
+  <div
+    class="kg-recommend-song"
+    @dblclick="handlePlay"
+    @contextmenu="emit('contextmenu', $event, song)">
     <div class="image">
       <n-image preview-disabled :src="cover" lazy />
     </div>
@@ -8,17 +11,16 @@
       <div class="singer">{{props.song.singer}}</div>
     </div>
     <div class="operate">
-      <n-button text>
-        <n-icon size="24" color="var(--color-primary)" class="icon" title="播放" :component="PlaylistPlayIcon"
-          @click="handlePlay" />
+      <n-button text title="播放" @click.stop="handlePlay">
+        <n-icon size="24" color="var(--color-primary)" class="icon" :component="PlaylistPlayIcon" />
       </n-button>
 
-      <n-button text>
-        <n-icon size="24" :color="collected ? 'red' : '#b4b2b2'" class="icon" title="收藏"
-          :component="CollectIcon" @click="handleCollect" />
+      <n-button text title="收藏" @click.stop="handleCollect">
+        <n-icon size="24" :color="collected ? 'red' : '#b4b2b2'" class="icon"
+          :component="CollectIcon" />
       </n-button>
-      <n-button text>
-        <n-icon size="24" color="#b4b2b2" class="icon" title="更多" :component="MoreIcon" @click="handleMore" />
+      <n-button text title="更多" @click.stop="handleMore">
+        <n-icon size="24" color="#b4b2b2" class="icon" :component="MoreIcon" />
       </n-button>
     </div>
   </div>
@@ -35,9 +37,10 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "play", song: Song): void;
-  (e: "collect", song: Song): void;
-  (e: "more", song: Song): void;
+  play: [song: Song];
+  collect: [song: Song];
+  more: [event: MouseEvent, song: Song];
+  contextmenu: [event: MouseEvent, song: Song];
 }>();
 
 const cover = computed(() => {
@@ -56,9 +59,9 @@ const handlePlay = () => {
   emit("play", props.song);
 };
 
-const handleMore = () => {
-  console.log("handleMore");
-}
+const handleMore = (event: MouseEvent) => {
+  emit("more", event, props.song);
+};
 </script>
 
 <style lang="scss" scoped>

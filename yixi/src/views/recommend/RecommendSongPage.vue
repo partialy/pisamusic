@@ -37,7 +37,10 @@
       <template
         v-for="song in songs"
         :key="`${song.source}:${song.id}`">
-        <article class="song-item" @dblclick="handlePlay(song)">
+        <article
+          class="song-item"
+          @dblclick="handlePlay(song)"
+          @contextmenu.stop="openSongMenu($event, song)">
           <div class="cover-wrap">
             <img :src="getSongCover(song, 120)" :alt="song.name" />
             <button
@@ -72,9 +75,9 @@
               </button>
               <button
                 type="button"
-                :aria-label="`添加 ${song.name} 到歌单`"
-                title="添加到歌单"
-                @click.stop="handleAddToPlaylist(song)">
+                :aria-label="`打开 ${song.name} 的更多操作`"
+                title="更多"
+                @click.stop="openSongMenu($event, song)">
                 <n-icon :component="MoreIcon" />
               </button>
             </div>
@@ -84,6 +87,10 @@
     </div>
 
     <n-empty v-else class="empty-state" description="暂无推荐歌曲" />
+    <ContextMenu
+      ref="contextMenuRef"
+      :show-download="false"
+      @add-to-playlist="handleAddToPlaylist" />
     <AddToPlaylistDialog ref="addToPlaylistDialogRef" />
   </div>
 </template>
@@ -94,6 +101,7 @@ import { useRoute } from "vue-router";
 import { NButton, NEmpty, NIcon, NSkeleton } from "naive-ui";
 import { Play } from "lucide-vue-next";
 import AddToPlaylistDialog from "@/components/player/AddToPlaylistDialog.vue";
+import ContextMenu from "@/components/common/ContextMenu.vue";
 import { CollectIcon, MoreIcon, PlaylistPlayIcon } from "@/icons";
 import type { Song } from "@/types/song";
 import { useCollectStore } from "@/store";
@@ -118,6 +126,7 @@ const collector = useCollectStore();
 const songs = ref<Song[]>([]);
 const loading = ref(false);
 const addToPlaylistDialogRef = useTemplateRef("addToPlaylistDialogRef");
+const contextMenuRef = useTemplateRef("contextMenuRef");
 
 const sourceType = computed(() => normalizeSongType(route.query.type));
 const sourceMeta = computed(() => SONG_SOURCE_META[sourceType.value]);
@@ -175,6 +184,10 @@ function isSongCollected(song: Song) {
 
 function handleAddToPlaylist(song: Song) {
   addToPlaylistDialogRef.value?.open(song);
+}
+
+function openSongMenu(event: MouseEvent, song: Song) {
+  contextMenuRef.value?.openContextMenu(event, { type: "song", data: song });
 }
 
 watch(
