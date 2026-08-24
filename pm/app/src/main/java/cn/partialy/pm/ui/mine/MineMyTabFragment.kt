@@ -101,6 +101,7 @@ class MineMyTabFragment : Fragment() {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = ConcatAdapter(overviewAdapter, localPlaylistsAdapter)
             itemAnimator = null
+            isNestedScrollingEnabled = true
         }
 
         viewLifecycleOwner.lifecycleScope.launch {

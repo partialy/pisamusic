@@ -47,10 +47,12 @@ class MinePlaylistsTabFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val rv = binding.playlistsRecyclerView
-        rv.layoutManager = LinearLayoutManager(requireContext())
-        rv.adapter = adapter
-        rv.itemAnimator = null
+        binding.playlistsRecyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = this@MinePlaylistsTabFragment.adapter
+            itemAnimator = null
+            isNestedScrollingEnabled = true
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             playlistCollectionManager.playlistsFlow.collectLatest { list ->

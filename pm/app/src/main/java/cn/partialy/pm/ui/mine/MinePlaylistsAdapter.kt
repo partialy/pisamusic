@@ -18,6 +18,10 @@ class MinePlaylistsAdapter(
     private val onMoreClick: (CollectedPlaylist) -> Unit,
 ) : ListAdapter<CollectedPlaylist, MinePlaylistsAdapter.Vh>(Diff) {
 
+    init {
+        stateRestorationPolicy = RecyclerView.Adapter.StateRestorationPolicy.PREVENT_WHEN_EMPTY
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Vh {
         val binding = ItemMinePlaylistRowBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return Vh(binding, onMoreClick)

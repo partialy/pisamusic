@@ -36,6 +36,7 @@ class MineFragment : Fragment() {
     private var _binding: FragmentMineBinding? = null
     private val binding get() = _binding!!
     private var appBarOffsetListener: AppBarLayout.OnOffsetChangedListener? = null
+    private var pageChangeCallback: ViewPager2.OnPageChangeCallback? = null
     private var currentHeaderAlpha = 0f
 
     /** 与侧栏缓存的网易云 `backgroundUrl` 同步（无 URL 时用默认头图）。 */
@@ -71,6 +72,9 @@ class MineFragment : Fragment() {
     override fun onDestroyView() {
         appBarOffsetListener?.let { binding.mineAppBar.removeOnOffsetChangedListener(it) }
         appBarOffsetListener = null
+        pageChangeCallback?.let(binding.mineTabViewPager::unregisterOnPageChangeCallback)
+        pageChangeCallback = null
+        binding.mineTabViewPager.adapter = null
         ViewCompat.setOnApplyWindowInsetsListener(binding.root, null)
         super.onDestroyView()
         _binding = null
@@ -122,13 +126,12 @@ class MineFragment : Fragment() {
 
         binding.mineTabViewPager.adapter = MineTabPagerAdapter(this)
         binding.mineTabViewPager.offscreenPageLimit = 1
-        binding.mineTabViewPager.registerOnPageChangeCallback(
-            object : ViewPager2.OnPageChangeCallback() {
-                override fun onPageSelected(position: Int) {
-                    applyMineTabStyle(position)
-                }
-            },
-        )
+        pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                applyMineTabStyle(position)
+            }
+        }
+        pageChangeCallback?.let(binding.mineTabViewPager::registerOnPageChangeCallback)
         applyMineTabStyle(0)
 
         binding.tabMineText.setOnClickListener {
