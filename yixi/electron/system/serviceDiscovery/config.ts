@@ -44,7 +44,7 @@ function requireText(value: unknown, field: string): string {
   return value.trim();
 }
 
-function normalizeHttpsBaseUrl(value: unknown, field: string): string {
+function parseHttpsUrl(value: unknown, field: string): URL {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${field} 不能为空`);
   let url: URL;
   try {
@@ -56,6 +56,17 @@ function normalizeHttpsBaseUrl(value: unknown, field: string): string {
   if (url.username || url.password || url.search || url.hash) {
     throw new Error(`${field} 不能包含认证信息、查询参数或 hash`);
   }
+  return url;
+}
+
+function normalizeHttpsOrigin(value: unknown, field: string): string {
+  const url = parseHttpsUrl(value, field);
+  if (url.pathname !== "/") throw new Error(`${field} 必须是 origin，不能包含路径`);
+  return url.origin;
+}
+
+function normalizeHttpsFeedUrl(value: unknown, field: string): string {
+  const url = parseHttpsUrl(value, field);
   return url.toString().replace(/\/+$/, "");
 }
 
@@ -98,8 +109,8 @@ function parseServiceOrigins(value: unknown): ServiceOriginV1[] {
     return {
       id,
       priority,
-      apiBaseUrl: normalizeHttpsBaseUrl(origin.apiBaseUrl, `${field}.apiBaseUrl`),
-      realtimeBaseUrl: normalizeHttpsBaseUrl(origin.realtimeBaseUrl, `${field}.realtimeBaseUrl`),
+      apiBaseUrl: normalizeHttpsOrigin(origin.apiBaseUrl, `${field}.apiBaseUrl`),
+      realtimeBaseUrl: normalizeHttpsOrigin(origin.realtimeBaseUrl, `${field}.realtimeBaseUrl`),
     };
   });
 }
@@ -109,7 +120,7 @@ function parseUpdateFeedBaseUrls(value: unknown): string[] {
     throw new Error("desktop.updateFeedBaseUrls 不能为空");
   }
   return value.map((item, index) =>
-    normalizeHttpsBaseUrl(item, `desktop.updateFeedBaseUrls[${index}]`),
+    normalizeHttpsFeedUrl(item, `desktop.updateFeedBaseUrls[${index}]`),
   );
 }
 

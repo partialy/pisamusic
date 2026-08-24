@@ -119,4 +119,11 @@ describe("resolveServiceDiscovery", () => {
     expect(result.source).toBe("environment");
     expect(result.apiBaseUrl).toBe("http://127.0.0.1:59999");
   });
+
+  it("拒绝带路径的环境变量覆盖", async () => {
+    await expect(resolveServiceDiscovery(
+      { mode: "development", explicitBaseUrl: "https://api.example.com/prefix" },
+      makeDependencies(),
+    )).rejects.toThrow("PISA_SERVER_URL 必须是 origin");
+  });
 });

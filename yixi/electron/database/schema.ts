@@ -15,6 +15,13 @@ export function migrateDatabase(db: DatabaseSync) {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS service_discovery_cache (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      document_json TEXT NOT NULL,
+      config_version INTEGER NOT NULL CHECK (config_version > 0),
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS search_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       keyword TEXT NOT NULL,
@@ -222,6 +229,8 @@ export function migrateDatabase(db: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS idx_download_records_updated_at
       ON download_records(updated_at DESC, id DESC);
   `);
+  // 旧缓存曾位于 renderer 可读写的通用 settings 中；升级后直接清除，避免再次信任该通道。
+  db.prepare("DELETE FROM settings WHERE key = 'desktop-service-discovery-cache-v1'").run();
   ensureDownloadRecordColumns(db);
   db
     .prepare(
@@ -255,6 +264,13 @@ export function migrateDatabase(db: DatabaseSync) {
     .prepare(
       `INSERT INTO schema_migrations (version, name, applied_at)
        VALUES (5, 'sync outbox schema', ?)
+       ON CONFLICT(version) DO NOTHING`
+    )
+    .run(new Date().toISOString());
+  db
+    .prepare(
+      `INSERT INTO schema_migrations (version, name, applied_at)
+       VALUES (6, 'main-only service discovery cache', ?)
        ON CONFLICT(version) DO NOTHING`
     )
     .run(new Date().toISOString());

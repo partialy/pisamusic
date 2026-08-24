@@ -5,12 +5,12 @@ import { DISCOVERY_DOCUMENT_URL } from "./config";
 import { resolveServiceDiscovery } from "./resolver";
 import type { DiscoveryDocumentV1, ServiceDiscoverySnapshot } from "./types";
 
-const CACHE_KEY = "desktop-service-discovery-cache-v1";
 const DISCOVERY_TIMEOUT_MS = 5_000;
 const HEALTH_TIMEOUT_MS = 3_000;
 
 let snapshot: ServiceDiscoverySnapshot | null = null;
 let pending: Promise<ServiceDiscoverySnapshot> | null = null;
+let queuedRefresh: Promise<ServiceDiscoverySnapshot> | null = null;
 
 function createResolveInput() {
   return {
@@ -35,11 +35,11 @@ function createDependencies(minimumConfigVersion: number) {
       return response.json();
     },
     readCachedDocument: () =>
-      getAppDatabase().getSetting<unknown>(CACHE_KEY)?.value ?? null,
+      getAppDatabase().getServiceDiscoveryCache<unknown>()?.document ?? null,
     writeCachedDocument: (document: DiscoveryDocumentV1) => {
       if (document.configVersion < minimumConfigVersion) return;
       try {
-        getAppDatabase().setSetting(CACHE_KEY, document, document.configVersion);
+        getAppDatabase().setServiceDiscoveryCache(document, document.configVersion);
       } catch {
         logger.warn("服务发现缓存写入失败", { configVersion: document.configVersion });
       }
@@ -104,5 +104,15 @@ export function initializeServiceDiscovery(): Promise<ServiceDiscoverySnapshot> 
 }
 
 export function refreshServiceDiscovery(): Promise<ServiceDiscoverySnapshot> {
-  return startResolution();
+  if (!pending) return startResolution();
+  if (queuedRefresh) return queuedRefresh;
+
+  const activeResolution = pending;
+  const task = activeResolution.then(startResolution, startResolution);
+  queuedRefresh = task;
+  const clearQueuedRefresh = () => {
+    if (queuedRefresh === task) queuedRefresh = null;
+  };
+  void task.then(clearQueuedRefresh, clearQueuedRefresh);
+  return task;
 }

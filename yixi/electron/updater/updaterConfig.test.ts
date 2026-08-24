@@ -16,4 +16,21 @@ describe("resolveUpdaterFeedCandidates", () => {
     expect(resolveUpdaterFeedCandidates("", ["https://updates.example.com/feed"]))
       .toEqual(["https://updates.example.com/feed"]);
   });
+
+  it("跳过非法 bootstrap feed 并继续使用有效 discovery fallback", () => {
+    expect(resolveUpdaterFeedCandidates(
+      "https://user:password@updates.example.com/feed?channel=stable#fragment",
+      ["https://backup.example.com/releases/win32/x64"],
+    )).toEqual(["https://backup.example.com/releases/win32/x64"]);
+  });
+
+  it("逐个跳过非法候选，全部非法时返回空数组", () => {
+    expect(resolveUpdaterFeedCandidates(
+      "not-a-url",
+      [
+        "http://updates.example.com/feed",
+        "https://updates.example.com/feed?channel=stable",
+      ],
+    )).toEqual([]);
+  });
 });

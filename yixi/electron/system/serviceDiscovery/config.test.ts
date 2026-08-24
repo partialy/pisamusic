@@ -34,6 +34,28 @@ describe("parseDiscoveryDocument", () => {
     );
   });
 
+  it("拒绝带路径的 API 与 realtime origin", () => {
+    const apiInput = structuredClone(validDocument);
+    apiInput.desktop.serviceOrigins[0].apiBaseUrl = "https://api.example.com/prefix";
+    expect(() => parseDiscoveryDocument(apiInput)).toThrow(
+      "desktop.serviceOrigins[0].apiBaseUrl 必须是 origin",
+    );
+
+    const realtimeInput = structuredClone(validDocument);
+    realtimeInput.desktop.serviceOrigins[0].realtimeBaseUrl = "https://socket.example.com/ws";
+    expect(() => parseDiscoveryDocument(realtimeInput)).toThrow(
+      "desktop.serviceOrigins[0].realtimeBaseUrl 必须是 origin",
+    );
+  });
+
+  it("更新源允许路径", () => {
+    const input = structuredClone(validDocument);
+    input.desktop.updateFeedBaseUrls = ["https://updates.example.com/releases/win32/x64/"];
+    expect(parseDiscoveryDocument(input).desktop.updateFeedBaseUrls).toEqual([
+      "https://updates.example.com/releases/win32/x64",
+    ]);
+  });
+
   it("拒绝重复 origin id", () => {
     const input = structuredClone(validDocument);
     input.desktop.serviceOrigins.push({

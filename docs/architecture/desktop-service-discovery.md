@@ -16,7 +16,7 @@
 
 `configVersion` 必须单调递增。回滚内容时也要继续递增版本号，不能恢复旧数字。`serviceOrigins` 按 `priority` 升序选择，数值越小优先级越高；健康探测会依序选择可用 origin。
 
-正式 URL 必须是 HTTPS，且不允许认证信息、query 或 hash。发现文档中的相对路径必须保持为相对路径，避免将调用方重新绑定到某个业务域名。
+API 与 realtime 地址必须是真正的 origin：正式环境只允许 HTTPS，并且不允许认证信息、路径、query 或 hash。`PISA_SERVER_URL` / `PM_SERVER_URL` 使用同一规则，仅开发环境的 localhost 可使用 HTTP。更新 feed 仍允许路径，但只允许不含认证信息、query、hash 的 HTTPS URL。发现文档中的接口路径必须保持为相对路径，避免将调用方重新绑定到某个业务域名。
 
 `desktop.minimumSupportedVersion` 是已校验并透传到快照的元数据；本轮不根据它强制升级、拦截启动或限制功能。若未来要启用强制升级，必须另行定义版本比较、离线行为和更新失败恢复策略。
 
@@ -29,9 +29,11 @@
 - 远程失败或远程文档版本低于缓存时，使用缓存。
 - 没有可用远程或缓存时，使用内置文档。
 
-缓存保存在 SQLite settings，key 为 `desktop-service-discovery-cache-v1`。缓存和当前内存快照均防止较低 `configVersion` 覆盖。发现成功不等于业务服务可用：仅在后续 bootstrap、设备上报或业务探测失败时进入本地模式。
+缓存保存在 main-only SQLite `service_discovery_cache` 独立表，只能通过 `AppDatabase` 专用 API 访问，不经过 renderer 可读写的通用 settings IPC。升级时清除旧 `desktop-service-discovery-cache-v1` settings 记录。数据库写入使用 `configVersion` 条件更新，缓存和当前内存快照均防止较低版本覆盖。
 
-本地模式仍允许自动更新。updater 继续从服务发现快照（并与 bootstrap 更新配置组合）的候选 feed 检查更新，避免 API 故障时客户端失去恢复通道。
+初始化请求合并；刷新请求在已有解析进行时只排队一轮，并发刷新合并到同一轮，避免慢请求晚到覆盖新快照。发现成功不等于业务服务可用：仅在后续 bootstrap、设备上报或业务探测失败时进入本地模式。
+
+本地模式仍允许自动更新。updater 对 bootstrap 与服务发现快照中的候选 feed 逐个校验和去重，非法 bootstrap feed 会被跳过并继续尝试有效 discovery fallback；全部非法或不可达才由上层报告失败。服务端后台保存 feed 时执行相同的 HTTPS、无认证信息/query/hash 校验。
 
 ## 发布验证与安全模型
 

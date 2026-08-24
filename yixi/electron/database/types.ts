@@ -5,6 +5,12 @@ export type SettingRecord<T = unknown> = {
   updatedAt: string;
 };
 
+export type ServiceDiscoveryCacheRecord<T = unknown> = {
+  document: T;
+  configVersion: number;
+  updatedAt: string;
+};
+
 export type TrackSnapshot = {
   id: string;
   source: "kg" | "wy" | "kw" | string;
@@ -227,6 +233,12 @@ export type SettingRow = {
   key: string;
   value_json: string;
   version: number;
+  updated_at: string;
+};
+
+export type ServiceDiscoveryCacheRow = {
+  document_json: string;
+  config_version: number;
   updated_at: string;
 };
 

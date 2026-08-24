@@ -6,11 +6,11 @@
 
 **Architecture:** 新建独立的服务发现 Module，远程发现地址 `https://pisamusic.partialy.cn/pm-config/config-v1.json` 是正式包唯一固定的网络信任锚点。Module 负责严格校验、SQLite 缓存、版本防回退、候选节点健康探测和内置 HTTPS 兜底；`systemClient`、Socket.IO、头像地址和更新模块只依赖其稳定 Interface，不再自行维护业务服务地址。
 
-**Tech Stack:** Electron 37、TypeScript 5.8、Node.js Fetch、Socket.IO Client、electron-updater 6、SQLite settings、Vitest 4。
+**Tech Stack:** Electron 37、TypeScript 5.8、Node.js Fetch、Socket.IO Client、electron-updater 6、SQLite main-only 独立缓存表、Vitest 4。
 
 ## Global Constraints
 
-- 本轮只改 `yixi/`、根 `AGENTS.md`、`yixi/AGENTS.md` 和本计划关联文档，不触碰 `pm/` 的用户现有改动。
+- 本轮只改 `yixi/`、服务端后台更新源校验、根 `AGENTS.md`、`yixi/AGENTS.md` 和本计划关联文档，不触碰 `pm/` 的用户现有改动。
 - 正式包发现配置、API、实时通信和更新源只接受 `https:`；开发模式继续允许 `http://127.0.0.1:53380`。
 - renderer 不持有服务端地址；远程配置拉取、选择、缓存和降级全部留在 Electron main。
 - `config-v1.json` 是第 0 层服务发现；现有 `/api/config/bootstrap` 是第 1 层业务运行配置，不复制 gatewaySign、音源端点、公告等业务字段。
@@ -21,6 +21,13 @@
 - 自动更新即使处于本地模式也必须能够使用远程发现文件中的独立更新源，保证业务 API 故障时仍可恢复客户端。
 - 所有 Git 提交信息使用中文；每个任务独立验证后再提交。
 - 不启动或重启应用；自动化构建完成后停在可由用户启动测试的状态。
+
+## 最终验收加固（2026-08-24）
+
+- 服务发现缓存迁至 main-only `service_discovery_cache` 表，`AppDatabase` 专用写入使用 `configVersion` 条件保护；旧通用 settings 缓存升级时清除。
+- 初始化与刷新串行执行，并发 refresh 只排队并合并一轮，回归测试覆盖慢速旧请求与后续新版本。
+- API、realtime 和环境变量覆盖必须是纯 origin；更新 feed 可保留路径，但客户端逐个过滤非法候选，后台只允许无认证信息、query、hash 的 HTTPS URL。
+- 专项验证包括 `pnpm --dir yixi test:service-discovery`、`pnpm --dir yixi build:t`、`pnpm --dir server build` 和后台 URL 校验测试。
 
 ---
 
@@ -70,7 +77,7 @@
 - `yixi/electron/system/serviceDiscovery/types.ts`：远程文档、候选 origin、最终快照和依赖 Interface。
 - `yixi/electron/system/serviceDiscovery/config.ts`：纯函数校验、URL 规范化、候选排序和内置配置。
 - `yixi/electron/system/serviceDiscovery/resolver.ts`：远程/缓存/内置选择、版本防回退和健康探测。
-- `yixi/electron/system/serviceDiscovery/index.ts`：Electron main 单例 Adapter，连接环境变量、Fetch 和 SQLite settings。
+- `yixi/electron/system/serviceDiscovery/index.ts`：Electron main 单例 Adapter，连接环境变量、Fetch 和 SQLite `service_discovery_cache` 专用 API，并串行/合并刷新。
 - `yixi/electron/system/serviceDiscovery/config.test.ts`：远程 JSON 契约单元测试。
 - `yixi/electron/system/serviceDiscovery/resolver.test.ts`：远程、缓存、回退和候选切换单元测试。
 - `yixi/electron/updater/updaterConfig.ts`：纯函数合并 bootstrap 与服务发现的更新源。
@@ -579,7 +586,6 @@ const healthUrl = new URL(
 `index.ts` 使用常量：
 
 ```ts
-const CACHE_KEY = "desktop-service-discovery-cache-v1";
 const DISCOVERY_TIMEOUT_MS = 5_000;
 const HEALTH_TIMEOUT_MS = 3_000;
 ```
@@ -599,9 +605,9 @@ fetchRemoteDocument: async () => {
   return response.json();
 },
 readCachedDocument: () =>
-  getAppDatabase().getSetting<unknown>(CACHE_KEY)?.value ?? null,
+  getAppDatabase().getServiceDiscoveryCache<unknown>()?.document ?? null,
 writeCachedDocument: (document) =>
-  void getAppDatabase().setSetting(CACHE_KEY, document, document.configVersion),
+  void getAppDatabase().setServiceDiscoveryCache(document, document.configVersion),
 probeHealth: async (url) => {
   try {
     const response = await fetch(url, {
@@ -629,7 +635,7 @@ export function getServiceDiscoverySnapshot() {
 }
 ```
 
-`initializeServiceDiscovery()` 合并并发初始化；`refreshServiceDiscovery()` 强制重新执行 resolver。日志只记录 source、configVersion、originId 和 origin，不记录 token 或响应正文。
+`initializeServiceDiscovery()` 合并并发初始化；`refreshServiceDiscovery()` 在当前解析之后最多排队一轮，并合并同一时段的并发刷新，保证 resolver 不会并行乱序覆盖。日志只记录 source、configVersion、originId 和 origin，不记录 token 或响应正文。
 
 两者调用 resolver 时使用同一份明确输入：
 
@@ -957,8 +963,9 @@ getSystemBaseUrl: () => Promise<string>;
 修改规则：先修改地址，再递增 configVersion，最后更新 publishedAt
 origin 顺序：priority 越小越优先
 客户端降级：environment/development → remote → cache → embedded
-缓存位置：SQLite settings，key=desktop-service-discovery-cache-v1
-正式 URL：仅 HTTPS，不允许认证信息、query、hash
+缓存位置：main-only SQLite service_discovery_cache 独立表，不暴露 settings IPC
+API/realtime/env origin：仅 HTTPS（开发 localhost 可用 HTTP），不允许认证信息、路径、query、hash
+更新 feed：仅 HTTPS，不允许认证信息、query、hash，允许路径；逐候选校验并跳过非法项
 发布验证：JSON 200、Content-Type application/json、API health 200、latest.yml 可达
 回滚规则：修复内容时继续递增 configVersion，不能恢复旧数字
 ```

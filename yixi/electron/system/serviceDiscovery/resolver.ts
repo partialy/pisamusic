@@ -35,7 +35,10 @@ function normalizeExplicitBaseUrl(value: string, mode: ResolveServiceDiscoveryIn
   if (url.username || url.password || url.search || url.hash) {
     throw new Error("PISA_SERVER_URL 不能包含认证信息、查询参数或 hash");
   }
-  return url.toString().replace(/\/+$/, "");
+  if (url.pathname !== "/") {
+    throw new Error("PISA_SERVER_URL 必须是 origin，不能包含路径");
+  }
+  return url.origin;
 }
 
 function createSnapshot(

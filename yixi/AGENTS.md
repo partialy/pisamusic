@@ -44,6 +44,7 @@
 - 远程失败按 cache → embedded 降级，业务探测失败才进入本地模式。
 - 本地模式仍允许自动更新，避免 API 故障时失去客户端恢复通道。
 - 开发环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL` 仍可覆盖本地服务地址。
+- API、realtime 与环境变量覆盖必须是纯 origin，不得包含路径、认证信息、query 或 hash；自动更新 feed 可包含路径，但必须是无认证信息、query、hash 的 HTTPS URL。
 - renderer 不持有或拼接服务端 baseURL；不再暴露 `system:get-base-url` 或 `getSystemBaseUrl` 兼容接口。
 
 ## 本地与下载补充
@@ -146,7 +147,7 @@
 - renderer 负责 UI、交互状态和播放控制，不直接读取真实 baseURL、密钥、文件系统或数据库。
 - shared 类型应抽离到明确目录，IPC 入参和返回值必须有统一类型。
 - 旧代码里从 IPC 获取 baseURL、读取本地 `data/electronConfig.json` 或在 renderer 硬编码网关地址的逻辑，必须迁移为 main 侧读取 `serviceDiscovery` 快照；不得在调用方重新硬编码业务域名。
-- 配置、公告、反馈复用外层 `server/` 接口；第 0 层发现文档按 `environment/development → remote → cache → embedded` 解析，SQLite 仅缓存发现文档（`desktop-service-discovery-cache-v1`），不把 bootstrap/runtime 作为持久化替代。
+- 配置、公告、反馈复用外层 `server/` 接口；第 0 层发现文档按 `environment/development → remote → cache → embedded` 解析，SQLite 仅在 main-only `service_discovery_cache` 独立表缓存发现文档，不得使用 renderer 可访问的通用 settings key，也不把 bootstrap/runtime 作为持久化替代。
 - system 能力通过最小化 `system:*` IPC 暴露，包括 bootstrap、runtime endpoints、公告、反馈；不得重新新增 renderer 可见的 baseURL 获取接口。
 - 服务端加密、网关验签只允许在 main 侧封装，renderer 不直接持有 `gatewaySign.secret` 或 AES 派生逻辑。
 - main 侧音源请求统一使用 `requestSignedGateway()`，它会从外层 `server` 每次拉取的 bootstrap 中读取 `gatewaySign`，并按 Android 端一致规则添加 `res-dec=1`、`t`、`n`、`s` 签名信息。
@@ -211,11 +212,12 @@
 - main 进程启动阶段先完成第 0 层服务发现，再检查外层服务可用性、刷新 bootstrap 并上报 PC 设备；没网、服务不可用或 `appAvailable=false` 时才设置本地模式继续打开主窗口，renderer 只读取 `system:get-startup-service-state` 并用 `window.$notification` 提示。PC 设备封禁必须阻止进入。
 - 本地模式下右上角设置下拉需要显示“重新链接”，点击后通过 main 进程重启整个 App，重新走启动检查流程；不要改成单纯刷新 renderer。
 - PC 设备上报走 `/api/device/desktop/report`，服务端存储在 `desktop_device_info`，不要复用 Android 设备表。
-- PC 在线升级走 `electron-updater`，main 进程只能从 `serviceDiscovery` 快照和 bootstrap 的 `updater.desktop.feedBaseUrl` 组合候选 feed；开发模式、未打包运行不检查更新，本地模式仍允许检查更新以保留恢复通道。
+- PC 在线升级走 `electron-updater`，main 进程只能从 `serviceDiscovery` 快照和 bootstrap 的 `updater.desktop.feedBaseUrl` 组合候选 feed；候选必须逐个校验，非法 bootstrap feed 不得阻断有效 discovery fallback；开发模式、未打包运行不检查更新，本地模式仍允许检查更新以保留恢复通道。
 
 ## 数据库模块拆分补充
 
 - `electron/database/appDatabase.ts` 只保留 SQLite 连接生命周期与对外读写 API；公共类型放在 `types.ts`，建表与迁移放在 `schema.ts`，JSON / limit 工具放在 `json.ts`，DTO 归一化放在 `normalizers.ts`，数据库行到业务对象的映射放在 `mappers.ts`。
+- 服务发现缓存只能通过 `AppDatabase.getServiceDiscoveryCache()` / `setServiceDiscoveryCache()` 在 main 进程访问；写入必须以 `configVersion` 条件更新，禁止通过 settings IPC 暴露。
 - 后续新增 SQLite 表、字段或本地持久化能力时，按职责更新上述模块，不要把 schema、row type、mapper、normalizer 重新堆回 `appDatabase.ts`。
 
 ## 快捷键设置规则补充
