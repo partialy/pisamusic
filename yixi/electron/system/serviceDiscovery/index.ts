@@ -21,7 +21,7 @@ function createResolveInput() {
   };
 }
 
-function createDependencies() {
+function createDependencies(minimumConfigVersion: number) {
   return {
     fetchRemoteDocument: async () => {
       const response = await fetch(DISCOVERY_DOCUMENT_URL, {
@@ -37,6 +37,7 @@ function createDependencies() {
     readCachedDocument: () =>
       getAppDatabase().getSetting<unknown>(CACHE_KEY)?.value ?? null,
     writeCachedDocument: (document: DiscoveryDocumentV1) => {
+      if (document.configVersion < minimumConfigVersion) return;
       try {
         getAppDatabase().setSetting(CACHE_KEY, document, document.configVersion);
       } catch {
@@ -60,7 +61,15 @@ function createDependencies() {
 }
 
 async function resolveSnapshot(): Promise<ServiceDiscoverySnapshot> {
-  const nextSnapshot = await resolveServiceDiscovery(createResolveInput(), createDependencies());
+  const minimumConfigVersion = snapshot?.configVersion ?? 0;
+  const nextSnapshot = await resolveServiceDiscovery(
+    createResolveInput(),
+    createDependencies(minimumConfigVersion),
+  );
+  const currentSnapshot = snapshot;
+  if (currentSnapshot && nextSnapshot.configVersion < currentSnapshot.configVersion) {
+    return currentSnapshot;
+  }
   logger.info("服务发现解析完成", {
     source: nextSnapshot.source,
     configVersion: nextSnapshot.configVersion,

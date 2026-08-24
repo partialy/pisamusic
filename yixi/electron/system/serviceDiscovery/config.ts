@@ -61,7 +61,17 @@ function normalizeHttpsBaseUrl(value: unknown, field: string): string {
 
 function parseRelativePath(value: unknown, field: string): string {
   const path = requireText(value, field);
-  if (!path.startsWith("/") || path.startsWith("//")) {
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) {
+    throw new Error(`${field} 必须是相对路径`);
+  }
+  const baseUrl = new URL("https://service-discovery.invalid/");
+  let resolvedUrl: URL;
+  try {
+    resolvedUrl = new URL(path, baseUrl);
+  } catch {
+    throw new Error(`${field} 必须是相对路径`);
+  }
+  if (resolvedUrl.origin !== baseUrl.origin) {
     throw new Error(`${field} 必须是相对路径`);
   }
   return path;

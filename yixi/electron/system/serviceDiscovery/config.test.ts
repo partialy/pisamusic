@@ -88,6 +88,18 @@ describe("parseDiscoveryDocument", () => {
     expect(() => parseDiscoveryDocument(input)).toThrow("healthCheckPath 必须是相对路径");
   });
 
+  it("拒绝会被 URL 解析为跨源地址的反斜杠路径", () => {
+    const healthInput = structuredClone(validDocument);
+    healthInput.desktop.healthCheckPath = "/\\attacker.example/health";
+    expect(() => parseDiscoveryDocument(healthInput))
+      .toThrow("healthCheckPath 必须是相对路径");
+
+    const bootstrapInput = structuredClone(validDocument);
+    bootstrapInput.desktop.bootstrapPath = "/api\\bootstrap";
+    expect(() => parseDiscoveryDocument(bootstrapInput))
+      .toThrow("bootstrapPath 必须是相对路径");
+  });
+
   it("丢弃远程未知字段", () => {
     const parsed = parseDiscoveryDocument({ ...validDocument, unexpectedSecret: "discard-me" });
     expect("unexpectedSecret" in parsed).toBe(false);
