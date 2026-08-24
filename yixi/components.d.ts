@@ -14,6 +14,7 @@ declare module 'vue' {
     404: typeof import('./src/components/404.vue')['default']
     AboutContentDialog: typeof import('./src/components/about/AboutContentDialog.vue')['default']
     AboutFeedbackDialog: typeof import('./src/components/about/AboutFeedbackDialog.vue')['default']
+    AboutSetting: typeof import('./src/components/setting/about/AboutSetting.vue')['default']
     AccountSecurityDialog: typeof import('./src/components/user/AccountSecurityDialog.vue')['default']
     AddToPlaylistDialog: typeof import('./src/components/player/AddToPlaylistDialog.vue')['default']
     AdvanceSetting: typeof import('./src/components/setting/basic/AdvanceSetting.vue')['default']

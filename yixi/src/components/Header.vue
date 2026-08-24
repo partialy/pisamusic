@@ -327,7 +327,7 @@ const handleSetting = (key: string) => {
   } else if (key == "theme") {
     void themeStore.toggleLightDark();
   } else if (key == "about") {
-    router.push("/about");
+    void router.push({ path: "/setting", query: { tab: "about" } });
   } else if (key == "exit") {
     electronAPI.reloadWindow();
   } else if (key == "reconnect") {

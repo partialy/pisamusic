@@ -77,9 +77,7 @@ const routes: Array<RouteRecordRaw> = [
       },
       {
         path: "about",
-        name: "About",
-        component: () => import("../views/about.vue"),
-        meta: { title: "PisaMusic - 关于" },
+        redirect: { path: "/setting", query: { tab: "about" } },
       },
       {
         path: "playlist",

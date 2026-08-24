@@ -19,14 +19,61 @@
       <n-tab-pane name="advance" tab="高级设置">
         <AdvanceSetting></AdvanceSetting>
       </n-tab-pane>
+      <n-tab-pane name="about" tab="关于">
+        <AboutSetting></AboutSetting>
+      </n-tab-pane>
     </n-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
-import { LyricSetting, BasicSetting, AdvanceSetting, LocalSetting, ShortcutSetting, SyncSetting } from "@/components/setting";
-import { ref } from "vue";
-const activeName = ref("basic");
+import {
+  AboutSetting,
+  AdvanceSetting,
+  BasicSetting,
+  LocalSetting,
+  LyricSetting,
+  ShortcutSetting,
+  SyncSetting,
+} from "@/components/setting";
+import { ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+
+type SettingTab = "basic" | "local" | "sync" | "lyric" | "shortcut" | "advance" | "about";
+
+const SETTING_TABS = new Set<SettingTab>([
+  "basic",
+  "local",
+  "sync",
+  "lyric",
+  "shortcut",
+  "advance",
+  "about",
+]);
+
+const route = useRoute();
+const router = useRouter();
+const activeName = ref<SettingTab>(resolveSettingTab(route.query.tab));
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    activeName.value = resolveSettingTab(tab);
+  }
+);
+
+watch(activeName, (tab) => {
+  if (resolveSettingTab(route.query.tab) === tab && route.query.tab === tab) return;
+  const query = { ...route.query, tab: tab === "basic" ? undefined : tab };
+  void router.replace({ path: "/setting", query });
+});
+
+function resolveSettingTab(value: unknown): SettingTab {
+  const tab = Array.isArray(value) ? value[0] : value;
+  return typeof tab === "string" && SETTING_TABS.has(tab as SettingTab)
+    ? tab as SettingTab
+    : "basic";
+}
 </script>
 
 <style lang="scss" scoped>
@@ -35,6 +82,7 @@ const activeName = ref("basic");
   height: 100%;
 }
 :deep(.n-tabs) {
+  height: 100%;
   display: flex;
   flex-direction: column;
 }

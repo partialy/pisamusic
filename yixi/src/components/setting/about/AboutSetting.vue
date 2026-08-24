@@ -149,6 +149,8 @@ import AboutContentDialog from "@/components/about/AboutContentDialog.vue";
 import AboutFeedbackDialog from "@/components/about/AboutFeedbackDialog.vue";
 import electronAPI from "@/utils/electron";
 
+defineOptions({ name: "AboutSetting" });
+
 type LocalUpdaterState = Awaited<ReturnType<ElectronIpc["getUpdaterState"]>>;
 type AboutInfo = Awaited<ReturnType<ElectronIpc["getAboutInfo"]>>;
 
@@ -389,7 +391,9 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .about-page {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
+  padding: 8px 0 18px;
+  box-sizing: border-box;
 }
 
 .hero-panel,

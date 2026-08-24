@@ -4,7 +4,9 @@ import AdvanceSetting from "./basic/AdvanceSetting.vue";
 import LocalSetting from "./basic/LocalSetting.vue";
 import ShortcutSetting from "./shortcut/ShortcutSetting.vue";
 import SyncSetting from "./sync/SyncSetting.vue";
+import AboutSetting from "./about/AboutSetting.vue";
 export {
+    AboutSetting,
     LyricSetting,
     BasicSetting,
     AdvanceSetting,
