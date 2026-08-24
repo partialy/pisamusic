@@ -10,7 +10,7 @@ import type {
   ListenTogetherCommandResult,
   ListenTogetherSocketCommand,
 } from "../../src/types/listenTogether";
-import { getSystemBaseUrl } from "../system/systemClient";
+import { getServiceDiscoverySnapshot } from "../system/serviceDiscovery";
 import { normalizeListenTogetherAvatars } from "./listenTogetherAvatar";
 
 export type ListenTogetherSocketListener = {
@@ -40,7 +40,7 @@ let socket: Socket | null = null;
 export function connectListenTogetherSocket(token: string, listener: ListenTogetherSocketListener): void {
   // 单例连接：重复 connect 前先清理旧监听和旧 socket
   disconnectListenTogetherSocket();
-  const client = io(getSystemBaseUrl(), {
+  const client = io(getServiceDiscoverySnapshot().realtimeBaseUrl, {
     transports: ["websocket"],
     auth: { token: `Bearer ${token}` },
   });
