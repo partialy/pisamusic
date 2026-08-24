@@ -40,8 +40,11 @@
 
 ## 服务端地址规则补充
 
-- 桌面端 main 进程统一通过 `electron/system/systemClient.ts` 的 `getSystemBaseUrl()` 访问外层服务端；开发环境默认 `http://127.0.0.1:53380`，正式打包环境默认 `http://pm-server.hs.partialy.cn/`。
-- 如需临时覆盖服务端地址，仍然优先使用进程环境变量 `PISA_SERVER_URL` 或 `PM_SERVER_URL`；renderer 不要直接持有或拼接服务端 baseURL。
+- 正式包通过 `https://pisamusic.partialy.cn/pm-config/config-v1.json` 做第 0 层服务发现；`systemClient`、一起听 Socket、账号相对头像和 updater 只能读取 `serviceDiscovery` 快照。
+- 远程失败按 cache → embedded 降级，业务探测失败才进入本地模式。
+- 本地模式仍允许自动更新，避免 API 故障时失去客户端恢复通道。
+- 开发环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL` 仍可覆盖本地服务地址。
+- renderer 不持有或拼接服务端 baseURL；不再暴露 `system:get-base-url` 或 `getSystemBaseUrl` 兼容接口。
 
 ## 本地与下载补充
 
@@ -142,10 +145,9 @@
 - preload 只暴露稳定、最小化的 typed API，不暴露 Node、Electron 原始对象或内部密钥。
 - renderer 负责 UI、交互状态和播放控制，不直接读取真实 baseURL、密钥、文件系统或数据库。
 - shared 类型应抽离到明确目录，IPC 入参和返回值必须有统一类型。
-- 旧代码里从 IPC 获取 baseURL、读取本地 `data/electronConfig.json` 或在 renderer 硬编码网关地址的逻辑，需要逐步迁移到 main 统一服务端 bootstrap。
-- 配置、公告、反馈复用外层 `server/` 的接口；服务端配置每次拉取，不写入 SQLite 持久化。
-- 外层服务端地址由 main 侧读取环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL`，默认 `http://127.0.0.1:53380`。
-- system 能力通过 `system:*` IPC 暴露，包括 bootstrap、runtime endpoints、公告、反馈；旧 `getServerPort` / `getRequestUrl` 仅作为兼容入口保留。
+- 旧代码里从 IPC 获取 baseURL、读取本地 `data/electronConfig.json` 或在 renderer 硬编码网关地址的逻辑，必须迁移为 main 侧读取 `serviceDiscovery` 快照；不得在调用方重新硬编码业务域名。
+- 配置、公告、反馈复用外层 `server/` 接口；第 0 层发现文档按 `environment/development → remote → cache → embedded` 解析，SQLite 仅缓存发现文档（`desktop-service-discovery-cache-v1`），不把 bootstrap/runtime 作为持久化替代。
+- system 能力通过最小化 `system:*` IPC 暴露，包括 bootstrap、runtime endpoints、公告、反馈；不得重新新增 renderer 可见的 baseURL 获取接口。
 - 服务端加密、网关验签只允许在 main 侧封装，renderer 不直接持有 `gatewaySign.secret` 或 AES 派生逻辑。
 - main 侧音源请求统一使用 `requestSignedGateway()`，它会从外层 `server` 每次拉取的 bootstrap 中读取 `gatewaySign`，并按 Android 端一致规则添加 `res-dec=1`、`t`、`n`、`s` 签名信息。
 - renderer 启动后通过 `src/store/runtimeConfig.ts` 拉取 bootstrap/runtime endpoints，并统一应用到现有 `directAPI` / `proxyAPI` 实例；不要在页面里散落硬编码音源 URL。
@@ -206,10 +208,10 @@
 - 桌面端启动页由 `electron/startup/startupWindowManager.ts` 和 `web/startup-window.html` 管理，使用独立 Electron HTML 窗口，不要改回 Vue 页面内覆盖层。
 - 首次用户协议状态统一写入 SQLite settings 的 `startup-user-agreement`，不要使用 localStorage 或 electron-store 另存一份协议状态。
 - 主窗口默认隐藏加载；renderer 完成关键初始化后通过 preload 暴露的 `startup:renderer-ready` 通知 main，再由 main 关闭启动页并显示主窗口。
-- main 进程启动阶段负责检查外层服务可用性、刷新 bootstrap 并上报 PC 设备；没网、服务不可用或 `appAvailable=false` 时设置本地模式继续打开主窗口，renderer 只读取 `system:get-startup-service-state` 并用 `window.$notification` 提示。PC 设备封禁必须阻止进入。
+- main 进程启动阶段先完成第 0 层服务发现，再检查外层服务可用性、刷新 bootstrap 并上报 PC 设备；没网、服务不可用或 `appAvailable=false` 时才设置本地模式继续打开主窗口，renderer 只读取 `system:get-startup-service-state` 并用 `window.$notification` 提示。PC 设备封禁必须阻止进入。
 - 本地模式下右上角设置下拉需要显示“重新链接”，点击后通过 main 进程重启整个 App，重新走启动检查流程；不要改成单纯刷新 renderer。
 - PC 设备上报走 `/api/device/desktop/report`，服务端存储在 `desktop_device_info`，不要复用 Android 设备表。
-- PC 在线升级走 `electron-updater`，main 进程读取 bootstrap 的 `updater.desktop.feedBaseUrl`，失败时使用 `https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64` 兜底；开发模式、未打包运行、本地模式都不检查更新。
+- PC 在线升级走 `electron-updater`，main 进程只能从 `serviceDiscovery` 快照和 bootstrap 的 `updater.desktop.feedBaseUrl` 组合候选 feed；开发模式、未打包运行不检查更新，本地模式仍允许检查更新以保留恢复通道。
 
 ## 数据库模块拆分补充
 

@@ -714,7 +714,6 @@ type ElectronIpcApi = {
     callback: (action: "play" | "pause" | "next" | "prev", ...args: any[]) => void
   ) => () => void;
 
-  getSystemBaseUrl: () => Promise<string>;
   getAppVersion: () => Promise<string>;
   getBootstrapConfig: () => Promise<BootstrapConfig>;
   getStartupServiceState: () => Promise<StartupServiceState>;

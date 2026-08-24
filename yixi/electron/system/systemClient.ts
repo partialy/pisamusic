@@ -55,11 +55,6 @@ function getApiBaseUrl() {
   return `${getServiceDiscoverySnapshot().apiBaseUrl}/`;
 }
 
-// Task 5 移除 renderer 兼容 IPC 前暂时保留，确保当前任务可独立构建。
-export function getSystemBaseUrl() {
-  return getApiBaseUrl();
-}
-
 export function getAppVersion() {
   return app.getVersion();
 }

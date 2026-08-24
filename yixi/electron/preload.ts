@@ -185,7 +185,6 @@ const libraryIpc = {
 };
 
 const systemIpc = {
-  getSystemBaseUrl: () => ipcRenderer.invoke("system:get-base-url"),
   getAppVersion: () => ipcRenderer.invoke("system:get-app-version"),
   getBootstrapConfig: () => ipcRenderer.invoke("system:get-bootstrap"),
   getStartupServiceState: () => ipcRenderer.invoke("system:get-startup-service-state"),

@@ -96,6 +96,10 @@ PC 桌面端 App：
 
 - 目录：`yixi/`
 - 技术栈：Electron + Vue 3 + TypeScript + Naive UI + Pinia + howler + electron-vite + electron-builder。
+- 正式包先读取第 0 层服务发现文件 `https://pisamusic.partialy.cn/pm-config/config-v1.json`；维护该 JSON 时先修改地址，再递增 `configVersion`，最后更新 `publishedAt`，`configVersion` 只能单调递增，不能通过恢复旧数字回滚。
+- 发现文档的 `serviceOrigins` 按 `priority` 从小到大选择，客户端按 `environment/development → remote → cache → embedded` 解析；缓存仅存 SQLite settings 的 `desktop-service-discovery-cache-v1`，更低版本远程文档不得覆盖缓存或内存快照。
+- `systemClient`、一起听 Socket、相对账号头像和 updater 必须读取服务发现快照；不得在调用方重新硬编码业务域名，renderer 不得取得服务端 base URL。
+- 远程发现或业务 API 故障进入本地模式时，自动更新仍可使用发现快照中的更新 feed；`minimumSupportedVersion` 目前仅是发现元数据，不在本轮强制升级。
 - 开发：`pnpm --dir yixi dev`
 - 类型检查 / 构建：优先使用 `yixi/package.json` 中现有脚本，例如 `pnpm --dir yixi build:t`。
 - Windows 打包：`pnpm --dir yixi build:win`
