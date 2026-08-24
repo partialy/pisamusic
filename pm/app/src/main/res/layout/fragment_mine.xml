@@ -16,7 +16,7 @@
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:id="@+id/mineCollapsingHeader"
             android:layout_width="match_parent"
-            android:layout_height="320dp"
+            android:layout_height="@dimen/mine_profile_header_height"
             app:layout_scrollFlags="scroll|exitUntilCollapsed">
 
             <FrameLayout
@@ -80,76 +80,12 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <FrameLayout
-                android:id="@+id/mineHeaderBar"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/home_header_bar_height"
-                android:elevation="8dp"
-                app:layout_collapseMode="pin">
-
-                <View
-                    android:id="@+id/mineHeaderBg"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:alpha="0"
-                    android:background="@color/home_header_bg" />
-
-                <LinearLayout
-                    android:id="@+id/mineHeaderContent"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="8dp">
-
-                    <ImageButton
-                        android:id="@+id/mineMenuButton"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:background="@android:color/transparent"
-                        android:contentDescription="@string/open_menu"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_menu_24"
-                        app:tint="@android:color/white" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:id="@+id/title_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="match_parent"
-                        android:gravity="center_vertical"
-                        android:text="@string/app_name"
-                        android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:visibility="gone" />
-
-                    <Space
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1" />
-
-                    <ImageButton
-                        android:id="@+id/mineSearchButton"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:background="@android:color/transparent"
-                        android:contentDescription="@string/search"
-                        android:padding="8dp"
-                        android:src="@drawable/ic_search_24"
-                        app:tint="@android:color/white" />
-                </LinearLayout>
-            </FrameLayout>
         </com.google.android.material.appbar.CollapsingToolbarLayout>
 
         <LinearLayout
             android:id="@+id/mineTabsSheet"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="-24dp"
             android:background="@drawable/bg_mine_playlist_sheet"
             android:gravity="center"
             android:orientation="horizontal"
@@ -187,5 +123,69 @@
         android:layout_height="match_parent"
         android:background="@color/home_page_bg"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <FrameLayout
+        android:id="@+id/mineHeaderBar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/home_header_bar_height"
+        android:elevation="8dp">
+
+        <View
+            android:id="@+id/mineHeaderBg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0"
+            android:background="@color/home_header_bg" />
+
+        <LinearLayout
+            android:id="@+id/mineHeaderContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp">
+
+            <ImageButton
+                android:id="@+id/mineMenuButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/open_menu"
+                android:padding="8dp"
+                android:src="@drawable/ic_menu_24"
+                app:tint="@android:color/white" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/title_text"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:text="@string/app_name"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:visibility="gone" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <ImageButton
+                android:id="@+id/mineSearchButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/search"
+                android:padding="8dp"
+                android:src="@drawable/ic_search_24"
+                app:tint="@android:color/white" />
+        </LinearLayout>
+
+    </FrameLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

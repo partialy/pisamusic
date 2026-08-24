@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
@@ -35,6 +36,7 @@ class MineFragment : Fragment() {
     private var _binding: FragmentMineBinding? = null
     private val binding get() = _binding!!
     private var appBarOffsetListener: AppBarLayout.OnOffsetChangedListener? = null
+    private var currentHeaderAlpha = 0f
 
     /** 与侧栏缓存的网易云 `backgroundUrl` 同步（无 URL 时用默认头图）。 */
     fun setWyProfileBackgroundUrl(url: String?) {
@@ -54,6 +56,7 @@ class MineFragment : Fragment() {
         (activity as? MainActivity)?.refreshMineProfileBackgroundFromLogin()
         applyMineProfileTexts()
         applyMineAvatarDisplay()
+        if (_binding != null) applyStatusBarIconStyle(currentHeaderAlpha)
     }
 
     override fun onCreateView(
@@ -68,6 +71,7 @@ class MineFragment : Fragment() {
     override fun onDestroyView() {
         appBarOffsetListener?.let { binding.mineAppBar.removeOnOffsetChangedListener(it) }
         appBarOffsetListener = null
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root, null)
         super.onDestroyView()
         _binding = null
     }
@@ -75,26 +79,7 @@ class MineFragment : Fragment() {
     @SuppressLint("ResourceAsColor")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        val baseHeaderHeightPx = (56f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        val isDarkMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        val insetsController = WindowInsetsControllerCompat(requireActivity().window, view)
-
-        fun applyStatusBarIconStyle(headerAlpha: Float) {
-            if (isDarkMode) {
-                insetsController.isAppearanceLightStatusBars = false
-                return
-            }
-            insetsController.isAppearanceLightStatusBars = headerAlpha >= 0.5f
-        }
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.mineHeaderBar) { v, insets ->
-            val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            v.layoutParams = v.layoutParams.apply { height = baseHeaderHeightPx + top }
-            binding.mineHeaderContent.updatePadding(top = top)
-            binding.mineCollapsingHeader.minimumHeight = baseHeaderHeightPx + top
-            insets
-        }
+        setupInsets(view)
 
         binding.mineMenuButton.setOnClickListener {
             (activity as? MainActivity)?.openMainDrawer()
@@ -110,20 +95,16 @@ class MineFragment : Fragment() {
         val triggerPx = (200f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
         appBarOffsetListener = AppBarLayout.OnOffsetChangedListener { _, verticalOffset ->
             val scrollY = -verticalOffset
-            val a = (scrollY.toFloat() / triggerPx).coerceIn(0f, 1f)
-            binding.mineHeaderBg.alpha = a
-            applyStatusBarIconStyle(a)
+            currentHeaderAlpha = (scrollY.toFloat() / triggerPx).coerceIn(0f, 1f)
+            binding.mineHeaderBg.alpha = currentHeaderAlpha
+            applyStatusBarIconStyle(currentHeaderAlpha)
 
-            val iconTint = if (a < 0.5f) {
+            val iconTint = if (currentHeaderAlpha < 0.5f) {
                 android.R.color.white
             } else {
                 R.color.colorOnBgNormal
             }
-            if (a < 0.9f) {
-                binding.titleText.visibility = View.GONE
-            } else {
-                binding.titleText.visibility = View.VISIBLE
-            }
+            binding.titleText.visibility = if (currentHeaderAlpha < 0.9f) View.GONE else View.VISIBLE
             val color = requireContext().getColor(iconTint)
             binding.mineMenuButton.setColorFilter(color)
             binding.mineSearchButton.setColorFilter(color)
@@ -158,6 +139,33 @@ class MineFragment : Fragment() {
         }
 
         applyMineAvatarDisplay()
+    }
+
+    private fun setupInsets(root: View) {
+        val baseHeaderHeightPx = resources.getDimensionPixelSize(R.dimen.home_header_bar_height)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val statusBarTopPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            val metrics = MineHeaderLayoutPolicy.resolve(
+                baseHeaderHeightPx = baseHeaderHeightPx,
+                statusBarTopPx = statusBarTopPx,
+            )
+
+            binding.mineHeaderBar.updateLayoutParams<ViewGroup.LayoutParams> {
+                height = metrics.overlayHeightPx
+            }
+            binding.mineHeaderContent.updatePadding(top = metrics.contentPaddingTopPx)
+            binding.mineCollapsingHeader.minimumHeight = metrics.collapsingMinimumHeightPx
+            insets
+        }
+        ViewCompat.requestApplyInsets(root)
+    }
+
+    private fun applyStatusBarIconStyle(headerAlpha: Float) {
+        val isDarkMode =
+            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+        val controller = WindowInsetsControllerCompat(requireActivity().window, requireView())
+        controller.isAppearanceLightStatusBars = !isDarkMode && headerAlpha >= 0.5f
     }
 
     private fun openAccountEntry() {
