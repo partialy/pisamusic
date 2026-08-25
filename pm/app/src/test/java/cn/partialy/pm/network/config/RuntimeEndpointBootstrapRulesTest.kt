@@ -33,6 +33,8 @@ class RuntimeEndpointBootstrapRulesTest {
         assertEquals("api/bootstrap-v2", requestedPath)
         assertEquals("https://kg.example.com/", configManager.getEndpoints().kgBaseUrl)
         assertEquals("bootstrap-secret", configManager.getGatewaySign().secret)
+        val songTarget = configManager.kgSongTarget()
+        assertEquals(songTarget.state.endpoints.kgSongUrl, songTarget.url)
     }
 
     @Test
@@ -53,6 +55,50 @@ class RuntimeEndpointBootstrapRulesTest {
 
         assertTrue(failure is IllegalStateException)
         assertSame(unavailable, configManager.getEndpoints())
+    }
+
+    @Test
+    fun `enter local mode resets endpoints and rejects late bootstrap publication`() = runBlocking {
+        val manager = discoveryManager { documentJson(version = 2, bootstrapPath = "/api/bootstrap-v2") }
+        lateinit var configManager: ConfigManager
+        configManager = ConfigManager(
+            systemApiService = systemApiService {
+                configManager.enterLocalMode()
+                bootstrapResponse()
+            },
+            serviceDiscoveryManager = manager,
+        )
+
+        val failure = runCatching { configManager.refreshBootstrapConfig() }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals("https://music-runtime.invalid/", configManager.getEndpoints().kgBaseUrl)
+        assertTrue(configManager.isLocalMode())
+    }
+
+    @Test
+    fun `local mode blocks refresh until a new online startup begins`() = runBlocking {
+        val manager = discoveryManager { documentJson(version = 2, bootstrapPath = "/api/bootstrap-v2") }
+        var apiCalls = 0
+        val configManager = ConfigManager(
+            systemApiService = systemApiService {
+                apiCalls++
+                bootstrapResponse()
+            },
+            serviceDiscoveryManager = manager,
+        )
+        configManager.refreshBootstrapConfig()
+        assertEquals("https://kg.example.com/", configManager.getEndpoints().kgBaseUrl)
+
+        configManager.enterLocalMode()
+        assertEquals("https://music-runtime.invalid/", configManager.getEndpoints().kgBaseUrl)
+        assertTrue(runCatching { configManager.refreshBootstrapConfig() }.isFailure)
+        assertEquals(1, apiCalls)
+
+        configManager.beginOnlineStartup()
+        configManager.refreshBootstrapConfig()
+        assertEquals(2, apiCalls)
+        assertEquals("https://kg.example.com/", configManager.getEndpoints().kgBaseUrl)
     }
 
     private fun discoveryManager(document: () -> String): ServiceDiscoveryManager = ServiceDiscoveryManager(

@@ -1,6 +1,7 @@
 package cn.partialy.pm.network.discovery
 
 import android.content.Context
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
@@ -8,12 +9,16 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.CacheControl
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 
 /**
  * 串行刷新服务发现文档，并原子发布“文档 + 已选 origin”。
@@ -229,25 +234,46 @@ private object DiscoveryNetwork {
         .writeTimeout(3, TimeUnit.SECONDS)
         .build()
 
-    fun fetchDocument(url: String): String? {
+    suspend fun fetchDocument(url: String): String? {
         val request = Request.Builder()
             .url(url)
             .get()
             .cacheControl(CacheControl.FORCE_NETWORK)
             .header("Cache-Control", "no-cache")
             .build()
-        return documentClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            response.body?.string()
+        return documentClient.newCall(request).awaitResult { response ->
+            if (response.isSuccessful) response.body?.string() else null
         }
     }
 
-    fun checkHealth(url: String): Boolean {
+    suspend fun checkHealth(url: String): Boolean {
         val request = Request.Builder()
             .url(url)
             .get()
             .cacheControl(CacheControl.FORCE_NETWORK)
             .build()
-        return healthClient.newCall(request).execute().use { it.isSuccessful }
+        return healthClient.newCall(request).awaitResult(Response::isSuccessful)
     }
 }
+
+/** 把 OkHttp 异步 Call 接入结构化取消；响应始终在 callback 线程关闭。 */
+internal suspend fun <T> Call.awaitResult(transform: (Response) -> T): T =
+    suspendCancellableCoroutine { continuation ->
+        continuation.invokeOnCancellation { cancel() }
+        enqueue(
+            object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (continuation.isActive) {
+                        continuation.resumeWith(Result.failure(e))
+                    }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val result = runCatching { response.use(transform) }
+                    if (continuation.isActive) {
+                        continuation.resumeWith(result)
+                    }
+                }
+            },
+        )
+    }

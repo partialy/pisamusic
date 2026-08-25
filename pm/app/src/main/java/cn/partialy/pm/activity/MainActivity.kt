@@ -164,12 +164,6 @@ class MainActivity : BaseDownloadActivity() {
 
         applyWyProfileBackgroundFromLogin()
 
-        if (!isLocalMode()) {
-            lifecycleScope.launch {
-                kgRepository.updateUrl()
-            }
-        }
-
         // 仅在首次创建时拉公告；避免深色模式等配置变更导致 Activity 重建后重复弹窗
         if (!isLocalMode() && savedInstanceState == null &&
             intent.getStringExtra(EXTRA_SETTINGS_ACTION) != ACTION_SETTINGS_ANNOUNCEMENTS

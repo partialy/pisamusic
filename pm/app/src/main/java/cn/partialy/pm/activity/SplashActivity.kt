@@ -156,6 +156,7 @@ class SplashActivity : AppCompatActivity() {
 
     private fun tryBootstrapAndUpdate() {
         lifecycleScope.launch {
+            if (hasNavigated) return@launch
             if (!isAgreementAccepted()) {
                 cancelLocalModeButton()
                 runCatching {
@@ -171,6 +172,7 @@ class SplashActivity : AppCompatActivity() {
                 return@launch
             }
 
+            configManager.beginOnlineStartup()
             scheduleLocalModeButtonIfNeeded()
             runCatching {
                 withTimeout(SPLASH_BOOTSTRAP_TIMEOUT_MS) {
@@ -353,6 +355,9 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun startMainActivity(localModeReason: String? = null) {
+        if (!localModeReason.isNullOrBlank()) {
+            configManager.enterLocalMode()
+        }
         MainActivity.start(
             context = this,
             localModeReason = localModeReason,

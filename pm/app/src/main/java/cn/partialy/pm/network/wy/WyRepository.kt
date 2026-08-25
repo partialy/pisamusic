@@ -140,9 +140,14 @@ class WyRepository @Inject constructor(
         return try {
             val cacheKey = "wy_url_${id}_$br"
             cache.get<WySongUrlResponse>(cacheKey)?.let { return Result.success(it) }
+            val target = configManager.wySongTarget()
             val body = urlProxy.songUrl(
-                configManager.getWySongUrl(), id, br,
-                diagnostic?.traceId, diagnostic?.methodName,
+                url = target.url,
+                runtimeState = target.state,
+                id = id,
+                br = br,
+                playbackTraceId = diagnostic?.traceId,
+                playbackMethodName = diagnostic?.methodName,
             )
             cache.set(cacheKey, body)
             Result.success(body)
@@ -161,9 +166,15 @@ class WyRepository @Inject constructor(
                 ?: return Result.failure(IllegalArgumentException("wy songUrlV1: invalid id $id"))
             val cacheKey = "wy_url_v1_${id}_$level"
             cache.get<WySongUrlResponse>(cacheKey)?.let { return Result.success(it) }
+            val target = configManager.wySongV1Target()
             val body = urlProxy.songUrlV1(
-                configManager.getWySongUrlV1(), numericId, level, null,
-                diagnostic?.traceId, diagnostic?.methodName,
+                url = target.url,
+                runtimeState = target.state,
+                id = numericId,
+                level = level,
+                br = null,
+                playbackTraceId = diagnostic?.traceId,
+                playbackMethodName = diagnostic?.methodName,
             )
             cache.set(cacheKey, body)
             Result.success(body)

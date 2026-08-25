@@ -109,6 +109,66 @@ class RuntimeEndpointInterceptorTest {
         )
     }
 
+    @Test
+    fun `absolute url keeps caller snapshot instead of interceptor current state`() {
+        val callerState = ConfigManager.RuntimeBootstrapState(
+            endpoints = endpoints.copy(kgSongUrl = "https://old-song.example.com/kg"),
+            gatewaySign = ConfigManager.RuntimeGatewaySign("old-secret", "old-as"),
+            gatewayEndpointPrefixes = setOf("https://old-song.example.com/kg"),
+        )
+        val currentState = ConfigManager.RuntimeBootstrapState(
+            endpoints = endpoints.copy(kgSongUrl = "https://new-song.example.com/kg"),
+            gatewaySign = ConfigManager.RuntimeGatewaySign("new-secret", "new-as"),
+            gatewayEndpointPrefixes = setOf("https://new-song.example.com/kg"),
+        )
+        GatewaySignRuntime.bind { currentState }
+        val endpointInterceptor = RuntimeEndpointInterceptor(
+            endpointProvider = { currentState.endpoints },
+            runtimeStateProvider = { currentState },
+        )
+        var proceededRequest: Request? = null
+        val terminal = okhttp3.Interceptor { chain ->
+            proceededRequest = chain.request()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(okhttp3.Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(ByteArray(0).toResponseBody(null))
+                .build()
+        }
+        val request = Request.Builder()
+            .url("https://old-song.example.com/kg?hash=abc")
+            .tag(ConfigManager.RuntimeBootstrapState::class.java, callerState)
+            .build()
+
+        OkHttpClient.Builder()
+            .addInterceptor(endpointInterceptor)
+            .addInterceptor(GatewaySignInterceptor())
+            .addInterceptor(terminal)
+            .build()
+            .newCall(request)
+            .execute()
+            .close()
+
+        val signed = requireNotNull(proceededRequest)
+        assertEquals("https://old-song.example.com/kg?hash=abc&res-dec=1", signed.url.toString())
+        val timestamp = requireNotNull(signed.header("t"))
+        val nonce = requireNotNull(signed.header("n"))
+        assertEquals(
+            GatewaySigner.buildSignature(
+                method = "GET",
+                url = signed.url,
+                bodyBytes = ByteArray(0),
+                timestamp = timestamp,
+                nonce = nonce,
+                asValue = "old-as",
+                secret = "old-secret",
+            ),
+            signed.header("s"),
+        )
+    }
+
     private fun execute(interceptor: RuntimeEndpointInterceptor, url: String): String {
         var proceededUrl: String? = null
         val terminal = okhttp3.Interceptor { chain ->

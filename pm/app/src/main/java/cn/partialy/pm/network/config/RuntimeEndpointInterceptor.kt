@@ -10,7 +10,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
  * 把 Retrofit 的占位地址替换为配置下发后的实时地址。
  *
  * Retrofit 单例只负责描述接口，真正请求发出前再读取 [ConfigManager]，避免把启动时的
- * 回退地址永久固化到 Retrofit。使用 `@Url` 传入的绝对地址不会命中占位 host，因此保持原样。
+ * 回退地址永久固化到 Retrofit。使用 `@Url` 传入的绝对地址不会命中占位 host，因此保持原样；
+ * 调用方通过 Retrofit `@Tag` 冻结的 bootstrap state 会继续传给网关签名拦截器。
  */
 class RuntimeEndpointInterceptor internal constructor(
     private val endpointProvider: () -> ConfigManager.RuntimeEndpoints,
@@ -24,7 +25,8 @@ class RuntimeEndpointInterceptor internal constructor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
-        val runtimeState = runtimeStateProvider?.invoke()
+        val runtimeState = originalRequest.tag(ConfigManager.RuntimeBootstrapState::class.java)
+            ?: runtimeStateProvider?.invoke()
         val taggedRequest = originalRequest.newBuilder()
             .apply {
                 runtimeState?.let { tag(ConfigManager.RuntimeBootstrapState::class.java, it) }

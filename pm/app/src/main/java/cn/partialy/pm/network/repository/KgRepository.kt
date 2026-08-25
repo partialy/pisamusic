@@ -46,10 +46,6 @@ class KgRepository @Inject constructor(
 
     private val cache = Cache(timeout = 60 * 2000) // 2分钟缓存
 
-    suspend fun updateUrl(){
-        configManager.getLatestBaseUrl()
-    }
-
     private suspend fun ensureKgDfid() {
         val existing = dfidHolder.dfid
         if (!existing.isNullOrBlank()) return
@@ -373,8 +369,10 @@ class KgRepository @Inject constructor(
     ): Result<KgSongUrlResponse> {
         return try {
             ensureKgDfid()
+            val target = configManager.kgSongTarget()
             val response = urlProxyApi.getSongUrl(
-                url = configManager.getKgSongUrl(),
+                url = target.url,
+                runtimeState = target.state,
                 hash = hash,
                 quality = quality,
                 playbackTraceId = diagnostic?.traceId,

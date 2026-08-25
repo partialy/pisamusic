@@ -76,7 +76,7 @@ class KugouCookieRepository @Inject constructor(
                 page?.let { put("page", it.toString()) }
                 pagesize?.let { put("pagesize", it.toString()) }
             }
-            val result = http.getBlocking(urlUserPlaylist, params)
+            val result = http.getBlocking(configManager.kgApiTarget("user/playlist"), params)
             result.parseOrThrow()
         }
     }
@@ -115,7 +115,7 @@ class KugouCookieRepository @Inject constructor(
             page?.let { put("page", it.toString()) }
             pagesize?.let { put("pagesize", it.toString()) }
         }
-        http.getBlocking(urlUserPlaylist, params)
+        http.getBlocking(configManager.kgApiTarget("user/playlist"), params)
     }
 
     suspend fun getRecommendSongs(): Result<RecommendSongResponse> = requestBase(
@@ -255,7 +255,7 @@ class KugouCookieRepository @Inject constructor(
     /** 调试：`GET /user/detail`（无额外 query，可按需扩展 [params]）。 */
     suspend fun getUserDetailRaw(params: Map<String, String?> = emptyMap()): CookieHttpResult =
         withContext(Dispatchers.IO) {
-            http.getBlocking(urlUserDetail, params)
+            http.getBlocking(configManager.kgApiTarget("user/vip/detail"), params)
         }
 
     /** 侧栏展示直接读取登录成功时保存的账号摘要。 */
@@ -291,12 +291,13 @@ class KugouCookieRepository @Inject constructor(
                 .entries
                 .joinToString("; ") { "${it.key}=${it.value}" }
 
-            val tokenUrl = urlFor("login/token")
+            val tokenTarget = configManager.kgApiTarget("login/token")
             val tokenResp = CookieRequest.getBlocking(
-                tokenUrl,
+                tokenTarget.url,
                 mapOf("token" to token, "userid" to userid),
                 cookieForTokenRequest,
                 KG_LOGIN_BROWSER_HEADERS,
+                runtimeState = tokenTarget.state,
             )
             if (!tokenResp.isSuccessful) {
                 Log.w(TAG, "login/token HTTP ${tokenResp.code}, body=${tokenResp.body.take(MAX_LOG_BODY_LENGTH)}")
@@ -331,11 +332,13 @@ class KugouCookieRepository @Inject constructor(
     }
 
     private fun fetchPlaylistOwnerInfoForCookie(cookie: String): KgDrawerUserInfo? {
+        val target = configManager.kgApiTarget("user/playlist")
         val result = CookieRequest.getBlocking(
-            url = urlUserPlaylist,
+            url = target.url,
             params = mapOf("page" to "1", "pagesize" to "30"),
             cookie = cookie,
             mergeResponseSetCookie = false,
+            runtimeState = target.state,
         )
         if (!result.isSuccessful) return null
         val playlists = gson.fromJson(result.body, KgUserPlaylistResponse::class.java) ?: return null
@@ -386,22 +389,10 @@ class KugouCookieRepository @Inject constructor(
         params: Map<String, String?>,
         type: Type,
     ): T {
-        val result = http.getBlocking(urlFor(path), params)
+        val result = http.getBlocking(configManager.kgApiTarget(path), params)
         if (!result.isSuccessful) error("HTTP ${result.code}")
         return gson.fromJson<T>(result.body, type) ?: error("empty json")
     }
-
-    private fun urlFor(path: String): String =
-        "${apiBaseUrl.trimEnd('/')}/${path.trimStart('/')}"
-
-    private val urlUserPlaylist: String
-        get() = urlFor("user/playlist")
-
-    private val urlUserDetail: String
-        get() = urlFor("user/vip/detail")
-
-    private val apiBaseUrl: String
-        get() = configManager.getKgBaseUrl()
 
     companion object {
         private const val TAG = "KugouCookieRepository"

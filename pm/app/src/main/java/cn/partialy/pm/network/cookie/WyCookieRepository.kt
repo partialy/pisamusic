@@ -65,13 +65,13 @@ class WyCookieRepository @Inject constructor(
     /** 第一步：`/user/account` */
     suspend fun getAccount(): Result<WyAccountResponse> = withContext(Dispatchers.IO) {
         runCatching {
-            val result = http.getBlocking(urlUserAccount, emptyMap())
+            val result = http.getBlocking(configManager.wyApiTarget("user/account"), emptyMap())
             result.parseAccountOrThrow()
         }
     }
 
     suspend fun getAccountRaw(): CookieHttpResult = withContext(Dispatchers.IO) {
-        http.getBlocking(urlUserAccount, emptyMap())
+        http.getBlocking(configManager.wyApiTarget("user/account"), emptyMap())
     }
 
     /**
@@ -89,7 +89,7 @@ class WyCookieRepository @Inject constructor(
                 limit?.let { put("limit", it.toString()) }
                 offset?.let { put("offset", it.toString()) }
             }
-            val result = http.getBlocking(urlUserPlaylist, params)
+            val result = http.getBlocking(configManager.wyApiTarget("user/playlist"), params)
             result.parsePlaylistOrThrow()
         }
     }
@@ -131,7 +131,7 @@ class WyCookieRepository @Inject constructor(
             limit?.let { put("limit", it.toString()) }
             offset?.let { put("offset", it.toString()) }
         }
-        http.getBlocking(urlUserPlaylist, params)
+        http.getBlocking(configManager.wyApiTarget("user/playlist"), params)
     }
 
     /**
@@ -149,7 +149,7 @@ class WyCookieRepository @Inject constructor(
                 put("offset", offset.toString())
                 limit?.let { put("limit", it.toString()) }
             }
-            val result = http.getBlocking(urlPlaylistTrackAll, params)
+            val result = http.getBlocking(configManager.wyApiTarget("playlist/track/all"), params)
             result.parseTrackAllOrThrow()
         }
     }
@@ -196,11 +196,13 @@ class WyCookieRepository @Inject constructor(
     }
 
     private fun fetchProfileForCookie(cookie: String): Result<MusicLoginProfile> = runCatching {
+        val target = configManager.wyApiTarget("user/account")
         val result = CookieRequest.getBlocking(
-            url = urlUserAccount,
+            url = target.url,
             params = emptyMap(),
             cookie = cookie,
             mergeResponseSetCookie = false,
+            runtimeState = target.state,
         )
         if (!result.isSuccessful) error("HTTP ${result.code}")
         val account = result.parseAccountOrThrow()
@@ -232,26 +234,11 @@ class WyCookieRepository @Inject constructor(
         type: Type,
     ): Result<T> = withContext(Dispatchers.IO) {
         runCatching {
-            val result = http.getBlocking(urlFor(path), params)
+            val result = http.getBlocking(configManager.wyApiTarget(path), params)
             if (!result.isSuccessful) error("HTTP ${result.code}")
             gson.fromJson<T>(result.body, type) ?: error("empty json")
         }
     }
-
-    private fun urlFor(path: String): String =
-        "${apiBaseUrl.trimEnd('/')}/${path.trimStart('/')}"
-
-    private val urlUserAccount: String
-        get() = urlFor("user/account")
-
-    private val urlUserPlaylist: String
-        get() = urlFor("user/playlist")
-
-    private val urlPlaylistTrackAll: String
-        get() = urlFor("playlist/track/all")
-
-    private val apiBaseUrl: String
-        get() = configManager.getWyBaseUrl()
 
     companion object {
         /** 与 music-login-hub `musicApi.ts` 中 `realIP` 查询参数一致 */

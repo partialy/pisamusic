@@ -27,12 +27,12 @@ import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
 import cn.partialy.pm.network.discovery.ServiceDiscoverySnapshot
 import cn.partialy.pm.network.gateway.GatewaySignRuntime
 import java.util.concurrent.atomic.AtomicReference
-import org.json.JSONObject
-import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.json.JSONObject
+import retrofit2.HttpException
 
 @Singleton
 class ConfigManager @Inject constructor(
@@ -60,36 +60,56 @@ class ConfigManager @Inject constructor(
         val asValue: String,
     )
 
-    internal data class RuntimeBootstrapState(
+    data class RuntimeBootstrapState(
         val endpoints: RuntimeEndpoints,
         val gatewaySign: RuntimeGatewaySign,
         val gatewayEndpointPrefixes: Set<String>,
     )
 
+    internal data class RuntimeUrlTarget(
+        val url: String,
+        val state: RuntimeBootstrapState,
+    )
+
     private val bootstrapMutex = Mutex()
+    private val runtimeStateLock = Any()
+    private var runtimeGeneration = 0L
+
+    @Volatile
+    private var localMode = false
 
     private val runtimeBootstrapState = AtomicReference(
-        RuntimeBootstrapState(
-            endpoints = createUnavailableEndpoints(),
-            gatewaySign = DEFAULT_GATEWAY_SIGN,
-            gatewayEndpointPrefixes = emptySet(),
-        ),
+        createUnavailableState(),
     )
 
     init {
         GatewaySignRuntime.bind(runtimeBootstrapState::get)
     }
 
-    fun getEndpoints(): RuntimeEndpoints = runtimeBootstrapState.get().endpoints
-    fun getGatewaySign(): RuntimeGatewaySign = runtimeBootstrapState.get().gatewaySign
-    internal fun getRuntimeBootstrapState(): RuntimeBootstrapState = runtimeBootstrapState.get()
-    fun getKgBaseUrl(): String = getEndpoints().kgBaseUrl
-    fun getWyBaseUrl(): String = getEndpoints().wyBaseUrl
-    fun getProxyBaseUrl(): String = getEndpoints().proxyBaseUrl
-    fun getKwBaseUrl(): String = getEndpoints().kwBaseUrl
-    fun getKgSongUrl(): String = getEndpoints().kgSongUrl
-    fun getWySongUrl(): String = getEndpoints().wySongUrl
-    fun getWySongUrlV1(): String = getEndpoints().wySongUrlV1
+    internal fun getEndpoints(): RuntimeEndpoints = runtimeBootstrapState.get().endpoints
+    internal fun getGatewaySign(): RuntimeGatewaySign = runtimeBootstrapState.get().gatewaySign
+    internal fun captureRuntimeState(): RuntimeBootstrapState = runtimeBootstrapState.get()
+    internal fun getRuntimeBootstrapState(): RuntimeBootstrapState = captureRuntimeState()
+
+    internal fun kgSongTarget(): RuntimeUrlTarget = runtimeTarget(RuntimeEndpoints::kgSongUrl)
+    internal fun wySongTarget(): RuntimeUrlTarget = runtimeTarget(RuntimeEndpoints::wySongUrl)
+    internal fun wySongV1Target(): RuntimeUrlTarget = runtimeTarget(RuntimeEndpoints::wySongUrlV1)
+    internal fun kgApiTarget(path: String): RuntimeUrlTarget = runtimePathTarget(RuntimeEndpoints::kgBaseUrl, path)
+    internal fun wyApiTarget(path: String): RuntimeUrlTarget = runtimePathTarget(RuntimeEndpoints::wyBaseUrl, path)
+
+    fun beginOnlineStartup() = synchronized(runtimeStateLock) {
+        runtimeGeneration++
+        localMode = false
+        runtimeBootstrapState.set(createUnavailableState())
+    }
+
+    fun enterLocalMode() = synchronized(runtimeStateLock) {
+        runtimeGeneration++
+        localMode = true
+        runtimeBootstrapState.set(createUnavailableState())
+    }
+
+    fun isLocalMode(): Boolean = localMode
 
     private suspend fun <T> systemCall(fallbackMessage: String, block: suspend () -> T): T {
         return try {
@@ -115,6 +135,10 @@ class ConfigManager @Inject constructor(
     suspend fun refreshServiceDiscovery(): ServiceDiscoverySnapshot = serviceDiscoveryManager.refresh()
 
     suspend fun refreshBootstrapConfig() = bootstrapMutex.withLock {
+        val attemptGeneration = synchronized(runtimeStateLock) {
+            check(!localMode) { "本地模式禁止刷新在线配置" }
+            runtimeGeneration
+        }
         val discoverySnapshot = refreshServiceDiscovery()
         val bootstrapPath = discoverySnapshot.document.desktop.bootstrapPath.trimStart('/')
         val response = systemCall("配置下发失败") {
@@ -128,16 +152,25 @@ class ConfigManager @Inject constructor(
             secret = response.data.gatewaySign.secret.ifBlank { DEFAULT_GATEWAY_SIGN.secret },
             asValue = response.data.gatewaySign.`as`.ifBlank { DEFAULT_GATEWAY_SIGN.asValue },
         )
-        val accepted = serviceDiscoveryManager.publishIfCurrent(discoverySnapshot) {
-            runtimeBootstrapState.set(
-                RuntimeBootstrapState(
-                    endpoints = endpoints,
-                    gatewaySign = gatewaySign,
-                    gatewayEndpointPrefixes = endpoints.asUrlList().map(String::trim).filter(String::isNotEmpty).toSet(),
-                ),
-            )
+        var generationAccepted = false
+        val discoveryAccepted = serviceDiscoveryManager.publishIfCurrent(discoverySnapshot) {
+            synchronized(runtimeStateLock) {
+                if (!localMode && runtimeGeneration == attemptGeneration) {
+                    runtimeBootstrapState.set(
+                        RuntimeBootstrapState(
+                            endpoints = endpoints,
+                            gatewaySign = gatewaySign,
+                            gatewayEndpointPrefixes = endpoints.asUrlList()
+                                .map(String::trim)
+                                .filter(String::isNotEmpty)
+                                .toSet(),
+                        ),
+                    )
+                    generationAccepted = true
+                }
+            }
         }
-        check(accepted) { "服务发现已更新，拒绝应用过期配置" }
+        check(discoveryAccepted && generationAccepted) { "启动状态已更新，拒绝应用过期配置" }
     }
 
     suspend fun getUpdateInfo(): UpdateInfo {
@@ -308,11 +341,6 @@ class ConfigManager @Inject constructor(
         return response.data
     }
 
-    suspend fun getLatestBaseUrl(): String {
-        refreshBootstrapConfig()
-        return getKgBaseUrl()
-    }
-
     private fun BootstrapEndpoints.toRuntimeEndpoints(): RuntimeEndpoints {
         val kgBase = normalizeBaseUrl(kgBaseUrl)
         val wyBase = normalizeBaseUrl(wyBaseUrl)
@@ -341,6 +369,26 @@ class ConfigManager @Inject constructor(
         wySongUrl,
         wySongUrlV1,
     )
+
+    private fun runtimeTarget(
+        urlSelector: (RuntimeEndpoints) -> String,
+    ): RuntimeUrlTarget {
+        val state = captureRuntimeState()
+        return RuntimeUrlTarget(urlSelector(state.endpoints), state)
+    }
+
+    private fun runtimePathTarget(
+        baseSelector: (RuntimeEndpoints) -> String,
+        path: String,
+    ): RuntimeUrlTarget {
+        require(path.isNotBlank() && !path.startsWith("//") && '\\' !in path) {
+            "非法运行时相对路径: $path"
+        }
+        val state = captureRuntimeState()
+        val base = normalizeBaseUrl(baseSelector(state.endpoints))
+        val url = "$base${path.trimStart('/')}"
+        return RuntimeUrlTarget(url, state)
+    }
 
     private fun normalizeBaseUrl(raw: String): String {
         val trimmed = raw.trim()
@@ -372,6 +420,12 @@ class ConfigManager @Inject constructor(
                 wySongUrlV1 = UNAVAILABLE_MUSIC_BASE,
             )
         }
+
+        private fun createUnavailableState(): RuntimeBootstrapState = RuntimeBootstrapState(
+            endpoints = createUnavailableEndpoints(),
+            gatewaySign = DEFAULT_GATEWAY_SIGN,
+            gatewayEndpointPrefixes = emptySet(),
+        )
 
         private val DEFAULT_GATEWAY_SIGN = RuntimeGatewaySign(
             secret = "partialypartialypartialypartialy",

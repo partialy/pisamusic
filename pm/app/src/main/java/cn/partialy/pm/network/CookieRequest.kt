@@ -2,6 +2,7 @@ package cn.partialy.pm.network
 
 import cn.partialy.pm.network.gateway.GatewaySignRuntime
 import cn.partialy.pm.network.gateway.GatewaySigner
+import cn.partialy.pm.network.config.ConfigManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
@@ -52,8 +53,9 @@ object CookieRequest {
         cookie: String? = null,
         extraHeaders: Map<String, String> = emptyMap(),
         mergeResponseSetCookie: Boolean = true,
+        runtimeState: ConfigManager.RuntimeBootstrapState? = null,
     ): CookieHttpResult = withContext(Dispatchers.IO) {
-        getBlocking(url, params, cookie, extraHeaders, mergeResponseSetCookie)
+        getBlocking(url, params, cookie, extraHeaders, mergeResponseSetCookie, runtimeState)
     }
 
     /**
@@ -65,6 +67,7 @@ object CookieRequest {
         cookie: String? = null,
         extraHeaders: Map<String, String> = emptyMap(),
         mergeResponseSetCookie: Boolean = true,
+        runtimeState: ConfigManager.RuntimeBootstrapState? = null,
     ): CookieHttpResult {
         val httpUrl = url.toHttpUrlOrNull()
             ?: throw IllegalArgumentException("Invalid url: $url")
@@ -73,7 +76,7 @@ object CookieRequest {
             if (v != null) urlBuilder.addQueryParameter(k, v)
         }
         val unsignedUrl = urlBuilder.build()
-        val runtimeSnapshot = GatewaySignRuntime.snapshot()
+        val runtimeSnapshot = runtimeState ?: GatewaySignRuntime.snapshot()
         val finalUrl = if (GatewaySignRuntime.shouldSign(unsignedUrl, runtimeSnapshot)) {
             unsignedUrl.newBuilder()
                 .setQueryParameter("res-dec", "1")

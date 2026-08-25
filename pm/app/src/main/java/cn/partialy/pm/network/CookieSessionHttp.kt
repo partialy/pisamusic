@@ -1,8 +1,7 @@
 package cn.partialy.pm.network
 
 import cn.partialy.pm.network.cookie.MusicCookieManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import cn.partialy.pm.network.config.ConfigManager
 
 /**
  * 在每次请求中自动附加持久化 Cookie。
@@ -15,20 +14,17 @@ class CookieSessionHttp(
     private val cookieManager: MusicCookieManager,
 ) {
 
-    suspend fun get(
-        url: String,
+    internal fun getBlocking(
+        target: ConfigManager.RuntimeUrlTarget,
         params: Map<String, String?> = emptyMap(),
-    ): CookieHttpResult = withContext(Dispatchers.IO) {
-        getBlocking(url, params)
-    }
-
-    fun getBlocking(url: String, params: Map<String, String?> = emptyMap()): CookieHttpResult {
+    ): CookieHttpResult {
         val current = cookieManager.getCookie(source).cookie.trim().takeIf { it.isNotEmpty() }
         return CookieRequest.getBlocking(
-            url = url,
+            url = target.url,
             params = params,
             cookie = current,
             mergeResponseSetCookie = false,
+            runtimeState = target.state,
         )
     }
 }

@@ -1,9 +1,11 @@
 package cn.partialy.pm.network.kg
 
 import cn.partialy.pm.model.KgSongUrlResponse
+import cn.partialy.pm.network.config.ConfigManager
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Query
+import retrofit2.http.Tag
 import retrofit2.http.Url
 
 /**
@@ -14,6 +16,7 @@ interface KgUrlProxyApiService {
     @GET
     suspend fun getSongUrl(
         @Url url: String,
+        @Tag runtimeState: ConfigManager.RuntimeBootstrapState,
         @Query("hash") hash: String,
         @Query("album_id") albumId: Long? = null,
         @Query("free_part") freePart: Boolean? = null,
