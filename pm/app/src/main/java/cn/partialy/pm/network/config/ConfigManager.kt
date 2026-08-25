@@ -28,11 +28,13 @@ import cn.partialy.pm.network.gateway.GatewaySignRuntime
 import org.json.JSONObject
 import retrofit2.HttpException
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
 class ConfigManager @Inject constructor(
     private val systemApiService: SystemApiService,
+    @Named("system_api_base_url") systemApiBaseUrl: String,
 ) {
     class ApiException(
         val code: Int,
@@ -56,7 +58,7 @@ class ConfigManager @Inject constructor(
     )
 
     @Volatile
-    private var runtimeEndpoints: RuntimeEndpoints = DEFAULT_ENDPOINTS
+    private var runtimeEndpoints: RuntimeEndpoints = createFallbackEndpoints(systemApiBaseUrl)
 
     @Volatile
     private var runtimeGatewaySign: RuntimeGatewaySign = DEFAULT_GATEWAY_SIGN
@@ -332,15 +334,24 @@ class ConfigManager @Inject constructor(
     }
 
     companion object {
-        private val DEFAULT_ENDPOINTS = RuntimeEndpoints(
-            kgBaseUrl = "http://127.0.0.1/",
-            wyBaseUrl = "http://127.0.0.1/",
-            proxyBaseUrl = "http://127.0.0.1/",
-            kwBaseUrl = "http://127.0.0.1/",
-            kgSongUrl = "http://127.0.0.1/",
-            wySongUrl = "http://127.0.0.1/",
-            wySongUrlV1 = "http://127.0.0.1/",
-        )
+        private fun createFallbackEndpoints(systemApiBaseUrl: String): RuntimeEndpoints {
+            val fallback = systemApiBaseUrl.trim().let { baseUrl ->
+                require(baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
+                    "非法系统服务 baseUrl: $systemApiBaseUrl"
+                }
+                if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+            }
+            return RuntimeEndpoints(
+                kgBaseUrl = fallback,
+                wyBaseUrl = fallback,
+                proxyBaseUrl = fallback,
+                kwBaseUrl = fallback,
+                kgSongUrl = fallback,
+                wySongUrl = fallback,
+                wySongUrlV1 = fallback,
+            )
+        }
+
         private val DEFAULT_GATEWAY_SIGN = RuntimeGatewaySign(
             secret = "partialypartialypartialypartialy",
             asValue = "yixivip",

@@ -5,6 +5,8 @@ import cn.partialy.pm.listen.ListenTogetherConfigApiService
 import cn.partialy.pm.network.api.KgApiService
 import cn.partialy.pm.network.api.SystemApiService
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.network.config.RuntimeEndpointInterceptor
+import cn.partialy.pm.network.config.RuntimeEndpointKind
 import cn.partialy.pm.network.crypto.SystemEncryptionInterceptor
 import cn.partialy.pm.network.gateway.GatewaySignInterceptor
 import cn.partialy.pm.network.interceptor.AuthInterceptor
@@ -42,10 +44,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
+        runtimeEndpointInterceptor: RuntimeEndpointInterceptor,
         gatewaySignInterceptor: GatewaySignInterceptor,
         playbackTraceInterceptor: PlaybackTraceInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(runtimeEndpointInterceptor)
             .addInterceptor(AuthInterceptor())
             .addInterceptor(gatewaySignInterceptor)
             .addInterceptor(playbackTraceInterceptor)
@@ -84,10 +88,12 @@ object NetworkModule {
     @Named("kg_proxy")
     fun provideKgProxyOkHttpClient(
         dfidHolder: DfidHolder,
+        runtimeEndpointInterceptor: RuntimeEndpointInterceptor,
         gatewaySignInterceptor: GatewaySignInterceptor,
         playbackTraceInterceptor: PlaybackTraceInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(runtimeEndpointInterceptor)
             .addInterceptor(AuthInterceptor())
             .addInterceptor(DfidInterceptor(dfidHolder))
             .addInterceptor(gatewaySignInterceptor)
@@ -133,9 +139,9 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideKgApiService(okHttpClient: OkHttpClient, configManager: ConfigManager): KgApiService {
+    fun provideKgApiService(okHttpClient: OkHttpClient): KgApiService {
         return Retrofit.Builder()
-            .baseUrl(configManager.getKgBaseUrl())
+            .baseUrl(RuntimeEndpointKind.KG.placeholderBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -146,10 +152,9 @@ object NetworkModule {
     @Singleton
     fun provideKgUrlProxyApiService(
         @Named("kg_proxy") okHttpClient: OkHttpClient,
-        configManager: ConfigManager,
     ): KgUrlProxyApiService {
         return Retrofit.Builder()
-            .baseUrl(configManager.getProxyBaseUrl())
+            .baseUrl(RuntimeEndpointKind.PROXY.placeholderBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -160,10 +165,9 @@ object NetworkModule {
     @Singleton
     fun provideWyApiService(
         okHttpClient: OkHttpClient,
-        configManager: ConfigManager,
     ): WyApiService {
         return Retrofit.Builder()
-            .baseUrl(configManager.getWyBaseUrl())
+            .baseUrl(RuntimeEndpointKind.WY.placeholderBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -174,10 +178,9 @@ object NetworkModule {
     @Singleton
     fun provideWyUrlProxyApiService(
         okHttpClient: OkHttpClient,
-        configManager: ConfigManager,
     ): WyUrlProxyApiService {
         return Retrofit.Builder()
-            .baseUrl(configManager.getProxyBaseUrl())
+            .baseUrl(RuntimeEndpointKind.PROXY.placeholderBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -189,10 +192,9 @@ object NetworkModule {
     @Named("kw_proxy")
     fun provideKwProxyRetrofit(
         okHttpClient: OkHttpClient,
-        configManager: ConfigManager,
     ): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(configManager.getKwBaseUrl())
+            .baseUrl(RuntimeEndpointKind.KW.placeholderBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
