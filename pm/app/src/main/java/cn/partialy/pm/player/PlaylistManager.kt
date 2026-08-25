@@ -1,20 +1,36 @@
 package cn.partialy.pm.player
 
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import cn.partialy.pm.model.SongInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+sealed interface PlaylistSetResult {
+    data class Applied(val songs: List<SongInfo>, val startIndex: Int) : PlaylistSetResult
+    data object SameSource : PlaylistSetResult
+    data object Failed : PlaylistSetResult
+    data object Stale : PlaylistSetResult
+}
 
 /**
  * 播放列表管理器：维护列表状态、插播队列（FIFO），同步 ExoPlayer 逻辑 MediaItem。
  */
 @UnstableApi
 class PlaylistManager(private val factory: MediaItemFactory) {
+
+    private val preparationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val preparationGate = PlaylistPreparationGate()
+    private val preparationMutex = Mutex()
 
     /** 由 PlayerEngine 初始化后注入 */
     var exoPlayer: ExoPlayer? = null
@@ -36,6 +52,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
     private val playNextQueueInternal = ArrayDeque<SongInfo>()
     private val _playNextQueue = MutableStateFlow<List<SongInfo>>(emptyList())
     val playNextQueue = _playNextQueue.asStateFlow()
+    private val preparedPlayNextItems = mutableMapOf<String, MediaItem>()
 
     // ==================== 插播队列 ====================
 
@@ -44,22 +61,32 @@ class PlaylistManager(private val factory: MediaItemFactory) {
      * 重复点击同一首歌不会重复入队；若歌曲不在主列表则追加可直接播放的逻辑项到主列表尾部。
      */
     fun addPlayNext(song: SongInfo) {
-        CoroutineScope(Dispatchers.Main).launch {
-            val updatedQueue = enqueueUniqueBy(
-                items = playNextQueueInternal.toList(),
-                item = song,
-                keyOf = ::songIdentityKey,
-            )
-            if (updatedQueue.size == playNextQueueInternal.size) return@launch
-            playNextQueueInternal.clear()
-            playNextQueueInternal.addAll(updatedQueue)
-            _playNextQueue.value = updatedQueue
+        val generation = preparationGate.current()
+        preparationScope.launch {
+            preparationMutex.withLock {
+                val mediaItem = withContext(Dispatchers.IO) {
+                    runCatching { factory.createMediaItem(song) }.getOrNull()
+                } ?: return@withLock
+                if (!preparationGate.isCurrent(generation)) return@withLock
 
-            val player = exoPlayer ?: return@launch
-            val exists = _playList.value.any { factory.keyOf(it) == factory.keyOf(song) }
-            if (!exists) {
-                _playList.value = _playList.value + song
-                player.addMediaItem(factory.createMediaItem(song))
+                val updatedQueue = enqueueUniqueBy(
+                    items = playNextQueueInternal.toList(),
+                    item = song,
+                    keyOf = ::songIdentityKey,
+                )
+                if (updatedQueue.size == playNextQueueInternal.size) return@withLock
+                playNextQueueInternal.clear()
+                playNextQueueInternal.addAll(updatedQueue)
+                _playNextQueue.value = updatedQueue
+
+                val songKey = factory.keyOf(song)
+                preparedPlayNextItems[songKey] = mediaItem
+                val player = exoPlayer ?: return@withLock
+                val exists = _playList.value.any { factory.keyOf(it) == factory.keyOf(song) }
+                if (!exists) {
+                    _playList.value = _playList.value + song
+                    player.addMediaItem(mediaItem)
+                }
             }
         }
     }
@@ -78,51 +105,106 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /**
      * 设置播放列表（在线歌曲只登记逻辑 URI，不提前取链）。
-     * 同源检测：若 [newSourceId] 与当前 sourceId 一致，返回 null 表示无需替换。
+     * 同源检测：若 [newSourceId] 与当前 sourceId 一致，通过 [onResult] 返回 [PlaylistSetResult.SameSource]。
      * 否则按 type+id 去重，清空插播队列，从 [startIndex] 开始播放。
      */
     fun setPlayListLazy(
         songs: List<SongInfo>,
         startIndex: Int = 0,
         newSourceId: String? = null,
-    ): List<SongInfo>? {
-        if (songs.isEmpty()) return null
-        if (newSourceId != null && newSourceId == _sourceId) return null
+        onResult: (PlaylistSetResult) -> Unit = {},
+    ) {
+        val generation = preparationGate.nextReplacement()
+        if (songs.isEmpty()) {
+            onResult(PlaylistSetResult.Failed)
+            return
+        }
+        if (newSourceId != null && newSourceId == _sourceId) {
+            onResult(PlaylistSetResult.SameSource)
+            return
+        }
 
         val deduped = LinkedHashMap<String, SongInfo>(songs.size)
         for (s in songs) deduped[factory.keyOf(s)] = s
         val list = deduped.values.toList()
-        if (list.isEmpty()) return null
+        if (list.isEmpty()) {
+            onResult(PlaylistSetResult.Failed)
+            return
+        }
 
         val idx = startIndex.coerceIn(0, list.size - 1)
-        _sourceId = newSourceId
-        _playList.value = list
-        _currentIndex.value = idx
-        _currentSong.value = list[idx]
-        playNextQueueInternal.clear()
-        _playNextQueue.value = emptyList()
+        preparationScope.launch {
+            preparationMutex.withLock {
+                val mediaItems = withContext(Dispatchers.IO) {
+                    prepareAllOrNull(list, factory::createMediaItem)
+                }
+                if (!preparationGate.isCurrent(generation)) {
+                    onResult(PlaylistSetResult.Stale)
+                    return@withLock
+                }
+                if (mediaItems == null) {
+                    onResult(PlaylistSetResult.Failed)
+                    return@withLock
+                }
 
-        exoPlayer?.apply {
-            clearMediaItems()
-            setMediaItems(list.map(factory::createMediaItem), idx, 0)
-            prepare()
+                _sourceId = newSourceId
+                _playList.value = list
+                _currentIndex.value = idx
+                _currentSong.value = list[idx]
+                playNextQueueInternal.clear()
+                preparedPlayNextItems.clear()
+                _playNextQueue.value = emptyList()
+
+                exoPlayer?.apply {
+                    clearMediaItems()
+                    setMediaItems(mediaItems, idx, 0)
+                    prepare()
+                }
+                onResult(PlaylistSetResult.Applied(list, idx))
+            }
         }
-        return list
     }
 
     /** 追加歌曲到列表尾部（在线歌曲为逻辑项，按 key 去重已有的跳过） */
-    fun appendSongsLazy(songs: List<SongInfo>) {
-        if (songs.isEmpty()) return
-        CoroutineScope(Dispatchers.Main).launch {
-            val player = exoPlayer ?: return@launch
-            val existingKeys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
-            val toAdd = ArrayList<SongInfo>(songs.size)
-            for (s in songs) {
-                if (existingKeys.add(factory.keyOf(s))) toAdd.add(s)
+    fun appendSongsLazy(
+        songs: List<SongInfo>,
+        onApplied: (Boolean) -> Unit = {},
+    ) {
+        if (songs.isEmpty()) {
+            onApplied(false)
+            return
+        }
+        val generation = preparationGate.current()
+        preparationScope.launch {
+            preparationMutex.withLock {
+                val player = exoPlayer ?: return@withLock
+                val existingKeys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
+                val toAdd = ArrayList<SongInfo>(songs.size)
+                for (s in songs) {
+                    if (existingKeys.add(factory.keyOf(s))) toAdd.add(s)
+                }
+                if (toAdd.isEmpty()) {
+                    onApplied(false)
+                    return@withLock
+                }
+                val mediaItems = withContext(Dispatchers.IO) {
+                    prepareAllOrNull(toAdd, factory::createMediaItem)
+                }
+                if (mediaItems == null || !preparationGate.isCurrent(generation)) {
+                    onApplied(false)
+                    return@withLock
+                }
+
+                val currentKeys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
+                val stillNewIndices = toAdd.indices.filter { currentKeys.add(factory.keyOf(toAdd[it])) }
+                if (stillNewIndices.isEmpty()) {
+                    onApplied(false)
+                    return@withLock
+                }
+                _playList.value = _playList.value + stillNewIndices.map(toAdd::get)
+                player.addMediaItems(stillNewIndices.map(mediaItems::get))
+                onApplied(true)
             }
-            if (toAdd.isEmpty()) return@launch
-            _playList.value = _playList.value + toAdd
-            for (s in toAdd) player.addMediaItem(factory.createMediaItem(s))
         }
     }
 
@@ -135,11 +217,12 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         autoPlay: Boolean,
         isLatest: () -> Boolean,
     ): Boolean {
+        val generation = preparationGate.nextReplacement()
         val mediaItem = withContext(Dispatchers.IO) {
             factory.createMediaItem(song)
         }
         return withContext(Dispatchers.Main.immediate) {
-            if (!isLatest()) return@withContext false
+            if (!isLatest() || !preparationGate.isCurrent(generation)) return@withContext false
             val player = exoPlayer ?: return@withContext false
             var index = _playList.value.indexOfFirst {
                 it.type == song.type && it.id == song.id
@@ -167,6 +250,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /** 从列表移除歌曲，同步 ExoPlayer 并修正索引 */
     fun removeFromPlayList(song: SongInfo) {
+        preparationGate.invalidate()
         val list = _playList.value.toMutableList()
         val index = list.indexOf(song)
         if (index == -1) return
@@ -195,11 +279,13 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /** 清空列表和插播队列 */
     fun clearPlayList(stateStore: PlayerStateStore) {
+        preparationGate.invalidate()
         _sourceId = null
         _playList.value = emptyList()
         _currentIndex.value = 0
         _currentSong.value = null
         playNextQueueInternal.clear()
+        preparedPlayNextItems.clear()
         _playNextQueue.value = emptyList()
         exoPlayer?.clearMediaItems()
         exoPlayer?.stop()
@@ -214,15 +300,25 @@ class PlaylistManager(private val factory: MediaItemFactory) {
             song = song,
             keyOf = factory::keyOf,
         )
-        _sourceId = "list_updated"
-        _playList.value = placement.songs
         val player = exoPlayer
         val previousIndex = placement.previousIndex
+        val preparedItem = if (previousIndex == null) {
+            preparedPlayNextItems.remove(factory.keyOf(song))
+        } else {
+            preparedPlayNextItems.remove(factory.keyOf(song))
+            null
+        }
+        if (player != null && previousIndex == null && preparedItem == null) {
+            return player.currentMediaItemIndex.coerceAtLeast(0)
+        }
+
+        _sourceId = "list_updated"
+        _playList.value = placement.songs
         when {
             player == null -> Unit
             previousIndex == null -> player.addMediaItem(
                 placement.targetIndex,
-                factory.createMediaItem(song),
+                requireNotNull(preparedItem),
             )
             previousIndex != placement.targetIndex -> player.moveMediaItem(
                 previousIndex,
@@ -238,10 +334,23 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         _currentSong.value = _playList.value.getOrNull(index)
     }
 
-    /** 恢复持久化状态（不触发播放，仅设置列表和索引） */
-    fun restoreState(songs: List<SongInfo>, index: Int) {
+    fun beginRestorePreparation(): Long = preparationGate.nextReplacement()
+
+    /** 仅当前恢复请求可以提交已在 IO 完整构造的列表。 */
+    fun restorePreparedState(
+        generation: Long,
+        songs: List<SongInfo>,
+        index: Int,
+    ): Boolean {
+        if (!preparationGate.isCurrent(generation)) return false
         _playList.value = songs
         _currentIndex.value = index
         _currentSong.value = songs.getOrNull(index)
+        return true
+    }
+
+    fun release() {
+        preparationGate.invalidate()
+        preparationScope.cancel()
     }
 }

@@ -163,6 +163,10 @@ class PlayerEngine(
         oldSession?.release()
         mediaSession = null
         audioEffectsManager.release()
+        if (oldPlayer != null) {
+            oldPlayer.release()
+            playbackMediaCache.release()
+        }
 
         val player = buildPlayer(useAudioEffectsRenderer)
         usingAudioEffectsRenderer = useAudioEffectsRenderer
@@ -180,7 +184,6 @@ class PlayerEngine(
             .setId("MusicSession-${System.currentTimeMillis()}")
             .setCallback(sessionCallback)
             .build()
-        oldPlayer?.release()
         onPlayerChanged(player)
         return player
     }
@@ -714,47 +717,21 @@ class PlayerEngine(
         }
     }
 
-    // ==================== 按需逻辑媒体项替换 ====================
+    // ==================== 已登记媒体项播放 ====================
 
-    /** 如果指定位置仍是占位 MediaItem，异步登记逻辑媒体项并替换后播放。 */
+    /** 队列进入播放器前已在 IO 完成逻辑项登记；这里仅执行 Main 侧播放控制。 */
     fun ensurePlayableAtIndex(index: Int, autoPlay: Boolean) {
         CoroutineScope(Dispatchers.Main).launch {
-            val song = playlistManager.playList.value.getOrNull(index) ?: return@launch
             val player = exoPlayer ?: return@launch
+            if (playlistManager.playList.value.getOrNull(index) == null) return@launch
             if (index !in 0 until player.mediaItemCount) return@launch
-
-            val currentItem = player.getMediaItemAt(index)
-            if (!factory.isPlaceholderMediaItem(currentItem)) {
-                if (autoPlay) {
-                    if (player.currentMediaItemIndex != index) player.seekTo(index, 0)
-                    player.prepare()
-                    player.play()
-                }
-                return@launch
+            playlistManager.updateCurrentIndex(index)
+            if (player.currentMediaItemIndex != index) player.seekTo(index, 0)
+            player.prepare()
+            if (autoPlay) {
+                player.play()
             }
-
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val resolved = factory.createMediaItem(song)
-                    withContext(Dispatchers.Main) {
-                        val p = exoPlayer ?: return@withContext
-                        if (index !in 0 until p.mediaItemCount) return@withContext
-                        playlistManager.updateCurrentIndex(index)
-                        replaceMediaItemAndRefreshCurrent(index, resolved, 0L)
-                        p.seekTo(index, 0)
-                        p.prepare()
-                        if (autoPlay) p.play()
-                        persistState(force = true)
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    withContext(Dispatchers.Main) {
-                        val summary = buildPlaybackErrorSummary(e)
-                        logPlaybackFailure(summary)
-                        handlePlaybackFailureAndSkip(e, summary)
-                    }
-                }
-            }
+            persistState(force = true)
         }
     }
 
@@ -792,10 +769,19 @@ class PlayerEngine(
                 songs = fallback.songs,
                 startIndex = 0,
                 newSourceId = "auto_switch_${mode.name}_${System.currentTimeMillis()}",
-            )
-            persistState(force = true)
-            ensurePlayableAtIndex(0, autoPlay = true)
-            onPlaybackEvent(PlaybackUiEvent.AutoSwitched(mode))
+            ) { result ->
+                when (result) {
+                    is PlaylistSetResult.Applied -> {
+                        persistState(force = true)
+                        ensurePlayableAtIndex(result.startIndex, autoPlay = true)
+                        onPlaybackEvent(PlaybackUiEvent.AutoSwitched(mode))
+                    }
+                    PlaylistSetResult.Failed -> pauseCurrentAfterPlaybackFailure(summary)
+                    PlaylistSetResult.SameSource,
+                    PlaylistSetResult.Stale,
+                    -> Unit
+                }
+            }
         }
     }
 
@@ -861,10 +847,11 @@ class PlayerEngine(
         lastPersistAtMs = now
     }
 
-    /** 启动时恢复上次播放状态（占位恢复，不自动播放） */
+    /** 启动时在 IO 构造完整逻辑队列，Main 一次性交付且不自动播放。 */
     private fun restoreIfPossible() {
         if (restoreAttempted) return
         restoreAttempted = true
+        val restoreGeneration = playlistManager.beginRestorePreparation()
         CoroutineScope(Dispatchers.IO).launch {
             val state = stateStore.load() ?: return@launch
             if (state.songs.isEmpty()) return@launch
@@ -876,49 +863,30 @@ class PlayerEngine(
             val songs = normalized.songs
             val idx = normalized.currentIndex
             val pos = state.positionMs.coerceAtLeast(0L)
-            try {
-                // 先恢复列表，再登记当前逻辑媒体项；异常时依次尝试后续歌曲。
-                val resolved = resolveRestoredCurrent(songs, idx)
-                withContext(Dispatchers.Main) {
-                    playlistManager.restoreState(songs, resolved.index)
-                    exoPlayer?.apply {
-                        clearMediaItems()
-                        setMediaItems(
-                            songs.map(factory::createMediaItem),
-                            resolved.index,
-                            if (resolved.index == idx) pos else 0L,
-                        )
-                        replaceMediaItem(resolved.index, resolved.item)
-                        seekTo(resolved.index, if (resolved.index == idx) pos else 0L)
-                        applyPlayMode(SettingsPrefs.getPlayMode(context))
-                        prepare()
-                        pause()
-                    }
+            val prepared = prepareRestoredQueue(
+                values = songs,
+                requestedIndex = idx,
+                transform = factory::createMediaItem,
+            ) ?: return@launch
+            withContext(Dispatchers.Main) {
+                if (!playlistManager.restorePreparedState(
+                        generation = restoreGeneration,
+                        songs = prepared.values,
+                        index = prepared.currentIndex,
+                    )
+                ) {
+                    return@withContext
                 }
-            } catch (_: Exception) {
-                // ignore restore failure
+                val restoredPosition = if (prepared.selectedOriginalIndex == idx) pos else 0L
+                exoPlayer?.apply {
+                    clearMediaItems()
+                    setMediaItems(prepared.items, prepared.currentIndex, restoredPosition)
+                    applyPlayMode(SettingsPrefs.getPlayMode(context))
+                    prepare()
+                    pause()
+                }
             }
         }
-    }
-
-    private data class ResolvedRestoreTarget(
-        val index: Int,
-        val item: MediaItem,
-    )
-
-    private suspend fun resolveRestoredCurrent(
-        songs: List<SongInfo>,
-        startIndex: Int,
-    ): ResolvedRestoreTarget {
-        val currentSong = songs[startIndex]
-        val total = songs.size
-        for (offset in 0 until total) {
-            val index = (startIndex + offset) % total
-            val song = songs[index]
-            runCatching { factory.createMediaItem(song) }
-                .onSuccess { return ResolvedRestoreTarget(index, it) }
-        }
-        return ResolvedRestoreTarget(startIndex, factory.createPlaceholderMediaItem(currentSong))
     }
 
     /** 释放 ExoPlayer 和 MediaSession */

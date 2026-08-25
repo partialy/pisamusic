@@ -125,20 +125,26 @@ class MusicController @Inject constructor(
      * [sourceId] 用于同源检测：同一歌单反复点击不同歌曲时直接 seek，避免重建列表。
      */
     fun setPlayListLazy(songs: List<SongInfo>, startIndex: Int = 0, sourceId: String? = null) {
-        val result = playlistManager.setPlayListLazy(songs, startIndex, sourceId)
-        if (result == null) {
-            val song = songs.getOrNull(startIndex) ?: return
-            play(song)
-            return
+        playlistManager.setPlayListLazy(songs, startIndex, sourceId) { result ->
+            when (result) {
+                is PlaylistSetResult.Applied -> {
+                    engine.persistState(force = true)
+                    engine.ensurePlayableAtIndex(result.startIndex, autoPlay = true)
+                }
+                PlaylistSetResult.SameSource -> {
+                    songs.getOrNull(startIndex)?.let(::play)
+                }
+                PlaylistSetResult.Failed -> engine.handlePlaybackRequestFailure()
+                PlaylistSetResult.Stale -> Unit
+            }
         }
-        engine.persistState(force = true)
-        engine.ensurePlayableAtIndex(startIndex.coerceIn(0, result.size - 1), autoPlay = true)
     }
 
     /** 追加歌曲到列表尾部 */
     fun appendSongsLazy(songs: List<SongInfo>) {
-        playlistManager.appendSongsLazy(songs)
-        engine.persistState(force = true)
+        playlistManager.appendSongsLazy(songs) { applied ->
+            if (applied) engine.persistState(force = true)
+        }
     }
 
     /** 播放单曲：设置为当前歌曲，不在列表则追加到尾部 */
@@ -225,6 +231,7 @@ class MusicController @Inject constructor(
             playJob?.cancel()
             playJob = null
         }
+        playlistManager.release()
         engine.release()
     }
 
@@ -235,6 +242,6 @@ class MusicController @Inject constructor(
 
     /** 添加到播放列表；autoPlay=true 时等价于 [play] */
     fun addToPlayList(songInfo: SongInfo, autoPlay: Boolean = false) {
-        if (autoPlay) play(songInfo) else playlistManager.appendSongsLazy(listOf(songInfo))
+        if (autoPlay) play(songInfo) else appendSongsLazy(listOf(songInfo))
     }
 }

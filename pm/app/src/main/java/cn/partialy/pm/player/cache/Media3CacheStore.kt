@@ -36,13 +36,16 @@ class Media3CacheStore @Inject constructor(
     @ApplicationContext context: Context,
 ) {
     private val applicationContext = context.applicationContext
-    private val cache = SimpleCache(
-        File(applicationContext.cacheDir, AUDIO_CACHE_DIR).apply { mkdirs() },
-        LeastRecentlyUsedCacheEvictor(SettingsPrefs.getAudioCacheMaxBytes(applicationContext)),
-        StandaloneDatabaseProvider(applicationContext),
+    private val cacheResource = ReopenableSingletonResource(
+        create = ::createCache,
+        close = SimpleCache::release,
     )
 
-    fun snapshot(cacheKey: String): Media3CacheResourceSnapshot {
+    fun snapshot(cacheKey: String): Media3CacheResourceSnapshot = cacheResource.use { cache ->
+        snapshot(cache, cacheKey)
+    }
+
+    private fun snapshot(cache: SimpleCache, cacheKey: String): Media3CacheResourceSnapshot {
         val metadataLength = ContentMetadata.getContentLength(cache.getContentMetadata(cacheKey))
         val totalBytes = metadataLength
             .takeUnless { it == C.LENGTH_UNSET.toLong() || it <= 0L }
@@ -66,8 +69,10 @@ class Media3CacheStore @Inject constructor(
         )
     }
 
-    fun snapshot(): PlaybackCacheSnapshot {
-        val entries = cache.keys.map(::snapshot)
+    fun snapshot(): PlaybackCacheSnapshot = cacheResource.use(::snapshot)
+
+    private fun snapshot(cache: SimpleCache): PlaybackCacheSnapshot {
+        val entries = cache.keys.map { cacheKey -> snapshot(cache, cacheKey) }
         return PlaybackCacheSnapshot(
             usedBytes = cache.cacheSpace.coerceAtLeast(0L),
             entryCount = entries.size,
@@ -76,12 +81,13 @@ class Media3CacheStore @Inject constructor(
         )
     }
 
-    fun clear(): PlaybackCacheSnapshot {
+    fun clear(): PlaybackCacheSnapshot = cacheResource.use { cache ->
         cache.keys.toList().forEach(cache::removeResource)
-        return snapshot()
+        snapshot(cache)
     }
 
     fun mediaSourceFactory(registry: OriginUrlRegistry): MediaSource.Factory {
+        val cache = cacheResource.get()
         val cacheDataSourceFactory = CacheDataSource.Factory()
             .setCache(cache)
             .setUpstreamDataSourceFactory(RefreshingOriginDataSource.Factory(registry))
@@ -97,8 +103,14 @@ class Media3CacheStore @Inject constructor(
     }
 
     fun release() {
-        cache.release()
+        cacheResource.release()
     }
+
+    private fun createCache(): SimpleCache = SimpleCache(
+        File(applicationContext.cacheDir, AUDIO_CACHE_DIR).apply { mkdirs() },
+        LeastRecentlyUsedCacheEvictor(SettingsPrefs.getAudioCacheMaxBytes(applicationContext)),
+        StandaloneDatabaseProvider(applicationContext),
+    )
 
     companion object {
         private const val AUDIO_CACHE_DIR = "audio_player_cache"

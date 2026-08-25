@@ -386,7 +386,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     }
 
     /**
-     * 清空队列并从所点歌曲起播：当前曲立即拉 URL，其后已加载的曲目与后续分页均以占位入队（不预取 URL）。
+     * 清空队列并从所点歌曲起播：整批歌曲先在 IO 登记逻辑 URI，进入播放器前不预取 URL。
      */
     private fun playPlaylistFromSong(song: SongInfo) {
         val songs = contentAdapter.currentSongs
