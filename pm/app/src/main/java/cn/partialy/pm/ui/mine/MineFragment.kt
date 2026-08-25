@@ -15,7 +15,6 @@ import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
-import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.AccountProfileActivity
 import cn.partialy.pm.activity.LoginActivity
@@ -24,14 +23,18 @@ import cn.partialy.pm.activity.SearchActivity
 import cn.partialy.pm.databinding.FragmentMineBinding
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
+import cn.partialy.pm.network.config.ConfigManager
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.color.MaterialColors
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MineFragment : Fragment() {
+
+    @Inject lateinit var configManager: ConfigManager
 
     private var _binding: FragmentMineBinding? = null
     private val binding get() = _binding!!
@@ -221,10 +224,7 @@ class MineFragment : Fragment() {
 
     private fun resolveAccountAvatarUrl(user: AccountUser): String? {
         val raw = user.avatarUrl.ifBlank { user.avatar }.trim()
-        if (raw.isBlank()) return null
-        if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
-        if (!raw.startsWith("/")) return null
-        return BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + raw
+        return configManager.resolveSystemUrl(raw)
     }
 
     /** 选中：onSurface、加粗。未选：onSurfaceVariant（随浅色/深色主题变化，避免夜间仍用 #333）。 */

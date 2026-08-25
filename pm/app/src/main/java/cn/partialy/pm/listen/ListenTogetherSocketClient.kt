@@ -6,15 +6,15 @@ import com.google.gson.JsonObject
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
+import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
 import org.json.JSONObject
 import java.util.UUID
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
 class ListenTogetherSocketClient @Inject constructor(
-    @Named("system_api_base_url") private val systemApiBaseUrl: String,
+    private val serviceDiscoveryManager: ServiceDiscoveryManager,
 ) {
     interface Listener {
         fun onConnected()
@@ -37,7 +37,7 @@ class ListenTogetherSocketClient @Inject constructor(
             transports = arrayOf("websocket")
             auth = mapOf("token" to "Bearer $token")
         }
-        socket = IO.socket(systemApiBaseUrl, options).apply {
+        socket = IO.socket(serviceDiscoveryManager.currentRealtimeBaseUrl(), options).apply {
             on(Socket.EVENT_CONNECT) { listener.onConnected() }
             on(Socket.EVENT_DISCONNECT) { listener.onDisconnected() }
             on(Socket.EVENT_CONNECT_ERROR) { args ->

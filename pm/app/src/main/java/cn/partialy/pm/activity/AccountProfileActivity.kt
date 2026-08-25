@@ -17,7 +17,6 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityAccountProfileBinding
@@ -183,10 +182,7 @@ class AccountProfileActivity : BaseActivity() {
 
     private fun resolveAccountAvatarUrl(user: AccountUser): String? {
         val raw = user.avatarUrl.ifBlank { user.avatar }.trim()
-        if (raw.isBlank()) return null
-        if (raw.startsWith("http://") || raw.startsWith("https://")) return raw
-        if (!raw.startsWith("/")) return null
-        return BuildConfig.SYSTEM_SERVICE_BASE_URL.trimEnd('/') + raw
+        return configManager.resolveSystemUrl(raw)
     }
 
     private data class AvatarOption(

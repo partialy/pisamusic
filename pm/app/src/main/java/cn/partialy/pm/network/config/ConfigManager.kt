@@ -32,6 +32,7 @@ import javax.inject.Singleton
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import retrofit2.HttpException
 
 @Singleton
@@ -133,6 +134,16 @@ class ConfigManager @Inject constructor(
     }
 
     suspend fun refreshServiceDiscovery(): ServiceDiscoverySnapshot = serviceDiscoveryManager.refresh()
+
+    /** 将服务端相对资源地址绑定到当前 discovery origin，拒绝明文或非法外部地址。 */
+    fun resolveSystemUrl(raw: String): String? {
+        val value = raw.trim()
+        if (value.isBlank()) return null
+        val absoluteUrl = value.toHttpUrlOrNull()
+        if (absoluteUrl != null) return value.takeIf { absoluteUrl.isHttps }
+        if (!value.startsWith('/')) return null
+        return runCatching { serviceDiscoveryManager.resolveApiUrl(value) }.getOrNull()
+    }
 
     suspend fun refreshBootstrapConfig() = bootstrapMutex.withLock {
         val attemptGeneration = synchronized(runtimeStateLock) {

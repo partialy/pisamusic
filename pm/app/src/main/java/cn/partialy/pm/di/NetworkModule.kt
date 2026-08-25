@@ -38,11 +38,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 object NetworkModule {
     @Provides
     @Singleton
-    @Named("system_api_base_url")
-    fun provideSystemApiBaseUrl(): String = BuildConfig.SYSTEM_SERVICE_BASE_URL
-
-    @Provides
-    @Singleton
     fun provideServiceDiscoveryManager(
         @ApplicationContext context: Context,
     ): ServiceDiscoveryManager = ServiceDiscoveryManager(

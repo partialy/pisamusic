@@ -25,11 +25,11 @@ import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import cn.partialy.pm.utils.ServerDevicePrefs
+import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
 import coil.load
 import com.google.android.material.imageview.ShapeableImageView
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import javax.inject.Named
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,8 +46,7 @@ class FeedbackActivity : BaseActivity() {
     private lateinit var binding: ActivityFeedbackBinding
 
     @Inject
-    @Named("system_api_base_url")
-    lateinit var systemApiBaseUrl: String
+    lateinit var serviceDiscoveryManager: ServiceDiscoveryManager
 
     private val httpClient = OkHttpClient()
 
@@ -288,7 +287,7 @@ class FeedbackActivity : BaseActivity() {
         device: String,
         images: List<Uri>,
     ): FeedbackSubmitResponse {
-        val url = systemApiBaseUrl.trimEnd('/') + "/api/feedback"
+        val url = serviceDiscoveryManager.resolveApiUrl("/api/feedback")
         val builder = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("feedback_type", type)
             .addFormDataPart("description", description)
