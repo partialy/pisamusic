@@ -49,11 +49,11 @@
 **Interfaces:**
 - Produces: `SongSourceTagBinder.bind(TextView, SongType)` 对 KG/WY 统一渲染固定方形的 `K` / `Y`；侧拉栏只调用该入口。
 
-- [ ] 将 Binder 的 KG/WY 文案分别改为 `K`、`Y`，仅这两种来源设置相同最小宽高、居中重力和现有圆角描边背景；KW/LOCAL 保持原矩形行为。
-- [ ] 给侧拉栏两个标签增加 ViewBinding id，删除独立背景和专用 padding，在侧拉栏绑定阶段调用同一个 Binder。
-- [ ] 删除不再使用的 `drawer_badge_kg/drawer_badge_wy` 文案引用；只有确认无引用时才删除旧 drawable。
-- [ ] 运行 `rg -n "drawer_badge_kg|drawer_badge_wy|bg_drawer_badge_kg|bg_drawer_badge_wy" app/src`，确认无旧调用。
-- [ ] 精确暂存 Task 1 文件并提交：`完善：统一音源单字母标签`。
+- [x] 将 Binder 的 KG/WY 文案分别改为 `K`、`Y`，仅这两种来源设置相同最小宽高、居中重力和现有圆角描边背景；KW/LOCAL 保持原矩形行为。
+- [x] 给侧拉栏两个标签增加 ViewBinding id，删除独立背景和专用 padding，在侧拉栏绑定阶段调用同一个 Binder。
+- [x] 删除不再使用的 `drawer_badge_kg/drawer_badge_wy` 文案引用；只有确认无引用时才删除旧 drawable。
+- [x] 运行 `rg -n "drawer_badge_kg|drawer_badge_wy|bg_drawer_badge_kg|bg_drawer_badge_wy" app/src`，确认无旧调用。
+- [x] 精确暂存 Task 1 文件并提交：`完善：统一音源单字母标签`。
 
 ---
 
@@ -70,14 +70,14 @@
 **Interfaces:**
 - Produces: `PublicUser.vip: boolean`、`PublicUser.vipExpiresAt: number | null`、`updateUserVip(id, vipEnabled, vipExpiresAt)`；后台更新 payload 为 `{ username, email, vipEnabled, vipExpiresAt }`。
 
-- [ ] 为 `users` 表增加 `vip_enabled INTEGER NOT NULL DEFAULT 0` 和 `vip_expires_at INTEGER`，并在 `migrateUsers()` 对已有库补列。
-- [ ] 扩展 `UserRecord/UserRow/mapUserRow()`；`toPublicUser()` 使用 `vipEnabled && vipExpiresAt != null && vipExpiresAt > Date.now()` 计算 `vip`，同时返回原到期时间。
-- [ ] 新增独立 `updateUserVip()`：关闭时写 `0/NULL`；开启时只接受未来毫秒时间戳，更新 `updated_at`。
-- [ ] 扩展后台用户 SELECT、映射和 DTO，返回 `vipEnabled`、计算后的 `vip`、`vipExpiresAt`；`updateAdminUser()` 分别调用资料更新和权益更新。
-- [ ] `normalizeUpdatePayload()` 接收 `vipEnabled/vipExpiresAt`；启用时要求未来时间，关闭时归一化为 `null`，并把这两个字段计入“存在可更新字段”判断。
-- [ ] 管理后台类型同步字段；`UserEditModal` 增加 VIP 开关与 `datetime-local`，开启时未填未来时间不得保存，提交时转换为毫秒时间戳；列表和详情不新增 VIP 展示。
-- [ ] 运行 `pnpm --dir ../server build` 与 `pnpm --dir ../server/admin build`，只检查 TypeScript/React 构建语法。
-- [ ] 精确暂存 Task 2 文件并提交：`新增：后台限时VIP控制`。
+- [x] 为 `users` 表增加 `vip_enabled INTEGER NOT NULL DEFAULT 0` 和 `vip_expires_at INTEGER`，并在 `migrateUsers()` 对已有库补列。
+- [x] 扩展 `UserRecord/UserRow/mapUserRow()`；`toPublicUser()` 使用 `vipEnabled && vipExpiresAt != null && vipExpiresAt > Date.now()` 计算 `vip`，同时返回原到期时间。
+- [x] 新增独立 `updateUserVip()`：关闭时写 `0/NULL`；开启时只接受未来毫秒时间戳，更新 `updated_at`。
+- [x] 扩展后台用户 SELECT、映射和 DTO，返回 `vipEnabled`、计算后的 `vip`、`vipExpiresAt`；`updateAdminUser()` 分别调用资料更新和权益更新。
+- [x] `normalizeUpdatePayload()` 接收 `vipEnabled/vipExpiresAt`；启用时要求未来时间，关闭时归一化为 `null`，并把这两个字段计入“存在可更新字段”判断。
+- [x] 管理后台类型同步字段；`UserEditModal` 增加 VIP 开关与 `datetime-local`，开启时未填未来时间不得保存，提交时转换为毫秒时间戳；列表和详情不新增 VIP 展示。
+- [x] 运行 `pnpm --dir ../server build` 与 `pnpm --dir ../server/admin build`，只检查 TypeScript/React 构建语法。
+- [x] 精确暂存 Task 2 文件并提交：`新增：后台限时VIP控制`。
 
 ---
 
@@ -92,12 +92,12 @@
 **Interfaces:**
 - Produces: `AccountUser.vip/vipExpiresAt`、`Session.vipActive`、`MusicQualityAccessPolicy.optionsFor(type, session)`、`allowedChoiceOrFallback(type, choice, session)`。
 
-- [ ] `AccountUser` 增加默认值 `vip=false`、`vipExpiresAt=null`；`AccountSessionStore` 在 read/save/updateUser 全链路保存字段，并提供实时 `vipActive = loggedIn && user.vip && expiresAt > now`。
-- [ ] `DownloadQualityOption` 增加 `enabled: Boolean = true` 与 `badge: String? = null`，保留完整 KG/WY/KW 原始选项清单供 VIP 使用。
-- [ ] 新建 `MusicQualityAccessPolicy`，按游客/普通账号/有效 VIP 返回策略列表；游客受限行使用 `enabled=false, badge="需登录"`，普通账号只返回普通档位，VIP 返回完整原始档位，KW 原样返回。
-- [ ] 策略提供已保存音质校验：不可见或禁用的 choice 回退到 KG 128、WY standard、KW 原默认，避免注销或到期后继续使用高阶取链。
-- [ ] 运行 `rg -n "downloadOptionsForSongType" app/src/main/java`，列出后续必须迁移的全部调用点。
-- [ ] 精确暂存 Task 3 文件并提交：`新增：统一账号音质权限策略`。
+- [x] `AccountUser` 增加默认值 `vip=false`、`vipExpiresAt=null`；`AccountSessionStore` 在 read/save/updateUser 全链路保存字段，并提供实时 `vipActive = loggedIn && user.vip && expiresAt > now`。
+- [x] `DownloadQualityOption` 增加 `enabled: Boolean = true` 与 `badge: String? = null`，保留完整 KG/WY/KW 原始选项清单供 VIP 使用。
+- [x] 新建 `MusicQualityAccessPolicy`，按游客/普通账号/有效 VIP 返回策略列表；游客受限行使用 `enabled=false, badge="需登录"`，普通账号只返回普通档位，VIP 返回完整原始档位，KW 原样返回。
+- [x] 策略提供已保存音质校验：不可见或禁用的 choice 回退到 KG 128、WY standard、KW 原默认，避免注销或到期后继续使用高阶取链。
+- [x] 运行 `rg -n "downloadOptionsForSongType" app/src/main/java`，列出后续必须迁移的全部调用点。
+- [x] 精确暂存 Task 3 文件并提交：`新增：统一账号音质权限策略`。
 
 ---
 
@@ -115,12 +115,12 @@
 - Consumes: Task 3 的 `DownloadQualityOption.enabled/badge` 与 `MusicQualityAccessPolicy`。
 - Produces: 两个弹窗一致的禁用行、右侧蓝色“需登录”标签以及提交前防越权校验。
 
-- [ ] 扩展通用选项行绑定模型以支持 enabled 和右侧 badge；禁用行文字/选中图标变灰、不可点击，badge 使用主题蓝色浅底圆角样式。
-- [ ] 播放与下载弹窗按 option 绑定，不再只传 label；默认选中项若不可用则选择首个 enabled 项，确认按钮永远不能返回禁用项。
-- [ ] `BaseDownloadActivity` 和 `PlayerActivity` 读取 `AccountSessionStore.read(context)`，通过策略获得可见选项；下载/切换前再次检查 selected.enabled。
-- [ ] `MediaItemFactory.savedPlaybackQualityChoice()` 用当前 Session 校验持久化 choice；越权时使用策略回退 choice，确保自动播放、缓存 key 和取链一致。
-- [ ] 检查所有 `downloadOptionsForSongType` 旧调用已迁移或仅保留策略内部调用。
-- [ ] 精确暂存 Task 4 文件并提交：`完善：限制播放与下载音质权限`。
+- [x] 扩展通用选项行绑定模型以支持 enabled 和右侧 badge；禁用行文字/选中图标变灰、不可点击，badge 使用主题蓝色浅底圆角样式。
+- [x] 播放与下载弹窗按 option 绑定，不再只传 label；默认选中项若不可用则选择首个 enabled 项，确认按钮永远不能返回禁用项。
+- [x] `BaseDownloadActivity` 和 `PlayerActivity` 读取 `AccountSessionStore.read(context)`，通过策略获得可见选项；下载/切换前再次检查 selected.enabled。
+- [x] `MediaItemFactory.savedPlaybackQualityChoice()` 用当前 Session 校验持久化 choice；越权时使用策略回退 choice，确保自动播放、缓存 key 和取链一致。
+- [x] 检查所有 `downloadOptionsForSongType` 旧调用已迁移或仅保留策略内部调用。
+- [x] 精确暂存 Task 4 文件并提交：`完善：限制播放与下载音质权限`。
 
 ---
 
@@ -135,12 +135,12 @@
 **Interfaces:**
 - Produces: 后续开发可复用的账号 VIP 契约、音质策略边界和来源标签规则。
 
-- [ ] 在根/Android `AGENTS.md` 记录系统 VIP 与第三方 VIP 分离、服务端有效期计算、Android 不展示、播放/下载必须走统一策略。
-- [ ] 在 UI 索引记录 `SongSourceTagBinder` 的 K/Y 方块规则，以及音质选项行的禁用态/蓝色 badge 复用方式。
-- [ ] 勾选本计划已完成任务，保留真机验收项未勾选。
-- [ ] 运行 `pnpm --dir ../server build`、`pnpm --dir ../server/admin build`、`.\gradlew.bat compileDebugKotlin`、`git diff --check`。
-- [ ] 运行静态检查：`rg -n "vip|vipExpiresAt|vip_enabled|vip_expires_at" app/src/main/java ../server/src ../server/admin/src`，确认契约贯通且 Android UI 无 VIP 展示代码。
-- [ ] 精确暂存文档并提交：`文档：记录VIP与音质权限规则`。
+- [x] 在根/Android `AGENTS.md` 记录系统 VIP 与第三方 VIP 分离、服务端有效期计算、Android 不展示、播放/下载必须走统一策略。
+- [x] 在 UI 索引记录 `SongSourceTagBinder` 的 K/Y 方块规则，以及音质选项行的禁用态/蓝色 badge 复用方式。
+- [x] 勾选本计划已完成任务，保留真机验收项未勾选。
+- [x] 运行 `pnpm --dir ../server build`、`pnpm --dir ../server/admin build`、`.\gradlew.bat compileDebugKotlin`、`git diff --check`。
+- [x] 运行静态检查：`rg -n "vip|vipExpiresAt|vip_enabled|vip_expires_at" app/src/main/java ../server/src ../server/admin/src`，确认契约贯通且 Android UI 无 VIP 展示代码。
+- [x] 精确暂存文档并提交：`文档：记录VIP与音质权限规则`。
 
 ---
 

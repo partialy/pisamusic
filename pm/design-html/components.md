@@ -32,8 +32,8 @@
 | 现代底部弹窗 | 通用底部 Sheet、进度或旧场景 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ModernDialog.kt` | `pm/app/src/main/res/layout/layout_modern_bottom_sheet.xml` | 旧场景保留，新普通确认不要继续扩展它。 |
 | 普通 BottomSheet 容器 | 统一圆角底部面板 | `pm/app/src/main/res/layout/layout_listen_together_bottom_sheet.xml`、`pm/app/src/main/res/layout/layout_action_menu_bottom_sheet.xml` | `bg_bottom_sheet.xml` | 新增底部面板先参考现有圆角和最大高度处理。 |
 | 通用操作菜单 | 顶部信息头、图标和文案操作行 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ActionMenuBottomSheet.kt` | `layout_action_menu_bottom_sheet.xml`、`item_action_menu_row.xml` | 动作在 Sheet 关闭后执行；支持普通色和危险色操作。 |
-| 底部圆角选项选择器 | 设置、播放音质等单选列表 | `pm/app/src/main/res/layout/layout_bottom_radius_options_sheet.xml` | `SettingsOptionPickerBottomSheet.kt`、`QualityPickerBottomSheet.kt`、`item_settings_option_sheet_row.xml` | 顶部标题、无分割线选项、底部取消/确定按钮；点击选项只暂存，确定后才提交。弹层使用通用 `modal_surface_background`，取消按钮使用 `action_secondary_background` / `action_secondary_text`，确定按钮使用主题 `colorPrimary` / `action_primary_text`；浅色分别为 `#FFFFFF`、`#F5F5F5`、`#4A4A4A`、白字，深色分别为 `#2A2D34`、`#5A595B`、白字、白字。 |
-| 下载音质选择弹窗 | 下载歌曲前选择音质 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/QualityPickerBottomSheet.kt` | `dialog_download_quality_picker.xml`、`include_song_info_header.xml`、`item_settings_option_sheet_row.xml` | 歌曲信息放在 `PmSlotDialog` header slot 固定显示，音质选项放 content slot 滚动，复用通用主题色选项行且无选项分割线。 |
+| 底部圆角选项选择器 | 设置、播放音质等单选列表 | `pm/app/src/main/res/layout/layout_bottom_radius_options_sheet.xml` | `SettingsOptionPickerBottomSheet.kt`、`QualityPickerBottomSheet.kt`、`item_settings_option_sheet_row.xml` | 顶部标题、无分割线选项、底部取消/确定按钮；点击选项只暂存，确定后才提交。弹层使用通用 `modal_surface_background`，取消按钮使用 `action_secondary_background` / `action_secondary_text`，确定按钮使用主题 `colorPrimary` / `action_primary_text`；浅色分别为 `#FFFFFF`、`#F5F5F5`、`#4A4A4A`、白字，深色分别为 `#2A2D34`、`#5A595B`、白字、白字。音质禁用项必须复用 `OptionPickerRows` 的 `enabled=false`：整行不可点、标题和选中图标变灰；`badge` 复用右侧主题蓝字、浅蓝圆角底的 `optionBadge`，不要另建“需登录”样式。 |
+| 下载音质选择弹窗 | 下载歌曲前选择音质 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/QualityPickerBottomSheet.kt` | `dialog_download_quality_picker.xml`、`include_song_info_header.xml`、`item_settings_option_sheet_row.xml` | 歌曲信息放在 `PmSlotDialog` header slot 固定显示，音质选项放 content slot 滚动，复用通用主题色选项行且无选项分割线；默认选中项不可用时复用首个可用项，确认不得返回禁用项。 |
 | 歌曲更多菜单 | 歌曲操作菜单 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/SongMoreMenu.kt` | `ActionMenuBottomSheet` | 歌曲业务保留在该入口，外观和操作行复用通用操作菜单。 |
 | 音乐分享 Sheet | 歌曲 / 歌单链接与二维码分享 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ShareBottomSheet.kt` | `bottom_sheet_share.xml`、`include_share_info_header.xml`、`ShareQrBitmapFactory` | 顶部封面信息、居中二维码、一起听同款蓝色 M3 链接输入框和复制图标；未登录不创建分享记录。 |
 | 歌单操作菜单 | 歌单详情、分享、收藏、删除 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PlaylistActionBottomSheet.kt` | `ActionMenuBottomSheet`、`ShareBottomSheet`、`ShareDetailActivity` | 网络歌单支持收藏 / 取消收藏、详情和分享；本地歌单不显示收藏，删除动作仅在传入本地收藏记录时显示。 |
@@ -78,7 +78,7 @@
 | 迷你播放器 | 底部迷你播放器 | `pm/app/src/main/res/layout/home_mini_player.xml` | `HomeMiniPlayerBinder` | 首页/主界面底部播放入口参考。 |
 | 歌词行 | 普通歌词 RecyclerView 行 | `pm/app/src/main/res/layout/item_lyric_line.xml` | `LyricsAdapter` | 非卡拉 OK View 的普通歌词行。 |
 | 卡拉 OK 歌词 View | 逐字歌词渲染 | `pm/app/src/main/java/cn/partialy/pm/ui/player/KaraokeLyricsView.kt` | `LyricDisplayStyle` | 自绘歌词，不要用普通 TextView 代替。 |
-| 歌源标签 | KG/WY/KW/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定。 |
+| 歌源标签 | KG/WY/KW/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定；KG/WY 必须分别显示同规格的 16dp 圆角描边方块 `K` / `Y`（无额外 padding、居中），包括侧拉栏。KW/LOCAL 继续使用原有自适应矩形标签，禁止在调用方单独设置来源文案、背景或 padding。 |
 
 ## 状态、错误与 WebView
 
