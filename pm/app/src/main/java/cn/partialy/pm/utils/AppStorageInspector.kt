@@ -3,7 +3,7 @@ package cn.partialy.pm.utils
 import android.content.Context
 import android.os.Environment
 import android.os.StatFs
-import cn.partialy.pm.utils.localdata.CachedPlaybackStore
+import cn.partialy.pm.player.cache.PlaybackMediaCache
 import java.io.File
 
 object AppStorageInspector {
@@ -123,14 +123,14 @@ object AppStorageInspector {
         LocalMediaIndexDbStore(context).clearLyrics()
     }
 
-    fun clearSongCache(context: Context) {
-        CachedPlaybackStore(context).clear()
+    fun clearSongCache(context: Context, playbackMediaCache: PlaybackMediaCache) {
+        playbackMediaCache.clear()
         context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }
         context.cacheDir.listFiles()?.forEach { entry ->
-            if (entry.isDirectory) {
+            if (entry.isDirectory && entry.name != AUDIO_PLAYER_CACHE_DIR) {
                 entry.deleteRecursively()
             } else if (!isLyricCacheFileName(entry.name)) {
-                entry.delete()
+                if (!entry.isDirectory) entry.delete()
             }
         }
     }
@@ -139,4 +139,6 @@ object AppStorageInspector {
         if (!downloadRoot.exists()) return
         downloadRoot.listFiles()?.forEach { it.deleteRecursively() }
     }
+
+    private const val AUDIO_PLAYER_CACHE_DIR = "audio_player_cache"
 }

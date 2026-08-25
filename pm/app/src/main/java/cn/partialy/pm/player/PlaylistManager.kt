@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * 播放列表管理器：维护列表状态、插播队列（FIFO），同步 ExoPlayer MediaItem。
+ * 播放列表管理器：维护列表状态、插播队列（FIFO），同步 ExoPlayer 逻辑 MediaItem。
  */
 @UnstableApi
 class PlaylistManager(private val factory: MediaItemFactory) {
@@ -41,7 +41,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /**
      * 添加到插播队列尾部（FIFO）。
-     * 重复点击同一首歌不会重复入队；若歌曲不在主列表则追加一份占位项到主列表尾部。
+     * 重复点击同一首歌不会重复入队；若歌曲不在主列表则追加可直接播放的逻辑项到主列表尾部。
      */
     fun addPlayNext(song: SongInfo) {
         CoroutineScope(Dispatchers.Main).launch {
@@ -59,7 +59,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
             val exists = _playList.value.any { factory.keyOf(it) == factory.keyOf(song) }
             if (!exists) {
                 _playList.value = _playList.value + song
-                player.addMediaItem(factory.createPlaceholderMediaItem(song))
+                player.addMediaItem(factory.createMediaItem(song))
             }
         }
     }
@@ -77,7 +77,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
     // ==================== 列表操作 ====================
 
     /**
-     * 设置播放列表（占位加载）。
+     * 设置播放列表（在线歌曲只登记逻辑 URI，不提前取链）。
      * 同源检测：若 [newSourceId] 与当前 sourceId 一致，返回 null 表示无需替换。
      * 否则按 type+id 去重，清空插播队列，从 [startIndex] 开始播放。
      */
@@ -104,13 +104,13 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
         exoPlayer?.apply {
             clearMediaItems()
-            setMediaItems(list.map { factory.createPlaceholderMediaItem(it) }, idx, 0)
+            setMediaItems(list.map(factory::createMediaItem), idx, 0)
             prepare()
         }
         return list
     }
 
-    /** 追加歌曲到列表尾部（占位，按 key 去重已有的跳过） */
+    /** 追加歌曲到列表尾部（在线歌曲为逻辑项，按 key 去重已有的跳过） */
     fun appendSongsLazy(songs: List<SongInfo>) {
         if (songs.isEmpty()) return
         CoroutineScope(Dispatchers.Main).launch {
@@ -122,7 +122,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
             }
             if (toAdd.isEmpty()) return@launch
             _playList.value = _playList.value + toAdd
-            for (s in toAdd) player.addMediaItem(factory.createPlaceholderMediaItem(s))
+            for (s in toAdd) player.addMediaItem(factory.createMediaItem(s))
         }
     }
 
@@ -222,7 +222,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
             player == null -> Unit
             previousIndex == null -> player.addMediaItem(
                 placement.targetIndex,
-                factory.createPlaceholderMediaItem(song),
+                factory.createMediaItem(song),
             )
             previousIndex != placement.targetIndex -> player.moveMediaItem(
                 previousIndex,

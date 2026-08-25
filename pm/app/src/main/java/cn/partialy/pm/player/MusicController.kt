@@ -7,7 +7,7 @@ import androidx.media3.session.MediaSession
 import cn.partialy.pm.audioeffect.AudioEffectsManager
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
-import cn.partialy.pm.utils.localdata.CachedPlaybackStore
+import cn.partialy.pm.player.cache.PlaybackMediaCache
 import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.fault.PlaybackFaultRecorder
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -48,13 +48,12 @@ data class PlaybackErrorSummary(
 @Singleton
 class MusicController @Inject constructor(
     @ApplicationContext private val context: Context,
-    playUrlGetter: PlayUrlGetter,
+    playbackMediaCache: PlaybackMediaCache,
     playbackFallbackProvider: PlaybackFallbackProvider,
-    cachedPlaybackStore: CachedPlaybackStore,
     playbackFaultRecorder: PlaybackFaultRecorder,
     audioEffectsManager: AudioEffectsManager,
 ) {
-    private val factory = MediaItemFactory(context, playUrlGetter)
+    private val factory = MediaItemFactory(context, playbackMediaCache)
     private val playlistManager = PlaylistManager(factory)
     private val engine: PlayerEngine
     private val playbackScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -70,7 +69,7 @@ class MusicController @Inject constructor(
             playlistManager = playlistManager,
             factory = factory,
             fallbackProvider = playbackFallbackProvider,
-            cachedPlaybackStore = cachedPlaybackStore,
+            playbackMediaCache = playbackMediaCache,
             playbackFaultRecorder = playbackFaultRecorder,
             audioEffectsManager = audioEffectsManager,
             onNext = { next() },
@@ -122,7 +121,7 @@ class MusicController @Inject constructor(
     // ==================== 列表操作 ====================
 
     /**
-     * 设置播放列表（占位加载），从 [startIndex] 开始播放。
+     * 设置播放列表（在线项只登记逻辑 URI），从 [startIndex] 开始播放。
      * [sourceId] 用于同源检测：同一歌单反复点击不同歌曲时直接 seek，避免重建列表。
      */
     fun setPlayListLazy(songs: List<SongInfo>, startIndex: Int = 0, sourceId: String? = null) {

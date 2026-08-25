@@ -12,6 +12,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityCacheManagementBinding
 import cn.partialy.pm.databinding.IncludeCacheCategoryCardBinding
+import cn.partialy.pm.player.cache.PlaybackMediaCache
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.PmSlotDialog
 import cn.partialy.pm.ui.dialog.SettingsOption
@@ -28,9 +29,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class CacheManagementActivity : BaseActivity() {
+
+    @Inject
+    lateinit var playbackMediaCache: PlaybackMediaCache
 
     private lateinit var binding: ActivityCacheManagementBinding
     private lateinit var songCard: IncludeCacheCategoryCardBinding
@@ -177,7 +182,10 @@ class CacheManagementActivity : BaseActivity() {
             onConfirm = {
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) {
-                        AppStorageInspector.clearSongCache(this@CacheManagementActivity)
+                        AppStorageInspector.clearSongCache(
+                            this@CacheManagementActivity,
+                            playbackMediaCache,
+                        )
                     }
                     loadStats()
                 }

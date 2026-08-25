@@ -157,6 +157,14 @@ internal object PlaybackCacheReadyCandidateScanner {
         while (songs.size < limit) {
             val page = loadPage(offset, pageSize)
             for (candidate in page.candidates) {
+                if (!PlaybackCacheCatalogRules.isReady(
+                        status = candidate.status.name,
+                        totalBytes = candidate.totalBytes,
+                        cachedBytes = candidate.cachedBytes,
+                    )
+                ) {
+                    continue
+                }
                 val currentIdentity = runCatching {
                     CacheIdentity.create(
                         candidate.identity.source,
@@ -168,7 +176,12 @@ internal object PlaybackCacheReadyCandidateScanner {
 
                 val actual = snapshotOf(candidate.identity.cacheKey)
                 snapshots += actual
-                if (actual.status == PlaybackCacheStatus.READY) {
+                if (PlaybackCacheCatalogRules.isReady(
+                        status = actual.status.name,
+                        totalBytes = actual.totalBytes,
+                        cachedBytes = actual.cachedBytes,
+                    )
+                ) {
                     songs += candidate.song
                     if (songs.size == limit) break
                 }

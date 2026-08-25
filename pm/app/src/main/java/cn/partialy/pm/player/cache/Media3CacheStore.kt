@@ -1,8 +1,13 @@
 package cn.partialy.pm.player.cache
 
 import android.content.Context
+import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.TransferListener
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.ContentMetadata
@@ -13,6 +18,7 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,7 +86,14 @@ class Media3CacheStore @Inject constructor(
             .setCache(cache)
             .setUpstreamDataSourceFactory(RefreshingOriginDataSource.Factory(registry))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-        return ProgressiveMediaSource.Factory(cacheDataSourceFactory)
+        val directDataSourceFactory = DefaultDataSource.Factory(applicationContext)
+        val routingDataSourceFactory = DataSource.Factory {
+            PlaybackRoutingDataSource(
+                cacheDataSourceFactory = cacheDataSourceFactory,
+                directDataSourceFactory = directDataSourceFactory,
+            )
+        }
+        return ProgressiveMediaSource.Factory(routingDataSourceFactory)
     }
 
     fun release() {
@@ -89,5 +102,58 @@ class Media3CacheStore @Inject constructor(
 
     companion object {
         private const val AUDIO_CACHE_DIR = "audio_player_cache"
+    }
+}
+
+/** 逻辑在线 URI 进入缓存链路，本地 content/file URI 直接读取。 */
+@UnstableApi
+private class PlaybackRoutingDataSource(
+    private val cacheDataSourceFactory: DataSource.Factory,
+    private val directDataSourceFactory: DataSource.Factory,
+) : DataSource {
+    private val transferListeners = mutableListOf<TransferListener>()
+    private var activeDelegate: DataSource? = null
+
+    override fun addTransferListener(transferListener: TransferListener) {
+        transferListeners += transferListener
+        activeDelegate?.addTransferListener(transferListener)
+    }
+
+    override fun open(dataSpec: DataSpec): Long {
+        close()
+        val factory = if (LogicalMediaUri.parse(dataSpec.uri.toString()) != null) {
+            cacheDataSourceFactory
+        } else {
+            directDataSourceFactory
+        }
+        val delegate = factory.createDataSource()
+        transferListeners.forEach(delegate::addTransferListener)
+        activeDelegate = delegate
+        return try {
+            delegate.open(dataSpec)
+        } catch (error: Throwable) {
+            activeDelegate = null
+            try {
+                delegate.close()
+            } catch (closeError: Throwable) {
+                error.addSuppressed(closeError)
+            }
+            throw error
+        }
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+        activeDelegate?.read(buffer, offset, length)
+            ?: throw IOException("data source is not open")
+
+    override fun getUri(): Uri? = activeDelegate?.uri
+
+    override fun getResponseHeaders(): Map<String, List<String>> =
+        activeDelegate?.responseHeaders ?: emptyMap()
+
+    override fun close() {
+        val delegate = activeDelegate
+        activeDelegate = null
+        delegate?.close()
     }
 }
