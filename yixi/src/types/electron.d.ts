@@ -1,5 +1,7 @@
-export {};
-
+import type {
+  AccountUser,
+  AccountSession,
+} from "./account";
 import type {
   ListenTogetherBroadcast,
   ListenTogetherCommandResult,
@@ -292,22 +294,7 @@ type FeedbackPayload = {
   images?: FeedbackImagePayload[];
 };
 
-type AccountUser = {
-  id: string;
-  username: string;
-  email: string;
-  avatar: string;
-  avatarKey: string;
-  avatarUrl: string;
-  createdAt: number;
-};
 
-type AccountSession = {
-  token: string;
-  expiresAt: number;
-  user: AccountUser;
-  loggedIn: boolean;
-};
 
 type AccountEmailCodePayload = {
   email: string;

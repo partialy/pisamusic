@@ -217,25 +217,12 @@ async function reportDesktopDevice() {
   return unwrapResponse(response);
 }
 
-export type AccountUser = {
-  id: string;
-  username: string;
-  email: string;
-  avatar: string;
-  avatarKey: string;
-  avatarUrl: string;
-  createdAt: number;
-};
-
-export type AccountAuthResult = {
-  token: string;
-  expiresAt: number;
-  user: AccountUser;
-};
-
-export type AccountSession = AccountAuthResult & {
-  loggedIn: boolean;
-};
+import type {
+  AccountUser,
+  AccountAuthResult,
+  AccountSession,
+} from "../../src/types/account";
+export type { AccountUser, AccountAuthResult, AccountSession };
 
 export type ShareType = "song" | "playlist";
 
@@ -876,21 +863,35 @@ function emptyAccountSession(): AccountSession {
       avatarKey: "default",
       avatarUrl: "",
       createdAt: 0,
+      vip: false,
+      vipExpiresAt: null,
     },
   };
 }
 
 function normalizeAccountAuthResult(result: AccountAuthResult): AccountAuthResult {
-  const avatarUrl = result.user.avatarUrl || result.user.avatar || "";
+  const user = result.user || ({} as Partial<AccountUser>);
+  const avatarUrl = user.avatarUrl || user.avatar || "";
   const normalizedAvatarUrl = absoluteSystemUrl(avatarUrl);
+  const isVip = user.vip === true;
+  const vipExpiresAt =
+    typeof user.vipExpiresAt === "number" && Number.isFinite(user.vipExpiresAt) && user.vipExpiresAt > 0
+      ? user.vipExpiresAt
+      : null;
+
   return {
     ...result,
     user: {
-      ...result.user,
-      avatarKey: result.user.avatarKey || "default",
+      ...user,
+      id: user.id || "",
+      username: user.username || "",
+      email: user.email || "",
+      avatarKey: user.avatarKey || "default",
       avatarUrl: normalizedAvatarUrl,
-      avatar: normalizedAvatarUrl || result.user.avatar || "",
-      createdAt: Number(result.user.createdAt || 0),
+      avatar: normalizedAvatarUrl || user.avatar || "",
+      createdAt: Number(user.createdAt || 0),
+      vip: isVip,
+      vipExpiresAt,
     },
   };
 }

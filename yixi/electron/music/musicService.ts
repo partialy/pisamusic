@@ -3,6 +3,11 @@ import { pathToFileURL } from "url";
 import { getUserCookie } from "../cookie/cookieService";
 import { requestSignedGatewayWithCookie } from "../cookie/cookieRequest";
 import { toSourceQualityParams } from "./quality";
+import {
+  normalizeMusicUrlParamsForCurrentAccount,
+  normalizePlayableTrackForCurrentAccount,
+  type CanonicalMusicUrlParams,
+} from "./qualityAccess";
 import type {
   DynamicCoverParams,
   MusicLyricParams,
@@ -68,6 +73,11 @@ export async function searchSuggest(params: MusicSuggestParams) {
 }
 
 export async function resolveMusicUrl(params: MusicUrlParams) {
+  const canonicalParams = normalizeMusicUrlParamsForCurrentAccount(params);
+  return resolveCanonicalMusicUrl(canonicalParams);
+}
+
+async function resolveCanonicalMusicUrl(params: CanonicalMusicUrlParams) {
   const endpoints = await getRuntimeEndpointsCached();
   const quality = toSourceQualityParams(params);
 
@@ -267,16 +277,17 @@ export async function resolvePlayableUrl(track: PlayableTrackPayload) {
   const id = track.urlParam || track.id;
   if (!id) return "";
 
-  const response: any = await resolveMusicUrl({
-    source: track.source,
+  const canonicalTrack = normalizePlayableTrackForCurrentAccount(track);
+  const response: any = await resolveCanonicalMusicUrl({
+    source: canonicalTrack.source as "kg" | "wy" | "kw",
     id,
-    qualityKey: track.qualityKey,
-    quality: track.quality,
-    br: track.br,
-    level: track.level,
+    qualityKey: canonicalTrack.qualityKey!,
+    quality: canonicalTrack.quality,
+    br: canonicalTrack.br,
+    level: canonicalTrack.level,
   });
 
-  switch (track.source) {
+  switch (canonicalTrack.source) {
     case "kg":
       return firstString(response?.url) || firstString(response?.backupUrl) || "";
     case "wy":

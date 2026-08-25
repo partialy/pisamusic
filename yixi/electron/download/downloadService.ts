@@ -11,7 +11,8 @@ import type {
   TrackSnapshot,
 } from "../database/appDatabase";
 import { fetchLyrics, resolvePlayableUrl } from "../music/musicService";
-import { defaultQualityKeyForSource, qualityKeyMatchesSource } from "../music/quality";
+import { getCurrentQualityAccessLevel } from "../music/qualityAccess";
+import { normalizeQualityKeyForAccess } from "../../src/musicQuality/musicQualityPolicy";
 import { getSongCoverUrl } from "../../src/utils/songCoverUrl";
 import { writeAudioMetadata } from "./audioMetadataWriter";
 
@@ -372,8 +373,8 @@ function normalizeSource(source: string) {
 }
 
 function normalizeQualityKey(source: "kg" | "wy" | "kw", qualityKey?: string) {
-  if (qualityKeyMatchesSource(qualityKey, source)) return qualityKey as string;
-  return defaultQualityKeyForSource(source);
+  const access = getCurrentQualityAccessLevel();
+  return normalizeQualityKeyForAccess(source, qualityKey, access);
 }
 
 function normalizeDirectory(directory: string) {

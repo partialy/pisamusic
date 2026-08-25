@@ -38,12 +38,16 @@
 
             <div class="form-row">
               <div class="label">音质</div>
-              <n-select
-                v-model:value="qualityKey"
-                class="field-control"
-                :to="false"
-                :options="qualitySelectOptions"
-                placeholder="选择音质" />
+              <MusicQualityPicker
+                v-model="qualityKey"
+                :options="qualityOptions"
+                placement="bottom"
+                @login-required="openAccountLogin">
+                <div class="quality-selector-box">
+                  <span class="selected-quality-label">{{ selectedQualityOption?.label || "选择音质" }}</span>
+                  <n-icon :component="ChevronDown" class="chevron-icon" />
+                </div>
+              </MusicQualityPicker>
             </div>
 
             <div class="form-row">
@@ -71,20 +75,30 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { NButton, NIcon, NInput, NSelect } from "naive-ui";
-import { Download as DownloadIcon, X } from "lucide-vue-next";
+import { NButton, NIcon, NInput } from "naive-ui";
+import { Download as DownloadIcon, X, ChevronDown } from "lucide-vue-next";
 import type { Song } from "@/types/song";
 import { useAudioStore } from "@/store/audio";
+import { useUserStore } from "@/store";
 import { useSettingStore } from "@/store/settingStore";
 import { defaultSongCover, getSongCover } from "@/utils/common";
 import { startSongDownload } from "@/utils/api/downloadAPI";
-import { getDefaultQualityKey, getQualityOptionsForSong, isQualitySource } from "@/utils/musicQuality";
+import { getQualityOption, getQualityOptionsForSong, isQualitySource } from "@/utils/musicQuality";
+import {
+  getQualityAccessLevel,
+  isQualityKeyAllowed,
+  normalizeQualityKeyForAccess,
+} from "@/musicQuality/musicQualityPolicy";
 import electronAPI from "@/utils/electron";
 import { useThemeStore } from "@/store";
+import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
+import MusicQualityPicker from "./MusicQualityPicker.vue";
 import { storeToRefs } from "pinia";
 
 const player = useAudioStore();
+const userStore = useUserStore();
 const settingStore = useSettingStore();
+const { openAccountLogin } = useAccountLoginDialog();
 const theme = useThemeStore();
 const { mode } = storeToRefs(theme);
 const show = ref(false);
@@ -93,13 +107,14 @@ const song = ref<Song | null>(null);
 const qualityKey = ref("");
 const directory = ref("");
 
-const qualityOptions = computed(() => getQualityOptionsForSong(song.value));
-const qualitySelectOptions = computed(() =>
-  qualityOptions.value.map((option) => ({
-    label: option.label,
-    value: option.key,
-  }))
+const qualityOptions = computed(() =>
+  getQualityOptionsForSong(song.value, getQualityAccessLevel(userStore))
 );
+const selectedQualityOption = computed(() => {
+  return qualityOptions.value.find((opt) => opt.key === qualityKey.value) ||
+    getQualityOption(qualityKey.value) ||
+    null;
+});
 const coverUrl = computed(() => song.value ? getSongCover(song.value) : defaultSongCover);
 
 async function open(target: Song | null | undefined) {
@@ -114,10 +129,12 @@ async function open(target: Song | null | undefined) {
   song.value = target;
   await settingStore.initLocalSetting();
   directory.value = settingStore.local.downloadDirectory;
-  qualityKey.value =
-    player.getPreferredQualityKey(target.source) ||
-    qualityOptions.value[0]?.key ||
-    getDefaultQualityKey(target.source);
+  const access = getQualityAccessLevel(userStore);
+  qualityKey.value = normalizeQualityKeyForAccess(
+    target.source,
+    player.getPreferredQualityKey(target.source),
+    access,
+  );
   show.value = true;
 }
 
@@ -135,8 +152,18 @@ async function chooseDirectory() {
 
 async function confirmDownload() {
   if (!song.value) return;
+  if (!isQualitySource(song.value.source)) {
+    window.$message.warning("当前歌曲来源暂不支持下载");
+    return;
+  }
   if (!qualityKey.value) {
     window.$message.warning("请选择下载音质");
+    return;
+  }
+  const access = getQualityAccessLevel(userStore);
+  if (!isQualityKeyAllowed(song.value.source, qualityKey.value, access)) {
+    window.$message.warning("当前音质需要登录账号后下载");
+    openAccountLogin();
     return;
   }
   if (!directory.value) {
@@ -308,6 +335,38 @@ defineExpose({ open });
 .field-control {
   min-width: 0;
   max-width: 100%;
+}
+
+.quality-selector-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  background: var(--color-bg-default);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+  }
+
+  .selected-quality-label {
+    color: var(--color-text-default);
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chevron-icon {
+    color: var(--color-text-secondary);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
 }
 
 .path-row {

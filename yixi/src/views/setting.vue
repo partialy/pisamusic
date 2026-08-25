@@ -80,15 +80,50 @@ function resolveSettingTab(value: unknown): SettingTab {
 .setting-con {
   width: 100%;
   height: 100%;
-}
-:deep(.n-tabs) {
-  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
-:deep(.n-tab-pane) {
+
+:deep(.n-tabs) {
   flex: 1;
-  overflow: auto;
-  padding-right: 8px;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.n-tabs-nav) {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+:deep(.n-tabs-pane-wrapper) {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+:deep(.n-tabs-pane-wrapper > div) {
+  height: 100%;
+  min-height: 0;
+}
+
+:deep(.n-tab-pane) {
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding-right: 12px;
+  padding-bottom: 40px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-scroll-thumb, rgba(140, 140, 140, 0.28));
+    border-radius: 4px;
+  }
 }
 </style>

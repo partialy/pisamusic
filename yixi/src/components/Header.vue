@@ -74,7 +74,6 @@
           <span class="username" :title="userInfo.username || '-'">
             {{ userInfo.username || "-" }}
           </span>
-          <span class="vip-tag" :class="{ active: accountVipActive }">VIP</span>
         </div>
       </n-dropdown>
       <n-button v-else circle type="primary" class="login-btn" @click="login"
@@ -110,7 +109,8 @@
 
 <script setup lang="ts">
 import { TipsHistory } from "./search";
-import { ElectronOperation, LoginCard } from "@/components";
+import { ElectronOperation } from "@/components";
+import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import {
   NButtonGroup,
   NButton,
@@ -135,7 +135,7 @@ import {
   LogOutOutline as LogoutIcon,
   PersonCircleOutline as UserIcon,
 } from "@vicons/ionicons5";
-import { computed, h, onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import avatarImg from "../assets/defaultAdminAvatar.jpg";
 import { renderIcon } from "@/utils/common";
 import electronAPI from "@/utils/electron";
@@ -147,7 +147,6 @@ const userStore = useUserStore();
 const themeStore = useThemeStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
 const avatar = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
-const accountVipActive = computed(() => false);
 const router = useRouter();
 const emit = defineEmits<{
   refresh: [];
@@ -159,15 +158,7 @@ const openDevTools = () => {
   if(!development) return;
   electronAPI.openDevTools();
 };
-const login = async () => {
-  window.$modal.create({
-    style: { borderRadius: "10px" },
-    preset: "dialog",
-    icon: renderIcon(h("span"), {}, { color: "red" }),
-    closable: true,
-    content: () => h(LoginCard),
-  });
-};
+const { openAccountLogin: login } = useAccountLoginDialog();
 const goBack = () => {
   router.back();
 };
@@ -405,13 +396,13 @@ onMounted(async () => {
       -webkit-app-region: no-drag;
       margin-right: 1rem;
       display: grid;
-      grid-template-columns: 34px minmax(0, 1fr) auto;
+      grid-template-columns: 34px minmax(0, 1fr);
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       width: 136px;
       height: 34px;
       box-sizing: border-box;
-      padding: 0 9px 0 0;
+      padding: 0 12px 0 0;
       border: 1px solid #666;
       border-radius: 999px;
       background-color: #fefefe;
@@ -437,22 +428,6 @@ onMounted(async () => {
         color: var(--color-text-default);
         font-size: 14px;
         line-height: 1;
-      }
-
-      .vip-tag {
-        flex: 0 0 auto;
-        padding: 1px 5px;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--color-text-muted) 18%, transparent);
-        color: var(--color-text-muted);
-        font-size: 10px;
-        font-weight: 700;
-        line-height: 1.3;
-
-        &.active {
-          background: rgba(208, 48, 80, 0.14);
-          color: #d03050;
-        }
       }
     }
 

@@ -1,5 +1,6 @@
 import { protocol } from "electron";
 import { resolvePlayableUrl } from "../music/musicService";
+import { normalizePlayableTrackForCurrentAccount } from "../music/qualityAccess";
 import { logger } from "../utils/logger";
 import type { MediaCacheTrack } from "./types";
 import { MediaCacheManager } from "./mediaCacheManager";
@@ -44,14 +45,15 @@ export async function setupMediaCacheProtocol() {
 }
 
 export async function prepareMediaPlaybackUrl(track: MediaCacheTrack) {
-  if (!manager) return resolvePlayableUrl(track);
+  const canonicalTrack = normalizePlayableTrackForCurrentAccount(track);
+  if (!manager) return resolvePlayableUrl(canonicalTrack);
   try {
-    return await manager.preparePlaybackUrl(track);
+    return await manager.preparePlaybackUrl(canonicalTrack);
   } catch (error) {
     logger.warn("媒体缓存准备失败，已回退为在线播放", {
       message: error instanceof Error ? error.message : String(error),
     });
-    return resolvePlayableUrl(track);
+    return resolvePlayableUrl(canonicalTrack);
   }
 }
 

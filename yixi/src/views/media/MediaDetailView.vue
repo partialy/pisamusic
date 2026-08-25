@@ -1,86 +1,180 @@
 <template>
   <div class="media-detail-page">
-    <div v-if="song || playlist" class="ambient-cover" aria-hidden="true">
-      <img :src="coverUrl" alt="" />
-    </div>
-
+    <!-- Loading Skeleton State -->
     <div v-if="loading" class="state-panel">
-      <n-skeleton class="state-cover" />
-      <div class="state-copy">
-        <n-skeleton text width="120px" />
-        <n-skeleton text width="68%" height="48px" />
-        <n-skeleton text width="46%" />
-        <n-skeleton text :repeat="3" />
+      <div class="skeleton-cover-wrap">
+        <n-skeleton class="skeleton-cover" />
+      </div>
+      <div class="skeleton-copy">
+        <n-skeleton text width="120px" height="24px" round />
+        <n-skeleton text width="60%" height="32px" round />
+        <n-skeleton text width="35%" height="18px" round />
+        <div class="skeleton-meta-grid">
+          <n-skeleton text height="52px" round />
+          <n-skeleton text height="52px" round />
+          <n-skeleton text height="52px" round />
+          <n-skeleton text height="52px" round />
+        </div>
+        <div class="skeleton-actions">
+          <n-skeleton text width="130px" height="42px" round />
+          <n-skeleton text width="90px" height="42px" round />
+          <n-skeleton text width="90px" height="42px" round />
+        </div>
       </div>
     </div>
 
-    <n-empty v-else-if="error" class="empty-state" :description="error">
-      <template #extra>
-        <n-button v-if="isShareMode" type="primary" @click="loadFromRoute">重试</n-button>
-      </template>
-    </n-empty>
+    <!-- Error State -->
+    <div v-else-if="error" class="empty-state">
+      <div class="error-card">
+        <div class="error-icon-box">
+          <n-icon :component="AlertCircle" size="28" />
+        </div>
+        <h2 class="error-title">{{ error }}</h2>
+        <p class="error-desc">该分享可能已被取消、已过期，或当前网络无法连接到服务端</p>
+        <div class="error-actions">
+          <n-button v-if="isShareMode" type="primary" round @click="loadFromRoute">
+            重试加载
+          </n-button>
+          <n-button secondary round @click="router.back()">
+            返回上一页
+          </n-button>
+        </div>
+      </div>
+    </div>
 
+    <!-- Main Detail Hero Stage -->
     <section v-else-if="song || playlist" class="detail-stage">
-      <aside class="cover-column">
-        <div class="cover-frame">
-          <img class="cover" :src="coverUrl" :alt="title" />
-          <span class="cover-index">PISA / {{ song ? "TRACK" : "PLAYLIST" }}</span>
+      <!-- Left Column: Vinyl Disk & Cover Stage -->
+      <aside class="cover-stage-column">
+        <div class="vinyl-showcase">
+          <!-- Spinning Vinyl Disk -->
+          <div class="vinyl-disk" aria-hidden="true">
+            <div class="vinyl-grooves"></div>
+            <div class="vinyl-label" :style="{ backgroundImage: `url(${coverUrl})` }">
+              <div class="vinyl-center-hole"></div>
+            </div>
+          </div>
+
+          <!-- Album Art Sleeve -->
+          <div class="cover-sleeve">
+            <img class="cover-img" :src="coverUrl" :alt="title" />
+            <div class="cover-gloss-highlight"></div>
+            <div class="cover-badge">
+              <span class="badge-dot"></span>
+              <span>{{ song ? "PISA TRACK" : "PLAYLIST" }}</span>
+            </div>
+          </div>
         </div>
       </aside>
 
-      <main class="detail-copy">
-        <header class="detail-heading">
-          <div class="type-line">
-            <span class="type-icon">
-              <n-icon :component="song ? Disc3 : ListMusic" size="17" />
-            </span>
+      <!-- Right Column: Info, Meta Cards & Actions -->
+      <main class="info-stage-column">
+        <!-- Header & Category Kicker -->
+        <header class="detail-header">
+          <div class="kicker-badge">
+            <n-icon :component="song ? Disc3 : ListMusic" size="14" />
             <span>{{ headingKicker }}</span>
           </div>
 
-          <div v-if="shareRecord" class="share-origin">
+          <!-- Sharer Information Card if in Share Mode -->
+          <div v-if="shareRecord" class="sharer-card">
             <n-avatar
               round
-              :size="28"
-              :src="shareRecord.sharer.avatarUrl || undefined">
+              :size="24"
+              :src="shareRecord.sharer.avatarUrl || undefined"
+              class="sharer-avatar"
+            >
               {{ shareRecord.sharer.username?.slice(0, 1) || "P" }}
             </n-avatar>
-            <span>{{ shareRecord.sharer.username || "PisaMusic 用户" }} 分享</span>
-            <span class="share-dot" aria-hidden="true"></span>
-            <n-icon :component="Eye" size="15" />
-            <span>{{ shareRecord.accessCount }} 次浏览</span>
+            <span class="sharer-name">{{ shareRecord.sharer.username || "PisaMusic 用户" }} 分享</span>
+            <span class="meta-dot"></span>
+            <div class="view-count">
+              <n-icon :component="Eye" size="13" />
+              <span>{{ shareRecord.accessCount }} 次浏览</span>
+            </div>
           </div>
 
-          <h1 :title="title">{{ title }}</h1>
-          <p class="subtitle" :title="subtitle">{{ subtitle || "暂无描述" }}</p>
+          <!-- Title & Artist -->
+          <h1 class="media-title" :title="title">{{ title }}</h1>
+          <div class="media-subtitle" :title="subtitle">
+            <n-icon :component="song ? User : Layers" size="14" class="sub-icon" />
+            <span>{{ subtitle || "未知艺术家" }}</span>
+          </div>
         </header>
 
-        <div class="meta-list">
-          <div v-for="item in metaItems" :key="item.label" class="meta-row">
-            <span>{{ item.label }}</span>
-            <strong :title="item.value">{{ item.value || "暂无" }}</strong>
+        <!-- Modern Frosted Meta Cards Grid -->
+        <div class="meta-grid">
+          <div v-for="item in metaItems" :key="item.label" class="meta-card">
+            <div class="meta-icon-pill">
+              <n-icon :component="item.icon" size="15" />
+            </div>
+            <div class="meta-textbox">
+              <span class="meta-label">{{ item.label }}</span>
+              <strong class="meta-value" :title="item.value">{{ item.value || "暂无" }}</strong>
+            </div>
           </div>
         </div>
 
-        <div class="action-row">
-          <n-button v-if="song" type="primary" class="primary-action" @click="playSong">
+        <!-- Action Buttons Row -->
+        <div class="action-buttons-row">
+          <n-button
+            v-if="song"
+            type="primary"
+            class="play-main-btn"
+            round
+            @click="playSong"
+          >
             <template #icon>
               <n-icon :component="Play" />
             </template>
             立即播放
           </n-button>
-          <n-button v-else type="primary" class="primary-action" @click="openPlaylistPage">
+
+          <n-button
+            v-else
+            type="primary"
+            class="play-main-btn"
+            round
+            @click="openPlaylistPage"
+          >
             <template #icon>
               <n-icon :component="ListMusic" />
             </template>
             打开歌单
           </n-button>
-          <n-button secondary class="secondary-action" @click="toggleCollect">
+
+          <n-button
+            secondary
+            class="action-pill-btn collect-btn"
+            :class="{ 'is-collected': collected }"
+            round
+            @click="toggleCollect"
+          >
             <template #icon>
-              <n-icon :component="Heart" />
+              <n-icon :component="Heart" :color="collected ? '#ff4d6d' : undefined" />
             </template>
-            {{ collected ? "取消收藏" : "收藏" }}
+            {{ collected ? "已收藏" : "收藏" }}
           </n-button>
-          <n-button secondary class="secondary-action" @click="openShareDialog">
+
+          <n-button
+            v-if="song"
+            secondary
+            class="action-pill-btn"
+            round
+            @click="openDownload"
+          >
+            <template #icon>
+              <n-icon :component="Download" />
+            </template>
+            下载
+          </n-button>
+
+          <n-button
+            secondary
+            class="action-pill-btn"
+            round
+            @click="openShareDialog"
+          >
             <template #icon>
               <n-icon :component="Share2" />
             </template>
@@ -90,19 +184,36 @@
       </main>
     </section>
 
+    <!-- Share Dialog & Download Dialog -->
     <ShareDialog ref="shareDialogRef" />
+    <DownloadSongDialog :ref="songDownload.downloadDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { NAvatar, NButton, NEmpty, NIcon, NSkeleton } from "naive-ui";
-import { Disc3, Eye, Heart, ListMusic, Play, Share2 } from "lucide-vue-next";
+import { NAvatar, NButton, NIcon, NSkeleton } from "naive-ui";
+import {
+  AlertCircle,
+  Clock,
+  Disc3,
+  Download,
+  Eye,
+  Heart,
+  Layers,
+  ListMusic,
+  Play,
+  Radio,
+  Share2,
+  User,
+} from "lucide-vue-next";
 import type { CommonPlaylist, Song } from "@/types/song";
 import ShareDialog from "@/components/common/ShareDialog.vue";
+import DownloadSongDialog from "@/components/player/DownloadSongDialog.vue";
 import { useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
+import { useSongDownload } from "@/composables/useSongDownload";
 import { defaultSongCover, formatDuration, getKgImage, getSongCover } from "@/utils/common";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { getPublicShare } from "@/share/shareApi";
@@ -117,6 +228,7 @@ const route = useRoute();
 const router = useRouter();
 const collector = useCollectStore();
 const playbackCommands = usePlaybackCommands();
+const songDownload = useSongDownload();
 const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
 
 const loading = ref(false);
@@ -129,52 +241,58 @@ const isShareMode = computed(() => route.query.kind === "share");
 const title = computed(() => song.value?.name || playlist.value?.name || "音乐详情");
 const subtitle = computed(() => song.value?.singer || playlist.value?.desc || "");
 const sourceLabel = computed(() => labelSource(song.value?.source || playlist.value?.source || shareRecord.value?.source));
+
 const headingKicker = computed(() => {
-  if (shareRecord.value) return song.value ? "SHARED TRACK" : "SHARED PLAYLIST";
-  return song.value ? `TRACK PROFILE · ${sourceLabel.value}` : `PLAYLIST PROFILE · ${sourceLabel.value}`;
+  if (shareRecord.value) {
+    return song.value ? `歌曲分享 · ${sourceLabel.value}` : `歌单分享 · ${sourceLabel.value}`;
+  }
+  return song.value ? `歌曲详情 · ${sourceLabel.value}` : `歌单详情 · ${sourceLabel.value}`;
 });
+
 const collected = computed(() => {
   if (song.value) return collector.containsSong(song.value);
   if (playlist.value) return collector.containsPlaylist(playlist.value);
   return false;
 });
+
 const coverUrl = computed(() => {
-  if (song.value) return getSongCover(song.value, 360);
+  if (song.value) return getSongCover(song.value, 480);
   if (!playlist.value) return defaultSongCover;
-  if (playlist.value.source === "kg") return getKgImage(playlist.value.cover, 360);
+  if (playlist.value.source === "kg") return getKgImage(playlist.value.cover, 480);
   return playlist.value.coverSize?.l || playlist.value.cover || defaultPlaylistCover;
 });
+
 const metaItems = computed(() => {
   if (song.value) {
     if (shareRecord.value) {
       return [
-        { label: "歌手", value: song.value.singer || shareRecord.value.description },
-        { label: "歌名", value: song.value.name || shareRecord.value.title },
-        { label: "专辑", value: song.value.album },
-        { label: "时长", value: formatDuration(song.value.duration) },
-        { label: "访问次数", value: String(shareRecord.value.accessCount) },
+        { label: "歌手", value: song.value.singer || shareRecord.value.description, icon: User },
+        { label: "专辑", value: song.value.album || "单曲", icon: Disc3 },
+        { label: "时长", value: formatDuration(song.value.duration), icon: Clock },
+        { label: "来源", value: sourceLabel.value, icon: Radio },
       ];
     }
     return [
-      { label: "歌手", value: song.value.singer },
-      { label: "专辑", value: song.value.album },
-      { label: "时长", value: formatDuration(song.value.duration) },
-      { label: "来源", value: sourceLabel.value },
+      { label: "歌手", value: song.value.singer || "未知歌手", icon: User },
+      { label: "专辑", value: song.value.album || "单曲", icon: Disc3 },
+      { label: "时长", value: formatDuration(song.value.duration), icon: Clock },
+      { label: "来源", value: sourceLabel.value, icon: Radio },
     ];
   }
   if (playlist.value) {
     if (shareRecord.value) {
       return [
-        { label: "描述", value: shareRecord.value.description || playlist.value.desc },
-        { label: "分享人", value: shareRecord.value.sharer.username || "PisaMusic 用户" },
-        { label: "访问次数", value: String(shareRecord.value.accessCount) },
+        { label: "分享人", value: shareRecord.value.sharer.username || "PisaMusic 用户", icon: User },
+        { label: "歌曲数", value: `${playlist.value.song_count || 0} 首`, icon: ListMusic },
+        { label: "来源", value: sourceLabel.value, icon: Radio },
+        { label: "访问次数", value: `${shareRecord.value.accessCount} 次`, icon: Eye },
       ];
     }
     return [
-      { label: "来源", value: sourceLabel.value },
-      { label: "歌曲数", value: String(playlist.value.song_count || 0) },
-      { label: "播放量", value: String(playlist.value.play_count || "") },
-      { label: "收藏量", value: String(playlist.value.collect_count || "") },
+      { label: "歌曲数量", value: `${playlist.value.song_count || 0} 首`, icon: ListMusic },
+      { label: "播放量", value: String(playlist.value.play_count || "0"), icon: Play },
+      { label: "收藏量", value: String(playlist.value.collect_count || "0"), icon: Heart },
+      { label: "来源", value: sourceLabel.value, icon: Radio },
     ];
   }
   return [];
@@ -228,10 +346,18 @@ async function loadShareDetail() {
       playlist.value = playlistFromSharePayload({ ...share.rawJson, cover: share.coverUrl });
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : "分享不存在或已失效";
+    error.value = cleanErrorMessage(err);
   } finally {
     loading.value = false;
   }
+}
+
+function cleanErrorMessage(raw: unknown): string {
+  const message = raw instanceof Error ? raw.message : typeof raw === "string" ? raw : "";
+  if (!message) return "分享不存在或已失效";
+  const match = message.match(/(?:Error:\s*)+([^]+)$/);
+  const text = (match ? match[1] : message).trim();
+  return text || "分享不存在或已失效";
 }
 
 function playSong() {
@@ -267,6 +393,11 @@ function openShareDialog() {
   if (playlist.value) shareDialogRef.value?.openForPlaylist(playlist.value);
 }
 
+function openDownload() {
+  if (!song.value) return;
+  songDownload.openDownloadDialog(song.value);
+}
+
 function labelSource(source?: string) {
   const labels: Record<string, string> = {
     kg: "KG",
@@ -282,288 +413,456 @@ function labelSource(source?: string) {
 <style scoped lang="scss">
 .media-detail-page {
   position: relative;
-  isolation: isolate;
   width: 100%;
   min-height: 100%;
-  overflow: hidden;
-  padding: clamp(12px, 2.4vw, 34px);
+  padding: clamp(24px, 4vw, 56px);
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   box-sizing: border-box;
 }
 
-.detail-stage,
-.state-panel,
-.empty-state {
+/* Detail Content Layout */
+.detail-stage {
   position: relative;
-  z-index: 1;
-  width: min(1120px, 100%);
+  width: min(920px, 100%);
   margin: 0 auto;
-}
-
-.state-panel {
   display: grid;
-  grid-template-columns: minmax(220px, 360px) minmax(0, 1fr);
-  gap: clamp(32px, 5vw, 72px);
+  grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 60px);
   align-items: center;
-  min-height: 520px;
 }
 
-.state-cover {
-  width: 100%;
+/* Left: Vinyl & Cover Stage */
+.cover-stage-column {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.vinyl-showcase {
+  position: relative;
+  width: min(250px, 100%);
   aspect-ratio: 1;
-  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.state-copy {
+.vinyl-disk {
+  position: absolute;
+  top: 50%;
+  right: -22px;
+  transform: translateY(-50%);
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #1c1c1c 0%, #141414 55%, #080808 100%);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.35),
+    0 0 0 2px rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: rotate-vinyl 20s linear infinite;
+  z-index: 1;
+
+  .vinyl-grooves {
+    position: absolute;
+    inset: 10px;
+    border-radius: 50%;
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.02) inset;
+  }
+
+  .vinyl-label {
+    position: relative;
+    width: 32%;
+    height: 32%;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #1c1c1c;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .vinyl-center-hole {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #000;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+  }
+}
+
+.cover-sleeve {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 14px 36px rgba(0, 0, 0, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border-default);
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  .cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .cover-gloss-highlight {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, transparent 55%);
+    pointer-events: none;
+  }
+
+  .cover-badge {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px);
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: 0.06em;
+    color: #fff;
+
+    .badge-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--color-primary);
+      box-shadow: 0 0 6px var(--color-primary);
+    }
+  }
+}
+
+/* Right: Info Stage */
+.info-stage-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kicker-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.sharer-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 3px 12px 3px 4px;
+  border-radius: 999px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-default);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+
+  .sharer-avatar {
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .meta-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--color-text-third);
+  }
+
+  .view-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-text-third);
+  }
+}
+
+.media-title {
+  margin: 0;
+  font-size: clamp(20px, 2.4vw, 28px);
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--color-text-default);
+  overflow-wrap: anywhere;
+}
+
+.media-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+
+  .sub-icon {
+    color: var(--color-primary);
+    flex-shrink: 0;
+  }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Modern Frosted Meta Cards Grid */
+.meta-grid {
   display: grid;
-  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
 }
 
+.meta-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-default);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--color-item-hover);
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border-default));
+  }
+
+  .meta-icon-pill {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .meta-textbox {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .meta-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-third);
+    }
+
+    .meta-value {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text-default);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+/* Action Buttons */
+.action-buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+
+  :deep(.n-button) {
+    height: 40px;
+    font-size: 13.5px;
+    font-weight: 700;
+    padding: 0 18px;
+  }
+
+  .play-main-btn {
+    padding: 0 24px;
+  }
+
+  .action-pill-btn {
+    &.is-collected {
+      color: #ff4d6d;
+      border-color: rgba(255, 77, 109, 0.3);
+      background: rgba(255, 77, 109, 0.08);
+    }
+  }
+}
+
+/* Skeleton State */
+.state-panel {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 60px);
+  align-items: center;
+}
+
+.skeleton-cover-wrap {
+  aspect-ratio: 1;
+  width: 100%;
+}
+
+.skeleton-cover {
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+}
+
+.skeleton-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.skeleton-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* Error State */
 .empty-state {
   flex: 1;
   min-height: 420px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
 }
 
-.ambient-cover {
-  position: absolute;
-  z-index: -1;
-  top: 50%;
-  left: 22%;
-  width: min(58vw, 760px);
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%) scale(1.16);
-  opacity: 0.17;
-  filter: blur(86px) saturate(1.25);
-  pointer-events: none;
+.error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 32px;
+  border-radius: 20px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-default);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);
+  max-width: 400px;
+  width: 100%;
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+  .error-icon-box {
+    width: 54px;
+    height: 54px;
     border-radius: 50%;
-  }
-}
-
-.detail-stage {
-  display: grid;
-  grid-template-columns: minmax(260px, 390px) minmax(0, 1fr);
-  gap: clamp(38px, 6vw, 86px);
-  align-items: center;
-  min-height: 560px;
-}
-
-.cover-column {
-  min-width: 0;
-}
-
-.cover-frame {
-  position: relative;
-  width: 100%;
-  padding: 10px 10px 38px;
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 72%, transparent);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--color-bg-default) 72%, transparent);
-  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.16);
-  backdrop-filter: blur(26px) saturate(1.2);
-  box-sizing: border-box;
-}
-
-.cover {
-  width: 100%;
-  aspect-ratio: 1;
-  display: block;
-  border-radius: 9px;
-  object-fit: cover;
-  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.2);
-}
-
-.cover-index {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  color: var(--color-text-secondary);
-  font-size: 9px;
-  line-height: 1;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-}
-
-.detail-copy {
-  min-width: 0;
-}
-
-.detail-heading {
-  min-width: 0;
-}
-
-.type-line,
-.share-origin {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.type-line {
-  gap: 9px;
-  color: var(--color-primary);
-  font-size: 10px;
-  line-height: 1;
-  font-weight: 850;
-  letter-spacing: 0.16em;
-}
-
-.type-icon {
-  width: 30px;
-  height: 30px;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
-}
-
-.share-origin {
-  gap: 8px;
-  margin-top: 20px;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.share-dot {
-  width: 3px;
-  height: 3px;
-  margin: 0 2px;
-  border-radius: 50%;
-  background: var(--color-text-third);
-}
-
-h1 {
-  margin: 20px 0 0;
-  overflow-wrap: anywhere;
-  color: var(--color-text-default);
-  font-size: clamp(38px, 5vw, 68px);
-  line-height: 1.02;
-  font-weight: 720;
-  letter-spacing: -0.045em;
-}
-
-.subtitle {
-  max-width: 680px;
-  margin: 16px 0 0;
-  color: var(--color-text-secondary);
-  font-size: clamp(14px, 1.6vw, 18px);
-  line-height: 1.7;
-  overflow-wrap: anywhere;
-}
-
-.meta-list {
-  margin-top: 34px;
-  border-top: 1px solid color-mix(in srgb, var(--color-border-default) 78%, transparent);
-}
-
-.meta-row {
-  min-width: 0;
-  min-height: 48px;
-  padding: 10px 2px;
-  display: grid;
-  grid-template-columns: minmax(78px, 0.28fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 18px;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border-default) 78%, transparent);
-
-  span {
-    color: var(--color-text-secondary);
-    font-size: 11px;
-    font-weight: 750;
-    letter-spacing: 0.06em;
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
   }
 
-  strong {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--color-text-default);
-    font-size: 14px;
-    font-weight: 650;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.action-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 28px;
-
-  :deep(.n-button) {
-    height: 40px;
-    padding: 0 18px;
-    border-radius: 9px;
+  .error-title {
+    margin: 0 0 8px;
+    font-size: 17px;
     font-weight: 700;
+    color: var(--color-text-default);
+  }
+
+  .error-desc {
+    margin: 0 0 20px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+
+  .error-actions {
+    display: flex;
+    gap: 10px;
   }
 }
 
-.primary-action {
-  min-width: 132px;
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-primary) 24%, transparent);
+/* Animations */
+@keyframes rotate-vinyl {
+  0% { transform: translateY(-50%) rotate(0deg); }
+  100% { transform: translateY(-50%) rotate(360deg); }
 }
 
-@media (max-width: 920px) {
+/* Responsive */
+@media (max-width: 800px) {
   .detail-stage,
   .state-panel {
     grid-template-columns: 1fr;
-    min-height: auto;
+    gap: 24px;
   }
 
-  .detail-stage {
-    gap: 34px;
-    padding: 18px 0 36px;
-  }
-
-  .cover-column {
-    max-width: 380px;
-    width: 100%;
+  .cover-stage-column {
+    max-width: 240px;
     margin: 0 auto;
-  }
-
-  .state-panel {
-    padding: 20px 0;
-  }
-
-  .state-cover {
-    max-width: 380px;
-  }
-
-  .ambient-cover {
-    top: 25%;
-    left: 50%;
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 540px) {
   .media-detail-page {
-    padding: 10px;
+    padding: 16px 12px;
   }
 
-  h1 {
-    font-size: 36px;
+  .meta-grid {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .meta-row {
-    grid-template-columns: 70px minmax(0, 1fr);
-  }
-
-  .action-row {
+  .action-buttons-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
 
-    .primary-action {
+    .play-main-btn {
       grid-column: 1 / -1;
     }
   }

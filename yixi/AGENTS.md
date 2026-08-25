@@ -57,6 +57,9 @@
 ## 播放音质与下载规则补充
 
 - 播放/下载音质偏好统一写入 SQLite settings 的 `playback-quality-preference`，按来源保存 `kg:*`、`wy-br:*`、`wy-level:*`、`kw:*` 这类 qualityKey；不要再新增 localStorage 音质记忆。
+- 音质权益只认 PisaMusic 系统账号（`vip` 且 `vipExpiresAt > Date.now()` 为有效 VIP），与 KG/WY 第三方登录 Cookie 完全分离；KW 保持全量开放不受系统账号影响。
+- KG/WY 音质三档权限矩阵：未登录（游客）WY 仅 128k/标准可用（较高/极高需登录）、KG 仅 128 可用（320/无损需登录）；普通登录账号 WY 开放 4 档、KG 开放 3 档；有效 VIP 开放全部 12 / 6 档。PisaMusic VIP 为隐式功能，界面不展示任何 VIP 标识或到期时间。
+- renderer 与 main 统一共用 `src/musicQuality/musicQualityPolicy.ts` 纯策略模块；main 侧取链、媒体缓存建 key（`source + songId + qualityKey`）与下载任务落库前必须由 `electron/music/qualityAccess.ts` 强制归一化，防止 IPC 或旧参数越权。
 - `music:resolve-playable-url` 支持 `qualityKey`，KG/WY 高品质取链在 main 端优先使用对应登录 Cookie 直连 `kgServer` / `wyServer`，失败后才回退普通取链；renderer 不直接持有 service URL 或 Cookie。
 - 下载能力集中在 `electron/download/` 和 `download:*` IPC，renderer 只能传规范化歌曲、qualityKey 和下载目录；不要在页面组件里直接写文件或嵌入音频标签。
 - 下载任务由 main 进程内存 Map 管理，`download:start` 只创建任务并返回快照；renderer 通过 `download:tasks` 轮询进度，不要在 renderer 自己维护真实下载 Promise。

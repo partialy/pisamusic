@@ -1,16 +1,8 @@
 import { defineStore } from "pinia";
+import type { AccountUser, AccountSession } from "@/types/account";
 
-export interface PMUserInfo {
-  id: string;
-  username: string;
-  email: string;
-  avatar: string;
-  avatarKey: string;
-  avatarUrl: string;
-  createdAt: number;
-}
+export type PMUserInfo = AccountUser;
 
-type AccountSession = Awaited<ReturnType<typeof window.electronAPI.getAccountSession>>;
 type AccountProfileUpdatePayload = Parameters<typeof window.electronAPI.updateAccountProfile>[0];
 
 function emptyUser(): PMUserInfo {
@@ -22,6 +14,8 @@ function emptyUser(): PMUserInfo {
     avatarKey: "default",
     avatarUrl: "",
     createdAt: 0,
+    vip: false,
+    vipExpiresAt: null,
   };
 }
 

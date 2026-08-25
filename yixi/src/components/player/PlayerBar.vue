@@ -60,7 +60,7 @@
         circle
         class="middle-action"
         title="下载"
-        :disabled="!qualityDropdownOptions.length"
+        :disabled="!qualityOptions.length"
         @click="songDownload.openDownloadDialog(currentSong || undefined)">
         <template #icon>
           <n-icon :component="DownloadIcon" size="22px" />
@@ -69,22 +69,21 @@
     </div>
     <div class="right">
       <ListenTogetherEntry />
-      <n-dropdown
-        :options="qualityDropdownOptions"
-        trigger="click"
+      <MusicQualityPicker
+        :model-value="currentQualityKey"
+        :options="qualityOptions"
+        :disabled="!qualityOptions.length"
         placement="top"
-        :disabled="!qualityDropdownOptions.length"
-        @select="handleSwitchQuality"
-        show-arrow
-        show-on-focus>
+        @update:model-value="handleSwitchQuality"
+        @login-required="openAccountLogin">
         <n-button
           quaternary
           class="quality-pill"
-          :disabled="!qualityDropdownOptions.length"
+          :disabled="!qualityOptions.length"
           :title="currentQualityOption?.label || '音质'">
           {{ currentQualityOption?.shortLabel || "AUTO" }}
         </n-button>
-      </n-dropdown>
+      </MusicQualityPicker>
       <div class="time">
         {{ formatDuration(currentTime) }}/{{ formatDuration(duration) }}
       </div>
@@ -146,7 +145,7 @@ import {
   NDropdown,
 } from "naive-ui";
 import { storeToRefs } from "pinia";
-import { useAudioStore, useLyricStore } from "@/store";
+import { useAudioStore, useLyricStore, useUserStore } from "@/store";
 import { PlayControlBtn, PlaySequence, VolumePanel } from ".";
 import { debounce, defaultSongCover, formatDuration, renderIcon } from '@/utils/common';
 import { EMPTY_LYRIC_TEXT, getLyricLineText } from "@/utils/lyricLine";
@@ -169,13 +168,18 @@ import type { RepeatMode } from "@/store/audio";
 import electronAPI from "@/utils/electron";
 import { useCollectStore } from "@/store/collect";
 import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
+import { getQualityAccessLevel } from "@/musicQuality/musicQualityPolicy";
+import MusicQualityPicker from "./MusicQualityPicker.vue";
 import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { useSongDownload } from "@/composables/useSongDownload";
+import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
 import PlayerBarKaraokeLyric from "./PlayerBarKaraokeLyric.vue";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
 const player = useAudioStore();
+const userStore = useUserStore();
+const { openAccountLogin } = useAccountLoginDialog();
 const playbackCommands = usePlaybackCommands();
 const lyric = useLyricStore();
 const collect = useCollectStore();
@@ -185,16 +189,12 @@ const commonStore = useCommonStore();
 const { currentTime, duration, currentSong, isPlaying, volume, repeatMode } =
   storeToRefs(player);
 const { desktop } = storeToRefs(lyric);
-const qualityOptions = computed(() => getQualityOptionsForSong(currentSong.value));
-const qualityDropdownOptions = computed(() =>
-  qualityOptions.value.map((option) => ({
-    label: option.label,
-    key: option.key,
-  }))
+const qualityOptions = computed(() =>
+  getQualityOptionsForSong(currentSong.value, getQualityAccessLevel(userStore))
 );
+const currentQualityKey = computed(() => player.getPreferredQualityKey(currentSong.value?.source) || "");
 const currentQualityOption = computed(() => {
-  const key = player.getPreferredQualityKey(currentSong.value?.source);
-  return getQualityOption(key) || qualityOptions.value[0] || null;
+  return getQualityOption(currentQualityKey.value) || qualityOptions.value[0] || null;
 });
 const imgSrc = useSongCoverUrl(currentSong);
 

@@ -7,6 +7,7 @@ import { getDynamicCover, getPlayableUrlByMusicApi } from "@/utils/api/musicAPI"
 import electronAPI from "@/utils/electron";
 import { normalizeSong } from "@/utils/song";
 import { useLibraryStore } from "./library";
+import { useUserStore } from "./user";
 import { reportError } from "@/utils/errorReporter";
 import { showLimitedWarning } from "@/utils/limitedMessage";
 import {
@@ -15,14 +16,18 @@ import {
   shouldAutoSkipPlaybackFailure,
 } from "@/utils/audioPlaybackPolicy";
 import {
-  getDefaultQualityKey,
-  getQualityOption,
   isQualitySource,
   PLAYBACK_QUALITY_SETTING_KEY,
   type MusicQualityOption,
   type PlaybackQualityPreference,
   type QualitySource,
 } from "@/utils/musicQuality";
+import {
+  getQualityAccessLevel,
+  isKnownQualityKey,
+  isQualityKeyAllowed,
+  normalizeQualityKeyForAccess,
+} from "@/musicQuality/musicQualityPolicy";
 
 
 // 定义重复播放模式的类型
@@ -57,6 +62,8 @@ type PlaybackBridge = {
 
 export const useAudioStore = defineStore("audio", () => {
   const libraryStore = useLibraryStore();
+  const userStore = useUserStore();
+  const currentAccessLevel = () => getQualityAccessLevel(userStore);
   // State (状态)
   const player = ref<Howl | null>(null); // Howl音频播放器实例
   const currentSong = ref<Song | null>(null); // 当前播放的歌曲
@@ -458,6 +465,11 @@ export const useAudioStore = defineStore("audio", () => {
       window.$message.warning("当前歌曲不支持切换音质");
       return false;
     }
+    const access = currentAccessLevel();
+    if (!isQualityKeyAllowed(option.source, option.key, access)) {
+      window.$message.warning("当前音质需要更高权限");
+      return false;
+    }
 
     const position = currentTime.value;
     const shouldResume = isPlaying.value;
@@ -492,11 +504,16 @@ export const useAudioStore = defineStore("audio", () => {
 
   const getPreferredQualityKey = (source?: Song["source"]) => {
     if (!source || !isQualitySource(source)) return undefined;
+    const access = currentAccessLevel();
     const saved = qualityPreference.value[source];
-    return getQualityOption(saved)?.source === source ? saved : getDefaultQualityKey(source);
+    return normalizeQualityKeyForAccess(source, saved, access);
   };
 
   const setPreferredQualityKey = async (source: QualitySource, qualityKey: string) => {
+    const access = currentAccessLevel();
+    if (!isQualityKeyAllowed(source, qualityKey, access)) {
+      return;
+    }
     const nextPreference: PlaybackQualityPreference = {
       ...toRaw(qualityPreference.value),
       [source]: qualityKey,
@@ -759,7 +776,7 @@ export const useAudioStore = defineStore("audio", () => {
     const next: PlaybackQualityPreference = {};
     (["kg", "wy", "kw"] as QualitySource[]).forEach((source) => {
       const key = value?.[source];
-      if (getQualityOption(key)?.source === source) next[source] = key;
+      if (key && isKnownQualityKey(source, key)) next[source] = key;
     });
     return next;
   };

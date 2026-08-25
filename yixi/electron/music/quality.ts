@@ -1,4 +1,9 @@
 import type { MusicSource } from "./types";
+import {
+  getQualityOption,
+  isQualitySource,
+  getDefaultQualityKey,
+} from "../../src/musicQuality/musicQualityPolicy";
 
 export type MusicQualityChoice =
   | { kind: "kg"; quality: string }
@@ -7,33 +12,26 @@ export type MusicQualityChoice =
   | { kind: "kw"; quality: string };
 
 export function parseQualityKey(key?: string | null): MusicQualityChoice | null {
-  if (!key) return null;
-  const separator = key.indexOf(":");
-  if (separator <= 0 || separator === key.length - 1) return null;
-  const prefix = key.slice(0, separator);
-  const value = key.slice(separator + 1);
-  switch (prefix) {
+  const option = getQualityOption(key);
+  if (!option) return null;
+  switch (option.kind) {
     case "kg":
-      return value ? { kind: "kg", quality: value } : null;
+      return option.quality ? { kind: "kg", quality: option.quality } : null;
     case "kw":
-      return value ? { kind: "kw", quality: value } : null;
-    case "wy-br": {
-      const br = Number(value);
-      return Number.isFinite(br) ? { kind: "wy-br", br } : null;
-    }
+      return option.quality ? { kind: "kw", quality: option.quality } : null;
+    case "wy-br":
+      return typeof option.br === "number" ? { kind: "wy-br", br: option.br } : null;
     case "wy-level":
-      return value ? { kind: "wy-level", level: value } : null;
+      return option.level ? { kind: "wy-level", level: option.level } : null;
     default:
       return null;
   }
 }
 
 export function qualityKeyMatchesSource(key: string | undefined, source: MusicSource) {
-  const choice = parseQualityKey(key);
-  if (!choice) return false;
-  if (choice.kind === "kg") return source === "kg";
-  if (choice.kind === "kw") return source === "kw";
-  return source === "wy";
+  if (!key || !isQualitySource(source)) return false;
+  const option = getQualityOption(key);
+  return Boolean(option && option.source === source);
 }
 
 export function toSourceQualityParams(input: {
@@ -60,12 +58,8 @@ export function toSourceQualityParams(input: {
 }
 
 export function defaultQualityKeyForSource(source: MusicSource) {
-  switch (source) {
-    case "kg":
-      return "kg:320";
-    case "wy":
-      return "wy-level:exhigh";
-    case "kw":
-      return "kw:exhigh";
+  if (isQualitySource(source)) {
+    return getDefaultQualityKey(source, "vip");
   }
+  return "kg:320";
 }
