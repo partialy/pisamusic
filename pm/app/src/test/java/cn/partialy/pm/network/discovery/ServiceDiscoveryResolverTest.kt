@@ -1,12 +1,16 @@
 package cn.partialy.pm.network.discovery
 
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.CancellationException
+import java.util.concurrent.Executors
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class ServiceDiscoveryResolverTest {
@@ -110,7 +114,7 @@ class ServiceDiscoveryResolverTest {
         val fetchNumber = AtomicInteger(0)
         val manager = ServiceDiscoveryManager(
             embeddedBaseUrl = EMBEDDED_BASE_URL,
-            cache = FakeCache(),
+            cache = UnavailableCache,
             fetchDocument = {
                 val active = activeFetches.incrementAndGet()
                 maxActiveFetches.updateAndGet { maxOf(it, active) }
@@ -131,8 +135,108 @@ class ServiceDiscoveryResolverTest {
         assertEquals(5, firstSnapshot.document.configVersion)
         assertEquals(5, secondSnapshot.document.configVersion)
         assertEquals(5, manager.currentSnapshot().document.configVersion)
-        assertFalse(manager.isCurrent(firstSnapshot))
+        assertSame(firstSnapshot, secondSnapshot)
+        assertTrue(manager.isCurrent(firstSnapshot))
         assertTrue(manager.isCurrent(secondSnapshot))
+    }
+
+    @Test
+    fun `discovery document URL must be fixed HTTPS without credentials query or fragment`() {
+        listOf(
+            "http://pisamusic.partialy.cn/pm-config/config-v1.json",
+            "https://user:secret@pisamusic.partialy.cn/pm-config/config-v1.json",
+            "https://pisamusic.partialy.cn/pm-config/config-v1.json?version=1",
+            "https://pisamusic.partialy.cn/pm-config/config-v1.json#latest",
+        ).forEach { invalidUrl ->
+            assertTrue(
+                runCatching {
+                    ServiceDiscoveryManager(
+                        embeddedBaseUrl = EMBEDDED_BASE_URL,
+                        discoveryDocumentUrl = invalidUrl,
+                        cache = FakeCache(),
+                        fetchDocument = { null },
+                        healthCheck = { true },
+                    )
+                }.isFailure,
+            )
+        }
+    }
+
+    @Test
+    fun `cancellation at every IO fallback point stops refresh without publishing`() = runBlocking {
+        CancelStage.entries.forEach { cancelStage ->
+            val cache = object : ServiceDiscoveryCache {
+                override fun read(): CachedDiscoveryDocument? {
+                    cancelAt(CancelStage.CACHE_READ, cancelStage)
+                    return null
+                }
+
+                override fun saveIfNotOlder(rawJson: String, configVersion: Int): Boolean {
+                    cancelAt(CancelStage.CACHE_SAVE, cancelStage)
+                    return true
+                }
+            }
+            val manager = ServiceDiscoveryManager(
+                embeddedBaseUrl = EMBEDDED_BASE_URL,
+                cache = cache,
+                fetchDocument = {
+                    cancelAt(CancelStage.FETCH, cancelStage)
+                    documentJson(version = 2, origins = origin("remote", 10))
+                },
+                healthCheck = {
+                    cancelAt(CancelStage.HEALTH, cancelStage)
+                    true
+                },
+            )
+            val before = manager.currentSnapshot()
+
+            try {
+                manager.refresh()
+                fail("$cancelStage cancellation must be rethrown")
+            } catch (_: CancellationException) {
+                // 预期：取消不能被当成普通 I/O 失败降级。
+            }
+
+            assertSame(cancelStage.name, before, manager.currentSnapshot())
+        }
+    }
+
+    @Test
+    fun `cache fetch and health work run on injected IO dispatcher`() {
+        Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "discovery-test-io") }
+            .asCoroutineDispatcher()
+            .use { dispatcher ->
+                val threads = mutableListOf<String>()
+                val cache = object : ServiceDiscoveryCache {
+                    override fun read(): CachedDiscoveryDocument? {
+                        threads += "read:${Thread.currentThread().name}"
+                        return null
+                    }
+
+                    override fun saveIfNotOlder(rawJson: String, configVersion: Int): Boolean {
+                        threads += "save:${Thread.currentThread().name}"
+                        return true
+                    }
+                }
+                val manager = ServiceDiscoveryManager(
+                    embeddedBaseUrl = EMBEDDED_BASE_URL,
+                    cache = cache,
+                    fetchDocument = {
+                        threads += "fetch:${Thread.currentThread().name}"
+                        documentJson(version = 2, origins = origin("remote", 10))
+                    },
+                    healthCheck = {
+                        threads += "health:${Thread.currentThread().name}"
+                        true
+                    },
+                    ioDispatcher = dispatcher,
+                )
+
+                runBlocking { manager.refresh() }
+
+                assertEquals(4, threads.size)
+                assertTrue(threads.all { it.substringAfter(':').startsWith("discovery-test-io") })
+            }
     }
 
     @Test
@@ -163,6 +267,10 @@ class ServiceDiscoveryResolverTest {
 
     private fun origin(id: String, priority: Int): String =
         """{"id":"$id","priority":$priority,"apiBaseUrl":"https://$id.example.com","realtimeBaseUrl":"https://$id.example.com"}"""
+
+    private fun cancelAt(expected: CancelStage, actual: CancelStage) {
+        if (expected == actual) throw CancellationException("cancel at $actual")
+    }
 
     private fun documentJson(version: Int, origins: String): String = """
         {
@@ -195,7 +303,20 @@ class ServiceDiscoveryResolverTest {
         }
     }
 
+    private object UnavailableCache : ServiceDiscoveryCache {
+        override fun read(): CachedDiscoveryDocument? = null
+
+        override fun saveIfNotOlder(rawJson: String, configVersion: Int): Boolean = false
+    }
+
     private companion object {
         const val EMBEDDED_BASE_URL = "http://192.168.9.100:53380/"
+    }
+
+    private enum class CancelStage {
+        FETCH,
+        CACHE_READ,
+        CACHE_SAVE,
+        HEALTH,
     }
 }

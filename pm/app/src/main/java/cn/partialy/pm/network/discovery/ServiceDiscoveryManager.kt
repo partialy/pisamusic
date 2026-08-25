@@ -3,6 +3,8 @@ package cn.partialy.pm.network.discovery
 import android.content.Context
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -19,9 +21,11 @@ import okhttp3.Request
  */
 class ServiceDiscoveryManager(
     embeddedBaseUrl: String,
+    discoveryDocumentUrl: String = DEFAULT_DISCOVERY_DOCUMENT_URL,
     private val cache: ServiceDiscoveryCache,
-    private val fetchDocument: suspend () -> String?,
+    private val fetchDocument: suspend (String) -> String?,
     private val healthCheck: suspend (String) -> Boolean,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     constructor(
         context: Context,
@@ -29,12 +33,14 @@ class ServiceDiscoveryManager(
         discoveryDocumentUrl: String = DEFAULT_DISCOVERY_DOCUMENT_URL,
     ) : this(
         embeddedBaseUrl = embeddedBaseUrl,
+        discoveryDocumentUrl = discoveryDocumentUrl,
         cache = ServiceDiscoveryPrefs(context),
-        fetchDocument = { DiscoveryNetwork.fetchDocument(discoveryDocumentUrl) },
-        healthCheck = DiscoveryNetwork::checkHealth,
+        fetchDocument = { url -> DiscoveryNetwork.fetchDocument(url) },
+        healthCheck = { url -> DiscoveryNetwork.checkHealth(url) },
     )
 
     private val embeddedDocument = createEmbeddedDocument(embeddedBaseUrl)
+    private val discoveryDocumentUrl = validateDiscoveryDocumentUrl(discoveryDocumentUrl)
     private val refreshMutex = Mutex()
     private val current = AtomicReference(
         ResolvedDiscovery(
@@ -55,13 +61,17 @@ class ServiceDiscoveryManager(
     suspend fun refresh(): ServiceDiscoverySnapshot = refreshMutex.withLock {
         val previous = current.get()
         val currentVersion = previous.snapshot.document.configVersion
-        val remoteRaw = runCatching { fetchDocument() }.getOrNull()
+        val remoteRaw = fallbackOnFailure {
+            withContext(ioDispatcher) { fetchDocument(discoveryDocumentUrl) }
+        }
         val remoteDocument = remoteRaw?.let(ServiceDiscoveryRules::parseAndValidate)
         val cachedDocument = readValidatedCache()
 
         if (remoteRaw != null && remoteDocument != null && remoteDocument.configVersion >= currentVersion) {
-            runCatching {
-                cache.saveIfNotOlder(remoteRaw, remoteDocument.configVersion)
+            fallbackOnFailure {
+                withContext(ioDispatcher) {
+                    cache.saveIfNotOlder(remoteRaw, remoteDocument.configVersion)
+                }
             }
         }
 
@@ -88,8 +98,10 @@ class ServiceDiscoveryManager(
         next.snapshot
     }
 
-    private fun readValidatedCache(): DiscoveryDocumentV1? {
-        val cached = runCatching { cache.read() }.getOrNull() ?: return null
+    private suspend fun readValidatedCache(): DiscoveryDocumentV1? {
+        val cached = fallbackOnFailure {
+            withContext(ioDispatcher) { cache.read() }
+        } ?: return null
         val parsed = ServiceDiscoveryRules.parseAndValidate(cached.rawJson) ?: return null
         return parsed.takeIf { it.configVersion == cached.configVersion }
     }
@@ -99,9 +111,21 @@ class ServiceDiscoveryManager(
         val first = origins.first()
         for (origin in origins) {
             val healthUrl = resolveAgainstOrigin(origin.apiBaseUrl, document.desktop.healthCheckPath)
-            if (runCatching { healthCheck(healthUrl) }.getOrDefault(false)) return origin
+            val healthy = fallbackOnFailure {
+                withContext(ioDispatcher) { healthCheck(healthUrl) }
+            } ?: false
+            if (healthy) return origin
         }
         return first
+    }
+
+    /** 普通 I/O 故障允许降级；协程取消必须原样向上传播。 */
+    private suspend fun <T> fallbackOnFailure(block: suspend () -> T): T? = try {
+        block()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Throwable) {
+        null
     }
 
     private data class ResolvedDiscovery(
@@ -111,6 +135,18 @@ class ServiceDiscoveryManager(
 
     companion object {
         const val DEFAULT_DISCOVERY_DOCUMENT_URL = "https://pisamusic.partialy.cn/pm-config/config-v1.json"
+
+        private fun validateDiscoveryDocumentUrl(rawUrl: String): String {
+            val url = requireNotNull(rawUrl.toHttpUrlOrNull()) { "非法服务发现文档地址" }
+            require(
+                url.isHttps &&
+                    url.username.isEmpty() &&
+                    url.password.isEmpty() &&
+                    url.query == null &&
+                    url.fragment == null,
+            ) { "服务发现文档地址必须为无认证信息、query、fragment 的 HTTPS URL" }
+            return url.toString()
+        }
 
         private fun createEmbeddedDocument(rawBaseUrl: String): DiscoveryDocumentV1 {
             val baseUrl = requireNotNull(rawBaseUrl.toHttpUrlOrNull()) { "非法 embedded 服务地址" }
@@ -183,25 +219,25 @@ private object DiscoveryNetwork {
         .writeTimeout(3, TimeUnit.SECONDS)
         .build()
 
-    suspend fun fetchDocument(url: String): String? = withContext(Dispatchers.IO) {
+    fun fetchDocument(url: String): String? {
         val request = Request.Builder()
             .url(url)
             .get()
             .cacheControl(CacheControl.FORCE_NETWORK)
             .header("Cache-Control", "no-cache")
             .build()
-        documentClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return@withContext null
+        return documentClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return null
             response.body?.string()
         }
     }
 
-    suspend fun checkHealth(url: String): Boolean = withContext(Dispatchers.IO) {
+    fun checkHealth(url: String): Boolean {
         val request = Request.Builder()
             .url(url)
             .get()
             .cacheControl(CacheControl.FORCE_NETWORK)
             .build()
-        healthClient.newCall(request).execute().use { it.isSuccessful }
+        return healthClient.newCall(request).execute().use { it.isSuccessful }
     }
 }

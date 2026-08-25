@@ -23,9 +23,7 @@ class ServiceDiscoveryPrefs private constructor(
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE),
     )
 
-    private val lock = Any()
-
-    override fun read(): CachedDiscoveryDocument? = synchronized(lock) {
+    override fun read(): CachedDiscoveryDocument? = synchronized(PROCESS_LOCK) {
         val rawJson = preferences.getString(KEY_RAW_JSON, null)?.takeIf { it.isNotBlank() }
             ?: return@synchronized null
         val configVersion = preferences.getInt(KEY_CONFIG_VERSION, INVALID_VERSION)
@@ -33,7 +31,7 @@ class ServiceDiscoveryPrefs private constructor(
         CachedDiscoveryDocument(rawJson = rawJson, configVersion = configVersion)
     }
 
-    override fun saveIfNotOlder(rawJson: String, configVersion: Int): Boolean = synchronized(lock) {
+    override fun saveIfNotOlder(rawJson: String, configVersion: Int): Boolean = synchronized(PROCESS_LOCK) {
         require(rawJson.isNotBlank()) { "服务发现原文不能为空" }
         require(configVersion > 0) { "服务发现版本必须为正数" }
         val cachedVersion = preferences.getInt(KEY_CONFIG_VERSION, INVALID_VERSION)
@@ -45,6 +43,8 @@ class ServiceDiscoveryPrefs private constructor(
     }
 
     private companion object {
+        /** SharedPreferences 进程内共享；所有本类实例必须共用同一读改写锁。 */
+        val PROCESS_LOCK = Any()
         const val PREFS_NAME = "service_discovery"
         const val KEY_RAW_JSON = "raw_json"
         const val KEY_CONFIG_VERSION = "config_version"
