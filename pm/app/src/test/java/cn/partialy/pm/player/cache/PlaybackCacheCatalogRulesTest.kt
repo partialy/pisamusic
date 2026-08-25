@@ -41,6 +41,7 @@ class PlaybackCacheCatalogRulesTest {
         assertFalse(PlaybackCacheCatalogRules.isReady("partial", 1000, 1000))
         assertFalse(PlaybackCacheCatalogRules.isReady("ready", 0, 0))
         assertFalse(PlaybackCacheCatalogRules.isReady("ready", 1000, 999))
+        assertFalse(PlaybackCacheCatalogRules.isReady("ready", 1000, 1001))
         assertFalse(PlaybackCacheCatalogRules.isReady(null, 1000, 1000))
         assertTrue(PlaybackCacheCatalogRules.isReady("READY", 1000, 1000))
     }

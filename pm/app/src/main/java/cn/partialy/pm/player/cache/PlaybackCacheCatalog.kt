@@ -51,7 +51,7 @@ object PlaybackCacheCatalogRules {
     fun isReady(status: String?, totalBytes: Long, cachedBytes: Long): Boolean =
         status?.trim()?.equals(PlaybackCacheStatus.READY.storageValue, ignoreCase = true) == true &&
             totalBytes > 0L &&
-            cachedBytes >= totalBytes
+            cachedBytes == totalBytes
 }
 
 /** 仅包含歌曲描述和稳定缓存身份；不包含任何源站 URL。 */
@@ -152,7 +152,7 @@ class PlaybackCacheCatalog @Inject constructor(
         helper.readableDatabase.query(
             TABLE,
             CANDIDATE_COLUMNS,
-            "status = ? AND total_bytes > 0 AND cached_bytes >= total_bytes",
+            "status = ? AND total_bytes > 0 AND cached_bytes = total_bytes",
             arrayOf(PlaybackCacheStatus.READY.storageValue),
             null,
             null,
