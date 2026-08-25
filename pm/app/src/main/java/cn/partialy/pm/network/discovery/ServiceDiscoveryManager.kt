@@ -17,7 +17,7 @@ import okhttp3.Request
 
 /**
  * 串行刷新服务发现文档，并原子发布“文档 + 已选 origin”。
- * 网络层接线、ConfigManager 和启动页切换由后续任务负责。
+ * 系统请求拦截器读取当前 origin，ConfigManager 使用返回快照绑定对应 bootstrap。
  */
 class ServiceDiscoveryManager(
     embeddedBaseUrl: String,
@@ -53,6 +53,16 @@ class ServiceDiscoveryManager(
 
     /** 使用引用身份判断调用方持有的快照是否仍是当前原子快照。 */
     fun isCurrent(snapshot: ServiceDiscoverySnapshot): Boolean = current.get().snapshot === snapshot
+
+    /** 与 discovery 刷新共用同一把锁，避免 current 校验与配置发布之间被新快照插入。 */
+    suspend fun publishIfCurrent(
+        snapshot: ServiceDiscoverySnapshot,
+        publish: () -> Unit,
+    ): Boolean = refreshMutex.withLock {
+        if (current.get().snapshot !== snapshot) return@withLock false
+        publish()
+        true
+    }
 
     fun resolveApiUrl(path: String): String = resolveAgainstOrigin(current.get().origin.apiBaseUrl, path)
 

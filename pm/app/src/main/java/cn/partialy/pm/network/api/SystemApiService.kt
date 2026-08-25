@@ -39,10 +39,11 @@ import retrofit2.http.PATCH
 import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 interface SystemApiService {
-    @GET("api/config/bootstrap")
-    suspend fun getBootstrapConfig(): BootstrapConfigResponse
+    @GET
+    suspend fun getBootstrapConfig(@Url path: String): BootstrapConfigResponse
 
     @GET("api/config/check-update")
     suspend fun getCheckUpdate(): CheckUpdateResponse

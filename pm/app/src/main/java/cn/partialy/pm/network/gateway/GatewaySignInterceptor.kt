@@ -1,5 +1,6 @@
 package cn.partialy.pm.network.gateway
 
+import cn.partialy.pm.network.config.ConfigManager
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -11,7 +12,9 @@ import okio.Buffer
 class GatewaySignInterceptor @Inject constructor() : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
-        if (!GatewaySignRuntime.shouldSign(original.url)) {
+        val runtimeSnapshot = original.tag(ConfigManager.RuntimeBootstrapState::class.java)
+            ?: GatewaySignRuntime.snapshot()
+        if (!GatewaySignRuntime.shouldSign(original.url, runtimeSnapshot)) {
             return chain.proceed(original)
         }
 
@@ -25,7 +28,7 @@ class GatewaySignInterceptor @Inject constructor() : Interceptor {
         } ?: ByteArray(0)
         val timestamp = System.currentTimeMillis().toString()
         val nonce = UUID.randomUUID().toString().replace("-", "")
-        val signConfig = GatewaySignRuntime.current()
+        val signConfig = GatewaySignRuntime.current(runtimeSnapshot)
         val signature = GatewaySigner.buildSignature(
             method = original.method,
             url = signedUrl,

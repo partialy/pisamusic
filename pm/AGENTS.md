@@ -99,7 +99,8 @@
 - WY：`WyApiService`、`WyUrlProxyApiService`、`WyRepository`
 - KW：`KwSearchApiService`、`KwUrlProxyApiService`、`KwRepository`
 - `ConfigManager` 从外层系统服务端获取启动配置，并动态提供 KG / WY / KW / proxy 端点、歌曲 URL 端点和网关签名配置。
-- KG / WY / KW / proxy 的 Retrofit 使用不可路由占位地址，`RuntimeEndpointInterceptor` 在每次请求发送前按 `ConfigManager` 当前配置重写真实地址；该拦截器必须位于签名、故障追踪和日志拦截器之前。配置下发前统一回退到 `BuildConfig.SYSTEM_SERVICE_BASE_URL`，不得恢复 `127.0.0.1` 默认地址或在 Retrofit 创建时快照运行时端点。
+- App 启动访问系统服务前先由 `network/discovery/ServiceDiscoveryManager` 读取远程发现文档、缓存或 BuildConfig embedded origin；`SystemApiService` 与一起听明文配置 Retrofit 固定使用 `system.runtime.invalid` 占位地址，并由 `SystemServiceEndpointInterceptor` 在请求发出前改写为当前 discovery API origin。bootstrap 必须使用发现快照中的相对 `bootstrapPath`，只有快照仍为 current 且响应有效时才发布音乐端点和网关签名；下发前音乐端点保持 `music-runtime.invalid` 不可路由。
+- KG / WY / KW / proxy 的 Retrofit 使用不可路由占位地址，`RuntimeEndpointInterceptor` 在每次请求发送前按 `ConfigManager` 当前配置重写真实地址，并将当次 bootstrap state 通过 request tag 传给 `GatewaySignInterceptor`，保证同一请求的 endpoint 与签名来自同一快照；该拦截器必须位于签名、故障追踪和日志拦截器之前。bootstrap 成功前音乐端点统一保持 `https://music-runtime.invalid/`，不得回退到系统服务地址、`127.0.0.1` 或在 Retrofit 创建时快照运行时端点。
 - 首页推荐页由 `RecommendedSongsViewModel` 聚合 KG 每日推荐 / 推荐歌单与 WY `/personalized` 推荐歌单、`/personalized/newsong` 推荐新歌；新增首页推荐来源时需要补齐模型、Repository 映射、`SongType`/`CollectedPlaylistType` UI 分流和播放 URL 解析。
 - KG / WY 已登录且本地存在对应 Cookie 时，非播放 URL 的数据接口（搜索、推荐、歌单、歌词等）必须优先走 `KugouCookieRepository` / `WyCookieRepository` 的 Cookie 请求，失败后回退匿名 Retrofit；播放和下载 URL 仍只走现有 `KgUrlProxyApiService` / `WyUrlProxyApiService` 代理链路，不带 Cookie。
 - 修改 endpoint 字段时，检查 Android `SystemData.kt` / `ConfigManager.kt`，以及 `../server/` 中的配置存储、类型和管理后台表单。

@@ -14,17 +14,28 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
  */
 class RuntimeEndpointInterceptor internal constructor(
     private val endpointProvider: () -> ConfigManager.RuntimeEndpoints,
+    private val runtimeStateProvider: (() -> ConfigManager.RuntimeBootstrapState)? = null,
 ) : Interceptor {
     @Inject
-    constructor(configManager: ConfigManager) : this(configManager::getEndpoints)
+    constructor(configManager: ConfigManager) : this(
+        endpointProvider = configManager::getEndpoints,
+        runtimeStateProvider = configManager::getRuntimeBootstrapState,
+    )
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
+        val runtimeState = runtimeStateProvider?.invoke()
+        val taggedRequest = originalRequest.newBuilder()
+            .apply {
+                runtimeState?.let { tag(ConfigManager.RuntimeBootstrapState::class.java, it) }
+            }
+            .build()
         val endpoint = RuntimeEndpointKind.fromPlaceholder(originalRequest.url)
-            ?: return chain.proceed(originalRequest)
-        val targetBaseUrl = endpoint.resolve(endpointProvider()).toHttpUrl()
+            ?: return chain.proceed(taggedRequest)
+        val endpoints = runtimeState?.endpoints ?: endpointProvider()
+        val targetBaseUrl = endpoint.resolve(endpoints).toHttpUrl()
         val rewrittenUrl = targetBaseUrl.mergeRelativeRequest(originalRequest.url)
-        return chain.proceed(originalRequest.newBuilder().url(rewrittenUrl).build())
+        return chain.proceed(taggedRequest.newBuilder().url(rewrittenUrl).build())
     }
 
     private fun HttpUrl.mergeRelativeRequest(placeholderUrl: HttpUrl): HttpUrl {

@@ -23,18 +23,21 @@ import cn.partialy.pm.model.SyncPushRequest
 import cn.partialy.pm.model.SyncPushResult
 import cn.partialy.pm.model.UpdateInfo
 import cn.partialy.pm.network.api.SystemApiService
-import cn.partialy.pm.network.gateway.GatewaySignConfig
+import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
+import cn.partialy.pm.network.discovery.ServiceDiscoverySnapshot
 import cn.partialy.pm.network.gateway.GatewaySignRuntime
+import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONObject
 import retrofit2.HttpException
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Singleton
 class ConfigManager @Inject constructor(
     private val systemApiService: SystemApiService,
-    @Named("system_api_base_url") systemApiBaseUrl: String,
+    private val serviceDiscoveryManager: ServiceDiscoveryManager,
 ) {
     class ApiException(
         val code: Int,
@@ -57,21 +60,36 @@ class ConfigManager @Inject constructor(
         val asValue: String,
     )
 
-    @Volatile
-    private var runtimeEndpoints: RuntimeEndpoints = createFallbackEndpoints(systemApiBaseUrl)
+    internal data class RuntimeBootstrapState(
+        val endpoints: RuntimeEndpoints,
+        val gatewaySign: RuntimeGatewaySign,
+        val gatewayEndpointPrefixes: Set<String>,
+    )
 
-    @Volatile
-    private var runtimeGatewaySign: RuntimeGatewaySign = DEFAULT_GATEWAY_SIGN
+    private val bootstrapMutex = Mutex()
 
-    fun getEndpoints(): RuntimeEndpoints = runtimeEndpoints
-    fun getGatewaySign(): RuntimeGatewaySign = runtimeGatewaySign
-    fun getKgBaseUrl(): String = runtimeEndpoints.kgBaseUrl
-    fun getWyBaseUrl(): String = runtimeEndpoints.wyBaseUrl
-    fun getProxyBaseUrl(): String = runtimeEndpoints.proxyBaseUrl
-    fun getKwBaseUrl(): String = runtimeEndpoints.kwBaseUrl
-    fun getKgSongUrl(): String = runtimeEndpoints.kgSongUrl
-    fun getWySongUrl(): String = runtimeEndpoints.wySongUrl
-    fun getWySongUrlV1(): String = runtimeEndpoints.wySongUrlV1
+    private val runtimeBootstrapState = AtomicReference(
+        RuntimeBootstrapState(
+            endpoints = createUnavailableEndpoints(),
+            gatewaySign = DEFAULT_GATEWAY_SIGN,
+            gatewayEndpointPrefixes = emptySet(),
+        ),
+    )
+
+    init {
+        GatewaySignRuntime.bind(runtimeBootstrapState::get)
+    }
+
+    fun getEndpoints(): RuntimeEndpoints = runtimeBootstrapState.get().endpoints
+    fun getGatewaySign(): RuntimeGatewaySign = runtimeBootstrapState.get().gatewaySign
+    internal fun getRuntimeBootstrapState(): RuntimeBootstrapState = runtimeBootstrapState.get()
+    fun getKgBaseUrl(): String = getEndpoints().kgBaseUrl
+    fun getWyBaseUrl(): String = getEndpoints().wyBaseUrl
+    fun getProxyBaseUrl(): String = getEndpoints().proxyBaseUrl
+    fun getKwBaseUrl(): String = getEndpoints().kwBaseUrl
+    fun getKgSongUrl(): String = getEndpoints().kgSongUrl
+    fun getWySongUrl(): String = getEndpoints().wySongUrl
+    fun getWySongUrlV1(): String = getEndpoints().wySongUrlV1
 
     private suspend fun <T> systemCall(fallbackMessage: String, block: suspend () -> T): T {
         return try {
@@ -94,8 +112,14 @@ class ConfigManager @Inject constructor(
         return ApiException(apiCode, message, httpStatus)
     }
 
-    suspend fun refreshBootstrapConfig() {
-        val response = systemCall("配置下发失败") { systemApiService.getBootstrapConfig() }
+    suspend fun refreshServiceDiscovery(): ServiceDiscoverySnapshot = serviceDiscoveryManager.refresh()
+
+    suspend fun refreshBootstrapConfig() = bootstrapMutex.withLock {
+        val discoverySnapshot = refreshServiceDiscovery()
+        val bootstrapPath = discoverySnapshot.document.desktop.bootstrapPath.trimStart('/')
+        val response = systemCall("配置下发失败") {
+            systemApiService.getBootstrapConfig(bootstrapPath)
+        }
         if (!response.success || response.code != 0) {
             throw ApiException(response.code, response.msg.ifBlank { "配置下发失败" })
         }
@@ -104,15 +128,16 @@ class ConfigManager @Inject constructor(
             secret = response.data.gatewaySign.secret.ifBlank { DEFAULT_GATEWAY_SIGN.secret },
             asValue = response.data.gatewaySign.`as`.ifBlank { DEFAULT_GATEWAY_SIGN.asValue },
         )
-        runtimeEndpoints = endpoints
-        runtimeGatewaySign = gatewaySign
-        GatewaySignRuntime.update(
-            config = GatewaySignConfig(
-                secret = gatewaySign.secret,
-                asValue = gatewaySign.asValue,
-            ),
-            endpointUrls = endpoints.asUrlList(),
-        )
+        val accepted = serviceDiscoveryManager.publishIfCurrent(discoverySnapshot) {
+            runtimeBootstrapState.set(
+                RuntimeBootstrapState(
+                    endpoints = endpoints,
+                    gatewaySign = gatewaySign,
+                    gatewayEndpointPrefixes = endpoints.asUrlList().map(String::trim).filter(String::isNotEmpty).toSet(),
+                ),
+            )
+        }
+        check(accepted) { "服务发现已更新，拒绝应用过期配置" }
     }
 
     suspend fun getUpdateInfo(): UpdateInfo {
@@ -334,21 +359,17 @@ class ConfigManager @Inject constructor(
     }
 
     companion object {
-        private fun createFallbackEndpoints(systemApiBaseUrl: String): RuntimeEndpoints {
-            val fallback = systemApiBaseUrl.trim().let { baseUrl ->
-                require(baseUrl.startsWith("http://") || baseUrl.startsWith("https://")) {
-                    "非法系统服务 baseUrl: $systemApiBaseUrl"
-                }
-                if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
-            }
+        private const val UNAVAILABLE_MUSIC_BASE = "https://music-runtime.invalid/"
+
+        internal fun createUnavailableEndpoints(): RuntimeEndpoints {
             return RuntimeEndpoints(
-                kgBaseUrl = fallback,
-                wyBaseUrl = fallback,
-                proxyBaseUrl = fallback,
-                kwBaseUrl = fallback,
-                kgSongUrl = fallback,
-                wySongUrl = fallback,
-                wySongUrlV1 = fallback,
+                kgBaseUrl = UNAVAILABLE_MUSIC_BASE,
+                wyBaseUrl = UNAVAILABLE_MUSIC_BASE,
+                proxyBaseUrl = UNAVAILABLE_MUSIC_BASE,
+                kwBaseUrl = UNAVAILABLE_MUSIC_BASE,
+                kgSongUrl = UNAVAILABLE_MUSIC_BASE,
+                wySongUrl = UNAVAILABLE_MUSIC_BASE,
+                wySongUrlV1 = UNAVAILABLE_MUSIC_BASE,
             )
         }
 

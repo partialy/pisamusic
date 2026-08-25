@@ -159,7 +159,10 @@ class SplashActivity : AppCompatActivity() {
             if (!isAgreementAccepted()) {
                 cancelLocalModeButton()
                 runCatching {
-                    withContext(Dispatchers.IO) { configManager.getAgreementInfo() }
+                    withContext(Dispatchers.IO) {
+                        configManager.refreshServiceDiscovery()
+                        configManager.getAgreementInfo()
+                    }
                 }.onSuccess { agreement ->
                     showAgreementSheet(agreement.title, agreement.content)
                 }.onFailure {

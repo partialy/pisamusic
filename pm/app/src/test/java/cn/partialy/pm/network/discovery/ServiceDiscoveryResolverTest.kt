@@ -2,12 +2,15 @@ package cn.partialy.pm.network.discovery
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.CancellationException
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -138,6 +141,36 @@ class ServiceDiscoveryResolverTest {
         assertSame(firstSnapshot, secondSnapshot)
         assertTrue(manager.isCurrent(firstSnapshot))
         assertTrue(manager.isCurrent(secondSnapshot))
+    }
+
+    @Test
+    fun `publish current check and state publication exclude concurrent refresh`() = runBlocking {
+        var version = 2
+        val manager = ServiceDiscoveryManager(
+            embeddedBaseUrl = EMBEDDED_BASE_URL,
+            cache = UnavailableCache,
+            fetchDocument = { documentJson(version = version, origins = origin("remote", 10)) },
+            healthCheck = { true },
+        )
+        val snapshot = manager.refresh()
+        val publishStarted = CountDownLatch(1)
+        val releasePublish = CountDownLatch(1)
+
+        val publishing = async(Dispatchers.Default) {
+            manager.publishIfCurrent(snapshot) {
+                publishStarted.countDown()
+                releasePublish.await()
+            }
+        }
+        publishStarted.await()
+        version = 3
+        val refreshing = async(Dispatchers.Default) { manager.refresh() }
+        delay(30)
+
+        assertFalse(refreshing.isCompleted)
+        releasePublish.countDown()
+        assertTrue(publishing.await())
+        assertEquals(3, refreshing.await().document.configVersion)
     }
 
     @Test

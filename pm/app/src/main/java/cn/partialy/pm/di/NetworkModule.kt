@@ -1,5 +1,6 @@
 package cn.partialy.pm.di
 
+import android.content.Context
 import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.listen.ListenTogetherConfigApiService
 import cn.partialy.pm.network.api.KgApiService
@@ -8,6 +9,8 @@ import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.config.RuntimeEndpointInterceptor
 import cn.partialy.pm.network.config.RuntimeEndpointKind
 import cn.partialy.pm.network.crypto.SystemEncryptionInterceptor
+import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
+import cn.partialy.pm.network.discovery.SystemServiceEndpointInterceptor
 import cn.partialy.pm.network.gateway.GatewaySignInterceptor
 import cn.partialy.pm.network.interceptor.AuthInterceptor
 import cn.partialy.pm.network.kg.DfidHolder
@@ -21,6 +24,7 @@ import cn.partialy.pm.fault.PlaybackTraceInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Named
 import javax.inject.Singleton
@@ -36,6 +40,15 @@ object NetworkModule {
     @Singleton
     @Named("system_api_base_url")
     fun provideSystemApiBaseUrl(): String = BuildConfig.SYSTEM_SERVICE_BASE_URL
+
+    @Provides
+    @Singleton
+    fun provideServiceDiscoveryManager(
+        @ApplicationContext context: Context,
+    ): ServiceDiscoveryManager = ServiceDiscoveryManager(
+        context = context,
+        embeddedBaseUrl = BuildConfig.SYSTEM_SERVICE_BASE_URL,
+    )
 
     @Provides
     @Singleton
@@ -70,9 +83,11 @@ object NetworkModule {
     @Singleton
     @Named("system_okhttp")
     fun provideSystemOkHttpClient(
+        systemServiceEndpointInterceptor: SystemServiceEndpointInterceptor,
         encryptionInterceptor: SystemEncryptionInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(systemServiceEndpointInterceptor)
             .addInterceptor(encryptionInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 redactHeader("Authorization")
@@ -108,10 +123,9 @@ object NetworkModule {
     @Singleton
     fun provideSystemApiService(
         @Named("system_okhttp") okHttpClient: OkHttpClient,
-        @Named("system_api_base_url") systemApiBaseUrl: String,
     ): SystemApiService {
         return Retrofit.Builder()
-            .baseUrl(systemApiBaseUrl)
+            .baseUrl(SystemServiceEndpointInterceptor.PLACEHOLDER_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -121,16 +135,17 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideListenTogetherConfigApiService(
-        @Named("system_api_base_url") systemApiBaseUrl: String,
+        systemServiceEndpointInterceptor: SystemServiceEndpointInterceptor,
     ): ListenTogetherConfigApiService {
         val plainClient = OkHttpClient.Builder()
+            .addInterceptor(systemServiceEndpointInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 redactHeader("Authorization")
                 level = HttpLoggingInterceptor.Level.BODY
             })
             .build()
         return Retrofit.Builder()
-            .baseUrl(systemApiBaseUrl)
+            .baseUrl(SystemServiceEndpointInterceptor.PLACEHOLDER_BASE_URL)
             .client(plainClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

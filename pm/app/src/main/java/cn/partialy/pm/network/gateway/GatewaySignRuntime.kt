@@ -1,5 +1,6 @@
 package cn.partialy.pm.network.gateway
 
+import cn.partialy.pm.network.config.ConfigManager
 import okhttp3.HttpUrl
 
 internal object GatewaySignRuntime {
@@ -8,31 +9,31 @@ internal object GatewaySignRuntime {
     private const val DEFAULT_SIGN_AS = "yixivip"
 
     @Volatile
-    private var currentConfig = GatewaySignConfig(
-        secret = DEFAULT_SIGN_SECRET,
-        asValue = DEFAULT_SIGN_AS,
-    )
+    private var runtimeStateProvider: (() -> ConfigManager.RuntimeBootstrapState)? = null
 
-    @Volatile
-    private var endpointPrefixes: Set<String> = emptySet()
-
-    fun update(config: GatewaySignConfig, endpointUrls: Collection<String>) {
-        currentConfig = config.normalized()
-        endpointPrefixes = endpointUrls
-            .mapNotNull { it.trim().takeIf(String::isNotEmpty) }
-            .map { normalizePrefix(it) }
-            .toSet()
+    fun bind(stateProvider: () -> ConfigManager.RuntimeBootstrapState) {
+        runtimeStateProvider = stateProvider
     }
 
-    fun current(): GatewaySignConfig = currentConfig
+    fun snapshot(): ConfigManager.RuntimeBootstrapState? = runtimeStateProvider?.invoke()
 
-    fun shouldSign(url: HttpUrl): Boolean {
+    fun current(snapshot: ConfigManager.RuntimeBootstrapState? = snapshot()): GatewaySignConfig {
+        val gatewaySign = snapshot?.gatewaySign
+        return GatewaySignConfig(
+            secret = gatewaySign?.secret ?: DEFAULT_SIGN_SECRET,
+            asValue = gatewaySign?.asValue ?: DEFAULT_SIGN_AS,
+        ).normalized()
+    }
+
+    fun shouldSign(
+        url: HttpUrl,
+        snapshot: ConfigManager.RuntimeBootstrapState? = snapshot(),
+    ): Boolean {
         if (url.host.equals(DEFAULT_GATEWAY_HOST, ignoreCase = true)) return true
         val raw = url.toString()
-        return endpointPrefixes.any { raw.startsWith(it, ignoreCase = true) }
+        return snapshot?.gatewayEndpointPrefixes.orEmpty()
+            .any { raw.startsWith(it, ignoreCase = true) }
     }
-
-    private fun normalizePrefix(url: String): String = url
 }
 
 internal data class GatewaySignConfig(

@@ -73,7 +73,8 @@ object CookieRequest {
             if (v != null) urlBuilder.addQueryParameter(k, v)
         }
         val unsignedUrl = urlBuilder.build()
-        val finalUrl = if (GatewaySignRuntime.shouldSign(unsignedUrl)) {
+        val runtimeSnapshot = GatewaySignRuntime.snapshot()
+        val finalUrl = if (GatewaySignRuntime.shouldSign(unsignedUrl, runtimeSnapshot)) {
             unsignedUrl.newBuilder()
                 .setQueryParameter("res-dec", "1")
                 .build()
@@ -81,10 +82,10 @@ object CookieRequest {
             unsignedUrl
         }
         val reqBuilder = Request.Builder().url(finalUrl).get()
-        if (GatewaySignRuntime.shouldSign(finalUrl)) {
+        if (GatewaySignRuntime.shouldSign(finalUrl, runtimeSnapshot)) {
             val timestamp = System.currentTimeMillis().toString()
             val nonce = UUID.randomUUID().toString().replace("-", "")
-            val signConfig = GatewaySignRuntime.current()
+            val signConfig = GatewaySignRuntime.current(runtimeSnapshot)
             val signature = GatewaySigner.buildSignature(
                 method = "GET",
                 url = finalUrl,
