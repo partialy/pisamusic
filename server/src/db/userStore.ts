@@ -10,6 +10,8 @@ export type UserRecord = {
   passwordHash: string;
   avatar: string;
   avatarKey: string;
+  vipEnabled: boolean;
+  vipExpiresAt: number | null;
   syncVersion: number;
   createdAt: number;
   updatedAt: number;
@@ -23,6 +25,8 @@ export type PublicUser = {
   avatar: string;
   avatarKey: string;
   avatarUrl: string;
+  vip: boolean;
+  vipExpiresAt: number | null;
   createdAt: number;
   lastLoginAt: number | null;
 };
@@ -42,6 +46,8 @@ type UserRow = {
   password_hash: string;
   avatar: string;
   avatar_key: string;
+  vip_enabled: number;
+  vip_expires_at: number | null;
   sync_version: number;
   created_at: number;
   updated_at: number;
@@ -183,6 +189,23 @@ export function updateUserPassword(id: string, passwordHash: string): UserRecord
   });
 }
 
+export function updateUserVip(id: string, vipEnabled: boolean, vipExpiresAt: number | null): UserRecord {
+  const db = getAppDb();
+  return runInTransaction(db, () => {
+    const current = readUserById(id);
+    if (!current) throw new Error("用户不存在");
+    const expiresAt = vipEnabled ? vipExpiresAt : null;
+    if (vipEnabled && (expiresAt == null || !Number.isFinite(expiresAt) || !Number.isInteger(expiresAt) || expiresAt <= Date.now())) {
+      throw new Error("启用 VIP 时必须设置晚于当前时间的到期时间");
+    }
+    db.prepare("UPDATE users SET vip_enabled = ?, vip_expires_at = ?, updated_at = ? WHERE id = ?")
+      .run(vipEnabled ? 1 : 0, expiresAt, Date.now(), id);
+    const updated = readUserById(id);
+    if (!updated) throw new Error("用户 VIP 权益更新失败");
+    return updated;
+  });
+}
+
 export function toPublicUser(user: UserRecord): PublicUser {
   const avatarKey = normalizeAccountAvatarKey(user.id, user.avatarKey);
   const avatarUrl = accountAvatarUrl(user.id, avatarKey, user.updatedAt);
@@ -193,6 +216,8 @@ export function toPublicUser(user: UserRecord): PublicUser {
     avatar: avatarUrl,
     avatarKey,
     avatarUrl,
+    vip: user.vipEnabled && user.vipExpiresAt != null && user.vipExpiresAt > Date.now(),
+    vipExpiresAt: user.vipExpiresAt,
     createdAt: user.createdAt,
     lastLoginAt: user.lastLoginAt,
   };
@@ -206,6 +231,8 @@ function mapUserRow(row: UserRow): UserRecord {
     passwordHash: row.password_hash,
     avatar: row.avatar,
     avatarKey: row.avatar_key || "default",
+    vipEnabled: row.vip_enabled === 1,
+    vipExpiresAt: row.vip_expires_at,
     syncVersion: row.sync_version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

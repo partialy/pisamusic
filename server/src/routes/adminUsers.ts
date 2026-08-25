@@ -74,7 +74,24 @@ function normalizeUpdatePayload(body: unknown): { ok: true; value: AdminUserUpda
     }
     patch.avatarKey = normalizedAvatarKey;
   }
-  if (!("username" in patch) && !("email" in patch) && !("avatarKey" in patch)) {
+  const hasVipEnabled = "vipEnabled" in body;
+  const hasVipExpiresAt = "vipExpiresAt" in body;
+  if (hasVipEnabled || hasVipExpiresAt) {
+    if (!hasVipEnabled || typeof body.vipEnabled !== "boolean") {
+      return { ok: false, msg: "修改 VIP 权益时必须提供布尔类型的 VIP 开关" };
+    }
+    patch.vipEnabled = body.vipEnabled;
+    if (body.vipEnabled) {
+      const expiresAt = body.vipExpiresAt;
+      if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt) || !Number.isInteger(expiresAt) || expiresAt <= Date.now()) {
+        return { ok: false, msg: "启用 VIP 时必须设置晚于当前时间的到期时间" };
+      }
+      patch.vipExpiresAt = expiresAt;
+    } else {
+      patch.vipExpiresAt = null;
+    }
+  }
+  if (!("username" in patch) && !("email" in patch) && !("avatarKey" in patch) && !("vipEnabled" in patch)) {
     return { ok: false, msg: "没有可更新的用户字段" };
   }
   return { ok: true, value: patch };
@@ -134,7 +151,11 @@ adminUsersRouter.put("/:id", (req, res) => {
     return res.json(ok(updated, "用户资料已保存"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "保存用户资料失败";
-    const status = message === "该邮箱已被注册" || message === "该用户名已被使用" ? 400 : 500;
+    const status = message === "该邮箱已被注册"
+      || message === "该用户名已被使用"
+      || message === "启用 VIP 时必须设置晚于当前时间的到期时间"
+      ? 400
+      : 500;
     return res.status(status).json(fail(message, status));
   }
 });

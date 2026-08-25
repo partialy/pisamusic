@@ -6,6 +6,7 @@ import {
   readUserByUsername,
   toPublicUser,
   updateUserProfile,
+  updateUserVip,
   type AccountAvatarKey,
   type UserRecord,
 } from "./userStore";
@@ -24,6 +25,9 @@ export type AdminUserListItem = {
   avatar: string;
   avatarKey: string;
   avatarUrl: string;
+  vipEnabled: boolean;
+  vip: boolean;
+  vipExpiresAt: number | null;
   syncVersion: number;
   createdAt: number;
   updatedAt: number;
@@ -66,6 +70,8 @@ export type AdminUserUpdateInput = {
   username?: string;
   email?: string;
   avatarKey?: AccountAvatarKey;
+  vipEnabled?: boolean;
+  vipExpiresAt?: number | null;
 };
 
 type UserStatsRow = {
@@ -75,6 +81,8 @@ type UserStatsRow = {
   password_hash: string;
   avatar: string;
   avatar_key: string;
+  vip_enabled: number;
+  vip_expires_at: number | null;
   sync_version: number;
   created_at: number;
   updated_at: number;
@@ -110,6 +118,8 @@ function rowToUserRecord(row: UserStatsRow): UserRecord {
     passwordHash: row.password_hash,
     avatar: row.avatar,
     avatarKey: row.avatar_key || "default",
+    vipEnabled: row.vip_enabled === 1,
+    vipExpiresAt: row.vip_expires_at,
     syncVersion: row.sync_version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -127,6 +137,9 @@ function mapUserRow(row: UserStatsRow): AdminUserListItem {
     avatar: publicUser.avatar,
     avatarKey: publicUser.avatarKey,
     avatarUrl: publicUser.avatarUrl,
+    vipEnabled: user.vipEnabled,
+    vip: publicUser.vip,
+    vipExpiresAt: publicUser.vipExpiresAt,
     syncVersion: user.syncVersion,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -143,14 +156,16 @@ function userStatsSelect(whereSql: string): string {
   return `
     SELECT
       u.id, u.email, u.username, u.password_hash, u.avatar, u.avatar_key,
-      u.sync_version, u.created_at, u.updated_at, u.last_login_at,
+      u.vip_enabled, u.vip_expires_at, u.sync_version, u.created_at, u.updated_at, u.last_login_at,
       COALESCE(SUM(CASE WHEN s.item_type = 'favorite_song' THEN 1 ELSE 0 END), 0) AS favorite_songs,
       COALESCE(SUM(CASE WHEN s.item_type = 'favorite_playlist' THEN 1 ELSE 0 END), 0) AS favorite_playlists,
       COALESCE(SUM(CASE WHEN s.item_type = 'user_playlist' THEN 1 ELSE 0 END), 0) AS user_playlists
     FROM users u
     LEFT JOIN user_sync_items s ON s.user_id = u.id AND s.deleted = 0
     ${whereSql}
-    GROUP BY u.id
+    GROUP BY
+      u.id, u.email, u.username, u.password_hash, u.avatar, u.avatar_key,
+      u.vip_enabled, u.vip_expires_at, u.sync_version, u.created_at, u.updated_at, u.last_login_at
   `;
 }
 
@@ -219,8 +234,19 @@ export function updateAdminUser(id: string, input: AdminUserUpdateInput): AdminU
     const existing = readUserByUsername(input.username);
     if (existing && existing.id !== id) throw new Error("该用户名已被使用");
   }
-  const updated = updateUserProfile(id, input);
-  const detail = readAdminUserDetail(updated.id);
+  const hasProfileUpdate = input.username !== undefined || input.email !== undefined || input.avatarKey !== undefined;
+  const hasVipUpdate = input.vipEnabled !== undefined || input.vipExpiresAt !== undefined;
+  if (hasProfileUpdate) {
+    updateUserProfile(id, input);
+  }
+  if (hasVipUpdate) {
+    updateUserVip(
+      id,
+      input.vipEnabled ?? current.vipEnabled,
+      input.vipExpiresAt !== undefined ? input.vipExpiresAt : current.vipExpiresAt,
+    );
+  }
+  const detail = readAdminUserDetail(id);
   if (!detail) throw new Error("用户资料更新失败");
   return detail;
 }

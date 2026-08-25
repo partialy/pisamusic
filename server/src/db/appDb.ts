@@ -292,6 +292,8 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash   TEXT    NOT NULL,
     avatar          TEXT    NOT NULL DEFAULT '',
     avatar_key      TEXT    NOT NULL DEFAULT 'default',
+    vip_enabled     INTEGER NOT NULL DEFAULT 0,
+    vip_expires_at  INTEGER,
     sync_version    INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,
     updated_at      INTEGER NOT NULL,
@@ -424,6 +426,12 @@ function migrateUsers(db: DatabaseSync) {
   const cols = getColumnNames(db, "users");
   if (!cols.has("avatar_key")) {
     db.exec(`ALTER TABLE users ADD COLUMN avatar_key TEXT NOT NULL DEFAULT 'default'`);
+  }
+  if (!cols.has("vip_enabled")) {
+    db.exec(`ALTER TABLE users ADD COLUMN vip_enabled INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!cols.has("vip_expires_at")) {
+    db.exec(`ALTER TABLE users ADD COLUMN vip_expires_at INTEGER`);
   }
 }
 

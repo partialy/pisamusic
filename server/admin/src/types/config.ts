@@ -324,6 +324,9 @@ export type AdminUserListItem = {
   avatar: string;
   avatarKey: string;
   avatarUrl: string;
+  vipEnabled: boolean;
+  vip: boolean;
+  vipExpiresAt: number | null;
   syncVersion: number;
   createdAt: number;
   updatedAt: number;
@@ -371,6 +374,8 @@ export type AdminUserLibraryPage = {
 export type AdminUserUpdatePayload = {
   username: string;
   email: string;
+  vipEnabled: boolean;
+  vipExpiresAt: number | null;
 };
 
 export type ShareType = "song" | "playlist";

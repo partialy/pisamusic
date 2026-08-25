@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { AdminUserListItem, AdminUserUpdatePayload } from "../../types/config";
 import { glassInputClasses } from "../../constants/theme";
+import { Switch } from "../ui/Switch";
 
 type Props = {
   user: AdminUserListItem;
@@ -10,11 +11,44 @@ type Props = {
   onSave: (payload: AdminUserUpdatePayload) => void;
 };
 
+type UserEditDraft = Omit<AdminUserUpdatePayload, "vipExpiresAt"> & {
+  vipExpiresAt: string;
+};
+
+function toLocalDatetimeValue(timestamp: number | null): string {
+  if (timestamp == null) return "";
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function UserEditModal({ user, themeColor, saving, onClose, onSave }: Props) {
-  const [draft, setDraft] = useState<AdminUserUpdatePayload>({
+  const [draft, setDraft] = useState<UserEditDraft>({
     username: user.username,
     email: user.email,
+    vipEnabled: user.vipEnabled,
+    vipExpiresAt: toLocalDatetimeValue(user.vipExpiresAt),
   });
+  const [vipError, setVipError] = useState("");
+
+  const handleSave = () => {
+    let vipExpiresAt: number | null = null;
+    if (draft.vipEnabled) {
+      vipExpiresAt = draft.vipExpiresAt ? new Date(draft.vipExpiresAt).getTime() : Number.NaN;
+      if (!Number.isFinite(vipExpiresAt) || vipExpiresAt <= Date.now()) {
+        setVipError("启用 VIP 时，请选择晚于当前时间的到期时间");
+        return;
+      }
+    }
+    setVipError("");
+    onSave({
+      username: draft.username,
+      email: draft.email,
+      vipEnabled: draft.vipEnabled,
+      vipExpiresAt,
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6">
@@ -67,6 +101,38 @@ export default function UserEditModal({ user, themeColor, saving, onClose, onSav
               </div>
             </div>
           </div>
+
+          <div className="rounded-2xl border border-white/60 bg-white/40 p-4 shadow-sm backdrop-blur-md">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm font-bold text-slate-700">
+                VIP 用户
+                <span className="mt-0.5 block text-[10px] font-normal text-slate-400">仅在到期时间前享有系统账号 VIP 权益</span>
+              </span>
+              <Switch
+                checked={draft.vipEnabled}
+                onChange={(vipEnabled) => {
+                  setDraft((prev) => ({ ...prev, vipEnabled, vipExpiresAt: vipEnabled ? prev.vipExpiresAt : "" }));
+                  setVipError("");
+                }}
+                themeColor={themeColor}
+              />
+            </div>
+            {draft.vipEnabled && (
+              <label className="mt-4 block">
+                <span className="mb-2 ml-1 block text-sm font-semibold text-slate-700">VIP 到期时间</span>
+                <input
+                  type="datetime-local"
+                  value={draft.vipExpiresAt}
+                  onChange={(event) => {
+                    setDraft((prev) => ({ ...prev, vipExpiresAt: event.target.value }));
+                    setVipError("");
+                  }}
+                  className={glassInputClasses}
+                />
+              </label>
+            )}
+            {vipError && <p className="mt-3 text-sm font-semibold text-red-600">{vipError}</p>}
+          </div>
         </div>
 
         <div className="flex flex-wrap justify-end gap-3 border-t border-white/50 bg-white/30 p-4 sm:p-6">
@@ -76,7 +142,7 @@ export default function UserEditModal({ user, themeColor, saving, onClose, onSav
           <button
             type="button"
             disabled={saving}
-            onClick={() => onSave(draft)}
+            onClick={handleSave}
             style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
             className="rounded-xl px-8 py-3 font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
