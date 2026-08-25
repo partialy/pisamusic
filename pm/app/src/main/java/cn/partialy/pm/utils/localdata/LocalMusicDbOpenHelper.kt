@@ -42,6 +42,9 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         if (oldVersion < 9) {
             createLocalSongTables(db)
         }
+        if (oldVersion < 10) {
+            ensureCachedPlaybackCatalogColumns(db)
+        }
     }
 
     private fun createLocalPlaylistTables(db: SQLiteDatabase) {
@@ -189,13 +192,20 @@ internal class LocalMusicDbOpenHelper(context: Context) :
                 play_url TEXT NOT NULL DEFAULT '',
                 cache_key TEXT NOT NULL DEFAULT '',
                 cached_bytes INTEGER NOT NULL DEFAULT 0,
+                total_bytes INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'partial',
+                last_accessed_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL,
                 payload_json TEXT NOT NULL DEFAULT '{}',
                 PRIMARY KEY (song_key, quality_key)
             )
             """.trimIndent()
         )
+        addColumnIfMissing(db, "cached_playback_records", "total_bytes", "INTEGER NOT NULL DEFAULT 0")
+        addColumnIfMissing(db, "cached_playback_records", "status", "TEXT NOT NULL DEFAULT 'partial'")
+        addColumnIfMissing(db, "cached_playback_records", "last_accessed_at", "INTEGER NOT NULL DEFAULT 0")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_cached_playback_updated ON cached_playback_records(updated_at)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_cached_playback_status_access ON cached_playback_records(status, last_accessed_at DESC)")
     }
 
     private fun createPlaybackFaultTables(db: SQLiteDatabase) {
@@ -267,7 +277,11 @@ internal class LocalMusicDbOpenHelper(context: Context) :
 
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 9
+        private const val DB_VERSION = 10
+    }
+
+    private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {
+        createCachedPlaybackTables(db)
     }
 
     private fun ensureSyncOutboxAccountColumn(db: SQLiteDatabase) {
