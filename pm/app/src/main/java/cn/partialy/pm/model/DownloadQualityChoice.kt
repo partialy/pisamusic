@@ -20,6 +20,8 @@ sealed class DownloadQualityChoice {
 data class DownloadQualityOption(
     val label: String,
     val choice: DownloadQualityChoice,
+    val enabled: Boolean = true,
+    val badge: String? = null,
 )
 
 fun DownloadQualityChoice.toPlaybackQualityKey(): String = when (this) {

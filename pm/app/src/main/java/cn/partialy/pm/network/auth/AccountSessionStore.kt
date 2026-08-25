@@ -15,6 +15,8 @@ object AccountSessionStore {
     private const val KEY_AVATAR_KEY = "avatar_key"
     private const val KEY_AVATAR_URL = "avatar_url"
     private const val KEY_CREATED_AT = "created_at"
+    private const val KEY_VIP = "vip"
+    private const val KEY_VIP_EXPIRES_AT = "vip_expires_at"
 
     data class Session(
         val token: String,
@@ -22,6 +24,10 @@ object AccountSessionStore {
         val user: AccountUser,
     ) {
         val loggedIn: Boolean get() = token.isNotBlank() && user.id.isNotBlank()
+        val vipActive: Boolean
+            get() = loggedIn &&
+                user.vip &&
+                user.vipExpiresAt?.let { it > System.currentTimeMillis() } == true
     }
 
     fun read(context: Context): Session {
@@ -37,6 +43,9 @@ object AccountSessionStore {
                 avatarKey = sp.getString(KEY_AVATAR_KEY, "default").orEmpty().ifBlank { "default" },
                 avatarUrl = sp.getString(KEY_AVATAR_URL, "").orEmpty(),
                 createdAt = sp.getLong(KEY_CREATED_AT, 0L),
+                vip = sp.getBoolean(KEY_VIP, false),
+                vipExpiresAt = sp.getLong(KEY_VIP_EXPIRES_AT, 0L)
+                    .takeIf { sp.contains(KEY_VIP_EXPIRES_AT) },
             ),
         )
     }
@@ -53,6 +62,11 @@ object AccountSessionStore {
             .putString(KEY_AVATAR_KEY, result.user.avatarKey.ifBlank { "default" })
             .putString(KEY_AVATAR_URL, result.user.avatarUrl.ifBlank { result.user.avatar })
             .putLong(KEY_CREATED_AT, result.user.createdAt)
+            .putBoolean(KEY_VIP, result.user.vip)
+            .apply {
+                result.user.vipExpiresAt?.let { putLong(KEY_VIP_EXPIRES_AT, it) }
+                    ?: remove(KEY_VIP_EXPIRES_AT)
+            }
             .apply()
         TokenManager.setToken(result.token)
     }
@@ -67,6 +81,11 @@ object AccountSessionStore {
             .putString(KEY_AVATAR_KEY, user.avatarKey.ifBlank { "default" })
             .putString(KEY_AVATAR_URL, user.avatarUrl.ifBlank { user.avatar })
             .putLong(KEY_CREATED_AT, user.createdAt)
+            .putBoolean(KEY_VIP, user.vip)
+            .apply {
+                user.vipExpiresAt?.let { putLong(KEY_VIP_EXPIRES_AT, it) }
+                    ?: remove(KEY_VIP_EXPIRES_AT)
+            }
             .apply()
     }
 

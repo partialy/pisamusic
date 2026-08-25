@@ -116,4 +116,6 @@ data class AccountUser(
     val avatarUrl: String = "",
     val createdAt: Long = 0L,
     val lastLoginAt: Long? = null,
+    val vip: Boolean = false,
+    val vipExpiresAt: Long? = null,
 )
