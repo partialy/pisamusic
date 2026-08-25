@@ -71,26 +71,25 @@ class Media3PlaybackMediaCache @Inject constructor(
     override fun readySongs(
         qualityKeyOf: (SongInfo) -> String,
         limit: Int,
-    ): List<SongInfo> = catalog.listCandidates(limit)
-        .mapNotNull { candidate ->
-            val currentIdentity = runCatching {
-                CacheIdentity.create(
-                    candidate.identity.source,
-                    candidate.identity.songId,
-                    qualityKeyOf(candidate.song),
-                )
-            }.getOrNull() ?: return@mapNotNull null
-            if (currentIdentity.cacheKey != candidate.identity.cacheKey) return@mapNotNull null
-
-            val actual = cacheStore.snapshot(candidate.identity.cacheKey)
+    ): List<SongInfo> {
+        val result = PlaybackCacheReadyCandidateScanner.scan(
+            limit = limit.coerceAtMost(MAX_READY_SONGS),
+            pageSize = READY_SCAN_PAGE_SIZE,
+            loadPage = catalog::listCandidatePage,
+            qualityKeyOf = qualityKeyOf,
+            snapshotOf = cacheStore::snapshot,
+        )
+        // 扫描结束后再回写，避免更新时间改变排序或 PARTIAL 行退出查询导致 offset 跳项。
+        result.snapshots.forEach { actual ->
             catalog.updateSnapshot(
-                cacheKey = candidate.identity.cacheKey,
+                cacheKey = actual.cacheKey,
                 totalBytes = actual.totalBytes,
                 cachedBytes = actual.cachedBytes,
                 status = actual.status,
             )
-            candidate.song.takeIf { actual.status == PlaybackCacheStatus.READY }
         }
+        return result.songs
+    }
 
     override fun snapshot(): PlaybackCacheSnapshot = cacheStore.snapshot()
 
@@ -130,6 +129,54 @@ class Media3PlaybackMediaCache @Inject constructor(
 
     companion object {
         private const val PLACEHOLDER_URI_PREFIX = "pm://placeholder/"
+        private const val READY_SCAN_PAGE_SIZE = 100
+        private const val MAX_READY_SONGS = 1_000
+    }
+}
+
+internal data class PlaybackCacheReadyScanResult(
+    val songs: List<SongInfo>,
+    val snapshots: List<Media3CacheResourceSnapshot>,
+)
+
+/** 分页执行当前音质身份校验与 Media3 实时完整性复核。 */
+internal object PlaybackCacheReadyCandidateScanner {
+    fun scan(
+        limit: Int,
+        pageSize: Int,
+        loadPage: (offset: Int, limit: Int) -> PlaybackCacheCatalogPage,
+        qualityKeyOf: (SongInfo) -> String,
+        snapshotOf: (cacheKey: String) -> Media3CacheResourceSnapshot,
+    ): PlaybackCacheReadyScanResult {
+        if (limit <= 0) return PlaybackCacheReadyScanResult(emptyList(), emptyList())
+        require(pageSize > 0) { "pageSize must be positive" }
+
+        val songs = ArrayList<SongInfo>(limit)
+        val snapshots = mutableListOf<Media3CacheResourceSnapshot>()
+        var offset = 0
+        while (songs.size < limit) {
+            val page = loadPage(offset, pageSize)
+            for (candidate in page.candidates) {
+                val currentIdentity = runCatching {
+                    CacheIdentity.create(
+                        candidate.identity.source,
+                        candidate.identity.songId,
+                        qualityKeyOf(candidate.song),
+                    )
+                }.getOrNull() ?: continue
+                if (currentIdentity.cacheKey != candidate.identity.cacheKey) continue
+
+                val actual = snapshotOf(candidate.identity.cacheKey)
+                snapshots += actual
+                if (actual.status == PlaybackCacheStatus.READY) {
+                    songs += candidate.song
+                    if (songs.size == limit) break
+                }
+            }
+            if (songs.size == limit || page.exhausted || page.nextOffset <= offset) break
+            offset = page.nextOffset
+        }
+        return PlaybackCacheReadyScanResult(songs, snapshots)
     }
 }
 

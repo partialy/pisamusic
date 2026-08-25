@@ -65,6 +65,13 @@ data class PlaybackCacheCatalogCandidate(
     val updatedAt: Long,
 )
 
+/** 分页结果保留原始 SQLite 游标进度，避免坏行被过滤后误判为已经耗尽。 */
+internal data class PlaybackCacheCatalogPage(
+    val candidates: List<PlaybackCacheCatalogCandidate>,
+    val nextOffset: Int,
+    val exhausted: Boolean,
+)
+
 /**
  * 播放缓存的 SQLite 目录。
  *
@@ -147,9 +154,15 @@ class PlaybackCacheCatalog @Inject constructor(
     }
 
     /** 返回待 Media3 实时复核的完整缓存候选，查询投影明确排除旧版 URL 列。 */
-    fun listCandidates(limit: Int = 200): List<PlaybackCacheCatalogCandidate> {
+    fun listCandidates(limit: Int = 200): List<PlaybackCacheCatalogCandidate> =
+        listCandidatePage(offset = 0, limit = limit).candidates
+
+    /** 按固定大小读取候选页，供门面持续扫描当前音质的完整缓存。 */
+    internal fun listCandidatePage(offset: Int, limit: Int): PlaybackCacheCatalogPage {
+        val safeOffset = offset.coerceAtLeast(0)
+        val safeLimit = limit.coerceIn(1, MAX_CANDIDATES)
         val candidates = mutableListOf<PlaybackCacheCatalogCandidate>()
-        helper.readableDatabase.query(
+        val rawRowCount = helper.readableDatabase.query(
             TABLE,
             CANDIDATE_COLUMNS,
             "status = ? AND total_bytes > 0 AND cached_bytes = total_bytes",
@@ -157,13 +170,19 @@ class PlaybackCacheCatalog @Inject constructor(
             null,
             null,
             "last_accessed_at DESC, updated_at DESC",
-            limit.coerceIn(1, MAX_CANDIDATES).toString(),
+            "$safeLimit OFFSET $safeOffset",
         ).use { cursor ->
+            val count = cursor.count
             while (cursor.moveToNext()) {
                 cursor.toCandidateOrNull()?.let(candidates::add)
             }
+            count
         }
-        return candidates
+        return PlaybackCacheCatalogPage(
+            candidates = candidates,
+            nextOffset = safeOffset + rawRowCount,
+            exhausted = rawRowCount < safeLimit,
+        )
     }
 
     fun clear() {
