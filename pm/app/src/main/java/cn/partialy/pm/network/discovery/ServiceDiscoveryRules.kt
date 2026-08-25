@@ -49,7 +49,13 @@ object ServiceDiscoveryRules {
         require(isRootRelativePath(path)) { "服务路径必须是根相对路径: $path" }
         val apiBaseUrl = validatedPureHttpsOrigin(origin.apiBaseUrl).toHttpUrlOrNull()
             ?: error("非法服务 origin: ${origin.apiBaseUrl}")
-        return requireNotNull(apiBaseUrl.resolve(path)).toString()
+        val resolvedUrl = requireNotNull(apiBaseUrl.resolve(path))
+        require(
+            resolvedUrl.scheme == apiBaseUrl.scheme &&
+                resolvedUrl.host == apiBaseUrl.host &&
+                resolvedUrl.port == apiBaseUrl.port,
+        ) { "服务路径不得覆盖已选 origin: $path" }
+        return resolvedUrl.toString()
     }
 
     private fun DiscoveryDocumentDto.toDocument(): DiscoveryDocumentV1 {
@@ -81,6 +87,9 @@ object ServiceDiscoveryRules {
         val validOrigins = requireNotNull(serviceOrigins)
             .map { it.toOrigin() }
             .also { require(it.isNotEmpty()) { "serviceOrigins 不能为空" } }
+        require(validOrigins.map(DiscoveryServiceOrigin::id).toSet().size == validOrigins.size) {
+            "service origin id 不可重复"
+        }
         val validUpdateFeedBaseUrls = requireNotNull(updateFeedBaseUrls)
             .map(::validatedUpdateFeedBaseUrl)
             .also { require(it.isNotEmpty()) { "updateFeedBaseUrls 不能为空" } }
@@ -132,6 +141,7 @@ object ServiceDiscoveryRules {
     private fun isRootRelativePath(path: String): Boolean =
         path.startsWith('/') &&
             !path.startsWith("//") &&
+            '\\' !in path &&
             '?' !in path &&
             '#' !in path
 

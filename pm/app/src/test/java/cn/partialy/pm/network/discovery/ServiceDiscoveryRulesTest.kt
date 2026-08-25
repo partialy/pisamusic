@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class ServiceDiscoveryRulesTest {
     @Test
@@ -38,6 +39,57 @@ class ServiceDiscoveryRulesTest {
         assertNull(ServiceDiscoveryRules.parseAndValidate(documentJson(healthCheckPath = "https://api.example.com/health")))
         assertNull(ServiceDiscoveryRules.parseAndValidate(documentJson(bootstrapPath = "bootstrap")))
         assertNull(ServiceDiscoveryRules.parseAndValidate(documentJson(bootstrapPath = "//other.example.com/bootstrap")))
+        assertNull(
+            ServiceDiscoveryRules.parseAndValidate(
+                documentJson().replace("\"healthCheckPath\": \"/api/health\"", "\"healthCheckPath\": \"/\\\\\\\\host\""),
+            ),
+        )
+    }
+
+    @Test
+    fun `relative paths cannot override the selected origin`() {
+        val origin = primaryOrigin()
+
+        assertTrue(runCatching { ServiceDiscoveryRules.resolveRelative(origin, "/\\host") }.isFailure)
+        listOf("/%2f%2fhost", "/%5c%5chost").forEach { path ->
+            val resolved = ServiceDiscoveryRules.resolveRelative(origin, path).toHttpUrl()
+            assertEquals("https", resolved.scheme)
+            assertEquals("api.example.com", resolved.host)
+            assertEquals(443, resolved.port)
+        }
+    }
+
+    @Test
+    fun `service origin identifiers are unique and required fields are present`() {
+        assertNull(
+            ServiceDiscoveryRules.parseAndValidate(
+                documentJson(
+                    serviceOrigins = """
+                        {"id":"same","priority":1,"apiBaseUrl":"https://one.example.com","realtimeBaseUrl":"https://one.example.com"},
+                        {"id":"same","priority":2,"apiBaseUrl":"https://two.example.com","realtimeBaseUrl":"https://two.example.com"}
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        assertNull(
+            ServiceDiscoveryRules.parseAndValidate(
+                documentJson(
+                    serviceOrigins = """
+                        {"id":"missing-realtime","priority":1,"apiBaseUrl":"https://one.example.com"}
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        assertNull(
+            ServiceDiscoveryRules.parseAndValidate(
+                documentJson().replace("\"minimumSupportedVersion\": \"1.0.1\"", "\"minimumSupportedVersion\": null"),
+            ),
+        )
+        assertNull(
+            ServiceDiscoveryRules.parseAndValidate(
+                documentJson(serviceOrigins = ""),
+            ),
+        )
     }
 
     @Test
@@ -83,15 +135,15 @@ class ServiceDiscoveryRulesTest {
 
     @Test
     fun `relative paths resolve against an origin`() {
-        val origin = DiscoveryServiceOrigin(
-            id = "primary",
-            priority = 100,
-            apiBaseUrl = "https://api.example.com",
-            realtimeBaseUrl = "https://realtime.example.com",
-        )
-
-        assertEquals("https://api.example.com/api/bootstrap", ServiceDiscoveryRules.resolveRelative(origin, "/api/bootstrap"))
+        assertEquals("https://api.example.com/api/bootstrap", ServiceDiscoveryRules.resolveRelative(primaryOrigin(), "/api/bootstrap"))
     }
+
+    private fun primaryOrigin(): DiscoveryServiceOrigin = DiscoveryServiceOrigin(
+        id = "primary",
+        priority = 100,
+        apiBaseUrl = "https://api.example.com",
+        realtimeBaseUrl = "https://realtime.example.com",
+    )
 
     private fun document(version: Int): DiscoveryDocumentV1 = requireNotNull(
         ServiceDiscoveryRules.parseAndValidate(documentJson(configVersion = version)),
