@@ -94,6 +94,7 @@ internal class OptionPickerRows private constructor(
             container: LinearLayout,
             options: List<DownloadQualityOption>,
             selectedIndex: Int,
+            onDisabledOptionClick: ((DownloadQualityOption) -> Unit)? = null,
         ): OptionPickerRows = bindRows(
             context = context,
             container = container,
@@ -105,6 +106,9 @@ internal class OptionPickerRows private constructor(
                 )
             },
             selectedIndex = selectedIndex,
+            onDisabledOptionClick = onDisabledOptionClick?.let { callback ->
+                { index -> callback(options[index]) }
+            },
         )
 
         fun bindOptions(
@@ -131,6 +135,7 @@ internal class OptionPickerRows private constructor(
             container: LinearLayout,
             options: List<PickerOption>,
             selectedIndex: Int,
+            onDisabledOptionClick: ((Int) -> Unit)? = null,
         ): OptionPickerRows {
             val primaryColor = MaterialColors.getColor(
                 container,
@@ -170,9 +175,10 @@ internal class OptionPickerRows private constructor(
                     setColor(ColorUtils.setAlphaComponent(primaryColor, 24))
                 }
                 ImageViewCompat.setImageTintList(check, ColorStateList.valueOf(primaryColor))
-                card.isClickable = option.enabled
-                card.isFocusable = option.enabled
-                if (!option.enabled) card.foreground = null
+                val handlesClick = option.enabled || onDisabledOptionClick != null
+                card.isClickable = handlesClick
+                card.isFocusable = handlesClick
+                if (!handlesClick) card.foreground = null
                 card.layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -196,6 +202,8 @@ internal class OptionPickerRows private constructor(
             rows.forEachIndexed { index, row ->
                 if (row.enabled) {
                     row.card.setOnClickListener { selection.select(index) }
+                } else if (onDisabledOptionClick != null) {
+                    row.card.setOnClickListener { onDisabledOptionClick(index) }
                 }
             }
             if (selection.selectedIndex >= 0) selection.select(selection.selectedIndex)

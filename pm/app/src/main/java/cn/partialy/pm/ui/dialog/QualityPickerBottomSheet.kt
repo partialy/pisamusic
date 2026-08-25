@@ -1,5 +1,6 @@
 package cn.partialy.pm.ui.dialog
 
+import android.app.Dialog
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -26,6 +27,7 @@ suspend fun showDownloadQualityPicker(
     confirmText: CharSequence? = null,
     selectedQualityKey: String? = null,
     song: SongInfo? = null,
+    onLoginRequired: (() -> Unit)? = null,
 ): DownloadQualityOption? {
     if (options.isEmpty()) return null
     return suspendCancellableCoroutine { cont ->
@@ -39,11 +41,18 @@ suspend fun showDownloadQualityPicker(
         val initialIndex = options.indexOfFirst {
             it.choice.toPlaybackQualityKey() == selectedQualityKey
         }
+        val loginAction = onLoginRequired
         val selection = OptionPickerRows.bindQualityOptions(
             context = context,
             container = binding.bottomRadiusOptionsSheetContainer,
             options = options,
             selectedIndex = initialIndex,
+            onDisabledOptionClick = if (loginAction == null) null else {
+                {
+                    dialog.dismiss()
+                    loginAction()
+                }
+            },
         )
         var confirmed = false
         binding.bottomRadiusOptionsSheetCancel.setOnClickListener {
@@ -89,6 +98,7 @@ suspend fun showDownloadQualityConfirmDialog(
     options: List<DownloadQualityOption>,
     selectedQualityKey: String? = null,
     song: SongInfo? = null,
+    onLoginRequired: (() -> Unit)? = null,
 ): DownloadQualityOption? {
     if (options.isEmpty()) return null
     return suspendCancellableCoroutine { cont ->
@@ -124,11 +134,19 @@ suspend fun showDownloadQualityConfirmDialog(
         val initialIndex = options.indexOfFirst {
             it.choice.toPlaybackQualityKey() == selectedQualityKey
         }
+        lateinit var dialog: Dialog
+        val loginAction = onLoginRequired
         val selection = OptionPickerRows.bindQualityOptions(
             context = context,
             container = container,
             options = options,
             selectedIndex = initialIndex,
+            onDisabledOptionClick = if (loginAction == null) null else {
+                {
+                    dialog.dismiss()
+                    loginAction()
+                }
+            },
         )
         val primaryColor = MaterialColors.getColor(
             content,
@@ -137,7 +155,7 @@ suspend fun showDownloadQualityConfirmDialog(
         )
 
         var confirmed = false
-        val dialog = PmSlotDialog.Builder(context)
+        dialog = PmSlotDialog.Builder(context)
             .setHeaderView(header)
             .setContentView(content)
             .setCancelButton(context.getString(R.string.cancel))

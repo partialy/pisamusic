@@ -5,6 +5,7 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.LoginActivity
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.MusicQualityAccessPolicy
 import cn.partialy.pm.model.MusicQualityAccessState
@@ -62,6 +63,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 subtitle,
                 options,
                 song = songInfo,
+                onLoginRequired = { LoginActivity.start(this@BaseDownloadActivity) },
             ) ?: return@launch
 
             val latestSession = AccountSessionStore.read(this@BaseDownloadActivity)
