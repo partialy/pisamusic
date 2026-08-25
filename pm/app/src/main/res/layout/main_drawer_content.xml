@@ -337,6 +337,7 @@
                     android:textColor="@color/colorOnBgNormal"
                     android:textSize="13sp" />
 
+                <!-- 备用 WY API 登录入口暂时隐藏，保留入口定义便于后续恢复。
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
@@ -354,6 +355,7 @@
                     android:text="@string/drawer_more_login_wy_api"
                     android:textColor="@color/colorOnBgNormal"
                     android:textSize="13sp" />
+                -->
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </FrameLayout>

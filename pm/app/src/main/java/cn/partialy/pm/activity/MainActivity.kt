@@ -427,6 +427,18 @@ class MainActivity : BaseDownloadActivity() {
     }
 
     private fun setupDrawerThirdPartyActions(b: MainDrawerContentBinding) {
+        b.drawerKgCapsule.setOnClickListener {
+            if (!musicCookieManager.getCookie(MusicCookieManager.SOURCE_KG).exist) {
+                PlaylistImportActivity.start(this, SongType.KG)
+                closeMainDrawer()
+            }
+        }
+        b.drawerWyCapsule.setOnClickListener {
+            if (!musicCookieManager.getCookie(MusicCookieManager.SOURCE_WY).exist) {
+                WyWebPlaylistLoginActivity.start(this)
+                closeMainDrawer()
+            }
+        }
         b.drawerImportPlaylistsButton.setOnClickListener {
             importLoggedInPlaylistsFromDrawer()
         }
@@ -576,11 +588,7 @@ class MainActivity : BaseDownloadActivity() {
             WyWebPlaylistLoginActivity.start(this)
             closeMainDrawer()
         }
-        b.drawerMoreRowWyApi.setOnClickListener {
-            hideDrawerMoreMenu()
-            WyPlaylistLoginActivity.start(this)
-            closeMainDrawer()
-        }
+        // 备用 WY API 登录入口暂时隐藏；恢复布局入口时再重新绑定点击事件。
     }
 
     private fun showDrawerMoreMenu() {
@@ -605,6 +613,10 @@ class MainActivity : BaseDownloadActivity() {
         val hasAnyThirdPartyLogin = kgCookie.exist || wyCookie.exist
 
         b.drawerThirdPartyActionBar.visibility = if (hasAnyThirdPartyLogin) View.VISIBLE else View.GONE
+        b.drawerKgCapsule.isClickable = !kgCookie.exist
+        b.drawerKgCapsule.isFocusable = !kgCookie.exist
+        b.drawerWyCapsule.isClickable = !wyCookie.exist
+        b.drawerWyCapsule.isFocusable = !wyCookie.exist
 
         if (!kgCookie.exist) {
             b.drawerKgNickname.text = notLogged

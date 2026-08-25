@@ -236,7 +236,7 @@
     <string name="drawer_not_logged_in">未登录</string>
     <string name="drawer_more">更多</string>
     <string name="drawer_more_login_kg">登录KG</string>
-    <string name="drawer_more_login_wy_web">登录WY（优）</string>
+    <string name="drawer_more_login_wy_web">登录WY</string>
     <string name="drawer_more_login_wy_api">登录WY（备）</string>
     <string name="drawer_wy_web_login_title">登录后点击导入cookie</string>
     <string name="drawer_wy_web_import_cookie">导入Cookie</string>
