@@ -53,7 +53,7 @@
 **Interfaces:**
 - Produces: `PlaybackCacheIdentity(source, songId, qualityKey)`, `PlaybackCacheStatus.PARTIAL/READY`, `CacheIdentity.create(...)`, `CacheCoverage.evaluate(totalBytes, contiguousBytes)`, `PlaybackMediaCache` facade。
 
-- [ ] **Step 1: Write failing identity and coverage tests**
+- [x] **Step 1: Write failing identity and coverage tests**
 
 ```kotlin
 @Test fun `same song and quality ignores case and temporary url`() {
@@ -77,13 +77,13 @@
 }
 ```
 
-- [ ] **Step 2: Run tests and confirm missing types fail**
+- [x] **Step 2: Run tests and confirm missing types fail**
 
 Run: `./gradlew.bat testDebugUnitTest --tests "cn.partialy.pm.player.cache.CacheIdentityTest" --tests "cn.partialy.pm.player.cache.CacheCoverageTest"`
 
 Expected: FAIL because the cache module types do not exist.
 
-- [ ] **Step 3: Implement the contracts**
+- [x] **Step 3: Implement the contracts**
 
 `PlaybackMediaCache` must expose exactly this boundary:
 
@@ -104,13 +104,13 @@ interface PlaybackMediaCache {
 
 `CacheIdentity.create()` must trim/lowercase values, reject blank source/song id, default blank quality to `default`, hash the canonical triple with SHA-256, and expose `pmcache://media/<64 lowercase hex>`.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run: `./gradlew.bat testDebugUnitTest --tests "cn.partialy.pm.player.cache.*"`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add app/src/main/java/cn/partialy/pm/player/cache app/src/test/java/cn/partialy/pm/player/cache
@@ -130,7 +130,7 @@ git commit -m "重构：定义播放缓存核心契约"
 - Consumes: `PlaybackCacheIdentity`, `PlaybackCacheEntry`, `PlaybackCacheStatus`。
 - Produces: `register(song, identity)`, `updateSnapshot(cacheKey, totalBytes, cachedBytes, status)`, `listCandidates(limit)`, `clear()`。
 
-- [ ] **Step 1: Add pure catalog mapping tests**
+- [x] **Step 1: Add pure catalog mapping tests**
 
 ```kotlin
 @Test fun `catalog write values never contain origin url`() {
@@ -145,7 +145,7 @@ git commit -m "重构：定义播放缓存核心契约"
 }
 ```
 
-- [ ] **Step 2: Migrate the database to version 10**
+- [x] **Step 2: Migrate the database to version 10**
 
 Keep the legacy `play_url` column for in-place compatibility, but stop reading and writing it. Add idempotent columns:
 
@@ -157,11 +157,11 @@ ALTER TABLE cached_playback_records ADD COLUMN last_accessed_at INTEGER NOT NULL
 
 Use the helper's existing `addColumnIfMissing()` pattern and set `DB_VERSION = 10`.
 
-- [ ] **Step 3: Implement `PlaybackCacheCatalog`**
+- [x] **Step 3: Implement `PlaybackCacheCatalog`**
 
 `PlaybackCacheCatalogValues.from()` returns a plain `Map<String, Any?>` so mapping rules stay JVM-testable; `PlaybackCacheCatalog` converts that map to Android `ContentValues` internally. Register song metadata before playback so process death cannot lose the candidate. Snapshot updates must store `cached_bytes`, `total_bytes`, `status`, and timestamps in one database update. `listCandidates()` returns metadata only; live completeness is revalidated by `Media3CacheStore` later.
 
-- [ ] **Step 4: Run tests and compile**
+- [x] **Step 4: Run tests and compile**
 
 Run: `./gradlew.bat testDebugUnitTest --tests "cn.partialy.pm.player.cache.PlaybackCacheCatalogRulesTest"`
 
@@ -169,7 +169,7 @@ Run: `./gradlew.bat compileDebugKotlin`
 
 Expected: both PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add app/src/main/java/cn/partialy/pm/player/cache/PlaybackCacheCatalog.kt app/src/main/java/cn/partialy/pm/utils/localdata/LocalMusicDbOpenHelper.kt app/src/test/java/cn/partialy/pm/player/cache/PlaybackCacheCatalogRulesTest.kt
@@ -192,15 +192,15 @@ git commit -m "重构：建立播放缓存目录索引"
 - Consumes: `PlayUrlGetter`, `SettingsPrefs.getAudioCacheMaxBytes()`, Task 1/2 contracts。
 - Produces: Hilt `@Singleton Media3PlaybackMediaCache : PlaybackMediaCache` and a `MediaSource.Factory` used by `PlayerEngine`。
 
-- [ ] **Step 1: Test TTL, invalidation and logical URI parsing**
+- [x] **Step 1: Test TTL, invalidation and logical URI parsing**
 
 Use an injected clock and fake suspend resolver. Verify two fresh reads resolve once, `invalidate(cacheKey)` forces the next resolve, expiration forces one resolve, and `pmcache://media/<key>` round-trips while other schemes are rejected.
 
-- [ ] **Step 2: Implement `OriginUrlRegistry`**
+- [x] **Step 2: Implement `OriginUrlRegistry`**
 
 Use a five-minute TTL and a per-cache-key `Mutex` so concurrent holes share one resolution. Store only `url + resolvedAt` in memory. The descriptor contains `SongInfo` and quality selection; neither URL nor descriptor URL is written to SQLite.
 
-- [ ] **Step 3: Implement `RefreshingOriginDataSource`**
+- [x] **Step 3: Implement `RefreshingOriginDataSource`**
 
 On `open(dataSpec)`:
 
@@ -211,13 +211,13 @@ On `open(dataSpec)`:
 5. Catch `HttpDataSource.InvalidResponseCodeException`; only for 401/403 invalidate and retry once with a new delegate. Other failures propagate unchanged.
 6. `read()` and `close()` delegate directly and always release the active delegate.
 
-- [ ] **Step 4: Implement `Media3CacheStore` and facade**
+- [x] **Step 4: Implement `Media3CacheStore` and facade**
 
 Create `SimpleCache` once for the module lifetime. `snapshot(cacheKey)` must use Media3 content metadata total length and `getCachedLength(cacheKey, 0, totalBytes)`; it must never infer ready from summed bytes. `clear()` enumerates `cache.keys` and calls `removeResource(key)` instead of deleting directories or releasing a cache still used by ExoPlayer. `mediaSourceFactory()` wraps `RefreshingOriginDataSource.Factory` with `CacheDataSource.Factory`.
 
 `mediaItem()` registers the descriptor/catalog row and returns a logical URI with `setCustomCacheKey(cacheKey)` without calling `PlayUrlGetter`. Complete cache playback therefore never opens the upstream resolver.
 
-- [ ] **Step 5: Run focused tests and compile**
+- [x] **Step 5: Run focused tests and compile**
 
 Run: `./gradlew.bat testDebugUnitTest --tests "cn.partialy.pm.player.cache.*"`
 
@@ -225,7 +225,7 @@ Run: `./gradlew.bat compileDebugKotlin`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add app/src/main/java/cn/partialy/pm/player/cache app/src/test/java/cn/partialy/pm/player/cache
@@ -250,23 +250,23 @@ git commit -m "重构：实现按缺口刷新的媒体缓存"
 - Consumes: `PlaybackMediaCache` facade only; callers must not see `SimpleCache`, URL registry or SQLite details。
 - Produces: all online queue items use logical URI; cached fallback contains only live-verified `READY` songs。
 
-- [ ] **Step 1: Write fallback rules tests**
+- [x] **Step 1: Write fallback rules tests**
 
 Cover: partial row rejected; stale ready row whose live snapshot became partial rejected; unknown total rejected; ready row with matching current quality accepted; different requested quality rejected.
 
-- [ ] **Step 2: Inject the cache facade**
+- [x] **Step 2: Inject the cache facade**
 
 Inject `PlaybackMediaCache` into `MusicController` and `PlaybackFallbackProvider`. `MediaItemFactory` keeps metadata/placeholder construction but delegates online logical items and cache keys to the facade. Local files continue to use their original `content://` or file URI and bypass the cache.
 
-- [ ] **Step 3: Replace PlayerEngine cache calls**
+- [x] **Step 3: Replace PlayerEngine cache calls**
 
 Use `playbackMediaCache.mediaSourceFactory()` in `buildPlayer()`. Remove the persisted old URL injection path, `recordCachedPlaybackAt()` byte-only logic, `playbackRefreshRetryKeys`, and the player-level catch-all URL refresh. On transition, ready/buffering/ended, call `syncEntry()` asynchronously so the catalog reflects current spans; failure to update the catalog must not stop playback.
 
-- [ ] **Step 4: Make cached fallback cache-only by behavior**
+- [x] **Step 4: Make cached fallback cache-only by behavior**
 
 `PlaybackFallbackProvider` calls `readySongs()`; every candidate is revalidated against current `SimpleCache`. Since its logical URI is fully covered, `CacheDataSource` reads locally and never asks `OriginUrlRegistry` for a URL. If eviction occurs between validation and playback, the upstream path resolves a fresh URL instead of using a stored stale URL.
 
-- [ ] **Step 5: Delete legacy providers and run tests**
+- [x] **Step 5: Delete legacy providers and run tests**
 
 Run: `./gradlew.bat testDebugUnitTest --tests "cn.partialy.pm.player.cache.*" --tests "cn.partialy.pm.player.PlayNextQueueRulesTest"`
 
@@ -274,7 +274,7 @@ Run: `./gradlew.bat compileDebugKotlin`
 
 Expected: PASS and `rg "PlayerCacheProvider|CachedPlaybackStore|play_url" app/src/main/java/cn/partialy/pm/player app/src/main/java/cn/partialy/pm/utils/localdata` has no runtime use except the compatible schema column.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add app/src/main/java/cn/partialy/pm/player app/src/main/java/cn/partialy/pm/utils/localdata app/src/test/java/cn/partialy/pm/player/cache
@@ -295,15 +295,15 @@ git commit -m "修复：避免部分缓存导致播放中断"
 - Consumes: `PlaybackMediaCache.snapshot()` and `clear()`。
 - Produces: 精确歌曲缓存统计与安全清理；最终文档与代码一致。
 
-- [ ] **Step 1: Move song cache management behind the facade**
+- [x] **Step 1: Move song cache management behind the facade**
 
 Inject `PlaybackMediaCache` into `CacheManagementActivity`. Song cache size reads `snapshot().usedBytes`; clear action calls `clear()` on `Dispatchers.IO`. Remove `AppStorageInspector.clearSongCache()` and stop classifying all non-lyric internal/external cache as song cache. Lyric and downloaded-file logic remain unchanged.
 
-- [ ] **Step 2: Document the new module boundary**
+- [x] **Step 2: Document the new module boundary**
 
 Update `pm/AGENTS.md` player rules with these invariants: logical URI, source+id+quality identity, URL memory-only TTL, complete coverage requirement, cache clear through facade, Media3 ownership of Range/Span/LRU. Remove the old direct `PlayerCacheProvider`/`CachedPlaybackStore` description.
 
-- [ ] **Step 3: Run final lightweight verification**
+- [x] **Step 3: Run final lightweight verification**
 
 Run: `./gradlew.bat testDebugUnitTest --tests "cn.partialy.pm.player.cache.*"`
 
@@ -313,7 +313,7 @@ Run: `git diff --check`
 
 Expected: all commands PASS. Do not install or launch the App.
 
-- [ ] **Step 4: Record manual acceptance matrix in this plan**
+- [x] **Step 4: Record manual acceptance matrix in this plan**
 
 Append the following unchecked user tests to the document:
 
@@ -324,7 +324,7 @@ Append the following unchecked user tests to the document:
 - Repeated seek does not corrupt playback or mix qualities.
 - Clearing song cache during pause/play does not delete lyrics, WebView cache or downloads.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add app/src/main/java/cn/partialy/pm/activity/CacheManagementActivity.kt app/src/main/java/cn/partialy/pm/utils/AppStorageInspector.kt AGENTS.md docs/superpowers/plans/2026-08-25-android-media-cache-refactor.md

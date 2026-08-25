@@ -3,7 +3,6 @@ package cn.partialy.pm.utils
 import android.content.Context
 import android.os.Environment
 import android.os.StatFs
-import cn.partialy.pm.player.cache.PlaybackMediaCache
 import java.io.File
 
 object AppStorageInspector {
@@ -25,19 +24,17 @@ object AppStorageInspector {
             get() = songCacheBytes + lyricCacheBytes + downloadedBytes
     }
 
-    fun compute(context: Context): AppCacheBreakdown {
+    /** 歌曲缓存大小由 [PlaybackMediaCache] 的 facade 提供，避免扫描无关缓存目录。 */
+    fun compute(context: Context, songCacheBytes: Long): AppCacheBreakdown {
         val phone = queryPhoneStorage()
         val downloadDir = File(DownloadPathManager.getDownloadPath(context))
         val downloadedBytes = directorySize(downloadDir)
         val downloadedCount = countAudioFiles(downloadDir)
         val lyricBytes = lyricCacheSize(context.cacheDir)
         val indexedLyricBytes = LocalMediaIndexDbStore(context).lyricBytes()
-        val internalNonLyric = directorySize(context.cacheDir) - lyricBytes
-        val ext = context.externalCacheDir?.let { directorySize(it) } ?: 0L
-        val songCacheBytes = (internalNonLyric + ext).coerceAtLeast(0L)
         return AppCacheBreakdown(
             phone = phone,
-            songCacheBytes = songCacheBytes,
+            songCacheBytes = songCacheBytes.coerceAtLeast(0L),
             lyricCacheBytes = lyricBytes + indexedLyricBytes,
             downloadedBytes = downloadedBytes,
             downloadedAudioCount = downloadedCount,
@@ -123,22 +120,8 @@ object AppStorageInspector {
         LocalMediaIndexDbStore(context).clearLyrics()
     }
 
-    fun clearSongCache(context: Context, playbackMediaCache: PlaybackMediaCache) {
-        playbackMediaCache.clear()
-        context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }
-        context.cacheDir.listFiles()?.forEach { entry ->
-            if (entry.isDirectory && entry.name != AUDIO_PLAYER_CACHE_DIR) {
-                entry.deleteRecursively()
-            } else if (!isLyricCacheFileName(entry.name)) {
-                if (!entry.isDirectory) entry.delete()
-            }
-        }
-    }
-
     fun clearDownloadedMusic(downloadRoot: File) {
         if (!downloadRoot.exists()) return
         downloadRoot.listFiles()?.forEach { it.deleteRecursively() }
     }
-
-    private const val AUDIO_PLAYER_CACHE_DIR = "audio_player_cache"
 }

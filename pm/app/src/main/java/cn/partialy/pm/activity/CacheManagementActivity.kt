@@ -99,7 +99,8 @@ class CacheManagementActivity : BaseActivity() {
     private fun loadStats() {
         lifecycleScope.launch {
             val data = withContext(Dispatchers.IO) {
-                AppStorageInspector.compute(this@CacheManagementActivity)
+                val songCacheBytes = playbackMediaCache.snapshot().usedBytes
+                AppStorageInspector.compute(this@CacheManagementActivity, songCacheBytes)
             }
             applyBreakdown(data)
         }
@@ -182,10 +183,7 @@ class CacheManagementActivity : BaseActivity() {
             onConfirm = {
                 lifecycleScope.launch {
                     withContext(Dispatchers.IO) {
-                        AppStorageInspector.clearSongCache(
-                            this@CacheManagementActivity,
-                            playbackMediaCache,
-                        )
+                        playbackMediaCache.clear()
                     }
                     loadStats()
                 }
