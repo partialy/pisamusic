@@ -9,6 +9,8 @@ import VolumePanel from "./VolumePanel.vue";
 import SequenceItem from "./SequenceItem.vue";
 import PlaySequence from "./PlaySequence.vue";
 import ProgressPanel from "./ProgressPanel.vue";
+import MusicQualityPicker from "./MusicQualityPicker.vue";
+import PlayModePicker from "./PlayModePicker.vue";
 export {
   AMLyric,
   MainPlayer,
@@ -20,5 +22,7 @@ export {
   VolumePanel,
   SequenceItem,
   PlaySequence,
-  ProgressPanel
+  ProgressPanel,
+  MusicQualityPicker,
+  PlayModePicker,
 };

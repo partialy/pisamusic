@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import {
   NButton,
   NForm,
@@ -73,7 +73,7 @@ import {
   NTabs,
 } from "naive-ui";
 import { useAudioStore, useListenTogetherStore } from "@/store";
-import LoginCard from "@/components/home/LoginCard.vue";
+import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 
 const props = withDefaults(defineProps<{
   initialRoomId?: string;
@@ -87,6 +87,7 @@ const emit = defineEmits<{
 
 const audio = useAudioStore();
 const listenTogether = useListenTogetherStore();
+const { openAccountLogin } = useAccountLoginDialog();
 const mode = ref<"create" | "join">("create");
 const joinRoomId = ref("");
 const createForm = reactive({
@@ -120,12 +121,7 @@ onMounted(async () => {
 });
 
 function openLogin(): void {
-  window.$modal.create({
-    preset: "dialog",
-    closable: true,
-    title: "登录 PisaMusic 账号",
-    content: () => h(LoginCard),
-  });
+  openAccountLogin();
 }
 
 async function submitCreate(replaceExisting: boolean): Promise<void> {

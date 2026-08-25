@@ -41,10 +41,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { NAvatar, NButton, NSpace } from "naive-ui";
 import { storeToRefs } from "pinia";
-import { LoginCard } from "@/components";
+import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import { useUserStore } from "@/store";
 import avatarImg from "@/assets/defaultAdminAvatar.jpg";
 
@@ -61,6 +61,7 @@ const emptyState: SyncState = {
 
 const userStore = useUserStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
+const { openAccountLogin: openLogin } = useAccountLoginDialog();
 const state = ref<SyncState>({ ...emptyState });
 const loading = ref(false);
 const logoutLoading = ref(false);
@@ -93,16 +94,6 @@ onMounted(async () => {
 onUnmounted(() => {
   stopSyncListener?.();
 });
-
-function openLogin() {
-  window.$modal.create({
-    style: { borderRadius: "12px" },
-    preset: "dialog",
-    showIcon: false,
-    closable: true,
-    content: () => h(LoginCard),
-  });
-}
 
 async function handleSyncNow() {
   await runSyncAction(async () => {

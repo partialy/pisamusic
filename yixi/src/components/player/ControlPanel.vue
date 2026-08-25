@@ -36,14 +36,16 @@
     <div class="panel-right">
       <ListenTogetherEntry variant="overlay" />
       <!-- 播放模式 -->
-      <n-dropdown :options="playModeOptions" trigger="click" placement="top" @select="handleToggleMode" show-arrow
-        show-on-focus>
+      <PlayModePicker
+        v-model="repeatMode"
+        placement="top"
+        @select="handleToggleMode">
         <n-button quaternary circle>
           <template #icon>
             <n-icon :size="26" :component="playModeIcon" class="icon"></n-icon>
           </template>
         </n-button>
-      </n-dropdown>
+      </PlayModePicker>
       <n-button quaternary title="桌面歌词" circle @click="handleDesktopLyric">
         <template #icon>
           <n-icon :component="LyricIcon" size="24px" :color="desktop ? '#fff':''" class="icon"></n-icon>
@@ -60,8 +62,10 @@
         </div>
       </n-popover>
       <!-- 播放列表 -->
-      <n-button text circle @click="showSequence = true">
-        <n-icon size="24" :component="PlayListIcon" class="icon"></n-icon>
+      <n-button quaternary circle @click="showSequence = true">
+        <template #icon>
+          <n-icon :component="PlayListIcon" size="24px" class="icon"></n-icon>
+        </template>
       </n-button>
       <n-drawer :style="{
         'backdrop-filter': 'blur(16px)',
@@ -95,7 +99,6 @@ import {
   LyricIcon,
   CollectIcon
 } from "@/icons";
-import { renderIcon } from "@/utils/common";
 import type { RepeatMode } from "@/store/audio";
 import electronAPI from "@/utils/electron";
 import PlaySequence from "./PlaySequence.vue";
@@ -103,6 +106,7 @@ import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
 import { getQualityAccessLevel } from "@/musicQuality/musicQualityPolicy";
 import MusicQualityPicker from "./MusicQualityPicker.vue";
+import PlayModePicker from "./PlayModePicker.vue";
 import { useSongDownload } from "@/composables/useSongDownload";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
@@ -126,13 +130,6 @@ const currentQualityKey = computed(() => player.getPreferredQualityKey(currentSo
 const currentQualityOption = computed(() => {
   return getQualityOption(currentQualityKey.value) || qualityOptions.value[0] || null;
 });
-
-const playModeOptions = [
-  { label: "列表循环", key: "all", icon: renderIcon(ListScrollIcon) },
-  { label: "随机播放", key: "random", icon: renderIcon(ListRandomIcon) },
-  { label: "单曲循环", key: "single", icon: renderIcon(ListRepeatOneIcon) },
-  { label: "顺序播放", key: "none", icon: renderIcon(ListRepeatOffIcon) },
-];
 
 const handleToggleMode = (key: RepeatMode) => {
   repeatMode.value = key;

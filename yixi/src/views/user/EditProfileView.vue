@@ -52,11 +52,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { NAvatar, NButton, NForm, NFormItem, NInput } from "naive-ui";
 import { storeToRefs } from "pinia";
-import { LoginCard } from "@/components";
+import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import { useUserStore } from "@/store";
 import avatarImg from "@/assets/defaultAdminAvatar.jpg";
 
@@ -65,6 +65,7 @@ defineOptions({ name: "EditUserProfileView" });
 const router = useRouter();
 const userStore = useUserStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
+const { openAccountLogin: openLogin } = useAccountLoginDialog();
 const saving = ref(false);
 const avatarSaving = ref(false);
 const form = reactive({
@@ -148,15 +149,6 @@ function buildPayload(username: string) {
 
 function goProfile() {
   router.push("/user/profile");
-}
-
-function openLogin() {
-  window.$modal.create({
-    style: { borderRadius: "12px" },
-    preset: "dialog",
-    closable: true,
-    content: () => h(LoginCard),
-  });
 }
 
 function formatTime(value: number) {

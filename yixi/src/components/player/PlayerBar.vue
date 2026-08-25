@@ -88,14 +88,16 @@
         {{ formatDuration(currentTime) }}/{{ formatDuration(duration) }}
       </div>
       <!-- 播放模式 -->
-      <n-dropdown :options="playModeOptions" trigger="click" placement="top" @select="handleToggleMode" show-arrow
-        show-on-focus>
+      <PlayModePicker
+        v-model="repeatMode"
+        placement="top"
+        @select="handleToggleMode">
         <n-button quaternary circle>
           <template #icon>
             <n-icon :size="26" :component="playModeIcon"></n-icon>
           </template>
         </n-button>
-      </n-dropdown>
+      </PlayModePicker>
       <n-button quaternary title="桌面歌词" circle @click="handleDesktopLyric">
         <template #icon>
           <n-icon
@@ -142,12 +144,11 @@ import {
   NIcon,
   NDrawer,
   NPopover,
-  NDropdown,
 } from "naive-ui";
 import { storeToRefs } from "pinia";
 import { useAudioStore, useLyricStore, useUserStore } from "@/store";
 import { PlayControlBtn, PlaySequence, VolumePanel } from ".";
-import { debounce, defaultSongCover, formatDuration, renderIcon } from '@/utils/common';
+import { debounce, defaultSongCover, formatDuration } from '@/utils/common';
 import { EMPTY_LYRIC_TEXT, getLyricLineText } from "@/utils/lyricLine";
 import { computed, ref, watch } from "vue";
 import { Download as DownloadIcon } from "lucide-vue-next";
@@ -170,6 +171,7 @@ import { useCollectStore } from "@/store/collect";
 import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
 import { getQualityAccessLevel } from "@/musicQuality/musicQualityPolicy";
 import MusicQualityPicker from "./MusicQualityPicker.vue";
+import PlayModePicker from "./PlayModePicker.vue";
 import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { useSongDownload } from "@/composables/useSongDownload";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
@@ -219,13 +221,6 @@ const playModeIcon = computed(() => {
       return ListScrollIcon;
   }
 });
-
-const playModeOptions = [
-  { label: "列表循环", key: "all", icon: renderIcon(ListScrollIcon) },
-  { label: "随机播放", key: "random", icon: renderIcon(ListRandomIcon) },
-  { label: "单曲循环", key: "single", icon: renderIcon(ListRepeatOneIcon) },
-  { label: "顺序播放", key: "none", icon: renderIcon(ListRepeatOffIcon) },
-];
 
 const handleToggleMode = (key: RepeatMode) => {
   repeatMode.value = key;

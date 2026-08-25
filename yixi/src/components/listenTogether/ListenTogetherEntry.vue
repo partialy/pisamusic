@@ -32,11 +32,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { NAvatar, NCard, NModal } from "naive-ui";
 import { Headphones } from "lucide-vue-next";
 import { useListenTogetherStore, useUserStore } from "@/store";
-import LoginCard from "@/components/home/LoginCard.vue";
+import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import {
   decideListenTogetherInvite,
   type ListenTogetherInvite,
@@ -53,6 +53,7 @@ const props = withDefaults(defineProps<{
 
 const listenTogether = useListenTogetherStore();
 const userStore = useUserStore();
+const { openAccountLogin } = useAccountLoginDialog();
 const showPanel = ref(false);
 const inviteRoomId = ref("");
 const pendingInvite = ref<ListenTogetherInvite | null>(null);
@@ -124,11 +125,7 @@ async function processPendingInvite(sequence: number): Promise<void> {
 
 function openInviteLogin(): void {
   if (loginModal) return;
-  loginModal = window.$modal.create({
-    preset: "dialog",
-    closable: true,
-    title: "登录 PisaMusic 账号",
-    content: () => h(LoginCard),
+  loginModal = openAccountLogin({
     onAfterLeave: () => {
       loginModal = null;
     },

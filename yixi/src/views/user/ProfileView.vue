@@ -48,7 +48,7 @@ import { computed, h } from "vue";
 import { useRouter } from "vue-router";
 import { NAvatar, NButton } from "naive-ui";
 import { storeToRefs } from "pinia";
-import { LoginCard } from "@/components";
+import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import AccountSecurityDialog from "@/components/user/AccountSecurityDialog.vue";
 import { useUserStore } from "@/store";
 import avatarImg from "@/assets/defaultAdminAvatar.jpg";
@@ -60,6 +60,7 @@ type SecurityMode = InstanceType<typeof AccountSecurityDialog>["$props"]["mode"]
 const router = useRouter();
 const userStore = useUserStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
+const { openAccountLogin: openLogin } = useAccountLoginDialog();
 
 const avatarSrc = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
 const createdAtText = computed(() => formatTime(userInfo.value.createdAt));
@@ -67,15 +68,6 @@ const avatarKindText = computed(() => (userInfo.value.avatarKey === "default" ? 
 
 function goEdit() {
   router.push("/user/editProfile");
-}
-
-function openLogin() {
-  window.$modal.create({
-    style: { borderRadius: "12px" },
-    preset: "dialog",
-    closable: true,
-    content: () => h(LoginCard),
-  });
 }
 
 function openSecurityDialog(mode: SecurityMode) {
