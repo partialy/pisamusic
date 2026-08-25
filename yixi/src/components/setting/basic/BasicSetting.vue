@@ -21,7 +21,7 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">主题色</div>
-        <div class="setting-desc">用于按钮、进度条、选中态与 Naive UI 主色。</div>
+        <div class="setting-desc">用于按钮、进度条、选中态与 UI 主色。</div>
       </div>
       <div class="accent-setting">
         <n-color-picker

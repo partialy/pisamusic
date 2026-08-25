@@ -34,38 +34,46 @@
         </div>
         
         <div class="model-bg"></div>
-        <!-- cover -->
+        <!-- cover & song info -->
         <div class="info-container" ref="infoContainer">
-            <div class="cover" v-if="currentSong?.source != 'wy'">
-                <n-progress type="circle" :show-indicator="false" :percentage="progress" processing :stroke-width="3"
-                    style="z-index: 100;position: absolute;top: 0;left: 0;" />
-                <div class="img-container">
-                    <img :src="coverUrl" alt=""
-                        style="width: 100%;height: 100%;object-fit: cover;" @error="handleCoverError">
+            <div class="glass-cover-card">
+                <div class="glass-cover-glow"></div>
+                <div class="glass-cover-frame">
+                    <video
+                        v-if="currentSong?.d_cover"
+                        autoplay
+                        loop
+                        muted
+                        playsinline
+                        class="cover-media"
+                        :src="currentSong.d_cover"
+                    />
+                    <img
+                        v-else
+                        :src="coverUrl"
+                        alt=""
+                        class="cover-media"
+                        @error="handleCoverError"
+                    />
                 </div>
-            </div>
-            <div class="wy-cover" v-else>
-                <video autoplay loop class="video-cover" v-if="currentSong.d_cover" :src="currentSong.d_cover"></video>
-                <n-image
-                    v-else
-                    class="video-cover"
-                    preview-disabled
-                    :src="coverUrl"
-                    :fallback-src="defaultSongCover" />
             </div>
             <div class="info-content">
-                <div class="info-title">
+                <div class="info-title" :title="songName || '未播放'">
                     <span>{{ songName || '未播放' }}</span>
                 </div>
-                <div class="info-artist">
-
-                    <span>{{ currentSong?.singer || '未知歌手' }}</span>
+                <div class="info-meta-row" :title="currentSong?.singer || '未知歌手'">
+                    <div class="meta-icon-badge">
+                        <n-icon :component="Mic2" :size="13" />
+                    </div>
+                    <span class="meta-text">{{ currentSong?.singer || '未知歌手' }}</span>
                 </div>
-                <div class="info-album">
-
-                    <span>{{ currentSong?.album || '未知专辑' }}</span>
+                <div class="info-meta-row album-row" :title="currentSong?.album || '未知专辑'">
+                    <div class="meta-icon-badge">
+                        <n-icon :component="Disc3" :size="13" />
+                    </div>
+                    <span class="meta-text">{{ currentSong?.album || '未知专辑' }}</span>
                 </div>
-                <div class="progress-bar">
+                <div class="progress-bar-wrapper">
                     <ProgressPanel />
                 </div>
             </div>
@@ -82,7 +90,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
-import { NProgress } from 'naive-ui';
+import { NIcon } from 'naive-ui';
+import { Mic2, Disc3 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useAudioStore, useCommonStore, useLyricStore } from '@/store';
 import { ControlPanel } from '.';
@@ -94,7 +103,7 @@ import ProgressPanel from './ProgressPanel.vue';
 import { useSongCoverUrl } from '@/composables/useSongCoverUrl';
 import PlayerBackground from './PlayerBackground.vue';
 const playerStore = useAudioStore()
-const { currentSong, progress } = storeToRefs(playerStore)
+const { currentSong } = storeToRefs(playerStore)
 const commonStore = useCommonStore()
 const lyricStore = useLyricStore()
 
@@ -308,13 +317,6 @@ onBeforeUnmount(() => {
     animation: slide-out 0.6s ease-in-out;
 }
 
-:deep(.n-progress) {
-    svg {
-        width: 320px;
-        height: 320px;
-    }
-}
-
 .model-bg {
     width: 100%;
     height: 100%;
@@ -424,86 +426,155 @@ onBeforeUnmount(() => {
         transform: translate(-50%, -50%);
         z-index: 101;
         width: 320px;
-        height: 620px;
         display: flex;
         flex-direction: column;
+        align-items: center;
+        transition: left 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        user-select: none;
 
-        .cover {
-            width: 100%;
-            height: 320px;
-            border-radius: 50%;
-            overflow: hidden;
-            padding: 10px;
-
-            .img-container {
-                width: 300px;
-                height: 300px;
-                border-radius: 50%;
-                overflow: hidden;
-
-                animation: rotate 20s linear infinite;
-                animation-play-state: v-bind(active);
-
-            }
-        }
-
-        .wy-cover {
+        .glass-cover-card {
+            position: relative;
             width: 300px;
             height: 300px;
+            margin: 0 auto;
+            border-radius: 28px;
+            padding: 10px;
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, 0.24) 0%,
+                rgba(255, 255, 255, 0.07) 50%,
+                rgba(255, 255, 255, 0.14) 100%
+            );
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(28px) saturate(160%);
+            -webkit-backdrop-filter: blur(28px) saturate(160%);
+            box-shadow:
+                0 24px 64px rgba(0, 0, 0, 0.38),
+                0 8px 24px rgba(0, 0, 0, 0.22),
+                inset 0 1.5px 2px rgba(255, 255, 255, 0.65),
+                inset 0 -1.5px 2px rgba(0, 0, 0, 0.15);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
+            box-sizing: border-box;
 
-            .video-cover {
-                width: 300px;
-                height: 300px;
-                border-radius: 8px;
+            &:hover {
+                transform: translateY(-4px) scale(1.02);
+                box-shadow:
+                    0 32px 76px rgba(0, 0, 0, 0.46),
+                    0 12px 30px rgba(0, 0, 0, 0.28),
+                    inset 0 1.5px 2px rgba(255, 255, 255, 0.75),
+                    inset 0 -1.5px 2px rgba(0, 0, 0, 0.15);
+            }
+
+            .glass-cover-glow {
+                position: absolute;
+                inset: 14px;
+                border-radius: 22px;
+                background: inherit;
+                filter: blur(20px);
+                opacity: 0.45;
+                z-index: 0;
+                pointer-events: none;
+            }
+
+            .glass-cover-frame {
+                position: relative;
+                z-index: 1;
+                width: 100%;
+                height: 100%;
+                border-radius: 20px;
                 overflow: hidden;
+                background: rgba(0, 0, 0, 0.2);
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+
+                .cover-media {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
+                    border-radius: 20px;
+                }
             }
         }
 
         .info-content {
             width: 100%;
-            height: 300px;
+            margin-top: 22px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
+            gap: 10px;
+            text-align: center;
             color: var(--color-text-track);
 
-            .icon {
-                margin-right: 16px;
-                opacity: 0.6;
-            }
-
             .info-title {
-                font-size: 20px;
-                height: 30%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .info-artist {
-                font-size: 16px;
-                height: 25%;
-
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .info-album {
-                font-size: 16px;
-                height: 20%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .progress-bar {
                 width: 100%;
-                height: 25%;
+                font-size: 22px;
+                font-weight: 800;
+                line-height: 1.35;
+                color: #ffffff;
+                text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding: 0 10px;
+                box-sizing: border-box;
+                letter-spacing: 0.2px;
+            }
+
+            .info-meta-row {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 7px;
+                max-width: 100%;
+                padding: 0 10px;
+                box-sizing: border-box;
+
+                .meta-icon-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.14);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    color: rgba(255, 255, 255, 0.9);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    flex-shrink: 0;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+                }
+
+                .meta-text {
+                    color: rgba(255, 255, 255, 0.85);
+                    font-size: 14px;
+                    font-weight: 500;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+                }
+
+                &.album-row {
+                    .meta-icon-badge {
+                        background: rgba(255, 255, 255, 0.1);
+                        border-color: rgba(255, 255, 255, 0.15);
+                        color: rgba(255, 255, 255, 0.7);
+                    }
+
+                    .meta-text {
+                        color: rgba(255, 255, 255, 0.65);
+                        font-size: 13px;
+                    }
+                }
+            }
+
+            .progress-bar-wrapper {
+                width: 100%;
+                margin-top: 8px;
             }
         }
-
     }
 
 
