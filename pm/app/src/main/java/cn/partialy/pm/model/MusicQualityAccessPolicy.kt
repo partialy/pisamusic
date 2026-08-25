@@ -36,7 +36,7 @@ object MusicQualityAccessPolicy {
         access: MusicQualityAccessState,
     ): List<DownloadQualityOption> {
         val original = downloadOptionsForSongType(type)
-        if (type == SongType.KW || type == SongType.LOCAL || (access.loggedIn && access.vipActive)) {
+        if (type == SongType.KW || type == SongType.LOCAL || hasVipAccess(access)) {
             return original
         }
 
@@ -70,18 +70,26 @@ object MusicQualityAccessPolicy {
         optionsFor(type, access).any { option -> option.choice == choice && option.enabled }
 
     /**
-     * 校验已保存的播放音质。没有保存值时继续沿用播放器原有自动选档策略；
-     * 保存值越权或音源不匹配时，回退到当前音源的安全默认档位。
+     * 校验已保存的播放音质。KG/WY 非有效 VIP 即使没有保存值，也必须回退到
+     * 安全档位，避免播放器的自动选档链继续尝试高阶音质；有效 VIP、KW 与 LOCAL
+     * 没有保存值时继续沿用原有自动策略。保存值越权或音源不匹配时同样安全回退。
      */
     fun allowedChoiceOrFallback(
         type: SongType,
         choice: DownloadQualityChoice?,
         access: MusicQualityAccessState,
     ): DownloadQualityChoice? {
-        if (choice == null) return null
+        if (choice == null) {
+            val requiresSafeDefault =
+                (type == SongType.KG || type == SongType.WY) && !hasVipAccess(access)
+            return if (requiresSafeDefault) fallbackChoice(type) else null
+        }
         if (isChoiceAllowed(type, choice, access)) return choice
         return fallbackChoice(type)
     }
+
+    private fun hasVipAccess(access: MusicQualityAccessState): Boolean =
+        access.loggedIn && access.vipActive
 
     private fun fallbackChoice(type: SongType): DownloadQualityChoice? = when (type) {
         SongType.KG -> DownloadQualityChoice.Kugou("128")
