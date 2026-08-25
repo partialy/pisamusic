@@ -72,6 +72,7 @@
 - 在线播放缓存只通过 `player/cache/PlaybackMediaCache` 门面访问：队列项先在 IO 登记 descriptor / catalog，再一次性交付 `pmcache://media/<cacheKey>` 逻辑 URI；Main 不得按歌曲写物理缓存目录或 prepare 占位 URI。缓存身份固定为规范化 `source + songId + qualityKey`，每个在线 `MediaItem` 绑定构造时冻结的实际音质，目录同步从当前 player item 校验，不得用之后变化的全局音质偏好推断。
 - 真实播放 URL 只存在进程内 TTL 注册表，不写入目录或持久化；LOCAL 的 `content://` / file URI 必须旁路播放缓存。仅已知总长、从字节 0 开始连续完整覆盖的 `READY` 项可进入已缓存回退，未知总长、缺口或部分字节一律排除。
 - `Media3CacheStore` 独占 `SimpleCache`，由 Media3 管理 Range、Span 和物理 LRU；统计和清理均通过 facade，清理仅移除资源且不得释放活跃 cache。目录索引继续写入 `pm_local_music.db` 的 `cached_playback_records`，兼容列 `play_url` 不得恢复运行时读写。
+- `PlaybackMediaCache.release()` 只用于 renderer / ExoPlayer 内部重建时释放可重开的缓存实例；播放器最终退出必须调用不可逆 `shutdown()`。所有 descriptor、catalog、cache store 和媒体项操作都受同一终止门禁保护，终止会等待在途操作，之后禁止迟到任务重新登记或惰性重开缓存。
 - “设置 - 播放设置 - 与其他应用同时播放”由 `AudioCoexistenceController` 管理：关闭时沿用 Media3 音频焦点，所有场景和部分场景不主动申请焦点；部分场景仅在匿名播放用途、活动录音配置或系统音频模式表明正在录音/音视频通话时暂停，并且只能恢复由该策略暂停的播放。系统或厂商仍可能在通话期间强制静音，不要把该限制描述为 App 可完全绕过。
 - 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation、Info 和 Switch 列表；下载、歌词、同步等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。
 - “设置 - 下载设置”由 `DownloadSettingsActivity` 聚合下载位置、文件名命名规则、写入封面、写入标签和写入歌词；主设置页只保留一个“下载设置”入口。二级设置项的 `summary` 可选，不传时保持单行居中，传入时标题在上、较小且较淡的说明在下。

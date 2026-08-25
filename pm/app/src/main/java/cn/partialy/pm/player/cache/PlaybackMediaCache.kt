@@ -36,8 +36,9 @@ interface PlaybackMediaCache {
 
     fun clear(): PlaybackCacheSnapshot
 
-    /** 仅在播放器彻底释放时清理进程内取链描述和短期地址。 */
-    fun clearRuntimeOrigins()
-
+    /** renderer 重建时释放当前缓存实例，后续操作仍可按需重开。 */
     fun release()
+
+    /** 播放器最终退出；等待在途门面操作后关闭，之后不可重开。 */
+    fun shutdown()
 }

@@ -23,23 +23,32 @@ class Media3PlaybackMediaCache @Inject constructor(
     private val cacheStore: Media3CacheStore,
     private val catalog: PlaybackCacheCatalog,
 ) : PlaybackMediaCache {
+    private val operationGate = TerminalOperationGate(
+        closedMessage = "playback media cache has been shut down",
+    )
 
-    override fun mediaItem(song: SongInfo, qualityKey: String): MediaItem {
-        val identity = register(song, qualityKey)
-        return mediaItemBuilder(song)
-            .setUri(identity.logicalUri.toString())
+    override fun mediaItem(song: SongInfo, qualityKey: String): MediaItem =
+        operationGate.runOpen {
+            val identity = registerInternal(song, qualityKey)
+            mediaItemBuilder(song)
+                .setUri(identity.logicalUri.toString())
+                .setMediaId(mediaIdOf(song))
+                .setCustomCacheKey(identity.cacheKey)
+                .setTag(PlaybackMediaItemTag(identity.qualityKey))
+                .build()
+        }
+
+    override fun placeholderMediaItem(song: SongInfo): MediaItem = operationGate.runOpen {
+        mediaItemBuilder(song)
+            .setUri("$PLACEHOLDER_URI_PREFIX${mediaIdOf(song)}")
             .setMediaId(mediaIdOf(song))
-            .setCustomCacheKey(identity.cacheKey)
-            .setTag(PlaybackMediaItemTag(identity.qualityKey))
             .build()
     }
 
-    override fun placeholderMediaItem(song: SongInfo): MediaItem = mediaItemBuilder(song)
-        .setUri("$PLACEHOLDER_URI_PREFIX${mediaIdOf(song)}")
-        .setMediaId(mediaIdOf(song))
-        .build()
+    override fun qualityKeyOf(song: SongInfo, mediaItem: MediaItem): String? =
+        operationGate.runOpen { qualityKeyOfInternal(song, mediaItem) }
 
-    override fun qualityKeyOf(song: SongInfo, mediaItem: MediaItem): String? {
+    private fun qualityKeyOfInternal(song: SongInfo, mediaItem: MediaItem): String? {
         if (song.type == SongType.LOCAL) return null
         val configuration = mediaItem.localConfiguration ?: return null
         val logicalCacheKey = LogicalMediaUri.parse(configuration.uri.toString()) ?: return null
@@ -54,12 +63,17 @@ class Media3PlaybackMediaCache @Inject constructor(
     }
 
     override fun mediaSourceFactory(): MediaSource.Factory =
-        cacheStore.mediaSourceFactory(registry)
+        operationGate.runOpen { cacheStore.mediaSourceFactory(registry) }
 
     override fun cacheKeyOf(song: SongInfo, qualityKey: String): String =
-        CacheIdentity.create(song.sourceName(), song.id, qualityKey).cacheKey
+        operationGate.runOpen {
+            CacheIdentity.create(song.sourceName(), song.id, qualityKey).cacheKey
+        }
 
-    override fun register(song: SongInfo, qualityKey: String): PlaybackCacheIdentity {
+    override fun register(song: SongInfo, qualityKey: String): PlaybackCacheIdentity =
+        operationGate.runOpen { registerInternal(song, qualityKey) }
+
+    private fun registerInternal(song: SongInfo, qualityKey: String): PlaybackCacheIdentity {
         require(song.type != SongType.LOCAL) { "local song must not enter playback media cache" }
         val identity = CacheIdentity.create(song.sourceName(), song.id, qualityKey)
         val descriptor = OriginUrlDescriptor(
@@ -71,22 +85,23 @@ class Media3PlaybackMediaCache @Inject constructor(
         return identity
     }
 
-    override fun syncEntry(song: SongInfo, qualityKey: String): PlaybackCacheEntry {
-        val identity = register(song, qualityKey)
-        val actual = cacheStore.snapshot(identity.cacheKey)
-        catalog.updateSnapshot(
-            cacheKey = identity.cacheKey,
-            totalBytes = actual.totalBytes,
-            cachedBytes = actual.cachedBytes,
-            status = actual.status,
-        )
-        return actual.toPlaybackEntry(identity)
-    }
+    override fun syncEntry(song: SongInfo, qualityKey: String): PlaybackCacheEntry =
+        operationGate.runOpen {
+            val identity = registerInternal(song, qualityKey)
+            val actual = cacheStore.snapshot(identity.cacheKey)
+            catalog.updateSnapshot(
+                cacheKey = identity.cacheKey,
+                totalBytes = actual.totalBytes,
+                cachedBytes = actual.cachedBytes,
+                status = actual.status,
+            )
+            actual.toPlaybackEntry(identity)
+        }
 
     override fun readySongs(
         qualityKeyOf: (SongInfo) -> String,
         limit: Int,
-    ): List<SongInfo> {
+    ): List<SongInfo> = operationGate.runOpen {
         val result = PlaybackCacheReadyCandidateScanner.scan(
             limit = limit.coerceAtMost(MAX_READY_SONGS),
             pageSize = READY_SCAN_PAGE_SIZE,
@@ -103,23 +118,27 @@ class Media3PlaybackMediaCache @Inject constructor(
                 status = actual.status,
             )
         }
-        return result.songs
+        result.songs
     }
 
-    override fun snapshot(): PlaybackCacheSnapshot = cacheStore.snapshot()
+    override fun snapshot(): PlaybackCacheSnapshot =
+        operationGate.runOpen { cacheStore.snapshot() }
 
-    override fun clear(): PlaybackCacheSnapshot {
+    override fun clear(): PlaybackCacheSnapshot = operationGate.runOpen {
         val cleared = cacheStore.clear()
         catalog.clear()
-        return cleared
-    }
-
-    override fun clearRuntimeOrigins() {
-        registry.clear()
+        cleared
     }
 
     override fun release() {
-        cacheStore.release()
+        operationGate.runOpen { cacheStore.release() }
+    }
+
+    override fun shutdown() {
+        operationGate.shutdown {
+            registry.clear()
+            cacheStore.release()
+        }
     }
 
     private fun mediaItemBuilder(song: SongInfo): MediaItem.Builder {

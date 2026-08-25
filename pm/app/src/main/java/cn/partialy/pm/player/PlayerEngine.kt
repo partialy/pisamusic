@@ -913,8 +913,7 @@ class PlayerEngine(
         mediaSession?.release()
         mediaSession = null
         player?.release()
-        playbackMediaCache.clearRuntimeOrigins()
-        playbackMediaCache.release()
+        playbackMediaCache.shutdown()
     }
 
     private companion object {
