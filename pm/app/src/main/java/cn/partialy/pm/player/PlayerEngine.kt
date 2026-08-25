@@ -794,7 +794,9 @@ class PlayerEngine(
     private fun syncPlaybackCacheAt(index: Int) {
         val song = playlistManager.playList.value.getOrNull(index) ?: return
         if (song.type == SongType.LOCAL) return
-        val qualityKey = factory.playbackQualityKeyOf(song)
+        val player = exoPlayer ?: return
+        if (index !in 0 until player.mediaItemCount) return
+        val qualityKey = playbackMediaCache.qualityKeyOf(song, player.getMediaItemAt(index)) ?: return
         cacheSyncScope.launch {
             runCatching { playbackMediaCache.syncEntry(song, qualityKey) }
                 .onFailure { error ->

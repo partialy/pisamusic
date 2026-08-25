@@ -30,6 +30,7 @@ class Media3PlaybackMediaCache @Inject constructor(
             .setUri(identity.logicalUri.toString())
             .setMediaId(mediaIdOf(song))
             .setCustomCacheKey(identity.cacheKey)
+            .setTag(PlaybackMediaItemTag(identity.qualityKey))
             .build()
     }
 
@@ -37,6 +38,20 @@ class Media3PlaybackMediaCache @Inject constructor(
         .setUri("$PLACEHOLDER_URI_PREFIX${mediaIdOf(song)}")
         .setMediaId(mediaIdOf(song))
         .build()
+
+    override fun qualityKeyOf(song: SongInfo, mediaItem: MediaItem): String? {
+        if (song.type == SongType.LOCAL) return null
+        val configuration = mediaItem.localConfiguration ?: return null
+        val logicalCacheKey = LogicalMediaUri.parse(configuration.uri.toString()) ?: return null
+        val qualityKey = (configuration.tag as? PlaybackMediaItemTag)?.qualityKey ?: return null
+        val identity = runCatching {
+            CacheIdentity.create(song.sourceName(), song.id, qualityKey)
+        }.getOrNull() ?: return null
+        return identity.qualityKey.takeIf {
+            identity.cacheKey == logicalCacheKey &&
+                identity.cacheKey == configuration.customCacheKey
+        }
+    }
 
     override fun mediaSourceFactory(): MediaSource.Factory =
         cacheStore.mediaSourceFactory(registry)
@@ -133,6 +148,9 @@ class Media3PlaybackMediaCache @Inject constructor(
         private const val MAX_READY_SONGS = 1_000
     }
 }
+
+/** 只跟随进程内 MediaItem 传递实际音质身份，不包含源站 URL。 */
+private data class PlaybackMediaItemTag(val qualityKey: String)
 
 internal data class PlaybackCacheReadyScanResult(
     val songs: List<SongInfo>,

@@ -30,6 +30,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     private val preparationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val preparationGate = PlaylistPreparationGate()
+    private val restoreGate = PlaylistPreparationGate()
     private val preparationMutex = Mutex()
 
     /** 由 PlayerEngine 初始化后注入 */
@@ -61,6 +62,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
      * 重复点击同一首歌不会重复入队；若歌曲不在主列表则追加可直接播放的逻辑项到主列表尾部。
      */
     fun addPlayNext(song: SongInfo) {
+        restoreGate.invalidate()
         val generation = preparationGate.current()
         preparationScope.launch {
             preparationMutex.withLock {
@@ -114,6 +116,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         newSourceId: String? = null,
         onResult: (PlaylistSetResult) -> Unit = {},
     ) {
+        restoreGate.invalidate()
         val generation = preparationGate.nextReplacement()
         if (songs.isEmpty()) {
             onResult(PlaylistSetResult.Failed)
@@ -170,6 +173,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         songs: List<SongInfo>,
         onApplied: (Boolean) -> Unit = {},
     ) {
+        restoreGate.invalidate()
         if (songs.isEmpty()) {
             onApplied(false)
             return
@@ -217,6 +221,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         autoPlay: Boolean,
         isLatest: () -> Boolean,
     ): Boolean {
+        restoreGate.invalidate()
         val generation = preparationGate.nextReplacement()
         val mediaItem = withContext(Dispatchers.IO) {
             factory.createMediaItem(song)
@@ -250,6 +255,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /** 从列表移除歌曲，同步 ExoPlayer 并修正索引 */
     fun removeFromPlayList(song: SongInfo) {
+        restoreGate.invalidate()
         preparationGate.invalidate()
         val list = _playList.value.toMutableList()
         val index = list.indexOf(song)
@@ -279,6 +285,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /** 清空列表和插播队列 */
     fun clearPlayList(stateStore: PlayerStateStore) {
+        restoreGate.invalidate()
         preparationGate.invalidate()
         _sourceId = null
         _playList.value = emptyList()
@@ -334,7 +341,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         _currentSong.value = _playList.value.getOrNull(index)
     }
 
-    fun beginRestorePreparation(): Long = preparationGate.nextReplacement()
+    fun beginRestorePreparation(): Long = restoreGate.nextReplacement()
 
     /** 仅当前恢复请求可以提交已在 IO 完整构造的列表。 */
     fun restorePreparedState(
@@ -342,7 +349,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         songs: List<SongInfo>,
         index: Int,
     ): Boolean {
-        if (!preparationGate.isCurrent(generation)) return false
+        if (!restoreGate.isCurrent(generation)) return false
         _playList.value = songs
         _currentIndex.value = index
         _currentSong.value = songs.getOrNull(index)
@@ -350,6 +357,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
     }
 
     fun release() {
+        restoreGate.invalidate()
         preparationGate.invalidate()
         preparationScope.cancel()
     }

@@ -16,6 +16,9 @@ interface PlaybackMediaCache {
 
     fun placeholderMediaItem(song: SongInfo): MediaItem
 
+    /** 返回该在线媒体项冻结的规范化实际音质；身份不一致或无法解析时返回 null。 */
+    fun qualityKeyOf(song: SongInfo, mediaItem: MediaItem): String?
+
     fun mediaSourceFactory(): MediaSource.Factory
 
     fun cacheKeyOf(song: SongInfo, qualityKey: String): String
