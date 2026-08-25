@@ -38,11 +38,11 @@ suspend fun showDownloadQualityPicker(
             title ?: context.getString(R.string.playback_quality)
         val initialIndex = options.indexOfFirst {
             it.choice.toPlaybackQualityKey() == selectedQualityKey
-        }.takeIf { it >= 0 } ?: 0
-        val selection = OptionPickerRows.bind(
+        }
+        val selection = OptionPickerRows.bindQualityOptions(
             context = context,
             container = binding.bottomRadiusOptionsSheetContainer,
-            labels = options.map { it.label },
+            options = options,
             selectedIndex = initialIndex,
         )
         var confirmed = false
@@ -52,8 +52,11 @@ suspend fun showDownloadQualityPicker(
         binding.bottomRadiusOptionsSheetConfirm.apply {
             text = confirmText ?: context.getString(R.string.dialog_ok)
             setOnClickListener {
+                val selected = options.getOrNull(selection.selectedIndex)
+                    ?.takeIf { it.enabled }
+                    ?: return@setOnClickListener
                 confirmed = true
-                if (cont.isActive) cont.resume(options[selection.selectedIndex])
+                if (cont.isActive) cont.resume(selected)
                 dialog.dismiss()
             }
         }
@@ -120,11 +123,11 @@ suspend fun showDownloadQualityConfirmDialog(
         val container = content.findViewById<LinearLayout>(R.id.downloadQualityOptionsContainer)
         val initialIndex = options.indexOfFirst {
             it.choice.toPlaybackQualityKey() == selectedQualityKey
-        }.takeIf { it >= 0 } ?: 0
-        val selection = OptionPickerRows.bind(
+        }
+        val selection = OptionPickerRows.bindQualityOptions(
             context = context,
             container = container,
-            labels = options.map { it.label },
+            options = options,
             selectedIndex = initialIndex,
         )
         val primaryColor = MaterialColors.getColor(
@@ -143,8 +146,11 @@ suspend fun showDownloadQualityConfirmDialog(
                 textColor = primaryColor,
                 dismissOnConfirm = false,
             ) { slotDialog ->
+                val selected = options.getOrNull(selection.selectedIndex)
+                    ?.takeIf { it.enabled }
+                    ?: return@setConfirmButton
                 confirmed = true
-                if (cont.isActive) cont.resume(options[selection.selectedIndex])
+                if (cont.isActive) cont.resume(selected)
                 slotDialog.dismiss()
             }
             .show()

@@ -5,11 +5,14 @@ import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import cn.partialy.pm.model.DownloadQualityChoice
+import cn.partialy.pm.model.MusicQualityAccessPolicy
+import cn.partialy.pm.model.MusicQualityAccessState
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.matchesSongType
 import cn.partialy.pm.model.playbackQualityChoiceFromKey
 import cn.partialy.pm.model.toPlaybackQualityKey
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.player.cache.PlaybackMediaCache
 import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.utils.SongCoverUrl
@@ -41,9 +44,19 @@ class MediaItemFactory(
     }
 
     private fun savedPlaybackQualityChoice(song: SongInfo): DownloadQualityChoice? {
-        val key = SettingsPrefs.getPlaybackQualityKey(context, song.type)
-        val choice = playbackQualityChoiceFromKey(key)
-        return choice?.takeIf { it.matchesSongType(song.type) }
+        val savedKey = SettingsPrefs.getPlaybackQualityKey(context, song.type)
+        val savedChoice = playbackQualityChoiceFromKey(savedKey)
+        val session = AccountSessionStore.read(context)
+        val allowedChoice = MusicQualityAccessPolicy.allowedChoiceOrFallback(
+            song.type,
+            savedChoice,
+            MusicQualityAccessState(session.loggedIn, session.vipActive),
+        )
+        val allowedKey = allowedChoice?.toPlaybackQualityKey()
+        if (savedKey != null && allowedKey != null && savedKey != allowedKey) {
+            SettingsPrefs.setPlaybackQualityKey(context, song.type, allowedKey)
+        }
+        return allowedChoice
     }
 
     /** 在线歌曲使用逻辑 URI；本地歌曲保留原始 content/file URI 并绕过缓存。 */

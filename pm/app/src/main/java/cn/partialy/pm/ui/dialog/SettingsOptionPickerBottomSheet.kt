@@ -13,6 +13,8 @@ data class SettingsOption(
     val id: String,
     val label: String,
     val summary: String? = null,
+    val enabled: Boolean = true,
+    val badge: String? = null,
 )
 
 suspend fun showSettingsOptionPicker(
@@ -40,7 +42,10 @@ suspend fun showSettingsOptionPicker(
             dialog.dismiss()
         }
         binding.bottomRadiusOptionsSheetConfirm.setOnClickListener {
-            if (cont.isActive) cont.resume(options[selection.selectedIndex])
+            val selected = options.getOrNull(selection.selectedIndex)
+                ?.takeIf { it.enabled }
+                ?: return@setOnClickListener
+            if (cont.isActive) cont.resume(selected)
             dialog.dismiss()
         }
 

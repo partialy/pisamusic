@@ -6,9 +6,11 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.model.DownloadQualityChoice
+import cn.partialy.pm.model.MusicQualityAccessPolicy
+import cn.partialy.pm.model.MusicQualityAccessState
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
-import cn.partialy.pm.model.downloadOptionsForSongType
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.kw.KwRepository
 import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.network.wy.WyRepository
@@ -45,7 +47,11 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 Toast.makeText(this@BaseDownloadActivity, "本地歌曲不支持在线下载", Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            val options = downloadOptionsForSongType(songInfo.type)
+            val session = AccountSessionStore.read(this@BaseDownloadActivity)
+            val options = MusicQualityAccessPolicy.optionsFor(
+                songInfo.type,
+                MusicQualityAccessState(session.loggedIn, session.vipActive),
+            )
             if (options.isEmpty()) {
                 Toast.makeText(this@BaseDownloadActivity, "当前音源暂无可选音质", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -57,6 +63,17 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 options,
                 song = songInfo,
             ) ?: return@launch
+
+            val latestSession = AccountSessionStore.read(this@BaseDownloadActivity)
+            val stillAllowed = MusicQualityAccessPolicy.isChoiceAllowed(
+                songInfo.type,
+                selected.choice,
+                MusicQualityAccessState(latestSession.loggedIn, latestSession.vipActive),
+            )
+            if (!stillAllowed) {
+                Toast.makeText(this@BaseDownloadActivity, "当前音质不可用，请重新选择", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
 
             val downloadInfo = when (val c = selected.choice) {
                 is DownloadQualityChoice.Kugou -> kgRepository.getDownloadUrl(songInfo, c.quality)

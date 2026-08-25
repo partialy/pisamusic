@@ -51,6 +51,18 @@
                 tools:visibility="visible" />
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/optionBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="需登录"
+            tools:visibility="visible" />
+
         <ImageView
             android:id="@+id/optionCheck"
             android:layout_width="24dp"

@@ -64,9 +64,10 @@ import cn.partialy.pm.listen.toSongInfo
 import cn.partialy.pm.lyric.LyricContent
 import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.LyricRepository
+import cn.partialy.pm.model.MusicQualityAccessPolicy
+import cn.partialy.pm.model.MusicQualityAccessState
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
-import cn.partialy.pm.model.downloadOptionsForSongType
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.player.songIdentityKey
 import cn.partialy.pm.ui.dialog.ListenTogetherMemberActionMenu
@@ -335,13 +336,20 @@ class PlayerActivity : BaseDownloadActivity() {
             return
         }
 
-        val options = downloadOptionsForSongType(song.type)
-        if (options.isEmpty()) {
-            Toast.makeText(this, R.string.toast_playback_quality_no_options, Toast.LENGTH_SHORT).show()
-            return
-        }
-
         lifecycleScope.launch {
+            val session = AccountSessionStore.read(this@PlayerActivity)
+            val options = MusicQualityAccessPolicy.optionsFor(
+                song.type,
+                MusicQualityAccessState(session.loggedIn, session.vipActive),
+            )
+            if (options.isEmpty()) {
+                Toast.makeText(
+                    this@PlayerActivity,
+                    R.string.toast_playback_quality_no_options,
+                    Toast.LENGTH_SHORT,
+                ).show()
+                return@launch
+            }
             val selected = showDownloadQualityPicker(
                 context = this@PlayerActivity,
                 songSubtitle = "${song.artist} - ${song.name}",
@@ -352,6 +360,21 @@ class PlayerActivity : BaseDownloadActivity() {
 
             val current = musicController.currentSong.value
             if (current == null || current.id != song.id || current.type != song.type) return@launch
+
+            val latestSession = AccountSessionStore.read(this@PlayerActivity)
+            val stillAllowed = MusicQualityAccessPolicy.isChoiceAllowed(
+                song.type,
+                selected.choice,
+                MusicQualityAccessState(latestSession.loggedIn, latestSession.vipActive),
+            )
+            if (!stillAllowed) {
+                Toast.makeText(
+                    this@PlayerActivity,
+                    "当前音质不可用，请重新选择",
+                    Toast.LENGTH_SHORT,
+                ).show()
+                return@launch
+            }
 
             Toast.makeText(
                 this@PlayerActivity,
