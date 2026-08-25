@@ -83,6 +83,14 @@ function resolveSettingTab(value: unknown): SettingTab {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 }
 
 :deep(.n-tabs) {
@@ -117,13 +125,24 @@ function resolveSettingTab(value: unknown): SettingTab {
   overflow-y: auto;
   padding-right: 12px;
   padding-bottom: 40px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 
   &::-webkit-scrollbar {
-    width: 6px;
+    display: none;
+    width: 0;
+    height: 0;
   }
-  &::-webkit-scrollbar-thumb {
-    background-color: var(--color-scroll-thumb, rgba(140, 140, 140, 0.28));
-    border-radius: 4px;
-  }
+}
+
+:deep(*::-webkit-scrollbar) {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+:deep(*) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 </style>

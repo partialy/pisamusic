@@ -3,15 +3,20 @@
     v-model:show="showPopover"
     :disabled="disabled || !options.length"
     :placement="placement"
+    :z-index="zIndex"
     trigger="click"
     show-arrow
-    style="padding: 6px; border-radius: 12px; min-width: 160px; max-height: 320px; overflow-y: auto;"
+    style="padding: 6px; border-radius: 12px; min-width: 160px; overflow: hidden;"
     class="music-quality-popover"
   >
     <template #trigger>
       <slot />
     </template>
-    <div class="quality-options-list" role="listbox">
+    <div
+      class="quality-options-list"
+      role="listbox"
+      @wheel.prevent.stop
+    >
       <div
         v-for="option in options"
         :key="option.key"
@@ -43,11 +48,13 @@ const props = withDefaults(
     options: QualityAccessOption[];
     placement?: "top" | "bottom" | "top-start" | "top-end" | "bottom-start" | "bottom-end";
     disabled?: boolean;
+    zIndex?: number;
   }>(),
   {
     modelValue: "",
     placement: "top",
     disabled: false,
+    zIndex: 3500,
   },
 );
 
@@ -74,6 +81,8 @@ function handleSelect(option: QualityAccessOption) {
   flex-direction: column;
   gap: 2px;
   user-select: none;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .quality-option-item {
@@ -124,6 +133,20 @@ function handleSelect(option: QualityAccessOption) {
     font-weight: 700;
     line-height: 1.2;
     letter-spacing: 0;
+  }
+}
+</style>
+
+<style lang="scss">
+.music-quality-popover {
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+
+  &::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
   }
 }
 </style>

@@ -42,6 +42,7 @@
                 v-model="qualityKey"
                 :options="qualityOptions"
                 placement="bottom"
+                :z-index="3500"
                 @login-required="openAccountLogin">
                 <div class="quality-selector-box">
                   <span class="selected-quality-label">{{ selectedQualityOption?.label || "选择音质" }}</span>
