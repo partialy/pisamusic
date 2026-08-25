@@ -36,5 +36,8 @@ interface PlaybackMediaCache {
 
     fun clear(): PlaybackCacheSnapshot
 
+    /** 仅在播放器彻底释放时清理进程内取链描述和短期地址。 */
+    fun clearRuntimeOrigins()
+
     fun release()
 }

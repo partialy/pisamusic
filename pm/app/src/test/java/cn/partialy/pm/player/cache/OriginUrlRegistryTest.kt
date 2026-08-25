@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class OriginUrlRegistryTest {
 
     @Test
-    fun `fresh reads resolve once and invalidation forces next resolve`() = runBlocking {
+    fun `fresh reads resolve once`() = runBlocking {
         var nowMillis = 1_000L
         val resolveCount = AtomicInteger()
         val registry = OriginUrlRegistry(
@@ -26,10 +26,31 @@ class OriginUrlRegistryTest {
 
         assertEquals("https://example.test/audio-1.mp3", registry.resolve(CACHE_KEY))
         assertEquals("https://example.test/audio-1.mp3", registry.resolve(CACHE_KEY))
+        assertEquals(1, resolveCount.get())
+    }
 
-        registry.invalidate(CACHE_KEY)
+    @Test
+    fun `stale concurrent rejections reuse the first refreshed url`() = runBlocking {
+        val resolveCount = AtomicInteger()
+        val registry = OriginUrlRegistry(
+            resolver = {
+                "https://example.test/audio-${resolveCount.incrementAndGet()}.mp3"
+            },
+            nowMillis = { 1_000L },
+        )
+        registry.register(CACHE_KEY, descriptor())
 
-        assertEquals("https://example.test/audio-2.mp3", registry.resolve(CACHE_KEY))
+        val firstRejectedUrl = registry.resolve(CACHE_KEY)
+        val secondRejectedUrl = registry.resolve(CACHE_KEY)
+        assertEquals(firstRejectedUrl, secondRejectedUrl)
+        assertEquals(
+            "https://example.test/audio-2.mp3",
+            registry.refreshAfterRejection(CACHE_KEY, firstRejectedUrl),
+        )
+        assertEquals(
+            "https://example.test/audio-2.mp3",
+            registry.refreshAfterRejection(CACHE_KEY, secondRejectedUrl),
+        )
         assertEquals(2, resolveCount.get())
     }
 

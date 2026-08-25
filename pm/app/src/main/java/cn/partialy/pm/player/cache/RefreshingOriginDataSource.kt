@@ -47,6 +47,7 @@ class RefreshingOriginDataSource private constructor(
 ) : DataSource {
     private val transferListeners = CopyOnWriteArrayList<TransferListener>()
     private var activeDelegate: DataSource? = null
+    private var logicalUri: Uri? = null
 
     override fun addTransferListener(transferListener: TransferListener) {
         transferListeners += transferListener
@@ -60,13 +61,20 @@ class RefreshingOriginDataSource private constructor(
         if (registry.descriptor(cacheKey) == null) {
             throw IOException("origin descriptor is not registered for cache key: $cacheKey")
         }
+        logicalUri = dataSpec.uri
 
         return try {
-            openFreshDelegate(dataSpec.withResolvedUri(registry.resolveBlocking(cacheKey)))
-        } catch (error: HttpDataSource.InvalidResponseCodeException) {
-            if (error.responseCode != 401 && error.responseCode != 403) throw error
-            registry.invalidate(cacheKey)
-            openFreshDelegate(dataSpec.withResolvedUri(registry.resolveBlocking(cacheKey)))
+            val resolvedUrl = registry.resolveBlocking(cacheKey)
+            try {
+                openFreshDelegate(dataSpec.withResolvedUri(resolvedUrl))
+            } catch (error: HttpDataSource.InvalidResponseCodeException) {
+                if (error.responseCode != 401 && error.responseCode != 403) throw error
+                val refreshedUrl = registry.refreshAfterRejectionBlocking(cacheKey, resolvedUrl)
+                openFreshDelegate(dataSpec.withResolvedUri(refreshedUrl))
+            }
+        } catch (error: Throwable) {
+            logicalUri = null
+            throw error
         }
     }
 
@@ -74,19 +82,25 @@ class RefreshingOriginDataSource private constructor(
         activeDelegate?.read(buffer, offset, length)
             ?: throw IOException("data source is not open")
 
-    override fun getUri(): Uri? = activeDelegate?.uri
+    // CacheDataSource 只能看到逻辑 URI，禁止把源站 URL 写入 redirected URI metadata。
+    override fun getUri(): Uri? = logicalUri
 
     override fun getResponseHeaders(): Map<String, List<String>> =
         activeDelegate?.responseHeaders ?: emptyMap()
 
     override fun close() {
+        logicalUri = null
+        closeDelegate()
+    }
+
+    private fun closeDelegate() {
         val delegate = activeDelegate
         activeDelegate = null
         delegate?.close()
     }
 
     private fun openFreshDelegate(dataSpec: DataSpec): Long {
-        close()
+        closeDelegate()
         val delegate = httpDataSourceFactory.createDataSource()
         transferListeners.forEach(delegate::addTransferListener)
         activeDelegate = delegate
@@ -105,6 +119,11 @@ class RefreshingOriginDataSource private constructor(
 
     private fun OriginUrlRegistry.resolveBlocking(cacheKey: String): String =
         runBlocking { resolve(cacheKey) }
+
+    private fun OriginUrlRegistry.refreshAfterRejectionBlocking(
+        cacheKey: String,
+        rejectedUrl: String,
+    ): String = runBlocking { refreshAfterRejection(cacheKey, rejectedUrl) }
 
     private fun DataSpec.withResolvedUri(url: String): DataSpec = buildUpon()
         .setUri(Uri.parse(url))

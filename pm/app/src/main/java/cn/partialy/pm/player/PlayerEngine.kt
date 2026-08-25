@@ -332,8 +332,14 @@ class PlayerEngine(
         val player = exoPlayer ?: return
         val song = playlistManager.playList.value.getOrNull(player.currentMediaItemIndex) ?: return
         if (song.type == SongType.LOCAL) return
-        val resolvedUrl = player.currentMediaItem?.localConfiguration?.uri?.toString().orEmpty()
-        val quality = factory.playbackQualityKeyOf(song)
+        val currentMediaItem = player.currentMediaItem
+        val resolvedUrl = currentMediaItem?.localConfiguration?.uri?.toString().orEmpty()
+        val quality = currentMediaItem
+            ?.let { runCatching { playbackMediaCache.qualityKeyOf(song, it) }.getOrNull() }
+            ?: runCatching { factory.playbackQualityKeyOf(song) }
+                .getOrNull()
+                ?.takeIf(String::isNotBlank)
+            ?: "unknown"
         CoroutineScope(Dispatchers.IO).launch {
             playbackFaultRecorder.recordPlayerFailure(
                 song = song,
@@ -907,6 +913,7 @@ class PlayerEngine(
         mediaSession?.release()
         mediaSession = null
         player?.release()
+        playbackMediaCache.clearRuntimeOrigins()
         playbackMediaCache.release()
     }
 

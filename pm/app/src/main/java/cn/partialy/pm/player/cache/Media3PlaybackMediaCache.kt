@@ -114,6 +114,10 @@ class Media3PlaybackMediaCache @Inject constructor(
         return cleared
     }
 
+    override fun clearRuntimeOrigins() {
+        registry.clear()
+    }
+
     override fun release() {
         cacheStore.release()
     }

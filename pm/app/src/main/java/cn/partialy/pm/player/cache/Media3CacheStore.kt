@@ -11,6 +11,7 @@ import androidx.media3.datasource.TransferListener
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.ContentMetadata
+import androidx.media3.datasource.cache.ContentMetadataMutations
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.source.MediaSource
@@ -106,11 +107,32 @@ class Media3CacheStore @Inject constructor(
         cacheResource.release()
     }
 
-    private fun createCache(): SimpleCache = SimpleCache(
-        File(applicationContext.cacheDir, AUDIO_CACHE_DIR).apply { mkdirs() },
-        LeastRecentlyUsedCacheEvictor(SettingsPrefs.getAudioCacheMaxBytes(applicationContext)),
-        StandaloneDatabaseProvider(applicationContext),
-    )
+    private fun createCache(): SimpleCache {
+        val cache = SimpleCache(
+            File(applicationContext.cacheDir, AUDIO_CACHE_DIR).apply { mkdirs() },
+            LeastRecentlyUsedCacheEvictor(SettingsPrefs.getAudioCacheMaxBytes(applicationContext)),
+            StandaloneDatabaseProvider(applicationContext),
+        )
+        return try {
+            // 兼容旧版本曾写入的真实重定向地址：只移除 metadata，不删除 Span 或目录记录。
+            cache.keys.forEach { cacheKey ->
+                val metadata = cache.getContentMetadata(cacheKey)
+                if (ContentMetadata.getRedirectedUri(metadata) != null) {
+                    val mutations = ContentMetadataMutations()
+                    ContentMetadataMutations.setRedirectedUri(mutations, null)
+                    cache.applyContentMetadataMutations(cacheKey, mutations)
+                }
+            }
+            cache
+        } catch (error: Throwable) {
+            try {
+                cache.release()
+            } catch (releaseError: Throwable) {
+                error.addSuppressed(releaseError)
+            }
+            throw error
+        }
+    }
 
     companion object {
         private const val AUDIO_CACHE_DIR = "audio_player_cache"
