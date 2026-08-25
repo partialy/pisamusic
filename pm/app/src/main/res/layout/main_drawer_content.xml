@@ -151,16 +151,10 @@
                 tools:text="酷狗用户" />
 
             <TextView
+                android:id="@+id/drawerKgSourceTag"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:background="@drawable/bg_drawer_badge_kg"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="2dp"
-                android:text="@string/drawer_badge_kg"
-                android:textColor="@color/white"
-                android:textSize="10sp"
-                android:textStyle="bold"
                 tools:ignore="SmallSp" />
         </LinearLayout>
 
@@ -198,16 +192,10 @@
                 tools:text="网易用户" />
 
             <TextView
+                android:id="@+id/drawerWySourceTag"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:background="@drawable/bg_drawer_badge_wy"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="2dp"
-                android:text="@string/drawer_badge_wy"
-                android:textColor="@color/white"
-                android:textSize="10sp"
-                android:textStyle="bold"
                 tools:ignore="SmallSp" />
         </LinearLayout>
         <LinearLayout

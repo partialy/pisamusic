@@ -233,8 +233,6 @@
     <string name="scan_album">从相册选择</string>
     <string name="scan_album_decode_failed">未识别到二维码</string>
     <string name="scan_album_open_failed">无法打开相册</string>
-    <string name="drawer_badge_kg">KG</string>
-    <string name="drawer_badge_wy">WY</string>
     <string name="drawer_not_logged_in">未登录</string>
     <string name="drawer_more">更多</string>
     <string name="drawer_more_login_kg">登录KG</string>

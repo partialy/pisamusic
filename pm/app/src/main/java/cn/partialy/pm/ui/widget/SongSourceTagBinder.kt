@@ -2,7 +2,9 @@ package cn.partialy.pm.ui.widget
 
 import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import cn.partialy.pm.R
@@ -12,6 +14,8 @@ import cn.partialy.pm.model.SongType
  * Element UI `el-tag` 风格：细边框 + 浅色底 + 同色字，用于歌曲来源 KG / KW / WY / LOCAL。
  */
 object SongSourceTagBinder {
+
+    private const val SINGLE_LETTER_TAG_SIZE_DP = 16f
 
     enum class Surface {
         /** 列表、Sheet 等普通表面 */
@@ -31,7 +35,16 @@ object SongSourceTagBinder {
         val radiusPx = dp(ctx, 1.5f)
         val padH = dp(ctx, 3f).toInt()
         val padV = dp(ctx, 0.5f).toInt().coerceAtLeast(1)
-        tagView.setPadding(padH, padV, padH, padV)
+        if (type.isSingleLetterTag()) {
+            val sizePx = dp(ctx, SINGLE_LETTER_TAG_SIZE_DP).toInt()
+            tagView.setPadding(0, 0, 0, 0)
+            tagView.gravity = Gravity.CENTER
+            tagView.updateSize(sizePx, sizePx)
+        } else {
+            tagView.setPadding(padH, padV, padH, padV)
+            tagView.gravity = Gravity.NO_GRAVITY
+            tagView.updateSize(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
         tagView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9f)
         tagView.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
@@ -46,10 +59,19 @@ object SongSourceTagBinder {
     }
 
     private fun label(type: SongType): String = when (type) {
-        SongType.KG -> "KG"
+        SongType.KG -> "K"
         SongType.KW -> "KW"
-        SongType.WY -> "WY"
+        SongType.WY -> "Y"
         SongType.LOCAL -> "LOCAL"
+    }
+
+    private fun SongType.isSingleLetterTag(): Boolean = this == SongType.KG || this == SongType.WY
+
+    private fun TextView.updateSize(width: Int, height: Int) {
+        layoutParams = layoutParams.apply {
+            this.width = width
+            this.height = height
+        }
     }
 
     private fun colors(ctx: android.content.Context, type: SongType, surface: Surface): Triple<Int, Int, Int> {

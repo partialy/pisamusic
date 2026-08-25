@@ -49,6 +49,7 @@ import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.mine.MineFragment
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.DownloadPathManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -375,6 +376,8 @@ class MainActivity : BaseDownloadActivity() {
         val inflated = MainDrawerContentBinding.inflate(layoutInflater, binding.mainDrawerPanel, true)
         inflated.drawerScanButton.setOnClickListener { startDrawerQrScan() }
         inflated.drawerCloseButton.setOnClickListener { closeMainDrawer() }
+        SongSourceTagBinder.bind(inflated.drawerKgSourceTag, SongType.KG)
+        SongSourceTagBinder.bind(inflated.drawerWySourceTag, SongType.WY)
         drawerContentBinding = inflated
         setupDrawerFooterActions(inflated)
         setupDrawerThirdPartyActions(inflated)
