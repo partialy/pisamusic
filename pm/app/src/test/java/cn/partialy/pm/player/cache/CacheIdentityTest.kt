@@ -25,6 +25,14 @@ class CacheIdentityTest {
     }
 
     @Test
+    fun `nul in fields cannot create an identity boundary collision`() {
+        val first = CacheIdentity.create("a\u0000b", "c", "d")
+        val second = CacheIdentity.create("a", "b\u0000c", "d")
+
+        assertNotEquals(first.cacheKey, second.cacheKey)
+    }
+
+    @Test
     fun `blank quality defaults without sharing another quality`() {
         val defaultIdentity = CacheIdentity.create("wy", "123", "  ")
 

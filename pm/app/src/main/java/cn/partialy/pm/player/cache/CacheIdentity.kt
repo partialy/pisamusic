@@ -1,6 +1,8 @@
 package cn.partialy.pm.player.cache
 
 import java.net.URI
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 import java.security.MessageDigest
 import java.util.Locale
 
@@ -21,7 +23,7 @@ object CacheIdentity {
             normalizedSource,
             normalizedSongId,
             normalizedQuality,
-        ).joinToString(separator = CANONICAL_SEPARATOR)
+        )
         val cacheKey = canonicalIdentity.sha256()
 
         return PlaybackCacheIdentity(
@@ -39,12 +41,24 @@ object CacheIdentity {
         return normalized
     }
 
-    private fun String.sha256(): String = MessageDigest
+    private fun List<String>.sha256(): String = MessageDigest
         .getInstance("SHA-256")
-        .digest(toByteArray(Charsets.UTF_8))
+        .digest(toCanonicalBytes())
         .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
+    /** 用字段长度前缀编码，避免字段内容中的分隔符造成身份边界碰撞。 */
+    private fun List<String>.toCanonicalBytes(): ByteArray {
+        val output = ByteArrayOutputStream()
+        DataOutputStream(output).use { data ->
+            for (value in this) {
+                val bytes = value.toByteArray(Charsets.UTF_8)
+                data.writeInt(bytes.size)
+                data.write(bytes)
+            }
+        }
+        return output.toByteArray()
+    }
+
     private const val DEFAULT_QUALITY_KEY = "default"
-    private const val CANONICAL_SEPARATOR = "\u0000"
     const val LOGICAL_URI_PREFIX = "pmcache://media/"
 }
