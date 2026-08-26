@@ -2,26 +2,18 @@ package cn.partialy.pm.activity
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
-import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
-import androidx.annotation.OptIn
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
-import androidx.core.widget.ImageViewCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityPlaylistDetailBinding
@@ -32,6 +24,7 @@ import cn.partialy.pm.model.toCanonicalPlaylist
 import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.network.cookie.model.toSongInfoOrNull
 import cn.partialy.pm.ui.dialog.PlaylistActionBottomSheet
+import cn.partialy.pm.ui.dialog.ShareBottomSheet
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
@@ -45,12 +38,9 @@ import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import kotlin.math.max
-import kotlin.math.min
 
 /**
  * 网易云歌单详情：布局与交互同 [PlaylistDetailActivity]，曲目来自网关
@@ -74,11 +64,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
     private lateinit var storageType: CollectedPlaylistType
     /** 后台全量加载协程 */
     private var allTracksLoadJob: Job? = null
-
-    private var toolbarScrollOffsetStablePx: Int = 0
-    private var lastHeaderIconTint: Int = android.graphics.Color.WHITE
-    private var isDarkMode: Boolean = false
-    private lateinit var insetsController: WindowInsetsControllerCompat
 
     private val headerAdapter = PlaylistDetailHeaderAdapter()
     private lateinit var contentAdapter: PlaylistDetailContentAdapter
@@ -108,7 +93,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         contentAdapter = createContentAdapter()
         setupListView()
         setupPlayAllButtons()
-        setupScrollBehavior()
         setupMiniPlayer()
         observeCollectionState()
 
@@ -141,8 +125,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
 
     /** 顶栏高度适配 StatusBar、按钮点击 */
     private fun setupHeaderBar() {
-        isDarkMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        insetsController = WindowInsetsControllerCompat(window, binding.root)
         val baseHeaderHeightPx = (56f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.headerBar) { v, insets ->
@@ -153,7 +135,12 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         }
 
         binding.backButton.setOnClickListener { finishAnimated() }
-        binding.playlistCollectButton.setOnClickListener { togglePlaylistCollect() }
+        binding.shareButton.setOnClickListener {
+            ShareBottomSheet.showPlaylist(
+                this,
+                buildWyCollectedPlaylistForStorage().toCanonicalPlaylist(),
+            )
+        }
         binding.moreButton.setOnClickListener {
             val playlist = buildWyCollectedPlaylistForStorage()
             val deleteTarget = playlistCollectionManager.findWyLikeCollected(pagingPlaylistId)
@@ -165,14 +152,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                 onDeleted = { finishAnimated() },
             )
         }
-
-        binding.headerBg.alpha = 0f
-        applyStatusBarIconStyle(0f)
-        lastHeaderIconTint = ContextCompat.getColor(this, android.R.color.white)
-        binding.backButton.setColorFilter(lastHeaderIconTint)
-        applyPlaylistCollectButtonTint()
-        binding.moreButton.setColorFilter(lastHeaderIconTint)
-        binding.playlistTitleHeaderTextView.isVisible = false
     }
 
     /** RecyclerView + Adapter + 用 Intent 数据填充初始 Header */
@@ -207,44 +186,9 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
             headerAdapter = headerAdapter,
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
+            onToggleCollect = ::togglePlaylistCollect,
         )
-        ImageViewCompat.setImageTintList(
-            binding.stickyPlayAllBar.btnPlayAllSticky,
-            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
-        )
-        binding.playlistCollectButton.isVisible = true
         syncPlaylistCollectButton()
-    }
-
-    /** 滚动监听：只处理顶栏透明度和图标颜色。 */
-    private fun setupScrollBehavior() {
-        val triggerPx = (180f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                val lm = recyclerView.layoutManager as? LinearLayoutManager ?: return
-                val v0 = lm.findViewByPosition(0)
-                val raw = if (v0 != null) {
-                    (recyclerView.paddingTop - lm.getDecoratedTop(v0)).coerceAtLeast(0)
-                } else {
-                    recyclerView.computeVerticalScrollOffset().coerceAtLeast(0)
-                }
-                toolbarScrollOffsetStablePx = mergeToolbarScrollStable(
-                    prev = toolbarScrollOffsetStablePx, raw = raw, dy = dy,
-                )
-                val alpha = (toolbarScrollOffsetStablePx.toFloat() / triggerPx).coerceIn(0f, 1f)
-                val barOpaque = alpha >= 1f
-                binding.headerBg.alpha = alpha
-                applyStatusBarIconStyle(alpha)
-
-                val iconTint = if (alpha < 0.5f) android.R.color.white else R.color.home_tab_unselected
-                val color = ContextCompat.getColor(this@WyPlaylistDetailActivity, iconTint)
-                lastHeaderIconTint = color
-                binding.backButton.setColorFilter(color)
-                applyPlaylistCollectButtonTint()
-                binding.moreButton.setColorFilter(color)
-                binding.playlistTitleHeaderTextView.isVisible = barOpaque
-            }
-        })
     }
 
     /** 底部迷你播放条 */
@@ -271,15 +215,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         }
     }
 
-    /** 根据滚动偏移设置状态栏图标颜色 */
-    private fun applyStatusBarIconStyle(headerAlpha: Float) {
-        if (isDarkMode) {
-            insetsController.isAppearanceLightStatusBars = false
-            return
-        }
-        insetsController.isAppearanceLightStatusBars = headerAlpha >= 0.5f
-    }
-
     private fun parseStorageType(name: String?): CollectedPlaylistType {
         val t = runCatching { CollectedPlaylistType.valueOf(name.orEmpty()) }.getOrNull()
         return when (t) {
@@ -292,23 +227,13 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         playlistCollectionManager.isCollected(CollectedPlaylistType.WY, pagingPlaylistId) ||
             playlistCollectionManager.isCollected(CollectedPlaylistType.IMPORT_WY, pagingPlaylistId)
 
-    private fun applyPlaylistCollectButtonTint() {
-        if (!binding.playlistCollectButton.isVisible) return
-        val collected = isWyPlaylistCollected()
-        val tint = if (collected) {
-            ContextCompat.getColor(this, R.color.red)
-        } else {
-            lastHeaderIconTint
-        }
-        binding.playlistCollectButton.setColorFilter(tint)
-    }
-
     private fun syncPlaylistCollectButton() {
-        val collected = isWyPlaylistCollected()
-        binding.playlistCollectButton.setImageResource(
-            if (collected) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
+        val supported = pagingPlaylistId.isNotBlank()
+        headerAdapter.updateCollectionState(
+            visible = true,
+            enabled = supported,
+            collected = supported && isWyPlaylistCollected(),
         )
-        applyPlaylistCollectButtonTint()
     }
 
     private fun buildWyCollectedPlaylistForStorage(): CollectedPlaylist {
@@ -328,44 +253,15 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
 
     private fun togglePlaylistCollect() {
         if (pagingPlaylistId.isBlank()) return
-        val existing = playlistCollectionManager.findWyLikeCollected(pagingPlaylistId)
-        if (existing != null) {
-            playlistCollectionManager.removePlaylist(existing.type, existing.id)
-        } else {
-            playlistCollectionManager.addNetworkPlaylist(buildWyCollectedPlaylistForStorage())
+        when {
+            playlistCollectionManager.isCollected(CollectedPlaylistType.WY, pagingPlaylistId) ->
+                playlistCollectionManager.removePlaylist(CollectedPlaylistType.WY, pagingPlaylistId)
+            playlistCollectionManager.isCollected(CollectedPlaylistType.IMPORT_WY, pagingPlaylistId) ->
+                playlistCollectionManager.removePlaylist(CollectedPlaylistType.IMPORT_WY, pagingPlaylistId)
+            else ->
+                playlistCollectionManager.addNetworkPlaylist(buildWyCollectedPlaylistForStorage())
         }
         syncPlaylistCollectButton()
-    }
-
-    private fun mergeToolbarScrollStable(prev: Int, raw: Int, dy: Int): Int {
-        val d = resources.displayMetrics.density
-        val slack = (28f * d).toInt().coerceAtLeast(20)
-        val layoutSlack = (72f * d).toInt().coerceAtLeast(56)
-        return when {
-            dy < 0 -> {
-                val drop = prev - raw
-                if (raw < prev && drop > (-dy) + slack && (-dy) * 2 < drop) {
-                    prev
-                } else {
-                    min(prev, raw)
-                }
-            }
-            dy > 0 -> {
-                val rise = raw - prev
-                if (raw > prev && rise > dy + slack && dy * 2 < rise) {
-                    prev
-                } else {
-                    max(prev, raw)
-                }
-            }
-            else -> {
-                when {
-                    raw < prev - layoutSlack -> prev
-                    raw > prev + layoutSlack -> raw
-                    else -> raw
-                }
-            }
-        }.coerceAtLeast(0)
     }
 
     private fun applyPlaylistDetailInsets() {
@@ -373,27 +269,18 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         val overlapPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_overlap)
         val miniHeightPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_height)
         binding.root.applySystemBarsInsets { insets ->
-            val lp = binding.homeMiniPlayer.root.layoutParams as ConstraintLayout.LayoutParams
-            lp.bottomMargin = miniBottomBase + overlapPx + insets.bottom
-            binding.homeMiniPlayer.root.layoutParams = lp
-
-            val listPadBottom = miniHeightPx + miniBottomBase + insets.bottom
-            binding.recyclerView.updatePadding(bottom = listPadBottom)
+            binding.recyclerView.updatePadding(
+                bottom = miniHeightPx + miniBottomBase + insets.bottom,
+            )
+            val miniLayoutParams = binding.homeMiniPlayer.root.layoutParams as ConstraintLayout.LayoutParams
+            miniLayoutParams.bottomMargin = miniBottomBase + overlapPx + insets.bottom
+            binding.homeMiniPlayer.root.layoutParams = miniLayoutParams
         }
     }
 
     private fun finishAnimated() {
         finish()
         AppActivityTransitions.applyBack(this)
-    }
-
-    override fun onDestroy() {
-        allTracksLoadJob?.cancel()
-        allTracksLoadJob = null
-        miniPlayerBinder?.onDestroy()
-        miniPlayerBinder = null
-        if (::interactionController.isInitialized) interactionController.dispose()
-        super.onDestroy()
     }
 
     private fun openSongMoreMenu(song: SongInfo) {
@@ -482,6 +369,16 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        if (::interactionController.isInitialized) {
+            interactionController.dispose()
+        }
+        miniPlayerBinder?.onDestroy()
+        miniPlayerBinder = null
+        allTracksLoadJob?.cancel()
+        super.onDestroy()
     }
 
     companion object {

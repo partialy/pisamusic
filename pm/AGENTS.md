@@ -68,10 +68,10 @@
 - KG / WY 的下载、手动切换播放音质及已保存播放音质必须统一经 `MusicQualityAccessPolicy`：游客保留普通档位但受限项禁用并标记“需登录”，点击受限音质必须关闭当前选择器并进入 PisaMusic `LoginActivity`，不能选中或继续取链；普通系统账号仅可使用 WY 四档与 KG 三档，有效系统 VIP 才可使用完整原始档位，KW / LOCAL 维持原行为。退出登录、后台关闭或到期时，`MediaItemFactory` 必须将越权已保存音质回退到 KG 128、WY standard 或 KW 原默认；不得绕过策略直接取链。
 - `PlayerStateStore` 使用 SharedPreferences + kotlinx.serialization 持久化跨会话播放状态。
 - Mini 播放器封面必须通过 `SongCoverUrl.getSongCoverData(...)` 加载，确保本地歌曲优先显示 `embeddedCoverArt`，不要只走远程封面 URL。
-- 本地歌曲与已下载歌曲列表点击播放时，应把当前完整列表作为播放队列并从点击项开始播放；歌曲更多菜单的“添加到歌单”目标首项为当前播放队列，后续才是本地自建歌单。
-- 酷狗、网易、自建歌单和“我的收藏”详情统一复用 `ui/playlistdetail/` 的 Header、歌曲内容、搜索和顶栏交互模块；搜索只过滤当前显示，播放仍按完整歌单以及 `type + id` 定位。顶栏和播放横幅的空白区域必须消费点击，只有显式“播放全部”动作区可以开始播放。
-- 歌单详情只保留 `activity_playlist_detail.xml` 中一份“播放全部”工具条；RecyclerView Header 的 `playAllAnchor` 仅提供等高定位，`PlaylistDetailInteractionController` 负责让唯一工具条随 Anchor 连续上移并在顶栏下方固定。不得恢复 Header/外层两套工具条按阈值显隐的伪吸顶实现。
-- “我的收藏”详情的右上角搜索入口进入 `LovedSongsSearchActivity` 独立页面，不再显示详情 Header 和吸顶栏的内嵌搜索按钮；独立搜索页按歌名或歌手实时过滤展示，但单击结果与“播放全部”都必须使用按添加时间排序的完整收藏列表作为播放队列。
+- 酷狗、网易、自建歌单和“我的收藏”详情统一复用 `ui/playlistdetail/` 的 Header、歌曲内容、搜索和顶栏交互模块；搜索只过滤当前显示，播放仍按完整歌单以及 `type + id` 定位。Header 使用全宽大封面、顶部 scrim、底部羽化渐变、两行以内标题与描述，以及“播放全部 / 收藏”双按钮。禁止加入分享人、VIP、热播等非产品字段。
+- 顶栏动作顺序固定为搜索、分享、更多；分享复用 `ShareBottomSheet`，更多复用 `PlaylistActionBottomSheet`。顶栏和播放横幅的空白区域必须消费点击，只有显式“播放全部”与播放图标可以开始播放。
+- 歌单详情只保留 `activity_playlist_detail.xml` 中一份 52dp 紧凑吸顶工具条；RecyclerView Header 的 `playAllAnchor` 必须严格等高定位，`PlaylistDetailInteractionController` 负责让唯一工具条随 Anchor 连续上移并在顶栏下方固定；排序与批量操作图标当前仅展示禁用态。不得恢复 Header/外层两套工具条按阈值显隐的伪吸顶实现。
+- 本地歌单和“我的收藏”不可重复收藏，Header 显示禁用的“已收藏”。“我的收藏”右上角搜索入口进入 `LovedSongsSearchActivity` 独立页面；独立搜索页按歌名或歌手实时过滤展示，但单击结果与“播放全部”都必须使用按添加时间排序的完整收藏列表作为播放队列。
 - 播放页 3D 音效入口进入 `AudioEffectsActivity`；音效配置集中在 `audioeffect/` 模块，本地通过 SharedPreferences + kotlinx.serialization 保存，不同步到服务端。`AudioEffectsManager` 绑定 ExoPlayer `audioSessionId` 后使用系统 `DynamicsProcessing` / `Equalizer`、`BassBoost` 生效；宽声场由 Media3 `StereoWidenerAudioProcessor` 在 `DefaultAudioSink` 前做双声道 PCM Mid/Side 处理，处理器旁路时不能直接把同一个 `ByteBuffer` 作为源和目标复制。新增音效能力优先扩展该模块，不要把 AudioEffect 生命周期放进 Activity。
 - 在线歌曲播放失败不再自动跳到当前队列下一曲；失败后按设置里的“自动切换列表”处理，关闭时暂停并提示，开启时切换到本地 / 已缓存 / 已下载歌曲列表。
 - 在线播放缓存只通过 `player/cache/PlaybackMediaCache` 门面访问：队列项先在 IO 登记 descriptor / catalog，再一次性交付 `pmcache://media/<cacheKey>` 逻辑 URI；Main 不得按歌曲写物理缓存目录或 prepare 占位 URI。缓存身份固定为规范化 `source + songId + qualityKey`，每个在线 `MediaItem` 绑定构造时冻结的实际音质，目录同步从当前 player item 校验，不得用之后变化的全局音质偏好推断。

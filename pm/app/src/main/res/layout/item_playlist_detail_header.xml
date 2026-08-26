@@ -6,94 +6,128 @@
     android:background="@color/home_page_bg">
 
     <FrameLayout
-        android:id="@+id/headerBgContainer"
+        android:id="@+id/heroArtworkContainer"
         android:layout_width="0dp"
-        android:layout_height="260dp"
+        android:layout_height="340dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
-            android:id="@+id/headerBgImageView"
+            android:id="@+id/heroCoverImageView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:contentDescription="@null"
-            android:scaleType="centerCrop"
-            android:src="@drawable/bg_mine_header" />
-
-        <ImageView
-            android:id="@+id/headerBlurImageView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:contentDescription="@null"
-            android:scaleType="centerCrop"
-            android:src="@drawable/bg_mine_header" />
+            android:scaleType="centerCrop" />
 
         <View
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#33000000" />
+            android:layout_height="112dp"
+            android:layout_gravity="top"
+            android:background="@drawable/bg_playlist_detail_hero_top_scrim" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="128dp"
+            android:layout_gravity="bottom"
+            android:background="@drawable/bg_playlist_detail_hero_bottom_fade" />
     </FrameLayout>
 
-    <!-- Info row on blurred bg -->
-    <LinearLayout
-        android:id="@+id/infoRow"
+    <TextView
+        android:id="@+id/playlistTitleTextView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="30dp"
-        android:layout_marginBottom="40dp"
-        app:layout_constraintBottom_toBottomOf="@id/headerBgContainer"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="18dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@android:color/white"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@id/heroArtworkContainer"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent" />
 
-        <com.google.android.material.imageview.ShapeableImageView
-            android:id="@+id/coverImageView"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_playlist_24"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.Pm.Corner12" />
+    <TextView
+        android:id="@+id/playlistDescTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="20dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/heroArtworkContainer" />
 
-        <LinearLayout
+    <LinearLayout
+        android:id="@+id/headerButtonsContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/playlistDescTextView"
+        app:layout_goneMarginTop="14dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/headerPlayAllButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_height="52dp"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:background="@drawable/bg_listen_together_create_button"
+            android:stateListAnimator="@null"
+            android:text="@string/play_all"
+            android:textColor="@color/listen_together_create_button_text"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:backgroundTint="@null"
+            app:cornerRadius="16dp"
+            app:elevation="0dp"
+            app:icon="@drawable/ic_play_24"
+            app:iconGravity="textStart"
+            app:iconPadding="6dp"
+            app:iconTint="@color/listen_together_create_button_text"
+            app:rippleColor="#33FFFFFF" />
 
-            <TextView
-                android:id="@+id/playlistTitleTextView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:text="歌单名称"
-                android:textColor="@android:color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/playlistDescTextView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:text="歌单描述"
-                android:textColor="#CCFFFFFF"
-                android:textSize="13sp" />
-        </LinearLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/headerCollectButton"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_listen_together_create_card"
+            android:stateListAnimator="@null"
+            android:text="@string/collect_playlist"
+            android:textColor="@color/home_tab_selected"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:backgroundTint="@null"
+            app:cornerRadius="16dp"
+            app:elevation="0dp"
+            app:icon="@drawable/ic_love_24"
+            app:iconGravity="textStart"
+            app:iconPadding="6dp"
+            app:iconTint="@color/home_tab_selected"
+            app:rippleColor="#1A000000" />
     </LinearLayout>
 
     <!-- 唯一的播放工具条位于 Activity 外层；这里仅保留等高定位占位。 -->
     <Space
         android:id="@+id/playAllAnchor"
         android:layout_width="0dp"
-        android:layout_height="64dp"
+        android:layout_height="52dp"
+        android:layout_marginTop="18dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/headerBgContainer" />
+        app:layout_constraintTop_toBottomOf="@id/headerButtonsContainer" />
 
     <LinearLayout
         android:id="@+id/playlistSearchBarLayout"

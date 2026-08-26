@@ -66,29 +66,42 @@
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="8dp"
                 android:ellipsize="end"
-                android:gravity="center"
+                android:gravity="start|center_vertical"
                 android:maxLines="1"
                 android:textColor="@color/home_mini_player_title"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/playlistCollectButton"
+                app:layout_constraintEnd_toStartOf="@id/searchButton"
                 app:layout_constraintStart_toEndOf="@id/backButton"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <ImageButton
-                android:id="@+id/playlistCollectButton"
+                android:id="@+id/searchButton"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="@android:color/transparent"
-                android:contentDescription="@string/collect_playlist"
+                android:contentDescription="@string/playlist_detail_search_cd"
                 android:padding="8dp"
-                android:src="@drawable/ic_love_24"
-                android:visibility="gone"
+                android:src="@drawable/ic_search_24"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/shareButton"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@android:color/white" />
+
+            <ImageButton
+                android:id="@+id/shareButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/song_more_share"
+                android:padding="8dp"
+                android:src="@drawable/ic_share_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/moreButton"
-                app:layout_constraintTop_toTopOf="parent" />
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@android:color/white" />
 
             <ImageButton
                 android:id="@+id/moreButton"

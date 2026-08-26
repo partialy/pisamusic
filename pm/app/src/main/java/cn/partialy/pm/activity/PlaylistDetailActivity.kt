@@ -29,6 +29,7 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.toCanonicalPlaylist
 import cn.partialy.pm.ui.dialog.PlaylistActionBottomSheet
+import cn.partialy.pm.ui.dialog.ShareBottomSheet
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
@@ -62,16 +63,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     private var playlistApiTotalCount: Int = 0
     /** 后台全量加载协程 */
     private var allTracksLoadJob: Job? = null
-
-    /**
-     * 列表滚动量用于顶栏 alpha。首项很高时 [RecyclerView.computeVerticalScrollOffset]
-     * 与部分帧的 [getDecoratedTop] 会毛刺：往下滚时 offset 偶发变小、**往上滚时偶发偏小**，
-     * 若用 [minOf] 直接吃进偏小值，顶栏会短暂半透明。
-     * 在 [mergeToolbarScrollStable] 里按本帧 [dy] 限制单步变化，过滤与手指位移不匹配的跳变。
-     */
-    private var toolbarScrollOffsetStablePx: Int = 0
-    /** 与返回/更多一致；未收藏歌单时爱心用此色，已收藏时用红色。 */
-    private var lastHeaderIconTint: Int = android.graphics.Color.WHITE
 
     private val headerAdapter = PlaylistDetailHeaderAdapter()
     private lateinit var contentAdapter: PlaylistDetailContentAdapter
@@ -108,17 +99,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         )
 
         val baseHeaderHeightPx = (56f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        val isDarkMode =
-            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        val insetsController = WindowInsetsControllerCompat(window, binding.root)
-
-        fun applyStatusBarIconStyle(headerAlpha: Float) {
-            if (isDarkMode) {
-                insetsController.isAppearanceLightStatusBars = false
-                return
-            }
-            insetsController.isAppearanceLightStatusBars = headerAlpha >= 0.5f
-        }
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.headerBar) { v, insets ->
             val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
@@ -128,7 +108,12 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         }
 
         binding.backButton.setOnClickListener { finishAnimated() }
-        binding.playlistCollectButton.setOnClickListener { togglePlaylistCollect() }
+        binding.shareButton.setOnClickListener {
+            ShareBottomSheet.showPlaylist(
+                this,
+                buildKgCollectedPlaylistForStorage().toCanonicalPlaylist(),
+            )
+        }
         binding.moreButton.setOnClickListener {
             val playlist = buildKgCollectedPlaylistForStorage()
             val deleteTarget = playlistCollectionManager.findKgLikeCollected(pagingPlaylistId)
@@ -175,48 +160,8 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
             headerAdapter = headerAdapter,
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
+            onToggleCollect = ::togglePlaylistCollect,
         )
-        ImageViewCompat.setImageTintList(
-            binding.stickyPlayAllBar.btnPlayAllSticky,
-            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
-        )
-
-        val triggerPx = (180f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-        binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                val lm = recyclerView.layoutManager as? LinearLayoutManager ?: return
-                val v0 = lm.findViewByPosition(0)
-                val raw = if (v0 != null) {
-                    (recyclerView.paddingTop - lm.getDecoratedTop(v0)).coerceAtLeast(0)
-                } else {
-                    recyclerView.computeVerticalScrollOffset().coerceAtLeast(0)
-                }
-                toolbarScrollOffsetStablePx = mergeToolbarScrollStable(
-                    prev = toolbarScrollOffsetStablePx,
-                    raw = raw,
-                    dy = dy,
-                )
-                val a = (toolbarScrollOffsetStablePx.toFloat() / triggerPx).coerceIn(0f, 1f)
-                val barOpaque = a >= 1f
-                binding.headerBg.alpha = a
-                applyStatusBarIconStyle(a)
-                val iconTint = if (a < 0.5f) android.R.color.white else R.color.home_tab_unselected
-                val color = ContextCompat.getColor(this@PlaylistDetailActivity, iconTint)
-                lastHeaderIconTint = color
-                binding.backButton.setColorFilter(color)
-                applyPlaylistCollectButtonTint()
-                binding.moreButton.setColorFilter(color)
-                binding.playlistTitleHeaderTextView.isVisible = barOpaque
-                tryLoadMoreTracks()
-            }
-        })
-        binding.headerBg.alpha = 0f
-        applyStatusBarIconStyle(0f)
-        lastHeaderIconTint = ContextCompat.getColor(this, android.R.color.white)
-        binding.backButton.setColorFilter(lastHeaderIconTint)
-        applyPlaylistCollectButtonTint()
-        binding.moreButton.setColorFilter(lastHeaderIconTint)
-        binding.playlistTitleHeaderTextView.isVisible = false
 
         miniPlayerBinder = HomeMiniPlayerBinder(this, binding.homeMiniPlayer, musicController).apply {
             setupClicks()
@@ -236,13 +181,12 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
 
         if (playlistId.startsWith("collection_")) {
             pagingPlaylistId = playlistId
-            binding.playlistCollectButton.isVisible = true
             syncPlaylistCollectButton()
             lifecycleScope.launch {
                 loadPlaylistInitial(playlistId = playlistId, fallbackCoverUrl = coverUrl)
             }
         } else {
-            binding.playlistCollectButton.isVisible = false
+            syncPlaylistCollectButton()
             contentAdapter.setFirstPageFailed()
         }
     }
@@ -251,24 +195,13 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         playlistCollectionManager.isCollected(CollectedPlaylistType.KG, pagingPlaylistId) ||
             playlistCollectionManager.isCollected(CollectedPlaylistType.IMPORT_KG, pagingPlaylistId)
 
-    private fun applyPlaylistCollectButtonTint() {
-        if (!binding.playlistCollectButton.isVisible) return
-        val collected = pagingPlaylistId.startsWith("collection_") && isKgPlaylistCollected()
-        val tint = if (collected) {
-            ContextCompat.getColor(this, R.color.red)
-        } else {
-            lastHeaderIconTint
-        }
-        binding.playlistCollectButton.setColorFilter(tint)
-    }
-
     private fun syncPlaylistCollectButton() {
-        if (!pagingPlaylistId.startsWith("collection_")) return
-        val collected = isKgPlaylistCollected()
-        binding.playlistCollectButton.setImageResource(
-            if (collected) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
+        val supported = pagingPlaylistId.startsWith("collection_")
+        headerAdapter.updateCollectionState(
+            visible = true,
+            enabled = supported,
+            collected = supported && isKgPlaylistCollected(),
         )
-        applyPlaylistCollectButtonTint()
     }
 
     private fun buildKgCollectedPlaylistForStorage(): CollectedPlaylist {
@@ -297,46 +230,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 playlistCollectionManager.addNetworkPlaylist(buildKgCollectedPlaylistForStorage())
         }
         syncPlaylistCollectButton()
-    }
-
-    /**
-     * 将本帧读到的 [raw] 与上一帧 [prev] 合并：只允许与 [dy] 量级一致的变化，
-     * 避免 RecyclerView 在首项边界处单帧报告离谱 offset。
-     */
-    private fun mergeToolbarScrollStable(prev: Int, raw: Int, dy: Int): Int {
-        val d = resources.displayMetrics.density
-        val slack = (28f * d).toInt().coerceAtLeast(20)
-        val layoutSlack = (72f * d).toInt().coerceAtLeast(56)
-        return when {
-            dy < 0 -> {
-                val drop = prev - raw
-                if (raw < prev && drop > (-dy) + slack && (-dy) * 2 < drop) {
-                    prev
-                } else {
-                    minOf(prev, raw)
-                }
-            }
-            dy > 0 -> {
-                val rise = raw - prev
-                if (raw > prev && rise > dy + slack && dy * 2 < rise) {
-                    prev
-                } else {
-                    maxOf(prev, raw)
-                }
-            }
-            else -> {
-                when {
-                    raw < prev - layoutSlack -> prev
-                    raw > prev + layoutSlack -> raw
-                    else -> raw
-                }
-            }
-        }.coerceAtLeast(0)
-    }
-
-    @Suppress("UNUSED_PARAMETER")
-    private fun tryLoadMoreTracks() {
-        // 已改为后台全量加载，不再需要滚动分页
     }
 
     private fun applyPlaylistDetailInsets() {

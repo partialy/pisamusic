@@ -2,4 +2,7 @@
 <resources>
     <string name="playlist_detail_search_empty">未找到匹配歌曲</string>
     <string name="playlist_detail_search_cd">搜索歌单内歌曲</string>
+    <string name="playlist_detail_collected">已收藏</string>
+    <string name="playlist_detail_sort_cd">排序，暂未开放</string>
+    <string name="playlist_detail_batch_cd">批量操作，暂未开放</string>
 </resources>

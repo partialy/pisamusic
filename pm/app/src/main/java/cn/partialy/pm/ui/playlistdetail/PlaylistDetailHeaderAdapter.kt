@@ -1,8 +1,5 @@
 package cn.partialy.pm.ui.playlistdetail
 
-import android.graphics.RenderEffect
-import android.graphics.Shader
-import android.os.Build
 import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -30,9 +27,14 @@ data class PlaylistDetailHeaderState(
     val searchExpanded: Boolean = false,
     val searchQuery: String = "",
     val searchEnabled: Boolean = true,
+    val collectionVisible: Boolean = false,
+    val collectionEnabled: Boolean = false,
+    val collected: Boolean = false,
 )
 
 internal data class PlaylistDetailHeaderActions(
+    val onPlayAll: () -> Unit = {},
+    val onToggleCollect: () -> Unit = {},
     val onSearchQueryChanged: (String) -> Unit = {},
     val onSearchCancelled: () -> Unit = {},
 )
@@ -58,6 +60,16 @@ class PlaylistDetailHeaderAdapter : RecyclerView.Adapter<PlaylistDetailHeaderAda
             description = description ?: state.description,
             artwork = artwork ?: state.artwork,
             trackCountText = trackCountText ?: state.trackCountText,
+        )
+        notifyItemChanged(0)
+        onStateChanged?.invoke(state)
+    }
+
+    fun updateCollectionState(visible: Boolean, enabled: Boolean, collected: Boolean) {
+        state = state.copy(
+            collectionVisible = visible,
+            collectionEnabled = enabled,
+            collected = collected,
         )
         notifyItemChanged(0)
         onStateChanged?.invoke(state)
@@ -118,6 +130,25 @@ class PlaylistDetailHeaderAdapter : RecyclerView.Adapter<PlaylistDetailHeaderAda
         ) {
             binding.playlistTitleTextView.text = state.title
             binding.playlistDescTextView.text = state.description
+            binding.playlistDescTextView.isVisible = state.description.isNotBlank()
+
+            binding.headerPlayAllButton.setOnClickListener { actions.onPlayAll() }
+            binding.headerCollectButton.isVisible = state.collectionVisible
+            binding.headerCollectButton.isEnabled = state.collectionEnabled
+            binding.headerCollectButton.alpha = if (state.collectionEnabled) 1f else 0.62f
+            binding.headerCollectButton.text = binding.root.context.getString(
+                if (state.collected) R.string.playlist_detail_collected else R.string.collect_playlist,
+            )
+            binding.headerCollectButton.setIconResource(
+                if (state.collected) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
+            )
+            binding.headerCollectButton.setIconTintResource(
+                if (state.collected) R.color.red else R.color.home_tab_selected,
+            )
+            binding.headerCollectButton.setOnClickListener {
+                if (state.collectionEnabled) actions.onToggleCollect()
+            }
+
             bindArtwork(state.artwork)
 
             binding.playlistSearchCancelText.setOnClickListener { actions.onSearchCancelled() }
@@ -143,32 +174,15 @@ class PlaylistDetailHeaderAdapter : RecyclerView.Adapter<PlaylistDetailHeaderAda
 
         private fun bindArtwork(artwork: PlaylistHeaderArtwork) {
             val source = when (artwork) {
-                is PlaylistHeaderArtwork.Remote -> artwork.url.replace("{size}", "240")
+                is PlaylistHeaderArtwork.Remote -> artwork.url.replace("{size}", "480")
                     .takeIf { it.isNotBlank() }
                 is PlaylistHeaderArtwork.DrawableRes -> artwork.resId
                 is PlaylistHeaderArtwork.LocalPlaylist -> localArtworkSource(artwork.value)
             }
-            binding.coverImageView.load(source) {
-                crossfade(true)
-                placeholder(R.drawable.ic_playlist_24)
-                error(R.drawable.ic_playlist_24)
-            }
-            binding.headerBgImageView.load(source) {
+            binding.heroCoverImageView.load(source) {
                 crossfade(true)
                 placeholder(R.drawable.bg_mine_header)
                 error(R.drawable.bg_mine_header)
-            }
-            binding.headerBlurImageView.load(source) {
-                crossfade(true)
-                placeholder(R.drawable.bg_mine_header)
-                error(R.drawable.bg_mine_header)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                binding.headerBlurImageView.setRenderEffect(
-                    RenderEffect.createBlurEffect(220f, 220f, Shader.TileMode.CLAMP),
-                )
-            } else {
-                binding.headerBlurImageView.setRenderEffect(null)
             }
         }
 

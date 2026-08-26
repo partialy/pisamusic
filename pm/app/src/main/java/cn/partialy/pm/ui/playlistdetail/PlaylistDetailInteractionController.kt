@@ -1,11 +1,16 @@
 package cn.partialy.pm.ui.playlistdetail
 
+import android.animation.ArgbEvaluator
 import android.app.Activity
+import android.content.res.Configuration
+import android.graphics.Color
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -18,8 +23,16 @@ class PlaylistDetailInteractionController private constructor(
     private val headerAdapter: PlaylistDetailHeaderAdapter,
     private val contentAdapter: PlaylistDetailContentAdapter,
     private val onPlayAll: () -> Unit,
+    private val onToggleCollect: () -> Unit,
+    private val onSearchRequested: (() -> Unit)? = null,
 ) {
     private var currentQuery: String = headerAdapter.state.searchQuery
+    private val argbEvaluator = ArgbEvaluator()
+    private val insetsController = WindowInsetsControllerCompat(activity.window, binding.root)
+    private val isDarkMode =
+        (activity.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    private val unselectedIconColor =
+        ContextCompat.getColor(activity, R.color.home_tab_unselected)
 
     private val stickyScrollListener = object : RecyclerView.OnScrollListener() {
         override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
@@ -56,6 +69,8 @@ class PlaylistDetailInteractionController private constructor(
     init {
         headerAdapter.setActions(
             PlaylistDetailHeaderActions(
+                onPlayAll = onPlayAll,
+                onToggleCollect = onToggleCollect,
                 onSearchQueryChanged = { query ->
                     currentQuery = query
                     headerAdapter.rememberSearchQuery(query)
@@ -72,11 +87,14 @@ class PlaylistDetailInteractionController private constructor(
             headerGestureDetector.onTouchEvent(event)
             true
         }
-        binding.stickyPlayAllBar.stickyPlayAllRow.setOnClickListener { }
-        binding.stickyPlayAllBar.stickyPlayAllActionContainer.setOnClickListener { onPlayAll() }
-        binding.stickyPlayAllBar.searchPlaylistStickyButton.setOnClickListener {
-            openSearch()
+        binding.searchButton.setOnClickListener {
+            onSearchRequested?.invoke() ?: openSearch()
         }
+        binding.stickyPlayAllBar.stickyPlayAllRow.setOnClickListener { }
+        binding.stickyPlayAllBar.btnPlayAllSticky.setColorFilter(
+            ContextCompat.getColor(activity, R.color.primary),
+        )
+        binding.stickyPlayAllBar.btnPlayAllSticky.setOnClickListener { onPlayAll() }
         binding.stickyPlayAllBar.root.isVisible = true
         binding.stickyPlayAllBar.root.alpha = 0f
         binding.recyclerView.addOnScrollListener(stickyScrollListener)
@@ -103,9 +121,9 @@ class PlaylistDetailInteractionController private constructor(
         headerAdapter.onStateChanged = null
         binding.headerBar.setOnClickListener(null)
         binding.headerBarContent.setOnTouchListener(null)
+        binding.searchButton.setOnClickListener(null)
         binding.stickyPlayAllBar.stickyPlayAllRow.setOnClickListener(null)
-        binding.stickyPlayAllBar.stickyPlayAllActionContainer.setOnClickListener(null)
-        binding.stickyPlayAllBar.searchPlaylistStickyButton.setOnClickListener(null)
+        binding.stickyPlayAllBar.btnPlayAllSticky.setOnClickListener(null)
         binding.recyclerView.removeOnScrollListener(stickyScrollListener)
         binding.recyclerView.removeOnLayoutChangeListener(stickyLayoutListener)
         binding.headerBar.removeOnLayoutChangeListener(stickyLayoutListener)
@@ -129,7 +147,7 @@ class PlaylistDetailInteractionController private constructor(
     private fun syncHeaderState(state: PlaylistDetailHeaderState) {
         binding.playlistTitleHeaderTextView.text = state.title
         binding.stickyPlayAllBar.trackCountTextViewSticky.text = state.trackCountText
-        binding.stickyPlayAllBar.searchPlaylistStickyButton.isVisible = state.searchEnabled
+        binding.searchButton.isVisible = state.searchEnabled || onSearchRequested != null
         binding.stickyPlayAllBar.root.post(::updateStickyPosition)
     }
 
@@ -138,12 +156,34 @@ class PlaylistDetailInteractionController private constructor(
         val sticky = binding.stickyPlayAllBar.root
         if (!sticky.isLaidOut || !binding.headerBar.isLaidOut) return
 
-        val baseTop = sticky.top.toFloat()
+        val stickyTop = sticky.top.toFloat()
         val headerHolder = binding.recyclerView.findViewHolderForAdapterPosition(0)
         val anchor = headerHolder?.itemView?.findViewById<View>(R.id.playAllAnchor)
-        val anchorTop = anchor?.let(::topInRoot) ?: baseTop
-        sticky.translationY = anchorTop.coerceAtLeast(baseTop) - baseTop
+        val anchorTop = anchor?.let(::topInRoot) ?: stickyTop
+        sticky.translationY = anchorTop.coerceAtLeast(stickyTop) - stickyTop
         sticky.alpha = 1f
+
+        val fadeDistance = 72f * activity.resources.displayMetrics.density
+        val chromeProgress = ((stickyTop + fadeDistance - anchorTop) / fadeDistance)
+            .coerceIn(0f, 1f)
+        binding.headerBg.alpha = chromeProgress
+        binding.playlistTitleHeaderTextView.isVisible = chromeProgress >= 0.98f
+
+        val iconColor = argbEvaluator.evaluate(
+            chromeProgress,
+            Color.WHITE,
+            unselectedIconColor,
+        ) as Int
+        binding.backButton.setColorFilter(iconColor)
+        binding.searchButton.setColorFilter(iconColor)
+        binding.shareButton.setColorFilter(iconColor)
+        binding.moreButton.setColorFilter(iconColor)
+
+        if (isDarkMode) {
+            insetsController.isAppearanceLightStatusBars = false
+        } else {
+            insetsController.isAppearanceLightStatusBars = chromeProgress >= 0.55f
+        }
     }
 
     private fun topInRoot(view: View): Float {
@@ -161,12 +201,16 @@ class PlaylistDetailInteractionController private constructor(
             headerAdapter: PlaylistDetailHeaderAdapter,
             contentAdapter: PlaylistDetailContentAdapter,
             onPlayAll: () -> Unit,
+            onToggleCollect: () -> Unit,
+            onSearchRequested: (() -> Unit)? = null,
         ): PlaylistDetailInteractionController = PlaylistDetailInteractionController(
             activity = activity,
             binding = binding,
             headerAdapter = headerAdapter,
             contentAdapter = contentAdapter,
             onPlayAll = onPlayAll,
+            onToggleCollect = onToggleCollect,
+            onSearchRequested = onSearchRequested,
         )
     }
 }

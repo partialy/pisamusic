@@ -121,9 +121,10 @@ class LovedSongsSearchActivity : BaseDownloadActivity() {
         }
         contentAdapter.setStaticSongs(emptyList(), R.string.loved_songs_empty_hint)
 
-        binding.playAllBar.searchPlaylistStickyButton.isVisible = false
+        binding.playAllBar.sortPlaylistButton.isVisible = false
+        binding.playAllBar.batchPlaylistButton.isVisible = false
         binding.playAllBar.stickyPlayAllRow.setOnClickListener { }
-        binding.playAllBar.stickyPlayAllActionContainer.setOnClickListener {
+        binding.playAllBar.btnPlayAllSticky.setOnClickListener {
             allSongs.takeIf { it.isNotEmpty() }?.let(musicController::setPlayList)
         }
         ImageViewCompat.setImageTintList(
