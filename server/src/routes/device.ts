@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { Router } from "express";
+import { recordDeviceDailyActivity } from "../db/analyticsStore";
 import { getDeviceDb } from "../db/deviceInfoDb";
 import { fail, ok } from "../types/response";
 
@@ -157,6 +158,18 @@ deviceRouter.post("/desktop/report", (req: Request, res: Response) => {
     if (!out) {
       res.status(500).json(fail("写入后读取失败", 500));
       return;
+    }
+
+    try {
+      recordDeviceDailyActivity({
+        deviceType: "desktop",
+        deviceId: out.id,
+        appVersion,
+        occurredAt: now,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[analytics] recordDeviceDailyActivity (desktop) failed:", err);
     }
 
     res.json(
@@ -350,6 +363,18 @@ deviceRouter.post("/report", (req: Request, res: Response) => {
     if (!out) {
       res.status(500).json(fail("写入后读取失败", 500));
       return;
+    }
+
+    try {
+      recordDeviceDailyActivity({
+        deviceType: "android",
+        deviceId: out.id,
+        appVersion,
+        occurredAt: now,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[analytics] recordDeviceDailyActivity (android) failed:", err);
     }
 
     res.json(

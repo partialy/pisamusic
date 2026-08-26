@@ -2,6 +2,7 @@ import { ArrowDownToLine, MonitorDown, Smartphone } from "lucide-react";
 import SectionHeader from "../../common/SectionHeader";
 import type { UpdateState } from "../../hooks/useUpdateInfo";
 import type { ReleaseInfo } from "../../types/update";
+import { trackedDownloadHref } from "../../api/update";
 
 interface DownloadSectionProps {
   updateState: UpdateState;
@@ -113,7 +114,7 @@ function DownloadCard({
       </div>
 
       <a
-        href={available ? release?.downloadUrl : "#download"}
+        href={trackedDownloadHref(type, release)}
         aria-disabled={!available}
         className={`mt-7 inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full px-6 py-4 text-base font-bold transition duration-300 sm:h-14 ${
           available

@@ -56,3 +56,9 @@ export async function fetchReleaseConfig(): Promise<ReleaseConfig> {
     };
   }
 }
+
+export function trackedDownloadHref(platform: "android" | "desktop", release?: ReleaseInfo): string {
+  return release?.available && release.downloadUrl
+    ? `/api/config/download/${platform}`
+    : "#download";
+}

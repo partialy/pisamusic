@@ -208,6 +208,7 @@ export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
   "/api/config/releases",
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
+  "/api/config/download/*",
   "/api/config/discover",
   "/api/config/update-history",
   "/api/config/agreement",

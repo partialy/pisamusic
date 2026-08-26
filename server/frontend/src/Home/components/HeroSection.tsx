@@ -2,14 +2,10 @@ import { ArrowDownToLine, MonitorDown, Sparkles } from "lucide-react";
 import ProductMockup from "./ProductMockup";
 import { appStats } from "../../data/siteContent";
 import type { UpdateState } from "../../hooks/useUpdateInfo";
-import type { ReleaseInfo } from "../../types/update";
+import { trackedDownloadHref } from "../../api/update";
 
 interface HeroSectionProps {
   updateState: UpdateState;
-}
-
-function getDownloadHref(release: ReleaseInfo | undefined) {
-  return release?.available && release.downloadUrl ? release.downloadUrl : "#download";
 }
 
 export default function HeroSection({ updateState }: HeroSectionProps) {
@@ -47,7 +43,7 @@ export default function HeroSection({ updateState }: HeroSectionProps) {
 
           <div className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:items-center lg:justify-start">
             <a
-              href={getDownloadHref(android)}
+              href={trackedDownloadHref("android", android)}
               aria-disabled={!android?.available}
               className={`pill-cta pill-cta-primary ${android?.available ? "" : "pill-cta-disabled"}`}
             >
@@ -55,7 +51,7 @@ export default function HeroSection({ updateState }: HeroSectionProps) {
               <span className="relative z-10">下载 Android 随身版</span>
             </a>
             <a
-              href={getDownloadHref(desktop)}
+              href={trackedDownloadHref("desktop", desktop)}
               aria-disabled={!desktop?.available}
               className={`pill-cta pill-cta-secondary ${desktop?.available ? "" : "pill-cta-disabled"}`}
             >

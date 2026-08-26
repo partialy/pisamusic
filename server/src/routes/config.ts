@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { Request } from "express";
+import { recordDownload } from "../db/analyticsStore";
 import {
   type AppConfig,
   type ReleaseConfig,
@@ -17,6 +18,23 @@ import { createPrivateQiniuDownloadUrl } from "../services/qiniuReleaseFiles";
 import { fail, ok } from "../types/response";
 
 export const configRouter = Router();
+
+function cleanString(val: unknown, maxLen: number): string {
+  if (typeof val !== "string") return "";
+  const trimmed = val.trim();
+  return trimmed.length <= maxLen ? trimmed : trimmed.slice(0, maxLen);
+}
+
+function cleanIp(req: Request): string {
+  const rawIp = typeof req.ip === "string" && req.ip.length > 0 ? req.ip : req.socket?.remoteAddress;
+  const ipStr = String(rawIp ?? "").replace(/^::ffff:/i, "").trim();
+  return ipStr.length <= 64 ? ipStr : ipStr.slice(0, 64);
+}
+
+function extractFileRecordId(downloadUrl: string): string | null {
+  const match = downloadUrl.match(/\/api\/config\/release-files\/([^/?#]+)\/download/);
+  return match ? match[1] ?? null : null;
+}
 
 function blockedResponse() {
   const cfg = readAppConfig();
@@ -309,6 +327,60 @@ configRouter.get("/about", (_req, res) => {
     res.json(ok(cfg.about));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
+    res.status(500).json(fail(message, 500));
+  }
+});
+
+configRouter.get("/download/:platform", (req, res) => {
+  const platformParam = String(req.params.platform ?? "").trim().toLowerCase();
+  if (platformParam !== "android" && platformParam !== "desktop") {
+    res.status(404).json(fail("Not Found", 404));
+    return;
+  }
+  const platform = platformParam as "android" | "desktop";
+
+  try {
+    const { cfg, state } = blockedResponse();
+    if (state.blocked) {
+      res.status(403).json(fail(state.reason, -233));
+      return;
+    }
+
+    const release = cfg.releases[platform];
+    if (!release || !release.available || !release.downloadUrl) {
+      res.status(404).json(fail(`${platform} 下载暂未开放`, 404));
+      return;
+    }
+
+    const downloadUrl = release.downloadUrl.trim();
+    if (downloadUrl === `/api/config/download/${platform}` || downloadUrl.endsWith(`/api/config/download/${platform}`)) {
+      res.status(500).json(fail("下载地址配置循环", 500));
+      return;
+    }
+
+    const fileRecordId = extractFileRecordId(downloadUrl);
+    const ipAddress = cleanIp(req);
+    const userAgent = cleanString(req.headers["user-agent"], 512);
+    const referrer = cleanString(req.headers.referer || req.headers.referrer, 512);
+
+    try {
+      recordDownload({
+        platform,
+        version: release.latestVersion,
+        fileRecordId,
+        ipAddress,
+        referrer,
+        userAgent,
+        occurredAt: Date.now(),
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[analytics] recordDownload failed:", err);
+    }
+
+    res.redirect(302, downloadUrl);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "下载重定向失败";
     res.status(500).json(fail(message, 500));
   }
 });
