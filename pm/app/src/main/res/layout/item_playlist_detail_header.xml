@@ -86,78 +86,14 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Play all row -->
-    <LinearLayout
-        android:id="@+id/playAllRow"
+    <!-- 唯一的播放工具条位于 Activity 外层；这里仅保留等高定位占位。 -->
+    <Space
+        android:id="@+id/playAllAnchor"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="10dp"
+        android:layout_height="64dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/headerBgContainer">
-
-        <LinearLayout
-            android:id="@+id/playAllActionContainer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:contentDescription="@string/play_all"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <ImageButton
-                android:id="@+id/btnPlayAll"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:background="@android:color/transparent"
-                android:clickable="false"
-                android:contentDescription="@null"
-                android:focusable="false"
-                android:src="@drawable/ic_play_24"
-                app:tint="@color/primary" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:text="@string/play_all"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1" />
-
-        <TextView
-            android:id="@+id/trackCountTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0首"
-            android:textColor="?android:textColorSecondary"
-            android:textSize="13sp" />
-
-        <ImageButton
-            android:id="@+id/searchPlaylistHeaderButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="4dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/playlist_detail_search_cd"
-            android:padding="8dp"
-            android:src="@drawable/ic_search_24"
-            app:tint="@color/primary" />
-    </LinearLayout>
+        app:layout_constraintTop_toBottomOf="@id/headerBgContainer" />
 
     <LinearLayout
         android:id="@+id/playlistSearchBarLayout"
@@ -170,7 +106,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/playAllRow">
+        app:layout_constraintTop_toBottomOf="@id/playAllAnchor">
 
         <EditText
             android:id="@+id/playlistSearchInput"
@@ -206,4 +142,3 @@
         app:layout_constraintTop_toBottomOf="@id/playlistSearchBarLayout" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-

@@ -105,7 +105,7 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </FrameLayout>
 
-    <!-- 与列表头「播放全部」同款；滚动 ≥180dp 时显示，与列表行叠在同一位置形成吸顶效果 -->
+    <!-- 唯一的「播放全部」工具条：由公共 Controller 从 Header 占位位置连续移动并固定到顶栏下方。 -->
     <include
         android:id="@+id/stickyPlayAllBar"
         layout="@layout/playlist_detail_sticky_play_all"
@@ -130,4 +130,3 @@
         app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-

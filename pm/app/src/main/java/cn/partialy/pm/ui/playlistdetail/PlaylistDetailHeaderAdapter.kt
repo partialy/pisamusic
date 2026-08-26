@@ -5,7 +5,6 @@ import android.graphics.Shader
 import android.os.Build
 import android.text.TextWatcher
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.getSystemService
@@ -31,12 +30,9 @@ data class PlaylistDetailHeaderState(
     val searchExpanded: Boolean = false,
     val searchQuery: String = "",
     val searchEnabled: Boolean = true,
-    val inlinePlayAllVisible: Boolean = true,
 )
 
 internal data class PlaylistDetailHeaderActions(
-    val onPlayAll: () -> Unit = {},
-    val onSearchRequested: () -> Unit = {},
     val onSearchQueryChanged: (String) -> Unit = {},
     val onSearchCancelled: () -> Unit = {},
 )
@@ -76,13 +72,6 @@ class PlaylistDetailHeaderAdapter : RecyclerView.Adapter<PlaylistDetailHeaderAda
 
     internal fun rememberSearchQuery(query: String) {
         state = state.copy(searchQuery = query)
-    }
-
-    fun setInlinePlayAllVisible(visible: Boolean) {
-        if (state.inlinePlayAllVisible == visible) return
-        state = state.copy(inlinePlayAllVisible = visible)
-        notifyItemChanged(0)
-        onStateChanged?.invoke(state)
     }
 
     fun setSearchEnabled(enabled: Boolean) {
@@ -129,15 +118,8 @@ class PlaylistDetailHeaderAdapter : RecyclerView.Adapter<PlaylistDetailHeaderAda
         ) {
             binding.playlistTitleTextView.text = state.title
             binding.playlistDescTextView.text = state.description
-            binding.trackCountTextView.text = state.trackCountText
             bindArtwork(state.artwork)
 
-            binding.playAllRow.visibility =
-                if (state.inlinePlayAllVisible) View.VISIBLE else View.INVISIBLE
-            binding.playAllRow.setOnClickListener { }
-            binding.playAllActionContainer.setOnClickListener { actions.onPlayAll() }
-            binding.searchPlaylistHeaderButton.isVisible = state.searchEnabled
-            binding.searchPlaylistHeaderButton.setOnClickListener { actions.onSearchRequested() }
             binding.playlistSearchCancelText.setOnClickListener { actions.onSearchCancelled() }
 
             searchWatcher?.let(binding.playlistSearchInput::removeTextChangedListener)

@@ -192,7 +192,7 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         contentAdapter.showInitialLoading()
     }
 
-    /** "播放全部"按钮（Header 内嵌 + 吸顶栏） */
+    /** 绑定唯一的“播放全部”吸顶工具条。 */
     private fun setupPlayAllButtons() {
         val playAll: () -> Unit = {
             val list = contentAdapter.currentSongs
@@ -216,7 +216,7 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         syncPlaylistCollectButton()
     }
 
-    /** 滚动监听：顶栏透明度渐变 + 吸顶"播放全部"栏 */
+    /** 滚动监听：只处理顶栏透明度和图标颜色。 */
     private fun setupScrollBehavior() {
         val triggerPx = (180f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
         binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -243,7 +243,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                 applyPlaylistCollectButtonTint()
                 binding.moreButton.setColorFilter(color)
                 binding.playlistTitleHeaderTextView.isVisible = barOpaque
-                applyStickyPlayAllVisibility(barOpaque)
             }
         })
     }
@@ -367,10 +366,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                 }
             }
         }.coerceAtLeast(0)
-    }
-
-    private fun applyStickyPlayAllVisibility(show: Boolean) {
-        interactionController.setStickyVisible(show)
     }
 
     private fun applyPlaylistDetailInsets() {

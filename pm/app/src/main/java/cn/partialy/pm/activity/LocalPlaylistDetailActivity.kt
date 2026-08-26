@@ -183,7 +183,6 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                 binding.backButton.setColorFilter(color)
                 binding.moreButton.setColorFilter(color)
                 binding.playlistTitleHeaderTextView.isVisible = barOpaque
-                interactionController.setStickyVisible(barOpaque)
             }
         })
         binding.headerBg.alpha = 0f

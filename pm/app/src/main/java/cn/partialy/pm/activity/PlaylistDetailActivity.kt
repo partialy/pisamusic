@@ -64,9 +64,9 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     private var allTracksLoadJob: Job? = null
 
     /**
-     * 列表滚动量用于顶栏 alpha / 吸顶条。首项很高时 [RecyclerView.computeVerticalScrollOffset]
+     * 列表滚动量用于顶栏 alpha。首项很高时 [RecyclerView.computeVerticalScrollOffset]
      * 与部分帧的 [getDecoratedTop] 会毛刺：往下滚时 offset 偶发变小、**往上滚时偶发偏小**，
-     * 若用 [minOf] 直接吃进偏小值，顶栏会短暂半透明、吸顶「播放全部」消失。
+     * 若用 [minOf] 直接吃进偏小值，顶栏会短暂半透明。
      * 在 [mergeToolbarScrollStable] 里按本帧 [dy] 限制单步变化，过滤与手指位移不匹配的跳变。
      */
     private var toolbarScrollOffsetStablePx: Int = 0
@@ -207,7 +207,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 applyPlaylistCollectButtonTint()
                 binding.moreButton.setColorFilter(color)
                 binding.playlistTitleHeaderTextView.isVisible = barOpaque
-                applyStickyPlayAllVisibility(barOpaque)
                 tryLoadMoreTracks()
             }
         })
@@ -333,10 +332,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 }
             }
         }.coerceAtLeast(0)
-    }
-
-    private fun applyStickyPlayAllVisibility(show: Boolean) {
-        interactionController.setStickyVisible(show)
     }
 
     @Suppress("UNUSED_PARAMETER")

@@ -70,6 +70,7 @@
 - Mini 播放器封面必须通过 `SongCoverUrl.getSongCoverData(...)` 加载，确保本地歌曲优先显示 `embeddedCoverArt`，不要只走远程封面 URL。
 - 本地歌曲与已下载歌曲列表点击播放时，应把当前完整列表作为播放队列并从点击项开始播放；歌曲更多菜单的“添加到歌单”目标首项为当前播放队列，后续才是本地自建歌单。
 - 酷狗、网易、自建歌单和“我的收藏”详情统一复用 `ui/playlistdetail/` 的 Header、歌曲内容、搜索和顶栏交互模块；搜索只过滤当前显示，播放仍按完整歌单以及 `type + id` 定位。顶栏和播放横幅的空白区域必须消费点击，只有显式“播放全部”动作区可以开始播放。
+- 歌单详情只保留 `activity_playlist_detail.xml` 中一份“播放全部”工具条；RecyclerView Header 的 `playAllAnchor` 仅提供等高定位，`PlaylistDetailInteractionController` 负责让唯一工具条随 Anchor 连续上移并在顶栏下方固定。不得恢复 Header/外层两套工具条按阈值显隐的伪吸顶实现。
 - “我的收藏”详情的右上角搜索入口进入 `LovedSongsSearchActivity` 独立页面，不再显示详情 Header 和吸顶栏的内嵌搜索按钮；独立搜索页按歌名或歌手实时过滤展示，但单击结果与“播放全部”都必须使用按添加时间排序的完整收藏列表作为播放队列。
 - 播放页 3D 音效入口进入 `AudioEffectsActivity`；音效配置集中在 `audioeffect/` 模块，本地通过 SharedPreferences + kotlinx.serialization 保存，不同步到服务端。`AudioEffectsManager` 绑定 ExoPlayer `audioSessionId` 后使用系统 `DynamicsProcessing` / `Equalizer`、`BassBoost` 生效；宽声场由 Media3 `StereoWidenerAudioProcessor` 在 `DefaultAudioSink` 前做双声道 PCM Mid/Side 处理，处理器旁路时不能直接把同一个 `ByteBuffer` 作为源和目标复制。新增音效能力优先扩展该模块，不要把 AudioEffect 生命周期放进 Activity。
 - 在线歌曲播放失败不再自动跳到当前队列下一曲；失败后按设置里的“自动切换列表”处理，关闭时暂停并提示，开启时切换到本地 / 已缓存 / 已下载歌曲列表。
@@ -196,6 +197,7 @@
 - 歌曲和歌单分享入口复用 `SongMoreMenu`、`PlaylistActionBottomSheet` 与 `ShareBottomSheet`。创建分享必须读取 `AccountSessionStore`，未登录时只提示“请先登录后再分享”，不得创建分享记录；同一账号重复分享同一 `source:id` 时由服务端复用既有 uuid。
 - 分享 Sheet 使用 `bottom_sheet_share.xml` 与 `include_share_info_header.xml`：顶部封面 + 标题 / 描述，二维码居中，链接区域使用一起听同款蓝色描边 Material `TextInputLayout` 的“链接分享”标签和右侧复制图标。
 - 分享详情页为 `ShareDetailActivity`，使用原生 XML + ViewBinding，不使用 WebView。外部链接继续由 `SplashActivity` / `MainActivity` 的 `pisamusic://scan` 分发处理：先尝试一起听，再尝试 `ShareLink`，命中分享后进入 `ShareDetailActivity`；歌曲 / 歌单更多菜单里的“详情”使用本地 canonical 快照启动同一个 Activity，不调用分享接口、不生成 uuid。
+- 分享详情的歌单来源必须复用 `SongSourceTagBinder`，显示与歌曲歌手尾部一致的 K / Y / KW / LOCAL 标签，不单独展示平台名称。点击本地“详情”进入时歌单右侧动作复用 `ShareBottomSheet` 分享；UUID 分享唤醒进入时右侧动作收藏或取消收藏 KG/WY 歌单，不再提供复制 ID 按钮。
 - `PlaylistActionBottomSheet` 是歌单更多菜单入口，网络歌单显示“收藏 / 取消收藏”、详情和分享，本地歌单不显示收藏动作；收藏状态和写入必须走 `PlaylistCollectionManager`，不要另建收藏存储。
 - 分享 rawJson 只能使用 `CanonicalSong` / `CanonicalPlaylist` 快照，不要上传播放 URL、filePath、歌词正文、内嵌封面二进制；本地封面无法跨设备访问时应清空或显示默认封面。
 
