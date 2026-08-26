@@ -1,7 +1,6 @@
 package cn.partialy.pm.ui.playlistdetail
 
 import android.animation.ArgbEvaluator
-import android.app.Activity
 import android.content.res.Configuration
 import android.graphics.Color
 import android.view.GestureDetector
@@ -12,13 +11,18 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ActivityPlaylistDetailBinding
+import cn.partialy.pm.ui.dialog.SettingsOption
+import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
+import kotlinx.coroutines.launch
 
 class PlaylistDetailInteractionController private constructor(
-    private val activity: Activity,
+    private val activity: FragmentActivity,
     private val binding: ActivityPlaylistDetailBinding,
     private val headerAdapter: PlaylistDetailHeaderAdapter,
     private val contentAdapter: PlaylistDetailContentAdapter,
@@ -95,6 +99,7 @@ class PlaylistDetailInteractionController private constructor(
             ContextCompat.getColor(activity, R.color.primary),
         )
         binding.stickyPlayAllBar.btnPlayAllSticky.setOnClickListener { onPlayAll() }
+        binding.stickyPlayAllBar.sortPlaylistButton.setOnClickListener { showSortOptionsDialog() }
         binding.stickyPlayAllBar.root.isVisible = true
         binding.stickyPlayAllBar.root.alpha = 0f
         binding.recyclerView.addOnScrollListener(stickyScrollListener)
@@ -124,6 +129,7 @@ class PlaylistDetailInteractionController private constructor(
         binding.searchButton.setOnClickListener(null)
         binding.stickyPlayAllBar.stickyPlayAllRow.setOnClickListener(null)
         binding.stickyPlayAllBar.btnPlayAllSticky.setOnClickListener(null)
+        binding.stickyPlayAllBar.sortPlaylistButton.setOnClickListener(null)
         binding.recyclerView.removeOnScrollListener(stickyScrollListener)
         binding.recyclerView.removeOnLayoutChangeListener(stickyLayoutListener)
         binding.headerBar.removeOnLayoutChangeListener(stickyLayoutListener)
@@ -186,6 +192,43 @@ class PlaylistDetailInteractionController private constructor(
         }
     }
 
+    private fun showSortOptionsDialog() {
+        val currentOrder = contentAdapter.sortOrder
+        val selectedIndex = when (currentOrder) {
+            PlaylistSortOrder.DEFAULT -> 0
+            PlaylistSortOrder.TITLE_ASC -> 1
+            PlaylistSortOrder.ARTIST_ASC -> 2
+        }
+        val options = listOf(
+            SettingsOption(
+                id = PlaylistSortOrder.DEFAULT.name,
+                label = activity.getString(R.string.playlist_sort_default),
+            ),
+            SettingsOption(
+                id = PlaylistSortOrder.TITLE_ASC.name,
+                label = activity.getString(R.string.playlist_sort_title_asc),
+            ),
+            SettingsOption(
+                id = PlaylistSortOrder.ARTIST_ASC.name,
+                label = activity.getString(R.string.playlist_sort_artist_asc),
+            ),
+        )
+        activity.lifecycleScope.launch {
+            val selected = showSettingsOptionPicker(
+                context = activity,
+                title = activity.getString(R.string.playlist_sort_title),
+                options = options,
+                selectedIndex = selectedIndex,
+            ) ?: return@launch
+            val newOrder = when (selected.id) {
+                PlaylistSortOrder.TITLE_ASC.name -> PlaylistSortOrder.TITLE_ASC
+                PlaylistSortOrder.ARTIST_ASC.name -> PlaylistSortOrder.ARTIST_ASC
+                else -> PlaylistSortOrder.DEFAULT
+            }
+            contentAdapter.setSortOrder(newOrder)
+        }
+    }
+
     private fun topInRoot(view: View): Float {
         val rootLocation = IntArray(2)
         val viewLocation = IntArray(2)
@@ -196,7 +239,7 @@ class PlaylistDetailInteractionController private constructor(
 
     companion object {
         fun attach(
-            activity: Activity,
+            activity: FragmentActivity,
             binding: ActivityPlaylistDetailBinding,
             headerAdapter: PlaylistDetailHeaderAdapter,
             contentAdapter: PlaylistDetailContentAdapter,

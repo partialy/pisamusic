@@ -18,6 +18,14 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
+import java.text.Collator
+import java.util.Locale
+
+enum class PlaylistSortOrder {
+    DEFAULT,
+    TITLE_ASC,
+    ARTIST_ASC,
+}
 
 class PlaylistDetailContentAdapter(
     private val onSongClick: (SongInfo) -> Unit,
@@ -28,10 +36,13 @@ class PlaylistDetailContentAdapter(
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     val currentSongs: List<SongInfo>
-        get() = allSongs
+        get() = getSortedSongs()
 
     val visibleSongCount: Int
         get() = visibleRows.size
+
+    var sortOrder: PlaylistSortOrder = PlaylistSortOrder.DEFAULT
+        private set
 
     private var allSongs: List<SongInfo> = emptyList()
     private var visibleRows: List<PlaylistDetailSongRow> = emptyList()
@@ -43,11 +54,23 @@ class PlaylistDetailContentAdapter(
     @StringRes
     private var emptyMessageRes: Int = R.string.no_data
 
+    private val chineseCollator: Collator by lazy {
+        Collator.getInstance(Locale.CHINESE).apply {
+            strength = Collator.PRIMARY
+        }
+    }
+
     private enum class Phase {
         InitialLoading,
         FirstError,
         Empty,
         Content,
+    }
+
+    fun setSortOrder(order: PlaylistSortOrder) {
+        if (sortOrder == order) return
+        sortOrder = order
+        rebuildRows()
     }
 
     fun setSearchQuery(rawQuery: String) {
@@ -156,9 +179,20 @@ class PlaylistDetailContentAdapter(
         if (index >= 0) notifyItemChanged(index)
     }
 
+    private fun getSortedSongs(): List<SongInfo> = when (sortOrder) {
+        PlaylistSortOrder.DEFAULT -> allSongs
+        PlaylistSortOrder.TITLE_ASC -> allSongs.sortedWith { a, b ->
+            chineseCollator.compare(a.name, b.name)
+        }
+        PlaylistSortOrder.ARTIST_ASC -> allSongs.sortedWith { a, b ->
+            chineseCollator.compare(a.artist, b.artist)
+        }
+    }
+
     private fun rebuildRows() {
+        val sorted = getSortedSongs()
         visibleRows = if (phase == Phase.Content) {
-            filterPlaylistSongRows(allSongs, query)
+            filterPlaylistSongRows(sorted, query)
         } else {
             emptyList()
         }
