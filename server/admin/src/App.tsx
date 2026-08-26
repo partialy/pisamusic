@@ -327,6 +327,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     }));
   }, []);
 
+  const replaceEndpoints = useCallback((endpoints: Record<string, string>) => {
+    setAppConfig((prev) => ({
+      ...prev,
+      bootstrap: {
+        ...prev.bootstrap,
+        endpoints,
+      },
+    }));
+  }, []);
+
   const updateGatewaySign = useCallback((field: keyof GatewaySignConfig, value: string) => {
     setAppConfig((prev) => ({
       ...prev,
@@ -1488,6 +1498,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   discoverDirty={discoverDirty}
                   discoverSaving={discoverSaving}
                   updateEndpoint={updateEndpoint}
+                  replaceEndpoints={replaceEndpoints}
                   updateGatewaySign={updateGatewaySign}
                   updateSection={updateSection}
                   onSaveSystem={() => void handleSaveSystem()}

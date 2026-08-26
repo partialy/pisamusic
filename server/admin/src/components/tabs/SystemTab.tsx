@@ -3,6 +3,7 @@ import { Switch } from "../ui/Switch";
 import { formatDateTimeLocal, parseDateTimeLocal } from "../../utils/date";
 import { glassCardClasses, glassInputClasses } from "../../constants/theme";
 import { EmailProviderEditor } from "./EmailProviderEditor";
+import EndpointDomainReplaceForm from "./EndpointDomainReplaceForm";
 
 type Props = {
   config: AppConfigJson;
@@ -16,6 +17,7 @@ type Props = {
   discoverDirty: boolean;
   discoverSaving: boolean;
   updateEndpoint: (field: string, value: string) => void;
+  replaceEndpoints: (endpoints: Record<string, string>) => void;
   updateGatewaySign: (field: keyof GatewaySignConfig, value: string) => void;
   updateSection: <K extends keyof AppConfigJson, F extends keyof AppConfigJson[K]>(
     section: K,
@@ -65,6 +67,7 @@ export default function SystemTab({
   discoverDirty,
   discoverSaving,
   updateEndpoint,
+  replaceEndpoints,
   updateGatewaySign,
   updateSection,
   onSaveSystem,
@@ -328,6 +331,11 @@ export default function SystemTab({
             />
           </div>
           <div className="space-y-5">
+            <EndpointDomainReplaceForm
+              endpoints={config.bootstrap.endpoints}
+              themeColor={themeColor}
+              onReplace={replaceEndpoints}
+            />
             {Object.entries(config.bootstrap.endpoints).map(([key, value]) => (
               <div key={key}>
                 <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">{key}</label>
