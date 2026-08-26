@@ -96,6 +96,7 @@ import JsonExportModal from "./components/modals/JsonExportModal";
 import UserDetailModal from "./components/modals/UserDetailModal";
 import UserEditModal from "./components/modals/UserEditModal";
 
+const DashboardTab = lazy(() => import("./components/tabs/DashboardTab"));
 const SystemTab = lazy(() => import("./components/tabs/SystemTab"));
 const UpdateTab = lazy(() => import("./components/tabs/UpdateTab"));
 const FileManagementTab = lazy(() => import("./components/tabs/FileManagementTab"));
@@ -157,7 +158,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  const [currentTab, setCurrentTab] = useState<TabId>("system");
+  const [currentTab, setCurrentTab] = useState<TabId>("dashboard");
   const [showJsonModal, setShowJsonModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
@@ -1442,33 +1443,38 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </button>
             <div className="min-w-0 flex flex-col gap-1">
               <h2 className="truncate text-xl font-extrabold text-slate-800 sm:text-2xl">{currentTitle}</h2>
-            {hydrated && loadError && <p className="text-xs text-amber-700 font-medium">配置加载失败（已使用本地默认）：{loadError}</p>}
+              {hydrated && loadError && currentTab !== "dashboard" && (
+                <p className="text-xs text-amber-700 font-medium">配置加载失败（已使用本地默认）：{loadError}</p>
+              )}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
-            <button
-              type="button"
-              onClick={() => void refreshRemote()}
-              className="flex items-center rounded-2xl border border-white/60 bg-white/80 px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition-all hover:bg-white sm:px-5"
-            >
-              重新拉取
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowJsonModal(true)}
-              className="flex items-center rounded-2xl border border-white/60 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 shadow-[0_4px_14px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] sm:px-6"
-            >
-              <svg className="mr-2 h-4 w-4 shrink-0" style={{ color: themeColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              导出 JSON 配置
-            </button>
-          </div>
+          {currentTab !== "dashboard" ? (
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
+              <button
+                type="button"
+                onClick={() => void refreshRemote()}
+                className="flex items-center rounded-2xl border border-white/60 bg-white/80 px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition-all hover:bg-white sm:px-5"
+              >
+                重新拉取
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowJsonModal(true)}
+                className="flex items-center rounded-2xl border border-white/60 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 shadow-[0_4px_14px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] sm:px-6"
+              >
+                <svg className="mr-2 h-4 w-4 shrink-0" style={{ color: themeColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                导出 JSON 配置
+              </button>
+            </div>
+          ) : null}
         </header>
 
         <div className="relative flex-1 overflow-y-auto p-4 no-scrollbar sm:p-6 lg:p-10">
           <div className="mx-auto w-full max-w-7xl pb-20">
             <Suspense fallback={tabFallback()}>
+              {currentTab === "dashboard" && <DashboardTab themeColor={themeColor} />}
               {currentTab === "system" && (
                 <SystemTab
                   config={appConfig}

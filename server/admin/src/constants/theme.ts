@@ -18,6 +18,7 @@ export const glassInputClasses =
   "w-full min-w-0 rounded-2xl border border-white/60 bg-white/50 px-4 sm:px-5 py-3 text-sm text-slate-800 focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-slate-400/30 transition-all shadow-inner";
 
 export const tabs = [
+  { id: "dashboard" as const, name: "仪表盘", icon: "M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zm10-12h8V3h-8v6z" },
   { id: "shares" as const, name: "分享管理", icon: "M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.46.596.8.761l7.032 3.516m-7.032-4.277l7.032-3.516a2.25 2.25 0 10-.966-1.78m.966 1.78a2.25 2.25 0 000 3.22m0 0a2.25 2.25 0 10.966 1.78" },
   { id: "feedback" as const, name: "反馈管理", icon: "M8 10h8M8 14h5m8-2a9 9 0 11-4.219-7.624L21 3v9z" },
   { id: "faultReports" as const, name: "故障上报", icon: "M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.052 3.38c.866-1.5 3.03-1.5 3.896 0l7.355 12.746zM12 16.5h.008v.008H12V16.5z" },
