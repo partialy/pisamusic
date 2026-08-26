@@ -37,6 +37,7 @@ import {
 import { getDeviceDb } from "../db/deviceInfoDb";
 import { getPlaintextPaths, setPlaintextPaths } from "../middleware/encryption";
 import { getAdminJwtSecret, requireAdminJwt } from "../middleware/requireAdminJwt";
+import { adminDashboardRouter } from "./adminDashboard";
 import { adminDynamicConfigRouter } from "./adminDynamicConfig";
 import { adminFeedbackRouter } from "./adminFeedback";
 import { adminFaultReportsRouter } from "./adminFaultReports";
@@ -587,6 +588,7 @@ adminRouter.post("/login", async (req, res) => {
 });
 
 adminRouter.use(requireAdminJwt);
+adminRouter.use("/dashboard", adminDashboardRouter);
 adminRouter.use("/dynamic-configs", adminDynamicConfigRouter);
 adminRouter.use("/feedback", adminFeedbackRouter);
 adminRouter.use("/fault-reports", adminFaultReportsRouter);
