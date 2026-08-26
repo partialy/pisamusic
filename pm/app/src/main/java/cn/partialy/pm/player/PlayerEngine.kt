@@ -145,7 +145,7 @@ class PlayerEngine(
             .setHandleAudioBecomingNoisy(true)
             .build()
             .apply {
-                applyPlayMode(SettingsPrefs.getPlayMode(context))
+                applyPlayModeToPlayer(this, SettingsPrefs.getPlayMode(context))
                 addListener(playerListener)
                 audioEffectsManager.bindAudioSession(audioSessionId)
             }
@@ -448,18 +448,20 @@ class PlayerEngine(
             }
         }
 
-        @SuppressLint("WrongConstant")
         override fun onConnect(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
             val result = super.onConnect(session, controller)
-            val cmds = result.availableSessionCommands.buildUpon()
+            val playerCommands = result.availablePlayerCommands.buildUpon()
                 .add(Player.COMMAND_SEEK_TO_NEXT)
                 .add(Player.COMMAND_SEEK_TO_PREVIOUS)
                 .add(Player.COMMAND_PLAY_PAUSE)
                 .build()
-            return MediaSession.ConnectionResult.accept(cmds, result.availablePlayerCommands)
+            return MediaSession.ConnectionResult.accept(
+                result.availableSessionCommands,
+                playerCommands,
+            )
         }
 
         override fun onSetMediaItems(
@@ -562,20 +564,22 @@ class PlayerEngine(
     }
 
     fun applyPlayMode(mode: SettingsPrefs.PlayMode) {
-        exoPlayer?.let { player ->
-            when (mode) {
-                SettingsPrefs.PlayMode.Order -> {
-                    player.shuffleModeEnabled = false
-                    player.repeatMode = Player.REPEAT_MODE_ALL
-                }
-                SettingsPrefs.PlayMode.Shuffle -> {
-                    player.shuffleModeEnabled = true
-                    player.repeatMode = Player.REPEAT_MODE_ALL
-                }
-                SettingsPrefs.PlayMode.Single -> {
-                    player.shuffleModeEnabled = false
-                    player.repeatMode = Player.REPEAT_MODE_ONE
-                }
+        exoPlayer?.let { applyPlayModeToPlayer(it, mode) }
+    }
+
+    private fun applyPlayModeToPlayer(player: ExoPlayer, mode: SettingsPrefs.PlayMode) {
+        when (mode) {
+            SettingsPrefs.PlayMode.Order -> {
+                player.shuffleModeEnabled = false
+                player.repeatMode = Player.REPEAT_MODE_ALL
+            }
+            SettingsPrefs.PlayMode.Shuffle -> {
+                player.shuffleModeEnabled = true
+                player.repeatMode = Player.REPEAT_MODE_ALL
+            }
+            SettingsPrefs.PlayMode.Single -> {
+                player.shuffleModeEnabled = false
+                player.repeatMode = Player.REPEAT_MODE_ONE
             }
         }
     }

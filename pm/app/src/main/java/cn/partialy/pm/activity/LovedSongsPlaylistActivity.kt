@@ -199,7 +199,7 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
         val songs = contentAdapter.currentSongs
         val index = songs.indexOfFirst { it.id == song.id && it.type == song.type }
         if (index < 0) return
-        songs.subList(index, songs.size).takeIf { it.isNotEmpty() }?.let(musicController::setPlayList)
+        musicController.setPlayListLazy(songs, startIndex = index)
     }
 
     private fun mergeToolbarScrollStable(prev: Int, raw: Int, dy: Int): Int {

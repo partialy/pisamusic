@@ -85,6 +85,18 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         _loveListFlow.value = songsByKey.values.toList()
     }
 
+    /** 收藏默认按添加时间倒序展示，新收藏应立即进入列表首位。 */
+    private fun putNewestFirstLocked(song: SongInfo) {
+        val key = song.storageKey()
+        val reordered = LinkedHashMap<String, SongInfo>(songsByKey.size + 1)
+        reordered[key] = song
+        songsByKey.forEach { (existingKey, existingSong) ->
+            if (existingKey != key) reordered[existingKey] = existingSong
+        }
+        songsByKey.clear()
+        songsByKey.putAll(reordered)
+    }
+
     fun getLoveList(): List<SongInfo> {
         ensureLoaded()
         synchronized(lock) {
@@ -158,7 +170,7 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         if (!persisted) return
         synchronized(lock) {
             if (!songsByKey.containsKey(song.storageKey())) {
-                songsByKey[song.storageKey()] = song.forPersistence()
+                putNewestFirstLocked(song.forPersistence())
                 refreshFlowLocked()
             }
         }
@@ -182,9 +194,13 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         val next = song.toSongInfo().forPersistence()
         if (next.type == SongType.LOCAL || next.id.isBlank()) return
         ensureLoaded()
-        db.addSong(next)
+        val inserted = db.addSong(next)
         synchronized(lock) {
-            songsByKey[next.storageKey()] = next
+            if (inserted) {
+                putNewestFirstLocked(next)
+            } else {
+                songsByKey[next.storageKey()] = next
+            }
             refreshFlowLocked()
         }
         persistAsync()

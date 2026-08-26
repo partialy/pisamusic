@@ -140,7 +140,16 @@ class ConfigManager @Inject constructor(
         val value = raw.trim()
         if (value.isBlank()) return null
         val absoluteUrl = value.toHttpUrlOrNull()
-        if (absoluteUrl != null) return value.takeIf { absoluteUrl.isHttps }
+        if (absoluteUrl != null) {
+            return when {
+                absoluteUrl.isHttps -> absoluteUrl.toString()
+                absoluteUrl.scheme == "http" -> absoluteUrl.newBuilder()
+                    .scheme("https")
+                    .build()
+                    .toString()
+                else -> null
+            }
+        }
         if (!value.startsWith('/')) return null
         return runCatching { serviceDiscoveryManager.resolveApiUrl(value) }.getOrNull()
     }

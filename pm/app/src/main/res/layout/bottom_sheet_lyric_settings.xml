@@ -370,14 +370,5 @@
                 app:strokeColor="@color/lyric_settings_segment_stroke" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:alpha="0.72"
-            android:text="@string/lyric_settings_hint"
-            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            tools:text="提示" />
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

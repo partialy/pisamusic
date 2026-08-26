@@ -23,7 +23,7 @@ internal class FavoriteSongsDbStore(context: Context) {
             null,
             null,
             null,
-            "created_at ASC",
+            "created_at DESC, rowid DESC",
         ).use { cursor ->
             val out = ArrayList<SongInfo>(cursor.count)
             while (cursor.moveToNext()) out.add(cursor.toSongInfo())

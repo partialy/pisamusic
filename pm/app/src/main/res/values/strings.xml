@@ -143,7 +143,6 @@
     <string name="lyric_settings_align_start">左</string>
     <string name="lyric_settings_align_center">中</string>
     <string name="lyric_settings_align_end">右</string>
-    <string name="lyric_settings_hint">字号也可使用播放器上的 A− / A+ 快速调整。</string>
     <string name="lyric_settings_decrease">减小</string>
     <string name="lyric_settings_increase">增大</string>
     <string name="settings_status_bar_lyric_title">状态栏歌词</string>
