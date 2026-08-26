@@ -37,6 +37,7 @@ import type {
   UpdateHistoryDeletionPreview,
   UpdateHistoryItem,
 } from "../types/config";
+import type { AdminDashboardData, DashboardRangeDays } from "../types/dashboard";
 import { clearStoredToken, getStoredToken } from "../auth/token";
 import { encryptedFetch } from "./crypto";
 
@@ -729,6 +730,18 @@ export async function invalidateAdminShare(uuid: string): Promise<AdminShareList
     method: "PATCH",
   });
   const body = await parseJson<AdminShareListItem>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminDashboard(
+  days: DashboardRangeDays,
+  signal?: AbortSignal,
+): Promise<AdminDashboardData> {
+  const res = await fetchWithAuth(`/api/admin/dashboard?days=${days}`, { signal });
+  const body = await parseJson<AdminDashboardData>(res);
   if (!res.ok || !body.success || body.data == null) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
