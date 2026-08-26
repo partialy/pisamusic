@@ -8,6 +8,7 @@ import { logInterceptor } from "./interceptor/logInterceptor";
 import { encryptionMiddleware, setPlaintextPaths } from "./middleware/encryption";
 import { initRealtimeServer } from "./realtime";
 import { adminRouter } from "./routes/admin";
+import { analyticsRouter } from "./routes/analytics";
 import { authRouter } from "./routes/auth";
 import { configRouter } from "./routes/config";
 import { deviceRouter } from "./routes/device";
@@ -47,6 +48,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/config/privacy-policy",
   "/api/config/about",
   "/api/config/announcements",
+  "/api/analytics/site-visit",
   "/api/listen-together/config",
   "/api/shares/public/*",
   "/api/feedback/*",
@@ -61,6 +63,7 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
   "/api/config/discover",
+  "/api/analytics/site-visit",
   "/api/listen-together/config",
   "/api/shares/public/*",
   "/discover/*",
@@ -82,6 +85,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/config", configRouter);
+app.use("/api/analytics", analyticsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/feedback", feedbackRouter);

@@ -343,6 +343,57 @@ CREATE TABLE IF NOT EXISTS user_sync_applied_ops (
     PRIMARY KEY (user_id, device_id, op_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS site_visit_records (
+    id              TEXT    PRIMARY KEY,
+    visit_day       TEXT    NOT NULL,
+    visitor_hash    TEXT    NOT NULL,
+    ip_address      TEXT    NOT NULL DEFAULT '',
+    path            TEXT    NOT NULL DEFAULT '/',
+    referrer        TEXT    NOT NULL DEFAULT '',
+    user_agent      TEXT    NOT NULL DEFAULT '',
+    language        TEXT    NOT NULL DEFAULT '',
+    timezone        TEXT    NOT NULL DEFAULT '',
+    screen_width    INTEGER NOT NULL DEFAULT 0,
+    screen_height   INTEGER NOT NULL DEFAULT 0,
+    created_at      INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_site_visit_day_visitor
+ON site_visit_records (visit_day, visitor_hash);
+CREATE INDEX IF NOT EXISTS idx_site_visit_day
+ON site_visit_records (visit_day);
+CREATE INDEX IF NOT EXISTS idx_site_visit_created
+ON site_visit_records (created_at);
+
+CREATE TABLE IF NOT EXISTS download_records (
+    id              TEXT    PRIMARY KEY,
+    download_day    TEXT    NOT NULL,
+    platform        TEXT    NOT NULL CHECK (platform IN ('android', 'desktop')),
+    version         TEXT    NOT NULL DEFAULT '',
+    file_record_id  TEXT,
+    ip_address      TEXT    NOT NULL DEFAULT '',
+    referrer        TEXT    NOT NULL DEFAULT '',
+    user_agent      TEXT    NOT NULL DEFAULT '',
+    created_at      INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_download_day_platform
+ON download_records (download_day, platform);
+CREATE INDEX IF NOT EXISTS idx_download_created
+ON download_records (created_at);
+
+CREATE TABLE IF NOT EXISTS device_daily_activity (
+    activity_day    TEXT    NOT NULL,
+    device_type     TEXT    NOT NULL CHECK (device_type IN ('android', 'desktop')),
+    device_id       TEXT    NOT NULL,
+    app_version     TEXT    NOT NULL DEFAULT '',
+    first_seen_at   INTEGER NOT NULL,
+    last_seen_at    INTEGER NOT NULL,
+    PRIMARY KEY (activity_day, device_type, device_id)
+);
+CREATE INDEX IF NOT EXISTS idx_device_daily_day_type
+ON device_daily_activity (activity_day, device_type);
+CREATE INDEX IF NOT EXISTS idx_device_daily_last_seen
+ON device_daily_activity (last_seen_at);
 `;
 
 function getColumnNames(db: DatabaseSync, table: string): Set<string> {

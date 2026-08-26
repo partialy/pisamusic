@@ -215,6 +215,7 @@ export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
   "/api/config/privacy-policy",
   "/api/config/about",
   "/api/config/announcements",
+  "/api/analytics/site-visit",
   "/api/feedback/*",
   "/discover/*",
   "/uploads/*",
