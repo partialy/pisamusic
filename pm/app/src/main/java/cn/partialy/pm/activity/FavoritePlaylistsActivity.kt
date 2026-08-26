@@ -59,7 +59,10 @@ class FavoritePlaylistsActivity : BaseActivity() {
     private fun setupHeader() {
         binding.titleTextView.setText(R.string.my_favorite_playlists)
         binding.backButton.setOnClickListener { finish() }
-        binding.searchButton.isVisible = false
+        binding.searchButton.isVisible = true
+        binding.searchButton.setOnClickListener {
+            FavoritePlaylistsSearchActivity.start(this)
+        }
         binding.swipeRefreshLayout.isEnabled = false
         binding.progressBar.isVisible = false
         binding.loadMoreProgressBar.isVisible = false

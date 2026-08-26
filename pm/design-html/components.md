@@ -73,8 +73,9 @@
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
 | 播放队列 BottomSheet | 当前播放列表、清空、队列空状态 | `pm/app/src/main/res/layout/bottom_sheet_playlist.xml` | `PlayerActivity`、`PlaylistAdapter` | 播放队列面板参考。 |
-| 歌单详情搜索栏 | 歌单内按歌名/歌手过滤 | `pm/app/src/main/res/layout/item_playlist_detail_header.xml`、`playlist_detail_sticky_play_all.xml` | `ui/playlistdetail/PlaylistDetailHeaderAdapter`、`PlaylistDetailContentAdapter`、`PlaylistDetailInteractionController` | 复用播放队列的 40dp 输入框和右侧取消样式；吸顶搜索入口先回顶并展开同一个输入框，不维护两份查询状态。 |
+| 歌单详情吸顶工具条 / 搜索栏 | 歌单播放全部及按歌名/歌手过滤 | `pm/app/src/main/res/layout/activity_playlist_detail.xml`、`item_playlist_detail_header.xml`、`playlist_detail_sticky_play_all.xml` | `ui/playlistdetail/PlaylistDetailHeaderAdapter`、`PlaylistDetailContentAdapter`、`PlaylistDetailInteractionController` | Header 只保留 `playAllAnchor` 等高占位，外层唯一工具条随 Anchor 连续上移并固定到顶栏下方；搜索入口先回顶并展开占位下方的同一个输入框，不复制工具条或查询状态。 |
 | 收藏独立搜索页 | 从“我的收藏”右上角进入，实时过滤收藏歌曲 | `pm/app/src/main/res/layout/activity_loved_songs_search.xml` | `LovedSongsSearchActivity`、`PlaylistDetailContentAdapter`、`HomeMiniPlayerBinder` | 查询为空时保留搜索栏与迷你播放器；按歌名/歌手过滤展示，播放仍使用完整收藏列表并按 `type + id` 定位。 |
+| 歌单收藏独立搜索页 | 从“歌单收藏”右上角进入，实时过滤收藏歌单 | `pm/app/src/main/res/layout/activity_favorite_playlists_search.xml` | `FavoritePlaylistsSearchActivity`、`HomePlaylistGridAdapter`、`HomeMiniPlayerBinder` | 无播放全部工具条；按歌单名称过滤展示 3 列卡片网格，点击跳转对应平台歌单详情。 |
 | 歌词设置面板 | 歌词样式设置、滑轨、分段按钮、步进器 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `LyricSettingsSheet` | 歌词相关设置优先参考。 |
 | 迷你播放器 | 底部迷你播放器 | `pm/app/src/main/res/layout/home_mini_player.xml` | `HomeMiniPlayerBinder` | 首页/主界面底部播放入口参考。 |
 | 播放按钮缓冲态 | 主播放按钮和迷你播放器缓冲反馈 | `pm/app/src/main/res/drawable/ic_loading_loop_24.xml` | `PlaybackButtonStateRenderer` | VectorDrawable 只承载图形；Media3 `STATE_BUFFERING` 时由 ObjectAnimator 以 1.5 秒周期持续旋转，销毁时必须释放。 |
@@ -89,7 +90,7 @@
 | 列表空状态 | 播放队列、详情页、列表无数据 | `bottom_sheet_playlist.xml`、`item_playlist_detail_status.xml`、`item_playlist_detail_list_status.xml` | 对应 Activity / Adapter | 空状态文案和可见性处理参考。 |
 | 列表加载 / 错误状态 | 歌单详情、列表加载失败 | `item_playlist_detail_status.xml`、`item_playlist_detail_list_status.xml` | `PlaylistDetailActivity` 等 | 加载、重试、错误展示参考。 |
 | 通用 WebView 页面 | 协议、隐私、配置 HTML 内容 | `pm/app/src/main/res/layout/activity_web_content.xml` | `activity/web` 相关页面 | WebView 内容承载参考。 |
-| 分享详情页 | App 内打开音乐分享链接或本地查看详情 | `pm/app/src/main/java/cn/partialy/pm/activity/ShareDetailActivity.kt` | `activity_share_detail.xml`、`bg_share_detail_*` | 原生页面展示歌曲 / 歌单详情；外链通过 `pisamusic://scan?type=music-share` 分发，本地详情由更多菜单传 canonical 快照进入。 |
+| 分享详情页 | App 内打开音乐分享链接或本地查看详情 | `pm/app/src/main/java/cn/partialy/pm/activity/ShareDetailActivity.kt` | `activity_share_detail.xml`、`bg_share_detail_*`、`SongSourceTagBinder`、`ShareBottomSheet` | 歌单来源使用歌曲列表同款 K / Y 标签；本地详情右侧复用分享 Sheet，外链通过 `pisamusic://scan?type=music-share` 唤醒时右侧收藏 KG/WY 歌单。 |
 | WebView 本地错误页 | WebView 加载失败兜底 | `pm/app/src/main/java/cn/partialy/pm/ui/web/LocalGenericErrorWebViewController.kt` | `assets/` 内本地错误页面 | WebView 错误兜底优先用这个控制器。 |
 | 安全区 / 系统栏适配 | edge-to-edge padding | `pm/app/src/main/java/cn/partialy/pm/ui/insets/SystemBarsExt.kt` | `applySystemBarsInsets` 等扩展 | 新全屏页面先参考。 |
 | 扫码页工具层 | 扫码返回、手电筒、相册识别 | `pm/app/src/main/res/layout/zxing_capture.xml` | `PortraitCaptureActivity`、`QrImageDecoder`、`ic_lighting_24.xml`、`ic_image_24.xml` | 保留 `@id/zxing_barcode_scanner` 以兼容 JourneyApps；左上角返回、底部 25% 居中手电筒、右下角相册按钮是当前扫码页布局基准。 |
