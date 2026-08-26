@@ -127,6 +127,7 @@
     <string name="notification_permission_required">通知权限</string>
     <string name="notification_permission_rationale">开启通知权限以接收音乐播放和下载的通知。</string>
     <string name="now_playing">正在播放</string>
+    <string name="player_lyric_loading">正在加载歌词...</string>
     <string name="lyric_seek_from_line">从该行开始播放</string>
     <string name="lyric_settings_button_cd">歌词样式</string>
     <string name="lyric_settings_title">歌词样式</string>
@@ -306,6 +307,8 @@
     <string name="my_favorite_playlists">歌单收藏</string>
     <string name="my_favorites_playlist_intro">收藏的歌曲</string>
     <string name="loved_songs_empty_hint">暂无收藏歌曲</string>
+    <string name="loved_songs_search_hint">请输入歌曲名或歌手名</string>
+    <string name="loved_songs_search_clear_cd">清空搜索内容</string>
     <string name="local_playlist_empty_hint">歌单暂无歌曲</string>
     <string name="mine_tab_mine">我的</string>
     <string name="mine_tab_playlists">歌单</string>

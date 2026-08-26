@@ -255,6 +255,12 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.LovedSongsSearchActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".activity.FavoritePlaylistsActivity"
             android:exported="false"
             android:theme="@style/Theme.Pm" />

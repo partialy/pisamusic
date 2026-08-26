@@ -30,6 +30,7 @@ data class PlaylistDetailHeaderState(
     val trackCountText: String = "",
     val searchExpanded: Boolean = false,
     val searchQuery: String = "",
+    val searchEnabled: Boolean = true,
     val inlinePlayAllVisible: Boolean = true,
 )
 
@@ -84,6 +85,17 @@ class PlaylistDetailHeaderAdapter : RecyclerView.Adapter<PlaylistDetailHeaderAda
         onStateChanged?.invoke(state)
     }
 
+    fun setSearchEnabled(enabled: Boolean) {
+        if (state.searchEnabled == enabled) return
+        state = state.copy(
+            searchEnabled = enabled,
+            searchExpanded = state.searchExpanded && enabled,
+            searchQuery = if (enabled) state.searchQuery else "",
+        )
+        notifyItemChanged(0)
+        onStateChanged?.invoke(state)
+    }
+
     internal fun setActions(actions: PlaylistDetailHeaderActions) {
         this.actions = actions
     }
@@ -124,6 +136,7 @@ class PlaylistDetailHeaderAdapter : RecyclerView.Adapter<PlaylistDetailHeaderAda
                 if (state.inlinePlayAllVisible) View.VISIBLE else View.INVISIBLE
             binding.playAllRow.setOnClickListener { }
             binding.playAllActionContainer.setOnClickListener { actions.onPlayAll() }
+            binding.searchPlaylistHeaderButton.isVisible = state.searchEnabled
             binding.searchPlaylistHeaderButton.setOnClickListener { actions.onSearchRequested() }
             binding.playlistSearchCancelText.setOnClickListener { actions.onSearchCancelled() }
 
@@ -135,7 +148,7 @@ class PlaylistDetailHeaderAdapter : RecyclerView.Adapter<PlaylistDetailHeaderAda
             searchWatcher = binding.playlistSearchInput.doAfterTextChanged {
                 actions.onSearchQueryChanged(it?.toString().orEmpty())
             }
-            binding.playlistSearchBarLayout.isVisible = state.searchExpanded
+            binding.playlistSearchBarLayout.isVisible = state.searchEnabled && state.searchExpanded
 
             if (state.searchExpanded && requestFocus) {
                 binding.playlistSearchInput.post {

@@ -81,6 +81,7 @@ import cn.partialy.pm.ui.player.LyricSettingsSheet
 import cn.partialy.pm.ui.player.LyricsAdapter
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.ui.widget.PlaybackButtonStateRenderer
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.AudioEmbeddedArtReader
 import cn.partialy.pm.utils.LocalMediaIndexDbStore
@@ -104,6 +105,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -136,6 +139,8 @@ class PlayerActivity : BaseDownloadActivity() {
     private var lyricScrollState: Int = RecyclerView.SCROLL_STATE_IDLE
     private var lyricCenterSeekIndex: Int = -1
     private var karaokeSyncJob: Job? = null
+    private var lyricLoadJob: Job? = null
+    private lateinit var playbackButtonStateRenderer: PlaybackButtonStateRenderer
     private var karaokeBasePaddingTop: Int = -1
     private var karaokeBasePaddingBottom: Int = -1
     private var pendingSeekProgress: Int? = null
@@ -197,6 +202,7 @@ class PlayerActivity : BaseDownloadActivity() {
 
             setupPlaybackControls()
             setupLyricsList()
+            playbackButtonStateRenderer = PlaybackButtonStateRenderer(binding.playPauseButton)
             observePlaybackState()
             observeListenTogether()
             observeAudioEffects()
@@ -424,34 +430,48 @@ class PlayerActivity : BaseDownloadActivity() {
 
     private fun observePlaybackState() {
         lifecycleScope.launch {
-            musicController.isPlaying.collect { isPlaying ->
-                val icon = if (isPlaying) R.drawable.ic_pause_24 else R.drawable.ic_play_24
-                binding.playPauseButton.setImageResource(icon)
-            }
+            combine(
+                musicController.playbackState,
+                musicController.isPlaying,
+            ) { playbackState, isPlaying -> playbackState to isPlaying }
+                .collect { (playbackState, isPlaying) ->
+                    playbackButtonStateRenderer.render(playbackState, isPlaying)
+                }
         }
 
         lifecycleScope.launch {
-            musicController.currentSong.collect { song ->
+            musicController.currentSong.collectLatest { song ->
+                lyricLoadJob?.cancel()
+                lyricLoadJob = null
+
+                if (song == null) {
+                    (binding.playlistBottomSheet.playlistRecyclerView.adapter as? PlaylistAdapter)
+                        ?.setCurrentPlayingSong(null)
+                    SongSourceTagBinder.hide(binding.songSourceTagTextView)
+                    submitLyrics(LyricContent.noLyrics())
+                    return@collectLatest
+                }
+
+                submitLyrics(LyricContent.message(getString(R.string.player_lyric_loading)))
+                val lyricSongKey = songIdentityKey(song)
+                lyricLoadJob = lifecycleScope.launch {
+                    val loadedLyrics = lyricRepository.loadLyrics(song)
+                    val currentSongKey = musicController.currentSong.value?.let(::songIdentityKey)
+                    if (currentSongKey == lyricSongKey) submitLyrics(loadedLyrics)
+                }
+
                 (binding.playlistBottomSheet.playlistRecyclerView.adapter as? PlaylistAdapter)
                     ?.setCurrentPlayingSong(song)
-                song?.let {
-                    binding.songTitleTextView.text = it.name
-                    binding.artistTextView.text = it.artist
-                    SongSourceTagBinder.bind(
-                        binding.songSourceTagTextView,
-                        it.type,
-                        SongSourceTagBinder.Surface.ON_DARK,
-                    )
-                    syncLoveButton(it)
-                    applyLocalMediaFallbacks(it)
-                    applyBlurBackground(modelForBlur(it))
-                    if (it.type == SongType.LOCAL) {
-                        submitLyrics(LyricContent.message("正在获取歌词..."))
-                    }
-                    submitLyrics(lyricRepository.loadLyrics(it))
-                } ?: run {
-                    SongSourceTagBinder.hide(binding.songSourceTagTextView)
-                }
+                binding.songTitleTextView.text = song.name
+                binding.artistTextView.text = song.artist
+                SongSourceTagBinder.bind(
+                    binding.songSourceTagTextView,
+                    song.type,
+                    SongSourceTagBinder.Surface.ON_DARK,
+                )
+                syncLoveButton(song)
+                applyLocalMediaFallbacks(song)
+                applyBlurBackground(modelForBlur(song))
             }
         }
 
@@ -1348,6 +1368,9 @@ class PlayerActivity : BaseDownloadActivity() {
         musicController.exoPlayer?.currentPosition ?: musicController.currentPosition.value
 
     override fun onDestroy() {
+        lyricLoadJob?.cancel()
+        lyricLoadJob = null
+        if (::playbackButtonStateRenderer.isInitialized) playbackButtonStateRenderer.release()
         stopKaraokeSync()
         super.onDestroy()
     }

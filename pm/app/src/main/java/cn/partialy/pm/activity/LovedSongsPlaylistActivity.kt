@@ -42,7 +42,7 @@ import javax.inject.Inject
 import kotlin.math.max
 import kotlin.math.min
 
-/** “我的收藏”详情：复用统一歌单详情 Header、搜索和交互模块。 */
+/** “我的收藏”详情：复用统一歌单详情 Header、歌曲列表和播放交互。 */
 @AndroidEntryPoint
 class LovedSongsPlaylistActivity : BaseDownloadActivity() {
 
@@ -106,7 +106,9 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
 
         binding.playlistCollectButton.isVisible = false
         binding.backButton.setOnClickListener { finishAnimated() }
-        binding.moreButton.setOnClickListener { }
+        binding.moreButton.setImageResource(R.drawable.ic_search_24)
+        binding.moreButton.contentDescription = getString(R.string.playlist_detail_search_cd)
+        binding.moreButton.setOnClickListener { LovedSongsSearchActivity.start(this) }
 
         contentAdapter = createContentAdapter()
         binding.recyclerView.apply {
@@ -120,6 +122,7 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
             artwork = PlaylistHeaderArtwork.DrawableRes(R.drawable.my_favorites_cover_peach),
             trackCountText = "0首",
         )
+        headerAdapter.setSearchEnabled(false)
         contentAdapter.setStaticSongs(emptyList(), R.string.loved_songs_empty_hint)
 
         val playAll: () -> Unit = {
@@ -132,6 +135,7 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
         )
+        binding.stickyPlayAllBar.searchPlaylistStickyButton.isVisible = false
         ImageViewCompat.setImageTintList(
             binding.stickyPlayAllBar.btnPlayAllSticky,
             ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),

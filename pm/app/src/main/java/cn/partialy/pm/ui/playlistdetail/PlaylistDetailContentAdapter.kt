@@ -30,6 +30,9 @@ class PlaylistDetailContentAdapter(
     val currentSongs: List<SongInfo>
         get() = allSongs
 
+    val visibleSongCount: Int
+        get() = visibleRows.size
+
     private var allSongs: List<SongInfo> = emptyList()
     private var visibleRows: List<PlaylistDetailSongRow> = emptyList()
     private var query: String = ""

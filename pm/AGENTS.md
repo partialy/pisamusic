@@ -60,6 +60,7 @@
 - `MusicController` 是 UI 和 Service 使用的统一播放器门面，也是 App 级播放单例；`MusicService` 只负责前台通知、MediaSessionService 承载和状态栏歌词，不在 `onDestroy()` 中释放播放器。只有明确的应用级退出 / 进程级清理流程才调用 `MusicController.release()`。
 - `PlaylistManager` 管理播放列表、当前下标、下一首队列和 `StateFlow`；主列表与“下一首播放”队列都按 `SongType + songId` 识别歌曲，同一音源同一歌曲不得重复入队，已有占位歌曲执行插播时应移动到目标位置而不是复制。
 - `PlayerEngine` 管理 ExoPlayer、MediaSession、播放事件、进度、播放模式和状态持久化。
+- 主播放页和通用迷你播放器的播放按钮统一由 `PlaybackButtonStateRenderer` 根据 `playbackState + isPlaying` 渲染；Media3 处于 `STATE_BUFFERING` 时显示 `ic_loading_loop_24` 并由代码做 1.5 秒无限旋转，离开缓冲态或页面销毁时必须取消动画并恢复播放/暂停图标。
 - `PlayerEngine` 默认使用 Media3 原生音频渲染器；只有宽声场处理确实启用时才接入 `AudioEffectsRenderersFactory`，音频渲染异常时应回退到原生渲染器并对当前歌曲重试一次。
 - `MediaItemFactory` 创建延迟解析的 `MediaItem`。
 - `PlayUrlGetter` 负责 KG / WY / KW / LOCAL 播放地址解析和音质降级。
@@ -69,6 +70,7 @@
 - Mini 播放器封面必须通过 `SongCoverUrl.getSongCoverData(...)` 加载，确保本地歌曲优先显示 `embeddedCoverArt`，不要只走远程封面 URL。
 - 本地歌曲与已下载歌曲列表点击播放时，应把当前完整列表作为播放队列并从点击项开始播放；歌曲更多菜单的“添加到歌单”目标首项为当前播放队列，后续才是本地自建歌单。
 - 酷狗、网易、自建歌单和“我的收藏”详情统一复用 `ui/playlistdetail/` 的 Header、歌曲内容、搜索和顶栏交互模块；搜索只过滤当前显示，播放仍按完整歌单以及 `type + id` 定位。顶栏和播放横幅的空白区域必须消费点击，只有显式“播放全部”动作区可以开始播放。
+- “我的收藏”详情的右上角搜索入口进入 `LovedSongsSearchActivity` 独立页面，不再显示详情 Header 和吸顶栏的内嵌搜索按钮；独立搜索页按歌名或歌手实时过滤展示，但单击结果与“播放全部”都必须使用按添加时间排序的完整收藏列表作为播放队列。
 - 播放页 3D 音效入口进入 `AudioEffectsActivity`；音效配置集中在 `audioeffect/` 模块，本地通过 SharedPreferences + kotlinx.serialization 保存，不同步到服务端。`AudioEffectsManager` 绑定 ExoPlayer `audioSessionId` 后使用系统 `DynamicsProcessing` / `Equalizer`、`BassBoost` 生效；宽声场由 Media3 `StereoWidenerAudioProcessor` 在 `DefaultAudioSink` 前做双声道 PCM Mid/Side 处理，处理器旁路时不能直接把同一个 `ByteBuffer` 作为源和目标复制。新增音效能力优先扩展该模块，不要把 AudioEffect 生命周期放进 Activity。
 - 在线歌曲播放失败不再自动跳到当前队列下一曲；失败后按设置里的“自动切换列表”处理，关闭时暂停并提示，开启时切换到本地 / 已缓存 / 已下载歌曲列表。
 - 在线播放缓存只通过 `player/cache/PlaybackMediaCache` 门面访问：队列项先在 IO 登记 descriptor / catalog，再一次性交付 `pmcache://media/<cacheKey>` 逻辑 URI；Main 不得按歌曲写物理缓存目录或 prepare 占位 URI。缓存身份固定为规范化 `source + songId + qualityKey`，每个在线 `MediaItem` 绑定构造时冻结的实际音质，目录同步从当前 player item 校验，不得用之后变化的全局音质偏好推断。
@@ -92,6 +94,7 @@
 - 酷狗手机验证码 / 扫码登录成功后，以登录响应里的 `token`、`userid` 作为主凭据调用 `/login/token` 补齐 `vip_type`、`vip_token`；`vip_token` 允许为空，最终合成 `KUGOU_API_PLATFORM=undefined; token=...; userid=...; vip_type=...; vip_token=...` 后仍统一写入 `MusicCookieManager`。
 - 歌词与封面映射以 `pm_media_index.db` SQLite 数据库建索引，由 `LocalMediaIndexDbStore` 管理；歌词文本可入库，保存当前音源可用的最优原文歌词（KG 优先 KRC，WY 优先 YRC，失败再 LRC），封面大图/内嵌图仍保留在文件或音频标签中，数据库只记录来源和引用。
 - 歌词解析统一走 `cn.partialy.pm.lyric.LyricParser`，输出 `LyricContent` / `LyricLine` / `LyricWord`。播放页 RecyclerView 使用 `lineText` 保持单行展示，卡拉 OK View 和状态栏歌词在“使用逐字歌词”开关开启且存在逐字时间时使用 `words` 做精准颜色过渡。
+- 播放页切换到任意非空歌曲后先显示“正在加载歌词...”，歌词请求采用最新歌曲优先并用 `songIdentityKey(type + id)` 拒绝旧请求迟到结果；无歌词或加载失败继续落到“暂无歌词”。
 - 播放页卡拉 OK View 支持用户上下滑动浏览歌词，浏览时中线行可点击跳转播放；用户无操作 3 秒后恢复自动滚动。歌词样式设置中包含“播放时候逐字放大”开关，默认关闭，仅影响卡拉 OK View 当前逐字渲染效果。
 - 状态栏歌词由 `MusicService` 驱动，设置页使用 WebView 加载 `assets/status_bar_lyric/`，悬浮歌词本体使用原生 `WindowManager` + 自绘 View；设置页可临时显示真实悬浮窗预览，调整宽度时悬浮窗会短暂显示容器背景作为宽度提示；不要把常驻悬浮窗实现绑定到播放器 Activity 生命周期。
 - “我的”页使用 `CoordinatorLayout + AppBarLayout + 全高 ViewPager2`：`CollapsingToolbarLayout` 只负责头像背景折叠，Tab 作为无 `scrollFlags` 的 AppBar 直接子项吸顶，固定 Header 必须是 Coordinator 顶层 Overlay 并在根布局显式 `requestApplyInsets()` 后处理状态栏安全区。两个 Tab 各自使用页面级 RecyclerView 表达不同内容长度和独立滚动位置；ViewPager 视口保持等高，不得恢复 `wrap_content`、`UNSPECIFIED` 全量测量、外层 `NestedScrollView` 或按 Adapter 项目数动态修改页面高度。MainActivity 保存的当前顶层目的地是首页、发现页和我的页容器可见性及系统栏样式归属的唯一依据，隐藏 Fragment 不得写窗口级系统栏状态。

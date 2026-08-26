@@ -74,8 +74,10 @@
 | --- | --- | --- | --- | --- |
 | 播放队列 BottomSheet | 当前播放列表、清空、队列空状态 | `pm/app/src/main/res/layout/bottom_sheet_playlist.xml` | `PlayerActivity`、`PlaylistAdapter` | 播放队列面板参考。 |
 | 歌单详情搜索栏 | 歌单内按歌名/歌手过滤 | `pm/app/src/main/res/layout/item_playlist_detail_header.xml`、`playlist_detail_sticky_play_all.xml` | `ui/playlistdetail/PlaylistDetailHeaderAdapter`、`PlaylistDetailContentAdapter`、`PlaylistDetailInteractionController` | 复用播放队列的 40dp 输入框和右侧取消样式；吸顶搜索入口先回顶并展开同一个输入框，不维护两份查询状态。 |
+| 收藏独立搜索页 | 从“我的收藏”右上角进入，实时过滤收藏歌曲 | `pm/app/src/main/res/layout/activity_loved_songs_search.xml` | `LovedSongsSearchActivity`、`PlaylistDetailContentAdapter`、`HomeMiniPlayerBinder` | 查询为空时保留搜索栏与迷你播放器；按歌名/歌手过滤展示，播放仍使用完整收藏列表并按 `type + id` 定位。 |
 | 歌词设置面板 | 歌词样式设置、滑轨、分段按钮、步进器 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `LyricSettingsSheet` | 歌词相关设置优先参考。 |
 | 迷你播放器 | 底部迷你播放器 | `pm/app/src/main/res/layout/home_mini_player.xml` | `HomeMiniPlayerBinder` | 首页/主界面底部播放入口参考。 |
+| 播放按钮缓冲态 | 主播放按钮和迷你播放器缓冲反馈 | `pm/app/src/main/res/drawable/ic_loading_loop_24.xml` | `PlaybackButtonStateRenderer` | VectorDrawable 只承载图形；Media3 `STATE_BUFFERING` 时由 ObjectAnimator 以 1.5 秒周期持续旋转，销毁时必须释放。 |
 | 歌词行 | 普通歌词 RecyclerView 行 | `pm/app/src/main/res/layout/item_lyric_line.xml` | `LyricsAdapter` | 非卡拉 OK View 的普通歌词行。 |
 | 卡拉 OK 歌词 View | 逐字歌词渲染 | `pm/app/src/main/java/cn/partialy/pm/ui/player/KaraokeLyricsView.kt` | `LyricDisplayStyle` | 自绘歌词，不要用普通 TextView 代替。 |
 | 歌源标签 | KG/WY/KW/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定；KG/WY 必须分别显示同规格的 16dp 圆角描边方块 `K` / `Y`（无额外 padding、居中），包括侧拉栏。KW/LOCAL 继续使用原有自适应矩形标签，禁止在调用方单独设置来源文案、背景或 padding。 |

@@ -17,8 +17,10 @@ import cn.partialy.pm.activity.PlayerActivity
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.HomeMiniPlayerBinding
 import cn.partialy.pm.player.MusicController
+import cn.partialy.pm.ui.widget.PlaybackButtonStateRenderer
 import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
@@ -30,6 +32,7 @@ class HomeMiniPlayerBinder(
     private val musicController: MusicController,
 ) {
     private var coverRotationAnimator: ObjectAnimator? = null
+    private val playbackButtonStateRenderer = PlaybackButtonStateRenderer(mini.miniPlayerPlayButton)
 
     fun setupClicks() {
         mini.miniPlayerCard.setOnClickListener { PlayerActivity.start(activity) }
@@ -63,18 +66,22 @@ class HomeMiniPlayerBinder(
             }
         }
         owner.lifecycleScope.launch {
-            musicController.isPlaying.collect { isPlaying ->
-                val icon = if (isPlaying) R.drawable.ic_pause_24 else R.drawable.ic_play_24
-                mini.miniPlayerPlayButton.setImageResource(icon)
-                mini.miniPlayerPlayButton.imageTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(activity, R.color.home_mini_player_title),
-                )
-                updateCoverRotation(isPlaying)
-            }
+            combine(
+                musicController.playbackState,
+                musicController.isPlaying,
+            ) { playbackState, isPlaying -> playbackState to isPlaying }
+                .collect { (playbackState, isPlaying) ->
+                    playbackButtonStateRenderer.render(playbackState, isPlaying)
+                    mini.miniPlayerPlayButton.imageTintList = ColorStateList.valueOf(
+                        ContextCompat.getColor(activity, R.color.home_mini_player_title),
+                    )
+                    updateCoverRotation(isPlaying)
+                }
         }
     }
 
     fun onDestroy() {
+        playbackButtonStateRenderer.release()
         coverRotationAnimator?.cancel()
         coverRotationAnimator = null
     }
