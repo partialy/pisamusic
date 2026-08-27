@@ -3,6 +3,10 @@ import type {
   AdminFeedbackDetail,
   AdminFeedbackFilter,
   AdminFeedbackListResponse,
+  AdminWebsiteDownloadDetail,
+  AdminWebsiteDownloadListResponse,
+  AdminWebsiteVisitDetail,
+  AdminWebsiteVisitListResponse,
   AdminFaultReportDetail,
   AdminFaultReportFilter,
   AdminFaultReportListResponse,
@@ -654,6 +658,50 @@ export async function fetchAdminFeedback(filter: AdminFeedbackFilter): Promise<A
 export async function fetchAdminFeedbackDetail(id: string): Promise<AdminFeedbackDetail> {
   const res = await fetchWithAuth(`/api/admin/feedback/${encodeURIComponent(id)}`);
   const body = await parseJson<AdminFeedbackDetail>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminWebsiteVisitRecords(
+  offset: number,
+  limit: number,
+): Promise<AdminWebsiteVisitListResponse> {
+  const params = new URLSearchParams({ type: "visit", offset: String(offset), limit: String(limit) });
+  const res = await fetchWithAuth(`/api/admin/website-records?${params.toString()}`);
+  const body = await parseJson<AdminWebsiteVisitListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminWebsiteDownloadRecords(
+  offset: number,
+  limit: number,
+): Promise<AdminWebsiteDownloadListResponse> {
+  const params = new URLSearchParams({ type: "download", offset: String(offset), limit: String(limit) });
+  const res = await fetchWithAuth(`/api/admin/website-records?${params.toString()}`);
+  const body = await parseJson<AdminWebsiteDownloadListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminWebsiteVisitDetail(id: string): Promise<AdminWebsiteVisitDetail> {
+  const res = await fetchWithAuth(`/api/admin/website-records/visit/${encodeURIComponent(id)}`);
+  const body = await parseJson<AdminWebsiteVisitDetail>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminWebsiteDownloadDetail(id: string): Promise<AdminWebsiteDownloadDetail> {
+  const res = await fetchWithAuth(`/api/admin/website-records/download/${encodeURIComponent(id)}`);
+  const body = await parseJson<AdminWebsiteDownloadDetail>(res);
   if (!res.ok || !body.success || body.data == null) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }

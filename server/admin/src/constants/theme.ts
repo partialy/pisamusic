@@ -20,6 +20,7 @@ export const glassInputClasses =
 export const tabs = [
   { id: "dashboard" as const, name: "仪表盘", icon: "M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zm10-12h8V3h-8v6z" },
   { id: "system" as const, name: "系统配置", icon: "M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
+  { id: "websiteRecords" as const, name: "官网记录", icon: "M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.25-2.46 3.5-5.63 3.5-9S14.25 5.46 12 3c-2.25 2.46-3.5 5.63-3.5 9s1.25 6.54 3.5 9zM3.6 9h16.8M3.6 15h16.8" },
   { id: "users" as const, name: "用户管理", icon: "M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m0-4a4 4 0 100-8 4 4 0 000 8zm8 0a3 3 0 100-6 3 3 0 000 6z" },
   { id: "devices" as const, name: "设备管理", icon: "M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" },
   { id: "update" as const, name: "版本发布", icon: "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" },

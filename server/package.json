@@ -8,6 +8,7 @@
     "test:file-management": "pnpm build && node --test dist/services/fileManagementService.spec.js",
     "test:fault-reports": "pnpm build && node --test dist/db/faultReportStore.spec.js",
     "test:analytics": "pnpm build && node --test dist/db/analyticsStore.spec.js dist/db/dashboardStore.spec.js",
+    "test:website-records": "pnpm build && node --test dist/db/websiteRecordStore.case.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",

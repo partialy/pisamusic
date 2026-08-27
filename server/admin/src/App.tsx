@@ -98,6 +98,7 @@ import UserEditModal from "./components/modals/UserEditModal";
 
 const DashboardTab = lazy(() => import("./components/tabs/DashboardTab"));
 const SystemTab = lazy(() => import("./components/tabs/SystemTab"));
+const WebsiteRecordsTab = lazy(() => import("./components/tabs/WebsiteRecordsTab"));
 const UpdateTab = lazy(() => import("./components/tabs/UpdateTab"));
 const FileManagementTab = lazy(() => import("./components/tabs/FileManagementTab"));
 const FeedbackManagementTab = lazy(() => import("./components/tabs/FeedbackManagementTab"));
@@ -1453,12 +1454,12 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </button>
             <div className="min-w-0 flex flex-col gap-1">
               <h2 className="truncate text-xl font-extrabold text-slate-800 sm:text-2xl">{currentTitle}</h2>
-              {hydrated && loadError && currentTab !== "dashboard" && (
+              {hydrated && loadError && currentTab !== "dashboard" && currentTab !== "websiteRecords" && (
                 <p className="text-xs text-amber-700 font-medium">配置加载失败（已使用本地默认）：{loadError}</p>
               )}
             </div>
           </div>
-          {currentTab !== "dashboard" ? (
+          {currentTab !== "dashboard" && currentTab !== "websiteRecords" ? (
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
               <button
                 type="button"
@@ -1485,6 +1486,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <div className="mx-auto w-full max-w-7xl pb-20">
             <Suspense fallback={tabFallback()}>
               {currentTab === "dashboard" && <DashboardTab themeColor={themeColor} />}
+              {currentTab === "websiteRecords" && <WebsiteRecordsTab themeColor={themeColor} />}
               {currentTab === "system" && (
                 <SystemTab
                   config={appConfig}

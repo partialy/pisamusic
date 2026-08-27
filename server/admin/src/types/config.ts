@@ -455,6 +455,55 @@ export type AdminFeedbackFilter = {
   limit?: number;
 };
 
+export type WebsiteRecordType = "visit" | "download";
+
+export type AdminWebsiteVisitListItem = {
+  id: string;
+  visitDay: string;
+  path: string;
+  referrer: string;
+  ipAddress: string;
+  language: string;
+  screenWidth: number;
+  screenHeight: number;
+  createdAt: number;
+};
+
+export type AdminWebsiteVisitDetail = AdminWebsiteVisitListItem & {
+  visitorHash: string;
+  userAgent: string;
+  timezone: string;
+};
+
+export type AdminWebsiteDownloadListItem = {
+  id: string;
+  downloadDay: string;
+  platform: "android" | "desktop";
+  version: string;
+  fileRecordId: string | null;
+  ipAddress: string;
+  createdAt: number;
+};
+
+export type AdminWebsiteDownloadDetail = AdminWebsiteDownloadListItem & {
+  referrer: string;
+  userAgent: string;
+};
+
+export type AdminWebsiteVisitListResponse = {
+  items: AdminWebsiteVisitListItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type AdminWebsiteDownloadListResponse = {
+  items: AdminWebsiteDownloadListItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
 export type FaultReportStatus = "pending" | "processed";
 export type FaultReportScene = "play_url" | "desktop_network";
 export type FaultReportPlatform = "android" | "desktop";
