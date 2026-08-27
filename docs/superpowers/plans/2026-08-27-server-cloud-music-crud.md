@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 `server/` 建立由管理员上传和维护的公共网盘曲库，将音频直传七牛、自动解析音乐元数据并以唯一 UUID 入库，同时提供独立的后台 CRUD 页面和 `cloud` 音源搜索、详情、播放链接接口。
+**Goal:** 在 `server/` 建立可追踪上传全过程、支持用户归属、音频/封面/歌词资产、审核状态和临时文件清理的公共网盘曲库，并提供管理后台 CRUD 与独立 `cloud` 音源接口。
 
-**Architecture:** `cloudMusicService.ts` 作为深模块，只向路由暴露创建、更新、删除和播放链接等小接口，内部隐藏七牛校验、临时文件、元数据解析和 SQLite 事务。音频对象继续登记到统一 `file_records`，业务信息单独存入 `cloud_music_tracks`；客户端接口固定挂载 `/api/cloud-music`，不得并入 KG/WY/KW 搜索或现有音乐网关。
+**Architecture:** `cloudMusicService.ts` 是网盘音乐深模块的唯一业务 seam，路由只调用“创建上传会话、确认资产、保存曲目、审核、清理、查询、获取资源地址”等小接口；模块内部统一隐藏 UUID、状态机、七牛对象、元数据解析、资产替换和 SQLite 事务。上传凭证签发前先创建 `temp` 曲目和 `pending` 文件记录，所有七牛 Key 都有数据库归属，因此浏览器在上传成功后中断也不会产生无法追踪的幽灵文件。
 
 **Tech Stack:** Node.js 22+、TypeScript 6、Express 5、Node SQLite、七牛 Node SDK、`music-metadata`、React 18、Vite 5、Tailwind CSS。
 
@@ -12,50 +12,136 @@
 
 - 本计划只修改 `server/`、根 `AGENTS.md` 和本文档，不修改 `pm/`、`yixi/`。
 - 当前工作区已有未提交的 PC 端改动，执行时不得回退、暂存或提交这些文件。
-- “网盘”定义为平台管理员维护、客户端共同读取的公共曲库，不按用户隔离。
+- “网盘”首期是平台公共曲库；管理端上传的所有者固定为 `system`，后续用户上传时从登录 Token 绑定真实 `users.id`，不得接受客户端伪造用户 ID。
 - 独立音乐源代码固定为 `cloud`，不聚合到 KG、WY、KW，不修改已有三源搜索结果和排序。
-- 音频文件使用现有私有 `QINIU_BUCKET`，对象 Key 固定前缀 `pisamusic/cloud-music/`；不新增公开直链。
+- 音频、封面、歌词均使用现有私有 `QINIU_BUCKET`；对象 Key 统一位于 `pisamusic/cloud-music/`，不下发永久公开直链。
 - 上传由管理后台直接传七牛，服务端不接收浏览器的大文件 multipart body。
-- 支持扩展名固定为 `.mp3`、`.flac`、`.m4a`、`.mp4`、`.aac`、`.ogg`、`.opus`、`.wav`；默认单文件上限 500 MiB。
-- 自动提取并允许修改：歌名、歌手、专辑、时长、格式、编码、码率、采样率、声道数、年份、音轨号。
-- 七牛对象 Key、Hash、真实文件大小、MIME、原始文件名为物理事实，只读不可编辑。
-- UUID、`file_record_id` 和对象 Key 创建后不可修改；替换音频必须删除后重新上传，生成新 UUID。
-- 删除音频时先删除七牛对象，成功后在同一 SQLite 事务中逻辑删除 `cloud_music_tracks` 和 `file_records`；数据库历史不得物理删除。
-- 元数据解析失败时不得入库；服务端对七牛对象执行尽力删除，并向后台返回明确错误。
-- 不把封面二进制或完整 `music-metadata` 原始对象写入 SQLite；首期不处理内嵌封面。
+- 签发任何七牛上传凭证前，必须先事务写入 `cloud_music_tracks(status='temp')` 和对应 `file_records(status='pending')`；禁止“先传七牛、后建数据库记录”。
+- 音频扩展名固定支持 `.mp3`、`.flac`、`.m4a`、`.mp4`、`.aac`、`.ogg`、`.opus`、`.wav`，单文件上限 500 MiB。
+- 手动封面固定支持 `.jpg`、`.jpeg`、`.png`、`.webp`，单文件上限 10 MiB；歌词固定支持 UTF-8 `.lrc`、`.txt`，单文件上限 2 MiB。
+- 七牛对象 Key、Hash、真实文件大小、MIME、原始文件名为物理事实，只读不可编辑；所有物理值由服务端 `stat`/文件头校验，不信任浏览器回传。
+- UUID、音频 `fileRecordId` 和已经完成上传的对象 Key 不可修改；替换音频必须新建上传会话，生成新 UUID。
+- 删除时先删除七牛对象，再逻辑删除业务记录和所有关联 `file_records`；数据库历史不得物理删除。
 - 新增或修改接口必须同步更新 `server/apidoc/` 对应文档和 `server/apidoc/index.md`。
-- 按老大要求不做复杂测试：不跑全量测试、不启动服务、不真实上传七牛；只计划服务端构建、管理后台构建、`git diff --check` 和一轮人工小文件验收。
+- 按老大要求不做复杂测试：不跑全量测试、不启动服务、不真实上传七牛；只执行服务端构建、管理后台构建、`git diff --check`，真实小文件流程交给老大验收。
 - 本计划仅输出方案，不执行、不提交 Git。
 
 ---
 
 ## Business Rules and Data Contract
 
-### 权威字段
+### 曲目状态机
 
-| 字段 | 来源 | 是否可编辑 | 规则 |
-|---|---|---:|---|
-| `uuid` | 服务端 `randomUUID()` | 否 | `cloud_music_tracks` 主键，也是独立音源歌曲 ID |
-| `title` | ID3/Vorbis/MP4 tag，缺失时取去扩展名文件名 | 是 | 去首尾空白，1-200 字符 |
-| `artist` | `common.artists`，否则 `common.artist`，再否则“未知歌手” | 是 | 多歌手用 ` / ` 连接，1-300 字符 |
-| `album` | `common.album` | 是 | 0-200 字符 |
-| `durationMs` | `format.duration * 1000` | 是 | 0-24 小时，整数毫秒 |
-| `format` | 容器/扩展名归一化 | 是 | 1-32 字符，如 `mp3`、`flac`、`m4a` |
-| `codec` | `format.codec` | 是 | 0-64 字符 |
-| `bitrate` | `format.bitrate` | 是 | 非负整数 bps |
-| `sampleRate` | `format.sampleRate` | 是 | 非负整数 Hz |
-| `channels` | `format.numberOfChannels` | 是 | 0-32 |
-| `year` | `common.year` | 是 | `null` 或 1000-9999 |
-| `trackNo` | `common.track.no` | 是 | `null` 或正整数 |
-| `enabled` | 管理员 | 是 | `false` 时客户端搜索、详情和播放链接均不可见 |
-| `fileSize/hash/mime/objectKey` | 七牛 `stat` | 否 | 不信任浏览器 complete 请求里的值 |
+```ts
+export type CloudMusicTrackStatus =
+  | "temp"
+  | "active"
+  | "disabled"
+  | "offline"
+  | "pending_review"
+  | "rejected"
+  | "deleted";
 
-### 客户端 DTO
+export type CloudMusicUploadState =
+  | "reserved"
+  | "uploaded"
+  | "processing"
+  | "ready"
+  | "failed";
+
+export type CloudMusicAssetState = "pending" | "uploaded" | "superseded" | "deleted";
+export type CloudMusicAssetKind = "audio" | "cover-uploaded" | "cover-extracted" | "lyrics";
+```
+
+| 状态 | 客户端搜索 | 客户端详情 | 播放/歌词地址 | 管理端试听 | 说明 |
+|---|---:|---:|---:|---:|---|
+| `temp` 临时 | 否 | 否 | 否 | 音频已上传时允许 | 已创建上传会话但管理端尚未保存，可一键清理 |
+| `active` 可用 | 是 | 是 | 是 | 是 | 正常曲目 |
+| `disabled` 禁用 | 是 | 是 | 否 | 是 | 可发现；播放接口返回 403 `CLOUD_MUSIC_DISABLED` |
+| `offline` 下架 | 否 | 否 | 否 | 是 | 运营下架，保留文件和记录 |
+| `pending_review` 待审核 | 否 | 否 | 否 | 是 | 后期用户上传并确认后进入此状态 |
+| `rejected` 审核不通过 | 否 | 否 | 否 | 是 | 保留审核记录和文件，可重新送审或删除 |
+| `deleted` 删除 | 否 | 否 | 否 | 否 | 七牛对象已删除，数据库逻辑删除；终态 |
+
+允许转换：
+
+```text
+管理端：temp --保存--> active | disabled | offline
+未来用户：temp --提交审核--> pending_review --通过--> active | disabled
+                                      └--拒绝--> rejected
+active <--> disabled
+active | disabled <--> offline
+rejected --> pending_review | active
+除 deleted 外任意状态 --删除/清理--> deleted
+deleted 不允许恢复
+```
+
+业务 `status` 与上传过程 `uploadState` 分开：
+
+```text
+创建上传会话：status=temp, uploadState=reserved, file_records.status=pending
+七牛音频存在：uploadState=uploaded
+解析中：uploadState=processing
+解析成功：uploadState=ready，status 仍为 temp
+解析失败：uploadState=failed，status 仍为 temp，可重试或清理
+管理端保存：status=active/disabled/offline，要求 uploadState=ready
+```
+
+状态转换全部集中在 `cloudMusicService.ts`；Store 只接收已经校验过的目标状态，路由和 React 页面不得自行写状态 SQL。
+
+### 临时记录与幽灵文件防护
+
+创建上传会话时先生成 UUID，为音频及已选择的封面/歌词生成固定 Key，在一个 SQLite 事务中写入临时曲目和临时 `file_records`，提交后才返回上传 Token。七牛成功但 complete 未到达时，数据库仍保留 Key，可由后台清理。
+
+“一键清理临时文件”默认处理 `status=temp AND updated_at <= now-24h`；弹窗可选“24 小时前 / 72 小时前 / 全部临时记录”。清理逐曲删除音频、手动封面、解析封面和歌词；七牛 612 视为对象已不存在，其他错误保留 temp 并返回失败明细，避免数据库标记删除但云端仍残留。
+
+### 文件所有者
+
+```ts
+export type CloudMusicOwner =
+  | { type: "system"; userId: null; displayName: "system" }
+  | { type: "user"; userId: string; displayName: string };
+```
+
+- `file_records` 新增 `owner_type`、`owner_user_id`、`owner_snapshot_json`；旧记录迁移为 `owner_type='system'`。
+- 管理端上传时服务端强制 owner 为 system，请求体不接收 owner。
+- 后期用户上传只能从有效账号 Token 获取 `users.id`；快照保存当时的 `id/username/email`，用户硬删除后仍可审计。
+- 同一曲目的音频、封面和歌词必须拥有相同 owner，由 `cloudMusicService.ts` 保证。
+
+### 元数据、封面和歌词优先级
+
+歌名、歌手、专辑、时长先解析并填入编辑表单：
+
+```text
+歌名：metadata.title > 去扩展名文件名
+歌手：metadata.artists/artist > 未知歌手
+专辑：metadata.album > 空字符串
+时长：metadata.duration > 0
+```
+
+管理员手动修改后，保存值覆盖解析值；“元数据优先”仅指表单初值优先于文件名或默认值，不覆盖已经保存的人工修改。
+
+封面顺序固定：
+
+```text
+手动上传封面 > 音频内嵌封面 > /static/cloud-music/default-cover.svg
+```
+
+- 服务端尝试提取第一张合法内嵌封面，只允许 JPEG/PNG/WebP 且不超过 10 MiB，上传七牛并登记 `asset_type='cover-extracted'`。
+- 手动封面登记为 `asset_type='cover-uploaded'`；删除后回退内嵌封面，再回退默认封面。
+- 默认封面是仓库静态 SVG，不登记 `file_records`。
+- 歌词登记为 `asset_type='lyrics'`，只允许 UTF-8 LRC/TXT；首期不解析内嵌歌词、不自动匹配。
+
+### 管理端 DTO
 
 ```ts
 export type CloudMusicTrack = {
   uuid: string;
   source: "cloud";
+  owner: CloudMusicOwner;
+  status: CloudMusicTrackStatus;
+  uploadState: CloudMusicUploadState;
+  statusReason: string;
   title: string;
   artist: string;
   album: string;
@@ -67,21 +153,162 @@ export type CloudMusicTrack = {
   channels: number;
   year: number | null;
   trackNo: number | null;
-  enabled: boolean;
-  file: {
-    fileName: string;
-    mimeType: string;
-    fileSize: number;
-    hash: string;
-  };
+  playable: boolean;
+  cover: { source: "uploaded" | "embedded" | "default"; url: string };
+  lyrics: null | { format: "lrc" | "txt"; fileName: string };
+  audioFile: CloudMusicFileInfo;
   createdAt: number;
   updatedAt: number;
+  reviewedAt: number | null;
+  reviewedBy: string;
 };
 ```
 
+客户端 DTO 不返回 owner 邮箱、bucket/objectKey/hash、审核人、失败信息或已删除资产；管理端 DTO 才返回完整物理文件和审计字段。
+
+### 共享实现类型
+
+```ts
+export type CloudMusicFileInfo = {
+  id: string;
+  kind: CloudMusicAssetKind;
+  state: CloudMusicAssetState;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  hash: string;
+  bucket: string;
+  objectKey: string;
+};
+
+export type CloudMusicSelectedFile = {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+};
+
+export type CloudMusicUploadSessionRequest = {
+  audio: CloudMusicSelectedFile;
+  cover?: CloudMusicSelectedFile;
+  lyrics?: CloudMusicSelectedFile;
+};
+
+export type CloudMusicAssetReserveRequest = CloudMusicSelectedFile & {
+  kind: "cover-uploaded" | "lyrics";
+};
+
+export type CloudMusicAssetUploadTicket = {
+  assetId: string;
+  fileRecordId: string;
+  kind: CloudMusicAssetKind;
+  key: string;
+  uploadToken: string;
+  uploadUrl: string;
+};
+
+export type CloudMusicReservedAsset = {
+  assetId: string;
+  fileRecordId: string;
+  trackUuid: string;
+  kind: CloudMusicAssetKind;
+  bucket: string;
+  objectKey: string;
+  declaredFile: CloudMusicSelectedFile;
+};
+
+export type CloudMusicUploadSession = {
+  uuid: string;
+  track: CloudMusicTrack;
+  tickets: CloudMusicAssetUploadTicket[];
+};
+
+export type CloudMusicListInput = {
+  keyword?: string;
+  ownerType?: "system" | "user" | "all";
+  status?: CloudMusicTrackStatus | "all";
+  uploadState?: CloudMusicUploadState | "all";
+  format?: string;
+  offset?: number;
+  limit?: number;
+};
+
+export type CloudMusicListResult = {
+  items: CloudMusicTrack[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type CloudMusicSearchInput = Pick<CloudMusicListInput, "keyword" | "offset" | "limit">;
+export type CloudMusicDraftUpdateInput = Pick<CloudMusicTrack, "title" | "artist" | "album" | "durationMs">;
+export type CloudMusicStatusTransitionInput = {
+  uuid: string;
+  from: CloudMusicTrackStatus[];
+  to: CloudMusicTrackStatus;
+  reason: string;
+  actor: string;
+};
+
+export type CloudMusicSessionCreateInput = {
+  uuid: string;
+  owner: CloudMusicOwner;
+  audio: CloudMusicReservedAsset;
+  cover?: CloudMusicReservedAsset;
+  lyrics?: CloudMusicReservedAsset;
+};
+
+export type CloudMusicAssetReserveInput = {
+  uuid: string;
+  owner: CloudMusicOwner;
+  asset: CloudMusicReservedAsset;
+};
+
+export type CloudMusicAssetConfirmInput = {
+  uuid: string;
+  assetId: string;
+  hash: string;
+  mimeType: string;
+  fileSize: number;
+};
+
+export type QiniuObjectStat = { hash: string; fileSize: number; mimeType: string };
+export type MetadataExtractInput = { signedUrl: string; fileName: string; expectedSize: number };
+export type ExtractedCoverUploadInput = {
+  uuid: string;
+  owner: CloudMusicOwner;
+  picture: NonNullable<CloudMusicExtractedMetadata["picture"]>;
+};
+
+export type CloudMusicResourceUrls = {
+  audioUrl: string;
+  audioExpiresAt: number;
+  coverUrl: string;
+  lyricsUrl: string | null;
+  lyricsExpiresAt: number | null;
+};
+
+export type CloudMusicExtractedMetadata = {
+  title: string;
+  artist: string;
+  album: string;
+  durationMs: number;
+  format: string;
+  codec: string;
+  bitrate: number;
+  sampleRate: number;
+  channels: number;
+  year: number | null;
+  trackNo: number | null;
+  picture: null | { mimeType: "image/jpeg" | "image/png" | "image/webp"; data: Uint8Array };
+  warnings: string[];
+};
+```
+
+这些 Store 输入中的 UUID、owner、对象 Key、fileRecordId 和七牛 stat 结果只由 `cloudMusicService.ts` 传入，不从 HTTP 请求直接构造。
+
 ---
 
-### Task 1: 建立网盘曲库表和独立 Store
+### Task 1: 扩展文件所有者并建立曲目、资产和状态存储
 
 **Files:**
 - Modify: `server/src/db/appDb.ts`
@@ -91,156 +318,176 @@ export type CloudMusicTrack = {
 **Interfaces:**
 
 ```ts
-export type CloudMusicTrackStatus = "active" | "disabled" | "deleted";
-
-export type CloudMusicCreateInput = {
-  uuid: string;
-  fileRecordId: string;
-  file: {
-    bucket: string;
-    objectKey: string;
-    hash: string;
-    fileName: string;
-    mimeType: string;
-    fileSize: number;
-  };
-  metadata: Omit<CloudMusicTrack, "uuid" | "source" | "file" | "enabled" | "createdAt" | "updatedAt">;
-};
-
-export function createCloudMusicTrack(input: CloudMusicCreateInput): CloudMusicTrack;
+export function createCloudMusicUploadSession(input: CloudMusicSessionCreateInput): CloudMusicTrack;
+export function reserveCloudMusicAsset(input: CloudMusicAssetReserveInput): CloudMusicReservedAsset;
+export function confirmCloudMusicAsset(input: CloudMusicAssetConfirmInput): CloudMusicTrack;
 export function readCloudMusicTrack(uuid: string, includeDeleted?: boolean): CloudMusicTrack | null;
 export function listCloudMusicTracks(input: CloudMusicListInput): CloudMusicListResult;
-export function searchActiveCloudMusic(input: CloudMusicSearchInput): CloudMusicListResult;
-export function updateCloudMusicTrack(uuid: string, patch: CloudMusicUpdateInput): CloudMusicTrack | null;
+export function searchVisibleCloudMusic(input: CloudMusicSearchInput): CloudMusicListResult;
+export function updateCloudMusicDraft(uuid: string, input: CloudMusicDraftUpdateInput): CloudMusicTrack | null;
+export function transitionCloudMusicStatus(input: CloudMusicStatusTransitionInput): CloudMusicTrack | null;
+export function listStaleTempTracks(olderThan: number, limit: number): CloudMusicTrack[];
 export function markCloudMusicDeleted(uuid: string, deletedAt: number): CloudMusicTrack | null;
 export function readCloudMusicByFileRecordId(fileRecordId: string): CloudMusicTrack | null;
 ```
 
-- [ ] **Step 1: 在 `CREATE_SQL` 新增业务表**
+- [ ] **Step 1: 扩展统一文件所有者字段**
+
+在 `file_records` 建表 SQL 增加：
+
+```sql
+owner_type          TEXT NOT NULL DEFAULT 'system',
+owner_user_id       TEXT,
+owner_snapshot_json TEXT NOT NULL DEFAULT '{}',
+```
+
+增加 `migrateFileRecords()`，通过 `PRAGMA table_info(file_records)` 为已有数据库补列并修复空 owner；增加索引：
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_file_records_owner
+ON file_records (owner_type, owner_user_id, created_at DESC);
+```
+
+- [ ] **Step 2: 新增网盘曲目表**
 
 ```sql
 CREATE TABLE IF NOT EXISTS cloud_music_tracks (
-    uuid            TEXT    PRIMARY KEY,
+    uuid                       TEXT    PRIMARY KEY,
+    status                     TEXT    NOT NULL DEFAULT 'temp',
+    upload_state               TEXT    NOT NULL DEFAULT 'reserved',
+    status_reason              TEXT    NOT NULL DEFAULT '',
+    title                      TEXT    NOT NULL DEFAULT '',
+    artist                     TEXT    NOT NULL DEFAULT '未知歌手',
+    album                      TEXT    NOT NULL DEFAULT '',
+    duration_ms                INTEGER NOT NULL DEFAULT 0,
+    format                     TEXT    NOT NULL DEFAULT '',
+    codec                      TEXT    NOT NULL DEFAULT '',
+    bitrate                    INTEGER NOT NULL DEFAULT 0,
+    sample_rate                INTEGER NOT NULL DEFAULT 0,
+    channels                   INTEGER NOT NULL DEFAULT 0,
+    year                       INTEGER,
+    track_no                   INTEGER,
+    lyrics_format              TEXT,
+    metadata_json              TEXT    NOT NULL DEFAULT '{}',
+    reviewed_by                TEXT    NOT NULL DEFAULT '',
+    reviewed_at                INTEGER,
+    created_at                 INTEGER NOT NULL,
+    updated_at                 INTEGER NOT NULL,
+    deleted_at                 INTEGER,
+    CHECK (status IN ('temp','active','disabled','offline','pending_review','rejected','deleted'))
+);
+CREATE TABLE IF NOT EXISTS cloud_music_assets (
+    id              TEXT    PRIMARY KEY,
+    track_uuid      TEXT    NOT NULL,
     file_record_id  TEXT    NOT NULL UNIQUE,
-    title           TEXT    NOT NULL,
-    artist          TEXT    NOT NULL,
-    album           TEXT    NOT NULL DEFAULT '',
-    duration_ms     INTEGER NOT NULL DEFAULT 0,
-    format          TEXT    NOT NULL,
-    codec           TEXT    NOT NULL DEFAULT '',
-    bitrate         INTEGER NOT NULL DEFAULT 0,
-    sample_rate     INTEGER NOT NULL DEFAULT 0,
-    channels        INTEGER NOT NULL DEFAULT 0,
-    year            INTEGER,
-    track_no        INTEGER,
-    enabled         INTEGER NOT NULL DEFAULT 1,
-    metadata_json   TEXT    NOT NULL DEFAULT '{}',
+    kind            TEXT    NOT NULL,
+    state           TEXT    NOT NULL DEFAULT 'pending',
+    is_current      INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,
     updated_at      INTEGER NOT NULL,
     deleted_at      INTEGER,
-    FOREIGN KEY (file_record_id) REFERENCES file_records(id)
+    FOREIGN KEY (track_uuid) REFERENCES cloud_music_tracks(uuid),
+    FOREIGN KEY (file_record_id) REFERENCES file_records(id),
+    CHECK (kind IN ('audio','cover-uploaded','cover-extracted','lyrics')),
+    CHECK (state IN ('pending','uploaded','superseded','deleted'))
 );
-CREATE INDEX IF NOT EXISTS idx_cloud_music_active_created
-ON cloud_music_tracks (deleted_at, enabled, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cloud_music_status_updated
+ON cloud_music_tracks (status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cloud_music_title_artist
 ON cloud_music_tracks (title, artist);
+CREATE INDEX IF NOT EXISTS idx_cloud_music_assets_track
+ON cloud_music_assets (track_uuid, kind, state, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cloud_music_current_asset
+ON cloud_music_assets (track_uuid, kind)
+WHERE is_current = 1 AND deleted_at IS NULL;
 ```
 
-- [ ] **Step 2: 实现 `cloudMusicStore.ts` 的行映射和分页查询**
+资产关系单独建表，避免在曲目表继续增加 audio/cover/lyrics 外键，并支持后续替换封面或歌词。新资产先以 `is_current=0/state=pending` 预登记，确认成功后事务切换 current；旧资产改为 superseded，再由业务模块删除旧七牛对象并逻辑删除记录。
 
-列表查询必须 `JOIN file_records` 返回物理文件字段；后台关键词匹配 `uuid/title/artist/album/file_name`，客户端查询固定增加 `deleted_at IS NULL AND enabled = 1 AND file_records.status = 'uploaded'`。
+- [ ] **Step 3: 用一个事务预登记上传会话**
 
-- [ ] **Step 3: 用一个 SQLite 事务创建两条记录**
-
-`createCloudMusicTrack()` 同时插入：
+先写曲目，再写音频临时 `file_records + cloud_music_assets`；已选择封面和歌词也在同一事务预登记：
 
 ```text
-file_records.usage_type = cloud-music
-file_records.platform = server
-file_records.asset_type = audio
-file_records.status = uploaded
-file_records.download_url = ""
-file_records.referenced_by = ["cloud-music:<uuid>"]
+usage_type = cloud-music
+platform = server
+asset_type = audio | cover-uploaded | lyrics
+provider = qiniu
+status = pending
+owner_type = system
+owner_user_id = NULL
+owner_snapshot_json = {"displayName":"system"}
+referenced_by = [{"type":"cloud-music","id":"<uuid>"}]
 ```
 
-以及对应 `cloud_music_tracks`。任一插入失败必须整体回滚。
+初始 title 取文件名、artist 为“未知歌手”、status=temp、uploadState=reserved。事务提交后才能签发 Token。
 
-- [ ] **Step 4: 实现更新和逻辑删除事务**
+- [ ] **Step 4: 实现资产确认与解析结果事务**
 
-更新只允许业务元数据和 `enabled`。删除事务设置 `cloud_music_tracks.deleted_at`、`enabled=0`，并设置 `file_records.status='deleted'`、`deleted_at`、`referenced_by='[]'`。
+确认资产时用七牛 `stat` 覆盖 `hash/mime_type/file_size`，并把文件和资产改为 uploaded/current。音频解析阶段依次写入 uploaded、processing、ready/failed；解析结果和当前资产切换在一个事务更新。`readCloudMusicByFileRecordId()` 通过 `cloud_music_assets` 反查曲目。
 
-- [ ] **Step 5: 扩展统一文件类型**
+- [ ] **Step 5: 实现状态查询和逻辑删除**
 
-`configStore.ts` 的 `FileRecordInfo.usageType` 和列表过滤增加 `cloud-music`，不把歌曲字段继续塞入已经很大的 `configStore.ts`。
+客户端搜索只返回 `status IN ('active','disabled')`。删除事务设置曲目 deleted/deleted_at，并将 `cloud_music_assets` 及所有关联文件记录改为 deleted、清空引用、写入 deleted_at。
 
-- [ ] **Step 6: 建议提交点**
+- [ ] **Step 6: 扩展统一文件类型**
+
+`FileRecordUsageType` 增加 `cloud-music`，文件状态类型增加 `pending`，`FileRecordReferenceType` 增加 `{ type: 'cloud-music'; id: string }`，`FileRecordInfo` 增加 owner 字段。现有发布文件映射为 system；曲目字段继续留在独立 Store。
+
+- [ ] **Step 7: 建议提交点**
 
 ```powershell
 git add server/src/db/appDb.ts server/src/db/cloudMusicStore.ts server/src/db/configStore.ts
-git commit -m "功能（server）：建立网盘音乐存储模型"
+git commit -m "功能（server）：建立网盘音乐状态与文件归属模型"
 ```
 
-### Task 2: 增加七牛音频上传、对象核验和元数据解析
+### Task 2: 增加七牛预登记上传、音频解析、封面和歌词处理
 
 **Files:**
 - Modify: `server/package.json`
 - Modify: `server/src/services/qiniuReleaseFiles.ts`
+- Create: `server/src/services/cloudMusicAssets.ts`
 - Create: `server/src/services/cloudMusicMetadata.ts`
+- Create: `server/static/cloud-music/default-cover.svg`
 
 **Interfaces:**
 
 ```ts
-export type CloudMusicUploadTokenInput = {
+export function createCloudMusicAssetUploadToken(input: {
   uuid: string;
-  fileName: string;
-  fileSize: number;
-  mimeType?: string;
-};
-
-export function createCloudMusicUploadToken(input: CloudMusicUploadTokenInput): QiniuUploadTokenInfo;
-export function isCloudMusicObjectKey(uuid: string, key: string): boolean;
-export async function statQiniuObject(bucket: string, key: string): Promise<{
-  hash: string;
-  fileSize: number;
-  mimeType: string;
-}>;
-
-export async function extractCloudMusicMetadata(input: {
-  signedUrl: string;
-  fileName: string;
-  expectedSize: number;
-}): Promise<CloudMusicExtractedMetadata>;
+  asset: CloudMusicReservedAsset;
+}): QiniuUploadTokenInfo;
+export async function statCloudMusicAsset(asset: CloudMusicReservedAsset): Promise<QiniuObjectStat>;
+export async function deleteCloudMusicAsset(asset: CloudMusicFileInfo): Promise<void>;
+export async function uploadExtractedCover(input: ExtractedCoverUploadInput): Promise<CloudMusicFileInfo>;
+export function createCloudMusicAssetUrl(asset: CloudMusicFileInfo, ttlSeconds: number): string;
+export async function extractCloudMusicMetadata(input: MetadataExtractInput): Promise<CloudMusicExtractedMetadata>;
 ```
 
-- [ ] **Step 1: 添加元数据依赖**
-
-执行时使用：
+- [ ] **Step 1: 添加音乐元数据依赖**
 
 ```powershell
 pnpm --dir server add music-metadata@^11.12.3
 ```
 
-服务端为 Node16 module resolution，`cloudMusicMetadata.ts` 使用 `await import("music-metadata")` 后调用 `parseFile(tempPath, { duration: true })`，避免把 ESM 包编译成同步 `require()`。
+使用 `await import('music-metadata')` 调用 `parseFile(tempPath, { duration: true })`，兼容当前 Node16 module resolution。
 
-- [ ] **Step 2: 增加音频白名单和对象 Key**
-
-`createCloudMusicUploadToken()` 校验扩展名、正文件大小和 500 MiB 上限；Key 固定为：
+- [ ] **Step 2: 按预登记记录签发固定 Key Token**
 
 ```text
-pisamusic/cloud-music/YYYYMM/<uuid>.<lowercase-extension>
+音频：pisamusic/cloud-music/YYYYMM/<uuid>/audio.<ext>
+手动封面：pisamusic/cloud-music/YYYYMM/<uuid>/cover-uploaded.<ext>
+解析封面：pisamusic/cloud-music/YYYYMM/<uuid>/cover-embedded.<ext>
+歌词：pisamusic/cloud-music/YYYYMM/<uuid>/lyrics.<ext>
 ```
 
-七牛 PutPolicy 必须 `insertOnly=1`、固定 scope、精确 `fsizeLimit`、1 小时有效。
+PutPolicy 固定 `insertOnly=1`、精确 scope、`fsizeLimit` 和 1 小时有效。只有 status=temp 且文件记录 pending 才能签发或重签 Token。
 
-- [ ] **Step 3: 增加七牛 `stat` 核验**
+- [ ] **Step 3: 实现对象核验和安全临时下载**
 
-complete 请求到达后由服务端读取七牛对象的 `hash/fsize/mimeType`，校验 bucket、Key 前缀、UUID、扩展名和大小；浏览器返回的 `hash/fsize/mimeType` 仅用于诊断，不作为入库值。
+complete 后由服务端 stat 校验 bucket、Key、Hash、真实大小和 MIME。音频流式下载到 `os.tmpdir()/pisamusic-cloud-music/<randomUUID><ext>`，检查 Content-Length 和累计字节，所有路径 finally 删除临时文件。
 
-- [ ] **Step 4: 实现安全临时下载**
-
-`extractCloudMusicMetadata()` 用私有签名 URL 流式下载到 `os.tmpdir()/pisamusic-cloud-music/<randomUUID><ext>`；同时检查 `Content-Length` 和实际累计字节，不得超过预期大小或 500 MiB。所有成功、失败和异常路径都在 `finally` 删除临时文件。
-
-- [ ] **Step 5: 归一化解析结果**
+- [ ] **Step 4: 解析并归一化音乐信息**
 
 ```ts
 const title = common.title?.trim() || basename(fileName, extname(fileName));
@@ -249,86 +496,170 @@ const album = common.album?.trim() || "";
 const durationMs = Math.max(0, Math.round((format.duration ?? 0) * 1000));
 ```
 
-同时归一化容器、codec、bitrate、sampleRate、channels、year、track.no；`metadata_json` 只保存这些标量和告警文本，不保存 picture、歌词或任意大对象。
+同时归一化 format、codec、bitrate、sampleRate、channels、year、track.no；metadata_json 只存标量和告警。
 
-- [ ] **Step 6: 建议提交点**
+- [ ] **Step 5: 提取内嵌封面**
+
+读取 `common.picture[0]`，校验 JPEG/PNG/WebP 且 Buffer 不超过 10 MiB；先建 `cover-extracted/pending` 文件及资产记录，再由服务端上传并改为 uploaded/current。无封面或解析失败不阻断音频，记录告警并回退默认封面。
+
+- [ ] **Step 6: 校验手动封面和歌词**
+
+手动封面 complete 后检查文件头魔数；歌词读取最多 2 MiB，去 BOM 并用 fatal UTF-8 decoder 拒绝非法编码。失败保留 temp 和原因，允许重签、重传或清理。
+
+- [ ] **Step 7: 新增默认封面**
+
+创建蓝色背景、白色音符的 `server/static/cloud-music/default-cover.svg`，通过现有 `/static/*` 路由提供，不新增明文白名单。
+
+- [ ] **Step 8: 建议提交点**
 
 ```powershell
-git add server/package.json server/src/services/qiniuReleaseFiles.ts server/src/services/cloudMusicMetadata.ts
-git commit -m "功能（server）：支持网盘音频上传与元数据解析"
+git add server/package.json server/src/services/qiniuReleaseFiles.ts server/src/services/cloudMusicAssets.ts server/src/services/cloudMusicMetadata.ts server/static/cloud-music/default-cover.svg
+git commit -m "功能（server）：支持网盘音乐多资产上传与解析"
 ```
 
-### Task 3: 建立深模块并提供管理员 CRUD 接口
+### Task 3: 建立深模块、保存规则、审核状态和临时清理
 
 **Files:**
 - Create: `server/src/services/cloudMusicService.ts`
-- Create: `server/src/routes/adminCloudMusic.ts`
-- Modify: `server/src/routes/admin.ts`
 - Modify: `server/src/services/fileManagementService.ts`
 
 **Interfaces:**
 
 ```ts
 export interface CloudMusicModule {
-  createUploadTicket(input: CloudMusicUploadRequest): QiniuUploadTokenInfo & { uuid: string };
-  completeUpload(input: CloudMusicCompleteRequest): Promise<CloudMusicTrack>;
+  createAdminUploadSession(input: CloudMusicUploadSessionRequest): CloudMusicUploadSession;
+  reserveAsset(uuid: string, input: CloudMusicAssetReserveRequest): CloudMusicAssetUploadTicket;
+  confirmAsset(uuid: string, kind: CloudMusicAssetKind): Promise<CloudMusicTrack>;
+  saveAdminDraft(uuid: string, input: CloudMusicAdminSaveInput, adminUsername: string): CloudMusicTrack;
+  review(uuid: string, input: CloudMusicReviewInput, adminUsername: string): CloudMusicTrack;
   list(input: CloudMusicListInput): CloudMusicListResult;
-  get(uuid: string, includeDeleted?: boolean): CloudMusicTrack | null;
-  update(uuid: string, patch: CloudMusicUpdateInput): CloudMusicTrack | null;
+  getAdminDetail(uuid: string): CloudMusicTrack | null;
+  removeManualCover(uuid: string): Promise<CloudMusicTrack>;
   delete(uuid: string): Promise<CloudMusicTrack>;
-  createPlayUrl(uuid: string): { url: string; expiresAt: number } | null;
+  preview(uuid: string): CloudMusicResourceUrls;
+  cleanupTemp(input: CloudMusicTempCleanupInput): Promise<CloudMusicTempCleanupResult>;
 }
 ```
 
-- [ ] **Step 1: 实现 `cloudMusicService.ts` 编排**
+- [ ] **Step 1: 实现管理端上传会话**
 
-`createUploadTicket()` 在服务端生成 UUID；`completeUpload()` 按以下固定顺序执行：
+固定 owner=system，事务预登记 UUID、曲目和资产后再生成 Token。Token 生成失败时记录保持 temp/reserved，允许重试或清理，禁止删除记录掩盖问题。`reserveAsset()` 同样先为封面/歌词写入 pending 资产，再签发 Token，因此已有曲目后续新增或替换资产也不会产生幽灵文件。
 
-```text
-校验 UUID 与对象 Key
-→ 七牛 stat 获取真实物理信息
-→ 生成短期私有 URL
-→ 下载临时文件并解析元数据
-→ 用 randomUUID() 生成 fileRecordId
-→ 事务写入 file_records 与 cloud_music_tracks
-→ 返回完整 DTO
+- [ ] **Step 2: 实现幂等资产确认**
+
+以 uuid + kind + objectKey + hash 幂等；重复 complete 返回已有结果，不重复解析。UUID/Key 相同但 Hash 不同返回 409。音频确认后解析元数据并提取封面，status 仍保持 temp。
+
+- [ ] **Step 3: 实现手动保存**
+
+```ts
+export type CloudMusicAdminSaveInput = {
+  title: string;
+  artist: string;
+  album: string;
+  durationMs: number;
+  status: "active" | "disabled" | "offline";
+  statusReason?: string;
+};
 ```
 
-同一 UUID + objectKey + hash 的 complete 重试返回已有记录；UUID 已存在但对象不一致时返回 409。
+要求 uploadState=ready 且音频 uploaded。歌名 1-200 字、歌手 1-300、专辑 0-200、时长 0 至 24 小时整数毫秒；保存值覆盖解析初值，首次保存才把 temp 转为正式状态。
 
-- [ ] **Step 2: 实现更新入参校验**
+- [ ] **Step 4: 实现审核状态**
 
-`CloudMusicUpdateInput` 仅允许 `title/artist/album/durationMs/format/codec/bitrate/sampleRate/channels/year/trackNo/enabled`，按“Business Rules”范围校验。路由不得直接写数据库。
+```ts
+export type CloudMusicReviewInput =
+  | { decision: "approve"; targetStatus: "active" | "disabled" }
+  | { decision: "reject"; reason: string }
+  | { decision: "resubmit"; reason?: string };
+```
 
-- [ ] **Step 3: 实现安全删除**
+pending_review 可通过/拒绝；拒绝强制 1-500 字原因；rejected 可重新送审。首期 system 上传不经过审核，但后端和页面必须可管理未来 user owner 的记录。
 
-`delete(uuid)` 读取曲目和文件记录，先调用 `deleteQiniuObject(bucket, objectKey)`，成功后调用 Store 的逻辑删除事务。七牛 612 视为对象已不存在并继续；其他错误保持数据库 active，返回失败。
+- [ ] **Step 5: 实现封面回退和管理端预览**
 
-- [ ] **Step 4: 增加管理员路由**
+替换封面/歌词时先完整上传并确认新资产，再事务切换 current；旧资产变为 superseded，随后尝试删除七牛对象并逻辑删除。删除手动封面后回退内嵌或默认封面。除 deleted 外且音频 uploaded 的状态均可生成 1 小时管理端试听 URL，供 temp、pending_review、rejected 审核。
 
-将 `adminCloudMusicRouter` 挂载到 `adminRouter.use("/cloud-music", adminCloudMusicRouter)`：
+- [ ] **Step 6: 实现一键清理**
+
+```ts
+export type CloudMusicTempCleanupInput = { olderThanHours: 0 | 24 | 72 };
+export type CloudMusicTempCleanupResult = {
+  scanned: number;
+  deleted: number;
+  failed: Array<{ uuid: string; message: string }>;
+};
+```
+
+逐曲删除 temp 的全部资产，并一并回收超过阈值的 pending/superseded 资产；七牛 612 视为成功，其他错误保留对应记录。`olderThanHours=0` 只在管理端二次确认后发送。
+
+- [ ] **Step 7: 保护统一文件删除**
+
+`deleteManagedFileRecord()` 遇到 cloud-music 时，通过任意 fileRecordId 找到曲目并委托模块删除；禁止只删某个资产留下曲目悬空。移除手动封面走专用接口。
+
+- [ ] **Step 8: 建议提交点**
+
+```powershell
+git add server/src/services/cloudMusicService.ts server/src/services/fileManagementService.ts
+git commit -m "功能（server）：实现网盘音乐状态流转与临时清理"
+```
+
+### Task 4: 提供管理员上传、CRUD、审核和清理接口
+
+**Files:**
+- Create: `server/src/routes/adminCloudMusic.ts`
+- Modify: `server/src/routes/admin.ts`
+
+**Interfaces:**
+- Consumes: Task 3 的 `CloudMusicModule`。
+- Produces: `/api/admin/cloud-music/*`；继续使用管理员 JWT 和现有加密中间件。
+
+- [ ] **Step 1: 挂载独立 Router**
+
+```ts
+adminRouter.use("/cloud-music", adminCloudMusicRouter);
+```
+
+路由只做参数读取、基础校验、管理员身份传递和响应映射。
+
+- [ ] **Step 2: 增加上传与资产接口**
 
 | Method | Path | 行为 |
 |---|---|---|
-| `POST` | `/api/admin/cloud-music/upload-token` | 生成 UUID、Key、七牛上传凭证 |
-| `POST` | `/api/admin/cloud-music/complete` | 核验七牛对象、解析并入库 |
-| `GET` | `/api/admin/cloud-music` | 状态/格式/关键词分页列表 |
-| `GET` | `/api/admin/cloud-music/:uuid` | 读取详情，包含物理文件信息 |
-| `PUT` | `/api/admin/cloud-music/:uuid` | 修改允许的元数据和启用状态 |
-| `DELETE` | `/api/admin/cloud-music/:uuid` | 删除七牛对象并逻辑删除记录 |
+| POST | `/api/admin/cloud-music/upload-sessions` | 先入库 temp/pending，再返回音频及可选封面/歌词 Token |
+| POST | `/api/admin/cloud-music/:uuid/assets/:kind/reserve` | 先登记新增/替换资产，再返回 Token；已有 pending 时幂等重签 |
+| POST | `/api/admin/cloud-music/:uuid/assets/:kind/complete` | stat、校验、解析并确认资产 |
+| DELETE | `/api/admin/cloud-music/:uuid/cover` | 删除手动封面并回退 |
 
-- [ ] **Step 5: 保护统一文件管理删除入口**
+创建会话和 reserve 请求只接收文件的 fileName/fileSize/mimeType，不接收 owner、Key、Hash 或正式状态。audio 只允许创建会话时保留；reserve 仅允许 cover-uploaded/lyrics。
 
-`deleteManagedFileRecord()` 遇到 `usageType === "cloud-music"` 时先通过 `fileRecordId` 找到曲目，再委托 `cloudMusicService.delete(uuid)`；禁止只把 `file_records` 标记删除而留下可搜索歌曲。
+- [ ] **Step 3: 增加 CRUD、审核和预览接口**
 
-- [ ] **Step 6: 建议提交点**
+| Method | Path | 行为 |
+|---|---|---|
+| GET | `/api/admin/cloud-music` | owner/状态/uploadState/格式/关键词分页 |
+| GET | `/api/admin/cloud-music/:uuid` | 完整详情和关联资产 |
+| PUT | `/api/admin/cloud-music/:uuid` | 保存四个手填字段及正式状态 |
+| POST | `/api/admin/cloud-music/:uuid/review` | 审核通过、拒绝或重新送审 |
+| GET | `/api/admin/cloud-music/:uuid/preview-url` | 管理端试听 URL |
+| DELETE | `/api/admin/cloud-music/:uuid` | 删除全部七牛资产并逻辑删除 |
+
+- [ ] **Step 4: 增加临时文件接口**
+
+| Method | Path | 行为 |
+|---|---|---|
+| GET | `/api/admin/cloud-music/temp-summary` | 返回全部、24h、72h temp 曲目及 stale pending/superseded 资产数量和大小 |
+| POST | `/api/admin/cloud-music/temp-cleanup` | `{ olderThanHours: 0|24|72 }`，清理 temp 曲目和过期非 current 资产，返回部分成功结果 |
+
+批量清理部分失败仍返回 200 和 failed[]；模块整体异常才返回 500。
+
+- [ ] **Step 5: 建议提交点**
 
 ```powershell
-git add server/src/services/cloudMusicService.ts server/src/routes/adminCloudMusic.ts server/src/routes/admin.ts server/src/services/fileManagementService.ts
-git commit -m "功能（server）：提供网盘音乐后台CRUD接口"
+git add server/src/routes/adminCloudMusic.ts server/src/routes/admin.ts
+git commit -m "功能（server）：提供网盘音乐管理与审核接口"
 ```
 
-### Task 4: 提供独立 `cloud` 音源查询与播放链接
+### Task 5: 提供独立 `cloud` 音源搜索、详情和资源地址
 
 **Files:**
 - Create: `server/src/routes/cloudMusic.ts`
@@ -337,14 +668,18 @@ git commit -m "功能（server）：提供网盘音乐后台CRUD接口"
 **Interfaces:**
 
 ```ts
+export type CloudMusicPublicTrack = Pick<
+  CloudMusicTrack,
+  "uuid" | "source" | "title" | "artist" | "album" | "durationMs" | "format" | "playable" | "cover" | "lyrics" | "createdAt" | "updatedAt"
+>;
+
 export type CloudMusicSearchResponse = {
   source: "cloud";
-  items: CloudMusicTrack[];
+  items: CloudMusicPublicTrack[];
   total: number;
   offset: number;
   limit: number;
 };
-
 export type CloudMusicPlayUrlResponse = {
   uuid: string;
   source: "cloud";
@@ -355,30 +690,39 @@ export type CloudMusicPlayUrlResponse = {
 
 - [ ] **Step 1: 挂载独立 Router**
 
-在 `index.ts` 增加 `app.use("/api/cloud-music", cloudMusicRouter)`；不得把路由挂入 `configRouter`、现有音乐源代理或客户端聚合搜索。
+```ts
+app.use("/api/cloud-music", cloudMusicRouter);
+```
 
-- [ ] **Step 2: 实现三个客户端接口**
+不得挂入 configRouter、音乐网关或跨源聚合搜索。
 
-| Method | Path | 鉴权与结果 |
+- [ ] **Step 2: 实现客户端接口**
+
+| Method | Path | 规则 |
 |---|---|---|
-| `GET` | `/api/cloud-music/search?keyword&offset&limit` | 无 User Token，走系统 AES 加密；只返回 active 曲目 |
-| `GET` | `/api/cloud-music/tracks/:uuid` | 无 User Token，走系统 AES 加密；disabled/deleted 返回 404 |
-| `GET` | `/api/cloud-music/tracks/:uuid/play-url` | 无 User Token，走系统 AES 加密；返回 1 小时七牛私有 URL |
+| GET | `/api/cloud-music/search?keyword&offset&limit` | active + disabled；disabled.playable=false |
+| GET | `/api/cloud-music/tracks/:uuid` | active + disabled 可见；其他 404 |
+| GET | `/api/cloud-music/tracks/:uuid/play-url` | 仅 active；disabled 403，其他 404 |
+| GET | `/api/cloud-music/tracks/:uuid/lyrics-url` | 仅 active 且有歌词；无歌词 404，disabled 403 |
 
-`keyword` 同时匹配 title、artist、album 和 UUID；limit 默认 30、最大 100。空关键词返回按 `created_at DESC` 排序的独立曲库列表。
+关键词匹配 title、artist、album、UUID；limit 默认 30、最大 100，空关键词按 created_at DESC。
 
-- [ ] **Step 3: 不修改加密白名单**
+- [ ] **Step 3: 生成封面地址**
 
-接口均返回 JSON 并由现有加密中间件处理；音频字节由客户端直接访问短期七牛 URL，因此不新增明文流媒体路径，也不改 `DEFAULT_PLAINTEXT_PATHS`。
+手动/内嵌封面返回 1 小时七牛签名 URL，默认封面返回 `/static/cloud-music/default-cover.svg`；不得返回 bucket、objectKey、Hash 或 owner 邮箱。
 
-- [ ] **Step 4: 建议提交点**
+- [ ] **Step 4: 保持加密和隔离**
+
+接口 JSON 继续由现有加密中间件处理；资源字节走短期七牛 URL，不修改 `DEFAULT_PLAINTEXT_PATHS`。
+
+- [ ] **Step 5: 建议提交点**
 
 ```powershell
 git add server/src/routes/cloudMusic.ts server/src/index.ts
 git commit -m "功能（server）：开放独立网盘音乐源接口"
 ```
 
-### Task 5: 增加管理后台网盘音乐页面
+### Task 6: 增加管理后台 CRUD、审核和清理页面
 
 **Files:**
 - Create: `server/admin/src/types/cloudMusic.ts`
@@ -387,6 +731,7 @@ git commit -m "功能（server）：开放独立网盘音乐源接口"
 - Create: `server/admin/src/components/tabs/CloudMusicManagementTab.tsx`
 - Create: `server/admin/src/components/modals/CloudMusicUploadModal.tsx`
 - Create: `server/admin/src/components/modals/CloudMusicEditModal.tsx`
+- Create: `server/admin/src/components/modals/CloudMusicReviewModal.tsx`
 - Modify: `server/admin/src/components/tabs/FileManagementTab.tsx`
 - Modify: `server/admin/src/constants/theme.ts`
 - Modify: `server/admin/src/App.tsx`
@@ -394,159 +739,170 @@ git commit -m "功能（server）：开放独立网盘音乐源接口"
 **Interfaces:**
 
 ```ts
-export async function uploadCloudMusic(
-  file: File,
-  onProgress?: (state: { phase: "uploading" | "extracting"; percent: number }) => void,
-): Promise<CloudMusicTrack>;
+export type CloudMusicSelectedFiles = {
+  audio: File;
+  cover?: File;
+  lyrics?: File;
+};
 
-export async function listCloudMusic(params: CloudMusicListParams): Promise<CloudMusicListResult>;
-export async function updateCloudMusic(uuid: string, patch: CloudMusicUpdateInput): Promise<CloudMusicTrack>;
-export async function deleteCloudMusic(uuid: string): Promise<void>;
-export async function getCloudMusicPlayUrl(uuid: string): Promise<CloudMusicPlayUrlResponse>;
+export type CloudMusicUploadProgress = (state: {
+  phase: "reserving" | "audio" | "cover" | "lyrics" | "processing";
+  percent: number;
+}) => void;
+
+export type CloudMusicTempSummary = {
+  total: { count: number; bytes: number };
+  olderThan24h: { count: number; bytes: number };
+  olderThan72h: { count: number; bytes: number };
+  staleAssets: { count: number; bytes: number };
+};
+
+export async function createCloudMusicUploadSession(files: CloudMusicSelectedFiles): Promise<CloudMusicUploadSession>;
+export async function uploadCloudMusicSession(session: CloudMusicUploadSession, files: CloudMusicSelectedFiles, onProgress: CloudMusicUploadProgress): Promise<CloudMusicTrack>;
+export async function saveCloudMusic(uuid: string, input: CloudMusicAdminSaveInput): Promise<CloudMusicTrack>;
+export async function reviewCloudMusic(uuid: string, input: CloudMusicReviewInput): Promise<CloudMusicTrack>;
+export async function fetchCloudMusicTempSummary(): Promise<CloudMusicTempSummary>;
+export async function cleanupCloudMusicTemp(olderThanHours: 0 | 24 | 72): Promise<CloudMusicTempCleanupResult>;
 ```
 
-- [ ] **Step 1: 复用现有管理请求和七牛上传逻辑**
+- [ ] **Step 1: 复用现有请求和上传实现**
 
-在 `client.ts` 导出一个泛型 `adminJson<T>(url, init)` 和现有 `uploadFileToQiniu()`、上传类型，供 `api/cloudMusic.ts` 使用；不得复制认证、加密、401 清理或 XHR 进度代码。
+从 `client.ts` 导出 `adminJson<T>()`、现有 `uploadFileToQiniu()` 和上传类型，禁止复制 JWT、AES、401 清理或 XHR 进度逻辑。
 
-- [ ] **Step 2: 实现上传两阶段 UI**
+- [ ] **Step 2: 实现三资产上传流程**
 
-`CloudMusicUploadModal` 仅允许单文件和白名单扩展名。状态固定显示：
+弹窗支持一个必选音频、一个可选封面、一个可选歌词：
 
 ```text
-正在上传到七牛 0-100%
-→ 正在由服务端解析音乐信息
-→ 上传完成并打开编辑弹窗
+创建临时记录 → 上传/确认音频 → 上传/确认可选封面 → 上传/确认可选歌词
+→ 服务端解析完成 → 打开编辑弹窗，曲目仍为临时
 ```
 
-complete 失败时显示服务端错误，不伪造成功记录。
+关闭或失败后列表仍显示 temp/uploadState/原因，可重试或删除。编辑弹窗也允许后续新增/替换手动封面和歌词，继续使用“先 reserve、后上传、再 complete”的相同流程。
 
-- [ ] **Step 3: 实现列表页面**
+- [ ] **Step 3: 实现编辑保存**
 
-`CloudMusicManagementTab` 自己管理列表、筛选、分页、选中项和上传/编辑/删除状态，避免继续扩大 1780 行的 `App.tsx`。页面包含：
+只手填歌名、歌手、专辑、时长，初值来自解析结果；时长支持 mm:ss/hh:mm:ss。首次保存选择“可用（默认）/禁用/下架”，成功后才转正式状态。
 
-- 关键词、状态、格式筛选；
-- 歌名、歌手、专辑、时长、格式、文件大小、启用状态、更新时间；
-- 上传、刷新、试听、编辑、删除操作；
-- 删除前显示“七牛对象将实际删除，数据库仅保留删除记录”的确认文案。
+- [ ] **Step 4: 实现列表和审核**
 
-- [ ] **Step 4: 实现编辑弹窗**
+支持关键词、所有者、业务状态、上传状态、格式筛选；显示封面、四个主要字段、格式、大小、owner、状态、更新时间。操作包括试听、编辑、审核、切换可用/禁用、下架、删除。待审核可试听后通过或填写 1-500 字原因拒绝。
 
-`CloudMusicEditModal` 将可编辑业务字段与只读物理字段分区。时长以 `mm:ss`/`hh:mm:ss` 展示并转换为毫秒；保存前复用和服务端一致的长度、数字范围校验。
+- [ ] **Step 5: 实现一键清理**
 
-- [ ] **Step 5: 接入菜单但保持 App 轻量**
+工具栏显示 temp 数量和“清理临时文件”。先读 summary，再选 24h/72h/全部；全部使用危险色二次确认。完成提示成功/失败数量和失败 UUID，并刷新曲库及文件管理。
 
-`theme.ts` 新增 `{ id: "cloudMusic", name: "网盘音乐" }`；`App.tsx` 只增加 lazy import 和：
+- [ ] **Step 6: 接入菜单和统一文件管理**
 
-```tsx
-{currentTab === "cloudMusic" && <CloudMusicManagementTab themeColor={themeColor} />}
-```
-
-不得把曲库分页、上传和弹窗状态提升进 `App.tsx`。
-
-- [ ] **Step 6: 更新统一文件管理展示**
-
-`FileManagementTab.tsx` 的用途筛选和文案增加“网盘音乐”，详情页展示引用 `cloud-music:<uuid>`；删除仍走统一 `/api/admin/files/:id`，由 Task 3 保证业务联动。
+`theme.ts` 新增 `{ id: 'cloudMusic', name: '网盘音乐' }`；`App.tsx` 只 lazy import 和挂载。`FileManagementTab.tsx` 增加 cloud-music、owner、audio/cover/lyrics 资产和 pending 状态。
 
 - [ ] **Step 7: 建议提交点**
 
 ```powershell
 git add server/admin/src
-git commit -m "功能（server）：增加网盘音乐管理界面"
+git commit -m "功能（server）：增加网盘音乐管理审核界面"
 ```
 
-### Task 6: 补齐接口文档和项目上下文
+### Task 7: 补齐接口文档和项目上下文
 
 **Files:**
 - Create: `server/apidoc/cloudMusic/searchTracks.md`
 - Create: `server/apidoc/cloudMusic/getTrack.md`
 - Create: `server/apidoc/cloudMusic/getPlayUrl.md`
-- Create: `server/apidoc/admin/getCloudMusicUploadToken.md`
-- Create: `server/apidoc/admin/completeCloudMusicUpload.md`
+- Create: `server/apidoc/cloudMusic/getLyricsUrl.md`
+- Create: `server/apidoc/admin/createCloudMusicUploadSession.md`
+- Create: `server/apidoc/admin/reserveCloudMusicAsset.md`
+- Create: `server/apidoc/admin/completeCloudMusicAsset.md`
 - Create: `server/apidoc/admin/listCloudMusic.md`
 - Create: `server/apidoc/admin/getCloudMusicDetail.md`
 - Create: `server/apidoc/admin/updateCloudMusic.md`
+- Create: `server/apidoc/admin/reviewCloudMusic.md`
+- Create: `server/apidoc/admin/getCloudMusicPreviewUrl.md`
+- Create: `server/apidoc/admin/getCloudMusicTempSummary.md`
+- Create: `server/apidoc/admin/cleanupCloudMusicTemp.md`
 - Create: `server/apidoc/admin/deleteCloudMusic.md`
 - Modify: `server/apidoc/index.md`
 - Modify: `AGENTS.md`
 
-- [ ] **Step 1: 写明客户端接口契约**
+- [ ] **Step 1: 写明客户端契约**
 
-每个文档必须包含请求方法、路径、加密要求、参数边界、完整成功响应、400/404/409/500 错误和“`source=cloud` 不参与其他音源聚合”的说明。
+包含方法、路径、加密、参数、完整响应、400/403/404/409/500、状态可见矩阵和“source=cloud 不参与其他音源聚合”。
 
-- [ ] **Step 2: 写明管理员 CRUD 契约**
+- [ ] **Step 2: 写明上传会话契约**
 
-上传文档明确“浏览器直传七牛、complete 由服务端 stat 和解析”；删除文档明确对象实际删除、数据库逻辑删除且不可恢复。
+明确先建 temp/pending 再返回固定 Key Token；complete 只确认已有记录。写清中断保留、清理阈值、部分失败、幂等规则。
 
-- [ ] **Step 3: 更新总索引**
+- [ ] **Step 3: 写明状态、owner 和资产契约**
 
-在 `apidoc/index.md` 增加“网盘音乐源 (`/api/cloud-music`)”模块，并在管理员 API 下增加“网盘音乐管理”小节，所有新文档必须有链接。
+列出七种 status、五种 uploadState、转换、system/user 规则、disabled 可搜不可取资源、待审核仅管理员试听、封面三级回退和歌词限制。
 
-- [ ] **Step 4: 更新根项目规则**
+- [ ] **Step 4: 更新索引与 AGENTS**
 
-`AGENTS.md` 增加表、模块职责、七牛 Key 前缀、删除语义、独立音源约束和验证命令，避免后续把 `cloud` 聚合进 KG/WY/KW。
+`apidoc/index.md` 增加客户端和管理端小节；`AGENTS.md` 增加表、模块 seam、状态机、owner、Key、临时清理、封面/歌词、删除语义和独立音源约束。
 
 - [ ] **Step 5: 建议提交点**
 
 ```powershell
 git add server/apidoc AGENTS.md
-git commit -m "文档（server）：补充网盘音乐接口与模块规则"
+git commit -m "文档（server）：补充网盘音乐状态与审核契约"
 ```
 
-### Task 7: 轻量验证和人工验收交接
+### Task 8: 轻量构建检查和人工验收交接
 
 **Files:**
 - Read-only verify: `server/src/**`
 - Read-only verify: `server/admin/src/**`
 - Read-only verify: `server/apidoc/**`
 
-- [ ] **Step 1: 服务端语法构建**
+- [ ] **Step 1: 服务端构建**
 
 ```powershell
 pnpm --dir server build
 ```
 
-Expected: TypeScript 编译成功，不生成源码目录内待提交运行数据。
+Expected: TypeScript 编译成功。
 
-- [ ] **Step 2: 管理后台语法构建**
+- [ ] **Step 2: 管理后台构建**
 
 ```powershell
 pnpm --dir server/admin build
 ```
 
-Expected: `tsc --noEmit` 和 Vite 构建成功；忽略的 `server/web-admin/` 构建产物不提交。
+Expected: `tsc --noEmit` 和 Vite 构建成功；不提交忽略的 `server/web-admin/`。
 
-- [ ] **Step 3: 检查格式和边界**
+- [ ] **Step 3: 检查格式和范围**
 
 ```powershell
 git diff --check
 git status --short
 ```
 
-Expected: 无空白错误；只出现 `server/`、`AGENTS.md` 和本计划相关文件，原有 `yixi/` 改动保持原样。
+Expected: 无空白错误；原有 `yixi/` 改动保持原样。
 
-- [ ] **Step 4: 交给老大做一轮非复杂人工验收**
+- [ ] **Step 4: 交给老大做非复杂人工验收**
 
-只选择一个小 MP3 和一个 FLAC：
+1. 创建会话后暂停上传，确认立即出现 owner=system、temp/reserved；
+2. 上传后不保存，刷新仍为 temp，客户端搜不到；
+3. 清理过期/全部 temp，确认七牛资产和临时文件记录同步处理；
+4. 验证手动封面 > 内嵌封面 > 默认封面；
+5. 上传 LRC，active 时能取歌词地址；
+6. 四个字段先解析，人工修改保存后不被覆盖；
+7. active 可搜可播，disabled 可搜但播放 403，其他状态不可搜；
+8. pending_review 可在管理端试听，审核通过后才对客户端可用；
+9. 删除后全部资产从七牛删除，数据库只逻辑删除；
+10. cloud 结果不混入 KG/WY/KW。
 
-1. 上传后确认自动生成 UUID，歌名/歌手/时长/大小/格式正确；
-2. 修改歌名、歌手、时长和格式后刷新仍保留；
-3. 后台关键词可以搜到，禁用后客户端搜索和播放接口返回不可用；
-4. `/api/cloud-music/search` 只返回 `source=cloud`，不混入 KG/WY/KW；
-5. 获取播放链接后验证七牛临时 URL 可播放并支持拖动；
-6. 删除后确认后台保留删除记录、客户端 404、七牛对象不存在；
-7. 从“文件管理”删除同一曲目时，曲库记录也同步逻辑删除。
-
-不运行全量测试、不做压力测试、不启动 Android/PC 客户端、不打安装包。
+不运行全量测试、不做压力测试、不启动 Android/PC、不打安装包。
 
 ---
 
 ## Out of Scope for This Phase
 
-- Android/PC 客户端新增 `cloud` Tab、播放器接入和下载缓存；
-- 与 KG/WY/KW 的跨源聚合搜索；
-- 用户个人私有网盘、配额和用户隔离；
-- 歌词上传/自动匹配；
-- 内嵌封面提取、封面七牛上传和图片缩略图；
-- 批量目录导入、断点续传、分片上传、转码和响度分析；
-- 已删除音频恢复或替换文件保留原 UUID。
+- Android/PC 客户端正式接入 `cloud`、播放器和下载缓存；
+- 与 KG/WY/KW 的聚合搜索；
+- 普通用户上传页面、配额、私有可见性和主动共享开关；
+- 自动解析内嵌歌词、歌词匹配和逐字歌词转换；
+- 封面裁剪、缩略图服务和图片转码；
+- 批量导入、分片上传、断点续传、音频转码和响度分析；
+- 已删除曲目恢复、替换音频保留 UUID；
+- 自动定时清理 temp；首期只提供管理端一键清理。
