@@ -161,7 +161,7 @@
             android:name=".activity.PortraitCaptureActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/zxing_CaptureTheme"
+            android:theme="@style/Theme.Pm.Scanner"
             tools:ignore="DiscouragedApi" />
 
         <activity

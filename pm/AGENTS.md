@@ -42,7 +42,7 @@
 - 播放：Media3 / ExoPlayer / MediaSession
 - 状态：优先使用 `StateFlow` / `MutableStateFlow`
 - 网络：Retrofit + OkHttp，系统服务端和第三方音乐源客户端分开维护
-- 扫码：侧拉抽屉扫码入口使用 JourneyApps ZXing `ScanContract` 拉起自定义 `PortraitCaptureActivity` 扫码界面，结果先回传到 `MainActivity` 处理；播放器一起听扫码入口复用同一 Activity。扫码页保留 JourneyApps `DecoratedBarcodeView` / `CaptureManager` 内核，支持左上角返回、底部手电筒和右下角相册二维码识别；相册识别结果必须按 `SCAN_RESULT` 返回给 `ScanContract`，不要绕过现有业务分发。
+- 扫码：侧拉抽屉扫码入口使用 JourneyApps ZXing `ScanContract` 拉起自定义 `PortraitCaptureActivity` 扫码界面，结果先回传到 `MainActivity` 处理；播放器一起听扫码入口复用同一 Activity。扫码页保留 JourneyApps `DecoratedBarcodeView` / `CaptureManager` 内核，使用 `Theme.Pm.Scanner` 进入 edge-to-edge 并按真实状态栏/刘海高度下移顶部操作区；返回按钮与提示文案同一行，手电筒和相册按钮统一通过 AppCompat 加载 `ic_lighting_24` / `ic_image_24`。相册识别结果必须按 `SCAN_RESULT` 返回给 `ScanContract`，不要绕过现有业务分发。
 
 重要目录：
 
