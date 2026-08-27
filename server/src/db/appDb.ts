@@ -153,6 +153,9 @@ CREATE TABLE IF NOT EXISTS update_history (
 CREATE TABLE IF NOT EXISTS file_records (
     id              TEXT    PRIMARY KEY,
     usage_type      TEXT    NOT NULL,
+    owner_type      TEXT    NOT NULL DEFAULT 'system',
+    owner_user_id   TEXT,
+    owner_snapshot_json TEXT NOT NULL DEFAULT '{}',
     platform        TEXT    NOT NULL DEFAULT '',
     version         TEXT    NOT NULL DEFAULT '',
     asset_type      TEXT    NOT NULL DEFAULT '',
@@ -172,6 +175,56 @@ CREATE TABLE IF NOT EXISTS file_records (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_file_records_provider_key ON file_records (provider, bucket, object_key);
 CREATE INDEX IF NOT EXISTS idx_file_records_status ON file_records (status);
 CREATE INDEX IF NOT EXISTS idx_file_records_usage ON file_records (usage_type, platform, version);
+
+CREATE TABLE IF NOT EXISTS cloud_music_tracks (
+    uuid                       TEXT    PRIMARY KEY,
+    status                     TEXT    NOT NULL DEFAULT 'temp',
+    upload_state               TEXT    NOT NULL DEFAULT 'reserved',
+    status_reason              TEXT    NOT NULL DEFAULT '',
+    title                      TEXT    NOT NULL DEFAULT '',
+    artist                     TEXT    NOT NULL DEFAULT '未知歌手',
+    album                      TEXT    NOT NULL DEFAULT '',
+    duration_ms                INTEGER NOT NULL DEFAULT 0,
+    format                     TEXT    NOT NULL DEFAULT '',
+    codec                      TEXT    NOT NULL DEFAULT '',
+    bitrate                    INTEGER NOT NULL DEFAULT 0,
+    sample_rate                INTEGER NOT NULL DEFAULT 0,
+    channels                   INTEGER NOT NULL DEFAULT 0,
+    year                       INTEGER,
+    track_no                   INTEGER,
+    lyrics_format              TEXT,
+    metadata_json              TEXT    NOT NULL DEFAULT '{}',
+    reviewed_by                TEXT    NOT NULL DEFAULT '',
+    reviewed_at                INTEGER,
+    created_at                 INTEGER NOT NULL,
+    updated_at                 INTEGER NOT NULL,
+    deleted_at                 INTEGER,
+    CHECK (status IN ('temp','active','disabled','offline','pending_review','rejected','deleted'))
+);
+CREATE TABLE IF NOT EXISTS cloud_music_assets (
+    id              TEXT    PRIMARY KEY,
+    track_uuid      TEXT    NOT NULL,
+    file_record_id  TEXT    NOT NULL UNIQUE,
+    kind            TEXT    NOT NULL,
+    state           TEXT    NOT NULL DEFAULT 'pending',
+    is_current      INTEGER NOT NULL DEFAULT 0,
+    created_at      INTEGER NOT NULL,
+    updated_at      INTEGER NOT NULL,
+    deleted_at      INTEGER,
+    FOREIGN KEY (track_uuid) REFERENCES cloud_music_tracks(uuid),
+    FOREIGN KEY (file_record_id) REFERENCES file_records(id),
+    CHECK (kind IN ('audio','cover-uploaded','cover-extracted','lyrics')),
+    CHECK (state IN ('pending','uploaded','superseded','deleted'))
+);
+CREATE INDEX IF NOT EXISTS idx_cloud_music_status_updated
+ON cloud_music_tracks (status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cloud_music_title_artist
+ON cloud_music_tracks (title, artist);
+CREATE INDEX IF NOT EXISTS idx_cloud_music_assets_track
+ON cloud_music_assets (track_uuid, kind, state, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_cloud_music_current_asset
+ON cloud_music_assets (track_uuid, kind)
+WHERE is_current = 1 AND deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS announcements (
     id                  TEXT    PRIMARY KEY,
@@ -539,6 +592,33 @@ function migrateShareRecords(db: DatabaseSync) {
   );
 }
 
+function migrateFileRecords(db: DatabaseSync) {
+  const cols = getColumnNames(db, "file_records");
+  if (!cols.has("owner_type")) {
+    db.exec(`ALTER TABLE file_records ADD COLUMN owner_type TEXT NOT NULL DEFAULT 'system'`);
+  }
+  if (!cols.has("owner_user_id")) {
+    db.exec(`ALTER TABLE file_records ADD COLUMN owner_user_id TEXT`);
+  }
+  if (!cols.has("owner_snapshot_json")) {
+    db.exec(`ALTER TABLE file_records ADD COLUMN owner_snapshot_json TEXT NOT NULL DEFAULT '{}'`);
+  }
+  db.exec(`
+    UPDATE file_records
+    SET owner_type = 'system'
+    WHERE owner_type IS NULL OR TRIM(owner_type) = '';
+
+    UPDATE file_records
+    SET owner_snapshot_json = '{"displayName":"system"}'
+    WHERE owner_snapshot_json IS NULL
+       OR TRIM(owner_snapshot_json) = ''
+       OR owner_snapshot_json = '{}';
+
+    CREATE INDEX IF NOT EXISTS idx_file_records_owner
+    ON file_records (owner_type, owner_user_id, created_at DESC);
+  `);
+}
+
 function repairFileRecords(db: DatabaseSync) {
   db.exec(`
     UPDATE file_records
@@ -622,6 +702,7 @@ function initSchema(db: DatabaseSync) {
   migrateFeedback(db);
   migrateFaultReports(db);
   migrateShareRecords(db);
+  migrateFileRecords(db);
   repairFileRecords(db);
 }
 

@@ -56,11 +56,18 @@ export type DesktopUpdateAssetInfo = {
   releaseFile?: ReleaseFileInfo | null;
 };
 
-export type FileRecordUsageType = "release-package" | "desktop-update";
+export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music";
+
+export type FileRecordStatus = ReleaseFileStatus | "pending";
+
+export type FileRecordOwnerType = "system" | "user";
 
 export type FileRecordInfo = {
   id: string;
   usageType: FileRecordUsageType;
+  ownerType: FileRecordOwnerType;
+  ownerUserId: string | null;
+  ownerSnapshot: Record<string, unknown>;
   platform: string;
   version: string;
   assetType: string;
@@ -72,14 +79,14 @@ export type FileRecordInfo = {
   mimeType: string;
   fileSize: number;
   downloadUrl: string;
-  status: ReleaseFileStatus;
+  status: FileRecordStatus;
   referencedBy: string[];
   createdAt: number;
   deletedAt: number | null;
 };
 
 export type FileRecordListQuery = {
-  status?: ReleaseFileStatus | "all";
+  status?: FileRecordStatus | "all";
   usageType?: FileRecordUsageType | "all";
   platform?: string;
   version?: string;
@@ -428,6 +435,9 @@ function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
 type FileRecordRow = {
   id: string;
   usage_type: string;
+  owner_type: string;
+  owner_user_id: string | null;
+  owner_snapshot_json: string;
   platform: string;
   version: string;
   asset_type: string;
@@ -445,15 +455,18 @@ type FileRecordRow = {
   deleted_at: number | null;
 };
 
-type FileRecordReferenceType = "history" | "current-release" | "active-desktop-update";
-
-type FileRecordReference = {
-  type: FileRecordReferenceType;
+type FileRecordReferenceBase = {
   id?: string;
   platform?: ReleasePlatform | "win32";
   version?: string;
   fileName?: string;
 };
+
+export type FileRecordReference =
+  | (FileRecordReferenceBase & { type: "cloud-music"; id: string })
+  | (FileRecordReferenceBase & { type: "history" | "current-release" | "active-desktop-update" });
+
+type FileRecordReferenceType = FileRecordReference["type"];
 
 const DESKTOP_UPDATE_PLATFORM = "win32/x64";
 
@@ -469,13 +482,18 @@ function parseFileReferences(raw: string): FileRecordReference[] {
     if (!Array.isArray(value)) return legacyFileReferences(text);
     return value
       .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
-      .map((item) => ({
-        type: item.type === "current-release" || item.type === "active-desktop-update" || item.type === "history" ? item.type : "history",
-        id: typeof item.id === "string" ? item.id : undefined,
-        platform: item.platform === "android" || item.platform === "desktop" || item.platform === "win32" ? item.platform : undefined,
-        version: typeof item.version === "string" ? item.version : undefined,
-        fileName: typeof item.fileName === "string" ? item.fileName : undefined,
-      }));
+      .flatMap<FileRecordReference>((item) => {
+        const type = item.type === "current-release" || item.type === "active-desktop-update" || item.type === "cloud-music" || item.type === "history" ? item.type : "history";
+        const id = typeof item.id === "string" ? item.id : undefined;
+        if (type === "cloud-music") return id ? [{ type, id }] : [];
+        return [{
+          type,
+          id,
+          platform: item.platform === "android" || item.platform === "desktop" || item.platform === "win32" ? item.platform : undefined,
+          version: typeof item.version === "string" ? item.version : undefined,
+          fileName: typeof item.fileName === "string" ? item.fileName : undefined,
+        }];
+      });
   } catch {
     return legacyFileReferences(text);
   }
@@ -500,7 +518,17 @@ function serializeFileReferences(refs: FileRecordReference[]): string {
 function fileReferenceLabel(ref: FileRecordReference): string {
   if (ref.type === "current-release") return `当前${ref.platform === "desktop" ? "PC" : "Android"}发布`;
   if (ref.type === "active-desktop-update") return `PC 自动更新${ref.version ? ` ${ref.version}` : ""}${ref.fileName ? ` ${ref.fileName}` : ""}`;
+  if (ref.type === "cloud-music") return ref.id ? `网盘音乐 ${ref.id}` : "网盘音乐";
   return ref.id ? `发布记录 ${ref.id}` : "发布记录";
+}
+
+function parseOwnerSnapshot(raw: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
 }
 
 function hasFileReference(refs: FileRecordReference[], type: FileRecordReferenceType, predicate: (ref: FileRecordReference) => boolean = () => true): boolean {
@@ -535,7 +563,10 @@ function mapFileRecord(row?: FileRecordRow | null): FileRecordInfo | null {
   const refs = parseFileReferences(row.referenced_by);
   return {
     id: row.id,
-    usageType: row.usage_type === "desktop-update" ? "desktop-update" : "release-package",
+    usageType: row.usage_type === "desktop-update" || row.usage_type === "cloud-music" ? row.usage_type : "release-package",
+    ownerType: row.owner_type === "user" ? "user" : "system",
+    ownerUserId: row.owner_user_id,
+    ownerSnapshot: parseOwnerSnapshot(row.owner_snapshot_json),
     platform: row.platform,
     version: row.version,
     assetType: row.asset_type,
@@ -547,7 +578,7 @@ function mapFileRecord(row?: FileRecordRow | null): FileRecordInfo | null {
     mimeType: row.mime_type,
     fileSize: Number(row.file_size) || 0,
     downloadUrl: row.download_url,
-    status: row.status === "deleted" ? "deleted" : "uploaded",
+    status: row.status === "deleted" ? "deleted" : row.status === "pending" ? "pending" : "uploaded",
     referencedBy: refs.map(fileReferenceLabel),
     createdAt: row.created_at,
     deletedAt: row.deleted_at,
@@ -569,7 +600,7 @@ function releaseFileFromRecord(record?: FileRecordInfo | null): ReleaseFileInfo 
     mimeType: record.mimeType,
     fileSize: record.fileSize,
     downloadUrl: canonicalDownloadUrlForRecord(record),
-    status: record.status,
+    status: record.status === "deleted" ? "deleted" : "uploaded",
     createdAt: record.createdAt,
     deletedAt: record.deletedAt,
   };
@@ -592,7 +623,7 @@ function desktopAssetFromRecord(record?: FileRecordInfo | null): DesktopUpdateAs
     fileName: record.fileName,
     mimeType: record.mimeType,
     fileSize: record.fileSize,
-    status: record.status,
+    status: record.status === "deleted" ? "deleted" : "uploaded",
     active: record.referencedBy.some((label) => label.startsWith("PC 自动更新")),
     createdAt: record.createdAt,
     deletedAt: record.deletedAt,
@@ -994,8 +1025,11 @@ export function saveAppConfigSections(sections: EditableAppConfigSections): AppC
   return readAppConfig();
 }
 
-type CreateFileRecordInput = Omit<FileRecordInfo, "status" | "createdAt" | "deletedAt" | "referencedBy"> & {
+type CreateFileRecordInput = Omit<FileRecordInfo, "status" | "createdAt" | "deletedAt" | "referencedBy" | "ownerType" | "ownerUserId" | "ownerSnapshot"> & {
   referencedBy?: string[];
+  ownerType?: FileRecordOwnerType;
+  ownerUserId?: string | null;
+  ownerSnapshot?: Record<string, unknown>;
 };
 
 export function readReleaseFileById(id: string): ReleaseFileInfo | null {
@@ -1010,14 +1044,17 @@ export function createFileRecord(input: CreateFileRecordInput): FileRecordInfo {
   const downloadUrl = input.assetType === "installer" ? buildReleaseDownloadPath(input.id) : "";
   db.prepare(
     `INSERT INTO file_records (
-      id, usage_type, platform, version, asset_type, provider, bucket, object_key,
+      id, usage_type, owner_type, owner_user_id, owner_snapshot_json, platform, version, asset_type, provider, bucket, object_key,
       hash, file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', ?, ?, NULL)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', ?, ?, NULL)
     ON CONFLICT(provider, bucket, object_key) DO UPDATE SET
       usage_type = CASE
         WHEN excluded.usage_type = 'desktop-update' OR file_records.usage_type = 'desktop-update' THEN 'desktop-update'
         ELSE excluded.usage_type
       END,
+      owner_type = excluded.owner_type,
+      owner_user_id = excluded.owner_user_id,
+      owner_snapshot_json = excluded.owner_snapshot_json,
       platform = CASE WHEN excluded.platform <> '' THEN excluded.platform ELSE file_records.platform END,
       version = CASE WHEN excluded.version <> '' THEN excluded.version ELSE file_records.version END,
       asset_type = CASE WHEN excluded.asset_type <> '' THEN excluded.asset_type ELSE file_records.asset_type END,
@@ -1031,6 +1068,9 @@ export function createFileRecord(input: CreateFileRecordInput): FileRecordInfo {
   ).run(
     input.id,
     input.usageType,
+    input.ownerType ?? "system",
+    input.ownerUserId ?? null,
+    JSON.stringify(input.ownerSnapshot ?? { displayName: "system" }),
     platform,
     input.version,
     input.assetType,
@@ -1553,7 +1593,8 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
   const db = getAppDb();
   const rows = db
     .prepare(
-      `SELECT h.*, f.id AS file_id, f.usage_type, f.platform AS file_platform, f.version AS file_version,
+      `SELECT h.*, f.id AS file_id, f.usage_type, f.owner_type, f.owner_user_id, f.owner_snapshot_json,
+        f.platform AS file_platform, f.version AS file_version,
         f.asset_type, f.provider, f.bucket, f.object_key, f.hash, f.file_name, f.mime_type,
         f.file_size, f.download_url AS file_download_url, f.status, f.referenced_by, f.created_at AS file_created_at,
         f.deleted_at AS file_deleted_at
@@ -1574,6 +1615,9 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
       release_file_id: string | null;
       file_id: string | null;
       usage_type: string | null;
+      owner_type: string | null;
+      owner_user_id: string | null;
+      owner_snapshot_json: string | null;
       file_platform: string | null;
       file_version: string | null;
       asset_type: string | null;
@@ -1595,6 +1639,9 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
       ? releaseFileFromRecord(mapFileRecord({
           id: row.file_id,
           usage_type: row.usage_type ?? "release-package",
+          owner_type: row.owner_type ?? "system",
+          owner_user_id: row.owner_user_id,
+          owner_snapshot_json: row.owner_snapshot_json ?? '{"displayName":"system"}',
           platform: row.file_platform ?? "desktop",
           version: row.file_version ?? "",
           asset_type: row.asset_type ?? "installer",
