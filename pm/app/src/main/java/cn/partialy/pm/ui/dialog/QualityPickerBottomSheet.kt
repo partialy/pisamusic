@@ -27,7 +27,7 @@ suspend fun showDownloadQualityPicker(
     confirmText: CharSequence? = null,
     selectedQualityKey: String? = null,
     song: SongInfo? = null,
-    onLoginRequired: (() -> Unit)? = null,
+    onRestrictedOptionClick: ((DownloadQualityOption) -> Unit)? = null,
 ): DownloadQualityOption? {
     if (options.isEmpty()) return null
     return suspendCancellableCoroutine { cont ->
@@ -41,16 +41,16 @@ suspend fun showDownloadQualityPicker(
         val initialIndex = options.indexOfFirst {
             it.choice.toPlaybackQualityKey() == selectedQualityKey
         }
-        val loginAction = onLoginRequired
+        val restrictedAction = onRestrictedOptionClick
         val selection = OptionPickerRows.bindQualityOptions(
             context = context,
             container = binding.bottomRadiusOptionsSheetContainer,
             options = options,
             selectedIndex = initialIndex,
-            onDisabledOptionClick = if (loginAction == null) null else {
-                {
+            onDisabledOptionClick = if (restrictedAction == null) null else {
+                { option ->
                     dialog.dismiss()
-                    loginAction()
+                    restrictedAction(option)
                 }
             },
         )
@@ -98,7 +98,7 @@ suspend fun showDownloadQualityConfirmDialog(
     options: List<DownloadQualityOption>,
     selectedQualityKey: String? = null,
     song: SongInfo? = null,
-    onLoginRequired: (() -> Unit)? = null,
+    onRestrictedOptionClick: ((DownloadQualityOption) -> Unit)? = null,
 ): DownloadQualityOption? {
     if (options.isEmpty()) return null
     return suspendCancellableCoroutine { cont ->
@@ -135,16 +135,16 @@ suspend fun showDownloadQualityConfirmDialog(
             it.choice.toPlaybackQualityKey() == selectedQualityKey
         }
         lateinit var dialog: Dialog
-        val loginAction = onLoginRequired
+        val restrictedAction = onRestrictedOptionClick
         val selection = OptionPickerRows.bindQualityOptions(
             context = context,
             container = container,
             options = options,
             selectedIndex = initialIndex,
-            onDisabledOptionClick = if (loginAction == null) null else {
-                {
+            onDisabledOptionClick = if (restrictedAction == null) null else {
+                { option ->
                     dialog.dismiss()
-                    loginAction()
+                    restrictedAction(option)
                 }
             },
         )

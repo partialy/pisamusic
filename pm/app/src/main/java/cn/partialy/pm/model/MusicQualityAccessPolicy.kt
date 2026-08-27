@@ -13,6 +13,7 @@ data class MusicQualityAccessState(
  */
 object MusicQualityAccessPolicy {
     private const val LOGIN_REQUIRED_BADGE = "需登录"
+    private const val UNLOCK_REQUIRED_BADGE = "联系作者解锁"
 
     private val guestEnabledKgChoices = setOf(
         DownloadQualityChoice.Kugou("128"),
@@ -45,21 +46,23 @@ object MusicQualityAccessPolicy {
             SongType.WY -> regularWyChoices
             SongType.KW, SongType.LOCAL -> emptySet()
         }
-        val visible = original.filter { it.choice in regularChoices }
-        if (access.loggedIn) return visible
-
         val guestEnabledChoices = when (type) {
             SongType.KG -> guestEnabledKgChoices
             SongType.WY -> guestEnabledWyChoices
             SongType.KW, SongType.LOCAL -> emptySet()
         }
-        return visible.map { option ->
-            if (option.choice in guestEnabledChoices) {
+        val enabledChoices = if (access.loggedIn) regularChoices else guestEnabledChoices
+        val restrictedBadge =
+            if (access.loggedIn) UNLOCK_REQUIRED_BADGE else LOGIN_REQUIRED_BADGE
+        val evaluated = original.map { option ->
+            if (option.choice in enabledChoices) {
                 option
             } else {
-                option.copy(enabled = false, badge = LOGIN_REQUIRED_BADGE)
+                option.copy(enabled = false, badge = restrictedBadge)
             }
         }
+        val (enabledOptions, disabledOptions) = evaluated.partition { it.enabled }
+        return enabledOptions + disabledOptions
     }
 
     fun isChoiceAllowed(

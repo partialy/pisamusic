@@ -96,10 +96,16 @@ class FeedbackActivity : BaseActivity() {
         )
 
         binding.feedbackBackButton.setOnClickListener { finish() }
+        selectedType = intent.getStringExtra(EXTRA_INITIAL_TYPE)
+            ?.takeIf { it in FEEDBACK_TYPES }
+            ?: TYPE_BUG
         bindTypeChips()
         renderImagePreviews()
 
         binding.feedbackSubmitButton.setOnClickListener { onSubmitClicked() }
+        intent.getStringExtra(EXTRA_INITIAL_MESSAGE)
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::showMessage)
     }
 
     private fun bindTypeChips() {
@@ -368,9 +374,24 @@ class FeedbackActivity : BaseActivity() {
         private const val TYPE_ACCOUNT = "account"
         private const val TYPE_OTHER = "other"
         private const val MAX_IMAGES = 3
+        private const val EXTRA_INITIAL_TYPE = "feedback_initial_type"
+        private const val EXTRA_INITIAL_MESSAGE = "feedback_initial_message"
+        private val FEEDBACK_TYPES = setOf(TYPE_BUG, TYPE_SUGGESTION, TYPE_ACCOUNT, TYPE_OTHER)
 
         fun start(context: Context) {
             context.startActivity(Intent(context, FeedbackActivity::class.java))
+            AppActivityTransitions.applyForward(context)
+        }
+
+        fun startForQualityUnlock(context: Context) {
+            context.startActivity(
+                Intent(context, FeedbackActivity::class.java)
+                    .putExtra(EXTRA_INITIAL_TYPE, TYPE_ACCOUNT)
+                    .putExtra(
+                        EXTRA_INITIAL_MESSAGE,
+                        context.getString(R.string.feedback_quality_unlock_hint),
+                    ),
+            )
             AppActivityTransitions.applyForward(context)
         }
     }

@@ -362,7 +362,13 @@ class PlayerActivity : BaseDownloadActivity() {
                 options = options,
                 selectedQualityKey = SettingsPrefs.getPlaybackQualityKey(this@PlayerActivity, song.type),
                 song = song,
-                onLoginRequired = { LoginActivity.start(this@PlayerActivity) },
+                onRestrictedOptionClick = {
+                    if (session.loggedIn) {
+                        FeedbackActivity.startForQualityUnlock(this@PlayerActivity)
+                    } else {
+                        LoginActivity.start(this@PlayerActivity)
+                    }
+                },
             ) ?: return@launch
 
             val current = musicController.currentSong.value
