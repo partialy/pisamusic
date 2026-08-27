@@ -13,6 +13,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.ImageView
 import android.widget.Toast
 import android.widget.LinearLayout
 import android.widget.PopupWindow
@@ -43,6 +44,7 @@ import cn.partialy.pm.ui.search.adapter.SearchRecommendAdapter
 import cn.partialy.pm.ui.search.adapter.SearchResultsAdapter
 import cn.partialy.pm.ui.search.adapter.SuggestionsAdapter
 import cn.partialy.pm.ui.web.LocalGenericErrorWebViewController
+import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import com.google.android.material.chip.Chip
@@ -199,15 +201,19 @@ class SearchActivity : BaseDownloadActivity() {
         sourcePopup?.dismiss()
         val content = LayoutInflater.from(this).inflate(R.layout.layout_search_source_dropdown, null, false)
         val container = content.findViewById<LinearLayout>(R.id.searchSourceOptionsContainer)
-        val options = listOf(
-            SongType.KG to getString(R.string.search_source_kg),
-            SongType.WY to getString(R.string.search_source_wy),
-            SongType.KW to getString(R.string.search_source_kw),
-        )
+        val options = listOf(SongType.KG, SongType.WY, SongType.KW)
         val current = viewModel.searchSource.value ?: SongType.KG
-        options.forEach { (type, label) ->
-            val row = LayoutInflater.from(this).inflate(R.layout.item_search_source_option, container, false) as TextView
-            row.text = if (type == current) "✓  $label" else label
+        options.forEach { type ->
+            val row = LayoutInflater.from(this).inflate(
+                R.layout.item_search_source_option,
+                container,
+                false,
+            )
+            val tag = row.findViewById<TextView>(R.id.sourceOptionTag)
+            val check = row.findViewById<ImageView>(R.id.sourceOptionCheck)
+            SongSourceTagBinder.bind(tag, type)
+            check.visibility = if (type == current) View.VISIBLE else View.INVISIBLE
+            row.contentDescription = getString(R.string.search_source_option_cd, type.name)
             row.setOnClickListener {
                 sourcePopup?.dismiss()
                 viewModel.setSearchSource(type)
@@ -396,14 +402,7 @@ class SearchActivity : BaseDownloadActivity() {
         }
 
         viewModel.searchSource.observe(this) { src ->
-            binding.searchSourceLabel.setText(
-                when (src) {
-                    SongType.KG -> R.string.search_source_kg
-                    SongType.WY -> R.string.search_source_wy
-                    SongType.KW -> R.string.search_source_kw
-                    else -> R.string.search_source_kg
-                },
-            )
+            SongSourceTagBinder.bind(binding.searchSourceLabel, src)
             if (searchResultCategory == 1) {
                 val kw = viewModel.currentSearchKeyword().ifBlank {
                     binding.searchEditText.text.toString().trim()

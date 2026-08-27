@@ -17,6 +17,7 @@ import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.network.search.*
 import cn.partialy.pm.network.wy.WyRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -82,11 +83,14 @@ class SearchViewModel @Inject constructor(
     private var playlistLastPage = false
     private var playlistKeyword = ""
     private var playlistMoreLoading = false
+    private var suggestionJob: Job? = null
 
     fun currentSearchKeyword(): String = currentKeyword
 
     fun setSearchSource(type: SongType) {
         if (_searchSource.value == type) return
+        suggestionJob?.cancel()
+        suggestionJob = null
         _searchSource.value = type
         _suggestions.value = emptyList()
         if (currentKeyword.isNotEmpty()) {
@@ -113,7 +117,9 @@ class SearchViewModel @Inject constructor(
     }
 
     fun getSuggestions(keyword: String) {
-        if (keyword.isEmpty()) {
+        suggestionJob?.cancel()
+        suggestionJob = null
+        if (keyword.isBlank()) {
             _suggestions.value = emptyList()
             return
         }
@@ -122,14 +128,11 @@ class SearchViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
-            try {
-                val result = kgRepository.getLinkKeyword(keyword)
-                result.onSuccess { response ->
-                    _suggestions.value = response.lists
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+        _suggestions.value = emptyList()
+        suggestionJob = viewModelScope.launch {
+            val result = kgRepository.getLinkKeyword(keyword)
+            result.onSuccess { response ->
+                _suggestions.value = response.lists
             }
         }
     }

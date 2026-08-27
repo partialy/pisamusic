@@ -11,7 +11,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.model.SongType
 
 /**
- * Element UI `el-tag` 风格：细边框 + 浅色底 + 同色字，用于歌曲来源 KG / KW / WY / LOCAL。
+ * Element UI `el-tag` 风格：细边框 + 浅色底 + 同色字，用于歌曲来源 K / W / Y / LOCAL。
  */
 object SongSourceTagBinder {
 
@@ -60,12 +60,13 @@ object SongSourceTagBinder {
 
     private fun label(type: SongType): String = when (type) {
         SongType.KG -> "K"
-        SongType.KW -> "KW"
+        SongType.KW -> "W"
         SongType.WY -> "Y"
         SongType.LOCAL -> "LOCAL"
     }
 
-    private fun SongType.isSingleLetterTag(): Boolean = this == SongType.KG || this == SongType.WY
+    private fun SongType.isSingleLetterTag(): Boolean =
+        this == SongType.KG || this == SongType.KW || this == SongType.WY
 
     private fun TextView.updateSize(width: Int, height: Int) {
         layoutParams = layoutParams.apply {

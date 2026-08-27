@@ -284,6 +284,7 @@
     <string name="search_source_wy">小红</string>
     <string name="search_source_kw">小黄</string>
     <string name="search_source_picker_cd">选择搜索音源</string>
+    <string name="search_source_option_cd">选择 %1$s 音源</string>
     <string name="search_playlist_song_count">共 %d 首</string>
     <string name="search_playlist_include_song">包含 %1$s</string>
     <string name="search_playlist_play_count">%1$s次播放</string>
@@ -348,6 +349,7 @@
     <string name="mine_notification">通知</string>
     <string name="mine_upgrade">升级</string>
     <string name="mine_avatar_cd_change">更改头像</string>
+    <string name="mine_vip_expiry_cd">会员有效期至 %1$s</string>
     <string name="mine_profile_kg_nickname_empty">暂无酷狗昵称</string>
     <string name="mine_profile_wy_subtitle_empty">暂无网易昵称</string>
     <string name="song_more_play_next">下一首播放</string>

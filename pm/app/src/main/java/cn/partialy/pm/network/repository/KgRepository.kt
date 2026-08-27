@@ -29,6 +29,7 @@ import cn.partialy.pm.network.cookie.KugouCookieRepository
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 @Singleton
 class KgRepository @Inject constructor(
@@ -544,15 +545,10 @@ class KgRepository @Inject constructor(
 
     suspend fun getLinkKeyword(keywords: String): Result<SearchSongResponse> {
         return try {
-            val data = cookieFirst(
-                operationName = "kg search/suggest",
-                cookieCall = { cookieRepository.getLinkKeyword(keywords) },
-                anonymousCall = {
-                    ensureKgDfid()
-                    api.getLinkKeyword(keywords).data
-                },
-            )
-            Result.success(data)
+            ensureKgDfid()
+            Result.success(api.getLinkKeyword(keywords).data)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

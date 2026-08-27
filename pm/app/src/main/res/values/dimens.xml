@@ -5,7 +5,7 @@
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
     <dimen name="home_header_bar_height">48dp</dimen>
-    <dimen name="mine_profile_header_height">296dp</dimen>
+    <dimen name="mine_profile_header_height">316dp</dimen>
     <dimen name="share_detail_toolbar_content_height">56dp</dimen>
     <dimen name="home_bottom_nav_height">48dp</dimen>
     <dimen name="home_mini_player_height">48dp</dimen>

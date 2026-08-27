@@ -64,9 +64,11 @@
 | 首页推荐歌单卡片 | 首页横向/网格歌单卡片 | `item_home_recommend_playlist.xml` | `HomeRecommendPlaylistAdapter`、`HomePlaylistGridAdapter` | 首页歌单卡片优先复用。 |
 | 首页功能卡片 | 每日推荐、雷达、猜你喜欢等入口 | `item_home_feature_card.xml` | `HomeFeatureCardsAdapter` | 首页功能入口卡片参考。 |
 | 首页每日歌曲卡片 | 每日歌曲小卡 | `item_home_daily_song.xml` | `HomeDailySongGridAdapter` | 小型歌曲卡片参考。 |
-| 搜索建议 / 热搜项 | 搜索页建议和热搜 | `item_search_suggestion.xml`、`item_hot_search.xml`、`item_search_recommend.xml` | `SuggestionsAdapter`、`HotSearchAdapter` | 搜索页列表项参考。 |
+| 搜索建议 / 热搜项 | 搜索页建议和热搜 | `item_search_suggestion.xml`、`item_hot_search.xml`、`item_search_recommend.xml` | `SuggestionsAdapter`、`HotSearchAdapter`、`SearchViewModel.suggestionJob` | 提示词随输入立即请求，新输入必须取消旧 Retrofit 请求并清空旧提示；热搜继续复用现有列表项。 |
+| 搜索音源选择器 | 搜索页当前音源与下拉选项 | `activity_search.xml`、`layout_search_source_dropdown.xml`、`item_search_source_option.xml` | `SearchActivity`、`SongSourceTagBinder` | 当前项和弹出选项只显示 K / Y / W 方块标签，当前弹出项右侧显示勾选；不展示“小蓝 / 小红 / 小黄”平台别名。 |
 | 封面缩略图 | 封面选择、歌单封面列表 | `item_dialog_local_cover_thumb.xml` | `CreateLocalPlaylistCoverPickerAdapter` | 封面选择网格参考。 |
 | 我的页面入口行 | 我的页收藏、本地、设置和自建歌单入口 | `item_mine_favorites_row.xml`、`item_mine_local_music_row.xml`、`item_mine_cover_title_row.xml`、`item_mine_local_playlist_section_header.xml`、`item_mine_playlist_empty.xml` | `MineMyOverviewAdapter`、`MineMyTabFragment` | 固定入口和分组头由 Overview Adapter 承载，自建歌单行通过 ConcatAdapter 接在后面；页面级 RecyclerView 保持回收，Mine 根层固定 Header Overlay，AppBar 只负责头像折叠与 Tab 吸顶。 |
+| 我的页 VIP 到期标签 | 有效系统 VIP 的到期时间 | `fragment_mine.xml`、`bg_mine_vip_expiry_tag.xml` | `MineFragment.applyMineProfileTexts`、`AccountSessionStore` | 位于邮箱下方，复用音源标签的细边框、浅底、同色字视觉但使用金色；仅有效 VIP 显示，画面只显示本地时区 `yyyy-M-d HH:mm:ss` 时间。 |
 
 ## 播放相关
 
@@ -81,7 +83,7 @@
 | 播放按钮缓冲态 | 主播放按钮和迷你播放器缓冲反馈 | `pm/app/src/main/res/drawable/ic_loading_loop_24.xml` | `PlaybackButtonStateRenderer` | VectorDrawable 只承载图形；Media3 `STATE_BUFFERING` 时由 ObjectAnimator 以 1.5 秒周期持续旋转，销毁时必须释放。 |
 | 歌词行 | 普通歌词 RecyclerView 行 | `pm/app/src/main/res/layout/item_lyric_line.xml` | `LyricsAdapter` | 非卡拉 OK View 的普通歌词行。 |
 | 卡拉 OK 歌词 View | 逐字歌词渲染 | `pm/app/src/main/java/cn/partialy/pm/ui/player/KaraokeLyricsView.kt` | `LyricDisplayStyle` | 自绘歌词，不要用普通 TextView 代替。 |
-| 歌源标签 | KG/WY/KW/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定；KG/WY 必须分别显示同规格的 16dp 圆角描边方块 `K` / `Y`（无额外 padding、居中），包括侧拉栏。KW/LOCAL 继续使用原有自适应矩形标签，禁止在调用方单独设置来源文案、背景或 padding。 |
+| 歌源标签 | KG/WY/KW/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定；KG/WY/KW 必须分别显示同规格的 16dp 圆角描边方块 `K` / `Y` / `W`（无额外 padding、居中），KW 继续使用橙色配色，包括搜索音源选择器和侧拉栏。LOCAL 保留自适应矩形，禁止调用方单独设置来源文案、背景或 padding。 |
 
 ## 状态、错误与 WebView
 

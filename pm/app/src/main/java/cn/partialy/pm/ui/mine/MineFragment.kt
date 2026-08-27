@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
@@ -29,6 +30,9 @@ import coil.transform.CircleCropTransformation
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.color.MaterialColors
 import dagger.hilt.android.AndroidEntryPoint
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -193,7 +197,7 @@ class MineFragment : Fragment() {
         }
     }
 
-    /** 昵称：侧栏缓存的酷狗；副标题：侧栏缓存的网易。 */
+    /** 显示 PisaMusic 系统账号昵称、邮箱与有效 VIP 到期时间。 */
     fun applyMineProfileTexts() {
         val b = _binding ?: return
         val session = AccountSessionStore.read(requireContext())
@@ -203,6 +207,21 @@ class MineFragment : Fragment() {
         } else {
             b.nicknameTextView.text = "登录 / 注册"
             b.subtitleTextView.text = "账号登录后自动同步收藏与歌单"
+        }
+        val vipExpiresAt = session.user.vipExpiresAt
+        if (session.vipActive && vipExpiresAt != null) {
+            val expiryText = SimpleDateFormat(VIP_EXPIRY_PATTERN, Locale.CHINA)
+                .format(Date(vipExpiresAt))
+            b.vipExpiryTextView.text = expiryText
+            b.vipExpiryTextView.contentDescription = getString(
+                R.string.mine_vip_expiry_cd,
+                expiryText,
+            )
+            b.vipExpiryTextView.isVisible = true
+        } else {
+            b.vipExpiryTextView.text = ""
+            b.vipExpiryTextView.contentDescription = null
+            b.vipExpiryTextView.isVisible = false
         }
     }
 
@@ -247,6 +266,10 @@ class MineFragment : Fragment() {
         }
         styleTab(binding.tabMineText, selectedIndex == 0)
         styleTab(binding.tabPlaylistsText, selectedIndex == 1)
+    }
+
+    companion object {
+        private const val VIP_EXPIRY_PATTERN = "yyyy-M-d HH:mm:ss"
     }
 
 }

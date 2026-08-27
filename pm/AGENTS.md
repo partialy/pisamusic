@@ -64,7 +64,7 @@
 - `PlayerEngine` 默认使用 Media3 原生音频渲染器；只有宽声场处理确实启用时才接入 `AudioEffectsRenderersFactory`，音频渲染异常时应回退到原生渲染器并对当前歌曲重试一次。
 - `MediaItemFactory` 创建延迟解析的 `MediaItem`。
 - `PlayUrlGetter` 负责 KG / WY / KW / LOCAL 播放地址解析和音质降级。
-- PisaMusic 系统账号 VIP 仅由外层 `server` 的公开 `vip` / `vipExpiresAt` 下发并由 `AccountSessionStore` 内部保存；它与 `MusicCookieManager` 管理的 KG / WY 第三方账号及其 VIP 完全分离。Android 任意页面、侧拉栏、弹窗均不得展示系统 VIP 文案或标识。
+- PisaMusic 系统账号 VIP 仅由外层 `server` 的公开 `vip` / `vipExpiresAt` 下发并由 `AccountSessionStore` 内部保存；它与 `MusicCookieManager` 管理的 KG / WY 第三方账号及其 VIP 完全分离。除“我的”页可在邮箱下为有效 VIP 显示金色纯到期时间标签外，Android 其他页面、侧拉栏、弹窗均不得展示系统 VIP 文案或标识。
 - KG / WY 的下载、手动切换播放音质及已保存播放音质必须统一经 `MusicQualityAccessPolicy`：音质选择器始终展示当前音源的完整原始档位；游客仅可使用原有普通档位，其余禁用并标记“需登录”，点击后关闭选择器并进入 PisaMusic `LoginActivity`；普通系统账号仍仅可使用 WY 四档与 KG 三档，其余高级音质禁用并标记“联系作者解锁”，点击后关闭选择器并进入已预选“账号相关”的 `FeedbackActivity`，提示用户填写需求并提交审核；有效系统 VIP 可使用完整原始档位，KW / LOCAL 维持原行为。退出登录、后台关闭或到期时，`MediaItemFactory` 必须将越权已保存音质回退到 KG 128、WY standard 或 KW 原默认；不得绕过策略直接取链。
 - `PlayerStateStore` 使用 SharedPreferences + kotlinx.serialization 持久化跨会话播放状态。
 - Mini 播放器封面必须通过 `SongCoverUrl.getSongCoverData(...)` 加载，确保本地歌曲优先显示 `embeddedCoverArt`，不要只走远程封面 URL。
@@ -111,7 +111,7 @@
 - KG / WY / KW / proxy 的 Retrofit 使用不可路由占位地址，`RuntimeEndpointInterceptor` 在每次请求发送前按 `ConfigManager` 当前配置重写真实地址，并将当次 bootstrap state 通过 request tag 传给 `GatewaySignInterceptor`，保证同一请求的 endpoint 与签名来自同一快照；该拦截器必须位于签名、故障追踪和日志拦截器之前。动态绝对 `@Url` 必须由 `ConfigManager` 的 `RuntimeUrlTarget` 同时取得 URL 和 state，并通过 Retrofit `@Tag` 传入；KG/WY Cookie 请求同样传递同一 target，不得先取 URL 再由 CookieRequest 读取新 state。bootstrap 成功前音乐端点统一保持 `https://music-runtime.invalid/`，不得回退到系统服务地址、`127.0.0.1` 或在 Retrofit 创建时快照运行时端点。
 - discovery 缓存只保存发现文档原文与版本，不缓存 bootstrap 音源配置；远程文档版本低于当前快照时不得覆盖或降级。一起听 Socket 每次连接读取当前 realtime origin，反馈地址和账号相对头像统一按当前 API origin 解析；绝对头像仅接受合法 HTTPS URL。
 - 首页推荐页由 `RecommendedSongsViewModel` 聚合 KG 每日推荐 / 推荐歌单与 WY `/personalized` 推荐歌单、`/personalized/newsong` 推荐新歌；新增首页推荐来源时需要补齐模型、Repository 映射、`SongType`/`CollectedPlaylistType` UI 分流和播放 URL 解析。
-- KG / WY 已登录且本地存在对应 Cookie 时，非播放 URL 的数据接口（搜索、推荐、歌单、歌词等）必须优先走 `KugouCookieRepository` / `WyCookieRepository` 的 Cookie 请求，失败后回退匿名 Retrofit；播放和下载 URL 仍只走现有 `KgUrlProxyApiService` / `WyUrlProxyApiService` 代理链路，不带 Cookie。
+- KG / WY 已登录且本地存在对应 Cookie 时，非播放 URL 的数据接口（搜索、推荐、歌单、歌词等）必须优先走 `KugouCookieRepository` / `WyCookieRepository` 的 Cookie 请求，失败后回退匿名 Retrofit；唯一例外是 KG `search/suggest` 搜索提示词，为保证输入变化时能取消底层 OkHttp Call，固定使用匿名 Retrofit `suspend` 接口。播放和下载 URL 仍只走现有 `KgUrlProxyApiService` / `WyUrlProxyApiService` 代理链路，不带 Cookie。
 - 修改 endpoint 字段时，检查 Android `SystemData.kt` / `ConfigManager.kt`，以及 `../server/` 中的配置存储、类型和管理后台表单。
 - 修改发现页字段时，检查 Android `DiscoverInfo` / `DiscoverFragment`，以及 `../server/` 的 discover 配置和管理后台系统页。
 
@@ -131,6 +131,7 @@
 - 中文注释保持可读性，避免无意义注释。
 - 单文件尽量不超过 1000 行；大型 Activity、Fragment、Adapter、工具类要拆分。
 - 新增音乐源时，需要同时包含模型、API、Repository、搜索映射、播放地址解析和 UI 来源标识。
+- `SearchViewModel` 的 KG 搜索提示词必须保持即时请求：每次输入先取消旧 `suggestionJob`，空输入或切换音源同时取消并清空提示；`KgRepository.getLinkKeyword` 必须传播 `CancellationException`，不得恢复吞掉取消或阻塞式 Cookie 请求。搜索页音源当前项和下拉选项统一复用 `SongSourceTagBinder` 的 K / Y / W 方块标签，不展示“小蓝 / 小红 / 小黄”。
 - 保持系统后端 Retrofit client 与第三方音乐源 client 分离，不要把系统 AES-GCM 拦截器混入 KG / WY / KW。
 
 ## 验证要求
@@ -161,7 +162,7 @@
 - 同步设置入口位于 `DataSettingsActivity` 的“收藏与同步”，只展示账号同步摘要并进入 `FavoritesSyncSettingsActivity`；独立同步页展示登录状态、最近同步时间和错误状态，未登录时跳转 `LoginActivity`，已登录时执行 `SyncManager.syncNow()` 立即同步，不再提供同步码输入、同步码复制、同步码生成或解绑设备入口。
 - `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免覆盖同步或其他显式鉴权请求。
 - 自有账号主入口在“我的”页头像区域，不再放在侧拉栏；未登录点击头像打开 `LoginActivity`，已登录点击头像打开 `AccountProfileActivity`。
-- “我的”页头像、昵称和邮箱优先读取 `AccountSessionStore` 中服务端账号字段；账号头像使用服务端 `avatarKey/avatarUrl`，相对路径按 `SYSTEM_SERVICE_BASE_URL` 拼接，自定义头像的 `avatarUrl` 为七牛公开图片空间直链。
+- “我的”页头像、昵称和邮箱优先读取 `AccountSessionStore` 中服务端账号字段；账号头像使用服务端 `avatarKey/avatarUrl`，相对路径按 `SYSTEM_SERVICE_BASE_URL` 拼接，自定义头像的 `avatarUrl` 为七牛公开图片空间直链。仅 `session.vipActive=true` 且存在未来 `vipExpiresAt` 时，在邮箱下显示金色标签，画面只渲染设备本地时区的 `yyyy-M-d HH:mm:ss` 到期时间，不添加 VIP、等级或到期前缀。
 - `LoginActivity` 与 `AccountAssistActivity` 使用原生 XML + ViewBinding 的 edge-to-edge 界面；账号登录、注册、找回密码输入框统一使用 Material `TextInputLayout` 浮动标签样式。`AccountProfileActivity` 继续使用 edge-to-edge 全屏 WebView 容器；Native 统一注入 `--native-status-bar-height` 与 `--native-navigation-bar-height` CSS 变量，WebView 本身不要再额外设置系统栏 padding。个人资料页顶部 headerbar 由 `assets/account-profile/` 内的网页实现；资料修改走 `/api/auth/profile/email-code` 与 `PATCH /api/auth/profile`，头像上传先走 `/api/auth/avatar/upload-token` 获取七牛 token 后由 Native 直传公开图片空间，再把返回 key 写入资料，成功后必须覆盖本地账号 session。旧的多张内置头像自选功能已废弃，不要恢复。
 
 ## 启动本地模式补充
@@ -197,7 +198,7 @@
 - 歌曲和歌单分享入口复用 `SongMoreMenu`、`PlaylistActionBottomSheet` 与 `ShareBottomSheet`。创建分享必须读取 `AccountSessionStore`，未登录时只提示“请先登录后再分享”，不得创建分享记录；同一账号重复分享同一 `source:id` 时由服务端复用既有 uuid。
 - 分享 Sheet 使用 `bottom_sheet_share.xml` 与 `include_share_info_header.xml`：顶部封面 + 标题 / 描述，二维码居中，链接区域使用一起听同款蓝色描边 Material `TextInputLayout` 的“链接分享”标签和右侧复制图标。
 - 分享详情页为 `ShareDetailActivity`，使用原生 XML + ViewBinding，不使用 WebView。外部链接继续由 `SplashActivity` / `MainActivity` 的 `pisamusic://scan` 分发处理：先尝试一起听，再尝试 `ShareLink`，命中分享后进入 `ShareDetailActivity`；歌曲 / 歌单更多菜单里的“详情”使用本地 canonical 快照启动同一个 Activity，不调用分享接口、不生成 uuid。
-- 分享详情的歌单来源必须复用 `SongSourceTagBinder`，显示与歌曲歌手尾部一致的 K / Y / KW / LOCAL 标签，不单独展示平台名称。点击本地“详情”进入时歌单右侧动作复用 `ShareBottomSheet` 分享；UUID 分享唤醒进入时右侧动作收藏或取消收藏 KG/WY 歌单，不再提供复制 ID 按钮。
+- 分享详情的歌单来源必须复用 `SongSourceTagBinder`，显示与歌曲歌手尾部一致的 K / Y / W / LOCAL 标签，不单独展示平台名称。点击本地“详情”进入时歌单右侧动作复用 `ShareBottomSheet` 分享；UUID 分享唤醒进入时右侧动作收藏或取消收藏 KG/WY 歌单，不再提供复制 ID 按钮。
 - `PlaylistActionBottomSheet` 是歌单更多菜单入口，网络歌单显示“收藏 / 取消收藏”、详情和分享，本地歌单不显示收藏动作；收藏状态和写入必须走 `PlaylistCollectionManager`，不要另建收藏存储。
 - 分享 rawJson 只能使用 `CanonicalSong` / `CanonicalPlaylist` 快照，不要上传播放 URL、filePath、歌词正文、内嵌封面二进制；本地封面无法跨设备访问时应清空或显示默认封面。
 
