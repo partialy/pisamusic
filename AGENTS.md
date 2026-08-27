@@ -7,6 +7,7 @@
 - PC 发布页的“上传安装包到七牛云”和“PC 自动更新文件 / 安装包 EXE”必须联动复用同一七牛对象；上传任意一处的 EXE 后，需要自动同步另一处的下载地址、文件大小、`releaseFileId` 或 installer 资产状态。
 - 文件管理允许删除被历史、当前 Android / PC 发布版本或 active PC 自动更新引用的七牛对象；删除时必须调用七牛删除对象，把本地记录标记为 `deleted`，同步清理 `update_history.release_file_id`、`file_records.referenced_by`、当前发布下载地址和 active 自动更新引用，不要物理删除数据库记录。
 - 发布历史的完整删除仅允许非当前版本：`update_history` 使用 `deleted_at` 逻辑删除，Android 同步删除关联安装包，PC 同步删除该版本安装包、`latest.yml` 和 blockmap；七牛对象实际删除，`file_records` 保留并标记为 `deleted`。当前 Android / PC 版本必须先发布替代版本后才能删除。
+- 网盘音乐（`source: "cloud"`）独立存储与分发，曲库记录与资产分别登记在 SQLite 的 `cloud_music_tracks` 和 `cloud_music_assets` 表，物理文件登记在 `file_records`（`usage_type='cloud-music'`，支持所有者关联）。上传采用预登记会话 + 七牛私有直传 + `stat` 校验 + 音频元数据（`music-metadata`）解析。公开检索与详情入口为 `/api/cloud-music/*`，播放及歌词链接签发 1 小时私有签名 URL（`disabled` 曲目不可播）；后台管理接口为 `/api/admin/cloud-music/*`，支持状态流转、审核、试听与临时文件一键清理。网盘音乐不参与第三方音乐源聚合。
 
 本文件用于指导 Codex / Claude Code 在 `pisamusic` 根工作区内协作。子目录如果有自己的 `AGENTS.md`，以更近的文件为准。
 

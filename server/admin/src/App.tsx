@@ -101,6 +101,7 @@ const SystemTab = lazy(() => import("./components/tabs/SystemTab"));
 const WebsiteRecordsTab = lazy(() => import("./components/tabs/WebsiteRecordsTab"));
 const UpdateTab = lazy(() => import("./components/tabs/UpdateTab"));
 const FileManagementTab = lazy(() => import("./components/tabs/FileManagementTab"));
+const CloudMusicManagementTab = lazy(() => import("./components/tabs/CloudMusicManagementTab"));
 const FeedbackManagementTab = lazy(() => import("./components/tabs/FeedbackManagementTab"));
 const FaultReportsManagementTab = lazy(() => import("./components/tabs/FaultReportsManagementTab"));
 const ShareManagementTab = lazy(() => import("./components/tabs/ShareManagementTab"));
@@ -214,8 +215,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [selectedFileRecord, setSelectedFileRecord] = useState<FileRecordInfo | null>(null);
   const [fileFilters, setFileFilters] = useState<{
-    status: "uploaded" | "deleted" | "all";
-    usageType: "release-package" | "desktop-update" | "all";
+    status: "uploaded" | "deleted" | "pending" | "all";
+    usageType: "release-package" | "desktop-update" | "cloud-music" | "all";
     keyword: string;
   }>({ status: "uploaded", usageType: "all", keyword: "" });
   const [feedbackItems, setFeedbackItems] = useState<AdminFeedbackListItem[]>([]);
@@ -1538,6 +1539,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onDelete={(file) => void handleDeleteFileRecord(file)}
                 />
               )}
+              {currentTab === "cloudMusic" && <CloudMusicManagementTab themeColor={themeColor} />}
               {currentTab === "feedback" && (
                 <FeedbackManagementTab
                   items={feedbackItems}

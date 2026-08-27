@@ -10,6 +10,7 @@ import { initRealtimeServer } from "./realtime";
 import { adminRouter } from "./routes/admin";
 import { analyticsRouter } from "./routes/analytics";
 import { authRouter } from "./routes/auth";
+import { cloudMusicRouter } from "./routes/cloudMusic";
 import { configRouter } from "./routes/config";
 import { deviceRouter } from "./routes/device";
 import { feedbackRouter } from "./routes/feedback";
@@ -96,6 +97,7 @@ app.use("/api/device", deviceRouter);
 app.use("/api/sync", syncRouter);
 app.use("/api/listen-together", listenTogetherRouter);
 app.use("/api/shares", sharesRouter);
+app.use("/api/cloud-music", cloudMusicRouter);
 
 app.use(
   "/discover",

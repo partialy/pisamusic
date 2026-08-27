@@ -2,8 +2,8 @@ import type { FileRecordInfo } from "../../types/config";
 import { glassCardClasses, glassInputClasses } from "../../constants/theme";
 
 type FileFilters = {
-  status: "uploaded" | "deleted" | "all";
-  usageType: "release-package" | "desktop-update" | "all";
+  status: "uploaded" | "deleted" | "pending" | "all";
+  usageType: "release-package" | "desktop-update" | "cloud-music" | "all";
   keyword: string;
 };
 
@@ -36,13 +36,19 @@ export function formatDate(ts: number | null): string {
 }
 
 export function usageText(file: FileRecordInfo): string {
-  return file.usageType === "desktop-update" ? "PC 自动更新文件" : "发布安装包";
+  if (file.usageType === "desktop-update") return "PC 自动更新文件";
+  if (file.usageType === "cloud-music") return "网盘音乐";
+  return "发布安装包";
 }
 
 function assetTypeText(file: FileRecordInfo): string {
   if (file.assetType === "installer") return "安装包";
   if (file.assetType === "latest-yml") return "latest.yml";
   if (file.assetType === "blockmap") return "blockmap";
+  if (file.assetType === "audio") return "音频";
+  if (file.assetType === "cover-uploaded") return "手动封面";
+  if (file.assetType === "cover-extracted") return "内嵌封面";
+  if (file.assetType === "lyrics") return "歌词";
   return file.assetType || "-";
 }
 
@@ -51,6 +57,13 @@ export function referencesText(file: FileRecordInfo): string {
 }
 
 function statusBadge(file: FileRecordInfo) {
+  if (file.status === "pending") {
+    return (
+      <span className="inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+        待上传
+      </span>
+    );
+  }
   const uploaded = file.status === "uploaded";
   return (
     <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold ${uploaded ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"}`}>
@@ -97,6 +110,7 @@ export default function FileManagementTab({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <select className={glassInputClasses} value={filters.status} onChange={(e) => onFilterChange({ ...filters, status: e.target.value as FileFilters["status"] })}>
             <option value="uploaded">仅已上传</option>
+            <option value="pending">仅待上传</option>
             <option value="deleted">仅已删除</option>
             <option value="all">全部状态</option>
           </select>
@@ -104,6 +118,7 @@ export default function FileManagementTab({
             <option value="all">全部用途</option>
             <option value="release-package">发布安装包</option>
             <option value="desktop-update">PC 自动更新</option>
+            <option value="cloud-music">网盘音乐</option>
           </select>
           <input className={glassInputClasses} value={filters.keyword} onChange={(e) => onFilterChange({ ...filters, keyword: e.target.value })} placeholder="搜索文件名或七牛 key" />
         </div>

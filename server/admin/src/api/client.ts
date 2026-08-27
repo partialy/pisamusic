@@ -60,11 +60,11 @@ function authHeaders(): Record<string, string> {
   return h;
 }
 
-async function parseJson<T>(res: Response): Promise<ApiResponse<T>> {
+export async function parseJson<T>(res: Response): Promise<ApiResponse<T>> {
   return (await res.json()) as ApiResponse<T>;
 }
 
-async function fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
+export async function fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
   const res = await encryptedFetch(url, {
     ...init,
     headers: { ...authHeaders(), ...(init?.headers as Record<string, string>) },
@@ -205,7 +205,7 @@ export async function updatePublishedUpdate(historyId: string, payload: AppUpdat
   return body.data.history;
 }
 
-type UploadTokenResponse = {
+export type UploadTokenResponse = {
   uploadToken: string;
   uploadUrl: string;
   key: string;
@@ -216,14 +216,14 @@ type UploadTokenResponse = {
   expiresAt: number;
 };
 
-type QiniuUploadResponse = {
+export type QiniuUploadResponse = {
   key?: string;
   hash?: string;
   fsize?: number;
   bucket?: string;
 };
 
-type UploadProgressHandler = (progress: number) => void;
+export type UploadProgressHandler = (progress: number) => void;
 
 async function fetchReleaseUploadToken(file: File, platform: ReleasePlatform): Promise<UploadTokenResponse> {
   const res = await fetchWithAuth("/api/admin/release-files/upload-token", {
@@ -242,7 +242,7 @@ async function fetchReleaseUploadToken(file: File, platform: ReleasePlatform): P
   return body.data;
 }
 
-function uploadFileToQiniu(file: File, token: UploadTokenResponse, onProgress?: UploadProgressHandler): Promise<QiniuUploadResponse> {
+export function uploadFileToQiniu(file: File, token: UploadTokenResponse, onProgress?: UploadProgressHandler): Promise<QiniuUploadResponse> {
   const formData = new FormData();
   formData.append("token", token.uploadToken);
   formData.append("key", token.key);
@@ -409,8 +409,8 @@ export async function deleteUpdateHistory(historyId: string): Promise<{ id: stri
 }
 
 export async function fetchFileRecords(params: {
-  status?: "uploaded" | "deleted" | "all";
-  usageType?: "release-package" | "desktop-update" | "all";
+  status?: "uploaded" | "deleted" | "pending" | "all";
+  usageType?: "release-package" | "desktop-update" | "cloud-music" | "all";
   platform?: string;
   version?: string;
   keyword?: string;

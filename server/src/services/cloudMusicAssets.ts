@@ -116,6 +116,35 @@ export function buildCloudMusicAssetObjectKey(
   return `pisamusic/cloud-music/${monthStamp(date)}/${uuid}/${baseName[kind]}${ext}`;
 }
 
+const AUDIO_EXTENSION_MIME_TYPES: Record<string, string> = {
+  ".mp3": "audio/mpeg",
+  ".flac": "audio/flac",
+  ".m4a": "audio/mp4",
+  ".mp4": "audio/mp4",
+  ".aac": "audio/aac",
+  ".ogg": "audio/ogg",
+  ".opus": "audio/opus",
+  ".wav": "audio/wav",
+};
+
+export function inferAssetMimeType(kind: CloudMusicAssetKind, fileName: string, declaredMime?: string): string {
+  const normalized = declaredMime ? normalizeMimeType(declaredMime) : "";
+  if (kind === "audio") {
+    if (normalized && normalized.startsWith("audio/")) return normalized;
+    const ext = path.extname(fileName).toLowerCase();
+    return AUDIO_EXTENSION_MIME_TYPES[ext] || "audio/mpeg";
+  }
+  if (kind === "cover-uploaded" || kind === "cover-extracted") {
+    if (normalized && isCoverMimeType(normalized)) return normalized;
+    return coverMimeTypeForExtension(fileName);
+  }
+  if (kind === "lyrics") {
+    if (normalized && (normalized === "text/plain" || normalized.startsWith("text/"))) return normalized;
+    return "text/plain";
+  }
+  return normalized || "application/octet-stream";
+}
+
 function validateAssetDeclaration(asset: CloudMusicReservedAsset): void {
   const maxSize = ASSET_MAX_SIZES[asset.kind];
   if (!Number.isSafeInteger(asset.fileSize) || asset.fileSize <= 0) throw new Error("网盘音乐资产声明大小不正确");
@@ -123,19 +152,11 @@ function validateAssetDeclaration(asset: CloudMusicReservedAsset): void {
     const label = asset.kind === "audio" ? "音频" : asset.kind === "lyrics" ? "歌词" : "封面";
     throw new Error(`${label}文件超过大小限制`);
   }
+  const ext = requireCloudMusicAssetExtension(asset.kind, asset.fileName);
   const mimeType = normalizeMimeType(asset.mimeType);
   if (!mimeType) throw new Error("网盘音乐资产 MIME 不能为空");
-  if ((asset.kind === "cover-uploaded" || asset.kind === "cover-extracted") && !isCoverMimeType(mimeType)) {
-    throw new Error("封面仅支持 JPEG、PNG、WebP");
-  }
-  if (
-    (asset.kind === "cover-uploaded" || asset.kind === "cover-extracted")
-    && coverMimeTypeForExtension(asset.fileName) !== mimeType
-  ) throw new Error("封面扩展名与 MIME 不一致");
-  if (asset.kind === "audio" && !mimeType.startsWith("audio/")) throw new Error("音频 MIME 不正确");
   if (asset.kind === "cover-extracted") return;
   const parts = asset.objectKey.split("/");
-  const ext = requireCloudMusicAssetExtension(asset.kind, asset.fileName);
   const expectedBaseName: Record<Exclude<CloudMusicAssetKind, "cover-extracted">, string> = {
     audio: "audio",
     "cover-uploaded": "cover-uploaded",
@@ -197,9 +218,6 @@ export async function statCloudMusicAsset(asset: CloudMusicReservedAsset): Promi
   readVerifiedPendingAsset(asset.trackUuid, asset);
   const stat = await statQiniuObject(asset.bucket, asset.objectKey);
   if (stat.fileSize !== asset.fileSize) throw new Error("七牛对象真实大小与预登记不一致");
-  if (normalizeMimeType(stat.mimeType) !== normalizeMimeType(asset.mimeType)) {
-    throw new Error("七牛对象 MIME 与预登记不一致");
-  }
   return stat;
 }
 

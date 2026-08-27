@@ -122,14 +122,11 @@ export function createFixedQiniuUploadToken(input: FixedQiniuUploadTokenInput): 
   if (!input.key.trim()) throw new Error("七牛对象 Key 不能为空");
   if (!Number.isSafeInteger(input.fileSize) || input.fileSize <= 0) throw new Error("文件大小不正确");
   const { domain, cdnDomain } = assertReleaseBucket(input.bucket);
-  const mimeType = String(input.mimeType ?? "").trim().toLowerCase();
   const putPolicy = new qiniu.rs.PutPolicy({
     scope: `${input.bucket}:${input.key}`,
     insertOnly: 1,
     expires: TOKEN_TTL_SECONDS,
     fsizeLimit: input.fileSize,
-    fsizeMin: input.fileSize,
-    ...(mimeType ? { mimeLimit: mimeType } : {}),
     returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
   });
   return {

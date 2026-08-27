@@ -18,8 +18,9 @@
 - [7. 用户反馈模块 (`feedback`)](#7-用户反馈模块-apifeedback)
 - [8. 故障排障日志上报模块 (`faultReports`)](#8-故障排障日志上报模块-apifault-reports)
 - [9. 官网数据统计模块 (`analytics`)](#9-官网数据统计模块-apianalytics)
-- [10. 系统基础与健康检查 (`system`)](#10-系统基础与健康检查-system)
-- [11. 管理后台 API (`admin`)](#11-管理后台-api-apiadmin)
+- [10. 独立网盘音乐源模块 (`cloudMusic`)](#10-独立网盘音乐源模块-apicloud-music)
+- [11. 系统基础与健康检查 (`system`)](#11-系统基础与健康检查-system)
+- [12. 管理后台 API (`admin`)](#12-管理后台-api-apiadmin)
 
 ---
 
@@ -144,7 +145,20 @@
 
 ---
 
-## 10. 系统基础与健康检查 (`system`)
+## 10. 独立网盘音乐源模块 (`/api/cloud-music`)
+
+提供平台独立网盘曲库（`source: "cloud"`）的曲目检索、详情查询、1 小时播放签名 URL 与歌词签名下载 URL。网盘曲目独立于第三方音乐源，不参与其他平台聚合。
+
+| 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
+| :--- | :--- | :--- | :--- | :--- |
+| 搜索网盘音乐 | `GET` | `/api/cloud-music/search` | 无 (加密) | [./cloudMusic/searchTracks.md](./cloudMusic/searchTracks.md) |
+| 获取网盘音乐详情 | `GET` | `/api/cloud-music/tracks/:uuid` | 无 (加密) | [./cloudMusic/getTrack.md](./cloudMusic/getTrack.md) |
+| 获取网盘音乐播放地址 | `GET` | `/api/cloud-music/tracks/:uuid/play-url` | 无 (加密) | [./cloudMusic/getPlayUrl.md](./cloudMusic/getPlayUrl.md) |
+| 获取网盘音乐歌词地址 | `GET` | `/api/cloud-music/tracks/:uuid/lyrics-url` | 无 (加密) | [./cloudMusic/getLyricsUrl.md](./cloudMusic/getLyricsUrl.md) |
+
+---
+
+## 11. 系统基础与健康检查 (`system`)
 
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
@@ -152,11 +166,11 @@
 
 ---
 
-## 11. 管理后台 API (`/api/admin`)
+## 12. 管理后台 API (`/api/admin`)
 
 管理后台全套管理控制接口，除登录接口外统一要求 Header `Authorization: Bearer <AdminToken>`。
 
-### 11.1 认证与系统设置
+### 12.1 认证与系统设置
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 管理员登录 | `POST` | `/api/admin/login` | [./admin/login.md](./admin/login.md) |
@@ -166,7 +180,7 @@
 | 获取加密白名单配置 | `GET` | `/api/admin/encryption-config` | [./admin/getEncryptionConfig.md](./admin/getEncryptionConfig.md) |
 | 更新加密白名单配置 | `POST` | `/api/admin/encryption-config` | [./admin/saveEncryptionConfig.md](./admin/saveEncryptionConfig.md) |
 
-### 11.2 公告管理
+### 12.2 公告管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 获取后台公告列表 | `GET` | `/api/admin/announcements` | [./admin/getAnnouncements.md](./admin/getAnnouncements.md) |
@@ -174,7 +188,7 @@
 | 修改公告 | `PUT` | `/api/admin/announcements/:id` | [./admin/updateAnnouncement.md](./admin/updateAnnouncement.md) |
 | 删除公告 | `DELETE` | `/api/admin/announcements/:id` | [./admin/deleteAnnouncement.md](./admin/deleteAnnouncement.md) |
 
-### 11.3 版本发布与文件管理
+### 12.3 版本发布与文件管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 读取后台发布更新历史 | `GET` | `/api/admin/update-history` | [./admin/getUpdateHistory.md](./admin/getUpdateHistory.md) |
@@ -191,7 +205,7 @@
 | 登记已上传七牛的 PC 自动更新文件 | `POST` | `/api/admin/desktop-updates/complete` | [./admin/completeDesktopUpdateUpload.md](./admin/completeDesktopUpdateUpload.md) |
 | 启用 PC 自动更新版本 | `POST` | `/api/admin/desktop-updates/activate` | [./admin/activateDesktopUpdate.md](./admin/activateDesktopUpdate.md) |
 
-### 11.4 设备管理
+### 12.4 设备管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 分页查询 Android 设备列表 | `GET` | `/api/admin/device/list` | [./admin/listAndroidDevices.md](./admin/listAndroidDevices.md) |
@@ -203,14 +217,14 @@
 | 锁定/解锁 PC 桌面设备 | `POST` | `/api/admin/desktop-device/:id/lock` | [./admin/lockDesktopDevice.md](./admin/lockDesktopDevice.md) |
 | 删除 PC 桌面设备记录 | `DELETE` | `/api/admin/desktop-device/:id` | [./admin/deleteDesktopDevice.md](./admin/deleteDesktopDevice.md) |
 
-### 11.5 仪表盘与统计
+### 12.5 仪表盘与统计
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 获取仪表盘聚合数据 | `GET` | `/api/admin/dashboard` | [./admin/getDashboard.md](./admin/getDashboard.md) |
 | 分页查询官网访问/下载记录摘要 | `GET` | `/api/admin/website-records` | [./admin/listWebsiteRecords.md](./admin/listWebsiteRecords.md) |
 | 获取官网记录详情 | `GET` | `/api/admin/website-records/:type/:id` | [./admin/getWebsiteRecordDetail.md](./admin/getWebsiteRecordDetail.md) |
 
-### 11.6 动态配置管理
+### 12.6 动态配置管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 获取动态配置列表 | `GET` | `/api/admin/dynamic-configs` | [./admin/listDynamicConfigs.md](./admin/listDynamicConfigs.md) |
@@ -218,7 +232,7 @@
 | 更新动态配置 | `PUT` | `/api/admin/dynamic-configs/:id` | [./admin/updateDynamicConfig.md](./admin/updateDynamicConfig.md) |
 | 删除动态配置 | `DELETE` | `/api/admin/dynamic-configs/:id` | [./admin/deleteDynamicConfig.md](./admin/deleteDynamicConfig.md) |
 
-### 11.7 用户管理
+### 12.7 用户管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 分页查询用户列表 | `GET` | `/api/admin/users` | [./admin/listUsers.md](./admin/listUsers.md) |
@@ -227,14 +241,14 @@
 | 更新用户资料与 VIP 权益 | `PUT` | `/api/admin/users/:id` | [./admin/updateUser.md](./admin/updateUser.md) |
 | 硬删除用户 | `DELETE` | `/api/admin/users/:id` | [./admin/deleteUser.md](./admin/deleteUser.md) |
 
-### 11.8 反馈管理
+### 12.8 反馈管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 分页查询用户反馈列表 | `GET` | `/api/admin/feedback` | [./admin/listFeedback.md](./admin/listFeedback.md) |
 | 查看用户反馈详情 | `GET` | `/api/admin/feedback/:id` | [./admin/getFeedbackDetail.md](./admin/getFeedbackDetail.md) |
 | 更新用户反馈处理状态 | `PATCH` | `/api/admin/feedback/:id/status` | [./admin/updateFeedbackStatus.md](./admin/updateFeedbackStatus.md) |
 
-### 11.9 故障上报管理
+### 12.9 故障上报管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 分页查询故障上报批次列表 | `GET` | `/api/admin/fault-reports` | [./admin/listFaultReports.md](./admin/listFaultReports.md) |
@@ -242,8 +256,23 @@
 | 更新故障上报处理状态 | `PATCH` | `/api/admin/fault-reports/:id/status` | [./admin/updateFaultReportStatus.md](./admin/updateFaultReportStatus.md) |
 | 删除故障上报批次及日志 | `DELETE` | `/api/admin/fault-reports/:id` | [./admin/deleteFaultReport.md](./admin/deleteFaultReport.md) |
 
-### 11.10 外链分享管理
+### 12.10 外链分享管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 分页查询分享记录 | `GET` | `/api/admin/shares` | [./admin/listShares.md](./admin/listShares.md) |
 | 标记指定分享失效 | `PATCH` | `/api/admin/shares/:uuid/invalid` | [./admin/invalidateShare.md](./admin/invalidateShare.md) |
+
+### 12.11 网盘音乐管理与审核
+| 接口名称 | Method | 请求路径 | 接口文档链接 |
+| :--- | :--- | :--- | :--- |
+| 创建网盘音乐上传会话 | `POST` | `/api/admin/cloud-music/upload-sessions` | [./admin/createCloudMusicUploadSession.md](./admin/createCloudMusicUploadSession.md) |
+| 预登记网盘音乐资产 | `POST` | `/api/admin/cloud-music/:uuid/assets/:kind/reserve` | [./admin/reserveCloudMusicAsset.md](./admin/reserveCloudMusicAsset.md) |
+| 确认网盘音乐资产上传完成 | `POST` | `/api/admin/cloud-music/:uuid/assets/:kind/complete` | [./admin/completeCloudMusicAsset.md](./admin/completeCloudMusicAsset.md) |
+| 获取网盘音乐列表 | `GET` | `/api/admin/cloud-music` | [./admin/listCloudMusic.md](./admin/listCloudMusic.md) |
+| 获取网盘音乐完整详情 | `GET` | `/api/admin/cloud-music/:uuid` | [./admin/getCloudMusicDetail.md](./admin/getCloudMusicDetail.md) |
+| 编辑并保存网盘音乐草稿 | `PUT` | `/api/admin/cloud-music/:uuid` | [./admin/updateCloudMusic.md](./admin/updateCloudMusic.md) |
+| 审核网盘音乐曲目 | `POST` | `/api/admin/cloud-music/:uuid/review` | [./admin/reviewCloudMusic.md](./admin/reviewCloudMusic.md) |
+| 获取管理端试听/预览地址 | `GET` | `/api/admin/cloud-music/:uuid/preview-url` | [./admin/getCloudMusicPreviewUrl.md](./admin/getCloudMusicPreviewUrl.md) |
+| 获取临时文件统计摘要 | `GET` | `/api/admin/cloud-music/temp-summary` | [./admin/getCloudMusicTempSummary.md](./admin/getCloudMusicTempSummary.md) |
+| 一键清理临时网盘文件 | `POST` | `/api/admin/cloud-music/temp-cleanup` | [./admin/cleanupCloudMusicTemp.md](./admin/cleanupCloudMusicTemp.md) |
+| 删除网盘音乐曲目 | `DELETE` | `/api/admin/cloud-music/:uuid` | [./admin/deleteCloudMusic.md](./admin/deleteCloudMusic.md) |

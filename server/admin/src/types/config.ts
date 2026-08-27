@@ -88,7 +88,10 @@ export type DesktopUpdateAssetInfo = {
 
 export type FileRecordInfo = {
   id: string;
-  usageType: "release-package" | "desktop-update";
+  usageType: "release-package" | "desktop-update" | "cloud-music";
+  ownerType?: "system" | "user";
+  ownerUserId?: string | null;
+  ownerSnapshot?: Record<string, unknown>;
   platform: string;
   version: string;
   assetType: string;
@@ -100,7 +103,7 @@ export type FileRecordInfo = {
   mimeType: string;
   fileSize: number;
   downloadUrl: string;
-  status: "uploaded" | "deleted";
+  status: "uploaded" | "deleted" | "pending";
   referencedBy: string[];
   createdAt: number;
   deletedAt: number | null;
