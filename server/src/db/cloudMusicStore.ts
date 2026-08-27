@@ -53,6 +53,8 @@ export type CloudMusicAssetReserveInput = {
   bucket: string;
   objectKey: string;
   fileName: string;
+  mimeType: string;
+  fileSize: number;
 };
 
 type SessionAssetInput = Omit<CloudMusicAssetReserveInput, "trackUuid" | "kind">;
@@ -69,6 +71,8 @@ export type CloudMusicReservedAsset = CloudMusicAsset & {
   bucket: string;
   objectKey: string;
   fileName: string;
+  mimeType: string;
+  fileSize: number;
   fileStatus: "pending";
 };
 
@@ -169,6 +173,8 @@ type ReservedAssetRow = CloudMusicAssetRow & {
   bucket: string;
   object_key: string;
   file_name: string;
+  mime_type: string;
+  file_size: number;
 };
 
 function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
@@ -251,6 +257,8 @@ function readTrackWithDb(db: DatabaseSync, uuid: string, includeDeleted = false)
 }
 
 function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput, now: number): CloudMusicReservedAsset {
+  if (!Number.isSafeInteger(input.fileSize) || input.fileSize <= 0) throw new Error("网盘音乐资产声明大小不正确");
+  if (!input.mimeType.trim()) throw new Error("网盘音乐资产 MIME 不能为空");
   const track = db.prepare(
     "SELECT uuid FROM cloud_music_tracks WHERE uuid = ? AND deleted_at IS NULL",
   ).get(input.trackUuid) as { uuid: string } | undefined;
@@ -261,7 +269,7 @@ function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput
       id, usage_type, owner_type, owner_user_id, owner_snapshot_json,
       platform, version, asset_type, provider, bucket, object_key, hash,
       file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
-    ) VALUES (?, 'cloud-music', 'system', NULL, ?, 'server', '', ?, 'qiniu', ?, ?, '', ?, '', 0, '', 'pending', ?, ?, NULL)`,
+    ) VALUES (?, 'cloud-music', 'system', NULL, ?, 'server', '', ?, 'qiniu', ?, ?, '', ?, ?, ?, '', 'pending', ?, ?, NULL)`,
   ).run(
     input.fileRecordId,
     JSON.stringify({ displayName: "system" }),
@@ -269,6 +277,8 @@ function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput
     input.bucket,
     input.objectKey,
     input.fileName,
+    input.mimeType,
+    input.fileSize,
     JSON.stringify([{ type: "cloud-music", id: input.trackUuid }]),
     now,
   );
@@ -279,7 +289,7 @@ function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput
   ).run(input.assetId, input.trackUuid, input.fileRecordId, input.kind, now, now);
 
   const row = db.prepare(
-    `SELECT a.*, f.bucket, f.object_key, f.file_name
+    `SELECT a.*, f.bucket, f.object_key, f.file_name, f.mime_type, f.file_size
      FROM cloud_music_assets a
      JOIN file_records f ON f.id = a.file_record_id
      WHERE a.id = ?`,
@@ -291,6 +301,8 @@ function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput
     bucket: row.bucket,
     objectKey: row.object_key,
     fileName: row.file_name,
+    mimeType: row.mime_type,
+    fileSize: row.file_size,
     fileStatus: "pending",
   };
 }
@@ -415,6 +427,33 @@ export function confirmCloudMusicAsset(input: CloudMusicAssetConfirmInput): Clou
 
 export function readCloudMusicTrack(uuid: string, includeDeleted = false): CloudMusicTrack | null {
   return readTrackWithDb(getAppDb(), uuid, includeDeleted);
+}
+
+export function readCloudMusicReservedAsset(fileRecordId: string): CloudMusicReservedAsset | null {
+  const row = getAppDb().prepare(
+    `SELECT a.*, f.bucket, f.object_key, f.file_name, f.mime_type, f.file_size
+     FROM cloud_music_assets a
+     JOIN cloud_music_tracks t ON t.uuid = a.track_uuid
+     JOIN file_records f ON f.id = a.file_record_id
+     WHERE a.file_record_id = ?
+       AND a.state = 'pending'
+       AND a.deleted_at IS NULL
+       AND t.status = 'temp'
+       AND t.deleted_at IS NULL
+       AND f.status = 'pending'
+       AND f.deleted_at IS NULL`,
+  ).get(fileRecordId) as ReservedAssetRow | undefined;
+  if (!row) return null;
+  return {
+    ...mapAsset(row),
+    provider: "qiniu",
+    bucket: row.bucket,
+    objectKey: row.object_key,
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    fileSize: row.file_size,
+    fileStatus: "pending",
+  };
 }
 
 function queryTracks(input: CloudMusicListInput, visibleOnly: boolean): CloudMusicListResult {

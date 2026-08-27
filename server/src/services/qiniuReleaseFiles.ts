@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { Readable } from "node:stream";
 import * as qiniu from "qiniu";
 import type { DesktopUpdateAssetType, ReleasePlatform } from "../db/configStore";
 
@@ -53,6 +54,21 @@ export type QiniuUploadTokenInfo = {
 
 export type QiniuSpace = "release" | "public-image";
 
+export type QiniuObjectStat = {
+  bucket: string;
+  key: string;
+  hash: string;
+  mimeType: string;
+  fileSize: number;
+};
+
+export type FixedQiniuUploadTokenInput = {
+  bucket: string;
+  key: string;
+  fileSize: number;
+  mimeType?: string;
+};
+
 const SPACE_ENV_MAP: Record<QiniuSpace, { bucket: string; domain: string; cdnDomain: string }> = {
   release: { bucket: "QINIU_BUCKET", domain: "QINIU_DOMAIN", cdnDomain: "QINIU_DOMAIN_CDN" },
   "public-image": { bucket: "QINIU_PUBLIC_IMAGE_BUCKET", domain: "QINIU_PUBLIC_IMAGE_DOMAIN", cdnDomain: "QINIU_PUBLIC_IMAGE_DOMAIN_CDN" },
@@ -94,6 +110,39 @@ function getMac(): qiniu.auth.digest.Mac {
 
 function getUploadUrl(): string {
   return optionalEnv("QINIU_UPLOAD_URL") || "https://upload.qiniup.com";
+}
+
+function assertReleaseBucket(bucket: string): SpaceConfig {
+  const config = getSpaceConfig("release");
+  if (bucket !== config.bucket) throw new Error("七牛空间与服务端配置不一致");
+  return config;
+}
+
+export function createFixedQiniuUploadToken(input: FixedQiniuUploadTokenInput): QiniuUploadTokenInfo {
+  if (!input.key.trim()) throw new Error("七牛对象 Key 不能为空");
+  if (!Number.isSafeInteger(input.fileSize) || input.fileSize <= 0) throw new Error("文件大小不正确");
+  const { domain, cdnDomain } = assertReleaseBucket(input.bucket);
+  const mimeType = String(input.mimeType ?? "").trim().toLowerCase();
+  const putPolicy = new qiniu.rs.PutPolicy({
+    scope: `${input.bucket}:${input.key}`,
+    insertOnly: 1,
+    expires: TOKEN_TTL_SECONDS,
+    fsizeLimit: input.fileSize,
+    fsizeMin: input.fileSize,
+    ...(mimeType ? { mimeLimit: mimeType } : {}),
+    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
+  });
+  return {
+    provider: PROVIDER,
+    uploadToken: putPolicy.uploadToken(getMac()),
+    uploadUrl: getUploadUrl(),
+    key: input.key,
+    bucket: input.bucket,
+    domain,
+    cdnDomain,
+    downloadUrl: "",
+    expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000,
+  };
 }
 
 function getExtension(fileName: string): string {
@@ -264,6 +313,31 @@ export async function deleteQiniuObject(bucket: string, key: string): Promise<vo
   }
 }
 
+export async function statQiniuObject(bucket: string, key: string): Promise<QiniuObjectStat> {
+  if (!key.trim()) throw new Error("七牛对象 Key 不能为空");
+  assertReleaseBucket(bucket);
+  const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
+  const result = await bucketManager.stat(bucket, key);
+  if (result.resp.statusCode !== 200) throw new Error(`七牛对象核验失败：HTTP ${result.resp.statusCode}`);
+  const fileSize = Number(result.data.fsize);
+  const hash = String(result.data.hash ?? "").trim();
+  const mimeType = String(result.data.mimeType ?? "").trim().toLowerCase();
+  if (!Number.isSafeInteger(fileSize) || fileSize < 0 || !hash || !mimeType) {
+    throw new Error("七牛对象元信息不完整");
+  }
+  return { bucket, key, hash, mimeType, fileSize };
+}
+
+export async function uploadQiniuBuffer(input: FixedQiniuUploadTokenInput & { data: Buffer }): Promise<QiniuObjectStat> {
+  if (input.data.byteLength !== input.fileSize) throw new Error("待上传文件大小与声明不一致");
+  const token = createFixedQiniuUploadToken(input);
+  const uploader = new qiniu.form_up.FormUploader(new qiniu.conf.Config({ useHttpsDomain: true }));
+  const putExtra = new qiniu.form_up.PutExtra(undefined, undefined, input.mimeType);
+  const result = await uploader.putStream(token.uploadToken, input.key, Readable.from(input.data), putExtra);
+  if (result.resp.statusCode !== 200) throw new Error(`七牛上传失败：HTTP ${result.resp.statusCode}`);
+  return statQiniuObject(input.bucket, input.key);
+}
+
 export async function deleteAccountAvatarObject(key: string): Promise<void> {
   await deleteQiniuObject(getSpaceConfig("public-image").bucket, key);
 }
@@ -273,4 +347,12 @@ export function createPrivateQiniuDownloadUrl(key: string, ttlSeconds = DOWNLOAD
   const deadline = Math.floor(Date.now() / 1000) + ttlSeconds;
   const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
   return bucketManager.privateDownloadUrl(baseUrl, key, deadline);
+}
+
+export function createPrivateQiniuDownloadUrlForBucket(bucket: string, key: string, ttlSeconds = DOWNLOAD_TTL_SECONDS): string {
+  assertReleaseBucket(bucket);
+  if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds <= 0 || ttlSeconds > DOWNLOAD_TTL_SECONDS) {
+    throw new Error("七牛临时下载有效期不正确");
+  }
+  return createPrivateQiniuDownloadUrl(key, Math.trunc(ttlSeconds));
 }

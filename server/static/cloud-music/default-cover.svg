@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">PisaMusic 默认音乐封面</title>
+  <desc id="description">蓝色渐变背景上的白色音符</desc>
+  <defs>
+    <linearGradient id="background" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#36A3FF"/>
+      <stop offset="1" stop-color="#1756D8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="72" fill="url(#background)"/>
+  <circle cx="188" cy="362" r="58" fill="#FFFFFF"/>
+  <circle cx="370" cy="322" r="58" fill="#FFFFFF"/>
+  <path d="M228 151v211h-32V129c0-12 8-22 20-25l190-45v263h-32V99l-146 35v17Z" fill="#FFFFFF"/>
+  <path d="M228 164 374 129v52l-146 35v-52Z" fill="#FFFFFF" opacity=".92"/>
+</svg>
