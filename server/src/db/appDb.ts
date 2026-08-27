@@ -610,9 +610,12 @@ function migrateFileRecords(db: DatabaseSync) {
 
     UPDATE file_records
     SET owner_snapshot_json = '{"displayName":"system"}'
-    WHERE owner_snapshot_json IS NULL
-       OR TRIM(owner_snapshot_json) = ''
-       OR owner_snapshot_json = '{}';
+    WHERE owner_type = 'system'
+      AND (
+        owner_snapshot_json IS NULL
+        OR TRIM(owner_snapshot_json) = ''
+        OR owner_snapshot_json = '{}'
+      );
 
     CREATE INDEX IF NOT EXISTS idx_file_records_owner
     ON file_records (owner_type, owner_user_id, created_at DESC);

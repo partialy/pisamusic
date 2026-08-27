@@ -398,12 +398,14 @@ export function confirmCloudMusicAsset(input: CloudMusicAssetConfirmInput): Clou
        SET state = 'uploaded', is_current = 1, updated_at = ?
        WHERE id = ? AND deleted_at IS NULL`,
     ).run(now, asset.id);
-    if (input.parsed) updateDraftWithDb(db, asset.track_uuid, input.parsed, now);
-    db.prepare(
-      `UPDATE cloud_music_tracks
-       SET upload_state = ?, status_reason = ?, updated_at = ?
-       WHERE uuid = ? AND deleted_at IS NULL`,
-    ).run(nextUploadState, input.statusReason ?? "", now, asset.track_uuid);
+    if (asset.kind === "audio") {
+      if (input.parsed) updateDraftWithDb(db, asset.track_uuid, input.parsed, now);
+      db.prepare(
+        `UPDATE cloud_music_tracks
+         SET upload_state = ?, status_reason = ?, updated_at = ?
+         WHERE uuid = ? AND deleted_at IS NULL`,
+      ).run(nextUploadState, input.statusReason ?? "", now, asset.track_uuid);
+    }
 
     const track = readTrackWithDb(db, asset.track_uuid);
     if (!track) throw new Error("网盘音乐资产确认失败");
@@ -481,6 +483,28 @@ export function transitionCloudMusicStatus(input: CloudMusicStatusTransitionInpu
   const db = getAppDb();
   return runInTransaction(db, () => {
     const now = Date.now();
+    const existing = db.prepare(
+      `SELECT upload_state FROM cloud_music_tracks WHERE uuid = ? AND deleted_at IS NULL`,
+    ).get(input.uuid) as { upload_state: CloudMusicUploadState } | undefined;
+    if (!existing) return null;
+    if (input.status === "active" || input.status === "disabled") {
+      const readyAudio = db.prepare(
+        `SELECT 1 AS ready
+         FROM cloud_music_assets a
+         JOIN file_records f ON f.id = a.file_record_id
+         WHERE a.track_uuid = ?
+           AND a.kind = 'audio'
+           AND a.state = 'uploaded'
+           AND a.is_current = 1
+           AND a.deleted_at IS NULL
+           AND f.status = 'uploaded'
+           AND f.deleted_at IS NULL
+         LIMIT 1`,
+      ).get(input.uuid) as { ready: number } | undefined;
+      if (existing.upload_state !== "ready" || !readyAudio) {
+        throw new Error("网盘音乐尚未准备完成，不能转为客户端可见状态");
+      }
+    }
     const reviewedAt = input.reviewedAt === undefined
       ? input.reviewedBy === undefined ? null : now
       : input.reviewedAt;
