@@ -39,6 +39,7 @@
 - 手机端和桌面端启动时如果外层服务不可用、没网或后台关闭 `appAvailable`，应进入本地模式并在主界面给非阻塞提示；设备被封禁仍然阻止进入。
 - 桌面端设备上报使用服务端 `desktop_device_info` 表和 `/api/device/desktop/report`，不要复用 Android 的 `device_info` 表；后台通过 `/api/admin/desktop-device/*` 管理 PC 设备。
 - 服务端历史 JSON 导入 SQLite 迁移已结束，不要恢复 `jsonImport.ts` 或启动时读取 `server/data/*.json` 自动导入数据库的逻辑。
+- 服务端接口文档与索引规范：服务端接口文档存放在 `server/apidoc/`，按模块分目录维护（如 `user/`、`config/`、`device/`、`sync/`、`shares/`、`listenTogether/`、`feedback/`、`faultReports/`、`analytics/`、`admin/`、`system/`、`common/`），统一索引为 `server/apidoc/index.md`。任何新增、修改、重构或删除（CRUD）服务端接口的改动，必须同步更新对应模块下的文档文件（如 `server/apidoc/<module>/<apiName>.md`）及 `server/apidoc/index.md` 索引链接与描述，确保接口定义与文档始终保持一致。
 - 生成或修改构建产物、数据库、日志、上传文件前，先判断它们是否应被 Git 跟踪；运行时产物默认不要纳入源码变更。
 
 ## 编码规范
@@ -67,6 +68,7 @@
 - Node 要求：`>=22.5.0`
 - 开发：`pnpm --dir server dev`
 - 构建：`pnpm --dir server build`
+- 全量构建：`pnpm --dir server build:all`，依次构建服务端、管理后台与官网；管理后台产物输出到 `server/web-admin/`，官网产物输出到 `server/web-user/`，两者均为忽略的构建产物，不要提交。
 - 启动构建产物：`pnpm --dir server start`
 - 默认端口：`53380`
 - 官网双端发布接口：`/api/config/releases` 返回 Android 与 PC 当前发布信息；`/api/config/check-update` 保留为 Android 旧更新接口。
@@ -87,12 +89,13 @@
 - 账号接口：`/api/auth/email-code` 发送注册/登录/重置密码邮箱验证码，其中重置密码用途为 `reset_password`；`/api/auth/register` 注册；`/api/auth/login/password` 支持用户名/邮箱+密码登录；`/api/auth/login/code` 仅支持邮箱验证码登录；`/api/auth/password/change` 登录态修改密码；`/api/auth/password/reset` 邮箱验证码重置密码；`/api/auth/refresh` 刷新 7 天 token；`/api/auth/me` 获取当前账号；`/api/auth/profile/email-code` 和 `PATCH /api/auth/profile` 修改资料。
 - 同步接口：`/api/sync/changes` 通过账号 token 拉取/推送增量，DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准；旧同步码创建、加入、重置和解绑设备接口已移除。
 - 统计与仪表盘模块：公开接口为 `POST /api/analytics/site-visit`（强制明文，日 UV 上报）与 `GET /api/config/download/:platform`（强制明文，官网安装包下载重定向与统计）；管理端聚合接口挂载在 `GET /api/admin/dashboard?days=7|30|90`（需 JWT 鉴权与加密，返回 7/30/90 天零填充日序列与聚合汇总，严禁返回单条 IP、访客 hash 或明细 User-Agent）。后台“官网记录”通过 `GET /api/admin/website-records?type=visit|download&offset&limit` 分页读取摘要，并通过 `GET /api/admin/website-records/:type/:id` 查看单条完整字段；两者同样要求管理员 JWT 和加密通信。原始事件写入 `site_visit_records`、`download_records`、`device_daily_activity` 表，通过 `ANALYTICS_RETENTION_DAYS`（默认 180 天）每日门禁清理过期数据；官网日 UV 基于 localStorage 访客 ID 加盐哈希（`ANALYTICS_HASH_SALT`）并由数据库唯一索引最终去重；管理后台采用 Recharts 懒加载仪表盘作为默认主页，“官网记录”固定放在左侧菜单第三项。
+- 服务端接口文档与索引维护：服务端所有对外及管理端接口必须在 `server/apidoc/` 下保持最新。接口有新增、变更字段/规则、重构或删除（CRUD）时，必须同步更新对应模块文档文件（如 `server/apidoc/<module>/<apiName>.md`）及 `server/apidoc/index.md` 索引链接与描述，禁止代码与接口文档脱节。
 
 管理后台与官网：
 
 - 管理后台目录：`server/admin/`
 - 官网目录：`server/frontend/`
-- 以各自 `package.json` 的脚本为准；如果脚本或部署方式变化，需要同步更新本文档。
+- 两端仍可通过各自 `package.json` 的 `build` 单独构建；不要恢复旧的 `build:web`、`deploy:web` 或复制到 `server/web/` 的流程。如果脚本或部署方式变化，需要同步更新本文档。
 
 PC 桌面端 App：
 
