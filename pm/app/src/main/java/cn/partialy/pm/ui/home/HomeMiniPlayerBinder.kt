@@ -39,7 +39,7 @@ class HomeMiniPlayerBinder(
         mini.miniPlayerPlayButton.setOnClickListener {
             activity.lifecycleScope.launch {
                 if (musicController.currentSong.value == null) {
-                    Toast.makeText(activity, "暂无可播放歌曲", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, R.string.home_no_playable_song, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
                 musicController.togglePlayPause()

@@ -95,7 +95,7 @@
 | 分享详情页 | App 内打开音乐分享链接或本地查看详情 | `pm/app/src/main/java/cn/partialy/pm/activity/ShareDetailActivity.kt` | `activity_share_detail.xml`、`bg_share_detail_*`、`SongSourceTagBinder`、`ShareBottomSheet` | 歌单来源使用歌曲列表同款 K / Y 标签；本地详情右侧复用分享 Sheet，外链通过 `pisamusic://scan?type=music-share` 唤醒时右侧收藏 KG/WY 歌单。 |
 | WebView 本地错误页 | WebView 加载失败兜底 | `pm/app/src/main/java/cn/partialy/pm/ui/web/LocalGenericErrorWebViewController.kt` | `assets/` 内本地错误页面 | WebView 错误兜底优先用这个控制器。 |
 | 安全区 / 系统栏适配 | edge-to-edge padding | `pm/app/src/main/java/cn/partialy/pm/ui/insets/SystemBarsExt.kt` | `applySystemBarsInsets` 等扩展 | 新全屏页面先参考。 |
-| 扫码页工具层 | 扫码返回、手电筒、相册识别 | `pm/app/src/main/res/layout/zxing_capture.xml` | `PortraitCaptureActivity`、`QrImageDecoder`、`ic_lighting_24.xml`、`ic_image_24.xml` | 保留 `@id/zxing_barcode_scanner` 以兼容 JourneyApps；左上角返回、底部 25% 居中手电筒、右下角相册按钮是当前扫码页布局基准。 |
+| 扫码页工具层 | 扫码返回、手电筒、相册识别 | `pm/app/src/main/res/layout/zxing_capture.xml` | `PortraitCaptureActivity`、`QrImageDecoder`、`ic_back_24.xml`、`ic_lighting_24.xml`、`ic_image_24.xml` | 保留 `@id/zxing_barcode_scanner` 以兼容 JourneyApps；顶部操作区避让状态栏/刘海，返回按钮与提示文案同一行；底部 25% 居中手电筒、右下角相册按钮使用 AppCompat 矢量图标。 |
 
 ## 待补充
 

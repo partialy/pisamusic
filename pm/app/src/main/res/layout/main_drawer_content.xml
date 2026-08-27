@@ -93,7 +93,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="登录 / 注册"
+                android:text="@string/account_login_or_register"
                 android:textColor="@color/colorOnBgNormal"
                 android:textSize="15sp"
                 android:textStyle="bold" />
@@ -105,7 +105,7 @@
                 android:layout_marginTop="3dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="账号登录后自动同步收藏与歌单"
+                android:text="@string/account_login_sync_hint"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
         </LinearLayout>

@@ -1,12 +1,15 @@
 package cn.partialy.pm.listen
 
+import android.content.Context
 import android.os.SystemClock
+import cn.partialy.pm.R
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import io.socket.client.Ack
 import io.socket.client.IO
 import io.socket.client.Socket
 import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONObject
 import java.util.UUID
 import javax.inject.Inject
@@ -14,6 +17,7 @@ import javax.inject.Singleton
 
 @Singleton
 class ListenTogetherSocketClient @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val serviceDiscoveryManager: ServiceDiscoveryManager,
 ) {
     interface Listener {
@@ -41,7 +45,10 @@ class ListenTogetherSocketClient @Inject constructor(
             on(Socket.EVENT_CONNECT) { listener.onConnected() }
             on(Socket.EVENT_DISCONNECT) { listener.onDisconnected() }
             on(Socket.EVENT_CONNECT_ERROR) { args ->
-                listener.onConnectError(args.firstOrNull()?.toString().orEmpty().ifBlank { "Socket 连接失败" })
+                listener.onConnectError(
+                    args.firstOrNull()?.toString().orEmpty()
+                        .ifBlank { context.getString(R.string.listen_together_socket_connect_failed) },
+                )
             }
             BROADCAST_EVENTS.forEach { event ->
                 on(event) { args ->
@@ -250,7 +257,14 @@ class ListenTogetherSocketClient @Inject constructor(
         ack: (ListenTogetherAck<T>) -> Unit,
     ) {
         val socket = socket ?: run {
-            ack(ListenTogetherAck(success = false, code = -1, msg = "Socket 未连接", errorMsg = "SOCKET_DISCONNECTED"))
+            ack(
+                ListenTogetherAck(
+                    success = false,
+                    code = -1,
+                    msg = context.getString(R.string.listen_together_socket_disconnected),
+                    errorMsg = "SOCKET_DISCONNECTED",
+                ),
+            )
             return
         }
         val payload = ListenTogetherSocketPayload(
@@ -267,7 +281,11 @@ class ListenTogetherSocketClient @Inject constructor(
     }
 
     private fun <T> parseAck(raw: Any?, dataClass: Class<T>): ListenTogetherAck<T> {
-        val json = raw.toJsonObject() ?: return ListenTogetherAck(success = false, code = -1, msg = "服务端响应无效")
+        val json = raw.toJsonObject() ?: return ListenTogetherAck(
+            success = false,
+            code = -1,
+            msg = context.getString(R.string.listen_together_server_response_invalid),
+        )
         val success = json.get("success")?.asBoolean == true
         val code = json.get("code")?.asInt ?: -1
         val msg = json.get("msg")?.asString.orEmpty()

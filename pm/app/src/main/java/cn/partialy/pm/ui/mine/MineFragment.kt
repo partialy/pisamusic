@@ -202,15 +202,15 @@ class MineFragment : Fragment() {
         val b = _binding ?: return
         val session = AccountSessionStore.read(requireContext())
         if (session.loggedIn) {
-            b.nicknameTextView.text = session.user.username.ifBlank { "PisaMusic 用户" }
-            b.subtitleTextView.text = session.user.email.ifBlank { "已登录，收藏与歌单会自动同步" }
+            b.nicknameTextView.text = session.user.username.ifBlank { getString(R.string.account_default_user) }
+            b.subtitleTextView.text = session.user.email.ifBlank { getString(R.string.account_logged_in_sync_hint) }
         } else {
-            b.nicknameTextView.text = "登录 / 注册"
-            b.subtitleTextView.text = "账号登录后自动同步收藏与歌单"
+            b.nicknameTextView.setText(R.string.account_login_or_register)
+            b.subtitleTextView.setText(R.string.account_login_sync_hint)
         }
         val vipExpiresAt = session.user.vipExpiresAt
         if (session.vipActive && vipExpiresAt != null) {
-            val expiryText = SimpleDateFormat(VIP_EXPIRY_PATTERN, Locale.CHINA)
+            val expiryText = SimpleDateFormat(getString(R.string.mine_vip_expiry_date_pattern), Locale.CHINA)
                 .format(Date(vipExpiresAt))
             b.vipExpiryTextView.text = expiryText
             b.vipExpiryTextView.contentDescription = getString(
@@ -266,10 +266,6 @@ class MineFragment : Fragment() {
         }
         styleTab(binding.tabMineText, selectedIndex == 0)
         styleTab(binding.tabPlaylistsText, selectedIndex == 1)
-    }
-
-    companion object {
-        private const val VIP_EXPIRY_PATTERN = "yyyy-M-d HH:mm:ss"
     }
 
 }

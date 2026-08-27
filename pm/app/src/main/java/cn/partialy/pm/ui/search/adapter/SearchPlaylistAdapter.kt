@@ -9,7 +9,6 @@ import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemSearchPlaylistBinding
 import cn.partialy.pm.model.SearchPlaylistInfo
 import coil.load
-import java.util.Locale
 
 class SearchPlaylistAdapter(
     private val onItemClick: (SearchPlaylistInfo) -> Unit,
@@ -52,14 +51,21 @@ class SearchPlaylistAdapter(
                     formatPlayCount(item.playCount),
                 )
             }
-            return parts.joinToString(" · ")
+            return parts.joinToString(ctx.getString(R.string.common_separator_dot))
         }
 
         private fun formatPlayCount(value: Long): String {
             if (value <= 0L) return "0"
+            val context = binding.root.context
             return when {
-                value >= 100_000_000L -> String.format(Locale.CHINA, "%.1f亿", value / 100_000_000.0)
-                value >= 10_000L -> String.format(Locale.CHINA, "%.1f万", value / 10_000.0)
+                value >= 100_000_000L -> context.getString(
+                    R.string.search_play_count_hundred_million,
+                    value / 100_000_000.0,
+                )
+                value >= 10_000L -> context.getString(
+                    R.string.search_play_count_ten_thousand,
+                    value / 10_000.0,
+                )
                 else -> value.toString()
             }
         }

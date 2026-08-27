@@ -109,7 +109,7 @@ class AudioEffectPresetEditActivity : BaseActivity() {
         binding.bassSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 bass = progress
-                binding.bassValueText.text = "${progress}%"
+                binding.bassValueText.text = getString(R.string.common_percent_value, progress)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
@@ -118,7 +118,7 @@ class AudioEffectPresetEditActivity : BaseActivity() {
         binding.vocalSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 vocal = progress
-                binding.vocalValueText.text = "${progress}%"
+                binding.vocalValueText.text = getString(R.string.common_percent_value, progress)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
@@ -128,18 +128,18 @@ class AudioEffectPresetEditActivity : BaseActivity() {
 
     private fun setupSpatialControls() {
         binding.stereoWidthSeekBar.progress = stereoWidth - AudioEffectState.STEREO_WIDTH_MIN
-        binding.stereoWidthValueText.text = "${stereoWidth}%"
+        binding.stereoWidthValueText.text = getString(R.string.common_percent_value, stereoWidth)
         binding.centerRetentionSeekBar.progress = centerRetention - AudioEffectState.CENTER_RETENTION_MIN
-        binding.centerRetentionValueText.text = "${centerRetention}%"
+        binding.centerRetentionValueText.text = getString(R.string.common_percent_value, centerRetention)
         binding.spatialDelaySeekBar.progress = spatialDelayUs
-        binding.spatialDelayValueText.text = "${spatialDelayUs}us"
+        binding.spatialDelayValueText.text = getString(R.string.common_microseconds_value, spatialDelayUs)
         binding.bassMonoProtectSeekBar.progress = 0
-        binding.bassMonoProtectValueText.text = formatBassProtect(bassMonoProtectHz)
+        binding.bassMonoProtectValueText.text = formatBassProtect(this, bassMonoProtectHz)
 
         binding.stereoWidthSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 stereoWidth = progress + AudioEffectState.STEREO_WIDTH_MIN
-                binding.stereoWidthValueText.text = "${stereoWidth}%"
+                binding.stereoWidthValueText.text = getString(R.string.common_percent_value, stereoWidth)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
@@ -148,7 +148,7 @@ class AudioEffectPresetEditActivity : BaseActivity() {
         binding.centerRetentionSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 centerRetention = progress + AudioEffectState.CENTER_RETENTION_MIN
-                binding.centerRetentionValueText.text = "${centerRetention}%"
+                binding.centerRetentionValueText.text = getString(R.string.common_percent_value, centerRetention)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
@@ -157,7 +157,7 @@ class AudioEffectPresetEditActivity : BaseActivity() {
         binding.spatialDelaySeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 spatialDelayUs = progress
-                binding.spatialDelayValueText.text = "${spatialDelayUs}us"
+                binding.spatialDelayValueText.text = getString(R.string.common_microseconds_value, spatialDelayUs)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
@@ -168,7 +168,7 @@ class AudioEffectPresetEditActivity : BaseActivity() {
                 bassMonoProtectHz = AudioEffectState.BASS_MONO_PROTECT_OPTIONS_HZ.getOrElse(progress) {
                     AudioEffectState.BASS_MONO_PROTECT_DEFAULT_HZ
                 }
-                binding.bassMonoProtectValueText.text = formatBassProtect(bassMonoProtectHz)
+                binding.bassMonoProtectValueText.text = formatBassProtect(this, bassMonoProtectHz)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
@@ -212,5 +212,9 @@ private fun formatFrequency(frequency: Int): String =
 private fun formatDb(value: Int): String =
     if (value > 0) "+${value}dB" else "${value}dB"
 
-private fun formatBassProtect(value: Int): String =
-    if (value <= 0) "关闭" else "${value}Hz"
+private fun formatBassProtect(context: Context, value: Int): String =
+    if (value <= 0) {
+        context.getString(R.string.audio_effect_value_off)
+    } else {
+        context.getString(R.string.audio_effect_value_hz, value)
+    }

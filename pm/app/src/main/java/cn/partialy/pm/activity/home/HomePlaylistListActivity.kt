@@ -46,7 +46,8 @@ class HomePlaylistListActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
 
         categoryId = intent.getIntExtra(EXTRA_CATEGORY_ID, 0)
-        categoryName = intent.getStringExtra(EXTRA_CATEGORY_NAME).orEmpty().ifBlank { "歌单" }
+        categoryName = intent.getStringExtra(EXTRA_CATEGORY_NAME).orEmpty()
+            .ifBlank { getString(R.string.playlist_default_title) }
         val errorWebViewId = resources.getIdentifier("errorWebView", "id", packageName)
         errorWebView = findViewById(errorWebViewId)
 

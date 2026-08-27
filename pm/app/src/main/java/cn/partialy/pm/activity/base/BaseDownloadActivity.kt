@@ -46,7 +46,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
     protected fun onDownloadClick(songInfo: SongInfo) {
         lifecycleScope.launch {
             if (songInfo.type == SongType.LOCAL) {
-                Toast.makeText(this@BaseDownloadActivity, "本地歌曲不支持在线下载", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BaseDownloadActivity, R.string.local_song_no_online_download, Toast.LENGTH_SHORT).show()
                 return@launch
             }
             val session = AccountSessionStore.read(this@BaseDownloadActivity)
@@ -55,10 +55,10 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 MusicQualityAccessState(session.loggedIn, session.vipActive),
             )
             if (options.isEmpty()) {
-                Toast.makeText(this@BaseDownloadActivity, "当前音源暂无可选音质", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BaseDownloadActivity, R.string.toast_playback_quality_no_options, Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            val subtitle = "${songInfo.artist} - ${songInfo.name}"
+            val subtitle = getString(R.string.common_song_subtitle, songInfo.artist, songInfo.name)
             val selected = showDownloadQualityConfirmDialog(
                 this@BaseDownloadActivity,
                 subtitle,
@@ -80,7 +80,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 MusicQualityAccessState(latestSession.loggedIn, latestSession.vipActive),
             )
             if (!stillAllowed) {
-                Toast.makeText(this@BaseDownloadActivity, "当前音质不可用，请重新选择", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BaseDownloadActivity, R.string.download_quality_unavailable_reselect, Toast.LENGTH_SHORT).show()
                 return@launch
             }
 
@@ -91,7 +91,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 is DownloadQualityChoice.Kuwo -> kwRepository.getDownloadUrl(songInfo, c.quality)
             }
             if (downloadInfo["url"] == "error" || downloadInfo["url"] == "buy") {
-                Toast.makeText(this@BaseDownloadActivity, "获取下载链接失败", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
                 return@launch
             }
             val url = downloadInfo["url"] ?: return@launch
@@ -126,11 +126,11 @@ abstract class BaseDownloadActivity : BaseActivity() {
     protected fun startDownload(url: String, fileName: String, songInfo: SongInfo) {
         try {
             downloadDialog = ModernDialog.makeDownloadDialog(this) {
-                title = "正在下载"
+                title = getString(R.string.download_in_progress)
                 message = fileName
                 cancelable = true
-                positiveText = "后台下载"
-                negativeText = "取消"
+                positiveText = getString(R.string.download_background)
+                negativeText = getString(R.string.cancel)
 
                 onPositiveClick = {
                     downloadDialog?.dismiss()
@@ -183,7 +183,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
 
     protected open fun onDownloadSuccess(file: File) {
         runOnUiThread {
-            Toast.makeText(this, "下载完成", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.download_complete, Toast.LENGTH_SHORT).show()
             downloadDialog?.dismiss()
         }
     }
@@ -191,7 +191,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
     protected open fun onDownloadFailure(e: Exception) {
         runOnUiThread {
             println(e)
-            Toast.makeText(this, "下载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.download_failed_with_reason, e.message.orEmpty()), Toast.LENGTH_SHORT).show()
             downloadDialog?.dismiss()
         }
     }

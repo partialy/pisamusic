@@ -127,8 +127,9 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         }
 
         val coverUrl = intent.getStringExtra(EXTRA_COVER_URL).orEmpty()
-        val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "歌单" }
-        val desc = intent.getStringExtra(EXTRA_PLAY_COUNT_LABEL).orEmpty().ifBlank { "歌单描述" }
+        val title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { getString(R.string.playlist_default_title) }
+        val desc = intent.getStringExtra(EXTRA_PLAY_COUNT_LABEL).orEmpty()
+            .ifBlank { getString(R.string.playlist_default_description) }
         val trackCount = intent.getIntExtra(EXTRA_TRACK_COUNT, 0)
         val playlistId = intent.getStringExtra(EXTRA_PLAYLIST_ID).orEmpty()
 
@@ -143,7 +144,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
             title = title,
             description = desc,
             artwork = PlaylistHeaderArtwork.Remote(coverUrl),
-            trackCountText = if (trackCount > 0) "${trackCount}首" else "",
+            trackCountText = if (trackCount > 0) getString(R.string.playlist_track_count_compact, trackCount) else "",
         )
         contentAdapter.showInitialLoading()
 
@@ -325,7 +326,10 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
             val mapped = first.info.mapNotNull { it.toSongInfoOrNull() }
             val total = first.count
             playlistApiTotalCount = total
-            val label = if (total > 0) "${total}首" else "${mapped.size}首"
+            val label = getString(
+                R.string.playlist_track_count_compact,
+                if (total > 0) total else mapped.size,
+            )
             headerAdapter.updateHeader(trackCountText = label)
             contentAdapter.setFirstPageSuccess(
                 rows = mapped,
@@ -412,7 +416,7 @@ private fun cn.partialy.pm.model.KgPlaylistTrackRow.toSongInfoOrNull(): SongInfo
         val fromSinger = singerinfo.map { it.name.trim() }.filter { it.isNotEmpty() }
         if (fromSinger.isNotEmpty()) {
             val rawTitle = name.substringAfter(" - ", missingDelimiterValue = name).trim()
-            fromSinger.joinToString("、") to rawTitle.ifBlank { name }
+            fromSinger.joinToString(getString(R.string.common_separator_enumeration)) to rawTitle.ifBlank { name }
         } else {
             val parts = name.split(" - ", limit = 2)
             if (parts.size == 2) parts[0].trim() to parts[1].trim() else "" to name

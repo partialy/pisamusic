@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
+import cn.partialy.pm.R
 import cn.partialy.pm.lyric.LyricLine
 import cn.partialy.pm.lyric.LyricParser
 import cn.partialy.pm.lyric.LyricRepository
@@ -166,7 +167,11 @@ class StatusBarLyricOverlayController @Inject constructor(
         if (settingsPreviewActive) {
             val view = ensureOverlayView()
             updateOverlayLayout()
-            view.bindStaticPreview(config, PREVIEW_TEXT, PREVIEW_PROGRESS)
+            view.bindStaticPreview(
+                config,
+                context.getString(R.string.status_lyric_preview_text),
+                PREVIEW_PROGRESS,
+            )
             return
         }
 
@@ -229,7 +234,6 @@ class StatusBarLyricOverlayController @Inject constructor(
     private fun dp(value: Int): Int = (value * context.resources.displayMetrics.density).roundToInt()
 
     private companion object {
-        private const val PREVIEW_TEXT = "状态栏歌词预览"
         private const val PREVIEW_PROGRESS = 0.42f
     }
 }

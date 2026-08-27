@@ -167,7 +167,7 @@ class StatusBarLyricSettingsBridge(
     fun setEnabled(enabled: Boolean): String {
         if (enabled && !Settings.canDrawOverlays(appContext)) {
             openOverlayPermission()
-            return jsonErr("请先开启悬浮窗权限")
+            return jsonErr(getString(R.string.status_lyric_overlay_permission_required))
         }
         val current = StatusBarLyricPrefs.read(appContext)
         StatusBarLyricPrefs.write(appContext, current.copy(enabled = enabled))
@@ -204,8 +204,8 @@ class StatusBarLyricSettingsBridge(
 
     @JavascriptInterface
     fun setColors(sungHex: String, unsungHex: String): String {
-        val sung = parseColor(sungHex) ?: return jsonErr("已唱颜色格式无效")
-        val unsung = parseColor(unsungHex) ?: return jsonErr("未唱颜色格式无效")
+        val sung = parseColor(sungHex) ?: return jsonErr(getString(R.string.status_lyric_sung_color_invalid))
+        val unsung = parseColor(unsungHex) ?: return jsonErr(getString(R.string.status_lyric_unsung_color_invalid))
         val current = StatusBarLyricPrefs.read(appContext)
         StatusBarLyricPrefs.write(appContext, current.copy(sungColorArgb = sung, unsungColorArgb = unsung))
         return jsonOk()
@@ -219,7 +219,7 @@ class StatusBarLyricSettingsBridge(
 
     @JavascriptInterface
     fun openOverlayPermission(): String {
-        val targetActivity = activity ?: return jsonErr("无法打开系统设置")
+        val targetActivity = activity ?: return jsonErr(getString(R.string.status_lyric_open_settings_failed))
         mainHandler.post {
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,

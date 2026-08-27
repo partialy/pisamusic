@@ -12,6 +12,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.widget.Toast
+import cn.partialy.pm.R
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -76,11 +77,18 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
         val stack = throwable.stackTraceString()
         Log.e(TAG, "Uncaught exception in thread ${thread.name}, main=$isMainThread", throwable)
         showExceptionDialog(
-            title = if (isMainThread) "捕获到主线程异常" else "捕获到后台异常",
+            title = context.getString(
+                if (isMainThread) R.string.debug_main_thread_exception else R.string.debug_background_exception,
+            ),
             message = buildString {
-                appendLine("线程：${thread.name}")
-                appendLine("类型：${throwable.javaClass.name}")
-                appendLine("信息：${throwable.localizedMessage ?: "无"}")
+                appendLine(context.getString(R.string.debug_thread_line, thread.name))
+                appendLine(context.getString(R.string.debug_type_line, throwable.javaClass.name))
+                appendLine(
+                    context.getString(
+                        R.string.debug_message_line,
+                        throwable.localizedMessage ?: context.getString(R.string.debug_empty_message),
+                    ),
+                )
                 appendLine()
                 append(stack)
             },
@@ -103,8 +111,8 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
                     .setMessageGravity(Gravity.START)
                     .setMessageSelectable(true)
                     .setMessageMaxHeightDp(STACK_DIALOG_MAX_HEIGHT_DP)
-                    .setCancelButton("关闭")
-                    .setConfirmButton("复制") {
+                    .setCancelButton(context.getString(R.string.debug_close))
+                    .setConfirmButton(context.getString(R.string.debug_copy)) {
                         copyErrorStack(activity, message)
                     }
                     .setDismissOnConfirm(false)
@@ -123,8 +131,10 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
     private fun copyErrorStack(context: Context, message: String) {
         runCatching {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("PisaMusic 异常堆栈", message))
-            Toast.makeText(context, "错误堆栈已复制", Toast.LENGTH_SHORT).show()
+            clipboard.setPrimaryClip(
+                ClipData.newPlainText(context.getString(R.string.debug_stack_clipboard_label), message),
+            )
+            Toast.makeText(context, R.string.debug_stack_copied, Toast.LENGTH_SHORT).show()
         }.onFailure {
             Log.e(TAG, "Copy exception stack failed", it)
         }

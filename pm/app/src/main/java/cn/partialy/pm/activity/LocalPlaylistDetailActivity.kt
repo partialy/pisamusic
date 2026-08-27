@@ -127,7 +127,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
         headerAdapter.updateHeader(
             title = getString(R.string.mine_tab_playlists),
             artwork = PlaylistHeaderArtwork.LocalPlaylist(""),
-            trackCountText = "0首",
+            trackCountText = getString(R.string.playlist_zero_tracks),
         )
         headerAdapter.updateCollectionState(
             visible = true,
@@ -169,7 +169,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                         title = meta.name,
                         description = meta.intro,
                         artwork = PlaylistHeaderArtwork.LocalPlaylist(meta.cover),
-                        trackCountText = "${songs.size}首",
+                        trackCountText = getString(R.string.playlist_track_count_compact, songs.size),
                     )
                     contentAdapter.setStaticSongs(songs, R.string.local_playlist_empty_hint)
                 }

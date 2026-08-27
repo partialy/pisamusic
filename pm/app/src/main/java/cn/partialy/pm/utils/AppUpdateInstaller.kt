@@ -11,6 +11,7 @@ import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -37,21 +38,21 @@ class AppUpdateInstaller(
         }
 
         if (pendingDownloadId > 0L) {
-            callbacks.onDownloadProgress(true, -1, "下载中...")
+            callbacks.onDownloadProgress(true, -1, text(R.string.update_downloading))
             return
         }
 
         val url = rawUrl?.trim().orEmpty()
         if (!(url.startsWith("http://") || url.startsWith("https://"))) {
-            callbacks.onError("下载地址无效")
+            callbacks.onError(text(R.string.update_download_url_invalid))
             return
         }
 
         ensureDownloadReceiverRegistered()
 
         val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle("PisaMusic 更新下载")
-            .setDescription("正在下载最新版本")
+            .setTitle(text(R.string.update_download_notification_title))
+            .setDescription(text(R.string.update_download_notification_description))
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setMimeType(APK_MIME_TYPE)
             .setAllowedOverMetered(true)
@@ -59,13 +60,15 @@ class AppUpdateInstaller(
 
         val dm = activity.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         pendingDownloadId = runCatching { dm.enqueue(request) }.getOrElse {
-            callbacks.onError("下载启动失败：${it.message ?: "未知错误"}")
+            callbacks.onError(
+                text(R.string.update_download_start_failed, it.message ?: text(R.string.common_unknown_error)),
+            )
             return
         }
 
         startDownloadProgressPolling()
-        callbacks.onDownloadProgress(true, 0, "开始下载...")
-        callbacks.onMessage("开始下载更新包")
+        callbacks.onDownloadProgress(true, 0, text(R.string.update_download_starting))
+        callbacks.onMessage(text(R.string.update_download_started))
     }
 
     fun retryPendingInstall() {
@@ -112,19 +115,19 @@ class AppUpdateInstaller(
         downloadProgressJob?.cancel()
 
         if (snapshot?.status != DownloadManager.STATUS_SUCCESSFUL) {
-            callbacks.onDownloadProgress(false, -1, "下载失败")
-            callbacks.onError("下载失败，请稍后重试")
+            callbacks.onDownloadProgress(false, -1, text(R.string.update_download_failed))
+            callbacks.onError(text(R.string.download_failed_retry))
             return
         }
 
         val uri = dm.getUriForDownloadedFile(downloadId)
         if (uri == null) {
-            callbacks.onDownloadProgress(false, -1, "下载完成，但无法安装")
-            callbacks.onError("下载完成，但无法获取安装包，请手动安装")
+            callbacks.onDownloadProgress(false, -1, text(R.string.update_download_install_unavailable))
+            callbacks.onError(text(R.string.update_download_package_missing))
             return
         }
 
-        callbacks.onDownloadProgress(false, 100, "下载完成，准备安装")
+        callbacks.onDownloadProgress(false, 100, text(R.string.update_download_ready_install))
         installOrRequestPermission(uri)
     }
 
@@ -146,13 +149,17 @@ class AppUpdateInstaller(
                             callbacks.onDownloadProgress(
                                 true,
                                 progress,
-                                if (progress >= 0) "下载中 ${progress}%" else "下载中...",
+                                if (progress >= 0) {
+                                    text(R.string.update_downloading_progress, progress)
+                                } else {
+                                    text(R.string.update_downloading)
+                                },
                             )
                         }
                         DownloadManager.STATUS_FAILED -> {
                             pendingDownloadId = -1L
-                            callbacks.onDownloadProgress(false, -1, "下载失败")
-                            callbacks.onError("下载失败，请稍后重试")
+                            callbacks.onDownloadProgress(false, -1, text(R.string.update_download_failed))
+                            callbacks.onError(text(R.string.download_failed_retry))
                         }
                     }
                 }
@@ -183,15 +190,20 @@ class AppUpdateInstaller(
         }
 
         pendingInstallUri = uri
-        callbacks.onDownloadProgress(false, 100, "请允许安装未知应用后返回继续安装")
-        callbacks.onMessage("请允许安装未知应用后返回继续安装")
+        callbacks.onDownloadProgress(false, 100, text(R.string.update_install_permission_required))
+        callbacks.onMessage(text(R.string.update_install_permission_required))
         val settingsIntent = Intent(
             Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
             Uri.parse("package:${activity.packageName}"),
         )
         runCatching { activity.startActivity(settingsIntent) }
             .onFailure {
-                callbacks.onError("无法打开安装权限设置：${it.message ?: "未知错误"}")
+                callbacks.onError(
+                    text(
+                        R.string.update_install_settings_failed,
+                        it.message ?: text(R.string.common_unknown_error),
+                    ),
+                )
             }
     }
 
@@ -208,7 +220,12 @@ class AppUpdateInstaller(
         }
         runCatching { activity.startActivity(installIntent) }
             .onFailure {
-                callbacks.onError("无法打开安装界面：${it.message ?: "未知错误"}，请手动安装")
+                callbacks.onError(
+                    text(
+                        R.string.update_installer_open_failed,
+                        it.message ?: text(R.string.common_unknown_error),
+                    ),
+                )
             }
     }
 
@@ -217,6 +234,8 @@ class AppUpdateInstaller(
         val total: Long,
         val downloaded: Long,
     )
+
+    private fun text(resId: Int, vararg args: Any): String = activity.getString(resId, *args)
 
     companion object {
         private const val APK_MIME_TYPE = "application/vnd.android.package-archive"

@@ -3,6 +3,7 @@ package cn.partialy.pm.activity
 import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.ui.settings.SubSettingsItem
@@ -16,7 +17,7 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class FavoritesSyncSettingsActivity : SubSettingsActivity() {
-    override val settingsPageTitle: CharSequence = "收藏与同步"
+    override val settingsPageTitle: CharSequence by lazy { getString(R.string.settings_sync_title) }
 
     @Inject
     lateinit var syncManager: SyncManager
@@ -28,23 +29,27 @@ class FavoritesSyncSettingsActivity : SubSettingsActivity() {
         return listOf(
             SubSettingsSection(
                 id = "sync_status",
-                title = "状态",
+                title = getString(R.string.settings_status),
                 items = listOf(
                     SubSettingsItem.Info(
                         id = ITEM_LOGIN_STATUS,
-                        title = "登录状态",
-                        value = if (state.loggedIn) "已登录" else "未登录",
+                        title = getString(R.string.settings_login_status),
+                        value = getString(
+                            if (state.loggedIn) R.string.settings_logged_in else R.string.settings_not_logged_in,
+                        ),
                         summary = accountSummary(state),
                     ),
                     SubSettingsItem.Info(
                         id = ITEM_LAST_SYNC,
-                        title = "最近同步",
+                        title = getString(R.string.settings_last_sync),
                         value = lastSyncSummary(state),
                     ),
                     SubSettingsItem.Info(
                         id = ITEM_SYNC_ERROR,
-                        title = "错误状态",
-                        value = if (state.lastError.isBlank()) "无" else "同步异常",
+                        title = getString(R.string.settings_error_status),
+                        value = getString(
+                            if (state.lastError.isBlank()) R.string.settings_none else R.string.settings_sync_error,
+                        ),
                         summary = state.lastError.ifBlank { null },
                     ),
                 ),
@@ -55,15 +60,17 @@ class FavoritesSyncSettingsActivity : SubSettingsActivity() {
                     if (state.loggedIn) {
                         SubSettingsItem.Option(
                             id = ITEM_SYNC_NOW,
-                            title = if (isSyncing) "正在同步" else "立即同步",
-                            summary = "同步账号中的收藏歌曲与歌单",
+                            title = getString(
+                                if (isSyncing) R.string.settings_syncing else R.string.settings_sync_now,
+                            ),
+                            summary = getString(R.string.settings_sync_summary),
                             enabled = !isSyncing,
                         )
                     } else {
                         SubSettingsItem.Navigation(
                             id = ITEM_LOGIN,
-                            title = "去登录",
-                            summary = "登录后可同步收藏歌曲与歌单",
+                            title = getString(R.string.settings_go_login),
+                            summary = getString(R.string.settings_login_to_sync),
                         )
                     },
                 ),
@@ -82,17 +89,17 @@ class FavoritesSyncSettingsActivity : SubSettingsActivity() {
         if (isSyncing) return
         isSyncing = true
         refreshSettings()
-        showMessage("正在同步")
+        showMessage(getString(R.string.settings_syncing))
         lifecycleScope.launch {
             val state = syncManager.syncNow()
             isSyncing = false
             refreshSettings()
-            showMessage(if (state.lastError.isBlank()) "同步完成" else state.lastError)
+            showMessage(if (state.lastError.isBlank()) getString(R.string.settings_sync_complete) else state.lastError)
         }
     }
 
     private fun accountSummary(state: SyncPrefs.State): String? {
-        if (!state.loggedIn) return "登录后可同步收藏歌曲与歌单"
+        if (!state.loggedIn) return getString(R.string.settings_login_to_sync)
         return listOf(state.username, state.email)
             .map { it.trim() }
             .filter { it.isNotBlank() }
@@ -101,7 +108,7 @@ class FavoritesSyncSettingsActivity : SubSettingsActivity() {
     }
 
     private fun lastSyncSummary(state: SyncPrefs.State): String {
-        if (!state.loggedIn || state.lastSyncAt <= 0L) return "未同步"
+        if (!state.loggedIn || state.lastSyncAt <= 0L) return getString(R.string.settings_not_synced)
         return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(state.lastSyncAt))
     }
 

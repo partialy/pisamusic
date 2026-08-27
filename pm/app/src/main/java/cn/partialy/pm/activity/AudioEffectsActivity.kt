@@ -248,22 +248,22 @@ class AudioEffectsActivity : BaseActivity() {
 
     private fun renderStrengthControls(state: AudioEffectState) {
         binding.bassSeekBar.progress = state.bass
-        binding.bassValueText.text = "${state.bass}%"
+        binding.bassValueText.text = getString(R.string.common_percent_value, state.bass)
         binding.vocalSeekBar.progress = state.vocal
-        binding.vocalValueText.text = "${state.vocal}%"
+        binding.vocalValueText.text = getString(R.string.common_percent_value, state.vocal)
     }
 
     private fun renderSpatialControls(state: AudioEffectState) {
         binding.stereoWidthSeekBar.progress = state.stereoWidth - AudioEffectState.STEREO_WIDTH_MIN
-        binding.stereoWidthValueText.text = "${state.stereoWidth}%"
+        binding.stereoWidthValueText.text = getString(R.string.common_percent_value, state.stereoWidth)
         binding.centerRetentionSeekBar.progress = state.centerRetention - AudioEffectState.CENTER_RETENTION_MIN
-        binding.centerRetentionValueText.text = "${state.centerRetention}%"
+        binding.centerRetentionValueText.text = getString(R.string.common_percent_value, state.centerRetention)
         binding.spatialDelaySeekBar.progress = state.spatialDelayUs
-        binding.spatialDelayValueText.text = "${state.spatialDelayUs}us"
+        binding.spatialDelayValueText.text = getString(R.string.common_microseconds_value, state.spatialDelayUs)
         val protectIndex = AudioEffectState.BASS_MONO_PROTECT_OPTIONS_HZ.indexOf(state.bassMonoProtectHz)
             .coerceAtLeast(0)
         binding.bassMonoProtectSeekBar.progress = protectIndex
-        binding.bassMonoProtectValueText.text = formatBassProtect(state.bassMonoProtectHz)
+        binding.bassMonoProtectValueText.text = formatBassProtect(this, state.bassMonoProtectHz)
     }
 
     private fun renderAdvancedSpatialVisibility() {
@@ -306,5 +306,9 @@ private fun formatFrequency(frequency: Int): String =
 private fun formatDb(value: Int): String =
     if (value > 0) "+${value}dB" else "${value}dB"
 
-private fun formatBassProtect(value: Int): String =
-    if (value <= 0) "关闭" else "${value}Hz"
+private fun formatBassProtect(context: Context, value: Int): String =
+    if (value <= 0) {
+        context.getString(R.string.audio_effect_value_off)
+    } else {
+        context.getString(R.string.audio_effect_value_hz, value)
+    }

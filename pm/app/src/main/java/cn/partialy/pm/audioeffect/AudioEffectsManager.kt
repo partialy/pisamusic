@@ -5,6 +5,7 @@ import android.media.audiofx.BassBoost
 import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
+import cn.partialy.pm.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -109,7 +110,7 @@ class AudioEffectsManager @Inject constructor(
     ): AudioEffectPreset {
         val preset = AudioEffectPreset(
             id = "custom_${System.currentTimeMillis()}",
-            name = name.trim().ifBlank { "自定义音效" },
+            name = name.trim().ifBlank { context.getString(R.string.audio_effect_custom_default) },
             eqGains = eqGains,
             bass = bass,
             vocal = vocal,
@@ -138,9 +139,10 @@ class AudioEffectsManager @Inject constructor(
     fun availablePresets(): List<AudioEffectPreset> = availablePresets(_state.value)
 
     fun availablePresets(state: AudioEffectState): List<AudioEffectPreset> {
-        val presets = AudioEffectPreset.builtIns() + state.customPresets.map { it.normalized() }
+        val presets = AudioEffectPreset.builtIns().map(::localizeBuiltInPreset) +
+            state.customPresets.map { it.normalized() }
         return if (state.selectedPresetId == AudioEffectPreset.ID_MANUAL) {
-            presets + AudioEffectPreset.manualFrom(state)
+            presets + localizeBuiltInPreset(AudioEffectPreset.manualFrom(state))
         } else {
             presets
         }
@@ -149,6 +151,20 @@ class AudioEffectsManager @Inject constructor(
     fun release() {
         releaseEffects()
         audioSessionId = 0
+    }
+
+    private fun localizeBuiltInPreset(preset: AudioEffectPreset): AudioEffectPreset {
+        val nameRes = when (preset.id) {
+            AudioEffectPreset.ID_DEFAULT -> R.string.audio_effect_preset_default
+            AudioEffectPreset.ID_3D -> R.string.audio_effect_preset_3d
+            AudioEffectPreset.ID_BASS -> R.string.audio_effect_preset_bass
+            AudioEffectPreset.ID_VOCAL -> R.string.audio_effect_preset_vocal
+            AudioEffectPreset.ID_POP -> R.string.audio_effect_preset_pop
+            AudioEffectPreset.ID_ROCK -> R.string.audio_effect_preset_rock
+            AudioEffectPreset.ID_MANUAL -> R.string.audio_effect_preset_manual
+            else -> return preset
+        }
+        return preset.copy(name = context.getString(nameRes))
     }
 
     private fun updateState(next: AudioEffectState) {

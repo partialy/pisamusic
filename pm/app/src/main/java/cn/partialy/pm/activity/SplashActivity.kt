@@ -167,7 +167,10 @@ class SplashActivity : AppCompatActivity() {
                 }.onSuccess { agreement ->
                     showAgreementSheet(agreement.title, agreement.content)
                 }.onFailure {
-                    showAgreementSheet(FALLBACK_AGREEMENT_TITLE, FALLBACK_AGREEMENT_CONTENT)
+                    showAgreementSheet(
+                        getString(R.string.startup_fallback_agreement_title),
+                        getString(R.string.startup_fallback_agreement_html),
+                    )
                 }
                 return@launch
             }
@@ -294,9 +297,9 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun DeviceReportResult.lockedMessage(): String {
-        val endTime = lockEndTime ?: return "当前设备已被封禁，App 服务暂不可用"
+        val endTime = lockEndTime ?: return getString(R.string.startup_device_banned)
         val formatted = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(endTime))
-        return "当前设备已被封禁，解封时间：$formatted"
+        return getString(R.string.startup_device_banned_until, formatted)
     }
 
     private fun isVersionChanged(localVersion: String, latestVersion: String): Boolean {
@@ -369,7 +372,7 @@ class SplashActivity : AppCompatActivity() {
     private fun openOfficialSite() {
         val url = latestOfficialUrl.trim()
         if (url.isEmpty()) {
-            showErrorSheet("官网地址为空")
+            showErrorSheet(getString(R.string.startup_official_url_empty))
             return
         }
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -489,8 +492,5 @@ class SplashActivity : AppCompatActivity() {
         private const val KEY_AGREEMENT_ACCEPTED = "agreement_accepted"
         private const val LOCAL_MODE_BUTTON_DELAY_MS = 3_000L
         private const val SPLASH_BOOTSTRAP_TIMEOUT_MS = 10_000L
-        private const val FALLBACK_AGREEMENT_TITLE = "用户协议与隐私提示"
-        private const val FALLBACK_AGREEMENT_CONTENT =
-            "<p>欢迎使用 PisaMusic。当前服务暂不可用，请先确认你已阅读并同意用户协议与隐私政策。进入本地模式后，在线搜索、公告、更新检查、同步等功能可能暂不可用，本地音乐播放等离线功能仍可继续使用。</p>"
     }
 }

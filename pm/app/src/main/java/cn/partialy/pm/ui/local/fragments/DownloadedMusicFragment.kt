@@ -111,7 +111,7 @@ class DownloadedMusicFragment : BaseSongFragment() {
                 is DownloadedMusicState.Success -> {
                     binding.progressBar.visibility = View.GONE
                     if (state.songs.isEmpty()) {
-                        showEmptyState("暂无下载歌曲")
+                        showEmptyState(getString(R.string.download_empty))
                     } else {
                         binding.downloadedSongRecyclerView.visibility = View.VISIBLE
                         binding.emptyTextView.visibility = View.GONE
@@ -121,7 +121,7 @@ class DownloadedMusicFragment : BaseSongFragment() {
 
                 is DownloadedMusicState.Error -> {
                     binding.progressBar.visibility = View.GONE
-                    showEmptyState(state.message)
+                    showEmptyState(state.message.ifBlank { getString(R.string.common_unknown_error) })
                 }
             }
         }

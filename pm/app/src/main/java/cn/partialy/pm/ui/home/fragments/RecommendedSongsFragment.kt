@@ -285,7 +285,7 @@ class RecommendedSongsFragment : BaseSongFragment() {
         if (act is MainActivity) {
             act.downloadSong(song)
         } else {
-            Toast.makeText(requireContext(), "下载失败，请稍后重试", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.download_failed_retry, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -349,7 +349,7 @@ class RecommendedSongsFragment : BaseSongFragment() {
         topCardAdapters[state.cardId]?.submitList(state.songs)
         when {
             state.isLoading && state.songs.isEmpty() -> {
-                title.text = "加载中..."
+                title.setText(R.string.common_loading_dots)
                 topCardAdapters[state.cardId]?.showSkeleton()
                 section.visibility = View.VISIBLE
             }

@@ -1,5 +1,8 @@
 package cn.partialy.pm.model
 
+import androidx.annotation.StringRes
+import cn.partialy.pm.R
+
 /**
  * 下载前选择的音质；与 [downloadOptionsForSongType] 及各 Repository 取链参数对应。
  * 网易分两类：song/url + br、[song/url/v1 + level](WyUrlProxyApiService)。
@@ -18,10 +21,10 @@ sealed class DownloadQualityChoice {
 }
 
 data class DownloadQualityOption(
-    val label: String,
+    @StringRes val labelRes: Int,
     val choice: DownloadQualityChoice,
     val enabled: Boolean = true,
-    val badge: String? = null,
+    @StringRes val badgeRes: Int? = null,
 )
 
 fun DownloadQualityChoice.toPlaybackQualityKey(): String = when (this) {
@@ -63,31 +66,31 @@ fun downloadOptionsForSongType(type: SongType): List<DownloadQualityOption> = wh
 
 /** apidoc：128 / 320 / flac / high / viper_atmos / viper_clear */
 private val kgDownloadOptions = listOf(
-    DownloadQualityOption("128 kbps MP3", DownloadQualityChoice.Kugou("128")),
-    DownloadQualityOption("320 kbps MP3", DownloadQualityChoice.Kugou("320")),
-    DownloadQualityOption("FLAC", DownloadQualityChoice.Kugou("flac")),
-    DownloadQualityOption("无损 (high)", DownloadQualityChoice.Kugou("high")),
-    DownloadQualityOption("蝰蛇全景声", DownloadQualityChoice.Kugou("viper_atmos")),
-    DownloadQualityOption("蝰蛇超清音质", DownloadQualityChoice.Kugou("viper_clear")),
+    DownloadQualityOption(R.string.quality_kg_128, DownloadQualityChoice.Kugou("128")),
+    DownloadQualityOption(R.string.quality_kg_320, DownloadQualityChoice.Kugou("320")),
+    DownloadQualityOption(R.string.quality_kg_flac, DownloadQualityChoice.Kugou("flac")),
+    DownloadQualityOption(R.string.quality_kg_high, DownloadQualityChoice.Kugou("high")),
+    DownloadQualityOption(R.string.quality_kg_viper_atmos, DownloadQualityChoice.Kugou("viper_atmos")),
+    DownloadQualityOption(R.string.quality_kg_viper_clear, DownloadQualityChoice.Kugou("viper_clear")),
 )
 
 private val wyDownloadOptions = listOf(
-    DownloadQualityOption("[码率] 128 kbps", DownloadQualityChoice.NeteaseBr(128_000)),
-    DownloadQualityOption("[码率] 320 kbps", DownloadQualityChoice.NeteaseBr(320_000)),
-    DownloadQualityOption("[码率] 999000（最大）", DownloadQualityChoice.NeteaseBr(999_000)),
-    DownloadQualityOption("[音质等级] 标准 standard", DownloadQualityChoice.NeteaseLevel("standard")),
-    DownloadQualityOption("[音质等级] 较高 higher", DownloadQualityChoice.NeteaseLevel("higher")),
-    DownloadQualityOption("[音质等级] 极高 exhigh", DownloadQualityChoice.NeteaseLevel("exhigh")),
-    DownloadQualityOption("[音质等级] 无损 lossless", DownloadQualityChoice.NeteaseLevel("lossless")),
-    DownloadQualityOption("[音质等级] Hi-Res", DownloadQualityChoice.NeteaseLevel("hires")),
-    DownloadQualityOption("[音质等级] 高清环绕声", DownloadQualityChoice.NeteaseLevel("jyeffect")),
-    DownloadQualityOption("[音质等级] 沉浸环绕声", DownloadQualityChoice.NeteaseLevel("sky")),
-    DownloadQualityOption("[音质等级] 杜比全景声", DownloadQualityChoice.NeteaseLevel("dolby")),
-    DownloadQualityOption("[音质等级] 超清母带", DownloadQualityChoice.NeteaseLevel("jymaster")),
+    DownloadQualityOption(R.string.quality_wy_br_128, DownloadQualityChoice.NeteaseBr(128_000)),
+    DownloadQualityOption(R.string.quality_wy_br_320, DownloadQualityChoice.NeteaseBr(320_000)),
+    DownloadQualityOption(R.string.quality_wy_br_max, DownloadQualityChoice.NeteaseBr(999_000)),
+    DownloadQualityOption(R.string.quality_wy_standard, DownloadQualityChoice.NeteaseLevel("standard")),
+    DownloadQualityOption(R.string.quality_wy_higher, DownloadQualityChoice.NeteaseLevel("higher")),
+    DownloadQualityOption(R.string.quality_wy_exhigh, DownloadQualityChoice.NeteaseLevel("exhigh")),
+    DownloadQualityOption(R.string.quality_wy_lossless, DownloadQualityChoice.NeteaseLevel("lossless")),
+    DownloadQualityOption(R.string.quality_wy_hires, DownloadQualityChoice.NeteaseLevel("hires")),
+    DownloadQualityOption(R.string.quality_wy_surround, DownloadQualityChoice.NeteaseLevel("jyeffect")),
+    DownloadQualityOption(R.string.quality_wy_sky, DownloadQualityChoice.NeteaseLevel("sky")),
+    DownloadQualityOption(R.string.quality_wy_dolby, DownloadQualityChoice.NeteaseLevel("dolby")),
+    DownloadQualityOption(R.string.quality_wy_master, DownloadQualityChoice.NeteaseLevel("jymaster")),
 )
 
 private val kwDownloadOptions = listOf(
-    DownloadQualityOption("标准 standard", DownloadQualityChoice.Kuwo("standard")),
-    DownloadQualityOption("极高 exhigh", DownloadQualityChoice.Kuwo("exhigh")),
-    DownloadQualityOption("无损 lossless", DownloadQualityChoice.Kuwo("lossless")),
+    DownloadQualityOption(R.string.quality_kw_standard, DownloadQualityChoice.Kuwo("standard")),
+    DownloadQualityOption(R.string.quality_kw_exhigh, DownloadQualityChoice.Kuwo("exhigh")),
+    DownloadQualityOption(R.string.quality_kw_lossless, DownloadQualityChoice.Kuwo("lossless")),
 )

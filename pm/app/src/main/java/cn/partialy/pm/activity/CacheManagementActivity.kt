@@ -145,7 +145,7 @@ class CacheManagementActivity : BaseActivity() {
         songCard.categoryExtraText.visibility = View.VISIBLE
         val currentLimitMb = SettingsPrefs.getAudioCacheMaxMb(this)
         songCard.categoryExtraText.text = if (SettingsPrefs.getAudioCacheMode(this) == SettingsPrefs.AudioCacheMode.Auto) {
-            "当前上限：自动（当前 ${currentLimitMb} MB）"
+            getString(R.string.cache_limit_auto_current, currentLimitMb)
         } else {
             getString(R.string.cache_limit_current, currentLimitMb)
         }
@@ -237,8 +237,8 @@ class CacheManagementActivity : BaseActivity() {
                 SettingsOption("mb_4096", "4 GB"),
                 SettingsOption("mb_8192", "8 GB"),
                 SettingsOption("mb_16384", "16 GB"),
-                SettingsOption("custom", "自定义（MB）"),
-                SettingsOption("auto", "自动（剩余空间的10%）"),
+                SettingsOption("custom", getString(R.string.cache_limit_custom_mb)),
+                SettingsOption("auto", getString(R.string.cache_limit_auto_percent)),
             )
             val manualPresetIdsByMb = mapOf(
                 500L to "mb_500",

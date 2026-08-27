@@ -419,7 +419,7 @@ class ShareDetailActivity : BaseActivity() {
             "kg" -> getString(R.string.search_source_kg)
             "wy" -> getString(R.string.search_source_wy)
             "kw" -> getString(R.string.search_source_kw)
-            "local" -> "本地音乐"
+            "local" -> getString(R.string.source_local_music)
             else -> source.ifBlank { getString(R.string.account_profile_value_placeholder) }
         }
 

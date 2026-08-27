@@ -38,7 +38,9 @@ object ListenTogetherQrDialog {
         )
         view.findViewById<ImageButton>(R.id.listenTogetherQrCopyButton).setOnClickListener {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("PisaMusic 一起听房间号", roomId))
+            clipboard.setPrimaryClip(
+                ClipData.newPlainText(context.getString(R.string.listen_together_clipboard_room_label), roomId),
+            )
             Toast.makeText(context, R.string.listen_together_room_id_copied, Toast.LENGTH_SHORT).show()
         }
     }

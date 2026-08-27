@@ -358,7 +358,7 @@ class PlayerActivity : BaseDownloadActivity() {
             }
             val selected = showDownloadQualityPicker(
                 context = this@PlayerActivity,
-                songSubtitle = "${song.artist} - ${song.name}",
+                songSubtitle = getString(R.string.common_song_subtitle, song.artist, song.name),
                 options = options,
                 selectedQualityKey = SettingsPrefs.getPlaybackQualityKey(this@PlayerActivity, song.type),
                 song = song,
@@ -383,7 +383,7 @@ class PlayerActivity : BaseDownloadActivity() {
             if (!stillAllowed) {
                 Toast.makeText(
                     this@PlayerActivity,
-                    "当前音质不可用，请重新选择",
+                    getString(R.string.download_quality_unavailable_reselect),
                     Toast.LENGTH_SHORT,
                 ).show()
                 return@launch
@@ -537,10 +537,10 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun showReplaceListenTogetherRoomDialog(message: String) {
         PmMinimalDialog.show(
             context = this,
-            title = "创建新的听歌房",
+            title = getString(R.string.listen_together_create_new_room),
             message = message,
-            cancelText = "取消",
-            confirmText = "确认",
+            cancelText = getString(R.string.cancel),
+            confirmText = getString(R.string.dialog_ok),
             onConfirm = {
                 lifecycleScope.launch {
                     listenTogetherManager.createRoom(
@@ -561,10 +561,17 @@ class PlayerActivity : BaseDownloadActivity() {
         }
         binding.listenTogetherChip.visibility = View.VISIBLE
         applyListenTogetherLyricSpacing()
-        binding.listenTogetherChipPeopleText.text = "${room.displayPeople()}人一起听中"
+        binding.listenTogetherChipPeopleText.text = getString(
+            R.string.listen_together_people_active,
+            room.displayPeople(),
+        )
         val latencyMs = state.latencyMs
         val latencyReady = state.socketConnected && latencyMs != null
-        binding.listenTogetherChipLatencyText.text = if (latencyReady) "${latencyMs}ms" else "--ms"
+        binding.listenTogetherChipLatencyText.text = if (latencyReady) {
+            getString(R.string.common_milliseconds_value, latencyMs)
+        } else {
+            getString(R.string.common_milliseconds_pending)
+        }
         applyListenTogetherChipStatus(latencyReady)
         bindListenTogetherChipAvatars(room, state.currentUserId)
         binding.listenTogetherChip.post { applyListenTogetherLyricSpacing() }
@@ -641,8 +648,11 @@ class PlayerActivity : BaseDownloadActivity() {
         listenTogetherSheetBinding = sheetBinding
 
         val session = AccountSessionStore.read(this)
-        val username = session.user.username.ifBlank { "我的" }
-        sheetBinding.listenTogetherRoomNameLayout.placeholderText = "${username}的音乐房"
+        val username = session.user.username.ifBlank { getString(R.string.listen_together_default_me) }
+        sheetBinding.listenTogetherRoomNameLayout.placeholderText = getString(
+            R.string.listen_together_default_room_name,
+            username,
+        )
         sheetBinding.listenTogetherRoomIdInput.setText(generateRandomRoomId())
         sheetBinding.listenTogetherRoomIdInput.setSelection(
             sheetBinding.listenTogetherRoomIdInput.text?.length ?: 0,
@@ -716,8 +726,10 @@ class PlayerActivity : BaseDownloadActivity() {
         sheetBinding.listenTogetherCopyButton.setOnClickListener {
             val roomId = listenTogetherManager.state.value.room?.roomId ?: return@setOnClickListener
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("Pisa Music 一起听房间号", roomId))
-            Toast.makeText(this, "房间号已复制", Toast.LENGTH_SHORT).show()
+            clipboard.setPrimaryClip(
+                ClipData.newPlainText(getString(R.string.listen_together_clipboard_room_label), roomId),
+            )
+            Toast.makeText(this, R.string.listen_together_room_id_copied, Toast.LENGTH_SHORT).show()
         }
         sheetBinding.listenTogetherShareButton.setOnClickListener {
             val text = listenTogetherManager.shareText() ?: return@setOnClickListener
@@ -737,9 +749,9 @@ class PlayerActivity : BaseDownloadActivity() {
         sheetBinding.listenTogetherLeaveButton.setOnClickListener {
             PmMinimalDialog.show(
                 context = this,
-                title = "退出当前一起听吗？",
-                message = "退出后你将无法与朋友实时同步播放当前歌曲。",
-                confirmText = "确认",
+                title = getString(R.string.listen_together_leave_confirm_title),
+                message = getString(R.string.listen_together_leave_confirm_message),
+                confirmText = getString(R.string.dialog_ok),
             ) {
                 listenTogetherManager.leaveRoom()
                 dialog.dismiss()
@@ -779,7 +791,7 @@ class PlayerActivity : BaseDownloadActivity() {
                 sheetBinding.listenTogetherCurrentSongCover.setImageDrawable(null)
             }
         } else {
-            sheetBinding.listenTogetherCurrentSongName.text = "暂无正在播放的歌曲"
+            sheetBinding.listenTogetherCurrentSongName.setText(R.string.listen_together_no_current_song)
             sheetBinding.listenTogetherCurrentSongArtist.text = ""
             sheetBinding.listenTogetherCurrentSongCover.setImageDrawable(null)
         }
@@ -802,17 +814,21 @@ class PlayerActivity : BaseDownloadActivity() {
             room.displayPeople(),
         )
         val connection = if (state.socketConnected) {
-            "同步正常"
+            getString(R.string.listen_together_sync_normal)
         } else {
             getString(R.string.listen_together_reconnecting)
         }
         val control = when {
-            state.isHost && room.memberOperation -> "你是房主 · 成员可操作"
-            state.isHost -> "你是房主 · 仅房主控制"
-            room.memberOperation -> "成员可操作"
+            state.isHost && room.memberOperation -> getString(R.string.listen_together_host_member_control)
+            state.isHost -> getString(R.string.listen_together_host_only_control)
+            room.memberOperation -> getString(R.string.listen_together_member_control)
             else -> getString(R.string.listen_together_only_host)
         }
-        sheetBinding.listenTogetherSyncStatusView.text = "$connection · $control"
+        sheetBinding.listenTogetherSyncStatusView.text = getString(
+            R.string.listen_together_status_combined,
+            connection,
+            control,
+        )
 
         val roomSong = room.song
         if (roomSong != null) {
@@ -1505,9 +1521,9 @@ class PlayerActivity : BaseDownloadActivity() {
         }
         adapter.updateSongs(displaySongs)
         findViewById<TextView>(R.id.playingQueueTitle)?.text = if (listenTogetherManager.state.value.enabled) {
-            "一起听队列(${songs.size}首)"
+            getString(R.string.listen_together_queue_title, songs.size)
         } else {
-            "播放队列(${songs.size}首)"
+            getString(R.string.player_queue_title, songs.size)
         }
         binding.playlistBottomSheet.clearPlayList.isEnabled = !listenTogetherManager.state.value.enabled
         binding.playlistBottomSheet.clearPlayList.alpha = if (listenTogetherManager.state.value.enabled) 0.36f else 1f
@@ -1560,12 +1576,12 @@ class PlayerActivity : BaseDownloadActivity() {
 
         val title = findViewById<TextView>(R.id.playingQueueTitle)
         title?.apply {
-            text = "播放队列(${musicController.playList.value.size}首)"
+            text = getString(R.string.player_queue_title, musicController.playList.value.size)
         }
 
         binding.playlistBottomSheet.clearPlayList.setOnClickListener {
             if (listenTogetherManager.state.value.enabled) {
-                Toast.makeText(this, "一起听暂不支持清空队列", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.listen_together_clear_queue_unsupported, Toast.LENGTH_SHORT).show()
             } else {
                 musicController.clearPlayList()
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN

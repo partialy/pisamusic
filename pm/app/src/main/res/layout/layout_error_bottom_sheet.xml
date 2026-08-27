@@ -20,7 +20,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="初始化失败"
+            android:text="@string/startup_initialization_failed"
             android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
         <com.google.android.material.button.MaterialButton
@@ -28,7 +28,7 @@
             style="@style/Widget.Material3.Button.IconButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:contentDescription="复制错误信息"
+            android:contentDescription="@string/startup_copy_error_details"
             app:icon="@drawable/ic_copy_24" />
     </LinearLayout>
 
@@ -96,8 +96,8 @@
         android:id="@+id/permissionGuideButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="前往权限设置"
+        android:text="@string/startup_open_permission_settings"
         app:icon="@drawable/ic_permission_24"
         app:iconGravity="start"
         app:iconPadding="8dp"/>
-</LinearLayout> 
+</LinearLayout>

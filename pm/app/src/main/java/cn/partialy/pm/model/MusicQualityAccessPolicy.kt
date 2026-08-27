@@ -1,5 +1,7 @@
 package cn.partialy.pm.model
 
+import cn.partialy.pm.R
+
 /** PisaMusic 系统账号的音质访问状态，不包含任何第三方音乐账号信息。 */
 data class MusicQualityAccessState(
     val loggedIn: Boolean,
@@ -12,9 +14,6 @@ data class MusicQualityAccessState(
  * 该策略只依赖业务模型；调用方负责把当前系统账号 Session 转换为 [MusicQualityAccessState]。
  */
 object MusicQualityAccessPolicy {
-    private const val LOGIN_REQUIRED_BADGE = "需登录"
-    private const val UNLOCK_REQUIRED_BADGE = "联系作者解锁"
-
     private val guestEnabledKgChoices = setOf(
         DownloadQualityChoice.Kugou("128"),
     )
@@ -52,13 +51,16 @@ object MusicQualityAccessPolicy {
             SongType.KW, SongType.LOCAL -> emptySet()
         }
         val enabledChoices = if (access.loggedIn) regularChoices else guestEnabledChoices
-        val restrictedBadge =
-            if (access.loggedIn) UNLOCK_REQUIRED_BADGE else LOGIN_REQUIRED_BADGE
+        val restrictedBadgeRes = if (access.loggedIn) {
+            R.string.quality_badge_unlock_required
+        } else {
+            R.string.quality_badge_login_required
+        }
         val evaluated = original.map { option ->
             if (option.choice in enabledChoices) {
                 option
             } else {
-                option.copy(enabled = false, badge = restrictedBadge)
+                option.copy(enabled = false, badgeRes = restrictedBadgeRes)
             }
         }
         val (enabledOptions, disabledOptions) = evaluated.partition { it.enabled }

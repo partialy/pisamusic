@@ -63,7 +63,7 @@ object SongMoreMenu {
                 val liked = deps.loveManager.toggleLikeStatus(song)
                 Toast.makeText(
                     activity,
-                    if (liked) "已收藏" else "已取消收藏",
+                    activity.getString(if (liked) R.string.share_favorited else R.string.share_unfavorited),
                     Toast.LENGTH_SHORT,
                 ).show()
             })

@@ -125,62 +125,62 @@ class LyricColorPresetsBridge(
 
     @JavascriptInterface
     fun addNormal(hex: String): String {
-        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr("颜色格式无效")
+        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr(getString(R.string.lyric_color_invalid))
         val list = LyricDisplayPrefs.getNormalColorRgbPresets(appContext)
         if (list.size >= LyricDisplayPrefs.PRESET_MAX_COUNT) {
-            return jsonErr("已达上限（最多 ${LyricDisplayPrefs.PRESET_MAX_COUNT} 个）")
+            return jsonErr(getString(R.string.lyric_color_limit_reached, LyricDisplayPrefs.PRESET_MAX_COUNT))
         }
-        if (list.any { it == c }) return jsonErr("颜色已存在")
+        if (list.any { it == c }) return jsonErr(getString(R.string.lyric_color_exists))
         val ok = LyricDisplayPrefs.addNormalColorRgbPreset(appContext, c)
         if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr("无法添加")
+        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_add_failed))
     }
 
     @JavascriptInterface
     fun addCurrent(hex: String): String {
-        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr("颜色格式无效")
+        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr(getString(R.string.lyric_color_invalid))
         val list = LyricDisplayPrefs.getCurrentColorArgbPresets(appContext)
         if (list.size >= LyricDisplayPrefs.PRESET_MAX_COUNT) {
-            return jsonErr("已达上限（最多 ${LyricDisplayPrefs.PRESET_MAX_COUNT} 个）")
+            return jsonErr(getString(R.string.lyric_color_limit_reached, LyricDisplayPrefs.PRESET_MAX_COUNT))
         }
-        if (list.any { it == c }) return jsonErr("颜色已存在")
+        if (list.any { it == c }) return jsonErr(getString(R.string.lyric_color_exists))
         val ok = LyricDisplayPrefs.addCurrentColorArgbPreset(appContext, c)
         if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr("无法添加")
+        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_add_failed))
     }
 
     @JavascriptInterface
     fun removeNormal(hex: String): String {
-        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr("颜色格式无效")
+        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr(getString(R.string.lyric_color_invalid))
         val ok = LyricDisplayPrefs.removeNormalColorRgbPreset(appContext, c)
         if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr("至少保留一个颜色")
+        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_keep_one))
     }
 
     @JavascriptInterface
     fun removeCurrent(hex: String): String {
-        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr("颜色格式无效")
+        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr(getString(R.string.lyric_color_invalid))
         val ok = LyricDisplayPrefs.removeCurrentColorArgbPreset(appContext, c)
         if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr("至少保留一个颜色")
+        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_keep_one))
     }
 
     @JavascriptInterface
     fun updateNormal(indexStr: String, hex: String): String {
-        val idx = indexStr.toIntOrNull() ?: return jsonErr("索引无效")
-        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr("颜色格式无效")
+        val idx = indexStr.toIntOrNull() ?: return jsonErr(getString(R.string.lyric_color_index_invalid))
+        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr(getString(R.string.lyric_color_invalid))
         val ok = LyricDisplayPrefs.updateNormalColorRgbPreset(appContext, idx, c)
         if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr("更新失败")
+        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_update_failed))
     }
 
     @JavascriptInterface
     fun updateCurrent(indexStr: String, hex: String): String {
-        val idx = indexStr.toIntOrNull() ?: return jsonErr("索引无效")
-        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr("颜色格式无效")
+        val idx = indexStr.toIntOrNull() ?: return jsonErr(getString(R.string.lyric_color_index_invalid))
+        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr(getString(R.string.lyric_color_invalid))
         val ok = LyricDisplayPrefs.updateCurrentColorArgbPreset(appContext, idx, c)
         if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr("更新失败")
+        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_update_failed))
     }
 
     private fun jsonOk(): String = JSONObject().put("ok", true).put("message", "").toString()

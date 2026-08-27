@@ -129,7 +129,7 @@ class MusicService : MediaSessionService() {
     // 创建通知渠道的方法
     private fun createNotificationChannel() {
         val name = R.string.app_name.toString()
-        val descriptionText = "${name}播放通知"
+        val descriptionText = getString(R.string.notification_channel_named_description, name)
         val importance = NotificationManager.IMPORTANCE_LOW
         val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
             description = descriptionText

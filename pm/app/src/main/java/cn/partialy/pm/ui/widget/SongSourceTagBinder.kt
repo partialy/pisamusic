@@ -28,7 +28,7 @@ object SongSourceTagBinder {
         val ctx = tagView.context
         val (border, fill, text) = colors(ctx, type, surface)
         tagView.visibility = View.VISIBLE
-        tagView.text = label(type)
+        tagView.text = label(ctx, type)
         tagView.setTextColor(text)
         tagView.includeFontPadding = false
         val strokePx = dp(ctx, 0.5f).toInt().coerceAtLeast(1)
@@ -58,12 +58,14 @@ object SongSourceTagBinder {
         tagView.visibility = View.GONE
     }
 
-    private fun label(type: SongType): String = when (type) {
-        SongType.KG -> "K"
-        SongType.KW -> "W"
-        SongType.WY -> "Y"
-        SongType.LOCAL -> "LOCAL"
-    }
+    private fun label(context: android.content.Context, type: SongType): String = context.getString(
+        when (type) {
+            SongType.KG -> R.string.source_tag_kg
+            SongType.KW -> R.string.source_tag_kw
+            SongType.WY -> R.string.source_tag_wy
+            SongType.LOCAL -> R.string.source_tag_local
+        },
+    )
 
     private fun SongType.isSingleLetterTag(): Boolean =
         this == SongType.KG || this == SongType.KW || this == SongType.WY

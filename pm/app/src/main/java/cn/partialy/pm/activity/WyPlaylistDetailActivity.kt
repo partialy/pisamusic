@@ -163,10 +163,15 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         }
 
         headerAdapter.updateHeader(
-            title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "歌单" },
-            description = intent.getStringExtra(EXTRA_PLAY_COUNT_LABEL).orEmpty().ifBlank { "歌单描述" },
+            title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { getString(R.string.playlist_default_title) },
+            description = intent.getStringExtra(EXTRA_PLAY_COUNT_LABEL).orEmpty()
+                .ifBlank { getString(R.string.playlist_default_description) },
             artwork = PlaylistHeaderArtwork.Remote(intent.getStringExtra(EXTRA_COVER_URL).orEmpty()),
-            trackCountText = if (playlistTrackTotalHint > 0) "${playlistTrackTotalHint}首" else "",
+            trackCountText = if (playlistTrackTotalHint > 0) {
+                getString(R.string.playlist_track_count_compact, playlistTrackTotalHint)
+            } else {
+                ""
+            },
         )
         contentAdapter.showInitialLoading()
     }
@@ -328,8 +333,8 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
             val mapped = first.songs.orEmpty().mapNotNull { it.toSongInfoOrNull() }
             val apiTotal = playlistTrackTotalHint
             val label = when {
-                apiTotal > 0 -> "${apiTotal}首"
-                mapped.isNotEmpty() -> "${mapped.size}首"
+                apiTotal > 0 -> getString(R.string.playlist_track_count_compact, apiTotal)
+                mapped.isNotEmpty() -> getString(R.string.playlist_track_count_compact, mapped.size)
                 else -> ""
             }
             headerAdapter.updateHeader(trackCountText = label)

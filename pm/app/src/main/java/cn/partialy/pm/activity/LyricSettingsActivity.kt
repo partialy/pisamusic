@@ -10,7 +10,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class LyricSettingsActivity : SubSettingsActivity() {
-    override val settingsPageTitle: CharSequence = "歌词设置"
+    override val settingsPageTitle: CharSequence by lazy { getString(R.string.settings_lyrics_title) }
 
     override fun createSettingsSections(): List<SubSettingsSection> = listOf(
         SubSettingsSection(
@@ -25,7 +25,7 @@ class LyricSettingsActivity : SubSettingsActivity() {
                     id = ITEM_COLOR_PRESETS,
                     title = getString(R.string.settings_lyric_color_presets_title),
                     value = lyricColorPresetSummary(),
-                    summary = "设置常规歌词和当前歌词的颜色预设",
+                    summary = getString(R.string.settings_lyrics_color_summary),
                 ),
             ),
         ),

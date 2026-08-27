@@ -39,11 +39,11 @@ class SettingAnnouncementsActivity : BaseSettingWebActivity() {
         binding.webContentWebView.addJavascriptInterface(AnnouncementsBridge(), "AndroidAnnouncementHost")
         lifecycleScope.launch {
             val response = systemRepository.getAnnouncements().getOrElse {
-                showPageError("公告获取失败")
+                showPageError(getString(R.string.page_announcement_load_failed))
                 return@launch
             }
             if (!response.success || response.code != 0) {
-                showPageError(response.msg.ifBlank { "公告获取失败" })
+                showPageError(response.msg.ifBlank { getString(R.string.page_announcement_load_failed) })
                 return@launch
             }
             announcements = response.data
@@ -100,7 +100,7 @@ class SettingAnnouncementsActivity : BaseSettingWebActivity() {
                 runCatching {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
                 }.onFailure {
-                    Toast.makeText(this@SettingAnnouncementsActivity, "无法打开链接", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SettingAnnouncementsActivity, R.string.common_open_link_failed, Toast.LENGTH_SHORT).show()
                 }
             }
         }

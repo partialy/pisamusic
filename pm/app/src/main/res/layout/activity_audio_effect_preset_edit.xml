@@ -103,7 +103,7 @@
                         android:id="@+id/bassValueText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0%"
+                        android:text="@string/placeholder_percent_zero"
                         android:textColor="@color/blue_selected"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -139,7 +139,7 @@
                         android:id="@+id/vocalValueText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0%"
+                        android:text="@string/placeholder_percent_zero"
                         android:textColor="@color/blue_selected"
                         android:textStyle="bold" />
                 </LinearLayout>

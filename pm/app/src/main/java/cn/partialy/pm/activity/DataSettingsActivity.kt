@@ -2,6 +2,7 @@ package cn.partialy.pm.activity
 
 import android.content.Context
 import android.content.Intent
+import cn.partialy.pm.R
 import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.ui.settings.SubSettingsItem
@@ -14,7 +15,7 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class DataSettingsActivity : SubSettingsActivity() {
-    override val settingsPageTitle: CharSequence = "数据管理"
+    override val settingsPageTitle: CharSequence by lazy { getString(R.string.settings_data_title) }
 
     @Inject
     lateinit var syncManager: SyncManager
@@ -25,19 +26,19 @@ class DataSettingsActivity : SubSettingsActivity() {
             items = listOf(
                 SubSettingsItem.Navigation(
                     id = ITEM_IMPORT_EXPORT,
-                    title = "导入与导出",
-                    summary = "备份、恢复或清除本地收藏与歌单数据",
+                    title = getString(R.string.settings_import_export_title),
+                    summary = getString(R.string.settings_import_export_summary),
                 ),
                 SubSettingsItem.Navigation(
                     id = ITEM_SYNC,
-                    title = "收藏与同步",
+                    title = getString(R.string.settings_sync_title),
                     value = syncSummary(syncManager.state()),
-                    summary = "同步账号中的收藏歌曲与歌单",
+                    summary = getString(R.string.settings_sync_summary),
                 ),
                 SubSettingsItem.Navigation(
                     id = ITEM_CACHE,
-                    title = "缓存管理",
-                    summary = "查看并清理歌曲、歌词及下载文件",
+                    title = getString(R.string.settings_cache_title),
+                    summary = getString(R.string.settings_cache_summary),
                 ),
             ),
         ),
@@ -52,16 +53,20 @@ class DataSettingsActivity : SubSettingsActivity() {
     }
 
     private fun syncSummary(state: SyncPrefs.State): String {
-        if (!state.loggedIn) return "未登录"
+        if (!state.loggedIn) return getString(R.string.settings_not_logged_in)
         val time = if (state.lastSyncAt > 0L) {
             SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(state.lastSyncAt))
         } else {
-            "未同步"
+            getString(R.string.settings_not_synced)
         }
         return if (state.lastError.isBlank()) {
-            if (state.lastSyncAt > 0L) "已同步 · $time" else "已登录 · $time"
+            if (state.lastSyncAt > 0L) {
+                getString(R.string.settings_synced_at, time)
+            } else {
+                getString(R.string.settings_logged_in_at, time)
+            }
         } else {
-            "同步异常 · ${state.lastError}"
+            getString(R.string.settings_sync_error_detail, state.lastError)
         }
     }
 

@@ -107,7 +107,7 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
             title = getString(R.string.my_favorites),
             description = getString(R.string.my_favorites_playlist_intro),
             artwork = PlaylistHeaderArtwork.DrawableRes(R.drawable.my_favorites_cover_peach),
-            trackCountText = "0首",
+            trackCountText = getString(R.string.playlist_zero_tracks),
         )
         headerAdapter.setSearchEnabled(false)
         headerAdapter.updateCollectionState(
@@ -138,7 +138,9 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 loveManager.loveListFlow.collect { songs ->
-                    headerAdapter.updateHeader(trackCountText = "${songs.size}首")
+                    headerAdapter.updateHeader(
+                        trackCountText = getString(R.string.playlist_track_count_compact, songs.size),
+                    )
                     contentAdapter.setStaticSongs(songs, R.string.loved_songs_empty_hint)
                 }
             }

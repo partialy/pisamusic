@@ -57,23 +57,23 @@ open class BaseActivity : AppCompatActivity() {
     private fun showNetworkPoorPausedDialog() {
         PmMinimalDialog.show(
             context = this,
-            message = "网络不佳，先听听本地音乐吧。",
-            confirmText = "我知道了",
+            message = getString(R.string.network_local_mode_message),
+            confirmText = getString(R.string.dialog_i_know),
             singleButton = true,
         )
     }
 
     private fun showAutoSwitchedDialog(event: PlaybackUiEvent.AutoSwitched) {
         val label = when (event.mode) {
-            SettingsPrefs.AutoSwitchListMode.Local -> "本地"
-            SettingsPrefs.AutoSwitchListMode.Cached -> "已缓存"
-            SettingsPrefs.AutoSwitchListMode.Downloaded -> "已下载"
-            SettingsPrefs.AutoSwitchListMode.Off -> "本地"
+            SettingsPrefs.AutoSwitchListMode.Local -> getString(R.string.network_list_local)
+            SettingsPrefs.AutoSwitchListMode.Cached -> getString(R.string.network_list_cached)
+            SettingsPrefs.AutoSwitchListMode.Downloaded -> getString(R.string.network_list_downloaded)
+            SettingsPrefs.AutoSwitchListMode.Off -> getString(R.string.network_list_local)
         }
         PmMinimalDialog.show(
             context = this,
-            message = "网络不佳，已自动切换到${label}歌曲。",
-            confirmText = "我知道了",
+            message = getString(R.string.network_switched_list, label),
+            confirmText = getString(R.string.dialog_i_know),
             singleButton = true,
         )
     }

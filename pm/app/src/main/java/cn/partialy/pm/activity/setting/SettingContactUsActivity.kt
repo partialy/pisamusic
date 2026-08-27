@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import cn.partialy.pm.network.config.ConfigManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -19,7 +20,7 @@ class SettingContactUsActivity : BaseSettingWebActivity() {
     private var pageReady = false
     private var htmlContent: String? = null
 
-    override fun headerTitle(): String = "联系我们"
+    override fun headerTitle(): String = getString(R.string.page_contact_title)
 
     override fun initialUrl(): String {
         val isDark =
@@ -34,7 +35,7 @@ class SettingContactUsActivity : BaseSettingWebActivity() {
             htmlContent = runCatching {
                 configManager.getDynamicConfigInfo(CONTACT_CONFIG_ID).content
             }.getOrElse {
-                showPageError("联系我们信息获取失败")
+                showPageError(getString(R.string.page_contact_load_failed))
                 return@launch
             }
             render()

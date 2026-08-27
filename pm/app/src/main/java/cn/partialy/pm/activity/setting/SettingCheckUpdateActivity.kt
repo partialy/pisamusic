@@ -116,7 +116,7 @@ class SettingCheckUpdateActivity : BaseSettingWebActivity() {
                     notifyCheckResult(
                         fromAuto = false,
                         checked = false,
-                        message = "请稍后再试",
+                        message = getString(R.string.page_update_retry_later),
                         cooldownMs = (COOLDOWN_MS - diff).coerceAtLeast(0),
                     )
                     return@launch
@@ -125,8 +125,9 @@ class SettingCheckUpdateActivity : BaseSettingWebActivity() {
             }
 
             val info = runCatching { configManager.getUpdateInfo() }.getOrElse {
-                showPageError("更新信息获取失败")
-                notifyCheckResult(fromAuto = fromAuto, checked = false, message = "更新信息获取失败", cooldownMs = 0)
+                val message = getString(R.string.page_update_load_failed)
+                showPageError(message)
+                notifyCheckResult(fromAuto = fromAuto, checked = false, message = message, cooldownMs = 0)
                 return@launch
             }
 
@@ -136,7 +137,7 @@ class SettingCheckUpdateActivity : BaseSettingWebActivity() {
             notifyCheckResult(
                 fromAuto = fromAuto,
                 checked = true,
-                message = if (hasNewVersion) "发现新版本" else "已经是最新版本",
+                message = getString(if (hasNewVersion) R.string.page_update_found else R.string.page_update_latest),
                 cooldownMs = 0,
             )
         }
@@ -189,7 +190,7 @@ class SettingCheckUpdateActivity : BaseSettingWebActivity() {
                 runCatching {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
                 }.onFailure {
-                    Toast.makeText(this@SettingCheckUpdateActivity, "无法打开链接", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SettingCheckUpdateActivity, R.string.common_open_link_failed, Toast.LENGTH_SHORT).show()
                 }
             }
         }

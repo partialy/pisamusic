@@ -74,8 +74,8 @@ class PmSlotDialog private constructor(
             config.onBind?.invoke(view, dialog)
         }
 
-        binding.cancelButton.text = config.cancelText
-        binding.confirmButton.text = config.confirmText
+        binding.cancelButton.text = config.cancelText ?: context.getString(R.string.cancel)
+        binding.confirmButton.text = config.confirmText ?: context.getString(R.string.dialog_ok)
         binding.cancelButton.setTextColor(
             config.cancelColor ?: ContextCompat.getColor(context, R.color.pm_dialog_cancel),
         )
@@ -173,8 +173,8 @@ class PmSlotDialog private constructor(
         @LayoutRes val contentLayoutRes: Int? = null,
         val contentView: View? = null,
         val onBind: ((View, Dialog) -> Unit)? = null,
-        val cancelText: String = "取消",
-        val confirmText: String = "确认",
+        val cancelText: String? = null,
+        val confirmText: String? = null,
         @ColorInt val cancelColor: Int? = null,
         @ColorInt val confirmColor: Int? = null,
         val singleButton: Boolean = false,
@@ -191,8 +191,8 @@ class PmSlotDialog private constructor(
         @LayoutRes private var contentLayoutRes: Int? = null
         private var contentView: View? = null
         private var onBind: ((View, Dialog) -> Unit)? = null
-        private var cancelText: String = "取消"
-        private var confirmText: String = "确认"
+        private var cancelText: String? = null
+        private var confirmText: String? = null
         @ColorInt private var cancelColor: Int? = null
         @ColorInt private var confirmColor: Int? = null
         private var singleButton: Boolean = false
@@ -238,7 +238,7 @@ class PmSlotDialog private constructor(
         }
 
         fun setCancelButton(
-            text: String = "取消",
+            text: String? = null,
             @ColorInt textColor: Int? = null,
             action: ((Dialog) -> Unit)? = null,
         ) = apply {
@@ -249,7 +249,7 @@ class PmSlotDialog private constructor(
         }
 
         fun setConfirmButton(
-            text: String = "确认",
+            text: String? = null,
             @ColorInt textColor: Int? = null,
             dismissOnConfirm: Boolean = true,
             action: ((Dialog) -> Unit)? = null,
@@ -261,7 +261,7 @@ class PmSlotDialog private constructor(
         }
 
         fun setSingleButton(
-            text: String = "确认",
+            text: String? = null,
             @ColorInt textColor: Int? = null,
             dismissOnConfirm: Boolean = true,
             action: ((Dialog) -> Unit)? = null,
@@ -300,8 +300,8 @@ class PmSlotDialog private constructor(
         fun show(
             context: Context,
             @LayoutRes contentLayoutRes: Int,
-            cancelText: String = "取消",
-            confirmText: String = "确认",
+            cancelText: String? = null,
+            confirmText: String? = null,
             @ColorInt cancelColor: Int? = null,
             @ColorInt confirmColor: Int? = null,
             singleButton: Boolean = false,

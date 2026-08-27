@@ -24,7 +24,7 @@ class DownloadedMusicViewModel: ViewModel() {
             _state.value = DownloadedMusicState.Success(songInfos)
         }catch (e:Exception){
             println(e)
-            _state.value = DownloadedMusicState.Error(e.message ?:"未知错误")
+            _state.value = DownloadedMusicState.Error(e.message.orEmpty())
         }
     }
 

@@ -43,7 +43,9 @@ class LocalMusicEditAdapter(
             binding.titleTextView.text = row.title.ifBlank {
                 binding.root.context.getString(R.string.unknown_media_title)
             }
-            binding.artistTextView.text = row.artist.ifBlank { "—" }
+            binding.artistTextView.text = row.artist.ifBlank {
+                binding.root.context.getString(R.string.common_placeholder_dash)
+            }
             val checked = selectedIds.contains(row.recordId)
             binding.checkBox.isChecked = checked
             val toggle = {

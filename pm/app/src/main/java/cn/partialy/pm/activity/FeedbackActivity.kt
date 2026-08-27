@@ -224,7 +224,7 @@ class FeedbackActivity : BaseActivity() {
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 ).apply { topMargin = (4 * density + 0.5f).toInt() }
-                text = "上传"
+                text = getString(R.string.feedback_image_upload)
                 textSize = 10f
                 setTextColor(
                     ContextCompat.getColor(this@FeedbackActivity, R.color.feedback_pick_button_icon),

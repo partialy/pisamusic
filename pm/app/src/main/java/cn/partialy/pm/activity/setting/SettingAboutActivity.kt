@@ -43,7 +43,7 @@ class SettingAboutActivity : BaseSettingWebActivity() {
 
         lifecycleScope.launch {
             val about = runCatching { configManager.getAboutInfo() }.getOrElse {
-                showPageError("关于信息获取失败")
+                showPageError(getString(R.string.page_about_load_failed))
                 return@launch
             }
             aboutInfo = about
@@ -127,7 +127,7 @@ class SettingAboutActivity : BaseSettingWebActivity() {
                 runCatching {
                     startActivity(Intent(Intent.ACTION_VIEW, target.toUri()))
                 }.onFailure {
-                    Toast.makeText(this@SettingAboutActivity, "无法打开链接", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SettingAboutActivity, R.string.common_open_link_failed, Toast.LENGTH_SHORT).show()
                 }
             }
         }

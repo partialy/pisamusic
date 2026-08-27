@@ -3,6 +3,7 @@ package cn.partialy.pm.activity
 import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
@@ -14,7 +15,7 @@ import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class PlaybackSettingsActivity : SubSettingsActivity() {
-    override val settingsPageTitle: CharSequence = "播放设置"
+    override val settingsPageTitle: CharSequence by lazy { getString(R.string.settings_playback_title) }
 
     override fun createSettingsSections(): List<SubSettingsSection> = listOf(
         SubSettingsSection(
@@ -22,12 +23,12 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
             items = listOf(
                 SubSettingsItem.Option(
                     id = ITEM_AUTO_SWITCH_LIST,
-                    title = "播放切换",
+                    title = getString(R.string.settings_playback_switch),
                     value = autoSwitchListModeSummary(SettingsPrefs.getAutoSwitchListMode(this)),
                 ),
                 SubSettingsItem.Option(
                     id = ITEM_AUDIO_COEXISTENCE,
-                    title = "与其他应用同时播放",
+                    title = getString(R.string.settings_audio_coexistence),
                     value = audioCoexistenceModeSummary(SettingsPrefs.getAudioCoexistenceMode(this)),
                 ),
             ),
@@ -46,12 +47,12 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
             val current = SettingsPrefs.getAutoSwitchListMode(this@PlaybackSettingsActivity)
             val picked = showSettingsOptionPicker(
                 context = this@PlaybackSettingsActivity,
-                title = "播放切换",
+                title = getString(R.string.settings_playback_switch),
                 options = listOf(
-                    SettingsOption("off", "关闭（默认）"),
-                    SettingsOption("local", "本地歌曲"),
-                    SettingsOption("cached", "已缓存歌曲"),
-                    SettingsOption("downloaded", "已下载歌曲"),
+                    SettingsOption("off", getString(R.string.settings_auto_switch_off)),
+                    SettingsOption("local", getString(R.string.settings_auto_switch_local)),
+                    SettingsOption("cached", getString(R.string.settings_auto_switch_cached)),
+                    SettingsOption("downloaded", getString(R.string.settings_auto_switch_downloaded)),
                 ),
                 selectedIndex = when (current) {
                     SettingsPrefs.AutoSwitchListMode.Off -> 0
@@ -78,19 +79,19 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
             val current = SettingsPrefs.getAudioCoexistenceMode(this@PlaybackSettingsActivity)
             val picked = showSettingsOptionPicker(
                 context = this@PlaybackSettingsActivity,
-                title = "选择允许同时播放音乐的场景",
+                title = getString(R.string.settings_coexistence_picker_title),
                 options = listOf(
                     SettingsOption(
                         id = "all",
-                        label = "所有场景",
-                        summary = "游戏、影音、直播、短视频、录制、音视频通话等",
+                        label = getString(R.string.settings_coexistence_all),
+                        summary = getString(R.string.settings_coexistence_all_summary),
                     ),
                     SettingsOption(
                         id = "partial",
-                        label = "部分场景",
-                        summary = "游戏、影音、直播、短视频等（录制、音视频通话除外）",
+                        label = getString(R.string.settings_coexistence_partial),
+                        summary = getString(R.string.settings_coexistence_partial_summary),
                     ),
-                    SettingsOption(id = "off", label = "关闭"),
+                    SettingsOption(id = "off", label = getString(R.string.settings_coexistence_off)),
                 ),
                 selectedIndex = when (current) {
                     SettingsPrefs.AudioCoexistenceMode.All -> 0
@@ -110,27 +111,27 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
     }
 
     private fun autoSwitchListModeSummary(mode: SettingsPrefs.AutoSwitchListMode): String = when (mode) {
-        SettingsPrefs.AutoSwitchListMode.Off -> "关闭（默认）"
-        SettingsPrefs.AutoSwitchListMode.Local -> "本地歌曲"
-        SettingsPrefs.AutoSwitchListMode.Cached -> "已缓存歌曲"
-        SettingsPrefs.AutoSwitchListMode.Downloaded -> "已下载歌曲"
+        SettingsPrefs.AutoSwitchListMode.Off -> getString(R.string.settings_auto_switch_off)
+        SettingsPrefs.AutoSwitchListMode.Local -> getString(R.string.settings_auto_switch_local)
+        SettingsPrefs.AutoSwitchListMode.Cached -> getString(R.string.settings_auto_switch_cached)
+        SettingsPrefs.AutoSwitchListMode.Downloaded -> getString(R.string.settings_auto_switch_downloaded)
     }
 
     private fun audioCoexistenceModeSummary(mode: SettingsPrefs.AudioCoexistenceMode): String = when (mode) {
-        SettingsPrefs.AudioCoexistenceMode.All -> "所有场景"
-        SettingsPrefs.AudioCoexistenceMode.Partial -> "部分场景"
-        SettingsPrefs.AudioCoexistenceMode.Off -> "关闭"
+        SettingsPrefs.AudioCoexistenceMode.All -> getString(R.string.settings_coexistence_all)
+        SettingsPrefs.AudioCoexistenceMode.Partial -> getString(R.string.settings_coexistence_partial)
+        SettingsPrefs.AudioCoexistenceMode.Off -> getString(R.string.settings_coexistence_off)
     }
 
     private fun showAutoSwitchModeSavedDialog(mode: SettingsPrefs.AutoSwitchListMode) {
         PmMinimalDialog.show(
             context = this,
             message = if (mode == SettingsPrefs.AutoSwitchListMode.Off) {
-                "在线歌曲播放失败时将自动暂停。"
+                getString(R.string.settings_switch_failure_pause)
             } else {
-                "在线歌曲播放失败时将自动播放对应歌曲列表。"
+                getString(R.string.settings_switch_failure_list)
             },
-            confirmText = "我知道了",
+            confirmText = getString(R.string.dialog_i_know),
             singleButton = true,
         )
     }

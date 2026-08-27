@@ -73,7 +73,7 @@ class SettingsActivity : BaseActivity() {
             bindNavRow(
                 root,
                 R.drawable.settings_ic_download_settings,
-                "下载设置",
+                getString(R.string.settings_download_title),
                 null,
             )
             root.setOnClickListener {
@@ -85,7 +85,7 @@ class SettingsActivity : BaseActivity() {
             bindNavRow(
                 root,
                 R.drawable.settings_ic_lyric_settings,
-                "歌词设置",
+                getString(R.string.settings_lyrics_title),
                 null,
             )
             root.setOnClickListener {
@@ -97,7 +97,7 @@ class SettingsActivity : BaseActivity() {
             bindNavRow(
                 root,
                 R.drawable.settings_ic_playback,
-                "播放设置",
+                getString(R.string.settings_playback_title),
                 null,
             )
             root.setOnClickListener {
@@ -106,15 +106,15 @@ class SettingsActivity : BaseActivity() {
         }
 
         binding.moreSettings.apply {
-            bindNavRow(root, R.drawable.settings_ic_more_settings, "更多设置", null)
-            root.setOnClickListener { showMessage("暂未开放") }
+            bindNavRow(root, R.drawable.settings_ic_more_settings, getString(R.string.settings_more), null)
+            root.setOnClickListener { showMessage(getString(R.string.common_not_available_yet)) }
         }
 
         binding.themeMode.apply {
             bindNavRow(
                 root,
                 R.drawable.settings_ic_theme,
-                "外观主题",
+                getString(R.string.settings_appearance_theme),
                 themeModeSummary(SettingsPrefs.getThemeMode(this@SettingsActivity)),
             )
             root.setOnClickListener {
@@ -122,11 +122,11 @@ class SettingsActivity : BaseActivity() {
                     val current = SettingsPrefs.getThemeMode(this@SettingsActivity)
                     val picked = showSettingsOptionPicker(
                         context = this@SettingsActivity,
-                        title = "外观主题",
+                        title = getString(R.string.settings_appearance_theme),
                         options = listOf(
-                            SettingsOption("dark", "深色"),
-                            SettingsOption("light", "浅色"),
-                            SettingsOption("system", "跟随系统"),
+                            SettingsOption("dark", getString(R.string.settings_theme_dark)),
+                            SettingsOption("light", getString(R.string.settings_theme_light)),
+                            SettingsOption("system", getString(R.string.settings_theme_system)),
                         ),
                         selectedIndex = when (current) {
                             SettingsPrefs.ThemeMode.Dark -> 0
@@ -244,25 +244,25 @@ class SettingsActivity : BaseActivity() {
 
     private fun bindDeviceIdLabel() {
         val deviceId = ServerDevicePrefs.getDeviceId(this).trim()
-        val display = deviceId.ifEmpty { "未获取" }
+        val display = deviceId.ifEmpty { getString(R.string.settings_device_id_missing) }
         binding.deviceIdLabelTextView.apply {
-            text = "设备ID：$display"
+            text = getString(R.string.settings_device_id_value, display)
             setOnClickListener {
                 if (deviceId.isEmpty()) {
-                    Toast.makeText(this@SettingsActivity, "设备ID暂未生成，请稍后重试", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@SettingsActivity, R.string.settings_device_id_pending, Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("设备ID", deviceId))
-                Toast.makeText(this@SettingsActivity, "设备ID已复制", Toast.LENGTH_SHORT).show()
+                clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.settings_device_id_clip_label), deviceId))
+                Toast.makeText(this@SettingsActivity, R.string.settings_device_id_copied, Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun themeModeSummary(mode: SettingsPrefs.ThemeMode): String = when (mode) {
-        SettingsPrefs.ThemeMode.Dark -> "深色"
-        SettingsPrefs.ThemeMode.Light -> "浅色"
-        SettingsPrefs.ThemeMode.System -> "跟随系统（默认）"
+        SettingsPrefs.ThemeMode.Dark -> getString(R.string.settings_theme_dark)
+        SettingsPrefs.ThemeMode.Light -> getString(R.string.settings_theme_light)
+        SettingsPrefs.ThemeMode.System -> getString(R.string.settings_theme_system_default)
     }
 
     companion object {

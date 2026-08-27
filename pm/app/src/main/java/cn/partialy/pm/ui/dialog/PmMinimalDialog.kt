@@ -63,8 +63,8 @@ class PmMinimalDialog private constructor(
             binding.dialogMessage.movementMethod = ScrollingMovementMethod.getInstance()
         }
 
-        binding.cancelButton.text = config.cancelText
-        binding.confirmButton.text = config.confirmText
+        binding.cancelButton.text = config.cancelText ?: context.getString(R.string.cancel)
+        binding.confirmButton.text = config.confirmText ?: context.getString(R.string.dialog_ok)
         binding.confirmButton.setTextColor(
             config.confirmColor ?: ContextCompat.getColor(context, R.color.pm_dialog_confirm),
         )
@@ -94,8 +94,8 @@ class PmMinimalDialog private constructor(
     data class Config(
         val title: String? = null,
         val message: String,
-        val cancelText: String = "取消",
-        val confirmText: String = "确认",
+        val cancelText: String? = null,
+        val confirmText: String? = null,
         @ColorInt val confirmColor: Int? = null,
         val messageGravity: Int = Gravity.CENTER,
         val messageSelectable: Boolean = false,
@@ -111,8 +111,8 @@ class PmMinimalDialog private constructor(
     class Builder(private val context: Context) {
         private var title: String? = null
         private var message: String = ""
-        private var cancelText: String = "取消"
-        private var confirmText: String = "确认"
+        private var cancelText: String? = null
+        private var confirmText: String? = null
         @ColorInt private var confirmColor: Int? = null
         private var messageGravity: Int = Gravity.CENTER
         private var messageSelectable: Boolean = false
@@ -126,13 +126,13 @@ class PmMinimalDialog private constructor(
 
         fun setTitle(value: String?) = apply { title = value }
         fun setMessage(value: String) = apply { message = value }
-        fun setCancelButton(text: String = "取消", action: (() -> Unit)? = null) = apply {
+        fun setCancelButton(text: String? = null, action: (() -> Unit)? = null) = apply {
             cancelText = text
             onCancel = action
             singleButton = false
         }
         fun setConfirmButton(
-            text: String = "确认",
+            text: String? = null,
             @ColorInt textColor: Int? = null,
             action: (() -> Unit)? = null,
         ) = apply {
@@ -147,7 +147,7 @@ class PmMinimalDialog private constructor(
         fun setDismissOnConfirm(value: Boolean) = apply { dismissOnConfirm = value }
 
         fun setSingleButton(
-            text: String = "确认",
+            text: String? = null,
             @ColorInt textColor: Int? = null,
             action: (() -> Unit)? = null,
         ) = apply {
@@ -183,8 +183,8 @@ class PmMinimalDialog private constructor(
             context: Context,
             title: String? = null,
             message: String,
-            cancelText: String = "取消",
-            confirmText: String = "确认",
+            cancelText: String? = null,
+            confirmText: String? = null,
             @ColorInt confirmColor: Int? = null,
             messageGravity: Int = Gravity.CENTER,
             messageSelectable: Boolean = false,

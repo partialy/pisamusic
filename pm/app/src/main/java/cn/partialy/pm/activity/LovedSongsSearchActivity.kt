@@ -137,7 +137,10 @@ class LovedSongsSearchActivity : BaseDownloadActivity() {
         val hasQuery = query.isNotEmpty()
         binding.playAllBar.root.isVisible = hasQuery
         binding.searchResultsRecyclerView.isVisible = hasQuery
-        binding.playAllBar.trackCountTextViewSticky.text = "${contentAdapter.visibleSongCount}首"
+        binding.playAllBar.trackCountTextViewSticky.text = getString(
+            R.string.playlist_track_count_compact,
+            contentAdapter.visibleSongCount,
+        )
     }
 
     private fun playFromSong(song: SongInfo) {

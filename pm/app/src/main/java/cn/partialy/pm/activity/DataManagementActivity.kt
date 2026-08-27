@@ -135,9 +135,11 @@ class DataManagementActivity : BaseActivity() {
         lifecycleScope.launch {
             val stats = withContext(Dispatchers.IO) { calculateDataStats() }
             overviewCard.dataCardBody.text = buildString {
-                append("收藏歌曲：${stats.lovedCount} 首（${formatSize(stats.lovedSize)}）")
-                append("\n歌单：${stats.playlistCount} 个（${formatSize(stats.playlistSize)}）")
-                append("\n总占用：${formatSize(stats.totalSize)}")
+                append(getString(R.string.data_stats_loved, stats.lovedCount, formatSize(stats.lovedSize)))
+                append('\n')
+                append(getString(R.string.data_stats_playlist, stats.playlistCount, formatSize(stats.playlistSize)))
+                append('\n')
+                append(getString(R.string.data_stats_total, formatSize(stats.totalSize)))
             }
         }
     }
@@ -223,7 +225,7 @@ class DataManagementActivity : BaseActivity() {
     private fun performExport(uri: Uri) {
         exportCard.dataCardActionButton.isEnabled = false
         exportCard.dataCardStatusText.visibility = View.VISIBLE
-        exportCard.dataCardStatusText.text = "正在导出…"
+        exportCard.dataCardStatusText.setText(R.string.data_exporting)
 
         lifecycleScope.launch {
             try {
@@ -245,7 +247,10 @@ class DataManagementActivity : BaseActivity() {
                         }
                     }
                 }
-                exportCard.dataCardStatusText.text = getString(R.string.data_export_success, uri.lastPathSegment ?: "backup.zip")
+                exportCard.dataCardStatusText.text = getString(
+                    R.string.data_export_success,
+                    uri.lastPathSegment ?: getString(R.string.common_default_backup_filename),
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
                 exportCard.dataCardStatusText.text = getString(R.string.data_export_fail)
@@ -292,7 +297,7 @@ class DataManagementActivity : BaseActivity() {
     private fun performImport(uri: Uri) {
         importCard.dataCardActionButton.isEnabled = false
         importCard.dataCardStatusText.visibility = View.VISIBLE
-        importCard.dataCardStatusText.text = "正在导入…"
+        importCard.dataCardStatusText.setText(R.string.data_importing)
 
         lifecycleScope.launch {
             try {

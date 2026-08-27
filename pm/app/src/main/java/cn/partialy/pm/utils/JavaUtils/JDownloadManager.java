@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import cn.partialy.pm.R;
 import cn.partialy.pm.utils.AudioMetadataEmbedder;
 import cn.partialy.pm.utils.DownloadPathManager;
 import okhttp3.OkHttpClient;
@@ -58,7 +59,11 @@ public class JDownloadManager {
                 File file = new File(downloadDir, fileName);
                 if (file.exists()) {
                     new Handler(Looper.getMainLooper()).post(() -> {
-                        Toast.makeText(context, "文件已存在: " + file.getPath(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(
+                                context,
+                                context.getString(R.string.download_file_exists, file.getPath()),
+                                Toast.LENGTH_SHORT
+                        ).show();
                         callback.onSuccess(file.getPath());
                     });
                     return;
@@ -70,7 +75,7 @@ public class JDownloadManager {
 
                 if (body == null) {
                     new Handler(Looper.getMainLooper()).post(() ->
-                            callback.onError("下载失败：响应为空"));
+                            callback.onError(context.getString(R.string.download_empty_response)));
                     return;
                 }
 
@@ -133,13 +138,16 @@ public class JDownloadManager {
                 } catch (Exception e) {
                     e.printStackTrace();
                     new Handler(Looper.getMainLooper()).post(() ->
-                            callback.onError("下载完成，但写入元数据失败: " + e.getMessage()));
+                            callback.onError(context.getString(
+                                    R.string.download_metadata_write_failed,
+                                    e.getMessage()
+                            )));
                 }
 
             } catch (Exception e) {
                 e.printStackTrace();
                 new Handler(Looper.getMainLooper()).post(() ->
-                        callback.onError("下载失败：" + e.getMessage()));
+                        callback.onError(context.getString(R.string.download_error_detail, e.getMessage())));
             }
         });
     }

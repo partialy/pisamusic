@@ -26,7 +26,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:text="0首"
+        android:text="@string/playlist_zero_tracks"
         android:textColor="@color/home_tab_unselected"
         android:textSize="13sp" />
 

@@ -90,7 +90,13 @@ class DevDebugActivity : BaseActivity() {
                 runCatching { block() }
                     .fold(
                         onSuccess = { formatHttpResult(it) },
-                        onFailure = { e -> "错误: ${e.message}\n${e.stackTraceToString()}" },
+                        onFailure = { e ->
+                            getString(
+                                R.string.dev_debug_error_detail,
+                                e.message.orEmpty(),
+                                e.stackTraceToString(),
+                            )
+                        },
                     )
             }
             binding.apiResultOutput.setText(text)

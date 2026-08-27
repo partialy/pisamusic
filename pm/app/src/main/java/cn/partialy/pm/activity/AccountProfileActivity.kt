@@ -162,21 +162,23 @@ class AccountProfileActivity : BaseActivity() {
 
     private fun formatDate(timestamp: Long): String {
         if (timestamp <= 0L) return getString(R.string.account_profile_value_placeholder)
-        return SimpleDateFormat("yyyy年MM月dd日", Locale.CHINA).format(Date(timestamp))
+        return SimpleDateFormat(getString(R.string.account_profile_date_pattern), Locale.CHINA)
+            .format(Date(timestamp))
     }
 
     private fun formatDateTime(timestamp: Long?): String {
         if (timestamp == null || timestamp <= 0L) {
             return getString(R.string.account_profile_value_placeholder)
         }
-        return SimpleDateFormat("yyyy年MM月dd日 HH:mm", Locale.CHINA).format(Date(timestamp))
+        return SimpleDateFormat(getString(R.string.account_profile_datetime_pattern), Locale.CHINA)
+            .format(Date(timestamp))
     }
 
     private fun copyUserIdToClipboard() {
         val userId = binding.accountProfileIdValue.text?.toString()?.trim().orEmpty()
         if (userId.isBlank()) return
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-        clipboard.setPrimaryClip(ClipData.newPlainText("Pisa Music 用户 ID", userId))
+        clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.clipboard_user_id_label), userId))
         showMessage(getString(R.string.account_profile_id_copied))
     }
 

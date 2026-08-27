@@ -51,7 +51,6 @@ import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import java.util.Locale
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -238,7 +237,7 @@ class SearchActivity : BaseDownloadActivity() {
         searchResultsAdapter = SearchResultsAdapter(
             onItemClick = { row ->
                 addToListAndPlay(row)
-                Toast.makeText(this, "开始播放：${row.title}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.search_start_playing, row.title), Toast.LENGTH_SHORT).show()
             },
             onDownloadClick = { row ->
                 onDownloadClick(row.toSongInfo())
@@ -619,11 +618,17 @@ class SearchActivity : BaseDownloadActivity() {
     private fun buildPlaylistPlayCountLabel(playCount: Long): String {
         if (playCount <= 0L) return "—"
         val num = when {
-            playCount >= 100_000_000L -> String.format(Locale.CHINA, "%.1f亿", playCount / 100_000_000.0)
-            playCount >= 10_000L -> String.format(Locale.CHINA, "%.1f万", playCount / 10_000.0)
+            playCount >= 100_000_000L -> getString(
+                R.string.search_play_count_hundred_million,
+                playCount / 100_000_000.0,
+            )
+            playCount >= 10_000L -> getString(
+                R.string.search_play_count_ten_thousand,
+                playCount / 10_000.0,
+            )
             else -> playCount.toString()
         }
-        return "${num}次播放"
+        return getString(R.string.search_play_count, num)
     }
 
     override fun onDestroy() {

@@ -96,7 +96,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:gravity="center"
-                        android:text="♪"
+                        android:text="@string/placeholder_music_note"
                         android:textColor="@color/primary"
                         android:textSize="48sp"
                         android:textStyle="bold" />

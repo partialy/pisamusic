@@ -80,29 +80,32 @@ class ListenTogetherManager @Inject constructor(
     ) {
         val session = requireSession() ?: return
         val song = currentSong ?: run {
-            emitToast("先播放一首在线歌曲，再创建一起听房间")
+            emitToast(text(R.string.listen_together_create_need_song))
             return
         }
         if (song.type == SongType.LOCAL) {
-            emitToast("本地歌曲暂不支持一起听")
+            emitToast(text(R.string.listen_together_local_unsupported))
             return
         }
 
         val trimmedName = roomName?.trim()
         if (trimmedName != null && (trimmedName.length < 2 || trimmedName.length > 16)) {
-            emitToast("房间名 2-16 个字")
+            emitToast(text(R.string.listen_together_room_name_invalid))
             return
         }
         val trimmedRoomId = roomId?.trim()?.takeIf { it.isNotBlank() }
         if (trimmedRoomId != null && !trimmedRoomId.matches(Regex("\\d{4,8}"))) {
-            emitToast("房间号需为 4-8 位数字")
+            emitToast(text(R.string.listen_together_room_id_invalid))
             return
         }
 
         runCatching {
             _state.value = _state.value.copy(joining = true, currentUserId = session.user.id)
             val config = repository.getConfig()
-            val defaultName = "${session.user.username.ifBlank { "我的" }}的音乐房".take(40)
+            val defaultName = text(
+                R.string.listen_together_default_room_name,
+                session.user.username.ifBlank { text(R.string.listen_together_default_me) },
+            ).take(40)
             val effectiveName = (trimmedName ?: defaultName).take(40)
             val peopleLimit = config.maxPeopleLimit.coerceAtLeast(2)
             val effectiveMaxPeople = (maxPeople ?: config.defaultMaxPeople).coerceIn(2, peopleLimit)
@@ -121,9 +124,11 @@ class ListenTogetherManager @Inject constructor(
         }.onFailure {
             _state.value = _state.value.copy(joining = false)
             if (!replaceExisting && it is ListenTogetherApiException && it.errorMsg == "USER_ALREADY_HAS_ROOM") {
-                _events.tryEmit(ListenTogetherUiEvent.ConfirmReplaceRoom("当前已加入房间，继续创建将退出之前房间"))
+                _events.tryEmit(
+                    ListenTogetherUiEvent.ConfirmReplaceRoom(text(R.string.listen_together_replace_room_message)),
+                )
             } else {
-                emitToast(errorMessage(it, "创建房间失败"))
+                emitToast(errorMessage(it, text(R.string.listen_together_create_failed)))
             }
         }
     }
@@ -132,7 +137,7 @@ class ListenTogetherManager @Inject constructor(
         val session = requireSession() ?: return
         val cleanRoomId = roomId.trim()
         if (!cleanRoomId.matches(Regex("\\d{4,8}"))) {
-            emitToast("请输入 4-8 位数字房间号")
+            emitToast(text(R.string.listen_together_room_id_input_invalid))
             return
         }
         runCatching {
@@ -141,7 +146,7 @@ class ListenTogetherManager @Inject constructor(
             connectAndEnter(session, room.roomId, room)
         }.onFailure {
             _state.value = _state.value.copy(joining = false)
-            emitToast(errorMessage(it, "加入房间失败"))
+            emitToast(errorMessage(it, text(R.string.listen_together_join_failed)))
         }
     }
 
@@ -149,7 +154,7 @@ class ListenTogetherManager @Inject constructor(
         val session = requireSession() ?: return
         val cleanRoomId = roomId.trim()
         if (!cleanRoomId.matches(Regex("\\d{4,8}"))) {
-            emitToast("请输入 4-8 位数字房间号")
+            emitToast(text(R.string.listen_together_room_id_input_invalid))
             return
         }
         if (_state.value.room?.roomId == cleanRoomId) return
@@ -159,7 +164,7 @@ class ListenTogetherManager @Inject constructor(
             repository.getRoom(session.token, cleanRoomId)
         }.getOrElse {
             _state.value = _state.value.copy(joining = false)
-            emitToast(errorMessage(it, "查询房间失败"))
+            emitToast(errorMessage(it, text(R.string.listen_together_query_failed)))
             return
         }
 
@@ -172,7 +177,7 @@ class ListenTogetherManager @Inject constructor(
                 _state.value = _state.value.copy(joining = false)
                 handleAckFailure(
                     leaveAck.errorMsg,
-                    leaveAck.msg.ifBlank { "退出当前房间失败，请重试" },
+                    leaveAck.msg.ifBlank { text(R.string.listen_together_leave_current_failed) },
                 )
                 return
             }
@@ -191,7 +196,7 @@ class ListenTogetherManager @Inject constructor(
         socketClient.emitLeave(roomId) {
             scope.launch {
                 clearState()
-                emitToast("已退出一起听")
+                emitToast(text(R.string.listen_together_left))
             }
         }
     }
@@ -248,7 +253,7 @@ class ListenTogetherManager @Inject constructor(
     fun requestQueueSong(song: SongInfo) {
         if (!guardControl()) return
         if (song.type == SongType.LOCAL && _state.value.enabled) {
-            emitToast("本地歌曲暂不支持一起听")
+            emitToast(text(R.string.listen_together_local_unsupported))
             return
         }
         if (_state.value.room == null) {
@@ -300,7 +305,7 @@ class ListenTogetherManager @Inject constructor(
         val state = _state.value
         val room = state.room ?: return
         if (!state.isHost) {
-            emitToast("只有房主可以设置成员权限")
+            emitToast(text(R.string.listen_together_host_permission_only))
             return
         }
         if (room.memberOperation == enabled) return
@@ -310,8 +315,8 @@ class ListenTogetherManager @Inject constructor(
     fun kickMember(targetUserId: String) {
         val target = requireManageableMember(
             targetUserId = targetUserId,
-            permissionMessage = "只有房主可以移出成员",
-            selfMessage = "不能移出自己",
+            permissionMessage = text(R.string.listen_together_kick_permission_only),
+            selfMessage = text(R.string.listen_together_kick_self_denied),
         ) ?: return
         val roomId = _state.value.room?.roomId ?: return
         socketClient.emitKickMember(roomId, target.userId) { ack ->
@@ -321,7 +326,7 @@ class ListenTogetherManager @Inject constructor(
                 } else {
                     handleMemberManagementAckFailure(
                         errorMsg = ack.errorMsg,
-                        message = ack.msg.ifBlank { "移出成员失败" },
+                        message = ack.msg.ifBlank { text(R.string.listen_together_kick_failed) },
                     )
                 }
             }
@@ -331,8 +336,8 @@ class ListenTogetherManager @Inject constructor(
     fun transferHost(targetUserId: String) {
         val target = requireManageableMember(
             targetUserId = targetUserId,
-            permissionMessage = "只有房主可以转让房主",
-            selfMessage = "不能把房主转让给自己",
+            permissionMessage = text(R.string.listen_together_transfer_permission_only),
+            selfMessage = text(R.string.listen_together_transfer_self_denied),
         ) ?: return
         val roomId = _state.value.room?.roomId ?: return
         socketClient.emitTransferHost(roomId, target.userId) { ack ->
@@ -343,7 +348,7 @@ class ListenTogetherManager @Inject constructor(
                 } else {
                     handleMemberManagementAckFailure(
                         errorMsg = ack.errorMsg,
-                        message = ack.msg.ifBlank { "转让房主失败" },
+                        message = ack.msg.ifBlank { text(R.string.listen_together_transfer_failed) },
                     )
                 }
             }
@@ -364,8 +369,11 @@ class ListenTogetherManager @Inject constructor(
 
     fun shareText(): String? {
         val room = _state.value.room ?: return null
-        return "来 Pisa Music 和我一起听歌，房间号：${room.roomId}\n" +
-            ListenTogetherScanLink.buildWebLink(room.roomId)
+        return text(
+            R.string.listen_together_share_text,
+            room.roomId,
+            ListenTogetherScanLink.buildWebLink(room.roomId),
+        )
     }
 
     private fun connectAndEnter(
@@ -399,7 +407,7 @@ class ListenTogetherManager @Inject constructor(
                 scope.launch {
                     _state.value = _state.value.copy(socketConnected = false, latencyMs = null, joining = false)
                     updateHeartbeat()
-                    emitToast(if (message.isBlank()) "一起听连接失败" else message)
+                    emitToast(if (message.isBlank()) text(R.string.listen_together_connection_failed) else message)
                 }
             }
 
@@ -420,12 +428,12 @@ class ListenTogetherManager @Inject constructor(
             scope.launch {
                 if (!ack.success) {
                     clearState()
-                    handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "加入房间失败" })
+                    handleAckFailure(ack.errorMsg, ack.msg.ifBlank { text(R.string.listen_together_join_failed) })
                     return@launch
                 }
                 val room = ack.data?.room
                 if (room == null) {
-                    handleAckFailure(null, "加入房间失败")
+                    handleAckFailure(null, text(R.string.listen_together_join_failed))
                     return@launch
                 }
                 applyRoom(room, joining = false)
@@ -439,7 +447,7 @@ class ListenTogetherManager @Inject constructor(
         socketClient.emitSync(roomId) { ack ->
             scope.launch {
                 if (!ack.success) {
-                    handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "同步房间失败" })
+                    handleAckFailure(ack.errorMsg, ack.msg.ifBlank { text(R.string.listen_together_sync_failed) })
                     return@launch
                 }
                 val room = ack.data?.room ?: return@launch
@@ -462,7 +470,7 @@ class ListenTogetherManager @Inject constructor(
                 lastSongKey = key
                 if (song == null || !shouldEmitLocalPlayback()) return@collect
                 if (song.type == SongType.LOCAL) {
-                    emitToast("本地歌曲暂不支持一起听")
+                    emitToast(text(R.string.listen_together_local_unsupported))
                     return@collect
                 }
                 if (key != null && expectedLocalSongKeys.remove(key)) {
@@ -577,7 +585,7 @@ class ListenTogetherManager @Inject constructor(
         transitionId: String,
     ) {
         if (song.type == SongType.LOCAL) {
-            emitToast("本地歌曲暂不支持一起听")
+            emitToast(text(R.string.listen_together_local_unsupported))
             return
         }
         ensureHostQueueInitialized()
@@ -696,7 +704,7 @@ class ListenTogetherManager @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                emitToast(error.message ?: "切歌失败")
+                emitToast(error.message ?: text(R.string.listen_together_change_song_failed))
             } finally {
                 if (!applied && targetKey != null) expectedLocalSongKeys.remove(targetKey)
                 if (activeHostTransitionId == transitionId) {
@@ -720,7 +728,12 @@ class ListenTogetherManager @Inject constructor(
             ),
         ) { ack ->
             scope.launch {
-                if (!ack.success) handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "一起听队列操作失败" })
+                if (!ack.success) {
+                    handleAckFailure(
+                        ack.errorMsg,
+                        ack.msg.ifBlank { text(R.string.listen_together_queue_operation_failed) },
+                    )
+                }
             }
         }
     }
@@ -735,7 +748,12 @@ class ListenTogetherManager @Inject constructor(
             targetUserId = room.hostUserId,
         ) { ack ->
             scope.launch {
-                if (!ack.success) handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "请求房间队列失败" })
+                if (!ack.success) {
+                    handleAckFailure(
+                        ack.errorMsg,
+                        ack.msg.ifBlank { text(R.string.listen_together_queue_request_failed) },
+                    )
+                }
             }
         }
     }
@@ -973,7 +991,7 @@ class ListenTogetherManager @Inject constructor(
     private fun handleRoomAck(ack: ListenTogetherAck<ListenTogetherRoomAckData>) {
         scope.launch {
             if (!ack.success) {
-                handleAckFailure(ack.errorMsg, ack.msg.ifBlank { "一起听同步失败" })
+                handleAckFailure(ack.errorMsg, ack.msg.ifBlank { text(R.string.listen_together_sync_failed) })
                 return@launch
             }
             ack.data?.room
@@ -1020,7 +1038,7 @@ class ListenTogetherManager @Inject constructor(
                 val payload = gson.fromJson(data, ListenTogetherKickedData::class.java)
                 if (payload.targetUserId == _state.value.currentUserId) {
                     clearState()
-                    emitToast("你已被房主移出房间")
+                    emitToast(text(R.string.listen_together_kicked))
                 } else {
                     updateCurrentRoom(version) { it.copy(members = payload.members) }
                 }
@@ -1031,9 +1049,11 @@ class ListenTogetherManager @Inject constructor(
             }
             "ROOM_DESTROYED" -> {
                 clearState()
-                emitToast("房间已关闭")
+                emitToast(text(R.string.listen_together_room_closed))
             }
-            "ERROR_MESSAGE" -> emitToast(data?.getString("msg").orEmpty().ifBlank { "一起听同步异常" })
+            "ERROR_MESSAGE" -> emitToast(
+                data?.getString("msg").orEmpty().ifBlank { text(R.string.listen_together_sync_error) },
+            )
         }
     }
 
@@ -1085,7 +1105,7 @@ class ListenTogetherManager @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                emitToast(error.message ?: "同步歌曲失败")
+                emitToast(error.message ?: text(R.string.listen_together_song_sync_failed))
             } finally {
                 // 只有持最新令牌的协程才清除抑制标志；被取消的旧协程 seq 已过期，不会误清。
                 if (seq == syncSeq) {
@@ -1121,11 +1141,11 @@ class ListenTogetherManager @Inject constructor(
         val state = _state.value
         if (!state.enabled) return true
         if (!state.socketConnected) {
-            emitToast("一起听正在重连")
+            emitToast(text(R.string.listen_together_reconnecting))
             return false
         }
         if (canControl(state)) return true
-        emitToast("房主正在控制播放")
+        emitToast(text(R.string.listen_together_host_controlling))
         socketClient.emitSync(state.room?.roomId ?: return false) { ack ->
             scope.launch {
                 if (ack.success) ack.data?.room?.let { applyRoom(it, joining = false) }
@@ -1178,7 +1198,7 @@ class ListenTogetherManager @Inject constructor(
         }
         val cleanTargetUserId = targetUserId.trim()
         if (cleanTargetUserId.isBlank()) {
-            emitToast("目标成员不存在")
+            emitToast(text(R.string.listen_together_target_missing))
             return null
         }
         if (cleanTargetUserId == state.currentUserId) {
@@ -1186,7 +1206,7 @@ class ListenTogetherManager @Inject constructor(
             return null
         }
         return room.members.firstOrNull { it.userId == cleanTargetUserId } ?: run {
-            emitToast("目标成员已不在房间")
+            emitToast(text(R.string.listen_together_target_left))
             null
         }
     }
@@ -1196,15 +1216,15 @@ class ListenTogetherManager @Inject constructor(
             "UNAUTHORIZED" -> handleAckFailure(errorMsg, message)
             "ROOM_NOT_FOUND", "NOT_IN_ROOM" -> handleAckFailure(errorMsg, message)
             "NO_PERMISSION" -> {
-                emitToast("当前账号已不是房主")
+                emitToast(text(R.string.listen_together_no_longer_host))
                 _state.value.room?.roomId?.let { emitSync(it) }
             }
             "TARGET_USER_NOT_FOUND" -> {
-                emitToast("目标成员已不在房间")
+                emitToast(text(R.string.listen_together_target_left))
                 _state.value.room?.roomId?.let { emitSync(it) }
             }
-            "HOST_CANNOT_BE_KICKED" -> emitToast("不能移出房主")
-            else -> emitToast(message.ifBlank { "成员管理操作失败" })
+            "HOST_CANNOT_BE_KICKED" -> emitToast(text(R.string.listen_together_cannot_kick_host))
+            else -> emitToast(message.ifBlank { text(R.string.listen_together_member_operation_failed) })
         }
     }
 
@@ -1212,17 +1232,17 @@ class ListenTogetherManager @Inject constructor(
         when (errorMsg) {
             "UNAUTHORIZED" -> {
                 clearState()
-                _events.tryEmit(ListenTogetherUiEvent.RequireLogin("登录已失效，请重新登录"))
+                _events.tryEmit(ListenTogetherUiEvent.RequireLogin(text(R.string.listen_together_login_expired)))
             }
             "ROOM_NOT_FOUND", "NOT_IN_ROOM" -> {
                 clearState()
-                emitToast(message.ifBlank { "房间不存在或已关闭" })
+                emitToast(message.ifBlank { text(R.string.listen_together_room_missing) })
             }
             "NO_PERMISSION" -> {
-                emitToast("房主未允许成员控制播放")
+                emitToast(text(R.string.listen_together_member_control_denied))
                 _state.value.room?.roomId?.let { emitSync(it) }
             }
-            else -> emitToast(message.ifBlank { "一起听操作失败" })
+            else -> emitToast(message.ifBlank { text(R.string.listen_together_operation_failed) })
         }
     }
 
@@ -1250,7 +1270,7 @@ class ListenTogetherManager @Inject constructor(
     private fun requireSession(): AccountSessionStore.Session? {
         val session = AccountSessionStore.read(context)
         if (!session.loggedIn) {
-            _events.tryEmit(ListenTogetherUiEvent.RequireLogin("请先登录账号"))
+            _events.tryEmit(ListenTogetherUiEvent.RequireLogin(text(R.string.listen_together_login_required)))
             return null
         }
         return session
@@ -1260,14 +1280,16 @@ class ListenTogetherManager @Inject constructor(
         _events.tryEmit(ListenTogetherUiEvent.Toast(message))
     }
 
+    private fun text(resId: Int, vararg args: Any): String = context.getString(resId, *args)
+
     private fun errorMessage(error: Throwable, fallback: String): String {
         if (error is ListenTogetherApiException) {
             return when (error.errorMsg) {
-                "ROOM_FULL" -> "房间人数已满"
-                "ROOM_NOT_FOUND" -> "房间不存在"
-                "ROOM_ID_EXISTS" -> "房间号已存在"
-                "USER_ALREADY_HAS_ROOM" -> "请先退出当前房间"
-                "UNAUTHORIZED" -> "请先登录账号"
+                "ROOM_FULL" -> text(R.string.listen_together_room_full)
+                "ROOM_NOT_FOUND" -> text(R.string.listen_together_room_not_found)
+                "ROOM_ID_EXISTS" -> text(R.string.listen_together_room_id_exists)
+                "USER_ALREADY_HAS_ROOM" -> text(R.string.listen_together_leave_first)
+                "UNAUTHORIZED" -> text(R.string.listen_together_login_required)
                 else -> error.message.ifBlank { fallback }
             }
         }

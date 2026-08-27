@@ -110,7 +110,10 @@ object LyricSettingsSheet {
 
         fun updateOpacityUi(value: Int) {
             val clamped = value.coerceIn(0, 100)
-            binding.lyricSettingsOpacityValueText.text = "$clamped%"
+            binding.lyricSettingsOpacityValueText.text = binding.root.context.getString(
+                R.string.common_percent_value,
+                clamped,
+            )
             if (binding.lyricSettingsOpacitySlider.progress != clamped) {
                 binding.lyricSettingsOpacitySlider.progress = clamped
             }

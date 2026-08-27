@@ -1,14 +1,19 @@
 package cn.partialy.pm.activity
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import cn.partialy.pm.R
 import cn.partialy.pm.scan.QrImageDecoder
+import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.CaptureManager
 import com.journeyapps.barcodescanner.DecoratedBarcodeView
@@ -19,7 +24,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class PortraitCaptureActivity : Activity() {
+class PortraitCaptureActivity : ComponentActivity() {
     private lateinit var captureManager: CaptureManager
     private lateinit var barcodeScannerView: DecoratedBarcodeView
     private val scanScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -27,6 +32,7 @@ class PortraitCaptureActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdgeSystemBars(lightStatusBarIcons = false, lightNavigationBarIcons = false)
         barcodeScannerView = initializeContent()
         captureManager = CaptureManager(this, barcodeScannerView)
         captureManager.initializeFromIntent(intent, savedInstanceState)
@@ -37,6 +43,7 @@ class PortraitCaptureActivity : Activity() {
         setContentView(R.layout.zxing_capture)
         val scanner = findViewById<DecoratedBarcodeView>(R.id.zxing_barcode_scanner)
         scanner.statusView?.visibility = View.GONE
+        applyHeaderStatusBarInset()
 
         findViewById<ImageButton>(R.id.scan_back_button).setOnClickListener {
             finish()
@@ -48,6 +55,19 @@ class PortraitCaptureActivity : Activity() {
             openImagePicker()
         }
         return scanner
+    }
+
+    private fun applyHeaderStatusBarInset() {
+        val header = findViewById<View>(R.id.scan_header)
+        ViewCompat.setOnApplyWindowInsetsListener(header) { view, insets ->
+            val statusBarTop = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            val displayCutoutTop = insets.displayCutout?.safeInsetTop ?: 0
+            view.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                topMargin = maxOf(statusBarTop, displayCutoutTop)
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(header)
     }
 
     private fun toggleTorch(button: ImageButton) {

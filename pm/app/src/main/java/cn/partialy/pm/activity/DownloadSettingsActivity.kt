@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class DownloadSettingsActivity : SubSettingsActivity() {
-    override val settingsPageTitle: CharSequence = "下载设置"
+    override val settingsPageTitle: CharSequence by lazy { getString(R.string.settings_download_title) }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -58,29 +58,29 @@ class DownloadSettingsActivity : SubSettingsActivity() {
                     id = ITEM_DOWNLOAD_LOCATION,
                     title = getString(R.string.download_location),
                     value = DownloadPathManager.getDisplayPath(this),
-                    summary = "设置音乐文件的保存目录",
+                    summary = getString(R.string.settings_download_directory_summary),
                 ),
                 SubSettingsItem.Option(
                     id = ITEM_FILE_NAMING_RULE,
-                    title = "文件名命名规则",
+                    title = getString(R.string.settings_file_naming_title),
                     value = fileNamingRuleSummary(SettingsPrefs.getFileNamingRule(this)),
-                    summary = "设置下载歌曲的文件名格式",
+                    summary = getString(R.string.settings_file_naming_summary),
                 ),
                 SubSettingsItem.Switch(
                     id = ITEM_WRITE_COVER,
-                    title = "写入封面",
+                    title = getString(R.string.settings_write_cover),
                     checked = SettingsPrefs.isWriteCoverEnabled(this),
                     summary = getString(R.string.settings_write_cover_summary),
                 ),
                 SubSettingsItem.Switch(
                     id = ITEM_WRITE_TAGS,
-                    title = "写入标签",
+                    title = getString(R.string.settings_write_tag),
                     checked = SettingsPrefs.isWriteTagsEnabled(this),
                     summary = getString(R.string.settings_write_tags_summary),
                 ),
                 SubSettingsItem.Switch(
                     id = ITEM_WRITE_LYRICS,
-                    title = "写入歌词",
+                    title = getString(R.string.settings_write_lyric),
                     checked = SettingsPrefs.isWriteLyricsEnabled(this),
                     summary = getString(R.string.settings_write_lyrics_summary),
                 ),
@@ -110,10 +110,10 @@ class DownloadSettingsActivity : SubSettingsActivity() {
             val current = SettingsPrefs.getFileNamingRule(this@DownloadSettingsActivity)
             val picked = showSettingsOptionPicker(
                 context = this@DownloadSettingsActivity,
-                title = "文件名命名规则",
+                title = getString(R.string.settings_file_naming_title),
                 options = listOf(
-                    SettingsOption("title_artist", "歌名 - 歌手"),
-                    SettingsOption("artist_title", "歌手 - 歌名"),
+                    SettingsOption("title_artist", getString(R.string.settings_naming_title_artist)),
+                    SettingsOption("artist_title", getString(R.string.settings_naming_artist_title)),
                 ),
                 selectedIndex = when (current) {
                     SettingsPrefs.FileNamingRule.TitleDashArtist -> 0
@@ -168,8 +168,8 @@ class DownloadSettingsActivity : SubSettingsActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.storage_permission_required)
             .setMessage(R.string.storage_permission_rationale)
-            .setPositiveButton("授予权限") { _, _ -> requestPermissionLauncher.launch(permissions) }
-            .setNegativeButton("取消", null)
+            .setPositiveButton(R.string.settings_grant_permission) { _, _ -> requestPermissionLauncher.launch(permissions) }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -178,7 +178,7 @@ class DownloadSettingsActivity : SubSettingsActivity() {
             findViewById(android.R.id.content),
             R.string.storage_permission_denied,
             Snackbar.LENGTH_LONG,
-        ).setAction("设置") { openAppSettings() }.show()
+        ).setAction(R.string.settings_open_settings) { openAppSettings() }.show()
     }
 
     private fun openAppSettings() {
@@ -204,8 +204,8 @@ class DownloadSettingsActivity : SubSettingsActivity() {
     }
 
     private fun fileNamingRuleSummary(rule: SettingsPrefs.FileNamingRule): String = when (rule) {
-        SettingsPrefs.FileNamingRule.TitleDashArtist -> "歌名 - 歌手"
-        SettingsPrefs.FileNamingRule.ArtistDashTitle -> "歌手 - 歌名（默认）"
+        SettingsPrefs.FileNamingRule.TitleDashArtist -> getString(R.string.settings_naming_title_artist)
+        SettingsPrefs.FileNamingRule.ArtistDashTitle -> getString(R.string.settings_naming_artist_title_default)
     }
 
     companion object {

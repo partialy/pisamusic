@@ -74,7 +74,7 @@ class FavoriteSongsFragment : BaseSongFragment() {
                     }
                 } ?: run {
                     context?.let { context ->
-                        Toast.makeText(context, "下载失败，请稍后重试", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, R.string.download_failed_retry, Toast.LENGTH_SHORT).show()
                     }
                 }
             },
@@ -89,7 +89,7 @@ class FavoriteSongsFragment : BaseSongFragment() {
                         onDownloadClick = { s ->
                             val act = activity
                             if (act is MainActivity) act.downloadSong(s)
-                            else Toast.makeText(requireContext(), "下载失败，请稍后重试", Toast.LENGTH_SHORT).show()
+                            else Toast.makeText(requireContext(), R.string.download_failed_retry, Toast.LENGTH_SHORT).show()
                         },
                     ),
                 )

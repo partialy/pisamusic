@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import cn.partialy.pm.R
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.utils.JavaUtils.JDownloadManager
@@ -124,12 +125,13 @@ class DownloadManager private constructor(private val context: Context) {
                 
                 var title = fileSongName
                 var artist = fileSinger
-                var album = "未知专辑"
+                var album = context.getString(R.string.download_unknown_album)
 
                 audioFile.tag?.let { tag ->
                     title = tag.getFirst(FieldKey.TITLE).takeIf { it.isNotEmpty() } ?: fileSongName
                     artist = tag.getFirst(FieldKey.ARTIST).takeIf { it.isNotEmpty() } ?: fileSinger
-                    album = tag.getFirst(FieldKey.ALBUM).takeIf { it.isNotEmpty() } ?: "未知专辑"
+                    album = tag.getFirst(FieldKey.ALBUM).takeIf { it.isNotEmpty() }
+                        ?: context.getString(R.string.download_unknown_album)
                 }
 
                 val coverBytes = AudioEmbeddedArtReader.readEmbeddedCoverBytesWithTag(

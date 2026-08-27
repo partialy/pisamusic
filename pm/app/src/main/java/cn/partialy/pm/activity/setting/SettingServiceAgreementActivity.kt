@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import cn.partialy.pm.model.AgreementInfo
 import cn.partialy.pm.network.config.ConfigManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -20,7 +21,7 @@ class SettingServiceAgreementActivity : BaseSettingWebActivity() {
     private var pageReady = false
     private var payload: AgreementInfo? = null
 
-    override fun headerTitle(): String = "服务协议"
+    override fun headerTitle(): String = getString(R.string.page_service_agreement_title)
 
     override fun initialUrl(): String {
         val isDark =
@@ -33,7 +34,7 @@ class SettingServiceAgreementActivity : BaseSettingWebActivity() {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             payload = runCatching { configManager.getServiceAgreementInfo() }.getOrElse {
-                showPageError("服务协议获取失败")
+                showPageError(getString(R.string.page_service_agreement_load_failed))
                 return@launch
             }
             render()

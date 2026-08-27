@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.R
 import cn.partialy.pm.model.AgreementInfo
 import cn.partialy.pm.network.config.ConfigManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -20,7 +21,7 @@ class SettingPrivacyPolicyActivity : BaseSettingWebActivity() {
     private var pageReady = false
     private var payload: AgreementInfo? = null
 
-    override fun headerTitle(): String = "隐私政策"
+    override fun headerTitle(): String = getString(R.string.page_privacy_title)
 
     override fun initialUrl(): String {
         val isDark =
@@ -33,7 +34,7 @@ class SettingPrivacyPolicyActivity : BaseSettingWebActivity() {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             payload = runCatching { configManager.getPrivacyPolicyInfo() }.getOrElse {
-                showPageError("隐私政策获取失败")
+                showPageError(getString(R.string.page_privacy_load_failed))
                 return@launch
             }
             render()

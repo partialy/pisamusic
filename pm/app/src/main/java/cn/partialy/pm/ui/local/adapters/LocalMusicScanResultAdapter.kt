@@ -77,7 +77,9 @@ class LocalMusicScanResultAdapter(
                 context.getString(R.string.local_music_scan_unknown_artist)
             }
             val duration = candidate.duration?.let(::formatDuration)
-            return listOfNotNull(artist, duration).joinToString(" · ")
+            return listOfNotNull(artist, duration).joinToString(
+                binding.root.context.getString(R.string.common_separator_dot),
+            )
         }
 
         private fun formatDuration(durationMs: Long): String {

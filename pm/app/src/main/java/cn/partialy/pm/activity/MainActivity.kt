@@ -217,7 +217,7 @@ class MainActivity : BaseDownloadActivity() {
     private fun showLocalModeNoticeIfNeeded() {
         localModeReason?.takeIf { it.isNotBlank() } ?: return
         binding.root.post {
-            Toast.makeText(this, "当前无网络或服务不可用，已进入本地模式", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.main_local_mode_entered, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -256,7 +256,7 @@ class MainActivity : BaseDownloadActivity() {
         )
         unsupportedTabContainers.forEach { container ->
             container.setOnClickListener {
-                Toast.makeText(this, "该频道正在建设中", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.main_channel_building, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -624,7 +624,7 @@ class MainActivity : BaseDownloadActivity() {
         } else {
             b.drawerKgNickname.text = kgProfile?.nickname?.takeIf { it.isNotBlank() }
                 ?: kgProfile?.username?.takeIf { it.isNotBlank() }
-                ?: "酷狗用户"
+                ?: getString(R.string.account_kg_default_user)
             val kgUrl = kgProfile?.avatarUrl?.takeIf { it.isNotBlank() }
             if (kgUrl != null) {
                 b.drawerKgAvatar.load(kgUrl) {
@@ -643,7 +643,7 @@ class MainActivity : BaseDownloadActivity() {
         } else {
             b.drawerWyNickname.text = wyProfile?.nickname?.takeIf { it.isNotBlank() }
                 ?: wyProfile?.username?.takeIf { it.isNotBlank() }
-                ?: "网易用户"
+                ?: getString(R.string.account_wy_default_user)
             val wyUrl = wyProfile?.avatarUrl?.takeIf { it.isNotBlank() }
             if (wyUrl != null) {
                 b.drawerWyAvatar.load(wyUrl) {
@@ -661,11 +661,11 @@ class MainActivity : BaseDownloadActivity() {
         val b = drawerContentBinding ?: return
         val session = AccountSessionStore.read(this)
         if (session.loggedIn) {
-            b.drawerAccountTitle.text = session.user.username.ifBlank { "PisaMusic 用户" }
-            b.drawerAccountSubtitle.text = session.user.email.ifBlank { "已登录，收藏与歌单会自动同步" }
+            b.drawerAccountTitle.text = session.user.username.ifBlank { getString(R.string.account_default_user) }
+            b.drawerAccountSubtitle.text = session.user.email.ifBlank { getString(R.string.account_logged_in_sync_hint) }
         } else {
-            b.drawerAccountTitle.text = "登录 / 注册"
-            b.drawerAccountSubtitle.text = "账号登录后自动同步收藏与歌单"
+            b.drawerAccountTitle.setText(R.string.account_login_or_register)
+            b.drawerAccountSubtitle.setText(R.string.account_login_sync_hint)
         }
         b.drawerAccountAvatar.setImageResource(R.drawable.ic_pm_icon)
     }
@@ -851,7 +851,7 @@ class MainActivity : BaseDownloadActivity() {
             }
 
             R.id.nav_library -> {
-                Toast.makeText(this, "暂未实现", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.common_not_implemented, Toast.LENGTH_SHORT).show()
                 true
             }
 
@@ -1118,7 +1118,7 @@ class MainActivity : BaseDownloadActivity() {
                         <path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                       </svg>
                     </div>
-                    <h3 class="title">系统公告</h3>
+                    <h3 class="title">${escape(getString(R.string.announcement_system_title))}</h3>
                   </div>
                   ${if (remaining > 0) "<span class=\"badge\">$remaining</span>" else ""}
                 </div>

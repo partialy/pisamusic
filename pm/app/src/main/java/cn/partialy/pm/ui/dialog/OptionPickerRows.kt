@@ -100,9 +100,9 @@ internal class OptionPickerRows private constructor(
             container = container,
             options = options.map { option ->
                 PickerOption(
-                    label = option.label,
+                    label = context.getString(option.labelRes),
                     enabled = option.enabled,
-                    badge = option.badge,
+                    badge = option.badgeRes?.let { context.getString(it) },
                 )
             },
             selectedIndex = selectedIndex,

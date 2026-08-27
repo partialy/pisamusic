@@ -116,13 +116,13 @@ data class AudioEffectPreset(
         fun builtIns(): List<AudioEffectPreset> = listOf(
             AudioEffectPreset(
                 id = ID_DEFAULT,
-                name = "默认",
+                name = ID_DEFAULT,
                 eqGains = AudioEffectState.flatEqGains(),
                 builtIn = true,
             ),
             AudioEffectPreset(
                 id = ID_3D,
-                name = "3D丽音",
+                name = ID_3D,
                 eqGains = listOf(2, 2, 1, 0, -1, 2, 3, 4, 3, 2),
                 bass = 32,
                 vocal = 36,
@@ -134,21 +134,21 @@ data class AudioEffectPreset(
             ),
             AudioEffectPreset(
                 id = ID_BASS,
-                name = "低音增强",
+                name = ID_BASS,
                 eqGains = listOf(5, 5, 4, 2, 0, -1, -1, 0, 1, 1),
                 bass = 70,
                 builtIn = true,
             ),
             AudioEffectPreset(
                 id = ID_VOCAL,
-                name = "人声增强",
+                name = ID_VOCAL,
                 eqGains = listOf(-1, -1, 0, 0, 1, 3, 4, 3, 1, 0),
                 vocal = 72,
                 builtIn = true,
             ),
             AudioEffectPreset(
                 id = ID_POP,
-                name = "流行",
+                name = ID_POP,
                 eqGains = listOf(2, 3, 2, 0, -1, 1, 2, 3, 3, 2),
                 bass = 28,
                 vocal = 28,
@@ -156,7 +156,7 @@ data class AudioEffectPreset(
             ),
             AudioEffectPreset(
                 id = ID_ROCK,
-                name = "摇滚",
+                name = ID_ROCK,
                 eqGains = listOf(4, 4, 3, 1, -1, 0, 2, 4, 5, 4),
                 bass = 45,
                 vocal = 20,
@@ -167,7 +167,7 @@ data class AudioEffectPreset(
         fun manualFrom(state: AudioEffectState): AudioEffectPreset =
             AudioEffectPreset(
                 id = ID_MANUAL,
-                name = "手动调节",
+                name = ID_MANUAL,
                 eqGains = state.eqGains,
                 bass = state.bass,
                 vocal = state.vocal,
