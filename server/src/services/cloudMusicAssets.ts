@@ -30,12 +30,26 @@ const ASSET_MAX_SIZES: Record<CloudMusicAssetKind, number> = {
   lyrics: CLOUD_MUSIC_LYRICS_MAX_SIZE,
 };
 
+const ASSET_ALLOWED_EXTENSIONS: Record<CloudMusicAssetKind, readonly string[]> = {
+  audio: [".mp3", ".flac", ".m4a", ".mp4", ".aac", ".ogg", ".opus", ".wav"],
+  "cover-uploaded": [".jpg", ".jpeg", ".png", ".webp"],
+  "cover-extracted": [".jpg", ".jpeg", ".png", ".webp"],
+  lyrics: [".lrc", ".txt"],
+};
+
 export type CloudMusicCoverMimeType = "image/jpeg" | "image/png" | "image/webp";
 
 const COVER_MIME_EXTENSIONS: Record<CloudMusicCoverMimeType, string> = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
+};
+
+const COVER_EXTENSION_MIME_TYPES: Record<string, CloudMusicCoverMimeType> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
 };
 
 export type CloudMusicFileLocation = {
@@ -61,18 +75,24 @@ export type ExtractedCoverUploadInput = {
 };
 
 function normalizeMimeType(value: string): string {
-  const normalized = value.split(";", 1)[0].trim().toLowerCase();
-  return normalized === "image/jpg" ? "image/jpeg" : normalized;
+  return value.split(";", 1)[0].trim().toLowerCase();
 }
 
 function isCoverMimeType(value: string): value is CloudMusicCoverMimeType {
   return Object.prototype.hasOwnProperty.call(COVER_MIME_EXTENSIONS, value);
 }
 
-function requireSafeExtension(fileName: string): string {
+export function requireCloudMusicAssetExtension(kind: CloudMusicAssetKind, fileName: string): string {
   const ext = path.extname(fileName).toLowerCase();
-  if (!/^\.[a-z0-9]{1,10}$/.test(ext)) throw new Error("网盘音乐文件扩展名不正确");
+  if (!ASSET_ALLOWED_EXTENSIONS[kind].includes(ext)) {
+    throw new Error(`网盘音乐 ${kind} 仅支持 ${ASSET_ALLOWED_EXTENSIONS[kind].join("、")}`);
+  }
   return ext;
+}
+
+export function coverMimeTypeForExtension(fileName: string): CloudMusicCoverMimeType {
+  const ext = requireCloudMusicAssetExtension("cover-uploaded", fileName);
+  return COVER_EXTENSION_MIME_TYPES[ext];
 }
 
 function monthStamp(date = new Date()): string {
@@ -86,7 +106,7 @@ export function buildCloudMusicAssetObjectKey(
   date = new Date(),
 ): string {
   if (!uuid.trim() || /[\\/]/.test(uuid)) throw new Error("网盘音乐 UUID 不正确");
-  const ext = requireSafeExtension(fileName);
+  const ext = requireCloudMusicAssetExtension(kind, fileName);
   const baseName: Record<CloudMusicAssetKind, string> = {
     audio: "audio",
     "cover-uploaded": "cover-uploaded",
@@ -108,10 +128,14 @@ function validateAssetDeclaration(asset: CloudMusicReservedAsset): void {
   if ((asset.kind === "cover-uploaded" || asset.kind === "cover-extracted") && !isCoverMimeType(mimeType)) {
     throw new Error("封面仅支持 JPEG、PNG、WebP");
   }
+  if (
+    (asset.kind === "cover-uploaded" || asset.kind === "cover-extracted")
+    && coverMimeTypeForExtension(asset.fileName) !== mimeType
+  ) throw new Error("封面扩展名与 MIME 不一致");
   if (asset.kind === "audio" && !mimeType.startsWith("audio/")) throw new Error("音频 MIME 不正确");
   if (asset.kind === "cover-extracted") return;
   const parts = asset.objectKey.split("/");
-  const ext = requireSafeExtension(asset.fileName);
+  const ext = requireCloudMusicAssetExtension(asset.kind, asset.fileName);
   const expectedBaseName: Record<Exclude<CloudMusicAssetKind, "cover-extracted">, string> = {
     audio: "audio",
     "cover-uploaded": "cover-uploaded",
