@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 import { NButton, NInput, NModal, NSelect, type SelectOption } from "naive-ui";
 
 defineOptions({ name: "AboutFeedbackDialog" });
@@ -80,10 +80,16 @@ type FeedbackImageItem = {
   previewUrl: string;
 };
 
-const props = defineProps<{
-  show: boolean;
-  appVersion: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    show: boolean;
+    appVersion: string;
+    initialType?: FeedbackType;
+  }>(),
+  {
+    initialType: "bug",
+  },
+);
 
 const emit = defineEmits<{
   (event: "update:show", value: boolean): void;
@@ -105,6 +111,13 @@ const contact = ref("");
 const images = ref<FeedbackImageItem[]>([]);
 const submitting = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+
+watch(
+  () => props.show,
+  (visible) => {
+    if (visible) feedbackType.value = props.initialType;
+  },
+);
 
 function handleVisibleChange(value: boolean) {
   if (submitting.value) return;

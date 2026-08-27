@@ -18,7 +18,8 @@ export type MusicQualityOption = {
 export type QualityAccessOption = MusicQualityOption & {
   enabled: boolean;
   loginRequired: boolean;
-  badge?: "需登录";
+  unlockRequired: boolean;
+  badge?: "需登录" | "解锁";
 };
 
 export type PlaybackQualityPreference = Partial<Record<QualitySource, string>>;
@@ -65,6 +66,22 @@ const CATALOG_OPTION_MAP = new Map<string, MusicQualityOption>(
   ALL_CATALOG_OPTIONS.map((opt) => [opt.key, opt]),
 );
 
+const GUEST_ALLOWED_QUALITY_KEYS = new Set([
+  "kg:128",
+  "wy-br:128000",
+  "wy-level:standard",
+]);
+
+const ACCOUNT_ALLOWED_QUALITY_KEYS = new Set([
+  "kg:128",
+  "kg:320",
+  "kg:high",
+  "wy-br:128000",
+  "wy-level:standard",
+  "wy-level:higher",
+  "wy-level:exhigh",
+]);
+
 export function isQualitySource(source: string | null | undefined): source is QualitySource {
   return source === "kg" || source === "wy" || source === "kw";
 }
@@ -90,54 +107,41 @@ export function getVisibleQualityOptions(
         ...opt,
         enabled: true,
         loginRequired: false,
+        unlockRequired: false,
       }));
 
     case "kg":
-      if (access === "vip") {
-        return KG_VIP_CATALOG.map((opt) => ({
-          ...opt,
-          enabled: true,
-          loginRequired: false,
-        }));
-      }
-      if (access === "account") {
-        return [
-          { key: "kg:128", source: "kg", label: "128", shortLabel: "128", kind: "kg", quality: "128", enabled: true, loginRequired: false },
-          { key: "kg:320", source: "kg", label: "320", shortLabel: "320", kind: "kg", quality: "320", enabled: true, loginRequired: false },
-          { key: "kg:high", source: "kg", label: "无损（high）", shortLabel: "HQ", kind: "kg", quality: "high", enabled: true, loginRequired: false },
-        ];
-      }
-      // guest
-      return [
-        { key: "kg:128", source: "kg", label: "128", shortLabel: "128", kind: "kg", quality: "128", enabled: true, loginRequired: false },
-        { key: "kg:320", source: "kg", label: "320", shortLabel: "320", kind: "kg", quality: "320", enabled: false, loginRequired: true, badge: "需登录" },
-        { key: "kg:high", source: "kg", label: "无损（high）", shortLabel: "HQ", kind: "kg", quality: "high", enabled: false, loginRequired: true, badge: "需登录" },
-      ];
+      return buildQualityAccessOptions(KG_VIP_CATALOG, access);
 
     case "wy":
-      if (access === "vip") {
-        return WY_VIP_CATALOG.map((opt) => ({
-          ...opt,
-          enabled: true,
-          loginRequired: false,
-        }));
-      }
-      if (access === "account") {
-        return [
-          { key: "wy-br:128000", source: "wy", label: "128k", shortLabel: "128", kind: "wy-br", br: 128000, enabled: true, loginRequired: false },
-          { key: "wy-level:standard", source: "wy", label: "标准", shortLabel: "STD", kind: "wy-level", level: "standard", enabled: true, loginRequired: false },
-          { key: "wy-level:higher", source: "wy", label: "较高", shortLabel: "HQ", kind: "wy-level", level: "higher", enabled: true, loginRequired: false },
-          { key: "wy-level:exhigh", source: "wy", label: "极高", shortLabel: "SQ", kind: "wy-level", level: "exhigh", enabled: true, loginRequired: false },
-        ];
-      }
-      // guest
-      return [
-        { key: "wy-br:128000", source: "wy", label: "128k", shortLabel: "128", kind: "wy-br", br: 128000, enabled: true, loginRequired: false },
-        { key: "wy-level:standard", source: "wy", label: "标准", shortLabel: "STD", kind: "wy-level", level: "standard", enabled: true, loginRequired: false },
-        { key: "wy-level:higher", source: "wy", label: "较高", shortLabel: "HQ", kind: "wy-level", level: "higher", enabled: false, loginRequired: true, badge: "需登录" },
-        { key: "wy-level:exhigh", source: "wy", label: "极高", shortLabel: "SQ", kind: "wy-level", level: "exhigh", enabled: false, loginRequired: true, badge: "需登录" },
-      ];
+      return buildQualityAccessOptions(WY_VIP_CATALOG, access);
   }
+}
+
+function buildQualityAccessOptions(
+  catalog: MusicQualityOption[],
+  access: QualityAccessLevel,
+): QualityAccessOption[] {
+  const allowedKeys = access === "guest"
+    ? GUEST_ALLOWED_QUALITY_KEYS
+    : ACCOUNT_ALLOWED_QUALITY_KEYS;
+  const options = catalog.map((option) => {
+    const enabled = access === "vip" || allowedKeys.has(option.key);
+    const loginRequired = access === "guest" && !enabled;
+    const unlockRequired = access === "account" && !enabled;
+    return {
+      ...option,
+      enabled,
+      loginRequired,
+      unlockRequired,
+      ...(loginRequired ? { badge: "需登录" as const } : {}),
+      ...(unlockRequired ? { badge: "解锁" as const } : {}),
+    };
+  });
+  return [
+    ...options.filter((option) => option.enabled),
+    ...options.filter((option) => !option.enabled),
+  ];
 }
 
 export function isKnownQualityKey(

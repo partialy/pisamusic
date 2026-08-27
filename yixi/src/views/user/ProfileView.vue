@@ -32,6 +32,10 @@
           <span>账号邮箱</span>
           <strong>{{ userInfo.email }}</strong>
         </div>
+        <div v-if="accountVipActive" class="info-item vip-expiry-item">
+          <span>特权到期时间</span>
+          <strong>{{ vipExpiresAtText }}</strong>
+        </div>
       </div>
     </section>
 
@@ -51,6 +55,7 @@ import { storeToRefs } from "pinia";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import AccountSecurityDialog from "@/components/user/AccountSecurityDialog.vue";
 import { useUserStore } from "@/store";
+import { isSystemVipActive } from "@/types/account";
 import avatarImg from "@/assets/defaultAdminAvatar.jpg";
 
 defineOptions({ name: "UserProfileView" });
@@ -65,6 +70,8 @@ const { openAccountLogin: openLogin } = useAccountLoginDialog();
 const avatarSrc = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
 const createdAtText = computed(() => formatTime(userInfo.value.createdAt));
 const avatarKindText = computed(() => (userInfo.value.avatarKey === "default" ? "默认头像" : "自定义头像"));
+const accountVipActive = computed(() => isSystemVipActive(userStore));
+const vipExpiresAtText = computed(() => formatTime(userInfo.value.vipExpiresAt ?? 0));
 
 function goEdit() {
   router.push("/user/editProfile");
@@ -183,6 +190,16 @@ function formatTime(value: number) {
     color: var(--color-text-default);
     font-size: 14px;
     word-break: break-all;
+  }
+}
+
+.vip-expiry-item {
+  border: 1px solid rgba(215, 166, 46, 0.42);
+  background: linear-gradient(145deg, rgba(255, 242, 173, 0.24), rgba(216, 157, 33, 0.1));
+
+  span,
+  strong {
+    color: #b77900;
   }
 }
 

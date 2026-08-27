@@ -16,7 +16,8 @@
         :disabled="!qualityOptions.length"
         placement="top"
         @update:model-value="handleSwitchQuality"
-        @login-required="openAccountLogin">
+        @login-required="openAccountLogin"
+        @unlock-required="openQualityUnlockFeedback">
         <n-button text class="quality-pill" :disabled="!qualityOptions.length">
           {{ currentQualityOption?.shortLabel || "AUTO" }}
         </n-button>
@@ -109,12 +110,14 @@ import MusicQualityPicker from "./MusicQualityPicker.vue";
 import PlayModePicker from "./PlayModePicker.vue";
 import { useSongDownload } from "@/composables/useSongDownload";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
+import { useQualityUnlockFeedback } from "@/composables/useQualityUnlockFeedback";
 import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
 
 const collect = useCollectStore();
 const player = useAudioStore();
 const userStore = useUserStore();
 const { openAccountLogin } = useAccountLoginDialog();
+const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
 const lyric = useLyricStore();
 const commonStore = useCommonStore();
 const songDownload = useSongDownload();

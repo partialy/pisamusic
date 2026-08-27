@@ -31,7 +31,7 @@
         @click="handleSelect(option)"
       >
         <span class="option-label" :title="option.label">{{ option.label }}</span>
-        <span v-if="!option.enabled" class="login-badge">{{ option.badge || "需登录" }}</span>
+        <span v-if="!option.enabled" class="access-badge">{{ option.badge || "需登录" }}</span>
       </div>
     </div>
   </n-popover>
@@ -61,6 +61,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: "update:modelValue", qualityKey: string): void;
   (e: "login-required"): void;
+  (e: "unlock-required"): void;
 }>();
 
 const showPopover = ref(false);
@@ -68,7 +69,11 @@ const showPopover = ref(false);
 function handleSelect(option: QualityAccessOption) {
   showPopover.value = false;
   if (!option.enabled) {
-    emit("login-required");
+    if (option.unlockRequired) {
+      emit("unlock-required");
+    } else {
+      emit("login-required");
+    }
     return;
   }
   emit("update:modelValue", option.key);
@@ -123,7 +128,7 @@ function handleSelect(option: QualityAccessOption) {
     white-space: nowrap;
   }
 
-  .login-badge {
+  .access-badge {
     flex-shrink: 0;
     padding: 2px 7px;
     border-radius: 999px;

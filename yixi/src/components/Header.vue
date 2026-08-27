@@ -74,6 +74,7 @@
           <span class="username" :title="userInfo.username || '-'">
             {{ userInfo.username || "-" }}
           </span>
+          <span v-if="accountVipActive" class="vip-mark" title="VIP" aria-label="VIP">V</span>
         </div>
       </n-dropdown>
       <n-button v-else circle type="primary" class="login-btn" @click="login"
@@ -141,12 +142,14 @@ import { renderIcon } from "@/utils/common";
 import electronAPI from "@/utils/electron";
 import { searchSuggest } from "@/utils/api/musicAPI";
 import { useThemeStore, useUserStore } from "@/store";
+import { isSystemVipActive } from "@/types/account";
 import { storeToRefs } from "pinia";
 
 const userStore = useUserStore();
 const themeStore = useThemeStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
 const avatar = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
+const accountVipActive = computed(() => isSystemVipActive(userStore));
 const router = useRouter();
 const emit = defineEmits<{
   refresh: [];
@@ -395,25 +398,31 @@ onMounted(async () => {
     .user {
       -webkit-app-region: no-drag;
       margin-right: 1rem;
-      display: grid;
-      grid-template-columns: 34px minmax(0, 1fr);
+      display: inline-flex;
       align-items: center;
       gap: 8px;
-      width: 136px;
+      width: fit-content;
+      max-width: 180px;
       height: 34px;
       box-sizing: border-box;
       padding: 0 12px 0 0;
-      border: 1px solid #666;
+      border: 1px solid var(--color-border-default);
       border-radius: 999px;
-      background-color: #fefefe;
+      background-color: var(--color-bg-default);
       cursor: pointer;
+      transition: all 0.2s ease-in-out;
+
+      &:hover {
+        border-color: var(--color-primary);
+      }
 
       .avatar {
+        flex-shrink: 0;
         z-index: 1;
         width: 34px;
         height: 34px;
-        border: 1px solid #66666666;
-        box-shadow: 1px 1px 5px #00000022;
+        border: 1px solid var(--color-border-default);
+        box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.08);
 
         :deep(img) {
           object-fit: cover;
@@ -421,6 +430,7 @@ onMounted(async () => {
       }
 
       .username {
+        flex: 0 1 auto;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -428,6 +438,25 @@ onMounted(async () => {
         color: var(--color-text-default);
         font-size: 14px;
         line-height: 1;
+      }
+
+      .vip-mark {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        border: 1px solid #d7a62e;
+        border-radius: 4px;
+        background: linear-gradient(145deg, #fff2ad, #d89d21);
+        color: #714500;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 12px;
+        font-style: italic;
+        font-weight: 900;
+        line-height: 1;
+        box-shadow: 0 2px 6px rgba(172, 112, 0, 0.28);
       }
     }
 

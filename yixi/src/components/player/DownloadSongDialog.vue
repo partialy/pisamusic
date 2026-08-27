@@ -43,7 +43,8 @@
                 :options="qualityOptions"
                 placement="bottom"
                 :z-index="3500"
-                @login-required="openAccountLogin">
+                @login-required="openAccountLogin"
+                @unlock-required="openUnlockFeedback">
                 <div class="quality-selector-box">
                   <span class="selected-quality-label">{{ selectedQualityOption?.label || "选择音质" }}</span>
                   <n-icon :component="ChevronDown" class="chevron-icon" />
@@ -93,6 +94,7 @@ import {
 import electronAPI from "@/utils/electron";
 import { useThemeStore } from "@/store";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
+import { useQualityUnlockFeedback } from "@/composables/useQualityUnlockFeedback";
 import MusicQualityPicker from "./MusicQualityPicker.vue";
 import { storeToRefs } from "pinia";
 
@@ -100,6 +102,7 @@ const player = useAudioStore();
 const userStore = useUserStore();
 const settingStore = useSettingStore();
 const { openAccountLogin } = useAccountLoginDialog();
+const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
 const theme = useThemeStore();
 const { mode } = storeToRefs(theme);
 const show = ref(false);
@@ -142,6 +145,11 @@ async function open(target: Song | null | undefined) {
 function closeDialog() {
   if (submitting.value) return;
   show.value = false;
+}
+
+function openUnlockFeedback() {
+  closeDialog();
+  void openQualityUnlockFeedback();
 }
 
 async function chooseDirectory() {

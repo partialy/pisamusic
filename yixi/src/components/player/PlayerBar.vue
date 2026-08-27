@@ -75,7 +75,8 @@
         :disabled="!qualityOptions.length"
         placement="top"
         @update:model-value="handleSwitchQuality"
-        @login-required="openAccountLogin">
+        @login-required="openAccountLogin"
+        @unlock-required="openQualityUnlockFeedback">
         <n-button
           quaternary
           class="quality-pill"
@@ -175,6 +176,7 @@ import PlayModePicker from "./PlayModePicker.vue";
 import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { useSongDownload } from "@/composables/useSongDownload";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
+import { useQualityUnlockFeedback } from "@/composables/useQualityUnlockFeedback";
 import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
 import PlayerBarKaraokeLyric from "./PlayerBarKaraokeLyric.vue";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
@@ -182,6 +184,7 @@ import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry
 const player = useAudioStore();
 const userStore = useUserStore();
 const { openAccountLogin } = useAccountLoginDialog();
+const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
 const playbackCommands = usePlaybackCommands();
 const lyric = useLyricStore();
 const collect = useCollectStore();

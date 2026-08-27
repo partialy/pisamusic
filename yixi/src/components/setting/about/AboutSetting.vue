@@ -90,7 +90,11 @@
       :content="contentDialog.content"
       :loading="contentDialog.loading"
     />
-    <AboutFeedbackDialog v-model:show="feedbackDialogVisible" :app-version="appVersion" />
+    <AboutFeedbackDialog
+      v-model:show="feedbackDialogVisible"
+      :app-version="appVersion"
+      :initial-type="feedbackInitialType"
+    />
     <n-modal
       v-model:show="updateDialogVisible"
       class="update-modal"
@@ -135,7 +139,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { NButton, NIcon, NModal, NSkeleton } from "naive-ui";
 import {
   ChevronRight,
@@ -147,6 +152,7 @@ import {
 } from "lucide-vue-next";
 import AboutContentDialog from "@/components/about/AboutContentDialog.vue";
 import AboutFeedbackDialog from "@/components/about/AboutFeedbackDialog.vue";
+import { QUALITY_UNLOCK_FEEDBACK_QUERY_VALUE } from "@/composables/useQualityUnlockFeedback";
 import electronAPI from "@/utils/electron";
 
 defineOptions({ name: "AboutSetting" });
@@ -164,11 +170,14 @@ const defaultAbout: AboutInfo = {
 };
 
 const state = ref<LocalUpdaterState | null>(null);
+const route = useRoute();
+const router = useRouter();
 const about = ref<AboutInfo>({ ...defaultAbout });
 const appVersion = ref("");
 const aboutLoading = ref(false);
 const developmentRuntime = ref(false);
 const feedbackDialogVisible = ref(false);
+const feedbackInitialType = ref<"bug" | "suggestion" | "account" | "other">("bug");
 const updateDialogVisible = ref(false);
 const updateDialogState = ref<LocalUpdaterState | null>(null);
 const contentDialog = ref({
@@ -343,8 +352,30 @@ function installUpdate() {
 }
 
 function openFeedback() {
+  feedbackInitialType.value = "bug";
   feedbackDialogVisible.value = true;
 }
+
+async function handleFeedbackRouteRequest(value: unknown) {
+  const request = Array.isArray(value) ? value[0] : value;
+  if (request !== QUALITY_UNLOCK_FEEDBACK_QUERY_VALUE) return;
+
+  feedbackInitialType.value = "account";
+  feedbackDialogVisible.value = true;
+  window.$message?.info("请输入需求并提交，等待作者审核。");
+
+  const query = { ...route.query };
+  delete query.feedback;
+  await router.replace({ path: route.path, query });
+}
+
+watch(
+  () => route.query.feedback,
+  (value) => {
+    void handleFeedbackRouteRequest(value);
+  },
+  { immediate: true },
+);
 
 async function openContentDialog(type: "agreement" | "privacy") {
   contentDialog.value = {
