@@ -192,3 +192,20 @@ export async function saveSubmitTrack(
     input,
   });
 }
+
+export async function getMySubmissions(
+  offset = 0,
+  limit = 30,
+): Promise<import("@/types/cloudMusic").CloudMusicSubmissionHistoryResult> {
+  return window.electronAPI.getMyCloudMusicSubmissions({ offset, limit });
+}
+
+export async function resubmitTrack(
+  uuid: string,
+  input: CloudMusicUserSubmitInput,
+): Promise<CloudMusicTrackDto> {
+  return window.electronAPI.resubmitCloudMusicTrack({
+    uuid,
+    input,
+  });
+}

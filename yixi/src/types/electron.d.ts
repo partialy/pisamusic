@@ -930,6 +930,14 @@ type ElectronIpcApi = {
     uuid: string;
     input: import("./cloudMusic").CloudMusicUserSubmitInput;
   }) => Promise<import("./cloudMusic").CloudMusicTrackDto>;
+  getMyCloudMusicSubmissions: (payload?: {
+    offset?: number;
+    limit?: number;
+  }) => Promise<import("./cloudMusic").CloudMusicSubmissionHistoryResult>;
+  resubmitCloudMusicTrack: (payload: {
+    uuid: string;
+    input: import("./cloudMusic").CloudMusicUserSubmitInput;
+  }) => Promise<import("./cloudMusic").CloudMusicTrackDto>;
 };
 
 declare global {

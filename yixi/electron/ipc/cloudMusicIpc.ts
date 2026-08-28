@@ -6,8 +6,10 @@ import {
   getCloudMusicPlayUrl,
   getCloudMusicSummary,
   getCloudMusicTrackDetail,
+  getMyCloudMusicSubmissions,
   removeCloudMusicSubmitCover,
   reserveCloudMusicSubmitAsset,
+  resubmitCloudMusicTrack,
   saveCloudMusicSubmission,
   searchCloudMusic,
 } from "../cloudMusic/cloudMusicClient";
@@ -110,6 +112,28 @@ export function setupCloudMusicIpc() {
     ) => {
       const token = resolveUserToken(payload.token);
       return saveCloudMusicSubmission(payload.uuid, payload.input, token);
+    }
+  );
+
+  ipcMain.handle(
+    "cloud-music:submit:my-history",
+    async (
+      _event,
+      payload?: { offset?: number; limit?: number; token?: string }
+    ) => {
+      const token = resolveUserToken(payload?.token);
+      return getMyCloudMusicSubmissions(payload?.offset, payload?.limit, token);
+    }
+  );
+
+  ipcMain.handle(
+    "cloud-music:submit:resubmit",
+    async (
+      _event,
+      payload: { uuid: string; input: CloudMusicUserSubmitInput; token?: string }
+    ) => {
+      const token = resolveUserToken(payload.token);
+      return resubmitCloudMusicTrack(payload.uuid, payload.input, token);
     }
   );
 }

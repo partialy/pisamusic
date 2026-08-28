@@ -37,6 +37,13 @@ export interface CloudMusicSearchResult {
   limit: number;
 }
 
+export interface CloudMusicSubmissionHistoryResult {
+  items: CloudMusicTrackDto[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
 export interface CloudMusicResourceUrl {
   uuid: string;
   source: "cloud";

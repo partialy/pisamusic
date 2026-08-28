@@ -157,6 +157,47 @@ export async function saveCloudMusicSubmission(
   return normalizeCloudTrackCover(track);
 }
 
+export async function getMyCloudMusicSubmissions(
+  offset = 0,
+  limit = 30,
+  token?: string,
+): Promise<import("../../src/types/cloudMusic").CloudMusicSubmissionHistoryResult> {
+  const params = new URLSearchParams();
+  params.set("offset", String(Math.max(0, offset)));
+  params.set("limit", String(Math.min(100, Math.max(1, limit))));
+
+  const response = await requestSystem<import("../../src/types/cloudMusic").CloudMusicSubmissionHistoryResult>(
+    `/api/cloud-music/submit/my-history?${params.toString()}`,
+    {
+      method: "GET",
+      token,
+    },
+  );
+  const result = unwrapResponse(response);
+  return {
+    ...result,
+    items: (result.items || []).map(normalizeCloudTrackCover),
+  };
+}
+
+export async function resubmitCloudMusicTrack(
+  uuid: string,
+  input: CloudMusicUserSubmitInput,
+  token?: string,
+): Promise<CloudMusicTrackDto> {
+  const cleanUuid = (uuid || "").trim();
+  const response = await requestSystem<CloudMusicTrackDto>(
+    `/api/cloud-music/submit/${encodeURIComponent(cleanUuid)}/resubmit`,
+    {
+      method: "POST",
+      token,
+      body: input,
+    },
+  );
+  const track = unwrapResponse(response);
+  return normalizeCloudTrackCover(track);
+}
+
 function normalizeCloudTrackCover(track: CloudMusicTrackDto): CloudMusicTrackDto {
   if (!track || !track.cover) return track;
   const coverUrl = track.cover.url || "";

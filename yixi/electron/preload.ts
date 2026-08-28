@@ -445,6 +445,10 @@ const cloudMusicIpc = {
     ipcRenderer.invoke("cloud-music:submit:remove-cover", cloneIpcPayload(payload)),
   saveCloudMusicSubmission: (payload: { uuid: string; input: any }) =>
     ipcRenderer.invoke("cloud-music:submit:save", cloneIpcPayload(payload)),
+  getMyCloudMusicSubmissions: (payload?: { offset?: number; limit?: number }) =>
+    ipcRenderer.invoke("cloud-music:submit:my-history", cloneIpcPayload(payload)),
+  resubmitCloudMusicTrack: (payload: { uuid: string; input: any }) =>
+    ipcRenderer.invoke("cloud-music:submit:resubmit", cloneIpcPayload(payload)),
 };
 
 contextBridge.exposeInMainWorld("electronAPI", {
