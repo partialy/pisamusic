@@ -55,15 +55,23 @@ export type CloudMusicAssetReserveInput = {
   fileName: string;
   mimeType: string;
   fileSize: number;
+  ownerType?: "system" | "user";
+  ownerUserId?: string | null;
+  ownerSnapshot?: Record<string, unknown>;
 };
 
-type SessionAssetInput = Omit<CloudMusicAssetReserveInput, "trackUuid" | "kind">;
+type SessionAssetInput = Omit<CloudMusicAssetReserveInput, "trackUuid" | "kind" | "ownerType" | "ownerUserId" | "ownerSnapshot">;
 
 export type CloudMusicSessionCreateInput = {
   uuid: string;
   audio: SessionAssetInput;
   cover?: SessionAssetInput;
   lyrics?: SessionAssetInput;
+  owner?: {
+    type: "system" | "user";
+    userId?: string | null;
+    snapshot?: Record<string, unknown>;
+  };
 };
 
 export type CloudMusicReservedAsset = CloudMusicAsset & {
@@ -77,6 +85,8 @@ export type CloudMusicReservedAsset = CloudMusicAsset & {
 };
 
 export type CloudMusicDraftUpdateInput = {
+  status?: CloudMusicStatus;
+  statusReason?: string;
   title?: string;
   artist?: string;
   album?: string;
@@ -270,15 +280,21 @@ function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput
   ).get(input.trackUuid) as { uuid: string } | undefined;
   if (!track) throw new Error("网盘音乐曲目不存在");
 
+  const ownerType = input.ownerType ?? "system";
+  const ownerUserId = input.ownerUserId ?? null;
+  const ownerSnapshotJson = JSON.stringify(input.ownerSnapshot ?? { displayName: ownerType });
+
   db.prepare(
     `INSERT INTO file_records (
       id, usage_type, owner_type, owner_user_id, owner_snapshot_json,
       platform, version, asset_type, provider, bucket, object_key, hash,
       file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
-    ) VALUES (?, 'cloud-music', 'system', NULL, ?, 'server', '', ?, 'qiniu', ?, ?, '', ?, ?, ?, '', 'pending', ?, ?, NULL)`,
+    ) VALUES (?, 'cloud-music', ?, ?, ?, 'server', '', ?, 'qiniu', ?, ?, '', ?, ?, ?, '', 'pending', ?, ?, NULL)`,
   ).run(
     input.fileRecordId,
-    JSON.stringify({ displayName: "system" }),
+    ownerType,
+    ownerUserId,
+    ownerSnapshotJson,
     input.kind,
     input.bucket,
     input.objectKey,
@@ -316,6 +332,14 @@ function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput
 function updateDraftWithDb(db: DatabaseSync, uuid: string, input: CloudMusicDraftUpdateInput, now: number): void {
   const assignments: string[] = [];
   const values: Array<string | number | null> = [];
+  if (input.status !== undefined) {
+    assignments.push("status = ?");
+    values.push(input.status);
+  }
+  if (input.statusReason !== undefined) {
+    assignments.push("status_reason = ?");
+    values.push(input.statusReason);
+  }
   const fields: Array<[keyof CloudMusicDraftUpdateInput, string]> = [
     ["title", "title"],
     ["artist", "artist"],
@@ -365,18 +389,73 @@ export function createCloudMusicUploadSession(input: CloudMusicSessionCreateInpu
   const db = getAppDb();
   return runInTransaction(db, () => {
     const now = Date.now();
+    const ownerType = input.owner?.type ?? "system";
+    const ownerUserId = input.owner?.userId ?? null;
+    const ownerSnapshot = input.owner?.snapshot ?? { displayName: ownerType };
+
     db.prepare(
       `INSERT INTO cloud_music_tracks (
         uuid, status, upload_state, status_reason, title, artist, created_at, updated_at, deleted_at
       ) VALUES (?, 'temp', 'reserved', '', ?, '未知歌手', ?, ?, NULL)`,
     ).run(input.uuid, path.basename(input.audio.fileName), now, now);
-    reserveAssetWithDb(db, { ...input.audio, trackUuid: input.uuid, kind: "audio" }, now);
-    if (input.cover) reserveAssetWithDb(db, { ...input.cover, trackUuid: input.uuid, kind: "cover-uploaded" }, now);
-    if (input.lyrics) reserveAssetWithDb(db, { ...input.lyrics, trackUuid: input.uuid, kind: "lyrics" }, now);
+
+    reserveAssetWithDb(db, {
+      ...input.audio,
+      trackUuid: input.uuid,
+      kind: "audio",
+      ownerType,
+      ownerUserId,
+      ownerSnapshot,
+    }, now);
+
+    if (input.cover) {
+      reserveAssetWithDb(db, {
+        ...input.cover,
+        trackUuid: input.uuid,
+        kind: "cover-uploaded",
+        ownerType,
+        ownerUserId,
+        ownerSnapshot,
+      }, now);
+    }
+    if (input.lyrics) {
+      reserveAssetWithDb(db, {
+        ...input.lyrics,
+        trackUuid: input.uuid,
+        kind: "lyrics",
+        ownerType,
+        ownerUserId,
+        ownerSnapshot,
+      }, now);
+    }
+
     const track = readTrackWithDb(db, input.uuid);
     if (!track) throw new Error("网盘音乐上传会话创建失败");
     return track;
   });
+}
+
+export function readTrackOwnerInfo(uuid: string): { ownerType: string; ownerUserId: string | null; ownerSnapshot: Record<string, unknown> } | null {
+  const db = getAppDb();
+  const row = db.prepare(
+    `SELECT f.owner_type, f.owner_user_id, f.owner_snapshot_json
+     FROM cloud_music_assets a
+     JOIN file_records f ON f.id = a.file_record_id
+     WHERE a.track_uuid = ? AND a.kind = 'audio' AND a.deleted_at IS NULL
+     LIMIT 1`,
+  ).get(uuid) as { owner_type: string; owner_user_id: string | null; owner_snapshot_json: string } | undefined;
+  if (!row) return null;
+  let snapshot: Record<string, unknown> = {};
+  try {
+    snapshot = JSON.parse(row.owner_snapshot_json);
+  } catch {
+    snapshot = {};
+  }
+  return {
+    ownerType: row.owner_type,
+    ownerUserId: row.owner_user_id,
+    ownerSnapshot: snapshot,
+  };
 }
 
 export function reserveCloudMusicAsset(input: CloudMusicAssetReserveInput): CloudMusicReservedAsset {

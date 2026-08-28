@@ -435,6 +435,16 @@ const cloudMusicIpc = {
     ipcRenderer.invoke("cloud-music:search", cloneIpcPayload(input)),
   getCloudMusicTrack: (uuid: string) =>
     ipcRenderer.invoke("cloud-music:detail", uuid),
+  createCloudMusicSubmitSession: (input: any) =>
+    ipcRenderer.invoke("cloud-music:submit:create-session", cloneIpcPayload(input)),
+  reserveCloudMusicSubmitAsset: (payload: { uuid: string; input: any }) =>
+    ipcRenderer.invoke("cloud-music:submit:reserve-asset", cloneIpcPayload(payload)),
+  completeCloudMusicSubmitAsset: (payload: { uuid: string; kind: "audio" | "cover-uploaded" | "lyrics" }) =>
+    ipcRenderer.invoke("cloud-music:submit:complete-asset", cloneIpcPayload(payload)),
+  removeCloudMusicSubmitCover: (payload: { uuid: string }) =>
+    ipcRenderer.invoke("cloud-music:submit:remove-cover", cloneIpcPayload(payload)),
+  saveCloudMusicSubmission: (payload: { uuid: string; input: any }) =>
+    ipcRenderer.invoke("cloud-music:submit:save", cloneIpcPayload(payload)),
 };
 
 contextBridge.exposeInMainWorld("electronAPI", {

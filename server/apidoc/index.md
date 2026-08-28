@@ -157,6 +157,7 @@
 | 获取网盘音乐稳定封面 | `GET` | `/api/cloud-music/tracks/:uuid/cover` | 无 (明文重定向) | [./cloudMusic/getCover.md](./cloudMusic/getCover.md) |
 | 获取网盘音乐播放地址 | `GET` | `/api/cloud-music/tracks/:uuid/play-url` | 无 (加密) | [./cloudMusic/getPlayUrl.md](./cloudMusic/getPlayUrl.md) |
 | 获取网盘音乐歌词地址 | `GET` | `/api/cloud-music/tracks/:uuid/lyrics-url` | 无 (加密) | [./cloudMusic/getLyricsUrl.md](./cloudMusic/getLyricsUrl.md) |
+| 用户投稿网盘音乐 (会话/直传/元数据/审核) | `POST/DELETE` | `/api/cloud-music/submit/*` | User Token (加密) | [./cloudMusic/submit.md](./cloudMusic/submit.md) |
 
 ---
 

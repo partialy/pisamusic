@@ -29,7 +29,8 @@ const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
 };
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  token?: string;
   body?: unknown;
   encrypted?: boolean;
   headers?: Record<string, string>;
@@ -621,6 +622,9 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
   const url = new URL(path, getApiBaseUrl());
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};
+  if (options.token) {
+    headers.authorization = `Bearer ${options.token.trim()}`;
+  }
   let body: string | undefined;
   const useEncryption = options.encrypted !== false;
 

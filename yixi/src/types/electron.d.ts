@@ -912,6 +912,24 @@ type ElectronIpcApi = {
     limit?: number;
   }) => Promise<import("./cloudMusic").CloudMusicSearchResult>;
   getCloudMusicTrack: (uuid: string) => Promise<import("./cloudMusic").CloudMusicTrackDto>;
+  createCloudMusicSubmitSession: (
+    input: import("./cloudMusic").CloudMusicUploadSessionRequest
+  ) => Promise<import("./cloudMusic").CloudMusicUploadSession>;
+  reserveCloudMusicSubmitAsset: (payload: {
+    uuid: string;
+    input: import("./cloudMusic").CloudMusicAssetReserveRequest;
+  }) => Promise<import("./cloudMusic").CloudMusicAssetUploadTicket>;
+  completeCloudMusicSubmitAsset: (payload: {
+    uuid: string;
+    kind: "audio" | "cover-uploaded" | "lyrics";
+  }) => Promise<import("./cloudMusic").CloudMusicTrackDto>;
+  removeCloudMusicSubmitCover: (payload: {
+    uuid: string;
+  }) => Promise<import("./cloudMusic").CloudMusicTrackDto>;
+  saveCloudMusicSubmission: (payload: {
+    uuid: string;
+    input: import("./cloudMusic").CloudMusicUserSubmitInput;
+  }) => Promise<import("./cloudMusic").CloudMusicTrackDto>;
 };
 
 declare global {

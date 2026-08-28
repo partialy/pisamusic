@@ -1,9 +1,14 @@
 import { requestSystem, resolveSystemAssetUrl, unwrapResponse } from "../system/systemClient";
 import type {
+  CloudMusicAssetReserveRequest,
+  CloudMusicAssetUploadTicket,
   CloudMusicResourceUrl,
   CloudMusicSearchResult,
   CloudMusicSummary,
   CloudMusicTrackDto,
+  CloudMusicUploadSession,
+  CloudMusicUploadSessionRequest,
+  CloudMusicUserSubmitInput,
 } from "../../src/types/cloudMusic";
 
 export async function getCloudMusicSummary(): Promise<CloudMusicSummary> {
@@ -63,6 +68,93 @@ export async function getCloudMusicLyricsUrl(uuid: string): Promise<CloudMusicRe
   }
   const response = await requestSystem<CloudMusicResourceUrl>(`/api/cloud-music/tracks/${encodeURIComponent(cleanUuid)}/lyrics-url`);
   return unwrapResponse(response);
+}
+
+// ==================== 投稿相关 API ====================
+
+export async function createCloudMusicSubmitSession(
+  input: CloudMusicUploadSessionRequest,
+  token?: string,
+): Promise<CloudMusicUploadSession> {
+  const response = await requestSystem<CloudMusicUploadSession>("/api/cloud-music/submit/upload-sessions", {
+    method: "POST",
+    token,
+    body: input,
+  });
+  const session = unwrapResponse(response);
+  return {
+    ...session,
+    track: normalizeCloudTrackCover(session.track),
+  };
+}
+
+export async function reserveCloudMusicSubmitAsset(
+  uuid: string,
+  input: CloudMusicAssetReserveRequest,
+  token?: string,
+): Promise<CloudMusicAssetUploadTicket> {
+  const cleanUuid = (uuid || "").trim();
+  const kind = (input.kind || "").trim();
+  const response = await requestSystem<CloudMusicAssetUploadTicket>(
+    `/api/cloud-music/submit/${encodeURIComponent(cleanUuid)}/assets/${encodeURIComponent(kind)}/reserve`,
+    {
+      method: "POST",
+      token,
+      body: input,
+    },
+  );
+  return unwrapResponse(response);
+}
+
+export async function completeCloudMusicSubmitAsset(
+  uuid: string,
+  kind: "audio" | "cover-uploaded" | "lyrics",
+  token?: string,
+): Promise<CloudMusicTrackDto> {
+  const cleanUuid = (uuid || "").trim();
+  const response = await requestSystem<CloudMusicTrackDto>(
+    `/api/cloud-music/submit/${encodeURIComponent(cleanUuid)}/assets/${encodeURIComponent(kind)}/complete`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+  const track = unwrapResponse(response);
+  return normalizeCloudTrackCover(track);
+}
+
+export async function removeCloudMusicSubmitCover(
+  uuid: string,
+  token?: string,
+): Promise<CloudMusicTrackDto> {
+  const cleanUuid = (uuid || "").trim();
+  const response = await requestSystem<CloudMusicTrackDto>(
+    `/api/cloud-music/submit/${encodeURIComponent(cleanUuid)}/cover`,
+    {
+      method: "DELETE",
+      token,
+    },
+  );
+  const track = unwrapResponse(response);
+  return normalizeCloudTrackCover(track);
+}
+
+export async function saveCloudMusicSubmission(
+  uuid: string,
+  input: CloudMusicUserSubmitInput,
+  token?: string,
+): Promise<CloudMusicTrackDto> {
+  const cleanUuid = (uuid || "").trim();
+  const response = await requestSystem<CloudMusicTrackDto>(
+    `/api/cloud-music/submit/${encodeURIComponent(cleanUuid)}/save`,
+    {
+      method: "POST",
+      token,
+      body: input,
+    },
+  );
+  const track = unwrapResponse(response);
+  return normalizeCloudTrackCover(track);
 }
 
 function normalizeCloudTrackCover(track: CloudMusicTrackDto): CloudMusicTrackDto {

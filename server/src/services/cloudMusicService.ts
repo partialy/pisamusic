@@ -276,10 +276,27 @@ export function toCloudMusicTrackDto(track: StoreTrack): CloudMusicTrackDto {
   const audioFile = resolveFileInfo(audioAsset);
   const playable = track.status === "active" && track.uploadState === "ready" && audioFile !== null && audioFile.fileSize > 0;
 
+  let owner: CloudMusicOwner = { type: "system", userId: null, displayName: "system" };
+  if (audioAsset) {
+    const file = readFileRecordById(audioAsset.fileRecordId);
+    if (file && file.ownerType === "user" && file.ownerUserId) {
+      const displayName = typeof file.ownerSnapshot?.username === "string" && file.ownerSnapshot.username.trim()
+        ? file.ownerSnapshot.username.trim()
+        : typeof file.ownerSnapshot?.displayName === "string" && file.ownerSnapshot.displayName.trim()
+        ? file.ownerSnapshot.displayName.trim()
+        : `用户${file.ownerUserId}`;
+      owner = {
+        type: "user",
+        userId: file.ownerUserId,
+        displayName,
+      };
+    }
+  }
+
   return {
     uuid: track.uuid,
     source: "cloud",
-    owner: { type: "system", userId: null, displayName: "system" },
+    owner,
     status: track.status,
     uploadState: track.uploadState,
     statusReason: track.statusReason,
@@ -325,7 +342,10 @@ export function toCloudMusicPublicTrack(dto: CloudMusicTrackDto): CloudMusicPubl
   };
 }
 
-export function createAdminUploadSession(input: CloudMusicUploadSessionRequest): CloudMusicUploadSession {
+function createUploadSessionInternal(
+  input: CloudMusicUploadSessionRequest,
+  owner?: { type: "system" | "user"; userId?: string | null; snapshot?: Record<string, unknown> },
+): CloudMusicUploadSession {
   const uuid = randomUUID();
   const bucket = getRequiredBucket();
   const now = new Date();
@@ -377,6 +397,7 @@ export function createAdminUploadSession(input: CloudMusicUploadSessionRequest):
     },
     cover: coverAssetInput,
     lyrics: lyricsAssetInput,
+    owner,
   });
 
   const tickets: CloudMusicAssetUploadTicket[] = [];
@@ -426,6 +447,21 @@ export function createAdminUploadSession(input: CloudMusicUploadSessionRequest):
     track: toCloudMusicTrackDto(track),
     tickets,
   };
+}
+
+export function createAdminUploadSession(input: CloudMusicUploadSessionRequest): CloudMusicUploadSession {
+  return createUploadSessionInternal(input, { type: "system", userId: null, snapshot: { displayName: "system" } });
+}
+
+export function createUserUploadSession(
+  input: CloudMusicUploadSessionRequest,
+  user: { id: string; username: string; email: string },
+): CloudMusicUploadSession {
+  return createUploadSessionInternal(input, {
+    type: "user",
+    userId: user.id,
+    snapshot: { userId: user.id, username: user.username, email: user.email },
+  });
 }
 
 export function reserveAsset(uuid: string, input: CloudMusicAssetReserveRequest): CloudMusicAssetUploadTicket {
@@ -982,3 +1018,97 @@ export function getPublicLyricsUrl(uuid: string): CloudMusicLyricsUrlResponse {
     format,
   };
 }
+
+export type CloudMusicUserSubmitInput = {
+  title: string;
+  artist: string;
+  album?: string;
+  durationMs: number;
+};
+
+export function checkUserTrackOwnership(uuid: string, userId: string): void {
+  const track = readCloudMusicTrack(uuid);
+  if (!track || track.deletedAt !== null) {
+    throw new Error("网盘音乐曲目不存在");
+  }
+  const audioAsset = track.assets.find((item) => item.kind === "audio" && item.deletedAt === null);
+  if (audioAsset) {
+    const file = readFileRecordById(audioAsset.fileRecordId);
+    if (file && file.ownerType === "user" && file.ownerUserId && file.ownerUserId !== userId) {
+      throw new Error("无权操作此曲目");
+    }
+  }
+}
+
+export function reserveUserAsset(
+  uuid: string,
+  input: CloudMusicAssetReserveRequest,
+  user: { id: string; username: string; email: string },
+): CloudMusicAssetUploadTicket {
+  checkUserTrackOwnership(uuid, user.id);
+  const ticket = reserveAsset(uuid, input);
+  return ticket;
+}
+
+export async function confirmUserAsset(
+  uuid: string,
+  kind: CloudMusicAssetKind,
+  user: { id: string; username: string; email: string },
+): Promise<CloudMusicTrackDto> {
+  checkUserTrackOwnership(uuid, user.id);
+  return confirmAsset(uuid, kind);
+}
+
+export async function removeUserManualCover(
+  uuid: string,
+  user: { id: string; username: string; email: string },
+): Promise<CloudMusicTrackDto> {
+  checkUserTrackOwnership(uuid, user.id);
+  return removeManualCover(uuid);
+}
+
+export function saveUserSubmission(
+  uuid: string,
+  input: CloudMusicUserSubmitInput,
+  user: { id: string; username: string; email: string },
+): CloudMusicTrackDto {
+  checkUserTrackOwnership(uuid, user.id);
+  const track = readCloudMusicTrack(uuid);
+  if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在");
+
+  if (track.status !== "temp" && track.status !== "rejected") {
+    throw new Error("当前曲目状态不允许重复提交投稿");
+  }
+
+  const title = input.title.trim();
+  if (!title || title.length > 200) throw new Error("歌名长度应在 1-200 字符之间");
+
+  const artist = input.artist.trim();
+  if (!artist || artist.length > 300) throw new Error("歌手长度应在 1-300 字符之间");
+
+  const album = (input.album ?? "").trim();
+  if (album.length > 200) throw new Error("专辑名称不能超过 200 字符");
+
+  const durationMs = Math.trunc(input.durationMs);
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0 || durationMs > 86400000) {
+    throw new Error("时长不正确，应大于 0 且小于 24 小时");
+  }
+
+  if (track.uploadState !== "ready") {
+    throw new Error("音频文件尚未上传完成或解析失败，无法提交投稿");
+  }
+
+  updateCloudMusicDraft(uuid, {
+    title,
+    artist,
+    album,
+    durationMs,
+    status: "pending_review",
+    statusReason: `用户 ${user.username} 投稿，等待审核`,
+  });
+
+  const updated = readCloudMusicTrack(uuid);
+  if (!updated) throw new Error("保存投稿状态失败");
+  return toCloudMusicTrackDto(updated);
+}
+
