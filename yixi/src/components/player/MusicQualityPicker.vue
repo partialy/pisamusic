@@ -15,7 +15,6 @@
     <div
       class="quality-options-list"
       role="listbox"
-      @wheel.prevent.stop
     >
       <div
         v-for="option in options"
@@ -86,8 +85,22 @@ function handleSelect(option: QualityAccessOption) {
   flex-direction: column;
   gap: 2px;
   user-select: none;
-  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
   overscroll-behavior: contain;
+  padding-right: 2px;
+
+  /* 细滚动条 */
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-text-secondary) 25%, transparent);
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-text-secondary) 45%, transparent);
+  }
 }
 
 .quality-option-item {
@@ -144,14 +157,7 @@ function handleSelect(option: QualityAccessOption) {
 
 <style lang="scss">
 .music-quality-popover {
-  overflow: hidden !important;
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-
-  &::-webkit-scrollbar {
-    display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-  }
+  border: 1px solid var(--color-border-default) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
 }
 </style>
