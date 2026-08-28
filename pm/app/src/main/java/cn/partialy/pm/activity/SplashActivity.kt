@@ -16,6 +16,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ActivitySplashBinding
 import cn.partialy.pm.model.DeviceReportResult
@@ -25,6 +26,7 @@ import cn.partialy.pm.sync.SyncOutboxStore
 import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.util.DeviceInfoCollector
 import cn.partialy.pm.utils.AppUpdateInstaller
+import cn.partialy.pm.utils.AppVersionComparator
 import cn.partialy.pm.utils.ServerDevicePrefs
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -87,7 +89,6 @@ class SplashActivity : AppCompatActivity() {
         )
 
         setupWebView(binding.splashWebView)
-        setupLocalModeButton()
         scheduleLocalModeButtonIfNeeded()
         binding.splashWebView.loadUrl(SPLASH_WEB_URL)
         binding.splashWebView.addJavascriptInterface(SplashJsBridge(), "AndroidSplash")
@@ -194,7 +195,8 @@ class SplashActivity : AppCompatActivity() {
             }.onSuccess { updateInfo ->
                 if (hasNavigated) return@onSuccess
                 val localVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
-                if (isVersionChanged(localVersion, updateInfo.latestVersion)) {
+                val shouldPromptUpdate = !BuildConfig.DEBUG && AppVersionComparator.isServerVersionNewer(localVersion, updateInfo.latestVersion)
+                if (shouldPromptUpdate) {
                     cancelLocalModeButton()
                     latestDownloadUrl = updateInfo.downloadUrl
                     latestOfficialUrl = updateInfo.officialUrl
@@ -230,19 +232,13 @@ class SplashActivity : AppCompatActivity() {
         ServerDevicePrefs.setDeviceId(this, id)
     }
 
-    private fun setupLocalModeButton() {
-        binding.localModeEnterButton.setOnClickListener {
-            enterLocalModeImmediately(getString(R.string.splash_local_mode_manual_reason))
-        }
-    }
-
     private fun scheduleLocalModeButtonIfNeeded() {
-        if (!isAgreementAccepted() || hasNavigated || binding.localModeEnterButton.visibility == View.VISIBLE) return
+        if (!isAgreementAccepted() || hasNavigated) return
         if (localModeButtonJob?.isActive == true) return
         localModeButtonJob = lifecycleScope.launch {
             delay(LOCAL_MODE_BUTTON_DELAY_MS)
             if (!hasNavigated && !isFinishing && !isDestroyed && isAgreementAccepted()) {
-                binding.localModeEnterButton.visibility = View.VISIBLE
+                showLocalModeInWebView(true)
             }
         }
     }
@@ -250,9 +246,12 @@ class SplashActivity : AppCompatActivity() {
     private fun cancelLocalModeButton() {
         localModeButtonJob?.cancel()
         localModeButtonJob = null
-        if (::binding.isInitialized) {
-            binding.localModeEnterButton.visibility = View.GONE
-        }
+        showLocalModeInWebView(false)
+    }
+
+    private fun showLocalModeInWebView(show: Boolean) {
+        val js = "window.showLocalMode && window.showLocalMode($show);"
+        binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
     }
 
     private fun enterLocalModeImmediately(localModeReason: String) {
@@ -300,12 +299,6 @@ class SplashActivity : AppCompatActivity() {
         val endTime = lockEndTime ?: return getString(R.string.startup_device_banned)
         val formatted = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(endTime))
         return getString(R.string.startup_device_banned_until, formatted)
-    }
-
-    private fun isVersionChanged(localVersion: String, latestVersion: String): Boolean {
-        val local = localVersion.trim().removePrefix("v").removePrefix("V")
-        val remote = latestVersion.trim().removePrefix("v").removePrefix("V")
-        return local.isNotEmpty() && remote.isNotEmpty() && local != remote
     }
 
     private fun jsSafe(value: String): String =
@@ -433,7 +426,7 @@ class SplashActivity : AppCompatActivity() {
                         withContext(Dispatchers.IO) { configManager.getUpdateInfo() }
                     }.onSuccess { updateInfo ->
                         val localVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
-                        val hasNewVersion = isVersionChanged(localVersion, updateInfo.latestVersion)
+                        val hasNewVersion = !BuildConfig.DEBUG && AppVersionComparator.isServerVersionNewer(localVersion, updateInfo.latestVersion)
                         if (hasNewVersion && updateInfo.forceUpdate) {
                             latestDownloadUrl = updateInfo.downloadUrl
                             latestOfficialUrl = updateInfo.officialUrl
@@ -476,6 +469,13 @@ class SplashActivity : AppCompatActivity() {
             runOnUiThread {
                 setAgreementAccepted(false)
                 finishAffinity()
+            }
+        }
+
+        @JavascriptInterface
+        fun enterLocalMode() {
+            runOnUiThread {
+                enterLocalModeImmediately(getString(R.string.splash_local_mode_manual_reason))
             }
         }
 

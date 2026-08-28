@@ -60,6 +60,7 @@
 - `MusicController` 是 UI 和 Service 使用的统一播放器门面，也是 App 级播放单例；`MusicService` 只负责前台通知、MediaSessionService 承载和状态栏歌词，不在 `onDestroy()` 中释放播放器。只有明确的应用级退出 / 进程级清理流程才调用 `MusicController.release()`。
 - `PlaylistManager` 管理播放列表、当前下标、下一首队列和 `StateFlow`；主列表与“下一首播放”队列都按 `SongType + songId` 识别歌曲，同一音源同一歌曲不得重复入队，已有占位歌曲执行插播时应移动到目标位置而不是复制。
 - `PlayerEngine` 管理 ExoPlayer、MediaSession、播放事件、进度、播放模式和状态持久化。
+- `SongType.CLOUD` 使用稳定的 `source + uuid` 进入普通歌曲队列和播放状态；队列及持久化只保存稳定歌曲信息，实际播放、自动/手动切歌和恢复当前歌曲前由 `PlayerEngine` 重新请求临时播放地址并原子替换对应 MediaItem。Cloud 播放地址不得提前为整批队列签发，也不得写入收藏、歌单、分享或播放状态。
 - 主播放页和通用迷你播放器的播放按钮统一由 `PlaybackButtonStateRenderer` 根据 `playbackState + isPlaying` 渲染；Media3 处于 `STATE_BUFFERING` 时显示 `ic_loading_loop_24` 并由代码做 1.5 秒无限旋转，离开缓冲态或页面销毁时必须取消动画并恢复播放/暂停图标。
 - `PlayerEngine` 默认使用 Media3 原生音频渲染器；只有宽声场处理确实启用时才接入 `AudioEffectsRenderersFactory`，音频渲染异常时应回退到原生渲染器并对当前歌曲重试一次。
 - `MediaItemFactory` 创建延迟解析的 `MediaItem`。
@@ -75,6 +76,7 @@
 - 播放页 3D 音效入口进入 `AudioEffectsActivity`；音效配置集中在 `audioeffect/` 模块，本地通过 SharedPreferences + kotlinx.serialization 保存，不同步到服务端。`AudioEffectsManager` 绑定 ExoPlayer `audioSessionId` 后使用系统 `DynamicsProcessing` / `Equalizer`、`BassBoost` 生效；宽声场由 Media3 `StereoWidenerAudioProcessor` 在 `DefaultAudioSink` 前做双声道 PCM Mid/Side 处理，处理器旁路时不能直接把同一个 `ByteBuffer` 作为源和目标复制。新增音效能力优先扩展该模块，不要把 AudioEffect 生命周期放进 Activity。
 - 在线歌曲播放失败不再自动跳到当前队列下一曲；失败后按设置里的“自动切换列表”处理，关闭时暂停并提示，开启时切换到本地 / 已缓存 / 已下载歌曲列表。
 - 在线播放缓存只通过 `player/cache/PlaybackMediaCache` 门面访问：队列项先在 IO 登记 descriptor / catalog，再一次性交付 `pmcache://media/<cacheKey>` 逻辑 URI；Main 不得按歌曲写物理缓存目录或 prepare 占位 URI。缓存身份固定为规范化 `source + songId + qualityKey`，每个在线 `MediaItem` 绑定构造时冻结的实际音质，目录同步从当前 player item 校验，不得用之后变化的全局音质偏好推断。
+- Cloud 音质固定为唯一的“默认”档（`cloud:default`），不参与 KG / WY / KW VIP 音质策略；是否可播放只看歌曲 `playable` 与 server 实时响应。Cloud 必须旁路 `PlaybackMediaCache`，每次播放、切歌和下载临近使用时重新取 URL，避免持久缓存或旧签名绕过后台禁用状态。
 - 真实播放 URL 只存在进程内 TTL 注册表，不写入目录或持久化；LOCAL 的 `content://` / file URI 必须旁路播放缓存。仅已知总长、从字节 0 开始连续完整覆盖的 `READY` 项可进入已缓存回退，未知总长、缺口或部分字节一律排除。
 - `Media3CacheStore` 独占 `SimpleCache`，由 Media3 管理 Range、Span 和物理 LRU；统计和清理均通过 facade，清理仅移除资源且不得释放活跃 cache。目录索引继续写入 `pm_local_music.db` 的 `cached_playback_records`，兼容列 `play_url` 不得恢复运行时读写。
 - `PlaybackMediaCache.release()` 只用于 renderer / ExoPlayer 内部重建时释放可重开的缓存实例；播放器最终退出必须调用不可逆 `shutdown()`。所有 descriptor、catalog、cache store 和媒体项操作都受同一终止门禁保护，终止会等待在途操作，之后禁止迟到任务重新登记或惰性重开缓存。
@@ -105,12 +107,14 @@
 - KG：`KgApiService`、`KgUrlProxyApiService`、`KgRepository`、`DfidInterceptor`
 - WY：`WyApiService`、`WyUrlProxyApiService`、`WyRepository`
 - KW：`KwSearchApiService`、`KwUrlProxyApiService`、`KwRepository`
+- Cloud：`SystemApiService` + `network/cloudmusic/CloudMusicRepository`，只访问外层 server 的 `/api/cloud-music/*`。首页第二个 Tab 为“云盘”，空关键词展示全部可搜索曲目，搜索和滚动分页固定 `limit=20`；`active` 可播放，`disabled` 可搜索但不可取播放地址。封面使用稳定 `/tracks/:uuid/cover`，歌词先获取临时 URL 再由仅允许 HTTPS 的资源 client 拉取。
 - `ConfigManager` 从外层系统服务端获取启动配置，并动态提供 KG / WY / KW / proxy 端点、歌曲 URL 端点和网关签名配置。
 - App 启动访问系统服务前先由 `network/discovery/ServiceDiscoveryManager` 读取远程发现文档、缓存或 BuildConfig embedded origin；生产 discovery fetch/health 必须使用 OkHttp `enqueue` 接入协程取消并在取消时 `Call.cancel()`，不得恢复阻塞 `execute()`。`SystemApiService` 与一起听明文配置 Retrofit 固定使用 `system.runtime.invalid` 占位地址，并由 `SystemServiceEndpointInterceptor` 在请求发出前改写为当前 discovery API origin。bootstrap 必须使用发现快照中的相对 `bootstrapPath`，只有快照仍为 current 且响应有效时才发布音乐端点和网关签名；下发前音乐端点保持 `music-runtime.invalid` 不可路由。
 - Splash 是启动 bootstrap 的唯一入口，`MainActivity` 不得重复刷新。进入在线启动前调用 `ConfigManager.beginOnlineStartup()`；任何自动降级或用户主动进入本地模式的路径必须调用 `ConfigManager.enterLocalMode()`，立即把音乐端点重置为 `music-runtime.invalid` 并通过 generation 拒绝晚到的旧 bootstrap 响应。
 - KG / WY / KW / proxy 的 Retrofit 使用不可路由占位地址，`RuntimeEndpointInterceptor` 在每次请求发送前按 `ConfigManager` 当前配置重写真实地址，并将当次 bootstrap state 通过 request tag 传给 `GatewaySignInterceptor`，保证同一请求的 endpoint 与签名来自同一快照；该拦截器必须位于签名、故障追踪和日志拦截器之前。动态绝对 `@Url` 必须由 `ConfigManager` 的 `RuntimeUrlTarget` 同时取得 URL 和 state，并通过 Retrofit `@Tag` 传入；KG/WY Cookie 请求同样传递同一 target，不得先取 URL 再由 CookieRequest 读取新 state。bootstrap 成功前音乐端点统一保持 `https://music-runtime.invalid/`，不得回退到系统服务地址、`127.0.0.1` 或在 Retrofit 创建时快照运行时端点。
 - discovery 缓存只保存发现文档原文与版本，不缓存 bootstrap 音源配置；远程文档版本低于当前快照时不得覆盖或降级。一起听 Socket 每次连接读取当前 realtime origin，反馈地址和账号相对头像统一按当前 API origin 解析；绝对头像仅接受合法 HTTPS URL。
 - 首页推荐页由 `RecommendedSongsViewModel` 聚合 KG 每日推荐 / 推荐歌单与 WY `/personalized` 推荐歌单、`/personalized/newsong` 推荐新歌；新增首页推荐来源时需要补齐模型、Repository 映射、`SongType`/`CollectedPlaylistType` UI 分流和播放 URL 解析。
+- 云盘歌曲当前不扩展一起听协议；相关菜单隐藏或提示“云盘歌曲暂不支持一起听”，收到 Cloud 歌曲也必须在一起听入口拒绝，后续需要同时扩展 Android、PC 与 server 协议后才能开放。
 - KG / WY 已登录且本地存在对应 Cookie 时，非播放 URL 的数据接口（搜索、推荐、歌单、歌词等）必须优先走 `KugouCookieRepository` / `WyCookieRepository` 的 Cookie 请求，失败后回退匿名 Retrofit；唯一例外是 KG `search/suggest` 搜索提示词，为保证输入变化时能取消底层 OkHttp Call，固定使用匿名 Retrofit `suspend` 接口。播放和下载 URL 仍只走现有 `KgUrlProxyApiService` / `WyUrlProxyApiService` 代理链路，不带 Cookie。
 - 修改 endpoint 字段时，检查 Android `SystemData.kt` / `ConfigManager.kt`，以及 `../server/` 中的配置存储、类型和管理后台表单。
 - 修改发现页字段时，检查 Android `DiscoverInfo` / `DiscoverFragment`，以及 `../server/` 的 discover 配置和管理后台系统页。

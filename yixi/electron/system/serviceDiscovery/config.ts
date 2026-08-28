@@ -5,19 +5,28 @@ export const DISCOVERY_DOCUMENT_URL =
 
 export const EMBEDDED_DISCOVERY_DOCUMENT: DiscoveryDocumentV1 = {
   schemaVersion: 1,
-  configVersion: 1,
-  publishedAt: "2026-08-24T10:35:00+08:00",
+  configVersion: 2,
+  publishedAt: "2026-08-28T12:00:00+08:00",
   desktop: {
     minimumSupportedVersion: "1.0.1",
     healthCheckPath: "/api/health",
     bootstrapPath: "/api/config/bootstrap",
-    serviceOrigins: [{
-      id: "primary",
-      priority: 100,
-      apiBaseUrl: "https://pm-server.hs.partialy.cn",
-      realtimeBaseUrl: "https://pm-server.hs.partialy.cn",
-    }],
+    serviceOrigins: [
+      {
+        id: "primary",
+        priority: 100,
+        apiBaseUrl: "https://pm.yixivip.top",
+        realtimeBaseUrl: "https://pm.yixivip.top",
+      },
+      {
+        id: "backup",
+        priority: 100,
+        apiBaseUrl: "https://pm.hs.partialy.cn",
+        realtimeBaseUrl: "https://pm.hs.partialy.cn",
+      },
+    ],
     updateFeedBaseUrls: [
+      "https://pm.yixivip.top/api/config/desktop-updates/win32/x64",
       "https://pm.hs.partialy.cn/api/config/desktop-updates/win32/x64",
     ],
   },

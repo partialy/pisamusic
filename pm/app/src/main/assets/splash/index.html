@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
@@ -74,6 +74,18 @@
     }
     .sheet-panel.show { transform: translateY(0); }
 
+    .local-mode-box {
+      opacity: 0;
+      transform: translateY(6px);
+      pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .local-mode-box.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
   </style>
 </head>
 <body class="min-h-[100dvh] flex flex-col items-center bg-gradient-to-b from-sky-50 to-white dark:from-slate-900 dark:to-slate-950 transition-colors duration-500 text-slate-800 dark:text-slate-200 pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))]">
@@ -98,7 +110,7 @@
 
   <div class="flex-1 min-h-4"></div>
 
-  <div class="flex flex-col items-center mb-10 px-6">
+  <div class="flex flex-col items-center mb-10 px-6 min-h-[130px] justify-end">
     <div class="flex items-end justify-center gap-1 h-10 mb-4" aria-hidden="true">
       <div class="eq-bar h-5" style="--eq-dur: 1.6s; --eq-delay: 0ms"></div>
       <div class="eq-bar h-5" style="--eq-dur: 1.6s; --eq-delay: 250ms"></div>
@@ -115,6 +127,21 @@
       <span class="dot-fade" aria-hidden="true">.</span>
       <span class="dot-fade" aria-hidden="true">.</span>
     </p>
+
+    <!-- 弱化显示的本地模式提示与按钮 -->
+    <div id="localModeBox" class="local-mode-box mt-5 flex flex-col items-center select-none">
+      <p class="text-[11px] text-slate-400/90 dark:text-slate-500/90 mb-2 font-normal tracking-wide">
+        网络较慢，请耐心等待....
+      </p>
+      <button
+        type="button"
+        id="enterLocalModeBtn"
+        onclick="onEnterLocalModeClick()"
+        class="px-3.5 py-1.5 rounded-full text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 border border-slate-200/50 dark:border-slate-700/50 transition-all active:scale-95 cursor-pointer"
+      >
+        以本地模式启动
+      </button>
+    </div>
   </div>
 
   <div id="sheetMask" class="sheet-mask"></div>
@@ -318,6 +345,24 @@
       }
     }
 
+    function onEnterLocalModeClick() {
+      if (window.AndroidSplash && window.AndroidSplash.enterLocalMode) {
+        window.AndroidSplash.enterLocalMode();
+      }
+    }
+
+    function showLocalMode(show = true) {
+      const el = document.getElementById('localModeBox');
+      if (!el) return;
+      if (show) {
+        el.classList.add('show');
+      } else {
+        el.classList.remove('show');
+      }
+    }
+
+    window.onEnterLocalModeClick = onEnterLocalModeClick;
+    window.showLocalMode = showLocalMode;
     window.setSheetType = setSheetType;
     window.splashSheet = {
       showAgreement: (payload) => setSheetType('agreement', payload || {}),
@@ -330,6 +375,7 @@
         }
       },
       showUpdate: (payload) => setSheetType('update', payload || {}),
+      showLocalMode: (show) => showLocalMode(show ?? true),
       setDownloading: (payload) => {
         downloadingState = Object.assign({ downloading: false, progress: -1, text: '' }, payload || {});
         updateDownloadButtonsOnly();

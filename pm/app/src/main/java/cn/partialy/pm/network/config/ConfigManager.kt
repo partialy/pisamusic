@@ -1,5 +1,7 @@
 package cn.partialy.pm.network.config
 
+import android.util.Log
+import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.model.AboutInfo
 import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.model.AccountAvatarUploadToken
@@ -163,6 +165,11 @@ class ConfigManager @Inject constructor(
         val bootstrapPath = discoverySnapshot.document.desktop.bootstrapPath.trimStart('/')
         val response = systemCall("配置下发失败") {
             systemApiService.getBootstrapConfig(bootstrapPath)
+        }
+        if (BuildConfig.DEBUG) {
+            runCatching {
+                Log.d("ConfigManager", "获取到启动 bootstrap 配置:\n$response")
+            }
         }
         if (!response.success || response.code != 0) {
             throw ApiException(response.code, response.msg.ifBlank { "配置下发失败" })

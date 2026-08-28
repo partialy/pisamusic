@@ -15,7 +15,7 @@ android {
         minSdk = 29
         targetSdk = 35
         versionCode = 521
-        versionName = "2.5.9"
+        versionName = "2.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -24,7 +24,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            buildConfigField("String", "SYSTEM_SERVICE_BASE_URL", "\"https://pm-server.hs.partialy.cn/\"")
+            buildConfigField("String", "SYSTEM_SERVICE_BASE_URL", "\"https://pm.hs.partialy.cn/\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -49,6 +49,9 @@ android {
     buildFeatures {
         buildConfig = true
         viewBinding = true
+    }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
     kapt {
         correctErrorTypes = true

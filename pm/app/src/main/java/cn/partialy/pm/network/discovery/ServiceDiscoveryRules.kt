@@ -1,5 +1,7 @@
 package cn.partialy.pm.network.discovery
 
+import android.util.Log
+import cn.partialy.pm.BuildConfig
 import java.time.OffsetDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -16,6 +18,12 @@ object ServiceDiscoveryRules {
     fun parseAndValidate(raw: String): DiscoveryDocumentV1? = runCatching {
         val dto = json.decodeFromString<DiscoveryDocumentDto>(raw)
         dto.toDocument()
+    }.onFailure { error ->
+        if (BuildConfig.DEBUG) {
+            runCatching {
+                Log.e("ServiceDiscovery", "解析校验服务发现 JSON 失败: ${error.message}", error)
+            }
+        }
     }.getOrNull()
 
     /**

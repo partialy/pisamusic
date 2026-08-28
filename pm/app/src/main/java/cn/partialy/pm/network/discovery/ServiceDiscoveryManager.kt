@@ -1,6 +1,8 @@
 package cn.partialy.pm.network.discovery
 
 import android.content.Context
+import android.util.Log
+import cn.partialy.pm.BuildConfig
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -79,6 +81,15 @@ class ServiceDiscoveryManager(
         val remoteRaw = fallbackOnFailure {
             withContext(ioDispatcher) { fetchDocument(discoveryDocumentUrl) }
         }
+        if (BuildConfig.DEBUG) {
+            runCatching {
+                if (remoteRaw != null) {
+                    Log.d(TAG, "从 $discoveryDocumentUrl 拉取到配置 JSON:\n$remoteRaw")
+                } else {
+                    Log.w(TAG, "从 $discoveryDocumentUrl 拉取配置失败或结果为空")
+                }
+            }
+        }
         val remoteDocument = remoteRaw?.let(ServiceDiscoveryRules::parseAndValidate)
         val cachedDocument = readValidatedCache()
 
@@ -129,7 +140,24 @@ class ServiceDiscoveryManager(
             val healthy = fallbackOnFailure {
                 withContext(ioDispatcher) { healthCheck(healthUrl) }
             } ?: false
-            if (healthy) return origin
+            if (BuildConfig.DEBUG) {
+                runCatching {
+                    Log.d(TAG, "节点健康探测: $healthUrl -> healthy=$healthy")
+                }
+            }
+            if (healthy) {
+                if (BuildConfig.DEBUG) {
+                    runCatching {
+                        Log.d(TAG, "选定可用服务 Origin: ${origin.id} (${origin.apiBaseUrl})")
+                    }
+                }
+                return origin
+            }
+        }
+        if (BuildConfig.DEBUG) {
+            runCatching {
+                Log.w(TAG, "所有候选节点健康探测均未通过，回退首选节点: ${first.id} (${first.apiBaseUrl})")
+            }
         }
         return first
     }
@@ -212,6 +240,7 @@ class ServiceDiscoveryManager(
         private fun sameOrigin(left: HttpUrl, right: HttpUrl): Boolean =
             left.scheme == right.scheme && left.host == right.host && left.port == right.port
 
+        private const val TAG = "ServiceDiscovery"
         private const val EMBEDDED_CONFIG_VERSION = 1
     }
 }

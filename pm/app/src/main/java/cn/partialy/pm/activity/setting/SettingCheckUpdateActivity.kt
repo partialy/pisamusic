@@ -11,6 +11,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.model.UpdateInfo
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.utils.AppUpdateInstaller
+import cn.partialy.pm.utils.AppVersionComparator
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -132,7 +133,7 @@ class SettingCheckUpdateActivity : BaseSettingWebActivity() {
             }
 
             latestInfo = info
-            hasNewVersion = isVersionChanged(localVersionName, info.latestVersion)
+            hasNewVersion = AppVersionComparator.isServerVersionNewer(localVersionName, info.latestVersion)
             renderPageState()
             notifyCheckResult(
                 fromAuto = fromAuto,
@@ -155,13 +156,6 @@ class SettingCheckUpdateActivity : BaseSettingWebActivity() {
             });
         """.trimIndent()
         binding.webContentWebView.evaluateJavascript(js, null)
-    }
-
-    private fun isVersionChanged(local: String, latest: String): Boolean {
-        val a = local.trim().removePrefix("v").removePrefix("V")
-        val b = latest.trim().removePrefix("v").removePrefix("V")
-        if (a.isEmpty() || b.isEmpty()) return false
-        return a != b
     }
 
     private fun showPageError(message: String) {
@@ -227,4 +221,3 @@ class SettingCheckUpdateActivity : BaseSettingWebActivity() {
         private const val COOLDOWN_MS = 60_000L
     }
 }
-
