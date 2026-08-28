@@ -625,6 +625,39 @@ export function readVisibleCloudMusicSummary(userId?: string): CloudMusicPublicS
   };
 }
 
+export function readUserSubmissions(userId: string, offset = 0, limit = 30): CloudMusicListResult {
+  const db = getAppDb();
+  const safeOffset = Math.max(0, Math.trunc(offset));
+  const safeLimit = Math.min(100, Math.max(1, Math.trunc(limit)));
+
+  const countRow = db.prepare(
+    `SELECT COUNT(DISTINCT t.uuid) AS total
+     FROM cloud_music_tracks t
+     JOIN cloud_music_assets a ON a.track_uuid = t.uuid
+     JOIN file_records f ON f.id = a.file_record_id
+     WHERE f.owner_user_id = ?`,
+  ).get(userId) as { total: number } | undefined;
+
+  const total = Number(countRow?.total) || 0;
+
+  const rows = db.prepare(
+    `SELECT DISTINCT t.*
+     FROM cloud_music_tracks t
+     JOIN cloud_music_assets a ON a.track_uuid = t.uuid
+     JOIN file_records f ON f.id = a.file_record_id
+     WHERE f.owner_user_id = ?
+     ORDER BY t.created_at DESC
+     LIMIT ? OFFSET ?`,
+  ).all(userId, safeLimit, safeOffset) as CloudMusicTrackRow[];
+
+  return {
+    items: rows.map((row) => mapTrack(db, row, true)),
+    total,
+    offset: safeOffset,
+    limit: safeLimit,
+  };
+}
+
 export function updateCloudMusicDraft(uuid: string, input: CloudMusicDraftUpdateInput): CloudMusicTrack | null {
   const db = getAppDb();
   return runInTransaction(db, () => {

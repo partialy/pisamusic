@@ -10,6 +10,7 @@ import {
   readCloudMusicByFileRecordId,
   readCloudMusicReservedAsset,
   readCloudMusicTrack,
+  readUserSubmissions,
   readVisibleCloudMusicSummary,
   reserveCloudMusicAsset,
   searchVisibleCloudMusic,
@@ -1111,4 +1112,73 @@ export function saveUserSubmission(
   if (!updated) throw new Error("保存投稿状态失败");
   return toCloudMusicTrackDto(updated);
 }
+
+export function getUserSubmissionHistory(
+  userId: string,
+  offset = 0,
+  limit = 30,
+): {
+  items: CloudMusicTrackDto[];
+  total: number;
+  offset: number;
+  limit: number;
+} {
+  const result = readUserSubmissions(userId, offset, limit);
+  return {
+    items: result.items.map(toCloudMusicTrackDto),
+    total: result.total,
+    offset: result.offset,
+    limit: result.limit,
+  };
+}
+
+export function resubmitUserTrack(
+  uuid: string,
+  input: CloudMusicUserSubmitInput,
+  user: { id: string; username: string; email: string },
+): CloudMusicTrackDto {
+  checkUserTrackOwnership(uuid, user.id);
+  const track = readCloudMusicTrack(uuid, true);
+  if (!track) throw new Error("网盘音乐曲目不存在");
+
+  if (track.status === "deleted" || track.deletedAt !== null) {
+    const error = new Error("该投稿已被销毁，无法重新提交");
+    (error as unknown as { statusCode: number }).statusCode = 400;
+    throw error;
+  }
+
+  if (track.status === "active") {
+    const error = new Error("该曲目已审核通过并已上架，无需重新提审");
+    (error as unknown as { statusCode: number }).statusCode = 400;
+    throw error;
+  }
+
+  const title = input.title.trim();
+  if (!title || title.length > 200) throw new Error("歌名长度应在 1-200 字符之间");
+
+  const artist = input.artist.trim();
+  if (!artist || artist.length > 300) throw new Error("歌手长度应在 1-300 字符之间");
+
+  const album = (input.album ?? "").trim();
+  if (album.length > 200) throw new Error("专辑名称不能超过 200 字符");
+
+  const durationMs = Math.trunc(input.durationMs);
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0 || durationMs > 86400000) {
+    throw new Error("时长不正确，应大于 0 且小于 24 小时");
+  }
+
+  updateCloudMusicDraft(uuid, {
+    title,
+    artist,
+    album,
+    durationMs,
+    status: "pending_review",
+    statusReason: `用户 ${user.username} 修改后重新提审`,
+  });
+
+  const updated = readCloudMusicTrack(uuid);
+  if (!updated) throw new Error("重新提审失败");
+  return toCloudMusicTrackDto(updated);
+}
+
 

@@ -151,3 +151,75 @@
   }
 }
 ```
+
+---
+
+## 6. 查询当前用户投稿历史列表
+
+查询当前登录用户上传的所有曲目记录，包括待审核、已通过、已禁用、已驳回和已销毁留底记录。
+
+- **Method**: `GET`
+- **Path**: `/api/cloud-music/submit/my-history?offset=0&limit=30`
+- **Query 参数**:
+  - `offset`: 分页起始偏移量，默认 0
+  - `limit`: 分页数量，默认 30
+- **鉴权**: `Authorization: Bearer <userToken>` (加密)
+
+### 响应体 (JSON)
+
+```json
+{
+  "code": 0,
+  "msg": "ok",
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "source": "cloud",
+        "status": "rejected",
+        "statusReason": "歌名有误，请核对后重新提交",
+        "title": "夜曲",
+        "artist": "周杰伦",
+        "album": "十一月的萧邦",
+        "durationMs": 226000,
+        "playable": false,
+        "cover": {
+          "source": "embedded",
+          "url": "/api/cloud-music/tracks/3fa85f64-5717-4562-b3fc-2c963f66afa6/cover"
+        },
+        "lyrics": null,
+        "createdAt": 1787930000000,
+        "updatedAt": 1787931000000
+      }
+    ],
+    "total": 1,
+    "offset": 0,
+    "limit": 30
+  }
+}
+```
+
+---
+
+## 7. 驳回投稿修改元数据后重新提审
+
+对审核未通过（`rejected`）或待审核的曲目修改歌名、歌手、专辑、时长等信息后重新发起提审，将状态变更为 `pending_review`。若投稿已被销毁（`deleted`），则禁止重新提审。
+
+- **Method**: `POST`
+- **Path**: `/api/cloud-music/submit/:uuid/resubmit`
+- **Path 参数**:
+  - `uuid`: 曲目 UUID
+- **鉴权**: `Authorization: Bearer <userToken>` (加密)
+
+### 请求体 (JSON)
+
+```json
+{
+  "title": "夜曲 (修正版)",
+  "artist": "周杰伦",
+  "album": "十一月的萧邦",
+  "durationMs": 226000
+}
+```
+

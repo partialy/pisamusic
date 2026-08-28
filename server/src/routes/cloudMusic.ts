@@ -14,8 +14,10 @@ import {
   getPublicPlayUrl,
   getPublicSummary,
   getPublicTrackDetail,
+  getUserSubmissionHistory,
   removeUserManualCover,
   reserveUserAsset,
+  resubmitUserTrack,
   saveUserSubmission,
   searchPublicTracks,
   type CloudMusicAssetKind,
@@ -226,6 +228,42 @@ cloudMusicRouter.post("/submit/:uuid/save", requireUserJwt, (req, res) => {
       ? error.statusCode
       : 400;
     const message = error instanceof Error ? error.message : "提交投稿失败";
+    res.status(statusCode).json(fail(message, statusCode));
+  }
+});
+
+cloudMusicRouter.get("/submit/my-history", requireUserJwt, (req, res) => {
+  try {
+    const user = getUserFromReq(req);
+    const offset = Math.max(0, parseInt(String(req.query.offset ?? "0"), 10) || 0);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "30"), 10) || 30));
+    const result = getUserSubmissionHistory(user.id, offset, limit);
+    res.json(ok(result));
+  } catch (error) {
+    const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
+      ? error.statusCode
+      : 500;
+    const message = error instanceof Error ? error.message : "获取投稿历史失败";
+    res.status(statusCode).json(fail(message, statusCode));
+  }
+});
+
+cloudMusicRouter.post("/submit/:uuid/resubmit", requireUserJwt, (req, res) => {
+  try {
+    const user = getUserFromReq(req);
+    const uuid = String(req.params.uuid ?? "").trim();
+    const body = req.body as CloudMusicUserSubmitInput;
+    if (!body || !isRecord(body)) {
+      res.status(400).json(fail("请求体格式不正确", 400));
+      return;
+    }
+    const track = resubmitUserTrack(uuid, body, user);
+    res.json(ok(track));
+  } catch (error) {
+    const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
+      ? error.statusCode
+      : 400;
+    const message = error instanceof Error ? error.message : "重新提审失败";
     res.status(statusCode).json(fail(message, statusCode));
   }
 });
