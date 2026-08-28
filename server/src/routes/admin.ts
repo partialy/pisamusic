@@ -62,7 +62,8 @@ const JWT_EXPIRES: jwt.SignOptions["expiresIn"] = "7d";
 const PATH_REGEX = /^\/[A-Za-z0-9._\-/*]*$/;
 const EMAIL_PROVIDER_CODE_REGEX = /^[a-z][a-z0-9_-]*$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/release-files/*", "/api/config/desktop-updates/*", "/api/config/discover", "/discover/*"];
+const MANDATORY_PLAINTEXT_PATHS = ["/api/config/releases", "/api/config/release-files/*", "/api/config/desktop-updates/*", "/api/config/discover", "/api/cloud-music/tracks/*/cover", "/discover/*"];
+const MANDATORY_PLAINTEXT_PATH_SET = new Set(MANDATORY_PLAINTEXT_PATHS);
 
 function getUsernameFromJwt(req: Request): string | null {
   const raw = req.headers.authorization;
@@ -557,6 +558,8 @@ function sanitizePathList(input: unknown): { ok: true; paths: string[] } | { ok:
     if (typeof raw !== "string") return { ok: false, msg: "鐧藉悕鍗曢」蹇呴』鏄瓧绗︿覆" };
     const t = raw.trim();
     if (!t) continue;
+    // 强制路径由服务端统一合并；允许后台把读取结果原样回传，但不把中间通配开放给用户配置。
+    if (MANDATORY_PLAINTEXT_PATH_SET.has(t)) continue;
     if (t.length > 256) return { ok: false, msg: `璺緞杩囬暱: ${t.slice(0, 32)}...` };
     if (!PATH_REGEX.test(t)) return { ok: false, msg: `闈炴硶璺緞鏍煎紡: ${t}` };
     const starIdx = t.indexOf("*");

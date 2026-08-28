@@ -49,7 +49,7 @@ GET /api/cloud-music/search?keyword=晴天&offset=0&limit=20
         "playable": true,
         "cover": {
           "source": "uploaded",
-          "url": "https://pm.hs.partialy.cn/pisamusic/cloud-music/202608/8c919a71.../cover-uploaded.jpg?e=...&token=..."
+          "url": "/api/cloud-music/tracks/8c919a71-6c39-4d87-9eb5-c26693836101/cover"
         },
         "lyrics": {
           "format": "lrc",
@@ -76,7 +76,7 @@ GET /api/cloud-music/search?keyword=晴天&offset=0&limit=20
 | `items[].uuid` | `string` | 曲目唯一 UUID |
 | `items[].playable` | `boolean` | 是否可播放（`active` 为 true，`disabled` 为 false） |
 | `items[].cover.source` | `string` | 封面来源：`uploaded`（手动上传）、`embedded`（内嵌提取）、`default`（默认封面） |
-| `items[].cover.url` | `string` | 临时私有签名 URL 或默认静态封面路径 |
+| `items[].cover.url` | `string` | 稳定的相对封面入口 `/api/cloud-music/tracks/:uuid/cover`；该入口会即时重定向到私有签名 URL 或默认静态封面。 |
 | `items[].lyrics` | `object \| null` | 歌词信息（若有） |
 | `total` | `number` | 符合条件的曲目总数 |
 | `offset` | `number` | 当前偏移量 |

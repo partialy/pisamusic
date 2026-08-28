@@ -27,6 +27,7 @@
       "/api/config/download/*",
       "/api/config/discover",
       "/api/analytics/site-visit",
+      "/api/cloud-music/tracks/*/cover",
       "/api/listen-together/config",
       "/api/shares/public/*",
       "/discover/*",
@@ -37,3 +38,5 @@
   "success": true
 }
 ```
+
+`/api/cloud-music/tracks/*/cover` 是服务端强制保留的精确封面明文路径：其中 `*` 仅匹配一个 URL 路径片段，不能由后台配置为其他中间通配规则。该项会随读取结果返回，以便后台原样提交保存。

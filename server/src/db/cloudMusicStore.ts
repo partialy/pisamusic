@@ -117,6 +117,11 @@ export type CloudMusicSearchInput = {
   limit?: number;
 };
 
+export type CloudMusicPublicSummary = {
+  total: number;
+  latestUpdatedAt: number | null;
+};
+
 export type CloudMusicListResult = {
   items: CloudMusicTrack[];
   total: number;
@@ -508,6 +513,19 @@ export function listCloudMusicTracks(input: CloudMusicListInput): CloudMusicList
 
 export function searchVisibleCloudMusic(input: CloudMusicSearchInput): CloudMusicListResult {
   return queryTracks(input, true);
+}
+
+export function readVisibleCloudMusicSummary(): CloudMusicPublicSummary {
+  const row = getAppDb().prepare(
+    `SELECT COUNT(*) AS total, MAX(updated_at) AS latest_updated_at
+     FROM cloud_music_tracks
+     WHERE status IN ('active', 'disabled') AND deleted_at IS NULL`,
+  ).get() as { total: number; latest_updated_at: number | null };
+
+  return {
+    total: Number(row.total) || 0,
+    latestUpdatedAt: row.latest_updated_at === null ? null : Number(row.latest_updated_at),
+  };
 }
 
 export function updateCloudMusicDraft(uuid: string, input: CloudMusicDraftUpdateInput): CloudMusicTrack | null {

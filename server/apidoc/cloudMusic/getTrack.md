@@ -44,7 +44,7 @@ GET /api/cloud-music/tracks/8c919a71-6c39-4d87-9eb5-c26693836101
     "playable": true,
     "cover": {
       "source": "uploaded",
-      "url": "https://pm.hs.partialy.cn/pisamusic/cloud-music/202608/8c919a71.../cover-uploaded.jpg?e=...&token=..."
+      "url": "/api/cloud-music/tracks/8c919a71-6c39-4d87-9eb5-c26693836101/cover"
     },
     "lyrics": {
       "format": "lrc",

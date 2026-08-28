@@ -1,13 +1,24 @@
 import { Router } from "express";
 import {
+  getPublicCoverRedirect,
   getPublicLyricsUrl,
   getPublicPlayUrl,
+  getPublicSummary,
   getPublicTrackDetail,
   searchPublicTracks,
 } from "../services/cloudMusicService";
 import { fail, ok } from "../types/response";
 
 export const cloudMusicRouter = Router();
+
+cloudMusicRouter.get("/summary", (_req, res) => {
+  try {
+    res.json(ok(getPublicSummary()));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "获取网盘音乐概览失败";
+    res.status(500).json(fail(message, 500));
+  }
+});
 
 cloudMusicRouter.get("/search", (req, res) => {
   try {
@@ -52,6 +63,25 @@ cloudMusicRouter.get("/tracks/:uuid/play-url", (req, res) => {
       ? error.statusCode
       : 500;
     const message = error instanceof Error ? error.message : "获取播放地址失败";
+    res.status(statusCode).json(fail(message, statusCode));
+  }
+});
+
+cloudMusicRouter.get("/tracks/:uuid/cover", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const uuid = req.params.uuid.trim();
+    if (!uuid) {
+      res.status(400).json(fail("曲目 UUID 不能为空", 400));
+      return;
+    }
+    const redirectUrl = getPublicCoverRedirect(uuid);
+    res.redirect(302, redirectUrl);
+  } catch (error) {
+    const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
+      ? error.statusCode
+      : 500;
+    const message = error instanceof Error ? error.message : "获取曲目封面失败";
     res.status(statusCode).json(fail(message, statusCode));
   }
 });

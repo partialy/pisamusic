@@ -37,7 +37,8 @@ GET /api/cloud-music/tracks/8c919a71-6c39-4d87-9eb5-c26693836101/lyrics-url
     "uuid": "8c919a71-6c39-4d87-9eb5-c26693836101",
     "source": "cloud",
     "url": "https://pm.hs.partialy.cn/pisamusic/cloud-music/202608/8c919a71.../lyrics.lrc?e=1700003600&token=...",
-    "expiresAt": 1700003600000
+    "expiresAt": 1700003600000,
+    "format": "lrc"
   },
   "success": true
 }
@@ -47,3 +48,9 @@ GET /api/cloud-music/tracks/8c919a71-6c39-4d87-9eb5-c26693836101/lyrics-url
 
 - **403 Forbidden**：`{"code": "CLOUD_MUSIC_DISABLED", "msg": "曲目已禁用"}`
 - **404 Not Found**：`{"code": "CLOUD_MUSIC_NO_LYRICS", "msg": "该曲目暂无歌词"}`
+
+### 响应字段说明
+
+| 字段名 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `format` | `"lrc" \| "txt"` | 歌词格式；在原有响应字段上新增，旧客户端可忽略。 |

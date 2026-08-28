@@ -147,12 +147,14 @@
 
 ## 10. 独立网盘音乐源模块 (`/api/cloud-music`)
 
-提供平台独立网盘曲库（`source: "cloud"`）的曲目检索、详情查询、1 小时播放签名 URL 与歌词签名下载 URL。网盘曲目独立于第三方音乐源，不参与其他平台聚合。
+提供平台独立网盘曲库（`source: "cloud"`）的概览、曲目检索、详情查询、稳定封面重定向、1 小时播放签名 URL 与歌词签名下载 URL。网盘曲目独立于第三方音乐源，不参与其他平台聚合。
 
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
+| 获取网盘音乐概览 | `GET` | `/api/cloud-music/summary` | 无 (加密) | [./cloudMusic/getSummary.md](./cloudMusic/getSummary.md) |
 | 搜索网盘音乐 | `GET` | `/api/cloud-music/search` | 无 (加密) | [./cloudMusic/searchTracks.md](./cloudMusic/searchTracks.md) |
 | 获取网盘音乐详情 | `GET` | `/api/cloud-music/tracks/:uuid` | 无 (加密) | [./cloudMusic/getTrack.md](./cloudMusic/getTrack.md) |
+| 获取网盘音乐稳定封面 | `GET` | `/api/cloud-music/tracks/:uuid/cover` | 无 (明文重定向) | [./cloudMusic/getCover.md](./cloudMusic/getCover.md) |
 | 获取网盘音乐播放地址 | `GET` | `/api/cloud-music/tracks/:uuid/play-url` | 无 (加密) | [./cloudMusic/getPlayUrl.md](./cloudMusic/getPlayUrl.md) |
 | 获取网盘音乐歌词地址 | `GET` | `/api/cloud-music/tracks/:uuid/lyrics-url` | 无 (加密) | [./cloudMusic/getLyricsUrl.md](./cloudMusic/getLyricsUrl.md) |
 

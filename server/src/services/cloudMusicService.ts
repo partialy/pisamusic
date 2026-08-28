@@ -10,6 +10,7 @@ import {
   readCloudMusicByFileRecordId,
   readCloudMusicReservedAsset,
   readCloudMusicTrack,
+  readVisibleCloudMusicSummary,
   reserveCloudMusicAsset,
   searchVisibleCloudMusic,
   transitionCloudMusicStatus,
@@ -19,6 +20,7 @@ import {
   type CloudMusicAssetState,
   type CloudMusicListInput,
   type CloudMusicListResult as StoreListResult,
+  type CloudMusicPublicSummary as StorePublicSummary,
   type CloudMusicSearchInput,
   type CloudMusicStatus,
   type CloudMusicTrack as StoreTrack,
@@ -192,7 +194,10 @@ export type CloudMusicLyricsUrlResponse = {
   source: "cloud";
   url: string;
   expiresAt: number;
+  format: "lrc" | "txt";
 };
+
+export type CloudMusicPublicSummary = StorePublicSummary;
 
 function getRequiredBucket(): string {
   const bucket = String(process.env.QINIU_BUCKET ?? "").trim();
@@ -310,7 +315,10 @@ export function toCloudMusicPublicTrack(dto: CloudMusicTrackDto): CloudMusicPubl
     durationMs: dto.durationMs,
     format: dto.format,
     playable: dto.playable,
-    cover: dto.cover,
+    cover: {
+      source: dto.cover.source,
+      url: `/api/cloud-music/tracks/${encodeURIComponent(dto.uuid)}/cover`,
+    },
     lyrics: dto.lyrics,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
@@ -857,6 +865,10 @@ export function searchPublicTracks(input: CloudMusicSearchInput): CloudMusicSear
   };
 }
 
+export function getPublicSummary(): CloudMusicPublicSummary {
+  return readVisibleCloudMusicSummary();
+}
+
 export function getPublicTrackDetail(uuid: string): CloudMusicPublicTrack | null {
   const track = readCloudMusicTrack(uuid);
   if (!track || track.deletedAt !== null) return null;
@@ -906,6 +918,24 @@ export function getPublicPlayUrl(uuid: string): CloudMusicPlayUrlResponse {
   };
 }
 
+export function getPublicCoverRedirect(uuid: string): string {
+  const track = readCloudMusicTrack(uuid);
+  if (!track || track.deletedAt !== null || (track.status !== "active" && track.status !== "disabled")) {
+    const err = new Error("曲目不存在");
+    (err as unknown as { statusCode: number }).statusCode = 404;
+    throw err;
+  }
+
+  const coverAsset = findCurrentAsset(track.assets, "cover-uploaded")
+    ?? findCurrentAsset(track.assets, "cover-extracted");
+  if (!coverAsset) return CLOUD_MUSIC_DEFAULT_COVER_PATH;
+
+  const coverFile = readFileRecordById(coverAsset.fileRecordId);
+  return coverFile && coverFile.status === "uploaded"
+    ? createCloudMusicAssetUrl(coverFile, 3600)
+    : CLOUD_MUSIC_DEFAULT_COVER_PATH;
+}
+
 export function getPublicLyricsUrl(uuid: string): CloudMusicLyricsUrlResponse {
   const track = readCloudMusicTrack(uuid);
   if (!track || track.deletedAt !== null) {
@@ -941,10 +971,14 @@ export function getPublicLyricsUrl(uuid: string): CloudMusicLyricsUrlResponse {
   }
 
   const url = createCloudMusicAssetUrl(lyricsFile, 3600);
+  const format = track.lyricsFormat === "txt" || path.extname(lyricsFile.fileName).toLowerCase() === ".txt"
+    ? "txt"
+    : "lrc";
   return {
     uuid,
     source: "cloud",
     url,
     expiresAt: Date.now() + 3600 * 1000,
+    format,
   };
 }

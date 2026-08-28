@@ -51,10 +51,12 @@ export type PathMatcher = {
  * - 以 /* 结尾视为前缀通配：匹配该前缀下所有子路径，并把"父路径自身"也视为命中
  *   (例 "/api/admin/*" 同时匹配 "/api/admin" 与 "/api/admin/login")
  * - 以 * 结尾（无 /）按字面前缀匹配
+ * - 其余包含 * 的路径按单个路径片段通配（例如曲目封面路由）
  */
 export function buildPathMatcher(plaintextPaths: string[]): PathMatcher {
   const exact = new Set<string>();
   const prefixes: string[] = [];
+  const segmentPatterns: RegExp[] = [];
   for (const raw of plaintextPaths) {
     const p = raw.trim();
     if (!p) continue;
@@ -66,6 +68,12 @@ export function buildPathMatcher(plaintextPaths: string[]): PathMatcher {
       }
     } else if (p.endsWith("*")) {
       prefixes.push(p.slice(0, -1));
+    } else if (p.includes("*")) {
+      const pattern = p
+        .split("*")
+        .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join("[^/]*");
+      segmentPatterns.push(new RegExp(`^${pattern}$`));
     } else {
       exact.add(p);
     }
@@ -75,6 +83,9 @@ export function buildPathMatcher(plaintextPaths: string[]): PathMatcher {
       if (exact.has(path)) return true;
       for (const pre of prefixes) {
         if (path.startsWith(pre)) return true;
+      }
+      for (const pattern of segmentPatterns) {
+        if (pattern.test(path)) return true;
       }
       return false;
     },
