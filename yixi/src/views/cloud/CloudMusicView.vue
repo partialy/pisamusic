@@ -8,7 +8,8 @@
     <div class="overview-section" v-if="!isHeaderCollapsed">
       <CloudOverviewCard
         :total="summary.total"
-        :latest-updated-at="summary.latestUpdatedAt" />
+        :latest-updated-at="summary.latestUpdatedAt"
+        :my-contributions="summary.myContributions ?? 0" />
     </div>
 
     <div class="toolbar">

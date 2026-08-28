@@ -10,6 +10,7 @@ export function useCloudMusicList() {
   const summary = ref<CloudMusicSummary>({
     total: 0,
     latestUpdatedAt: null,
+    myContributions: 0,
   });
   const songs = ref<Song[]>([]);
   const loading = ref(false);

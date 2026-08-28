@@ -3,6 +3,7 @@ import type { Song } from "./song";
 export interface CloudMusicSummary {
   total: number;
   latestUpdatedAt: number | null;
+  myContributions?: number;
 }
 
 export interface CloudMusicTrackDto {
