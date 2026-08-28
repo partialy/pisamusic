@@ -146,6 +146,14 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
             onToggleCollect = {},
+            onSearchRequested = {
+                val songs = contentAdapter.currentSongs
+                PlaylistSongsSearchActivity.start(
+                    context = this,
+                    songs = songs,
+                    title = headerAdapter.state.title,
+                )
+            },
         )
 
         miniPlayerBinder = HomeMiniPlayerBinder(this, binding.homeMiniPlayer, musicController).apply {

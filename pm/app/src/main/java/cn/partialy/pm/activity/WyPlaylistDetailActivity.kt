@@ -192,6 +192,15 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
             onToggleCollect = ::togglePlaylistCollect,
+            onSearchRequested = {
+                val songs = contentAdapter.currentSongs
+                PlaylistSongsSearchActivity.start(
+                    context = this,
+                    songs = songs,
+                    title = headerAdapter.state.title,
+                    sourceId = pagingPlaylistId,
+                )
+            },
         )
         syncPlaylistCollectButton()
     }

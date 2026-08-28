@@ -336,6 +336,7 @@
     <string name="my_favorites_playlist_intro">收藏的歌曲</string>
     <string name="loved_songs_empty_hint">暂无收藏歌曲</string>
     <string name="loved_songs_search_hint">请输入歌曲名或歌手名</string>
+    <string name="playlist_search_hint_with_title">搜索 %1$s 歌曲</string>
     <string name="loved_songs_search_clear_cd">清空搜索内容</string>
     <string name="favorite_playlists_search_hint">搜索收藏的歌单</string>
     <string name="favorite_playlists_search_empty">未找到相关歌单</string>
