@@ -1,9 +1,39 @@
 <template>
   <div class="cloud-submit-page">
-    <!-- 顶部标题区（不带返回按钮，直接利用全局 Header 返回） -->
+    <!-- 顶部标题与 Tab 切换区（无返回按钮，利用全局 Header 返回） -->
     <div class="page-header">
-      <h1 class="page-title">我要投稿</h1>
-      <p class="page-desc">上传音乐至公共共享云盘，审核通过后将面向所有用户开放搜索与播放。</p>
+      <div class="header-left">
+        <h1 class="page-title">{{ activeTab === 'submit' ? '我要投稿' : '我的投稿记录' }}</h1>
+        <p class="page-desc">
+          {{
+            activeTab === 'submit'
+              ? '上传音乐至公共共享云盘，审核通过后将面向所有用户开放搜索与播放。'
+              : '查看您提交的所有音乐投稿历史与当前审核流转状态。'
+          }}
+        </p>
+      </div>
+
+      <div v-if="isLogin" class="header-right">
+        <div class="tab-pill-group">
+          <button
+            type="button"
+            class="tab-pill"
+            :class="{ active: activeTab === 'submit' }"
+            @click="activeTab = 'submit'"
+          >
+            我要投稿
+          </button>
+          <button
+            type="button"
+            class="tab-pill"
+            :class="{ active: activeTab === 'history' }"
+            @click="switchHistoryTab"
+          >
+            投稿记录
+            <span v-if="historyTotal > 0" class="history-count-badge">{{ historyTotal }}</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- 未登录状态卡片 -->
@@ -12,14 +42,14 @@
         <n-icon :component="UploadCloud" :size="48" />
       </div>
       <h3 class="unlogin-title">需要登录账号</h3>
-      <p class="unlogin-desc">投稿音乐文件需要与您的 PisaMusic 账号进行关联，请先登录。</p>
+      <p class="unlogin-desc">投稿音乐文件及查看投稿记录需要与您的 PisaMusic 账号进行关联，请先登录。</p>
       <n-button type="primary" round class="login-btn" @click="openLogin">
         立即登录 / 注册
       </n-button>
     </div>
 
-    <!-- 已登录状态下的投稿流程 -->
-    <div v-else class="submit-content">
+    <!-- 已登录：我要投稿 Tab -->
+    <div v-else-if="activeTab === 'submit'" class="submit-content">
       <!-- 阶段 1：选择文件与上传 -->
       <section v-if="stage === 'select'" class="stage-section">
         <div
@@ -253,7 +283,7 @@
           <n-icon :component="CheckCircle2" :size="64" />
         </div>
         <h2 class="success-title">投稿已提交成功！</h2>
-        <div class="status-badge">
+        <div class="status-badge status-pending">
           <span class="badge-dot"></span>
           <span>待管理员审核</span>
         </div>
@@ -266,46 +296,219 @@
           <n-button type="primary" round size="medium" @click="resetToSelect">
             继续投稿新歌曲
           </n-button>
-          <n-button quaternary round size="medium" @click="goToCloud">
-            返回共享云盘
+          <n-button quaternary round size="medium" @click="activeTab = 'history'; loadHistory();">
+            查看我的投稿记录
           </n-button>
         </div>
       </section>
     </div>
+
+    <!-- 已登录：我的投稿记录 Tab -->
+    <div v-else class="history-content">
+      <div class="history-toolbar">
+        <span class="history-summary-text">共提交 {{ historyTotal }} 篇投稿</span>
+        <n-button quaternary circle size="small" :loading="loadingHistory" title="刷新投稿记录" @click="loadHistory">
+          <template #icon><n-icon :component="RotateCw" /></template>
+        </n-button>
+      </div>
+
+      <!-- 历史记录加载状态 -->
+      <div v-if="loadingHistory && historyItems.length === 0" class="loading-box">
+        <span>正在加载投稿记录...</span>
+      </div>
+
+      <!-- 空记录状态 -->
+      <div v-else-if="historyItems.length === 0" class="empty-history-card">
+        <n-icon :component="Music" :size="48" class="empty-icon" />
+        <p class="empty-text">暂无音乐投稿记录</p>
+        <n-button type="primary" round size="small" @click="activeTab = 'submit'">
+          立即发起首次投稿
+        </n-button>
+      </div>
+
+      <!-- 历史记录卡片列表 -->
+      <div v-else class="history-list">
+        <div
+          v-for="item in historyItems"
+          :key="item.uuid"
+          class="history-card"
+          :class="[`status-card-${item.status || 'temp'}`]"
+        >
+          <div class="history-card-main">
+            <div class="history-cover-box">
+              <img :src="item.cover?.url || defaultCoverImg" alt="封面" class="history-cover-img" />
+            </div>
+
+            <div class="history-info-box">
+              <div class="history-title-row">
+                <span class="history-title">{{ item.title || "未命名歌曲" }}</span>
+                <span class="status-badge" :class="getStatusBadgeClass(item.status)">
+                  <span class="badge-dot"></span>
+                  {{ getStatusText(item.status) }}
+                </span>
+              </div>
+
+              <div class="history-meta-row">
+                <span class="meta-artist">{{ item.artist || "未知歌手" }}</span>
+                <span v-if="item.album" class="meta-album">· {{ item.album }}</span>
+                <span v-if="item.durationMs" class="meta-duration">· {{ formatMsToTime(item.durationMs) }}</span>
+                <span class="meta-format">{{ (item.format || "MP3").toUpperCase() }}</span>
+              </div>
+
+              <div class="history-time-row">
+                <span>投稿时间：{{ formatFullDate(item.createdAt) }}</span>
+                <span v-if="item.lyrics" class="has-lyrics-tag">已包含歌词</span>
+              </div>
+
+              <!-- 驳回原因备注框 -->
+              <div v-if="item.status === 'rejected'" class="reject-reason-alert">
+                <n-icon :component="AlertCircle" :size="16" class="reject-alert-icon" />
+                <div class="reject-reason-content">
+                  <span class="reject-reason-title">驳回原因：</span>
+                  <span class="reject-reason-text">{{ item.statusReason || "未填写具体原因" }}</span>
+                </div>
+              </div>
+
+              <!-- 销毁留底说明框 -->
+              <div v-else-if="item.status === 'deleted'" class="deleted-alert">
+                <n-icon :component="XCircle" :size="16" />
+                <span>该投稿记录文件已从七牛云销毁留底，无法再次重新提审。</span>
+              </div>
+            </div>
+
+            <!-- 操作按钮区 -->
+            <div class="history-actions-box">
+              <n-button
+                v-if="item.status === 'rejected' || item.status === 'pending_review'"
+                type="primary"
+                secondary
+                round
+                size="small"
+                class="resubmit-btn"
+                @click="openResubmitModal(item)"
+              >
+                <template #icon><n-icon :component="item.status === 'rejected' ? RefreshCw : Edit3" /></template>
+                {{ item.status === 'rejected' ? '修改重提' : '完善信息' }}
+              </n-button>
+              <span v-else-if="item.status === 'active'" class="active-tag-text">已公开收录</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 修改重新提审模态框 -->
+    <n-modal
+      v-model:show="showResubmitModal"
+      preset="card"
+      title="修改歌曲信息并重新提审"
+      class="resubmit-modal"
+      :style="{ width: '560px', maxWidth: '90vw' }"
+    >
+      <div v-if="resubmittingItem" class="resubmit-form">
+        <div class="resubmit-cover-row">
+          <div class="resubmit-cover-box">
+            <img :src="resubmitCoverUrl || defaultCoverImg" alt="封面" class="resubmit-cover-img" />
+          </div>
+          <div class="resubmit-cover-right">
+            <span class="resubmit-audio-info">音频文件：{{ resubmittingItem.format.toUpperCase() }} · {{ formatMsToTime(resubmittingItem.durationMs || 0) }}</span>
+            <input
+              ref="modalCoverInputRef"
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,image/*"
+              class="hidden-input"
+              @change="handleModalCoverSelect"
+            />
+            <n-button size="tiny" quaternary :loading="isUpdatingModalCover" @click="modalCoverInputRef?.click()">
+              {{ resubmittingItem.cover?.source === 'uploaded' ? '更换封面' : '补充自定义封面' }}
+            </n-button>
+            <input
+              ref="modalLyricsInputRef"
+              type="file"
+              accept=".lrc,.txt"
+              class="hidden-input"
+              @change="handleModalLyricsSelect"
+            />
+            <n-button size="tiny" quaternary :loading="isUpdatingModalLyrics" @click="modalLyricsInputRef?.click()">
+              {{ resubmittingItem.lyrics ? '更换歌词' : '补充歌词文件' }}
+            </n-button>
+          </div>
+        </div>
+
+        <div class="modal-form-item">
+          <label class="modal-form-label required">歌曲名称</label>
+          <n-input v-model:value="resubmitForm.title" placeholder="请输入歌名" maxlength="200" clearable />
+        </div>
+
+        <div class="modal-form-item">
+          <label class="modal-form-label required">歌手 / 艺术家</label>
+          <n-input v-model:value="resubmitForm.artist" placeholder="请输入歌手名称" maxlength="300" clearable />
+        </div>
+
+        <div class="modal-form-item">
+          <label class="modal-form-label">专辑名称</label>
+          <n-input v-model:value="resubmitForm.album" placeholder="选填" maxlength="200" clearable />
+        </div>
+
+        <div class="modal-form-item">
+          <label class="modal-form-label required">歌曲时长 (分:秒)</label>
+          <n-input v-model:value="resubmitForm.durationStr" placeholder="例如 03:45" clearable />
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="modal-footer">
+          <n-button quaternary @click="showResubmitModal = false">取消</n-button>
+          <n-button type="primary" round :loading="isSubmittingResubmit" @click="handleConfirmResubmit">
+            确认并重新提审
+          </n-button>
+        </div>
+      </template>
+    </n-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { storeToRefs } from "pinia";
-import { NButton, NIcon, NInput, useMessage } from "naive-ui";
+import { NButton, NIcon, NInput, NModal, useMessage } from "naive-ui";
 import {
+  AlertCircle,
   CheckCircle2,
+  Edit3,
   FileText,
   Image,
   Music,
+  RefreshCw,
+  RotateCw,
   UploadCloud,
   X,
+  XCircle,
 } from "lucide-vue-next";
 import { useUserStore } from "@/store/user";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import {
   createSubmitSession,
+  getMySubmissions,
   removeSubmitCover,
   replaceSubmitCover,
   replaceSubmitLyrics,
+  resubmitTrack,
   saveSubmitTrack,
   uploadAndExtractSession,
 } from "@/utils/api/cloudSubmitAPI";
 import type { CloudMusicTrackDto } from "@/types/cloudMusic";
 import defaultCoverImg from "@/assets/images/default-cover.png";
 
-const router = useRouter();
+const route = useRoute();
 const message = useMessage();
 const userStore = useUserStore();
 const { isLogin } = storeToRefs(userStore);
 const { openAccountLogin: openLogin } = useAccountLoginDialog();
+
+// Tab 状态：'submit' | 'history'
+const activeTab = ref<"submit" | "history">("submit");
 
 // 流程阶段：'select' | 'edit' | 'success'
 const stage = ref<"select" | "edit" | "success">("select");
@@ -321,6 +524,8 @@ const coverInputRef = ref<HTMLInputElement | null>(null);
 const lyricsInputRef = ref<HTMLInputElement | null>(null);
 const replaceCoverInputRef = ref<HTMLInputElement | null>(null);
 const replaceLyricsInputRef = ref<HTMLInputElement | null>(null);
+const modalCoverInputRef = ref<HTMLInputElement | null>(null);
+const modalLyricsInputRef = ref<HTMLInputElement | null>(null);
 
 // 上传进度
 const isUploading = ref(false);
@@ -360,6 +565,28 @@ const currentCoverUrl = computed(() => {
   return currentTrack.value?.cover?.url || "";
 });
 
+// 投稿记录
+const historyItems = ref<CloudMusicTrackDto[]>([]);
+const historyTotal = ref(0);
+const loadingHistory = ref(false);
+
+// 重新提审弹窗
+const showResubmitModal = ref(false);
+const resubmittingItem = ref<CloudMusicTrackDto | null>(null);
+const isSubmittingResubmit = ref(false);
+const isUpdatingModalCover = ref(false);
+const isUpdatingModalLyrics = ref(false);
+const resubmitForm = reactive({
+  title: "",
+  artist: "",
+  album: "",
+  durationStr: "00:00",
+});
+
+const resubmitCoverUrl = computed(() => {
+  return resubmittingItem.value?.cover?.url || "";
+});
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) {
     return `${(bytes / 1024).toFixed(1)} KB`;
@@ -385,6 +612,53 @@ function parseTimeToMs(str: string): number {
   }
   const num = parseInt(str, 10);
   return !isNaN(num) && num > 0 ? num : 0;
+}
+
+function formatFullDate(ts: number): string {
+  if (!ts) return "-";
+  const d = new Date(ts);
+  const Y = d.getFullYear();
+  const M = String(d.getMonth() + 1).padStart(2, "0");
+  const D = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${Y}-${M}-${D} ${h}:${m}`;
+}
+
+function getStatusText(status?: string): string {
+  switch (status) {
+    case "pending_review":
+      return "待审核";
+    case "active":
+      return "已通过";
+    case "disabled":
+      return "已禁用";
+    case "rejected":
+      return "已驳回";
+    case "deleted":
+      return "已销毁";
+    case "temp":
+      return "未保存";
+    default:
+      return status || "处理中";
+  }
+}
+
+function getStatusBadgeClass(status?: string): string {
+  switch (status) {
+    case "pending_review":
+      return "status-pending";
+    case "active":
+      return "status-active";
+    case "disabled":
+      return "status-disabled";
+    case "rejected":
+      return "status-rejected";
+    case "deleted":
+      return "status-deleted";
+    default:
+      return "status-default";
+  }
 }
 
 // 触发选择
@@ -573,9 +847,121 @@ function resetToSelect() {
   stage.value = "select";
 }
 
-function goToCloud() {
-  router.push("/cloud");
+// 加载投稿历史
+async function loadHistory() {
+  if (!isLogin.value) return;
+  loadingHistory.value = true;
+  try {
+    const res = await getMySubmissions(0, 100);
+    historyItems.value = res.items || [];
+    historyTotal.value = res.total || 0;
+  } catch (err) {
+    console.error("加载投稿历史失败", err);
+  } finally {
+    loadingHistory.value = false;
+  }
 }
+
+function switchHistoryTab() {
+  activeTab.value = "history";
+  void loadHistory();
+}
+
+// 打开重新提审模态框
+function openResubmitModal(item: CloudMusicTrackDto) {
+  resubmittingItem.value = item;
+  resubmitForm.title = item.title;
+  resubmitForm.artist = item.artist;
+  resubmitForm.album = item.album || "";
+  resubmitForm.durationStr = formatMsToTime(item.durationMs || 0);
+  showResubmitModal.value = true;
+}
+
+// 模态框中更换封面
+async function handleModalCoverSelect(e: Event) {
+  const files = (e.target as HTMLInputElement).files;
+  if (!files || !files[0] || !resubmittingItem.value) return;
+  const file = files[0];
+  isUpdatingModalCover.value = true;
+  try {
+    const updated = await replaceSubmitCover(resubmittingItem.value.uuid, file);
+    resubmittingItem.value = updated;
+    message.success("封面上传成功");
+  } catch (err) {
+    message.error(err instanceof Error ? err.message : "上传封面失败");
+  } finally {
+    isUpdatingModalCover.value = false;
+  }
+}
+
+// 模态框中更换歌词
+async function handleModalLyricsSelect(e: Event) {
+  const files = (e.target as HTMLInputElement).files;
+  if (!files || !files[0] || !resubmittingItem.value) return;
+  const file = files[0];
+  isUpdatingModalLyrics.value = true;
+  try {
+    const updated = await replaceSubmitLyrics(resubmittingItem.value.uuid, file);
+    resubmittingItem.value = updated;
+    message.success("歌词上传成功");
+  } catch (err) {
+    message.error(err instanceof Error ? err.message : "上传歌词失败");
+  } finally {
+    isUpdatingModalLyrics.value = false;
+  }
+}
+
+// 确认重新提审
+async function handleConfirmResubmit() {
+  if (!resubmittingItem.value) return;
+  if (!resubmitForm.title.trim()) {
+    message.warning("请输入歌曲名称");
+    return;
+  }
+  if (!resubmitForm.artist.trim()) {
+    message.warning("请输入歌手名称");
+    return;
+  }
+  const durationMs = parseTimeToMs(resubmitForm.durationStr);
+  if (durationMs <= 0) {
+    message.warning("时长格式不正确 (例如 03:45)");
+    return;
+  }
+
+  isSubmittingResubmit.value = true;
+  try {
+    await resubmitTrack(resubmittingItem.value.uuid, {
+      title: resubmitForm.title.trim(),
+      artist: resubmitForm.artist.trim(),
+      album: resubmitForm.album.trim(),
+      durationMs,
+    });
+    showResubmitModal.value = false;
+    message.success("已重新提交审核，请等待后台管理员处理");
+    await loadHistory();
+  } catch (err) {
+    message.error(err instanceof Error ? err.message : "重新提审失败");
+  } finally {
+    isSubmittingResubmit.value = false;
+  }
+}
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (tab === "history") {
+      activeTab.value = "history";
+      void loadHistory();
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  if (isLogin.value) {
+    void loadHistory();
+  }
+});
 </script>
 
 <style scoped lang="scss">
@@ -587,23 +973,78 @@ function goToCloud() {
   height: 100%;
   box-sizing: border-box;
   overflow-y: auto;
-  padding-bottom: 24px;
+  padding-bottom: 32px;
 }
 
 .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 
-  .page-title {
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--color-text-default);
-    margin: 0 0 6px;
+  .header-left {
+    .page-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--color-text-default);
+      margin: 0 0 6px;
+    }
+
+    .page-desc {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin: 0;
+    }
   }
 
-  .page-desc {
+  .header-right {
+    flex-shrink: 0;
+  }
+}
+
+.tab-pill-group {
+  display: flex;
+  align-items: center;
+  background: var(--color-bg-hover);
+  padding: 4px;
+  border-radius: 24px;
+  gap: 4px;
+  border: 1px solid var(--color-border-default);
+
+  .tab-pill {
+    position: relative;
+    border: none;
+    background: transparent;
+    padding: 6px 18px;
+    border-radius: 20px;
     font-size: 13px;
+    font-weight: 600;
     color: var(--color-text-secondary);
-    margin: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    &:hover {
+      color: var(--color-text-default);
+    }
+
+    &.active {
+      background: var(--color-card-bg);
+      color: var(--color-text-default);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .history-count-badge {
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+      color: var(--color-primary);
+    }
   }
 }
 
@@ -655,7 +1096,7 @@ function goToCloud() {
   font-weight: 600;
 }
 
-/* 流程区域 */
+/* 投稿流程 */
 .submit-content {
   width: 100%;
   max-width: 800px;
@@ -668,7 +1109,6 @@ function goToCloud() {
   gap: 20px;
 }
 
-/* 拖拽区域 */
 .drop-zone {
   display: flex;
   align-items: center;
@@ -751,7 +1191,6 @@ function goToCloud() {
   }
 }
 
-/* 附加附件行 */
 .attachments-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -986,19 +1425,51 @@ function goToCloud() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 20px;
-  background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 16px;
+  font-size: 12px;
+  font-weight: 700;
 
   .badge-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #f59e0b;
+  }
+
+  &.status-pending {
+    background: rgba(245, 158, 11, 0.12);
+    color: #d97706;
+    .badge-dot { background: #f59e0b; }
+  }
+
+  &.status-active {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    .badge-dot { background: #10b981; }
+  }
+
+  &.status-rejected {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+    .badge-dot { background: #ef4444; }
+  }
+
+  &.status-disabled {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748b;
+    .badge-dot { background: #94a3b8; }
+  }
+
+  &.status-deleted {
+    background: rgba(148, 163, 184, 0.12);
+    color: #64748b;
+    .badge-dot { background: #94a3b8; }
+  }
+
+  &.status-default {
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--color-text-secondary);
+    .badge-dot { background: var(--color-text-third); }
   }
 }
 
@@ -1013,6 +1484,288 @@ function goToCloud() {
 .success-actions {
   display: flex;
   gap: 16px;
+}
+
+/* 投稿历史列表 */
+.history-content {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.history-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  .history-summary-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+  }
+}
+
+.loading-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.empty-history-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 20px;
+  border-radius: 16px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-default);
+  text-align: center;
+  gap: 12px;
+
+  .empty-icon {
+    color: var(--color-text-third);
+    opacity: 0.6;
+  }
+
+  .empty-text {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin: 0 0 8px;
+  }
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.history-card {
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-default);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-default));
+  }
+
+  &.status-card-deleted {
+    opacity: 0.7;
+    background: color-mix(in srgb, var(--color-bg-hover) 50%, var(--color-card-bg));
+  }
+}
+
+.history-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.history-cover-box {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+
+  .history-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.history-info-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .history-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-text-default);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.history-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+
+  .meta-artist {
+    font-weight: 600;
+    color: var(--color-text-default);
+  }
+
+  .meta-format {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--color-bg-hover);
+    color: var(--color-text-third);
+    font-family: monospace;
+    margin-left: 4px;
+  }
+}
+
+.history-time-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-text-third);
+
+  .has-lyrics-tag {
+    color: var(--color-primary);
+  }
+}
+
+.reject-reason-alert {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  .reject-alert-icon {
+    color: #ef4444;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .reject-reason-content {
+    font-size: 12px;
+    line-height: 1.5;
+
+    .reject-reason-title {
+      font-weight: 700;
+      color: #dc2626;
+    }
+
+    .reject-reason-text {
+      color: #b91c1c;
+    }
+  }
+}
+
+.deleted-alert {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--color-bg-hover);
+  color: var(--color-text-third);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-actions-box {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+
+  .resubmit-btn {
+    font-weight: 600;
+  }
+
+  .active-tag-text {
+    font-size: 12px;
+    color: #059669;
+    font-weight: 600;
+  }
+}
+
+/* 重新提审模态框 */
+.resubmit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.resubmit-cover-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--color-bg-hover);
+
+  .resubmit-cover-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+
+    .resubmit-cover-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .resubmit-cover-right {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+
+    .resubmit-audio-info {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+    }
+  }
+}
+
+.modal-form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .modal-form-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-default);
+
+    &.required::after {
+      content: " *";
+      color: #ef4444;
+    }
+  }
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .hidden-input {

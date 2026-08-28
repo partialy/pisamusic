@@ -35,7 +35,7 @@
 
       <div class="stat-divider"></div>
 
-      <div class="stat-col">
+      <div class="stat-col clickable" title="查看我的投稿记录" @click="goToHistory">
         <span class="stat-value">{{ myContributions }}</span>
         <span class="stat-label">我的贡献</span>
       </div>
@@ -72,6 +72,10 @@ const formattedDate = computed(() => {
 
 function goToSubmit() {
   router.push("/cloud/submit");
+}
+
+function goToHistory() {
+  router.push("/cloud/submit?tab=history");
 }
 </script>
 
@@ -173,6 +177,20 @@ function goToSubmit() {
   justify-content: center;
   gap: 4px;
   text-align: center;
+  transition: all 0.2s ease;
+
+  &.clickable {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 4px 0;
+
+    &:hover {
+      background: var(--color-bg-hover);
+      .stat-value {
+        color: var(--color-primary);
+      }
+    }
+  }
 }
 
 .stat-value {
