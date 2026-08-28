@@ -31,6 +31,7 @@ import cn.partialy.pm.ui.playlistdetail.PlaylistDetailContentAdapter
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderAdapter
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
 import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -98,6 +99,7 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
         }
 
         contentAdapter = createContentAdapter()
+        observeSongListPlaybackState(musicController, contentAdapter)
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(this@LovedSongsPlaylistActivity)
             adapter = ConcatAdapter(headerAdapter, contentAdapter)

@@ -10,13 +10,37 @@
     android:paddingStart="12dp"
     android:paddingEnd="4dp">
 
-    <com.google.android.material.imageview.ShapeableImageView
-        android:id="@+id/coverImageView"
+    <FrameLayout
         android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:scaleType="centerCrop"
-        android:src="@drawable/ic_pm_icon"
-        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
+        android:layout_height="40dp">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/coverImageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_pm_icon"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/currentSongCoverMask"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.4"
+            android:clickable="false"
+            android:focusable="false"
+            android:scaleType="fitXY"
+            android:src="@android:color/black"
+            android:visibility="gone"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
+
+        <cn.partialy.pm.ui.widget.PlayingSpectrumView
+            android:id="@+id/playingSpectrumView"
+            android:layout_width="18dp"
+            android:layout_height="22dp"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <LinearLayout
         android:layout_width="0dp"
@@ -27,11 +51,12 @@
         android:orientation="vertical">
 
         <TextView
-            android:id="@+id/titleTextView"
+            android:id="@+id/songNameTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
+            android:text="@string/song_name"
             android:textColor="?android:textColorPrimary"
             android:textSize="14sp" />
 
@@ -40,11 +65,12 @@
             android:layout_height="wrap_content">
 
             <TextView
-                android:id="@+id/artistTextView"
+                android:id="@+id/singerTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:text="@string/singer"
                 android:textColor="?android:textColorSecondary"
                 android:textSize="12sp"
                 app:layout_constrainedWidth="true"
@@ -60,12 +86,32 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="3dp"
                 android:visibility="gone"
-                app:layout_constraintBottom_toBottomOf="@id/artistTextView"
+                app:layout_constraintBottom_toBottomOf="@id/singerTextView"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@id/artistTextView"
-                app:layout_constraintTop_toTopOf="@id/artistTextView" />
+                app:layout_constraintStart_toEndOf="@id/singerTextView"
+                app:layout_constraintTop_toTopOf="@id/singerTextView" />
         </androidx.constraintlayout.widget.ConstraintLayout>
     </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btnLove"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/like"
+        android:padding="6dp"
+        android:src="@drawable/ic_love_24"
+        app:tint="?android:textColorSecondary" />
+
+    <ImageButton
+        android:id="@+id/btn_download"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/download"
+        android:padding="6dp"
+        android:src="@drawable/ic_download_24"
+        app:tint="?android:textColorSecondary" />
 
     <ImageButton
         android:id="@+id/btn_more"

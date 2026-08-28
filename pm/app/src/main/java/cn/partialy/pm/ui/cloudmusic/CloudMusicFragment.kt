@@ -5,7 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -17,16 +16,19 @@ import cn.partialy.pm.activity.CloudMusicSearchActivity
 import cn.partialy.pm.activity.CloudMusicSubmissionActivity
 import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.databinding.FragmentCloudMusicBinding
-import cn.partialy.pm.databinding.ItemRecommendSongBinding
+import cn.partialy.pm.databinding.ItemSongListBinding
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
-import cn.partialy.pm.ui.widget.SongSourceTagBinder
-import cn.partialy.pm.utils.SongCoverUrl
+import cn.partialy.pm.ui.widget.SongListItemActions
+import cn.partialy.pm.ui.widget.SongListItemBinder
+import cn.partialy.pm.ui.widget.SongListItemOptions
+import cn.partialy.pm.ui.widget.SongListPlaybackState
+import cn.partialy.pm.ui.widget.SongListPlaybackStateTarget
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
-import coil.load
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -51,6 +53,7 @@ class CloudMusicFragment : Fragment() {
     private val binding get() = _binding!!
     private val viewModel: CloudMusicViewModel by viewModels()
     private var currentRecentSongs: List<SongInfo> = emptyList()
+    private var recentPlaybackState: SongListPlaybackState = SongListPlaybackState()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -64,6 +67,15 @@ class CloudMusicFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupActions()
+        viewLifecycleOwner.observeSongListPlaybackState(
+            musicController,
+            SongListPlaybackStateTarget { state ->
+                recentPlaybackState = state
+                if (_binding != null && currentRecentSongs.isNotEmpty()) {
+                    bindRecentSongsContainer(currentRecentSongs)
+                }
+            },
+        )
         observeState()
     }
 
@@ -138,49 +150,30 @@ class CloudMusicFragment : Fragment() {
         removeAllViews()
         val inflater = LayoutInflater.from(context)
         songs.forEach { song ->
-            val itemBinding = ItemRecommendSongBinding.inflate(inflater, this, false)
+            val itemBinding = ItemSongListBinding.inflate(inflater, this, false)
             bindSongItem(itemBinding, song)
             addView(itemBinding.root)
         }
     }
 
-    private fun bindSongItem(itemBinding: ItemRecommendSongBinding, song: SongInfo) = with(itemBinding) {
-        val context = root.context
+    private fun bindSongItem(itemBinding: ItemSongListBinding, song: SongInfo) {
         val playable = song.playable
-        songNameTextView.text = song.name
-        singerTextView.text = song.artist
-        SongSourceTagBinder.bind(songSourceTagTextView, song.type)
-        coverImageView.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL)) {
-            placeholder(R.drawable.ic_pm_icon)
-            error(R.drawable.ic_pm_icon)
-        }
-
-        val liked = loveManager.isSongInLoveList(song)
-        btnLove.setImageResource(
-            if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
+        SongListItemBinder(itemBinding).bind(
+            song = song,
+            liked = loveManager.isSongInLoveList(song),
+            options = SongListItemOptions(),
+            playbackState = recentPlaybackState,
+            actions = SongListItemActions(
+                onClick = ::playSong,
+                onLoveClick = {
+                    loveManager.toggleLikeStatus(it)
+                    bindRecentSongsContainer(currentRecentSongs)
+                },
+                onDownloadClick = if (playable) ::downloadSong else null,
+                onMoreClick = ::showMoreMenu,
+            ),
         )
-        btnLove.imageTintList = ContextCompat.getColorStateList(
-            context,
-            if (liked) R.color.red else R.color.home_tab_unselected,
-        )
-        root.alpha = if (playable) 1f else DISABLED_ALPHA
-        btnDownload.isEnabled = playable
-        btnDownload.alpha = if (playable) 1f else 0.4f
-
-        root.setOnClickListener { playSong(song) }
-        btnLove.setOnClickListener {
-            loveManager.toggleLikeStatus(song)
-            val newLiked = loveManager.isSongInLoveList(song)
-            btnLove.setImageResource(
-                if (newLiked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
-            )
-            btnLove.imageTintList = ContextCompat.getColorStateList(
-                context,
-                if (newLiked) R.color.red else R.color.home_tab_unselected,
-            )
-        }
-        btnDownload.setOnClickListener { downloadSong(song) }
-        btnMore.setOnClickListener { showMoreMenu(song) }
+        itemBinding.root.alpha = if (playable) 1f else DISABLED_ALPHA
     }
 
     private fun playSong(song: SongInfo) {
@@ -221,6 +214,8 @@ class CloudMusicFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        currentRecentSongs = emptyList()
+        recentPlaybackState = SongListPlaybackState()
         _binding = null
         super.onDestroyView()
     }

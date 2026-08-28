@@ -27,6 +27,7 @@ import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailContentAdapter
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -114,6 +115,7 @@ class LovedSongsSearchActivity : BaseDownloadActivity() {
             onDownloadClick = ::onDownloadClick,
             onMoreClick = ::openSongMoreMenu,
         )
+        observeSongListPlaybackState(musicController, contentAdapter)
         binding.searchResultsRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@LovedSongsSearchActivity)
             adapter = contentAdapter

@@ -15,6 +15,7 @@ import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.local.adapters.LocalMusicAdapter
 import cn.partialy.pm.ui.local.viewModels.LocalMusicViewModel
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -67,7 +68,6 @@ class LocalMusicFragment : BaseSongFragment() {
                     musicController.setPlayListLazy(songs, startIndex = index, sourceId = "local_music")
                 }
             },
-            onDownloadBtnClick = { _, _ -> },
             onMoreBtnClick = { songInfo, _ ->
                 SongMoreMenu.show(
                     requireActivity(),
@@ -79,6 +79,8 @@ class LocalMusicFragment : BaseSongFragment() {
                         onDownloadClick = {
                             Toast.makeText(requireContext(), R.string.local_song_no_online_download, Toast.LENGTH_SHORT).show()
                         },
+                        showDownload = false,
+                        showShare = false,
                     ),
                 )
             }
@@ -88,6 +90,7 @@ class LocalMusicFragment : BaseSongFragment() {
             adapter = localMusicAdapter
             layoutManager = LinearLayoutManager(context)
         }
+        viewLifecycleOwner.observeSongListPlaybackState(musicController, localMusicAdapter)
 
         // 直接在这里观察数据变化
         observeViewModel()

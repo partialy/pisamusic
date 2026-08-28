@@ -18,6 +18,7 @@ import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.local.adapters.DownloadedMusicAdapter
 import cn.partialy.pm.ui.local.viewModels.DownloadedMusicState
 import cn.partialy.pm.ui.local.viewModels.DownloadedMusicViewModel
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -84,6 +85,8 @@ class DownloadedMusicFragment : BaseSongFragment() {
                             if (act is BaseDownloadActivity) act.startSongDownloadFlow(s)
                             else Toast.makeText(requireContext(), R.string.local_song_no_online_download, Toast.LENGTH_SHORT).show()
                         },
+                        showDownload = false,
+                        showShare = false,
                     ),
                 )
             }
@@ -93,6 +96,7 @@ class DownloadedMusicFragment : BaseSongFragment() {
             adapter = downloadedMusicAdapter
             layoutManager = LinearLayoutManager(context)
         }
+        viewLifecycleOwner.observeSongListPlaybackState(musicController, downloadedMusicAdapter)
 
         // 直接在这里观察数据变化
         observeViewModel()

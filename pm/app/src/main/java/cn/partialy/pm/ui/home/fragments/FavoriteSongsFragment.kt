@@ -16,6 +16,7 @@ import cn.partialy.pm.ui.home.adapters.FavoriteSongsAdapter
 import cn.partialy.pm.ui.home.viewModels.FavoriteSongsViewModel
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -102,6 +103,7 @@ class FavoriteSongsFragment : BaseSongFragment() {
             layoutManager = LinearLayoutManager(context)  // 设置线性布局
             adapter = favoriteAdapter  // 设置适配器
         }
+        viewLifecycleOwner.observeSongListPlaybackState(musicController, favoriteAdapter)
     }
 
     override fun observeViewModel() {

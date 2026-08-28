@@ -123,7 +123,7 @@
                     android:nestedScrollingEnabled="false"
                     android:paddingStart="8dp"
                     android:paddingEnd="8dp"
-                    tools:listitem="@layout/item_home_daily_song" />
+                    tools:listitem="@layout/item_song_list" />
 
                 <LinearLayout
                     android:id="@+id/topCardSection3"
@@ -151,7 +151,7 @@
                         android:nestedScrollingEnabled="false"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
-                        tools:listitem="@layout/item_home_daily_song" />
+                        tools:listitem="@layout/item_song_list" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -180,7 +180,7 @@
                         android:nestedScrollingEnabled="false"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
-                        tools:listitem="@layout/item_home_daily_song" />
+                        tools:listitem="@layout/item_song_list" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -209,7 +209,7 @@
                         android:nestedScrollingEnabled="false"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
-                        tools:listitem="@layout/item_home_daily_song" />
+                        tools:listitem="@layout/item_song_list" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -238,7 +238,7 @@
                         android:nestedScrollingEnabled="false"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
-                        tools:listitem="@layout/item_home_daily_song" />
+                        tools:listitem="@layout/item_song_list" />
                 </LinearLayout>
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>

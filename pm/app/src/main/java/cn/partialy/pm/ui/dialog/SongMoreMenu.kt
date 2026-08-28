@@ -55,7 +55,7 @@ object SongMoreMenu {
                     Toast.makeText(activity, R.string.toast_song_added_to_play_next, Toast.LENGTH_SHORT).show()
                 })
             }
-            if (deps.showDownload && song.playable) {
+            if (deps.showDownload && song.playable && song.type != SongType.LOCAL) {
                 add(ActionMenuItem(R.drawable.ic_download_24, activity.getString(R.string.song_more_download)) {
                     deps.onDownloadClick(song)
                 })
@@ -100,16 +100,12 @@ object SongMoreMenu {
             ) {
                 ShareDetailActivity.startSongDetail(activity, song.toCanonicalSong())
             })
-            if (deps.showShare) {
+            if (deps.showShare && song.type != SongType.LOCAL) {
                 add(ActionMenuItem(
                     R.drawable.ic_share_24,
                     activity.getString(R.string.song_more_share),
                 ) {
-                    if (song.type == SongType.LOCAL) {
-                        showLocalSongShareUnsupported(activity)
-                    } else {
-                        deps.onShareClick?.invoke(song) ?: ShareBottomSheet.showSong(activity, song)
-                    }
+                    deps.onShareClick?.invoke(song) ?: ShareBottomSheet.showSong(activity, song)
                 })
             }
         }
@@ -119,13 +115,6 @@ object SongMoreMenu {
             items = actions,
             bindHeader = { root -> SongInfoHeaderBinder.bind(root, song) },
         )
-    }
-
-    private fun showLocalSongShareUnsupported(activity: FragmentActivity) {
-        PmMinimalDialog.Builder(activity)
-            .setMessage(activity.getString(R.string.local_song_share_unsupported))
-            .setSingleButton(activity.getString(R.string.dialog_i_know))
-            .show()
     }
 
     private fun applyBottomSheetMaxBehavior(dialog: BottomSheetDialog, fraction: Float) {

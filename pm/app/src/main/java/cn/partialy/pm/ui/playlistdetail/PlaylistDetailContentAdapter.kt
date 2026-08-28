@@ -13,11 +13,15 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemPlaylistDetailStatusBinding
-import cn.partialy.pm.databinding.ItemRecommendSongBinding
+import cn.partialy.pm.databinding.ItemSongListBinding
 import cn.partialy.pm.model.SongInfo
-import cn.partialy.pm.ui.widget.SongSourceTagBinder
-import cn.partialy.pm.utils.SongCoverUrl
-import coil.load
+import cn.partialy.pm.model.SongType
+import cn.partialy.pm.ui.widget.SongListItemActions
+import cn.partialy.pm.ui.widget.SongListItemBinder
+import cn.partialy.pm.ui.widget.SongListItemOptions
+import cn.partialy.pm.ui.widget.SongListPlaybackState
+import cn.partialy.pm.ui.widget.SongListPlaybackStateDelegate
+import cn.partialy.pm.ui.widget.SongListPlaybackStateTarget
 import java.text.Collator
 import java.util.Locale
 
@@ -33,7 +37,7 @@ class PlaylistDetailContentAdapter(
     private val onLoveClick: (SongInfo) -> Unit,
     private val onDownloadClick: (SongInfo) -> Unit,
     private val onMoreClick: (SongInfo) -> Unit,
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>(), SongListPlaybackStateTarget {
 
     val currentSongs: List<SongInfo>
         get() = getSortedSongs()
@@ -53,6 +57,11 @@ class PlaylistDetailContentAdapter(
     private var showEndFooter: Boolean = true
     @StringRes
     private var emptyMessageRes: Int = R.string.no_data
+
+    private val playbackStateDelegate = SongListPlaybackStateDelegate(
+        indexOfSong = ::indexOfSong,
+        notifyItemChanged = ::notifyItemChanged,
+    )
 
     private val chineseCollator: Collator by lazy {
         Collator.getInstance(Locale.CHINESE).apply {
@@ -225,7 +234,7 @@ class PlaylistDetailContentAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return if (viewType == VIEW_TYPE_SONG) {
-            SongViewHolder(ItemRecommendSongBinding.inflate(inflater, parent, false))
+            SongViewHolder(ItemSongListBinding.inflate(inflater, parent, false))
         } else {
             StatusViewHolder(ItemPlaylistDetailStatusBinding.inflate(inflater, parent, false))
         }
@@ -254,32 +263,32 @@ class PlaylistDetailContentAdapter(
     }
 
     private inner class SongViewHolder(
-        private val binding: ItemRecommendSongBinding,
+        binding: ItemSongListBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
+
+        private val itemBinder = SongListItemBinder(binding)
+
         fun bind(row: PlaylistDetailSongRow) {
             val song = row.song
-            val context = binding.root.context
-            binding.songNameTextView.text = buildSongNameLine(context, row.originalIndex + 1, song.name)
-            binding.singerTextView.text = song.artist
-            SongSourceTagBinder.bind(binding.songSourceTagTextView, song.type)
-            val coverData = song.embeddedCoverArt ?: SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL)
-            binding.coverImageView.load(coverData) {
-                crossfade(true)
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
-            }
-            val liked = isSongLiked(song)
-            binding.btnLove.setImageResource(
-                if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
+            val playbackState = playbackStateDelegate.state
+            itemBinder.bind(
+                song = song,
+                displayTitle = buildSongNameLine(
+                    context = itemView.context,
+                    indexOneBased = row.originalIndex + 1,
+                    title = song.name,
+                    isCurrent = playbackState.isCurrent(song),
+                ),
+                liked = isSongLiked(song),
+                options = SongListItemOptions(showDownload = song.type != SongType.LOCAL),
+                playbackState = playbackState,
+                actions = SongListItemActions(
+                    onClick = onSongClick,
+                    onLoveClick = onLoveClick,
+                    onDownloadClick = onDownloadClick,
+                    onMoreClick = onMoreClick,
+                ),
             )
-            binding.btnLove.imageTintList = ContextCompat.getColorStateList(
-                context,
-                if (liked) R.color.red else R.color.home_tab_unselected,
-            )
-            binding.root.setOnClickListener { onSongClick(song) }
-            binding.btnLove.setOnClickListener { onLoveClick(song) }
-            binding.btnDownload.setOnClickListener { onDownloadClick(song) }
-            binding.btnMore.setOnClickListener { onMoreClick(song) }
         }
     }
 
@@ -291,12 +300,25 @@ class PlaylistDetailContentAdapter(
         }
     }
 
+    override fun updatePlaybackState(state: SongListPlaybackState) {
+        playbackStateDelegate.updatePlaybackState(state)
+    }
+
+    private fun indexOfSong(song: SongInfo): Int = visibleRows.indexOfFirst { row ->
+        row.song.type == song.type && row.song.id == song.id
+    }
+
     private companion object {
         private const val VIEW_TYPE_SONG = 1
         private const val VIEW_TYPE_STATUS = 2
         private val trailingParentheses = Regex("\\([^)]*\\)\\s*$")
 
-        private fun buildSongNameLine(context: Context, indexOneBased: Int, title: String): CharSequence {
+        private fun buildSongNameLine(
+            context: Context,
+            indexOneBased: Int,
+            title: String,
+            isCurrent: Boolean,
+        ): CharSequence {
             val displayMetrics = context.resources.displayMetrics
             fun sp(value: Float) = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_SP,
@@ -304,12 +326,15 @@ class PlaylistDetailContentAdapter(
                 displayMetrics,
             ).toInt()
 
-            val secondary = ContextCompat.getColor(context, R.color.text_secondary)
+            val decoratedTextColor = ContextCompat.getColor(
+                context,
+                if (isCurrent) R.color.primary else R.color.text_secondary,
+            )
             val builder = SpannableStringBuilder()
             val indexStart = builder.length
             builder.append("$indexOneBased. ")
             builder.setSpan(
-                ForegroundColorSpan(secondary),
+                ForegroundColorSpan(decoratedTextColor),
                 indexStart,
                 builder.length,
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
@@ -336,7 +361,7 @@ class PlaylistDetailContentAdapter(
             val parenthesisStart = builder.length
             builder.append(match.value.trim())
             builder.setSpan(
-                ForegroundColorSpan(secondary),
+                ForegroundColorSpan(decoratedTextColor),
                 parenthesisStart,
                 builder.length,
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,

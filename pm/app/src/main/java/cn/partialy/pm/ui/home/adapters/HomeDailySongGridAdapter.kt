@@ -4,20 +4,22 @@ import android.animation.Animator
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
-import android.view.View
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
-import cn.partialy.pm.databinding.ItemHomeDailySongBinding
+import cn.partialy.pm.databinding.ItemSongListBinding
 import cn.partialy.pm.model.RecommendSongInfo
 import cn.partialy.pm.model.SongInfo
-import cn.partialy.pm.ui.widget.SongSourceTagBinder
-import cn.partialy.pm.utils.SongCoverUrl
-import coil.load
+import cn.partialy.pm.ui.widget.SongListItemActions
+import cn.partialy.pm.ui.widget.SongListItemBinder
+import cn.partialy.pm.ui.widget.SongListItemOptions
+import cn.partialy.pm.ui.widget.SongListPlaybackState
+import cn.partialy.pm.ui.widget.SongListPlaybackStateDelegate
+import cn.partialy.pm.ui.widget.SongListPlaybackStateTarget
 
 class HomeDailySongGridAdapter(
     private val isLiked: (SongInfo) -> Boolean,
@@ -25,9 +27,14 @@ class HomeDailySongGridAdapter(
     private val onDownloadClick: (RecommendSongInfo, Int) -> Unit,
     private val onLoveClick: (RecommendSongInfo, Int) -> Unit,
     private val onMoreClick: (RecommendSongInfo, Int) -> Unit,
-) : ListAdapter<RecommendSongInfo, HomeDailySongGridAdapter.Vh>(Diff) {
+) : ListAdapter<RecommendSongInfo, HomeDailySongGridAdapter.Vh>(Diff),
+    SongListPlaybackStateTarget {
     private var showSkeleton = false
     private val skeletonCount = 12
+    private val playbackStateDelegate = SongListPlaybackStateDelegate(
+        indexOfSong = ::indexOfSong,
+        notifyItemChanged = ::notifyItemChanged,
+    )
 
     fun showSkeleton() {
         if (showSkeleton) return
@@ -42,7 +49,7 @@ class HomeDailySongGridAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Vh {
-        val binding = ItemHomeDailySongBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemSongListBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         val screenW = parent.resources.displayMetrics.widthPixels
         val itemW = (screenW * 0.9f).toInt()
         val itemH = parent.resources.getDimensionPixelSize(R.dimen.home_daily_song_row_height)
@@ -54,7 +61,7 @@ class HomeDailySongGridAdapter(
         if (showSkeleton) {
             holder.bindSkeleton()
         } else {
-            holder.bind(getItem(position), position)
+            holder.bind(getItem(position))
         }
     }
 
@@ -62,9 +69,15 @@ class HomeDailySongGridAdapter(
         return if (showSkeleton) skeletonCount else super.getItemCount()
     }
 
+    override fun onViewRecycled(holder: Vh) {
+        holder.recycle()
+        super.onViewRecycled(holder)
+    }
+
     inner class Vh(
-        private val binding: ItemHomeDailySongBinding,
+        private val binding: ItemSongListBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
+        private val itemBinder = SongListItemBinder(binding)
         private var skeletonAnimator: Animator? = null
 
         private fun stopSkeletonAnim() {
@@ -72,7 +85,7 @@ class HomeDailySongGridAdapter(
             skeletonAnimator = null
             binding.coverImageView.alpha = 1f
             binding.songNameTextView.alpha = 1f
-            binding.artistTextView.alpha = 1f
+            binding.singerTextView.alpha = 1f
         }
 
         private fun startSkeletonAnim() {
@@ -88,7 +101,7 @@ class HomeDailySongGridAdapter(
                 repeatMode = ValueAnimator.REVERSE
                 repeatCount = ValueAnimator.INFINITE
             }
-            val artist = ObjectAnimator.ofFloat(binding.artistTextView, View.ALPHA, 0.35f, 0.85f).apply {
+            val artist = ObjectAnimator.ofFloat(binding.singerTextView, View.ALPHA, 0.35f, 0.85f).apply {
                 duration = 850L
                 startDelay = 140L
                 repeatMode = ValueAnimator.REVERSE
@@ -100,43 +113,53 @@ class HomeDailySongGridAdapter(
             }
         }
 
-        fun bind(item: RecommendSongInfo, position: Int) {
+        fun bind(item: RecommendSongInfo) {
             stopSkeletonAnim()
             val song = item.convertToSongInfo()
             binding.coverImageView.alpha = 1f
-            binding.btnDownload.alpha = 1f
-            binding.btnLove.alpha = 1f
-            binding.btnMore.alpha = 1f
-            binding.songNameTextView.text = item.songname
+            binding.songNameTextView.alpha = 1f
             binding.songNameTextView.background = null
-            binding.artistTextView.text = item.author_name
-            binding.artistTextView.background = null
-            binding.coverImageView.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL))
-            binding.songSourceTagTextView.visibility = View.VISIBLE
-            SongSourceTagBinder.bind(binding.songSourceTagTextView, song.type)
-
-            val liked = isLiked(song)
-            binding.btnLove.setImageResource(if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24)
-            binding.btnLove.imageTintList = ContextCompat.getColorStateList(
-                binding.root.context,
-                if (liked) R.color.red else R.color.home_tab_unselected,
+            binding.singerTextView.alpha = 1f
+            binding.singerTextView.background = null
+            itemBinder.bind(
+                song = song,
+                displayTitle = item.songname,
+                displayArtist = item.author_name,
+                liked = isLiked(song),
+                options = SongListItemOptions(),
+                playbackState = playbackStateDelegate.state,
+                actions = SongListItemActions(
+                    onClick = { dispatchAtCurrentPosition(item, onItemClick) },
+                    onDownloadClick = { dispatchAtCurrentPosition(item, onDownloadClick) },
+                    onLoveClick = { dispatchAtCurrentPosition(item, onLoveClick) },
+                    onMoreClick = { dispatchAtCurrentPosition(item, onMoreClick) },
+                ),
             )
+        }
 
-            binding.root.setOnClickListener { onItemClick(item, position) }
-            binding.btnDownload.setOnClickListener { onDownloadClick(item, position) }
-            binding.btnLove.setOnClickListener { onLoveClick(item, position) }
-            binding.btnMore.setOnClickListener { onMoreClick(item, position) }
+        private fun dispatchAtCurrentPosition(
+            item: RecommendSongInfo,
+            action: (RecommendSongInfo, Int) -> Unit,
+        ) {
+            val position = bindingAdapterPosition
+            if (position != RecyclerView.NO_POSITION) action(item, position)
         }
 
         fun bindSkeleton() {
             startSkeletonAnim()
+            binding.root.alpha = 1f
             binding.coverImageView.setImageResource(R.drawable.ic_pm_icon)
             binding.coverImageView.alpha = 0.25f
+            binding.currentSongCoverMask.visibility = View.GONE
+            binding.playingSpectrumView.setPlaybackState(selected = false, isPlaying = false)
             binding.songNameTextView.text = ""
             binding.songNameTextView.setBackgroundResource(R.drawable.bg_skeleton_rounded)
-            binding.artistTextView.text = ""
-            binding.artistTextView.setBackgroundResource(R.drawable.bg_skeleton_rounded)
-            binding.songSourceTagTextView.visibility = android.view.View.GONE
+            binding.singerTextView.text = ""
+            binding.singerTextView.setBackgroundResource(R.drawable.bg_skeleton_rounded)
+            binding.songSourceTagTextView.visibility = View.GONE
+            binding.btnDownload.visibility = View.VISIBLE
+            binding.btnLove.visibility = View.VISIBLE
+            binding.btnMore.visibility = View.VISIBLE
             binding.btnDownload.alpha = 0.2f
             binding.btnLove.alpha = 0.2f
             binding.btnMore.alpha = 0.2f
@@ -145,10 +168,24 @@ class HomeDailySongGridAdapter(
             binding.btnLove.setOnClickListener(null)
             binding.btnMore.setOnClickListener(null)
         }
+
+        fun recycle() {
+            stopSkeletonAnim()
+            binding.playingSpectrumView.setPlaybackState(selected = false, isPlaying = false)
+        }
     }
 
     fun refreshLoveStates() {
         notifyDataSetChanged()
+    }
+
+    override fun updatePlaybackState(state: SongListPlaybackState) {
+        playbackStateDelegate.updatePlaybackState(state)
+    }
+
+    private fun indexOfSong(song: SongInfo): Int = currentList.indexOfFirst { item ->
+        val candidate = item.convertToSongInfo()
+        candidate.type == song.type && candidate.id == song.id
     }
 
     private object Diff : DiffUtil.ItemCallback<RecommendSongInfo>() {

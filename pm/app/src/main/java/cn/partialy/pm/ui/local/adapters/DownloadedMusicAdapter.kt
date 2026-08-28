@@ -5,19 +5,28 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import cn.partialy.pm.R
-import cn.partialy.pm.databinding.ItemLocalMusicBinding
+import cn.partialy.pm.databinding.ItemSongListBinding
 import cn.partialy.pm.model.SongInfo
-import cn.partialy.pm.ui.widget.SongSourceTagBinder
-import coil.load
+import cn.partialy.pm.ui.widget.SongListItemActions
+import cn.partialy.pm.ui.widget.SongListItemBinder
+import cn.partialy.pm.ui.widget.SongListItemOptions
+import cn.partialy.pm.ui.widget.SongListPlaybackState
+import cn.partialy.pm.ui.widget.SongListPlaybackStateDelegate
+import cn.partialy.pm.ui.widget.SongListPlaybackStateTarget
 
 class DownloadedMusicAdapter(
     private val onSongClick: (SongInfo, Int) -> Unit,
     private val onMoreBtnClick: (SongInfo, Int) -> Unit,
-) : ListAdapter<SongInfo, DownloadedMusicAdapter.ViewHolder>(DownloadedMusicDiffCallback()) {
+) : ListAdapter<SongInfo, DownloadedMusicAdapter.ViewHolder>(DownloadedMusicDiffCallback()),
+    SongListPlaybackStateTarget {
+
+    private val playbackStateDelegate = SongListPlaybackStateDelegate(
+        indexOfSong = ::indexOfSong,
+        notifyItemChanged = ::notifyItemChanged,
+    )
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemLocalMusicBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemSongListBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ViewHolder(binding)
     }
 
@@ -26,29 +35,39 @@ class DownloadedMusicAdapter(
         holder.bind(songInfo)
     }
 
-    inner class ViewHolder(private val binding: ItemLocalMusicBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class ViewHolder(binding: ItemSongListBinding) : RecyclerView.ViewHolder(binding.root) {
+
+        private val itemBinder = SongListItemBinder(binding)
 
         fun bind(songInfo: SongInfo) {
-            val position = bindingAdapterPosition
-            binding.apply {
-                root.setOnClickListener { onSongClick(songInfo, position) }
-                titleTextView.text = songInfo.name
-                artistTextView.text = songInfo.artist
-                SongSourceTagBinder.bind(songSourceTagTextView, songInfo.type)
-                val coverData = songInfo.embeddedCoverArt ?: songInfo.coverUrl.takeIf { it.isNotBlank() }
-                coverImageView.load(coverData) {
-                    placeholder(R.drawable.ic_pm_icon)
-                    error(R.drawable.ic_pm_icon)
-                }
-                btnMore.setOnClickListener { onMoreBtnClick(songInfo, position) }
-            }
+            itemBinder.bind(
+                song = songInfo,
+                options = SongListItemOptions(
+                    showLove = false,
+                    showDownload = false,
+                    showMore = true,
+                ),
+                playbackState = playbackStateDelegate.state,
+                actions = SongListItemActions(
+                    onClick = { onSongClick(it, bindingAdapterPosition) },
+                    onMoreClick = { onMoreBtnClick(it, bindingAdapterPosition) },
+                ),
+            )
         }
+    }
+
+    override fun updatePlaybackState(state: SongListPlaybackState) {
+        playbackStateDelegate.updatePlaybackState(state)
+    }
+
+    private fun indexOfSong(song: SongInfo): Int = currentList.indexOfFirst {
+        it.type == song.type && it.id == song.id
     }
 }
 
 class DownloadedMusicDiffCallback : DiffUtil.ItemCallback<SongInfo>() {
     override fun areItemsTheSame(oldItem: SongInfo, newItem: SongInfo): Boolean {
-        return oldItem.id == newItem.id
+        return oldItem.type == newItem.type && oldItem.id == newItem.id
     }
 
     override fun areContentsTheSame(oldItem: SongInfo, newItem: SongInfo): Boolean {

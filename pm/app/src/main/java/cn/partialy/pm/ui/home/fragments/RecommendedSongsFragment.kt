@@ -33,6 +33,7 @@ import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.viewModels.RecommendedSongsViewModel
 import cn.partialy.pm.ui.home.viewModels.TopCardSectionState
 import cn.partialy.pm.ui.web.LocalGenericErrorWebViewController
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -169,6 +170,15 @@ class RecommendedSongsFragment : BaseSongFragment() {
         bindTopCardRecyclerView(4, binding.homeTopCardRecyclerView4)
         bindTopCardRecyclerView(5, binding.homeTopCardRecyclerView5)
         bindTopCardRecyclerView(6, binding.homeTopCardRecyclerView6)
+        viewLifecycleOwner.observeSongListPlaybackState(
+            musicController = musicController,
+            targetsProvider = {
+            buildList {
+                add(dailySongAdapter)
+                addAll(topCardAdapters.values)
+            }
+            },
+        )
 
         featureCardsAdapter.submitList(
             listOf(

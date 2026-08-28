@@ -44,6 +44,7 @@ import cn.partialy.pm.ui.search.adapter.SearchRecommendAdapter
 import cn.partialy.pm.ui.search.adapter.SearchResultsAdapter
 import cn.partialy.pm.ui.search.adapter.SuggestionsAdapter
 import cn.partialy.pm.ui.web.LocalGenericErrorWebViewController
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
@@ -92,6 +93,7 @@ class SearchActivity : BaseDownloadActivity() {
         setupSearchResultTabs()
         setupSourcePicker()
         setupRecyclerViews()
+        observeSongListPlaybackState(musicController, searchResultsAdapter)
         setupErrorView()
         setupSearchEditText()
         observeViewModel()

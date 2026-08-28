@@ -3,18 +3,20 @@ package cn.partialy.pm.ui.cloudmusic
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.annotation.StringRes
-import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemCloudMusicStatusBinding
-import cn.partialy.pm.databinding.ItemRecommendSongBinding
+import cn.partialy.pm.databinding.ItemSongListBinding
 import cn.partialy.pm.model.SongInfo
-import cn.partialy.pm.ui.widget.SongSourceTagBinder
-import cn.partialy.pm.utils.SongCoverUrl
-import coil.load
+import cn.partialy.pm.ui.widget.SongListItemActions
+import cn.partialy.pm.ui.widget.SongListItemBinder
+import cn.partialy.pm.ui.widget.SongListItemOptions
+import cn.partialy.pm.ui.widget.SongListPlaybackState
+import cn.partialy.pm.ui.widget.SongListPlaybackStateDelegate
+import cn.partialy.pm.ui.widget.SongListPlaybackStateTarget
 
 /** 云盘歌曲列表行模型（Header 已移至顶部固定区域）。 */
 sealed interface CloudMusicRow {
@@ -43,7 +45,12 @@ class CloudMusicListAdapter(
     private val onMoreClick: (SongInfo) -> Unit,
     private val onRetryFirstPage: () -> Unit,
     private val onRetryLoadMore: () -> Unit,
-) : ListAdapter<CloudMusicRow, RecyclerView.ViewHolder>(ROW_DIFF) {
+) : ListAdapter<CloudMusicRow, RecyclerView.ViewHolder>(ROW_DIFF), SongListPlaybackStateTarget {
+
+    private val playbackStateDelegate = SongListPlaybackStateDelegate(
+        indexOfSong = ::indexOfSong,
+        notifyItemChanged = ::notifyItemChanged,
+    )
 
     fun submitState(state: CloudMusicUiState) = submitList(buildRows(state))
 
@@ -63,7 +70,7 @@ class CloudMusicListAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder = when (viewType) {
         VIEW_TYPE_SONG -> SongHolder(
-            ItemRecommendSongBinding.inflate(LayoutInflater.from(parent.context), parent, false),
+            ItemSongListBinding.inflate(LayoutInflater.from(parent.context), parent, false),
         )
         else -> StatusHolder(
             ItemCloudMusicStatusBinding.inflate(LayoutInflater.from(parent.context), parent, false),
@@ -78,35 +85,26 @@ class CloudMusicListAdapter(
     }
 
     private inner class SongHolder(
-        private val binding: ItemRecommendSongBinding,
+        private val binding: ItemSongListBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(song: SongInfo) = with(binding) {
-            val context = root.context
-            val playable = song.playable
-            songNameTextView.text = song.name
-            singerTextView.text = song.artist
-            SongSourceTagBinder.bind(songSourceTagTextView, song.type)
-            coverImageView.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL)) {
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
-            }
-            val liked = isSongLiked(song)
-            btnLove.setImageResource(
-                if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
-            )
-            btnLove.imageTintList = ContextCompat.getColorStateList(
-                context,
-                if (liked) R.color.red else R.color.home_tab_unselected,
-            )
-            root.alpha = if (playable) 1f else DISABLED_ALPHA
-            btnDownload.isEnabled = playable
-            btnDownload.alpha = if (playable) 1f else 0.4f
+        private val itemBinder = SongListItemBinder(binding)
 
-            root.setOnClickListener { onSongClick(song) }
-            btnLove.setOnClickListener { onLoveClick(song) }
-            btnDownload.setOnClickListener { onDownloadClick(song) }
-            btnMore.setOnClickListener { onMoreClick(song) }
+        fun bind(song: SongInfo) {
+            val playable = song.playable
+            itemBinder.bind(
+                song = song,
+                liked = isSongLiked(song),
+                options = SongListItemOptions(),
+                playbackState = playbackStateDelegate.state,
+                actions = SongListItemActions(
+                    onClick = onSongClick,
+                    onLoveClick = onLoveClick,
+                    onDownloadClick = if (playable) onDownloadClick else null,
+                    onMoreClick = onMoreClick,
+                ),
+            )
+            binding.root.alpha = if (playable) 1f else DISABLED_ALPHA
         }
     }
 
@@ -161,6 +159,14 @@ class CloudMusicListAdapter(
             state.error.messageResId,
         )
         else -> null
+    }
+
+    override fun updatePlaybackState(state: SongListPlaybackState) {
+        playbackStateDelegate.updatePlaybackState(state)
+    }
+
+    private fun indexOfSong(song: SongInfo): Int = currentList.indexOfFirst {
+        it is CloudMusicRow.Song && it.value.type == song.type && it.value.id == song.id
     }
 
     private companion object {

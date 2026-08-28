@@ -31,6 +31,7 @@ import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -61,6 +62,7 @@ class CloudMusicSearchActivity : BaseDownloadActivity() {
         applyInsets()
         setupHeader()
         setupResults()
+        observeSongListPlaybackState(musicController, listAdapter)
 
         onBackPressedDispatcher.addCallback(this) { finishAnimated() }
 

@@ -69,6 +69,7 @@
 - KG / WY 的下载、手动切换播放音质及已保存播放音质必须统一经 `MusicQualityAccessPolicy`：音质选择器始终展示当前音源的完整原始档位；游客仅可使用原有普通档位，其余禁用并标记“需登录”，点击后关闭选择器并进入 PisaMusic `LoginActivity`；普通系统账号仍仅可使用 WY 四档与 KG 三档，其余高级音质禁用并标记“联系作者解锁”，点击后关闭选择器并进入已预选“账号相关”的 `FeedbackActivity`，提示用户填写需求并提交审核；有效系统 VIP 可使用完整原始档位，KW / LOCAL 维持原行为。退出登录、后台关闭或到期时，`MediaItemFactory` 必须将越权已保存音质回退到 KG 128、WY standard 或 KW 原默认；不得绕过策略直接取链。
 - `PlayerStateStore` 使用 SharedPreferences + kotlinx.serialization 持久化跨会话播放状态。
 - Mini 播放器封面必须通过 `SongCoverUrl.getSongCoverData(...)` 加载，确保本地歌曲优先显示 `embeddedCoverArt`，不要只走远程封面 URL。
+- 搜索、收藏、本地/已下载、歌单详情、云盘和首页每日推荐的普通歌曲行统一使用 `item_song_list.xml`、`SongListItemBinder` 与 `SongListPlaybackStateObserver`；页面仅通过参数控制收藏/下载/更多按钮。当前歌曲按 `SongType + id` 识别，歌名和歌手使用 primary，封面显示三线频谱，播放时跳动、暂停时静止；按钮颜色不跟随当前态变化。本地/已下载行及其更多菜单均不展示下载、分享。
 - 酷狗、网易、自建歌单和“我的收藏”详情统一复用 `ui/playlistdetail/` 的 Header、歌曲内容、搜索和顶栏交互模块；搜索只过滤当前显示，播放仍按完整歌单以及 `type + id` 定位。Header 使用全宽大封面、顶部 scrim、底部羽化渐变、两行以内标题与描述，以及“播放全部 / 收藏”双按钮。禁止加入分享人、VIP、热播等非产品字段。
 - 顶栏动作顺序固定为搜索、分享、更多；分享复用 `ShareBottomSheet`，更多复用 `PlaylistActionBottomSheet`。顶栏和播放横幅的空白区域必须消费点击，只有显式“播放全部”与播放图标可以开始播放。
 - 歌单详情只保留 `activity_playlist_detail.xml` 中一份 52dp 紧凑吸顶工具条；RecyclerView Header 的 `playAllAnchor` 必须严格等高定位，`PlaylistDetailInteractionController` 负责让唯一工具条随 Anchor 连续上移并在顶栏下方固定；排序与批量操作图标当前仅展示禁用态。不得恢复 Header/外层两套工具条按阈值显隐的伪吸顶实现。
