@@ -316,23 +316,18 @@ async function resolveKgMusicUrl(
   quality = "128"
 ) {
   const cookie = getUserCookie("kg");
-  const serviceUrl = buildUrl(endpoints.kgServer, "/song/url", {
+  const proxyUrl = buildUrl(endpoints.kgProxy, "/song/url", {
     hash: id,
     quality,
   });
   if (cookie) {
     try {
-      return (await requestSignedGatewayWithCookie(serviceUrl, { cookie })).data;
+      return (await requestSignedGatewayWithCookie(proxyUrl, { cookie })).data;
     } catch {
-      // 高品质 Cookie 取链失败时沿用普通取链兜底，避免播放被打断。
+      // 携带 Cookie 取链失败时沿用无 Cookie 代理取链兜底，避免播放被打断。
     }
   }
-  return requestSignedGateway(
-    buildUrl(endpoints.kgProxy, "/song/url", {
-      hash: id,
-      quality,
-    })
-  );
+  return requestSignedGateway(proxyUrl);
 }
 
 async function resolveWyMusicUrl(
