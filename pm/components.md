@@ -59,11 +59,12 @@
 
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
-| 歌曲列表行 | 搜索、歌单、收藏、本地歌曲列表、扫描结果列表 | `item_playlist_song.xml`、`item_search_result.xml`、`item_favorite_song.xml`、`item_local_music.xml`、`item_local_music_scan_result.xml` | 对应 Adapter | 新增歌曲行先找最接近业务的现有行；扫描结果行使用左侧 `MaterialCheckBox`、中间歌曲信息、右侧“已存在”标记。 |
+| 通用歌曲列表行 | 搜索、歌单详情、收藏、本地/已下载、云盘、首页每日推荐 | `item_song_list.xml` | `SongListItemBinder`、`SongListPlaybackStateObserver`、`PlayingSpectrumView` | 按页面配置收藏/下载/更多按钮；当前歌曲歌名/歌手使用 primary，封面显示三线频谱，播放时跳动、暂停时静止。首页保留横向网格尺寸与骨架态，但内部仍复用本组件。 |
+| 特殊歌曲列表行 | 播放器队列、扫描结果列表 | `item_playlist_song.xml`、`item_local_music_scan_result.xml` | 对应 Adapter | 播放器队列保留队列专用结构；扫描结果行使用左侧 `MaterialCheckBox`、中间歌曲信息、右侧“已存在”标记。 |
 | 歌单列表行 | 我的歌单、选择歌单、搜索歌单 | `item_mine_playlist_row.xml`、`item_pick_local_playlist_row.xml`、`item_search_playlist.xml` | `MinePlaylistsAdapter`、`SearchPlaylistAdapter` | 封面、标题、副标题、更多按钮参考。 |
 | 首页推荐歌单卡片 | 首页横向/网格歌单卡片 | `item_home_recommend_playlist.xml` | `HomeRecommendPlaylistAdapter`、`HomePlaylistGridAdapter` | 首页歌单卡片优先复用。 |
-| 首页功能卡片 | 每日推荐、雷达、猜你喜欢等入口 | `item_home_feature_card.xml` | `HomeFeatureCardsAdapter` | 首页功能入口卡片参考。 |
-| 首页每日歌曲卡片 | 每日歌曲小卡 | `item_home_daily_song.xml` | `HomeDailySongGridAdapter` | 小型歌曲卡片参考。 |
+| 首页功能卡片 | 云盘、每日推荐、雷达歌单入口 | `item_home_feature_card.xml` | `HomeFeatureCardsAdapter` | 第一张固定进入云盘共享音乐空间，三张卡片统一使用无中文的简约功能图。 |
+| 首页每日歌曲卡片 | 每日歌曲横向六行网格 | `item_song_list.xml` | `HomeDailySongGridAdapter` | 复用通用歌曲行；Adapter 仅保留 90% 屏宽、72dp 外层高度与骨架动画。 |
 | 云盘数据概览与功能专区 | 首页云盘 Hero 指标卡片、双入口卡片与最近更新预览 | `fragment_cloud_music.xml`、`bg_cloud_music_entry_card.xml`、`bg_cloud_music_summary.xml` | `CloudMusicFragment` | 包含共享音乐空间 Hero 卡片（3指标：歌曲总数、我的贡献、最近更新）、功能专区（搜索云盘、我要投稿双卡片）、最近更新预览（前 3 首）。 |
 | 云盘独立搜索页 | 云盘全局检索与全量分页浏览 | `CloudMusicSearchActivity`、`activity_loved_songs_search.xml` | `CloudMusicSearchActivity`、`CloudMusicListAdapter` | 复用收藏搜索同款布局，默认展示全部云盘歌曲支持滑动分页加载，输入关键词实时防抖检索。 |
 | 搜索建议 / 热搜项 | 搜索页建议和热搜 | `item_search_suggestion.xml`、`item_hot_search.xml`、`item_search_recommend.xml` | `SuggestionsAdapter`、`HotSearchAdapter`、`SearchViewModel.suggestionJob` | 提示词随输入立即请求，新输入必须取消旧 Retrofit 请求并清空旧提示；热搜继续复用现有列表项。 |

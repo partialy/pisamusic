@@ -109,9 +109,9 @@ class RecommendedSongsFragment : BaseSongFragment() {
     override fun setupRecyclerView() {
         featureCardsAdapter = HomeFeatureCardsAdapter { kind ->
             when (kind) {
-                HomeFeatureCardKind.GUESS_YOU_LIKE -> {
+                HomeFeatureCardKind.CLOUD_MUSIC -> {
                     val act = activity
-                    if (act is MainActivity) act.openHomeFavoriteTab()
+                    if (act is MainActivity) act.openHomeCloudTab()
                 }
                 HomeFeatureCardKind.DAILY_RECOMMEND -> {
                     binding.recommendScrollView.post {
@@ -182,7 +182,7 @@ class RecommendedSongsFragment : BaseSongFragment() {
 
         featureCardsAdapter.submitList(
             listOf(
-                HomeFeatureCardItem(HomeFeatureCardKind.GUESS_YOU_LIKE),
+                HomeFeatureCardItem(HomeFeatureCardKind.CLOUD_MUSIC),
                 HomeFeatureCardItem(HomeFeatureCardKind.DAILY_RECOMMEND),
                 HomeFeatureCardItem(HomeFeatureCardKind.RADAR_PLAYLIST),
             ),

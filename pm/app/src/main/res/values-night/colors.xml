@@ -46,8 +46,6 @@
     <color name="cache_usage_bar_phone_used">#4A4D55</color>
     <color name="cache_usage_bar_free">#2E3138</color>
 
-    <color name="home_feature_guess_top">#4A1818</color>
-    <color name="home_feature_guess_bottom">#2E0E0E</color>
     <color name="home_feature_radar_top">#3A3D45</color>
     <color name="home_feature_radar_bottom">#5C616B</color>
     <color name="home_feature_daily_top">#1A4D6B</color>

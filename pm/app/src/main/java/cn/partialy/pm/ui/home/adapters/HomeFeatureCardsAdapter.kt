@@ -10,7 +10,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemHomeFeatureCardBinding
 
 enum class HomeFeatureCardKind {
-    GUESS_YOU_LIKE,
+    CLOUD_MUSIC,
     DAILY_RECOMMEND,
     RADAR_PLAYLIST,
 }
@@ -38,9 +38,9 @@ class HomeFeatureCardsAdapter(
 
         fun bind(item: HomeFeatureCardItem) {
             val (imageRes, descRes) = when (item.kind) {
-                HomeFeatureCardKind.GUESS_YOU_LIKE -> Pair(
-                    R.drawable.home_feature_guess_you_like,
-                    R.string.home_feature_guess_title,
+                HomeFeatureCardKind.CLOUD_MUSIC -> Pair(
+                    R.drawable.home_feature_cloud_music,
+                    R.string.home_feature_cloud_title,
                 )
                 HomeFeatureCardKind.DAILY_RECOMMEND -> Pair(
                     R.drawable.home_feature_daily_recommend,

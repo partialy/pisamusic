@@ -66,8 +66,6 @@
     <color name="playlist_playing_text">#0077FF</color>
     <color name="playlist_item_artist">#757575</color>
 
-    <color name="home_feature_guess_top">#5C1F1F</color>
-    <color name="home_feature_guess_bottom">#3D1414</color>
     <color name="home_feature_radar_top">#D8D8D8</color>
     <color name="home_feature_radar_bottom">#757575</color>
     <color name="home_feature_daily_top">#1E5A7A</color>

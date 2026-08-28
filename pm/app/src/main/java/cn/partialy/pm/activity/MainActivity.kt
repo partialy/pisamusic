@@ -1127,9 +1127,10 @@ class MainActivity : BaseDownloadActivity() {
 
     }
 
-    /** 从猜你喜欢卡片进入独立的“我的收藏”页面。 */
-    fun openHomeFavoriteTab() {
-        LovedSongsPlaylistActivity.start(this)
+    /** 从首页功能卡进入共享音乐空间。 */
+    fun openHomeCloudTab() {
+        showHomeContent()
+        viewPager.setCurrentItem(1, true)
     }
 
     companion object {

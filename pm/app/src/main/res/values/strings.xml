@@ -331,8 +331,7 @@
     <string name="search_playlist_open_soon">歌单详情即将开放</string>
     <string name="home_section_today_playlists">今日推荐歌单</string>
     <string name="home_section_today_songs">今日歌曲推荐</string>
-    <string name="home_feature_guess_title">猜你喜欢</string>
-    <string name="home_feature_guess_subtitle">红心歌曲和相似推荐</string>
+    <string name="home_feature_cloud_title">云盘 · 共享音乐空间</string>
     <string name="home_feature_daily_title">每日推荐</string>
     <string name="home_feature_daily_subtitle">今日限定好歌</string>
     <string name="home_feature_radar_title">雷达歌单</string>

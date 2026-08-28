@@ -15,5 +15,5 @@
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
         tools:ignore="ContentDescription"
-        tools:src="@drawable/home_feature_guess_you_like" />
+        tools:src="@drawable/home_feature_cloud_music" />
 </com.google.android.material.card.MaterialCardView>
