@@ -12,11 +12,10 @@ type Props = {
 };
 
 export default function CloudMusicReviewModal({ track, themeColor, onClose, onReviewed }: Props) {
-  // 默认根据当前状态推荐决策：若已是 rejected，则推荐 approve 或 resubmit；若是 pending_review，则默认 approve
-  const [decision, setDecision] = useState<"approve" | "reject" | "resubmit" | "ban_destroy">(
-    track.status === "rejected" ? "approve" : "approve"
+  const [decision, setDecision] = useState<"approve" | "reject" | "resubmit" | "ban_destroy">("approve");
+  const [targetStatus, setTargetStatus] = useState<"active" | "disabled">(
+    track.status === "disabled" ? "disabled" : "active"
   );
-  const [targetStatus, setTargetStatus] = useState<"active" | "disabled">("active");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -86,7 +85,10 @@ export default function CloudMusicReviewModal({ track, themeColor, onClose, onRe
     if (submitting) return "提交处理中...";
     if (decision === "ban_destroy") return "确认违规销毁 (直接打死)";
     if (decision === "reject") return "确认驳回修改";
-    if (decision === "resubmit") return "重置为审核中";
+    if (decision === "resubmit") return "重置为待审核";
+    if (track.status === "active" && targetStatus === "disabled") return "确认设置为禁用";
+    if (track.status === "disabled" && targetStatus === "active") return "确认设置为可用";
+    if (track.status === "active" || track.status === "disabled") return "确认保存状态";
     return "确认审核通过";
   };
 

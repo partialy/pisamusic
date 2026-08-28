@@ -6,7 +6,6 @@ import {
   fetchCloudMusicPreviewUrl,
   fetchCloudMusicTempSummary,
   fetchCloudMusicTracks,
-  saveCloudMusic,
 } from "../../api/cloudMusic";
 import { glassCardClasses, glassInputClasses } from "../../constants/theme";
 import type {
@@ -151,23 +150,6 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
       setCleanupResultMsg(`清理失败：${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setCleaning(false);
-    }
-  };
-
-  const handleToggleActiveDisabled = async (track: CloudMusicTrack) => {
-    if (track.status !== "active" && track.status !== "disabled") return;
-    const targetStatus = track.status === "active" ? "disabled" : "active";
-    try {
-      await saveCloudMusic(track.uuid, {
-        title: track.title,
-        artist: track.artist,
-        album: track.album,
-        durationMs: track.durationMs,
-        status: targetStatus,
-      });
-      loadTracks();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "操作失败");
     }
   };
 
@@ -394,25 +376,24 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
                           {loadingPreviewUuid === track.uuid ? "加载..." : activePreviewUuid === track.uuid ? "停止" : "试听"}
                         </button>
 
-                        {/* Review button if pending review or rejected */}
-                        {(track.status === "pending_review" || track.status === "rejected") && (
+                        {/* Status management & Review button (always visible for non-deleted tracks) */}
+                        {track.status !== "deleted" && (
                           <button
                             type="button"
                             onClick={() => setReviewingTrack(track)}
-                            className={`rounded-xl px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition-colors ${track.status === "pending_review" ? "bg-blue-600 hover:bg-blue-700" : "bg-orange-600 hover:bg-orange-700"}`}
+                            className={`rounded-xl px-2.5 py-1.5 text-xs font-bold shadow-sm transition-colors ${
+                              track.status === "pending_review"
+                                ? "bg-blue-600 text-white hover:bg-blue-700"
+                                : track.status === "rejected"
+                                ? "bg-orange-600 text-white hover:bg-orange-700"
+                                : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                            }`}
                           >
-                            {track.status === "pending_review" ? "审核" : "重审/改态"}
-                          </button>
-                        )}
-
-                        {/* Quick switch active/disabled */}
-                        {(track.status === "active" || track.status === "disabled") && (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleActiveDisabled(track)}
-                            className="rounded-xl border border-white/70 bg-white/70 px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-white"
-                          >
-                            {track.status === "active" ? "禁用" : "启用"}
+                            {track.status === "pending_review"
+                              ? "审核"
+                              : track.status === "rejected"
+                              ? "重审/改态"
+                              : "修改状态"}
                           </button>
                         )}
 
