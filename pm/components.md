@@ -64,8 +64,8 @@
 | 首页推荐歌单卡片 | 首页横向/网格歌单卡片 | `item_home_recommend_playlist.xml` | `HomeRecommendPlaylistAdapter`、`HomePlaylistGridAdapter` | 首页歌单卡片优先复用。 |
 | 首页功能卡片 | 每日推荐、雷达、猜你喜欢等入口 | `item_home_feature_card.xml` | `HomeFeatureCardsAdapter` | 首页功能入口卡片参考。 |
 | 首页每日歌曲卡片 | 每日歌曲小卡 | `item_home_daily_song.xml` | `HomeDailySongGridAdapter` | 小型歌曲卡片参考。 |
-| 云盘顶部固定栏 | 首页云盘胶囊搜索、统计信息和小型投稿按钮 | `fragment_cloud_music.xml`、`bg_search_field.xml`、`bg_cloud_music_submit_pill.xml` | `CloudMusicFragment` | 固定顶部头部（滚动时不动）；包含胶囊搜索框（带清空按钮）以及次要色小字统计和小型投稿按钮。 |
-| 云盘歌曲列表行 | Cloud 独立音源歌曲浏览 | `item_recommend_song.xml` | `CloudMusicListAdapter`、`PlaylistDetailContentAdapter`、`SongSourceTagBinder` | 复用歌单详情同款歌曲行，来源统一显示青绿色方块 `C`，支持喜欢、下载、更多菜单。 |
+| 云盘数据概览与功能专区 | 首页云盘 Hero 指标卡片、双入口卡片与最近更新预览 | `fragment_cloud_music.xml`、`bg_cloud_music_entry_card.xml`、`bg_cloud_music_summary.xml` | `CloudMusicFragment` | 包含共享音乐空间 Hero 卡片（3指标：歌曲总数、我的贡献、最近更新）、功能专区（搜索云盘、我要投稿双卡片）、最近更新预览（前 3 首）。 |
+| 云盘独立搜索页 | 云盘全局检索与全量分页浏览 | `CloudMusicSearchActivity`、`activity_loved_songs_search.xml` | `CloudMusicSearchActivity`、`CloudMusicListAdapter` | 复用收藏搜索同款布局，默认展示全部云盘歌曲支持滑动分页加载，输入关键词实时防抖检索。 |
 | 搜索建议 / 热搜项 | 搜索页建议和热搜 | `item_search_suggestion.xml`、`item_hot_search.xml`、`item_search_recommend.xml` | `SuggestionsAdapter`、`HotSearchAdapter`、`SearchViewModel.suggestionJob` | 提示词随输入立即请求，新输入必须取消旧 Retrofit 请求并清空旧提示；热搜继续复用现有列表项。 |
 | 搜索音源选择器 | 搜索页当前音源与下拉选项 | `activity_search.xml`、`layout_search_source_dropdown.xml`、`item_search_source_option.xml` | `SearchActivity`、`SongSourceTagBinder` | 当前项和弹出选项只显示 K / Y / W 方块标签，当前弹出项右侧显示勾选；不展示“小蓝 / 小红 / 小黄”平台别名。 |
 | 封面缩略图 | 封面选择、歌单封面列表 | `item_dialog_local_cover_thumb.xml` | `CreateLocalPlaylistCoverPickerAdapter` | 封面选择网格参考。 |
