@@ -622,8 +622,9 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
   const url = new URL(path, getApiBaseUrl());
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};
-  if (options.token) {
-    headers.authorization = `Bearer ${options.token.trim()}`;
+  const currentToken = options.token || getAccountSession().token;
+  if (currentToken) {
+    headers.authorization = `Bearer ${currentToken.trim()}`;
   }
   let body: string | undefined;
   const useEncryption = options.encrypted !== false;

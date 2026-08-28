@@ -1,5 +1,11 @@
 import { Router, type Request } from "express";
-import { requireUserJwt, tokenFromRequest, verifyUserToken } from "../middleware/requireUserJwt";
+import {
+  getUserAuth,
+  requireUserJwt,
+  tokenFromRequest,
+  verifyUserToken,
+  type UserAuthedRequest,
+} from "../middleware/requireUserJwt";
 import {
   confirmUserAsset,
   createUserUploadSession,
@@ -26,13 +32,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function getUserFromReq(req: Request) {
-  const user = (req as unknown as { user?: { id: string; username: string; email: string } }).user;
-  if (!user || !user.id) {
-    const error = new Error("请先登录");
-    (error as unknown as { statusCode: number }).statusCode = 401;
-    throw error;
-  }
-  return user;
+  const auth = getUserAuth(req as UserAuthedRequest);
+  return auth.user;
 }
 
 cloudMusicRouter.get("/summary", (req, res) => {
