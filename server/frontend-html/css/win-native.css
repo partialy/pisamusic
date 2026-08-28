@@ -1,0 +1,274 @@
+:root {
+  --win-primary: #27b8f4;
+  --win-bg-light: rgba(255, 255, 255, 0.88);
+  --win-bg-dark: rgba(23, 23, 23, 0.92);
+  --win-border-light: rgba(0, 0, 0, 0.12);
+  --win-border-dark: rgba(255, 255, 255, 0.14);
+  --win-text-light: #1f2937;
+  --win-text-dark: #f3f4f6;
+}
+
+/* 拟真原生视窗容器 */
+.win-native-container {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  box-sizing: border-box;
+  background-color: var(--win-bg-light);
+  color: var(--win-text-light);
+  border: 1px solid var(--win-border-light);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+@supports (backdrop-filter: blur(20px)) {
+  .win-native-container {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+}
+
+.win-native-container.win-rounded {
+  border-radius: 12px;
+}
+.win-native-container.win-square {
+  border-radius: 0px;
+}
+
+/* 视窗标题栏 */
+.win-native-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  padding: 0 14px;
+  cursor: grab;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+  background: #f6f8fa;
+  box-sizing: border-box;
+  position: relative;
+  flex-shrink: 0;
+}
+.win-native-header:active {
+  cursor: grabbing;
+}
+
+.win-native-title {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #1e293b;
+}
+
+/* 视窗内容区 */
+.win-native-content {
+  flex: 1;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+.win-native-dragshield {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+  z-index: 999;
+  display: none;
+}
+
+.win-native-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  cursor: se-resize;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+/* Windows 样式标题栏按键 */
+.win-ctrl-row {
+  display: flex;
+  align-items: center;
+  user-select: none;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.win-btn {
+  height: 100%;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.65;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  box-sizing: border-box;
+}
+.win-btn:hover {
+  background-color: rgba(128, 128, 128, 0.15);
+  opacity: 1;
+}
+
+.win-btn-close:hover {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  opacity: 1;
+}
+
+/* 法律协议视窗定制细节 */
+.legal-native-window {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(15, 23, 42, 0.16) !important;
+  color: #1f2937 !important;
+  font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+}
+
+.legal-native-window.win-rounded {
+  border-radius: 8px !important;
+}
+
+.legal-native-window .win-native-header {
+  height: 42px;
+  padding-left: 14px;
+  background: #f3f3f3;
+  border-bottom-color: #d9d9d9;
+}
+
+.legal-native-window .win-native-title {
+  color: #202020;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 1;
+}
+
+.legal-native-window .win-btn {
+  width: 46px;
+  padding: 0;
+  opacity: 0.78;
+}
+
+.legal-window-root,
+.legal-window-body {
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.legal-window-root {
+  overflow: hidden;
+  background: #ffffff;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.legal-window-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.legal-window-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 180px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.legal-retry-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 14px;
+  color: #202020;
+  font: 600 13px/1 "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+  background: #ffffff;
+  border: 1px solid #8a8a8a;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.legal-retry-button:hover {
+  background: #f5f5f5;
+  border-color: #5f5f5f;
+}
+
+.legal-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 28px 32px;
+  scrollbar-width: thin;
+  scrollbar-color: #9b9b9b #f3f3f3;
+}
+
+.legal-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  display: block;
+}
+
+.legal-scroll::-webkit-scrollbar-thumb {
+  background: #9b9b9b;
+  border: 2px solid #f3f3f3;
+  border-radius: 0;
+}
+
+.legal-scroll::-webkit-scrollbar-thumb:hover {
+  background: #737373;
+}
+
+.legal-content {
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: #333333;
+  word-break: break-word;
+}
+
+.legal-content .pm-agreement {
+  padding: 0;
+}
+
+.legal-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 680px) {
+  .legal-native-window .win-native-header {
+    padding-left: 12px;
+  }
+  .legal-native-window .win-btn {
+    width: 42px;
+  }
+  .legal-scroll {
+    padding: 20px 18px 28px;
+  }
+}

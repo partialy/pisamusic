@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f7fbff" />
+  <title>PisaMusic 扫码与分享</title>
+  <meta name="description" content="PisaMusic 扫码加入一起听房间或查看好友分享的精选歌曲与歌单。" />
+  <meta name="keywords" content="PisaMusic,一起听,音乐分享,歌单分享,音乐扫码" />
+  <link rel="canonical" href="https://pisamusic.partialy.cn/scan/" />
+  <link rel="icon" type="image/png" href="/assets/app-icon.png" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="music.song" />
+  <meta property="og:site_name" content="PisaMusic" />
+  <meta property="og:title" content="PisaMusic 音乐分享" />
+  <meta property="og:description" content="来自 PisaMusic 的音乐分享，点击即可在客户端或网页中查看。" />
+  <meta property="og:image" content="https://pisamusic.partialy.cn/assets/app-icon.png" />
+
+  <!-- 引入样式文件 -->
+  <link rel="stylesheet" href="/css/scan.css" />
+
+  <!-- 引入业务脚本 -->
+  <script src="/js/scan.js" defer></script>
+</head>
+<body>
+  <main>
+    <!-- 一起听加入视图 -->
+    <section id="listenView">
+      <div class="icon" aria-hidden="true">P</div>
+      <h1 id="title">正在打开 Pisa Music...</h1>
+      <p id="status">如果没有自动打开，请点击下方按钮。</p>
+      <div class="room" id="room">正在读取房间信息</div>
+      <p class="guide" id="guide">安装 Pisa Music 后，请返回此页面再次打开 App，即可继续加入房间。</p>
+      <div class="actions">
+        <button id="openButton" class="primary" type="button">打开 App</button>
+        <button class="secondary" id="copyButton" type="button">复制房间号</button>
+        <a id="downloadLink" class="btn btn-secondary" href="/download/">前往官网下载</a>
+      </div>
+      <div class="copy-status" id="copyStatus" role="status" aria-live="polite"></div>
+    </section>
+
+    <!-- 音乐/歌单分享视图 -->
+    <section id="shareView" class="hidden">
+      <div id="shareLoading" class="share-loading">
+        <div class="icon" aria-hidden="true">P</div>
+        <h1>正在读取分享...</h1>
+        <p>请稍候，正在加载音乐信息。</p>
+      </div>
+
+      <div id="shareError" class="share-error hidden">
+        <div class="icon" aria-hidden="true">!</div>
+        <h1 id="shareErrorTitle">分享链接无效</h1>
+        <p id="shareErrorText">请确认链接是否完整。</p>
+        <div class="actions">
+          <a class="btn btn-secondary" href="/#download">前往官网下载</a>
+        </div>
+      </div>
+
+      <div id="shareContent" class="hidden">
+        <div class="cover-wrap">
+          <div class="cover-fallback" id="shareCoverFallback">♪</div>
+          <img id="shareCover" alt="音乐封面" class="hidden" width="260" height="260" />
+        </div>
+        <h1 id="shareTitle" class="share-title"></h1>
+        <p id="shareSubtitle" class="share-subtitle"></p>
+        <div class="info-panel" id="shareInfo"></div>
+        <div class="actions">
+          <button id="shareOpenButton" class="primary" type="button">打开 App 播放</button>
+          <button class="secondary" id="shareCopyButton" type="button">复制分享链接</button>
+          <a id="shareDownloadLink" class="btn btn-secondary" href="/download/">前往官网下载</a>
+        </div>
+        <div class="copy-status" id="shareCopyStatus" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

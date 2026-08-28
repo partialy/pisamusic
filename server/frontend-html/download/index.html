@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f7fbff" />
+  <title>下载 PisaMusic 客户端</title>
+  <meta name="description" content="正在为你匹配适合当前设备的 PisaMusic 官方客户端下载版本（Android 随身版 / PC 桌面版）。" />
+  <meta name="robots" content="noindex, follow" />
+  <link rel="canonical" href="https://pisamusic.partialy.cn/download/" />
+  <link rel="icon" type="image/png" href="/assets/app-icon.png" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #10233f;
+      background: linear-gradient(160deg, #f0f9ff, #fff 58%, #f8fafc);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    main {
+      width: min(420px, 100%);
+      padding: 38px 28px;
+      border: 1px solid #e5eef6;
+      border-radius: 28px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(71, 111, 145, .13);
+      text-align: center;
+    }
+    .icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      color: #fff;
+      background: linear-gradient(135deg, #38bdf8, #0284c7);
+      box-shadow: 0 10px 24px rgba(14, 165, 233, .22);
+      font-size: 28px;
+      font-weight: 800;
+    }
+    h1 { margin: 0; font-size: 22px; font-weight: 800; }
+    p { margin: 12px 0 24px; color: #64748b; font-size: 14px; line-height: 1.65; }
+    a {
+      width: 100%;
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      color: #fff;
+      background: linear-gradient(90deg, #0ea5e9, #0284c7);
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 8px 20px rgba(14, 165, 233, 0.22);
+      transition: all 0.2s ease;
+    }
+    a:hover {
+      background: linear-gradient(90deg, #0284c7, #0369a1);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="icon" aria-hidden="true">↓</div>
+    <h1>正在前往官网下载…</h1>
+    <p id="status">我们会根据当前设备推荐合适的版本，你仍可自行选择其他平台。</p>
+    <a id="fallback" href="/#download">前往官网下载页</a>
+    <noscript>
+      <p style="margin-top: 14px; color: #94a3b8; font-size: 12px;">浏览器未启用 JavaScript，请点击上方按钮前往官网下载区域。</p>
+    </noscript>
+  </main>
+  <script>
+    (function () {
+      const JOIN_TYPE = "listen-together-join";
+      const SHARE_TYPE = "music-share";
+      const fallback = document.getElementById("fallback");
+
+      function getDownloadPlatform() {
+        const userAgent = navigator.userAgent || "";
+        if (/Android/i.test(userAgent)) return "android";
+        if (/Windows NT/i.test(userAgent)) return "windows";
+        return "";
+      }
+
+      function buildOfficialDownloadUrl() {
+        const sourceParams = new URLSearchParams(window.location.search);
+        const targetParams = new URLSearchParams();
+        const platform = getDownloadPlatform();
+        const type = sourceParams.get("type") || "";
+        const roomId = sourceParams.get("roomId") || "";
+        const uuid = sourceParams.get("uuid") || "";
+
+        if (platform) {
+          targetParams.set("downloadPlatform", platform);
+        }
+        if (type === JOIN_TYPE && /^\d{4,8}$/.test(roomId)) {
+          targetParams.set("type", type);
+          targetParams.set("roomId", roomId);
+        }
+        if (type === SHARE_TYPE && /^[0-9a-f-]{32,40}$/i.test(uuid)) {
+          targetParams.set("type", type);
+          targetParams.set("uuid", uuid);
+        }
+
+        const query = targetParams.toString();
+        return `/${query ? `?${query}` : ""}#download`;
+      }
+
+      const officialDownloadUrl = buildOfficialDownloadUrl();
+      if (fallback) fallback.href = officialDownloadUrl;
+      window.setTimeout(function () {
+        window.location.replace(officialDownloadUrl);
+      }, 60);
+    })();
+  </script>
+</body>
+</html>

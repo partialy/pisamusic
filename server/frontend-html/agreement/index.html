@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f8fcff" />
+  <title>PisaMusic 法律协议与隐私政策</title>
+  <meta name="description" content="PisaMusic 官方用户协议与隐私政策文档，保障您的账号安全与数据隐私权益。" />
+  <meta name="keywords" content="PisaMusic,用户协议,隐私政策,服务条款" />
+  <link rel="canonical" href="https://pisamusic.partialy.cn/agreement/" />
+  <link rel="icon" type="image/png" href="/assets/app-icon.png" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      color: #1f2937;
+      background: #f8fcff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.75;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      padding: 0 24px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 16px;
+    }
+    .brand img {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 16px;
+    }
+    .nav-links a {
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    .nav-links a.active, .nav-links a:hover {
+      color: #0284c7;
+      background: #f0f9ff;
+    }
+    main {
+      max-width: 860px;
+      margin: 40px auto 80px;
+      padding: 36px 32px;
+      background: #ffffff;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 26px;
+      font-weight: 800;
+      color: #0f172a;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .state {
+      padding: 48px 0;
+      text-align: center;
+      color: #64748b;
+      font-size: 15px;
+    }
+    .content {
+      font-size: 15px;
+      color: #334155;
+    }
+    .content img {
+      max-width: 100%;
+      height: auto;
+    }
+    @media (max-width: 640px) {
+      main {
+        margin: 16px;
+        padding: 24px 18px;
+      }
+      header {
+        padding: 0 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="brand">
+      <img src="/assets/app-icon.png" alt="PisaMusic Logo" width="28" height="28" />
+      <span>PisaMusic</span>
+    </a>
+    <nav class="nav-links">
+      <a href="/agreement/?kind=service-agreement" id="navService">用户协议</a>
+      <a href="/agreement/?kind=privacy-policy" id="navPrivacy">隐私政策</a>
+      <a href="/">返回官网</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1 id="pageTitle">法律协议</h1>
+    <div id="loading" class="state">正在加载协议内容…</div>
+    <div id="error" class="state" style="display: none; color: #e11d48;"></div>
+    <article id="content" class="content" style="display: none;"></article>
+  </main>
+
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      const rawKind = params.get("kind");
+      const kind = rawKind === "privacy-policy" ? "privacy-policy" : "service-agreement";
+      const fallbackTitle = kind === "privacy-policy" ? "隐私政策" : "用户协议";
+
+      const pageTitle = document.getElementById("pageTitle");
+      const loading = document.getElementById("loading");
+      const error = document.getElementById("error");
+      const content = document.getElementById("content");
+      const navService = document.getElementById("navService");
+      const navPrivacy = document.getElementById("navPrivacy");
+
+      if (kind === "privacy-policy") {
+        navPrivacy.classList.add("active");
+      } else {
+        navService.classList.add("active");
+      }
+
+      pageTitle.innerText = fallbackTitle;
+      document.title = `${fallbackTitle} - PisaMusic 官方文档`;
+
+      fetch(`/api/config/${kind}`)
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((body) => {
+          if (!body || !body.success || !body.data) {
+            throw new Error(body && body.msg ? body.msg : "获取内容失败");
+          }
+          const data = body.data;
+          pageTitle.innerText = data.title || fallbackTitle;
+          document.title = `${data.title || fallbackTitle} - PisaMusic 官方文档`;
+          loading.style.display = "none";
+          content.innerHTML = data.content || "<p>暂无内容</p>";
+          content.style.display = "block";
+        })
+        .catch((err) => {
+          loading.style.display = "none";
+          error.innerText = err.message || "内容加载失败，请稍后重试。";
+          error.style.display = "block";
+        });
+    })();
+  </script>
+</body>
+</html>
