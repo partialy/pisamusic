@@ -31,6 +31,8 @@ pm/app/release/*.apk
 pm/app/debug/
 pm/app/release/output-metadata.json
 pm/app/release/baselineProfiles/
+# Design source images; app-ready assets live under res/drawable.
+pm/icons/
 
 # Node / frontend / Electron.
 **/node_modules/
