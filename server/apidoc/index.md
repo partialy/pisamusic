@@ -151,7 +151,7 @@
 
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
-| 获取网盘音乐概览 | `GET` | `/api/cloud-music/summary` | 无 (加密) | [./cloudMusic/getSummary.md](./cloudMusic/getSummary.md) |
+| 获取网盘音乐概览 | `GET` | `/api/cloud-music/summary` | 可选 User Token (加密) | [./cloudMusic/getSummary.md](./cloudMusic/getSummary.md) |
 | 搜索网盘音乐 | `GET` | `/api/cloud-music/search` | 无 (加密) | [./cloudMusic/searchTracks.md](./cloudMusic/searchTracks.md) |
 | 获取网盘音乐详情 | `GET` | `/api/cloud-music/tracks/:uuid` | 无 (加密) | [./cloudMusic/getTrack.md](./cloudMusic/getTrack.md) |
 | 获取网盘音乐稳定封面 | `GET` | `/api/cloud-music/tracks/:uuid/cover` | 无 (明文重定向) | [./cloudMusic/getCover.md](./cloudMusic/getCover.md) |

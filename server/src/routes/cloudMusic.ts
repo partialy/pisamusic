@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { tokenFromRequest, verifyUserToken } from "../middleware/requireUserJwt";
 import {
   getPublicCoverRedirect,
   getPublicLyricsUrl,
@@ -11,9 +12,10 @@ import { fail, ok } from "../types/response";
 
 export const cloudMusicRouter = Router();
 
-cloudMusicRouter.get("/summary", (_req, res) => {
+cloudMusicRouter.get("/summary", (req, res) => {
   try {
-    res.json(ok(getPublicSummary()));
+    const user = verifyUserToken(tokenFromRequest(req));
+    res.json(ok(getPublicSummary(user?.id)));
   } catch (error) {
     const message = error instanceof Error ? error.message : "获取网盘音乐概览失败";
     res.status(500).json(fail(message, 500));

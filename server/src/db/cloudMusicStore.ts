@@ -120,6 +120,7 @@ export type CloudMusicSearchInput = {
 export type CloudMusicPublicSummary = {
   total: number;
   latestUpdatedAt: number | null;
+  myContributions: number;
 };
 
 export type CloudMusicListResult = {
@@ -515,16 +516,33 @@ export function searchVisibleCloudMusic(input: CloudMusicSearchInput): CloudMusi
   return queryTracks(input, true);
 }
 
-export function readVisibleCloudMusicSummary(): CloudMusicPublicSummary {
-  const row = getAppDb().prepare(
+export function readVisibleCloudMusicSummary(userId?: string): CloudMusicPublicSummary {
+  const db = getAppDb();
+  const row = db.prepare(
     `SELECT COUNT(*) AS total, MAX(updated_at) AS latest_updated_at
      FROM cloud_music_tracks
      WHERE status IN ('active', 'disabled') AND deleted_at IS NULL`,
   ).get() as { total: number; latest_updated_at: number | null };
 
+  let myContributions = 0;
+  if (userId) {
+    const userRow = db.prepare(
+      `SELECT COUNT(DISTINCT t.uuid) AS count
+       FROM cloud_music_tracks t
+       JOIN cloud_music_assets a ON a.track_uuid = t.uuid
+       JOIN file_records f ON f.id = a.file_record_id
+       WHERE t.status IN ('active', 'disabled')
+         AND t.deleted_at IS NULL
+         AND a.kind = 'audio'
+         AND f.owner_user_id = ?`,
+    ).get(userId) as { count: number } | undefined;
+    myContributions = Number(userRow?.count) || 0;
+  }
+
   return {
     total: Number(row.total) || 0,
     latestUpdatedAt: row.latest_updated_at === null ? null : Number(row.latest_updated_at),
+    myContributions,
   };
 }
 

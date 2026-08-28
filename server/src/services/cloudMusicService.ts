@@ -865,8 +865,8 @@ export function searchPublicTracks(input: CloudMusicSearchInput): CloudMusicSear
   };
 }
 
-export function getPublicSummary(): CloudMusicPublicSummary {
-  return readVisibleCloudMusicSummary();
+export function getPublicSummary(userId?: string): CloudMusicPublicSummary {
+  return readVisibleCloudMusicSummary(userId);
 }
 
 export function getPublicTrackDetail(uuid: string): CloudMusicPublicTrack | null {
