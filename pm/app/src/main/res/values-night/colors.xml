@@ -17,7 +17,9 @@
     <color name="home_mini_player_subtitle">#A0A8B4</color>
     <color name="home_tab_selected">#FFFFFF</color>
     <color name="home_tab_unselected">#8B919B</color>
-    <color name="cloud_music_summary_bg">#202C3C</color>
+    <color name="cloud_music_summary_bg">#252830</color>
+    <color name="cloud_music_stats_box_bg">#1E2126</color>
+    <color name="cloud_music_entry_btn_bg">#252830</color>
     <color name="cloud_music_disabled_badge_bg">#343942</color>
     <color name="cloud_music_disabled_badge_text">#B1B7C1</color>
 
