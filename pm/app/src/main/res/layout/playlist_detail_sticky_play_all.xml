@@ -43,14 +43,13 @@
         android:contentDescription="@string/playlist_detail_sort_cd"
         android:padding="8dp"
         android:src="@drawable/ic_sort_24"
-        app:tint="?attr/colorOnSurfaceVariant" />
+        app:tint="@color/home_tab_unselected" />
 
     <ImageButton
         android:id="@+id/batchPlaylistButton"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginStart="4dp"
-        android:alpha="0.62"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/playlist_detail_batch_cd"
         android:enabled="false"

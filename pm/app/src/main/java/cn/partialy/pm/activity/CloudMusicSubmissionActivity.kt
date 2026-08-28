@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import androidx.activity.addCallback
 import androidx.core.view.updatePadding
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityCloudMusicSubmissionBinding
@@ -22,7 +23,13 @@ class CloudMusicSubmissionActivity : BaseActivity() {
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
         setupSystemBars()
-        binding.cloudMusicSubmissionToolbar.setNavigationOnClickListener { finish() }
+        onBackPressedDispatcher.addCallback(this) { finishAnimated() }
+        binding.cloudMusicSubmissionToolbar.setNavigationOnClickListener { finishAnimated() }
+    }
+
+    private fun finishAnimated() {
+        finish()
+        AppActivityTransitions.applyBack(this)
     }
 
     private fun setupSystemBars() {

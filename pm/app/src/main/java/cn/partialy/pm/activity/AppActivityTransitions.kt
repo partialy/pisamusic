@@ -4,12 +4,14 @@ import android.app.Activity
 import android.content.Context
 import cn.partialy.pm.R
 
+import android.content.ContextWrapper
+
 /**
  * 应用内 Activity 统一横向过渡动画。
  */
 object AppActivityTransitions {
     fun applyForward(context: Context) {
-        (context as? Activity)?.overridePendingTransition(
+        context.findActivity()?.overridePendingTransition(
             R.anim.slide_to_left,
             R.anim.dim_and_scale_out,
         )
@@ -23,7 +25,7 @@ object AppActivityTransitions {
     }
 
     fun applyPlayerForward(context: Context) {
-        (context as? Activity)?.overridePendingTransition(
+        context.findActivity()?.overridePendingTransition(
             R.anim.slide_up,
             R.anim.dim_and_scale_out,
         )
@@ -34,5 +36,14 @@ object AppActivityTransitions {
             R.anim.dim_and_scale_in,
             R.anim.slide_down,
         )
+    }
+
+    private fun Context.findActivity(): Activity? {
+        var ctx: Context? = this
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) return ctx
+            ctx = ctx.baseContext
+        }
+        return null
     }
 }

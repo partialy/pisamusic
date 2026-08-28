@@ -69,15 +69,15 @@ class CloudMusicFragment : Fragment() {
 
     private fun setupActions() = with(binding) {
         cloudMusicSearchCard.setOnClickListener {
-            CloudMusicSearchActivity.start(requireContext())
+            CloudMusicSearchActivity.start(requireActivity())
         }
 
         cloudMusicSubmitCard.setOnClickListener {
-            CloudMusicSubmissionActivity.start(requireContext())
+            CloudMusicSubmissionActivity.start(requireActivity())
         }
 
         cloudMusicViewAllButton.setOnClickListener {
-            CloudMusicSearchActivity.start(requireContext())
+            CloudMusicSearchActivity.start(requireActivity())
         }
 
         cloudMusicRecentRetryButton.setOnClickListener {
