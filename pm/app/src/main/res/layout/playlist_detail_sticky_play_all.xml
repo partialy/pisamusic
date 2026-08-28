@@ -27,7 +27,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
         android:text="@string/playlist_zero_tracks"
-        android:textColor="@color/home_tab_unselected"
+        android:textColor="?android:attr/textColorSecondary"
         android:textSize="13sp" />
 
     <Space
@@ -43,7 +43,7 @@
         android:contentDescription="@string/playlist_detail_sort_cd"
         android:padding="8dp"
         android:src="@drawable/ic_sort_24"
-        app:tint="@color/home_tab_unselected" />
+        app:tint="?android:attr/textColorSecondary" />
 
     <ImageButton
         android:id="@+id/batchPlaylistButton"
@@ -55,5 +55,5 @@
         android:enabled="false"
         android:padding="8dp"
         android:src="@drawable/ic_list_check_24"
-        app:tint="@color/home_tab_unselected" />
+        app:tint="?android:attr/textColorSecondary" />
 </LinearLayout>
