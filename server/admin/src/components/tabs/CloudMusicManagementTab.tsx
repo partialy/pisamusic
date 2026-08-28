@@ -329,8 +329,16 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
 
                     {/* Status badges */}
                     <td className="border-b border-slate-100/80 px-4 py-3.5">
-                      <div className="flex flex-col gap-1 items-start">
+                      <div className="flex flex-col gap-1 items-start max-w-[140px]">
                         {statusBadge(track.status)}
+                        {track.statusReason && (
+                          <span
+                            className={`truncate max-w-full text-[10px] px-1 py-0.5 rounded border font-sans ${track.status === "rejected" ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-slate-50 text-slate-500 border-slate-200"}`}
+                            title={track.statusReason}
+                          >
+                            {track.statusReason}
+                          </span>
+                        )}
                         {track.uploadState !== "ready" && (
                           <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-mono text-slate-500">
                             {track.uploadState}
@@ -386,14 +394,14 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
                           {loadingPreviewUuid === track.uuid ? "加载..." : activePreviewUuid === track.uuid ? "停止" : "试听"}
                         </button>
 
-                        {/* Review button if pending review */}
-                        {track.status === "pending_review" && (
+                        {/* Review button if pending review or rejected */}
+                        {(track.status === "pending_review" || track.status === "rejected") && (
                           <button
                             type="button"
                             onClick={() => setReviewingTrack(track)}
-                            className="rounded-xl bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700"
+                            className={`rounded-xl px-2.5 py-1.5 text-xs font-bold text-white shadow-sm transition-colors ${track.status === "pending_review" ? "bg-blue-600 hover:bg-blue-700" : "bg-orange-600 hover:bg-orange-700"}`}
                           >
-                            审核
+                            {track.status === "pending_review" ? "审核" : "重审/改态"}
                           </button>
                         )}
 

@@ -101,9 +101,10 @@ export type CloudMusicAdminSaveInput = {
 };
 
 export type CloudMusicReviewInput =
-  | { decision: "approve"; targetStatus: "active" | "disabled" }
+  | { decision: "approve"; targetStatus: "active" | "disabled"; reason?: string }
   | { decision: "reject"; reason: string }
-  | { decision: "resubmit"; reason?: string };
+  | { decision: "resubmit"; reason?: string }
+  | { decision: "ban_destroy"; reason: string };
 
 export type CloudMusicResourceUrls = {
   audioUrl: string;

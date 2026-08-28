@@ -142,9 +142,10 @@ export type CloudMusicAdminSaveInput = {
 };
 
 export type CloudMusicReviewInput =
-  | { decision: "approve"; targetStatus: "active" | "disabled" }
+  | { decision: "approve"; targetStatus: "active" | "disabled"; reason?: string }
   | { decision: "reject"; reason: string }
-  | { decision: "resubmit"; reason?: string };
+  | { decision: "resubmit"; reason?: string }
+  | { decision: "ban_destroy"; reason: string };
 
 export type CloudMusicResourceUrls = {
   audioUrl: string;
@@ -665,9 +666,9 @@ export function saveAdminDraft(uuid: string, input: CloudMusicAdminSaveInput, ad
   return toCloudMusicTrackDto(updated);
 }
 
-export function review(uuid: string, input: CloudMusicReviewInput, adminUsername: string): CloudMusicTrackDto {
+export async function review(uuid: string, input: CloudMusicReviewInput, adminUsername: string): Promise<CloudMusicTrackDto> {
   const track = readCloudMusicTrack(uuid);
-  if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在");
+  if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在或已被销毁");
 
   if (input.decision === "approve") {
     if (!["active", "disabled"].includes(input.targetStatus)) {
@@ -679,7 +680,7 @@ export function review(uuid: string, input: CloudMusicReviewInput, adminUsername
     const updated = transitionCloudMusicStatus({
       uuid,
       status: input.targetStatus,
-      statusReason: "",
+      statusReason: input.reason?.trim() || "管理员审核通过",
       reviewedBy: adminUsername,
     });
     if (!updated) throw new Error("审核操作失败");
@@ -689,7 +690,7 @@ export function review(uuid: string, input: CloudMusicReviewInput, adminUsername
   if (input.decision === "reject") {
     const reason = input.reason.trim();
     if (!reason || reason.length > 500) {
-      throw new Error("审核拒绝原因长度应在 1-500 字符之间");
+      throw new Error("审核驳回原因长度应在 1-500 字符之间");
     }
     const updated = transitionCloudMusicStatus({
       uuid,
@@ -702,17 +703,30 @@ export function review(uuid: string, input: CloudMusicReviewInput, adminUsername
   }
 
   if (input.decision === "resubmit") {
-    if (track.status !== "rejected") {
-      throw new Error("只有已拒绝的曲目可以重新送审");
-    }
     const updated = transitionCloudMusicStatus({
       uuid,
       status: "pending_review",
-      statusReason: input.reason?.trim() ?? "",
+      statusReason: input.reason?.trim() || `管理员 ${adminUsername} 设为待审核`,
       reviewedBy: adminUsername,
     });
     if (!updated) throw new Error("重新送审失败");
     return toCloudMusicTrackDto(updated);
+  }
+
+  if (input.decision === "ban_destroy") {
+    const reason = input.reason.trim();
+    if (!reason || reason.length > 500) {
+      throw new Error("违规销毁原因长度应在 1-500 字符之间");
+    }
+    // 记录违规销毁原因
+    transitionCloudMusicStatus({
+      uuid,
+      status: "rejected",
+      statusReason: `【违规销毁】${reason}`,
+      reviewedBy: adminUsername,
+    });
+    // 调用 deleteCloudMusic 清理七牛云物理文件并标记软删除
+    return deleteCloudMusic(uuid);
   }
 
   throw new Error("未知的审核决策");

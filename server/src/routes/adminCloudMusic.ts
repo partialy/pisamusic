@@ -206,7 +206,7 @@ adminCloudMusicRouter.put("/:uuid", (req, res) => {
   }
 });
 
-adminCloudMusicRouter.post("/:uuid/review", (req, res) => {
+adminCloudMusicRouter.post("/:uuid/review", async (req, res) => {
   try {
     const { uuid } = req.params;
     const body = req.body as CloudMusicReviewInput;
@@ -215,7 +215,7 @@ adminCloudMusicRouter.post("/:uuid/review", (req, res) => {
       return;
     }
     const adminUsername = getAdminUsername(req);
-    const track = review(uuid, body, adminUsername);
+    const track = await review(uuid, body, adminUsername);
     res.json(ok(track));
   } catch (error) {
     const message = error instanceof Error ? error.message : "审核操作失败";
