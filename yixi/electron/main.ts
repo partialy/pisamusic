@@ -1,6 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
+import { setupEnvironmentUserDataPaths } from "./core/appPaths";
+
+setupEnvironmentUserDataPaths();
+
 import { closeAppDatabase } from "./database";
 import { DesktopLyricManager } from "./desktopLyricManager";
 import { setupListenTogetherIpc } from "./ipc/listenTogetherIpc";

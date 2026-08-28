@@ -49,10 +49,11 @@ function goBack() {
 
 <style scoped lang="scss">
 .cloud-submit-page {
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 16px 24px 24px;
   box-sizing: border-box;
   overflow: hidden;
 }

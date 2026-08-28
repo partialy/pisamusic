@@ -273,3 +273,10 @@
 - 禁用歌曲（`playable: false`）允许搜索、收藏、加入歌单、分享与查看详情，但双击、播放按钮、下一首、加入队列与下载均被禁用并提示“已禁用/不可播”；批量“播放全部”与“添加到播放列表”自动过滤禁用项并提示跳过数量。
 - 一起听当前不支持 `cloud` 音源，统一播放命令层与房间动作拦截并提示“云盘歌曲暂不支持一起听”。
 
+## 开发环境与打包环境数据隔离补充
+
+- 未打包的开发模式（`pnpm dev`，`!app.isPackaged`）由 `electron/core/appPaths.ts` 在主进程启动最早期自动将 `userData` 路径重定向至 `${appData}/PisaMusic-Dev`，并将 `appName` 设为 `PisaMusic-Dev`。
+- 打包正式版继续使用默认 `%APPDATA%/PisaMusic`（或 macOS/Linux 对应路径）。
+- 隔离内容包括：SQLite 数据库（`pisamusic.db`、`media-cache-index.db`）、KG/WY 登录 Cookie 文件（`kugou_cookie_user.json`、`wy_cookie_user.json`）、Token Session、本地歌单与日志；确保开发调试不会影响或覆盖打包软件中的登录态。
+
+

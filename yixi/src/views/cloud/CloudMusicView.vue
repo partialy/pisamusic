@@ -130,8 +130,9 @@ onMounted(() => {
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
-  padding: 10px 24px 0 24px;
+  min-width: 0;
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -140,7 +141,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: top;
 
@@ -170,17 +171,21 @@ onMounted(() => {
 }
 
 .overview-section {
+  width: 100%;
   margin-bottom: 14px;
   transition: all 0.25s ease;
+  box-sizing: border-box;
 }
 
 .toolbar {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .play-all {
@@ -213,6 +218,7 @@ onMounted(() => {
 }
 
 .cloud-content {
+  width: 100%;
   flex: 1;
   min-height: 0;
   display: flex;
