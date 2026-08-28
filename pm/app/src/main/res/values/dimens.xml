@@ -14,8 +14,8 @@
     <dimen name="home_mini_player_overlap">24dp</dimen>
     <dimen name="search_history_chip_stroke_width">1dp</dimen>
 
-    <dimen name="home_feature_card_width">148dp</dimen>
-    <dimen name="home_feature_card_height">172dp</dimen>
+    <dimen name="home_feature_card_width">128dp</dimen>
+    <dimen name="home_feature_card_height">170dp</dimen>
     <dimen name="home_recommend_playlist_rv_height">300dp</dimen>
     <dimen name="home_daily_song_row_height">72dp</dimen>
     <dimen name="home_daily_songs_rv_height">420dp</dimen>

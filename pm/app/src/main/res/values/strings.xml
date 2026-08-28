@@ -264,7 +264,7 @@
     <string name="home_tab_recommend">推荐</string>
     <string name="home_tab_favorite">云盘</string>
     <string name="cloud_music_hero_title">共享音乐空间</string>
-    <string name="cloud_music_hero_subtitle">宝藏歌曲&amp;绝版音乐共享</string>
+    <string name="cloud_music_hero_subtitle">宝藏歌曲&amp;珍藏歌曲共享</string>
     <string name="cloud_music_stat_total">歌曲总数</string>
     <string name="cloud_music_stat_my_contrib">我的贡献</string>
     <string name="cloud_music_stat_latest_update">最近更新</string>
@@ -331,11 +331,12 @@
     <string name="search_playlist_open_soon">歌单详情即将开放</string>
     <string name="home_section_today_playlists">今日推荐歌单</string>
     <string name="home_section_today_songs">今日歌曲推荐</string>
-    <string name="home_feature_cloud_title">云盘 · 共享音乐空间</string>
-    <string name="home_feature_daily_title">每日推荐</string>
-    <string name="home_feature_daily_subtitle">今日限定好歌</string>
+    <string name="home_feature_cloud_title">音乐空间</string>
+    <string name="home_feature_cloud_subtitle">宝藏歌曲共享</string>
+    <string name="home_feature_daily_title">今日推荐</string>
+    <string name="home_feature_daily_subtitle">开启一天的好心情~</string>
     <string name="home_feature_radar_title">雷达歌单</string>
-    <string name="home_feature_radar_subtitle">反复聆听你爱的歌</string>
+    <string name="home_feature_radar_subtitle">发现与你同频的好歌</string>
     <string name="home_cd_play_section">播放本区</string>
     <string name="home_cd_more_section">更多</string>
     <string name="home_cd_expand_playlists">查看更多歌单</string>

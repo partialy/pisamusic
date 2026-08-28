@@ -115,7 +115,7 @@
 - KG / WY / KW / proxy 的 Retrofit 使用不可路由占位地址，`RuntimeEndpointInterceptor` 在每次请求发送前按 `ConfigManager` 当前配置重写真实地址，并将当次 bootstrap state 通过 request tag 传给 `GatewaySignInterceptor`，保证同一请求的 endpoint 与签名来自同一快照；该拦截器必须位于签名、故障追踪和日志拦截器之前。动态绝对 `@Url` 必须由 `ConfigManager` 的 `RuntimeUrlTarget` 同时取得 URL 和 state，并通过 Retrofit `@Tag` 传入；KG/WY Cookie 请求同样传递同一 target，不得先取 URL 再由 CookieRequest 读取新 state。bootstrap 成功前音乐端点统一保持 `https://music-runtime.invalid/`，不得回退到系统服务地址、`127.0.0.1` 或在 Retrofit 创建时快照运行时端点。
 - discovery 缓存只保存发现文档原文与版本，不缓存 bootstrap 音源配置；远程文档版本低于当前快照时不得覆盖或降级。一起听 Socket 每次连接读取当前 realtime origin，反馈地址和账号相对头像统一按当前 API origin 解析；绝对头像仅接受合法 HTTPS URL。
 - 首页推荐页由 `RecommendedSongsViewModel` 聚合 KG 每日推荐 / 推荐歌单与 WY `/personalized` 推荐歌单、`/personalized/newsong` 推荐新歌；新增首页推荐来源时需要补齐模型、Repository 映射、`SongType`/`CollectedPlaylistType` UI 分流和播放 URL 解析。
-- 首页推荐顶部三张功能卡固定为云盘共享音乐空间、每日推荐、雷达歌单；第一张点击后切换到首页第二个“云盘”Tab，三张卡片统一使用无中文的简约功能图。
+- 首页推荐顶部三张功能卡固定为云盘共享音乐空间、每日推荐、雷达歌单；第一张点击后切换到首页第二个“云盘”Tab，三张卡片使用无内嵌文字的简约底图并由布局统一叠字。卡片固定为 `128dp × 170dp`，横向间距 `10dp`，横向列表约露出半张第三卡；卡片 elevation 固定 `1dp`，底部使用 `80dp`、顶部全透明的渐变羽化层承载标题/描述，避免恢复为大面积硬黑遮罩；“今日推荐”左上使用动态 `M-d 周X` 日期标签，不得恢复为纯图片或静态日期。云盘 Hero 副标题统一为“宝藏歌曲&珍藏歌曲共享”。
 - 云盘歌曲当前不扩展一起听协议；相关菜单隐藏或提示“云盘歌曲暂不支持一起听”，收到 Cloud 歌曲也必须在一起听入口拒绝，后续需要同时扩展 Android、PC 与 server 协议后才能开放。
 - KG / WY 已登录且本地存在对应 Cookie 时，非播放 URL 的数据接口（搜索、推荐、歌单、歌词等）必须优先走 `KugouCookieRepository` / `WyCookieRepository` 的 Cookie 请求，失败后回退匿名 Retrofit；唯一例外是 KG `search/suggest` 搜索提示词，为保证输入变化时能取消底层 OkHttp Call，固定使用匿名 Retrofit `suspend` 接口。播放和下载 URL 仍只走现有 `KgUrlProxyApiService` / `WyUrlProxyApiService` 代理链路，不带 Cookie。
 - 修改 endpoint 字段时，检查 Android `SystemData.kt` / `ConfigManager.kt`，以及 `../server/` 中的配置存储、类型和管理后台表单。

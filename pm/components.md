@@ -63,7 +63,7 @@
 | 特殊歌曲列表行 | 播放器队列、扫描结果列表 | `item_playlist_song.xml`、`item_local_music_scan_result.xml` | 对应 Adapter | 播放器队列保留队列专用结构；扫描结果行使用左侧 `MaterialCheckBox`、中间歌曲信息、右侧“已存在”标记。 |
 | 歌单列表行 | 我的歌单、选择歌单、搜索歌单 | `item_mine_playlist_row.xml`、`item_pick_local_playlist_row.xml`、`item_search_playlist.xml` | `MinePlaylistsAdapter`、`SearchPlaylistAdapter` | 封面、标题、副标题、更多按钮参考。 |
 | 首页推荐歌单卡片 | 首页横向/网格歌单卡片 | `item_home_recommend_playlist.xml` | `HomeRecommendPlaylistAdapter`、`HomePlaylistGridAdapter` | 首页歌单卡片优先复用。 |
-| 首页功能卡片 | 云盘、每日推荐、雷达歌单入口 | `item_home_feature_card.xml` | `HomeFeatureCardsAdapter` | 第一张固定进入云盘共享音乐空间，三张卡片统一使用无中文的简约功能图。 |
+| 首页功能卡片 | 云盘、每日推荐、雷达歌单入口 | `item_home_feature_card.xml` | `HomeFeatureCardsAdapter` | 第一张固定进入云盘共享音乐空间，三张卡片使用无内嵌文字的简约底图并由布局统一叠字；卡片固定 `128dp × 170dp`，横向间距 `10dp`，约露出半张第三卡；外部阴影保持 `1dp`，底部使用 `80dp` 的透明到深色渐变羽化层承载标题/描述；“今日推荐”左上显示动态 `M-d 周X` 日期标签，不得恢复为静态日期。 |
 | 首页每日歌曲卡片 | 每日歌曲横向六行网格 | `item_song_list.xml` | `HomeDailySongGridAdapter` | 复用通用歌曲行；Adapter 仅保留 90% 屏宽、72dp 外层高度与骨架动画。 |
 | 云盘数据概览与功能专区 | 首页云盘 Hero 指标卡片、双入口卡片与最近更新预览 | `fragment_cloud_music.xml`、`bg_cloud_music_entry_card.xml`、`bg_cloud_music_summary.xml` | `CloudMusicFragment` | 包含共享音乐空间 Hero 卡片（3指标：歌曲总数、我的贡献、最近更新）、功能专区（搜索云盘、我要投稿双卡片）、最近更新预览（前 3 首）。 |
 | 云盘独立搜索页 | 云盘全局检索与全量分页浏览 | `CloudMusicSearchActivity`、`activity_loved_songs_search.xml` | `CloudMusicSearchActivity`、`CloudMusicListAdapter` | 复用收藏搜索同款布局，默认展示全部云盘歌曲支持滑动分页加载，输入关键词实时防抖检索。 |
