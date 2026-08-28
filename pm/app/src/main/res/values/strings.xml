@@ -266,6 +266,8 @@
     <string name="cloud_music_summary_count">共享歌曲 %1$d 首</string>
     <string name="cloud_music_summary_updated">最近更新 %1$s</string>
     <string name="cloud_music_summary_no_update">暂无更新</string>
+    <string name="cloud_music_summary_inline">共享歌曲 %1$d 首    %2$s更新</string>
+    <string name="cloud_music_summary_inline_no_update">共享歌曲 %1$d 首    暂无更新</string>
     <string name="cloud_music_submit">我要投稿</string>
     <string name="cloud_music_search_hint">搜索云盘歌曲</string>
     <string name="cloud_music_clear_search">清空云盘搜索</string>
