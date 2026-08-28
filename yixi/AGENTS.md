@@ -263,3 +263,13 @@
 - 同步状态保存到 SQLite settings 的 `sync-state`，本地待推送变更保存到 SQLite `sync_outbox`；收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更后需要写入 outbox 并触发后台增量同步。
 - 同步 payload 只使用 `Song` / `CommonPlaylist` canonical 字段；不推送 `source=local` 歌曲，不推送播放 URL、filePath、歌词正文、内嵌封面；自建歌单本地文件封面同步时置空。
 - 远端 tombstone 应在 main 侧应用到 SQLite 后通知 renderer 刷新 `favorites:changed` / `mine-library:changed`，不要让页面组件直接写同步状态或数据库。
+
+## 共享云盘模块规则补充
+
+- 桌面端左侧导航在“收藏”与“我的”之间固定包含“云盘”Tab，主路由为 `/cloud`，投稿占位路由为 `/cloud/submit`。
+- 云盘数据通信统一走 main 侧 `electron/cloudMusic/cloudMusicClient.ts` 和 `cloud-music:*` IPC（`cloud-music:summary`、`cloud-music:search`、`cloud-music:detail`）；renderer 不直接持有服务端地址或加密请求细节。
+- 搜索与分页固定每页 20 条，支持最新优先（latest-wins）与 300ms 防抖；歌曲来源为独立 `source: "cloud"`，标签显示青绿色方块 `C`（`--color-source-cloud: #10b981` / `#34d399`），音质固定为唯一默认档 `cloud:default`。
+- 播放取链与歌词获取由 main 侧 `musicService.ts` 直接请求 `/api/cloud-music/tracks/:uuid/play-url` 与 `/api/cloud-music/tracks/:uuid/lyrics-url` 签名 URL；每次播放与下载即时获取，不写入持久媒体缓存（`PlaybackMediaCache`），确保服务端禁用后立即不可播。
+- 禁用歌曲（`playable: false`）允许搜索、收藏、加入歌单、分享与查看详情，但双击、播放按钮、下一首、加入队列与下载均被禁用并提示“已禁用/不可播”；批量“播放全部”与“添加到播放列表”自动过滤禁用项并提示跳过数量。
+- 一起听当前不支持 `cloud` 音源，统一播放命令层与房间动作拦截并提示“云盘歌曲暂不支持一起听”。
+

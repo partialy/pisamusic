@@ -904,6 +904,14 @@ type ElectronIpcApi = {
   exportNetworkErrors: (limit: 10 | 100) => Promise<NetworkErrorExportResult>;
   getFaultReportStats: () => Promise<DesktopFaultReportStats>;
   submitPendingFaultReport: () => Promise<DesktopFaultReportSubmitResult>;
+
+  getCloudMusicSummary: () => Promise<import("./cloudMusic").CloudMusicSummary>;
+  searchCloudMusic: (input?: {
+    keyword?: string;
+    offset?: number;
+    limit?: number;
+  }) => Promise<import("./cloudMusic").CloudMusicSearchResult>;
+  getCloudMusicTrack: (uuid: string) => Promise<import("./cloudMusic").CloudMusicTrackDto>;
 };
 
 declare global {

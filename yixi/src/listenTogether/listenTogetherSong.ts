@@ -11,11 +11,11 @@ import type {
 const FALLBACK_SONG_NAME = "未知歌曲";
 const FALLBACK_SINGER = "未知歌手";
 
-/** 是否允许进入一起听房间：必须有 id，且不能是本地歌曲 */
+/** 是否允许进入一起听房间：必须有 id，且不能是本地歌曲或云盘歌曲 */
 export function canShareSong(song: Pick<Song, "id" | "source"> | null | undefined): boolean {
   if (!song) return false;
   if (!song.id) return false;
-  return song.source !== "local";
+  return song.source !== "local" && song.source !== "cloud";
 }
 
 /**

@@ -6,7 +6,7 @@ export type ListenTogetherStatus = "playing" | "paused" | "ended";
 
 export type ListenTogetherMemberRole = "host" | "member";
 
-export type ListenTogetherSongSource = "kg" | "qq" | "wy" | "kw" | "local";
+export type ListenTogetherSongSource = "kg" | "qq" | "wy" | "kw" | "local" | "cloud";
 
 /** 协议歌曲对象：duration 单位毫秒；url 仅作占位，跨端不信任对方 url */
 export type ListenTogetherSong = {

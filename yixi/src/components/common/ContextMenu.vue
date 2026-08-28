@@ -95,8 +95,9 @@ const createSongOptions = (song: Song) => {
     { type: "divider", key: "divider" },
     {
       label: "播放",
+      disabled: song.playable === false,
       props: {
-        title: "播放",
+        title: song.playable === false ? "该歌曲已禁用" : "播放",
         onClick: () => {
           playbackCommands.playSingle(song);
         },
@@ -106,8 +107,9 @@ const createSongOptions = (song: Song) => {
     },
     {
       label: "下一首播放",
+      disabled: song.playable === false,
       props: {
-        title: "下一首播放",
+        title: song.playable === false ? "该歌曲已禁用" : "下一首播放",
         onClick: () => {
           playbackCommands.playNext(song);
         },
@@ -155,8 +157,9 @@ const createSongOptions = (song: Song) => {
     },
     {
       label: "添加到播放队列",
+      disabled: song.playable === false,
       props: {
-        title: "添加到播放队列",
+        title: song.playable === false ? "该歌曲已禁用" : "添加到播放队列",
         onClick: async () => {
           if (await playbackCommands.appendToPlaylist([song])) {
             window.$message.success(`已将 ${song.name} 添加到播放队列`);
@@ -171,8 +174,9 @@ const createSongOptions = (song: Song) => {
   if (props.showDownload && song.source !== "local") {
     songOptions.push({
       label: "下载",
+      disabled: song.playable === false,
       props: {
-        title: "下载",
+        title: song.playable === false ? "该歌曲已禁用" : "下载",
         onClick: () => emit("downloadSong", song),
       },
       icon: renderIcon(Download, {}, { size: 22 }),

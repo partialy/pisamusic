@@ -42,6 +42,7 @@ import { computed, h, ref, watch, type Component } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { NIcon, NImage, NLayout, NLayoutSider, NMenu, NSpace, type MenuOption } from "naive-ui";
 import {
+  Cloud,
   Download,
   Heart,
   Home,
@@ -67,6 +68,7 @@ const routeToMenuKey = (path: string) => {
   if (path.startsWith("/media/detail")) return "home";
   if (path.startsWith("/playlist")) return "playlist";
   if (path.startsWith("/favorite")) return "favorite";
+  if (path.startsWith("/cloud")) return "cloud";
   if (path.startsWith("/mine")) return "mine";
   if (path.startsWith("/kg")) return "kg";
   if (path.startsWith("/wy")) return "wy";
@@ -83,11 +85,11 @@ const menuOptions = computed<MenuOption[]>(() => {
     { label: "推荐", key: "home", icon: renderMenuIcon(Home) },
     { label: "歌单", key: "playlist", icon: renderMenuIcon(ListMusic) },
     { label: "收藏", key: "favorite", icon: renderMenuIcon(Heart) },
+    { label: "云盘", key: "cloud", icon: renderMenuIcon(Cloud) },
     { label: "我的", key: "mine", icon: renderMenuIcon(UserRound) },
     { label: "本地与下载", key: "local-download", icon: renderMenuIcon(Download) },
     { label: "设置", key: "setting", icon: renderMenuIcon(Settings) },
     ...cookieAccountMenuOptions.value,
-
   ];
 
   if (isDev) {
@@ -125,6 +127,7 @@ function handleChangeMenu(key: string) {
     home: "/",
     playlist: "/playlist",
     favorite: "/favorite",
+    cloud: "/cloud",
     mine: "/mine",
     kg: "/kg",
     wy: "/wy",

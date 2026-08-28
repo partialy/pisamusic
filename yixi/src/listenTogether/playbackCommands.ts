@@ -11,12 +11,21 @@ function toastInfo(message: string): void {
   window.$message?.info?.(message);
 }
 
+function isSongPlayable(song: Song | null | undefined): boolean {
+  if (!song) return false;
+  return song.playable !== false;
+}
+
 export function usePlaybackCommands() {
   const audio = useAudioStore();
   const listenTogether = useListenTogetherStore();
 
   /** 单曲点播（右键“播放”、首页卡片点击等追加语义） */
   const playSingle = (song: Song): void => {
+    if (!isSongPlayable(song)) {
+      toastInfo("该歌曲已禁用，无法播放");
+      return;
+    }
     if (listenTogether.playSongInRoom(song)) return;
     void audio.setPlaylist([song], true);
     window.$message?.success?.(`开始播放 ${song.name}`);
@@ -24,8 +33,13 @@ export function usePlaybackCommands() {
 
   /** 列表内点播：普通模式整列表切换后播放该曲；一起听模式只点播该曲 */
   const playSongFromList = (songs: Song[], song: Song): void => {
+    if (!isSongPlayable(song)) {
+      toastInfo("该歌曲已禁用，无法播放");
+      return;
+    }
     if (listenTogether.playSongInRoom(song)) return;
-    void audio.switchPlayList(songs, false);
+    const playableSongs = songs.filter(isSongPlayable);
+    void audio.switchPlayList(playableSongs.length > 0 ? playableSongs : [song], false);
     void audio.play(song);
   };
 
@@ -36,12 +50,20 @@ export function usePlaybackCommands() {
    */
   const playAll = async (songs: Song[], autoPlay: boolean = true): Promise<boolean> => {
     if (songs.length === 0) return false;
-    if (listenTogether.enabled) {
-      toastInfo("一起听中暂不支持整列表播放，已为你点播第一首");
-      listenTogether.playSongInRoom(songs[0]);
+    const playableSongs = songs.filter(isSongPlayable);
+    if (playableSongs.length === 0) {
+      toastInfo("列表中没有可播放的歌曲");
       return false;
     }
-    await audio.switchPlayList(songs, autoPlay);
+    if (playableSongs.length < songs.length) {
+      toastInfo(`已自动跳过 ${songs.length - playableSongs.length} 首不可播放的歌曲`);
+    }
+    if (listenTogether.enabled) {
+      toastInfo("一起听中暂不支持整列表播放，已为你点播第一首");
+      listenTogether.playSongInRoom(playableSongs[0]);
+      return false;
+    }
+    await audio.switchPlayList(playableSongs, autoPlay);
     return true;
   };
 
@@ -54,12 +76,24 @@ export function usePlaybackCommands() {
       toastInfo("一起听中暂不支持仅添加到队列，请直接点播");
       return false;
     }
-    await audio.setPlaylist(songs);
+    const playableSongs = songs.filter(isSongPlayable);
+    if (playableSongs.length === 0) {
+      toastInfo("列表中没有可添加的歌曲");
+      return false;
+    }
+    if (playableSongs.length < songs.length) {
+      toastInfo(`已自动跳过 ${songs.length - playableSongs.length} 首不可添加的歌曲`);
+    }
+    await audio.setPlaylist(playableSongs);
     return true;
   };
 
   /** 下一首播放（插播）：一起听协议无 PLAY_NEXT，房间内禁用 */
   const playNext = (song: Song): void => {
+    if (!isSongPlayable(song)) {
+      toastInfo("该歌曲已禁用，无法播放");
+      return;
+    }
     if (listenTogether.enabled) {
       toastInfo("一起听中暂不支持插播，请直接点播");
       return;
@@ -69,6 +103,10 @@ export function usePlaybackCommands() {
 
   /** 播放队列项：一起听按 queueItemId 定位，普通模式按歌曲播放 */
   const playQueueItem = (queueItemId: string | null, song: Song): void => {
+    if (!isSongPlayable(song)) {
+      toastInfo("该歌曲已禁用，无法播放");
+      return;
+    }
     if (queueItemId && listenTogether.playQueueItemInRoom(queueItemId)) return;
     void audio.play(song);
   };

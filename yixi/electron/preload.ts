@@ -429,6 +429,14 @@ const faultReportIpc = {
   submitPendingFaultReport: () => ipcRenderer.invoke("fault-report:submit-pending"),
 };
 
+const cloudMusicIpc = {
+  getCloudMusicSummary: () => ipcRenderer.invoke("cloud-music:summary"),
+  searchCloudMusic: (input: { keyword?: string; offset?: number; limit?: number }) =>
+    ipcRenderer.invoke("cloud-music:search", cloneIpcPayload(input)),
+  getCloudMusicTrack: (uuid: string) =>
+    ipcRenderer.invoke("cloud-music:detail", uuid),
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
   ...startupIpc,
@@ -450,4 +458,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...listenTogetherIpc,
   ...debugIpc,
   ...faultReportIpc,
+  ...cloudMusicIpc,
 });

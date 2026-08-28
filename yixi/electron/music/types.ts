@@ -1,4 +1,4 @@
-export type MusicSource = "kg" | "wy" | "kw";
+export type MusicSource = "kg" | "wy" | "kw" | "cloud";
 export type PlayableMusicSource = MusicSource | "local";
 
 export type MusicSearchParams = {

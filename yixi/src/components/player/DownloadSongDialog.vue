@@ -126,6 +126,10 @@ async function open(target: Song | null | undefined) {
     window.$message.warning("当前没有可下载的歌曲");
     return;
   }
+  if (target.playable === false) {
+    window.$message.warning("该歌曲已禁用，无法下载");
+    return;
+  }
   if (!isQualitySource(target.source)) {
     window.$message.warning("当前歌曲来源暂不支持下载");
     return;

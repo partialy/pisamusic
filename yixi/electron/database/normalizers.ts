@@ -128,6 +128,7 @@ export function normalizeTrackSnapshot(input: TrackSnapshot | Record<string, unk
   if (krc) track.krc = krc;
 
   if (typeof input.vip === "boolean") track.vip = input.vip;
+  if (typeof input.playable === "boolean") track.playable = input.playable;
 
   const filePath = toStringValue(input.filePath);
   if (filePath) track.filePath = filePath;

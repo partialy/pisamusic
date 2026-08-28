@@ -1,7 +1,7 @@
 import type { AccountSessionLike } from "../types/account";
 import { isSystemVipActive } from "../types/account";
 
-export type QualitySource = "kg" | "wy" | "kw";
+export type QualitySource = "kg" | "wy" | "kw" | "cloud";
 export type QualityAccessLevel = "guest" | "account" | "vip";
 
 export type MusicQualityOption = {
@@ -9,7 +9,7 @@ export type MusicQualityOption = {
   source: QualitySource;
   label: string;
   shortLabel: string;
-  kind: "kg" | "wy-br" | "wy-level" | "kw";
+  kind: "kg" | "wy-br" | "wy-level" | "kw" | "cloud";
   quality?: string;
   br?: number;
   level?: string;
@@ -56,10 +56,15 @@ export const KW_CATALOG: MusicQualityOption[] = [
   { key: "kw:lossless", source: "kw", label: "无损 lossless", shortLabel: "FLAC", kind: "kw", quality: "lossless" },
 ];
 
+export const CLOUD_CATALOG: MusicQualityOption[] = [
+  { key: "cloud:default", source: "cloud", label: "默认", shortLabel: "默认", kind: "cloud" },
+];
+
 const ALL_CATALOG_OPTIONS: MusicQualityOption[] = [
   ...KG_VIP_CATALOG,
   ...WY_VIP_CATALOG,
   ...KW_CATALOG,
+  ...CLOUD_CATALOG,
 ];
 
 const CATALOG_OPTION_MAP = new Map<string, MusicQualityOption>(
@@ -83,7 +88,7 @@ const ACCOUNT_ALLOWED_QUALITY_KEYS = new Set([
 ]);
 
 export function isQualitySource(source: string | null | undefined): source is QualitySource {
-  return source === "kg" || source === "wy" || source === "kw";
+  return source === "kg" || source === "wy" || source === "kw" || source === "cloud";
 }
 
 export function getQualityAccessLevel(
@@ -104,6 +109,14 @@ export function getVisibleQualityOptions(
   switch (source) {
     case "kw":
       return KW_CATALOG.map((opt) => ({
+        ...opt,
+        enabled: true,
+        loginRequired: false,
+        unlockRequired: false,
+      }));
+
+    case "cloud":
+      return CLOUD_CATALOG.map((opt) => ({
         ...opt,
         enabled: true,
         loginRequired: false,
@@ -168,6 +181,8 @@ export function getDefaultQualityKey(
   access: QualityAccessLevel = "vip",
 ): string {
   switch (source) {
+    case "cloud":
+      return "cloud:default";
     case "kg":
       return access === "vip" ? "kg:320" : "kg:128";
     case "wy":

@@ -843,7 +843,7 @@ function desktopLockedMessage(report: DesktopDeviceReportResult) {
   return `当前 PC 设备已被封禁，解封时间：${new Date(report.lockEndTime).toLocaleString()}`;
 }
 
-function unwrapResponse<T>(response: ApiResponse<T>): T {
+export function unwrapResponse<T>(response: ApiResponse<T>): T {
   if (!response.success || response.code !== 0 || response.data === null) {
     throw new Error(response.msg || "server request failed");
   }
@@ -896,7 +896,11 @@ function normalizeAccountAuthResult(result: AccountAuthResult): AccountAuthResul
   };
 }
 
-function absoluteSystemUrl(value: string) {
+export function resolveSystemAssetUrl(value: string) {
+  return absoluteSystemUrl(value);
+}
+
+export function absoluteSystemUrl(value: string) {
   const raw = value.trim();
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;

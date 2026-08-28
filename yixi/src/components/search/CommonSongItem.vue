@@ -1,5 +1,9 @@
 <template>
-  <div class="container" :class="{ active: active }" @mouseenter="isHover = true" @mouseleave="isHover = false"
+  <div
+    class="container"
+    :class="{ active: active, disabled: isDisabled }"
+    @mouseenter="isHover = true"
+    @mouseleave="isHover = false"
     @dblclick="play">
     <div class="index">
       <span v-if="!active || !playing">{{ index + 1 }}</span>
@@ -17,12 +21,25 @@
         class="img" />
     </div>
     <div class="info-con">
-      <div class="info-title text-line-1" :title="song.name + '-' + song.source.toUpperCase()">
-        {{ song.name }} <n-tag style="border-radius: 4px;" :color="{
-          textColor: handleTagColor(song.source),
-          borderColor: handleTagColor(song.source),
-          color: 'transparent'
-        }" size="tiny">{{ song.source.toUpperCase() }}</n-tag>
+      <div class="info-title text-line-1" :title="song.name + '-' + sourceDisplayLabel">
+        {{ song.name }}
+        <n-tag
+          style="border-radius: 4px; font-weight: 700;"
+          :color="{
+            textColor: handleTagColor(song.source),
+            borderColor: handleTagColor(song.source),
+            color: 'transparent'
+          }"
+          size="tiny">
+          {{ sourceDisplayLabel }}
+        </n-tag>
+        <n-tag
+          v-if="isDisabled"
+          style="border-radius: 4px; margin-left: 4px;"
+          type="error"
+          size="tiny">
+          不可播
+        </n-tag>
       </div>
       <div class="info-singer text-line-1" :title="song.singer">
         {{ song.singer }}
@@ -43,13 +60,13 @@
       {{ formatDuration(song.duration) }}
     </div>
     <div class="op-con" :style="{ width: isHover ? '114px' : '50px' }">
-      <n-button class="op-btn" text v-if="isHover" @click="play">
+      <n-button class="op-btn" text v-if="isHover" :disabled="isDisabled" @click="play">
         <n-icon :component="PlayStatic" class="icon"></n-icon>
       </n-button>
-      <n-button class="op-btn" text v-if="isHover" @click="nextPlay">
+      <n-button class="op-btn" text v-if="isHover" :disabled="isDisabled" @click="nextPlay">
         <n-icon :component="NextPlayIcon" class="icon"></n-icon>
       </n-button>
-      <n-button class="op-btn" text @click="add">
+      <n-button class="op-btn" text :disabled="isDisabled" @click="add">
         <n-icon :component="AddToPlaylist" class="icon"></n-icon>
       </n-button>
     </div>
@@ -75,6 +92,12 @@ const isHover = ref(false);
 const metadataCover = ref("");
 const collect = useCollectStore();
 
+const isDisabled = computed(() => props.song.playable === false);
+const sourceDisplayLabel = computed(() => {
+  if (props.song.source === "cloud") return "C";
+  return props.song.source.toUpperCase();
+});
+
 const coverUrl = computed(() => {
   if (props.song.source === "local") return metadataCover.value || defaultSongCover;
   return getSongCover(props.song);
@@ -87,18 +110,33 @@ const emit = defineEmits<{
 }>();
 
 const play = () => {
+  if (isDisabled.value) {
+    window.$message?.info?.("该歌曲已禁用，无法播放");
+    return;
+  }
   emit("play", props.song);
 };
 
 const nextPlay = () => {
+  if (isDisabled.value) {
+    window.$message?.info?.("该歌曲已禁用，无法播放");
+    return;
+  }
   emit("nextPlay", props.song);
 };
+
 const add = () => {
+  if (isDisabled.value) {
+    window.$message?.info?.("该歌曲已禁用，无法添加");
+    return;
+  }
   emit("add", props.song);
 };
 
 const handleTagColor = (source: string) => {
   switch (source) {
+    case "cloud":
+      return "var(--color-source-cloud)";
     case "kg":
       return "var(--color-primary)";
     case "wy":
@@ -147,6 +185,19 @@ watch(
   &:hover {
     background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-default));
     border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+
+  &.disabled {
+    opacity: 0.58;
+
+    .img-con {
+      filter: grayscale(70%);
+    }
+
+    &:hover {
+      background: color-mix(in srgb, var(--color-bg-hover) 50%, transparent);
+      border-color: transparent;
+    }
   }
 
   &.active {

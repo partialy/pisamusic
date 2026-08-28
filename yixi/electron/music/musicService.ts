@@ -2,6 +2,7 @@ import { getRuntimeEndpointsCached, requestSignedGateway } from "../system/syste
 import { pathToFileURL } from "url";
 import { getUserCookie } from "../cookie/cookieService";
 import { requestSignedGatewayWithCookie } from "../cookie/cookieRequest";
+import { getCloudMusicLyricsUrl, getCloudMusicPlayUrl } from "../cloudMusic/cloudMusicClient";
 import { toSourceQualityParams } from "./quality";
 import {
   normalizeMusicUrlParamsForCurrentAccount,
@@ -78,19 +79,24 @@ export async function resolveMusicUrl(params: MusicUrlParams) {
 }
 
 async function resolveCanonicalMusicUrl(params: CanonicalMusicUrlParams) {
+  if (params.source === "cloud") {
+    const playInfo = await getCloudMusicPlayUrl(params.id);
+    return { url: playInfo.url };
+  }
+
   const endpoints = await getRuntimeEndpointsCached();
   const quality = toSourceQualityParams(params);
 
   switch (params.source) {
     case "kg":
-      return resolveKgMusicUrl(endpoints, params.id, quality.quality);
+      return resolveKgMusicUrl(endpoints, params.id, quality?.quality);
     case "wy":
-      return resolveWyMusicUrl(endpoints, params.id, quality);
+      return resolveWyMusicUrl(endpoints, params.id, quality || {});
     case "kw":
       return requestSignedGateway(
         buildUrl(endpoints.kwProxy, "/song/url", {
           id: params.id,
-          quality: quality.quality ?? "standard",
+          quality: quality?.quality ?? "standard",
         })
       );
   }
@@ -277,9 +283,14 @@ export async function resolvePlayableUrl(track: PlayableTrackPayload) {
   const id = track.urlParam || track.id;
   if (!id) return "";
 
+  if (track.source === "cloud") {
+    const playInfo = await getCloudMusicPlayUrl(id);
+    return playInfo.url || "";
+  }
+
   const canonicalTrack = normalizePlayableTrackForCurrentAccount(track);
   const response: any = await resolveCanonicalMusicUrl({
-    source: canonicalTrack.source as "kg" | "wy" | "kw",
+    source: canonicalTrack.source as "kg" | "wy" | "kw" | "cloud",
     id,
     qualityKey: canonicalTrack.qualityKey!,
     quality: canonicalTrack.quality,
@@ -288,6 +299,8 @@ export async function resolvePlayableUrl(track: PlayableTrackPayload) {
   });
 
   switch (canonicalTrack.source) {
+    case "cloud":
+      return typeof response?.url === "string" ? response.url : "";
     case "kg":
       return firstString(response?.url) || firstString(response?.backupUrl) || "";
     case "wy":
@@ -345,12 +358,31 @@ async function resolveWyMusicUrl(
 
 export async function fetchLyrics(params: MusicLyricParams): Promise<MusicLyricResult> {
   switch (params.source) {
+    case "cloud":
+      return fetchCloudLyrics(params.id || params.hash || "");
     case "kg":
       return fetchKgLyrics(params.hash || params.id || "");
     case "wy":
       return fetchWyLyrics(params.id || params.hash || "");
     case "kw":
       return emptyLyrics();
+  }
+}
+
+async function fetchCloudLyrics(uuid: string): Promise<MusicLyricResult> {
+  if (!uuid) return emptyLyrics();
+  try {
+    const lyricsInfo = await getCloudMusicLyricsUrl(uuid);
+    if (!lyricsInfo.url) return emptyLyrics();
+    const response = await fetch(lyricsInfo.url);
+    if (!response.ok) return emptyLyrics();
+    const text = await response.text();
+    return {
+      krc: "",
+      lrc: text || "",
+    };
+  } catch {
+    return emptyLyrics();
   }
 }
 

@@ -1,5 +1,7 @@
+import type { PlayableMusicSource } from "../music/types";
+
 export type MediaCacheTrack = {
-  source: "kg" | "wy" | "kw" | "local";
+  source: PlayableMusicSource;
   id?: string;
   urlParam?: string;
   filePath?: string;

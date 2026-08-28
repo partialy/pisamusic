@@ -21,6 +21,7 @@ declare module 'vue' {
     AllAccount: typeof import('./src/components/setting/account/AllAccount.vue')['default']
     AMLyric: typeof import('./src/components/player/AMLyric.vue')['default']
     BasicSetting: typeof import('./src/components/setting/basic/BasicSetting.vue')['default']
+    CloudOverviewCard: typeof import('./src/components/cloud/CloudOverviewCard.vue')['default']
     CommonLyric: typeof import('./src/components/player/CommonLyric.vue')['default']
     CommonSongItem: typeof import('./src/components/search/CommonSongItem.vue')['default']
     ContextMenu: typeof import('./src/components/common/ContextMenu.vue')['default']

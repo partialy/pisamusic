@@ -46,6 +46,8 @@ export function toSourceQualityParams(input: {
     : null;
 
   switch (input.source) {
+    case "cloud":
+      return { quality: undefined };
     case "kg":
       return { quality: parsed?.kind === "kg" ? parsed.quality : input.quality };
     case "kw":

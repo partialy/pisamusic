@@ -23,8 +23,9 @@ export interface Song {
   // 单位ms
   duration: number;
   // 来源
-  source: "kg" | "qq" | "wy" | "kw" | "local";
+  source: "kg" | "qq" | "wy" | "kw" | "local" | "cloud";
   filePath?: string;
+  playable?: boolean;
 }
 
 export interface API {

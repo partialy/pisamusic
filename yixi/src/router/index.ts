@@ -28,6 +28,18 @@ const routes: Array<RouteRecordRaw> = [
         meta: { title: "PisaMusic - 收藏" },
       },
       {
+        path: "cloud",
+        name: "CloudMusic",
+        component: () => import("../views/cloud/CloudMusicView.vue"),
+        meta: { title: "PisaMusic - 共享云盘" },
+      },
+      {
+        path: "cloud/submit",
+        name: "CloudMusicSubmit",
+        component: () => import("../views/cloud/CloudSubmitPlaceholderView.vue"),
+        meta: { title: "PisaMusic - 我要投稿" },
+      },
+      {
         path: "mine",
         name: "Mine",
         component: () => import("../views/mine/index.vue"),

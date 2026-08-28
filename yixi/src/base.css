@@ -31,7 +31,6 @@ i {
 /* 去除a标签默认下划线，并设置默认文字颜色 */
 a {
   text-decoration: none;
-
 }
 
 /* 设置img的垂直对齐方式为居中对齐，去除img默认下间隙 */
@@ -112,6 +111,7 @@ h6 {
   /* 浅色主题辅助色 */
   --color-secondary: #999;
   --color-border-default: #e8e8e8;
+  --color-source-cloud: #10b981;
 }
 
 :root[data-theme="dark"] {
@@ -137,6 +137,7 @@ h6 {
   /* 深色主题辅助色 */
   --color-secondary: #8b94a3;
   --color-border-default: #2c3442;
+  --color-source-cloud: #34d399;
 }
 
 :root:not([data-theme]) {
@@ -150,7 +151,6 @@ h6 {
 :root[data-theme="dark"] {
   color-scheme: dark;
 }
-
 
 /* 整个滚动条 */
 ::-webkit-scrollbar {
