@@ -160,7 +160,9 @@ interface SystemApiService {
     ): SharePublicResponse
 
     @GET("api/cloud-music/summary")
-    suspend fun getCloudMusicSummary(): CloudMusicEnvelope<CloudMusicSummaryDto>
+    suspend fun getCloudMusicSummary(
+        @Header("Authorization") authorization: String? = null,
+    ): CloudMusicEnvelope<CloudMusicSummaryDto>
 
     @GET("api/cloud-music/search")
     suspend fun searchCloudMusic(

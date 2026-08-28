@@ -1,32 +1,32 @@
 package cn.partialy.pm.ui.cloudmusic
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
-import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.CloudMusicSearchActivity
 import cn.partialy.pm.activity.CloudMusicSubmissionActivity
 import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.databinding.FragmentCloudMusicBinding
+import cn.partialy.pm.databinding.ItemRecommendSongBinding
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
+import cn.partialy.pm.ui.widget.SongSourceTagBinder
+import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
+import coil.load
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -50,8 +50,7 @@ class CloudMusicFragment : Fragment() {
     private var _binding: FragmentCloudMusicBinding? = null
     private val binding get() = _binding!!
     private val viewModel: CloudMusicViewModel by viewModels()
-    private lateinit var listAdapter: CloudMusicListAdapter
-    private var isSettingSearchText = false
+    private var currentRecentSongs: List<SongInfo> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -64,72 +63,28 @@ class CloudMusicFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupFixedHeader()
-        setupList()
+        setupActions()
         observeState()
     }
 
-    private fun setupFixedHeader() = with(binding) {
-        cloudMusicSubmitButton.setOnClickListener {
+    private fun setupActions() = with(binding) {
+        cloudMusicSearchCard.setOnClickListener {
+            CloudMusicSearchActivity.start(requireContext())
+        }
+
+        cloudMusicSubmitCard.setOnClickListener {
             CloudMusicSubmissionActivity.start(requireContext())
         }
 
-        cloudMusicClearSearchButton.setOnClickListener {
-            cloudMusicSearchInput.setText("")
-            cloudMusicClearSearchButton.isVisible = false
-            viewModel.setKeyword("")
+        cloudMusicViewAllButton.setOnClickListener {
+            CloudMusicSearchActivity.start(requireContext())
         }
 
-        cloudMusicSearchInput.doAfterTextChanged { editable ->
-            if (isSettingSearchText) return@doAfterTextChanged
-            val text = editable?.toString().orEmpty()
-            cloudMusicClearSearchButton.isVisible = text.isNotEmpty()
-            viewModel.setKeyword(text)
+        cloudMusicRecentRetryButton.setOnClickListener {
+            viewModel.retryFirstPage()
         }
 
-        cloudMusicSearchInput.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                hideKeyboard(cloudMusicSearchInput)
-                viewModel.searchNow()
-                true
-            } else {
-                false
-            }
-        }
-    }
-
-    private fun setupList() {
-        listAdapter = CloudMusicListAdapter(
-            isSongLiked = { loveManager.isSongInLoveList(it) },
-            onLoveClick = { song ->
-                loveManager.toggleLikeStatus(song)
-                listAdapter.notifySongChanged(song)
-            },
-            onSongClick = ::playSong,
-            onDownloadClick = ::downloadSong,
-            onMoreClick = ::showMoreMenu,
-            onRetryFirstPage = viewModel::retryFirstPage,
-            onRetryLoadMore = viewModel::loadMore,
-        )
-
-        binding.cloudMusicRecyclerView.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = listAdapter
-            itemAnimator = null
-            addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                    if (dy <= 0) return
-                    val lastVisible = (layoutManager as? LinearLayoutManager)
-                        ?.findLastVisibleItemPosition()
-                        ?: return
-                    if (lastVisible >= listAdapter.itemCount - LOAD_MORE_THRESHOLD) {
-                        viewModel.loadMore()
-                    }
-                }
-            })
-        }
-
-        binding.cloudMusicSwipeRefresh.setOnRefreshListener(viewModel::refresh)
+        cloudMusicSwipeRefresh.setOnRefreshListener(viewModel::refresh)
     }
 
     private fun observeState() {
@@ -139,37 +94,93 @@ class CloudMusicFragment : Fragment() {
                     viewModel.state.collectLatest { state ->
                         binding.cloudMusicSwipeRefresh.isRefreshing = state.refreshing
 
+                        binding.cloudMusicTotalSongsText.text = state.total.toString()
+                        binding.cloudMusicMyContributionsText.text = state.myContributions.toString()
+
                         val dateStr = state.latestUpdatedAt?.let {
-                            val pattern = getString(R.string.cloud_music_date_pattern)
+                            val pattern = getString(R.string.cloud_music_date_pattern_short)
                             SimpleDateFormat(pattern, Locale.getDefault()).format(Date(it))
-                        }
-                        binding.cloudMusicSummaryText.text = if (dateStr != null) {
-                            getString(R.string.cloud_music_summary_inline, state.total, dateStr)
-                        } else {
-                            getString(R.string.cloud_music_summary_inline_no_update, state.total)
-                        }
+                        } ?: getString(R.string.cloud_music_no_update_short)
+                        binding.cloudMusicLatestUpdateText.text = dateStr
 
-                        if (!binding.cloudMusicSearchInput.hasFocus() &&
-                            binding.cloudMusicSearchInput.text?.toString() != state.keyword
-                        ) {
-                            isSettingSearchText = true
-                            binding.cloudMusicSearchInput.setText(state.keyword)
-                            binding.cloudMusicSearchInput.setSelection(state.keyword.length)
-                            binding.cloudMusicClearSearchButton.isVisible = state.keyword.isNotEmpty()
-                            isSettingSearchText = false
-                        }
-
-                        listAdapter.submitState(state)
+                        renderRecentSongs(state)
                     }
                 }
 
                 launch {
                     loveManager.loveListFlow.collectLatest {
-                        listAdapter.notifyDataSetChanged()
+                        if (currentRecentSongs.isNotEmpty()) {
+                            bindRecentSongsContainer(currentRecentSongs)
+                        }
                     }
                 }
             }
         }
+    }
+
+    private fun renderRecentSongs(state: CloudMusicUiState) = with(binding) {
+        val recentList = state.items.take(MAX_RECENT_PREVIEW_COUNT)
+        currentRecentSongs = recentList
+
+        cloudMusicRecentProgress.isVisible = state.initialLoading && recentList.isEmpty()
+        cloudMusicRecentErrorLayout.isVisible = state.error != null && recentList.isEmpty()
+        cloudMusicRecentEmptyText.isVisible = !state.initialLoading && state.error == null && recentList.isEmpty()
+        cloudMusicRecentSongsContainer.isVisible = recentList.isNotEmpty()
+
+        if (recentList.isNotEmpty()) {
+            bindRecentSongsContainer(recentList)
+        } else {
+            cloudMusicRecentSongsContainer.removeAllViews()
+        }
+    }
+
+    private fun bindRecentSongsContainer(songs: List<SongInfo>) = with(binding.cloudMusicRecentSongsContainer) {
+        removeAllViews()
+        val inflater = LayoutInflater.from(context)
+        songs.forEach { song ->
+            val itemBinding = ItemRecommendSongBinding.inflate(inflater, this, false)
+            bindSongItem(itemBinding, song)
+            addView(itemBinding.root)
+        }
+    }
+
+    private fun bindSongItem(itemBinding: ItemRecommendSongBinding, song: SongInfo) = with(itemBinding) {
+        val context = root.context
+        val playable = song.playable
+        songNameTextView.text = song.name
+        singerTextView.text = song.artist
+        SongSourceTagBinder.bind(songSourceTagTextView, song.type)
+        coverImageView.load(SongCoverUrl.getSongCover(song, SongCoverUrl.SIZE_SMALL)) {
+            placeholder(R.drawable.ic_pm_icon)
+            error(R.drawable.ic_pm_icon)
+        }
+
+        val liked = loveManager.isSongInLoveList(song)
+        btnLove.setImageResource(
+            if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
+        )
+        btnLove.imageTintList = ContextCompat.getColorStateList(
+            context,
+            if (liked) R.color.red else R.color.home_tab_unselected,
+        )
+        root.alpha = if (playable) 1f else DISABLED_ALPHA
+        btnDownload.isEnabled = playable
+        btnDownload.alpha = if (playable) 1f else 0.4f
+
+        root.setOnClickListener { playSong(song) }
+        btnLove.setOnClickListener {
+            loveManager.toggleLikeStatus(song)
+            val newLiked = loveManager.isSongInLoveList(song)
+            btnLove.setImageResource(
+                if (newLiked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
+            )
+            btnLove.imageTintList = ContextCompat.getColorStateList(
+                context,
+                if (newLiked) R.color.red else R.color.home_tab_unselected,
+            )
+        }
+        btnDownload.setOnClickListener { downloadSong(song) }
+        btnMore.setOnClickListener { showMoreMenu(song) }
     }
 
     private fun playSong(song: SongInfo) {
@@ -209,18 +220,13 @@ class CloudMusicFragment : Fragment() {
         )
     }
 
-    private fun hideKeyboard(view: View) {
-        val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.hideSoftInputFromWindow(view.windowToken, 0)
-    }
-
     override fun onDestroyView() {
-        binding.cloudMusicRecyclerView.adapter = null
         _binding = null
         super.onDestroyView()
     }
 
     private companion object {
-        const val LOAD_MORE_THRESHOLD = 5
+        const val MAX_RECENT_PREVIEW_COUNT = 3
+        const val DISABLED_ALPHA = 0.56f
     }
 }

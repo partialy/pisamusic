@@ -11,6 +11,7 @@ data class CloudMusicEnvelope<T>(
 data class CloudMusicSummaryDto(
     val total: Int = 0,
     val latestUpdatedAt: Long? = null,
+    val myContributions: Int = 0,
 )
 
 data class CloudMusicSearchDto(

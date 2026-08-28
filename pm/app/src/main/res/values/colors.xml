@@ -54,6 +54,7 @@
     <color name="cloud_music_disabled_badge_text">#737780</color>
 
     <color name="home_search_field_bg">#EFEFEF</color>
+    <color name="home_item_border">#E5E5E5</color>
     <color name="search_history_chip_bg">#F5F5F5</color>
     <color name="search_history_chip_stroke">#DCDCDC</color>
     <color name="search_recommend_item_bg">#F8F8F8</color>

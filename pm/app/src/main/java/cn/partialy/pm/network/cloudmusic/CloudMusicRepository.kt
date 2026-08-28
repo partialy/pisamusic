@@ -1,9 +1,12 @@
 package cn.partialy.pm.network.cloudmusic
 
+import android.content.Context
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.api.SystemApiService
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Named
@@ -21,16 +24,20 @@ import retrofit2.HttpException
 
 @Singleton
 class CloudMusicRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val systemApiService: SystemApiService,
     private val configManager: ConfigManager,
     @Named("cloud_asset_okhttp") private val cloudAssetClient: OkHttpClient,
 ) {
     suspend fun getSummary(): CloudMusicSummary = apiCall("获取网盘音乐概览失败") {
-        systemApiService.getCloudMusicSummary()
+        val session = AccountSessionStore.read(context)
+        val auth = if (session.loggedIn && session.token.isNotBlank()) "Bearer ${session.token}" else null
+        systemApiService.getCloudMusicSummary(auth)
     }.requireData("获取网盘音乐概览失败").let { dto ->
         CloudMusicSummary(
             total = dto.total.coerceAtLeast(0),
             latestUpdatedAt = dto.latestUpdatedAt,
+            myContributions = dto.myContributions.coerceAtLeast(0),
         )
     }
 
@@ -148,6 +155,7 @@ class CloudMusicRepository @Inject constructor(
 data class CloudMusicSummary(
     val total: Int,
     val latestUpdatedAt: Long?,
+    val myContributions: Int = 0,
 )
 
 data class CloudMusicPage(
