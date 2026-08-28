@@ -14,6 +14,7 @@
 
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
+| 页面内容左基线 / 顶部前导按钮 | 普通页面外层内容、返回与菜单按钮 | `pm/app/src/main/res/values/dimens.xml`、`pm/app/src/main/res/values/styles.xml` | `pm_page_content_start`、`Widget.Pm.PageLeadingAction`、`ic_back_24.xml`、`ic_menu_24.xml` | 除播放主界面外，可见内容统一从 12dp 开始；返回箭头和三条杠使用 48dp 点击区，矢量已移除左透明画布，实际笔画左缘同样落在 12dp。嵌套列表不得把页面 padding 与 item padding 重复叠加。 |
 | 滑动轨道 / 进度条 | 细轨道、小圆点滑块、百分比类调节 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `bg_lyric_settings_seekbar_progress.xml`、`bg_lyric_settings_seekbar_thumb.xml` | 歌词不透明度示例，主题色走 primary。 |
 | 开关 Switch | 设置项开关、底部面板开关 | `pm/app/src/main/res/layout/item_settings_switch.xml`、`pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `cn.partialy.pm.ui.widget.PmSwitch`、`Widget.Pm.SettingsSwitch` | 新增原生开关优先用 `PmSwitch`；标准开关本体为 40dp × 24dp。 |
 | 数字步进器 | 小范围数字加减，例如字号差值 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `bg_lyric_settings_stepper.xml` | 适合 2-8、12-30 这类小范围配置。 |
@@ -107,7 +108,7 @@
 | --- | --- | --- | --- | --- |
 | Toast / 全局消息 | 轻提示、操作结果提示 | 待补充 | 待补充 | 如果已有统一封装，请补充位置。 |
 | 骨架屏 / 占位加载 | 列表加载占位 | 待补充 | `bg_skeleton_rounded.xml` | 需要确认真实使用位置。 |
-| 顶部标题栏 / 返回栏 | 原生页面顶部导航 | 待补充 | 待补充 | 需要补充最推荐的页面参考。 |
+| 顶部标题栏 / 返回栏 | 原生页面顶部导航 | `activity_search.xml`、`activity_playlist_detail.xml`、`activity_settings.xml` | `Widget.Pm.PageLeadingAction`、`ic_back_24.xml`、`pm_page_content_start` | 自定义顶栏使用 48dp 公共前导按钮；MaterialToolbar 使用同一无左透明画布返回矢量，实际箭头笔画对齐 12dp。 |
 | 图片裁剪 / 头像选择 | 图片选择、头像裁剪 | 待补充 | 待补充 | 需要确认当前推荐实现。 |
 ## 最近补充
 

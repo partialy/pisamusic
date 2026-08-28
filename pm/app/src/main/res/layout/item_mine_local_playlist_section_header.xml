@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="10dp"
+    android:paddingStart="@dimen/pm_page_content_start"
     android:paddingTop="8dp"
     android:paddingEnd="6dp"
     android:paddingBottom="6dp">

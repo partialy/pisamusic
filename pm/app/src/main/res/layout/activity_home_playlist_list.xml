@@ -22,18 +22,16 @@
         android:background="@color/home_header_bg"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
+        android:paddingStart="0dp"
+        android:paddingEnd="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/statusBarSpacer">
 
         <ImageButton
             android:id="@+id/backButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            style="@style/Widget.Pm.PageLeadingAction"
             android:contentDescription="@string/cd_back"
-            android:padding="8dp"
             android:src="@drawable/ic_back_24"
             app:tint="@color/home_tab_unselected" />
 
@@ -72,9 +70,9 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingStart="12dp"
+            android:paddingStart="@dimen/pm_page_content_start"
             android:paddingTop="10dp"
-            android:paddingEnd="12dp"
+            android:paddingEnd="@dimen/pm_page_content_start"
             android:paddingBottom="20dp" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 

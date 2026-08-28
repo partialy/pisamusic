@@ -22,18 +22,16 @@
         android:background="@color/home_header_bg"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
+        android:paddingStart="0dp"
+        android:paddingEnd="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/statusBarSpacer">
 
         <ImageButton
             android:id="@+id/menuButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@android:color/transparent"
+            style="@style/Widget.Pm.PageLeadingAction"
             android:contentDescription="@string/open_menu"
-            android:padding="8dp"
             android:src="@drawable/ic_menu_24"
             app:tint="@color/home_tab_unselected" />
 

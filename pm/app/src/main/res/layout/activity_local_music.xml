@@ -25,6 +25,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="@color/home_page_bg"
             android:theme="@style/Theme.Pm"
+            app:navigationIcon="@drawable/ic_back_24"
             app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
             >
             <LinearLayout
@@ -78,7 +79,7 @@
         android:layout_width="match_parent"
         android:layout_height="30dp"
         android:gravity="center_horizontal"
-        android:paddingStart="16dp"
+        android:paddingStart="@dimen/pm_page_content_start"
         android:paddingEnd="12dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"

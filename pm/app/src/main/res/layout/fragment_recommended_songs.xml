@@ -32,7 +32,7 @@
                     android:layout_height="wrap_content"
                     android:clipToPadding="false"
                     android:nestedScrollingEnabled="false"
-                    android:paddingStart="16dp"
+                    android:paddingStart="@dimen/pm_page_content_start"
                     android:paddingEnd="8dp"
                     android:paddingBottom="8dp"
                     tools:itemCount="1"
@@ -43,7 +43,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="16dp"
+                    android:paddingStart="@dimen/pm_page_content_start"
                     android:paddingTop="12dp"
                     android:paddingEnd="10dp"
                     android:paddingBottom="12dp">
@@ -82,7 +82,7 @@
                     android:layout_height="@dimen/home_recommend_playlist_rv_height"
                     android:clipToPadding="false"
                     android:nestedScrollingEnabled="false"
-                    android:paddingStart="8dp"
+                    android:paddingStart="@dimen/pm_page_content_start"
                     android:paddingEnd="8dp"
                     tools:listitem="@layout/item_home_recommend_playlist" />
 
@@ -92,7 +92,7 @@
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="16dp"
+                    android:paddingHorizontal="@dimen/pm_page_content_start"
                     android:paddingTop="16dp"
                     android:paddingBottom="8dp">
 
@@ -121,7 +121,7 @@
                     android:layout_height="@dimen/home_daily_songs_rv_height"
                     android:clipToPadding="false"
                     android:nestedScrollingEnabled="false"
-                    android:paddingStart="8dp"
+                    android:paddingStart="0dp"
                     android:paddingEnd="8dp"
                     tools:listitem="@layout/item_song_list" />
 
@@ -136,7 +136,7 @@
                         android:id="@+id/topCardTitle3"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingHorizontal="16dp"
+                        android:paddingHorizontal="@dimen/pm_page_content_start"
                         android:paddingTop="16dp"
                         android:paddingBottom="8dp"
                         android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
@@ -149,7 +149,7 @@
                         android:layout_height="@dimen/home_daily_songs_rv_height"
                         android:clipToPadding="false"
                         android:nestedScrollingEnabled="false"
-                        android:paddingStart="8dp"
+                        android:paddingStart="0dp"
                         android:paddingEnd="8dp"
                         tools:listitem="@layout/item_song_list" />
                 </LinearLayout>
@@ -165,7 +165,7 @@
                         android:id="@+id/topCardTitle4"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingHorizontal="16dp"
+                        android:paddingHorizontal="@dimen/pm_page_content_start"
                         android:paddingTop="16dp"
                         android:paddingBottom="8dp"
                         android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
@@ -178,7 +178,7 @@
                         android:layout_height="@dimen/home_daily_songs_rv_height"
                         android:clipToPadding="false"
                         android:nestedScrollingEnabled="false"
-                        android:paddingStart="8dp"
+                        android:paddingStart="0dp"
                         android:paddingEnd="8dp"
                         tools:listitem="@layout/item_song_list" />
                 </LinearLayout>
@@ -194,7 +194,7 @@
                         android:id="@+id/topCardTitle5"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingHorizontal="16dp"
+                        android:paddingHorizontal="@dimen/pm_page_content_start"
                         android:paddingTop="16dp"
                         android:paddingBottom="8dp"
                         android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
@@ -207,7 +207,7 @@
                         android:layout_height="@dimen/home_daily_songs_rv_height"
                         android:clipToPadding="false"
                         android:nestedScrollingEnabled="false"
-                        android:paddingStart="8dp"
+                        android:paddingStart="0dp"
                         android:paddingEnd="8dp"
                         tools:listitem="@layout/item_song_list" />
                 </LinearLayout>
@@ -223,7 +223,7 @@
                         android:id="@+id/topCardTitle6"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingHorizontal="16dp"
+                        android:paddingHorizontal="@dimen/pm_page_content_start"
                         android:paddingTop="16dp"
                         android:paddingBottom="8dp"
                         android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
@@ -236,7 +236,7 @@
                         android:layout_height="@dimen/home_daily_songs_rv_height"
                         android:clipToPadding="false"
                         android:nestedScrollingEnabled="false"
-                        android:paddingStart="8dp"
+                        android:paddingStart="0dp"
                         android:paddingEnd="8dp"
                         tools:listitem="@layout/item_song_list" />
                 </LinearLayout>

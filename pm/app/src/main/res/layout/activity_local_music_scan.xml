@@ -20,7 +20,7 @@
         android:layout_height="?attr/actionBarSize"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="14dp"
+        android:paddingStart="@dimen/pm_page_content_start"
         android:paddingEnd="18dp">
 
         <ImageButton
@@ -204,7 +204,7 @@
                 android:id="@+id/scanResultSummaryText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="18dp"
+                android:paddingHorizontal="@dimen/pm_page_content_start"
                 android:paddingTop="8dp"
                 android:paddingBottom="10dp"
                 android:textColor="?android:attr/textColorSecondary"
@@ -241,7 +241,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/home_page_bg"
-        android:paddingHorizontal="18dp"
+        android:paddingHorizontal="@dimen/pm_page_content_start"
         android:paddingTop="10dp"
         android:paddingBottom="10dp"
         android:visibility="gone">

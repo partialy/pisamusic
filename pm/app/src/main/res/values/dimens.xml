@@ -1,4 +1,6 @@
 <resources>
+    <!-- 普通页面可见内容的统一左右基线；播放主界面不使用。 -->
+    <dimen name="pm_page_content_start">12dp</dimen>
     <dimen name="sub_settings_row_horizontal_padding">16dp</dimen>
     <dimen name="sub_settings_divider_height">1dp</dimen>
     <!-- Default screen margins, per the Android Design guidelines. -->

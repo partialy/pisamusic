@@ -4,7 +4,10 @@
     android:layout_height="wrap_content"
     android:background="?attr/selectableItemBackground"
     android:orientation="horizontal"
-    android:padding="16dp">
+    android:paddingStart="@dimen/pm_page_content_start"
+    android:paddingTop="16dp"
+    android:paddingEnd="@dimen/pm_page_content_start"
+    android:paddingBottom="16dp">
 
     <ImageView
         android:layout_width="24dp"
@@ -19,4 +22,4 @@
         android:layout_height="wrap_content"
         android:textAppearance="@style/TextAppearance.Material3.BodyLarge"/>
 
-</LinearLayout> 
+</LinearLayout>

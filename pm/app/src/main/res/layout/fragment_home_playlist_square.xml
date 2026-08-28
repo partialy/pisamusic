@@ -19,9 +19,9 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingStart="12dp"
+            android:paddingStart="@dimen/pm_page_content_start"
             android:paddingTop="12dp"
-            android:paddingEnd="12dp"
+            android:paddingEnd="@dimen/pm_page_content_start"
             android:paddingBottom="24dp" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 

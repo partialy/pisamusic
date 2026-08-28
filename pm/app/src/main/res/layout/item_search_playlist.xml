@@ -7,7 +7,7 @@
     android:foreground="?attr/selectableItemBackground"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="12dp"
+    android:paddingStart="@dimen/pm_page_content_start"
     android:paddingEnd="12dp">
 
     <com.google.android.material.imageview.ShapeableImageView

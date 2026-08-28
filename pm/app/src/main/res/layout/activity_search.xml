@@ -27,7 +27,7 @@
         android:elevation="2dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="4dp"
+        android:paddingStart="0dp"
         android:paddingEnd="12dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -35,11 +35,8 @@
 
         <ImageButton
             android:id="@+id/searchBackButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            style="@style/Widget.Pm.PageLeadingAction"
             android:contentDescription="@string/cd_back"
-            android:padding="8dp"
             android:src="@drawable/ic_back_24"
             app:tint="@color/home_tab_selected" />
 
@@ -47,7 +44,7 @@
             android:id="@+id/searchLayout"
             android:layout_width="0dp"
             android:layout_height="40dp"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="0dp"
             android:layout_weight="1"
             android:background="@drawable/bg_search_field"
             android:focusable="true"
@@ -126,7 +123,7 @@
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="16dp"
+                android:paddingStart="@dimen/pm_page_content_start"
                 android:paddingEnd="8dp">
 
                 <LinearLayout
@@ -252,7 +249,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="@dimen/pm_page_content_start"
             android:paddingTop="12dp"
             android:paddingBottom="24dp">
 

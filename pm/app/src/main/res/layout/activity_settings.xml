@@ -32,7 +32,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
+            android:layout_marginHorizontal="@dimen/pm_page_content_start"
             android:orientation="vertical"
             android:paddingTop="8dp"
             android:paddingBottom="24dp">

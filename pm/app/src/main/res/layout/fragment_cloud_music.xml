@@ -12,9 +12,9 @@
         android:layout_height="match_parent"
         android:clipToPadding="false"
         android:overScrollMode="never"
-        android:paddingStart="16dp"
+        android:paddingStart="0dp"
         android:paddingTop="12dp"
-        android:paddingEnd="16dp"
+        android:paddingEnd="0dp"
         android:paddingBottom="96dp">
 
         <LinearLayout
@@ -27,6 +27,8 @@
                 android:id="@+id/cloudMusicHeroCard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/pm_page_content_start"
+                android:layout_marginEnd="@dimen/pm_page_content_start"
                 android:background="@drawable/bg_cloud_music_summary"
                 android:orientation="vertical"
                 android:padding="16dp">
@@ -175,6 +177,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/pm_page_content_start"
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="10dp"
                 android:text="@string/cloud_music_section_features"
@@ -185,6 +188,8 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/pm_page_content_start"
+                android:layout_marginEnd="@dimen/pm_page_content_start"
                 android:orientation="horizontal">
 
                 <!-- 搜索云盘 卡片 -->
@@ -298,6 +303,8 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/pm_page_content_start"
+                android:layout_marginEnd="@dimen/pm_page_content_start"
                 android:layout_marginTop="22dp"
                 android:layout_marginBottom="8dp"
                 android:gravity="center_vertical"

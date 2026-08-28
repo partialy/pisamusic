@@ -5,6 +5,6 @@
     android:layout_height="wrap_content"
     android:gravity="center"
     android:paddingVertical="20dp"
-    android:paddingHorizontal="16dp"
+    android:paddingHorizontal="@dimen/pm_page_content_start"
     android:textColor="?android:textColorSecondary"
     android:textSize="14sp" />

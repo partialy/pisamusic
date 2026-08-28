@@ -36,6 +36,18 @@
         <item name="cornerSize">50%</item>
     </style>
 
+    <!-- Keep a base entry to satisfy AAPT style grouping. -->
+    <style name="Widget.Pm" parent="" />
+
+    <!-- 48dp 点击区内的 24dp 图标从页面 12dp 基线开始绘制。 -->
+    <style name="Widget.Pm.PageLeadingAction">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">?attr/selectableItemBackgroundBorderless</item>
+        <item name="android:padding">12dp</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+
     <!-- 设置开关：自定义厚轨道 + 白色内嵌滑块 -->
     <style name="Widget.Pm.SettingsSwitch" parent="Widget.MaterialComponents.CompoundButton.Switch">
         <item name="android:background">@null</item>

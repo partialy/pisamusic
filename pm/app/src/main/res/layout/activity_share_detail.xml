@@ -11,16 +11,14 @@
         android:id="@+id/shareDetailToolbar"
         android:layout_width="match_parent"
         android:layout_height="@dimen/share_detail_toolbar_content_height"
-        android:paddingHorizontal="12dp"
+        android:paddingStart="0dp"
+        android:paddingEnd="@dimen/pm_page_content_start"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageButton
             android:id="@+id/shareDetailBackButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            style="@style/Widget.Pm.PageLeadingAction"
             android:contentDescription="@string/cd_back"
-            android:padding="12dp"
             android:src="@drawable/ic_back_24"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"

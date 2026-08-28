@@ -8,7 +8,7 @@
     android:gravity="center_vertical"
     android:minHeight="60dp"
     android:orientation="horizontal"
-    android:paddingStart="8dp"
+    android:paddingStart="@dimen/pm_page_content_start"
     android:paddingEnd="14dp"
     android:paddingVertical="8dp">
 

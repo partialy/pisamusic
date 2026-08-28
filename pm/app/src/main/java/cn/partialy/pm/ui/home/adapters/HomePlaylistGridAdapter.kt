@@ -18,7 +18,7 @@ class HomePlaylistGridAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Vh {
         val binding = ItemHomeRecommendPlaylistBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         val screenW = parent.resources.displayMetrics.widthPixels
-        val horizontalPadding = (12f * parent.resources.displayMetrics.density).toInt() * 2
+        val horizontalPadding = parent.resources.getDimensionPixelSize(R.dimen.pm_page_content_start) * 2
         val itemW = max(1, (screenW - horizontalPadding) / 3)
         binding.root.layoutParams = RecyclerView.LayoutParams(itemW, RecyclerView.LayoutParams.WRAP_CONTENT)
         return Vh(binding, onItemClick)

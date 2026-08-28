@@ -45,15 +45,13 @@
             android:layout_height="match_parent"
             android:clickable="true"
             android:focusable="true"
-            android:paddingHorizontal="8dp">
+            android:paddingStart="0dp"
+            android:paddingEnd="8dp">
 
             <ImageButton
                 android:id="@+id/backButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@android:color/transparent"
+                style="@style/Widget.Pm.PageLeadingAction"
                 android:contentDescription="@string/cancel"
-                android:padding="8dp"
                 android:src="@drawable/ic_back_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
