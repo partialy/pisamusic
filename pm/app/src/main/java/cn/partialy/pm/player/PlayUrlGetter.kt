@@ -12,8 +12,11 @@ import cn.partialy.pm.model.matchesSongType
 import cn.partialy.pm.network.kw.KwRepository
 import cn.partialy.pm.network.kw.KwUrlResponse
 import cn.partialy.pm.network.kw.pickUrl
+import cn.partialy.pm.network.cloudmusic.CloudMusicRepository
 import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.network.wy.WyRepository
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,6 +25,7 @@ class PlayUrlGetter @Inject constructor(
     private val kgRepository: KgRepository,
     private val wyRepository: WyRepository,
     private val kwRepository: KwRepository,
+    private val cloudMusicRepository: CloudMusicRepository,
     private val traceRegistry: PlaybackTraceRegistry,
     private val faultRecorder: PlaybackFaultRecorder,
 ) {
@@ -30,6 +34,7 @@ class PlayUrlGetter @Inject constructor(
         choice: DownloadQualityChoice? = null,
         allowFallback: Boolean = true,
     ): ResolvedPlayUrl {
+        if (!songInfo.playable) return ResolvedPlayUrl("error")
         if (choice != null && !choice.matchesSongType(songInfo.type)) {
             return if (allowFallback) getUrl(songInfo, choice = null, allowFallback = true) else ResolvedPlayUrl("error")
         }
@@ -42,6 +47,7 @@ class PlayUrlGetter @Inject constructor(
             SongType.KG -> getKgUrl(songInfo)
             SongType.WY -> getWyUrl(songInfo)
             SongType.KW -> getKwUrl(songInfo)
+            SongType.CLOUD -> getCloudUrl(songInfo)
             SongType.LOCAL -> ResolvedPlayUrl(songInfo.id)
         }
     }
@@ -59,6 +65,7 @@ class PlayUrlGetter @Inject constructor(
         is DownloadQualityChoice.Kuwo -> attempt(songInfo, choice.quality, "PlayUrlGetter.getUrlForChoice.KW") { diagnostic ->
             kwRepository.getDownloadUrl(songInfo, choice.quality, diagnostic)["url"].orEmpty()
         }
+        DownloadQualityChoice.CloudDefault -> getCloudUrl(songInfo)
     }
 
     private suspend fun getKgUrl(songInfo: SongInfo): ResolvedPlayUrl {
@@ -105,6 +112,18 @@ class PlayUrlGetter @Inject constructor(
         return ResolvedPlayUrl("error")
     }
 
+    /** 云盘失败不进入第三方播放故障链；临时地址只返回给当次媒体项。 */
+    private suspend fun getCloudUrl(songInfo: SongInfo): ResolvedPlayUrl {
+        val url = try {
+            cloudMusicRepository.getPlayResource(songInfo.id).url
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            "error"
+        }
+        return ResolvedPlayUrl(url.takeIf(::isValidUrl) ?: "error")
+    }
+
     private suspend fun attempt(
         songInfo: SongInfo,
         quality: String,
@@ -125,5 +144,8 @@ class PlayUrlGetter @Inject constructor(
         return ResolvedPlayUrl(url.ifBlank { "error" }, trace)
     }
 
-    private fun isValidUrl(value: String?): Boolean = value?.startsWith("http") == true
+    private fun isValidUrl(value: String?): Boolean {
+        val url = value?.toHttpUrlOrNull() ?: return false
+        return url.scheme == "https" || url.scheme == "http"
+    }
 }

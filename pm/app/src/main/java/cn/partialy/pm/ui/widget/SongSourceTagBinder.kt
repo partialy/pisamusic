@@ -63,12 +63,13 @@ object SongSourceTagBinder {
             SongType.KG -> R.string.source_tag_kg
             SongType.KW -> R.string.source_tag_kw
             SongType.WY -> R.string.source_tag_wy
+            SongType.CLOUD -> R.string.source_tag_cloud
             SongType.LOCAL -> R.string.source_tag_local
         },
     )
 
     private fun SongType.isSingleLetterTag(): Boolean =
-        this == SongType.KG || this == SongType.KW || this == SongType.WY
+        this == SongType.KG || this == SongType.KW || this == SongType.WY || this == SongType.CLOUD
 
     private fun TextView.updateSize(width: Int, height: Int) {
         layoutParams = layoutParams.apply {
@@ -83,12 +84,14 @@ object SongSourceTagBinder {
                 SongType.KG -> triple(ctx, R.color.song_tag_kg_border, R.color.song_tag_kg_fill, R.color.song_tag_kg_text)
                 SongType.KW -> triple(ctx, R.color.song_tag_kw_border, R.color.song_tag_kw_fill, R.color.song_tag_kw_text)
                 SongType.WY -> triple(ctx, R.color.song_tag_wy_border, R.color.song_tag_wy_fill, R.color.song_tag_wy_text)
+                SongType.CLOUD -> triple(ctx, R.color.song_tag_cloud_border, R.color.song_tag_cloud_fill, R.color.song_tag_cloud_text)
                 SongType.LOCAL -> triple(ctx, R.color.song_tag_local_border, R.color.song_tag_local_fill, R.color.song_tag_local_text)
             }
             Surface.ON_DARK -> when (type) {
                 SongType.KG -> triple(ctx, R.color.song_tag_kg_border_dark, R.color.song_tag_kg_fill_dark, R.color.song_tag_kg_text_dark)
                 SongType.KW -> triple(ctx, R.color.song_tag_kw_border_dark, R.color.song_tag_kw_fill_dark, R.color.song_tag_kw_text_dark)
                 SongType.WY -> triple(ctx, R.color.song_tag_wy_border_dark, R.color.song_tag_wy_fill_dark, R.color.song_tag_wy_text_dark)
+                SongType.CLOUD -> triple(ctx, R.color.song_tag_cloud_border_dark, R.color.song_tag_cloud_fill_dark, R.color.song_tag_cloud_text_dark)
                 SongType.LOCAL -> triple(ctx, R.color.song_tag_local_border_dark, R.color.song_tag_local_fill_dark, R.color.song_tag_local_text_dark)
             }
         }

@@ -96,7 +96,6 @@ class MainActivity : BaseDownloadActivity() {
 
     private lateinit var viewPager: ViewPager2
     private lateinit var homeAdapter: HomeFragmentStateAdapter
-    private var favCount = 0
     private val baseBottomNavPadding by lazy { (resources.displayMetrics.density * 8).toInt() }
     private var homeMiniPlayerBinder: HomeMiniPlayerBinder? = null
 
@@ -761,27 +760,12 @@ class MainActivity : BaseDownloadActivity() {
                 super.onPageSelected(position)
                 when (position) {
                     0 -> updateHeaderTabs(0)
-                    1 -> {
-                        updateHeaderTabs(1)
-                        refreshFavoriteIfNeed()
-                    }
+                    1 -> updateHeaderTabs(1)
                     2 -> updateHeaderTabs(2)
                 }
             }
         })
         updateHeaderTabs(0)
-    }
-
-    private fun refreshFavoriteIfNeed() {
-        val listCount = loveManager.getLoveList().size
-        if (favCount == listCount) {
-            return
-        }
-        favCount = listCount
-        val current = viewPager.currentItem
-        homeAdapter = HomeFragmentStateAdapter(this)
-        viewPager.adapter = homeAdapter
-        viewPager.setCurrentItem(current, false)
     }
 
     private fun updateHeaderTabs(selected: Int) {
@@ -1143,10 +1127,9 @@ class MainActivity : BaseDownloadActivity() {
 
     }
 
-    /** 首页顶栏与 ViewPager 切到「我喜欢」页（猜你喜欢卡片）。 */
+    /** 从猜你喜欢卡片进入独立的“我的收藏”页面。 */
     fun openHomeFavoriteTab() {
-        viewPager.setCurrentItem(1, true)
-        updateHeaderTabs(1)
+        LovedSongsPlaylistActivity.start(this)
     }
 
     companion object {

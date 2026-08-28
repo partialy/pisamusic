@@ -32,6 +32,11 @@ import cn.partialy.pm.share.ShareCreateResponse
 import cn.partialy.pm.share.SharePublicResponse
 import cn.partialy.pm.fault.FaultReportRequest
 import cn.partialy.pm.fault.FaultReportSubmitResponse
+import cn.partialy.pm.network.cloudmusic.CloudMusicEnvelope
+import cn.partialy.pm.network.cloudmusic.CloudMusicSearchDto
+import cn.partialy.pm.network.cloudmusic.CloudMusicSignedResourceDto
+import cn.partialy.pm.network.cloudmusic.CloudMusicSummaryDto
+import cn.partialy.pm.network.cloudmusic.CloudMusicTrackDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -153,4 +158,29 @@ interface SystemApiService {
     suspend fun getPublicShare(
         @Path("uuid") uuid: String,
     ): SharePublicResponse
+
+    @GET("api/cloud-music/summary")
+    suspend fun getCloudMusicSummary(): CloudMusicEnvelope<CloudMusicSummaryDto>
+
+    @GET("api/cloud-music/search")
+    suspend fun searchCloudMusic(
+        @Query("keyword") keyword: String,
+        @Query("offset") offset: Int,
+        @Query("limit") limit: Int,
+    ): CloudMusicEnvelope<CloudMusicSearchDto>
+
+    @GET("api/cloud-music/tracks/{uuid}")
+    suspend fun getCloudMusicTrack(
+        @Path("uuid") uuid: String,
+    ): CloudMusicEnvelope<CloudMusicTrackDto>
+
+    @GET("api/cloud-music/tracks/{uuid}/play-url")
+    suspend fun getCloudMusicPlayUrl(
+        @Path("uuid") uuid: String,
+    ): CloudMusicEnvelope<CloudMusicSignedResourceDto>
+
+    @GET("api/cloud-music/tracks/{uuid}/lyrics-url")
+    suspend fun getCloudMusicLyricsUrl(
+        @Path("uuid") uuid: String,
+    ): CloudMusicEnvelope<CloudMusicSignedResourceDto>
 }

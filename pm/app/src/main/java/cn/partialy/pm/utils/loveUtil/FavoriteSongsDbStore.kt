@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.fromCanonicalSource
+import cn.partialy.pm.model.payloadPlayableOrDefault
 import cn.partialy.pm.model.toCanonicalSong
 import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
 import com.google.gson.Gson
@@ -139,6 +140,7 @@ internal class FavoriteSongsDbStore(context: Context) {
             album = getString(getColumnIndexOrThrow("album")),
             lyric = getString(getColumnIndexOrThrow("lyric")),
             duration = if (isNull(durationIndex)) null else getInt(durationIndex),
+            playable = payloadPlayableOrDefault(getOptionalString("payload_json")),
         )
     }
 

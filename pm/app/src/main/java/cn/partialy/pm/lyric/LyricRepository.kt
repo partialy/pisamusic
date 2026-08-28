@@ -3,11 +3,13 @@ package cn.partialy.pm.lyric
 import android.content.Context
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.network.cloudmusic.CloudMusicRepository
 import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.network.wy.WyRepository
 import cn.partialy.pm.utils.LocalMediaIndexDbStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
@@ -21,6 +23,7 @@ class LyricRepository @Inject constructor(
     private val mediaIndexDb: LocalMediaIndexDbStore,
     private val kgRepository: KgRepository,
     private val wyRepository: WyRepository,
+    private val cloudMusicRepository: CloudMusicRepository,
 ) {
     suspend fun loadLyrics(song: SongInfo): LyricContent = withContext(Dispatchers.IO) {
         if (song.type == SongType.LOCAL) loadLocalLyrics(song) else loadRemoteLyrics(song)
@@ -128,6 +131,7 @@ class LyricRepository @Inject constructor(
     }
 
     private suspend fun fetchRemoteLyrics(song: SongInfo): LyricContent {
+        if (song.type == SongType.CLOUD) return fetchCloudLyrics(song)
         val raw = try {
             when (song.type) {
                 SongType.KG -> kgRepository.getBestLyric(song.id).getOrNull()
@@ -135,7 +139,7 @@ class LyricRepository @Inject constructor(
                     val id = song.id.toLongOrNull() ?: return LyricContent.noLyrics()
                     wyRepository.getBestLyric(id).getOrNull()
                 }
-                SongType.KW, SongType.LOCAL -> null
+                SongType.KW, SongType.CLOUD, SongType.LOCAL -> null
             }
         } catch (_: Exception) {
             null
@@ -151,6 +155,57 @@ class LyricRepository @Inject constructor(
         return content
     }
 
+    private suspend fun fetchCloudLyrics(song: SongInfo): LyricContent {
+        if (!song.playable) return LyricContent.noLyrics()
+        return try {
+            val resource = cloudMusicRepository.getLyricsResource(song.id)
+            val text = cloudMusicRepository.fetchLyricsText(resource).trim()
+            if (text.isBlank()) return LyricContent.noLyrics()
+            when (resource.format?.lowercase()) {
+                "txt" -> parseCloudPlainText(text)
+                else -> LyricParser.parseBest(text, source = "cloud_lrc").also { content ->
+                    if (content.hasLyrics) {
+                        runCatching {
+                            File(context.cacheDir, "${song.type.name}_${song.id}").writeText(text)
+                            mediaIndexDb.upsertLyric(song, text, source = "cloud_lrc")
+                        }
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            LyricContent.noLyrics()
+        }
+    }
+
+    /** 纯文本歌词没有时间轴，按行合成稳定的 5 秒区间以复用现有歌词组件。 */
+    private fun parseCloudPlainText(text: String): LyricContent {
+        val lines = text.lineSequence()
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .mapIndexed { index, line ->
+                val start = index * CLOUD_TEXT_LINE_DURATION_MS
+                val end = start + CLOUD_TEXT_LINE_DURATION_MS
+                LyricLine(
+                    words = listOf(LyricWord(start, end, line)),
+                    startTime = start,
+                    endTime = end,
+                )
+            }
+            .toList()
+        return if (lines.isEmpty()) {
+            LyricContent.noLyrics()
+        } else {
+            LyricContent(
+                rawText = text,
+                format = LyricFormat.NONE,
+                source = "cloud_txt",
+                lines = lines,
+            )
+        }
+    }
+
     private fun buildLocalLyricKeywords(file: File): String {
         val raw = file.nameWithoutExtension.trim()
         if (raw.isEmpty()) return ""
@@ -162,5 +217,9 @@ class LyricRepository @Inject constructor(
             return listOf(artist, title).filter { it.isNotEmpty() }.joinToString(" ").ifBlank { raw }
         }
         return raw
+    }
+
+    private companion object {
+        const val CLOUD_TEXT_LINE_DURATION_MS = 5_000L
     }
 }

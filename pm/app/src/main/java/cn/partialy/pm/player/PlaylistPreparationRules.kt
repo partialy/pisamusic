@@ -12,6 +12,16 @@ internal fun <T, R> prepareAllOrNull(
     null
 }
 
+/** 与同步版本语义一致，供需要异步取链的媒体项构造使用。 */
+internal suspend fun <T, R> prepareAllOrNullSuspending(
+    values: List<T>,
+    transform: suspend (T) -> R,
+): List<R>? = try {
+    values.map { transform(it) }
+} catch (_: Exception) {
+    null
+}
+
 internal data class PreparedRestoredQueue<T, R>(
     val values: List<T>,
     val items: List<R>,
@@ -39,6 +49,37 @@ internal fun <T, R> prepareRestoredQueue(
     if (successful.isEmpty()) return null
 
     val selectedOriginalIndex = (0 until values.size)
+        .map { offset -> (safeRequestedIndex + offset) % values.size }
+        .first { candidate -> successful.any { it.first == candidate } }
+    val currentIndex = successful.indexOfFirst { it.first == selectedOriginalIndex }
+    return PreparedRestoredQueue(
+        values = successful.map { it.second },
+        items = successful.map { it.third },
+        currentIndex = currentIndex,
+        selectedOriginalIndex = selectedOriginalIndex,
+    )
+}
+
+/** 恢复队列的挂起版本；失败项仍被丢弃，绝不制造可播放占位 URI。 */
+internal suspend fun <T, R> prepareRestoredQueueSuspending(
+    values: List<T>,
+    requestedIndex: Int,
+    transform: suspend (T) -> R,
+): PreparedRestoredQueue<T, R>? {
+    if (values.isEmpty()) return null
+    val safeRequestedIndex = requestedIndex.coerceIn(0, values.lastIndex)
+    val successful = buildList {
+        values.forEachIndexed { index, value ->
+            try {
+                add(Triple(index, value, transform(value)))
+            } catch (_: Exception) {
+                Unit
+            }
+        }
+    }
+    if (successful.isEmpty()) return null
+
+    val selectedOriginalIndex = (values.indices)
         .map { offset -> (safeRequestedIndex + offset) % values.size }
         .first { candidate -> successful.any { it.first == candidate } }
     val currentIndex = successful.indexOfFirst { it.first == selectedOriginalIndex }

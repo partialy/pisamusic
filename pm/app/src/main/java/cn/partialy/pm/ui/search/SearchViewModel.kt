@@ -170,6 +170,11 @@ class SearchViewModel @Inject constructor(
                     SongType.KG -> searchKg(keyword, isNewSearch)
                     SongType.WY -> searchWy(keyword, isNewSearch)
                     SongType.KW -> searchKw(keyword, isNewSearch)
+                    SongType.CLOUD -> {
+                        _searchResults.value = emptyList()
+                        isLastPage = true
+                        true
+                    }
                     SongType.LOCAL -> {
                         _searchResults.value = emptyList()
                         isLastPage = true

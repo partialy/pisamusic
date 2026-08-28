@@ -34,6 +34,9 @@ data class SongMoreMenuDependencies(
     val playlistCollectionManager: PlaylistCollectionManager,
     val onDownloadClick: (SongInfo) -> Unit,
     val showShare: Boolean = true,
+    val showPlayNext: Boolean = true,
+    val showDownload: Boolean = true,
+    val allowQueueTarget: Boolean = true,
     val onShareClick: ((SongInfo) -> Unit)? = null,
     val onListenTogetherClick: ((SongInfo) -> Unit)? = null,
 )
@@ -46,13 +49,17 @@ object SongMoreMenu {
     fun show(activity: FragmentActivity, song: SongInfo, deps: SongMoreMenuDependencies) {
         val liked = deps.loveManager.isSongInLoveList(song)
         val actions = buildList {
-            add(ActionMenuItem(R.drawable.ic_next_24, activity.getString(R.string.song_more_play_next)) {
-                deps.musicController.addPlayNext(song)
-                Toast.makeText(activity, R.string.toast_song_added_to_play_next, Toast.LENGTH_SHORT).show()
-            })
-            add(ActionMenuItem(R.drawable.ic_download_24, activity.getString(R.string.song_more_download)) {
-                deps.onDownloadClick(song)
-            })
+            if (deps.showPlayNext && song.playable) {
+                add(ActionMenuItem(R.drawable.ic_next_24, activity.getString(R.string.song_more_play_next)) {
+                    deps.musicController.addPlayNext(song)
+                    Toast.makeText(activity, R.string.toast_song_added_to_play_next, Toast.LENGTH_SHORT).show()
+                })
+            }
+            if (deps.showDownload && song.playable) {
+                add(ActionMenuItem(R.drawable.ic_download_24, activity.getString(R.string.song_more_download)) {
+                    deps.onDownloadClick(song)
+                })
+            }
             add(ActionMenuItem(
                 iconRes = if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24,
                 text = activity.getString(
@@ -71,7 +78,13 @@ object SongMoreMenu {
                 R.drawable.ic_playlist_24,
                 activity.getString(R.string.song_more_add_to_playlist),
             ) {
-                showAddToSheet(activity, song, deps.musicController, deps.playlistCollectionManager)
+                showAddToSheet(
+                    activity,
+                    song,
+                    deps.musicController,
+                    deps.playlistCollectionManager,
+                    allowQueueTarget = deps.allowQueueTarget && song.playable,
+                )
             })
             deps.onListenTogetherClick?.let { onListenTogetherClick ->
                 add(ActionMenuItem(
@@ -132,6 +145,7 @@ object SongMoreMenu {
         song: SongInfo,
         musicController: MusicController,
         playlistCollectionManager: PlaylistCollectionManager,
+        allowQueueTarget: Boolean,
     ) {
         val dialog = BottomSheetDialog(
             activity,
@@ -144,12 +158,14 @@ object SongMoreMenu {
         val localPlaylists = playlistCollectionManager.getAllPlaylists()
             .filter { it.type == CollectedPlaylistType.LOCAL }
         val items = buildList {
-            add(AddToTarget.CurrentQueue(musicController.playList.value.size))
+            if (allowQueueTarget) {
+                add(AddToTarget.CurrentQueue(musicController.playList.value.size))
+            }
             addAll(localPlaylists.map { AddToTarget.LocalPlaylist(it) })
         }
 
-        empty.visibility = View.GONE
-        rv.visibility = View.VISIBLE
+        empty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        rv.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
         rv.layoutManager = LinearLayoutManager(activity)
         val adapter = AddToTargetAdapter(items) { target ->
             when (target) {
@@ -177,10 +193,14 @@ object SongMoreMenu {
         }
         rv.adapter = adapter
 
-        var queueCountJob: Job? = activity.lifecycleScope.launch {
-            musicController.playList.collect { songs ->
-                adapter.updateQueueCount(songs.size)
+        var queueCountJob: Job? = if (allowQueueTarget) {
+            activity.lifecycleScope.launch {
+                musicController.playList.collect { songs ->
+                    adapter.updateQueueCount(songs.size)
+                }
             }
+        } else {
+            null
         }
 
         dialog.setContentView(root)

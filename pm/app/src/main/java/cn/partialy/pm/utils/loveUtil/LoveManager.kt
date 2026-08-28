@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.decodeSongInfoListCompat
 import cn.partialy.pm.model.toSongInfo
 import cn.partialy.pm.sync.SyncOutboxStore
 import cn.partialy.pm.sync.SyncPayloads
@@ -47,7 +48,7 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
             if (!file.exists()) return emptyList()
             val content = file.readText()
             if (content.isBlank()) return emptyList()
-            gson.fromJson(content, Array<SongInfo>::class.java).toList()
+            gson.decodeSongInfoListCompat(content)
         } catch (e: Exception) {
             Log.e(TAG, "read love list failed", e)
             emptyList()

@@ -1503,7 +1503,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun updateEffectivePlaylist() {
         val state = listenTogetherManager.state.value
         val songs = if (state.enabled) {
-            state.queue.items.map { it.song.toSongInfo() }
+            state.queue.items.mapNotNull { it.song.toSongInfo() }
         } else {
             musicController.playList.value
         }
@@ -1539,13 +1539,17 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun findListenTogetherQueueItemId(song: SongInfo): String? =
         listenTogetherManager.state.value.queue.items.firstOrNull { item ->
             val queueSong = item.song.toSongInfo()
-            queueSong.type == song.type && queueSong.id == song.id
+            queueSong != null && queueSong.type == song.type && queueSong.id == song.id
         }?.queueItemId
 
     private fun scrollPlaylistToNowPlaying() {
         val rv = binding.playlistBottomSheet.playlistRecyclerView
         val state = listenTogetherManager.state.value
-        val songs = if (state.enabled) state.queue.items.map { it.song.toSongInfo() } else musicController.playList.value
+        val songs = if (state.enabled) {
+            state.queue.items.mapNotNull { it.song.toSongInfo() }
+        } else {
+            musicController.playList.value
+        }
         if (songs.isEmpty()) return
         val currentKey = musicController.currentSong.value?.let(::songIdentityKey) ?: return
         val idx = songs.indexOfFirst { songIdentityKey(it) == currentKey }

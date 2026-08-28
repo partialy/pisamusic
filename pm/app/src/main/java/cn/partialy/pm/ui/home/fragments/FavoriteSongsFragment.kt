@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import cn.partialy.pm.R
 import cn.partialy.pm.activity.MainActivity
 import cn.partialy.pm.databinding.FragmentFavoriteSongsBinding
 import cn.partialy.pm.player.MusicController

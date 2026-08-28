@@ -6,6 +6,7 @@ import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.decodeSongInfoListCompat
 import cn.partialy.pm.model.toCollectedPlaylist
 import cn.partialy.pm.model.toSongInfo
 import cn.partialy.pm.sync.SyncOutboxStore
@@ -178,7 +179,7 @@ class PlaylistCollectionManager @Inject constructor(
             if (!file.exists()) return emptyList()
             val content = file.readText()
             if (content.isBlank()) return emptyList()
-            gson.fromJson(content, Array<SongInfo>::class.java).toList()
+            gson.decodeSongInfoListCompat(content)
         } catch (e: Exception) {
             Log.e(TAG, "read playlist songs failed id=$playlistId", e)
             emptyList()

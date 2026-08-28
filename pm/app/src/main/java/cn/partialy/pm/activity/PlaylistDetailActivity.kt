@@ -416,7 +416,7 @@ private fun cn.partialy.pm.model.KgPlaylistTrackRow.toSongInfoOrNull(): SongInfo
         val fromSinger = singerinfo.map { it.name.trim() }.filter { it.isNotEmpty() }
         if (fromSinger.isNotEmpty()) {
             val rawTitle = name.substringAfter(" - ", missingDelimiterValue = name).trim()
-            fromSinger.joinToString(getString(R.string.common_separator_enumeration)) to rawTitle.ifBlank { name }
+            fromSinger.joinToString("、") to rawTitle.ifBlank { name }
         } else {
             val parts = name.split(" - ", limit = 2)
             if (parts.size == 2) parts[0].trim() to parts[1].trim() else "" to name

@@ -24,6 +24,7 @@ object SongCoverUrl {
             SongType.KG -> getKgImageUrl(coverUrl, size, fallback)
             SongType.WY -> getWyCoverSizeUrl(coverUrl, wySizeOf(size), fallback)
             SongType.KW -> coverUrl?.trim().orEmpty().ifBlank { fallback }
+            SongType.CLOUD -> coverUrl?.trim().orEmpty().ifBlank { fallback }
         }
 
     fun getRemoteCover(source: String, coverUrl: String?, size: Int = SIZE_MEDIUM, fallback: String = ""): String {

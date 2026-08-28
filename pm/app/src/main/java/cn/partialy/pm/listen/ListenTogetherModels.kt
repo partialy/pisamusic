@@ -245,8 +245,9 @@ class ListenTogetherApiException(
     val errorMsg: String? = null,
 ) : RuntimeException(message)
 
-fun SongInfo.toListenTogetherSong(durationMs: Long? = null): ListenTogetherSong =
-    ListenTogetherSong(
+fun SongInfo.toListenTogetherSong(durationMs: Long? = null): ListenTogetherSong {
+    require(type != SongType.CLOUD) { "cloud songs are not supported by listen together" }
+    return ListenTogetherSong(
         id = id,
         source = type.name.lowercase(),
         urlParam = id,
@@ -257,9 +258,11 @@ fun SongInfo.toListenTogetherSong(durationMs: Long? = null): ListenTogetherSong 
         url = "",
         duration = durationMs?.takeIf { it > 0L } ?: ((duration ?: 0).coerceAtLeast(0).toLong() * 1000L),
     )
+}
 
-fun ListenTogetherSong.toSongInfo(): SongInfo =
-    SongInfo(
+fun ListenTogetherSong.toSongInfo(): SongInfo? {
+    if (source.equals("cloud", ignoreCase = true)) return null
+    return SongInfo(
         id = id.ifBlank { urlParam },
         type = when (source.lowercase()) {
             "wy" -> SongType.WY
@@ -273,12 +276,13 @@ fun ListenTogetherSong.toSongInfo(): SongInfo =
         album = album,
         duration = (duration / 1000L).coerceAtLeast(0L).toInt(),
     )
+}
 
 fun ListenTogetherSong.toSongRef(): ListenTogetherSongRef =
     ListenTogetherSongRef(source = source.lowercase(), id = id)
 
-fun SongInfo.toListenTogetherSongRef(): ListenTogetherSongRef =
-    ListenTogetherSongRef(source = type.name.lowercase(), id = id)
+fun SongInfo.toListenTogetherSongRef(): ListenTogetherSongRef? =
+    if (type == SongType.CLOUD) null else ListenTogetherSongRef(source = type.name.lowercase(), id = id)
 
 fun ListenTogetherRoom.targetPosition(nowMs: Long = System.currentTimeMillis()): Long {
     if (status != ListenTogetherRoom.STATUS_PLAYING) return position.coerceAtLeast(0L)

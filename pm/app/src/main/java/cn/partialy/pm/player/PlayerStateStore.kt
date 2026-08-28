@@ -53,6 +53,8 @@ data class PersistedSong(
     val artist: String,
     val coverUrl: String = "",
     val album: String? = null,
+    val duration: Int? = null,
+    val playable: Boolean = true,
 )
 
 fun PersistedSong.toSongInfo(): SongInfo {
@@ -64,6 +66,8 @@ fun PersistedSong.toSongInfo(): SongInfo {
         artist = artist,
         coverUrl = coverUrl,
         album = album,
+        duration = duration,
+        playable = playable,
     )
 }
 
@@ -74,5 +78,7 @@ fun SongInfo.toPersistedSong(): PersistedSong = PersistedSong(
     artist = artist,
     coverUrl = coverUrl,
     album = album,
+    duration = duration,
+    playable = playable,
 )
 

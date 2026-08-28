@@ -14,13 +14,16 @@ data class SongInfo(
     var album: String? = null,
     var lyric: String? = null,
     var duration: Int? = null,
+    /** 服务端是否允许播放；旧调用方和旧快照默认可播放。 */
+    val playable: Boolean = true,
 )
 
-/** 音源：酷狗 / 网易 / 酷我 / 本地 */
+/** 音源：酷狗 / 网易 / 酷我 / 网盘 / 本地 */
 enum class SongType {
     KG,
     WY,
     KW,
+    CLOUD,
     LOCAL,
     ;
 

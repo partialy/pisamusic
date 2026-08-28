@@ -18,6 +18,9 @@ sealed class DownloadQualityChoice {
 
     /** 酷我 /url quality */
     data class Kuwo(val quality: String) : DownloadQualityChoice()
+
+    /** 网盘歌曲由服务端按原始文件签发唯一播放地址。 */
+    object CloudDefault : DownloadQualityChoice()
 }
 
 data class DownloadQualityOption(
@@ -32,6 +35,7 @@ fun DownloadQualityChoice.toPlaybackQualityKey(): String = when (this) {
     is DownloadQualityChoice.NeteaseBr -> "wy-br:$br"
     is DownloadQualityChoice.NeteaseLevel -> "wy-level:$level"
     is DownloadQualityChoice.Kuwo -> "kw:$quality"
+    DownloadQualityChoice.CloudDefault -> "cloud:default"
 }
 
 fun DownloadQualityChoice.matchesSongType(type: SongType): Boolean = when (this) {
@@ -40,6 +44,7 @@ fun DownloadQualityChoice.matchesSongType(type: SongType): Boolean = when (this)
     is DownloadQualityChoice.NeteaseLevel,
     -> type == SongType.WY
     is DownloadQualityChoice.Kuwo -> type == SongType.KW
+    DownloadQualityChoice.CloudDefault -> type == SongType.CLOUD
 }
 
 fun playbackQualityChoiceFromKey(key: String?): DownloadQualityChoice? {
@@ -53,6 +58,7 @@ fun playbackQualityChoiceFromKey(key: String?): DownloadQualityChoice? {
         "kw" -> DownloadQualityChoice.Kuwo(value)
         "wy-br" -> value.toIntOrNull()?.let { DownloadQualityChoice.NeteaseBr(it) }
         "wy-level" -> DownloadQualityChoice.NeteaseLevel(value)
+        "cloud" -> DownloadQualityChoice.CloudDefault.takeIf { value == "default" }
         else -> null
     }
 }
@@ -61,6 +67,7 @@ fun downloadOptionsForSongType(type: SongType): List<DownloadQualityOption> = wh
     SongType.KG -> kgDownloadOptions
     SongType.WY -> wyDownloadOptions
     SongType.KW -> kwDownloadOptions
+    SongType.CLOUD -> cloudDownloadOptions
     SongType.LOCAL -> emptyList()
 }
 
@@ -93,4 +100,8 @@ private val kwDownloadOptions = listOf(
     DownloadQualityOption(R.string.quality_kw_standard, DownloadQualityChoice.Kuwo("standard")),
     DownloadQualityOption(R.string.quality_kw_exhigh, DownloadQualityChoice.Kuwo("exhigh")),
     DownloadQualityOption(R.string.quality_kw_lossless, DownloadQualityChoice.Kuwo("lossless")),
+)
+
+private val cloudDownloadOptions = listOf(
+    DownloadQualityOption(R.string.quality_cloud_default, DownloadQualityChoice.CloudDefault),
 )

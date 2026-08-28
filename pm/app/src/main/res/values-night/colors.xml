@@ -17,6 +17,9 @@
     <color name="home_mini_player_subtitle">#A0A8B4</color>
     <color name="home_tab_selected">#FFFFFF</color>
     <color name="home_tab_unselected">#8B919B</color>
+    <color name="cloud_music_summary_bg">#202C3C</color>
+    <color name="cloud_music_disabled_badge_bg">#343942</color>
+    <color name="cloud_music_disabled_badge_text">#B1B7C1</color>
 
     <!-- 与默认 values 中 #333 对应；夜间未覆盖会导致深色底上仍是近黑色 -->
     <color name="text_secondary">#A0A8B4</color>
@@ -59,6 +62,9 @@
     <color name="song_tag_wy_border">#F89898</color>
     <color name="song_tag_wy_fill">#3A2424</color>
     <color name="song_tag_wy_text">#FAB6B6</color>
+    <color name="song_tag_cloud_border">#5EEAD4</color>
+    <color name="song_tag_cloud_fill">#173A37</color>
+    <color name="song_tag_cloud_text">#99F6E4</color>
     <color name="song_tag_local_border">#85CE61</color>
     <color name="song_tag_local_fill">#243820</color>
     <color name="song_tag_local_text">#95D475</color>
@@ -71,6 +77,9 @@
     <color name="song_tag_wy_border_dark">#FAB6B6</color>
     <color name="song_tag_wy_fill_dark">#33F56C6C</color>
     <color name="song_tag_wy_text_dark">#FFC8C8</color>
+    <color name="song_tag_cloud_border_dark">#99F6E4</color>
+    <color name="song_tag_cloud_fill_dark">#3342B8A5</color>
+    <color name="song_tag_cloud_text_dark">#CCFBF1</color>
     <color name="song_tag_local_border_dark">#95D475</color>
     <color name="song_tag_local_fill_dark">#3367C23A</color>
     <color name="song_tag_local_text_dark">#B8E994</color>

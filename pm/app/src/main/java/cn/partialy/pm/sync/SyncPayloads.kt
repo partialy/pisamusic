@@ -63,6 +63,7 @@ object SyncPayloads {
             duration = payload.intValue("duration", "durationMs"),
             size = payload.longMapValue("size"),
             vip = payload.booleanValue("vip"),
+            playable = payload.booleanValue("playable") ?: true,
         )
     }
 

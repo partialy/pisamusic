@@ -49,11 +49,12 @@ data class PlaybackErrorSummary(
 class MusicController @Inject constructor(
     @ApplicationContext private val context: Context,
     playbackMediaCache: PlaybackMediaCache,
+    playUrlGetter: PlayUrlGetter,
     playbackFallbackProvider: PlaybackFallbackProvider,
     playbackFaultRecorder: PlaybackFaultRecorder,
     audioEffectsManager: AudioEffectsManager,
 ) {
-    private val factory = MediaItemFactory(context, playbackMediaCache)
+    private val factory = MediaItemFactory(context, playbackMediaCache, playUrlGetter)
     private val playlistManager = PlaylistManager(factory)
     private val engine: PlayerEngine
     private val playbackScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -125,14 +126,22 @@ class MusicController @Inject constructor(
      * [sourceId] 用于同源检测：同一歌单反复点击不同歌曲时直接 seek，避免重建列表。
      */
     fun setPlayListLazy(songs: List<SongInfo>, startIndex: Int = 0, sourceId: String? = null) {
-        playlistManager.setPlayListLazy(songs, startIndex, sourceId) { result ->
+        engine.invalidatePendingMediaRefresh()
+        val requested = songs.getOrNull(startIndex)
+        val playableSongs = songs.filter(SongInfo::playable)
+        val playableStartIndex = requested
+            ?.takeIf(SongInfo::playable)
+            ?.let { target -> playableSongs.indexOfFirst { it.type == target.type && it.id == target.id } }
+            ?.takeIf { it >= 0 }
+            ?: 0
+        playlistManager.setPlayListLazy(playableSongs, playableStartIndex, sourceId) { result ->
             when (result) {
                 is PlaylistSetResult.Applied -> {
                     engine.persistState(force = true)
                     engine.ensurePlayableAtIndex(result.startIndex, autoPlay = true)
                 }
                 PlaylistSetResult.SameSource -> {
-                    songs.getOrNull(startIndex)?.let(::play)
+                    requested?.takeIf(SongInfo::playable)?.let(::play)
                 }
                 PlaylistSetResult.Failed -> engine.handlePlaybackRequestFailure()
                 PlaylistSetResult.Stale -> Unit
@@ -142,13 +151,14 @@ class MusicController @Inject constructor(
 
     /** 追加歌曲到列表尾部 */
     fun appendSongsLazy(songs: List<SongInfo>) {
-        playlistManager.appendSongsLazy(songs) { applied ->
+        playlistManager.appendSongsLazy(songs.filter(SongInfo::playable)) { applied ->
             if (applied) engine.persistState(force = true)
         }
     }
 
     /** 播放单曲：设置为当前歌曲，不在列表则追加到尾部 */
     fun play(songInfo: SongInfo, autoPlay: Boolean = true) {
+        if (!songInfo.playable) return
         playbackScope.launch {
             try {
                 performLatestPlay(songInfo, autoPlay)
@@ -165,9 +175,10 @@ class MusicController @Inject constructor(
      * Starting another direct play request cancels this request and makes its result ineligible to apply.
      */
     suspend fun playLatest(songInfo: SongInfo, autoPlay: Boolean = true): Boolean =
-        performLatestPlay(songInfo, autoPlay)
+        if (songInfo.playable) performLatestPlay(songInfo, autoPlay) else false
 
     private suspend fun performLatestPlay(songInfo: SongInfo, autoPlay: Boolean): Boolean {
+        engine.invalidatePendingMediaRefresh()
         val currentJob = currentCoroutineContext()[Job]
             ?: error("playLatest requires a coroutine Job")
         val token = synchronized(playJobLock) {
@@ -201,7 +212,9 @@ class MusicController @Inject constructor(
     }
 
     /** 下一首播放：添加到插播队列（FIFO） */
-    fun addPlayNext(songInfo: SongInfo) = playlistManager.addPlayNext(songInfo)
+    fun addPlayNext(songInfo: SongInfo) {
+        if (songInfo.playable) playlistManager.addPlayNext(songInfo)
+    }
 
     fun removeFromPlayList(songInfo: SongInfo) = playlistManager.removeFromPlayList(songInfo)
 

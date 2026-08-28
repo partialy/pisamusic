@@ -17,6 +17,8 @@ data class CanonicalSong(
     val duration: Int = 0,
     val size: Map<String, Long>? = null,
     val vip: Boolean? = null,
+    /** 网盘等自有来源的服务端可播放标记；缺失时兼容旧快照为可播放。 */
+    val playable: Boolean? = true,
 )
 
 data class CanonicalCoverSize(
@@ -47,12 +49,19 @@ data class CanonicalPlaylistTag(
     val id: String,
 )
 
-fun SongType.toCanonicalSource(): String = name.lowercase()
+fun SongType.toCanonicalSource(): String = when (this) {
+    SongType.KG -> "kg"
+    SongType.WY -> "wy"
+    SongType.KW -> "kw"
+    SongType.CLOUD -> "cloud"
+    SongType.LOCAL -> "local"
+}
 
 fun SongType.Companion.fromCanonicalSource(source: String): SongType =
     when (source.trim().lowercase()) {
         "wy" -> SongType.WY
         "kw" -> SongType.KW
+        "cloud" -> SongType.CLOUD
         "local" -> SongType.LOCAL
         else -> SongType.KG
     }
@@ -81,6 +90,7 @@ fun SongInfo.toCanonicalSong(): CanonicalSong =
         album = album.orEmpty(),
         cover = coverUrl,
         duration = duration ?: 0,
+        playable = playable,
     )
 
 fun CanonicalSong.toSongInfo(): SongInfo =
@@ -92,6 +102,7 @@ fun CanonicalSong.toSongInfo(): SongInfo =
         coverUrl = cover,
         album = album,
         duration = duration,
+        playable = playable ?: true,
     )
 
 fun CollectedPlaylist.toCanonicalPlaylist(): CanonicalPlaylist =

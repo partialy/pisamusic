@@ -36,19 +36,19 @@ object MusicQualityAccessPolicy {
         access: MusicQualityAccessState,
     ): List<DownloadQualityOption> {
         val original = downloadOptionsForSongType(type)
-        if (type == SongType.KW || type == SongType.LOCAL || hasVipAccess(access)) {
+        if (type == SongType.KW || type == SongType.CLOUD || type == SongType.LOCAL || hasVipAccess(access)) {
             return original
         }
 
         val regularChoices = when (type) {
             SongType.KG -> regularKgChoices
             SongType.WY -> regularWyChoices
-            SongType.KW, SongType.LOCAL -> emptySet()
+            SongType.KW, SongType.CLOUD, SongType.LOCAL -> emptySet()
         }
         val guestEnabledChoices = when (type) {
             SongType.KG -> guestEnabledKgChoices
             SongType.WY -> guestEnabledWyChoices
-            SongType.KW, SongType.LOCAL -> emptySet()
+            SongType.KW, SongType.CLOUD, SongType.LOCAL -> emptySet()
         }
         val enabledChoices = if (access.loggedIn) regularChoices else guestEnabledChoices
         val restrictedBadgeRes = if (access.loggedIn) {
@@ -86,7 +86,7 @@ object MusicQualityAccessPolicy {
     ): DownloadQualityChoice? {
         if (choice == null) {
             val requiresSafeDefault =
-                (type == SongType.KG || type == SongType.WY) && !hasVipAccess(access)
+                ((type == SongType.KG || type == SongType.WY) && !hasVipAccess(access)) || type == SongType.CLOUD
             return if (requiresSafeDefault) fallbackChoice(type) else null
         }
         if (isChoiceAllowed(type, choice, access)) return choice
@@ -100,6 +100,7 @@ object MusicQualityAccessPolicy {
         SongType.KG -> DownloadQualityChoice.Kugou("128")
         SongType.WY -> DownloadQualityChoice.NeteaseLevel("standard")
         SongType.KW -> DownloadQualityChoice.Kuwo("standard")
+        SongType.CLOUD -> DownloadQualityChoice.CloudDefault
         SongType.LOCAL -> null
     }
 }

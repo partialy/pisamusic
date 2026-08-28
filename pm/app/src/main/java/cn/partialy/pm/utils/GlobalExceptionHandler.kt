@@ -38,10 +38,13 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
     @Volatile
     private var currentActivityRef: WeakReference<Activity>? = null
 
+    private lateinit var appContext: Context
+
     fun init(application: Application, isDebug: Boolean) {
         if (installed) return
         installed = true
         debugMode = isDebug
+        appContext = application.applicationContext
         defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         application.registerActivityLifecycleCallbacks(ActivityTracker)
         Thread.setDefaultUncaughtExceptionHandler(this)
@@ -77,16 +80,16 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
         val stack = throwable.stackTraceString()
         Log.e(TAG, "Uncaught exception in thread ${thread.name}, main=$isMainThread", throwable)
         showExceptionDialog(
-            title = context.getString(
+            title = appContext.getString(
                 if (isMainThread) R.string.debug_main_thread_exception else R.string.debug_background_exception,
             ),
             message = buildString {
-                appendLine(context.getString(R.string.debug_thread_line, thread.name))
-                appendLine(context.getString(R.string.debug_type_line, throwable.javaClass.name))
+                appendLine(appContext.getString(R.string.debug_thread_line, thread.name))
+                appendLine(appContext.getString(R.string.debug_type_line, throwable.javaClass.name))
                 appendLine(
-                    context.getString(
+                    appContext.getString(
                         R.string.debug_message_line,
-                        throwable.localizedMessage ?: context.getString(R.string.debug_empty_message),
+                        throwable.localizedMessage ?: appContext.getString(R.string.debug_empty_message),
                     ),
                 )
                 appendLine()
@@ -111,8 +114,8 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
                     .setMessageGravity(Gravity.START)
                     .setMessageSelectable(true)
                     .setMessageMaxHeightDp(STACK_DIALOG_MAX_HEIGHT_DP)
-                    .setCancelButton(context.getString(R.string.debug_close))
-                    .setConfirmButton(context.getString(R.string.debug_copy)) {
+                    .setCancelButton(appContext.getString(R.string.debug_close))
+                    .setConfirmButton(appContext.getString(R.string.debug_copy)) {
                         copyErrorStack(activity, message)
                     }
                     .setDismissOnConfirm(false)

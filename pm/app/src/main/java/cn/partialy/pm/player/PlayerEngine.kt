@@ -26,6 +26,7 @@ import cn.partialy.pm.fault.PlaybackFaultRecorder
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -91,6 +92,10 @@ class PlayerEngine(
     private val audioRendererRetryKeys = mutableSetOf<String>()
     private val cacheSyncJob = SupervisorJob()
     private val cacheSyncScope = CoroutineScope(cacheSyncJob + Dispatchers.IO)
+    private val engineJob = SupervisorJob()
+    private val engineScope = CoroutineScope(engineJob + Dispatchers.Main.immediate)
+    private val mediaRefreshGate = LatestRequestGate()
+    private var mediaRefreshJob: Job? = null
     private val playbackAudioAttributes = AudioAttributes.Builder()
         .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
         .setUsage(C.USAGE_MEDIA)
@@ -272,8 +277,7 @@ class PlayerEngine(
             ) {
                 val song = playlistManager.dequeuePlayNext()!!
                 val targetIndex = playlistManager.placePlayNextAt(newIndex, song)
-                playlistManager.updateCurrentIndex(targetIndex)
-                player.seekTo(targetIndex, 0)
+                pauseCloudBeforeRefresh(player, targetIndex)
                 ensurePlayableAtIndex(targetIndex, autoPlay = true)
                 return
             }
@@ -285,7 +289,10 @@ class PlayerEngine(
                 Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
                 Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
                 Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT,
-                -> ensurePlayableAtIndex(newIndex, autoPlay = shouldContinuePlaying)
+                -> {
+                    pauseCloudBeforeRefresh(player, newIndex)
+                    ensurePlayableAtIndex(newIndex, autoPlay = shouldContinuePlaying)
+                }
             }
         }
 
@@ -331,7 +338,7 @@ class PlayerEngine(
     private fun recordPlaybackFailure(error: PlaybackException, summary: PlaybackErrorSummary?) {
         val player = exoPlayer ?: return
         val song = playlistManager.playList.value.getOrNull(player.currentMediaItemIndex) ?: return
-        if (song.type == SongType.LOCAL) return
+        if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) return
         val currentMediaItem = player.currentMediaItem
         val resolvedUrl = currentMediaItem?.localConfiguration?.uri?.toString().orEmpty()
         val quality = currentMediaItem
@@ -490,19 +497,18 @@ class PlayerEngine(
                 if (queued != null) {
                     val insertAt = player.currentMediaItemIndex + 1
                     val targetIndex = playlistManager.placePlayNextAt(insertAt, queued)
-                    player.seekTo(targetIndex, 0)
                     ensurePlayableAtIndex(targetIndex, autoPlay = true)
                     return@launch
                 }
 
-                if (player.shuffleModeEnabled) {
-                    player.seekToNext()
-                    return@launch
-                }
-
                 val idx = player.currentMediaItemIndex
-                val last = player.mediaItemCount - 1
-                player.seekToDefaultPosition(if (idx >= last) 0 else idx + 1)
+                val targetIndex = if (player.shuffleModeEnabled) {
+                    player.nextMediaItemIndex.takeIf { it >= 0 } ?: return@launch
+                } else {
+                    val last = player.mediaItemCount - 1
+                    if (idx >= last) 0 else idx + 1
+                }
+                ensurePlayableAtIndex(targetIndex, autoPlay = true)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -517,13 +523,14 @@ class PlayerEngine(
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                if (player.shuffleModeEnabled) {
-                    player.seekToPrevious()
-                    return@launch
-                }
                 val idx = player.currentMediaItemIndex
-                val last = player.mediaItemCount - 1
-                player.seekToDefaultPosition(if (idx <= 0) last else idx - 1)
+                val targetIndex = if (player.shuffleModeEnabled) {
+                    player.previousMediaItemIndex.takeIf { it >= 0 } ?: return@launch
+                } else {
+                    val last = player.mediaItemCount - 1
+                    if (idx <= 0) last else idx - 1
+                }
+                ensurePlayableAtIndex(targetIndex, autoPlay = true)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -631,13 +638,12 @@ class PlayerEngine(
     fun setPlaying(playing: Boolean) {
         val player = exoPlayer ?: return
         if (playing) {
-            player.prepare()
-            player.play()
+            ensurePlayableAtIndex(playlistManager.currentIndex.value, autoPlay = true)
         } else {
             audioCoexistenceController.onUserPauseRequested()
             player.pause()
+            persistState(force = true)
         }
-        persistState(force = true)
     }
 
     fun applyAudioCoexistenceMode(mode: SettingsPrefs.AudioCoexistenceMode) {
@@ -671,8 +677,11 @@ class PlayerEngine(
         val player = exoPlayer ?: return false
         val index = player.currentMediaItemIndex
         val song = playlistManager.playList.value.getOrNull(index) ?: return false
-        if (song.type == SongType.LOCAL || index !in 0 until player.mediaItemCount) return false
+        if (!song.playable || song.type == SongType.LOCAL || index !in 0 until player.mediaItemCount) return false
 
+        val refreshToken = mediaRefreshGate.next()
+        mediaRefreshJob?.cancel()
+        mediaRefreshJob = null
         val songKey = factory.keyOf(song)
         val positionMs = player.currentPosition.coerceAtLeast(0L)
         val shouldPlay = player.playWhenReady || player.isPlaying
@@ -681,6 +690,7 @@ class PlayerEngine(
             val resolved = withContext(Dispatchers.IO) {
                 factory.createMediaItemWithQuality(song, choice)
             }
+            if (!mediaRefreshGate.isLatest(refreshToken) || exoPlayer !== player) return false
             val currentSong = playlistManager.playList.value.getOrNull(index) ?: return false
             if (factory.keyOf(currentSong) != songKey) return false
 
@@ -729,19 +739,75 @@ class PlayerEngine(
 
     // ==================== 已登记媒体项播放 ====================
 
-    /** 队列进入播放器前已在 IO 完成逻辑项登记；这里仅执行 Main 侧播放控制。 */
+    /** 新的列表或直接播放请求可使尚未返回的 Cloud 签发结果失去提交资格。 */
+    fun invalidatePendingMediaRefresh() {
+        mediaRefreshGate.invalidate()
+        mediaRefreshJob?.cancel()
+        mediaRefreshJob = null
+    }
+
+    /**
+     * 唯一的队列媒体项激活入口。Cloud 在临近播放时重新签发，并在 Main 线程确认
+     * type+id、播放器实例和请求代次仍一致后原子替换对应 MediaItem。
+     */
     fun ensurePlayableAtIndex(index: Int, autoPlay: Boolean) {
-        CoroutineScope(Dispatchers.Main).launch {
-            val player = exoPlayer ?: return@launch
-            if (playlistManager.playList.value.getOrNull(index) == null) return@launch
-            if (index !in 0 until player.mediaItemCount) return@launch
-            playlistManager.updateCurrentIndex(index)
-            if (player.currentMediaItemIndex != index) player.seekTo(index, 0)
-            player.prepare()
-            if (autoPlay) {
-                player.play()
+        val token = mediaRefreshGate.next()
+        mediaRefreshJob?.cancel()
+        mediaRefreshJob = engineScope.launch {
+            val expectedPlayer = exoPlayer ?: return@launch
+            val expectedSong = playlistManager.playList.value.getOrNull(index) ?: return@launch
+            if (!expectedSong.playable || index !in 0 until expectedPlayer.mediaItemCount) return@launch
+            val expectedKey = factory.keyOf(expectedSong)
+            val startPositionMs = if (expectedPlayer.currentMediaItemIndex == index) {
+                expectedPlayer.currentPosition.coerceAtLeast(0L)
+            } else {
+                0L
             }
-            persistState(force = true)
+
+            try {
+                val refreshedCloudItem = if (expectedSong.type == SongType.CLOUD) {
+                    pauseCloudBeforeRefresh(expectedPlayer, index)
+                    withContext(Dispatchers.IO) { factory.createMediaItem(expectedSong) }
+                } else {
+                    null
+                }
+                if (!mediaRefreshGate.isLatest(token)) return@launch
+
+                val player = exoPlayer ?: return@launch
+                if (player !== expectedPlayer || index !in 0 until player.mediaItemCount) return@launch
+                val currentSong = playlistManager.playList.value.getOrNull(index) ?: return@launch
+                if (factory.keyOf(currentSong) != expectedKey || !currentSong.playable) return@launch
+
+                if (refreshedCloudItem != null) {
+                    replaceMediaItemAndRefreshCurrent(index, refreshedCloudItem, startPositionMs)
+                }
+                if (!mediaRefreshGate.isLatest(token)) return@launch
+
+                val activePlayer = exoPlayer ?: return@launch
+                val activeSong = playlistManager.playList.value.getOrNull(index) ?: return@launch
+                if (activePlayer !== expectedPlayer || factory.keyOf(activeSong) != expectedKey) return@launch
+                playlistManager.updateCurrentIndex(index)
+                if (activePlayer.currentMediaItemIndex != index) {
+                    activePlayer.seekTo(index, startPositionMs)
+                }
+                activePlayer.prepare()
+                if (autoPlay) activePlayer.play() else activePlayer.pause()
+                persistState(force = true)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                if (!mediaRefreshGate.isLatest(token)) return@launch
+                Log.w(TAG, "Failed to refresh media item before playback: $expectedKey", error)
+                if (autoPlay) handlePlaybackRequestFailure() else exoPlayer?.pause()
+            }
+        }
+    }
+
+    /** 自动切换已落到 Cloud 占位项时先暂停，避免播放器尝试读取占位 URI。 */
+    private fun pauseCloudBeforeRefresh(player: ExoPlayer, index: Int) {
+        val song = playlistManager.playList.value.getOrNull(index) ?: return
+        if (song.type == SongType.CLOUD && player.currentMediaItemIndex == index) {
+            player.pause()
         }
     }
 
@@ -803,7 +869,7 @@ class PlayerEngine(
 
     private fun syncPlaybackCacheAt(index: Int) {
         val song = playlistManager.playList.value.getOrNull(index) ?: return
-        if (song.type == SongType.LOCAL) return
+        if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) return
         val player = exoPlayer ?: return
         if (index !in 0 until player.mediaItemCount) return
         val qualityKey = playbackMediaCache.qualityKeyOf(song, player.getMediaItemAt(index)) ?: return
@@ -875,24 +941,50 @@ class PlayerEngine(
             val songs = normalized.songs
             val idx = normalized.currentIndex
             val pos = state.positionMs.coerceAtLeast(0L)
-            val prepared = prepareRestoredQueue(
+            val prepared = prepareRestoredQueueSuspending(
                 values = songs,
                 requestedIndex = idx,
-                transform = factory::createMediaItem,
+                transform = factory::createQueueMediaItem,
             ) ?: return@launch
+            val restoredItems = prepared.items.toMutableList()
+            var restoredIndex = prepared.currentIndex
+            if (prepared.values[restoredIndex].type == SongType.CLOUD) {
+                var resolvedIndex: Int? = null
+                for (offset in prepared.values.indices) {
+                    val candidateIndex = (prepared.currentIndex + offset) % prepared.values.size
+                    val candidateSong = prepared.values[candidateIndex]
+                    val candidateItem = if (candidateSong.type == SongType.CLOUD) {
+                        runCatching { factory.createMediaItem(candidateSong) }.getOrNull()
+                    } else {
+                        restoredItems[candidateIndex]
+                    }
+                    if (candidateItem != null) {
+                        restoredItems[candidateIndex] = candidateItem
+                        resolvedIndex = candidateIndex
+                        break
+                    }
+                }
+                restoredIndex = resolvedIndex ?: return@launch
+            }
             withContext(Dispatchers.Main) {
                 if (!playlistManager.restorePreparedState(
                         generation = restoreGeneration,
                         songs = prepared.values,
-                        index = prepared.currentIndex,
+                        index = restoredIndex,
                     )
                 ) {
                     return@withContext
                 }
-                val restoredPosition = if (prepared.selectedOriginalIndex == idx) pos else 0L
+                val restoredPosition = if (
+                    restoredIndex == prepared.currentIndex && prepared.selectedOriginalIndex == idx
+                ) {
+                    pos
+                } else {
+                    0L
+                }
                 exoPlayer?.apply {
                     clearMediaItems()
-                    setMediaItems(prepared.items, prepared.currentIndex, restoredPosition)
+                    setMediaItems(restoredItems, restoredIndex, restoredPosition)
                     applyPlayMode(SettingsPrefs.getPlayMode(context))
                     prepare()
                     pause()
@@ -908,6 +1000,10 @@ class PlayerEngine(
         audioRendererStateJob?.cancel()
         audioRendererStateJob = null
         cacheSyncJob.cancel()
+        mediaRefreshGate.invalidate()
+        mediaRefreshJob?.cancel()
+        mediaRefreshJob = null
+        engineJob.cancel()
         stopProgressUpdate()
         val player = exoPlayer
         exoPlayer = null

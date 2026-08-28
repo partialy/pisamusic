@@ -4,6 +4,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.model.SongType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -62,12 +63,13 @@ class PlaylistManager(private val factory: MediaItemFactory) {
      * 重复点击同一首歌不会重复入队；若歌曲不在主列表则追加可直接播放的逻辑项到主列表尾部。
      */
     fun addPlayNext(song: SongInfo) {
+        if (!song.playable) return
         restoreGate.invalidate()
         val generation = preparationGate.current()
         preparationScope.launch {
             preparationMutex.withLock {
                 val mediaItem = withContext(Dispatchers.IO) {
-                    runCatching { factory.createMediaItem(song) }.getOrNull()
+                    runCatching { factory.createQueueMediaItem(song) }.getOrNull()
                 } ?: return@withLock
                 if (!preparationGate.isCurrent(generation)) return@withLock
 
@@ -118,7 +120,8 @@ class PlaylistManager(private val factory: MediaItemFactory) {
     ) {
         restoreGate.invalidate()
         val generation = preparationGate.nextReplacement()
-        if (songs.isEmpty()) {
+        val playableSongs = songs.filter(SongInfo::playable)
+        if (playableSongs.isEmpty()) {
             onResult(PlaylistSetResult.Failed)
             return
         }
@@ -127,8 +130,8 @@ class PlaylistManager(private val factory: MediaItemFactory) {
             return
         }
 
-        val deduped = LinkedHashMap<String, SongInfo>(songs.size)
-        for (s in songs) deduped[factory.keyOf(s)] = s
+        val deduped = LinkedHashMap<String, SongInfo>(playableSongs.size)
+        for (s in playableSongs) deduped[factory.keyOf(s)] = s
         val list = deduped.values.toList()
         if (list.isEmpty()) {
             onResult(PlaylistSetResult.Failed)
@@ -139,7 +142,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         preparationScope.launch {
             preparationMutex.withLock {
                 val mediaItems = withContext(Dispatchers.IO) {
-                    prepareAllOrNull(list, factory::createMediaItem)
+                    prepareAllOrNullSuspending(list, factory::createQueueMediaItem)
                 }
                 if (!preparationGate.isCurrent(generation)) {
                     onResult(PlaylistSetResult.Stale)
@@ -161,7 +164,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
                 exoPlayer?.apply {
                     clearMediaItems()
                     setMediaItems(mediaItems, idx, 0)
-                    prepare()
+                    if (list[idx].type != SongType.CLOUD) prepare()
                 }
                 onResult(PlaylistSetResult.Applied(list, idx))
             }
@@ -174,7 +177,8 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         onApplied: (Boolean) -> Unit = {},
     ) {
         restoreGate.invalidate()
-        if (songs.isEmpty()) {
+        val playableSongs = songs.filter(SongInfo::playable)
+        if (playableSongs.isEmpty()) {
             onApplied(false)
             return
         }
@@ -183,8 +187,8 @@ class PlaylistManager(private val factory: MediaItemFactory) {
             preparationMutex.withLock {
                 val player = exoPlayer ?: return@withLock
                 val existingKeys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
-                val toAdd = ArrayList<SongInfo>(songs.size)
-                for (s in songs) {
+                val toAdd = ArrayList<SongInfo>(playableSongs.size)
+                for (s in playableSongs) {
                     if (existingKeys.add(factory.keyOf(s))) toAdd.add(s)
                 }
                 if (toAdd.isEmpty()) {
@@ -192,7 +196,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
                     return@withLock
                 }
                 val mediaItems = withContext(Dispatchers.IO) {
-                    prepareAllOrNull(toAdd, factory::createMediaItem)
+                    prepareAllOrNullSuspending(toAdd, factory::createQueueMediaItem)
                 }
                 if (mediaItems == null || !preparationGate.isCurrent(generation)) {
                     onApplied(false)
@@ -221,6 +225,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         autoPlay: Boolean,
         isLatest: () -> Boolean,
     ): Boolean {
+        if (!song.playable) return false
         restoreGate.invalidate()
         val generation = preparationGate.nextReplacement()
         val mediaItem = withContext(Dispatchers.IO) {
@@ -301,6 +306,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /** 把插播歌曲移动或插入指定位置，并保持业务列表与 ExoPlayer 列表一致。 */
     fun placePlayNextAt(index: Int, song: SongInfo): Int {
+        if (!song.playable) return exoPlayer?.currentMediaItemIndex?.coerceAtLeast(0) ?: 0
         val placement = planPlayNextPlacement(
             songs = _playList.value,
             requestedIndex = index,

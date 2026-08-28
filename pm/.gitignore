@@ -29,3 +29,5 @@ node_modules
 /server/data/*.db-shm
 /server/data/*.db-wal
 *.log
+
+design-html/

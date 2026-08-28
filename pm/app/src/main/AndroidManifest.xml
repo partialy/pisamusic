@@ -78,6 +78,12 @@
             android:exported="true"
             android:launchMode="singleTop">
         </activity>
+
+        <activity
+            android:name=".activity.CloudMusicSubmissionActivity"
+            android:exported="false"
+            android:label="@string/cloud_music_submission_title"
+            android:theme="@style/Theme.Pm" />
         
         <activity
             android:name=".activity.SearchActivity"

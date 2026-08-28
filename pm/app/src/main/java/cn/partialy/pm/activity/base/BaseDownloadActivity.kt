@@ -14,6 +14,7 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.kw.KwRepository
+import cn.partialy.pm.network.cloudmusic.CloudMusicRepository
 import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.network.wy.WyRepository
 import cn.partialy.pm.ui.dialog.ModernDialog
@@ -21,7 +22,9 @@ import cn.partialy.pm.ui.dialog.showDownloadQualityConfirmDialog
 import cn.partialy.pm.utils.DownloadManager
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.io.File
 import javax.inject.Inject
 
@@ -38,6 +41,9 @@ abstract class BaseDownloadActivity : BaseActivity() {
     @Inject
     lateinit var kwRepository: KwRepository
 
+    @Inject
+    lateinit var cloudMusicRepository: CloudMusicRepository
+
     /** 供菜单等外部入口触发与列表「下载」相同的流程。 */
     fun startSongDownloadFlow(songInfo: SongInfo) {
         onDownloadClick(songInfo)
@@ -47,6 +53,10 @@ abstract class BaseDownloadActivity : BaseActivity() {
         lifecycleScope.launch {
             if (songInfo.type == SongType.LOCAL) {
                 Toast.makeText(this@BaseDownloadActivity, R.string.local_song_no_online_download, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (!songInfo.playable) {
+                Toast.makeText(this@BaseDownloadActivity, R.string.cloud_music_disabled_download, Toast.LENGTH_SHORT).show()
                 return@launch
             }
             val session = AccountSessionStore.read(this@BaseDownloadActivity)
@@ -84,17 +94,56 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 return@launch
             }
 
-            val downloadInfo = when (val c = selected.choice) {
-                is DownloadQualityChoice.Kugou -> kgRepository.getDownloadUrl(songInfo, c.quality)
-                is DownloadQualityChoice.NeteaseBr -> wyRepository.getDownloadUrlWithBr(songInfo, c.br)
-                is DownloadQualityChoice.NeteaseLevel -> wyRepository.getDownloadUrlWithLevel(songInfo, c.level)
-                is DownloadQualityChoice.Kuwo -> kwRepository.getDownloadUrl(songInfo, c.quality)
+            if (songInfo.type != SongType.KW && SettingsPrefs.isWriteLyricsEnabled(this@BaseDownloadActivity)) {
+                val lyricText = try {
+                    when (songInfo.type) {
+                        SongType.KG -> kgRepository.getLyric(songInfo.id).getOrNull().orEmpty()
+                        SongType.WY -> wyRepository.getLyric(songInfo.id.toLongOrNull() ?: -1L).getOrNull().orEmpty()
+                        SongType.CLOUD -> {
+                            val resource = cloudMusicRepository.getLyricsResource(songInfo.id)
+                            cloudMusicRepository.fetchLyricsText(resource)
+                        }
+                        SongType.KW, SongType.LOCAL -> ""
+                    }
+                } catch (_: Exception) {
+                    ""
+                }
+                if (lyricText.isNotBlank()) songInfo.lyric = lyricText
+            }
+
+            // Cloud 的播放地址必须最后临近下载签发；资源响应自带格式时不再额外请求详情。
+            val downloadInfo = try {
+                when (val c = selected.choice) {
+                    is DownloadQualityChoice.Kugou -> kgRepository.getDownloadUrl(songInfo, c.quality)
+                    is DownloadQualityChoice.NeteaseBr -> wyRepository.getDownloadUrlWithBr(songInfo, c.br)
+                    is DownloadQualityChoice.NeteaseLevel -> wyRepository.getDownloadUrlWithLevel(songInfo, c.level)
+                    is DownloadQualityChoice.Kuwo -> kwRepository.getDownloadUrl(songInfo, c.quality)
+                    DownloadQualityChoice.CloudDefault -> {
+                        val resource = cloudMusicRepository.getPlayResource(songInfo.id)
+                        val url = resource.url.toHttpDownloadUrlOrNull()
+                            ?: throw IllegalArgumentException("invalid cloud download url")
+                        val format = resource.format.toSafeAudioExtension()
+                            ?: songInfo.name.substringAfterLast('.', "").toKnownAudioExtension()
+                            ?: DEFAULT_CLOUD_AUDIO_EXTENSION
+                        mapOf(
+                            "url" to url,
+                            "songName" to "cloud.$format",
+                        )
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mapOf("url" to "error")
             }
             if (downloadInfo["url"] == "error" || downloadInfo["url"] == "buy") {
                 Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            val url = downloadInfo["url"] ?: return@launch
+            val url = downloadInfo["url"]?.toHttpDownloadUrlOrNull() ?: run {
+                Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
             val ext = (downloadInfo["songName"] ?: "").substringAfterLast('.', "")
             val naming = SettingsPrefs.getFileNamingRule(this@BaseDownloadActivity)
             val base = when (naming) {
@@ -103,18 +152,6 @@ abstract class BaseDownloadActivity : BaseActivity() {
             }
             val name = if (ext.isNotBlank()) "$base.$ext" else base
 
-            if (songInfo.type != SongType.KW && SettingsPrefs.isWriteLyricsEnabled(this@BaseDownloadActivity)) {
-                val lyricText = try {
-                    when (songInfo.type) {
-                        SongType.KG -> kgRepository.getLyric(songInfo.id).getOrNull().orEmpty()
-                        SongType.WY -> wyRepository.getLyric(songInfo.id.toLongOrNull() ?: -1L).getOrNull().orEmpty()
-                        SongType.KW, SongType.LOCAL -> ""
-                    }
-                } catch (_: Exception) {
-                    ""
-                }
-                if (lyricText.isNotBlank()) songInfo.lyric = lyricText
-            }
             startDownload(url, name, songInfo)
         }
     }
@@ -199,5 +236,24 @@ abstract class BaseDownloadActivity : BaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
         downloadDialog?.dismiss()
+    }
+
+    private fun String.toHttpDownloadUrlOrNull(): String? {
+        val parsed = toHttpUrlOrNull() ?: return null
+        return takeIf { parsed.scheme == "https" || parsed.scheme == "http" }
+    }
+
+    private fun String?.toSafeAudioExtension(): String? = this
+        ?.trim()
+        ?.lowercase()
+        ?.removePrefix(".")
+        ?.takeIf { it.matches(Regex("[a-z0-9]{1,8}")) }
+
+    private fun String?.toKnownAudioExtension(): String? = toSafeAudioExtension()
+        ?.takeIf(KNOWN_AUDIO_EXTENSIONS::contains)
+
+    private companion object {
+        const val DEFAULT_CLOUD_AUDIO_EXTENSION = "mp3"
+        val KNOWN_AUDIO_EXTENSIONS = setOf("mp3", "flac", "wav", "m4a", "aac", "ogg", "opus", "ape", "wma")
     }
 }

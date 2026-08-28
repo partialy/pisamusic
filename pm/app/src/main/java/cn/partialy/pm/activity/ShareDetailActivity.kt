@@ -254,6 +254,7 @@ class ShareDetailActivity : BaseActivity() {
             "kg" -> SongType.KG
             "wy" -> SongType.WY
             "kw" -> SongType.KW
+            "cloud" -> SongType.CLOUD
             "local" -> SongType.LOCAL
             else -> null
         }

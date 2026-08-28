@@ -92,6 +92,18 @@ object NetworkModule {
             .build()
     }
 
+    /** 已由 server 签发的歌词临时 URL 专用；不得加入系统 AES 或音乐网关请求头。 */
+    @Provides
+    @Singleton
+    @Named("cloud_asset_okhttp")
+    fun provideCloudAssetOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+        // Network interceptor 会为每个重定向后的真实网络请求再次执行，拒绝 HTTPS 降级。
+        .addNetworkInterceptor { chain ->
+            require(chain.request().url.isHttps) { "cloud asset request must use HTTPS" }
+            chain.proceed(chain.request())
+        }
+        .build()
+
     /** 蓝源取链：附带 dfid（见 apidoc /register/dev） */
     @Provides
     @Singleton

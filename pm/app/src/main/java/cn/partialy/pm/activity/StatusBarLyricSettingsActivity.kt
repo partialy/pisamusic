@@ -230,6 +230,9 @@ class StatusBarLyricSettingsBridge(
         return jsonOk()
     }
 
+    private fun getString(resId: Int, vararg args: Any): String =
+        appContext.getString(resId, *args)
+
     private fun StatusBarLyricConfig.toJson(): JSONObject = JSONObject().apply {
         put("enabled", enabled)
         put("xPercent", xPercent)

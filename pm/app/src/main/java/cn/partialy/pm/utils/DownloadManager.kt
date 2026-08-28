@@ -97,7 +97,7 @@ class DownloadManager private constructor(private val context: Context) {
 
     private fun resolveEmbedCoverUrl(songInfo: SongInfo): String? = when (songInfo.type) {
         SongType.KW, SongType.LOCAL -> null
-        SongType.KG, SongType.WY -> SongCoverUrl
+        SongType.KG, SongType.WY, SongType.CLOUD -> SongCoverUrl
             .getSongCover(songInfo, SongCoverUrl.SIZE_MEDIUM)
             .takeIf { it.isNotBlank() }
     }

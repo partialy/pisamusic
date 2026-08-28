@@ -183,6 +183,9 @@ class LyricColorPresetsBridge(
         return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_update_failed))
     }
 
+    private fun getString(resId: Int, vararg args: Any): String =
+        appContext.getString(resId, *args)
+
     private fun jsonOk(): String = JSONObject().put("ok", true).put("message", "").toString()
 
     private fun jsonErr(msg: String): String = JSONObject().put("ok", false).put("message", msg).toString()

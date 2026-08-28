@@ -24,6 +24,7 @@ import cn.partialy.pm.utils.SongCoverUrl
 class MediaItemFactory(
     private val context: Context,
     private val playbackMediaCache: PlaybackMediaCache,
+    private val playUrlGetter: PlayUrlGetter,
 ) {
 
     companion object {
@@ -39,6 +40,7 @@ class MediaItemFactory(
 
     fun playbackQualityKeyOf(song: SongInfo): String {
         if (song.type == SongType.LOCAL) return "local"
+        if (song.type == SongType.CLOUD) return "cloud:default"
         val choice = savedPlaybackQualityChoice(song)
         return choice?.toPlaybackQualityKey() ?: "auto"
     }
@@ -59,26 +61,58 @@ class MediaItemFactory(
         return allowedChoice
     }
 
-    /** 在线歌曲使用逻辑 URI；本地歌曲保留原始 content/file URI 并绕过缓存。 */
-    fun createMediaItem(song: SongInfo): MediaItem {
+    /**
+     * 构造可立即播放的媒体项。Cloud 每次调用都会重新向 server 签发临时地址，
+     * 因此只能在真正准备播放或切换音质时使用。
+     */
+    suspend fun createMediaItem(song: SongInfo): MediaItem {
+        require(song.playable) { "song is disabled" }
         val choice = savedPlaybackQualityChoice(song)
         val qualityKey = choice?.toPlaybackQualityKey() ?: "auto"
-        return if (song.type == SongType.LOCAL) {
-            buildMediaItem(song, song.id)
-        } else {
-            playbackMediaCache.mediaItem(song, qualityKey)
+        return when (song.type) {
+            SongType.LOCAL -> buildMediaItem(song, song.id)
+            SongType.CLOUD -> buildCloudMediaItem(song, choice ?: DownloadQualityChoice.CloudDefault)
+            SongType.KG, SongType.WY, SongType.KW -> playbackMediaCache.mediaItem(song, qualityKey)
         }
     }
 
-    fun createMediaItemWithQuality(
+    /**
+     * 构造稳定队列项。Cloud 只登记不含临时地址的占位项，切到该曲目前再由
+     * PlayerEngine 通过 [createMediaItem] 刷新，避免整批队列长期持有过期签名。
+     */
+    suspend fun createQueueMediaItem(song: SongInfo): MediaItem {
+        require(song.playable) { "song is disabled" }
+        return if (song.type == SongType.CLOUD) {
+            createPlaceholderMediaItem(song)
+        } else {
+            createMediaItem(song)
+        }
+    }
+
+    suspend fun createMediaItemWithQuality(
         song: SongInfo,
         choice: DownloadQualityChoice,
     ): MediaItem {
+        require(song.playable) { "song is disabled" }
         if (!choice.matchesSongType(song.type)) {
             throw IllegalArgumentException("quality does not match song type")
         }
+        if (song.type == SongType.CLOUD) {
+            return buildCloudMediaItem(song, choice)
+        }
         val qualityKey = choice.toPlaybackQualityKey()
         return playbackMediaCache.mediaItem(song, qualityKey)
+    }
+
+    private suspend fun buildCloudMediaItem(
+        song: SongInfo,
+        choice: DownloadQualityChoice,
+    ): MediaItem {
+        val resolved = playUrlGetter.getUrl(song, choice, allowFallback = false)
+        require(resolved.url.startsWith("http://") || resolved.url.startsWith("https://")) {
+            "cloud play url resolution failed"
+        }
+        return buildMediaItem(song, resolved.url, mediaId = keyOf(song))
     }
 
     /** 创建占位 MediaItem（不请求 URL，切歌时再按需获取） */

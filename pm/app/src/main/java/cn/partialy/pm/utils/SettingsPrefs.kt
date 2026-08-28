@@ -22,6 +22,7 @@ object SettingsPrefs {
     private const val KEY_PLAYBACK_QUALITY_KG = "playback_quality_kg"
     private const val KEY_PLAYBACK_QUALITY_WY = "playback_quality_wy"
     private const val KEY_PLAYBACK_QUALITY_KW = "playback_quality_kw"
+    private const val KEY_PLAYBACK_QUALITY_CLOUD = "playback_quality_cloud"
 
     private const val DEFAULT_AUDIO_CACHE_MAX_MB = 2048L
     private const val MIN_AUDIO_CACHE_MAX_MB = 100L
@@ -143,6 +144,7 @@ object SettingsPrefs {
         SongType.KG -> KEY_PLAYBACK_QUALITY_KG
         SongType.WY -> KEY_PLAYBACK_QUALITY_WY
         SongType.KW -> KEY_PLAYBACK_QUALITY_KW
+        SongType.CLOUD -> KEY_PLAYBACK_QUALITY_CLOUD
         SongType.LOCAL -> null
     }
 
@@ -209,4 +211,3 @@ object SettingsPrefs {
 
     fun getAudioCacheDefaultMb(): Long = DEFAULT_AUDIO_CACHE_MAX_MB
 }
-

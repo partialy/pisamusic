@@ -168,7 +168,8 @@ class AudioEffectPresetEditActivity : BaseActivity() {
                 bassMonoProtectHz = AudioEffectState.BASS_MONO_PROTECT_OPTIONS_HZ.getOrElse(progress) {
                     AudioEffectState.BASS_MONO_PROTECT_DEFAULT_HZ
                 }
-                binding.bassMonoProtectValueText.text = formatBassProtect(this, bassMonoProtectHz)
+                binding.bassMonoProtectValueText.text =
+                    formatBassProtect(this@AudioEffectPresetEditActivity, bassMonoProtectHz)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
