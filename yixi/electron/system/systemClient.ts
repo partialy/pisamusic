@@ -7,6 +7,7 @@ import { getAppDatabase } from "../database";
 import { logDebugRequest } from "../utils/requestDebug";
 import { decrypt, encrypt, randomFullKey } from "./encryption";
 import { signGatewayUrl } from "./gatewaySigner";
+import { mergeRequestHeaders } from "./requestHeaders";
 import { getServiceDiscoverySnapshot } from "./serviceDiscovery";
 import type {
   Announcement,
@@ -192,9 +193,9 @@ export async function submitDesktopFaultReport(body: FaultReportRequest) {
   const session = getAccountSession();
   const response = await requestSystem<FaultReportSubmitData>("/api/fault-reports", {
     method: "POST",
+    token: session.loggedIn ? session.token : undefined,
     body,
     recordFailure: false,
-    headers: session.loggedIn ? { Authorization: `Bearer ${session.token}` } : undefined,
   });
   return unwrapResponse(response);
 }
@@ -329,7 +330,7 @@ export async function refreshAccountSession() {
   try {
     const response = await requestSystem<AccountAuthResult>("/api/auth/refresh", {
       method: "POST",
-      headers: { Authorization: `Bearer ${session.token}` },
+      token: session.token,
     });
     return saveAccountSession(unwrapResponse(response));
   } catch (error) {
@@ -343,8 +344,8 @@ export async function sendProfileEmailCode(payload: { email: string }) {
   if (!session.loggedIn) throw new Error("请先登录账号");
   const response = await requestSystem<{ expiresAt: number; nextSendAt: number }>("/api/auth/profile/email-code", {
     method: "POST",
+    token: session.token,
     body: payload,
-    headers: { Authorization: `Bearer ${session.token}` },
   });
   return unwrapResponse(response);
 }
@@ -354,8 +355,8 @@ export async function updateAccountProfile(payload: { username?: string; email?:
   if (!session.loggedIn) throw new Error("请先登录账号");
   const response = await requestSystem<AccountAuthResult>("/api/auth/profile", {
     method: "PATCH",
+    token: session.token,
     body: payload,
-    headers: { Authorization: `Bearer ${session.token}` },
   });
   return saveAccountSession(unwrapResponse(response));
 }
@@ -386,12 +387,12 @@ export async function uploadAccountAvatar(): Promise<AccountAvatarUploadResult> 
   const mimeType = inferImageMimeType(fileName);
   const tokenResponse = await requestSystem<AccountAvatarUploadToken>("/api/auth/avatar/upload-token", {
     method: "POST",
+    token: session.token,
     body: {
       fileName,
       fileSize: fileStat.size,
       mimeType,
     },
-    headers: { Authorization: `Bearer ${session.token}` },
   });
   const uploadToken = unwrapResponse(tokenResponse);
   await uploadQiniuPublicFile(uploadToken, filePath, fileName, mimeType);
@@ -404,8 +405,8 @@ export async function changeAccountPassword(payload: { currentPassword: string; 
   if (!session.loggedIn) throw new Error("璇峰厛鐧诲綍璐﹀彿");
   const response = await requestSystem<{ updated: boolean }>("/api/auth/password/change", {
     method: "POST",
+    token: session.token,
     body: payload,
-    headers: { Authorization: `Bearer ${session.token}` },
   });
   return unwrapResponse(response);
 }
@@ -423,8 +424,8 @@ export async function createShare(type: ShareType, rawJson: unknown) {
   if (!session.loggedIn || !session.token) throw new Error("请先登录账号");
   const response = await requestSystem<ShareCreateResult>("/api/shares", {
     method: "POST",
+    token: session.token,
     body: { type, rawJson },
-    headers: { Authorization: `Bearer ${session.token}` },
   });
   return unwrapResponse(response);
 }
@@ -486,8 +487,8 @@ export async function getSyncChanges(token: string, since: number) {
   const response = await requestSystem<{ version: number; changes: SyncChange[] }>(
     `/api/sync/changes?since=${encodeURIComponent(String(since))}`,
     {
+      token,
       headers: {
-        Authorization: `Bearer ${token}`,
         "x-pm-device-id": getDesktopDeviceClientId(),
       },
     }
@@ -500,9 +501,9 @@ export async function pushSyncChanges(token: string, changes: SyncChangeInput[])
     "/api/sync/changes",
     {
       method: "POST",
+      token,
       body: { changes },
       headers: {
-        Authorization: `Bearer ${token}`,
         "x-pm-device-id": getDesktopDeviceClientId(),
       },
     }
@@ -651,10 +652,7 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
   }
 
   try {
-    const requestHeaders = {
-      ...headers,
-      ...(options.headers ?? {}),
-    };
+    const requestHeaders = mergeRequestHeaders(headers, options.headers);
     logDebugRequest({
       scope: "system",
       method,

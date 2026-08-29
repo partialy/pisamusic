@@ -102,6 +102,7 @@ export async function createListenTogetherRoom(
   try {
     const response = (await requestSystem<{ room: ListenTogetherRoom }>("/api/listen-together/rooms", {
       method: "POST",
+      token: session.token,
       body: {
         roomName,
         ...(roomId ? { roomId } : {}),
@@ -110,7 +111,6 @@ export async function createListenTogetherRoom(
         memberOperation: payload.memberOperation === true,
         replaceExisting: payload.replaceExisting === true,
       },
-      headers: { Authorization: `Bearer ${session.token}` },
     })) as ListenTogetherEnvelope<{ room: ListenTogetherRoom }>;
     if (!response.success || response.code !== 0 || !response.data?.room) {
       return { ok: false, error: envelopeError(response, "创建房间失败") };
@@ -136,7 +136,7 @@ export async function getListenTogetherRoom(
     const response = (await requestSystem<{ room: ListenTogetherRoom }>(
       `/api/listen-together/rooms/${encodeURIComponent(cleanRoomId)}`,
       {
-        headers: { Authorization: `Bearer ${session.token}` },
+        token: session.token,
       },
     )) as ListenTogetherEnvelope<{ room: ListenTogetherRoom }>;
     if (!response.success || response.code !== 0 || !response.data?.room) {

@@ -103,6 +103,7 @@
 ## 请求与配置规则补充
 
 - `electron/system/systemClient.ts` 是桌面端访问外层 `server/` 的统一入口：bootstrap/runtime endpoints 默认只做内存缓存，只有缓存为空时才拉取；需要强制刷新时才调用 `refreshBootstrap()` 或带 `fresh=true` 的 `system:get-runtime-endpoints`。
+- `requestSystem()` 的账号鉴权统一使用 `RequestOptions.token` 或当前 `account-session` 自动注入；业务调用不得在 `headers` 中手写 `Authorization`。基础 Header 与调用方 Header 必须按名称大小写不敏感地合并，避免 Fetch 把 `authorization` / `Authorization` 拼成非法的逗号分隔 JWT。
 - system API 请求需要对齐手机端 PM 的加解密规则：main 侧统一添加 `x-pm-random`、`x-pm-enc-ver`，JSON 请求体使用 `{ isEnc, encData }` 信封，响应如果返回加密信封必须在 main 侧解密后再交给 renderer。
 - renderer 不要在页面、store 或 API 工具中直接向 `server` 获取 baseURL，也不要持有 AES 派生逻辑、网关签名密钥或真实音源端点；音源请求统一走 main 侧 `music:*` IPC。
 
@@ -278,5 +279,4 @@
 - 未打包的开发模式（`pnpm dev`，`!app.isPackaged`）由 `electron/core/appPaths.ts` 在主进程启动最早期自动将 `userData` 路径重定向至 `${appData}/PisaMusic-Dev`，并将 `appName` 设为 `PisaMusic-Dev`。
 - 打包正式版继续使用默认 `%APPDATA%/PisaMusic`（或 macOS/Linux 对应路径）。
 - 隔离内容包括：SQLite 数据库（`pisamusic.db`、`media-cache-index.db`）、KG/WY 登录 Cookie 文件（`kugou_cookie_user.json`、`wy_cookie_user.json`）、Token Session、本地歌单与日志；确保开发调试不会影响或覆盖打包软件中的登录态。
-
 

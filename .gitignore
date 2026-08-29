@@ -71,3 +71,4 @@ design-html/
 
 *.test.*
 *.spec.*
+!yixi/electron/system/requestHeaders.test.ts
