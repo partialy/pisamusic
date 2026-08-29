@@ -1,5 +1,7 @@
 package cn.partialy.pm.ui.mine
 
+import cn.partialy.pm.ui.collapsing.CollapsingHeaderPolicy
+
 internal data class MineHeaderLayoutMetrics(
     val overlayHeightPx: Int,
     val contentPaddingTopPx: Int,
@@ -12,14 +14,14 @@ internal object MineHeaderLayoutPolicy {
         baseHeaderHeightPx: Int,
         statusBarTopPx: Int,
     ): MineHeaderLayoutMetrics {
-        require(baseHeaderHeightPx > 0) { "baseHeaderHeightPx must be positive" }
-        require(statusBarTopPx >= 0) { "statusBarTopPx must not be negative" }
-
-        val totalHeaderHeightPx = baseHeaderHeightPx + statusBarTopPx
+        val metrics = CollapsingHeaderPolicy.resolveLayout(
+            baseHeaderHeightPx = baseHeaderHeightPx,
+            statusBarTopPx = statusBarTopPx,
+        )
         return MineHeaderLayoutMetrics(
-            overlayHeightPx = totalHeaderHeightPx,
-            contentPaddingTopPx = statusBarTopPx,
-            collapsingMinimumHeightPx = totalHeaderHeightPx,
+            overlayHeightPx = metrics.overlayHeightPx,
+            contentPaddingTopPx = metrics.contentPaddingTopPx,
+            collapsingMinimumHeightPx = metrics.collapsingMinimumHeightPx,
         )
     }
 }

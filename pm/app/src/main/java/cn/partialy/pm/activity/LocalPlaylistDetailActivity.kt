@@ -3,18 +3,16 @@ package cn.partialy.pm.activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.util.UnstableApi
-import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
@@ -30,7 +28,7 @@ import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailContentAdapter
-import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderAdapter
+import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderController
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
 import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
 import cn.partialy.pm.ui.widget.observeSongListPlaybackState
@@ -50,7 +48,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
     private lateinit var playlistId: String
     private var miniPlayerBinder: HomeMiniPlayerBinder? = null
 
-    private val headerAdapter = PlaylistDetailHeaderAdapter()
+    private lateinit var headerController: PlaylistDetailHeaderController
     private lateinit var contentAdapter: PlaylistDetailContentAdapter
     private lateinit var interactionController: PlaylistDetailInteractionController
 
@@ -68,6 +66,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityPlaylistDetailBinding.inflate(layoutInflater)
+        headerController = PlaylistDetailHeaderController(binding.playlistHeader)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
 
@@ -89,15 +88,6 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                 }
             },
         )
-
-        val baseHeaderHeightPx = (56f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.headerBar) { view, insets ->
-            val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            view.layoutParams = view.layoutParams.apply { height = baseHeaderHeightPx + top }
-            binding.headerBarContent.updatePadding(top = top)
-            insets
-        }
 
         binding.backButton.setOnClickListener { finishAnimated() }
         binding.shareButton.setOnClickListener {
@@ -123,15 +113,15 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
         observeSongListPlaybackState(musicController, contentAdapter)
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(this@LocalPlaylistDetailActivity)
-            adapter = ConcatAdapter(headerAdapter, contentAdapter)
+            adapter = contentAdapter
             itemAnimator = null
         }
-        headerAdapter.updateHeader(
+        headerController.updateHeader(
             title = getString(R.string.mine_tab_playlists),
             artwork = PlaylistHeaderArtwork.LocalPlaylist(""),
             trackCountText = getString(R.string.playlist_zero_tracks),
         )
-        headerAdapter.updateCollectionState(
+        headerController.updateCollectionState(
             visible = true,
             enabled = false,
             collected = true,
@@ -144,7 +134,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
         interactionController = PlaylistDetailInteractionController.attach(
             activity = this,
             binding = binding,
-            headerAdapter = headerAdapter,
+            headerController = headerController,
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
             onToggleCollect = {},
@@ -153,7 +143,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                 PlaylistSongsSearchActivity.start(
                     context = this,
                     songs = songs,
-                    title = headerAdapter.state.title,
+                    title = headerController.state.title,
                 )
             },
         )
@@ -175,7 +165,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                         return@collect
                     }
                     val songs = playlistCollectionManager.getLocalPlaylistSongs(playlistId)
-                    headerAdapter.updateHeader(
+                    headerController.updateHeader(
                         title = meta.name,
                         description = meta.intro,
                         artwork = PlaylistHeaderArtwork.LocalPlaylist(meta.cover),
@@ -220,9 +210,9 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
         val overlapPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_overlap)
         val miniHeightPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_height)
         binding.root.applySystemBarsInsets { insets ->
-            val layoutParams = binding.homeMiniPlayer.root.layoutParams as ConstraintLayout.LayoutParams
-            layoutParams.bottomMargin = miniBottomBase + overlapPx + insets.bottom
-            binding.homeMiniPlayer.root.layoutParams = layoutParams
+            binding.homeMiniPlayer.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = miniBottomBase + overlapPx + insets.bottom
+            }
             binding.recyclerView.updatePadding(bottom = miniHeightPx + miniBottomBase + insets.bottom)
         }
     }
@@ -234,6 +224,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
 
     override fun onDestroy() {
         if (::interactionController.isInitialized) interactionController.dispose()
+        if (::headerController.isInitialized) headerController.dispose()
         miniPlayerBinder?.onDestroy()
         miniPlayerBinder = null
         super.onDestroy()

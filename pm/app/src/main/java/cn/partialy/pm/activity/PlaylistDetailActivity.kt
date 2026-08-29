@@ -2,24 +2,15 @@ package cn.partialy.pm.activity
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
-import android.content.res.ColorStateList
 import android.os.Bundle
+import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
-import androidx.core.widget.ImageViewCompat
+import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
-import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityPlaylistDetailBinding
@@ -36,7 +27,7 @@ import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailContentAdapter
-import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderAdapter
+import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderController
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
 import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
 import cn.partialy.pm.ui.widget.observeSongListPlaybackState
@@ -65,7 +56,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     /** 后台全量加载协程 */
     private var allTracksLoadJob: Job? = null
 
-    private val headerAdapter = PlaylistDetailHeaderAdapter()
+    private lateinit var headerController: PlaylistDetailHeaderController
     private lateinit var contentAdapter: PlaylistDetailContentAdapter
     private lateinit var interactionController: PlaylistDetailInteractionController
 
@@ -83,6 +74,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityPlaylistDetailBinding.inflate(layoutInflater)
+        headerController = PlaylistDetailHeaderController(binding.playlistHeader)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
 
@@ -98,15 +90,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 }
             },
         )
-
-        val baseHeaderHeightPx = (56f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.headerBar) { v, insets ->
-            val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            v.layoutParams = v.layoutParams.apply { height = baseHeaderHeightPx + top }
-            binding.headerBarContent.updatePadding(top = top)
-            insets
-        }
 
         binding.backButton.setOnClickListener { finishAnimated() }
         binding.shareButton.setOnClickListener {
@@ -138,11 +121,11 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         observeSongListPlaybackState(musicController, contentAdapter)
         binding.recyclerView.apply {
             layoutManager = LinearLayoutManager(this@PlaylistDetailActivity)
-            adapter = ConcatAdapter(headerAdapter, contentAdapter)
+            adapter = contentAdapter
             itemAnimator = null
         }
         // 先用 Intent 里的信息填充 Header，保证页面立刻可见
-        headerAdapter.updateHeader(
+        headerController.updateHeader(
             title = title,
             description = desc,
             artwork = PlaylistHeaderArtwork.Remote(coverUrl),
@@ -160,7 +143,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         interactionController = PlaylistDetailInteractionController.attach(
             activity = this,
             binding = binding,
-            headerAdapter = headerAdapter,
+            headerController = headerController,
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
             onToggleCollect = ::togglePlaylistCollect,
@@ -169,7 +152,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 PlaylistSongsSearchActivity.start(
                     context = this,
                     songs = songs,
-                    title = headerAdapter.state.title,
+                    title = headerController.state.title,
                     sourceId = pagingPlaylistId,
                 )
             },
@@ -209,7 +192,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
 
     private fun syncPlaylistCollectButton() {
         val supported = pagingPlaylistId.startsWith("collection_")
-        headerAdapter.updateCollectionState(
+        headerController.updateCollectionState(
             visible = true,
             enabled = supported,
             collected = supported && isKgPlaylistCollected(),
@@ -224,9 +207,9 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         return CollectedPlaylist(
             type = CollectedPlaylistType.KG,
             id = pagingPlaylistId,
-            name = headerAdapter.state.title,
-            intro = headerAdapter.state.description,
-            cover = (headerAdapter.state.artwork as? PlaylistHeaderArtwork.Remote)?.url.orEmpty(),
+            name = headerController.state.title,
+            intro = headerController.state.description,
+            cover = (headerController.state.artwork as? PlaylistHeaderArtwork.Remote)?.url.orEmpty(),
             count = count.coerceAtLeast(0),
         )
     }
@@ -249,9 +232,9 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         val overlapPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_overlap)
         val miniHeightPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_height)
         binding.root.applySystemBarsInsets { insets ->
-            val lp = binding.homeMiniPlayer.root.layoutParams as ConstraintLayout.LayoutParams
-            lp.bottomMargin = miniBottomBase + overlapPx + insets.bottom
-            binding.homeMiniPlayer.root.layoutParams = lp
+            binding.homeMiniPlayer.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = miniBottomBase + overlapPx + insets.bottom
+            }
 
             val listPadBottom = miniHeightPx + miniBottomBase + insets.bottom
             binding.recyclerView.updatePadding(bottom = listPadBottom)
@@ -269,6 +252,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         miniPlayerBinder?.onDestroy()
         miniPlayerBinder = null
         if (::interactionController.isInitialized) interactionController.dispose()
+        if (::headerController.isInitialized) headerController.dispose()
         super.onDestroy()
     }
 
@@ -313,7 +297,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                     val d = item.intro.ifBlank { item.tags }.ifBlank { "" }
                     val cover = item.pic.ifBlank { fallbackCoverUrl }.replace("{size}", "240")
                     withContext(Dispatchers.Main) {
-                        headerAdapter.updateHeader(
+                        headerController.updateHeader(
                             title = t,
                             description = d,
                             artwork = PlaylistHeaderArtwork.Remote(cover),
@@ -341,7 +325,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 R.string.playlist_track_count_compact,
                 if (total > 0) total else mapped.size,
             )
-            headerAdapter.updateHeader(trackCountText = label)
+            headerController.updateHeader(trackCountText = label)
             contentAdapter.setFirstPageSuccess(
                 rows = mapped,
                 apiTotal = total,

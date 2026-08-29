@@ -119,16 +119,6 @@
             app:rippleColor="#1A000000" />
     </LinearLayout>
 
-    <!-- 唯一的播放工具条位于 Activity 外层；这里仅保留等高定位占位。 -->
-    <Space
-        android:id="@+id/playAllAnchor"
-        android:layout_width="0dp"
-        android:layout_height="52dp"
-        android:layout_marginTop="18dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/headerButtonsContainer" />
-
     <LinearLayout
         android:id="@+id/playlistSearchBarLayout"
         android:layout_width="0dp"
@@ -140,7 +130,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/playAllAnchor">
+        app:layout_constraintTop_toBottomOf="@id/headerButtonsContainer">
 
         <EditText
             android:id="@+id/playlistSearchInput"

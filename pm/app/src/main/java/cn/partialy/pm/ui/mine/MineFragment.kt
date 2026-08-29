@@ -25,6 +25,7 @@ import cn.partialy.pm.databinding.FragmentMineBinding
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.ui.collapsing.CollapsingHeaderPolicy
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.google.android.material.appbar.AppBarLayout
@@ -107,17 +108,20 @@ class MineFragment : Fragment() {
 
         val triggerPx = (200f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
         appBarOffsetListener = AppBarLayout.OnOffsetChangedListener { _, verticalOffset ->
-            val scrollY = -verticalOffset
-            currentHeaderAlpha = (scrollY.toFloat() / triggerPx).coerceIn(0f, 1f)
+            val chrome = CollapsingHeaderPolicy.resolveChrome(
+                verticalOffset = verticalOffset,
+                triggerPx = triggerPx,
+            )
+            currentHeaderAlpha = chrome.progress
             binding.mineHeaderBg.alpha = currentHeaderAlpha
             applyStatusBarIconStyle(currentHeaderAlpha)
 
-            val iconTint = if (currentHeaderAlpha < 0.5f) {
-                android.R.color.white
-            } else {
+            val iconTint = if (chrome.useSurfaceIcons) {
                 R.color.colorOnBgNormal
+            } else {
+                android.R.color.white
             }
-            binding.titleText.visibility = if (currentHeaderAlpha < 0.9f) View.GONE else View.VISIBLE
+            binding.titleText.visibility = if (chrome.showTitle) View.VISIBLE else View.GONE
             val color = requireContext().getColor(iconTint)
             binding.mineMenuButton.setColorFilter(color)
             binding.mineSearchButton.setColorFilter(color)
@@ -157,7 +161,7 @@ class MineFragment : Fragment() {
         val baseHeaderHeightPx = resources.getDimensionPixelSize(R.dimen.home_header_bar_height)
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val statusBarTopPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            val metrics = MineHeaderLayoutPolicy.resolve(
+            val metrics = CollapsingHeaderPolicy.resolveLayout(
                 baseHeaderHeightPx = baseHeaderHeightPx,
                 statusBarTopPx = statusBarTopPx,
             )

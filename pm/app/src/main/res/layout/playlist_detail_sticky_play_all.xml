@@ -4,7 +4,7 @@
     android:id="@+id/stickyPlayAllRow"
     android:layout_width="match_parent"
     android:layout_height="52dp"
-    android:background="@color/home_page_bg"
+    android:background="@drawable/bg_mine_playlist_sheet"
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_vertical"
