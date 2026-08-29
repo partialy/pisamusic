@@ -109,7 +109,7 @@
 - KG：`KgApiService`、`KgUrlProxyApiService`、`KgRepository`、`DfidInterceptor`
 - WY：`WyApiService`、`WyUrlProxyApiService`、`WyRepository`
 - KW：`KwSearchApiService`、`KwUrlProxyApiService`、`KwRepository`
-- Cloud：`SystemApiService` + `network/cloudmusic/CloudMusicRepository`，只访问外层 server 的 `/api/cloud-music/*`。首页第二个 Tab 为“云盘”，空关键词展示全部可搜索曲目，搜索和滚动分页固定 `limit=20`；`active` 可播放，`disabled` 可搜索但不可取播放地址。封面使用稳定 `/tracks/:uuid/cover`，歌词先获取临时 URL 再由仅允许 HTTPS 的资源 client 拉取。
+- Cloud：`SystemApiService` + `network/cloudmusic/CloudMusicRepository` / `CloudMusicSubmissionRepository`，只访问外层 server 的 `/api/cloud-music/*`。首页第二个 Tab 为“云盘”，空关键词展示全部可搜索曲目，搜索和滚动分页固定 `limit=20`；`active` 可播放，`disabled` 可搜索但不可取播放地址。封面使用稳定 `/tracks/:uuid/cover`，歌词先获取临时 URL 再由仅允许 HTTPS 的资源 client 拉取。云盘投稿已复用 server `/api/cloud-music/submit/*` 接口，支持 URI 流式上传、投稿历史和 `rejected/pending_review` 重新提审；临时上传凭证与签名 URL 仅在内存中使用，不落库。
 - `ConfigManager` 从外层系统服务端获取启动配置，并动态提供 KG / WY / KW / proxy 端点、歌曲 URL 端点和网关签名配置。
 - App 启动访问系统服务前先由 `network/discovery/ServiceDiscoveryManager` 读取远程发现文档、缓存或 BuildConfig embedded origin；生产 discovery fetch/health 必须使用 OkHttp `enqueue` 接入协程取消并在取消时 `Call.cancel()`，不得恢复阻塞 `execute()`。`SystemApiService` 与一起听明文配置 Retrofit 固定使用 `system.runtime.invalid` 占位地址，并由 `SystemServiceEndpointInterceptor` 在请求发出前改写为当前 discovery API origin。bootstrap 必须使用发现快照中的相对 `bootstrapPath`，只有快照仍为 current 且响应有效时才发布音乐端点和网关签名；下发前音乐端点保持 `music-runtime.invalid` 不可路由。
 - Splash 是启动 bootstrap 的唯一入口，`MainActivity` 不得重复刷新。进入在线启动前调用 `ConfigManager.beginOnlineStartup()`；任何自动降级或用户主动进入本地模式的路径必须调用 `ConfigManager.enterLocalMode()`，立即把音乐端点重置为 `music-runtime.invalid` 并通过 generation 拒绝晚到的旧 bootstrap 响应。

@@ -35,9 +35,16 @@ import cn.partialy.pm.fault.FaultReportSubmitResponse
 import cn.partialy.pm.network.cloudmusic.CloudMusicEnvelope
 import cn.partialy.pm.network.cloudmusic.CloudMusicSearchDto
 import cn.partialy.pm.network.cloudmusic.CloudMusicSignedResourceDto
+import cn.partialy.pm.network.cloudmusic.CloudMusicAssetReserveRequest
+import cn.partialy.pm.network.cloudmusic.CloudMusicAssetUploadTicketDto
+import cn.partialy.pm.network.cloudmusic.CloudMusicSubmissionHistoryDto
+import cn.partialy.pm.network.cloudmusic.CloudMusicSubmissionInput
 import cn.partialy.pm.network.cloudmusic.CloudMusicSummaryDto
 import cn.partialy.pm.network.cloudmusic.CloudMusicTrackDto
+import cn.partialy.pm.network.cloudmusic.CloudMusicUploadSessionDto
+import cn.partialy.pm.network.cloudmusic.CloudMusicUploadSessionRequest
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
@@ -185,4 +192,52 @@ interface SystemApiService {
     suspend fun getCloudMusicLyricsUrl(
         @Path("uuid") uuid: String,
     ): CloudMusicEnvelope<CloudMusicSignedResourceDto>
+
+    @POST("api/cloud-music/submit/upload-sessions")
+    suspend fun createCloudMusicUploadSession(
+        @Header("Authorization") authorization: String,
+        @Body body: CloudMusicUploadSessionRequest,
+    ): CloudMusicEnvelope<CloudMusicUploadSessionDto>
+
+    @POST("api/cloud-music/submit/{uuid}/assets/{kind}/reserve")
+    suspend fun reserveCloudMusicAsset(
+        @Header("Authorization") authorization: String,
+        @Path("uuid") uuid: String,
+        @Path("kind") kind: String,
+        @Body body: CloudMusicAssetReserveRequest,
+    ): CloudMusicEnvelope<CloudMusicAssetUploadTicketDto>
+
+    @POST("api/cloud-music/submit/{uuid}/assets/{kind}/complete")
+    suspend fun completeCloudMusicAsset(
+        @Header("Authorization") authorization: String,
+        @Path("uuid") uuid: String,
+        @Path("kind") kind: String,
+    ): CloudMusicEnvelope<CloudMusicTrackDto>
+
+    @DELETE("api/cloud-music/submit/{uuid}/cover")
+    suspend fun removeCloudMusicCover(
+        @Header("Authorization") authorization: String,
+        @Path("uuid") uuid: String,
+    ): CloudMusicEnvelope<CloudMusicTrackDto>
+
+    @POST("api/cloud-music/submit/{uuid}/save")
+    suspend fun saveCloudMusicSubmission(
+        @Header("Authorization") authorization: String,
+        @Path("uuid") uuid: String,
+        @Body body: CloudMusicSubmissionInput,
+    ): CloudMusicEnvelope<CloudMusicTrackDto>
+
+    @GET("api/cloud-music/submit/my-history")
+    suspend fun getCloudMusicSubmissionHistory(
+        @Header("Authorization") authorization: String,
+        @Query("offset") offset: Int,
+        @Query("limit") limit: Int,
+    ): CloudMusicEnvelope<CloudMusicSubmissionHistoryDto>
+
+    @POST("api/cloud-music/submit/{uuid}/resubmit")
+    suspend fun resubmitCloudMusicSubmission(
+        @Header("Authorization") authorization: String,
+        @Path("uuid") uuid: String,
+        @Body body: CloudMusicSubmissionInput,
+    ): CloudMusicEnvelope<CloudMusicTrackDto>
 }

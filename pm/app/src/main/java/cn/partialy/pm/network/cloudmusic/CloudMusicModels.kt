@@ -31,6 +31,8 @@ data class CloudMusicTrackDto(
     val durationMs: Long = 0L,
     val format: String? = null,
     val playable: Boolean = true,
+    val status: String? = null,
+    val statusReason: String? = null,
     val cover: CloudMusicCoverDto? = null,
     val lyrics: CloudMusicLyricsDto? = null,
     val createdAt: Long? = null,

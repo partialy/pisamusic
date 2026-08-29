@@ -54,6 +54,23 @@
     <color name="cloud_music_entry_btn_bg">#EFEFEF</color>
     <color name="cloud_music_disabled_badge_bg">#EEEFF2</color>
     <color name="cloud_music_disabled_badge_text">#737780</color>
+    <color name="cloud_music_submission_card_bg">#FFFFFF</color>
+    <color name="cloud_music_submission_card_stroke">#E6E8EC</color>
+    <color name="cloud_music_submission_footer_bg">#F8F9FB</color>
+    <color name="cloud_music_submission_status_neutral_bg">#EEF0F3</color>
+    <color name="cloud_music_submission_status_neutral_text">#59616D</color>
+    <color name="cloud_music_submission_status_pending_bg">#FFF3D6</color>
+    <color name="cloud_music_submission_status_pending_text">#8A5A00</color>
+    <color name="cloud_music_submission_status_active_bg">#E6F6EC</color>
+    <color name="cloud_music_submission_status_active_text">#18794E</color>
+    <color name="cloud_music_submission_status_disabled_bg">#ECEEF2</color>
+    <color name="cloud_music_submission_status_disabled_text">#606776</color>
+    <color name="cloud_music_submission_status_rejected_bg">#FDEBEC</color>
+    <color name="cloud_music_submission_status_rejected_text">#B4232C</color>
+    <color name="cloud_music_submission_status_deleted_bg">#E8EAED</color>
+    <color name="cloud_music_submission_status_deleted_text">#4F5661</color>
+    <color name="cloud_music_submission_reason_text">#626A76</color>
+    <color name="cloud_music_submission_reason_danger_text">#B4232C</color>
 
     <color name="home_search_field_bg">#EFEFEF</color>
     <color name="home_item_border">#E5E5E5</color>

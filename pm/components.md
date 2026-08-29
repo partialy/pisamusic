@@ -66,7 +66,7 @@
 | 首页推荐歌单卡片 | 首页横向/网格歌单卡片 | `item_home_recommend_playlist.xml` | `HomeRecommendPlaylistAdapter`、`HomePlaylistGridAdapter` | 首页歌单卡片优先复用。 |
 | 首页功能卡片 | 云盘、每日推荐、雷达歌单入口 | `item_home_feature_card.xml` | `HomeFeatureCardsAdapter` | 第一张固定进入云盘共享音乐空间，三张卡片使用无内嵌文字的简约底图并由布局统一叠字；卡片固定 `128dp × 170dp`，横向间距 `10dp`，约露出半张第三卡；外部阴影保持 `1dp`，底部使用 `80dp` 的透明到深色渐变羽化层承载标题/描述；“今日推荐”左上显示动态 `M-d 周X` 日期标签，不得恢复为静态日期。 |
 | 首页每日歌曲卡片 | 每日歌曲横向六行网格 | `item_song_list.xml` | `HomeDailySongGridAdapter` | 复用通用歌曲行；Adapter 仅保留 90% 屏宽、72dp 外层高度与骨架动画。 |
-| 云盘数据概览与功能专区 | 首页云盘 Hero 指标卡片、双入口卡片与最近更新预览 | `fragment_cloud_music.xml`、`bg_cloud_music_entry_card.xml`、`bg_cloud_music_summary.xml` | `CloudMusicFragment` | 包含共享音乐空间 Hero 卡片（3指标：歌曲总数、我的贡献、最近更新）、功能专区（搜索云盘、我要投稿双卡片）、最近更新预览（前 3 首）。 |
+| 云盘数据概览与功能专区 | 首页云盘 Hero 指标卡片、三入口卡片与最近更新预览 | `fragment_cloud_music.xml`、`bg_cloud_music_entry_card.xml`、`bg_cloud_music_summary.xml`、`bg_cloud_music_icon_history.xml` | `CloudMusicFragment` | 包含共享音乐空间 Hero 卡片（3指标：歌曲总数、我的贡献、最近更新）、功能专区（搜索云盘、我要投稿双列卡片 + 投稿记录全宽卡片）、最近更新预览（前 3 首）。 |
 | 云盘独立搜索页 | 云盘全局检索与全量分页浏览 | `CloudMusicSearchActivity`、`activity_loved_songs_search.xml` | `CloudMusicSearchActivity`、`CloudMusicListAdapter` | 复用收藏搜索同款布局，默认展示全部云盘歌曲支持滑动分页加载，输入关键词实时防抖检索。 |
 | 搜索建议 / 热搜项 | 搜索页建议和热搜 | `item_search_suggestion.xml`、`item_hot_search.xml`、`item_search_recommend.xml` | `SuggestionsAdapter`、`HotSearchAdapter`、`SearchViewModel.suggestionJob` | 提示词随输入立即请求，新输入必须取消旧 Retrofit 请求并清空旧提示；热搜继续复用现有列表项。 |
 | 搜索音源选择器 | 搜索页当前音源与下拉选项 | `activity_search.xml`、`layout_search_source_dropdown.xml`、`item_search_source_option.xml` | `SearchActivity`、`SongSourceTagBinder` | 当前项和弹出选项只显示 K / Y / W 方块标签，当前弹出项右侧显示勾选；不展示“小蓝 / 小红 / 小黄”平台别名。 |
@@ -96,7 +96,7 @@
 | 列表空状态 | 播放队列、详情页、列表无数据 | `bottom_sheet_playlist.xml`、`item_playlist_detail_status.xml`、`item_playlist_detail_list_status.xml` | 对应 Activity / Adapter | 空状态文案和可见性处理参考。 |
 | 列表加载 / 错误状态 | 歌单详情、列表加载失败 | `item_playlist_detail_status.xml`、`item_playlist_detail_list_status.xml` | `PlaylistDetailActivity` 等 | 加载、重试、错误展示参考。 |
 | 通用 WebView 页面 | 协议、隐私、配置 HTML 内容 | `pm/app/src/main/res/layout/activity_web_content.xml` | `activity/web` 相关页面 | WebView 内容承载参考。 |
-| 投稿占位页 | 云盘投稿功能未开放时的独立页面 | `activity_cloud_music_submission.xml` | `CloudMusicSubmissionActivity` | 使用 edge-to-edge、返回导航和居中分享图标；只展示标题与准备中说明，不放假表单或禁用提交按钮。 |
+| 云盘投稿中心 | 云盘投稿、投稿记录与重新提审统一页面 | `activity_cloud_music_submission.xml`、`include_cloud_music_submission_editor.xml`、`item_cloud_music_submission_history.xml`、`dialog_image_preview.xml` | `CloudMusicSubmissionActivity`、`CloudMusicSubmissionViewModel`、`CloudMusicSubmissionHistoryAdapter` | 使用 edge-to-edge 与顶部 HeaderBar 标签切换“我要投稿 / 投稿记录”；采用反馈同款虚线上传框、选中即时图片/卡片预览展示、全屏大图预览与一键清除，支持系统文件选择、URI 流式直传、元数据编辑确认、审核进度历史列表与驳回/待审状态下的重新提审。 |
 | 分享详情页 | App 内打开音乐分享链接或本地查看详情 | `pm/app/src/main/java/cn/partialy/pm/activity/ShareDetailActivity.kt` | `activity_share_detail.xml`、`bg_share_detail_*`、`SongSourceTagBinder`、`ShareBottomSheet` | 歌单来源使用歌曲列表同款 K / Y 标签；本地详情右侧复用分享 Sheet，外链通过 `pisamusic://scan?type=music-share` 唤醒时右侧收藏 KG/WY 歌单。 |
 | WebView 本地错误页 | WebView 加载失败兜底 | `pm/app/src/main/java/cn/partialy/pm/ui/web/LocalGenericErrorWebViewController.kt` | `assets/` 内本地错误页面 | WebView 错误兜底优先用这个控制器。 |
 | 安全区 / 系统栏适配 | edge-to-edge padding | `pm/app/src/main/java/cn/partialy/pm/ui/insets/SystemBarsExt.kt` | `applySystemBarsInsets` 等扩展 | 新全屏页面先参考。 |

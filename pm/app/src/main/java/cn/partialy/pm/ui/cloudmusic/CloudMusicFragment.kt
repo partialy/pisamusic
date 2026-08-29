@@ -1,10 +1,12 @@
 package cn.partialy.pm.ui.cloudmusic
 
+import android.app.Activity
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -12,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.AppActivityTransitions
 import cn.partialy.pm.activity.CloudMusicSearchActivity
 import cn.partialy.pm.activity.CloudMusicSubmissionActivity
 import cn.partialy.pm.activity.MainActivity
@@ -19,6 +22,7 @@ import cn.partialy.pm.databinding.FragmentCloudMusicBinding
 import cn.partialy.pm.databinding.ItemSongListBinding
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.player.MusicController
+import cn.partialy.pm.ui.cloudmusic.submission.CloudMusicSubmissionSection
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.widget.SongListItemActions
@@ -55,6 +59,14 @@ class CloudMusicFragment : Fragment() {
     private var currentRecentSongs: List<SongInfo> = emptyList()
     private var recentPlaybackState: SongListPlaybackState = SongListPlaybackState()
 
+    private val submissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.refresh()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -85,7 +97,23 @@ class CloudMusicFragment : Fragment() {
         }
 
         cloudMusicSubmitCard.setOnClickListener {
-            CloudMusicSubmissionActivity.start(requireActivity())
+            submissionLauncher.launch(
+                CloudMusicSubmissionActivity.createIntent(
+                    requireContext(),
+                    CloudMusicSubmissionSection.SUBMIT,
+                ),
+            )
+            AppActivityTransitions.applyForward(requireActivity())
+        }
+
+        cloudMusicHistoryCard.setOnClickListener {
+            submissionLauncher.launch(
+                CloudMusicSubmissionActivity.createIntent(
+                    requireContext(),
+                    CloudMusicSubmissionSection.HISTORY,
+                ),
+            )
+            AppActivityTransitions.applyForward(requireActivity())
         }
 
         cloudMusicViewAllButton.setOnClickListener {
