@@ -25,6 +25,9 @@ import cn.partialy.pm.model.SyncPushRequest
 import cn.partialy.pm.model.SyncPushResult
 import cn.partialy.pm.model.UpdateInfo
 import cn.partialy.pm.network.api.SystemApiService
+import cn.partialy.pm.listening.ListeningBatchRequest
+import cn.partialy.pm.listening.ListeningBatchResult
+import cn.partialy.pm.listening.ListeningSummary
 import cn.partialy.pm.network.discovery.ServiceDiscoveryManager
 import cn.partialy.pm.network.discovery.ServiceDiscoverySnapshot
 import cn.partialy.pm.network.gateway.GatewaySignRuntime
@@ -366,6 +369,22 @@ class ConfigManager @Inject constructor(
         }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "推送同步变更失败" })
         return response.data
+    }
+
+    suspend fun uploadListeningFragments(token: String, deviceId: String, body: ListeningBatchRequest): ListeningBatchResult {
+        val response = systemCall("听歌时长上报失败") {
+            systemApiService.uploadListeningFragments("Bearer $token", deviceId, body)
+        }
+        if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "听歌时长上报失败" })
+        return response.data
+    }
+
+    suspend fun getListeningSummary(token: String): ListeningSummary {
+        val response = systemCall("听歌时长获取失败") {
+            systemApiService.getListeningSummary("Bearer $token")
+        }
+        if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "听歌时长获取失败" })
+        return response.data.summary
     }
 
     private fun BootstrapEndpoints.toRuntimeEndpoints(): RuntimeEndpoints {

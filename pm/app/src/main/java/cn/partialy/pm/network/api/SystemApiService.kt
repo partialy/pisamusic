@@ -43,6 +43,9 @@ import cn.partialy.pm.network.cloudmusic.CloudMusicSummaryDto
 import cn.partialy.pm.network.cloudmusic.CloudMusicTrackDto
 import cn.partialy.pm.network.cloudmusic.CloudMusicUploadSessionDto
 import cn.partialy.pm.network.cloudmusic.CloudMusicUploadSessionRequest
+import cn.partialy.pm.listening.ListeningBatchRequest
+import cn.partialy.pm.listening.ListeningBatchResponse
+import cn.partialy.pm.listening.ListeningSummaryResponse
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -142,6 +145,18 @@ interface SystemApiService {
         @Header("x-pm-device-id") deviceId: String,
         @Body body: SyncPushRequest,
     ): SyncPushResponse
+
+    @POST("api/listening/fragments/batch")
+    suspend fun uploadListeningFragments(
+        @Header("Authorization") authorization: String,
+        @Header("x-pm-device-id") deviceId: String,
+        @Body body: ListeningBatchRequest,
+    ): ListeningBatchResponse
+
+    @GET("api/listening/summary")
+    suspend fun getListeningSummary(
+        @Header("Authorization") authorization: String,
+    ): ListeningSummaryResponse
 
     @POST("api/listen-together/rooms")
     suspend fun createListenTogetherRoom(
