@@ -1,7 +1,28 @@
 import { useMemo, useState } from "react";
-import type { DynamicConfigItem } from "../../types/config";
-import { glassCardClasses, glassInputClasses } from "../../constants/theme";
-import { Win } from "../../utils/win";
+import {
+  Button,
+  Card,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
+import type { DynamicConfigItem, DynamicConfigType } from "../../types/config";
+
+const { Text } = Typography;
 
 type Props = {
   items: DynamicConfigItem[];
@@ -12,122 +33,221 @@ type Props = {
   onDelete: (item: DynamicConfigItem) => void;
 };
 
-function typeLabel(type: DynamicConfigItem["type"]): string {
+function typeTag(type: DynamicConfigType) {
   switch (type) {
     case "html":
-      return "HTML";
+      return <Tag color="orange">HTML 片段</Tag>;
     case "number":
-      return "数字";
+      return <Tag color="blue">数字</Tag>;
     case "url":
-      return "URL";
+      return <Tag color="green">URL 链接</Tag>;
     default:
-      return "字符串";
+      return <Tag color="geekblue">字符串</Tag>;
   }
 }
 
-export default function DynamicConfigTab({ items, themeColor, loading, onCreate, onEdit, onDelete }: Props) {
+export default function DynamicConfigTab({
+  items,
+  themeColor: _,
+  loading,
+  onCreate,
+  onEdit,
+  onDelete,
+}: Props) {
   const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [previewHtmlItem, setPreviewHtmlItem] = useState<DynamicConfigItem | null>(null);
 
   const filteredItems = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return items;
-    return items.filter((item) => item.id.toLowerCase().includes(keyword));
-  }, [items, query]);
+    return items.filter((item) => {
+      const matchKeyword = !keyword || item.id.toLowerCase().includes(keyword) || (item.content || "").toLowerCase().includes(keyword);
+      const matchType = typeFilter === "all" || item.type === typeFilter;
+      return matchKeyword && matchType;
+    });
+  }, [items, query, typeFilter]);
 
-  const handlePreviewHtml = (item: DynamicConfigItem) => {
-    new Win({
-      title: item.id,
-      content: item.content,
-      theme: "win",
-      width: 800,
-      height: 600,
-    }).show();
-  };
+  const columns: ColumnsType<DynamicConfigItem> = [
+    {
+      title: "配置 ID",
+      dataIndex: "id",
+      key: "id",
+      width: 220,
+      render: (id: string) => (
+        <Tooltip title={`公开读取接口: /api/config/get?id=${id}`}>
+          <Text copyable={{ text: id }} strong className="font-mono text-xs text-slate-800">
+            {id}
+          </Text>
+        </Tooltip>
+      ),
+    },
+    {
+      title: "配置类型",
+      dataIndex: "type",
+      key: "type",
+      width: 120,
+      align: "center",
+      render: (type: DynamicConfigType) => typeTag(type),
+    },
+    {
+      title: "配置内容",
+      dataIndex: "content",
+      key: "content",
+      render: (content: string, record) => (
+        <Tooltip title={content}>
+          <div className="font-mono text-xs text-slate-600 truncate max-w-[500px]">
+            {record.type === "url" ? (
+              <a href={content} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                {content}
+              </a>
+            ) : (
+              content || <span className="text-slate-400">(空内容)</span>
+            )}
+          </div>
+        </Tooltip>
+      ),
+    },
+    {
+      title: "操作",
+      key: "actions",
+      fixed: "right",
+      width: 180,
+      render: (_, record) => (
+        <Space size={4}>
+          {record.type === "html" && (
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => setPreviewHtmlItem(record)}
+            >
+              预览
+            </Button>
+          )}
+
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => onEdit(record)}
+          >
+            编辑
+          </Button>
+
+          <Popconfirm
+            title={`确认删除配置 "${record.id}"？`}
+            description="删除后，客户端请求此 ID 将不再返回该配置内容。"
+            onConfirm={() => onDelete(record)}
+            okText="确认删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="w-full sm:max-w-sm">
-          <input
-            type="text"
+    <div className="space-y-4 animate-fade-in-up">
+      <Card
+        bordered={false}
+        className="shadow-sm rounded-2xl"
+        title={
+          <div>
+            <span className="text-lg font-bold text-slate-800">动态配置管理</span>
+            <span className="ml-2 text-xs font-normal text-slate-500">
+              公开读取接口：<code className="text-slate-600 font-mono">GET /api/config/get?id=xxx</code>
+            </span>
+          </div>
+        }
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={onCreate}
+          >
+            新增配置
+          </Button>
+        }
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="搜索配置 ID 或内容..."
+            prefix={<SearchOutlined className="text-slate-400" />}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className={glassInputClasses}
-            placeholder="按配置 ID 搜索"
+            allowClear
+            className="w-full sm:w-72"
           />
+
+          <Select
+            value={typeFilter}
+            onChange={(val) => setTypeFilter(val)}
+            className="w-36"
+            options={[
+              { label: "全部类型", value: "all" },
+              { label: "字符串 (string)", value: "string" },
+              { label: "数字 (number)", value: "number" },
+              { label: "URL 链接 (url)", value: "url" },
+              { label: "HTML 片段 (html)", value: "html" },
+            ]}
+          />
+
+          <Button onClick={() => { setQuery(""); setTypeFilter("all"); }}>
+            重置
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={onCreate}
-          style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-          className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
+
+        <Table<DynamicConfigItem>
+          rowKey="id"
+          columns={columns}
+          dataSource={filteredItems}
+          loading={loading}
+          size="middle"
+          scroll={{ x: 900 }}
+          bordered
+          pagination={{
+            pageSize: 15,
+            showTotal: (t) => `共 ${t} 项配置`,
+            showQuickJumper: true,
+          }}
+        />
+      </Card>
+
+      {/* HTML Preview Modal */}
+      {previewHtmlItem && (
+        <Modal
+          open
+          centered
+          title={
+            <Space>
+              <EyeOutlined className="text-blue-500" />
+              <span>HTML 实时预览</span>
+              <Tag color="orange">{previewHtmlItem.id}</Tag>
+            </Space>
+          }
+          width={760}
+          onCancel={() => setPreviewHtmlItem(null)}
+          footer={[
+            <Button key="close" type="primary" onClick={() => setPreviewHtmlItem(null)}>
+              关闭预览
+            </Button>,
+          ]}
+          destroyOnClose
         >
-          新增配置
-        </button>
-      </div>
-
-      <div className={glassCardClasses}>
-        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800 sm:text-xl">动态配置列表</h2>
-            <p className="mt-1 text-sm text-slate-500">公开读取接口：`GET /api/config/get?id=xxx`</p>
+          <div className="max-h-[60vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-700 shadow-2xs leading-relaxed">
+            <div
+              dangerouslySetInnerHTML={{
+                __html: previewHtmlItem.content || '<span class="text-slate-400">暂无内容</span>',
+              }}
+            />
           </div>
-          <div className="text-sm font-semibold text-slate-500">共 {filteredItems.length} 项</div>
-        </div>
-
-        {loading ? (
-          <div className="rounded-2xl border border-white/60 bg-white/40 px-4 py-12 text-center text-sm font-semibold text-slate-500">
-            正在加载动态配置...
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/60 bg-white/30 px-4 py-12 text-center text-sm text-slate-500">
-            {items.length === 0 ? "暂无动态配置，点击右上角创建第一条配置。" : "没有匹配的配置项。"}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredItems.map((item) => (
-              <div key={item.id} className="rounded-3xl border border-white/60 bg-white/40 p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">{item.id}</span>
-                      <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600">{typeLabel(item.type)}</span>
-                    </div>
-                    <div className="mt-4 line-clamp-2 overflow-hidden text-ellipsis whitespace-pre-wrap break-all rounded-2xl border border-white/60 bg-white/60 p-4 text-xs text-slate-700 shadow-inner">
-                      {item.content || "(空字符串)"}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 gap-3">
-                    {item.type === "html" && (
-                      <button
-                        type="button"
-                        onClick={() => handlePreviewHtml(item)}
-                        className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-white"
-                      >
-                        预览
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onEdit(item)}
-                      className="rounded-2xl border border-white/60 bg-white/70 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-white"
-                    >
-                      编辑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDelete(item)}
-                      className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-600 shadow-sm transition-colors hover:bg-rose-100"
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        </Modal>
+      )}
     </div>
   );
 }
