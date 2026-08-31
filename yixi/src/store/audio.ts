@@ -8,6 +8,7 @@ import electronAPI from "@/utils/electron";
 import { normalizeSong } from "@/utils/song";
 import { useLibraryStore } from "./library";
 import { useUserStore } from "./user";
+import { useSleepTimerStore } from "./sleepTimer";
 import { reportError } from "@/utils/errorReporter";
 import { showLimitedWarning } from "@/utils/limitedMessage";
 import {
@@ -553,6 +554,14 @@ export const useAudioStore = defineStore("audio", () => {
   const handleTrackEnd = (): void => {
     // 一起听模式：房主按房间队列推进 / 成员等待房主指令，本地 repeatMode 不生效
     if (playbackBridge?.onTrackEnded()) return;
+
+    // 定时关闭：等待当前歌曲播完判定
+    const sleepTimerStore = useSleepTimerStore();
+    if (sleepTimerStore.onSongEnded()) {
+      isPlaying.value = false;
+      return;
+    }
+
     if (repeatMode.value === "single") {
       // 单曲循环模式下重新播放当前歌曲
       play(currentSong.value);

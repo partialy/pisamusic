@@ -80,6 +80,8 @@ declare module 'vue' {
     SequenceItem: typeof import('./src/components/player/SequenceItem.vue')['default']
     ShareDialog: typeof import('./src/components/common/ShareDialog.vue')['default']
     ShortcutSetting: typeof import('./src/components/setting/shortcut/ShortcutSetting.vue')['default']
+    SleepTimerEntry: typeof import('./src/components/sleepTimer/SleepTimerEntry.vue')['default']
+    SleepTimerModal: typeof import('./src/components/sleepTimer/SleepTimerModal.vue')['default']
     SongItem: typeof import('./src/components/playList/songItem.vue')['default']
     SongList: typeof import('./src/components/list/SongList.vue')['default']
     SyncSetting: typeof import('./src/components/setting/sync/SyncSetting.vue')['default']

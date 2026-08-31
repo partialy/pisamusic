@@ -11,6 +11,7 @@ import { useMineLibraryStore } from "./mineLibrary";
 import { useUserStore } from './user';
 import { useShortcutStore } from "./shortcut";
 import { useListenTogetherStore } from "./listenTogether";
+import { useSleepTimerStore } from "./sleepTimer";
 export {
   useSettingStore,
   useCommonStore,
@@ -25,4 +26,5 @@ export {
   useUserStore,
   useShortcutStore,
   useListenTogetherStore,
+  useSleepTimerStore,
 };

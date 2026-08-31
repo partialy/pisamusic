@@ -59,6 +59,8 @@
           @search="handleSearchClick"
         ></TipsHistory>
       </div>
+      <!-- 定时关闭入口 -->
+      <SleepTimerEntry class="sleep-timer-entry" />
     </div>
     <!-- 右侧内容 -->
     <div class="right">
@@ -111,6 +113,7 @@
 <script setup lang="ts">
 import { TipsHistory } from "./search";
 import { ElectronOperation } from "@/components";
+import { SleepTimerEntry } from "./sleepTimer";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import {
   NButtonGroup,
@@ -374,6 +377,11 @@ onMounted(async () => {
       border-radius: 12px;
       box-shadow: 0 0 10px #00000033;
       z-index: 100;
+    }
+
+    .sleep-timer-entry {
+      margin-left: 0.75rem;
+      -webkit-app-region: no-drag;
     }
   }
 
