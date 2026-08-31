@@ -37,6 +37,7 @@ import cn.partialy.pm.player.SleepTimerManager
 import cn.partialy.pm.player.SleepTimerRules
 import cn.partialy.pm.player.SleepTimerState
 import cn.partialy.pm.listen.ListenTogetherScanLink
+import cn.partialy.pm.listening.ListeningManager
 import cn.partialy.pm.share.ShareLink
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.cookie.MusicCookieManager
@@ -97,6 +98,9 @@ class MainActivity : BaseDownloadActivity() {
 
     @Inject
     lateinit var syncManager: SyncManager
+
+    @Inject
+    lateinit var listeningManager: ListeningManager
 
     @Inject
     lateinit var sleepTimerManager: SleepTimerManager
@@ -176,6 +180,7 @@ class MainActivity : BaseDownloadActivity() {
                 syncManager.syncNow()
             }
         }
+        listeningManager.onAppStarted()
 
         DownloadPathManager.createDownloadDirectory(
             DownloadPathManager.getDownloadPath(this)

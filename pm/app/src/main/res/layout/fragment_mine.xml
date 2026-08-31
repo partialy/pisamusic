@@ -93,6 +93,22 @@
                         android:visibility="gone"
                         tools:text="2026-8-27 10:50:25"
                         tools:visibility="visible" />
+
+                    <TextView
+                        android:id="@+id/listeningLevelTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:background="@drawable/bg_mine_vip_expiry_tag"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:paddingHorizontal="5dp"
+                        android:paddingVertical="2dp"
+                        android:textColor="#CCFFFFFF"
+                        android:textSize="11sp"
+                        android:visibility="gone"
+                        tools:text="Lv 1  累计听歌 0 分钟"
+                        tools:visibility="visible" />
                 </LinearLayout>
             </FrameLayout>
 

@@ -1,7 +1,5 @@
 package cn.partialy.pm.listening
 
-import com.google.gson.annotations.SerializedName
-
 data class ListeningTrack(
     val source: String,
     val songId: String,
@@ -44,12 +42,19 @@ data class ListeningSummary(
     val level: ListeningLevel,
 )
 
-data class ListeningBatchResponse(
+data class ListeningBatchResult(
     val accepted: List<String> = emptyList(),
     val duplicate: List<String> = emptyList(),
     val rejected: List<ListeningRejected> = emptyList(),
     val summary: ListeningSummary?,
     val serverTimeMs: Long?,
+)
+
+data class ListeningBatchResponse(
+    val msg: String = "",
+    val code: Int = 0,
+    val success: Boolean = true,
+    val data: ListeningBatchResult,
 )
 
 data class ListeningRejected(
@@ -58,8 +63,10 @@ data class ListeningRejected(
 )
 
 data class ListeningSummaryResponse(
-    val summary: ListeningSummary?,
-    val serverTimeMs: Long?,
+    val msg: String = "",
+    val code: Int = 0,
+    val success: Boolean = true,
+    val data: ListeningSummary,
 )
 
 data class ListeningCheckpoint(

@@ -21,6 +21,7 @@ import cn.partialy.pm.databinding.ActivityLoginBinding
 import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.listening.ListeningManager
 import cn.partialy.pm.sync.SyncManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,9 @@ class LoginActivity : BaseActivity() {
 
     @Inject
     lateinit var syncManager: SyncManager
+
+    @Inject
+    lateinit var listeningManager: ListeningManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityLoginBinding.inflate(layoutInflater)
@@ -252,6 +256,7 @@ class LoginActivity : BaseActivity() {
                 }
                 AccountSessionStore.save(this@LoginActivity, result)
                 syncManager.startAccountSync()
+                listeningManager.onAccountAvailable()
             }
             toast(R.string.account_login_success)
             finish()

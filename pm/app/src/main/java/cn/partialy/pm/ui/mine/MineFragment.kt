@@ -15,6 +15,9 @@ import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.viewpager2.widget.ViewPager2
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.AccountProfileActivity
@@ -25,6 +28,8 @@ import cn.partialy.pm.databinding.FragmentMineBinding
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.listening.ListeningManager
+import cn.partialy.pm.listening.formatListeningDuration
 import cn.partialy.pm.ui.collapsing.CollapsingHeaderPolicy
 import coil.load
 import coil.transform.CircleCropTransformation
@@ -35,11 +40,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MineFragment : Fragment() {
 
     @Inject lateinit var configManager: ConfigManager
+    @Inject lateinit var listeningManager: ListeningManager
 
     private var _binding: FragmentMineBinding? = null
     private val binding get() = _binding!!
@@ -64,6 +72,7 @@ class MineFragment : Fragment() {
         super.onResume()
         (activity as? MainActivity)?.refreshMineProfileBackgroundFromLogin()
         applyMineProfileTexts()
+        listeningManager.refreshSummary()
         applyMineAvatarDisplay()
         if ((activity as? MainActivity)?.isMineContentActive() == true) {
             restoreSystemBarStyleForCurrentHeader()
@@ -105,6 +114,11 @@ class MineFragment : Fragment() {
         binding.avatarImageView.setOnClickListener { openAccountEntry() }
 
         applyMineProfileTexts()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                listeningManager.summary.collect { applyListeningSummary() }
+            }
+        }
 
         val triggerPx = (200f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
         appBarOffsetListener = AppBarLayout.OnOffsetChangedListener { _, verticalOffset ->
@@ -227,6 +241,26 @@ class MineFragment : Fragment() {
             b.vipExpiryTextView.contentDescription = null
             b.vipExpiryTextView.isVisible = false
         }
+        applyListeningSummary()
+    }
+
+    private fun applyListeningSummary() {
+        val b = _binding ?: return
+        val session = AccountSessionStore.read(requireContext())
+        val value = listeningManager.summary.value
+        if (!session.loggedIn || value == null) {
+            b.listeningLevelTextView.text = ""
+            b.listeningLevelTextView.contentDescription = null
+            b.listeningLevelTextView.isVisible = false
+            return
+        }
+        b.listeningLevelTextView.text = getString(
+            R.string.mine_listening_level,
+            value.level.level,
+            formatListeningDuration(value.totalMinutes),
+        )
+        b.listeningLevelTextView.contentDescription = b.listeningLevelTextView.text
+        b.listeningLevelTextView.isVisible = true
     }
 
     /** 按账号登录状态刷新头像。 */
