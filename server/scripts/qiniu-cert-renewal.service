@@ -1,0 +1,15 @@
+[Unit]
+Description=Renew PisaMusic Qiniu CDN certificate
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/www/wwwroot/cert
+ExecStart=/usr/bin/node /www/wwwroot/cert/renew-qiniu-cdn-cert.js
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+
