@@ -29,6 +29,7 @@ import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.listening.ListeningManager
+import cn.partialy.pm.listening.orEmpty
 import cn.partialy.pm.listening.formatListeningDuration
 import cn.partialy.pm.ui.collapsing.CollapsingHeaderPolicy
 import coil.load
@@ -247,13 +248,13 @@ class MineFragment : Fragment() {
     private fun applyListeningSummary() {
         val b = _binding ?: return
         val session = AccountSessionStore.read(requireContext())
-        val value = listeningManager.summary.value
-        if (!session.loggedIn || value == null) {
+        if (!session.loggedIn) {
             b.listeningLevelTextView.text = ""
             b.listeningLevelTextView.contentDescription = null
             b.listeningLevelTextView.isVisible = false
             return
         }
+        val value = listeningManager.summary.value.orEmpty()
         b.listeningLevelTextView.text = getString(
             R.string.mine_listening_level,
             value.level.level,
