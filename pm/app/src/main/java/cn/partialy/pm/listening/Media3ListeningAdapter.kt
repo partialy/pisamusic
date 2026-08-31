@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.security.MessageDigest
 
 data class PlaybackObservation(
     val track: ListeningTrack?,
@@ -29,10 +30,15 @@ class Media3ListeningAdapter @Inject constructor(
 
     private fun SongInfo.toListeningTrack(): ListeningTrack = ListeningTrack(
         source = type.name.lowercase(),
-        songId = id,
+        songId = if (type == cn.partialy.pm.model.SongType.LOCAL) opaqueLocalId(id) else id,
         title = name,
         artist = artist,
         album = album,
         trackDurationMs = duration?.toLong()?.takeIf { it > 0 }?.let { it * 1000L },
     )
+
+    private fun opaqueLocalId(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+        return "local-" + digest.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    }
 }
