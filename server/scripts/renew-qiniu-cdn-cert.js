@@ -49,7 +49,8 @@ function loadConfig() {
   const fileValues = parseEnvFile(CONFIG_FILE);
   const config = { ...fileValues, ...process.env };
   if (!config.CF_Token && config.CF_API_TOKEN) config.CF_Token = config.CF_API_TOKEN;
-  const required = ['CF_Token', 'QINIU_ACCESS_KEY', 'QINIU_SECRET_KEY'];
+  const required = ['QINIU_ACCESS_KEY', 'QINIU_SECRET_KEY'];
+  if (!config.CF_Token) required.unshift('CF_API_TOKEN');
   const missing = required.filter((key) => !config[key]);
   if (missing.length) {
     fail(`缺少配置项: ${missing.join(', ')}（配置文件: ${CONFIG_FILE}）`);

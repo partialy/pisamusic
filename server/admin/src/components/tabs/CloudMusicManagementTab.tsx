@@ -1,5 +1,32 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Input,
+  Modal,
+  Popconfirm,
+  Radio,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  ClearOutlined,
+  CustomerServiceOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import {
   cleanupCloudMusicTemp,
   deleteCloudMusic,
@@ -7,7 +34,6 @@ import {
   fetchCloudMusicTempSummary,
   fetchCloudMusicTracks,
 } from "../../api/cloudMusic";
-import { glassCardClasses, glassInputClasses } from "../../constants/theme";
 import type {
   CloudMusicListFilter,
   CloudMusicStatus,
@@ -18,6 +44,8 @@ import type {
 import CloudMusicEditModal from "../modals/CloudMusicEditModal";
 import CloudMusicReviewModal from "../modals/CloudMusicReviewModal";
 import CloudMusicUploadModal from "../modals/CloudMusicUploadModal";
+
+const { Text } = Typography;
 
 type Props = {
   themeColor: string;
@@ -42,32 +70,32 @@ function formatDate(ts: number | null): string {
   return new Date(ts).toLocaleString();
 }
 
-function statusBadge(status: CloudMusicStatus) {
+function statusTag(status: CloudMusicStatus) {
   switch (status) {
     case "active":
-      return <span className="inline-flex rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">可用</span>;
+      return <Tag color="success">可用</Tag>;
     case "disabled":
-      return <span className="inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">禁用</span>;
+      return <Tag color="warning">禁用</Tag>;
     case "offline":
-      return <span className="inline-flex rounded-md bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">下架</span>;
+      return <Tag color="default">下架</Tag>;
     case "pending_review":
-      return <span className="inline-flex rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">待审核</span>;
+      return <Tag color="processing">待审核</Tag>;
     case "rejected":
-      return <span className="inline-flex rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">已拒绝</span>;
+      return <Tag color="error">已拒绝</Tag>;
     case "temp":
-      return <span className="inline-flex rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">临时未保存</span>;
+      return <Tag color="purple">临时未保存</Tag>;
     case "deleted":
-      return <span className="inline-flex rounded-md bg-zinc-200 px-2 py-0.5 text-[10px] font-bold text-zinc-500">已删除</span>;
+      return <Tag color="default">已删除</Tag>;
     default:
-      return <span className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{status}</span>;
+      return <Tag>{status}</Tag>;
   }
 }
 
-export default function CloudMusicManagementTab({ themeColor }: Props) {
+export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
   const [tracks, setTracks] = useState<CloudMusicTrack[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const [limit] = useState(30);
+  const [limit] = useState(20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -117,9 +145,14 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
     loadTracks(0);
   }, [statusFilter, uploadStateFilter]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = () => {
     loadTracks(0);
+  };
+
+  const handleReset = () => {
+    setKeyword("");
+    setStatusFilter("all");
+    setUploadStateFilter("all");
   };
 
   const handleOpenCleanup = async () => {
@@ -134,15 +167,13 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
   };
 
   const handleExecuteCleanup = async () => {
-    if (cleaningHours === 0) {
-      const confirmed = window.confirm("警告：确认要清理【全部】临时文件吗？此操作将立即删除所有未保存的临时音频和资产！");
-      if (!confirmed) return;
-    }
     setCleaning(true);
     setCleanupResultMsg("");
     try {
       const res = await cleanupCloudMusicTemp(cleaningHours);
-      setCleanupResultMsg(`清理完成：扫描 ${res.scanned} 条，已删除 ${res.deleted} 条${res.failed.length > 0 ? `，失败 ${res.failed.length} 条` : ""}`);
+      setCleanupResultMsg(
+        `清理完成：扫描 ${res.scanned} 条，已删除 ${res.deleted} 条${res.failed.length > 0 ? `，失败 ${res.failed.length} 条` : ""}`
+      );
       const summary = await fetchCloudMusicTempSummary();
       setTempSummary(summary);
       loadTracks();
@@ -154,14 +185,11 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
   };
 
   const handleDelete = async (track: CloudMusicTrack) => {
-    const confirmed = window.confirm(`确认删除曲目《${track.title || "未命名"}》吗？关联的七牛音频、封面和歌词文件将被永久删除！`);
-    if (!confirmed) return;
-
     try {
       await deleteCloudMusic(track.uuid);
       loadTracks();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "删除失败");
+      window.alert(err instanceof Error ? err.message : "删除失败");
     }
   };
 
@@ -178,299 +206,319 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
       setActivePreviewUuid(track.uuid);
       setPreviewAudioUrl(urls.audioUrl);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "获取试听地址失败");
+      window.alert(err instanceof Error ? err.message : "获取试听地址失败");
     } finally {
       setLoadingPreviewUuid(null);
     }
   };
 
-  const pageEnd = Math.min(total, offset + limit);
-
-  return (
-    <div className="space-y-6 animate-fade-in-up">
-      {/* Top Header Card */}
-      <div className={glassCardClasses}>
-        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-2xl font-extrabold text-slate-800">网盘音乐管理</h2>
-            <p className="mt-1 text-sm text-slate-500">管理平台公共网盘曲库，支持音频上传、元数据解析、审核和资产清理。</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleOpenCleanup}
-              className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 shadow-sm hover:bg-amber-100 transition-colors"
-            >
-              清理临时文件
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowUploadModal(true)}
-              className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90"
-              style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-            >
-              上传音乐
-            </button>
-            <button
-              type="button"
-              onClick={() => loadTracks()}
-              className="rounded-2xl border border-white/70 bg-white/80 px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-white transition-colors"
-            >
-              刷新
-            </button>
+  const columns: ColumnsType<CloudMusicTrack> = [
+    {
+      title: "歌曲信息",
+      key: "songInfo",
+      width: 260,
+      render: (_, record) => (
+        <div className="flex items-center gap-3">
+          <Avatar
+            shape="square"
+            size={44}
+            src={record.cover?.url}
+            icon={<CustomerServiceOutlined />}
+            className="rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200"
+          />
+          <div className="min-w-0 flex-1">
+            <Text strong ellipsis className="text-slate-800 block text-xs" title={record.title}>
+              {record.title || "未命名"}
+            </Text>
+            <Text type="secondary" ellipsis className="block text-[11px] text-slate-500" title={record.artist}>
+              {record.artist} {record.album ? `· ${record.album}` : ""}
+            </Text>
           </div>
         </div>
-
-        {/* Filter Bar */}
-        <form onSubmit={handleSearch} className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <div className="md:col-span-2">
-            <input
-              type="text"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="搜索歌名、歌手、专辑或 UUID..."
-              className={glassInputClasses}
-            />
-          </div>
-          <div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as CloudMusicStatus | "all")}
-              className={glassInputClasses}
-            >
-              <option value="all">全部业务状态</option>
-              <option value="active">可用 (active)</option>
-              <option value="pending_review">待审核 (pending_review)</option>
-              <option value="disabled">禁用 (disabled)</option>
-              <option value="offline">下架 (offline)</option>
-              <option value="temp">临时未保存 (temp)</option>
-              <option value="rejected">已拒绝 (rejected)</option>
-            </select>
-          </div>
-          <div>
-            <select
-              value={uploadStateFilter}
-              onChange={(e) => setUploadStateFilter(e.target.value as CloudMusicUploadState | "all")}
-              className={glassInputClasses}
-            >
-              <option value="all">全部上传状态</option>
-              <option value="ready">已就绪 (ready)</option>
-              <option value="processing">解析中 (processing)</option>
-              <option value="uploaded">已上传 (uploaded)</option>
-              <option value="reserved">已预约 (reserved)</option>
-              <option value="failed">失败 (failed)</option>
-            </select>
-          </div>
-        </form>
-      </div>
-
-      {/* Tracks Table Card */}
-      <div className={glassCardClasses}>
-        {error && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-600">{error}</div>}
-
-        {loading ? (
-          <div className="py-12 text-center text-sm font-semibold text-slate-500">正在加载网盘音乐...</div>
-        ) : tracks.length === 0 ? (
-          <div className="py-12 text-center text-sm font-semibold text-slate-500">暂无网盘音乐曲目</div>
+      ),
+    },
+    {
+      title: "状态",
+      key: "status",
+      width: 140,
+      render: (_, record) => (
+        <div className="flex flex-col gap-1 items-start">
+          {statusTag(record.status)}
+          {record.statusReason && (
+            <Tooltip title={record.statusReason}>
+              <span className="text-[10px] text-slate-400 truncate max-w-[120px] block">
+                {record.statusReason}
+              </span>
+            </Tooltip>
+          )}
+          {record.uploadState !== "ready" && (
+            <Tag color="default" className="!mr-0 text-[10px] font-mono">
+              {record.uploadState}
+            </Tag>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "格式 / 大小",
+      key: "formatSpecs",
+      width: 120,
+      render: (_, record) => (
+        <div className="text-xs font-mono">
+          <Tag color="geekblue">{record.format ? record.format.toUpperCase() : "-"}</Tag>
+          <span className="text-[11px] text-slate-400 block mt-0.5">
+            {record.audioFile ? formatFileSize(record.audioFile.fileSize) : "-"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      title: "时长",
+      dataIndex: "durationMs",
+      key: "duration",
+      width: 80,
+      render: (ms: number) => (
+        <span className="font-mono text-xs text-slate-600">
+          {formatDuration(ms)}
+        </span>
+      ),
+    },
+    {
+      title: "歌词",
+      key: "lyrics",
+      width: 90,
+      align: "center",
+      render: (_, record) =>
+        record.lyrics ? (
+          <Tag color="green">{record.lyrics.format.toUpperCase()}</Tag>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[980px] w-full border-separate border-spacing-0 text-left text-sm">
-              <thead>
-                <tr className="text-xs font-bold uppercase text-slate-500">
-                  <th className="border-b border-slate-200/70 px-4 py-3">歌曲信息</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">状态</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">格式 / 规格</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">时长</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">歌词</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">所有者</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">更新时间</th>
-                  <th className="sticky right-0 z-10 border-b border-slate-200/70 bg-white/80 px-4 py-3 text-right backdrop-blur">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tracks.map((track) => (
-                  <tr key={track.uuid} className="group transition-colors hover:bg-white/50">
-                    {/* Song info & cover */}
-                    <td className="max-w-[18rem] border-b border-slate-100/80 px-4 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={track.cover.url}
-                          alt={track.title}
-                          className="h-11 w-11 shrink-0 rounded-xl object-cover shadow-sm bg-slate-100"
-                        />
-                        <div className="min-w-0">
-                          <div className="truncate font-extrabold text-slate-800" title={track.title}>
-                            {track.title || "未命名"}
-                          </div>
-                          <div className="mt-0.5 truncate text-xs text-slate-500" title={track.artist}>
-                            {track.artist} {track.album ? `• ${track.album}` : ""}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+          <span className="text-xs text-slate-400">无</span>
+        ),
+    },
+    {
+      title: "所有者",
+      key: "owner",
+      width: 120,
+      render: (_, record) => (
+        <Text strong className="text-xs text-slate-700">
+          {record.owner?.displayName || "未知"}
+        </Text>
+      ),
+    },
+    {
+      title: "更新时间",
+      dataIndex: "updatedAt",
+      key: "updatedAt",
+      width: 170,
+      render: (ts: number) => (
+        <Text type="secondary" className="text-xs">
+          {formatDate(ts)}
+        </Text>
+      ),
+    },
+    {
+      title: "操作",
+      key: "actions",
+      fixed: "right",
+      width: 250,
+      render: (_, record) => {
+        const isPlaying = activePreviewUuid === record.uuid;
+        const isLoadingPreview = loadingPreviewUuid === record.uuid;
+        return (
+          <Space size={4}>
+            <Button
+              type="link"
+              size="small"
+              icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+              disabled={record.uploadState !== "ready"}
+              loading={isLoadingPreview}
+              onClick={() => handlePlayPreview(record)}
+              className={isPlaying ? "!text-purple-600" : ""}
+            >
+              {isPlaying ? "停止" : "试听"}
+            </Button>
 
-                    {/* Status badges */}
-                    <td className="border-b border-slate-100/80 px-4 py-3.5">
-                      <div className="flex flex-col gap-1 items-start max-w-[140px]">
-                        {statusBadge(track.status)}
-                        {track.statusReason && (
-                          <span
-                            className={`truncate max-w-full text-[10px] px-1 py-0.5 rounded border font-sans ${track.status === "rejected" ? "bg-orange-50 text-orange-700 border-orange-200" : "bg-slate-50 text-slate-500 border-slate-200"}`}
-                            title={track.statusReason}
-                          >
-                            {track.statusReason}
-                          </span>
-                        )}
-                        {track.uploadState !== "ready" && (
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-mono text-slate-500">
-                            {track.uploadState}
-                          </span>
-                        )}
-                      </div>
-                    </td>
+            {record.status !== "deleted" && (
+              <Button
+                type="link"
+                size="small"
+                onClick={() => setReviewingTrack(record)}
+                className={
+                  record.status === "pending_review"
+                    ? "!text-blue-600 font-bold"
+                    : record.status === "rejected"
+                    ? "!text-orange-600"
+                    : "!text-indigo-600"
+                }
+              >
+                {record.status === "pending_review"
+                  ? "审核"
+                  : record.status === "rejected"
+                  ? "重审/改态"
+                  : "改态"}
+              </Button>
+            )}
 
-                    {/* Format & specs */}
-                    <td className="border-b border-slate-100/80 px-4 py-3.5 text-xs text-slate-600 font-mono">
-                      <div>{track.format ? track.format.toUpperCase() : "-"}</div>
-                      <div className="text-[10px] text-slate-400">
-                        {track.audioFile ? formatFileSize(track.audioFile.fileSize) : "-"}
-                      </div>
-                    </td>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => setEditingTrack(record)}
+            >
+              编辑
+            </Button>
 
-                    {/* Duration */}
-                    <td className="border-b border-slate-100/80 px-4 py-3.5 text-xs font-mono text-slate-600">
-                      {formatDuration(track.durationMs)}
-                    </td>
+            <Popconfirm
+              title={`确认删除《${record.title || "未命名"}》？`}
+              description="关联的七牛音频、封面和歌词文件将被物理删除！"
+              onConfirm={() => handleDelete(record)}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        );
+      },
+    },
+  ];
 
-                    {/* Lyrics */}
-                    <td className="border-b border-slate-100/80 px-4 py-3.5 text-xs">
-                      {track.lyrics ? (
-                        <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-600">
-                          {track.lyrics.format.toUpperCase()}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">无</span>
-                      )}
-                    </td>
-
-                    {/* Owner */}
-                    <td className="border-b border-slate-100/80 px-4 py-3.5 text-xs font-semibold text-slate-600">
-                      {track.owner.displayName}
-                    </td>
-
-                    {/* Time */}
-                    <td className="border-b border-slate-100/80 px-4 py-3.5 text-xs text-slate-400">
-                      {formatDate(track.updatedAt)}
-                    </td>
-
-                    {/* Action buttons */}
-                    <td className="sticky right-0 z-10 border-b border-slate-100/80 bg-white/80 px-4 py-3.5 backdrop-blur">
-                      <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                        {/* Audio preview */}
-                        <button
-                          type="button"
-                          onClick={() => handlePlayPreview(track)}
-                          disabled={track.uploadState !== "ready" || loadingPreviewUuid === track.uuid}
-                          className={`rounded-xl border px-2.5 py-1.5 text-xs font-bold shadow-sm transition-colors ${activePreviewUuid === track.uuid ? "border-purple-300 bg-purple-100 text-purple-700" : "border-white/70 bg-white/70 text-slate-700 hover:bg-white disabled:opacity-40"}`}
-                        >
-                          {loadingPreviewUuid === track.uuid ? "加载..." : activePreviewUuid === track.uuid ? "停止" : "试听"}
-                        </button>
-
-                        {/* Status management & Review button (always visible for non-deleted tracks) */}
-                        {track.status !== "deleted" && (
-                          <button
-                            type="button"
-                            onClick={() => setReviewingTrack(track)}
-                            className={`rounded-xl px-2.5 py-1.5 text-xs font-bold shadow-sm transition-colors ${
-                              track.status === "pending_review"
-                                ? "bg-blue-600 text-white hover:bg-blue-700"
-                                : track.status === "rejected"
-                                ? "bg-orange-600 text-white hover:bg-orange-700"
-                                : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                            }`}
-                          >
-                            {track.status === "pending_review"
-                              ? "审核"
-                              : track.status === "rejected"
-                              ? "重审/改态"
-                              : "修改状态"}
-                          </button>
-                        )}
-
-                        {/* Edit */}
-                        <button
-                          type="button"
-                          onClick={() => setEditingTrack(track)}
-                          className="rounded-xl border border-white/70 bg-white/70 px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-white"
-                        >
-                          编辑
-                        </button>
-
-                        {/* Delete */}
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(track)}
-                          className="rounded-xl bg-red-500 px-2.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-red-600"
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+  return (
+    <div className="space-y-4 animate-fade-in-up">
+      <Card
+        bordered={false}
+        className="shadow-sm rounded-2xl"
+        title={
+          <div>
+            <span className="text-lg font-bold text-slate-800">网盘音乐管理</span>
+            <span className="ml-2 text-xs font-normal text-slate-500">
+              共 {total} 首云盘曲目
+            </span>
           </div>
+        }
+        extra={
+          <Space>
+            <Button
+              icon={<ClearOutlined />}
+              onClick={handleOpenCleanup}
+            >
+              清理临时文件
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setShowUploadModal(true)}
+            >
+              上传音乐
+            </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => loadTracks()}
+              loading={loading}
+            >
+              刷新
+            </Button>
+          </Space>
+        }
+      >
+        {error && (
+          <Alert type="error" showIcon message={error} className="mb-4" />
         )}
 
-        {/* Global floating preview audio player if active */}
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="搜索歌名、歌手、专辑或 UUID..."
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onPressEnter={handleSearch}
+            allowClear
+            className="w-full sm:w-72"
+          />
+
+          <Select
+            value={statusFilter}
+            onChange={(val) => setStatusFilter(val)}
+            className="w-36"
+            options={[
+              { label: "全部业务状态", value: "all" },
+              { label: "可用 (active)", value: "active" },
+              { label: "待审核 (pending)", value: "pending_review" },
+              { label: "禁用 (disabled)", value: "disabled" },
+              { label: "下架 (offline)", value: "offline" },
+              { label: "临时未保存 (temp)", value: "temp" },
+              { label: "已拒绝 (rejected)", value: "rejected" },
+            ]}
+          />
+
+          <Select
+            value={uploadStateFilter}
+            onChange={(val) => setUploadStateFilter(val)}
+            className="w-36"
+            options={[
+              { label: "全部上传状态", value: "all" },
+              { label: "已就绪 (ready)", value: "ready" },
+              { label: "解析中 (processing)", value: "processing" },
+              { label: "已上传 (uploaded)", value: "uploaded" },
+              { label: "已预约 (reserved)", value: "reserved" },
+              { label: "失败 (failed)", value: "failed" },
+            ]}
+          />
+
+          <Button type="primary" onClick={handleSearch}>
+            查询
+          </Button>
+          <Button onClick={handleReset}>
+            重置
+          </Button>
+        </div>
+
+        <Table<CloudMusicTrack>
+          rowKey="uuid"
+          columns={columns}
+          dataSource={tracks}
+          loading={loading}
+          size="middle"
+          scroll={{ x: 1350 }}
+          sticky={{ offsetHeader: 0 }}
+          bordered
+          pagination={{
+            current: Math.floor(offset / limit) + 1,
+            pageSize: limit,
+            total,
+            showTotal: (t) => `共 ${t} 首曲目`,
+            showQuickJumper: true,
+            onChange: (page) => loadTracks((page - 1) * limit),
+          }}
+        />
+
+        {/* Global floating preview audio player */}
         {activePreviewUuid && previewAudioUrl && (
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-purple-200 bg-purple-50/80 p-3 backdrop-blur-md">
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-purple-200 bg-purple-50/80 p-3">
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold text-purple-800">正在试听：</span>
               <audio controls src={previewAudioUrl} autoPlay className="h-8" />
             </div>
-            <button
-              type="button"
+            <Button
+              size="small"
               onClick={() => {
                 setActivePreviewUuid(null);
                 setPreviewAudioUrl(null);
               }}
-              className="rounded-lg bg-purple-200 px-3 py-1 text-xs font-bold text-purple-800 hover:bg-purple-300"
             >
               关闭试听
-            </button>
+            </Button>
           </div>
         )}
-      </div>
-
-      {/* Pagination Bar */}
-      <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/50 p-4 text-sm font-bold text-slate-600">
-        <span>
-          {total === 0 ? "0" : `${offset + 1}-${pageEnd}`} / {total}
-        </span>
-        <div className="flex gap-2">
-          <button
-            className="rounded-xl bg-white px-4 py-2 disabled:opacity-50"
-            disabled={offset <= 0}
-            onClick={() => loadTracks(Math.max(0, offset - limit))}
-          >
-            上一页
-          </button>
-          <button
-            className="rounded-xl bg-white px-4 py-2 disabled:opacity-50"
-            disabled={pageEnd >= total}
-            onClick={() => loadTracks(offset + limit)}
-          >
-            下一页
-          </button>
-        </div>
-      </div>
+      </Card>
 
       {/* Upload Modal */}
       {showUploadModal && (
         <CloudMusicUploadModal
-          themeColor={themeColor}
+          themeColor=""
           onClose={() => setShowUploadModal(false)}
           onSuccess={(newTrack) => {
             setShowUploadModal(false);
@@ -484,7 +532,7 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
       {editingTrack && (
         <CloudMusicEditModal
           track={editingTrack}
-          themeColor={themeColor}
+          themeColor=""
           onClose={() => setEditingTrack(null)}
           onSaved={() => {
             setEditingTrack(null);
@@ -497,7 +545,7 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
       {reviewingTrack && (
         <CloudMusicReviewModal
           track={reviewingTrack}
-          themeColor={themeColor}
+          themeColor=""
           onClose={() => setReviewingTrack(null)}
           onReviewed={() => {
             setReviewingTrack(null);
@@ -507,96 +555,86 @@ export default function CloudMusicManagementTab({ themeColor }: Props) {
       )}
 
       {/* Cleanup Modal */}
-      {showCleanupModal &&
-        createPortal(
-          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-6">
-            <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-md" onClick={() => setShowCleanupModal(false)} aria-hidden />
-            <div className="relative z-10 my-auto flex w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/90 shadow-2xl backdrop-blur-2xl animate-fade-in-up sm:max-h-[calc(100dvh-4rem)]">
-              <div className="shrink-0 flex items-center justify-between border-b border-white/50 bg-white/40 px-6 py-4">
-                <h3 className="text-lg font-extrabold text-slate-800">清理临时文件</h3>
-                <button type="button" onClick={() => setShowCleanupModal(false)} className="rounded-full bg-white/60 p-2 text-slate-500 hover:bg-white">
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+      {showCleanupModal && (
+        <Modal
+          open
+          centered
+          title="清理临时网盘文件"
+          width={520}
+          onCancel={() => setShowCleanupModal(false)}
+          footer={[
+            <Button key="close" onClick={() => setShowCleanupModal(false)}>
+              关闭
+            </Button>,
+            <Button
+              key="clean"
+              type="primary"
+              danger={cleaningHours === 0}
+              loading={cleaning}
+              onClick={handleExecuteCleanup}
+            >
+              确认清理
+            </Button>,
+          ]}
+          destroyOnClose
+        >
+          <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+            <p className="text-xs text-slate-500">
+              清理上传中断或未保存的临时曲目及其关联七牛对象，释放存储空间。
+            </p>
 
-              <div className="flex-1 space-y-4 overflow-y-auto p-6 text-sm text-slate-700">
-                <p className="text-xs text-slate-500">清理上传中断或未保存的临时曲目及其关联七牛对象，释放存储空间。</p>
-
-                {tempSummary && (
-                  <div className="rounded-2xl border border-white/60 bg-white/50 p-4 space-y-1.5 text-xs font-mono">
-                    <div className="flex justify-between">
-                      <span>全部临时曲目:</span>
-                      <span className="font-bold">{tempSummary.total.count} 个 ({formatFileSize(tempSummary.total.bytes)})</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>24 小时前临时曲目:</span>
-                      <span className="font-bold text-amber-700">{tempSummary.olderThan24h.count} 个 ({formatFileSize(tempSummary.olderThan24h.bytes)})</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>72 小时前临时曲目:</span>
-                      <span className="font-bold text-red-700">{tempSummary.olderThan72h.count} 个 ({formatFileSize(tempSummary.olderThan72h.bytes)})</span>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="mb-2 block text-xs font-bold text-slate-700">选择清理范围</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCleaningHours(24)}
-                      className={`rounded-xl border p-2.5 text-xs font-bold ${cleaningHours === 24 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-white/60 bg-white/60"}`}
-                    >
-                      24小时前 (推荐)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCleaningHours(72)}
-                      className={`rounded-xl border p-2.5 text-xs font-bold ${cleaningHours === 72 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-white/60 bg-white/60"}`}
-                    >
-                      72小时前
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCleaningHours(0)}
-                      className={`rounded-xl border p-2.5 text-xs font-bold ${cleaningHours === 0 ? "border-red-500 bg-red-50 text-red-700" : "border-white/60 bg-white/60"}`}
-                    >
-                      全部临时记录
-                    </button>
-                  </div>
+            {tempSummary && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-1 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span>全部临时曲目:</span>
+                  <span className="font-bold">
+                    {tempSummary.total.count} 个 ({formatFileSize(tempSummary.total.bytes)})
+                  </span>
                 </div>
-
-                {cleanupResultMsg && (
-                  <div className="rounded-xl bg-slate-100 p-3 text-xs font-semibold text-slate-700">
-                    {cleanupResultMsg}
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span>24 小时前临时曲目:</span>
+                  <span className="font-bold text-amber-600">
+                    {tempSummary.olderThan24h.count} 个 ({formatFileSize(tempSummary.olderThan24h.bytes)})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>72 小时前临时曲目:</span>
+                  <span className="font-bold text-red-600">
+                    {tempSummary.olderThan72h.count} 个 ({formatFileSize(tempSummary.olderThan72h.bytes)})
+                  </span>
+                </div>
               </div>
+            )}
 
-              <div className="shrink-0 flex justify-end gap-3 border-t border-white/50 bg-white/40 p-4">
-                <button
-                  type="button"
-                  disabled={cleaning}
-                  onClick={() => setShowCleanupModal(false)}
-                  className="rounded-xl border border-white/60 bg-white/80 px-5 py-2.5 text-xs font-bold text-slate-700"
-                >
-                  关闭
-                </button>
-                <button
-                  type="button"
-                  disabled={cleaning}
-                  onClick={handleExecuteCleanup}
-                  className="rounded-xl bg-amber-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50"
-                >
-                  {cleaning ? "清理中..." : "确认清理"}
-                </button>
-              </div>
+            <div>
+              <label className="mb-2 block text-xs font-bold text-slate-700">
+                选择清理范围
+              </label>
+              <Radio.Group
+                value={cleaningHours}
+                onChange={(e) => setCleaningHours(e.target.value)}
+                className="w-full"
+              >
+                <Space direction="vertical" className="w-full">
+                  <Radio value={24}>24 小时前 (推荐)</Radio>
+                  <Radio value={72}>72 小时前</Radio>
+                  <Radio value={0}>
+                    <span className="text-red-500 font-bold">全部临时记录 (立即删除)</span>
+                  </Radio>
+                </Space>
+              </Radio.Group>
             </div>
-          </div>,
-          document.body,
-        )}
+
+            {cleanupResultMsg && (
+              <Alert
+                type="info"
+                showIcon
+                message={cleanupResultMsg}
+              />
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

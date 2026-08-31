@@ -1,5 +1,26 @@
+import { useEffect, useState } from "react";
+import {
+  Button,
+  Card,
+  Input,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  DeleteOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import type { FileRecordInfo } from "../../types/config";
-import { glassCardClasses, glassInputClasses } from "../../constants/theme";
+
+const { Text } = Typography;
 
 type FileFilters = {
   status: "uploaded" | "deleted" | "pending" | "all";
@@ -56,25 +77,14 @@ export function referencesText(file: FileRecordInfo): string {
   return file.referencedBy.length ? file.referencedBy.join("、") : "无引用";
 }
 
-function statusBadge(file: FileRecordInfo) {
+function statusTag(file: FileRecordInfo) {
   if (file.status === "pending") {
-    return (
-      <span className="inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-        待上传
-      </span>
-    );
+    return <Tag color="warning">待上传</Tag>;
   }
-  const uploaded = file.status === "uploaded";
-  return (
-    <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold ${uploaded ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"}`}>
-      {uploaded ? "已上传" : "已删除"}
-    </span>
-  );
-}
-
-function versionText(file: FileRecordInfo): string {
-  const values = [file.platform, file.version].filter(Boolean);
-  return values.length ? values.join(" / ") : "-";
+  if (file.status === "uploaded") {
+    return <Tag color="success">已上传</Tag>;
+  }
+  return <Tag color="default">已删除</Tag>;
 }
 
 export default function FileManagementTab({
@@ -85,127 +95,255 @@ export default function FileManagementTab({
   filters,
   loading,
   deletingId,
-  themeColor,
   onFilterChange,
   onPageChange,
   onRefresh,
   onView,
   onDelete,
 }: Props) {
-  const pageEnd = Math.min(total, offset + limit);
+  const [localStatus, setLocalStatus] = useState(filters.status);
+  const [localUsage, setLocalUsage] = useState(filters.usageType);
+  const [localKeyword, setLocalKeyword] = useState(filters.keyword);
+
+  useEffect(() => {
+    setLocalStatus(filters.status);
+    setLocalUsage(filters.usageType);
+    setLocalKeyword(filters.keyword);
+  }, [filters]);
+
+  const handleApplyFilter = () => {
+    onFilterChange({
+      status: localStatus,
+      usageType: localUsage,
+      keyword: localKeyword.trim(),
+    });
+  };
+
+  const handleReset = () => {
+    setLocalStatus("uploaded");
+    setLocalUsage("all");
+    setLocalKeyword("");
+    onFilterChange({ status: "uploaded", usageType: "all", keyword: "" });
+  };
+
+  const columns: ColumnsType<FileRecordInfo> = [
+    {
+      title: "文件名 / 对象 Key",
+      key: "file",
+      width: 280,
+      render: (_, record) => (
+        <div className="min-w-0">
+          <Text strong ellipsis className="max-w-[240px] text-slate-800" title={record.fileName}>
+            {record.fileName || "-"}
+          </Text>
+          <Tooltip title={record.objectKey}>
+            <Text type="secondary" className="block text-xs font-mono truncate max-w-[240px]">
+              {record.objectKey || "-"}
+            </Text>
+          </Tooltip>
+        </div>
+      ),
+    },
+    {
+      title: "用途",
+      key: "usage",
+      width: 140,
+      render: (_, record) => {
+        const text = usageText(record);
+        const color =
+          record.usageType === "desktop-update"
+            ? "blue"
+            : record.usageType === "cloud-music"
+            ? "purple"
+            : "cyan";
+        return <Tag color={color}>{text}</Tag>;
+      },
+    },
+    {
+      title: "平台 / 版本",
+      key: "version",
+      width: 140,
+      render: (_, record) => {
+        const values = [record.platform, record.version].filter(Boolean);
+        return <span className="font-mono text-xs text-slate-600">{values.length ? values.join(" / ") : "-"}</span>;
+      },
+    },
+    {
+      title: "资源类型",
+      key: "assetType",
+      width: 110,
+      render: (_, record) => (
+        <Tag color="geekblue">{assetTypeText(record)}</Tag>
+      ),
+    },
+    {
+      title: "大小",
+      dataIndex: "fileSize",
+      key: "fileSize",
+      width: 110,
+      render: (size: number) => (
+        <Text className="font-mono text-xs text-slate-700">
+          {formatFileSize(size)}
+        </Text>
+      ),
+    },
+    {
+      title: "状态",
+      key: "status",
+      width: 100,
+      align: "center",
+      render: (_, record) => statusTag(record),
+    },
+    {
+      title: "关联引用",
+      key: "references",
+      ellipsis: true,
+      render: (_, record) => (
+        <Tooltip title={referencesText(record)}>
+          <span className="text-xs text-slate-500 truncate">
+            {referencesText(record)}
+          </span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: "时间",
+      key: "time",
+      width: 180,
+      render: (_, record) => (
+        <div className="text-xs text-slate-500">
+          <div>上传：{formatDate(record.createdAt)}</div>
+          {record.deletedAt && (
+            <div className="text-red-400">删除：{formatDate(record.deletedAt)}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "操作",
+      key: "actions",
+      fixed: "right",
+      width: 150,
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => onView(record)}
+          >
+            查看
+          </Button>
+          <Popconfirm
+            title="确认删除该七牛文件？"
+            description="删除后将调用七牛云物理删除对象，并清理发布引用。"
+            onConfirm={() => onDelete(record)}
+            disabled={record.status === "deleted" || deletingId === record.id}
+            okText="确认删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="link"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              disabled={record.status === "deleted" || deletingId === record.id}
+              loading={deletingId === record.id}
+            >
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div className={glassCardClasses}>
-        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="space-y-4 animate-fade-in-up">
+      <Card
+        bordered={false}
+        className="shadow-sm rounded-2xl"
+        title={
           <div>
-            <h2 className="text-2xl font-extrabold text-slate-800">文件管理</h2>
-            <p className="mt-1 text-sm text-slate-500">管理七牛云文件记录、对象 key、发布引用和删除状态。</p>
+            <span className="text-lg font-bold text-slate-800">文件管理</span>
+            <span className="ml-2 text-xs font-normal text-slate-500">
+              共 {total} 条七牛云文件记录
+            </span>
           </div>
-          <button type="button" onClick={onRefresh} className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-sm" style={{ backgroundColor: themeColor }}>
+        }
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={onRefresh}
+            loading={loading}
+          >
             刷新
-          </button>
+          </Button>
+        }
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Select
+            value={localStatus}
+            onChange={(val) => setLocalStatus(val)}
+            className="w-36"
+            options={[
+              { label: "仅已上传", value: "uploaded" },
+              { label: "仅待上传", value: "pending" },
+              { label: "仅已删除", value: "deleted" },
+              { label: "全部状态", value: "all" },
+            ]}
+          />
+
+          <Select
+            value={localUsage}
+            onChange={(val) => setLocalUsage(val)}
+            className="w-36"
+            options={[
+              { label: "全部用途", value: "all" },
+              { label: "发布安装包", value: "release-package" },
+              { label: "PC 自动更新", value: "desktop-update" },
+              { label: "网盘音乐", value: "cloud-music" },
+            ]}
+          />
+
+          <Input
+            placeholder="搜索文件名或七牛 Key"
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={localKeyword}
+            onChange={(e) => setLocalKeyword(e.target.value)}
+            onPressEnter={handleApplyFilter}
+            allowClear
+            className="w-full sm:w-64"
+          />
+
+          <Button type="primary" onClick={handleApplyFilter}>
+            查询
+          </Button>
+          <Button onClick={handleReset}>
+            重置
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <select className={glassInputClasses} value={filters.status} onChange={(e) => onFilterChange({ ...filters, status: e.target.value as FileFilters["status"] })}>
-            <option value="uploaded">仅已上传</option>
-            <option value="pending">仅待上传</option>
-            <option value="deleted">仅已删除</option>
-            <option value="all">全部状态</option>
-          </select>
-          <select className={glassInputClasses} value={filters.usageType} onChange={(e) => onFilterChange({ ...filters, usageType: e.target.value as FileFilters["usageType"] })}>
-            <option value="all">全部用途</option>
-            <option value="release-package">发布安装包</option>
-            <option value="desktop-update">PC 自动更新</option>
-            <option value="cloud-music">网盘音乐</option>
-          </select>
-          <input className={glassInputClasses} value={filters.keyword} onChange={(e) => onFilterChange({ ...filters, keyword: e.target.value })} placeholder="搜索文件名或七牛 key" />
-        </div>
-      </div>
-
-      <div className={glassCardClasses}>
-        {loading ? (
-          <div className="py-8 text-center text-sm font-semibold text-slate-500">正在加载文件记录...</div>
-        ) : files.length === 0 ? (
-          <div className="py-8 text-center text-sm font-semibold text-slate-500">暂无文件记录</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[920px] w-full border-separate border-spacing-0 text-left text-sm">
-              <thead>
-                <tr className="text-xs font-bold uppercase text-slate-500">
-                  <th className="border-b border-slate-200/70 px-4 py-3">文件</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">用途</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">平台 / 版本</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">资源</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">大小</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">状态</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">引用</th>
-                  <th className="border-b border-slate-200/70 px-4 py-3">时间</th>
-                  <th className="sticky right-0 z-10 border-b border-slate-200/70 bg-white/80 px-4 py-3 text-right backdrop-blur">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {files.map((file) => (
-                  <tr key={file.id} className="group transition-colors hover:bg-white/50">
-                    <td className="max-w-[18rem] border-b border-slate-100/80 px-4 py-4">
-                      <div className="truncate font-bold text-slate-800" title={file.fileName}>
-                        {file.fileName || "-"}
-                      </div>
-                      <div className="mt-1 truncate font-mono text-xs text-slate-400" title={file.objectKey}>
-                        {file.objectKey || "-"}
-                      </div>
-                    </td>
-                    <td className="border-b border-slate-100/80 px-4 py-4 font-semibold text-slate-600">{usageText(file)}</td>
-                    <td className="border-b border-slate-100/80 px-4 py-4 text-slate-600">{versionText(file)}</td>
-                    <td className="border-b border-slate-100/80 px-4 py-4 text-slate-600">{assetTypeText(file)}</td>
-                    <td className="border-b border-slate-100/80 px-4 py-4 text-slate-600">{formatFileSize(file.fileSize)}</td>
-                    <td className="border-b border-slate-100/80 px-4 py-4">{statusBadge(file)}</td>
-                    <td className="max-w-[14rem] border-b border-slate-100/80 px-4 py-4 text-slate-600">
-                      <div className="truncate" title={referencesText(file)}>
-                        {referencesText(file)}
-                      </div>
-                    </td>
-                    <td className="border-b border-slate-100/80 px-4 py-4 text-xs text-slate-500">
-                      <div>上传：{formatDate(file.createdAt)}</div>
-                      {file.deletedAt && <div className="mt-1">删除：{formatDate(file.deletedAt)}</div>}
-                    </td>
-                    <td className="sticky right-0 z-10 border-b border-slate-100/80 bg-white/80 px-4 py-4 backdrop-blur">
-                      <div className="flex justify-end gap-2 whitespace-nowrap">
-                        <button type="button" onClick={() => onView(file)} className="rounded-xl border border-white/70 bg-white/70 px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-white">
-                          查看
-                        </button>
-                        <button
-                          type="button"
-                          disabled={file.status === "deleted" || deletingId === file.id}
-                          onClick={() => onDelete(file)}
-                          className="rounded-xl bg-red-500 px-3 py-2 text-xs font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {deletingId === file.id ? "删除中..." : "删除"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between rounded-2xl border border-white/60 bg-white/50 p-4 text-sm font-bold text-slate-600">
-        <span>
-          {total === 0 ? "0" : `${offset + 1}-${pageEnd}`} / {total}
-        </span>
-        <div className="flex gap-2">
-          <button className="rounded-xl bg-white px-4 py-2 disabled:opacity-50" disabled={offset <= 0} onClick={() => onPageChange(Math.max(0, offset - limit))}>
-            上一页
-          </button>
-          <button className="rounded-xl bg-white px-4 py-2 disabled:opacity-50" disabled={pageEnd >= total} onClick={() => onPageChange(offset + limit)}>
-            下一页
-          </button>
-        </div>
-      </div>
+        <Table<FileRecordInfo>
+          rowKey="id"
+          columns={columns}
+          dataSource={files}
+          loading={loading}
+          size="middle"
+          scroll={{ x: 1350 }}
+          sticky={{ offsetHeader: 0 }}
+          bordered
+          pagination={{
+            current: Math.floor(offset / limit) + 1,
+            pageSize: limit,
+            total,
+            showTotal: (t) => `共 ${t} 条文件记录`,
+            showQuickJumper: true,
+            onChange: (page) => onPageChange((page - 1) * limit),
+          }}
+        />
+      </Card>
     </div>
   );
 }

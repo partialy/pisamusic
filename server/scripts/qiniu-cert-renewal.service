@@ -11,5 +11,4 @@ ExecStart=/usr/bin/node /www/wwwroot/cert/renew-qiniu-cdn-cert.js
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-ProtectHome=read-only
-
+ProtectHome=false

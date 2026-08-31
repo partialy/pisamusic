@@ -1,8 +1,24 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
+import {
+  Alert,
+  Button,
+  Card,
+  Modal,
+  Progress,
+  Space,
+  Tag,
+  Typography,
+} from "antd";
+import {
+  CustomerServiceOutlined,
+  FileTextOutlined,
+  PictureOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import { createCloudMusicUploadSession, uploadCloudMusicSession } from "../../api/cloudMusic";
-import { glassInputClasses } from "../../constants/theme";
 import type { CloudMusicTrack } from "../../types/cloudMusic";
+
+const { Text } = Typography;
 
 type Props = {
   themeColor: string;
@@ -10,7 +26,7 @@ type Props = {
   onSuccess: (track: CloudMusicTrack) => void;
 };
 
-export default function CloudMusicUploadModal({ themeColor, onClose, onSuccess }: Props) {
+export default function CloudMusicUploadModal({ onClose, onSuccess }: Props) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [lyricsFile, setLyricsFile] = useState<File | null>(null);
@@ -46,7 +62,7 @@ export default function CloudMusicUploadModal({ themeColor, onClose, onSuccess }
         (progress) => {
           setPhase(progress.phase);
           setPercent(progress.percent);
-        },
+        }
       );
 
       onSuccess(track);
@@ -74,133 +90,163 @@ export default function CloudMusicUploadModal({ themeColor, onClose, onSuccess }
     }
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-6">
-      <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-md" onClick={uploading ? undefined : onClose} aria-hidden />
-      <div
-        className="relative z-10 my-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/90 shadow-2xl backdrop-blur-2xl animate-fade-in-up sm:max-h-[calc(100dvh-4rem)] sm:rounded-[2rem]"
-        style={{ animationDuration: "0.2s" }}
-      >
-        {/* Header */}
-        <div className="shrink-0 flex items-center justify-between gap-3 border-b border-white/50 bg-white/40 px-5 py-4 sm:px-8 sm:py-5">
-          <div>
-            <h3 className="text-lg font-extrabold text-slate-800 sm:text-xl">上传网盘音乐</h3>
-            <p className="mt-1 text-xs text-slate-500">上传音频文件至私有存储，并自动解析元数据。</p>
-          </div>
-          {!uploading && (
-            <button type="button" onClick={onClose} className="rounded-full bg-white/60 p-2 text-slate-500 shadow-sm hover:bg-white" aria-label="关闭">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
+  return (
+    <Modal
+      open
+      centered
+      title={
+        <Space align="center" size={8}>
+          <UploadOutlined className="text-blue-500 text-lg" />
+          <span className="text-base font-bold text-slate-800">上传网盘音乐</span>
+        </Space>
+      }
+      width={640}
+      onCancel={uploading ? undefined : onClose}
+      footer={[
+        <Button key="close" disabled={uploading} onClick={onClose}>
+          取消
+        </Button>,
+        <Button
+          key="upload"
+          type="primary"
+          loading={uploading}
+          disabled={!audioFile}
+          onClick={handleStartUpload}
+        >
+          {uploading ? "正在处理中..." : "开始上传"}
+        </Button>,
+      ]}
+      destroyOnClose
+    >
+      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+        {error && <Alert type="error" showIcon message={error} />}
 
-        {/* Body */}
-        <div className="flex-1 space-y-5 overflow-y-auto p-5 sm:p-8">
-          {/* Audio file (required) */}
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              音频文件 <span className="text-red-500">*</span>
-              <span className="ml-2 font-normal text-xs text-slate-400">支持 MP3, FLAC, M4A, AAC, OGG, OPUS, WAV，上限 500MB</span>
-            </label>
-            <input
-              type="file"
-              accept=".mp3,.flac,.m4a,.mp4,.aac,.ogg,.opus,.wav"
-              disabled={uploading}
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setAudioFile(file);
-                setError("");
-              }}
-              className={glassInputClasses}
-            />
-            {audioFile && (
-              <p className="mt-1.5 text-xs text-emerald-600 font-medium">
-                已选音频: {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(2)} MB)
-              </p>
-            )}
-          </div>
-
-          {/* Cover file (optional) */}
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              封面图片 <span className="font-normal text-xs text-slate-400">（可选，支持 JPG, PNG, WEBP，上限 10MB）</span>
-            </label>
-            <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp"
-              disabled={uploading}
-              onChange={(e) => setCoverFile(e.target.files?.[0] || null)}
-              className={glassInputClasses}
-            />
-            {coverFile && (
-              <p className="mt-1.5 text-xs text-emerald-600 font-medium">
-                已选封面: {coverFile.name} ({(coverFile.size / 1024 / 1024).toFixed(2)} MB)
-              </p>
-            )}
-          </div>
-
-          {/* Lyrics file (optional) */}
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">
-              歌词文件 <span className="font-normal text-xs text-slate-400">（可选，支持 UTF-8 LRC, TXT，上限 2MB）</span>
-            </label>
-            <input
-              type="file"
-              accept=".lrc,.txt"
-              disabled={uploading}
-              onChange={(e) => setLyricsFile(e.target.files?.[0] || null)}
-              className={glassInputClasses}
-            />
-            {lyricsFile && (
-              <p className="mt-1.5 text-xs text-emerald-600 font-medium">
-                已选歌词: {lyricsFile.name} ({(lyricsFile.size / 1024).toFixed(1)} KB)
-              </p>
-            )}
-          </div>
-
-          {/* Progress & Error */}
-          {uploading && (
-            <div className="rounded-2xl border border-white/60 bg-white/60 p-4 space-y-2">
-              <div className="flex justify-between text-xs font-bold text-slate-700">
-                <span>{getPhaseText()}</span>
-                <span>{percent}%</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full transition-all duration-300 rounded-full"
-                  style={{ width: `${percent}%`, backgroundColor: themeColor }}
-                />
+        {/* Audio File Selection */}
+        <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CustomerServiceOutlined className="text-blue-500 text-xl" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <Text strong className="text-xs text-slate-800">
+                    音频文件
+                  </Text>
+                  <Tag color="error" className="!mr-0 text-[10px]">
+                    必需
+                  </Tag>
+                </div>
+                <Text type="secondary" className="block text-[11px]">
+                  {audioFile ? audioFile.name : "支持 MP3, FLAC, M4A, OGG, WAV 等主流格式"}
+                </Text>
               </div>
             </div>
-          )}
 
-          {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
-        </div>
+            <label className="relative cursor-pointer rounded-lg bg-blue-500 hover:bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition-all">
+              {audioFile ? "重新选择" : "选择音频"}
+              <input
+                type="file"
+                accept="audio/*,.mp3,.flac,.m4a,.ogg,.wav,.aac,.ape,.opus"
+                disabled={uploading}
+                className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  if (file) {
+                    setAudioFile(file);
+                    setError("");
+                  }
+                }}
+              />
+            </label>
+          </div>
+        </Card>
 
-        {/* Footer */}
-        <div className="shrink-0 flex justify-end gap-3 border-t border-white/50 bg-white/40 p-4 sm:px-8 sm:py-5">
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={onClose}
-            className="rounded-xl border border-white/60 bg-white/80 px-6 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-white disabled:opacity-50"
-          >
-            取消
-          </button>
-          <button
-            type="button"
-            disabled={uploading || !audioFile}
-            onClick={handleStartUpload}
-            style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-            className="rounded-xl px-8 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {uploading ? "上传解析中..." : "开始上传"}
-          </button>
-        </div>
+        {/* Cover File Selection */}
+        <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <PictureOutlined className="text-purple-500 text-xl" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <Text strong className="text-xs text-slate-800">
+                    封面图片
+                  </Text>
+                  <Tag color="default" className="!mr-0 text-[10px]">
+                    可选
+                  </Tag>
+                </div>
+                <Text type="secondary" className="block text-[11px]">
+                  {coverFile ? coverFile.name : "留空将自动从音频 ID3 标签提取内嵌封面"}
+                </Text>
+              </div>
+            </div>
+
+            <label className="relative cursor-pointer rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 text-xs font-bold shadow-2xs transition-all">
+              {coverFile ? "重新选择" : "选择图片"}
+              <input
+                type="file"
+                accept="image/*,.jpg,.jpeg,.png,.webp"
+                disabled={uploading}
+                className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  if (file) setCoverFile(file);
+                }}
+              />
+            </label>
+          </div>
+        </Card>
+
+        {/* Lyrics File Selection */}
+        <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FileTextOutlined className="text-emerald-500 text-xl" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <Text strong className="text-xs text-slate-800">
+                    歌词文件
+                  </Text>
+                  <Tag color="default" className="!mr-0 text-[10px]">
+                    可选
+                  </Tag>
+                </div>
+                <Text type="secondary" className="block text-[11px]">
+                  {lyricsFile ? lyricsFile.name : "支持 .lrc 或 .txt 格式同步歌词"}
+                </Text>
+              </div>
+            </div>
+
+            <label className="relative cursor-pointer rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 text-xs font-bold shadow-2xs transition-all">
+              {lyricsFile ? "重新选择" : "选择歌词"}
+              <input
+                type="file"
+                accept=".lrc,.txt"
+                disabled={uploading}
+                className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                onChange={(e) => {
+                  const file = e.currentTarget.files?.[0];
+                  if (file) setLyricsFile(file);
+                }}
+              />
+            </label>
+          </div>
+        </Card>
+
+        {/* Upload progress indicator */}
+        {uploading && (
+          <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4 space-y-2">
+            <div className="flex items-center justify-between text-xs font-semibold text-blue-800">
+              <span>{getPhaseText()}</span>
+              <span>{percent}%</span>
+            </div>
+            <Progress
+              percent={percent}
+              status={phase === "processing" ? "active" : undefined}
+              size="small"
+            />
+          </div>
+        )}
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 }

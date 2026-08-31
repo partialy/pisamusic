@@ -1,9 +1,11 @@
+import { Button, Descriptions, Modal, Space, Tag, Typography } from "antd";
 import type { FileRecordInfo } from "../../types/config";
-import { glassInputClasses } from "../../constants/theme";
+
+const { Text } = Typography;
 
 type Props = {
   file: FileRecordInfo;
-  themeColor: string;
+  themeColor?: string;
   onClose: () => void;
 };
 
@@ -20,123 +22,134 @@ function formatDate(ts: number | null): string {
 }
 
 function usageText(file: FileRecordInfo): string {
-  return file.usageType === "desktop-update" ? "PC 自动更新文件" : "发布安装包";
-}
-
-function assetTypeText(file: FileRecordInfo): string {
-  if (file.assetType === "installer") return "安装包";
-  if (file.assetType === "latest-yml") return "latest.yml";
-  if (file.assetType === "blockmap") return "blockmap";
-  return file.assetType || "-";
-}
-
-function statusText(file: FileRecordInfo): string {
-  return file.status === "uploaded" ? "已上传" : "已删除";
+  if (file.usageType === "desktop-update") return "PC 自动更新文件";
+  if (file.usageType === "cloud-music") return "网盘音乐";
+  return "发布安装包";
 }
 
 function referencesText(file: FileRecordInfo): string {
   return file.referencedBy.length ? file.referencedBy.join("、") : "无引用";
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <label className="block">
-      <span className="mb-2 ml-1 block text-sm font-semibold text-slate-700">{label}</span>
-      <input type="text" value={value || "-"} readOnly className={`${glassInputClasses} cursor-default font-mono text-slate-700`} />
-    </label>
-  );
+function assetTypeText(file: FileRecordInfo): string {
+  if (file.assetType === "installer") return "安装包";
+  if (file.assetType === "latest-yml") return "latest.yml";
+  if (file.assetType === "blockmap") return "blockmap";
+  if (file.assetType === "audio") return "音频";
+  if (file.assetType === "cover-uploaded") return "手动封面";
+  if (file.assetType === "cover-extracted") return "内嵌封面";
+  if (file.assetType === "lyrics") return "歌词";
+  return file.assetType || "-";
 }
 
-function ReadOnlyTextArea({ label, value, rows = 3 }: { label: string; value: string; rows?: number }) {
-  return (
-    <label className="block">
-      <span className="mb-2 ml-1 block text-sm font-semibold text-slate-700">{label}</span>
-      <textarea
-        value={value || "-"}
-        readOnly
-        rows={rows}
-        className="w-full resize-y break-all rounded-2xl border border-white/60 bg-white/50 px-5 py-4 font-mono text-sm text-slate-700 shadow-inner transition-all focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-slate-400/20"
-      />
-    </label>
-  );
+function statusTag(file: FileRecordInfo) {
+  if (file.status === "pending") return <Tag color="warning">待上传</Tag>;
+  if (file.status === "uploaded") return <Tag color="success">已上传</Tag>;
+  return <Tag color="default">已删除</Tag>;
 }
 
-function ReadOnlyLinkField({ label, value }: { label: string; value: string }) {
+export default function FileRecordDetailModal({ file, onClose }: Props) {
   return (
-    <div>
-      <span className="mb-2 ml-1 block text-sm font-semibold text-slate-700">{label}</span>
-      {value ? (
-        <a
-          href={value}
-          target="_blank"
-          rel="noreferrer"
-          className="block break-all rounded-2xl border border-white/60 bg-white/50 px-5 py-4 font-mono text-sm text-sky-700 shadow-inner transition-colors hover:bg-white/80 hover:text-sky-900"
+    <Modal
+      open
+      centered
+      title={
+        <Space align="center" size={8}>
+          <span className="text-base font-bold text-slate-800">文件记录详情</span>
+          <span className="text-xs font-mono text-slate-400">({file.id})</span>
+        </Space>
+      }
+      width={860}
+      onCancel={onClose}
+      footer={[
+        <Button key="close" type="primary" onClick={onClose}>
+          关闭
+        </Button>,
+      ]}
+      destroyOnClose
+    >
+      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+        <Descriptions
+          bordered
+          size="small"
+          column={{ xxl: 3, xl: 3, lg: 2, md: 2, sm: 1, xs: 1 }}
+          className="bg-slate-50/50 rounded-xl overflow-hidden"
         >
-          {value}
-        </a>
-      ) : (
-        <div className="rounded-2xl border border-white/60 bg-white/50 px-5 py-4 font-mono text-sm text-slate-500 shadow-inner">-</div>
-      )}
-    </div>
-  );
-}
-
-export default function FileRecordDetailModal({ file, themeColor, onClose }: Props) {
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6">
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-md" onClick={onClose} aria-hidden />
-      <div
-        className="relative mx-auto my-4 flex w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-2xl backdrop-blur-2xl animate-fade-in-up sm:my-8 sm:max-h-[calc(100dvh-4rem)] sm:rounded-[2rem]"
-        style={{ animationDuration: "0.2s" }}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-white/50 bg-white/30 px-4 py-4 sm:px-8 sm:py-5">
-          <div className="min-w-0">
-            <h3 className="truncate text-lg font-extrabold text-slate-800 sm:text-xl">文件详情</h3>
-            <p className="mt-1 truncate text-sm text-slate-500">{file.fileName || file.id}</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-full bg-white/50 p-2 text-slate-500 shadow-sm transition-colors hover:bg-white" aria-label="关闭">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-8">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <ReadOnlyField label="记录 ID" value={file.id} />
-            <ReadOnlyField label="文件名" value={file.fileName} />
-            <ReadOnlyField label="用途" value={usageText(file)} />
-            <ReadOnlyField label="平台" value={file.platform} />
-            <ReadOnlyField label="版本" value={file.version} />
-            <ReadOnlyField label="资源类型" value={assetTypeText(file)} />
-            <ReadOnlyField label="存储服务" value={file.provider} />
-            <ReadOnlyField label="Bucket" value={file.bucket} />
-            <ReadOnlyField label="MIME" value={file.mimeType} />
-            <ReadOnlyField label="文件大小" value={`${formatFileSize(file.fileSize)} (${file.fileSize || 0} bytes)`} />
-            <ReadOnlyField label="状态" value={statusText(file)} />
-            <ReadOnlyField label="上传时间" value={formatDate(file.createdAt)} />
-            <ReadOnlyField label="删除时间" value={formatDate(file.deletedAt)} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <ReadOnlyTextArea label="七牛对象 key" value={file.objectKey} />
-            <ReadOnlyTextArea label="Hash / ETag" value={file.hash} />
-            <ReadOnlyLinkField label="下载入口" value={file.downloadUrl} />
-            <ReadOnlyTextArea label="当前引用" value={referencesText(file)} rows={4} />
-          </div>
-        </div>
-
-        <div className="flex justify-end border-t border-white/50 bg-white/30 p-4 sm:p-6">
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-            className="rounded-xl px-8 py-3 font-bold text-white transition-opacity hover:opacity-90"
-          >
-            关闭
-          </button>
-        </div>
+          <Descriptions.Item label="记录 ID">
+            <Text copyable={{ text: file.id }} className="font-mono text-xs">
+              {file.id}
+            </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="文件名" span={2}>
+            <Text strong className="font-mono text-xs text-slate-800">
+              {file.fileName || "-"}
+            </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="用途">
+            <Tag color="geekblue">{usageText(file)}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="平台 / 版本">
+            <span className="font-mono text-xs">
+              {[file.platform, file.version].filter(Boolean).join(" / ") || "-"}
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="资源类型">
+            <Tag color="cyan">{assetTypeText(file)}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="存储服务">
+            {file.provider || "qiniu"}
+          </Descriptions.Item>
+          <Descriptions.Item label="Bucket 空间">
+            <Text className="font-mono text-xs">{file.bucket || "-"}</Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="文件状态">
+            {statusTag(file)}
+          </Descriptions.Item>
+          <Descriptions.Item label="MIME 类型">
+            <span className="font-mono text-xs">{file.mimeType || "-"}</span>
+          </Descriptions.Item>
+          <Descriptions.Item label="文件大小" span={2}>
+            <span className="font-mono text-xs font-bold">
+              {formatFileSize(file.fileSize)} ({file.fileSize || 0} bytes)
+            </span>
+          </Descriptions.Item>
+          <Descriptions.Item label="上传时间">
+            {formatDate(file.createdAt)}
+          </Descriptions.Item>
+          <Descriptions.Item label="删除时间" span={2}>
+            {formatDate(file.deletedAt)}
+          </Descriptions.Item>
+          <Descriptions.Item label="七牛对象 Key" span={3}>
+            <Text copyable={{ text: file.objectKey }} className="font-mono text-xs text-slate-700 break-all">
+              {file.objectKey || "-"}
+            </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="Hash / ETag" span={3}>
+            <Text copyable={{ text: file.hash }} className="font-mono text-xs text-slate-500 break-all">
+              {file.hash || "-"}
+            </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="下载入口地址" span={3}>
+            {file.downloadUrl ? (
+              <a
+                href={file.downloadUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-xs text-blue-600 hover:underline break-all"
+              >
+                {file.downloadUrl}
+              </a>
+            ) : (
+              "-"
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="当前关联引用" span={3}>
+            <span className="text-xs text-slate-700 break-all">
+              {referencesText(file)}
+            </span>
+          </Descriptions.Item>
+        </Descriptions>
       </div>
-    </div>
+    </Modal>
   );
 }
