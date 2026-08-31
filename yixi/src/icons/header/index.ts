@@ -7,6 +7,9 @@ import ScaleWindowNormalIcon from "./ScaleWindowNormalIcon.vue";
 import CloseIcon from "./CloseIcon.vue";
 import SettingIcon from "./SettingIcon.vue";
 import SleepTimerIcon from "./SleepTimerIcon.vue";
+import LevelIcon from "./LevelIcon.vue";
+import ListeningDurationIcon from "./ListeningDurationIcon.vue";
+
 export {
     BackIcon,
     RefreshIcon,
@@ -16,5 +19,7 @@ export {
     ScaleWindowNormalIcon,
     CloseIcon,
     SettingIcon,
-    SleepTimerIcon
+    SleepTimerIcon,
+    LevelIcon,
+    ListeningDurationIcon,
 }

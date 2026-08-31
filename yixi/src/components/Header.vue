@@ -130,6 +130,8 @@ import {
   AboutIcon,
   BackIcon,
   DebugIcon,
+  LevelIcon,
+  ListeningDurationIcon,
   MoonIcon,
   RefreshIcon,
   SearchIcon,
@@ -281,11 +283,13 @@ const dropDownOptions = computed<DropdownOption[]>(() => [
     label: `等级：Lv ${listeningSummary.value.level.level}`,
     key: "listening-level",
     disabled: true,
+    icon: renderIcon(LevelIcon),
   },
   {
     label: `累计听歌：${listeningSummary.value.totalMinutes}分钟`,
     key: "listening-total",
     disabled: true,
+    icon: renderIcon(ListeningDurationIcon),
   },
   {
     key: "listening-divider",
