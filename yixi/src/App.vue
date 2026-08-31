@@ -55,6 +55,7 @@ import { message } from "./utils/pure/message";
 import { normalizeSong } from "./utils/song";
 import { setupPlaybackBridge, usePlaybackCommands } from "./listenTogether/playbackCommands";
 import { openSharedMediaDetail } from "./share/mediaDetailRoute";
+import { listeningPlaybackAdapter } from "./listening/listeningPlaybackAdapter";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
@@ -290,6 +291,8 @@ async function bootstrapApp() {
         taskIndex: index,
       });
     });
+
+    listeningPlaybackAdapter.sync(player.currentSong, player.isPlaying, player.duration * 1000);
   } catch (error) {
     void electronAPI.reportError(error, {
       scope: "startup",
@@ -304,6 +307,7 @@ void bootstrapApp();
 
 // 离开页面保存数据
 onBeforeUnmount(() => {
+  listeningPlaybackAdapter.sync(null, false, 0);
   player.saveState();
   collector.save();
   themeStore.dispose();

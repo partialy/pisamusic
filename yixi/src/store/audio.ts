@@ -9,6 +9,7 @@ import { normalizeSong } from "@/utils/song";
 import { useLibraryStore } from "./library";
 import { useUserStore } from "./user";
 import { useSleepTimerStore } from "./sleepTimer";
+import { listeningPlaybackAdapter } from "@/listening/listeningPlaybackAdapter";
 import { reportError } from "@/utils/errorReporter";
 import { showLimitedWarning } from "@/utils/limitedMessage";
 import {
@@ -132,12 +133,17 @@ export const useAudioStore = defineStore("audio", () => {
         handlingPlaybackFailure = false;
         isPlaying.value = true;
         startProgressUpdate(); // 开始更新播放进度
+        if (currentSong.value) {
+          listeningPlaybackAdapter.active(currentSong.value, duration.value * 1000);
+        }
       },
       onpause: () => {
         isPlaying.value = false;
+        listeningPlaybackAdapter.paused(currentSong.value, duration.value * 1000);
       },
       onstop: () => {
         isPlaying.value = false;
+        listeningPlaybackAdapter.paused(currentSong.value, duration.value * 1000);
       },
       onend: handleTrackEnd, // 歌曲结束时的处理
       onload: () => {
@@ -159,8 +165,14 @@ export const useAudioStore = defineStore("audio", () => {
       onseek: () => {
         updateCurrentTime();
       }, // 跳转时的处理
-      onloaderror: handlePlaybackFailure,
-      onplayerror: handlePlaybackFailure,
+      onloaderror: () => {
+        listeningPlaybackAdapter.terminal(currentSong.value, duration.value * 1000, "error");
+        handlePlaybackFailure();
+      },
+      onplayerror: () => {
+        listeningPlaybackAdapter.terminal(currentSong.value, duration.value * 1000, "error");
+        handlePlaybackFailure();
+      },
     });
   };
 
@@ -221,6 +233,9 @@ export const useAudioStore = defineStore("audio", () => {
         }
       }
       if (song) {
+        if (currentSong.value && (currentSong.value.id !== song.id || currentSong.value.source !== song.source)) {
+          listeningPlaybackAdapter.terminal(currentSong.value, duration.value * 1000, "manual_next");
+        }
         currentTime.value = 0;
         duration.value = 0;
         song.url = await getPlayableUrlByMusicApi(song, getPreferredQualityKey(song.source));
@@ -268,6 +283,7 @@ export const useAudioStore = defineStore("audio", () => {
       isPlaying.value = false;
       electronAPI.mediaControl("pause");
       electronAPI.isPlaying(false);
+      listeningPlaybackAdapter.paused(currentSong.value, duration.value * 1000);
     }
   };
 
@@ -358,6 +374,7 @@ export const useAudioStore = defineStore("audio", () => {
    * 销毁播放器实例
    */
   const reset = (): void => {
+    listeningPlaybackAdapter.terminal(currentSong.value, duration.value * 1000, "stop");
     destroyPlayer(); // 销毁播放器
     playlist.value = []; // 清空播放列表
     interCount.value = 0;
@@ -552,6 +569,8 @@ export const useAudioStore = defineStore("audio", () => {
    * 处理歌曲结束时的逻辑
    */
   const handleTrackEnd = (): void => {
+    listeningPlaybackAdapter.terminal(currentSong.value, duration.value * 1000, "natural_end");
+
     // 一起听模式：房主按房间队列推进 / 成员等待房主指令，本地 repeatMode 不生效
     if (playbackBridge?.onTrackEnded()) return;
 
@@ -704,6 +723,7 @@ export const useAudioStore = defineStore("audio", () => {
   };
 
   const stopAfterEmptyPlayUrl = (): void => {
+    listeningPlaybackAdapter.terminal(currentSong.value, duration.value * 1000, "error");
     failureSkipCount = 0;
     handlingPlaybackFailure = false;
     loading.value = false;
