@@ -13,11 +13,13 @@ import cn.partialy.pm.model.AccountAvatarUploadTokenResponse
 import cn.partialy.pm.model.AccountCodeLoginRequest
 import cn.partialy.pm.model.AccountEmailCodeRequest
 import cn.partialy.pm.model.AccountEmailCodeResponse
+import cn.partialy.pm.model.AccountPhoneCodeRequest
 import cn.partialy.pm.model.AccountMeResponse
 import cn.partialy.pm.model.AccountPasswordLoginRequest
 import cn.partialy.pm.model.AccountPasswordResetRequest
 import cn.partialy.pm.model.AccountPasswordResetResponse
 import cn.partialy.pm.model.AccountProfileEmailCodeRequest
+import cn.partialy.pm.model.AccountProfilePhoneCodeRequest
 import cn.partialy.pm.model.AccountProfileUpdateRequest
 import cn.partialy.pm.model.AccountRegisterRequest
 import cn.partialy.pm.model.DeviceReportRequest
@@ -96,6 +98,9 @@ interface SystemApiService {
     @POST("api/auth/email-code")
     suspend fun sendAccountEmailCode(@Body body: AccountEmailCodeRequest): AccountEmailCodeResponse
 
+    @POST("api/auth/phone-code")
+    suspend fun sendAccountPhoneCode(@Body body: AccountPhoneCodeRequest): AccountEmailCodeResponse
+
     @POST("api/auth/register")
     suspend fun registerAccount(@Body body: AccountRegisterRequest): AccountAuthResponse
 
@@ -124,6 +129,12 @@ interface SystemApiService {
     suspend fun sendAccountProfileEmailCode(
         @Header("Authorization") authorization: String,
         @Body body: AccountProfileEmailCodeRequest,
+    ): AccountEmailCodeResponse
+
+    @POST("api/auth/profile/phone-code")
+    suspend fun sendAccountProfilePhoneCode(
+        @Header("Authorization") authorization: String,
+        @Body body: AccountProfilePhoneCodeRequest,
     ): AccountEmailCodeResponse
 
     @PATCH("api/auth/profile")

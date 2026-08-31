@@ -8,6 +8,8 @@ import cn.partialy.pm.model.AccountAvatarUploadToken
 import cn.partialy.pm.model.AccountAvatarUploadTokenRequest
 import cn.partialy.pm.model.AccountCodeLoginRequest
 import cn.partialy.pm.model.AccountEmailCodeRequest
+import cn.partialy.pm.model.AccountPhoneCodeRequest
+import cn.partialy.pm.model.AccountProfilePhoneCodeRequest
 import cn.partialy.pm.model.AccountPasswordLoginRequest
 import cn.partialy.pm.model.AccountPasswordResetRequest
 import cn.partialy.pm.model.AccountProfileEmailCodeRequest
@@ -252,9 +254,16 @@ class ConfigManager @Inject constructor(
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "验证码发送失败" })
     }
 
-    suspend fun registerAccount(email: String, username: String, password: String, code: String): AccountAuthResult {
+    suspend fun sendAccountPhoneCode(phone: String, purpose: String) {
+        val response = systemCall("验证码发送失败") {
+            systemApiService.sendAccountPhoneCode(AccountPhoneCodeRequest(phone, purpose))
+        }
+        if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "验证码发送失败" })
+    }
+
+    suspend fun registerAccount(email: String?, username: String, password: String, code: String, phone: String? = null): AccountAuthResult {
         val response = systemCall("注册失败") {
-            systemApiService.registerAccount(AccountRegisterRequest(email, username, password, code))
+            systemApiService.registerAccount(AccountRegisterRequest(email, username, password, code, phone))
         }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "注册失败" })
         return response.data
@@ -268,17 +277,17 @@ class ConfigManager @Inject constructor(
         return response.data
     }
 
-    suspend fun loginAccountByCode(email: String, code: String): AccountAuthResult {
+    suspend fun loginAccountByCode(email: String?, code: String, phone: String? = null): AccountAuthResult {
         val response = systemCall("登录失败") {
-            systemApiService.loginAccountByCode(AccountCodeLoginRequest(email, code))
+            systemApiService.loginAccountByCode(AccountCodeLoginRequest(email, code, phone))
         }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "登录失败" })
         return response.data
     }
 
-    suspend fun resetAccountPassword(email: String, code: String, password: String) {
+    suspend fun resetAccountPassword(email: String?, code: String, password: String, phone: String? = null) {
         val response = systemCall("密码重置失败") {
-            systemApiService.resetAccountPassword(AccountPasswordResetRequest(email, code, password))
+            systemApiService.resetAccountPassword(AccountPasswordResetRequest(email, code, password, phone))
         }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "密码重置失败" })
     }
@@ -331,12 +340,25 @@ class ConfigManager @Inject constructor(
         }
     }
 
+    suspend fun sendAccountProfilePhoneCode(token: String, phone: String) {
+        val response = systemCall("验证码发送失败") {
+            systemApiService.sendAccountProfilePhoneCode(
+                authorization = "Bearer $token",
+                body = AccountProfilePhoneCodeRequest(phone),
+            )
+        }
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "验证码发送失败" })
+        }
+    }
+
     suspend fun updateAccountProfile(
         token: String,
         username: String?,
         email: String?,
         code: String?,
         avatarKey: String?,
+        phone: String? = null,
     ): AccountAuthResult {
         val response = systemCall("资料更新失败") {
             systemApiService.updateAccountProfile(
@@ -346,6 +368,7 @@ class ConfigManager @Inject constructor(
                     email = email,
                     code = code,
                     avatarKey = avatarKey,
+                    phone = phone,
                 ),
             )
         }

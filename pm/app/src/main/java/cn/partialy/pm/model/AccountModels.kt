@@ -5,8 +5,17 @@ data class AccountEmailCodeRequest(
     val purpose: String,
 )
 
+data class AccountPhoneCodeRequest(
+    val phone: String,
+    val purpose: String,
+)
+
 data class AccountProfileEmailCodeRequest(
     val email: String,
+)
+
+data class AccountProfilePhoneCodeRequest(
+    val phone: String,
 )
 
 data class AccountAvatarUploadTokenRequest(
@@ -16,10 +25,11 @@ data class AccountAvatarUploadTokenRequest(
 )
 
 data class AccountRegisterRequest(
-    val email: String,
+    val email: String?,
     val username: String,
     val password: String,
     val code: String,
+    val phone: String? = null,
 )
 
 data class AccountPasswordLoginRequest(
@@ -28,14 +38,16 @@ data class AccountPasswordLoginRequest(
 )
 
 data class AccountCodeLoginRequest(
-    val email: String,
+    val email: String?,
     val code: String,
+    val phone: String? = null,
 )
 
 data class AccountPasswordResetRequest(
-    val email: String,
+    val email: String?,
     val code: String,
     val newPassword: String,
+    val phone: String? = null,
 )
 
 data class AccountPasswordResetResponse(
@@ -54,6 +66,7 @@ data class AccountProfileUpdateRequest(
     val email: String? = null,
     val code: String? = null,
     val avatarKey: String? = null,
+    val phone: String? = null,
 )
 
 data class AccountAuthResponse(
@@ -111,6 +124,7 @@ data class AccountUser(
     val id: String,
     val username: String,
     val email: String,
+    val phone: String? = null,
     val avatar: String = "",
     val avatarKey: String = "default",
     val avatarUrl: String = "",

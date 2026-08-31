@@ -11,6 +11,7 @@ object AccountSessionStore {
     private const val KEY_USER_ID = "user_id"
     private const val KEY_USERNAME = "username"
     private const val KEY_EMAIL = "email"
+    private const val KEY_PHONE = "phone"
     private const val KEY_AVATAR = "avatar"
     private const val KEY_AVATAR_KEY = "avatar_key"
     private const val KEY_AVATAR_URL = "avatar_url"
@@ -39,6 +40,7 @@ object AccountSessionStore {
                 id = sp.getString(KEY_USER_ID, "").orEmpty(),
                 username = sp.getString(KEY_USERNAME, "").orEmpty(),
                 email = sp.getString(KEY_EMAIL, "").orEmpty(),
+                phone = sp.getString(KEY_PHONE, null),
                 avatar = sp.getString(KEY_AVATAR, "").orEmpty(),
                 avatarKey = sp.getString(KEY_AVATAR_KEY, "default").orEmpty().ifBlank { "default" },
                 avatarUrl = sp.getString(KEY_AVATAR_URL, "").orEmpty(),
@@ -58,6 +60,7 @@ object AccountSessionStore {
             .putString(KEY_USER_ID, result.user.id)
             .putString(KEY_USERNAME, result.user.username)
             .putString(KEY_EMAIL, result.user.email)
+            .putString(KEY_PHONE, result.user.phone)
             .putString(KEY_AVATAR, result.user.avatar)
             .putString(KEY_AVATAR_KEY, result.user.avatarKey.ifBlank { "default" })
             .putString(KEY_AVATAR_URL, result.user.avatarUrl.ifBlank { result.user.avatar })
@@ -77,6 +80,7 @@ object AccountSessionStore {
             .putString(KEY_USER_ID, user.id)
             .putString(KEY_USERNAME, user.username)
             .putString(KEY_EMAIL, user.email)
+            .putString(KEY_PHONE, user.phone)
             .putString(KEY_AVATAR, user.avatar)
             .putString(KEY_AVATAR_KEY, user.avatarKey.ifBlank { "default" })
             .putString(KEY_AVATAR_URL, user.avatarUrl.ifBlank { user.avatar })
