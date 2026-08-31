@@ -249,19 +249,17 @@ class MineFragment : Fragment() {
         val b = _binding ?: return
         val session = AccountSessionStore.read(requireContext())
         if (!session.loggedIn) {
-            b.listeningLevelTextView.text = ""
-            b.listeningLevelTextView.contentDescription = null
-            b.listeningLevelTextView.isVisible = false
+            b.subtitleTextView.setText(R.string.account_login_sync_hint)
+            b.subtitleTextView.contentDescription = null
             return
         }
         val value = listeningManager.summary.value.orEmpty()
-        b.listeningLevelTextView.text = getString(
+        b.subtitleTextView.text = getString(
             R.string.mine_listening_level,
             value.level.level,
             formatListeningDuration(value.totalMinutes),
         )
-        b.listeningLevelTextView.contentDescription = b.listeningLevelTextView.text
-        b.listeningLevelTextView.isVisible = true
+        b.subtitleTextView.contentDescription = b.subtitleTextView.text
     }
 
     /** 按账号登录状态刷新头像。 */

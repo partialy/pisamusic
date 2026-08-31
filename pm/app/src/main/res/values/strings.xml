@@ -507,7 +507,7 @@
     <string name="mine_upgrade">升级</string>
     <string name="mine_avatar_cd_change">更改头像</string>
     <string name="mine_vip_expiry_cd">会员有效期至 %1$s</string>
-    <string name="mine_listening_level">Lv %1$d  累计听歌 %2$s</string>
+    <string name="mine_listening_level">Lv %1$d · 累计听歌 %2$s</string>
     <string name="mine_profile_kg_nickname_empty">暂无酷狗昵称</string>
     <string name="mine_profile_wy_subtitle_empty">暂无网易昵称</string>
     <string name="song_more_play_next">下一首播放</string>
