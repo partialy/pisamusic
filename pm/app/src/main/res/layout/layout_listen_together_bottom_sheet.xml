@@ -268,7 +268,7 @@
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:contentDescription="@null"
-                        android:src="@drawable/ic_qr_scan_24"
+                        android:src="@drawable/ic_scan_qrcode_24"
                         app:tint="@color/listen_together_field_value" />
 
                     <TextView
@@ -610,7 +610,7 @@
                         android:layout_height="20dp"
                         android:layout_gravity="center"
                         android:contentDescription="@string/listen_together_qr_placeholder"
-                        android:src="@drawable/ic_qr_scan_24"
+                        android:src="@drawable/ic_qr_code_24"
                         app:tint="@color/listen_together_invite_button_icon" />
                 </FrameLayout>
             </LinearLayout>

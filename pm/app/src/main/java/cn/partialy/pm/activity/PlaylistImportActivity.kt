@@ -434,11 +434,11 @@ class PlaylistImportActivity : BaseActivity() {
             b.kgQrUserAvatar.load(pic) {
                 crossfade(true)
                 transformations(CircleCropTransformation())
-                placeholder(R.drawable.ic_qr_code_placeholder_120)
-                error(R.drawable.ic_qr_code_placeholder_120)
+                placeholder(R.drawable.ic_qr_code_24)
+                error(R.drawable.ic_qr_code_24)
             }
         } else {
-            b.kgQrUserAvatar.setImageResource(R.drawable.ic_qr_code_placeholder_120)
+            b.kgQrUserAvatar.setImageResource(R.drawable.ic_qr_code_24)
         }
         if (nickname.isNotBlank()) {
             b.kgQrNickname.text = nickname

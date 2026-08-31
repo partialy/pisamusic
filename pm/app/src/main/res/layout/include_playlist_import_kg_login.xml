@@ -192,7 +192,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_qr_code_placeholder_120"
+                android:src="@drawable/ic_qr_code_24"
                 android:contentDescription="@null" />
 
             <ProgressBar

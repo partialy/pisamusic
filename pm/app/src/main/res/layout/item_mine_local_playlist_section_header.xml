@@ -26,7 +26,7 @@
         android:background="@color/transparent"
         android:contentDescription="@string/mine_new_local_playlist_entry"
         android:padding="8dp"
-        android:src="@drawable/ic_add_24dp"
+        android:src="@drawable/ic_add_24"
         android:tooltipText="@string/mine_new_local_playlist_entry"
         app:tint="@color/primary" />
 </LinearLayout>

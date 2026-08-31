@@ -114,7 +114,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/lyric_settings_increase"
                 android:padding="6dp"
-                android:src="@drawable/ic_add_24dp"
+                android:src="@drawable/ic_add_24"
                 app:tint="?attr/colorPrimary" />
         </LinearLayout>
 
@@ -154,7 +154,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/settings_lyric_color_presets_title"
                 android:padding="8dp"
-                android:src="@drawable/ic_add_24dp"
+                android:src="@drawable/ic_add_24"
                 app:tint="?attr/colorPrimary" />
         </LinearLayout>
 
@@ -194,7 +194,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/settings_lyric_color_presets_title"
                 android:padding="8dp"
-                android:src="@drawable/ic_add_24dp"
+                android:src="@drawable/ic_add_24"
                 app:tint="?attr/colorPrimary" />
         </LinearLayout>
 
@@ -274,7 +274,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/lyric_settings_increase"
                 android:padding="6dp"
-                android:src="@drawable/ic_add_24dp"
+                android:src="@drawable/ic_add_24"
                 app:tint="?attr/colorPrimary" />
         </LinearLayout>
 

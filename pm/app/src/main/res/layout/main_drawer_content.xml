@@ -42,7 +42,7 @@
             android:background="@android:color/transparent"
             android:contentDescription="@string/drawer_scan"
             android:padding="8dp"
-            android:src="@drawable/ic_qr_scan_24"
+            android:src="@drawable/ic_scan_qrcode_24"
             app:tint="@color/text_secondary" />
 
         <ImageButton
@@ -420,7 +420,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:contentDescription="@null"
-                android:src="@drawable/ic_apps_grid_24"
+                android:src="@drawable/ic_more_24"
                 app:tint="@color/text_secondary" />
 
             <TextView

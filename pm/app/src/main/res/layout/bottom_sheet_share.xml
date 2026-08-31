@@ -60,7 +60,7 @@
             android:contentDescription="@string/share_qr_code"
             android:scaleType="fitCenter"
             android:visibility="gone"
-            tools:src="@drawable/ic_qr_code_placeholder_120"
+            tools:src="@drawable/ic_qr_code_24"
             tools:visibility="visible" />
     </FrameLayout>
 
