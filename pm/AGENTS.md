@@ -95,7 +95,7 @@
 - `PlaylistCollectionManager` 仍是收藏/自建歌单的统一入口；网络歌单收藏写入 `favorite_playlists`，自建歌单写入本地歌单表。旧版 `collected_playlists.json` 与 `songs_<playlistId>.json` 会在加载时迁移到 SQLite。
 - 本地歌单与收藏 JSON 文件仅用于导入导出兼容和备份镜像，不要再作为新的运行时主存储。
 - 酷狗 / 网易第三方登录态统一由 `MusicCookieManager` 管理，存储在 `pm_local_music.db` 的 `third_party_login_sessions` 表；Cookie 与第三方用户摘要（昵称、用户名、第三方 VIP、头像、背景图等）都从该入口读取，不要恢复 `kugou_cookie_user.json`、`wy_cookie_user.json` 或侧栏 profile JSON 缓存作为运行时来源。不得用该存储推断或展示 PisaMusic 系统账号 VIP。
-- 侧拉栏 KG / WY 账号卡片在对应第三方账号未登录时可点击并直接进入登录流程：KG 进入 `PlaylistImportActivity`，WY 默认进入优先的 `WyWebPlaylistLoginActivity`；更多菜单中的 WY 文案只显示“登录WY”，备用 `WyPlaylistLoginActivity` 入口暂时在布局中注释隐藏但保留实现，恢复前不要让两个 WY 登录入口同时展示。
+- 主界面侧拉栏不恢复旧的 KG / WY 纵向独立大卡、独立退出按钮或更多登录菜单；功能卡首行固定为 KG / WY 左右双列小入口，中间使用竖向分隔线，双列账号行使用 8dp 外层水平内边距，使左侧 K 标签与下方 16dp 功能图标左缘对齐。来源标签统一复用 `SongSourceTagBinder`：未登录时不显示头像，只显示 K/Y、“未登录”和紧随文本的右箭头，点击分别进入 KG / WY 登录；已登录时隐藏箭头，显示 24dp 圆形头像和单行昵称。两个来源均未登录时导入行显示“登录后可导入歌单”且不显示清理按钮；任一来源登录时显示“导入歌单”和右侧红色“清除登录”，清理只允许调用 `MusicCookieManager.clearAll()` 清除第三方会话，不得影响 PisaMusic 系统账号。“导入歌单”本身仍为无点击业务的占位入口。“定时关闭”由 `SleepTimerManager` 保存目标时间并在进程内倒计时，入口仅在启用或等待本曲结束时显示状态，点击通过 `SleepTimerBottomSheet` 设置、更新或取消。默认四个快捷档位为 5/15/30/60 分钟，必须保持四槽存储并允许在“设置 → 播放设置 → 定时配置”分别改为 1～1439 分钟；Sheet 不显示“快捷时间”标题，快捷项固定为等距 60dp 圆形双行按钮，上方为数字、下方为 `min`，未选中使用透明背景与中性色圆边框/文字，选中使用淡 primary 背景与 primary 边框/文字；“自定义时间”标题固定简化为“自定义”；“播完整首歌再停止”开关不得显示额外说明文案。开关开启后，倒计时结束时若仍在播放则进入等待态，`PlayerEngine` 只在自然自动切歌、单曲循环完成或列表末尾结束时通过 `MusicController.setSongEndedInterceptor` 同步阻止后续自动续播，再由定时管理器暂停并清理状态；手动切歌不得触发。
 - 酷狗手机验证码 / 扫码登录成功后，以登录响应里的 `token`、`userid` 作为主凭据调用 `/login/token` 补齐 `vip_type`、`vip_token`；`vip_token` 允许为空，最终合成 `KUGOU_API_PLATFORM=undefined; token=...; userid=...; vip_type=...; vip_token=...` 后仍统一写入 `MusicCookieManager`。
 - 歌词与封面映射以 `pm_media_index.db` SQLite 数据库建索引，由 `LocalMediaIndexDbStore` 管理；歌词文本可入库，保存当前音源可用的最优原文歌词（KG 优先 KRC，WY 优先 YRC，失败再 LRC），封面大图/内嵌图仍保留在文件或音频标签中，数据库只记录来源和引用。
 - 歌词解析统一走 `cn.partialy.pm.lyric.LyricParser`，输出 `LyricContent` / `LyricLine` / `LyricWord`。播放页 RecyclerView 使用 `lineText` 保持单行展示，卡拉 OK View 和状态栏歌词在“使用逐字歌词”开关开启且存在逐字时间时使用 `words` 做精准颜色过渡。
@@ -168,7 +168,7 @@
 
 - 同步设置入口位于 `DataSettingsActivity` 的“收藏与同步”，只展示账号同步摘要并进入 `FavoritesSyncSettingsActivity`；独立同步页展示登录状态、最近同步时间和错误状态，未登录时跳转 `LoginActivity`，已登录时执行 `SyncManager.syncNow()` 立即同步，不再提供同步码输入、同步码复制、同步码生成或解绑设备入口。
 - `AuthInterceptor` 必须保留请求上已有的 `Authorization` 头，避免覆盖同步或其他显式鉴权请求。
-- 自有账号主入口在“我的”页头像区域，不再放在侧拉栏；未登录点击头像打开 `LoginActivity`，已登录点击头像打开 `AccountProfileActivity`。
+- 自有账号入口同时位于“我的”页头像区域和主界面侧拉栏账号头；两处都只读取 `AccountSessionStore`，未登录进入 `LoginActivity`，已登录进入 `AccountProfileActivity`。侧拉栏未登录标题固定为“立即登录”并保留右箭头，不展示邮箱或 VIP 信息。
 - “我的”页头像、昵称和邮箱优先读取 `AccountSessionStore` 中服务端账号字段；账号头像使用服务端 `avatarKey/avatarUrl`，相对路径按 `SYSTEM_SERVICE_BASE_URL` 拼接，自定义头像的 `avatarUrl` 为七牛公开图片空间直链。仅 `session.vipActive=true` 且存在未来 `vipExpiresAt` 时，在邮箱下显示金色标签，画面只渲染设备本地时区的 `yyyy-M-d HH:mm:ss` 到期时间，不添加 VIP、等级或到期前缀。
 - `LoginActivity` 与 `AccountAssistActivity` 使用原生 XML + ViewBinding 的 edge-to-edge 界面；账号登录、注册、找回密码输入框统一使用 Material `TextInputLayout` 浮动标签样式。`AccountProfileActivity` 继续使用 edge-to-edge 全屏 WebView 容器；Native 统一注入 `--native-status-bar-height` 与 `--native-navigation-bar-height` CSS 变量，WebView 本身不要再额外设置系统栏 padding。个人资料页顶部 headerbar 由 `assets/account-profile/` 内的网页实现；资料修改走 `/api/auth/profile/email-code` 与 `PATCH /api/auth/profile`，头像上传先走 `/api/auth/avatar/upload-token` 获取七牛 token 后由 Native 直传公开图片空间，再把返回 key 写入资料，成功后必须覆盖本地账号 session。旧的多张内置头像自选功能已废弃，不要恢复。
 

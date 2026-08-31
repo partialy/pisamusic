@@ -62,6 +62,7 @@ class MusicController @Inject constructor(
     private val playJobLock = Any()
     private val _playbackEvents = MutableSharedFlow<PlaybackUiEvent>(extraBufferCapacity = 1)
     private val _playerEvents = MutableSharedFlow<ExoPlayer>(extraBufferCapacity = 1)
+    private var songEndedInterceptor: (() -> Boolean)? = null
     private var playJob: Job? = null
 
     init {
@@ -78,6 +79,7 @@ class MusicController @Inject constructor(
             onTogglePlayPause = { togglePlayPause() },
             onPlaybackEvent = { event -> _playbackEvents.tryEmit(event) },
             onPlayerChanged = { player -> _playerEvents.tryEmit(player) },
+            onSongEnded = { songEndedInterceptor?.invoke() == true },
         )
         engine.init()
     }
@@ -107,6 +109,10 @@ class MusicController @Inject constructor(
     fun playCurrent() = engine.playCurrent()
 
     fun pauseCurrent() = engine.pauseCurrent()
+
+    fun setSongEndedInterceptor(interceptor: (() -> Boolean)?) {
+        songEndedInterceptor = interceptor
+    }
 
     @Suppress("UNUSED_PARAMETER")
     fun next(auto: Boolean = true) = engine.next(manual = !auto)

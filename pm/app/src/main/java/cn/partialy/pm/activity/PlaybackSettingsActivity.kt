@@ -6,15 +6,21 @@ import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.SettingsOption
+import cn.partialy.pm.ui.dialog.SleepTimerPresetSettingsBottomSheet
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
+import cn.partialy.pm.player.SleepTimerManager
 import cn.partialy.pm.ui.settings.SubSettingsItem
 import cn.partialy.pm.ui.settings.SubSettingsSection
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class PlaybackSettingsActivity : SubSettingsActivity() {
+    @Inject
+    lateinit var sleepTimerManager: SleepTimerManager
+
     override val settingsPageTitle: CharSequence by lazy { getString(R.string.settings_playback_title) }
 
     override fun createSettingsSections(): List<SubSettingsSection> = listOf(
@@ -31,6 +37,14 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
                     title = getString(R.string.settings_audio_coexistence),
                     value = audioCoexistenceModeSummary(SettingsPrefs.getAudioCoexistenceMode(this)),
                 ),
+                SubSettingsItem.Navigation(
+                    id = ITEM_SLEEP_TIMER_CONFIG,
+                    title = getString(R.string.settings_sleep_timer_config),
+                    value = getString(
+                        R.string.settings_sleep_timer_presets_value,
+                        sleepTimerManager.presets.value.joinToString(" / "),
+                    ),
+                ),
             ),
         ),
     )
@@ -39,6 +53,11 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
         when (item.id) {
             ITEM_AUTO_SWITCH_LIST -> showAutoSwitchListPicker()
             ITEM_AUDIO_COEXISTENCE -> showAudioCoexistencePicker()
+            ITEM_SLEEP_TIMER_CONFIG -> SleepTimerPresetSettingsBottomSheet.show(
+                activity = this,
+                sleepTimerManager = sleepTimerManager,
+                onSaved = ::refreshSettings,
+            )
         }
     }
 
@@ -139,6 +158,7 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
     companion object {
         private const val ITEM_AUTO_SWITCH_LIST = "auto_switch_list"
         private const val ITEM_AUDIO_COEXISTENCE = "audio_coexistence"
+        private const val ITEM_SLEEP_TIMER_CONFIG = "sleep_timer_config"
 
         fun start(context: Context) {
             context.startActivity(Intent(context, PlaybackSettingsActivity::class.java))

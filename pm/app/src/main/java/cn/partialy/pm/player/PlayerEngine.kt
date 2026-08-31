@@ -3,6 +3,7 @@ package cn.partialy.pm.player
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
 import androidx.media3.common.C
@@ -42,7 +43,7 @@ import kotlinx.coroutines.withContext
  * 播放模式切换、状态持久化，以及按需 URL 解析。
  *
  * [onNext] / [onPrevious] / [onTogglePlayPause] 由 MusicController 注入，
- * 用于 MediaSession 按钮回调（保证走统一入口）。
+ * 用于 MediaSession 按钮回调（保证走统一入口）；[onSongEnded] 仅报告自然播放完成。
  */
 @UnstableApi
 class PlayerEngine(
@@ -58,6 +59,7 @@ class PlayerEngine(
     private val onTogglePlayPause: () -> Unit,
     private val onPlaybackEvent: (PlaybackUiEvent) -> Unit,
     private val onPlayerChanged: (ExoPlayer) -> Unit,
+    private val onSongEnded: () -> Boolean,
 ) {
     var exoPlayer: ExoPlayer? = null
         private set
@@ -84,6 +86,7 @@ class PlayerEngine(
     private var lastFailurePauseAtMs = 0L
     private var lastManualNextAtMs = 0L
     private var lastManualPreviousAtMs = 0L
+    private var lastSeekDiscontinuityAtMs = 0L
     private var progressUpdateJob: Job? = null
     private var audioRendererStateJob: Job? = null
     private var released = false
@@ -271,6 +274,15 @@ class PlayerEngine(
             val previousIndex = playlistManager.currentIndex.value
             syncPlaybackCacheAt(previousIndex)
             val newIndex = player.currentMediaItemIndex
+            val songEndedNaturally = reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+            if (songEndedNaturally && onSongEnded()) {
+                player.pause()
+                playlistManager.updateCurrentIndex(newIndex)
+                if (newIndex != previousIndex) syncPlaybackCacheAt(newIndex)
+                persistState(force = true)
+                return
+            }
 
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
                 && playlistManager.hasPlayNext()
@@ -311,6 +323,16 @@ class PlayerEngine(
             audioEffectsManager.bindAudioSession(audioSessionId)
         }
 
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                lastSeekDiscontinuityAtMs = SystemClock.elapsedRealtime()
+            }
+        }
+
         override fun onPlayerError(error: PlaybackException) {
             super.onPlayerError(error)
             val summary = buildPlaybackErrorSummary(error)
@@ -331,6 +353,11 @@ class PlayerEngine(
             }
             if (playbackState == Player.STATE_READY) {
                 _isPlaying.value = exoPlayer?.isPlaying == true
+            }
+            val endedAfterRecentSeek = SystemClock.elapsedRealtime() - lastSeekDiscontinuityAtMs <
+                MANUAL_END_SEEK_GUARD_MS
+            if (playbackState == Player.STATE_ENDED && !endedAfterRecentSeek) {
+                if (onSongEnded()) exoPlayer?.pause()
             }
         }
     }
@@ -1020,6 +1047,7 @@ class PlayerEngine(
         private const val TAG = "PlayerEngine"
         private const val PROGRESS_UPDATE_INTERVAL_MS = 160L
         private const val MANUAL_NAVIGATION_DEBOUNCE_MS = 650L
+        private const val MANUAL_END_SEEK_GUARD_MS = 1_000L
         private const val MAX_DIAGNOSTIC_LENGTH = 512
     }
 }
