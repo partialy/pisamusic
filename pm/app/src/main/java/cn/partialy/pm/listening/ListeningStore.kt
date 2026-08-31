@@ -37,7 +37,11 @@ class ListeningStore @Inject constructor(@ApplicationContext context: Context) {
     fun deletePending(accountId: String, eventIds: Collection<String>) {
         if (eventIds.isEmpty()) return
         val marks = eventIds.joinToString(",") { "?" }
-        helper.writableDatabase.delete(TABLE_PENDING, "account_id = ? AND event_id IN ($marks)", arrayOf(accountId, *eventIds.toTypedArray()))
+        val args = ArrayList<String>(eventIds.size + 1).apply {
+            add(accountId)
+            addAll(eventIds)
+        }
+        helper.writableDatabase.delete(TABLE_PENDING, "account_id = ? AND event_id IN ($marks)", args.toTypedArray())
     }
 
     private fun ListeningCheckpoint.toValues() = ContentValues().apply {

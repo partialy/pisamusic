@@ -44,7 +44,8 @@ class ListeningManager @Inject constructor(
             scope.launch { adapter.observations.collect { observe(it) } }
             scope.launch {
                 while (true) {
-                    delay(60_000L)
+                    delay(30_000L)
+                    checkpointActiveIfNeeded()
                     maybeFlush(force = false)
                 }
             }
@@ -96,7 +97,10 @@ class ListeningManager @Inject constructor(
             return
         }
         if (current == null || current.accountId != accountId || current.deviceId != deviceId || current.track != track) {
-            current?.let { appendSegment(it, nowMs(), "track_changed") }
+            current?.let {
+                appendSegment(it, nowMs(), "track_changed")
+                store.deleteCheckpoint(it.accountId, it.deviceId, it.playSessionId)
+            }
             active = ActiveSegment(accountId, deviceId, UUID.randomUUID().toString(), track, nowMs(), SystemClock.elapsedRealtime())
             saveCheckpoint(active!!)
             return
@@ -128,6 +132,14 @@ class ListeningManager @Inject constructor(
     }
 
     private fun nowMs(): Long = System.currentTimeMillis() + serverOffsetMs
+
+    private suspend fun checkpointActiveIfNeeded() = mutex.withLock {
+        val current = active ?: return
+        if (SystemClock.elapsedRealtime() - current.lastCheckpointMonotonic < CHECKPOINT_MS) return
+        appendSegment(current, nowMs(), null)
+        active = current.copy(startedAtMs = nowMs(), lastCheckpointMonotonic = SystemClock.elapsedRealtime())
+        saveCheckpoint(active!!)
+    }
 
     private fun saveCheckpoint(segment: ActiveSegment) {
         store.saveCheckpoint(
