@@ -15,6 +15,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         createCachedPlaybackTables(db)
         createPlaybackFaultTables(db)
         createLocalSongTables(db)
+        createListeningTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -44,6 +45,9 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         }
         if (oldVersion < 10) {
             ensureCachedPlaybackCatalogColumns(db)
+        }
+        if (oldVersion < 11) {
+            createListeningTables(db)
         }
     }
 
@@ -275,9 +279,54 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_local_songs_fallback ON local_songs(display_name, size, duration)")
     }
 
+    private fun createListeningTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS listening_active_checkpoint (
+                account_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                play_session_id TEXT NOT NULL,
+                source TEXT NOT NULL,
+                song_id TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                artist TEXT NOT NULL DEFAULT '',
+                album TEXT,
+                track_duration_ms INTEGER,
+                started_at_ms INTEGER NOT NULL,
+                last_checkpoint_at_ms INTEGER NOT NULL,
+                last_monotonic_ms INTEGER NOT NULL,
+                active_elapsed_ms INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (account_id, device_id, play_session_id)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS listening_pending_fragments (
+                event_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL,
+                device_id TEXT NOT NULL,
+                play_session_id TEXT NOT NULL,
+                source TEXT NOT NULL,
+                song_id TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                artist TEXT NOT NULL DEFAULT '',
+                album TEXT,
+                track_duration_ms INTEGER,
+                started_at_ms INTEGER NOT NULL,
+                ended_at_ms INTEGER NOT NULL,
+                active_duration_ms INTEGER NOT NULL,
+                terminal_reason TEXT,
+                created_at_ms INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_listening_pending_account_created ON listening_pending_fragments(account_id, created_at_ms)")
+    }
+
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 10
+        private const val DB_VERSION = 11
     }
 
     private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {
