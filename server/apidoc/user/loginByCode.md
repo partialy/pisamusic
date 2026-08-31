@@ -62,8 +62,8 @@
 
 ```json
 {
-  "code": 404,
-  "msg": "该邮箱尚未注册",
+  "code": 400,
+  "msg": "验证码错误或已过期",
   "data": null,
   "success": false
 }
