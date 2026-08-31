@@ -1,6 +1,24 @@
 import { useState } from "react";
+import {
+  Button,
+  Card,
+  Input,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  DeleteOutlined,
+  MailOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import type { EmailConfig, EmailProviderConfig } from "../../types/config";
-import { glassInputClasses } from "../../constants/theme";
+
+const { Text } = Typography;
 
 type Props = {
   email: EmailConfig;
@@ -23,15 +41,15 @@ export function EmailProviderEditor({ email, onChange }: Props) {
     const code = draftCode.trim();
     const name = draftName.trim();
     if (!PROVIDER_CODE_REGEX.test(code)) {
-      alert("Provider code 必须以小写字母开头，且只能包含小写字母、数字、_、-");
+      window.alert("服务商代码必须以小写字母开头，且只能包含小写字母、数字、_、-");
       return;
     }
     if (!name) {
-      alert("Provider 显示名称不能为空");
+      window.alert("服务商显示名称不能为空");
       return;
     }
     if (email.providers.some((item) => item.code === code)) {
-      alert("Provider code 已存在");
+      window.alert("服务商代码已存在");
       return;
     }
     onChange({ ...email, providers: [...email.providers, { code, name }] });
@@ -45,79 +63,140 @@ export function EmailProviderEditor({ email, onChange }: Props) {
     onChange({ ...email, providers });
   };
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="mb-3 ml-1 block text-sm font-semibold text-slate-700">邮件服务商</label>
-        <select value={email.provider} onChange={(e) => onChange({ ...email, provider: e.target.value })} className={glassInputClasses + " font-mono"}>
-          {email.providers.map((item) => (
-            <option key={item.code} value={item.code}>
-              {item.name} ({item.code})
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="space-y-3">
-        <p className="ml-1 text-sm font-semibold text-slate-700">服务商列表</p>
-        {email.providers.map((item, index) => {
-          const isSelected = item.code === email.provider;
-          return (
-            <div key={`${item.code}-${index}`} className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto]">
-              <input
-                type="text"
-                value={item.code}
-                onChange={(e) => updateProvider(index, { code: e.target.value.trim() })}
-                className={glassInputClasses + " font-mono text-[13px]"}
-                placeholder="aliyun"
-              />
-              <input
-                type="text"
-                value={item.name}
-                onChange={(e) => updateProvider(index, { name: e.target.value })}
-                className={glassInputClasses}
-                placeholder="阿里云"
-              />
-              <button
-                type="button"
-                onClick={() => removeProvider(item.code)}
-                disabled={isSelected}
-                className={`rounded-2xl px-4 py-3 text-xs font-bold transition-colors ${
-                  isSelected
-                    ? "cursor-not-allowed border border-white/60 bg-white/40 text-slate-400"
-                    : "border border-rose-200/70 bg-rose-50/80 text-rose-600 hover:bg-rose-100"
-                }`}
-              >
-                删除
-              </button>
-            </div>
-          );
-        })}
-
-        <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-[1fr_1fr_auto]">
-          <input
-            type="text"
-            value={draftCode}
-            onChange={(e) => setDraftCode(e.target.value.trim())}
-            className={glassInputClasses + " font-mono text-[13px]"}
-            placeholder="provider_code"
-          />
-          <input
-            type="text"
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            className={glassInputClasses}
-            placeholder="显示名称"
-          />
-          <button
-            type="button"
-            onClick={addProvider}
-            className="rounded-2xl border border-white/60 bg-white/70 px-4 py-3 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-white"
+  const columns: ColumnsType<EmailProviderConfig & { index: number }> = [
+    {
+      title: "服务商代码",
+      dataIndex: "code",
+      key: "code",
+      width: 150,
+      render: (code: string) => (
+        <div className="flex items-center gap-2">
+          <Text strong className="font-mono text-xs text-slate-800">
+            {code}
+          </Text>
+          {code === email.provider && <Tag color="success">当前默认</Tag>}
+        </div>
+      ),
+    },
+    {
+      title: "显示名称",
+      dataIndex: "name",
+      key: "name",
+      render: (name: string, record) => (
+        <Input
+          size="small"
+          value={name}
+          onChange={(e) => updateProvider(record.index, { name: e.target.value })}
+          placeholder="显示名称"
+        />
+      ),
+    },
+    {
+      title: "操作",
+      key: "actions",
+      width: 80,
+      align: "center",
+      render: (_, record) => {
+        const isSelected = record.code === email.provider;
+        return (
+          <Popconfirm
+            title={`确认删除服务商 "${record.name}"？`}
+            disabled={isSelected}
+            onConfirm={() => removeProvider(record.code)}
+            okText="确认删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
           >
-            添加
-          </button>
+            <Button
+              type="link"
+              danger
+              size="small"
+              disabled={isSelected}
+              icon={<DeleteOutlined />}
+            >
+              删除
+            </Button>
+          </Popconfirm>
+        );
+      },
+    },
+  ];
+
+  const dataSource = email.providers.map((item, index) => ({
+    ...item,
+    index,
+  }));
+
+  return (
+    <Card
+      size="small"
+      title={
+        <Space>
+          <MailOutlined className="text-blue-500" />
+          <span className="text-xs font-bold text-slate-700">邮件服务商配置</span>
+        </Space>
+      }
+      className="rounded-xl border border-slate-200 bg-slate-50/50"
+    >
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            当前默认邮件服务商
+          </label>
+          <Select
+            value={email.provider}
+            onChange={(val) => onChange({ ...email, provider: val })}
+            className="w-full"
+            options={email.providers.map((item) => ({
+              label: `${item.name} (${item.code})`,
+              value: item.code,
+            }))}
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-slate-700">
+              服务商列表管理
+            </span>
+          </div>
+
+          <Table
+            rowKey="code"
+            columns={columns}
+            dataSource={dataSource}
+            size="small"
+            pagination={false}
+            bordered
+            className="mb-3"
+          />
+
+          <div className="flex gap-2">
+            <Input
+              size="small"
+              value={draftCode}
+              onChange={(e) => setDraftCode(e.target.value.trim())}
+              placeholder="代码 (例如: resend)"
+              className="font-mono text-xs w-36"
+            />
+            <Input
+              size="small"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              placeholder="显示名称 (例如: Resend 邮件)"
+              className="text-xs flex-1"
+            />
+            <Button
+              type="primary"
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={addProvider}
+            >
+              添加
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

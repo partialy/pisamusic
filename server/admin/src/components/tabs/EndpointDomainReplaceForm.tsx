@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { glassInputClasses } from "../../constants/theme";
+import {
+  Alert,
+  Button,
+  Card,
+  Input,
+  Space,
+} from "antd";
+import { SwapOutlined } from "@ant-design/icons";
 
 type Props = {
   endpoints: Record<string, string>;
@@ -46,7 +53,7 @@ function replaceEndpointHostnames(endpoints: Record<string, string>, hostname: s
 }
 
 /** 批量替换 API 端点域名，只改 hostname，保留各地址的协议、端口和路径。 */
-export default function EndpointDomainReplaceForm({ endpoints, themeColor, onReplace }: Props) {
+export default function EndpointDomainReplaceForm({ endpoints, onReplace }: Props) {
   const [domain, setDomain] = useState("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const endpointCount = Object.keys(endpoints).length;
@@ -59,7 +66,7 @@ export default function EndpointDomainReplaceForm({ endpoints, themeColor, onRep
       setDomain(hostname);
       setFeedback({
         type: "success",
-        message: `已替换 ${endpointCount} 个端点的域名，请点击“保存端点”提交。`,
+        message: `已替换全部 ${endpointCount} 个端点的域名，请点击“保存端点”提交。`,
       });
     } catch (error) {
       setFeedback({
@@ -70,46 +77,51 @@ export default function EndpointDomainReplaceForm({ endpoints, themeColor, onRep
   };
 
   return (
-    <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-4 shadow-sm">
-      <div className="mb-3">
-        <p className="text-sm font-bold text-slate-800">一键替换端点域名</p>
-        <p className="mt-1 text-xs font-medium leading-5 text-slate-500">
-          支持输入域名或完整 URL；仅替换下方 {endpointCount} 个地址的域名，协议、端口和路径保持不变。
+    <Card
+      size="small"
+      title={
+        <Space>
+          <SwapOutlined className="text-emerald-600" />
+          <span className="text-xs font-bold text-slate-700">一键替换所有端点域名</span>
+        </Space>
+      }
+      className="rounded-xl border border-emerald-200 bg-emerald-50/50"
+    >
+      <div className="space-y-3">
+        <p className="text-xs text-slate-500 leading-relaxed">
+          支持输入域名或完整 URL；仅替换下方 {endpointCount} 个地址的 Hostname，协议、端口和路径保持不变。
         </p>
+
+        <div className="flex gap-2">
+          <Input
+            value={domain}
+            onChange={(event) => {
+              setDomain(event.target.value);
+              setFeedback(null);
+            }}
+            onPressEnter={handleReplace}
+            placeholder="例如: gateway.partialy.cn"
+            className="font-mono text-xs flex-1"
+          />
+          <Button
+            type="primary"
+            disabled={!domain.trim() || endpointCount === 0}
+            onClick={handleReplace}
+            className="!bg-emerald-600 hover:!bg-emerald-700"
+          >
+            一键替换
+          </Button>
+        </div>
+
+        {feedback && (
+          <Alert
+            type={feedback.type}
+            showIcon
+            message={feedback.message}
+            className="text-xs py-1.5"
+          />
+        )}
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <input
-          type="text"
-          value={domain}
-          onChange={(event) => {
-            setDomain(event.target.value);
-            setFeedback(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") handleReplace();
-          }}
-          className={`${glassInputClasses} font-mono text-[13px]`}
-          placeholder="gateway.partialy.cn"
-          aria-label="新端点域名"
-        />
-        <button
-          type="button"
-          onClick={handleReplace}
-          disabled={!domain.trim() || endpointCount === 0}
-          style={domain.trim() && endpointCount > 0 ? { backgroundColor: themeColor } : undefined}
-          className="shrink-0 rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:hover:translate-y-0"
-        >
-          一键替换
-        </button>
-      </div>
-      {feedback ? (
-        <p
-          className={`mt-3 text-xs font-semibold ${feedback.type === "success" ? "text-emerald-700" : "text-rose-600"}`}
-          role={feedback.type === "error" ? "alert" : "status"}
-        >
-          {feedback.message}
-        </p>
-      ) : null}
-    </div>
+    </Card>
   );
 }
