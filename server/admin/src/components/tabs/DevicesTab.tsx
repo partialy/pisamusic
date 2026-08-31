@@ -1,7 +1,34 @@
 import { useEffect, useState } from "react";
+import {
+  Button,
+  Card,
+  Input,
+  Popconfirm,
+  Segmented,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  DeleteOutlined,
+  EyeOutlined,
+  LaptopOutlined,
+  LockOutlined,
+  MobileOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  UnlockOutlined,
+} from "@ant-design/icons";
 import type { DesktopDeviceInfo, DeviceFilter, DeviceInfo } from "../../types/config";
-import { glassCardClasses, glassInputClasses } from "../../constants/theme";
-import { formatDateTimeLocal, formatTimestamp, parseDateTimeLocal } from "../../utils/date";
+import { formatTimestamp } from "../../utils/date";
+import DeviceDetailModal from "../modals/DeviceDetailModal";
+import DeviceLockModal from "../modals/DeviceLockModal";
+
+const { Text } = Typography;
 
 type Props = {
   deviceMode: "android" | "desktop";
@@ -22,44 +49,10 @@ type Props = {
   onDeleteDevice: (id: string) => void;
 };
 
-function isDesktopDevice(device: DeviceInfo | DesktopDeviceInfo): device is DesktopDeviceInfo {
+function isDesktopDevice(
+  device: DeviceInfo | DesktopDeviceInfo
+): device is DesktopDeviceInfo {
   return "hostname" in device;
-}
-
-function LockBadge({ locked, lockEndTime }: { locked: boolean; lockEndTime: number | null }) {
-  if (!locked) {
-    return <span className="rounded-md border border-emerald-200 bg-emerald-100/80 px-2 py-0.5 text-[10px] font-bold text-emerald-600">正常</span>;
-  }
-  if (lockEndTime === null) {
-    return <span className="rounded-md border border-red-200 bg-red-100/80 px-2 py-0.5 text-[10px] font-bold text-red-600">永久封禁</span>;
-  }
-  if (lockEndTime <= Date.now()) {
-    return <span className="rounded-md border border-amber-200 bg-amber-100/80 px-2 py-0.5 text-[10px] font-bold text-amber-600">封禁已过期</span>;
-  }
-  return (
-    <span className="rounded-md border border-red-200 bg-red-100/80 px-2 py-0.5 text-[10px] font-bold text-red-600">
-      临时封禁 {formatTimestamp(lockEndTime)}
-    </span>
-  );
-}
-
-function DeviceIcon() {
-  return (
-    <div className="mr-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 text-white shadow-lg shadow-blue-500/30">
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-      </svg>
-    </div>
-  );
-}
-
-function FieldRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex min-w-0 items-center justify-between gap-4 border-b border-white/40 py-2">
-      <span className="shrink-0 text-sm font-bold text-slate-600">{label}</span>
-      <span className="min-w-0 truncate text-right font-mono text-sm text-slate-800">{value}</span>
-    </div>
-  );
 }
 
 export default function DevicesTab({
@@ -70,7 +63,6 @@ export default function DevicesTab({
   deviceLimit,
   deviceFilter,
   deviceLoading,
-  themeColor,
   selectedDevice,
   onModeChange,
   onFilterChange,
@@ -82,20 +74,33 @@ export default function DevicesTab({
 }: Props) {
   const [localSearch, setLocalSearch] = useState(deviceFilter.search ?? "");
   const [localLockedFilter, setLocalLockedFilter] = useState<string>(
-    deviceFilter.locked === true ? "locked" : deviceFilter.locked === false ? "unlocked" : "all",
+    deviceFilter.locked === true
+      ? "locked"
+      : deviceFilter.locked === false
+      ? "unlocked"
+      : "all"
   );
-  const [localBrand, setLocalBrand] = useState(deviceFilter.brand ?? "");
-  const [lockDraft, setLockDraft] = useState<{ locked: boolean; permanent: boolean; endTime: string } | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  const totalPages = Math.max(1, Math.ceil(totalDevices / deviceLimit));
-  const currentPage = Math.floor(deviceOffset / deviceLimit) + 1;
-  const hasActiveFilter = Boolean(deviceFilter.search || deviceFilter.brand || deviceFilter.platform || deviceFilter.locked !== undefined);
+  const [localBrand, setLocalBrand] = useState(
+    deviceMode === "desktop"
+      ? deviceFilter.platform ?? ""
+      : deviceFilter.brand ?? ""
+  );
+  const [lockingDevice, setLockingDevice] = useState<DeviceInfo | DesktopDeviceInfo | null>(null);
 
   useEffect(() => {
     setLocalSearch(deviceFilter.search ?? "");
-    setLocalBrand(deviceMode === "desktop" ? deviceFilter.platform ?? "" : deviceFilter.brand ?? "");
-    setLocalLockedFilter(deviceFilter.locked === true ? "locked" : deviceFilter.locked === false ? "unlocked" : "all");
+    setLocalBrand(
+      deviceMode === "desktop"
+        ? deviceFilter.platform ?? ""
+        : deviceFilter.brand ?? ""
+    );
+    setLocalLockedFilter(
+      deviceFilter.locked === true
+        ? "locked"
+        : deviceFilter.locked === false
+        ? "unlocked"
+        : "all"
+    );
   }, [deviceFilter, deviceMode]);
 
   const handleApplyFilter = () => {
@@ -117,427 +122,325 @@ export default function DevicesTab({
     onFilterChange({});
   };
 
-  const handlePrevPage = () => {
-    if (deviceOffset - deviceLimit >= 0) onPageChange(deviceOffset - deviceLimit);
-  };
-
-  const handleNextPage = () => {
-    if (deviceOffset + deviceLimit < totalDevices) onPageChange(deviceOffset + deviceLimit);
-  };
-
-  if (selectedDevice) {
-    const d = selectedDevice;
-    const extras = Object.entries(d.extraInfo);
-    const desktop = isDesktopDevice(d);
-    const title = desktop ? `${d.deviceName} / ${d.hostname}` : `${d.brand} ${d.model}`;
-    const subtitle = desktop
-      ? `${d.osName} ${d.osVersion} / ${d.platform} ${d.arch}`
-      : `${d.deviceName} / Android ${d.osVersion} / SDK ${d.sdkVersion}`;
-
-    return (
-      <div className="space-y-8 animate-fade-in-up">
-        <button
-          type="button"
-          onClick={() => onSelectDevice(null)}
-          className="flex items-center rounded-2xl border border-white/60 bg-white/80 px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-white"
-        >
-          <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-          </svg>
-          返回设备列表
-        </button>
-
-        <div className={glassCardClasses}>
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-1 items-center">
-              <DeviceIcon />
-              <div className="min-w-0">
-                <h2 className="truncate text-xl font-bold text-slate-800">{title}</h2>
-                <p className="mt-1 truncate text-xs text-slate-500">{subtitle}</p>
-              </div>
+  const columns: ColumnsType<DeviceInfo | DesktopDeviceInfo> = [
+    {
+      title: "设备",
+      key: "device",
+      width: 260,
+      render: (_, record) => {
+        const desktop = isDesktopDevice(record);
+        const title = desktop
+          ? record.deviceName || record.hostname || "未知设备"
+          : `${record.brand} ${record.model}`;
+        const subtitle = desktop ? record.hostname : record.deviceName;
+        return (
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <Text strong ellipsis className="max-w-[180px] text-slate-800" title={title}>
+                {title}
+              </Text>
             </div>
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <LockBadge locked={d.locked} lockEndTime={d.lockEndTime} />
-              <span className="rounded-md border border-slate-200 bg-slate-100/60 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-600">v{d.appVersion}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-            <FieldRow label="ID" value={d.id} />
-            <FieldRow label="Fingerprint" value={d.fingerprint} />
-            <FieldRow label="Device Name" value={d.deviceName} />
-            {desktop ? (
-              <>
-                <FieldRow label="Hostname" value={d.hostname} />
-                <FieldRow label="OS Name" value={d.osName} />
-                <FieldRow label="OS Version" value={d.osVersion} />
-                <FieldRow label="Platform" value={d.platform} />
-                <FieldRow label="Arch" value={d.arch} />
-              </>
-            ) : (
-              <>
-                <FieldRow label="Brand" value={d.brand} />
-                <FieldRow label="Model" value={d.model} />
-                <FieldRow label="OS Version" value={d.osVersion} />
-                <FieldRow label="SDK Version" value={String(d.sdkVersion)} />
-                <FieldRow label="App Version Code" value={String(d.appVersionCode)} />
-                <FieldRow label="Country Code" value={d.lastCountryCode ?? "N/A"} />
-                <FieldRow label="Timezone" value={d.lastTimezone ?? "N/A"} />
-                <FieldRow label="Locale" value={d.lastLocale ?? "N/A"} />
-              </>
+            {subtitle && (
+              <Text type="secondary" className="block text-xs truncate max-w-[200px]">
+                {subtitle}
+              </Text>
             )}
-            <FieldRow label="App Version" value={d.appVersion} />
-            <FieldRow label="First Seen At" value={formatTimestamp(d.firstSeenAt)} />
-            <FieldRow label="Last Active At" value={formatTimestamp(d.lastActiveAt)} />
-            <FieldRow label="First Seen IP" value={d.firstSeenIp ?? "N/A"} />
-            <FieldRow label="Last Seen IP" value={d.lastSeenIp ?? "N/A"} />
+            <Tooltip title={record.id}>
+              <Text type="secondary" className="block text-[11px] font-mono truncate max-w-[180px] text-slate-400">
+                {record.id}
+              </Text>
+            </Tooltip>
           </div>
-
-          {extras.length > 0 && (
-            <div className="mt-6 border-t border-white/40 pt-4">
-              <h3 className="mb-3 text-sm font-bold text-slate-600">Extra Info</h3>
-              <div className="space-y-2">
-                {extras.map(([key, val]) => (
-                  <div key={key} className="flex min-w-0 items-center justify-between gap-4 rounded-xl bg-white/40 px-4 py-2">
-                    <span className="shrink-0 font-mono text-xs font-bold text-slate-500">{key}</span>
-                    <span className="min-w-0 truncate text-right font-mono text-xs text-slate-800">{String(val)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className={glassCardClasses}>
-          <h2 className="mb-6 text-xl font-bold text-slate-800">封禁管理</h2>
-          {lockDraft ? (
-            <div className="space-y-4">
-              {lockDraft.locked && (
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-bold text-slate-700">封禁类型</span>
-                  <button
-                    type="button"
-                    onClick={() => setLockDraft({ ...lockDraft, permanent: true })}
-                    className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${lockDraft.permanent ? "border border-red-200 bg-red-100/80 text-red-600" : "border border-white/60 bg-white/50 text-slate-500"}`}
-                  >
-                    永久封禁
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLockDraft({ ...lockDraft, permanent: false })}
-                    className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${!lockDraft.permanent ? "border border-amber-200 bg-amber-100/80 text-amber-600" : "border border-white/60 bg-white/50 text-slate-500"}`}
-                  >
-                    临时封禁
-                  </button>
-                </div>
-              )}
-
-              {lockDraft.locked && !lockDraft.permanent && (
-                <label className="block">
-                  <span className="mb-2 ml-1 block text-sm font-bold text-slate-700">截止时间</span>
-                  <input
-                    type="datetime-local"
-                    value={lockDraft.endTime}
-                    onChange={(e) => setLockDraft({ ...lockDraft, endTime: e.target.value })}
-                    className={glassInputClasses + " font-mono text-[13px]"}
-                  />
-                </label>
-              )}
-
-              <div className="flex flex-wrap gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (lockDraft.locked) {
-                      onLockDevice(d.id, true, lockDraft.permanent ? null : parseDateTimeLocal(lockDraft.endTime));
-                    } else {
-                      onLockDevice(d.id, false, null);
-                    }
-                    setLockDraft(null);
-                  }}
-                  style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-                  className="rounded-xl px-6 py-3 font-bold text-white transition-opacity hover:opacity-90"
-                >
-                  {lockDraft.locked ? "确认封禁" : "确认解封"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLockDraft(null)}
-                  className="rounded-xl border border-white/50 px-6 py-3 font-bold text-slate-600 shadow-sm transition-colors hover:bg-white/60"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-3">
-              {d.locked ? (
-                <button
-                  type="button"
-                  onClick={() => setLockDraft({ locked: false, permanent: true, endTime: "" })}
-                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-6 py-3 font-bold text-emerald-700 shadow-sm transition-all hover:bg-emerald-100"
-                >
-                  解除封禁
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setLockDraft({ locked: true, permanent: true, endTime: formatDateTimeLocal(Date.now() + 7 * 24 * 60 * 60 * 1000) })}
-                  className="rounded-xl border border-red-200 bg-red-50 px-6 py-3 font-bold text-red-700 shadow-sm transition-all hover:bg-red-100"
-                >
-                  封禁设备
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className={glassCardClasses}>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        );
+      },
+    },
+    {
+      title: "系统 / 架构",
+      key: "system",
+      width: 220,
+      render: (_, record) => {
+        const desktop = isDesktopDevice(record);
+        if (desktop) {
+          return (
             <div>
-              <h2 className="text-xl font-bold text-slate-800">删除设备</h2>
-              <p className="mt-1 text-xs text-slate-500">删除后该设备的所有记录将被永久移除，此操作不可撤销。</p>
-            </div>
-            {confirmDeleteId === d.id ? (
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onDeleteDevice(d.id);
-                    setConfirmDeleteId(null);
-                  }}
-                  className="rounded-xl bg-red-600 px-6 py-3 font-bold text-white shadow-sm transition-colors hover:bg-red-700"
-                >
-                  确认删除
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteId(null)}
-                  className="rounded-xl border border-white/50 px-6 py-3 font-bold text-slate-600 shadow-sm transition-colors hover:bg-white/60"
-                >
-                  取消
-                </button>
+              <Space size={4} wrap>
+                <Tag color="blue">{record.platform}</Tag>
+                <Tag color="geekblue">{record.arch}</Tag>
+              </Space>
+              <div className="mt-1 text-xs text-slate-600 truncate" title={`${record.osName} ${record.osVersion}`}>
+                {record.osName} {record.osVersion}
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmDeleteId(d.id)}
-                className="rounded-xl border border-red-200 bg-red-50 px-6 py-3 font-bold text-red-600 shadow-sm transition-all hover:bg-red-100"
-              >
-                删除此设备
-              </button>
-            )}
+            </div>
+          );
+        }
+        return (
+          <div>
+            <Tag color="green">Android {record.osVersion}</Tag>
+            <span className="ml-1 text-xs text-slate-500 font-mono">SDK {record.sdkVersion}</span>
           </div>
-        </div>
-      </div>
-    );
-  }
+        );
+      },
+    },
+    {
+      title: "客户端版本",
+      dataIndex: "appVersion",
+      key: "appVersion",
+      width: 120,
+      align: "center",
+      render: (ver: string) => (
+        <Tag color="cyan" className="font-mono">
+          v{ver}
+        </Tag>
+      ),
+    },
+    {
+      title: "封禁状态",
+      key: "lockStatus",
+      width: 170,
+      render: (_, record) => {
+        if (!record.locked) {
+          return <Tag color="success">正常</Tag>;
+        }
+        if (record.lockEndTime === null) {
+          return <Tag color="error">永久封禁</Tag>;
+        }
+        if (record.lockEndTime <= Date.now()) {
+          return <Tag color="default">封禁已过期</Tag>;
+        }
+        return (
+          <Tooltip title={`封禁至 ${formatTimestamp(record.lockEndTime)}`}>
+            <Tag color="warning">临时封禁</Tag>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: "最近活跃时间",
+      dataIndex: "lastActiveAt",
+      key: "lastActiveAt",
+      width: 170,
+      render: (ts: number) => (
+        <Text type="secondary" className="text-xs">
+          {formatTimestamp(ts)}
+        </Text>
+      ),
+    },
+    {
+      title: "首次上报时间",
+      dataIndex: "firstSeenAt",
+      key: "firstSeenAt",
+      width: 170,
+      render: (ts: number) => (
+        <Text type="secondary" className="text-xs">
+          {formatTimestamp(ts)}
+        </Text>
+      ),
+    },
+    {
+      title: "最近 IP",
+      dataIndex: "lastSeenIp",
+      key: "lastSeenIp",
+      width: 140,
+      render: (ip: string | null) => (
+        <Text className="font-mono text-xs text-slate-600">
+          {ip || "-"}
+        </Text>
+      ),
+    },
+    {
+      title: "操作",
+      key: "actions",
+      fixed: "right",
+      width: 200,
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => onSelectDevice(record)}
+          >
+            详情
+          </Button>
+
+          {record.locked ? (
+            <Popconfirm
+              title="确认解除封禁？"
+              description="解封后该设备将恢复正常访问权限。"
+              onConfirm={() => onLockDevice(record.id, false, null)}
+              okText="确认解封"
+              cancelText="取消"
+            >
+              <Button
+                type="link"
+                size="small"
+                icon={<UnlockOutlined />}
+                className="!text-emerald-600"
+              >
+                解封
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Button
+              type="link"
+              danger
+              size="small"
+              icon={<LockOutlined />}
+              onClick={() => setLockingDevice(record)}
+            >
+              封禁
+            </Button>
+          )}
+
+          <Popconfirm
+            title="确认删除该设备记录？"
+            description="删除后该设备所有记录将被永久移除，无法恢复。"
+            onConfirm={() => onDeleteDevice(record.id)}
+            okText="确定删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button
+              type="link"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+            >
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      <div className={glassCardClasses}>
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex min-w-0 items-center">
-            <DeviceIcon />
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">{deviceMode === "desktop" ? "PC 设备列表" : "Android 设备列表"}</h2>
-              <p className="mt-1 text-xs text-slate-500">共 {totalDevices} 台设备</p>
-            </div>
+    <div className="space-y-4 animate-fade-in-up">
+      <Card
+        bordered={false}
+        className="shadow-sm rounded-2xl"
+        title={
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-bold text-slate-800">设备管理</span>
+            <Segmented
+              options={[
+                {
+                  label: "Android 设备",
+                  value: "android",
+                  icon: <MobileOutlined />,
+                },
+                {
+                  label: "PC 桌面端",
+                  value: "desktop",
+                  icon: <LaptopOutlined />,
+                },
+              ]}
+              value={deviceMode}
+              onChange={(val) => onModeChange(val as "android" | "desktop")}
+            />
+            <span className="text-xs font-normal text-slate-500">
+              共 {totalDevices} 台设备
+            </span>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-3">
-            <div className="rounded-2xl border border-white/60 bg-white/50 p-1 shadow-inner">
-              <button
-                type="button"
-                onClick={() => onModeChange("android")}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${deviceMode === "android" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                Android
-              </button>
-              <button
-                type="button"
-                onClick={() => onModeChange("desktop")}
-                className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${deviceMode === "desktop" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                PC
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={onRefreshDevices}
-              style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-              className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:opacity-90"
-            >
-              刷新列表
-            </button>
-          </div>
+        }
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={onRefreshDevices}
+            loading={deviceLoading}
+          >
+            刷新列表
+          </Button>
+        }
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Input
+            placeholder={
+              deviceMode === "desktop"
+                ? "搜索设备名、主机名、系统、ID"
+                : "搜索品牌、型号、设备名、ID"
+            }
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            onPressEnter={handleApplyFilter}
+            allowClear
+            className="w-full sm:w-72"
+          />
+
+          <Select
+            value={localLockedFilter}
+            onChange={(val) => setLocalLockedFilter(val)}
+            className="w-32"
+            options={[
+              { label: "全部状态", value: "all" },
+              { label: "正常", value: "unlocked" },
+              { label: "已封禁", value: "locked" },
+            ]}
+          />
+
+          <Input
+            placeholder={
+              deviceMode === "desktop"
+                ? "平台 (win32 / darwin / linux)"
+                : "品牌 (Xiaomi / Huawei / ...)"
+            }
+            value={localBrand}
+            onChange={(e) => setLocalBrand(e.target.value)}
+            onPressEnter={handleApplyFilter}
+            allowClear
+            className="w-full sm:w-56"
+          />
+
+          <Button type="primary" onClick={handleApplyFilter}>
+            查询
+          </Button>
+          <Button
+            onClick={handleResetFilter}
+            disabled={
+              !localSearch &&
+              !localBrand &&
+              localLockedFilter === "all" &&
+              !deviceFilter.search &&
+              !deviceFilter.brand &&
+              !deviceFilter.platform &&
+              deviceFilter.locked === undefined
+            }
+          >
+            重置
+          </Button>
         </div>
 
-        <form
-          className="mb-6 rounded-2xl border border-white/60 bg-white/40 p-4 shadow-inner"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleApplyFilter();
+        <Table<DeviceInfo | DesktopDeviceInfo>
+          rowKey="id"
+          columns={columns}
+          dataSource={devices}
+          loading={deviceLoading}
+          size="middle"
+          scroll={{ x: 1450 }}
+          sticky={{ offsetHeader: 0 }}
+          bordered
+          pagination={{
+            current: Math.floor(deviceOffset / deviceLimit) + 1,
+            pageSize: deviceLimit,
+            total: totalDevices,
+            showTotal: (total) => `共 ${total} 台设备`,
+            showQuickJumper: true,
+            onChange: (page) => onPageChange((page - 1) * deviceLimit),
           }}
-        >
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_150px_150px_auto_auto] lg:items-end">
-            <label className="block min-w-0">
-              <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">搜索</span>
-              <input
-                type="text"
-                value={localSearch}
-                placeholder={deviceMode === "desktop" ? "设备名、主机名、系统、ID" : "品牌、型号、设备名、ID"}
-                onChange={(e) => setLocalSearch(e.target.value)}
-                className={glassInputClasses + " h-11"}
-              />
-            </label>
+        />
+      </Card>
 
-            <label className="block min-w-0">
-              <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">状态</span>
-              <select
-                value={localLockedFilter}
-                onChange={(e) => setLocalLockedFilter(e.target.value)}
-                className="h-11 w-full rounded-2xl border border-white/60 bg-white/50 px-4 text-sm text-slate-800 shadow-inner transition-all focus:bg-white/90 focus:outline-none focus:ring-2 focus:ring-slate-400/30"
-              >
-                <option value="all">全部</option>
-                <option value="locked">已封禁</option>
-                <option value="unlocked">正常</option>
-              </select>
-            </label>
+      <DeviceDetailModal
+        device={selectedDevice}
+        onClose={() => onSelectDevice(null)}
+      />
 
-            <label className="block min-w-0">
-              <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">{deviceMode === "desktop" ? "平台" : "品牌"}</span>
-              <input
-                type="text"
-                value={localBrand}
-                placeholder={deviceMode === "desktop" ? "win32 / darwin / linux" : "品牌筛选"}
-                onChange={(e) => setLocalBrand(e.target.value)}
-                className={glassInputClasses + " h-11"}
-              />
-            </label>
-
-            <button
-              type="submit"
-              style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-              className="h-11 rounded-2xl px-5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:opacity-90"
-            >
-              筛选
-            </button>
-
-            <button
-              type="button"
-              onClick={handleResetFilter}
-              disabled={!hasActiveFilter && !localSearch && !localBrand && localLockedFilter === "all"}
-              className="h-11 rounded-2xl border border-white/60 bg-white/60 px-5 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-            >
-              重置
-            </button>
-          </div>
-
-          {hasActiveFilter && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              <span className="font-bold text-slate-600">当前筛选:</span>
-              {deviceFilter.search && <span className="rounded-lg bg-white/70 px-2 py-1 font-mono">搜索: {deviceFilter.search}</span>}
-              {deviceFilter.brand && <span className="rounded-lg bg-white/70 px-2 py-1 font-mono">品牌: {deviceFilter.brand}</span>}
-              {deviceFilter.platform && <span className="rounded-lg bg-white/70 px-2 py-1 font-mono">平台: {deviceFilter.platform}</span>}
-              {deviceFilter.locked !== undefined && (
-                <span className="rounded-lg bg-white/70 px-2 py-1 font-mono">状态: {deviceFilter.locked ? "已封禁" : "正常"}</span>
-              )}
-            </div>
-          )}
-        </form>
-
-        {deviceLoading ? (
-          <div className="rounded-2xl border border-white/60 bg-white/40 py-12 text-center shadow-inner">
-            <p className="font-bold text-slate-500">加载中...</p>
-          </div>
-        ) : devices.length === 0 ? (
-          <div className="rounded-2xl border border-white/60 bg-white/40 py-12 text-center shadow-inner">
-            <p className="font-bold text-slate-500">暂无设备记录</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {devices.map((d) => {
-              const desktop = isDesktopDevice(d);
-              const title = desktop ? `${d.deviceName} / ${d.hostname}` : `${d.brand} ${d.model}`;
-              const subtitle = desktop
-                ? `${d.osName} ${d.osVersion} / ${d.platform} ${d.arch}`
-                : `${d.deviceName} / Android ${d.osVersion} / SDK ${d.sdkVersion}`;
-              return (
-              <div key={d.id} className={`${glassCardClasses} group !p-5`}>
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <span className="min-w-0 truncate text-sm font-bold text-slate-800">{title}</span>
-                      <LockBadge locked={d.locked} lockEndTime={d.lockEndTime} />
-                      <span className="rounded-md border border-slate-200 bg-slate-100/60 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-600">v{d.appVersion}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                      <span>{subtitle}</span>
-                      <span className="text-slate-400">/</span>
-                      <span>最近活跃 {formatTimestamp(d.lastActiveAt)}</span>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-2 md:ml-4 lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100">
-                    <button
-                      type="button"
-                      onClick={() => onSelectDevice(d)}
-                      className="rounded-xl border border-white bg-white/80 px-4 py-2 text-xs font-bold text-slate-700 transition-all hover:bg-white"
-                    >
-                      详情
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onLockDevice(d.id, !d.locked, null)}
-                      className={`${d.locked ? "border border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "border border-red-100 bg-red-50 text-red-600 hover:bg-red-100"} rounded-xl px-4 py-2 text-xs font-bold transition-all`}
-                    >
-                      {d.locked ? "解封" : "封禁"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (window.confirm("确定要删除此设备记录吗？此操作不可撤销。")) onDeleteDevice(d.id);
-                      }}
-                      className="rounded-xl border border-red-100 bg-red-50 px-4 py-2 text-xs font-bold text-red-600 transition-all hover:bg-red-100"
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )})}
-          </div>
-        )}
-
-        {totalDevices > 0 && (
-          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs font-bold text-slate-500">
-              第 {currentPage} 页 / 共 {totalPages} 页
-            </span>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handlePrevPage}
-                disabled={deviceOffset === 0}
-                className={`rounded-2xl border border-white/60 px-5 py-2.5 text-sm font-bold transition-all ${
-                  deviceOffset === 0 ? "cursor-not-allowed bg-slate-200 text-slate-400" : "bg-white/60 text-slate-700 shadow-sm hover:bg-white"
-                }`}
-              >
-                上一页
-              </button>
-              <button
-                type="button"
-                onClick={handleNextPage}
-                disabled={deviceOffset + deviceLimit >= totalDevices}
-                className={`rounded-2xl border border-white/60 px-5 py-2.5 text-sm font-bold transition-all ${
-                  deviceOffset + deviceLimit >= totalDevices ? "cursor-not-allowed bg-slate-200 text-slate-400" : "bg-white/60 text-slate-700 shadow-sm hover:bg-white"
-                }`}
-              >
-                下一页
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <DeviceLockModal
+        device={lockingDevice}
+        onClose={() => setLockingDevice(null)}
+        onLock={onLockDevice}
+      />
     </div>
   );
 }

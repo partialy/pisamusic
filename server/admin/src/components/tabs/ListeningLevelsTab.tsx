@@ -1,14 +1,33 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  InputNumber,
+  Popconfirm,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+} from "@ant-design/icons";
+import {
   fetchListeningLevelConfig,
   ListeningLevelVersionConflictError,
   saveListeningLevelConfig,
 } from "../../api/listening";
-import { glassCardClasses, glassInputClasses } from "../../constants/theme";
 import type { ListeningLevelConfig, ListeningLevelRule } from "../../types/listening";
 
+const { Text } = Typography;
+
 type Props = {
-  /** 当前后台主题色。 */
   themeColor: string;
 };
 
@@ -66,8 +85,21 @@ function validateRules(rules: DraftRule[]): RuleValidationResult {
     : { rules: null, error: "最后一级必须设置为无上限。" };
 }
 
-/** 管理后台的听歌等级连续区间编辑器。 */
-export default function ListeningLevelsTab({ themeColor }: Props) {
+function formatDurationSpan(minStr: string, maxStr: string | null): string {
+  const min = readMinute(minStr);
+  if (min === null) return "-";
+  if (maxStr === null) {
+    const minHour = (min / 60).toFixed(1);
+    return `${min} 分钟以上 (≥ ${minHour} 小时，无上限)`;
+  }
+  const max = readMinute(maxStr);
+  if (max === null || max < min) return "-";
+  const span = max - min + 1;
+  const spanHour = (span / 60).toFixed(1);
+  return `${min} ~ ${max} 分钟 (共 ${span} 分钟 ≈ ${spanHour} 小时)`;
+}
+
+export default function ListeningLevelsTab({ themeColor: _ }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<ListeningLevelConfig | null>(null);
@@ -115,7 +147,9 @@ export default function ListeningLevelsTab({ themeColor }: Props) {
   );
 
   const updateRule = (index: number, patch: Partial<DraftRule>) => {
-    setDraftRules((current) => current.map((rule, ruleIndex) => (ruleIndex === index ? { ...rule, ...patch } : rule)));
+    setDraftRules((current) =>
+      current.map((rule, ruleIndex) => (ruleIndex === index ? { ...rule, ...patch } : rule)),
+    );
   };
 
   const updateMinute = (index: number, field: "minMinutes" | "maxMinutes", value: string) => {
@@ -178,80 +212,202 @@ export default function ListeningLevelsTab({ themeColor }: Props) {
     }
   };
 
+  const columns: ColumnsType<DraftRule> = [
+    {
+      title: "等级",
+      key: "level",
+      width: 100,
+      align: "center",
+      render: (_, record) => (
+        <Tag color="geekblue" className="px-3 py-1 text-sm font-extrabold">
+          Lv {record.level}
+        </Tag>
+      ),
+    },
+    {
+      title: "起始分钟",
+      key: "minMinutes",
+      width: 180,
+      render: (_, record, index) => (
+        <InputNumber
+          min={0}
+          step={1}
+          precision={0}
+          value={Number(record.minMinutes) || 0}
+          disabled={saving || index === 0}
+          onChange={(val) => updateMinute(index, "minMinutes", String(val ?? 0))}
+          className="w-full"
+          addonAfter="分钟"
+        />
+      ),
+    },
+    {
+      title: "结束分钟",
+      key: "maxMinutes",
+      width: 200,
+      render: (_, record, index) => {
+        const isUnlimited = record.maxMinutes === null;
+        return (
+          <InputNumber
+            min={Number(record.minMinutes) || 0}
+            step={1}
+            precision={0}
+            value={isUnlimited ? undefined : Number(record.maxMinutes)}
+            placeholder={isUnlimited ? "无上限" : "请输入结束分钟"}
+            disabled={saving || isUnlimited}
+            onChange={(val) => updateMinute(index, "maxMinutes", val !== null ? String(val) : "")}
+            className="w-full"
+            addonAfter={isUnlimited ? "∞" : "分钟"}
+          />
+        );
+      },
+    },
+    {
+      title: "是否无上限",
+      key: "unlimited",
+      width: 120,
+      align: "center",
+      render: (_, record, index) => {
+        const isLast = index === draftRules.length - 1;
+        const isUnlimited = record.maxMinutes === null;
+        return (
+          <Checkbox
+            checked={isUnlimited}
+            disabled={saving || !isLast}
+            onChange={(e) => toggleUnlimited(index, e.target.checked)}
+          >
+            无上限
+          </Checkbox>
+        );
+      },
+    },
+    {
+      title: "区间跨度说明",
+      key: "span",
+      render: (_, record) => (
+        <Text type="secondary" className="font-mono text-xs">
+          {formatDurationSpan(record.minMinutes, record.maxMinutes)}
+        </Text>
+      ),
+    },
+    {
+      title: "操作",
+      key: "action",
+      width: 100,
+      align: "center",
+      render: (_, __, index) => (
+        <Popconfirm
+          title="确认删除该等级？"
+          description="删除后后续等级将自动向前重排并调整无上限状态。"
+          onConfirm={() => removeRule(index)}
+          disabled={saving || draftRules.length <= 1}
+          okText="确定"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+        >
+          <Button
+            type="link"
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            disabled={saving || draftRules.length <= 1}
+          >
+            删除
+          </Button>
+        </Popconfirm>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div className={glassCardClasses}>
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="text-2xl font-extrabold text-slate-800">听歌等级</h2>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">按照用户全设备去重后的累计听歌分钟动态计算等级。区间必须连续且不能重叠，最后一级可设为无上限。</p>
+    <div className="space-y-4 animate-fade-in-up">
+      <Card
+        bordered={false}
+        className="shadow-sm rounded-2xl"
+        title={
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold text-slate-800">听歌等级区间配置</span>
+            {config && <Tag color="blue">当前版本 v{config.version}</Tag>}
+            {hasChanges && <Tag color="orange">有未保存改动</Tag>}
           </div>
-          <div className="flex shrink-0 flex-wrap gap-3">
-            <button type="button" onClick={() => void loadConfig()} disabled={loading || saving} className="rounded-2xl border border-white/60 bg-white/70 px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">
+        }
+        extra={
+          <Space>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => void loadConfig()}
+              loading={loading}
+              disabled={saving}
+            >
               刷新配置
-            </button>
-            <button type="button" onClick={() => void saveRules()} disabled={loading || saving || !hasChanges} className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}>
-              {saving ? "保存中..." : "保存等级"}
-            </button>
-          </div>
-        </div>
-        {config && <p className="mt-4 text-xs font-semibold text-slate-400">当前配置版本：v{config.version}</p>}
-      </div>
+            </Button>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              onClick={() => void saveRules()}
+              loading={saving}
+              disabled={loading || !hasChanges || Boolean(validationError)}
+            >
+              保存等级
+            </Button>
+          </Space>
+        }
+      >
+        <div className="space-y-4">
+          <Alert
+            type="info"
+            showIcon
+            message="等级计算规则"
+            description="按照用户全设备去重后的累计听歌分钟动态计算等级。区间必须连续且不能重叠：Lv 1 必须从 0 分钟开始，每一级的起始分钟必须等于前一级的结束分钟 + 1，且只有最后一级可以设为无上限。"
+            className="rounded-xl"
+          />
 
-      {loading ? (
-        <div className={`${glassCardClasses} py-14 text-center text-sm font-semibold text-slate-500`}>正在加载听歌等级配置...</div>
-      ) : error && !config ? (
-        <div className={`${glassCardClasses} py-14 text-center`}>
-          <p className="text-sm font-semibold text-rose-600">{error}</p>
-          <button type="button" onClick={() => void loadConfig()} className="mt-4 rounded-xl px-4 py-2 text-sm font-bold text-white" style={{ backgroundColor: themeColor }}>重试</button>
-        </div>
-      ) : (
-        <div className={glassCardClasses}>
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-800">等级区间</h3>
-              <p className="mt-1 text-sm text-slate-500">分钟区间为闭区间；保存前会检查从 Lv 1 起的连续性。</p>
-            </div>
-            <button type="button" onClick={addRule} disabled={saving || draftRules.length >= 100} className="rounded-2xl border border-white/60 bg-white/70 px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50" title={draftRules.length >= 100 ? "最多只能配置 100 个等级" : undefined}>
-              {draftRules.length >= 100 ? "最多 100 级" : "添加等级"}
-            </button>
+          {error && (
+            <Alert
+              type="error"
+              showIcon
+              message={error}
+              closable
+              onClose={() => setError(null)}
+              className="rounded-xl"
+            />
+          )}
+
+          {validationError && (
+            <Alert
+              type="warning"
+              showIcon
+              message={`区间连续性校验：${validationError}`}
+              className="rounded-xl"
+            />
+          )}
+
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-sm font-semibold text-slate-700">
+              当前配置：共 {draftRules.length} 个等级
+            </span>
+            <Button
+              type="dashed"
+              icon={<PlusOutlined />}
+              onClick={addRule}
+              disabled={saving || draftRules.length >= 100}
+            >
+              {draftRules.length >= 100 ? "已达上限 (100级)" : "添加等级"}
+            </Button>
           </div>
 
-          {error && <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div>}
-          {validationError && <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">{validationError}</div>}
-
-          <div className="space-y-3">
-            {draftRules.map((rule, index) => {
-              const isLast = index === draftRules.length - 1;
-              const unlimited = rule.maxMinutes === null;
-              return (
-                <div key={rule.level} className="grid grid-cols-1 gap-4 rounded-3xl border border-white/60 bg-white/45 p-4 shadow-sm md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end md:p-5">
-                  <div className="rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-extrabold text-white">Lv {rule.level}</div>
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-bold text-slate-500">起始分钟</span>
-                    <input type="number" min="0" step="1" inputMode="numeric" value={rule.minMinutes} onChange={(event) => updateMinute(index, "minMinutes", event.target.value)} className={glassInputClasses} disabled={saving} />
-                  </label>
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-bold text-slate-500">结束分钟</span>
-                    <input type="number" min="0" step="1" inputMode="numeric" value={unlimited ? "" : (rule.maxMinutes ?? "")} placeholder={unlimited ? "无上限" : "请输入结束分钟"} onChange={(event) => updateMinute(index, "maxMinutes", event.target.value)} className={glassInputClasses} disabled={saving || unlimited} />
-                  </label>
-                  <div className="flex items-center justify-between gap-3 md:justify-end">
-                    {isLast && (
-                      <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm font-bold text-slate-600">
-                        <input type="checkbox" checked={unlimited} onChange={(event) => toggleUnlimited(index, event.target.checked)} disabled={saving} className="h-4 w-4 rounded border-slate-300" />
-                        无上限
-                      </label>
-                    )}
-                    <button type="button" onClick={() => removeRule(index)} disabled={saving || draftRules.length <= 1} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50">
-                      删除
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <Table<DraftRule>
+            rowKey="level"
+            columns={columns}
+            dataSource={draftRules}
+            loading={loading}
+            pagination={false}
+            size="middle"
+            bordered
+            className="overflow-hidden rounded-xl border border-slate-200"
+          />
         </div>
-      )}
+      </Card>
     </div>
   );
 }

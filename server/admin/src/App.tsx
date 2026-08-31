@@ -1,4 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { ConfigProvider } from "antd";
+import zhCN from "antd/locale/zh_CN";
+import "dayjs/locale/zh-cn";
+import dayjs from "dayjs";
+
+dayjs.locale("zh-cn");
 import type {
   AdminFaultReportDetail,
   AdminFeedbackDetail,
@@ -1301,7 +1307,16 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   );
 
   return (
-    <div className="relative flex min-h-dvh w-full overflow-x-hidden font-sans text-slate-800 lg:h-dvh lg:overflow-hidden">
+    <ConfigProvider
+      locale={zhCN}
+      theme={{
+        token: {
+          colorPrimary: themeColor,
+          borderRadius: 8,
+        },
+      }}
+    >
+      <div className="relative flex min-h-dvh w-full overflow-x-hidden font-sans text-slate-800 lg:h-dvh lg:overflow-hidden">
       <div className={`fixed inset-0 z-[-1] bg-gradient-to-br ${bgPresets[bgIndex].base} transition-colors duration-700`}>
         <div
           className={`absolute top-[-10%] left-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob1} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_8s_ease-in-out_infinite] transition-colors duration-700`}
@@ -1441,14 +1456,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         </div>
       </aside>
 
-      <main className="relative z-10 flex min-h-dvh w-full flex-1 flex-col lg:ml-64 lg:h-dvh lg:min-h-0">
+      <main className="relative z-10 flex min-h-dvh min-w-0 flex-1 flex-col lg:ml-64 lg:h-dvh lg:min-h-0">
         <header className="sticky top-0 z-10 flex min-h-16 shrink-0 flex-col gap-3 border-b border-white/50 bg-white/50 px-4 py-3 backdrop-blur-md sm:px-6 lg:h-20 lg:flex-row lg:items-center lg:justify-between lg:bg-white/40 lg:px-10 lg:py-0">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileNavOpen(true)}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/60 bg-white/70 text-slate-700 shadow-sm transition-colors hover:bg-white lg:hidden"
-              aria-label="鎵撳紑鑿滃崟"
+              aria-label="打开菜单"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -1484,8 +1499,8 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           ) : null}
         </header>
 
-        <div className="relative flex-1 overflow-y-auto p-4 no-scrollbar sm:p-6 lg:p-10">
-          <div className="mx-auto w-full max-w-7xl pb-20">
+        <div className="relative flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-[1600px] pb-20">
             <Suspense fallback={tabFallback()}>
               {currentTab === "dashboard" && <DashboardTab themeColor={themeColor} />}
               {currentTab === "websiteRecords" && <WebsiteRecordsTab themeColor={themeColor} />}
@@ -1779,6 +1794,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           onSuccess={() => alert("密码已更新，请妥善保管新密码。")}
         />
       )}
-    </div>
+      </div>
+    </ConfigProvider>
   );
 }

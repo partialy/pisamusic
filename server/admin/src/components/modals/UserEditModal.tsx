@@ -1,7 +1,20 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import {
+  Avatar,
+  DatePicker,
+  Form,
+  Input,
+  Modal,
+  Space,
+  Switch,
+  Tag,
+  Typography,
+} from "antd";
+import { UserOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
 import type { AdminUserListItem, AdminUserUpdatePayload } from "../../types/config";
-import { glassInputClasses } from "../../constants/theme";
-import { Switch } from "../ui/Switch";
+
+const { Text } = Typography;
 
 type Props = {
   user: AdminUserListItem;
@@ -11,145 +24,151 @@ type Props = {
   onSave: (payload: AdminUserUpdatePayload) => void;
 };
 
-type UserEditDraft = Omit<AdminUserUpdatePayload, "vipExpiresAt"> & {
-  vipExpiresAt: string;
+type FormValues = {
+  username: string;
+  email: string;
+  vipEnabled: boolean;
+  vipExpiresAt?: dayjs.Dayjs | null;
 };
 
-function toLocalDatetimeValue(timestamp: number | null): string {
-  if (timestamp == null) return "";
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+export default function UserEditModal({ user, saving, onClose, onSave }: Props) {
+  const [form] = Form.useForm<FormValues>();
+  const vipEnabled = Form.useWatch("vipEnabled", form);
 
-export default function UserEditModal({ user, themeColor, saving, onClose, onSave }: Props) {
-  const [draft, setDraft] = useState<UserEditDraft>({
-    username: user.username,
-    email: user.email,
-    vipEnabled: user.vipEnabled,
-    vipExpiresAt: toLocalDatetimeValue(user.vipExpiresAt),
-  });
-  const [vipError, setVipError] = useState("");
+  useEffect(() => {
+    form.setFieldsValue({
+      username: user.username,
+      email: user.email,
+      vipEnabled: user.vipEnabled,
+      vipExpiresAt: user.vipExpiresAt ? dayjs(user.vipExpiresAt) : undefined,
+    });
+  }, [user, form]);
 
-  const handleSave = () => {
+  const handleFinish = (values: FormValues) => {
     let vipExpiresAt: number | null = null;
-    if (draft.vipEnabled) {
-      vipExpiresAt = draft.vipExpiresAt ? new Date(draft.vipExpiresAt).getTime() : Number.NaN;
-      if (!Number.isFinite(vipExpiresAt) || vipExpiresAt <= Date.now()) {
-        setVipError("启用 VIP 时，请选择晚于当前时间的到期时间");
+    if (values.vipEnabled) {
+      if (!values.vipExpiresAt || values.vipExpiresAt.valueOf() <= Date.now()) {
+        form.setFields([
+          {
+            name: "vipExpiresAt",
+            errors: ["启用 VIP 时，请选择晚于当前时间的到期时间"],
+          },
+        ]);
         return;
       }
+      vipExpiresAt = values.vipExpiresAt.valueOf();
     }
-    setVipError("");
+
     onSave({
-      username: draft.username,
-      email: draft.email,
-      vipEnabled: draft.vipEnabled,
+      username: values.username.trim(),
+      email: values.email.trim(),
+      vipEnabled: Boolean(values.vipEnabled),
       vipExpiresAt,
     });
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6">
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-md" onClick={onClose} aria-hidden />
-      <div
-        className="relative mx-auto my-4 flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-2xl backdrop-blur-2xl animate-fade-in-up sm:my-8 sm:rounded-[2rem]"
-        style={{ animationDuration: "0.2s" }}
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-white/50 bg-white/30 px-4 py-4 sm:px-8 sm:py-5">
-          <div className="min-w-0">
-            <h3 className="truncate text-lg font-extrabold text-slate-800 sm:text-xl">编辑用户资料</h3>
-            <p className="mt-1 truncate font-mono text-sm text-slate-500">{user.id}</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-full bg-white/50 p-2 text-slate-500 shadow-sm hover:bg-white" aria-label="关闭">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="space-y-6 p-4 sm:p-8">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-2 ml-1 block text-sm font-semibold text-slate-700">用户名</span>
-              <input
-                type="text"
-                value={draft.username}
-                onChange={(event) => setDraft((prev) => ({ ...prev, username: event.target.value }))}
-                className={glassInputClasses}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 ml-1 block text-sm font-semibold text-slate-700">邮箱</span>
-              <input
-                type="email"
-                value={draft.email}
-                onChange={(event) => setDraft((prev) => ({ ...prev, email: event.target.value }))}
-                className={glassInputClasses}
-              />
-            </label>
-          </div>
-
+    <Modal
+      open
+      centered
+      title={
+        <Space align="center" size={12}>
+          <Avatar
+            size={36}
+            src={user.avatarUrl || user.avatar}
+            icon={<UserOutlined />}
+            className="border border-slate-200 shadow-sm"
+          />
           <div>
-            <span className="mb-3 ml-1 block text-sm font-semibold text-slate-700">头像</span>
-            <div className="flex items-center gap-4 rounded-2xl border border-white/60 bg-white/50 p-4">
-              <img src={user.avatarUrl || user.avatar} alt={user.username} className="h-14 w-14 rounded-2xl object-cover shadow-sm" />
-              <div className="min-w-0">
-                <div className="font-bold text-slate-800">当前头像</div>
-                <div className="mt-1 truncate font-mono text-xs text-slate-500">{user.avatarKey === "default" ? "default" : "custom"}</div>
-              </div>
+            <span className="text-base font-bold text-slate-800">编辑用户资料</span>
+            <span className="ml-2 text-xs font-mono text-slate-400">({user.id})</span>
+          </div>
+        </Space>
+      }
+      width={640}
+      onCancel={onClose}
+      onOk={() => form.submit()}
+      confirmLoading={saving}
+      okText="保存修改"
+      cancelText="取消"
+      destroyOnClose
+    >
+      <div className="max-h-[calc(85vh-140px)] overflow-y-auto pr-1">
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleFinish}
+          className="pt-3"
+        >
+        <Form.Item
+          label="用户名"
+          name="username"
+          rules={[
+            { required: true, message: "请输入用户名" },
+            { max: 32, message: "用户名长度不能超过 32 位" },
+          ]}
+        >
+          <Input placeholder="请输入用户名" allowClear />
+        </Form.Item>
+
+        <Form.Item
+          label="邮箱地址"
+          name="email"
+          rules={[
+            { required: true, message: "请输入邮箱地址" },
+            { type: "email", message: "请输入有效的邮箱格式" },
+          ]}
+        >
+          <Input placeholder="请输入邮箱" allowClear />
+        </Form.Item>
+
+        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Text strong className="text-sm text-slate-800">
+                PisaMusic VIP 特权
+              </Text>
+              <Text type="secondary" className="block text-xs">
+                开启后将在到期时间前享有系统账号 VIP 权益
+              </Text>
             </div>
+            <Form.Item name="vipEnabled" valuePropName="checked" className="!mb-0">
+              <Switch />
+            </Form.Item>
           </div>
 
-          <div className="rounded-2xl border border-white/60 bg-white/40 p-4 shadow-sm backdrop-blur-md">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm font-bold text-slate-700">
-                VIP 用户
-                <span className="mt-0.5 block text-[10px] font-normal text-slate-400">仅在到期时间前享有系统账号 VIP 权益</span>
-              </span>
-              <Switch
-                checked={draft.vipEnabled}
-                onChange={(vipEnabled) => {
-                  setDraft((prev) => ({ ...prev, vipEnabled, vipExpiresAt: vipEnabled ? prev.vipExpiresAt : "" }));
-                  setVipError("");
-                }}
-                themeColor={themeColor}
-              />
-            </div>
-            {draft.vipEnabled && (
-              <label className="mt-4 block">
-                <span className="mb-2 ml-1 block text-sm font-semibold text-slate-700">VIP 到期时间</span>
-                <input
-                  type="datetime-local"
-                  value={draft.vipExpiresAt}
-                  onChange={(event) => {
-                    setDraft((prev) => ({ ...prev, vipExpiresAt: event.target.value }));
-                    setVipError("");
-                  }}
-                  className={glassInputClasses}
+          {vipEnabled && (
+            <div className="mt-4 border-t border-slate-200/60 pt-4">
+              <Form.Item
+                label="VIP 到期时间"
+                name="vipExpiresAt"
+                rules={[{ required: true, message: "请选择 VIP 到期时间" }]}
+                className="!mb-0"
+              >
+                <DatePicker
+                  showTime
+                  format="YYYY-MM-DD HH:mm:ss"
+                  placeholder="请选择到期时间"
+                  className="w-full"
+                  disabledDate={(current) =>
+                    current && current.valueOf() < dayjs().startOf("day").valueOf()
+                  }
                 />
-              </label>
-            )}
-            {vipError && <p className="mt-3 text-sm font-semibold text-red-600">{vipError}</p>}
-          </div>
+              </Form.Item>
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-wrap justify-end gap-3 border-t border-white/50 bg-white/30 p-4 sm:p-6">
-          <button type="button" onClick={onClose} className="rounded-xl border border-white/60 bg-white/60 px-6 py-3 font-bold text-slate-700 shadow-sm hover:bg-white">
-            取消
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={handleSave}
-            style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-            className="rounded-xl px-8 py-3 font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? "保存中..." : "保存"}
-          </button>
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex items-center justify-between">
+          <Text type="secondary" className="text-xs">
+            头像类型
+          </Text>
+          <Tag color={user.avatarKey === "default" ? "default" : "blue"}>
+            {user.avatarKey === "default" ? "默认头像" : "自定义上传头像"}
+          </Tag>
         </div>
+      </Form>
       </div>
-    </div>
+    </Modal>
   );
 }
