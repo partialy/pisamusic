@@ -341,6 +341,7 @@ CREATE INDEX IF NOT EXISTS idx_share_records_type_source ON share_records (type,
 CREATE TABLE IF NOT EXISTS users (
     id              TEXT    PRIMARY KEY,
     email           TEXT    NOT NULL UNIQUE,
+    phone           TEXT    UNIQUE,
     username        TEXT    NOT NULL UNIQUE,
     password_hash   TEXT    NOT NULL,
     avatar          TEXT    NOT NULL DEFAULT '',
@@ -353,6 +354,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_login_at   INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users (phone);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
 CREATE TABLE IF NOT EXISTS listening_fragments (
@@ -638,6 +640,10 @@ function migrateDynamicConfigs(db: DatabaseSync) {
 
 function migrateUsers(db: DatabaseSync) {
   const cols = getColumnNames(db, "users");
+  if (!cols.has("phone")) {
+    db.exec(`ALTER TABLE users ADD COLUMN phone TEXT`);
+  }
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_users_phone ON users(phone) WHERE phone IS NOT NULL AND phone <> ''`);
   if (!cols.has("avatar_key")) {
     db.exec(`ALTER TABLE users ADD COLUMN avatar_key TEXT NOT NULL DEFAULT 'default'`);
   }

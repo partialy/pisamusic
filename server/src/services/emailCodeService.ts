@@ -1,11 +1,15 @@
 import { randomInt } from "node:crypto";
 import { sendVerifyCodeEmail } from "./emailDeliveryService";
+import { sendVerifyCodeSms } from "./smsDeliveryService";
 
-export type EmailCodePurpose = "register" | "login" | "profile_email" | "reset_password";
+export type ContactChannel = "email" | "phone";
+export type ContactCodePurpose = "register" | "login" | "profile_email" | "profile_phone" | "reset_password";
+export type EmailCodePurpose = Exclude<ContactCodePurpose, "profile_phone">;
 
 type CodeEntry = {
   code: string;
-  purpose: EmailCodePurpose;
+  channel: ContactChannel;
+  purpose: ContactCodePurpose;
   expiresAt: number;
   nextSendAt: number;
 };
@@ -15,8 +19,8 @@ const SEND_COOLDOWN_MS = 60 * 1000;
 const codeMap = new Map<string, CodeEntry>();
 const sendCooldownMap = new Map<string, number>();
 
-function key(email: string, purpose: EmailCodePurpose): string {
-  return `${purpose}:${email.toLowerCase()}`;
+function key(channel: ContactChannel, contact: string, purpose: ContactCodePurpose): string {
+  return `${channel}:${purpose}:${channel === "email" ? contact.toLowerCase() : contact}`;
 }
 
 function makeCode(): string {
@@ -32,10 +36,10 @@ function evictExpired(now = Date.now()): void {
   }
 }
 
-export async function sendEmailCode(email: string, purpose: EmailCodePurpose): Promise<{ expiresAt: number; nextSendAt: number }> {
+export async function sendContactCode(channel: ContactChannel, contact: string, purpose: ContactCodePurpose): Promise<{ expiresAt: number; nextSendAt: number }> {
   const now = Date.now();
   evictExpired(now);
-  const cacheKey = key(email, purpose);
+  const cacheKey = key(channel, contact, purpose);
   const cooldownUntil = sendCooldownMap.get(cacheKey) ?? codeMap.get(cacheKey)?.nextSendAt ?? 0;
   if (cooldownUntil > now) {
     const seconds = Math.ceil((cooldownUntil - now) / 1000);
@@ -45,10 +49,12 @@ export async function sendEmailCode(email: string, purpose: EmailCodePurpose): P
   const code = makeCode();
   const nextSendAt = now + SEND_COOLDOWN_MS;
   sendCooldownMap.set(cacheKey, nextSendAt);
-  await sendVerifyCodeEmail(email, code);
+  if (channel === "email") await sendVerifyCodeEmail(contact, code);
+  else await sendVerifyCodeSms(contact, code);
 
   const entry: CodeEntry = {
     code,
+    channel,
     purpose,
     expiresAt: now + CODE_TTL_MS,
     nextSendAt,
@@ -61,15 +67,23 @@ export async function sendEmailCode(email: string, purpose: EmailCodePurpose): P
   return { expiresAt: entry.expiresAt, nextSendAt: entry.nextSendAt };
 }
 
-export function verifyEmailCode(email: string, purpose: EmailCodePurpose, code: string): boolean {
+export function verifyContactCode(channel: ContactChannel, contact: string, purpose: ContactCodePurpose, code: string): boolean {
   const now = Date.now();
   evictExpired(now);
-  const cacheKey = key(email, purpose);
+  const cacheKey = key(channel, contact, purpose);
   const entry = codeMap.get(cacheKey);
   if (!entry || entry.purpose !== purpose || entry.expiresAt <= now) return false;
   if (entry.code !== code.trim()) return false;
   codeMap.delete(cacheKey);
   return true;
+}
+
+export async function sendEmailCode(email: string, purpose: EmailCodePurpose) {
+  return sendContactCode("email", email, purpose);
+}
+
+export function verifyEmailCode(email: string, purpose: EmailCodePurpose, code: string): boolean {
+  return verifyContactCode("email", email, purpose, code);
 }
 
 function shouldDebugLogCode(): boolean {

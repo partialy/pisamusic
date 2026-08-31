@@ -6,6 +6,7 @@ import { buildUrl, isAccountAvatarObjectKey } from "../services/qiniuReleaseFile
 export type UserRecord = {
   id: string;
   email: string;
+  phone: string | null;
   username: string;
   passwordHash: string;
   avatar: string;
@@ -20,7 +21,9 @@ export type UserRecord = {
 
 export type PublicUser = {
   id: string;
+  /** 未绑定邮箱时为空字符串，保持旧客户端字段类型兼容。 */
   email: string;
+  phone: string | null;
   username: string;
   avatar: string;
   avatarKey: string;
@@ -33,6 +36,7 @@ export type PublicUser = {
 
 export type CreateUserInput = {
   email: string;
+  phone?: string | null;
   username: string;
   passwordHash: string;
   avatar?: string;
@@ -42,6 +46,7 @@ export type CreateUserInput = {
 type UserRow = {
   id: string;
   email: string;
+  phone: string | null;
   username: string;
   password_hash: string;
   avatar: string;
@@ -61,6 +66,7 @@ export type AccountAvatarKey = typeof ACCOUNT_AVATAR_KEYS[number];
 export type UpdateUserProfileInput = {
   username?: string;
   email?: string;
+  phone?: string | null;
   avatarKey?: string;
 };
 
@@ -107,11 +113,12 @@ export function createUser(input: CreateUserInput): UserRecord {
     const id = randomUUID().replace(/-/g, "");
     db.prepare(
       `INSERT INTO users (
-        id, email, username, password_hash, avatar, avatar_key, sync_version, created_at, updated_at, last_login_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+        id, email, phone, username, password_hash, avatar, avatar_key, sync_version, created_at, updated_at, last_login_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
     ).run(
       id,
       input.email,
+      input.phone ?? null,
       input.username,
       input.passwordHash,
       input.avatar ?? avatarUrlForKey("default"),
@@ -136,24 +143,32 @@ export function readUserByEmail(email: string): UserRecord | null {
   return row ? mapUserRow(row) : null;
 }
 
+export function readUserByPhone(phone: string): UserRecord | null {
+  const row = getAppDb().prepare("SELECT * FROM users WHERE phone = ?").get(phone) as UserRow | undefined;
+  return row ? mapUserRow(row) : null;
+}
+
 export function readUserByUsername(username: string): UserRecord | null {
   const row = getAppDb().prepare("SELECT * FROM users WHERE username = ?").get(username) as UserRow | undefined;
   return row ? mapUserRow(row) : null;
 }
 
 export function readUserByIdentifier(identifier: string): UserRecord | null {
-  return identifier.includes("@") ? readUserByEmail(identifier) : readUserByUsername(identifier);
+  if (identifier.includes("@")) return readUserByEmail(identifier);
+  if (/^1\d{10}$/.test(identifier)) return readUserByPhone(identifier);
+  return readUserByUsername(identifier);
 }
 
 export function touchUserLogin(id: string): void {
   getAppDb().prepare("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?").run(Date.now(), Date.now(), id);
 }
 
-export function userExistsForRegister(email: string, username: string): { emailExists: boolean; usernameExists: boolean } {
+export function userExistsForRegister(email: string | null, phone: string | null, username: string): { emailExists: boolean; phoneExists: boolean; usernameExists: boolean } {
   const db = getAppDb();
-  const emailRow = db.prepare("SELECT id FROM users WHERE email = ?").get(email) as { id: string } | undefined;
+  const emailRow = email ? db.prepare("SELECT id FROM users WHERE email = ?").get(email) as { id: string } | undefined : undefined;
+  const phoneRow = phone ? db.prepare("SELECT id FROM users WHERE phone = ?").get(phone) as { id: string } | undefined : undefined;
   const usernameRow = db.prepare("SELECT id FROM users WHERE username = ?").get(username) as { id: string } | undefined;
-  return { emailExists: Boolean(emailRow), usernameExists: Boolean(usernameRow) };
+  return { emailExists: Boolean(emailRow), phoneExists: Boolean(phoneRow), usernameExists: Boolean(usernameRow) };
 }
 
 export function updateUserProfile(id: string, input: UpdateUserProfileInput): UserRecord {
@@ -162,15 +177,16 @@ export function updateUserProfile(id: string, input: UpdateUserProfileInput): Us
     const current = readUserById(id);
     if (!current) throw new Error("用户不存在");
     const nextEmail = input.email ?? current.email;
+    const nextPhone = input.phone === undefined ? current.phone : input.phone;
     const nextUsername = input.username ?? current.username;
     const nextAvatarKey = normalizeAccountAvatarKey(id, input.avatarKey ?? current.avatarKey);
     const now = Date.now();
     const nextAvatarUrl = accountAvatarUrl(id, nextAvatarKey, now);
     db.prepare(
       `UPDATE users
-       SET email = ?, username = ?, avatar_key = ?, avatar = ?, updated_at = ?
+       SET email = ?, phone = ?, username = ?, avatar_key = ?, avatar = ?, updated_at = ?
        WHERE id = ?`,
-    ).run(nextEmail, nextUsername, nextAvatarKey, nextAvatarUrl, now, id);
+    ).run(nextEmail, nextPhone, nextUsername, nextAvatarKey, nextAvatarUrl, now, id);
     const updated = readUserById(id);
     if (!updated) throw new Error("用户资料更新失败");
     return updated;
@@ -211,7 +227,8 @@ export function toPublicUser(user: UserRecord): PublicUser {
   const avatarUrl = accountAvatarUrl(user.id, avatarKey, user.updatedAt);
   return {
     id: user.id,
-    email: user.email,
+    email: user.email.endsWith("@phone.invalid") ? "" : user.email,
+    phone: user.phone,
     username: user.username,
     avatar: avatarUrl,
     avatarKey,
@@ -227,6 +244,7 @@ function mapUserRow(row: UserRow): UserRecord {
   return {
     id: row.id,
     email: row.email,
+    phone: row.phone,
     username: row.username,
     passwordHash: row.password_hash,
     avatar: row.avatar,
