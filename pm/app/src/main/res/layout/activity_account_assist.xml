@@ -25,6 +25,7 @@
         android:clipToPadding="false"
         android:fillViewport="true"
         android:overScrollMode="never"
+        android:scrollbars="none"
         android:paddingStart="@dimen/pm_page_content_start"
         android:paddingEnd="@dimen/pm_page_content_start"
         app:layout_constraintBottom_toBottomOf="parent"
