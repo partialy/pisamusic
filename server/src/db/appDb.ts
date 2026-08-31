@@ -355,6 +355,116 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
+CREATE TABLE IF NOT EXISTS listening_fragments (
+    user_id             TEXT    NOT NULL,
+    device_id           TEXT    NOT NULL,
+    event_id            TEXT    NOT NULL,
+    play_session_id     TEXT    NOT NULL,
+    platform            TEXT    NOT NULL,
+    source              TEXT    NOT NULL,
+    song_id             TEXT    NOT NULL,
+    title               TEXT    NOT NULL DEFAULT '',
+    artist              TEXT    NOT NULL DEFAULT '',
+    album               TEXT    NOT NULL DEFAULT '',
+    track_duration_ms   INTEGER,
+    start_ms            INTEGER NOT NULL,
+    end_ms              INTEGER NOT NULL,
+    active_duration_ms  INTEGER NOT NULL,
+    terminal_reason     TEXT,
+    payload_json        TEXT    NOT NULL,
+    received_at         INTEGER NOT NULL,
+    PRIMARY KEY (user_id, device_id, event_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_listening_fragments_user_interval
+ON listening_fragments (user_id, start_ms, end_ms);
+CREATE INDEX IF NOT EXISTS idx_listening_fragments_track_interval
+ON listening_fragments (user_id, source, song_id, start_ms, end_ms);
+CREATE INDEX IF NOT EXISTS idx_listening_fragments_session
+ON listening_fragments (user_id, device_id, play_session_id);
+
+CREATE TABLE IF NOT EXISTS listening_play_sessions (
+    user_id             TEXT    NOT NULL,
+    device_id           TEXT    NOT NULL,
+    play_session_id     TEXT    NOT NULL,
+    source              TEXT    NOT NULL,
+    song_id             TEXT    NOT NULL,
+    track_duration_ms   INTEGER,
+    accumulated_ms      INTEGER NOT NULL DEFAULT 0,
+    qualified_counted   INTEGER NOT NULL DEFAULT 0,
+    completed_counted   INTEGER NOT NULL DEFAULT 0,
+    natural_end_seen    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, device_id, play_session_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_listening_intervals (
+    user_id             TEXT    NOT NULL,
+    start_ms            INTEGER NOT NULL,
+    end_ms              INTEGER NOT NULL,
+    PRIMARY KEY (user_id, start_ms, end_ms),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CHECK (end_ms > start_ms)
+);
+CREATE INDEX IF NOT EXISTS idx_user_listening_intervals_range
+ON user_listening_intervals (user_id, start_ms, end_ms);
+
+CREATE TABLE IF NOT EXISTS user_track_listening_intervals (
+    user_id             TEXT    NOT NULL,
+    source              TEXT    NOT NULL,
+    song_id             TEXT    NOT NULL,
+    start_ms            INTEGER NOT NULL,
+    end_ms              INTEGER NOT NULL,
+    PRIMARY KEY (user_id, source, song_id, start_ms, end_ms),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CHECK (end_ms > start_ms)
+);
+CREATE INDEX IF NOT EXISTS idx_user_track_listening_intervals_range
+ON user_track_listening_intervals (user_id, source, song_id, start_ms, end_ms);
+
+CREATE TABLE IF NOT EXISTS user_listening_stats (
+    user_id             TEXT    PRIMARY KEY,
+    total_ms            INTEGER NOT NULL DEFAULT 0,
+    updated_at          INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS user_track_stats (
+    user_id             TEXT    NOT NULL,
+    source              TEXT    NOT NULL,
+    song_id             TEXT    NOT NULL,
+    title               TEXT    NOT NULL DEFAULT '',
+    artist              TEXT    NOT NULL DEFAULT '',
+    album               TEXT    NOT NULL DEFAULT '',
+    duration_ms         INTEGER,
+    listened_ms         INTEGER NOT NULL DEFAULT 0,
+    play_count          INTEGER NOT NULL DEFAULT 0,
+    completed_count     INTEGER NOT NULL DEFAULT 0,
+    first_listened_at   INTEGER NOT NULL,
+    last_listened_at    INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    PRIMARY KEY (user_id, source, song_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_user_track_stats_last_listened
+ON user_track_stats (user_id, last_listened_at DESC);
+
+CREATE TABLE IF NOT EXISTS listening_level_config (
+    id                  INTEGER PRIMARY KEY CHECK (id = 1),
+    version             INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS listening_level_rules (
+    level               INTEGER PRIMARY KEY,
+    min_minutes         INTEGER NOT NULL,
+    max_minutes         INTEGER,
+    created_at          INTEGER NOT NULL,
+    updated_at          INTEGER NOT NULL,
+    CHECK (min_minutes >= 0),
+    CHECK (max_minutes IS NULL OR max_minutes >= min_minutes)
+);
+
 CREATE TABLE IF NOT EXISTS user_sync_items (
     user_id           TEXT    NOT NULL,
     item_type         TEXT    NOT NULL,
@@ -622,6 +732,13 @@ function migrateFileRecords(db: DatabaseSync) {
   `);
 }
 
+function migrateListening(db: DatabaseSync) {
+  const cols = getColumnNames(db, "listening_play_sessions");
+  if (!cols.has("track_duration_ms")) {
+    db.exec("ALTER TABLE listening_play_sessions ADD COLUMN track_duration_ms INTEGER");
+  }
+}
+
 function repairFileRecords(db: DatabaseSync) {
   db.exec(`
     UPDATE file_records
@@ -697,6 +814,11 @@ function initSchema(db: DatabaseSync) {
     DROP TABLE IF EXISTS desktop_update_assets;
   `);
   db.exec(CREATE_SQL);
+  db.exec(`
+    INSERT OR IGNORE INTO listening_level_config(id, version, updated_at) VALUES (1, 1, 0);
+    INSERT OR IGNORE INTO listening_level_rules(level, min_minutes, max_minutes, created_at, updated_at)
+    VALUES (1, 0, NULL, 0, 0);
+  `);
   migrateDeviceInfo(db);
   migrateAppSettings(db);
   migrateUpdateHistory(db);
@@ -706,6 +828,7 @@ function initSchema(db: DatabaseSync) {
   migrateFaultReports(db);
   migrateShareRecords(db);
   migrateFileRecords(db);
+  migrateListening(db);
   repairFileRecords(db);
 }
 
