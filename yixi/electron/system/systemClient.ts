@@ -827,7 +827,7 @@ function buildDesktopDeviceReport(): DesktopDeviceReportRequest {
   };
 }
 
-function getDesktopDeviceClientId() {
+export function getDesktopDeviceClientId() {
   const key = "desktop-device-client-id";
   const existing = getAppDatabase().getSetting<string>(key)?.value;
   if (typeof existing === "string" && existing.trim()) return existing.trim();
