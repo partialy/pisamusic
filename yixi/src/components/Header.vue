@@ -59,8 +59,6 @@
           @search="handleSearchClick"
         ></TipsHistory>
       </div>
-      <!-- 定时关闭入口 -->
-      <SleepTimerEntry class="sleep-timer-entry" />
     </div>
     <!-- 右侧内容 -->
     <div class="right">
@@ -94,6 +92,8 @@
           <n-icon :component="DebugIcon" class="icon" />
         </template>
       </n-button>
+      <!-- 定时关闭入口（位于设置左侧） -->
+      <SleepTimerEntry class="sleep-timer-entry" />
       <n-dropdown
         :options="settingOptions"
         @select="handleSetting"
@@ -440,11 +440,6 @@ onMounted(async () => {
       border-radius: 12px;
       box-shadow: 0 0 10px #00000033;
       z-index: 100;
-    }
-
-    .sleep-timer-entry {
-      margin-left: 0.75rem;
-      -webkit-app-region: no-drag;
     }
   }
 

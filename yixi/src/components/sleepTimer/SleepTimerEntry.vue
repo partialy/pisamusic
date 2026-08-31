@@ -18,11 +18,12 @@
         <n-button
           v-else
           secondary
-          class="sleep-timer-btn left-btn"
+          circle
+          class="sleep-timer-btn"
           @click="openModal"
         >
           <template #icon>
-            <n-icon :component="SleepTimerIcon" :size="20" />
+            <n-icon :component="SleepTimerIcon" class="icon" />
           </template>
         </n-button>
       </template>
@@ -65,20 +66,22 @@ function openModal() {
 .sleep-timer-entry-wrapper {
   display: inline-flex;
   align-items: center;
+  margin-right: 16px;
   -webkit-app-region: no-drag;
 }
 
 .sleep-timer-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: transparent;
   -webkit-app-region: no-drag;
   cursor: pointer;
-  transition: all 0.2s ease;
+
+  .icon {
+    transition: color 0.2s ease-in-out;
+  }
 
   &:hover {
-    color: var(--color-primary);
+    .icon {
+      color: var(--color-primary);
+    }
   }
 }
 
