@@ -280,3 +280,11 @@
 - 打包正式版继续使用默认 `%APPDATA%/PisaMusic`（或 macOS/Linux 对应路径）。
 - 隔离内容包括：SQLite 数据库（`pisamusic.db`、`media-cache-index.db`）、KG/WY 登录 Cookie 文件（`kugou_cookie_user.json`、`wy_cookie_user.json`）、Token Session、本地歌单与日志；确保开发调试不会影响或覆盖打包软件中的登录态。
 
+## 听歌时长与等级规则补充
+
+- 桌面端听歌时长统计与等级遵循外层 `server` 不可变播放片段协议（`/api/listening/fragments/batch`、`/api/listening/summary`），通信走 main 侧 `electron/listening/listeningClient.ts` 和系统加密信封。
+- 请求固定参数：`schemaVersion: 1`，`platform: "desktop"`，Header 携带持久化稳定 `x-pm-device-id`（SQLite settings 的 `desktop-device-client-id`）。
+- 允许统计音源限定为 `kg`、`wy`、`kw`、`cloud`、`local`（`qq` 源忽略不上报）；本地歌曲（`local`）的 `songId` 仅使用规范化标识，严格禁止泄漏 `file:`、`content:`、`/` 或 `\` 等任何本地路径。
+- 状态机机制：真实播放片段基于 `performance.now()` 精确计时，本地每 60 秒检查点暂存到 SQLite `listening_active_checkpoint`，单段超 15 分钟自动切片；时长 >= 1000ms 的片段写入 SQLite `listening_pending_fragments`；每 15 分钟或每次启动/登录 session ready 时触发最多 200 条批量补传，支持断网重试与崩溃恢复。
+- 用户界面：用户头像下拉菜单前两项展示只读“等级：Lv N”与“累计听歌：n分钟”（按 `floor(totalMs / 60000)` 计算），在菜单展开与账号切换时即时刷新，账号未登录时保持重置。
+
