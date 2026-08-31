@@ -938,6 +938,9 @@ type ElectronIpcApi = {
     uuid: string;
     input: import("./cloudMusic").CloudMusicUserSubmitInput;
   }) => Promise<import("./cloudMusic").CloudMusicTrackDto>;
+
+  observeListeningPlayback: (observation: import("./listening").ListeningPlaybackObservation) => void;
+  getListeningSummary: () => Promise<import("./listening").ListeningSummary>;
 };
 
 declare global {

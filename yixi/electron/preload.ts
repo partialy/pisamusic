@@ -451,6 +451,12 @@ const cloudMusicIpc = {
     ipcRenderer.invoke("cloud-music:submit:resubmit", cloneIpcPayload(payload)),
 };
 
+const listeningIpc = {
+  observeListeningPlayback: (observation: any) =>
+    ipcRenderer.send("listening:observe", cloneIpcPayload(observation)),
+  getListeningSummary: () => ipcRenderer.invoke("listening:summary"),
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
   ...startupIpc,
@@ -473,4 +479,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...debugIpc,
   ...faultReportIpc,
   ...cloudMusicIpc,
+  ...listeningIpc,
 });

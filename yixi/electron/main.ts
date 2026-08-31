@@ -27,6 +27,8 @@ import { setupSyncIpc } from "./ipc/syncIpc";
 import { setupMediaCacheIpc } from "./ipc/mediaCacheIpc";
 import { setupFaultReportIpc } from "./ipc/faultReportIpc";
 import { setupCloudMusicIpc } from "./ipc/cloudMusicIpc";
+import { setupListeningIpc } from "./ipc/listeningIpc";
+import { getListeningManager } from "./listening";
 import { closeListenTogetherSocket } from "./listenTogether/listenTogetherService";
 import { ListenTogetherInviteCoordinator } from "./listenTogether/listenTogetherInviteCoordinator";
 import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
@@ -152,6 +154,7 @@ function setupAppIpc() {
   setupMediaCacheIpc();
   setupFaultReportIpc();
   setupCloudMusicIpc();
+  setupListeningIpc();
   desktopLyric.setupIpc();
 }
 
@@ -296,6 +299,7 @@ if (!hasSingleInstanceLock) {
 
   app.on("before-quit", () => {
     isQuitting = true;
+    getListeningManager().shutdown();
     closeListenTogetherSocket();
     closeMediaCache();
     startupWindow?.destroy();

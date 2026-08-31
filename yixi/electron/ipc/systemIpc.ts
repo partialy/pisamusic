@@ -25,6 +25,7 @@ import {
 } from "../system/systemClient";
 import { closeListenTogetherSocket } from "../listenTogether/listenTogetherService";
 import { clearSyncState } from "../sync/syncService";
+import { getListeningManager } from "../listening";
 import type { FeedbackPayload } from "../system/types";
 
 let registered = false;
@@ -71,8 +72,22 @@ export function setupSystemIpc() {
 
   ipcMain.handle("account:session", () => getAccountSession());
   ipcMain.handle("account:upload-avatar", () => uploadAccountAvatar());
-  ipcMain.handle("account:refresh", () => refreshAccountSession());
+  ipcMain.handle("account:refresh", async () => {
+    try {
+      const session = await refreshAccountSession();
+      if (session?.user?.id) {
+        void getListeningManager().onAccountSessionReady(session.user.id);
+      } else {
+        getListeningManager().onAccountLogout();
+      }
+      return session;
+    } catch (error) {
+      getListeningManager().onAccountLogout();
+      throw error;
+    }
+  });
   ipcMain.handle("account:logout", async () => {
+    getListeningManager().onAccountLogout();
     // 退出账号前先断开一起听 socket，避免旧账号连接残留
     closeListenTogetherSocket();
     const session = clearAccountSession();
@@ -82,15 +97,27 @@ export function setupSystemIpc() {
   ipcMain.handle("account:send-email-code", (_event, payload: { email: string; purpose: "register" | "login" | "reset_password" }) =>
     sendAccountEmailCode(payload)
   );
-  ipcMain.handle("account:login-password", (_event, payload: { identifier: string; password: string }) =>
-    loginAccountByPassword(payload)
-  );
-  ipcMain.handle("account:login-code", (_event, payload: { email: string; code: string }) =>
-    loginAccountByCode(payload)
-  );
-  ipcMain.handle("account:register", (_event, payload: { email: string; username: string; password: string; code: string }) =>
-    registerAccount(payload)
-  );
+  ipcMain.handle("account:login-password", async (_event, payload: { identifier: string; password: string }) => {
+    const session = await loginAccountByPassword(payload);
+    if (session?.user?.id) {
+      void getListeningManager().onAccountSessionReady(session.user.id);
+    }
+    return session;
+  });
+  ipcMain.handle("account:login-code", async (_event, payload: { email: string; code: string }) => {
+    const session = await loginAccountByCode(payload);
+    if (session?.user?.id) {
+      void getListeningManager().onAccountSessionReady(session.user.id);
+    }
+    return session;
+  });
+  ipcMain.handle("account:register", async (_event, payload: { email: string; username: string; password: string; code: string }) => {
+    const session = await registerAccount(payload);
+    if (session?.user?.id) {
+      void getListeningManager().onAccountSessionReady(session.user.id);
+    }
+    return session;
+  });
   ipcMain.handle("account:profile-email-code", (_event, payload: { email: string }) =>
     sendProfileEmailCode(payload)
   );
