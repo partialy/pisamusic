@@ -157,7 +157,7 @@
 
 ## 收藏与歌单同步
 
-- 账号接口通过 `ConfigManager` / `SystemApiService` 访问外层服务端 `/api/auth/*`，继续走系统服务端 AES-GCM 加密链路；登录 token 由 `AccountSessionStore` 持久化并同步到 `TokenManager`。`LoginActivity` 是原生账号登录页，只承载用户名/邮箱密码登录和邮箱验证码登录；手机登录入口仅保留界面占位并提示暂未实现，不接入业务接口。注册账号、找回密码由 `AccountAssistActivity` 的原生页面承载，并分别调用注册验证码、注册和 `reset_password` 重置密码接口。
+- 账号接口通过 `ConfigManager` / `SystemApiService` 访问外层服务端 `/api/auth/*`，继续走系统服务端 AES-GCM 加密链路；登录 token 由 `AccountSessionStore` 持久化并同步到 `TokenManager`。`LoginActivity` 支持用户名/邮箱/手机号密码登录及邮箱/手机号验证码登录；注册账号、找回密码由 `AccountAssistActivity` 的原生页面承载，支持邮箱/手机号切换并调用对应验证码、注册和 `reset_password` 接口。
 - 同步接口通过外层服务端 `/api/sync/*` 拉取/推送增量，使用账号 `Authorization: Bearer <userToken>` 鉴权；旧同步码创建、加入、重置和解绑设备流程已移除。
 - `SyncManager` 是手机端账号同步编排入口，负责登录后 seed 本地 outbox、拉取/推送增量和应用远端 tombstone；未登录时只记录本地 outbox，不主动推送；同步游标按账号隔离，账号切换时必须重置游标并重新 seed 本地 outbox。
 - `sync_outbox` 表保存本地待推送 op，收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更必须写入 outbox；已登录账号时由 `SyncWorkRunner` 触发后台增量同步。

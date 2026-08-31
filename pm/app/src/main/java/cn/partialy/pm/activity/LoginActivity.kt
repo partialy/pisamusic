@@ -35,6 +35,7 @@ class LoginActivity : BaseActivity() {
     private lateinit var binding: ActivityLoginBinding
     private var loginMode: LoginMode = LoginMode.PASSWORD
     private var codeCountDownTimer: CountDownTimer? = null
+    private var codeCountingDown = false
     private lateinit var submitLoading: LoadingTextButtonRenderer
     private lateinit var sendCodeLoading: LoadingTextButtonRenderer
 
@@ -282,6 +283,7 @@ class LoginActivity : BaseActivity() {
 
     private fun startCodeCountDown() {
         codeCountDownTimer?.cancel()
+        codeCountingDown = true
         binding.accountLoginSendCodeButton.isEnabled = false
         codeCountDownTimer = object : CountDownTimer(CODE_COUNTDOWN_MS, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
@@ -291,6 +293,7 @@ class LoginActivity : BaseActivity() {
             }
 
             override fun onFinish() {
+                codeCountingDown = false
                 binding.accountLoginSendCodeButton.isEnabled = true
                 binding.accountLoginSendCodeButton.setText(R.string.account_login_send_code)
             }
@@ -315,6 +318,7 @@ class LoginActivity : BaseActivity() {
 
     private fun setLoading(loading: Boolean) {
         submitLoading.setLoading(loading)
+        binding.accountLoginSendCodeButton.isEnabled = !loading && !codeCountingDown
         binding.accountLoginPhoneModeButton.isEnabled = !loading
         binding.accountLoginEmailModeButton.isEnabled = !loading
         binding.accountLoginPasswordModeButton.isEnabled = !loading
