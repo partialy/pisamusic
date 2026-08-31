@@ -94,7 +94,8 @@ function storageEmail(contact: Contact): string {
 
 function autoUsername(contact: Contact): string {
   const raw = contact.email ? contact.email.split("@")[0] : `用户${contact.phone?.slice(-4) ?? ""}`;
-  const base = raw.replace(/[^A-Za-z0-9_\-\u4e00-\u9fa5]/g, "").slice(0, 24) || "用户";
+  const cleaned = raw.replace(/[^A-Za-z0-9_\-\u4e00-\u9fa5]/g, "").slice(0, 24) || "用户";
+  const base = cleaned.length >= 2 ? cleaned : `${cleaned}用户`;
   let candidate = base;
   for (let index = 0; readUserByUsername(candidate); index += 1) {
     const suffix = index === 0 ? randomUUID().replace(/-/g, "").slice(0, 6) : String(index);
