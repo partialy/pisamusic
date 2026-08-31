@@ -35,7 +35,7 @@ class ListeningManager @Inject constructor(
     val summary: StateFlow<ListeningSummary?> = _summary.asStateFlow()
     private var active: ActiveSegment? = null
     private var serverOffsetMs = 0L
-    private var lastFlushAtMs = 0L
+    private var lastFlushAtMs = System.currentTimeMillis()
     private var startupKey: String? = null
     private val started = AtomicBoolean(false)
 
