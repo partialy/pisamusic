@@ -9,6 +9,7 @@ import android.os.CountDownTimer
 import android.text.InputType
 import android.view.View
 import android.widget.Toast
+import android.widget.ImageButton
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -123,8 +124,23 @@ class AccountAssistActivity : BaseActivity() {
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
         } else InputType.TYPE_CLASS_PHONE
         binding.accountAssistCodeLayout.hint = getString(if (email) R.string.account_assist_email_code_hint else R.string.account_login_code_hint)
-        binding.accountAssistEmailModeButton.setTextColor(getColor(if (email) R.color.account_login_brand else R.color.account_login_text_secondary))
-        binding.accountAssistPhoneModeButton.setTextColor(getColor(if (!email) R.color.account_login_brand else R.color.account_login_text_secondary))
+        styleContactModeButton(binding.accountAssistEmailModeButton, email)
+        styleContactModeButton(binding.accountAssistPhoneModeButton, !email)
+        if (isResetMode) {
+            binding.accountAssistSubtitleText.setText(
+                if (email) R.string.account_assist_reset_subtitle else R.string.account_assist_reset_phone_subtitle,
+            )
+        }
+    }
+
+    private fun styleContactModeButton(button: ImageButton, selected: Boolean) {
+        button.setBackgroundResource(
+            if (selected) R.drawable.bg_account_login_method_button_selected
+            else R.drawable.bg_account_login_method_button,
+        )
+        button.imageTintList = getColorStateList(
+            if (selected) R.color.account_login_brand else R.color.account_login_text_secondary,
+        )
     }
 
     private fun sendCode() {

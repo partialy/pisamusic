@@ -771,6 +771,7 @@
     <string name="account_assist_register_subtitle">创建 PisaMusic 账号</string>
     <string name="account_assist_reset_title">找回密码</string>
     <string name="account_assist_reset_subtitle">验证邮箱后设置新密码</string>
+    <string name="account_assist_reset_phone_subtitle">验证手机后设置新密码</string>
     <string name="account_assist_username_hint">用户名</string>
     <string name="account_assist_new_password_hint">新密码</string>
     <string name="account_assist_email_code_hint">邮箱验证码</string>

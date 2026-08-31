@@ -275,34 +275,32 @@
                     android:layout_marginTop="16dp"
                     android:gravity="center"
                     android:orientation="horizontal">
-                    <TextView
+                    <ImageButton
                         android:id="@+id/accountAssistEmailModeButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:gravity="center"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:text="@string/account_login_email_method"
-                        android:textColor="@color/account_login_brand"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_account_login_method_button_selected"
+                        android:contentDescription="@string/account_login_email_method"
+                        android:padding="13dp"
+                        android:scaleType="center"
+                        android:src="@drawable/ic_login_email_24"
+                        app:tint="@color/account_login_brand" />
                     <View
                         android:layout_width="1dp"
                         android:layout_height="12dp"
                         android:layout_marginStart="12dp"
                         android:layout_marginEnd="12dp"
                         android:background="@color/account_login_divider" />
-                    <TextView
+                    <ImageButton
                         android:id="@+id/accountAssistPhoneModeButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:gravity="center"
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:text="@string/account_login_phone_method"
-                        android:textColor="@color/account_login_text_secondary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_account_login_method_button"
+                        android:contentDescription="@string/account_login_phone_method"
+                        android:padding="13dp"
+                        android:scaleType="center"
+                        android:src="@drawable/ic_login_phone_24"
+                        app:tint="@color/account_login_text_secondary" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
