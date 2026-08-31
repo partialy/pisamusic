@@ -384,7 +384,7 @@ class ConfigManager @Inject constructor(
             systemApiService.getListeningSummary("Bearer $token")
         }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "听歌时长获取失败" })
-        return response.data.summary
+        return response.data
     }
 
     private fun BootstrapEndpoints.toRuntimeEndpoints(): RuntimeEndpoints {
