@@ -144,7 +144,7 @@ authRouter.post("/email-code", async (req, res) => {
     const purpose = normalizePurpose(req.body.purpose);
     const emailError = validateEmail(email);
     if (emailError) return res.status(400).json(fail(emailError, 400));
-    if (!purpose || purpose === "profile_phone") return res.status(400).json(fail("验证码用途不正确", 400));
+    if (!purpose || purpose === "profile_email" || purpose === "profile_phone") return res.status(400).json(fail("验证码用途不正确", 400));
 
     if (purpose === "register" && readUserByEmail(email)) {
       return res.status(400).json(fail("该邮箱已注册", 400));
