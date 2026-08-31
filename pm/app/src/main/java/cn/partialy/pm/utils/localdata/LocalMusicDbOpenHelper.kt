@@ -300,6 +300,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
             )
             """.trimIndent()
         )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_listening_checkpoint_account_device ON listening_active_checkpoint(account_id, device_id, last_checkpoint_at_ms DESC)")
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS listening_pending_fragments (

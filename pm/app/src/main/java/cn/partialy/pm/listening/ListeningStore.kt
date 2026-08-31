@@ -16,7 +16,11 @@ class ListeningStore @Inject constructor(@ApplicationContext context: Context) {
         helper.readableDatabase.query(TABLE_CHECKPOINT, null,
             "account_id = ? AND device_id = ? AND play_session_id = ?",
             arrayOf(accountId, deviceId, sessionId), null, null, null, null
-        ).use { cursor -> if (cursor.moveToFirst()) cursor.toCheckpoint() else null }
+            ).use { cursor -> if (cursor.moveToFirst()) cursor.toCheckpoint() else null }
+
+    fun latestCheckpoint(accountId: String, deviceId: String): ListeningCheckpoint? =
+        helper.readableDatabase.query(TABLE_CHECKPOINT, null, "account_id = ? AND device_id = ?", arrayOf(accountId, deviceId), null, null, "last_checkpoint_at_ms DESC", "1")
+            .use { cursor -> if (cursor.moveToFirst()) cursor.toCheckpoint() else null }
 
     fun saveCheckpoint(value: ListeningCheckpoint) {
         helper.writableDatabase.insertWithOnConflict(TABLE_CHECKPOINT, null, value.toValues(), android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)

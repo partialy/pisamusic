@@ -101,7 +101,27 @@ class ListeningManager @Inject constructor(
                 appendSegment(it, nowMs(), "track_changed")
                 store.deleteCheckpoint(it.accountId, it.deviceId, it.playSessionId)
             }
-            active = ActiveSegment(accountId, deviceId, UUID.randomUUID().toString(), track, nowMs(), SystemClock.elapsedRealtime())
+            val recovered = if (current == null) {
+                store.latestCheckpoint(accountId, deviceId)?.takeIf { it.track == track }
+            } else {
+                null
+            }
+            if (recovered != null && recovered.activeElapsedMs >= MIN_FRAGMENT_MS) {
+                store.addPending(
+                    PendingListeningFragment(
+                        eventId = UUID.randomUUID().toString(), accountId = accountId, deviceId = deviceId,
+                        fragment = ListeningFragment(
+                            eventId = "", playSessionId = recovered.playSessionId, source = recovered.track.source,
+                            songId = recovered.track.songId, title = recovered.track.title, artist = recovered.track.artist,
+                            album = recovered.track.album, trackDurationMs = recovered.track.trackDurationMs,
+                            startedAtMs = recovered.startedAtMs, endedAtMs = recovered.lastCheckpointAtMs,
+                            activeDurationMs = recovered.activeElapsedMs, terminalReason = null,
+                        ),
+                    ).let { value -> value.copy(fragment = value.fragment.copy(eventId = value.eventId)) },
+                )
+                store.deleteCheckpoint(recovered.accountId, recovered.deviceId, recovered.playSessionId)
+            }
+            active = ActiveSegment(accountId, deviceId, recovered?.playSessionId ?: UUID.randomUUID().toString(), track, nowMs(), SystemClock.elapsedRealtime())
             saveCheckpoint(active!!)
             return
         }
