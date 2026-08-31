@@ -72,4 +72,5 @@ design-html/
 *.test.*
 *.spec.*
 !yixi/electron/system/requestHeaders.test.ts
+!yixi/electron/listening/listeningRules.test.ts
 !server/src/services/listeningService.spec.ts

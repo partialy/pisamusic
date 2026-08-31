@@ -19,7 +19,8 @@
     "test:listen-together": "vitest run --config vitest.config.ts",
     "test:service-discovery": "vitest run --config vitest.service-discovery.config.ts",
     "test:system-client": "vitest run --config vitest.system-client.config.ts",
-    "test:media-cache": "vitest run --config vitest.media-cache.config.ts"
+    "test:media-cache": "vitest run --config vitest.media-cache.config.ts",
+    "test:listening": "vitest run --config vitest.listening.config.ts"
   },
   "dependencies": {
     "@applemusic-like-lyrics/core": "^0.1.3",
