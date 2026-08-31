@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.text.InputType
 import android.view.View
 import android.widget.Toast
 import androidx.core.view.ViewCompat
@@ -18,6 +19,7 @@ import cn.partialy.pm.databinding.ActivityAccountAssistBinding
 import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.ui.widget.LoadingTextButtonRenderer
 import cn.partialy.pm.listening.ListeningManager
 import cn.partialy.pm.sync.SyncManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -31,6 +33,9 @@ class AccountAssistActivity : BaseActivity() {
     private lateinit var binding: ActivityAccountAssistBinding
     private var codeCountDownTimer: CountDownTimer? = null
     private var codeCountingDown = false
+    private var contactMode = ContactMode.EMAIL
+    private lateinit var submitLoading: LoadingTextButtonRenderer
+    private lateinit var sendCodeLoading: LoadingTextButtonRenderer
     private val isResetMode: Boolean
         get() = intent.getStringExtra(EXTRA_MODE) == MODE_RESET
 
@@ -49,8 +54,11 @@ class AccountAssistActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
 
         setupSystemBars()
+        submitLoading = LoadingTextButtonRenderer(binding.accountAssistSubmitButton, binding.accountAssistSubmitLoading)
+        sendCodeLoading = LoadingTextButtonRenderer(binding.accountAssistSendCodeButton, binding.accountAssistSendCodeLoading)
         bindActions()
         applyMode()
+        applyContactMode(ContactMode.EMAIL)
     }
 
     override fun onDestroy() {
@@ -80,7 +88,9 @@ class AccountAssistActivity : BaseActivity() {
 
     private fun bindActions() {
         binding.accountAssistBackButton.setOnClickListener { finish() }
-        binding.accountAssistSendCodeButton.setOnClickListener { sendEmailCode() }
+        binding.accountAssistEmailModeButton.setOnClickListener { applyContactMode(ContactMode.EMAIL) }
+        binding.accountAssistPhoneModeButton.setOnClickListener { applyContactMode(ContactMode.PHONE) }
+        binding.accountAssistSendCodeButton.setOnClickListener { sendCode() }
         binding.accountAssistSubmitButton.setOnClickListener {
             if (isResetMode) resetPassword() else registerAccount()
         }
@@ -104,36 +114,50 @@ class AccountAssistActivity : BaseActivity() {
         }
     }
 
-    private fun sendEmailCode() {
-        val email = emailText()
-        if (email.isBlank()) {
-            toast(R.string.account_login_email_required)
+    private fun applyContactMode(mode: ContactMode) {
+        contactMode = mode
+        val email = mode == ContactMode.EMAIL
+        binding.accountAssistEmailLayout.hint = getString(if (email) R.string.account_login_email_hint else R.string.account_login_phone_hint)
+        binding.accountAssistEmailEditText.inputType = if (email) {
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        } else InputType.TYPE_CLASS_PHONE
+        binding.accountAssistCodeLayout.hint = getString(if (email) R.string.account_assist_email_code_hint else R.string.account_login_code_hint)
+        binding.accountAssistEmailModeButton.setTextColor(getColor(if (email) R.color.account_login_brand else R.color.account_login_text_secondary))
+        binding.accountAssistPhoneModeButton.setTextColor(getColor(if (!email) R.color.account_login_brand else R.color.account_login_text_secondary))
+    }
+
+    private fun sendCode() {
+        val contact = contactText()
+        if (contact.isBlank()) {
+            toast(if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
             return
         }
-        binding.accountAssistSendCodeButton.isEnabled = false
+        sendCodeLoading.setLoading(true)
         lifecycleScope.launch {
             runCatching {
                 val purpose = if (isResetMode) "reset_password" else "register"
                 withContext(Dispatchers.IO) {
-                    configManager.sendAccountEmailCode(email, purpose)
+                    if (contactMode == ContactMode.EMAIL) configManager.sendAccountEmailCode(contact, purpose)
+                    else configManager.sendAccountPhoneCode(contact, purpose)
                 }
             }.onSuccess {
+                sendCodeLoading.setLoading(false)
                 toast(R.string.account_login_code_sent)
                 startCodeCountDown()
             }.onFailure { error ->
-                binding.accountAssistSendCodeButton.isEnabled = true
+                sendCodeLoading.setLoading(false)
                 toast(error.message ?: getString(R.string.account_assist_code_send_failed))
             }
         }
     }
 
     private fun registerAccount() {
-        val email = emailText()
+        val contact = contactText()
         val username = usernameText()
         val password = passwordText()
         val code = codeText()
-        if (email.isBlank()) {
-            toast(R.string.account_login_email_required)
+        if (contact.isBlank()) {
+            toast(if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
             return
         }
         if (username.isBlank()) {
@@ -152,7 +176,7 @@ class AccountAssistActivity : BaseActivity() {
         lifecycleScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    configManager.registerAccount(email, username, password, code)
+                    configManager.registerAccount(if (contactMode == ContactMode.EMAIL) contact else null, username, password, code, if (contactMode == ContactMode.PHONE) contact else null)
                 }
             }.onSuccess(::notifyRegistered)
                 .onFailure { error ->
@@ -163,11 +187,11 @@ class AccountAssistActivity : BaseActivity() {
     }
 
     private fun resetPassword() {
-        val email = emailText()
+        val contact = contactText()
         val password = passwordText()
         val code = codeText()
-        if (email.isBlank()) {
-            toast(R.string.account_login_email_required)
+        if (contact.isBlank()) {
+            toast(if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
             return
         }
         if (password.isBlank()) {
@@ -182,7 +206,7 @@ class AccountAssistActivity : BaseActivity() {
         lifecycleScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    configManager.resetAccountPassword(email, code, password)
+                    configManager.resetAccountPassword(if (contactMode == ContactMode.EMAIL) contact else null, code, password, if (contactMode == ContactMode.PHONE) contact else null)
                 }
             }.onSuccess {
                 toast(R.string.account_assist_reset_success)
@@ -229,14 +253,16 @@ class AccountAssistActivity : BaseActivity() {
     }
 
     private fun setLoading(loading: Boolean) {
-        binding.accountAssistSubmitButton.isEnabled = !loading
+        submitLoading.setLoading(loading)
         binding.accountAssistBackButton.isEnabled = !loading
         binding.accountAssistSendCodeButton.isEnabled = !loading && !codeCountingDown
         binding.accountAssistSubmitButton.alpha = if (loading) 0.72f else 1f
     }
 
-    private fun emailText(): String =
+    private fun contactText(): String =
         binding.accountAssistEmailEditText.text?.toString()?.trim().orEmpty()
+
+    private enum class ContactMode { EMAIL, PHONE }
 
     private fun usernameText(): String =
         binding.accountAssistUsernameEditText.text?.toString()?.trim().orEmpty()

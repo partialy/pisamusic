@@ -21,6 +21,7 @@ import cn.partialy.pm.databinding.ActivityLoginBinding
 import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.ui.widget.LoadingTextButtonRenderer
 import cn.partialy.pm.listening.ListeningManager
 import cn.partialy.pm.sync.SyncManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -34,6 +35,8 @@ class LoginActivity : BaseActivity() {
     private lateinit var binding: ActivityLoginBinding
     private var loginMode: LoginMode = LoginMode.PASSWORD
     private var codeCountDownTimer: CountDownTimer? = null
+    private lateinit var submitLoading: LoadingTextButtonRenderer
+    private lateinit var sendCodeLoading: LoadingTextButtonRenderer
 
     @Inject
     lateinit var configManager: ConfigManager
@@ -50,8 +53,10 @@ class LoginActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
 
         setupSystemBars()
+        submitLoading = LoadingTextButtonRenderer(binding.accountLoginSubmitButton, binding.accountLoginSubmitLoading)
+        sendCodeLoading = LoadingTextButtonRenderer(binding.accountLoginSendCodeButton, binding.accountLoginSendCodeLoading)
         bindActions()
-        applyMode(LoginMode.PASSWORD, showPhoneToast = false)
+        applyMode(LoginMode.PASSWORD)
     }
 
     override fun onDestroy() {
@@ -94,19 +99,19 @@ class LoginActivity : BaseActivity() {
             applyMode(LoginMode.EMAIL_CODE)
         }
         binding.accountLoginPhoneModeButton.setOnClickListener {
-            applyMode(LoginMode.PHONE, showPhoneToast = true)
+            applyMode(LoginMode.PHONE)
         }
         binding.accountLoginSendCodeButton.setOnClickListener {
             when (loginMode) {
                 LoginMode.EMAIL_CODE -> sendEmailCode()
-                LoginMode.PHONE -> showPhoneUnavailable()
+                LoginMode.PHONE -> sendPhoneCode()
                 LoginMode.PASSWORD -> Unit
             }
         }
         binding.accountLoginSubmitButton.setOnClickListener { submitLogin() }
     }
 
-    private fun applyMode(next: LoginMode, showPhoneToast: Boolean = false) {
+    private fun applyMode(next: LoginMode) {
         loginMode = next
         binding.accountLoginTitleText.setText(
             when (next) {
@@ -137,7 +142,6 @@ class LoginActivity : BaseActivity() {
         styleModeButton(binding.accountLoginPhoneModeButton, next == LoginMode.PHONE)
         styleModeButton(binding.accountLoginEmailModeButton, next == LoginMode.EMAIL_CODE)
         styleModeButton(binding.accountLoginPasswordModeButton, next == LoginMode.PASSWORD)
-        if (showPhoneToast) showPhoneUnavailable()
     }
 
     private fun styleModeButton(button: ImageButton, selected: Boolean) {
@@ -155,7 +159,7 @@ class LoginActivity : BaseActivity() {
         when (loginMode) {
             LoginMode.PASSWORD -> submitPasswordLogin()
             LoginMode.EMAIL_CODE -> submitEmailCodeLogin()
-            LoginMode.PHONE -> showPhoneUnavailable()
+            LoginMode.PHONE -> submitPhoneCodeLogin()
         }
     }
 
@@ -209,13 +213,36 @@ class LoginActivity : BaseActivity() {
         }
     }
 
+    private fun submitPhoneCodeLogin() {
+        val phone = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
+        val code = binding.accountLoginCodeEditText.text?.toString()?.trim().orEmpty()
+        if (phone.isBlank()) {
+            toast(R.string.account_login_phone_required)
+            return
+        }
+        if (code.isBlank()) {
+            toast(R.string.account_login_code_required)
+            return
+        }
+        setLoading(true)
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { configManager.loginAccountByCode(null, code, phone) }
+            }.onSuccess(::notifyLoggedIn)
+                .onFailure { error ->
+                    setLoading(false)
+                    toast(error.message ?: getString(R.string.account_login_failed))
+                }
+        }
+    }
+
     private fun sendEmailCode() {
         val email = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
         if (email.isBlank()) {
             toast(R.string.account_login_email_required)
             return
         }
-        binding.accountLoginSendCodeButton.isEnabled = false
+        sendCodeLoading.setLoading(true)
         lifecycleScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -223,9 +250,31 @@ class LoginActivity : BaseActivity() {
                 }
             }.onSuccess {
                 toast(R.string.account_login_code_sent)
+                sendCodeLoading.setLoading(false)
                 startCodeCountDown()
             }.onFailure { error ->
-                binding.accountLoginSendCodeButton.isEnabled = true
+                sendCodeLoading.setLoading(false)
+                toast(error.message ?: getString(R.string.account_login_failed))
+            }
+        }
+    }
+
+    private fun sendPhoneCode() {
+        val phone = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
+        if (phone.isBlank()) {
+            toast(R.string.account_login_phone_required)
+            return
+        }
+        sendCodeLoading.setLoading(true)
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { configManager.sendAccountPhoneCode(phone, "login") }
+            }.onSuccess {
+                sendCodeLoading.setLoading(false)
+                toast(R.string.account_login_code_sent)
+                startCodeCountDown()
+            }.onFailure { error ->
+                sendCodeLoading.setLoading(false)
                 toast(error.message ?: getString(R.string.account_login_failed))
             }
         }
@@ -264,17 +313,13 @@ class LoginActivity : BaseActivity() {
     }
 
     private fun setLoading(loading: Boolean) {
-        binding.accountLoginSubmitButton.isEnabled = !loading
+        submitLoading.setLoading(loading)
         binding.accountLoginPhoneModeButton.isEnabled = !loading
         binding.accountLoginEmailModeButton.isEnabled = !loading
         binding.accountLoginPasswordModeButton.isEnabled = !loading
         binding.accountLoginRegisterButton.isEnabled = !loading
         binding.accountLoginResetButton.isEnabled = !loading
         binding.accountLoginSubmitButton.alpha = if (loading) 0.72f else 1f
-    }
-
-    private fun showPhoneUnavailable() {
-        toast(R.string.account_login_phone_unavailable)
     }
 
     private fun toast(messageRes: Int) {
