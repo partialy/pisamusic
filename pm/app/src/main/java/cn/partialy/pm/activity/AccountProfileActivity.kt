@@ -24,6 +24,7 @@ import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.network.auth.AccountSessionStore
+import cn.partialy.pm.network.auth.AccountContactFormatter
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.cookie.KugouCookieRepository
 import cn.partialy.pm.network.cookie.WyCookieRepository
@@ -58,7 +59,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 class AccountProfileActivity : BaseActivity() {
     private lateinit var binding: ActivityAccountProfileBinding
     private val avatarHttpClient = OkHttpClient()
-    private var pendingNewEmail: String? = null
 
     private val pickAvatarLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -101,7 +101,8 @@ class AccountProfileActivity : BaseActivity() {
         binding.accountProfileAvatar.setOnClickListener { showAvatarOptionsSheet() }
         binding.accountProfileAvatarChip.setOnClickListener { showAvatarOptionsSheet() }
         binding.accountProfileUsernameRow.setOnClickListener { showEditUsernameDialog() }
-        binding.accountProfileEmailRow.setOnClickListener { showEditEmailDialog() }
+        binding.accountProfileEmailRow.setOnClickListener { showEditContactDialog(false) }
+        binding.accountProfilePhoneRow.setOnClickListener { showEditContactDialog(true) }
         binding.accountProfileIdRow.setOnClickListener { copyUserIdToClipboard() }
         binding.accountProfileSaveButton.setOnClickListener { saveProfile() }
         binding.accountProfileLogoutButton.setOnClickListener { confirmLogout() }
@@ -126,7 +127,8 @@ class AccountProfileActivity : BaseActivity() {
         val session = currentSessionOrFinish() ?: return
         val user = session.user
         binding.accountProfileUsernameValue.text = user.username
-        binding.accountProfileEmailValue.text = user.email
+        binding.accountProfileEmailValue.text = AccountContactFormatter.mask(user.email)
+        binding.accountProfilePhoneValue.text = AccountContactFormatter.mask(user.phone)
         binding.accountProfileIdValue.text = user.id
         binding.accountProfileCreatedAtValue.text = formatDate(user.createdAt)
         binding.accountProfileLastLoginValue.text = formatDateTime(user.lastLoginAt)
@@ -299,16 +301,24 @@ class AccountProfileActivity : BaseActivity() {
             .show()
     }
 
-    private fun showEditEmailDialog() {
+    private fun showEditContactDialog(phone: Boolean) {
         var cooldownJob: Job? = null
         PmSlotDialog.Builder(this)
             .setContentLayout(R.layout.dialog_account_profile_edit_email) { view, dialog ->
                 val emailInput = view.findViewById<TextInputEditText>(R.id.emailInput)
+                view.findViewById<TextView>(R.id.dialogTitle).setText(
+                    if (phone) R.string.account_profile_edit_phone_title else R.string.account_profile_edit_email_title,
+                )
+                view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.emailInputLayout).hint =
+                    getString(if (phone) R.string.account_profile_edit_phone_hint else R.string.account_profile_edit_email_hint)
+                emailInput.inputType = if (phone) android.text.InputType.TYPE_CLASS_PHONE
+                else android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+                emailInput.filters = arrayOf(android.text.InputFilter.LengthFilter(if (phone) 11 else 64))
                 val sendCodeButton = view.findViewById<TextView>(R.id.sendCodeButton)
                 sendCodeButton.setOnClickListener {
                     val emailText = emailInput.text?.toString()?.trim().orEmpty()
                     if (emailText.isBlank()) {
-                        showMessage(getString(R.string.account_profile_email_required))
+                        showMessage(getString(if (phone) R.string.account_profile_phone_required else R.string.account_profile_email_required))
                         return@setOnClickListener
                     }
                     val session = AccountSessionStore.read(this)
@@ -320,7 +330,8 @@ class AccountProfileActivity : BaseActivity() {
                     lifecycleScope.launch {
                         runCatching {
                             withContext(Dispatchers.IO) {
-                                configManager.sendAccountProfileEmailCode(session.token, emailText)
+                                if (phone) configManager.sendAccountProfilePhoneCode(session.token, emailText)
+                                else configManager.sendAccountProfileEmailCode(session.token, emailText)
                             }
                         }.onSuccess {
                             showMessage(getString(R.string.account_profile_email_code_sent))
@@ -342,21 +353,20 @@ class AccountProfileActivity : BaseActivity() {
                 val emailInput = dialog.findViewById<TextInputEditText>(R.id.emailInput)
                 val codeInput = dialog.findViewById<TextInputEditText>(R.id.codeInput)
                 if (emailInput == null || codeInput == null) return@setConfirmButton
-                val newEmail = emailInput.text?.toString()?.trim().orEmpty()
+                val newContact = emailInput.text?.toString()?.trim().orEmpty()
                 val code = codeInput.text?.toString()?.trim().orEmpty()
-                if (newEmail.isBlank()) {
-                    showMessage(getString(R.string.account_profile_email_required))
+                if (newContact.isBlank()) {
+                    showMessage(getString(if (phone) R.string.account_profile_phone_required else R.string.account_profile_email_required))
                     return@setConfirmButton
                 }
                 if (code.isBlank()) {
                     showMessage(getString(R.string.account_profile_email_code_required))
                     return@setConfirmButton
                 }
-                pendingNewEmail = newEmail
-                binding.accountProfileEmailValue.text = newEmail
                 commitProfile(
                     username = binding.accountProfileUsernameValue.text?.toString()?.trim().orEmpty(),
-                    email = newEmail,
+                    email = if (phone) null else newContact,
+                    phone = if (phone) newContact else null,
                     code = code,
                 )
                 dialog.dismiss()
@@ -379,15 +389,14 @@ class AccountProfileActivity : BaseActivity() {
 
     private fun saveProfile() {
         val username = binding.accountProfileUsernameValue.text?.toString()?.trim().orEmpty()
-        val email = binding.accountProfileEmailValue.text?.toString()?.trim().orEmpty()
         if (username.isBlank()) {
             showMessage(getString(R.string.account_profile_username_required))
             return
         }
-        commitProfile(username = username, email = email, code = null)
+        commitProfile(username = username, email = null, phone = null, code = null)
     }
 
-    private fun commitProfile(username: String, email: String, code: String?) {
+    private fun commitProfile(username: String, email: String?, phone: String?, code: String?) {
         val session = currentSessionOrFinish() ?: return
         binding.accountProfileSaveButton.isEnabled = false
         lifecycleScope.launch {
@@ -397,13 +406,13 @@ class AccountProfileActivity : BaseActivity() {
                         token = session.token,
                         username = username,
                         email = email,
+                        phone = phone,
                         code = code,
                         avatarKey = null,
                     )
                 }
             }.onSuccess { result ->
                 AccountSessionStore.save(this@AccountProfileActivity, result)
-                pendingNewEmail = null
                 renderProfile()
                 showMessage(getString(R.string.account_profile_save_success))
             }.onFailure {

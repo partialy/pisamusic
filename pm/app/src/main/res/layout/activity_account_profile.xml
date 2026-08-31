@@ -191,6 +191,44 @@
                         android:src="@drawable/ic_chevron_right_24"
                         app:tint="@color/account_profile_chevron_tint" />
                 </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/accountProfilePhoneRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/account_profile_label_phone"
+                        android:textColor="@color/account_profile_label"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/accountProfilePhoneValue"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:gravity="end"
+                        android:maxLines="1"
+                        android:textColor="@color/account_profile_value"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="138******90" />
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="4dp"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_chevron_right_24"
+                        app:tint="@color/account_profile_chevron_tint" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- 卡片组 2：账号信息 -->

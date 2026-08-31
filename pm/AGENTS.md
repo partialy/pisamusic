@@ -226,6 +226,12 @@
 - `PmMinimalDialog` 的长文本、可选择文本和按钮点击后不关闭能力用于异常弹窗等特殊场景；普通确认弹窗继续保持默认居中短文案和点击按钮关闭的行为。
 ## 本地歌曲索引补充
 
+## 账号手机号与操作加载态补充
+
+- 账号认证同时支持邮箱和 11 位大陆手机号：`/api/auth/email-code` 与 `/api/auth/phone-code` 分别发送验证码，`/api/auth/login/code`、`/api/auth/register`、`/api/auth/password/reset` 的邮箱/手机号字段二选一；验证码登录对未注册联系人执行自动注册。
+- 注册、找回密码页面使用底部邮箱/手机号切换；登录页面保留密码、邮箱验证码、手机号验证码三种模式。发送验证码和提交操作在网络等待期间必须显示并旋转现有 `ic_loading_loop_24`，结束后恢复按钮文本/倒计时。
+- 本地账号 session 保存 `phone`；个人资料页邮箱和手机号均按前三位 + 六个星号 + 后两位展示，点击对应行进入换绑流程，手机号通过 `/api/auth/profile/phone-code` 与 `PATCH /api/auth/profile` 完成。
+
 - 本地歌曲列表不再直接把 MediaStore 查询结果作为运行时唯一来源；`pm_local_music.db` 的 `local_songs` 表是本地歌曲索引，`origin=media_store` 表示系统媒体库扫描项，`origin=imported_uri` 表示用户通过文件选择器导入的外部文档引用。
 - 进入本地歌曲页或编辑页时只读取 `local_songs` 中未删除的已导入记录，不再自动同步 MediaStore 入库；系统媒体库歌曲必须通过“扫描歌曲”页预览、勾选并点击“导入”后才写入。
 - “扫描歌曲”页支持全盘 MediaStore 扫描和自定义文件夹扫描，默认过滤 60s 以下歌曲；扫描结果先展示为可取消勾选的候选列表，已存在歌曲标记为“已存在”且不重复导入。系统库中已消失的 `media_store` 记录如需清理时标记 `is_deleted=1`，不要物理删除历史记录。

@@ -32,15 +32,17 @@
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
 | 发送邮箱验证码 | `POST` | `/api/auth/email-code` | 无 | [./user/sendEmailCode.md](./user/sendEmailCode.md) |
+| 发送手机号验证码 | `POST` | `/api/auth/phone-code` | 无 | [./user/sendPhoneCode.md](./user/sendPhoneCode.md) |
 | 邮箱验证码注册 | `POST` | `/api/auth/register` | 无 | [./user/register.md](./user/register.md) |
 | 用户名/邮箱密码登录 | `POST` | `/api/auth/login/password` | 无 | [./user/loginByPassword.md](./user/loginByPassword.md) |
-| 邮箱验证码快捷登录 | `POST` | `/api/auth/login/code` | 无 | [./user/loginByCode.md](./user/loginByCode.md) |
+| 邮箱/手机号验证码快捷登录 | `POST` | `/api/auth/login/code` | 无 | [./user/loginByCode.md](./user/loginByCode.md) |
 | 登录态修改密码 | `POST` | `/api/auth/password/change` | User Token | [./user/changePassword.md](./user/changePassword.md) |
 | 邮箱验证码重置密码 | `POST` | `/api/auth/password/reset` | 无 | [./user/resetPassword.md](./user/resetPassword.md) |
 | 刷新登录令牌 | `POST` | `/api/auth/refresh` | User Token | [./user/refreshToken.md](./user/refreshToken.md) |
 | 获取当前登录用户信息 | `GET` | `/api/auth/me` | User Token | [./user/getMe.md](./user/getMe.md) |
 | 获取头像上传凭证 | `POST` | `/api/auth/avatar/upload-token` | User Token | [./user/getAvatarUploadToken.md](./user/getAvatarUploadToken.md) |
 | 发送换绑新邮箱验证码 | `POST` | `/api/auth/profile/email-code` | User Token | [./user/sendProfileEmailCode.md](./user/sendProfileEmailCode.md) |
+| 发送换绑新手机号验证码 | `POST` | `/api/auth/profile/phone-code` | User Token | [./user/sendProfilePhoneCode.md](./user/sendProfilePhoneCode.md) |
 | 更新用户资料 | `PATCH` | `/api/auth/profile` | User Token | [./user/updateProfile.md](./user/updateProfile.md) |
 
 ---

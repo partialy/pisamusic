@@ -23,7 +23,7 @@ export type PublicUser = {
   id: string;
   /** 未绑定邮箱时为空字符串，保持旧客户端字段类型兼容。 */
   email: string;
-  phone: string | null;
+  phone?: string | null;
   username: string;
   avatar: string;
   avatarKey: string;

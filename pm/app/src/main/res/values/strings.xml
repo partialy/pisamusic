@@ -687,6 +687,7 @@
     <string name="account_profile_avatar_change">更换</string>
     <string name="account_profile_label_username">昵称</string>
     <string name="account_profile_label_email">绑定邮箱</string>
+    <string name="account_profile_label_phone">绑定手机号</string>
     <string name="account_profile_label_id">用户 ID</string>
     <string name="account_profile_label_created_at">注册时间</string>
     <string name="account_profile_label_last_login">上次登陆时间</string>
@@ -701,7 +702,9 @@
     <string name="account_profile_edit_username_title">修改昵称</string>
     <string name="account_profile_edit_username_hint">请输入新昵称</string>
     <string name="account_profile_edit_email_title">修改绑定邮箱</string>
+    <string name="account_profile_edit_phone_title">修改绑定手机号</string>
     <string name="account_profile_edit_email_hint">输入新邮箱地址</string>
+    <string name="account_profile_edit_phone_hint">输入新手机号</string>
     <string name="account_profile_edit_code_hint">邮箱验证码</string>
     <string name="account_profile_send_code">发送验证码</string>
     <string name="account_profile_resend_code">重新发送</string>
@@ -726,6 +729,7 @@
     <string name="account_profile_logout_message">确定要退出当前账号吗？</string>
     <string name="account_profile_username_required">请输入昵称</string>
     <string name="account_profile_email_required">请输入新邮箱地址</string>
+    <string name="account_profile_phone_required">请输入新手机号</string>
     <string name="account_profile_email_code_required">请输入邮箱验证码</string>
     <string name="account_profile_save_success">资料已保存</string>
     <string name="account_profile_email_code_sent">验证码已发送</string>

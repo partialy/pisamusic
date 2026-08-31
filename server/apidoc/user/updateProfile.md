@@ -1,6 +1,6 @@
 # 更新用户资料
 
-修改当前登录用户的昵称、头像 Key 或换绑邮箱。修改成功后自动签发并返回最新 User Token。
+修改当前登录用户的昵称、头像 Key、绑定邮箱或手机号。修改成功后自动签发并返回最新 User Token。
 
 - **请求方法**：`PATCH`
 - **请求路径**：`/api/auth/profile`
@@ -26,7 +26,8 @@
 | `username` | `string` | 否 | 新用户名，2-32 位中文、字母、数字、下划线或短横线 |
 | `avatarKey` | `string` | 否 | 新头像 Key，必须为 `default` 或通过 `/api/auth/avatar/upload-token` 分配的合法七牛对象 Key |
 | `email` | `string` | 否 | 待换绑的新邮箱（若修改邮箱则必须同时传递 `code`） |
-| `code` | `string` | 否 | 新邮箱收到的 `profile_email` 验证码（仅在修改 `email` 时必填） |
+| `phone` | `string` | 否 | 待绑定的新手机号（若修改手机号则必须同时传递 `code`） |
+| `code` | `string` | 否 | 新邮箱或手机号收到的对应验证码 |
 
 ### 请求示例
 

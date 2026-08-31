@@ -237,6 +237,7 @@ class AccountAssistActivity : BaseActivity() {
     private fun startCodeCountDown() {
         codeCountDownTimer?.cancel()
         codeCountingDown = true
+        binding.accountAssistSendCodeButton.isEnabled = false
         codeCountDownTimer = object : CountDownTimer(CODE_COUNTDOWN_MS, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
                 val seconds = (millisUntilFinished / 1000L).coerceAtLeast(1L)

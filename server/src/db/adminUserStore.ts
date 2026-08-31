@@ -114,6 +114,7 @@ function rowToUserRecord(row: UserStatsRow): UserRecord {
   return {
     id: row.id,
     email: row.email,
+    phone: null,
     username: row.username,
     passwordHash: row.password_hash,
     avatar: row.avatar,
