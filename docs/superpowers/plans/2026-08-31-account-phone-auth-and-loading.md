@@ -1,5 +1,7 @@
 # 账号手机号认证与请求加载状态改造计划
 
+> 状态：已完成（2026-08-31）；按用户要求未执行构建、测试或真机验证。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 为服务端、Android 登录/注册/找回密码和个人资料补齐手机号验证码能力，并让所有账号网络操作在等待期间显示统一 loading 动画。
