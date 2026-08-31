@@ -23,6 +23,7 @@ import {
 } from "./normalizers";
 import { migrateDatabase } from "./schema";
 import { sanitizeNetworkErrorInput } from "../faultReport/sanitizer";
+import { ListeningStore } from "../listening/listeningStore";
 import type {
   DownloadRecordInput,
   DownloadRecordItem,
@@ -93,12 +94,14 @@ export type {
 
 export class AppDatabase {
   private readonly db: DatabaseSync;
+  public readonly listening: ListeningStore;
 
   constructor(filename: string) {
     this.db = new DatabaseSync(filename);
     this.db.exec("PRAGMA journal_mode = WAL;");
     this.db.exec("PRAGMA foreign_keys = ON;");
     migrateDatabase(this.db);
+    this.listening = new ListeningStore(this.db);
   }
 
   close() {

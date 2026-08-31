@@ -232,6 +232,35 @@ export function migrateDatabase(db: DatabaseSync) {
 
     CREATE INDEX IF NOT EXISTS idx_download_records_updated_at
       ON download_records(updated_at DESC, id DESC);
+
+    CREATE TABLE IF NOT EXISTS listening_active_checkpoint (
+      account_id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL,
+      play_session_id TEXT NOT NULL,
+      track_json TEXT NOT NULL,
+      started_at_ms INTEGER NOT NULL,
+      active_duration_ms INTEGER NOT NULL,
+      checkpointed_at_ms INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS listening_pending_fragments (
+      event_id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      device_id TEXT NOT NULL,
+      fragment_json TEXT NOT NULL,
+      upload_state TEXT NOT NULL DEFAULT 'pending' CHECK (upload_state IN ('pending', 'rejected')),
+      reject_reason TEXT NOT NULL DEFAULT '',
+      created_at_ms INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_listening_pending_account_state
+      ON listening_pending_fragments(account_id, device_id, upload_state, created_at_ms);
+
+    CREATE TABLE IF NOT EXISTS listening_summary_cache (
+      account_id TEXT PRIMARY KEY,
+      summary_json TEXT NOT NULL,
+      updated_at_ms INTEGER NOT NULL
+    );
   `);
   // 旧缓存曾位于 renderer 可读写的通用 settings 中；升级后直接清除，避免再次信任该通道。
   db.prepare("DELETE FROM settings WHERE key = 'desktop-service-discovery-cache-v1'").run();
@@ -283,6 +312,13 @@ export function migrateDatabase(db: DatabaseSync) {
     .prepare(
       `INSERT INTO schema_migrations (version, name, applied_at)
        VALUES (7, 'network error upload state', ?)
+       ON CONFLICT(version) DO NOTHING`
+    )
+    .run(new Date().toISOString());
+  db
+    .prepare(
+      `INSERT INTO schema_migrations (version, name, applied_at)
+       VALUES (8, 'listening tables schema', ?)
        ON CONFLICT(version) DO NOTHING`
     )
     .run(new Date().toISOString());

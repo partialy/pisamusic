@@ -415,3 +415,39 @@ export type NetworkErrorDetailRow = NetworkErrorSummaryRow & {
   is_uploaded?: number;
   uploaded_at?: string | null;
 };
+
+export type ListeningActiveCheckpoint = {
+  accountId: string;
+  deviceId: string;
+  playSessionId: string;
+  track: import("../../src/types/listening").ListeningTrackSnapshot;
+  startedAtMs: number;
+  activeDurationMs: number;
+  checkpointedAtMs: number;
+};
+
+export type ListeningActiveCheckpointRow = {
+  account_id: string;
+  device_id: string;
+  play_session_id: string;
+  track_json: string;
+  started_at_ms: number;
+  active_duration_ms: number;
+  checkpointed_at_ms: number;
+};
+
+export type ListeningPendingFragmentRow = {
+  event_id: string;
+  account_id: string;
+  device_id: string;
+  fragment_json: string;
+  upload_state: "pending" | "rejected";
+  reject_reason: string;
+  created_at_ms: number;
+};
+
+export type ListeningSummaryCacheRow = {
+  account_id: string;
+  summary_json: string;
+  updated_at_ms: number;
+};
