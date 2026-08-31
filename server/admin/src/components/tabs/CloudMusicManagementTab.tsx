@@ -4,6 +4,7 @@ import {
   Avatar,
   Button,
   Card,
+  Image,
   Input,
   Modal,
   Popconfirm,
@@ -18,10 +19,10 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import {
   ClearOutlined,
-  CustomerServiceOutlined,
   DeleteOutlined,
   EditOutlined,
   PauseCircleOutlined,
+  PictureOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -95,7 +96,7 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
   const [tracks, setTracks] = useState<CloudMusicTrack[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const [limit] = useState(20);
+  const [limit, setLimit] = useState(20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -214,39 +215,64 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
 
   const columns: ColumnsType<CloudMusicTrack> = [
     {
+      title: "封面",
+      key: "cover",
+      width: 76,
+      align: "center",
+      render: (_, record) => {
+        const coverUrl = record.cover?.url;
+        return (
+          <div className="flex justify-center">
+            {coverUrl ? (
+              <Image
+                src={coverUrl}
+                width={46}
+                height={46}
+                className="rounded-lg object-cover border border-slate-200 shadow-2xs"
+                alt={record.title}
+              />
+            ) : (
+              <Avatar
+                shape="square"
+                size={46}
+                icon={<PictureOutlined />}
+                className="bg-slate-100 text-slate-400 rounded-lg"
+              />
+            )}
+          </div>
+        );
+      },
+    },
+    {
       title: "歌曲信息",
       key: "songInfo",
-      width: 260,
+      width: 220,
       render: (_, record) => (
-        <div className="flex items-center gap-3">
-          <Avatar
-            shape="square"
-            size={44}
-            src={record.cover?.url}
-            icon={<CustomerServiceOutlined />}
-            className="rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200"
-          />
-          <div className="min-w-0 flex-1">
-            <Text strong ellipsis className="text-slate-800 block text-xs" title={record.title}>
-              {record.title || "未命名"}
+        <div className="min-w-0">
+          <Text strong ellipsis className="text-slate-800 block text-xs" title={record.title}>
+            {record.title || "未命名"}
+          </Text>
+          <Text type="secondary" ellipsis className="block text-[11px] text-slate-500" title={record.artist}>
+            {record.artist} {record.album ? `· ${record.album}` : ""}
+          </Text>
+          <Tooltip title={record.uuid}>
+            <Text type="secondary" className="block text-[10px] font-mono text-slate-400 truncate">
+              {record.uuid}
             </Text>
-            <Text type="secondary" ellipsis className="block text-[11px] text-slate-500" title={record.artist}>
-              {record.artist} {record.album ? `· ${record.album}` : ""}
-            </Text>
-          </div>
+          </Tooltip>
         </div>
       ),
     },
     {
       title: "状态",
       key: "status",
-      width: 140,
+      width: 130,
       render: (_, record) => (
         <div className="flex flex-col gap-1 items-start">
           {statusTag(record.status)}
           {record.statusReason && (
             <Tooltip title={record.statusReason}>
-              <span className="text-[10px] text-slate-400 truncate max-w-[120px] block">
+              <span className="text-[10px] text-slate-400 truncate max-w-[110px] block">
                 {record.statusReason}
               </span>
             </Tooltip>
@@ -262,7 +288,7 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
     {
       title: "格式 / 大小",
       key: "formatSpecs",
-      width: 120,
+      width: 110,
       render: (_, record) => (
         <div className="text-xs font-mono">
           <Tag color="geekblue">{record.format ? record.format.toUpperCase() : "-"}</Tag>
@@ -286,7 +312,7 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
     {
       title: "歌词",
       key: "lyrics",
-      width: 90,
+      width: 80,
       align: "center",
       render: (_, record) =>
         record.lyrics ? (
@@ -491,7 +517,20 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
             total,
             showTotal: (t) => `共 ${t} 首曲目`,
             showQuickJumper: true,
-            onChange: (page) => loadTracks((page - 1) * limit),
+            showSizeChanger: true,
+            pageSizeOptions: ["10", "20", "50", "100"],
+            onShowSizeChange: (_, size) => {
+              setLimit(size);
+              onPageChangeWithLimit(0, size);
+            },
+            onChange: (page, pageSize) => {
+              if (pageSize !== limit) {
+                setLimit(pageSize);
+                onPageChangeWithLimit(0, pageSize);
+              } else {
+                loadTracks((page - 1) * limit);
+              }
+            },
           }}
         />
 
@@ -637,4 +676,28 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
       )}
     </div>
   );
+
+  function onPageChangeWithLimit(newOffset: number, newLimit: number) {
+    setLoading(true);
+    setError("");
+    const filter: CloudMusicListFilter = {
+      keyword: keyword.trim() || undefined,
+      status: statusFilter,
+      uploadState: uploadStateFilter,
+      offset: newOffset,
+      limit: newLimit,
+    };
+    fetchCloudMusicTracks(filter)
+      .then((res) => {
+        setTracks(res.items);
+        setTotal(res.total);
+        setOffset(res.offset);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "获取网盘音乐列表失败");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }
 }

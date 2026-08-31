@@ -1,10 +1,10 @@
 import { useState } from "react";
 import {
   Alert,
-  Avatar,
   Button,
   Card,
   Descriptions,
+  Image,
   Input,
   Modal,
   Radio,
@@ -15,7 +15,6 @@ import {
 import {
   CustomerServiceOutlined,
   EditOutlined,
-  PictureOutlined,
 } from "@ant-design/icons";
 import {
   completeCloudMusicAsset,
@@ -292,12 +291,12 @@ export default function CloudMusicEditModal({
         <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl" title={<span className="text-xs font-bold">封面图片管理</span>}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar
-                shape="square"
-                size={56}
+              <Image
+                width={56}
+                height={56}
                 src={track.cover?.url}
-                icon={<PictureOutlined />}
-                className="rounded-lg object-cover bg-slate-200 shrink-0 border border-slate-300"
+                className="rounded-lg object-cover bg-slate-200 shrink-0 border border-slate-300 shadow-2xs"
+                alt={track.title}
               />
               <div>
                 <Tag color={track.cover?.source === "uploaded" ? "purple" : "cyan"}>

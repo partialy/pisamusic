@@ -1,9 +1,9 @@
 import { useState } from "react";
 import {
   Alert,
-  Avatar,
   Button,
   Card,
+  Image,
   Input,
   Modal,
   Radio,
@@ -15,7 +15,6 @@ import {
   AuditOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  CustomerServiceOutlined,
   DeleteOutlined,
   PlayCircleOutlined,
   SyncOutlined,
@@ -137,12 +136,12 @@ export default function CloudMusicReviewModal({
         <Card size="small" className="bg-slate-50/80 border-slate-200 rounded-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Avatar
-                shape="square"
-                size={52}
+              <Image
+                width={52}
+                height={52}
                 src={track.cover?.url}
-                icon={<CustomerServiceOutlined />}
-                className="rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200"
+                className="rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200 shadow-2xs"
+                alt={track.title}
               />
               <div className="min-w-0">
                 <Text strong className="text-sm text-slate-800 block">
