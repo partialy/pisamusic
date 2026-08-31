@@ -69,6 +69,7 @@
         :options="dropDownOptions"
         trigger="click"
         @select="handleSelect"
+        @update:show="handleUserMenuVisible"
         show-arrow
       >
         <div class="user">
@@ -122,6 +123,7 @@ import {
   NIcon,
   NAvatar,
   NDropdown,
+  type DropdownOption,
 } from "naive-ui";
 import { useRouter } from "vue-router";
 import {
@@ -139,7 +141,8 @@ import {
   LogOutOutline as LogoutIcon,
   PersonCircleOutline as UserIcon,
 } from "@vicons/ionicons5";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import type { ListeningSummary } from "@/types/listening";
 import avatarImg from "../assets/defaultAdminAvatar.jpg";
 import { renderIcon } from "@/utils/common";
 import electronAPI from "@/utils/electron";
@@ -232,7 +235,62 @@ const handleSearchClick = (key: string) => {
   handleSearch();
 };
 
-const dropDownOptions = [
+const listeningSummary = ref<ListeningSummary>({
+  totalMs: 0,
+  totalMinutes: 0,
+  level: { level: 1, minMinutes: 0, maxMinutes: null },
+});
+let latestSummaryRequestId = 0;
+
+const loadListeningSummary = async () => {
+  if (!isLogin.value) return;
+  const requestId = ++latestSummaryRequestId;
+  try {
+    const summary = await electronAPI.getListeningSummary?.();
+    if (requestId === latestSummaryRequestId && summary && typeof summary.totalMinutes === "number") {
+      listeningSummary.value = summary;
+    }
+  } catch {
+    // Keep cached summary on failure
+  }
+};
+
+const handleUserMenuVisible = (visible: boolean) => {
+  if (visible) {
+    void loadListeningSummary();
+  }
+};
+
+watch(
+  () => userInfo.value.id,
+  (newId) => {
+    listeningSummary.value = {
+      totalMs: 0,
+      totalMinutes: 0,
+      level: { level: 1, minMinutes: 0, maxMinutes: null },
+    };
+    if (newId) {
+      void loadListeningSummary();
+    }
+  },
+  { immediate: true }
+);
+
+const dropDownOptions = computed<DropdownOption[]>(() => [
+  {
+    label: `等级：Lv ${listeningSummary.value.level.level}`,
+    key: "listening-level",
+    disabled: true,
+  },
+  {
+    label: `累计听歌：${listeningSummary.value.totalMinutes}分钟`,
+    key: "listening-total",
+    disabled: true,
+  },
+  {
+    key: "listening-divider",
+    type: "divider",
+  },
   {
     label: "用户资料",
     key: "profile",
@@ -257,7 +315,7 @@ const dropDownOptions = [
       style: { color: "red" },
     }),
   },
-];
+]);
 
 const settingOptions = computed(() => {
   const options = [
@@ -308,6 +366,7 @@ const settingOptions = computed(() => {
 });
 
 const handleSelect = async (key: string) => {
+  if (key === "listening-level" || key === "listening-total") return;
   if (key === "logout") {
     await userStore.logout();
     window.$message.success("已退出登录");
