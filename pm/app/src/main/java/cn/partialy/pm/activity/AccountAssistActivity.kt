@@ -58,6 +58,7 @@ class AccountAssistActivity : BaseActivity() {
         sendCodeLoading = LoadingTextButtonRenderer(binding.accountAssistSendCodeButton, binding.accountAssistSendCodeLoading)
         bindActions()
         applyMode()
+        submitLoading.syncText()
         applyContactMode(ContactMode.EMAIL)
     }
 

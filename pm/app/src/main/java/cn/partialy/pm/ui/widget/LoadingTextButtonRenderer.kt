@@ -38,5 +38,9 @@ class LoadingTextButtonRenderer(
         }
     }
 
+    fun syncText() {
+        if (!loadingIcon.isVisible) textBeforeLoading = button.text
+    }
+
     fun release() = setLoading(false)
 }
