@@ -62,7 +62,7 @@ function loadConfig() {
   return config;
 }
 
-function run(command, args, env) {
+function run(command, args, env, allowedStatuses = [0]) {
   const result = spawnSync(command, args, {
     env,
     cwd: CERT_DIR,
@@ -70,7 +70,7 @@ function run(command, args, env) {
     encoding: 'utf8',
   });
   if (result.error) throw result.error;
-  if (result.status !== 0) fail(`${path.basename(command)} 执行失败，退出码 ${result.status}`);
+  if (!allowedStatuses.includes(result.status)) fail(`${path.basename(command)} 执行失败，退出码 ${result.status}`);
 }
 
 function sha256File(file) {
@@ -122,7 +122,10 @@ function requestJson({ host, method, requestPath, body, authorization, qiniuDate
           parsed = { raw: text };
         }
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          const error = new Error(`${method} ${requestPath} 返回 HTTP ${res.statusCode}`);
+          const detail = parsed && (parsed.error || parsed.message || parsed.code)
+            ? `：${String(parsed.error || parsed.message || `code=${parsed.code}`)}`
+            : '';
+          const error = new Error(`${method} ${requestPath} 返回 HTTP ${res.statusCode}${detail}`);
           error.statusCode = res.statusCode;
           error.response = parsed;
           reject(error);
@@ -164,7 +167,7 @@ async function uploadCertificate(config, privateKeyFile, fullChainFile) {
 
 async function bindCertificate(config, domain, certId) {
   const date = utcDate();
-  const body = { certId, forceHttps: true, http2Enable: true, tlsVersions: 'TLSv1.2/TLSv1.3' };
+  const body = { certId, forceHttps: true, http2Enable: true, tlsVersions: ['TLSv1.2', 'TLSv1.3'] };
   const encodedDomain = encodeURIComponent(domain);
   const httpsPath = `/domain/${encodedDomain}/httpsconf`;
   const auth = qiniuAuthorization(config.QINIU_ACCESS_KEY, config.QINIU_SECRET_KEY, 'PUT', 'api.qiniu.com', httpsPath, JSON.stringify(body), date);
@@ -209,6 +212,15 @@ function writeState(state) {
   fs.renameSync(tempFile, STATE_FILE);
 }
 
+function readState() {
+  if (!fs.existsSync(STATE_FILE)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   fs.mkdirSync(CERT_DIR, { recursive: true, mode: 0o700 });
   const config = loadConfig();
@@ -217,25 +229,35 @@ async function main() {
   const privateKeyFile = path.join(CERT_DIR, 'privkey.pem');
   const fullChainFile = path.join(CERT_DIR, 'fullchain.pem');
   const beforeFingerprint = sha256File(fullChainFile);
+  const previousState = readState();
   const acmeEnv = { ...process.env, ...config, CF_Token: config.CF_Token };
 
   log(`开始检查 ${PRIMARY_DOMAIN}、${PUBLIC_DOMAIN} 的证书`);
   if (!fs.existsSync(path.join(ACME_HOME, PRIMARY_DOMAIN)) && !fs.existsSync(path.join(ACME_HOME, `${PRIMARY_DOMAIN}_ecc`))) {
     run(ACME_SH, ['--issue', '--dns', 'dns_cf', '-d', PRIMARY_DOMAIN, '-d', PUBLIC_DOMAIN, '--keylength', 'ec-256', '--server', 'letsencrypt', '--home', ACME_HOME], acmeEnv);
   } else {
-    run(ACME_SH, ['--renew', '-d', PRIMARY_DOMAIN, '--ecc', '--home', ACME_HOME], acmeEnv);
+    // acme.sh 在证书尚未进入续签窗口时返回 2，属于正常跳过。
+    run(ACME_SH, ['--renew', '-d', PRIMARY_DOMAIN, '--ecc', '--home', ACME_HOME], acmeEnv, [0, 2]);
   }
   run(ACME_SH, ['--install-cert', '-d', PRIMARY_DOMAIN, '--ecc', '--home', ACME_HOME, '--key-file', privateKeyFile, '--fullchain-file', fullChainFile], acmeEnv);
 
   const afterFingerprint = sha256File(fullChainFile);
   if (!afterFingerprint) fail('acme.sh 未生成 fullchain.pem');
-  if (beforeFingerprint === afterFingerprint) {
+  const stateMatches = previousState && previousState.sha256 === afterFingerprint && previousState.certId;
+  if (beforeFingerprint === afterFingerprint && stateMatches && !previousState.pending) {
     log('证书内容没有变化，本次不重复上传七牛');
   } else {
-    const certId = await uploadCertificate(config, privateKeyFile, fullChainFile);
-    await bindCertificate(config, PRIMARY_DOMAIN, certId);
-    await bindCertificate(config, PUBLIC_DOMAIN, certId);
-    writeState({ certId, sha256: afterFingerprint, updatedAt: new Date().toISOString(), domains: [PRIMARY_DOMAIN, PUBLIC_DOMAIN] });
+    const certId = stateMatches && previousState.pending
+      ? previousState.certId
+      : await uploadCertificate(config, privateKeyFile, fullChainFile);
+    try {
+      await bindCertificate(config, PRIMARY_DOMAIN, certId);
+      await bindCertificate(config, PUBLIC_DOMAIN, certId);
+      writeState({ certId, sha256: afterFingerprint, updatedAt: new Date().toISOString(), domains: [PRIMARY_DOMAIN, PUBLIC_DOMAIN], pending: false });
+    } catch (error) {
+      writeState({ certId, sha256: afterFingerprint, updatedAt: new Date().toISOString(), domains: [PRIMARY_DOMAIN, PUBLIC_DOMAIN], pending: true });
+      throw error;
+    }
   }
 
   await checkTls(PRIMARY_DOMAIN);

@@ -5,6 +5,7 @@ SPlayer/
 
 # Local backups and signing assets.
 *.zip
+*.bak
 *.jks
 *.keystore
 

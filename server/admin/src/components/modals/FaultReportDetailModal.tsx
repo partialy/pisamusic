@@ -1,5 +1,30 @@
-import type { AdminFaultReportDetail, FaultReportStatus } from "../../types/config";
-import { FAULT_REPORT_SCENE_LABELS, FAULT_REPORT_STATUS_LABELS, formatFaultReportTime } from "../../utils/faultReports";
+import {
+  Alert,
+  Button,
+  Collapse,
+  Descriptions,
+  Modal,
+  Popconfirm,
+  Space,
+  Tag,
+  Typography,
+} from "antd";
+import {
+  BugOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+} from "@ant-design/icons";
+import type {
+  AdminFaultReportDetail,
+  FaultReportStatus,
+} from "../../types/config";
+import {
+  FAULT_REPORT_SCENE_LABELS,
+  FAULT_REPORT_STATUS_LABELS,
+  formatFaultReportTime,
+} from "../../utils/faultReports";
+
+const { Text } = Typography;
 
 type Props = {
   report: AdminFaultReportDetail;
@@ -12,92 +37,200 @@ type Props = {
   onClose: () => void;
 };
 
-function Block({ label, value }: { label: string; value: string }) {
+function LogField({ label, value }: { label: string; value: string | undefined | null }) {
+  if (!value) return null;
   return (
-    <div className="min-w-0 rounded-xl bg-white/60 px-4 py-3">
-      <div className="text-xs font-bold text-slate-400">{label}</div>
-      <pre className="mt-1 whitespace-pre-wrap break-all font-mono text-xs leading-5 text-slate-700">{value || "-"}</pre>
+    <div className="rounded-lg bg-slate-50 p-2.5 border border-slate-200/80">
+      <span className="text-[11px] font-bold text-slate-500 block mb-1">
+        {label}
+      </span>
+      <pre className="whitespace-pre-wrap break-all font-mono text-xs text-slate-700 leading-5 m-0 max-h-48 overflow-y-auto">
+        {value}
+      </pre>
     </div>
   );
 }
 
-export default function FaultReportDetailModal({ report, busy, themeColor, onStatusChange, onExportLog, onExportAll, onDelete, onClose }: Props) {
-  const nextStatus: FaultReportStatus = report.status === "processed" ? "pending" : "processed";
-  const desktop = report.platform === "desktop";
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-6">
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-md" onClick={onClose} aria-hidden />
-      <div className="relative mx-auto my-4 flex w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/90 shadow-2xl backdrop-blur-2xl sm:my-8 sm:max-h-[calc(100dvh-4rem)]">
-        <header className="flex items-center justify-between gap-4 border-b border-white/50 px-5 py-4 sm:px-8">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-xl font-extrabold text-slate-800">故障上报详情</h3>
-              <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">{FAULT_REPORT_SCENE_LABELS[report.scene]}</span>
-              <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${report.status === "processed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{FAULT_REPORT_STATUS_LABELS[report.status]}</span>
-            </div>
-            <p className="mt-1 truncate font-mono text-xs text-slate-400">{report.id}</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-full bg-white/70 px-3 py-2 font-bold text-slate-500">关闭</button>
-        </header>
+export default function FaultReportDetailModal({
+  report,
+  busy,
+  themeColor: _,
+  onStatusChange,
+  onExportLog,
+  onExportAll,
+  onDelete,
+  onClose,
+}: Props) {
+  const isProcessed = report.status === "processed";
+  const nextStatus: FaultReportStatus = isProcessed ? "pending" : "processed";
+  const isDesktop = report.platform === "desktop";
 
-        <div className="flex-1 space-y-5 overflow-y-auto p-5 sm:p-8">
-          <section className="grid grid-cols-1 gap-3 rounded-2xl border border-white/60 bg-white/45 p-5 text-sm md:grid-cols-3">
-            <div><b className="text-slate-500">用户：</b>{report.userId || "匿名"}</div>
-            <div><b className="text-slate-500">App：</b>{report.appVersion}{report.appVersionCode > 0 ? ` (${report.appVersionCode})` : ""}</div>
-            <div><b className="text-slate-500">系统：</b>{desktop ? `${report.brand} ${report.osVersion}` : `Android ${report.osVersion} / SDK ${report.sdkInt}`}</div>
-            <div><b className="text-slate-500">设备：</b>{desktop ? `${report.model} / ${report.arch}` : `${report.brand} ${report.model}`}</div>
-            <div><b className="text-slate-500">网络：</b>{report.networkType || "-"}</div>
-            <div><b className="text-slate-500">提交：</b>{formatFaultReportTime(report.createdAt)}</div>
-          </section>
-
-          <section className="space-y-4">
-            {report.logs.map((log, index) => (
-              <details key={log.clientLogId} className="rounded-2xl border border-white/60 bg-white/55 p-4 shadow-sm" open={index === 0}>
-                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 font-bold text-slate-700">
-                  <span className="min-w-0">
-                    <span className="mr-3 text-slate-400">#{index + 1}</span>{log.methodName || log.failureType}
-                    <span className="ml-3 text-xs font-normal text-slate-400">
-                      {desktop
-                        ? `${formatFaultReportTime(log.occurredAt)} · ${log.requestMethod || "-"} · ${log.errorType || "network"}`
-                        : `${formatFaultReportTime(log.occurredAt)} · ${log.songSource}/${log.songId} · ${log.quality || "auto"}`}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onExportLog(index);
-                    }}
-                    className="shrink-0 rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm disabled:opacity-50"
-                  >
-                    导出
-                  </button>
-                </summary>
-                <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  <Block label="失败类型" value={log.failureType} />
-                  <Block label={desktop ? "HTTP / 业务码" : "HTTP / nonce"} value={`${log.requestMethod || "-"} ${log.responseCode ?? "-"} / ${log.nonceId || "-"}`} />
-                  <Block label="请求地址" value={log.requestUrl} />
-                  {!desktop ? <Block label="解析地址" value={log.resolvedUrl} /> : null}
-                  <Block label="请求参数" value={log.requestParamsJson} />
-                  <Block label="响应" value={log.responseBody} />
-                  <Block label="异常" value={`${log.errorType}\n${log.errorMessage}`.trim()} />
-                  <Block label="堆栈" value={log.stackTrace} />
-                </div>
-              </details>
-            ))}
-          </section>
+  const collapseItems = report.logs.map((log, index) => ({
+    key: log.clientLogId || String(index),
+    label: (
+      <div className="flex items-center justify-between gap-3 pr-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Tag color="blue">#{index + 1}</Tag>
+          <Text strong className="text-xs text-slate-800 truncate">
+            {log.methodName || log.failureType}
+          </Text>
+          <span className="text-xs text-slate-400 truncate hidden sm:inline">
+            {isDesktop
+              ? `${formatFaultReportTime(log.occurredAt)} · ${log.requestMethod || "-"} · ${log.errorType || "network"}`
+              : `${formatFaultReportTime(log.occurredAt)} · ${log.songSource || ""}/${log.songId || ""} · ${log.quality || "auto"}`}
+          </span>
         </div>
 
-        <footer className="flex flex-col-reverse gap-3 border-t border-white/50 p-5 sm:flex-row sm:justify-end">
-          <button type="button" disabled={busy} onClick={onExportAll} className="rounded-xl bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm disabled:opacity-50">导出全部</button>
-          <button type="button" disabled={busy} onClick={onDelete} className="rounded-xl bg-rose-500 px-6 py-3 text-sm font-bold text-white disabled:opacity-50">删除批次</button>
-          <button type="button" disabled={busy} onClick={() => onStatusChange(nextStatus)} className="rounded-xl px-6 py-3 text-sm font-bold text-white disabled:opacity-50" style={{ backgroundColor: report.status === "processed" ? "#f59e0b" : themeColor }}>
-            {busy ? "处理中..." : report.status === "processed" ? "恢复为待处理" : "标记为已处理"}
-          </button>
-        </footer>
+        <Button
+          size="small"
+          icon={<DownloadOutlined />}
+          disabled={busy}
+          onClick={(e) => {
+            e.stopPropagation();
+            onExportLog(index);
+          }}
+        >
+          导出单条
+        </Button>
       </div>
-    </div>
+    ),
+    children: (
+      <div className="space-y-2 pt-1">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <LogField label="失败类型" value={log.failureType} />
+          <LogField
+            label={isDesktop ? "HTTP 方法 / 状态码" : "HTTP / Nonce ID"}
+            value={`${log.requestMethod || "-"} ${log.responseCode ?? "-"} / ${log.nonceId || "-"}`}
+          />
+        </div>
+
+        <LogField label="请求完整地址" value={log.requestUrl} />
+        {!isDesktop && <LogField label="解析音频直链" value={log.resolvedUrl} />}
+        <LogField label="请求参数 (JSON)" value={log.requestParamsJson} />
+        <LogField label="响应体 (Response Body)" value={log.responseBody} />
+        <LogField
+          label="异常信息"
+          value={`${log.errorType || ""}\n${log.errorMessage || ""}`.trim()}
+        />
+        <LogField label="调用栈 (Stack Trace)" value={log.stackTrace} />
+      </div>
+    ),
+  }));
+
+  return (
+    <Modal
+      open
+      centered
+      title={
+        <Space align="center" size={8}>
+          <BugOutlined className="text-rose-500 text-lg" />
+          <span className="text-base font-bold text-slate-800">故障上报批次详情</span>
+          <Tag color={isDesktop ? "blue" : "cyan"}>
+            {FAULT_REPORT_SCENE_LABELS[report.scene] || report.scene}
+          </Tag>
+          <Tag color={isProcessed ? "success" : "warning"}>
+            {FAULT_REPORT_STATUS_LABELS[report.status] || report.status}
+          </Tag>
+          <span className="text-xs font-mono text-slate-400">({report.id})</span>
+        </Space>
+      }
+      width={900}
+      onCancel={onClose}
+      footer={[
+        <Button key="close" onClick={onClose}>
+          关闭
+        </Button>,
+        <Button
+          key="export"
+          icon={<DownloadOutlined />}
+          disabled={busy}
+          onClick={onExportAll}
+        >
+          导出全部日志
+        </Button>,
+        <Popconfirm
+          key="delete"
+          title="确认删除该故障批次？"
+          description="删除后将永久清理该故障报告及其全部子日志！"
+          onConfirm={onDelete}
+          okText="确认删除"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+        >
+          <Button danger disabled={busy} icon={<DeleteOutlined />}>
+            删除批次
+          </Button>
+        </Popconfirm>,
+        <Button
+          key="status"
+          type="primary"
+          loading={busy}
+          onClick={() => onStatusChange(nextStatus)}
+          className={isProcessed ? "!bg-amber-500 hover:!bg-amber-600" : "!bg-emerald-600 hover:!bg-emerald-700"}
+        >
+          {isProcessed ? "恢复为待处理" : "标记为已处理"}
+        </Button>,
+      ]}
+      destroyOnClose
+    >
+      <div className="space-y-4 pt-2 max-h-[calc(85vh-120px)] overflow-y-auto pr-1">
+        <Descriptions
+          bordered
+          size="small"
+          column={{ xxl: 3, xl: 3, lg: 3, md: 2, sm: 1, xs: 1 }}
+          className="bg-slate-50/50 rounded-xl overflow-hidden"
+        >
+          <Descriptions.Item label="上报用户">
+            {report.userId ? (
+              <Text copyable={{ text: report.userId }} className="font-mono text-xs text-slate-800">
+                {report.userId}
+              </Text>
+            ) : (
+              <span className="text-slate-400">匿名上报</span>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="App 版本">
+            <Text strong className="font-mono text-xs">
+              {report.appVersion}
+              {report.appVersionCode > 0 ? ` (${report.appVersionCode})` : ""}
+            </Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="系统环境">
+            {isDesktop
+              ? `${report.brand} ${report.osVersion}`
+              : `Android ${report.osVersion} / SDK ${report.sdkInt}`}
+          </Descriptions.Item>
+          <Descriptions.Item label="设备型号">
+            {isDesktop
+              ? `${report.model} / ${report.arch}`
+              : `${report.brand} ${report.model}`}
+          </Descriptions.Item>
+          <Descriptions.Item label="网络类型">
+            {report.networkType || "-"}
+          </Descriptions.Item>
+          <Descriptions.Item label="提交时间">
+            {formatFaultReportTime(report.createdAt)}
+          </Descriptions.Item>
+        </Descriptions>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700">
+              关联故障日志 ({report.logs.length} 条)
+            </span>
+          </div>
+
+          {report.logs.length === 0 ? (
+            <Alert type="info" showIcon message="该报告无子日志记录" />
+          ) : (
+            <Collapse
+              defaultActiveKey={report.logs.length > 0 ? [report.logs[0].clientLogId || "0"] : []}
+              items={collapseItems}
+              size="small"
+            />
+          )}
+        </div>
+      </div>
+    </Modal>
   );
 }

@@ -1,8 +1,34 @@
 import { useCallback, useEffect, useState } from "react";
+import {
+  Button,
+  Card,
+  Input,
+  Select,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  EyeOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import { fetchAdminFaultReports } from "../../api/client";
-import { glassCardClasses, glassInputClasses } from "../../constants/theme";
-import type { AdminFaultReportFilter, AdminFaultReportListItem, FaultReportScene, FaultReportStatus } from "../../types/config";
-import { FAULT_REPORT_SCENE_LABELS, FAULT_REPORT_STATUS_LABELS, formatFaultReportTime } from "../../utils/faultReports";
+import type {
+  AdminFaultReportFilter,
+  AdminFaultReportListItem,
+  FaultReportScene,
+  FaultReportStatus,
+} from "../../types/config";
+import {
+  FAULT_REPORT_SCENE_LABELS,
+  FAULT_REPORT_STATUS_LABELS,
+  formatFaultReportTime,
+} from "../../utils/faultReports";
+
+const { Text } = Typography;
 
 const LIMIT = 20;
 
@@ -12,82 +38,260 @@ type Props = {
   refreshKey?: number;
 };
 
-export default function FaultReportsManagementTab({ themeColor, onView, refreshKey }: Props) {
-  const [items, setItems] = useState<AdminFaultReportListItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [offset, setOffset] = useState(0);
-  const [filter, setFilter] = useState<AdminFaultReportFilter>({});
-  const [keyword, setKeyword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const result = await fetchAdminFaultReports({ ...filter, offset, limit: LIMIT });
-      setItems(result.items);
-      setTotal(result.total);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "故障上报读取失败");
-    } finally {
-      setLoading(false);
-    }
-  }, [filter, offset]);
-
-  useEffect(() => { void load(); }, [load, refreshKey]);
-
-  const updateFilter = (next: AdminFaultReportFilter) => {
-    setFilter(next);
-    setOffset(0);
-  };
-
-  const pageEnd = Math.min(total, offset + LIMIT);
-  return (
-    <div className="space-y-6 animate-fade-in-up">
-      <section className={glassCardClasses}>
-        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div><h2 className="text-2xl font-extrabold text-slate-800">故障上报</h2><p className="mt-1 text-sm text-slate-500">查看 Android 播放故障与 PC 网络请求错误，维护处理状态。</p></div>
-          <button type="button" onClick={() => void load()} className="rounded-2xl px-5 py-2.5 text-sm font-bold text-white" style={{ backgroundColor: themeColor }}>刷新</button>
-        </div>
-        <form className="grid grid-cols-1 gap-3 md:grid-cols-[180px_180px_minmax(0,1fr)_auto_auto]" onSubmit={(event) => { event.preventDefault(); updateFilter({ ...filter, keyword: keyword.trim() || undefined }); }}>
-          <select className={glassInputClasses} value={filter.status ?? ""} onChange={(event) => updateFilter({ ...filter, status: (event.target.value || undefined) as FaultReportStatus | undefined })}>
-            <option value="">全部状态</option><option value="pending">待处理</option><option value="processed">已处理</option>
-          </select>
-          <select className={glassInputClasses} value={filter.scene ?? ""} onChange={(event) => updateFilter({ ...filter, scene: (event.target.value || undefined) as FaultReportScene | undefined })}>
-            <option value="">全部场景</option><option value="play_url">获取播放地址</option><option value="desktop_network">PC 网络请求</option>
-          </select>
-          <input className={glassInputClasses} value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="报告 ID、用户 ID、版本、接口路径或错误信息" />
-          <button type="submit" className="rounded-2xl px-5 py-3 text-sm font-bold text-white" style={{ backgroundColor: themeColor }}>查询</button>
-          <button type="button" className="rounded-2xl bg-white/70 px-5 py-3 text-sm font-bold text-slate-700" onClick={() => { setKeyword(""); updateFilter({}); }}>重置</button>
-        </form>
-        {error ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p> : null}
-      </section>
-
-      <section className={glassCardClasses}>
-        {loading ? <div className="py-12 text-center text-sm font-semibold text-slate-500">正在加载...</div> : items.length === 0 ? <div className="py-12 text-center text-sm font-semibold text-slate-500">暂无故障上报</div> : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left text-sm">
-            <thead><tr className="text-xs font-bold text-slate-500"><th className="px-4 py-3">场景</th><th className="px-4 py-3">用户</th><th className="px-4 py-3">App / 系统</th><th className="px-4 py-3">日志数</th><th className="px-4 py-3">提交时间</th><th className="px-4 py-3">状态</th><th className="px-4 py-3 text-right">操作</th></tr></thead>
-            <tbody>{items.map((item) => <tr key={item.id} className="border-t border-slate-100 hover:bg-white/50">
-              <td className="px-4 py-4"><span className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">{FAULT_REPORT_SCENE_LABELS[item.scene]}</span><div className="mt-1 max-w-40 truncate font-mono text-[11px] text-slate-400">{item.id}</div></td>
-              <td className="px-4 py-4 font-mono text-xs text-slate-600">{item.userId || "匿名"}</td>
-              <td className="px-4 py-4 text-slate-600">{item.appVersion}{item.appVersionCode > 0 ? ` (${item.appVersionCode})` : ""}<div className="text-xs text-slate-400">{formatEnvironment(item)}</div></td>
-              <td className="px-4 py-4 font-bold text-slate-700">{item.logCount}</td><td className="px-4 py-4 text-xs text-slate-500">{formatFaultReportTime(item.createdAt)}</td>
-              <td className="px-4 py-4"><span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${item.status === "processed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{FAULT_REPORT_STATUS_LABELS[item.status]}</span></td>
-              <td className="px-4 py-4 text-right"><button type="button" onClick={() => onView(item.id)} className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-slate-700 shadow-sm">详情</button></td>
-            </tr>)}</tbody>
-          </table></div>
-        )}
-      </section>
-
-      <div className="flex items-center justify-between rounded-2xl bg-white/50 p-4 text-sm font-bold text-slate-600"><span>{total === 0 ? "0" : `${offset + 1}-${pageEnd}`} / {total}</span><div className="flex gap-2"><button type="button" disabled={offset <= 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))} className="rounded-xl bg-white px-4 py-2 disabled:opacity-50">上一页</button><button type="button" disabled={pageEnd >= total} onClick={() => setOffset(offset + LIMIT)} className="rounded-xl bg-white px-4 py-2 disabled:opacity-50">下一页</button></div></div>
-    </div>
-  );
-}
-
 function formatEnvironment(item: AdminFaultReportListItem) {
   if (item.platform === "desktop") {
     return `${item.brand || "PC"} ${item.osVersion} · ${item.model} ${item.arch}`.trim();
   }
   return `Android ${item.osVersion} · ${item.brand} ${item.model}`.trim();
+}
+
+export default function FaultReportsManagementTab({
+  themeColor: _,
+  onView,
+  refreshKey,
+}: Props) {
+  const [items, setItems] = useState<AdminFaultReportListItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [filter, setFilter] = useState<AdminFaultReportFilter>({});
+  const [localStatus, setLocalStatus] = useState<string>("");
+  const [localScene, setLocalScene] = useState<string>("");
+  const [localKeyword, setLocalKeyword] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (currentOffset = offset, currentFilter = filter) => {
+    setLoading(true);
+    try {
+      const result = await fetchAdminFaultReports({
+        ...currentFilter,
+        offset: currentOffset,
+        limit: LIMIT,
+      });
+      setItems(result.items);
+      setTotal(result.total);
+      setOffset(result.offset);
+    } catch (reason) {
+      window.alert(reason instanceof Error ? reason.message : "故障上报读取失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [filter, offset]);
+
+  useEffect(() => {
+    void load(offset, filter);
+  }, [load, refreshKey]);
+
+  const handleApplyFilter = () => {
+    const nextFilter: AdminFaultReportFilter = {
+      status: (localStatus || undefined) as FaultReportStatus | undefined,
+      scene: (localScene || undefined) as FaultReportScene | undefined,
+      keyword: localKeyword.trim() || undefined,
+    };
+    setFilter(nextFilter);
+    setOffset(0);
+    void load(0, nextFilter);
+  };
+
+  const handleReset = () => {
+    setLocalStatus("");
+    setLocalScene("");
+    setLocalKeyword("");
+    setFilter({});
+    setOffset(0);
+    void load(0, {});
+  };
+
+  const columns: ColumnsType<AdminFaultReportListItem> = [
+    {
+      title: "场景 / 报告 ID",
+      key: "scene",
+      width: 220,
+      render: (_, record) => {
+        const isDesktop = record.scene === "desktop_network";
+        return (
+          <div className="min-w-0">
+            <Tag color={isDesktop ? "blue" : "cyan"}>
+              {FAULT_REPORT_SCENE_LABELS[record.scene] || record.scene}
+            </Tag>
+            <Tooltip title={record.id}>
+              <Text copyable={{ text: record.id }} className="block text-[11px] font-mono text-slate-400 truncate max-w-[200px] mt-1">
+                {record.id}
+              </Text>
+            </Tooltip>
+          </div>
+        );
+      },
+    },
+    {
+      title: "上报用户",
+      dataIndex: "userId",
+      key: "userId",
+      width: 140,
+      render: (userId: string | null) =>
+        userId ? (
+          <Text copyable={{ text: userId }} className="font-mono text-xs text-slate-700">
+            {userId}
+          </Text>
+        ) : (
+          <span className="text-xs text-slate-400">匿名用户</span>
+        ),
+    },
+    {
+      title: "App / 系统环境",
+      key: "appEnv",
+      width: 240,
+      render: (_, record) => (
+        <div className="min-w-0">
+          <Text strong className="font-mono text-xs text-slate-800">
+            {record.appVersion}
+            {record.appVersionCode > 0 ? ` (${record.appVersionCode})` : ""}
+          </Text>
+          <span className="block text-xs text-slate-500 truncate" title={formatEnvironment(record)}>
+            {formatEnvironment(record)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      title: "日志条数",
+      dataIndex: "logCount",
+      key: "logCount",
+      width: 100,
+      align: "center",
+      render: (count: number) => (
+        <Tag color="geekblue" className="font-bold">
+          {count} 条
+        </Tag>
+      ),
+    },
+    {
+      title: "提交时间",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 170,
+      render: (ts: number) => (
+        <Text type="secondary" className="text-xs">
+          {formatFaultReportTime(ts)}
+        </Text>
+      ),
+    },
+    {
+      title: "处理状态",
+      dataIndex: "status",
+      key: "status",
+      width: 100,
+      align: "center",
+      render: (status: FaultReportStatus) => (
+        <Tag color={status === "processed" ? "success" : "warning"}>
+          {FAULT_REPORT_STATUS_LABELS[status] || status}
+        </Tag>
+      ),
+    },
+    {
+      title: "操作",
+      key: "actions",
+      fixed: "right",
+      width: 90,
+      render: (_, record) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => onView(record.id)}
+        >
+          详情
+        </Button>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-4 animate-fade-in-up">
+      <Card
+        bordered={false}
+        className="shadow-sm rounded-2xl"
+        title={
+          <div>
+            <span className="text-lg font-bold text-slate-800">故障上报管理</span>
+            <span className="ml-2 text-xs font-normal text-slate-500">
+              共 {total} 条故障报告
+            </span>
+          </div>
+        }
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => void load()}
+            loading={loading}
+          >
+            刷新
+          </Button>
+        }
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Select
+            value={localStatus}
+            onChange={(val) => setLocalStatus(val)}
+            className="w-32"
+            options={[
+              { label: "全部状态", value: "" },
+              { label: "待处理", value: "pending" },
+              { label: "已处理", value: "processed" },
+            ]}
+          />
+
+          <Select
+            value={localScene}
+            onChange={(val) => setLocalScene(val)}
+            className="w-36"
+            options={[
+              { label: "全部场景", value: "" },
+              { label: "获取播放地址", value: "play_url" },
+              { label: "PC 网络请求", value: "desktop_network" },
+            ]}
+          />
+
+          <Input
+            placeholder="报告 ID、用户 ID、版本、接口路径或错误信息"
+            prefix={<SearchOutlined className="text-slate-400" />}
+            value={localKeyword}
+            onChange={(e) => setLocalKeyword(e.target.value)}
+            onPressEnter={handleApplyFilter}
+            allowClear
+            className="w-full sm:w-80"
+          />
+
+          <Button type="primary" onClick={handleApplyFilter}>
+            查询
+          </Button>
+          <Button onClick={handleReset}>
+            重置
+          </Button>
+        </div>
+
+        <Table<AdminFaultReportListItem>
+          rowKey="id"
+          columns={columns}
+          dataSource={items}
+          loading={loading}
+          size="middle"
+          scroll={{ x: 1100 }}
+          sticky={{ offsetHeader: 0 }}
+          bordered
+          pagination={{
+            current: Math.floor(offset / LIMIT) + 1,
+            pageSize: LIMIT,
+            total,
+            showTotal: (t) => `共 ${t} 条报告`,
+            showQuickJumper: true,
+            onChange: (page) => {
+              const newOffset = (page - 1) * LIMIT;
+              setOffset(newOffset);
+              void load(newOffset, filter);
+            },
+          }}
+        />
+      </Card>
+    </div>
+  );
 }
