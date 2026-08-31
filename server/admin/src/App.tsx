@@ -106,6 +106,7 @@ const FeedbackManagementTab = lazy(() => import("./components/tabs/FeedbackManag
 const FaultReportsManagementTab = lazy(() => import("./components/tabs/FaultReportsManagementTab"));
 const ShareManagementTab = lazy(() => import("./components/tabs/ShareManagementTab"));
 const UserManagementTab = lazy(() => import("./components/tabs/UserManagementTab"));
+const ListeningLevelsTab = lazy(() => import("./components/tabs/ListeningLevelsTab"));
 const ContentTab = lazy(() => import("./components/tabs/ContentTab"));
 const AnnouncementsTab = lazy(() => import("./components/tabs/AnnouncementsTab"));
 const DynamicConfigTab = lazy(() => import("./components/tabs/DynamicConfigTab"));
@@ -1592,6 +1593,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onDelete={(user) => void handleDeleteAdminUser(user)}
                 />
               )}
+              {currentTab === "listeningLevels" && <ListeningLevelsTab themeColor={themeColor} />}
               {currentTab === "content" && (
                 <ContentTab
                   config={appConfig}
