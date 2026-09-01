@@ -35,7 +35,10 @@
           <span
             v-else
             class="announcement-highlight"
-            :class="{ actionable: block.action.type !== 'none' }"
+            :class="{
+              actionable: block.action.type !== 'none',
+              'link-action': block.action.type === 'url' || block.action.type === 'protocol',
+            }"
             :style="{ color: resolveAnnouncementColor(block.color) }"
             :title="block.action.type !== 'none' ? block.action.label : undefined"
             @click="handleHighlightAction(block)">
@@ -199,11 +202,15 @@ async function handleHighlightAction(block: AnnouncementBlock) {
   font-weight: 600;
 }
 
-.announcement-highlight.actionable {
+.announcement-highlight.link-action {
   cursor: pointer;
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+}
+
+.announcement-highlight.actionable {
+  cursor: pointer;
 }
 
 .announcement-action-mark {
