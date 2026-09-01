@@ -37,6 +37,12 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
                     title = getString(R.string.settings_audio_coexistence),
                     value = audioCoexistenceModeSummary(SettingsPrefs.getAudioCoexistenceMode(this)),
                 ),
+                SubSettingsItem.Switch(
+                    id = ITEM_DYNAMIC_LYRIC_BACKGROUND,
+                    title = getString(R.string.settings_dynamic_lyric_background),
+                    checked = SettingsPrefs.isDynamicLyricBackgroundEnabled(this),
+                    summary = getString(R.string.settings_dynamic_lyric_background_summary),
+                ),
                 SubSettingsItem.Navigation(
                     id = ITEM_SLEEP_TIMER_CONFIG,
                     title = getString(R.string.settings_sleep_timer_config),
@@ -58,6 +64,15 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
                 sleepTimerManager = sleepTimerManager,
                 onSaved = ::refreshSettings,
             )
+        }
+    }
+
+    override fun onSettingsSwitchChanged(item: SubSettingsItem.Switch, checked: Boolean) {
+        when (item.id) {
+            ITEM_DYNAMIC_LYRIC_BACKGROUND -> {
+                SettingsPrefs.setDynamicLyricBackgroundEnabled(this, checked)
+                refreshSettings()
+            }
         }
     }
 
@@ -158,6 +173,7 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
     companion object {
         private const val ITEM_AUTO_SWITCH_LIST = "auto_switch_list"
         private const val ITEM_AUDIO_COEXISTENCE = "audio_coexistence"
+        private const val ITEM_DYNAMIC_LYRIC_BACKGROUND = "dynamic_lyric_background"
         private const val ITEM_SLEEP_TIMER_CONFIG = "sleep_timer_config"
 
         fun start(context: Context) {

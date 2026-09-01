@@ -900,6 +900,8 @@
     <string name="settings_playback_title">播放设置</string>
     <string name="settings_playback_switch">播放切换</string>
     <string name="settings_audio_coexistence">与其他应用同时播放</string>
+    <string name="settings_dynamic_lyric_background">动态歌词背景</string>
+    <string name="settings_dynamic_lyric_background_summary">根据歌曲封面生成缓慢流动的色彩背景</string>
     <string name="settings_auto_switch_off">关闭（默认）</string>
     <string name="settings_auto_switch_local">本地歌曲</string>
     <string name="settings_auto_switch_cached">已缓存歌曲</string>

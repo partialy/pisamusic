@@ -19,6 +19,7 @@ object SettingsPrefs {
     private const val KEY_AUDIO_CACHE_MODE = "audio_cache_mode"
     private const val KEY_AUTO_SWITCH_LIST_MODE = "auto_switch_list_mode"
     private const val KEY_AUDIO_COEXISTENCE_MODE = "audio_coexistence_mode"
+    private const val KEY_DYNAMIC_LYRIC_BACKGROUND = "dynamic_lyric_background"
     private const val KEY_PLAYBACK_QUALITY_KG = "playback_quality_kg"
     private const val KEY_PLAYBACK_QUALITY_WY = "playback_quality_wy"
     private const val KEY_PLAYBACK_QUALITY_KW = "playback_quality_kw"
@@ -186,6 +187,13 @@ object SettingsPrefs {
 
     fun setAudioCoexistenceMode(context: Context, mode: AudioCoexistenceMode) {
         prefs(context).edit().putInt(KEY_AUDIO_COEXISTENCE_MODE, mode.prefValue).apply()
+    }
+
+    fun isDynamicLyricBackgroundEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_DYNAMIC_LYRIC_BACKGROUND, true)
+
+    fun setDynamicLyricBackgroundEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_DYNAMIC_LYRIC_BACKGROUND, enabled).apply()
     }
 
     fun computeAutoAudioCacheMb(): Long {
