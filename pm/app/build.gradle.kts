@@ -78,6 +78,7 @@ dependencies {
     // 图片加载
     implementation(libs.coil)
     implementation(libs.glide)
+    implementation(libs.androidx.palette.ktx)
     kapt(libs.compiler)
 
     // 网络请求
