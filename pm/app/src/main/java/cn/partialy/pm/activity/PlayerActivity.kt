@@ -8,25 +8,16 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.graphics.Bitmap
 import android.graphics.Color
-import android.graphics.RenderEffect
-import android.graphics.Shader
-import android.graphics.drawable.Drawable
 import android.text.Editable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextWatcher
 import android.net.Uri
 import android.text.style.ForegroundColorSpan
-import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.util.DisplayMetrics
-import android.renderscript.Allocation
-import android.renderscript.Element
-import android.renderscript.RenderScript
-import android.renderscript.ScriptIntrinsicBlur
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -40,7 +31,6 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.addCallback
 import androidx.annotation.OptIn
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.Player
@@ -79,6 +69,7 @@ import cn.partialy.pm.ui.dialog.showDownloadQualityPicker
 import cn.partialy.pm.ui.player.LyricRow
 import cn.partialy.pm.ui.player.LyricSettingsSheet
 import cn.partialy.pm.ui.player.LyricsAdapter
+import cn.partialy.pm.ui.player.background.PlayerBackgroundController
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.widget.PlaybackButtonStateRenderer
@@ -90,9 +81,7 @@ import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
-import coil.request.ImageRequest
 import coil.transform.CircleCropTransformation
-import coil.ImageLoader
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.color.MaterialColors
@@ -141,6 +130,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private var karaokeSyncJob: Job? = null
     private var lyricLoadJob: Job? = null
     private lateinit var playbackButtonStateRenderer: PlaybackButtonStateRenderer
+    private lateinit var playerBackgroundController: PlayerBackgroundController
     private var karaokeBasePaddingTop: Int = -1
     private var karaokeBasePaddingBottom: Int = -1
     private var pendingSeekProgress: Int? = null
@@ -163,6 +153,14 @@ class PlayerActivity : BaseDownloadActivity() {
         try {
             binding = ActivityPlayerBinding.inflate(layoutInflater)
             setContentView(binding.root)
+            playerBackgroundController = PlayerBackgroundController(
+                legacyBackground = binding.blurredBgImageView,
+                flowingBackground = binding.flowingCoverBackgroundView,
+                scope = lifecycleScope,
+            )
+            playerBackgroundController.setDynamicEnabled(
+                SettingsPrefs.isDynamicLyricBackgroundEnabled(this),
+            )
             enableEdgeToEdgeSystemBars(lightStatusBarIcons = false, lightNavigationBarIcons = false)
             applyInsets()
 
@@ -229,10 +227,25 @@ class PlayerActivity : BaseDownloadActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (::playerBackgroundController.isInitialized) {
+            playerBackgroundController.setDynamicEnabled(
+                SettingsPrefs.isDynamicLyricBackgroundEnabled(this),
+            )
+        }
         if (waitingForListenTogetherLogin && AccountSessionStore.read(this).loggedIn) {
             waitingForListenTogetherLogin = false
             attemptPendingListenTogetherJoin()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (::playerBackgroundController.isInitialized) playerBackgroundController.onStart()
+    }
+
+    override fun onStop() {
+        if (::playerBackgroundController.isInitialized) playerBackgroundController.onStop()
+        super.onStop()
     }
 
     @OptIn(UnstableApi::class)
@@ -477,7 +490,10 @@ class PlayerActivity : BaseDownloadActivity() {
                 )
                 syncLoveButton(song)
                 applyLocalMediaFallbacks(song)
-                applyBlurBackground(modelForBlur(song))
+                playerBackgroundController.bind(
+                    songKey = songIdentityKey(song),
+                    model = SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_XLARGE),
+                )
             }
         }
 
@@ -1394,11 +1410,9 @@ class PlayerActivity : BaseDownloadActivity() {
         lyricLoadJob = null
         if (::playbackButtonStateRenderer.isInitialized) playbackButtonStateRenderer.release()
         stopKaraokeSync()
+        if (::playerBackgroundController.isInitialized) playerBackgroundController.release()
         super.onDestroy()
     }
-
-    private fun modelForBlur(song: SongInfo): Any? =
-        SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_XLARGE)
 
     private suspend fun applyLocalMediaFallbacks(song: SongInfo) {
         if (song.coverUrl.isNotBlank()) {
@@ -1426,63 +1440,6 @@ class PlayerActivity : BaseDownloadActivity() {
                 mediaIndexDb.upsertCover(song, source = "embedded", value = song.id)
             }
         }
-    }
-
-    private fun applyBlurBackground(model: Any?) {
-        val backgroundModel = model ?: R.drawable.ic_pm_icon
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            binding.blurredBgImageView.load(backgroundModel) {
-                crossfade(true)
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
-                fallback(R.drawable.ic_pm_icon)
-            }
-            binding.blurredBgImageView.setRenderEffect(
-                RenderEffect.createBlurEffect(400f, 400f, Shader.TileMode.CLAMP)
-            )
-        } else {
-            val request = ImageRequest.Builder(this)
-                .data(backgroundModel)
-                .error(R.drawable.ic_pm_icon)
-                .fallback(R.drawable.ic_pm_icon)
-                .target(
-                    onSuccess = ::applyLegacyBlurBackground,
-                    onError = ::applyLegacyBlurBackground,
-                )
-                .build()
-            ImageLoader(this).enqueue(request)
-        }
-    }
-
-    private fun applyLegacyBlurBackground(drawable: Drawable?) {
-        drawable ?: return
-        val bitmap = drawable.toBitmap()
-        val blurred = blurBitmapWithRenderScript(bitmap, 25f)
-        binding.blurredBgImageView.setImageBitmap(blurred)
-    }
-
-    @Suppress("DEPRECATION")
-    private fun blurBitmapWithRenderScript(source: Bitmap, radius: Float): Bitmap {
-        val scaledWidth = (source.width / 8).coerceAtLeast(1)
-        val scaledHeight = (source.height / 8).coerceAtLeast(1)
-        val input = Bitmap.createScaledBitmap(source, scaledWidth, scaledHeight, true)
-        val output = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
-
-        val rs = RenderScript.create(this)
-        val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
-        val allocIn = Allocation.createFromBitmap(rs, input)
-        val allocOut = Allocation.createFromBitmap(rs, output)
-        script.setRadius(radius)
-        script.setInput(allocIn)
-        script.forEach(allocOut)
-        allocOut.copyTo(output)
-
-        script.destroy()
-        allocIn.destroy()
-        allocOut.destroy()
-        rs.destroy()
-
-        return output
     }
 
     private fun formatTime(milliseconds: Int): String {
