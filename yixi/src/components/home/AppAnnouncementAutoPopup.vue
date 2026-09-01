@@ -1,6 +1,5 @@
 <template>
   <HomeAnnouncementDetailModal
-    v-if="announcement"
     :show="announcementVisible"
     :announcement="announcement"
     @confirmed="handleConfirmed"

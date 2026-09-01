@@ -46,7 +46,6 @@
     </footer>
 
     <HomeAnnouncementDetailModal
-      v-if="detailNotice"
       :show="detailVisible"
       :announcement="detailNotice"
       @confirmed="handleNoticeConfirmed"

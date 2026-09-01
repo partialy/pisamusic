@@ -30,7 +30,6 @@
     <div v-else class="announcement-empty">暂无公告</div>
 
     <HomeAnnouncementDetailModal
-      v-if="selectedAnnouncement"
       :show="detailVisible"
       :announcement="selectedAnnouncement"
       @confirmed="handleConfirmed"

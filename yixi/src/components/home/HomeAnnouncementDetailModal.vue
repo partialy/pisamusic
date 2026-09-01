@@ -17,8 +17,8 @@
       </template>
 
       <div class="announcement-detail-meta">
-        <span>{{ announcement.publisher || "PisaMusic Team" }}</span>
-        <span>{{ announcement.time || "刚刚" }}</span>
+        <span>{{ announcement?.publisher || "PisaMusic Team" }}</span>
+        <span>{{ announcement?.time || "刚刚" }}</span>
       </div>
 
       <div class="announcement-detail-content">
@@ -51,10 +51,10 @@
       <template #footer>
         <div class="announcement-detail-footer">
           <n-button type="primary" @click="emit('confirmed')">
-            {{ announcement.confirmText || "我知道了" }}
+            {{ announcement?.confirmText || "我知道了" }}
           </n-button>
           <n-button
-            v-if="announcement.showGotoButton && announcement.gotoUrl"
+            v-if="announcement?.showGotoButton && announcement?.gotoUrl"
             secondary
             type="primary"
             @click="emit('goto')">
@@ -80,7 +80,7 @@ defineOptions({ name: "HomeAnnouncementDetailModal" });
 
 const props = defineProps<{
   show: boolean;
-  announcement: Announcement;
+  announcement: Announcement | null;
 }>();
 
 const emit = defineEmits<{
@@ -89,7 +89,7 @@ const emit = defineEmits<{
   afterLeave: [];
 }>();
 
-const content = computed(() => normalizeAnnouncementContent(props.announcement.content));
+const content = computed(() => normalizeAnnouncementContent(props.announcement?.content));
 
 function handleVisibleChange(nextVisible: boolean) {
   if (nextVisible) return;
