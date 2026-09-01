@@ -1,5 +1,22 @@
+import {
+  Button,
+  Card,
+  Popconfirm,
+  Space,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  NotificationOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import type { Announcement } from "../../types/config";
-import { glassCardClasses } from "../../constants/theme";
+
+const { Text } = Typography;
 
 type Props = {
   announcements: Announcement[];
@@ -9,91 +26,156 @@ type Props = {
   onDelete: (index: number) => void;
 };
 
-export default function AnnouncementsTab({ announcements, themeColor, onAdd, onEdit, onDelete }: Props) {
-  return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-extrabold text-slate-800">系统公告管理</h2>
-        <button
-          type="button"
-          onClick={onAdd}
-          style={{ backgroundColor: themeColor, boxShadow: `0 10px 15px -3px ${themeColor}40` }}
-          className="text-white px-5 py-2.5 rounded-2xl text-sm font-bold transition-all hover:-translate-y-0.5 hover:opacity-90 flex items-center justify-center sm:justify-start"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-          </svg>
-          发布新公告
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6">
-        {announcements.map((notice, index) => (
-          <div key={notice.id} className={`${glassCardClasses} flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center group`}>
-            <div className="flex-1 min-w-0 sm:pr-6">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
-                <span className="bg-indigo-100 text-indigo-700 text-xs font-extrabold px-2.5 py-1 rounded-lg">#{index + 1}</span>
-                <span className="font-mono text-xs font-semibold text-slate-500">{notice.id}</span>
-                <span className="text-xs text-slate-400 flex items-center">
-                  <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {notice.time}
-                </span>
-              </div>
-              <p className="text-slate-800 font-medium truncate">
-                发布人: {notice.publisher} | 确认文字: {notice.confirmText}
-              </p>
-              <div className="flex flex-wrap gap-3 mt-3">
-                {notice.showEveryTime && (
-                  <span className="text-[10px] bg-white/60 border border-slate-200 text-slate-600 px-2 py-1 rounded-md font-medium shadow-sm">每次展示</span>
-                )}
-                {notice.showGotoButton && (
-                  <span className="text-[10px] bg-sky-100/60 border border-sky-200 text-sky-600 px-2 py-1 rounded-md font-medium shadow-sm">含前往按钮</span>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-              <button
-                type="button"
-                onClick={() => onEdit(index)}
-                className="bg-white/80 hover:bg-white text-slate-700 border border-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center justify-center"
-              >
-                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-                编辑
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(index)}
-                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center justify-center"
-              >
-                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-                删除
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {announcements.length === 0 && (
-        <div className="text-center py-16 bg-white/40 backdrop-blur-md rounded-3xl border border-white/60 shadow-inner">
-          <p className="text-slate-500 font-bold">当前暂无公告</p>
+export default function AnnouncementsTab({
+  announcements,
+  onAdd,
+  onEdit,
+  onDelete,
+}: Props) {
+  const columns: ColumnsType<Announcement & { index: number }> = [
+    {
+      title: "序号",
+      dataIndex: "index",
+      key: "index",
+      width: 70,
+      align: "center",
+      render: (index: number) => (
+        <Tag color="indigo" className="!mr-0 font-bold">
+          #{index + 1}
+        </Tag>
+      ),
+    },
+    {
+      title: "公告 ID",
+      dataIndex: "id",
+      key: "id",
+      width: 180,
+      render: (id: string) => (
+        <Text copyable={{ text: id }} strong className="font-mono text-xs text-slate-800">
+          {id}
+        </Text>
+      ),
+    },
+    {
+      title: "发布人",
+      dataIndex: "publisher",
+      key: "publisher",
+      width: 130,
+      render: (publisher: string) => (
+        <Text strong className="text-xs text-slate-700">
+          {publisher || "-"}
+        </Text>
+      ),
+    },
+    {
+      title: "展示时间",
+      dataIndex: "time",
+      key: "time",
+      width: 160,
+      render: (time: string) => (
+        <span className="font-mono text-xs text-slate-500">
+          {time || "-"}
+        </span>
+      ),
+    },
+    {
+      title: "按钮文案",
+      dataIndex: "confirmText",
+      key: "confirmText",
+      width: 120,
+      render: (text: string) => (
+        <Tag color="default">{text || "知道了"}</Tag>
+      ),
+    },
+    {
+      title: "展示策略与动作",
+      key: "policies",
+      width: 220,
+      render: (_, record) => (
+        <div className="flex flex-wrap gap-1">
+          {record.showEveryTime ? (
+            <Tag color="processing">每次展示</Tag>
+          ) : (
+            <Tag color="default">仅展示一次</Tag>
+          )}
+          {record.showGotoButton && (
+            <Tag color="success">含前往链接</Tag>
+          )}
         </div>
-      )}
+      ),
+    },
+    {
+      title: "操作",
+      key: "actions",
+      fixed: "right",
+      width: 150,
+      render: (_, record) => (
+        <Space size={4}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => onEdit(record.index)}
+          >
+            编辑
+          </Button>
+
+          <Popconfirm
+            title="确认删除该条公告？"
+            description="删除后客户端将不再弹窗展示此公告。"
+            onConfirm={() => onDelete(record.index)}
+            okText="确认删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  const dataSource = announcements.map((item, index) => ({
+    ...item,
+    index,
+  }));
+
+  return (
+    <div className="space-y-4 animate-fade-in-up">
+      <Card
+        bordered={false}
+        className="shadow-sm rounded-2xl"
+        title={
+          <div className="flex items-center gap-2">
+            <NotificationOutlined className="text-indigo-500 text-lg" />
+            <span className="text-lg font-bold text-slate-800">系统公告管理</span>
+            <span className="text-xs font-normal text-slate-500">
+              共 {announcements.length} 条公告
+            </span>
+          </div>
+        }
+        extra={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={onAdd}
+          >
+            发布新公告
+          </Button>
+        }
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={dataSource}
+          size="middle"
+          scroll={{ x: 1000 }}
+          bordered
+          pagination={false}
+        />
+      </Card>
     </div>
   );
 }

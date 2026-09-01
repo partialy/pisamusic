@@ -1,10 +1,49 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ConfigProvider } from "antd";
+import {
+  Avatar,
+  Badge,
+  Button,
+  ConfigProvider,
+  Drawer,
+  Layout,
+  Menu,
+  type MenuProps,
+  Popover,
+  Space,
+  Tag,
+  Typography,
+} from "antd";
+import {
+  BgColorsOutlined,
+  BugOutlined,
+  CloudUploadOutlined,
+  ControlOutlined,
+  CustomerServiceOutlined,
+  DashboardOutlined,
+  DesktopOutlined,
+  ExportOutlined,
+  FileTextOutlined,
+  FolderOutlined,
+  GlobalOutlined,
+  KeyOutlined,
+  LogoutOutlined,
+  MenuOutlined,
+  MessageOutlined,
+  NotificationOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  SettingOutlined,
+  ShareAltOutlined,
+  TrophyOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import zhCN from "antd/locale/zh_CN";
 import "dayjs/locale/zh-cn";
 import dayjs from "dayjs";
 
 dayjs.locale("zh-cn");
+
+const { Text } = Typography;
 import type {
   AdminFaultReportDetail,
   AdminFeedbackDetail,
@@ -173,7 +212,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const [themeColor, setThemeColor] = useState(initialTheme.themeColor);
   const [bgIndex, setBgIndex] = useState(initialTheme.bgIndex);
-  const [showThemePanel, setShowThemePanel] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const [editingNotice, setEditingNotice] = useState<Announcement | null>(null);
@@ -1181,6 +1219,25 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     [appConfig, announcements, updateHistory],
   );
 
+  const menuItems: MenuProps["items"] = [
+    { key: "dashboard", icon: <DashboardOutlined />, label: "仪表盘" },
+    { key: "system", icon: <SettingOutlined />, label: "系统配置" },
+    { key: "websiteRecords", icon: <GlobalOutlined />, label: "官网记录" },
+    { key: "users", icon: <UserOutlined />, label: "用户管理" },
+    { key: "listeningLevels", icon: <TrophyOutlined />, label: "听歌等级" },
+    { key: "devices", icon: <DesktopOutlined />, label: "设备管理" },
+    { key: "update", icon: <CloudUploadOutlined />, label: "版本发布" },
+    { key: "announcements", icon: <NotificationOutlined />, label: "公告管理" },
+    { key: "files", icon: <FolderOutlined />, label: "文件管理" },
+    { key: "cloudMusic", icon: <CustomerServiceOutlined />, label: "网盘音乐" },
+    { key: "feedback", icon: <MessageOutlined />, label: "反馈管理" },
+    { key: "faultReports", icon: <BugOutlined />, label: "故障管理" },
+    { key: "shares", icon: <ShareAltOutlined />, label: "分享管理" },
+    { key: "content", icon: <FileTextOutlined />, label: "内容与协议" },
+    { key: "dynamicConfig", icon: <ControlOutlined />, label: "动态配置" },
+    { key: "encryption", icon: <SafetyCertificateOutlined />, label: "加密白名单" },
+  ];
+
   const currentTitle = tabs.find((t) => t.id === currentTab)?.name ?? "";
   const handleSelectTab = (tabId: TabId) => {
     setCurrentTab(tabId);
@@ -1188,122 +1245,147 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   const themePanel = (
-    <div className="absolute right-0 top-12 w-[min(16rem,calc(100vw-2rem))] rounded-3xl border border-white/60 bg-white/90 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.1)] backdrop-blur-2xl z-50 animate-fade-in-up lg:left-6 lg:right-auto lg:top-20 lg:w-64 lg:before:content-[''] lg:before:absolute lg:before:-top-2 lg:before:right-6 lg:before:w-4 lg:before:h-4 lg:before:bg-white/90 lg:before:rotate-45 lg:before:border-l lg:before:border-t lg:before:border-white/60">
-      <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">背景变化</h3>
-      <div className="grid grid-cols-4 gap-2 mb-6">
-        {bgPresets.map((bg, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => setBgIndex(idx)}
-            className={`h-6 rounded-full border-2 ${bgIndex === idx ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:scale-105"} bg-gradient-to-r ${bg.base} transition-all`}
-          />
-        ))}
+    <div className="w-64 p-2 space-y-4">
+      <div>
+        <Text strong className="text-xs text-slate-500 uppercase tracking-wider block mb-2">
+          背景色调
+        </Text>
+        <div className="grid grid-cols-4 gap-2">
+          {bgPresets.map((bg, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setBgIndex(idx);
+                saveTheme({ themeColor, bgIndex: idx });
+              }}
+              className={`h-6 rounded-lg border-2 transition-all ${
+                bgIndex === idx ? "border-slate-800 scale-110 shadow-sm" : "border-transparent hover:scale-105"
+              } bg-gradient-to-r ${bg.base}`}
+            />
+          ))}
+        </div>
       </div>
 
-      <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">主题颜色</h3>
-      <div className="grid grid-cols-4 gap-3">
-        {colorPresets.map((color) => (
-          <button
-            key={color}
-            type="button"
-            onClick={() => setThemeColor(color)}
-            className={`w-8 h-8 rounded-full border-2 transition-all ${themeColor === color ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:scale-105"}`}
-            style={{ backgroundColor: color }}
-          />
-        ))}
-        <div
-          className={`relative w-8 h-8 rounded-full overflow-hidden border-2 transition-all cursor-pointer ${!colorPresets.includes(themeColor) ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:border-slate-400"}`}
-        >
-          <div className="absolute inset-0 bg-gradient-to-tr from-red-500 via-green-500 to-blue-500 pointer-events-none" />
-          <div className="absolute inset-1 bg-white rounded-full pointer-events-none flex items-center justify-center">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
+      <div>
+        <Text strong className="text-xs text-slate-500 uppercase tracking-wider block mb-2">
+          主色调 (Theme Color)
+        </Text>
+        <div className="grid grid-cols-4 gap-2">
+          {colorPresets.map((color) => (
+            <button
+              key={color}
+              type="button"
+              onClick={() => {
+                setThemeColor(color);
+                saveTheme({ themeColor: color, bgIndex });
+              }}
+              className={`h-7 rounded-lg border-2 transition-all ${
+                themeColor === color ? "border-slate-800 scale-110 shadow-sm" : "border-transparent hover:scale-105"
+              }`}
+              style={{ backgroundColor: color }}
+            />
+          ))}
+          <div
+            className={`relative h-7 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+              !colorPresets.includes(themeColor) ? "border-slate-800 scale-110 shadow-sm" : "border-slate-200 hover:border-slate-400"
+            }`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-tr from-red-500 via-green-500 to-blue-500 pointer-events-none" />
+            <div className="absolute inset-0.5 bg-white rounded-md pointer-events-none flex items-center justify-center">
+              <div className="w-3.5 h-3.5 rounded-sm" style={{ backgroundColor: themeColor }} />
+            </div>
+            <input
+              type="color"
+              value={colorPresets.includes(themeColor) ? "#ffffff" : themeColor}
+              onChange={(e) => {
+                setThemeColor(e.target.value);
+                saveTheme({ themeColor: e.target.value, bgIndex });
+              }}
+              className="absolute inset-[-10px] w-12 h-12 opacity-0 cursor-pointer"
+            />
           </div>
-          <input
-            type="color"
-            value={colorPresets.includes(themeColor) ? "#ffffff" : themeColor}
-            onChange={(e) => setThemeColor(e.target.value)}
-            className="absolute inset-[-10px] w-12 h-12 opacity-0 cursor-pointer"
-          />
         </div>
       </div>
     </div>
   );
 
   const sidebarContent = (
-    <>
-      <div className="h-20 flex items-center px-5 sm:px-6 border-b border-white/50 relative">
-        <div className="w-10 h-10 rounded-[14px] flex items-center justify-center mr-3 shadow-lg bg-white/80 border border-white/70 overflow-hidden">
-          <img src="/pisamusic_icon_1024.png" alt="PisaMusic" className="h-full w-full object-contain p-1" />
-        </div>
-        <h1 className="text-xl font-extrabold tracking-tight text-slate-800 flex-1">PisaAdmin</h1>
-        <button
-          type="button"
-          onClick={() => setShowThemePanel(!showThemePanel)}
-          className="p-2 text-slate-500 hover:text-slate-800 hover:bg-white/50 rounded-full transition-colors relative z-50"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+    <div className="flex h-full flex-col justify-between">
+      <div className="flex flex-col min-h-0 flex-1">
+        {/* Top Branding */}
+        <div className="flex h-16 shrink-0 items-center justify-between px-5 border-b border-slate-200/80 bg-white/40">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Avatar
+              shape="square"
+              size={32}
+              src="/pisamusic_icon_1024.png"
+              className="rounded-lg shadow-2xs border border-slate-200/80 shrink-0 bg-white p-0.5"
             />
-          </svg>
-        </button>
-        {showThemePanel && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setShowThemePanel(false)} aria-hidden />
-            {themePanel}
-          </>
-        )}
-      </div>
-
-      <nav className="flex-1 py-5 lg:py-8 px-4 space-y-2 overflow-y-auto no-scrollbar">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => handleSelectTab(tab.id)}
-            style={currentTab === tab.id ? { backgroundColor: themeColor, color: "#fff", boxShadow: `0 10px 15px -3px ${themeColor}40` } : {}}
-            className={`w-full flex items-center px-5 py-3.5 rounded-[20px] transition-all duration-300 ${
-              currentTab === tab.id ? "font-bold lg:translate-x-1" : "text-slate-500 hover:bg-white/60 hover:text-slate-800 font-semibold"
-            }`}
-          >
-            <svg className={`w-5 h-5 mr-3 shrink-0 ${currentTab === tab.id ? "text-white/90" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} />
-            </svg>
-            <span className="truncate">{tab.name}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="p-4 sm:p-6 space-y-3">
-        <button
-          type="button"
-          onClick={() => {
-            setShowChangePasswordModal(true);
-            setMobileNavOpen(false);
-          }}
-          className="w-full py-3 rounded-2xl text-sm font-bold border border-white/60 bg-white/50 text-slate-700 hover:bg-white/80 transition-colors shadow-sm"
-        >
-          修改密码
-        </button>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="w-full py-3 rounded-2xl text-sm font-bold border border-white/60 bg-white/50 text-slate-700 hover:bg-white/80 transition-colors shadow-sm"
-        >
-          退出登录        </button>
-        <div className="bg-white/50 backdrop-blur-md rounded-2xl p-5 border border-white/60 shadow-sm">
-          <p className="text-[11px] font-bold text-slate-500 mb-2 uppercase tracking-widest">环境</p>
-          <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
-            <span className="text-sm font-extrabold text-slate-800">Production</span>
+            <span className="font-extrabold text-base tracking-tight text-slate-800 truncate">
+              PisaAdmin
+            </span>
           </div>
+
+          <Popover
+            content={themePanel}
+            trigger="click"
+            placement="bottomRight"
+          >
+            <Button
+              type="text"
+              shape="circle"
+              size="small"
+              icon={<BgColorsOutlined />}
+              title="切换主题与配色"
+            />
+          </Popover>
+        </div>
+
+        {/* Ant Design Menu */}
+        <div className="flex-1 overflow-y-auto py-2">
+          <Menu
+            mode="inline"
+            selectedKeys={[currentTab]}
+            onClick={({ key }) => handleSelectTab(key as TabId)}
+            items={menuItems}
+            className="!border-r-0 !bg-transparent font-medium"
+          />
         </div>
       </div>
-    </>
+
+      {/* Sider Footer */}
+      <div className="p-3 shrink-0 border-t border-slate-200/80 bg-white/40 space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <Badge status="processing" color="green" text={<span className="text-[11px] text-slate-500 font-medium">运行状态</span>} />
+          <Tag color="success" className="!mr-0 font-bold font-mono text-[10px]">
+            Production
+          </Tag>
+        </div>
+        <div className="flex gap-2 pt-0.5">
+          <Button
+            size="small"
+            icon={<KeyOutlined />}
+            className="flex-1 text-xs"
+            onClick={() => {
+              setShowChangePasswordModal(true);
+              setMobileNavOpen(false);
+            }}
+          >
+            修改密码
+          </Button>
+          <Button
+            size="small"
+            danger
+            icon={<LogoutOutlined />}
+            className="flex-1 text-xs"
+            onClick={onLogout}
+          >
+            退出
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -1316,196 +1398,90 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         },
       }}
     >
-      <div className="relative flex min-h-dvh w-full overflow-x-hidden font-sans text-slate-800 lg:h-dvh lg:overflow-hidden">
-      <div className={`fixed inset-0 z-[-1] bg-gradient-to-br ${bgPresets[bgIndex].base} transition-colors duration-700`}>
-        <div
-          className={`absolute top-[-10%] left-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob1} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_8s_ease-in-out_infinite] transition-colors duration-700`}
-        />
-        <div
-          className={`absolute top-[20%] right-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob2} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_10s_ease-in-out_infinite_reverse] transition-colors duration-700`}
-        />
-        <div
-          className={`absolute bottom-[-20%] left-[20%] w-96 h-96 ${bgPresets[bgIndex].blob3} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_9s_ease-in-out_infinite] transition-colors duration-700`}
-        />
-      </div>
-
-      {mobileNavOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <button
-            type="button"
-            aria-label="关闭菜单"
-            className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
-            onClick={() => setMobileNavOpen(false)}
+      <div className="relative min-h-dvh w-full font-sans text-slate-800">
+        {/* Background Gradients */}
+        <div className={`fixed inset-0 z-[-1] bg-gradient-to-br ${bgPresets[bgIndex].base} transition-colors duration-700`}>
+          <div
+            className={`absolute top-[-10%] left-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob1} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_8s_ease-in-out_infinite] transition-colors duration-700`}
           />
-          <aside className="relative flex h-dvh w-[min(18rem,calc(100vw-2rem))] flex-col border-r border-white/60 bg-white/80 shadow-2xl backdrop-blur-2xl animate-fade-in-up">
-            {sidebarContent}
-          </aside>
+          <div
+            className={`absolute top-[20%] right-[-10%] w-96 h-96 ${bgPresets[bgIndex].blob2} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_10s_ease-in-out_infinite_reverse] transition-colors duration-700`}
+          />
+          <div
+            className={`absolute bottom-[-20%] left-[20%] w-96 h-96 ${bgPresets[bgIndex].blob3} rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-[pulse_9s_ease-in-out_infinite] transition-colors duration-700`}
+          />
         </div>
-      )}
 
-      <aside className="w-64 bg-white/60 backdrop-blur-2xl border-r border-white/60 hidden lg:flex flex-col fixed inset-y-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-        <div className="h-20 flex items-center px-6 border-b border-white/50 relative">
-          <div className="w-10 h-10 rounded-[14px] flex items-center justify-center mr-3 shadow-lg bg-white/80 border border-white/70 overflow-hidden">
-            <img src="/pisamusic_icon_1024.png" alt="PisaMusic" className="h-full w-full object-contain p-1" />
-          </div>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-800 flex-1">PisaAdmin</h1>
-
-          <button
-            type="button"
-            onClick={() => setShowThemePanel(!showThemePanel)}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-white/50 rounded-full transition-colors relative z-50"
+        <Layout className="min-h-dvh bg-transparent">
+          {/* Mobile Drawer Navigation */}
+          <Drawer
+            open={mobileNavOpen}
+            onClose={() => setMobileNavOpen(false)}
+            placement="left"
+            width={240}
+            styles={{ body: { padding: 0 } }}
+            className="lg:hidden"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
-              />
-            </svg>
-          </button>
+            {sidebarContent}
+          </Drawer>
 
-          {showThemePanel && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowThemePanel(false)} aria-hidden />
-              <div className="absolute top-20 left-6 w-64 bg-white/90 backdrop-blur-2xl border border-white/60 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] p-5 z-50 animate-fade-in-up before:content-[''] before:absolute before:-top-2 before:right-6 before:w-4 before:h-4 before:bg-white/90 before:rotate-45 before:border-l before:border-t before:border-white/60">
-                <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">背景渐变</h3>
-                <div className="grid grid-cols-4 gap-2 mb-6">
-                  {bgPresets.map((bg, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setBgIndex(idx)}
-                      className={`h-6 rounded-full border-2 ${bgIndex === idx ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:scale-105"} bg-gradient-to-r ${bg.base} transition-all`}
-                    />
-                  ))}
-                </div>
+          {/* Desktop Sider */}
+          <Layout.Sider
+            width={240}
+            theme="light"
+            className="!hidden lg:!flex !fixed !inset-y-0 !left-0 !z-20 !bg-white/70 !backdrop-blur-2xl !border-r !border-slate-200/80 !shadow-sm flex-col"
+          >
+            {sidebarContent}
+          </Layout.Sider>
 
-                <h3 className="text-[11px] font-bold text-slate-500 mb-3 tracking-widest uppercase">主题颜色</h3>
-                <div className="grid grid-cols-4 gap-3">
-                  {colorPresets.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setThemeColor(color)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${themeColor === color ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:scale-105"}`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                  <div
-                    className={`relative w-8 h-8 rounded-full overflow-hidden border-2 transition-all cursor-pointer ${!colorPresets.includes(themeColor) ? "border-slate-800 scale-110 shadow-md" : "border-transparent hover:border-slate-400"}`}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-tr from-red-500 via-green-500 to-blue-500 pointer-events-none" />
-                    <div className="absolute inset-1 bg-white rounded-full pointer-events-none flex items-center justify-center">
-                      <div className="w-4 h-4 rounded-full" style={{ backgroundColor: themeColor }} />
-                    </div>
-                    <input
-                      type="color"
-                      value={colorPresets.includes(themeColor) ? "#ffffff" : themeColor}
-                      onChange={(e) => setThemeColor(e.target.value)}
-                      className="absolute inset-[-10px] w-12 h-12 opacity-0 cursor-pointer"
-                    />
-                  </div>
+          {/* Main Layout Area */}
+          <Layout className="min-w-0 flex-1 lg:ml-[240px] bg-transparent flex flex-col min-h-dvh">
+            <Layout.Header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/70 px-4 backdrop-blur-xl sm:px-8">
+              <div className="flex min-w-0 items-center gap-3">
+                <Button
+                  type="text"
+                  icon={<MenuOutlined />}
+                  className="lg:hidden shrink-0"
+                  onClick={() => setMobileNavOpen(true)}
+                />
+                <div className="min-w-0 flex items-center gap-3">
+                  <span className="truncate text-lg font-bold text-slate-800">
+                    {currentTitle}
+                  </span>
+                  {hydrated && loadError && currentTab !== "dashboard" && currentTab !== "websiteRecords" && (
+                    <Tag color="warning" className="!mr-0 text-xs">
+                      配置加载失败 (已使用本地默认)
+                    </Tag>
+                  )}
                 </div>
               </div>
-            </>
-          )}
-        </div>
 
-        <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto no-scrollbar">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setCurrentTab(tab.id)}
-              style={currentTab === tab.id ? { backgroundColor: themeColor, color: "#fff", boxShadow: `0 10px 15px -3px ${themeColor}40` } : {}}
-              className={`w-full flex items-center px-5 py-3.5 rounded-[20px] transition-all duration-300 ${
-                currentTab === tab.id ? "font-bold translate-x-1" : "text-slate-500 hover:bg-white/60 hover:text-slate-800 font-semibold"
-              }`}
-            >
-              <svg className={`w-5 h-5 mr-3 ${currentTab === tab.id ? "text-white/90" : "text-slate-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={tab.icon} />
-              </svg>
-              {tab.name}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-6 space-y-3">
-          <button
-            type="button"
-            onClick={() => setShowChangePasswordModal(true)}
-            className="w-full py-3 rounded-2xl text-sm font-bold border border-white/60 bg-white/50 text-slate-700 hover:bg-white/80 transition-colors shadow-sm"
-          >
-            修改密码
-          </button>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="w-full py-3 rounded-2xl text-sm font-bold border border-white/60 bg-white/50 text-slate-700 hover:bg-white/80 transition-colors shadow-sm"
-          >
-            退出登录
-          </button>
-          <div className="bg-white/50 backdrop-blur-md rounded-2xl p-5 border border-white/60 shadow-sm">
-            <p className="text-[11px] font-bold text-slate-500 mb-2 uppercase tracking-widest">环境</p>
-            <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
-              <span className="text-sm font-extrabold text-slate-800">Production</span>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <main className="relative z-10 flex min-h-dvh min-w-0 flex-1 flex-col lg:ml-64 lg:h-dvh lg:min-h-0">
-        <header className="sticky top-0 z-10 flex min-h-16 shrink-0 flex-col gap-3 border-b border-white/50 bg-white/50 px-4 py-3 backdrop-blur-md sm:px-6 lg:h-20 lg:flex-row lg:items-center lg:justify-between lg:bg-white/40 lg:px-10 lg:py-0">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen(true)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/60 bg-white/70 text-slate-700 shadow-sm transition-colors hover:bg-white lg:hidden"
-              aria-label="打开菜单"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div className="min-w-0 flex flex-col gap-1">
-              <h2 className="truncate text-xl font-extrabold text-slate-800 sm:text-2xl">{currentTitle}</h2>
-              {hydrated && loadError && currentTab !== "dashboard" && currentTab !== "websiteRecords" && (
-                <p className="text-xs text-amber-700 font-medium">配置加载失败（已使用本地默认）：{loadError}</p>
+              {currentTab !== "dashboard" && currentTab !== "websiteRecords" && (
+                <Space>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={() => void refreshRemote()}
+                  >
+                    重新拉取
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<ExportOutlined />}
+                    onClick={() => setShowJsonModal(true)}
+                  >
+                    导出 JSON 配置
+                  </Button>
+                </Space>
               )}
-            </div>
-          </div>
-          {currentTab !== "dashboard" && currentTab !== "websiteRecords" ? (
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4">
-              <button
-                type="button"
-                onClick={() => void refreshRemote()}
-                className="flex items-center rounded-2xl border border-white/60 bg-white/80 px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition-all hover:bg-white sm:px-5"
-              >
-                重新拉取
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowJsonModal(true)}
-                className="flex items-center rounded-2xl border border-white/60 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 shadow-[0_4px_14px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)] sm:px-6"
-              >
-                <svg className="mr-2 h-4 w-4 shrink-0" style={{ color: themeColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                导出 JSON 配置
-              </button>
-            </div>
-          ) : null}
-        </header>
+            </Layout.Header>
 
-        <div className="relative flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto w-full max-w-[1600px] pb-20">
-            <Suspense fallback={tabFallback()}>
-              {currentTab === "dashboard" && <DashboardTab themeColor={themeColor} />}
-              {currentTab === "websiteRecords" && <WebsiteRecordsTab themeColor={themeColor} />}
-              {currentTab === "system" && (
-                <SystemTab
+            <Layout.Content className="relative flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
+              <div className="mx-auto w-full max-w-[1600px] pb-20">
+                <Suspense fallback={tabFallback()}>
+                  {currentTab === "dashboard" && <DashboardTab themeColor={themeColor} />}
+                  {currentTab === "websiteRecords" && <WebsiteRecordsTab themeColor={themeColor} />}
+                  {currentTab === "system" && (
+                    <SystemTab
                   config={appConfig}
                   themeColor={themeColor}
                   systemDirty={systemDirty}
@@ -1672,8 +1648,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               )}
             </Suspense>
           </div>
-        </div>
-      </main>
+        </Layout.Content>
+      </Layout>
+    </Layout>
 
       {editingNotice && (
         <NoticeModal
