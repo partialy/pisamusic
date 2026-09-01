@@ -100,8 +100,9 @@ function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
 
 async function confirmNotice(notice: Announcement) {
   if (!notice.showEveryTime && !confirmedIds.value.includes(notice.id)) {
-    confirmedIds.value = [...confirmedIds.value, notice.id];
-    await window.electronAPI.setSetting(CONFIRMED_SETTING_KEY, confirmedIds.value, 1);
+    const nextConfirmedIds = [...confirmedIds.value, notice.id];
+    confirmedIds.value = nextConfirmedIds;
+    await window.electronAPI.setSetting(CONFIRMED_SETTING_KEY, nextConfirmedIds, 1);
   }
 }
 

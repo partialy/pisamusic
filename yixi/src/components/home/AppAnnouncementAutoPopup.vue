@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import HomeAnnouncementDetailModal from "./HomeAnnouncementDetailModal.vue";
 import { normalizeAnnouncementContent, type Announcement } from "./homeAnnouncement";
 import { showLimitedWarning } from "@/utils/limitedMessage";
@@ -19,6 +19,7 @@ const CONFIRMED_SETTING_KEY = "home-announcement-confirmed-ids";
 const AUTO_POPUP_SESSION_KEY = "home-announcement-auto-popup-shown";
 const announcement = ref<Announcement | null>(null);
 const confirmedIds = ref<string[]>([]);
+let autoPopupTimer: ReturnType<typeof setTimeout> | undefined;
 
 async function loadLatestAnnouncement() {
   if (sessionStorage.getItem(AUTO_POPUP_SESSION_KEY) === "1") return;
@@ -51,8 +52,9 @@ function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
 
 async function confirmAnnouncement(notice: Announcement) {
   if (notice.showEveryTime || confirmedIds.value.includes(notice.id)) return;
-  confirmedIds.value = [...confirmedIds.value, notice.id];
-  await window.electronAPI.setSetting(CONFIRMED_SETTING_KEY, confirmedIds.value, 1);
+  const nextConfirmedIds = [...confirmedIds.value, notice.id];
+  confirmedIds.value = nextConfirmedIds;
+  await window.electronAPI.setSetting(CONFIRMED_SETTING_KEY, nextConfirmedIds, 1);
 }
 
 async function handleConfirmed() {
@@ -75,6 +77,12 @@ async function handleGoto() {
 }
 
 onMounted(() => {
-  void loadLatestAnnouncement();
+  autoPopupTimer = setTimeout(() => {
+    void loadLatestAnnouncement();
+  }, 2000);
+});
+
+onBeforeUnmount(() => {
+  if (autoPopupTimer) clearTimeout(autoPopupTimer);
 });
 </script>

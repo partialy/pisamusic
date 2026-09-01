@@ -5,7 +5,7 @@
         <div class="eyebrow">NOTICE</div>
         <h2>系统公告</h2>
       </div>
-      <n-button secondary size="small" :loading="loading" @click="fetchAnnouncements">刷新</n+      </n-button>
+      <n-button secondary size="small" :loading="loading" @click="fetchAnnouncements">刷新</n-button>
     </div>
 
     <div v-if="loading && !announcements.length" class="announcement-loading">
@@ -86,8 +86,9 @@ function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
 
 async function confirmAnnouncement(notice: Announcement) {
   if (notice.showEveryTime || confirmedIds.value.includes(notice.id)) return;
-  confirmedIds.value = [...confirmedIds.value, notice.id];
-  await window.electronAPI.setSetting(CONFIRMED_SETTING_KEY, confirmedIds.value, 1);
+  const nextConfirmedIds = [...confirmedIds.value, notice.id];
+  confirmedIds.value = nextConfirmedIds;
+  await window.electronAPI.setSetting(CONFIRMED_SETTING_KEY, nextConfirmedIds, 1);
 }
 
 function openDetail(notice: Announcement) {
