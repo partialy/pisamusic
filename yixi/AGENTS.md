@@ -243,7 +243,7 @@
 ## 首页公告与热门歌曲规则补充
 
 - 首页公告位于 `src/components/home/HomeAnnouncementCard.vue`，通过 preload 暴露的 `system:get-announcements` 读取外层 `server/` 公告，不要恢复旧的 `mainAPI.getHomeData()` 公告占位接口；`AppAnnouncementAutoPopup.vue` 在 `MainLayout` 级别负责每次 App 会话的最新公告自动弹窗，主界面加载后等待 2 秒再请求和展示。
-- 公告使用 `content.schemaVersion=1` 的结构化内容；首页始终展示服务端最新 3 条文字摘要，图片以 `【图片】` 占位，完整正文通过 `HomeAnnouncementDetailModal.vue` 查看。详情弹窗使用不透明 `NModal/NCard`，无右上角关闭按钮，禁止遮罩和 ESC 关闭，底部只显示“我知道了”和条件性的“前往”，正文滚动条隐藏但滚动保留；显示状态必须复用一起听的 `NModal` 默认居中缩放与遮罩淡入淡出过渡：组件常驻挂载并从 `show=false` 切至 `true`，关闭时等 `after-leave` 后再清空公告数据，确保入场、离场和遮罩动画完整。
+- 公告使用 `content.schemaVersion=1` 的结构化内容；首页始终展示服务端最新 3 条文字摘要，图片以 `【图片】` 占位，完整正文通过 `HomeAnnouncementDetailModal.vue` 查看。详情弹窗使用不透明 `NModal/NCard`，无右上角关闭按钮，禁止遮罩和 ESC 关闭，底部只显示“我知道了”和条件性的“前往”，正文滚动条隐藏但滚动保留；显示状态必须复用一起听的 `NModal` 默认居中缩放与遮罩淡入淡出过渡：组件常驻挂载并从 `show=false` 切至 `true`，且显式传 `internal-appear=true` 以覆盖设置 Tab 的首次挂载时机，关闭时等 `after-leave` 后再清空公告数据，确保入场、离场和遮罩动画完整。
 - 设置页 `/setting?tab=announcements` 提供全部公告列表和同一详情弹窗；右上角设置下拉菜单的“查看公告”必须进入该地址。普通查看列表不改变已读状态。
 - 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；只有“我知道了”或成功“前往”执行确认，IPC 写入必须传普通字符串数组，不得把 Vue `ref`/Proxy 直接传给 preload；`showEveryTime=false` 的公告确认后不再自动弹出，`showEveryTime=true` 不写入长期已读，并在新的 App 会话再次自动弹出。
 - 公告 HTTPS 链接和 `pisamusic://` 协议动作统一走 main 侧 preload IPC；HTTPS 的 `mode: "window"` 使用 Electron 新窗口、`mode: "external"` 使用系统外部浏览器，renderer 不直接使用 Electron `shell`。

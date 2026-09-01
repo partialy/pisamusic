@@ -3,6 +3,7 @@
     :show="show"
     :mask-closable="false"
     :close-on-esc="false"
+    :internal-appear="true"
     transform-origin="center"
     @update:show="handleVisibleChange"
     @after-leave="emit('afterLeave')">
