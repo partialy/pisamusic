@@ -150,18 +150,7 @@ export default function UserManagementTab({
       title: "创建时间",
       dataIndex: "createdAt",
       key: "createdAt",
-      width: 170,
-      render: (ts: number) => (
-        <Text type="secondary" className="text-xs">
-          {formatTimestamp(ts)}
-        </Text>
-      ),
-    },
-    {
-      title: "更新时间",
-      dataIndex: "updatedAt",
-      key: "updatedAt",
-      width: 170,
+      width: 120,
       render: (ts: number) => (
         <Text type="secondary" className="text-xs">
           {formatTimestamp(ts)}
@@ -172,7 +161,7 @@ export default function UserManagementTab({
       title: "最后登录",
       dataIndex: "lastLoginAt",
       key: "lastLoginAt",
-      width: 170,
+      width: 120,
       render: (ts: number | null) => (
         <Text type="secondary" className="text-xs">
           {ts ? formatTimestamp(ts) : "-"}

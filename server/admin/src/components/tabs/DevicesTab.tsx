@@ -157,7 +157,7 @@ export default function DevicesTab({
     {
       title: "系统 / 架构",
       key: "system",
-      width: 220,
+      width: 165,
       render: (_, record) => {
         const desktop = isDesktopDevice(record);
         if (desktop) {
@@ -196,7 +196,8 @@ export default function DevicesTab({
     {
       title: "封禁状态",
       key: "lockStatus",
-      width: 170,
+      width: 85,
+      align: "center",
       render: (_, record) => {
         if (!record.locked) {
           return <Tag color="success">正常</Tag>;
