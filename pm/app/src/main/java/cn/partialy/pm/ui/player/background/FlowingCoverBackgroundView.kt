@@ -59,8 +59,7 @@ internal class FlowingCoverBackgroundView @JvmOverloads constructor(
         }
 
         if (!animateTransition || !ValueAnimator.areAnimatorsEnabled()) {
-            outgoingBank.container.alpha = 0f
-            outgoingBank.container.visibility = INVISIBLE
+            hideBank(outgoingBank)
             incomingBank.container.alpha = 1f
             incomingBank.container.visibility = VISIBLE
             activeBank = incomingBank
@@ -82,8 +81,7 @@ internal class FlowingCoverBackgroundView @JvmOverloads constructor(
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     if (crossfadeAnimator !== this@apply) return
-                    outgoingBank.container.alpha = 0f
-                    outgoingBank.container.visibility = INVISIBLE
+                    hideBank(outgoingBank)
                     incomingBank.container.alpha = 1f
                     activeBank = incomingBank
                     transitioningBank = null
@@ -235,8 +233,7 @@ internal class FlowingCoverBackgroundView @JvmOverloads constructor(
         val latestBank = transitioningBank ?: return
         cancelCrossfade()
         activeBank?.let { previousBank ->
-            previousBank.container.alpha = 0f
-            previousBank.container.visibility = INVISIBLE
+            hideBank(previousBank)
         }
         latestBank.container.alpha = 1f
         latestBank.container.visibility = VISIBLE
@@ -248,6 +245,12 @@ internal class FlowingCoverBackgroundView @JvmOverloads constructor(
         crossfadeAnimator?.removeAllListeners()
         crossfadeAnimator?.cancel()
         crossfadeAnimator = null
+    }
+
+    private fun hideBank(bank: LayerBank) {
+        bank.container.alpha = 0f
+        bank.container.visibility = INVISIBLE
+        cancelBankMotion(bank)
     }
 
     private fun resetBlobTransform(blob: View) {
