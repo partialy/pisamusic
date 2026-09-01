@@ -30,6 +30,7 @@ import {
   isQualityKeyAllowed,
   normalizeQualityKeyForAccess,
 } from "@/musicQuality/musicQualityPolicy";
+import { audioAnalyser } from "@/utils/audioAnalyser";
 
 
 // 定义重复播放模式的类型
@@ -132,6 +133,11 @@ export const useAudioStore = defineStore("audio", () => {
         failureSkipCount = 0;
         handlingPlaybackFailure = false;
         isPlaying.value = true;
+        void audioAnalyser.resume();
+        const audioElement = (player.value as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
+        if (audioElement) {
+          audioAnalyser.attach(audioElement);
+        }
         startProgressUpdate(); // 开始更新播放进度
         if (currentSong.value) {
           listeningPlaybackAdapter.active(currentSong.value, duration.value * 1000);
@@ -148,6 +154,10 @@ export const useAudioStore = defineStore("audio", () => {
       onend: handleTrackEnd, // 歌曲结束时的处理
       onload: () => {
         if (player.value) {
+          const audioElement = (player.value as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
+          if (audioElement) {
+            audioAnalyser.attach(audioElement);
+          }
           duration.value = player.value.duration(); // 获取歌曲总时长
           initMediaSession();
           if (seekTo > 0) {
@@ -156,6 +166,7 @@ export const useAudioStore = defineStore("audio", () => {
             currentTime.value = targetTime;
           }
           if (autoPlay) {
+            void audioAnalyser.resume();
             player.value.play();
           } else {
             isPlaying.value = false;
@@ -250,6 +261,7 @@ export const useAudioStore = defineStore("audio", () => {
       }
 
       if (player.value) {
+        void audioAnalyser.resume();
         player.value.play(); // 开始播放
         shouldSignalPlay = true;
       }
