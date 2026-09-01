@@ -6,6 +6,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <cn.partialy.pm.ui.player.background.FlowingCoverBackgroundView
+        android:id="@+id/flowingCoverBackgroundView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
     <ImageView
         android:id="@+id/blurredBgImageView"
         android:layout_width="match_parent"
