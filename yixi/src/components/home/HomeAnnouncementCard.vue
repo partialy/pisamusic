@@ -47,10 +47,11 @@
 
     <HomeAnnouncementDetailModal
       v-if="detailNotice"
-      :show="Boolean(detailNotice)"
+      :show="detailVisible"
       :announcement="detailNotice"
       @confirmed="handleNoticeConfirmed"
-      @goto="handleNoticeGoto" />
+      @goto="handleNoticeGoto"
+      @after-leave="clearDetailNotice" />
   </section>
 </template>
 
@@ -77,6 +78,7 @@ const loading = ref(false);
 const notices = ref<Announcement[]>([]);
 const confirmedIds = ref<string[]>([]);
 const detailNotice = ref<Announcement | null>(null);
+const detailVisible = ref(false);
 
 const latestNotices = computed(() => notices.value.slice(0, 3));
 
@@ -117,11 +119,12 @@ async function confirmNotice(notice: Announcement) {
 
 function openNoticeDetail(notice: Announcement) {
   detailNotice.value = notice;
+  detailVisible.value = true;
 }
 
 function handleNoticeConfirmed() {
   const notice = detailNotice.value;
-  detailNotice.value = null;
+  detailVisible.value = false;
   if (notice) void confirmNotice(notice);
 }
 
@@ -131,11 +134,15 @@ async function handleNoticeGoto() {
   if (!url) return;
   try {
     await window.electronAPI.openUrl({ url, mode: "window" });
-    detailNotice.value = null;
+    detailVisible.value = false;
     if (notice) await confirmNotice(notice);
   } catch (error) {
     window.$message?.error(error instanceof Error ? error.message : "链接打开失败");
   }
+}
+
+function clearDetailNotice() {
+  if (!detailVisible.value) detailNotice.value = null;
 }
 
 onMounted(() => {

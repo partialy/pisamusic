@@ -1,10 +1,11 @@
 <template>
   <HomeAnnouncementDetailModal
     v-if="announcement"
-    :show="Boolean(announcement)"
+    :show="announcementVisible"
     :announcement="announcement"
     @confirmed="handleConfirmed"
-    @goto="handleGoto" />
+    @goto="handleGoto"
+    @after-leave="clearAnnouncement" />
 </template>
 
 <script setup lang="ts">
@@ -18,6 +19,7 @@ type SettingRecord<T> = { value: T };
 const CONFIRMED_SETTING_KEY = "home-announcement-confirmed-ids";
 const AUTO_POPUP_SESSION_KEY = "home-announcement-auto-popup-shown";
 const announcement = ref<Announcement | null>(null);
+const announcementVisible = ref(false);
 const confirmedIds = ref<string[]>([]);
 let autoPopupTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -36,6 +38,7 @@ async function loadLatestAnnouncement() {
     announcement.value = notices.find(
       (notice) => notice.showEveryTime || !confirmedIds.value.includes(notice.id),
     ) || null;
+    announcementVisible.value = Boolean(announcement.value);
   } catch (error) {
     showLimitedWarning("公告加载失败");
     void window.electronAPI.reportError(error, {
@@ -59,7 +62,7 @@ async function confirmAnnouncement(notice: Announcement) {
 
 async function handleConfirmed() {
   const notice = announcement.value;
-  announcement.value = null;
+  announcementVisible.value = false;
   if (notice) await confirmAnnouncement(notice);
 }
 
@@ -69,11 +72,15 @@ async function handleGoto() {
   if (!notice || !url) return;
   try {
     await window.electronAPI.openUrl({ url, mode: "window" });
-    announcement.value = null;
+    announcementVisible.value = false;
     await confirmAnnouncement(notice);
   } catch (error) {
     window.$message?.error(error instanceof Error ? error.message : "链接打开失败");
   }
+}
+
+function clearAnnouncement() {
+  if (!announcementVisible.value) announcement.value = null;
 }
 
 onMounted(() => {

@@ -4,7 +4,8 @@
     :mask-closable="false"
     :close-on-esc="false"
     transform-origin="center"
-    @update:show="handleVisibleChange">
+    @update:show="handleVisibleChange"
+    @after-leave="emit('afterLeave')">
     <n-card
       class="announcement-detail-modal"
       :bordered="false"
@@ -85,6 +86,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   confirmed: [];
   goto: [];
+  afterLeave: [];
 }>();
 
 const content = computed(() => normalizeAnnouncementContent(props.announcement.content));
@@ -118,26 +120,6 @@ async function handleHighlightAction(block: AnnouncementBlock) {
   background-color: var(--color-bg-default);
   color: var(--color-text-default);
   box-shadow: 0 18px 54px rgba(0, 0, 0, 0.24);
-  transform-origin: center;
-  animation: announcement-detail-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes announcement-detail-enter {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.96);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .announcement-detail-modal {
-    animation: none;
-  }
 }
 
 .announcement-detail-title {

@@ -31,10 +31,11 @@
 
     <HomeAnnouncementDetailModal
       v-if="selectedAnnouncement"
-      :show="Boolean(selectedAnnouncement)"
+      :show="detailVisible"
       :announcement="selectedAnnouncement"
       @confirmed="handleConfirmed"
-      @goto="handleGoto" />
+      @goto="handleGoto"
+      @after-leave="clearSelectedAnnouncement" />
   </section>
 </template>
 
@@ -55,6 +56,7 @@ const CONFIRMED_SETTING_KEY = "home-announcement-confirmed-ids";
 const loading = ref(false);
 const announcements = ref<Announcement[]>([]);
 const selectedAnnouncement = ref<Announcement | null>(null);
+const detailVisible = ref(false);
 const confirmedIds = ref<string[]>([]);
 
 async function fetchAnnouncements() {
@@ -93,11 +95,12 @@ async function confirmAnnouncement(notice: Announcement) {
 
 function openDetail(notice: Announcement) {
   selectedAnnouncement.value = notice;
+  detailVisible.value = true;
 }
 
 async function handleConfirmed() {
   const notice = selectedAnnouncement.value;
-  selectedAnnouncement.value = null;
+  detailVisible.value = false;
   if (notice) await confirmAnnouncement(notice);
 }
 
@@ -107,11 +110,15 @@ async function handleGoto() {
   if (!notice || !url) return;
   try {
     await window.electronAPI.openUrl({ url, mode: "window" });
-    selectedAnnouncement.value = null;
+    detailVisible.value = false;
     await confirmAnnouncement(notice);
   } catch (error) {
     window.$message?.error(error instanceof Error ? error.message : "链接打开失败");
   }
+}
+
+function clearSelectedAnnouncement() {
+  if (!detailVisible.value) selectedAnnouncement.value = null;
 }
 
 onMounted(() => {
