@@ -1,13 +1,12 @@
 package cn.partialy.pm.activity.setting
 
-import android.content.Intent
 import android.content.res.Configuration
-import android.net.Uri
 import android.os.Bundle
 import android.webkit.JavascriptInterface
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
+import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
 import cn.partialy.pm.model.AnnouncementItem
 import cn.partialy.pm.network.repository.SystemRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -63,7 +62,7 @@ class SettingAnnouncementsActivity : BaseSettingWebActivity() {
                 put(
                     JSONObject().apply {
                         put("id", item.id)
-                        put("content", item.content)
+                        put("content", cn.partialy.pm.announcement.announcementPreview(item.content))
                         put("time", item.time)
                         put("publisher", item.publisher)
                         put("confirmText", item.confirmText)
@@ -93,17 +92,12 @@ class SettingAnnouncementsActivity : BaseSettingWebActivity() {
 
     private inner class AnnouncementsBridge {
         @JavascriptInterface
-        fun openUrl(url: String?) {
-            val target = url?.trim().orEmpty()
-            if (!(target.startsWith("http://") || target.startsWith("https://"))) return
+        fun openAnnouncement(id: String?) {
+            val item = announcements.firstOrNull { it.id == id?.trim() } ?: return
             runOnUiThread {
-                runCatching {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(target)))
-                }.onFailure {
-                    Toast.makeText(this@SettingAnnouncementsActivity, R.string.common_open_link_failed, Toast.LENGTH_SHORT).show()
-                }
+                AnnouncementDetailBottomSheet.show(this@SettingAnnouncementsActivity, item)
             }
         }
+
     }
 }
-

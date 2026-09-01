@@ -83,7 +83,8 @@
             announcements.forEach(function(item, index) {
                 var card = document.createElement('div');
                 card.id = item.id;
-                card.className = 'bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5 mb-4 animate-fade-in-up flex flex-col relative z-10';
+                card.className = 'ann-card bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 p-5 mb-4 animate-fade-in-up flex flex-col relative z-10 cursor-pointer transition-transform active:scale-[0.985]';
+                card.setAttribute('data-announcement-id', item.id || '');
                 card.style.animationDelay = (index * 0.08) + 's';
 
                 var headerHtml = ''
@@ -96,14 +97,7 @@
                     + '    </div>'
                     + '    <span class="font-bold text-sm text-slate-800 dark:text-white tracking-wide">' + htmlEscape(item.publisher) + '</span>'
                     + '  </div>'
-                    + '  <div class="flex items-center space-x-3">'
-                    + '    <span class="text-xs text-slate-400 font-medium">' + htmlEscape(item.time) + '</span>'
-                    + '    <button data-id="' + htmlEscape(item.id) + '" class="ann-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 -mr-1">'
-                    + '      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">'
-                    + '        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
-                    + '      </svg>'
-                    + '    </button>'
-                    + '  </div>'
+                    + '  <span class="text-xs text-slate-400 font-medium">' + htmlEscape(item.time) + '</span>'
                     + '</div>';
 
                 var contentHtml = ''
@@ -113,41 +107,23 @@
                     + (item.content || '')
                     + '</div>';
 
-                var actionsHtml = '';
-                var gotoUrl = (item.gotoUrl || '').trim();
-                if (item.showGotoButton && gotoUrl) {
-                    actionsHtml = ''
-                        + '<hr class="my-4 border-gray-100 dark:border-slate-800/60">'
-                        + '<div class="w-full flex">'
-                        + '  <button data-url="' + htmlEscape(gotoUrl) + '" class="ann-goto w-full py-2.5 rounded-xl bg-sky-500 text-white font-semibold text-[13px] shadow-md shadow-sky-500/20 hover:bg-sky-600 transition-colors active:scale-95">前往查看</button>'
-                        + '</div>';
-                }
+                var detailHtml = ''
+                    + '<div class="mt-4 pt-3 border-t border-gray-100 dark:border-slate-800/60 flex items-center justify-end text-sky-500 text-[13px] font-semibold">'
+                    + '  <span>查看详情</span>'
+                    + '  <svg class="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6" /></svg>'
+                    + '</div>';
 
-                card.innerHTML = headerHtml + contentHtml + actionsHtml;
+                card.innerHTML = headerHtml + contentHtml + detailHtml;
                 listContainer.appendChild(card);
             });
         }
 
         listContainer.addEventListener('click', function(e) {
-            var closeBtn = e.target.closest('.ann-close');
-            if (closeBtn) {
-                var id = closeBtn.getAttribute('data-id');
-                var card = document.getElementById(id);
-                if (card) {
-                    card.classList.remove('animate-fade-in-up');
-                    card.classList.add('animate-fade-out-down');
-                    setTimeout(function() {
-                        announcements = announcements.filter(function(x) { return x.id !== id; });
-                        renderAnnouncements();
-                    }, 280);
-                }
-                return;
-            }
-            var gotoBtn = e.target.closest('.ann-goto');
-            if (gotoBtn) {
-                var url = gotoBtn.getAttribute('data-url') || '';
-                if (window.AndroidAnnouncementHost && url) {
-                    window.AndroidAnnouncementHost.openUrl(url);
+            var card = e.target.closest('.ann-card');
+            if (card && window.AndroidAnnouncementHost) {
+                var announcementId = card.getAttribute('data-announcement-id') || '';
+                if (announcementId) {
+                    window.AndroidAnnouncementHost.openAnnouncement(announcementId);
                 }
             }
         });
@@ -169,4 +145,3 @@
 </script>
 </body>
 </html>
-

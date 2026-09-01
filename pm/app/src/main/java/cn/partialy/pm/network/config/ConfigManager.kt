@@ -150,10 +150,16 @@ class ConfigManager @Inject constructor(
         if (absoluteUrl != null) {
             return when {
                 absoluteUrl.isHttps -> absoluteUrl.toString()
-                absoluteUrl.scheme == "http" -> absoluteUrl.newBuilder()
-                    .scheme("https")
-                    .build()
-                    .toString()
+                absoluteUrl.scheme == "http" -> {
+                    if (BuildConfig.DEBUG) {
+                        absoluteUrl.toString()
+                    } else {
+                        absoluteUrl.newBuilder()
+                            .scheme("https")
+                            .build()
+                            .toString()
+                    }
+                }
                 else -> null
             }
         }

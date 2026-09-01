@@ -1129,4 +1129,13 @@
     <string name="mine_vip_expiry_date_pattern">yyyy-M-d HH:mm:ss</string>
     <string name="status_lyric_preview_text">状态栏歌词预览</string>
     <string name="player_no_lyric">暂无歌词</string>
+    <string name="announcement_title">公告</string>
+    <string name="announcement_confirm_default">我知道了</string>
+    <string name="announcement_goto">前往</string>
+    <string name="announcement_time_just_now">刚刚</string>
+    <string name="announcement_image_placeholder_format">图片暂不可用（%1$s）</string>
+    <string name="announcement_empty">暂无公告</string>
+    <string name="common_copied">已复制</string>
+    <string name="common_copy_failed">复制失败</string>
+    <string name="common_operation_failed">操作失败</string>
 </resources>

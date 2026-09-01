@@ -7,13 +7,11 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.PopupMenu
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Space
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -30,6 +28,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityMainBinding
 import cn.partialy.pm.databinding.MainDrawerContentBinding
+import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
 import cn.partialy.pm.model.AnnouncementItem
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
@@ -58,9 +57,6 @@ import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import cn.partialy.pm.utils.DownloadPathManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.MaterialColors
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -226,7 +222,7 @@ class MainActivity : BaseDownloadActivity() {
         intent.removeExtra(EXTRA_SETTINGS_ACTION)
         binding.root.post {
             when (action) {
-                ACTION_SETTINGS_ANNOUNCEMENTS -> lifecycleScope.launch { showUnreadAnnouncementsIfAny() }
+                ACTION_SETTINGS_ANNOUNCEMENTS -> showPublicInformationDialog()
                 ACTION_SETTINGS_CHECK_UPDATE -> showCheckUpdateDialog()
                 ACTION_SETTINGS_ABOUT -> showAboutDialog()
             }
@@ -787,10 +783,24 @@ class MainActivity : BaseDownloadActivity() {
         onDownloadClick(songInfo)
     }
 
-    /** 「我的」通知 / 原菜单「查看公告」 */
+    /** 「我的」通知 / 原菜单「查看公告」 -> 打开最新公告弹窗 */
     fun showPublicInformationDialog() {
         lifecycleScope.launch {
-            showUnreadAnnouncementsIfAny()
+            val response = systemRepository.getAnnouncements().getOrElse {
+                showMessage(getString(R.string.page_announcement_load_failed))
+                return@launch
+            }
+            if (!response.success || response.code != 0) {
+                showMessage(response.msg.ifBlank { getString(R.string.page_announcement_load_failed) })
+                return@launch
+            }
+            val announcements = response.data
+            if (announcements.isEmpty()) {
+                showMessage(getString(R.string.announcement_empty))
+                return@launch
+            }
+            val latest = announcements.first()
+            showPublicInformationDialog(latest)
         }
     }
 
@@ -801,235 +811,29 @@ class MainActivity : BaseDownloadActivity() {
         if (all.isEmpty()) return
 
         val prefs = getSharedPreferences(APP_NOTICE_PREFS, Context.MODE_PRIVATE)
-        val readIds = prefs.getStringSet(KEY_READ_ANNOUNCEMENT_IDS, emptySet())?.toMutableSet() ?: mutableSetOf()
+        val readIds = prefs.getStringSet(KEY_READ_ANNOUNCEMENT_IDS, emptySet()) ?: emptySet()
         val unread = all.filter { it.showEveryTime || !readIds.contains(it.id) }
         if (unread.isEmpty()) return
 
-        for ((index, item) in unread.withIndex()) {
-            val remaining = unread.size - index - 1
-            val confirmed = showAnnouncementDialog(item, remaining)
-            if (!confirmed) continue
-            if (!item.showEveryTime) {
-                readIds.add(item.id)
-                prefs.edit().putStringSet(KEY_READ_ANNOUNCEMENT_IDS, readIds).apply()
-            }
+        // 规则 1：首页公告只弹出最新一条未读的公告，若公告是每次弹出的类型那么也要弹出
+        val latest = unread.first()
+        val confirmed = showPublicInformationDialog(latest)
+        if (confirmed && !latest.showEveryTime) {
+            val nextReadIds = (prefs.getStringSet(KEY_READ_ANNOUNCEMENT_IDS, emptySet()) ?: emptySet()).toMutableSet()
+            nextReadIds.add(latest.id)
+            prefs.edit().putStringSet(KEY_READ_ANNOUNCEMENT_IDS, nextReadIds).apply()
         }
     }
 
-    private suspend fun showAnnouncementDialog(
-        item: AnnouncementItem,
-        remaining: Int,
-    ): Boolean = suspendCoroutine { cont ->
-        val positiveText = item.confirmText
-        val sheet = BottomSheetDialog(this@MainActivity).apply {
-            setContentView(R.layout.layout_announcement_bottom_sheet)
-            setCancelable(false)
-        }
-        sheet.setOnShowListener {
-            val bottomSheetView = sheet.findViewById<View>(
-                com.google.android.material.R.id.design_bottom_sheet,
-            ) ?: return@setOnShowListener
-            bottomSheetView.layoutParams = bottomSheetView.layoutParams.apply {
-                height = ViewGroup.LayoutParams.WRAP_CONTENT
-            }
-            BottomSheetBehavior.from(bottomSheetView as ViewGroup).apply {
-                skipCollapsed = true
-                isFitToContents = true
-                isDraggable = false
-                state = BottomSheetBehavior.STATE_EXPANDED
-            }
-            bottomSheetView.requestLayout()
-        }
-
-        val webView = sheet.findViewById<WebView>(R.id.announcementWebView)
-        val confirmButton = sheet.findViewById<MaterialButton>(R.id.confirmButton)
-        val gotoButton = sheet.findViewById<MaterialButton>(R.id.gotoButton)
-        val spacer = sheet.findViewById<Space>(R.id.buttonSpacer)
-        val sheetBackgroundColor = ContextCompat.getColor(this, R.color.modal_surface_background)
-        val primaryColor = MaterialColors.getColor(
-            this,
-            com.google.android.material.R.attr.colorPrimary,
-            ContextCompat.getColor(this, R.color.blue_selected),
+    private suspend fun showPublicInformationDialog(item: AnnouncementItem): Boolean = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+        val sheet = AnnouncementDetailBottomSheet.show(
+            activity = this,
+            item = item,
+            dismissible = false,
+            onConfirmed = { if (cont.isActive) cont.resume(true, onCancellation = null) },
+            onCancelled = { if (cont.isActive) cont.resume(false, onCancellation = null) },
         )
-        val titleColor = MaterialColors.getColor(
-            this,
-            com.google.android.material.R.attr.colorOnSurface,
-            ContextCompat.getColor(this, R.color.pm_dialog_title),
-        )
-        val bodyColor = ContextCompat.getColor(this, R.color.pm_dialog_message)
-
-        webView?.apply {
-            settings.javaScriptEnabled = false
-            settings.domStorageEnabled = false
-            isVerticalScrollBarEnabled = true
-            isHorizontalScrollBarEnabled = false
-            webViewClient = WebViewClient()
-            webChromeClient = WebChromeClient()
-            setBackgroundColor(sheetBackgroundColor)
-            loadDataWithBaseURL(
-                null,
-                buildAnnouncementHtml(
-                    item = item,
-                    remaining = remaining,
-                    backgroundColor = sheetBackgroundColor,
-                    titleColor = titleColor,
-                    bodyColor = bodyColor,
-                    primaryColor = primaryColor,
-                ),
-                "text/html",
-                "utf-8",
-                null,
-            )
-        }
-
-        confirmButton?.text = positiveText
-        confirmButton?.setOnClickListener {
-            if (!sheet.isShowing) return@setOnClickListener
-            cont.resume(true)
-            sheet.dismiss()
-        }
-
-        if (item.showGotoButton) {
-            gotoButton?.visibility = View.VISIBLE
-            spacer?.visibility = View.VISIBLE
-            gotoButton?.setOnClickListener {
-                if (!sheet.isShowing) return@setOnClickListener
-                val url = item.gotoUrl?.trim().orEmpty()
-                if (url.isNotEmpty()) {
-                    val uri = Uri.parse(url)
-                    val scheme = uri.scheme?.lowercase()
-                    if (scheme == "http" || scheme == "https") {
-                        WebContentActivity.start(this@MainActivity, url)
-                    } else {
-                        Toast.makeText(this@MainActivity, R.string.web_content_invalid_url, Toast.LENGTH_SHORT).show()
-                    }
-                }
-                cont.resume(true)
-                sheet.dismiss()
-            }
-        } else {
-            gotoButton?.visibility = View.GONE
-            spacer?.visibility = View.GONE
-        }
-
-        sheet.setOnCancelListener {
-            cont.resume(false)
-        }
-        sheet.show()
-    }
-
-    private fun buildAnnouncementHtml(
-        item: AnnouncementItem,
-        remaining: Int,
-        backgroundColor: Int,
-        titleColor: Int,
-        bodyColor: Int,
-        primaryColor: Int,
-    ): String {
-        fun escape(input: String): String = input
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-
-        fun cssColor(color: Int): String = String.format("#%06X", 0xFFFFFF and color)
-        fun cssColorWithAlpha(color: Int, alpha: Float): String =
-            "rgba(${android.graphics.Color.red(color)}, ${android.graphics.Color.green(color)}, " +
-                "${android.graphics.Color.blue(color)}, $alpha)"
-
-        val publisher = escape(item.publisher)
-        val time = escape(item.time)
-        val backgroundCss = cssColor(backgroundColor)
-        val titleCss = cssColor(titleColor)
-        val bodyCss = cssColor(bodyColor)
-        val primaryCss = cssColor(primaryColor)
-        val primaryBackgroundCss = cssColorWithAlpha(primaryColor, 0.14f)
-        return """
-            <!doctype html>
-            <html lang="zh-CN">
-            <head>
-              <meta charset="utf-8" />
-              <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-              <style>
-                :root {
-                  --bg: $backgroundCss;
-                  --text-main: $bodyCss;
-                  --text-sub: $bodyCss;
-                  --title: $titleCss;
-                  --accent-bg: $primaryBackgroundCss;
-                  --accent: $primaryCss;
-                }
-                * { box-sizing: border-box; }
-                html, body {
-                  margin: 0;
-                  padding: 0;
-                  background: var(--bg);
-                  color: var(--text-main);
-                  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
-                }
-                .wrap { padding: 4px 4px 8px 4px; }
-                .header { display: flex; align-items: center; margin-bottom: 14px; }
-                .header-main { display: flex; align-items: center; min-width: 0; }
-                .icon {
-                  width: 40px; height: 40px; margin-right: 12px;
-                  border-radius: 999px; display: flex; align-items: center; justify-content: center;
-                  background: var(--accent-bg); color: var(--accent); flex-shrink: 0;
-                }
-                .title { font-size: 20px; font-weight: 700; color: var(--title); margin: 0; }
-                .badge {
-                  margin-left: auto;
-                  min-width: 22px;
-                  height: 22px;
-                  padding: 0 7px;
-                  border-radius: 999px;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  font-size: 12px;
-                  font-weight: 700;
-                  background: var(--accent);
-                  color: #ffffff;
-                  line-height: 1;
-                }
-                .content {
-                  font-size: 14px;
-                  line-height: 1.7;
-                  color: var(--text-main);
-                  margin-bottom: 14px;
-                  word-break: break-word;
-                }
-                .content p { margin: 0 0 10px 0; color: var(--text-main); }
-                .content ul { margin: 0 0 10px 18px; padding: 0; }
-                .content li { margin: 0 0 6px 0; }
-                .content strong { font-weight: 700; }
-                .meta {
-                  display: flex; justify-content: flex-end; gap: 10px;
-                  font-size: 11px; color: var(--text-sub);
-                }
-              </style>
-            </head>
-            <body>
-              <div class="wrap">
-                <div class="header">
-                  <div class="header-main">
-                    <div class="icon" aria-hidden="true">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                      </svg>
-                    </div>
-                    <h3 class="title">${escape(getString(R.string.announcement_system_title))}</h3>
-                  </div>
-                  ${if (remaining > 0) "<span class=\"badge\">$remaining</span>" else ""}
-                </div>
-                <div class="content">${item.content}</div>
-                <div class="meta">
-                  <span>$publisher</span>
-                  <span>$time</span>
-                </div>
-              </div>
-            </body>
-            </html>
-        """.trimIndent()
+        cont.invokeOnCancellation { sheet.dismiss() }
     }
 
     /** 「我的」升级 / 原菜单「检查更新」 */

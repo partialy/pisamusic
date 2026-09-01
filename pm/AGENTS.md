@@ -29,8 +29,8 @@
 
 - 外层服务端目录：`../server/`
 - 本地服务端默认端口：`53380`
-- Android Debug 后端：`http://192.168.9.100:53380/`
-- Android Release 后端：`https://pm-server.hs.partialy.cn/`
+- Android Debug 后端：`http://192.168.9.100:53380/`（Debug 模式跳过远程服务发现，直接使用 `SYSTEM_SERVICE_BASE_URL`）
+- Android Release 后端：`https://pm.hs.partialy.cn/`（Release 模式通过远程服务发现文档与缓存解析服务端 origin）
 - `SYSTEM_SERVICE_BASE_URL` 由 `app/build.gradle.kts` 按 build type 注入。
 
 ## Android 架构
@@ -237,3 +237,11 @@
 - “扫描歌曲”页支持全盘 MediaStore 扫描和自定义文件夹扫描，默认过滤 60s 以下歌曲；扫描结果先展示为可取消勾选的候选列表，已存在歌曲标记为“已存在”且不重复导入。系统库中已消失的 `media_store` 记录如需清理时标记 `is_deleted=1`，不要物理删除历史记录。
 - “导入歌曲”只记录 `content://` 引用和元信息，并申请持久读取权限，不复制音频文件；重复过滤优先按 `content_uri`，其次按 `media_store_id`，再按 `display_name + size + duration` 兜底。
 - 编辑列表删除默认只移除 SQLite 引用；用户勾选“一并删除本地文件”时再尝试删除原始文件。删除授权失败时仍保留列表移除结果，并提示原文件可能未删除。
+
+## 公告模块规范
+
+- 公告数据模型使用结构化 `AnnouncementContent`（`schemaVersion=1`，含 `Text`、`Image`、`Highlight` 区块），全面替代旧 HTML 字符串拼接；图片由 Coil 异步加载。
+- 高亮动作（`AnnouncementAction`）支持复制（`copy`）、链接（`url`，https 校验，支持系统浏览器/应用内打开）与内置协议（`protocol`，pisamusic 协议校验）；高亮文本仅 `url` 和 `protocol` 显示下划线，`copy` 动作复用现有 `ic_copy_24` 图标无下划线。
+- App 启动与首页公告展示保留底部弹窗（`BottomSheetDialog` + `layout_announcement_bottom_sheet.xml`），由 `AnnouncementContentRenderer` 进行原生富文本渲染，隐藏滚动条但保留滚动。
+- 启动时仅弹出最新一条未读公告，若公告属于每次弹出类型（`showEveryTime=true`）也同样弹出；确认或前往后写入已读（`!showEveryTime`），不再连续弹出多条。
+- 首页顶部不显示额外公告卡片列表；设置页保持原有原生列表单页结构。

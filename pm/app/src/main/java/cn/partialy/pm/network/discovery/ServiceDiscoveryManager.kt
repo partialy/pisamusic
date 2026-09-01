@@ -27,23 +27,26 @@ import okhttp3.Response
  * 系统请求拦截器读取当前 origin，ConfigManager 使用返回快照绑定对应 bootstrap。
  */
 class ServiceDiscoveryManager(
-    embeddedBaseUrl: String,
+    private val embeddedBaseUrl: String,
     discoveryDocumentUrl: String = DEFAULT_DISCOVERY_DOCUMENT_URL,
     private val cache: ServiceDiscoveryCache,
     private val fetchDocument: suspend (String) -> String?,
     private val healthCheck: suspend (String) -> Boolean,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val isDevMode: Boolean = BuildConfig.DEBUG,
 ) {
     constructor(
         context: Context,
         embeddedBaseUrl: String,
         discoveryDocumentUrl: String = DEFAULT_DISCOVERY_DOCUMENT_URL,
+        isDevMode: Boolean = BuildConfig.DEBUG,
     ) : this(
         embeddedBaseUrl = embeddedBaseUrl,
         discoveryDocumentUrl = discoveryDocumentUrl,
         cache = ServiceDiscoveryPrefs(context),
         fetchDocument = { url -> DiscoveryNetwork.fetchDocument(url) },
         healthCheck = { url -> DiscoveryNetwork.checkHealth(url) },
+        isDevMode = isDevMode,
     )
 
     private val embeddedDocument = createEmbeddedDocument(embeddedBaseUrl)
@@ -76,6 +79,19 @@ class ServiceDiscoveryManager(
     fun currentRealtimeBaseUrl(): String = current.get().origin.realtimeBaseUrl
 
     suspend fun refresh(): ServiceDiscoverySnapshot = refreshMutex.withLock {
+        if (isDevMode) {
+            if (BuildConfig.DEBUG) {
+                runCatching {
+                    Log.d(TAG, "Dev/Debug 模式：跳过远程服务发现，直接使用开发配置服务地址: $embeddedBaseUrl")
+                }
+            }
+            val selectedSnapshot = ServiceDiscoverySnapshot(ServiceDiscoverySource.EMBEDDED, embeddedDocument)
+            val selectedOrigin = selectHealthyOrigin(selectedSnapshot.document)
+            val next = ResolvedDiscovery(snapshot = selectedSnapshot, origin = selectedOrigin)
+            current.set(next)
+            return@withLock next.snapshot
+        }
+
         val previous = current.get()
         val currentVersion = previous.snapshot.document.configVersion
         val remoteRaw = fallbackOnFailure {
@@ -137,12 +153,27 @@ class ServiceDiscoveryManager(
         val first = origins.first()
         for (origin in origins) {
             val healthUrl = resolveAgainstOrigin(origin.apiBaseUrl, document.desktop.healthCheckPath)
-            val healthy = fallbackOnFailure {
+            var healthException: Throwable? = null
+            val healthy = try {
                 withContext(ioDispatcher) { healthCheck(healthUrl) }
-            } ?: false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (t: Throwable) {
+                healthException = t
+                false
+            }
             if (BuildConfig.DEBUG) {
                 runCatching {
-                    Log.d(TAG, "节点健康探测: $healthUrl -> healthy=$healthy")
+                    if (healthy) {
+                        Log.d(TAG, "节点健康探测: $healthUrl -> healthy=true")
+                    } else {
+                        val reason = if (healthException != null) {
+                            " (${healthException.javaClass.simpleName}: ${healthException.message})"
+                        } else {
+                            " (响应非 2xx 状态码)"
+                        }
+                        Log.w(TAG, "节点健康探测: $healthUrl -> healthy=false$reason")
+                    }
                 }
             }
             if (healthy) {
@@ -246,6 +277,8 @@ class ServiceDiscoveryManager(
 }
 
 private object DiscoveryNetwork {
+    private const val HEALTH_TIMEOUT_SECONDS = 6L
+
     private val documentClient = OkHttpClient.Builder()
         .followRedirects(false)
         .followSslRedirects(false)
@@ -257,10 +290,10 @@ private object DiscoveryNetwork {
     private val healthClient = OkHttpClient.Builder()
         .followRedirects(false)
         .followSslRedirects(false)
-        .callTimeout(3, TimeUnit.SECONDS)
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(3, TimeUnit.SECONDS)
-        .writeTimeout(3, TimeUnit.SECONDS)
+        .callTimeout(HEALTH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .connectTimeout(HEALTH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(HEALTH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .writeTimeout(HEALTH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
     suspend fun fetchDocument(url: String): String? {

@@ -79,11 +79,15 @@ class SongListItemBinder(private val binding: ItemSongListBinding) {
         btnLove.visibility = if (options.showLove) View.VISIBLE else View.GONE
         btnDownload.visibility = if (options.showDownload) View.VISIBLE else View.GONE
         btnMore.visibility = if (options.showMore) View.VISIBLE else View.GONE
+        val normalActionTint = ContextCompat.getColorStateList(context, R.color.home_tab_unselected)
         btnLove.setImageResource(if (liked) R.drawable.ic_love_fill_24 else R.drawable.ic_love_24)
-        btnLove.imageTintList = ContextCompat.getColorStateList(
-            context,
-            if (liked) R.color.red else R.color.home_tab_unselected,
-        )
+        btnLove.imageTintList = if (liked) {
+            ContextCompat.getColorStateList(context, R.color.red)
+        } else {
+            normalActionTint
+        }
+        btnDownload.imageTintList = normalActionTint
+        btnMore.imageTintList = normalActionTint
 
         root.alpha = if (options.enabled) ENABLED_ALPHA else DISABLED_ALPHA
         bindAction(root, song, options.enabled, actions.onClick)

@@ -109,6 +109,7 @@ class RuntimeEndpointBootstrapRulesTest {
         },
         fetchDocument = { document() },
         healthCheck = { true },
+        isDevMode = false,
     )
 
     @Suppress("UNCHECKED_CAST")

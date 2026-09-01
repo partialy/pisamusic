@@ -127,6 +127,7 @@ class ServiceDiscoveryResolverTest {
                 documentJson(version = if (call == 1) 5 else 4, origins = origin("remote", 10))
             },
             healthCheck = { true },
+            isDevMode = false,
         )
 
         val first = async { manager.refresh() }
@@ -151,6 +152,7 @@ class ServiceDiscoveryResolverTest {
             cache = UnavailableCache,
             fetchDocument = { documentJson(version = version, origins = origin("remote", 10)) },
             healthCheck = { true },
+            isDevMode = false,
         )
         val snapshot = manager.refresh()
         val publishStarted = CountDownLatch(1)
@@ -189,6 +191,7 @@ class ServiceDiscoveryResolverTest {
                         cache = FakeCache(),
                         fetchDocument = { null },
                         healthCheck = { true },
+                        isDevMode = false,
                     )
                 }.isFailure,
             )
@@ -220,6 +223,7 @@ class ServiceDiscoveryResolverTest {
                     cancelAt(CancelStage.HEALTH, cancelStage)
                     true
                 },
+                isDevMode = false,
             )
             val before = manager.currentSnapshot()
 
@@ -263,6 +267,7 @@ class ServiceDiscoveryResolverTest {
                         true
                     },
                     ioDispatcher = dispatcher,
+                    isDevMode = false,
                 )
 
                 runBlocking { manager.refresh() }
@@ -287,15 +292,40 @@ class ServiceDiscoveryResolverTest {
         assertEquals(ServiceDiscoverySource.EMBEDDED, snapshot.source)
     }
 
+    @Test
+    fun `dev mode uses embedded base url directly and skips remote discovery`() = runBlocking {
+        var remoteFetched = false
+        val cache = FakeCache(CachedDiscoveryDocument(documentJson(version = 10, origins = origin("cached", 10)), 10))
+        val manager = ServiceDiscoveryManager(
+            embeddedBaseUrl = "http://192.168.9.100:53380/",
+            cache = cache,
+            fetchDocument = {
+                remoteFetched = true
+                documentJson(version = 20, origins = origin("remote", 10))
+            },
+            healthCheck = { true },
+            isDevMode = true,
+        )
+
+        val snapshot = manager.refresh()
+
+        assertFalse(remoteFetched)
+        assertEquals(ServiceDiscoverySource.EMBEDDED, snapshot.source)
+        assertEquals("http://192.168.9.100:53380/api/config/bootstrap", manager.resolveApiUrl("/api/config/bootstrap"))
+        assertEquals("http://192.168.9.100:53380", manager.currentRealtimeBaseUrl())
+    }
+
     private fun manager(
         cache: ServiceDiscoveryCache = FakeCache(),
         remoteRaw: String?,
         healthCheck: suspend (String) -> Boolean,
+        isDevMode: Boolean = false,
     ): ServiceDiscoveryManager = ServiceDiscoveryManager(
         embeddedBaseUrl = EMBEDDED_BASE_URL,
         cache = cache,
         fetchDocument = { remoteRaw },
         healthCheck = healthCheck,
+        isDevMode = isDevMode,
     )
 
     private fun origin(id: String, priority: Int): String =

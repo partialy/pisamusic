@@ -1,5 +1,7 @@
 package cn.partialy.pm.model
 
+import cn.partialy.pm.announcement.AnnouncementContent
+
 /**
  * 启动配置下发响应（兼容 success 字段）。
  */
@@ -110,11 +112,11 @@ data class DynamicConfigInfo(
 
 data class AnnouncementItem(
     val id: String,
-    val content: String,
+    val content: AnnouncementContent,
     val time: String,
     val publisher: String,
-    val confirmText: String,
+    val confirmText: String = "我知道了",
     val showEveryTime: Boolean = false,
-    val showGotoButton: Boolean,
+    val showGotoButton: Boolean = false,
     val gotoUrl: String? = null,
 )
