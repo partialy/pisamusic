@@ -243,8 +243,9 @@
 ## 首页公告与热门歌曲规则补充
 
 - 首页公告位于 `src/components/home/HomeAnnouncementCard.vue`，通过 preload 暴露的 `system:get-announcements` 读取外层 `server/` 公告，不要恢复旧的 `mainAPI.getHomeData()` 公告占位接口。
-- 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；`showEveryTime=false` 的公告确认后不再展示，`showEveryTime=true` 仅允许本次页面临时关闭，不写入长期忽略。
-- 公告链接打开统一走 `window:open-url` IPC：`mode: "window"` 使用 Electron 新窗口，`mode: "external"` 使用系统外部浏览器；只允许 http/https 链接，renderer 不直接使用 Electron `shell`。
+- 公告使用 `content.schemaVersion=1` 的结构化内容；首页只展示文字摘要，图片以 `【图片】` 占位，完整正文通过 `HomeAnnouncementDetailModal.vue` 查看。详情弹窗使用不透明 `NModal/NCard`，无右上角关闭按钮，禁止遮罩和 ESC 关闭，底部按钮居中。
+- 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；`关闭` 不写入已读状态，`我知道了` 才执行确认；`showEveryTime=false` 的公告确认后不再展示，`showEveryTime=true` 仅允许本次页面临时关闭，不写入长期忽略。
+- 公告 HTTPS 链接和 `pisamusic://` 协议动作统一走 main 侧 preload IPC；HTTPS 的 `mode: "window"` 使用 Electron 新窗口、`mode: "external"` 使用系统外部浏览器，renderer 不直接使用 Electron `shell`。
 - 首页热门歌曲通过 `music:top-songs` 调用 KG `/top/song`，由 main 侧读取 runtime `kgServer` 并使用 `requestSignedGateway()`；renderer 使用 `src/utils/api/musicAPI.ts` 的 `getTopSongs()`，不要直接持有服务端地址。
 - 首页右侧热门歌曲卡片展示热门歌曲预览并提供“查看更多”进入 `/recommend/songs?type=kg-top`；底部“热门歌曲”节点复用推荐音乐的 `HomeSongGrid` / `KGRecommendSong` 模式，默认展示前 12 首。
 - 首页 WY 内容包括“网友精选碟”(`/top/playlist`)、“WY推荐歌曲”(`/personalized/newsong`) 和 “WY推荐歌单”(`/personalized`)；统一在 main 侧读取 runtime `wyServer` 并通过 `music:*` IPC 暴露，renderer 不直接请求真实服务地址。
@@ -287,4 +288,3 @@
 - 允许统计音源限定为 `kg`、`wy`、`kw`、`cloud`、`local`（`qq` 源忽略不上报）；本地歌曲（`local`）的 `songId` 仅使用规范化标识，严格禁止泄漏 `file:`、`content:`、`/` 或 `\` 等任何本地路径。
 - 状态机机制：真实播放片段基于 `performance.now()` 精确计时，本地每 60 秒检查点暂存到 SQLite `listening_active_checkpoint`，单段超 15 分钟自动切片；时长 >= 1000ms 的片段写入 SQLite `listening_pending_fragments`；每 15 分钟或每次启动/登录 session ready 时触发最多 200 条批量补传，支持断网重试与崩溃恢复。
 - 用户界面：用户头像下拉菜单前两项展示只读“等级：Lv N”与“累计听歌：n分钟”（按 `floor(totalMs / 60000)` 计算），在菜单展开与账号切换时即时刷新，账号未登录时保持重置。
-

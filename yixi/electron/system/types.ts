@@ -25,9 +25,25 @@ export type BootstrapConfig = {
   };
 };
 
+export type AnnouncementAction =
+  | { type: "none" }
+  | { type: "copy"; label: string; value: string }
+  | { type: "url"; label: string; url: string; openMode: "browser" | "app" }
+  | { type: "protocol"; label: string; value: string };
+
+export type AnnouncementBlock =
+  | { type: "text"; text: string; bold?: boolean }
+  | { type: "image"; fileId: string; alt: string; url?: string }
+  | { type: "highlight"; color: string; text: string; action: AnnouncementAction };
+
+export type AnnouncementContent = {
+  schemaVersion: 1;
+  blocks: AnnouncementBlock[];
+};
+
 export type Announcement = {
   id: string;
-  content: string;
+  content: AnnouncementContent;
   time: string;
   publisher: string;
   confirmText: string;

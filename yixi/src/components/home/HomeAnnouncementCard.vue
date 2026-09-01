@@ -22,7 +22,7 @@
         <span>{{ activeNotice.publisher || "PisaMusic Team" }}</span>
         <span>{{ activeNotice.time || "刚刚" }}</span>
       </div>
-      <div class="notice-content" v-html="sanitizeHtml(activeNotice.content)"></div>
+      <div class="notice-content" :title="previewText">{{ previewText }}</div>
       <div class="notice-actions">
         <div class="notice-switch" v-if="visibleNotices.length > 1">
           <button v-for="(_, index) in visibleNotices" :key="index" type="button" class="dot"
@@ -30,23 +30,7 @@
             @click="activeIndex = index" />
         </div>
         <div class="action-buttons">
-          <n-button v-if="activeNotice.showGotoButton && activeNotice.gotoUrl" size="small" secondary type="primary"
-            @click="openNoticeUrl('window')">
-            <template #icon>
-              <WebIcon height="1rem" />
-            </template>
-            前往
-          </n-button>
-          <n-button v-if="activeNotice.showGotoButton && activeNotice.gotoUrl" size="small" text type="primary"
-            @click="openNoticeUrl('external')">
-            <template #icon>
-              <BrowserShareIcon height="1rem" />
-            </template>
-            浏览器
-          </n-button>
-          <n-button size="small" type="primary" @click="confirmNotice">
-            {{ activeNotice.confirmText || "我知道了" }}
-          </n-button>
+          <n-button size="small" type="primary" @click="openNoticeDetail">查看详情</n-button>
         </div>
       </div>
     </div>
@@ -54,28 +38,29 @@
     <div v-else class="empty-state">
       暂无公告
     </div>
+
+    <HomeAnnouncementDetailModal
+      v-if="detailNotice"
+      :show="Boolean(detailNotice)"
+      :announcement="detailNotice"
+      @close="detailNotice = null"
+      @confirmed="handleNoticeConfirmed"
+      @goto="handleNoticeGoto" />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { NButton, NSkeleton } from "naive-ui";
-import BrowserShareIcon from '@iconify-vue/tabler/browser-share';
-import WebIcon from '@iconify-vue/streamline-plump/web';
 import { showLimitedWarning } from "@/utils/limitedMessage";
+import HomeAnnouncementDetailModal from "./HomeAnnouncementDetailModal.vue";
+import {
+  getAnnouncementPreview,
+  normalizeAnnouncementContent,
+  type Announcement,
+} from "./homeAnnouncement";
 
 defineOptions({ name: "HomeAnnouncementCard" });
-
-type Announcement = {
-  id: string;
-  content: string;
-  time: string;
-  publisher: string;
-  confirmText: string;
-  showEveryTime?: boolean;
-  showGotoButton: boolean;
-  gotoUrl?: string;
-};
 
 type SettingRecord<T> = {
   value: T;
@@ -88,6 +73,7 @@ const notices = ref<Announcement[]>([]);
 const confirmedIds = ref<string[]>([]);
 const hiddenSessionIds = ref<string[]>([]);
 const activeIndex = ref(0);
+const detailNotice = ref<Announcement | null>(null);
 
 const visibleNotices = computed(() =>
   notices.value.filter((notice) => {
@@ -102,6 +88,8 @@ const activeNotice = computed(() => {
   return visibleNotices.value[Math.min(activeIndex.value, visibleNotices.value.length - 1)];
 });
 
+const previewText = computed(() => activeNotice.value ? getAnnouncementPreview(activeNotice.value.content) : "");
+
 async function fetchNotices() {
   loading.value = true;
   try {
@@ -110,7 +98,9 @@ async function fetchNotices() {
       window.electronAPI.getAnnouncements(),
     ]);
     confirmedIds.value = normalizeConfirmedIds(setting);
-    notices.value = Array.isArray(list) ? list : [];
+    notices.value = Array.isArray(list)
+      ? list.map((notice) => ({ ...notice, content: normalizeAnnouncementContent(notice.content) }))
+      : [];
     activeIndex.value = 0;
   } catch (error) {
     showLimitedWarning("公告加载失败");
@@ -128,10 +118,7 @@ function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
   return setting.value.filter((id) => typeof id === "string" && id.length > 0);
 }
 
-async function confirmNotice() {
-  const notice = activeNotice.value;
-  if (!notice) return;
-
+async function confirmNotice(notice: Announcement) {
   if (notice.showEveryTime) {
     hiddenSessionIds.value = [...hiddenSessionIds.value, notice.id];
   } else if (!confirmedIds.value.includes(notice.id)) {
@@ -141,30 +128,25 @@ async function confirmNotice() {
   activeIndex.value = Math.min(activeIndex.value, Math.max(visibleNotices.value.length - 1, 0));
 }
 
-async function openNoticeUrl(mode: "window" | "external") {
-  const url = activeNotice.value?.gotoUrl?.trim();
+function openNoticeDetail() {
+  if (activeNotice.value) detailNotice.value = activeNotice.value;
+}
+
+function handleNoticeConfirmed() {
+  const notice = detailNotice.value;
+  detailNotice.value = null;
+  if (notice) void confirmNotice(notice);
+}
+
+async function handleNoticeGoto() {
+  const url = detailNotice.value?.gotoUrl?.trim();
   if (!url) return;
+  detailNotice.value = null;
   try {
-    await window.electronAPI.openUrl({ url, mode });
+    await window.electronAPI.openUrl({ url, mode: "window" });
   } catch (error) {
     window.$message?.error(error instanceof Error ? error.message : "链接打开失败");
   }
-}
-
-function sanitizeHtml(html: string) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html || "", "text/html");
-  doc.querySelectorAll("script, iframe, object, embed, link, meta").forEach((node) => node.remove());
-  doc.body.querySelectorAll("*").forEach((node) => {
-    [...node.attributes].forEach((attr) => {
-      const name = attr.name.toLowerCase();
-      const value = attr.value.trim().toLowerCase();
-      if (name.startsWith("on") || value.startsWith("javascript:")) {
-        node.removeAttribute(attr.name);
-      }
-    });
-  });
-  return doc.body.innerHTML || "暂无公告";
 }
 
 onMounted(() => {
@@ -241,17 +223,14 @@ onMounted(() => {
   flex: 1;
   min-height: 0;
   margin-top: 8px;
-  overflow: auto;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
   color: var(--color-text-default);
   line-height: 1.55;
   font-size: 14px;
-
-  :deep(h1),
-  :deep(h2),
-  :deep(h3),
-  :deep(p) {
-    margin: 0 0 6px;
-  }
+  white-space: pre-line;
 }
 
 .notice-actions {

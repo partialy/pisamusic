@@ -33,6 +33,7 @@ declare module 'vue' {
     FaultReportSection: typeof import('./src/components/setting/basic/FaultReportSection.vue')['default']
     Header: typeof import('./src/components/Header.vue')['default']
     HomeAnnouncementCard: typeof import('./src/components/home/HomeAnnouncementCard.vue')['default']
+    HomeAnnouncementDetailModal: typeof import('./src/components/home/HomeAnnouncementDetailModal.vue')['default']
     HomeHotSongCard: typeof import('./src/components/home/HomeHotSongCard.vue')['default']
     HomeReveal: typeof import('./src/components/home/HomeReveal.vue')['default']
     HomeSectionTitle: typeof import('./src/components/home/HomeSectionTitle.vue')['default']
