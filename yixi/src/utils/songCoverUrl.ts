@@ -13,7 +13,7 @@ type SongCoverInput = {
   al?: unknown;
 };
 
-export function getKgImageUrl(url?: string, size: SongCoverSize = 120, fallback = ""): string {
+export function getKgImageUrl(url?: string, size: number = 120, fallback = ""): string {
   if (!url) return fallback;
   return url.replace("{size}", size.toString());
 }
@@ -67,7 +67,7 @@ export function getWyCoverUrl(item: SongCoverInput, fallback = "") {
   return { cover: cover || fallback, coverSize };
 }
 
-export function getSongCoverUrl(song: SongCoverInput, size: SongCoverSize = 120, fallback = "") {
+export function getSongCoverUrl(song: SongCoverInput, size: number = 120, fallback = "") {
   if (song.source === "local") return fallback;
   if (song.source === "kg") return getKgImageUrl(song.cover, size, fallback);
   if (song.source === "wy") {

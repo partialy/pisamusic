@@ -57,19 +57,34 @@
                 </div>
             </div>
             <div class="info-content">
-                <div class="info-title" :title="songName || '未播放'">
-                    <span>{{ songName || '未播放' }}</span>
+                <div
+                    ref="titleContainerRef"
+                    class="info-title"
+                    :class="{ 'is-overflow': isTitleOverflowing }"
+                    :title="songName || '未播放'"
+                    :style="{ '--marquee-duration': `${scrollDuration}s` }"
+                >
+                    <div
+                        class="marquee-inner"
+                        :class="{ 'is-playing': isPlaying }"
+                    >
+                        <span ref="titleTextRef" class="marquee-text">{{ songName || '未播放' }}</span>
+                        <template v-if="isTitleOverflowing">
+                            <span class="marquee-gap"></span>
+                            <span class="marquee-text">{{ songName || '未播放' }}</span>
+                            <span class="marquee-gap"></span>
+                        </template>
+                    </div>
                 </div>
                 <div class="info-artist" :title="currentSong?.singer || '未知歌手'">
                     <span>{{ currentSong?.singer || '未知歌手' }}</span>
                 </div>
                 <div
-                    v-if="currentSong?.album && currentSong.album !== currentSong.name"
                     class="info-album-pill"
-                    :title="currentSong.album"
+                    :title="currentSong?.album || '未知专辑'"
                 >
                     <n-icon :component="Disc3" :size="12" class="album-icon" />
-                    <span class="album-text">{{ currentSong.album }}</span>
+                    <span class="album-text">{{ currentSong?.album || '未知专辑' }}</span>
                 </div>
             </div>
         </div>
@@ -90,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
 import { NIcon } from 'naive-ui';
 import { Disc3 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
@@ -119,7 +134,7 @@ const AMLyricView = computed(() => {
     return Boolean(currentSong.value?.id && lyricStore.hasLyric && lyricStore.setting.useAMLyric)
 })
 
-const coverUrl = useSongCoverUrl(currentSong, 240)
+const coverUrl = useSongCoverUrl(currentSong, 360)
 
 const songName = computed(() => {
     if (currentSong.value?.name && currentSong.value.name.includes(' - ')) {
@@ -128,6 +143,27 @@ const songName = computed(() => {
         return currentSong.value?.name
     }
 })
+
+const titleContainerRef = ref<HTMLDivElement | null>(null);
+const titleTextRef = ref<HTMLSpanElement | null>(null);
+const isTitleOverflowing = ref(false);
+const scrollDuration = ref(12);
+
+const checkTitleOverflow = async () => {
+    isTitleOverflowing.value = false;
+    await nextTick();
+    if (!titleContainerRef.value || !titleTextRef.value) return;
+    const containerWidth = titleContainerRef.value.clientWidth;
+    const textWidth = titleTextRef.value.scrollWidth;
+    if (textWidth > containerWidth - 4) {
+        isTitleOverflowing.value = true;
+        scrollDuration.value = Math.max(6, Math.round((textWidth + 48) / 28));
+    }
+};
+
+watch(() => songName.value, () => {
+    void checkTitleOverflow();
+});
 
 
 const active = computed(() => {
@@ -188,6 +224,8 @@ watch(() => isMouseActive.value, (active) => {
 
 onMounted(() => {
     setCoverBgPosition();
+    void checkTitleOverflow();
+    window.addEventListener('resize', checkTitleOverflow);
     stopPlayerControlsVisibility = electronAPI.onPlayerControlsVisibility(
         handlePlayerControlsVisibility
     );
@@ -196,6 +234,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    window.removeEventListener('resize', checkTitleOverflow);
     removeInteractionListeners();
     stopPlayerControlsVisibility?.();
     stopPlayerControlsVisibility = null;
@@ -205,6 +244,15 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+@keyframes titleMarquee {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
 @keyframes rotate {
     0% {
         transform: rotate(0deg);
@@ -384,7 +432,7 @@ onBeforeUnmount(() => {
         left: 50%;
         transform: translate(-50%, -50%);
         z-index: 101;
-        width: 320px;
+        width: 340px;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -393,10 +441,10 @@ onBeforeUnmount(() => {
 
         .glass-cover-card {
             position: relative;
-            width: 290px;
-            height: 290px;
+            width: 340px;
+            height: 340px;
             margin: 0 auto;
-            border-radius: 28px;
+            border-radius: 30px;
             padding: 10px;
             background: linear-gradient(
                 135deg,
@@ -408,20 +456,20 @@ onBeforeUnmount(() => {
             backdrop-filter: blur(28px) saturate(160%);
             -webkit-backdrop-filter: blur(28px) saturate(160%);
             box-shadow:
-                0 20px 52px rgba(0, 0, 0, 0.35),
-                0 6px 18px rgba(0, 0, 0, 0.2),
+                0 20px 52px rgba(0, 0, 0, 0.38),
+                0 8px 20px rgba(0, 0, 0, 0.22),
                 inset 0 1.5px 2px rgba(255, 255, 255, 0.65),
                 inset 0 -1.5px 2px rgba(0, 0, 0, 0.15);
             transform: scale(1);
-            transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.45s ease;
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.5s ease;
             box-sizing: border-box;
 
             &.is-playing {
-                transform: translateY(-2px) scale(1.05);
+                transform: translateY(-4px) scale(1.04);
                 box-shadow:
-                    0 28px 70px rgba(0, 0, 0, 0.44),
-                    0 10px 26px rgba(0, 0, 0, 0.25),
-                    inset 0 1.5px 2px rgba(255, 255, 255, 0.72),
+                    0 28px 72px rgba(0, 0, 0, 0.46),
+                    0 10px 26px rgba(0, 0, 0, 0.28),
+                    inset 0 1.5px 2px rgba(255, 255, 255, 0.75),
                     inset 0 -1.5px 2px rgba(0, 0, 0, 0.15);
 
                 .glass-cover-glow {
@@ -430,21 +478,12 @@ onBeforeUnmount(() => {
                 }
             }
 
-            &:hover {
-                transform: translateY(-4px) scale(1.08);
-                box-shadow:
-                    0 34px 80px rgba(0, 0, 0, 0.48),
-                    0 12px 30px rgba(0, 0, 0, 0.28),
-                    inset 0 1.5px 2px rgba(255, 255, 255, 0.78),
-                    inset 0 -1.5px 2px rgba(0, 0, 0, 0.15);
-            }
-
             .glass-cover-glow {
                 position: absolute;
                 inset: 14px;
                 border-radius: 22px;
                 background: inherit;
-                filter: blur(20px);
+                filter: blur(18px);
                 opacity: 0.45;
                 z-index: 0;
                 pointer-events: none;
@@ -473,32 +512,82 @@ onBeforeUnmount(() => {
 
         .info-content {
             width: 100%;
-            margin-top: 18px;
+            margin-top: 22px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 10px;
             text-align: center;
             color: var(--color-text-track);
 
             .info-title {
                 width: 100%;
-                font-size: 21px;
-                font-weight: 700;
-                line-height: 1.3;
-                color: #ffffff;
-                text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+                position: relative;
                 overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                padding: 0 8px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
                 box-sizing: border-box;
-                letter-spacing: 0.2px;
+                padding: 0 4px;
+                min-height: 32px;
+
+                &.is-overflow {
+                    justify-content: flex-start;
+                    mask-image: linear-gradient(
+                        90deg,
+                        transparent 0%,
+                        black 14px,
+                        black calc(100% - 14px),
+                        transparent 100%
+                    );
+                    -webkit-mask-image: linear-gradient(
+                        90deg,
+                        transparent 0%,
+                        black 14px,
+                        black calc(100% - 14px),
+                        transparent 100%
+                    );
+
+                    .marquee-inner {
+                        display: inline-flex;
+                        white-space: nowrap;
+                        will-change: transform;
+                        animation: titleMarquee var(--marquee-duration, 12s) linear infinite;
+                        animation-play-state: paused;
+
+                        &.is-playing {
+                            animation-play-state: running;
+                        }
+                    }
+                }
+
+                .marquee-inner {
+                    display: inline-flex;
+                    align-items: center;
+                    white-space: nowrap;
+                    font-size: 23px;
+                    font-weight: 700;
+                    line-height: 1.3;
+                    color: #ffffff;
+                    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+                    letter-spacing: 0.2px;
+
+                    .marquee-text {
+                        flex-shrink: 0;
+                        white-space: nowrap;
+                    }
+
+                    .marquee-gap {
+                        display: inline-block;
+                        width: 48px;
+                        flex-shrink: 0;
+                    }
+                }
             }
 
             .info-artist {
                 width: 100%;
-                font-size: 14px;
+                font-size: 15px;
                 font-weight: 500;
                 line-height: 1.35;
                 color: rgba(255, 255, 255, 0.82);
@@ -513,15 +602,15 @@ onBeforeUnmount(() => {
             .info-album-pill {
                 display: inline-flex;
                 align-items: center;
-                gap: 5px;
+                gap: 6px;
                 max-width: 90%;
                 margin-top: 2px;
-                padding: 3px 12px;
-                border-radius: 12px;
+                padding: 4px 14px;
+                border-radius: 14px;
                 background: rgba(255, 255, 255, 0.1);
                 border: 1px solid rgba(255, 255, 255, 0.14);
-                color: rgba(255, 255, 255, 0.72);
-                font-size: 12px;
+                color: rgba(255, 255, 255, 0.75);
+                font-size: 13px;
                 font-weight: 400;
                 backdrop-filter: blur(8px);
                 -webkit-backdrop-filter: blur(8px);
@@ -530,7 +619,7 @@ onBeforeUnmount(() => {
 
                 .album-icon {
                     flex-shrink: 0;
-                    color: rgba(255, 255, 255, 0.7);
+                    color: rgba(255, 255, 255, 0.75);
                 }
 
                 .album-text {

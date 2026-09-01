@@ -3,9 +3,8 @@ import type { Song } from "@/types/song";
 import electronAPI from "@/utils/electron";
 import { defaultSongCover, getSongCover } from "@/utils/common";
 
-type CoverSize = 120 | 240 | 360 | 480;
 
-export function useSongCoverUrl(song: Ref<Song | null | undefined>, size: CoverSize = 120) {
+export function useSongCoverUrl(song: Ref<Song | null | undefined>, size: number = 120) {
   const localCoverUrl = ref("");
 
   const coverUrl = computed(() => {

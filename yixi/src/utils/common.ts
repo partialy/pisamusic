@@ -102,7 +102,7 @@ export function debounce(fn: Function, delay: number) {
  * @param size 图片等级
  * @returns 图片的url
  */
-export function getSongCover(song: Song, size: 120 | 240 | 360 | 480 = 120) {
+export function getSongCover(song: Song, size: number = 120) {
   return getSongCoverUrl(song, size, defaultCover);
 }
 
