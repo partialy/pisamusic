@@ -23,6 +23,7 @@ import coil.request.ErrorResult
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import coil.target.ImageViewTarget
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -121,6 +122,8 @@ internal class PlayerBackgroundController(
             .placeholder(R.drawable.ic_pm_icon)
             .error(R.drawable.ic_pm_icon)
             .fallback(R.drawable.ic_pm_icon)
+            // Palette must read pixels from the resolved cover on a software Canvas.
+            .allowHardware(false)
 
         val request = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             legacyBackground.setRenderEffect(
@@ -205,8 +208,14 @@ internal class PlayerBackgroundController(
         extractionSongKey = capturedSongKey
         extractionDrawable = drawable
         extractionJob = scope.launch(Dispatchers.Main.immediate) {
-            val palette = withContext(Dispatchers.Default) {
-                paletteExtractor.extract(drawable)
+            val palette = try {
+                withContext(Dispatchers.Default) {
+                    paletteExtractor.extract(drawable)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                FALLBACK_PALETTE
             }
             if (capturedSongKey != currentSongKey || !dynamicEnabled || released) return@launch
             paletteCache.put(capturedSongKey, palette)
