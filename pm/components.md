@@ -88,6 +88,7 @@
 | 歌词设置面板 | 歌词样式设置、滑轨、分段按钮、步进器 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `LyricSettingsSheet` | 歌词相关设置优先参考。 |
 | 迷你播放器 | 底部迷你播放器 | `pm/app/src/main/res/layout/home_mini_player.xml` | `HomeMiniPlayerBinder` | 首页/主界面底部播放入口参考。 |
 | 播放按钮缓冲态 | 主播放按钮和迷你播放器缓冲反馈 | `pm/app/src/main/res/drawable/ic_loading_loop_24.xml` | `PlaybackButtonStateRenderer` | VectorDrawable 只承载图形；Media3 `STATE_BUFFERING` 时由 ObjectAnimator 以 1.5 秒周期持续旋转，销毁时必须释放。 |
+| 动态歌词背景 | 播放页封面取色流光、模糊封面漂移和静态旧背景回退 | `ui/player/background/FlowingCoverBackgroundView.kt`、`PlayerBackgroundController.kt` | `activity_player.xml`、`SettingsPrefs`、`PlaybackSettingsActivity` | “播放设置 → 动态歌词背景”默认开启；开启时流光色板与低透明度模糊封面共存，关闭时恢复原静态模糊封面。切歌色板交叉渐变，页面不可见时停止动画。 |
 | 歌词行 | 普通歌词 RecyclerView 行 | `pm/app/src/main/res/layout/item_lyric_line.xml` | `LyricsAdapter` | 非卡拉 OK View 的普通歌词行。 |
 | 卡拉 OK 歌词 View | 逐字歌词渲染 | `pm/app/src/main/java/cn/partialy/pm/ui/player/KaraokeLyricsView.kt` | `LyricDisplayStyle` | 自绘歌词，不要用普通 TextView 代替。 |
 | 歌源标签 | KG/WY/KW/CLOUD/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定；KG/WY/KW/CLOUD 必须分别显示同规格的 16dp 圆角描边方块 `K` / `Y` / `W` / `C`（无额外 padding、居中），KW 使用橙色，Cloud 使用青绿色。LOCAL 保留自适应矩形，禁止调用方单独设置来源文案、背景或 padding。 |
