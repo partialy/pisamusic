@@ -1476,7 +1476,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </Layout.Header>
 
             <Layout.Content className="relative flex-1 min-w-0 p-4">
-              <div className="mx-auto w-full max-w-[1600px] pb-10">
+              <div className="w-full pb-10">
                 <Suspense fallback={tabFallback()}>
                   {currentTab === "dashboard" && <DashboardTab themeColor={themeColor} />}
                   {currentTab === "websiteRecords" && <WebsiteRecordsTab themeColor={themeColor} />}
