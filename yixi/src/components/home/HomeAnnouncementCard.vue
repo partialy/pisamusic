@@ -28,13 +28,22 @@
             {{ getAnnouncementPreview(notice.content) }}
           </div>
         </div>
-        <n-button size="small" type="primary" @click="openNoticeDetail(notice)">查看详情</n-button>
       </div>
     </div>
 
     <div v-else class="empty-state">
       暂无公告
     </div>
+
+    <footer v-if="latestNotices.length" class="announcement-footer">
+      <n-button
+        class="announcement-detail-button"
+        size="small"
+        type="primary"
+        @click="openNoticeDetail(latestNotices[0])">
+        查看详情
+      </n-button>
+    </footer>
 
     <HomeAnnouncementDetailModal
       v-if="detailNotice"
@@ -137,6 +146,8 @@ onMounted(() => {
 <style lang="scss" scoped>
 .announcement-card {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   height: 220px;
   padding: 18px;
@@ -183,18 +194,18 @@ onMounted(() => {
 }
 
 .notice-list {
-  height: 144px;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
 .notice-row {
+  flex: 1;
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 12px;
-  padding: 7px 0;
+  padding: 4px 0;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border-default) 60%, transparent);
 
   &:last-child {
@@ -220,11 +231,11 @@ onMounted(() => {
 .notice-content {
   flex: 1;
   min-height: 0;
-  margin-top: 8px;
+  margin-top: 2px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 1;
   color: var(--color-text-default);
   line-height: 1.55;
   font-size: 14px;
@@ -232,10 +243,21 @@ onMounted(() => {
 }
 
 .empty-state {
-  height: 144px;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-text-secondary);
+}
+
+.announcement-footer {
+  display: flex;
+  flex: 0 0 32px;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.announcement-detail-button {
+  border-radius: 8px;
 }
 </style>
