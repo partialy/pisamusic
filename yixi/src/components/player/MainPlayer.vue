@@ -5,27 +5,26 @@
             <div class="header-bar" v-show="isMouseActive">
                 <div class="header-drag-region"></div>
                 <div class="header-side">
-                    <div class="header-btn" @click="commonStore.hidePlayer">
-                        <ArrowDownIcon class="btn-icon" />
+                    <div
+                        class="header-btn"
+                        :class="{ active: showLyric }"
+                        :title="showLyric ? '隐藏歌词' : '显示歌词'"
+                        @click="toggleLyricVisibility"
+                    >
+                        <LyricIcon class="btn-icon" />
                     </div>
                 </div>
                 <div class="header-btns">
-                    <div class="header-btn" @click="electronAPI.minimizeWindow">
+                    <div class="header-btn" @click="electronAPI.minimizeWindow" title="最小化">
                         <MiniWindowIcon class="btn-icon" />
                     </div>
-                    <div class="header-btn" @click="commonStore.handleToggleFullscreen">
+                    <div class="header-btn" @click="commonStore.handleToggleFullscreen" :title="commonStore.isFullscreen ? '退出全屏' : '全屏'">
                         <RestoreIcon v-if="commonStore.isFullscreen" class="btn-icon" />
                         <ScaleIcon v-else class="btn-icon" />
                     </div>
-                    <div class="header-btn" @click="commonStore.hidePlayer">
+                    <div class="header-btn" @click="commonStore.hidePlayer" title="收起播放器">
                         <CloseIcon class="btn-icon" />
                     </div>
-                    <!-- <n-button class="header-btn" quaternary circle>
-                    <n-icon size="24" color="#999" depth="2" :component="ScaleFullscreenIcon"></n-icon>
-                </n-button>
-                <n-button class="header-btn" quaternary circle @click="commonStore.hidePlayer">
-                    <n-icon size="28" color="#999" depth="2" :component="CloseIcon"></n-icon>
-                </n-button> -->
                 </div>
             </div>
         </Transition>
@@ -36,7 +35,7 @@
         <div class="model-bg"></div>
         <!-- cover & song info -->
         <div class="info-container" ref="infoContainer">
-            <div class="glass-cover-card">
+            <div class="glass-cover-card" :class="{ 'is-playing': isPlaying }">
                 <div class="glass-cover-glow"></div>
                 <div class="glass-cover-frame">
                     <video
@@ -61,23 +60,22 @@
                 <div class="info-title" :title="songName || '未播放'">
                     <span>{{ songName || '未播放' }}</span>
                 </div>
-                <div class="info-meta-row" :title="currentSong?.singer || '未知歌手'">
-                    <div class="meta-icon-badge">
-                        <n-icon :component="Mic2" :size="13" />
-                    </div>
-                    <span class="meta-text">{{ currentSong?.singer || '未知歌手' }}</span>
+                <div class="info-artist" :title="currentSong?.singer || '未知歌手'">
+                    <span>{{ currentSong?.singer || '未知歌手' }}</span>
                 </div>
-                <div class="info-meta-row album-row" :title="currentSong?.album || '未知专辑'">
-                    <div class="meta-icon-badge">
-                        <n-icon :component="Disc3" :size="13" />
-                    </div>
-                    <span class="meta-text">{{ currentSong?.album || '未知专辑' }}</span>
+                <div
+                    v-if="currentSong?.album && currentSong.album !== currentSong.name"
+                    class="info-album-pill"
+                    :title="currentSong.album"
+                >
+                    <n-icon :component="Disc3" :size="12" class="album-icon" />
+                    <span class="album-text">{{ currentSong.album }}</span>
                 </div>
             </div>
         </div>
         <!-- 歌词 -->
-        <AMLyric v-if="AMLyricView" ref="playerLyric" class="player-lyric" />
-        <CommonLyric v-else-if="lyricStore.hasLyric" ref="playerLyric" class="player-lyric" />
+        <AMLyric v-if="showLyric && AMLyricView" ref="playerLyric" class="player-lyric" />
+        <CommonLyric v-else-if="showLyric && lyricStore.hasLyric" ref="playerLyric" class="player-lyric" />
         <!-- 频谱仪 -->
         <SpectrumVisualizer
             class="player-spectrum"
@@ -94,21 +92,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { NIcon } from 'naive-ui';
-import { Mic2, Disc3 } from 'lucide-vue-next';
+import { Disc3 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useAudioStore, useCommonStore, useLyricStore } from '@/store';
 import { ControlPanel, SpectrumVisualizer } from '.';
 import { defaultSongCover } from '@/utils/common';
 import { AMLyric, CommonLyric } from '.';
-import { ArrowDownIcon, CloseIcon, MiniWindowIcon, RestoreIcon, ScaleIcon } from '@/icons';
+import { LyricIcon, CloseIcon, MiniWindowIcon, RestoreIcon, ScaleIcon } from '@/icons';
 import electronAPI from '@/utils/electron';
 import { useSongCoverUrl } from '@/composables/useSongCoverUrl';
 import PlayerBackground from './PlayerBackground.vue';
 import type { PlayerControlsVisibilityEvent } from '@/types/playerControls';
 const playerStore = useAudioStore()
-const { currentSong } = storeToRefs(playerStore)
+const { currentSong, isPlaying } = storeToRefs(playerStore)
 const commonStore = useCommonStore()
 const lyricStore = useLyricStore()
+
+const showLyric = ref(true);
+
+const toggleLyricVisibility = () => {
+    showLyric.value = !showLyric.value;
+    void setCoverBgPosition();
+};
 
 const AMLyricView = computed(() => {
     return Boolean(currentSong.value?.id && lyricStore.hasLyric && lyricStore.setting.useAMLyric)
@@ -132,14 +137,14 @@ const active = computed(() => {
 const infoContainer = ref<HTMLDivElement>()
 const setCoverBgPosition = async () => {
     if (!infoContainer.value) return
-    if (currentSong.value?.id && lyricStore.hasLyric) {
+    if (showLyric.value && currentSong.value?.id && lyricStore.hasLyric) {
         infoContainer.value.style.left = '25%'
     } else {
         infoContainer.value.style.left = '50%'
     }
 }
 
-watch([() => currentSong.value?.id, () => lyricStore.hasLyric], () => {
+watch([() => currentSong.value?.id, () => lyricStore.hasLyric, () => showLyric.value], () => {
     void setCoverBgPosition()
 })
 
@@ -388,8 +393,8 @@ onBeforeUnmount(() => {
 
         .glass-cover-card {
             position: relative;
-            width: 300px;
-            height: 300px;
+            width: 290px;
+            height: 290px;
             margin: 0 auto;
             border-radius: 28px;
             padding: 10px;
@@ -403,19 +408,34 @@ onBeforeUnmount(() => {
             backdrop-filter: blur(28px) saturate(160%);
             -webkit-backdrop-filter: blur(28px) saturate(160%);
             box-shadow:
-                0 24px 64px rgba(0, 0, 0, 0.38),
-                0 8px 24px rgba(0, 0, 0, 0.22),
+                0 20px 52px rgba(0, 0, 0, 0.35),
+                0 6px 18px rgba(0, 0, 0, 0.2),
                 inset 0 1.5px 2px rgba(255, 255, 255, 0.65),
                 inset 0 -1.5px 2px rgba(0, 0, 0, 0.15);
-            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
+            transform: scale(1);
+            transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.45s ease;
             box-sizing: border-box;
 
-            &:hover {
-                transform: translateY(-4px) scale(1.02);
+            &.is-playing {
+                transform: translateY(-2px) scale(1.05);
                 box-shadow:
-                    0 32px 76px rgba(0, 0, 0, 0.46),
+                    0 28px 70px rgba(0, 0, 0, 0.44),
+                    0 10px 26px rgba(0, 0, 0, 0.25),
+                    inset 0 1.5px 2px rgba(255, 255, 255, 0.72),
+                    inset 0 -1.5px 2px rgba(0, 0, 0, 0.15);
+
+                .glass-cover-glow {
+                    opacity: 0.65;
+                    filter: blur(24px);
+                }
+            }
+
+            &:hover {
+                transform: translateY(-4px) scale(1.08);
+                box-shadow:
+                    0 34px 80px rgba(0, 0, 0, 0.48),
                     0 12px 30px rgba(0, 0, 0, 0.28),
-                    inset 0 1.5px 2px rgba(255, 255, 255, 0.75),
+                    inset 0 1.5px 2px rgba(255, 255, 255, 0.78),
                     inset 0 -1.5px 2px rgba(0, 0, 0, 0.15);
             }
 
@@ -428,6 +448,7 @@ onBeforeUnmount(() => {
                 opacity: 0.45;
                 z-index: 0;
                 pointer-events: none;
+                transition: opacity 0.45s ease, filter 0.45s ease;
             }
 
             .glass-cover-frame {
@@ -452,81 +473,71 @@ onBeforeUnmount(() => {
 
         .info-content {
             width: 100%;
-            margin-top: 22px;
+            margin-top: 18px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
             text-align: center;
             color: var(--color-text-track);
 
             .info-title {
                 width: 100%;
-                font-size: 22px;
-                font-weight: 800;
-                line-height: 1.35;
+                font-size: 21px;
+                font-weight: 700;
+                line-height: 1.3;
                 color: #ffffff;
-                text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+                text-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                padding: 0 10px;
+                padding: 0 8px;
                 box-sizing: border-box;
                 letter-spacing: 0.2px;
             }
 
-            .info-meta-row {
-                display: flex;
+            .info-artist {
+                width: 100%;
+                font-size: 14px;
+                font-weight: 500;
+                line-height: 1.35;
+                color: rgba(255, 255, 255, 0.82);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding: 0 8px;
+                box-sizing: border-box;
+                text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+            }
+
+            .info-album-pill {
+                display: inline-flex;
                 align-items: center;
-                justify-content: center;
-                gap: 7px;
-                max-width: 100%;
-                padding: 0 10px;
+                gap: 5px;
+                max-width: 90%;
+                margin-top: 2px;
+                padding: 3px 12px;
+                border-radius: 12px;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                color: rgba(255, 255, 255, 0.72);
+                font-size: 12px;
+                font-weight: 400;
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
                 box-sizing: border-box;
 
-                .meta-icon-badge {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 22px;
-                    height: 22px;
-                    border-radius: 50%;
-                    background: rgba(255, 255, 255, 0.14);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                    color: rgba(255, 255, 255, 0.9);
-                    backdrop-filter: blur(8px);
-                    -webkit-backdrop-filter: blur(8px);
+                .album-icon {
                     flex-shrink: 0;
-                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+                    color: rgba(255, 255, 255, 0.7);
                 }
 
-                .meta-text {
-                    color: rgba(255, 255, 255, 0.85);
-                    font-size: 14px;
-                    font-weight: 500;
+                .album-text {
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
-                    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
                 }
-
-                &.album-row {
-                    .meta-icon-badge {
-                        background: rgba(255, 255, 255, 0.1);
-                        border-color: rgba(255, 255, 255, 0.15);
-                        color: rgba(255, 255, 255, 0.7);
-                    }
-
-                    .meta-text {
-                        color: rgba(255, 255, 255, 0.65);
-                        font-size: 13px;
-                    }
-                }
-            }
-
-            .progress-bar-wrapper {
-                width: 100%;
-                margin-top: 8px;
             }
         }
     }

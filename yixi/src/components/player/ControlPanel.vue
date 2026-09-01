@@ -98,16 +98,10 @@
           <n-icon :component="NextIcon" :size="22" />
         </button>
 
-        <!-- 播放模式切换快捷入口 (右侧对称) -->
-        <PlayModePicker
-          v-model="repeatMode"
-          placement="top"
-          @select="handleToggleMode"
-        >
-          <button type="button" class="ctrl-btn mode-btn" :title="playModeTitle">
-            <n-icon :size="19" :component="playModeIcon" />
-          </button>
-        </PlayModePicker>
+        <!-- 一起听入口 (替换播放键右侧循环图标) -->
+        <div class="listen-ctrl-entry">
+          <ListenTogetherEntry />
+        </div>
       </div>
 
       <!-- 下半部：当前时间 - 进度条 - 总时长 -->
@@ -163,9 +157,6 @@
           :color="desktop ? '#fff' : ''"
         />
       </button>
-
-      <!-- 一起听入口 -->
-      <ListenTogetherEntry variant="overlay" />
 
       <!-- 音量调节 (Popover) -->
       <n-popover
@@ -502,6 +493,42 @@ const toggleMuted = () => {
 
       &:active:not(:disabled) {
         transform: scale(0.96);
+      }
+    }
+
+    .listen-ctrl-entry {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      :deep(.listen-entry) {
+        width: 32px;
+        min-width: 32px;
+        height: 32px;
+        padding: 0;
+        border-radius: 6px;
+        background: transparent !important;
+        border: none !important;
+        color: rgba(255, 255, 255, 0.65);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.12) !important;
+          color: #ffffff !important;
+          transform: translateY(-1px);
+        }
+
+        &.active {
+          color: var(--color-primary, #2897ff) !important;
+          background: rgba(255, 255, 255, 0.12) !important;
+        }
+
+        .avatar-stack :deep(.n-avatar) {
+          border-color: rgba(255, 255, 255, 0.2);
+        }
       }
     }
   }
