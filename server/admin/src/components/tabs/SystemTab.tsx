@@ -96,9 +96,9 @@ export default function SystemTab({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 animate-fade-in-up xl:grid-cols-2 xl:items-start">
+    <div className="grid grid-cols-1 gap-4 animate-fade-in-up xl:grid-cols-2 xl:items-start">
       {/* 左侧列：系统状态与核心服务 */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Card
           bordered={false}
           className="shadow-sm rounded-2xl"
@@ -267,7 +267,7 @@ export default function SystemTab({
       </div>
 
       {/* 右侧列：发现页、网关签名、API 端点 */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* 发现页 */}
         <Card
           bordered={false}

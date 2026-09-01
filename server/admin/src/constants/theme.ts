@@ -21,7 +21,7 @@ export const colorPresets = [
 ];
 
 export const glassCardClasses =
-  "min-w-0 bg-white/70 backdrop-blur-xl rounded-2xl border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 sm:p-6 lg:p-8 transition-all duration-300";
+  "min-w-0 bg-white/70 backdrop-blur-xl rounded-2xl border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-4 transition-all duration-300";
 
 export const glassInputClasses =
   "w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-all";

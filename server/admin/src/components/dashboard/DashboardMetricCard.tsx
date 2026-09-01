@@ -30,7 +30,7 @@ export default function DashboardMetricCard({
   }
 
   return (
-    <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-white/60 bg-white/60 p-4 sm:p-5 lg:p-6 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-shadow duration-300">
+    <div className="min-w-0 rounded-2xl border border-white/60 bg-white/60 p-4 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-shadow duration-300">
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-xs font-bold tracking-wider text-slate-500 uppercase">
           {label}

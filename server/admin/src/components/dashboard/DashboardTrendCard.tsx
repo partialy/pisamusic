@@ -17,7 +17,7 @@ export default function DashboardTrendCard({
   heightClass = "h-[260px] sm:h-[300px]",
 }: DashboardTrendCardProps) {
   return (
-    <div className="min-w-0 rounded-2xl sm:rounded-3xl border border-white/60 bg-white/60 p-5 sm:p-6 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between transition-all duration-300">
+    <div className="min-w-0 rounded-2xl border border-white/60 bg-white/60 p-4 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between transition-all duration-300">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="text-base font-extrabold text-slate-800 sm:text-lg">{title}</h3>

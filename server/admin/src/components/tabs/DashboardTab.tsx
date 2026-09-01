@@ -79,7 +79,7 @@ export default function DashboardTab({ themeColor }: DashboardTabProps) {
   );
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-fade-in-up">
+    <div className="space-y-4 animate-fade-in-up">
       {/* Top Header & Range Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -154,11 +154,11 @@ export default function DashboardTab({ themeColor }: DashboardTabProps) {
 
       {/* Loading state initial skeleton */}
       {!data && loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="h-28 rounded-2xl sm:rounded-3xl border border-white/60 bg-white/40 p-6 backdrop-blur-xl animate-pulse"
+              className="h-28 rounded-2xl border border-white/60 bg-white/40 p-4 backdrop-blur-xl animate-pulse"
             />
           ))}
         </div>
@@ -167,7 +167,7 @@ export default function DashboardTab({ themeColor }: DashboardTabProps) {
       {data ? (
         <>
           {/* Section 1: Core 8 Metric Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 sm:gap-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <DashboardMetricCard
               label="用户总数"
               value={data.summary.totalUsers}
@@ -219,7 +219,7 @@ export default function DashboardTab({ themeColor }: DashboardTabProps) {
           </div>
 
           {/* Section 2: Four Trend Charts */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 sm:gap-6">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Chart 1: User Growth */}
             <DashboardTrendCard
               title="用户增长趋势"
@@ -444,11 +444,11 @@ export default function DashboardTab({ themeColor }: DashboardTabProps) {
           </div>
 
           {/* Section 3: Operations & Health Indicators */}
-          <div className="rounded-2xl sm:rounded-3xl border border-white/60 bg-white/60 p-5 sm:p-6 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <div className="rounded-2xl border border-white/60 bg-white/60 p-4 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <h3 className="text-base font-extrabold text-slate-800 sm:text-lg tracking-tight mb-4">
               运营健康与资源规模
             </h3>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               <div className="rounded-2xl border border-white/70 bg-white/50 p-3.5 backdrop-blur-sm">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">待处理反馈</p>
                 <div className="mt-2 flex items-center justify-between">
@@ -514,7 +514,7 @@ export default function DashboardTab({ themeColor }: DashboardTabProps) {
           </div>
 
           {/* Section 4: Distributions */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 sm:gap-6">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {/* Platform Pie */}
             <DashboardTrendCard
               title="设备平台占比"

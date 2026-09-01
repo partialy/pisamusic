@@ -239,7 +239,7 @@ export default function EncryptionTab({
   ];
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-4 animate-fade-in-up">
       {/* Whitelist Management Card */}
       <Card
         bordered={false}

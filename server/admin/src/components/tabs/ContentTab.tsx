@@ -72,7 +72,7 @@ export default function ContentTab({
           </Space>
         }
       >
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Agreement Section */}
           <Card
             type="inner"
