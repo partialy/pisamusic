@@ -21,6 +21,7 @@ Thumbs.db
 hs_err_pid*.log
 replay_pid*.log
 .superpowers/
+docs/
 # Android / Gradle.
 **/.gradle/
 **/build/
