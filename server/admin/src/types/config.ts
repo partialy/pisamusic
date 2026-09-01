@@ -88,7 +88,7 @@ export type DesktopUpdateAssetInfo = {
 
 export type FileRecordInfo = {
   id: string;
-  usageType: "release-package" | "desktop-update" | "cloud-music";
+  usageType: "release-package" | "desktop-update" | "cloud-music" | "announcement-image";
   ownerType?: "system" | "user";
   ownerUserId?: string | null;
   ownerSnapshot?: Record<string, unknown>;
@@ -225,9 +225,28 @@ export const DEFAULT_PLAINTEXT_PATHS: readonly string[] = [
   "/uploads/*",
 ];
 
+export type AnnouncementColorPreset = "neutral" | "primary" | "info" | "success" | "warning" | "danger";
+export type AnnouncementColor = AnnouncementColorPreset | (string & {});
+export type AnnouncementUrlOpenMode = "browser" | "app";
+export type AnnouncementAction =
+  | { type: "none" }
+  | { type: "copy"; label: string; value: string }
+  | { type: "url"; label: string; url: string; openMode: AnnouncementUrlOpenMode }
+  | { type: "protocol"; label: string; value: string };
+export type AnnouncementTextBlock = { type: "text"; text: string; bold?: boolean };
+export type AnnouncementImageBlock = { type: "image"; fileId: string; alt: string; url?: string };
+export type AnnouncementHighlightBlock = {
+  type: "highlight";
+  color: AnnouncementColor;
+  text: string;
+  action: AnnouncementAction;
+};
+export type AnnouncementBlock = AnnouncementTextBlock | AnnouncementImageBlock | AnnouncementHighlightBlock;
+export type AnnouncementContent = { schemaVersion: 1; blocks: AnnouncementBlock[] };
+
 export type Announcement = {
   id: string;
-  content: string;
+  content: AnnouncementContent;
   time: string;
   publisher: string;
   confirmText: string;

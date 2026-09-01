@@ -15,6 +15,9 @@ const ALLOWED_EXTENSIONS: Record<ReleasePlatform, string[]> = {
 const DESKTOP_UPDATE_ALLOWED_EXTENSIONS = [".yml", ".exe", ".blockmap"];
 const ACCOUNT_AVATAR_ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
 const ACCOUNT_AVATAR_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ANNOUNCEMENT_IMAGE_MAX_SIZE = 10 * 1024 * 1024;
+const ANNOUNCEMENT_IMAGE_ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
+const ANNOUNCEMENT_IMAGE_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export type QiniuUploadTokenInput = {
   platform: ReleasePlatform;
@@ -35,6 +38,13 @@ export type DesktopUpdateUploadTokenInput = {
 
 export type AccountAvatarUploadTokenInput = {
   userId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType?: string;
+};
+
+export type AnnouncementImageUploadTokenInput = {
+  announcementId: string;
   fileName: string;
   fileSize: number;
   mimeType?: string;
@@ -191,6 +201,11 @@ function buildAccountAvatarObjectKey(input: AccountAvatarUploadTokenInput): stri
   return `pisamusic/account-avatars/${input.userId}/${randomUUID()}${ext}`;
 }
 
+function buildAnnouncementImageObjectKey(input: AnnouncementImageUploadTokenInput): string {
+  const ext = getExtension(input.fileName);
+  return `pisamusic/announcements/${encodeURIComponent(input.announcementId)}/${randomUUID()}${ext}`;
+}
+
 export function buildUrl(key: string, space: QiniuSpace): string {
   const { baseUrl } = getSpaceConfig(space);
   return `${baseUrl}/${key.split("/").map(encodeURIComponent).join("/")}`;
@@ -290,6 +305,46 @@ export function createAccountAvatarUploadToken(input: AccountAvatarUploadTokenIn
   };
 }
 
+export function validateAnnouncementImageFile(fileName: string, fileSize: number, mimeType?: string): void {
+  if (!fileName.trim()) throw new Error("公告图片文件名不能为空");
+  if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > ANNOUNCEMENT_IMAGE_MAX_SIZE) {
+    throw new Error("公告图片大小必须在 1B 至 10MB 之间");
+  }
+  const ext = getExtension(fileName);
+  if (!ANNOUNCEMENT_IMAGE_ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error("公告图片仅支持 jpg、png、webp");
+  }
+  const normalizedMime = (mimeType ?? "").trim().toLowerCase();
+  if (normalizedMime && !ANNOUNCEMENT_IMAGE_ALLOWED_MIME_TYPES.includes(normalizedMime)) {
+    throw new Error("公告图片类型不支持");
+  }
+}
+
+export function createAnnouncementImageUploadToken(input: AnnouncementImageUploadTokenInput): QiniuUploadTokenInfo {
+  if (!/^[A-Za-z0-9._-]{1,120}$/.test(input.announcementId)) throw new Error("公告 ID 格式不正确");
+  validateAnnouncementImageFile(input.fileName, input.fileSize, input.mimeType);
+  const { bucket, domain, cdnDomain } = getSpaceConfig("public-image");
+  const key = buildAnnouncementImageObjectKey(input);
+  const putPolicy = new qiniu.rs.PutPolicy({
+    scope: `${bucket}:${key}`,
+    insertOnly: 1,
+    expires: TOKEN_TTL_SECONDS,
+    fsizeLimit: input.fileSize,
+    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
+  });
+  return {
+    provider: PROVIDER,
+    uploadToken: putPolicy.uploadToken(getMac()),
+    uploadUrl: getUploadUrl(),
+    key,
+    bucket,
+    domain,
+    cdnDomain,
+    downloadUrl: buildUrl(key, "public-image"),
+    expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000,
+  };
+}
+
 function isQiniuNotFoundError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const e = error as { code?: unknown; statusCode?: unknown; resp?: { statusCode?: unknown } };
@@ -311,8 +366,13 @@ export async function deleteQiniuObject(bucket: string, key: string): Promise<vo
 }
 
 export async function statQiniuObject(bucket: string, key: string): Promise<QiniuObjectStat> {
+  return statQiniuObjectInSpace("release", bucket, key);
+}
+
+export async function statQiniuObjectInSpace(space: QiniuSpace, bucket: string, key: string): Promise<QiniuObjectStat> {
   if (!key.trim()) throw new Error("七牛对象 Key 不能为空");
-  assertReleaseBucket(bucket);
+  const config = getSpaceConfig(space);
+  if (bucket !== config.bucket) throw new Error("七牛空间与服务端配置不一致");
   const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
   const result = await bucketManager.stat(bucket, key);
   if (result.resp.statusCode !== 200) throw new Error(`七牛对象核验失败：HTTP ${result.resp.statusCode}`);

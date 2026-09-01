@@ -205,6 +205,8 @@
 | 创建公告 | `POST` | `/api/admin/announcements` | [./admin/createAnnouncement.md](./admin/createAnnouncement.md) |
 | 修改公告 | `PUT` | `/api/admin/announcements/:id` | [./admin/updateAnnouncement.md](./admin/updateAnnouncement.md) |
 | 删除公告 | `DELETE` | `/api/admin/announcements/:id` | [./admin/deleteAnnouncement.md](./admin/deleteAnnouncement.md) |
+| 获取公告图片上传凭证 | `POST` | `/api/admin/announcements/images/upload-token` | [./admin/announcementImageUploadToken.md](./admin/announcementImageUploadToken.md) |
+| 登记公告图片 | `POST` | `/api/admin/announcements/images/complete` | [./admin/announcementImageComplete.md](./admin/announcementImageComplete.md) |
 
 ### 13.3 版本发布与文件管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |

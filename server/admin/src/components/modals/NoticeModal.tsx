@@ -7,11 +7,9 @@ import {
   Switch,
   Typography,
 } from "antd";
-import {
-  NotificationOutlined,
-} from "@ant-design/icons";
+import { NotificationOutlined } from "@ant-design/icons";
 import type { Announcement } from "../../types/config";
-import { HtmlEditor } from "../ui/HtmlEditor";
+import { AnnouncementEditor } from "../ui/AnnouncementEditor";
 
 const { Text } = Typography;
 
@@ -47,7 +45,7 @@ export default function NoticeModal({
           )}
         </Space>
       }
-      width={780}
+      width={900}
       onCancel={onClose}
       footer={[
         <Button key="cancel" onClick={onClose}>
@@ -134,25 +132,21 @@ export default function NoticeModal({
                   前往跳转地址 (URL)
                 </label>
                 <Input
-                  size="small"
                   value={editing.gotoUrl ?? ""}
                   onChange={(e) => onChange({ ...editing, gotoUrl: e.target.value })}
                   placeholder="https://example.com"
-                  className="font-mono text-xs"
+                  className="font-mono"
                 />
               </div>
             )}
           </div>
         </Card>
 
-        <div>
-          <HtmlEditor
-            label="公告内容 (支持 HTML 富文本)"
-            value={editing.content}
-            onChange={(val) => onChange({ ...editing, content: val })}
-            themeColor=""
-          />
-        </div>
+        <AnnouncementEditor
+          announcementId={editing.id}
+          value={editing.content}
+          onChange={(content) => onChange({ ...editing, content })}
+        />
       </div>
     </Modal>
   );

@@ -22,7 +22,7 @@
 | 字段名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
 | `id` | `string` | 是 | 公告唯一 ID（最多 120 字符） |
-| `content` | `string` | 是 | 公告富文本/正文（最多 50000 字符） |
+| `content` | `object` | 是 | 结构化公告内容，最多 100 个内容块、文字最多 50000 字符，不接受 HTML |
 | `time` | `string` | 是 | 发布时间显示文本（如 "2026-08-25"） |
 | `publisher` | `string` | 是 | 发布者名称（如 "管理员"） |
 | `confirmText` | `string` | 是 | 客户端弹窗确认按钮文案（如 "确定"） |
@@ -35,7 +35,19 @@
 ```json
 {
   "id": "anno_202608",
-  "content": "全新版本上线，欢迎体验！",
+  "content": {
+    "schemaVersion": 1,
+    "blocks": [
+      { "type": "text", "text": "全新版本上线，欢迎体验！", "bold": true },
+      { "type": "image", "fileId": "file_announcement_image", "alt": "版本截图" },
+      {
+        "type": "highlight",
+        "color": "#0284c7",
+        "text": "复制邀请码",
+        "action": { "type": "copy", "label": "复制", "value": "PISA2026" }
+      }
+    ]
+  },
   "time": "2026-08-27",
   "publisher": "PisaMusic",
   "confirmText": "我知道了",
@@ -44,6 +56,26 @@
   "gotoUrl": ""
 }
 ```
+
+### `content` 结构
+
+```json
+{
+  "schemaVersion": 1,
+  "blocks": [
+    { "type": "text", "text": "支持换行的纯文字" },
+    { "type": "image", "fileId": "file_xxx", "alt": "图片说明" },
+    {
+      "type": "highlight",
+      "color": "info",
+      "text": "高亮内容",
+      "action": { "type": "none" }
+    }
+  ]
+}
+```
+
+文字支持 `bold: true` 加粗。高亮颜色支持快捷值 `neutral`、`primary`、`info`、`success`、`warning`、`danger`，也支持 `#RGB`、`#RRGGBB` 或 `#RRGGBBAA` 十六进制颜色。复制动作需要 `label` 和 `value`；HTTPS 跳转动作需要 `label`、`url` 和 `openMode`（`browser` 或 `app`）；内置协议动作需要 `label` 和 `value`，且值必须以 `pisamusic://` 开头。内容按数组顺序连续排版，文字中的 `\n` 换行，图片自动独占一行。
 
 ---
 

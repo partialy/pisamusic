@@ -21,7 +21,7 @@
 
 | 字段名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
-| `content` | `string` | 是 | 公告内容 |
+| `content` | `object` | 是 | 结构化公告内容，格式同创建公告 |
 | `time` | `string` | 是 | 发布时间 |
 | `publisher` | `string` | 是 | 发布人 |
 | `confirmText` | `string` | 是 | 确认按钮文本 |
@@ -45,3 +45,5 @@
   "success": true
 }
 ```
+
+公告内容保存为结构化 JSON，不支持 HTML。文字块可选 `bold: true`；高亮颜色支持快捷值 `neutral`、`primary`、`info`、`success`、`warning`、`danger`，以及 `#RGB`、`#RRGGBB`、`#RRGGBBAA` 十六进制颜色。内容按顺序连续排版，文字中的 `\n` 换行，图片自动独占一行，有动作的高亮文本显示为带下划线的可操作文本。图片必须先通过公告图片上传接口登记，再把返回的 `fileId` 写入 `image` 内容块。

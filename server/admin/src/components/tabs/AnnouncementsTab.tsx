@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Button,
   Card,
@@ -11,12 +12,28 @@ import type { ColumnsType } from "antd/es/table";
 import {
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
   NotificationOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
 import type { Announcement } from "../../types/config";
+import AnnouncementPreviewModal from "../modals/AnnouncementPreviewModal";
 
 const { Text } = Typography;
+
+function actionCount(announcement: Announcement): number {
+  return announcement.content.blocks.filter((block) => block.type === "highlight" && block.action.type !== "none").length;
+}
+
+function contentSummary(announcement: Announcement): string {
+  const text = announcement.content.blocks
+    .filter((block) => block.type !== "image")
+    .map((block) => block.text)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text || "（图片公告）";
+}
 
 type Props = {
   announcements: Announcement[];
@@ -32,6 +49,8 @@ export default function AnnouncementsTab({
   onEdit,
   onDelete,
 }: Props) {
+  const [previewAnnouncement, setPreviewAnnouncement] = useState<Announcement | null>(null);
+
   const columns: ColumnsType<Announcement & { index: number }> = [
     {
       title: "序号",
@@ -88,6 +107,22 @@ export default function AnnouncementsTab({
       ),
     },
     {
+      title: "内容",
+      key: "content",
+      width: 260,
+      render: (_, record) => (
+        <div className="min-w-0">
+          <Text ellipsis={{ tooltip: contentSummary(record) }} className="block max-w-[220px] text-xs text-slate-700">
+            {contentSummary(record)}
+          </Text>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <Tag color="purple">{record.content.blocks.filter((block) => block.type === "image").length} 张图</Tag>
+            <Tag color="orange">{actionCount(record)} 个动作</Tag>
+          </div>
+        </div>
+      ),
+    },
+    {
       title: "展示策略与动作",
       key: "policies",
       width: 220,
@@ -108,9 +143,17 @@ export default function AnnouncementsTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 150,
+      width: 190,
       render: (_, record) => (
         <Space size={4}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => setPreviewAnnouncement(record)}
+          >
+            预览
+          </Button>
           <Button
             type="link"
             size="small"
@@ -176,6 +219,13 @@ export default function AnnouncementsTab({
           pagination={false}
         />
       </Card>
+      {previewAnnouncement && (
+        <AnnouncementPreviewModal
+          announcement={previewAnnouncement}
+          open
+          onClose={() => setPreviewAnnouncement(null)}
+        />
+      )}
     </div>
   );
 }

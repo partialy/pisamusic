@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { getAppDb } from "./appDb";
+import { parseAnnouncementContent, toStoredAnnouncementContent, type AnnouncementContent } from "../services/announcementContent";
 
 export type AppUpdate = {
   latestVersion: string;
@@ -56,7 +57,7 @@ export type DesktopUpdateAssetInfo = {
   releaseFile?: ReleaseFileInfo | null;
 };
 
-export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music";
+export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music" | "announcement-image";
 
 export type FileRecordStatus = ReleaseFileStatus | "pending";
 
@@ -222,7 +223,7 @@ const DEFAULT_EMAIL_PROVIDERS: EmailProviderConfig[] = [
 
 export type Announcement = {
   id: string;
-  content: string;
+  content: AnnouncementContent;
   time: string;
   publisher: string;
   confirmText: string;
@@ -464,6 +465,7 @@ type FileRecordReferenceBase = {
 
 export type FileRecordReference =
   | (FileRecordReferenceBase & { type: "cloud-music"; id: string })
+  | (FileRecordReferenceBase & { type: "announcement-image"; id: string })
   | (FileRecordReferenceBase & { type: "history" | "current-release" | "active-desktop-update" });
 
 type FileRecordReferenceType = FileRecordReference["type"];
@@ -483,9 +485,9 @@ function parseFileReferences(raw: string): FileRecordReference[] {
     return value
       .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
       .flatMap<FileRecordReference>((item) => {
-        const type = item.type === "current-release" || item.type === "active-desktop-update" || item.type === "cloud-music" || item.type === "history" ? item.type : "history";
+        const type = item.type === "current-release" || item.type === "active-desktop-update" || item.type === "cloud-music" || item.type === "announcement-image" || item.type === "history" ? item.type : "history";
         const id = typeof item.id === "string" ? item.id : undefined;
-        if (type === "cloud-music") return id ? [{ type, id }] : [];
+        if (type === "cloud-music" || type === "announcement-image") return id ? [{ type, id }] : [];
         return [{
           type,
           id,
@@ -519,6 +521,7 @@ function fileReferenceLabel(ref: FileRecordReference): string {
   if (ref.type === "current-release") return `当前${ref.platform === "desktop" ? "PC" : "Android"}发布`;
   if (ref.type === "active-desktop-update") return `PC 自动更新${ref.version ? ` ${ref.version}` : ""}${ref.fileName ? ` ${ref.fileName}` : ""}`;
   if (ref.type === "cloud-music") return ref.id ? `网盘音乐 ${ref.id}` : "网盘音乐";
+  if (ref.type === "announcement-image") return ref.id ? `公告图片 ${ref.id}` : "公告图片";
   return ref.id ? `发布记录 ${ref.id}` : "发布记录";
 }
 
@@ -563,7 +566,7 @@ function mapFileRecord(row?: FileRecordRow | null): FileRecordInfo | null {
   const refs = parseFileReferences(row.referenced_by);
   return {
     id: row.id,
-    usageType: row.usage_type === "desktop-update" || row.usage_type === "cloud-music" ? row.usage_type : "release-package",
+    usageType: row.usage_type === "desktop-update" || row.usage_type === "cloud-music" || row.usage_type === "announcement-image" ? row.usage_type : "release-package",
     ownerType: row.owner_type === "user" ? "user" : "system",
     ownerUserId: row.owner_user_id,
     ownerSnapshot: parseOwnerSnapshot(row.owner_snapshot_json),
@@ -1093,6 +1096,67 @@ export function createFileRecord(input: CreateFileRecordInput): FileRecordInfo {
     return readFileRecordByIdWithDb(db, saved.id) ?? saved;
   }
   return saved;
+}
+
+export function createAnnouncementImageFileRecord(input: {
+  id: string;
+  announcementId: string;
+  provider: "qiniu";
+  bucket: string;
+  objectKey: string;
+  hash: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+}): FileRecordInfo {
+  const record = createFileRecord({
+    id: input.id,
+    usageType: "announcement-image",
+    platform: "",
+    version: "",
+    assetType: "image",
+    provider: input.provider,
+    bucket: input.bucket,
+    objectKey: input.objectKey,
+    hash: input.hash,
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    fileSize: input.fileSize,
+    downloadUrl: "",
+  });
+  addFileReference(getAppDb(), record.id, { type: "announcement-image", id: input.announcementId });
+  return readFileRecordById(record.id) ?? record;
+}
+
+export function reconcileAnnouncementImageReferences(announcementId: string, fileIds: string[]): FileRecordInfo[] {
+  const db = getAppDb();
+  return runInTransaction(db, () => {
+    const uniqueIds = [...new Set(fileIds)];
+    for (const fileId of uniqueIds) {
+      const row = readFileRecordRowById(db, fileId);
+      const record = mapFileRecord(row);
+      if (!record || record.usageType !== "announcement-image" || record.status !== "uploaded") {
+        throw new Error(`公告图片文件无效：${fileId}`);
+      }
+    }
+
+    const removed: FileRecordInfo[] = [];
+    const rows = db.prepare("SELECT * FROM file_records WHERE usage_type = 'announcement-image'").all() as FileRecordRow[];
+    for (const row of rows) {
+      const refs = parseFileReferences(row.referenced_by);
+      const hasReference = refs.some((ref) => ref.type === "announcement-image" && ref.id === announcementId);
+      if (hasReference && !uniqueIds.includes(row.id)) {
+        const next = refs.filter((ref) => !(ref.type === "announcement-image" && ref.id === announcementId));
+        db.prepare("UPDATE file_records SET referenced_by = ? WHERE id = ?").run(serializeFileReferences(next), row.id);
+        const updated = readFileRecordByIdWithDb(db, row.id);
+        if (updated) removed.push(updated);
+      }
+    }
+    for (const fileId of uniqueIds) {
+      addFileReference(db, fileId, { type: "announcement-image", id: announcementId });
+    }
+    return removed;
+  });
 }
 
 export function createReleaseUploadRecord(input: {
@@ -1677,7 +1741,7 @@ export function readAnnouncements(): Announcement[] {
   const db = getAppDb();
   const rows = db.prepare("SELECT * FROM announcements ORDER BY sort_order ASC, rowid ASC").all() as {
     id: string;
-    content: string;
+    content_json: string;
     time: string;
     publisher: string;
     confirm_text: string;
@@ -1685,16 +1749,24 @@ export function readAnnouncements(): Announcement[] {
     show_goto_button: number;
     goto_url: string | null;
   }[];
-  return rows.map((row) => ({
-    id: row.id,
-    content: row.content,
-    time: row.time,
-    publisher: row.publisher,
-    confirmText: row.confirm_text,
-    showEveryTime: boolFromDb(row.show_every_time),
-    showGotoButton: boolFromDb(row.show_goto_button),
-    gotoUrl: row.goto_url ?? "",
-  }));
+  return rows.map((row) => {
+    let content: AnnouncementContent;
+    try {
+      content = parseAnnouncementContent(JSON.parse(row.content_json));
+    } catch {
+      throw new Error(`公告 ${row.id} 的内容数据无效`);
+    }
+    return {
+      id: row.id,
+      content,
+      time: row.time,
+      publisher: row.publisher,
+      confirmText: row.confirm_text,
+      showEveryTime: boolFromDb(row.show_every_time),
+      showGotoButton: boolFromDb(row.show_goto_button),
+      gotoUrl: row.goto_url ?? "",
+    };
+  });
 }
 
 export function saveAnnouncement(announcement: Announcement): Announcement {
@@ -1708,10 +1780,10 @@ export function saveAnnouncement(announcement: Announcement): Announcement {
   const sortOrder = existing?.sort_order ?? maxRow.max_order + 1;
   db.prepare(
     `INSERT INTO announcements (
-      id, content, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order
+      id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
-      content = excluded.content,
+      content_json = excluded.content_json,
       time = excluded.time,
       publisher = excluded.publisher,
       confirm_text = excluded.confirm_text,
@@ -1720,7 +1792,7 @@ export function saveAnnouncement(announcement: Announcement): Announcement {
       goto_url = excluded.goto_url`,
   ).run(
     announcement.id,
-    announcement.content,
+    JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
     announcement.time,
     announcement.publisher,
     announcement.confirmText,
@@ -1741,11 +1813,11 @@ export function deleteAnnouncement(id: string): boolean {
 export function insertAnnouncement(db: DatabaseSync, announcement: Announcement, sortOrder: number) {
   db.prepare(
     `INSERT OR IGNORE INTO announcements (
-      id, content, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order
+      id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     announcement.id,
-    announcement.content,
+    JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
     announcement.time,
     announcement.publisher,
     announcement.confirmText,

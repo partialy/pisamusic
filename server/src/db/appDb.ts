@@ -228,7 +228,7 @@ WHERE is_current = 1 AND deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS announcements (
     id                  TEXT    PRIMARY KEY,
-    content             TEXT    NOT NULL,
+    content_json        TEXT    NOT NULL,
     time                TEXT    NOT NULL,
     publisher           TEXT    NOT NULL,
     confirm_text        TEXT    NOT NULL,
@@ -637,6 +637,26 @@ function migrateDynamicConfigs(db: DatabaseSync) {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_dynamic_configs_updated_at ON dynamic_configs (updated_at DESC, id ASC)`);
 }
 
+function migrateAnnouncements(db: DatabaseSync) {
+  const cols = getColumnNames(db, "announcements");
+  if (cols.has("content") || !cols.has("content_json")) {
+    db.exec("DROP TABLE IF EXISTS announcements");
+    db.exec(`
+      CREATE TABLE announcements (
+        id                  TEXT    PRIMARY KEY,
+        content_json        TEXT    NOT NULL,
+        time                TEXT    NOT NULL,
+        publisher           TEXT    NOT NULL,
+        confirm_text        TEXT    NOT NULL,
+        show_every_time     INTEGER NOT NULL DEFAULT 0,
+        show_goto_button    INTEGER NOT NULL DEFAULT 0,
+        goto_url            TEXT,
+        sort_order          INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+  }
+}
+
 function migrateUsers(db: DatabaseSync) {
   const cols = getColumnNames(db, "users");
   if (!cols.has("phone")) {
@@ -829,6 +849,7 @@ function initSchema(db: DatabaseSync) {
   migrateAppSettings(db);
   migrateUpdateHistory(db);
   migrateDynamicConfigs(db);
+  migrateAnnouncements(db);
   migrateUsers(db);
   migrateFeedback(db);
   migrateFaultReports(db);

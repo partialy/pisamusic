@@ -172,6 +172,56 @@ export async function deleteAnnouncement(id: string): Promise<void> {
   }
 }
 
+export type AnnouncementImageUploadResult = {
+  fileId: string;
+  bucket: string;
+  objectKey: string;
+  hash: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  url: string;
+};
+
+export async function uploadAnnouncementImage(
+  file: File,
+  announcementId: string,
+  onProgress?: UploadProgressHandler,
+): Promise<AnnouncementImageUploadResult> {
+  const tokenRes = await fetchWithAuth("/api/admin/announcements/images/upload-token", {
+    method: "POST",
+    body: JSON.stringify({
+      announcementId,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+    }),
+  });
+  const tokenBody = await parseJson<UploadTokenResponse>(tokenRes);
+  if (!tokenRes.ok || !tokenBody.success || tokenBody.data == null) {
+    throw new Error(tokenBody.msg || `HTTP ${tokenRes.status}`);
+  }
+  const token = tokenBody.data;
+  const uploaded = await uploadFileToQiniu(file, token, onProgress);
+  const completeRes = await fetchWithAuth("/api/admin/announcements/images/complete", {
+    method: "POST",
+    body: JSON.stringify({
+      announcementId,
+      bucket: uploaded.bucket || token.bucket,
+      key: uploaded.key || token.key,
+      hash: uploaded.hash || "",
+      fileName: file.name,
+      mimeType: file.type,
+      fileSize: Number(uploaded.fsize || file.size),
+    }),
+  });
+  const completeBody = await parseJson<AnnouncementImageUploadResult>(completeRes);
+  if (!completeRes.ok || !completeBody.success || completeBody.data == null) {
+    throw new Error(completeBody.msg || `HTTP ${completeRes.status}`);
+  }
+  return completeBody.data;
+}
+
 export async function fetchUpdateHistory(): Promise<UpdateHistoryItem[]> {
   const res = await fetchWithAuth("/api/admin/update-history");
   const body = await parseJson<UpdateHistoryItem[]>(res);

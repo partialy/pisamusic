@@ -405,7 +405,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       .padStart(3, "0")}`;
     setEditingNotice({
       id: newId,
-      content: "<div><h3>新公告</h3><p>在此输入内容...</p></div>",
+      content: {
+        schemaVersion: 1,
+        blocks: [{ type: "text", text: "新公告内容..." }],
+      },
       time: plus8Time,
       publisher: "PisaMusic Team",
       confirmText: "我知道了",

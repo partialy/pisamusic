@@ -24,12 +24,10 @@ import {
   listFileRecords,
   publishUpdate,
   readAdminUser,
-  readAnnouncements,
   readAnyAdminUser,
   readAppConfig,
   readUpdateHistory,
   replacePlaintextPaths,
-  saveAnnouncement,
   saveAppConfigSections,
   updatePublishedUpdate,
   upsertAdminUser,
@@ -56,6 +54,14 @@ import {
 import { deleteManagedFileRecord, deleteManagedReleaseFileForHistory, deleteManagedUpdateHistory, previewManagedUpdateHistoryDeletion } from "../services/fileManagementService";
 import { fail, ok } from "../types/response";
 import { normalizeDesktopUpdateFeedUrl } from "./adminValidation";
+import {
+  completeAnnouncementImageUpload,
+  createAnnouncementImageToken,
+  deleteManagedAnnouncement,
+  normalizeAnnouncementContent,
+  readHydratedAnnouncements,
+  saveManagedAnnouncement,
+} from "../services/announcementService";
 
 export const adminRouter = Router();
 
@@ -528,27 +534,53 @@ function normalizeAnnouncement(body: unknown): { ok: true; value: Announcement }
   if (!isRecord(body)) return { ok: false, msg: "???????" };
   const id = normalizeRequiredString(body.id, "id", 120);
   if (!id.ok) return id;
-  const content = normalizeRequiredString(body.content, "content", 50000);
-  if (!content.ok) return content;
+  let content: Announcement["content"];
+  try {
+    content = normalizeAnnouncementContent(body.content);
+  } catch (e) {
+    return { ok: false, msg: e instanceof Error ? e.message : "公告内容不合法" };
+  }
   const time = normalizeRequiredString(body.time, "time", 100);
   if (!time.ok) return time;
   const publisher = normalizeRequiredString(body.publisher, "publisher", 120);
   if (!publisher.ok) return publisher;
   const confirmText = normalizeRequiredString(body.confirmText, "confirmText", 60);
   if (!confirmText.ok) return confirmText;
+  let gotoUrl = "";
+  try {
+    gotoUrl = normalizeAnnouncementGotoUrl(body.gotoUrl);
+  } catch (e) {
+    return { ok: false, msg: e instanceof Error ? e.message : "gotoUrl 不合法" };
+  }
   return {
     ok: true,
     value: {
       id: id.value,
-      content: content.value,
+      content,
       time: time.value,
       publisher: publisher.value,
       confirmText: confirmText.value,
       showEveryTime: Boolean(body.showEveryTime),
       showGotoButton: Boolean(body.showGotoButton),
-      gotoUrl: typeof body.gotoUrl === "string" ? body.gotoUrl.trim() : "",
+      gotoUrl,
     },
   };
+}
+
+function normalizeAnnouncementGotoUrl(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return "";
+  let parsed: URL;
+  if (/^pisamusic:\/\/[A-Za-z0-9][A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]*$/i.test(raw)) return raw;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("gotoUrl 必须是有效 HTTPS 或 pisamusic:// 地址");
+  }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+    throw new Error("gotoUrl 只允许 HTTPS 或 pisamusic:// 地址，且 HTTPS 不得带认证信息");
+  }
+  return parsed.toString();
 }
 
 function sanitizePathList(input: unknown): { ok: true; paths: string[] } | { ok: false; msg: string } {
@@ -650,7 +682,7 @@ adminRouter.post("/app-config-sections", (req, res) => {
 
 adminRouter.get("/announcements", (_req, res) => {
   try {
-    return res.json(ok(readAnnouncements()));
+    return res.json(ok(readHydratedAnnouncements()));
   } catch (e) {
     const message = e instanceof Error ? e.message : "璇诲彇鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
@@ -661,7 +693,7 @@ adminRouter.post("/announcements", (req, res) => {
   try {
     const result = normalizeAnnouncement(req.body);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(saveAnnouncement(result.value), "?????"));
+    return res.json(ok(saveManagedAnnouncement(result.value), "公告已保存"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "淇濆瓨鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
@@ -672,7 +704,7 @@ adminRouter.put("/announcements/:id", (req, res) => {
   try {
     const result = normalizeAnnouncement({ ...(req.body as Record<string, unknown>), id: req.params.id });
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(saveAnnouncement(result.value), "?????"));
+    return res.json(ok(saveManagedAnnouncement(result.value), "公告已保存"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "淇濆瓨鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
@@ -681,12 +713,50 @@ adminRouter.put("/announcements/:id", (req, res) => {
 
 adminRouter.delete("/announcements/:id", (req, res) => {
   try {
-    const deleted = deleteAnnouncement(String(req.params.id ?? "").trim());
+    const deleted = deleteManagedAnnouncement(String(req.params.id ?? "").trim());
     if (!deleted) return res.status(404).json(fail("?????", 404));
     return res.json(ok(null, "?????"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "鍒犻櫎鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminRouter.post("/announcements/images/upload-token", (req, res) => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    const announcementId = String(body?.announcementId ?? "").trim();
+    const fileName = String(body?.fileName ?? "").trim();
+    const fileSize = Number(body?.fileSize);
+    const mimeType = String(body?.mimeType ?? "").trim();
+    if (!announcementId || !fileName || !Number.isFinite(fileSize)) {
+      return res.status(400).json(fail("announcementId、fileName、fileSize 不能为空", 400));
+    }
+    return res.json(ok(createAnnouncementImageToken({ announcementId, fileName, fileSize, mimeType }), "上传凭证已生成"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "生成公告图片上传凭证失败";
+    return res.status(400).json(fail(message, 400));
+  }
+});
+
+adminRouter.post("/announcements/images/complete", async (req, res) => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    const announcementId = String(body?.announcementId ?? "").trim();
+    const bucket = String(body?.bucket ?? "").trim();
+    const key = String(body?.key ?? "").trim();
+    const hash = String(body?.hash ?? "").trim();
+    const fileName = String(body?.fileName ?? "").trim();
+    const mimeType = String(body?.mimeType ?? "").trim();
+    const fileSize = Number(body?.fileSize);
+    if (!announcementId || !bucket || !key || !fileName || !Number.isFinite(fileSize)) {
+      return res.status(400).json(fail("公告图片登记参数不完整", 400));
+    }
+    const record = await completeAnnouncementImageUpload({ announcementId, bucket, key, hash, fileName, mimeType, fileSize });
+    return res.json(ok(record, "公告图片已登记"));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "登记公告图片失败";
+    return res.status(400).json(fail(message, 400));
   }
 });
 

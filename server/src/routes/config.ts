@@ -6,7 +6,6 @@ import {
   type ReleaseConfig,
   type ReleaseInfo,
   type UpdateHistoryItem,
-  readAnnouncements,
   readAppConfig,
   readActiveDesktopUpdateAsset,
   readReleaseFileById,
@@ -15,6 +14,7 @@ import {
 } from "../db/configStore";
 import { readDynamicConfigById } from "../db/dynamicConfigStore";
 import { createPrivateQiniuDownloadUrl } from "../services/qiniuReleaseFiles";
+import { readHydratedAnnouncements } from "../services/announcementService";
 import { fail, ok } from "../types/response";
 
 export const configRouter = Router();
@@ -276,7 +276,7 @@ configRouter.get("/announcements", (_req, res) => {
       res.json(fail(state.reason, -233));
       return;
     }
-    res.json(ok(readAnnouncements()));
+    res.json(ok(readHydratedAnnouncements()));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
     res.status(500).json(fail(message, 500));
