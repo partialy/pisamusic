@@ -463,6 +463,15 @@ const listeningIpc = {
   getListeningSummary: () => ipcRenderer.invoke("listening:summary"),
 };
 
+const playerControlsIpc = {
+  startPlayerControlsTracking: () => ipcRenderer.send("player-controls:tracking:start"),
+  stopPlayerControlsTracking: () => ipcRenderer.send("player-controls:tracking:stop"),
+  notifyPlayerControlsInteraction: () => ipcRenderer.send("player-controls:interaction"),
+  onPlayerControlsVisibility: (
+    callback: (event: import("../src/types/playerControls").PlayerControlsVisibilityEvent) => void,
+  ) => on("player-controls:visibility", callback),
+};
+
 contextBridge.exposeInMainWorld("electronAPI", {
   ...windowIpc,
   ...startupIpc,
@@ -486,4 +495,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...faultReportIpc,
   ...cloudMusicIpc,
   ...listeningIpc,
+  ...playerControlsIpc,
 });

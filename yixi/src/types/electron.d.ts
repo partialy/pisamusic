@@ -963,6 +963,13 @@ type ElectronIpcApi = {
 
   observeListeningPlayback: (observation: import("./listening").ListeningPlaybackObservation) => void;
   getListeningSummary: () => Promise<import("./listening").ListeningSummary>;
+
+  startPlayerControlsTracking: () => void;
+  stopPlayerControlsTracking: () => void;
+  notifyPlayerControlsInteraction: () => void;
+  onPlayerControlsVisibility: (
+    callback: (event: import("./playerControls").PlayerControlsVisibilityEvent) => void,
+  ) => () => void;
 };
 
 declare global {

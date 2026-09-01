@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## 播放界面控制面板显隐规则补充
+
+- 播放界面控制面板的鼠标位置与空闲判断由 main 侧 `PlayerControlsActivityTracker` 统一负责。
+- main 使用 `screen.getCursorScreenPoint()` 与主窗口 `getBounds()` 按 100ms 采样；移出窗口隐藏，窗口内 3000ms 无移动隐藏，重新移动显示。
+- renderer 只订阅 `player-controls:visibility`，不得恢复 `document.mousemove` / `clientX` / `clientY` 的并行计时器。
+- 顶部 `-webkit-app-region: drag` 会屏蔽 pointer 事件，不能再把 renderer DOM 鼠标事件作为唯一活动来源。
+
 ## 一起听模块规则补充
 
 - 一起听用于与 `pm/` Android 端进入同一房间、共享房主权威队列并同步播放状态；协议基线以 `server/src/realtime/listenTogether/` 与 `pm/app/.../listen/` 实际代码为准。

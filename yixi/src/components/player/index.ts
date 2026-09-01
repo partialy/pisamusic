@@ -11,6 +11,8 @@ import PlaySequence from "./PlaySequence.vue";
 import ProgressPanel from "./ProgressPanel.vue";
 import MusicQualityPicker from "./MusicQualityPicker.vue";
 import PlayModePicker from "./PlayModePicker.vue";
+import SpectrumVisualizer from "./SpectrumVisualizer.vue";
+import AddToPlaylistDialog from "./AddToPlaylistDialog.vue";
 export {
   AMLyric,
   MainPlayer,
@@ -25,4 +27,6 @@ export {
   ProgressPanel,
   MusicQualityPicker,
   PlayModePicker,
+  SpectrumVisualizer,
+  AddToPlaylistDialog,
 };

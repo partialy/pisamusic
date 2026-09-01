@@ -1,5 +1,5 @@
 <template>
-    <div class="player-layout" ref="playerLayout">
+    <div class="player-layout">
         <PlayerBackground :fps="60" :album="coverUrl"></PlayerBackground>
         <Transition name="header" mode="default">
             <div class="header-bar" v-show="isMouseActive">
@@ -73,14 +73,17 @@
                     </div>
                     <span class="meta-text">{{ currentSong?.album || '未知专辑' }}</span>
                 </div>
-                <div class="progress-bar-wrapper">
-                    <ProgressPanel />
-                </div>
             </div>
         </div>
         <!-- 歌词 -->
         <AMLyric v-if="AMLyricView" ref="playerLyric" class="player-lyric" />
         <CommonLyric v-else-if="lyricStore.hasLyric" ref="playerLyric" class="player-lyric" />
+        <!-- 频谱仪 -->
+        <SpectrumVisualizer
+            class="player-spectrum"
+            :cover-url="coverUrl"
+            :class="{ 'docked-panel': isMouseActive, 'docked-bottom': !isMouseActive }"
+        />
         <!-- 控制面板 -->
         <Transition name="ctlp" mode="default">
             <ControlPanel class="control-panel" v-show="isMouseActive" />
@@ -94,14 +97,14 @@ import { NIcon } from 'naive-ui';
 import { Mic2, Disc3 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useAudioStore, useCommonStore, useLyricStore } from '@/store';
-import { ControlPanel } from '.';
+import { ControlPanel, SpectrumVisualizer } from '.';
 import { defaultSongCover } from '@/utils/common';
 import { AMLyric, CommonLyric } from '.';
 import { ArrowDownIcon, CloseIcon, MiniWindowIcon, RestoreIcon, ScaleIcon } from '@/icons';
 import electronAPI from '@/utils/electron';
-import ProgressPanel from './ProgressPanel.vue';
 import { useSongCoverUrl } from '@/composables/useSongCoverUrl';
 import PlayerBackground from './PlayerBackground.vue';
+import type { PlayerControlsVisibilityEvent } from '@/types/playerControls';
 const playerStore = useAudioStore()
 const { currentSong } = storeToRefs(playerStore)
 const commonStore = useCommonStore()
@@ -126,7 +129,6 @@ const active = computed(() => {
     return playerStore.isPlaying ? 'running' : 'paused'
 })
 
-const playerLayout = ref<HTMLDivElement>()
 const infoContainer = ref<HTMLDivElement>()
 const setCoverBgPosition = async () => {
     if (!infoContainer.value) return
@@ -149,99 +151,51 @@ const handleCoverError = (event: Event) => {
 }
 
 const isMouseActive = ref(true);
-const MOUSE_IDLE_MS = 3000;
-let timeoutId: number | undefined;
-
-const isPlayerHidden = () => {
-    return playerLayout.value?.style.display === 'none';
-};
 
 const updateMouseActive = (active: boolean) => {
     if (isMouseActive.value === active) return;
     isMouseActive.value = active;
 };
 
-const clearMouseTimer = () => {
-    if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId);
-        timeoutId = undefined;
-    }
+let stopPlayerControlsVisibility: (() => void) | null = null;
+
+const handlePlayerControlsVisibility = (event: PlayerControlsVisibilityEvent) => {
+    updateMouseActive(event.visible);
 };
 
-const markMouseInactive = () => {
-    clearMouseTimer();
-    updateMouseActive(false);
+const notifyRendererInteraction = () => {
+    electronAPI.notifyPlayerControlsInteraction();
 };
 
-const scheduleHide = () => {
-    clearMouseTimer();
-    if (isPlayerHidden()) {
-        updateMouseActive(true);
-        return;
-    }
-    timeoutId = window.setTimeout(() => {
-        markMouseInactive();
-    }, MOUSE_IDLE_MS);
+const initInteractionListeners = () => {
+    document.addEventListener('mousedown', notifyRendererInteraction, { passive: true });
+    document.addEventListener('keydown', notifyRendererInteraction);
 };
 
-const markMouseActive = () => {
-    updateMouseActive(true);
-    scheduleHide();
-};
-
-const handleDocumentMouseMove = () => {
-    markMouseActive();
-};
-
-const handleDocumentMouseDown = () => {
-    markMouseActive();
-};
-
-const handleDocumentKeyDown = () => {
-    markMouseActive();
-};
-
-const handleWindowFocus = () => {
-    markMouseActive();
-};
-
-const handleWindowBlur = () => {
-    markMouseInactive();
-};
-
-const handleDocumentMouseOut = (event: MouseEvent) => {
-    if (event.relatedTarget) return;
-    markMouseInactive();
-};
-
-const initMouseListener = () => {
-    document.addEventListener('mousemove', handleDocumentMouseMove);
-    document.addEventListener('mousedown', handleDocumentMouseDown);
-    document.addEventListener('keydown', handleDocumentKeyDown);
-    document.addEventListener('mouseout', handleDocumentMouseOut);
-    window.addEventListener('focus', handleWindowFocus);
-    window.addEventListener('blur', handleWindowBlur);
+const removeInteractionListeners = () => {
+    document.removeEventListener('mousedown', notifyRendererInteraction);
+    document.removeEventListener('keydown', notifyRendererInteraction);
 };
 
 watch(() => isMouseActive.value, (active) => {
     document.body.style.cursor = active ? 'default' : 'none';
 }, { immediate: false });
 
-
 onMounted(() => {
-    setCoverBgPosition()
-    markMouseActive();
-    initMouseListener();
-})
+    setCoverBgPosition();
+    stopPlayerControlsVisibility = electronAPI.onPlayerControlsVisibility(
+        handlePlayerControlsVisibility
+    );
+    electronAPI.startPlayerControlsTracking();
+    initInteractionListeners();
+});
 
 onBeforeUnmount(() => {
-    document.removeEventListener('mousemove', handleDocumentMouseMove);
-    document.removeEventListener('mousedown', handleDocumentMouseDown);
-    document.removeEventListener('keydown', handleDocumentKeyDown);
-    document.removeEventListener('mouseout', handleDocumentMouseOut);
-    window.removeEventListener('focus', handleWindowFocus);
-    window.removeEventListener('blur', handleWindowBlur);
-    clearMouseTimer();
+    removeInteractionListeners();
+    stopPlayerControlsVisibility?.();
+    stopPlayerControlsVisibility = null;
+    electronAPI.stopPlayerControlsTracking();
+    document.body.style.cursor = 'default';
 });
 </script>
 
@@ -589,6 +543,25 @@ onBeforeUnmount(() => {
         overflow: hidden;
     }
 
+
+    .player-spectrum {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(1200px, 92vw);
+        height: 46px;
+        z-index: 100;
+        pointer-events: none;
+        transition: bottom 0.6s ease-in-out, opacity 0.3s ease;
+
+        &.docked-panel {
+            bottom: 86px;
+        }
+
+        &.docked-bottom {
+            bottom: 14px;
+        }
+    }
 
     .control-panel {
         position: absolute;

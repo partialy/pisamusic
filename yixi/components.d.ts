@@ -87,6 +87,7 @@ declare module 'vue' {
     SleepTimerModal: typeof import('./src/components/sleepTimer/SleepTimerModal.vue')['default']
     SongItem: typeof import('./src/components/playList/songItem.vue')['default']
     SongList: typeof import('./src/components/list/SongList.vue')['default']
+    SpectrumVisualizer: typeof import('./src/components/player/SpectrumVisualizer.vue')['default']
     SyncSetting: typeof import('./src/components/setting/sync/SyncSetting.vue')['default']
     TipsHistory: typeof import('./src/components/search/TipsHistory.vue')['default']
     VolumePanel: typeof import('./src/components/player/VolumePanel.vue')['default']

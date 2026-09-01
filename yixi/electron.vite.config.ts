@@ -47,11 +47,11 @@ export default defineConfig({
       },
     },
     build: {
-      rollupOptions:{
+      rollupOptions: {
         input: {
-          index: resolve(__dirname, "index.html")
-        }
-      }
+          index: resolve(__dirname, "index.html"),
+        },
+      },
     },
     plugins: [
       vue(),
@@ -72,8 +72,8 @@ export default defineConfig({
       }),
       Components({
         resolvers: [NaiveUiResolver()],
+        dts: false,
       }),
     ],
-    
   },
 });

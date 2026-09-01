@@ -43,6 +43,10 @@ import {
   registerMediaCacheScheme,
   setupMediaCacheProtocol,
 } from "./mediaCache";
+import {
+  disposePlayerControlsIpc,
+  setupPlayerControlsIpc,
+} from "./ipc/playerControlsIpc";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -155,6 +159,7 @@ function setupAppIpc() {
   setupFaultReportIpc();
   setupCloudMusicIpc();
   setupListeningIpc();
+  setupPlayerControlsIpc(() => mainWindow);
   desktopLyric.setupIpc();
 }
 
@@ -299,6 +304,7 @@ if (!hasSingleInstanceLock) {
 
   app.on("before-quit", () => {
     isQuitting = true;
+    disposePlayerControlsIpc();
     getListeningManager().shutdown();
     closeListenTogetherSocket();
     closeMediaCache();
