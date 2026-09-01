@@ -242,9 +242,10 @@
 
 ## 首页公告与热门歌曲规则补充
 
-- 首页公告位于 `src/components/home/HomeAnnouncementCard.vue`，通过 preload 暴露的 `system:get-announcements` 读取外层 `server/` 公告，不要恢复旧的 `mainAPI.getHomeData()` 公告占位接口。
-- 公告使用 `content.schemaVersion=1` 的结构化内容；首页只展示文字摘要，图片以 `【图片】` 占位，完整正文通过 `HomeAnnouncementDetailModal.vue` 查看。详情弹窗使用不透明 `NModal/NCard`，无右上角关闭按钮，禁止遮罩和 ESC 关闭，底部按钮居中。
-- 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；`关闭` 不写入已读状态，`我知道了` 才执行确认；`showEveryTime=false` 的公告确认后不再展示，`showEveryTime=true` 仅允许本次页面临时关闭，不写入长期忽略。
+- 首页公告位于 `src/components/home/HomeAnnouncementCard.vue`，通过 preload 暴露的 `system:get-announcements` 读取外层 `server/` 公告，不要恢复旧的 `mainAPI.getHomeData()` 公告占位接口；`AppAnnouncementAutoPopup.vue` 在 `MainLayout` 级别负责每次 App 会话的最新公告自动弹窗。
+- 公告使用 `content.schemaVersion=1` 的结构化内容；首页始终展示服务端最新 3 条文字摘要，图片以 `【图片】` 占位，完整正文通过 `HomeAnnouncementDetailModal.vue` 查看。详情弹窗使用不透明 `NModal/NCard`，无右上角关闭按钮，禁止遮罩和 ESC 关闭，底部只显示“我知道了”和条件性的“前往”，正文滚动条隐藏但滚动保留。
+- 设置页 `/setting?tab=announcements` 提供全部公告列表和同一详情弹窗；右上角设置下拉菜单的“查看公告”必须进入该地址。普通查看列表不改变已读状态。
+- 公告确认状态写入 SQLite settings 的 `home-announcement-confirmed-ids`；只有“我知道了”或成功“前往”执行确认；`showEveryTime=false` 的公告确认后不再自动弹出，`showEveryTime=true` 不写入长期已读，并在新的 App 会话再次自动弹出。
 - 公告 HTTPS 链接和 `pisamusic://` 协议动作统一走 main 侧 preload IPC；HTTPS 的 `mode: "window"` 使用 Electron 新窗口、`mode: "external"` 使用系统外部浏览器，renderer 不直接使用 Electron `shell`。
 - 首页热门歌曲通过 `music:top-songs` 调用 KG `/top/song`，由 main 侧读取 runtime `kgServer` 并使用 `requestSignedGateway()`；renderer 使用 `src/utils/api/musicAPI.ts` 的 `getTopSongs()`，不要直接持有服务端地址。
 - 首页右侧热门歌曲卡片展示热门歌曲预览并提供“查看更多”进入 `/recommend/songs?type=kg-top`；底部“热门歌曲”节点复用推荐音乐的 `HomeSongGrid` / `KGRecommendSong` 模式，默认展示前 12 首。

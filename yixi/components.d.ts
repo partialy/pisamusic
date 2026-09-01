@@ -20,6 +20,8 @@ declare module 'vue' {
     AdvanceSetting: typeof import('./src/components/setting/basic/AdvanceSetting.vue')['default']
     AllAccount: typeof import('./src/components/setting/account/AllAccount.vue')['default']
     AMLyric: typeof import('./src/components/player/AMLyric.vue')['default']
+    AnnouncementSetting: typeof import('./src/components/setting/AnnouncementSetting.vue')['default']
+    AppAnnouncementAutoPopup: typeof import('./src/components/home/AppAnnouncementAutoPopup.vue')['default']
     BasicSetting: typeof import('./src/components/setting/basic/BasicSetting.vue')['default']
     CloudOverviewCard: typeof import('./src/components/cloud/CloudOverviewCard.vue')['default']
     CommonLyric: typeof import('./src/components/player/CommonLyric.vue')['default']

@@ -22,6 +22,9 @@
       <n-tab-pane name="about" tab="关于">
         <AboutSetting></AboutSetting>
       </n-tab-pane>
+      <n-tab-pane name="announcements" tab="公告">
+        <AnnouncementSetting />
+      </n-tab-pane>
     </n-tabs>
   </div>
 </template>
@@ -29,6 +32,7 @@
 <script setup lang="ts">
 import {
   AboutSetting,
+  AnnouncementSetting,
   AdvanceSetting,
   BasicSetting,
   LocalSetting,
@@ -39,7 +43,7 @@ import {
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-type SettingTab = "basic" | "local" | "sync" | "lyric" | "shortcut" | "advance" | "about";
+type SettingTab = "basic" | "local" | "sync" | "lyric" | "shortcut" | "advance" | "about" | "announcements";
 
 const SETTING_TABS = new Set<SettingTab>([
   "basic",
@@ -49,6 +53,7 @@ const SETTING_TABS = new Set<SettingTab>([
   "shortcut",
   "advance",
   "about",
+  "announcements",
 ]);
 
 const route = useRoute();

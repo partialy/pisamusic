@@ -35,6 +35,7 @@
       </n-layout>
     </n-layout>
   </n-space>
+  <AppAnnouncementAutoPopup />
 </template>
 
 <script setup lang="ts">
@@ -52,6 +53,7 @@ import {
   Wrench,
 } from "lucide-vue-next";
 import { Header } from "../components";
+import AppAnnouncementAutoPopup from "@/components/home/AppAnnouncementAutoPopup.vue";
 import { KGIcon, NeteaseIcon } from "@/icons";
 import logo from "@/assets/pisamusic_icon_1024.png";
 import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";

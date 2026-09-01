@@ -46,7 +46,6 @@
 
       <template #footer>
         <div class="announcement-detail-footer">
-          <n-button @click="emit('close')">关闭</n-button>
           <n-button type="primary" @click="emit('confirmed')">
             {{ announcement.confirmText || "我知道了" }}
           </n-button>
@@ -81,7 +80,6 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  close: [];
   confirmed: [];
   goto: [];
 }>();
@@ -90,7 +88,7 @@ const content = computed(() => normalizeAnnouncementContent(props.announcement.c
 
 function handleVisibleChange(nextVisible: boolean) {
   if (nextVisible) return;
-  // Modal 不允许通过遮罩或 ESC 关闭，只接受底部按钮产生的 close 事件。
+  // Modal 不允许通过遮罩或 ESC 关闭，只接受底部按钮关闭。
 }
 
 async function handleHighlightAction(block: AnnouncementBlock) {

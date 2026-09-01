@@ -5,8 +5,8 @@
         <div class="eyebrow">NOTICE</div>
         <h3>公告</h3>
       </div>
-      <span v-if="activeNotice" class="notice-count">
-        {{ activeIndex + 1 }}/{{ visibleNotices.length }}
+      <span v-if="latestNotices.length" class="notice-count">
+        最新 {{ latestNotices.length }} 条
       </span>
     </div>
 
@@ -17,21 +17,18 @@
       <n-skeleton text width="58%" />
     </div>
 
-    <div v-else-if="activeNotice" class="notice-body">
-      <div class="notice-meta">
-        <span>{{ activeNotice.publisher || "PisaMusic Team" }}</span>
-        <span>{{ activeNotice.time || "刚刚" }}</span>
-      </div>
-      <div class="notice-content" :title="previewText">{{ previewText }}</div>
-      <div class="notice-actions">
-        <div class="notice-switch" v-if="visibleNotices.length > 1">
-          <button v-for="(_, index) in visibleNotices" :key="index" type="button" class="dot"
-            :class="{ active: index === activeIndex }" :aria-label="`切换到第 ${index + 1} 条公告`"
-            @click="activeIndex = index" />
+    <div v-else-if="latestNotices.length" class="notice-list">
+      <div v-for="notice in latestNotices" :key="notice.id" class="notice-row">
+        <div class="notice-row-content">
+          <div class="notice-meta">
+            <span>{{ notice.publisher || "PisaMusic Team" }}</span>
+            <span>{{ notice.time || "刚刚" }}</span>
+          </div>
+          <div class="notice-content" :title="getAnnouncementPreview(notice.content)">
+            {{ getAnnouncementPreview(notice.content) }}
+          </div>
         </div>
-        <div class="action-buttons">
-          <n-button size="small" type="primary" @click="openNoticeDetail">查看详情</n-button>
-        </div>
+        <n-button size="small" type="primary" @click="openNoticeDetail(notice)">查看详情</n-button>
       </div>
     </div>
 
@@ -43,7 +40,6 @@
       v-if="detailNotice"
       :show="Boolean(detailNotice)"
       :announcement="detailNotice"
-      @close="detailNotice = null"
       @confirmed="handleNoticeConfirmed"
       @goto="handleNoticeGoto" />
   </section>
@@ -71,24 +67,9 @@ const CONFIRMED_SETTING_KEY = "home-announcement-confirmed-ids";
 const loading = ref(false);
 const notices = ref<Announcement[]>([]);
 const confirmedIds = ref<string[]>([]);
-const hiddenSessionIds = ref<string[]>([]);
-const activeIndex = ref(0);
 const detailNotice = ref<Announcement | null>(null);
 
-const visibleNotices = computed(() =>
-  notices.value.filter((notice) => {
-    if (hiddenSessionIds.value.includes(notice.id)) return false;
-    if (notice.showEveryTime) return true;
-    return !confirmedIds.value.includes(notice.id);
-  })
-);
-
-const activeNotice = computed(() => {
-  if (!visibleNotices.value.length) return null;
-  return visibleNotices.value[Math.min(activeIndex.value, visibleNotices.value.length - 1)];
-});
-
-const previewText = computed(() => activeNotice.value ? getAnnouncementPreview(activeNotice.value.content) : "");
+const latestNotices = computed(() => notices.value.slice(0, 3));
 
 async function fetchNotices() {
   loading.value = true;
@@ -101,7 +82,6 @@ async function fetchNotices() {
     notices.value = Array.isArray(list)
       ? list.map((notice) => ({ ...notice, content: normalizeAnnouncementContent(notice.content) }))
       : [];
-    activeIndex.value = 0;
   } catch (error) {
     showLimitedWarning("公告加载失败");
     void window.electronAPI.reportError(error, {
@@ -119,17 +99,14 @@ function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
 }
 
 async function confirmNotice(notice: Announcement) {
-  if (notice.showEveryTime) {
-    hiddenSessionIds.value = [...hiddenSessionIds.value, notice.id];
-  } else if (!confirmedIds.value.includes(notice.id)) {
+  if (!notice.showEveryTime && !confirmedIds.value.includes(notice.id)) {
     confirmedIds.value = [...confirmedIds.value, notice.id];
     await window.electronAPI.setSetting(CONFIRMED_SETTING_KEY, confirmedIds.value, 1);
   }
-  activeIndex.value = Math.min(activeIndex.value, Math.max(visibleNotices.value.length - 1, 0));
 }
 
-function openNoticeDetail() {
-  if (activeNotice.value) detailNotice.value = activeNotice.value;
+function openNoticeDetail(notice: Announcement) {
+  detailNotice.value = notice;
 }
 
 function handleNoticeConfirmed() {
@@ -139,11 +116,13 @@ function handleNoticeConfirmed() {
 }
 
 async function handleNoticeGoto() {
-  const url = detailNotice.value?.gotoUrl?.trim();
+  const notice = detailNotice.value;
+  const url = notice?.gotoUrl?.trim();
   if (!url) return;
-  detailNotice.value = null;
   try {
     await window.electronAPI.openUrl({ url, mode: "window" });
+    detailNotice.value = null;
+    if (notice) await confirmNotice(notice);
   } catch (error) {
     window.$message?.error(error instanceof Error ? error.message : "链接打开失败");
   }
@@ -202,10 +181,28 @@ onMounted(() => {
   gap: 12px;
 }
 
-.notice-body {
+.notice-list {
   height: 144px;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.notice-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-default) 60%, transparent);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.notice-row-content {
+  flex: 1;
   min-width: 0;
 }
 
@@ -231,45 +228,6 @@ onMounted(() => {
   line-height: 1.55;
   font-size: 14px;
   white-space: pre-line;
-}
-
-.notice-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.notice-switch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dot {
-  width: 7px;
-  height: 7px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--color-text-secondary) 45%, transparent);
-  cursor: pointer;
-
-  &.active {
-    width: 18px;
-    border-radius: 999px;
-    background: var(--color-primary);
-  }
-}
-
-.action-buttons {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .empty-state {

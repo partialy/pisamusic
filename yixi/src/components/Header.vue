@@ -139,6 +139,7 @@ import {
   SunIcon,
 } from "@/icons";
 import {
+  NotificationsOutline as AnnouncementIcon,
   Pencil as EditIcon,
   LogOutOutline as LogoutIcon,
   PersonCircleOutline as UserIcon,
@@ -339,6 +340,11 @@ const settingOptions = computed(() => {
       key: "setting",
       icon: renderIcon(SettingIcon),
     },
+    {
+      label: "查看公告",
+      key: "announcements",
+      icon: renderIcon(AnnouncementIcon),
+    },
 
     {
       label: "关于",
@@ -384,6 +390,8 @@ const handleSelect = async (key: string) => {
 const handleSetting = (key: string) => {
   if (key == "setting") {
     router.push("/setting");
+  } else if (key == "announcements") {
+    void router.push({ path: "/setting", query: { tab: "announcements" } });
   } else if (key == "theme") {
     void themeStore.toggleLightDark();
   } else if (key == "about") {
