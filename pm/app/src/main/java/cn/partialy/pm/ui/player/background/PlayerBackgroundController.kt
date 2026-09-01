@@ -46,7 +46,7 @@ internal class PlayerBackgroundController(
 
     private var extractionSongKey: String? = null
     private var extractionDrawable: Drawable? = null
-    private var pendingTextureStart: Runnable? = null
+    private var pendingTextureLayoutListener: View.OnLayoutChangeListener? = null
     private var hasVisiblePalette = false
     private var released = false
 
@@ -62,6 +62,7 @@ internal class PlayerBackgroundController(
         requestDisposable = null
         cancelPaletteExtraction()
         currentDrawable = null
+        restartPendingTextureMotionForCurrentSong()
 
         submitFallbackPaletteIfNeeded(songKey)
         applyBlurBackground(songKey, model)
@@ -266,17 +267,32 @@ internal class PlayerBackgroundController(
     }
 
     private fun startTextureMotion() {
-        if (textureAnimator != null || pendingTextureStart != null) return
+        if (textureAnimator != null || pendingTextureLayoutListener != null) return
         if (legacyBackground.width <= 0 || legacyBackground.height <= 0) {
             val capturedSongKey = currentSongKey
-            val startRunnable = Runnable {
-                pendingTextureStart = null
-                if (capturedSongKey != currentSongKey || released) return@Runnable
-                if (!started || !dynamicEnabled || !ValueAnimator.areAnimatorsEnabled()) return@Runnable
-                createAndStartTextureAnimator()
+            val layoutListener = object : View.OnLayoutChangeListener {
+                override fun onLayoutChange(
+                    view: View,
+                    left: Int,
+                    top: Int,
+                    right: Int,
+                    bottom: Int,
+                    oldLeft: Int,
+                    oldTop: Int,
+                    oldRight: Int,
+                    oldBottom: Int,
+                ) {
+                    if (view.width <= 0 || view.height <= 0) return
+                    view.removeOnLayoutChangeListener(this)
+                    if (pendingTextureLayoutListener !== this) return
+                    pendingTextureLayoutListener = null
+                    if (capturedSongKey != currentSongKey || released) return
+                    if (!started || !dynamicEnabled || !ValueAnimator.areAnimatorsEnabled()) return
+                    createAndStartTextureAnimator()
+                }
             }
-            pendingTextureStart = startRunnable
-            legacyBackground.post(startRunnable)
+            pendingTextureLayoutListener = layoutListener
+            legacyBackground.addOnLayoutChangeListener(layoutListener)
             return
         }
 
@@ -326,6 +342,13 @@ internal class PlayerBackgroundController(
         }
     }
 
+    private fun restartPendingTextureMotionForCurrentSong() {
+        val pendingListener = pendingTextureLayoutListener ?: return
+        legacyBackground.removeOnLayoutChangeListener(pendingListener)
+        pendingTextureLayoutListener = null
+        startDynamicMotionIfEligible()
+    }
+
     private fun repeatingAnimator(
         property: android.util.Property<View, Float>,
         from: Float,
@@ -338,8 +361,8 @@ internal class PlayerBackgroundController(
     }
 
     private fun stopTextureMotion(resetTransform: Boolean) {
-        pendingTextureStart?.let(legacyBackground::removeCallbacks)
-        pendingTextureStart = null
+        pendingTextureLayoutListener?.let(legacyBackground::removeOnLayoutChangeListener)
+        pendingTextureLayoutListener = null
         textureAnimator?.cancel()
         textureAnimator = null
         if (!resetTransform) return
