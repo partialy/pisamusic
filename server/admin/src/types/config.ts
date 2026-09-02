@@ -326,6 +326,28 @@ export type DesktopDeviceListResponse = {
   limit: number;
 };
 
+export type DirectMessageTargetKind = "user" | "android_device" | "desktop_device";
+
+export type AdminDirectMessageItem = {
+  id: string;
+  targetKind: DirectMessageTargetKind;
+  targetId: string;
+  content: string;
+  createdByAdmin: string;
+  createdAt: number;
+  read: boolean;
+  readAt: number | null;
+  readPlatform: "android" | "desktop" | null;
+  readDeviceId: string | null;
+};
+
+export type AdminDirectMessagePage = {
+  items: AdminDirectMessageItem[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
 export type DeviceFilter = {
   search?: string;
   locked?: boolean;
@@ -395,6 +417,8 @@ export type AdminUserFilter = {
 };
 
 export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists" | "listeningHistory";
+
+export type AdminUserDetailTab = AdminUserLibraryKind | "messages";
 
 export type AdminUserLibraryPage = {
   items: AdminUserLibraryItem[];
@@ -635,4 +659,3 @@ export type VerificationCodeFilter = {
   offset?: number;
   limit?: number;
 };
-

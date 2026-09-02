@@ -18,6 +18,7 @@ import {
   EyeOutlined,
   LaptopOutlined,
   LockOutlined,
+  MessageOutlined,
   MobileOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -27,6 +28,7 @@ import type { DesktopDeviceInfo, DeviceFilter, DeviceInfo } from "../../types/co
 import { formatTimestamp } from "../../utils/date";
 import DeviceDetailModal from "../modals/DeviceDetailModal";
 import DeviceLockModal from "../modals/DeviceLockModal";
+import type { DirectMessageComposeTarget } from "../modals/DirectMessageComposeModal";
 
 const { Text } = Typography;
 
@@ -47,6 +49,7 @@ type Props = {
   onSelectDevice: (device: DeviceInfo | DesktopDeviceInfo | null) => void;
   onLockDevice: (id: string, locked: boolean, lockEndTime?: number | null) => void;
   onDeleteDevice: (id: string) => void;
+  onMessage: (target: DirectMessageComposeTarget) => void;
 };
 
 function isDesktopDevice(
@@ -71,6 +74,7 @@ export default function DevicesTab({
   onSelectDevice,
   onLockDevice,
   onDeleteDevice,
+  onMessage,
 }: Props) {
   const [localSearch, setLocalSearch] = useState(deviceFilter.search ?? "");
   const [localLockedFilter, setLocalLockedFilter] = useState<string>(
@@ -252,7 +256,7 @@ export default function DevicesTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 200,
+      width: 265,
       render: (_, record) => (
         <Space size="small">
           <Button
@@ -262,6 +266,25 @@ export default function DevicesTab({
             onClick={() => onSelectDevice(record)}
           >
             详情
+          </Button>
+
+          <Button
+            type="link"
+            size="small"
+            icon={<MessageOutlined />}
+            onClick={() => {
+              const desktop = isDesktopDevice(record);
+              const label = desktop
+                ? record.deviceName || record.hostname || record.id
+                : record.deviceName || `${record.brand} ${record.model}`.trim() || record.id;
+              onMessage({
+                kind: desktop ? "desktop_device" : "android_device",
+                id: record.id,
+                label,
+              });
+            }}
+          >
+            留言
           </Button>
 
           {record.locked ? (
@@ -418,7 +441,7 @@ export default function DevicesTab({
           dataSource={devices}
           loading={deviceLoading}
           size="middle"
-          scroll={{ x: 1450 }}
+          scroll={{ x: 1515 }}
           sticky={{ offsetHeader: 0 }}
           bordered
           pagination={{

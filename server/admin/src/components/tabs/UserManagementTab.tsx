@@ -16,11 +16,13 @@ import {
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  MessageOutlined,
   ReloadOutlined,
   SearchOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import type { AdminUserFilter, AdminUserListItem } from "../../types/config";
+import type { DirectMessageComposeTarget } from "../modals/DirectMessageComposeModal";
 import { formatTimestamp } from "../../utils/date";
 
 const { Text } = Typography;
@@ -40,6 +42,7 @@ type Props = {
   onView: (user: AdminUserListItem) => void;
   onEdit: (user: AdminUserListItem) => void;
   onDelete: (user: AdminUserListItem) => void;
+  onMessage: (target: DirectMessageComposeTarget) => void;
 };
 
 export default function UserManagementTab({
@@ -56,6 +59,7 @@ export default function UserManagementTab({
   onView,
   onEdit,
   onDelete,
+  onMessage,
 }: Props) {
   const [keyword, setKeyword] = useState(filter.keyword ?? "");
 
@@ -173,7 +177,7 @@ export default function UserManagementTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 180,
+      width: 245,
       render: (_, record) => (
         <Space size="small">
           <Button
@@ -183,6 +187,14 @@ export default function UserManagementTab({
             onClick={() => onView(record)}
           >
             详情
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<MessageOutlined />}
+            onClick={() => onMessage({ kind: "user", id: record.id, label: record.username || record.id })}
+          >
+            留言
           </Button>
           <Button
             type="link"
@@ -262,7 +274,7 @@ export default function UserManagementTab({
           dataSource={users}
           loading={loading}
           size="middle"
-          scroll={{ x: 1530 }}
+          scroll={{ x: 1600 }}
           sticky={{ offsetHeader: 0 }}
           bordered
           pagination={{

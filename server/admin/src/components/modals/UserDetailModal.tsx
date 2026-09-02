@@ -13,21 +13,25 @@ import type { ColumnsType } from "antd/es/table";
 import { UserOutlined } from "@ant-design/icons";
 import type {
   AdminUserDetail,
+  AdminDirectMessagePage,
+  AdminUserDetailTab,
   AdminUserLibraryItem,
-  AdminUserLibraryKind,
   AdminUserLibraryPage,
 } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
+import UserDirectMessagesPanel from "../user/UserDirectMessagesPanel";
 
 const { Text } = Typography;
 
 type Props = {
   user: AdminUserDetail;
-  activeKind: AdminUserLibraryKind;
+  activeKind: AdminUserDetailTab;
   libraryPage: AdminUserLibraryPage;
   libraryLoading: boolean;
+  messagesPage: AdminDirectMessagePage;
+  messagesLoading: boolean;
   themeColor: string;
-  onKindChange: (kind: AdminUserLibraryKind) => void;
+  onKindChange: (kind: AdminUserDetailTab) => void;
   onPageChange: (offset: number) => void;
   onClose: () => void;
 };
@@ -61,6 +65,8 @@ export default function UserDetailModal({
   activeKind,
   libraryPage,
   libraryLoading,
+  messagesPage,
+  messagesLoading,
   onKindChange,
   onPageChange,
   onClose,
@@ -199,6 +205,10 @@ export default function UserDetailModal({
       key: "listeningHistory",
       label: `听歌历史 (${user.stats.listeningTracks ?? 0})`,
     },
+    {
+      key: "messages",
+      label: "留言记录",
+    },
   ];
 
   return (
@@ -270,25 +280,33 @@ export default function UserDetailModal({
         <div className="rounded-xl border border-slate-200/80 bg-white p-4">
           <Tabs
             activeKey={activeKind}
-            onChange={(key) => onKindChange(key as AdminUserLibraryKind)}
+            onChange={(key) => onKindChange(key as AdminUserDetailTab)}
             items={tabItems}
           />
-          <Table<AdminUserLibraryItem>
-            rowKey="itemKey"
-            columns={libraryColumns}
-            dataSource={libraryPage.items}
-            loading={libraryLoading}
-            size="small"
-            bordered
-            pagination={{
-              current: Math.floor(libraryPage.offset / libraryPage.limit) + 1,
-              pageSize: libraryPage.limit,
-              total: libraryPage.total,
-              showTotal: (total) => `共 ${total} 项`,
-              showQuickJumper: true,
-              onChange: (page) => onPageChange((page - 1) * libraryPage.limit),
-            }}
-          />
+          {activeKind === "messages" ? (
+            <UserDirectMessagesPanel
+              page={messagesPage}
+              loading={messagesLoading}
+              onPageChange={onPageChange}
+            />
+          ) : (
+            <Table<AdminUserLibraryItem>
+              rowKey="itemKey"
+              columns={libraryColumns}
+              dataSource={libraryPage.items}
+              loading={libraryLoading}
+              size="small"
+              bordered
+              pagination={{
+                current: Math.floor(libraryPage.offset / libraryPage.limit) + 1,
+                pageSize: libraryPage.limit,
+                total: libraryPage.total,
+                showTotal: (total) => `共 ${total} 项`,
+                showQuickJumper: true,
+                onChange: (page) => onPageChange((page - 1) * libraryPage.limit),
+              }}
+            />
+          )}
         </div>
       </div>
     </Modal>

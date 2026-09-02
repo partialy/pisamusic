@@ -3,6 +3,8 @@ import type {
   AdminFeedbackDetail,
   AdminFeedbackFilter,
   AdminFeedbackListResponse,
+  AdminDirectMessageItem,
+  AdminDirectMessagePage,
   AdminWebsiteDownloadDetail,
   AdminWebsiteDownloadListResponse,
   AdminWebsiteVisitDetail,
@@ -25,6 +27,7 @@ import type {
   AdminUserListResponse,
   AdminUserUpdatePayload,
   DesktopUpdateAssetInfo,
+  DirectMessageTargetKind,
   DynamicConfigItem,
   DynamicConfigPayload,
   FileRecordInfo,
@@ -630,6 +633,42 @@ export async function deleteDesktopDevice(id: string): Promise<void> {
   if (!res.ok || !body.success) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
+}
+
+export async function sendDirectMessage(input: {
+  targetKind: DirectMessageTargetKind;
+  targetId: string;
+  content: string;
+}): Promise<AdminDirectMessageItem> {
+  const res = await fetchWithAuth("/api/admin/messages", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  const body = await parseJson<AdminDirectMessageItem>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchDirectMessages(input: {
+  targetKind: DirectMessageTargetKind;
+  targetId: string;
+  offset: number;
+  limit: number;
+}): Promise<AdminDirectMessagePage> {
+  const params = new URLSearchParams({
+    targetKind: input.targetKind,
+    targetId: input.targetId,
+    offset: String(input.offset),
+    limit: String(input.limit),
+  });
+  const res = await fetchWithAuth(`/api/admin/messages?${params.toString()}`);
+  const body = await parseJson<AdminDirectMessagePage>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
 }
 
 export async function fetchAdminUsers(filter: AdminUserFilter): Promise<AdminUserListResponse> {

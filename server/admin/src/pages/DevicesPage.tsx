@@ -16,6 +16,8 @@ import {
 } from "../api/client";
 import { useAdminLayout } from "../layouts/AdminLayoutContext";
 import DevicesTab from "../components/tabs/DevicesTab";
+import DirectMessageComposeModal from "../components/modals/DirectMessageComposeModal";
+import { useDirectMessageComposer } from "../hooks/useDirectMessageComposer";
 
 export default function DevicesPage() {
   const { themeColor } = useAdminLayout();
@@ -28,6 +30,7 @@ export default function DevicesPage() {
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>({});
   const [deviceLoading, setDeviceLoading] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | DesktopDeviceInfo | null>(null);
+  const directMessageComposer = useDirectMessageComposer();
 
   const loadDevices = useCallback(async () => {
     setDeviceLoading(true);
@@ -107,7 +110,8 @@ export default function DevicesPage() {
   };
 
   return (
-    <DevicesTab
+    <>
+      <DevicesTab
       deviceMode={deviceMode}
       devices={devices}
       totalDevices={deviceTotal}
@@ -124,6 +128,17 @@ export default function DevicesPage() {
       onSelectDevice={handleSelectDevice}
       onLockDevice={handleLockDevice}
       onDeleteDevice={handleDeleteDevice}
-    />
+      onMessage={directMessageComposer.openComposer}
+      />
+
+      {directMessageComposer.target && (
+        <DirectMessageComposeModal
+          target={directMessageComposer.target}
+          sending={directMessageComposer.sending}
+          onCancel={directMessageComposer.closeComposer}
+          onSubmit={directMessageComposer.submit}
+        />
+      )}
+    </>
   );
 }

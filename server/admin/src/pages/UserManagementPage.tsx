@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
+  AdminDirectMessagePage,
   AdminUserDetail,
+  AdminUserDetailTab,
   AdminUserFilter,
   AdminUserLibraryKind,
   AdminUserLibraryPage,
@@ -9,6 +11,7 @@ import type {
 } from "../types/config";
 import {
   deleteAdminUser,
+  fetchDirectMessages,
   fetchAdminUserDetail,
   fetchAdminUserLibrary,
   fetchAdminUsers,
@@ -18,6 +21,8 @@ import { useAdminLayout } from "../layouts/AdminLayoutContext";
 import UserManagementTab from "../components/tabs/UserManagementTab";
 import UserDetailModal from "../components/modals/UserDetailModal";
 import UserEditModal from "../components/modals/UserEditModal";
+import DirectMessageComposeModal from "../components/modals/DirectMessageComposeModal";
+import { useDirectMessageComposer } from "../hooks/useDirectMessageComposer";
 
 export default function UserManagementPage() {
   const { themeColor } = useAdminLayout();
@@ -32,7 +37,7 @@ export default function UserManagementPage() {
   const [selectedAdminUser, setSelectedAdminUser] = useState<AdminUserDetail | null>(null);
   const [editingAdminUser, setEditingAdminUser] = useState<AdminUserListItem | null>(null);
   const [adminUserSaving, setAdminUserSaving] = useState(false);
-  const [adminUserLibraryKind, setAdminUserLibraryKind] = useState<AdminUserLibraryKind>("favoriteSongs");
+  const [adminUserDetailTab, setAdminUserDetailTab] = useState<AdminUserDetailTab>("favoriteSongs");
   const [adminUserLibraryPage, setAdminUserLibraryPage] = useState<AdminUserLibraryPage>({
     items: [],
     total: 0,
@@ -40,6 +45,13 @@ export default function UserManagementPage() {
     limit: 30,
   });
   const [adminUserLibraryLoading, setAdminUserLibraryLoading] = useState(false);
+  const [adminUserMessagesPage, setAdminUserMessagesPage] = useState<AdminDirectMessagePage>({
+    items: [],
+    total: 0,
+    offset: 0,
+    limit: 30,
+  });
+  const [adminUserMessagesLoading, setAdminUserMessagesLoading] = useState(false);
 
   const loadAdminUsers = useCallback(async () => {
     setAdminUserLoading(true);
@@ -82,27 +94,62 @@ export default function UserManagementPage() {
     [],
   );
 
+  const loadAdminUserMessages = useCallback(async (userId: string, offset: number) => {
+    setAdminUserMessagesLoading(true);
+    try {
+      const page = await fetchDirectMessages({
+        targetKind: "user",
+        targetId: userId,
+        offset,
+        limit: 30,
+      });
+      setAdminUserMessagesPage(page);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加载用户留言失败");
+    } finally {
+      setAdminUserMessagesLoading(false);
+    }
+  }, []);
+
   const handleViewAdminUser = async (user: AdminUserListItem) => {
     try {
       const detail = await fetchAdminUserDetail(user.id);
       setSelectedAdminUser(detail);
-      setAdminUserLibraryKind("favoriteSongs");
+      setAdminUserDetailTab("favoriteSongs");
       void loadAdminUserLibrary(detail.id, "favoriteSongs", 0);
     } catch (e) {
       alert(e instanceof Error ? e.message : "加载用户详情失败");
     }
   };
 
-  const handleAdminUserLibraryKindChange = (kind: AdminUserLibraryKind) => {
+  const handleAdminUserDetailTabChange = (kind: AdminUserDetailTab) => {
     if (!selectedAdminUser) return;
-    setAdminUserLibraryKind(kind);
-    void loadAdminUserLibrary(selectedAdminUser.id, kind, 0);
+    setAdminUserDetailTab(kind);
+    if (kind === "messages") {
+      void loadAdminUserMessages(selectedAdminUser.id, 0);
+    } else {
+      void loadAdminUserLibrary(selectedAdminUser.id, kind, 0);
+    }
   };
 
-  const handleAdminUserLibraryPageChange = (offset: number) => {
+  const handleAdminUserDetailPageChange = (offset: number) => {
     if (!selectedAdminUser) return;
-    void loadAdminUserLibrary(selectedAdminUser.id, adminUserLibraryKind, offset);
+    if (adminUserDetailTab === "messages") {
+      void loadAdminUserMessages(selectedAdminUser.id, offset);
+    } else {
+      void loadAdminUserLibrary(selectedAdminUser.id, adminUserDetailTab, offset);
+    }
   };
+
+  const directMessageComposer = useDirectMessageComposer(async (target) => {
+    if (
+      target.kind === "user" &&
+      selectedAdminUser?.id === target.id &&
+      adminUserDetailTab === "messages"
+    ) {
+      await loadAdminUserMessages(target.id, 0);
+    }
+  });
 
   const handleSaveAdminUser = async (payload: AdminUserUpdatePayload) => {
     if (!editingAdminUser) return;
@@ -158,17 +205,20 @@ export default function UserManagementPage() {
         onView={(user) => void handleViewAdminUser(user)}
         onEdit={setEditingAdminUser}
         onDelete={(user) => void handleDeleteAdminUser(user)}
+        onMessage={directMessageComposer.openComposer}
       />
 
       {selectedAdminUser && (
         <UserDetailModal
           user={selectedAdminUser}
-          activeKind={adminUserLibraryKind}
+          activeKind={adminUserDetailTab}
           libraryPage={adminUserLibraryPage}
           libraryLoading={adminUserLibraryLoading}
+          messagesPage={adminUserMessagesPage}
+          messagesLoading={adminUserMessagesLoading}
           themeColor={themeColor}
-          onKindChange={handleAdminUserLibraryKindChange}
-          onPageChange={handleAdminUserLibraryPageChange}
+          onKindChange={handleAdminUserDetailTabChange}
+          onPageChange={handleAdminUserDetailPageChange}
           onClose={() => setSelectedAdminUser(null)}
         />
       )}
@@ -180,6 +230,15 @@ export default function UserManagementPage() {
           saving={adminUserSaving}
           onClose={() => setEditingAdminUser(null)}
           onSave={(payload) => void handleSaveAdminUser(payload)}
+        />
+      )}
+
+      {directMessageComposer.target && (
+        <DirectMessageComposeModal
+          target={directMessageComposer.target}
+          sending={directMessageComposer.sending}
+          onCancel={directMessageComposer.closeComposer}
+          onSubmit={directMessageComposer.submit}
         />
       )}
     </>
