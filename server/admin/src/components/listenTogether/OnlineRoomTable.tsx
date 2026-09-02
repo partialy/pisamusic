@@ -97,17 +97,47 @@ export default function OnlineRoomTable({
     {
       title: "房主",
       key: "host",
-      width: 170,
+      width: 210,
       render: (_, r) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Avatar src={r.host.avatarUrl} icon={<UserOutlined />} size="default" />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Avatar
+            src={r.host.avatarUrl}
+            icon={<UserOutlined />}
+            size={38}
+            style={{ flexShrink: 0 }}
+          />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                fontWeight: 500,
+                fontSize: 13,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={r.host.nickname || r.host.username || "匿名"}
+            >
               {r.host.nickname || r.host.username || "匿名"}
             </div>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              ID: {r.host.userId}
-            </Text>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+              <Text type="secondary" style={{ fontSize: 11 }}>ID:</Text>
+              <Text
+                type="secondary"
+                copyable={{ text: r.host.userId }}
+                style={{
+                  fontSize: 11,
+                  fontFamily: "monospace",
+                  maxWidth: 110,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  display: "inline-block",
+                }}
+                title={r.host.userId}
+              >
+                {r.host.userId}
+              </Text>
+            </div>
           </div>
         </div>
       ),
@@ -115,7 +145,7 @@ export default function OnlineRoomTable({
     {
       title: "当前播放曲目",
       key: "song",
-      minWidth: 220,
+      minWidth: 230,
       render: (_, r) => {
         if (!r.song) {
           return <Text type="secondary">无曲目点播</Text>;
@@ -128,7 +158,7 @@ export default function OnlineRoomTable({
                 src={r.song.cover}
                 width={42}
                 height={42}
-                style={{ borderRadius: 4, objectFit: "cover" }}
+                style={{ borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
                 fallback="/static/account-avatars/default.jpg"
               />
             ) : (
@@ -141,6 +171,7 @@ export default function OnlineRoomTable({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  flexShrink: 0,
                 }}
               >
                 <SoundOutlined style={{ color: "#999" }} />

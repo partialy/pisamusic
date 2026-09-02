@@ -122,7 +122,7 @@ export default function RoomDetailModal({ open, type, recordId, onClose }: Props
       key: "user",
       render: (_, m) => (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Avatar src={m.avatarUrl} icon={<UserOutlined />} size="small" />
+          <Avatar src={m.avatarUrl} icon={<UserOutlined />} size="small" style={{ flexShrink: 0 }} />
           <div>
             <div style={{ fontWeight: 500 }}>{m.nickname || m.username || "匿名"}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -178,7 +178,7 @@ export default function RoomDetailModal({ open, type, recordId, onClose }: Props
       key: "user",
       render: (_, m) => (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Avatar src={m.avatarUrl} icon={<UserOutlined />} size="small" />
+          <Avatar src={m.avatarUrl} icon={<UserOutlined />} size="small" style={{ flexShrink: 0 }} />
           <div>
             <div style={{ fontWeight: 500 }}>{m.nickname || m.username || "匿名"}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -210,22 +210,20 @@ export default function RoomDetailModal({ open, type, recordId, onClose }: Props
       title: "离房时间",
       dataIndex: "leftAt",
       key: "leftAt",
-      render: (t: number | null) => (t ? formatTimestampFull(t) : "-"),
+      render: (t: number | null) => (t ? formatTimestampFull(t) : <Tag color="blue">在房至结束</Tag>),
     },
     {
       title: "停留时长",
       dataIndex: "durationSeconds",
       key: "durationSeconds",
-      width: 110,
-      render: (sec: number) => formatDurationHuman(sec * 1000),
+      render: (s: number) => <Tag color="cyan">{formatDurationHuman(s * 1000)}</Tag>,
     },
     {
-      title: "离房原因",
+      title: "离开原因",
       dataIndex: "leaveReason",
       key: "leaveReason",
-      width: 140,
       render: (reason: string | null) => {
-        if (!reason) return <Tag>在房中</Tag>;
+        if (!reason) return "-";
         const conf = LEAVE_REASON_MAP[reason] ?? { label: reason, color: "default" };
         return <Tag color={conf.color}>{conf.label}</Tag>;
       },
@@ -237,12 +235,7 @@ export default function RoomDetailModal({ open, type, recordId, onClose }: Props
       title={
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <CustomerServiceOutlined style={{ color: "#1677ff", fontSize: 18 }} />
-          <span>一起听房间详情</span>
-          {type === "online" ? (
-            <Tag color="green">在线活跃中</Tag>
-          ) : (
-            <Tag color="default">历史记录</Tag>
-          )}
+          <span>{type === "online" ? "在线房间实时状态与信令详情" : "房间生命周期历史与流水详情"}</span>
         </div>
       }
       open={open}
@@ -268,7 +261,7 @@ export default function RoomDetailModal({ open, type, recordId, onClose }: Props
 
               <Descriptions.Item label="房主用户" span={2}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Avatar src={onlineDetail.host.avatarUrl} icon={<UserOutlined />} size="small" />
+                  <Avatar src={onlineDetail.host.avatarUrl} icon={<UserOutlined />} size="small" style={{ flexShrink: 0 }} />
                   <span>
                     {onlineDetail.host.nickname || onlineDetail.host.username || "未知"}
                   </span>

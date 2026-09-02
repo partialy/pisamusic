@@ -33,10 +33,15 @@ export function formatTimestampFull(ms: number | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/** 格式化秒数为 mm:ss 或 hh:mm:ss */
-export function formatSeconds(seconds: number): string {
+/** 格式化秒数或毫秒数为 mm:ss 或 hh:mm:ss */
+export function formatSeconds(seconds: number | undefined | null): string {
   if (!seconds || seconds <= 0) return "00:00";
-  const sec = Math.floor(seconds);
+  let sec = Number(seconds);
+  if (!Number.isFinite(sec) || sec <= 0) return "00:00";
+  if (sec > 10000) {
+    sec /= 1000;
+  }
+  sec = Math.floor(sec);
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;

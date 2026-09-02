@@ -118,22 +118,52 @@ export default function HistoryRoomTable({
     {
       title: "房主",
       key: "host",
-      width: 170,
+      width: 210,
       render: (_, r) => {
         const host = r.finalHost || r.initialHost;
         const changed = r.finalHost && r.initialHost && r.finalHost.userId !== r.initialHost.userId;
         return (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Avatar src={host.avatarUrl} icon={<UserOutlined />} size="default" />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Avatar
+              src={host.avatarUrl}
+              icon={<UserOutlined />}
+              size={38}
+              style={{ flexShrink: 0 }}
+            />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div
+                style={{
+                  fontWeight: 500,
+                  fontSize: 13,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={host.nickname || host.username || "匿名"}
+              >
                 {host.nickname || host.username || "匿名"}
               </div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                ID: {host.userId}
-              </Text>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                <Text type="secondary" style={{ fontSize: 11 }}>ID:</Text>
+                <Text
+                  type="secondary"
+                  copyable={{ text: host.userId }}
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "monospace",
+                    maxWidth: 100,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    display: "inline-block",
+                  }}
+                  title={host.userId}
+                >
+                  {host.userId}
+                </Text>
+              </div>
               {changed && (
-                <Tag color="cyan" style={{ fontSize: 10, padding: "0 2px", marginTop: 2 }}>
+                <Tag color="cyan" style={{ fontSize: 10, padding: "0 4px", marginTop: 2 }}>
                   曾转让房主
                 </Tag>
               )}
@@ -145,47 +175,48 @@ export default function HistoryRoomTable({
     {
       title: "结束时曲目",
       key: "song",
-      minWidth: 200,
+      minWidth: 220,
       render: (_, r) => {
         if (!r.lastSong) {
           return <Text type="secondary">无曲目记录</Text>;
         }
         return (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {r.lastSong.cover ? (
               <Image
                 src={r.lastSong.cover}
-                width={38}
-                height={38}
-                style={{ borderRadius: 4, objectFit: "cover" }}
+                width={40}
+                height={40}
+                style={{ borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
                 fallback="/static/account-avatars/default.jpg"
               />
             ) : (
               <div
                 style={{
-                  width: 38,
-                  height: 38,
+                  width: 40,
+                  height: 40,
                   borderRadius: 4,
                   background: "#eee",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  flexShrink: 0,
                 }}
               >
                 <SoundOutlined style={{ color: "#999" }} />
               </div>
             )}
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <Text strong style={{ fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>
                   {r.lastSong.name}
                 </Text>
-                <Tag color="geekblue" style={{ fontSize: 10, padding: "0 2px" }}>
+                <Tag color="geekblue" style={{ fontSize: 10, lineHeight: "16px", padding: "0 4px" }}>
                   {r.lastSong.source.toUpperCase()}
                 </Tag>
               </div>
-              <div style={{ color: "#666", fontSize: 12 }}>{r.lastSong.singer}</div>
-              <div style={{ color: "#999", fontSize: 11 }}>
+              <div style={{ color: "#666", fontSize: 12, marginTop: 2 }}>{r.lastSong.singer}</div>
+              <div style={{ color: "#999", fontSize: 11, marginTop: 2 }}>
                 {formatSeconds(r.finalPosition)} / {formatSeconds(r.lastSong.duration)}
               </div>
             </div>
