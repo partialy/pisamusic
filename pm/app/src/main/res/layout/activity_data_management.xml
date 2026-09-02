@@ -291,25 +291,31 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnImportBackup"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:paddingHorizontal="12dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="8dp"
                         android:paddingVertical="0dp"
                         android:text="@string/data_import_button"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
+                        app:backgroundTint="@color/primary"
                         app:cornerRadius="18dp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnExportBackup"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
                         android:layout_marginStart="8dp"
-                        android:paddingHorizontal="12dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="8dp"
                         android:paddingVertical="0dp"
                         android:text="@string/data_export_button"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
+                        app:backgroundTint="@color/primary"
                         app:cornerRadius="18dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -362,13 +368,16 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnExportDiagnostics"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:paddingHorizontal="12dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="8dp"
                         android:paddingVertical="0dp"
                         android:text="@string/data_diagnostics_export_button"
+                        android:textColor="@color/white"
                         android:textSize="12sp"
+                        app:backgroundTint="@color/primary"
                         app:cornerRadius="18dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -417,13 +426,16 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/reportNowButton"
-                            style="@style/Widget.Material3.Button.TonalButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="wrap_content"
                             android:layout_height="36dp"
-                            android:paddingHorizontal="12dp"
+                            android:minWidth="0dp"
+                            android:paddingHorizontal="8dp"
                             android:paddingVertical="0dp"
                             android:text="@string/fault_report_now"
+                            android:textColor="@color/white"
                             android:textSize="12sp"
+                            app:backgroundTint="@color/primary"
                             app:cornerRadius="18dp" />
                     </LinearLayout>
 

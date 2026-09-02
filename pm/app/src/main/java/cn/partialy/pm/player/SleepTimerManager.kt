@@ -3,6 +3,7 @@ package cn.partialy.pm.player
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import cn.partialy.pm.player.diagnostic.PlaybackControlSource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -151,7 +152,7 @@ class SleepTimerManager @Inject constructor(
     }
 
     private fun completeTimerAndPause() {
-        musicController.pauseCurrent()
+        musicController.pauseCurrent(PlaybackControlSource.SLEEP_TIMER)
         clearPersistedTimer()
         mutableState.value = SleepTimerState()
     }

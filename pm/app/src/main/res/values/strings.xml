@@ -802,8 +802,8 @@
     <string name="fault_report_latest_error">最近错误时间：%1$s</string>
     <string name="fault_report_last_time">上次上报时间：%1$s</string>
     <string name="fault_report_never">暂无</string>
-    <string name="fault_report_now">立即上报</string>
-    <string name="fault_report_uploading">正在上报…</string>
+    <string name="fault_report_now">上报</string>
+    <string name="fault_report_uploading">上报中…</string>
     <string name="fault_report_confirm_title">确认上报错误信息吗？</string>
     <string name="fault_report_confirm_message">错误信息仅用于App维护、修复Bug，且不包含个人数据，可放心上报。</string>
     <string name="fault_report_success">故障信息上报成功</string>

@@ -14,6 +14,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         createThirdPartyLoginTables(db)
         createCachedPlaybackTables(db)
         createPlaybackFaultTables(db)
+        createPlaybackDiagnosticTables(db)
         createLocalSongTables(db)
         createListeningTables(db)
     }
@@ -48,6 +49,9 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         }
         if (oldVersion < 11) {
             createListeningTables(db)
+        }
+        if (oldVersion < 12) {
+            createPlaybackDiagnosticTables(db)
         }
     }
 
@@ -252,6 +256,43 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         db.execSQL("INSERT OR IGNORE INTO playback_fault_state(id, last_reported_at) VALUES (1, NULL)")
     }
 
+    private fun createPlaybackDiagnosticTables(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS playback_diagnostic_events (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                occurred_at INTEGER NOT NULL,
+                elapsed_realtime INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                action TEXT NOT NULL DEFAULT '',
+                reason TEXT NOT NULL DEFAULT '',
+                control_source TEXT NOT NULL DEFAULT '',
+                controller_package TEXT NOT NULL DEFAULT '',
+                song_source TEXT NOT NULL DEFAULT '',
+                song_id TEXT NOT NULL DEFAULT '',
+                play_when_ready INTEGER NOT NULL DEFAULT 0,
+                is_playing INTEGER NOT NULL DEFAULT 0,
+                playback_state INTEGER NOT NULL DEFAULT 0,
+                suppression_reason INTEGER NOT NULL DEFAULT 0,
+                position_ms INTEGER NOT NULL DEFAULT 0,
+                coexistence_mode TEXT NOT NULL DEFAULT '',
+                screen_interactive INTEGER NOT NULL DEFAULT 0,
+                output_device_types_json TEXT NOT NULL DEFAULT '[]',
+                details_json TEXT NOT NULL DEFAULT '{}'
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS idx_playback_diagnostic_time " +
+                "ON playback_diagnostic_events(occurred_at DESC, elapsed_realtime DESC, id DESC)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS idx_playback_diagnostic_session " +
+                "ON playback_diagnostic_events(session_id, elapsed_realtime, id)"
+        )
+    }
+
     private fun createLocalSongTables(db: SQLiteDatabase) {
         db.execSQL(
             """
@@ -327,7 +368,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
 
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 11
+        private const val DB_VERSION = 12
     }
 
     private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {
