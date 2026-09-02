@@ -41,6 +41,7 @@
 - 手机端和桌面端启动时如果外层服务不可用、没网或后台关闭 `appAvailable`，应进入本地模式并在主界面给非阻塞提示；设备被封禁仍然阻止进入。
 - 桌面端设备上报使用服务端 `desktop_device_info` 表和 `/api/device/desktop/report`，不要复用 Android 的 `device_info` 表；后台通过 `/api/admin/desktop-device/*` 管理 PC 设备。
 - 服务端历史 JSON 导入 SQLite 迁移已结束，不要恢复 `jsonImport.ts` 或启动时读取 `server/data/*.json` 自动导入数据库的逻辑。
+- Android 播放控制统一依据 `playWhenReady` 维护明确意图；部分场景共存恢复仅对自身临时暂停有效，硬暂停（用户/通知栏/系统/耳机 noisy/定时/一起听）统一撤销恢复资格与异步待播放任务；播放诊断事件由 `pm_local_music.db` 的 `playback_diagnostic_events` 本地保留最多 300 条，不落敏感信息。
 - 服务端接口文档与索引规范：服务端接口文档存放在 `server/apidoc/`，按模块分目录维护（如 `user/`、`config/`、`device/`、`sync/`、`shares/`、`listenTogether/`、`feedback/`、`faultReports/`、`analytics/`、`admin/`、`system/`、`common/`），统一索引为 `server/apidoc/index.md`。任何新增、修改、重构或删除（CRUD）服务端接口的改动，必须同步更新对应模块下的文档文件（如 `server/apidoc/<module>/<apiName>.md`）及 `server/apidoc/index.md` 索引链接与描述，确保接口定义与文档始终保持一致。
 - 生成或修改构建产物、数据库、日志、上传文件前，先判断它们是否应被 Git 跟踪；运行时产物默认不要纳入源码变更。
 

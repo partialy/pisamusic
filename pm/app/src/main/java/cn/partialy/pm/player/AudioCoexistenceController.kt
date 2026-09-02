@@ -19,15 +19,31 @@ internal enum class AudioCoexistenceCommand {
     Resume,
 }
 
+internal enum class AudioCoexistencePauseDisposition {
+    NONE,
+    OWN_PAUSE_OBSERVED,
+    EXTERNAL_PAUSE_CANCELLED_RESUME,
+}
+
+internal data class AudioCoexistenceSnapshot(
+    val communicationPlaybackActive: Boolean,
+    val recordingActive: Boolean,
+    val communicationModeActive: Boolean,
+    val blocking: Boolean,
+    val command: AudioCoexistenceCommand,
+)
+
 internal class AudioCoexistenceStateMachine {
     private var partialEnabled = false
     private var blocking = false
     private var resumeWhenClear = false
+    private var awaitingOwnPauseCallback = false
 
     fun setPartialEnabled(enabled: Boolean, playbackActive: Boolean): AudioCoexistenceCommand {
         if (partialEnabled == enabled) {
             return if (enabled && blocking && playbackActive) {
                 resumeWhenClear = true
+                awaitingOwnPauseCallback = true
                 AudioCoexistenceCommand.Pause
             } else {
                 AudioCoexistenceCommand.None
@@ -35,10 +51,10 @@ internal class AudioCoexistenceStateMachine {
         }
         partialEnabled = enabled
         if (!enabled) {
-            val shouldResume = resumeWhenClear
             blocking = false
             resumeWhenClear = false
-            return if (shouldResume) AudioCoexistenceCommand.Resume else AudioCoexistenceCommand.None
+            awaitingOwnPauseCallback = false
+            return AudioCoexistenceCommand.None
         }
         return AudioCoexistenceCommand.None
     }
@@ -48,6 +64,7 @@ internal class AudioCoexistenceStateMachine {
         if (blocking == isBlocking) {
             return if (isBlocking && playbackActive) {
                 resumeWhenClear = true
+                awaitingOwnPauseCallback = true
                 AudioCoexistenceCommand.Pause
             } else {
                 AudioCoexistenceCommand.None
@@ -57,21 +74,36 @@ internal class AudioCoexistenceStateMachine {
         if (isBlocking) {
             if (!playbackActive) return AudioCoexistenceCommand.None
             resumeWhenClear = true
+            awaitingOwnPauseCallback = true
             return AudioCoexistenceCommand.Pause
         }
-        val shouldResume = resumeWhenClear
+        val shouldResume = resumeWhenClear && !awaitingOwnPauseCallback
         resumeWhenClear = false
+        awaitingOwnPauseCallback = false
         return if (shouldResume) AudioCoexistenceCommand.Resume else AudioCoexistenceCommand.None
     }
 
-    fun onUserPauseRequested() {
-        if (partialEnabled && blocking) resumeWhenClear = false
+    fun onPlayWhenReadyChanged(playWhenReady: Boolean): AudioCoexistencePauseDisposition {
+        if (!partialEnabled) return AudioCoexistencePauseDisposition.NONE
+        if (playWhenReady) return AudioCoexistencePauseDisposition.NONE
+        if (awaitingOwnPauseCallback) {
+            awaitingOwnPauseCallback = false
+            return AudioCoexistencePauseDisposition.OWN_PAUSE_OBSERVED
+        }
+        resumeWhenClear = false
+        return AudioCoexistencePauseDisposition.EXTERNAL_PAUSE_CANCELLED_RESUME
+    }
+
+    fun cancelPendingResume() {
+        resumeWhenClear = false
+        awaitingOwnPauseCallback = false
     }
 
     fun reset() {
         partialEnabled = false
         blocking = false
         resumeWhenClear = false
+        awaitingOwnPauseCallback = false
     }
 }
 
@@ -115,6 +147,7 @@ internal class AudioCoexistenceController(
     private val isPlaybackActive: () -> Boolean,
     private val pausePlayback: () -> Unit,
     private val resumePlayback: () -> Unit,
+    private val onSnapshotChanged: (AudioCoexistenceSnapshot) -> Unit = {},
 ) {
     private val audioManager = context.applicationContext
         .getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -125,6 +158,7 @@ internal class AudioCoexistenceController(
     private var recordingActive = false
     private var communicationModeActive = false
     private var modeChangeObserver: ModeChangeObserver? = null
+    private var lastSnapshot: AudioCoexistenceSnapshot? = null
 
     private val playbackCallback = object : AudioManager.AudioPlaybackCallback() {
         override fun onPlaybackConfigChanged(configs: List<AudioPlaybackConfiguration>) {
@@ -159,8 +193,14 @@ internal class AudioCoexistenceController(
 
     fun applyMode(mode: SettingsPrefs.AudioCoexistenceMode) {
         val partial = mode == SettingsPrefs.AudioCoexistenceMode.Partial
-        dispatch(stateMachine.setPartialEnabled(partial, isPlaybackActive()))
-        if (partial) startObserving() else stopObserving()
+        val command = stateMachine.setPartialEnabled(partial, isPlaybackActive())
+        if (partial) {
+            startObserving()
+            dispatch(command)
+        } else {
+            stopObserving()
+            emitSnapshot(AudioCoexistenceCommand.None)
+        }
     }
 
     fun onPlaybackStarted() {
@@ -168,8 +208,11 @@ internal class AudioCoexistenceController(
         updateBlockingState()
     }
 
-    fun onUserPauseRequested() {
-        stateMachine.onUserPauseRequested()
+    fun onPlayWhenReadyChanged(playWhenReady: Boolean): AudioCoexistencePauseDisposition =
+        stateMachine.onPlayWhenReadyChanged(playWhenReady)
+
+    fun cancelPendingResume() {
+        stateMachine.cancelPendingResume()
     }
 
     fun release() {
@@ -211,6 +254,7 @@ internal class AudioCoexistenceController(
         communicationPlaybackActive = false
         recordingActive = false
         communicationModeActive = false
+        emitSnapshot(AudioCoexistenceCommand.None)
     }
 
     private fun refreshActiveConfigurations() {
@@ -227,20 +271,33 @@ internal class AudioCoexistenceController(
 
     private fun updateBlockingState() {
         if (!observing) return
-        dispatch(
-            stateMachine.updateBlocking(
-                isBlocking = communicationPlaybackActive || recordingActive || communicationModeActive,
-                playbackActive = isPlaybackActive(),
-            ),
+        val command = stateMachine.updateBlocking(
+            isBlocking = communicationPlaybackActive || recordingActive || communicationModeActive,
+            playbackActive = isPlaybackActive(),
         )
+        dispatch(command)
     }
 
     private fun dispatch(command: AudioCoexistenceCommand) {
+        emitSnapshot(command)
         when (command) {
             AudioCoexistenceCommand.None -> Unit
             AudioCoexistenceCommand.Pause -> pausePlayback()
             AudioCoexistenceCommand.Resume -> resumePlayback()
         }
+    }
+
+    private fun emitSnapshot(command: AudioCoexistenceCommand) {
+        val snapshot = AudioCoexistenceSnapshot(
+            communicationPlaybackActive = communicationPlaybackActive,
+            recordingActive = recordingActive,
+            communicationModeActive = communicationModeActive,
+            blocking = communicationPlaybackActive || recordingActive || communicationModeActive,
+            command = command,
+        )
+        if (snapshot == lastSnapshot) return
+        lastSnapshot = snapshot
+        onSnapshotChanged(snapshot)
     }
 
     private companion object {

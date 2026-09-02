@@ -146,7 +146,7 @@ class MusicService : MediaSessionService() {
     }
 
     private fun bindNotificationPlayer() {
-        playerNotificationManager.setPlayer(musicController.exoPlayer)
+        playerNotificationManager.setPlayer(musicController.externalControlPlayer)
         musicController.mediaSession?.sessionCompatToken?.let {
             playerNotificationManager.setMediaSessionToken(it)
         }
