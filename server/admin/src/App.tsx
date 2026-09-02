@@ -14,6 +14,7 @@ import {
   Typography,
 } from "antd";
 import {
+  AlertOutlined,
   BgColorsOutlined,
   BugOutlined,
   CloudUploadOutlined,
@@ -31,9 +32,11 @@ import {
   MessageOutlined,
   NotificationOutlined,
   ReloadOutlined,
+  RocketOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
   ShareAltOutlined,
+  TeamOutlined,
   TrophyOutlined,
   UserOutlined,
 } from "@ant-design/icons";
@@ -168,6 +171,34 @@ function tabFallback() {
 }
 
 const initialTheme = loadTheme();
+
+const TAB_TO_PARENT_KEY: Record<string, string> = {
+  users: "user_group",
+  verificationCodes: "user_group",
+  listeningLevels: "user_group",
+  devices: "user_group",
+  cloudMusic: "media_group",
+  shares: "media_group",
+  files: "media_group",
+  websiteRecords: "operation_group",
+  update: "operation_group",
+  announcements: "operation_group",
+  content: "operation_group",
+  feedback: "maintenance_group",
+  faultReports: "maintenance_group",
+  system: "system_group",
+  dynamicConfig: "system_group",
+  encryption: "system_group",
+};
+
+const GROUP_TITLE_MAP: Record<string, string> = {
+  user_group: "用户中心",
+  media_group: "曲库与资源",
+  operation_group: "运营与发布",
+  maintenance_group: "监控与运维",
+  system_group: "系统设置",
+};
+
 const NEW_DYNAMIC_CONFIG: DynamicConfigItem = {
   id: "",
   type: "string",
@@ -208,6 +239,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [hydrated, setHydrated] = useState(false);
 
   const [currentTab, setCurrentTab] = useState<TabId>("dashboard");
+  const [openKeys, setOpenKeys] = useState<string[]>(() => {
+    const parent = TAB_TO_PARENT_KEY["dashboard"];
+    return parent ? [parent] : ["user_group", "media_group", "operation_group", "maintenance_group", "system_group"];
+  });
   const [showJsonModal, setShowJsonModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
@@ -1225,28 +1260,74 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   const menuItems: MenuProps["items"] = [
     { key: "dashboard", icon: <DashboardOutlined />, label: "仪表盘" },
-    { key: "system", icon: <SettingOutlined />, label: "系统配置" },
-    { key: "websiteRecords", icon: <GlobalOutlined />, label: "官网记录" },
-    { key: "users", icon: <UserOutlined />, label: "用户管理" },
-    { key: "verificationCodes", icon: <KeyOutlined />, label: "验证码记录" },
-    { key: "listeningLevels", icon: <TrophyOutlined />, label: "听歌等级" },
-    { key: "devices", icon: <DesktopOutlined />, label: "设备管理" },
-    { key: "update", icon: <CloudUploadOutlined />, label: "版本发布" },
-    { key: "announcements", icon: <NotificationOutlined />, label: "公告管理" },
-    { key: "files", icon: <FolderOutlined />, label: "文件管理" },
-    { key: "cloudMusic", icon: <CustomerServiceOutlined />, label: "网盘音乐" },
-    { key: "feedback", icon: <MessageOutlined />, label: "反馈管理" },
-    { key: "faultReports", icon: <BugOutlined />, label: "故障管理" },
-    { key: "shares", icon: <ShareAltOutlined />, label: "分享管理" },
-    { key: "content", icon: <FileTextOutlined />, label: "内容与协议" },
-    { key: "dynamicConfig", icon: <ControlOutlined />, label: "动态配置" },
-    { key: "encryption", icon: <SafetyCertificateOutlined />, label: "加密白名单" },
+    {
+      key: "user_group",
+      icon: <TeamOutlined />,
+      label: "用户中心",
+      children: [
+        { key: "users", icon: <UserOutlined />, label: "用户管理" },
+        { key: "verificationCodes", icon: <KeyOutlined />, label: "验证码记录" },
+        { key: "listeningLevels", icon: <TrophyOutlined />, label: "听歌等级" },
+        { key: "devices", icon: <DesktopOutlined />, label: "设备管理" },
+      ],
+    },
+    {
+      key: "media_group",
+      icon: <CustomerServiceOutlined />,
+      label: "曲库与资源",
+      children: [
+        { key: "cloudMusic", icon: <CustomerServiceOutlined />, label: "网盘音乐" },
+        { key: "shares", icon: <ShareAltOutlined />, label: "分享管理" },
+        { key: "files", icon: <FolderOutlined />, label: "文件管理" },
+      ],
+    },
+    {
+      key: "operation_group",
+      icon: <RocketOutlined />,
+      label: "运营与发布",
+      children: [
+        { key: "websiteRecords", icon: <GlobalOutlined />, label: "官网记录" },
+        { key: "update", icon: <CloudUploadOutlined />, label: "版本发布" },
+        { key: "announcements", icon: <NotificationOutlined />, label: "公告管理" },
+        { key: "content", icon: <FileTextOutlined />, label: "内容与协议" },
+      ],
+    },
+    {
+      key: "maintenance_group",
+      icon: <AlertOutlined />,
+      label: "监控与运维",
+      children: [
+        { key: "feedback", icon: <MessageOutlined />, label: "反馈管理" },
+        { key: "faultReports", icon: <BugOutlined />, label: "故障管理" },
+      ],
+    },
+    {
+      key: "system_group",
+      icon: <SettingOutlined />,
+      label: "系统设置",
+      children: [
+        { key: "system", icon: <SettingOutlined />, label: "系统配置" },
+        { key: "dynamicConfig", icon: <ControlOutlined />, label: "动态配置" },
+        { key: "encryption", icon: <SafetyCertificateOutlined />, label: "加密白名单" },
+      ],
+    },
   ];
 
   const currentTitle = tabs.find((t) => t.id === currentTab)?.name ?? "";
+  const currentGroupKey = TAB_TO_PARENT_KEY[currentTab];
+  const currentGroupTitle = currentGroupKey ? GROUP_TITLE_MAP[currentGroupKey] : "";
+
   const handleSelectTab = (tabId: TabId) => {
     setCurrentTab(tabId);
     setMobileNavOpen(false);
+    const parent = TAB_TO_PARENT_KEY[tabId];
+    if (parent) {
+      setOpenKeys((prev) => (prev.includes(parent) ? prev : [...prev, parent]));
+    }
+  };
+
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys);
   };
 
   const themePanel = (
@@ -1352,7 +1433,13 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           <Menu
             mode="inline"
             selectedKeys={[currentTab]}
-            onClick={({ key }) => handleSelectTab(key as TabId)}
+            openKeys={openKeys}
+            onOpenChange={handleOpenChange}
+            onClick={({ key }) => {
+              if (tabs.some((t) => t.id === key)) {
+                handleSelectTab(key as TabId);
+              }
+            }}
             items={menuItems}
             className="!border-r-0 !bg-transparent font-medium"
           />
@@ -1449,7 +1536,13 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   className="lg:hidden shrink-0"
                   onClick={() => setMobileNavOpen(true)}
                 />
-                <div className="min-w-0 flex items-center gap-3">
+                <div className="min-w-0 flex items-center gap-2">
+                  {currentGroupTitle && (
+                    <>
+                      <span className="text-slate-400 text-sm font-medium">{currentGroupTitle}</span>
+                      <span className="text-slate-300 text-xs">/</span>
+                    </>
+                  )}
                   <span className="truncate text-lg font-bold text-slate-800">
                     {currentTitle}
                   </span>
