@@ -22,7 +22,11 @@ const props = defineProps<{
 }>();
 
 const userStore = useUserStore();
-const { setDirectMessagesSettled } = useStartupPopupGate();
+const {
+  announcementVisible,
+  canPresentDirectMessages,
+  setDirectMessagesSettled,
+} = useStartupPopupGate();
 const accountId = computed(() => userStore.userInfo.id || "");
 const queue = ref<DirectMessageItem[]>([]);
 const presentedMessage = ref<DirectMessageItem | null>(null);
@@ -48,7 +52,7 @@ function hideCurrentMessage() {
 }
 
 function presentNextMessage() {
-  if (isLeaving || visible.value) return;
+  if (isLeaving || visible.value || !canPresentDirectMessages()) return;
   const nextMessage = queue.value.shift() || null;
   if (!nextMessage) {
     presentedMessage.value = null;
@@ -118,6 +122,10 @@ watch(
   },
   { immediate: true },
 );
+
+watch(announcementVisible, (visible) => {
+  if (!visible) presentNextMessage();
+});
 
 onBeforeUnmount(() => {
   fetchGeneration += 1;

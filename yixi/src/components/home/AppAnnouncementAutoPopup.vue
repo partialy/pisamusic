@@ -13,6 +13,7 @@ import HomeAnnouncementDetailModal from "./HomeAnnouncementDetailModal.vue";
 import { normalizeAnnouncementContent, type Announcement } from "./homeAnnouncement";
 import { showLimitedWarning } from "@/utils/limitedMessage";
 import { useStartupPopupGate } from "@/composables/useStartupPopupGate";
+import { AnnouncementAutoPopupScheduler } from "@/composables/startupPopupArbitration";
 
 type SettingRecord<T> = { value: T };
 
@@ -21,32 +22,50 @@ const AUTO_POPUP_SESSION_KEY = "home-announcement-auto-popup-shown";
 const announcement = ref<Announcement | null>(null);
 const announcementVisible = ref(false);
 const confirmedIds = ref<string[]>([]);
-let autoPopupTimer: ReturnType<typeof setTimeout> | undefined;
-const { directMessagesSettled } = useStartupPopupGate();
+const {
+  directMessagesSettled,
+  canScheduleAnnouncement,
+  setAnnouncementVisible,
+} = useStartupPopupGate();
 
-async function loadLatestAnnouncement() {
-  if (sessionStorage.getItem(AUTO_POPUP_SESSION_KEY) === "1") return;
-  sessionStorage.setItem(AUTO_POPUP_SESSION_KEY, "1");
-  try {
-    const [setting, list] = await Promise.all([
-      window.electronAPI.getSetting<string[]>(CONFIRMED_SETTING_KEY),
-      window.electronAPI.getAnnouncements(),
-    ]);
-    confirmedIds.value = normalizeConfirmedIds(setting);
-    const notices = Array.isArray(list)
-      ? list.map((notice) => ({ ...notice, content: normalizeAnnouncementContent(notice.content) }))
-      : [];
-    announcement.value = notices.find(
-      (notice) => notice.showEveryTime || !confirmedIds.value.includes(notice.id),
-    ) || null;
-    announcementVisible.value = Boolean(announcement.value);
-  } catch (error) {
+const autoPopupScheduler = new AnnouncementAutoPopupScheduler({
+  delayMs: 2000,
+  isEligible: () => (
+    canScheduleAnnouncement()
+    && sessionStorage.getItem(AUTO_POPUP_SESSION_KEY) !== "1"
+  ),
+  load: loadLatestAnnouncement,
+  onError: (error) => {
+    // 与原有行为一致：本次会话的自动公告只尝试一次。
+    sessionStorage.setItem(AUTO_POPUP_SESSION_KEY, "1");
     showLimitedWarning("公告加载失败");
     void window.electronAPI.reportError(error, {
       scope: "startup",
       action: "fetchLatestAnnouncement",
     });
-  }
+  },
+});
+
+async function loadLatestAnnouncement(): Promise<(() => void) | null> {
+  const [setting, list] = await Promise.all([
+    window.electronAPI.getSetting<string[]>(CONFIRMED_SETTING_KEY),
+    window.electronAPI.getAnnouncements(),
+  ]);
+  const nextConfirmedIds = normalizeConfirmedIds(setting);
+  const notices = Array.isArray(list)
+    ? list.map((notice) => ({ ...notice, content: normalizeAnnouncementContent(notice.content) }))
+    : [];
+  const nextAnnouncement = notices.find(
+    (notice) => notice.showEveryTime || !nextConfirmedIds.includes(notice.id),
+  ) || null;
+
+  return () => {
+    confirmedIds.value = nextConfirmedIds;
+    sessionStorage.setItem(AUTO_POPUP_SESSION_KEY, "1");
+    announcement.value = nextAnnouncement;
+    announcementVisible.value = Boolean(nextAnnouncement);
+    setAnnouncementVisible(Boolean(nextAnnouncement));
+  };
 }
 
 function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
@@ -81,21 +100,17 @@ async function handleGoto() {
 }
 
 function clearAnnouncement() {
-  if (!announcementVisible.value) announcement.value = null;
+  if (announcementVisible.value) return;
+  announcement.value = null;
+  setAnnouncementVisible(false);
 }
 
-function scheduleAutoPopup() {
-  if (autoPopupTimer || sessionStorage.getItem(AUTO_POPUP_SESSION_KEY) === "1") return;
-  autoPopupTimer = setTimeout(() => {
-    void loadLatestAnnouncement();
-  }, 2000);
-}
-
-watch(directMessagesSettled, (settled) => {
-  if (settled) scheduleAutoPopup();
+watch(directMessagesSettled, () => {
+  autoPopupScheduler.reconcile();
 }, { immediate: true });
 
 onBeforeUnmount(() => {
-  if (autoPopupTimer) clearTimeout(autoPopupTimer);
+  autoPopupScheduler.stop();
+  setAnnouncementVisible(false);
 });
 </script>
