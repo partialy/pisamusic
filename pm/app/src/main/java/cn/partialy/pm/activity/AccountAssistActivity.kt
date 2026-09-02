@@ -17,6 +17,8 @@ import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityAccountAssistBinding
+import cn.partialy.pm.directmessage.DirectMessageCheckSource
+import cn.partialy.pm.directmessage.DirectMessageCoordinator
 import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
@@ -48,6 +50,9 @@ class AccountAssistActivity : BaseActivity() {
 
     @Inject
     lateinit var listeningManager: ListeningManager
+
+    @Inject
+    lateinit var directMessageCoordinator: DirectMessageCoordinator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityAccountAssistBinding.inflate(layoutInflater)
@@ -247,6 +252,7 @@ class AccountAssistActivity : BaseActivity() {
                 listeningManager.onAccountAvailable()
             }
             toast(R.string.account_login_success)
+            directMessageCoordinator.checkAndShow(this@AccountAssistActivity, DirectMessageCheckSource.REGISTER)
             finish()
         }
     }

@@ -29,6 +29,8 @@ import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityMainBinding
 import cn.partialy.pm.databinding.MainDrawerContentBinding
 import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
+import cn.partialy.pm.directmessage.DirectMessageCheckSource
+import cn.partialy.pm.directmessage.DirectMessageCoordinator
 import cn.partialy.pm.model.AnnouncementItem
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
@@ -99,6 +101,9 @@ class MainActivity : BaseDownloadActivity() {
     lateinit var listeningManager: ListeningManager
 
     @Inject
+    lateinit var directMessageCoordinator: DirectMessageCoordinator
+
+    @Inject
     lateinit var sleepTimerManager: SleepTimerManager
 
     private lateinit var viewPager: ViewPager2
@@ -160,11 +165,12 @@ class MainActivity : BaseDownloadActivity() {
 
         applyWyProfileBackgroundFromLogin()
 
-        // 仅在首次创建时拉公告；避免深色模式等配置变更导致 Activity 重建后重复弹窗
+        // 仅在首次创建时拉远程消息；先展示专属消息，队列结束后再展示公告，避免两个弹窗重叠。
         if (!isLocalMode() && savedInstanceState == null &&
             intent.getStringExtra(EXTRA_SETTINGS_ACTION) != ACTION_SETTINGS_ANNOUNCEMENTS
         ) {
             lifecycleScope.launch {
+                directMessageCoordinator.checkAndShow(this@MainActivity, DirectMessageCheckSource.STARTUP)
                 showUnreadAnnouncementsIfAny()
             }
         }

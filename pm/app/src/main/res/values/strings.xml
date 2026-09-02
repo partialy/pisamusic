@@ -47,6 +47,7 @@
     <string name="delete">删除</string>
     <string name="dialog_ok">确定</string>
     <string name="dialog_i_know">我知道了</string>
+    <string name="direct_message_title">提示</string>
     <string name="cancel">取消</string>
     <string name="nav_header_subtitle">v2.1.0</string>
     <string name="settings">设置</string>
