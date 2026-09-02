@@ -8,10 +8,11 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, ref, watch } from "vue";
 import HomeAnnouncementDetailModal from "./HomeAnnouncementDetailModal.vue";
 import { normalizeAnnouncementContent, type Announcement } from "./homeAnnouncement";
 import { showLimitedWarning } from "@/utils/limitedMessage";
+import { useStartupPopupGate } from "@/composables/useStartupPopupGate";
 
 type SettingRecord<T> = { value: T };
 
@@ -21,6 +22,7 @@ const announcement = ref<Announcement | null>(null);
 const announcementVisible = ref(false);
 const confirmedIds = ref<string[]>([]);
 let autoPopupTimer: ReturnType<typeof setTimeout> | undefined;
+const { directMessagesSettled } = useStartupPopupGate();
 
 async function loadLatestAnnouncement() {
   if (sessionStorage.getItem(AUTO_POPUP_SESSION_KEY) === "1") return;
@@ -82,11 +84,16 @@ function clearAnnouncement() {
   if (!announcementVisible.value) announcement.value = null;
 }
 
-onMounted(() => {
+function scheduleAutoPopup() {
+  if (autoPopupTimer || sessionStorage.getItem(AUTO_POPUP_SESSION_KEY) === "1") return;
   autoPopupTimer = setTimeout(() => {
     void loadLatestAnnouncement();
   }, 2000);
-});
+}
+
+watch(directMessagesSettled, (settled) => {
+  if (settled) scheduleAutoPopup();
+}, { immediate: true });
 
 onBeforeUnmount(() => {
   if (autoPopupTimer) clearTimeout(autoPopupTimer);

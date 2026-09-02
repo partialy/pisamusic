@@ -15,6 +15,7 @@
             <MainPlayer v-if="showPlayer" class="player" />
           </Transition>
           <EqualizerModal />
+          <AppDirectMessagePopup :ready="directMessageReady" :online="directMessageOnline" />
         </n-modal-provider>
       </n-message-provider>
     </n-notification-provider>
@@ -29,7 +30,7 @@ import {
   NMessageProvider,
   NButton,
 } from "naive-ui";
-import { h, onBeforeUnmount, Transition, watch } from "vue";
+import { h, onBeforeUnmount, ref, Transition, watch } from "vue";
 import { useRouter } from "vue-router";
 import { PlayerBar, MainPlayer, EqualizerModal } from "./components";
 
@@ -58,6 +59,7 @@ import { normalizeSong } from "./utils/song";
 import { setupPlaybackBridge, usePlaybackCommands } from "./listenTogether/playbackCommands";
 import { openSharedMediaDetail } from "./share/mediaDetailRoute";
 import { listeningPlaybackAdapter } from "./listening/listeningPlaybackAdapter";
+import AppDirectMessagePopup from "./components/directMessage/AppDirectMessagePopup.vue";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
@@ -68,6 +70,8 @@ const themeStore = useThemeStore();
 const shortcutStore = useShortcutStore();
 const userStore = useUserStore();
 const router = useRouter();
+const directMessageReady = ref(false);
+const directMessageOnline = ref(false);
 // 初始化
 commonStore.hidePlayer();
 
@@ -266,6 +270,7 @@ async function bootstrapApp() {
     lyric.loadSetting();
     const startupServiceState = await electronAPI.getStartupServiceState?.();
     const isLocalMode = Boolean(startupServiceState?.localMode);
+    directMessageOnline.value = !isLocalMode;
     if (isLocalMode) {
       window.$notification.warning({
         title: "服务不可用",
@@ -301,6 +306,7 @@ async function bootstrapApp() {
       action: "bootstrapApp",
     });
   } finally {
+    directMessageReady.value = true;
     electronAPI.notifyStartupReady?.();
   }
 }
