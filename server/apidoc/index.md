@@ -257,7 +257,7 @@
 | :--- | :--- | :--- | :--- |
 | 分页查询用户列表 | `GET` | `/api/admin/users` | [./admin/listUsers.md](./admin/listUsers.md) |
 | 获取用户详情与统计 | `GET` | `/api/admin/users/:id` | [./admin/getUserDetail.md](./admin/getUserDetail.md) |
-| 分页获取用户歌单/歌曲数据 | `GET` | `/api/admin/users/:id/library` | [./admin/getUserLibrary.md](./admin/getUserLibrary.md) |
+| 分页获取用户歌单/歌曲/听歌历史数据 | `GET` | `/api/admin/users/:id/library` | [./admin/getUserLibrary.md](./admin/getUserLibrary.md) |
 | 更新用户资料与 VIP 权益 | `PUT` | `/api/admin/users/:id` | [./admin/updateUser.md](./admin/updateUser.md) |
 | 硬删除用户 | `DELETE` | `/api/admin/users/:id` | [./admin/deleteUser.md](./admin/deleteUser.md) |
 

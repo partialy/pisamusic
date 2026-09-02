@@ -339,6 +339,8 @@ export type AdminUserStats = {
   favoriteSongs: number;
   favoritePlaylists: number;
   userPlaylists: number;
+  listeningTracks?: number;
+  listeningTotalMs?: number;
 };
 
 export type AdminUserListItem = {
@@ -367,6 +369,12 @@ export type AdminUserLibraryItem = {
   cover: string;
   serverUpdatedAt: number;
   clientUpdatedAt: string;
+  durationMs?: number | null;
+  listenedMs?: number;
+  playCount?: number;
+  completedCount?: number;
+  firstListenedAt?: number;
+  lastListenedAt?: number;
 };
 
 export type AdminUserDetail = AdminUserListItem & {
@@ -386,7 +394,7 @@ export type AdminUserFilter = {
   limit?: number;
 };
 
-export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists";
+export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists" | "listeningHistory";
 
 export type AdminUserLibraryPage = {
   items: AdminUserLibraryItem[];

@@ -135,14 +135,15 @@ export default function UserManagementTab({
       ),
     },
     {
-      title: "收藏统计",
+      title: "数据统计",
       key: "stats",
-      width: 260,
+      width: 320,
       render: (_, record) => (
         <Space size={[4, 4]} wrap>
           <Tag color="cyan">歌曲 {record.stats.favoriteSongs}</Tag>
           <Tag color="geekblue">收藏歌单 {record.stats.favoritePlaylists}</Tag>
           <Tag color="purple">自建歌单 {record.stats.userPlaylists}</Tag>
+          <Tag color="orange">听歌 {record.stats.listeningTracks ?? 0}</Tag>
         </Space>
       ),
     },

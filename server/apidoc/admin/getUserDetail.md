@@ -41,10 +41,12 @@
     "createdAt": 1700000000000,
     "updatedAt": 1700000050000,
     "lastLoginAt": 1700000050000,
-    "counts": {
+    "stats": {
       "favoriteSongs": 128,
       "favoritePlaylists": 15,
-      "userPlaylists": 3
+      "userPlaylists": 3,
+      "listeningTracks": 86,
+      "listeningTotalMs": 18540000
     }
   },
   "success": true

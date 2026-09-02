@@ -21,7 +21,7 @@
 
 | 参数名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
-| `kind` | `string` | 是 | 数据类型：`favoriteSongs`（收藏歌曲）/ `favoritePlaylists`（收藏歌单）/ `userPlaylists`（自建歌单） |
+| `kind` | `string` | 是 | 数据类型：`favoriteSongs`（收藏歌曲）/ `favoritePlaylists`（收藏歌单）/ `userPlaylists`（自建歌单）/ `listeningHistory`（听歌历史） |
 | `offset` | `number` | 否 | 分页起始偏移量，默认 0 |
 | `limit` | `number` | 否 | 每页条数（默认 30） |
 
@@ -36,19 +36,22 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "kind": "favoriteSongs",
     "items": [
       {
-        "itemKey": "wy_186016",
-        "payload": {
-          "source": "wy",
-          "id": "186016",
-          "title": "晴天",
-          "artist": "周杰伦",
-          "album": "叶惠美",
-          "duration": 269
-        },
-        "updatedAt": 1700000000000
+        "itemKey": "wy:186016",
+        "itemId": "186016",
+        "source": "wy",
+        "name": "晴天",
+        "subtitle": "周杰伦 · 叶惠美",
+        "cover": "",
+        "serverUpdatedAt": 1700000000000,
+        "clientUpdatedAt": "",
+        "durationMs": 269000,
+        "listenedMs": 538000,
+        "playCount": 3,
+        "completedCount": 2,
+        "firstListenedAt": 1699900000000,
+        "lastListenedAt": 1700000000000
       }
     ],
     "total": 128,

@@ -17,7 +17,7 @@ export const adminUsersRouter = Router();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[A-Za-z0-9_\-\u4e00-\u9fa5]{2,32}$/;
 const USER_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
-const LIBRARY_KINDS: readonly AdminUserLibraryKind[] = ["favoriteSongs", "favoritePlaylists", "userPlaylists"];
+const LIBRARY_KINDS: readonly AdminUserLibraryKind[] = ["favoriteSongs", "favoritePlaylists", "userPlaylists", "listeningHistory"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

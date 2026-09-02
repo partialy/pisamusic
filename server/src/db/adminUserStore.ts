@@ -11,11 +11,14 @@ import {
   type UserRecord,
 } from "./userStore";
 import { getAppDb } from "./appDb";
+import { listTrackStats } from "./listeningStore";
 
 export type AdminUserStats = {
   favoriteSongs: number;
   favoritePlaylists: number;
   userPlaylists: number;
+  listeningTracks: number;
+  listeningTotalMs: number;
 };
 
 export type AdminUserListItem = {
@@ -44,13 +47,19 @@ export type AdminUserLibraryItem = {
   cover: string;
   serverUpdatedAt: number;
   clientUpdatedAt: string;
+  durationMs?: number | null;
+  listenedMs?: number;
+  playCount?: number;
+  completedCount?: number;
+  firstListenedAt?: number;
+  lastListenedAt?: number;
 };
 
 export type AdminUserDetail = AdminUserListItem & {
   library?: never;
 };
 
-export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists";
+export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists" | "listeningHistory";
 
 export type AdminUserLibraryPage = {
   items: AdminUserLibraryItem[];
@@ -90,6 +99,8 @@ type UserStatsRow = {
   favorite_songs: number;
   favorite_playlists: number;
   user_playlists: number;
+  listening_tracks: number;
+  listening_total_ms: number;
 };
 
 type SyncItemRow = {
@@ -149,6 +160,8 @@ function mapUserRow(row: UserStatsRow): AdminUserListItem {
       favoriteSongs: Number(row.favorite_songs) || 0,
       favoritePlaylists: Number(row.favorite_playlists) || 0,
       userPlaylists: Number(row.user_playlists) || 0,
+      listeningTracks: Number(row.listening_tracks) || 0,
+      listeningTotalMs: Number(row.listening_total_ms) || 0,
     },
   };
 }
@@ -160,7 +173,9 @@ function userStatsSelect(whereSql: string): string {
       u.vip_enabled, u.vip_expires_at, u.sync_version, u.created_at, u.updated_at, u.last_login_at,
       COALESCE(SUM(CASE WHEN s.item_type = 'favorite_song' THEN 1 ELSE 0 END), 0) AS favorite_songs,
       COALESCE(SUM(CASE WHEN s.item_type = 'favorite_playlist' THEN 1 ELSE 0 END), 0) AS favorite_playlists,
-      COALESCE(SUM(CASE WHEN s.item_type = 'user_playlist' THEN 1 ELSE 0 END), 0) AS user_playlists
+      COALESCE(SUM(CASE WHEN s.item_type = 'user_playlist' THEN 1 ELSE 0 END), 0) AS user_playlists,
+      COALESCE((SELECT COUNT(*) FROM user_track_stats t WHERE t.user_id = u.id), 0) AS listening_tracks,
+      COALESCE((SELECT total_ms FROM user_listening_stats l WHERE l.user_id = u.id), 0) AS listening_total_ms
     FROM users u
     LEFT JOIN user_sync_items s ON s.user_id = u.id AND s.deleted = 0
     ${whereSql}
@@ -212,6 +227,32 @@ export function listAdminUserLibraryItems(
   if (!readUserById(userId)) return null;
   const db = getAppDb();
   const { offset, limit } = normalizePagination(rawOffset, rawLimit ?? 30);
+
+  if (kind === "listeningHistory") {
+    const trackPage = listTrackStats(userId, { sort: "lastListenedAt", offset, limit });
+    return {
+      items: trackPage.items.map((track) => ({
+        itemKey: `${track.source}:${track.songId}`,
+        itemId: track.songId,
+        source: track.source,
+        name: track.title || "未命名歌曲",
+        subtitle: track.artist ? (track.album ? `${track.artist} · ${track.album}` : track.artist) : (track.album || "-"),
+        cover: "",
+        serverUpdatedAt: track.lastListenedAt,
+        clientUpdatedAt: "",
+        durationMs: track.durationMs,
+        listenedMs: track.listenedMs,
+        playCount: track.playCount,
+        completedCount: track.completedCount,
+        firstListenedAt: track.firstListenedAt,
+        lastListenedAt: track.lastListenedAt,
+      })),
+      total: trackPage.total,
+      offset: trackPage.offset,
+      limit: trackPage.limit,
+    };
+  }
+
   const itemType = itemTypeForKind(kind);
   const totalRow = db
     .prepare("SELECT COUNT(*) AS total FROM user_sync_items WHERE user_id = ? AND item_type = ? AND deleted = 0")
