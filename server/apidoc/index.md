@@ -314,3 +314,12 @@
 | 获取运行时策略配置 | `GET` | `/api/admin/runtime-config` | [./admin/getRuntimeConfig.md](./admin/getRuntimeConfig.md) |
 | 批量修改运行时策略配置 | `PATCH` | `/api/admin/runtime-config` | [./admin/updateRuntimeConfig.md](./admin/updateRuntimeConfig.md) |
 
+### 13.15 一起听房间管理
+| 接口名称 | Method | 请求路径 | 接口文档链接 |
+| :--- | :--- | :--- | :--- |
+| 查询在线一起听房间列表 | `GET` | `/api/admin/listen-together/online` | [./admin/listOnlineListeningRooms.md](./admin/listOnlineListeningRooms.md) |
+| 获取在线一起听房间详情 | `GET` | `/api/admin/listen-together/online/:recordId` | [./admin/getOnlineListeningRoom.md](./admin/getOnlineListeningRoom.md) |
+| 安全解散在线一起听房间 | `POST` | `/api/admin/listen-together/online/:recordId/dissolve` | [./admin/dissolveOnlineListeningRoom.md](./admin/dissolveOnlineListeningRoom.md) |
+| 分页查询一起听房间历史记录 | `GET` | `/api/admin/listen-together/history` | [./admin/listListeningRoomHistory.md](./admin/listListeningRoomHistory.md) |
+| 获取一起听房间历史详情 | `GET` | `/api/admin/listen-together/history/:recordId` | [./admin/getListeningRoomHistoryDetail.md](./admin/getListeningRoomHistoryDetail.md) |
+

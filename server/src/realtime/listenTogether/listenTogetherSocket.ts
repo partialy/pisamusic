@@ -64,30 +64,21 @@ function stringFromPayload(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function emitBroadcast(io: Server, message: ListenTogetherBroadcast): void {
-  io.to(listenRoomName(message.roomId)).emit(message.event, message);
+import {
+  publishBroadcast,
+  publishLeaveRoomResult,
+} from "./listenTogetherPublisher";
+
+function emitBroadcast(_io: Server, message: ListenTogetherBroadcast): void {
+  publishBroadcast(message);
 }
 
 function emitBroadcastFromSocket(socket: AuthedRealtimeSocket, message: ListenTogetherBroadcast): void {
   socket.to(listenRoomName(message.roomId)).emit(message.event, message);
 }
 
-function leaveTargetSockets(io: Server, result: LeaveResult): void {
-  const roomName = listenRoomName(result.roomName);
-  for (const socketId of result.targetSocketIds) {
-    io.sockets.sockets.get(socketId)?.leave(roomName);
-  }
-}
-
-function broadcastLeaveResult(io: Server, result: LeaveResult): void {
-  const shouldNotifyRemoved = result.broadcasts.some((message) => message.event === "MEMBER_KICKED");
-  if (shouldNotifyRemoved) {
-    for (const message of result.broadcasts) emitBroadcast(io, message);
-    leaveTargetSockets(io, result);
-    return;
-  }
-  leaveTargetSockets(io, result);
-  for (const message of result.broadcasts) emitBroadcast(io, message);
+function broadcastLeaveResult(_io: Server, result: LeaveResult): void {
+  publishLeaveRoomResult(result);
 }
 
 function registerRoomChangeEvent(

@@ -57,6 +57,8 @@ export type AdminRoomHistoryQuery = {
   endReason?: string;
   startedAt?: number;
   endedAt?: number;
+  startFrom?: number;
+  startTo?: number;
   offset: number;
   limit: number;
 };
@@ -527,14 +529,16 @@ export function listRoomHistory(query: AdminRoomHistoryQuery): {
     params.push(query.endReason.trim());
   }
 
-  if (typeof query.startedAt === "number" && Number.isFinite(query.startedAt)) {
+  const minStartedAt = query.startFrom ?? query.startedAt;
+  if (typeof minStartedAt === "number" && Number.isFinite(minStartedAt)) {
     conditions.push("created_at >= ?");
-    params.push(query.startedAt);
+    params.push(minStartedAt);
   }
 
-  if (typeof query.endedAt === "number" && Number.isFinite(query.endedAt)) {
-    conditions.push("ended_at <= ?");
-    params.push(query.endedAt);
+  const maxEndedAt = query.startTo ?? query.endedAt;
+  if (typeof maxEndedAt === "number" && Number.isFinite(maxEndedAt)) {
+    conditions.push("created_at <= ?");
+    params.push(maxEndedAt);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

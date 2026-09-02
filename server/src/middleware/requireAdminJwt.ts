@@ -18,7 +18,8 @@ export function requireAdminJwt(req: Request, res: Response, next: NextFunction)
     return;
   }
   try {
-    jwt.verify(raw, getAdminJwtSecret());
+    const decoded = jwt.verify(raw, getAdminJwtSecret()) as { sub?: string; username?: string };
+    (req as Request & { adminUsername?: string }).adminUsername = decoded.username || decoded.sub || "admin";
     next();
   } catch {
     res.status(401).json(fail("登录已失效，请重新登录", 401));
