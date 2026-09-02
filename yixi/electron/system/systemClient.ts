@@ -31,7 +31,7 @@ const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
-  token?: string;
+  token?: string | null;
   body?: unknown;
   encrypted?: boolean;
   headers?: Record<string, string>;
@@ -40,6 +40,7 @@ type RequestOptions = {
 
 let cachedBootstrap: BootstrapConfig | null = null;
 let bootstrapPromise: Promise<BootstrapConfig> | null = null;
+let deviceMessageToken: string | undefined;
 let startupServiceState: StartupServiceState = {
   localMode: false,
   reason: "",
@@ -78,6 +79,7 @@ export async function prepareStartupServiceState() {
   try {
     await refreshBootstrap();
     const deviceReport = await reportDesktopDevice();
+    deviceMessageToken = deviceReport.messageToken;
     if (isDesktopDeviceLocked(deviceReport)) {
       throw new DesktopDeviceLockedError(deviceReport);
     }
@@ -99,6 +101,10 @@ export async function prepareStartupServiceState() {
 
 export function getStartupServiceState() {
   return startupServiceState;
+}
+
+export function getDesktopDeviceMessageToken(): string | undefined {
+  return deviceMessageToken;
 }
 
 export async function getGatewaySignConfigCached() {
@@ -623,7 +629,7 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
   const url = new URL(path, getApiBaseUrl());
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};
-  const currentToken = options.token || getAccountSession().token;
+  const currentToken = options.token === undefined ? getAccountSession().token : options.token;
   if (currentToken) {
     headers.authorization = `Bearer ${currentToken.trim()}`;
   }

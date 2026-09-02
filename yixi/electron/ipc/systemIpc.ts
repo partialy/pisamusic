@@ -26,6 +26,7 @@ import {
 import { closeListenTogetherSocket } from "../listenTogether/listenTogetherService";
 import { clearSyncState } from "../sync/syncService";
 import { getListeningManager } from "../listening";
+import { getDirectMessageManager } from "../directMessage/directMessageService";
 import type { FeedbackPayload } from "../system/types";
 
 let registered = false;
@@ -80,9 +81,11 @@ export function setupSystemIpc() {
       } else {
         getListeningManager().onAccountLogout();
       }
+      getDirectMessageManager().onAccountSessionChanged();
       return session;
     } catch (error) {
       getListeningManager().onAccountLogout();
+      getDirectMessageManager().onAccountSessionChanged();
       throw error;
     }
   });
@@ -91,6 +94,7 @@ export function setupSystemIpc() {
     // 退出账号前先断开一起听 socket，避免旧账号连接残留
     closeListenTogetherSocket();
     const session = clearAccountSession();
+    getDirectMessageManager().onAccountSessionChanged();
     await clearSyncState();
     return session;
   });
@@ -102,6 +106,7 @@ export function setupSystemIpc() {
     if (session?.user?.id) {
       void getListeningManager().onAccountSessionReady(session.user.id);
     }
+    getDirectMessageManager().onAccountSessionChanged();
     return session;
   });
   ipcMain.handle("account:login-code", async (_event, payload: { email: string; code: string }) => {
@@ -109,6 +114,7 @@ export function setupSystemIpc() {
     if (session?.user?.id) {
       void getListeningManager().onAccountSessionReady(session.user.id);
     }
+    getDirectMessageManager().onAccountSessionChanged();
     return session;
   });
   ipcMain.handle("account:register", async (_event, payload: { email: string; username: string; password: string; code: string }) => {
@@ -116,6 +122,7 @@ export function setupSystemIpc() {
     if (session?.user?.id) {
       void getListeningManager().onAccountSessionReady(session.user.id);
     }
+    getDirectMessageManager().onAccountSessionChanged();
     return session;
   });
   ipcMain.handle("account:profile-email-code", (_event, payload: { email: string }) =>

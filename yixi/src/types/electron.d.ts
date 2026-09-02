@@ -14,6 +14,7 @@ import type {
 } from "./listenTogether";
 import type { ListenTogetherInvite } from "../listenTogether/listenTogetherShareLink";
 import type { ExternalShareInvite } from "../share/shareLink";
+import type { DirectMessageUnreadPage } from "./directMessage";
 
 type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
 type SearchableMusicSource = "kg" | "wy" | "kw";
@@ -768,6 +769,8 @@ type ElectronIpcApi = {
   loginAccountByPassword: (payload: AccountPasswordLoginPayload) => Promise<AccountSession>;
   loginAccountByCode: (payload: AccountCodeLoginPayload) => Promise<AccountSession>;
   registerAccount: (payload: AccountRegisterPayload) => Promise<AccountSession>;
+  listUnreadDirectMessages: () => Promise<DirectMessageUnreadPage>;
+  dismissDirectMessage: (id: string) => void;
   sendProfileEmailCode: (payload: { email: string }) => Promise<AccountEmailCodeResult>;
   updateAccountProfile: (payload: AccountProfileUpdatePayload) => Promise<AccountSession>;
   changeAccountPassword: (payload: AccountPasswordChangePayload) => Promise<{ updated: boolean }>;

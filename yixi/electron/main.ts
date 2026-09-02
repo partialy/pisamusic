@@ -12,6 +12,7 @@ import { setupLogIpc } from "./ipc/logIpc";
 import { setupMusicApiIpc } from "./ipc/musicIpc";
 import { setupPersistenceIpc } from "./ipc/persistenceIpc";
 import { setupSystemIpc } from "./ipc/systemIpc";
+import { setupDirectMessageIpc } from "./ipc/directMessageIpc";
 import { setupWindowIpc } from "./ipc/windowIpc";
 import { PlayerTray } from "./tray/playerTray";
 import { logger } from "./utils/logger";
@@ -142,6 +143,7 @@ function setupAppIpc() {
   setupWindowIpc(() => mainWindow);
   setupLogIpc();
   setupSystemIpc();
+  setupDirectMessageIpc();
   setupMusicApiIpc();
   setupPersistenceIpc();
   setupUtilsIpc();

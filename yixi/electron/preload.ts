@@ -243,6 +243,11 @@ const accountIpc = {
     ipcRenderer.invoke("account:reset-password", cloneIpcPayload(payload)),
 };
 
+const directMessageIpc = {
+  listUnreadDirectMessages: () => ipcRenderer.invoke("direct-message:list-unread"),
+  dismissDirectMessage: (id: string) => ipcRenderer.send("direct-message:dismiss", id),
+};
+
 const syncIpc = {
   getSyncState: () => ipcRenderer.invoke("sync:state"),
   syncNow: () => ipcRenderer.invoke("sync:now"),
@@ -480,6 +485,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...desktopLyricIpc,
   ...systemIpc,
   ...accountIpc,
+  ...directMessageIpc,
   ...syncIpc,
   ...shareIpc,
   ...musicApiIpc,

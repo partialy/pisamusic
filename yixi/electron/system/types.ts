@@ -104,6 +104,7 @@ export type DesktopDeviceReportRequest = {
 
 export type DesktopDeviceReportResult = {
   id: string;
+  messageToken: string;
   locked: boolean;
   lockEndTime: number | null;
   lastActiveAt: number;
