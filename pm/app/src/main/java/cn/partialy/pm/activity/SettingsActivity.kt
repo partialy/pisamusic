@@ -178,11 +178,6 @@ class SettingsActivity : BaseActivity() {
             binding.devDebugEntry.root.visibility = View.GONE
         }
 
-        binding.faultReportEntry.apply {
-            bindNavRow(root, R.drawable.settings_ic_fault_report, getString(R.string.fault_report_title), null)
-            root.setOnClickListener { FaultReportActivity.start(this@SettingsActivity) }
-        }
-
         binding.feedbackEntry.apply {
             bindNavRow(
                 root,

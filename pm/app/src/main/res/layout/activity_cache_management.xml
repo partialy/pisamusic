@@ -18,6 +18,7 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@color/home_page_bg"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
@@ -41,7 +42,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingBottom="24dp">
+            android:paddingBottom="32dp">
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
@@ -49,9 +50,9 @@
                 android:layout_marginHorizontal="@dimen/pm_page_content_start"
                 android:layout_marginTop="8dp"
                 app:cardBackgroundColor="@color/home_mini_player_bg"
-                app:cardCornerRadius="12dp"
+                app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
-                app:strokeColor="@color/cache_card_stroke"
+                app:strokeColor="@color/settings_card_inset_divider"
                 app:strokeWidth="1dp">
 
                 <LinearLayout

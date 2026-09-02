@@ -2,11 +2,9 @@ package cn.partialy.pm.activity
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
-import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -14,10 +12,14 @@ import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityDataManagementBinding
-import cn.partialy.pm.databinding.IncludeDataManagementCardBinding
+import cn.partialy.pm.fault.FaultReportRepository
+import cn.partialy.pm.fault.PlaybackFaultStats
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticStore
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.dialog.SettingsOption
+import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.utils.loveUtil.LoveManager
@@ -39,33 +41,34 @@ import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 
 /**
- * 导入与导出：备份、恢复或清除收藏歌曲和歌单数据（ZIP 格式）。
- *
- * 压缩包结构：
- * - loveList.json          收藏歌曲
- * - collected_playlists.json   歌单索引
- * - songs_<playlistId>.json    本地歌单曲目（可能多个）
+ * 导入与导出：备份、恢复或清除收藏歌曲和歌单数据（ZIP 格式），以及导出播放诊断日志（JSON 格式）。
  */
 @AndroidEntryPoint
 class DataManagementActivity : BaseActivity() {
 
     @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
+    @Inject lateinit var playbackDiagnosticStore: PlaybackDiagnosticStore
+    @Inject lateinit var faultReportRepository: FaultReportRepository
 
     private lateinit var binding: ActivityDataManagementBinding
-    private lateinit var overviewCard: IncludeDataManagementCardBinding
-    private lateinit var exportCard: IncludeDataManagementCardBinding
-    private lateinit var importCard: IncludeDataManagementCardBinding
     private val gson = Gson()
+    private var pendingDiagnosticsLimit: Int? = null
+    private var submittingFaultReport = false
 
-    /** 导出：让用户选择保存位置 */
+    /** 导出备份：让用户选择保存位置 */
     private val exportLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri -> if (uri != null) performExport(uri) }
 
-    /** 导入：让用户选择 ZIP 文件 */
+    /** 导入恢复：让用户选择 ZIP 文件 */
     private val importLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri -> if (uri != null) confirmAndImport(uri) }
+
+    /** 导出播放诊断日志：让用户选择保存位置 */
+    private val exportDiagnosticsLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri -> if (uri != null) performExportDiagnostics(uri, pendingDiagnosticsLimit) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityDataManagementBinding.inflate(layoutInflater)
@@ -74,9 +77,13 @@ class DataManagementActivity : BaseActivity() {
 
         setupSystemBars()
         setupToolbar()
-        setupCards()
         setupButtons()
         loadDataOverview()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::binding.isInitialized && !submittingFaultReport) loadFaultReportStats()
     }
 
     // ==================== UI 初始化 ====================
@@ -100,47 +107,24 @@ class DataManagementActivity : BaseActivity() {
     }
 
     private fun setupButtons() {
-        exportCard.dataCardActionButton.setOnClickListener { startExport() }
-        importCard.dataCardActionButton.setOnClickListener { startImport() }
-        overviewCard.dataCardActionButton.setOnClickListener { confirmDeleteAll() }
-    }
-
-    private fun setupCards() {
-        overviewCard = binding.cardDataOverview
-        exportCard = binding.cardDataExport
-        importCard = binding.cardDataImport
-
-        overviewCard.dataCardIcon.setImageResource(R.drawable.settings_ic_data)
-        overviewCard.dataCardTitle.text = getString(R.string.data_overview_title)
-        overviewCard.dataCardActionButton.text = getString(R.string.data_delete_button)
-        overviewCard.dataCardActionButton.setTextColor(ContextCompat.getColor(this, R.color.red))
-        overviewCard.dataCardActionButton.backgroundTintList =
-            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.listen_together_leave_bg))
-
-        exportCard.dataCardIcon.setImageResource(R.drawable.ic_download_24)
-        exportCard.dataCardTitle.text = getString(R.string.data_export_title)
-        exportCard.dataCardBody.text = getString(R.string.data_export_desc)
-        exportCard.dataCardActionButton.text = getString(R.string.data_export_button)
-
-        importCard.dataCardIcon.setImageResource(R.drawable.ic_data_sync)
-        importCard.dataCardTitle.text = getString(R.string.data_import_title)
-        importCard.dataCardBody.text = getString(R.string.data_import_desc)
-        importCard.dataCardActionButton.text = getString(R.string.data_import_button)
+        binding.btnDeleteAll.setOnClickListener { confirmDeleteAll() }
+        binding.btnExportBackup.setOnClickListener { startExport() }
+        binding.btnImportBackup.setOnClickListener { startImport() }
+        binding.btnExportDiagnostics.setOnClickListener { startExportDiagnostics() }
+        binding.reportNowButton.setOnClickListener { confirmFaultReport() }
     }
 
     // ==================== 数据概览 ====================
 
-    /** 统计数据文件占用空间并显示 */
+    /** 统计数据文件占用空间并显示在 3 个磁贴中 */
     private fun loadDataOverview() {
         lifecycleScope.launch {
             val stats = withContext(Dispatchers.IO) { calculateDataStats() }
-            overviewCard.dataCardBody.text = buildString {
-                append(getString(R.string.data_stats_loved, stats.lovedCount, formatSize(stats.lovedSize)))
-                append('\n')
-                append(getString(R.string.data_stats_playlist, stats.playlistCount, formatSize(stats.playlistSize)))
-                append('\n')
-                append(getString(R.string.data_stats_total, formatSize(stats.totalSize)))
-            }
+            binding.overviewLovedCount.text = getString(R.string.data_count_songs_format, stats.lovedCount)
+            binding.overviewLovedSize.text = formatSize(stats.lovedSize)
+            binding.overviewPlaylistCount.text = getString(R.string.data_count_playlists_format, stats.playlistCount)
+            binding.overviewPlaylistSize.text = formatSize(stats.playlistSize)
+            binding.overviewTotalSize.text = formatSize(stats.totalSize)
         }
     }
 
@@ -181,6 +165,81 @@ class DataManagementActivity : BaseActivity() {
         )
     }
 
+    // ==================== 故障上报 ====================
+
+    private fun loadFaultReportStats() {
+        lifecycleScope.launch {
+            runCatching { faultReportRepository.loadStats() }
+                .onSuccess(::renderFaultReportStats)
+                .onFailure {
+                    Toast.makeText(
+                        this@DataManagementActivity,
+                        R.string.fault_report_load_failed,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+        }
+    }
+
+    private fun renderFaultReportStats(stats: PlaybackFaultStats) {
+        binding.faultTotalCountText.text = stats.totalCount.toString()
+        binding.faultRecentCountText.text = stats.recentSevenDaysCount.toString()
+        binding.faultPendingCountText.text = stats.pendingCount.toString()
+        binding.faultLatestErrorText.text = getString(
+            R.string.fault_report_latest_error,
+            formatFaultReportTime(stats.latestOccurredAt),
+        )
+        binding.faultLastReportText.text = getString(
+            R.string.fault_report_last_time,
+            formatFaultReportTime(stats.lastReportedAt),
+        )
+        binding.reportNowButton.isEnabled = stats.pendingCount > 0 && !submittingFaultReport
+    }
+
+    private fun confirmFaultReport() {
+        if (!binding.reportNowButton.isEnabled || submittingFaultReport) return
+        PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.fault_report_confirm_title),
+            message = getString(R.string.fault_report_confirm_message),
+            cancelText = getString(R.string.cancel),
+            confirmText = getString(R.string.dialog_ok),
+            onConfirm = { submitFaultReport() },
+        )
+    }
+
+    private fun submitFaultReport() {
+        if (submittingFaultReport) return
+        submittingFaultReport = true
+        binding.reportNowButton.isEnabled = false
+        binding.reportNowButton.text = getString(R.string.fault_report_uploading)
+        lifecycleScope.launch {
+            runCatching { faultReportRepository.submitPending() }
+                .onSuccess {
+                    Toast.makeText(
+                        this@DataManagementActivity,
+                        R.string.fault_report_success,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                .onFailure { error ->
+                    Toast.makeText(
+                        this@DataManagementActivity,
+                        error.message ?: getString(R.string.fault_report_failed),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            submittingFaultReport = false
+            binding.reportNowButton.text = getString(R.string.fault_report_now)
+            loadFaultReportStats()
+        }
+    }
+
+    private fun formatFaultReportTime(value: Long?): String {
+        if (value == null || value <= 0L) return getString(R.string.fault_report_never)
+        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(value))
+    }
+
     private fun formatSize(bytes: Long): String = when {
         bytes < 1024 -> "${bytes} B"
         bytes < 1024 * 1024 -> String.format(Locale.US, "%.1f KB", bytes / 1024.0)
@@ -215,7 +274,7 @@ class DataManagementActivity : BaseActivity() {
         }
     }
 
-    // ==================== 导出 ====================
+    // ==================== 导出备份 (ZIP) ====================
 
     private fun startExport() {
         val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -223,17 +282,14 @@ class DataManagementActivity : BaseActivity() {
     }
 
     private fun performExport(uri: Uri) {
-        exportCard.dataCardActionButton.isEnabled = false
-        exportCard.dataCardStatusText.visibility = View.VISIBLE
-        exportCard.dataCardStatusText.setText(R.string.data_exporting)
+        binding.btnExportBackup.isEnabled = false
 
         lifecycleScope.launch {
             try {
                 val filesDir = this@DataManagementActivity.filesDir
                 val filesToPack = withContext(Dispatchers.IO) { collectExportFiles(filesDir) }
                 if (filesToPack.isEmpty()) {
-                    exportCard.dataCardStatusText.text = getString(R.string.data_export_empty)
-                    exportCard.dataCardActionButton.isEnabled = true
+                    Toast.makeText(this@DataManagementActivity, R.string.data_export_empty, Toast.LENGTH_SHORT).show()
                     return@launch
                 }
                 withContext(Dispatchers.IO) {
@@ -247,15 +303,16 @@ class DataManagementActivity : BaseActivity() {
                         }
                     }
                 }
-                exportCard.dataCardStatusText.text = getString(
+                val successText = getString(
                     R.string.data_export_success,
                     uri.lastPathSegment ?: getString(R.string.common_default_backup_filename),
                 )
+                Toast.makeText(this@DataManagementActivity, successText, Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 e.printStackTrace()
-                exportCard.dataCardStatusText.text = getString(R.string.data_export_fail)
+                Toast.makeText(this@DataManagementActivity, R.string.data_export_fail, Toast.LENGTH_SHORT).show()
             } finally {
-                exportCard.dataCardActionButton.isEnabled = true
+                binding.btnExportBackup.isEnabled = true
             }
         }
     }
@@ -277,7 +334,7 @@ class DataManagementActivity : BaseActivity() {
         return result
     }
 
-    // ==================== 导入 ====================
+    // ==================== 导入恢复 (ZIP) ====================
 
     private fun startImport() {
         importLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
@@ -295,22 +352,21 @@ class DataManagementActivity : BaseActivity() {
     }
 
     private fun performImport(uri: Uri) {
-        importCard.dataCardActionButton.isEnabled = false
-        importCard.dataCardStatusText.visibility = View.VISIBLE
-        importCard.dataCardStatusText.setText(R.string.data_importing)
+        binding.btnImportBackup.isEnabled = false
 
         lifecycleScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) { parseAndMerge(uri) }
-                importCard.dataCardStatusText.text = getString(
+                val successText = getString(
                     R.string.data_import_success, result.lovedCount, result.playlistCount
                 )
+                Toast.makeText(this@DataManagementActivity, successText, Toast.LENGTH_SHORT).show()
                 loadDataOverview()
             } catch (e: Exception) {
                 e.printStackTrace()
-                importCard.dataCardStatusText.text = getString(R.string.data_import_fail)
+                Toast.makeText(this@DataManagementActivity, R.string.data_import_fail, Toast.LENGTH_SHORT).show()
             } finally {
-                importCard.dataCardActionButton.isEnabled = true
+                binding.btnImportBackup.isEnabled = true
             }
         }
     }
@@ -403,6 +459,83 @@ class DataManagementActivity : BaseActivity() {
         val existingIds = existing.map { it.id }.toHashSet()
         val merged = existing + imported.filter { it.id !in existingIds }
         file.writeText(gson.toJson(merged))
+    }
+
+    // ==================== 导出播放诊断日志 (JSON) ====================
+
+    private fun startExportDiagnostics() {
+        lifecycleScope.launch {
+            val totalEvents = withContext(Dispatchers.IO) { playbackDiagnosticStore.getEventsCount() }
+            if (totalEvents <= 0) {
+                Toast.makeText(this@DataManagementActivity, R.string.data_diagnostics_empty, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val options = listOf(
+                SettingsOption(
+                    id = "10",
+                    label = getString(R.string.data_diagnostics_limit_10_label),
+                ),
+                SettingsOption(
+                    id = "50",
+                    label = getString(R.string.data_diagnostics_limit_50_label),
+                ),
+                SettingsOption(
+                    id = "100",
+                    label = getString(R.string.data_diagnostics_limit_100_label),
+                ),
+                SettingsOption(
+                    id = "all",
+                    label = getString(R.string.data_diagnostics_limit_all_label),
+                ),
+            )
+
+            val picked = showSettingsOptionPicker(
+                context = this@DataManagementActivity,
+                title = getString(R.string.data_diagnostics_picker_title),
+                options = options,
+                selectedIndex = 1,
+            ) ?: return@launch
+
+            val limit = if (picked.id == "all") null else picked.id.toIntOrNull()
+            pendingDiagnosticsLimit = limit
+
+            val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val filename = "pm_playback_diagnostics_${ts}_recent${picked.id}.json"
+            exportDiagnosticsLauncher.launch(filename)
+        }
+    }
+
+    private fun performExportDiagnostics(uri: Uri, limit: Int?) {
+        binding.btnExportDiagnostics.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                val rows = withContext(Dispatchers.IO) {
+                    playbackDiagnosticStore.queryRecentEvents(limit)
+                }
+                if (rows.isEmpty()) {
+                    Toast.makeText(this@DataManagementActivity, R.string.data_diagnostics_empty, Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val jsonString = withContext(Dispatchers.IO) {
+                    playbackDiagnosticStore.exportToJsonString(rows, limit)
+                }
+                withContext(Dispatchers.IO) {
+                    contentResolver.openOutputStream(uri)?.use { out ->
+                        out.write(jsonString.toByteArray(Charsets.UTF_8))
+                    }
+                }
+                val filename = uri.lastPathSegment ?: "playback_diagnostics.json"
+                val successText = getString(R.string.data_diagnostics_export_success, filename, rows.size)
+                Toast.makeText(this@DataManagementActivity, successText, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this@DataManagementActivity, R.string.data_diagnostics_export_fail, Toast.LENGTH_SHORT).show()
+            } finally {
+                binding.btnExportDiagnostics.isEnabled = true
+            }
+        }
     }
 
     // ==================== 导航 ====================

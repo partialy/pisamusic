@@ -57,8 +57,8 @@
     <color name="settings_card_inset_divider">#3D424C</color>
 
     <color name="settings_switch_track_off">#3D3D45</color>
+    <color name="orange_tag">#FBBF24</color>
 
-    <color name="cache_card_stroke">#3D424C</color>
     <color name="cache_usage_bar_app">#EF5350</color>
     <color name="cache_usage_bar_phone_used">#4A4D55</color>
     <color name="cache_usage_bar_free">#2E3138</color>

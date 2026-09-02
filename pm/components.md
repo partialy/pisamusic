@@ -49,12 +49,12 @@
 | --- | --- | --- | --- | --- |
 | 设置普通行 | 设置页入口、右侧摘要、箭头 | `pm/app/src/main/res/layout/item_settings_row.xml` | `SettingsActivity` | 新增设置入口优先复用。 |
 | 设置开关行 | 设置页开关项 | `pm/app/src/main/res/layout/item_settings_switch.xml` | `PmSwitch`、`Widget.Pm.SettingsSwitch` | 不要为设置开关另写一套样式。 |
-| 无图标二级设置页 | 播放、下载、歌词、数据、同步等分组设置页 | `pm/app/src/main/res/layout/activity_sub_settings.xml`、`item_sub_settings_*.xml` | `SubSettingsActivity`、`SubSettingsAdapter`、`SubSettingsItem`、`DownloadSettingsActivity`、`LyricSettingsActivity`、`DataSettingsActivity`、`FavoritesSyncSettingsActivity` | 子页只声明标题、分组和 Option / Navigation / Info / Switch；`Info` 是只读信息行，不显示箭头、不响应点击；`summary` 可选，有说明时使用较小、较淡的第二行，无说明时保持原单行布局。 |
+| 无图标二级设置页 | 播放、下载、歌词、数据等分组设置页 | `pm/app/src/main/res/layout/activity_sub_settings.xml`、`item_sub_settings_*.xml` | `SubSettingsActivity`、`SubSettingsAdapter`、`SubSettingsItem`、`DownloadSettingsActivity`、`LyricSettingsActivity`、`DataSettingsActivity` | 子页只声明标题、分组和 Option / Navigation / Info / Switch；`Info` 是只读信息行，不显示箭头、不响应点击；`summary` 可选，有说明时使用较小、较淡的第二行，无说明时保持原单行布局。 |
 | 缓存分类卡片 | 设置/工具页统计卡片 | `pm/app/src/main/res/layout/include_cache_category_card.xml` | `CacheManagementActivity` | 有标题、说明、大小、操作按钮。 |
 | 登录表单 | 账号/第三方导入登录表单 | `pm/app/src/main/res/layout/activity_login.xml`、`pm/app/src/main/res/layout/include_playlist_import_kg_login.xml` | `LoginActivity`、`WyPlaylistLoginActivity` | 输入框、验证码按钮、扫码占位可参考。 |
 | 本地歌单创建表单 | 新建歌单、封面选择表单 | `pm/app/src/main/res/layout/dialog_create_local_playlist.xml` | `PmSlotDialog` 调用场景 | 居中表单优先参考。 |
 | 账号资料 WebView 容器 | 资料页 WebView 承载 | `pm/app/src/main/res/layout/activity_account_profile.xml` | `AccountProfileActivity` | 全屏 WebView 容器和系统栏处理参考。 |
-| 故障数据概览页 | 本地故障统计、隐私说明和立即上报 | `pm/app/src/main/res/layout/activity_fault_report.xml` | `FaultReportActivity`、`PmMinimalDialog` | 使用单张圆角统计卡展示总数、最近 7 天、待上报和时间信息；无待上报数据时禁用主按钮，确认上传复用通用居中弹窗。 |
+| 故障上报能力卡片 | 本地故障统计和立即上报 | `pm/app/src/main/res/layout/activity_data_management.xml` | `DataManagementActivity`、`FaultReportRepository`、`PmMinimalDialog` | 与导入与导出页其他卡片统一使用圆角卡片、指标磁贴和 TonalButton；无待上报数据时禁用按钮，确认上传复用通用居中弹窗。 |
 
 ## 列表、卡片与行项目
 
@@ -117,5 +117,6 @@
 ## 最近补充
 
 - 本地歌曲扫描页：`pm/app/src/main/res/layout/activity_local_music_scan.xml`，用于扫描歌曲初始页、扫描中、结果列表和底部导入栏；`LocalMusicScanActivity` 复用 edge-to-edge、安全区、Material 主按钮、`PmSwitch` 过滤设置和歌曲结果行。
-- 导入与导出卡片：`pm/app/src/main/res/layout/include_data_management_card.xml`，用于数据概览、导出、导入这类带图标、说明、操作按钮和状态提示的设置卡片；`DataManagementActivity` 复用该布局并使用 `PmMinimalDialog` 统一确认弹窗。
+- 导入与导出页面：`pm/app/src/main/res/layout/activity_data_management.xml`，保留本地数据指标磁贴；歌单与收藏、播放日志采用图标加标题左侧、操作按钮右侧的左右布局，歌单与收藏的“导入 / 导出”按钮保持同款；页面不展示额外说明文案，仍保留播放日志档位选择及清空确认；故障上报以同款卡片承载统计指标、上报按钮和必要时间信息；四张卡片使用统一的圆角、描边和内边距，前三张标题左侧使用 `data_icon_local.webp`、`data_icon_playlist.webp`、`data_icon_diagnostics.webp` 渐变图标；`DataManagementActivity` 复用 edge-to-edge、安全区、`showSettingsOptionPicker` 及 `PmMinimalDialog` 统一确认弹窗。
+- 收藏与同步页面：`pm/app/src/main/res/layout/activity_favorites_sync_settings.xml`，采用账号卡片（圆形头像、昵称、VIP标识、未登录引导）、4 栏同步数据概览磁贴与同步状态控制卡片；`FavoritesSyncSettingsActivity` 复用 edge-to-edge、安全区及 Material 3 圆角卡片规范。
 - 信息操作头部：`pm/app/src/main/res/layout/include_song_info_header.xml` 用于左侧图片、右侧标题/副标题；`SongInfoHeaderBinder` 绑定歌曲，通用操作菜单也可绑定圆形成员头像和在线状态。

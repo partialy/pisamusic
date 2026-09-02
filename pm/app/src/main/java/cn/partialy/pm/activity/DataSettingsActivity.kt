@@ -25,11 +25,6 @@ class DataSettingsActivity : SubSettingsActivity() {
             id = "data",
             items = listOf(
                 SubSettingsItem.Navigation(
-                    id = ITEM_IMPORT_EXPORT,
-                    title = getString(R.string.settings_import_export_title),
-                    summary = getString(R.string.settings_import_export_summary),
-                ),
-                SubSettingsItem.Navigation(
                     id = ITEM_SYNC,
                     title = getString(R.string.settings_sync_title),
                     value = syncSummary(syncManager.state()),
@@ -39,6 +34,11 @@ class DataSettingsActivity : SubSettingsActivity() {
                     id = ITEM_CACHE,
                     title = getString(R.string.settings_cache_title),
                     summary = getString(R.string.settings_cache_summary),
+                ),
+                SubSettingsItem.Navigation(
+                    id = ITEM_IMPORT_EXPORT,
+                    title = getString(R.string.settings_import_export_title),
+                    summary = getString(R.string.settings_import_export_summary),
                 ),
             ),
         ),

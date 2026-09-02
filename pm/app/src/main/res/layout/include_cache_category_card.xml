@@ -7,9 +7,9 @@
     android:layout_marginHorizontal="@dimen/pm_page_content_start"
     android:layout_marginTop="12dp"
     app:cardBackgroundColor="@color/home_mini_player_bg"
-    app:cardCornerRadius="12dp"
+    app:cardCornerRadius="16dp"
     app:cardElevation="0dp"
-    app:strokeColor="@color/cache_card_stroke"
+    app:strokeColor="@color/settings_card_inset_divider"
     app:strokeWidth="1dp">
 
     <LinearLayout
@@ -33,38 +33,33 @@
                 android:textColor="?android:attr/textColorPrimary"
                 tools:text="歌曲缓存" />
 
-            <ImageView
-                android:id="@+id/categoryInfoIcon"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_marginEnd="4dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_info_24"
-                app:tint="?android:attr/textColorSecondary" />
-
             <com.google.android.material.button.MaterialButton
+                style="@style/Widget.Material3.Button.TonalButton"
                 android:id="@+id/btnClean"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="36dp"
                 android:layout_marginStart="8dp"
                 android:minWidth="0dp"
-                android:paddingHorizontal="16dp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="0dp"
                 android:text="@string/cache_action_clean"
-                android:textColor="@color/white"
-                app:backgroundTint="@color/cache_clean_button_bg"
-                app:cornerRadius="20dp" />
+                android:textColor="@color/red"
+                app:backgroundTint="@color/listen_together_leave_bg"
+                app:cornerRadius="18dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnManage"
                 style="@style/Widget.Material3.Button.OutlinedButton"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="36dp"
                 android:layout_marginStart="8dp"
                 android:minWidth="0dp"
-                android:paddingHorizontal="14dp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="0dp"
                 android:text="@string/cache_action_manage"
+                android:textSize="12sp"
                 android:visibility="gone"
-                app:cornerRadius="20dp"
+                app:cornerRadius="18dp"
                 app:strokeColor="@color/cache_clean_button_bg"
                 android:textColor="@color/cache_clean_button_bg"
                 tools:visibility="visible" />

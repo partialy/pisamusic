@@ -161,16 +161,6 @@
                         android:background="@color/settings_card_inset_divider" />
 
                     <include
-                        android:id="@+id/faultReportEntry"
-                        layout="@layout/item_settings_row" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginStart="50dp"
-                        android:background="@color/settings_card_inset_divider" />
-
-                    <include
                         android:id="@+id/feedbackEntry"
                         layout="@layout/item_settings_row" />
 
