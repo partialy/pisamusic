@@ -56,26 +56,44 @@ async function seedRecipients() {
 
 test("device message token only verifies against its current matching device", async () => {
   await seedRecipients();
-  process.env.DEVICE_MESSAGE_JWT_SECRET = "direct-message-token-test-secret";
-  const tokens = await import("../middleware/deviceMessageToken.js");
-  const token = tokens.issueDeviceMessageToken({
-    kind: "android",
-    deviceId: "d1",
-    fingerprint: "fingerprint-d1",
-  });
-  assert.deepEqual(tokens.verifyDeviceMessageToken(token), {
-    kind: "android",
-    deviceId: "d1",
-    fingerprint: "fingerprint-d1",
-  });
+  const originalDeviceSecret = process.env.DEVICE_MESSAGE_JWT_SECRET;
+  const originalUserSecret = process.env.USER_JWT_SECRET;
+  const originalNodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = "test";
+    process.env.DEVICE_MESSAGE_JWT_SECRET = "direct-message-token-test-secret";
+    const tokens = await import("../middleware/deviceMessageToken.js");
+    const token = tokens.issueDeviceMessageToken({
+      kind: "android",
+      deviceId: "d1",
+      fingerprint: "fingerprint-d1",
+    });
+    assert.deepEqual(tokens.verifyDeviceMessageToken(token), {
+      kind: "android",
+      deviceId: "d1",
+      fingerprint: "fingerprint-d1",
+    });
 
-  process.env.DEVICE_MESSAGE_JWT_SECRET = "different-direct-message-token-test-secret";
-  assert.equal(tokens.verifyDeviceMessageToken(token), null);
-  process.env.DEVICE_MESSAGE_JWT_SECRET = "direct-message-token-test-secret";
+    process.env.DEVICE_MESSAGE_JWT_SECRET = "different-direct-message-token-test-secret";
+    assert.equal(tokens.verifyDeviceMessageToken(token), null);
+    process.env.DEVICE_MESSAGE_JWT_SECRET = "direct-message-token-test-secret";
 
-  const appDb = await db();
-  appDb.prepare("DELETE FROM device_info WHERE id = ?").run("d1");
-  assert.equal(tokens.verifyDeviceMessageToken(token), null);
+    const appDb = await db();
+    appDb.prepare("DELETE FROM device_info WHERE id = ?").run("d1");
+    assert.equal(tokens.verifyDeviceMessageToken(token), null);
+
+    process.env.NODE_ENV = "production";
+    delete process.env.DEVICE_MESSAGE_JWT_SECRET;
+    delete process.env.USER_JWT_SECRET;
+    assert.throws(() => tokens.getDeviceMessageJwtSecret(), /必须配置 DEVICE_MESSAGE_JWT_SECRET/);
+  } finally {
+    if (originalDeviceSecret === undefined) delete process.env.DEVICE_MESSAGE_JWT_SECRET;
+    else process.env.DEVICE_MESSAGE_JWT_SECRET = originalDeviceSecret;
+    if (originalUserSecret === undefined) delete process.env.USER_JWT_SECRET;
+    else process.env.USER_JWT_SECRET = originalUserSecret;
+    if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = originalNodeEnv;
+  }
 });
 
 test("one message has exactly one recipient", async () => {

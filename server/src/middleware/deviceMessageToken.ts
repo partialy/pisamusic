@@ -18,9 +18,17 @@ type DeviceMessageJwtPayload = jwt.JwtPayload & {
 };
 
 export function getDeviceMessageJwtSecret(): string {
-  return process.env.DEVICE_MESSAGE_JWT_SECRET
-    ?? process.env.USER_JWT_SECRET
-    ?? "pisa-device-message-dev-secret-change-in-production";
+  const configured = String(process.env.DEVICE_MESSAGE_JWT_SECRET ?? "").trim();
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("生产环境必须配置 DEVICE_MESSAGE_JWT_SECRET");
+  }
+  return String(process.env.USER_JWT_SECRET ?? "").trim()
+    || "pisa-device-message-dev-secret-change-in-production";
+}
+
+if (process.env.NODE_ENV === "production") {
+  getDeviceMessageJwtSecret();
 }
 
 export function issueDeviceMessageToken(identity: DeviceMessageIdentity): string {
