@@ -587,6 +587,54 @@ CREATE TABLE IF NOT EXISTS runtime_configs (
     value_json  TEXT    NOT NULL,
     updated_at  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS listen_together_room_records (
+    id                          TEXT        PRIMARY KEY,
+    room_id                     TEXT        NOT NULL,
+    room_name                   TEXT        NOT NULL,
+    lifecycle_status            TEXT        NOT NULL CHECK (lifecycle_status IN ('active', 'closed')),
+    initial_host_user_id        TEXT        NOT NULL,
+    initial_host_snapshot_json  TEXT        NOT NULL,
+    final_host_user_id          TEXT        NOT NULL,
+    final_host_snapshot_json    TEXT        NOT NULL,
+    max_people                  INTEGER     NOT NULL,
+    member_operation            INTEGER     NOT NULL,
+    peak_people                 INTEGER     NOT NULL DEFAULT 1,
+    total_join_count            INTEGER     NOT NULL DEFAULT 1,
+    unique_people               INTEGER     NOT NULL DEFAULT 1,
+    final_people                INTEGER     NOT NULL DEFAULT 0,
+    last_song_snapshot_json     TEXT,
+    final_playback_status       TEXT        NOT NULL DEFAULT 'paused',
+    final_position              REAL        NOT NULL DEFAULT 0,
+    created_at                  INTEGER     NOT NULL,
+    updated_at                  INTEGER     NOT NULL,
+    ended_at                    INTEGER,
+    end_reason                  TEXT,
+    ended_by_admin              TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_listen_room_active_room_id
+ON listen_together_room_records(room_id) WHERE lifecycle_status = 'active';
+CREATE INDEX IF NOT EXISTS idx_listen_room_history_ended
+ON listen_together_room_records(lifecycle_status, ended_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS listen_together_room_members (
+    id                  TEXT        PRIMARY KEY,
+    room_record_id      TEXT        NOT NULL,
+    user_id             TEXT        NOT NULL,
+    user_snapshot_json  TEXT        NOT NULL,
+    role                TEXT        NOT NULL CHECK (role IN ('host', 'member')),
+    joined_at           INTEGER     NOT NULL,
+    last_seen_at        INTEGER     NOT NULL,
+    left_at             INTEGER,
+    leave_reason        TEXT,
+    FOREIGN KEY (room_record_id) REFERENCES listen_together_room_records(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_listen_room_members_record
+ON listen_together_room_members(room_record_id, joined_at ASC);
+CREATE INDEX IF NOT EXISTS idx_listen_room_members_open
+ON listen_together_room_members(room_record_id, user_id, left_at);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_listen_room_member_open
+ON listen_together_room_members(room_record_id, user_id) WHERE left_at IS NULL;
 `;
 
 function getColumnNames(db: DatabaseSync, table: string): Set<string> {

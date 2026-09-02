@@ -23,9 +23,13 @@ import { listeningRouter } from "./routes/listening";
 import { sharesRouter } from "./routes/shares";
 import { syncRouter } from "./routes/sync";
 import { fail } from "./types/response";
+import { closeStaleActiveRoomRecords } from "./db/listenTogetherHistoryStore";
 
 // 启动优先初始化运行时策略管理器
 configManager.initialize();
+
+// 回收上次进程遗留的 active 一起听房间记录
+closeStaleActiveRoomRecords(Date.now());
 
 const app = express();
 const port = Number(process.env.PORT ?? "53380");

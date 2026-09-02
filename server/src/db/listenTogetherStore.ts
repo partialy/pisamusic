@@ -15,6 +15,15 @@ export function getRoom(roomId: string): ListenTogetherRoom | null {
   return rooms.get(roomId) ?? null;
 }
 
+export function getRoomByRecordId(recordId: string): ListenTogetherRoom | null {
+  for (const room of rooms.values()) {
+    if (room.recordId === recordId) {
+      return room;
+    }
+  }
+  return null;
+}
+
 export function updateRoom(room: ListenTogetherRoom): ListenTogetherRoom {
   rooms.set(room.roomId, room);
   return room;

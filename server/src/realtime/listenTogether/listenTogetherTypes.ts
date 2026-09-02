@@ -15,6 +15,16 @@ export type ListenTogetherStatus = "playing" | "paused" | "ended";
 export type ListenTogetherMemberRole = "host" | "member";
 export type ListenTogetherSongSource = "kg" | "qq" | "wy" | "kw" | "local";
 
+export type ListenTogetherMemberLeaveReason =
+  | "left"
+  | "offline_timeout"
+  | "kicked"
+  | "replace_existing"
+  | "admin_dissolved"
+  | "server_restart";
+
+export type ListenTogetherRoomEndReason = "empty" | "admin_dissolved" | "server_restart";
+
 export type ListenTogetherSong = {
   id: string;
   source: ListenTogetherSongSource;
@@ -36,6 +46,24 @@ export type ListenTogetherSong = {
   filePath?: string;
 };
 
+export type ListenTogetherSongSnapshot = Pick<
+  ListenTogetherSong,
+  "id" | "source" | "name" | "singer" | "album" | "cover" | "duration"
+>;
+
+export function sanitizeSongSnapshot(song: ListenTogetherSong | null | undefined): ListenTogetherSongSnapshot | null {
+  if (!song || typeof song !== "object" || !song.id) return null;
+  return {
+    id: String(song.id),
+    source: song.source,
+    name: String(song.name || ""),
+    singer: String(song.singer || ""),
+    album: String(song.album || ""),
+    cover: String(song.cover || ""),
+    duration: typeof song.duration === "number" ? song.duration : 0,
+  };
+}
+
 export type ListenTogetherSongRef = {
   id: string;
   source: ListenTogetherSongSource;
@@ -56,6 +84,7 @@ export type ListenTogetherMember = ListenTogetherSocketUser & {
 };
 
 export type ListenTogetherRoom = {
+  recordId?: string;
   roomId: string;
   roomName: string;
   hostUserId: string;
