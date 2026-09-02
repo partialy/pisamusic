@@ -47,7 +47,36 @@ async function seedRecipients() {
       id, fingerprint, device_name, brand, model, os_version, sdk_version, app_version, app_version_code, first_seen_at, last_active_at
     ) VALUES (?, ?, 'Android', 'Test', 'A2', '15', 35, '1.0.0', 1, ?, ?)`,
   ).run("d2", "fingerprint-d2", now, now);
+  appDb.prepare(
+    `INSERT INTO desktop_device_info (
+      id, fingerprint, device_name, hostname, os_name, os_version, platform, arch, app_version, first_seen_at, last_active_at
+    ) VALUES (?, ?, 'Desktop', 'test-host', 'Windows', '11', 'win32', 'x64', '1.0.0', ?, ?)`,
+  ).run("pc1", "fingerprint-pc1", now, now);
 }
+
+test("device message token only verifies against its current matching device", async () => {
+  await seedRecipients();
+  process.env.DEVICE_MESSAGE_JWT_SECRET = "direct-message-token-test-secret";
+  const tokens = await import("../middleware/deviceMessageToken.js");
+  const token = tokens.issueDeviceMessageToken({
+    kind: "android",
+    deviceId: "d1",
+    fingerprint: "fingerprint-d1",
+  });
+  assert.deepEqual(tokens.verifyDeviceMessageToken(token), {
+    kind: "android",
+    deviceId: "d1",
+    fingerprint: "fingerprint-d1",
+  });
+
+  process.env.DEVICE_MESSAGE_JWT_SECRET = "different-direct-message-token-test-secret";
+  assert.equal(tokens.verifyDeviceMessageToken(token), null);
+  process.env.DEVICE_MESSAGE_JWT_SECRET = "direct-message-token-test-secret";
+
+  const appDb = await db();
+  appDb.prepare("DELETE FROM device_info WHERE id = ?").run("d1");
+  assert.equal(tokens.verifyDeviceMessageToken(token), null);
+});
 
 test("one message has exactly one recipient", async () => {
   await seedRecipients();

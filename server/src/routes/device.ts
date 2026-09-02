@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { Router } from "express";
 import { recordDeviceDailyActivity } from "../db/analyticsStore";
 import { getDeviceDb } from "../db/deviceInfoDb";
+import { issueDeviceMessageToken } from "../middleware/deviceMessageToken";
 import { fail, ok } from "../types/response";
 
 export const deviceRouter = Router();
@@ -175,6 +176,7 @@ deviceRouter.post("/desktop/report", (req: Request, res: Response) => {
     res.json(
       ok({
         id: out.id,
+        messageToken: issueDeviceMessageToken({ kind: "desktop", deviceId: out.id, fingerprint: fp }),
         locked: out.locked !== 0,
         lockEndTime: out.lock_end_time,
         lastActiveAt: out.last_active_at,
@@ -380,6 +382,7 @@ deviceRouter.post("/report", (req: Request, res: Response) => {
     res.json(
       ok({
         id: out.id,
+        messageToken: issueDeviceMessageToken({ kind: "android", deviceId: out.id, fingerprint: fp }),
         locked: out.locked !== 0,
         lockEndTime: out.lock_end_time,
         lastActiveAt: out.last_active_at,
