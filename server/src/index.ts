@@ -20,6 +20,7 @@ import { feedbackRouter } from "./routes/feedback";
 import { faultReportsRouter } from "./routes/faultReports";
 import { listenTogetherRouter } from "./routes/listenTogether";
 import { listeningRouter } from "./routes/listening";
+import { messagesRouter } from "./routes/messages";
 import { sharesRouter } from "./routes/shares";
 import { syncRouter } from "./routes/sync";
 import { fail } from "./types/response";
@@ -150,6 +151,7 @@ app.use("/api/device", deviceRouter);
 app.use("/api/sync", syncRouter);
 app.use("/api/listen-together", listenTogetherRouter);
 app.use("/api/listening", listeningRouter);
+app.use("/api/messages", messagesRouter);
 app.use("/api/shares", sharesRouter);
 app.use("/api/cloud-music", cloudMusicRouter);
 

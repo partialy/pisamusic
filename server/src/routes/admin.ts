@@ -35,6 +35,7 @@ import {
 import { getDeviceDb } from "../db/deviceInfoDb";
 import { getPlaintextPaths, setPlaintextPaths } from "../middleware/encryption";
 import { getAdminJwtSecret, requireAdminJwt } from "../middleware/requireAdminJwt";
+import { adminDirectMessagesRouter } from "./adminDirectMessages";
 import { adminCloudMusicRouter } from "./adminCloudMusic";
 import { adminListeningRouter } from "./adminListening";
 import { adminDashboardRouter } from "./adminDashboard";
@@ -629,6 +630,7 @@ adminRouter.post("/login", async (req, res) => {
 });
 
 adminRouter.use(requireAdminJwt);
+adminRouter.use("/messages", adminDirectMessagesRouter);
 adminRouter.use("/cloud-music", adminCloudMusicRouter);
 adminRouter.use("/listening", adminListeningRouter);
 adminRouter.use("/dashboard", adminDashboardRouter);
