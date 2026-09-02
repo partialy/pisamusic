@@ -15,8 +15,11 @@ class AuthInterceptor : Interceptor {
     
     private fun makeRequest(chain: Interceptor.Chain, originalRequest: Request): Response {
         val token = TokenManager.getToken()
+        val hasExplicitAuthorization = !originalRequest.header("Authorization").isNullOrBlank()
+        // 专属消息的设备身份是捕获时的快照。访客快照不得在异步回执时混入之后登录的账号。
+        val hasDeviceMessageToken = !originalRequest.header("x-pm-device-token").isNullOrBlank()
         val newRequest = originalRequest.newBuilder().apply {
-            token?.takeIf { originalRequest.header("Authorization").isNullOrBlank() }?.let {
+            token?.takeIf { !hasExplicitAuthorization && !hasDeviceMessageToken }?.let {
                 header("Authorization", "Bearer $it")
             }
             header("Device-Model", encodeDeviceModel())
