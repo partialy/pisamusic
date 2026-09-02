@@ -43,6 +43,7 @@ export const tabs = [
   { id: "shares" as const, name: "分享管理" },
   { id: "content" as const, name: "内容与协议" },
   { id: "dynamicConfig" as const, name: "动态配置" },
+  { id: "runtimeConfig" as const, name: "运行策略" },
   { id: "encryption" as const, name: "加密白名单" },
 ];
 

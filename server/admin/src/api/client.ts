@@ -43,6 +43,7 @@ import type {
   VerificationCodeFilter,
   VerificationCodeListResponse,
 } from "../types/config";
+import type { RuntimeConfigChange, RuntimeConfigResponse } from "../types/runtimeConfig";
 import type { AdminDashboardData, DashboardRangeDays } from "../types/dashboard";
 import { clearStoredToken, getStoredToken } from "../auth/token";
 import { encryptedFetch } from "./crypto";
@@ -873,4 +874,25 @@ export async function deleteVerificationCode(id: string): Promise<void> {
   if (!res.ok || !body.success) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
+}
+
+export async function fetchRuntimeConfig(): Promise<RuntimeConfigResponse> {
+  const res = await fetchWithAuth("/api/admin/runtime-config");
+  const body = await parseJson<RuntimeConfigResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function updateRuntimeConfig(changes: RuntimeConfigChange[]): Promise<RuntimeConfigResponse> {
+  const res = await fetchWithAuth("/api/admin/runtime-config", {
+    method: "PATCH",
+    body: JSON.stringify({ changes }),
+  });
+  const body = await parseJson<RuntimeConfigResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
 }

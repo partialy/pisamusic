@@ -36,6 +36,7 @@ import {
   SafetyCertificateOutlined,
   SettingOutlined,
   ShareAltOutlined,
+  SlidersOutlined,
   TeamOutlined,
   TrophyOutlined,
   UserOutlined,
@@ -159,6 +160,7 @@ const ListeningLevelsTab = lazy(() => import("./components/tabs/ListeningLevelsT
 const ContentTab = lazy(() => import("./components/tabs/ContentTab"));
 const AnnouncementsTab = lazy(() => import("./components/tabs/AnnouncementsTab"));
 const DynamicConfigTab = lazy(() => import("./components/tabs/DynamicConfigTab"));
+const RuntimeConfigTab = lazy(() => import("./components/tabs/RuntimeConfigTab"));
 const EncryptionTab = lazy(() => import("./components/tabs/EncryptionTab"));
 const DevicesTab = lazy(() => import("./components/tabs/DevicesTab"));
 
@@ -188,6 +190,7 @@ const TAB_TO_PARENT_KEY: Record<string, string> = {
   faultReports: "maintenance_group",
   system: "system_group",
   dynamicConfig: "system_group",
+  runtimeConfig: "system_group",
   encryption: "system_group",
 };
 
@@ -1308,6 +1311,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       children: [
         { key: "system", icon: <SettingOutlined />, label: "系统配置" },
         { key: "dynamicConfig", icon: <ControlOutlined />, label: "动态配置" },
+        { key: "runtimeConfig", icon: <SlidersOutlined />, label: "运行策略" },
         { key: "encryption", icon: <SafetyCertificateOutlined />, label: "加密白名单" },
       ],
     },
@@ -1712,6 +1716,9 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onEdit={handleEditDynamicConfig}
                   onDelete={(item) => void handleDeleteDynamicConfig(item)}
                 />
+              )}
+              {currentTab === "runtimeConfig" && (
+                <RuntimeConfigTab themeColor={themeColor} />
               )}
               {currentTab === "encryption" && (
                 <EncryptionTab
