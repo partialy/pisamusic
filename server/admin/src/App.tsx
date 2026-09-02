@@ -26,6 +26,7 @@ const AnnouncementsManagementPage = lazy(() => import("./pages/AnnouncementsMana
 const DynamicConfigPage = lazy(() => import("./pages/DynamicConfigPage"));
 const EncryptionPage = lazy(() => import("./pages/EncryptionPage"));
 const DevicesPage = lazy(() => import("./pages/DevicesPage"));
+const ListenTogetherManagementPage = lazy(() => import("./pages/ListenTogetherManagementPage"));
 
 function DashboardRoute() {
   const { themeColor } = useAdminLayout();
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="/devices" element={<DevicesPage />} />
             <Route path="/cloud-music" element={<CloudMusicRoute />} />
             <Route path="/shares" element={<ShareManagementPage />} />
+            <Route path="/listen-together" element={<ListenTogetherManagementPage />} />
             <Route path="/files" element={<FileManagementPage />} />
             <Route path="/website-records" element={<WebsiteRecordsRoute />} />
             <Route path="/updates" element={<UpdateManagementPage />} />

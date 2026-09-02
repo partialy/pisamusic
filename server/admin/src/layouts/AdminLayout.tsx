@@ -135,6 +135,7 @@ export default function AdminLayout() {
         children: [
           { key: "cloudMusic", icon: <CustomerServiceOutlined />, label: "网盘音乐" },
           { key: "shares", icon: <ShareAltOutlined />, label: "分享管理" },
+          { key: "listenTogether", icon: <TeamOutlined />, label: "一起听管理" },
           { key: "files", icon: <FolderOutlined />, label: "文件管理" },
         ],
       },

@@ -7,6 +7,7 @@ export type AdminRouteKey =
   | "devices"
   | "cloudMusic"
   | "shares"
+  | "listenTogether"
   | "files"
   | "update"
   | "announcements"
@@ -50,6 +51,7 @@ export const ADMIN_ROUTES: AdminRouteItem[] = [
   { key: "devices", path: "/devices", title: "设备管理", groupKey: "user_group", groupTitle: "用户中心" },
   { key: "cloudMusic", path: "/cloud-music", title: "网盘音乐", groupKey: "media_group", groupTitle: "曲库与资源" },
   { key: "shares", path: "/shares", title: "分享管理", groupKey: "media_group", groupTitle: "曲库与资源" },
+  { key: "listenTogether", path: "/listen-together", title: "一起听管理", groupKey: "media_group", groupTitle: "曲库与资源" },
   { key: "files", path: "/files", title: "文件管理", groupKey: "media_group", groupTitle: "曲库与资源" },
   { key: "websiteRecords", path: "/website-records", title: "官网记录", groupKey: "operation_group", groupTitle: "运营与发布", hideGlobalActions: true },
   { key: "update", path: "/updates", title: "版本发布", groupKey: "operation_group", groupTitle: "运营与发布" },
