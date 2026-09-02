@@ -47,21 +47,7 @@ export class RuntimeConfigManager {
       }
     }
 
-    // 2. 检查是否有旧 dynamic_configs (如 listen_together_max_people) 需要引导
-    let legacyListenTogetherMaxPeople: number | undefined;
-    try {
-      const dynamicRow = db.prepare("SELECT content FROM dynamic_configs WHERE id = 'listen_together_max_people'").get() as { content?: string } | undefined;
-      if (dynamicRow?.content) {
-        const num = Number(dynamicRow.content);
-        if (Number.isFinite(num) && num >= 2 && num <= 100) {
-          legacyListenTogetherMaxPeople = Math.trunc(num);
-        }
-      }
-    } catch {
-      // 忽略
-    }
-
-    // 3. 检查是否有环境变量 ANALYTICS_RETENTION_DAYS 需要引导
+    // 2. 检查是否有环境变量 ANALYTICS_RETENTION_DAYS 需要引导
     let envRetentionDays: number | undefined;
     if (process.env.ANALYTICS_RETENTION_DAYS) {
       const num = Number(process.env.ANALYTICS_RETENTION_DAYS);
@@ -70,7 +56,7 @@ export class RuntimeConfigManager {
       }
     }
 
-    // 4. 比对 definition，缺少的在单一事务中持久化默认值
+    // 3. 比对 definition，缺少的在单一事务中持久化默认值
     const toInsert: { key: string; name: string; valueJson: string; updatedAt: number }[] = [];
     const toUpdateName: { key: string; name: string }[] = [];
 
@@ -85,11 +71,9 @@ export class RuntimeConfigManager {
           toUpdateName.push({ key: def.key, name: def.label });
         }
       } else {
-        // 计算初始默认值（考虑旧兼容迁移）
+        // 计算初始默认值
         let initialVal = def.defaultValue;
-        if (def.key === "listenTogether.maxPeopleLimit" && legacyListenTogetherMaxPeople !== undefined) {
-          initialVal = legacyListenTogetherMaxPeople;
-        } else if (def.key === "analytics.retentionDays" && envRetentionDays !== undefined) {
+        if (def.key === "analytics.retentionDays" && envRetentionDays !== undefined) {
           initialVal = envRetentionDays;
         }
 

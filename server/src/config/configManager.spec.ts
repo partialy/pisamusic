@@ -43,16 +43,6 @@ test("configManager: initialize populates missing defaults", () => {
   assert.strictEqual(row.name, "安装包/更新下载链接有效期");
 });
 
-test("configManager: legacy listen_together_max_people migration", () => {
-  const db = createTestDb();
-  db.prepare("INSERT INTO dynamic_configs (id, type, content, created_at, updated_at) VALUES ('listen_together_max_people', 'number', '16', 1000, 1000)").run();
-
-  const manager = createConfigManager(db);
-  manager.initialize();
-
-  assert.strictEqual(manager.get("listenTogether.maxPeopleLimit", 8), 16);
-});
-
 test("configManager: setMany atomic update and subscription notification", () => {
   const db = createTestDb();
   const manager = createConfigManager(db);
