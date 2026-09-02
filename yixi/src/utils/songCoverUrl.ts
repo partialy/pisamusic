@@ -1,4 +1,3 @@
-export type SongCoverSize = 120 | 240 | 360 | 480;
 
 type SongCoverInput = {
   source?: string;
