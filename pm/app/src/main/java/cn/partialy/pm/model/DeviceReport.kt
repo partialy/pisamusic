@@ -25,6 +25,7 @@ data class DeviceReportResponse(
 
 data class DeviceReportResult(
     val id: String,
+    val messageToken: String,
     val locked: Boolean,
     val lockEndTime: Long? = null,
     val lastActiveAt: Long,

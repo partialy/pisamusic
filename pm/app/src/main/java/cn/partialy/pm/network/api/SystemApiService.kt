@@ -24,6 +24,8 @@ import cn.partialy.pm.model.AccountProfileUpdateRequest
 import cn.partialy.pm.model.AccountRegisterRequest
 import cn.partialy.pm.model.DeviceReportRequest
 import cn.partialy.pm.model.DeviceReportResponse
+import cn.partialy.pm.directmessage.DirectMessageReadResponse
+import cn.partialy.pm.directmessage.DirectMessageUnreadResponse
 import cn.partialy.pm.model.SyncChangesResponse
 import cn.partialy.pm.model.SyncPushRequest
 import cn.partialy.pm.model.SyncPushResponse
@@ -88,6 +90,21 @@ interface SystemApiService {
 
     @POST("api/device/report")
     suspend fun reportDevice(@Body body: DeviceReportRequest): DeviceReportResponse
+
+    @GET("api/messages/unread")
+    suspend fun getUnreadDirectMessages(
+        @Header("Authorization") authorization: String?,
+        @Header("x-pm-device-token") deviceToken: String?,
+        @Query("limit") limit: Int = 50,
+    ): DirectMessageUnreadResponse
+
+    @POST("api/messages/{id}/read")
+    suspend fun markDirectMessageRead(
+        @Path("id") id: String,
+        @Header("Authorization") authorization: String?,
+        @Header("x-pm-device-token") deviceToken: String?,
+        @Body body: Map<String, String> = emptyMap(),
+    ): DirectMessageReadResponse
 
     @POST("api/fault-reports")
     suspend fun submitFaultReport(

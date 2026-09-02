@@ -184,7 +184,7 @@ class SplashActivity : AppCompatActivity() {
                         configManager.refreshBootstrapConfig()
                         val body = DeviceInfoCollector.build(this@SplashActivity)
                         val deviceReport = configManager.reportDevice(body)
-                        saveServerDeviceUuid(deviceReport.id)
+                        saveServerDeviceIdentity(deviceReport.id, deviceReport.messageToken)
                         if (deviceReport.isCurrentlyLocked()) {
                             throw DeviceLockedException(deviceReport)
                         }
@@ -228,8 +228,8 @@ class SplashActivity : AppCompatActivity() {
         }
     }
 
-    private fun saveServerDeviceUuid(id: String) {
-        ServerDevicePrefs.setDeviceId(this, id)
+    private fun saveServerDeviceIdentity(id: String, messageToken: String) {
+        ServerDevicePrefs.saveReportIdentity(this, id, messageToken)
     }
 
     private fun scheduleLocalModeButtonIfNeeded() {
