@@ -307,3 +307,10 @@
 | :--- | :--- | :--- | :--- |
 | 获取听歌等级完整配置 | `GET` | `/api/admin/listening/levels` | [./admin/listeningLevels.md](./admin/listeningLevels.md) |
 | 整体替换听歌等级配置 | `PUT` | `/api/admin/listening/levels` | [./admin/listeningLevels.md](./admin/listeningLevels.md) |
+
+### 13.14 运行时策略配置管理
+| 接口名称 | Method | 请求路径 | 接口文档链接 |
+| :--- | :--- | :--- | :--- |
+| 获取运行时策略配置 | `GET` | `/api/admin/runtime-config` | [./admin/getRuntimeConfig.md](./admin/getRuntimeConfig.md) |
+| 批量修改运行时策略配置 | `PATCH` | `/api/admin/runtime-config` | [./admin/updateRuntimeConfig.md](./admin/updateRuntimeConfig.md) |
+

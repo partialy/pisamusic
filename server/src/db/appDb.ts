@@ -580,6 +580,13 @@ CREATE INDEX IF NOT EXISTS idx_device_daily_day_type
 ON device_daily_activity (activity_day, device_type);
 CREATE INDEX IF NOT EXISTS idx_device_daily_last_seen
 ON device_daily_activity (last_seen_at);
+
+CREATE TABLE IF NOT EXISTS runtime_configs (
+    key         TEXT    PRIMARY KEY,
+    name        TEXT    NOT NULL DEFAULT '',
+    value_json  TEXT    NOT NULL,
+    updated_at  INTEGER NOT NULL
+);
 `;
 
 function getColumnNames(db: DatabaseSync, table: string): Set<string> {
@@ -851,6 +858,13 @@ function repairFileRecords(db: DatabaseSync) {
   `);
 }
 
+function migrateRuntimeConfigs(db: DatabaseSync) {
+  const cols = getColumnNames(db, "runtime_configs");
+  if (!cols.has("name")) {
+    db.exec("ALTER TABLE runtime_configs ADD COLUMN name TEXT NOT NULL DEFAULT ''");
+  }
+}
+
 function initSchema(db: DatabaseSync) {
   db.exec(`
     DROP TABLE IF EXISTS sync_applied_ops;
@@ -878,6 +892,7 @@ function initSchema(db: DatabaseSync) {
   migrateShareRecords(db);
   migrateFileRecords(db);
   migrateListening(db);
+  migrateRuntimeConfigs(db);
   repairFileRecords(db);
 }
 

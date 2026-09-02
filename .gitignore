@@ -77,3 +77,9 @@ design-html/
 !yixi/electron/listening/listeningRules.test.ts
 !server/src/services/listeningService.spec.ts
 !server/src/db/verificationCodeStore.spec.ts
+!server/src/config/configDefinitions.spec.ts
+!server/src/config/configManager.spec.ts
+!server/src/middleware/pathMatcher.spec.ts
+!server/src/middleware/obviousBotBlocker.spec.ts
+!server/src/middleware/ipRateLimit.spec.ts
+!server/src/routes/adminRuntimeConfig.spec.ts

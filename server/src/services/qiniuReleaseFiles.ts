@@ -2,11 +2,14 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { Readable } from "node:stream";
 import * as qiniu from "qiniu";
+import { configManager } from "../config/configManager";
 import type { DesktopUpdateAssetType, ReleasePlatform } from "../db/configStore";
 
 const PROVIDER = "qiniu" as const;
-const TOKEN_TTL_SECONDS = 3600;
-const DOWNLOAD_TTL_SECONDS = 3600;
+const DEFAULT_TOKEN_TTL_SECONDS = 3600;
+const TOKEN_TTL_SECONDS = DEFAULT_TOKEN_TTL_SECONDS;
+const DEFAULT_RELEASE_DOWNLOAD_TTL_SECONDS = 300;
+const DEFAULT_CLOUD_MUSIC_TTL_SECONDS = 3600;
 const ACCOUNT_AVATAR_MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_EXTENSIONS: Record<ReleasePlatform, string[]> = {
   android: [".apk", ".aab"],
@@ -399,17 +402,27 @@ export async function deleteAccountAvatarObject(key: string): Promise<void> {
   await deleteQiniuObject(getSpaceConfig("public-image").bucket, key);
 }
 
-export function createPrivateQiniuDownloadUrl(key: string, ttlSeconds = DOWNLOAD_TTL_SECONDS): string {
+export function createPrivateQiniuDownloadUrl(key: string, ttlSeconds?: number): string {
+  const actualTtl = ttlSeconds !== undefined
+    ? ttlSeconds
+    : configManager.get("storage.releaseDownloadUrlTtlSeconds", DEFAULT_RELEASE_DOWNLOAD_TTL_SECONDS);
   const { baseUrl } = getSpaceConfig("release");
-  const deadline = Math.floor(Date.now() / 1000) + ttlSeconds;
+  const deadline = Math.floor(Date.now() / 1000) + actualTtl;
   const bucketManager = new qiniu.rs.BucketManager(getMac(), new qiniu.conf.Config({ useHttpsDomain: true }));
   return bucketManager.privateDownloadUrl(baseUrl, key, deadline);
 }
 
-export function createPrivateQiniuDownloadUrlForBucket(bucket: string, key: string, ttlSeconds = DOWNLOAD_TTL_SECONDS): string {
+export function createPrivateQiniuDownloadUrlForBucket(bucket: string, key: string, ttlSeconds?: number): string {
   assertReleaseBucket(bucket);
-  if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds <= 0 || ttlSeconds > DOWNLOAD_TTL_SECONDS) {
+  const actualTtl = ttlSeconds !== undefined
+    ? ttlSeconds
+    : configManager.get("storage.releaseDownloadUrlTtlSeconds", DEFAULT_RELEASE_DOWNLOAD_TTL_SECONDS);
+  if (!Number.isSafeInteger(actualTtl) || actualTtl <= 0 || actualTtl > 86400) {
     throw new Error("七牛临时下载有效期不正确");
   }
-  return createPrivateQiniuDownloadUrl(key, Math.trunc(ttlSeconds));
+  return createPrivateQiniuDownloadUrl(key, Math.trunc(actualTtl));
+}
+
+export function createReleaseDownloadUrl(key: string, ttlSeconds?: number): string {
+  return createPrivateQiniuDownloadUrl(key, ttlSeconds);
 }

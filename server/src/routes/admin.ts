@@ -41,6 +41,7 @@ import { adminDashboardRouter } from "./adminDashboard";
 import { adminDynamicConfigRouter } from "./adminDynamicConfig";
 import { adminFeedbackRouter } from "./adminFeedback";
 import { adminFaultReportsRouter } from "./adminFaultReports";
+import { adminRuntimeConfigRouter } from "./adminRuntimeConfig";
 import { adminSharesRouter } from "./adminShares";
 import { adminUsersRouter } from "./adminUsers";
 import { adminVerificationCodesRouter } from "./adminVerificationCodes";
@@ -637,6 +638,7 @@ adminRouter.use("/shares", adminSharesRouter);
 adminRouter.use("/users", adminUsersRouter);
 adminRouter.use("/verification-codes", adminVerificationCodesRouter);
 adminRouter.use("/website-records", adminWebsiteRecordsRouter);
+adminRouter.use("/runtime-config", adminRuntimeConfigRouter);
 
 adminRouter.post("/change-password", async (req, res) => {
   try {

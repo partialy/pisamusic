@@ -3,9 +3,12 @@ import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
 import path from "node:path";
+import { configManager } from "./config/configManager";
 import { readPlaintextPaths } from "./db/configStore";
 import { logInterceptor } from "./interceptor/logInterceptor";
 import { encryptionMiddleware, setPlaintextPaths } from "./middleware/encryption";
+import { createIpRateLimitMiddleware } from "./middleware/ipRateLimit";
+import { createObviousBotBlocker } from "./middleware/obviousBotBlocker";
 import { initRealtimeServer } from "./realtime";
 import { adminRouter } from "./routes/admin";
 import { analyticsRouter } from "./routes/analytics";
@@ -21,6 +24,9 @@ import { sharesRouter } from "./routes/shares";
 import { syncRouter } from "./routes/sync";
 import { fail } from "./types/response";
 
+// 启动优先初始化运行时策略管理器
+configManager.initialize();
+
 const app = express();
 const port = Number(process.env.PORT ?? "53380");
 
@@ -31,8 +37,48 @@ const discoverRoot = path.resolve(process.cwd(), "discover");
 const staticRoot = path.resolve(process.cwd(), "static");
 
 app.use(cors());
-app.use("/api/fault-reports", express.json({ limit: "5mb" }));
-app.use(express.json({ limit: "1mb" }));
+
+// 挂载明显爬虫拦截中间件（排在限流之前，防爬虫消耗正常额度）
+app.use(
+  createObviousBotBlocker(() => ({
+    paths: ["/api/config/download/*"],
+    userAgentSubstrings: configManager.get("security.websiteDownloadBotUserAgentSubstrings", [
+      "python/",
+      "aiohttp/",
+      "python-requests",
+      "scrapy",
+      "curl/",
+      "wget/",
+      "httpx",
+      "go-http-client",
+      "libwww-perl",
+    ]),
+    blockEmptyUserAgent: configManager.get("security.websiteDownloadBlockEmptyUserAgent", false),
+  })),
+);
+
+// 挂载下载入口共享 IP 滑动窗口限流中间件
+app.use(
+  createIpRateLimitMiddleware({
+    group: "download",
+    getPolicy: () => ({
+      paths: configManager.get("security.downloadRateLimitPaths", [
+        "/api/config/download/*",
+        "/api/config/release-files/*",
+        "/api/config/desktop-updates/win32/x64/latest.yml",
+        "/api/config/desktop-updates/win32/x64/*",
+      ]),
+      windowSeconds: configManager.get("security.downloadRateLimitWindowSeconds", 60),
+      maxRequests: configManager.get("security.downloadRateLimitMaxRequests", 5),
+    }),
+  }),
+);
+
+app.use(
+  "/api/fault-reports",
+  express.json({ limit: configManager.get("http.faultReportBodyLimit", "5mb") }),
+);
+app.use(express.json({ limit: configManager.get("http.jsonBodyLimit", "1mb") }));
 app.use(logInterceptor);
 
 const DEFAULT_PLAINTEXT_PATHS = [
