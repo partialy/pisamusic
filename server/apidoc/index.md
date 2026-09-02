@@ -261,14 +261,19 @@
 | 更新用户资料与 VIP 权益 | `PUT` | `/api/admin/users/:id` | [./admin/updateUser.md](./admin/updateUser.md) |
 | 硬删除用户 | `DELETE` | `/api/admin/users/:id` | [./admin/deleteUser.md](./admin/deleteUser.md) |
 
-### 13.8 反馈管理
+### 13.8 验证码记录管理
+| 接口名称 | Method | 请求路径 | 接口文档链接 |
+| :--- | :--- | :--- | :--- |
+| 分页查询验证码记录列表 | `GET` | `/api/admin/verification-codes` | [./admin/listVerificationCodes.md](./admin/listVerificationCodes.md) |
+
+### 13.9 反馈管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 分页查询用户反馈列表 | `GET` | `/api/admin/feedback` | [./admin/listFeedback.md](./admin/listFeedback.md) |
 | 查看用户反馈详情 | `GET` | `/api/admin/feedback/:id` | [./admin/getFeedbackDetail.md](./admin/getFeedbackDetail.md) |
 | 更新用户反馈处理状态 | `PATCH` | `/api/admin/feedback/:id/status` | [./admin/updateFeedbackStatus.md](./admin/updateFeedbackStatus.md) |
 
-### 13.9 故障上报管理
+### 13.10 故障上报管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 分页查询故障上报批次列表 | `GET` | `/api/admin/fault-reports` | [./admin/listFaultReports.md](./admin/listFaultReports.md) |
@@ -276,13 +281,13 @@
 | 更新故障上报处理状态 | `PATCH` | `/api/admin/fault-reports/:id/status` | [./admin/updateFaultReportStatus.md](./admin/updateFaultReportStatus.md) |
 | 删除故障上报批次及日志 | `DELETE` | `/api/admin/fault-reports/:id` | [./admin/deleteFaultReport.md](./admin/deleteFaultReport.md) |
 
-### 13.10 外链分享管理
+### 13.11 外链分享管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 分页查询分享记录 | `GET` | `/api/admin/shares` | [./admin/listShares.md](./admin/listShares.md) |
 | 标记指定分享失效 | `PATCH` | `/api/admin/shares/:uuid/invalid` | [./admin/invalidateShare.md](./admin/invalidateShare.md) |
 
-### 13.11 网盘音乐管理与审核
+### 13.12 网盘音乐管理与审核
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 创建网盘音乐上传会话 | `POST` | `/api/admin/cloud-music/upload-sessions` | [./admin/createCloudMusicUploadSession.md](./admin/createCloudMusicUploadSession.md) |
@@ -297,7 +302,7 @@
 | 一键清理临时网盘文件 | `POST` | `/api/admin/cloud-music/temp-cleanup` | [./admin/cleanupCloudMusicTemp.md](./admin/cleanupCloudMusicTemp.md) |
 | 删除网盘音乐曲目 | `DELETE` | `/api/admin/cloud-music/:uuid` | [./admin/deleteCloudMusic.md](./admin/deleteCloudMusic.md) |
 
-### 13.12 听歌等级管理
+### 13.13 听歌等级管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |
 | :--- | :--- | :--- | :--- |
 | 获取听歌等级完整配置 | `GET` | `/api/admin/listening/levels` | [./admin/listeningLevels.md](./admin/listeningLevels.md) |

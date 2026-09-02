@@ -76,3 +76,4 @@ design-html/
 !yixi/electron/system/requestHeaders.test.ts
 !yixi/electron/listening/listeningRules.test.ts
 !server/src/services/listeningService.spec.ts
+!server/src/db/verificationCodeStore.spec.ts

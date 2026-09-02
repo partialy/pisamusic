@@ -31,6 +31,7 @@ export const tabs = [
   { id: "system" as const, name: "系统配置" },
   { id: "websiteRecords" as const, name: "官网记录" },
   { id: "users" as const, name: "用户管理" },
+  { id: "verificationCodes" as const, name: "验证码记录" },
   { id: "listeningLevels" as const, name: "听歌等级" },
   { id: "devices" as const, name: "设备管理" },
   { id: "update" as const, name: "版本发布" },

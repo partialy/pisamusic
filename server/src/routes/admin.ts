@@ -43,6 +43,7 @@ import { adminFeedbackRouter } from "./adminFeedback";
 import { adminFaultReportsRouter } from "./adminFaultReports";
 import { adminSharesRouter } from "./adminShares";
 import { adminUsersRouter } from "./adminUsers";
+import { adminVerificationCodesRouter } from "./adminVerificationCodes";
 import { adminWebsiteRecordsRouter } from "./adminWebsiteRecords";
 import {
   buildReleaseFileDownloadPath,
@@ -634,6 +635,7 @@ adminRouter.use("/feedback", adminFeedbackRouter);
 adminRouter.use("/fault-reports", adminFaultReportsRouter);
 adminRouter.use("/shares", adminSharesRouter);
 adminRouter.use("/users", adminUsersRouter);
+adminRouter.use("/verification-codes", adminVerificationCodesRouter);
 adminRouter.use("/website-records", adminWebsiteRecordsRouter);
 
 adminRouter.post("/change-password", async (req, res) => {

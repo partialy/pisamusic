@@ -8,7 +8,7 @@ export type StoredTheme = {
 };
 
 const defaultTheme: StoredTheme = {
-  themeColor: "#0f172a",
+  themeColor: "#1677ff",
   bgIndex: 0,
 };
 

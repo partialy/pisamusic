@@ -508,6 +508,28 @@ CREATE TABLE IF NOT EXISTS user_sync_applied_ops (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS verification_code_records (
+    id              TEXT    PRIMARY KEY,
+    channel         TEXT    NOT NULL,
+    target          TEXT    NOT NULL,
+    purpose         TEXT    NOT NULL,
+    code            TEXT    NOT NULL,
+    user_id         TEXT,
+    device_id       TEXT    NOT NULL DEFAULT '',
+    client_ip       TEXT    NOT NULL DEFAULT '',
+    user_agent      TEXT    NOT NULL DEFAULT '',
+    status          TEXT    NOT NULL DEFAULT 'sent',
+    error_message   TEXT    NOT NULL DEFAULT '',
+    created_at      INTEGER NOT NULL,
+    expires_at      INTEGER NOT NULL,
+    verified_at     INTEGER,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_verification_code_target_created ON verification_code_records (target, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_verification_code_channel_purpose ON verification_code_records (channel, purpose, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_verification_code_status ON verification_code_records (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_verification_code_created ON verification_code_records (created_at DESC);
+
 CREATE TABLE IF NOT EXISTS site_visit_records (
     id              TEXT    PRIMARY KEY,
     visit_day       TEXT    NOT NULL,

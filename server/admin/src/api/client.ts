@@ -40,6 +40,8 @@ import type {
   ReleasePlatform,
   UpdateHistoryDeletionPreview,
   UpdateHistoryItem,
+  VerificationCodeFilter,
+  VerificationCodeListResponse,
 } from "../types/config";
 import type { AdminDashboardData, DashboardRangeDays } from "../types/dashboard";
 import { clearStoredToken, getStoredToken } from "../auth/token";
@@ -844,4 +846,31 @@ export async function fetchAdminDashboard(
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
   return body.data;
+}
+
+export async function fetchVerificationCodes(filter: VerificationCodeFilter): Promise<VerificationCodeListResponse> {
+  const params = new URLSearchParams();
+  if (filter.channel && filter.channel !== "all") params.set("channel", filter.channel);
+  if (filter.purpose && filter.purpose !== "all") params.set("purpose", filter.purpose);
+  if (filter.status && filter.status !== "all") params.set("status", filter.status);
+  if (filter.keyword) params.set("keyword", filter.keyword);
+  if (filter.offset !== undefined) params.set("offset", String(filter.offset));
+  if (filter.limit !== undefined) params.set("limit", String(filter.limit));
+  const query = params.toString();
+  const res = await fetchWithAuth(`/api/admin/verification-codes${query ? `?${query}` : ""}`);
+  const body = await parseJson<VerificationCodeListResponse>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function deleteVerificationCode(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/verification-codes/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  const body = await parseJson<{ deleted: boolean }>(res);
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
 }

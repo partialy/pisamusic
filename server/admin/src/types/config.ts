@@ -592,3 +592,47 @@ export type PisaAdminExport = AppConfigJson & {
   announcements: Announcement[];
   updateHistory: UpdateHistoryItem[];
 };
+
+export type VerificationCodeChannel = "email" | "phone";
+export type VerificationCodePurpose = "register" | "login" | "profile_email" | "profile_phone" | "reset_password";
+export type VerificationCodeStatus = "sent" | "verified" | "expired" | "failed";
+
+export type VerificationCodeRecord = {
+  id: string;
+  channel: VerificationCodeChannel;
+  target: string;
+  purpose: VerificationCodePurpose;
+  code: string;
+  userId: string | null;
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    avatarUrl?: string;
+  } | null;
+  deviceId: string;
+  clientIp: string;
+  userAgent: string;
+  status: VerificationCodeStatus;
+  errorMessage: string;
+  createdAt: number;
+  expiresAt: number;
+  verifiedAt: number | null;
+};
+
+export type VerificationCodeListResponse = {
+  items: VerificationCodeRecord[];
+  total: number;
+  offset: number;
+  limit: number;
+};
+
+export type VerificationCodeFilter = {
+  channel?: string;
+  purpose?: string;
+  status?: string;
+  keyword?: string;
+  offset?: number;
+  limit?: number;
+};
+

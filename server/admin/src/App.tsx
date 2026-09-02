@@ -151,6 +151,7 @@ const FeedbackManagementTab = lazy(() => import("./components/tabs/FeedbackManag
 const FaultReportsManagementTab = lazy(() => import("./components/tabs/FaultReportsManagementTab"));
 const ShareManagementTab = lazy(() => import("./components/tabs/ShareManagementTab"));
 const UserManagementTab = lazy(() => import("./components/tabs/UserManagementTab"));
+const VerificationCodesTab = lazy(() => import("./components/tabs/VerificationCodesTab"));
 const ListeningLevelsTab = lazy(() => import("./components/tabs/ListeningLevelsTab"));
 const ContentTab = lazy(() => import("./components/tabs/ContentTab"));
 const AnnouncementsTab = lazy(() => import("./components/tabs/AnnouncementsTab"));
@@ -1227,6 +1228,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     { key: "system", icon: <SettingOutlined />, label: "系统配置" },
     { key: "websiteRecords", icon: <GlobalOutlined />, label: "官网记录" },
     { key: "users", icon: <UserOutlined />, label: "用户管理" },
+    { key: "verificationCodes", icon: <KeyOutlined />, label: "验证码记录" },
     { key: "listeningLevels", icon: <TrophyOutlined />, label: "听歌等级" },
     { key: "devices", icon: <DesktopOutlined />, label: "设备管理" },
     { key: "update", icon: <CloudUploadOutlined />, label: "版本发布" },
@@ -1587,6 +1589,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   onDelete={(user) => void handleDeleteAdminUser(user)}
                 />
               )}
+              {currentTab === "verificationCodes" && <VerificationCodesTab themeColor={themeColor} />}
               {currentTab === "listeningLevels" && <ListeningLevelsTab themeColor={themeColor} />}
               {currentTab === "content" && (
                 <ContentTab

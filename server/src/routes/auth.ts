@@ -138,6 +138,21 @@ function handleError(res: Response, error: unknown, fallback: string): void {
   res.status(400).json(fail(message, 400));
 }
 
+import type { Request } from "express";
+import type { SendContactCodeMeta } from "../services/emailCodeService";
+
+function extractSendMeta(req: Request, fallbackUserId?: string | null): SendContactCodeMeta {
+  const deviceId = (req.header("x-pm-device-id") || "").trim();
+  const clientIp = (req.ip || req.header("x-forwarded-for") || req.socket.remoteAddress || "").split(",")[0].trim();
+  const userAgent = (req.header("user-agent") || "").trim();
+  return {
+    deviceId,
+    clientIp,
+    userAgent,
+    userId: fallbackUserId ?? null,
+  };
+}
+
 authRouter.post("/email-code", async (req, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
@@ -147,14 +162,16 @@ authRouter.post("/email-code", async (req, res) => {
     if (emailError) return res.status(400).json(fail(emailError, 400));
     if (!purpose || purpose === "profile_email" || purpose === "profile_phone") return res.status(400).json(fail("验证码用途不正确", 400));
 
-    if (purpose === "register" && readUserByEmail(email)) {
+    const matchedUser = readUserByEmail(email);
+    if (purpose === "register" && matchedUser) {
       return res.status(400).json(fail("该邮箱已注册", 400));
     }
-    if (purpose === "reset_password" && !readUserByEmail(email)) {
+    if (purpose === "reset_password" && !matchedUser) {
       return res.status(404).json(fail("该邮箱尚未注册", 404));
     }
 
-    return res.json(ok(await sendEmailCode(email, purpose as EmailCodePurpose), "验证码已发送"));
+    const meta = extractSendMeta(req, matchedUser?.id);
+    return res.json(ok(await sendEmailCode(email, purpose as EmailCodePurpose, meta), "验证码已发送"));
   } catch (error) {
     handleError(res, error, "验证码发送失败");
   }
@@ -168,11 +185,13 @@ authRouter.post("/phone-code", async (req, res) => {
     const phoneError = validatePhone(phone);
     if (phoneError) return res.status(400).json(fail(phoneError, 400));
     if (!purpose || purpose === "profile_email" || purpose === "profile_phone") return res.status(400).json(fail("验证码用途不正确", 400));
-    if (purpose === "register" && readUserByPhone(phone)) return res.status(400).json(fail("该手机号已注册", 400));
-    if (purpose === "reset_password" && !readUserByPhone(phone)) {
+    const matchedUser = readUserByPhone(phone);
+    if (purpose === "register" && matchedUser) return res.status(400).json(fail("该手机号已注册", 400));
+    if (purpose === "reset_password" && !matchedUser) {
       return res.status(404).json(fail("该手机号尚未注册", 404));
     }
-    return res.json(ok(await sendContactCode("phone", phone, purpose), "验证码已发送"));
+    const meta = extractSendMeta(req, matchedUser?.id);
+    return res.json(ok(await sendContactCode("phone", phone, purpose, meta), "验证码已发送"));
   } catch (error) {
     handleError(res, error, "验证码发送失败");
   }
@@ -333,7 +352,8 @@ authRouter.post("/profile/email-code", requireUserJwt, async (req: UserAuthedReq
     if (emailError) return res.status(400).json(fail(emailError, 400));
     if (email === auth.user.email) return res.status(400).json(fail("新邮箱不能与当前邮箱相同", 400));
     if (readUserByEmail(email)) return res.status(400).json(fail("该邮箱已被注册", 400));
-    return res.json(ok(await sendEmailCode(email, "profile_email"), "验证码已发送"));
+    const meta = extractSendMeta(req, auth.userId);
+    return res.json(ok(await sendEmailCode(email, "profile_email", meta), "验证码已发送"));
   } catch (error) {
     handleError(res, error, "验证码发送失败");
   }
@@ -348,7 +368,8 @@ authRouter.post("/profile/phone-code", requireUserJwt, async (req: UserAuthedReq
     if (phoneError) return res.status(400).json(fail(phoneError, 400));
     if (phone === auth.user.phone) return res.status(400).json(fail("新手机号不能与当前手机号相同", 400));
     if (readUserByPhone(phone)) return res.status(400).json(fail("该手机号已被注册", 400));
-    return res.json(ok(await sendContactCode("phone", phone, "profile_phone"), "验证码已发送"));
+    const meta = extractSendMeta(req, auth.userId);
+    return res.json(ok(await sendContactCode("phone", phone, "profile_phone", meta), "验证码已发送"));
   } catch (error) {
     handleError(res, error, "验证码发送失败");
   }
