@@ -913,7 +913,18 @@ function migrateRuntimeConfigs(db: DatabaseSync) {
   }
 }
 
+function migrateListenTogether(db: DatabaseSync) {
+  const cols = getColumnNames(db, "listen_together_room_records");
+  if (cols.size > 0 && !cols.has("lifecycle_status")) {
+    db.exec(`
+      DROP TABLE IF EXISTS listen_together_room_members;
+      DROP TABLE IF EXISTS listen_together_room_records;
+    `);
+  }
+}
+
 function initSchema(db: DatabaseSync) {
+  migrateListenTogether(db);
   db.exec(`
     DROP TABLE IF EXISTS sync_applied_ops;
     DROP TABLE IF EXISTS sync_change_log;
