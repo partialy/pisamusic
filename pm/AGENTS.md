@@ -250,3 +250,10 @@
 - App 启动与首页公告展示保留底部弹窗（`BottomSheetDialog` + `layout_announcement_bottom_sheet.xml`），由 `AnnouncementContentRenderer` 进行原生富文本渲染，隐藏滚动条但保留滚动。
 - 启动时仅弹出最新一条未读公告，若公告属于每次弹出类型（`showEveryTime=true`）也同样弹出；确认或前往后写入已读（`!showEveryTime`），不再连续弹出多条。
 - 首页顶部不显示额外公告卡片列表；设置页保持原有原生列表单页结构。
+
+## 专属消息模块规范
+
+- 专属消息代码集中在 `directmessage/`：`DirectMessageRepository` 只负责加密接口访问与身份快照，`DirectMessageCoordinator` 负责队列和触发时机，`DirectMessageAckDispatcher` 在后台异步回执；不要把消息业务堆回 Activity。
+- `SplashActivity` 每次设备上报必须保存服务端 `id` 与 `messageToken`；设备消息只通过 `x-pm-device-token` 使用该 30 天凭证，不能传设备 UUID，也不能将凭证写进日志或 UI。
+- 每个 App 进程只保存临时 dismissed 集合，不写本地永久已读。启动、登录、注册完成后读取 `/api/messages/unread`，账号与设备未读合并后按服务端创建时间依次弹出；点击“我知道了”必须立即切换下一条，再后台异步调用 `/api/messages/:id/read`。失败不阻塞、不提示，未确认消息下次启动仍会出现。
+- 专属消息首条展示起共享 3 秒单调时钟截止时间；第一条等待结束后同一队列后续消息无需再次等待。启动弹窗顺序为专属消息优先，专属消息流程未结束前不得叠加系统公告。

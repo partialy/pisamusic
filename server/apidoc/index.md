@@ -12,6 +12,7 @@
 - [1. 用户与认证模块 (`user`)](#1-用户与认证模块-apiuser)
 - [2. 客户端配置与发布模块 (`config`)](#2-客户端配置与发布模块-apiconfig)
 - [3. 设备管理与上报模块 (`device`)](#3-设备管理与上报模块-apidevice)
+- [专属消息模块 (`messages`)](#专属消息模块-apimessages)
 - [4. 用户数据云同步模块 (`sync`)](#4-用户数据云同步模块-apisync)
 - [5. 外链与扫码分享模块 (`shares`)](#5-外链与扫码分享模块-apishares)
 - [6. 一起听实时通信模块 (`listenTogether`)](#6-一起听实时通信模块-apilisten-together)
@@ -80,6 +81,17 @@
 | 查询 Android 设备状态 | `GET` | `/api/device/:id` | 无 (加密) | [./device/getAndroidDeviceStatus.md](./device/getAndroidDeviceStatus.md) |
 | PC 桌面设备信息上报与日活记录 | `POST` | `/api/device/desktop/report` | 无 (加密) | [./device/reportDesktopDevice.md](./device/reportDesktopDevice.md) |
 | 查询 PC 桌面端设备状态 | `GET` | `/api/device/desktop/:id` | 无 (加密) | [./device/getDesktopDeviceStatus.md](./device/getDesktopDeviceStatus.md) |
+
+---
+
+## 专属消息模块 (`/api/messages`)
+
+向已登录账号或单一 Android / PC 设备发送的专属消息。客户端读取账号和当前设备的未读并集，点击“我知道了”后异步确认已读。
+
+| 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
+| :--- | :--- | :--- | :--- | :--- |
+| 获取当前身份未读专属消息 | `GET` | `/api/messages/unread` | User Token 或设备消息凭证 | [./messages/listUnread.md](./messages/listUnread.md) |
+| 确认指定专属消息已读 | `POST` | `/api/messages/:id/read` | User Token 或设备消息凭证 | [./messages/markRead.md](./messages/markRead.md) |
 
 ---
 
@@ -323,3 +335,8 @@
 | 分页查询一起听房间历史记录 | `GET` | `/api/admin/listen-together/history` | [./admin/listListeningRoomHistory.md](./admin/listListeningRoomHistory.md) |
 | 获取一起听房间历史详情 | `GET` | `/api/admin/listen-together/history/:recordId` | [./admin/getListeningRoomHistoryDetail.md](./admin/getListeningRoomHistoryDetail.md) |
 
+### 13.16 专属消息管理
+| 接口名称 | Method | 请求路径 | 接口文档链接 |
+| :--- | :--- | :--- | :--- |
+| 向用户或设备发送专属消息 | `POST` | `/api/admin/messages` | [./admin/sendDirectMessage.md](./admin/sendDirectMessage.md) |
+| 分页查询专属消息发送记录 | `GET` | `/api/admin/messages` | [./admin/listDirectMessages.md](./admin/listDirectMessages.md) |

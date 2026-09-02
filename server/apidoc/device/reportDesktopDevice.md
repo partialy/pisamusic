@@ -52,6 +52,7 @@ PC 桌面端（Windows / Electron）客户端启动或活跃时上报设备硬�
   "msg": "ok",
   "data": {
     "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+    "messageToken": "eyJhbGciOiJIUzI1NiIs...",
     "locked": false,
     "lockEndTime": null,
     "lastActiveAt": 1700000000000,
@@ -66,6 +67,7 @@ PC 桌面端（Windows / Electron）客户端启动或活跃时上报设备硬�
 | 字段名 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `id` | `string` | 服务端生成的 PC 设备唯一 UUID |
+| `messageToken` | `string` | 有效期 30 天的设备专属消息凭证。仅作为 `/api/messages/*` 的 `x-pm-device-token` 发送；不得记录日志、展示给用户、作为 User JWT 使用，且不能用设备 UUID 替代。 |
 | `locked` | `boolean` | 当前设备是否被封禁/锁定 |
 | `lockEndTime` | `number \| null` | 封禁到期时间戳毫秒数 |
 | `lastActiveAt` | `number` | 最近一次活跃上报时间戳 |

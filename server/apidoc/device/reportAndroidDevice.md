@@ -59,6 +59,7 @@ Android 客户端启动或活跃时上报设备硬件、系统版本、应用版
   "msg": "ok",
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
+    "messageToken": "eyJhbGciOiJIUzI1NiIs...",
     "locked": false,
     "lockEndTime": null,
     "lastActiveAt": 1700000000000,
@@ -73,6 +74,7 @@ Android 客户端启动或活跃时上报设备硬件、系统版本、应用版
 | 字段名 | 类型 | 说明 |
 | :--- | :--- | :--- |
 | `id` | `string` | 服务端生成的设备唯一 UUID |
+| `messageToken` | `string` | 有效期 30 天的设备专属消息凭证。仅作为 `/api/messages/*` 的 `x-pm-device-token` 发送；不得记录日志、展示给用户、作为 User JWT 使用，且不能用设备 UUID 替代。 |
 | `locked` | `boolean` | 当前设备是否被封禁/锁定 |
 | `lockEndTime` | `number \| null` | 封禁到期时间戳毫秒数，若为永久封禁则为 `null` 但 `locked=true` |
 | `lastActiveAt` | `number` | 最近一次活跃上报时间戳 |

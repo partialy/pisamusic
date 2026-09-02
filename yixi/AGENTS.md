@@ -296,3 +296,10 @@
 - 允许统计音源限定为 `kg`、`wy`、`kw`、`cloud`、`local`（`qq` 源忽略不上报）；本地歌曲（`local`）的 `songId` 仅使用规范化标识，严格禁止泄漏 `file:`、`content:`、`/` 或 `\` 等任何本地路径。
 - 状态机机制：真实播放片段基于 `performance.now()` 精确计时，本地每 60 秒检查点暂存到 SQLite `listening_active_checkpoint`，单段超 15 分钟自动切片；时长 >= 1000ms 的片段写入 SQLite `listening_pending_fragments`；每 15 分钟或每次启动/登录 session ready 时触发最多 200 条批量补传，支持断网重试与崩溃恢复。
 - 用户界面：用户头像下拉菜单前两项展示只读“等级：Lv N”与“累计听歌：n分钟”（按 `floor(totalMs / 60000)` 计算），在菜单展开与账号切换时即时刷新，账号未登录时保持重置。
+
+## 专属消息规则补充
+
+- 专属消息只允许通过 main 侧 `electron/directMessage/` 的 Client / Manager 访问 `/api/messages/unread` 与 `/api/messages/:id/read`；renderer 只能调用 typed `direct-message:*` preload IPC，不得接触 server baseURL、User Token、设备消息 token 或 AES 加密细节。
+- `systemClient` 上报桌面设备后保存 30 天 `messageToken`，仅在专属消息请求中作为 `x-pm-device-token` 使用；设备 UUID 不能作为凭证，token 不得记录日志或暴露给 renderer。
+- `DirectMessageManager` 仅在当前 App 进程维护 dismissed 消息集合。点击“我知道了”先由 renderer 立即推进队列，再 fire-and-forget IPC 回执；失败重试不能阻塞交互，服务端仍未读的消息下次启动必须再次可见。
+- `AppDirectMessagePopup` 在启动及账号会话变化后读取队列，首条展示开始共享一个 3 秒 `performance.now()` 截止时间，后续消息不再等待。专属消息优先于系统公告，公告应等待 direct-message 弹窗流程 settled 后才可出现，避免 modal 重叠。

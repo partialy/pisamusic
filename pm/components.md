@@ -28,6 +28,7 @@
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
 | 居中确认弹窗 | 简短确认、危险操作确认、提示 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PmMinimalDialog.kt` | `pm/app/src/main/res/layout/dialog_pm_minimal.xml` | 普通确认类弹窗优先使用；背景浅色 `#FFFFFF`、深色 `#2A2D34`，深色边框与按钮分割线使用 `#3D424C`。 |
+| 专属消息提示弹窗 | 启动、登录或注册后依次展示的后台专属消息 | `pm/app/src/main/java/cn/partialy/pm/directmessage/DirectMessageDialog.kt` | 复用 `dialog_pm_minimal.xml` 的居中视觉与窗口参数 | 标题固定“提示”，按钮固定“我知道了”；一个 App 进程只共享首次 3 秒倒计时，后续消息直接可点。 |
 | 居中自定义内容弹窗 | 表单、列表、封面选择等 slot 内容 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PmSlotDialog.kt` | `pm/app/src/main/res/layout/dialog_pm_slot.xml` | 支持固定 `header slot`、可滚动 `content slot` 和底部按钮三段式；歌曲信息头部等固定内容放 header，中间选项或表单滚动，并复用 `PmMinimalDialog` 的日夜背景、文字和分割线颜色。 |
 | 一起听二维码弹窗 | 展示房间二维码、房间号及复制操作 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ListenTogetherQrDialog.kt` | `dialog_listen_together_qr.xml`、`PmSlotDialog` | 二维码统一编码官网 `/scan` 加入链接。 |
 | 现代底部弹窗 | 通用底部 Sheet、进度或旧场景 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ModernDialog.kt` | `pm/app/src/main/res/layout/layout_modern_bottom_sheet.xml` | 旧场景保留，新普通确认不要继续扩展它。 |
