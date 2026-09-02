@@ -97,47 +97,35 @@ export default function OnlineRoomTable({
     {
       title: "房主",
       key: "host",
-      width: 210,
+      width: 145,
       render: (_, r) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Avatar
             src={r.host.avatarUrl}
             icon={<UserOutlined />}
-            size={38}
+            size={36}
             style={{ flexShrink: 0 }}
           />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div
+          <div style={{ minWidth: 0, flex: 1, display: "flex", alignItems: "center", gap: 4 }}>
+            <span
               style={{
                 fontWeight: 500,
                 fontSize: 13,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
+                maxWidth: 68,
               }}
               title={r.host.nickname || r.host.username || "匿名"}
             >
               {r.host.nickname || r.host.username || "匿名"}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-              <Text type="secondary" style={{ fontSize: 11 }}>ID:</Text>
-              <Text
-                type="secondary"
-                copyable={{ text: r.host.userId }}
-                style={{
-                  fontSize: 11,
-                  fontFamily: "monospace",
-                  maxWidth: 110,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  display: "inline-block",
-                }}
-                title={r.host.userId}
-              >
-                {r.host.userId}
-              </Text>
-            </div>
+            </span>
+            <Text
+              copyable={{
+                text: r.host.userId,
+                tooltips: ["复制房主ID", "已复制"],
+              }}
+            />
           </div>
         </div>
       ),
@@ -155,7 +143,7 @@ export default function OnlineRoomTable({
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {r.song.cover ? (
               <Image
-                src={r.song.cover}
+                src={r.song.cover.replace("{size}", "120")}
                 width={42}
                 height={42}
                 style={{ borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
@@ -205,7 +193,7 @@ export default function OnlineRoomTable({
     {
       title: "人数状态",
       key: "people",
-      width: 170,
+      width: 210,
       render: (_, r) => (
         <div>
           <div>
@@ -227,7 +215,7 @@ export default function OnlineRoomTable({
       title: "点歌权限",
       dataIndex: "memberOperation",
       key: "memberOperation",
-      width: 110,
+      width: 95,
       render: (memberOp: boolean) =>
         memberOp ? (
           <Tag color="cyan">全员可控</Tag>
@@ -238,7 +226,7 @@ export default function OnlineRoomTable({
     {
       title: "创建/活跃时间",
       key: "time",
-      width: 150,
+      width: 190,
       render: (_, r) => (
         <div style={{ fontSize: 12 }}>
           <div>

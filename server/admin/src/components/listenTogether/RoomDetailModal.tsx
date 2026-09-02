@@ -317,10 +317,10 @@ export default function RoomDetailModal({ open, type, recordId, onClose }: Props
                   <Col>
                     {onlineDetail.song.cover ? (
                       <Image
-                        src={onlineDetail.song.cover}
+                        src={onlineDetail.song.cover.replace("{size}", "120")}
                         width={54}
                         height={54}
-                        style={{ borderRadius: 6, objectFit: "cover" }}
+                        style={{ borderRadius: 6, objectFit: "cover", flexShrink: 0 }}
                         fallback="/static/account-avatars/default.jpg"
                       />
                     ) : (
@@ -467,10 +467,10 @@ export default function RoomDetailModal({ open, type, recordId, onClose }: Props
                   <Col>
                     {historyDetail.lastSong.cover ? (
                       <Image
-                        src={historyDetail.lastSong.cover}
+                        src={historyDetail.lastSong.cover.replace("{size}", "120")}
                         width={54}
                         height={54}
-                        style={{ borderRadius: 6, objectFit: "cover" }}
+                        style={{ borderRadius: 6, objectFit: "cover", flexShrink: 0 }}
                         fallback="/static/account-avatars/default.jpg"
                       />
                     ) : (

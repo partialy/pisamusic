@@ -118,53 +118,43 @@ export default function HistoryRoomTable({
     {
       title: "房主",
       key: "host",
-      width: 210,
+      width: 155,
       render: (_, r) => {
         const host = r.finalHost || r.initialHost;
         const changed = r.finalHost && r.initialHost && r.finalHost.userId !== r.initialHost.userId;
         return (
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Avatar
               src={host.avatarUrl}
               icon={<UserOutlined />}
-              size={38}
+              size={36}
               style={{ flexShrink: 0 }}
             />
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div
-                style={{
-                  fontWeight: 500,
-                  fontSize: 13,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-                title={host.nickname || host.username || "匿名"}
-              >
-                {host.nickname || host.username || "匿名"}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                <Text type="secondary" style={{ fontSize: 11 }}>ID:</Text>
-                <Text
-                  type="secondary"
-                  copyable={{ text: host.userId }}
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span
                   style={{
-                    fontSize: 11,
-                    fontFamily: "monospace",
-                    maxWidth: 100,
+                    fontWeight: 500,
+                    fontSize: 13,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    display: "inline-block",
+                    maxWidth: 68,
                   }}
-                  title={host.userId}
+                  title={host.nickname || host.username || "匿名"}
                 >
-                  {host.userId}
-                </Text>
+                  {host.nickname || host.username || "匿名"}
+                </span>
+                <Text
+                  copyable={{
+                    text: host.userId,
+                    tooltips: ["复制房主ID", "已复制"],
+                  }}
+                />
               </div>
               {changed && (
-                <Tag color="cyan" style={{ fontSize: 10, padding: "0 4px", marginTop: 2 }}>
-                  曾转让房主
+                <Tag color="cyan" style={{ fontSize: 10, lineHeight: "14px", padding: "0 2px", marginTop: 2 }}>
+                  曾转让
                 </Tag>
               )}
             </div>
@@ -184,7 +174,7 @@ export default function HistoryRoomTable({
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {r.lastSong.cover ? (
               <Image
-                src={r.lastSong.cover}
+                src={r.lastSong.cover.replace("{size}", "120")}
                 width={40}
                 height={40}
                 style={{ borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
