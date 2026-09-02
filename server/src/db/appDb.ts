@@ -356,6 +356,34 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 
+CREATE TABLE IF NOT EXISTS direct_messages (
+    id                  TEXT PRIMARY KEY,
+    user_id             TEXT,
+    android_device_id   TEXT,
+    desktop_device_id   TEXT,
+    content             TEXT NOT NULL,
+    created_by_admin    TEXT NOT NULL,
+    created_at          INTEGER NOT NULL,
+    read_at             INTEGER,
+    read_platform       TEXT,
+    read_device_id      TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (android_device_id) REFERENCES device_info(id) ON DELETE CASCADE,
+    FOREIGN KEY (desktop_device_id) REFERENCES desktop_device_info(id) ON DELETE CASCADE,
+    CHECK (
+      (user_id IS NOT NULL) +
+      (android_device_id IS NOT NULL) +
+      (desktop_device_id IS NOT NULL) = 1
+    ),
+    CHECK (read_platform IS NULL OR read_platform IN ('android', 'desktop'))
+);
+CREATE INDEX IF NOT EXISTS idx_direct_messages_user_unread
+ON direct_messages(user_id, read_at, created_at, id);
+CREATE INDEX IF NOT EXISTS idx_direct_messages_android_unread
+ON direct_messages(android_device_id, read_at, created_at, id);
+CREATE INDEX IF NOT EXISTS idx_direct_messages_desktop_unread
+ON direct_messages(desktop_device_id, read_at, created_at, id);
+
 CREATE TABLE IF NOT EXISTS listening_fragments (
     user_id             TEXT    NOT NULL,
     device_id           TEXT    NOT NULL,

@@ -11,6 +11,7 @@
     "test:website-records": "pnpm build && node --test dist/db/websiteRecordStore.case.js",
     "test:listening": "pnpm build && node --test dist/services/listeningService.spec.js",
     "test:listen-together": "pnpm build && node --test dist/db/listenTogetherHistoryStore.spec.js dist/services/adminListenTogetherService.spec.js",
+    "test:direct-messages": "pnpm build && node --test dist/services/directMessageService.spec.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
     "build:all": "pnpm build && pnpm --dir admin build && pnpm --dir frontend build",
