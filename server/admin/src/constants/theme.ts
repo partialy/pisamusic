@@ -25,26 +25,3 @@ export const glassCardClasses =
 
 export const glassInputClasses =
   "w-full min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-all";
-
-export const tabs = [
-  { id: "dashboard" as const, name: "仪表盘" },
-  { id: "system" as const, name: "系统配置" },
-  { id: "websiteRecords" as const, name: "官网记录" },
-  { id: "users" as const, name: "用户管理" },
-  { id: "verificationCodes" as const, name: "验证码记录" },
-  { id: "listeningLevels" as const, name: "听歌等级" },
-  { id: "devices" as const, name: "设备管理" },
-  { id: "update" as const, name: "版本发布" },
-  { id: "announcements" as const, name: "公告管理" },
-  { id: "files" as const, name: "文件管理" },
-  { id: "cloudMusic" as const, name: "网盘音乐" },
-  { id: "feedback" as const, name: "反馈管理" },
-  { id: "faultReports" as const, name: "故障管理" },
-  { id: "shares" as const, name: "分享管理" },
-  { id: "content" as const, name: "内容与协议" },
-  { id: "dynamicConfig" as const, name: "动态配置" },
-  { id: "runtimeConfig" as const, name: "运行策略" },
-  { id: "encryption" as const, name: "加密白名单" },
-];
-
-export type TabId = (typeof tabs)[number]["id"];

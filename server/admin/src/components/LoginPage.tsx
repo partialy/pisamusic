@@ -1,16 +1,21 @@
 import { useState, type FormEvent } from "react";
+import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { bgPresets, colorPresets, glassCardClasses, glassInputClasses } from "../constants/theme";
 import { loadTheme, saveTheme } from "../utils/themeStorage";
 import { login as apiLogin } from "../api/client";
-import { setStoredToken } from "../auth/token";
+import { useAuth } from "../auth/AuthContext";
 
 type Props = {
-  onLoggedIn: () => void;
+  onLoggedIn?: () => void;
 };
 
 const initialTheme = loadTheme();
 
 export default function LoginPage({ onLoggedIn }: Props) {
+  const { isAuthenticated, login } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [themeColor, setThemeColor] = useState(initialTheme.themeColor);
   const [bgIndex, setBgIndex] = useState(initialTheme.bgIndex);
   const [showThemePanel, setShowThemePanel] = useState(false);
@@ -18,6 +23,12 @@ export default function LoginPage({ onLoggedIn }: Props) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
+
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -30,9 +41,12 @@ export default function LoginPage({ onLoggedIn }: Props) {
     setLoading(true);
     try {
       const data = await apiLogin(u, password);
-      setStoredToken(data.token);
+      login(data.token);
       saveTheme({ themeColor, bgIndex });
-      onLoggedIn();
+      if (onLoggedIn) {
+        onLoggedIn();
+      }
+      navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
     } finally {
