@@ -74,7 +74,7 @@ function normalizeInteger(value: unknown, fallback: number, minimum: number, max
   if (value === undefined || value === null || value === "") return fallback;
   if (typeof value !== "string" && typeof value !== "number") return fallback;
   const text = String(value).trim();
-  if (!/^\d+$/.test(text)) return fallback;
+  if (!/^-?\d+$/.test(text)) return fallback;
   const parsed = Number(text);
   if (!Number.isSafeInteger(parsed)) return fallback;
   return Math.max(minimum, Math.min(parsed, maximum));

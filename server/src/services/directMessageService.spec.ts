@@ -229,6 +229,11 @@ test("message route composes identities, normalizes limit, and hides unauthorize
   assert.deepEqual((userOnly.body.data as { items: Array<{ id: string }>; hasMore: boolean }).items.map((item) => item.id), ["u-old"]);
   assert.equal((userOnly.body.data as { hasMore: boolean }).hasMore, true);
 
+  const negativeLimit = await requestMessages("/api/messages/unread?limit=-1", { headers: userHeaders });
+  assert.equal(negativeLimit.status, 200);
+  assert.deepEqual((negativeLimit.body.data as { items: Array<{ id: string }> }).items.map((item) => item.id), ["u-old"]);
+  assert.equal((negativeLimit.body.data as { hasMore: boolean }).hasMore, true);
+
   const deviceOnly = await requestMessages("/api/messages/unread?limit=0", { headers: deviceHeaders });
   assert.equal(deviceOnly.status, 200);
   assert.deepEqual((deviceOnly.body.data as { items: Array<{ id: string }> }).items.map((item) => item.id), ["d-current"]);

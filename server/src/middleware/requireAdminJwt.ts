@@ -6,6 +6,8 @@ export type AdminAuthedRequest = Request & {
   adminAuth?: {
     username: string;
   };
+  /** 兼容既有后台路由读取的管理员用户名。 */
+  adminUsername?: string;
 };
 
 export function getAdminAuth(req: AdminAuthedRequest): { username: string } {
@@ -34,7 +36,9 @@ export function requireAdminJwt(req: AdminAuthedRequest, res: Response, next: Ne
       res.status(401).json(fail("登录已失效，请重新登录", 401));
       return;
     }
-    req.adminAuth = { username: decoded.sub.trim() };
+    const username = decoded.sub.trim();
+    req.adminAuth = { username };
+    req.adminUsername = username;
     next();
   } catch {
     res.status(401).json(fail("登录已失效，请重新登录", 401));
