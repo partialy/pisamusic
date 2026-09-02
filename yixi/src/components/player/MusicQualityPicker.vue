@@ -85,23 +85,8 @@ function handleSelect(option: QualityAccessOption) {
   flex-direction: column;
   gap: 2px;
   user-select: none;
-  max-height: 200px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 2px;
-
-  /* 细滚动条 */
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: color-mix(in srgb, var(--color-text-secondary) 25%, transparent);
-    border-radius: 4px;
-  }
-  &::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in srgb, var(--color-text-secondary) 45%, transparent);
-  }
 }
+
 
 .quality-option-item {
   display: flex;

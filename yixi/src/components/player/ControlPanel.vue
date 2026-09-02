@@ -123,7 +123,7 @@
 
     <!-- 右侧功能区 -->
     <div class="panel-right">
-      <!-- 音质选择胶囊 -->
+      <!-- 1. 音质选择胶囊 -->
       <MusicQualityPicker
         :model-value="currentQualityKey"
         :options="qualityOptions"
@@ -143,7 +143,22 @@
         </button>
       </MusicQualityPicker>
 
-      <!-- 桌面歌词开关 -->
+      <!-- 2. 均衡器入口 -->
+      <button
+        type="button"
+        class="ctrl-btn eq-btn"
+        :class="{ active: equalizerStore.enabled }"
+        :title="equalizerStore.enabled ? '均衡器已开启' : '均衡器'"
+        @click="equalizerStore.openModal"
+      >
+        <n-icon
+          :component="EqualizerIcon"
+          :size="19"
+          :color="equalizerStore.enabled ? 'var(--color-primary, #18a058)' : ''"
+        />
+      </button>
+
+      <!-- 3. 桌面歌词开关 -->
       <button
         type="button"
         class="ctrl-btn lyric-btn"
@@ -157,6 +172,7 @@
           :color="desktop ? '#fff' : ''"
         />
       </button>
+
 
       <!-- 音量调节 (Popover) -->
       <n-popover
@@ -220,7 +236,7 @@
 import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { NPopover, NIcon, NDrawer, NSlider } from "naive-ui";
-import { FolderPlus, Download as DownloadIcon } from "lucide-vue-next";
+import { FolderPlus, Download as DownloadIcon, Sliders as EqualizerIcon } from "lucide-vue-next";
 import {
   useCommonStore,
   useAudioStore,
@@ -228,6 +244,7 @@ import {
   useCollectStore,
   useUserStore,
   useListenTogetherStore,
+  useEqualizerStore,
 } from "@/store";
 import { VolumePanel, AddToPlaylistDialog } from ".";
 import {
@@ -266,7 +283,9 @@ const collect = useCollectStore();
 const player = useAudioStore();
 const userStore = useUserStore();
 const listenTogether = useListenTogetherStore();
+const equalizerStore = useEqualizerStore();
 const playbackCommands = usePlaybackCommands();
+
 const { openAccountLogin } = useAccountLoginDialog();
 const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
 const lyric = useLyricStore();
@@ -451,9 +470,15 @@ const toggleMuted = () => {
       color: #ffffff;
       background: rgba(255, 255, 255, 0.12);
     }
+
+    &.eq-btn.active {
+      color: var(--color-primary, #18a058);
+      background: color-mix(in srgb, var(--color-primary, #18a058) 18%, transparent);
+    }
   }
 
   /* 中间播放控制行 */
+
   .controls-row {
     display: flex;
     align-items: center;

@@ -14,6 +14,7 @@
           <Transition name="player-slide">
             <MainPlayer v-if="showPlayer" class="player" />
           </Transition>
+          <EqualizerModal />
         </n-modal-provider>
       </n-message-provider>
     </n-notification-provider>
@@ -30,7 +31,8 @@ import {
 } from "naive-ui";
 import { h, onBeforeUnmount, Transition, watch } from "vue";
 import { useRouter } from "vue-router";
-import { PlayerBar, MainPlayer } from "./components";
+import { PlayerBar, MainPlayer, EqualizerModal } from "./components";
+
 import {
   useCommonStore,
   useCollectStore,

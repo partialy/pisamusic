@@ -37,8 +37,10 @@ export * from "./playList";
 export * from "./setting";
 export * from "./search";
 export * from "./sleepTimer";
+export * from "./equalizer";
 
 export type CustomMenuItem = {
+
   label: string
   icon?: () => VNodeChild
   action?: () => void

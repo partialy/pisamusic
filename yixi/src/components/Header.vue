@@ -144,19 +144,22 @@ import {
   LogOutOutline as LogoutIcon,
   PersonCircleOutline as UserIcon,
 } from "@vicons/ionicons5";
+import { Sliders as EqualizerIcon } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import type { ListeningSummary } from "@/types/listening";
 import avatarImg from "../assets/defaultAdminAvatar.jpg";
 import { renderIcon } from "@/utils/common";
 import electronAPI from "@/utils/electron";
 import { searchSuggest } from "@/utils/api/musicAPI";
-import { useThemeStore, useUserStore } from "@/store";
+import { useEqualizerStore, useThemeStore, useUserStore } from "@/store";
 import { isSystemVipActive } from "@/types/account";
 import { storeToRefs } from "pinia";
 
 const userStore = useUserStore();
 const themeStore = useThemeStore();
+const equalizerStore = useEqualizerStore();
 const { isLogin, userInfo } = storeToRefs(userStore);
+
 const avatar = computed(() => userInfo.value.avatarUrl || userInfo.value.avatar || avatarImg);
 const accountVipActive = computed(() => isSystemVipActive(userStore));
 const router = useRouter();
@@ -325,6 +328,11 @@ const dropDownOptions = computed<DropdownOption[]>(() => [
 const settingOptions = computed(() => {
   const options = [
     {
+      label: "均衡器",
+      key: "equalizer",
+      icon: renderIcon(EqualizerIcon),
+    },
+    {
       label: themeStore.resolvedMode === "dark" ? "切换浅色" : "切换深色",
       key: "theme",
       icon: themeStore.resolvedMode === "dark"
@@ -388,7 +396,9 @@ const handleSelect = async (key: string) => {
 };
 
 const handleSetting = (key: string) => {
-  if (key == "setting") {
+  if (key == "equalizer") {
+    equalizerStore.openModal();
+  } else if (key == "setting") {
     router.push("/setting");
   } else if (key == "announcements") {
     void router.push({ path: "/setting", query: { tab: "announcements" } });
@@ -402,6 +412,7 @@ const handleSetting = (key: string) => {
     electronAPI.restartApp();
   }
 };
+
 
 onMounted(async () => {
   const startupServiceState = await electronAPI.getStartupServiceState?.();

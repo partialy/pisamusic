@@ -12,6 +12,7 @@ import { useUserStore } from './user';
 import { useShortcutStore } from "./shortcut";
 import { useListenTogetherStore } from "./listenTogether";
 import { useSleepTimerStore } from "./sleepTimer";
+import { useEqualizerStore } from "./equalizerStore";
 export {
   useSettingStore,
   useCommonStore,
@@ -27,4 +28,6 @@ export {
   useShortcutStore,
   useListenTogetherStore,
   useSleepTimerStore,
+  useEqualizerStore,
 };
+
