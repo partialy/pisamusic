@@ -11,6 +11,7 @@ import android.view.View
 import android.view.Window
 import android.view.WindowManager
 import android.widget.LinearLayout
+import android.view.ViewGroup
 import androidx.annotation.ColorInt
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -44,7 +45,10 @@ class PmMinimalDialog private constructor(
 
     private fun bindContent(binding: DialogPmMinimalBinding, dialog: Dialog) {
         config.widthDp?.let { width ->
-            binding.root.layoutParams = binding.root.layoutParams.apply { this.width = width.dp() }
+            binding.root.layoutParams = (binding.root.layoutParams
+                ?: ViewGroup.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT)).apply {
+                this.width = width.dp()
+            }
         }
         val title = config.title?.trim().orEmpty()
         binding.dialogTitle.isVisible = title.isNotBlank()
