@@ -182,7 +182,7 @@
 
 - `SplashActivity` 启动检查遇到没网、服务不可用或服务端 `appAvailable=false` 时进入本地模式，由 `MainActivity` 以非阻塞提示告知用户；设备封禁仍必须阻止进入。
 - 已接受协议的 Splash 启动 server bootstrap 总等待预算为 10 秒；页面停留超过 3 秒时显示原生“本地模式进入”按钮，点击后立即以本地模式进入，并继续保留冷启动扫码链接传递。
-- 设置-关于中的“联系我们”通过 `/api/config/get?id=pm-contact-us` 获取 HTML 片段并用 WebView 渲染；服务协议和隐私政策页面只显示内容，不显示接口返回的 `title` 字段。
+- 设置-关于中的“联系我们”通过 `/api/config/get?id=pm-contact-us` 获取 HTML 片段并用 WebView 渲染；服务协议和隐私政策通过 `ConfigManager` 获取纯文本，在原生滚动页中按接口标题和正文原样显示，不使用 WebView。Splash 的协议同意与软件不可用提示使用 `PmMinimalDialog`；更新提示仍保留现有 HTML sheet。
 
 ## 播放故障上报
 

@@ -42,6 +42,8 @@
 - 桌面端设备上报使用服务端 `desktop_device_info` 表和 `/api/device/desktop/report`，不要复用 Android 的 `device_info` 表；后台通过 `/api/admin/desktop-device/*` 管理 PC 设备。
 - 系统公告存储在 `announcements`，通过 `enabled` 控制客户端是否拉取；停用只是不返回公开公告列表，不删除公告或历史回执。客户端确认公告后通过加密 `POST /api/announcements/:id/read` 提交已读，使用设备上报返回的 30 天 `messageToken` 作为 `x-pm-device-token`，可选绑定 User Token；回执记录用户与设备公开快照，后台通过 `/api/admin/announcements/:id/reads` 分页查看，禁止使用原始设备 UUID、设备 ID 或 token 作为客户端凭据。
 - 专属消息统一存储在 `server` SQLite 的 `direct_messages` 表；每条消息只可指向一个接收方（账号、Android 设备或桌面设备）。后台用 `/api/admin/messages` 发送和分页查看，客户端用加密的 `/api/messages/unread`、`/api/messages/:id/read` 读取与确认。未读查询合并有效账号与当前设备的消息，`read_at` 是唯一权威已读状态；不要新增客户端永久已读表。设备消息只能使用设备上报返回的 30 天 `messageToken` 作为 `x-pm-device-token`，不得传或暴露原始设备 UUID。
+- 管理后台支持通过加密 `DELETE /api/admin/messages/:id` 删除用户、Android 设备或 PC 设备留言；删除为硬删除，不提供客户端撤回语义，前后端接口文档同步维护。
+- 服务协议与隐私政策统一为纯文本，正文中的换行由 Android 原生页面、PC 弹窗和官网按原文显示；服务协议/隐私政策返回 `version`，标题或正文实际修改时递增，重复保存不递增。Android 启动协议接受状态必须绑定版本，PC 启动协议状态同样绑定版本。
 - 服务端历史 JSON 导入 SQLite 迁移已结束，不要恢复 `jsonImport.ts` 或启动时读取 `server/data/*.json` 自动导入数据库的逻辑。
 - Android 播放控制统一依据 `playWhenReady` 维护明确意图；部分场景共存恢复仅对自身临时暂停有效，硬暂停（用户/通知栏/系统/耳机 noisy/定时/一起听）统一撤销恢复资格与异步待播放任务；播放诊断事件由 `pm_local_music.db` 的 `playback_diagnostic_events` 本地保留最多 300 条，不落敏感信息。
 - 服务端接口文档与索引规范：服务端接口文档存放在 `server/apidoc/`，按模块分目录维护（如 `user/`、`config/`、`device/`、`sync/`、`shares/`、`listenTogether/`、`feedback/`、`faultReports/`、`analytics/`、`admin/`、`system/`、`common/`），统一索引为 `server/apidoc/index.md`。任何新增、修改、重构或删除（CRUD）服务端接口的改动，必须同步更新对应模块下的文档文件（如 `server/apidoc/<module>/<apiName>.md`）及 `server/apidoc/index.md` 索引链接与描述，确保接口定义与文档始终保持一致。

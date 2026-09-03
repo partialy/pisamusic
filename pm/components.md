@@ -27,7 +27,7 @@
 
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
-| 居中确认弹窗 | 简短确认、危险操作确认、提示 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PmMinimalDialog.kt` | `pm/app/src/main/res/layout/dialog_pm_minimal.xml` | 普通确认类弹窗优先使用；背景浅色 `#FFFFFF`、深色 `#2A2D34`，深色边框与按钮分割线使用 `#3D424C`。 |
+| 居中确认弹窗 | 简短确认、危险操作确认、提示、启动协议 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PmMinimalDialog.kt` | `pm/app/src/main/res/layout/dialog_pm_minimal.xml` | 普通确认类弹窗优先使用；支持按钮文字颜色、指定宽度和正文最大高度；启动协议使用红色“退出”和蓝色“同意”。背景浅色 `#FFFFFF`、深色 `#2A2D34`，深色边框与按钮分割线使用 `#3D424C`。 |
 | 专属消息提示弹窗 | 启动、登录或注册后依次展示的后台专属消息 | `pm/app/src/main/java/cn/partialy/pm/directmessage/DirectMessageDialog.kt` | 复用 `dialog_pm_minimal.xml` 的居中视觉与窗口参数 | 标题固定“提示”，按钮固定“我知道了”；一个 App 进程只共享首次 3 秒倒计时，后续消息直接可点。 |
 | 居中自定义内容弹窗 | 表单、列表、封面选择等 slot 内容 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PmSlotDialog.kt` | `pm/app/src/main/res/layout/dialog_pm_slot.xml` | 支持固定 `header slot`、可滚动 `content slot` 和底部按钮三段式；歌曲信息头部等固定内容放 header，中间选项或表单滚动，并复用 `PmMinimalDialog` 的日夜背景、文字和分割线颜色。 |
 | 一起听二维码弹窗 | 展示房间二维码、房间号及复制操作 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ListenTogetherQrDialog.kt` | `dialog_listen_together_qr.xml`、`PmSlotDialog` | 二维码统一编码官网 `/scan` 加入链接。 |
@@ -55,6 +55,7 @@
 | 登录表单 | 账号/第三方导入登录表单 | `pm/app/src/main/res/layout/activity_login.xml`、`pm/app/src/main/res/layout/include_playlist_import_kg_login.xml` | `LoginActivity`、`WyPlaylistLoginActivity` | 输入框、验证码按钮、扫码占位可参考。 |
 | 本地歌单创建表单 | 新建歌单、封面选择表单 | `pm/app/src/main/res/layout/dialog_create_local_playlist.xml` | `PmSlotDialog` 调用场景 | 居中表单优先参考。 |
 | 账号资料 WebView 容器 | 资料页 WebView 承载 | `pm/app/src/main/res/layout/activity_account_profile.xml` | `AccountProfileActivity` | 全屏 WebView 容器和系统栏处理参考。 |
+| 纯文本内容页 | 服务协议、隐私政策正文 | `pm/app/src/main/res/layout/activity_plain_text_content.xml` | `BaseSettingPlainTextActivity`、`SettingServiceAgreementActivity`、`SettingPrivacyPolicyActivity` | 使用原生 `NestedScrollView` + `TextView`，保留后端换行和标题，不解析 HTML。 |
 | 故障上报能力卡片 | 本地故障统计和立即上报 | `pm/app/src/main/res/layout/activity_data_management.xml` | `DataManagementActivity`、`FaultReportRepository`、`PmMinimalDialog` | 与导入与导出页其他卡片统一使用圆角卡片、指标磁贴和 TonalButton；无待上报数据时禁用按钮，确认上传复用通用居中弹窗。 |
 
 ## 列表、卡片与行项目
@@ -100,7 +101,7 @@
 | --- | --- | --- | --- | --- |
 | 列表空状态 | 播放队列、详情页、列表无数据 | `bottom_sheet_playlist.xml`、`item_playlist_detail_status.xml`、`item_playlist_detail_list_status.xml` | 对应 Activity / Adapter | 空状态文案和可见性处理参考。 |
 | 列表加载 / 错误状态 | 歌单详情、列表加载失败 | `item_playlist_detail_status.xml`、`item_playlist_detail_list_status.xml` | `PlaylistDetailActivity` 等 | 加载、重试、错误展示参考。 |
-| 通用 WebView 页面 | 协议、隐私、配置 HTML 内容 | `pm/app/src/main/res/layout/activity_web_content.xml` | `activity/web` 相关页面 | WebView 内容承载参考。 |
+| 通用 WebView 页面 | 联系我们、配置 HTML 内容等仍需网页承载的页面 | `pm/app/src/main/res/layout/activity_web_content.xml` | `activity/web` 相关页面 | 服务协议和隐私政策不再使用此容器。 |
 | 云盘投稿中心 | 云盘投稿、投稿记录与重新提审统一页面 | `activity_cloud_music_submission.xml`、`include_cloud_music_submission_editor.xml`、`item_cloud_music_submission_history.xml`、`dialog_image_preview.xml` | `CloudMusicSubmissionActivity`、`CloudMusicSubmissionViewModel`、`CloudMusicSubmissionHistoryAdapter` | 使用 edge-to-edge 与顶部 HeaderBar 标签切换“我要投稿 / 投稿记录”；采用反馈同款虚线上传框、选中即时图片/卡片预览展示、全屏大图预览与一键清除，支持系统文件选择、URI 流式直传、元数据编辑确认、审核进度历史列表与驳回/待审状态下的重新提审。 |
 | 分享详情页 | App 内打开音乐分享链接或本地查看详情 | `pm/app/src/main/java/cn/partialy/pm/activity/ShareDetailActivity.kt` | `activity_share_detail.xml`、`bg_share_detail_*`、`SongSourceTagBinder`、`ShareBottomSheet` | 歌单来源使用歌曲列表同款 K / Y 标签；本地详情右侧复用分享 Sheet，外链通过 `pisamusic://scan?type=music-share` 唤醒时右侧收藏 KG/WY 歌单。 |
 | WebView 本地错误页 | WebView 加载失败兜底 | `pm/app/src/main/java/cn/partialy/pm/ui/web/LocalGenericErrorWebViewController.kt` | `assets/` 内本地错误页面 | WebView 错误兜底优先用这个控制器。 |

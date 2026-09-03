@@ -34,7 +34,7 @@
 
 - `src/components/setting/about/AboutSetting.vue` 负责桌面端关于内容，并嵌入设置页“关于”Tab；设置页 Tab 由 `/setting?tab=<name>` 驱动，右上角“设置 → 关于”和旧 `/about` 地址必须统一进入 `/setting?tab=about`，不得恢复独立关于页。当前版本通过 main 侧 `system:get-app-version` 读取 Electron `app.getVersion()`，服务端关于信息通过 `system:get-about-info` 请求 `/api/config/about`；renderer 不直接拼接或请求 server 地址。
 - 开发环境的“模拟检查更新”走 `updater:simulate-check`，只用于未打包运行时触发有更新提示，不影响正式 `electron-updater` 下载和安装流程。
-- 用户协议、隐私政策和意见反馈入口固定放在关于页内；协议/隐私通过 main 侧 system IPC 拉取 `/api/config/service-agreement`、`/api/config/privacy-policy` 后在弹窗展示，反馈表单通过 `system:submit-feedback` 提交 `/api/feedback`。
+- 用户协议、隐私政策和意见反馈入口固定放在关于页内；协议/隐私通过 main 侧 system IPC 拉取 `/api/config/service-agreement`、`/api/config/privacy-policy` 后以纯文本（保留换行）在弹窗展示，反馈表单通过 `system:submit-feedback` 提交 `/api/feedback`。
 - 反馈图片由 renderer 读取为可序列化二进制后交给 main 侧组装 `FormData`，最多 3 张，格式限定 JPEG/PNG/WebP，单张不超过 5MB；不要让 renderer 直接持有反馈接口 URL。
 
 ## 歌曲/歌单详情与分享规则补充
@@ -227,7 +227,7 @@
 ## 启动页与首次协议规则补充
 
 - 桌面端启动页由 `electron/startup/startupWindowManager.ts` 和 `web/startup-window.html` 管理，使用独立 Electron HTML 窗口，不要改回 Vue 页面内覆盖层。
-- 首次用户协议状态统一写入 SQLite settings 的 `startup-user-agreement`，不要使用 localStorage 或 electron-store 另存一份协议状态。
+- 首次用户协议状态统一写入 SQLite settings 的 `startup-user-agreement`，记录当前服务协议 `version`，协议版本变化时重新展示；不要使用 localStorage 或 electron-store 另存一份协议状态。启动页协议正文按纯文本保留换行。
 - 主窗口默认隐藏加载；renderer 完成关键初始化后通过 preload 暴露的 `startup:renderer-ready` 通知 main，再由 main 关闭启动页并显示主窗口。
 - main 进程启动阶段先完成第 0 层服务发现，再检查外层服务可用性、刷新 bootstrap 并上报 PC 设备；没网、服务不可用或 `appAvailable=false` 时才设置本地模式继续打开主窗口，renderer 只读取 `system:get-startup-service-state` 并用 `window.$notification` 提示。PC 设备封禁必须阻止进入。
 - 本地模式下右上角设置下拉需要显示“重新链接”，点击后通过 main 进程重启整个 App，重新走启动检查流程；不要改成单纯刷新 renderer。
