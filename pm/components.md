@@ -42,6 +42,7 @@
 | 一起听成员管理菜单 | 房主转让、移出成员 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ListenTogetherMemberActionMenu.kt` | `ActionMenuBottomSheet`、`PmMinimalDialog` | 仅房主点击其他成员时显示，危险操作使用红色并二次确认。 |
 | 歌单更多菜单 | 我的歌单操作菜单 | `pm/app/src/main/java/cn/partialy/pm/ui/mine/MinePlaylistMoreBottomSheet.kt` | `bottom_sheet_mine_playlist_more.xml` | 歌单重命名、删除等菜单参考。 |
 | 公告底部弹窗 | 首页结构化公告原生内容展示 | `pm/app/src/main/res/layout/layout_announcement_bottom_sheet.xml` | `MainActivity` 中公告弹窗逻辑、`AnnouncementContentRenderer`、`bg_bottom_radius_sheet.xml` | 复用选项 Sheet 的圆角背景和日夜弹层色，隐藏滚动条但保留滑动；正文由 `AnnouncementContentRenderer` 原生渲染（文本、高亮、URL/协议下划线、复制图标与 Coil 图片）；“我知道了”使用次级操作色，“前往”跟随 `colorPrimary`。 |
+| 启动页多操作面板 | 启动断网重试、版本更新下载与跳转 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/SplashActionBottomSheet.kt` | `layout_splash_action_bottom_sheet.xml`、`bg_splash_content_card.xml`、`bg_bottom_radius_sheet.xml` | 参考公告 Sheet 结构，包含主副标题、更新说明卡片及动态排布按钮。按钮数量为 2 时水平 1:1 排列，>=3 时垂直全宽排列；主按钮使用品牌主色并在下载时动态显示进度与防重禁用，次按钮使用中性灰色或弱化底色。 |
 | 错误底部弹窗 | 错误详情展示 | `pm/app/src/main/res/layout/layout_error_bottom_sheet.xml` | `ModernDialog` / 相关错误展示逻辑 | 错误详情类底部展示参考。 |
 
 ## 设置与表单

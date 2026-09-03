@@ -30,6 +30,7 @@ import cn.partialy.pm.utils.AppUpdateInstaller
 import cn.partialy.pm.utils.AppVersionComparator
 import cn.partialy.pm.utils.ServerDevicePrefs
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.dialog.SplashActionBottomSheet
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -58,6 +59,8 @@ class SplashActivity : AppCompatActivity() {
     private var agreementDialogShowing = false
     private var pendingScanLink: String? = null
     private var localModeButtonJob: Job? = null
+    private var updateSheetHandle: SplashActionBottomSheet.Handle? = null
+    private var networkSheetHandle: SplashActionBottomSheet.Handle? = null
     private lateinit var appUpdateInstaller: AppUpdateInstaller
 
     @Inject
@@ -124,6 +127,10 @@ class SplashActivity : AppCompatActivity() {
         if (::appUpdateInstaller.isInitialized) {
             appUpdateInstaller.destroy()
         }
+        updateSheetHandle?.dismiss()
+        updateSheetHandle = null
+        networkSheetHandle?.dismiss()
+        networkSheetHandle = null
         localModeButtonJob?.cancel()
         binding.splashWebView.removeJavascriptInterface("AndroidSplash")
         super.onDestroy()
@@ -344,8 +351,24 @@ class SplashActivity : AppCompatActivity() {
         updateContent: String,
         forceUpdate: Boolean,
     ) {
-        val js = "window.splashSheet && window.splashSheet.showUpdate({'latestVersion':'${jsSafe(latestVersion)}','updateTime':'${jsSafe(updateTime)}','updateContent':'${jsSafe(updateContent)}','forceUpdate':$forceUpdate});"
-        binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
+        if (isFinishing || isDestroyed) return
+        updateSheetHandle?.dismiss()
+        updateSheetHandle = SplashActionBottomSheet.showUpdate(
+            activity = this,
+            latestVersion = latestVersion,
+            updateTime = updateTime,
+            updateContent = updateContent,
+            forceUpdate = forceUpdate,
+            onUpdateClick = {
+                startAppUpdateDownload()
+            },
+            onOfficialClick = {
+                openOfficialSite()
+            },
+            onSkipClick = {
+                handleSkipUpdate()
+            },
+        )
     }
 
     private fun showAgreementDialog(title: String, content: String, version: Long) {
@@ -431,8 +454,80 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun notifySplashDownloadState(downloading: Boolean, progress: Int, text: String) {
+        runOnUiThread {
+            updateSheetHandle?.updateDownloadProgress(downloading, progress, text)
+        }
         val js = "window.splashSheet && window.splashSheet.setDownloading({downloading:${if (downloading) "true" else "false"},progress:$progress,text:'${jsSafe(text)}'});"
         binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
+    }
+
+    private fun handleSkipUpdate() {
+        lifecycleScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { configManager.getUpdateInfo() }
+            }.onSuccess { updateInfo ->
+                val localVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+                val hasNewVersion = !BuildConfig.DEBUG && AppVersionComparator.isServerVersionNewer(localVersion, updateInfo.latestVersion)
+                if (hasNewVersion && updateInfo.forceUpdate) {
+                    latestDownloadUrl = updateInfo.downloadUrl
+                    latestOfficialUrl = updateInfo.officialUrl
+                    showUpdateSheet(
+                        latestVersion = updateInfo.latestVersion,
+                        updateTime = updateInfo.updateTime,
+                        updateContent = updateInfo.updateContent,
+                        forceUpdate = true,
+                    )
+                    return@onSuccess
+                }
+                updateSheetHandle?.dismiss()
+                updateSheetHandle = null
+                if (hasNavigated) return@onSuccess
+                hasNavigated = true
+                startMainActivity()
+                finish()
+            }.onFailure {
+                updateSheetHandle?.dismiss()
+                updateSheetHandle = null
+                if (hasNavigated) return@onFailure
+                hasNavigated = true
+                startMainActivity(it.message ?: getString(R.string.splash_update_verify_failed))
+                finish()
+            }
+        }
+    }
+
+    private fun openOfficialHome() {
+        val url = latestOfficialUrl.trim().ifEmpty { "https://pisamusic.partialy.cn" }
+        runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+    }
+
+    private fun showNetworkSheet(message: String? = null) {
+        if (isFinishing || isDestroyed) return
+        networkSheetHandle?.dismiss()
+        networkSheetHandle = SplashActionBottomSheet.showNetwork(
+            activity = this,
+            message = message,
+            onRetryClick = { handle ->
+                handle.dismiss()
+                networkSheetHandle = null
+                bootstrapRequested = false
+                tryBootstrapAndUpdate()
+            },
+            onOfficialClick = {
+                openOfficialHome()
+            },
+            onSettingsClick = {
+                runCatching {
+                    startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+                }.onFailure {
+                    runCatching {
+                        startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
+                    }
+                }
+            },
+        )
     }
 
     inner class SplashJsBridge {
@@ -448,36 +543,7 @@ class SplashActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun skipUpdate() {
-            runOnUiThread {
-                lifecycleScope.launch {
-                    runCatching {
-                        withContext(Dispatchers.IO) { configManager.getUpdateInfo() }
-                    }.onSuccess { updateInfo ->
-                        val localVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
-                        val hasNewVersion = !BuildConfig.DEBUG && AppVersionComparator.isServerVersionNewer(localVersion, updateInfo.latestVersion)
-                        if (hasNewVersion && updateInfo.forceUpdate) {
-                            latestDownloadUrl = updateInfo.downloadUrl
-                            latestOfficialUrl = updateInfo.officialUrl
-                            showUpdateSheet(
-                                latestVersion = updateInfo.latestVersion,
-                                updateTime = updateInfo.updateTime,
-                                updateContent = updateInfo.updateContent,
-                                forceUpdate = true,
-                            )
-                            return@onSuccess
-                        }
-                        if (hasNavigated) return@onSuccess
-                        hasNavigated = true
-                        startMainActivity()
-                        finish()
-                    }.onFailure {
-                        if (hasNavigated) return@onFailure
-                        hasNavigated = true
-                        startMainActivity(it.message ?: getString(R.string.splash_update_verify_failed))
-                        finish()
-                    }
-                }
-            }
+            runOnUiThread { handleSkipUpdate() }
         }
 
         @JavascriptInterface

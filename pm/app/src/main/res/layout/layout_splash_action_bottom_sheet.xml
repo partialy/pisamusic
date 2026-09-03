@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/splashActionSheetRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_radius_sheet"
+    android:orientation="vertical"
+    android:paddingTop="20dp">
+
+    <!-- 顶部标题与副标题/时间 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:id="@+id/splashActionSheetTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/pm_dialog_title"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            tools:text="发现新版本 v2.1.0" />
+
+        <TextView
+            android:id="@+id/splashActionSheetMeta"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/home_mini_player_subtitle"
+            android:textSize="12sp"
+            tools:text="2026-09-03" />
+    </LinearLayout>
+
+    <!-- 中间可滚动卡片区域 -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/splashActionSheetScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="20dp"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/splashActionSheetContentCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_splash_content_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <LinearLayout
+                android:id="@+id/splashActionSheetContentContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- 底部动态按钮容器：2个按钮时由代码置为水平并均分，>=3个按钮时置为垂直全宽 -->
+    <LinearLayout
+        android:id="@+id/splashActionSheetButtonContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="20dp" />
+</LinearLayout>
