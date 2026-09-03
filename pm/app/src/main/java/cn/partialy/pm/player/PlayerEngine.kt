@@ -28,6 +28,12 @@ import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticEvent
 import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticEventType
 import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticRecorder
 import cn.partialy.pm.player.diagnostic.PlaybackPlayerSnapshot
+import cn.partialy.pm.player.diagnostic.Media3ReasonNames
+import cn.partialy.pm.player.diagnostic.PlaybackControlSource
+import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticEvent
+import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticEventType
+import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticRecorder
+import cn.partialy.pm.player.diagnostic.PlaybackPlayerSnapshot
 import cn.partialy.pm.utils.SettingsPrefs
 import cn.partialy.pm.fault.PlaybackFaultRecorder
 import com.google.common.util.concurrent.Futures
@@ -45,11 +51,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.UUID
+import java.util.Locale
+import java.util.UUID
 
 /**
  * 播放引擎：管理 ExoPlayer / MediaSession 生命周期、事件监听、进度追踪、
  * 播放模式切换、状态持久化，以及按需 URL 解析。
  *
+ * [onNext] / [onPrevious] 由 MusicController 注入；
+ * [onHardPauseObserved] 用于撤销 MusicController 内仍未落地的直接播放请求；
+ * [onSongEnded] 仅报告自然播放完成。
  * [onNext] / [onPrevious] 由 MusicController 注入；
  * [onHardPauseObserved] 用于撤销 MusicController 内仍未落地的直接播放请求；
  * [onSongEnded] 仅报告自然播放完成。
@@ -63,15 +74,19 @@ class PlayerEngine(
     private val playbackMediaCache: PlaybackMediaCache,
     private val playbackFaultRecorder: PlaybackFaultRecorder,
     private val playbackDiagnosticRecorder: PlaybackDiagnosticRecorder,
+    private val playbackDiagnosticRecorder: PlaybackDiagnosticRecorder,
     private val audioEffectsManager: AudioEffectsManager,
     private val onNext: () -> Unit,
     private val onPrevious: () -> Unit,
+    private val onHardPauseObserved: () -> Unit,
     private val onHardPauseObserved: () -> Unit,
     private val onPlaybackEvent: (PlaybackUiEvent) -> Unit,
     private val onPlayerChanged: (ExoPlayer) -> Unit,
     private val onSongEnded: () -> Boolean,
 ) {
     var exoPlayer: ExoPlayer? = null
+        private set
+    var externalControlPlayer: Player? = null
         private set
     var externalControlPlayer: Player? = null
         private set
@@ -114,10 +129,22 @@ class PlayerEngine(
     private var hardPauseRevision = 0L
     private var pendingControlContext: PendingControlContext? = null
     private val handledPauseRequestIds = LinkedHashSet<String>()
+    private var hardPauseRevision = 0L
+    private var pendingControlContext: PendingControlContext? = null
+    private val handledPauseRequestIds = LinkedHashSet<String>()
     private val playbackAudioAttributes = AudioAttributes.Builder()
         .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
         .setUsage(C.USAGE_MEDIA)
         .build()
+    private data class PendingControlContext(
+        val requestId: String,
+        val action: String,
+        val source: PlaybackControlSource,
+        val controllerPackage: String = "",
+        val expectedPlayWhenReady: Boolean,
+        val createdAtElapsed: Long,
+    )
+
     private data class PendingControlContext(
         val requestId: String,
         val action: String,
@@ -232,6 +259,7 @@ class PlayerEngine(
         oldPlayer?.removeListener(playerListener)
         oldSession?.release()
         mediaSession = null
+        externalControlPlayer = null
         externalControlPlayer = null
         audioEffectsManager.release()
         if (oldPlayer != null) {
@@ -430,7 +458,56 @@ class PlayerEngine(
             )
         }
 
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            val now = SystemClock.elapsedRealtime()
+            val currentContext = pendingControlContext
+            val matchedContext = currentContext?.takeIf {
+                it.expectedPlayWhenReady == playWhenReady &&
+                    now - it.createdAtElapsed <= CONTROL_CONTEXT_TTL_MS
+            }
+            val handledPauseContext = currentContext?.takeIf {
+                shouldTreatAsHandledExplicitPauseCallback(
+                    context = it,
+                    playWhenReady = playWhenReady,
+                    reason = reason,
+                )
+            }
+            val effectiveContext = matchedContext ?: handledPauseContext
+            if (effectiveContext === currentContext) {
+                pendingControlContext = null
+            }
+            val source = when {
+                effectiveContext != null -> effectiveContext.source
+                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ->
+                    PlaybackControlSource.AUDIO_FOCUS
+                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY ->
+                    PlaybackControlSource.AUDIO_BECOMING_NOISY
+                else -> PlaybackControlSource.EXTERNAL_DIRECT_PLAYER
+            }
+            recordDiagnostic(
+                eventType = PlaybackDiagnosticEventType.PLAY_WHEN_READY_CHANGED,
+                action = if (playWhenReady) "play" else "pause",
+                reason = Media3ReasonNames.playWhenReady(reason),
+                controlSource = source,
+                controllerPackage = effectiveContext?.controllerPackage.orEmpty(),
+                details = effectiveContext?.let { mapOf("request_id" to it.requestId) }.orEmpty(),
+            )
+            handleObservedPlayIntent(
+                playWhenReady = playWhenReady,
+                reason = reason,
+                source = source,
+                hardPauseAlreadyHandled = effectiveContext?.let {
+                    it.action == "pause" && consumeHandledPauseRequest(it.requestId)
+                } == true,
+            )
+        }
+
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            recordDiagnostic(
+                eventType = PlaybackDiagnosticEventType.IS_PLAYING_CHANGED,
+                action = if (isPlaying) "playing" else "paused",
+                controlSource = PlaybackControlSource.UNKNOWN,
+            )
             recordDiagnostic(
                 eventType = PlaybackDiagnosticEventType.IS_PLAYING_CHANGED,
                 action = if (isPlaying) "playing" else "paused",
@@ -448,6 +525,13 @@ class PlayerEngine(
 
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
             audioEffectsManager.bindAudioSession(audioSessionId)
+        }
+
+        override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+            recordDiagnostic(
+                eventType = PlaybackDiagnosticEventType.SUPPRESSION_CHANGED,
+                reason = Media3ReasonNames.suppression(playbackSuppressionReason),
+            )
         }
 
         override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
@@ -478,6 +562,12 @@ class PlayerEngine(
 
         @SuppressLint("SwitchIntDef")
         override fun onPlaybackStateChanged(playbackState: Int) {
+            recordDiagnostic(
+                eventType = PlaybackDiagnosticEventType.PLAYBACK_STATE_CHANGED,
+                action = Media3ReasonNames.playbackState(playbackState),
+                controlSource = PlaybackControlSource.UNKNOWN,
+                details = mapOf("state_code" to playbackState.toString()),
+            )
             recordDiagnostic(
                 eventType = PlaybackDiagnosticEventType.PLAYBACK_STATE_CHANGED,
                 action = Media3ReasonNames.playbackState(playbackState),
@@ -593,6 +683,17 @@ class PlayerEngine(
                                     "controller_package" to controllerInfo.packageName,
                                 ),
                             )
+                            recordDiagnostic(
+                                eventType = PlaybackDiagnosticEventType.MEDIA_BUTTON,
+                                action = "next",
+                                controlSource = PlaybackControlSource.MEDIA_BUTTON,
+                                controllerPackage = controllerInfo.packageName,
+                                details = mapOf(
+                                    "key_code" to keyEvent.keyCode.toString(),
+                                    "repeat_count" to keyEvent.repeatCount.toString(),
+                                    "controller_package" to controllerInfo.packageName,
+                                ),
+                            )
                             if (keyEvent.repeatCount == 0) next(manual = true)
                             return true
                         }
@@ -608,7 +709,58 @@ class PlayerEngine(
                                     "controller_package" to controllerInfo.packageName,
                                 ),
                             )
+                            recordDiagnostic(
+                                eventType = PlaybackDiagnosticEventType.MEDIA_BUTTON,
+                                action = "previous",
+                                controlSource = PlaybackControlSource.MEDIA_BUTTON,
+                                controllerPackage = controllerInfo.packageName,
+                                details = mapOf(
+                                    "key_code" to keyEvent.keyCode.toString(),
+                                    "repeat_count" to keyEvent.repeatCount.toString(),
+                                    "controller_package" to controllerInfo.packageName,
+                                ),
+                            )
                             if (keyEvent.repeatCount == 0) previous(manual = true)
+                            return true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                            recordDiagnostic(
+                                eventType = PlaybackDiagnosticEventType.MEDIA_BUTTON,
+                                action = "play",
+                                controlSource = PlaybackControlSource.MEDIA_BUTTON,
+                                controllerPackage = controllerInfo.packageName,
+                                details = mapOf(
+                                    "key_code" to keyEvent.keyCode.toString(),
+                                    "repeat_count" to keyEvent.repeatCount.toString(),
+                                    "controller_package" to controllerInfo.packageName,
+                                ),
+                            )
+                            if (keyEvent.repeatCount == 0) {
+                                playCurrent(
+                                    source = PlaybackControlSource.MEDIA_BUTTON,
+                                    controllerPackage = controllerInfo.packageName,
+                                )
+                            }
+                            return true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                            recordDiagnostic(
+                                eventType = PlaybackDiagnosticEventType.MEDIA_BUTTON,
+                                action = "pause",
+                                controlSource = PlaybackControlSource.MEDIA_BUTTON,
+                                controllerPackage = controllerInfo.packageName,
+                                details = mapOf(
+                                    "key_code" to keyEvent.keyCode.toString(),
+                                    "repeat_count" to keyEvent.repeatCount.toString(),
+                                    "controller_package" to controllerInfo.packageName,
+                                ),
+                            )
+                            if (keyEvent.repeatCount == 0) {
+                                pauseCurrent(
+                                    source = PlaybackControlSource.MEDIA_BUTTON,
+                                    controllerPackage = controllerInfo.packageName,
+                                )
+                            }
                             return true
                         }
                         KeyEvent.KEYCODE_MEDIA_PLAY -> {
@@ -669,6 +821,23 @@ class PlayerEngine(
                                     controllerPackage = controllerInfo.packageName,
                                 )
                             }
+                            recordDiagnostic(
+                                eventType = PlaybackDiagnosticEventType.MEDIA_BUTTON,
+                                action = "play_pause",
+                                controlSource = PlaybackControlSource.MEDIA_BUTTON,
+                                controllerPackage = controllerInfo.packageName,
+                                details = mapOf(
+                                    "key_code" to keyEvent.keyCode.toString(),
+                                    "repeat_count" to keyEvent.repeatCount.toString(),
+                                    "controller_package" to controllerInfo.packageName,
+                                ),
+                            )
+                            if (keyEvent.repeatCount == 0) {
+                                togglePlayPause(
+                                    source = PlaybackControlSource.MEDIA_BUTTON,
+                                    controllerPackage = controllerInfo.packageName,
+                                )
+                            }
                             return true
                         }
                     }
@@ -692,6 +861,12 @@ class PlayerEngine(
                         controlSource = PlaybackControlSource.MEDIA_SESSION,
                         controllerPackage = controller.packageName,
                     )
+                    recordDiagnostic(
+                        eventType = PlaybackDiagnosticEventType.MEDIA_SESSION_COMMAND,
+                        action = "seek_to_next",
+                        controlSource = PlaybackControlSource.MEDIA_SESSION,
+                        controllerPackage = controller.packageName,
+                    )
                     SessionResult.RESULT_INFO_SKIPPED
                 }
                 Player.COMMAND_SEEK_TO_PREVIOUS -> {
@@ -702,9 +877,22 @@ class PlayerEngine(
                         controlSource = PlaybackControlSource.MEDIA_SESSION,
                         controllerPackage = controller.packageName,
                     )
+                    recordDiagnostic(
+                        eventType = PlaybackDiagnosticEventType.MEDIA_SESSION_COMMAND,
+                        action = "seek_to_previous",
+                        controlSource = PlaybackControlSource.MEDIA_SESSION,
+                        controllerPackage = controller.packageName,
+                    )
                     SessionResult.RESULT_INFO_SKIPPED
                 }
                 Player.COMMAND_PLAY_PAUSE -> {
+                    recordDiagnostic(
+                        eventType = PlaybackDiagnosticEventType.MEDIA_SESSION_COMMAND,
+                        action = "command_play_pause",
+                        controlSource = PlaybackControlSource.MEDIA_SESSION,
+                        controllerPackage = controller.packageName,
+                    )
+                    super.onPlayerCommandRequest(session, controller, playerCommand)
                     recordDiagnostic(
                         eventType = PlaybackDiagnosticEventType.MEDIA_SESSION_COMMAND,
                         action = "command_play_pause",
@@ -810,8 +998,19 @@ class PlayerEngine(
         source: PlaybackControlSource,
         controllerPackage: String,
     ) {
+    fun togglePlayPause(source: PlaybackControlSource = PlaybackControlSource.APP_UI) {
+        togglePlayPause(source = source, controllerPackage = "")
+    }
+
+    private fun togglePlayPause(
+        source: PlaybackControlSource,
+        controllerPackage: String,
+    ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                val player = exoPlayer ?: return@launch
+                if (player.playWhenReady) {
+                    pauseCurrent(source = source, controllerPackage = controllerPackage)
                 val player = exoPlayer ?: return@launch
                 if (player.playWhenReady) {
                     pauseCurrent(source = source, controllerPackage = controllerPackage)
@@ -901,6 +1100,17 @@ class PlayerEngine(
                     return@launch
                 }
                 markControlRequest("play", source, controllerPackage)
+                val player = exoPlayer ?: return@launch
+                if (player.playWhenReady) {
+                    recordDiagnostic(
+                        eventType = PlaybackDiagnosticEventType.CONTROL_REQUEST,
+                        action = "already_desired_play",
+                        controlSource = source,
+                        controllerPackage = controllerPackage,
+                    )
+                    return@launch
+                }
+                markControlRequest("play", source, controllerPackage)
                 ensurePlayableAtIndex(playlistManager.currentIndex.value, autoPlay = true)
                 persistState(force = true)
             } catch (e: Exception) {
@@ -917,8 +1127,23 @@ class PlayerEngine(
         source: PlaybackControlSource,
         controllerPackage: String,
     ) {
+    fun pauseCurrent(source: PlaybackControlSource = PlaybackControlSource.APP_UI) {
+        pauseCurrent(source = source, controllerPackage = "")
+    }
+
+    private fun pauseCurrent(
+        source: PlaybackControlSource,
+        controllerPackage: String,
+    ) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                val context = markControlRequest("pause", source, controllerPackage)
+                handleHardPauseRequest(
+                    reason = "explicit_pause",
+                    source = source,
+                    controllerPackage = controllerPackage,
+                    handledRequestId = context.requestId,
+                )
                 val context = markControlRequest("pause", source, controllerPackage)
                 handleHardPauseRequest(
                     reason = "explicit_pause",
@@ -942,10 +1167,15 @@ class PlayerEngine(
         playing: Boolean,
         source: PlaybackControlSource = PlaybackControlSource.APP_UI,
     ) {
+    fun setPlaying(
+        playing: Boolean,
+        source: PlaybackControlSource = PlaybackControlSource.APP_UI,
+    ) {
         if (playing) {
             onManualPlayRequested(source)
             playCurrent(source)
         } else {
+            pauseCurrent(source)
             pauseCurrent(source)
         }
     }
@@ -1002,6 +1232,7 @@ class PlayerEngine(
 
         val refreshToken = mediaRefreshGate.next()
         val requestedPauseRevision = hardPauseRevision
+        val requestedPauseRevision = hardPauseRevision
         mediaRefreshJob?.cancel()
         mediaRefreshJob = null
         val songKey = factory.keyOf(song)
@@ -1023,7 +1254,16 @@ class PlayerEngine(
             val hardPaused = requestedPauseRevision != hardPauseRevision
             val stillWantsPlay = player.playWhenReady
             if (shouldPlay && !staleToken && !hardPaused && stillWantsPlay) {
+            val staleToken = !mediaRefreshGate.isLatest(refreshToken)
+            val hardPaused = requestedPauseRevision != hardPauseRevision
+            val stillWantsPlay = player.playWhenReady
+            if (shouldPlay && !staleToken && !hardPaused && stillWantsPlay) {
                 player.play()
+                recordAsyncPlayApplied(
+                    song = currentSong,
+                    requestedPauseRevision = requestedPauseRevision,
+                    action = "quality_refresh",
+                )
                 recordAsyncPlayApplied(
                     song = currentSong,
                     requestedPauseRevision = requestedPauseRevision,
@@ -1031,6 +1271,14 @@ class PlayerEngine(
                 )
             } else {
                 player.pause()
+                if (shouldPlay && (staleToken || hardPaused || !stillWantsPlay)) {
+                    recordAsyncDropForSong(
+                        song = currentSong,
+                        reason = if (staleToken) "stale_token" else "quality_refresh_hard_paused",
+                        requestedPauseRevision = requestedPauseRevision,
+                        action = "quality_refresh",
+                    )
+                }
                 if (shouldPlay && (staleToken || hardPaused || !stillWantsPlay)) {
                     recordAsyncDropForSong(
                         song = currentSong,
@@ -1091,6 +1339,7 @@ class PlayerEngine(
     fun ensurePlayableAtIndex(index: Int, autoPlay: Boolean) {
         val token = mediaRefreshGate.next()
         val requestedPauseRevision = hardPauseRevision
+        val requestedPauseRevision = hardPauseRevision
         mediaRefreshJob?.cancel()
         mediaRefreshJob = engineScope.launch {
             val expectedPlayer = exoPlayer ?: return@launch
@@ -1118,6 +1367,14 @@ class PlayerEngine(
                     )
                     return@launch
                 }
+                if (!mediaRefreshGate.isLatest(token)) {
+                    recordAsyncDropForSong(
+                        song = expectedSong,
+                        reason = "stale_token",
+                        requestedPauseRevision = requestedPauseRevision,
+                    )
+                    return@launch
+                }
 
                 val player = exoPlayer ?: return@launch
                 if (player !== expectedPlayer || index !in 0 until player.mediaItemCount) return@launch
@@ -1126,6 +1383,14 @@ class PlayerEngine(
 
                 if (refreshedCloudItem != null) {
                     replaceMediaItemAndRefreshCurrent(index, refreshedCloudItem, startPositionMs)
+                }
+                if (!mediaRefreshGate.isLatest(token)) {
+                    recordAsyncDropForSong(
+                        song = expectedSong,
+                        reason = "stale_token",
+                        requestedPauseRevision = requestedPauseRevision,
+                    )
+                    return@launch
                 }
                 if (!mediaRefreshGate.isLatest(token)) {
                     recordAsyncDropForSong(
@@ -1144,6 +1409,33 @@ class PlayerEngine(
                     activePlayer.seekTo(index, startPositionMs)
                 }
                 activePlayer.prepare()
+                if (!mediaRefreshGate.isLatest(token)) {
+                    recordAsyncDropForSong(
+                        song = expectedSong,
+                        reason = "stale_token",
+                        requestedPauseRevision = requestedPauseRevision,
+                    )
+                    return@launch
+                }
+                if (autoPlay && requestedPauseRevision != hardPauseRevision) {
+                    recordAsyncDropForSong(
+                        song = expectedSong,
+                        reason = "hard_pause_after_request",
+                        requestedPauseRevision = requestedPauseRevision,
+                    )
+                    activePlayer.pause()
+                    return@launch
+                }
+                if (autoPlay) {
+                    activePlayer.play()
+                    recordAsyncPlayApplied(
+                        song = activeSong,
+                        requestedPauseRevision = requestedPauseRevision,
+                        action = "ensure_playable",
+                    )
+                } else {
+                    activePlayer.pause()
+                }
                 if (!mediaRefreshGate.isLatest(token)) {
                     recordAsyncDropForSong(
                         song = expectedSong,
@@ -1212,10 +1504,18 @@ class PlayerEngine(
             return
         }
         val requestedPauseRevision = hardPauseRevision
+        val requestedPauseRevision = hardPauseRevision
 
         CoroutineScope(Dispatchers.Main).launch {
             val fallback = withContext(Dispatchers.IO) {
                 fallbackProvider.load(mode, factory)
+            }
+            if (requestedPauseRevision != hardPauseRevision) {
+                recordFallbackHardPause(
+                    song = fallback.songs.firstOrNull(),
+                    requestedPauseRevision = requestedPauseRevision,
+                )
+                return@launch
             }
             if (requestedPauseRevision != hardPauseRevision) {
                 recordFallbackHardPause(
@@ -1240,8 +1540,22 @@ class PlayerEngine(
                     )
                     return@setPlayListLazy
                 }
+                if (requestedPauseRevision != hardPauseRevision) {
+                    recordFallbackHardPause(
+                        song = fallback.songs.firstOrNull(),
+                        requestedPauseRevision = requestedPauseRevision,
+                    )
+                    return@setPlayListLazy
+                }
                 when (result) {
                     is PlaylistSetResult.Applied -> {
+                        if (requestedPauseRevision != hardPauseRevision) {
+                            recordFallbackHardPause(
+                                song = result.songs.getOrNull(result.startIndex),
+                                requestedPauseRevision = requestedPauseRevision,
+                            )
+                            return@setPlayListLazy
+                        }
                         if (requestedPauseRevision != hardPauseRevision) {
                             recordFallbackHardPause(
                                 song = result.songs.getOrNull(result.startIndex),
@@ -1266,6 +1580,207 @@ class PlayerEngine(
         exoPlayer?.pause()
         persistState(force = true)
         onPlaybackEvent(PlaybackUiEvent.NetworkPoorPaused(summary))
+    }
+
+    private fun markControlRequest(
+        action: String,
+        source: PlaybackControlSource,
+        controllerPackage: String = "",
+        reason: String = "",
+    ): PendingControlContext {
+        val expectedPlayWhenReady = when (action) {
+            "play" -> true
+            "pause" -> false
+            else -> error("Only explicit play/pause can create a pending context")
+        }
+        val context = PendingControlContext(
+            requestId = UUID.randomUUID().toString(),
+            action = action,
+            source = source,
+            controllerPackage = controllerPackage,
+            expectedPlayWhenReady = expectedPlayWhenReady,
+            createdAtElapsed = SystemClock.elapsedRealtime(),
+        )
+        pendingControlContext = context
+        recordDiagnostic(
+            eventType = PlaybackDiagnosticEventType.CONTROL_REQUEST,
+            action = action,
+            reason = reason,
+            controlSource = source,
+            controllerPackage = controllerPackage,
+            details = mapOf("request_id" to context.requestId),
+        )
+        return context
+    }
+
+    private fun handleObservedPlayIntent(
+        playWhenReady: Boolean,
+        reason: Int,
+        source: PlaybackControlSource,
+        hardPauseAlreadyHandled: Boolean,
+    ) {
+        val disposition = audioCoexistenceController.onPlayWhenReadyChanged(playWhenReady)
+        if (playWhenReady || disposition == AudioCoexistencePauseDisposition.OWN_PAUSE_OBSERVED) {
+            return
+        }
+        if (hardPauseAlreadyHandled) return
+        invalidatePendingPlayback(
+            reason = "${Media3ReasonNames.playWhenReady(reason)}:${source.name.lowercase(Locale.ROOT)}",
+            controlSource = source,
+        )
+    }
+
+    private fun handleHardPauseRequest(
+        reason: String,
+        source: PlaybackControlSource,
+        controllerPackage: String = "",
+        handledRequestId: String? = null,
+    ) {
+        audioCoexistenceController.cancelPendingResume()
+        handledRequestId?.let(::rememberHandledPauseRequest)
+        invalidatePendingPlayback(
+            reason = reason,
+            controlSource = source,
+            controllerPackage = controllerPackage,
+        )
+    }
+
+    private fun rememberHandledPauseRequest(requestId: String) {
+        handledPauseRequestIds.add(requestId)
+        while (handledPauseRequestIds.size > MAX_HANDLED_PAUSE_REQUEST_IDS) {
+            val oldest = handledPauseRequestIds.firstOrNull() ?: break
+            handledPauseRequestIds.remove(oldest)
+        }
+    }
+
+    private fun consumeHandledPauseRequest(requestId: String): Boolean =
+        handledPauseRequestIds.remove(requestId)
+
+    private fun shouldTreatAsHandledExplicitPauseCallback(
+        context: PendingControlContext,
+        playWhenReady: Boolean,
+        reason: Int,
+    ): Boolean =
+        !playWhenReady &&
+            reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST &&
+            context.action == "pause" &&
+            context.expectedPlayWhenReady == false &&
+            handledPauseRequestIds.contains(context.requestId)
+
+    private fun invalidatePendingPlayback(
+        reason: String,
+        controlSource: PlaybackControlSource = PlaybackControlSource.UNKNOWN,
+        controllerPackage: String = "",
+        details: Map<String, String> = emptyMap(),
+    ) {
+        hardPauseRevision += 1L
+        mediaRefreshGate.invalidate()
+        mediaRefreshJob?.cancel()
+        mediaRefreshJob = null
+        onHardPauseObserved()
+        recordDiagnostic(
+            eventType = PlaybackDiagnosticEventType.ASYNC_PLAY_DROPPED,
+            action = "invalidate_pending_playback",
+            reason = reason,
+            controlSource = controlSource,
+            controllerPackage = controllerPackage,
+            details = details,
+        )
+        Log.d(TAG, "Invalidate pending playback: $reason")
+    }
+
+    private fun asyncPlaybackDetails(
+        song: SongInfo,
+        requestedPauseRevision: Long,
+    ): Map<String, String> = mapOf(
+        "target_source" to song.type.name.lowercase(Locale.ROOT),
+        "target_song_id" to song.id.take(256),
+        "requested_pause_revision" to requestedPauseRevision.toString(),
+    )
+
+    private fun recordAsyncPlayApplied(
+        song: SongInfo,
+        requestedPauseRevision: Long,
+        action: String,
+        source: PlaybackControlSource = PlaybackControlSource.ASYNC_MEDIA_REFRESH,
+    ) {
+        recordDiagnostic(
+            eventType = PlaybackDiagnosticEventType.ASYNC_PLAY_APPLIED,
+            action = action,
+            controlSource = source,
+            details = asyncPlaybackDetails(song, requestedPauseRevision),
+        )
+    }
+
+    private fun recordAsyncDropForSong(
+        song: SongInfo,
+        reason: String,
+        requestedPauseRevision: Long,
+        action: String = "drop",
+        source: PlaybackControlSource = PlaybackControlSource.ASYNC_MEDIA_REFRESH,
+    ) {
+        recordDiagnostic(
+            eventType = PlaybackDiagnosticEventType.ASYNC_PLAY_DROPPED,
+            action = action,
+            reason = reason,
+            controlSource = source,
+            details = asyncPlaybackDetails(song, requestedPauseRevision),
+        )
+    }
+
+    private fun recordFallbackHardPause(song: SongInfo?, requestedPauseRevision: Long) {
+        if (song == null) {
+            recordDiagnostic(
+                eventType = PlaybackDiagnosticEventType.ASYNC_PLAY_DROPPED,
+                action = "fallback_refresh",
+                reason = "fallback_hard_paused",
+                controlSource = PlaybackControlSource.PLAYBACK_FAILURE,
+            )
+            return
+        }
+        recordAsyncDropForSong(
+            song = song,
+            reason = "fallback_hard_paused",
+            requestedPauseRevision = requestedPauseRevision,
+            action = "fallback_refresh",
+            source = PlaybackControlSource.PLAYBACK_FAILURE,
+        )
+    }
+
+    private fun recordDiagnostic(
+        eventType: PlaybackDiagnosticEventType,
+        action: String = "",
+        reason: String = "",
+        controlSource: PlaybackControlSource = PlaybackControlSource.UNKNOWN,
+        controllerPackage: String = "",
+        details: Map<String, String> = emptyMap(),
+    ) {
+        playbackDiagnosticRecorder.record(
+            PlaybackDiagnosticEvent(
+                eventType = eventType,
+                action = action,
+                reason = reason,
+                controlSource = controlSource,
+                controllerPackage = controllerPackage,
+                snapshot = currentDiagnosticSnapshot(),
+                details = details,
+            ),
+        )
+    }
+
+    private fun currentDiagnosticSnapshot(): PlaybackPlayerSnapshot {
+        val player = exoPlayer
+        val song = playlistManager.currentSong.value
+        return PlaybackPlayerSnapshot(
+            songSource = song?.type?.name?.lowercase().orEmpty(),
+            songId = song?.id.orEmpty(),
+            playWhenReady = player?.playWhenReady == true,
+            isPlaying = player?.isPlaying == true,
+            playbackState = player?.playbackState ?: Player.STATE_IDLE,
+            suppressionReason = player?.playbackSuppressionReason
+                ?: Player.PLAYBACK_SUPPRESSION_REASON_NONE,
+            positionMs = player?.currentPosition?.coerceAtLeast(0L) ?: 0L,
+        )
     }
 
     private fun markControlRequest(
@@ -1610,6 +2125,7 @@ class PlayerEngine(
         val player = exoPlayer
         exoPlayer = null
         externalControlPlayer = null
+        externalControlPlayer = null
         playlistManager.exoPlayer = null
         audioCoexistenceController.release()
         audioEffectsManager.release()
@@ -1621,6 +2137,8 @@ class PlayerEngine(
 
     private companion object {
         private const val TAG = "PlayerEngine"
+        private const val CONTROL_CONTEXT_TTL_MS = 2_000L
+        private const val MAX_HANDLED_PAUSE_REQUEST_IDS = 32
         private const val CONTROL_CONTEXT_TTL_MS = 2_000L
         private const val MAX_HANDLED_PAUSE_REQUEST_IDS = 32
         private const val PROGRESS_UPDATE_INTERVAL_MS = 160L
