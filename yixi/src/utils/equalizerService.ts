@@ -14,7 +14,7 @@ class EqualizerService {
   private preampNode: GainNode | null = null;
   private filterNodes: BiquadFilterNode[] = [];
   private analyserNode: AnalyserNode | null = null;
-  private frequencyBuffer: Uint8Array | null = null;
+  private frequencyBuffer: Uint8Array<ArrayBuffer> | null = null;
 
   // 当前激活状态与缓存增益 (dB)
   private isEnabled: boolean = false;
@@ -209,7 +209,7 @@ class EqualizerService {
   /**
    * 提取当前帧的频域能量数组 (0~255)
    */
-  public getFrequencyData(): Uint8Array | null {
+  public getFrequencyData(): Uint8Array<ArrayBuffer> | null {
     if (!this.analyserNode || !this.frequencyBuffer) {
       return null;
     }

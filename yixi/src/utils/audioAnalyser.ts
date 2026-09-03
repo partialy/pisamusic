@@ -23,7 +23,7 @@ class AudioAnalyserService {
     await equalizerService.resume();
   }
 
-  public getFrequencyData(): Uint8Array | null {
+  public getFrequencyData(): Uint8Array<ArrayBuffer> | null {
     return equalizerService.getFrequencyData();
   }
 
