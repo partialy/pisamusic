@@ -73,13 +73,13 @@ export const defaultAppConfig: AppConfigJson = {
   },
   agreement: {
     title: "Service Agreement and Privacy",
-    content:
-      "<div><p>Welcome to PisaMusic. Please read and agree to the User Agreement and Privacy Policy before using the app.</p><p>To provide music playback and download features, network and local storage access are required.</p></div>",
+    content: "Welcome to PisaMusic. Please read and agree to the User Agreement and Privacy Policy before using the app.\n\nTo provide music playback and download features, network and local storage access are required.",
+    version: 1,
   },
   privacy: {
     title: "Privacy Policy",
-    content:
-      "<div><p>We respect and protect your privacy. PisaMusic only collects the minimum data required for core features and never sells personal data.</p><p>For account-related features and download records, data is handled under applicable laws and user consent.</p></div>",
+    content: "We respect and protect your privacy. PisaMusic only collects the minimum data required for core features and never sells personal data.\n\nFor account-related features and download records, data is handled under applicable laws and user consent.",
+    version: 1,
   },
   about: {
     appName: "PisaMusic",

@@ -177,10 +177,12 @@ export type AppConfigJson = {
   agreement: {
     title: string;
     content: string;
+    version: number;
   };
   privacy: {
     title: string;
     content: string;
+    version: number;
   };
   about: {
     appName: string;

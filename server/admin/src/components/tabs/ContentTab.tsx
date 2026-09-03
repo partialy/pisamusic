@@ -12,7 +12,7 @@ import {
   SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import type { AppConfigJson } from "../../types/config";
-import { HtmlEditor } from "../ui/HtmlEditor";
+import { PlainTextEditor } from "../ui/PlainTextEditor";
 
 type Props = {
   config: AppConfigJson;
@@ -80,6 +80,7 @@ export default function ContentTab({
               <Space>
                 <FileTextOutlined className="text-indigo-500" />
                 <span className="font-bold text-slate-800">服务协议 (Agreement)</span>
+                <Tag color="blue">v{config.agreement.version}</Tag>
               </Space>
             }
             className="rounded-xl border border-slate-200"
@@ -96,11 +97,10 @@ export default function ContentTab({
                 />
               </div>
 
-              <HtmlEditor
-                label="HTML 协议正文"
+              <PlainTextEditor
+                label="纯文本协议正文"
                 value={config.agreement.content}
                 onChange={(val) => updateSection("agreement", "content", val)}
-                themeColor=""
               />
             </div>
           </Card>
@@ -112,6 +112,7 @@ export default function ContentTab({
               <Space>
                 <SafetyCertificateOutlined className="text-rose-500" />
                 <span className="font-bold text-slate-800">隐私政策 (Privacy)</span>
+                <Tag color="blue">v{config.privacy.version}</Tag>
               </Space>
             }
             className="rounded-xl border border-slate-200"
@@ -128,11 +129,10 @@ export default function ContentTab({
                 />
               </div>
 
-              <HtmlEditor
-                label="HTML 政策正文"
+              <PlainTextEditor
+                label="纯文本政策正文"
                 value={config.privacy.content}
                 onChange={(val) => updateSection("privacy", "content", val)}
-                themeColor=""
               />
             </div>
           </Card>
