@@ -11,6 +11,12 @@ type StartupAgreementRecord = {
   acceptedAt: string;
 };
 
+export type StartupAgreementContent = {
+  title: string;
+  content: string;
+  version: number;
+};
+
 type StartupWindowManagerOptions = {
   htmlPath: string;
   iconPath: string;
@@ -19,6 +25,11 @@ type StartupWindowManagerOptions = {
 };
 
 export const STARTUP_AGREEMENT_SETTING_KEY = "startup-user-agreement";
+const DEFAULT_AGREEMENT_CONTENT: StartupAgreementContent = {
+  title: "用户协议与隐私提示",
+  content: "欢迎使用 PisaMusic。当前暂未获取到最新协议内容，请稍后重试。",
+  version: 1,
+};
 
 export class StartupWindowManager {
   private startupWindow: BrowserWindow | null = null;
@@ -27,6 +38,7 @@ export class StartupWindowManager {
   private readonly onAccepted: () => void;
   private readonly onRejected: () => void;
   private mode: StartupWindowMode = "loading";
+  private agreementContent: StartupAgreementContent = DEFAULT_AGREEMENT_CONTENT;
   private registered = false;
 
   constructor(options: StartupWindowManagerOptions) {
@@ -55,11 +67,21 @@ export class StartupWindowManager {
     });
   }
 
-  hasAcceptedAgreement() {
+  hasAcceptedAgreement(version?: number) {
     const record = getAppDatabase().getSetting<StartupAgreementRecord>(
       STARTUP_AGREEMENT_SETTING_KEY
     );
-    return Boolean(record?.value?.accepted);
+    if (!record?.value?.accepted) return false;
+    return version === undefined || record.value.version === version;
+  }
+
+  setAgreementContent(content: StartupAgreementContent | null) {
+    if (!content) return;
+    this.agreementContent = {
+      title: content.title.trim() || DEFAULT_AGREEMENT_CONTENT.title,
+      content: content.content.replace(/\r\n?/g, "\n").trim() || DEFAULT_AGREEMENT_CONTENT.content,
+      version: Number.isFinite(content.version) && content.version > 0 ? content.version : 1,
+    };
   }
 
   open(mode: StartupWindowMode) {
@@ -141,7 +163,7 @@ export class StartupWindowManager {
       STARTUP_AGREEMENT_SETTING_KEY,
       {
         accepted: true,
-        version: 1,
+        version: this.agreementContent.version,
         acceptedAt: new Date().toISOString(),
       } satisfies StartupAgreementRecord,
       1
@@ -165,6 +187,9 @@ export class StartupWindowManager {
       mode: this.mode,
       logoUrl: pathToFileURL(this.iconPath).toString(),
       appVersion: app.getVersion(),
+      agreementTitle: this.agreementContent.title,
+      agreementContent: this.agreementContent.content,
+      agreementVersion: this.agreementContent.version,
     });
   }
 }

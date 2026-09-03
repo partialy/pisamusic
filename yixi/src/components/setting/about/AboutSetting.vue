@@ -391,12 +391,12 @@ async function openContentDialog(type: "agreement" | "privacy") {
     contentDialog.value = {
       show: true,
       title: data.title || (type === "agreement" ? "用户协议" : "隐私政策"),
-      content: data.content || "<p>暂无内容</p>",
+      content: data.content || "暂无内容",
       loading: false,
     };
   } catch (error) {
     contentDialog.value.loading = false;
-    contentDialog.value.content = "<p>内容加载失败，请稍后重试。</p>";
+    contentDialog.value.content = "内容加载失败，请稍后重试。";
     window.$message?.warning("内容加载失败");
     void electronAPI.reportError(error, {
       scope: "about",

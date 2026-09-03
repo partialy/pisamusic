@@ -82,11 +82,10 @@
         color: rgba(24, 35, 50, 0.78);
         font-size: 14px;
         line-height: 1.85;
-        overflow: hidden;
-      }
-
-      .agreement-content p {
-        margin: 0 0 12px;
+        overflow: auto;
+        white-space: pre-wrap;
+        user-select: text;
+        -webkit-app-region: no-drag;
       }
 
       .actions {
@@ -234,12 +233,10 @@
   <body data-mode="loading">
     <main class="startup-card">
       <section class="panel agreement-panel">
-        <h1 class="agreement-title">用户协议与隐私提示</h1>
-        <p class="agreement-subtitle">首次使用 PisaMusic 前，请先确认以下协议内容。</p>
+        <h1 class="agreement-title" id="agreement-title">用户协议与隐私提示</h1>
+        <p class="agreement-subtitle">首次使用 PisaMusic 前，请先确认以下协议内容。<span id="agreement-version"></span></p>
         <div class="agreement-content">
-          <p>欢迎使用 PisaMusic。这里暂时放置用户协议与隐私政策的占位文本，后续可以替换为正式版本。</p>
-          <p>应用会在本地保存必要的设置、播放偏好和缓存信息，用于提供稳定的音乐播放体验。</p>
-          <p>你可以选择同意后继续使用应用；如果拒绝，本次启动将直接退出。</p>
+          <span id="agreement-content">欢迎使用 PisaMusic。当前暂未获取到最新协议内容，请稍后重试。</span>
         </div>
         <div class="actions">
           <button class="action-button reject-button" id="reject-button">拒绝</button>
@@ -264,6 +261,9 @@
       const { ipcRenderer } = require("electron");
 
       const logo = document.getElementById("logo");
+      const agreementTitle = document.getElementById("agreement-title");
+      const agreementContent = document.getElementById("agreement-content");
+      const agreementVersion = document.getElementById("agreement-version");
       const agreeButton = document.getElementById("agree-button");
       const rejectButton = document.getElementById("reject-button");
 
@@ -273,6 +273,15 @@
         if (snapshot.logoUrl) {
           logo.src = snapshot.logoUrl;
         }
+        if (snapshot.agreementTitle) {
+          agreementTitle.textContent = snapshot.agreementTitle;
+        }
+        if (snapshot.agreementContent) {
+          agreementContent.textContent = snapshot.agreementContent;
+        }
+        agreementVersion.textContent = snapshot.agreementVersion
+          ? `（版本 ${snapshot.agreementVersion}）`
+          : "";
       }
 
       ipcRenderer.on("startup:snapshot", (_event, snapshot) => {

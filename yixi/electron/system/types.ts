@@ -71,6 +71,7 @@ export type AboutInfo = {
 export type TextContentConfig = {
   title: string;
   content: string;
+  version: number;
 };
 
 export type FeedbackImagePayload = {

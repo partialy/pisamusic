@@ -301,6 +301,7 @@ type AboutInfo = {
 type TextContentConfig = {
   title: string;
   content: string;
+  version: number;
 };
 
 type FeedbackImagePayload = {

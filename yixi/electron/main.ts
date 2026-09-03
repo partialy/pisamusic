@@ -37,7 +37,7 @@ import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
 import { startSyncOnStartup } from "./sync/syncService";
 import { initializeServiceDiscovery } from "./system/serviceDiscovery";
-import { prepareStartupServiceState } from "./system/systemClient";
+import { getServiceAgreement, prepareStartupServiceState } from "./system/systemClient";
 import { setupUpdaterIpc, startUpdaterOnStartup } from "./updater/updaterService";
 import {
   closeMediaCache,
@@ -292,7 +292,16 @@ if (!hasSingleInstanceLock) {
     setupStartupBridge();
     startupWindow.setupIpc();
 
-    if (startupWindow.hasAcceptedAgreement()) {
+    let startupAgreement: Awaited<ReturnType<typeof getServiceAgreement>> | null = null;
+    try {
+      await initializeServiceDiscovery();
+      startupAgreement = await getServiceAgreement();
+    } catch {
+      // 已接受过协议的用户可在服务暂不可用时继续启动；未接受用户使用本地兜底文案。
+    }
+    startupWindow.setAgreementContent(startupAgreement);
+
+    if (startupWindow.hasAcceptedAgreement(startupAgreement?.version)) {
       startupWindow.open("loading");
       void launchAppRuntime();
     } else {

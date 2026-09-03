@@ -11,12 +11,11 @@
       <n-skeleton text width="92%" />
       <n-skeleton text width="72%" />
     </div>
-    <div v-else class="content-body" v-html="sanitizedContent"></div>
+    <div v-else class="content-body">{{ content || "暂无内容" }}</div>
   </n-modal>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import { NModal, NSkeleton } from "naive-ui";
 
 defineOptions({ name: "AboutContentDialog" });
@@ -32,26 +31,8 @@ const emit = defineEmits<{
   (event: "update:show", value: boolean): void;
 }>();
 
-const sanitizedContent = computed(() => sanitizeHtml(props.content || "<p>暂无内容</p>"));
-
 function handleVisibleChange(value: boolean) {
   emit("update:show", value);
-}
-
-function sanitizeHtml(html: string) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html || "", "text/html");
-  doc.querySelectorAll("script, iframe, object, embed, link, meta").forEach((node) => node.remove());
-  doc.body.querySelectorAll("*").forEach((node) => {
-    [...node.attributes].forEach((attr) => {
-      const name = attr.name.toLowerCase();
-      const value = attr.value.trim().toLowerCase();
-      if (name.startsWith("on") || value.startsWith("javascript:")) {
-        node.removeAttribute(attr.name);
-      }
-    });
-  });
-  return doc.body.innerHTML || "<p>暂无内容</p>";
 }
 </script>
 
@@ -65,17 +46,11 @@ function sanitizeHtml(html: string) {
 .content-body {
   max-height: min(62vh, 620px);
   overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--color-text);
   font-size: 14px;
   line-height: 1.8;
-
-  :deep(p) {
-    margin: 0 0 12px;
-  }
-
-  :deep(a) {
-    color: var(--color-primary);
-  }
 }
 </style>
 
