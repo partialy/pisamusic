@@ -208,7 +208,7 @@ class ListenTogetherManager @Inject constructor(
             return
         }
         if (!guardControl()) return
-        musicController.togglePlayPause(PlaybackControlSource.LISTEN_TOGETHER)
+        musicController.togglePlayPause(PlaybackControlSource.APP_UI)
     }
 
     fun requestPrevious() {
