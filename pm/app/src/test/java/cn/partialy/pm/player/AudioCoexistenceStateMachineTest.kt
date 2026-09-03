@@ -23,48 +23,39 @@ class AudioCoexistenceStateMachineTest {
     }
 
     @Test
-    fun `off mode follows the same CJ edge rule`() {
+    fun `off mode leaves policy commands and manual priority to platform focus`() {
         val state = AudioCoexistenceStateMachine()
 
         state.setMode(SettingsPrefs.AudioCoexistenceMode.Off, cjActive = false, playbackActive = true)
-        assertEquals(AudioCoexistenceCommand.Pause, state.updateCj(cjActive = true, playbackActive = true))
+        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = true, playbackActive = true))
         state.onManualPlayRequested()
         assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = true, playbackActive = true))
         assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = false, playbackActive = true))
-        assertEquals(AudioCoexistenceCommand.Pause, state.updateCj(cjActive = true, playbackActive = true))
+        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = true, playbackActive = true))
+        assertEquals(SettingsPrefs.AudioCoexistenceMode.Off, state.currentMode)
+        assertFalse(state.isCjActive)
+        assertFalse(state.isManualPlayOverrideActive)
     }
 
     @Test
-    fun `off pauses for foreign media CJ while partial does not`() {
-        val offState = AudioCoexistenceStateMachine()
-        offState.setMode(SettingsPrefs.AudioCoexistenceMode.Off, cjActive = false, playbackActive = true)
-        assertEquals(
-            AudioCoexistenceCommand.Pause,
-            offState.updateCj(
-                cjActive = AudioInterruptionClassifier.isCjActive(
-                    mode = SettingsPrefs.AudioCoexistenceMode.Off,
-                    communicationPlaybackActive = false,
-                    foreignMediaPlaybackActive = true,
-                    recordingActive = false,
-                    communicationModeActive = false,
+    fun `only partial mode treats communication and capture as a policy CJ`() {
+        SettingsPrefs.AudioCoexistenceMode.values().forEach { mode ->
+            assertEquals(
+                mode == SettingsPrefs.AudioCoexistenceMode.Partial,
+                AudioInterruptionClassifier.isCjActive(
+                    mode = mode,
+                    communicationPlaybackActive = true,
+                    recordingActive = true,
+                    communicationModeActive = true,
                 ),
-                playbackActive = true,
-            ),
-        )
-
-        val partialState = AudioCoexistenceStateMachine()
-        partialState.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
-        assertEquals(
-            AudioCoexistenceCommand.None,
-            partialState.updateCj(
-                cjActive = AudioInterruptionClassifier.isCjActive(
-                    mode = SettingsPrefs.AudioCoexistenceMode.Partial,
-                    communicationPlaybackActive = false,
-                    foreignMediaPlaybackActive = true,
-                    recordingActive = false,
-                    communicationModeActive = false,
-                ),
-                playbackActive = true,
+            )
+        }
+        assertFalse(
+            AudioInterruptionClassifier.isCjActive(
+                mode = SettingsPrefs.AudioCoexistenceMode.Partial,
+                communicationPlaybackActive = false,
+                recordingActive = false,
+                communicationModeActive = false,
             ),
         )
     }
@@ -75,6 +66,28 @@ class AudioCoexistenceStateMachineTest {
 
         state.setMode(SettingsPrefs.AudioCoexistenceMode.All, cjActive = false, playbackActive = true)
         assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = true, playbackActive = true))
+    }
+
+    @Test
+    fun `leaving partial clears its pause and override without issuing resume`() {
+        listOf(SettingsPrefs.AudioCoexistenceMode.Off, SettingsPrefs.AudioCoexistenceMode.All).forEach { mode ->
+            listOf(false, true).forEach { manualOverride ->
+                val state = AudioCoexistenceStateMachine()
+                state.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = true, playbackActive = true)
+                state.onPlayWhenReadyChanged(false)
+                if (manualOverride) state.onManualPlayRequested()
+
+                assertEquals(
+                    AudioCoexistenceCommand.None,
+                    state.setMode(mode, cjActive = true, playbackActive = manualOverride),
+                )
+                assertEquals(mode, state.currentMode)
+                assertFalse(state.isCjActive)
+                assertFalse(state.isManualPlayOverrideActive)
+                assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = false, playbackActive = false))
+                assertEquals(AudioCoexistencePauseDisposition.NONE, state.onPlayWhenReadyChanged(false))
+            }
+        }
     }
 
     @Test
@@ -128,9 +141,12 @@ class AudioCoexistenceStateMachineTest {
         state.onManualPlayRequested()
         state.reset()
 
+        assertEquals(SettingsPrefs.AudioCoexistenceMode.All, state.currentMode)
+        assertFalse(state.isCjActive)
+        assertFalse(state.isManualPlayOverrideActive)
         assertEquals(
             AudioCoexistenceCommand.Pause,
-            state.setMode(SettingsPrefs.AudioCoexistenceMode.Off, cjActive = true, playbackActive = true),
+            state.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = true, playbackActive = true),
         )
     }
 

@@ -119,6 +119,9 @@ class MusicController @Inject constructor(
     fun pauseCurrent(source: PlaybackControlSource = PlaybackControlSource.APP_UI) =
         engine.pauseCurrent(source)
 
+    /** 本机一起听操作只发送远端命令时，先保留当前设备的手动播放优先级。 */
+    fun onLocalManualPlayRequested() = engine.onManualPlayRequested(PlaybackControlSource.APP_UI)
+
     fun setSongEndedInterceptor(interceptor: (() -> Boolean)?) {
         songEndedInterceptor = interceptor
     }

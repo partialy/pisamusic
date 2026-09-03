@@ -220,8 +220,13 @@ class ListenTogetherManager @Inject constructor(
         }
         val transitionId = beginTransition() ?: return
         if (_state.value.isHost) {
-            playOffsetQueueItemAsHost(offset = -1, transitionId = transitionId)
+            playOffsetQueueItemAsHost(
+                offset = -1,
+                transitionId = transitionId,
+                source = PlaybackControlSource.APP_UI,
+            )
         } else {
+            musicController.onLocalManualPlayRequested()
             emitQueueCommand(
                 ListenTogetherQueueCommand(
                     command = QUEUE_COMMAND_PREVIOUS,
@@ -240,8 +245,13 @@ class ListenTogetherManager @Inject constructor(
         }
         val transitionId = beginTransition() ?: return
         if (_state.value.isHost) {
-            playOffsetQueueItemAsHost(offset = 1, transitionId = transitionId)
+            playOffsetQueueItemAsHost(
+                offset = 1,
+                transitionId = transitionId,
+                source = PlaybackControlSource.APP_UI,
+            )
         } else {
+            musicController.onLocalManualPlayRequested()
             emitQueueCommand(
                 ListenTogetherQueueCommand(
                     command = QUEUE_COMMAND_NEXT,
@@ -273,6 +283,7 @@ class ListenTogetherManager @Inject constructor(
                 source = PlaybackControlSource.APP_UI,
             )
         } else {
+            musicController.onLocalManualPlayRequested()
             emitQueueCommand(
                 ListenTogetherQueueCommand(
                     command = QUEUE_COMMAND_ADD_AND_PLAY,
@@ -294,6 +305,7 @@ class ListenTogetherManager @Inject constructor(
                 source = PlaybackControlSource.APP_UI,
             )
         } else {
+            musicController.onLocalManualPlayRequested()
             emitQueueCommand(
                 ListenTogetherQueueCommand(
                     command = QUEUE_COMMAND_PLAY_ITEM,
@@ -644,7 +656,11 @@ class ListenTogetherManager @Inject constructor(
         playQueueSongAsHost(item, queue, transitionId, emitDelta = false, source = source)
     }
 
-    private fun playOffsetQueueItemAsHost(offset: Int, transitionId: String): Boolean {
+    private fun playOffsetQueueItemAsHost(
+        offset: Int,
+        transitionId: String,
+        source: PlaybackControlSource = PlaybackControlSource.LISTEN_TOGETHER,
+    ): Boolean {
         ensureHostQueueInitialized()
         val queue = _state.value.queue
         if (queue.items.isEmpty()) return false
@@ -657,7 +673,7 @@ class ListenTogetherManager @Inject constructor(
             else -> currentIndex
         }
         val target = queue.items.getOrNull(targetIndex) ?: return false
-        playQueueItemAsHost(target.queueItemId, transitionId)
+        playQueueItemAsHost(target.queueItemId, transitionId, source = source)
         return true
     }
 

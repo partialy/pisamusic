@@ -210,7 +210,7 @@ class PlayerEngine(
             .setMediaSourceFactory(playbackMediaCache.mediaSourceFactory())
             .setAudioAttributes(
                 playbackAudioAttributes,
-                false,
+                SettingsPrefs.getAudioCoexistenceMode(context) == SettingsPrefs.AudioCoexistenceMode.Off,
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
@@ -752,6 +752,7 @@ class PlayerEngine(
         val player = exoPlayer ?: return
         if (playlistManager.playList.value.isEmpty() || player.mediaItemCount == 0) return
         if (manual && shouldIgnoreManualNavigation(next = true)) return
+        if (manual) onManualPlayRequested(PlaybackControlSource.APP_UI)
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -782,6 +783,7 @@ class PlayerEngine(
         val player = exoPlayer ?: return
         if (playlistManager.playList.value.isEmpty() || player.mediaItemCount == 0) return
         if (manual && shouldIgnoreManualNavigation(next = false)) return
+        if (manual) onManualPlayRequested(PlaybackControlSource.APP_UI)
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -949,11 +951,11 @@ class PlayerEngine(
     }
 
     fun applyAudioCoexistenceMode(mode: SettingsPrefs.AudioCoexistenceMode) {
+        audioCoexistenceController.applyMode(mode)
         exoPlayer?.setAudioAttributes(
             playbackAudioAttributes,
-            false,
+            mode == SettingsPrefs.AudioCoexistenceMode.Off,
         )
-        audioCoexistenceController.applyMode(mode)
     }
 
     /** 供直接点歌等异步播放入口在取链前登记本机播放意图。 */
