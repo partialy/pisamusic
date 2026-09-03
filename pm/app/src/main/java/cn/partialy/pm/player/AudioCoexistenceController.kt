@@ -208,47 +208,16 @@ internal class AudioCoexistenceController(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val stateMachine = AudioCoexistenceStateMachine()
     private var observing = false
+    private var observationSession = 0L
     private var communicationPlaybackActive = false
     private var foreignMediaPlaybackActive = false
     private var recordingActive = false
     private var communicationModeActive = false
+    private var playbackCallback: AudioManager.AudioPlaybackCallback? = null
+    private var recordingCallback: AudioManager.AudioRecordingCallback? = null
     private var modeChangeObserver: ModeChangeObserver? = null
+    private var legacyModePoll: Runnable? = null
     private var lastSnapshot: AudioCoexistenceSnapshot? = null
-
-    private val playbackCallback = object : AudioManager.AudioPlaybackCallback() {
-        override fun onPlaybackConfigChanged(configs: List<AudioPlaybackConfiguration>) {
-            val activeExternalConfigs = configs.filter { config ->
-                config.isActiveExternalPlayback()
-            }
-            communicationPlaybackActive = activeExternalConfigs.any { config ->
-                AudioInterruptionClassifier.isCommunicationUsage(config.audioAttributes.usage)
-            }
-            foreignMediaPlaybackActive = activeExternalConfigs.any { config ->
-                !AudioInterruptionClassifier.isCommunicationUsage(config.audioAttributes.usage)
-            }
-            updateCjState()
-        }
-    }
-
-    private val recordingCallback = object : AudioManager.AudioRecordingCallback() {
-        override fun onRecordingConfigChanged(configs: List<AudioRecordingConfiguration>) {
-            recordingActive = configs.any { config ->
-                AudioInterruptionClassifier.isBlockingRecording(
-                    source = config.audioSource,
-                    clientSilenced = config.isClientSilenced,
-                )
-            }
-            updateCjState()
-        }
-    }
-
-    private val legacyModePoll = object : Runnable {
-        override fun run() {
-            if (!observing || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return
-            updateCommunicationMode(audioManager.mode)
-            mainHandler.postDelayed(this, LEGACY_MODE_POLL_INTERVAL_MS)
-        }
-    }
 
     fun applyMode(mode: SettingsPrefs.AudioCoexistenceMode) {
         if (mode == SettingsPrefs.AudioCoexistenceMode.All) {
@@ -288,34 +257,56 @@ internal class AudioCoexistenceController(
             updateCjState()
             return
         }
+        val session = ++observationSession
         observing = true
-        runCatching { audioManager.registerAudioPlaybackCallback(playbackCallback, mainHandler) }
-        runCatching { audioManager.registerAudioRecordingCallback(recordingCallback, mainHandler) }
+        val currentPlaybackCallback = createPlaybackCallback(session)
+        val currentRecordingCallback = createRecordingCallback(session)
+        playbackCallback = currentPlaybackCallback
+        recordingCallback = currentRecordingCallback
+        runCatching { audioManager.registerAudioPlaybackCallback(currentPlaybackCallback, mainHandler) }
+        runCatching { audioManager.registerAudioRecordingCallback(currentRecordingCallback, mainHandler) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             modeChangeObserver = ModeChangeObserver(
                 audioManager = audioManager,
                 executor = Executor { command -> mainHandler.post(command) },
-                onModeChanged = ::updateCommunicationMode,
+                onModeChanged = { mode ->
+                    if (isCurrentObservation(session)) {
+                        updateCommunicationMode(mode)
+                    }
+                },
             ).also { observer -> runCatching { observer.start() } }
         } else {
-            mainHandler.post(legacyModePoll)
+            legacyModePoll = createLegacyModePoll(session).also(mainHandler::post)
         }
-        refreshActiveConfigurations()
-        updateCommunicationMode(audioManager.mode)
+        refreshActiveConfigurations(session, currentPlaybackCallback, currentRecordingCallback)
+        if (isCurrentObservation(session)) {
+            updateCommunicationMode(audioManager.mode)
+        }
     }
 
     private fun stopObserving() {
         val wasObserving = observing
+        ++observationSession
         observing = false
-        mainHandler.removeCallbacks(legacyModePoll)
+        legacyModePoll?.let(mainHandler::removeCallbacks)
+        legacyModePoll = null
+        val currentPlaybackCallback = playbackCallback
+        val currentRecordingCallback = recordingCallback
+        playbackCallback = null
+        recordingCallback = null
+        val currentModeChangeObserver = modeChangeObserver
+        modeChangeObserver = null
         if (wasObserving) {
-            runCatching { audioManager.unregisterAudioPlaybackCallback(playbackCallback) }
-            runCatching { audioManager.unregisterAudioRecordingCallback(recordingCallback) }
+            currentPlaybackCallback?.let { callback ->
+                runCatching { audioManager.unregisterAudioPlaybackCallback(callback) }
+            }
+            currentRecordingCallback?.let { callback ->
+                runCatching { audioManager.unregisterAudioRecordingCallback(callback) }
+            }
         }
         if (wasObserving && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            modeChangeObserver?.let { observer -> runCatching { observer.stop() } }
+            currentModeChangeObserver?.let { observer -> runCatching { observer.stop() } }
         }
-        modeChangeObserver = null
         communicationPlaybackActive = false
         foreignMediaPlaybackActive = false
         recordingActive = false
@@ -323,12 +314,65 @@ internal class AudioCoexistenceController(
         lastSnapshot = null
     }
 
-    private fun refreshActiveConfigurations() {
-        runCatching { audioManager.activePlaybackConfigurations }
-            .onSuccess { playbackCallback.onPlaybackConfigChanged(it) }
-        runCatching { audioManager.activeRecordingConfigurations }
-            .onSuccess { recordingCallback.onRecordingConfigChanged(it) }
+    private fun createPlaybackCallback(session: Long) = object : AudioManager.AudioPlaybackCallback() {
+        override fun onPlaybackConfigChanged(configs: List<AudioPlaybackConfiguration>) {
+            if (!isCurrentObservation(session)) return
+            val activeExternalConfigs = configs.filter { config ->
+                config.isActiveExternalPlayback()
+            }
+            communicationPlaybackActive = activeExternalConfigs.any { config ->
+                AudioInterruptionClassifier.isCommunicationUsage(config.audioAttributes.usage)
+            }
+            foreignMediaPlaybackActive = activeExternalConfigs.any { config ->
+                !AudioInterruptionClassifier.isCommunicationUsage(config.audioAttributes.usage)
+            }
+            updateCjState()
+        }
     }
+
+    private fun createRecordingCallback(session: Long) = object : AudioManager.AudioRecordingCallback() {
+        override fun onRecordingConfigChanged(configs: List<AudioRecordingConfiguration>) {
+            if (!isCurrentObservation(session)) return
+            recordingActive = configs.any { config ->
+                AudioInterruptionClassifier.isBlockingRecording(
+                    source = config.audioSource,
+                    clientSilenced = config.isClientSilenced,
+                )
+            }
+            updateCjState()
+        }
+    }
+
+    private fun createLegacyModePoll(session: Long) = object : Runnable {
+        override fun run() {
+            if (!isCurrentObservation(session) || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return
+            updateCommunicationMode(audioManager.mode)
+            if (isCurrentObservation(session)) {
+                mainHandler.postDelayed(this, LEGACY_MODE_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun refreshActiveConfigurations(
+        session: Long,
+        currentPlaybackCallback: AudioManager.AudioPlaybackCallback,
+        currentRecordingCallback: AudioManager.AudioRecordingCallback,
+    ) {
+        runCatching { audioManager.activePlaybackConfigurations }
+            .onSuccess { configs ->
+                if (isCurrentObservation(session)) {
+                    currentPlaybackCallback.onPlaybackConfigChanged(configs)
+                }
+            }
+        runCatching { audioManager.activeRecordingConfigurations }
+            .onSuccess { configs ->
+                if (isCurrentObservation(session)) {
+                    currentRecordingCallback.onRecordingConfigChanged(configs)
+                }
+            }
+    }
+
+    private fun isCurrentObservation(session: Long): Boolean = observing && observationSession == session
 
     private fun updateCommunicationMode(mode: Int) {
         communicationModeActive = AudioInterruptionClassifier.isCommunicationMode(mode)
