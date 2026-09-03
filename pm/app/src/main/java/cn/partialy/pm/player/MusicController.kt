@@ -140,7 +140,13 @@ class MusicController @Inject constructor(
      * 设置播放列表（在线项只登记逻辑 URI），从 [startIndex] 开始播放。
      * [sourceId] 用于同源检测：同一歌单反复点击不同歌曲时直接 seek，避免重建列表。
      */
-    fun setPlayListLazy(songs: List<SongInfo>, startIndex: Int = 0, sourceId: String? = null) {
+    fun setPlayListLazy(
+        songs: List<SongInfo>,
+        startIndex: Int = 0,
+        sourceId: String? = null,
+        source: PlaybackControlSource = PlaybackControlSource.APP_UI,
+    ) {
+        engine.onManualPlayRequested(source)
         engine.invalidatePendingMediaRefresh()
         val requested = songs.getOrNull(startIndex)
         val playableSongs = songs.filter(SongInfo::playable)
@@ -156,7 +162,7 @@ class MusicController @Inject constructor(
                     engine.ensurePlayableAtIndex(result.startIndex, autoPlay = true)
                 }
                 PlaylistSetResult.SameSource -> {
-                    requested?.takeIf(SongInfo::playable)?.let(::play)
+                    requested?.takeIf(SongInfo::playable)?.let { play(it, source = source) }
                 }
                 PlaylistSetResult.Failed -> engine.handlePlaybackRequestFailure()
                 PlaylistSetResult.Stale -> Unit
@@ -172,11 +178,16 @@ class MusicController @Inject constructor(
     }
 
     /** 播放单曲：设置为当前歌曲，不在列表则追加到尾部 */
-    fun play(songInfo: SongInfo, autoPlay: Boolean = true) {
+    fun play(
+        songInfo: SongInfo,
+        autoPlay: Boolean = true,
+        source: PlaybackControlSource = PlaybackControlSource.APP_UI,
+    ) {
         if (!songInfo.playable) return
+        engine.onManualPlayRequested(source)
         playbackScope.launch {
             try {
-                performLatestPlay(songInfo, autoPlay)
+                performLatestPlay(songInfo, autoPlay, source)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -189,10 +200,23 @@ class MusicController @Inject constructor(
      * Awaitable playback entrypoint used by synchronized playback flows.
      * Starting another direct play request cancels this request and makes its result ineligible to apply.
      */
-    suspend fun playLatest(songInfo: SongInfo, autoPlay: Boolean = true): Boolean =
-        if (songInfo.playable) performLatestPlay(songInfo, autoPlay) else false
+    suspend fun playLatest(
+        songInfo: SongInfo,
+        autoPlay: Boolean = true,
+        source: PlaybackControlSource = PlaybackControlSource.APP_UI,
+    ): Boolean = if (songInfo.playable) {
+        engine.onManualPlayRequested(source)
+        performLatestPlay(songInfo, autoPlay, source)
+    } else {
+        false
+    }
 
-    private suspend fun performLatestPlay(songInfo: SongInfo, autoPlay: Boolean): Boolean {
+    private suspend fun performLatestPlay(
+        songInfo: SongInfo,
+        autoPlay: Boolean,
+        source: PlaybackControlSource,
+    ): Boolean {
+        engine.onManualPlayRequested(source)
         engine.invalidatePendingMediaRefresh()
         val currentJob = currentCoroutineContext()[Job]
             ?: error("playLatest requires a coroutine Job")

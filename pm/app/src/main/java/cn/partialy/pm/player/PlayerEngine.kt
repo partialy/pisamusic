@@ -162,9 +162,13 @@ class PlayerEngine(
                 controlSource = PlaybackControlSource.AUDIO_COEXISTENCE,
                 details = mapOf(
                     "communication_playback_active" to snapshot.communicationPlaybackActive.toString(),
+                    "foreign_media_playback_active" to snapshot.foreignMediaPlaybackActive.toString(),
                     "recording_active" to snapshot.recordingActive.toString(),
                     "communication_mode_active" to snapshot.communicationModeActive.toString(),
                     "blocking" to snapshot.blocking.toString(),
+                    "cj_active" to snapshot.cjActive.toString(),
+                    "manual_play_override_active" to snapshot.manualPlayOverrideActive.toString(),
+                    "mode" to snapshot.mode?.name?.lowercase(Locale.ROOT).orEmpty(),
                     "command" to snapshot.command.name.lowercase(Locale.ROOT),
                 ),
             )
@@ -202,12 +206,11 @@ class PlayerEngine(
                 ),
             )
         }
-        val coexistenceMode = SettingsPrefs.getAudioCoexistenceMode(context)
         return builder
             .setMediaSourceFactory(playbackMediaCache.mediaSourceFactory())
             .setAudioAttributes(
                 playbackAudioAttributes,
-                coexistenceMode == SettingsPrefs.AudioCoexistenceMode.Off,
+                false,
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
@@ -251,6 +254,7 @@ class PlayerEngine(
         externalControlPlayer = PlaybackIntentForwardingPlayer(
             player = player,
             onPlayRequested = {
+                onManualPlayRequested(PlaybackControlSource.EXTERNAL_DIRECT_PLAYER)
                 markControlRequest("play", PlaybackControlSource.EXTERNAL_DIRECT_PLAYER)
             },
             onPauseRequested = {
@@ -810,6 +814,7 @@ class PlayerEngine(
                 if (player.playWhenReady) {
                     pauseCurrent(source = source, controllerPackage = controllerPackage)
                 } else {
+                    onManualPlayRequested(source)
                     playCurrent(source = source, controllerPackage = controllerPackage)
                 }
             } catch (e: Exception) {
@@ -880,6 +885,7 @@ class PlayerEngine(
         source: PlaybackControlSource,
         controllerPackage: String,
     ) {
+        onManualPlayRequested(source)
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 val player = exoPlayer ?: return@launch
@@ -935,6 +941,7 @@ class PlayerEngine(
         source: PlaybackControlSource = PlaybackControlSource.APP_UI,
     ) {
         if (playing) {
+            onManualPlayRequested(source)
             playCurrent(source)
         } else {
             pauseCurrent(source)
@@ -944,9 +951,16 @@ class PlayerEngine(
     fun applyAudioCoexistenceMode(mode: SettingsPrefs.AudioCoexistenceMode) {
         exoPlayer?.setAudioAttributes(
             playbackAudioAttributes,
-            mode == SettingsPrefs.AudioCoexistenceMode.Off,
+            false,
         )
         audioCoexistenceController.applyMode(mode)
+    }
+
+    /** 供直接点歌等异步播放入口在取链前登记本机播放意图。 */
+    fun onManualPlayRequested(source: PlaybackControlSource) {
+        if (source.isManualPlayRequest()) {
+            audioCoexistenceController.onManualPlayRequested()
+        }
     }
 
     private fun shouldIgnoreManualNavigation(next: Boolean): Boolean {
@@ -966,6 +980,16 @@ class PlayerEngine(
                 false
             }
         }
+    }
+
+    private fun PlaybackControlSource.isManualPlayRequest(): Boolean = when (this) {
+        PlaybackControlSource.APP_UI,
+        PlaybackControlSource.MEDIA_BUTTON,
+        PlaybackControlSource.MEDIA_SESSION,
+        PlaybackControlSource.EXTERNAL_DIRECT_PLAYER,
+        -> true
+
+        else -> false
     }
 
     suspend fun switchCurrentSongQuality(choice: DownloadQualityChoice): Boolean {

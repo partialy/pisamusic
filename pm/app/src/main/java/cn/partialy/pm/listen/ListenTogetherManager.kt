@@ -705,7 +705,11 @@ class ListenTogetherManager @Inject constructor(
         hostPlaybackJob = scope.launch {
             var applied = false
             try {
-                applied = musicController.playLatest(song, autoPlay = true)
+                applied = musicController.playLatest(
+                    song = song,
+                    autoPlay = true,
+                    source = PlaybackControlSource.LISTEN_TOGETHER,
+                )
                 if (!applied || activeHostTransitionId != transitionId) return@launch
                 if (emitDelta) emitQueueDelta(queue)
                 emitChangeSong(
@@ -1102,7 +1106,11 @@ class ListenTogetherManager @Inject constructor(
             _state.value = _state.value.copy(syncingFromRemote = true)
             try {
                 if (!sameSong) {
-                    val applied = musicController.playLatest(remoteSongInfo, autoPlay = false)
+                    val applied = musicController.playLatest(
+                        song = remoteSongInfo,
+                        autoPlay = false,
+                        source = PlaybackControlSource.LISTEN_TOGETHER,
+                    )
                     if (!applied || seq != syncSeq) return@launch
                 }
                 val current = musicController.currentPosition.value

@@ -240,6 +240,15 @@ internal class AudioCoexistenceController(
         updateCjState(dispatchCommand = false)
     }
 
+    /**
+     * 本机明确播放可在当前 CJ 持续期间覆盖共存暂停策略。
+     * 这里仅变更状态机，不触碰播放器的硬暂停代次或异步取链任务。
+     */
+    fun onManualPlayRequested() {
+        stateMachine.onManualPlayRequested()
+        emitSnapshot(AudioCoexistenceCommand.None)
+    }
+
     fun onPlayWhenReadyChanged(playWhenReady: Boolean): AudioCoexistencePauseDisposition =
         stateMachine.onPlayWhenReadyChanged(playWhenReady)
 
