@@ -78,7 +78,6 @@ internal class AudioCoexistenceStateMachine {
             if (!playbackActive || manualPlayOverrideActive) return AudioCoexistenceCommand.None
             resumeWhenClear = true
             awaitingOwnPauseCallback = true
-            awaitingOwnPauseCallback = true
             return AudioCoexistenceCommand.Pause
         }
         if (!cjExited) return AudioCoexistenceCommand.None
@@ -86,7 +85,6 @@ internal class AudioCoexistenceStateMachine {
         manualPlayOverrideActive = false
         val shouldResume = resumeWhenClear && !awaitingOwnPauseCallback
         resumeWhenClear = false
-        awaitingOwnPauseCallback = false
         awaitingOwnPauseCallback = false
         return if (shouldResume) AudioCoexistenceCommand.Resume else AudioCoexistenceCommand.None
     }
@@ -126,7 +124,6 @@ internal class AudioCoexistenceStateMachine {
         cjActive = false
         manualPlayOverrideActive = false
         resumeWhenClear = false
-        awaitingOwnPauseCallback = false
         awaitingOwnPauseCallback = false
     }
 }
@@ -180,7 +177,6 @@ internal class AudioCoexistenceController(
     private val isPlaybackActive: () -> Boolean,
     private val pausePlayback: () -> Unit,
     private val resumePlayback: () -> Unit,
-    private val onSnapshotChanged: (AudioCoexistenceSnapshot) -> Unit = {},
     private val onSnapshotChanged: (AudioCoexistenceSnapshot) -> Unit = {},
 ) {
     private val audioManager = context.applicationContext
@@ -375,7 +371,6 @@ internal class AudioCoexistenceController(
     }
 
     private fun dispatch(command: AudioCoexistenceCommand) {
-        emitSnapshot(command)
         emitSnapshot(command)
         when (command) {
             AudioCoexistenceCommand.None -> Unit

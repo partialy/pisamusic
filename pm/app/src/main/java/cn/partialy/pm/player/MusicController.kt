@@ -2,15 +2,12 @@ package cn.partialy.pm.player
 
 import android.content.Context
 import androidx.media3.common.Player
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import cn.partialy.pm.audioeffect.AudioEffectsManager
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.SongInfo
-import cn.partialy.pm.player.diagnostic.PlaybackControlSource
-import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticRecorder
 import cn.partialy.pm.player.diagnostic.PlaybackControlSource
 import cn.partialy.pm.player.diagnostic.PlaybackDiagnosticRecorder
 import cn.partialy.pm.player.cache.PlaybackMediaCache
@@ -59,7 +56,6 @@ class MusicController @Inject constructor(
     playbackFallbackProvider: PlaybackFallbackProvider,
     playbackFaultRecorder: PlaybackFaultRecorder,
     playbackDiagnosticRecorder: PlaybackDiagnosticRecorder,
-    playbackDiagnosticRecorder: PlaybackDiagnosticRecorder,
     audioEffectsManager: AudioEffectsManager,
 ) {
     private val factory = MediaItemFactory(context, playbackMediaCache, playUrlGetter)
@@ -82,11 +78,9 @@ class MusicController @Inject constructor(
             playbackMediaCache = playbackMediaCache,
             playbackFaultRecorder = playbackFaultRecorder,
             playbackDiagnosticRecorder = playbackDiagnosticRecorder,
-            playbackDiagnosticRecorder = playbackDiagnosticRecorder,
             audioEffectsManager = audioEffectsManager,
             onNext = { next() },
             onPrevious = { previous() },
-            onHardPauseObserved = ::cancelPendingDirectPlay,
             onHardPauseObserved = ::cancelPendingDirectPlay,
             onPlaybackEvent = { event -> _playbackEvents.tryEmit(event) },
             onPlayerChanged = { player -> _playerEvents.tryEmit(player) },
@@ -97,7 +91,6 @@ class MusicController @Inject constructor(
 
     /** 供 MusicService 通知栏绑定 */
     val exoPlayer: ExoPlayer? get() = engine.exoPlayer
-    val externalControlPlayer: Player? get() = engine.externalControlPlayer
     val externalControlPlayer: Player? get() = engine.externalControlPlayer
     val mediaSession: MediaSession? get() = engine.mediaSession
 
@@ -119,11 +112,7 @@ class MusicController @Inject constructor(
 
     fun togglePlayPause(source: PlaybackControlSource = PlaybackControlSource.APP_UI) =
         engine.togglePlayPause(source)
-    fun togglePlayPause(source: PlaybackControlSource = PlaybackControlSource.APP_UI) =
-        engine.togglePlayPause(source)
 
-    fun playCurrent(source: PlaybackControlSource = PlaybackControlSource.APP_UI) =
-        engine.playCurrent(source)
     fun playCurrent(source: PlaybackControlSource = PlaybackControlSource.APP_UI) =
         engine.playCurrent(source)
 
@@ -282,10 +271,6 @@ class MusicController @Inject constructor(
         playing: Boolean,
         source: PlaybackControlSource = PlaybackControlSource.APP_UI,
     ) = engine.setPlaying(playing, source)
-    fun setPlaying(
-        playing: Boolean,
-        source: PlaybackControlSource = PlaybackControlSource.APP_UI,
-    ) = engine.setPlaying(playing, source)
 
     fun applyAudioCoexistenceMode(mode: SettingsPrefs.AudioCoexistenceMode) {
         SettingsPrefs.setAudioCoexistenceMode(context, mode)
@@ -298,12 +283,6 @@ class MusicController @Inject constructor(
     // ==================== 生命周期 ====================
 
     fun release() {
-        cancelPendingDirectPlay()
-        playlistManager.release()
-        engine.release()
-    }
-
-    private fun cancelPendingDirectPlay() {
         cancelPendingDirectPlay()
         playlistManager.release()
         engine.release()

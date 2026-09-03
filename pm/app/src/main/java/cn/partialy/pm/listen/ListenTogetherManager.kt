@@ -10,7 +10,6 @@ import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.player.diagnostic.PlaybackControlSource
-import cn.partialy.pm.player.diagnostic.PlaybackControlSource
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -707,7 +706,6 @@ class ListenTogetherManager @Inject constructor(
             playQueueSongAsHost(nextItem, nextQueue, transitionId, emitDelta = false)
         } else {
             musicController.pauseCurrent(PlaybackControlSource.LISTEN_TOGETHER)
-            musicController.pauseCurrent(PlaybackControlSource.LISTEN_TOGETHER)
             val song = musicController.currentSong.value
             if (song != null) {
                 state.room?.roomId?.let { roomId ->
@@ -1162,19 +1160,7 @@ class ListenTogetherManager @Inject constructor(
                         playing = false,
                         source = PlaybackControlSource.LISTEN_TOGETHER,
                     )
-                    ListenTogetherRoom.STATUS_PLAYING -> musicController.setPlaying(
-                        playing = true,
-                        source = PlaybackControlSource.LISTEN_TOGETHER,
-                    )
-                    ListenTogetherRoom.STATUS_PAUSED -> musicController.setPlaying(
-                        playing = false,
-                        source = PlaybackControlSource.LISTEN_TOGETHER,
-                    )
                     ListenTogetherRoom.STATUS_ENDED -> {
-                        musicController.setPlaying(
-                            playing = false,
-                            source = PlaybackControlSource.LISTEN_TOGETHER,
-                        )
                         musicController.setPlaying(
                             playing = false,
                             source = PlaybackControlSource.LISTEN_TOGETHER,
