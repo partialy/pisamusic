@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { legacyHtmlToPlainText } from "./plainTextContent";
 
 function getDbPath(): string {
   const configuredPath = String(process.env.PISA_APP_DB_PATH ?? "").trim();
@@ -82,6 +83,7 @@ CREATE TABLE IF NOT EXISTS content_pages (
     code        TEXT    PRIMARY KEY,
     title       TEXT    NOT NULL,
     content     TEXT    NOT NULL,
+    version     INTEGER NOT NULL DEFAULT 1,
     updated_at  INTEGER NOT NULL
 );
 
@@ -718,6 +720,21 @@ function migrateDeviceInfo(db: DatabaseSync) {
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_device_info_fingerprint ON device_info(fingerprint)`);
 }
 
+function migrateContentPages(db: DatabaseSync) {
+  const cols = getColumnNames(db, "content_pages");
+  if (!cols.has("version")) {
+    db.exec("ALTER TABLE content_pages ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
+  }
+  const rows = db.prepare(
+    "SELECT code, content FROM content_pages WHERE code IN ('agreement', 'privacy')",
+  ).all() as { code: string; content: string }[];
+  const update = db.prepare("UPDATE content_pages SET content = ? WHERE code = ?");
+  for (const row of rows) {
+    const content = legacyHtmlToPlainText(row.content);
+    if (content !== row.content) update.run(content, row.code);
+  }
+}
+
 function migrateUpdateHistory(db: DatabaseSync) {
   const cols = getColumnNames(db, "update_history");
   if (!cols.has("platform")) {
@@ -998,6 +1015,7 @@ function initSchema(db: DatabaseSync) {
     INSERT OR IGNORE INTO listening_level_rules(level, min_minutes, max_minutes, created_at, updated_at)
     VALUES (1, 0, NULL, 0, 0);
   `);
+  migrateContentPages(db);
   migrateDeviceInfo(db);
   migrateAppSettings(db);
   migrateUpdateHistory(db);

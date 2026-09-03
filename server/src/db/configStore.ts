@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { getAppDb } from "./appDb";
+import { normalizePlainTextContent } from "./plainTextContent";
 import { parseAnnouncementContent, toStoredAnnouncementContent, type AnnouncementContent } from "../services/announcementContent";
 
 export type AppUpdate = {
@@ -152,7 +153,10 @@ export type BootstrapConfig = {
 export type TextContentConfig = {
   title: string;
   content: string;
+  version: number;
 };
+
+type EditableTextContentConfig = Omit<TextContentConfig, "version">;
 
 export type AboutConfig = {
   appName: string;
@@ -188,8 +192,8 @@ export type EditableAppConfigSections = {
   email?: EmailConfig;
   bootstrap?: Partial<BootstrapConfig>;
   releases?: Partial<ReleaseConfig>;
-  agreement?: TextContentConfig;
-  privacy?: TextContentConfig;
+  agreement?: EditableTextContentConfig;
+  privacy?: EditableTextContentConfig;
   about?: AboutConfig;
   discover?: DiscoverConfig;
 };
@@ -297,8 +301,8 @@ const DEFAULT_APP_CONFIG: AppConfig = {
       available: false,
     },
   },
-  agreement: { title: "", content: "" },
-  privacy: { title: "", content: "" },
+  agreement: { title: "", content: "", version: 1 },
+  privacy: { title: "", content: "", version: 1 },
   about: {
     appName: "PisaMusic",
     websiteLabel: "",
@@ -741,14 +745,27 @@ function replaceEndpoints(db: DatabaseSync, endpoints: Record<string, string>) {
 }
 
 function replaceContentPage(db: DatabaseSync, code: string, page: TextContentConfig) {
+  const content = normalizePlainTextContent(page.content);
+  const current = db.prepare(
+    "SELECT title, content, version FROM content_pages WHERE code = ?",
+  ).get(code) as { title: string; content: string; version: number } | undefined;
+  const changed = !current || current.title !== page.title || current.content !== content;
+  const currentVersion = current && Number.isSafeInteger(current.version) && current.version > 0
+    ? current.version
+    : 1;
+  if (changed && current && currentVersion >= Number.MAX_SAFE_INTEGER) {
+    throw new Error(`${code} 版本号已达到上限`);
+  }
+  const version = changed ? (current ? currentVersion + 1 : 1) : currentVersion;
   db.prepare(
-    `INSERT INTO content_pages (code, title, content, updated_at)
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO content_pages (code, title, content, version, updated_at)
+     VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(code) DO UPDATE SET
        title = excluded.title,
        content = excluded.content,
+       version = excluded.version,
        updated_at = excluded.updated_at`,
-  ).run(code, page.title, page.content, Date.now());
+  ).run(code, page.title, content, version, Date.now());
 }
 
 function replaceAbout(db: DatabaseSync, about: AboutConfig) {
@@ -866,10 +883,11 @@ export function readAppConfig(): AppConfig {
   const endpoints = db
     .prepare("SELECT key, value FROM bootstrap_endpoints ORDER BY sort_order ASC, key ASC")
     .all() as { key: string; value: string }[];
-  const pages = db.prepare("SELECT code, title, content FROM content_pages").all() as {
+  const pages = db.prepare("SELECT code, title, content, version FROM content_pages").all() as {
     code: string;
     title: string;
     content: string;
+    version: number;
   }[];
   const about = db.prepare("SELECT * FROM about_config WHERE id = 1").get() as
     | {
@@ -1020,8 +1038,12 @@ export function saveAppConfigSections(sections: EditableAppConfigSections): AppC
       android: normalizeRelease("android", sections.releases?.android ?? current.releases.android, current.update),
       desktop: normalizeRelease("desktop", sections.releases?.desktop ?? current.releases.desktop),
     },
-    agreement: sections.agreement ?? current.agreement,
-    privacy: sections.privacy ?? current.privacy,
+    agreement: sections.agreement
+      ? { ...sections.agreement, version: current.agreement.version }
+      : current.agreement,
+    privacy: sections.privacy
+      ? { ...sections.privacy, version: current.privacy.version }
+      : current.privacy,
     about: sections.about ?? current.about,
     discover: sections.discover ?? current.discover,
   };

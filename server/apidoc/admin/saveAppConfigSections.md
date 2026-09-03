@@ -27,8 +27,8 @@
 | `email` | `object` | 否 | 邮件网关 URL、当前 provider 与 providers 列表 |
 | `bootstrap` | `object` | 否 | 启动端点、网关验签密钥与 PC 自动更新配置 |
 | `releases` | `object` | 否 | Android / PC 双端当前发布配置 |
-| `agreement` | `object` | 否 | 服务协议 `{ title, content }` |
-| `privacy` | `object` | 否 | 隐私政策 `{ title, content }` |
+| `agreement` | `object` | 否 | 服务协议 `{ title, content }`；`content` 为纯文本，支持 `\\n` 换行，提交的 `version` 会被忽略并由服务端按实际变化递增 |
+| `privacy` | `object` | 否 | 隐私政策 `{ title, content }`；`content` 为纯文本，支持 `\\n` 换行 |
 | `about` | `object` | 否 | 关于软件信息 |
 | `discover` | `object` | 否 | 发现页配置 `{ url, updatedAt }` |
 
@@ -42,6 +42,8 @@
   }
 }
 ```
+
+保存成功后返回完整最新配置，其中 `agreement.version` 和 `privacy.version` 为服务端当前版本。标题或正文实际变化时版本号加 1，重复保存相同内容不递增。
 
 ---
 

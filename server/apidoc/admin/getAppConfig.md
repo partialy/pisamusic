@@ -75,11 +75,13 @@
     },
     "agreement": {
       "title": "用户服务协议",
-      "content": "协议正文..."
+      "content": "协议正文...\\n\\n第二段正文。",
+      "version": 1
     },
     "privacy": {
       "title": "隐私政策",
-      "content": "隐私政策正文..."
+      "content": "隐私政策正文...\\n\\n第二段正文。",
+      "version": 1
     },
     "about": {
       "appName": "PisaMusic",

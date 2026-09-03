@@ -32,6 +32,7 @@ import {
   updatePublishedUpdate,
   upsertAdminUser,
 } from "../db/configStore";
+import { normalizePlainTextContent } from "../db/plainTextContent";
 import { getDeviceDb } from "../db/deviceInfoDb";
 import { getPlaintextPaths, setPlaintextPaths } from "../middleware/encryption";
 import { getAdminJwtSecret, requireAdminJwt } from "../middleware/requireAdminJwt";
@@ -320,13 +321,14 @@ function normalizeEmail(input: unknown): { ok: true; value: EmailConfig } | { ok
   return { ok: true, value: { serviceUrl: serviceUrl.value, provider: provider.value, providers } };
 }
 
-function normalizeTextContent(input: unknown, section: string): { ok: true; value: TextContentConfig } | { ok: false; msg: string } {
+function normalizeTextContent(input: unknown, section: string): { ok: true; value: Omit<TextContentConfig, "version"> } | { ok: false; msg: string } {
   if (!isRecord(input)) return { ok: false, msg: `${section} ?????` };
   const title = normalizeRequiredString(input.title, `${section}.title`, 200);
   if (!title.ok) return title;
-  const content = normalizeRequiredString(input.content, `${section}.content`, 50000);
-  if (!content.ok) return content;
-  return { ok: true, value: { title: title.value, content: content.value } };
+  const content = typeof input.content === "string" ? normalizePlainTextContent(input.content) : "";
+  if (!content) return { ok: false, msg: `${section}.content ?????` };
+  if (content.length > 50000) return { ok: false, msg: `${section}.content ?????? 50000` };
+  return { ok: true, value: { title: title.value, content } };
 }
 
 function normalizeAbout(input: unknown): { ok: true; value: AboutConfig } | { ok: false; msg: string } {
