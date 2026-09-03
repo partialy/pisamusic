@@ -33,6 +33,7 @@ type Props = {
   themeColor: string;
   onKindChange: (kind: AdminUserDetailTab) => void;
   onPageChange: (offset: number) => void;
+  onDeleteMessage: (id: string) => void;
   onClose: () => void;
 };
 
@@ -69,6 +70,7 @@ export default function UserDetailModal({
   messagesLoading,
   onKindChange,
   onPageChange,
+  onDeleteMessage,
   onClose,
 }: Props) {
   const isVip = Boolean(
@@ -288,6 +290,7 @@ export default function UserDetailModal({
               page={messagesPage}
               loading={messagesLoading}
               onPageChange={onPageChange}
+              onDelete={onDeleteMessage}
             />
           ) : (
             <Table<AdminUserLibraryItem>

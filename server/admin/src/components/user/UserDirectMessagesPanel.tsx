@@ -1,4 +1,4 @@
-import { Table, Tag, Typography } from "antd";
+import { Popconfirm, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { AdminDirectMessageItem, AdminDirectMessagePage } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
@@ -9,9 +9,10 @@ type Props = {
   page: AdminDirectMessagePage;
   loading: boolean;
   onPageChange: (offset: number) => void;
+  onDelete: (id: string) => void;
 };
 
-export default function UserDirectMessagesPanel({ page, loading, onPageChange }: Props) {
+export default function UserDirectMessagesPanel({ page, loading, onPageChange, onDelete }: Props) {
   const columns: ColumnsType<AdminDirectMessageItem> = [
     {
       title: "正文",
@@ -49,6 +50,24 @@ export default function UserDirectMessagesPanel({ page, loading, onPageChange }:
       key: "readAt",
       width: 165,
       render: (timestamp: number | null) => <Text type="secondary" className="text-xs">{timestamp ? formatTimestamp(timestamp) : "-"}</Text>,
+    },
+    {
+      title: "操作",
+      key: "actions",
+      width: 90,
+      align: "center",
+      render: (_value, record) => (
+        <Popconfirm
+          title="确认删除这条留言吗？"
+          description="删除后该留言将不再被客户端拉取。"
+          okText="删除"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+          onConfirm={() => onDelete(record.id)}
+        >
+          <a className="text-red-500">删除</a>
+        </Popconfirm>
+      ),
     },
   ];
 

@@ -8,13 +8,18 @@ import {
   Typography,
 } from "antd";
 import { LaptopOutlined, MobileOutlined } from "@ant-design/icons";
-import type { DesktopDeviceInfo, DeviceInfo } from "../../types/config";
+import type { AdminDirectMessagePage, DesktopDeviceInfo, DeviceInfo } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
+import UserDirectMessagesPanel from "../user/UserDirectMessagesPanel";
 
 const { Text } = Typography;
 
 type Props = {
   device: DeviceInfo | DesktopDeviceInfo | null;
+  messagesPage: AdminDirectMessagePage;
+  messagesLoading: boolean;
+  onMessagesPageChange: (offset: number) => void;
+  onDeleteMessage: (id: string) => void;
   onClose: () => void;
 };
 
@@ -43,7 +48,14 @@ function LockStatusTag({
   return <Tag color="warning">临时封禁至 {formatTimestamp(lockEndTime)}</Tag>;
 }
 
-export default function DeviceDetailModal({ device, onClose }: Props) {
+export default function DeviceDetailModal({
+  device,
+  messagesPage,
+  messagesLoading,
+  onMessagesPageChange,
+  onDeleteMessage,
+  onClose,
+}: Props) {
   if (!device) return null;
 
   const desktop = isDesktopDevice(device);
@@ -200,6 +212,16 @@ export default function DeviceDetailModal({ device, onClose }: Props) {
             </div>
           </div>
         )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <h4 className="mb-3 text-sm font-bold text-slate-800">留言记录</h4>
+          <UserDirectMessagesPanel
+            page={messagesPage}
+            loading={messagesLoading}
+            onPageChange={onMessagesPageChange}
+            onDelete={onDeleteMessage}
+          />
+        </div>
       </div>
     </Modal>
   );

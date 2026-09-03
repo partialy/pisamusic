@@ -11,6 +11,7 @@ import type {
 } from "../types/config";
 import {
   deleteAdminUser,
+  deleteDirectMessage,
   fetchDirectMessages,
   fetchAdminUserDetail,
   fetchAdminUserLibrary,
@@ -110,6 +111,30 @@ export default function UserManagementPage() {
       setAdminUserMessagesLoading(false);
     }
   }, []);
+
+  const handleDeleteAdminUserMessage = async (id: string) => {
+    if (!selectedAdminUser) return;
+    try {
+      await deleteDirectMessage(id);
+      const currentOffset = adminUserMessagesPage.offset;
+      const currentPage = await fetchDirectMessages({
+        targetKind: "user",
+        targetId: selectedAdminUser.id,
+        offset: currentOffset,
+        limit: adminUserMessagesPage.limit,
+      });
+      if (currentPage.items.length === 0 && currentOffset > 0) {
+        await loadAdminUserMessages(
+          selectedAdminUser.id,
+          Math.max(0, currentOffset - adminUserMessagesPage.limit),
+        );
+      } else {
+        setAdminUserMessagesPage(currentPage);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "删除用户留言失败");
+    }
+  };
 
   const handleViewAdminUser = async (user: AdminUserListItem) => {
     try {
@@ -219,6 +244,7 @@ export default function UserManagementPage() {
           themeColor={themeColor}
           onKindChange={handleAdminUserDetailTabChange}
           onPageChange={handleAdminUserDetailPageChange}
+          onDeleteMessage={(id) => void handleDeleteAdminUserMessage(id)}
           onClose={() => setSelectedAdminUser(null)}
         />
       )}

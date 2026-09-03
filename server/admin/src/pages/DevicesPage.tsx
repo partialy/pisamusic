@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
+  AdminDirectMessagePage,
   DesktopDeviceInfo,
   DeviceFilter,
   DeviceInfo,
@@ -7,8 +8,10 @@ import type {
 import {
   deleteDesktopDevice,
   deleteDevice,
+  deleteDirectMessage,
   fetchDesktopDeviceDetail,
   fetchDesktopDevices,
+  fetchDirectMessages,
   fetchDeviceDetail,
   fetchDevices,
   lockDesktopDevice,
@@ -30,7 +33,34 @@ export default function DevicesPage() {
   const [deviceFilter, setDeviceFilter] = useState<DeviceFilter>({});
   const [deviceLoading, setDeviceLoading] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceInfo | DesktopDeviceInfo | null>(null);
+  const [deviceMessagesPage, setDeviceMessagesPage] = useState<AdminDirectMessagePage>({
+    items: [],
+    total: 0,
+    offset: 0,
+    limit: 30,
+  });
+  const [deviceMessagesLoading, setDeviceMessagesLoading] = useState(false);
   const directMessageComposer = useDirectMessageComposer();
+
+  const loadDeviceMessages = useCallback(
+    async (device: DeviceInfo | DesktopDeviceInfo, offset: number) => {
+      setDeviceMessagesLoading(true);
+      try {
+        const page = await fetchDirectMessages({
+          targetKind: "hostname" in device ? "desktop_device" : "android_device",
+          targetId: device.id,
+          offset,
+          limit: 30,
+        });
+        setDeviceMessagesPage(page);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "加载设备留言失败");
+      } finally {
+        setDeviceMessagesLoading(false);
+      }
+    },
+    [],
+  );
 
   const loadDevices = useCallback(async () => {
     setDeviceLoading(true);
@@ -63,6 +93,7 @@ export default function DevicesPage() {
   const handleDeviceModeChange = (mode: "android" | "desktop") => {
     setDeviceMode(mode);
     setSelectedDevice(null);
+    setDeviceMessagesPage({ items: [], total: 0, offset: 0, limit: 30 });
     setDeviceFilter({});
     setDeviceOffset(0);
   };
@@ -75,11 +106,42 @@ export default function DevicesPage() {
             ? await fetchDesktopDeviceDetail(device.id)
             : await fetchDeviceDetail(device.id);
         setSelectedDevice(detail);
+        void loadDeviceMessages(detail, 0);
       } catch (e) {
         alert(e instanceof Error ? e.message : "加载设备详情失败");
       }
     } else {
       setSelectedDevice(null);
+      setDeviceMessagesPage({ items: [], total: 0, offset: 0, limit: 30 });
+    }
+  };
+
+  const handleDeviceMessagesPageChange = (offset: number) => {
+    if (!selectedDevice) return;
+    void loadDeviceMessages(selectedDevice, offset);
+  };
+
+  const handleDeleteDeviceMessage = async (id: string) => {
+    if (!selectedDevice) return;
+    try {
+      await deleteDirectMessage(id);
+      const currentOffset = deviceMessagesPage.offset;
+      const currentPage = await fetchDirectMessages({
+        targetKind: "hostname" in selectedDevice ? "desktop_device" : "android_device",
+        targetId: selectedDevice.id,
+        offset: currentOffset,
+        limit: deviceMessagesPage.limit,
+      });
+      if (currentPage.items.length === 0 && currentOffset > 0) {
+        await loadDeviceMessages(
+          selectedDevice,
+          Math.max(0, currentOffset - deviceMessagesPage.limit),
+        );
+      } else {
+        setDeviceMessagesPage(currentPage);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "删除设备留言失败");
     }
   };
 
@@ -129,6 +191,10 @@ export default function DevicesPage() {
       onLockDevice={handleLockDevice}
       onDeleteDevice={handleDeleteDevice}
       onMessage={directMessageComposer.openComposer}
+      messagesPage={deviceMessagesPage}
+      messagesLoading={deviceMessagesLoading}
+      onMessagesPageChange={handleDeviceMessagesPageChange}
+      onDeleteMessage={(id) => void handleDeleteDeviceMessage(id)}
       />
 
       {directMessageComposer.target && (

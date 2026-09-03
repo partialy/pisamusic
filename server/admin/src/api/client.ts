@@ -686,6 +686,16 @@ export async function fetchDirectMessages(input: {
   return body.data;
 }
 
+export async function deleteDirectMessage(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/messages/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  const body = await parseJson<{ id: string; deleted: boolean }>(res);
+  if (!res.ok || !body.success || !body.data?.deleted) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+}
+
 export async function fetchAdminUsers(filter: AdminUserFilter): Promise<AdminUserListResponse> {
   const params = new URLSearchParams();
   if (filter.keyword) params.set("keyword", filter.keyword);

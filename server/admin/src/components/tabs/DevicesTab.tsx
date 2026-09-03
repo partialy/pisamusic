@@ -24,7 +24,7 @@ import {
   SearchOutlined,
   UnlockOutlined,
 } from "@ant-design/icons";
-import type { DesktopDeviceInfo, DeviceFilter, DeviceInfo } from "../../types/config";
+import type { AdminDirectMessagePage, DesktopDeviceInfo, DeviceFilter, DeviceInfo } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
 import DeviceDetailModal from "../modals/DeviceDetailModal";
 import DeviceLockModal from "../modals/DeviceLockModal";
@@ -50,6 +50,10 @@ type Props = {
   onLockDevice: (id: string, locked: boolean, lockEndTime?: number | null) => void;
   onDeleteDevice: (id: string) => void;
   onMessage: (target: DirectMessageComposeTarget) => void;
+  messagesPage: AdminDirectMessagePage;
+  messagesLoading: boolean;
+  onMessagesPageChange: (offset: number) => void;
+  onDeleteMessage: (id: string) => void;
 };
 
 function isDesktopDevice(
@@ -75,6 +79,10 @@ export default function DevicesTab({
   onLockDevice,
   onDeleteDevice,
   onMessage,
+  messagesPage,
+  messagesLoading,
+  onMessagesPageChange,
+  onDeleteMessage,
 }: Props) {
   const [localSearch, setLocalSearch] = useState(deviceFilter.search ?? "");
   const [localLockedFilter, setLocalLockedFilter] = useState<string>(
@@ -457,6 +465,10 @@ export default function DevicesTab({
 
       <DeviceDetailModal
         device={selectedDevice}
+        messagesPage={messagesPage}
+        messagesLoading={messagesLoading}
+        onMessagesPageChange={onMessagesPageChange}
+        onDeleteMessage={onDeleteMessage}
         onClose={() => onSelectDevice(null)}
       />
 
