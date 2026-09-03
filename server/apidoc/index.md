@@ -296,6 +296,7 @@
 | 分页查询用户反馈列表 | `GET` | `/api/admin/feedback` | [./admin/listFeedback.md](./admin/listFeedback.md) |
 | 查看用户反馈详情 | `GET` | `/api/admin/feedback/:id` | [./admin/getFeedbackDetail.md](./admin/getFeedbackDetail.md) |
 | 更新用户反馈处理状态 | `PATCH` | `/api/admin/feedback/:id/status` | [./admin/updateFeedbackStatus.md](./admin/updateFeedbackStatus.md) |
+| 删除用户反馈记录及附件 | `DELETE` | `/api/admin/feedback/:id` | [./admin/deleteFeedback.md](./admin/deleteFeedback.md) |
 
 ### 13.10 故障上报管理
 | 接口名称 | Method | 请求路径 | 接口文档链接 |

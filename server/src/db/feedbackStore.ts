@@ -1,3 +1,5 @@
+import { unlinkSync } from "node:fs";
+import path from "node:path";
 import { getAppDb } from "./appDb";
 
 export const FEEDBACK_TYPES = ["bug", "suggestion", "account", "other"] as const;
@@ -260,3 +262,27 @@ export function updateAdminFeedbackStatus(id: string, status: FeedbackStatus): A
   if (result.changes === 0) return null;
   return readAdminFeedbackDetail(id);
 }
+
+export function deleteAdminFeedback(id: string): boolean {
+  const db = getAppDb();
+  const imageRows = db
+    .prepare("SELECT image_path FROM feedback_images WHERE feedback_id = ?")
+    .all(id) as Array<{ image_path: string }>;
+
+  const result = db.prepare("DELETE FROM feedback WHERE id = ?").run(id);
+  if (result.changes === 0) return false;
+
+  for (const img of imageRows) {
+    if (img.image_path) {
+      try {
+        const fullPath = path.resolve(process.cwd(), img.image_path);
+        unlinkSync(fullPath);
+      } catch {
+        /* ignore missing files */
+      }
+    }
+  }
+
+  return true;
+}
+

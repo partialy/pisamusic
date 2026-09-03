@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  deleteAdminFeedback,
   FEEDBACK_STATUSES,
   FEEDBACK_TYPES,
   listAdminFeedback,
@@ -79,3 +80,17 @@ adminFeedbackRouter.patch("/:id/status", (req, res) => {
     return res.status(500).json(fail(message, 500));
   }
 });
+
+adminFeedbackRouter.delete("/:id", (req, res) => {
+  try {
+    const id = normalizeId(req.params.id);
+    if (!id) return res.status(400).json(fail("无效的反馈 ID", 400));
+    const deleted = deleteAdminFeedback(id);
+    if (!deleted) return res.status(404).json(fail("反馈不存在", 404));
+    return res.json(ok(null, "反馈已删除"));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "删除反馈失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
