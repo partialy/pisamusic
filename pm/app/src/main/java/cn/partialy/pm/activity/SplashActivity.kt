@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.view.View
+import android.view.Gravity
 import android.widget.Toast
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -14,6 +14,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.BuildConfig
@@ -28,6 +29,7 @@ import cn.partialy.pm.util.DeviceInfoCollector
 import cn.partialy.pm.utils.AppUpdateInstaller
 import cn.partialy.pm.utils.AppVersionComparator
 import cn.partialy.pm.utils.ServerDevicePrefs
+import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -53,7 +55,7 @@ class SplashActivity : AppCompatActivity() {
     private var bootstrapRequested = false
     private var latestDownloadUrl: String = ""
     private var latestOfficialUrl: String = ""
-    private var pendingAgreementAccepted = false
+    private var agreementDialogShowing = false
     private var pendingScanLink: String? = null
     private var localModeButtonJob: Job? = null
     private lateinit var appUpdateInstaller: AppUpdateInstaller
@@ -79,7 +81,7 @@ class SplashActivity : AppCompatActivity() {
                 }
 
                 override fun onError(message: String) {
-                    showErrorSheet(message)
+                    showErrorDialog(message)
                 }
 
                 override fun onMessage(message: String) {
@@ -158,21 +160,26 @@ class SplashActivity : AppCompatActivity() {
     private fun tryBootstrapAndUpdate() {
         lifecycleScope.launch {
             if (hasNavigated) return@launch
-            if (!isAgreementAccepted()) {
-                cancelLocalModeButton()
-                runCatching {
-                    withContext(Dispatchers.IO) {
-                        configManager.refreshServiceDiscovery()
-                        configManager.getAgreementInfo()
-                    }
-                }.onSuccess { agreement ->
-                    showAgreementSheet(agreement.title, agreement.content)
-                }.onFailure {
-                    showAgreementSheet(
-                        getString(R.string.startup_fallback_agreement_title),
-                        getString(R.string.startup_fallback_agreement_html),
-                    )
+            val agreement = runCatching {
+                withContext(Dispatchers.IO) {
+                    configManager.refreshServiceDiscovery()
+                    configManager.getAgreementInfo()
                 }
+            }
+            if (agreement.isSuccess) {
+                val currentAgreement = agreement.getOrThrow()
+                if (!isAgreementAccepted(currentAgreement.version)) {
+                    cancelLocalModeButton()
+                    showAgreementDialog(currentAgreement.title, currentAgreement.content, currentAgreement.version)
+                    return@launch
+                }
+            } else if (!isAgreementAccepted()) {
+                cancelLocalModeButton()
+                showAgreementDialog(
+                    getString(R.string.startup_fallback_agreement_title),
+                    getString(R.string.startup_fallback_agreement_text),
+                    DEFAULT_AGREEMENT_VERSION,
+                )
                 return@launch
             }
 
@@ -215,7 +222,7 @@ class SplashActivity : AppCompatActivity() {
                 when {
                     it is DeviceLockedException -> {
                         cancelLocalModeButton()
-                        showUnavailableErrorSheet(it.report.lockedMessage())
+                        showUnavailableErrorDialog(it.report.lockedMessage())
                     }
                     it is TimeoutCancellationException -> {
                         enterLocalModeImmediately(getString(R.string.splash_server_connection_failed))
@@ -304,19 +311,31 @@ class SplashActivity : AppCompatActivity() {
     private fun jsSafe(value: String): String =
         value.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
 
-    private fun showNetworkSheet(message: String) {
-        val js = "window.splashSheet && window.splashSheet.showNetwork('${jsSafe(message)}');"
-        binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
+    private fun showErrorDialog(message: String) {
+        if (isFinishing || isDestroyed) return
+        PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.startup_unavailable_title),
+            message = message,
+            confirmText = getString(R.string.dialog_ok),
+            singleButton = true,
+            cancelable = false,
+            onConfirm = { finishAffinity() },
+        )
     }
 
-    private fun showErrorSheet(message: String) {
-        val js = "window.splashSheet && window.splashSheet.showError('${jsSafe(message)}');"
-        binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
-    }
-
-    private fun showUnavailableErrorSheet(message: String) {
-        val js = "window.splashSheet && window.splashSheet.showError({'message':'${jsSafe(message)}','unavailable':true});"
-        binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
+    private fun showUnavailableErrorDialog(message: String) {
+        if (isFinishing || isDestroyed) return
+        PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.startup_unavailable_title),
+            message = message,
+            confirmText = getString(R.string.startup_exit_app),
+            confirmColor = ContextCompat.getColor(this, R.color.pm_dialog_danger),
+            singleButton = true,
+            cancelable = false,
+            onConfirm = { finishAffinity() },
+        )
     }
 
     private fun showUpdateSheet(
@@ -329,9 +348,30 @@ class SplashActivity : AppCompatActivity() {
         binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
     }
 
-    private fun showAgreementSheet(title: String, content: String) {
-        val js = "window.splashSheet && window.splashSheet.showAgreement({'title':'${jsSafe(title)}','content':'${jsSafe(content)}'});"
-        binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
+    private fun showAgreementDialog(title: String, content: String, version: Long) {
+        if (agreementDialogShowing || isFinishing || isDestroyed) return
+        agreementDialogShowing = true
+        PmMinimalDialog.show(
+            context = this,
+            title = title,
+            message = content,
+            cancelText = getString(R.string.startup_agreement_exit),
+            confirmText = getString(R.string.startup_agreement_accept),
+            cancelColor = ContextCompat.getColor(this, R.color.pm_dialog_danger),
+            confirmColor = ContextCompat.getColor(this, R.color.pm_dialog_confirm),
+            widthDp = 340,
+            messageGravity = Gravity.START,
+            messageSelectable = true,
+            messageMaxHeightDp = 420,
+            cancelable = false,
+            onCancel = { finishAffinity() },
+            onConfirm = {
+                agreementDialogShowing = false
+                setAgreementAccepted(true, version)
+                bootstrapRequested = false
+                tryBootstrapAndUpdate()
+            },
+        )
     }
 
     private fun navigateToMainDelayed(localModeReason: String? = null) {
@@ -365,24 +405,25 @@ class SplashActivity : AppCompatActivity() {
     private fun openOfficialSite() {
         val url = latestOfficialUrl.trim()
         if (url.isEmpty()) {
-            showErrorSheet(getString(R.string.startup_official_url_empty))
+            showErrorDialog(getString(R.string.startup_official_url_empty))
             return
         }
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     }
 
-    private fun openOfficialHome() {
-        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OFFICIAL_HOME_URL)))
+    private fun isAgreementAccepted(version: Long? = null): Boolean {
+        val sp = getSharedPreferences(SPLASH_PREFS, MODE_PRIVATE)
+        if (!sp.getBoolean(KEY_AGREEMENT_ACCEPTED, false)) return false
+        return version == null || sp.getLong(KEY_AGREEMENT_VERSION, Long.MIN_VALUE) == version
     }
 
-    private fun isAgreementAccepted(): Boolean {
+    private fun setAgreementAccepted(accepted: Boolean, version: Long = DEFAULT_AGREEMENT_VERSION) {
         val sp = getSharedPreferences(SPLASH_PREFS, MODE_PRIVATE)
-        return sp.getBoolean(KEY_AGREEMENT_ACCEPTED, false)
-    }
-
-    private fun setAgreementAccepted(accepted: Boolean) {
-        val sp = getSharedPreferences(SPLASH_PREFS, MODE_PRIVATE)
-        sp.edit().putBoolean(KEY_AGREEMENT_ACCEPTED, accepted).apply()
+        sp.edit().apply {
+            putBoolean(KEY_AGREEMENT_ACCEPTED, accepted)
+            if (accepted) putLong(KEY_AGREEMENT_VERSION, version)
+            else remove(KEY_AGREEMENT_VERSION)
+        }.apply()
     }
 
     private fun startAppUpdateDownload() {
@@ -396,21 +437,8 @@ class SplashActivity : AppCompatActivity() {
 
     inner class SplashJsBridge {
         @JavascriptInterface
-        fun retryBootstrap() {
-            runOnUiThread {
-                bootstrapRequested = false
-                tryBootstrapAndUpdate()
-            }
-        }
-
-        @JavascriptInterface
         fun openOfficialSite() {
             runOnUiThread { this@SplashActivity.openOfficialSite() }
-        }
-
-        @JavascriptInterface
-        fun openOfficialHome() {
-            runOnUiThread { this@SplashActivity.openOfficialHome() }
         }
 
         @JavascriptInterface
@@ -453,43 +481,19 @@ class SplashActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
-        fun acceptAgreement() {
-            runOnUiThread {
-                if (pendingAgreementAccepted) return@runOnUiThread
-                pendingAgreementAccepted = true
-                setAgreementAccepted(true)
-                bootstrapRequested = false
-                pendingAgreementAccepted = false
-                tryBootstrapAndUpdate()
-            }
-        }
-
-        @JavascriptInterface
-        fun declineAgreement() {
-            runOnUiThread {
-                setAgreementAccepted(false)
-                finishAffinity()
-            }
-        }
-
-        @JavascriptInterface
         fun enterLocalMode() {
             runOnUiThread {
                 enterLocalModeImmediately(getString(R.string.splash_local_mode_manual_reason))
             }
         }
-
-        @JavascriptInterface
-        fun exitApp() {
-            runOnUiThread { finishAffinity() }
-        }
     }
 
     companion object {
         const val SPLASH_WEB_URL = "file:///android_asset/splash/index.html"
-        private const val OFFICIAL_HOME_URL = "https://pisamusic.partialy.cn"
         private const val SPLASH_PREFS = "splash_prefs"
         private const val KEY_AGREEMENT_ACCEPTED = "agreement_accepted"
+        private const val KEY_AGREEMENT_VERSION = "agreement_version"
+        private const val DEFAULT_AGREEMENT_VERSION = 1L
         private const val LOCAL_MODE_BUTTON_DELAY_MS = 3_000L
         private const val SPLASH_BOOTSTRAP_TIMEOUT_MS = 10_000L
     }

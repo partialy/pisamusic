@@ -32,14 +32,20 @@ class PmMinimalDialog private constructor(
             setWindowAnimations(R.style.PmMinimalDialogAnimationStyle)
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setDimAmount(0.32f)
-            setLayout(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT)
         }
         dialog.setCancelable(config.cancelable)
         dialog.show()
+        dialog.window?.setLayout(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+        )
         return dialog
     }
 
     private fun bindContent(binding: DialogPmMinimalBinding, dialog: Dialog) {
+        config.widthDp?.let { width ->
+            binding.root.layoutParams = binding.root.layoutParams.apply { this.width = width.dp() }
+        }
         val title = config.title?.trim().orEmpty()
         binding.dialogTitle.isVisible = title.isNotBlank()
         if (title.isNotBlank()) {
@@ -64,6 +70,9 @@ class PmMinimalDialog private constructor(
         }
 
         binding.cancelButton.text = config.cancelText ?: context.getString(R.string.cancel)
+        binding.cancelButton.setTextColor(
+            config.cancelColor ?: ContextCompat.getColor(context, R.color.pm_dialog_cancel),
+        )
         binding.confirmButton.text = config.confirmText ?: context.getString(R.string.dialog_ok)
         binding.confirmButton.setTextColor(
             config.confirmColor ?: ContextCompat.getColor(context, R.color.pm_dialog_confirm),
@@ -97,6 +106,8 @@ class PmMinimalDialog private constructor(
         val cancelText: String? = null,
         val confirmText: String? = null,
         @ColorInt val confirmColor: Int? = null,
+        @ColorInt val cancelColor: Int? = null,
+        val widthDp: Int? = null,
         val messageGravity: Int = Gravity.CENTER,
         val messageSelectable: Boolean = false,
         val messageMaxHeightDp: Int? = null,
@@ -114,6 +125,8 @@ class PmMinimalDialog private constructor(
         private var cancelText: String? = null
         private var confirmText: String? = null
         @ColorInt private var confirmColor: Int? = null
+        @ColorInt private var cancelColor: Int? = null
+        private var widthDp: Int? = null
         private var messageGravity: Int = Gravity.CENTER
         private var messageSelectable: Boolean = false
         private var messageMaxHeightDp: Int? = null
@@ -140,6 +153,8 @@ class PmMinimalDialog private constructor(
             confirmColor = textColor
             onConfirm = action
         }
+        fun setCancelButtonColor(@ColorInt textColor: Int?) = apply { cancelColor = textColor }
+        fun setWidthDp(value: Int?) = apply { widthDp = value }
         fun setMessageGravity(value: Int) = apply { messageGravity = value }
         fun setMessageSelectable(value: Boolean) = apply { messageSelectable = value }
         fun setMessageMaxHeightDp(value: Int?) = apply { messageMaxHeightDp = value }
@@ -166,6 +181,8 @@ class PmMinimalDialog private constructor(
             cancelText = cancelText,
             confirmText = confirmText,
             confirmColor = confirmColor,
+            cancelColor = cancelColor,
+            widthDp = widthDp,
             messageGravity = messageGravity,
             messageSelectable = messageSelectable,
             messageMaxHeightDp = messageMaxHeightDp,
@@ -186,6 +203,8 @@ class PmMinimalDialog private constructor(
             cancelText: String? = null,
             confirmText: String? = null,
             @ColorInt confirmColor: Int? = null,
+            @ColorInt cancelColor: Int? = null,
+            widthDp: Int? = null,
             messageGravity: Int = Gravity.CENTER,
             messageSelectable: Boolean = false,
             messageMaxHeightDp: Int? = null,
@@ -204,6 +223,8 @@ class PmMinimalDialog private constructor(
                     cancelText = cancelText,
                     confirmText = confirmText,
                     confirmColor = confirmColor,
+                    cancelColor = cancelColor,
+                    widthDp = widthDp,
                     messageGravity = messageGravity,
                     messageSelectable = messageSelectable,
                     messageMaxHeightDp = messageMaxHeightDp,

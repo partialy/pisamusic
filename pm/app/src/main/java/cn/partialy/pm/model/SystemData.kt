@@ -72,6 +72,7 @@ data class AgreementResponse(
 data class AgreementInfo(
     val title: String,
     val content: String,
+    val version: Long = 1L,
 )
 
 data class AboutResponse(

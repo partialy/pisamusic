@@ -124,6 +124,7 @@
     <color name="pm_dialog_message">#A0A8B4</color>
     <color name="pm_dialog_cancel">#A0A8B4</color>
     <color name="pm_dialog_confirm">#38BDF8</color>
+    <color name="pm_dialog_danger">#FB7185</color>
     <color name="pm_dialog_divider">#3D424C</color>
 
     <!-- 一起听 创建房间面板 -->

@@ -1,73 +1,36 @@
 package cn.partialy.pm.activity.setting
 
-import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
-import cn.partialy.pm.model.AgreementInfo
 import cn.partialy.pm.network.config.ConfigManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class SettingServiceAgreementActivity : BaseSettingWebActivity() {
+class SettingServiceAgreementActivity : BaseSettingPlainTextActivity() {
 
     @Inject
     lateinit var configManager: ConfigManager
 
-    private var pageReady = false
-    private var payload: AgreementInfo? = null
-
     override fun headerTitle(): String = getString(R.string.page_service_agreement_title)
-
-    override fun initialUrl(): String {
-        val isDark =
-            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-                Configuration.UI_MODE_NIGHT_YES
-        return "file:///android_asset/setting/policy.html?theme=${if (isDark) "dark" else "light"}"
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
-            payload = runCatching { configManager.getServiceAgreementInfo() }.getOrElse {
+            runCatching { configManager.getServiceAgreementInfo() }.onSuccess {
+                setPlainText(it.title, it.content)
+            }.onFailure {
                 showPageError(getString(R.string.page_service_agreement_load_failed))
-                return@launch
             }
-            render()
         }
-    }
-
-    override fun onWebViewPageFinished(url: String?) {
-        pageReady = true
-        render()
-    }
-
-    private fun render() {
-        if (!pageReady) return
-        val p = payload ?: return
-        val json = JSONObject().apply {
-            put("content", p.content)
-        }
-        binding.webContentWebView.evaluateJavascript(
-            "window.PM_POLICY && window.PM_POLICY.render($json);",
-            null,
-        )
     }
 
     private fun showPageError(message: String) {
-        if (!pageReady) {
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-            return
-        }
-        val msg = JSONObject.quote(message)
-        binding.webContentWebView.evaluateJavascript(
-            "window.PM_POLICY && window.PM_POLICY.setError($msg);",
-            null,
-        )
+        showPlainTextError(message)
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 }
 

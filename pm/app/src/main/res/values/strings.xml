@@ -1060,7 +1060,11 @@
     <string name="startup_device_banned_until">当前设备已被封禁，解封时间：%1$s</string>
     <string name="startup_official_url_empty">官网地址为空</string>
     <string name="startup_fallback_agreement_title">用户协议与隐私提示</string>
-    <string name="startup_fallback_agreement_html"><![CDATA[<p>欢迎使用 PisaMusic。当前服务暂不可用，请先确认你已阅读并同意用户协议与隐私政策。进入本地模式后，在线搜索、公告、更新检查、同步等功能可能暂不可用，本地音乐播放等离线功能仍可继续使用。</p>]]></string>
+    <string name="startup_fallback_agreement_text">欢迎使用 PisaMusic。当前服务暂不可用，请先确认你已阅读并同意用户协议与隐私政策。进入本地模式后，在线搜索、公告、更新检查、同步等功能可能暂不可用，本地音乐播放等离线功能仍可继续使用。</string>
+    <string name="startup_agreement_exit">退出</string>
+    <string name="startup_agreement_accept">同意</string>
+    <string name="startup_unavailable_title">软件不可用</string>
+    <string name="startup_exit_app">退出应用</string>
     <string name="lyric_color_invalid">颜色格式无效</string>
     <string name="lyric_color_limit_reached">已达上限（最多 %1$d 个）</string>
     <string name="lyric_color_exists">颜色已存在</string>
