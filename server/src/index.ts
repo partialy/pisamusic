@@ -12,6 +12,7 @@ import { createObviousBotBlocker } from "./middleware/obviousBotBlocker";
 import { initRealtimeServer } from "./realtime";
 import { adminRouter } from "./routes/admin";
 import { analyticsRouter } from "./routes/analytics";
+import { announcementsRouter } from "./routes/announcements";
 import { authRouter } from "./routes/auth";
 import { cloudMusicRouter } from "./routes/cloudMusic";
 import { configRouter } from "./routes/config";
@@ -142,6 +143,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/config", configRouter);
+app.use("/api/announcements", announcementsRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);

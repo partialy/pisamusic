@@ -235,7 +235,8 @@ CREATE TABLE IF NOT EXISTS announcements (
     show_every_time     INTEGER NOT NULL DEFAULT 0,
     show_goto_button    INTEGER NOT NULL DEFAULT 0,
     goto_url            TEXT,
-    sort_order          INTEGER NOT NULL DEFAULT 0
+    sort_order          INTEGER NOT NULL DEFAULT 0,
+    enabled             INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS encryption_plaintext_paths (
@@ -355,6 +356,30 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+
+CREATE TABLE IF NOT EXISTS announcement_reads (
+    id                    TEXT PRIMARY KEY,
+    announcement_id       TEXT NOT NULL,
+    reader_key            TEXT NOT NULL,
+    user_id               TEXT,
+    user_snapshot_json    TEXT NOT NULL DEFAULT '{}',
+    platform              TEXT NOT NULL CHECK (platform IN ('android', 'desktop')),
+    device_id             TEXT NOT NULL,
+    device_snapshot_json  TEXT NOT NULL DEFAULT '{}',
+    client_ip             TEXT NOT NULL DEFAULT '',
+    user_agent            TEXT NOT NULL DEFAULT '',
+    created_at            INTEGER NOT NULL,
+    read_at               INTEGER NOT NULL,
+    FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE (announcement_id, reader_key)
+);
+CREATE INDEX IF NOT EXISTS idx_announcement_reads_announcement_read_at
+ON announcement_reads (announcement_id, read_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_announcement_reads_user_id
+ON announcement_reads (user_id);
+CREATE INDEX IF NOT EXISTS idx_announcement_reads_device_id
+ON announcement_reads (platform, device_id);
 
 CREATE TABLE IF NOT EXISTS direct_messages (
     id                  TEXT PRIMARY KEY,
@@ -756,9 +781,14 @@ function migrateAnnouncements(db: DatabaseSync) {
         show_every_time     INTEGER NOT NULL DEFAULT 0,
         show_goto_button    INTEGER NOT NULL DEFAULT 0,
         goto_url            TEXT,
-        sort_order          INTEGER NOT NULL DEFAULT 0
+        sort_order          INTEGER NOT NULL DEFAULT 0,
+        enabled             INTEGER NOT NULL DEFAULT 1
       );
     `);
+    return;
+  }
+  if (!cols.has("enabled")) {
+    db.exec(`ALTER TABLE announcements ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`);
   }
 }
 

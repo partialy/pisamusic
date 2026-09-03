@@ -99,8 +99,8 @@ export function hydrateAnnouncement(announcement: Announcement): Announcement {
   return { ...announcement, content: hydrateAnnouncementContent(announcement.content) };
 }
 
-export function readHydratedAnnouncements(): Announcement[] {
-  return readAnnouncements().map(hydrateAnnouncement);
+export function readHydratedAnnouncements(options: { enabledOnly?: boolean } = {}): Announcement[] {
+  return readAnnouncements(options).map(hydrateAnnouncement);
 }
 
 export function reconcileAnnouncementImages(announcementId: string, content: AnnouncementContent): FileRecordInfo[] {

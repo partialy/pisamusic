@@ -36,6 +36,7 @@ import { getDeviceDb } from "../db/deviceInfoDb";
 import { getPlaintextPaths, setPlaintextPaths } from "../middleware/encryption";
 import { getAdminJwtSecret, requireAdminJwt } from "../middleware/requireAdminJwt";
 import { adminDirectMessagesRouter } from "./adminDirectMessages";
+import { adminAnnouncementsRouter } from "./adminAnnouncements";
 import { adminCloudMusicRouter } from "./adminCloudMusic";
 import { adminListeningRouter } from "./adminListening";
 import { adminDashboardRouter } from "./adminDashboard";
@@ -567,6 +568,7 @@ function normalizeAnnouncement(body: unknown): { ok: true; value: Announcement }
       showEveryTime: Boolean(body.showEveryTime),
       showGotoButton: Boolean(body.showGotoButton),
       gotoUrl,
+      enabled: body.enabled === undefined ? true : Boolean(body.enabled),
     },
   };
 }
@@ -630,6 +632,7 @@ adminRouter.post("/login", async (req, res) => {
 });
 
 adminRouter.use(requireAdminJwt);
+adminRouter.use("/announcements", adminAnnouncementsRouter);
 adminRouter.use("/messages", adminDirectMessagesRouter);
 adminRouter.use("/cloud-music", adminCloudMusicRouter);
 adminRouter.use("/listening", adminListeningRouter);
@@ -710,7 +713,13 @@ adminRouter.post("/announcements", (req, res) => {
 
 adminRouter.put("/announcements/:id", (req, res) => {
   try {
-    const result = normalizeAnnouncement({ ...(req.body as Record<string, unknown>), id: req.params.id });
+    const existing = readHydratedAnnouncements().find((item) => item.id === req.params.id);
+    const body = isRecord(req.body) ? req.body : {};
+    const result = normalizeAnnouncement({
+      ...body,
+      id: req.params.id,
+      ...(body.enabled === undefined && existing ? { enabled: existing.enabled } : {}),
+    });
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
     return res.json(ok(saveManagedAnnouncement(result.value), "公告已保存"));
   } catch (e) {

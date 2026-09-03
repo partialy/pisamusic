@@ -276,7 +276,7 @@ configRouter.get("/announcements", (_req, res) => {
       res.json(fail(state.reason, -233));
       return;
     }
-    res.json(ok(readHydratedAnnouncements()));
+    res.json(ok(readHydratedAnnouncements({ enabledOnly: true })));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
     res.status(500).json(fail(message, 500));

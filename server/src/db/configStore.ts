@@ -230,6 +230,7 @@ export type Announcement = {
   showEveryTime?: boolean;
   showGotoButton: boolean;
   gotoUrl?: string;
+  enabled: boolean;
 };
 
 export type AdminUser = {
@@ -1737,9 +1738,10 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
     };
   });
 }
-export function readAnnouncements(): Announcement[] {
+export function readAnnouncements(options: { enabledOnly?: boolean } = {}): Announcement[] {
   const db = getAppDb();
-  const rows = db.prepare("SELECT * FROM announcements ORDER BY sort_order ASC, rowid ASC").all() as {
+  const where = options.enabledOnly ? " WHERE enabled = 1" : "";
+  const rows = db.prepare(`SELECT * FROM announcements${where} ORDER BY sort_order ASC, rowid ASC`).all() as {
     id: string;
     content_json: string;
     time: string;
@@ -1748,6 +1750,7 @@ export function readAnnouncements(): Announcement[] {
     show_every_time: number;
     show_goto_button: number;
     goto_url: string | null;
+    enabled: number;
   }[];
   return rows.map((row) => {
     let content: AnnouncementContent;
@@ -1765,6 +1768,7 @@ export function readAnnouncements(): Announcement[] {
       showEveryTime: boolFromDb(row.show_every_time),
       showGotoButton: boolFromDb(row.show_goto_button),
       gotoUrl: row.goto_url ?? "",
+      enabled: boolFromDb(row.enabled),
     };
   });
 }
@@ -1780,8 +1784,8 @@ export function saveAnnouncement(announcement: Announcement): Announcement {
   const sortOrder = existing?.sort_order ?? maxRow.max_order + 1;
   db.prepare(
     `INSERT INTO announcements (
-      id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       content_json = excluded.content_json,
       time = excluded.time,
@@ -1789,7 +1793,8 @@ export function saveAnnouncement(announcement: Announcement): Announcement {
       confirm_text = excluded.confirm_text,
       show_every_time = excluded.show_every_time,
       show_goto_button = excluded.show_goto_button,
-      goto_url = excluded.goto_url`,
+      goto_url = excluded.goto_url,
+      enabled = excluded.enabled`,
   ).run(
     announcement.id,
     JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
@@ -1800,6 +1805,7 @@ export function saveAnnouncement(announcement: Announcement): Announcement {
     boolToDb(announcement.showGotoButton),
     announcement.gotoUrl ?? "",
     sortOrder,
+    announcement.enabled === false ? 0 : 1,
   );
   return announcement;
 }
@@ -1813,8 +1819,8 @@ export function deleteAnnouncement(id: string): boolean {
 export function insertAnnouncement(db: DatabaseSync, announcement: Announcement, sortOrder: number) {
   db.prepare(
     `INSERT OR IGNORE INTO announcements (
-      id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     announcement.id,
     JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
@@ -1825,6 +1831,7 @@ export function insertAnnouncement(db: DatabaseSync, announcement: Announcement,
     boolToDb(announcement.showGotoButton),
     announcement.gotoUrl ?? "",
     sortOrder,
+    announcement.enabled === false ? 0 : 1,
   );
 }
 
