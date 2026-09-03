@@ -250,6 +250,12 @@
     <string name="drawer_wy_account_entry">网易云账号</string>
     <string name="drawer_clear_third_party_login">清除登录</string>
     <string name="drawer_clear_third_party_login_done">已清除第三方登录</string>
+    <string name="drawer_clear_third_party_login_confirm_title">清除登录</string>
+    <string name="drawer_clear_third_party_login_confirm_message">确定清除已登录的第三方音乐账号吗？</string>
+    <string name="drawer_clear_third_party_login_confirm">确定清除</string>
+    <string name="drawer_import_all_running">正在导入已登录平台歌单…</string>
+    <string name="drawer_import_all_done">导入完成：新增 %1$d 个歌单，%2$d 个已存在已跳过</string>
+    <string name="drawer_import_all_failed">部分平台歌单导入失败，请检查网络与登录状态</string>
     <string name="drawer_sleep_timer">定时关闭</string>
     <string name="sleep_timer_sheet_title">定时关闭</string>
     <string name="sleep_timer_sheet_close">关闭定时设置</string>
