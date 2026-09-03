@@ -15,9 +15,11 @@ import {
   EyeOutlined,
   NotificationOutlined,
   PlusOutlined,
+  ReadOutlined,
 } from "@ant-design/icons";
 import type { Announcement } from "../../types/config";
 import AnnouncementPreviewModal from "../modals/AnnouncementPreviewModal";
+import AnnouncementReadListModal from "../modals/AnnouncementReadListModal";
 
 const { Text } = Typography;
 
@@ -50,6 +52,7 @@ export default function AnnouncementsTab({
   onDelete,
 }: Props) {
   const [previewAnnouncement, setPreviewAnnouncement] = useState<Announcement | null>(null);
+  const [readAnnouncement, setReadAnnouncement] = useState<Announcement | null>(null);
 
   const columns: ColumnsType<Announcement & { index: number }> = [
     {
@@ -140,10 +143,21 @@ export default function AnnouncementsTab({
       ),
     },
     {
+      title: "状态",
+      key: "enabled",
+      width: 90,
+      align: "center",
+      render: (_, record) => (
+        <Tag color={record.enabled !== false ? "success" : "default"}>
+          {record.enabled !== false ? "已启用" : "已停用"}
+        </Tag>
+      ),
+    },
+    {
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 190,
+      width: 270,
       render: (_, record) => (
         <Space size={4}>
           <Button
@@ -161,6 +175,14 @@ export default function AnnouncementsTab({
             onClick={() => onEdit(record.index)}
           >
             编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<ReadOutlined />}
+            onClick={() => setReadAnnouncement(record)}
+          >
+            已读列表
           </Button>
 
           <Popconfirm
@@ -224,6 +246,13 @@ export default function AnnouncementsTab({
           announcement={previewAnnouncement}
           open
           onClose={() => setPreviewAnnouncement(null)}
+        />
+      )}
+      {readAnnouncement && (
+        <AnnouncementReadListModal
+          announcement={readAnnouncement}
+          open
+          onClose={() => setReadAnnouncement(null)}
         />
       )}
     </div>

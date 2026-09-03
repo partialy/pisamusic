@@ -99,6 +99,21 @@ export default function NoticeModal({
             <div className="flex items-center justify-between">
               <div>
                 <Text strong className="text-xs text-slate-700 block">
+                  启用公告
+                </Text>
+                <span className="text-[11px] text-slate-400">
+                  关闭后客户端不会拉取该公告
+                </span>
+              </div>
+              <Switch
+                checked={editing.enabled !== false}
+                onChange={(val) => onChange({ ...editing, enabled: val })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Text strong className="text-xs text-slate-700 block">
                   每次都展示
                 </Text>
                 <span className="text-[11px] text-slate-400">

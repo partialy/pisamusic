@@ -36,6 +36,7 @@ export default function AnnouncementsManagementPage() {
       showEveryTime: false,
       showGotoButton: false,
       gotoUrl: "",
+      enabled: true,
     });
     setEditingNoticeIndex(-1);
   };

@@ -253,6 +253,52 @@ export type Announcement = {
   showEveryTime?: boolean;
   showGotoButton: boolean;
   gotoUrl?: string;
+  enabled: boolean;
+};
+
+export type AnnouncementReadUser = {
+  id?: string;
+  username?: string;
+  email?: string;
+  phone?: string | null;
+  avatarKey?: string;
+  avatarUrl?: string;
+  vip?: boolean;
+  vipExpiresAt?: number | null;
+  createdAt?: number;
+};
+
+export type AnnouncementReadDevice = {
+  id: string;
+  platform: "android" | "desktop";
+  deviceName?: string;
+  brand?: string;
+  model?: string;
+  hostname?: string;
+  osName?: string;
+  osVersion?: string;
+  sdkVersion?: number;
+  appVersion?: string;
+  appVersionCode?: number;
+  arch?: string;
+  firstSeenAt?: number;
+  lastActiveAt?: number;
+};
+
+export type AnnouncementReadItem = {
+  id: string;
+  announcementId: string;
+  readAt: number;
+  createdAt: number;
+  user: AnnouncementReadUser | null;
+  device: AnnouncementReadDevice;
+};
+
+export type AnnouncementReadPage = {
+  items: AnnouncementReadItem[];
+  total: number;
+  offset: number;
+  limit: number;
 };
 
 export type UpdateFormDraft = {

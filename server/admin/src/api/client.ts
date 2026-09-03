@@ -16,6 +16,7 @@ import type {
   AdminShareListItem,
   AdminShareListResponse,
   Announcement,
+  AnnouncementReadPage,
   AppConfigJson,
   AppConfigSectionsPayload,
   AppUpdatePayload,
@@ -176,6 +177,20 @@ export async function deleteAnnouncement(id: string): Promise<void> {
   if (!res.ok || !body.success) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }
+}
+
+export async function fetchAnnouncementReads(
+  id: string,
+  offset = 0,
+  limit = 20,
+): Promise<AnnouncementReadPage> {
+  const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+  const res = await fetchWithAuth(`/api/admin/announcements/${encodeURIComponent(id)}/reads?${params.toString()}`);
+  const body = await parseJson<AnnouncementReadPage>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
 }
 
 export type AnnouncementImageUploadResult = {
