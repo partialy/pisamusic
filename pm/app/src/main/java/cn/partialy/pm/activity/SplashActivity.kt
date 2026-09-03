@@ -180,14 +180,22 @@ class SplashActivity : AppCompatActivity() {
                     showAgreementDialog(currentAgreement.title, currentAgreement.content, currentAgreement.version)
                     return@launch
                 }
-            } else if (!isAgreementAccepted()) {
-                cancelLocalModeButton()
-                showAgreementDialog(
-                    getString(R.string.startup_fallback_agreement_title),
-                    getString(R.string.startup_fallback_agreement_text),
-                    DEFAULT_AGREEMENT_VERSION,
-                )
-                return@launch
+            } else {
+                val error = agreement.exceptionOrNull()
+                if (error?.isServiceUnavailable() == true) {
+                    cancelLocalModeButton()
+                    showUnavailableErrorDialog(error.message ?: getString(R.string.startup_unavailable_title))
+                    return@launch
+                }
+                if (!isAgreementAccepted()) {
+                    cancelLocalModeButton()
+                    showAgreementDialog(
+                        getString(R.string.startup_fallback_agreement_title),
+                        getString(R.string.startup_fallback_agreement_text),
+                        DEFAULT_AGREEMENT_VERSION,
+                    )
+                    return@launch
+                }
             }
 
             configManager.beginOnlineStartup()
@@ -230,6 +238,10 @@ class SplashActivity : AppCompatActivity() {
                     it is DeviceLockedException -> {
                         cancelLocalModeButton()
                         showUnavailableErrorDialog(it.report.lockedMessage())
+                    }
+                    it.isServiceUnavailable() -> {
+                        cancelLocalModeButton()
+                        showUnavailableErrorDialog(it.message ?: getString(R.string.startup_unavailable_title))
                     }
                     it is TimeoutCancellationException -> {
                         enterLocalModeImmediately(getString(R.string.splash_server_connection_failed))
@@ -301,6 +313,11 @@ class SplashActivity : AppCompatActivity() {
     private fun Throwable.isAccountAuthExpired(): Boolean {
         val apiError = this as? ConfigManager.ApiException ?: return false
         return apiError.httpStatus == 401 || apiError.code == 401
+    }
+
+    private fun Throwable.isServiceUnavailable(): Boolean {
+        val apiError = this as? ConfigManager.ApiException ?: return false
+        return apiError.code == -233
     }
 
     private fun DeviceReportResult.isCurrentlyLocked(nowMillis: Long = System.currentTimeMillis()): Boolean {
