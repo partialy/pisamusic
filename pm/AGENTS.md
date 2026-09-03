@@ -250,6 +250,7 @@
 - App 启动与首页公告展示保留底部弹窗（`BottomSheetDialog` + `layout_announcement_bottom_sheet.xml`），由 `AnnouncementContentRenderer` 进行原生富文本渲染，隐藏滚动条但保留滚动。
 - 启动时仅弹出最新一条未读公告，若公告属于每次弹出类型（`showEveryTime=true`）也同样弹出；确认或前往后写入已读（`!showEveryTime`），不再连续弹出多条。
 - 首页顶部不显示额外公告卡片列表；设置页保持原有原生列表单页结构。
+- 公告确认或成功前往后，客户端通过 `SystemRepository` 异步调用加密 `POST /api/announcements/:id/read`；请求必须使用设备上报返回的 30 天 `messageToken` 作为 `x-pm-device-token`，未登录时保持匿名用户。回执失败不得阻塞公告交互；本地 `showEveryTime` 弹出状态仍按原有设置保存。
 
 ## 专属消息模块规范
 

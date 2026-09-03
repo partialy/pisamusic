@@ -25,6 +25,7 @@
 | `content` | `object` | 是 | 结构化公告内容，最多 100 个内容块、文字最多 50000 字符，不接受 HTML |
 | `time` | `string` | 是 | 发布时间显示文本（如 "2026-08-25"） |
 | `publisher` | `string` | 是 | 发布者名称（如 "管理员"） |
+| `enabled` | `boolean` | 否 | 是否允许客户端拉取，默认 `true`；停用不会删除公告或已读回执 |
 | `confirmText` | `string` | 是 | 客户端弹窗确认按钮文案（如 "确定"） |
 | `showEveryTime` | `boolean` | 否 | 是否每次启动均弹窗 |
 | `showGotoButton` | `boolean` | 否 | 是否显示外链跳转按钮 |
@@ -50,6 +51,7 @@
   },
   "time": "2026-08-27",
   "publisher": "PisaMusic",
+  "enabled": true,
   "confirmText": "我知道了",
   "showEveryTime": false,
   "showGotoButton": false,

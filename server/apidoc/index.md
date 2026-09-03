@@ -11,6 +11,7 @@
 
 - [1. 用户与认证模块 (`user`)](#1-用户与认证模块-apiuser)
 - [2. 客户端配置与发布模块 (`config`)](#2-客户端配置与发布模块-apiconfig)
+- [系统公告已读回执模块 (`announcements`)](#系统公告已读回执模块-apiannouncements)
 - [3. 设备管理与上报模块 (`device`)](#3-设备管理与上报模块-apidevice)
 - [专属消息模块 (`messages`)](#专属消息模块-apimessages)
 - [4. 用户数据云同步模块 (`sync`)](#4-用户数据云同步模块-apisync)
@@ -68,6 +69,16 @@
 | 获取系统公告列表 | `GET` | `/api/config/announcements` | 无 (明文) | [./config/getAnnouncements.md](./config/getAnnouncements.md) |
 | 获取版本更新历史列表 | `GET` | `/api/config/update-history` | 无 (明文) | [./config/getUpdateHistory.md](./config/getUpdateHistory.md) |
 | 获取关于软件信息 | `GET` | `/api/config/about` | 无 (明文) | [./config/getAbout.md](./config/getAbout.md) |
+
+---
+
+## 系统公告已读回执模块 (`/api/announcements`)
+
+客户端确认公告后以设备消息凭证提交回执；登录用户会绑定用户公开快照，未登录回执的用户信息为空。后台可分页查看指定公告的用户与设备信息。
+
+| 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
+| :--- | :--- | :--- | :--- | :--- |
+| 提交公告已读回执 | `POST` | `/api/announcements/:id/read` | 设备消息凭证，可选 User Token (加密) | [./announcements/markRead.md](./announcements/markRead.md) |
 
 ---
 
@@ -216,6 +227,7 @@
 | 获取后台公告列表 | `GET` | `/api/admin/announcements` | [./admin/getAnnouncements.md](./admin/getAnnouncements.md) |
 | 创建公告 | `POST` | `/api/admin/announcements` | [./admin/createAnnouncement.md](./admin/createAnnouncement.md) |
 | 修改公告 | `PUT` | `/api/admin/announcements/:id` | [./admin/updateAnnouncement.md](./admin/updateAnnouncement.md) |
+| 获取公告已读列表 | `GET` | `/api/admin/announcements/:id/reads` | [./admin/getAnnouncementReads.md](./admin/getAnnouncementReads.md) |
 | 删除公告 | `DELETE` | `/api/admin/announcements/:id` | [./admin/deleteAnnouncement.md](./admin/deleteAnnouncement.md) |
 | 获取公告图片上传凭证 | `POST` | `/api/admin/announcements/images/upload-token` | [./admin/announcementImageUploadToken.md](./admin/announcementImageUploadToken.md) |
 | 登记公告图片 | `POST` | `/api/admin/announcements/images/complete` | [./admin/announcementImageComplete.md](./admin/announcementImageComplete.md) |

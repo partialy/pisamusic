@@ -24,6 +24,7 @@
 | `content` | `object` | 是 | 结构化公告内容，格式同创建公告 |
 | `time` | `string` | 是 | 发布时间 |
 | `publisher` | `string` | 是 | 发布人 |
+| `enabled` | `boolean` | 否 | 是否允许客户端拉取；省略时保留原状态，停用不会删除公告或已读回执 |
 | `confirmText` | `string` | 是 | 确认按钮文本 |
 | `showEveryTime` | `boolean` | 否 | 是否每次启动弹窗 |
 | `showGotoButton` | `boolean` | 否 | 是否显示跳转按钮 |

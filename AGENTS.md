@@ -40,6 +40,7 @@
 - 服务端邮箱验证码通过后台“系统配置”里的 `email.serviceUrl` 和 `email.provider` 配置发送，默认 `https://gateway.partialy.cn/auth-service/api/send/email`，body 固定为 `{ provider, type: "verify_code", code, to }`；默认 provider 为 `aliyun`，后台可维护 provider 列表，默认包含 `aliyun / 阿里云` 和 `resend / Resend`；网关验签复用 bootstrap `gatewaySign` 配置，签名算法与桌面端 `gatewaySigner` 保持一致。“API 网关与服务端点”支持仅替换全部端点 URL 的 hostname，协议、端口和路径保持不变，替换后仍需通过“保存端点”提交。
 - 手机端和桌面端启动时如果外层服务不可用、没网或后台关闭 `appAvailable`，应进入本地模式并在主界面给非阻塞提示；设备被封禁仍然阻止进入。
 - 桌面端设备上报使用服务端 `desktop_device_info` 表和 `/api/device/desktop/report`，不要复用 Android 的 `device_info` 表；后台通过 `/api/admin/desktop-device/*` 管理 PC 设备。
+- 系统公告存储在 `announcements`，通过 `enabled` 控制客户端是否拉取；停用只是不返回公开公告列表，不删除公告或历史回执。客户端确认公告后通过加密 `POST /api/announcements/:id/read` 提交已读，使用设备上报返回的 30 天 `messageToken` 作为 `x-pm-device-token`，可选绑定 User Token；回执记录用户与设备公开快照，后台通过 `/api/admin/announcements/:id/reads` 分页查看，禁止使用原始设备 UUID、设备 ID 或 token 作为客户端凭据。
 - 专属消息统一存储在 `server` SQLite 的 `direct_messages` 表；每条消息只可指向一个接收方（账号、Android 设备或桌面设备）。后台用 `/api/admin/messages` 发送和分页查看，客户端用加密的 `/api/messages/unread`、`/api/messages/:id/read` 读取与确认。未读查询合并有效账号与当前设备的消息，`read_at` 是唯一权威已读状态；不要新增客户端永久已读表。设备消息只能使用设备上报返回的 30 天 `messageToken` 作为 `x-pm-device-token`，不得传或暴露原始设备 UUID。
 - 服务端历史 JSON 导入 SQLite 迁移已结束，不要恢复 `jsonImport.ts` 或启动时读取 `server/data/*.json` 自动导入数据库的逻辑。
 - Android 播放控制统一依据 `playWhenReady` 维护明确意图；部分场景共存恢复仅对自身临时暂停有效，硬暂停（用户/通知栏/系统/耳机 noisy/定时/一起听）统一撤销恢复资格与异步待播放任务；播放诊断事件由 `pm_local_music.db` 的 `playback_diagnostic_events` 本地保留最多 300 条，不落敏感信息。

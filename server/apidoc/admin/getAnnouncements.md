@@ -2,6 +2,8 @@
 
 管理后台获取当前配置的所有系统公告列表。
 
+后台列表包含启用和停用的公告，使用 `enabled` 字段区分。停用公告不会从客户端公开列表返回，且不会删除历史已读回执。
+
 - **请求方法**：`GET`
 - **请求路径**：`/api/admin/announcements`
 - **需要鉴权**：是（`Authorization: Bearer <AdminToken>`）
@@ -34,6 +36,7 @@
       },
       "time": "2026-08-25",
       "publisher": "PisaMusic 团队",
+      "enabled": true,
       "confirmText": "我知道了",
       "showEveryTime": false,
       "showGotoButton": true,

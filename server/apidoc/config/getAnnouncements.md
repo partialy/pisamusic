@@ -2,6 +2,8 @@
 
 获取客户端启动或关于页展示的系统公告列表。
 
+服务端只返回 `enabled=true` 的公告。后台停用公告后，客户端不会再拉取该公告；重新启用后恢复返回。停用不会删除公告或历史已读回执。
+
 - **请求方法**：`GET`
 - **请求路径**：`/api/config/announcements`
 - **需要鉴权**：否
@@ -28,6 +30,7 @@
       },
       "time": "2026-08-25",
       "publisher": "PisaMusic 团队",
+      "enabled": true,
       "confirmText": "我知道了",
       "showEveryTime": false,
       "showGotoButton": true,
@@ -46,6 +49,7 @@
 | `content` | `object` | 结构化公告内容，按顺序连续排版，支持文字换行、图片和内联高亮动作 |
 | `time` | `string` | 公告发布时间 |
 | `publisher` | `string` | 发布者名称 |
+| `enabled` | `boolean` | 是否启用；公开接口只返回启用状态的公告 |
 | `confirmText` | `string` | 弹窗确认按钮文本 |
 | `showEveryTime` | `boolean` | 是否每次启动都强制弹窗提醒 |
 | `showGotoButton` | `boolean` | 是否显示跳转链接按钮 |

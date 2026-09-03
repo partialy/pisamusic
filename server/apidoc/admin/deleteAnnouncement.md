@@ -2,6 +2,8 @@
 
 从管理后台删除指定的公告。
 
+删除公告会通过外键级联删除该公告对应的已读回执；仅停用公告不会删除公告或已读回执。
+
 - **请求方法**：`DELETE`
 - **请求路径**：`/api/admin/announcements/:id`
 - **需要鉴权**：是（`Authorization: Bearer <AdminToken>`）
