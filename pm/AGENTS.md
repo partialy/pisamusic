@@ -83,8 +83,8 @@
 - `Media3CacheStore` 独占 `SimpleCache`，由 Media3 管理 Range、Span 和物理 LRU；统计和清理均通过 facade，清理仅移除资源且不得释放活跃 cache。目录索引继续写入 `pm_local_music.db` 的 `cached_playback_records`，兼容列 `play_url` 不得恢复运行时读写。
 - `PlaybackMediaCache.release()` 只用于 renderer / ExoPlayer 内部重建时释放可重开的缓存实例；播放器最终退出必须调用不可逆 `shutdown()`。所有 descriptor、catalog、cache store 和媒体项操作都受同一终止门禁保护，终止会等待在途操作，之后禁止迟到任务重新登记或惰性重开缓存。
 - 播放页“动态歌词背景”默认开启：背景由封面取色流光层、低透明度原模糊封面纹理和既有黑色遮罩组成；关闭时必须完整恢复原静态模糊封面。流光与封面漂移动画只在页面可见且系统允许动画时运行，切歌必须拒绝旧封面/旧色板迟到结果，页面销毁时释放 Coil 请求与所有 Animator。
-- “设置 - 播放设置 - 与其他应用同时播放”由 `AudioCoexistenceController` 管理：关闭（Off）与部分（Partial）均由 CJ（通话/录音）进入边沿状态机处理；每次 CJ 进入边沿最多策略暂停一次，明确的本地用户 PLAY（界面、媒体按钮、通知栏、MediaSession 或直接控制）会覆盖当次 CJ，只有离开后再次进入 CJ 才重新评估；全部（Never）始终不主动暂停。Media3 自动音频焦点处理在全部模式关闭，noisy 处理保留。系统或厂商仍可能在实际通话期间强制静音或限制音频，不要把该限制描述为 App 可完全绕过。
-- 部分场景共存只允许恢复 AudioCoexistenceController 自己造成的暂停；任何后续用户、系统、通知栏、耳机 noisy、睡眠定时器或一起听暂停都必须撤销恢复资格。
+- “设置 - 播放设置 - 与其他应用同时播放”由 `AudioCoexistenceController` 管理：Off 允许外部媒体播放、录音/屏幕采集和通信 CJ 进入边沿各策略暂停一次；Partial 仅允许录音/屏幕采集和通信 CJ 进入边沿策略暂停一次，普通外部媒体播放不会触发策略暂停；All/Never 始终不主动暂停。明确的本地用户 PLAY（界面、媒体按钮、通知栏、MediaSession 或直接控制）只覆盖当前 CJ，离开后再次进入才重新评估。Media3 自动音频焦点处理在全部模式关闭，noisy 处理保留。系统或厂商仍可能在实际通话期间强制静音或限制音频，不要把该限制描述为 App 可完全绕过。
+- Off 与 Partial 共存只允许自动恢复由 `AudioCoexistenceController` 创建并确认的策略暂停；任何后续用户、系统、通知栏、耳机 noisy、睡眠定时器或一起听暂停都必须撤销恢复资格。
 - 明确 PLAY/PAUSE 必须幂等，toggle 只用于真正的 PLAY_PAUSE 动作，并依据 playWhenReady 而不是 isPlaying 判断用户意图。
 - 播放诊断事件保存在 pm_local_music.db 的 playback_diagnostic_events；只记录离散控制/状态、source+songId 和无敏感信息的设备状态，最多 300 条，不上传 URL、token、Cookie、歌词或本地路径。
 - 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation、Info 和 Switch 列表；下载、歌词、同步等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。

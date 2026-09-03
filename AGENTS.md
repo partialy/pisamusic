@@ -45,7 +45,7 @@
 - 管理后台支持通过加密 `DELETE /api/admin/messages/:id` 删除用户、Android 设备或 PC 设备留言；删除为硬删除，不提供客户端撤回语义，前后端接口文档同步维护。
 - 服务协议与隐私政策统一为纯文本，正文中的换行由 Android 原生页面、PC 弹窗和官网按原文显示；服务协议/隐私政策返回 `version`，标题或正文实际修改时递增，重复保存不递增。Android 启动协议接受状态必须绑定版本，PC 启动协议状态同样绑定版本。
 - 服务端历史 JSON 导入 SQLite 迁移已结束，不要恢复 `jsonImport.ts` 或启动时读取 `server/data/*.json` 自动导入数据库的逻辑。
-- Android 播放控制统一依据 `playWhenReady` 维护明确意图；音频共存的 Off/Partial 由 `AudioCoexistenceController` 以 CJ 进入边沿状态机处理，每次 CJ 进入最多策略暂停一次，明确的本地用户 PLAY 会覆盖当次 CJ，离开后再次进入才重新评估；Never 始终不主动暂停，CJ 不得作为持续禁播状态。Media3 自动音频焦点处理在全部模式关闭，noisy 处理保留；系统或厂商仍可能在实际通话期间强制静音或限制音频。部分场景共存恢复仅对自身临时暂停有效，硬暂停（用户/通知栏/系统/耳机 noisy/定时/一起听）统一撤销恢复资格与异步待播放任务；播放诊断事件由 `pm_local_music.db` 的 `playback_diagnostic_events` 本地保留最多 300 条，不落敏感信息。
+- Android 播放控制统一依据 `playWhenReady` 维护明确意图；音频共存由 `AudioCoexistenceController` 以 CJ 进入边沿状态机处理：Off 允许外部媒体播放、录音/屏幕采集和通信 CJ 进入边沿各策略暂停一次；Partial 仅允许录音/屏幕采集和通信 CJ 进入边沿策略暂停一次，普通外部媒体播放不会触发策略暂停；All/Never 始终不主动暂停。明确的本地用户 PLAY 仅覆盖当前 CJ，离开后再次进入才重新评估，CJ 不得作为持续禁播状态。Media3 自动音频焦点处理在全部模式关闭，noisy 处理保留；系统或厂商仍可能在实际通话期间强制静音或限制音频。Off 与 Partial 仅允许自动恢复由 `AudioCoexistenceController` 创建并确认的策略暂停，硬暂停（用户/通知栏/系统/耳机 noisy/定时/一起听）统一撤销恢复资格与异步待播放任务；播放诊断事件由 `pm_local_music.db` 的 `playback_diagnostic_events` 本地保留最多 300 条，不落敏感信息。
 - 服务端接口文档与索引规范：服务端接口文档存放在 `server/apidoc/`，按模块分目录维护（如 `user/`、`config/`、`device/`、`sync/`、`shares/`、`listenTogether/`、`feedback/`、`faultReports/`、`analytics/`、`admin/`、`system/`、`common/`），统一索引为 `server/apidoc/index.md`。任何新增、修改、重构或删除（CRUD）服务端接口的改动，必须同步更新对应模块下的文档文件（如 `server/apidoc/<module>/<apiName>.md`）及 `server/apidoc/index.md` 索引链接与描述，确保接口定义与文档始终保持一致。
 - 生成或修改构建产物、数据库、日志、上传文件前，先判断它们是否应被 Git 跟踪；运行时产物默认不要纳入源码变更。
 
