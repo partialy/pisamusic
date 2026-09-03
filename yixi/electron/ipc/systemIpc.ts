@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import {
   getAnnouncements,
+  markAnnouncementRead,
   getAboutInfo,
   changeAccountPassword,
   getAppVersion,
@@ -53,6 +54,10 @@ export function setupSystemIpc() {
 
   ipcMain.handle("system:get-announcements", () => {
     return getAnnouncements();
+  });
+
+  ipcMain.handle("system:mark-announcement-read", (_event, id: string) => {
+    return markAnnouncementRead(id);
   });
 
   ipcMain.handle("system:get-about-info", () => {

@@ -11,6 +11,7 @@ import { mergeRequestHeaders } from "./requestHeaders";
 import { getServiceDiscoverySnapshot } from "./serviceDiscovery";
 import type {
   Announcement,
+  AnnouncementReadResult,
   AboutInfo,
   ApiResponse,
   BootstrapConfig,
@@ -118,6 +119,25 @@ export async function getGatewaySignConfigCached() {
 
 export async function getAnnouncements() {
   const response = await requestSystem<Announcement[]>("/api/config/announcements");
+  return unwrapResponse(response);
+}
+
+export async function markAnnouncementRead(id: string): Promise<AnnouncementReadResult> {
+  const deviceToken = deviceMessageToken?.trim();
+  if (!deviceToken) throw new Error("设备消息 token 不可用");
+  const session = getAccountSession();
+  const response = await requestSystem<AnnouncementReadResult>(
+    `/api/announcements/${encodeURIComponent(id)}/read`,
+    {
+      method: "POST",
+      token: session.loggedIn && session.token ? session.token : null,
+      headers: {
+        "x-pm-device-token": deviceToken,
+      },
+      body: { platform: "desktop" },
+      recordFailure: false,
+    },
+  );
   return unwrapResponse(response);
 }
 

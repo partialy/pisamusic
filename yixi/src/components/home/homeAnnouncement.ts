@@ -23,6 +23,7 @@ export type Announcement = {
   showEveryTime?: boolean;
   showGotoButton: boolean;
   gotoUrl?: string;
+  enabled: boolean;
 };
 
 const COLOR_MAP: Record<string, string> = {

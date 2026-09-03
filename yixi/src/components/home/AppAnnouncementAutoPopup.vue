@@ -11,6 +11,7 @@
 import { onBeforeUnmount, ref, watch } from "vue";
 import HomeAnnouncementDetailModal from "./HomeAnnouncementDetailModal.vue";
 import { normalizeAnnouncementContent, type Announcement } from "./homeAnnouncement";
+import { reportAnnouncementRead } from "./announcementRead";
 import { showLimitedWarning } from "@/utils/limitedMessage";
 import { useStartupPopupGate } from "@/composables/useStartupPopupGate";
 import { AnnouncementAutoPopupScheduler } from "@/composables/startupPopupArbitration";
@@ -74,6 +75,7 @@ function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
 }
 
 async function confirmAnnouncement(notice: Announcement) {
+  reportAnnouncementRead(notice.id);
   if (notice.showEveryTime || confirmedIds.value.includes(notice.id)) return;
   const nextConfirmedIds = [...confirmedIds.value, notice.id];
   confirmedIds.value = nextConfirmedIds;

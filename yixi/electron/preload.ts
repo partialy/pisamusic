@@ -203,6 +203,7 @@ const systemIpc = {
   getRuntimeEndpoints: (fresh?: boolean) =>
     ipcRenderer.invoke("system:get-runtime-endpoints", fresh),
   getAnnouncements: () => ipcRenderer.invoke("system:get-announcements"),
+  markAnnouncementRead: (id: string) => ipcRenderer.invoke("system:mark-announcement-read", id),
   getAboutInfo: () => ipcRenderer.invoke("system:get-about-info"),
   getServiceAgreement: () => ipcRenderer.invoke("system:get-service-agreement"),
   getPrivacyPolicy: () => ipcRenderer.invoke("system:get-privacy-policy"),

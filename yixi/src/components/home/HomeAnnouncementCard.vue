@@ -64,6 +64,7 @@ import {
   normalizeAnnouncementContent,
   type Announcement,
 } from "./homeAnnouncement";
+import { reportAnnouncementRead } from "./announcementRead";
 
 defineOptions({ name: "HomeAnnouncementCard" });
 
@@ -109,6 +110,7 @@ function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
 }
 
 async function confirmNotice(notice: Announcement) {
+  reportAnnouncementRead(notice.id);
   if (!notice.showEveryTime && !confirmedIds.value.includes(notice.id)) {
     const nextConfirmedIds = [...confirmedIds.value, notice.id];
     confirmedIds.value = nextConfirmedIds;

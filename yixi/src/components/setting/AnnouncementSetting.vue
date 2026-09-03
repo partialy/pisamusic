@@ -48,6 +48,7 @@ import {
   normalizeAnnouncementContent,
   type Announcement,
 } from "@/components/home/homeAnnouncement";
+import { reportAnnouncementRead } from "@/components/home/announcementRead";
 
 type SettingRecord<T> = { value: T };
 
@@ -86,6 +87,7 @@ function normalizeConfirmedIds(setting: SettingRecord<string[]> | null) {
 }
 
 async function confirmAnnouncement(notice: Announcement) {
+  reportAnnouncementRead(notice.id);
   if (notice.showEveryTime || confirmedIds.value.includes(notice.id)) return;
   const nextConfirmedIds = [...confirmedIds.value, notice.id];
   confirmedIds.value = nextConfirmedIds;

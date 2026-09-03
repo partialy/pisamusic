@@ -50,6 +50,13 @@ export type Announcement = {
   showEveryTime?: boolean;
   showGotoButton: boolean;
   gotoUrl?: string;
+  enabled: boolean;
+};
+
+export type AnnouncementReadResult = {
+  announcementId: string;
+  readAt: number;
+  recorded: boolean;
 };
 
 export type AboutInfo = {

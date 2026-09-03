@@ -280,6 +280,13 @@ type Announcement = {
   showEveryTime?: boolean;
   showGotoButton: boolean;
   gotoUrl?: string;
+  enabled: boolean;
+};
+
+type AnnouncementReadResult = {
+  announcementId: string;
+  readAt: number;
+  recorded: boolean;
 };
 
 type AboutInfo = {
@@ -757,6 +764,7 @@ type ElectronIpcApi = {
   getStartupServiceState: () => Promise<StartupServiceState>;
   getRuntimeEndpoints: (fresh?: boolean) => Promise<BackServerConfig>;
   getAnnouncements: () => Promise<Announcement[]>;
+  markAnnouncementRead: (id: string) => Promise<AnnouncementReadResult>;
   getAboutInfo: () => Promise<AboutInfo>;
   getServiceAgreement: () => Promise<TextContentConfig>;
   getPrivacyPolicy: () => Promise<TextContentConfig>;
