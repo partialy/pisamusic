@@ -205,7 +205,6 @@ class MusicController @Inject constructor(
         autoPlay: Boolean = true,
         source: PlaybackControlSource = PlaybackControlSource.APP_UI,
     ): Boolean = if (songInfo.playable) {
-        engine.onManualPlayRequested(source)
         performLatestPlay(songInfo, autoPlay, source)
     } else {
         false

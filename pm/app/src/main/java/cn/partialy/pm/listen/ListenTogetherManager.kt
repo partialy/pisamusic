@@ -203,6 +203,10 @@ class ListenTogetherManager @Inject constructor(
     }
 
     fun requestTogglePlayPause() {
+        if (_state.value.room == null) {
+            musicController.togglePlayPause(PlaybackControlSource.APP_UI)
+            return
+        }
         if (!guardControl()) return
         musicController.togglePlayPause(PlaybackControlSource.LISTEN_TOGETHER)
     }
@@ -263,7 +267,11 @@ class ListenTogetherManager @Inject constructor(
         }
         val transitionId = beginTransition() ?: return
         if (_state.value.isHost) {
-            addSongAndPlayAsHost(song, transitionId = transitionId)
+            addSongAndPlayAsHost(
+                song = song,
+                transitionId = transitionId,
+                source = PlaybackControlSource.APP_UI,
+            )
         } else {
             emitQueueCommand(
                 ListenTogetherQueueCommand(
@@ -280,7 +288,11 @@ class ListenTogetherManager @Inject constructor(
         if (_state.value.room == null) return
         val transitionId = beginTransition() ?: return
         if (_state.value.isHost) {
-            playQueueItemAsHost(queueItemId, transitionId)
+            playQueueItemAsHost(
+                queueItemId = queueItemId,
+                transitionId = transitionId,
+                source = PlaybackControlSource.APP_UI,
+            )
         } else {
             emitQueueCommand(
                 ListenTogetherQueueCommand(
@@ -593,6 +605,7 @@ class ListenTogetherManager @Inject constructor(
         song: SongInfo,
         addedByUserId: String = _state.value.currentUserId,
         transitionId: String,
+        source: PlaybackControlSource = PlaybackControlSource.LISTEN_TOGETHER,
     ) {
         if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) {
             emitUnsupportedSong(song)
@@ -609,10 +622,14 @@ class ListenTogetherManager @Inject constructor(
             snapshotId = null,
         )
         _state.value = state.copy(queue = queue)
-        playQueueSongAsHost(item, queue, transitionId)
+        playQueueSongAsHost(item, queue, transitionId, source = source)
     }
 
-    private fun playQueueItemAsHost(queueItemId: String, transitionId: String) {
+    private fun playQueueItemAsHost(
+        queueItemId: String,
+        transitionId: String,
+        source: PlaybackControlSource = PlaybackControlSource.LISTEN_TOGETHER,
+    ) {
         ensureHostQueueInitialized()
         val state = _state.value
         val item = state.queue.items.firstOrNull { it.queueItemId == queueItemId } ?: return
@@ -624,7 +641,7 @@ class ListenTogetherManager @Inject constructor(
         _state.value = state.copy(queue = queue)
         // 纯指针移动（next/prev/play-item，items 不变）只发 change_song，
         // 队列当前指针由接收端跟随 room.song 推导，避免两通道分叉导致信息不一致。
-        playQueueSongAsHost(item, queue, transitionId, emitDelta = false)
+        playQueueSongAsHost(item, queue, transitionId, emitDelta = false, source = source)
     }
 
     private fun playOffsetQueueItemAsHost(offset: Int, transitionId: String): Boolean {
@@ -691,6 +708,7 @@ class ListenTogetherManager @Inject constructor(
         queue: ListenTogetherQueueState,
         transitionId: String,
         emitDelta: Boolean = true,
+        source: PlaybackControlSource = PlaybackControlSource.LISTEN_TOGETHER,
     ) {
         val song = item.song.toSongInfo() ?: run {
             emitUnsupportedSource(item.song.source)
@@ -706,9 +724,9 @@ class ListenTogetherManager @Inject constructor(
             var applied = false
             try {
                 applied = musicController.playLatest(
-                    song = song,
+                    songInfo = song,
                     autoPlay = true,
-                    source = PlaybackControlSource.LISTEN_TOGETHER,
+                    source = source,
                 )
                 if (!applied || activeHostTransitionId != transitionId) return@launch
                 if (emitDelta) emitQueueDelta(queue)
@@ -1107,7 +1125,7 @@ class ListenTogetherManager @Inject constructor(
             try {
                 if (!sameSong) {
                     val applied = musicController.playLatest(
-                        song = remoteSongInfo,
+                        songInfo = remoteSongInfo,
                         autoPlay = false,
                         source = PlaybackControlSource.LISTEN_TOGETHER,
                     )
