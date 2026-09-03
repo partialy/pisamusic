@@ -84,7 +84,7 @@
 - `PlaybackMediaCache.release()` 只用于 renderer / ExoPlayer 内部重建时释放可重开的缓存实例；播放器最终退出必须调用不可逆 `shutdown()`。所有 descriptor、catalog、cache store 和媒体项操作都受同一终止门禁保护，终止会等待在途操作，之后禁止迟到任务重新登记或惰性重开缓存。
 - 播放页“动态歌词背景”默认开启：背景由封面取色流光层、低透明度原模糊封面纹理和既有黑色遮罩组成；关闭时必须完整恢复原静态模糊封面。流光与封面漂移动画只在页面可见且系统允许动画时运行，切歌必须拒绝旧封面/旧色板迟到结果，页面销毁时释放 Coil 请求与所有 Animator。
 - “设置 - 播放设置 - 与其他应用同时播放”的最终策略由 Media3 与 `AudioCoexistenceController` 协同实现：Off 仅由 Media3 标准音频焦点处理普通外部媒体竞争（`handleAudioFocus=true`），明确的本机 PLAY（界面、媒体按钮、通知栏、MediaSession 或直接控制）会重新请求焦点；实际通话或采集期间系统、厂商仍可能拒绝焦点或静音。Partial 关闭 Media3 自动焦点，仅由 `AudioCoexistenceController` 对通信、录音/屏幕采集 CJ 的进入边沿暂停一次；明确本机 PLAY 只覆盖当前 CJ，离开后再次进入才重新评估。All/Never 关闭 Media3 自动焦点，也不由控制器策略暂停。noisy 处理始终保留。普通应用收到的 `AudioPlaybackConfiguration` 归属可能被匿名化，不要描述或承诺通过播放回调识别外部普通媒体，也不要引入隐藏 API、特殊权限或 Accessibility；系统或厂商的通话限制也不能描述为 App 可完全绕过。
-- Off 与 Partial 共存仅允许自动恢复由 `AudioCoexistenceController` 自己创建并确认的策略暂停，且仅 Partial 使用该 CJ 策略；Off 的焦点丢失由 Media3 处理。任何后续用户、系统、通知栏、耳机 noisy、睡眠定时器或一起听暂停都必须撤销自动恢复资格与异步待播放任务。
+- 仅 Partial 可自动恢复由 `AudioCoexistenceController` 自己创建并确认的 CJ 策略暂停；Off 的焦点丢失与恢复完全由 Media3 音频焦点处理，不具备控制器恢复资格。任何后续用户、系统、通知栏、耳机 noisy、睡眠定时器或一起听暂停都必须撤销自动恢复资格与异步待播放任务。
 - 明确 PLAY/PAUSE 必须幂等，toggle 只用于真正的 PLAY_PAUSE 动作，并依据 playWhenReady 而不是 isPlaying 判断用户意图。
 - 播放诊断事件保存在 pm_local_music.db 的 playback_diagnostic_events；只记录离散控制/状态、source+songId 和无敏感信息的设备状态，最多 300 条，不上传 URL、token、Cookie、歌词或本地路径。
 - 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation、Info 和 Switch 列表；下载、歌词、同步等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。
