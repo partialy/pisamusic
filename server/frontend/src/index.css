@@ -269,21 +269,12 @@ img {
   background: #737373;
 }
 
-/* 接口返回的 HTML 自带 .pm-agreement 内边距，这里交由弹窗容器统一控制。 */
 .legal-content {
   font-size: 14.5px;
   line-height: 1.75;
   color: #333333;
   word-break: break-word;
-}
-
-.legal-content .pm-agreement {
-  padding: 0;
-}
-
-.legal-content img {
-  max-width: 100%;
-  height: auto;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 680px) {

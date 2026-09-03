@@ -5,6 +5,7 @@ export type LegalPageKind = "service-agreement" | "privacy-policy";
 export type ContentPage = {
   title: string;
   content: string;
+  version: number;
 };
 
 export async function fetchContentPage(kind: LegalPageKind, signal?: AbortSignal): Promise<ContentPage> {

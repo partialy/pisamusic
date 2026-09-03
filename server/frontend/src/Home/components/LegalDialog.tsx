@@ -68,7 +68,7 @@ export default function LegalDialog({
 }: LegalDialogProps) {
   const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null);
   const [title, setTitle] = useState(fallbackTitle);
-  const [html, setHtml] = useState<string | null>(null);
+  const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryId, setRetryId] = useState(0);
@@ -195,7 +195,7 @@ export default function LegalDialog({
 
     setTitle(fallbackTitle);
     updateWindowTitle(nativeWindow, fallbackTitle);
-    setHtml(null);
+    setContent(null);
     setLoading(true);
     setError(null);
 
@@ -206,7 +206,7 @@ export default function LegalDialog({
         const nextTitle = page.title || fallbackTitle;
         setTitle(nextTitle);
         updateWindowTitle(nativeWindow, nextTitle);
-        setHtml(page.content ?? "");
+        setContent(page.content ?? "");
         setLoading(false);
       })
       .catch((cause: unknown) => {
@@ -255,15 +255,16 @@ export default function LegalDialog({
         </div>
       )}
 
-      {!loading && !error && html != null && html.trim() !== "" && (
+      {!loading && !error && content != null && content.trim() !== "" && (
         <div
           className="legal-scroll legal-content"
           aria-label={title}
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        >
+          {content}
+        </div>
       )}
 
-      {!loading && !error && (html == null || html.trim() === "") && (
+      {!loading && !error && (content == null || content.trim() === "") && (
         <div className="legal-window-state text-slate-500">暂无内容</div>
       )}
     </div>,
