@@ -97,6 +97,23 @@ data class AnnouncementResponse(
     val data: List<AnnouncementItem>,
 )
 
+data class AnnouncementReadRequest(
+    val platform: String,
+)
+
+data class AnnouncementReadResult(
+    val announcementId: String = "",
+    val readAt: Long = 0L,
+    val recorded: Boolean = false,
+)
+
+data class AnnouncementReadResponse(
+    val msg: String = "",
+    val code: Int = 0,
+    val success: Boolean = true,
+    val data: AnnouncementReadResult? = null,
+)
+
 data class DynamicConfigResponse(
     val msg: String,
     val code: Int,
@@ -119,4 +136,5 @@ data class AnnouncementItem(
     val showEveryTime: Boolean = false,
     val showGotoButton: Boolean = false,
     val gotoUrl: String? = null,
+    val enabled: Boolean = true,
 )

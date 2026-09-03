@@ -836,7 +836,12 @@ class MainActivity : BaseDownloadActivity() {
             activity = this,
             item = item,
             dismissible = false,
-            onConfirmed = { if (cont.isActive) cont.resume(true, onCancellation = null) },
+            onConfirmed = {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    systemRepository.markAnnouncementRead(item.id)
+                }
+                if (cont.isActive) cont.resume(true, onCancellation = null)
+            },
             onCancelled = { if (cont.isActive) cont.resume(false, onCancellation = null) },
         )
         cont.invokeOnCancellation { sheet.dismiss() }

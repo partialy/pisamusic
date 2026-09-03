@@ -7,6 +7,8 @@ import cn.partialy.pm.model.DynamicConfigResponse
 import cn.partialy.pm.model.AgreementResponse
 import cn.partialy.pm.model.AboutResponse
 import cn.partialy.pm.model.AnnouncementResponse
+import cn.partialy.pm.model.AnnouncementReadRequest
+import cn.partialy.pm.model.AnnouncementReadResponse
 import cn.partialy.pm.model.AccountAuthResponse
 import cn.partialy.pm.model.AccountAvatarUploadTokenRequest
 import cn.partialy.pm.model.AccountAvatarUploadTokenResponse
@@ -87,6 +89,14 @@ interface SystemApiService {
 
     @GET("api/config/announcements")
     suspend fun getAnnouncements(): AnnouncementResponse
+
+    @POST("api/announcements/{id}/read")
+    suspend fun markAnnouncementRead(
+        @Path("id") id: String,
+        @Header("Authorization") authorization: String,
+        @Header("x-pm-device-token") deviceToken: String,
+        @Body body: AnnouncementReadRequest,
+    ): AnnouncementReadResponse
 
     @POST("api/device/report")
     suspend fun reportDevice(@Body body: DeviceReportRequest): DeviceReportResponse
