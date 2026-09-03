@@ -315,7 +315,7 @@ class SplashActivity : AppCompatActivity() {
         if (isFinishing || isDestroyed) return
         PmMinimalDialog.show(
             context = this,
-            title = getString(R.string.startup_unavailable_title),
+            title = getString(R.string.startup_error_title),
             message = message,
             confirmText = getString(R.string.dialog_ok),
             singleButton = true,
