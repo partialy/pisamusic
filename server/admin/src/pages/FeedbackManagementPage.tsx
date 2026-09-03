@@ -6,6 +6,7 @@ import type {
   FeedbackStatus,
 } from "../types/config";
 import {
+  deleteAdminFeedback,
   fetchAdminFeedback,
   fetchAdminFeedbackDetail,
   updateAdminFeedbackStatus,
@@ -24,6 +25,7 @@ export default function FeedbackManagementPage() {
   const [feedbackFilter, setFeedbackFilter] = useState<AdminFeedbackFilter>({});
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [updatingFeedbackId, setUpdatingFeedbackId] = useState<string | null>(null);
+  const [deletingFeedbackId, setDeletingFeedbackId] = useState<string | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<AdminFeedbackDetail | null>(null);
 
   const loadFeedback = useCallback(async () => {
@@ -73,6 +75,21 @@ export default function FeedbackManagementPage() {
     }
   };
 
+  const handleDeleteFeedback = async (feedback: AdminFeedbackListItem) => {
+    setDeletingFeedbackId(feedback.id);
+    try {
+      await deleteAdminFeedback(feedback.id);
+      if (selectedFeedback?.id === feedback.id) {
+        setSelectedFeedback(null);
+      }
+      await loadFeedback();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "删除反馈失败");
+    } finally {
+      setDeletingFeedbackId(null);
+    }
+  };
+
   return (
     <>
       <FeedbackManagementTab
@@ -83,12 +100,14 @@ export default function FeedbackManagementPage() {
         filter={feedbackFilter}
         loading={feedbackLoading}
         updatingId={updatingFeedbackId}
+        deletingId={deletingFeedbackId}
         themeColor={themeColor}
         onFilterChange={handleFeedbackFilterChange}
         onPageChange={setFeedbackOffset}
         onRefresh={() => void loadFeedback()}
         onView={(feedback) => void handleViewFeedback(feedback)}
         onStatusChange={(feedback, status) => void handleFeedbackStatusChange(feedback.id, status)}
+        onDelete={(feedback) => void handleDeleteFeedback(feedback)}
       />
 
       {selectedFeedback && (
@@ -103,3 +122,4 @@ export default function FeedbackManagementPage() {
     </>
   );
 }
+

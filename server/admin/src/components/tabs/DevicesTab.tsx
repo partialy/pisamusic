@@ -264,83 +264,83 @@ export default function DevicesTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 265,
+      width: 150,
       render: (_, record) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => onSelectDevice(record)}
-          >
-            详情
-          </Button>
+          <Tooltip title="设备详情">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => onSelectDevice(record)}
+            />
+          </Tooltip>
 
-          <Button
-            type="link"
-            size="small"
-            icon={<MessageOutlined />}
-            onClick={() => {
-              const desktop = isDesktopDevice(record);
-              const label = desktop
-                ? record.deviceName || record.hostname || record.id
-                : record.deviceName || `${record.brand} ${record.model}`.trim() || record.id;
-              onMessage({
-                kind: desktop ? "desktop_device" : "android_device",
-                id: record.id,
-                label,
-              });
-            }}
-          >
-            留言
-          </Button>
+          <Tooltip title="发送留言">
+            <Button
+              type="link"
+              size="small"
+              icon={<MessageOutlined />}
+              onClick={() => {
+                const desktop = isDesktopDevice(record);
+                const label = desktop
+                  ? record.deviceName || record.hostname || record.id
+                  : record.deviceName || `${record.brand} ${record.model}`.trim() || record.id;
+                onMessage({
+                  kind: desktop ? "desktop_device" : "android_device",
+                  id: record.id,
+                  label,
+                });
+              }}
+            />
+          </Tooltip>
 
           {record.locked ? (
+            <Tooltip title="解除设备封禁">
+              <Popconfirm
+                title="确认解除封禁？"
+                description="解封后该设备将恢复正常访问权限。"
+                onConfirm={() => onLockDevice(record.id, false, null)}
+                okText="确认解封"
+                cancelText="取消"
+              >
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<UnlockOutlined />}
+                  className="!text-emerald-600"
+                />
+              </Popconfirm>
+            </Tooltip>
+          ) : (
+            <Tooltip title="封禁该设备">
+              <Button
+                type="link"
+                danger
+                size="small"
+                icon={<LockOutlined />}
+                onClick={() => setLockingDevice(record)}
+              />
+            </Tooltip>
+          )}
+
+          <Tooltip title="删除设备记录">
             <Popconfirm
-              title="确认解除封禁？"
-              description="解封后该设备将恢复正常访问权限。"
-              onConfirm={() => onLockDevice(record.id, false, null)}
-              okText="确认解封"
+              title="确认删除该设备记录？"
+              description="删除后该设备所有记录将被永久移除，无法恢复。"
+              onConfirm={() => onDeleteDevice(record.id)}
+              okText="确定删除"
               cancelText="取消"
+              okButtonProps={{ danger: true }}
             >
               <Button
                 type="link"
+                danger
                 size="small"
-                icon={<UnlockOutlined />}
-                className="!text-emerald-600"
-              >
-                解封
-              </Button>
+                icon={<DeleteOutlined />}
+              />
             </Popconfirm>
-          ) : (
-            <Button
-              type="link"
-              danger
-              size="small"
-              icon={<LockOutlined />}
-              onClick={() => setLockingDevice(record)}
-            >
-              封禁
-            </Button>
-          )}
-
-          <Popconfirm
-            title="确认删除该设备记录？"
-            description="删除后该设备所有记录将被永久移除，无法恢复。"
-            onConfirm={() => onDeleteDevice(record.id)}
-            okText="确定删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="link"
-              danger
-              size="small"
-              icon={<DeleteOutlined />}
-            >
-              删除
-            </Button>
-          </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },

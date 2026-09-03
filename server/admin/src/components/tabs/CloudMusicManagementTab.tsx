@@ -18,6 +18,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
+  AuditOutlined,
   ClearOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -346,66 +347,71 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 250,
+      width: 150,
       render: (_, record) => {
         const isPlaying = activePreviewUuid === record.uuid;
         const isLoadingPreview = loadingPreviewUuid === record.uuid;
         return (
           <Space size={4}>
-            <Button
-              type="link"
-              size="small"
-              icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-              disabled={record.uploadState !== "ready"}
-              loading={isLoadingPreview}
-              onClick={() => handlePlayPreview(record)}
-              className={isPlaying ? "!text-purple-600" : ""}
-            >
-              {isPlaying ? "停止" : "试听"}
-            </Button>
-
-            {record.status !== "deleted" && (
+            <Tooltip title={isPlaying ? "停止试听" : "试听音乐"}>
               <Button
                 type="link"
                 size="small"
-                onClick={() => setReviewingTrack(record)}
-                className={
+                icon={isPlaying ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                disabled={record.uploadState !== "ready"}
+                loading={isLoadingPreview}
+                onClick={() => handlePlayPreview(record)}
+                className={isPlaying ? "!text-purple-600" : ""}
+              />
+            </Tooltip>
+
+            {record.status !== "deleted" && (
+              <Tooltip
+                title={
                   record.status === "pending_review"
-                    ? "!text-blue-600 font-bold"
+                    ? "审核曲目"
                     : record.status === "rejected"
-                    ? "!text-orange-600"
-                    : "!text-indigo-600"
+                    ? "重审/改态"
+                    : "修改状态"
                 }
               >
-                {record.status === "pending_review"
-                  ? "审核"
-                  : record.status === "rejected"
-                  ? "重审/改态"
-                  : "改态"}
-              </Button>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<AuditOutlined />}
+                  onClick={() => setReviewingTrack(record)}
+                  className={
+                    record.status === "pending_review"
+                      ? "!text-blue-600 font-bold"
+                      : record.status === "rejected"
+                      ? "!text-orange-600"
+                      : "!text-indigo-600"
+                  }
+                />
+              </Tooltip>
             )}
 
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => setEditingTrack(record)}
-            >
-              编辑
-            </Button>
+            <Tooltip title="编辑曲目">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => setEditingTrack(record)}
+              />
+            </Tooltip>
 
-            <Popconfirm
-              title={`确认删除《${record.title || "未命名"}》？`}
-              description="关联的七牛音频、封面和歌词文件将被物理删除！"
-              onConfirm={() => handleDelete(record)}
-              okText="确认删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
+            <Tooltip title="删除曲目及文件">
+              <Popconfirm
+                title={`确认删除《${record.title || "未命名"}》？`}
+                description="关联的七牛音频、封面和歌词文件将被物理删除！"
+                onConfirm={() => handleDelete(record)}
+                okText="确认删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button type="link" danger size="small" icon={<DeleteOutlined />} />
+              </Popconfirm>
+            </Tooltip>
           </Space>
         );
       },

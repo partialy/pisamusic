@@ -243,26 +243,26 @@ export default function OnlineRoomTable({
     {
       title: "操作",
       key: "action",
-      width: 160,
+      width: 90,
       render: (_, r) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => onViewDetail(r)}
-          >
-            详情
-          </Button>
-          <Button
-            type="link"
-            danger
-            size="small"
-            icon={<StopOutlined />}
-            onClick={() => onDissolve(r)}
-          >
-            安全解散
-          </Button>
+          <Tooltip title="查看房间详情">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => onViewDetail(r)}
+            />
+          </Tooltip>
+          <Tooltip title="安全解散房间">
+            <Button
+              type="link"
+              danger
+              size="small"
+              icon={<StopOutlined />}
+              onClick={() => onDissolve(r)}
+            />
+          </Tooltip>
         </Space>
       ),
     },

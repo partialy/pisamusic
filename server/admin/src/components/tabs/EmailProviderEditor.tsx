@@ -8,6 +8,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -94,29 +95,29 @@ export function EmailProviderEditor({ email, onChange }: Props) {
     {
       title: "操作",
       key: "actions",
-      width: 80,
+      width: 60,
       align: "center",
       render: (_, record) => {
         const isSelected = record.code === email.provider;
         return (
-          <Popconfirm
-            title={`确认删除服务商 "${record.name}"？`}
-            disabled={isSelected}
-            onConfirm={() => removeProvider(record.code)}
-            okText="确认删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button
-              type="link"
-              danger
-              size="small"
+          <Tooltip title={isSelected ? "当前默认服务商不可删除" : "删除服务商"}>
+            <Popconfirm
+              title={`确认删除服务商 "${record.name}"？`}
               disabled={isSelected}
-              icon={<DeleteOutlined />}
+              onConfirm={() => removeProvider(record.code)}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
             >
-              删除
-            </Button>
-          </Popconfirm>
+              <Button
+                type="link"
+                danger
+                size="small"
+                disabled={isSelected}
+                icon={<DeleteOutlined />}
+              />
+            </Popconfirm>
+          </Tooltip>
         );
       },
     },

@@ -214,48 +214,48 @@ export default function ShareManagementTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 220,
+      width: 120,
       render: (_, record) => (
         <Space size={4}>
-          <Button
-            type="link"
-            size="small"
-            icon={<ExportOutlined />}
-            href={buildMusicShareWebLink(record.uuid)}
-            target="_blank"
-          >
-            公开页
-          </Button>
-
-          <Button
-            type="link"
-            size="small"
-            icon={<CopyOutlined />}
-            onClick={() => void copyShareLink(record)}
-          >
-            复制
-          </Button>
-
-          <Popconfirm
-            title="确认将该分享标记为失效？"
-            description="标记失效后，公开访问链接将无法继续查看或播放该分享内容。"
-            onConfirm={() => onInvalidate(record)}
-            disabled={!record.valid || invalidatingId === record.uuid}
-            okText="确认失效"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
+          <Tooltip title="在新窗口打开公开页">
             <Button
               type="link"
-              danger
               size="small"
-              icon={<StopOutlined />}
+              icon={<ExportOutlined />}
+              href={buildMusicShareWebLink(record.uuid)}
+              target="_blank"
+            />
+          </Tooltip>
+
+          <Tooltip title="复制公开分享链接">
+            <Button
+              type="link"
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => void copyShareLink(record)}
+            />
+          </Tooltip>
+
+          <Tooltip title={record.valid ? "标记为失效" : "已失效"}>
+            <Popconfirm
+              title="确认将该分享标记为失效？"
+              description="标记失效后，公开访问链接将无法继续查看或播放该分享内容。"
+              onConfirm={() => onInvalidate(record)}
               disabled={!record.valid || invalidatingId === record.uuid}
-              loading={invalidatingId === record.uuid}
+              okText="确认失效"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
             >
-              {record.valid ? "失效" : "已失效"}
-            </Button>
-          </Popconfirm>
+              <Button
+                type="link"
+                danger
+                size="small"
+                icon={<StopOutlined />}
+                disabled={!record.valid || invalidatingId === record.uuid}
+                loading={invalidatingId === record.uuid}
+              />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },

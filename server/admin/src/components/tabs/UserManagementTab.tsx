@@ -177,51 +177,51 @@ export default function UserManagementTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 245,
+      width: 150,
       render: (_, record) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => onView(record)}
-          >
-            详情
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<MessageOutlined />}
-            onClick={() => onMessage({ kind: "user", id: record.id, label: record.username || record.id })}
-          >
-            留言
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => onEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除该用户？"
-            description={`确定删除 "${record.username}" 吗？该账号的收藏与歌单数据将被级联删除。`}
-            onConfirm={() => onDelete(record)}
-            okText="确定删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
+          <Tooltip title="详情">
             <Button
               type="link"
-              danger
               size="small"
-              icon={<DeleteOutlined />}
-              loading={deletingId === record.id}
+              icon={<EyeOutlined />}
+              onClick={() => onView(record)}
+            />
+          </Tooltip>
+          <Tooltip title="发送留言">
+            <Button
+              type="link"
+              size="small"
+              icon={<MessageOutlined />}
+              onClick={() => onMessage({ kind: "user", id: record.id, label: record.username || record.id })}
+            />
+          </Tooltip>
+          <Tooltip title="编辑资料">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+            />
+          </Tooltip>
+          <Tooltip title="删除用户">
+            <Popconfirm
+              title="确认删除该用户？"
+              description={`确定删除 "${record.username}" 吗？该账号的收藏与歌单数据将被级联删除。`}
+              onConfirm={() => onDelete(record)}
+              okText="确定删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
             >
-              删除
-            </Button>
-          </Popconfirm>
+              <Button
+                type="link"
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                loading={deletingId === record.id}
+              />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },

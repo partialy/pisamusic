@@ -10,6 +10,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -271,16 +272,16 @@ export default function HistoryRoomTable({
     {
       title: "操作",
       key: "action",
-      width: 90,
+      width: 60,
       render: (_, r) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => onViewDetail(r)}
-        >
-          详情
-        </Button>
+        <Tooltip title="查看历史房间详情">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => onViewDetail(r)}
+          />
+        </Tooltip>
       ),
     },
   ];

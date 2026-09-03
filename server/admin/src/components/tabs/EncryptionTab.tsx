@@ -9,6 +9,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -220,20 +221,20 @@ export default function EncryptionTab({
     {
       title: "操作",
       key: "actions",
-      width: 90,
+      width: 60,
       align: "center",
       render: (_, record) => (
-        <Popconfirm
-          title={`移除 "${record.path}"？`}
-          onConfirm={() => handleRemove(record.index - 1)}
-          okText="确认移除"
-          cancelText="取消"
-          okButtonProps={{ danger: true }}
-        >
-          <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-            移除
-          </Button>
-        </Popconfirm>
+        <Tooltip title="从白名单移除">
+          <Popconfirm
+            title={`移除 "${record.path}"？`}
+            onConfirm={() => handleRemove(record.index - 1)}
+            okText="确认移除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" danger size="small" icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Tooltip>
       ),
     },
   ];

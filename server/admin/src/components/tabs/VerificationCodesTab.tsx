@@ -326,25 +326,27 @@ export default function VerificationCodesTab({ themeColor: _ }: Props) {
     {
       title: "操作",
       key: "action",
-      width: 80,
+      width: 60,
       fixed: "right",
       render: (_, record) => (
-        <Popconfirm
-          title="确定删除此条验证码记录？"
-          description="删除后无法恢复"
-          okText="确定删除"
-          cancelText="取消"
-          okButtonProps={{ danger: true, loading: deletingId === record.id }}
-          onConfirm={() => handleDelete(record)}
-        >
-          <Button
-            type="text"
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-            loading={deletingId === record.id}
-          />
-        </Popconfirm>
+        <Tooltip title="删除验证码记录">
+          <Popconfirm
+            title="确定删除此条验证码记录？"
+            description="删除后无法恢复"
+            okText="确定删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true, loading: deletingId === record.id }}
+            onConfirm={() => handleDelete(record)}
+          >
+            <Button
+              type="text"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              loading={deletingId === record.id}
+            />
+          </Popconfirm>
+        </Tooltip>
       ),
     },
   ];

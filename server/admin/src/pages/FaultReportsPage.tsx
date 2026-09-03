@@ -56,12 +56,13 @@ export default function FaultReportsPage() {
     }
   };
 
-  const handleFaultReportDelete = async () => {
-    if (!selectedFaultReport || !window.confirm("确定永久删除这批故障上报及全部日志吗？此操作不可撤销。")) return;
+  const handleDeleteFaultReportById = async (id: string) => {
     setFaultReportBusy(true);
     try {
-      await deleteAdminFaultReport(selectedFaultReport.id);
-      setSelectedFaultReport(null);
+      await deleteAdminFaultReport(id);
+      if (selectedFaultReport?.id === id) {
+        setSelectedFaultReport(null);
+      }
       setFaultReportsRefreshKey((k) => k + 1);
     } catch (e) {
       alert(e instanceof Error ? e.message : "删除失败");
@@ -75,6 +76,7 @@ export default function FaultReportsPage() {
       <FaultReportsManagementTab
         themeColor={themeColor}
         onView={(id) => void handleViewFaultReport(id)}
+        onDelete={(id) => void handleDeleteFaultReportById(id)}
         refreshKey={faultReportsRefreshKey}
       />
 
@@ -86,7 +88,7 @@ export default function FaultReportsPage() {
           onStatusChange={(status) => void handleFaultReportStatusChange(status)}
           onExportLog={handleFaultReportLogExport}
           onExportAll={handleFaultReportExportAll}
-          onDelete={() => void handleFaultReportDelete()}
+          onDelete={() => void handleDeleteFaultReportById(selectedFaultReport.id)}
           onClose={() => setSelectedFaultReport(null)}
         />
       )}

@@ -6,6 +6,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -157,46 +158,45 @@ export default function AnnouncementsTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 270,
+      width: 150,
       render: (_, record) => (
         <Space size={4}>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => setPreviewAnnouncement(record)}
-          >
-            预览
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => onEdit(record.index)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<ReadOutlined />}
-            onClick={() => setReadAnnouncement(record)}
-          >
-            已读列表
-          </Button>
-
-          <Popconfirm
-            title="确认删除该条公告？"
-            description="删除后客户端将不再弹窗展示此公告。"
-            onConfirm={() => onDelete(record.index)}
-            okText="确认删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
+          <Tooltip title="预览公告">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => setPreviewAnnouncement(record)}
+            />
+          </Tooltip>
+          <Tooltip title="编辑公告">
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record.index)}
+            />
+          </Tooltip>
+          <Tooltip title="查看已读列表">
+            <Button
+              type="link"
+              size="small"
+              icon={<ReadOutlined />}
+              onClick={() => setReadAnnouncement(record)}
+            />
+          </Tooltip>
+          <Tooltip title="删除公告">
+            <Popconfirm
+              title="确认删除该条公告？"
+              description="删除后客户端将不再弹窗展示此公告。"
+              onConfirm={() => onDelete(record.index)}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button type="link" danger size="small" icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },

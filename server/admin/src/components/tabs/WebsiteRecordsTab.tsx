@@ -164,17 +164,17 @@ export default function WebsiteRecordsTab({ themeColor: _ }: Props) {
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 90,
+      width: 60,
       render: (_, record) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          loading={detailLoadingId === record.id}
-          onClick={() => void openDetail(record.id)}
-        >
-          详情
-        </Button>
+        <Tooltip title="查看访问详情">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            loading={detailLoadingId === record.id}
+            onClick={() => void openDetail(record.id)}
+          />
+        </Tooltip>
       ),
     },
   ];
@@ -249,17 +249,17 @@ export default function WebsiteRecordsTab({ themeColor: _ }: Props) {
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 90,
+      width: 60,
       render: (_, record) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          loading={detailLoadingId === record.id}
-          onClick={() => void openDetail(record.id)}
-        >
-          详情
-        </Button>
+        <Tooltip title="查看下载详情">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            loading={detailLoadingId === record.id}
+            onClick={() => void openDetail(record.id)}
+          />
+        </Tooltip>
       ),
     },
   ];

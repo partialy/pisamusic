@@ -145,64 +145,70 @@ export default function UpdateTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 230,
+      width: 160,
       render: (_, record) => {
         const isCurrent = currentHistoryIds.has(record.id);
         const hasUploadedFile = record.releaseFile?.status === "uploaded";
         return (
           <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => onEdit(record)}
-            >
-              编辑
-            </Button>
+            <Tooltip title="编辑版本">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => onEdit(record)}
+              />
+            </Tooltip>
 
             {hasUploadedFile && (
-              <Popconfirm
-                title="确认删除安装包？"
-                description="将从七牛云物理删除该版本安装包对象，保留发布记录。"
-                onConfirm={() => onDeletePackage(record)}
-                okText="确定删除"
-                cancelText="取消"
-                okButtonProps={{ danger: true }}
-              >
+              <Tooltip title="删除安装包（仅物理删除安装包对象，保留版本记录）">
+                <Popconfirm
+                  title="确认删除安装包？"
+                  description="将从七牛云物理删除该版本安装包对象，保留发布记录。"
+                  onConfirm={() => onDeletePackage(record)}
+                  okText="确定删除"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button
+                    type="link"
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    loading={deletingPackageHistoryId === record.id}
+                  >
+                    包
+                  </Button>
+                </Popconfirm>
+              </Tooltip>
+            )}
+
+            {isCurrent ? (
+              <Tooltip title="当前发布版本不可删除，请先发布替代版本">
+                <span className="inline-block cursor-not-allowed">
+                  <Button
+                    type="link"
+                    disabled
+                    size="small"
+                    icon={<DeleteOutlined />}
+                  >
+                    版
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : (
+              <Tooltip title="删除版本记录">
                 <Button
                   type="link"
                   danger
                   size="small"
                   icon={<DeleteOutlined />}
-                  loading={deletingPackageHistoryId === record.id}
+                  loading={deletingHistoryId === record.id}
+                  onClick={() => onDeleteHistory(record)}
                 >
-                  删包
-                </Button>
-              </Popconfirm>
-            )}
-
-            {isCurrent ? (
-              <Tooltip title="当前发布版本不可删除，请先发布替代版本">
-                <Button
-                  type="link"
-                  disabled
-                  size="small"
-                  icon={<DeleteOutlined />}
-                >
-                  删除版本
+                  版
                 </Button>
               </Tooltip>
-            ) : (
-              <Button
-                type="link"
-                danger
-                size="small"
-                icon={<DeleteOutlined />}
-                loading={deletingHistoryId === record.id}
-                onClick={() => onDeleteHistory(record)}
-              >
-                删除版本
-              </Button>
             )}
           </Space>
         );

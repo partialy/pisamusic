@@ -223,37 +223,37 @@ export default function FileManagementTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 150,
+      width: 90,
       render: (_, record) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => onView(record)}
-          >
-            查看
-          </Button>
-          <Popconfirm
-            title="确认删除该七牛文件？"
-            description="删除后将调用七牛云物理删除对象，并清理发布引用。"
-            onConfirm={() => onDelete(record)}
-            disabled={record.status === "deleted" || deletingId === record.id}
-            okText="确认删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
+          <Tooltip title="查看文件详情">
             <Button
               type="link"
-              danger
               size="small"
-              icon={<DeleteOutlined />}
+              icon={<EyeOutlined />}
+              onClick={() => onView(record)}
+            />
+          </Tooltip>
+          <Tooltip title={record.status === "deleted" ? "文件已删除" : "删除七牛文件与记录"}>
+            <Popconfirm
+              title="确认删除该七牛文件？"
+              description="删除后将调用七牛云物理删除对象，并清理发布引用。"
+              onConfirm={() => onDelete(record)}
               disabled={record.status === "deleted" || deletingId === record.id}
-              loading={deletingId === record.id}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
             >
-              删除
-            </Button>
-          </Popconfirm>
+              <Button
+                type="link"
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                disabled={record.status === "deleted" || deletingId === record.id}
+                loading={deletingId === record.id}
+              />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },

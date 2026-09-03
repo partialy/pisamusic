@@ -9,6 +9,7 @@ import {
   Space,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -293,28 +294,28 @@ export default function ListeningLevelsTab({ themeColor: _ }: Props) {
     {
       title: "操作",
       key: "action",
-      width: 100,
+      width: 60,
       align: "center",
       render: (_, __, index) => (
-        <Popconfirm
-          title="确认删除该等级？"
-          description="删除后后续等级将自动向前重排并调整无上限状态。"
-          onConfirm={() => removeRule(index)}
-          disabled={saving || draftRules.length <= 1}
-          okText="确定"
-          cancelText="取消"
-          okButtonProps={{ danger: true }}
-        >
-          <Button
-            type="link"
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
+        <Tooltip title={saving || draftRules.length <= 1 ? "仅剩一级不可删除" : "删除等级"}>
+          <Popconfirm
+            title="确认删除该等级？"
+            description="删除后后续等级将自动向前重排并调整无上限状态。"
+            onConfirm={() => removeRule(index)}
             disabled={saving || draftRules.length <= 1}
+            okText="确定"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
           >
-            删除
-          </Button>
-        </Popconfirm>
+            <Button
+              type="link"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              disabled={saving || draftRules.length <= 1}
+            />
+          </Popconfirm>
+        </Tooltip>
       ),
     },
   ];

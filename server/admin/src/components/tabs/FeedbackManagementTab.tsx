@@ -6,6 +6,7 @@ import {
   Card,
   Image,
   Input,
+  Popconfirm,
   Select,
   Space,
   Table,
@@ -16,6 +17,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import {
   CheckCircleOutlined,
+  DeleteOutlined,
   EyeOutlined,
   PictureOutlined,
   RedoOutlined,
@@ -40,12 +42,14 @@ type Props = {
   filter: AdminFeedbackFilter;
   loading: boolean;
   updatingId: string | null;
+  deletingId?: string | null;
   themeColor: string;
   onFilterChange: (filter: AdminFeedbackFilter) => void;
   onPageChange: (offset: number) => void;
   onRefresh: () => void;
   onView: (item: AdminFeedbackListItem) => void;
   onStatusChange: (item: AdminFeedbackListItem, status: FeedbackStatus) => void;
+  onDelete: (item: AdminFeedbackListItem) => void;
 };
 
 export default function FeedbackManagementTab({
@@ -56,11 +60,13 @@ export default function FeedbackManagementTab({
   filter,
   loading,
   updatingId,
+  deletingId,
   onFilterChange,
   onPageChange,
   onRefresh,
   onView,
   onStatusChange,
+  onDelete,
 }: Props) {
   const [localStatus, setLocalStatus] = useState<string>(filter.status ?? "");
   const [localType, setLocalType] = useState<string>(filter.type ?? "");
@@ -175,30 +181,48 @@ export default function FeedbackManagementTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 190,
+      width: 120,
       render: (_, record) => {
         const isProcessed = record.status === "processed";
         const nextStatus: FeedbackStatus = isProcessed ? "pending" : "processed";
         return (
           <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => onView(record)}
-            >
-              详情
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={isProcessed ? <RedoOutlined /> : <CheckCircleOutlined />}
-              loading={updatingId === record.id}
-              className={isProcessed ? "!text-amber-600" : "!text-emerald-600"}
-              onClick={() => onStatusChange(record, nextStatus)}
-            >
-              {isProcessed ? "恢复待处理" : "标记已处理"}
-            </Button>
+            <Tooltip title="查看反馈详情">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => onView(record)}
+              />
+            </Tooltip>
+            <Tooltip title={isProcessed ? "恢复为待处理" : "标记为已处理"}>
+              <Button
+                type="link"
+                size="small"
+                icon={isProcessed ? <RedoOutlined /> : <CheckCircleOutlined />}
+                loading={updatingId === record.id}
+                className={isProcessed ? "!text-amber-600" : "!text-emerald-600"}
+                onClick={() => onStatusChange(record, nextStatus)}
+              />
+            </Tooltip>
+            <Tooltip title="删除反馈记录">
+              <Popconfirm
+                title="确认删除该条反馈记录？"
+                description="删除后将永久清理该反馈及其附件图片！"
+                onConfirm={() => onDelete(record)}
+                okText="确定删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  type="link"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  loading={deletingId === record.id}
+                />
+              </Popconfirm>
+            </Tooltip>
           </Space>
         );
       },

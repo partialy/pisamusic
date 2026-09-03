@@ -1,5 +1,6 @@
-import { Popconfirm, Table, Tag, Typography } from "antd";
+import { Button, Popconfirm, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { DeleteOutlined } from "@ant-design/icons";
 import type { AdminDirectMessageItem, AdminDirectMessagePage } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
 
@@ -54,19 +55,26 @@ export default function UserDirectMessagesPanel({ page, loading, onPageChange, o
     {
       title: "操作",
       key: "actions",
-      width: 90,
+      width: 60,
       align: "center",
       render: (_value, record) => (
-        <Popconfirm
-          title="确认删除这条留言吗？"
-          description="删除后该留言将不再被客户端拉取。"
-          okText="删除"
-          cancelText="取消"
-          okButtonProps={{ danger: true }}
-          onConfirm={() => onDelete(record.id)}
-        >
-          <a className="text-red-500">删除</a>
-        </Popconfirm>
+        <Tooltip title="删除留言">
+          <Popconfirm
+            title="确认删除这条留言吗？"
+            description="删除后该留言将不再被客户端拉取。"
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => onDelete(record.id)}
+          >
+            <Button
+              type="link"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
+        </Tooltip>
       ),
     },
   ];

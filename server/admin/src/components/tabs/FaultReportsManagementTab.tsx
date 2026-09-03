@@ -3,7 +3,9 @@ import {
   Button,
   Card,
   Input,
+  Popconfirm,
   Select,
+  Space,
   Table,
   Tag,
   Tooltip,
@@ -11,6 +13,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
+  DeleteOutlined,
   EyeOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -35,6 +38,7 @@ const LIMIT = 20;
 type Props = {
   themeColor: string;
   onView: (id: string) => void;
+  onDelete?: (id: string) => void;
   refreshKey?: number;
 };
 
@@ -48,6 +52,7 @@ function formatEnvironment(item: AdminFaultReportListItem) {
 export default function FaultReportsManagementTab({
   themeColor: _,
   onView,
+  onDelete,
   refreshKey,
 }: Props) {
   const [items, setItems] = useState<AdminFaultReportListItem[]>([]);
@@ -193,14 +198,35 @@ export default function FaultReportsManagementTab({
       fixed: "right",
       width: 90,
       render: (_, record) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => onView(record.id)}
-        >
-          详情
-        </Button>
+        <Space size="small">
+          <Tooltip title="查看故障详情">
+            <Button
+              type="link"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => onView(record.id)}
+            />
+          </Tooltip>
+          {onDelete && (
+            <Tooltip title="删除故障报告">
+              <Popconfirm
+                title="确认删除该故障上报？"
+                description="删除后将永久清理该故障报告及其全部子日志！"
+                onConfirm={() => onDelete(record.id)}
+                okText="确定删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  type="link"
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                />
+              </Popconfirm>
+            </Tooltip>
+          )}
+        </Space>
       ),
     },
   ];

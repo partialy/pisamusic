@@ -837,6 +837,15 @@ export async function updateAdminFeedbackStatus(id: string, status: FeedbackStat
   return body.data;
 }
 
+export async function deleteAdminFeedback(id: string): Promise<void> {
+  const res = await fetchWithAuth(`/api/admin/feedback/${encodeURIComponent(id)}`, { method: "DELETE" });
+  const body = await parseJson<null>(res);
+  if (!res.ok || !body.success) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+}
+
+
 export async function fetchAdminFaultReports(filter: AdminFaultReportFilter): Promise<AdminFaultReportListResponse> {
   const params = new URLSearchParams();
   if (filter.status) params.set("status", filter.status);

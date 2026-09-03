@@ -111,41 +111,41 @@ export default function DynamicConfigTab({
       title: "操作",
       key: "actions",
       fixed: "right",
-      width: 180,
+      width: 120,
       render: (_, record) => (
         <Space size={4}>
           {record.type === "html" && (
+            <Tooltip title="预览 HTML 内容">
+              <Button
+                type="link"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => setPreviewHtmlItem(record)}
+              />
+            </Tooltip>
+          )}
+
+          <Tooltip title="编辑配置">
             <Button
               type="link"
               size="small"
-              icon={<EyeOutlined />}
-              onClick={() => setPreviewHtmlItem(record)}
+              icon={<EditOutlined />}
+              onClick={() => onEdit(record)}
+            />
+          </Tooltip>
+
+          <Tooltip title="删除配置">
+            <Popconfirm
+              title={`确认删除配置 "${record.id}"？`}
+              description="删除后，客户端请求此 ID 将不再返回该配置内容。"
+              onConfirm={() => onDelete(record)}
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
             >
-              预览
-            </Button>
-          )}
-
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => onEdit(record)}
-          >
-            编辑
-          </Button>
-
-          <Popconfirm
-            title={`确认删除配置 "${record.id}"？`}
-            description="删除后，客户端请求此 ID 将不再返回该配置内容。"
-            onConfirm={() => onDelete(record)}
-            okText="确认删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
+              <Button type="link" danger size="small" icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },
