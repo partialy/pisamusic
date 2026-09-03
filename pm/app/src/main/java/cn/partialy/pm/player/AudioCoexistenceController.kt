@@ -9,6 +9,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import androidx.annotation.RequiresApi
 import cn.partialy.pm.utils.SettingsPrefs
 import java.util.concurrent.Executor
@@ -27,9 +28,13 @@ internal enum class AudioCoexistencePauseDisposition {
 
 internal data class AudioCoexistenceSnapshot(
     val communicationPlaybackActive: Boolean,
+    val foreignMediaPlaybackActive: Boolean,
     val recordingActive: Boolean,
     val communicationModeActive: Boolean,
     val blocking: Boolean,
+    val cjActive: Boolean,
+    val manualPlayOverrideActive: Boolean,
+    val mode: SettingsPrefs.AudioCoexistenceMode?,
     val command: AudioCoexistenceCommand,
 )
 
@@ -39,6 +44,15 @@ internal class AudioCoexistenceStateMachine {
     private var manualPlayOverrideActive = false
     private var resumeWhenClear = false
     private var awaitingOwnPauseCallback = false
+
+    val currentMode: SettingsPrefs.AudioCoexistenceMode
+        get() = mode
+
+    val isCjActive: Boolean
+        get() = cjActive
+
+    val isManualPlayOverrideActive: Boolean
+        get() = manualPlayOverrideActive
 
     fun setMode(
         mode: SettingsPrefs.AudioCoexistenceMode,
@@ -151,6 +165,7 @@ internal object AudioInterruptionClassifier {
             MediaRecorder.AudioSource.VOICE_COMMUNICATION,
             MediaRecorder.AudioSource.UNPROCESSED,
             MediaRecorder.AudioSource.VOICE_PERFORMANCE,
+            MediaRecorder.AudioSource.REMOTE_SUBMIX,
             -> true
             else -> false
         }
@@ -163,6 +178,21 @@ internal object AudioInterruptionClassifier {
         AudioManager.MODE_CALL_SCREENING,
         -> true
         else -> false
+    }
+
+    fun isCjActive(
+        mode: SettingsPrefs.AudioCoexistenceMode,
+        communicationPlaybackActive: Boolean,
+        foreignMediaPlaybackActive: Boolean,
+        recordingActive: Boolean,
+        communicationModeActive: Boolean,
+    ): Boolean {
+        val partialCjActive = communicationPlaybackActive || recordingActive || communicationModeActive
+        return when (mode) {
+            SettingsPrefs.AudioCoexistenceMode.All -> false
+            SettingsPrefs.AudioCoexistenceMode.Partial -> partialCjActive
+            SettingsPrefs.AudioCoexistenceMode.Off -> partialCjActive || foreignMediaPlaybackActive
+        }
     }
 }
 
@@ -179,6 +209,7 @@ internal class AudioCoexistenceController(
     private val stateMachine = AudioCoexistenceStateMachine()
     private var observing = false
     private var communicationPlaybackActive = false
+    private var foreignMediaPlaybackActive = false
     private var recordingActive = false
     private var communicationModeActive = false
     private var modeChangeObserver: ModeChangeObserver? = null
@@ -186,12 +217,16 @@ internal class AudioCoexistenceController(
 
     private val playbackCallback = object : AudioManager.AudioPlaybackCallback() {
         override fun onPlaybackConfigChanged(configs: List<AudioPlaybackConfiguration>) {
-            communicationPlaybackActive = configs.any { config ->
-                AudioInterruptionClassifier.isCommunicationUsage(
-                    config.audioAttributes.usage,
-                )
+            val activeExternalConfigs = configs.filter { config ->
+                config.isActiveExternalPlayback()
             }
-            updateBlockingState()
+            communicationPlaybackActive = activeExternalConfigs.any { config ->
+                AudioInterruptionClassifier.isCommunicationUsage(config.audioAttributes.usage)
+            }
+            foreignMediaPlaybackActive = activeExternalConfigs.any { config ->
+                !AudioInterruptionClassifier.isCommunicationUsage(config.audioAttributes.usage)
+            }
+            updateCjState()
         }
     }
 
@@ -203,7 +238,7 @@ internal class AudioCoexistenceController(
                     clientSilenced = config.isClientSilenced,
                 )
             }
-            updateBlockingState()
+            updateCjState()
         }
     }
 
@@ -216,20 +251,24 @@ internal class AudioCoexistenceController(
     }
 
     fun applyMode(mode: SettingsPrefs.AudioCoexistenceMode) {
-        val partial = mode == SettingsPrefs.AudioCoexistenceMode.Partial
-        val command = stateMachine.setPartialEnabled(partial, isPlaybackActive())
-        if (partial) {
-            startObserving()
-            dispatch(command)
-        } else {
+        if (mode == SettingsPrefs.AudioCoexistenceMode.All) {
+            stateMachine.setMode(mode, cjActive = false, playbackActive = isPlaybackActive())
             stopObserving()
             emitSnapshot(AudioCoexistenceCommand.None)
+            return
         }
+        val command = stateMachine.setMode(
+            mode = mode,
+            cjActive = currentCjActive(mode),
+            playbackActive = isPlaybackActive(),
+        )
+        dispatch(command)
+        startObserving()
     }
 
     fun onPlaybackStarted() {
         if (!observing) return
-        updateBlockingState()
+        updateCjState(dispatchCommand = false)
     }
 
     fun onPlayWhenReadyChanged(playWhenReady: Boolean): AudioCoexistencePauseDisposition =
@@ -246,7 +285,7 @@ internal class AudioCoexistenceController(
 
     private fun startObserving() {
         if (observing) {
-            updateBlockingState()
+            updateCjState()
             return
         }
         observing = true
@@ -266,19 +305,22 @@ internal class AudioCoexistenceController(
     }
 
     private fun stopObserving() {
-        if (!observing) return
+        val wasObserving = observing
         observing = false
         mainHandler.removeCallbacks(legacyModePoll)
-        runCatching { audioManager.unregisterAudioPlaybackCallback(playbackCallback) }
-        runCatching { audioManager.unregisterAudioRecordingCallback(recordingCallback) }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            modeChangeObserver?.let { observer -> runCatching { observer.stop() } }
-            modeChangeObserver = null
+        if (wasObserving) {
+            runCatching { audioManager.unregisterAudioPlaybackCallback(playbackCallback) }
+            runCatching { audioManager.unregisterAudioRecordingCallback(recordingCallback) }
         }
+        if (wasObserving && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            modeChangeObserver?.let { observer -> runCatching { observer.stop() } }
+        }
+        modeChangeObserver = null
         communicationPlaybackActive = false
+        foreignMediaPlaybackActive = false
         recordingActive = false
         communicationModeActive = false
-        emitSnapshot(AudioCoexistenceCommand.None)
+        lastSnapshot = null
     }
 
     private fun refreshActiveConfigurations() {
@@ -290,16 +332,20 @@ internal class AudioCoexistenceController(
 
     private fun updateCommunicationMode(mode: Int) {
         communicationModeActive = AudioInterruptionClassifier.isCommunicationMode(mode)
-        updateBlockingState()
+        updateCjState()
     }
 
-    private fun updateBlockingState() {
+    private fun updateCjState(dispatchCommand: Boolean = true) {
         if (!observing) return
-        val command = stateMachine.updateBlocking(
-            isBlocking = communicationPlaybackActive || recordingActive || communicationModeActive,
+        val command = stateMachine.updateCj(
+            cjActive = currentCjActive(stateMachine.currentMode),
             playbackActive = isPlaybackActive(),
         )
-        dispatch(command)
+        if (dispatchCommand) {
+            dispatch(command)
+        } else {
+            emitSnapshot(AudioCoexistenceCommand.None)
+        }
     }
 
     private fun dispatch(command: AudioCoexistenceCommand) {
@@ -314,14 +360,41 @@ internal class AudioCoexistenceController(
     private fun emitSnapshot(command: AudioCoexistenceCommand) {
         val snapshot = AudioCoexistenceSnapshot(
             communicationPlaybackActive = communicationPlaybackActive,
+            foreignMediaPlaybackActive = foreignMediaPlaybackActive,
             recordingActive = recordingActive,
             communicationModeActive = communicationModeActive,
-            blocking = communicationPlaybackActive || recordingActive || communicationModeActive,
+            blocking = stateMachine.isCjActive,
+            cjActive = stateMachine.isCjActive,
+            manualPlayOverrideActive = stateMachine.isManualPlayOverrideActive,
+            mode = stateMachine.currentMode,
             command = command,
         )
         if (snapshot == lastSnapshot) return
         lastSnapshot = snapshot
         onSnapshotChanged(snapshot)
+    }
+
+    private fun currentCjActive(mode: SettingsPrefs.AudioCoexistenceMode): Boolean =
+        AudioInterruptionClassifier.isCjActive(
+            mode = mode,
+            communicationPlaybackActive = communicationPlaybackActive,
+            foreignMediaPlaybackActive = foreignMediaPlaybackActive,
+            recordingActive = recordingActive,
+            communicationModeActive = communicationModeActive,
+        )
+
+    /**
+     * 部分公开 SDK 存根未暴露配置归属和活跃状态，但 Android 运行时回调对象提供这两个属性。
+     * 读取失败时保守地不把该配置认定为外部 CJ，避免误暂停当前播放。
+     */
+    private fun AudioPlaybackConfiguration.isActiveExternalPlayback(): Boolean {
+        val active = runCatching {
+            javaClass.getMethod("isActive").invoke(this) as Boolean
+        }.getOrDefault(false)
+        val clientUid = runCatching {
+            javaClass.getMethod("getClientUid").invoke(this) as Int
+        }.getOrNull()
+        return active && clientUid != null && clientUid != Process.myUid()
     }
 
     private companion object {

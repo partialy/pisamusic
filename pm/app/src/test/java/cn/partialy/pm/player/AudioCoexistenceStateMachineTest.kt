@@ -35,11 +35,38 @@ class AudioCoexistenceStateMachineTest {
     }
 
     @Test
-    fun `partial mode does not pause for non blocking media CJ`() {
-        val state = AudioCoexistenceStateMachine()
+    fun `off pauses for foreign media CJ while partial does not`() {
+        val offState = AudioCoexistenceStateMachine()
+        offState.setMode(SettingsPrefs.AudioCoexistenceMode.Off, cjActive = false, playbackActive = true)
+        assertEquals(
+            AudioCoexistenceCommand.Pause,
+            offState.updateCj(
+                cjActive = AudioInterruptionClassifier.isCjActive(
+                    mode = SettingsPrefs.AudioCoexistenceMode.Off,
+                    communicationPlaybackActive = false,
+                    foreignMediaPlaybackActive = true,
+                    recordingActive = false,
+                    communicationModeActive = false,
+                ),
+                playbackActive = true,
+            ),
+        )
 
-        state.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
-        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = false, playbackActive = true))
+        val partialState = AudioCoexistenceStateMachine()
+        partialState.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
+        assertEquals(
+            AudioCoexistenceCommand.None,
+            partialState.updateCj(
+                cjActive = AudioInterruptionClassifier.isCjActive(
+                    mode = SettingsPrefs.AudioCoexistenceMode.Partial,
+                    communicationPlaybackActive = false,
+                    foreignMediaPlaybackActive = true,
+                    recordingActive = false,
+                    communicationModeActive = false,
+                ),
+                playbackActive = true,
+            ),
+        )
     }
 
     @Test
@@ -108,12 +135,18 @@ class AudioCoexistenceStateMachineTest {
     }
 
     @Test
-    fun `communication and recording classifiers exclude normal media and silenced capture`() {
+    fun `communication and recording classifiers distinguish media remote submix and silenced capture`() {
         assertTrue(AudioInterruptionClassifier.isCommunicationUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION))
         assertFalse(AudioInterruptionClassifier.isCommunicationUsage(AudioAttributes.USAGE_MEDIA))
         assertTrue(
             AudioInterruptionClassifier.isBlockingRecording(
                 MediaRecorder.AudioSource.MIC,
+                clientSilenced = false,
+            ),
+        )
+        assertTrue(
+            AudioInterruptionClassifier.isBlockingRecording(
+                MediaRecorder.AudioSource.REMOTE_SUBMIX,
                 clientSilenced = false,
             ),
         )
