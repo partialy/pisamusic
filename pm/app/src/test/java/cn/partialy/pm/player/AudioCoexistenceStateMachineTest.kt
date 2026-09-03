@@ -11,41 +11,100 @@ import org.junit.Test
 
 class AudioCoexistenceStateMachineTest {
     @Test
-    fun `active playback pauses for blocker and resumes when blocker clears`() {
+    fun `manual play during an existing CJ is not paused until CJ re-enters`() {
         val state = AudioCoexistenceStateMachine()
 
-        assertEquals(AudioCoexistenceCommand.None, state.setPartialEnabled(true, playbackActive = true))
-        assertEquals(AudioCoexistenceCommand.Pause, state.updateBlocking(true, playbackActive = true))
-        assertEquals(AudioCoexistenceCommand.Resume, state.updateBlocking(false, playbackActive = false))
+        state.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
+        assertEquals(AudioCoexistenceCommand.Pause, state.updateCj(cjActive = true, playbackActive = true))
+        state.onManualPlayRequested()
+        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = true, playbackActive = true))
+        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = false, playbackActive = true))
+        assertEquals(AudioCoexistenceCommand.Pause, state.updateCj(cjActive = true, playbackActive = true))
     }
 
     @Test
-    fun `paused playback is not started when blocker clears`() {
+    fun `off mode follows the same CJ edge rule`() {
         val state = AudioCoexistenceStateMachine()
 
-        state.setPartialEnabled(true, playbackActive = false)
-        assertEquals(AudioCoexistenceCommand.None, state.updateBlocking(true, playbackActive = false))
-        assertEquals(AudioCoexistenceCommand.None, state.updateBlocking(false, playbackActive = false))
+        state.setMode(SettingsPrefs.AudioCoexistenceMode.Off, cjActive = false, playbackActive = true)
+        assertEquals(AudioCoexistenceCommand.Pause, state.updateCj(cjActive = true, playbackActive = true))
+        state.onManualPlayRequested()
+        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = true, playbackActive = true))
+        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = false, playbackActive = true))
+        assertEquals(AudioCoexistenceCommand.Pause, state.updateCj(cjActive = true, playbackActive = true))
     }
 
     @Test
-    fun `manual pause while blocked cancels automatic resume`() {
+    fun `partial mode does not pause for non blocking media CJ`() {
         val state = AudioCoexistenceStateMachine()
 
-        state.setPartialEnabled(true, playbackActive = true)
-        assertEquals(AudioCoexistenceCommand.Pause, state.updateBlocking(true, playbackActive = true))
-        state.onUserPauseRequested()
-        assertEquals(AudioCoexistenceCommand.None, state.updateBlocking(false, playbackActive = false))
+        state.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
+        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = false, playbackActive = true))
     }
 
     @Test
-    fun `play attempt while blocked is paused and resumes later`() {
+    fun `all mode never pauses`() {
         val state = AudioCoexistenceStateMachine()
 
-        state.setPartialEnabled(true, playbackActive = false)
-        state.updateBlocking(true, playbackActive = false)
-        assertEquals(AudioCoexistenceCommand.Pause, state.updateBlocking(true, playbackActive = true))
-        assertEquals(AudioCoexistenceCommand.Resume, state.updateBlocking(false, playbackActive = false))
+        state.setMode(SettingsPrefs.AudioCoexistenceMode.All, cjActive = false, playbackActive = true)
+        assertEquals(AudioCoexistenceCommand.None, state.updateCj(cjActive = true, playbackActive = true))
+    }
+
+    @Test
+    fun `user and external pauses cancel automatic resume`() {
+        val userPauseState = AudioCoexistenceStateMachine()
+        userPauseState.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
+        assertEquals(AudioCoexistenceCommand.Pause, userPauseState.updateCj(cjActive = true, playbackActive = true))
+        userPauseState.cancelPendingResume()
+        assertEquals(AudioCoexistenceCommand.None, userPauseState.updateCj(cjActive = false, playbackActive = false))
+
+        val externalPauseState = AudioCoexistenceStateMachine()
+        externalPauseState.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
+        assertEquals(AudioCoexistenceCommand.Pause, externalPauseState.updateCj(cjActive = true, playbackActive = true))
+        assertEquals(AudioCoexistencePauseDisposition.OWN_PAUSE_OBSERVED, externalPauseState.onPlayWhenReadyChanged(false))
+        assertEquals(AudioCoexistencePauseDisposition.EXTERNAL_PAUSE_CANCELLED_RESUME, externalPauseState.onPlayWhenReadyChanged(false))
+        assertEquals(AudioCoexistenceCommand.None, externalPauseState.updateCj(cjActive = false, playbackActive = false))
+    }
+
+    @Test
+    fun `policy pause callback only confirms the matching policy pause`() {
+        val unconfirmedState = AudioCoexistenceStateMachine()
+        unconfirmedState.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
+        assertEquals(AudioCoexistenceCommand.Pause, unconfirmedState.updateCj(cjActive = true, playbackActive = true))
+        assertEquals(AudioCoexistenceCommand.None, unconfirmedState.updateCj(cjActive = false, playbackActive = false))
+
+        val state = AudioCoexistenceStateMachine()
+
+        state.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
+        assertEquals(AudioCoexistenceCommand.Pause, state.updateCj(cjActive = true, playbackActive = true))
+        assertEquals(AudioCoexistencePauseDisposition.OWN_PAUSE_OBSERVED, state.onPlayWhenReadyChanged(false))
+        assertEquals(AudioCoexistenceCommand.Resume, state.updateCj(cjActive = false, playbackActive = false))
+    }
+
+    @Test
+    fun `switching from all evaluates an active CJ as a new policy activation`() {
+        val state = AudioCoexistenceStateMachine()
+
+        state.setMode(SettingsPrefs.AudioCoexistenceMode.All, cjActive = true, playbackActive = true)
+        assertEquals(
+            AudioCoexistenceCommand.Pause,
+            state.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = true, playbackActive = true),
+        )
+    }
+
+    @Test
+    fun `reset clears all state`() {
+        val state = AudioCoexistenceStateMachine()
+
+        state.setMode(SettingsPrefs.AudioCoexistenceMode.Partial, cjActive = false, playbackActive = true)
+        state.updateCj(cjActive = true, playbackActive = true)
+        state.onManualPlayRequested()
+        state.reset()
+
+        assertEquals(
+            AudioCoexistenceCommand.Pause,
+            state.setMode(SettingsPrefs.AudioCoexistenceMode.Off, cjActive = true, playbackActive = true),
+        )
     }
 
     @Test
@@ -59,11 +118,7 @@ class AudioCoexistenceStateMachineTest {
             ),
         )
         assertFalse(
-            AudioInterruptionClassifier.isBlockingRecording(
-                MediaRecorder.AudioSource.MIC,
-                clientSilenced = true,
-            ),
-        )
+            AudioInterruptionClassifier.isBlockingRecording(MediaRecorder.AudioSource.MIC, clientSilenced = true))
         assertTrue(AudioInterruptionClassifier.isCommunicationMode(AudioManager.MODE_IN_COMMUNICATION))
         assertFalse(AudioInterruptionClassifier.isCommunicationMode(AudioManager.MODE_NORMAL))
     }
@@ -73,20 +128,6 @@ class AudioCoexistenceStateMachineTest {
         SettingsPrefs.AudioCoexistenceMode.values().forEach { mode ->
             assertEquals(mode, SettingsPrefs.AudioCoexistenceMode.fromPrefValue(mode.prefValue))
         }
-        assertEquals(
-            SettingsPrefs.AudioCoexistenceMode.Off,
-            SettingsPrefs.AudioCoexistenceMode.fromPrefValue(Int.MAX_VALUE),
-        )
-    }
-
-    @Test
-    fun `reset clears pending resume during player release`() {
-        val state = AudioCoexistenceStateMachine()
-
-        state.setPartialEnabled(true, playbackActive = true)
-        state.updateBlocking(true, playbackActive = true)
-        state.reset()
-
-        assertEquals(AudioCoexistenceCommand.None, state.setPartialEnabled(false, playbackActive = false))
+        assertEquals(SettingsPrefs.AudioCoexistenceMode.Off, SettingsPrefs.AudioCoexistenceMode.fromPrefValue(Int.MAX_VALUE))
     }
 }

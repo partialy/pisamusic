@@ -34,57 +34,63 @@ internal data class AudioCoexistenceSnapshot(
 )
 
 internal class AudioCoexistenceStateMachine {
-    private var partialEnabled = false
-    private var blocking = false
+    private var mode = SettingsPrefs.AudioCoexistenceMode.All
+    private var cjActive = false
+    private var manualPlayOverrideActive = false
     private var resumeWhenClear = false
     private var awaitingOwnPauseCallback = false
 
-    fun setPartialEnabled(enabled: Boolean, playbackActive: Boolean): AudioCoexistenceCommand {
-        if (partialEnabled == enabled) {
-            return if (enabled && blocking && playbackActive) {
-                resumeWhenClear = true
-                awaitingOwnPauseCallback = true
-                AudioCoexistenceCommand.Pause
-            } else {
-                AudioCoexistenceCommand.None
-            }
-        }
-        partialEnabled = enabled
-        if (!enabled) {
-            blocking = false
-            resumeWhenClear = false
-            awaitingOwnPauseCallback = false
+    fun setMode(
+        mode: SettingsPrefs.AudioCoexistenceMode,
+        cjActive: Boolean,
+        playbackActive: Boolean,
+    ): AudioCoexistenceCommand {
+        if (this.mode == mode) return AudioCoexistenceCommand.None
+
+        val previousMode = this.mode
+        this.mode = mode
+        if (!modeRequiresPause()) {
+            clearState()
             return AudioCoexistenceCommand.None
         }
-        return AudioCoexistenceCommand.None
+
+        if (previousMode == SettingsPrefs.AudioCoexistenceMode.All) {
+            clearState()
+        }
+        return updateCj(cjActive, playbackActive)
     }
 
-    fun updateBlocking(isBlocking: Boolean, playbackActive: Boolean): AudioCoexistenceCommand {
-        if (!partialEnabled) return AudioCoexistenceCommand.None
-        if (blocking == isBlocking) {
-            return if (isBlocking && playbackActive) {
-                resumeWhenClear = true
-                awaitingOwnPauseCallback = true
-                AudioCoexistenceCommand.Pause
-            } else {
-                AudioCoexistenceCommand.None
-            }
-        }
-        blocking = isBlocking
-        if (isBlocking) {
-            if (!playbackActive) return AudioCoexistenceCommand.None
+    fun updateCj(cjActive: Boolean, playbackActive: Boolean): AudioCoexistenceCommand {
+        if (!modeRequiresPause()) return AudioCoexistenceCommand.None
+
+        val cjEntered = !this.cjActive && cjActive
+        val cjExited = this.cjActive && !cjActive
+        this.cjActive = cjActive
+        if (cjEntered) {
+            if (!playbackActive || manualPlayOverrideActive) return AudioCoexistenceCommand.None
             resumeWhenClear = true
             awaitingOwnPauseCallback = true
             return AudioCoexistenceCommand.Pause
         }
+        if (!cjExited) return AudioCoexistenceCommand.None
+
+        manualPlayOverrideActive = false
         val shouldResume = resumeWhenClear && !awaitingOwnPauseCallback
         resumeWhenClear = false
         awaitingOwnPauseCallback = false
         return if (shouldResume) AudioCoexistenceCommand.Resume else AudioCoexistenceCommand.None
     }
 
+    fun onManualPlayRequested() {
+        if (modeRequiresPause() && cjActive) {
+            resumeWhenClear = false
+            awaitingOwnPauseCallback = false
+            manualPlayOverrideActive = true
+        }
+    }
+
     fun onPlayWhenReadyChanged(playWhenReady: Boolean): AudioCoexistencePauseDisposition {
-        if (!partialEnabled) return AudioCoexistencePauseDisposition.NONE
+        if (!modeRequiresPause()) return AudioCoexistencePauseDisposition.NONE
         if (playWhenReady) return AudioCoexistencePauseDisposition.NONE
         if (awaitingOwnPauseCallback) {
             awaitingOwnPauseCallback = false
@@ -100,8 +106,26 @@ internal class AudioCoexistenceStateMachine {
     }
 
     fun reset() {
-        partialEnabled = false
-        blocking = false
+        mode = SettingsPrefs.AudioCoexistenceMode.All
+        clearState()
+    }
+
+    // Task 2 will replace the controller call sites with the explicit CJ API.
+    fun setPartialEnabled(enabled: Boolean, playbackActive: Boolean): AudioCoexistenceCommand =
+        setMode(
+            mode = if (enabled) SettingsPrefs.AudioCoexistenceMode.Partial else SettingsPrefs.AudioCoexistenceMode.All,
+            cjActive = cjActive,
+            playbackActive = playbackActive,
+        )
+
+    fun updateBlocking(isBlocking: Boolean, playbackActive: Boolean): AudioCoexistenceCommand =
+        updateCj(cjActive = isBlocking, playbackActive = playbackActive)
+
+    private fun modeRequiresPause(): Boolean = mode != SettingsPrefs.AudioCoexistenceMode.All
+
+    private fun clearState() {
+        cjActive = false
+        manualPlayOverrideActive = false
         resumeWhenClear = false
         awaitingOwnPauseCallback = false
     }
