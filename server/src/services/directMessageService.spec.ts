@@ -192,6 +192,26 @@ test("deleting recipient cascades its direct messages", async () => {
   assert.equal(row.count, 0);
 });
 
+test("admin deletion removes only the selected user or device message", async () => {
+  await seedRecipients();
+  const messages = await store();
+  messages.insertDirectMessage({ id: "user-message", target: { kind: "user", id: "u1" }, content: "user", createdByAdmin: "admin", createdAt: 10 });
+  messages.insertDirectMessage({ id: "device-message", target: { kind: "android_device", id: "d1" }, content: "device", createdByAdmin: "admin", createdAt: 20 });
+
+  assert.equal(messages.deleteDirectMessage("user-message"), true);
+  assert.equal(messages.deleteDirectMessage("user-message"), false);
+  assert.deepEqual(
+    messages.listUnreadDirectMessages({ userId: "u1", device: { kind: "android", id: "d1" } }, 50).items.map((item) => item.id),
+    ["device-message"],
+  );
+});
+
+test("service rejects deletion of a missing message", async () => {
+  await seedRecipients();
+  const service = await import("./directMessageService.js");
+  assert.throws(() => service.deleteDirectMessageById("missing"), service.DirectMessageNotFoundError);
+});
+
 test("service validates content and concrete recipients", async () => {
   await seedRecipients();
   const service = await import("./directMessageService.js");

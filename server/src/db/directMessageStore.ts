@@ -241,6 +241,12 @@ export function listAdminDirectMessages(input: ListAdminDirectMessagesInput = {}
   return { items: rows.map(mapRow), total: totalRow.count };
 }
 
+export function deleteDirectMessage(id: string): boolean {
+  const messageId = nonEmpty(id, "消息 ID");
+  const result = getAppDb().prepare("DELETE FROM direct_messages WHERE id = ?").run(messageId);
+  return result.changes > 0;
+}
+
 export function markDirectMessageRead(
   identity: DirectMessageIdentity,
   id: string,

@@ -352,3 +352,4 @@
 | :--- | :--- | :--- | :--- |
 | 向用户或设备发送专属消息 | `POST` | `/api/admin/messages` | [./admin/sendDirectMessage.md](./admin/sendDirectMessage.md) |
 | 分页查询专属消息发送记录 | `GET` | `/api/admin/messages` | [./admin/listDirectMessages.md](./admin/listDirectMessages.md) |
+| 删除专属消息记录 | `DELETE` | `/api/admin/messages/:id` | [./admin/deleteDirectMessage.md](./admin/deleteDirectMessage.md) |

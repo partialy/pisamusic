@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getDeviceDb } from "../db/deviceInfoDb";
 import {
+  deleteDirectMessage,
   insertDirectMessage,
   listAdminDirectMessages,
   listUnreadDirectMessages,
@@ -43,6 +44,8 @@ export type AdminDirectMessagePage = {
 export class DirectMessageValidationError extends Error {}
 
 export class DirectMessageTargetNotFoundError extends Error {}
+
+export class DirectMessageNotFoundError extends Error {}
 
 export type CreateDirectMessageInput = {
   targetKind: unknown;
@@ -161,4 +164,12 @@ export function listAdminDirectMessagePage(input: ListAdminDirectMessagesInput =
     offset,
     limit,
   };
+}
+
+export function deleteDirectMessageById(id: unknown): { id: string } {
+  const messageId = normalizeText(id, "消息 ID", 128);
+  if (!deleteDirectMessage(messageId)) {
+    throw new DirectMessageNotFoundError("消息不存在");
+  }
+  return { id: messageId };
 }
