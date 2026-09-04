@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PisaMusic 在线收听</title>
+    <meta
+      name="description"
+      content="PisaMusic 在线收听，支持多音源极速检索与播放，动态歌词同步。"
+    />
+    <meta name="keywords" content="PisaMusic在线听歌,PisaMusic网页版,多音源音乐搜索,网页音乐播放器" />
+    <meta name="theme-color" content="#27B8F4" />
+    <link rel="icon" type="image/png" href="/assets/app-icon.png" />
+
+    <!-- 样式与 Tailwind -->
+    <link rel="stylesheet" href="/css/style.css" />
+    <script src="/tailwind.js"></script>
+    <script src="/js/config.js"></script>
+    <style>
+      @keyframes spin-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin-slow {
+        animation: spin-slow 16s linear infinite;
+      }
+      .animate-fadeIn {
+        animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.97); }
+        to { opacity: 1; transform: scale(1); }
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-[#f8fcff] text-slate-900 pb-36 select-none font-sans">
+    <!-- 顶部固定导航栏 -->
+    <header class="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-md">
+      <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-8">
+        <a href="/" class="flex items-center gap-2.5 group cursor-pointer" title="PisaMusic 首页">
+          <img src="/assets/app-icon.png" alt="PisaMusic" class="h-8 w-8 rounded-xl shadow-sm group-hover:scale-[1.03] transition-all duration-300" />
+          <span class="font-bold text-slate-900 tracking-tight text-base group-hover:text-sky-600 transition-colors duration-300">PisaMusic</span>
+        </a>
+
+        <div class="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            id="headerDownloadBtn"
+            class="inline-flex h-8 sm:h-9 text-xs items-center gap-1.5 rounded-full bg-slate-900 px-3.5 sm:px-4 font-bold text-white shadow-sm hover:bg-sky-600 transition-all hover:scale-[1.02]"
+          >
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            <span>下载客户端</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主体区域 -->
+    <main class="mx-auto max-w-7xl px-4 sm:px-8 pt-6 sm:pt-8">
+      <!-- 音源切换与搜索栏卡片 -->
+      <div class="flex flex-col gap-4 rounded-3xl border border-white/60 bg-white/80 p-4 sm:p-6 shadow-sm shadow-slate-200/50 backdrop-blur-md">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <!-- 音源药丸切换器 -->
+          <div class="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-2xl" id="sourceTabs">
+            <button
+              type="button"
+              data-source="wy"
+              class="source-tab active flex items-center px-3.5 sm:px-4 py-1.5 rounded-xl text-xs font-bold bg-white text-sky-600 shadow-sm transition-all"
+            >
+              <span>音源1</span>
+            </button>
+            <button
+              type="button"
+              data-source="kg"
+              class="source-tab flex items-center px-3.5 sm:px-4 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 transition-all"
+            >
+              <span>音源2</span>
+            </button>
+            <button
+              type="button"
+              data-source="kw"
+              class="source-tab flex items-center px-3.5 sm:px-4 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-900 transition-all"
+            >
+              <span>音源3</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 搜索输入框 -->
+        <div class="relative flex items-center">
+          <svg class="absolute left-4 h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="搜索歌曲、歌手或专辑..."
+            class="h-11 sm:h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/50 pl-11 pr-24 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+          />
+          <button
+            type="button"
+            id="clearSearchBtn"
+            class="absolute right-20 p-1 text-slate-400 hover:text-slate-600 hidden"
+          >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="searchSubmitBtn"
+            class="absolute right-1.5 sm:right-2 h-8 sm:h-9 rounded-xl bg-sky-600 px-3.5 sm:px-4 text-xs font-bold text-white shadow-sm hover:bg-sky-500 transition-colors"
+          >
+            搜索
+          </button>
+        </div>
+
+        <!-- 热搜词标签 -->
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1" id="quickTags">
+          <span class="text-[11px] font-medium text-slate-400 mr-1">大家都在搜:</span>
+          <button type="button" class="quick-tag rounded-full bg-slate-100 hover:bg-sky-50 hover:text-sky-600 border border-slate-200/50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors">周杰伦</button>
+          <button type="button" class="quick-tag rounded-full bg-slate-100 hover:bg-sky-50 hover:text-sky-600 border border-slate-200/50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors">林俊杰</button>
+          <button type="button" class="quick-tag rounded-full bg-slate-100 hover:bg-sky-50 hover:text-sky-600 border border-slate-200/50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors">热歌榜</button>
+          <button type="button" class="quick-tag rounded-full bg-slate-100 hover:bg-sky-50 hover:text-sky-600 border border-slate-200/50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors">陈奕迅</button>
+          <button type="button" class="quick-tag rounded-full bg-slate-100 hover:bg-sky-50 hover:text-sky-600 border border-slate-200/50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors">邓紫棋</button>
+          <button type="button" class="quick-tag rounded-full bg-slate-100 hover:bg-sky-50 hover:text-sky-600 border border-slate-200/50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors">轻音乐</button>
+        </div>
+      </div>
+
+      <!-- 加载指示器 -->
+      <div id="loadingIndicator" class="my-16 hidden flex-col items-center justify-center gap-3">
+        <div class="h-8 w-8 animate-spin rounded-full border-2 border-sky-600 border-t-transparent"></div>
+        <p class="text-xs text-slate-400 font-medium">正在检索万籁曲库...</p>
+      </div>
+
+      <!-- 模式 A：默认推荐与推广横幅 -->
+      <section id="recommendSection" class="mt-8 space-y-8">
+        <!-- 推广 Hero Banner -->
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 p-6 sm:p-8 text-white shadow-xl shadow-sky-950/10">
+          <div class="relative z-10 max-w-xl">
+            <div class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-sky-300 backdrop-blur-sm">
+              <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>随身唱片盒 · 案头音乐书房</span>
+            </div>
+            <h2 class="mt-3 text-xl sm:text-2xl font-bold tracking-tight">
+              免装即听 · 全源汇流音乐体验
+            </h2>
+            <p class="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
+              网页版支持免登录快速检索与标准试听。下载客户端尊享无损 FLAC、桌面悬浮动感歌词、自建歌单与跨端实时同步。
+            </p>
+            <div class="mt-5 flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                id="heroDownloadBtn"
+                class="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-bold text-slate-900 shadow-md hover:bg-sky-50 transition-all hover:scale-105"
+              >
+                <svg class="h-3.5 w-3.5 text-sky-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                <span>立即下载客户端</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 今日精选推荐网格 -->
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <h3 class="text-base sm:text-lg font-bold text-slate-900">今日精选推荐</h3>
+              <span id="currentSourceTag" class="text-[10px] rounded-full bg-slate-200/70 px-2 py-0.5 font-semibold text-slate-600">音源1</span>
+            </div>
+            <button type="button" id="discoverMoreBtn" class="text-xs text-sky-600 hover:text-sky-700 font-semibold">
+              发现更多
+            </button>
+          </div>
+          <div id="recommendGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4"></div>
+        </div>
+      </section>
+
+      <!-- 模式 B：搜索结果列表 -->
+      <section id="searchSection" class="mt-8 space-y-4 hidden">
+        <div class="flex items-center justify-between">
+          <h2 id="searchTitle" class="text-base sm:text-lg font-bold text-slate-900">搜索结果</h2>
+          <span id="searchSummary" class="text-xs text-slate-400">网页版展示前 10 首试听</span>
+        </div>
+
+        <div class="divide-y divide-slate-100 rounded-3xl border border-white/60 bg-white/80 shadow-sm backdrop-blur-md overflow-hidden">
+          <div id="searchSongList"></div>
+
+          <!-- 底部拦截引导卡片 -->
+          <div class="p-6 sm:p-8 bg-gradient-to-b from-transparent to-sky-50/50 flex flex-col items-center text-center">
+            <div class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sky-600 mb-3 shadow-inner">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+            </div>
+            <h4 class="text-sm sm:text-base font-bold text-slate-900">
+              仅展示前 10 首试听结果 · 解锁全部千万曲库
+            </h4>
+            <p class="mt-1 text-xs text-slate-500 max-w-sm">
+              想要查看此关键词下的全部搜索结果，或享受无损 SQ / Hi-Res 音质，请下载 PisaMusic 完整客户端。
+            </p>
+            <button
+              type="button"
+              id="searchMoreBtn"
+              class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-sky-600 transition-colors"
+            >
+              <span>下载客户端查看全部结果</span>
+              <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 展开悬浮迷你歌词板 -->
+    <div
+      id="miniLyricsPanel"
+      class="fixed bottom-24 inset-x-4 sm:inset-x-auto sm:right-6 sm:w-96 z-40 rounded-2xl border border-white/60 bg-white/95 p-4 shadow-xl shadow-slate-900/10 backdrop-blur-xl hidden animate-fadeIn"
+    >
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <span class="text-xs font-bold text-slate-700">实时歌词</span>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full font-medium">App 支持逐字动感歌词</span>
+          <button type="button" id="closeLyricsBtn" class="text-slate-400 hover:text-slate-600">
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="mt-3 space-y-2 text-center text-xs">
+        <p id="lrcPrev" class="text-slate-400 truncate text-[11px]">...</p>
+        <p id="lrcCurr" class="text-sky-600 font-bold text-sm leading-relaxed scale-105 transition-all">PisaMusic</p>
+        <p id="lrcNext" class="text-slate-400 truncate text-[11px]">...</p>
+      </div>
+    </div>
+
+    <!-- 播放队列抽屉 -->
+    <div
+      id="queueDrawer"
+      class="fixed bottom-24 right-4 sm:right-10 z-40 w-80 sm:w-96 max-h-80 overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-xl hidden animate-fadeIn flex-col"
+    >
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/70">
+        <div class="flex items-center gap-2">
+          <svg class="h-4 w-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+          <span class="text-xs font-bold text-slate-800" id="queueTitle">当前试听队列</span>
+        </div>
+        <button type="button" id="closeQueueBtn" class="text-xs text-slate-400 hover:text-slate-600 font-medium">关闭</button>
+      </div>
+      <div id="queueList" class="flex-1 overflow-y-auto divide-y divide-slate-100/60 p-1"></div>
+    </div>
+
+    <!-- 底部固定播放器栏 -->
+    <div
+      id="playerBar"
+      class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/90 shadow-lg shadow-slate-900/10 backdrop-blur-md hidden select-none transition-all"
+    >
+      <div class="mx-auto flex h-20 sm:h-22 max-w-7xl items-center justify-between px-3 sm:px-6 gap-2 sm:gap-4">
+        <!-- 左侧：歌曲封面与信息 -->
+        <div class="flex items-center gap-3 w-40 sm:w-64 min-w-0">
+          <div class="relative group shrink-0">
+            <img
+              id="playerCover"
+              src="/assets/app-icon.png"
+              alt=""
+              class="h-12 w-12 sm:h-14 sm:w-14 rounded-xl object-cover shadow-md transition-all"
+            />
+            <button
+              type="button"
+              id="playerHeartBtn"
+              title="收藏需登录客户端"
+              class="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-white/90 text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100"
+            >
+              <svg class="h-3 w-3 fill-current" viewBox="0 0 24 24">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+              </svg>
+            </button>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-xs sm:text-sm font-bold text-slate-900" id="playerName">未知歌曲</div>
+            <p class="truncate text-[11px] sm:text-xs text-slate-500 mt-0.5" id="playerSinger">未知歌手</p>
+          </div>
+        </div>
+
+        <!-- 中间：控制与内嵌直接歌词（需求3） -->
+        <div class="flex-1 max-w-xl flex flex-col items-center">
+          <!-- 播放条上直接展示歌词 -->
+          <div class="w-full flex items-center justify-center gap-2 mb-1 px-2 cursor-pointer group" id="lyricToggleBtn" title="点击展开多行歌词">
+            <svg class="h-3 w-3 text-sky-500 shrink-0 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+            <span id="playerLyricLine" class="truncate text-[11px] sm:text-xs font-semibold text-sky-600 group-hover:text-sky-700 transition-colors">
+              PisaMusic · 听见你的热爱
+            </span>
+            <span class="text-[10px] text-slate-400 group-hover:text-sky-500 shrink-0">
+              <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </span>
+          </div>
+
+          <!-- 控制按钮 -->
+          <div class="flex items-center gap-3 sm:gap-5">
+            <button type="button" id="prevSongBtn" class="p-1.5 text-slate-500 hover:text-sky-600 transition-colors" title="上一首">
+              <svg class="h-4 w-4 sm:h-5 sm:w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              id="playToggleBtn"
+              class="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-md hover:bg-sky-600 hover:scale-105 active:scale-95 transition-all"
+              title="播放/暂停"
+            >
+              <svg id="playIcon" class="h-4 w-4 sm:h-5 sm:w-5 fill-current ml-0.5" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              <svg id="pauseIcon" class="h-4 w-4 sm:h-5 sm:w-5 fill-current hidden" viewBox="0 0 24 24">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+              </svg>
+            </button>
+
+            <button type="button" id="nextSongBtn" class="p-1.5 text-slate-500 hover:text-sky-600 transition-colors" title="下一首">
+              <svg class="h-4 w-4 sm:h-5 sm:w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- 进度条 -->
+          <div class="w-full flex items-center gap-2 mt-1 px-1">
+            <span id="currentTimeLabel" class="text-[10px] sm:text-xs text-slate-400 w-9 text-right font-mono">00:00</span>
+            <input
+              type="range"
+              id="seekSlider"
+              min="0"
+              max="100"
+              value="0"
+              class="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-sky-600 hover:accent-sky-500"
+            />
+            <span id="totalTimeLabel" class="text-[10px] sm:text-xs text-slate-400 w-9 font-mono">00:00</span>
+          </div>
+        </div>
+
+        <!-- 右侧：音质切换与功能操作 -->
+        <div class="flex items-center gap-2 sm:gap-3 w-36 sm:w-64 justify-end">
+          <button
+            type="button"
+            id="qualityBtn"
+            class="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50/70 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-bold text-sky-700 hover:bg-sky-100 hover:border-sky-300 transition-all group"
+            title="网页版仅提供标准 128K 试听，点击切换无损"
+          >
+            <svg class="h-3 w-3 text-sky-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>标准 128K</span>
+            <span class="hidden md:inline text-sky-400 text-[10px] font-normal">| 换音质</span>
+          </button>
+
+          <!-- 音量控制 -->
+          <div class="hidden lg:flex items-center gap-1.5">
+            <button type="button" id="muteBtn" class="text-slate-400 hover:text-slate-600 p-1">
+              <svg id="volumeIcon" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              </svg>
+            </button>
+            <input
+              type="range"
+              id="volumeSlider"
+              min="0"
+              max="1"
+              step="0.02"
+              value="0.85"
+              class="w-16 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-700"
+            />
+          </div>
+
+          <!-- 队列按钮 -->
+          <button type="button" id="queueToggleBtn" class="p-2 rounded-xl text-slate-500 hover:text-slate-700 transition-colors" title="播放队列">
+            <svg class="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 全局下载引导弹窗 -->
+    <div id="downloadModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 sm:p-6 select-none animate-fadeIn">
+      <div id="modalBackdrop" class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"></div>
+      <div class="relative w-full max-w-lg rounded-3xl border border-white/40 bg-white/95 p-6 sm:p-8 shadow-2xl shadow-sky-900/20 backdrop-blur-xl transition-all z-10">
+        <button
+          type="button"
+          id="closeModalBtn"
+          class="absolute right-5 top-5 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+        >
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <div class="flex flex-col items-center text-center">
+          <div class="inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 shadow-sm">
+            <svg class="h-3.5 w-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            <span id="modalHighlight">解锁全部特权</span>
+          </div>
+          <h3 id="modalTitle" class="mt-3 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            下载 PisaMusic 完整客户端
+          </h3>
+          <p id="modalSubtitle" class="mt-2 text-sm leading-relaxed text-slate-600 max-w-md">
+            无损音质、桌面透明动感歌词、多源聚合与多端贯通，让每一次听歌都成为享受。
+          </p>
+        </div>
+
+        <div class="mt-6 space-y-3">
+          <!-- Android 下载卡片 -->
+          <a
+            href="/api/config/download/android"
+            id="androidCard"
+            class="group relative flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white p-4 hover:border-slate-300 hover:bg-slate-50/60 transition-all"
+          >
+            <div class="flex items-center gap-3.5">
+              <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div class="text-left">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-slate-900">Android 手机版</span>
+                  <span id="androidRecBadge" class="hidden rounded bg-sky-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">推荐此设备</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">掌心随身 · APK 直链高速下载</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 text-xs font-bold text-sky-600 group-hover:translate-x-0.5 transition-transform">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              <span>下载</span>
+            </div>
+          </a>
+
+          <!-- Windows 下载卡片 -->
+          <a
+            href="/api/config/download/desktop"
+            id="windowsCard"
+            class="group relative flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white p-4 hover:border-slate-300 hover:bg-slate-50/60 transition-all"
+          >
+            <div class="flex items-center gap-3.5">
+              <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white shadow-md shadow-slate-900/20">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div class="text-left">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-slate-900">Windows 电脑版</span>
+                  <span id="windowsRecBadge" class="hidden rounded bg-sky-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">推荐此设备</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">案头长伴 · 桌面悬浮透明歌词</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 text-xs font-bold text-sky-600 group-hover:translate-x-0.5 transition-transform">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              <span>下载</span>
+            </div>
+          </a>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col items-center">
+          <button type="button" id="qrToggleBtn" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-sky-600 transition-colors">
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            <span id="qrBtnText">手机扫码快捷下载 App</span>
+          </button>
+          <div id="qrContainer" class="mt-3 hidden flex-col items-center animate-fadeIn">
+            <div class="p-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+              <img src="/api/config/download/android?qr=1" onerror="this.src='/assets/app-icon.png'" alt="扫码下载 PisaMusic" class="h-28 w-28 rounded-lg object-contain" />
+            </div>
+            <p class="mt-1.5 text-[11px] text-slate-400">使用手机相机或浏览器扫码即可安装</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 隐藏的音频元素 -->
+    <audio id="audioPlayer"></audio>
+
+    <!-- 业务逻辑脚本 -->
+    <script>
+      (function () {
+        // State
+        let currentSource = "wy";
+        let currentKeyword = "";
+        let playlist = [];
+        let currentIndex = -1;
+        let isPlaying = false;
+        let lyrics = [];
+        let expandLyrics = false;
+        let showQueue = false;
+
+        const SOURCE_NAMES = { wy: "音源1", kg: "音源2", kw: "音源3" };
+
+        // DOM elements
+        const audio = document.getElementById("audioPlayer");
+        const sourceTabs = document.getElementById("sourceTabs");
+        const searchInput = document.getElementById("searchInput");
+        const clearSearchBtn = document.getElementById("clearSearchBtn");
+        const searchSubmitBtn = document.getElementById("searchSubmitBtn");
+        const quickTags = document.getElementById("quickTags");
+        const loadingIndicator = document.getElementById("loadingIndicator");
+        const recommendSection = document.getElementById("recommendSection");
+        const recommendGrid = document.getElementById("recommendGrid");
+        const currentSourceTag = document.getElementById("currentSourceTag");
+        const searchSection = document.getElementById("searchSection");
+        const searchTitle = document.getElementById("searchTitle");
+        const searchSummary = document.getElementById("searchSummary");
+        const searchSongList = document.getElementById("searchSongList");
+        const playerBar = document.getElementById("playerBar");
+        const playerCover = document.getElementById("playerCover");
+        const playerName = document.getElementById("playerName");
+        const playerSinger = document.getElementById("playerSinger");
+        const playerLyricLine = document.getElementById("playerLyricLine");
+        const playToggleBtn = document.getElementById("playToggleBtn");
+        const playIcon = document.getElementById("playIcon");
+        const pauseIcon = document.getElementById("pauseIcon");
+        const prevSongBtn = document.getElementById("prevSongBtn");
+        const nextSongBtn = document.getElementById("nextSongBtn");
+        const seekSlider = document.getElementById("seekSlider");
+        const currentTimeLabel = document.getElementById("currentTimeLabel");
+        const totalTimeLabel = document.getElementById("totalTimeLabel");
+        const volumeSlider = document.getElementById("volumeSlider");
+        const muteBtn = document.getElementById("muteBtn");
+        const queueToggleBtn = document.getElementById("queueToggleBtn");
+        const queueDrawer = document.getElementById("queueDrawer");
+        const queueList = document.getElementById("queueList");
+        const queueTitle = document.getElementById("queueTitle");
+        const lyricToggleBtn = document.getElementById("lyricToggleBtn");
+        const miniLyricsPanel = document.getElementById("miniLyricsPanel");
+        const lrcPrev = document.getElementById("lrcPrev");
+        const lrcCurr = document.getElementById("lrcCurr");
+        const lrcNext = document.getElementById("lrcNext");
+        const downloadModal = document.getElementById("downloadModal");
+        const modalBackdrop = document.getElementById("modalBackdrop");
+        const closeModalBtn = document.getElementById("closeModalBtn");
+        const modalHighlight = document.getElementById("modalHighlight");
+        const modalTitle = document.getElementById("modalTitle");
+        const modalSubtitle = document.getElementById("modalSubtitle");
+        const qrToggleBtn = document.getElementById("qrToggleBtn");
+        const qrBtnText = document.getElementById("qrBtnText");
+        const qrContainer = document.getElementById("qrContainer");
+
+        // Format duration helper
+        function formatSeconds(sec) {
+          if (isNaN(sec) || sec < 0) return "00:00";
+          const m = Math.floor(sec / 60);
+          const s = Math.floor(sec % 60);
+          return (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+        }
+
+        // Parse LRC format
+        function parseLrc(text) {
+          if (!text) return [];
+          const lines = text.split("\n");
+          const result = [];
+          const timeRegex = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g;
+          for (const line of lines) {
+            const cleanText = line.replace(timeRegex, "").trim();
+            let match;
+            timeRegex.lastIndex = 0;
+            while ((match = timeRegex.exec(line)) !== null) {
+              const min = parseInt(match[1], 10);
+              const sec = parseInt(match[2], 10);
+              const msStr = match[3] || "0";
+              const ms = msStr.length === 2 ? parseInt(msStr, 10) * 10 : parseInt(msStr, 10);
+              const totalSec = min * 60 + sec + ms / 1000;
+              if (cleanText) {
+                result.push({ time: totalSec, text: cleanText });
+              }
+            }
+          }
+          return result.sort((a, b) => a.time - b.time);
+        }
+
+        // Modal triggers
+        const REASON_TEXTS = {
+          quality: {
+            title: "畅享无损高品质音效",
+            subtitle: "网页版仅提供标准 128K 体验。客户端专享无损 FLAC、Hi-Res 臻品音质与沉浸全景声。",
+            highlight: "限时解锁无损特权",
+          },
+          search_more: {
+            title: "解锁完整千万曲库",
+            subtitle: "网页版仅展示前 10 首结果。下载 PisaMusic 客户端，海量歌曲、专辑、翻唱尽收囊中。",
+            highlight: "查看全部搜索结果",
+          },
+          favorite: {
+            title: "登录开启多端云同步",
+            subtitle: "收藏红心歌曲、创建自建歌单、离线缓存与多端实时同步功能为客户端专属能力。",
+            highlight: "开启专属音乐空间",
+          },
+          general: {
+            title: "体验 PisaMusic 完整客户端",
+            subtitle: "无损音质、桌面透明动感歌词、多源聚合与多端贯通，让每一次听歌都成为享受。",
+            highlight: "双端随身与桌面长伴",
+          },
+        };
+
+        function openModal(reason) {
+          const cfg = REASON_TEXTS[reason] || REASON_TEXTS.general;
+          modalHighlight.textContent = cfg.highlight;
+          modalTitle.textContent = cfg.title;
+          modalSubtitle.textContent = cfg.subtitle;
+          downloadModal.classList.remove("hidden");
+          downloadModal.classList.add("flex");
+        }
+
+        function closeModal() {
+          downloadModal.classList.add("hidden");
+          downloadModal.classList.remove("flex");
+        }
+
+        // Detect device
+        const ua = navigator.userAgent.toLowerCase();
+        if (ua.includes("android")) {
+          document.getElementById("androidRecBadge").classList.remove("hidden");
+          document.getElementById("androidCard").classList.add("border-sky-500", "bg-sky-50/50");
+        } else if (ua.includes("win")) {
+          document.getElementById("windowsRecBadge").classList.remove("hidden");
+          document.getElementById("windowsCard").classList.add("border-sky-500", "bg-sky-50/50");
+        }
+
+        // Event listeners for modal
+        modalBackdrop.addEventListener("click", closeModal);
+        closeModalBtn.addEventListener("click", closeModal);
+        document.getElementById("headerDownloadBtn").addEventListener("click", () => openModal("general"));
+        document.getElementById("heroDownloadBtn").addEventListener("click", () => openModal("general"));
+        document.getElementById("discoverMoreBtn").addEventListener("click", () => openModal("search_more"));
+        document.getElementById("searchMoreBtn").addEventListener("click", () => openModal("search_more"));
+        document.getElementById("playerHeartBtn").addEventListener("click", () => openModal("favorite"));
+        document.getElementById("qualityBtn").addEventListener("click", () => openModal("quality"));
+
+        qrToggleBtn.addEventListener("click", function () {
+          const hidden = qrContainer.classList.contains("hidden");
+          if (hidden) {
+            qrContainer.classList.remove("hidden");
+            qrBtnText.textContent = "收起二维码";
+          } else {
+            qrContainer.classList.add("hidden");
+            qrBtnText.textContent = "手机扫码快捷下载 App";
+          }
+        });
+
+        // Load Recommendations
+        async function loadRecommendations() {
+          loadingIndicator.classList.remove("hidden");
+          loadingIndicator.classList.add("flex");
+          recommendGrid.innerHTML = "";
+          try {
+            const res = await fetch(`/api/web/music/recommend?source=${currentSource}`).then((r) => r.json());
+            const songs = (res.data && res.data.songs) || [];
+            playlist = songs;
+            renderRecommendations(songs);
+          } catch (err) {
+            console.warn("加载推荐失败", err);
+          } finally {
+            loadingIndicator.classList.add("hidden");
+            loadingIndicator.classList.remove("flex");
+          }
+        }
+
+        function renderRecommendations(songs) {
+          recommendGrid.innerHTML = "";
+          songs.forEach((song, idx) => {
+            const card = document.createElement("div");
+            card.className = "group flex flex-col rounded-2xl border border-white/60 bg-white/70 p-2.5 shadow-sm hover:shadow-md hover:border-sky-200 backdrop-blur-sm transition-all cursor-pointer";
+            card.innerHTML = `
+              <div class="relative aspect-square w-full rounded-xl overflow-hidden bg-slate-100 mb-2">
+                <img src="${song.cover || '/assets/app-icon.png'}" onerror="this.src='/assets/app-icon.png'" alt="" class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <div class="absolute inset-0 bg-black/25 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-900 shadow-md">
+                    <svg class="h-4 w-4 fill-slate-900 ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  </div>
+                </div>
+              </div>
+              <span class="truncate text-xs font-bold text-slate-900 leading-tight">${song.name}</span>
+              <span class="truncate text-[11px] text-slate-400 mt-1">${song.singer}</span>
+            `;
+            card.addEventListener("click", () => playSong(song, songs, idx));
+            recommendGrid.appendChild(card);
+          });
+        }
+
+        // Execute Search
+        async function doSearch(kw) {
+          kw = kw.trim();
+          if (!kw) {
+            currentKeyword = "";
+            searchSection.classList.add("hidden");
+            recommendSection.classList.remove("hidden");
+            return;
+          }
+
+          currentKeyword = kw;
+          recommendSection.classList.add("hidden");
+          searchSection.classList.remove("hidden");
+          searchSongList.innerHTML = "";
+          loadingIndicator.classList.remove("hidden");
+          loadingIndicator.classList.add("flex");
+          searchTitle.textContent = `“${kw}” 的搜索结果`;
+
+          try {
+            const res = await fetch(`/api/web/music/search?source=${currentSource}&keywords=${encodeURIComponent(kw)}`).then((r) => r.json());
+            const data = res.data || { songs: [], total: 0 };
+            searchSummary.textContent = `找到 ${data.total} 首 · 网页版展示前 10 首试听`;
+            playlist = data.songs || [];
+            renderSearchResults(playlist);
+          } catch (err) {
+            console.warn("搜索出错", err);
+          } finally {
+            loadingIndicator.classList.add("hidden");
+            loadingIndicator.classList.remove("flex");
+          }
+        }
+
+        function renderSearchResults(songs) {
+          searchSongList.innerHTML = "";
+          songs.forEach((song, idx) => {
+            const row = document.createElement("div");
+            row.className = "group flex items-center justify-between p-3 sm:p-4 hover:bg-slate-50/80 transition-colors cursor-pointer";
+            row.innerHTML = `
+              <div class="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                <span class="w-5 text-center text-xs font-mono font-bold ${idx < 3 ? 'text-sky-600' : 'text-slate-400'}">${idx + 1}</span>
+                <div class="relative h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-xl overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+                  <img src="${song.cover || '/assets/app-icon.png'}" onerror="this.src='/assets/app-icon.png'" alt="" class="h-full w-full object-cover" />
+                </div>
+                <div class="min-w-0 flex-1 pr-2">
+                  <div class="flex items-center gap-2">
+                    <span class="truncate text-xs sm:text-sm font-bold text-slate-900">${song.name}</span>
+                    <span class="hidden sm:inline-block rounded border border-sky-200 bg-sky-50 px-1 py-0.2 text-[9px] font-bold text-sky-600">标准 128K</span>
+                  </div>
+                  <p class="truncate text-[11px] sm:text-xs text-slate-500 mt-0.5">${song.singer} ${song.album ? '· ' + song.album : ''}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 group-hover:bg-slate-900 group-hover:text-white transition-all">
+                  <svg class="h-3.5 w-3.5 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+              </div>
+            `;
+            row.addEventListener("click", () => playSong(song, songs, idx));
+            searchSongList.appendChild(row);
+          });
+        }
+
+        // Playback Core
+        async function playSong(song, list, idx) {
+          playlist = list;
+          currentIndex = idx;
+          playerBar.classList.remove("hidden");
+          playerCover.src = song.cover || "/assets/app-icon.png";
+          playerName.textContent = song.name;
+          playerSinger.textContent = song.singer + (song.album ? " · " + song.album : "");
+          playerLyricLine.textContent = "正在加载试听音频与歌词...";
+
+          // Reset UI
+          lyrics = [];
+          currentTimeLabel.textContent = "00:00";
+          totalTimeLabel.textContent = formatSeconds(song.duration / 1000);
+          seekSlider.value = 0;
+
+          renderQueue();
+
+          try {
+            const [urlRes, lrcRes] = await Promise.all([
+              fetch(`/api/web/music/url?source=${song.source}&id=${encodeURIComponent(song.id)}`).then((r) => r.json()),
+              fetch(`/api/web/music/lyric?source=${song.source}&id=${encodeURIComponent(song.id)}`).then((r) => r.json()),
+            ]);
+
+            const audioUrl = urlRes.data?.url || "";
+            const lrcText = lrcRes.data?.lrc || "";
+            lyrics = parseLrc(lrcText);
+
+            if (!audioUrl) {
+              playerLyricLine.textContent = "当前音源暂无法播放，请尝试切换歌曲";
+              return;
+            }
+
+            audio.src = audioUrl;
+            audio.load();
+            audio.play().then(() => {
+              setPlayingState(true);
+            }).catch(() => {
+              setPlayingState(false);
+            });
+          } catch (err) {
+            console.warn("加载播放失败", err);
+            playerLyricLine.textContent = "加载失败，请重试";
+          }
+        }
+
+        function setPlayingState(playing) {
+          isPlaying = playing;
+          if (playing) {
+            playIcon.classList.add("hidden");
+            pauseIcon.classList.remove("hidden");
+            playerCover.classList.add("animate-spin-slow", "ring-2", "ring-sky-400/40");
+          } else {
+            playIcon.classList.remove("hidden");
+            pauseIcon.classList.add("hidden");
+            playerCover.classList.remove("animate-spin-slow", "ring-2", "ring-sky-400/40");
+          }
+        }
+
+        playToggleBtn.addEventListener("click", () => {
+          if (!audio.src) return;
+          if (isPlaying) {
+            audio.pause();
+            setPlayingState(false);
+          } else {
+            audio.play().then(() => setPlayingState(true)).catch(() => setPlayingState(false));
+          }
+        });
+
+        prevSongBtn.addEventListener("click", () => {
+          if (playlist.length <= 1) return;
+          const nextIdx = (currentIndex - 1 + playlist.length) % playlist.length;
+          playSong(playlist[nextIdx], playlist, nextIdx);
+        });
+
+        nextSongBtn.addEventListener("click", () => {
+          if (playlist.length <= 1) return;
+          const nextIdx = (currentIndex + 1) % playlist.length;
+          playSong(playlist[nextIdx], playlist, nextIdx);
+        });
+
+        audio.addEventListener("timeupdate", () => {
+          const cur = audio.currentTime;
+          seekSlider.value = cur;
+          currentTimeLabel.textContent = formatSeconds(cur);
+
+          // Update lyrics
+          if (lyrics.length > 0) {
+            let activeIdx = 0;
+            for (let i = lyrics.length - 1; i >= 0; i--) {
+              if (cur >= lyrics[i].time) {
+                activeIdx = i;
+                break;
+              }
+            }
+            const activeText = lyrics[activeIdx]?.text || "";
+            playerLyricLine.textContent = activeText || playerName.textContent;
+
+            // Update mini panel if open
+            if (expandLyrics) {
+              lrcPrev.textContent = activeIdx > 0 ? lyrics[activeIdx - 1]?.text : "...";
+              lrcCurr.textContent = activeText;
+              lrcNext.textContent = activeIdx < lyrics.length - 1 ? lyrics[activeIdx + 1]?.text : "...";
+            }
+          }
+        });
+
+        audio.addEventListener("loadedmetadata", () => {
+          seekSlider.max = audio.duration;
+          totalTimeLabel.textContent = formatSeconds(audio.duration);
+        });
+
+        audio.addEventListener("ended", () => {
+          setPlayingState(false);
+          if (playlist.length > 1) {
+            const nextIdx = (currentIndex + 1) % playlist.length;
+            playSong(playlist[nextIdx], playlist, nextIdx);
+          }
+        });
+
+        seekSlider.addEventListener("input", (e) => {
+          audio.currentTime = Number(e.target.value);
+        });
+
+        volumeSlider.addEventListener("input", (e) => {
+          audio.volume = Number(e.target.value);
+        });
+
+        muteBtn.addEventListener("click", () => {
+          audio.muted = !audio.muted;
+        });
+
+        // Toggle lyrics floating panel
+        lyricToggleBtn.addEventListener("click", () => {
+          expandLyrics = !expandLyrics;
+          if (expandLyrics) {
+            miniLyricsPanel.classList.remove("hidden");
+          } else {
+            miniLyricsPanel.classList.add("hidden");
+          }
+        });
+        document.getElementById("closeLyricsBtn").addEventListener("click", () => {
+          expandLyrics = false;
+          miniLyricsPanel.classList.add("hidden");
+        });
+
+        // Queue drawer
+        function renderQueue() {
+          queueTitle.textContent = `当前试听队列（共 ${playlist.length} 首）`;
+          queueList.innerHTML = "";
+          playlist.forEach((song, idx) => {
+            const item = document.createElement("div");
+            item.className = `flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition-colors ${
+              idx === currentIndex ? 'bg-sky-50 text-sky-600 font-bold' : 'text-slate-700 hover:bg-slate-100/70'
+            }`;
+            item.innerHTML = `
+              <div class="flex items-center gap-2.5 truncate pr-2">
+                <span class="w-4 text-center text-[11px] text-slate-400">${idx + 1}</span>
+                <span class="truncate">${song.name}</span>
+              </div>
+              <span class="text-[11px] text-slate-400 shrink-0">${song.singer}</span>
+            `;
+            item.addEventListener("click", () => playSong(song, playlist, idx));
+            queueList.appendChild(item);
+          });
+        }
+
+        queueToggleBtn.addEventListener("click", () => {
+          showQueue = !showQueue;
+          if (showQueue) {
+            queueDrawer.classList.remove("hidden");
+            queueDrawer.classList.add("flex");
+          } else {
+            queueDrawer.classList.add("hidden");
+            queueDrawer.classList.remove("flex");
+          }
+        });
+        document.getElementById("closeQueueBtn").addEventListener("click", () => {
+          showQueue = false;
+          queueDrawer.classList.add("hidden");
+          queueDrawer.classList.remove("flex");
+        });
+
+        // Source Switch
+        sourceTabs.addEventListener("click", (e) => {
+          const btn = e.target.closest(".source-tab");
+          if (!btn) return;
+          const src = btn.getAttribute("data-source");
+          if (src === currentSource) return;
+
+          currentSource = src;
+          currentSourceTag.textContent = SOURCE_NAMES[src];
+          searchInput.placeholder = `在 ${SOURCE_NAMES[src]} 中搜索歌曲、歌手...`;
+
+          document.querySelectorAll(".source-tab").forEach((b) => {
+            b.classList.remove("active", "bg-white", "text-sky-600", "shadow-sm");
+            b.classList.add("text-slate-500");
+          });
+          btn.classList.add("active", "bg-white", "text-sky-600", "shadow-sm");
+          btn.classList.remove("text-slate-500");
+
+          if (currentKeyword) {
+            doSearch(currentKeyword);
+          } else {
+            loadRecommendations();
+          }
+        });
+
+        // Search Handlers
+        searchSubmitBtn.addEventListener("click", () => doSearch(searchInput.value));
+        searchInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") doSearch(searchInput.value);
+        });
+        searchInput.addEventListener("input", (e) => {
+          if (e.target.value) {
+            clearSearchBtn.classList.remove("hidden");
+          } else {
+            clearSearchBtn.classList.add("hidden");
+          }
+        });
+        clearSearchBtn.addEventListener("click", () => {
+          searchInput.value = "";
+          clearSearchBtn.classList.add("hidden");
+          doSearch("");
+        });
+
+        quickTags.addEventListener("click", (e) => {
+          if (e.target.classList.contains("quick-tag")) {
+            const kw = e.target.textContent.trim();
+            searchInput.value = kw;
+            clearSearchBtn.classList.remove("hidden");
+            doSearch(kw);
+          }
+        });
+
+        // Initial load
+        loadRecommendations();
+      })();
+    </script>
+  </body>
+</html>

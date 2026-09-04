@@ -24,6 +24,7 @@
 - [11. 听歌时长与等级模块 (`listening`)](#11-听歌时长与等级模块-apilistening)
 - [12. 系统基础与健康检查 (`system`)](#12-系统基础与健康检查-system)
 - [13. 管理后台 API (`admin`)](#13-管理后台-api-apiadmin)
+- [14. 网页版试听代理模块 (`webMusic`)](#14-网页版试听代理模块-apiwebmusic)
 
 ---
 
@@ -354,3 +355,16 @@
 | 向用户或设备发送专属消息 | `POST` | `/api/admin/messages` | [./admin/sendDirectMessage.md](./admin/sendDirectMessage.md) |
 | 分页查询专属消息发送记录 | `GET` | `/api/admin/messages` | [./admin/listDirectMessages.md](./admin/listDirectMessages.md) |
 | 删除专属消息记录 | `DELETE` | `/api/admin/messages/:id` | [./admin/deleteDirectMessage.md](./admin/deleteDirectMessage.md) |
+
+---
+
+## 14. 网页版音乐代理模块 (`/api/web/music`)
+
+为官网在线收听专区（网页版）提供的免密轻量音乐代理接口，由服务端统一签名代理请求音乐网关，限制搜索结果与最低码率。
+
+| 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
+| :--- | :--- | :--- | :--- | :--- |
+| 音乐搜索（限 10 首） | `GET` | `/api/web/music/search` | 无 (明文) | [./web/webMusic.md](./web/webMusic.md) |
+| 热门/推荐歌曲 | `GET` | `/api/web/music/recommend` | 无 (明文) | [./web/webMusic.md](./web/webMusic.md) |
+| 获取播放地址（最低码率） | `GET` | `/api/web/music/url` | 无 (明文) | [./web/webMusic.md](./web/webMusic.md) |
+| 获取歌曲歌词 | `GET` | `/api/web/music/lyric` | 无 (明文) | [./web/webMusic.md](./web/webMusic.md) |

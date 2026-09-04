@@ -39,6 +39,7 @@ export const navItems = [
   { label: "核心能力", href: "#features" },
   { label: "跨端同步", href: "#sync" },
   { label: "下载", href: "#download" },
+  { label: "在线收听", href: "#/listen" },
 ];
 
 export const androidProduct: ProductInfo = {

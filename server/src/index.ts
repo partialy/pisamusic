@@ -24,6 +24,7 @@ import { listeningRouter } from "./routes/listening";
 import { messagesRouter } from "./routes/messages";
 import { sharesRouter } from "./routes/shares";
 import { syncRouter } from "./routes/sync";
+import { webMusicRouter } from "./routes/webMusic";
 import { fail } from "./types/response";
 import { closeStaleActiveRoomRecords } from "./db/listenTogetherHistoryStore";
 
@@ -107,6 +108,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/cloud-music/tracks/*/cover",
   "/api/listen-together/config",
   "/api/shares/public/*",
+  "/api/web/music/*",
   "/api/feedback/*",
   "/discover/*",
   "/static/*",
@@ -124,6 +126,7 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/api/cloud-music/tracks/*/cover",
   "/api/listen-together/config",
   "/api/shares/public/*",
+  "/api/web/music/*",
   "/discover/*",
   "/static/*",
   "/uploads/*",
@@ -156,6 +159,7 @@ app.use("/api/listening", listeningRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/shares", sharesRouter);
 app.use("/api/cloud-music", cloudMusicRouter);
+app.use("/api/web/music", webMusicRouter);
 
 app.use(
   "/discover",
