@@ -154,22 +154,34 @@
 
       <div class="setting-item image-setting-item">
         <div class="setting-info">
-          <div class="setting-title">预置图片</div>
-          <div class="setting-desc">App内置的图片，点击选择</div>
+          <div class="setting-title">图片库</div>
+          <div class="setting-desc">管理与选用壁纸图片库</div>
         </div>
-        <div class="preset-images-control">
-          <div
-            v-for="item in PRESET_BACKGROUND_IMAGES"
-            :key="item.id"
-            class="image-thumb-wrapper preset-thumb"
-            :class="{ active: themeStore.backgroundImage === item.url }"
-            :title="item.name"
-            @click="handleSelectPresetImage(item.url)">
-            <img :src="item.url" class="image-thumb" :alt="item.name" />
-            <div v-if="themeStore.backgroundImage === item.url" class="active-badge">
-              <n-icon size="12"><Check /></n-icon>
+        <div class="gallery-control">
+          <div class="preset-images-control">
+            <div
+              v-for="item in latestThreeImages"
+              :key="item.id"
+              class="image-thumb-wrapper preset-thumb"
+              :class="{ active: themeStore.backgroundImage === item.url }"
+              :title="item.name"
+              @click="handleSelectGalleryImage(item.url)">
+              <img :src="item.url" class="image-thumb" :alt="item.name" />
+              <div v-if="themeStore.backgroundImage === item.url" class="active-badge">
+                <n-icon size="12"><Check /></n-icon>
+              </div>
             </div>
           </div>
+          <n-button
+            secondary
+            circle
+            title="打开图片库"
+            class="gallery-btn"
+            @click="showImageCenterModal = true">
+            <template #icon>
+              <n-icon :size="18"><Images /></n-icon>
+            </template>
+          </n-button>
         </div>
       </div>
 
@@ -209,11 +221,17 @@
         </div>
       </div>
     </template>
+
+    <!-- 图片库 Modal -->
+    <AppImageCenterModal
+      v-model:show="showImageCenterModal"
+      :current-url="themeStore.backgroundImage"
+      @confirm="handleConfirmFromGallery" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import {
   NButton,
   NColorPicker,
@@ -223,17 +241,26 @@ import {
   NSelect,
   NSwitch,
 } from "naive-ui";
-import { Upload, Check, Minus, Plus } from "lucide-vue-next";
+import { Upload, Check, Minus, Plus, Images } from "lucide-vue-next";
 import {
   useThemeStore,
-  PRESET_BACKGROUND_IMAGES,
   type BackgroundMode,
   type GradientDirection,
   type ThemeMode,
 } from "@/store/theme";
+import { useImageManager } from "@/composables/useImageManager";
+import AppImageCenterModal from "@/components/common/AppImageCenterModal.vue";
 
 const themeStore = useThemeStore();
+const imageManager = useImageManager();
+const { latestThreeImages } = imageManager;
+
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const showImageCenterModal = ref(false);
+
+onMounted(() => {
+  void imageManager.loadImages();
+});
 
 const themeModeOptions = [
   { label: "浅色", value: "light" },
@@ -279,7 +306,11 @@ const handleGradientColorChange = (index: number, value: string) => {
   void themeStore.setGradientColor(index, value);
 };
 
-const handleSelectPresetImage = (url: string) => {
+const handleSelectGalleryImage = (url: string) => {
+  void themeStore.setBackgroundImage(url);
+};
+
+const handleConfirmFromGallery = (url: string) => {
   void themeStore.setBackgroundImage(url);
 };
 
@@ -297,6 +328,7 @@ const handleSelectCustomImage = async () => {
       const filePath = await window.electronAPI.selectBackgroundImage();
       if (filePath) {
         await themeStore.setCustomBackgroundImage(filePath);
+        await imageManager.addImage(filePath);
         window.$message?.success("背景图片已更新");
         return;
       }
@@ -318,6 +350,7 @@ const handleFileInputChange = (event: Event) => {
     const dataUrl = e.target?.result as string;
     if (dataUrl) {
       await themeStore.setCustomBackgroundImage(dataUrl);
+      await imageManager.addImage(dataUrl, file.name);
       window.$message?.success("背景图片已更新");
     }
   };
@@ -335,6 +368,7 @@ const handleFileInputChange = (event: Event) => {
     gap: 24px;
     padding: 14px 20px;
     border-radius: 8px;
+    transition: background-color 0.18s ease;
 
     &:hover {
       background: var(--color-setting-hover);
@@ -421,6 +455,22 @@ const handleFileInputChange = (event: Event) => {
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .gallery-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .gallery-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
   }
 

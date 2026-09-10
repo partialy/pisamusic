@@ -1,5 +1,5 @@
 import { dialog, ipcMain } from "electron";
-import { copyFile, mkdir } from "fs/promises";
+import { copyFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 import { getAppDataPath } from "../core/appPaths";
 
@@ -60,5 +60,49 @@ export function setupDialogIpc() {
     const targetPath = path.join(bgDir, `bg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
     await copyFile(sourcePath, targetPath);
     return `file:///${targetPath.replace(/\\/g, "/")}`;
+  });
+
+  ipcMain.handle("dialog:select-background-images", async () => {
+    const result = await dialog.showOpenDialog({
+      title: "选择背景图片（支持多选）",
+      properties: ["openFile", "multiSelections"],
+      filters: [
+        {
+          name: "Images",
+          extensions: ["jpg", "jpeg", "png", "webp", "gif"],
+        },
+      ],
+    });
+    if (result.canceled || !result.filePaths.length) return [];
+
+    const bgDir = getAppDataPath("backgrounds");
+    await mkdir(bgDir, { recursive: true });
+
+    const results: string[] = [];
+    for (const sourcePath of result.filePaths) {
+      const ext = path.extname(sourcePath).toLowerCase() || ".png";
+      const targetPath = path.join(
+        bgDir,
+        `bg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`
+      );
+      await copyFile(sourcePath, targetPath);
+      results.push(`file:///${targetPath.replace(/\\/g, "/")}`);
+    }
+    return results;
+  });
+
+  ipcMain.handle("dialog:delete-background-image", async (_event, fileUrl: string) => {
+    if (typeof fileUrl !== "string" || !fileUrl) return false;
+    try {
+      const cleanPath = fileUrl.replace(/^file:\/\/\/?/, "").replace(/\//g, "\\");
+      const bgDir = getAppDataPath("backgrounds");
+      const resolvedTarget = path.resolve(cleanPath);
+      const resolvedBgDir = path.resolve(bgDir);
+      if (!resolvedTarget.startsWith(resolvedBgDir)) return false;
+      await unlink(resolvedTarget);
+      return true;
+    } catch {
+      return false;
+    }
   });
 }

@@ -1,6 +1,6 @@
 import demoBg from "@/assets/bg/demo.webp";
 import electronAPI from "@/utils/electron";
-import { analyzeImageBrightness } from "@/utils/imageColor";
+import { analyzeImageBrightness, type ImageColorAnalysis } from "@/utils/imageColor";
 import {
   darkTheme,
   lightTheme,
@@ -77,6 +77,7 @@ export const useThemeStore = defineStore("theme", () => {
   const customBackgroundImage = ref<string>(DEFAULT_THEME.customBackgroundImage ?? "");
   const backgroundBlur = ref<number>(DEFAULT_THEME.backgroundBlur ?? DEFAULT_BACKGROUND_BLUR);
   const imageIsDark = ref(false);
+  const imageAnalysis = ref<ImageColorAnalysis | null>(null);
   const systemDark = ref(false);
   const initialized = ref(false);
   let mediaQuery: MediaQueryList | null = null;
@@ -123,6 +124,7 @@ export const useThemeStore = defineStore("theme", () => {
       const analysis = await analyzeImageBrightness(currentUrl);
       if (currentToken !== brightnessToken) return;
       imageIsDark.value = analysis.isDark;
+      imageAnalysis.value = analysis;
       applyRuntimeTheme();
     } catch (error) {
       console.warn("Failed to sample image brightness:", error);
@@ -307,28 +309,48 @@ export const useThemeStore = defineStore("theme", () => {
     );
     if (backgroundMode.value === "image" && backgroundImage.value) {
       root.style.setProperty("--app-bg-image", `url("${backgroundImage.value}")`);
-      if (imageIsDark.value) {
-        // 暗色/深色背景：派生白色/亮色文字与图标
-        root.style.setProperty("--color-text-default", "#ffffff");
-        root.style.setProperty("--color-text-secondary", "rgba(255, 255, 255, 0.78)");
-        root.style.setProperty("--color-text-third", "rgba(255, 255, 255, 0.54)");
-        root.style.setProperty("--color-card-bg", "rgba(18, 24, 38, 0.72)");
-        root.style.setProperty("--color-player-bar-border", "rgba(255, 255, 255, 0.12)");
-        root.style.setProperty("--color-slider-rail", "rgba(255, 255, 255, 0.22)");
+      const analysis = imageAnalysis.value;
+      if (analysis) {
+        root.style.setProperty("--color-text-default", analysis.textColor);
+        root.style.setProperty("--color-text-secondary", analysis.secondaryTextColor);
+        root.style.setProperty("--color-text-third", analysis.thirdTextColor);
+        root.style.setProperty("--color-setting-hover", analysis.settingHover);
+        root.style.setProperty("--color-bg-hover", analysis.bgHover);
+        root.style.setProperty("--color-card-bg", analysis.cardBg);
+        root.style.setProperty("--color-player-bar-border", analysis.playerBarBorder);
+        root.style.setProperty("--color-slider-rail", analysis.sliderRail);
+      } else if (imageIsDark.value) {
+        root.style.setProperty("--color-text-default", "rgba(255, 255, 255, 0.90)");
+        root.style.setProperty("--color-text-secondary", "rgba(255, 255, 255, 0.68)");
+        root.style.setProperty("--color-text-third", "rgba(255, 255, 255, 0.45)");
+        root.style.setProperty(
+          "--color-setting-hover",
+          "color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.08))"
+        );
+        root.style.setProperty("--color-bg-hover", "rgba(255, 255, 255, 0.07)");
+        root.style.setProperty("--color-card-bg", "rgba(20, 26, 38, 0.42)");
+        root.style.setProperty("--color-player-bar-border", "rgba(255, 255, 255, 0.10)");
+        root.style.setProperty("--color-slider-rail", "rgba(255, 255, 255, 0.20)");
       } else {
-        // 亮色/浅色背景：派生黑色/深色文字与图标
-        root.style.setProperty("--color-text-default", "#111827");
-        root.style.setProperty("--color-text-secondary", "rgba(17, 24, 39, 0.76)");
-        root.style.setProperty("--color-text-third", "rgba(17, 24, 39, 0.52)");
-        root.style.setProperty("--color-card-bg", "rgba(255, 255, 255, 0.75)");
-        root.style.setProperty("--color-player-bar-border", "rgba(0, 0, 0, 0.08)");
-        root.style.setProperty("--color-slider-rail", "rgba(0, 0, 0, 0.14)");
+        root.style.setProperty("--color-text-default", "rgba(28, 33, 44, 0.88)");
+        root.style.setProperty("--color-text-secondary", "rgba(30, 41, 59, 0.68)");
+        root.style.setProperty("--color-text-third", "rgba(30, 41, 59, 0.45)");
+        root.style.setProperty(
+          "--color-setting-hover",
+          "color-mix(in srgb, var(--color-primary) 10%, rgba(0, 0, 0, 0.05))"
+        );
+        root.style.setProperty("--color-bg-hover", "rgba(0, 0, 0, 0.04)");
+        root.style.setProperty("--color-card-bg", "rgba(255, 255, 255, 0.55)");
+        root.style.setProperty("--color-player-bar-border", "rgba(0, 0, 0, 0.06)");
+        root.style.setProperty("--color-slider-rail", "rgba(0, 0, 0, 0.12)");
       }
     } else {
       root.style.setProperty("--app-bg-image", "none");
       root.style.removeProperty("--color-text-default");
       root.style.removeProperty("--color-text-secondary");
       root.style.removeProperty("--color-text-third");
+      root.style.removeProperty("--color-setting-hover");
+      root.style.removeProperty("--color-bg-hover");
       root.style.removeProperty("--color-card-bg");
       root.style.removeProperty("--color-player-bar-border");
       root.style.removeProperty("--color-slider-rail");
@@ -414,6 +436,7 @@ export const useThemeStore = defineStore("theme", () => {
     customBackgroundImage,
     backgroundBlur,
     imageIsDark,
+    imageAnalysis,
     refreshImageBrightness,
     setBackgroundMode,
     setBackgroundImage,

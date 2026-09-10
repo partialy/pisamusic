@@ -310,5 +310,14 @@
 - 桌面端支持“颜色”（默认色彩/渐变）与“图片”两种背景模式，持久化于 SQLite settings 的 `app-theme`。
 - 图片模式下支持 App 预置图片与本地自定义图片上传；背景模糊程度支持 0-100 调节并映射为底层高斯模糊滤镜。
 - 全屏背景层统一挂载在 `App.vue` 最外层容器（`position: fixed; inset: -24px;`），使得整个视口（包含底部 80px 的播放器 PlayerBar）共享底层唯一图片；图片模式下 PlayerBar 与主要页面层级背景保持透明（`background: transparent !important; backdrop-filter: none; box-shadow: none;`），消除割裂的独立色块。
-- 图片模式下文字与图标颜色根据背景图片自动派生：通过离屏 Canvas 采样整图平均感知亮度（ITU-R BT.709 权重公式），并以阈值 175 区分深色与浅色背景；丰富风景、夜空或动漫壁纸自动派生纯白亮色文字（`#ffffff`）与亮色图标并联动 Naive UI 的 `darkTheme`，极浅纯白壁纸派生深黑文字与深色图标。
+- 图片模式下文字、图标与悬浮颜色根据背景图片自动派生：通过离屏 Canvas 采样整图平均感知亮度（ITU-R BT.709 权重公式）与色彩通道，以阈值 165 区分深色与浅色背景。深色背景派生高级软白文字（`rgba(255, 255, 255, 0.90)`，避免 100% 刺眼死白）与半透明微亮光晕悬浮（`color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.08))`，壁纸通透呈现，杜绝死板黑块）；浅色背景派生柔和深炭文字（`rgba(28, 33, 44, 0.88)`，避免生硬死黑）与半透明柔和微暗悬浮（`color-mix(in srgb, var(--color-primary) 10%, rgba(0, 0, 0, 0.05))`，避免死白与黑斑）。全部悬浮配合 0.18s 平滑渐变过渡。
+
+## 图片库规则补充
+
+- 图片管理器（`useImageManager`）提供单例状态管理，自定义图片持久化保存到 SQLite settings 的 `custom-background-images`，预置图片与自定义图片按时间倒序合并为统一图片列表。
+- 自定义图片上传时由 Electron main 侧（`dialog:select-background-image`、`dialog:select-background-images`）将文件复制到应用数据目录下的 `backgrounds/` 目录并返回本地 `file:///` 绝对路径；同时自动通过 `imageManager.addImage(url, name)` / `imageManager.addImages(items)` 注册入库，支持文件选择对话框多选。
+- 自定义图片删除支持多选，由 main 侧 `dialog:delete-background-image` 安全校验路径并在磁盘中物理删除（仅限 `backgrounds/` 目录内文件，防路径穿越），预置图片只读受保护不可删除。
+- 图片库弹窗组件（`AppImageCenterModal.vue`）以 Modal 形式打开，复用【一起听】同款居中缩放动画（`transform-origin="center"`）、圆角实色卡片（`border-radius: 20px;`、820px × 550px 实色防透）与操作条；标题绝对居中，左上角集成“添加图片”与“删除图片（带二次确认 `AppConfirmDialog`）”圆形纯图标按钮（通过原生 `title` 提示），支持单选高亮、双击直接选中确认并返回图片地址。
+- 基本设置页背景选项中，原【预置图片】行升级为【图片库】，右侧横向展示最新的 3 张图片（可直接点击切换背景），最右侧配备打开图片库图标按钮（`Images` 图标），选中确认后无缝生效为当前背景。
+
 
