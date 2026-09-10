@@ -21,7 +21,6 @@ class MineMyOverviewAdapter(
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private var localPlaylistEmpty = false
-    private var favoriteSongsCoverUrl: String? = null
 
     fun setLocalPlaylistEmpty(empty: Boolean) {
         if (localPlaylistEmpty == empty) return
@@ -29,12 +28,6 @@ class MineMyOverviewAdapter(
         if (empty) notifyItemInserted(EMPTY_POSITION) else notifyItemRemoved(EMPTY_POSITION)
     }
 
-    fun setFavoriteSongsCover(coverUrl: String?) {
-        val normalizedUrl = coverUrl?.trim()?.takeIf { it.isNotBlank() }
-        if (favoriteSongsCoverUrl == normalizedUrl) return
-        favoriteSongsCoverUrl = normalizedUrl
-        notifyItemChanged(FAVORITE_SONGS_POSITION)
-    }
 
     override fun getItemViewType(position: Int): Int = when (position) {
         FAVORITE_SONGS_POSITION, FAVORITE_PLAYLISTS_POSITION -> VIEW_TYPE_FAVORITES
@@ -68,8 +61,8 @@ class MineMyOverviewAdapter(
             is FavoritesViewHolder -> {
                 if (position == FAVORITE_SONGS_POSITION) {
                     holder.bind(
-                        imageRes = R.drawable.my_favorites_cover_peach,
-                        imageUrl = favoriteSongsCoverUrl,
+                        imageRes = R.drawable.mine_entry_favorite_songs,
+                        imageUrl = null,
                         titleRes = R.string.my_favorites,
                         onClick = onFavoriteSongsClick,
                     )
