@@ -138,6 +138,21 @@ export const useCollectStore = defineStore("collect", () => {
     changed.value = true;
   }
 
+  async function batchRemoveSongs(songsToRemove: Song[]) {
+    if (!songsToRemove.length) return;
+    const tasks = songsToRemove.map(async (song) => {
+      if (!hasSongIdentity(toRaw(song))) return;
+      const normalizedSong = normalizeSong(toRaw(song));
+      await electronAPI.removeFavoriteSong({
+        source: normalizedSong.source,
+        id: normalizedSong.id,
+      });
+      songMap.value.delete(songKey(normalizedSong));
+    });
+    await Promise.all(tasks);
+    changed.value = true;
+  }
+
   async function removeList(playlist: CommonPlaylist) {
     if (!hasFavoriteIdentity(playlist)) return;
     const normalizedPlaylist = normalizePlaylist(toRaw(playlist));
@@ -146,6 +161,21 @@ export const useCollectStore = defineStore("collect", () => {
       id: normalizedPlaylist.id,
     });
     playlistMap.value.delete(playlistFavoriteKey(normalizedPlaylist.source, normalizedPlaylist.id));
+    changed.value = true;
+  }
+
+  async function batchRemovePlaylists(playlistsToRemove: CommonPlaylist[]) {
+    if (!playlistsToRemove.length) return;
+    const tasks = playlistsToRemove.map(async (playlist) => {
+      if (!hasFavoriteIdentity(playlist)) return;
+      const normalizedPlaylist = normalizePlaylist(toRaw(playlist));
+      await electronAPI.removeFavoritePlaylist({
+        source: normalizedPlaylist.source,
+        id: normalizedPlaylist.id,
+      });
+      playlistMap.value.delete(playlistFavoriteKey(normalizedPlaylist.source, normalizedPlaylist.id));
+    });
+    await Promise.all(tasks);
     changed.value = true;
   }
 
@@ -226,7 +256,9 @@ export const useCollectStore = defineStore("collect", () => {
     collectSong,
     collectList,
     removeSong,
+    batchRemoveSongs,
     removeList,
+    batchRemovePlaylists,
     containsSong,
     containSongById,
     containsPlaylist,

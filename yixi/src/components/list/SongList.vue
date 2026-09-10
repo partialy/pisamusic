@@ -15,7 +15,15 @@
         item-key="id">
         <template #stickyHeader v-if="showHeader">
           <div class="song-list-header">
-            <div class="index">#</div>
+            <div class="index">
+              <n-checkbox
+                v-if="selectable"
+                :checked="allSelected"
+                :indeterminate="isIndeterminate"
+                @update:checked="emit('selectAll')"
+              />
+              <span v-else>#</span>
+            </div>
             <div class="img-con">封面</div>
             <div class="info">歌名、歌手</div>
             <div class="collect">收藏</div>
@@ -29,9 +37,12 @@
             :playing="player.isPlaying"
             :index="index"
             :active="player.currentSong?.id == itemData.id"
+            :selectable="selectable"
+            :selected="isSongSelected(itemData)"
             @play="handlePlay"
             @add="handleAddToPlaylist"
             @next-play="handleNextPlay"
+            @toggle-select="emit('toggleSelect', $event)"
             @contextmenu.stop="
               contextMenuRef?.openContextMenu($event, {
                 type: 'song',
@@ -91,6 +102,7 @@
 </template>
 
 <script setup lang="ts">
+import { NCheckbox } from "naive-ui";
 import { useAudioStore } from "@/store";
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from "vue";
 import CommonSongItem from "@/components/search/CommonSongItem.vue";
@@ -120,9 +132,12 @@ const props = withDefaults(
     hasMore?: boolean;
     removable?: boolean;
     playMode?: "replace" | "append";
+    selectable?: boolean;
+    selectedKeys?: Set<string>;
   }>(),
   {
     playMode: "replace",
+    selectable: false,
   }
 );
 
@@ -131,6 +146,8 @@ const emit = defineEmits<{
   scrollToBottom: [e: Event];
   scrollToTop: [e: Event];
   removeSong: [song: Song];
+  toggleSelect: [song: Song];
+  selectAll: [];
 }>();
 
 const filteredSongs = computed(() => {
@@ -139,6 +156,33 @@ const filteredSongs = computed(() => {
     (s) =>
       s.name.toLowerCase().includes(props.searchKey!!.toLowerCase()) ||
       s.singer.toLowerCase().includes(props.searchKey!!.toLowerCase())
+  );
+});
+
+const displaySongs = computed(() => {
+  return props.searchKey ? filteredSongs.value : props.songs;
+});
+
+const isSongSelected = (song: Song) => {
+  if (!props.selectedKeys) return false;
+  return props.selectedKeys.has(`${song.source}:${song.id}`);
+};
+
+const selectedCountInView = computed(() => {
+  if (!props.selectedKeys || !props.selectable) return 0;
+  return displaySongs.value.filter(isSongSelected).length;
+});
+
+const allSelected = computed(() => {
+  if (!displaySongs.value.length || !props.selectable) return false;
+  return selectedCountInView.value === displaySongs.value.length;
+});
+
+const isIndeterminate = computed(() => {
+  if (!displaySongs.value.length || !props.selectable) return false;
+  return (
+    selectedCountInView.value > 0 &&
+    selectedCountInView.value < displaySongs.value.length
   );
 });
 
@@ -306,6 +350,9 @@ onBeforeUnmount(() => {
 
     .index {
       width: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .img-con {

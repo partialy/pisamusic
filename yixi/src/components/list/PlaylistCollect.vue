@@ -14,6 +14,9 @@
         v-for="i in visiblePlaylist"
         :key="`${i.source}:${i.id}`"
         :item="i"
+        :selectable="selectable"
+        :selected="isPlaylistSelected(i)"
+        @toggle-select="emit('toggleSelect', $event)"
         @play-all="contextMenu?.handlePlayPlaylist(i)"
         @contextmenu.stop="
           contextMenu?.openContextMenu($event, {
@@ -38,10 +41,22 @@ const props = withDefaults(defineProps<{
   loading?: boolean;
   skeletonCount?: number;
   maxRows?: number;
+  selectable?: boolean;
+  selectedKeys?: Set<string>;
 }>(), {
   loading: false,
   skeletonCount: 12,
+  selectable: false,
 });
+
+const emit = defineEmits<{
+  toggleSelect: [item: CommonPlaylist];
+}>();
+
+const isPlaylistSelected = (item: CommonPlaylist) => {
+  if (!props.selectedKeys) return false;
+  return props.selectedKeys.has(`${item.source}:${item.id}`);
+};
 const contextMenu = useTemplateRef("contextMenu");
 const containerRef = useTemplateRef<HTMLElement>("containerRef");
 const columnCount = ref(1);

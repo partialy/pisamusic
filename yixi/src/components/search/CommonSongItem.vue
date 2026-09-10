@@ -1,15 +1,24 @@
 <template>
   <div
     class="container"
-    :class="{ active: active, disabled: isDisabled }"
+    :class="{ active: active, disabled: isDisabled, selected: selected, selectable: selectable }"
     @mouseenter="isHover = true"
     @mouseleave="isHover = false"
-    @dblclick="play">
+    @click="handleClick"
+    @dblclick="handleDblClick">
     <div class="index">
-      <span v-if="!active || !playing">{{ index + 1 }}</span>
-      <span v-else>
-        <Playing />
-      </span>
+      <n-checkbox
+        v-if="selectable"
+        :checked="selected"
+        @update:checked="handleCheckboxChange"
+        @click.stop
+      />
+      <template v-else>
+        <span v-if="!active || !playing">{{ index + 1 }}</span>
+        <span v-else>
+          <Playing />
+        </span>
+      </template>
     </div>
     <div class="img-con">
       <n-image
@@ -46,7 +55,7 @@
       </div>
     </div>
     <div class="collect">
-      <n-button text title="收藏" @click="collect.collectSong(song)">
+      <n-button text title="收藏" @click.stop="collect.collectSong(song)">
         <n-icon
           :component="CollectIcon"
           :color="collect.containsSong(song) ? '#ff5d6c' : 'var(--color-text-third)'"
@@ -60,13 +69,13 @@
       {{ formatDuration(song.duration) }}
     </div>
     <div class="op-con" :style="{ width: isHover ? '114px' : '50px' }">
-      <n-button class="op-btn" text v-if="isHover" :disabled="isDisabled" @click="play">
+      <n-button class="op-btn" text v-if="isHover" :disabled="isDisabled" @click.stop="play">
         <n-icon :component="PlayStatic" class="icon"></n-icon>
       </n-button>
-      <n-button class="op-btn" text v-if="isHover" :disabled="isDisabled" @click="nextPlay">
+      <n-button class="op-btn" text v-if="isHover" :disabled="isDisabled" @click.stop="nextPlay">
         <n-icon :component="NextPlayIcon" class="icon"></n-icon>
       </n-button>
-      <n-button class="op-btn" text :disabled="isDisabled" @click="add">
+      <n-button class="op-btn" text :disabled="isDisabled" @click.stop="add">
         <n-icon :component="AddToPlaylist" class="icon"></n-icon>
       </n-button>
     </div>
@@ -77,7 +86,7 @@
 import { computed, ref, watch } from "vue";
 import type { Song } from "@/types/song";
 import { defaultSongCover, formatDuration, getSongCover } from "@/utils/common";
-import { NImage, NButton, NIcon, NTag } from "naive-ui";
+import { NImage, NButton, NIcon, NTag, NCheckbox } from "naive-ui";
 import { Playing } from "../playList";
 import { AddToPlaylist, CollectIcon, NextPlayIcon, PlayStatic } from "@/icons";
 import { useCollectStore } from "@/store";
@@ -87,6 +96,8 @@ const props = defineProps<{
   song: Song;
   index: number;
   playing: boolean;
+  selectable?: boolean;
+  selected?: boolean;
 }>();
 const isHover = ref(false);
 const metadataCover = ref("");
@@ -107,7 +118,23 @@ const emit = defineEmits<{
   play: [song: Song];
   nextPlay: [song: Song];
   add: [song: Song];
+  toggleSelect: [song: Song];
 }>();
+
+const handleClick = () => {
+  if (props.selectable) {
+    emit("toggleSelect", props.song);
+  }
+};
+
+const handleCheckboxChange = () => {
+  emit("toggleSelect", props.song);
+};
+
+const handleDblClick = () => {
+  if (props.selectable) return;
+  play();
+};
 
 const play = () => {
   if (isDisabled.value) {
@@ -181,6 +208,15 @@ watch(
     border-color 0.18s ease,
     box-shadow 0.18s ease,
     transform 0.18s ease;
+
+  &.selectable {
+    cursor: pointer;
+  }
+
+  &.selected {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-default));
+    border-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
+  }
 
   &:hover {
     background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-default));

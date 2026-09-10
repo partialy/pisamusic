@@ -1,6 +1,7 @@
 <template>
   <div
     class="playlist-item"
+    :class="{ 'is-selected': selected, 'is-selectable': selectable }"
     @mouseenter="showIcon = true"
     @mouseleave="showIcon = false"
     @click="handleClick">
@@ -12,11 +13,14 @@
           lazy
           :src="cover" />
       </div>
-      <div class="playlist-source-badge" v-if="showIcon">
+      <div class="playlist-select-badge" v-if="selectable" @click.stop="emit('toggleSelect', props.item)">
+        <n-checkbox :checked="selected" @click.stop @update:checked="emit('toggleSelect', props.item)" />
+      </div>
+      <div class="playlist-source-badge" v-else-if="showIcon">
         {{ props.item.source.toUpperCase() }}
       </div>
       <n-button
-        v-if="showIcon"
+        v-if="showIcon && !selectable"
         class="playlist-favorite-btn"
         quaternary
         circle
@@ -33,7 +37,7 @@
         name="play-icon"
         enter-active-class="play-icon-enter-active"
         leave-active-class="play-icon-leave-active">
-        <div class="collect-icon" v-if="showIcon">
+        <div class="collect-icon" v-if="showIcon && !selectable">
           <div>
             {{ playCount }}
           </div>
@@ -58,6 +62,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { NImage, NButton, NIcon, NText, NTooltip, NCheckbox } from "naive-ui";
 import { CollectIcon, PlaylistPlayIcon } from "@/icons";
 import { getKgImage } from "@/utils/common";
 import { useRouter } from "vue-router";
@@ -67,8 +72,15 @@ const router = useRouter();
 const showIcon = ref(false);
 const collector = useCollectStore();
 
+const props = defineProps<{
+  item: CommonPlaylist;
+  selectable?: boolean;
+  selected?: boolean;
+}>();
+
 const emit = defineEmits<{
   playAll: [];
+  toggleSelect: [item: CommonPlaylist];
 }>();
 
 const cover = computed(() => {
@@ -78,10 +90,6 @@ const cover = computed(() => {
     return props.item.coverSize?.m || props.item.cover;
   }
 });
-
-const props = defineProps<{
-  item: CommonPlaylist;
-}>();
 
 const playCount = computed(() => {
   // @ts-ignore
@@ -95,6 +103,10 @@ const playCount = computed(() => {
 const isCollected = computed(() => collector.containsPlaylist(props.item));
 
 const handleClick = () => {
+  if (props.selectable) {
+    emit("toggleSelect", props.item);
+    return;
+  }
   router.push({
     path: "/playlist/detail",
     query: { id: props.item.id, origin: props.item.source },
@@ -149,6 +161,29 @@ const toggleCollect = (event: MouseEvent) => {
   position: relative;
   background-color: var(--color-bg);
   cursor: pointer;
+
+  &.is-selected {
+    outline: 2px solid var(--color-primary);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 24%, transparent);
+
+    .playlist-item-image::after {
+      background-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    }
+  }
+
+  .playlist-select-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 4px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
   .playlist-item-image {
     height: 72%;
