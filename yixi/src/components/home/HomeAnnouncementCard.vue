@@ -145,7 +145,7 @@ async function handleNoticeGoto() {
 function clearDetailNotice() {
   if (!detailVisible.value) detailNotice.value = null;
 }
-
+ 
 onMounted(() => {
   void fetchNotices();
 });
@@ -160,12 +160,20 @@ onMounted(() => {
   height: 220px;
   padding: 18px;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 80%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.13);
   background:
-    linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 42%),
-    color-mix(in srgb, var(--color-bg-default) 88%, #ffffff 12%);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
+    linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 45%),
+    rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   box-sizing: border-box;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
 }
 
 .announcement-header {
@@ -214,7 +222,7 @@ onMounted(() => {
   align-items: center;
   min-width: 0;
   padding: 4px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border-default) 60%, transparent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 
   &:last-child {
     border-bottom: 0;

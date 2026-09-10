@@ -523,14 +523,18 @@ const fontOptions = [
   height: 550px;
   max-height: 85vh;
   border-radius: 20px;
-  background: rgba(24, 25, 30, 0.74) !important;
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  background: rgba(72, 79, 93, 0.76) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.22);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+:global(.lyric-setting-card.n-card > .n-card__content) {
+  background: transparent !important;
 }
 
 .modal-header {
@@ -539,7 +543,7 @@ const fontOptions = [
   align-items: center;
   justify-content: space-between;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
   min-height: 36px;
 
@@ -574,23 +578,49 @@ const fontOptions = [
   padding: 0.75rem 0 0.5rem;
   flex-shrink: 0;
 
+  :deep(.n-tabs.n-tabs--segment-type) {
+    --n-tab-color-segment: rgba(255, 255, 255, 0.22) !important;
+    --n-tab-text-color: rgba(255, 255, 255, 0.72) !important;
+    --n-tab-text-color-hover: #ffffff !important;
+    --n-tab-text-color-active: #ffffff !important;
+    --n-tab-text-color-disabled: rgba(255, 255, 255, 0.35) !important;
+    --n-tab-border-radius: 8px !important;
+    --n-color-segment: rgba(0, 0, 0, 0.25) !important;
+  }
+
   :deep(.n-tabs.n-tabs--segment-type .n-tabs-rail) {
-    background-color: rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 3px;
+    background-color: rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 10px !important;
+    padding: 3px !important;
+  }
+
+  :deep(.n-tabs.n-tabs--segment-type .n-tabs-capsule),
+  :deep(.n-tabs.n-tabs--segment-type .n-tabs-capsule .n-tabs-capsule__bar) {
+    background-color: rgba(255, 255, 255, 0.22) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  :deep(.n-tabs.n-tabs--segment-type .n-tabs-pad) {
+    background: transparent !important;
   }
 
   :deep(.n-tabs.n-tabs--segment-type .n-tabs-tab) {
-    color: rgba(255, 255, 255, 0.65);
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
+    color: rgba(255, 255, 255, 0.72) !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    border-radius: 8px !important;
 
-  :deep(.n-tabs.n-tabs--segment-type .n-tabs-tab.n-tabs-tab--active) {
-    color: #ffffff;
-    background-color: rgba(255, 255, 255, 0.18);
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    &:hover {
+      color: #ffffff !important;
+    }
+
+    &.n-tabs-tab--active {
+      color: #ffffff !important;
+      font-weight: 600 !important;
+      background-color: transparent !important;
+    }
   }
 }
 
@@ -638,7 +668,7 @@ const fontOptions = [
   gap: 16px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-sizing: border-box;
   width: 100%;
@@ -646,8 +676,8 @@ const fontOptions = [
   transition: all 0.18s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(255, 255, 255, 0.16);
   }
 
   .row-info {
@@ -657,13 +687,13 @@ const fontOptions = [
     .row-title {
       font-size: 14px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.92);
+      color: rgba(255, 255, 255, 0.94);
       line-height: 1.4;
     }
 
     .row-desc {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.55);
+      color: rgba(255, 255, 255, 0.6);
       line-height: 1.4;
       margin-top: 2px;
     }
@@ -678,7 +708,7 @@ const fontOptions = [
 }
 
 :deep(.n-radio-button) {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
   color: rgba(255, 255, 255, 0.85);
   border-color: rgba(255, 255, 255, 0.14);
 }
@@ -690,11 +720,11 @@ const fontOptions = [
 }
 
 :deep(.n-button--secondary-type) {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   &:hover {
-    background: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.2);
     color: #ffffff;
   }
 }
@@ -702,7 +732,7 @@ const fontOptions = [
 :deep(.n-input),
 :deep(.n-input-number),
 :deep(.n-select .n-base-selection) {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(0, 0, 0, 0.22) !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
   color: #ffffff !important;
 }

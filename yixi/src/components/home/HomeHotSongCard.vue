@@ -68,12 +68,20 @@ const emit = defineEmits<{
   height: 220px;
   padding: 18px;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 80%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.13);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 46%),
-    color-mix(in srgb, var(--color-bg-default) 88%, #ffffff 12%);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08);
+    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 46%),
+    rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   box-sizing: border-box;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
 }
 
 .hot-card-header {
@@ -140,7 +148,7 @@ const emit = defineEmits<{
 .rank {
   font-size: 12px;
   font-weight: 800;
-  color: color-mix(in srgb, var(--color-primary) 84%, #222 16%);
+  color: color-mix(in srgb, var(--color-primary) 90%, #ffffff 10%);
 }
 
 .cover {

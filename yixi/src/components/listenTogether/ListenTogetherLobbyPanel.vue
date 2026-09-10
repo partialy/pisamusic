@@ -181,14 +181,60 @@ async function submitJoin(): Promise<void> {
 
 .lobby-heading h2 {
   margin: 0;
-  color: var(--color-text-primary);
+  color: #ffffff;
   font-size: 22px;
 }
 
 .lobby-heading p {
   margin: 6px 0 0;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.68);
   font-size: 13px;
+}
+
+:deep(.n-form-item-label__text) {
+  color: rgba(255, 255, 255, 0.88) !important;
+  font-weight: 500;
+}
+
+:deep(.n-tabs.n-tabs--segment-type) {
+  --n-tab-color-segment: rgba(255, 255, 255, 0.22) !important;
+  --n-tab-text-color: rgba(255, 255, 255, 0.72) !important;
+  --n-tab-text-color-hover: #ffffff !important;
+  --n-tab-text-color-active: #ffffff !important;
+}
+
+:deep(.n-tabs.n-tabs--segment-type .n-tabs-rail) {
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 10px !important;
+  padding: 3px !important;
+}
+
+:deep(.n-tabs.n-tabs--segment-type .n-tabs-capsule),
+:deep(.n-tabs.n-tabs--segment-type .n-tabs-capsule .n-tabs-capsule__bar) {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  border-radius: 8px !important;
+}
+
+:deep(.n-tabs.n-tabs--segment-type .n-tabs-tab) {
+  color: rgba(255, 255, 255, 0.72) !important;
+
+  &.n-tabs-tab--active {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+  }
+}
+
+:deep(.n-input),
+:deep(.n-input-number) {
+  background: rgba(0, 0, 0, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  border-radius: 10px !important;
+}
+
+:deep(.n-input__input-el) {
+  color: #ffffff !important;
 }
 
 .switch-row {
@@ -197,16 +243,20 @@ async function submitJoin(): Promise<void> {
   justify-content: space-between;
   gap: 24px;
   margin: 2px 0 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .switch-title {
-  color: var(--color-text-primary);
+  color: #ffffff;
   font-weight: 600;
 }
 
 .switch-desc,
 .form-hint {
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
 }
 

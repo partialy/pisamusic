@@ -354,8 +354,11 @@ function handleAfterLeave() {
   height: 550px;
   max-height: 85vh;
   border-radius: 20px;
-  background-color: var(--color-bg-default) !important;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+  background: rgba(64, 70, 82, 0.78) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -370,6 +373,7 @@ function handleAfterLeave() {
   min-height: 0 !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
+  background: transparent !important;
 }
 
 .modal-header {
@@ -379,7 +383,7 @@ function handleAfterLeave() {
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--color-border-default, rgba(0, 0, 0, 0.08));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
   min-height: 36px;
 
@@ -400,7 +404,7 @@ function handleAfterLeave() {
     transform: translateX(-50%);
     font-size: 16px;
     font-weight: 700;
-    color: var(--color-text-default);
+    color: #ffffff;
     user-select: none;
     pointer-events: none;
   }
@@ -441,9 +445,9 @@ function handleAfterLeave() {
   border-radius: 12px;
   overflow: hidden;
   border: 2px solid transparent;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
   cursor: pointer;
-  background: color-mix(in srgb, var(--color-bg-default) 80%, transparent);
+  background: rgba(0, 0, 0, 0.25);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:hover {
@@ -543,12 +547,12 @@ function handleAfterLeave() {
   justify-content: space-between;
   gap: 16px;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border-default, rgba(0, 0, 0, 0.08));
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
 
   .footer-info {
     font-size: 13px;
-    color: var(--color-text-secondary);
+    color: rgba(255, 255, 255, 0.68);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

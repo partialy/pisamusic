@@ -14,7 +14,7 @@
           <header class="dialog-header">
             <div class="dialog-title">
               <div class="title-icon">
-                <n-icon :color="mode == 'dark' ? '#fff' : '#000'" :component="DownloadIcon" />
+                <n-icon :component="DownloadIcon" />
               </div>
               <span id="download-dialog-title">下载歌曲</span>
             </div>
@@ -92,19 +92,15 @@ import {
   normalizeQualityKeyForAccess,
 } from "@/musicQuality/musicQualityPolicy";
 import electronAPI from "@/utils/electron";
-import { useThemeStore } from "@/store";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import { useQualityUnlockFeedback } from "@/composables/useQualityUnlockFeedback";
 import MusicQualityPicker from "./MusicQualityPicker.vue";
-import { storeToRefs } from "pinia";
 
 const player = useAudioStore();
 const userStore = useUserStore();
 const settingStore = useSettingStore();
 const { openAccountLogin } = useAccountLoginDialog();
 const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
-const theme = useThemeStore();
-const { mode } = storeToRefs(theme);
 const show = ref(false);
 const submitting = ref(false);
 const song = ref<Song | null>(null);
@@ -208,8 +204,9 @@ defineExpose({ open });
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.34);
-  backdrop-filter: blur(14px) saturate(118%);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
 }
 
 .download-dialog-panel {
@@ -217,20 +214,14 @@ defineExpose({ open });
   max-width: 440px;
   max-height: calc(100vh - 48px);
   overflow: visible;
-  border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--color-bg-default) 74%, transparent);
-  background: var(--color-bg-track);
+  border-radius: 20px;
+  background: rgba(64, 70, 82, 0.78);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow:
-    0 30px 86px rgba(10, 18, 32, 0.25),
-    0 12px 34px rgba(10, 18, 32, 0.16);
-  backdrop-filter: blur(28px) saturate(138%);
-}
-
-:global(:root[data-theme="dark"]) .download-dialog-panel {
-  border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  box-shadow:
-    0 34px 96px rgba(0, 0, 0, 0.46),
-    0 14px 38px rgba(0, 0, 0, 0.3);
+    0 24px 70px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .dialog-header {
@@ -238,74 +229,72 @@ defineExpose({ open });
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 24px 24px 10px;
+  padding: 22px 24px 12px;
 }
 
 .dialog-title {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 14px;
-  color: var(--color-text-default);
-  font-size: 20px;
-  font-weight: 800;
+  gap: 10px;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
 .title-icon {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  box-shadow: none;
-  font-size: 30px;
-}
-
-.close-btn {
   width: 32px;
   height: 32px;
   flex: 0 0 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--color-primary);
+  font-size: 22px;
+}
+
+.close-btn {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-radius: 50%;
-  color: var(--color-text-secondary);
-  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  transition:
-    color 0.18s ease,
-    background-color 0.18s ease;
+  transition: all 0.2s ease;
 
   &:hover {
-    color: var(--color-text-default);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
   }
 }
 
 .dialog-body {
-  padding: 14px 24px 8px;
+  padding: 12px 24px 8px;
 }
 
 .song-line {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 52px minmax(0, 1fr);
   align-items: center;
   gap: 14px;
-  padding: 12px;
+  padding: 12px 14px;
   margin-bottom: 18px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 
   img {
-    width: 58px;
-    height: 58px;
+    width: 52px;
+    height: 52px;
     object-fit: cover;
-    border-radius: 14px;
-    box-shadow: 0 10px 24px rgba(10, 18, 32, 0.16);
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
   }
 }
 
@@ -314,17 +303,17 @@ defineExpose({ open });
 }
 
 .song-name {
-  color: var(--color-text-default);
+  color: #ffffff;
   font-size: 15px;
-  font-weight: 750;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .song-meta {
-  margin-top: 5px;
-  color: var(--color-text-secondary);
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.65);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -333,15 +322,15 @@ defineExpose({ open });
 
 .form-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: 60px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   margin-top: 14px;
 
   .label {
-    color: var(--color-text-secondary);
+    color: rgba(255, 255, 255, 0.85);
     font-size: 13px;
-    font-weight: 650;
+    font-weight: 600;
   }
 }
 
@@ -354,29 +343,31 @@ defineExpose({ open });
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 34px;
+  height: 38px;
   padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--color-text-muted) 30%, transparent);
-  background: var(--color-bg-default);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.22);
   cursor: pointer;
   box-sizing: border-box;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
 
   &:hover {
     border-color: var(--color-primary);
+    background: rgba(0, 0, 0, 0.3);
   }
 
   .selected-quality-label {
-    color: var(--color-text-default);
-    font-size: 14px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .chevron-icon {
-    color: var(--color-text-secondary);
+    color: rgba(255, 255, 255, 0.65);
     font-size: 16px;
     flex-shrink: 0;
   }
@@ -387,40 +378,83 @@ defineExpose({ open });
   display: flex;
   align-items: center;
   gap: 8px;
-}
 
-.path-input {
-  min-width: 0;
-  flex: 1 1 auto;
+  :deep(.n-input) {
+    background: rgba(0, 0, 0, 0.22) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+
+    .n-input__input-el {
+      color: #ffffff !important;
+      font-size: 13px;
+    }
+
+    .n-input__placeholder {
+      color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    &:hover,
+    &.n-input--focus {
+      border-color: var(--color-primary) !important;
+    }
+  }
 }
 
 .path-btn {
   flex: 0 0 auto;
-  border-radius: 12px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+  }
 }
 
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 24px 24px;
+  padding: 16px 24px 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 14px;
 }
 
 .cancel-btn,
 .confirm-btn {
   min-width: 84px;
-  height: 40px;
-  border-radius: 14px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cancel-btn {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+  }
 }
 
 .confirm-btn {
-  color: #fff;
-  background: var(--color-primary);
-  box-shadow: 0 12px 26px color-mix(in srgb, var(--color-primary) 34%, transparent);
+  color: #ffffff !important;
+  background: var(--color-primary) !important;
+  border: none !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary) 38%, transparent);
+  transition: all 0.2s ease;
 
   &:hover {
-    color: #fff;
-    background: var(--color-primary-hover);
+    background: var(--color-primary-hover) !important;
   }
 }
 

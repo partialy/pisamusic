@@ -1,4 +1,25 @@
 import demoBg from "@/assets/bg/demo.webp";
+import anime01Bg from "@/assets/bg/anime-01-coastal-dusk.webp";
+import anime02Bg from "@/assets/bg/anime-02-rainy-window.webp";
+import anime03Bg from "@/assets/bg/anime-03-summer-breeze.webp";
+import anime04Bg from "@/assets/bg/anime-04-moonlit-vinyl.webp";
+import anime05Bg from "@/assets/bg/anime-05-autumn-riverside.webp";
+import art01Bg from "@/assets/bg/art-01-watercolor-waterside.webp";
+import art02Bg from "@/assets/bg/art-02-paper-mountain-nocturne.webp";
+import art03Bg from "@/assets/bg/art-03-clay-listening-room.webp";
+import art04Bg from "@/assets/bg/art-04-ink-distant-sails.webp";
+import art05Bg from "@/assets/bg/art-05-film-lakeside-evening.webp";
+import art06Bg from "@/assets/bg/art-06-minimal-dune-rhythm.webp";
+import art07Bg from "@/assets/bg/art-07-dream-starlit-ocean.webp";
+import landscape01Bg from "@/assets/bg/landscape-01-misty-lake.webp";
+import landscape02Bg from "@/assets/bg/landscape-02-gentle-tide.webp";
+import landscape03Bg from "@/assets/bg/landscape-03-forest-stream.webp";
+import landscape04Bg from "@/assets/bg/landscape-04-spring-hills.webp";
+import landscape05Bg from "@/assets/bg/landscape-05-winter-nocturne.webp";
+import sky01Bg from "@/assets/bg/sky-01-cloud-piano.webp";
+import sky02Bg from "@/assets/bg/sky-02-rainforest-lantern.webp";
+import sky03Bg from "@/assets/bg/sky-03-starlit-flight.webp";
+import skyRainforestBg from "@/assets/bg/sky-rainforest-loop-source.webp";
 import electronAPI from "@/utils/electron";
 import { analyzeImageBrightness, type ImageColorAnalysis } from "@/utils/imageColor";
 import {
@@ -22,11 +43,28 @@ export interface PresetBackgroundImage {
 }
 
 export const PRESET_BACKGROUND_IMAGES: PresetBackgroundImage[] = [
-  {
-    id: "demo",
-    name: "预置图片 1",
-    url: demoBg,
-  },
+  { id: "anime-01", name: "海岸黄昏", url: anime01Bg },
+  { id: "anime-02", name: "雨窗静谧", url: anime02Bg },
+  { id: "anime-03", name: "夏日微风", url: anime03Bg },
+  { id: "anime-04", name: "月下黑胶", url: anime04Bg },
+  { id: "anime-05", name: "秋日水畔", url: anime05Bg },
+  { id: "art-01", name: "水彩水岸", url: art01Bg },
+  { id: "art-02", name: "纸雕夜山", url: art02Bg },
+  { id: "art-03", name: "陶土音室", url: art03Bg },
+  { id: "art-04", name: "水墨远帆", url: art04Bg },
+  { id: "art-05", name: "胶片暮色", url: art05Bg },
+  { id: "art-06", name: "极简沙丘", url: art06Bg },
+  { id: "art-07", name: "梦幻星海", url: art07Bg },
+  { id: "landscape-01", name: "晨雾薄湖", url: landscape01Bg },
+  { id: "landscape-02", name: "静谧潮汐", url: landscape02Bg },
+  { id: "landscape-03", name: "林间清泉", url: landscape03Bg },
+  { id: "landscape-04", name: "春意山峦", url: landscape04Bg },
+  { id: "landscape-05", name: "冬日夜影", url: landscape05Bg },
+  { id: "sky-01", name: "云端琴键", url: sky01Bg },
+  { id: "sky-02", name: "雨林暖灯", url: sky02Bg },
+  { id: "sky-03", name: "星空飞掠", url: sky03Bg },
+  { id: "sky-rainforest", name: "雨林秘境", url: skyRainforestBg },
+  { id: "demo", name: "经典壁纸", url: demoBg },
 ];
 
 export type AppThemeSetting = {
