@@ -16,6 +16,7 @@ class MineMyOverviewAdapter(
     private val onFavoritePlaylistsClick: () -> Unit,
     private val onLocalMusicClick: () -> Unit,
     private val onSettingsClick: () -> Unit,
+    private val onManageLocalPlaylistsClick: () -> Unit,
     private val onAddLocalPlaylistClick: () -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
@@ -83,7 +84,10 @@ class MineMyOverviewAdapter(
             }
             is LocalMusicViewHolder -> holder.bind(onLocalMusicClick)
             is SettingsViewHolder -> holder.bind(onSettingsClick)
-            is SectionViewHolder -> holder.bind(onAddLocalPlaylistClick)
+            is SectionViewHolder -> holder.bind(
+                onManageClick = onManageLocalPlaylistsClick,
+                onAddClick = onAddLocalPlaylistClick,
+            )
         }
     }
 
@@ -133,7 +137,8 @@ class MineMyOverviewAdapter(
     private class SectionViewHolder(
         private val binding: ItemMineLocalPlaylistSectionHeaderBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(onAddClick: () -> Unit) {
+        fun bind(onManageClick: () -> Unit, onAddClick: () -> Unit) {
+            binding.manageLocalPlaylistsButton.setOnClickListener { onManageClick() }
             binding.addLocalPlaylistButton.setOnClickListener { onAddClick() }
         }
     }

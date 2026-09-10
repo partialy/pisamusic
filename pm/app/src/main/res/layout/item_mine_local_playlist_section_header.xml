@@ -20,6 +20,17 @@
         android:textColor="?attr/colorOnSurfaceVariant" />
 
     <ImageButton
+        android:id="@+id/manageLocalPlaylistsButton"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/local_playlist_management_title"
+        android:padding="6dp"
+        android:src="@drawable/ic_list_check_24"
+        android:tooltipText="@string/local_playlist_management_title"
+        app:tint="@color/primary" />
+
+    <ImageButton
         android:id="@+id/addLocalPlaylistButton"
         android:layout_width="36dp"
         android:layout_height="36dp"
