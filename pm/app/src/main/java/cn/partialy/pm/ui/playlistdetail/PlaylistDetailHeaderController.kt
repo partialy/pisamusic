@@ -11,7 +11,10 @@ import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
 import coil.load
 
 sealed interface PlaylistHeaderArtwork {
-    data class Remote(val url: String) : PlaylistHeaderArtwork
+    data class Remote(
+        val url: String,
+        @androidx.annotation.DrawableRes val fallbackRes: Int = R.drawable.bg_mine_header,
+    ) : PlaylistHeaderArtwork
     data class DrawableRes(@androidx.annotation.DrawableRes val resId: Int) : PlaylistHeaderArtwork
     data class LocalPlaylist(val value: String) : PlaylistHeaderArtwork
 }
@@ -182,10 +185,12 @@ class PlaylistDetailHeaderController(
             is PlaylistHeaderArtwork.DrawableRes -> artwork.resId
             is PlaylistHeaderArtwork.LocalPlaylist -> localArtworkSource(artwork.value)
         }
+        val fallbackRes = (artwork as? PlaylistHeaderArtwork.Remote)?.fallbackRes
+            ?: R.drawable.bg_mine_header
         binding.heroCoverImageView.load(source) {
             crossfade(true)
-            placeholder(R.drawable.bg_mine_header)
-            error(R.drawable.bg_mine_header)
+            placeholder(fallbackRes)
+            error(fallbackRes)
         }
     }
 

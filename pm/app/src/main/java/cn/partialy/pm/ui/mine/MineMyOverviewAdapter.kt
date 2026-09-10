@@ -9,6 +9,7 @@ import cn.partialy.pm.databinding.ItemMineFavoritesRowBinding
 import cn.partialy.pm.databinding.ItemMineLocalMusicRowBinding
 import cn.partialy.pm.databinding.ItemMineLocalPlaylistSectionHeaderBinding
 import cn.partialy.pm.databinding.ItemMinePlaylistEmptyBinding
+import coil.load
 
 class MineMyOverviewAdapter(
     private val onFavoriteSongsClick: () -> Unit,
@@ -19,11 +20,19 @@ class MineMyOverviewAdapter(
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private var localPlaylistEmpty = false
+    private var favoriteSongsCoverUrl: String? = null
 
     fun setLocalPlaylistEmpty(empty: Boolean) {
         if (localPlaylistEmpty == empty) return
         localPlaylistEmpty = empty
         if (empty) notifyItemInserted(EMPTY_POSITION) else notifyItemRemoved(EMPTY_POSITION)
+    }
+
+    fun setFavoriteSongsCover(coverUrl: String?) {
+        val normalizedUrl = coverUrl?.trim()?.takeIf { it.isNotBlank() }
+        if (favoriteSongsCoverUrl == normalizedUrl) return
+        favoriteSongsCoverUrl = normalizedUrl
+        notifyItemChanged(FAVORITE_SONGS_POSITION)
     }
 
     override fun getItemViewType(position: Int): Int = when (position) {
@@ -59,12 +68,14 @@ class MineMyOverviewAdapter(
                 if (position == FAVORITE_SONGS_POSITION) {
                     holder.bind(
                         imageRes = R.drawable.mine_entry_favorite_songs,
+                        imageUrl = favoriteSongsCoverUrl,
                         titleRes = R.string.my_favorites,
                         onClick = onFavoriteSongsClick,
                     )
                 } else {
                     holder.bind(
                         imageRes = R.drawable.mine_entry_favorite_playlists,
+                        imageUrl = null,
                         titleRes = R.string.my_favorite_playlists,
                         onClick = onFavoritePlaylistsClick,
                     )
@@ -81,8 +92,16 @@ class MineMyOverviewAdapter(
     private class FavoritesViewHolder(
         private val binding: ItemMineFavoritesRowBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(imageRes: Int, titleRes: Int, onClick: () -> Unit) {
-            binding.favoritesCoverImageView.setImageResource(imageRes)
+        fun bind(imageRes: Int, imageUrl: String?, titleRes: Int, onClick: () -> Unit) {
+            if (imageUrl == null) {
+                binding.favoritesCoverImageView.setImageResource(imageRes)
+            } else {
+                binding.favoritesCoverImageView.load(imageUrl) {
+                    crossfade(true)
+                    placeholder(R.drawable.my_favorites_cover_peach)
+                    error(R.drawable.my_favorites_cover_peach)
+                }
+            }
             binding.titleTextView.setText(titleRes)
             binding.root.setOnClickListener { onClick() }
         }

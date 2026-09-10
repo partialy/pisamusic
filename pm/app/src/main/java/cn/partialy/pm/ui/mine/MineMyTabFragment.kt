@@ -22,6 +22,7 @@ import cn.partialy.pm.activity.SettingsActivity
 import cn.partialy.pm.databinding.FragmentMineMyTabBinding
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.ui.dialog.PmSlotDialog
+import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
 import com.google.android.material.button.MaterialButton
@@ -35,6 +36,9 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MineMyTabFragment : Fragment() {
+
+    @Inject
+    lateinit var loveManager: LoveManager
 
     @Inject
     lateinit var playlistCollectionManager: PlaylistCollectionManager
@@ -109,6 +113,12 @@ class MineMyTabFragment : Fragment() {
                 val localOnly = list.filter { it.type == CollectedPlaylistType.LOCAL }
                 overviewAdapter.setLocalPlaylistEmpty(localOnly.isEmpty())
                 localPlaylistsAdapter.submitAuthoritativeList(localOnly)
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            loveManager.loveListFlow.collectLatest { songs ->
+                overviewAdapter.setFavoriteSongsCover(songs.firstOrNull()?.coverUrl)
             }
         }
     }

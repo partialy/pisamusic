@@ -130,7 +130,17 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 loveManager.loveListFlow.collect { songs ->
+                    val newestCover = songs.firstOrNull()?.coverUrl?.trim().orEmpty()
+                    val artwork = if (newestCover.isBlank()) {
+                        PlaylistHeaderArtwork.DrawableRes(R.drawable.my_favorites_cover_peach)
+                    } else {
+                        PlaylistHeaderArtwork.Remote(
+                            newestCover,
+                            R.drawable.my_favorites_cover_peach,
+                        )
+                    }
                     headerController.updateHeader(
+                        artwork = artwork,
                         trackCountText = getString(R.string.playlist_track_count_compact, songs.size),
                     )
                     contentAdapter.setStaticSongs(songs, R.string.loved_songs_empty_hint)
