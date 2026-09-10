@@ -34,6 +34,20 @@ class LocalPlaylistManagementRulesTest {
     }
 
     @Test
+    fun filterDoesNotMutateSourceOrderOrContent() {
+        val source = mutableListOf(
+            localPlaylist("a", "Ambient"),
+            localPlaylist("b", "Focus"),
+            localPlaylist("c", "Ambient 2"),
+        )
+        val original = source.toList()
+
+        filter(source, "ambient")
+
+        assertEquals(original, source)
+    }
+
+    @Test
     fun selectAllOnlyAddsFilteredIdsAndKeepsHiddenSelections() {
         val source = listOf(
             localPlaylist("a", "Ambient"),
