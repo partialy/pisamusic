@@ -220,6 +220,42 @@
           <span class="blur-val-text">{{ themeStore.backgroundBlur }}%</span>
         </div>
       </div>
+
+      <div class="setting-item blur-setting-item">
+        <div class="setting-info">
+          <div class="setting-title">背景亮度</div>
+          <div class="setting-desc">调节背景图片的明暗程度（0-100%）。</div>
+        </div>
+        <div class="blur-slider-control">
+          <button
+            type="button"
+            class="blur-step-btn"
+            title="降低亮度"
+            :disabled="themeStore.backgroundBrightness <= 0"
+            @click="handleStepBrightness(-1)">
+            <n-icon :size="14"><Minus /></n-icon>
+          </button>
+          <div class="blur-slider-wrap">
+            <n-slider
+              class="blur-slider"
+              :value="themeStore.backgroundBrightness"
+              :min="0"
+              :max="100"
+              :step="1"
+              :tooltip="false"
+              @update:value="handleBrightnessChange" />
+          </div>
+          <button
+            type="button"
+            class="blur-step-btn"
+            title="提高亮度"
+            :disabled="themeStore.backgroundBrightness >= 100"
+            @click="handleStepBrightness(1)">
+            <n-icon :size="14"><Plus /></n-icon>
+          </button>
+          <span class="blur-val-text">{{ themeStore.backgroundBrightness }}%</span>
+        </div>
+      </div>
     </template>
 
     <!-- 图片库 Modal -->
@@ -320,6 +356,14 @@ const handleBlurChange = (val: number) => {
 
 const handleStepBlur = (delta: number) => {
   void themeStore.setBackgroundBlur(themeStore.backgroundBlur + delta);
+};
+
+const handleBrightnessChange = (val: number) => {
+  void themeStore.setBackgroundBrightness(val);
+};
+
+const handleStepBrightness = (delta: number) => {
+  void themeStore.setBackgroundBrightness(themeStore.backgroundBrightness + delta);
 };
 
 const handleSelectCustomImage = async () => {

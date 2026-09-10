@@ -4,6 +4,7 @@
       <div v-if="isVisible" class="app-confirm-overlay" @click="handleOverlayClick">
         <div
           class="app-confirm-card"
+          :class="isDark ? 'theme-dark' : 'theme-light'"
           role="dialog"
           aria-modal="true"
           :style="{ background: cardBackground }"
@@ -19,7 +20,7 @@
             <button
               type="button"
               class="app-confirm-btn cancel"
-              :style="{ color: mergedOptions.cancelColor || 'var(--color-text-secondary)' }"
+              :style="{ color: cancelTextColor }"
               @click="handleCancel">
               {{ mergedOptions.cancelText || "取消" }}
             </button>
@@ -39,6 +40,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useThemeStore } from "@/store";
 
 export interface ConfirmDialogOptions {
   title?: string;
@@ -82,6 +84,9 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
+const themeStore = useThemeStore();
+const isDark = computed(() => themeStore.resolvedMode === "dark");
+
 const isVisible = ref(false);
 const activeOptions = ref<ConfirmDialogOptions>({});
 let promiseResolve: ((value: boolean) => void) | null = null;
@@ -109,7 +114,17 @@ const mergedOptions = computed<ConfirmDialogOptions>(() => {
 });
 
 const cardBackground = computed(() => {
-  return mergedOptions.value.background || "var(--color-bg-track)";
+  if (mergedOptions.value.background) {
+    return mergedOptions.value.background;
+  }
+  return isDark.value ? "rgba(30, 34, 46, 0.98)" : "#ffffff";
+});
+
+const cancelTextColor = computed(() => {
+  if (mergedOptions.value.cancelColor) {
+    return mergedOptions.value.cancelColor;
+  }
+  return isDark.value ? "rgba(255, 255, 255, 0.72)" : "#646a73";
 });
 
 const confirmTextColor = computed(() => {
@@ -117,12 +132,12 @@ const confirmTextColor = computed(() => {
     return mergedOptions.value.confirmColor;
   }
   if (mergedOptions.value.confirmType === "error") {
-    return "#ff4d4f";
+    return isDark.value ? "#ff4d4f" : "#e03137";
   }
   if (mergedOptions.value.confirmType === "primary") {
     return "var(--color-primary)";
   }
-  return "var(--color-text-default)";
+  return isDark.value ? "rgba(255, 255, 255, 0.92)" : "#1f2329";
 });
 
 function open(options?: ConfirmDialogOptions): Promise<boolean> {
@@ -173,6 +188,7 @@ function handleConfirm() {
 defineExpose({
   open,
   close,
+  isDark,
 });
 </script>
 
@@ -184,21 +200,80 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(2px);
+  background-color: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   user-select: none;
 }
 
 .app-confirm-card {
   width: 290px;
   max-width: calc(100vw - 32px);
-  background: var(--color-bg-track);
-  border: 1px solid var(--color-border-default, rgba(0, 0, 0, 0.08));
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
   display: flex;
   flex-direction: column;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.theme-dark {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+
+    .app-confirm-title {
+      color: rgba(255, 255, 255, 0.94);
+    }
+
+    .app-confirm-content {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .app-confirm-actions {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .app-confirm-btn.cancel {
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .app-confirm-btn:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .app-confirm-btn:active {
+      background-color: rgba(255, 255, 255, 0.14);
+    }
+  }
+
+  &.theme-light {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+
+    .app-confirm-title {
+      color: #1f2329;
+    }
+
+    .app-confirm-content {
+      color: #646a73;
+    }
+
+    .app-confirm-actions {
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .app-confirm-btn.cancel {
+      border-right: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .app-confirm-btn:hover {
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    .app-confirm-btn:active {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+  }
 }
 
 .app-confirm-body {
@@ -212,7 +287,6 @@ defineExpose({
 .app-confirm-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text-default, #1f2329);
   line-height: 1.4;
 }
 
@@ -220,7 +294,6 @@ defineExpose({
   margin-top: 10px;
   font-size: 13px;
   line-height: 1.55;
-  color: var(--color-text-secondary, #646a73);
   word-break: break-word;
 }
 
@@ -228,7 +301,6 @@ defineExpose({
   display: flex;
   flex-direction: row;
   height: 48px;
-  border-top: 1px solid var(--color-border-default, #ececec);
 }
 
 .app-confirm-btn {
@@ -243,18 +315,6 @@ defineExpose({
   align-items: center;
   justify-content: center;
   transition: background-color 0.15s ease;
-
-  &:hover {
-    background-color: color-mix(in srgb, var(--color-text-default) 6%, transparent);
-  }
-
-  &:active {
-    background-color: color-mix(in srgb, var(--color-text-default) 12%, transparent);
-  }
-
-  &.cancel {
-    border-right: 1px solid var(--color-border-default, #ececec);
-  }
 
   &.confirm {
     font-weight: 600;

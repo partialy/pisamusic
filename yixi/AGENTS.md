@@ -308,7 +308,7 @@
 ## 背景模式与主题自适应规则补充
 
 - 桌面端支持“颜色”（默认色彩/渐变）与“图片”两种背景模式，持久化于 SQLite settings 的 `app-theme`。
-- 图片模式下支持 App 预置图片与本地自定义图片上传；背景模糊程度支持 0-100 调节并映射为底层高斯模糊滤镜。
+- 图片模式下支持 App 预置图片与本地自定义图片上传；背景模糊程度支持 0-100 调节并映射为底层高斯模糊滤镜；背景亮度支持 0-100% 调节（`themeStore.backgroundBrightness`），映射为 `--app-bg-brightness` 并作用于 `App.vue` 全屏滤镜。
 - 全屏背景层统一挂载在 `App.vue` 最外层容器（`position: fixed; inset: -24px;`），使得整个视口（包含底部 80px 的播放器 PlayerBar）共享底层唯一图片；图片模式下 PlayerBar 与主要页面层级背景保持透明（`background: transparent !important; backdrop-filter: none; box-shadow: none;`），消除割裂的独立色块。
 - 图片模式下文字、图标与悬浮颜色根据背景图片自动派生：通过离屏 Canvas 采样整图平均感知亮度（ITU-R BT.709 权重公式）与色彩通道，以阈值 165 区分深色与浅色背景。深色背景派生高级软白文字（`rgba(255, 255, 255, 0.90)`，避免 100% 刺眼死白）与半透明微亮光晕悬浮（`color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.08))`，壁纸通透呈现，杜绝死板黑块）；浅色背景派生柔和深炭文字（`rgba(28, 33, 44, 0.88)`，避免生硬死黑）与半透明柔和微暗悬浮（`color-mix(in srgb, var(--color-primary) 10%, rgba(0, 0, 0, 0.05))`，避免死白与黑斑）。全部悬浮配合 0.18s 平滑渐变过渡。
 
@@ -319,5 +319,16 @@
 - 自定义图片删除支持多选，由 main 侧 `dialog:delete-background-image` 安全校验路径并在磁盘中物理删除（仅限 `backgrounds/` 目录内文件，防路径穿越），预置图片只读受保护不可删除。
 - 图片库弹窗组件（`AppImageCenterModal.vue`）以 Modal 形式打开，复用【一起听】同款居中缩放动画（`transform-origin="center"`）、圆角实色卡片（`border-radius: 20px;`、820px × 550px 实色防透）与操作条；标题绝对居中，左上角集成“添加图片”与“删除图片（带二次确认 `AppConfirmDialog`）”圆形纯图标按钮（通过原生 `title` 提示），支持单选高亮、双击直接选中确认并返回图片地址。
 - 基本设置页背景选项中，原【预置图片】行升级为【图片库】，右侧横向展示最新的 3 张图片（可直接点击切换背景），最右侧配备打开图片库图标按钮（`Images` 图标），选中确认后无缝生效为当前背景。
+
+## 歌词背景与主播放界面设置规则补充
+
+- 主播放界面（`MainPlayer.vue`）在右侧垂直居中位置配备毛玻璃圆形齿轮按钮（`Settings` 图标），随鼠标活动状态（`isMouseActive`）平滑淡入淡出，点击唤起紧凑型歌词设置弹窗（`LyricSettingModal.vue`）。
+- `LyricSettingModal.vue` 重新设计为紧凑卡片布局，使用 `n-tabs type="segment"` 分为“歌词背景”、“动效排版”与“字体颜色”三个分类，最大高度 530px，与外层大组件 `LyricSetting.vue` 区分，保持快速易用。
+- 歌词背景支持“默认背景”（封面/流光动效）与“自定义图片”模式：
+  - 自定义图片模式下全屏渲染图片背景层（`z-index: 98`），并覆盖轻量半透明暗层与微毛玻璃（`z-index: 99`），确保在任何明亮或花哨壁纸下歌词与封面均清晰易读；
+  - 歌词背景支持调用【图片库】（`AppImageCenterModal.vue`）选择图片，支持模糊度（0-100）与亮度（0-100%）实时调节，并支持“恢复默认”一键还原为默认背景；
+  - 歌词背景相关配置（`backgroundMode`、`backgroundImage`、`backgroundBlur`、`backgroundBrightness`）持久化至 SQLite settings 的 `lyric-setting`；
+  - 外层设置页的【歌词设置】（`LyricSetting.vue`）顶部同步配备【歌词界面背景】卡片，与弹窗设置共享同一份 `lyricStore.setting`，实现双向即时响应与联动。
+
 
 

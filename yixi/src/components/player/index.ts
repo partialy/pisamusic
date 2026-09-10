@@ -13,6 +13,7 @@ import MusicQualityPicker from "./MusicQualityPicker.vue";
 import PlayModePicker from "./PlayModePicker.vue";
 import SpectrumVisualizer from "./SpectrumVisualizer.vue";
 import AddToPlaylistDialog from "./AddToPlaylistDialog.vue";
+import LyricSettingModal from "./LyricSettingModal.vue";
 export {
   AMLyric,
   MainPlayer,
@@ -29,4 +30,5 @@ export {
   PlayModePicker,
   SpectrumVisualizer,
   AddToPlaylistDialog,
+  LyricSettingModal,
 };

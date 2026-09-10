@@ -40,6 +40,7 @@ export type AppThemeSetting = {
   backgroundImage?: string;
   customBackgroundImage?: string;
   backgroundBlur?: number;
+  backgroundBrightness?: number;
 };
 
 const THEME_SETTING_KEY = "app-theme";
@@ -51,9 +52,10 @@ const DEFAULT_DARK_GRADIENT_COLORS = ["#121826", "#151b2b", "#10131d"];
 const DEFAULT_BACKGROUND_MODE: BackgroundMode = "color";
 const DEFAULT_BACKGROUND_IMAGE = PRESET_BACKGROUND_IMAGES[0].url;
 const DEFAULT_BACKGROUND_BLUR = 0;
+const DEFAULT_BACKGROUND_BRIGHTNESS = 100;
 
 const DEFAULT_THEME: AppThemeSetting = {
-  mode: "light",
+  mode: "system",
   accentColor: DEFAULT_ACCENT_COLOR,
   followSongAccent: false,
   autoBackground: false,
@@ -63,6 +65,7 @@ const DEFAULT_THEME: AppThemeSetting = {
   backgroundImage: DEFAULT_BACKGROUND_IMAGE,
   customBackgroundImage: "",
   backgroundBlur: DEFAULT_BACKGROUND_BLUR,
+  backgroundBrightness: DEFAULT_BACKGROUND_BRIGHTNESS,
 };
 
 export const useThemeStore = defineStore("theme", () => {
@@ -76,6 +79,9 @@ export const useThemeStore = defineStore("theme", () => {
   const backgroundImage = ref<string>(DEFAULT_THEME.backgroundImage ?? DEFAULT_BACKGROUND_IMAGE);
   const customBackgroundImage = ref<string>(DEFAULT_THEME.customBackgroundImage ?? "");
   const backgroundBlur = ref<number>(DEFAULT_THEME.backgroundBlur ?? DEFAULT_BACKGROUND_BLUR);
+  const backgroundBrightness = ref<number>(
+    DEFAULT_THEME.backgroundBrightness ?? DEFAULT_BACKGROUND_BRIGHTNESS
+  );
   const imageIsDark = ref(false);
   const imageAnalysis = ref<ImageColorAnalysis | null>(null);
   const systemDark = ref(false);
@@ -255,6 +261,12 @@ export const useThemeStore = defineStore("theme", () => {
     await persist();
   }
 
+  async function setBackgroundBrightness(brightness: number) {
+    backgroundBrightness.value = Math.max(0, Math.min(100, Math.round(brightness)));
+    applyRuntimeTheme();
+    await persist();
+  }
+
   async function toggleLightDark() {
     await setMode(resolvedMode.value === "dark" ? "light" : "dark");
   }
@@ -287,6 +299,10 @@ export const useThemeStore = defineStore("theme", () => {
       typeof theme?.backgroundBlur === "number"
         ? Math.max(0, Math.min(100, Math.round(theme.backgroundBlur)))
         : DEFAULT_BACKGROUND_BLUR;
+    backgroundBrightness.value =
+      typeof theme?.backgroundBrightness === "number"
+        ? Math.max(0, Math.min(100, Math.round(theme.backgroundBrightness)))
+        : DEFAULT_BACKGROUND_BRIGHTNESS;
     applyRuntimeTheme();
     if (backgroundMode.value === "image") {
       void refreshImageBrightness();
@@ -357,6 +373,7 @@ export const useThemeStore = defineStore("theme", () => {
     }
     root.style.setProperty("--app-bg-blur", `${backgroundBlur.value}`);
     root.style.setProperty("--app-bg-blur-px", `${(backgroundBlur.value * 0.4).toFixed(1)}px`);
+    root.style.setProperty("--app-bg-brightness", `${backgroundBrightness.value}`);
   }
 
   async function persist() {
@@ -371,6 +388,7 @@ export const useThemeStore = defineStore("theme", () => {
       backgroundImage: backgroundImage.value,
       customBackgroundImage: customBackgroundImage.value,
       backgroundBlur: backgroundBlur.value,
+      backgroundBrightness: backgroundBrightness.value,
     }, 1);
   }
 
@@ -435,6 +453,7 @@ export const useThemeStore = defineStore("theme", () => {
     backgroundImage,
     customBackgroundImage,
     backgroundBlur,
+    backgroundBrightness,
     imageIsDark,
     imageAnalysis,
     refreshImageBrightness,
@@ -442,6 +461,7 @@ export const useThemeStore = defineStore("theme", () => {
     setBackgroundImage,
     setCustomBackgroundImage,
     setBackgroundBlur,
+    setBackgroundBrightness,
     toggleLightDark,
     dispose,
   };

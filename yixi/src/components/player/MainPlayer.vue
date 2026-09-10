@@ -1,6 +1,22 @@
 <template>
     <div class="player-layout">
-        <PlayerBackground :fps="60" :album="coverUrl"></PlayerBackground>
+        <!-- 歌词自定义图片背景 -->
+        <template v-if="lyricStore.setting.backgroundMode === 'image' && lyricStore.setting.backgroundImage">
+            <div
+                class="lyric-custom-bg"
+                :style="lyricCustomBgStyle"
+            />
+            <div class="lyric-custom-overlay" />
+        </template>
+        <!-- 默认专辑流光与封面背景 -->
+        <template v-else>
+            <PlayerBackground :fps="60" :album="coverUrl"></PlayerBackground>
+            <div>
+                <img :src="coverUrl" alt="" class="bg-cover" style="width: 100%;height: 100%;object-fit: cover;" @error="handleCoverError">
+            </div>
+            <div class="model-bg"></div>
+        </template>
+
         <Transition name="header" mode="default">
             <div class="header-bar" v-show="isMouseActive">
                 <div class="header-drag-region"></div>
@@ -28,11 +44,6 @@
                 </div>
             </div>
         </Transition>
-        <div>
-            <img :src="coverUrl" alt="" class="bg-cover" style="width: 100%;height: 100%;object-fit: cover;" @error="handleCoverError">
-        </div>
-        
-        <div class="model-bg"></div>
         <!-- cover & song info -->
         <div class="info-container" ref="infoContainer">
             <div class="glass-cover-card" :class="{ 'is-playing': isPlaying }">
@@ -101,13 +112,30 @@
         <Transition name="ctlp" mode="default">
             <ControlPanel class="control-panel" v-show="isMouseActive" />
         </Transition>
+
+        <!-- 右侧垂直居中：歌词设置按钮 -->
+        <Transition name="fade" mode="default">
+            <div
+                v-show="isMouseActive"
+                class="lyric-setting-entry-btn"
+                title="歌词设置"
+                @click="showLyricSettingModal = true"
+            >
+                <n-icon :size="20" class="btn-icon">
+                    <Settings />
+                </n-icon>
+            </div>
+        </Transition>
+
+        <!-- 歌词设置弹窗 -->
+        <LyricSettingModal v-model:show="showLyricSettingModal" />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue';
 import { NIcon } from 'naive-ui';
-import { Disc3 } from 'lucide-vue-next';
+import { Disc3, Settings } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useAudioStore, useCommonStore, useLyricStore } from '@/store';
 import { ControlPanel, SpectrumVisualizer } from '.';
@@ -117,6 +145,7 @@ import { LyricIcon, CloseIcon, MiniWindowIcon, RestoreIcon, ScaleIcon } from '@/
 import electronAPI from '@/utils/electron';
 import { useSongCoverUrl } from '@/composables/useSongCoverUrl';
 import PlayerBackground from './PlayerBackground.vue';
+import LyricSettingModal from './LyricSettingModal.vue';
 import type { PlayerControlsVisibilityEvent } from '@/types/playerControls';
 const playerStore = useAudioStore()
 const { currentSong, isPlaying } = storeToRefs(playerStore)
@@ -124,6 +153,7 @@ const commonStore = useCommonStore()
 const lyricStore = useLyricStore()
 
 const showLyric = ref(true);
+const showLyricSettingModal = ref(false);
 
 const toggleLyricVisibility = () => {
     showLyric.value = !showLyric.value;
@@ -135,6 +165,23 @@ const AMLyricView = computed(() => {
 })
 
 const coverUrl = useSongCoverUrl(currentSong, 360)
+
+const lyricCustomBgStyle = computed(() => {
+    const blur = lyricStore.setting.backgroundBlur ?? 0;
+    const brightness = (lyricStore.setting.backgroundBrightness ?? 100) / 100;
+    const filters: string[] = [];
+    if (blur > 0) {
+        filters.push(`blur(${(blur * 0.4).toFixed(1)}px)`);
+    }
+    if (brightness !== 1) {
+        filters.push(`brightness(${brightness.toFixed(2)})`);
+    }
+    return {
+        backgroundImage: `url('${lyricStore.setting.backgroundImage}')`,
+        filter: filters.length > 0 ? filters.join(' ') : 'none',
+        transform: blur > 0 ? 'scale(1.06)' : 'none',
+    };
+});
 
 const songName = computed(() => {
     if (currentSong.value?.name && currentSong.value.name.includes(' - ')) {
@@ -324,6 +371,38 @@ onBeforeUnmount(() => {
     animation: slide-out 0.6s ease-in-out;
 }
 
+.lyric-custom-bg {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    z-index: 98;
+    pointer-events: none;
+    transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.lyric-custom-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.16);
+    z-index: 99;
+    pointer-events: none;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
 .model-bg {
     width: 100%;
     height: 100%;
@@ -358,6 +437,49 @@ onBeforeUnmount(() => {
     top: 0;
     left: 0;
     z-index: 100;
+
+    .lyric-setting-entry-btn {
+        position: fixed;
+        right: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 102;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+        .btn-icon {
+            color: rgba(255, 255, 255, 0.85);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+        }
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.26);
+            border-color: rgba(255, 255, 255, 0.45);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36);
+            transform: translateY(-50%) scale(1.08);
+
+            .btn-icon {
+                color: #ffffff;
+                transform: rotate(60deg);
+            }
+        }
+
+        &:active {
+            transform: translateY(-50%) scale(0.96);
+        }
+    }
 
     .header-bar {
         width: 100vw;

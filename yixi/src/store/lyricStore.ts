@@ -26,6 +26,10 @@ export interface LyricSetting {
   lyricFontOpacity?: number;
   lyricFontShadow?: boolean;
   showTime?: boolean;
+  backgroundMode?: "default" | "image";
+  backgroundImage?: string;
+  backgroundBlur?: number;
+  backgroundBrightness?: number;
 }
 
 type WordLyricFormat = "krc" | "yrc" | null;
@@ -68,6 +72,10 @@ const defaultLyricSetting = (): LyricSetting => ({
   lyricFontOpacity: 1,
   lyricFontShadow: true,
   showTime: true,
+  backgroundMode: "default",
+  backgroundImage: "",
+  backgroundBlur: 0,
+  backgroundBrightness: 100,
 });
 
 export const useLyricStore = defineStore("lyric", {
@@ -204,6 +212,13 @@ export const useLyricStore = defineStore("lyric", {
     },
     saveSetting() {
       localStorage.setItem("pisa-lyric-setting", JSON.stringify(this.setting));
+    },
+    resetBackgroundToDefault() {
+      this.setting.backgroundMode = "default";
+      this.setting.backgroundImage = "";
+      this.setting.backgroundBlur = 0;
+      this.setting.backgroundBrightness = 100;
+      this.saveSetting();
     },
     loadSetting() {
       const setting = localStorage.getItem("pisa-lyric-setting");

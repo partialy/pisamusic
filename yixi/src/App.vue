@@ -11,7 +11,7 @@
         class="app-full-bg-layer"
         :style="{
           backgroundImage: `url('${themeStore.backgroundImage}')`,
-          filter: `blur(${(themeStore.backgroundBlur * 0.4).toFixed(1)}px)`,
+          filter: `blur(${(themeStore.backgroundBlur * 0.4).toFixed(1)}px) brightness(${((themeStore.backgroundBrightness ?? 100) / 100).toFixed(2)})`,
         }"
       />
       <!-- 极轻薄通透的微遮罩 -->
