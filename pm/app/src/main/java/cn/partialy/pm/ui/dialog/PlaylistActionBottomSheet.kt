@@ -12,7 +12,6 @@ import cn.partialy.pm.model.toCollectedPlaylist
 import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 object PlaylistActionBottomSheet {
     fun show(
@@ -106,22 +105,7 @@ object PlaylistActionBottomSheet {
         manager: PlaylistCollectionManager,
         onDeleted: () -> Unit,
     ) {
-        val name = playlist.name.ifBlank { activity.getString(R.string.mine_playlist_untitled) }
-        MaterialAlertDialogBuilder(activity)
-            .setBackground(activity.getDrawable(R.drawable.bg_search_field))
-            .setTitle(R.string.mine_playlist_delete_confirm_title)
-            .setMessage(activity.getString(R.string.mine_playlist_delete_confirm_message, name))
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.dialog_ok) { _, _ ->
-                val ok = manager.removePlaylist(playlist.type, playlist.id)
-                if (ok) {
-                    Toast.makeText(activity, R.string.mine_playlist_deleted, Toast.LENGTH_SHORT).show()
-                    onDeleted()
-                } else {
-                    Toast.makeText(activity, R.string.mine_playlist_delete_failed, Toast.LENGTH_SHORT).show()
-                }
-            }
-            .show()
+        PlaylistDeleteConfirmation.showSingle(activity, playlist, manager, onDeleted)
     }
 
     private fun bindCover(view: ImageView, cover: String) {
