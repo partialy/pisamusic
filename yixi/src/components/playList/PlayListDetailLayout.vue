@@ -125,7 +125,7 @@ import type { KGPlaylistDetailData } from "@/utils/webapi";
 import { debounce, getKgImage } from "@/utils/common";
 import SearchIcon from "@/icons/header/SearchIcon.vue";
 import { CollectIcon, PlayStatic } from "@/icons";
-import { useCollectStore } from "@/store";
+import { useAudioStore, useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { convertor } from "@/utils/convertor";
 import type { CommonPlaylist, Song } from "@/types/song";
@@ -143,6 +143,8 @@ type DetailOrigin = "kg" | "wy" | "local";
 
 const playbackCommands = usePlaybackCommands();
 const collector = useCollectStore();
+const audio = useAudioStore();
+const isPlayingAllFromHere = ref(false);
 const message = useMessage();
 const route = useRoute();
 const router = useRouter();
@@ -304,36 +306,39 @@ const appendUniqueSongs = (songs: Song[]) => {
 
   if (newSongs.length) {
     allSong.value = [...allSong.value, ...newSongs];
-  }
-};
+    songList.value = allSong.value;
 
-const handlePlay = async (item?: Song) => {
-  if (item) {
-    playbackCommands.playSongFromList(allSong.value, item);
-    return;
-  }
-  // 等待播放列表加载完成
-  let timer: any;
-  if (allLoading.value) {
-    message.success("正在加载全部歌曲...");
-  }
-  timer = setInterval(() => {
-    if (!allLoading.value) {
-      clearInterval(timer);
-      if (!item) {
-        songList.value = allSong.value;
-        playbackCommands.playAll(allSong.value);
+    // 若当前正在播放此歌单，静默补全播放队列
+    if (isPlayingAllFromHere.value && audio.currentSong) {
+      const isCurrentInList = allSong.value.some(
+        (s) => s.source === audio.currentSong?.source && String(s.id) === String(audio.currentSong?.id)
+      );
+      if (isCurrentInList) {
+        void audio.setPlaylist(newSongs);
       }
     }
-  }, 300);
+  }
 };
 
 const playAll = async () => {
-  if (!allLoading.value && allSong.value.length < page.value.total) {
-    await loadAll();
+  if (allSong.value.length === 0) {
+    if (loading.value) {
+      message.info("正在加载歌单歌曲，请稍候...");
+      return;
+    }
+    if (page.value.total === 0) {
+      message.info("歌单中暂无歌曲");
+      return;
+    }
   }
+
+  isPlayingAllFromHere.value = true;
   songList.value = allSong.value;
-  handlePlay();
+  void playbackCommands.playAll(allSong.value);
+
+  if (!allLoading.value && allSong.value.length < page.value.total) {
+    void loadAll();
+  }
 };
 
 function openDetailPage() {
@@ -351,11 +356,11 @@ const loadAll = async () => {
   const currentVersion = loadVersion.value;
   allLoading.value = true;
   try {
-    let offset = INITIAL_PAGE_SIZE;
+    let offset = allSong.value.length;
     while (offset < page.value.total && currentVersion === loadVersion.value) {
       const pageSize = Math.min(BACKGROUND_PAGE_SIZE, page.value.total - offset);
       const songs = await fetchPlaylistSongs(offset, pageSize);
-      if (!songs.length) break;
+      if (!songs.length || currentVersion !== loadVersion.value) break;
       appendUniqueSongs(songs);
       offset += pageSize;
     }
@@ -371,6 +376,7 @@ const loadAll = async () => {
 const initData = debounce(async () => {
   loadVersion.value += 1;
   id = route.query.id;
+  isPlayingAllFromHere.value = false;
   allLoading.value = false;
   allSong.value = [];
   songList.value = [];
