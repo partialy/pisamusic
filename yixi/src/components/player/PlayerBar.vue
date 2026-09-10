@@ -370,6 +370,13 @@ watch(
   box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(16px);
 
+  :root[data-bg-mode="image"] & {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-top: 1px solid var(--color-player-bar-border) !important;
+  }
+
   .left,
   .right {
     width: 35%;

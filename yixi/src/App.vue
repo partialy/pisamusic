@@ -2,23 +2,44 @@
   <n-config-provider
     :theme="themeStore.naiveTheme"
     :theme-overrides="themeStore.naiveThemeOverrides">
-    <n-notification-provider>
-      <n-message-provider>
-        <n-modal-provider>
-          <router-view v-show="!showPlayer" v-slot="{ Component }">
-            <Transition name="main-page" mode="in-out">
-              <component :is="Component" />
-            </Transition>
-          </router-view>
-          <PlayerBar class="player-bar"></PlayerBar>
-          <Transition name="player-slide">
-            <MainPlayer v-if="showPlayer" class="player" />
-          </Transition>
-          <EqualizerModal />
-          <AppDirectMessagePopup :ready="directMessageReady" :online="directMessageOnline" />
-        </n-modal-provider>
-      </n-message-provider>
-    </n-notification-provider>
+    <div
+      class="app-root-shell"
+      :class="{ 'is-image-mode': themeStore.backgroundMode === 'image' }">
+      <!-- 全屏覆盖背景层：铺满整个窗口（包含底部播放器 bar） -->
+      <div
+        v-if="themeStore.backgroundMode === 'image' && themeStore.backgroundImage"
+        class="app-full-bg-layer"
+        :style="{
+          backgroundImage: `url('${themeStore.backgroundImage}')`,
+          filter: `blur(${(themeStore.backgroundBlur * 0.4).toFixed(1)}px)`,
+        }"
+      />
+      <!-- 极轻薄通透的微遮罩 -->
+      <div
+        v-if="themeStore.backgroundMode === 'image'"
+        class="app-full-bg-overlay"
+      />
+
+      <n-notification-provider>
+        <n-message-provider>
+          <n-modal-provider>
+            <div class="app-content-wrapper">
+              <router-view v-show="!showPlayer" v-slot="{ Component }">
+                <Transition name="main-page" mode="in-out">
+                  <component :is="Component" />
+                </Transition>
+              </router-view>
+              <PlayerBar class="player-bar"></PlayerBar>
+              <Transition name="player-slide">
+                <MainPlayer v-if="showPlayer" class="player" />
+              </Transition>
+              <EqualizerModal />
+              <AppDirectMessagePopup :ready="directMessageReady" :online="directMessageOnline" />
+            </div>
+          </n-modal-provider>
+        </n-message-provider>
+      </n-notification-provider>
+    </div>
   </n-config-provider>
 </template>
 
@@ -327,6 +348,40 @@ onBeforeUnmount(() => {
 
 <style src="./css/animation.css"></style>
 <style scoped lang="scss">
+.app-root-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-full-bg-layer {
+  position: fixed;
+  inset: -24px;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  transform: scale(1.05);
+  transition: background-image 0.3s ease, filter 0.1s ease;
+}
+
+.app-full-bg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--color-bg-default, #fff) 8%, transparent);
+}
+
+.app-content-wrapper {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+}
+
 .player-bar {
   position: fixed;
   display: flex;

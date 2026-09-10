@@ -304,3 +304,11 @@
 - `systemClient` 上报桌面设备后保存 30 天 `messageToken`，仅在专属消息和公告已读回执请求中作为 `x-pm-device-token` 使用；设备 UUID 不能作为凭证，token 不得记录日志或暴露给 renderer。
 - `DirectMessageManager` 仅在当前 App 进程维护 dismissed 消息集合。点击“我知道了”先由 renderer 立即推进队列，再 fire-and-forget IPC 回执；失败重试不能阻塞交互，服务端仍未读的消息下次启动必须再次可见。
 - `AppDirectMessagePopup` 在启动及账号会话变化后读取队列，首条展示开始共享一个 3 秒 `performance.now()` 截止时间，后续消息不再等待。专属消息优先于系统公告，公告应等待 direct-message 弹窗流程 settled 后才可出现，避免 modal 重叠。
+
+## 背景模式与主题自适应规则补充
+
+- 桌面端支持“颜色”（默认色彩/渐变）与“图片”两种背景模式，持久化于 SQLite settings 的 `app-theme`。
+- 图片模式下支持 App 预置图片与本地自定义图片上传；背景模糊程度支持 0-100 调节并映射为底层高斯模糊滤镜。
+- 全屏背景层统一挂载在 `App.vue` 最外层容器（`position: fixed; inset: -24px;`），使得整个视口（包含底部 80px 的播放器 PlayerBar）共享底层唯一图片；图片模式下 PlayerBar 与主要页面层级背景保持透明（`background: transparent !important; backdrop-filter: none; box-shadow: none;`），消除割裂的独立色块。
+- 图片模式下文字与图标颜色根据背景图片自动派生：通过离屏 Canvas 采样整图平均感知亮度（ITU-R BT.709 权重公式），并以阈值 175 区分深色与浅色背景；丰富风景、夜空或动漫壁纸自动派生纯白亮色文字（`#ffffff`）与亮色图标并联动 Naive UI 的 `darkTheme`，极浅纯白壁纸派生深黑文字与深色图标。
+

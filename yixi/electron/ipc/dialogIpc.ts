@@ -39,4 +39,26 @@ export function setupDialogIpc() {
     await copyFile(sourcePath, targetPath);
     return `file:///${targetPath.replace(/\\/g, "/")}`;
   });
+
+  ipcMain.handle("dialog:select-background-image", async () => {
+    const result = await dialog.showOpenDialog({
+      title: "选择背景图片",
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "Images",
+          extensions: ["jpg", "jpeg", "png", "webp", "gif"],
+        },
+      ],
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+
+    const sourcePath = result.filePaths[0];
+    const ext = path.extname(sourcePath).toLowerCase() || ".png";
+    const bgDir = getAppDataPath("backgrounds");
+    await mkdir(bgDir, { recursive: true });
+    const targetPath = path.join(bgDir, `bg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+    await copyFile(sourcePath, targetPath);
+    return `file:///${targetPath.replace(/\\/g, "/")}`;
+  });
 }

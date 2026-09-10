@@ -116,6 +116,7 @@ const settingsIpc = {
   deleteSetting: (key: string) => ipcRenderer.invoke("settings:delete", key),
   selectDirectory: (title?: string) => ipcRenderer.invoke("dialog:select-directory", title),
   selectPlaylistCover: () => ipcRenderer.invoke("dialog:select-playlist-cover"),
+  selectBackgroundImage: () => ipcRenderer.invoke("dialog:select-background-image"),
 };
 
 const mediaCacheIpc = {

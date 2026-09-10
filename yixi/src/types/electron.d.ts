@@ -861,6 +861,7 @@ type ElectronIpcApi = {
   deleteSetting: (key: string) => Promise<boolean>;
   selectDirectory: (title?: string) => Promise<string | null>;
   selectPlaylistCover: () => Promise<string | null>;
+  selectBackgroundImage: () => Promise<string | null>;
   applyShortcutSetting: (setting: ShortcutSetting) => Promise<ShortcutRegistrationResult[]>;
   onShortcutTrigger: (callback: (action: ShortcutAction) => void) => () => void;
   addSearchHistory: (payload: { keyword: string; source?: string | null }) => Promise<SearchHistoryItem | null>;

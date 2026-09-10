@@ -1,41 +1,46 @@
 <template>
-  <n-space vertical>
-    <n-layout has-sider class="app-shell">
-      <n-layout-sider
-        class="app-sider"
-        bordered
-        collapse-mode="width"
-        :collapsed-width="88"
-        :width="232"
-        :collapsed="collapsed"
-        show-trigger
-        @collapse="collapsed = true"
-        @expand="collapsed = false">
-        <div class="brand-container" :class="{ collapsed }">
-          <n-image :src="logo" preview-disabled class="brand-logo" />
-          <span v-if="!collapsed" class="brand-title">PisaMusic</span>
-        </div>
-        <n-menu
-          v-model:value="activeTab"
+  <div class="main-layout-root">
+    <n-space vertical class="layout-space">
+      <n-layout
+        has-sider
+        class="app-shell"
+        :class="{ 'is-image-mode': themeStore.backgroundMode === 'image' }">
+        <n-layout-sider
+          class="app-sider"
+          bordered
+          collapse-mode="width"
+          :collapsed-width="88"
+          :width="232"
           :collapsed="collapsed"
-          :collapsed-width="80"
-          :collapsed-icon-size="20"
-          :options="menuOptions"
-          @update:value="handleChangeMenu" />
-      </n-layout-sider>
-      <n-layout>
-        <div class="right-content">
-          <Header class="header" @refresh="refreshContent" />
-          <div class="content">
-            <router-view v-slot="{ Component }">
-              <component :is="Component" :key="`${route.fullPath}:${contentRefreshKey}`" />
-            </router-view>
+          show-trigger
+          @collapse="collapsed = true"
+          @expand="collapsed = false">
+          <div class="brand-container" :class="{ collapsed }">
+            <n-image :src="logo" preview-disabled class="brand-logo" />
+            <span v-if="!collapsed" class="brand-title">PisaMusic</span>
           </div>
-        </div>
+          <n-menu
+            v-model:value="activeTab"
+            :collapsed="collapsed"
+            :collapsed-width="80"
+            :collapsed-icon-size="20"
+            :options="menuOptions"
+            @update:value="handleChangeMenu" />
+        </n-layout-sider>
+        <n-layout class="app-main-layout">
+          <div class="right-content">
+            <Header class="header" @refresh="refreshContent" />
+            <div class="content">
+              <router-view v-slot="{ Component }">
+                <component :is="Component" :key="`${route.fullPath}:${contentRefreshKey}`" />
+              </router-view>
+            </div>
+          </div>
+        </n-layout>
       </n-layout>
-    </n-layout>
-  </n-space>
-  <AppAnnouncementAutoPopup />
+    </n-space>
+    <AppAnnouncementAutoPopup />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -57,7 +62,9 @@ import AppAnnouncementAutoPopup from "@/components/home/AppAnnouncementAutoPopup
 import { KGIcon, NeteaseIcon } from "@/icons";
 import logo from "@/assets/pisamusic_icon_1024.png";
 import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
+import { useThemeStore } from "@/store";
 
+const themeStore = useThemeStore();
 const router = useRouter();
 const route = useRoute();
 const collapsed = ref(false);
@@ -150,24 +157,75 @@ function renderMenuIcon(icon: Component) {
 </script>
 
 <style lang="scss" scoped>
+.main-layout-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+}
+
+.layout-space {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  width: 100%;
+
+  :deep(.n-space) {
+    height: 100%;
+  }
+}
+
 .app-shell {
   height: 100vh;
   padding-bottom: 80px;
   background: var(--color-bg-track);
+  transition: background-color 0.3s ease;
+
+  &.is-image-mode {
+    background: transparent !important;
+
+    :deep(.n-layout),
+    :deep(.n-layout-scroll-container),
+    :deep(.n-layout-sider),
+    :deep(.n-layout-sider-scroll-container) {
+      background: transparent !important;
+    }
+  }
 }
 
 .app-sider {
   padding: 1rem;
   background: transparent;
+
+  .app-shell.is-image-mode & {
+    background: transparent !important;
+  }
+}
+
+.app-main-layout {
+  background: transparent !important;
+
+  .app-shell.is-image-mode & {
+    background: transparent !important;
+  }
 }
 
 .right-content {
   height: calc(100vh - 80px);
   background: var(--color-bg-track);
 
+  .app-shell.is-image-mode & {
+    background: transparent !important;
+  }
+
   .header {
     display: flex;
     width: 100%;
+
+    .app-shell.is-image-mode & {
+      background: transparent !important;
+    }
   }
 
   .content {
@@ -175,7 +233,11 @@ function renderMenuIcon(icon: Component) {
     height: calc(100% - 80px);
     overflow-y: overlay;
     padding: 1rem 1.5rem 1rem 1rem;
-    background: transparent;
+    background: transparent !important;
+
+    .app-shell.is-image-mode & {
+      background: transparent !important;
+    }
   }
 }
 

@@ -103,6 +103,11 @@ export async function getColorFromUrl(url: string): Promise<string> {
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
       image = nativeImage.createFromBuffer(buffer);
+    } else if (url.startsWith("data:")) {
+      const commaIdx = url.indexOf(",");
+      const base64Data = commaIdx !== -1 ? url.slice(commaIdx + 1) : url;
+      const buffer = Buffer.from(base64Data, "base64");
+      image = nativeImage.createFromBuffer(buffer);
     } else if (url.startsWith("file://")) {
       image = nativeImage.createFromPath(url.replace("file://", ""));
     } else {

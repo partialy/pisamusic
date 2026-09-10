@@ -14,6 +14,7 @@
 body {
   font: 16px/1.5  "Microsoft Yahei",
     "Hiragino Sans GB", "Heiti SC", "WenQuanYi Micro Hei", sans-serif;
+  color: var(--color-text-default);
 }
 
 /* 去除列表默认样式 */
@@ -142,6 +143,30 @@ h6 {
 
 :root:not([data-theme]) {
   color-scheme: light;
+}
+
+:root[data-bg-mode="image"] .player-bar,
+:root[data-bg-mode="image"] .player-bar.bar-container,
+:root[data-bg-mode="image"] .bar-container {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-top: 1px solid var(--color-player-bar-border) !important;
+  color: var(--color-text-default);
+}
+
+:root[data-bg-mode="image"] #app,
+:root[data-bg-mode="image"] .app-root-shell,
+:root[data-bg-mode="image"] .app-content-wrapper,
+:root[data-bg-mode="image"] .main-layout-root,
+:root[data-bg-mode="image"] .app-shell,
+:root[data-bg-mode="image"] .right-content,
+:root[data-bg-mode="image"] .n-layout,
+:root[data-bg-mode="image"] .n-layout-scroll-container,
+:root[data-bg-mode="image"] .n-layout-sider,
+:root[data-bg-mode="image"] .n-layout-sider-scroll-container {
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
 :root[data-theme="light"] {
