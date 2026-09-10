@@ -67,7 +67,7 @@ class MineMyOverviewAdapter(
             is FavoritesViewHolder -> {
                 if (position == FAVORITE_SONGS_POSITION) {
                     holder.bind(
-                        imageRes = R.drawable.mine_entry_favorite_songs,
+                        imageRes = R.drawable.my_favorites_cover_peach,
                         imageUrl = favoriteSongsCoverUrl,
                         titleRes = R.string.my_favorites,
                         onClick = onFavoriteSongsClick,
