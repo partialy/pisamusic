@@ -121,6 +121,20 @@
                 android:padding="8dp"
                 android:src="@drawable/ic_share_24"
                 app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/batchManageButton"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@android:color/white" />
+
+            <ImageButton
+                android:id="@+id/batchManageButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/local_playlist_management_title"
+                android:padding="8dp"
+                android:src="@drawable/ic_list_check_24"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/moreButton"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@android:color/white" />
