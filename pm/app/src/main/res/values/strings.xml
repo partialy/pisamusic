@@ -508,6 +508,14 @@
     <string name="local_playlist_management_select_all">全选</string>
     <string name="local_playlist_management_invert">反选</string>
     <string name="local_playlist_management_select_cd">选择歌单</string>
+    <string name="local_playlist_song_management_title">管理歌曲</string>
+    <string name="local_playlist_song_management_search_hint">搜索歌单内的歌曲</string>
+    <string name="local_playlist_song_management_selection_count">已选择 %1$d/%2$d 首</string>
+    <string name="local_playlist_song_management_empty">暂无匹配的歌曲</string>
+    <string name="local_playlist_song_management_select_cd">选择歌曲</string>
+    <string name="local_playlist_song_management_delete_confirm_title">移除歌曲</string>
+    <string name="local_playlist_song_management_delete_confirm_message">确定从该歌单移除选中的 %1$d 首歌曲？</string>
+    <string name="local_playlist_song_management_delete_success">已从歌单移除 %1$d 首歌曲</string>
     <string name="mine_playlist_more_coming">更多功能即将推出</string>
     <string name="mine_playlist_more_sheet_title">歌单</string>
     <string name="mine_playlist_action_delete">删除歌单</string>

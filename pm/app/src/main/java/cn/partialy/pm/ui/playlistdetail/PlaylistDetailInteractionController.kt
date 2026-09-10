@@ -32,6 +32,7 @@ class PlaylistDetailInteractionController private constructor(
     private val onPlayAll: () -> Unit,
     private val onToggleCollect: () -> Unit,
     private val onSearchRequested: (() -> Unit)? = null,
+    private val onBatchRequested: (() -> Unit)? = null,
 ) {
     private var currentQuery: String = headerController.state.searchQuery
     private val insetsController = WindowInsetsControllerCompat(activity.window, binding.root)
@@ -89,6 +90,13 @@ class PlaylistDetailInteractionController private constructor(
         )
         binding.stickyPlayAllBar.btnPlayAllSticky.setOnClickListener { onPlayAll() }
         binding.stickyPlayAllBar.sortPlaylistButton.setOnClickListener { showSortOptionsDialog() }
+        if (onBatchRequested != null) {
+            binding.stickyPlayAllBar.batchPlaylistButton.isEnabled = true
+            binding.stickyPlayAllBar.batchPlaylistButton.setOnClickListener { onBatchRequested.invoke() }
+        } else {
+            binding.stickyPlayAllBar.batchPlaylistButton.isEnabled = false
+            binding.stickyPlayAllBar.batchPlaylistButton.setOnClickListener(null)
+        }
         binding.stickyPlayAllBar.root.isVisible = true
         setupInsets()
         applyChromeState(verticalOffset = 0)
@@ -224,6 +232,7 @@ class PlaylistDetailInteractionController private constructor(
             onPlayAll: () -> Unit,
             onToggleCollect: () -> Unit,
             onSearchRequested: (() -> Unit)? = null,
+            onBatchRequested: (() -> Unit)? = null,
         ): PlaylistDetailInteractionController = PlaylistDetailInteractionController(
             activity = activity,
             binding = binding,
@@ -232,6 +241,7 @@ class PlaylistDetailInteractionController private constructor(
             onPlayAll = onPlayAll,
             onToggleCollect = onToggleCollect,
             onSearchRequested = onSearchRequested,
+            onBatchRequested = onBatchRequested,
         )
     }
 }

@@ -108,10 +108,6 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                 onDeleted = { finishAnimated() },
             )
         }
-        binding.batchManageButton.setOnClickListener {
-            LocalPlaylistSongManagementActivity.start(this, playlistId, headerController.state.title)
-        }
-        binding.batchManageButton.visibility = android.view.View.VISIBLE
 
         contentAdapter = createContentAdapter()
         observeSongListPlaybackState(musicController, contentAdapter)
@@ -147,6 +143,13 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
                 PlaylistSongsSearchActivity.start(
                     context = this,
                     songs = songs,
+                    title = headerController.state.title,
+                )
+            },
+            onBatchRequested = {
+                LocalPlaylistSongManagementActivity.start(
+                    context = this,
+                    playlistId = playlistId,
                     title = headerController.state.title,
                 )
             },
