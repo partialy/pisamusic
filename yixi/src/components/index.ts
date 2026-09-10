@@ -14,6 +14,7 @@ import SongList from "./list/SongList.vue";
 import PlaylistCollect from "./list/PlaylistCollect.vue";
 import LoginCard from "./home/LoginCard.vue";
 import DialogWrapper from "./common/DialogWrapper.vue";
+import AppConfirmDialog from "./common/AppConfirmDialog.vue";
 export {
     Header,
     ElectronOperation,
@@ -29,7 +30,8 @@ export {
     SongList,
     PlaylistCollect,
     LoginCard,
-    DialogWrapper
+    DialogWrapper,
+    AppConfirmDialog
 }
 
 export * from "./player";

@@ -138,6 +138,7 @@
 
       <n-empty v-else class="empty-state" description="暂无收藏内容" />
     </div>
+    <AppConfirmDialog ref="confirmDialogRef" />
   </div>
 </template>
 
@@ -148,6 +149,7 @@ import { CheckSquare, Play, Search, Trash2 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import SongList from "@/components/list/SongList.vue";
+import AppConfirmDialog from "@/components/common/AppConfirmDialog.vue";
 import { useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
@@ -163,6 +165,8 @@ const searchFocused = ref(false);
 const isBatchMode = ref(false);
 const selectedKeys = ref<Set<string>>(new Set());
 const isBatchDeleting = ref(false);
+
+const confirmDialogRef = ref<InstanceType<typeof AppConfirmDialog> | null>(null);
 
 const {
   isHeaderCollapsed,
@@ -258,35 +262,37 @@ function toggleSelectAll() {
   }
 }
 
-function handleBatchDelete() {
+async function handleBatchDelete() {
   const count = selectedKeys.value.size;
   if (!count) return;
   const typeText = activeTab.value === "songs" ? "首歌曲" : "个歌单";
 
-  window.$dialog.warning({
-    title: "批量取消收藏",
-    content: `确定要将选中的 ${count} ${typeText}从收藏中移除吗？`,
-    positiveText: "确定移除",
-    negativeText: "取消",
-    onPositiveClick: async () => {
-      isBatchDeleting.value = true;
-      try {
-        if (activeTab.value === "songs") {
-          const targets = songs.value.filter((s) => selectedKeys.value.has(`${s.source}:${s.id}`));
-          await collector.batchRemoveSongs(targets);
-        } else {
-          const targets = playlists.value.filter((p) => selectedKeys.value.has(`${p.source}:${p.id}`));
-          await collector.batchRemovePlaylists(targets);
-        }
-        window.$message?.success?.(`已取消收藏 ${count} ${typeText}`);
-        exitBatchMode();
-      } catch (error: any) {
-        window.$message?.error?.(`批量取消收藏失败：${error?.message || error}`);
-      } finally {
-        isBatchDeleting.value = false;
-      }
-    },
+  const confirmed = await confirmDialogRef.value?.open({
+    title: "提示",
+    content: `确定要执行此操作吗？将取消收藏选中的 ${count} ${typeText}，执行后将无法撤回。`,
+    confirmText: "确认",
+    cancelText: "取消",
+    confirmColor: "#ff4d4f",
   });
+
+  if (!confirmed) return;
+
+  isBatchDeleting.value = true;
+  try {
+    if (activeTab.value === "songs") {
+      const targets = songs.value.filter((s) => selectedKeys.value.has(`${s.source}:${s.id}`));
+      await collector.batchRemoveSongs(targets);
+    } else {
+      const targets = playlists.value.filter((p) => selectedKeys.value.has(`${p.source}:${p.id}`));
+      await collector.batchRemovePlaylists(targets);
+    }
+    window.$message?.success?.(`已取消收藏 ${count} ${typeText}`);
+    exitBatchMode();
+  } catch (error: any) {
+    window.$message?.error?.(`批量取消收藏失败：${error?.message || error}`);
+  } finally {
+    isBatchDeleting.value = false;
+  }
 }
 
 function playAll() {
