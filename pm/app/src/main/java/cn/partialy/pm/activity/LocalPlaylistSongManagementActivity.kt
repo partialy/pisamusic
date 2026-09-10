@@ -35,11 +35,12 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
         val back = Button(this).apply { text = "‹"; setOnClickListener { finish() } }; bar.addView(back, LinearLayout.LayoutParams(56,56))
         val title = TextView(this).apply { text = intent.getStringExtra(TITLE).orEmpty(); textSize = 20f }; bar.addView(title, LinearLayout.LayoutParams(0,56,1f))
         counter = TextView(this); bar.addView(counter); root.addView(bar)
-        val search = EditText(this).apply { hint = getString(R.string.local_playlist_management_search_hint); singleLine = true; doAfterTextChanged { schedule(it?.toString().orEmpty()) } }; root.addView(search, LinearLayout.LayoutParams(-1,56))
+        val search = EditText(this).apply { hint = getString(R.string.local_playlist_management_search_hint); setSingleLine(true); doAfterTextChanged { schedule(it?.toString().orEmpty()) } }; root.addView(search, LinearLayout.LayoutParams(-1,56))
         adapter = LocalPlaylistSongManagementAdapter { song, checked -> if (checked) selected.add(key(song)) else selected.remove(key(song)); render() }
-        val list = RecyclerView(this).apply { layoutManager = LinearLayoutManager(this@LocalPlaylistSongManagementActivity); adapter = this@LocalPlaylistSongManagementActivity.adapter; addOnScrollListener(object: RecyclerView.OnScrollListener(){ override fun onScrolled(v: RecyclerView,dx:Int,dy:Int){ if(dy>0 && (layoutManager as LinearLayoutManager).findLastVisibleItemPosition() >= adapter.itemCount-8){ shown += 40; render() } } }) }; root.addView(list, LinearLayout.LayoutParams(-1,0,1f))
+        val songAdapter = adapter
+        val list = RecyclerView(this).apply { layoutManager = LinearLayoutManager(this@LocalPlaylistSongManagementActivity); adapter = songAdapter; addOnScrollListener(object: RecyclerView.OnScrollListener(){ override fun onScrolled(v: RecyclerView,dx:Int,dy:Int){ if(dy>0 && (layoutManager as LinearLayoutManager).findLastVisibleItemPosition() >= songAdapter.itemCount-8){ shown += 40; render() } } }) }; root.addView(list, LinearLayout.LayoutParams(-1,0,1f))
         val actions = LinearLayout(this).apply { gravity = android.view.Gravity.CENTER }
-        fun action(text:String, click:()->Unit)=Button(this).apply{text=text;setOnClickListener{click()};actions.addView(this,LinearLayout.LayoutParams(0,64,1f))}
+        fun action(label:String, click:()->Unit)=Button(this).apply{setText(label);setOnClickListener{click()};actions.addView(this,LinearLayout.LayoutParams(0,64,1f))}
         action("全选") { selected.addAll(filtered.map(::key)); render() }; action("反选") { filtered.forEach { val k=key(it); if(!selected.add(k)) selected.remove(k) }; render() }; action("删除") { deleteSelected() }; root.addView(actions)
         setContentView(root); onBackPressedDispatcher.addCallback(this){finish()}
         lifecycleScope.launch { source = withContext(Dispatchers.IO){ manager.getLocalPlaylistSongs(playlistId) }; selected.retainAll(source.mapTo(mutableSetOf(),::key)); schedule("") }
