@@ -500,6 +500,14 @@
     <string name="mine_import_cd_kg">从酷狗导入歌单</string>
     <string name="mine_import_cd_wy">从网易云导入歌单</string>
     <string name="mine_playlist_track_count">%1$d首</string>
+    <string name="local_playlist_management_title">管理本地歌单</string>
+    <string name="local_playlist_management_back_cd">返回</string>
+    <string name="local_playlist_management_search_hint">搜索本地歌单</string>
+    <string name="local_playlist_management_selection_count">已选择 %1$d/%2$d 个</string>
+    <string name="local_playlist_management_empty">暂无匹配的本地歌单</string>
+    <string name="local_playlist_management_select_all">全选</string>
+    <string name="local_playlist_management_invert">反选</string>
+    <string name="local_playlist_management_select_cd">选择歌单</string>
     <string name="mine_playlist_more_coming">更多功能即将推出</string>
     <string name="mine_playlist_more_sheet_title">歌单</string>
     <string name="mine_playlist_action_delete">删除歌单</string>

@@ -289,6 +289,12 @@
             android:theme="@style/Theme.Pm" />
 
         <activity
+            android:name=".activity.LocalPlaylistManagementActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Pm"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
             android:name=".activity.ShareDetailActivity"
             android:exported="false"
             android:theme="@style/Theme.Pm" />
