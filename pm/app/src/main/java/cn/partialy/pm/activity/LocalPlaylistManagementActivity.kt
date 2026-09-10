@@ -43,6 +43,7 @@ class LocalPlaylistManagementActivity : BaseActivity() {
     private var filteredPlaylists: List<CollectedPlaylist> = emptyList()
     private var renderedCount = PAGE_SIZE
     private var filterJob: Job? = null
+    private var hasFlowSnapshot = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityLocalPlaylistManagementBinding.inflate(layoutInflater)
@@ -61,11 +62,12 @@ class LocalPlaylistManagementActivity : BaseActivity() {
                 playlistCollectionManager.getAllPlaylists()
                     .filter { it.type == CollectedPlaylistType.LOCAL }
             }
-            updateSource(initial)
+            if (!hasFlowSnapshot) updateSource(initial)
         }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 playlistCollectionManager.playlistsFlow.collect { playlists ->
+                    hasFlowSnapshot = true
                     updateSource(playlists.filter { it.type == CollectedPlaylistType.LOCAL })
                 }
             }
