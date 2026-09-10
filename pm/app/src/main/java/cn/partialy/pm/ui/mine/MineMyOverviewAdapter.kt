@@ -94,7 +94,11 @@ class MineMyOverviewAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(imageRes: Int, imageUrl: String?, titleRes: Int, onClick: () -> Unit) {
             if (imageUrl == null) {
-                binding.favoritesCoverImageView.setImageResource(imageRes)
+                binding.favoritesCoverImageView.load(imageRes) {
+                    crossfade(true)
+                    placeholder(R.drawable.my_favorites_cover_peach)
+                    error(R.drawable.my_favorites_cover_peach)
+                }
             } else {
                 binding.favoritesCoverImageView.load(imageUrl) {
                     crossfade(true)
