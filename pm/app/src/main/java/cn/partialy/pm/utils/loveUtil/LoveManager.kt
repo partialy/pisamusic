@@ -191,6 +191,32 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         persistAsync()
     }
 
+    fun removeSongsFromLoveList(songs: Collection<SongInfo>): Int {
+        if (songs.isEmpty()) return 0
+        ensureLoaded()
+        var removedCount = 0
+        val removedSongs = mutableListOf<SongInfo>()
+        synchronized(lock) {
+            for (song in songs) {
+                if (db.removeSong(song)) {
+                    songsByKey.remove(song.storageKey())
+                    removedSongs.add(song)
+                    removedCount++
+                }
+            }
+            if (removedCount > 0) {
+                refreshFlowLocked()
+            }
+        }
+        if (removedCount > 0) {
+            for (song in removedSongs) {
+                enqueueFavoriteSong(song, SyncPayloads.ACTION_DELETE)
+            }
+            persistAsync()
+        }
+        return removedCount
+    }
+
     fun upsertFromSync(song: cn.partialy.pm.model.CanonicalSong) {
         val next = song.toSongInfo().forPersistence()
         if (next.type == SongType.LOCAL || next.id.isBlank()) return

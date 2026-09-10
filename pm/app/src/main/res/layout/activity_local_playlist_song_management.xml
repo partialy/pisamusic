@@ -210,6 +210,7 @@
             android:orientation="vertical">
 
             <ImageView
+                android:id="@+id/deleteActionIcon"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:contentDescription="@null"
@@ -218,6 +219,7 @@
                 app:tint="@color/pm_dialog_danger" />
 
             <TextView
+                android:id="@+id/deleteActionText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"

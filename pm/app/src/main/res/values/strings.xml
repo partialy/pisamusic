@@ -516,6 +516,13 @@
     <string name="local_playlist_song_management_delete_confirm_title">移除歌曲</string>
     <string name="local_playlist_song_management_delete_confirm_message">确定从该歌单移除选中的 %1$d 首歌曲？</string>
     <string name="local_playlist_song_management_delete_success">已从歌单移除 %1$d 首歌曲</string>
+    <string name="loved_songs_management_title">管理收藏</string>
+    <string name="loved_songs_management_search_hint">搜索收藏的歌曲</string>
+    <string name="loved_songs_management_unlove">取消收藏</string>
+    <string name="loved_songs_management_unlove_confirm_title">取消收藏</string>
+    <string name="loved_songs_management_unlove_confirm_message">确定取消收藏选中的 %1$d 首歌曲？</string>
+    <string name="loved_songs_management_unlove_success">已取消收藏 %1$d 首歌曲</string>
+    <string name="loved_songs_management_empty">暂无匹配的收藏歌曲</string>
     <string name="mine_playlist_more_coming">更多功能即将推出</string>
     <string name="mine_playlist_more_sheet_title">歌单</string>
     <string name="mine_playlist_action_delete">删除歌单</string>

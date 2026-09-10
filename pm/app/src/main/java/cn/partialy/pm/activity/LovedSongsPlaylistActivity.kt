@@ -120,6 +120,7 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
             onPlayAll = playAll,
             onToggleCollect = {},
             onSearchRequested = { LovedSongsSearchActivity.start(this) },
+            onBatchRequested = { LovedSongsManagementActivity.start(this) },
         )
 
         miniPlayerBinder = HomeMiniPlayerBinder(this, binding.homeMiniPlayer, musicController).apply {
