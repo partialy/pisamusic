@@ -32,6 +32,7 @@ import cn.partialy.pm.ui.playlistdetail.PlaylistDetailContentAdapter
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderController
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
 import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
+import cn.partialy.pm.ui.playlistdetail.missingPlayableSongs
 import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -174,7 +175,7 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
             val list = contentAdapter.currentSongs
             if (list.isNotEmpty()) {
                 musicController.setPlayListLazy(list, startIndex = 0, sourceId = pagingPlaylistId)
-                ensurePlaylistEnriched()
+                enrichCurrentPlaylistQueueIfActive()
             }
         }
         interactionController = PlaylistDetailInteractionController.attach(
@@ -307,15 +308,17 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         val idx = songs.indexOfFirst { it.id == song.id && it.type == song.type }
         if (idx < 0) return
         musicController.setPlayListLazy(songs, startIndex = idx, sourceId = pagingPlaylistId)
-        ensurePlaylistEnriched()
+        enrichCurrentPlaylistQueueIfActive()
     }
 
-    /** 如果播放队列比 adapter 少（后台还没加载完时点击），把差量补上 */
-    private fun ensurePlaylistEnriched() {
-        val adapterSongs = contentAdapter.currentSongs
-        val queueSize = musicController.playList.value.size
-        if (queueSize >= adapterSongs.size) return
-        musicController.appendSongsLazy(adapterSongs.subList(queueSize, adapterSongs.size))
+    /** 当前歌单仍在播放时，按歌曲身份补齐异步加载的新曲目。 */
+    private fun enrichCurrentPlaylistQueueIfActive() {
+        if (!musicController.isPlayListSource(pagingPlaylistId)) return
+        val missing = missingPlayableSongs(
+            loaded = contentAdapter.currentSongs,
+            queued = musicController.playList.value,
+        )
+        if (missing.isNotEmpty()) musicController.appendSongsLazy(missing)
     }
 
     private suspend fun loadPlaylistInitial(playlistId: String) {
@@ -373,6 +376,7 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                     apiPage = 2,
                     apiPageSize = totalCount,
                 )
+                enrichCurrentPlaylistQueueIfActive()
             }
         }
     }

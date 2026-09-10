@@ -15,9 +15,29 @@ class PlaylistQueueEnrichmentRulesTest {
         assertEquals(listOf(song("3")), missingPlayableSongs(loaded, queued))
     }
 
-    private fun song(id: String, playable: Boolean = true) = SongInfo(
+    @Test
+    fun aLoadedSecondPageContributesOnlyNewPlayableSongs() {
+        val first = (1..30).map { song("wy", it.toString()) }
+
+        assertEquals(
+            listOf(song("wy", "31")),
+            missingPlayableSongs(first + song("wy", "31"), first),
+        )
+    }
+
+    private fun song(source: String, id: String, playable: Boolean = true) = song(
         id = id,
-        type = SongType.KG,
+        playable = playable,
+        type = SongType.valueOf(source.uppercase()),
+    )
+
+    private fun song(
+        id: String,
+        playable: Boolean = true,
+        type: SongType = SongType.KG,
+    ) = SongInfo(
+        id = id,
+        type = type,
         name = id,
         artist = "artist",
         coverUrl = "",
