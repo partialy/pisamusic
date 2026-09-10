@@ -110,6 +110,8 @@ class MusicController @Inject constructor(
 
     // ==================== 播放控制 ====================
 
+    fun isPlayListSource(sourceId: String): Boolean = playlistManager.sourceId == sourceId
+
     fun togglePlayPause(source: PlaybackControlSource = PlaybackControlSource.APP_UI) =
         engine.togglePlayPause(source)
 
