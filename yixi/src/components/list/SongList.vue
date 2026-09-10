@@ -109,16 +109,22 @@ const songDownload = useSongDownload();
 const router = useRouter();
 
 
-const props = defineProps<{
-  songs: Song[];
-  loading?: boolean;
-  minSize?: number;
-  searchKey?: string;
-  showHeader?: boolean;
-  showFooter?: boolean;
-  hasMore?: boolean;
-  removable?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    songs: Song[];
+    loading?: boolean;
+    minSize?: number;
+    searchKey?: string;
+    showHeader?: boolean;
+    showFooter?: boolean;
+    hasMore?: boolean;
+    removable?: boolean;
+    playMode?: "replace" | "append";
+  }>(),
+  {
+    playMode: "replace",
+  }
+);
 
 const emit = defineEmits<{
   scroll: [e: Event];
@@ -151,7 +157,11 @@ const observer = new ResizeObserver((entries) => {
 });
 
 const handlePlay = (song: Song) => {
-  playbackCommands.playSongFromList(props.songs, song);
+  if (props.playMode === "append") {
+    playbackCommands.playSongAppend(song);
+  } else {
+    playbackCommands.playSongFromList(props.songs, song);
+  }
 };
 
 const handleNextPlay = (song: Song) => {

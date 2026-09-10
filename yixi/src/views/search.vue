@@ -27,6 +27,7 @@
       <SongList v-show="change" v-if="searchType == 'song'"
         :loading="searchLoading"
         :songs="songList || []"
+        play-mode="append"
         show-footer
         show-header
         :has-more="hasMore"

@@ -20,15 +20,31 @@ export function usePlaybackCommands() {
   const audio = useAudioStore();
   const listenTogether = useListenTogetherStore();
 
-  /** 单曲点播（右键“播放”、首页卡片点击等追加语义） */
-  const playSingle = (song: Song): void => {
+  /**
+   * 单曲追加播放：若歌曲已在播放队列中则直接定位播放；若不在则追加到播放队列末尾并播放。
+   * 用于搜索结果点击/双击、单曲卡片播放等场景，避免冲掉已有播放列表。
+   */
+  const playSongAppend = (song: Song): void => {
     if (!isSongPlayable(song)) {
       toastInfo("该歌曲已禁用，无法播放");
       return;
     }
     if (listenTogether.playSongInRoom(song)) return;
-    void audio.setPlaylist([song], true);
+
+    const existingSong = audio.playlist.find(
+      (item) => item.source === song.source && String(item.id) === String(song.id)
+    );
+    if (existingSong) {
+      void audio.play(existingSong);
+    } else {
+      void audio.setPlaylist([song], true);
+    }
     window.$message?.success?.(`开始播放 ${song.name}`);
+  };
+
+  /** 单曲点播（右键“播放”、首页卡片点击等追加语义） */
+  const playSingle = (song: Song): void => {
+    playSongAppend(song);
   };
 
   /** 列表内点播：普通模式整列表切换后播放该曲；一起听模式只点播该曲 */
@@ -170,6 +186,7 @@ export function usePlaybackCommands() {
 
   return {
     playSingle,
+    playSongAppend,
     playSongFromList,
     playAll,
     appendToPlaylist,
