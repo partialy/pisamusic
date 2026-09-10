@@ -37,7 +37,17 @@
   const shareOpenButton = document.getElementById("shareOpenButton");
   const shareCopyButton = document.getElementById("shareCopyButton");
   const shareCopyStatus = document.getElementById("shareCopyStatus");
+  const shareWebPlayLink = document.getElementById("shareWebPlayLink");
   const shareDownloadLink = document.getElementById("shareDownloadLink");
+  const ogType = document.querySelector('meta[property="og:type"]');
+  const ogTitle = document.getElementById("ogTitle");
+  const ogDescription = document.getElementById("ogDescription");
+  const metaDescription = document.querySelector('meta[name="description"]');
+  const ogUrl = document.getElementById("ogUrl");
+  const ogImage = document.getElementById("ogImage");
+  const twitterTitle = document.getElementById("twitterTitle");
+  const twitterDescription = document.getElementById("twitterDescription");
+  const twitterImage = document.getElementById("twitterImage");
 
   let leftPage = false;
   let fallbackTimer = 0;
@@ -46,11 +56,12 @@
     ? `pisamusic://scan?type=${encodeURIComponent(type)}&roomId=${encodeURIComponent(roomId)}`
     : "";
   const shareUrl = validShare
-    ? `${window.location.origin}/scan/?type=${encodeURIComponent(SHARE_TYPE)}&uuid=${encodeURIComponent(uuid)}`
+    ? `https://pisamusic.partialy.cn/scan/?type=${encodeURIComponent(SHARE_TYPE)}&uuid=${encodeURIComponent(uuid)}`
     : "";
   const shareAppScheme = validShare
     ? `pisamusic://scan?type=${encodeURIComponent(SHARE_TYPE)}&uuid=${encodeURIComponent(uuid)}`
     : "";
+  const defaultSocialImage = "https://pisamusic.partialy.cn/assets/app-icon.png";
 
   function getDeviceType() {
     const userAgent = navigator.userAgent || "";
@@ -168,6 +179,34 @@
     return cover;
   }
 
+  function setMetadataContent(element, content) {
+    if (element) element.setAttribute("content", content);
+  }
+
+  function applyShareMetadata(share) {
+    const raw = share.rawJson || {};
+    const isSong = share.type === "song";
+    const itemTitle = String(share.title || raw.name || (isSong ? "未命名歌曲" : "未命名歌单")).trim();
+    const itemDescription = String(
+      isSong
+        ? raw.singer || share.description || "来自 PisaMusic 的歌曲分享"
+        : share.description || "来自 PisaMusic 的歌单分享"
+    ).trim();
+    const titleText = isSong ? `${itemTitle} - PisaMusic 音乐分享` : `${itemTitle} - PisaMusic 歌单分享`;
+    const imageUrl = normalizeShareCoverUrl(share.source, share.coverUrl) || defaultSocialImage;
+
+    document.title = titleText;
+    setMetadataContent(ogType, isSong ? "music.song" : "website");
+    setMetadataContent(ogTitle, titleText);
+    setMetadataContent(ogDescription, itemDescription);
+    setMetadataContent(metaDescription, itemDescription);
+    setMetadataContent(ogUrl, shareUrl);
+    setMetadataContent(ogImage, imageUrl);
+    setMetadataContent(twitterTitle, titleText);
+    setMetadataContent(twitterDescription, itemDescription);
+    setMetadataContent(twitterImage, imageUrl);
+  }
+
   function formatAccessCount(value) {
     const count = Number(value);
     if (!Number.isFinite(count) || count < 0) return "";
@@ -190,6 +229,12 @@
 
   function renderShare(share) {
     const raw = share.rawJson || {};
+    applyShareMetadata(share);
+    const webPlayableSources = new Set(["wy", "kg", "kw"]);
+    const shareSource = String(share.source || "").toLowerCase();
+    const canPlayOnWeb = share.type === "song" && webPlayableSources.has(shareSource);
+    shareWebPlayLink.classList.toggle("hidden", !canPlayOnWeb);
+    if (canPlayOnWeb) shareWebPlayLink.href = `/listen/?share=${encodeURIComponent(uuid)}`;
     const subtitle = raw.singer || share.description || "";
     const coverUrl = normalizeShareCoverUrl(share.source, share.coverUrl);
     shareTitle.innerText = share.title || "未命名分享";

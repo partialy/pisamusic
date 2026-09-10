@@ -7,15 +7,22 @@
   <title>PisaMusic 扫码与分享</title>
   <meta name="description" content="PisaMusic 扫码加入一起听房间或查看好友分享的精选歌曲与歌单。" />
   <meta name="keywords" content="PisaMusic,一起听,音乐分享,歌单分享,音乐扫码" />
+  <meta name="robots" content="noindex, follow" />
   <link rel="canonical" href="https://pisamusic.partialy.cn/scan/" />
   <link rel="icon" type="image/png" href="/assets/app-icon.png" />
 
   <!-- Open Graph -->
-  <meta property="og:type" content="music.song" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="zh_CN" />
   <meta property="og:site_name" content="PisaMusic" />
-  <meta property="og:title" content="PisaMusic 音乐分享" />
-  <meta property="og:description" content="来自 PisaMusic 的音乐分享，点击即可在客户端或网页中查看。" />
-  <meta property="og:image" content="https://pisamusic.partialy.cn/assets/app-icon.png" />
+  <meta property="og:title" id="ogTitle" content="PisaMusic 扫码与分享" />
+  <meta property="og:description" id="ogDescription" content="PisaMusic 扫码加入一起听房间或查看好友分享的精选歌曲与歌单。" />
+  <meta property="og:url" id="ogUrl" content="https://pisamusic.partialy.cn/scan/" />
+  <meta property="og:image" id="ogImage" content="https://pisamusic.partialy.cn/assets/app-icon.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" id="twitterTitle" content="PisaMusic 扫码与分享" />
+  <meta name="twitter:description" id="twitterDescription" content="PisaMusic 扫码加入一起听房间或查看好友分享的精选歌曲与歌单。" />
+  <meta name="twitter:image" id="twitterImage" content="https://pisamusic.partialy.cn/assets/app-icon.png" />
 
   <!-- 引入样式文件 -->
   <link rel="stylesheet" href="/css/scan.css" />
@@ -68,6 +75,7 @@
         <div class="actions">
           <button id="shareOpenButton" class="primary" type="button">打开 App 播放</button>
           <button class="secondary" id="shareCopyButton" type="button">复制分享链接</button>
+          <a id="shareWebPlayLink" class="btn btn-secondary hidden" href="/listen/">网页试听</a>
           <a id="shareDownloadLink" class="btn btn-secondary" href="/download/">前往官网下载</a>
         </div>
         <div class="copy-status" id="shareCopyStatus" role="status" aria-live="polite"></div>

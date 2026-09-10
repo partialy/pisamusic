@@ -34,7 +34,9 @@
     ],
     "snapshot": {
       "security.releaseDownloadTtlSeconds": 300,
-      "security.downloadRateLimitMaxRequests": 5
+      "security.downloadRateLimitMaxRequests": 5,
+      "security.webMusicPlaybackRateLimitMaxRequests": 10,
+      "security.webMusicSearchRateLimitMaxRequests": 30
     }
   },
   "success": true

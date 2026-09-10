@@ -167,18 +167,17 @@ export default function DownloadModal({ isOpen, onClose, reason = "general" }: D
 
           {showQr && (
             <div className="mt-3 flex flex-col items-center animate-fadeIn">
-              <div className="p-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
+              <div className="inline-flex items-center justify-center p-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm shrink-0">
                 <img
-                  src="/api/config/download/android?qr=1"
+                  src="/assets/official-site-qrcode.svg"
                   onError={(e) => {
-                    // Fallback to website QR or icon if qr query not directly rendered
                     (e.target as HTMLImageElement).src = "/assets/app-icon.png";
                   }}
                   alt="扫码下载 PisaMusic"
                   className="h-28 w-28 rounded-lg object-contain"
                 />
               </div>
-              <p className="mt-1.5 text-[11px] text-slate-400">使用手机相机或浏览器扫码即可安装</p>
+              <p className="mt-1.5 text-[11px] text-slate-400 text-center">使用手机相机或浏览器扫码访问官网，获取最新版本</p>
             </div>
           )}
         </div>

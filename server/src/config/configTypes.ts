@@ -11,6 +11,7 @@ export type ConfigValueType = "string" | "number" | "boolean" | "string[]" | "js
 export type ConfigGroup =
   | "download_security"
   | "download_rate_limit"
+  | "web_music_rate_limit"
   | "bot_blocking"
   | "encryption"
   | "auth"

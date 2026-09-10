@@ -242,18 +242,14 @@ export async function getWebSongUrl(
   const endpoints = getRuntimeEndpoints();
 
   if (source === "wy") {
-    // Lowest standard quality: 128000
-    const url = `${endpoints.wyServer}/song/url?id=${encodeURIComponent(id)}&br=128000&realIP=116.25.146.177`;
+    // 取链统一走 proxy-service，避免落到 wy-service 的非代理端点。
+    const proxyUrl = `${endpoints.wyProxy}/song/url?id=${encodeURIComponent(id)}&br=128000`;
     try {
-      const res: any = await requestSignedGateway(url);
+      const res: any = await requestSignedGateway(proxyUrl);
       const direct = res?.data?.[0]?.url;
       if (direct) return { url: direct.replace(/http:\/\//g, "https://") };
     } catch {
-      // Proxy fallback
-      const proxyUrl = `${endpoints.wyProxy}/song/url?id=${encodeURIComponent(id)}&br=128000`;
-      const pRes: any = await requestSignedGateway(proxyUrl);
-      const direct = pRes?.data?.[0]?.url;
-      if (direct) return { url: direct.replace(/http:\/\//g, "https://") };
+      // 保持网页试听接口的空链接语义，由调用方展示不可播放提示。
     }
     return { url: "" };
   }

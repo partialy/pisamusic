@@ -3,6 +3,7 @@ export type RuntimeConfigValueType = "string" | "number" | "boolean" | "string[]
 export type RuntimeConfigGroup =
   | "download_security"
   | "download_rate_limit"
+  | "web_music_rate_limit"
   | "bot_blocking"
   | "encryption"
   | "auth"

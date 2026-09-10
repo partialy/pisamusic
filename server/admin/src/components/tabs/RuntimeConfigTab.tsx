@@ -66,6 +66,7 @@ function areValuesEqual(a: any, b: any): boolean {
 const GROUP_ORDER: { group: RuntimeConfigGroup; label: string; icon: string }[] = [
   { group: "download_security", label: "下载安全", icon: "🛡️" },
   { group: "download_rate_limit", label: "下载限流", icon: "⚡" },
+  { group: "web_music_rate_limit", label: "网页音乐限流", icon: "🎵" },
   { group: "bot_blocking", label: "爬虫拦截", icon: "🤖" },
   { group: "auth", label: "认证与会话", icon: "🔐" },
   { group: "verification", label: "验证码", icon: "🔑" },

@@ -81,6 +81,29 @@ app.use(
   }),
 );
 
+// 网页试听取链与搜索/歌词分别限流，避免单一请求类型耗尽另一类额度。
+app.use(
+  createIpRateLimitMiddleware({
+    group: "web-music-playback",
+    getPolicy: () => ({
+      paths: ["/api/web/music/url"],
+      windowSeconds: configManager.get("security.webMusicPlaybackRateLimitWindowSeconds", 300),
+      maxRequests: configManager.get("security.webMusicPlaybackRateLimitMaxRequests", 10),
+    }),
+  }),
+);
+
+app.use(
+  createIpRateLimitMiddleware({
+    group: "web-music-search",
+    getPolicy: () => ({
+      paths: ["/api/web/music/search", "/api/web/music/lyric"],
+      windowSeconds: configManager.get("security.webMusicSearchRateLimitWindowSeconds", 300),
+      maxRequests: configManager.get("security.webMusicSearchRateLimitMaxRequests", 30),
+    }),
+  }),
+);
+
 app.use(
   "/api/fault-reports",
   express.json({ limit: configManager.get("http.faultReportBodyLimit", "5mb") }),

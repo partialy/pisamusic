@@ -17,6 +17,10 @@
     {
       "key": "security.downloadRateLimitMaxRequests",
       "value": 10
+    },
+    {
+      "key": "security.webMusicPlaybackRateLimitMaxRequests",
+      "value": 10
     }
   ]
 }
