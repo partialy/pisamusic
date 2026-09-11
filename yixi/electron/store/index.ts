@@ -10,6 +10,9 @@ interface AppStoreSchema {
     autoLaunch: boolean;
     closeType: "ask" | "minimize" | "exit";
   };
+  /**
+   * @deprecated 旧版 electron-store 歌词设置，仅保留用于迁移至 SQLite V2，不得继续写入
+   */
   lyricConfig: {
     desktop: boolean;
     overlayTaskbar: boolean;
@@ -71,11 +74,12 @@ const defaultSettings: AppStoreSchema = {
 };
 
 // 初始化 Electron Store
+const storeDir = app?.getPath ? path.join(app.getPath("userData"), "store") : path.join(process.cwd(), "userData", "store");
 const appStore = new Store<AppStoreSchema>({
   // 配置项（可选，根据需求调整）
   name: "app-settings", // 存储文件名称（默认 config）
   fileExtension: "json", // 存储文件后缀（默认 json）
-  cwd: path.join(app.getPath("userData"), "store"), // 存储目录（默认 app.getPath('userData')）
+  cwd: storeDir, // 存储目录
   defaults: defaultSettings, // 默认配置
   encryptionKey: "partialy", // 可选：加密存储内容（提高安全性）
   clearInvalidConfig: true, // 自动清除无效配置

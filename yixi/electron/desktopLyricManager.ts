@@ -6,7 +6,7 @@ import {
   type Rectangle,
 } from "electron";
 import path from "path";
-import { appStore } from "./store";
+import { getDefaultDesktopLyricSettingRepository } from "./desktopLyric/desktopLyricSettingRepository";
 import { logger } from "./utils/logger";
 
 const BOUNDS_SAVE_DELAY_MS = 180;
@@ -51,6 +51,7 @@ export class DesktopLyricManager {
   private registered = false;
   private pendingBoundsSave: Rectangle | null = null;
   private boundsSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private repository = getDefaultDesktopLyricSettingRepository();
   private snapshot: DesktopLyricSnapshot;
 
   constructor(options: DesktopLyricManagerOptions) {
@@ -139,17 +140,17 @@ export class DesktopLyricManager {
   }
 
   open() {
-    if (this.lyricWindow && !this.lyricWindow.isDestroyed()) {
-      this.lyricWindow.showInactive();
+    if (this.isVisible()) {
+      this.lyricWindow?.show();
       this.pushSnapshot();
       this.notifyStatus(true);
       return;
     }
 
-    const config = appStore.get("lyricConfig");
+    const setting = this.repository.patch({ enabled: true });
     this.snapshot.style = this.readStyle();
+    this.snapshot.locked = setting.locked;
     this.snapshot.visible = true;
-    appStore.set("lyricConfig.desktop", true);
 
     this.lyricWindow = new BrowserWindow({
       title: "PisaMusic 桌面歌词",
@@ -161,14 +162,14 @@ export class DesktopLyricManager {
       fullscreenable: false,
       resizable: true,
       show: false,
-      width: config.width || 800,
-      height: config.height || 120,
-      minWidth: config.minWidth || 500,
-      minHeight: config.minHeight || 100,
-      maxWidth: config.maxWidth || 1600,
-      maxHeight: config.maxHeight || 200,
-      x: config.x || 100,
-      y: config.y || 100,
+      width: setting.bounds.width || 800,
+      height: setting.bounds.height || 120,
+      minWidth: 500,
+      minHeight: 100,
+      maxWidth: 1600,
+      maxHeight: 200,
+      x: setting.bounds.x ?? 100,
+      y: setting.bounds.y ?? 100,
       webPreferences: {
         sandbox: false,
         webSecurity: false,
@@ -193,7 +194,7 @@ export class DesktopLyricManager {
       this.flushBoundsSave();
       this.lyricWindow = null;
       this.snapshot.visible = false;
-      appStore.set("lyricConfig.desktop", false);
+      this.repository.patch({ enabled: false });
       this.notifyStatus(false);
       this.notifyStateChanged();
     });
@@ -230,13 +231,13 @@ export class DesktopLyricManager {
     if (this.lyricWindow && !this.lyricWindow.isDestroyed()) {
       this.snapshot.visible = false;
       this.flushBoundsSave();
-      appStore.set("lyricConfig.desktop", false);
+      this.repository.patch({ enabled: false });
       this.notifyStatus(false);
       this.lyricWindow.close();
       return;
     }
     this.snapshot.visible = false;
-    appStore.set("lyricConfig.desktop", false);
+    this.repository.patch({ enabled: false });
     this.notifyStatus(false);
   }
 
@@ -280,9 +281,21 @@ export class DesktopLyricManager {
       ...this.snapshot.style,
       ...style,
     };
-    appStore.set("lyricConfig", {
-      ...appStore.get("lyricConfig"),
-      ...this.snapshot.style,
+    this.repository.patch({
+      fontSize: style.fontSize,
+      fontFamily: style.fontFamily,
+      textColor: style.textColor,
+      highlightColor: style.highlightColor,
+      fontWeight:
+        typeof style.fontWeight === "number"
+          ? style.fontWeight
+          : parseInt(String(style.fontWeight), 10) || 600,
+      overlayTaskbar: style.overlayTaskbar,
+      bounds: {
+        ...this.repository.read().bounds,
+        width: style.width,
+        height: style.height,
+      },
     });
     if (
       this.lyricWindow &&
@@ -296,7 +309,7 @@ export class DesktopLyricManager {
 
   setLocked(locked: boolean) {
     this.snapshot.locked = locked;
-    appStore.set("lyricConfig.locked", locked);
+    this.repository.patch({ locked });
     this.applyMouseLock(locked);
     this.sendToWindow("desktop-lyric:set-locked", locked);
     this.getMainWindow()?.webContents.send("desktop-lyric:locked-status", locked);
@@ -335,13 +348,7 @@ export class DesktopLyricManager {
     if (!this.pendingBoundsSave) return;
     const { x, y, width, height } = this.pendingBoundsSave;
     this.pendingBoundsSave = null;
-    appStore.set("lyricConfig", {
-      ...appStore.get("lyricConfig"),
-      x,
-      y,
-      width,
-      height,
-    });
+    this.repository.saveBounds({ x, y, width, height });
   }
 
   private getBounds() {
@@ -350,7 +357,7 @@ export class DesktopLyricManager {
   }
 
   private getScreenSize() {
-    const overlayTaskbar = appStore.get("lyricConfig.overlayTaskbar");
+    const overlayTaskbar = this.repository.read().overlayTaskbar;
     const display = screen.getPrimaryDisplay();
     if (overlayTaskbar) {
       return { width: display.size.width, height: display.size.height };
@@ -395,16 +402,16 @@ export class DesktopLyricManager {
   }
 
   private readStyle(): DesktopLyricStyle {
-    const config = appStore.get("lyricConfig");
+    const setting = this.repository.read();
     return {
-      width: config.width,
-      height: config.height,
-      overlayTaskbar: config.overlayTaskbar,
-      fontSize: config.fontSize,
-      fontFamily: config.fontFamily,
-      textColor: config.textColor,
-      highlightColor: config.highlightColor,
-      fontWeight: config.fontWeight,
+      width: setting.bounds.width,
+      height: setting.bounds.height,
+      overlayTaskbar: setting.overlayTaskbar,
+      fontSize: setting.fontSize,
+      fontFamily: setting.fontFamily,
+      textColor: setting.textColor,
+      highlightColor: setting.highlightColor,
+      fontWeight: setting.fontWeight,
     };
   }
 }

@@ -8,7 +8,7 @@ export function setupEnvironmentUserDataPaths() {
   if (initialized) return;
   initialized = true;
 
-  if (!app.isPackaged) {
+  if (app && !app.isPackaged) {
     const appData = app.getPath("appData");
     const devUserData = path.join(appData, "PisaMusic-Dev");
     app.setPath("userData", devUserData);
@@ -28,7 +28,8 @@ export function ensureDir(dirPath: string) {
 
 export function getAppDataPath(...paths: string[]) {
   setupEnvironmentUserDataPaths();
-  return ensureDir(path.join(app.getPath("userData"), "data", ...paths));
+  const base = app?.getPath ? app.getPath("userData") : path.join(process.cwd(), "userData");
+  return ensureDir(path.join(base, "data", ...paths));
 }
 
 export function getDatabasePath(filename = "pisamusic.db") {

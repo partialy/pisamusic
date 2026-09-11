@@ -33,3 +33,5 @@ raw
 *.spec.*
 *.test.ts
 *.spec.ts
+userData/
+
