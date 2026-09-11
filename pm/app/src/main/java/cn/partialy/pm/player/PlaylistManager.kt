@@ -125,7 +125,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
             onResult(PlaylistSetResult.Failed)
             return
         }
-        if (newSourceId != null && newSourceId == _sourceId) {
+        if (newSourceId != null && newSourceId == _sourceId && playableSongs.size <= _playList.value.size) {
             onResult(PlaylistSetResult.SameSource)
             return
         }

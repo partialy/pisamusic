@@ -33,11 +33,14 @@ import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderController
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
 import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
 import cn.partialy.pm.ui.playlistdetail.missingPlayableSongs
+import cn.partialy.pm.ui.playlistdetail.resolveDynamicBatchSize
 import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -97,6 +100,18 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         setupPlayAllButtons()
         setupMiniPlayer()
         observeCollectionState()
+
+        val cachedSongs = if (musicController.isPlayListSource(pagingPlaylistId)) {
+            musicController.playList.value
+        } else {
+            emptyList()
+        }
+        if (cachedSongs.isNotEmpty() && (playlistTrackTotalHint <= 0 || cachedSongs.size >= playlistTrackTotalHint)) {
+            contentAdapter.setStaticSongs(cachedSongs, R.string.no_data)
+            headerController.updateHeader(
+                trackCountText = getString(R.string.playlist_track_count_compact, cachedSongs.size),
+            )
+        }
 
         lifecycleScope.launch { loadPlaylistInitial(pagingPlaylistId) }
     }
@@ -331,7 +346,9 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         }
         withContext(Dispatchers.Main) {
             if (first == null || (first.code != null && first.code != 200)) {
-                contentAdapter.setFirstPageFailed()
+                if (contentAdapter.visibleSongCount == 0) {
+                    contentAdapter.setFirstPageFailed()
+                }
                 return@withContext
             }
             val mapped = first.songs.orEmpty().mapNotNull { it.toSongInfoOrNull() }
@@ -342,41 +359,63 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                 else -> ""
             }
             headerController.updateHeader(trackCountText = label)
+            syncPlaylistCollectButton()
+
+            val currentLoaded = contentAdapter.currentSongs
+            if (currentLoaded.isNotEmpty() && apiTotal > 0 && currentLoaded.size >= apiTotal) {
+                return@withContext
+            }
+
             contentAdapter.setFirstPageSuccess(
                 rows = mapped,
                 apiTotal = apiTotal,
                 apiPage = 1,
                 apiPageSize = FIRST_PAGE_SIZE,
             )
-            syncPlaylistCollectButton()
             if (apiTotal > mapped.size) {
                 loadAllRemainingTracks(playlistId, mapped.size, apiTotal)
             }
         }
     }
 
-    /** 一次性加载歌单全部剩余歌曲（offset-based） */
+    /** 分批流式加载歌单全部剩余歌曲（offset-based） */
     private fun loadAllRemainingTracks(playlistId: String, loadedCount: Int, totalCount: Int) {
         allTracksLoadJob?.cancel()
+        contentAdapter.setLoadingRemaining(true)
         allTracksLoadJob = lifecycleScope.launch {
-            val resp = withContext(Dispatchers.IO) {
-                wyCookieRepository.getPlaylistTrackAll(
-                    id = playlistId,
-                    limit = totalCount - loadedCount,
-                    offset = loadedCount,
-                ).getOrNull()
-            } ?: return@launch
-            if (resp.code != null && resp.code != 200) return@launch
-            val remaining = resp.songs.orEmpty().mapNotNull { it.toSongInfoOrNull() }
-            if (remaining.isEmpty()) return@launch
-            withContext(Dispatchers.Main) {
-                contentAdapter.appendFromApi(
-                    rows = remaining,
-                    apiTotal = totalCount,
-                    apiPage = 2,
-                    apiPageSize = totalCount,
-                )
-                enrichCurrentPlaylistQueueIfActive()
+            try {
+                val batchLimit = resolveDynamicBatchSize(totalCount)
+                var currentOffset = loadedCount
+                var guard = 0
+                while (isActive && currentOffset < totalCount && guard++ < 500) {
+                    val resp = withContext(Dispatchers.IO) {
+                        wyCookieRepository.getPlaylistTrackAll(
+                            id = playlistId,
+                            limit = batchLimit,
+                            offset = currentOffset,
+                        ).getOrNull()
+                    } ?: return@launch
+                    if (resp.code != null && resp.code != 200) return@launch
+                    val remaining = resp.songs.orEmpty().mapNotNull { it.toSongInfoOrNull() }
+                    if (remaining.isEmpty()) return@launch
+                    withContext(Dispatchers.Main) {
+                        contentAdapter.appendFromApi(
+                            rows = remaining,
+                            apiTotal = totalCount,
+                            apiPage = (currentOffset / batchLimit) + 2,
+                            apiPageSize = batchLimit,
+                        )
+                        enrichCurrentPlaylistQueueIfActive()
+                    }
+                    currentOffset += remaining.size
+                    if (remaining.size < batchLimit) return@launch
+                }
+            } finally {
+                withContext(NonCancellable) {
+                    withContext(Dispatchers.Main) {
+                        contentAdapter.setLoadingRemaining(false)
+                    }
+                }
             }
         }
     }

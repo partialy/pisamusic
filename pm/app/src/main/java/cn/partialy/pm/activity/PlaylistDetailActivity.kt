@@ -31,11 +31,13 @@ import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderController
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
 import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
 import cn.partialy.pm.ui.playlistdetail.missingPlayableSongs
+import cn.partialy.pm.ui.playlistdetail.resolveDynamicBatchSize
 import cn.partialy.pm.ui.widget.observeSongListPlaybackState
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -178,6 +180,18 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         if (playlistId.startsWith("collection_")) {
             pagingPlaylistId = playlistId
             syncPlaylistCollectButton()
+            val cachedSongs = if (musicController.isPlayListSource(pagingPlaylistId)) {
+                musicController.playList.value
+            } else {
+                emptyList()
+            }
+            if (cachedSongs.isNotEmpty() && (trackCount <= 0 || cachedSongs.size >= trackCount)) {
+                contentAdapter.setStaticSongs(cachedSongs, R.string.no_data)
+                playlistApiTotalCount = cachedSongs.size
+                headerController.updateHeader(
+                    trackCountText = getString(R.string.playlist_track_count_compact, cachedSongs.size),
+                )
+            }
             lifecycleScope.launch {
                 loadPlaylistInitial(playlistId = playlistId, fallbackCoverUrl = coverUrl)
             }
@@ -318,7 +332,9 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         }
         withContext(Dispatchers.Main) {
             if (first == null) {
-                contentAdapter.setFirstPageFailed()
+                if (contentAdapter.visibleSongCount == 0) {
+                    contentAdapter.setFirstPageFailed()
+                }
                 return@withContext
             }
             val mapped = first.info.mapNotNull { it.toSongInfoOrNull() }
@@ -329,45 +345,61 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 if (total > 0) total else mapped.size,
             )
             headerController.updateHeader(trackCountText = label)
+            syncPlaylistCollectButton()
+
+            val currentLoaded = contentAdapter.currentSongs
+            if (currentLoaded.isNotEmpty() && total > 0 && currentLoaded.size >= total) {
+                return@withContext
+            }
+
             contentAdapter.setFirstPageSuccess(
                 rows = mapped,
                 apiTotal = total,
                 apiPage = 1,
                 apiPageSize = FIRST_PAGE_SIZE,
             )
-            syncPlaylistCollectButton()
             if (total > mapped.size) {
                 loadAllRemainingTracks(playlistId, total)
             }
         }
     }
 
-    /** 一次性加载歌单全部剩余歌曲 */
+    /** 分批流式加载歌单全部剩余歌曲 */
     private fun loadAllRemainingTracks(playlistId: String, totalCount: Int) {
         allTracksLoadJob?.cancel()
+        contentAdapter.setLoadingRemaining(true)
         allTracksLoadJob = lifecycleScope.launch {
-            val pageCount = ((totalCount + KG_TRACK_PAGE_SIZE - 1) / KG_TRACK_PAGE_SIZE).coerceAtLeast(1)
-            for (page in 1..pageCount) {
-                if (!isActive) return@launch
-                val data = withContext(Dispatchers.IO) {
-                    kgRepository.getPlaylistTrackAll(
-                        id = playlistId,
-                        page = page,
-                        pagesize = KG_TRACK_PAGE_SIZE,
-                    ).getOrNull()?.data
-                } ?: return@launch
-                val songs = data.info.mapNotNull { it.toSongInfoOrNull() }
-                if (songs.isEmpty()) return@launch
-                withContext(Dispatchers.Main) {
-                    contentAdapter.appendFromApi(
-                        rows = songs,
-                        apiTotal = data.count.takeIf { it > 0 } ?: totalCount,
-                        apiPage = page,
-                        apiPageSize = KG_TRACK_PAGE_SIZE,
-                    )
-                    enrichCurrentPlaylistQueueIfActive()
+            try {
+                val pageSize = resolveDynamicBatchSize(totalCount)
+                val pageCount = ((totalCount + pageSize - 1) / pageSize).coerceAtLeast(1)
+                for (page in 1..pageCount) {
+                    if (!isActive) return@launch
+                    val data = withContext(Dispatchers.IO) {
+                        kgRepository.getPlaylistTrackAll(
+                            id = playlistId,
+                            page = page,
+                            pagesize = pageSize,
+                        ).getOrNull()?.data
+                    } ?: return@launch
+                    val songs = data.info.mapNotNull { it.toSongInfoOrNull() }
+                    if (songs.isEmpty()) return@launch
+                    withContext(Dispatchers.Main) {
+                        contentAdapter.appendFromApi(
+                            rows = songs,
+                            apiTotal = data.count.takeIf { it > 0 } ?: totalCount,
+                            apiPage = page,
+                            apiPageSize = pageSize,
+                        )
+                        enrichCurrentPlaylistQueueIfActive()
+                    }
+                    if (songs.size < pageSize) return@launch
                 }
-                if (songs.size < KG_TRACK_PAGE_SIZE) return@launch
+            } finally {
+                withContext(NonCancellable) {
+                    withContext(Dispatchers.Main) {
+                        contentAdapter.setLoadingRemaining(false)
+                    }
+                }
             }
         }
     }
@@ -375,8 +407,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     companion object {
         /** 首屏快速显示的歌曲数 */
         private const val FIRST_PAGE_SIZE = 30
-        /** KG 歌单歌曲接口单页最多只能稳定返回 300 首。 */
-        private const val KG_TRACK_PAGE_SIZE = 300
 
         private const val EXTRA_PLAYLIST_ID = "playlist_id"
         private const val EXTRA_TITLE = "title"

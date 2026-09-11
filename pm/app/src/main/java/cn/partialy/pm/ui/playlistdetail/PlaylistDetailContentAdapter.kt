@@ -7,6 +7,7 @@ import android.text.style.AbsoluteSizeSpan
 import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
@@ -54,6 +55,7 @@ class PlaylistDetailContentAdapter(
     private var phase: Phase = Phase.InitialLoading
     private var hasMore: Boolean = false
     private var loadingMore: Boolean = false
+    private var loadingRemaining: Boolean = false
     private var showEndFooter: Boolean = true
     @StringRes
     private var emptyMessageRes: Int = R.string.no_data
@@ -95,6 +97,7 @@ class PlaylistDetailContentAdapter(
         phase = if (songs.isEmpty()) Phase.Empty else Phase.Content
         hasMore = false
         loadingMore = false
+        loadingRemaining = false
         showEndFooter = false
         rebuildRows()
     }
@@ -104,6 +107,7 @@ class PlaylistDetailContentAdapter(
         allSongs = emptyList()
         hasMore = false
         loadingMore = false
+        loadingRemaining = false
         showEndFooter = true
         rebuildRows()
     }
@@ -113,6 +117,7 @@ class PlaylistDetailContentAdapter(
         allSongs = emptyList()
         hasMore = false
         loadingMore = false
+        loadingRemaining = false
         showEndFooter = true
         rebuildRows()
     }
@@ -153,6 +158,9 @@ class PlaylistDetailContentAdapter(
         allSongs = allSongs + appended
         phase = Phase.Content
         hasMore = hasMoreFromApiPagination(apiTotal, apiPage, apiPageSize, rows.size)
+        if (apiTotal > 0 && allSongs.size >= apiTotal) {
+            hasMore = false
+        }
         showEndFooter = true
         rebuildRows()
     }
@@ -162,7 +170,14 @@ class PlaylistDetailContentAdapter(
         phase = if (songs.isEmpty()) Phase.Empty else Phase.Content
         hasMore = false
         loadingMore = false
+        loadingRemaining = false
         showEndFooter = true
+        rebuildRows()
+    }
+
+    fun setLoadingRemaining(loading: Boolean) {
+        if (loadingRemaining == loading) return
+        loadingRemaining = loading
         rebuildRows()
     }
 
@@ -226,7 +241,7 @@ class PlaylistDetailContentAdapter(
 
     private val showFooter: Boolean
         get() = query.isEmpty() && phase == Phase.Content &&
-            (loadingMore || (showEndFooter && !hasMore && allSongs.isNotEmpty()))
+            (loadingRemaining || loadingMore || (showEndFooter && !hasMore && allSongs.isNotEmpty()))
 
     override fun getItemViewType(position: Int): Int =
         if (position < visibleRows.size) VIEW_TYPE_SONG else VIEW_TYPE_STATUS
@@ -243,7 +258,10 @@ class PlaylistDetailContentAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
             is SongViewHolder -> holder.bind(visibleRows[position])
-            is StatusViewHolder -> holder.bind(statusText(holder.itemView.context))
+            is StatusViewHolder -> holder.bind(
+                text = statusText(holder.itemView.context),
+                showLoading = isStatusLoading(),
+            )
         }
     }
 
@@ -252,11 +270,20 @@ class PlaylistDetailContentAdapter(
         return 1
     }
 
+    private fun isStatusLoading(): Boolean = when {
+        query.isNotEmpty() && phase == Phase.Content -> false
+        phase == Phase.InitialLoading -> true
+        loadingRemaining -> true
+        loadingMore -> true
+        else -> false
+    }
+
     private fun statusText(context: Context): String = when {
         query.isNotEmpty() && phase == Phase.Content -> context.getString(R.string.playlist_detail_search_empty)
         phase == Phase.InitialLoading -> context.getString(R.string.loading)
         phase == Phase.FirstError -> context.getString(R.string.no_data)
         phase == Phase.Empty -> context.getString(emptyMessageRes)
+        loadingRemaining -> context.getString(R.string.playlist_loading_remaining_tracks)
         loadingMore -> context.getString(R.string.loading)
         showFooter -> context.getString(R.string.playlist_list_end)
         else -> ""
@@ -295,7 +322,8 @@ class PlaylistDetailContentAdapter(
     private class StatusViewHolder(
         private val binding: ItemPlaylistDetailStatusBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(text: String) {
+        fun bind(text: String, showLoading: Boolean) {
+            binding.statusProgressBar.visibility = if (showLoading) View.VISIBLE else View.GONE
             binding.statusTextView.text = text
         }
     }

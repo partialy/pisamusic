@@ -25,6 +25,26 @@ class PlaylistQueueEnrichmentRulesTest {
         )
     }
 
+    @Test
+    fun resolveDynamicBatchSizeCalculatesCorrectBounds() {
+        // <= 0 or tiny playlists -> 50
+        assertEquals(50, resolveDynamicBatchSize(0))
+        assertEquals(50, resolveDynamicBatchSize(-10))
+        assertEquals(50, resolveDynamicBatchSize(20))
+        assertEquals(50, resolveDynamicBatchSize(60)) // (60 + 2) / 3 = 20 -> coerce to 50
+        assertEquals(50, resolveDynamicBatchSize(150)) // (150 + 2) / 3 = 50
+
+        // normal playlists -> dynamic (around 3 batches)
+        assertEquals(101, resolveDynamicBatchSize(301)) // (301 + 2) / 3 = 101
+        assertEquals(134, resolveDynamicBatchSize(400)) // (400 + 2) / 3 = 134
+        assertEquals(200, resolveDynamicBatchSize(598)) // (598 + 2) / 3 = 200
+
+        // massive playlists -> capped at 200
+        assertEquals(200, resolveDynamicBatchSize(600))
+        assertEquals(200, resolveDynamicBatchSize(1000))
+        assertEquals(200, resolveDynamicBatchSize(5000))
+    }
+
     private fun song(source: String, id: String, playable: Boolean = true) = song(
         id = id,
         playable = playable,
