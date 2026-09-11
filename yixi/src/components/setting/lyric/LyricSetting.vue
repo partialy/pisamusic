@@ -177,6 +177,15 @@
         </div>
         <div class="setting-item">
           <div class="item-info">
+            <div class="item-title">沉浸式播放</div>
+            <div class="item-desc">控制面板隐藏时同步隐藏封面歌曲信息并居中歌词。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch v-model:value="setting.immersiveMode" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
             <div class="item-title">水平居中</div>
             <div class="item-desc">歌词以纯净居中模式显示。</div>
           </div>
@@ -246,8 +255,20 @@
             <div class="item-title">字体颜色</div>
             <div class="item-desc">普通歌词行颜色。</div>
           </div>
-          <div class="setting-control">
+          <div class="setting-control color-picker-control">
             <n-color-picker v-model:value="setting.lyricFontColor" />
+            <n-button
+              quaternary
+              circle
+              size="small"
+              class="eyedropper-btn"
+              :loading="extractingTarget === 'font'"
+              title="提取背景主色"
+              @click="handleExtractColor('font')">
+              <template #icon>
+                <n-icon :size="15"><Pipette /></n-icon>
+              </template>
+            </n-button>
           </div>
         </div>
         <div class="setting-item">
@@ -255,8 +276,20 @@
             <div class="item-title">当前行颜色</div>
             <div class="item-desc">非 AM Lyric 模式下生效。</div>
           </div>
-          <div class="setting-control">
+          <div class="setting-control color-picker-control">
             <n-color-picker v-model:value="setting.currentLyricColor" />
+            <n-button
+              quaternary
+              circle
+              size="small"
+              class="eyedropper-btn"
+              :loading="extractingTarget === 'current'"
+              title="提取背景主色"
+              @click="handleExtractColor('current')">
+              <template #icon>
+                <n-icon :size="15"><Pipette /></n-icon>
+              </template>
+            </n-button>
           </div>
         </div>
         <div class="setting-item">
@@ -417,9 +450,12 @@ import {
   NSelect,
   NSlider,
   NSwitch,
+  useMessage,
 } from "naive-ui";
-import { Images, Minus, Plus, RotateCcw } from "lucide-vue-next";
+import { Images, Minus, Pipette, Plus, RotateCcw } from "lucide-vue-next";
 import { useLyricStore } from "@/store/lyricStore";
+import { useThemeStore } from "@/store/theme";
+import { extractDominantColorFromUrl } from "@/utils/imageColor";
 import { useImageManager } from "@/composables/useImageManager";
 import AppImageCenterModal from "@/components/common/AppImageCenterModal.vue";
 import { storeToRefs } from "pinia";
@@ -429,8 +465,11 @@ import { debounce } from "@/utils/common";
 
 const lyric = useLyricStore();
 const { setting, desktop, desktopLyric } = storeToRefs(lyric);
+const themeStore = useThemeStore();
 const imageManager = useImageManager();
+const message = useMessage();
 const showImageCenterModal = ref(false);
+const extractingTarget = ref<"font" | "current" | null>(null);
 
 function handleModeChange(mode: "default" | "image") {
   setting.value.backgroundMode = mode;
@@ -439,6 +478,66 @@ function handleModeChange(mode: "default" | "image") {
     if (first) {
       setting.value.backgroundImage = first;
     }
+  }
+}
+
+function resolveImageUrl(url: string): string {
+  if (!url) return "";
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("data:") ||
+    url.startsWith("file://")
+  ) {
+    return url;
+  }
+  if (/^[a-zA-Z]:[\\/]/.test(url)) {
+    return url;
+  }
+  try {
+    return new URL(url, window.location.href).href;
+  } catch {
+    return url;
+  }
+}
+
+function getActiveBackgroundImage(): string {
+  // 严格从歌词背景图片中取色：优先歌词自定义背景，其次全局主题背景图片，绝不取封面
+  if (setting.value.backgroundImage) {
+    return setting.value.backgroundImage;
+  }
+  if (themeStore.backgroundImage) {
+    return themeStore.backgroundImage;
+  }
+  return "";
+}
+
+async function handleExtractColor(target: "font" | "current") {
+  const rawUrl = getActiveBackgroundImage();
+  if (!rawUrl) {
+    message.warning("未检测到歌词背景图片，请先在【歌词背景】中选择图片");
+    return;
+  }
+  const imageUrl = resolveImageUrl(rawUrl);
+  extractingTarget.value = target;
+  try {
+    const color = await extractDominantColorFromUrl(imageUrl);
+    if (color) {
+      if (target === "font") {
+        setting.value.lyricFontColor = color;
+      } else {
+        setting.value.currentLyricColor = color;
+      }
+      lyric.saveSetting();
+      message.success(`已从歌词背景提取主色：${color}`);
+    } else {
+      message.warning("未能从背景图片中提取到合适颜色");
+    }
+  } catch (err) {
+    console.error("提取歌词背景主色失败", err);
+    message.error("提取歌词背景颜色失败");
+  } finally {
+    extractingTarget.value = null;
   }
 }
 
@@ -640,6 +739,25 @@ const handleDesktopLyricLock = (value: boolean) => {
   min-width: 46px;
   display: flex;
   justify-content: flex-end;
+}
+
+.color-picker-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+
+  .eyedropper-btn {
+    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+
+    &:hover {
+      transform: scale(1.08);
+    }
+
+    &:active {
+      transform: scale(0.94);
+    }
+  }
 }
 
 .wide-control {

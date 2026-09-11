@@ -88,7 +88,13 @@ function extractDominantColor(image: Electron.NativeImage): string {
     }
   }
 
-  return winner ? rgbColorToHex(getBucketAverage(winner)) : DEFAULT_COLOR;
+  if (winner) {
+    return rgbColorToHex(getBucketAverage(winner));
+  }
+  if (fallbackSamples.length > 0) {
+    return rgbColorToHex(getAverageColor(fallbackSamples));
+  }
+  return DEFAULT_COLOR;
 }
 
 export async function getColorFromUrl(url: string): Promise<string> {
@@ -109,18 +115,24 @@ export async function getColorFromUrl(url: string): Promise<string> {
       const buffer = Buffer.from(base64Data, "base64");
       image = nativeImage.createFromBuffer(buffer);
     } else if (url.startsWith("file://")) {
-      image = nativeImage.createFromPath(url.replace("file://", ""));
+      let filePath = url.replace("file://", "");
+      if (process.platform === "win32" && /^\/[a-zA-Z]:/.test(filePath)) {
+        filePath = filePath.slice(1);
+      }
+      image = nativeImage.createFromPath(decodeURIComponent(filePath));
     } else {
       image = nativeImage.createFromPath(url);
     }
 
     const color = extractDominantColor(image);
 
-    if (cache.size >= MAX_CACHE) {
-      const oldest = cache.keys().next().value;
-      if (oldest !== undefined) cache.delete(oldest);
+    if (color && color !== DEFAULT_COLOR) {
+      if (cache.size >= MAX_CACHE) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
+      }
+      cache.set(url, color);
     }
-    cache.set(url, color);
     return color;
   } catch {
     return DEFAULT_COLOR;
@@ -128,7 +140,7 @@ export async function getColorFromUrl(url: string): Promise<string> {
 }
 
 function isAccentCandidate(saturation: number, lightness: number) {
-  return saturation >= 0.18 && lightness >= 0.12 && lightness <= 0.88;
+  return saturation >= 0.1 && lightness >= 0.06 && lightness <= 0.94;
 }
 
 function computeAccentWeight(saturation: number, lightness: number) {
@@ -149,8 +161,8 @@ function rgbToHsl(color: RgbColor) {
     return { hue: 0, saturation: 0, lightness };
   }
 
-  const saturation =
-    delta / (1 - Math.abs(2 * lightness - 1));
+  const denominator = 1 - Math.abs(2 * lightness - 1);
+  const saturation = denominator <= 0 ? 0 : Math.max(0, Math.min(1, delta / denominator));
 
   let hue = 0;
   if (max === r) {

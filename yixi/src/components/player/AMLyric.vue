@@ -83,6 +83,7 @@ const jumpSeek = (line: any) => {
     padding-left: 10px;
     padding-right: 80px;
     margin-left: -2rem;
+    transition: padding 0.6s cubic-bezier(0.25, 1, 0.5, 1), margin 0.6s cubic-bezier(0.25, 1, 0.5, 1);
   }
 
   &.pure {

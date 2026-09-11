@@ -15,6 +15,7 @@ export interface LyricSetting {
   useKRC: boolean;
   alignPosition: number;
   pureLyricMode?: boolean;
+  immersiveMode?: boolean;
   useAMSpring?: boolean;
   useAMScale?: boolean;
   useAMBlur?: boolean;
@@ -60,6 +61,7 @@ const defaultLyricSetting = (): LyricSetting => ({
   useAMLyric: true,
   useKRC: true,
   pureLyricMode: false,
+  immersiveMode: false,
   useAMSpring: true,
   useAMScale: true,
   useAMBlur: true,

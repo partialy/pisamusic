@@ -222,6 +222,16 @@
 
           <div class="setting-row">
             <div class="row-info">
+              <div class="row-title">沉浸式播放</div>
+              <div class="row-desc">控制面板隐藏时，同步隐藏左侧封面与歌曲信息，歌词区域自动居中</div>
+            </div>
+            <div class="row-control">
+              <n-switch v-model:value="lyricStore.setting.immersiveMode" />
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="row-info">
               <div class="row-title">水平纯净居中</div>
               <div class="row-desc">歌词在视图中居中呈现</div>
             </div>
@@ -339,13 +349,25 @@
               <div class="row-title">字体颜色</div>
               <div class="row-desc">普通歌词行色彩</div>
             </div>
-            <div class="row-control">
+            <div class="row-control color-picker-control">
               <n-color-picker
                 v-model:value="lyricStore.setting.lyricFontColor"
-                size="small"
                 :show-alpha="false"
+                placement="top-end"
                 :modes="['hex']"
                 style="width: 130px" />
+              <n-button
+                quaternary
+                circle
+                size="small"
+                class="eyedropper-btn"
+                :loading="extractingTarget === 'font'"
+                title="提取背景主色"
+                @click="handleExtractColor('font')">
+                <template #icon>
+                  <n-icon :size="15"><Pipette /></n-icon>
+                </template>
+              </n-button>
             </div>
           </div>
 
@@ -354,13 +376,25 @@
               <div class="row-title">当前行颜色</div>
               <div class="row-desc">正在播放行的高亮色彩（非 AM Lyric 模式）</div>
             </div>
-            <div class="row-control">
+            <div class="row-control color-picker-control">
               <n-color-picker
                 v-model:value="lyricStore.setting.currentLyricColor"
-                size="small"
                 :show-alpha="false"
+                placement="top-end"
                 :modes="['hex']"
                 style="width: 130px" />
+              <n-button
+                quaternary
+                circle
+                size="small"
+                class="eyedropper-btn"
+                :loading="extractingTarget === 'current'"
+                title="提取背景主色"
+                @click="handleExtractColor('current')">
+                <template #icon>
+                  <n-icon :size="15"><Pipette /></n-icon>
+                </template>
+              </n-button>
             </div>
           </div>
         </div>
@@ -391,9 +425,12 @@ import {
   NSwitch,
   NTabPane,
   NTabs,
+  useMessage,
 } from "naive-ui";
-import { Images, Minus, Plus, RotateCcw, X } from "lucide-vue-next";
+import { Images, Minus, Pipette, Plus, RotateCcw, X } from "lucide-vue-next";
 import { useLyricStore } from "@/store/lyricStore";
+import { useThemeStore } from "@/store/theme";
+import { extractDominantColorFromUrl } from "@/utils/imageColor";
 import { useImageManager } from "@/composables/useImageManager";
 import AppImageCenterModal from "@/components/common/AppImageCenterModal.vue";
 
@@ -412,7 +449,11 @@ const emit = defineEmits<{
 }>();
 
 const lyricStore = useLyricStore();
+const themeStore = useThemeStore();
 const imageManager = useImageManager();
+const message = useMessage();
+
+const extractingTarget = ref<"font" | "current" | null>(null);
 
 const innerVisible = ref(props.show);
 const activeTab = ref<"bg" | "effect" | "style">("bg");
@@ -456,6 +497,66 @@ function handleModeChange(mode: "default" | "image") {
     if (firstImg) {
       lyricStore.setting.backgroundImage = firstImg;
     }
+  }
+}
+
+function resolveImageUrl(url: string): string {
+  if (!url) return "";
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("data:") ||
+    url.startsWith("file://")
+  ) {
+    return url;
+  }
+  if (/^[a-zA-Z]:[\\/]/.test(url)) {
+    return url;
+  }
+  try {
+    return new URL(url, window.location.href).href;
+  } catch {
+    return url;
+  }
+}
+
+function getActiveBackgroundImage(): string {
+  // 严格从歌词背景图片中取色：优先歌词自定义背景，其次全局主题背景图片，绝不取封面
+  if (lyricStore.setting.backgroundImage) {
+    return lyricStore.setting.backgroundImage;
+  }
+  if (themeStore.backgroundImage) {
+    return themeStore.backgroundImage;
+  }
+  return "";
+}
+
+async function handleExtractColor(target: "font" | "current") {
+  const rawUrl = getActiveBackgroundImage();
+  if (!rawUrl) {
+    message.warning("未检测到歌词背景图片，请先在【歌词背景】中选择图片");
+    return;
+  }
+  const imageUrl = resolveImageUrl(rawUrl);
+  extractingTarget.value = target;
+  try {
+    const color = await extractDominantColorFromUrl(imageUrl);
+    if (color) {
+      if (target === "font") {
+        lyricStore.setting.lyricFontColor = color;
+      } else {
+        lyricStore.setting.currentLyricColor = color;
+      }
+      lyricStore.saveSetting();
+      message.success(`已从歌词背景提取主色：${color}`);
+    } else {
+      message.warning("未能从背景图片中提取到合适颜色");
+    }
+  } catch (err) {
+    console.error("提取歌词背景主色失败", err);
+    message.error("提取歌词背景颜色失败");
+  } finally {
+    extractingTarget.value = null;
   }
 }
 
@@ -758,6 +859,30 @@ const fontOptions = [
 
 :deep(.n-input__input-el) {
   color: #ffffff !important;
+}
+
+.color-picker-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .eyedropper-btn {
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+
+    &:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.22);
+      border-color: rgba(255, 255, 255, 0.35);
+      transform: scale(1.08);
+    }
+
+    &:active {
+      transform: scale(0.94);
+    }
+  }
 }
 
 .image-pick-control {

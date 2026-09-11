@@ -45,7 +45,11 @@
             </div>
         </Transition>
         <!-- cover & song info -->
-        <div class="info-container" ref="infoContainer">
+        <div
+            ref="infoContainer"
+            class="info-container"
+            :class="{ 'is-immersive-hidden': isImmersiveHidden }"
+        >
             <div class="glass-cover-card" :class="{ 'is-playing': isPlaying }">
                 <div class="glass-cover-glow"></div>
                 <div class="glass-cover-frame">
@@ -100,8 +104,18 @@
             </div>
         </div>
         <!-- 歌词 -->
-        <AMLyric v-if="showLyric && AMLyricView" ref="playerLyric" class="player-lyric" />
-        <CommonLyric v-else-if="showLyric && lyricStore.hasLyric" ref="playerLyric" class="player-lyric" />
+        <AMLyric
+            v-if="showLyric && AMLyricView"
+            ref="playerLyric"
+            class="player-lyric"
+            :class="{ 'is-centered': isLyricCentered }"
+        />
+        <CommonLyric
+            v-else-if="showLyric && lyricStore.hasLyric"
+            ref="playerLyric"
+            class="player-lyric"
+            :class="{ 'is-centered': isLyricCentered }"
+        />
         <!-- 频谱仪 -->
         <SpectrumVisualizer
             class="player-spectrum"
@@ -154,6 +168,11 @@ const lyricStore = useLyricStore()
 
 const showLyric = ref(true);
 const showLyricSettingModal = ref(false);
+
+const isImmersiveMode = computed(() => Boolean(lyricStore.setting.immersiveMode));
+const hasLyricsShown = computed(() => Boolean(showLyric.value && currentSong.value?.id && lyricStore.hasLyric));
+const isImmersiveHidden = computed(() => Boolean(isImmersiveMode.value && !isMouseActive.value && hasLyricsShown.value));
+const isLyricCentered = computed(() => Boolean(isImmersiveMode.value && !isMouseActive.value && hasLyricsShown.value));
 
 const toggleLyricVisibility = () => {
     showLyric.value = !showLyric.value;
@@ -241,9 +260,19 @@ const handleCoverError = (event: Event) => {
 const isMouseActive = ref(true);
 
 const updateMouseActive = (active: boolean) => {
+    if (showLyricSettingModal.value) {
+        isMouseActive.value = true;
+        return;
+    }
     if (isMouseActive.value === active) return;
     isMouseActive.value = active;
 };
+
+watch(showLyricSettingModal, (open) => {
+    if (open) {
+        isMouseActive.value = true;
+    }
+});
 
 let stopPlayerControlsVisibility: (() => void) | null = null;
 
@@ -558,8 +587,15 @@ onBeforeUnmount(() => {
         display: flex;
         flex-direction: column;
         align-items: center;
-        transition: left 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        transition: left 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.6s ease;
         user-select: none;
+
+        &.is-immersive-hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translate(-50%, -50%) scale(0.92);
+        }
 
         .glass-cover-card {
             position: relative;
@@ -759,10 +795,22 @@ onBeforeUnmount(() => {
         position: absolute;
         top: 50%;
         left: 45%;
-        transform: translateY(-50%);
+        transform: translate(0, -50%);
         width: 50vw;
         height: 80vh;
         overflow: hidden;
+        transition: left 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+
+        &.is-centered {
+            left: 50%;
+            transform: translate(-50%, -50%);
+
+            :deep(.lyric-am:not(.pure) .am-lyric) {
+                padding-left: 20px;
+                padding-right: 20px;
+                margin-left: 0;
+            }
+        }
     }
 
 
