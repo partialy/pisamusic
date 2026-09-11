@@ -252,7 +252,7 @@ onMounted(() => {
   display: block;
   overflow: hidden;
   border-radius: 50%;
-  background: var(--color-bg-secondary);
+  background: var(--surface-card);
   object-fit: cover;
 }
 

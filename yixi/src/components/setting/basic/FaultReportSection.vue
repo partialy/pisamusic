@@ -232,7 +232,7 @@ function errorMessage(error: unknown, fallback: string) {
   min-width: 0;
   padding: 13px 14px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--color-bg-secondary) 84%, transparent);
+  background: var(--surface-control-hover);
 
   span,
   strong {
@@ -299,7 +299,7 @@ function errorMessage(error: unknown, fallback: string) {
   padding: 14px;
   border-radius: 8px;
   color: var(--color-text-default);
-  background: color-mix(in srgb, #d03050 8%, var(--color-bg-secondary));
+  background: color-mix(in srgb, #d03050 10%, var(--surface-card));
 }
 
 @media (max-width: 900px) {

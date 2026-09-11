@@ -676,7 +676,7 @@ onBeforeUnmount(() => {
             align-items: center;
             gap: 10px;
             text-align: center;
-            color: var(--color-text-track);
+            color: var(--text-primary);
 
             .info-title {
                 width: 100%;

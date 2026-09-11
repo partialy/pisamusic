@@ -26,8 +26,8 @@ const goHome = () => {
   align-items: center;
   height: 100%;
   width: 100%;
-  color: #343a40;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: var(--text-primary);
+  font-family: inherit;
   text-align: center;
 }
 
@@ -39,39 +39,42 @@ const goHome = () => {
   padding: 2rem;
   width: 20rem;
   height: 20rem;
-  border-radius: 8px;
-  background-color: white;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
 }
 
 .error-code {
   font-size: 5rem;
   margin: 0;
   line-height: 1;
-  color: #495057;
+  color: var(--color-primary);
+  font-weight: 800;
 }
 
 .error-message {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   margin: 1rem 0 2rem;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .home-button {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
-  color: white;
-  background-color: #4285f4;
+  color: var(--text-on-accent);
+  background-color: var(--color-primary);
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease, transform 0.1s ease;
 
   &:hover {
-    background-color: #3367d6;
+    background-color: var(--color-primary-hover);
   }
 
   &:active {
+    background-color: var(--color-primary-pressed);
     transform: scale(0.98);
   }
 }

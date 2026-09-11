@@ -253,7 +253,7 @@ onUnmounted(() => {
   overflow: hidden;
   border: 1px solid var(--color-border-default);
   border-radius: 10px;
-  background: var(--color-bg-secondary);
+  background: var(--surface-card);
 
   &.confirming img {
     border-radius: 50%;

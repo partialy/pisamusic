@@ -161,8 +161,9 @@ defineExpose({
   position: fixed;
   top: 0;
   left: 0;
-  background: rgba(84, 84, 84, 0.2);
-  backdrop-filter: blur(30px);
+  background-color: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 @keyframes fade-in {
@@ -183,14 +184,14 @@ defineExpose({
 }
 
 .dialog-card {
-    animation: fade-in 0.4s ease-in-out;
+  animation: fade-in 0.4s ease-in-out;
   width: auto;
   min-width: 400px;
-  /* height: auto; 让卡片高度自适应内容 */
-  background-color: white;
-  border-radius: 8px; /* 圆角 */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* 阴影 */
-  overflow: hidden; /* 防止圆角切割内容 */
+  background: var(--surface-modal);
+  border: 1px solid var(--border-modal);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -200,15 +201,15 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px; /* 内边距 */
-  border-bottom: 1px solid #eee; /* 底部分割线 */
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .dialog-title {
   font-size: 18px;
   font-weight: bold;
-  color: #333;
-  margin: 0; /* 重置默认外边距 */
+  color: var(--text-primary);
+  margin: 0;
 }
 
 .dialog-close-button {
@@ -216,69 +217,70 @@ defineExpose({
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #999;
-  padding: 0; /* 重置默认内边距 */
+  color: var(--text-tertiary);
+  padding: 0;
   width: 30px;
   height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%; /* 圆形按钮 */
-  transition: background-color 0.2s; /* 悬停过渡 */
+  border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
 .dialog-close-button:hover {
-  background-color: #f0f0f0; /* 悬停背景色 */
-  color: #333; /* 悬停文字颜色 */
+  background-color: var(--surface-control-hover);
+  color: var(--text-primary);
 }
 
 /* 内容区域样式 */
 .dialog-body {
-  padding: 20px; /* 内边距 */
-  flex-grow: 1; /* 占据剩余空间 */
-  overflow-y: auto; /* 如果内容过多，可以滚动 */
+  padding: 20px;
+  flex-grow: 1;
+  overflow-y: auto;
 }
 
 .dialog-text {
-  color: #666;
-  line-height: 1.5; /* 行高 */
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 /* 底部按钮区域样式 */
 .dialog-footer {
   display: flex;
-  justify-content: flex-end; /* 按钮靠右 */
-  gap: 10px; /* 按钮间距 */
-  padding: 16px 20px; /* 内边距 */
-  border-top: 1px solid #eee; /* 顶部分割线 */
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .dialog-button {
-  padding: 8px 16px; /* 按钮内边距 */
-  border: 1px solid #ddd; /* 边框 */
-  border-radius: 4px; /* 按钮圆角 */
+  padding: 8px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.2s; /* 悬停过渡 */
+  transition: all 0.2s ease;
 }
 
 .dialog-button.cancel {
-  background-color: #fff;
-  color: #666;
+  background-color: var(--surface-control-hover);
+  color: var(--text-secondary);
 }
 
 .dialog-button.cancel:hover {
-  background-color: #f5f5f5;
+  background-color: var(--surface-control-active);
+  color: var(--text-primary);
 }
 
 .dialog-button.confirm {
-  background-color: #007bff; /* 主色调 */
-  color: white;
-  border-color: #007bff; /* 主色调边框 */
+  background-color: var(--color-primary);
+  color: var(--text-on-accent);
+  border-color: var(--color-primary);
 }
 
 .dialog-button.confirm:hover {
-  background-color: #0056b3; /* 深一点的主色调 */
-  border-color: #0056b3;
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 </style>

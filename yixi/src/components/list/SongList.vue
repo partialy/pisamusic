@@ -300,9 +300,9 @@ onBeforeUnmount(() => {
     gap: 14px;
     align-items: center;
     padding: 0 1rem;
-    border: 1px solid var(--color-border-default);
+    border: 1px solid var(--border-subtle);
     border-radius: 12px;
-    background: color-mix(in srgb, var(--color-bg-default) 82%, #ffffff 18%);
+    background: var(--surface-skeleton);
   }
 
   .song-skeleton-main,

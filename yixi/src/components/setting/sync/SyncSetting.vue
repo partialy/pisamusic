@@ -186,7 +186,7 @@ function errorMessage(error: unknown, fallback: string) {
 
   .account-name,
   .setting-title {
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 15px;
     font-weight: 700;
   }
@@ -194,7 +194,7 @@ function errorMessage(error: unknown, fallback: string) {
   .account-desc,
   .setting-desc {
     margin-top: 4px;
-    color: var(--color-text-muted);
+    color: var(--text-muted);
     font-size: 13px;
     line-height: 1.5;
     word-break: break-all;

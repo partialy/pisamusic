@@ -100,13 +100,14 @@ const handleMore = (event: MouseEvent) => {
       text-overflow: ellipsis;
       overflow: hidden;
       white-space: nowrap;
+      color: var(--text-primary);
     }
 
     .singer {
       font-size: 1rem;
       text-overflow: ellipsis;
       overflow: hidden;
-      color: var(--color-text-secondary);
+      color: var(--text-secondary);
       white-space: nowrap;
     }
   }
@@ -122,7 +123,7 @@ const handleMore = (event: MouseEvent) => {
   }
 
   &:hover {
-    background-color: #fff;
+    background-color: var(--surface-row-hover);
 
     .operate {
       display: flex;

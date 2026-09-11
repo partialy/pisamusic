@@ -112,10 +112,10 @@ function handleSelect(option: QualityAccessOption) {
   }
 
   &.is-disabled {
-    color: var(--color-text-muted, #888888);
+    color: var(--text-muted);
 
     &:hover {
-      background-color: var(--color-bg-hover, rgba(0, 0, 0, 0.06));
+      background-color: var(--surface-control-hover);
     }
   }
 

@@ -5,6 +5,7 @@ export interface ApplyThemeRuntimeOptions {
   accentColor: string;
   gradientDirection: string;
   gradientColors: string[];
+  backgroundCss?: string;
   backgroundImage?: string;
   backgroundBlur?: number;
   backgroundBrightness?: number;
@@ -18,6 +19,7 @@ export function applyThemeRuntime(options: ApplyThemeRuntimeOptions): void {
     accentColor,
     gradientDirection,
     gradientColors,
+    backgroundCss,
     backgroundImage,
     backgroundBlur = 0,
     backgroundBrightness = 100,
@@ -25,7 +27,7 @@ export function applyThemeRuntime(options: ApplyThemeRuntimeOptions): void {
 
   // 1. 设置根标签数据属性
   root.dataset.bgMode = profile.backgroundMode;
-  root.dataset.theme = profile.surfaceScheme;
+  root.dataset.theme = profile.colorScheme;
   root.dataset.activeStyle = profile.activeStyle;
   root.dataset.imageTone = profile.imageTone;
 
@@ -48,7 +50,7 @@ export function applyThemeRuntime(options: ApplyThemeRuntimeOptions): void {
   // 3. 颜色模式轨道背景渐变色
   root.style.setProperty(
     "--color-bg-track",
-    `linear-gradient(${gradientDirection}, ${gradientColors.join(", ")})`
+    backgroundCss || `linear-gradient(${gradientDirection}, ${gradientColors.join(", ")})`
   );
 
   // 4. 图片壁纸背景变量

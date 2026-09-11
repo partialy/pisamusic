@@ -41,7 +41,7 @@
     </div>
     <div class="operation">
       <n-button text circle @click="handleLove">
-        <n-icon :component="CollectIcon" size="24" :color="isLove ? 'red' : 'var(--color-secondary)'"></n-icon>
+        <n-icon :component="CollectIcon" size="24" :color="isLove ? 'red' : 'var(--text-tertiary)'"></n-icon>
       </n-button>
     </div>
   </div>
@@ -91,7 +91,7 @@ const handleLove = () => {
   background: transparent;
 
   &:hover {
-    background: #fff;
+    background: var(--surface-row-hover);
   }
 
   .index {
@@ -100,8 +100,8 @@ const handleLove = () => {
     align-items: center;
     width: 4%;
     height: 100%;
-    color: var(--color-text-secondary);
-    opacity: 0.6;
+    color: var(--text-tertiary);
+    opacity: 0.8;
   }
 
   .song-img {
@@ -129,27 +129,29 @@ const handleLove = () => {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      color: var(--text-primary);
     }
 
     .song-artist {
       font-size: 12px;
       overflow: auto;
       white-space: nowrap;
+      color: var(--text-secondary);
     }
   }
 
   .album-name {
     font-size: 14px;
-    color: var(--color-text-secondary);
-    opacity: 0.6;
+    color: var(--text-secondary);
+    opacity: 0.8;
     width: 30%;
     margin-right: 10px;
   }
 
   .duration {
     font-size: 14px;
-    color: var(--color-text-secondary);
-    opacity: 0.6;
+    color: var(--text-secondary);
+    opacity: 0.8;
     width: 10%;
     text-align: center;
     margin-right: 10px;
@@ -157,7 +159,7 @@ const handleLove = () => {
 
   .operation {
     width: 20%;
-    opacity: 0.6;
+    opacity: 0.8;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -167,7 +169,7 @@ const handleLove = () => {
 
       &:hover {
         opacity: 1;
-        color: var(--primary-color);
+        color: var(--color-primary);
       }
     }
   }

@@ -139,7 +139,9 @@ const handleCancel = () => {
   width: 500px;
   border-radius: 10px;
   padding: 10px;
-  background: var(--color-bg-track);
+  background: var(--surface-modal);
+  border: 1px solid var(--border-modal);
+  box-shadow: var(--shadow-modal);
   animation: fade-in 0.4s ease-in-out;
   .content {
     margin-bottom: 20px;

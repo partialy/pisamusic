@@ -430,9 +430,9 @@ onBeforeUnmount(() => {
 .hero-panel,
 .info-card,
 .update-card {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: var(--color-bg-elevated);
+  background: var(--surface-card);
   box-sizing: border-box;
 }
 
@@ -480,14 +480,14 @@ p {
 }
 
 h1 {
-  color: var(--color-text);
+  color: var(--text-primary);
   font-size: 30px;
   font-weight: 850;
   line-height: 1.2;
 }
 
 h2 {
-  color: var(--color-text);
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 800;
   line-height: 1.3;
@@ -496,7 +496,7 @@ h2 {
 .description,
 .card-desc,
 .update-card p {
-  color: var(--color-text-2);
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.7;
 }
@@ -512,9 +512,9 @@ h2 {
   margin-top: 16px;
 
   span {
-    border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+    border: 1px solid var(--border-subtle);
     border-radius: 999px;
-    color: var(--color-text-2);
+    color: var(--text-secondary);
     font-size: 12px;
     padding: 5px 10px;
   }
@@ -577,12 +577,10 @@ h2 {
 
 .entry-item {
   min-height: 96px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 58%),
-    color-mix(in srgb, var(--color-bg-elevated) 78%, transparent);
-  color: var(--color-text);
+  background: var(--surface-card);
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -591,15 +589,13 @@ h2 {
   padding: 18px;
   text-align: left;
   backdrop-filter: blur(16px);
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  box-shadow: var(--shadow-card);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border));
-    background:
-      linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 62%),
-      color-mix(in srgb, var(--color-bg-elevated) 86%, transparent);
-    box-shadow: 0 16px 34px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    border-color: var(--border-strong);
+    background: var(--surface-control-hover);
+    box-shadow: var(--shadow-elevated);
     transform: translateY(-2px);
   }
 }
@@ -624,21 +620,21 @@ h2 {
   gap: 7px;
 
   span {
-    color: var(--color-text);
+    color: var(--text-primary);
     font-size: 15px;
     font-weight: 800;
     line-height: 1.2;
   }
 
   small {
-    color: var(--color-text-2);
+    color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.4;
   }
 }
 
 .entry-arrow {
-  color: color-mix(in srgb, var(--color-primary) 72%, var(--color-text-2));
+  color: var(--text-tertiary);
   flex: 0 0 auto;
 }
 
@@ -683,14 +679,12 @@ h2 {
 .update-dialog-card {
   position: relative;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 16%, rgba(255, 255, 255, 0.75));
+  border: 1px solid var(--border-modal);
   border-radius: 20px;
   padding: 36px 30px 30px;
-  background:
-    radial-gradient(circle at 16% 0, color-mix(in srgb, #ffffff 74%, transparent), transparent 34%),
-    linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 16%, #ffffff 84%), color-mix(in srgb, var(--color-primary) 28%, #ffffff 72%));
-  box-shadow: 0 26px 72px rgba(0, 0, 0, 0.34);
-  color: color-mix(in srgb, var(--color-primary) 72%, #033a5f);
+  background: var(--surface-modal);
+  box-shadow: var(--shadow-modal);
+  color: var(--text-primary);
 }
 
 .update-dialog-card::before {
@@ -698,7 +692,7 @@ h2 {
   position: absolute;
   inset: 1px;
   border-radius: 19px;
-  border: 1px solid rgba(255, 255, 255, 0.68);
+  border: 1px solid var(--border-subtle);
   pointer-events: none;
 }
 
@@ -711,7 +705,7 @@ h2 {
   text-align: center;
 
   h2 {
-    color: color-mix(in srgb, var(--color-primary) 80%, #064466);
+    color: var(--text-primary);
     font-size: 20px;
     font-weight: 850;
     line-height: 1.3;
@@ -723,7 +717,7 @@ h2 {
   height: 40px;
   border-radius: 12px;
   overflow: hidden;
-  background: color-mix(in srgb, #ffffff 70%, var(--color-primary) 14%);
+  background: var(--surface-card);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -743,10 +737,10 @@ h2 {
   overflow: auto;
   margin-top: 22px;
   padding: 18px 20px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.8));
+  border: 1px solid var(--border-subtle);
   border-radius: 14px;
-  background: color-mix(in srgb, #ffffff 66%, var(--color-primary) 7%);
-  color: color-mix(in srgb, var(--color-primary) 72%, #16415e);
+  background: var(--surface-input);
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.8;
   white-space: pre-wrap;
@@ -756,7 +750,7 @@ h2 {
   strong {
     display: block;
     margin-bottom: 8px;
-    color: color-mix(in srgb, var(--color-primary) 88%, #07384f);
+    color: var(--text-primary);
     font-weight: 850;
   }
 }
@@ -787,15 +781,15 @@ h2 {
 }
 
 .update-glass-button {
-  --n-text-color: color-mix(in srgb, var(--color-primary) 86%, #064466) !important;
-  --n-text-color-hover: color-mix(in srgb, var(--color-primary) 94%, #03324c) !important;
-  --n-text-color-pressed: color-mix(in srgb, var(--color-primary) 94%, #03324c) !important;
-  --n-border: 1px solid color-mix(in srgb, var(--color-primary) 14%, rgba(255, 255, 255, 0.9)) !important;
-  --n-border-hover: 1px solid color-mix(in srgb, var(--color-primary) 28%, rgba(255, 255, 255, 0.9)) !important;
-  --n-border-pressed: 1px solid color-mix(in srgb, var(--color-primary) 28%, rgba(255, 255, 255, 0.9)) !important;
-  --n-color: rgba(255, 255, 255, 0.7) !important;
-  --n-color-hover: rgba(255, 255, 255, 0.86) !important;
-  --n-color-pressed: rgba(255, 255, 255, 0.78) !important;
+  --n-text-color: var(--text-secondary) !important;
+  --n-text-color-hover: var(--text-primary) !important;
+  --n-text-color-pressed: var(--text-primary) !important;
+  --n-border: 1px solid var(--border-subtle) !important;
+  --n-border-hover: 1px solid var(--border-default) !important;
+  --n-border-pressed: 1px solid var(--border-default) !important;
+  --n-color: var(--surface-control) !important;
+  --n-color-hover: var(--surface-control-hover) !important;
+  --n-color-pressed: var(--surface-control-active) !important;
 }
 
 @media (max-width: 560px) {

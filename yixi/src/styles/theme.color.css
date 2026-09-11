@@ -29,6 +29,8 @@
   /* 交互表面 */
   --surface-control-hover: color-mix(in srgb, var(--color-primary) 8%, rgba(0, 0, 0, 0.04));
   --surface-control-active: color-mix(in srgb, var(--color-primary) 14%, rgba(0, 0, 0, 0.08));
+  --surface-input-hover: rgba(0, 0, 0, 0.04);
+  --surface-skeleton: rgba(0, 0, 0, 0.04);
   --surface-row-hover: color-mix(in srgb, var(--color-primary) 8%, #ffffff);
   --surface-row-selected: color-mix(in srgb, var(--color-primary) 12%, #ffffff);
   --surface-row-playing: color-mix(in srgb, var(--color-primary) 14%, #ffffff);
@@ -41,6 +43,7 @@
   --border-row-playing: transparent;
   --border-player: rgba(0, 0, 0, 0.06);
   --border-modal: var(--border-subtle);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.06);
   --shadow-elevated: 0 16px 36px rgba(0, 0, 0, 0.12);
   --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.18);
   --shadow-player: 0 -8px 24px rgba(15, 23, 42, 0.06);
@@ -77,6 +80,8 @@
   /* 交互表面 */
   --surface-control-hover: color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.07));
   --surface-control-active: color-mix(in srgb, var(--color-primary) 18%, rgba(255, 255, 255, 0.12));
+  --surface-input-hover: rgba(255, 255, 255, 0.08);
+  --surface-skeleton: rgba(255, 255, 255, 0.04);
   --surface-row-hover: color-mix(in srgb, var(--color-primary) 10%, #1e293b);
   --surface-row-selected: color-mix(in srgb, var(--color-primary) 16%, #1e293b);
   --surface-row-playing: color-mix(in srgb, var(--color-primary) 20%, #1e293b);
@@ -89,6 +94,7 @@
   --border-row-playing: transparent;
   --border-player: rgba(255, 255, 255, 0.08);
   --border-modal: var(--border-subtle);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.25);
   --shadow-elevated: 0 16px 36px rgba(0, 0, 0, 0.35);
   --shadow-modal: 0 24px 70px rgba(0, 0, 0, 0.55);
   --shadow-player: 0 -8px 24px rgba(0, 0, 0, 0.30);

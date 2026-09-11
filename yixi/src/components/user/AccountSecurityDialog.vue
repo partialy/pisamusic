@@ -204,14 +204,14 @@ function errorMessage(error: unknown, fallback: string) {
 
   h2 {
     margin: 0;
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 22px;
     font-weight: 800;
   }
 
   p {
     margin: 6px 0 0;
-    color: var(--color-text-muted);
+    color: var(--text-muted);
     font-size: 13px;
   }
 }

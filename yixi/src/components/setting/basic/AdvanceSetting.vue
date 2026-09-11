@@ -471,7 +471,8 @@ function prettyJson(value: unknown) {
   padding: 12px;
   border-radius: 8px;
   color: var(--color-text-default);
-  background: var(--color-bg-secondary);
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;

@@ -469,10 +469,9 @@ watch(
 }
 
 .active {
-  background-color: white !important;
+  background-color: var(--surface-control-active) !important;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(255, 255, 255, 0.3);
-  // box-shadow: 0 0 10px 3px rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-card);
 }
 
 .play-list-detail-layout {
@@ -522,6 +521,7 @@ watch(
         height: 60px;
         font-size: 26px;
         font-weight: 600;
+        color: var(--text-primary);
       }
 
       .list-info {
@@ -534,7 +534,7 @@ watch(
         .list-intro {
           height: 35%;
           font-size: 16px;
-          color: var(--color-text);
+          color: var(--text-secondary);
           cursor: pointer;
         }
 
@@ -543,7 +543,7 @@ watch(
           display: flex;
           align-items: center;
           font-size: 14px;
-          color: var(--color-text);
+          color: var(--text-secondary);
         }
 
         .operate-btn {

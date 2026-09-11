@@ -1,6 +1,7 @@
 export type BackgroundMode = "color" | "image";
 export type ResolvedColorScheme = "light" | "dark";
 export type ImageTone = "light" | "dark";
+export type GradientDirection = "to bottom" | "to right" | "135deg" | "45deg";
 export type ActiveThemeStyle = "color-light" | "color-dark" | "image-light" | "image-dark";
 
 export interface ThemeRuntimeProfile {

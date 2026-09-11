@@ -268,7 +268,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 .login-title {
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 23px;
   font-weight: 800;
   line-height: 1.1;
@@ -276,7 +276,7 @@ function errorMessage(error: unknown, fallback: string) {
 
 .login-subtitle {
   margin-top: 5px;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-size: 13px;
 }
 

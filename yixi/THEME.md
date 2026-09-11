@@ -24,12 +24,16 @@
 
 ### 1.2 图片模式 (`data-bg-mode="image"`)
 图片模式根据壁纸明暗度采样（`analyzeImageBrightness`）自动匹配亮暗两套通透中性毛玻璃配色规则（Neutral Translucent Frosted Glass）：
-- **暗色图片子类 (`data-theme="dark"` / `data-image-tone="dark"` / `image-dark`)**：
+- **暗色图片子类 (`[data-bg-mode="image"][data-image-tone="dark"]` / `image-dark`)**：
   - 针对暗色、夜景、深色插画壁纸；
   - 采用通透深色中性毛玻璃表面（`rgba(18, 24, 38, ...)`）与软白高对比度文字（`rgba(255, 255, 255, 0.92)`）。
-- **亮色图片子类 (`data-theme="light"` / `data-image-tone="light"` / `image-light`)**：
+- **亮色图片子类 (`[data-bg-mode="image"][data-image-tone="light"]` / `image-light`)**：
   - 针对高明度、白天、浅白天青壁纸；
   - 采用通透浅白中性毛玻璃表面（`rgba(255, 255, 255, ...)`）与深灰高清晰文字（`#1e293b`）。
+- **状态轴分离原则**：
+  - `data-theme` 纯粹表示用户设定的亮暗偏好（`light` 或 `dark`）；
+  - `data-image-tone` 表示图片壁纸分析后的亮暗分类（`light` 或 `dark`）；
+  - 图片适配器样式（`theme.image.css`）仅由 `[data-image-tone]` 决定，不覆盖或耦合用户的 `data-theme` 偏好。
 - **共用中性质感约束**：
   - **不脏染底色**：表面面板、卡片、列表行底色一律采用纯净中性半透明遮罩，**严禁使用壁纸提取的主色（accent）混洗（color-mix）面板底色**，保持高保真通透质感。
   - **主色仅作点睛**：壁纸分析提取的强调色（Accent Color）仅用于重要文字高亮（`--text-accent`）、选中指示条与当前播放动画等点睛交互。
@@ -56,6 +60,8 @@
 - `--surface-card-hover`: 卡片悬浮底色
 - `--surface-modal`: 弹窗、模态对话框底色
 - `--surface-input`: 输入框、推子轨道槽底色
+- `--surface-input-hover`: 输入框、次级控制悬浮底色
+- `--surface-skeleton`: 骨架屏底色
 - `--surface-hover`: 通用控件悬浮底色
 - `--surface-control-hover`: 次级图标按钮悬浮底色
 - `--surface-control-active`: 图标按钮激活底色

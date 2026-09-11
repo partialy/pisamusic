@@ -5,9 +5,8 @@
  */
 
 /* 1. 暗色图片壁纸（image-dark）：通透深色毛玻璃 */
-:root[data-bg-mode="image"][data-theme="dark"],
 :root[data-bg-mode="image"][data-image-tone="dark"],
-:root[data-bg-mode="image"]:not([data-theme="light"]):not([data-image-tone="light"]) {
+:root[data-bg-mode="image"]:not([data-image-tone="light"]) {
   color-scheme: dark;
 
   /* 文本：通透软白高对比度文字 */
@@ -30,6 +29,8 @@
   /* 交互表面：中性微光/微暗半透明悬浮，无主色脏染 */
   --surface-control-hover: rgba(255, 255, 255, 0.10);
   --surface-control-active: rgba(255, 255, 255, 0.16);
+  --surface-input-hover: rgba(255, 255, 255, 0.12);
+  --surface-skeleton: rgba(255, 255, 255, 0.06);
   --surface-row-hover: rgba(255, 255, 255, 0.08);
   --surface-row-selected: rgba(255, 255, 255, 0.14);
   --surface-row-playing: rgba(255, 255, 255, 0.18);
@@ -42,6 +43,7 @@
   --border-row-playing: transparent;
   --border-player: rgba(255, 255, 255, 0.10);
   --border-modal: rgba(255, 255, 255, 0.14);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-elevated: 0 20px 48px rgba(0, 0, 0, 0.45);
   --shadow-modal: 0 24px 70px rgba(0, 0, 0, 0.55);
   --shadow-player: 0 -4px 20px rgba(0, 0, 0, 0.22);
@@ -54,7 +56,6 @@
 }
 
 /* 2. 亮色图片壁纸（image-light）：通透浅白毛玻璃 */
-:root[data-bg-mode="image"][data-theme="light"],
 :root[data-bg-mode="image"][data-image-tone="light"] {
   color-scheme: light;
 
@@ -78,6 +79,8 @@
   /* 交互表面：中性微暗半透明悬浮，无主色脏染 */
   --surface-control-hover: rgba(0, 0, 0, 0.06);
   --surface-control-active: rgba(0, 0, 0, 0.12);
+  --surface-input-hover: rgba(255, 255, 255, 0.95);
+  --surface-skeleton: rgba(0, 0, 0, 0.04);
   --surface-row-hover: rgba(0, 0, 0, 0.05);
   --surface-row-selected: rgba(0, 0, 0, 0.08);
   --surface-row-playing: rgba(0, 0, 0, 0.12);
@@ -90,6 +93,7 @@
   --border-row-playing: transparent;
   --border-player: rgba(0, 0, 0, 0.08);
   --border-modal: rgba(0, 0, 0, 0.10);
+  --shadow-card: 0 4px 14px rgba(0, 0, 0, 0.08);
   --shadow-elevated: 0 16px 36px rgba(0, 0, 0, 0.14);
   --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.20);
   --shadow-player: 0 -4px 20px rgba(0, 0, 0, 0.08);

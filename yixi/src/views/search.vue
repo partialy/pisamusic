@@ -403,7 +403,7 @@ watch(
 
     .keywords-description {
       font-weight: 400;
-      color: #666;
+      color: var(--text-secondary);
     }
 
     .origin-select {

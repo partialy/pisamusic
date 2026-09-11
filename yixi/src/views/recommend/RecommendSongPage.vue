@@ -293,7 +293,7 @@ onMounted(() => {
   height: 76px;
   border-radius: 5px;
   overflow: hidden;
-  background: var(--color-bg-secondary);
+  background: var(--surface-card);
 
   img {
     width: 100%;
