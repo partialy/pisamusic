@@ -424,14 +424,49 @@ export class DesktopLyricManager {
       isPrimary: d.id === primaryDisplayId,
     }));
 
+    const current = this.lyricWindow.getBounds();
+    const candidate: DesktopLyricBounds = {
+      x: typeof requested.x === "number" ? requested.x : current.x,
+      y: typeof requested.y === "number" ? requested.y : current.y,
+      width:
+        typeof requested.width === "number" && requested.width > 0
+          ? requested.width
+          : current.width,
+      height:
+        typeof requested.height === "number" && requested.height > 0
+          ? requested.height
+          : current.height,
+    };
+
     const constrained = resolveRestoredBounds(
-      requested,
+      candidate,
       displays,
       this.currentSetting.overlayTaskbar,
     );
 
-    this.lyricWindow.setBounds(constrained);
-    this.scheduleBoundsSave(constrained);
+    const sizeChanged =
+      constrained.width !== current.width || constrained.height !== current.height;
+    const posChanged =
+      constrained.x !== current.x || constrained.y !== current.y;
+
+    if (sizeChanged && posChanged) {
+      this.lyricWindow.setBounds(constrained);
+      this.scheduleBoundsSave(constrained);
+    } else if (sizeChanged) {
+      this.lyricWindow.setSize(constrained.width, constrained.height);
+      this.scheduleBoundsSave({
+        ...current,
+        width: constrained.width,
+        height: constrained.height,
+      });
+    } else if (posChanged) {
+      this.lyricWindow.setPosition(constrained.x, constrained.y);
+      this.scheduleBoundsSave({
+        ...current,
+        x: constrained.x,
+        y: constrained.y,
+      });
+    }
   }
 
   getBounds(): DesktopLyricBounds | null {

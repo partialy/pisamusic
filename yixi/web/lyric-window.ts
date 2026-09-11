@@ -119,6 +119,8 @@ let dragStartScreenX = 0;
 let dragStartScreenY = 0;
 let dragStartX = 0;
 let dragStartY = 0;
+let dragStartW = 0;
+let dragStartH = 0;
 
 let isResizing = false;
 let resizeDir = "";
@@ -155,6 +157,8 @@ surface.addEventListener("pointerdown", (event) => {
   dragStartScreenY = event.screenY;
   dragStartX = window.screenX;
   dragStartY = window.screenY;
+  dragStartW = window.innerWidth;
+  dragStartH = window.innerHeight;
 
   try {
     surface.setPointerCapture(event.pointerId);
@@ -168,8 +172,8 @@ surface.addEventListener("pointermove", (event) => {
   scheduleBounds({
     x: dragStartX + dx,
     y: dragStartY + dy,
-    width: window.outerWidth,
-    height: window.outerHeight,
+    width: dragStartW,
+    height: dragStartH,
   });
 });
 
@@ -196,8 +200,8 @@ document.querySelectorAll<HTMLElement>(".resize-zone").forEach((zone) => {
     resizeStartScreenY = event.screenY;
     resizeStartX = window.screenX;
     resizeStartY = window.screenY;
-    resizeStartW = window.outerWidth;
-    resizeStartH = window.outerHeight;
+    resizeStartW = window.innerWidth;
+    resizeStartH = window.innerHeight;
 
     try {
       zone.setPointerCapture(event.pointerId);
