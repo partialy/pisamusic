@@ -1,0 +1,48 @@
+/**
+ * 图片背景模式主题适配器（data-bg-mode="image"）
+ * 单独一种专属配色样式：统一的通透中性毛玻璃视觉质感
+ * 表面色值强制采用纯净中性 RGBA，严禁使用 --color-primary 混色脏染卡片底色
+ */
+
+:root[data-bg-mode="image"] {
+  color-scheme: dark;
+
+  /* 文本：通透软白高对比度文字 */
+  --text-primary: rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.70);
+  --text-tertiary: rgba(255, 255, 255, 0.48);
+  --text-accent: var(--color-primary);
+  --text-on-accent: #ffffff;
+
+  /* 基础表面：通透中性毛玻璃 */
+  --surface-app: transparent;
+  --surface-shell: transparent;
+  --surface-panel: rgba(18, 24, 38, 0.40);
+  --surface-card: rgba(20, 26, 38, 0.42);
+  --surface-elevated: rgba(24, 30, 44, 0.85);
+  --surface-player: rgba(18, 22, 31, 0.65);
+  --surface-input: rgba(255, 255, 255, 0.08);
+
+  /* 交互表面：中性微光/微暗半透明悬浮，无主色脏染 */
+  --surface-control-hover: rgba(255, 255, 255, 0.10);
+  --surface-control-active: rgba(255, 255, 255, 0.16);
+  --surface-row-hover: rgba(255, 255, 255, 0.08);
+  --surface-row-selected: rgba(255, 255, 255, 0.14);
+  --surface-row-playing: rgba(255, 255, 255, 0.18);
+  --surface-row-disabled-hover: rgba(255, 255, 255, 0.03);
+
+  /* 边框与阴影 */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-row-selected: rgba(255, 255, 255, 0.20);
+  --border-row-playing: rgba(255, 255, 255, 0.26);
+  --border-player: rgba(255, 255, 255, 0.10);
+  --shadow-elevated: 0 20px 48px rgba(0, 0, 0, 0.45);
+  --shadow-player: 0 -4px 20px rgba(0, 0, 0, 0.22);
+  --filter-panel: blur(20px);
+  --filter-player: blur(16px);
+
+  /* 轨道与全屏背景微遮罩（确保在任何亮度的壁纸上软白文字均清晰） */
+  --slider-rail: rgba(255, 255, 255, 0.20);
+  --app-image-overlay: rgba(0, 0, 0, 0.22);
+}

@@ -88,113 +88,17 @@ h6 {
   --color-text-primary-hover: #1e6edc;
 }
 
-:root,
-:root[data-theme="light"] {
-  /* 浅色主题文字：使用柔和高级深炭色，避免刺眼死黑 */
-  --color-text-default: #1f2329;
-  --color-text-track: #ddd;
-  --color-text-track-hover: #ffffff;
-  --color-text-secondary: #646a73;
-  --color-text-third: #8f959e;
-
-  /* 浅色主题背景 */
-  --color-bg-track: linear-gradient(#edf4ff, #f7fbff 42%, #f5f5f5);
-  --color-bg-default: #fff;
-  --color-bg-active: #dadada;
-  --color-bg-secondary: #f5f5f5;
-  --color-bg-hover: rgba(0, 0, 0, 0.04);
-  --color-setting-hover: color-mix(in srgb, var(--color-primary) 8%, rgba(0, 0, 0, 0.04));
-  --color-card-bg: rgba(255, 255, 255, 0.86);
-  --color-player-bar-bg: rgba(255, 255, 255, 0.92);
-  --color-player-bar-border: rgba(16, 24, 40, 0.08);
-  --color-slider-rail: #d6e3ee;
-
-  /* 浅色主题辅助色 */
-  --color-secondary: #999;
-  --color-border-default: #e8e8e8;
-  --color-source-cloud: #10b981;
-}
-
-:root[data-theme="dark"] {
-  /* 深色主题文字：使用舒适软白，避免 100% 惨白刺眼 */
-  --color-text-default: #f3f4f6;
-  --color-text-track: #aeb7c5;
-  --color-text-track-hover: #ffffff;
-  --color-text-secondary: #a3a9b5;
-  --color-text-third: #7f8794;
-
-  /* 深色主题背景，--color-bg-track 用于侧栏/应用轨道 */
-  --color-bg-track: linear-gradient(#121826, #151b2b 48%, #10131d);
-  --color-bg-default: #171b24;
-  --color-bg-active: #242b38;
-  --color-bg-secondary: #0f131b;
-  --color-bg-hover: rgba(255, 255, 255, 0.06);
-  --color-setting-hover: color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.06));
-  --color-card-bg: rgba(23, 27, 36, 0.82);
-  --color-player-bar-bg: rgba(18, 23, 32, 0.94);
-  --color-player-bar-border: rgba(255, 255, 255, 0.08);
-  --color-slider-rail: #303b4d;
-
-  /* 深色主题辅助色 */
-  --color-secondary: #8b94a3;
-  --color-border-default: #2c3442;
-  --color-source-cloud: #34d399;
-}
-
-:root:not([data-theme]) {
+:root {
   color-scheme: light;
 }
 
-/* 图片背景模式：悬浮使用半透明通透微光/微暗色，绝不使用死板实色黑块或死白 */
+:root[data-theme="dark"],
 :root[data-bg-mode="image"] {
-  --color-setting-hover: color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.08));
-  --color-bg-hover: rgba(255, 255, 255, 0.07);
-}
-
-:root[data-bg-mode="image"][data-theme="dark"] {
-  --color-setting-hover: color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.08));
-  --color-bg-hover: rgba(255, 255, 255, 0.07);
-}
-
-:root[data-bg-mode="image"][data-theme="light"] {
-  --color-setting-hover: color-mix(in srgb, var(--color-primary) 10%, rgba(0, 0, 0, 0.05));
-  --color-bg-hover: rgba(0, 0, 0, 0.04);
+  color-scheme: dark;
 }
 
 .setting-item {
   transition: background-color 0.18s ease;
-}
-
-:root[data-bg-mode="image"] .player-bar,
-:root[data-bg-mode="image"] .player-bar.bar-container,
-:root[data-bg-mode="image"] .bar-container {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  box-shadow: none !important;
-  border-top: 1px solid var(--color-player-bar-border) !important;
-  color: var(--color-text-default);
-}
-
-:root[data-bg-mode="image"] #app,
-:root[data-bg-mode="image"] .app-root-shell,
-:root[data-bg-mode="image"] .app-content-wrapper,
-:root[data-bg-mode="image"] .main-layout-root,
-:root[data-bg-mode="image"] .app-shell,
-:root[data-bg-mode="image"] .right-content,
-:root[data-bg-mode="image"] .n-layout,
-:root[data-bg-mode="image"] .n-layout-scroll-container,
-:root[data-bg-mode="image"] .n-layout-sider,
-:root[data-bg-mode="image"] .n-layout-sider-scroll-container {
-  background-color: transparent !important;
-  background: transparent !important;
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
 }
 
 /* 整个滚动条 */

@@ -1,7 +1,10 @@
 import { createApp } from "vue";
-import "./base.css";
-import "./anim.scss"
 import App from "./App.vue";
+import "./base.css";
+import "./styles/theme.tokens.css";
+import "./styles/theme.color.css";
+import "./styles/theme.image.css";
+import "./anim.scss";
 import { createPinia } from "pinia";
 import router from "./router";
 import electronAPI from "./utils/electron";

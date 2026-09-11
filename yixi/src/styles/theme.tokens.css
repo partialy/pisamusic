@@ -1,0 +1,26 @@
+/**
+ * 语义化主题 CSS 变量（CSS Custom Properties）契约定义
+ * 组件样式只依赖语义化 Token，具体色值由适配器（theme.color.css / theme.image.css）提供。
+ */
+
+:root {
+  /* 基础品牌变量默认兜底 */
+  --color-primary: #2897ff;
+  --color-primary-hover: #54adff;
+  --color-primary-pressed: #1f78cc;
+  --header-height: 60px;
+  --color-source-cloud: #34d399;
+
+  /* 临时向下兼容别名（Task 8 迁移完成后移除无引用的别名） */
+  --color-text-default: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-third: var(--text-tertiary);
+  --color-bg-default: var(--surface-card);
+  --color-bg-hover: var(--surface-control-hover);
+  --color-card-bg: var(--surface-card);
+  --color-setting-hover: var(--surface-row-hover);
+  --color-player-bar-bg: var(--surface-player);
+  --color-player-bar-border: var(--border-player);
+  --color-slider-rail: var(--slider-rail);
+  --color-border-default: var(--border-subtle);
+}
