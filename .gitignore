@@ -78,6 +78,8 @@ design-html/
 !yixi/electron/directMessage/directMessageRules.test.ts
 !yixi/electron/directMessage/startupPopupArbitration.test.ts
 !yixi/src/utils/playlistTracks.test.ts
+!yixi/src/theme/resolveThemeProfile.test.ts
+!yixi/src/theme/themeCssContract.test.ts
 !server/src/services/listeningService.spec.ts
 !server/src/db/verificationCodeStore.spec.ts
 !server/src/config/configDefinitions.spec.ts

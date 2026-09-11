@@ -7,6 +7,16 @@
 - renderer 只订阅 `player-controls:visibility`，不得恢复 `document.mousemove` / `clientX` / `clientY` 的并行计时器。
 - 顶部 `-webkit-app-region: drag` 会屏蔽 pointer 事件，不能再把 renderer DOM 鼠标事件作为唯一活动来源。
 
+## 主题架构与语义化 Token 规则补充
+
+- 主题体系统一遵循“两个大类（背景模式）”与“三个子类（配色样式）”：
+  - 纯色大类（`data-bg-mode="color"`）：浅色子类（`data-theme="light"`）、深色子类（`data-theme="dark"`）。
+  - 图片大类（`data-bg-mode="image"`）：图片专属子类（单一套通透中性毛玻璃风格，深色高透面板，不按壁纸明暗分两套，不使用壁纸主色混洗污染面板底色，排版文字为高对比度中性白）。
+- 组件样式禁止使用 `.is-image-mode` 类或 `[data-bg-mode]` 选择器分支；组件样式一律仅依赖语义化 CSS 变量（`--surface-*`, `--border-*`, `--text-*`, `--shadow-*`, `--glass-*`, `--app-bg-*`）。
+- 壁纸主色（accent）只用于文字高亮（`--text-accent`）、选中指示条与当前播放动画等点睛交互，严禁用于面板或行大面积底色。
+- 主题详细契约、Token 规范与架构测试见 `yixi/THEME.md`。静态架构守护测试通过 `pnpm --dir yixi test:theme` 执行。
+
+
 ## 一起听模块规则补充
 
 - 一起听用于与 `pm/` Android 端进入同一房间、共享房主权威队列并同步播放状态；协议基线以 `server/src/realtime/listenTogether/` 与 `pm/app/.../listen/` 实际代码为准。
