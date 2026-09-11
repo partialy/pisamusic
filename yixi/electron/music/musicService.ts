@@ -248,7 +248,7 @@ export async function getPlaylistTracks(params: PlaylistTracksParams) {
         "kg",
         buildUrl(endpoints.kgServer, "/playlist/track/all", {
           id: params.id,
-          page: Math.floor(offset / pageSize) + 1,
+          page: params.page ?? (Math.floor(offset / pageSize) + 1),
           pagesize: pageSize,
         })
       );

@@ -2,7 +2,17 @@ import type { CommonPlaylist, Song } from "@/types/song";
 import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
 import { convertor } from "@/utils/convertor";
 
-const PLAYLIST_TRACK_PAGE_SIZE = 300;
+/**
+ * 根据歌单总曲目数动态计算单页/单批拉取大小。
+ * 目标是将全量加载平摊为约 3 批次，并强制限制在 [50, 200] 黄金性能区间内：
+ * - 小于等于 150 首时单批 50；
+ * - 301 首时单批 Math.ceil(301 / 3) = 101；
+ * - 大于等于 600 首时单批 200。
+ */
+export function resolveDynamicBatchSize(totalCount: number): number {
+  if (!Number.isFinite(totalCount) || totalCount <= 0) return 50;
+  return Math.min(200, Math.max(50, Math.ceil(totalCount / 3)));
+}
 
 type SupportedPlaylistSource = "kg" | "wy" | "local";
 type NetworkPlaylistSource = Exclude<SupportedPlaylistSource, "local">;
@@ -17,19 +27,17 @@ export async function fetchAllPlaylistTracks(playlist: CommonPlaylist): Promise<
   const total = await fetchPlaylistTotal(playlist, source);
   const songs: Song[] = [];
   const songKeys = new Set<string>();
+  const batchSize = total ? resolveDynamicBatchSize(total) : 50;
 
   let offset = 0;
   while (!total || offset < total) {
-    const pageSize = total
-      ? Math.min(PLAYLIST_TRACK_PAGE_SIZE, total - offset)
-      : PLAYLIST_TRACK_PAGE_SIZE;
-    const pageSongs = await fetchPlaylistTrackPage(playlist.id, source, offset, pageSize);
+    const pageSongs = await fetchPlaylistTrackPage(playlist.id, source, offset, batchSize);
 
     if (!pageSongs.length) break;
     appendUniqueSongs(songs, songKeys, pageSongs);
 
-    offset += pageSize;
-    if (!total && pageSongs.length < pageSize) break;
+    offset += batchSize;
+    if (!total && pageSongs.length < batchSize) break;
   }
 
   return songs;

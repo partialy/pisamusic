@@ -45,6 +45,7 @@
 - 分享 payload 必须通过 `src/share/shareModels.ts` 白名单裁剪；不得包含本地 `filePath`、播放 URL、歌词正文、内嵌封面二进制或 renderer 响应式对象。
 - `/media/detail` 的分享态不展示或强调音源：歌曲展示歌手、歌名、专辑、时长和访问次数；歌单展示描述、分享人和访问次数。本地 payload 详情仍可保留来源及本地统计信息。
 - `/media/detail` 同时承载本地歌曲/歌单详情和接收分享详情，页面内不再提供独立返回按钮，统一使用全局 Header 返回；详情入口不得另建重复页面。
+- 歌单歌曲分页拉取统一使用 `src/utils/playlistTracks.ts` 的 `resolveDynamicBatchSize(totalCount)` 动态计算单批大小（平摊约 3 批并限制在 `[50, 200]` 区间：`total <= 150` 取 50，`301` 取 101，`>= 600` 取 200）。歌单详情首屏以计算出的 `batchSize` 直接拉取第 1 页，无重复数据；流式后台加载与全量拉取全过程必须保持同一恒定 `pageSize`，尾页不缩小，规避酷狗服务端分页偏移错位。
 - Electron 外部扫码动作由 main 侧协调器缓冲冷启动/二次启动参数：一起听继续投递 `listen-together:invite`，音乐分享投递 `share:invite`，renderer 只消费只读事件并跳转详情页。
 
 ## 服务端地址规则补充

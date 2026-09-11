@@ -138,6 +138,7 @@ import ShareDialog from "@/components/common/ShareDialog.vue";
 import { openPlaylistDetail } from "@/share/mediaDetailRoute";
 
 import SongList from "@/components/list/SongList.vue";
+import { resolveDynamicBatchSize } from "@/utils/playlistTracks";
 
 type DetailOrigin = "kg" | "wy" | "local";
 
@@ -201,12 +202,10 @@ const songList = ref<Song[]>([]);
 const allSong = ref<Song[]>([]);
 const localSongCache = ref<Song[]>([]);
 const loadVersion = ref(0);
-const INITIAL_PAGE_SIZE = 30;
-const BACKGROUND_PAGE_SIZE = 300;
 const VISIBLE_CHUNK_SIZE = 60;
 const page = ref({
   currentPage: 1,
-  size: INITIAL_PAGE_SIZE,
+  size: 50,
   total: 0,
 });
 
@@ -257,8 +256,8 @@ const getListDetail = async () => {
   convertDetail(origin);
 };
 
-const getSongList = async () => {
-  const initialSongs = await fetchPlaylistSongs(0, INITIAL_PAGE_SIZE);
+const getSongList = async (batchSize: number) => {
+  const initialSongs = await fetchPlaylistSongs(0, batchSize);
   songList.value = initialSongs;
   allSong.value = initialSongs;
 };
@@ -337,7 +336,7 @@ const playAll = async () => {
   void playbackCommands.playAll(allSong.value);
 
   if (!allLoading.value && allSong.value.length < page.value.total) {
-    void loadAll();
+    void loadAll(page.value.size);
   }
 };
 
@@ -351,18 +350,18 @@ function openShareDialog() {
   shareDialogRef.value?.openForPlaylist(listDetail.value);
 }
 
-const loadAll = async () => {
+const loadAll = async (batchSize: number = page.value.size) => {
   if (allLoading.value) return;
   const currentVersion = loadVersion.value;
   allLoading.value = true;
   try {
     let offset = allSong.value.length;
     while (offset < page.value.total && currentVersion === loadVersion.value) {
-      const pageSize = Math.min(BACKGROUND_PAGE_SIZE, page.value.total - offset);
-      const songs = await fetchPlaylistSongs(offset, pageSize);
+      const songs = await fetchPlaylistSongs(offset, batchSize);
       if (!songs.length || currentVersion !== loadVersion.value) break;
       appendUniqueSongs(songs);
-      offset += pageSize;
+      offset += batchSize;
+      if (songs.length < batchSize) break;
     }
   } catch (error) {
     console.log("后台加载歌单歌曲失败：" + error);
@@ -382,12 +381,16 @@ const initData = debounce(async () => {
   songList.value = [];
   localSongCache.value = [];
   page.value.currentPage = 1;
-  page.value.size = INITIAL_PAGE_SIZE;
+  page.value.size = 50;
   page.value.total = 0;
   await getListDetail();
-  await getSongList();
+  const batchSize = resolveDynamicBatchSize(page.value.total);
+  page.value.size = batchSize;
+  await getSongList(batchSize);
   loading.value = false;
-  setTimeout(loadAll, 100);
+  if (page.value.total > allSong.value.length) {
+    setTimeout(() => void loadAll(batchSize), 100);
+  }
 }, 300);
 
 onMounted(async () => {
