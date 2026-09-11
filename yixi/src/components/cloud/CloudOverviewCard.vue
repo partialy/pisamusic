@@ -88,9 +88,9 @@ function goToHistory() {
   gap: 16px;
   padding: 18px 20px;
   border-radius: 16px;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-border-default);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
   transition: all 0.25s ease;
 
   &:hover {
@@ -140,12 +140,12 @@ function goToHistory() {
   font-size: 19px;
   font-weight: 800;
   letter-spacing: 0.5px;
-  color: var(--color-text-default);
+  color: var(--text-primary);
 }
 
 .card-subtitle {
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .header-right {
@@ -165,8 +165,8 @@ function goToHistory() {
   justify-content: space-around;
   padding: 14px 16px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--color-bg-hover) 70%, transparent);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
 }
 
 .stat-col {
@@ -185,9 +185,9 @@ function goToHistory() {
     padding: 4px 0;
 
     &:hover {
-      background: var(--color-bg-hover);
+      background: var(--surface-hover);
       .stat-value {
-        color: var(--color-primary);
+        color: var(--text-accent);
       }
     }
   }
@@ -196,20 +196,20 @@ function goToHistory() {
 .stat-value {
   font-size: 22px;
   font-weight: 800;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   line-height: 1.2;
   font-family: inherit;
 }
 
 .stat-label {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .stat-divider {
   width: 1px;
   height: 28px;
-  background: var(--color-border-default);
+  background: var(--border-subtle);
   flex-shrink: 0;
   opacity: 0.8;
 }

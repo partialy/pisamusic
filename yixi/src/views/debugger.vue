@@ -119,7 +119,7 @@ onMounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  color: var(--color-text-default);
+  color: var(--text-primary);
 }
 
 .debug-header {
@@ -138,7 +138,7 @@ onMounted(() => {
 
   p {
     margin: 6px 0 0;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     font-size: 13px;
   }
 }
@@ -163,20 +163,21 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 13px;
 
   > div {
     min-width: 160px;
     padding: 10px 12px;
     border-radius: 8px;
-    background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
   }
 }
 
 .meta-label {
   margin-right: 8px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .log-alert {
@@ -189,10 +190,10 @@ onMounted(() => {
   margin: 0;
   padding: 14px;
   overflow: auto;
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  color: var(--color-text-default);
-  background: color-mix(in srgb, var(--color-bg-track) 82%, #000 18%);
+  color: var(--text-primary);
+  background: var(--surface-input);
   font-family: Consolas, "Courier New", monospace;
   font-size: 12px;
   line-height: 1.55;

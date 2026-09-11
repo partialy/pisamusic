@@ -174,8 +174,9 @@ function errorMessage(error: unknown, fallback: string) {
   width: min(780px, 100%);
   margin: 0 auto;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--color-bg-default) 92%, var(--color-primary) 8%);
-  box-shadow: 0 18px 48px rgba(15, 74, 132, 0.12);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
 }
 
 .edit-shell {
@@ -191,14 +192,14 @@ function errorMessage(error: unknown, fallback: string) {
 
   h1 {
     margin: 0;
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 24px;
     font-weight: 800;
   }
 
   p {
     margin: 6px 0 0;
-    color: var(--color-text-muted);
+    color: var(--text-secondary);
     font-size: 13px;
   }
 }
@@ -220,9 +221,9 @@ function errorMessage(error: unknown, fallback: string) {
   gap: 16px;
   width: 100%;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
+  border: 1px solid var(--border-subtle);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--color-bg-default) 76%, transparent);
+  background: var(--surface-input);
 }
 
 .avatar-preview {
@@ -242,13 +243,13 @@ function errorMessage(error: unknown, fallback: string) {
   }
 
   strong {
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 15px;
   }
 
   span {
     margin-top: 4px;
-    color: var(--color-text-muted);
+    color: var(--text-secondary);
     font-size: 12px;
   }
 }

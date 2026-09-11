@@ -660,9 +660,9 @@ const handleDesktopLyricLock = (value: boolean) => {
 
 .setting-card {
   padding: 18px;
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  // background: var(--color-card-bg);
+  background: var(--surface-card);
 }
 
 .section-header {
@@ -674,14 +674,14 @@ const handleDesktopLyricLock = (value: boolean) => {
 
   h3 {
     margin: 0;
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 16px;
     font-weight: 700;
   }
 
   p {
     margin: 4px 0 0;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     font-size: 12px;
   }
 }
@@ -703,7 +703,7 @@ const handleDesktopLyricLock = (value: boolean) => {
   transition: background-color 0.2s ease;
 
   &:hover {
-    background: var(--color-setting-hover);
+    background: var(--surface-hover);
   }
 
   &.wide {
@@ -718,14 +718,14 @@ const handleDesktopLyricLock = (value: boolean) => {
 }
 
 .item-title {
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
 }
 
 .item-desc {
   margin-top: 4px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -775,8 +775,8 @@ const handleDesktopLyricLock = (value: boolean) => {
     height: 36px;
     border-radius: 8px;
     overflow: hidden;
-    border: 1.5px solid var(--color-border-default);
-    background: rgba(0, 0, 0, 0.05);
+    border: 1.5px solid var(--border-subtle);
+    background: var(--surface-card);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -789,7 +789,7 @@ const handleDesktopLyricLock = (value: boolean) => {
 
     .empty-thumb {
       font-size: 11px;
-      color: var(--color-text-secondary);
+      color: var(--text-secondary);
     }
   }
 
@@ -842,9 +842,9 @@ const handleDesktopLyricLock = (value: boolean) => {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    border: 1px solid var(--color-border-default);
-    background: color-mix(in srgb, var(--color-bg-default) 90%, transparent);
-    color: var(--color-text-default);
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-card);
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -852,8 +852,9 @@ const handleDesktopLyricLock = (value: boolean) => {
     transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
+      border-color: var(--border-default);
+      color: var(--text-accent);
+      background: var(--surface-card-hover);
     }
 
     &:disabled {
@@ -867,7 +868,7 @@ const handleDesktopLyricLock = (value: boolean) => {
     text-align: right;
     font-size: 13px;
     font-variant-numeric: tabular-nums;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 }
 

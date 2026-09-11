@@ -415,7 +415,7 @@ const handleFileInputChange = (event: Event) => {
     transition: background-color 0.18s ease;
 
     &:hover {
-      background: var(--color-setting-hover);
+      background: var(--surface-hover);
     }
   }
 
@@ -424,14 +424,14 @@ const handleFileInputChange = (event: Event) => {
   }
 
   .setting-title {
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 15px;
     font-weight: 600;
   }
 
   .setting-desc {
     margin-top: 4px;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     font-size: 12px;
   }
 
@@ -525,7 +525,7 @@ const handleFileInputChange = (event: Event) => {
     aspect-ratio: 4 / 3;
     border-radius: 8px;
     overflow: hidden;
-    border: 1px solid var(--color-border-default, rgba(0, 0, 0, 0.1));
+    border: 1px solid var(--border-subtle);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -593,9 +593,9 @@ const handleFileInputChange = (event: Event) => {
       width: 28px;
       height: 28px;
       border-radius: 50%;
-      border: 1px solid var(--color-border-default, #e8e8e8);
-      background: color-mix(in srgb, var(--color-bg-default, #fff) 85%, transparent);
-      color: var(--color-text-default);
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-card);
+      color: var(--text-primary);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -629,7 +629,7 @@ const handleFileInputChange = (event: Event) => {
         .n-slider-rail {
           height: 4px;
           border-radius: 2px;
-          background-color: var(--color-slider-rail, rgba(0, 0, 0, 0.12));
+          background-color: var(--border-subtle);
 
           .n-slider-rail__fill {
             background-color: var(--color-primary);
@@ -656,7 +656,7 @@ const handleFileInputChange = (event: Event) => {
     .blur-val-text {
       font-size: 13px;
       font-weight: 600;
-      color: var(--color-text-default);
+      color: var(--text-primary);
       min-width: 38px;
       text-align: right;
       font-variant-numeric: tabular-nums;

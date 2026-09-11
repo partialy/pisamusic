@@ -184,15 +184,15 @@ async function logout(source: CookieSource) {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-color: color-mix(in srgb, var(--source-color) 22%, var(--color-border-default));
+  border-color: color-mix(in srgb, var(--source-color) 22%, var(--border-subtle));
   background:
     radial-gradient(circle at 0 0, color-mix(in srgb, var(--source-color) 16%, transparent) 0, transparent 34%),
-    var(--color-card-bg);
+    var(--surface-card);
   box-shadow: 0 20px 42px -20px rgba(15, 23, 42, 0.26);
 
   &:hover {
     transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--source-color) 42%, var(--color-border-default));
+    border-color: color-mix(in srgb, var(--source-color) 42%, var(--border-subtle));
     box-shadow: 0 26px 50px -24px rgba(15, 23, 42, 0.34);
   }
 }
@@ -209,9 +209,9 @@ async function logout(source: CookieSource) {
   height: 72px;
   display: block;
   overflow: hidden;
-  border: 3px solid color-mix(in srgb, var(--source-color) 18%, var(--color-bg-default));
+  border: 3px solid color-mix(in srgb, var(--source-color) 18%, transparent);
   border-radius: 24px;
-  background: var(--color-bg-secondary);
+  background: var(--surface-input);
   object-fit: cover;
 }
 
@@ -223,9 +223,9 @@ async function logout(source: CookieSource) {
   height: 30px;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--source-color) 24%, var(--color-border-default));
+  border: 1px solid color-mix(in srgb, var(--source-color) 24%, var(--border-subtle));
   border-radius: 12px;
-  background: color-mix(in srgb, var(--source-color) 10%, var(--color-bg-default));
+  background: color-mix(in srgb, var(--source-color) 10%, var(--surface-card));
   color: var(--source-color);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
   font-size: 17px;
@@ -233,7 +233,7 @@ async function logout(source: CookieSource) {
 
 .account-title {
   margin: 0;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 19px;
   font-weight: 800;
   letter-spacing: 0;
@@ -242,7 +242,7 @@ async function logout(source: CookieSource) {
 .account-name {
   max-width: 310px;
   margin: 9px 0 0;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 15px;
   font-weight: 650;
 }
@@ -250,7 +250,7 @@ async function logout(source: CookieSource) {
 .account-meta {
   max-width: 310px;
   margin: 5px 0 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 

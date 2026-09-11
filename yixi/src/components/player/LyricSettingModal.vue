@@ -624,11 +624,11 @@ const fontOptions = [
   height: 550px;
   max-height: 85vh;
   border-radius: 20px;
-  background: rgba(72, 79, 93, 0.76) !important;
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  background: var(--surface-modal) !important;
+  backdrop-filter: var(--glass-blur, blur(28px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(28px));
+  border: 1px solid var(--border-modal) !important;
+  box-shadow: var(--shadow-modal);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -644,7 +644,7 @@ const fontOptions = [
   align-items: center;
   justify-content: space-between;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
   min-height: 36px;
 
@@ -654,7 +654,7 @@ const fontOptions = [
     transform: translateX(-50%);
     font-size: 16px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
     user-select: none;
     pointer-events: none;
   }
@@ -666,10 +666,10 @@ const fontOptions = [
     z-index: 1;
 
     :deep(.n-button) {
-      color: rgba(255, 255, 255, 0.75);
+      color: var(--text-secondary);
       &:hover {
-        color: #ffffff;
-        background: rgba(255, 255, 255, 0.12);
+        color: var(--text-primary);
+        background: var(--surface-hover);
       }
     }
   }
@@ -680,27 +680,27 @@ const fontOptions = [
   flex-shrink: 0;
 
   :deep(.n-tabs.n-tabs--segment-type) {
-    --n-tab-color-segment: rgba(255, 255, 255, 0.22) !important;
-    --n-tab-text-color: rgba(255, 255, 255, 0.72) !important;
-    --n-tab-text-color-hover: #ffffff !important;
-    --n-tab-text-color-active: #ffffff !important;
-    --n-tab-text-color-disabled: rgba(255, 255, 255, 0.35) !important;
+    --n-tab-color-segment: var(--surface-card) !important;
+    --n-tab-text-color: var(--text-secondary) !important;
+    --n-tab-text-color-hover: var(--text-primary) !important;
+    --n-tab-text-color-active: var(--text-primary) !important;
+    --n-tab-text-color-disabled: var(--text-muted) !important;
     --n-tab-border-radius: 8px !important;
-    --n-color-segment: rgba(0, 0, 0, 0.25) !important;
+    --n-color-segment: var(--surface-input) !important;
   }
 
   :deep(.n-tabs.n-tabs--segment-type .n-tabs-rail) {
-    background-color: rgba(0, 0, 0, 0.25) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background-color: var(--surface-input) !important;
+    border: 1px solid var(--border-subtle) !important;
     border-radius: 10px !important;
     padding: 3px !important;
   }
 
   :deep(.n-tabs.n-tabs--segment-type .n-tabs-capsule),
   :deep(.n-tabs.n-tabs--segment-type .n-tabs-capsule .n-tabs-capsule__bar) {
-    background-color: rgba(255, 255, 255, 0.22) !important;
+    background-color: var(--surface-card) !important;
     border-radius: 8px !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
   }
 
   :deep(.n-tabs.n-tabs--segment-type .n-tabs-pad) {
@@ -708,17 +708,17 @@ const fontOptions = [
   }
 
   :deep(.n-tabs.n-tabs--segment-type .n-tabs-tab) {
-    color: rgba(255, 255, 255, 0.72) !important;
+    color: var(--text-secondary) !important;
     font-weight: 500 !important;
     transition: all 0.2s ease !important;
     border-radius: 8px !important;
 
     &:hover {
-      color: #ffffff !important;
+      color: var(--text-primary) !important;
     }
 
     &.n-tabs-tab--active {
-      color: #ffffff !important;
+      color: var(--text-primary) !important;
       font-weight: 600 !important;
       background-color: transparent !important;
     }
@@ -744,11 +744,11 @@ const fontOptions = [
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--surface-hover);
     border-radius: 3px;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.35);
+      background: var(--border-default);
     }
   }
 }
@@ -769,16 +769,16 @@ const fontOptions = [
   gap: 16px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
   transition: all 0.18s ease;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.25);
-    border-color: rgba(255, 255, 255, 0.16);
+    background: var(--surface-card-hover);
+    border-color: var(--border-default);
   }
 
   .row-info {
@@ -788,13 +788,13 @@ const fontOptions = [
     .row-title {
       font-size: 14px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.94);
+      color: var(--text-primary);
       line-height: 1.4;
     }
 
     .row-desc {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
+      color: var(--text-secondary);
       line-height: 1.4;
       margin-top: 2px;
     }
@@ -809,9 +809,9 @@ const fontOptions = [
 }
 
 :deep(.n-radio-button) {
-  background: rgba(0, 0, 0, 0.22);
-  color: rgba(255, 255, 255, 0.85);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: var(--surface-input);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
 }
 
 :deep(.n-radio-button.n-radio-button--checked) {
@@ -821,28 +821,28 @@ const fontOptions = [
 }
 
 :deep(.n-button--secondary-type) {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
+    background: var(--surface-card-hover);
+    color: var(--text-primary);
   }
 }
 
 :deep(.n-input),
 :deep(.n-input-number),
 :deep(.n-select .n-base-selection) {
-  background: rgba(0, 0, 0, 0.22) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  color: #ffffff !important;
+  background: var(--surface-input) !important;
+  border-color: var(--border-subtle) !important;
+  color: var(--text-primary) !important;
 }
 
 :deep(.n-color-picker) {
   width: 130px !important;
   border-radius: 8px !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid var(--border-subtle) !important;
+  background: var(--surface-input) !important;
   box-sizing: border-box;
 }
 
@@ -858,7 +858,7 @@ const fontOptions = [
 }
 
 :deep(.n-input__input-el) {
-  color: #ffffff !important;
+  color: var(--text-primary) !important;
 }
 
 .color-picker-control {
@@ -867,15 +867,15 @@ const fontOptions = [
   gap: 8px;
 
   .eyedropper-btn {
-    color: rgba(255, 255, 255, 0.8);
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: var(--text-secondary);
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
     transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 
     &:hover {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.22);
-      border-color: rgba(255, 255, 255, 0.35);
+      color: var(--text-primary);
+      background: var(--surface-card-hover);
+      border-color: var(--border-default);
       transform: scale(1.08);
     }
 
@@ -893,8 +893,8 @@ const fontOptions = [
     height: 36px;
     border-radius: 8px;
     overflow: hidden;
-    border: 1.5px solid rgba(255, 255, 255, 0.2);
-    background: rgba(0, 0, 0, 0.25);
+    border: 1.5px solid var(--border-subtle);
+    background: var(--surface-card);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -907,7 +907,7 @@ const fontOptions = [
 
     .empty-thumb {
       font-size: 11px;
-      color: rgba(255, 255, 255, 0.5);
+      color: var(--text-muted);
     }
   }
 
@@ -959,9 +959,9 @@ const fontOptions = [
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-card);
+    color: var(--text-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -969,9 +969,9 @@ const fontOptions = [
     transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      border-color: var(--color-primary);
-      background: rgba(255, 255, 255, 0.18);
-      color: #ffffff;
+      border-color: var(--border-default);
+      background: var(--surface-card-hover);
+      color: var(--text-primary);
     }
 
     &:disabled {
@@ -985,7 +985,7 @@ const fontOptions = [
     text-align: right;
     font-size: 13px;
     font-variant-numeric: tabular-nums;
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--text-secondary);
   }
 }
 

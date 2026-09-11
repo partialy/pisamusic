@@ -399,6 +399,7 @@ onBeforeUnmount(() => {
     font-size: 30px;
     font-weight: 800;
     letter-spacing: 0;
+    color: var(--text-primary);
   }
 }
 
@@ -413,7 +414,7 @@ onBeforeUnmount(() => {
   border: 0;
   padding: 0;
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 18px;
   cursor: pointer;
   transition: color 0.2s ease;
@@ -424,7 +425,7 @@ onBeforeUnmount(() => {
   }
 
   &.active {
-    color: var(--color-primary);
+    color: var(--text-accent);
   }
 }
 
@@ -460,7 +461,7 @@ onBeforeUnmount(() => {
 
 .scan-status {
   margin-bottom: 12px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -490,7 +491,8 @@ onBeforeUnmount(() => {
   gap: 18px;
   padding: 14px 16px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 }
 
 .record-row {
@@ -499,7 +501,7 @@ onBeforeUnmount(() => {
 
 .task-title,
 .record-title {
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -512,7 +514,7 @@ onBeforeUnmount(() => {
 .task-size,
 .record-time {
   margin-top: 4px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -537,12 +539,14 @@ onBeforeUnmount(() => {
   width: 500px;
   border-radius: 10px;
   padding: 10px;
-  background: var(--color-bg-track);
+  background: var(--surface-modal);
+  border: 1px solid var(--border-modal);
+  box-shadow: var(--shadow-modal);
   animation: fade-in 0.4s ease-in-out;
 
   .content {
     margin-bottom: 20px;
-    color: var(--color-text-default);
+    color: var(--text-primary);
   }
 
   .footer {

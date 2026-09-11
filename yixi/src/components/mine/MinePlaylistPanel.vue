@@ -159,8 +159,8 @@ function sourceLabel(source: CommonPlaylist["source"]) {
   overflow: hidden;
   text-align: left;
   line-height: 1.4;
-  color: var(--color-text-default);
-  background: var(--color-bg);
+  color: var(--text-primary);
+  background: transparent;
   appearance: none;
   cursor: pointer;
 }
@@ -172,7 +172,7 @@ function sourceLabel(source: CommonPlaylist["source"]) {
   min-height: 0;
   overflow: hidden;
   border-radius: 20px;
-  background: color-mix(in srgb, var(--color-bg-default) 86%, #ffffff 14%);
+  background: var(--surface-card);
 
   img {
     display: block;
@@ -230,11 +230,12 @@ function sourceLabel(source: CommonPlaylist["source"]) {
   line-clamp: 2;
   -webkit-box-orient: vertical;
   font-weight: 700;
+  color: var(--text-primary);
 }
 
 .playlist-desc {
   margin-top: 6px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -249,8 +250,8 @@ function sourceLabel(source: CommonPlaylist["source"]) {
     max-width: 100%;
     padding: 2px 7px;
     border-radius: 999px;
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--text-accent);
+    background: var(--color-primary-10, rgba(24, 160, 88, 0.15));
     font-size: 11px;
   }
 }

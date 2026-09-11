@@ -988,13 +988,13 @@ onMounted(() => {
     .page-title {
       font-size: 26px;
       font-weight: 800;
-      color: var(--color-text-default);
+      color: var(--text-primary);
       margin: 0 0 6px;
     }
 
     .page-desc {
       font-size: 13px;
-      color: var(--color-text-secondary);
+      color: var(--text-secondary);
       margin: 0;
     }
   }
@@ -1007,11 +1007,11 @@ onMounted(() => {
 .tab-pill-group {
   display: flex;
   align-items: center;
-  background: var(--color-bg-hover);
+  background: var(--surface-hover);
   padding: 4px;
   border-radius: 24px;
   gap: 4px;
-  border: 1px solid var(--color-border-default);
+  border: 1px solid var(--border-subtle);
 
   .tab-pill {
     position: relative;
@@ -1021,7 +1021,7 @@ onMounted(() => {
     border-radius: 20px;
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
     display: inline-flex;
@@ -1029,12 +1029,12 @@ onMounted(() => {
     gap: 6px;
 
     &:hover {
-      color: var(--color-text-default);
+      color: var(--text-primary);
     }
 
     &.active {
-      background: var(--color-card-bg);
-      color: var(--color-text-default);
+      background: var(--surface-card);
+      color: var(--text-primary);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
@@ -1057,8 +1057,8 @@ onMounted(() => {
   text-align: center;
   padding: 60px 20px;
   border-radius: 16px;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   max-width: 520px;
   margin: 40px auto 0;
@@ -1071,7 +1071,7 @@ onMounted(() => {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--color-source-cloud) 12%, var(--color-bg-default));
+  background: color-mix(in srgb, var(--color-source-cloud) 12%, var(--surface-card));
   color: var(--color-source-cloud);
   margin-bottom: 20px;
 }
@@ -1079,13 +1079,13 @@ onMounted(() => {
 .unlogin-title {
   font-size: 18px;
   font-weight: 700;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   margin: 0 0 8px;
 }
 
 .unlogin-desc {
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   max-width: 360px;
   line-height: 1.6;
   margin: 0 0 24px;
@@ -1115,20 +1115,20 @@ onMounted(() => {
   justify-content: center;
   padding: 36px 20px;
   border-radius: 16px;
-  border: 2px dashed var(--color-border-default);
-  background: var(--color-card-bg);
+  border: 2px dashed var(--border-subtle);
+  background: var(--surface-card);
   cursor: pointer;
   transition: all 0.25s ease;
 
   &:hover,
   &.active {
     border-color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 4%, var(--color-card-bg));
+    background: color-mix(in srgb, var(--color-primary) 4%, var(--surface-card));
   }
 
   &.has-file {
     border-color: var(--color-source-cloud);
-    background: color-mix(in srgb, var(--color-source-cloud) 4%, var(--color-card-bg));
+    background: color-mix(in srgb, var(--color-source-cloud) 4%, var(--surface-card));
   }
 }
 
@@ -1147,7 +1147,7 @@ onMounted(() => {
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--color-source-cloud) 12%, var(--color-bg-default));
+  background: color-mix(in srgb, var(--color-source-cloud) 12%, var(--surface-card));
   color: var(--color-source-cloud);
 }
 
@@ -1160,12 +1160,12 @@ onMounted(() => {
 .drop-main-text {
   font-size: 15px;
   font-weight: 600;
-  color: var(--color-text-default);
+  color: var(--text-primary);
 }
 
 .drop-sub-text {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .drop-file-info {
@@ -1177,12 +1177,12 @@ onMounted(() => {
   .file-name {
     font-size: 15px;
     font-weight: 700;
-    color: var(--color-text-default);
+    color: var(--text-primary);
   }
 
   .file-size {
     font-size: 13px;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 
   .reselect-btn {
@@ -1203,8 +1203,8 @@ onMounted(() => {
   gap: 12px;
   padding: 14px 16px;
   border-radius: 12px;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
   transition: all 0.2s ease;
 
@@ -1220,8 +1220,8 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: var(--color-bg-hover);
-  color: var(--color-text-secondary);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -1235,12 +1235,12 @@ onMounted(() => {
   .attach-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-text-default);
+    color: var(--text-primary);
   }
 
   .attach-value {
     font-size: 12px;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1268,7 +1268,7 @@ onMounted(() => {
     width: 100%;
     height: 6px;
     border-radius: 3px;
-    background: var(--color-border-default);
+    background: var(--border-subtle);
     overflow: hidden;
   }
 
@@ -1280,7 +1280,7 @@ onMounted(() => {
 
   .progress-label {
     font-size: 12px;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 }
 
@@ -1290,8 +1290,8 @@ onMounted(() => {
   gap: 24px;
   padding: 24px;
   border-radius: 16px;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
@@ -1351,7 +1351,7 @@ onMounted(() => {
   .form-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-text-default);
+    color: var(--text-primary);
 
     &.required::after {
       content: " *";
@@ -1365,7 +1365,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding-top: 8px;
-  border-top: 1px solid var(--color-border-default);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .lyrics-status-chip {
@@ -1373,7 +1373,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 
   .change-lyrics-btn {
     color: var(--color-primary);
@@ -1384,8 +1384,8 @@ onMounted(() => {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 6px;
-  background: var(--color-bg-hover);
-  color: var(--color-text-secondary);
+  background: var(--surface-hover);
+  color: var(--text-secondary);
   font-family: monospace;
 }
 
@@ -1404,8 +1404,8 @@ onMounted(() => {
   text-align: center;
   padding: 48px 20px;
   border-radius: 16px;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
@@ -1417,7 +1417,7 @@ onMounted(() => {
 .success-title {
   font-size: 22px;
   font-weight: 800;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   margin: 0 0 10px;
 }
 
@@ -1468,15 +1468,15 @@ onMounted(() => {
 
   &.status-default {
     background: rgba(100, 116, 139, 0.1);
-    color: var(--color-text-secondary);
-    .badge-dot { background: var(--color-text-third); }
+    color: var(--text-secondary);
+    .badge-dot { background: var(--text-muted); }
   }
 }
 
 .success-desc {
   font-size: 14px;
   line-height: 1.8;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   max-width: 480px;
   margin: 0 0 28px;
 }
@@ -1502,7 +1502,7 @@ onMounted(() => {
   .history-summary-text {
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 }
 
@@ -1511,7 +1511,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 60px 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -1522,19 +1522,19 @@ onMounted(() => {
   justify-content: center;
   padding: 64px 20px;
   border-radius: 16px;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   text-align: center;
   gap: 12px;
 
   .empty-icon {
-    color: var(--color-text-third);
+    color: var(--text-muted);
     opacity: 0.6;
   }
 
   .empty-text {
     font-size: 14px;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     margin: 0 0 8px;
   }
 }
@@ -1548,18 +1548,18 @@ onMounted(() => {
 .history-card {
   padding: 16px 20px;
   border-radius: 14px;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-default));
+    border-color: color-mix(in srgb, var(--color-primary) 40%, var(--border-subtle));
   }
 
   &.status-card-deleted {
     opacity: 0.7;
-    background: color-mix(in srgb, var(--color-bg-hover) 50%, var(--color-card-bg));
+    background: color-mix(in srgb, var(--surface-hover) 50%, var(--surface-card));
   }
 }
 
@@ -1600,7 +1600,7 @@ onMounted(() => {
   .history-title {
     font-size: 16px;
     font-weight: 700;
-    color: var(--color-text-default);
+    color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1612,19 +1612,19 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 
   .meta-artist {
     font-weight: 600;
-    color: var(--color-text-default);
+    color: var(--text-primary);
   }
 
   .meta-format {
     font-size: 10px;
     padding: 1px 5px;
     border-radius: 4px;
-    background: var(--color-bg-hover);
-    color: var(--color-text-third);
+    background: var(--surface-hover);
+    color: var(--text-muted);
     font-family: monospace;
     margin-left: 4px;
   }
@@ -1635,7 +1635,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: var(--color-text-third);
+  color: var(--text-muted);
 
   .has-lyrics-tag {
     color: var(--color-primary);
@@ -1677,8 +1677,8 @@ onMounted(() => {
   margin-top: 8px;
   padding: 6px 10px;
   border-radius: 6px;
-  background: var(--color-bg-hover);
-  color: var(--color-text-third);
+  background: var(--surface-hover);
+  color: var(--text-muted);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -1715,7 +1715,7 @@ onMounted(() => {
   gap: 16px;
   padding: 12px;
   border-radius: 10px;
-  background: var(--color-bg-hover);
+  background: var(--surface-hover);
 
   .resubmit-cover-box {
     width: 60px;
@@ -1740,7 +1740,7 @@ onMounted(() => {
     .resubmit-audio-info {
       font-size: 12px;
       font-weight: 600;
-      color: var(--color-text-secondary);
+      color: var(--text-secondary);
     }
   }
 }
@@ -1753,7 +1753,7 @@ onMounted(() => {
   .modal-form-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-text-default);
+    color: var(--text-primary);
 
     &.required::after {
       content: " *";

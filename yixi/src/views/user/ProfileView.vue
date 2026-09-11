@@ -110,8 +110,9 @@ function formatTime(value: number) {
   width: min(980px, 100%);
   margin: 0 auto;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--color-bg-default) 92%, var(--color-primary) 8%);
-  box-shadow: 0 18px 48px rgba(15, 74, 132, 0.12);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
 }
 
 .profile-shell {
@@ -123,7 +124,7 @@ function formatTime(value: number) {
   align-items: center;
   gap: 18px;
   padding-bottom: 24px;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .profile-avatar {
@@ -140,14 +141,14 @@ function formatTime(value: number) {
 
   h1 {
     margin: 0;
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 26px;
     font-weight: 800;
   }
 
   p {
     margin: 6px 0 0;
-    color: var(--color-text-muted);
+    color: var(--text-secondary);
     font-size: 14px;
   }
 }
@@ -176,18 +177,19 @@ function formatTime(value: number) {
   min-width: 0;
   padding: 16px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--color-bg-default) 70%, transparent);
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
 
   span {
     display: block;
-    color: var(--color-text-muted);
+    color: var(--text-secondary);
     font-size: 12px;
   }
 
   strong {
     display: block;
     margin-top: 8px;
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 14px;
     word-break: break-all;
   }
@@ -209,13 +211,13 @@ function formatTime(value: number) {
 
   h1 {
     margin: 0;
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 24px;
   }
 
   p {
     margin: 10px 0 22px;
-    color: var(--color-text-muted);
+    color: var(--text-secondary);
   }
 }
 
