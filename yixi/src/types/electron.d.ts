@@ -998,5 +998,7 @@ declare global {
 
   interface Window {
     electronAPI: ElectronIpcApi;
+    desktopLyricWindow?: import("./desktopLyric").DesktopLyricWindowBridge;
   }
 }
+

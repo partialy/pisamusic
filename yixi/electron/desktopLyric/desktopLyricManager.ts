@@ -62,7 +62,7 @@ export class DesktopLyricManager {
     this.onStateChanged = options.onStateChanged;
     this.repository = options.settingRepository ?? getDefaultDesktopLyricSettingRepository();
     this.lyricPreloadPath =
-      options.lyricPreloadPath ?? path.join(__dirname, "../preload/index.cjs");
+      options.lyricPreloadPath ?? path.join(__dirname, "../preload/desktop-lyric.cjs");
     this.currentSetting = this.repository.read();
   }
 

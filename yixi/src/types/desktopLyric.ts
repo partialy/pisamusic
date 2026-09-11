@@ -53,3 +53,15 @@ export interface DesktopLyricSnapshot {
   clock: DesktopLyricClockSync;
   setting: DesktopLyricSettingV2;
 }
+
+export interface DesktopLyricWindowBridge {
+  ready(): void;
+  control(action: DesktopLyricControlAction): void;
+  setLocked(locked: boolean): void;
+  requestBounds(bounds: DesktopLyricBounds): void;
+  onSnapshot(callback: (snapshot: DesktopLyricSnapshot) => void): () => void;
+  onClock(callback: (clock: DesktopLyricClockSync) => void): () => void;
+  onLyric(callback: (lyric: DesktopLyricPayload) => void): () => void;
+  onSetting(callback: (setting: DesktopLyricSettingV2) => void): () => void;
+}
+

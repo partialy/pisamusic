@@ -24,14 +24,14 @@ export default defineConfig({
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
-      lib: {
-        entry: resolve(__dirname, "electron/preload.ts"),
-        formats: ["cjs"],
-        fileName: "index.cjs",
-      },
       rollupOptions: {
         input: {
           index: resolve(__dirname, "electron/preload.ts"),
+          "desktop-lyric": resolve(__dirname, "electron/desktopLyric/preload.ts"),
+        },
+        output: {
+          entryFileNames: "[name].cjs",
+          format: "cjs",
         },
       },
     },
