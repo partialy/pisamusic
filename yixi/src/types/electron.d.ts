@@ -16,20 +16,24 @@ import type { ListenTogetherInvite } from "../listenTogether/listenTogetherShare
 import type { ExternalShareInvite } from "../share/shareLink";
 import type { DirectMessageUnreadPage } from "./directMessage";
 
+import type { DesktopLyricSettingV2 } from "./desktopLyric";
+
 type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
 type SearchableMusicSource = "kg" | "wy" | "kw";
 type PlayableMusicSource = SearchableMusicSource | "local";
 
-type WindowLyricSettingValue = {
-  width: number;
-  height: number;
-  overlayTaskbar: boolean;
-  fontSize: number;
-  fontFamily: string;
-  textColor: string;
-  highlightColor: string;
-  fontWeight: number;
-};
+type WindowLyricSettingValue =
+  | DesktopLyricSettingV2
+  | {
+      width: number;
+      height: number;
+      overlayTaskbar: boolean;
+      fontSize: number;
+      fontFamily: string;
+      textColor: string;
+      highlightColor: string;
+      fontWeight: number;
+    };
 
 type TrackSnapshot = {
   id: string;
