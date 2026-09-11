@@ -69,7 +69,7 @@
 - KG/WY 音质始终展示完整目录，并按可用项在前、不可用项在后稳定排序。三档权限矩阵：未登录（游客）WY 仅 128k/标准可用、KG 仅 128 可用，其余禁用并标记“需登录”；普通登录账号 WY 开放原 4 档、KG 开放原 3 档，其余禁用并标记“解锁”；有效 VIP 开放全部 12 / 6 档。普通账号点击“解锁”必须进入 `/setting?tab=about` 的意见反馈弹窗，预选“账号相关”并提示用户提交需求等待审核。
 - PisaMusic VIP 只允许在桌面端 Header 昵称尾部显示金色斜体方块 `V`，并在 `/user/profile` 为有效 VIP 显示“特权到期时间”；不得扩展为等级名称、会员中心或其他 VIP 标识。有效性统一实时判断 `vip === true && vipExpiresAt > Date.now()`。
 - renderer 与 main 统一共用 `src/musicQuality/musicQualityPolicy.ts` 纯策略模块；main 侧取链、媒体缓存建 key（`source + songId + qualityKey`）与下载任务落库前必须由 `electron/music/qualityAccess.ts` 强制归一化，防止 IPC 或旧参数越权。
-- `music:resolve-playable-url` 支持 `qualityKey`，KG/WY 高品质取链在 main 端优先使用对应登录 Cookie 直连 `kgServer` / `wyServer`，失败后才回退普通取链；renderer 不直接持有 service URL 或 Cookie。
+- `music:resolve-playable-url` 支持 `qualityKey`；KG/WY 播放取链统一使用对应 proxy 地址且不注入 Cookie（无论是否登录第三方账号）；renderer 不直接持有 service URL 或 Cookie。
 - 下载能力集中在 `electron/download/` 和 `download:*` IPC，renderer 只能传规范化歌曲、qualityKey 和下载目录；不要在页面组件里直接写文件或嵌入音频标签。
 - 下载任务由 main 进程内存 Map 管理，`download:start` 只创建任务并返回快照；renderer 通过 `download:tasks` 轮询进度，不要在 renderer 自己维护真实下载 Promise。
 - 下载记录写入 SQLite `download_records`，保存 source/songId/qualityKey、状态、字节数、最终文件、缓存文件、元数据 JSON、歌词、封面和源 song payload 的关联关系。

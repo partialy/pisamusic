@@ -315,18 +315,10 @@ async function resolveKgMusicUrl(
   id: string,
   quality = "128"
 ) {
-  const cookie = getUserCookie("kg");
   const proxyUrl = buildUrl(endpoints.kgProxy, "/song/url", {
     hash: id,
     quality,
   });
-  if (cookie) {
-    try {
-      return (await requestSignedGatewayWithCookie(proxyUrl, { cookie })).data;
-    } catch {
-      // 携带 Cookie 取链失败时沿用无 Cookie 代理取链兜底，避免播放被打断。
-    }
-  }
   return requestSignedGateway(proxyUrl);
 }
 
@@ -335,19 +327,10 @@ async function resolveWyMusicUrl(
   id: string,
   quality: { br?: number; level?: string }
 ) {
-  const cookie = getUserCookie("wy");
   const endpoint = quality.level ? "/song/url/v1" : "/song/url";
   const params = quality.level
     ? { id, level: quality.level, realIP: "116.25.146.177" }
     : { id, br: quality.br ?? 128000, realIP: "116.25.146.177" };
-  const serviceUrl = buildUrl(endpoints.wyServer, endpoint, params);
-  if (cookie) {
-    try {
-      return (await requestSignedGatewayWithCookie(serviceUrl, { cookie })).data;
-    } catch {
-      // Cookie 取链失败后回退到普通代理，保留原有播放能力。
-    }
-  }
   return requestSignedGateway(buildUrl(endpoints.wyProxy, endpoint, params));
 }
 
