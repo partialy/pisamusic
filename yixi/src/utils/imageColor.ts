@@ -4,24 +4,14 @@ export interface ImageColorAnalysis {
   isDark: boolean;
   luminance: number;
   dominantColor: string;
-  textColor: string;
-  secondaryTextColor: string;
-  thirdTextColor: string;
-  settingHover: string;
-  bgHover: string;
-  cardBg: string;
-  playerBarBorder: string;
-  sliderRail: string;
 }
 
 /**
  * 采样图片的平均感知亮度 (0-255) 与色彩指标
- * 亮度 >= 165 判定为浅色/亮色背景（纯白、极浅亮底），派生柔和深炭文字与微暗透气悬浮
- * 亮度 < 165 判定为深色/暗色背景（落霞、夜空、风景、动漫等），派生通透软白文字与清透微光悬浮
  */
 export async function analyzeImageBrightness(imageUrl: string): Promise<ImageColorAnalysis> {
   if (!imageUrl) {
-    return buildDarkAnalysis(128, "#2897ff");
+    return { isDark: true, luminance: 128, dominantColor: "#2897ff" };
   }
 
   // 优先通过离屏 Canvas 采样整图平均感知亮度与通道均值
@@ -29,9 +19,7 @@ export async function analyzeImageBrightness(imageUrl: string): Promise<ImageCol
     const metrics = await sampleImageMetrics(imageUrl);
     const isDark = metrics.luminance < 165;
     const dominantColor = isDark ? "#38bdf8" : "#2897ff";
-    return isDark
-      ? buildDarkAnalysis(metrics.luminance, dominantColor)
-      : buildLightAnalysis(metrics.luminance, dominantColor);
+    return { isDark, luminance: metrics.luminance, dominantColor };
   } catch {
     // 降级：通过已有的 getColorFromUrl 提取主色并计算明度
     try {
@@ -39,49 +27,11 @@ export async function analyzeImageBrightness(imageUrl: string): Promise<ImageCol
       const lum = getHexLuminance(color);
       const isDark = lum < 165;
       const dominant = color || (isDark ? "#38bdf8" : "#2897ff");
-      return isDark
-        ? buildDarkAnalysis(lum, dominant)
-        : buildLightAnalysis(lum, dominant);
+      return { isDark, luminance: lum, dominantColor: dominant };
     } catch {
-      return buildDarkAnalysis(128, "#2897ff");
+      return { isDark: true, luminance: 128, dominantColor: "#2897ff" };
     }
   }
-}
-
-function buildDarkAnalysis(luminance: number, dominantColor: string): ImageColorAnalysis {
-  return {
-    isDark: true,
-    luminance,
-    dominantColor,
-    // 软白高质感文字，避免 100% 惨白刺眼（“不要那么白色”）
-    textColor: "rgba(255, 255, 255, 0.90)",
-    secondaryTextColor: "rgba(255, 255, 255, 0.68)",
-    thirdTextColor: "rgba(255, 255, 255, 0.45)",
-    // 半透明微亮光晕悬浮，壁纸通透呈现，杜绝死板黑块（“不要么么黑”）
-    settingHover: "color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.08))",
-    bgHover: "rgba(255, 255, 255, 0.07)",
-    cardBg: "rgba(20, 26, 38, 0.42)",
-    playerBarBorder: "rgba(255, 255, 255, 0.10)",
-    sliderRail: "rgba(255, 255, 255, 0.20)",
-  };
-}
-
-function buildLightAnalysis(luminance: number, dominantColor: string): ImageColorAnalysis {
-  return {
-    isDark: false,
-    luminance,
-    dominantColor,
-    // 高级深炭色文字，避免生硬死黑（“不要么么黑”）
-    textColor: "rgba(28, 33, 44, 0.88)",
-    secondaryTextColor: "rgba(30, 41, 59, 0.68)",
-    thirdTextColor: "rgba(30, 41, 59, 0.45)",
-    // 半透明柔和微暗悬浮，绝非厚重死白（“不要那么白色”）
-    settingHover: "color-mix(in srgb, var(--color-primary) 10%, rgba(0, 0, 0, 0.05))",
-    bgHover: "rgba(0, 0, 0, 0.04)",
-    cardBg: "rgba(255, 255, 255, 0.55)",
-    playerBarBorder: "rgba(0, 0, 0, 0.06)",
-    sliderRail: "rgba(0, 0, 0, 0.12)",
-  };
 }
 
 interface ImageMetrics {

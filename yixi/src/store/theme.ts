@@ -22,19 +22,18 @@ import sky03Bg from "@/assets/bg/sky-03-starlit-flight.webp";
 import skyRainforestBg from "@/assets/bg/sky-rainforest-loop-source.webp";
 import electronAPI from "@/utils/electron";
 import { analyzeImageBrightness, type ImageColorAnalysis } from "@/utils/imageColor";
-import {
-  darkTheme,
-  lightTheme,
-  type GlobalTheme,
-  type GlobalThemeOverrides,
-} from "naive-ui";
+import { applyThemeRuntime as applyThemeRuntimeToDom } from "@/theme/applyThemeRuntime";
+import { createNaiveThemeOverrides, resolveNaiveTheme } from "@/theme/naiveThemeAdapter";
+import { resolveThemeProfile } from "@/theme/resolveThemeProfile";
+import type { BackgroundMode, ThemeRuntimeProfile, ActiveThemeStyle, ResolvedColorScheme } from "@/theme/types";
+import type { GlobalTheme, GlobalThemeOverrides } from "naive-ui";
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 
 export type ThemeMode = "light" | "dark" | "system";
 export type ResolvedThemeMode = "light" | "dark";
 export type GradientDirection = "to bottom" | "to right" | "135deg" | "45deg";
-export type BackgroundMode = "color" | "image";
+export type { BackgroundMode, ThemeRuntimeProfile, ActiveThemeStyle, ResolvedColorScheme };
 
 export interface PresetBackgroundImage {
   id: string;
@@ -127,35 +126,29 @@ export const useThemeStore = defineStore("theme", () => {
   let mediaQuery: MediaQueryList | null = null;
   let brightnessToken = 0;
 
-  const resolvedMode = computed<ResolvedThemeMode>(() => {
-    if (backgroundMode.value === "image") {
-      return imageIsDark.value ? "dark" : "light";
-    }
-    if (mode.value === "system") return systemDark.value ? "dark" : "light";
-    return mode.value;
-  });
+  const runtimeProfile = computed<ThemeRuntimeProfile>(() =>
+    resolveThemeProfile({
+      mode: mode.value,
+      systemDark: systemDark.value,
+      backgroundMode: backgroundMode.value,
+    })
+  );
+
+  const resolvedColorScheme = computed(() => runtimeProfile.value.colorScheme);
+  const surfaceScheme = computed(() => runtimeProfile.value.surfaceScheme);
+  const resolvedMode = computed<ResolvedThemeMode>(() => runtimeProfile.value.surfaceScheme);
 
   const naiveTheme = computed<GlobalTheme | null>(() =>
-    resolvedMode.value === "dark" ? darkTheme : lightTheme
+    resolveNaiveTheme(runtimeProfile.value)
   );
 
   const naiveThemeOverrides = computed<GlobalThemeOverrides>(() => {
     const color = normalizeHexColor(accentColor.value, DEFAULT_ACCENT_COLOR);
-    return {
-      common: {
-        primaryColor: color,
-        primaryColorHover: mixColor(color, "#ffffff", 0.18),
-        primaryColorPressed: mixColor(color, "#000000", 0.16),
-        primaryColorSuppl: mixColor(color, "#ffffff", 0.1),
-      },
-      Menu: {
-        borderRadius: '16px'
-      },
-      Progress: {
-        railColor: getRuntimeGradientColors()[0],
-        fillColor: color
-      }
-    };
+    return createNaiveThemeOverrides(
+      runtimeProfile.value,
+      color,
+      getRuntimeGradientColors()
+    );
   });
 
   async function refreshImageBrightness() {
@@ -306,7 +299,7 @@ export const useThemeStore = defineStore("theme", () => {
   }
 
   async function toggleLightDark() {
-    await setMode(resolvedMode.value === "dark" ? "light" : "dark");
+    await setMode(resolvedColorScheme.value === "dark" ? "light" : "dark");
   }
 
   function applyTheme(theme?: Partial<AppThemeSetting> | null) {
@@ -348,70 +341,17 @@ export const useThemeStore = defineStore("theme", () => {
   }
 
   function applyRuntimeTheme() {
-    const root = document.documentElement;
     const color = normalizeHexColor(accentColor.value, DEFAULT_ACCENT_COLOR);
     const bgColors = getRuntimeGradientColors();
-    root.dataset.theme = resolvedMode.value;
-    root.dataset.bgMode = backgroundMode.value;
-    root.style.setProperty("--color-primary", color);
-    root.style.setProperty("--color-text-primary", color);
-    root.style.setProperty("--color-primary-hover", mixColor(color, "#ffffff", 0.18));
-    root.style.setProperty("--color-text-primary-hover", mixColor(color, "#000000", 0.16));
-    root.style.setProperty(
-      "--color-bg-track",
-      `linear-gradient(${gradientDirection.value}, ${bgColors.join(", ")})`
-    );
-    if (backgroundMode.value === "image" && backgroundImage.value) {
-      root.style.setProperty("--app-bg-image", `url("${backgroundImage.value}")`);
-      const analysis = imageAnalysis.value;
-      if (analysis) {
-        root.style.setProperty("--color-text-default", analysis.textColor);
-        root.style.setProperty("--color-text-secondary", analysis.secondaryTextColor);
-        root.style.setProperty("--color-text-third", analysis.thirdTextColor);
-        root.style.setProperty("--color-setting-hover", analysis.settingHover);
-        root.style.setProperty("--color-bg-hover", analysis.bgHover);
-        root.style.setProperty("--color-card-bg", analysis.cardBg);
-        root.style.setProperty("--color-player-bar-border", analysis.playerBarBorder);
-        root.style.setProperty("--color-slider-rail", analysis.sliderRail);
-      } else if (imageIsDark.value) {
-        root.style.setProperty("--color-text-default", "rgba(255, 255, 255, 0.90)");
-        root.style.setProperty("--color-text-secondary", "rgba(255, 255, 255, 0.68)");
-        root.style.setProperty("--color-text-third", "rgba(255, 255, 255, 0.45)");
-        root.style.setProperty(
-          "--color-setting-hover",
-          "color-mix(in srgb, var(--color-primary) 12%, rgba(255, 255, 255, 0.08))"
-        );
-        root.style.setProperty("--color-bg-hover", "rgba(255, 255, 255, 0.07)");
-        root.style.setProperty("--color-card-bg", "rgba(20, 26, 38, 0.42)");
-        root.style.setProperty("--color-player-bar-border", "rgba(255, 255, 255, 0.10)");
-        root.style.setProperty("--color-slider-rail", "rgba(255, 255, 255, 0.20)");
-      } else {
-        root.style.setProperty("--color-text-default", "rgba(28, 33, 44, 0.88)");
-        root.style.setProperty("--color-text-secondary", "rgba(30, 41, 59, 0.68)");
-        root.style.setProperty("--color-text-third", "rgba(30, 41, 59, 0.45)");
-        root.style.setProperty(
-          "--color-setting-hover",
-          "color-mix(in srgb, var(--color-primary) 10%, rgba(0, 0, 0, 0.05))"
-        );
-        root.style.setProperty("--color-bg-hover", "rgba(0, 0, 0, 0.04)");
-        root.style.setProperty("--color-card-bg", "rgba(255, 255, 255, 0.55)");
-        root.style.setProperty("--color-player-bar-border", "rgba(0, 0, 0, 0.06)");
-        root.style.setProperty("--color-slider-rail", "rgba(0, 0, 0, 0.12)");
-      }
-    } else {
-      root.style.setProperty("--app-bg-image", "none");
-      root.style.removeProperty("--color-text-default");
-      root.style.removeProperty("--color-text-secondary");
-      root.style.removeProperty("--color-text-third");
-      root.style.removeProperty("--color-setting-hover");
-      root.style.removeProperty("--color-bg-hover");
-      root.style.removeProperty("--color-card-bg");
-      root.style.removeProperty("--color-player-bar-border");
-      root.style.removeProperty("--color-slider-rail");
-    }
-    root.style.setProperty("--app-bg-blur", `${backgroundBlur.value}`);
-    root.style.setProperty("--app-bg-blur-px", `${(backgroundBlur.value * 0.4).toFixed(1)}px`);
-    root.style.setProperty("--app-bg-brightness", `${backgroundBrightness.value}`);
+    applyThemeRuntimeToDom({
+      profile: runtimeProfile.value,
+      accentColor: color,
+      gradientDirection: gradientDirection.value,
+      gradientColors: bgColors,
+      backgroundImage: backgroundImage.value,
+      backgroundBlur: backgroundBlur.value,
+      backgroundBrightness: backgroundBrightness.value,
+    });
   }
 
   async function persist() {
@@ -473,6 +413,9 @@ export const useThemeStore = defineStore("theme", () => {
     autoBackground,
     gradientDirection,
     gradientColors,
+    runtimeProfile,
+    resolvedColorScheme,
+    surfaceScheme,
     resolvedMode,
     naiveTheme,
     naiveThemeOverrides,

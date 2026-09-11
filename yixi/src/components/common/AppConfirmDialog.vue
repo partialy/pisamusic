@@ -85,7 +85,7 @@ const emit = defineEmits<{
 }>();
 
 const themeStore = useThemeStore();
-const isDark = computed(() => themeStore.resolvedMode === "dark");
+const isDark = computed(() => themeStore.surfaceScheme === "dark");
 
 const isVisible = ref(false);
 const activeOptions = ref<ConfirmDialogOptions>({});

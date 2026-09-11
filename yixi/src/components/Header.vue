@@ -333,9 +333,9 @@ const settingOptions = computed(() => {
       icon: renderIcon(EqualizerIcon),
     },
     {
-      label: themeStore.resolvedMode === "dark" ? "切换浅色" : "切换深色",
+      label: themeStore.resolvedColorScheme === "dark" ? "切换浅色" : "切换深色",
       key: "theme",
-      icon: themeStore.resolvedMode === "dark"
+      icon: themeStore.resolvedColorScheme === "dark"
         ? renderIcon(SunIcon)
         : renderIcon(MoonIcon),
     },
