@@ -64,55 +64,6 @@ const deleteSong = () => {
 </script>
 
 <style scoped lang="scss">
-.active {
-    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-default)) !important;
-    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border-default)) !important;
-
-    .index,
-    .name {
-        color: color-mix(in srgb, #fff 20%, var(--color-primary)) !important;
-    }
-
-    .artist,
-    .duration {
-        color: color-mix(in srgb, #fff 40%, var(--color-primary)) !important;
-    }
-}
-
-.light {
-    .sequence-item {
-
-        .artist,
-        .duration {
-            color: #ddd !important;
-            ;
-        }
-
-        &:hover {
-            background: color-mix(in srgb, var(--color-primary) 8%, #efefef30);
-
-            .delete-btn {
-                color: #ddd;
-            }
-        }
-    }
-
-    .sequence-item.active {
-        background: color-mix(in srgb, var(--color-primary) 7%, var(--color-bg-default)) !important;
-        border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border-default)) !important;
-
-        .index,
-        .name {
-            color: color-mix(in srgb, #fff 20%, var(--color-primary)) !important;
-        }
-
-        .artist,
-        .duration {
-            color: color-mix(in srgb, #fff 40%, var(--color-primary)) !important;
-        }
-    }
-}
-
 .sequence-item {
     width: 100%;
     padding: 0 4px;
@@ -121,14 +72,15 @@ const deleteSong = () => {
     align-items: center;
     justify-content: space-between;
     border: 1px solid transparent;
-    color: #eee;
+    border-radius: 8px;
+    color: var(--text-primary);
     transition:
         background-color 0.18s ease,
         border-color 0.18s ease,
         color 0.18s ease;
 
     &:hover {
-        background: color-mix(in srgb, var(--color-primary) 8%, #efefef30);
+        background: var(--surface-row-hover);
 
         .delete-btn,
         .collect-btn {
@@ -136,7 +88,7 @@ const deleteSong = () => {
             display: block !important;
 
             &:hover {
-                color: red;
+                color: #ef4444;
             }
         }
 
@@ -145,15 +97,29 @@ const deleteSong = () => {
         }
 
         .delete-btn {
-            color: #bbb;
+            color: var(--text-tertiary);
+        }
+    }
+
+    &.active {
+        background: var(--surface-row-playing) !important;
+        border-color: var(--border-row-playing) !important;
+
+        .index,
+        .name {
+            color: var(--text-accent) !important;
         }
 
+        .artist,
+        .duration {
+            color: var(--text-accent) !important;
+        }
     }
 
     .index {
         width: 40px;
         text-align: center;
-        color: #eee;
+        color: var(--text-secondary);
     }
 
     .cover {
@@ -174,7 +140,7 @@ const deleteSong = () => {
 
         .name {
             font-size: 14px;
-            color: #eee;
+            color: var(--text-primary);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -182,7 +148,7 @@ const deleteSong = () => {
 
         .artist {
             font-size: 12px;
-            color: #bbb;
+            color: var(--text-secondary);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -194,7 +160,7 @@ const deleteSong = () => {
         text-align: center;
         margin-right: 10px;
         width: 50px;
-        color: #bbb;
+        color: var(--text-tertiary);
         display: flex;
         align-items: center;
         justify-content: center;

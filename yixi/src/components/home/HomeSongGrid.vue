@@ -98,8 +98,8 @@ function handleAddToPlaylist(song: Song) {
   align-items: center;
   gap: 1rem;
   border-radius: 8px;
-  border: 1px solid var(--color-border-default);
-  background: color-mix(in srgb, var(--color-bg-default) 82%, #ffffff 18%);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
   box-sizing: border-box;
 }
 
@@ -123,8 +123,8 @@ function handleAddToPlaylist(song: Song) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-secondary);
-  border: 1px dashed var(--color-border-default);
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-subtle);
   border-radius: 8px;
 }
 </style>

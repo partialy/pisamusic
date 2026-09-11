@@ -148,7 +148,7 @@ const emit = defineEmits<{
 .rank {
   font-size: 12px;
   font-weight: 800;
-  color: color-mix(in srgb, var(--color-primary) 90%, #ffffff 10%);
+  color: var(--text-accent);
 }
 
 .cover {

@@ -328,12 +328,11 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     flex-direction: row;
-    background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-default));
-    border: 1px solid var(--color-border-default);
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
     border-radius: 12px;
     padding: 0 1rem;
     margin-bottom: 6px;
-    backdrop-filter: blur(12px);
     box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
 
     .index,
@@ -344,7 +343,7 @@ onBeforeUnmount(() => {
     .time {
       text-align: center;
       font-size: 0.8rem;
-      color: var(--color-text-secondary);
+      color: var(--text-secondary);
       font-weight: 600;
     }
 

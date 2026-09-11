@@ -662,21 +662,21 @@ function labelSource(source?: string) {
   gap: 12px;
   padding: 10px 14px;
   border-radius: 14px;
-  background: var(--color-card-bg);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   transition: all 0.2s ease;
 
   &:hover {
-    background: var(--color-item-hover);
-    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border-default));
+    background: var(--surface-control-hover);
+    border-color: var(--border-strong);
   }
 
   .meta-icon-pill {
     width: 30px;
     height: 30px;
     border-radius: 9px;
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-    color: var(--color-primary);
+    background: var(--surface-control-active);
+    color: var(--text-accent);
     display: flex;
     align-items: center;
     justify-content: center;

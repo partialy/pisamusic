@@ -274,7 +274,7 @@ onMounted(() => {
 
   &:hover,
   &:focus-within {
-    background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+    background: var(--surface-row-hover);
 
     .cover-play {
       opacity: 1;
@@ -398,8 +398,8 @@ onMounted(() => {
 
     &:hover,
     &:focus-visible {
-      color: var(--color-primary);
-      background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+      color: var(--text-accent);
+      background: var(--surface-control-hover);
       outline: none;
     }
 

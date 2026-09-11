@@ -642,9 +642,9 @@ onBeforeUnmount(() => {
   border-radius: 6px;
 
   &.active {
-    color: var(--color-primary);
-    border-color: color-mix(in srgb, var(--color-primary) 48%, transparent);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--text-accent);
+    border-color: var(--border-row-selected);
+    background: var(--surface-control-active);
   }
 }
 

@@ -202,7 +202,7 @@ watch(
   overflow: hidden;
   padding: 0 1rem;
   background: transparent;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   transition:
     background-color 0.18s ease,
     border-color 0.18s ease,
@@ -214,13 +214,13 @@ watch(
   }
 
   &.selected {
-    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-default));
-    border-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
+    background: var(--surface-row-selected);
+    border-color: var(--border-row-selected);
   }
 
   &:hover {
-    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-default));
-    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+    background: var(--surface-row-hover);
+    border-color: var(--border-subtle);
   }
 
   &.disabled {
@@ -231,19 +231,18 @@ watch(
     }
 
     &:hover {
-      background: color-mix(in srgb, var(--color-bg-hover) 50%, transparent);
+      background: var(--surface-row-disabled-hover);
       border-color: transparent;
     }
   }
 
   &.active {
-    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-default));
-    border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border-default));
-    box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 16%, transparent);
+    background: var(--surface-row-playing);
+    border-color: var(--border-row-playing);
 
     .index,
     .info-title {
-      color: var(--color-primary);
+      color: var(--text-accent);
     }
   }
 
@@ -284,13 +283,13 @@ watch(
     .info-title {
       font-size: 1.1rem;
       font-weight: 600;
-      color: var(--color-text-default);
+      color: var(--text-primary);
     }
 
     .info-singer {
       font-size: 0.8rem;
       font-weight: 400;
-      color: var(--color-text-secondary);
+      color: var(--text-secondary);
     }
   }
 
@@ -320,14 +319,14 @@ watch(
   .album {
     width: 200px;
     font-size: 0.8rem;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 
   .time {
     width: 64px;
     font-size: 0.8rem;
     font-weight: 400;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 
   .op-con {
@@ -342,10 +341,10 @@ watch(
       .icon {
         font-size: 24px;
         cursor: pointer;
-        color: var(--color-text-third);
+        color: var(--text-tertiary);
 
         &:hover {
-          color: var(--color-primary);
+          color: var(--text-accent);
         }
       }
     }
