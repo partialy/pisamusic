@@ -27,3 +27,9 @@ raw
 *.njsproj
 *.sln
 *.sw?
+
+# Tests
+*.test.*
+*.spec.*
+*.test.ts
+*.spec.ts

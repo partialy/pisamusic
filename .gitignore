@@ -73,20 +73,5 @@ design-html/
 
 *.test.*
 *.spec.*
-!yixi/electron/system/requestHeaders.test.ts
-!yixi/electron/listening/listeningRules.test.ts
-!yixi/electron/directMessage/directMessageRules.test.ts
-!yixi/electron/directMessage/startupPopupArbitration.test.ts
-!yixi/src/utils/playlistTracks.test.ts
-!yixi/src/theme/resolveThemeProfile.test.ts
-!yixi/src/theme/themeCssContract.test.ts
-!server/src/services/listeningService.spec.ts
-!server/src/db/verificationCodeStore.spec.ts
-!server/src/config/configDefinitions.spec.ts
-!server/src/config/configManager.spec.ts
-!server/src/middleware/pathMatcher.spec.ts
-!server/src/middleware/obviousBotBlocker.spec.ts
-!server/src/middleware/ipRateLimit.spec.ts
-!server/src/routes/adminRuntimeConfig.spec.ts
-!server/src/db/listenTogetherHistoryStore.spec.ts
-!server/src/services/adminListenTogetherService.spec.ts
+*.test.ts
+*.spec.ts

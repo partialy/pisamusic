@@ -1,6 +1,7 @@
 import type {
   ActiveThemeStyle,
   BackgroundMode,
+  ImageTone,
   ResolveThemeProfileInput,
   ResolvedColorScheme,
   ThemeRuntimeProfile,
@@ -18,12 +19,14 @@ export function resolveThemeProfile(input: ResolveThemeProfileInput): ThemeRunti
     colorScheme = "light";
   }
 
+  const imageTone: ImageTone = input.imageIsDark ?? true ? "dark" : "light";
+
   let activeStyle: ActiveThemeStyle;
   let surfaceScheme: "light" | "dark";
 
   if (backgroundMode === "image") {
-    activeStyle = "image";
-    surfaceScheme = "dark";
+    surfaceScheme = imageTone;
+    activeStyle = imageTone === "dark" ? "image-dark" : "image-light";
   } else {
     activeStyle = colorScheme === "dark" ? "color-dark" : "color-light";
     surfaceScheme = colorScheme;
@@ -34,5 +37,6 @@ export function resolveThemeProfile(input: ResolveThemeProfileInput): ThemeRunti
     colorScheme,
     activeStyle,
     surfaceScheme,
+    imageTone,
   };
 }

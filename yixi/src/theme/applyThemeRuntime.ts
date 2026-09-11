@@ -25,8 +25,9 @@ export function applyThemeRuntime(options: ApplyThemeRuntimeOptions): void {
 
   // 1. 设置根标签数据属性
   root.dataset.bgMode = profile.backgroundMode;
-  root.dataset.theme = profile.colorScheme;
+  root.dataset.theme = profile.surfaceScheme;
   root.dataset.activeStyle = profile.activeStyle;
+  root.dataset.imageTone = profile.imageTone;
 
   // 2. 品牌主色及按键交互变量
   root.style.setProperty("--color-primary", accentColor);

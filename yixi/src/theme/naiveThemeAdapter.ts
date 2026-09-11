@@ -11,7 +11,8 @@ export function createNaiveThemeOverrides(
   trackColors: string[]
 ): GlobalThemeOverrides {
   const isImage = profile.backgroundMode === "image";
-  const railColor = trackColors[0] || (profile.surfaceScheme === "dark" ? "#1e293b" : "#edf4ff");
+  const isDark = profile.surfaceScheme === "dark";
+  const railColor = trackColors[0] || (isDark ? "#1e293b" : "#edf4ff");
 
   const commonOverrides: NonNullable<GlobalThemeOverrides["common"]> = {
     primaryColor: accentColor,
@@ -22,11 +23,19 @@ export function createNaiveThemeOverrides(
 
   if (isImage) {
     // 图片模式下 Naive UI 组件的半透明中性毛玻璃覆写
-    commonOverrides.popoverColor = "rgba(24, 30, 44, 0.92)";
-    commonOverrides.cardColor = "rgba(20, 26, 38, 0.55)";
-    commonOverrides.modalColor = "rgba(26, 32, 44, 0.92)";
-    commonOverrides.bodyColor = "transparent";
-    commonOverrides.borderColor = "rgba(255, 255, 255, 0.12)";
+    if (isDark) {
+      commonOverrides.popoverColor = "rgba(24, 30, 44, 0.92)";
+      commonOverrides.cardColor = "rgba(20, 26, 38, 0.55)";
+      commonOverrides.modalColor = "rgba(26, 32, 44, 0.92)";
+      commonOverrides.bodyColor = "transparent";
+      commonOverrides.borderColor = "rgba(255, 255, 255, 0.12)";
+    } else {
+      commonOverrides.popoverColor = "rgba(255, 255, 255, 0.94)";
+      commonOverrides.cardColor = "rgba(255, 255, 255, 0.65)";
+      commonOverrides.modalColor = "rgba(255, 255, 255, 0.94)";
+      commonOverrides.bodyColor = "transparent";
+      commonOverrides.borderColor = "rgba(0, 0, 0, 0.10)";
+    }
   }
 
   const overrides: GlobalThemeOverrides = {
@@ -35,30 +44,51 @@ export function createNaiveThemeOverrides(
       borderRadius: "16px",
     },
     Progress: {
-      railColor: isImage ? "rgba(255, 255, 255, 0.16)" : railColor,
+      railColor: isImage ? (isDark ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.12)") : railColor,
       fillColor: accentColor,
     },
   };
 
   if (isImage) {
-    overrides.Card = {
-      color: "rgba(20, 26, 38, 0.55)",
-      borderColor: "rgba(255, 255, 255, 0.10)",
-    };
-    overrides.Modal = {
-      color: "rgba(26, 32, 44, 0.92)",
-      borderColor: "rgba(255, 255, 255, 0.14)",
-    };
-    overrides.Input = {
-      color: "rgba(255, 255, 255, 0.08)",
-      colorFocus: "rgba(255, 255, 255, 0.12)",
-      border: "1px solid rgba(255, 255, 255, 0.12)",
-      borderHover: "1px solid rgba(255, 255, 255, 0.24)",
-      borderFocus: `1px solid ${accentColor}`,
-    };
-    overrides.Dropdown = {
-      color: "rgba(24, 30, 44, 0.94)",
-    };
+    if (isDark) {
+      overrides.Card = {
+        color: "rgba(20, 26, 38, 0.55)",
+        borderColor: "rgba(255, 255, 255, 0.10)",
+      };
+      overrides.Modal = {
+        color: "rgba(26, 32, 44, 0.92)",
+        borderColor: "rgba(255, 255, 255, 0.14)",
+      };
+      overrides.Input = {
+        color: "rgba(255, 255, 255, 0.08)",
+        colorFocus: "rgba(255, 255, 255, 0.12)",
+        border: "1px solid rgba(255, 255, 255, 0.12)",
+        borderHover: "1px solid rgba(255, 255, 255, 0.24)",
+        borderFocus: `1px solid ${accentColor}`,
+      };
+      overrides.Dropdown = {
+        color: "rgba(24, 30, 44, 0.94)",
+      };
+    } else {
+      overrides.Card = {
+        color: "rgba(255, 255, 255, 0.65)",
+        borderColor: "rgba(0, 0, 0, 0.08)",
+      };
+      overrides.Modal = {
+        color: "rgba(255, 255, 255, 0.94)",
+        borderColor: "rgba(0, 0, 0, 0.10)",
+      };
+      overrides.Input = {
+        color: "rgba(255, 255, 255, 0.70)",
+        colorFocus: "rgba(255, 255, 255, 0.85)",
+        border: "1px solid rgba(0, 0, 0, 0.12)",
+        borderHover: "1px solid rgba(0, 0, 0, 0.24)",
+        borderFocus: `1px solid ${accentColor}`,
+      };
+      overrides.Dropdown = {
+        color: "rgba(255, 255, 255, 0.96)",
+      };
+    }
   }
 
   return overrides;

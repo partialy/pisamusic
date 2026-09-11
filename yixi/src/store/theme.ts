@@ -131,6 +131,7 @@ export const useThemeStore = defineStore("theme", () => {
       mode: mode.value,
       systemDark: systemDark.value,
       backgroundMode: backgroundMode.value,
+      imageIsDark: imageIsDark.value,
     })
   );
 
