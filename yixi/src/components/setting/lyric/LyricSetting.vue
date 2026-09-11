@@ -337,16 +337,7 @@
             <div class="item-desc">打开独立桌面歌词窗口。</div>
           </div>
           <div class="setting-control switch-control">
-            <n-switch v-model:value="desktop" @update:value="handleOpenDesktopLyric" />
-          </div>
-        </div>
-        <div class="setting-item">
-          <div class="item-info">
-            <div class="item-title">覆盖任务栏</div>
-            <div class="item-desc">开启后歌词窗口可拖动到任务栏区域。</div>
-          </div>
-          <div class="setting-control switch-control">
-            <n-switch v-model:value="desktopLyric.overlayTaskbar" />
+            <n-switch :value="desktop" @update:value="handleOpenDesktopLyric" />
           </div>
         </div>
         <div class="setting-item">
@@ -355,7 +346,51 @@
             <div class="item-desc">锁定后鼠标可穿透歌词窗口，关闭后可拖动和显示控制栏。</div>
           </div>
           <div class="setting-control switch-control">
-            <n-switch v-model:value="desktopLyric.locked" @update:value="handleDesktopLyricLock" />
+            <n-switch :value="desktopLyric.locked" @update:value="handleDesktopLyricLock" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
+            <div class="item-title">覆盖任务栏</div>
+            <div class="item-desc">开启后歌词窗口可拖动到任务栏区域。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch
+              :value="desktopLyric.overlayTaskbar"
+              @update:value="(val) => handleImmediateSwitch('overlayTaskbar', val)" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
+            <div class="item-title">歌词动效</div>
+            <div class="item-desc">平滑滚动与换行过渡动画，关闭后停用动效。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch
+              :value="desktopLyric.animationEnabled"
+              @update:value="(val) => handleImmediateSwitch('animationEnabled', val)" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
+            <div class="item-title">逐字放大</div>
+            <div class="item-desc">正在唱的字轻微放大（仅逐字歌词生效）。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch
+              :value="desktopLyric.wordScaleEnabled"
+              @update:value="(val) => handleImmediateSwitch('wordScaleEnabled', val)" />
+          </div>
+        </div>
+        <div class="setting-item">
+          <div class="item-info">
+            <div class="item-title">自动描边</div>
+            <div class="item-desc">增强复杂或浅色桌面背景下的文字可读性。</div>
+          </div>
+          <div class="setting-control switch-control">
+            <n-switch
+              :value="desktopLyric.autoOutline"
+              @update:value="(val) => handleImmediateSwitch('autoOutline', val)" />
           </div>
         </div>
         <div class="setting-item">
@@ -364,7 +399,12 @@
             <div class="item-desc">桌面歌词窗口宽度，范围 500~1600。</div>
           </div>
           <div class="setting-control">
-            <n-input-number v-model:value="desktopLyric.bounds.width" :min="500" :max="1600" :step="10" />
+            <n-input-number
+              :value="desktopLyric.bounds.width"
+              :min="500"
+              :max="1600"
+              :step="10"
+              @update:value="(val) => handleBoundsChange('width', val)" />
           </div>
         </div>
         <div class="setting-item">
@@ -373,26 +413,35 @@
             <div class="item-desc">桌面歌词窗口高度，范围 100~200。</div>
           </div>
           <div class="setting-control">
-            <n-input-number v-model:value="desktopLyric.bounds.height" :min="100" :max="200" :step="10" />
+            <n-input-number
+              :value="desktopLyric.bounds.height"
+              :min="100"
+              :max="200"
+              :step="10"
+              @update:value="(val) => handleBoundsChange('height', val)" />
           </div>
         </div>
 
         <div class="setting-item">
           <div class="item-info">
-            <div class="item-title">字体颜色</div>
+            <div class="item-title">未播放颜色</div>
             <div class="item-desc">未播放歌词颜色。</div>
           </div>
           <div class="setting-control">
-            <n-color-picker v-model:value="desktopLyric.textColor" />
+            <n-color-picker
+              :value="desktopLyric.textColor"
+              @update:value="(val) => handleDebouncedPatch('textColor', val)" />
           </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
-            <div class="item-title">已播放颜色</div>
+            <div class="item-title">高亮颜色</div>
             <div class="item-desc">已唱过部分的高亮色。</div>
           </div>
           <div class="setting-control">
-            <n-color-picker v-model:value="desktopLyric.highlightColor" />
+            <n-color-picker
+              :value="desktopLyric.highlightColor"
+              @update:value="(val) => handleDebouncedPatch('highlightColor', val)" />
           </div>
         </div>
         <div class="setting-item">
@@ -401,19 +450,25 @@
             <div class="item-desc">范围 500 到 700。</div>
           </div>
           <div class="setting-control">
-            <n-input-number v-model:value="desktopLyric.fontWeight" :step="100" :min="500" :max="700" />
+            <n-input-number
+              :value="desktopLyric.fontWeight"
+              :step="100"
+              :min="500"
+              :max="700"
+              @update:value="(val) => handleDebouncedPatch('fontWeight', val ?? 600)" />
           </div>
         </div>
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体大小</div>
-            <div class="item-desc">桌面歌词字号。</div>
+            <div class="item-desc">桌面歌词字号，范围 10~64。</div>
           </div>
           <div class="setting-control">
             <n-input-number
-              v-model:value="desktopLyric.fontSize"
+              :value="desktopLyric.fontSize"
               :min="10"
-              :max="64" />
+              :max="64"
+              @update:value="(val) => handleDebouncedPatch('fontSize', val ?? 28)" />
           </div>
         </div>
         <div class="setting-item">
@@ -423,10 +478,11 @@
           </div>
           <div class="setting-control">
             <n-select
-              v-model:value="desktopLyric.fontFamily"
+              :value="desktopLyric.fontFamily"
               :options="fontFamily"
               value-field="value"
-              label-field="label" />
+              label-field="label"
+              @update:value="(val) => handleDebouncedPatch('fontFamily', val)" />
           </div>
         </div>
       </div>
@@ -463,6 +519,7 @@ import AppImageCenterModal from "@/components/common/AppImageCenterModal.vue";
 import { storeToRefs } from "pinia";
 import { ref, watch } from "vue";
 import { debounce } from "@/utils/common";
+import type { DesktopLyricSettingV2 } from "@/types/desktopLyric";
 
 
 const lyric = useLyricStore();
@@ -614,13 +671,41 @@ watch(
   { deep: true }
 );
 
-watch(
-  () => desktopLyric.value,
-  debounce(async () => {
-    await desktopLyricStore.patchSetting(desktopLyric.value);
-  }, 500),
-  { deep: true }
-);
+let pendingPatch: Partial<DesktopLyricSettingV2> = {};
+
+const flushDebouncedPatch = debounce(async () => {
+  if (Object.keys(pendingPatch).length === 0) return;
+  const patch = { ...pendingPatch };
+  pendingPatch = {};
+  await desktopLyricStore.patchSetting(patch);
+}, 300);
+
+function handleDebouncedPatch<K extends keyof DesktopLyricSettingV2>(
+  key: K,
+  value: DesktopLyricSettingV2[K]
+) {
+  (desktopLyric.value as any)[key] = value;
+  (pendingPatch as any)[key] = value;
+  flushDebouncedPatch();
+}
+
+function handleBoundsChange(dimension: "width" | "height", value: number | null) {
+  if (!value) return;
+  desktopLyric.value.bounds[dimension] = value;
+  pendingPatch.bounds = {
+    ...desktopLyric.value.bounds,
+    ...(pendingPatch.bounds ?? {}),
+    [dimension]: value,
+  };
+  flushDebouncedPatch();
+}
+
+async function handleImmediateSwitch<
+  K extends "overlayTaskbar" | "animationEnabled" | "wordScaleEnabled" | "autoOutline",
+>(key: K, value: boolean) {
+  desktopLyric.value[key] = value;
+  await desktopLyricStore.patchSetting({ [key]: value } as Partial<DesktopLyricSettingV2>);
+}
 
 const handleOpenDesktopLyric = async (value: boolean) => {
   if (value) {
@@ -631,6 +716,7 @@ const handleOpenDesktopLyric = async (value: boolean) => {
 };
 
 const handleDesktopLyricLock = async (value: boolean) => {
+  desktopLyric.value.locked = value;
   await desktopLyricStore.patchSetting({ locked: value });
 };
 
