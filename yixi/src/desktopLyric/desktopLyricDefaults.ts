@@ -22,6 +22,14 @@ export const DEFAULT_DESKTOP_LYRIC_SETTING: DesktopLyricSettingV2 = {
   autoOutline: true,
 };
 
+export function getDefaultDesktopLyricSetting(): DesktopLyricSettingV2 {
+  return {
+    ...DEFAULT_DESKTOP_LYRIC_SETTING,
+    bounds: { ...DEFAULT_DESKTOP_LYRIC_SETTING.bounds },
+  };
+}
+
+
 function isValidCssColor(color: string): boolean {
   if (!color || typeof color !== "string") return false;
   const trimmed = color.trim();

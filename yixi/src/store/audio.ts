@@ -282,7 +282,6 @@ export const useAudioStore = defineStore("audio", () => {
     } finally {
       loading.value = false;
       if (shouldSignalPlay) {
-        electronAPI.mediaControl("play");
         electronAPI.isPlaying(true);
       }
     }
@@ -293,7 +292,6 @@ export const useAudioStore = defineStore("audio", () => {
     if (player.value) {
       player.value.pause();
       isPlaying.value = false;
-      electronAPI.mediaControl("pause");
       electronAPI.isPlaying(false);
       listeningPlaybackAdapter.paused(currentSong.value, duration.value * 1000);
     }
@@ -728,7 +726,6 @@ export const useAudioStore = defineStore("audio", () => {
     }
 
     handlingPlaybackFailure = false;
-    electronAPI.mediaControl("pause");
     if (failureSkipCount > 1) {
       showLimitedWarning("连续播放失败，已停止自动切歌");
     }
@@ -741,10 +738,10 @@ export const useAudioStore = defineStore("audio", () => {
     loading.value = false;
     isPlaying.value = false;
     destroyPlayer();
-    electronAPI.mediaControl("pause");
     electronAPI.isPlaying(false);
     showLimitedWarning("播放地址获取失败，已暂停播放");
   };
+
 
   /**
    * 从localStorage加载状态

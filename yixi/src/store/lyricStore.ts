@@ -40,24 +40,12 @@ type LyricPayload = {
   lrc: string;
 };
 
-type DesktopLyricSetting = {
-  width: number;
-  height: number;
-  fontSize: number;
-  fontFamily: string;
-  textColor: string;
-  highlightColor: string;
-  fontWeight: number;
-  locked: boolean;
-  overlayTaskbar: boolean;
-};
-
 type PreferredLyricSource = "word" | "line" | "none";
 
 const emptyLyric = (): LyricPayload => ({ krc: "", lrc: "" });
-const DESKTOP_LYRIC_SETTING_KEY = "desktop-lyric-setting";
 
 const defaultLyricSetting = (): LyricSetting => ({
+
   useAMLyric: true,
   useKRC: true,
   pureLyricMode: false,
@@ -95,20 +83,9 @@ export const useLyricStore = defineStore("lyric", {
     lyricLoading: false,
     lyricLoaded: false,
     currentSong: null as Song | null,
-    desktop: false,
-    desktopLyric: {
-      width: 800,
-      height: 120,
-      fontSize: 28,
-      fontFamily: "Microsoft YaHei",
-      textColor: "#fff",
-      highlightColor: "#1871FD",
-      fontWeight: 600,
-      locked: false,
-      overlayTaskbar: false,
-    },
     setting: defaultLyricSetting(),
   }),
+
   getters: {
     rawKrc: (state) => state.rawWordLyric,
     rawLrc: (state) => state.rawLineLyric,
@@ -177,10 +154,8 @@ export const useLyricStore = defineStore("lyric", {
 
       this.applyLyricPayload(song, lyric);
       this.lyricLoading = false;
-      setTimeout(() => {
-        void this.sendToLyricWindow();
-      }, 100);
     },
+
     applyLyricPayload(song: Song, lyric: LyricPayload) {
       const wordFormat = getWordLyricFormat(song.source, lyric.krc);
       const wordLyrics = parseWordLyrics(lyric.krc, wordFormat);
@@ -208,10 +183,6 @@ export const useLyricStore = defineStore("lyric", {
       this.lyricLoaded = false;
       this.lyricLoading = false;
     },
-    setDesktop(de: boolean) {
-      this.desktop = de;
-      void electronAPI.setSetting("lyricConfig.desktop", de, 1);
-    },
     saveSetting() {
       localStorage.setItem("pisa-lyric-setting", JSON.stringify(this.setting));
     },
@@ -231,63 +202,6 @@ export const useLyricStore = defineStore("lyric", {
         };
       }
     },
-    async loadDesktopLyricSetting() {
-      const record = await electronAPI.getSetting<Partial<DesktopLyricSetting>>(
-        DESKTOP_LYRIC_SETTING_KEY
-      );
-      if (record?.value) {
-        this.desktopLyric = normalizeDesktopLyricSetting({
-          ...this.desktopLyric,
-          ...record.value,
-        });
-      } else {
-        await this.saveDesktopLyricSetting();
-      }
-      await this.sendConfig();
-      electronAPI.lockLyric(this.desktopLyric.locked);
-    },
-    async saveDesktopLyricSetting() {
-      const setting = normalizeDesktopLyricSetting(this.desktopLyric);
-      this.desktopLyric = setting;
-      await electronAPI.setSetting(DESKTOP_LYRIC_SETTING_KEY, setting, 1);
-    },
-    async sendToLyricWindow() {
-      const payload = buildDesktopLyricPayload(
-        this.AMWordLyrics,
-        this.AMLineLyrics,
-        this.isKaraokeLyricEnabled
-      );
-      await electronAPI.setLyrics({
-        type: payload.type,
-        data: JSON.stringify(payload.lines),
-      });
-      await electronAPI.updateTime(this.currentTime);
-    },
-    async sendConfig() {
-      await electronAPI.setLyricStyle({
-        width: this.desktopLyric.width,
-        height: this.desktopLyric.height,
-        overlayTaskbar: this.desktopLyric.overlayTaskbar,
-        fontSize: this.desktopLyric.fontSize,
-        fontFamily: this.desktopLyric.fontFamily,
-        textColor: this.desktopLyric.textColor,
-        highlightColor: this.desktopLyric.highlightColor,
-        fontWeight: this.desktopLyric.fontWeight,
-      });
-    },
-    setDesktopLocked(locked: boolean) {
-      this.desktopLyric.locked = locked;
-      electronAPI.lockLyric(locked);
-      void this.saveDesktopLyricSetting();
-    },
-    syncDesktopLocked(locked: boolean) {
-      this.desktopLyric.locked = locked;
-      void this.saveDesktopLyricSetting();
-    },
-    syncBounds(bounds: { width: number; height: number }) {
-      this.desktopLyric.width = bounds.width;
-      this.desktopLyric.height = bounds.height;
-    },
   },
 });
 
@@ -303,57 +217,8 @@ function parseWordLyrics(rawLyric: string, format: WordLyricFormat) {
   return format === "yrc" ? LyricParser.parseYrc(rawLyric) : LyricParser.parseKrc(rawLyric);
 }
 
-function buildDesktopLyricPayload(
-  wordLyrics: AMLyricLine[],
-  lineLyrics: AMLyricLine[],
-  useWordTiming: boolean
-) {
-  if (useWordTiming && wordLyrics.length > 0) {
-    return { type: "krc" as const, lines: wordLyrics };
-  }
-
-  if (lineLyrics.length > 0) {
-    return { type: "lrc" as const, lines: flattenAmLyrics(lineLyrics) };
-  }
-
-  return { type: "lrc" as const, lines: flattenAmLyrics(wordLyrics) };
-}
-
-function flattenAmLyrics(lines: AMLyricLine[]): AMLyricLine[] {
-  return lines.map((line) => {
-    const text = line.words.map((word) => word.word).join("");
-    const endTime = line.endTime > line.startTime ? line.endTime : line.startTime + 5000;
-    return {
-      ...line,
-      endTime,
-      words: text
-        ? [
-            {
-              word: text,
-              startTime: line.startTime,
-              endTime,
-            },
-          ]
-        : [],
-    };
-  });
-}
-
-function normalizeDesktopLyricSetting(input: Partial<DesktopLyricSetting>): DesktopLyricSetting {
-  return {
-    width: Number(input.width ?? 800),
-    height: Number(input.height ?? 120),
-    fontSize: Number(input.fontSize ?? 28),
-    fontFamily: String(input.fontFamily || "Microsoft YaHei"),
-    textColor: String(input.textColor || "#fff"),
-    highlightColor: String(input.highlightColor || "#1871FD"),
-    fontWeight: Number(input.fontWeight ?? 600),
-    locked: Boolean(input.locked),
-    overlayTaskbar: Boolean(input.overlayTaskbar),
-  };
-}
-
 function buildLyricKey(song: Song) {
+
   return `${song.source}:${song.id}:${song.urlParam || ""}`;
 }
 

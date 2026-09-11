@@ -74,6 +74,7 @@ import { normalizeSong } from "./utils/song";
 import { setupPlaybackBridge, usePlaybackCommands } from "./listenTogether/playbackCommands";
 import { openSharedMediaDetail } from "./share/mediaDetailRoute";
 import { listeningPlaybackAdapter } from "./listening/listeningPlaybackAdapter";
+import { setupDesktopLyricBridge } from "./desktopLyric/desktopLyricBridge";
 import AppDirectMessagePopup from "./components/directMessage/AppDirectMessagePopup.vue";
 const player = useAudioStore();
 const commonStore = useCommonStore();
@@ -93,7 +94,7 @@ commonStore.hidePlayer();
 const { showPlayer } = storeToRefs(commonStore);
 
 function setupListeners() {
-  const { currentTime, currentSong } = storeToRefs(player);
+  const { currentSong } = storeToRefs(player);
   const { followSongAccent } = storeToRefs(themeStore);
   // 托盘/桌面歌词的媒体控制统一走播放命令层，一起听模式下服从房间状态
   const playbackCommands = usePlaybackCommands();
@@ -117,19 +118,10 @@ function setupListeners() {
     }
   );
 
-  electronAPI.onLyricWindowStatus((status: boolean) => {
-    lyric.setDesktop(status);
-  });
-
-  electronAPI.onLyricLockedStatus((locked: boolean) => {
-    lyric.syncDesktopLocked(locked);
-  });
-
-  watch(currentTime, (newTime) => {
-    electronAPI.updateTime(newTime);
-  });
+  disposeDesktopLyricBridge = setupDesktopLyricBridge();
 
   watch(
+
     [() => currentSong.value, followSongAccent],
     ([newSong, enabled]) => {
       if (newSong) {
@@ -155,6 +147,7 @@ function setupListeners() {
 let updaterProgressMessage: ReturnType<typeof message.loading> | null = null;
 let lastUpdaterProgressPercent = -1;
 let stopShareInviteListener: (() => void) | null = null;
+let disposeDesktopLyricBridge: (() => void) | null = null;
 
 function resetUpdaterProgressMessage(
   finalText?: string,
@@ -300,7 +293,6 @@ async function bootstrapApp() {
       collector.initStore(),
       mineLibrary.init(),
       isLocalMode ? Promise.resolve(null) : userStore.init(),
-      lyric.loadDesktopLyricSetting(),
       player.loadState(),
       shortcutStore.init(),
     ]);
@@ -330,7 +322,9 @@ void bootstrapApp();
 
 // 离开页面保存数据
 onBeforeUnmount(() => {
+  disposeDesktopLyricBridge?.();
   listeningPlaybackAdapter.sync(null, false, 0);
+
   player.saveState();
   collector.save();
   themeStore.dispose();

@@ -167,7 +167,6 @@ import {
 } from "@/icons";
 import { useCommonStore } from "@/store/commonStore";
 import type { RepeatMode } from "@/store/audio";
-import electronAPI from "@/utils/electron";
 import { useCollectStore } from "@/store/collect";
 import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
 import { getQualityAccessLevel } from "@/musicQuality/musicQualityPolicy";
@@ -181,19 +180,22 @@ import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
 import PlayerBarKaraokeLyric from "./PlayerBarKaraokeLyric.vue";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
+import { useDesktopLyricStore } from "@/store/desktopLyric";
 const player = useAudioStore();
 const userStore = useUserStore();
 const { openAccountLogin } = useAccountLoginDialog();
 const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
 const playbackCommands = usePlaybackCommands();
 const lyric = useLyricStore();
+const desktopLyric = useDesktopLyricStore();
 const collect = useCollectStore();
 const songDownload = useSongDownload();
 
 const commonStore = useCommonStore();
 const { currentTime, duration, currentSong, isPlaying, volume, repeatMode } =
   storeToRefs(player);
-const { desktop } = storeToRefs(lyric);
+const { visible: desktop } = storeToRefs(desktopLyric);
+
 const qualityOptions = computed(() =>
   getQualityOptionsForSong(currentSong.value, getQualityAccessLevel(userStore))
 );
@@ -236,12 +238,9 @@ const handleSwitchQuality = (key: string) => {
 };
 
 const handleDesktopLyric = async () => {
-  const snapshot = (await electronAPI.toggleLyricWindow()) as { visible?: boolean } | undefined;
-  lyric.setDesktop(Boolean(snapshot?.visible));
-  if (snapshot?.visible) {
-    lyric.sendToLyricWindow();
-  }
-}
+  await desktopLyric.toggle();
+};
+
 
 // 音量控制
 const muted = ref(false);

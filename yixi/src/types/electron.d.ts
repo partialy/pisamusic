@@ -15,8 +15,12 @@ import type {
 import type { ListenTogetherInvite } from "../listenTogether/listenTogetherShareLink";
 import type { ExternalShareInvite } from "../share/shareLink";
 import type { DirectMessageUnreadPage } from "./directMessage";
-
-import type { DesktopLyricSettingV2 } from "./desktopLyric";
+import type {
+  DesktopLyricClockSync,
+  DesktopLyricPayload,
+  DesktopLyricSettingV2,
+  DesktopLyricSnapshot,
+} from "./desktopLyric";
 
 type MusicSource = "kg" | "wy" | "kw" | "qq" | string;
 type SearchableMusicSource = "kg" | "wy" | "kw";
@@ -751,10 +755,15 @@ type ElectronIpcApi = {
   openLyricWindow: () => Promise<unknown>;
   closeLyricWindow: () => Promise<boolean>;
   toggleLyricWindow: () => Promise<unknown>;
+  getDesktopLyricSnapshot: () => Promise<DesktopLyricSnapshot>;
+  syncDesktopLyricClock: (clock: DesktopLyricClockSync) => void;
+  setDesktopLyricPayload: (payload: DesktopLyricPayload) => void;
+  patchDesktopLyricSetting: (patch: Partial<DesktopLyricSettingV2>) => void;
+  setDesktopLyricLocked: (locked: boolean) => void;
   changeCurrentSong: (currentSong: TrackSnapshot | null) => void;
   isPlaying: (isPlaying: boolean) => void;
   updateTime: (t: number) => void;
-  mediaControl: (action: "play" | "pause" | "next" | "prev" | "previous", data?: unknown) => void;
+  mediaControl?: (action: "play" | "pause" | "next" | "prev" | "previous", data?: unknown) => void;
   setLyrics: (lyric: { type: "krc" | "lrc"; data: string }) => void;
   setLyricStyle: (config: WindowLyricSettingValue) => void;
   lockLyric: (lock: boolean) => void;

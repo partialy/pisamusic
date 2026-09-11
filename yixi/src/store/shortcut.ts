@@ -4,7 +4,7 @@ import electronAPI from "@/utils/electron";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { useAudioStore } from "./audio";
 import { useCollectStore } from "./collect";
-import { useLyricStore } from "./lyricStore";
+import { useDesktopLyricStore } from "./desktopLyric";
 import type {
   ShortcutAction,
   ShortcutRegistrationResult,
@@ -119,7 +119,7 @@ export const useShortcutStore = defineStore("shortcut", () => {
   async function executeAction(action: ShortcutAction) {
     if (!setting.value.enabled) return;
     const player = useAudioStore();
-    const lyric = useLyricStore();
+    const desktopLyric = useDesktopLyricStore();
     const collect = useCollectStore();
     // 全局/应用内快捷键统一走播放命令层，一起听模式下服从房间权限
     const playbackCommands = usePlaybackCommands();
@@ -135,10 +135,10 @@ export const useShortcutStore = defineStore("shortcut", () => {
         playbackCommands.togglePlayPause();
         break;
       case "lyric-lock":
-        lyric.setDesktopLocked(true);
+        void desktopLyric.patchSetting({ locked: true });
         break;
       case "lyric-unlock":
-        lyric.setDesktopLocked(false);
+        void desktopLyric.patchSetting({ locked: false });
         break;
       case "favorite-song":
         if (!player.currentSong) {

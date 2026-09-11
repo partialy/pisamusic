@@ -364,7 +364,7 @@
             <div class="item-desc">桌面歌词窗口宽度，范围 500~1600。</div>
           </div>
           <div class="setting-control">
-            <n-input-number v-model:value="desktopLyric.width" :min="500" :max="1600" :step="10" />
+            <n-input-number v-model:value="desktopLyric.bounds.width" :min="500" :max="1600" :step="10" />
           </div>
         </div>
         <div class="setting-item">
@@ -373,9 +373,10 @@
             <div class="item-desc">桌面歌词窗口高度，范围 100~200。</div>
           </div>
           <div class="setting-control">
-            <n-input-number v-model:value="desktopLyric.height" :min="100" :max="200" :step="10" />
+            <n-input-number v-model:value="desktopLyric.bounds.height" :min="100" :max="200" :step="10" />
           </div>
         </div>
+
         <div class="setting-item">
           <div class="item-info">
             <div class="item-title">字体颜色</div>
@@ -454,18 +455,22 @@ import {
 } from "naive-ui";
 import { Images, Minus, Pipette, Plus, RotateCcw } from "lucide-vue-next";
 import { useLyricStore } from "@/store/lyricStore";
+import { useDesktopLyricStore } from "@/store/desktopLyric";
 import { useThemeStore } from "@/store/theme";
 import { extractDominantColorFromUrl } from "@/utils/imageColor";
 import { useImageManager } from "@/composables/useImageManager";
 import AppImageCenterModal from "@/components/common/AppImageCenterModal.vue";
 import { storeToRefs } from "pinia";
-import { onMounted, onUnmounted, ref, watch } from "vue";
-import electronAPI from "@/utils/electron";
+import { ref, watch } from "vue";
 import { debounce } from "@/utils/common";
 
+
 const lyric = useLyricStore();
-const { setting, desktop, desktopLyric } = storeToRefs(lyric);
+const desktopLyricStore = useDesktopLyricStore();
+const { setting } = storeToRefs(lyric);
+const { setting: desktopLyric, visible: desktop } = storeToRefs(desktopLyricStore);
 const themeStore = useThemeStore();
+
 const imageManager = useImageManager();
 const message = useMessage();
 const showImageCenterModal = ref(false);
@@ -574,17 +579,8 @@ function handleResetDefault() {
   window.$message?.success("已恢复为默认歌词背景");
 }
 
-let unsubscribeBounds: (() => void) | null = null;
-onMounted(() => {
-  unsubscribeBounds = electronAPI.onBoundsChanged((bounds) => {
-    lyric.syncBounds(bounds);
-  });
-});
-onUnmounted(() => {
-  unsubscribeBounds?.();
-});
-
 const fontFamily = [
+
   { key: 1, label: "微软雅黑", value: "Microsoft YaHei" },
   { key: 2, label: "黑体", value: "SimHei" },
   { key: 3, label: "宋体", value: "SimSun" },
@@ -619,35 +615,25 @@ watch(
 );
 
 watch(
-  () => setting.value.useKRC,
-  () => {
-    void lyric.sendToLyricWindow();
-  }
-);
-
-watch(
   () => desktopLyric.value,
   debounce(async () => {
-    await lyric.saveDesktopLyricSetting();
-    await lyric.sendConfig();
-    electronAPI.lockLyric(desktopLyric.value.locked);
+    await desktopLyricStore.patchSetting(desktopLyric.value);
   }, 500),
   { deep: true }
 );
 
 const handleOpenDesktopLyric = async (value: boolean) => {
   if (value) {
-    await electronAPI.openLyricWindow();
-    lyric.sendToLyricWindow();
+    await desktopLyricStore.open();
   } else {
-    await electronAPI.closeLyricWindow();
+    await desktopLyricStore.close();
   }
-  lyric.setDesktop(value);
 };
 
-const handleDesktopLyricLock = (value: boolean) => {
-  lyric.setDesktopLocked(value);
+const handleDesktopLyricLock = async (value: boolean) => {
+  await desktopLyricStore.patchSetting({ locked: value });
 };
+
 </script>
 
 <style lang="scss" scoped>

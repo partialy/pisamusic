@@ -482,14 +482,8 @@ watch(
   { deep: true }
 );
 
-watch(
-  () => lyricStore.setting.useKRC,
-  () => {
-    void lyricStore.sendToLyricWindow();
-  }
-);
-
 function handleModeChange(mode: "default" | "image") {
+
   lyricStore.setting.backgroundMode = mode;
   // 若切换为图片模式但尚未选过图片，自动将最新一张图作为默认
   if (mode === "image" && !lyricStore.setting.backgroundImage) {

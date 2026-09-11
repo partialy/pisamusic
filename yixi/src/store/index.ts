@@ -13,10 +13,12 @@ import { useShortcutStore } from "./shortcut";
 import { useListenTogetherStore } from "./listenTogether";
 import { useSleepTimerStore } from "./sleepTimer";
 import { useEqualizerStore } from "./equalizerStore";
+import { useDesktopLyricStore } from "./desktopLyric";
 export {
   useSettingStore,
   useCommonStore,
   useLyricStore,
+  useDesktopLyricStore,
   useAudioStore,
   useCollectStore,
   useLibraryStore,
@@ -30,4 +32,5 @@ export {
   useSleepTimerStore,
   useEqualizerStore,
 };
+
 

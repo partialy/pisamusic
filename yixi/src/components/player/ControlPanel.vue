@@ -240,12 +240,13 @@ import { FolderPlus, Download as DownloadIcon, Sliders as EqualizerIcon } from "
 import {
   useCommonStore,
   useAudioStore,
-  useLyricStore,
+  useDesktopLyricStore,
   useCollectStore,
   useUserStore,
   useListenTogetherStore,
   useEqualizerStore,
 } from "@/store";
+
 import { VolumePanel, AddToPlaylistDialog } from ".";
 import {
   ArrowDownIcon,
@@ -265,7 +266,6 @@ import {
   PauseAnim,
 } from "@/icons";
 import type { RepeatMode } from "@/store/audio";
-import electronAPI from "@/utils/electron";
 import PlaySequence from "./PlaySequence.vue";
 import DownloadSongDialog from "./DownloadSongDialog.vue";
 import { getQualityOption, getQualityOptionsForSong } from "@/utils/musicQuality";
@@ -288,13 +288,15 @@ const playbackCommands = usePlaybackCommands();
 
 const { openAccountLogin } = useAccountLoginDialog();
 const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
-const lyric = useLyricStore();
+const desktopLyric = useDesktopLyricStore();
+
 const commonStore = useCommonStore();
 const songDownload = useSongDownload();
 
 const { volume, repeatMode, currentSong, isPlaying, loading, currentTime, duration, playlist } =
   storeToRefs(player);
-const { desktop } = storeToRefs(lyric);
+const { visible: desktop } = storeToRefs(desktopLyric);
+
 
 const switching = computed(() => listenTogether.pendingTransition);
 const isCollected = computed(() => collect.containsSong(currentSong.value || undefined));
@@ -353,12 +355,9 @@ const playModeTitle = computed(() => {
 });
 
 const handleDesktopLyric = async () => {
-  const snapshot = (await electronAPI.toggleLyricWindow()) as { visible?: boolean } | undefined;
-  lyric.setDesktop(Boolean(snapshot?.visible));
-  if (snapshot?.visible) {
-    await lyric.sendToLyricWindow();
-  }
+  await desktopLyric.toggle();
 };
+
 
 const volumeIcon = computed(() => {
   if (muted.value || volume.value === 0) {

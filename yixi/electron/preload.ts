@@ -83,19 +83,32 @@ const logIpc = {
   openLogsDir: () => ipcRenderer.invoke("logs:open-dir"),
 };
 
+import type {
+  DesktopLyricClockSync,
+  DesktopLyricPayload,
+  DesktopLyricSettingV2,
+} from "../src/types/desktopLyric";
+
 const desktopLyricIpc = {
   openLyricWindow: () => ipcRenderer.invoke("desktop-lyric:open"),
   closeLyricWindow: () => ipcRenderer.invoke("desktop-lyric:close"),
   toggleLyricWindow: () => ipcRenderer.invoke("desktop-lyric:toggle"),
+  getDesktopLyricSnapshot: () => ipcRenderer.invoke("desktop-lyric:get-snapshot"),
+  syncDesktopLyricClock: (clock: DesktopLyricClockSync) =>
+    ipcRenderer.send("desktop-lyric:sync-clock", cloneIpcPayload(clock)),
+  setDesktopLyricPayload: (payload: DesktopLyricPayload) =>
+    ipcRenderer.send("desktop-lyric:set-lyrics", cloneIpcPayload(payload)),
+  patchDesktopLyricSetting: (patch: Partial<DesktopLyricSettingV2>) =>
+    ipcRenderer.send("desktop-lyric:set-style", cloneIpcPayload(patch)),
+  setDesktopLyricLocked: (locked: boolean) =>
+    ipcRenderer.send("desktop-lyric:set-locked", locked),
   changeCurrentSong: (currentSong: any | null) =>
     ipcRenderer.send("player:set-current-song", cloneIpcPayload(currentSong)),
   isPlaying: (isPlaying: boolean) => ipcRenderer.send("player:set-playing", isPlaying),
   updateTime: (time: number) => ipcRenderer.send("player:update-time", time),
-  mediaControl: (action: "play" | "pause" | "next" | "prev" | "previous") =>
-    ipcRenderer.send("player:set-playing", action === "play"),
   setLyrics: (lyric: { type: "krc" | "lrc"; data: string }) =>
     ipcRenderer.send("desktop-lyric:set-lyrics", cloneIpcPayload(lyric)),
-  setLyricStyle: (config: WindowLyricSetting) =>
+  setLyricStyle: (config: WindowLyricSetting | Partial<DesktopLyricSettingV2>) =>
     ipcRenderer.send("desktop-lyric:set-style", cloneIpcPayload(config)),
   lockLyric: (lock: boolean) => ipcRenderer.send("desktop-lyric:set-locked", lock),
   onLyricWindowStatus: (callback: (status: boolean) => void) =>
