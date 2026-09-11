@@ -342,5 +342,25 @@
   - 歌词背景相关配置（`backgroundMode`、`backgroundImage`、`backgroundBlur`、`backgroundBrightness`）持久化至 SQLite settings 的 `lyric-setting`；
   - 外层设置页的【歌词设置】（`LyricSetting.vue`）顶部同步配备【歌词界面背景】卡片，与弹窗设置共享同一份 `lyricStore.setting`，实现双向即时响应与联动。
 
+## 桌面歌词 Canvas 架构与维护规则
+
+- 模块架构与职责分层：
+  - `electron/desktopLyric/`：负责 main 进程歌词窗口生命周期管理、SQLite settings repository（`desktop-lyric-setting` version 2 为唯一权威来源）、多屏/跨屏 bounds 校验和最小 IPC。
+  - `web/desktopLyric/`：负责高 DPI Canvas 纯绘制、词级正弦缩放（1 -> 1.14 -> 1）、行平滑过渡（240ms ease-out cubic）及物理时间驱动的时钟平滑（drift < 120ms 吸收，大跳转 snap）。不访问 Node/Electron API。
+  - `web/lyric-window.html` / `web/lyric-window.ts` / `web/lyric-window.css`：悬浮交互窗口外壳。Canvas 仅负责渲染歌词，控制栏与调整区域为语义化 DOM 浮层，使用 pointer capture 保证拖拽与缩放不丢帧。
+  - `src/desktopLyric/` 与 `src/store/desktopLyric.ts`：renderer 侧主应用通过专用 Pinia store 驱动，`desktopLyricBridge.ts` 监听播放与切歌并向 main 进程广播权威毫秒时间戳与归一化歌词。
+- 配置持久化：
+  - 桌面歌词配置只持久化到 SQLite `settings` 表的 `desktop-lyric-setting`，格式固定为 `DesktopLyricSettingV2`（`version: 2`）。
+  - 旧 `electron-store` 仅用于冷启动一次性只读迁移，严禁回写或恢复旧 schema。
+  - 设置变更通过 Pinia store 单一入口 `patchSetting` 提交；设置页与组件禁止 deep watch 反馈链，数字/颜色通过 300ms 防抖合并 patch，开关/锁定立即提交。
+- 时钟与动画规范：
+  - 所有音频播放进度字段必须统一为毫秒并以 `Ms` 结尾（如 `positionMs`、`durationMs`、`receivedAtMs`），严禁使用浮点秒。
+  - KRC 与 YRC 格式且带有真实字级时间跨度时才启用逐字进度与正弦缩放；普通 LRC 仅执行整行平滑变色与行过渡位移，禁止伪造逐字时间戳。
+  - 逐帧渲染路径（RAF loop）内严格禁止 DOM 尺寸测量（如 `offsetWidth` / `getBoundingClientRect`）、DOM 插入/删除与 IPC 跨进程调用。
+  - 窗口尺寸范围限定在 `500×100` 至 `1600×200`，字号范围限定在 `10` 至 `64`。
+- 验证命令：
+  - 单元测试：`pnpm --dir yixi test:desktop-lyric`（覆盖 DTO 归一化、SQLite Repository、多屏边界、时钟同步、Canvas 渲染与排版几何）。
+  - 编译与全量检查：`pnpm --dir yixi build:t`。
+
 
 
