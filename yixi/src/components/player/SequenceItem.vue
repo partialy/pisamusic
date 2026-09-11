@@ -103,7 +103,11 @@ const deleteSong = () => {
 
     &.active {
         background: var(--surface-row-playing) !important;
-        border-color: var(--border-row-playing) !important;
+        border-color: transparent !important;
+
+        &:hover {
+            border-color: transparent !important;
+        }
 
         .index,
         .name {

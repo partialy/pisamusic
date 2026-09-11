@@ -321,7 +321,7 @@ watch(searchKey, () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  color: #30343b;
+  color: var(--text-primary);
 }
 
 .favorite-header {
@@ -346,6 +346,7 @@ watch(searchKey, () => {
     font-size: 30px;
     font-weight: 800;
     letter-spacing: 0;
+    color: var(--text-primary);
   }
 }
 
@@ -360,7 +361,7 @@ watch(searchKey, () => {
   border: 0;
   padding: 0;
   background: transparent;
-  color: #7d838c;
+  color: var(--text-secondary);
   font-size: 18px;
   cursor: pointer;
   transition: color 0.2s ease;
@@ -370,8 +371,13 @@ watch(searchKey, () => {
     font-size: 14px;
   }
 
+  &:hover {
+    color: var(--color-primary-hover);
+  }
+
   &.active {
-    color: #087bff;
+    color: var(--color-primary);
+    font-weight: 600;
   }
 }
 
@@ -415,7 +421,14 @@ watch(searchKey, () => {
   min-width: 108px;
   height: 40px;
   border-radius: 6px;
-  background: #087bff;
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #fff !important;
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-hover) !important;
+    border-color: var(--color-primary-hover) !important;
+  }
 }
 
 .batch-btn,

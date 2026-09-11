@@ -37,7 +37,7 @@
   --border-subtle: #e2e8f0;
   --border-strong: #cbd5e1;
   --border-row-selected: color-mix(in srgb, var(--color-primary) 32%, transparent);
-  --border-row-playing: color-mix(in srgb, var(--color-primary) 38%, #e2e8f0);
+  --border-row-playing: transparent;
   --border-player: rgba(0, 0, 0, 0.06);
   --shadow-elevated: 0 16px 36px rgba(0, 0, 0, 0.12);
   --shadow-player: 0 -8px 24px rgba(15, 23, 42, 0.06);
@@ -82,7 +82,7 @@
   --border-subtle: #2c3442;
   --border-strong: #3b4556;
   --border-row-selected: color-mix(in srgb, var(--color-primary) 36%, transparent);
-  --border-row-playing: color-mix(in srgb, var(--color-primary) 42%, #2c3442);
+  --border-row-playing: transparent;
   --border-player: rgba(255, 255, 255, 0.08);
   --shadow-elevated: 0 16px 36px rgba(0, 0, 0, 0.35);
   --shadow-player: 0 -8px 24px rgba(0, 0, 0, 0.30);

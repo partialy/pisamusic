@@ -238,7 +238,11 @@ watch(
 
   &.active {
     background: var(--surface-row-playing);
-    border-color: var(--border-row-playing);
+    border-color: transparent;
+
+    &:hover {
+      border-color: transparent;
+    }
 
     .index,
     .info-title {
