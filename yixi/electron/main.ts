@@ -6,7 +6,7 @@ import { setupEnvironmentUserDataPaths } from "./core/appPaths";
 setupEnvironmentUserDataPaths();
 
 import { closeAppDatabase } from "./database";
-import { DesktopLyricManager } from "./desktopLyricManager";
+import { DesktopLyricManager } from "./desktopLyric/desktopLyricManager";
 import { setupListenTogetherIpc } from "./ipc/listenTogetherIpc";
 import { setupLogIpc } from "./ipc/logIpc";
 import { setupMusicApiIpc } from "./ipc/musicIpc";
@@ -216,6 +216,7 @@ function revealMainWindowIfReady() {
   startupWindow.close();
   mainWindow.show();
   mainWindow.focus();
+  desktopLyric?.restoreIfEnabled();
 }
 
 function focusApplicationWindow() {
