@@ -117,14 +117,14 @@ const cardBackground = computed(() => {
   if (mergedOptions.value.background) {
     return mergedOptions.value.background;
   }
-  return isDark.value ? "rgba(30, 34, 46, 0.98)" : "#ffffff";
+  return "var(--surface-modal)";
 });
 
 const cancelTextColor = computed(() => {
   if (mergedOptions.value.cancelColor) {
     return mergedOptions.value.cancelColor;
   }
-  return isDark.value ? "rgba(255, 255, 255, 0.72)" : "#646a73";
+  return "var(--text-secondary)";
 });
 
 const confirmTextColor = computed(() => {
@@ -137,7 +137,7 @@ const confirmTextColor = computed(() => {
   if (mergedOptions.value.confirmType === "primary") {
     return "var(--color-primary)";
   }
-  return isDark.value ? "rgba(255, 255, 255, 0.92)" : "#1f2329";
+  return "var(--text-primary)";
 });
 
 function open(options?: ConfirmDialogOptions): Promise<boolean> {
@@ -213,66 +213,34 @@ defineExpose({
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: var(--filter-panel, blur(16px));
+  -webkit-backdrop-filter: var(--filter-panel, blur(16px));
+  border: 1px solid var(--border-modal);
+  box-shadow: var(--shadow-modal);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
-  &.theme-dark {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
-
-    .app-confirm-title {
-      color: rgba(255, 255, 255, 0.94);
-    }
-
-    .app-confirm-content {
-      color: rgba(255, 255, 255, 0.65);
-    }
-
-    .app-confirm-actions {
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .app-confirm-btn.cancel {
-      border-right: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .app-confirm-btn:hover {
-      background-color: rgba(255, 255, 255, 0.08);
-    }
-
-    .app-confirm-btn:active {
-      background-color: rgba(255, 255, 255, 0.14);
-    }
+  .app-confirm-title {
+    color: var(--text-primary);
   }
 
-  &.theme-light {
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  .app-confirm-content {
+    color: var(--text-secondary);
+  }
 
-    .app-confirm-title {
-      color: #1f2329;
-    }
+  .app-confirm-actions {
+    border-top: 1px solid var(--border-subtle);
+  }
 
-    .app-confirm-content {
-      color: #646a73;
-    }
+  .app-confirm-btn.cancel {
+    border-right: 1px solid var(--border-subtle);
+  }
 
-    .app-confirm-actions {
-      border-top: 1px solid rgba(0, 0, 0, 0.06);
-    }
+  .app-confirm-btn:hover {
+    background-color: var(--surface-control-hover);
+  }
 
-    .app-confirm-btn.cancel {
-      border-right: 1px solid rgba(0, 0, 0, 0.06);
-    }
-
-    .app-confirm-btn:hover {
-      background-color: rgba(0, 0, 0, 0.04);
-    }
-
-    .app-confirm-btn:active {
-      background-color: rgba(0, 0, 0, 0.08);
-    }
+  .app-confirm-btn:active {
+    background-color: var(--surface-control-active);
   }
 }
 

@@ -204,9 +204,10 @@ defineExpose({ open });
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--overlay-bg);
-  backdrop-filter: var(--glass-blur, blur(14px));
-  -webkit-backdrop-filter: var(--glass-blur, blur(14px));
+  background-color: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  user-select: none;
 }
 
 .download-dialog-panel {
@@ -215,9 +216,9 @@ defineExpose({ open });
   max-height: calc(100vh - 48px);
   overflow: visible;
   border-radius: 20px;
-  background: var(--surface-modal);
-  backdrop-filter: var(--glass-blur, blur(28px));
-  -webkit-backdrop-filter: var(--glass-blur, blur(28px));
+  background: var(--surface-modal) !important;
+  backdrop-filter: var(--filter-panel, blur(16px));
+  -webkit-backdrop-filter: var(--filter-panel, blur(16px));
   border: 1px solid var(--border-modal);
   box-shadow: var(--shadow-modal);
 }

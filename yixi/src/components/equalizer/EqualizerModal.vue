@@ -289,8 +289,8 @@ const curveAreaPath = computed(() => {
   max-width: calc(100vw - 32px);
   border-radius: 20px;
   background: var(--surface-modal) !important;
-  backdrop-filter: var(--glass-blur, blur(24px));
-  -webkit-backdrop-filter: var(--glass-blur, blur(24px));
+  backdrop-filter: var(--filter-panel, blur(16px));
+  -webkit-backdrop-filter: var(--filter-panel, blur(16px));
   box-shadow: var(--shadow-modal);
   border: 1px solid var(--border-modal) !important;
   padding: 8px 12px 16px 12px;
@@ -320,7 +320,7 @@ const curveAreaPath = computed(() => {
       transition: all 0.25s ease;
 
       &.is-active {
-        background: var(--color-primary-10, rgba(24, 160, 88, 0.15));
+        background: color-mix(in srgb, var(--color-primary) 14%, transparent);
         color: var(--text-accent);
       }
     }

@@ -181,60 +181,60 @@ async function submitJoin(): Promise<void> {
 
 .lobby-heading h2 {
   margin: 0;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 22px;
 }
 
 .lobby-heading p {
   margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
 :deep(.n-form-item-label__text) {
-  color: rgba(255, 255, 255, 0.88) !important;
+  color: var(--text-primary) !important;
   font-weight: 500;
 }
 
 :deep(.n-tabs.n-tabs--segment-type) {
-  --n-tab-color-segment: rgba(255, 255, 255, 0.22) !important;
-  --n-tab-text-color: rgba(255, 255, 255, 0.72) !important;
-  --n-tab-text-color-hover: #ffffff !important;
-  --n-tab-text-color-active: #ffffff !important;
+  --n-tab-color-segment: var(--surface-control-active) !important;
+  --n-tab-text-color: var(--text-secondary) !important;
+  --n-tab-text-color-hover: var(--text-primary) !important;
+  --n-tab-text-color-active: var(--text-primary) !important;
 }
 
 :deep(.n-tabs.n-tabs--segment-type .n-tabs-rail) {
-  background-color: rgba(0, 0, 0, 0.25) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background-color: var(--surface-card) !important;
+  border: 1px solid var(--border-subtle) !important;
   border-radius: 10px !important;
   padding: 3px !important;
 }
 
 :deep(.n-tabs.n-tabs--segment-type .n-tabs-capsule),
 :deep(.n-tabs.n-tabs--segment-type .n-tabs-capsule .n-tabs-capsule__bar) {
-  background-color: rgba(255, 255, 255, 0.22) !important;
+  background-color: var(--surface-control-active) !important;
   border-radius: 8px !important;
 }
 
 :deep(.n-tabs.n-tabs--segment-type .n-tabs-tab) {
-  color: rgba(255, 255, 255, 0.72) !important;
+  color: var(--text-secondary) !important;
 
   &.n-tabs-tab--active {
-    color: #ffffff !important;
+    color: var(--text-primary) !important;
     font-weight: 600 !important;
   }
 }
 
 :deep(.n-input),
 :deep(.n-input-number) {
-  background: rgba(0, 0, 0, 0.22) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: #ffffff !important;
+  background: var(--surface-input) !important;
+  border: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
   border-radius: 10px !important;
 }
 
 :deep(.n-input__input-el) {
-  color: #ffffff !important;
+  color: var(--text-primary) !important;
 }
 
 .switch-row {
@@ -245,18 +245,18 @@ async function submitJoin(): Promise<void> {
   margin: 2px 0 18px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 }
 
 .switch-title {
-  color: #ffffff;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .switch-desc,
 .form-hint {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 

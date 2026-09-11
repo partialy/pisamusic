@@ -23,4 +23,11 @@
   --color-player-bar-border: var(--border-player);
   --color-slider-rail: var(--slider-rail);
   --color-border-default: var(--border-subtle);
+  --border-default: var(--border-subtle);
+  --surface-modal: var(--surface-card);
+  --border-modal: var(--border-subtle);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.22);
+  --surface-card-hover: var(--surface-control-hover);
+  --surface-hover: var(--surface-control-hover);
+  --text-muted: var(--text-tertiary);
 }

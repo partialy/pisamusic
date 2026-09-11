@@ -271,11 +271,11 @@ onBeforeUnmount(() => {
   width: auto;
   max-width: calc(100vw - 32px);
   border-radius: 20px;
-  background: rgba(64, 70, 82, 0.78) !important;
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: var(--surface-modal) !important;
+  backdrop-filter: var(--filter-panel, blur(16px));
+  -webkit-backdrop-filter: var(--filter-panel, blur(16px));
+  border: 1px solid var(--border-modal) !important;
+  box-shadow: var(--shadow-modal);
   overflow: hidden;
 }
 

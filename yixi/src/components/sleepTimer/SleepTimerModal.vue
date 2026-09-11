@@ -291,7 +291,7 @@ function formatDurationLabel(minutes: number): string {
   gap: 8px;
   font-size: 16px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-primary);
 
   .header-icon {
     color: var(--color-primary);
@@ -311,8 +311,8 @@ function formatDurationLabel(minutes: number): string {
   justify-content: space-between;
   padding: 14px 18px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 
   .status-left {
     display: flex;
@@ -350,14 +350,14 @@ function formatDurationLabel(minutes: number): string {
     font-size: 26px;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
-    color: #ffffff;
+    color: var(--text-primary);
     line-height: 1.1;
     letter-spacing: 0.5px;
   }
 
   .status-desc {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--text-secondary);
 
     .sub-tip {
       color: var(--color-primary);
@@ -392,13 +392,13 @@ function formatDurationLabel(minutes: number): string {
   .section-title {
     font-size: 13px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
   }
 
   .section-count,
   .section-tip {
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-secondary);
   }
 }
 
@@ -418,17 +418,17 @@ function formatDurationLabel(minutes: number): string {
   padding: 0 14px;
   border-radius: 8px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.88);
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
 
   &:hover {
     border-color: var(--color-primary);
-    color: #ffffff;
-    background: rgba(0, 0, 0, 0.28);
+    color: var(--text-primary);
+    background: var(--surface-control-hover);
 
     .chip-delete {
       opacity: 1;
@@ -450,7 +450,7 @@ function formatDurationLabel(minutes: number): string {
     margin-left: 6px;
     font-size: 14px;
     line-height: 1;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-tertiary);
     opacity: 0.6;
     transition: opacity 0.2s, color 0.2s;
 
@@ -463,9 +463,9 @@ function formatDurationLabel(minutes: number): string {
 
 .add-chip {
   border-style: dashed;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(0, 0, 0, 0.15);
-  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+  background: var(--surface-card);
+  border-color: var(--border-subtle);
 
   .plus-icon {
     font-weight: 700;
@@ -475,6 +475,7 @@ function formatDurationLabel(minutes: number): string {
   &:hover {
     color: var(--color-primary);
     border-color: var(--color-primary);
+    background: var(--surface-control-hover);
   }
 }
 
@@ -488,7 +489,7 @@ function formatDurationLabel(minutes: number): string {
   .popover-title {
     font-size: 12px;
     font-weight: 600;
-    color: var(--color-text-default);
+    color: var(--text-primary);
   }
 
   .popover-form {
@@ -504,8 +505,8 @@ function formatDurationLabel(minutes: number): string {
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 
   .time-input-group {
     display: flex;
@@ -516,34 +517,34 @@ function formatDurationLabel(minutes: number): string {
       width: 80px;
 
       :deep(.n-input) {
-        background: rgba(0, 0, 0, 0.25) !important;
-        border: 1px solid rgba(255, 255, 255, 0.14) !important;
-        color: #ffffff !important;
+        background: var(--surface-input) !important;
+        border: 1px solid var(--border-subtle) !important;
+        color: var(--text-primary) !important;
         border-radius: 8px !important;
       }
 
       :deep(.n-input__input-el) {
-        color: #ffffff !important;
+        color: var(--text-primary) !important;
       }
     }
 
     .time-unit {
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.65);
+      color: var(--text-secondary);
     }
   }
 
   .time-separator {
     font-size: 16px;
     font-weight: 800;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-tertiary);
     margin-top: -2px;
   }
 
   .time-summary {
     margin-left: auto;
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--text-secondary);
 
     strong {
       color: var(--color-primary);
@@ -559,8 +560,8 @@ function formatDurationLabel(minutes: number): string {
   justify-content: space-between;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 
   .switch-info {
     display: flex;
@@ -571,12 +572,12 @@ function formatDurationLabel(minutes: number): string {
     .switch-title {
       font-size: 13px;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--text-primary);
     }
 
     .switch-desc {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
+      color: var(--text-secondary);
       line-height: 1.4;
     }
   }
@@ -595,11 +596,11 @@ function formatDurationLabel(minutes: number): string {
 .sleep-timer-dialog {
   width: min(500px, calc(100vw - 32px)) !important;
   border-radius: 20px !important;
-  background: rgba(64, 70, 82, 0.78) !important;
-  backdrop-filter: blur(28px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  background: var(--surface-modal) !important;
+  backdrop-filter: var(--filter-panel, blur(16px)) !important;
+  -webkit-backdrop-filter: var(--filter-panel, blur(16px)) !important;
+  border: 1px solid var(--border-modal) !important;
+  box-shadow: var(--shadow-modal) !important;
   overflow: hidden !important;
 }
 
