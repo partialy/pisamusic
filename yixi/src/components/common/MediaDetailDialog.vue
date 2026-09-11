@@ -216,19 +216,10 @@ defineExpose({ openSong, openPlaylist });
   max-height: calc(100vh - 48px);
   overflow: hidden;
   border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--color-bg-default) 74%, transparent);
-  background: var(--color-bg-track);
-  box-shadow:
-    0 30px 86px rgba(10, 18, 32, 0.25),
-    0 12px 34px rgba(10, 18, 32, 0.16);
-  backdrop-filter: blur(28px) saturate(138%);
-}
-
-:global(:root[data-theme="dark"]) .detail-panel {
-  border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  box-shadow:
-    0 34px 96px rgba(0, 0, 0, 0.46),
-    0 14px 38px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: var(--filter-panel);
 }
 
 .detail-header {
@@ -244,7 +235,7 @@ defineExpose({ openSong, openPlaylist });
   display: flex;
   align-items: center;
   gap: 14px;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 800;
   letter-spacing: 0;
@@ -269,7 +260,7 @@ defineExpose({ openSong, openPlaylist });
   justify-content: center;
   border: 0;
   border-radius: 50%;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   background: transparent;
   cursor: pointer;
   transition:
@@ -277,8 +268,8 @@ defineExpose({ openSong, openPlaylist });
     background-color 0.18s ease;
 
   &:hover {
-    color: var(--color-text-default);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--text-primary);
+    background: var(--surface-control-hover);
   }
 }
 
@@ -295,46 +286,50 @@ defineExpose({ openSong, openPlaylist });
   gap: 16px;
   padding: 12px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 }
 
-.cover-img {
+.hero-cover {
   width: 92px;
   height: 92px;
-  border-radius: 18px;
+  border-radius: 16px;
   object-fit: cover;
   box-shadow: 0 12px 28px rgba(10, 18, 32, 0.16);
 }
 
-.hero-info {
+.hero-meta {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.hero-name {
+.hero-title {
   overflow: hidden;
-  color: var(--color-text-default);
-  font-size: 19px;
+  color: var(--text-primary);
+  font-size: 18px;
   font-weight: 800;
+  letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.hero-sub {
-  margin-top: 6px;
+.hero-subtitle {
   overflow: hidden;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.hero-tags {
+.hero-badge-wrap {
+  margin-top: 4px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
 
-  span {
+  .source-badge {
     min-width: 0;
     max-width: 160px;
     height: 24px;
@@ -342,8 +337,8 @@ defineExpose({ openSong, openPlaylist });
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--text-accent);
+    background: var(--surface-control-active);
     font-size: 12px;
     font-weight: 700;
   }
@@ -369,9 +364,9 @@ defineExpose({ openSong, openPlaylist });
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 82%, transparent);
+  border: 1px solid var(--border-subtle);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--color-bg-default) 44%, transparent);
+  background: var(--surface-card);
   overflow: hidden;
 
   &.wide {
@@ -383,7 +378,7 @@ defineExpose({ openSong, openPlaylist });
   width: 120px;
   flex: 0 0 120px;
   overflow: hidden;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -397,7 +392,7 @@ defineExpose({ openSong, openPlaylist });
   max-width: 100%;
   box-sizing: border-box;
   overflow: hidden;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;

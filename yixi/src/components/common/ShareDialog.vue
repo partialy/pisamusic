@@ -293,11 +293,10 @@ defineExpose({ openForSong, openForPlaylist });
   width: min(480px, calc(100vw - 32px));
   overflow: hidden;
   border-radius: 26px;
-  background: var(--color-bg-track);
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 80%, rgba(255, 255, 255, 0.16));
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.38),
-    0 0 0 1px color-mix(in srgb, var(--color-primary) 12%, transparent) inset;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: var(--filter-panel);
   display: flex;
   flex-direction: column;
 }
@@ -360,14 +359,14 @@ defineExpose({ openForSong, openForPlaylist });
   justify-content: center;
   border: none;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--color-bg-default) 60%, transparent);
-  color: var(--color-text-secondary);
+  background: var(--surface-control-hover);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: color-mix(in srgb, var(--color-bg-default) 95%, transparent);
-    color: var(--color-text-default);
+    background: var(--surface-control-active);
+    color: var(--text-primary);
     transform: rotate(90deg);
   }
 }
@@ -389,8 +388,8 @@ defineExpose({ openForSong, openForPlaylist });
   gap: 20px;
   padding: 16px 18px;
   border-radius: 20px;
-  background: color-mix(in srgb, var(--color-bg-default) 70%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 60%, rgba(255, 255, 255, 0.08));
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
@@ -600,8 +599,8 @@ defineExpose({ openForSong, openForPlaylist });
   gap: 12px;
   padding: 16px;
   border-radius: 20px;
-  background: color-mix(in srgb, var(--color-bg-default) 50%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 50%, transparent);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 
   .qr-frame {
     padding: 12px;
@@ -624,7 +623,7 @@ defineExpose({ openForSong, openForPlaylist });
     gap: 6px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
   }
 }
 
@@ -640,8 +639,8 @@ defineExpose({ openForSong, openForPlaylist });
   gap: 8px;
   padding: 4px 6px 4px 14px;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--color-bg-default) 80%, transparent);
-  border: 1px solid var(--color-border-default);
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
   transition: border-color 0.2s ease;
   cursor: pointer;
 

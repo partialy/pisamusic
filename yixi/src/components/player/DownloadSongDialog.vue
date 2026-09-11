@@ -204,9 +204,9 @@ defineExpose({ open });
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  background: var(--overlay-bg);
+  backdrop-filter: var(--glass-blur, blur(14px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(14px));
 }
 
 .download-dialog-panel {
@@ -215,13 +215,11 @@ defineExpose({ open });
   max-height: calc(100vh - 48px);
   overflow: visible;
   border-radius: 20px;
-  background: rgba(64, 70, 82, 0.78);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: var(--surface-modal);
+  backdrop-filter: var(--glass-blur, blur(28px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(28px));
+  border: 1px solid var(--border-modal);
+  box-shadow: var(--shadow-modal);
 }
 
 .dialog-header {
@@ -237,7 +235,7 @@ defineExpose({ open });
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 18px;
   font-weight: 700;
   letter-spacing: 0;
@@ -250,7 +248,7 @@ defineExpose({ open });
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary);
+  color: var(--text-accent);
   font-size: 22px;
 }
 
@@ -263,14 +261,14 @@ defineExpose({ open });
   justify-content: center;
   border: 0;
   border-radius: 50%;
-  color: rgba(255, 255, 255, 0.65);
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  background: var(--surface-card);
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.16);
+    color: var(--text-primary);
+    background: var(--surface-card-hover);
   }
 }
 
@@ -286,15 +284,15 @@ defineExpose({ open });
   padding: 12px 14px;
   margin-bottom: 18px;
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 
   img {
     width: 52px;
     height: 52px;
     object-fit: cover;
     border-radius: 10px;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
   }
 }
 
@@ -303,7 +301,7 @@ defineExpose({ open });
 }
 
 .song-name {
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 15px;
   font-weight: 700;
   overflow: hidden;
@@ -313,7 +311,7 @@ defineExpose({ open });
 
 .song-meta {
   margin-top: 4px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-secondary);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -328,7 +326,7 @@ defineExpose({ open });
   margin-top: 14px;
 
   .label {
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--text-secondary);
     font-size: 13px;
     font-weight: 600;
   }
@@ -346,19 +344,19 @@ defineExpose({ open });
   height: 38px;
   padding: 0 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-input);
   cursor: pointer;
   box-sizing: border-box;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: var(--color-primary);
-    background: rgba(0, 0, 0, 0.3);
+    border-color: var(--border-default);
+    background: var(--surface-input-hover);
   }
 
   .selected-quality-label {
-    color: #ffffff;
+    color: var(--text-primary);
     font-size: 13px;
     font-weight: 500;
     overflow: hidden;
@@ -367,7 +365,7 @@ defineExpose({ open });
   }
 
   .chevron-icon {
-    color: rgba(255, 255, 255, 0.65);
+    color: var(--text-secondary);
     font-size: 16px;
     flex-shrink: 0;
   }
@@ -380,23 +378,23 @@ defineExpose({ open });
   gap: 8px;
 
   :deep(.n-input) {
-    background: rgba(0, 0, 0, 0.22) !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    background: var(--surface-input) !important;
+    border: 1px solid var(--border-subtle) !important;
     border-radius: 10px !important;
-    color: #ffffff !important;
+    color: var(--text-primary) !important;
 
     .n-input__input-el {
-      color: #ffffff !important;
+      color: var(--text-primary) !important;
       font-size: 13px;
     }
 
     .n-input__placeholder {
-      color: rgba(255, 255, 255, 0.4) !important;
+      color: var(--text-muted) !important;
     }
 
     &:hover,
     &.n-input--focus {
-      border-color: var(--color-primary) !important;
+      border-color: var(--border-default) !important;
     }
   }
 }
@@ -405,14 +403,14 @@ defineExpose({ open });
   flex: 0 0 auto;
   height: 38px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: var(--surface-card) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.18) !important;
-    border-color: rgba(255, 255, 255, 0.25) !important;
+    background: var(--surface-card-hover) !important;
+    border-color: var(--border-default) !important;
   }
 }
 
@@ -421,7 +419,7 @@ defineExpose({ open });
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px 22px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border-subtle);
   margin-top: 14px;
 }
 
@@ -435,14 +433,14 @@ defineExpose({ open });
 }
 
 .cancel-btn {
-  color: rgba(255, 255, 255, 0.85) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: var(--text-secondary) !important;
+  background: var(--surface-card) !important;
+  border: 1px solid var(--border-subtle) !important;
   transition: all 0.2s ease;
 
   &:hover {
-    color: #ffffff !important;
-    background: rgba(255, 255, 255, 0.15) !important;
+    color: var(--text-primary) !important;
+    background: var(--surface-card-hover) !important;
   }
 }
 
@@ -450,7 +448,7 @@ defineExpose({ open });
   color: #ffffff !important;
   background: var(--color-primary) !important;
   border: none !important;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary) 38%, transparent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
   transition: all 0.2s ease;
 
   &:hover {

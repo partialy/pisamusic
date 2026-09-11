@@ -292,7 +292,7 @@ function confirmTransfer(member: ListenTogetherMember): void {
 
 .room-title-row h2 {
   margin: 0;
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 22px;
 }
 
@@ -301,14 +301,14 @@ function confirmTransfer(member: ListenTogetherMember): void {
   margin-top: 6px;
   padding: 0;
   border: 0;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-secondary);
   background: transparent;
   cursor: pointer;
 }
 
 .connection {
   gap: 7px;
-  color: var(--color-primary);
+  color: var(--text-accent);
   font-size: 12px;
 }
 
@@ -328,9 +328,9 @@ function confirmTransfer(member: ListenTogetherMember): void {
   gap: 14px;
   margin: 20px 0;
   padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--surface-card);
 }
 
 .song-info {
@@ -348,15 +348,15 @@ function confirmTransfer(member: ListenTogetherMember): void {
 }
 
 .song-info strong {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .song-info span {
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--text-secondary);
 }
 
 .song-info .song-state {
-  color: var(--color-primary);
+  color: var(--text-accent);
   font-size: 12px;
 }
 
@@ -372,19 +372,19 @@ function confirmTransfer(member: ListenTogetherMember): void {
   gap: 3px;
   padding: 10px;
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   text-align: center;
 }
 
 .room-stats strong {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .room-stats span,
 .members-header,
 .online-label {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -395,29 +395,29 @@ function confirmTransfer(member: ListenTogetherMember): void {
   gap: 20px;
   margin-top: 12px;
   padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--surface-card);
 }
 
 .operation-title {
-  color: #ffffff;
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 600;
 }
 
 .operation-desc {
   margin-top: 2px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .member-action {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-secondary);
 }
 
 .member-action:hover {
-  color: var(--color-primary);
+  color: var(--text-accent);
 }
 
 .member-action.danger:hover {
@@ -449,13 +449,13 @@ function confirmTransfer(member: ListenTogetherMember): void {
 
 .member-name strong {
   overflow: hidden;
-  color: #ffffff;
+  color: var(--text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .member-name span {
-  color: var(--color-primary);
+  color: var(--text-accent);
   font-size: 12px;
 }
 
@@ -471,7 +471,7 @@ function confirmTransfer(member: ListenTogetherMember): void {
   align-items: center;
   gap: 6px;
   padding: 8px;
-  color: var(--color-text-primary);
+  color: var(--text-primary);
 }
 
 .qr-tooltip :deep(svg) {
@@ -486,7 +486,7 @@ function confirmTransfer(member: ListenTogetherMember): void {
 }
 
 .qr-tooltip span {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 </style>

@@ -154,16 +154,10 @@ defineExpose({ open });
 .add-dialog-panel {
   width: min(440px, calc(100vw - 32px));
   border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--color-bg-default) 74%, transparent);
-  background: var(--color-bg-track);
-  box-shadow:
-    0 30px 86px rgba(10, 18, 32, 0.25),
-    0 12px 34px rgba(10, 18, 32, 0.16);
-  backdrop-filter: blur(28px) saturate(138%);
-}
-
-:global(:root[data-theme="dark"]) .add-dialog-panel {
-  border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: var(--filter-panel);
 }
 
 .dialog-header {
@@ -178,7 +172,7 @@ defineExpose({ open });
   display: flex;
   align-items: center;
   gap: 14px;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 800;
 }
@@ -197,7 +191,7 @@ defineExpose({ open });
   height: 32px;
   border: 0;
   border-radius: 50%;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   background: transparent;
   cursor: pointer;
 }
@@ -214,7 +208,8 @@ defineExpose({ open });
   padding: 12px;
   margin-bottom: 18px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 
   img {
     width: 58px;
@@ -230,33 +225,31 @@ defineExpose({ open });
 }
 
 .song-name,
-.song-meta {
+.song-artist {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .song-name {
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 15px;
   font-weight: 750;
 }
 
-.song-meta {
-  margin-top: 5px;
-  color: var(--color-text-secondary);
+.song-artist {
+  margin-top: 4px;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  margin-top: 14px;
+.field-block {
+  margin-bottom: 16px;
 
-  .label {
-    color: var(--color-text-secondary);
+  label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
     font-size: 13px;
     font-weight: 650;
   }
@@ -269,17 +262,18 @@ defineExpose({ open });
 .empty-playlist {
   padding: 18px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
 }
 
 .empty-title {
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-weight: 750;
 }
 
 .empty-desc {
   margin-top: 6px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 

@@ -288,11 +288,11 @@ const curveAreaPath = computed(() => {
   width: 660px;
   max-width: calc(100vw - 32px);
   border-radius: 20px;
-  background: color-mix(in srgb, var(--color-bg-default) 92%, transparent) !important;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
-  border: 1px solid color-mix(in srgb, var(--color-text-secondary) 15%, transparent);
+  background: var(--surface-modal) !important;
+  backdrop-filter: var(--glass-blur, blur(24px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(24px));
+  box-shadow: var(--shadow-modal);
+  border: 1px solid var(--border-modal) !important;
   padding: 8px 12px 16px 12px;
   user-select: none;
 }
@@ -315,13 +315,13 @@ const curveAreaPath = computed(() => {
       width: 32px;
       height: 32px;
       border-radius: 10px;
-      background: color-mix(in srgb, var(--color-text-secondary) 12%, transparent);
-      color: var(--color-text-secondary);
+      background: var(--surface-input);
+      color: var(--text-secondary);
       transition: all 0.25s ease;
 
       &.is-active {
-        background: color-mix(in srgb, var(--color-primary) 18%, transparent);
-        color: var(--color-primary);
+        background: var(--color-primary-10, rgba(24, 160, 88, 0.15));
+        color: var(--text-accent);
       }
     }
 
@@ -333,17 +333,17 @@ const curveAreaPath = computed(() => {
       .main-title {
         font-size: 15px;
         font-weight: 700;
-        color: var(--color-text-default);
+        color: var(--text-primary);
         line-height: 1.2;
       }
 
       .status-tag {
         font-size: 11px;
-        color: var(--color-text-secondary);
+        color: var(--text-secondary);
         opacity: 0.8;
 
         &.is-active {
-          color: var(--color-primary);
+          color: var(--text-accent);
           font-weight: 600;
           opacity: 1;
         }
@@ -366,16 +366,17 @@ const curveAreaPath = computed(() => {
       gap: 5px;
       padding: 5px 10px;
       border-radius: 8px;
-      border: none;
-      background: color-mix(in srgb, var(--color-text-secondary) 10%, transparent);
-      color: var(--color-text-secondary);
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-card);
+      color: var(--text-secondary);
       font-size: 12px;
       cursor: pointer;
       transition: all 0.18s ease;
 
       &:hover {
-        background: color-mix(in srgb, var(--color-primary) 15%, transparent);
-        color: var(--color-primary);
+        border-color: var(--border-default);
+        background: var(--surface-card-hover);
+        color: var(--text-accent);
       }
     }
 
@@ -388,13 +389,13 @@ const curveAreaPath = computed(() => {
       border-radius: 8px;
       border: none;
       background: transparent;
-      color: var(--color-text-secondary);
+      color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.18s ease;
 
       &:hover {
-        background: color-mix(in srgb, var(--color-text-secondary) 15%, transparent);
-        color: var(--color-text-default);
+        background: var(--surface-hover);
+        color: var(--text-primary);
       }
     }
   }
@@ -405,8 +406,8 @@ const curveAreaPath = computed(() => {
   width: 100%;
   height: 96px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--color-bg-default) 50%, #00000018);
-  border: 1px solid color-mix(in srgb, var(--color-text-secondary) 12%, transparent);
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
   overflow: hidden;
   margin-bottom: 14px;
   transition: opacity 0.25s ease;
@@ -421,12 +422,12 @@ const curveAreaPath = computed(() => {
     display: block;
 
     .ref-line {
-      stroke: color-mix(in srgb, var(--color-text-secondary) 15%, transparent);
+      stroke: var(--border-subtle);
       stroke-width: 1;
 
       &.center-line {
         stroke-dasharray: 4, 3;
-        stroke: color-mix(in srgb, var(--color-text-secondary) 25%, transparent);
+        stroke: var(--border-default);
       }
     }
 
@@ -442,7 +443,7 @@ const curveAreaPath = computed(() => {
     }
 
     .curve-node {
-      fill: var(--color-bg-default);
+      fill: var(--surface-card);
       stroke: var(--color-primary, #18a058);
       stroke-width: 2;
       transition: all 0.15s ease-out;
@@ -466,8 +467,7 @@ const curveAreaPath = computed(() => {
 
     .scale-label {
       font-size: 9px;
-      color: var(--color-text-secondary);
-      opacity: 0.6;
+      color: var(--text-muted);
       font-family: monospace;
       line-height: 1;
     }
@@ -492,18 +492,18 @@ const curveAreaPath = computed(() => {
     .preset-pill {
       padding: 4px 10px;
       border-radius: 999px;
-      border: 1px solid color-mix(in srgb, var(--color-text-secondary) 15%, transparent);
-      background: color-mix(in srgb, var(--color-text-secondary) 6%, transparent);
-      color: var(--color-text-secondary);
+      border: 1px solid var(--border-subtle);
+      background: var(--surface-card);
+      color: var(--text-secondary);
       font-size: 12px;
       cursor: pointer;
       white-space: nowrap;
       transition: all 0.18s ease;
 
       &:hover {
-        border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
-        color: var(--color-primary);
-        background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+        border-color: var(--border-default);
+        color: var(--text-primary);
+        background: var(--surface-card-hover);
       }
 
       &.active {
@@ -511,7 +511,7 @@ const curveAreaPath = computed(() => {
         background: var(--color-primary);
         color: #ffffff;
         font-weight: 600;
-        box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 35%, transparent);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       }
     }
   }
@@ -522,9 +522,9 @@ const curveAreaPath = computed(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 4px 4px 4px;
-  background: color-mix(in srgb, var(--color-bg-default) 40%, #0000000d);
+  background: var(--surface-input);
   border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--color-text-secondary) 10%, transparent);
+  border: 1px solid var(--border-subtle);
   transition: opacity 0.25s ease;
 
   &.is-disabled {
@@ -545,7 +545,7 @@ const curveAreaPath = computed(() => {
       height: 12px;
 
       &.val-positive {
-        color: var(--color-primary);
+        color: var(--text-accent);
       }
 
       &.val-negative {
@@ -553,8 +553,7 @@ const curveAreaPath = computed(() => {
       }
 
       &.val-zero {
-        color: var(--color-text-secondary);
-        opacity: 0.7;
+        color: var(--text-muted);
       }
     }
 
@@ -572,14 +571,14 @@ const curveAreaPath = computed(() => {
         transform: translate(-50%, -50%);
         width: 14px;
         height: 1px;
-        background: color-mix(in srgb, var(--color-text-secondary) 30%, transparent);
+        background: var(--border-subtle);
         pointer-events: none;
       }
     }
 
     .fader-label {
       font-size: 11px;
-      color: var(--color-text-secondary);
+      color: var(--text-secondary);
       font-weight: 500;
       line-height: 1;
     }
@@ -589,7 +588,7 @@ const curveAreaPath = computed(() => {
 
       .preamp-label {
         font-weight: 700;
-        color: var(--color-text-default);
+        color: var(--text-primary);
       }
     }
   }
@@ -597,7 +596,7 @@ const curveAreaPath = computed(() => {
   .fader-divider {
     width: 1px;
     height: 150px;
-    background: color-mix(in srgb, var(--color-text-secondary) 15%, transparent);
+    background: var(--border-subtle);
     margin: 0 4px;
   }
 

@@ -187,16 +187,10 @@ defineExpose({ open });
 .playlist-dialog-panel {
   width: min(480px, calc(100vw - 32px));
   border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--color-bg-default) 74%, transparent);
-  background: var(--color-bg-track);
-  box-shadow:
-    0 30px 86px rgba(10, 18, 32, 0.25),
-    0 12px 34px rgba(10, 18, 32, 0.16);
-  backdrop-filter: blur(28px) saturate(138%);
-}
-
-:global(:root[data-theme="dark"]) .playlist-dialog-panel {
-  border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: var(--filter-panel);
 }
 
 .dialog-header,
@@ -211,7 +205,7 @@ defineExpose({ open });
   display: flex;
   align-items: center;
   gap: 14px;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 800;
 }
@@ -230,7 +224,7 @@ defineExpose({ open });
   height: 32px;
   border: 0;
   border-radius: 50%;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   background: transparent;
   cursor: pointer;
 }
