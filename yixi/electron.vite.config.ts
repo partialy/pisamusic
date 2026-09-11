@@ -8,7 +8,26 @@ import { resolve } from "path";
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin(),
+      {
+        name: "fix-lyric-html-paths",
+        enforce: "post",
+        generateBundle(_options, bundle) {
+          for (const [fileName, file] of Object.entries(bundle)) {
+            if (
+              fileName.includes("lyric-window.html") &&
+              file.type === "asset" &&
+              typeof file.source === "string"
+            ) {
+              file.source = file.source
+                .replace(/src="\//g, 'src="../')
+                .replace(/href="\//g, 'href="../');
+            }
+          }
+        },
+      },
+    ],
     build: {
       rollupOptions: {
         input: {
