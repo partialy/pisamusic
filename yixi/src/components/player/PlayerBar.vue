@@ -364,18 +364,11 @@ watch(
   height: 80px;
   display: flex;
   align-items: center;
-  color: var(--color-text-default);
-  background: var(--color-bg-track);
-  border-top: 1px solid var(--color-player-bar-border);
-  box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
-  backdrop-filter: blur(16px);
-
-  :root[data-bg-mode="image"] & {
-    background: transparent !important;
-    backdrop-filter: none !important;
-    box-shadow: none !important;
-    border-top: 1px solid var(--color-player-bar-border) !important;
-  }
+  color: var(--text-primary);
+  background: var(--surface-player);
+  border-top: 1px solid var(--border-player);
+  box-shadow: var(--shadow-player);
+  backdrop-filter: var(--filter-player);
 
   .left,
   .right {

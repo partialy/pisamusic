@@ -2,17 +2,11 @@
   <n-config-provider
     :theme="themeStore.naiveTheme"
     :theme-overrides="themeStore.naiveThemeOverrides">
-    <div
-      class="app-root-shell"
-      :class="{ 'is-image-mode': themeStore.backgroundMode === 'image' }">
+    <div class="app-root-shell">
       <!-- 全屏覆盖背景层：铺满整个窗口（包含底部播放器 bar） -->
       <div
         v-if="themeStore.backgroundMode === 'image' && themeStore.backgroundImage"
         class="app-full-bg-layer"
-        :style="{
-          backgroundImage: `url('${themeStore.backgroundImage}')`,
-          filter: `blur(${(themeStore.backgroundBlur * 0.4).toFixed(1)}px) brightness(${((themeStore.backgroundBrightness ?? 100) / 100).toFixed(2)})`,
-        }"
       />
       <!-- 极轻薄通透的微遮罩 -->
       <div
@@ -353,6 +347,8 @@ onBeforeUnmount(() => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background: var(--surface-app);
+  transition: background-color 0.3s ease;
 }
 
 .app-full-bg-layer {
@@ -362,6 +358,8 @@ onBeforeUnmount(() => {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  background-image: var(--app-bg-image);
+  filter: blur(var(--app-bg-blur-px, 0px)) brightness(var(--app-bg-brightness-factor, 1));
   pointer-events: none;
   transform: scale(1.05);
   transition: background-image 0.3s ease, filter 0.1s ease;
@@ -372,7 +370,7 @@ onBeforeUnmount(() => {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: color-mix(in srgb, var(--color-bg-default, #fff) 8%, transparent);
+  background: var(--app-image-overlay, transparent);
 }
 
 .app-content-wrapper {

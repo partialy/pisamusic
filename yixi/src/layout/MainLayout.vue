@@ -3,8 +3,7 @@
     <n-space vertical class="layout-space">
       <n-layout
         has-sider
-        class="app-shell"
-        :class="{ 'is-image-mode': themeStore.backgroundMode === 'image' }">
+        class="app-shell">
         <n-layout-sider
           class="app-sider"
           bordered
@@ -62,9 +61,7 @@ import AppAnnouncementAutoPopup from "@/components/home/AppAnnouncementAutoPopup
 import { KGIcon, NeteaseIcon } from "@/icons";
 import logo from "@/assets/pisamusic_icon_1024.png";
 import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
-import { useThemeStore } from "@/store";
 
-const themeStore = useThemeStore();
 const router = useRouter();
 const route = useRoute();
 const collapsed = ref(false);
@@ -179,53 +176,34 @@ function renderMenuIcon(icon: Component) {
 .app-shell {
   height: 100vh;
   padding-bottom: 80px;
-  background: var(--color-bg-track);
+  background: var(--surface-shell);
   transition: background-color 0.3s ease;
 
-  &.is-image-mode {
-    background: transparent !important;
-
-    :deep(.n-layout),
-    :deep(.n-layout-scroll-container),
-    :deep(.n-layout-sider),
-    :deep(.n-layout-sider-scroll-container) {
-      background: transparent !important;
-    }
+  :deep(.n-layout),
+  :deep(.n-layout-scroll-container),
+  :deep(.n-layout-sider),
+  :deep(.n-layout-sider-scroll-container) {
+    background: transparent;
   }
 }
 
 .app-sider {
   padding: 1rem;
   background: transparent;
-
-  .app-shell.is-image-mode & {
-    background: transparent !important;
-  }
 }
 
 .app-main-layout {
-  background: transparent !important;
-
-  .app-shell.is-image-mode & {
-    background: transparent !important;
-  }
+  background: transparent;
 }
 
 .right-content {
   height: calc(100vh - 80px);
-  background: var(--color-bg-track);
-
-  .app-shell.is-image-mode & {
-    background: transparent !important;
-  }
+  background: transparent;
 
   .header {
     display: flex;
     width: 100%;
-
-    .app-shell.is-image-mode & {
-      background: transparent !important;
-    }
+    background: transparent;
   }
 
   .content {
@@ -233,11 +211,7 @@ function renderMenuIcon(icon: Component) {
     height: calc(100% - 80px);
     overflow-y: overlay;
     padding: 1rem 1.5rem 1rem 1rem;
-    background: transparent !important;
-
-    .app-shell.is-image-mode & {
-      background: transparent !important;
-    }
+    background: transparent;
   }
 }
 
