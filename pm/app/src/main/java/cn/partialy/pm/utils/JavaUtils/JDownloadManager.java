@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import cn.partialy.pm.R;
 import cn.partialy.pm.utils.AudioMetadataEmbedder;
 import cn.partialy.pm.utils.DownloadPathManager;
+import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -26,6 +27,8 @@ public class JDownloadManager {
     private static final ExecutorService executorService = Executors.newFixedThreadPool(3);
     private static final OkHttpClient client = new OkHttpClient();
     private static final ConcurrentHashMap<String, Object> fileLocks = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, Call> activeCalls = new ConcurrentHashMap<>();
+    private static final java.util.Set<String> cancelledTaskIds = ConcurrentHashMap.newKeySet();
 
     public static String getDownloadPath(Context context) {
         return DownloadPathManager.INSTANCE.getDownloadPath(context);
@@ -35,6 +38,7 @@ public class JDownloadManager {
         void onProgress(int progress, long downloadedBytes, long totalBytes);
         void onSuccess(String filePath);
         void onError(String error);
+        void onCancelled();
     }
 
     /**
@@ -42,6 +46,7 @@ public class JDownloadManager {
      * @param embedMetadata false 时（如酷我）仅下载，不写标签。
      */
     public static void download(
+            String taskId,
             Context context,
             String url,
             String fileName,
@@ -54,6 +59,10 @@ public class JDownloadManager {
             DownloadCallback callback
     ) {
         executorService.execute(() -> {
+            if (isCancelled(taskId)) {
+                finishCancelled(taskId, callback);
+                return;
+            }
             File downloadDir = new File(getDownloadPath(context));
             File targetFile = new File(downloadDir, fileName);
             String targetPath = targetFile.getAbsolutePath();
@@ -62,6 +71,7 @@ public class JDownloadManager {
                 try {
                     downloadLocked(
                             context,
+                            taskId,
                             url,
                             fileName,
                             coverUrl,
@@ -76,13 +86,24 @@ public class JDownloadManager {
                     );
                 } finally {
                     fileLocks.remove(targetPath, fileLock);
+                    activeCalls.remove(taskId);
+                    cancelledTaskIds.remove(taskId);
                 }
             }
         });
     }
 
+    public static void cancel(String taskId) {
+        cancelledTaskIds.add(taskId);
+        Call call = activeCalls.get(taskId);
+        if (call != null) {
+            call.cancel();
+        }
+    }
+
     private static void downloadLocked(
             Context context,
+            String taskId,
             String url,
             String fileName,
             String coverUrl,
@@ -96,7 +117,12 @@ public class JDownloadManager {
             DownloadCallback callback
     ) {
         File partialFile = new File(downloadDir, fileName + ".part");
+        boolean fileAlreadyExisted = file.exists();
         try {
+            if (isCancelled(taskId)) {
+                finishCancelled(taskId, callback);
+                return;
+            }
             if (!downloadDir.exists()) {
                 downloadDir.mkdirs();
             }
@@ -113,7 +139,9 @@ public class JDownloadManager {
             }
 
             Request request = new Request.Builder().url(url).build();
-            try (Response response = client.newCall(request).execute()) {
+            Call audioCall = client.newCall(request);
+            activeCalls.put(taskId, audioCall);
+            try (Response response = audioCall.execute()) {
                 if (!response.isSuccessful()) {
                     int code = response.code();
                     new Handler(Looper.getMainLooper()).post(() -> callback.onError("HTTP " + code));
@@ -138,6 +166,9 @@ public class JDownloadManager {
                     long downloadedLength = 0;
                     int len;
                     while ((len = inputStream.read(buffer)) != -1) {
+                        if (isCancelled(taskId)) {
+                            throw new DownloadCancelledException();
+                        }
                         outputStream.write(buffer, 0, len);
                         downloadedLength += len;
 
@@ -150,8 +181,13 @@ public class JDownloadManager {
                     }
                     outputStream.flush();
                 }
+            } finally {
+                activeCalls.remove(taskId, audioCall);
             }
 
+            if (isCancelled(taskId)) {
+                throw new DownloadCancelledException();
+            }
             Files.move(partialFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             if (!embedMetadata || !isSupportedFormat(getFileExtension(file.getName()).toLowerCase())) {
                 new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath()));
@@ -162,15 +198,22 @@ public class JDownloadManager {
             if (coverUrl != null && !coverUrl.isEmpty()) {
                 try {
                     Request coverRequest = new Request.Builder().url(coverUrl).build();
-                    try (Response coverResponse = client.newCall(coverRequest).execute()) {
+                    Call coverCall = client.newCall(coverRequest);
+                    activeCalls.put(taskId, coverCall);
+                    try (Response coverResponse = coverCall.execute()) {
                         if (coverResponse.isSuccessful() && coverResponse.body() != null) {
                             cover = coverResponse.body().bytes();
                         }
+                    } finally {
+                        activeCalls.remove(taskId, coverCall);
                     }
                 } catch (Exception ignored) {
                 }
             }
 
+            if (isCancelled(taskId)) {
+                throw new DownloadCancelledException();
+            }
             try {
                 AudioMetadataEmbedder.embed(file, title, artist, album, lyric, cover);
                 new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath()));
@@ -185,10 +228,30 @@ public class JDownloadManager {
             if (partialFile.exists()) {
                 partialFile.delete();
             }
+            if (isCancelled(taskId) || e instanceof DownloadCancelledException) {
+                if (!fileAlreadyExisted && file.exists()) {
+                    file.delete();
+                }
+                finishCancelled(taskId, callback);
+                return;
+            }
             e.printStackTrace();
             new Handler(Looper.getMainLooper()).post(() ->
                     callback.onError(context.getString(R.string.download_error_detail, e.getMessage())));
         }
+    }
+
+    private static boolean isCancelled(String taskId) {
+        return cancelledTaskIds.contains(taskId);
+    }
+
+    private static void finishCancelled(String taskId, DownloadCallback callback) {
+        cancelledTaskIds.remove(taskId);
+        activeCalls.remove(taskId);
+        new Handler(Looper.getMainLooper()).post(callback::onCancelled);
+    }
+
+    private static final class DownloadCancelledException extends Exception {
     }
 
     private static boolean isSupportedFormat(String extension) {

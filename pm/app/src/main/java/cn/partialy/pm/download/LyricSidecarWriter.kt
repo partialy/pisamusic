@@ -16,6 +16,7 @@ enum class LyricSidecarStatus {
 data class LyricSidecarWriteResult(
     val status: LyricSidecarStatus,
     val savedCount: Int = 0,
+    val savedPaths: List<String> = emptyList(),
 )
 
 object LyricSidecarWriter {
@@ -23,19 +24,21 @@ object LyricSidecarWriter {
         if (!lyrics.sidecarsRequested) return LyricSidecarWriteResult(LyricSidecarStatus.DISABLED)
         if (lyrics.sidecars.isEmpty()) return LyricSidecarWriteResult(LyricSidecarStatus.NOT_FOUND)
 
-        var savedCount = 0
+        val savedPaths = mutableListOf<String>()
         var failed = false
         lyrics.sidecars.forEach { asset ->
             val result = runCatching { writeAsset(audioFile, asset) }
-            if (result.isSuccess) savedCount++ else failed = true
+            result.onSuccess { savedPaths += it.absolutePath }
+                .onFailure { failed = true }
         }
         return LyricSidecarWriteResult(
             status = if (failed) LyricSidecarStatus.FAILED else LyricSidecarStatus.SAVED,
-            savedCount = savedCount,
+            savedCount = savedPaths.size,
+            savedPaths = savedPaths,
         )
     }
 
-    private fun writeAsset(audioFile: File, asset: DownloadLyricAsset) {
+    private fun writeAsset(audioFile: File, asset: DownloadLyricAsset): File {
         val parent = audioFile.parentFile ?: error("音频文件没有父目录")
         if (!parent.exists() && !parent.mkdirs()) error("无法创建歌词目录")
         val target = File(parent, "${audioFile.nameWithoutExtension}.${asset.extension}")
@@ -54,6 +57,7 @@ object LyricSidecarWriter {
             } catch (_: AtomicMoveNotSupportedException) {
                 Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
             }
+            return target
         } finally {
             if (temp.exists()) temp.delete()
         }

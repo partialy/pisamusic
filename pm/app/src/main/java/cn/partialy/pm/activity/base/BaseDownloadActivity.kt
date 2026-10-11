@@ -9,12 +9,14 @@ import cn.partialy.pm.activity.FeedbackActivity
 import cn.partialy.pm.activity.LoginActivity
 import cn.partialy.pm.download.DownloadLyricResolver
 import cn.partialy.pm.download.LyricSidecarStatus
+import cn.partialy.pm.download.task.DownloadTaskRepository
 import cn.partialy.pm.download.ResolvedDownloadLyrics
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.MusicQualityAccessPolicy
 import cn.partialy.pm.model.MusicQualityAccessState
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.model.toPlaybackQualityKey
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.kw.KwRepository
 import cn.partialy.pm.network.cloudmusic.CloudMusicRepository
@@ -24,6 +26,7 @@ import cn.partialy.pm.ui.dialog.ModernDialog
 import cn.partialy.pm.ui.dialog.showDownloadQualityConfirmDialog
 import cn.partialy.pm.utils.DownloadManager
 import cn.partialy.pm.utils.SettingsPrefs
+import cn.partialy.pm.utils.DownloadPathManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -49,6 +52,9 @@ abstract class BaseDownloadActivity : BaseActivity() {
 
     @Inject
     lateinit var downloadLyricResolver: DownloadLyricResolver
+
+    @Inject
+    lateinit var downloadTaskRepository: DownloadTaskRepository
 
     /** 供菜单等外部入口触发与列表「下载」相同的流程。 */
     fun startSongDownloadFlow(songInfo: SongInfo) {
@@ -100,11 +106,22 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 return@launch
             }
 
-            val resolvedLyrics = downloadLyricResolver.resolve(
-                song = songInfo,
-                embedLyrics = SettingsPrefs.isWriteLyricsEnabled(this@BaseDownloadActivity),
-                mode = SettingsPrefs.getDownloadLyricMode(this@BaseDownloadActivity),
-            )
+            val task = downloadTaskRepository.createTask(songInfo, selected.choice.toPlaybackQualityKey())
+
+            val resolvedLyrics = try {
+                downloadLyricResolver.resolve(
+                    song = songInfo,
+                    embedLyrics = SettingsPrefs.isWriteLyricsEnabled(this@BaseDownloadActivity),
+                    mode = SettingsPrefs.getDownloadLyricMode(this@BaseDownloadActivity),
+                )
+            } catch (error: CancellationException) {
+                downloadTaskRepository.markCancelled(task.id)
+                throw error
+            } catch (error: Exception) {
+                downloadTaskRepository.markFailed(task.id, error.message)
+                Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
 
             // Cloud 的播放地址必须最后临近下载签发；资源响应自带格式时不再额外请求详情。
             val downloadInfo = try {
@@ -127,15 +144,19 @@ abstract class BaseDownloadActivity : BaseActivity() {
                     }
                 }
             } catch (error: CancellationException) {
+                downloadTaskRepository.markCancelled(task.id)
                 throw error
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                downloadTaskRepository.markFailed(task.id, error.message)
                 mapOf("url" to "error")
             }
             if (downloadInfo["url"] == "error" || downloadInfo["url"] == "buy") {
+                downloadTaskRepository.markFailed(task.id, getString(R.string.download_link_failed))
                 Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
                 return@launch
             }
             val url = downloadInfo["url"]?.toHttpDownloadUrlOrNull() ?: run {
+                downloadTaskRepository.markFailed(task.id, getString(R.string.download_link_failed))
                 Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
                 return@launch
             }
@@ -146,8 +167,10 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 SettingsPrefs.FileNamingRule.ArtistDashTitle -> "${songInfo.artist} - ${songInfo.name}"
             }
             val name = if (ext.isNotBlank()) "$base.$ext" else base
+            val targetPath = File(DownloadPathManager.getDownloadPath(this@BaseDownloadActivity), name).absolutePath
+            downloadTaskRepository.updateTarget(task.id, name, targetPath)
 
-            startDownload(url, name, songInfo, resolvedLyrics)
+            startDownload(task.id, url, name, songInfo, resolvedLyrics)
         }
     }
 
@@ -156,6 +179,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
      */
     @SuppressLint("SetTextI18n")
     protected fun startDownload(
+        taskId: String,
         url: String,
         fileName: String,
         songInfo: SongInfo,
@@ -174,20 +198,24 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 }
 
                 onNegativeClick = {
+                    downloadTaskRepository.cancelTask(taskId)
                     downloadDialog?.dismiss()
                 }
             }
 
             downloadDialog?.show()
             Toast.makeText(this, R.string.toast_download_started, Toast.LENGTH_SHORT).show()
+            downloadTaskRepository.markDownloading(taskId)
 
             DownloadManager.getInstance(this).startDownload(
+                taskId = taskId,
                 url = url,
                 fileName = fileName,
                 songInfo = songInfo,
                 resolvedLyrics = resolvedLyrics,
                 callback = object : DownloadManager.DownloadCallback {
                     override fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long) {
+                        downloadTaskRepository.updateProgress(taskId, progress, downloadedSize, totalSize)
                         runOnUiThread {
                             downloadDialog?.let { dialog ->
                                 val progressText = "${Formatter.formatFileSize(this@BaseDownloadActivity, downloadedSize)} / " +
@@ -204,17 +232,29 @@ abstract class BaseDownloadActivity : BaseActivity() {
                         }
                     }
 
-                    override fun onSuccess(file: File, lyricStatus: LyricSidecarStatus) {
-                        onDownloadSuccess(file, lyricStatus)
+                    override fun onProcessing(file: File) {
+                        downloadTaskRepository.markProcessing(taskId, file.absolutePath)
+                    }
+
+                    override fun onSuccess(file: File, lyricResult: cn.partialy.pm.download.LyricSidecarWriteResult) {
+                        downloadTaskRepository.markCompleted(taskId, file.absolutePath, lyricResult.savedPaths)
+                        onDownloadSuccess(file, lyricResult.status)
+                    }
+
+                    override fun onCancelled() {
+                        downloadTaskRepository.markCancelled(taskId)
+                        runOnUiThread { downloadDialog?.dismiss() }
                     }
 
                     override fun onFailure(e: Exception) {
+                        downloadTaskRepository.markFailed(taskId, e.message)
                         onDownloadFailure(e)
                     }
                 },
             )
         } catch (e: Exception) {
             println("下载出错：$e")
+            downloadTaskRepository.markFailed(taskId, e.message)
             onDownloadFailure(e)
         }
     }

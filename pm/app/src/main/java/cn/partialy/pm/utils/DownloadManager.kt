@@ -5,7 +5,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import cn.partialy.pm.R
-import cn.partialy.pm.download.LyricSidecarStatus
+import cn.partialy.pm.download.LyricSidecarWriteResult
 import cn.partialy.pm.download.LyricSidecarWriter
 import cn.partialy.pm.download.ResolvedDownloadLyrics
 import cn.partialy.pm.model.SongInfo
@@ -16,6 +16,7 @@ import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import java.io.File
 import java.util.concurrent.Executors
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 
 class DownloadManager private constructor(private val context: Context) {
@@ -25,7 +26,9 @@ class DownloadManager private constructor(private val context: Context) {
      */
     interface DownloadCallback {
         fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long)
-        fun onSuccess(file: File, lyricStatus: LyricSidecarStatus)
+        fun onProcessing(file: File) = Unit
+        fun onSuccess(file: File, lyricResult: LyricSidecarWriteResult)
+        fun onCancelled() = Unit
         fun onFailure(e: Exception)
     }
 
@@ -38,6 +41,7 @@ class DownloadManager private constructor(private val context: Context) {
      * @return 下载任务的唯一标识
      */
     fun startDownload(
+        taskId: String,
         url: String,
         fileName: String,
         songInfo: SongInfo,
@@ -82,24 +86,43 @@ class DownloadManager private constructor(private val context: Context) {
 
             override fun onSuccess(filePath: String) {
                 val file = File(filePath)
+                if (cancelledTaskIds.contains(taskId)) {
+                    finishCancelled(taskId, callback)
+                    return
+                }
+                mainHandler.post { callback.onProcessing(file) }
                 sidecarExecutor.execute {
+                    if (cancelledTaskIds.contains(taskId)) {
+                        finishCancelled(taskId, callback)
+                        return@execute
+                    }
                     val lyricResult = LyricSidecarWriter.write(file, resolvedLyrics)
                     mainHandler.post {
+                        if (cancelledTaskIds.remove(taskId)) {
+                            callback.onCancelled()
+                            return@post
+                        }
                         // 确保最终进度为100%
                         callback.onProgress(100, file.length(), file.length())
-                        callback.onSuccess(file, lyricResult.status)
+                        callback.onSuccess(file, lyricResult)
                     }
                 }
             }
 
             override fun onError(error: String) {
                 Handler(Looper.getMainLooper()).post {
+                    cancelledTaskIds.remove(taskId)
                     callback.onFailure(Exception(error))
                 }
+            }
+
+            override fun onCancelled() {
+                finishCancelled(taskId, callback)
             }
         }
 
         JDownloadManager.download(
+            taskId,
             context,
             url,
             fileName,
@@ -111,6 +134,16 @@ class DownloadManager private constructor(private val context: Context) {
             lyric,
             javaCallback,
         )
+    }
+
+    fun cancel(taskId: String) {
+        cancelledTaskIds += taskId
+        JDownloadManager.cancel(taskId)
+    }
+
+    private fun finishCancelled(taskId: String, callback: DownloadCallback) {
+        cancelledTaskIds.remove(taskId)
+        mainHandler.post { callback.onCancelled() }
     }
 
     private fun resolveEmbedCoverUrl(songInfo: SongInfo): String? = when (songInfo.type) {
@@ -190,6 +223,7 @@ class DownloadManager private constructor(private val context: Context) {
         )
         private val mainHandler = Handler(Looper.getMainLooper())
         private val sidecarExecutor = Executors.newSingleThreadExecutor()
+        private val cancelledTaskIds = ConcurrentHashMap.newKeySet<String>()
 
         @SuppressLint("StaticFieldLeak")
         @Volatile
