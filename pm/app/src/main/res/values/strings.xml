@@ -891,6 +891,8 @@
     <string name="download_in_progress">正在下载</string>
     <string name="download_background">后台下载</string>
     <string name="download_complete">下载完成</string>
+    <string name="download_complete_lyrics_not_found">歌曲已下载，未获取到歌词</string>
+    <string name="download_complete_lyrics_failed">歌曲已下载，歌词保存失败</string>
     <string name="download_failed_with_reason">下载失败: %1$s</string>
     <string name="download_empty">暂无下载歌曲</string>
     <string name="home_no_playable_song">暂无可播放歌曲</string>
@@ -942,6 +944,12 @@
     <string name="settings_download_directory_summary">设置音乐文件的保存目录</string>
     <string name="settings_file_naming_title">文件名命名规则</string>
     <string name="settings_file_naming_summary">设置下载歌曲的文件名格式</string>
+    <string name="settings_download_lyrics">下载歌词</string>
+    <string name="settings_download_lyrics_summary">将歌词文件保存到音乐同目录</string>
+    <string name="settings_download_lyrics_off">关闭</string>
+    <string name="settings_download_lyrics_word">逐字歌词</string>
+    <string name="settings_download_lyrics_line">逐行歌词</string>
+    <string name="settings_download_lyrics_all">全部</string>
     <string name="settings_write_cover">写入封面</string>
     <string name="settings_write_tag">写入标签</string>
     <string name="settings_write_lyric">写入歌词</string>

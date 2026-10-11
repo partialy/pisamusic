@@ -10,6 +10,7 @@ object SettingsPrefs {
     private const val PREFS_NAME = "user_settings"
 
     private const val KEY_FILE_NAMING_RULE = "file_naming_rule"
+    private const val KEY_DOWNLOAD_LYRIC_MODE = "download_lyric_mode"
     private const val KEY_WRITE_COVER = "write_cover"
     private const val KEY_WRITE_TAGS = "write_tags"
     private const val KEY_WRITE_LYRICS = "write_lyrics"
@@ -32,6 +33,13 @@ object SettingsPrefs {
     enum class FileNamingRule(val prefValue: Int) {
         TitleDashArtist(0),
         ArtistDashTitle(1),
+    }
+
+    enum class DownloadLyricMode(val prefValue: Int) {
+        Off(0),
+        Word(1),
+        Line(2),
+        All(3),
     }
 
     enum class ThemeMode(val prefValue: Int) {
@@ -84,6 +92,15 @@ object SettingsPrefs {
 
     fun setFileNamingRule(context: Context, rule: FileNamingRule) {
         prefs(context).edit().putInt(KEY_FILE_NAMING_RULE, rule.prefValue).apply()
+    }
+
+    fun getDownloadLyricMode(context: Context): DownloadLyricMode {
+        val value = prefs(context).getInt(KEY_DOWNLOAD_LYRIC_MODE, DownloadLyricMode.Off.prefValue)
+        return DownloadLyricMode.values().firstOrNull { it.prefValue == value } ?: DownloadLyricMode.Off
+    }
+
+    fun setDownloadLyricMode(context: Context, mode: DownloadLyricMode) {
+        prefs(context).edit().putInt(KEY_DOWNLOAD_LYRIC_MODE, mode.prefValue).apply()
     }
 
     fun isWriteCoverEnabled(context: Context): Boolean =

@@ -18,6 +18,7 @@ import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.pickKgStreamUrl
 import cn.partialy.pm.lyric.LyricFormat
 import cn.partialy.pm.lyric.LyricParser
+import cn.partialy.pm.lyric.LyricVariants
 import cn.partialy.pm.lyric.RawLyric
 import cn.partialy.pm.fault.PlaybackDiagnosticRequest
 import cn.partialy.pm.network.api.KgApiService
@@ -427,9 +428,28 @@ class KgRepository @Inject constructor(
                     api.searchLyric(hash)
                 },
             )
+            val candidate = response.candidates.firstOrNull()
+                ?: return Result.failure(IllegalStateException("search/lyric: no candidates"))
+            requestBestLyric(candidate.id, candidate.accesskey)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getLyricVariants(hash: String): Result<LyricVariants> {
+        return try {
+            val response = cookieFirst(
+                operationName = "kg search/lyric",
+                cookieCall = { cookieRepository.searchLyric(hash) },
+                isValid = { it.candidates.isNotEmpty() },
+                anonymousCall = {
+                    ensureKgDfid()
+                    api.searchLyric(hash)
+                },
+            )
             val c = response.candidates.firstOrNull()
                 ?: return Result.failure(IllegalStateException("search/lyric: no candidates"))
-            requestBestLyric(c.id, c.accesskey)
+            requestLyricVariants(c.id, c.accesskey)
         }catch (e:Exception){
             Result.failure(e)
         }
@@ -456,10 +476,34 @@ class KgRepository @Inject constructor(
                     api.searchLyricByKeywords(kw)
                 },
             )
-            val c = response.candidates.firstOrNull()
+            val candidate = response.candidates.firstOrNull()
                 ?: return Result.success(RawLyric("", LyricFormat.NONE, "network_kg_empty"))
-            val result = requestBestLyric(c.id, c.accesskey).getOrThrow()
+            val result = requestBestLyric(candidate.id, candidate.accesskey).getOrThrow()
             if (result.text.isNotEmpty()) cache.set(cacheKey, result)
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getLyricVariantsByKeywords(keywords: String): Result<LyricVariants> {
+        val kw = keywords.trim()
+        if (kw.isEmpty()) return Result.success(LyricVariants())
+        return try {
+            val cacheKey = "kg_lyric_variants_kw_$kw"
+            cache.get<LyricVariants>(cacheKey)?.let { return Result.success(it) }
+            val response = cookieFirst(
+                operationName = "kg search/lyric keywords",
+                cookieCall = { cookieRepository.searchLyricByKeywords(kw) },
+                anonymousCall = {
+                    ensureKgDfid()
+                    api.searchLyricByKeywords(kw)
+                },
+            )
+            val c = response.candidates.firstOrNull()
+                ?: return Result.success(LyricVariants())
+            val result = requestLyricVariants(c.id, c.accesskey).getOrThrow()
+            if (result.word != null || result.line != null) cache.set(cacheKey, result)
             Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
@@ -471,11 +515,21 @@ class KgRepository @Inject constructor(
         if (krc != null && LyricParser.parseContent(krc).hasWordTiming) return Result.success(krc)
 
         val lrc = requestLyric(id, accesskey, LyricFormat.LRC, "lrc", "network_kg_lrc")
-        return if (lrc != null && LyricParser.parseContent(lrc).hasLyrics) {
-            Result.success(lrc)
-        } else {
-            Result.success(RawLyric("", LyricFormat.NONE, "network_kg_empty"))
-        }
+        return Result.success(
+            lrc?.takeIf { LyricParser.parseContent(it).hasLyrics }
+                ?: RawLyric("", LyricFormat.NONE, "network_kg_empty"),
+        )
+    }
+
+    private suspend fun requestLyricVariants(id: String, accesskey: String): Result<LyricVariants> {
+        val krc = requestLyric(id, accesskey, LyricFormat.KRC, "krc", "network_kg_krc")
+        val lrc = requestLyric(id, accesskey, LyricFormat.LRC, "lrc", "network_kg_lrc")
+        return Result.success(
+            LyricVariants(
+                word = krc?.takeIf { LyricParser.parseContent(it).hasWordTiming },
+                line = lrc?.takeIf { LyricParser.parseContent(it).hasLyrics },
+            ),
+        )
     }
 
     private suspend fun requestLyric(

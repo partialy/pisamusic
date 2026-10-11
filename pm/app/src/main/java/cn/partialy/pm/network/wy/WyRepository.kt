@@ -2,6 +2,7 @@ package cn.partialy.pm.network.wy
 
 import cn.partialy.pm.lyric.LyricFormat
 import cn.partialy.pm.lyric.LyricParser
+import cn.partialy.pm.lyric.LyricVariants
 import cn.partialy.pm.lyric.RawLyric
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.HomeRecommendPlaylist
@@ -202,9 +203,13 @@ class WyRepository @Inject constructor(
     }
 
     suspend fun getBestLyric(id: Long): Result<RawLyric> {
+        return getLyricVariants(id).map { it.bestOrEmpty("network_wy_empty") }
+    }
+
+    suspend fun getLyricVariants(id: Long): Result<LyricVariants> {
         return try {
-            val cacheKey = "wy_lyric_$id"
-            cache.get<RawLyric>(cacheKey)?.let { return Result.success(it) }
+            val cacheKey = "wy_lyric_variants_$id"
+            cache.get<LyricVariants>(cacheKey)?.let { return Result.success(it) }
             val body = cookieFirst(
                 operationName = "wy lyric",
                 cookieCall = { cookieRepository.lyric(id) },
@@ -214,20 +219,15 @@ class WyRepository @Inject constructor(
             val yrc = body.yrc?.lyric.orEmpty().trim()
                 .takeIf { it.isNotBlank() }
                 ?.let { RawLyric(it, LyricFormat.YRC, "network_wy_yrc") }
-            if (yrc != null && LyricParser.parseContent(yrc).hasWordTiming) {
-                cache.set(cacheKey, yrc)
-                return Result.success(yrc)
-            }
-
             val lrc = body.lrc?.lyric.orEmpty().trim()
                 .takeIf { it.isNotBlank() }
                 ?.let { RawLyric(it, LyricFormat.LRC, "network_wy_lrc") }
-            if (lrc != null && LyricParser.parseContent(lrc).hasLyrics) {
-                cache.set(cacheKey, lrc)
-                return Result.success(lrc)
-            }
-
-            Result.success(RawLyric("", LyricFormat.NONE, "network_wy_empty"))
+            val result = LyricVariants(
+                word = yrc?.takeIf { LyricParser.parseContent(it).hasWordTiming },
+                line = lrc?.takeIf { LyricParser.parseContent(it).hasLyrics },
+            )
+            if (result.word != null || result.line != null) cache.set(cacheKey, result)
+            Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }

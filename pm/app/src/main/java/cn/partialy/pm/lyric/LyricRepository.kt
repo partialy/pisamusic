@@ -31,7 +31,7 @@ class LyricRepository @Inject constructor(
 
     private suspend fun loadLocalLyrics(song: SongInfo): LyricContent {
         readEmbeddedLyrics(song)?.let { return it }
-        readSiblingLrc(song)?.let { return it }
+        readSiblingLyrics(song)?.let { return it }
         readIndexedLyrics(song)?.let { return it }
         readLegacyLocalCache(song)?.let { return it }
         fetchLocalLyricsByKeywords(song)?.let { return it }
@@ -50,18 +50,36 @@ class LyricRepository @Inject constructor(
         return content
     }
 
-    private fun readSiblingLrc(song: SongInfo): LyricContent? {
-        val text = try {
-            val file = File(song.id)
-            val lrc = File(file.parentFile, "${file.nameWithoutExtension}.lrc")
-            if (lrc.exists()) lrc.readText() else ""
-        } catch (_: Exception) {
-            ""
-        }.trim()
-        val content = LyricParser.parseContent(RawLyric(text, LyricFormat.LRC, "sibling_lrc"))
-        if (!content.hasLyrics) return null
-        mediaIndexDb.upsertLyric(song, text, source = "sibling_lrc")
-        return content
+    private fun readSiblingLyrics(song: SongInfo): LyricContent? {
+        val audioFile = File(song.id)
+        val baseName = audioFile.nameWithoutExtension
+        val candidates = listOf(
+            SiblingLyricCandidate("krc", LyricFormat.KRC),
+            SiblingLyricCandidate("yrc", LyricFormat.YRC),
+            SiblingLyricCandidate("lrc", LyricFormat.LRC),
+            SiblingLyricCandidate("txt", LyricFormat.NONE),
+        )
+        for (candidate in candidates) {
+            val text = try {
+                val lyricFile = File(audioFile.parentFile, "$baseName.${candidate.extension}")
+                if (lyricFile.isFile) lyricFile.readText().trim() else ""
+            } catch (_: Exception) {
+                ""
+            }
+            if (text.isBlank()) continue
+
+            val source = "sibling_${candidate.extension}"
+            val content = if (candidate.format == LyricFormat.NONE) {
+                parsePlainText(text, source)
+            } else {
+                LyricParser.parseContent(RawLyric(text, candidate.format, source))
+            }
+            if (!content.hasLyrics) continue
+
+            mediaIndexDb.upsertLyric(song, text, source = source)
+            return content
+        }
+        return null
     }
 
     private fun readIndexedLyrics(song: SongInfo): LyricContent? {
@@ -162,7 +180,7 @@ class LyricRepository @Inject constructor(
             val text = cloudMusicRepository.fetchLyricsText(resource).trim()
             if (text.isBlank()) return LyricContent.noLyrics()
             when (resource.format?.lowercase()) {
-                "txt" -> parseCloudPlainText(text)
+                "txt" -> parsePlainText(text, source = "cloud_txt")
                 else -> LyricParser.parseBest(text, source = "cloud_lrc").also { content ->
                     if (content.hasLyrics) {
                         runCatching {
@@ -180,7 +198,7 @@ class LyricRepository @Inject constructor(
     }
 
     /** 纯文本歌词没有时间轴，按行合成稳定的 5 秒区间以复用现有歌词组件。 */
-    private fun parseCloudPlainText(text: String): LyricContent {
+    private fun parsePlainText(text: String, source: String): LyricContent {
         val lines = text.lineSequence()
             .map(String::trim)
             .filter(String::isNotBlank)
@@ -200,7 +218,7 @@ class LyricRepository @Inject constructor(
             LyricContent(
                 rawText = text,
                 format = LyricFormat.NONE,
-                source = "cloud_txt",
+                source = source,
                 lines = lines,
             )
         }
@@ -222,4 +240,9 @@ class LyricRepository @Inject constructor(
     private companion object {
         const val CLOUD_TEXT_LINE_DURATION_MS = 5_000L
     }
+
+    private data class SiblingLyricCandidate(
+        val extension: String,
+        val format: LyricFormat,
+    )
 }

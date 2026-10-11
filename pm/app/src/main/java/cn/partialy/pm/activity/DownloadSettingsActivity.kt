@@ -66,6 +66,12 @@ class DownloadSettingsActivity : SubSettingsActivity() {
                     value = fileNamingRuleSummary(SettingsPrefs.getFileNamingRule(this)),
                     summary = getString(R.string.settings_file_naming_summary),
                 ),
+                SubSettingsItem.Option(
+                    id = ITEM_DOWNLOAD_LYRICS,
+                    title = getString(R.string.settings_download_lyrics),
+                    value = downloadLyricModeSummary(SettingsPrefs.getDownloadLyricMode(this)),
+                    summary = getString(R.string.settings_download_lyrics_summary),
+                ),
                 SubSettingsItem.Switch(
                     id = ITEM_WRITE_COVER,
                     title = getString(R.string.settings_write_cover),
@@ -92,6 +98,7 @@ class DownloadSettingsActivity : SubSettingsActivity() {
         when (item.id) {
             ITEM_DOWNLOAD_LOCATION -> checkStoragePermission()
             ITEM_FILE_NAMING_RULE -> showFileNamingRulePicker()
+            ITEM_DOWNLOAD_LYRICS -> showDownloadLyricModePicker()
         }
     }
 
@@ -126,6 +133,38 @@ class DownloadSettingsActivity : SubSettingsActivity() {
                 else -> return@launch
             }
             SettingsPrefs.setFileNamingRule(this@DownloadSettingsActivity, rule)
+            refreshSettings()
+        }
+    }
+
+    private fun showDownloadLyricModePicker() {
+        lifecycleScope.launch {
+            val current = SettingsPrefs.getDownloadLyricMode(this@DownloadSettingsActivity)
+            val modes = listOf(
+                SettingsPrefs.DownloadLyricMode.Off,
+                SettingsPrefs.DownloadLyricMode.Word,
+                SettingsPrefs.DownloadLyricMode.Line,
+                SettingsPrefs.DownloadLyricMode.All,
+            )
+            val picked = showSettingsOptionPicker(
+                context = this@DownloadSettingsActivity,
+                title = getString(R.string.settings_download_lyrics),
+                options = listOf(
+                    SettingsOption("off", getString(R.string.settings_download_lyrics_off)),
+                    SettingsOption("word", getString(R.string.settings_download_lyrics_word)),
+                    SettingsOption("line", getString(R.string.settings_download_lyrics_line)),
+                    SettingsOption("all", getString(R.string.settings_download_lyrics_all)),
+                ),
+                selectedIndex = modes.indexOf(current),
+            )
+            val mode = when (picked?.id) {
+                "off" -> SettingsPrefs.DownloadLyricMode.Off
+                "word" -> SettingsPrefs.DownloadLyricMode.Word
+                "line" -> SettingsPrefs.DownloadLyricMode.Line
+                "all" -> SettingsPrefs.DownloadLyricMode.All
+                else -> return@launch
+            }
+            SettingsPrefs.setDownloadLyricMode(this@DownloadSettingsActivity, mode)
             refreshSettings()
         }
     }
@@ -208,9 +247,17 @@ class DownloadSettingsActivity : SubSettingsActivity() {
         SettingsPrefs.FileNamingRule.ArtistDashTitle -> getString(R.string.settings_naming_artist_title_default)
     }
 
+    private fun downloadLyricModeSummary(mode: SettingsPrefs.DownloadLyricMode): String = when (mode) {
+        SettingsPrefs.DownloadLyricMode.Off -> getString(R.string.settings_download_lyrics_off)
+        SettingsPrefs.DownloadLyricMode.Word -> getString(R.string.settings_download_lyrics_word)
+        SettingsPrefs.DownloadLyricMode.Line -> getString(R.string.settings_download_lyrics_line)
+        SettingsPrefs.DownloadLyricMode.All -> getString(R.string.settings_download_lyrics_all)
+    }
+
     companion object {
         private const val ITEM_DOWNLOAD_LOCATION = "download_location"
         private const val ITEM_FILE_NAMING_RULE = "file_naming_rule"
+        private const val ITEM_DOWNLOAD_LYRICS = "download_lyrics"
         private const val ITEM_WRITE_COVER = "write_cover"
         private const val ITEM_WRITE_TAGS = "write_tags"
         private const val ITEM_WRITE_LYRICS = "write_lyrics"

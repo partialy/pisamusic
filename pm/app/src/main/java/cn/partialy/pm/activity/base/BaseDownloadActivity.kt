@@ -7,6 +7,9 @@ import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.FeedbackActivity
 import cn.partialy.pm.activity.LoginActivity
+import cn.partialy.pm.download.DownloadLyricResolver
+import cn.partialy.pm.download.LyricSidecarStatus
+import cn.partialy.pm.download.ResolvedDownloadLyrics
 import cn.partialy.pm.model.DownloadQualityChoice
 import cn.partialy.pm.model.MusicQualityAccessPolicy
 import cn.partialy.pm.model.MusicQualityAccessState
@@ -43,6 +46,9 @@ abstract class BaseDownloadActivity : BaseActivity() {
 
     @Inject
     lateinit var cloudMusicRepository: CloudMusicRepository
+
+    @Inject
+    lateinit var downloadLyricResolver: DownloadLyricResolver
 
     /** 供菜单等外部入口触发与列表「下载」相同的流程。 */
     fun startSongDownloadFlow(songInfo: SongInfo) {
@@ -94,22 +100,11 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 return@launch
             }
 
-            if (songInfo.type != SongType.KW && SettingsPrefs.isWriteLyricsEnabled(this@BaseDownloadActivity)) {
-                val lyricText = try {
-                    when (songInfo.type) {
-                        SongType.KG -> kgRepository.getLyric(songInfo.id).getOrNull().orEmpty()
-                        SongType.WY -> wyRepository.getLyric(songInfo.id.toLongOrNull() ?: -1L).getOrNull().orEmpty()
-                        SongType.CLOUD -> {
-                            val resource = cloudMusicRepository.getLyricsResource(songInfo.id)
-                            cloudMusicRepository.fetchLyricsText(resource)
-                        }
-                        SongType.KW, SongType.LOCAL -> ""
-                    }
-                } catch (_: Exception) {
-                    ""
-                }
-                if (lyricText.isNotBlank()) songInfo.lyric = lyricText
-            }
+            val resolvedLyrics = downloadLyricResolver.resolve(
+                song = songInfo,
+                embedLyrics = SettingsPrefs.isWriteLyricsEnabled(this@BaseDownloadActivity),
+                mode = SettingsPrefs.getDownloadLyricMode(this@BaseDownloadActivity),
+            )
 
             // Cloud 的播放地址必须最后临近下载签发；资源响应自带格式时不再额外请求详情。
             val downloadInfo = try {
@@ -152,7 +147,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
             }
             val name = if (ext.isNotBlank()) "$base.$ext" else base
 
-            startDownload(url, name, songInfo)
+            startDownload(url, name, songInfo, resolvedLyrics)
         }
     }
 
@@ -160,7 +155,12 @@ abstract class BaseDownloadActivity : BaseActivity() {
      * 开始下载并显示进度
      */
     @SuppressLint("SetTextI18n")
-    protected fun startDownload(url: String, fileName: String, songInfo: SongInfo) {
+    protected fun startDownload(
+        url: String,
+        fileName: String,
+        songInfo: SongInfo,
+        resolvedLyrics: ResolvedDownloadLyrics = ResolvedDownloadLyrics.NONE,
+    ) {
         try {
             downloadDialog = ModernDialog.makeDownloadDialog(this) {
                 title = getString(R.string.download_in_progress)
@@ -185,6 +185,7 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 url = url,
                 fileName = fileName,
                 songInfo = songInfo,
+                resolvedLyrics = resolvedLyrics,
                 callback = object : DownloadManager.DownloadCallback {
                     override fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long) {
                         runOnUiThread {
@@ -203,8 +204,8 @@ abstract class BaseDownloadActivity : BaseActivity() {
                         }
                     }
 
-                    override fun onSuccess(file: File) {
-                        onDownloadSuccess(file)
+                    override fun onSuccess(file: File, lyricStatus: LyricSidecarStatus) {
+                        onDownloadSuccess(file, lyricStatus)
                     }
 
                     override fun onFailure(e: Exception) {
@@ -218,9 +219,14 @@ abstract class BaseDownloadActivity : BaseActivity() {
         }
     }
 
-    protected open fun onDownloadSuccess(file: File) {
+    protected open fun onDownloadSuccess(file: File, lyricStatus: LyricSidecarStatus) {
         runOnUiThread {
-            Toast.makeText(this, R.string.download_complete, Toast.LENGTH_SHORT).show()
+            val message = when (lyricStatus) {
+                LyricSidecarStatus.NOT_FOUND -> R.string.download_complete_lyrics_not_found
+                LyricSidecarStatus.FAILED -> R.string.download_complete_lyrics_failed
+                LyricSidecarStatus.DISABLED, LyricSidecarStatus.SAVED -> R.string.download_complete
+            }
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
             downloadDialog?.dismiss()
         }
     }

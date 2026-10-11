@@ -5,6 +5,9 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import cn.partialy.pm.R
+import cn.partialy.pm.download.LyricSidecarStatus
+import cn.partialy.pm.download.LyricSidecarWriter
+import cn.partialy.pm.download.ResolvedDownloadLyrics
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.utils.JavaUtils.JDownloadManager
@@ -12,6 +15,7 @@ import cn.partialy.pm.utils.SettingsPrefs
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.math.abs
 
 class DownloadManager private constructor(private val context: Context) {
@@ -21,7 +25,7 @@ class DownloadManager private constructor(private val context: Context) {
      */
     interface DownloadCallback {
         fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long)
-        fun onSuccess(file: File)
+        fun onSuccess(file: File, lyricStatus: LyricSidecarStatus)
         fun onFailure(e: Exception)
     }
 
@@ -33,7 +37,13 @@ class DownloadManager private constructor(private val context: Context) {
      * @param callback 下载回调
      * @return 下载任务的唯一标识
      */
-    fun startDownload(url: String, fileName: String, songInfo: SongInfo, callback: DownloadCallback) {
+    fun startDownload(
+        url: String,
+        fileName: String,
+        songInfo: SongInfo,
+        resolvedLyrics: ResolvedDownloadLyrics = ResolvedDownloadLyrics.NONE,
+        callback: DownloadCallback,
+    ) {
         val embedMetadata = songInfo.type != SongType.KW
         val coverUrl = if (embedMetadata && SettingsPrefs.isWriteCoverEnabled(context)) {
             resolveEmbedCoverUrl(songInfo)
@@ -43,7 +53,11 @@ class DownloadManager private constructor(private val context: Context) {
         val title = if (embedMetadata && SettingsPrefs.isWriteTagsEnabled(context)) songInfo.name else ""
         val artist = if (embedMetadata && SettingsPrefs.isWriteTagsEnabled(context)) songInfo.artist else ""
         val album = if (embedMetadata && SettingsPrefs.isWriteTagsEnabled(context)) (songInfo.album ?: "") else ""
-        val lyric = if (embedMetadata && SettingsPrefs.isWriteLyricsEnabled(context)) songInfo.lyric.orEmpty() else ""
+        val lyric = if (embedMetadata && SettingsPrefs.isWriteLyricsEnabled(context)) {
+            resolvedLyrics.embeddedText
+        } else {
+            ""
+        }
 
         // 创建 Java 回调适配器
         val javaCallback = object : JDownloadManager.DownloadCallback {
@@ -67,10 +81,14 @@ class DownloadManager private constructor(private val context: Context) {
             }
 
             override fun onSuccess(filePath: String) {
-                // 确保最终进度为100%
-                Handler(Looper.getMainLooper()).post {
-                    callback.onProgress(100, File(filePath).length(), File(filePath).length())
-                    callback.onSuccess(File(filePath))
+                val file = File(filePath)
+                sidecarExecutor.execute {
+                    val lyricResult = LyricSidecarWriter.write(file, resolvedLyrics)
+                    mainHandler.post {
+                        // 确保最终进度为100%
+                        callback.onProgress(100, file.length(), file.length())
+                        callback.onSuccess(file, lyricResult.status)
+                    }
                 }
             }
 
@@ -105,7 +123,9 @@ class DownloadManager private constructor(private val context: Context) {
     fun getDownloadedFiles(): List<SongInfo> {
         // 获取下载的文件
         val downloadDir = File(DownloadPathManager.getDownloadPath(context))
-        val files = downloadDir.listFiles()
+        val files = downloadDir.listFiles { file ->
+            file.isFile && file.extension.lowercase() in AUDIO_FILE_EXTENSIONS
+        }
         val list : MutableList<SongInfo> = mutableListOf()
         files?.map { file ->
             println(file.name)
@@ -165,6 +185,12 @@ class DownloadManager private constructor(private val context: Context) {
     }
 
     companion object {
+        private val AUDIO_FILE_EXTENSIONS = setOf(
+            "mp3", "flac", "wav", "m4a", "aac", "ogg", "opus", "ape", "wma", "aiff",
+        )
+        private val mainHandler = Handler(Looper.getMainLooper())
+        private val sidecarExecutor = Executors.newSingleThreadExecutor()
+
         @SuppressLint("StaticFieldLeak")
         @Volatile
         private var instance: DownloadManager? = null

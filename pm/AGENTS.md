@@ -89,7 +89,7 @@
 - 明确 PLAY/PAUSE 必须幂等，toggle 只用于真正的 PLAY_PAUSE 动作，并依据 playWhenReady 而不是 isPlaying 判断用户意图。
 - 播放诊断事件保存在 pm_local_music.db 的 playback_diagnostic_events；只记录离散控制/状态、source+songId 和无敏感信息的设备状态，最多 300 条，不上传 URL、token、Cookie、歌词或本地路径。
 - 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation、Info 和 Switch 列表；下载、歌词、同步等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。
-- “设置 - 下载设置”由 `DownloadSettingsActivity` 聚合下载位置、文件名命名规则、写入封面、写入标签和写入歌词；主设置页只保留一个“下载设置”入口。二级设置项的 `summary` 可选，不传时保持单行居中，传入时标题在上、较小且较淡的说明在下。
+- “设置 - 下载设置”由 `DownloadSettingsActivity` 聚合下载位置、文件名命名规则、下载歌词、写入封面、写入标签和写入歌词；主设置页只保留一个“下载设置”入口。下载歌词是独立同目录文件选项，固定为关闭、逐字歌词、逐行歌词、全部四态：逐字模式无逐字时回退逐行，全部模式保存所有可用版本；KG 使用 KRC/LRC、WY 使用 YRC/LRC、云盘保留服务端 LRC/TXT，KW 当前无歌词来源。歌词文件使用音频实际 basename，下载后的本地读取顺序为 KRC/YRC、LRC、TXT；原“写入歌词”仅控制音频标签内嵌，二者不得混用。二级设置项的 `summary` 可选，不传时保持单行居中，传入时标题在上、较小且较淡的说明在下。
 - “设置 - 歌词设置”由 `LyricSettingsActivity` 聚合状态栏歌词和歌词颜色预设；主设置页只保留无图标二级页入口，二级页继续导航到各自现有功能页面。
 - “设置 - 数据管理”由 `DataSettingsActivity` 聚合收藏与同步、缓存管理、导入与导出，顺序固定为“收藏与同步、缓存管理、导入与导出”；“收藏与同步”进入 `FavoritesSyncSettingsActivity`，展示登录状态、最近同步、错误状态并提供“立即同步 / 去登录”入口；原 `DataManagementActivity` 的页面标题改为“导入与导出”，继续负责本地收藏和歌单的备份、恢复及清除，并承载故障统计与上报。主设置页入口顺序为播放设置、歌词设置、下载设置、外观主题、数据管理、更多设置；Debug 构建中的开发者调试位于反馈之前。
 - “导入与导出”页保留本地数据的收藏歌曲、歌单总数、数据占用三项指标；歌单与收藏、播放日志卡片采用图标加标题左侧、操作按钮右侧的左右布局，歌单与收藏使用同款“导入 / 导出”按钮，页面不展示额外说明文案；故障上报以同款卡片承载统计和上报按钮。前三张卡片标题左侧统一使用 `data_icon_local.webp`、`data_icon_playlist.webp`、`data_icon_diagnostics.webp` 渐变图标。
