@@ -90,12 +90,14 @@
 - 播放诊断事件保存在 pm_local_music.db 的 playback_diagnostic_events；只记录离散控制/状态、source+songId 和无敏感信息的设备状态，最多 300 条，不上传 URL、token、Cookie、歌词或本地路径。
 - 通用二级设置页继承 `SubSettingsActivity`，使用 `SubSettingsSection` / `SubSettingsItem` 声明无图标的 Option、Navigation、Info 和 Switch 列表；下载、歌词、同步等新二级设置优先复用该模板，不要复制 Activity 外壳和列表绑定逻辑。
 - “设置 - 下载设置”由 `DownloadSettingsActivity` 聚合下载位置、文件名命名规则、下载歌词、写入封面、写入标签和写入歌词；主设置页只保留一个“下载设置”入口。下载歌词是独立同目录文件选项，固定为关闭、逐字歌词、逐行歌词、全部四态：逐字模式无逐字时回退逐行，全部模式保存所有可用版本；KG 使用 KRC/LRC、WY 使用 YRC/LRC、云盘保留服务端 LRC/TXT，KW 当前无歌词来源。歌词文件使用音频实际 basename，下载后的本地读取顺序为 KRC/YRC、LRC、TXT；原“写入歌词”仅控制音频标签内嵌，二者不得混用。二级设置项的 `summary` 可选，不传时保持单行居中，传入时标题在上、较小且较淡的说明在下。
+- 歌曲下载统一先写入 `download/task/DownloadTaskRepository`，再由 `DownloadManager` / `JDownloadManager` 执行；任务状态覆盖准备、下载、文件处理、完成、失败与取消，音频目标路径和实际歌词 sidecar 路径必须随任务持久化。下载管理页只消费该仓库的 `StateFlow`，批量下载后续应复用同一任务入口，不得另建一套页面状态或下载实现。任务记录保存在独立 `pm_download_tasks.db`；进程重启后的未完成任务转为失败，避免永久卡在“下载中”。
 - “设置 - 歌词设置”由 `LyricSettingsActivity` 聚合状态栏歌词和歌词颜色预设；主设置页只保留无图标二级页入口，二级页继续导航到各自现有功能页面。
 - “设置 - 数据管理”由 `DataSettingsActivity` 聚合收藏与同步、缓存管理、导入与导出，顺序固定为“收藏与同步、缓存管理、导入与导出”；“收藏与同步”进入 `FavoritesSyncSettingsActivity`，展示登录状态、最近同步、错误状态并提供“立即同步 / 去登录”入口；原 `DataManagementActivity` 的页面标题改为“导入与导出”，继续负责本地收藏和歌单的备份、恢复及清除，并承载故障统计与上报。主设置页入口顺序为播放设置、歌词设置、下载设置、外观主题、数据管理、更多设置；Debug 构建中的开发者调试位于反馈之前。
 - “导入与导出”页保留本地数据的收藏歌曲、歌单总数、数据占用三项指标；歌单与收藏、播放日志卡片采用图标加标题左侧、操作按钮右侧的左右布局，歌单与收藏使用同款“导入 / 导出”按钮，页面不展示额外说明文案；故障上报以同款卡片承载统计和上报按钮。前三张卡片标题左侧统一使用 `data_icon_local.webp`、`data_icon_playlist.webp`、`data_icon_diagnostics.webp` 渐变图标。
 
 ## 本地数据
 
+- 下载任务以 `pm_download_tasks.db` 的 `download_tasks` 表为主存储，由 `DownloadTaskRepository` 管理；“我的 → 下载管理”分为下载中与已完成，支持搜索和批量删除。选择一并删除文件时，只删除任务精确记录的音频、`.part` 和同目录歌词文件；物理删除失败必须保留对应任务记录，便于用户重试。
 - 自建本地歌单及其歌曲关系以 `pm_local_music.db` SQLite 数据库为主存储，由 `LocalPlaylistDbStore` 管理。
 - 收藏歌曲以 `pm_local_music.db` 的 `favorite_songs` 表为主存储，由 `LoveManager` 管理；旧版 `loveList.json` 仅用于迁移、导入导出兼容和备份镜像。
 - `PlaylistCollectionManager` 仍是收藏/自建歌单的统一入口；网络歌单收藏写入 `favorite_playlists`，自建歌单写入本地歌单表。旧版 `collected_playlists.json` 与 `songs_<playlistId>.json` 会在加载时迁移到 SQLite。

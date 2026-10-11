@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.FavoritePlaylistsActivity
+import cn.partialy.pm.activity.DownloadManagementActivity
 import cn.partialy.pm.activity.LocalMusicActivity
 import cn.partialy.pm.activity.LocalPlaylistManagementActivity
 import cn.partialy.pm.activity.LovedSongsPlaylistActivity
@@ -77,6 +78,7 @@ class MineMyTabFragment : Fragment() {
         onFavoriteSongsClick = { LovedSongsPlaylistActivity.start(requireActivity()) },
         onFavoritePlaylistsClick = { FavoritePlaylistsActivity.start(requireActivity()) },
         onLocalMusicClick = { LocalMusicActivity.start(requireActivity()) },
+        onDownloadManagementClick = { DownloadManagementActivity.start(requireActivity()) },
         onSettingsClick = { SettingsActivity.start(requireActivity()) },
         onManageLocalPlaylistsClick = { LocalPlaylistManagementActivity.start(requireActivity()) },
         onAddLocalPlaylistClick = ::showCreateLocalPlaylistDialog,

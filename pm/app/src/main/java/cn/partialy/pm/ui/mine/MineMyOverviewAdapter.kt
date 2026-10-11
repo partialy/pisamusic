@@ -15,6 +15,7 @@ class MineMyOverviewAdapter(
     private val onFavoriteSongsClick: () -> Unit,
     private val onFavoritePlaylistsClick: () -> Unit,
     private val onLocalMusicClick: () -> Unit,
+    private val onDownloadManagementClick: () -> Unit,
     private val onSettingsClick: () -> Unit,
     private val onManageLocalPlaylistsClick: () -> Unit,
     private val onAddLocalPlaylistClick: () -> Unit,
@@ -32,7 +33,7 @@ class MineMyOverviewAdapter(
     override fun getItemViewType(position: Int): Int = when (position) {
         FAVORITE_SONGS_POSITION, FAVORITE_PLAYLISTS_POSITION -> VIEW_TYPE_FAVORITES
         LOCAL_MUSIC_POSITION -> VIEW_TYPE_LOCAL_MUSIC
-        SETTINGS_POSITION -> VIEW_TYPE_SETTINGS
+        DOWNLOAD_MANAGEMENT_POSITION, SETTINGS_POSITION -> VIEW_TYPE_COVER_TITLE
         SECTION_POSITION -> VIEW_TYPE_SECTION
         else -> VIEW_TYPE_EMPTY
     }
@@ -46,7 +47,7 @@ class MineMyOverviewAdapter(
             VIEW_TYPE_LOCAL_MUSIC -> LocalMusicViewHolder(
                 ItemMineLocalMusicRowBinding.inflate(inflater, parent, false),
             )
-            VIEW_TYPE_SETTINGS -> SettingsViewHolder(
+            VIEW_TYPE_COVER_TITLE -> CoverTitleViewHolder(
                 ItemMineCoverTitleRowBinding.inflate(inflater, parent, false),
             )
             VIEW_TYPE_SECTION -> SectionViewHolder(
@@ -76,7 +77,21 @@ class MineMyOverviewAdapter(
                 }
             }
             is LocalMusicViewHolder -> holder.bind(onLocalMusicClick)
-            is SettingsViewHolder -> holder.bind(onSettingsClick)
+            is CoverTitleViewHolder -> {
+                if (position == DOWNLOAD_MANAGEMENT_POSITION) {
+                    holder.bind(
+                        imageRes = R.drawable.settings_ic_download,
+                        titleRes = R.string.download_management_title,
+                        onClick = onDownloadManagementClick,
+                    )
+                } else {
+                    holder.bind(
+                        imageRes = R.drawable.mine_entry_app_settings,
+                        titleRes = R.string.settings,
+                        onClick = onSettingsClick,
+                    )
+                }
+            }
             is SectionViewHolder -> holder.bind(
                 onManageClick = onManageLocalPlaylistsClick,
                 onAddClick = onAddLocalPlaylistClick,
@@ -117,12 +132,12 @@ class MineMyOverviewAdapter(
         }
     }
 
-    private class SettingsViewHolder(
+    private class CoverTitleViewHolder(
         private val binding: ItemMineCoverTitleRowBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(onClick: () -> Unit) {
-            binding.entryCoverImageView.setImageResource(R.drawable.mine_entry_app_settings)
-            binding.titleTextView.setText(R.string.settings)
+        fun bind(imageRes: Int, titleRes: Int, onClick: () -> Unit) {
+            binding.entryCoverImageView.setImageResource(imageRes)
+            binding.titleTextView.setText(titleRes)
             binding.root.setOnClickListener { onClick() }
         }
     }
@@ -144,14 +159,15 @@ class MineMyOverviewAdapter(
         private const val FAVORITE_SONGS_POSITION = 0
         private const val FAVORITE_PLAYLISTS_POSITION = 1
         private const val LOCAL_MUSIC_POSITION = 2
-        private const val SETTINGS_POSITION = 3
-        private const val SECTION_POSITION = 4
-        private const val EMPTY_POSITION = 5
-        private const val FIXED_ITEM_COUNT = 5
+        private const val DOWNLOAD_MANAGEMENT_POSITION = 3
+        private const val SETTINGS_POSITION = 4
+        private const val SECTION_POSITION = 5
+        private const val EMPTY_POSITION = 6
+        private const val FIXED_ITEM_COUNT = 6
 
         private const val VIEW_TYPE_FAVORITES = 1
         private const val VIEW_TYPE_LOCAL_MUSIC = 2
-        private const val VIEW_TYPE_SETTINGS = 3
+        private const val VIEW_TYPE_COVER_TITLE = 3
         private const val VIEW_TYPE_SECTION = 4
         private const val VIEW_TYPE_EMPTY = 5
     }
