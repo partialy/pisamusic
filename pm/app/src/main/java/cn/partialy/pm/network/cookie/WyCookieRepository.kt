@@ -8,6 +8,7 @@ import cn.partialy.pm.network.cookie.model.WyAccountResponse
 import cn.partialy.pm.network.cookie.model.WyPlaylistItem
 import cn.partialy.pm.network.cookie.model.WyPlaylistTrackAllResponse
 import cn.partialy.pm.network.cookie.model.WyPlaylistDetailAuthorityResponse
+import cn.partialy.pm.network.cookie.model.WyPlaylistDetailAuthority
 import cn.partialy.pm.network.cookie.model.WyUserPlaylistResponse
 import cn.partialy.pm.network.wy.WyCloudSearchResponse
 import cn.partialy.pm.network.wy.WyLyricResponse
@@ -15,13 +16,14 @@ import cn.partialy.pm.network.wy.WyPersonalizedNewSongResponse
 import cn.partialy.pm.network.wy.WyPersonalizedPlaylistResponse
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import java.lang.reflect.Type
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 独立网易「需登录 Cookie」接口（与现有 [cn.partialy.pm.network.wy.WyApiService] 无关）。
+ * 网易会话接口，按需附加 Cookie；公开歌单详情允许匿名访问。
  *
  * 流程：[needCookieAPI.md] 先 [getAccount] 取 uid，再 [getUserPlaylists]。
  * Base URL 使用系统配置下发的 WY 业务地址。
@@ -141,6 +143,23 @@ class WyCookieRepository @Inject constructor(
         params = mapOf("id" to id, "s" to "0", "timestamp" to System.currentTimeMillis().toString()),
         type = WyPlaylistDetailAuthorityResponse::class.java,
     )
+
+    /** 分享链接打开前校验元信息，不要求完整歌曲列表或非关键展示字段。 */
+    suspend fun getPlaylistMetadata(id: String): Result<WyPlaylistDetailAuthority> {
+        return try {
+            val response = getPlaylistDetailAuthority(id).getOrThrow()
+            val playlist = response.playlist
+            if (response.code != 200 || playlist == null || playlist.id?.toString() != id || playlist.name.isNullOrBlank()) {
+                Result.failure(IllegalStateException("歌单不存在或当前无法访问"))
+            } else {
+                Result.success(playlist)
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
 
     /**
      * 歌单全部歌曲（分页）：`/playlist/track/all?id=&limit=&offset=`。

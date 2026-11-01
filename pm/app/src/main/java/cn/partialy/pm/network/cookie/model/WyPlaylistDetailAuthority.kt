@@ -10,6 +10,10 @@ data class WyPlaylistDetailAuthority(
     val id: Long? = null,
     val trackCount: Int? = null,
     val trackIds: List<WyPlaylistAuthorityTrack?>? = null,
+    val name: String? = null,
+    val coverImgUrl: String? = null,
+    val description: String? = null,
+    val playCount: Long? = null,
 )
 
 data class WyPlaylistAuthorityTrack(val id: Long? = null)
