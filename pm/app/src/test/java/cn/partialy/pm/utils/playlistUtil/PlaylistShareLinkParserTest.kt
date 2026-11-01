@@ -37,8 +37,28 @@ class PlaylistShareLinkParserTest {
     }
 
     @Test
-    fun `kugou gcid is explicitly unsupported`() {
-        assertEquals(PlaylistShareLinkResult.UnsupportedKugou, PlaylistShareLinkParser.parse("发现歌单 https://m.kugou.com/songlist/gcid_3zegxuo8z2az082/?chl=message。"))
+    fun `kugou share decodes copy identity instead of source parameter`() {
+        assertEquals(PlaylistShareLinkResult.Kugou("collection_3_760768723_80_0"),
+            PlaylistShareLinkParser.parse("发现一个很不错的歌单哦《快手抖音热门DJ》https://m.kugou.com/songlist/gcid_3zegxuo8z2az082/?src_cid=3zhy2r89z2wz09e&chl=message。"))
+        assertEquals(PlaylistShareLinkResult.Kugou("collection_3_944012239_102_0"),
+            PlaylistShareLinkParser.parse("https://www.kugou.com/songlist/gcid_3zhy2r89z2wz09e/"))
+    }
+
+    @Test
+    fun `invalid kugou ids and hosts cannot become playlist identities`() {
         assertEquals(PlaylistShareLinkResult.Invalid, PlaylistShareLinkParser.parse("https://kugou.com.evil.test/songlist/gcid_123"))
+        listOf("gcid_3zegxuo8z2az082/extra", "gcid_3z0z2az082", "gcid_3zegxuo8z0z082", "gcid_3z99999999999999999999999z2az082", "gcid_3zegxuo8z2az0", "gcid_3zegxuo8z2az08_", "gcid_bad").forEach {
+            assertEquals(PlaylistShareLinkResult.Invalid, PlaylistShareLinkParser.parse("https://m.kugou.com/songlist/$it"))
+        }
+        assertEquals(PlaylistShareLinkResult.Invalid,
+            PlaylistShareLinkParser.parse("https://user@m.kugou.com/songlist/gcid_3zegxuo8z2az082/"))
+    }
+
+    @Test
+    fun `mixed platforms use first valid playlist in text order`() {
+        val kg = "https://m.kugou.com/songlist/gcid_3zegxuo8z2az082/"
+        val wy = "https://music.163.com/playlist?id=123"
+        assertEquals(PlaylistShareLinkResult.Kugou("collection_3_760768723_80_0"), PlaylistShareLinkParser.parse("$kg $wy"))
+        assertEquals(PlaylistShareLinkResult.Netease("123"), PlaylistShareLinkParser.parse("$wy $kg"))
     }
 }

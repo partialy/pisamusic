@@ -418,7 +418,7 @@ class MainActivity : BaseDownloadActivity() {
         }
         inflated.drawerLinkImportRow.setOnClickListener {
             closeMainDrawer()
-            PlaylistLinkImportDialog.show(this, wyCookieRepository)
+            PlaylistLinkImportDialog.show(this, wyCookieRepository, kgRepository)
         }
         inflated.drawerSleepTimerRow.setOnClickListener {
             closeMainDrawer()

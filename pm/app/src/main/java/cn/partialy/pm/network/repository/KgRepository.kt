@@ -2,6 +2,7 @@ package cn.partialy.pm.network.repository
 
 import cn.partialy.pm.model.HotSearchResponse
 import cn.partialy.pm.model.KgPlaylistDetailApiResponse
+import cn.partialy.pm.model.KgPlaylistDetailItem
 import cn.partialy.pm.model.KgPlaylistTrackAllApiResponse
 import cn.partialy.pm.model.KgPlaylistTagParent
 import cn.partialy.pm.model.NewSongResponse
@@ -225,6 +226,18 @@ class KgRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /** 分享链接解码后仍需校验服务端返回的精确身份，不能误开原作者的另一份歌单。 */
+    suspend fun getPlaylistMetadata(id: String): Result<KgPlaylistDetailItem> = try {
+        val response = getPlaylistDetail(listOf(id)).getOrThrow()
+        val item = response.data.firstOrNull { it.globalCollectionId == id && it.name.isNotBlank() }
+        if (item == null) Result.failure(IllegalStateException("歌单不存在或当前无法访问"))
+        else Result.success(item)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        Result.failure(error)
     }
 
     /** 歌单全部歌曲：/playlist/track/all?id=... */

@@ -13,10 +13,12 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.WyPlaylistDetailActivity
+import cn.partialy.pm.activity.PlaylistDetailActivity
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.DialogPlaylistLinkImportBinding
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.network.cookie.WyCookieRepository
+import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.utils.playlistUtil.PlaylistShareLinkParser
 import cn.partialy.pm.utils.playlistUtil.PlaylistShareLinkResult
 import kotlinx.coroutines.CancellationException
@@ -26,7 +28,7 @@ import kotlinx.coroutines.withTimeout
 
 /** 只解析并打开在线歌单，不写入收藏或本地歌单。 */
 object PlaylistLinkImportDialog {
-    fun show(activity: BaseActivity, repository: WyCookieRepository) {
+    fun show(activity: BaseActivity, repository: WyCookieRepository, kgRepository: KgRepository) {
         val binding = DialogPlaylistLinkImportBinding.inflate(LayoutInflater.from(activity))
         var request: Job? = null
         var busy = false
@@ -67,26 +69,39 @@ object PlaylistLinkImportDialog {
             .setConfirmButton(activity.getString(R.string.playlist_link_open), dismissOnConfirm = false) { dialog ->
                 if (busy) return@setConfirmButton
                 val parsed = PlaylistShareLinkParser.parse(binding.linkInput.text.toString())
-                val id = when (parsed) {
-                    is PlaylistShareLinkResult.Netease -> parsed.playlistId
-                    PlaylistShareLinkResult.UnsupportedKugou -> {
-                        message(R.string.playlist_link_kugou_unsupported)
-                        return@setConfirmButton
-                    }
-                    PlaylistShareLinkResult.Invalid -> {
-                        message(R.string.playlist_link_invalid)
-                        return@setConfirmButton
-                    }
+                if (parsed == PlaylistShareLinkResult.Invalid) {
+                    message(R.string.playlist_link_invalid)
+                    return@setConfirmButton
                 }
                 binding.linkInputLayout.error = null
                 setBusy(dialog, true)
                 request = activity.lifecycleScope.launch {
                     try {
-                        val metadata = withTimeout(30_000) { repository.getPlaylistMetadata(id).getOrThrow() }
+                        // 请求只准备导航动作；确认弹窗仍存活后才执行，防止取消后的迟到跳转。
+                        val openPlaylist: () -> Unit = withTimeout(30_000) {
+                            when (parsed) {
+                                is PlaylistShareLinkResult.Netease -> {
+                                    val metadata = repository.getPlaylistMetadata(parsed.playlistId).getOrThrow()
+                                    val open: () -> Unit = {
+                                        WyPlaylistDetailActivity.start(activity, parsed.playlistId, metadata.name.orEmpty(),
+                                            metadata.coverImgUrl.orEmpty(), "", metadata.trackCount?.coerceAtLeast(0) ?: 0,
+                                            CollectedPlaylistType.WY)
+                                    }
+                                    open
+                                }
+                                is PlaylistShareLinkResult.Kugou -> {
+                                    val metadata = kgRepository.getPlaylistMetadata(parsed.playlistId).getOrThrow()
+                                    val open: () -> Unit = {
+                                        PlaylistDetailActivity.start(activity, parsed.playlistId, metadata.name,
+                                            metadata.pic, metadata.intro.ifBlank { metadata.tags }, metadata.count.coerceAtLeast(0))
+                                    }
+                                    open
+                                }
+                                PlaylistShareLinkResult.Invalid -> error("无效歌单链接")
+                            }
+                        }
                         if (closed || activity.isFinishing || activity.isDestroyed) return@launch
-                        WyPlaylistDetailActivity.start(activity, id, metadata.name.orEmpty(),
-                            metadata.coverImgUrl.orEmpty(), "", metadata.trackCount?.coerceAtLeast(0) ?: 0,
-                            CollectedPlaylistType.WY)
+                        openPlaylist()
                         dialog.dismiss()
                     } catch (error: kotlinx.coroutines.TimeoutCancellationException) {
                         if (!closed) message(R.string.playlist_link_failed)
