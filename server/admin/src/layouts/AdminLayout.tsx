@@ -165,6 +165,7 @@ export default function AdminLayout() {
         label: "系统设置",
         children: [
           { key: "system", icon: <SettingOutlined />, label: "系统配置" },
+          { key: "appShare", icon: <ShareAltOutlined />, label: "App分享" },
           { key: "dynamicConfig", icon: <ControlOutlined />, label: "动态配置" },
           { key: "runtimeConfig", icon: <SlidersOutlined />, label: "运行策略" },
           { key: "encryption", icon: <SafetyCertificateOutlined />, label: "加密白名单" },

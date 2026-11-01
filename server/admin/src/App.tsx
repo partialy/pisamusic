@@ -15,6 +15,7 @@ const ListeningLevelsTab = lazy(() => import("./components/tabs/ListeningLevelsT
 const RuntimeConfigTab = lazy(() => import("./components/tabs/RuntimeConfigTab"));
 
 const SystemConfigPage = lazy(() => import("./pages/SystemConfigPage"));
+const AppSharePage = lazy(() => import("./pages/AppSharePage"));
 const UpdateManagementPage = lazy(() => import("./pages/UpdateManagementPage"));
 const FileManagementPage = lazy(() => import("./pages/FileManagementPage"));
 const FeedbackManagementPage = lazy(() => import("./pages/FeedbackManagementPage"));
@@ -88,6 +89,7 @@ export default function App() {
             <Route path="/feedback" element={<FeedbackManagementPage />} />
             <Route path="/fault-reports" element={<FaultReportsPage />} />
             <Route path="/system" element={<SystemConfigPage />} />
+            <Route path="/app-share" element={<AppSharePage />} />
             <Route path="/dynamic-configs" element={<DynamicConfigPage />} />
             <Route path="/runtime-config" element={<RuntimeConfigRoute />} />
             <Route path="/encryption" element={<EncryptionPage />} />
