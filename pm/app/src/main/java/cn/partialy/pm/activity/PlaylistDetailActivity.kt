@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.viewModels
 import androidx.annotation.OptIn
 import androidx.core.view.updatePadding
 import androidx.core.view.updateLayoutParams
@@ -30,6 +31,8 @@ import cn.partialy.pm.ui.playlistdetail.PlaylistDetailContentAdapter
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderController
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
 import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
+import cn.partialy.pm.ui.playlistdetail.OnlinePlaylistToLocalCoordinator
+import cn.partialy.pm.ui.playlistdetail.OnlinePlaylistToLocalViewModel
 import cn.partialy.pm.ui.playlistdetail.missingPlayableSongs
 import cn.partialy.pm.ui.playlistdetail.resolveDynamicBatchSize
 import cn.partialy.pm.ui.widget.observeSongListPlaybackState
@@ -45,6 +48,8 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlaylistDetailActivity : BaseDownloadActivity() {
+    private val conversionViewModel: OnlinePlaylistToLocalViewModel by viewModels()
+    private lateinit var conversionCoordinator: OnlinePlaylistToLocalCoordinator
 
     @Inject
     lateinit var playlistCollectionManager: PlaylistCollectionManager
@@ -80,6 +85,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         headerController = PlaylistDetailHeaderController(binding.playlistHeader)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
+        conversionCoordinator = OnlinePlaylistToLocalCoordinator(this, conversionViewModel)
 
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = false, lightNavigationBarIcons = true)
         applyPlaylistDetailInsets()
@@ -110,6 +116,10 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 deleteTarget = deleteTarget,
                 manager = playlistCollectionManager,
                 onDeleted = { finishAnimated() },
+                onConvertToLocal = {
+                    conversionCoordinator.request(buildKgCollectedPlaylistForStorage().toCanonicalPlaylist(),
+                        contentAdapter.currentSongs)
+                },
             )
         }
 
@@ -341,7 +351,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 }
                 return@withContext
             }
-            val mapped = first.info.mapNotNull { it.toSongInfoOrNull() }
+            val mapped = first.info.orEmpty().mapNotNull { it.toSongInfoOrNull() }
             val total = first.count
             playlistApiTotalCount = total
             val label = getString(
@@ -385,7 +395,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                             pagesize = pageSize,
                         ).getOrNull()?.data
                     } ?: return@launch
-                    val songs = data.info.mapNotNull { it.toSongInfoOrNull() }
+                    val songs = data.info.orEmpty().mapNotNull { it.toSongInfoOrNull() }
                     if (songs.isEmpty()) return@launch
                     withContext(Dispatchers.Main) {
                         contentAdapter.appendFromApi(

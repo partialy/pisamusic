@@ -7,13 +7,14 @@ internal fun onlinePlaylistPageOutcome(
     total: Int,
     nextOffset: Int,
     rawSize: Int,
-    addedCount: Int,
     pageSize: Int,
     totalIsAuthoritative: Boolean = true,
+    repeatedPage: Boolean = false,
 ): OnlinePlaylistPageOutcome = when {
-    rawSize > 0 && addedCount == 0 -> OnlinePlaylistPageOutcome.FAILED
-    totalIsAuthoritative && total > 0 && nextOffset >= total -> OnlinePlaylistPageOutcome.COMPLETE
-    (!totalIsAuthoritative || total <= 0) && rawSize < pageSize -> OnlinePlaylistPageOutcome.COMPLETE
+    repeatedPage -> OnlinePlaylistPageOutcome.FAILED
+    totalIsAuthoritative && (total < 0 || nextOffset > total) -> OnlinePlaylistPageOutcome.FAILED
+    totalIsAuthoritative && nextOffset == total -> OnlinePlaylistPageOutcome.COMPLETE
+    !totalIsAuthoritative && rawSize < pageSize -> OnlinePlaylistPageOutcome.COMPLETE
     rawSize == 0 -> OnlinePlaylistPageOutcome.FAILED
     else -> OnlinePlaylistPageOutcome.CONTINUE
 }

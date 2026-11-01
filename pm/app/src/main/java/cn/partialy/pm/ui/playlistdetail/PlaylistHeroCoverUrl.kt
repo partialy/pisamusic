@@ -28,3 +28,13 @@ fun toHeroCoverCandidates(source: SongType?, originalUrl: String): List<String> 
     } else original
     return listOf(upgraded, fallback).distinct()
 }
+
+/** 持久化和远程请求仅接受可解析的 HTTP(S) 地址；保留 Hero 原有兼容返回值。 */
+fun requestablePlaylistCoverCandidates(source: SongType?, originalUrl: String): List<String> =
+    toHeroCoverCandidates(source, originalUrl).filter { value ->
+        runCatching {
+            val uri = URI(value)
+            uri.scheme in listOf("http", "https") && !uri.host.isNullOrBlank() &&
+                uri.rawUserInfo == null && "{size}" !in value
+        }.getOrDefault(false)
+    }

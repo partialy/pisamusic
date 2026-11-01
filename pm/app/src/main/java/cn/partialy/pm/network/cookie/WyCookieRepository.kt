@@ -7,6 +7,7 @@ import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.network.cookie.model.WyAccountResponse
 import cn.partialy.pm.network.cookie.model.WyPlaylistItem
 import cn.partialy.pm.network.cookie.model.WyPlaylistTrackAllResponse
+import cn.partialy.pm.network.cookie.model.WyPlaylistDetailAuthorityResponse
 import cn.partialy.pm.network.cookie.model.WyUserPlaylistResponse
 import cn.partialy.pm.network.wy.WyCloudSearchResponse
 import cn.partialy.pm.network.wy.WyLyricResponse
@@ -134,6 +135,13 @@ class WyCookieRepository @Inject constructor(
         http.getBlocking(configManager.wyApiTarget("user/playlist"), params)
     }
 
+    /** 新鲜成员身份快照，用于校验分页没有提前结束或漏页。 */
+    suspend fun getPlaylistDetailAuthority(id: String): Result<WyPlaylistDetailAuthorityResponse> = requestJson(
+        path = "playlist/detail",
+        params = mapOf("id" to id, "s" to "0", "timestamp" to System.currentTimeMillis().toString()),
+        type = WyPlaylistDetailAuthorityResponse::class.java,
+    )
+
     /**
      * 歌单全部歌曲（分页）：`/playlist/track/all?id=&limit=&offset=`。
      * @param limit null 时由服务端按歌单曲目数决定（尽量不传以免超大响应）。
@@ -147,6 +155,7 @@ class WyCookieRepository @Inject constructor(
             val params = buildMap {
                 put("id", id)
                 put("offset", offset.toString())
+                put("timestamp", System.currentTimeMillis().toString())
                 limit?.let { put("limit", it.toString()) }
             }
             val result = http.getBlocking(configManager.wyApiTarget("playlist/track/all"), params)

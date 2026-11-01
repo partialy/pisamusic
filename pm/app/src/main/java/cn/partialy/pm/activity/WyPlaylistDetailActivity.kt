@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.ViewGroup
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.viewModels
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.lifecycle.Lifecycle
@@ -33,6 +34,8 @@ import cn.partialy.pm.ui.playlistdetail.PlaylistDetailContentAdapter
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailHeaderController
 import cn.partialy.pm.ui.playlistdetail.PlaylistDetailInteractionController
 import cn.partialy.pm.ui.playlistdetail.PlaylistHeaderArtwork
+import cn.partialy.pm.ui.playlistdetail.OnlinePlaylistToLocalCoordinator
+import cn.partialy.pm.ui.playlistdetail.OnlinePlaylistToLocalViewModel
 import cn.partialy.pm.ui.playlistdetail.missingPlayableSongs
 import cn.partialy.pm.ui.playlistdetail.resolveDynamicBatchSize
 import cn.partialy.pm.ui.widget.observeSongListPlaybackState
@@ -52,6 +55,8 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class WyPlaylistDetailActivity : BaseDownloadActivity() {
+    private val conversionViewModel: OnlinePlaylistToLocalViewModel by viewModels()
+    private lateinit var conversionCoordinator: OnlinePlaylistToLocalCoordinator
 
     @Inject
     lateinit var playlistCollectionManager: PlaylistCollectionManager
@@ -90,6 +95,7 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         headerController = PlaylistDetailHeaderController(binding.playlistHeader)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
+        conversionCoordinator = OnlinePlaylistToLocalCoordinator(this, conversionViewModel)
 
         if (!parseIntentArgs()) return
 
@@ -159,6 +165,10 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                 deleteTarget = deleteTarget,
                 manager = playlistCollectionManager,
                 onDeleted = { finishAnimated() },
+                onConvertToLocal = {
+                    conversionCoordinator.request(buildWyCollectedPlaylistForStorage().toCanonicalPlaylist(),
+                        contentAdapter.currentSongs)
+                },
             )
         }
     }

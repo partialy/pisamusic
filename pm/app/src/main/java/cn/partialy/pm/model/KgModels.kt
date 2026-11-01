@@ -139,9 +139,10 @@ data class KgPlaylistTrackAllApiResponse(
 
 data class KgPlaylistTrackAllData(
     val pagesize: Int = 0,
-    val count: Int = 0,
+    /** 缺失总数不可当成已确认空歌单。 */
+    val count: Int = -1,
     val page: Int = 0,
-    val info: List<KgPlaylistTrackRow> = emptyList(),
+    val info: List<KgPlaylistTrackRow>? = null,
     val userid: Long = 0,
 )
 

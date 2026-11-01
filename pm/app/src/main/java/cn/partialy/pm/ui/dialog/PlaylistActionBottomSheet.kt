@@ -9,9 +9,9 @@ import cn.partialy.pm.activity.ShareDetailActivity
 import cn.partialy.pm.model.CanonicalPlaylist
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.toCollectedPlaylist
-import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
+import cn.partialy.pm.model.SongType
+import cn.partialy.pm.ui.playlistdetail.PlaylistCoverRequestBinder
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
-import coil.load
 
 object PlaylistActionBottomSheet {
     fun show(
@@ -20,6 +20,7 @@ object PlaylistActionBottomSheet {
         deleteTarget: CollectedPlaylist? = null,
         manager: PlaylistCollectionManager? = null,
         onDeleted: () -> Unit = {},
+        onConvertToLocal: (() -> Unit)? = null,
     ) {
         val items = buildList {
             add(ActionMenuItem(R.drawable.ic_info_24, activity.getString(R.string.song_more_detail)) {
@@ -40,6 +41,11 @@ object PlaylistActionBottomSheet {
             add(ActionMenuItem(R.drawable.ic_share_24, activity.getString(R.string.song_more_share)) {
                 ShareBottomSheet.showPlaylist(activity, playlist)
             })
+            if (onConvertToLocal != null && playlist.source.lowercase() in listOf("kg", "wy")) {
+                add(ActionMenuItem(R.drawable.ic_playlist_24, activity.getString(R.string.playlist_convert_action)) {
+                    onConvertToLocal()
+                })
+            }
             if (deleteTarget != null && manager != null) {
                 add(ActionMenuItem(
                     iconRes = R.drawable.ic_delete_24,
@@ -50,6 +56,7 @@ object PlaylistActionBottomSheet {
                 })
             }
         }
+        var coverBinder: PlaylistCoverRequestBinder? = null
         ActionMenuBottomSheet.show(
             activity = activity,
             items = items,
@@ -61,8 +68,11 @@ object PlaylistActionBottomSheet {
                 root.findViewById<TextView>(R.id.songInfoTitleView).text = title
                 root.findViewById<TextView>(R.id.songInfoArtistView).text = description
                 val coverView = root.findViewById<ImageView>(R.id.songInfoCoverView)
-                bindCover(coverView, playlist.cover)
+                coverBinder = PlaylistCoverRequestBinder(coverView).also {
+                    it.bind(runCatching { SongType.valueOf(playlist.source.uppercase()) }.getOrNull(), playlist.cover)
+                }
             },
+            onDismiss = { coverBinder?.dispose() },
         )
     }
 
@@ -108,22 +118,4 @@ object PlaylistActionBottomSheet {
         PlaylistDeleteConfirmation.showSingle(activity, playlist, manager, onDeleted)
     }
 
-    private fun bindCover(view: ImageView, cover: String) {
-        MinePlaylistCoverResolver.localTemplateRes(cover)?.let { res ->
-            view.load(res) {
-                placeholder(res)
-                error(res)
-            }
-            return
-        }
-        val value = cover.trim()
-        if (value.startsWith("http://") || value.startsWith("https://")) {
-            view.load(value) {
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
-            }
-        } else {
-            view.setImageResource(R.drawable.ic_pm_icon)
-        }
-    }
 }

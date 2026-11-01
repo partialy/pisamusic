@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playlist_convert_action">转为本地歌单</string>
+    <string name="playlist_convert_confirm">将完整读取在线歌单，创建独立的本地歌单。不下载音频，不修改原歌单，同名歌单也会分别保留。</string>
+    <string name="playlist_convert_progress">已读取 %1$d 首，已跳过 %2$d 条无效或重复记录</string>
+    <string name="playlist_convert_saving">保存中…</string>
+    <string name="playlist_convert_saving_message">已读取 %1$d 首，跳过 %2$d 条，正在保存…</string>
+    <string name="playlist_convert_success">已创建本地歌单：%1$d 首，跳过 %2$d 条无效或重复记录</string>
+    <string name="playlist_convert_failed">转换失败，未创建歌单。已读取 %1$d 首，跳过 %2$d 条，请重试</string>
+</resources>

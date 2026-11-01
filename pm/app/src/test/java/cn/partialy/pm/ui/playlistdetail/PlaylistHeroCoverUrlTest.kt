@@ -61,4 +61,15 @@ class PlaylistHeroCoverUrlTest {
         assertEquals("https://imgessl.kugou.com/500/a.jpg",
             toHeroCoverCandidates(null, "https://imgessl.kugou.com/{size}/a.jpg").first())
     }
+
+    @Test fun persistentCoversNeverContainUnresolvedTemplatesOrInvalidAddresses() {
+        assertEquals(listOf("https://custom.test/500/a.jpg", "https://custom.test/240/a.jpg"),
+            requestablePlaylistCoverCandidates(SongType.KG, "https://custom.test/{size}/a.jpg"))
+        for (url in listOf("", "not a URL", "local_pop", "local_file:/a.jpg", "file:///a.jpg",
+            "https://user:password@example.com/a.jpg", "https://unknown.test/{size}/a.jpg")) {
+            assertTrue(requestablePlaylistCoverCandidates(null, url).isEmpty())
+        }
+        val remote = "https://custom.test/a.jpg?param=100y100"
+        assertEquals(listOf(remote), requestablePlaylistCoverCandidates(SongType.WY, remote))
+    }
 }

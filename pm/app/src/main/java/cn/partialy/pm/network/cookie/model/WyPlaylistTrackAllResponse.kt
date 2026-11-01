@@ -29,10 +29,10 @@ data class WyPlaylistTrackAlbum(
     val picUrl: String? = null,
 )
 
-fun WyPlaylistTrackSong.toSongInfoOrNull(): SongInfo? {
+fun WyPlaylistTrackSong.toSongInfoOrNull(allowBlankName: Boolean = false): SongInfo? {
     val sid = id ?: return null
     val songName = name?.trim().orEmpty()
-    if (songName.isEmpty()) return null
+    if (songName.isEmpty() && !allowBlankName) return null
     val artist = ar.orEmpty()
         .mapNotNull { it.name?.trim()?.takeIf { n -> n.isNotEmpty() } }
         .joinToString("、")
