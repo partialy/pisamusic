@@ -1,5 +1,6 @@
 package cn.partialy.pm.network.api
 
+import cn.partialy.pm.appshare.AppShareResponse
 import cn.partialy.pm.model.BootstrapConfigResponse
 import cn.partialy.pm.model.CheckUpdateResponse
 import cn.partialy.pm.model.DiscoverResponse
@@ -63,6 +64,9 @@ import retrofit2.http.Query
 import retrofit2.http.Url
 
 interface SystemApiService {
+    @GET("api/config/app-share")
+    suspend fun getAppShare(): AppShareResponse
+
     @GET
     suspend fun getBootstrapConfig(@Url path: String): BootstrapConfigResponse
 

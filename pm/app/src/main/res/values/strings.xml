@@ -1246,4 +1246,9 @@
     <string name="download_management_unknown_song">未知歌曲</string>
     <string name="download_management_unknown_size">未知大小</string>
     <string name="download_management_source_quality">%1$s · %2$s</string>
+    <string name="app_share_title">分享App</string>
+    <string name="app_share_more">更多</string>
+    <string name="app_share_default_description">发现更多好音乐</string>
+    <string name="app_share_default_copy">分享 Pisa Music，发现更多好音乐！\nhttps://pisamusic.partialy.cn/download/</string>
+    <string name="app_share_no_target">暂无可用的分享应用</string>
 </resources>

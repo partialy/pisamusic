@@ -19,6 +19,7 @@ import cn.partialy.pm.activity.setting.SettingAnnouncementsActivity
 import cn.partialy.pm.activity.setting.SettingCheckUpdateActivity
 import cn.partialy.pm.databinding.ActivitySettingsBinding
 import cn.partialy.pm.ui.dialog.SettingsOption
+import cn.partialy.pm.ui.dialog.AppShareBottomSheet
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
 import cn.partialy.pm.utils.ServerDevicePrefs
 import cn.partialy.pm.utils.SettingsPrefs
@@ -227,6 +228,11 @@ class SettingsActivity : BaseActivity() {
                 startActivity(Intent(this@SettingsActivity, SettingAboutActivity::class.java))
                 AppActivityTransitions.applyForward(this@SettingsActivity)
             }
+        }
+
+        binding.appShareEntry.apply {
+            bindNavRow(root, R.drawable.settings_ic_app_share, getString(R.string.app_share_title), null)
+            root.setOnClickListener { AppShareBottomSheet.show(this@SettingsActivity) }
         }
 
         bindDeviceIdLabel()
