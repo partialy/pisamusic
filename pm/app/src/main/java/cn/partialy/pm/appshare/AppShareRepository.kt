@@ -6,7 +6,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.network.api.SystemApiService
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.net.URI
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -43,10 +43,11 @@ class AppShareRepository @Inject constructor(
         } ?: BuildConfig.VERSION_NAME)
     }
 
-    private fun isWebUrl(value: String): Boolean = runCatching {
-        val uri = URI(value)
-        uri.scheme in listOf("http", "https") && !uri.host.isNullOrBlank()
-    }.getOrDefault(false)
+    private fun isWebUrl(value: String): Boolean {
+        val url = value.toHttpUrlOrNull() ?: return false
+        // 只校验，不改写配置中的原始二维码文本；同时兼容大小写协议与国际化域名。
+        return url.username.isEmpty() && url.password.isEmpty()
+    }
 
     private fun defaults() = AppShareConfig(
         appName = "Pisa Music",
