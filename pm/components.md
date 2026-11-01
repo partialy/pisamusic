@@ -38,7 +38,7 @@
 | 下载音质选择弹窗 | 下载歌曲前选择音质 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/QualityPickerBottomSheet.kt` | `dialog_download_quality_picker.xml`、`include_song_info_header.xml`、`item_settings_option_sheet_row.xml` | 歌曲信息放在 `PmSlotDialog` header slot 固定显示，音质选项放 content slot 滚动，复用通用主题色选项行且无选项分割线；默认选中项不可用时复用首个可用项，确认不得返回禁用项。 |
 | 歌曲更多菜单 | 歌曲操作菜单 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/SongMoreMenu.kt` | `ActionMenuBottomSheet` | 歌曲业务保留在该入口，外观和操作行复用通用操作菜单。 |
 | 音乐分享 Sheet | 歌曲 / 歌单链接与二维码分享 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ShareBottomSheet.kt` | `bottom_sheet_share.xml`、`include_share_info_header.xml`、`ShareQrBitmapFactory` | 顶部封面信息、居中二维码、一起听同款蓝色 M3 链接输入框和复制图标；未登录不创建分享记录。 |
-| 歌单操作菜单 | 歌单详情、分享、收藏、删除 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PlaylistActionBottomSheet.kt` | `ActionMenuBottomSheet`、`ShareBottomSheet`、`ShareDetailActivity` | 网络歌单支持收藏 / 取消收藏、详情和分享；本地歌单不显示收藏，删除动作仅在传入本地收藏记录时显示。 |
+| 歌单操作菜单 | 歌单详情、分享、收藏、删除和在线转本地 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PlaylistActionBottomSheet.kt` | `ActionMenuBottomSheet`、`ShareBottomSheet`、`ShareDetailActivity`、`PlaylistCoverRequestBinder` | KG/WY 详情可传入转换回调；本地歌单不显示收藏或转换。封面兼容模板、本地文件和远程尺寸回退。 |
 | 一起听成员管理菜单 | 房主转让、移出成员 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/ListenTogetherMemberActionMenu.kt` | `ActionMenuBottomSheet`、`PmMinimalDialog` | 仅房主点击其他成员时显示，危险操作使用红色并二次确认。 |
 | 歌单更多菜单 | 我的歌单操作菜单 | `pm/app/src/main/java/cn/partialy/pm/ui/mine/MinePlaylistMoreBottomSheet.kt` | `bottom_sheet_mine_playlist_more.xml` | 歌单重命名、删除等菜单参考。 |
 | 公告底部弹窗 | 首页结构化公告原生内容展示 | `pm/app/src/main/res/layout/layout_announcement_bottom_sheet.xml` | `MainActivity` 中公告弹窗逻辑、`AnnouncementContentRenderer`、`bg_bottom_radius_sheet.xml` | 复用选项 Sheet 的圆角背景和日夜弹层色，隐藏滚动条但保留滑动；正文由 `AnnouncementContentRenderer` 原生渲染（文本、高亮、URL/协议下划线、复制图标与 Coil 图片）；“我知道了”使用次级操作色，“前往”跟随 `colorPrimary`。 |
@@ -54,7 +54,7 @@
 | 无图标二级设置页 | 播放、下载、歌词、数据等分组设置页 | `pm/app/src/main/res/layout/activity_sub_settings.xml`、`item_sub_settings_*.xml` | `SubSettingsActivity`、`SubSettingsAdapter`、`SubSettingsItem`、`DownloadSettingsActivity`、`LyricSettingsActivity`、`DataSettingsActivity` | 子页只声明标题、分组和 Option / Navigation / Info / Switch；`Info` 是只读信息行，不显示箭头、不响应点击；`summary` 可选，有说明时使用较小、较淡的第二行，无说明时保持原单行布局。 |
 | 缓存分类卡片 | 设置/工具页统计卡片 | `pm/app/src/main/res/layout/include_cache_category_card.xml` | `CacheManagementActivity` | 有标题、说明、大小、操作按钮。 |
 | 登录表单 | 账号/第三方导入登录表单 | `pm/app/src/main/res/layout/activity_login.xml`、`pm/app/src/main/res/layout/include_playlist_import_kg_login.xml` | `LoginActivity`、`WyPlaylistLoginActivity` | 输入框、验证码按钮、扫码占位可参考。 |
-| 本地歌单创建表单 | 新建歌单、封面选择表单 | `pm/app/src/main/res/layout/dialog_create_local_playlist.xml` | `PmSlotDialog` 调用场景 | 居中表单优先参考。 |
+| 本地歌单创建表单 | 新建歌单、封面选择及初始歌曲事务保存 | `pm/app/src/main/res/layout/dialog_create_local_playlist.xml` | `LocalPlaylistCreateDialog`、`PmSlotDialog` | “我的”、单曲和批量添加共用，支持模板与自定义封面、失败重试和提交防重。 |
 | 账号资料 WebView 容器 | 资料页 WebView 承载 | `pm/app/src/main/res/layout/activity_account_profile.xml` | `AccountProfileActivity` | 全屏 WebView 容器和系统栏处理参考。 |
 | 纯文本内容页 | 服务协议、隐私政策正文 | `pm/app/src/main/res/layout/activity_plain_text_content.xml` | `BaseSettingPlainTextActivity`、`SettingServiceAgreementActivity`、`SettingPrivacyPolicyActivity` | 使用原生 `NestedScrollView` + `TextView`，保留后端换行和标题，不解析 HTML。 |
 | 故障上报能力卡片 | 本地故障统计和立即上报 | `pm/app/src/main/res/layout/activity_data_management.xml` | `DataManagementActivity`、`FaultReportRepository`、`PmMinimalDialog` | 与导入与导出页其他卡片统一使用圆角卡片、指标磁贴和 TonalButton；无待上报数据时禁用按钮，确认上传复用通用居中弹窗。 |
@@ -133,5 +133,7 @@
 
 | UI 类型 | 用途 | 参考位置 | 规则 |
 | --- | --- | --- | --- |
-| 在线歌单多选页 | KG/WY 歌曲搜索、多选、下载与收藏 | `activity/OnlinePlaylistBatchActivity.kt`、`res/layout/activity_online_playlist_batch.xml` | 复用 `LocalPlaylistSongManagementAdapter`；底部全选、反选、下载、收藏四项；未完整加载时禁用全量全选，缺页显示重试；搜索外勾选保留。 |
+| 在线歌单多选页 | KG/WY 歌曲搜索、多选、下载、收藏与添加到 | `activity/OnlinePlaylistBatchActivity.kt`、`res/layout/activity_online_playlist_batch.xml` | 复用 `LocalPlaylistSongManagementAdapter`；底部全选、反选、操作三项；操作菜单复用 `ActionMenuBottomSheet`；未完整加载时禁用全量全选，缺页显示重试；搜索外勾选保留。 |
+| 添加到目标选择器 | 单曲或批量添加到队列、已有或新建自建歌单 | `ui/dialog/AddToPlaylistBottomSheet.kt`、`res/layout/item_pick_local_playlist_row.xml` | 共用目标行、封面与队列计数；超过 100 首确认；返回实际新增、已存在与失败结果。 |
+| 在线转本地确认与进度 | 完整抓取 KG/WY 歌单并事务创建本地副本 | `ui/playlistdetail/OnlinePlaylistToLocalCoordinator.kt`、`OnlinePlaylistToLocalViewModel.kt` | 复用 `PmMinimalDialog` 与 Material 加载指示器；加载可取消、保存不可取消；ViewModel 保留旋转会话，成功只跳转一次。 |
 | 高清 Hero 封面 | 在线歌单详情大封面 | `ui/playlistdetail/PlaylistHeroCoverUrl.kt`、`PlaylistDetailHeaderController.kt` | 已知平台 500px 候选失败后回退原 URL，再用既有占位；不影响列表缩略图。 |

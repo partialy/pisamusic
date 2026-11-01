@@ -216,7 +216,7 @@
 - 分享 Sheet 使用 `bottom_sheet_share.xml` 与 `include_share_info_header.xml`：顶部封面 + 标题 / 描述，二维码居中，链接区域使用一起听同款蓝色描边 Material `TextInputLayout` 的“链接分享”标签和右侧复制图标。
 - 分享详情页为 `ShareDetailActivity`，使用原生 XML + ViewBinding，不使用 WebView。外部链接继续由 `SplashActivity` / `MainActivity` 的 `pisamusic://scan` 分发处理：先尝试一起听，再尝试 `ShareLink`，命中分享后进入 `ShareDetailActivity`；歌曲 / 歌单更多菜单里的“详情”使用本地 canonical 快照启动同一个 Activity，不调用分享接口、不生成 uuid。
 - 分享详情的歌单来源必须复用 `SongSourceTagBinder`，显示与歌曲歌手尾部一致的 K / Y / W / LOCAL 标签，不单独展示平台名称。点击本地“详情”进入时歌单右侧动作复用 `ShareBottomSheet` 分享；UUID 分享唤醒进入时右侧动作收藏或取消收藏 KG/WY 歌单，不再提供复制 ID 按钮。
-- `PlaylistActionBottomSheet` 是歌单更多菜单入口，网络歌单显示“收藏 / 取消收藏”、详情和分享，本地歌单不显示收藏动作；收藏状态和写入必须走 `PlaylistCollectionManager`，不要另建收藏存储。
+- `PlaylistActionBottomSheet` 是歌单更多菜单入口，网络歌单显示“收藏 / 取消收藏”、详情和分享，KG/WY 详情另传入“转为本地歌单”回调；本地歌单不显示收藏或转换动作。收藏状态和写入必须走 `PlaylistCollectionManager`，不要另建收藏存储。菜单封面使用 `PlaylistCoverRequestBinder` 复用详情 URL 候选与回退，兼容本地模板和 `local_file:`，关闭菜单后释放请求。
 - 分享 rawJson 只能使用 `CanonicalSong` / `CanonicalPlaylist` 快照，不要上传播放 URL、filePath、歌词正文、内嵌封面二进制；本地封面无法跨设备访问时应清空或显示默认封面。
 
 ## 通用 UI 组件补充
@@ -266,7 +266,10 @@
 ## 在线歌单批量操作与下载队列
 
 - KG/WY 在线歌单 Hero 封面通过 `PlaylistHeroCoverUrl` 生成 500px 优先、原 URL 回退候选；仅处理已识别的平台图片规则，不放大歌曲行缩略图，不把 Hero URL 写回收藏或分享。
-- `OnlinePlaylistBatchActivity` 负责在线歌单歌曲多选，复用本地批量管理的歌曲行与选择规则；搜索防抖 150ms，40 条渲染窗口，全选和反选作用于过滤全集，保留筛选外选择。未完整加载时允许手选，禁用全量全选，失败可重试；Intent 只传来源、歌单 ID 和轻量会话引用，重建可重新加载。
+- `OnlinePlaylistBatchActivity` 负责在线歌单歌曲多选，底部固定为“全选 / 反选 / 操作”，操作菜单提供下载、收藏、添加到；复用本地批量管理的歌曲行与选择规则，搜索防抖 150ms，40 条渲染窗口，全选和反选作用于过滤全集，保留筛选外选择。未完整加载时允许手选，禁用全量全选，失败可重试；Intent 只传来源、歌单 ID 和轻量会话引用，重建可重新加载。
+- 单曲与批量添加目标共用 `AddToPlaylistBottomSheet`，支持当前队列、已有自建歌单及新建歌单；新建表单共用 `LocalPlaylistCreateDialog`。超过 100 首添加前确认一次；仅根据实际提交结果清除成功或已存在项的勾选，失败保留。队列追加走 `MusicController.appendSongsLazyWithResult`，保持原顺序且不自动播放。
+- 本地歌单歌曲统一按 `SongType + songId` 识别，SQLite V13 主键为 `(playlist_id, song_type, song_id)`，V12 升级保留原数据、顺序与 payload。`createLocalPlaylistWithSongs` 与批量追加将歌单、歌曲和账号快照对应的 outbox 写在同一事务内，提交后才发布内存与 Flow；异步镜像和网络失败不撤销本地成功。启动时已有 SQLite 歌单不再合并旧 JSON 曲目；ZIP 恢复通过显式事务追加 API 合并歌曲，不依赖启动迁移。
+- 在线转本地歌单由 `OnlinePlaylistToLocalViewModel` 持有会话、`OnlinePlaylistToLocalCoordinator` 展示确认和进度；旋转保留会话，进程重建不自动重新提交。加载阶段可取消，进入短事务保存阶段后不可取消或重复提交，成功结果消费后打开新 UUID 的本地歌单。当前详情没有可靠的全量快照标记，因此转换重新分页读取；KG 依赖明确且一致的总数，WY 先通过 `/playlist/detail` 获取完整 `trackIds` 与 `trackCount`，分页结果必须逐页匹配权威歌曲身份与顺序，且明确存在 `songs` 数组（允许经校验的空数组），不能用旧 totalHint 截断。缺页、重复页、错误和超时不得保存为完整歌单；有效歌曲按来源+ID 保留首次记录与顺序，保留已知不可播放标记，汇总提示无效或重复跳过数量。转换封面保存可请求 URL，不保存 `{size}` 模板，不下载音频或修改原歌单。
 - 批量收藏只通过 `LoveManager` 幂等添加未收藏歌曲，不得循环 toggle；仅新入库歌曲产生 UPSERT 同步。批量下载一次选择音质，超过 100 首先确认总量，操作结束保留筛选，只清除成功处理或已存在项目的选择。
 - 下载入口只负责音质选择和入队，不再弹出进度 Sheet。应用级 `DownloadQueueCoordinator` 以 FIFO 调度，最多 2 个任务覆盖准备、取链、下载和文件处理全流程；不持有 Activity，进程存活时离开页面继续执行，进程重启未完成项仍标失败。
 - 下载可在同来源、当前账号允许的较低音质回退，仓库记录实际音质；歌词是可选资产，获取失败不阻断音频，也不得报成音频取链失败。云盘临近执行才签发 URL，不持久化播放地址。
