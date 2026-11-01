@@ -35,7 +35,7 @@
 
 ## Android 架构
 
-- 侧栏“链接导入”位于账号歌单导入与定时关闭之间，始终可用且不要求第三方账号登录；`PlaylistLinkImportDialog` 复用 `PmSlotDialog` 与 M3 多行输入框，仅主动点击尾部按钮时读取剪贴板最新文本并替换输入，不自动提交。`PlaylistShareLinkParser` 只解析网易 `music.163.com` 的普通、移动端及 hash 路由歌单链接（支持完整分享文案与转义链接），多链接只处理首个有效网易歌单；酷狗及短链接暂不支持。打开前由 `WyCookieRepository.getPlaylistMetadata` 获取元信息并校验可访问性，成功进入原 `WyPlaylistDetailActivity`，不自动收藏或创建本地歌单；失败保留输入，关闭弹窗取消请求。
+- 侧栏“链接导入”位于账号歌单导入与定时关闭之间，始终可用且不要求第三方账号登录；`PlaylistLinkImportDialog` 复用 `PmSlotDialog` 与 M3 多行输入框，仅主动点击尾部按钮时读取剪贴板最新文本并替换输入，不自动提交。`PlaylistShareLinkParser` 只解析网易 `music.163.com` 的普通、移动端及 hash 路由歌单链接（支持完整分享文案与转义链接），同时支持酷狗 `m.kugou.com` / `www.kugou.com` / `kugou.com` 的 `/songlist/gcid_...` 链接：按 z 分隔的 35 进制字段还原候选 `collection_*` ID（尾段首位还原末字段，其余两位不用于 ID），只取主链接的分享副本身份，不用 `src_cid` 替代；多链接按文本顺序只处理首个有效的受支持歌单，短链接暂不支持。打开前由 `WyCookieRepository.getPlaylistMetadata` / `KgRepository.getPlaylistMetadata` 获取元信息并校验精确身份与可访问性，成功进入原 `WyPlaylistDetailActivity` / `PlaylistDetailActivity`，不自动收藏或创建本地歌单；失败保留输入，关闭弹窗取消请求。
 
 - 单模块：`:app`
 - 主要语言：Kotlin，保留少量 Java
