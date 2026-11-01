@@ -244,8 +244,8 @@
 | 预览历史版本删除影响 | `GET` | `/api/admin/update-history/:id/delete-preview` | [./admin/deleteHistoryPreview.md](./admin/deleteHistoryPreview.md) |
 | 删除历史发布版本及关联文件 | `DELETE` | `/api/admin/update-history/:id` | [./admin/deleteHistory.md](./admin/deleteHistory.md) |
 | 仅删除发布版本关联的安装包文件 | `DELETE` | `/api/admin/update-history/:id/release-file` | [./admin/deleteHistoryReleaseFile.md](./admin/deleteHistoryReleaseFile.md) |
-| 分页查询统一文件登记记录 | `GET` | `/api/admin/files` | [./admin/listFiles.md](./admin/listFiles.md) |
-| 删除统一文件记录及七牛对象 | `DELETE` | `/api/admin/files/:id` | [./admin/deleteFile.md](./admin/deleteFile.md) |
+| 分页查询统一文件登记记录（含 App 分享图标筛选） | `GET` | `/api/admin/files` | [./admin/listFiles.md](./admin/listFiles.md) |
+| 删除统一文件及七牛对象（保护当前 App 分享图标） | `DELETE` | `/api/admin/files/:id` | [./admin/deleteFile.md](./admin/deleteFile.md) |
 | 获取安装包直传七牛上传凭证 | `POST` | `/api/admin/release-files/upload-token` | [./admin/getReleaseFileUploadToken.md](./admin/getReleaseFileUploadToken.md) |
 | 登记已上传七牛的安装包 | `POST` | `/api/admin/release-files/complete` | [./admin/completeReleaseFileUpload.md](./admin/completeReleaseFileUpload.md) |
 | 获取 PC 自动更新文件上传凭证 | `POST` | `/api/admin/desktop-updates/upload-token` | [./admin/getDesktopUpdateUploadToken.md](./admin/getDesktopUpdateUploadToken.md) |

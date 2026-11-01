@@ -16,7 +16,7 @@
 | 参数名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
 | `status` | `string` | 否 | 状态筛选：`uploaded`（默认已上传生效）/ `deleted`（已标记删除）/ `all`（全部） |
-| `usageType` | `string` | 否 | 资产用途：`release-package`（安装包）/ `desktop-update`（PC自动更新）/ `all`（全部） |
+| `usageType` | `string` | 否 | 资产用途：`release-package`（安装包）/ `desktop-update`（PC自动更新）/ `app-share-icon`（App 分享图标）/ `all`（全部） |
 | `platform` | `string` | 否 | 平台筛选：`android` / `desktop` / `win32` |
 | `version` | `string` | 否 | 版本号过滤 |
 | `keyword` | `string` | 否 | 文件名或对象 Key 模糊搜索关键词 |
@@ -26,6 +26,8 @@
 ---
 
 ## 响应数据
+
+App 分享图标返回 `usageType="app-share-icon"`、`assetType="image"`。`referencedBy` 为字符串数组，当前正式图标包含「当前 App 分享图标」；上传未保存及更换后的旧图没有该引用。当前正式图标禁止删除，旧图可经文件管理删除并保留逻辑删除记录。
 
 ### 成功响应
 
@@ -51,7 +53,7 @@
         "fileSize": 93532160,
         "status": "uploaded",
         "active": true,
-        "referencedBy": "release:hist_1,desktop_update:1.5.0",
+        "referencedBy": ["发布记录 hist_1", "PC 自动更新 1.5.0"],
         "createdAt": 1700000000000,
         "updatedAt": 1700000000000,
         "deletedAt": null

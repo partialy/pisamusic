@@ -2,6 +2,8 @@
 
 在后台文件管理中删除指定的七牛文件记录。调用七牛云 API 真实物理删除存储对象，本地数据记录标记为 `deleted`，并自动清理历史发布引用 `update_history.release_file_id`、活跃自动更新引用以及当前生效版本的下载链接。
 
+`app-share-icon` 当前被 App 分享配置引用时禁止删除（返回错误「当前 App 分享图标不能删除，请先更换图标」）。先保存其他图标或默认图后，才允许删除旧图；正在异步删除的图标不能重新保存为当前图标。
+
 - **请求方法**：`DELETE`
 - **请求路径**：`/api/admin/files/:id`
 - **需要鉴权**：是（`Authorization: Bearer <AdminToken>`）

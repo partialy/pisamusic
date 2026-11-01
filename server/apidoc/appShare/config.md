@@ -34,7 +34,7 @@
 
 ## POST /api/admin/app-share/icon/complete
 
-管理员 JWT + 加密。请求 `{ key, bucket }`，必须来自尚未过期的上传会话。服务端核对会话、七牛 stat 的真实 MIME/大小，并请求对象 `?imageInfo` 验证实际格式与正方形；失败 HTTP 400，不登记文件。成功返回：
+管理员 JWT + 加密。请求 `{ key, bucket }`，首次完成必须来自尚未过期的上传会话；已完成会话允许幂等重试，直接返回仍有效的原文件记录。服务端核对会话、七牛 stat 的真实 MIME/大小，并请求对象 `?imageInfo` 验证实际格式与正方形；失败 HTTP 400，不登记文件。成功返回：
 
 ```json
 {"fileId":"uuid","url":"https://图片域名/pisamusic/app-share-icons/uuid.png","fileName":"icon.png","fileSize":12345,"mimeType":"image/png"}

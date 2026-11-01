@@ -2,6 +2,7 @@
 
 ## 后台文件管理与 PC 发布补充
 
+- App 推广分享与歌曲/歌单分享独立：配置存于 SQLite 单条 `app_share_config`，公开入口为 `GET /api/config/app-share`，管理员通过 `/api/admin/app-share` 读取、保存及上传图标。Admin「系统设置 → App分享」独立保存草稿；图标在七牛公开图片空间上传核验后登记 `file_records`（`usage_type='app-share-icon'`），保存配置才切换引用，当前引用图标禁止删除，旧图保留可清理。Android 设置页「关于」下的「分享App」立即展示缓存/默认 Sheet，再异步刷新，复制与系统分享复用同一份完整文案；默认二维码为 `https://pisamusic.partialy.cn/download/`，不增加歌曲分享记录或微信/QQ SDK。
 - 七牛上传文件统一登记到 `server` SQLite 的 `file_records` 表，后台管理接口为 `GET /api/admin/files` 和 `DELETE /api/admin/files/:id`。
 - 旧 `release_files` / `desktop_update_assets` 表已废弃，启动时会删除；发布安装包、PC 自动更新 `latest.yml` / EXE / blockmap 都直接读写 `file_records`，不要恢复旧表或旧表迁移逻辑。
 - PC 发布页的“上传安装包到七牛云”和“PC 自动更新文件 / 安装包 EXE”必须联动复用同一七牛对象；上传任意一处的 EXE 后，需要自动同步另一处的下载地址、文件大小、`releaseFileId` 或 installer 资产状态。
