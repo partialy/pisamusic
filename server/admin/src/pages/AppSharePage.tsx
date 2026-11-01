@@ -115,7 +115,7 @@ export default function AppSharePage() {
                     <Button icon={<UploadOutlined />} loading={uploading} onClick={() => inputRef.current?.click()}>上传图标</Button>
                     <Button onClick={() => { form.setFieldValue("iconFileId", null); setIconUrl(DEFAULT_ICON); }}>使用默认图标</Button>
                   </Space>
-                  <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={busy || !config} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void upload(file); }} />
+                  <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} disabled={busy || !config} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void upload(file); }} />
                   {uploading && <Progress percent={progress} size="small" />}
                 </Form.Item>
                 <Form.Item label="描述" name="description" rules={[{ max: 500 }]}><Input.TextArea rows={3} maxLength={500} showCount /></Form.Item>
