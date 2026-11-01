@@ -152,9 +152,9 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
                 onConfirm = {
                     lifecycleScope.launch {
                         val removed = withContext(Dispatchers.IO) {
-                            playlistCollectionManager.removeSongsFromLocalPlaylist(
+                            playlistCollectionManager.removeSongsFromLocalPlaylistByIdentity(
                                 playlistId,
-                                selectedSongs.map { it.id },
+                                selectedSongs,
                             )
                         }
                         if (removed) {

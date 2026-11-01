@@ -2,6 +2,7 @@ package cn.partialy.pm.sync
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import cn.partialy.pm.model.SyncChangeInput
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
@@ -14,17 +15,28 @@ class SyncOutboxStore(context: Context) {
 
     fun enqueue(itemType: String, itemKey: String, action: String, payloadJson: String = "{}") {
         if (itemType.isBlank() || itemKey.isBlank()) return
+        enqueueInTransaction(helper.writableDatabase, accountSnapshot(), itemType, itemKey, action, payloadJson)
+    }
+
+    /** 调用方传入同一事务连接，账户在整批操作开始时只取一次快照。 */
+    internal fun enqueueInTransaction(
+        db: SQLiteDatabase, accountId: String, itemType: String, itemKey: String,
+        action: String, payloadJson: String = "{}",
+    ) {
+        require(itemType.isNotBlank() && itemKey.isNotBlank())
         val values = ContentValues().apply {
             put("op_id", UUID.randomUUID().toString())
             put("item_type", itemType)
             put("item_key", itemKey)
             put("action", action)
-            put("account_id", currentAccountId())
+            put("account_id", accountId.trim())
             put("payload_json", payloadJson.ifBlank { "{}" })
             put("created_at", System.currentTimeMillis())
         }
-        helper.writableDatabase.insert("sync_outbox", null, values)
+        db.insertOrThrow("sync_outbox", null, values)
     }
+
+    internal fun accountSnapshot(): String = currentAccountId()
 
     fun listPending(accountId: String, limit: Int = 200): List<PendingSyncOp> {
         val normalizedAccountId = accountId.trim()

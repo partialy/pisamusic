@@ -403,7 +403,7 @@ class DataManagementActivity : BaseActivity() {
         }
 
         for ((name, bytes) in songFiles) {
-            mergeSongsFile(filesDir, name, bytes)
+            mergeSongsFile(name, bytes)
         }
         playlistCollectionManager.reload()
 
@@ -443,22 +443,16 @@ class DataManagementActivity : BaseActivity() {
         return newPlaylists.size
     }
 
-    /** 合并本地歌单曲目文件：按 id 去重追加 */
-    private fun mergeSongsFile(filesDir: File, fileName: String, importedBytes: ByteArray) {
+    /** 备份恢复是显式合并入口；直接按来源+ID 写入 SQLite，不依赖启动镜像迁移。 */
+    private fun mergeSongsFile(fileName: String, importedBytes: ByteArray) {
         val type = object : TypeToken<List<SongInfo>>() {}.type
         val imported: List<SongInfo> = try {
             gson.fromJson(String(importedBytes), type) ?: emptyList()
         } catch (_: Exception) { emptyList() }
         if (imported.isEmpty()) return
-
-        val file = File(filesDir, fileName)
-        val existing: List<SongInfo> = try {
-            if (file.exists()) gson.fromJson(file.readText(), type) ?: emptyList() else emptyList()
-        } catch (_: Exception) { emptyList() }
-
-        val existingIds = existing.map { it.id }.toHashSet()
-        val merged = existing + imported.filter { it.id !in existingIds }
-        file.writeText(gson.toJson(merged))
+        val playlistId = fileName.removePrefix("songs_").removeSuffix(".json")
+        val result = playlistCollectionManager.addSongsToLocalPlaylistWithResult(playlistId, imported)
+        check(result.failed.isEmpty()) { "备份歌单曲目合并失败：$playlistId" }
     }
 
     // ==================== 导出播放诊断日志 (JSON) ====================

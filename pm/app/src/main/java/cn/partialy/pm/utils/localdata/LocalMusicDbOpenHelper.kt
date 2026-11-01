@@ -53,6 +53,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         if (oldVersion < 12) {
             createPlaybackDiagnosticTables(db)
         }
+        if (oldVersion < 13) migratePlaylistSongIdentity(db)
     }
 
     private fun createLocalPlaylistTables(db: SQLiteDatabase) {
@@ -90,12 +91,30 @@ internal class LocalMusicDbOpenHelper(context: Context) :
                 payload_json TEXT NOT NULL DEFAULT '{}',
                 sort_order INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,
-                PRIMARY KEY (playlist_id, song_id),
+                PRIMARY KEY (playlist_id, song_type, song_id),
                 FOREIGN KEY (playlist_id) REFERENCES local_playlists(id) ON DELETE CASCADE
             )
             """.trimIndent()
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_local_playlist_songs_order ON local_playlist_songs(playlist_id, sort_order)")
+    }
+
+    /** OpenHelper 的升级事务保证换表失败整体回滚。 */
+    private fun migratePlaylistSongIdentity(db: SQLiteDatabase) {
+        val oldCount = db.rawQuery("SELECT COUNT(*) FROM local_playlist_songs", null).use {
+            it.moveToFirst(); it.getLong(0)
+        }
+        db.execSQL("ALTER TABLE local_playlist_songs RENAME TO local_playlist_songs_v12")
+        db.execSQL("DROP INDEX IF EXISTS idx_local_playlist_songs_order")
+        createLocalPlaylistTables(db)
+        // V3 升级会追加 canonical 列，旧库物理列顺序可能不同，必须显式列名。
+        val columns = "playlist_id,song_id,source,url_param,song_type,name,singer,artist,cover,cover_url,album,lyric,duration,payload_json,sort_order,updated_at"
+        db.execSQL("INSERT INTO local_playlist_songs ($columns) SELECT $columns FROM local_playlist_songs_v12")
+        val newCount = db.rawQuery("SELECT COUNT(*) FROM local_playlist_songs", null).use {
+            it.moveToFirst(); it.getLong(0)
+        }
+        check(oldCount == newCount) { "Playlist migration lost songs" }
+        db.execSQL("DROP TABLE local_playlist_songs_v12")
     }
 
     private fun createFavoriteTables(db: SQLiteDatabase) {
@@ -368,7 +387,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
 
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 12
+        private const val DB_VERSION = 13
     }
 
     private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {
