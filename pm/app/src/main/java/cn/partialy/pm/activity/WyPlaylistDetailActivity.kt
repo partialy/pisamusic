@@ -18,6 +18,7 @@ import cn.partialy.pm.databinding.ActivityPlaylistDetailBinding
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.toCanonicalPlaylist
 import cn.partialy.pm.network.cookie.WyCookieRepository
 import cn.partialy.pm.network.cookie.model.toSongInfoOrNull
@@ -174,7 +175,7 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
             title = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { getString(R.string.playlist_default_title) },
             description = intent.getStringExtra(EXTRA_PLAY_COUNT_LABEL).orEmpty()
                 .ifBlank { getString(R.string.playlist_default_description) },
-            artwork = PlaylistHeaderArtwork.Remote(intent.getStringExtra(EXTRA_COVER_URL).orEmpty()),
+            artwork = PlaylistHeaderArtwork.Remote(intent.getStringExtra(EXTRA_COVER_URL).orEmpty(), source = SongType.WY),
             trackCountText = if (playlistTrackTotalHint > 0) {
                 getString(R.string.playlist_track_count_compact, playlistTrackTotalHint)
             } else {
@@ -200,6 +201,10 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
             onToggleCollect = ::togglePlaylistCollect,
+            onBatchRequested = {
+                OnlinePlaylistBatchActivity.start(this, SongType.WY, pagingPlaylistId,
+                    headerController.state.title, contentAdapter.currentSongs, playlistTrackTotalHint)
+            },
             onSearchRequested = {
                 val songs = contentAdapter.currentSongs
                 PlaylistSongsSearchActivity.start(

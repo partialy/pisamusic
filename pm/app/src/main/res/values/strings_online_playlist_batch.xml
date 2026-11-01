@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="online_batch_title">批量操作</string>
+    <string name="online_batch_download">下载</string>
+    <string name="online_batch_favorite">收藏</string>
+    <string name="online_batch_loading">正在加载剩余歌曲（已加载 %1$d 首）；可手选，加载完成后可全选</string>
+    <string name="online_batch_failed">歌曲未加载完整（已加载 %1$d 首），点击重试</string>
+    <string name="online_batch_complete">已加载全部 %1$d 首歌曲</string>
+    <string name="online_batch_favorite_result">收藏 %1$d 首，已收藏 %2$d 首，失败 %3$d 首</string>
+    <string name="online_batch_large_download">即将添加 %1$d 首歌曲到下载队列，是否继续？</string>
+</resources>

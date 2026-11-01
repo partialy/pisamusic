@@ -3,7 +3,6 @@ package cn.partialy.pm.utils.JavaUtils;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -50,6 +49,7 @@ public class JDownloadManager {
             Context context,
             String url,
             String fileName,
+            String targetDirectory,
             String coverUrl,
             boolean embedMetadata,
             String title,
@@ -63,7 +63,7 @@ public class JDownloadManager {
                 finishCancelled(taskId, callback);
                 return;
             }
-            File downloadDir = new File(getDownloadPath(context));
+            File downloadDir = new File(targetDirectory);
             File targetFile = new File(downloadDir, fileName);
             String targetPath = targetFile.getAbsolutePath();
             Object fileLock = fileLocks.computeIfAbsent(targetPath, ignored -> new Object());
@@ -128,11 +128,6 @@ public class JDownloadManager {
             }
             if (file.exists()) {
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    Toast.makeText(
-                            context,
-                            context.getString(R.string.download_file_exists, file.getPath()),
-                            Toast.LENGTH_SHORT
-                    ).show();
                     callback.onSuccess(file.getPath());
                 });
                 return;
@@ -218,7 +213,6 @@ public class JDownloadManager {
                 AudioMetadataEmbedder.embed(file, title, artist, album, lyric, cover);
                 new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath()));
             } catch (Exception error) {
-                error.printStackTrace();
                 new Handler(Looper.getMainLooper()).post(() -> callback.onError(context.getString(
                         R.string.download_metadata_write_failed,
                         error.getMessage()
@@ -235,7 +229,6 @@ public class JDownloadManager {
                 finishCancelled(taskId, callback);
                 return;
             }
-            e.printStackTrace();
             new Handler(Looper.getMainLooper()).post(() ->
                     callback.onError(context.getString(R.string.download_error_detail, e.getMessage())));
         }

@@ -27,6 +27,7 @@ class DownloadManager private constructor(private val context: Context) {
     interface DownloadCallback {
         fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long)
         fun onProcessing(file: File) = Unit
+        fun onProducedFiles(file: File, sidecarPaths: List<String>) = Unit
         fun onSuccess(file: File, lyricResult: LyricSidecarWriteResult)
         fun onCancelled() = Unit
         fun onFailure(e: Exception)
@@ -46,6 +47,7 @@ class DownloadManager private constructor(private val context: Context) {
         fileName: String,
         songInfo: SongInfo,
         resolvedLyrics: ResolvedDownloadLyrics = ResolvedDownloadLyrics.NONE,
+        targetDirectory: String = DownloadPathManager.getDownloadPath(context),
         callback: DownloadCallback,
     ) {
         val embedMetadata = songInfo.type != SongType.KW
@@ -98,6 +100,7 @@ class DownloadManager private constructor(private val context: Context) {
                     }
                     val lyricResult = LyricSidecarWriter.write(file, resolvedLyrics)
                     mainHandler.post {
+                        callback.onProducedFiles(file, lyricResult.savedPaths)
                         if (cancelledTaskIds.remove(taskId)) {
                             callback.onCancelled()
                             return@post
@@ -126,6 +129,7 @@ class DownloadManager private constructor(private val context: Context) {
             context,
             url,
             fileName,
+            targetDirectory,
             coverUrl,
             embedMetadata,
             title,

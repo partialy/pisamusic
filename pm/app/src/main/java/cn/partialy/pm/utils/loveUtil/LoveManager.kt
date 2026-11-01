@@ -217,6 +217,45 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         return removedCount
     }
 
+    data class BatchAddResult(
+        val added: List<SongInfo>,
+        val existing: List<SongInfo>,
+        val failed: List<SongInfo>,
+    )
+
+    /** 幂等添加；只为新增项写同步事件，集中刷新列表与备份镜像。 */
+    fun addSongsToLoveList(songs: Collection<SongInfo>): BatchAddResult {
+        ensureLoaded()
+        val added = mutableListOf<SongInfo>()
+        val existing = mutableListOf<SongInfo>()
+        val failed = mutableListOf<SongInfo>()
+        synchronized(lock) {
+            for (song in songs.distinctBy { it.storageKey() }) {
+                if (song.id.isBlank()) {
+                    failed.add(song)
+                    continue
+                }
+                try {
+                    if (songsByKey.containsKey(song.storageKey())) {
+                        existing.add(song)
+                    } else if (db.addSong(song.forPersistence())) {
+                        putNewestFirstLocked(song.forPersistence())
+                        added.add(song)
+                    } else if (db.contains(song)) {
+                        songsByKey[song.storageKey()] = song.forPersistence()
+                        existing.add(song)
+                    } else failed.add(song)
+                } catch (_: Exception) {
+                    failed.add(song)
+                }
+            }
+            refreshFlowLocked()
+        }
+        for (song in added) enqueueFavoriteSong(song, SyncPayloads.ACTION_UPSERT)
+        if (added.isNotEmpty()) persistAsync()
+        return BatchAddResult(added, existing, failed)
+    }
+
     fun upsertFromSync(song: cn.partialy.pm.model.CanonicalSong) {
         val next = song.toSongInfo().forPersistence()
         if (next.type == SongType.LOCAL || next.id.isBlank()) return

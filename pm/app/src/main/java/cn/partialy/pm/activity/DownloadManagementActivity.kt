@@ -22,6 +22,8 @@ import cn.partialy.pm.databinding.ActivityDownloadManagementBinding
 import cn.partialy.pm.download.task.DownloadTask
 import cn.partialy.pm.download.task.DownloadTaskRepository
 import cn.partialy.pm.download.task.DownloadTaskStatus
+import cn.partialy.pm.download.task.DownloadQueueCoordinator
+import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.PmSlotDialog
 import cn.partialy.pm.ui.download.DownloadTaskAdapter
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
@@ -36,6 +38,9 @@ class DownloadManagementActivity : BaseActivity() {
 
     @Inject
     lateinit var downloadTaskRepository: DownloadTaskRepository
+
+    @Inject
+    lateinit var downloadQueueCoordinator: DownloadQueueCoordinator
 
     private lateinit var binding: ActivityDownloadManagementBinding
     private lateinit var taskAdapter: DownloadTaskAdapter
@@ -71,7 +76,7 @@ class DownloadManagementActivity : BaseActivity() {
     }
 
     private fun setupList() {
-        taskAdapter = DownloadTaskAdapter(::onSelectionChanged)
+        taskAdapter = DownloadTaskAdapter(::onSelectionChanged, ::onTaskClick)
         binding.taskRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@DownloadManagementActivity)
             adapter = taskAdapter
@@ -104,6 +109,30 @@ class DownloadManagementActivity : BaseActivity() {
 
             override fun afterTextChanged(s: Editable?) = Unit
         })
+    }
+
+    private fun onTaskClick(task: DownloadTask) {
+        if (task.status == DownloadTaskStatus.COMPLETED) return
+        if (task.status.isActive) {
+            PmMinimalDialog.Builder(this)
+                .setTitle(getString(R.string.download_queue_cancel_title))
+                .setMessage(getString(R.string.download_queue_cancel_message))
+                .setCancelButton()
+                .setConfirmButton(getString(R.string.download_queue_cancel_action)) {
+                    downloadTaskRepository.cancelTask(task.id)
+                }.show()
+        } else {
+            PmMinimalDialog.Builder(this)
+                .setTitle(getString(R.string.download_queue_retry_action))
+                .setMessage(getString(R.string.download_queue_retry_message, task.title, task.errorMessage.orEmpty()))
+                .setCancelButton()
+                .setConfirmButton(getString(R.string.download_queue_retry_action)) {
+                    lifecycleScope.launch {
+                        val result = downloadQueueCoordinator.retry(task)
+                        showMessage(getString(R.string.download_queue_summary, result.enqueuedKeys.size, result.skippedKeys.size, result.failedKeys.size))
+                    }
+                }.show()
+        }
     }
 
     private fun observeTasks() {

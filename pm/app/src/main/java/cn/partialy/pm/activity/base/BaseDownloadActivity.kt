@@ -1,305 +1,84 @@
 package cn.partialy.pm.activity.base
 
-import android.annotation.SuppressLint
-import android.text.format.Formatter
-import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.FeedbackActivity
 import cn.partialy.pm.activity.LoginActivity
-import cn.partialy.pm.download.DownloadLyricResolver
-import cn.partialy.pm.download.LyricSidecarStatus
-import cn.partialy.pm.download.task.DownloadTaskRepository
-import cn.partialy.pm.download.ResolvedDownloadLyrics
-import cn.partialy.pm.model.DownloadQualityChoice
+import cn.partialy.pm.download.task.DownloadEnqueueSummary
+import cn.partialy.pm.download.task.DownloadQueueCoordinator
 import cn.partialy.pm.model.MusicQualityAccessPolicy
 import cn.partialy.pm.model.MusicQualityAccessState
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
-import cn.partialy.pm.model.toPlaybackQualityKey
 import cn.partialy.pm.network.auth.AccountSessionStore
-import cn.partialy.pm.network.kw.KwRepository
-import cn.partialy.pm.network.cloudmusic.CloudMusicRepository
 import cn.partialy.pm.network.repository.KgRepository
 import cn.partialy.pm.network.wy.WyRepository
-import cn.partialy.pm.ui.dialog.ModernDialog
+import cn.partialy.pm.network.kw.KwRepository
+import cn.partialy.pm.network.cloudmusic.CloudMusicRepository
 import cn.partialy.pm.ui.dialog.showDownloadQualityConfirmDialog
-import cn.partialy.pm.utils.DownloadManager
-import cn.partialy.pm.utils.SettingsPrefs
-import cn.partialy.pm.utils.DownloadPathManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import java.io.File
 import javax.inject.Inject
 
+/** 界面仅选择音质并入队；网络、文件与回调归进程级协调器所有。 */
 @AndroidEntryPoint
 abstract class BaseDownloadActivity : BaseActivity() {
-    private var downloadDialog: ModernDialog? = null
+    @Inject lateinit var kgRepository: KgRepository
+    @Inject lateinit var wyRepository: WyRepository
+    @Inject lateinit var kwRepository: KwRepository
+    @Inject lateinit var cloudMusicRepository: CloudMusicRepository
+    @Inject lateinit var downloadQueueCoordinator: DownloadQueueCoordinator
+    private var downloadFlowActive = false
 
-    @Inject
-    lateinit var kgRepository: KgRepository
+    fun startSongDownloadFlow(songInfo: SongInfo) = onDownloadClick(songInfo)
 
-    @Inject
-    lateinit var wyRepository: WyRepository
+    protected fun onDownloadClick(songInfo: SongInfo) = startSongsDownloadFlow(listOf(songInfo))
 
-    @Inject
-    lateinit var kwRepository: KwRepository
-
-    @Inject
-    lateinit var cloudMusicRepository: CloudMusicRepository
-
-    @Inject
-    lateinit var downloadLyricResolver: DownloadLyricResolver
-
-    @Inject
-    lateinit var downloadTaskRepository: DownloadTaskRepository
-
-    /** 供菜单等外部入口触发与列表「下载」相同的流程。 */
-    fun startSongDownloadFlow(songInfo: SongInfo) {
-        onDownloadClick(songInfo)
-    }
-
-    protected fun onDownloadClick(songInfo: SongInfo) {
-        lifecycleScope.launch {
-            if (songInfo.type == SongType.LOCAL) {
-                Toast.makeText(this@BaseDownloadActivity, R.string.local_song_no_online_download, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            if (!songInfo.playable) {
-                Toast.makeText(this@BaseDownloadActivity, R.string.cloud_music_disabled_download, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            val session = AccountSessionStore.read(this@BaseDownloadActivity)
-            val options = MusicQualityAccessPolicy.optionsFor(
-                songInfo.type,
-                MusicQualityAccessState(session.loggedIn, session.vipActive),
-            )
-            if (options.isEmpty()) {
-                Toast.makeText(this@BaseDownloadActivity, R.string.toast_playback_quality_no_options, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            val subtitle = getString(R.string.common_song_subtitle, songInfo.artist, songInfo.name)
-            val selected = showDownloadQualityConfirmDialog(
-                this@BaseDownloadActivity,
-                subtitle,
-                options,
-                song = songInfo,
-                onRestrictedOptionClick = {
-                    if (session.loggedIn) {
-                        FeedbackActivity.startForQualityUnlock(this@BaseDownloadActivity)
-                    } else {
-                        LoginActivity.start(this@BaseDownloadActivity)
-                    }
-                },
-            ) ?: return@launch
-
-            val latestSession = AccountSessionStore.read(this@BaseDownloadActivity)
-            val stillAllowed = MusicQualityAccessPolicy.isChoiceAllowed(
-                songInfo.type,
-                selected.choice,
-                MusicQualityAccessState(latestSession.loggedIn, latestSession.vipActive),
-            )
-            if (!stillAllowed) {
-                Toast.makeText(this@BaseDownloadActivity, R.string.download_quality_unavailable_reselect, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-
-            val task = downloadTaskRepository.createTask(songInfo, selected.choice.toPlaybackQualityKey())
-
-            val resolvedLyrics = try {
-                downloadLyricResolver.resolve(
-                    song = songInfo,
-                    embedLyrics = SettingsPrefs.isWriteLyricsEnabled(this@BaseDownloadActivity),
-                    mode = SettingsPrefs.getDownloadLyricMode(this@BaseDownloadActivity),
-                )
-            } catch (error: CancellationException) {
-                downloadTaskRepository.markCancelled(task.id)
-                throw error
-            } catch (error: Exception) {
-                downloadTaskRepository.markFailed(task.id, error.message)
-                Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-
-            // Cloud 的播放地址必须最后临近下载签发；资源响应自带格式时不再额外请求详情。
-            val downloadInfo = try {
-                when (val c = selected.choice) {
-                    is DownloadQualityChoice.Kugou -> kgRepository.getDownloadUrl(songInfo, c.quality)
-                    is DownloadQualityChoice.NeteaseBr -> wyRepository.getDownloadUrlWithBr(songInfo, c.br)
-                    is DownloadQualityChoice.NeteaseLevel -> wyRepository.getDownloadUrlWithLevel(songInfo, c.level)
-                    is DownloadQualityChoice.Kuwo -> kwRepository.getDownloadUrl(songInfo, c.quality)
-                    DownloadQualityChoice.CloudDefault -> {
-                        val resource = cloudMusicRepository.getPlayResource(songInfo.id)
-                        val url = resource.url.toHttpDownloadUrlOrNull()
-                            ?: throw IllegalArgumentException("invalid cloud download url")
-                        val format = resource.format.toSafeAudioExtension()
-                            ?: songInfo.name.substringAfterLast('.', "").toKnownAudioExtension()
-                            ?: DEFAULT_CLOUD_AUDIO_EXTENSION
-                        mapOf(
-                            "url" to url,
-                            "songName" to "cloud.$format",
-                        )
-                    }
-                }
-            } catch (error: CancellationException) {
-                downloadTaskRepository.markCancelled(task.id)
-                throw error
-            } catch (error: Exception) {
-                downloadTaskRepository.markFailed(task.id, error.message)
-                mapOf("url" to "error")
-            }
-            if (downloadInfo["url"] == "error" || downloadInfo["url"] == "buy") {
-                downloadTaskRepository.markFailed(task.id, getString(R.string.download_link_failed))
-                Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            val url = downloadInfo["url"]?.toHttpDownloadUrlOrNull() ?: run {
-                downloadTaskRepository.markFailed(task.id, getString(R.string.download_link_failed))
-                Toast.makeText(this@BaseDownloadActivity, R.string.download_link_failed, Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            val ext = (downloadInfo["songName"] ?: "").substringAfterLast('.', "")
-            val naming = SettingsPrefs.getFileNamingRule(this@BaseDownloadActivity)
-            val base = when (naming) {
-                SettingsPrefs.FileNamingRule.TitleDashArtist -> "${songInfo.name} - ${songInfo.artist}"
-                SettingsPrefs.FileNamingRule.ArtistDashTitle -> "${songInfo.artist} - ${songInfo.name}"
-            }
-            val name = if (ext.isNotBlank()) "$base.$ext" else base
-            val targetPath = File(DownloadPathManager.getDownloadPath(this@BaseDownloadActivity), name).absolutePath
-            downloadTaskRepository.updateTarget(task.id, name, targetPath)
-
-            startDownload(task.id, url, name, songInfo, resolvedLyrics)
-        }
-    }
-
-    /**
-     * 开始下载并显示进度
-     */
-    @SuppressLint("SetTextI18n")
-    protected fun startDownload(
-        taskId: String,
-        url: String,
-        fileName: String,
-        songInfo: SongInfo,
-        resolvedLyrics: ResolvedDownloadLyrics = ResolvedDownloadLyrics.NONE,
+    /** 同源歌曲批量只选一次音质；取消也会回调 onFinished。 */
+    fun startSongsDownloadFlow(
+        songs: List<SongInfo>,
+        onResult: (DownloadEnqueueSummary) -> Unit = {},
+        onFinished: () -> Unit = {},
     ) {
-        try {
-            downloadDialog = ModernDialog.makeDownloadDialog(this) {
-                title = getString(R.string.download_in_progress)
-                message = fileName
-                cancelable = true
-                positiveText = getString(R.string.download_background)
-                negativeText = getString(R.string.cancel)
-
-                onPositiveClick = {
-                    downloadDialog?.dismiss()
+        if (downloadFlowActive) { onFinished(); return }
+        downloadFlowActive = true
+        lifecycleScope.launch {
+            try {
+                val song = songs.firstOrNull() ?: return@launch
+                if (song.type == SongType.LOCAL) {
+                    showMessage(getString(R.string.local_song_no_online_download))
+                    return@launch
                 }
-
-                onNegativeClick = {
-                    downloadTaskRepository.cancelTask(taskId)
-                    downloadDialog?.dismiss()
+                if (songs.size == 1 && !song.playable) {
+                    showMessage(getString(R.string.cloud_music_disabled_download))
+                    return@launch
                 }
+                val session = AccountSessionStore.read(this@BaseDownloadActivity)
+                val options = MusicQualityAccessPolicy.optionsFor(song.type, MusicQualityAccessState(session.loggedIn, session.vipActive))
+                if (options.isEmpty()) return@launch
+                val selected = showDownloadQualityConfirmDialog(
+                    this@BaseDownloadActivity,
+                    if (songs.size == 1) getString(R.string.common_song_subtitle, song.artist, song.name)
+                    else getString(R.string.download_queue_selection_count, songs.size),
+                    options,
+                    song = song,
+                    onRestrictedOptionClick = {
+                        if (session.loggedIn) FeedbackActivity.startForQualityUnlock(this@BaseDownloadActivity)
+                        else LoginActivity.start(this@BaseDownloadActivity)
+                    },
+                ) ?: return@launch
+                val summary = downloadQueueCoordinator.enqueue(songs, selected.choice)
+                showMessage(getString(R.string.download_queue_summary, summary.enqueuedKeys.size, summary.skippedKeys.size, summary.failedKeys.size))
+                onResult(summary)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                showMessage(getString(R.string.download_queue_enqueue_failed))
+            } finally {
+                downloadFlowActive = false
+                onFinished()
             }
-
-            downloadDialog?.show()
-            Toast.makeText(this, R.string.toast_download_started, Toast.LENGTH_SHORT).show()
-            downloadTaskRepository.markDownloading(taskId)
-
-            DownloadManager.getInstance(this).startDownload(
-                taskId = taskId,
-                url = url,
-                fileName = fileName,
-                songInfo = songInfo,
-                resolvedLyrics = resolvedLyrics,
-                callback = object : DownloadManager.DownloadCallback {
-                    override fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long) {
-                        downloadTaskRepository.updateProgress(taskId, progress, downloadedSize, totalSize)
-                        runOnUiThread {
-                            downloadDialog?.let { dialog ->
-                                val progressText = "${Formatter.formatFileSize(this@BaseDownloadActivity, downloadedSize)} / " +
-                                    Formatter.formatFileSize(this@BaseDownloadActivity, totalSize)
-
-                                dialog.updateMessage(
-                                    """
-                                    $fileName
-                                    $progressText
-                                    """.trimIndent(),
-                                )
-                                dialog.updateProgress(progress)
-                            }
-                        }
-                    }
-
-                    override fun onProcessing(file: File) {
-                        downloadTaskRepository.markProcessing(taskId, file.absolutePath)
-                    }
-
-                    override fun onSuccess(file: File, lyricResult: cn.partialy.pm.download.LyricSidecarWriteResult) {
-                        downloadTaskRepository.markCompleted(taskId, file.absolutePath, lyricResult.savedPaths)
-                        onDownloadSuccess(file, lyricResult.status)
-                    }
-
-                    override fun onCancelled() {
-                        downloadTaskRepository.markCancelled(taskId)
-                        runOnUiThread { downloadDialog?.dismiss() }
-                    }
-
-                    override fun onFailure(e: Exception) {
-                        downloadTaskRepository.markFailed(taskId, e.message)
-                        onDownloadFailure(e)
-                    }
-                },
-            )
-        } catch (e: Exception) {
-            println("下载出错：$e")
-            downloadTaskRepository.markFailed(taskId, e.message)
-            onDownloadFailure(e)
         }
-    }
-
-    protected open fun onDownloadSuccess(file: File, lyricStatus: LyricSidecarStatus) {
-        runOnUiThread {
-            val message = when (lyricStatus) {
-                LyricSidecarStatus.NOT_FOUND -> R.string.download_complete_lyrics_not_found
-                LyricSidecarStatus.FAILED -> R.string.download_complete_lyrics_failed
-                LyricSidecarStatus.DISABLED, LyricSidecarStatus.SAVED -> R.string.download_complete
-            }
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-            downloadDialog?.dismiss()
-        }
-    }
-
-    protected open fun onDownloadFailure(e: Exception) {
-        runOnUiThread {
-            println(e)
-            Toast.makeText(this, getString(R.string.download_failed_with_reason, e.message.orEmpty()), Toast.LENGTH_SHORT).show()
-            downloadDialog?.dismiss()
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        downloadDialog?.dismiss()
-    }
-
-    private fun String.toHttpDownloadUrlOrNull(): String? {
-        val parsed = toHttpUrlOrNull() ?: return null
-        return takeIf { parsed.scheme == "https" || parsed.scheme == "http" }
-    }
-
-    private fun String?.toSafeAudioExtension(): String? = this
-        ?.trim()
-        ?.lowercase()
-        ?.removePrefix(".")
-        ?.takeIf { it.matches(Regex("[a-z0-9]{1,8}")) }
-
-    private fun String?.toKnownAudioExtension(): String? = toSafeAudioExtension()
-        ?.takeIf(KNOWN_AUDIO_EXTENSIONS::contains)
-
-    private companion object {
-        const val DEFAULT_CLOUD_AUDIO_EXTENSION = "mp3"
-        val KNOWN_AUDIO_EXTENSIONS = setOf("mp3", "flac", "wav", "m4a", "aac", "ogg", "opus", "ape", "wma")
     }
 }

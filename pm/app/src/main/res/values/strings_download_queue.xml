@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_queue_selection_count">已选 %1$d 首歌曲</string>
+    <string name="download_queue_summary">加入队列 %1$d 项，跳过 %2$d 项，失败 %3$d 项</string>
+    <string name="download_queue_enqueue_failed">加入下载队列失败，请重试</string>
+    <string name="download_queue_cancel_title">取消下载任务</string>
+    <string name="download_queue_cancel_message">取消此任务？可稍后从下载管理重新加入。</string>
+    <string name="download_queue_cancel_action">取消任务</string>
+    <string name="download_queue_retry_action">重新下载</string>
+    <string name="download_queue_retry_message">%1$s\n%2$s</string>
+</resources>

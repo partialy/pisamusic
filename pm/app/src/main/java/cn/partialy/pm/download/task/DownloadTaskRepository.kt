@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.Cursor
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
-import cn.partialy.pm.utils.DownloadManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.UUID
@@ -15,6 +14,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +36,21 @@ class DownloadTaskRepository @Inject constructor(
     private val _tasks = MutableStateFlow(loadInitialTasks())
     val tasks: StateFlow<List<DownloadTask>> = _tasks.asStateFlow()
 
-    fun createTask(song: SongInfo, qualityKey: String): DownloadTask {
+    internal var stopExecution: (String) -> Unit = {}
+    internal var awaitExecution: suspend (String) -> Unit = {}
+
+    fun find(taskId: String): DownloadTask? = tasks.value.firstOrNull { it.id == taskId }
+
+    /** 原子发布排队任务，避免重复点击创建双份。 */
+    fun enqueueTask(song: SongInfo, qualityKey: String): DownloadTask? = synchronized(stateLock) {
+        if (_tasks.value.any {
+            it.source == song.type && it.songId == song.id && it.qualityKey == qualityKey &&
+                (it.status.isActive || (it.status == DownloadTaskStatus.COMPLETED && it.targetPath?.let(::File)?.isFile == true))
+        }) return@synchronized null
+        createTask(song, qualityKey)
+    }
+
+    private fun createTask(song: SongInfo, qualityKey: String): DownloadTask {
         val now = System.currentTimeMillis()
         val task = DownloadTask(
             id = UUID.randomUUID().toString(),
@@ -50,7 +64,7 @@ class DownloadTaskRepository @Inject constructor(
             fileName = null,
             targetPath = null,
             sidecarPaths = emptyList(),
-            status = DownloadTaskStatus.PREPARING,
+            status = DownloadTaskStatus.QUEUED,
             progress = 0,
             downloadedBytes = 0L,
             totalBytes = 0L,
@@ -64,8 +78,29 @@ class DownloadTaskRepository @Inject constructor(
         return task
     }
 
+    fun claim(taskId: String): Boolean = synchronized(stateLock) {
+        if (find(taskId)?.status != DownloadTaskStatus.QUEUED || taskId in removingIds || taskId in removedIds) return@synchronized false
+        update(taskId) { it.copy(status = DownloadTaskStatus.PREPARING) }
+        true
+    }
+
+    fun updateQuality(taskId: String, qualityKey: String) {
+        update(taskId) { it.copy(qualityKey = qualityKey) }
+    }
+
     fun updateTarget(taskId: String, fileName: String, targetPath: String) {
         update(taskId) { it.copy(fileName = fileName, targetPath = targetPath) }
+    }
+
+    /** 内核结束前补记真实产物；仅更新路径，不允许取消任务恢复为成功。 */
+    fun recordProducedFiles(taskId: String, targetPath: String, sidecarPaths: List<String>) {
+        synchronized(stateLock) {
+            if (taskId in removedIds) return
+            val current = find(taskId) ?: return
+            val changed = current.copy(targetPath = targetPath, sidecarPaths = sidecarPaths.distinct(), updatedAt = System.currentTimeMillis())
+            _tasks.value = _tasks.value.map { if (it.id == taskId) changed else it }
+            persist(changed)
+        }
     }
 
     fun markDownloading(taskId: String) {
@@ -125,57 +160,75 @@ class DownloadTaskRepository @Inject constructor(
     }
 
     fun cancelTask(taskId: String) {
-        DownloadManager.getInstance(context).cancel(taskId)
+        val current = find(taskId) ?: return
+        if (!current.status.isActive) return
         markCancelled(taskId)
+        stopExecution(taskId)
     }
 
     suspend fun removeTasks(ids: Set<String>, deleteFiles: Boolean): DownloadTaskRemovalResult {
         if (ids.isEmpty()) return DownloadTaskRemovalResult(0, emptyList())
         val snapshot = tasks.value.filter { it.id in ids }
+        snapshot.filter { it.status.isActive }.forEach { cancelTask(it.id) }
         removingIds += ids
-        snapshot.filter { it.status.isActive }.forEach {
-            DownloadManager.getInstance(context).cancel(it.id)
-        }
-        return withContext(databaseDispatcher) {
-            try {
-                val failedPaths = mutableListOf<String>()
-                val removableIds = snapshot.mapNotNull { task ->
-                    val taskFailures = if (deleteFiles) deleteRecordedFiles(task) else emptyList()
-                    failedPaths += taskFailures
-                    task.id.takeIf { taskFailures.isEmpty() }
-                }.toSet()
-                val removed = if (removableIds.isEmpty()) {
-                    0
-                } else {
-                    val placeholders = removableIds.joinToString(",") { "?" }
-                    helper.writableDatabase.delete(
-                        "download_tasks",
-                        "id IN ($placeholders)",
-                        removableIds.toTypedArray(),
-                    )
+        // 等待下载内核及 sidecar 停止写入后再删文件。
+        return withContext(NonCancellable) {
+            snapshot.forEach { awaitExecution(it.id) }
+            withContext(databaseDispatcher) {
+                try {
+                    val finalSnapshot = tasks.value.filter { it.id in ids }
+                    val failedPaths = mutableListOf<String>()
+                    val removableIds = finalSnapshot.mapNotNull { task ->
+                        val sharedFile = tasks.value.any { other ->
+                            other.id !in ids && task.targetPath != null && other.targetPath == task.targetPath
+                        }
+                        val taskFailures = if (deleteFiles && !sharedFile) deleteRecordedFiles(task) else emptyList()
+                        failedPaths += taskFailures
+                        task.id.takeIf { taskFailures.isEmpty() }
+                    }.toSet()
+                    val removed = if (removableIds.isEmpty()) {
+                        0
+                    } else {
+                        val placeholders = removableIds.joinToString(",") { "?" }
+                        helper.writableDatabase.delete(
+                            "download_tasks",
+                            "id IN ($placeholders)",
+                            removableIds.toTypedArray(),
+                        )
+                    }
+                    removedIds += removableIds
+                    synchronized(stateLock) {
+                        _tasks.value = _tasks.value.filterNot { it.id in removableIds }
+                    }
+                    removingIds.removeAll(ids)
+                    tasks.value.filter { it.id in ids && it.id !in removableIds }
+                        .forEach { persist(it) }
+                    DownloadTaskRemovalResult(removed, failedPaths)
+                } finally {
+                    removingIds.removeAll(ids)
                 }
-                removedIds += removableIds
-                refreshFromDatabase()
-                removingIds.removeAll(ids)
-                snapshot.filter { it.id !in removableIds && it.status.isActive }
-                    .forEach { markCancelled(it.id) }
-                DownloadTaskRemovalResult(removed, failedPaths)
-            } finally {
-                removingIds.removeAll(ids)
             }
         }
     }
 
     private fun update(taskId: String, transform: (DownloadTask) -> DownloadTask) {
-        if (taskId in removingIds || taskId in removedIds) return
-        val changed = synchronized(stateLock) {
+        synchronized(stateLock) {
+            if (taskId in removingIds || taskId in removedIds) return
             val current = _tasks.value.firstOrNull { it.id == taskId } ?: return
-            transform(current).copy(updatedAt = System.currentTimeMillis()).also { changed ->
-                _tasks.value = (_tasks.value.filterNot { it.id == taskId } + changed)
-                    .sortedByDescending(DownloadTask::updatedAt)
+            if (!current.status.isActive) return
+            val changed = transform(current).copy(updatedAt = System.currentTimeMillis())
+            val legal = when (current.status) {
+                DownloadTaskStatus.QUEUED -> setOf(DownloadTaskStatus.QUEUED, DownloadTaskStatus.PREPARING, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
+                DownloadTaskStatus.PREPARING -> setOf(DownloadTaskStatus.PREPARING, DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
+                DownloadTaskStatus.DOWNLOADING -> setOf(DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
+                DownloadTaskStatus.PROCESSING -> setOf(DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
+                else -> emptySet()
             }
+            if (changed.status !in legal) return
+            _tasks.value = (_tasks.value.filterNot { it.id == taskId } + changed)
+                .sortedByDescending(DownloadTask::updatedAt)
+            persist(changed)
         }
-        persist(changed)
     }
 
     private fun publish(task: DownloadTask) {
@@ -187,6 +240,7 @@ class DownloadTaskRepository @Inject constructor(
 
     private fun persist(task: DownloadTask) {
         scope.launch {
+            if (task.id in removedIds || task.id in removingIds) return@launch
             helper.writableDatabase.insertWithOnConflict(
                 "download_tasks",
                 null,
@@ -211,25 +265,6 @@ class DownloadTaskRepository @Inject constructor(
             "status IN ($placeholders)",
             active.map(DownloadTaskStatus::name).toTypedArray(),
         )
-    }
-
-    private fun refreshFromDatabase() {
-        val loaded = helper.readableDatabase.query(
-            "download_tasks",
-            null,
-            null,
-            null,
-            null,
-            null,
-            "updated_at DESC",
-        ).use { cursor ->
-            buildList {
-                while (cursor.moveToNext()) add(cursor.toDownloadTask())
-            }
-        }
-        synchronized(stateLock) {
-            _tasks.value = loaded
-        }
     }
 
     private fun loadInitialTasks(): List<DownloadTask> {

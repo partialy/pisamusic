@@ -14,6 +14,7 @@ import coil.load
 
 class DownloadTaskAdapter(
     private val onSelectionChanged: (Set<String>) -> Unit,
+    private val onTaskClick: (DownloadTask) -> Unit = {},
 ) : ListAdapter<DownloadTask, DownloadTaskAdapter.TaskViewHolder>(TaskDiffCallback) {
 
     private val selectedIds = linkedSetOf<String>()
@@ -83,7 +84,7 @@ class DownloadTaskAdapter(
             selectionCheckBox.isChecked = selected
             selectionCheckBox.setOnCheckedChangeListener { _, _ -> toggleSelection(task.id) }
             root.setOnClickListener {
-                if (selectionMode) toggleSelection(task.id)
+                if (selectionMode) toggleSelection(task.id) else onTaskClick(task)
             }
 
             coverImageView.load(task.coverUrl.takeIf { !it.isNullOrBlank() }) {

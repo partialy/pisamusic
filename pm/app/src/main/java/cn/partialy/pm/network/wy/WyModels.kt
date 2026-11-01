@@ -93,6 +93,8 @@ data class WySongUrlItemDto(
     val url: String? = null,
     val br: Int = 0,
     val code: Int = 0,
+    val level: String? = null,
+    val type: String? = null,
 )
 
 typealias WySongUrlV1Response = WySongUrlResponse

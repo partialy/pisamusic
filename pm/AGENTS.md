@@ -73,7 +73,7 @@
 - 除主播放界面外，普通页面的可见内容统一以 `@dimen/pm_page_content_start`（12dp）作为页面左基线；返回箭头与三条杠菜单使用 `Widget.Pm.PageLeadingAction` 和已移除左透明画布的 vector，使实际笔画左缘同样落在 12dp。嵌套 RecyclerView 必须按最终可见内容计算，不得把父容器 start padding 与歌曲/歌单 item 的 start padding 重复叠加。
 - 酷狗、网易、自建歌单和“我的收藏”详情统一复用 `ui/playlistdetail/` 的 Header、歌曲内容、搜索和顶栏交互模块；搜索只过滤当前显示，播放仍按完整歌单以及 `type + id` 定位。Header 使用全宽大封面、顶部 scrim、底部羽化渐变、两行以内标题与描述，以及“播放全部 / 收藏”双按钮。禁止加入分享人、VIP、热播等非产品字段。
 - 顶栏动作顺序固定为搜索、分享、更多；分享复用 `ShareBottomSheet`，更多复用 `PlaylistActionBottomSheet`。顶栏和播放横幅的空白区域必须消费点击，只有显式“播放全部”与播放图标可以开始播放。
-- 歌单详情只保留 `activity_playlist_detail.xml` 中一份 52dp 紧凑工具条，并与“我的”页共用 `CoordinatorLayout + AppBarLayout + CollapsingToolbarLayout` 推拉门结构：封面、标题、描述和双按钮位于 `parallax` 折叠层，工具条作为无 `scrollFlags` 的 AppBar 直接子项向上推进并固定在 Header 下方，顶部 Header 按同一 200dp 折叠进度向下渐显，最终在封面前闭合。四类详情页统一使用静态 `PlaylistDetailHeaderController`、`PlaylistDetailContentAdapter` 和 `PlaylistDetailInteractionController`；不得恢复 RecyclerView Header、`playAllAnchor` 手动位移或 Header/外层两套工具条显隐切换。顶栏不放置批量操作按钮；本地歌单详情页（`LocalPlaylistDetailActivity`）通过粘性工具条右侧的 `batchPlaylistButton` 激活进入 `LocalPlaylistSongManagementActivity`；“我的收藏”详情页（`LovedSongsPlaylistActivity`）同样通过该按钮激活进入 `LovedSongsManagementActivity`，其余在线歌单详情页批量操作图标保持禁用态。
+- 歌单详情只保留 `activity_playlist_detail.xml` 中一份 52dp 紧凑工具条，并与“我的”页共用 `CoordinatorLayout + AppBarLayout + CollapsingToolbarLayout` 推拉门结构：封面、标题、描述和双按钮位于 `parallax` 折叠层，工具条作为无 `scrollFlags` 的 AppBar 直接子项向上推进并固定在 Header 下方，顶部 Header 按同一 200dp 折叠进度向下渐显，最终在封面前闭合。四类详情页统一使用静态 `PlaylistDetailHeaderController`、`PlaylistDetailContentAdapter` 和 `PlaylistDetailInteractionController`；不得恢复 RecyclerView Header、`playAllAnchor` 手动位移或 Header/外层两套工具条显隐切换。顶栏不放置批量操作按钮；本地歌单详情页（`LocalPlaylistDetailActivity`）通过粘性工具条右侧的 `batchPlaylistButton` 激活进入 `LocalPlaylistSongManagementActivity`；“我的收藏”详情页（`LovedSongsPlaylistActivity`）同样通过该按钮激活进入 `LovedSongsManagementActivity`，KG/WY 在线歌单详情通过同一按钮进入 `OnlinePlaylistBatchActivity`，不增加顶栏批量入口。
 - 本地歌单歌曲批量管理页（`LocalPlaylistSongManagementActivity`）与我的收藏批量管理页（`LovedSongsManagementActivity`）均复用 `activity_local_playlist_song_management.xml` 及其列表项与规则（Edge-to-Edge、状态栏占位、搜索防抖过滤、40 条窗口滑动分页、全选、反选与危险色确认弹窗），分别以 `PlaylistCollectionManager.playlistsFlow`（删除本地歌单歌曲）与 `LoveManager.loveListFlow`（批量取消收藏）为权威数据源。
 - 本地歌单和“我的收藏”不可重复收藏，Header 显示禁用的“已收藏”。“我的收藏”右上角搜索入口进入 `LovedSongsSearchActivity` 独立页面；独立搜索页按歌名或歌手实时过滤展示，但单击结果与“播放全部”都必须使用按添加时间排序的完整收藏列表作为播放队列。
 - 播放页 3D 音效入口进入 `AudioEffectsActivity`；音效配置集中在 `audioeffect/` 模块，本地通过 SharedPreferences + kotlinx.serialization 保存，不同步到服务端。`AudioEffectsManager` 绑定 ExoPlayer `audioSessionId` 后使用系统 `DynamicsProcessing` / `Equalizer`、`BassBoost` 生效；宽声场由 Media3 `StereoWidenerAudioProcessor` 在 `DefaultAudioSink` 前做双声道 PCM Mid/Side 处理，处理器旁路时不能直接把同一个 `ByteBuffer` 作为源和目标复制。新增音效能力优先扩展该模块，不要把 AudioEffect 生命周期放进 Activity。
@@ -225,7 +225,7 @@
 - 需要居中承载自定义表单、列表、封面选择等内容时，使用 `cn.partialy.pm.ui.dialog.PmSlotDialog`；它复用 `PmMinimalDialog` 的 280dp 卡片、深浅色资源、入退场动画和底部 T 形按钮区。默认 `content slot` 可滚动；需要固定歌曲信息、封面头部等场景时使用 `header slot + content slot + 底部按钮` 三段式，只让中间选项或表单内容滚动。
 - 一起听房间二维码使用 `ListenTogetherQrDialog`，内容承载在 `PmSlotDialog` 中，二维码编码官网加入链接并提供房间号复制。
 - 带头像/封面信息头部、左侧图标和右侧文案的操作菜单使用 `cn.partialy.pm.ui.dialog.ActionMenuBottomSheet`；菜单动作在 Sheet 关闭后执行，歌曲更多菜单和一起听成员管理菜单复用该容器。
-- 旧 `ModernDialog` 仍保留给下载进度、底部弹窗和单选弹窗等既有场景；不要为了普通确认弹窗继续扩展它。
+- 旧 `ModernDialog` 仍保留给既有底部弹窗和单选弹窗等场景，歌曲下载进度统一在下载管理展示；不要为了普通确认弹窗继续扩展它。
 - 业务消息或自定义通知优先调用 `BaseActivity.showMessage(content, durationMs)`；它用于区别于系统默认 `Toast` 的业务提示，展示为屏幕高度 25% 处的半透明黑色胶囊轻通知，并返回可立即淡出关闭的函数。
 
 ## 全局异常处理补充
@@ -262,3 +262,12 @@
 - `SplashActivity` 每次设备上报必须保存服务端 `id` 与 `messageToken`；设备消息只通过 `x-pm-device-token` 使用该 30 天凭证，不能传设备 UUID，也不能将凭证写进日志或 UI。
 - 每个 App 进程只保存临时 dismissed 集合，不写本地永久已读。启动、登录、注册完成后读取 `/api/messages/unread`，账号与设备未读合并后按服务端创建时间依次弹出；点击“我知道了”必须立即切换下一条，再后台异步调用 `/api/messages/:id/read`。失败不阻塞、不提示，未确认消息下次启动仍会出现。
 - 专属消息首条展示起共享 3 秒单调时钟截止时间；第一条等待结束后同一队列后续消息无需再次等待。启动弹窗顺序为专属消息优先，专属消息流程未结束前不得叠加系统公告。
+
+## 在线歌单批量操作与下载队列
+
+- KG/WY 在线歌单 Hero 封面通过 `PlaylistHeroCoverUrl` 生成 500px 优先、原 URL 回退候选；仅处理已识别的平台图片规则，不放大歌曲行缩略图，不把 Hero URL 写回收藏或分享。
+- `OnlinePlaylistBatchActivity` 负责在线歌单歌曲多选，复用本地批量管理的歌曲行与选择规则；搜索防抖 150ms，40 条渲染窗口，全选和反选作用于过滤全集，保留筛选外选择。未完整加载时允许手选，禁用全量全选，失败可重试；Intent 只传来源、歌单 ID 和轻量会话引用，重建可重新加载。
+- 批量收藏只通过 `LoveManager` 幂等添加未收藏歌曲，不得循环 toggle；仅新入库歌曲产生 UPSERT 同步。批量下载一次选择音质，超过 100 首先确认总量，操作结束保留筛选，只清除成功处理或已存在项目的选择。
+- 下载入口只负责音质选择和入队，不再弹出进度 Sheet。应用级 `DownloadQueueCoordinator` 以 FIFO 调度，最多 2 个任务覆盖准备、取链、下载和文件处理全流程；不持有 Activity，进程存活时离开页面继续执行，进程重启未完成项仍标失败。
+- 下载可在同来源、当前账号允许的较低音质回退，仓库记录实际音质；歌词是可选资产，获取失败不阻断音频，也不得报成音频取链失败。云盘临近执行才签发 URL，不持久化播放地址。
+- 同曲同要求音质活跃任务、已完成且文件存在的任务跳过；失败、取消或文件丢失可以重新入队。目标文件名冲突必须唯一化，取消或删除后的迟到回调不得恢复任务状态。进度、失败、取消和重试在下载管理查看或操作，批量只提示一次汇总。

@@ -128,3 +128,10 @@
 - 导入与导出页面：`pm/app/src/main/res/layout/activity_data_management.xml`，保留本地数据指标磁贴；歌单与收藏、播放日志采用图标加标题左侧、操作按钮右侧的左右布局，歌单与收藏的“导入 / 导出”按钮保持同款；页面不展示额外说明文案，仍保留播放日志档位选择及清空确认；故障上报以同款卡片承载统计指标、上报按钮和必要时间信息；四张卡片使用统一的圆角、描边和内边距，前三张标题左侧使用 `data_icon_local.webp`、`data_icon_playlist.webp`、`data_icon_diagnostics.webp` 渐变图标；`DataManagementActivity` 复用 edge-to-edge、安全区、`showSettingsOptionPicker` 及 `PmMinimalDialog` 统一确认弹窗。
 - 收藏与同步页面：`pm/app/src/main/res/layout/activity_favorites_sync_settings.xml`，采用账号卡片（圆形头像、昵称、VIP标识、未登录引导）、4 栏同步数据概览磁贴与同步状态控制卡片；`FavoritesSyncSettingsActivity` 复用 edge-to-edge、安全区及 Material 3 圆角卡片规范。
 - 信息操作头部：`pm/app/src/main/res/layout/include_song_info_header.xml` 用于左侧图片、右侧标题/副标题；`SongInfoHeaderBinder` 绑定歌曲，通用操作菜单也可绑定圆形成员头像和在线状态。
+
+## 在线歌单批量操作
+
+| UI 类型 | 用途 | 参考位置 | 规则 |
+| --- | --- | --- | --- |
+| 在线歌单多选页 | KG/WY 歌曲搜索、多选、下载与收藏 | `activity/OnlinePlaylistBatchActivity.kt`、`res/layout/activity_online_playlist_batch.xml` | 复用 `LocalPlaylistSongManagementAdapter`；底部全选、反选、下载、收藏四项；未完整加载时禁用全量全选，缺页显示重试；搜索外勾选保留。 |
+| 高清 Hero 封面 | 在线歌单详情大封面 | `ui/playlistdetail/PlaylistHeroCoverUrl.kt`、`PlaylistDetailHeaderController.kt` | 已知平台 500px 候选失败后回退原 URL，再用既有占位；不影响列表缩略图。 |

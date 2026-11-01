@@ -7,13 +7,16 @@ import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemPlaylistDetailHeaderBinding
+import cn.partialy.pm.model.SongType
 import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
 import coil.load
+import coil.request.Disposable
 
 sealed interface PlaylistHeaderArtwork {
     data class Remote(
         val url: String,
         @androidx.annotation.DrawableRes val fallbackRes: Int = R.drawable.bg_mine_header,
+        val source: SongType? = null,
     ) : PlaylistHeaderArtwork
     data class DrawableRes(@androidx.annotation.DrawableRes val resId: Int) : PlaylistHeaderArtwork
     data class LocalPlaylist(val value: String) : PlaylistHeaderArtwork
@@ -52,6 +55,9 @@ class PlaylistDetailHeaderController(
     private var searchWatcher: TextWatcher? = null
     private var renderingSearchQuery = false
     private var disposed = false
+    private var boundArtwork: PlaylistHeaderArtwork? = null
+    private var artworkRequest: Disposable? = null
+    private var artworkGeneration = 0
 
     init {
         binding.headerPlayAllButton.setOnClickListener { actions.onPlayAll() }
@@ -116,6 +122,9 @@ class PlaylistDetailHeaderController(
     fun dispose() {
         if (disposed) return
         disposed = true
+        artworkGeneration++
+        artworkRequest?.dispose()
+        artworkRequest = null
         searchWatcher?.let(binding.playlistSearchInput::removeTextChangedListener)
         searchWatcher = null
         binding.headerPlayAllButton.setOnClickListener(null)
@@ -179,18 +188,44 @@ class PlaylistDetailHeaderController(
     }
 
     private fun bindArtwork(artwork: PlaylistHeaderArtwork) {
+        if (boundArtwork == artwork) return
+        boundArtwork = artwork
+        val generation = ++artworkGeneration
+        artworkRequest?.dispose()
+        if (artwork is PlaylistHeaderArtwork.Remote) {
+            val candidates = toHeroCoverCandidates(artwork.source, artwork.url)
+            loadRemoteArtwork(candidates, 0, artwork.fallbackRes, generation)
+            return
+        }
         val source = when (artwork) {
-            is PlaylistHeaderArtwork.Remote -> artwork.url.replace("{size}", "480")
-                .takeIf { it.isNotBlank() }
+            is PlaylistHeaderArtwork.Remote -> null
             is PlaylistHeaderArtwork.DrawableRes -> artwork.resId
             is PlaylistHeaderArtwork.LocalPlaylist -> localArtworkSource(artwork.value)
         }
         val fallbackRes = (artwork as? PlaylistHeaderArtwork.Remote)?.fallbackRes
             ?: R.drawable.bg_mine_header
-        binding.heroCoverImageView.load(source) {
+        artworkRequest = binding.heroCoverImageView.load(source) {
             crossfade(true)
             placeholder(fallbackRes)
             error(fallbackRes)
+        }
+    }
+
+    private fun loadRemoteArtwork(candidates: List<String>, index: Int, fallbackRes: Int, generation: Int) {
+        if (disposed || generation != artworkGeneration) return
+        artworkRequest = binding.heroCoverImageView.load(candidates.getOrNull(index)) {
+            crossfade(true)
+            placeholder(fallbackRes)
+            error(fallbackRes)
+            fallback(fallbackRes)
+            listener(onError = { _, _ ->
+                if (index + 1 < candidates.size) {
+                    // 等旧请求完成错误分发后再绑定，避免旧请求覆盖新候选。
+                    binding.heroCoverImageView.post {
+                        loadRemoteArtwork(candidates, index + 1, fallbackRes, generation)
+                    }
+                }
+            })
         }
     }
 

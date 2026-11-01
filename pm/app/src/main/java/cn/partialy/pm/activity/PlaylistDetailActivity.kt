@@ -131,7 +131,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         headerController.updateHeader(
             title = title,
             description = desc,
-            artwork = PlaylistHeaderArtwork.Remote(coverUrl),
+            artwork = PlaylistHeaderArtwork.Remote(coverUrl, source = SongType.KG),
             trackCountText = if (trackCount > 0) getString(R.string.playlist_track_count_compact, trackCount) else "",
         )
         contentAdapter.showInitialLoading()
@@ -150,6 +150,10 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
             contentAdapter = contentAdapter,
             onPlayAll = playAll,
             onToggleCollect = ::togglePlaylistCollect,
+            onBatchRequested = {
+                OnlinePlaylistBatchActivity.start(this, SongType.KG, pagingPlaylistId,
+                    headerController.state.title, contentAdapter.currentSongs, playlistApiTotalCount)
+            },
             onSearchRequested = {
                 val songs = contentAdapter.currentSongs
                 PlaylistSongsSearchActivity.start(
@@ -312,12 +316,12 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 if (item != null) {
                     val t = item.name.ifBlank { "" }
                     val d = item.intro.ifBlank { item.tags }.ifBlank { "" }
-                    val cover = item.pic.ifBlank { fallbackCoverUrl }.replace("{size}", "240")
+                    val cover = item.pic.ifBlank { fallbackCoverUrl }
                     withContext(Dispatchers.Main) {
                         headerController.updateHeader(
                             title = t,
                             description = d,
-                            artwork = PlaylistHeaderArtwork.Remote(cover),
+                            artwork = PlaylistHeaderArtwork.Remote(cover, source = SongType.KG),
                         )
                     }
                 }
@@ -435,7 +439,7 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
     }
 }
 
-private fun cn.partialy.pm.model.KgPlaylistTrackRow.toSongInfoOrNull(): SongInfo? {
+internal fun cn.partialy.pm.model.KgPlaylistTrackRow.toSongInfoOrNull(): SongInfo? {
     val id = hash.trim()
     if (id.isEmpty()) return null
 
