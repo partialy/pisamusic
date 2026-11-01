@@ -177,9 +177,16 @@ class MusicController @Inject constructor(
 
     /** 追加歌曲到列表尾部 */
     fun appendSongsLazy(songs: List<SongInfo>) {
-        playlistManager.appendSongsLazy(songs.filter(SongInfo::playable)) { applied ->
+        playlistManager.appendSongsLazy(songs.filter(SongInfo::playable), onApplied = { applied ->
             if (applied) engine.persistState(force = true)
-        }
+        })
+    }
+
+    fun appendSongsLazyWithResult(songs: List<SongInfo>, onResult: (PlaylistAppendResult) -> Unit) {
+        playlistManager.appendSongsLazy(songs, onResult = { result ->
+            if (result.added.isNotEmpty()) engine.persistState(force = true)
+            onResult(result)
+        })
     }
 
     /** 播放单曲：设置为当前歌曲，不在列表则追加到尾部 */

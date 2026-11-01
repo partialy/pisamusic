@@ -16,6 +16,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+data class PlaylistAppendResult(val added: List<SongInfo>, val existing: List<SongInfo>, val failed: List<SongInfo>)
+
 sealed interface PlaylistSetResult {
     data class Applied(val songs: List<SongInfo>, val startIndex: Int) : PlaylistSetResult
     data object SameSource : PlaylistSetResult
@@ -175,43 +177,49 @@ class PlaylistManager(private val factory: MediaItemFactory) {
     fun appendSongsLazy(
         songs: List<SongInfo>,
         onApplied: (Boolean) -> Unit = {},
+        onResult: (PlaylistAppendResult) -> Unit = {},
     ) {
         restoreGate.invalidate()
-        val playableSongs = songs.filter(SongInfo::playable)
-        if (playableSongs.isEmpty()) {
-            onApplied(false)
-            return
-        }
+        val requested = songs.distinctBy { it.type to it.id }
         val generation = preparationGate.current()
         preparationScope.launch {
-            preparationMutex.withLock {
-                val player = exoPlayer ?: return@withLock
-                val existingKeys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
-                val toAdd = ArrayList<SongInfo>(playableSongs.size)
-                for (s in playableSongs) {
-                    if (existingKeys.add(factory.keyOf(s))) toAdd.add(s)
+            var result = PlaylistAppendResult(emptyList(), emptyList(), requested)
+            try {
+                preparationMutex.withLock {
+                    val player = exoPlayer ?: return@withLock
+                    if (!preparationGate.isCurrent(generation)) return@withLock
+                    val valid = requested.filter { it.playable && it.id.isNotBlank() }
+                    val rejected = requested.filter { !it.playable || it.id.isBlank() }
+                    val keys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
+                    val pending = valid.filter { factory.keyOf(it) !in keys }
+                    val existing = valid.filter { factory.keyOf(it) in keys }
+                    result = PlaylistAppendResult(emptyList(), existing, rejected + pending)
+                    if (pending.isEmpty()) return@withLock
+                    val items = withContext(Dispatchers.IO) {
+                        prepareAllOrNullSuspending(pending, factory::createQueueMediaItem)
+                    }
+                    if (!preparationGate.isCurrent(generation) || player !== exoPlayer) {
+                        result = PlaylistAppendResult(emptyList(), emptyList(), requested)
+                        return@withLock
+                    }
+                    if (items == null) return@withLock
+                    val currentKeys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
+                    val indices = pending.indices.filter { currentKeys.add(factory.keyOf(pending[it])) }
+                    val added = indices.map(pending::get)
+                    val addedKeys = added.mapTo(HashSet()) { factory.keyOf(it) }
+                    player.addMediaItems(indices.map(items::get))
+                    _playList.value = _playList.value + added
+                    // 空队列追加会同步触发媒体切换；发布列表后补齐当前歌曲，不改变播放意图。
+                    updateCurrentIndex(player.currentMediaItemIndex)
+                    result = PlaylistAppendResult(added, valid.filter { factory.keyOf(it) !in addedKeys }, rejected)
                 }
-                if (toAdd.isEmpty()) {
-                    onApplied(false)
-                    return@withLock
-                }
-                val mediaItems = withContext(Dispatchers.IO) {
-                    prepareAllOrNullSuspending(toAdd, factory::createQueueMediaItem)
-                }
-                if (mediaItems == null || !preparationGate.isCurrent(generation)) {
-                    onApplied(false)
-                    return@withLock
-                }
-
-                val currentKeys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
-                val stillNewIndices = toAdd.indices.filter { currentKeys.add(factory.keyOf(toAdd[it])) }
-                if (stillNewIndices.isEmpty()) {
-                    onApplied(false)
-                    return@withLock
-                }
-                _playList.value = _playList.value + stillNewIndices.map(toAdd::get)
-                player.addMediaItems(stillNewIndices.map(mediaItems::get))
-                onApplied(true)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                // 保留失败项，由上层统一反馈，队列未应用不声称成功。
+            } finally {
+                onApplied(result.added.isNotEmpty())
+                onResult(result)
             }
         }
     }

@@ -8,4 +8,9 @@
     <string name="online_batch_complete">已加载全部 %1$d 首歌曲</string>
     <string name="online_batch_favorite_result">收藏 %1$d 首，已收藏 %2$d 首，失败 %3$d 首</string>
     <string name="online_batch_large_download">即将添加 %1$d 首歌曲到下载队列，是否继续？</string>
+    <string name="online_batch_operations">操作</string>
+    <string name="online_batch_add">添加到</string>
+    <string name="online_batch_large_add">即将添加 %1$d 首歌曲到“%2$s”，是否继续？</string>
+    <string name="online_batch_add_result">成功 %1$d 首，跳过 %2$d 首，失败 %3$d 首</string>
+    <string name="online_batch_create_failed">创建失败，请重试</string>
 </resources>

@@ -38,6 +38,7 @@ import javax.inject.Inject
 /** 在线歌单的批量操作只作用于歌曲，绝不改动源歌单。 */
 @AndroidEntryPoint
 class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
+    @Inject lateinit var playlistCollectionManager: cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
     @Inject lateinit var trackLoader: OnlinePlaylistBatchTrackLoader
     private lateinit var binding: ActivityOnlinePlaylistBatchBinding
     private lateinit var adapter: LocalPlaylistSongManagementAdapter
@@ -107,8 +108,7 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
             selectedKeys.clear(); selectedKeys.addAll(next)
             render()
         }
-        binding.downloadAction.setOnClickListener { downloadSelected() }
-        binding.favoriteAction.setOnClickListener { favoriteSelected() }
+        binding.operationAction.setOnClickListener { showOperations() }
         scheduleFilter()
         loadTracks()
     }
@@ -142,6 +142,26 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
             if (resetWindow) renderedCount = PAGE_SIZE
             render()
         }
+    }
+
+    private fun showOperations() {
+        if (busy) return
+        val songs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
+        if (songs.isEmpty()) return
+        cn.partialy.pm.ui.dialog.ActionMenuBottomSheet.show(this, listOf(
+            cn.partialy.pm.ui.dialog.ActionMenuItem(R.drawable.ic_download_24, getString(R.string.online_batch_download)) { downloadSelected() },
+            cn.partialy.pm.ui.dialog.ActionMenuItem(R.drawable.ic_love_24, getString(R.string.online_batch_favorite)) { favoriteSelected() },
+            cn.partialy.pm.ui.dialog.ActionMenuItem(R.drawable.ic_playlist_24, getString(R.string.online_batch_add)) {
+                busy = true
+                render()
+                cn.partialy.pm.ui.dialog.AddToPlaylistBottomSheet.show(this, songs, musicController, playlistCollectionManager,
+                    onResult = { result ->
+                        (result.added + result.existing).forEach { selectedKeys.remove(playlistSongKey(it)) }
+                        showMessage(getString(R.string.online_batch_add_result, result.added.size, result.existing.size, result.failed.size))
+                        render()
+                    }, onFinished = { busy = false; render() })
+            },
+        ), bindHeader = { cn.partialy.pm.ui.dialog.SongInfoHeaderBinder.bind(it, songs.first()) })
     }
 
     private fun downloadSelected() {
@@ -200,8 +220,7 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
         setActionEnabled(binding.allAction, complete && filteredSongs.isNotEmpty() && !busy)
         setActionEnabled(binding.invertAction, complete && filteredSongs.isNotEmpty() && !busy)
         val hasSelection = sourceSongs.any { playlistSongKey(it) in selectedKeys }
-        setActionEnabled(binding.downloadAction, hasSelection && !busy)
-        setActionEnabled(binding.favoriteAction, hasSelection && !busy)
+        setActionEnabled(binding.operationAction, hasSelection && !busy)
     }
 
     private fun setActionEnabled(view: View, enabled: Boolean) {
