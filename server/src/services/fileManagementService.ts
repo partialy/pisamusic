@@ -1,3 +1,5 @@
+import { readAppShareConfig } from "../db/appShareStore";
+import { deletingAppShareIcons } from "./appShareIconLifecycle";
 import { readCloudMusicByFileRecordId } from "../db/cloudMusicStore";
 import {
   completeUpdateHistoryDeletion,
@@ -33,6 +35,15 @@ export async function deleteManagedFileRecord(id: string): Promise<FileRecordInf
   const file = readFileRecordById(id);
   if (!file) throw new Error("文件记录不存在");
 
+  if (file.usageType === "app-share-icon") {
+    if (readAppShareConfig().iconFileId === id) throw new Error("当前 App 分享图标不能删除，请先更换图标");
+    if (deletingAppShareIcons.has(id)) throw new Error("图标正在删除，请稍后重试");
+    deletingAppShareIcons.add(id);
+    try {
+      if (file.status !== "deleted") await deleteQiniuObject(file.bucket, file.objectKey);
+      return deleteFileRecordAndCleanupReferences(id);
+    } finally { deletingAppShareIcons.delete(id); }
+  }
   if (file.usageType === "announcement-image" && file.referencedBy.length > 0) {
     throw new Error("公告图片仍被公告内容引用，不能直接删除");
   }

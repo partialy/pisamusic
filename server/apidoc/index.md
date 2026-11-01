@@ -9,6 +9,8 @@
 
 ## 模块快速导航
 
+- [App 分享配置与图标上传](./appShare/config.md)：公开配置读取、管理保存、七牛图标上传与删除保护。
+
 - [1. 用户与认证模块 (`user`)](#1-用户与认证模块-apiuser)
 - [2. 客户端配置与发布模块 (`config`)](#2-客户端配置与发布模块-apiconfig)
 - [系统公告已读回执模块 (`announcements`)](#系统公告已读回执模块-apiannouncements)

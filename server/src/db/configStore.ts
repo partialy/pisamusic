@@ -58,7 +58,7 @@ export type DesktopUpdateAssetInfo = {
   releaseFile?: ReleaseFileInfo | null;
 };
 
-export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music" | "announcement-image";
+export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music" | "announcement-image" | "app-share-icon";
 
 export type FileRecordStatus = ReleaseFileStatus | "pending";
 
@@ -470,7 +470,7 @@ type FileRecordReferenceBase = {
 
 export type FileRecordReference =
   | (FileRecordReferenceBase & { type: "cloud-music"; id: string })
-  | (FileRecordReferenceBase & { type: "announcement-image"; id: string })
+  | (FileRecordReferenceBase & { type: "announcement-image" | "app-share-icon"; id: string })
   | (FileRecordReferenceBase & { type: "history" | "current-release" | "active-desktop-update" });
 
 type FileRecordReferenceType = FileRecordReference["type"];
@@ -490,9 +490,9 @@ function parseFileReferences(raw: string): FileRecordReference[] {
     return value
       .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
       .flatMap<FileRecordReference>((item) => {
-        const type = item.type === "current-release" || item.type === "active-desktop-update" || item.type === "cloud-music" || item.type === "announcement-image" || item.type === "history" ? item.type : "history";
+        const type = item.type === "current-release" || item.type === "active-desktop-update" || item.type === "cloud-music" || item.type === "announcement-image" || item.type === "app-share-icon" || item.type === "history" ? item.type : "history";
         const id = typeof item.id === "string" ? item.id : undefined;
-        if (type === "cloud-music" || type === "announcement-image") return id ? [{ type, id }] : [];
+        if (type === "cloud-music" || type === "announcement-image" || type === "app-share-icon") return id ? [{ type, id }] : [];
         return [{
           type,
           id,
@@ -526,6 +526,7 @@ function fileReferenceLabel(ref: FileRecordReference): string {
   if (ref.type === "current-release") return `当前${ref.platform === "desktop" ? "PC" : "Android"}发布`;
   if (ref.type === "active-desktop-update") return `PC 自动更新${ref.version ? ` ${ref.version}` : ""}${ref.fileName ? ` ${ref.fileName}` : ""}`;
   if (ref.type === "cloud-music") return ref.id ? `网盘音乐 ${ref.id}` : "网盘音乐";
+  if (ref.type === "app-share-icon") return "当前 App 分享图标";
   if (ref.type === "announcement-image") return ref.id ? `公告图片 ${ref.id}` : "公告图片";
   return ref.id ? `发布记录 ${ref.id}` : "发布记录";
 }
@@ -571,7 +572,7 @@ function mapFileRecord(row?: FileRecordRow | null): FileRecordInfo | null {
   const refs = parseFileReferences(row.referenced_by);
   return {
     id: row.id,
-    usageType: row.usage_type === "desktop-update" || row.usage_type === "cloud-music" || row.usage_type === "announcement-image" ? row.usage_type : "release-package",
+    usageType: row.usage_type === "desktop-update" || row.usage_type === "cloud-music" || row.usage_type === "announcement-image" || row.usage_type === "app-share-icon" ? row.usage_type : "release-package",
     ownerType: row.owner_type === "user" ? "user" : "system",
     ownerUserId: row.owner_user_id,
     ownerSnapshot: parseOwnerSnapshot(row.owner_snapshot_json),

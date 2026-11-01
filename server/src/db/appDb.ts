@@ -87,6 +87,12 @@ CREATE TABLE IF NOT EXISTS content_pages (
     updated_at  INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS app_share_config (
+ id INTEGER PRIMARY KEY CHECK (id=1), config_json TEXT NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS app_share_icon_uploads (
+ object_key TEXT PRIMARY KEY, input_json TEXT NOT NULL, expires_at INTEGER NOT NULL, file_id TEXT
+);
 CREATE TABLE IF NOT EXISTS about_config (
     id              INTEGER PRIMARY KEY CHECK (id = 1),
     app_name        TEXT    NOT NULL,

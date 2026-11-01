@@ -426,3 +426,13 @@ export function createPrivateQiniuDownloadUrlForBucket(bucket: string, key: stri
 export function createReleaseDownloadUrl(key: string, ttlSeconds?: number): string {
   return createPrivateQiniuDownloadUrl(key, ttlSeconds);
 }
+
+export function createAppShareIconUploadToken(input: { fileName: string; fileSize: number; mimeType: string }): QiniuUploadTokenInfo {
+  const { bucket, domain, cdnDomain } = getSpaceConfig("public-image");
+  const key = "pisamusic/app-share-icons/" + randomUUID() + getExtension(input.fileName);
+  const policy = new qiniu.rs.PutPolicy({ scope: bucket + ":" + key, insertOnly: 1, expires: TOKEN_TTL_SECONDS,
+    fsizeLimit: input.fileSize, mimeLimit: "image/jpeg;image/png;image/webp", detectMime: 1,
+    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)"}' });
+  return { provider: PROVIDER, uploadToken: policy.uploadToken(getMac()), uploadUrl: getUploadUrl(), key, bucket,
+    domain, cdnDomain, downloadUrl: buildUrl(key, "public-image"), expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000 };
+}

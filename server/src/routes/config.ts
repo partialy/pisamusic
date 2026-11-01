@@ -1,3 +1,4 @@
+import { readPublicAppShare } from "../services/appShareService";
 import { Router } from "express";
 import type { Request } from "express";
 import { recordDownload } from "../db/analyticsStore";
@@ -18,6 +19,10 @@ import { readHydratedAnnouncements } from "../services/announcementService";
 import { fail, ok } from "../types/response";
 
 export const configRouter = Router();
+configRouter.get("/app-share", (_req, res) => {
+  try { const share = readPublicAppShare(); return res.json(ok({ ...share, iconUrl: toAbsoluteUrl(share.iconUrl, _req) })); }
+  catch (e) { return res.status(500).json(fail("读取 App 分享配置失败", 500)); }
+});
 
 function cleanString(val: unknown, maxLen: number): string {
   if (typeof val !== "string") return "";

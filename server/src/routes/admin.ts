@@ -1,3 +1,4 @@
+import { adminAppShareRouter } from "./adminAppShare";
 import { Router } from "express";
 import type { Request } from "express";
 import { randomUUID } from "node:crypto";
@@ -634,6 +635,7 @@ adminRouter.post("/login", async (req, res) => {
 });
 
 adminRouter.use(requireAdminJwt);
+adminRouter.use("/app-share", adminAppShareRouter);
 adminRouter.use("/announcements", adminAnnouncementsRouter);
 adminRouter.use("/messages", adminDirectMessagesRouter);
 adminRouter.use("/cloud-music", adminCloudMusicRouter);
@@ -799,7 +801,7 @@ adminRouter.get("/files", (req, res) => {
     const limit = Number(req.query.limit ?? 20);
     return res.json(ok(listFileRecords({
       status: status === "deleted" || status === "all" ? status : "uploaded",
-      usageType: usageType === "release-package" || usageType === "desktop-update" ? usageType : "all",
+      usageType: usageType === "release-package" || usageType === "desktop-update" || usageType === "app-share-icon" ? usageType : "all",
       platform,
       version,
       keyword,

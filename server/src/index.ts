@@ -116,6 +116,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/config/bootstrap",
   "/api/config/check-update",
   "/api/config/get",
+  "/api/config/app-share",
   "/api/config/releases",
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
@@ -140,6 +141,7 @@ const DEFAULT_PLAINTEXT_PATHS = [
 
 const MANDATORY_PLAINTEXT_PATHS = [
   "/api/config/get",
+  "/api/config/app-share",
   "/api/config/releases",
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
