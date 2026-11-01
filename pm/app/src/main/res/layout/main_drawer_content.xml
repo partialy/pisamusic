@@ -257,7 +257,7 @@
                     android:layout_height="22dp"
                     android:contentDescription="@null"
                     android:importantForAccessibility="no"
-                    app:srcCompat="@drawable/ic_playlist_24"
+                    app:srcCompat="@drawable/ic_login_24"
                     app:tint="@color/colorOnBgNormal" />
 
                 <TextView
@@ -285,6 +285,41 @@
                     android:textSize="13sp"
                     android:visibility="gone"
                     tools:visibility="visible" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="16dp"
+                android:background="@color/settings_card_inset_divider" />
+
+            <LinearLayout
+                android:id="@+id/drawerLinkImportRow"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:contentDescription="@string/drawer_link_import"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp">
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
+                    app:srcCompat="@drawable/ic_link_24"
+                    app:tint="@color/colorOnBgNormal" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:text="@string/drawer_link_import"
+                    android:textColor="@color/colorOnBgNormal"
+                    android:textSize="14sp" />
             </LinearLayout>
 
             <View

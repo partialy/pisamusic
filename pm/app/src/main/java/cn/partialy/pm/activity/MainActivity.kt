@@ -52,6 +52,7 @@ import cn.partialy.pm.service.MusicService
 import cn.partialy.pm.sync.SyncManager
 import cn.partialy.pm.ui.dialog.ModernDialog
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.dialog.PlaylistLinkImportDialog
 import cn.partialy.pm.ui.dialog.SleepTimerBottomSheet
 import cn.partialy.pm.ui.discover.DiscoverFragment
 import cn.partialy.pm.ui.home.HomeFragmentStateAdapter
@@ -414,6 +415,10 @@ class MainActivity : BaseDownloadActivity() {
         }
         inflated.drawerClearThirdPartyLogin.setOnClickListener {
             clearThirdPartyLoginFromDrawer()
+        }
+        inflated.drawerLinkImportRow.setOnClickListener {
+            closeMainDrawer()
+            PlaylistLinkImportDialog.show(this, wyCookieRepository)
         }
         inflated.drawerSleepTimerRow.setOnClickListener {
             closeMainDrawer()
