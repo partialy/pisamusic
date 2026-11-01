@@ -1,5 +1,6 @@
 import { Button, Descriptions, Modal, Space, Tag, Typography } from "antd";
 import type { FileRecordInfo } from "../../types/config";
+import { fileUsageText as usageText, fileAssetTypeText as assetTypeText } from "../../utils/fileRecords";
 
 const { Text } = Typography;
 
@@ -21,25 +22,8 @@ function formatDate(ts: number | null): string {
   return new Date(ts).toLocaleString();
 }
 
-function usageText(file: FileRecordInfo): string {
-  if (file.usageType === "desktop-update") return "PC 自动更新文件";
-  if (file.usageType === "cloud-music") return "网盘音乐";
-  return "发布安装包";
-}
-
 function referencesText(file: FileRecordInfo): string {
   return file.referencedBy.length ? file.referencedBy.join("、") : "无引用";
-}
-
-function assetTypeText(file: FileRecordInfo): string {
-  if (file.assetType === "installer") return "安装包";
-  if (file.assetType === "latest-yml") return "latest.yml";
-  if (file.assetType === "blockmap") return "blockmap";
-  if (file.assetType === "audio") return "音频";
-  if (file.assetType === "cover-uploaded") return "手动封面";
-  if (file.assetType === "cover-extracted") return "内嵌封面";
-  if (file.assetType === "lyrics") return "歌词";
-  return file.assetType || "-";
 }
 
 function statusTag(file: FileRecordInfo) {

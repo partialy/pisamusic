@@ -17,7 +17,7 @@ export default function FileManagementPage() {
   const [selectedFileRecord, setSelectedFileRecord] = useState<FileRecordInfo | null>(null);
   const [fileFilters, setFileFilters] = useState<{
     status: "uploaded" | "deleted" | "pending" | "all";
-    usageType: "release-package" | "desktop-update" | "cloud-music" | "all";
+    usageType: "release-package" | "desktop-update" | "cloud-music" | "app-share-icon" | "all";
     keyword: string;
   }>({ status: "uploaded", usageType: "all", keyword: "" });
 

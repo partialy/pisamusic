@@ -19,12 +19,13 @@ import {
   SearchOutlined,
 } from "@ant-design/icons";
 import type { FileRecordInfo } from "../../types/config";
+import { fileUsageText as usageText, fileAssetTypeText as assetTypeText } from "../../utils/fileRecords";
 
 const { Text } = Typography;
 
 type FileFilters = {
   status: "uploaded" | "deleted" | "pending" | "all";
-  usageType: "release-package" | "desktop-update" | "cloud-music" | "all";
+  usageType: "release-package" | "desktop-update" | "cloud-music" | "app-share-icon" | "all";
   keyword: string;
 };
 
@@ -54,23 +55,6 @@ export function formatFileSize(size: number): string {
 export function formatDate(ts: number | null): string {
   if (!ts) return "-";
   return new Date(ts).toLocaleString();
-}
-
-export function usageText(file: FileRecordInfo): string {
-  if (file.usageType === "desktop-update") return "PC 自动更新文件";
-  if (file.usageType === "cloud-music") return "网盘音乐";
-  return "发布安装包";
-}
-
-function assetTypeText(file: FileRecordInfo): string {
-  if (file.assetType === "installer") return "安装包";
-  if (file.assetType === "latest-yml") return "latest.yml";
-  if (file.assetType === "blockmap") return "blockmap";
-  if (file.assetType === "audio") return "音频";
-  if (file.assetType === "cover-uploaded") return "手动封面";
-  if (file.assetType === "cover-extracted") return "内嵌封面";
-  if (file.assetType === "lyrics") return "歌词";
-  return file.assetType || "-";
 }
 
 export function referencesText(file: FileRecordInfo): string {
@@ -304,6 +288,7 @@ export default function FileManagementTab({
               { label: "发布安装包", value: "release-package" },
               { label: "PC 自动更新", value: "desktop-update" },
               { label: "网盘音乐", value: "cloud-music" },
+              { label: "App分享图标", value: "app-share-icon" },
             ]}
           />
 
