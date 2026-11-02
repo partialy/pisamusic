@@ -5,8 +5,8 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.JavascriptInterface
-import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.AppActivityTransitions
 import cn.partialy.pm.model.AboutInfo
@@ -76,7 +76,7 @@ class SettingAboutActivity : BaseSettingWebActivity() {
 
     private fun showPageError(message: String) {
         if (!pageReady) {
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            PmMessage.error(this, message)
             return
         }
         val msg = JSONObject.quote(message)
@@ -127,7 +127,7 @@ class SettingAboutActivity : BaseSettingWebActivity() {
                 runCatching {
                     startActivity(Intent(Intent.ACTION_VIEW, target.toUri()))
                 }.onFailure {
-                    Toast.makeText(this@SettingAboutActivity, R.string.common_open_link_failed, Toast.LENGTH_SHORT).show()
+                    PmMessage.error(this@SettingAboutActivity, R.string.common_open_link_failed)
                 }
             }
         }

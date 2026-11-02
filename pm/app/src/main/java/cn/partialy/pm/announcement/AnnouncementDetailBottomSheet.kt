@@ -4,6 +4,7 @@ import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.model.AnnouncementItem
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -91,6 +92,7 @@ object AnnouncementDetailBottomSheet {
 
         sheet.setOnCancelListener { onCancelled() }
         sheet.show()
+        PmMessage.register(sheet)
         return sheet
     }
 }

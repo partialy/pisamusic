@@ -6,11 +6,11 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.scan.QrImageDecoder
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
@@ -88,7 +88,7 @@ class PortraitCaptureActivity : ComponentActivity() {
         runCatching {
             startActivityForResult(intent, REQUEST_PICK_IMAGE)
         }.onFailure {
-            Toast.makeText(this, R.string.scan_album_open_failed, Toast.LENGTH_SHORT).show()
+            PmMessage.error(this, R.string.scan_album_open_failed)
         }
     }
 
@@ -103,11 +103,7 @@ class PortraitCaptureActivity : ComponentActivity() {
                 QrImageDecoder.decode(contentResolver, uri)
             }
             if (content.isNullOrBlank()) {
-                Toast.makeText(
-                    this@PortraitCaptureActivity,
-                    R.string.scan_album_decode_failed,
-                    Toast.LENGTH_SHORT,
-                ).show()
+                PmMessage.error(this@PortraitCaptureActivity, R.string.scan_album_decode_failed)
             } else {
                 returnGalleryScanResult(content)
             }

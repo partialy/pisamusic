@@ -16,6 +16,7 @@ import androidx.annotation.AttrRes
 import androidx.annotation.ColorInt
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -212,6 +213,7 @@ object SplashActionBottomSheet {
 
         dialog.setOnDismissListener { onDismiss() }
         dialog.show()
+        PmMessage.register(dialog)
         return handle
     }
 

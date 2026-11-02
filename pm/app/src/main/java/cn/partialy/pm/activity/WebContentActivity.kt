@@ -14,9 +14,9 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.Keep
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityWebContentBinding
@@ -71,7 +71,7 @@ class WebContentActivity : BaseActivity() {
         val url = intent.getStringExtra(EXTRA_URL)?.trim().orEmpty()
         val uri = urlToHttpUri(url)
         if (uri == null) {
-            Toast.makeText(this, R.string.web_content_invalid_url, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.web_content_invalid_url)
             finish()
             return
         }

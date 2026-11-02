@@ -3,13 +3,13 @@ package cn.partialy.pm.ui.dialog
 import android.view.LayoutInflater
 import android.widget.EditText
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.ui.mine.CreateLocalPlaylistCoverPickerAdapter
@@ -60,7 +60,7 @@ object LocalPlaylistCreateDialog {
                 }.isSuccess }
                 busy = false
                 if (!closed) {
-                    if (ok) refresh() else Toast.makeText(activity, R.string.toast_playlist_cover_read_failed, Toast.LENGTH_SHORT).show()
+                    if (ok) refresh() else PmMessage.error(activity, R.string.toast_playlist_cover_read_failed)
                 } else pending.delete()
             }.invokeOnCompletion { busy = false; if (closed || activity.isDestroyed) pending.delete() }
         }
@@ -75,7 +75,7 @@ object LocalPlaylistCreateDialog {
                 if (busy) return@setConfirmButton
                 val name = title.text.toString().trim()
                 if (name.isEmpty()) {
-                    Toast.makeText(activity, R.string.toast_playlist_name_required, Toast.LENGTH_SHORT).show()
+                    PmMessage.warning(activity, R.string.toast_playlist_name_required)
                     return@setConfirmButton
                 }
                 val description = intro.text.toString().trim()
@@ -99,7 +99,7 @@ object LocalPlaylistCreateDialog {
                         dialog.setCancelable(true)
                         dialog.findViewById<android.view.View>(R.id.cancelButton)?.isEnabled = true
                         pick.isEnabled = true; clear.isEnabled = true; title.isEnabled = true; intro.isEnabled = true
-                        Toast.makeText(activity, R.string.online_batch_create_failed, Toast.LENGTH_SHORT).show()
+                        PmMessage.error(activity, R.string.online_batch_create_failed)
                     }
                 }.invokeOnCompletion { busy = false; if (closed || activity.isDestroyed) pending.delete() }
             }.show()

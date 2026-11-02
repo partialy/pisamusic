@@ -1,5 +1,7 @@
 package cn.partialy.pm.ui.player
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.StaticLayout
@@ -67,6 +69,7 @@ internal class LyricSettingsSheetWindow(
         }
         dialog.setOnDismissListener { dispose() }
         dialog.show()
+        PmMessage.register(dialog)
     }
 
     override fun onResume(owner: LifecycleOwner) {

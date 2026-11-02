@@ -2,7 +2,7 @@ package cn.partialy.pm.ui.dialog
 
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import android.widget.Toast
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
@@ -27,10 +27,10 @@ object PlaylistDeleteConfirmation {
             confirmColor = ContextCompat.getColor(activity, R.color.pm_dialog_danger),
             onConfirm = {
                 if (manager.removePlaylist(playlist.type, playlist.id)) {
-                    Toast.makeText(activity, R.string.mine_playlist_deleted, Toast.LENGTH_SHORT).show()
+                    PmMessage.success(activity, R.string.mine_playlist_deleted)
                     onFinished()
                 } else {
-                    Toast.makeText(activity, R.string.mine_playlist_delete_failed, Toast.LENGTH_SHORT).show()
+                    PmMessage.error(activity, R.string.mine_playlist_delete_failed)
                 }
             },
         )

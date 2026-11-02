@@ -2,6 +2,7 @@ package cn.partialy.pm.ui.dialog
 
 import android.content.Context
 import android.widget.FrameLayout
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.databinding.LayoutBottomRadiusOptionsSheetBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -68,5 +69,6 @@ suspend fun showSettingsOptionPicker(
         }
         cont.invokeOnCancellation { dialog.dismiss() }
         dialog.show()
+        PmMessage.register(dialog)
     }
 }

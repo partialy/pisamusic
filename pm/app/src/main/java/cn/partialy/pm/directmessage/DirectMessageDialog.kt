@@ -1,5 +1,7 @@
 package cn.partialy.pm.directmessage
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.app.Activity
 import android.app.Dialog
 import android.graphics.Color
@@ -52,6 +54,7 @@ class DirectMessageDialog private constructor(
             setLayout(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT)
         }
         dialog.show()
+        PmMessage.register(dialog)
         scheduleUnlock(binding)
         return dialog
     }

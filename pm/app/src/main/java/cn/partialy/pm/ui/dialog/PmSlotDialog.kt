@@ -15,6 +15,7 @@ import androidx.annotation.LayoutRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.NestedScrollView
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.DialogPmSlotBinding
 import kotlin.math.roundToInt
@@ -37,6 +38,7 @@ class PmSlotDialog private constructor(
         }
         dialog.setCancelable(config.cancelable)
         dialog.show()
+        PmMessage.register(dialog)
         return dialog
     }
 

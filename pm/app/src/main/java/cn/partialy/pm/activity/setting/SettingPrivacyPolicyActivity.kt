@@ -1,8 +1,8 @@
 package cn.partialy.pm.activity.setting
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.network.config.ConfigManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -30,7 +30,7 @@ class SettingPrivacyPolicyActivity : BaseSettingPlainTextActivity() {
 
     private fun showPageError(message: String) {
         showPlainTextError(message)
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        PmMessage.error(this, message)
     }
 }
 

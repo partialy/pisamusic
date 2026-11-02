@@ -1,7 +1,7 @@
 package cn.partialy.pm.ui.dialog
 
-import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.ShareDetailActivity
 import cn.partialy.pm.model.SongInfo
@@ -35,7 +35,7 @@ object SongMoreMenu {
             if (deps.showPlayNext && song.playable) {
                 add(ActionMenuItem(R.drawable.ic_next_24, activity.getString(R.string.song_more_play_next)) {
                     deps.musicController.addPlayNext(song)
-                    Toast.makeText(activity, R.string.toast_song_added_to_play_next, Toast.LENGTH_SHORT).show()
+                    PmMessage.success(activity, R.string.toast_song_added_to_play_next)
                 })
             }
             if (deps.showDownload && song.playable && song.type != SongType.LOCAL) {
@@ -51,11 +51,7 @@ object SongMoreMenu {
                 colorRes = if (liked) R.color.red else null,
             ) {
                 val liked = deps.loveManager.toggleLikeStatus(song)
-                Toast.makeText(
-                    activity,
-                    activity.getString(if (liked) R.string.share_favorited else R.string.share_unfavorited),
-                    Toast.LENGTH_SHORT,
-                ).show()
+                PmMessage.success(activity, activity.getString(if (liked) R.string.share_favorited else R.string.share_unfavorited))
             })
             add(ActionMenuItem(
                 R.drawable.ic_playlist_24,
@@ -67,9 +63,11 @@ object SongMoreMenu {
                     deps.musicController,
                     deps.playlistCollectionManager,
                     allowQueueTarget = deps.allowQueueTarget && song.playable,
-                    onResult = { result -> Toast.makeText(activity,
-                        activity.getString(R.string.online_batch_add_result, result.added.size, result.existing.size, result.failed.size),
-                        Toast.LENGTH_SHORT).show() },
+                    onResult = { result ->
+                        val message = activity.getString(R.string.online_batch_add_result, result.added.size, result.existing.size, result.failed.size)
+                        if (result.failed.isNotEmpty()) PmMessage.warning(activity, message)
+                        else PmMessage.success(activity, message)
+                    },
                 )
             })
             deps.onListenTogetherClick?.let { onListenTogetherClick ->

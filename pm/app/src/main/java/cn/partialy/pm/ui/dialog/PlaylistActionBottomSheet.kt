@@ -2,8 +2,8 @@ package cn.partialy.pm.ui.dialog
 
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.ShareDetailActivity
 import cn.partialy.pm.activity.PlaylistEditActivity
@@ -102,19 +102,13 @@ object PlaylistActionBottomSheet {
     ) {
         if (favoriteTarget == null) {
             val ok = manager.addNetworkPlaylist(playlist.toCollectedPlaylist())
-            Toast.makeText(
-                activity,
-                if (ok) R.string.share_detail_favorited else R.string.playlist_more_favorite_failed,
-                Toast.LENGTH_SHORT,
-            ).show()
+            if (ok) PmMessage.success(activity, R.string.share_detail_favorited)
+            else PmMessage.error(activity, R.string.playlist_more_favorite_failed)
             return
         }
         val ok = manager.removePlaylist(favoriteTarget.type, favoriteTarget.id)
-        Toast.makeText(
-            activity,
-            if (ok) R.string.share_detail_unfavorited else R.string.playlist_more_unfavorite_failed,
-            Toast.LENGTH_SHORT,
-        ).show()
+        if (ok) PmMessage.success(activity, R.string.share_detail_unfavorited)
+        else PmMessage.error(activity, R.string.playlist_more_unfavorite_failed)
     }
 
     private fun confirmDelete(

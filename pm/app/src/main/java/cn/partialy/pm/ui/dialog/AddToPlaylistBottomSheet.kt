@@ -9,6 +9,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
@@ -123,6 +124,7 @@ object AddToPlaylistBottomSheet {
             applyBottomSheetMaxBehavior(dialog, fraction = 0.5f)
         }
         dialog.show()
+        PmMessage.register(dialog)
     }
 
     private sealed class AddToTarget {

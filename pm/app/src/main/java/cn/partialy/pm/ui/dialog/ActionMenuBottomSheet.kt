@@ -11,6 +11,7 @@ import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -96,6 +97,7 @@ object ActionMenuBottomSheet {
             action?.invoke()
         }
         dialog.show()
+        PmMessage.register(dialog)
         return dialog
     }
 }

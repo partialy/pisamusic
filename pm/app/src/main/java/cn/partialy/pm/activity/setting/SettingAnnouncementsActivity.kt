@@ -3,8 +3,8 @@ package cn.partialy.pm.activity.setting
 import android.content.res.Configuration
 import android.os.Bundle
 import android.webkit.JavascriptInterface
-import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
 import cn.partialy.pm.model.AnnouncementItem
@@ -81,7 +81,7 @@ class SettingAnnouncementsActivity : BaseSettingWebActivity() {
 
     private fun showPageError(message: String) {
         if (!pageReady) {
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            PmMessage.error(this, message)
             return
         }
         val msg = JSONObject.quote(message)

@@ -1,5 +1,7 @@
 package cn.partialy.pm.ui.mine
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -46,5 +48,6 @@ object MinePlaylistMoreBottomSheet {
             dialog.dismiss()
         }
         dialog.show()
+        PmMessage.register(dialog)
     }
 }

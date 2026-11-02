@@ -8,9 +8,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatDelegate
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
@@ -108,7 +108,7 @@ class SettingsActivity : BaseActivity() {
 
         binding.moreSettings.apply {
             bindNavRow(root, R.drawable.settings_ic_more_settings, getString(R.string.settings_more), null)
-            root.setOnClickListener { showMessage(getString(R.string.common_not_available_yet)) }
+            root.setOnClickListener { PmMessage.info(this@SettingsActivity, R.string.common_not_available_yet) }
         }
 
         binding.themeMode.apply {
@@ -250,12 +250,18 @@ class SettingsActivity : BaseActivity() {
             text = getString(R.string.settings_device_id_value, display)
             setOnClickListener {
                 if (deviceId.isEmpty()) {
-                    Toast.makeText(this@SettingsActivity, R.string.settings_device_id_pending, Toast.LENGTH_SHORT).show()
+                    PmMessage.warning(this@SettingsActivity, R.string.settings_device_id_pending)
                     return@setOnClickListener
                 }
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.settings_device_id_clip_label), deviceId))
-                Toast.makeText(this@SettingsActivity, R.string.settings_device_id_copied, Toast.LENGTH_SHORT).show()
+                try {
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.settings_device_id_clip_label), deviceId))
+                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+                        PmMessage.success(this@SettingsActivity, R.string.settings_device_id_copied)
+                    }
+                } catch (_: Exception) {
+                    PmMessage.error(this@SettingsActivity, R.string.common_copy_failed)
+                }
             }
         }
     }

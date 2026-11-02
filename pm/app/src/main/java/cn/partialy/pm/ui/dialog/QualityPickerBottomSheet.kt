@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.LayoutBottomRadiusOptionsSheetBinding
 import cn.partialy.pm.model.DownloadQualityOption
@@ -89,6 +90,7 @@ suspend fun showDownloadQualityPicker(
         }
         cont.invokeOnCancellation { dialog.dismiss() }
         dialog.show()
+        PmMessage.register(dialog)
     }
 }
 

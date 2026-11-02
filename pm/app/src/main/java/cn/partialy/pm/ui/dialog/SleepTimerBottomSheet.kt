@@ -15,6 +15,7 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.BottomSheetSleepTimerBinding
 import cn.partialy.pm.player.SleepTimerManager
@@ -229,5 +230,6 @@ object SleepTimerBottomSheet {
         dialog.setOnDismissListener { observationJob.cancel() }
         dialog.setCancelable(true)
         dialog.show()
+        PmMessage.register(dialog)
     }
 }

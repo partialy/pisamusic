@@ -3,6 +3,7 @@ package cn.partialy.pm.ui.dialog
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.BottomSheetSleepTimerPresetsBinding
 import cn.partialy.pm.player.SleepTimerManager
@@ -80,5 +81,6 @@ object SleepTimerPresetSettingsBottomSheet {
         }
         dialog.setCancelable(true)
         dialog.show()
+        PmMessage.register(dialog)
     }
 }

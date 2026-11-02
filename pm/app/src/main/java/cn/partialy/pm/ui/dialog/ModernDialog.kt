@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
 import androidx.core.view.isVisible
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import com.google.android.material.R.style.MaterialAlertDialog_Material3
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -67,7 +68,7 @@ class ModernDialog private constructor(
                 }
                 setCancelable(builder.cancelable)
             }
-            .show()
+            .show().also { PmMessage.register(it) }
     }
     
     /**
@@ -82,6 +83,7 @@ class ModernDialog private constructor(
             }
             setCancelable(builder.cancelable)
             show()
+            PmMessage.register(this)
         }
     }
     
@@ -141,7 +143,7 @@ class ModernDialog private constructor(
                 }
                 setCancelable(builder.cancelable)
             }
-            .show()
+            .show().also { PmMessage.register(it) }
     }
     
     /**
@@ -156,6 +158,7 @@ class ModernDialog private constructor(
             }
             setCancelable(builder.cancelable)
             show()
+            PmMessage.register(this)
         }
     }
     

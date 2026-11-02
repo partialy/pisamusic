@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
-import android.widget.Toast
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -17,6 +16,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.BuildConfig
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ActivitySplashBinding
@@ -88,7 +88,7 @@ class SplashActivity : AppCompatActivity() {
                 }
 
                 override fun onMessage(message: String) {
-                    Toast.makeText(this@SplashActivity, message, Toast.LENGTH_SHORT).show()
+                    PmMessage.error(this@SplashActivity, message)
                 }
             },
         )

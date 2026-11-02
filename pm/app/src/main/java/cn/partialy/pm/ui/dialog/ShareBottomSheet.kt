@@ -9,12 +9,11 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
-import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.model.CanonicalPlaylist
 import cn.partialy.pm.model.CanonicalSong
 import cn.partialy.pm.model.SongInfo
@@ -77,7 +76,7 @@ object ShareBottomSheet {
     ) {
         val session = AccountSessionStore.read(activity)
         if (!session.loggedIn) {
-            activity.showBusinessMessage(activity.getString(R.string.share_login_required))
+            PmMessage.warning(activity, R.string.share_login_required)
             return
         }
 
@@ -116,6 +115,7 @@ object ShareBottomSheet {
             }
         }
         dialog.show()
+        PmMessage.register(dialog)
 
         activity.lifecycleScope.launch {
             try {
@@ -127,11 +127,13 @@ object ShareBottomSheet {
                 loading.isVisible = false
                 qrImage.isVisible = true
                 linkLayout.isEnabled = true
-            } catch (error: Throwable) {
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
                 val message = error.message?.takeIf { it.isNotBlank() }
                     ?: activity.getString(R.string.share_create_failed)
-                activity.showBusinessMessage(message)
                 dialog.dismiss()
+                PmMessage.error(activity, message)
             }
         }
     }
@@ -152,16 +154,14 @@ object ShareBottomSheet {
     }
 
     private fun copyLink(activity: FragmentActivity, link: String) {
-        val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(activity.getString(R.string.share_link_label), link))
-        activity.showBusinessMessage(activity.getString(R.string.share_link_copied))
-    }
-
-    private fun FragmentActivity.showBusinessMessage(message: String) {
-        if (this is BaseActivity) {
-            showMessage(message)
-        } else {
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        try {
+            val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText(activity.getString(R.string.share_link_label), link))
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+                PmMessage.success(activity, R.string.share_link_copied)
+            }
+        } catch (_: Exception) {
+            PmMessage.error(activity, R.string.common_copy_failed)
         }
     }
 

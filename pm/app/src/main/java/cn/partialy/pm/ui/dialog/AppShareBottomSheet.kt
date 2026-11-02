@@ -13,8 +13,8 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
-import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.appshare.AppShareConfig
 import cn.partialy.pm.appshare.AppShareRepository
 import cn.partialy.pm.share.ShareQrBitmapFactory
@@ -63,9 +63,15 @@ object AppShareBottomSheet {
         }
 
         root.findViewById<View>(R.id.appShareCopyButton).setOnClickListener {
-            val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText(snapshot.appName, snapshot.copyText))
-            (activity as? BaseActivity)?.showMessage(activity.getString(R.string.share_link_copied))
+            try {
+                val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText(snapshot.appName, snapshot.copyText))
+                if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+                    PmMessage.success(activity, R.string.share_link_copied, dialog = dialog)
+                }
+            } catch (_: Exception) {
+                PmMessage.error(activity, R.string.common_copy_failed, dialog = dialog)
+            }
         }
         root.findViewById<View>(R.id.appShareMoreButton).setOnClickListener {
             val send = Intent(Intent.ACTION_SEND).apply {
@@ -75,7 +81,7 @@ object AppShareBottomSheet {
             try {
                 activity.startActivity(Intent.createChooser(send, activity.getString(R.string.app_share_title)))
             } catch (_: ActivityNotFoundException) {
-                (activity as? BaseActivity)?.showMessage(activity.getString(R.string.app_share_no_target))
+                PmMessage.warning(activity, R.string.app_share_no_target, dialog = dialog)
             }
         }
         root.findViewById<View>(R.id.appShareCloseButton).setOnClickListener { dialog.dismiss() }
@@ -100,6 +106,7 @@ object AppShareBottomSheet {
         }
         render(snapshot, ShareQrBitmapFactory.create(snapshot.qrCodeText, 432))
         dialog.show()
+        PmMessage.register(dialog)
         refreshJob = activity.lifecycleScope.launch {
             try {
                 val config = repository.refresh()

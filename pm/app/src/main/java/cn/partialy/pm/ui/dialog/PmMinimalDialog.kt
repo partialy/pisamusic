@@ -15,6 +15,7 @@ import android.view.ViewGroup
 import androidx.annotation.ColorInt
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.DialogPmMinimalBinding
 import kotlin.math.roundToInt
@@ -36,6 +37,7 @@ class PmMinimalDialog private constructor(
         }
         dialog.setCancelable(config.cancelable)
         dialog.show()
+        PmMessage.register(dialog)
         dialog.window?.setLayout(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
