@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, Monitor, QrCode, Smartphone, Sparkles, X } from "lucide-react";
+import { downloadTriggerHref } from "../../api/update";
 
 export type ModalTriggerReason = "quality" | "search_more" | "favorite" | "general";
 
@@ -93,7 +94,7 @@ export default function DownloadModal({ isOpen, onClose, reason = "general" }: D
         <div className="mt-6 space-y-3">
           {/* Android Download */}
           <a
-            href="/api/config/download/android"
+            href={downloadTriggerHref("android")}
             className={`group relative flex items-center justify-between rounded-2xl border p-4 transition-all duration-300 ${
               platform === "android"
                 ? "border-sky-500 bg-sky-50/50 shadow-md shadow-sky-500/10 hover:bg-sky-50"
@@ -124,7 +125,7 @@ export default function DownloadModal({ isOpen, onClose, reason = "general" }: D
 
           {/* Windows Download */}
           <a
-            href="/api/config/download/desktop"
+            href={downloadTriggerHref("desktop")}
             className={`group relative flex items-center justify-between rounded-2xl border p-4 transition-all duration-300 ${
               platform === "windows"
                 ? "border-sky-500 bg-sky-50/50 shadow-md shadow-sky-500/10 hover:bg-sky-50"

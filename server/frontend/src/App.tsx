@@ -4,7 +4,7 @@ import ListenPage from "./Listen/ListenPage";
 
 interface StaticRouteRedirectProps {
   /** 需要补齐尾斜杠的静态目录路径。 */
-  path: "/scan" | "/download";
+  path: "/scan" | "/download" | "/app-share";
 }
 
 function StaticRouteRedirect({ path }: StaticRouteRedirectProps) {
@@ -47,6 +47,10 @@ export default function App() {
   }
   if (window.location.pathname === "/download") {
     return <StaticRouteRedirect path="/download" />;
+  }
+
+  if (window.location.pathname === "/app-share") {
+    return <StaticRouteRedirect path="/app-share" />;
   }
 
   if (isListen) {

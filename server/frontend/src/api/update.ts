@@ -58,7 +58,18 @@ export async function fetchReleaseConfig(): Promise<ReleaseConfig> {
 }
 
 export function trackedDownloadHref(platform: "android" | "desktop", release?: ReleaseInfo): string {
-  return release?.available && release.downloadUrl
-    ? `/api/config/download/${platform}`
-    : "#download";
+  if (!release?.available || !release.downloadUrl) return "#download";
+  return downloadTriggerHref(platform);
+}
+
+/** 所有官网下载触发入口共用，安装包可用性仍由各调用方或下载接口判断。 */
+export function downloadTriggerHref(platform: "android" | "desktop"): string {
+  const params = new URLSearchParams(window.location.search);
+  const target = new URL(`/api/config/download/${platform}`, window.location.origin);
+  // 非法显式码仍要阻止服务器回退到旧 Cookie。
+  if (params.has("code")) {
+    const code = params.get("code") || "";
+    target.searchParams.set("code", /^[A-Za-z0-9]{6}$/.test(code) && params.getAll("code").length === 1 ? code : "invalid");
+  }
+  return target.pathname + target.search;
 }

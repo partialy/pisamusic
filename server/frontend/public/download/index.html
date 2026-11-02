@@ -2,6 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
+  <meta name="robots" content="noindex, follow" />
+  <meta name="referrer" content="no-referrer" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#f7fbff" />
   <title>下载 Pisa Music</title>
@@ -83,6 +85,10 @@
         targetParams.set("uuid", uuid);
       }
 
+      if (sourceParams.has("code")) {
+        const code = sourceParams.get("code") || "";
+        targetParams.set("code", /^[A-Za-z0-9]{6}$/.test(code) && sourceParams.getAll("code").length === 1 ? code : "invalid");
+      }
       const query = targetParams.toString();
       return `/${query ? `?${query}` : ""}#download`;
     }

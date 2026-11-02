@@ -194,7 +194,14 @@
   }
 
   function formatTrackedDownloadHref(platform, release) {
-    return release && release.available && release.downloadUrl ? `/api/config/download/${platform}` : "#download";
+    if (!release || !release.available || !release.downloadUrl) return "#download";
+    const target = new URL(`/api/config/download/${platform}`, location.origin);
+    const params = new URLSearchParams(location.search);
+    if (params.has("code")) {
+      const code = params.get("code") || "";
+      target.searchParams.set("code", /^[A-Za-z0-9]{6}$/.test(code) && params.getAll("code").length === 1 ? code : "invalid");
+    }
+    return target.pathname + target.search;
   }
 
   async function fetchReleaseConfig() {

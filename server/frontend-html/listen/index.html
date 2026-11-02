@@ -550,6 +550,14 @@
 
     <!-- 业务逻辑脚本 -->
     <script>
+      document.querySelectorAll('a[href^="/api/config/download/"]').forEach(link => {
+        const params = new URLSearchParams(location.search);
+        if (!params.has("code")) return;
+        const code = params.get("code") || "";
+        const url = new URL(link.href);
+        url.searchParams.set("code", /^[A-Za-z0-9]{6}$/.test(code) && params.getAll("code").length === 1 ? code : "invalid");
+        link.href = url.pathname + url.search;
+      });
       (function () {
         // State
         let currentSource = "wy";
