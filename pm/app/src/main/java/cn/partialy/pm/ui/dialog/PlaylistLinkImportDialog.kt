@@ -1,12 +1,22 @@
 package cn.partialy.pm.ui.dialog
 
+import android.animation.ValueAnimator
 import android.app.Dialog
 import android.content.ClipboardManager
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ImageSpan
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.WindowManager
+import android.view.animation.LinearInterpolator
 import android.widget.TextView
-import androidx.core.view.isVisible
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -33,6 +43,7 @@ object PlaylistLinkImportDialog {
         var request: Job? = null
         var busy = false
         var closed = false
+        var loadingAnimation: ValueAnimator? = null
         fun message(resId: Int) {
             binding.linkInputLayout.error = activity.getString(resId)
         }
@@ -40,10 +51,16 @@ object PlaylistLinkImportDialog {
         fun setBusy(dialog: Dialog, value: Boolean) {
             busy = value
             binding.linkInputLayout.isEnabled = !value
-            binding.linkLoading.isVisible = value
+            loadingAnimation?.cancel()
+            loadingAnimation = null
             dialog.findViewById<TextView>(R.id.confirmButton)?.apply {
                 isEnabled = !value
-                setText(if (value) R.string.playlist_link_loading else R.string.playlist_link_open)
+                alpha = if (value) 0.65f else 1f
+                if (value) {
+                    loadingAnimation = startConfirmLoading(activity, this)
+                } else {
+                    setText(R.string.playlist_link_open)
+                }
             }
         }
         binding.linkInputLayout.setEndIconOnClickListener {
@@ -62,7 +79,10 @@ object PlaylistLinkImportDialog {
         }
         val dialog = PmSlotDialog.Builder(activity)
             .setHeaderLayout(R.layout.dialog_pm_title_header) { view, _ ->
-                view.findViewById<TextView>(R.id.dialogTitleText).setText(R.string.drawer_link_import)
+                view.findViewById<TextView>(R.id.dialogTitleText).apply {
+                    setText(R.string.playlist_link_input_title)
+                    gravity = Gravity.CENTER
+                }
             }
             .setContentView(binding.root)
             .setCancelButton(activity.getString(R.string.cancel))
@@ -122,8 +142,55 @@ object PlaylistLinkImportDialog {
         activity.lifecycle.addObserver(observer)
         dialog.setOnDismissListener {
             closed = true
+            loadingAnimation?.cancel()
             request?.cancel()
             activity.lifecycle.removeObserver(observer)
+        }
+    }
+
+    /** 将旋转图标作为文字的一部分绘制，使“转圈 + 解析中”整体居于按钮中央。 */
+    private fun startConfirmLoading(activity: BaseActivity, button: TextView): ValueAnimator? {
+        val icon = AppCompatResources.getDrawable(activity, R.drawable.ic_loading_loop_24)?.mutate()
+        if (icon == null) {
+            button.setText(R.string.playlist_link_loading)
+            return null
+        }
+        DrawableCompat.setTint(icon, ContextCompat.getColor(activity, R.color.pm_dialog_confirm))
+        val iconSize = (16f * activity.resources.displayMetrics.density).toInt().coerceAtLeast(1)
+        icon.setBounds(0, 0, iconSize, iconSize)
+
+        val spinner = object : ImageSpan(icon, ImageSpan.ALIGN_BOTTOM) {
+            var rotationDegrees = 0f
+
+            override fun draw(
+                canvas: Canvas,
+                text: CharSequence,
+                start: Int,
+                end: Int,
+                x: Float,
+                top: Int,
+                y: Int,
+                bottom: Int,
+                paint: Paint,
+            ) {
+                val saved = canvas.save()
+                canvas.rotate(rotationDegrees, x + iconSize / 2f, bottom - iconSize / 2f)
+                super.draw(canvas, text, start, end, x, top, y, bottom, paint)
+                canvas.restoreToCount(saved)
+            }
+        }
+        val label = SpannableString("\uFFFC  ${activity.getString(R.string.playlist_link_loading)}")
+        label.setSpan(spinner, 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        button.text = label
+        return ValueAnimator.ofFloat(0f, 360f).apply {
+            duration = 900L
+            repeatCount = ValueAnimator.INFINITE
+            interpolator = LinearInterpolator()
+            addUpdateListener {
+                spinner.rotationDegrees = it.animatedValue as Float
+                button.invalidate()
+            }
+            start()
         }
     }
 }

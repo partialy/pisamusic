@@ -44,15 +44,4 @@
             android:textSize="14sp" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <com.google.android.material.progressindicator.CircularProgressIndicator
-        android:id="@+id/linkLoading"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="12dp"
-        android:contentDescription="@string/playlist_link_loading"
-        android:indeterminate="true"
-        android:visibility="gone"
-        app:indicatorSize="24dp"
-        app:trackThickness="2dp" />
 </LinearLayout>
