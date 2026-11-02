@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
@@ -86,12 +88,12 @@ class PlaylistEditActivity : BaseActivity() {
                         coverValue = state.cover
                         coverBinder.bind(SongType.LOCAL, state.cover)
                     }
-                    val enabled = !state.loading && !state.busy && !state.saving
+                    val enabled = !state.loading && !state.busy && !state.saving && !completionScheduled
                     binding.nameLayout.isEnabled = enabled
                     binding.descriptionLayout.isEnabled = enabled
                     binding.coverButton.isEnabled = enabled
                     binding.saveButton.isEnabled = enabled
-                    binding.backButton.isEnabled = enabled
+                    binding.backButton.isEnabled = enabled || completionScheduled
                     renderSaving(state.saving)
                     state.error?.let { error ->
                         val message = when (error) {
@@ -101,21 +103,28 @@ class PlaylistEditActivity : BaseActivity() {
                             PlaylistEditError.IMAGE_FAILED -> R.string.playlist_edit_image_failed
                             PlaylistEditError.SAVE_FAILED -> R.string.playlist_edit_save_failed
                         }
-                        showMessage(getString(message))
+                        when (error) {
+                            PlaylistEditError.NAME_REQUIRED, PlaylistEditError.NAME_TOO_LONG,
+                            PlaylistEditError.DESCRIPTION_TOO_LONG -> PmMessage.warning(this@PlaylistEditActivity, message)
+                            else -> PmMessage.error(this@PlaylistEditActivity, message)
+                        }
                         viewModel.consumeError()
                         if (error == PlaylistEditError.NOT_FOUND) finish()
                     }
-                    if (state.saved) {
-                        // 返回后的轻提示由旧页面承载，避免提示随编辑页一并销毁。
-                        android.widget.Toast.makeText(this@PlaylistEditActivity, R.string.playlist_edit_saved, android.widget.Toast.LENGTH_SHORT).show()
-                        finish()
+                    if (state.saved && !completionScheduled) {
+                        completionScheduled = true
+                        binding.saveButton.isEnabled = false
+                        cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenFinish(this@PlaylistEditActivity, getString(R.string.playlist_edit_saved))
                     }
                 }
             }
         }
     }
 
+    private var completionScheduled = false
+
     private fun requestLeave() {
+        if (completionScheduled) { finish(); return }
         val state = viewModel.state.value
         if (state.busy || state.saving || state.loading) return
         if (!state.hasChanges) {

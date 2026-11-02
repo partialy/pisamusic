@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -9,7 +11,6 @@ import android.os.CountDownTimer
 import android.text.InputType
 import android.view.View
 import android.widget.ImageButton
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -162,6 +163,7 @@ class LoginActivity : BaseActivity() {
     }
 
     private fun submitLogin() {
+        if (submitInProgress || completionScheduled) return
         when (loginMode) {
             LoginMode.PASSWORD -> submitPasswordLogin()
             LoginMode.EMAIL_CODE -> submitEmailCodeLogin()
@@ -173,11 +175,11 @@ class LoginActivity : BaseActivity() {
         val identifier = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
         val password = binding.accountLoginPasswordEditText.text?.toString().orEmpty()
         if (identifier.isBlank()) {
-            toast(R.string.account_login_identifier_required)
+            PmMessage.warning(this@LoginActivity, R.string.account_login_identifier_required)
             return
         }
         if (password.isBlank()) {
-            toast(R.string.account_login_password_required)
+            PmMessage.warning(this@LoginActivity, R.string.account_login_password_required)
             return
         }
         setLoading(true)
@@ -189,7 +191,7 @@ class LoginActivity : BaseActivity() {
             }.onSuccess(::notifyLoggedIn)
                 .onFailure { error ->
                     setLoading(false)
-                    toast(error.message ?: getString(R.string.account_login_failed))
+                    PmMessage.error(this@LoginActivity, error.message ?: getString(R.string.account_login_failed))
                 }
         }
     }
@@ -198,11 +200,11 @@ class LoginActivity : BaseActivity() {
         val email = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
         val code = binding.accountLoginCodeEditText.text?.toString()?.trim().orEmpty()
         if (email.isBlank()) {
-            toast(R.string.account_login_email_required)
+            PmMessage.warning(this@LoginActivity, R.string.account_login_email_required)
             return
         }
         if (code.isBlank()) {
-            toast(R.string.account_login_code_required)
+            PmMessage.warning(this@LoginActivity, R.string.account_login_code_required)
             return
         }
         setLoading(true)
@@ -214,7 +216,7 @@ class LoginActivity : BaseActivity() {
             }.onSuccess(::notifyLoggedIn)
                 .onFailure { error ->
                     setLoading(false)
-                    toast(error.message ?: getString(R.string.account_login_failed))
+                    PmMessage.error(this@LoginActivity, error.message ?: getString(R.string.account_login_failed))
                 }
         }
     }
@@ -223,11 +225,11 @@ class LoginActivity : BaseActivity() {
         val phone = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
         val code = binding.accountLoginCodeEditText.text?.toString()?.trim().orEmpty()
         if (phone.isBlank()) {
-            toast(R.string.account_login_phone_required)
+            PmMessage.warning(this@LoginActivity, R.string.account_login_phone_required)
             return
         }
         if (code.isBlank()) {
-            toast(R.string.account_login_code_required)
+            PmMessage.warning(this@LoginActivity, R.string.account_login_code_required)
             return
         }
         setLoading(true)
@@ -237,7 +239,7 @@ class LoginActivity : BaseActivity() {
             }.onSuccess(::notifyLoggedIn)
                 .onFailure { error ->
                     setLoading(false)
-                    toast(error.message ?: getString(R.string.account_login_failed))
+                    PmMessage.error(this@LoginActivity, error.message ?: getString(R.string.account_login_failed))
                 }
         }
     }
@@ -245,7 +247,7 @@ class LoginActivity : BaseActivity() {
     private fun sendEmailCode() {
         val email = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
         if (email.isBlank()) {
-            toast(R.string.account_login_email_required)
+            PmMessage.warning(this@LoginActivity, R.string.account_login_email_required)
             return
         }
         sendCodeLoading.setLoading(true)
@@ -255,12 +257,12 @@ class LoginActivity : BaseActivity() {
                     configManager.sendAccountEmailCode(email, "login")
                 }
             }.onSuccess {
-                toast(R.string.account_login_code_sent)
+                PmMessage.success(this@LoginActivity, R.string.account_login_code_sent)
                 sendCodeLoading.setLoading(false)
                 startCodeCountDown()
             }.onFailure { error ->
                 sendCodeLoading.setLoading(false)
-                toast(error.message ?: getString(R.string.account_login_failed))
+                PmMessage.error(this@LoginActivity, error.message ?: getString(R.string.account_login_failed))
             }
         }
     }
@@ -268,7 +270,7 @@ class LoginActivity : BaseActivity() {
     private fun sendPhoneCode() {
         val phone = binding.accountLoginIdentifierEditText.text?.toString()?.trim().orEmpty()
         if (phone.isBlank()) {
-            toast(R.string.account_login_phone_required)
+            PmMessage.warning(this@LoginActivity, R.string.account_login_phone_required)
             return
         }
         sendCodeLoading.setLoading(true)
@@ -277,11 +279,11 @@ class LoginActivity : BaseActivity() {
                 withContext(Dispatchers.IO) { configManager.sendAccountPhoneCode(phone, "login") }
             }.onSuccess {
                 sendCodeLoading.setLoading(false)
-                toast(R.string.account_login_code_sent)
+                PmMessage.success(this@LoginActivity, R.string.account_login_code_sent)
                 startCodeCountDown()
             }.onFailure { error ->
                 sendCodeLoading.setLoading(false)
-                toast(error.message ?: getString(R.string.account_login_failed))
+                PmMessage.error(this@LoginActivity, error.message ?: getString(R.string.account_login_failed))
             }
         }
     }
@@ -305,7 +307,11 @@ class LoginActivity : BaseActivity() {
         }.also { it.start() }
     }
 
+    private var completionScheduled = false
+
     private fun notifyLoggedIn(result: AccountAuthResult) {
+        if (completionScheduled) return
+        completionScheduled = true
         val previousUserId = AccountSessionStore.read(this).user.id
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
@@ -316,13 +322,17 @@ class LoginActivity : BaseActivity() {
                 syncManager.startAccountSync()
                 listeningManager.onAccountAvailable()
             }
-            toast(R.string.account_login_success)
-            directMessageCoordinator.checkAndShow(this@LoginActivity, DirectMessageCheckSource.LOGIN)
-            finish()
+            cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenNavigate(this@LoginActivity, R.string.account_login_success) {
+                directMessageCoordinator.checkAndShow(this@LoginActivity, DirectMessageCheckSource.LOGIN)
+                if (!isFinishing && !isDestroyed && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) finish()
+            }
         }
     }
 
+    private var submitInProgress = false
+
     private fun setLoading(loading: Boolean) {
+        submitInProgress = loading
         submitLoading.setLoading(loading)
         binding.accountLoginSendCodeButton.isEnabled = !loading && !codeCountingDown
         binding.accountLoginPhoneModeButton.isEnabled = !loading
@@ -333,13 +343,6 @@ class LoginActivity : BaseActivity() {
         binding.accountLoginSubmitButton.alpha = if (loading) 0.72f else 1f
     }
 
-    private fun toast(messageRes: Int) {
-        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun toast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    }
 
     private enum class LoginMode {
         PASSWORD,

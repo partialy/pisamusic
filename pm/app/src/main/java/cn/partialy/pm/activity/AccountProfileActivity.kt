@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -116,7 +118,7 @@ class AccountProfileActivity : BaseActivity() {
     private fun currentSessionOrFinish(): AccountSessionStore.Session? {
         val session = AccountSessionStore.read(this)
         if (!session.loggedIn) {
-            showMessage(getString(R.string.account_profile_not_logged_in))
+            PmMessage.warning(this@AccountProfileActivity, getString(R.string.account_profile_not_logged_in))
             finish()
             return null
         }
@@ -181,7 +183,9 @@ class AccountProfileActivity : BaseActivity() {
         if (userId.isBlank()) return
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
         clipboard.setPrimaryClip(ClipData.newPlainText(getString(R.string.clipboard_user_id_label), userId))
-        showMessage(getString(R.string.account_profile_id_copied))
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+            PmMessage.success(this@AccountProfileActivity, getString(R.string.account_profile_id_copied))
+        }
     }
 
     private fun resolveAccountAvatarUrl(user: AccountUser): String? {
@@ -243,6 +247,7 @@ class AccountProfileActivity : BaseActivity() {
             }
         }
         dialog.show()
+        PmMessage.register(dialog)
     }
 
     private fun buildAvatarOptions(): List<AvatarOption> = buildList {
@@ -292,7 +297,7 @@ class AccountProfileActivity : BaseActivity() {
                     ?: return@setConfirmButton
                 val newName = input.text?.toString()?.trim().orEmpty()
                 if (newName.isBlank()) {
-                    showMessage(getString(R.string.account_profile_username_required))
+                    PmMessage.warning(this@AccountProfileActivity, getString(R.string.account_profile_username_required))
                     return@setConfirmButton
                 }
                 binding.accountProfileUsernameValue.text = newName
@@ -318,12 +323,12 @@ class AccountProfileActivity : BaseActivity() {
                 sendCodeButton.setOnClickListener {
                     val emailText = emailInput.text?.toString()?.trim().orEmpty()
                     if (emailText.isBlank()) {
-                        showMessage(getString(if (phone) R.string.account_profile_phone_required else R.string.account_profile_email_required))
+                        PmMessage.warning(this@AccountProfileActivity, getString(if (phone) R.string.account_profile_phone_required else R.string.account_profile_email_required))
                         return@setOnClickListener
                     }
                     val session = AccountSessionStore.read(this)
                     if (!session.loggedIn) {
-                        showMessage(getString(R.string.account_profile_not_logged_in))
+                        PmMessage.warning(this@AccountProfileActivity, getString(R.string.account_profile_not_logged_in))
                         return@setOnClickListener
                     }
                     sendCodeButton.isEnabled = false
@@ -334,12 +339,12 @@ class AccountProfileActivity : BaseActivity() {
                                 else configManager.sendAccountProfileEmailCode(session.token, emailText)
                             }
                         }.onSuccess {
-                            showMessage(getString(R.string.account_profile_email_code_sent))
+                            PmMessage.success(this@AccountProfileActivity, getString(R.string.account_profile_email_code_sent))
                             cooldownJob?.cancel()
                             cooldownJob = startCooldown(sendCodeButton)
                         }.onFailure {
                             sendCodeButton.isEnabled = true
-                            showMessage(it.message ?: getString(R.string.account_profile_email_code_failed))
+                            PmMessage.error(this@AccountProfileActivity, it.message ?: getString(R.string.account_profile_email_code_failed))
                         }
                     }
                 }
@@ -356,11 +361,11 @@ class AccountProfileActivity : BaseActivity() {
                 val newContact = emailInput.text?.toString()?.trim().orEmpty()
                 val code = codeInput.text?.toString()?.trim().orEmpty()
                 if (newContact.isBlank()) {
-                    showMessage(getString(if (phone) R.string.account_profile_phone_required else R.string.account_profile_email_required))
+                    PmMessage.warning(this@AccountProfileActivity, getString(if (phone) R.string.account_profile_phone_required else R.string.account_profile_email_required))
                     return@setConfirmButton
                 }
                 if (code.isBlank()) {
-                    showMessage(getString(R.string.account_profile_email_code_required))
+                    PmMessage.warning(this@AccountProfileActivity, getString(R.string.account_profile_email_code_required))
                     return@setConfirmButton
                 }
                 commitProfile(
@@ -390,7 +395,7 @@ class AccountProfileActivity : BaseActivity() {
     private fun saveProfile() {
         val username = binding.accountProfileUsernameValue.text?.toString()?.trim().orEmpty()
         if (username.isBlank()) {
-            showMessage(getString(R.string.account_profile_username_required))
+            PmMessage.warning(this@AccountProfileActivity, getString(R.string.account_profile_username_required))
             return
         }
         commitProfile(username = username, email = null, phone = null, code = null)
@@ -414,9 +419,9 @@ class AccountProfileActivity : BaseActivity() {
             }.onSuccess { result ->
                 AccountSessionStore.save(this@AccountProfileActivity, result)
                 renderProfile()
-                showMessage(getString(R.string.account_profile_save_success))
+                PmMessage.success(this@AccountProfileActivity, getString(R.string.account_profile_save_success))
             }.onFailure {
-                showMessage(it.message ?: getString(R.string.account_profile_save_failed))
+                PmMessage.error(this@AccountProfileActivity, it.message ?: getString(R.string.account_profile_save_failed))
             }
             binding.accountProfileSaveButton.isEnabled = true
         }
@@ -433,16 +438,16 @@ class AccountProfileActivity : BaseActivity() {
                 AccountSessionStore.save(this@AccountProfileActivity, result)
             }.onSuccess {
                 renderProfile()
-                showMessage(getString(R.string.account_profile_avatar_updated))
+                PmMessage.success(this@AccountProfileActivity, getString(R.string.account_profile_avatar_updated))
             }.onFailure {
-                showMessage(it.message ?: getString(R.string.account_profile_avatar_upload_failed))
+                PmMessage.error(this@AccountProfileActivity, it.message ?: getString(R.string.account_profile_avatar_upload_failed))
             }
         }
     }
 
     private fun useExternalAvatar(sourceUrl: String) {
         if (sourceUrl.isBlank()) {
-            showMessage(getString(R.string.account_profile_avatar_no_source))
+            PmMessage.warning(this@AccountProfileActivity, getString(R.string.account_profile_avatar_no_source))
             return
         }
         val session = currentSessionOrFinish() ?: return
@@ -456,9 +461,9 @@ class AccountProfileActivity : BaseActivity() {
                 AccountSessionStore.save(this@AccountProfileActivity, result)
             }.onSuccess {
                 renderProfile()
-                showMessage(getString(R.string.account_profile_avatar_updated))
+                PmMessage.success(this@AccountProfileActivity, getString(R.string.account_profile_avatar_updated))
             }.onFailure {
-                showMessage(it.message ?: getString(R.string.account_profile_avatar_use_failed))
+                PmMessage.error(this@AccountProfileActivity, it.message ?: getString(R.string.account_profile_avatar_use_failed))
             }
         }
     }
@@ -479,9 +484,9 @@ class AccountProfileActivity : BaseActivity() {
                 AccountSessionStore.save(this@AccountProfileActivity, result)
             }.onSuccess {
                 renderProfile()
-                showMessage(getString(R.string.account_profile_avatar_restored))
+                PmMessage.success(this@AccountProfileActivity, getString(R.string.account_profile_avatar_restored))
             }.onFailure {
-                showMessage(it.message ?: getString(R.string.account_profile_avatar_restore_failed))
+                PmMessage.error(this@AccountProfileActivity, it.message ?: getString(R.string.account_profile_avatar_restore_failed))
             }
         }
     }

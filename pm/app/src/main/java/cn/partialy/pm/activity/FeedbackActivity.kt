@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,6 +19,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.withResumed
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
@@ -105,7 +108,7 @@ class FeedbackActivity : BaseActivity() {
         binding.feedbackSubmitButton.setOnClickListener { onSubmitClicked() }
         intent.getStringExtra(EXTRA_INITIAL_MESSAGE)
             ?.takeIf { it.isNotBlank() }
-            ?.let(::showMessage)
+            ?.let { message -> lifecycleScope.launch { lifecycle.withResumed { PmMessage.info(this@FeedbackActivity, message) } } }
     }
 
     private fun bindTypeChips() {
@@ -240,7 +243,7 @@ class FeedbackActivity : BaseActivity() {
         if (submitting) return
         val desc = binding.feedbackDescInput.text?.toString()?.trim().orEmpty()
         if (desc.isBlank()) {
-            showMessage(getString(R.string.feedback_desc_required))
+            PmMessage.warning(this@FeedbackActivity, getString(R.string.feedback_desc_required))
             binding.feedbackDescInput.requestFocus()
             return
         }
@@ -275,13 +278,14 @@ class FeedbackActivity : BaseActivity() {
             result.onSuccess { resp ->
                 val msg = resp.msg?.takeIf { it.isNotBlank() }
                 if (resp.success) {
-                    showMessage(msg ?: getString(R.string.feedback_submitted))
-                    finish()
+                    submitting = true
+                    binding.feedbackSubmitButton.isEnabled = false
+                    cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenFinish(this@FeedbackActivity, msg ?: getString(R.string.feedback_submitted))
                 } else {
-                    showMessage(msg ?: getString(R.string.feedback_submit_failed))
+                    PmMessage.error(this@FeedbackActivity, msg ?: getString(R.string.feedback_submit_failed))
                 }
             }.onFailure {
-                showMessage(getString(R.string.feedback_network_error))
+                PmMessage.error(this@FeedbackActivity, getString(R.string.feedback_network_error))
             }
         }
     }

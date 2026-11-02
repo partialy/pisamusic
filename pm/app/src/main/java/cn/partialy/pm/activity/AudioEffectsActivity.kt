@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
@@ -215,11 +217,11 @@ class AudioEffectsActivity : BaseActivity() {
                     ?: return@setConfirmButton
                 val name = input.text?.toString()?.trim().orEmpty()
                 if (name.isBlank()) {
-                    showMessage(getString(R.string.audio_effects_save_preset_name_required))
+                    PmMessage.warning(this@AudioEffectsActivity, getString(R.string.audio_effects_save_preset_name_required))
                     return@setConfirmButton
                 }
                 if (currentState.customPresets.any { it.name.equals(name, ignoreCase = true) }) {
-                    showMessage(getString(R.string.audio_effects_save_preset_name_duplicate))
+                    PmMessage.warning(this@AudioEffectsActivity, getString(R.string.audio_effects_save_preset_name_duplicate))
                     return@setConfirmButton
                 }
                 audioEffectsManager.addCustomPreset(

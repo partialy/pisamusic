@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -203,19 +205,19 @@ class ShareDetailActivity : BaseActivity() {
         binding.shareDetailInfoRow3.text = infoLine(getString(R.string.share_detail_duration), formatDuration(duration))
         binding.shareDetailPrimaryButton.setOnClickListener {
             if (song == null || song.type == SongType.LOCAL) {
-                showMessage(getString(R.string.share_detail_song_unplayable))
+                PmMessage.warning(this@ShareDetailActivity, getString(R.string.share_detail_song_unplayable))
                 return@setOnClickListener
             }
             musicController.play(song)
-            showMessage(getString(R.string.share_detail_playing))
+            PmMessage.info(this@ShareDetailActivity, getString(R.string.share_detail_playing))
         }
         binding.shareDetailSecondaryButton.setOnClickListener {
             if (song == null) {
-                showMessage(getString(R.string.share_detail_favorite_unavailable))
+                PmMessage.warning(this@ShareDetailActivity, getString(R.string.share_detail_favorite_unavailable))
                 return@setOnClickListener
             }
             val liked = loveManager.toggleLikeStatus(song)
-            showMessage(if (liked) getString(R.string.share_detail_favorited) else getString(R.string.share_detail_unfavorited))
+            PmMessage.success(this@ShareDetailActivity, if (liked) getString(R.string.share_detail_favorited) else getString(R.string.share_detail_unfavorited))
         }
     }
 
@@ -247,7 +249,7 @@ class ShareDetailActivity : BaseActivity() {
         binding.shareDetailInfoRow3.text = infoLine(info3Label, info3)
         binding.shareDetailPrimaryButton.setOnClickListener {
             if (playlist == null) {
-                showMessage(getString(R.string.share_detail_playlist_unavailable))
+                PmMessage.warning(this@ShareDetailActivity, getString(R.string.share_detail_playlist_unavailable))
                 return@setOnClickListener
             }
             openPlaylist(playlist)
@@ -281,7 +283,7 @@ class ShareDetailActivity : BaseActivity() {
         binding.shareDetailSecondaryButton.setIconResource(R.drawable.ic_share_24)
         binding.shareDetailSecondaryButton.setOnClickListener {
             if (playlist == null) {
-                showMessage(getString(R.string.share_detail_playlist_unavailable))
+                PmMessage.warning(this@ShareDetailActivity, getString(R.string.share_detail_playlist_unavailable))
                 return@setOnClickListener
             }
             ShareBottomSheet.showPlaylist(this, playlist)
@@ -294,7 +296,7 @@ class ShareDetailActivity : BaseActivity() {
             binding.shareDetailSecondaryButton.setText(R.string.share_detail_favorite)
             binding.shareDetailSecondaryButton.setIconResource(R.drawable.ic_love_24)
             binding.shareDetailSecondaryButton.setOnClickListener {
-                showMessage(getString(R.string.share_detail_playlist_favorite_unavailable))
+                PmMessage.warning(this@ShareDetailActivity, getString(R.string.share_detail_playlist_favorite_unavailable))
             }
             return
         }
@@ -331,7 +333,8 @@ class ShareDetailActivity : BaseActivity() {
                 existing == null -> R.string.share_detail_favorited
                 else -> R.string.share_detail_unfavorited
             }
-            showMessage(getString(message))
+            if (success) PmMessage.success(this@ShareDetailActivity, getString(message))
+            else PmMessage.error(this@ShareDetailActivity, getString(message))
             renderFavoriteState()
         }
     }
@@ -356,7 +359,7 @@ class ShareDetailActivity : BaseActivity() {
                 CollectedPlaylistType.WY,
             )
             "local" -> LocalPlaylistDetailActivity.start(this, playlist.id)
-            else -> showMessage(getString(R.string.share_detail_local_playlist_only))
+            else -> PmMessage.warning(this@ShareDetailActivity, getString(R.string.share_detail_local_playlist_only))
         }
     }
 

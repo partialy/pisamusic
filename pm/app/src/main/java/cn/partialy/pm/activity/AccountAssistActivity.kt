@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -8,7 +10,6 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.text.InputType
 import android.view.View
-import android.widget.Toast
 import android.widget.ImageButton
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -151,7 +152,7 @@ class AccountAssistActivity : BaseActivity() {
     private fun sendCode() {
         val contact = contactText()
         if (contact.isBlank()) {
-            toast(if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
+            PmMessage.warning(this@AccountAssistActivity, if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
             return
         }
         sendCodeLoading.setLoading(true)
@@ -164,34 +165,35 @@ class AccountAssistActivity : BaseActivity() {
                 }
             }.onSuccess {
                 sendCodeLoading.setLoading(false)
-                toast(R.string.account_login_code_sent)
+                PmMessage.success(this@AccountAssistActivity, R.string.account_login_code_sent)
                 startCodeCountDown()
             }.onFailure { error ->
                 sendCodeLoading.setLoading(false)
-                toast(error.message ?: getString(R.string.account_assist_code_send_failed))
+                PmMessage.error(this@AccountAssistActivity, error.message ?: getString(R.string.account_assist_code_send_failed))
             }
         }
     }
 
     private fun registerAccount() {
+        if (submitInProgress || completionScheduled) return
         val contact = contactText()
         val username = usernameText()
         val password = passwordText()
         val code = codeText()
         if (contact.isBlank()) {
-            toast(if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
+            PmMessage.warning(this@AccountAssistActivity, if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
             return
         }
         if (username.isBlank()) {
-            toast(R.string.account_assist_username_required)
+            PmMessage.warning(this@AccountAssistActivity, R.string.account_assist_username_required)
             return
         }
         if (password.isBlank()) {
-            toast(R.string.account_login_password_required)
+            PmMessage.warning(this@AccountAssistActivity, R.string.account_login_password_required)
             return
         }
         if (code.isBlank()) {
-            toast(R.string.account_login_code_required)
+            PmMessage.warning(this@AccountAssistActivity, R.string.account_login_code_required)
             return
         }
         setLoading(true)
@@ -203,25 +205,26 @@ class AccountAssistActivity : BaseActivity() {
             }.onSuccess(::notifyRegistered)
                 .onFailure { error ->
                     setLoading(false)
-                    toast(error.message ?: getString(R.string.account_assist_register_failed))
+                    PmMessage.error(this@AccountAssistActivity, error.message ?: getString(R.string.account_assist_register_failed))
                 }
         }
     }
 
     private fun resetPassword() {
+        if (submitInProgress || completionScheduled) return
         val contact = contactText()
         val password = passwordText()
         val code = codeText()
         if (contact.isBlank()) {
-            toast(if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
+            PmMessage.warning(this@AccountAssistActivity, if (contactMode == ContactMode.EMAIL) R.string.account_login_email_required else R.string.account_login_phone_required)
             return
         }
         if (password.isBlank()) {
-            toast(R.string.account_login_password_required)
+            PmMessage.warning(this@AccountAssistActivity, R.string.account_login_password_required)
             return
         }
         if (code.isBlank()) {
-            toast(R.string.account_login_code_required)
+            PmMessage.warning(this@AccountAssistActivity, R.string.account_login_code_required)
             return
         }
         setLoading(true)
@@ -231,16 +234,20 @@ class AccountAssistActivity : BaseActivity() {
                     configManager.resetAccountPassword(if (contactMode == ContactMode.EMAIL) contact else null, code, password, if (contactMode == ContactMode.PHONE) contact else null)
                 }
             }.onSuccess {
-                toast(R.string.account_assist_reset_success)
-                finish()
+                binding.accountAssistBackButton.isEnabled = true
+                cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenFinish(this@AccountAssistActivity, getString(R.string.account_assist_reset_success))
             }.onFailure { error ->
                 setLoading(false)
-                toast(error.message ?: getString(R.string.account_assist_reset_failed))
+                PmMessage.error(this@AccountAssistActivity, error.message ?: getString(R.string.account_assist_reset_failed))
             }
         }
     }
 
+    private var completionScheduled = false
+
     private fun notifyRegistered(result: AccountAuthResult) {
+        if (completionScheduled) return
+        completionScheduled = true
         val previousUserId = AccountSessionStore.read(this).user.id
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
@@ -251,9 +258,11 @@ class AccountAssistActivity : BaseActivity() {
                 syncManager.startAccountSync()
                 listeningManager.onAccountAvailable()
             }
-            toast(R.string.account_login_success)
-            directMessageCoordinator.checkAndShow(this@AccountAssistActivity, DirectMessageCheckSource.REGISTER)
-            finish()
+            binding.accountAssistBackButton.isEnabled = true
+            cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenNavigate(this@AccountAssistActivity, R.string.account_login_success) {
+                directMessageCoordinator.checkAndShow(this@AccountAssistActivity, DirectMessageCheckSource.REGISTER)
+                if (!isFinishing && !isDestroyed && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) finish()
+            }
         }
     }
 
@@ -276,7 +285,10 @@ class AccountAssistActivity : BaseActivity() {
         }.also { it.start() }
     }
 
+    private var submitInProgress = false
+
     private fun setLoading(loading: Boolean) {
+        submitInProgress = loading
         submitLoading.setLoading(loading)
         binding.accountAssistBackButton.isEnabled = !loading
         binding.accountAssistSendCodeButton.isEnabled = !loading && !codeCountingDown
@@ -297,13 +309,6 @@ class AccountAssistActivity : BaseActivity() {
     private fun codeText(): String =
         binding.accountAssistCodeEditText.text?.toString()?.trim().orEmpty()
 
-    private fun toast(messageRes: Int) {
-        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun toast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    }
 
     companion object {
         const val MODE_REGISTER = "register"
