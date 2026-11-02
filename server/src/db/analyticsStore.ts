@@ -61,6 +61,8 @@ export function maybeCleanupAnalytics(now = Date.now()): void {
     db.prepare("DELETE FROM site_visit_records WHERE created_at < ?").run(cutoffTimestamp);
     db.prepare("DELETE FROM download_records WHERE created_at < ?").run(cutoffTimestamp);
     db.prepare("DELETE FROM device_daily_activity WHERE last_seen_at < ?").run(cutoffTimestamp);
+    db.prepare("DELETE FROM app_share_visits WHERE received_at < ?").run(cutoffTimestamp);
+    db.prepare("DELETE FROM app_share_downloads WHERE triggered_at < ?").run(cutoffTimestamp);
     lastCleanupDay = today;
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -131,11 +133,16 @@ export function recordDeviceDailyActivity(input: DeviceDailyActivityInput): void
 }
 
 export function recordDownload(input: DownloadRecordInput): void {
+  maybeCleanupAnalytics(input.occurredAt ?? Date.now());
+  insertDownloadRecord(input);
+}
+
+export function insertDownloadRecord(input: DownloadRecordInput): string {
   const now = input.occurredAt ?? Date.now();
   const downloadDay = toShanghaiDay(now);
   const id = randomUUID();
 
-  maybeCleanupAnalytics(now);
+
 
   const db = getAppDb();
   db.prepare(`
@@ -154,4 +161,5 @@ export function recordDownload(input: DownloadRecordInput): void {
     input.userAgent || "",
     now,
   );
+  return id;
 }

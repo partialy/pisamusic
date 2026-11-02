@@ -1,3 +1,4 @@
+import { APP_SHARE_TRACKING_SQL } from "./appShareTrackingSchema";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -1016,6 +1017,7 @@ function initSchema(db: DatabaseSync) {
     DROP TABLE IF EXISTS desktop_update_assets;
   `);
   db.exec(CREATE_SQL);
+  db.exec(APP_SHARE_TRACKING_SQL);
   db.exec(`
     INSERT OR IGNORE INTO listening_level_config(id, version, updated_at) VALUES (1, 1, 0);
     INSERT OR IGNORE INTO listening_level_rules(level, min_minutes, max_minutes, created_at, updated_at)
