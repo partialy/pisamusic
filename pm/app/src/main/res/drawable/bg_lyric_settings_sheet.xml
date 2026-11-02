@@ -4,5 +4,5 @@
     <corners
         android:topLeftRadius="12dp"
         android:topRightRadius="12dp" />
-    <solid android:color="@color/lyric_settings_sheet_bg" />
+    <solid android:color="@color/home_page_bg" />
 </shape>
