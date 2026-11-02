@@ -68,6 +68,21 @@ object MinePlaylistCoverResolver {
         }
     }
 
-    /** 本地歌单无合法模板时使用。 */
-    fun defaultLocalCoverRes(): Int = R.drawable.playlist_cover_chill
+    /** 清理 App 私有目录内已不再被任何歌单引用的旧封面，不触碰外部图片文件。 */
+    fun deletePersistedCoverIfUnused(context: Context, cover: String, referenced: Collection<String>) {
+        if (!isLocalFileCover(cover)) return
+        val directory = File(context.filesDir, "playlist_covers").canonicalFile
+        val file = runCatching { File(cover.trim().removePrefix(LOCAL_FILE_PREFIX)).canonicalFile }.getOrNull()
+            ?: return
+        if (file.parentFile != directory) return
+        if (referenced.any { other ->
+                isLocalFileCover(other) && runCatching {
+                    File(other.trim().removePrefix(LOCAL_FILE_PREFIX)).canonicalFile == file
+                }.getOrDefault(false)
+            }) return
+        file.delete()
+    }
+
+    /** 本地歌单没有有效封面时统一显示云盘音乐默认图。 */
+    fun defaultLocalCoverRes(): Int = R.drawable.home_feature_cloud_music
 }

@@ -430,6 +430,7 @@ class PlaylistCollectionManager @Inject constructor(
         val added = mutableListOf<SongInfo>()
         val existing = mutableListOf<SongInfo>()
         val invalid = mutableListOf<SongInfo>()
+        var oldCoverToClean: String? = null
         synchronized(lock) {
             val key = storageKey(CollectedPlaylistType.LOCAL, playlistId)
             val playlist = playlistsByKey[key] ?: return AddSongsResult(emptyList(), emptyList(), songs)
@@ -445,7 +446,8 @@ class PlaylistCollectionManager @Inject constructor(
             }
             if (added.isEmpty()) return AddSongsResult(emptyList(), existing, invalid)
             val nextSongs = (before + added).map { it.forPersistence() }
-            val next = playlist.copy(count = nextSongs.size)
+            val autoCover = LocalPlaylistAutoCoverRules.fromLastAddedSong(added)
+            val next = playlist.copy(count = nextSongs.size, cover = autoCover ?: playlist.cover)
             try {
                 localDb.addSongsWithOutbox(next, nextSongs, added, syncOutbox)
             } catch (e: Exception) {
@@ -454,7 +456,15 @@ class PlaylistCollectionManager @Inject constructor(
             }
             playlistsByKey[key] = next
             localSongsByPlaylistId[playlistId] = nextSongs.toMutableList()
+            if (next.cover != playlist.cover) oldCoverToClean = playlist.cover
             refreshPlaylistsFlowLocked()
+        }
+        oldCoverToClean?.let { previous ->
+            runCatching {
+                MinePlaylistCoverResolver.deletePersistedCoverIfUnused(
+                    context, previous, getAllPlaylists().map { it.cover },
+                )
+            }.onFailure { Log.w(TAG, "cleanup replaced playlist cover failed", it) }
         }
         persistIndexAsync()
         persistLocalSongsAsync(playlistId)

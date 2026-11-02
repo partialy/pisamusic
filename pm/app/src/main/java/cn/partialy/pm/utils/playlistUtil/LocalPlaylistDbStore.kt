@@ -180,6 +180,12 @@ internal class LocalPlaylistDbStore(context: Context) {
         try {
             val accountId = outbox.accountSnapshot()
             setSongs(playlist.id, allSongs)
+            val updated = db.update("local_playlists", ContentValues().apply {
+                put("cover", playlist.cover)
+                put("payload_json", gson.toJson(playlist.toCanonicalPlaylist()))
+                put("updated_at", System.currentTimeMillis())
+            }, "id = ?", arrayOf(playlist.id))
+            check(updated == 1) { "更新本地歌单封面失败" }
             outbox.enqueueInTransaction(db, accountId, SyncPayloads.TYPE_USER_PLAYLIST,
                 SyncPayloads.playlistKey(playlist), SyncPayloads.ACTION_UPSERT, SyncPayloads.playlistPayload(playlist))
             added.filter { it.type != SongType.LOCAL }.forEach { song ->
