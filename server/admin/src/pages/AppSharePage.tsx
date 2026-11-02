@@ -8,7 +8,7 @@ import { useAdminConfigWorkspace } from "../state/AdminConfigWorkspaceContext";
 const DEFAULT_ICON = "/static/app-share/default.png";
 const DEFAULTS: AppShareDraft = {
   appName: "Pisa Music", versionOverride: "", iconFileId: null,
-  description: "发现更多好音乐", qrCodeText: "https://pisamusic.partialy.cn/download/",
+  description: "发现更多好音乐", qrCodeText: "https://pisamusic.partialy.cn/app-share/",
   copyTemplate: "分享 Pisa Music，发现更多好音乐！\n{url}",
 };
 
@@ -119,7 +119,7 @@ export default function AppSharePage() {
                   {uploading && <Progress percent={progress} size="small" />}
                 </Form.Item>
                 <Form.Item label="描述" name="description" rules={[{ max: 500 }]}><Input.TextArea rows={3} maxLength={500} showCount /></Form.Item>
-                <Form.Item label="二维码链接" name="qrCodeText" rules={[{ required: true, message: "请输入完整链接" }, { max: 1000 }, { validator: (_, value: string) => { try { const url = new URL(value); if (["http:", "https:"].includes(url.protocol) && !url.username && !url.password && new TextEncoder().encode(value).length <= 2000) return Promise.resolve(); } catch { /* 统一提示非法链接 */ } return Promise.reject(new Error("请输入不含账号密码的完整 HTTP/HTTPS URL，且不超过 2000 字节")); } }]}><Input maxLength={1000} placeholder="https://" /></Form.Item>
+                <Form.Item label="二维码链接" name="qrCodeText" extra="仅支持本站 /app-share/；不要填写 code。客户端实际二维码由服务端按账号与设备生成专属短码，预览为通用链接。" rules={[{ required: true, message: "请输入完整链接" }, { max: 1000 }, { validator: (_, value: string) => { try { const url = new URL(value); if (url.protocol === "https:" && url.hostname === "pisamusic.partialy.cn" && !url.port && /^\/app-share\/?$/.test(url.pathname) && !url.hash && !url.searchParams.has("code") && !url.username && !url.password && new TextEncoder().encode(value).length <= 2000) return Promise.resolve(); } catch { /* 统一提示非法链接 */ } return Promise.reject(new Error("请输入本站 HTTPS /app-share/ 链接，不含 code、端口、账号密码或锚点")); } }]}><Input maxLength={1000} placeholder="https://" /></Form.Item>
                 <Form.Item label="复制 / 系统分享文案" name="copyTemplate" extra="使用 {url} 插入二维码链接；未包含时会自动在文案末尾追加链接。" rules={[{ max: 1000 }]}><Input.TextArea rows={4} maxLength={1000} showCount /></Form.Item>
                 <Space wrap>
                   <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving}>保存并发布</Button>

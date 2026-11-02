@@ -145,6 +145,7 @@ export default function AdminLayout() {
         label: "运营与发布",
         children: [
           { key: "websiteRecords", icon: <GlobalOutlined />, label: "官网记录" },
+          { key: "appShareRecords", icon: <ShareAltOutlined />, label: "分享记录" },
           { key: "update", icon: <CloudUploadOutlined />, label: "版本发布" },
           { key: "announcements", icon: <NotificationOutlined />, label: "公告管理" },
           { key: "content", icon: <FileTextOutlined />, label: "内容与协议" },

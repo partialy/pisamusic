@@ -16,6 +16,7 @@ export type AdminRouteKey =
   | "faultReports"
   | "system"
   | "appShare"
+  | "appShareRecords"
   | "dynamicConfig"
   | "runtimeConfig"
   | "encryption";
@@ -61,6 +62,7 @@ export const ADMIN_ROUTES: AdminRouteItem[] = [
   { key: "feedback", path: "/feedback", title: "反馈管理", groupKey: "maintenance_group", groupTitle: "监控与运维" },
   { key: "faultReports", path: "/fault-reports", title: "故障管理", groupKey: "maintenance_group", groupTitle: "监控与运维" },
   { key: "system", path: "/system", title: "系统配置", groupKey: "system_group", groupTitle: "系统设置" },
+  { key: "appShareRecords", path: "/app-share-records", title: "分享记录", groupKey: "operation_group", groupTitle: "运营与发布", hideGlobalActions: true },
   { key: "appShare", path: "/app-share", title: "App分享", groupKey: "system_group", groupTitle: "系统设置", hideGlobalActions: true },
   { key: "dynamicConfig", path: "/dynamic-configs", title: "动态配置", groupKey: "system_group", groupTitle: "系统设置" },
   { key: "runtimeConfig", path: "/runtime-config", title: "运行策略", groupKey: "system_group", groupTitle: "系统设置" },
