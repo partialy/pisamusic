@@ -112,12 +112,14 @@ export function safeReferrer(value: unknown): string {
 }
 export function getIdentityAppShare(req: Request) {
   const share = readPublicAppShare();
+  // 旧版客户端可能由拦截器自动附加登录 Authorization，但未发送设备凭证。
+  // 此类请求必须继续返回通用配置，不能因旧登录态失效而破坏接口兼容。
+  if (req.header("x-pm-device-token") === undefined)
+    return { ...share, trackingEnabled: false };
   const authPresent = req.header("authorization") !== undefined;
   const user = authPresent ? verifyUserToken(tokenFromRequest(req)) : null;
   if (authPresent && !user)
     throw new AppShareTrackingError("账号登录已失效，请重新登录", 401);
-  if (req.header("x-pm-device-token") === undefined)
-    return { ...share, trackingEnabled: false };
   const identity = deviceMessageIdentityFromRequest(req);
   if (!identity || identity.kind !== "android")
     throw new AppShareTrackingError("设备凭证已失效，请重新上报", 401);

@@ -60,8 +60,12 @@ test("分享HTTP链路：严格身份、公开访问、双平台下载、管理�
     const legacy = await get("/api/config/app-share");
     assert.equal((await legacy.json() as any).data.trackingEnabled, false);
     assert.equal(count("app_share_records"), 0);
-    assert.equal((await get("/api/config/app-share", { authorization: "Bearer invalid" })).status, 401);
+    const legacyWithExpiredLogin = await get("/api/config/app-share", { authorization: "Bearer invalid" });
+    assert.equal(legacyWithExpiredLogin.status, 200);
+    assert.equal((await legacyWithExpiredLogin.json() as any).data.trackingEnabled, false);
+    assert.equal(count("app_share_records"), 0);
     assert.equal((await get("/api/config/app-share", { "x-pm-device-token": "invalid" })).status, 401);
+    assert.equal((await get("/api/config/app-share", { "x-pm-device-token": deviceToken, authorization: "Bearer invalid" })).status, 401);
     const guestResponse = await get("/api/config/app-share", { "x-pm-device-token": deviceToken });
     assert.equal(guestResponse.headers.get("cache-control"), "private, no-store");
     assert.match(guestResponse.headers.get("vary") ?? "", /Authorization/i);
