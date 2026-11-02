@@ -6,6 +6,8 @@ import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.ShareDetailActivity
+import cn.partialy.pm.activity.PlaylistEditActivity
+import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.CanonicalPlaylist
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.toCollectedPlaylist
@@ -26,6 +28,12 @@ object PlaylistActionBottomSheet {
             add(ActionMenuItem(R.drawable.ic_info_24, activity.getString(R.string.song_more_detail)) {
                 ShareDetailActivity.startPlaylistDetail(activity, playlist)
             })
+            if (playlist.source.equals("local", ignoreCase = true) &&
+                manager?.getCollectedPlaylist(CollectedPlaylistType.LOCAL, playlist.id) != null) {
+                add(ActionMenuItem(R.drawable.ic_edit_24, activity.getString(R.string.playlist_edit_action)) {
+                    PlaylistEditActivity.start(activity, playlist.id)
+                })
+            }
             val favoriteTarget = manager?.let { findCollectedPlaylist(it, playlist) }
             if (manager != null && playlist.source.lowercase() != "local" && playlist.id.isNotBlank()) {
                 add(ActionMenuItem(

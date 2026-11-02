@@ -23,6 +23,8 @@ import cn.partialy.pm.ui.dialog.ShareBottomSheet
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.widget.SongSourceTagBinder
+import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
+import cn.partialy.pm.ui.playlistdetail.PlaylistCoverRequestBinder
 import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import coil.load
@@ -42,6 +44,7 @@ class ShareDetailActivity : BaseActivity() {
     private lateinit var binding: ActivityShareDetailBinding
     private var uuid: String = ""
     private val gson = Gson()
+    private var playlistCoverBinder: PlaylistCoverRequestBinder? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -120,10 +123,15 @@ class ShareDetailActivity : BaseActivity() {
         binding.shareDetailContent.isVisible = true
         binding.shareDetailName.text = share.title
         binding.shareDetailSubtitle.text = share.description
-        bindCover(share.source, share.coverUrl)
         if (share.type == "playlist") {
+            // 公开分享只能加载网络地址，不能将远端内容作为本机文件引用。
+            val remoteCover = share.coverUrl.trim().takeIf {
+                it.startsWith("https://") || it.startsWith("http://")
+            }.orEmpty()
+            bindPlaylistCover(share.source, remoteCover)
             renderPlaylistShare(share)
         } else {
+            bindCover(share.source, share.coverUrl)
             renderSongShare(share)
         }
     }
@@ -147,21 +155,23 @@ class ShareDetailActivity : BaseActivity() {
     }
 
     private fun renderLocalPlaylist(playlist: CanonicalPlaylist) {
-        val safePlaylist = playlist.copy(
-            cover = SongCoverUrl.getRemoteCover(playlist.source, playlist.cover, SongCoverUrl.SIZE_MEDIUM),
-        )
         binding.shareDetailLoading.isVisible = false
         binding.shareDetailErrorGroup.isVisible = false
         binding.shareDetailContent.isVisible = true
-        binding.shareDetailName.text = safePlaylist.name
-        binding.shareDetailSubtitle.text = safePlaylist.desc
-        bindCover(safePlaylist.source, safePlaylist.cover)
+        binding.shareDetailName.text = playlist.name
+        binding.shareDetailSubtitle.text = playlist.desc
+        val fallbackRes = when {
+            playlist.source == "local" && playlist.id == "favorite_songs" -> R.drawable.my_favorites_cover_peach
+            playlist.source == "local" -> MinePlaylistCoverResolver.defaultLocalCoverRes()
+            else -> R.drawable.ic_pm_icon
+        }
+        bindPlaylistCover(playlist.source, playlist.cover, fallbackRes)
         renderPlaylistDetail(
-            playlist = safePlaylist,
-            source = safePlaylist.source,
-            songCount = safePlaylist.song_count,
+            playlist = playlist,
+            source = playlist.source,
+            songCount = playlist.song_count,
             info3Label = getString(R.string.share_detail_id),
-            info3 = safePlaylist.id,
+            info3 = playlist.id,
             secondaryAction = PlaylistSecondaryAction.Share,
         )
     }
@@ -360,6 +370,18 @@ class ShareDetailActivity : BaseActivity() {
         } else {
             binding.shareDetailCover.setImageResource(R.drawable.ic_pm_icon)
         }
+    }
+
+    private fun bindPlaylistCover(source: String, cover: String, fallbackRes: Int = R.drawable.ic_pm_icon) {
+        playlistCoverBinder?.dispose()
+        playlistCoverBinder = PlaylistCoverRequestBinder(binding.shareDetailCover, fallbackRes).also {
+            it.bind(runCatching { SongType.valueOf(source.uppercase()) }.getOrNull(), cover)
+        }
+    }
+
+    override fun onDestroy() {
+        playlistCoverBinder?.dispose()
+        super.onDestroy()
     }
 
     private fun SharePublicData.toCanonicalSongOrNull(): CanonicalSong? {

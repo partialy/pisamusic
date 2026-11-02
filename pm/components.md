@@ -125,6 +125,8 @@
 | 图片裁剪 / 头像选择 | 图片选择、头像裁剪 | 待补充 | 待补充 | 需要确认当前推荐实现。 |
 ## 最近补充
 
+- 本地歌单编辑页：`activity_playlist_edit.xml`、`PlaylistEditActivity`、`ui/playlistedit/`；复用详情渐变背景、一起听 18dp Outlined 输入框颜色、`CreateLocalPlaylistCoverPickerAdapter` 与 `PmMinimalDialog`。封面在左，名称和自适应宽“更换封面”药丸按钮在右，下方三行描述与全宽保存按钮；保存中旋转图标加文案，禁用操作，返回提示放弃草稿。`styles_playlist_edit.xml` 提供同款 M3 输入框与封面圆角。
+
 - App 分享 Sheet：`ui/dialog/AppShareBottomSheet.kt`、`res/layout/bottom_sheet_app_share.xml`，从设置“关于”下方进入；复用 `include_share_info_header.xml`、`ShareQrBitmapFactory`、Material3 BottomSheet、Coil 与 BaseActivity.showMessage。图标/名称/版本、带白边黑白二维码、描述与“复制链接 / 更多”双圆形操作；`bg_app_share_action.xml` 使用主题蓝图标和亮暗自适应灰底，远程图失败回退 `ic_pm_icon`。独立 AppShareRepository 提供完整缓存与刷新，不复用要求登录的音乐分享 Sheet。
 
 - 本地歌曲扫描页：`pm/app/src/main/res/layout/activity_local_music_scan.xml`，用于扫描歌曲初始页、扫描中、结果列表和底部导入栏；`LocalMusicScanActivity` 复用 edge-to-edge、安全区、Material 主按钮、`PmSwitch` 过滤设置和歌曲结果行。

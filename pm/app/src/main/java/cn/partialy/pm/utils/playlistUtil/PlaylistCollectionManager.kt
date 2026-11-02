@@ -389,8 +389,8 @@ class PlaylistCollectionManager @Inject constructor(
                 cover = cover ?: cur.cover,
             )
             if (next != cur) {
-                playlistsByKey[key] = next
                 localDb.upsertPlaylist(next)
+                playlistsByKey[key] = next
                 refreshPlaylistsFlowLocked()
                 changed = true
             }
@@ -398,7 +398,9 @@ class PlaylistCollectionManager @Inject constructor(
         if (changed) {
             synchronized(lock) {
                 playlistsByKey[storageKey(CollectedPlaylistType.LOCAL, id)]?.let {
-                    enqueueUserPlaylist(it, SyncPayloads.ACTION_UPSERT)
+                    // 本地提交已成功，不能因同步队列失败让调用方回滚封面文件。
+                    runCatching { enqueueUserPlaylist(it, SyncPayloads.ACTION_UPSERT) }
+                        .onFailure { error -> Log.e(TAG, "enqueue playlist metadata failed", error) }
                 }
             }
             persistIndexAsync()

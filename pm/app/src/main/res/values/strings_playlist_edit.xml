@@ -1,0 +1,20 @@
+<resources>
+    <string name="playlist_edit_title">编辑歌单</string>
+    <string name="playlist_edit_action">编辑</string>
+    <string name="playlist_edit_name">歌单名称</string>
+    <string name="playlist_edit_description">歌单描述</string>
+    <string name="playlist_edit_cover">更换封面</string>
+    <string name="playlist_edit_gallery">从相册选择</string>
+    <string name="playlist_edit_templates">选择内置封面</string>
+    <string name="playlist_edit_default">恢复默认封面</string>
+    <string name="playlist_edit_save">保存</string>
+    <string name="playlist_edit_saving">保存中</string>
+    <string name="playlist_edit_saved">保存成功</string>
+    <string name="playlist_edit_discard">放弃未保存的修改？</string>
+    <string name="playlist_edit_discard_confirm">放弃修改</string>
+    <string name="playlist_edit_not_found">歌单不存在或已删除</string>
+    <string name="playlist_edit_name_invalid">名称不能为空，最多50字符</string>
+    <string name="playlist_edit_description_invalid">描述最多500字符</string>
+    <string name="playlist_edit_image_failed">图片读取失败，请重新选择</string>
+    <string name="playlist_edit_save_failed">保存失败，请重试</string>
+</resources>

@@ -155,7 +155,7 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
         source = "local",
         name = getString(R.string.my_favorites),
         desc = getString(R.string.my_favorites_playlist_intro),
-        cover = "",
+        cover = contentAdapter.currentSongs.firstOrNull()?.coverUrl?.trim().orEmpty(),
         song_count = contentAdapter.currentSongs.size,
     )
 

@@ -1,0 +1,16 @@
+<resources>
+    <style name="Widget.PlaylistEdit.Input" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="android:textColorHint">@color/account_login_text_hint</item>
+        <item name="boxBackgroundColor">@color/account_login_field_bg</item>
+        <item name="boxStrokeColor">@color/account_text_input_stroke</item>
+        <item name="hintTextColor">@color/account_text_input_stroke</item>
+        <item name="boxCornerRadiusBottomEnd">18dp</item>
+        <item name="boxCornerRadiusBottomStart">18dp</item>
+        <item name="boxCornerRadiusTopEnd">18dp</item>
+        <item name="boxCornerRadiusTopStart">18dp</item>
+    </style>
+    <style name="ShapeAppearanceOverlay.PlaylistEdit.Cover" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+</resources>

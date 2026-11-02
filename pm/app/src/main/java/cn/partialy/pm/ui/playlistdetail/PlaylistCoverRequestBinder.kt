@@ -8,7 +8,10 @@ import coil.load
 import coil.request.Disposable
 
 /** 每个信息头独立管理请求，Sheet 关闭后不再允许迟到回调重新绑定。 */
-class PlaylistCoverRequestBinder(private val view: ImageView) {
+class PlaylistCoverRequestBinder(
+    private val view: ImageView,
+    private val fallbackRes: Int = R.drawable.ic_pm_icon,
+) {
     private var request: Disposable? = null
     private var generation = 0
     private var disposed = false
@@ -19,7 +22,7 @@ class PlaylistCoverRequestBinder(private val view: ImageView) {
         val local = MinePlaylistCoverResolver.localTemplateRes(cover)
             ?: MinePlaylistCoverResolver.localFileForCover(cover)
         if (local != null) {
-            request = view.load(local) { placeholder(R.drawable.ic_pm_icon); error(R.drawable.ic_pm_icon) }
+            request = view.load(local) { placeholder(fallbackRes); error(fallbackRes) }
         } else {
             loadRemote(requestablePlaylistCoverCandidates(source, cover), 0, token)
         }
@@ -28,9 +31,9 @@ class PlaylistCoverRequestBinder(private val view: ImageView) {
     private fun loadRemote(candidates: List<String>, index: Int, token: Int) {
         if (disposed || token != generation) return
         request = view.load(candidates.getOrNull(index)) {
-            placeholder(R.drawable.ic_pm_icon)
-            error(R.drawable.ic_pm_icon)
-            fallback(R.drawable.ic_pm_icon)
+            placeholder(fallbackRes)
+            error(fallbackRes)
+            fallback(fallbackRes)
             listener(onError = { _, _ ->
                 if (index + 1 < candidates.size) view.post { loadRemote(candidates, index + 1, token) }
             })

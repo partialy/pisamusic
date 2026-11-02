@@ -83,12 +83,12 @@ internal class LocalPlaylistDbStore(context: Context) {
                 put("created_at", existingCreatedAt ?: now)
                 put("updated_at", now)
             }
-            db.insertWithOnConflict(
+            check(db.insertWithOnConflict(
                 "local_playlists",
                 null,
                 values,
                 SQLiteDatabase.CONFLICT_REPLACE,
-            )
+            ) != -1L) { "保存歌单失败" }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
