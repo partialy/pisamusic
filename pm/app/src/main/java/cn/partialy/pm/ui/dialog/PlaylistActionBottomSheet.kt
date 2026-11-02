@@ -46,9 +46,11 @@ object PlaylistActionBottomSheet {
                     toggleFavorite(activity, playlist, favoriteTarget, manager)
                 })
             }
-            add(ActionMenuItem(R.drawable.ic_share_24, activity.getString(R.string.song_more_share)) {
-                ShareBottomSheet.showPlaylist(activity, playlist)
-            })
+            if (!playlist.source.equals("local", ignoreCase = true)) {
+                add(ActionMenuItem(R.drawable.ic_share_24, activity.getString(R.string.song_more_share)) {
+                    ShareBottomSheet.showPlaylist(activity, playlist)
+                })
+            }
             if (onConvertToLocal != null && playlist.source.lowercase() in listOf("kg", "wy")) {
                 add(ActionMenuItem(R.drawable.ic_playlist_24, activity.getString(R.string.playlist_convert_action)) {
                     onConvertToLocal()

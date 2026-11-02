@@ -18,6 +18,8 @@ import cn.partialy.pm.activity.LovedSongsPlaylistActivity
 import cn.partialy.pm.activity.SettingsActivity
 import cn.partialy.pm.databinding.FragmentMineMyTabBinding
 import cn.partialy.pm.model.CollectedPlaylistType
+import cn.partialy.pm.model.toCanonicalPlaylist
+import cn.partialy.pm.ui.dialog.PlaylistActionBottomSheet
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -34,7 +36,13 @@ class MineMyTabFragment : Fragment() {
     private val binding get() = _binding!!
     private val localPlaylistsAdapter = MinePlaylistsAdapter(
         onMoreClick = { playlist ->
-            MinePlaylistMoreBottomSheet.show(this, playlist, playlistCollectionManager)
+            // 与本地歌单详情页右上角“更多”使用完全相同的菜单及删除确认。
+            PlaylistActionBottomSheet.show(
+                activity = requireActivity(),
+                playlist = playlist.toCanonicalPlaylist(),
+                deleteTarget = playlist,
+                manager = playlistCollectionManager,
+            )
         },
     )
 

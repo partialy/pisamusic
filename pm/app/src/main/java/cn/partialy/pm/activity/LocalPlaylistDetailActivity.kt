@@ -22,7 +22,6 @@ import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.toCanonicalPlaylist
 import cn.partialy.pm.ui.dialog.PlaylistActionBottomSheet
-import cn.partialy.pm.ui.dialog.ShareBottomSheet
 import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.home.HomeMiniPlayerBinder
@@ -91,10 +90,8 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
         )
 
         binding.backButton.setOnClickListener { finishAnimated() }
-        binding.shareButton.setOnClickListener {
-            val playlist = currentLocalPlaylist() ?: return@setOnClickListener
-            ShareBottomSheet.showPlaylist(this, playlist.toCanonicalPlaylist())
-        }
+        // 本地自建歌单不提供分享，避免顶部入口与更多菜单行为不一致。
+        binding.shareButton.visibility = android.view.View.GONE
         binding.moreButton.setOnClickListener {
             val playlist = currentLocalPlaylist()
             if (playlist == null) {
