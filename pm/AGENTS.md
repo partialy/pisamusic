@@ -35,6 +35,7 @@
 
 ## Android 架构
 
+- 自建本地歌单创建弹窗 `LocalPlaylistCreateDialog` 统一用于“我的”与添加到歌单；仅输入名称（非空、最多 50 字符），默认描述为空，未指定封面时使用 `home_feature_cloud_music.webp` 回退。用户主动新增歌曲时，以去重、校验后**最后一首实际新增歌曲**的合法 HTTP(S) 封面更新歌单；最后一首为本地音源或无有效封面则保留原封面，不回退更早歌曲。允许覆盖手动选择的封面，删除/排序/同步下行不触发；在线转本地继续采用原歌单封面。曲目、封面及同步 outbox 在 SQLite 同一事务内写入，成功后才清理不再引用的 App 私有旧封面。创建入口使用 `ic_new_local_playlist.webp`，编辑页封面选择功能不受影响。
 - 普通本地歌单（含在线转本地副本）的更多菜单在详情下方提供“编辑”，进入 `PlaylistEditActivity`；系统“我的收藏”和 KG/WY 在线歌单不显示编辑。`ui/playlistedit/PlaylistEditViewModel` 使用 SavedStateHandle 保存名称、描述与封面草稿，复用 `updateLocalPlaylistMeta()` 和 playlistsFlow 刷新；名称必填最多 50 字符，描述可空最多 500 字符。封面支持模板、默认或系统图片选择，ImageDecoder 校正方向并规范化为最长边 1024px JPEG；临时图仅预览，提交时生成独立持久图，数据库成功后才清理无引用旧图，失败保留草稿。自定义图只保证本设备使用，不新增上传接口；跨设备无法读取时回退默认封面。分享详情页本地封面和网络封面统一复用 PlaylistCoverRequestBinder，公开分享不接受本地文件路径。
 
 - 侧栏“链接导入”位于账号歌单导入与定时关闭之间，始终可用且不要求第三方账号登录；`PlaylistLinkImportDialog` 复用 `PmSlotDialog` 与 M3 多行输入框，仅主动点击尾部按钮时读取剪贴板最新文本并替换输入，不自动提交。`PlaylistShareLinkParser` 只解析网易 `music.163.com` 的普通、移动端及 hash 路由歌单链接（支持完整分享文案与转义链接），同时支持酷狗 `m.kugou.com` / `www.kugou.com` / `kugou.com` 的 `/songlist/gcid_...` 链接：按 z 分隔的 35 进制字段还原候选 `collection_*` ID（尾段首位还原末字段，其余两位不用于 ID），只取主链接的分享副本身份，不用 `src_cid` 替代；多链接按文本顺序只处理首个有效的受支持歌单，短链接暂不支持。打开前由 `WyCookieRepository.getPlaylistMetadata` / `KgRepository.getPlaylistMetadata` 获取元信息并校验精确身份与可访问性，成功进入原 `WyPlaylistDetailActivity` / `PlaylistDetailActivity`，不自动收藏或创建本地歌单；失败保留输入，关闭弹窗取消请求。
