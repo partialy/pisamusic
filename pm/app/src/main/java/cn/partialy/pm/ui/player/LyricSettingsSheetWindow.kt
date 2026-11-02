@@ -161,8 +161,8 @@ internal class LyricSettingsSheetWindow(
             textSize = textSizePx
             typeface = if (style.currentLineBold) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         }
-        // 20dp 卡片外边距 + 普通歌词行 18dp 内边距，两侧均计入。
-        val textWidth = (sheetWidth - 76 * metrics.density).roundToInt().coerceAtLeast(1)
+        // 16dp 卡片外边距 + 普通歌词行 18dp 内边距，两侧均计入。
+        val textWidth = (sheetWidth - 68 * metrics.density).roundToInt().coerceAtLeast(1)
         val textHeight = LyricPreviewSamples.lines.maxOf { line ->
             StaticLayout.Builder.obtain(line.lineText, 0, line.lineText.length, paint, textWidth)
                 .setLineSpacing(8 * metrics.density, 1f)

@@ -38,6 +38,8 @@
 - 轮廓输入框统一引用 `res/values/dimens.xml` 中的 `pm_text_input_corner_radius`（12dp）；M3 和 MaterialComponents 分别继承 `Widget.Pm.TextInput.Outlined.*` 样式，不覆盖各页面的描边、背景和错误提示。
 - `PmMessageHost` 的轻提示胶囊中心位于窗口可见区域顶部起 33%，保持 IME/状态栏/刘海安全区裁剪；单曲入队、重复、已完成和失败分别提示，批量维持数量汇总。
 - 歌单与我的收藏搜索页将 `searchHeaderBar` 和 `playAllBar` 放在同一个不透明 `searchTopContainer` 中，列表的顶部约束到容器底部，禁止使用孤立播放栏与 `bringToFront()` 补救穿透问题；工具条背景 `bg_playlist_search_play_all` 与搜索头部同色，无分割线，空结果保留 0 首但禁止播放，不改正常详情及云盘行为。
+- “我的 → 歌单”中的非本地歌单、本地歌单列表与歌单详情统一使用 `PlaylistActionBottomSheet`；列表入口传递收藏快照 `deleteTarget` 和 `PlaylistCollectionManager`，保留原删除确认逻辑，不再使用 `MinePlaylistMoreBottomSheet` 与其独立 XML。
+- 歌词设置 Sheet 对齐一起听的紧凑边距：左右/顶部 16dp、标题 40dp、分区上边距 12dp、卡片内边距 12dp、圆形加减按钮 30dp；保留歌词独立滚动/预览/IME 行为，并同步更新预览的布局宽度测量。
 - 一起听空闲时仅显示“一起听”标题，进入房间后直接以房间名为标题；房间成员分区显示“成员（X人）”、邀请分区显示“邀请朋友（房间号 X）”，不显示独立房间元信息、“当前同步”标签和底部同步正常提示。定时关闭小时/分钟复用一起听圆形步进器，时长 1～1439 分钟，输入完成后规范化并在底部展示预计停播时间及等待当前歌曲说明。
 - “歌曲更多 → 添加到歌单 → 新建歌单”成功后必须等 SQLite 原子保存及弹窗关闭，再显示唯一“已创建歌单，添加成功”；取消、失败和 Activity 销毁不误报成功。
 

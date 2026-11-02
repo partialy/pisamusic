@@ -9,14 +9,14 @@
     android:focusable="true"
     android:focusableInTouchMode="true"
     android:background="@drawable/bg_lyric_settings_sheet"
-    android:paddingTop="22dp">
+    android:paddingTop="16dp">
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:id="@+id/lyricSettingsHeader"
-        android:paddingHorizontal="20dp"
-        android:paddingBottom="16dp">
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="12dp">
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -24,7 +24,7 @@
             android:gravity="center_vertical">
             <TextView
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="40dp"
                 android:layout_weight="1"
                 android:text="@string/lyric_settings_title"
                 android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
@@ -45,8 +45,8 @@
         android:id="@+id/lyricSettingsPreview"
         android:layout_width="match_parent"
         android:layout_height="96dp"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="4dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="0dp"
         layout="@layout/include_lyric_settings_preview" />
     <androidx.core.widget.NestedScrollView
         android:id="@+id/lyricSettingsScroll"
@@ -60,12 +60,12 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:paddingBottom="28dp">
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="16dp">
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/lyric_settings_section_display"
                 android:textColor="@color/listen_together_field_label"
@@ -76,7 +76,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_listen_together_create_card"
-                android:paddingHorizontal="14dp"
+                android:paddingHorizontal="12dp"
                 android:paddingVertical="8dp">
                 <cn.partialy.pm.ui.widget.PmSwitch
                     android:id="@+id/lyricSettingsUseWordLyricSwitch"
@@ -124,7 +124,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/lyric_settings_section_typography"
                 android:textColor="@color/listen_together_field_label"
@@ -135,7 +135,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_listen_together_create_card"
-                android:paddingHorizontal="14dp"
+                android:paddingHorizontal="12dp"
                 android:paddingVertical="8dp">
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -158,8 +158,8 @@
                         android:paddingHorizontal="0dp">
                         <ImageButton
                             android:id="@+id/lyricSettingsFontSizeMinus"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
                             android:background="@drawable/bg_listen_together_stepper_circle"
                             android:contentDescription="@string/lyric_settings_decrease"
                             android:padding="6dp"
@@ -181,8 +181,8 @@
                             android:contentDescription="@string/lyric_settings_font_size_input_description" />
                         <ImageButton
                             android:id="@+id/lyricSettingsFontSizePlus"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
                             android:background="@drawable/bg_listen_together_stepper_circle"
                             android:contentDescription="@string/lyric_settings_increase"
                             android:padding="6dp"
@@ -242,7 +242,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/lyric_settings_section_colors"
                 android:textColor="@color/listen_together_field_label"
@@ -253,7 +253,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_listen_together_create_card"
-                android:paddingHorizontal="14dp"
+                android:paddingHorizontal="12dp"
                 android:paddingVertical="8dp">
                 <TextView
                     android:layout_width="match_parent"
@@ -329,7 +329,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="12dp"
                 android:layout_marginBottom="8dp"
                 android:text="@string/lyric_settings_section_effects"
                 android:textColor="@color/listen_together_field_label"
@@ -340,7 +340,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_listen_together_create_card"
-                android:paddingHorizontal="14dp"
+                android:paddingHorizontal="12dp"
                 android:paddingVertical="8dp">
                 <cn.partialy.pm.ui.widget.PmSwitch
                     android:id="@+id/lyricSettingsBoldSwitch"
@@ -394,8 +394,8 @@
                         android:paddingHorizontal="0dp">
                         <ImageButton
                             android:id="@+id/lyricSettingsCurrentEnlargedDxMinus"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
                             android:background="@drawable/bg_listen_together_stepper_circle"
                             android:contentDescription="@string/lyric_settings_decrease"
                             android:padding="6dp"
@@ -417,8 +417,8 @@
                             android:contentDescription="@string/lyric_settings_enlarged_input_description" />
                         <ImageButton
                             android:id="@+id/lyricSettingsCurrentEnlargedDxPlus"
-                            android:layout_width="36dp"
-                            android:layout_height="36dp"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
                             android:background="@drawable/bg_listen_together_stepper_circle"
                             android:contentDescription="@string/lyric_settings_increase"
                             android:padding="6dp"
