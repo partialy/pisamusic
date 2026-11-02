@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="lyric_settings_subtitle">自定义歌词显示效果和播放样式</string>
     <string name="lyric_settings_close">关闭歌词设置</string>
     <string name="lyric_settings_section_display">显示设置</string>
     <string name="lyric_settings_section_typography">字体与排版</string>
     <string name="lyric_settings_section_colors">歌词颜色</string>
     <string name="lyric_settings_section_effects">播放效果</string>
-    <string name="lyric_settings_status_bar_preview_note">状态栏歌词独立显示，不影响上方预览</string>
     <string name="lyric_settings_preview_description">歌词样式实时预览，使用模拟歌词，不影响当前播放</string>
     <string name="lyric_settings_font_size_input_description">歌词字号，单位 sp，范围 12 至 30</string>
     <string name="lyric_settings_enlarged_input_description">当前行放大增量，单位 sp，范围 2 至 8</string>
-    <string name="lyric_settings_font_size_with_unit">字号（sp）</string>
-    <string name="lyric_settings_enlarged_with_unit">放大字号差值（2–8 sp）</string>
+    <string name="lyric_settings_font_size_label">字号</string>
+    <string name="lyric_settings_enlarged_label">放大字号差值</string>
 </resources>

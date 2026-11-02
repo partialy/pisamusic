@@ -40,18 +40,11 @@
                 android:src="@drawable/ic_close_24dp"
                 app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="@string/lyric_settings_subtitle"
-            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-            android:textColor="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
     <include
         android:id="@+id/lyricSettingsPreview"
         android:layout_width="match_parent"
-        android:layout_height="160dp"
+        android:layout_height="96dp"
         android:layout_marginHorizontal="20dp"
         android:layout_marginBottom="4dp"
         layout="@layout/include_lyric_settings_preview" />
@@ -127,13 +120,6 @@
                         android:textColor="?attr/colorOnSurface"
                         android:minHeight="48dp" />
                 </LinearLayout>
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="4dp"
-                    android:text="@string/lyric_settings_status_bar_preview_note"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="12sp" />
             </LinearLayout>
             <TextView
                 android:layout_width="match_parent"
@@ -151,52 +137,58 @@
                 android:background="@drawable/bg_listen_together_create_card"
                 android:paddingHorizontal="14dp"
                 android:paddingVertical="8dp">
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/lyric_settings_font_size_with_unit"
-                    android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="0dp">
-                    <ImageButton
-                        android:id="@+id/lyricSettingsFontSizeMinus"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
-                        android:background="@drawable/bg_listen_together_stepper_circle"
-                        android:contentDescription="@string/lyric_settings_decrease"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_stepper_minus_24"
-                        app:tint="?attr/colorPrimary" />
-                    <EditText
-                        android:id="@+id/lyricSettingsFontSizeInput"
-                        android:layout_width="44dp"
-                        android:layout_height="match_parent"
-                        android:background="@null"
-                        android:imeOptions="actionDone"
-                        android:inputType="number"
-                        android:maxLines="1"
-                        android:textAlignment="center"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="@string/lyric_settings_font_size_label"
                         android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textStyle="bold"
-                        tools:text="16"
-                        android:contentDescription="@string/lyric_settings_font_size_input_description" />
-                    <ImageButton
-                        android:id="@+id/lyricSettingsFontSizePlus"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
-                        android:background="@drawable/bg_listen_together_stepper_circle"
-                        android:contentDescription="@string/lyric_settings_increase"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_stepper_plus_24"
-                        app:tint="?attr/colorPrimary" />
+                        android:textColor="?attr/colorOnSurface" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:gravity="center"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="0dp">
+                        <ImageButton
+                            android:id="@+id/lyricSettingsFontSizeMinus"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="@drawable/bg_listen_together_stepper_circle"
+                            android:contentDescription="@string/lyric_settings_decrease"
+                            android:padding="6dp"
+                            android:src="@drawable/ic_stepper_minus_24"
+                            app:tint="?attr/colorPrimary" />
+                        <EditText
+                            android:id="@+id/lyricSettingsFontSizeInput"
+                            android:layout_width="44dp"
+                            android:layout_height="match_parent"
+                            android:background="@null"
+                            android:imeOptions="actionDone"
+                            android:inputType="number"
+                            android:maxLines="1"
+                            android:textAlignment="center"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textStyle="bold"
+                            tools:text="16"
+                            android:contentDescription="@string/lyric_settings_font_size_input_description" />
+                        <ImageButton
+                            android:id="@+id/lyricSettingsFontSizePlus"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="@drawable/bg_listen_together_stepper_circle"
+                            android:contentDescription="@string/lyric_settings_increase"
+                            android:padding="6dp"
+                            android:src="@drawable/ic_stepper_plus_24"
+                            app:tint="?attr/colorPrimary" />
+                    </LinearLayout>
                 </LinearLayout>
                 <TextView
                     android:layout_width="match_parent"
@@ -381,52 +373,58 @@
                     android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                     android:textSize="15sp"
                     android:textColor="?attr/colorOnSurface" />
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/lyric_settings_enlarged_with_unit"
-                    android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="0dp">
-                    <ImageButton
-                        android:id="@+id/lyricSettingsCurrentEnlargedDxMinus"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
-                        android:background="@drawable/bg_listen_together_stepper_circle"
-                        android:contentDescription="@string/lyric_settings_decrease"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_stepper_minus_24"
-                        app:tint="?attr/colorPrimary" />
-                    <EditText
-                        android:id="@+id/lyricSettingsCurrentEnlargedDxInput"
-                        android:layout_width="44dp"
-                        android:layout_height="match_parent"
-                        android:background="@null"
-                        android:imeOptions="actionDone"
-                        android:inputType="number"
-                        android:maxLines="1"
-                        android:textAlignment="center"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="@string/lyric_settings_enlarged_label"
                         android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textStyle="bold"
-                        tools:text="4"
-                        android:contentDescription="@string/lyric_settings_enlarged_input_description" />
-                    <ImageButton
-                        android:id="@+id/lyricSettingsCurrentEnlargedDxPlus"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
-                        android:background="@drawable/bg_listen_together_stepper_circle"
-                        android:contentDescription="@string/lyric_settings_increase"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_stepper_plus_24"
-                        app:tint="?attr/colorPrimary" />
+                        android:textColor="?attr/colorOnSurface" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:gravity="center"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="0dp">
+                        <ImageButton
+                            android:id="@+id/lyricSettingsCurrentEnlargedDxMinus"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="@drawable/bg_listen_together_stepper_circle"
+                            android:contentDescription="@string/lyric_settings_decrease"
+                            android:padding="6dp"
+                            android:src="@drawable/ic_stepper_minus_24"
+                            app:tint="?attr/colorPrimary" />
+                        <EditText
+                            android:id="@+id/lyricSettingsCurrentEnlargedDxInput"
+                            android:layout_width="44dp"
+                            android:layout_height="match_parent"
+                            android:background="@null"
+                            android:imeOptions="actionDone"
+                            android:inputType="number"
+                            android:maxLines="1"
+                            android:textAlignment="center"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textStyle="bold"
+                            tools:text="4"
+                            android:contentDescription="@string/lyric_settings_enlarged_input_description" />
+                        <ImageButton
+                            android:id="@+id/lyricSettingsCurrentEnlargedDxPlus"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:background="@drawable/bg_listen_together_stepper_circle"
+                            android:contentDescription="@string/lyric_settings_increase"
+                            android:padding="6dp"
+                            android:src="@drawable/ic_stepper_plus_24"
+                            app:tint="?attr/colorPrimary" />
+                    </LinearLayout>
                 </LinearLayout>
                 <LinearLayout
                     android:layout_width="match_parent"

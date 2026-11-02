@@ -168,7 +168,7 @@ internal class LyricSettingsSheetWindow(
         }
         measuredPreviewKey = key
         measuredPreviewMinimumHeight = textHeight + (24 * metrics.density).roundToInt()
-        measuredPreviewHeight = maxOf((160 * metrics.density).roundToInt(), measuredPreviewMinimumHeight)
+        measuredPreviewHeight = maxOf((96 * metrics.density).roundToInt(), measuredPreviewMinimumHeight)
         return measuredPreviewHeight
     }
 
