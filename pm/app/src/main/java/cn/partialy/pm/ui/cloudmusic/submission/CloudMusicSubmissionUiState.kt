@@ -53,5 +53,5 @@ sealed interface CloudMusicSubmissionEvent {
 
     data object CloseRequested : CloudMusicSubmissionEvent
 
-    data class ShowMessage(val message: String) : CloudMusicSubmissionEvent
+    data class ShowMessage(val message: String, val isError: Boolean = false) : CloudMusicSubmissionEvent
 }

@@ -1,10 +1,10 @@
 package cn.partialy.pm.ui.home.fragments
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import cn.partialy.pm.R
@@ -76,7 +76,7 @@ class FavoriteSongsFragment : BaseSongFragment() {
                     }
                 } ?: run {
                     context?.let { context ->
-                        Toast.makeText(context, R.string.download_failed_retry, Toast.LENGTH_SHORT).show()
+                        PmMessage.error(this@FavoriteSongsFragment, R.string.download_failed_retry)
                     }
                 }
             },
@@ -91,7 +91,7 @@ class FavoriteSongsFragment : BaseSongFragment() {
                         onDownloadClick = { s ->
                             val act = activity
                             if (act is MainActivity) act.downloadSong(s)
-                            else Toast.makeText(requireContext(), R.string.download_failed_retry, Toast.LENGTH_SHORT).show()
+                            else PmMessage.error(this@FavoriteSongsFragment, R.string.download_failed_retry)
                         },
                     ),
                 )

@@ -1,9 +1,10 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -159,14 +160,12 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
                         }
                         if (removed) {
                             selectedKeys.clear()
-                            Toast.makeText(
+                            PmMessage.success(
                                 this@LocalPlaylistSongManagementActivity,
                                 getString(
                                     R.string.local_playlist_song_management_delete_success,
                                     selectedSongs.size,
-                                ),
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                                ))
                         }
                     }
                 },

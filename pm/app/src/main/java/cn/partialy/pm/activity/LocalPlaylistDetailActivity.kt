@@ -1,10 +1,11 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.core.view.updateLayoutParams
@@ -97,7 +98,7 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
         binding.moreButton.setOnClickListener {
             val playlist = currentLocalPlaylist()
             if (playlist == null) {
-                Toast.makeText(this, R.string.mine_playlist_delete_failed, Toast.LENGTH_SHORT).show()
+                PmMessage.error(this, R.string.mine_playlist_delete_failed)
                 return@setOnClickListener
             }
             PlaylistActionBottomSheet.show(

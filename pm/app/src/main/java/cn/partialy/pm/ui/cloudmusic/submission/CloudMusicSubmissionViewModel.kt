@@ -679,7 +679,7 @@ class CloudMusicSubmissionViewModel @Inject constructor(
 
     private fun handleFailure(error: Throwable, fallback: String) {
         if (error is CloudMusicSubmissionException.LoginRequired) refreshLoginState()
-        emitMessage(error.messageOr(fallback))
+        emitMessage(error.messageOr(fallback), isError = true)
     }
 
     private fun markLoginRequired() {
@@ -873,8 +873,8 @@ class CloudMusicSubmissionViewModel @Inject constructor(
             token.accountGeneration == accountGeneration &&
             token.historyGeneration == historyGeneration
 
-    private fun emitMessage(message: String) {
-        _events.tryEmit(CloudMusicSubmissionEvent.ShowMessage(message))
+    private fun emitMessage(message: String, isError: Boolean = false) {
+        _events.tryEmit(CloudMusicSubmissionEvent.ShowMessage(message, isError))
     }
 
     private fun Throwable.messageOr(fallback: String): String = message?.takeIf { it.isNotBlank() } ?: fallback

@@ -1,11 +1,12 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -172,11 +173,9 @@ class DataManagementActivity : BaseActivity() {
             runCatching { faultReportRepository.loadStats() }
                 .onSuccess(::renderFaultReportStats)
                 .onFailure {
-                    Toast.makeText(
+                    PmMessage.error(
                         this@DataManagementActivity,
-                        R.string.fault_report_load_failed,
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                        R.string.fault_report_load_failed)
                 }
         }
     }
@@ -216,18 +215,14 @@ class DataManagementActivity : BaseActivity() {
         lifecycleScope.launch {
             runCatching { faultReportRepository.submitPending() }
                 .onSuccess {
-                    Toast.makeText(
+                    PmMessage.success(
                         this@DataManagementActivity,
-                        R.string.fault_report_success,
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                        R.string.fault_report_success)
                 }
                 .onFailure { error ->
-                    Toast.makeText(
+                    PmMessage.error(
                         this@DataManagementActivity,
-                        error.message ?: getString(R.string.fault_report_failed),
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                        error.message ?: getString(R.string.fault_report_failed))
                 }
             submittingFaultReport = false
             binding.reportNowButton.text = getString(R.string.fault_report_now)
@@ -270,7 +265,7 @@ class DataManagementActivity : BaseActivity() {
             }
             loveManager.reload()
             loadDataOverview()
-            Toast.makeText(this@DataManagementActivity, R.string.data_delete_success, Toast.LENGTH_SHORT).show()
+            PmMessage.success(this@DataManagementActivity, R.string.data_delete_success)
         }
     }
 
@@ -289,7 +284,7 @@ class DataManagementActivity : BaseActivity() {
                 val filesDir = this@DataManagementActivity.filesDir
                 val filesToPack = withContext(Dispatchers.IO) { collectExportFiles(filesDir) }
                 if (filesToPack.isEmpty()) {
-                    Toast.makeText(this@DataManagementActivity, R.string.data_export_empty, Toast.LENGTH_SHORT).show()
+                    PmMessage.info(this@DataManagementActivity, R.string.data_export_empty)
                     return@launch
                 }
                 withContext(Dispatchers.IO) {
@@ -307,10 +302,10 @@ class DataManagementActivity : BaseActivity() {
                     R.string.data_export_success,
                     uri.lastPathSegment ?: getString(R.string.common_default_backup_filename),
                 )
-                Toast.makeText(this@DataManagementActivity, successText, Toast.LENGTH_SHORT).show()
+                PmMessage.success(this@DataManagementActivity, successText)
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@DataManagementActivity, R.string.data_export_fail, Toast.LENGTH_SHORT).show()
+                PmMessage.error(this@DataManagementActivity, R.string.data_export_fail)
             } finally {
                 binding.btnExportBackup.isEnabled = true
             }
@@ -360,11 +355,11 @@ class DataManagementActivity : BaseActivity() {
                 val successText = getString(
                     R.string.data_import_success, result.lovedCount, result.playlistCount
                 )
-                Toast.makeText(this@DataManagementActivity, successText, Toast.LENGTH_SHORT).show()
+                PmMessage.success(this@DataManagementActivity, successText)
                 loadDataOverview()
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@DataManagementActivity, R.string.data_import_fail, Toast.LENGTH_SHORT).show()
+                PmMessage.error(this@DataManagementActivity, R.string.data_import_fail)
             } finally {
                 binding.btnImportBackup.isEnabled = true
             }
@@ -461,7 +456,7 @@ class DataManagementActivity : BaseActivity() {
         lifecycleScope.launch {
             val totalEvents = withContext(Dispatchers.IO) { playbackDiagnosticStore.getEventsCount() }
             if (totalEvents <= 0) {
-                Toast.makeText(this@DataManagementActivity, R.string.data_diagnostics_empty, Toast.LENGTH_SHORT).show()
+                PmMessage.info(this@DataManagementActivity, R.string.data_diagnostics_empty)
                 return@launch
             }
 
@@ -509,7 +504,7 @@ class DataManagementActivity : BaseActivity() {
                     playbackDiagnosticStore.queryRecentEvents(limit)
                 }
                 if (rows.isEmpty()) {
-                    Toast.makeText(this@DataManagementActivity, R.string.data_diagnostics_empty, Toast.LENGTH_SHORT).show()
+                    PmMessage.info(this@DataManagementActivity, R.string.data_diagnostics_empty)
                     return@launch
                 }
                 val jsonString = withContext(Dispatchers.IO) {
@@ -522,10 +517,10 @@ class DataManagementActivity : BaseActivity() {
                 }
                 val filename = uri.lastPathSegment ?: "playback_diagnostics.json"
                 val successText = getString(R.string.data_diagnostics_export_success, filename, rows.size)
-                Toast.makeText(this@DataManagementActivity, successText, Toast.LENGTH_SHORT).show()
+                PmMessage.success(this@DataManagementActivity, successText)
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@DataManagementActivity, R.string.data_diagnostics_export_fail, Toast.LENGTH_SHORT).show()
+                PmMessage.error(this@DataManagementActivity, R.string.data_diagnostics_export_fail)
             } finally {
                 binding.btnExportDiagnostics.isEnabled = true
             }

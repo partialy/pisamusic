@@ -1,11 +1,11 @@
 package cn.partialy.pm.ui.home.fragments
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
-import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -295,14 +295,14 @@ class RecommendedSongsFragment : BaseSongFragment() {
         if (act is MainActivity) {
             act.downloadSong(song)
         } else {
-            Toast.makeText(requireContext(), R.string.download_failed_retry, Toast.LENGTH_SHORT).show()
+            PmMessage.error(this@RecommendedSongsFragment, R.string.download_failed_retry)
         }
     }
 
     private fun playAllDaily() {
         val songs = viewModel.dailyRecommendSongs.value.map { it.convertToSongInfo() }
         if (songs.isEmpty()) {
-            Toast.makeText(requireContext(), R.string.playlist_empty_hint, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this@RecommendedSongsFragment, R.string.playlist_empty_hint)
             return
         }
         musicController.setPlayListLazy(songs)

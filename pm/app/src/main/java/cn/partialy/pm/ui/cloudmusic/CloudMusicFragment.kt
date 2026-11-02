@@ -1,11 +1,11 @@
 package cn.partialy.pm.ui.cloudmusic
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.app.Activity
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -206,7 +206,7 @@ class CloudMusicFragment : Fragment() {
 
     private fun playSong(song: SongInfo) {
         if (!song.playable) {
-            Toast.makeText(requireContext(), R.string.cloud_music_disabled_play, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this@CloudMusicFragment, R.string.cloud_music_disabled_play)
             return
         }
         musicController.addToPlayList(song, autoPlay = true)
@@ -214,12 +214,12 @@ class CloudMusicFragment : Fragment() {
 
     private fun downloadSong(song: SongInfo) {
         if (!song.playable) {
-            Toast.makeText(requireContext(), R.string.cloud_music_disabled_download, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this@CloudMusicFragment, R.string.cloud_music_disabled_download)
             return
         }
         val activity = activity as? MainActivity
         if (activity == null) {
-            Toast.makeText(requireContext(), R.string.download_failed_retry, Toast.LENGTH_SHORT).show()
+            PmMessage.error(this@CloudMusicFragment, R.string.download_failed_retry)
             return
         }
         activity.downloadSong(song)

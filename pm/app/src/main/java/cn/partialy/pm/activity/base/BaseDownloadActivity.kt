@@ -1,5 +1,6 @@
 package cn.partialy.pm.activity.base
 
+import cn.partialy.pm.ui.message.PmMessage
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.FeedbackActivity
@@ -47,11 +48,11 @@ abstract class BaseDownloadActivity : BaseActivity() {
             try {
                 val song = songs.firstOrNull() ?: return@launch
                 if (song.type == SongType.LOCAL) {
-                    showMessage(getString(R.string.local_song_no_online_download))
+                    PmMessage.warning(this@BaseDownloadActivity, R.string.local_song_no_online_download)
                     return@launch
                 }
                 if (songs.size == 1 && !song.playable) {
-                    showMessage(getString(R.string.cloud_music_disabled_download))
+                    PmMessage.warning(this@BaseDownloadActivity, R.string.cloud_music_disabled_download)
                     return@launch
                 }
                 val session = AccountSessionStore.read(this@BaseDownloadActivity)
@@ -69,12 +70,14 @@ abstract class BaseDownloadActivity : BaseActivity() {
                     },
                 ) ?: return@launch
                 val summary = downloadQueueCoordinator.enqueue(songs, selected.choice)
-                showMessage(getString(R.string.download_queue_summary, summary.enqueuedKeys.size, summary.skippedKeys.size, summary.failedKeys.size))
+                val message = getString(R.string.download_queue_summary, summary.enqueuedKeys.size, summary.skippedKeys.size, summary.failedKeys.size)
+                if (summary.failedKeys.isNotEmpty()) PmMessage.warning(this@BaseDownloadActivity, message)
+                else PmMessage.success(this@BaseDownloadActivity, message)
                 onResult(summary)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
-                showMessage(getString(R.string.download_queue_enqueue_failed))
+                PmMessage.error(this@BaseDownloadActivity, R.string.download_queue_enqueue_failed)
             } finally {
                 downloadFlowActive = false
                 onFinished()

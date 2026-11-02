@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -9,7 +11,6 @@ import android.text.TextWatcher
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
@@ -129,7 +130,7 @@ class DownloadManagementActivity : BaseActivity() {
                 .setConfirmButton(getString(R.string.download_queue_retry_action)) {
                     lifecycleScope.launch {
                         val result = downloadQueueCoordinator.retry(task)
-                        showMessage(getString(R.string.download_queue_summary, result.enqueuedKeys.size, result.skippedKeys.size, result.failedKeys.size))
+                        PmMessage.show(this@DownloadManagementActivity, if (result.failedKeys.isNotEmpty()) cn.partialy.pm.ui.message.MessageType.WARNING else cn.partialy.pm.ui.message.MessageType.SUCCESS, getString(R.string.download_queue_summary, result.enqueuedKeys.size, result.skippedKeys.size, result.failedKeys.size), 2000L, null)
                     }
                 }.show()
         }
@@ -246,21 +247,15 @@ class DownloadManagementActivity : BaseActivity() {
                 downloadTaskRepository.removeTasks(ids, deleteFiles)
             }.onSuccess { result ->
                 if (result.failedPaths.isEmpty()) setEditing(false)
-                Toast.makeText(
-                    this@DownloadManagementActivity,
-                    if (result.failedPaths.isEmpty()) {
-                        R.string.download_management_delete_done
-                    } else {
-                        R.string.download_management_delete_partial_failed
-                    },
-                    Toast.LENGTH_SHORT,
-                ).show()
+                if (result.failedPaths.isEmpty()) {
+                    PmMessage.success(this@DownloadManagementActivity, R.string.download_management_delete_done)
+                } else {
+                    PmMessage.warning(this@DownloadManagementActivity, R.string.download_management_delete_partial_failed)
+                }
             }.onFailure {
-                Toast.makeText(
+                PmMessage.error(
                     this@DownloadManagementActivity,
-                    R.string.download_management_delete_failed,
-                    Toast.LENGTH_SHORT,
-                ).show()
+                    R.string.download_management_delete_failed)
             }
         }
     }

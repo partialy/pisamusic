@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -157,7 +159,7 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
                 cn.partialy.pm.ui.dialog.AddToPlaylistBottomSheet.show(this, songs, musicController, playlistCollectionManager,
                     onResult = { result ->
                         (result.added + result.existing).forEach { selectedKeys.remove(playlistSongKey(it)) }
-                        showMessage(getString(R.string.online_batch_add_result, result.added.size, result.existing.size, result.failed.size))
+                        PmMessage.show(this@OnlinePlaylistBatchActivity, if (result.failed.isNotEmpty()) cn.partialy.pm.ui.message.MessageType.WARNING else cn.partialy.pm.ui.message.MessageType.SUCCESS, getString(R.string.online_batch_add_result, result.added.size, result.existing.size, result.failed.size), 2000L, null)
                         render()
                     }, onFinished = { busy = false; render() })
             },
@@ -199,7 +201,7 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
             try {
                 val result = withContext(Dispatchers.IO) { loveManager.addSongsToLoveList(songs) }
                 (result.added + result.existing).forEach { selectedKeys.remove(playlistSongKey(it)) }
-                showMessage(getString(R.string.online_batch_favorite_result, result.added.size, result.existing.size, result.failed.size))
+                PmMessage.show(this@OnlinePlaylistBatchActivity, if (result.failed.isNotEmpty()) cn.partialy.pm.ui.message.MessageType.WARNING else cn.partialy.pm.ui.message.MessageType.SUCCESS, getString(R.string.online_batch_favorite_result, result.added.size, result.existing.size, result.failed.size), 2000L, null)
             } finally {
                 busy = false
                 render()

@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -204,7 +206,11 @@ class CloudMusicSubmissionActivity : BaseActivity() {
                         when (event) {
                             CloudMusicSubmissionEvent.SubmissionChanged -> setResult(RESULT_OK)
                             CloudMusicSubmissionEvent.CloseRequested -> finish()
-                            is CloudMusicSubmissionEvent.ShowMessage -> showMessage(event.message)
+                            is CloudMusicSubmissionEvent.ShowMessage -> if (event.isError) {
+                                PmMessage.error(this@CloudMusicSubmissionActivity, event.message)
+                            } else {
+                                PmMessage.warning(this@CloudMusicSubmissionActivity, event.message)
+                            }
                         }
                     }
                 }
@@ -577,6 +583,7 @@ class CloudMusicSubmissionActivity : BaseActivity() {
         dialogBinding.dialogPreviewCloseButton.setOnClickListener { dialog.dismiss() }
         dialogBinding.dialogImagePreviewRoot.setOnClickListener { dialog.dismiss() }
         dialog.show()
+        PmMessage.register(dialog)
     }
 
     private fun setupSystemBars() {

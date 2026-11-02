@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -18,7 +20,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
@@ -323,11 +324,9 @@ class LocalMusicActivity : BaseDownloadActivity() {
                 localSongs.clear()
                 localSongs.addAll(songsLocal)
                 applyCurrentSearchFilter()
-                Toast.makeText(
+                PmMessage.success(
                     this@LocalMusicActivity,
-                    getString(R.string.local_music_import_done, result.importedCount, result.skippedCount),
-                    Toast.LENGTH_SHORT,
-                ).show()
+                    getString(R.string.local_music_import_done, result.importedCount, result.skippedCount))
             }
         }
     }

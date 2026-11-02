@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -8,7 +10,6 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Base64
 import android.view.View
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -122,9 +123,9 @@ class PlaylistImportActivity : BaseActivity() {
         // 「开始导入」：登录成功后 Cookie 已落盘，此处用于确认并提示用户可去导入歌单
         binding.btnStartImport.setOnClickListener {
             if (kugouCookieRepository.getCookie().isBlank()) {
-                Toast.makeText(this, R.string.playlist_import_kg_need_login_first, Toast.LENGTH_SHORT).show()
+                PmMessage.warning(this, R.string.playlist_import_kg_need_login_first)
             } else {
-                Toast.makeText(this, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
+                PmMessage.success(this, R.string.playlist_import_cookie_saved)
             }
         }
 
@@ -171,7 +172,7 @@ class PlaylistImportActivity : BaseActivity() {
     private fun requestKugouCaptcha() {
         val phone = binding.kgLogin.kgPhoneInput.text?.toString()?.trim().orEmpty()
         if (phone.length != 11) {
-            Toast.makeText(this, R.string.playlist_import_kg_phone_invalid, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.playlist_import_kg_phone_invalid)
             return
         }
         kgCaptchaCountdownJob?.cancel()
@@ -183,13 +184,13 @@ class PlaylistImportActivity : BaseActivity() {
                 val env = resp.body()
                 if (env?.status != 1) {
                     val msg = env?.msg ?: env?.message ?: getString(R.string.playlist_import_kg_captcha_fail)
-                    Toast.makeText(this@PlaylistImportActivity, msg, Toast.LENGTH_SHORT).show()
+                    PmMessage.error(this@PlaylistImportActivity, msg)
                     return@launch
                 }
                 startKugouCaptchaCountdown()
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_network_error, Toast.LENGTH_SHORT).show()
+                PmMessage.error(this@PlaylistImportActivity, R.string.playlist_import_kg_network_error)
             }
         }
     }
@@ -213,11 +214,11 @@ class PlaylistImportActivity : BaseActivity() {
         val phone = binding.kgLogin.kgPhoneInput.text?.toString()?.trim().orEmpty()
         val code = binding.kgLogin.kgCodeInput.text?.toString()?.trim().orEmpty()
         if (phone.length != 11) {
-            Toast.makeText(this, R.string.playlist_import_kg_phone_invalid, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.playlist_import_kg_phone_invalid)
             return
         }
         if (code.isBlank()) {
-            Toast.makeText(this, R.string.playlist_import_kg_code_empty, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.playlist_import_kg_code_empty)
             return
         }
         lifecycleScope.launch {
@@ -228,14 +229,14 @@ class PlaylistImportActivity : BaseActivity() {
                 val env = resp.body()
                 if (env?.status != 1) {
                     val msg = env?.msg ?: env?.message ?: getString(R.string.playlist_import_kg_save_fail_generic)
-                    Toast.makeText(this@PlaylistImportActivity, msg, Toast.LENGTH_SHORT).show()
+                    PmMessage.error(this@PlaylistImportActivity, msg)
                     return@launch
                 }
                 val data = env.data
                 val token = data?.get("token")?.toScalarString().orEmpty()
                 val userid = data?.get("userid")?.toScalarString().orEmpty()
                 if (token.isBlank() || userid.isBlank()) {
-                    Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_login_missing_token, Toast.LENGTH_SHORT).show()
+                    PmMessage.error(this@PlaylistImportActivity, R.string.playlist_import_kg_login_missing_token)
                     return@launch
                 }
                 val nickname = data?.get("nickname")?.toScalarString().orEmpty()
@@ -243,18 +244,16 @@ class PlaylistImportActivity : BaseActivity() {
                 val cookieHeader = resp.cookieHeaderForNextRequest()
                 kugouCookieRepository.finalizeKgLoginSession(cookieHeader, token, userid, nickname, pic)
                     .onSuccess {
-                        Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
+                        PmMessage.success(this@PlaylistImportActivity, R.string.playlist_import_cookie_saved)
                     }
                     .onFailure { e ->
-                        Toast.makeText(
+                        PmMessage.error(
                             this@PlaylistImportActivity,
-                            e.message ?: getString(R.string.playlist_import_kg_save_fail_generic),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                            e.message ?: getString(R.string.playlist_import_kg_save_fail_generic))
                     }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_network_error, Toast.LENGTH_SHORT).show()
+                PmMessage.error(this@PlaylistImportActivity, R.string.playlist_import_kg_network_error)
             }
         }
     }
@@ -280,7 +279,7 @@ class PlaylistImportActivity : BaseActivity() {
                 if (keyEnv?.status != 1 || keyEnv.data == null) {
                     b.kgQrLoading.visibility = View.GONE
                     b.kgQrPlaceholder.visibility = View.VISIBLE
-                    Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_qr_fetch_fail, Toast.LENGTH_SHORT).show()
+                    PmMessage.error(this@PlaylistImportActivity, R.string.playlist_import_kg_qr_fetch_fail)
                     return@launch
                 }
                 val qrImg = keyEnv.data.qrcodeImg
@@ -300,7 +299,7 @@ class PlaylistImportActivity : BaseActivity() {
                 if (e is CancellationException) throw e
                 b.kgQrLoading.visibility = View.GONE
                 b.kgQrPlaceholder.visibility = View.VISIBLE
-                Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_network_error, Toast.LENGTH_SHORT).show()
+                PmMessage.error(this@PlaylistImportActivity, R.string.playlist_import_kg_network_error)
             }
         }
     }
@@ -357,7 +356,7 @@ class PlaylistImportActivity : BaseActivity() {
                     val token = payload.get("token")?.toScalarString().orEmpty()
                     val userid = payload.get("userid")?.toScalarString().orEmpty()
                     if (token.isBlank() || userid.isBlank()) {
-                        Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_kg_login_missing_token, Toast.LENGTH_SHORT).show()
+                        PmMessage.error(this@PlaylistImportActivity, R.string.playlist_import_kg_login_missing_token)
                         return
                     }
                     val nickname = payload.get("nickname")?.toScalarString().orEmpty()
@@ -365,15 +364,13 @@ class PlaylistImportActivity : BaseActivity() {
                     val cookieHeader = cookieForNext.orEmpty()
                     val fin = kugouCookieRepository.finalizeKgLoginSession(cookieHeader, token, userid, nickname, pic)
                     fin.onSuccess {
-                        Toast.makeText(this@PlaylistImportActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
+                        PmMessage.success(this@PlaylistImportActivity, R.string.playlist_import_cookie_saved)
                         applyKugouQrLoggedInUi(b)
                     }
                     fin.onFailure { e ->
-                        Toast.makeText(
+                        PmMessage.error(
                             this@PlaylistImportActivity,
-                            e.message ?: getString(R.string.playlist_import_kg_save_fail_generic),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                            e.message ?: getString(R.string.playlist_import_kg_save_fail_generic))
                         applyKugouQrFinalizeFailedUi(b)
                     }
                     return

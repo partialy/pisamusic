@@ -1,11 +1,12 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
@@ -195,7 +196,8 @@ class FavoritesSyncSettingsActivity : BaseActivity() {
             } else {
                 state.lastError
             }
-            Toast.makeText(this@FavoritesSyncSettingsActivity, msg, Toast.LENGTH_SHORT).show()
+            if (state.lastError.isBlank()) PmMessage.success(this@FavoritesSyncSettingsActivity, msg)
+            else PmMessage.error(this@FavoritesSyncSettingsActivity, msg)
         }
     }
 

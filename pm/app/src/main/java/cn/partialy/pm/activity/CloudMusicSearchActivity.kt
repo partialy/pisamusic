@@ -1,12 +1,13 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.constraintlayout.widget.ConstraintLayout
@@ -194,7 +195,7 @@ class CloudMusicSearchActivity : BaseDownloadActivity() {
 
     private fun playSong(song: SongInfo) {
         if (!song.playable) {
-            Toast.makeText(this, R.string.cloud_music_disabled_play, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.cloud_music_disabled_play)
             return
         }
         val allPlayable = viewModel.state.value.items.filter { it.playable }
@@ -208,7 +209,7 @@ class CloudMusicSearchActivity : BaseDownloadActivity() {
 
     private fun downloadSong(song: SongInfo) {
         if (!song.playable) {
-            Toast.makeText(this, R.string.cloud_music_disabled_download, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.cloud_music_disabled_download)
             return
         }
         startSongDownloadFlow(song)

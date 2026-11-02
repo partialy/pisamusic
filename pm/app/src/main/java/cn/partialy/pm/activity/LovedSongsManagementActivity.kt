@@ -1,9 +1,10 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -134,14 +135,12 @@ class LovedSongsManagementActivity : BaseActivity() {
                         }
                         if (removedCount > 0) {
                             selectedKeys.clear()
-                            Toast.makeText(
+                            PmMessage.success(
                                 this@LovedSongsManagementActivity,
                                 getString(
                                     R.string.loved_songs_management_unlove_success,
                                     removedCount,
-                                ),
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                                ))
                         }
                     }
                 },

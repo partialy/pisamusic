@@ -1,5 +1,7 @@
 package cn.partialy.pm.ui.playlistdetail
 
+import cn.partialy.pm.ui.message.PmMessage
+import cn.partialy.pm.ui.message.PmMessageFlow
 import android.app.Dialog
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -68,11 +70,12 @@ class OnlinePlaylistToLocalCoordinator(
                 dismiss()
                 val result = model.consumeResult() ?: return
                 if (result.stage == PlaylistConversionStage.SUCCESS) {
-                    activity.showMessage(activity.getString(R.string.playlist_convert_success,
-                        result.songCount, result.skippedCount), 3500)
-                    result.createdId?.let { LocalPlaylistDetailActivity.start(activity, it) }
+                    PmMessageFlow.showSuccessThenNavigate(activity, activity.getString(R.string.playlist_convert_success,
+                        result.songCount, result.skippedCount)) {
+                        result.createdId?.let { LocalPlaylistDetailActivity.start(activity, it) }
+                    }
                 } else {
-                    activity.showMessage(activity.getString(R.string.playlist_convert_failed,
+                    PmMessage.error(activity, activity.getString(R.string.playlist_convert_failed,
                         result.readCount, result.skippedCount), 3500)
                 }
             }

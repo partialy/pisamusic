@@ -1,11 +1,11 @@
 package cn.partialy.pm.ui.local.fragments
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import cn.partialy.pm.R
@@ -83,7 +83,7 @@ class DownloadedMusicFragment : BaseSongFragment() {
                         onDownloadClick = { s ->
                             val act = activity
                             if (act is BaseDownloadActivity) act.startSongDownloadFlow(s)
-                            else Toast.makeText(requireContext(), R.string.local_song_no_online_download, Toast.LENGTH_SHORT).show()
+                            else PmMessage.warning(this@DownloadedMusicFragment, R.string.local_song_no_online_download)
                         },
                         showDownload = false,
                         showShare = false,

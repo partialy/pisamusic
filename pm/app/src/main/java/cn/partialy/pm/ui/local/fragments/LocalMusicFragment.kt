@@ -1,10 +1,10 @@
 package cn.partialy.pm.ui.local.fragments
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import cn.partialy.pm.R
@@ -77,7 +77,7 @@ class LocalMusicFragment : BaseSongFragment() {
                         loveManager = loveManager,
                         playlistCollectionManager = playlistCollectionManager,
                         onDownloadClick = {
-                            Toast.makeText(requireContext(), R.string.local_song_no_online_download, Toast.LENGTH_SHORT).show()
+                            PmMessage.warning(this@LocalMusicFragment, R.string.local_song_no_online_download)
                         },
                         showDownload = false,
                         showShare = false,

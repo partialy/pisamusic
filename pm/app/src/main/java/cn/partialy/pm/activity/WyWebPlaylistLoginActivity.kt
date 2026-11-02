@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -11,7 +13,6 @@ import android.view.MenuItem
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.view.size
 import cn.partialy.pm.R
@@ -109,28 +110,30 @@ class WyWebPlaylistLoginActivity : BaseActivity() {
         }
     }
 
+    private var completingImport = false
+
     private fun importCookiesFromWebView() {
+        if (completingImport) return
         val cm = CookieManager.getInstance()
         val chunks = listOf(
             cm.getCookie("https://music.163.com"),
             cm.getCookie("https://interface.music.163.com"),
         ).mapNotNull { it?.trim()?.takeIf { s -> s.isNotEmpty() } }
         if (chunks.isEmpty()) {
-            Toast.makeText(this, R.string.drawer_wy_web_cookie_empty, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.drawer_wy_web_cookie_empty)
             return
         }
+        completingImport = true
         lifecycleScope.launch {
             wyCookieRepository.saveLoginSession(chunks.joinToString("; "))
                 .onSuccess {
-                    Toast.makeText(this@WyWebPlaylistLoginActivity, R.string.playlist_import_cookie_saved, Toast.LENGTH_SHORT).show()
-                    finish()
+                    cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenFinish(this@WyWebPlaylistLoginActivity, getString(R.string.playlist_import_cookie_saved))
                 }
                 .onFailure { e ->
-                    Toast.makeText(
+                    completingImport = false
+                    PmMessage.error(
                         this@WyWebPlaylistLoginActivity,
-                        e.message ?: getString(R.string.drawer_wy_web_cookie_empty),
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                        e.message ?: getString(R.string.drawer_wy_web_cookie_empty))
                 }
         }
     }

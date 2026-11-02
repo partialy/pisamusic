@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.app.RecoverableSecurityException
 import android.content.IntentSender
 import android.content.res.Configuration
@@ -13,7 +15,6 @@ import android.text.TextWatcher
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -58,8 +59,12 @@ class LocalMusicEditActivity : BaseActivity() {
         } else {
             R.string.local_music_delete_cancelled
         }
+        when (messageRes) {
+            R.string.local_music_delete_file_done -> PmMessage.success(this, messageRes)
+            R.string.local_music_delete_file_failed -> PmMessage.error(this, messageRes)
+            else -> PmMessage.info(this, messageRes)
+        }
         pendingDeleteHadFailure = false
-        Toast.makeText(this, messageRes, Toast.LENGTH_SHORT).show()
         loadRows()
         setResult(RESULT_OK)
     }
@@ -182,7 +187,7 @@ class LocalMusicEditActivity : BaseActivity() {
         setResult(RESULT_OK)
 
         if (!deleteOriginalFiles) {
-            Toast.makeText(this, R.string.local_music_delete_reference_done, Toast.LENGTH_SHORT).show()
+            PmMessage.success(this, R.string.local_music_delete_reference_done)
             loadRows()
             return
         }
@@ -202,12 +207,11 @@ class LocalMusicEditActivity : BaseActivity() {
                     deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
                     return@withContext
                 }
-                Toast.makeText(
-                    this@LocalMusicEditActivity,
-                    if (result.failedCount == 0) R.string.local_music_delete_file_done
-                    else R.string.local_music_delete_file_failed,
-                    Toast.LENGTH_SHORT,
-                ).show()
+                if (result.failedCount == 0) {
+                    PmMessage.success(this@LocalMusicEditActivity, R.string.local_music_delete_file_done)
+                } else {
+                    PmMessage.error(this@LocalMusicEditActivity, R.string.local_music_delete_file_failed)
+                }
                 loadRows()
             }
         }
@@ -219,7 +223,7 @@ class LocalMusicEditActivity : BaseActivity() {
             deleteLauncher.launch(IntentSenderRequest.Builder(pi.intentSender).build())
         } catch (_: Exception) {
             pendingDeleteHadFailure = true
-            Toast.makeText(this, R.string.local_music_delete_file_failed, Toast.LENGTH_SHORT).show()
+            PmMessage.error(this, R.string.local_music_delete_file_failed)
             loadRows()
         }
     }

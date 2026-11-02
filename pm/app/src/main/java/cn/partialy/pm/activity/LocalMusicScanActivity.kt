@@ -1,5 +1,7 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -9,7 +11,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -49,7 +50,7 @@ class LocalMusicScanActivity : BaseActivity() {
         if (granted) {
             scanMediaStore()
         } else {
-            Toast.makeText(this, R.string.local_music_scan_permission_denied, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.local_music_scan_permission_denied)
         }
     }
 
@@ -172,7 +173,7 @@ class LocalMusicScanActivity : BaseActivity() {
     }
 
     private fun showScanFailed() {
-        Toast.makeText(this, R.string.local_music_scan_failed, Toast.LENGTH_SHORT).show()
+        PmMessage.error(this, R.string.local_music_scan_failed)
         showInitialState()
     }
 
@@ -200,11 +201,9 @@ class LocalMusicScanActivity : BaseActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val result = localSongProvider.importScannedSongs(selected)
             withContext(Dispatchers.Main) {
-                Toast.makeText(
+                PmMessage.success(
                     this@LocalMusicScanActivity,
-                    getString(R.string.local_music_import_done, result.importedCount, result.skippedCount),
-                    Toast.LENGTH_SHORT,
-                ).show()
+                    getString(R.string.local_music_import_done, result.importedCount, result.skippedCount))
                 setResult(RESULT_OK)
                 finish()
             }
