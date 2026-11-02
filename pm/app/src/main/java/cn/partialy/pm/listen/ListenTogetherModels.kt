@@ -233,8 +233,10 @@ data class ListenTogetherOperator(
     val nickname: String = "",
 )
 
+enum class ListenTogetherMessageType { INFO, SUCCESS, WARNING, ERROR }
+
 sealed class ListenTogetherUiEvent {
-    data class Toast(val message: String) : ListenTogetherUiEvent()
+    data class Message(val message: String, val type: ListenTogetherMessageType) : ListenTogetherUiEvent()
     data class RequireLogin(val message: String) : ListenTogetherUiEvent()
     data class ConfirmReplaceRoom(val message: String) : ListenTogetherUiEvent()
 }

@@ -1,5 +1,6 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Dialog
@@ -24,7 +25,6 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
 import android.widget.SeekBar
@@ -48,6 +48,7 @@ import cn.partialy.pm.listen.ListenTogetherMember
 import cn.partialy.pm.listen.ListenTogetherScanLink
 import cn.partialy.pm.share.ShareLink
 import cn.partialy.pm.listen.ListenTogetherState
+import cn.partialy.pm.listen.ListenTogetherMessageType
 import cn.partialy.pm.listen.ListenTogetherUiEvent
 import cn.partialy.pm.listen.targetPosition
 import cn.partialy.pm.listen.toSongInfo
@@ -141,7 +142,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private val listenTogetherScanLauncher = registerForActivityResult(ScanContract()) { result ->
         val contents = result.contents
         if (contents.isNullOrBlank()) {
-            Toast.makeText(this, R.string.drawer_scan_cancelled, Toast.LENGTH_SHORT).show()
+            PmMessage.info(this, R.string.drawer_scan_cancelled)
         } else {
             handleListenTogetherScanContent(contents)
         }
@@ -347,11 +348,11 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun openPlaybackQualityPicker() {
         val song = musicController.currentSong.value
         if (song == null) {
-            Toast.makeText(this, R.string.toast_no_current_song, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.toast_no_current_song)
             return
         }
         if (song.type == SongType.LOCAL) {
-            Toast.makeText(this, R.string.local_song_no_online_quality, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.local_song_no_online_quality)
             return
         }
 
@@ -362,11 +363,7 @@ class PlayerActivity : BaseDownloadActivity() {
                 MusicQualityAccessState(session.loggedIn, session.vipActive),
             )
             if (options.isEmpty()) {
-                Toast.makeText(
-                    this@PlayerActivity,
-                    R.string.toast_playback_quality_no_options,
-                    Toast.LENGTH_SHORT,
-                ).show()
+                PmMessage.warning(this@PlayerActivity, R.string.toast_playback_quality_no_options)
                 return@launch
             }
             val selected = showDownloadQualityPicker(
@@ -394,25 +391,14 @@ class PlayerActivity : BaseDownloadActivity() {
                 MusicQualityAccessState(latestSession.loggedIn, latestSession.vipActive),
             )
             if (!stillAllowed) {
-                Toast.makeText(
-                    this@PlayerActivity,
-                    getString(R.string.download_quality_unavailable_reselect),
-                    Toast.LENGTH_SHORT,
-                ).show()
+                PmMessage.warning(this@PlayerActivity, getString(R.string.download_quality_unavailable_reselect))
                 return@launch
             }
 
-            Toast.makeText(
-                this@PlayerActivity,
-                R.string.toast_playback_quality_switching,
-                Toast.LENGTH_SHORT,
-            ).show()
+            PmMessage.info(this@PlayerActivity, R.string.toast_playback_quality_switching)
             val success = musicController.switchCurrentSongQuality(selected.choice)
-            Toast.makeText(
-                this@PlayerActivity,
-                if (success) R.string.toast_playback_quality_changed else R.string.toast_playback_quality_failed,
-                Toast.LENGTH_SHORT,
-            ).show()
+            if (success) PmMessage.success(this@PlayerActivity, R.string.toast_playback_quality_changed)
+            else PmMessage.error(this@PlayerActivity, R.string.toast_playback_quality_failed)
         }
     }
 
@@ -430,7 +416,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun openCurrentSongMoreMenu() {
         val song = musicController.currentSong.value
         if (song == null) {
-            Toast.makeText(this, R.string.toast_no_current_song, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.toast_no_current_song)
             return
         }
         SongMoreMenu.show(
@@ -535,11 +521,16 @@ class PlayerActivity : BaseDownloadActivity() {
         lifecycleScope.launch {
             listenTogetherManager.uiEvents.collect { event ->
                 when (event) {
-                    is ListenTogetherUiEvent.Toast -> {
-                        Toast.makeText(this@PlayerActivity, event.message, Toast.LENGTH_SHORT).show()
+                    is ListenTogetherUiEvent.Message -> {
+                        when (event.type) {
+                            ListenTogetherMessageType.INFO -> PmMessage.info(this@PlayerActivity, event.message)
+                            ListenTogetherMessageType.SUCCESS -> PmMessage.success(this@PlayerActivity, event.message)
+                            ListenTogetherMessageType.WARNING -> PmMessage.warning(this@PlayerActivity, event.message)
+                            ListenTogetherMessageType.ERROR -> PmMessage.error(this@PlayerActivity, event.message)
+                        }
                     }
                     is ListenTogetherUiEvent.RequireLogin -> {
-                        Toast.makeText(this@PlayerActivity, event.message, Toast.LENGTH_SHORT).show()
+                        PmMessage.warning(this@PlayerActivity, event.message)
                         LoginActivity.start(this@PlayerActivity)
                     }
                     is ListenTogetherUiEvent.ConfirmReplaceRoom -> {
@@ -745,7 +736,7 @@ class PlayerActivity : BaseDownloadActivity() {
             clipboard.setPrimaryClip(
                 ClipData.newPlainText(getString(R.string.listen_together_clipboard_room_label), roomId),
             )
-            Toast.makeText(this, R.string.listen_together_room_id_copied, Toast.LENGTH_SHORT).show()
+            if (android.os.Build.VERSION.SDK_INT < 33) PmMessage.success(this, R.string.listen_together_room_id_copied)
         }
         sheetBinding.listenTogetherShareButton.setOnClickListener {
             val text = listenTogetherManager.shareText() ?: return@setOnClickListener
@@ -784,6 +775,7 @@ class PlayerActivity : BaseDownloadActivity() {
             }
         }
         dialog.show()
+        PmMessage.register(dialog)
     }
 
     private fun renderListenTogetherSheet(
@@ -1230,11 +1222,7 @@ class PlayerActivity : BaseDownloadActivity() {
                 if (share != null) {
                     ShareDetailActivity.start(this, share.uuid)
                 } else {
-                    Toast.makeText(
-                        this,
-                        R.string.listen_together_scan_invalid,
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    PmMessage.warning(this, R.string.listen_together_scan_invalid)
                 }
             }
         }
@@ -1542,7 +1530,7 @@ class PlayerActivity : BaseDownloadActivity() {
 
         binding.playlistBottomSheet.clearPlayList.setOnClickListener {
             if (listenTogetherManager.state.value.enabled) {
-                Toast.makeText(this, R.string.listen_together_clear_queue_unsupported, Toast.LENGTH_SHORT).show()
+                PmMessage.warning(this, R.string.listen_together_clear_queue_unsupported)
             } else {
                 musicController.clearPlayList()
                 bottomSheetBehavior.state = BottomSheetBehavior.STATE_HIDDEN

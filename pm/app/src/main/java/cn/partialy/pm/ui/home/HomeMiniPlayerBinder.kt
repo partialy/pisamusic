@@ -1,5 +1,6 @@
 package cn.partialy.pm.ui.home
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.animation.ObjectAnimator
 import android.content.res.ColorStateList
 import android.graphics.Typeface
@@ -8,7 +9,6 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.view.animation.LinearInterpolator
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -39,7 +39,7 @@ class HomeMiniPlayerBinder(
         mini.miniPlayerPlayButton.setOnClickListener {
             activity.lifecycleScope.launch {
                 if (musicController.currentSong.value == null) {
-                    Toast.makeText(activity, R.string.home_no_playable_song, Toast.LENGTH_SHORT).show()
+                    PmMessage.warning(activity, R.string.home_no_playable_song)
                     return@launch
                 }
                 musicController.togglePlayPause()

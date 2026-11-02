@@ -1,5 +1,6 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -13,7 +14,6 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
@@ -133,7 +133,7 @@ class MainActivity : BaseDownloadActivity() {
     private val drawerScanLauncher = registerForActivityResult(ScanContract()) { result ->
         val contents = result.contents
         if (contents.isNullOrBlank()) {
-            Toast.makeText(this, R.string.drawer_scan_cancelled, Toast.LENGTH_SHORT).show()
+            PmMessage.info(this, R.string.drawer_scan_cancelled)
         } else {
             handleScanContent(contents)
         }
@@ -228,7 +228,7 @@ class MainActivity : BaseDownloadActivity() {
     private fun showLocalModeNoticeIfNeeded() {
         localModeReason?.takeIf { it.isNotBlank() } ?: return
         binding.root.post {
-            Toast.makeText(this, R.string.main_local_mode_entered, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.main_local_mode_entered)
         }
     }
 
@@ -267,7 +267,7 @@ class MainActivity : BaseDownloadActivity() {
         )
         unsupportedTabContainers.forEach { container ->
             container.setOnClickListener {
-                Toast.makeText(this, R.string.main_channel_building, Toast.LENGTH_SHORT).show()
+                PmMessage.info(this, R.string.main_channel_building)
             }
         }
     }
@@ -463,11 +463,7 @@ class MainActivity : BaseDownloadActivity() {
                 if (share != null) {
                     ShareDetailActivity.start(this, share.uuid)
                 } else {
-                    Toast.makeText(
-                        this,
-                        R.string.listen_together_scan_invalid,
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    PmMessage.warning(this, R.string.listen_together_scan_invalid)
                 }
             }
         }
@@ -583,11 +579,7 @@ class MainActivity : BaseDownloadActivity() {
                     }
                     bindDrawerThirdPartyUi()
                     applyWyProfileBackgroundFromLogin()
-                    Toast.makeText(
-                        this@MainActivity,
-                        R.string.drawer_clear_third_party_login_done,
-                        Toast.LENGTH_SHORT,
-                    ).show()
+                    PmMessage.success(this@MainActivity, R.string.drawer_clear_third_party_login_done)
                 } finally {
                     clearButton.isEnabled = true
                 }
@@ -605,12 +597,12 @@ class MainActivity : BaseDownloadActivity() {
         val sources = listOf(MusicCookieManager.SOURCE_KG, MusicCookieManager.SOURCE_WY)
             .filter { musicCookieManager.getCookie(it).exist }
         if (sources.isEmpty()) {
-            Toast.makeText(this, R.string.drawer_import_playlists_login_required, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.drawer_import_playlists_login_required)
             return
         }
         drawerPlaylistImportInProgress = true
         setDrawerThirdPartyActionsEnabled(false)
-        Toast.makeText(this, R.string.drawer_import_all_running, Toast.LENGTH_SHORT).show()
+        PmMessage.info(this, R.string.drawer_import_all_running)
         closeMainDrawer()
         lifecycleScope.launch {
             var added = 0
@@ -639,7 +631,8 @@ class MainActivity : BaseDownloadActivity() {
                 } else {
                     getString(R.string.drawer_import_all_done, added, skipped)
                 }
-                Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+                if (failed) PmMessage.warning(this@MainActivity, message, durationMs = 3500L)
+                else PmMessage.success(this@MainActivity, message, durationMs = 3500L)
             } finally {
                 drawerPlaylistImportInProgress = false
                 setDrawerThirdPartyActionsEnabled(true)
@@ -882,7 +875,7 @@ class MainActivity : BaseDownloadActivity() {
             }
 
             R.id.nav_library -> {
-                Toast.makeText(this, R.string.common_not_implemented, Toast.LENGTH_SHORT).show()
+                PmMessage.info(this, R.string.common_not_implemented)
                 true
             }
 
@@ -923,16 +916,16 @@ class MainActivity : BaseDownloadActivity() {
     fun showPublicInformationDialog() {
         lifecycleScope.launch {
             val response = systemRepository.getAnnouncements().getOrElse {
-                showMessage(getString(R.string.page_announcement_load_failed))
+                PmMessage.error(this@MainActivity, R.string.page_announcement_load_failed)
                 return@launch
             }
             if (!response.success || response.code != 0) {
-                showMessage(response.msg.ifBlank { getString(R.string.page_announcement_load_failed) })
+                PmMessage.error(this@MainActivity, response.msg.ifBlank { getString(R.string.page_announcement_load_failed) })
                 return@launch
             }
             val announcements = response.data
             if (announcements.isEmpty()) {
-                showMessage(getString(R.string.announcement_empty))
+                PmMessage.info(this@MainActivity, R.string.announcement_empty)
                 return@launch
             }
             val latest = announcements.first()

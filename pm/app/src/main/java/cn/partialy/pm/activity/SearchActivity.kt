@@ -1,5 +1,6 @@
 package cn.partialy.pm.activity
 
+import cn.partialy.pm.ui.message.PmMessage
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -14,7 +15,6 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
-import android.widget.Toast
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
@@ -159,7 +159,7 @@ class SearchActivity : BaseDownloadActivity() {
         binding.searchSubmitTextView.setOnClickListener {
             val keyword = binding.searchEditText.text.toString().trim()
             if (keyword.isEmpty()) {
-                Toast.makeText(this, R.string.search_empty_keyword, Toast.LENGTH_SHORT).show()
+                PmMessage.warning(this, R.string.search_empty_keyword)
             } else {
                 performSearch(keyword)
             }
@@ -239,7 +239,7 @@ class SearchActivity : BaseDownloadActivity() {
         searchResultsAdapter = SearchResultsAdapter(
             onItemClick = { row ->
                 addToListAndPlay(row)
-                Toast.makeText(this, getString(R.string.search_start_playing, row.title), Toast.LENGTH_SHORT).show()
+                PmMessage.info(this, getString(R.string.search_start_playing, row.title))
             },
             onDownloadClick = { row ->
                 onDownloadClick(row.toSongInfo())
@@ -304,7 +304,7 @@ class SearchActivity : BaseDownloadActivity() {
                     )
                 }
                 else -> {
-                    Toast.makeText(this, R.string.search_playlist_unsupported_other_source, Toast.LENGTH_SHORT).show()
+                    PmMessage.warning(this, R.string.search_playlist_unsupported_other_source)
                 }
             }
         }
@@ -355,7 +355,7 @@ class SearchActivity : BaseDownloadActivity() {
                 if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                     val keyword = text.toString().trim()
                     if (keyword.isEmpty()) {
-                        Toast.makeText(this@SearchActivity, R.string.search_empty_keyword, Toast.LENGTH_SHORT).show()
+                        PmMessage.warning(this@SearchActivity, R.string.search_empty_keyword)
                     } else {
                         performSearch(keyword)
                     }
@@ -466,7 +466,7 @@ class SearchActivity : BaseDownloadActivity() {
     private fun performSearch(keyword: String) {
         val trimmed = keyword.trim()
         if (trimmed.isEmpty()) {
-            Toast.makeText(this, R.string.search_empty_keyword, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.search_empty_keyword)
             return
         }
         viewModel.search(trimmed)
@@ -599,7 +599,7 @@ class SearchActivity : BaseDownloadActivity() {
             binding.searchEditText.text.toString().trim()
         }
         if (keyword.isBlank()) {
-            Toast.makeText(this, R.string.search_empty_keyword, Toast.LENGTH_SHORT).show()
+            PmMessage.warning(this, R.string.search_empty_keyword)
             errorWebController?.resetRetryUi()
             return
         }
