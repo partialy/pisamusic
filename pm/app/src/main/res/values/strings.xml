@@ -699,10 +699,8 @@
     <string name="listen_together_room_name_invalid">房间名 2–16 个字</string>
     <string name="listen_together_room_id_invalid">房间号需为 4–8 位数字</string>
     <string name="listen_together_active_title">一起听中</string>
-    <string name="listen_together_room_meta">房间 %1$s · %2$d 人在线</string>
-    <string name="listen_together_section_now_playing">当前同步</string>
-    <string name="listen_together_section_members">成员</string>
-    <string name="listen_together_section_invite">邀请朋友</string>
+    <string name="listen_together_section_members_count">成员（%1$d人）</string>
+    <string name="listen_together_section_invite_room">邀请朋友（房间号 %1$s）</string>
     <string name="listen_together_section_permission">播放权限</string>
     <string name="listen_together_permission_subtitle">允许成员操作歌曲</string>
     <string name="listen_together_latency_value">%1$dms</string>
@@ -1030,7 +1028,6 @@
     <string name="listen_together_host_member_control">你是房主 · 成员可操作</string>
     <string name="listen_together_host_only_control">你是房主 · 仅房主控制</string>
     <string name="listen_together_member_control">成员可操作</string>
-    <string name="listen_together_status_combined">%1$s · %2$s</string>
     <string name="listen_together_queue_title">一起听队列(%1$d首)</string>
     <string name="player_queue_title">播放队列(%1$d首)</string>
     <string name="listen_together_clear_queue_unsupported">一起听暂不支持清空队列</string>

@@ -808,37 +808,22 @@ class PlayerActivity : BaseDownloadActivity() {
             sheetBinding.listenTogetherTitleView.text = getString(R.string.listen_together_title)
             sheetBinding.listenTogetherIdleGroup.visibility = View.VISIBLE
             sheetBinding.listenTogetherRoomGroup.visibility = View.GONE
-            sheetBinding.listenTogetherSubtitleView.visibility = View.GONE
             return
         }
 
-        sheetBinding.listenTogetherTitleView.text = getString(R.string.listen_together_active_title)
+        sheetBinding.listenTogetherTitleView.text = room.roomName.trim().ifBlank {
+            getString(R.string.listen_together_active_title)
+        }
         sheetBinding.listenTogetherIdleGroup.visibility = View.GONE
         sheetBinding.listenTogetherRoomGroup.visibility = View.VISIBLE
-        sheetBinding.listenTogetherSubtitleView.visibility = View.VISIBLE
-        sheetBinding.listenTogetherSubtitleView.text = room.roomName
-        sheetBinding.listenTogetherRoomInfoView.text = getString(
-            R.string.listen_together_room_meta,
-            room.roomId,
+        sheetBinding.listenTogetherMembersLabel.text = getString(
+            R.string.listen_together_section_members_count,
             room.displayPeople(),
         )
-        val connection = if (state.socketConnected) {
-            getString(R.string.listen_together_sync_normal)
-        } else {
-            getString(R.string.listen_together_reconnecting)
-        }
-        val control = when {
-            state.isHost && room.memberOperation -> getString(R.string.listen_together_host_member_control)
-            state.isHost -> getString(R.string.listen_together_host_only_control)
-            room.memberOperation -> getString(R.string.listen_together_member_control)
-            else -> getString(R.string.listen_together_only_host)
-        }
-        sheetBinding.listenTogetherSyncStatusView.text = getString(
-            R.string.listen_together_status_combined,
-            connection,
-            control,
+        sheetBinding.listenTogetherInviteLabel.text = getString(
+            R.string.listen_together_section_invite_room,
+            room.roomId,
         )
-
         val roomSong = room.song
         if (roomSong != null) {
             sheetBinding.listenTogetherRoomSongView.text = roomSong.name
