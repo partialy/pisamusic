@@ -237,7 +237,10 @@
 - 一起听房间二维码使用 `ListenTogetherQrDialog`，内容承载在 `PmSlotDialog` 中，二维码编码官网加入链接并提供房间号复制。
 - 带头像/封面信息头部、左侧图标和右侧文案的操作菜单使用 `cn.partialy.pm.ui.dialog.ActionMenuBottomSheet`；菜单动作在 Sheet 关闭后执行，歌曲更多菜单和一起听成员管理菜单复用该容器。
 - 旧 `ModernDialog` 仍保留给既有底部弹窗和单选弹窗等场景，歌曲下载进度统一在下载管理展示；不要为了普通确认弹窗继续扩展它。
-- 业务消息或自定义通知优先调用 `BaseActivity.showMessage(content, durationMs)`；它用于区别于系统默认 `Toast` 的业务提示，展示为屏幕高度 25% 处的半透明黑色胶囊轻通知，并返回可立即淡出关闭的函数。
+- 原生业务轻提示统一使用 `ui/message/PmMessage.info/success/warning/error`，接收 Activity、Fragment 和文本/字符串资源；旧 `BaseActivity.showMessage` 已移除。四态图标配半透明黑色胶囊，安全区/IME 上方居中、最多三行、点击透传；同窗同类型同文本 800ms 去重，Error/Warning 优先于 Success/Info，低优先级直接丢弃，不排队。返回 `MessageHandle.dismiss()`，0ms 常驻也可被替换，旧 Handle 不会关闭新提示。
+- Dialog/BottomSheet 在 `show()` 后调用 `PmMessage.register(dialog)`，通用弹窗封装已注册；独立窗口同样显式注册，detach 自动注销。消息仅在有效前台宿主展示，Activity 暂停、Fragment View 销毁、Dialog 关闭时清理，不跨页携带。WebView JS Message、确认 Dialog、带操作 Snackbar、后台通知保持各自职责。
+- 保存/提交成功紧接关闭或导航时统一使用 `PmMessageFlow.showSuccessThenFinish/showSuccessThenNavigate`，成功提示后等待 800ms；STOP/DESTROY 取消、检查 finishing/destroyed/STARTED，调用方消费成功事件并禁止重复提交。登录必须等待 800ms 后再完成专属消息流程，最终有效时关闭。Android 13+ 复制使用系统反馈，低版本用 Success，失败仍 Error。
+- `:app:verifyMessageUsage` 随 preBuild 检查旧消息入口和直接 Toast；唯一白名单为 `GlobalExceptionHandler.copyErrorStack` 调试故障降级的复制反馈，禁止新增普通 Toast。
 
 ## 全局异常处理补充
 

@@ -137,7 +137,10 @@ object GlobalExceptionHandler : Thread.UncaughtExceptionHandler {
             clipboard.setPrimaryClip(
                 ClipData.newPlainText(context.getString(R.string.debug_stack_clipboard_label), message),
             )
-            Toast.makeText(context, R.string.debug_stack_copied, Toast.LENGTH_SHORT).show()
+            // 故障降级白名单：异常处理不依赖应用内窗口组件；Android 13+ 使用系统复制反馈。
+            if (android.os.Build.VERSION.SDK_INT < 33) {
+                Toast.makeText(context, R.string.debug_stack_copied, Toast.LENGTH_SHORT).show()
+            }
         }.onFailure {
             Log.e(TAG, "Copy exception stack failed", it)
         }

@@ -128,3 +128,25 @@ dependencies {
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.livedata.ktx)
 }
+
+// 普通原生轻提示只允许 PmMessage；调试异常复制是唯一故障降级白名单。
+val verifyMessageUsage by tasks.registering {
+    group = "verification"
+    description = "检查原生轻提示统一入口与故障降级白名单"
+    val sources = fileTree("src/main/java") { include("**/*.kt", "**/*.java") }
+    inputs.files(sources)
+    doLast {
+        val forbidden = Regex("""\b(?:showMessage|emitToast)\b|ListenTogetherUiEvent\.Toast|\bToast\s*\.\s*makeText\s*\(""")
+        val allowedPath = "cn/partialy/pm/utils/GlobalExceptionHandler.kt"
+        val allowedCall = "Toast.makeText(context, R.string.debug_stack_copied, Toast.LENGTH_SHORT).show()"
+        val violations = sources.files.flatMap { file ->
+            val relative = file.relativeTo(project.file("src/main/java")).invariantSeparatorsPath
+            file.readLines().mapIndexedNotNull { index, line ->
+                if (forbidden.containsMatchIn(line) && !(relative == allowedPath && line.trim() == allowedCall))
+                    "$relative:${index + 1}" else null
+            }
+        }
+        check(violations.isEmpty()) { "请使用 PmMessage：\n${violations.joinToString("\n")}" }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifyMessageUsage) }
