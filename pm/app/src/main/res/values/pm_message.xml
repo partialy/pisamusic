@@ -1,0 +1,8 @@
+<resources>
+    <color name="pm_message_info">#90CAF9</color>
+    <color name="pm_message_success">#A5D6A7</color>
+    <color name="pm_message_warning">#FFE082</color>
+    <color name="pm_message_error">#EF9A9A</color>
+    <item type="id" name="pm_message_host" />
+    <item type="id" name="pm_message_flow" />
+</resources>

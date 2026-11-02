@@ -1,6 +1,7 @@
 package cn.partialy.pm
 
 import android.app.Application
+import cn.partialy.pm.ui.message.PmMessage
 import androidx.appcompat.app.AppCompatDelegate
 import cn.partialy.pm.network.auth.TokenManager
 import cn.partialy.pm.network.config.ConfigManager
@@ -18,6 +19,7 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        PmMessage.init(this)
         TokenManager.init(this)
         SettingsPrefs.applyAutoAudioCacheIfNeeded(this)
         AppCompatDelegate.setDefaultNightMode(
