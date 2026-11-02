@@ -147,6 +147,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
         positionMs: Long,
         isPlaying: Boolean = true,
         style: LyricDisplayStyle,
+        animateTransitions: Boolean = true,
     ) {
         val oldSize = this.style.textSizeSp
         this.lines = lines
@@ -182,14 +183,36 @@ class KaraokeLyricsView @JvmOverloads constructor(
 
         if (oldSize != style.textSizeSp) requestLayout()
 
+        if (!animateTransitions) {
+            stopAnimations()
+            return
+        }
+
         if ((isPlaying && !wasPlaying) ||
             lineAnimProgress < 1f ||
             scaleAnimProgress < 1f ||
             !scroller.isFinished ||
             isAutoReturning
         ) {
+            choreographer.removeFrameCallback(frameCallback)
             choreographer.postFrameCallback(frameCallback)
         }
+        invalidate()
+    }
+
+    /** 供独立预览暂停或静态展示使用，不触发浏览返回动画。 */
+    fun stopAnimations() {
+        isPlaying = false
+        lineAnimProgress = 1f
+        scaleAnimProgress = 1f
+        prevCurrentIndex = currentIndex
+        isAutoReturning = false
+        isBrowsing = false
+        isDragging = false
+        scroller.forceFinished(true)
+        mainHandler.removeCallbacks(browseTimeoutRunnable)
+        choreographer.removeFrameCallback(frameCallback)
+        recycleVelocityTracker()
         invalidate()
     }
 
