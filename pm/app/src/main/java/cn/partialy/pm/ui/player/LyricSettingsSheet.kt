@@ -1,18 +1,14 @@
 package cn.partialy.pm.ui.player
 
-import android.app.Activity
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.provider.Settings
-import android.view.KeyEvent
 import android.view.View
-import android.view.inputmethod.EditorInfo
-import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.activity.ComponentActivity
 import androidx.core.content.ContextCompat
-import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.LyricColorPresetsActivity
@@ -24,7 +20,7 @@ import kotlin.math.roundToInt
 
 object LyricSettingsSheet {
 
-    fun show(activity: Activity, onChanged: () -> Unit) {
+    fun show(activity: ComponentActivity, onChanged: () -> Unit) {
         val binding = BottomSheetLyricSettingsBinding.inflate(activity.layoutInflater)
         val dialog = BottomSheetDialog(
             activity,
@@ -32,6 +28,18 @@ object LyricSettingsSheet {
         )
         binding.root.setBackgroundResource(R.drawable.bg_lyric_settings_sheet)
         dialog.setContentView(binding.root)
+
+        val preview = LyricPreviewController(
+            binding.lyricSettingsPreview.previewNormalLyrics,
+            binding.lyricSettingsPreview.previewKaraokeLyrics,
+        )
+        fun notifyChanged() {
+            preview.applyStyle(
+                LyricDisplayPrefs.readStyle(activity),
+                LyricDisplayPrefs.isUseWordLyricEnabled(activity),
+            )
+            onChanged()
+        }
 
         val dm = activity.resources.displayMetrics.density
         val selectedChipSize = (22 * dm).toInt().coerceAtLeast(1)
@@ -84,7 +92,7 @@ object LyricSettingsSheet {
                     )
                     LyricDisplayPrefs.writeStyle(activity, s)
                     rebuildNormalChips(rgb)
-                    onChanged()
+                    notifyChanged()
                 }
             }
         }
@@ -98,7 +106,7 @@ object LyricSettingsSheet {
                     val s = LyricDisplayPrefs.readStyle(activity).copy(currentColorArgb = argb)
                     LyricDisplayPrefs.writeStyle(activity, s)
                     rebuildCurrentChips(argb)
-                    onChanged()
+                    notifyChanged()
                 }
             }
         }
@@ -125,7 +133,7 @@ object LyricSettingsSheet {
             if (syncing) return
             val s = LyricDisplayPrefs.readStyle(activity).copy(textSizeSp = clamped.toFloat())
             LyricDisplayPrefs.writeStyle(activity, s)
-            onChanged()
+            notifyChanged()
         }
 
         fun applyOpacityFromUser(value: Int) {
@@ -134,7 +142,7 @@ object LyricSettingsSheet {
             if (syncing) return
             val s = LyricDisplayPrefs.readStyle(activity).copy(inactiveOpacityPercent = clamped)
             LyricDisplayPrefs.writeStyle(activity, s)
-            onChanged()
+            notifyChanged()
         }
 
         fun applyCurrentEnlargedDxFromUser(value: Int) {
@@ -143,39 +151,28 @@ object LyricSettingsSheet {
             if (syncing) return
             val s = LyricDisplayPrefs.readStyle(activity).copy(currentLineEnlargedDxSp = clamped)
             LyricDisplayPrefs.writeStyle(activity, s)
-            onChanged()
+            notifyChanged()
         }
 
-        fun bindNumericInput(
-            input: TextView,
-            min: Int,
-            max: Int,
-            fallbackOnInvalid: Int,
-            onApply: (Int) -> Unit,
-        ) {
-            fun commit() {
-                val parsed = input.text?.toString()?.trim()?.toIntOrNull()
-                if (parsed == null) {
-                    updateIntInput(input, fallbackOnInvalid)
-                    onApply(fallbackOnInvalid)
-                    return
-                }
-                onApply(parsed.coerceIn(min, max))
-            }
-            input.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) commit() }
-            input.setOnEditorActionListener { _, actionId, event ->
-                val isEnter = event?.keyCode == KeyEvent.KEYCODE_ENTER &&
-                    event.action == KeyEvent.ACTION_DOWN
-                if (isEnter || actionId == EditorInfo.IME_ACTION_DONE) {
-                    commit()
-                    true
-                } else {
-                    false
-                }
-            }
-        }
+        val fontStepper = LyricSettingsStepper(
+            binding.lyricSettingsFontSizeInput,
+            binding.lyricSettingsFontSizeMinus,
+            binding.lyricSettingsFontSizePlus,
+            12..30,
+            LyricDisplayPrefs.readStyle(activity).textSizeSp.roundToInt(),
+            ::applyFontSizeFromUser,
+        )
+        val enlargedStepper = LyricSettingsStepper(
+            binding.lyricSettingsCurrentEnlargedDxInput,
+            binding.lyricSettingsCurrentEnlargedDxMinus,
+            binding.lyricSettingsCurrentEnlargedDxPlus,
+            2..8,
+            LyricDisplayPrefs.readStyle(activity).currentLineEnlargedDxSp,
+            ::applyCurrentEnlargedDxFromUser,
+        )
 
         fun loadUiFromPrefs() {
+            syncing = true
             LyricDisplayPrefs.ensureStyleColorsMatchPresets(activity)
             val style = LyricDisplayPrefs.readStyle(activity)
             val nr = Color.rgb(
@@ -184,15 +181,9 @@ object LyricSettingsSheet {
                 Color.blue(style.normalColorArgb),
             )
 
-            updateIntInput(
-                binding.lyricSettingsFontSizeInput,
-                style.textSizeSp.roundToInt().coerceIn(12, 30),
-            )
+            fontStepper.setValue(style.textSizeSp.roundToInt())
             updateOpacityUi(style.inactiveOpacityPercent.coerceIn(0, 100))
-            updateIntInput(
-                binding.lyricSettingsCurrentEnlargedDxInput,
-                style.currentLineEnlargedDxSp.coerceIn(2, 8),
-            )
+            enlargedStepper.setValue(style.currentLineEnlargedDxSp)
             binding.lyricSettingsBoldSwitch.isChecked = style.currentLineBold
             binding.lyricSettingsCurrentEnlargedSwitch.isChecked = style.currentLineEnlarged
             binding.lyricSettingsWordScaleSwitch.isChecked = style.wordScaleEnabled
@@ -208,59 +199,28 @@ object LyricSettingsSheet {
 
             rebuildNormalChips(nr)
             rebuildCurrentChips(style.currentColorArgb)
+            syncing = false
+            notifyChanged()
         }
-
-        binding.lyricSettingsFontSizeMinus.setOnClickListener {
-            val current = binding.lyricSettingsFontSizeInput.text?.toString()?.toIntOrNull()
-                ?: LyricDisplayPrefs.readStyle(activity).textSizeSp.roundToInt()
-            applyFontSizeFromUser(current - 1)
-        }
-
-        binding.lyricSettingsFontSizePlus.setOnClickListener {
-            val current = binding.lyricSettingsFontSizeInput.text?.toString()?.toIntOrNull()
-                ?: LyricDisplayPrefs.readStyle(activity).textSizeSp.roundToInt()
-            applyFontSizeFromUser(current + 1)
-        }
-
-        binding.lyricSettingsCurrentEnlargedDxMinus.setOnClickListener {
-            val current = binding.lyricSettingsCurrentEnlargedDxInput.text?.toString()?.toIntOrNull()
-                ?: LyricDisplayPrefs.readStyle(activity).currentLineEnlargedDxSp
-            applyCurrentEnlargedDxFromUser(current - 1)
-        }
-
-        binding.lyricSettingsCurrentEnlargedDxPlus.setOnClickListener {
-            val current = binding.lyricSettingsCurrentEnlargedDxInput.text?.toString()?.toIntOrNull()
-                ?: LyricDisplayPrefs.readStyle(activity).currentLineEnlargedDxSp
-            applyCurrentEnlargedDxFromUser(current + 1)
-        }
-
-        bindNumericInput(
-            binding.lyricSettingsFontSizeInput,
-            12,
-            30,
-            fallbackOnInvalid = 20,
-            onApply = ::applyFontSizeFromUser,
-        )
-        bindNumericInput(
-            binding.lyricSettingsCurrentEnlargedDxInput,
-            2,
-            8,
-            fallbackOnInvalid = 4,
-            onApply = ::applyCurrentEnlargedDxFromUser,
-        )
 
         binding.lyricSettingsBoldSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (syncing) return@setOnCheckedChangeListener
             val s = LyricDisplayPrefs.readStyle(activity).copy(currentLineBold = isChecked)
             LyricDisplayPrefs.writeStyle(activity, s)
-            onChanged()
+            notifyChanged()
         }
 
         binding.lyricSettingsStatusBarSettingsButton.setOnClickListener {
+            preview.setVisible(false)
+            fontStepper.stop()
+            enlargedStepper.stop()
             StatusBarLyricSettingsActivity.start(activity)
         }
 
         val openColorPresets = View.OnClickListener {
+            preview.setVisible(false)
+            fontStepper.stop()
+            enlargedStepper.stop()
             LyricColorPresetsActivity.start(activity)
         }
         binding.lyricSettingsNormalColorPresetsButton.setOnClickListener(openColorPresets)
@@ -272,6 +232,9 @@ object LyricSettingsSheet {
                 syncing = true
                 binding.lyricSettingsStatusBarSwitch.isChecked = false
                 syncing = false
+                preview.setVisible(false)
+                fontStepper.stop()
+                enlargedStepper.stop()
                 StatusBarLyricSettingsActivity.start(activity)
                 return@setOnCheckedChangeListener
             }
@@ -282,32 +245,34 @@ object LyricSettingsSheet {
         binding.lyricSettingsUseWordLyricSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (syncing) return@setOnCheckedChangeListener
             LyricDisplayPrefs.setUseWordLyricEnabled(activity, isChecked)
-            onChanged()
+            notifyChanged()
         }
 
         binding.lyricSettingsCurrentEnlargedSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (syncing) return@setOnCheckedChangeListener
             val s = LyricDisplayPrefs.readStyle(activity).copy(currentLineEnlarged = isChecked)
             LyricDisplayPrefs.writeStyle(activity, s)
-            onChanged()
+            notifyChanged()
         }
 
         binding.lyricSettingsWordScaleSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (syncing) return@setOnCheckedChangeListener
             val s = LyricDisplayPrefs.readStyle(activity).copy(wordScaleEnabled = isChecked)
             LyricDisplayPrefs.writeStyle(activity, s)
-            onChanged()
+            notifyChanged()
         }
 
         binding.lyricSettingsOpacitySlider.setOnSeekBarChangeListener(
             object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    applyOpacityFromUser(progress)
+                    if (fromUser) applyOpacityFromUser(progress)
                 }
 
                 override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
 
-                override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    seekBar?.let { applyOpacityFromUser(it.progress) }
+                }
             },
         )
 
@@ -320,25 +285,14 @@ object LyricSettingsSheet {
             }
             val s = LyricDisplayPrefs.readStyle(activity).copy(alignment = align)
             LyricDisplayPrefs.writeStyle(activity, s)
-            onChanged()
+            notifyChanged()
         }
 
         loadUiFromPrefs()
-        syncing = false
-
-        dialog.setOnShowListener {
-            val bottomSheet = dialog.findViewById<FrameLayout>(
-                com.google.android.material.R.id.design_bottom_sheet,
-            ) ?: return@setOnShowListener
-            val maxH = (activity.resources.displayMetrics.heightPixels * 0.62f).roundToInt()
-            bottomSheet.layoutParams = bottomSheet.layoutParams.apply { height = maxH }
-            BottomSheetBehavior.from(bottomSheet).apply {
-                skipCollapsed = true
-                maxHeight = maxH
-                state = BottomSheetBehavior.STATE_EXPANDED
-            }
-        }
-
-        dialog.show()
+        LyricSettingsSheetWindow(
+            activity, dialog, binding, preview,
+            listOf(fontStepper, enlargedStepper),
+            ::loadUiFromPrefs,
+        ).show()
     }
 }
