@@ -243,16 +243,16 @@
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/feedbackDescInputLayout"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                style="@style/Widget.Pm.TextInput.Outlined.Material3"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:hint="@string/feedback_desc_hint"
                 app:boxBackgroundColor="@android:color/transparent"
-                app:boxCornerRadiusBottomEnd="14dp"
-                app:boxCornerRadiusBottomStart="14dp"
-                app:boxCornerRadiusTopEnd="14dp"
-                app:boxCornerRadiusTopStart="14dp"
+
+
+
+
                 app:boxStrokeColor="@color/feedback_input_box_stroke"
                 app:counterEnabled="true"
                 app:counterMaxLength="500"
@@ -334,16 +334,16 @@
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/feedbackContactInputLayout"
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                style="@style/Widget.Pm.TextInput.Outlined.Material3"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
                 android:hint="@string/feedback_contact_hint"
                 app:boxBackgroundColor="@android:color/transparent"
-                app:boxCornerRadiusBottomEnd="14dp"
-                app:boxCornerRadiusBottomStart="14dp"
-                app:boxCornerRadiusTopEnd="14dp"
-                app:boxCornerRadiusTopStart="14dp"
+
+
+
+
                 app:boxStrokeColor="@color/feedback_input_box_stroke"
                 app:hintTextColor="@color/feedback_chip_selected_text">
 

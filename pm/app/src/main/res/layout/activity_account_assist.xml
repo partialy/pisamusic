@@ -103,16 +103,16 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/accountAssistEmailLayout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:hint="@string/account_login_email_hint"
                     android:textColorHint="@color/account_login_text_hint"
                     app:boxBackgroundColor="@color/account_login_field_bg"
-                    app:boxCornerRadiusBottomEnd="18dp"
-                    app:boxCornerRadiusBottomStart="18dp"
-                    app:boxCornerRadiusTopEnd="18dp"
-                    app:boxCornerRadiusTopStart="18dp"
+
+
+
+
                     app:boxStrokeColor="@color/account_text_input_stroke"
                     app:hintTextColor="@color/account_text_input_stroke">
 
@@ -129,17 +129,17 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/accountAssistUsernameLayout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:hint="@string/account_assist_username_hint"
                     android:textColorHint="@color/account_login_text_hint"
                     app:boxBackgroundColor="@color/account_login_field_bg"
-                    app:boxCornerRadiusBottomEnd="18dp"
-                    app:boxCornerRadiusBottomStart="18dp"
-                    app:boxCornerRadiusTopEnd="18dp"
-                    app:boxCornerRadiusTopStart="18dp"
+
+
+
+
                     app:boxStrokeColor="@color/account_text_input_stroke"
                     app:hintTextColor="@color/account_text_input_stroke">
 
@@ -156,17 +156,17 @@
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/accountAssistPasswordLayout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
                     android:hint="@string/account_login_password_hint"
                     android:textColorHint="@color/account_login_text_hint"
                     app:boxBackgroundColor="@color/account_login_field_bg"
-                    app:boxCornerRadiusBottomEnd="18dp"
-                    app:boxCornerRadiusBottomStart="18dp"
-                    app:boxCornerRadiusTopEnd="18dp"
-                    app:boxCornerRadiusTopStart="18dp"
+
+
+
+
                     app:boxStrokeColor="@color/account_text_input_stroke"
                     app:endIconMode="password_toggle"
                     app:endIconTint="@color/account_login_text_hint"
@@ -194,17 +194,17 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/accountAssistCodeLayout"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:hint="@string/account_assist_email_code_hint"
                         android:textColorHint="@color/account_login_text_hint"
                         app:boxBackgroundColor="@color/account_login_field_bg"
-                        app:boxCornerRadiusBottomEnd="18dp"
-                        app:boxCornerRadiusBottomStart="18dp"
-                        app:boxCornerRadiusTopEnd="18dp"
-                        app:boxCornerRadiusTopStart="18dp"
+
+
+
+
                         app:boxStrokeColor="@color/account_text_input_stroke"
                         app:hintTextColor="@color/account_text_input_stroke">
 

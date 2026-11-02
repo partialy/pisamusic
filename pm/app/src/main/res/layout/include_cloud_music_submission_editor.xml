@@ -76,15 +76,15 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/editorTitleLayout"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:hint="@string/cloud_music_submission_song_title"
-        app:boxCornerRadiusBottomEnd="14dp"
-        app:boxCornerRadiusBottomStart="14dp"
-        app:boxCornerRadiusTopEnd="14dp"
-        app:boxCornerRadiusTopStart="14dp"
+
+
+
+
         app:counterEnabled="true"
         app:counterMaxLength="200">
 
@@ -99,15 +99,15 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/editorArtistLayout"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:hint="@string/cloud_music_submission_artist"
-        app:boxCornerRadiusBottomEnd="14dp"
-        app:boxCornerRadiusBottomStart="14dp"
-        app:boxCornerRadiusTopEnd="14dp"
-        app:boxCornerRadiusTopStart="14dp"
+
+
+
+
         app:counterEnabled="true"
         app:counterMaxLength="300">
 
@@ -122,15 +122,15 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/editorAlbumLayout"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:hint="@string/cloud_music_submission_album"
-        app:boxCornerRadiusBottomEnd="14dp"
-        app:boxCornerRadiusBottomStart="14dp"
-        app:boxCornerRadiusTopEnd="14dp"
-        app:boxCornerRadiusTopStart="14dp"
+
+
+
+
         app:counterEnabled="true"
         app:counterMaxLength="200">
 
@@ -145,15 +145,15 @@
 
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/editorDurationLayout"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:hint="@string/cloud_music_submission_duration"
-        app:boxCornerRadiusBottomEnd="14dp"
-        app:boxCornerRadiusBottomStart="14dp"
-        app:boxCornerRadiusTopEnd="14dp"
-        app:boxCornerRadiusTopStart="14dp"
+
+
+
+
         app:helperText="@string/cloud_music_submission_duration_hint">
 
         <com.google.android.material.textfield.TextInputEditText

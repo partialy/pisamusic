@@ -33,6 +33,7 @@
         tools:text="Cache limit message" />
 
     <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
         android:id="@+id/cacheLimitInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

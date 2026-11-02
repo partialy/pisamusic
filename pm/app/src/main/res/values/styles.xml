@@ -39,6 +39,21 @@
     <!-- Keep a base entry to satisfy AAPT style grouping. -->
     <style name="Widget.Pm" parent="" />
 
+
+    <!-- 保留 M3 / MaterialComponents 各自语义和颜色，统一轮廓圆角 -->
+    <style name="Widget.Pm.TextInput.Outlined.Material3" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">@dimen/pm_text_input_corner_radius</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/pm_text_input_corner_radius</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/pm_text_input_corner_radius</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/pm_text_input_corner_radius</item>
+    </style>
+    <style name="Widget.Pm.TextInput.Outlined.MaterialComponents" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">@dimen/pm_text_input_corner_radius</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/pm_text_input_corner_radius</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/pm_text_input_corner_radius</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/pm_text_input_corner_radius</item>
+    </style>
+
     <!-- 48dp 点击区内的 24dp 图标从页面 12dp 基线开始绘制。 -->
     <style name="Widget.Pm.PageLeadingAction">
         <item name="android:layout_width">48dp</item>

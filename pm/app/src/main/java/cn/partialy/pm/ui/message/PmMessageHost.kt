@@ -213,7 +213,11 @@ internal object PmMessageHost {
             capsule.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(bounds.height().coerceAtLeast(1), View.MeasureSpec.AT_MOST))
             val params = capsule.layoutParams as FrameLayout.LayoutParams
             val left = bounds.centerX() - location[0] - capsule.measuredWidth / 2
-            val top = bounds.centerY() - location[1] - capsule.measuredHeight / 2
+            // 提示中心位于可见安全区域顶部起的 33%；IME/系统栏裁剪与边界检查保持生效。
+            val targetCenterY = bounds.top + (bounds.height() * 0.33f).toInt()
+            val topOnScreen = (targetCenterY - capsule.measuredHeight / 2)
+                .coerceIn(bounds.top, (bounds.bottom - capsule.measuredHeight).coerceAtLeast(bounds.top))
+            val top = topOnScreen - location[1]
             if (params.width != capsule.measuredWidth || params.leftMargin != left || params.topMargin != top) {
                 params.width = capsule.measuredWidth; params.leftMargin = left; params.topMargin = top
                 capsule.layoutParams = params
