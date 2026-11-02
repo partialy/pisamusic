@@ -136,10 +136,13 @@ class PlaylistSongsSearchActivity : BaseDownloadActivity() {
 
         binding.playAllBar.sortPlaylistButton.isVisible = false
         binding.playAllBar.batchPlaylistButton.isVisible = false
+        binding.playAllBar.stickyPlayAllRow.setBackgroundResource(R.drawable.bg_playlist_search_play_all)
+        // 搜索列表滚动时保持播放栏位于列表之上，而不是被后绘制的列表盖住。
+        binding.playAllBar.root.bringToFront()
         binding.playAllBar.stickyPlayAllRow.setOnClickListener { }
         binding.playAllBar.btnPlayAllSticky.setOnClickListener {
             val list = contentAdapter.currentSongs
-            if (list.isNotEmpty()) {
+            if (contentAdapter.visibleSongCount > 0 && list.isNotEmpty()) {
                 musicController.setPlayListLazy(list, startIndex = 0, sourceId = playlistSourceId)
             }
         }

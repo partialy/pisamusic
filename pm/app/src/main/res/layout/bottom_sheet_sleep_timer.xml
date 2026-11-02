@@ -130,141 +130,120 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
             android:orientation="horizontal">
-
             <LinearLayout
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
+                android:layout_height="80dp"
                 android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-
+                android:background="@drawable/bg_listen_together_create_card"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
                 <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:background="@drawable/bg_lyric_settings_stepper"
-                    android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="4dp">
-
-                    <ImageButton
-                        android:id="@+id/sleepTimerHoursMinus"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/sleep_timer_decrease_hours"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_remove_24dp"
-                        app:tint="?attr/colorPrimary" />
-
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sleep_timer_hours"
+                        android:textColor="@color/listen_together_field_label"
+                        android:textSize="12sp" />
                     <EditText
                         android:id="@+id/sleepTimerHoursInput"
-                        android:layout_width="44dp"
-                        android:layout_height="match_parent"
+                        android:layout_width="40dp"
+                        android:layout_height="36dp"
                         android:background="@null"
+                        android:gravity="center_vertical"
                         android:imeOptions="actionNext"
                         android:inputType="number"
                         android:maxLength="2"
                         android:maxLines="1"
                         android:selectAllOnFocus="true"
-                        android:textAlignment="center"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="16sp"
+                        android:singleLine="true"
+                        android:textAlignment="viewStart"
+                        android:textColor="@color/listen_together_field_value"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
                         tools:text="0" />
-
-                    <ImageButton
-                        android:id="@+id/sleepTimerHoursPlus"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/sleep_timer_increase_hours"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_add_24"
-                        app:tint="?attr/colorPrimary" />
                 </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="5dp"
-                    android:text="@string/sleep_timer_hours"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="12sp" />
+                <ImageButton
+                    android:id="@+id/sleepTimerHoursMinus"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="@drawable/bg_listen_together_stepper_circle"
+                    android:contentDescription="@string/sleep_timer_decrease_hours"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_stepper_minus_24" />
+                <ImageButton
+                    android:id="@+id/sleepTimerHoursPlus"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_listen_together_stepper_circle"
+                    android:contentDescription="@string/sleep_timer_increase_hours"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_stepper_plus_24" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
+                android:layout_height="80dp"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-
+                android:background="@drawable/bg_listen_together_create_card"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp">
                 <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:background="@drawable/bg_lyric_settings_stepper"
-                    android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="4dp">
-
-                    <ImageButton
-                        android:id="@+id/sleepTimerMinutesMinus"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/sleep_timer_decrease_minutes"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_remove_24dp"
-                        app:tint="?attr/colorPrimary" />
-
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sleep_timer_minutes"
+                        android:textColor="@color/listen_together_field_label"
+                        android:textSize="12sp" />
                     <EditText
                         android:id="@+id/sleepTimerMinutesInput"
-                        android:layout_width="44dp"
-                        android:layout_height="match_parent"
+                        android:layout_width="40dp"
+                        android:layout_height="36dp"
                         android:background="@null"
+                        android:gravity="center_vertical"
                         android:imeOptions="actionDone"
                         android:inputType="number"
                         android:maxLength="2"
                         android:maxLines="1"
                         android:selectAllOnFocus="true"
-                        android:textAlignment="center"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="16sp"
+                        android:singleLine="true"
+                        android:textAlignment="viewStart"
+                        android:textColor="@color/listen_together_field_value"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
                         tools:text="30" />
-
-                    <ImageButton
-                        android:id="@+id/sleepTimerMinutesPlus"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/sleep_timer_increase_minutes"
-                        android:padding="6dp"
-                        android:src="@drawable/ic_add_24"
-                        app:tint="?attr/colorPrimary" />
                 </LinearLayout>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="5dp"
-                    android:text="@string/sleep_timer_minutes"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textSize="12sp" />
+                <ImageButton
+                    android:id="@+id/sleepTimerMinutesMinus"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="@drawable/bg_listen_together_stepper_circle"
+                    android:contentDescription="@string/sleep_timer_decrease_minutes"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_stepper_minus_24" />
+                <ImageButton
+                    android:id="@+id/sleepTimerMinutesPlus"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_listen_together_stepper_circle"
+                    android:contentDescription="@string/sleep_timer_increase_minutes"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_stepper_plus_24" />
             </LinearLayout>
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/sleepTimerSelectionSummary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:gravity="center"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="13sp"
-            tools:text="将在 30 分钟后停止播放" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -291,6 +270,27 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/sleepTimerSelectionSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            tools:text="预计30分钟后停止播放" />
+
+        <TextView
+            android:id="@+id/sleepTimerWaitCurrentSongNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:text="@string/sleep_timer_wait_song_note"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="12sp"
+            android:visibility="gone" />
 
         <LinearLayout
             android:layout_width="match_parent"

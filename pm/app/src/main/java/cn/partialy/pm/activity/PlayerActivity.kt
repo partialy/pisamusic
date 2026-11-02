@@ -808,13 +808,14 @@ class PlayerActivity : BaseDownloadActivity() {
             sheetBinding.listenTogetherTitleView.text = getString(R.string.listen_together_title)
             sheetBinding.listenTogetherIdleGroup.visibility = View.VISIBLE
             sheetBinding.listenTogetherRoomGroup.visibility = View.GONE
-            sheetBinding.listenTogetherSubtitleView.text = getString(R.string.listen_together_subtitle)
+            sheetBinding.listenTogetherSubtitleView.visibility = View.GONE
             return
         }
 
         sheetBinding.listenTogetherTitleView.text = getString(R.string.listen_together_active_title)
         sheetBinding.listenTogetherIdleGroup.visibility = View.GONE
         sheetBinding.listenTogetherRoomGroup.visibility = View.VISIBLE
+        sheetBinding.listenTogetherSubtitleView.visibility = View.VISIBLE
         sheetBinding.listenTogetherSubtitleView.text = room.roomName
         sheetBinding.listenTogetherRoomInfoView.text = getString(
             R.string.listen_together_room_meta,

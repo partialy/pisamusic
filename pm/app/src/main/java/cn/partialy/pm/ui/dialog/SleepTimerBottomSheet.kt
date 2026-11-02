@@ -84,11 +84,17 @@ object SleepTimerBottomSheet {
             if (updatingInputs) return
             val totalMinutes = selectedMinutes()
             val (hours, minutes) = SleepTimerRules.splitMinutes(totalMinutes)
-            binding.sleepTimerSelectionSummary.text = when {
-                hours == 0 -> activity.getString(R.string.sleep_timer_selection_minutes, minutes)
-                minutes == 0 -> activity.getString(R.string.sleep_timer_selection_full_hours, hours)
-                else -> activity.getString(R.string.sleep_timer_selection_hours, hours, minutes)
+            binding.sleepTimerSelectionSummary.text = activity.getString(R.string.sleep_timer_selection_minutes, totalMinutes)
+            binding.sleepTimerWaitCurrentSongNote.visibility =
+                if (binding.sleepTimerWaitCurrentSongSwitch.isChecked) View.VISIBLE else View.GONE
+            fun updateButton(view: View, enabled: Boolean) {
+                view.isEnabled = enabled
+                view.alpha = if (enabled) 1f else 0.38f
             }
+            updateButton(binding.sleepTimerHoursMinus, hours > 0)
+            updateButton(binding.sleepTimerHoursPlus, hours < 23)
+            updateButton(binding.sleepTimerMinutesMinus, minutes > 0 && totalMinutes > 1)
+            updateButton(binding.sleepTimerMinutesPlus, minutes < 59)
             presetButtons.forEach { (presetMinutes, button) ->
                 renderPresetButton(button, selected = presetMinutes == totalMinutes)
             }
@@ -171,6 +177,19 @@ object SleepTimerBottomSheet {
             initialState.active && initialState.waitCurrentSong
         binding.sleepTimerHoursInput.doAfterTextChanged { renderSelection() }
         binding.sleepTimerMinutesInput.doAfterTextChanged { renderSelection() }
+        // 允许编辑期间的中间状态，失焦/确认后规范化至 1..1439 分钟。
+        fun normalizeInputs() = setSelection(selectedMinutes())
+        binding.sleepTimerHoursInput.setOnFocusChangeListener { _, focused -> if (!focused) normalizeInputs() }
+        binding.sleepTimerMinutesInput.setOnFocusChangeListener { _, focused -> if (!focused) normalizeInputs() }
+        binding.sleepTimerMinutesInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+                normalizeInputs()
+                binding.sleepTimerMinutesInput.clearFocus()
+                true
+            } else false
+        }
+        binding.sleepTimerWaitCurrentSongSwitch.setOnCheckedChangeListener { _, _ -> renderSelection() }
+        renderSelection()
         binding.sleepTimerHoursMinus.setOnClickListener { adjustHours(-1) }
         binding.sleepTimerHoursPlus.setOnClickListener { adjustHours(1) }
         binding.sleepTimerMinutesMinus.setOnClickListener { adjustMinutes(-1) }
@@ -180,6 +199,7 @@ object SleepTimerBottomSheet {
         binding.sleepTimerDismiss.setOnClickListener { dialog.dismiss() }
         binding.sleepTimerCancelActive.setOnClickListener { sleepTimerManager.cancelTimer() }
         binding.sleepTimerConfirm.setOnClickListener {
+            normalizeInputs()
             sleepTimerManager.startTimer(
                 minutes = selectedMinutes(),
                 waitCurrentSong = binding.sleepTimerWaitCurrentSongSwitch.isChecked,

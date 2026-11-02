@@ -274,13 +274,12 @@
     <string name="sleep_timer_increase_hours">增加小时</string>
     <string name="sleep_timer_decrease_minutes">减少分钟</string>
     <string name="sleep_timer_increase_minutes">增加分钟</string>
-    <string name="sleep_timer_selection_minutes">将在 %1$d 分钟后停止播放</string>
-    <string name="sleep_timer_selection_hours">将在 %1$d 小时 %2$d 分钟后停止播放</string>
-    <string name="sleep_timer_selection_full_hours">将在 %1$d 小时后停止播放</string>
+    <string name="sleep_timer_selection_minutes">预计%1$d分钟后停止播放</string>
     <string name="sleep_timer_start">开始定时</string>
     <string name="sleep_timer_update">更新定时</string>
     <string name="sleep_timer_cancel_active">取消定时</string>
     <string name="sleep_timer_wait_current_song">播完整首歌再停止</string>
+    <string name="sleep_timer_wait_song_note">倒计时结束后等待当前歌曲播放完毕</string>
     <string name="settings_sleep_timer_config">定时配置</string>
     <string name="settings_sleep_timer_presets_value">%1$s 分钟</string>
     <string name="sleep_timer_preset_config_title">快捷时间配置</string>
@@ -600,6 +599,8 @@
     <string name="pick_local_playlist_title">添加到</string>
     <string name="current_play_queue">当前播放队列</string>
     <string name="pick_local_playlist_empty">暂无自建歌单，请先在「我的」中新建</string>
+    <string name="local_playlist_created_song_added">已创建歌单，添加成功</string>
+    <string name="local_playlist_create_invalid_song">歌曲信息无效，无法添加</string>
     <string name="toast_song_added_to_playlist">已添加到「%1$s」</string>
     <string name="toast_song_already_in_playlist">歌曲已在该歌单中</string>
     <string name="local_song_no_online_download">本地歌曲不支持在线下载</string>
@@ -665,7 +666,6 @@
     <string name="dev_debug_api_result_hint">响应正文</string>
     <string name="dev_debug_api_requesting">请求中…</string>
     <string name="listen_together_title">一起听</string>
-    <string name="listen_together_subtitle">和朋友同步播放当前歌曲</string>
     <string name="listen_together_current_song">当前歌曲</string>
     <string name="listen_together_create_room">创建房间</string>
     <string name="listen_together_join_title">加入房间</string>
@@ -689,7 +689,6 @@
     <string name="listen_together_leave_room">退出一起听</string>
     <string name="listen_together_room_name_label">房间名称</string>
     <string name="listen_together_room_id_label">房间号</string>
-    <string name="listen_together_room_id_suffix">(随机生成)</string>
     <string name="listen_together_max_people_label">最大人数</string>
     <string name="listen_together_max_people_value">%1$d 人</string>
     <string name="listen_together_member_op_short">成员控制切歌</string>
