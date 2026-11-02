@@ -134,7 +134,7 @@
 
 - 本地歌单编辑页：`activity_playlist_edit.xml`、`PlaylistEditActivity`、`ui/playlistedit/`；复用详情渐变背景及进入动画、一起听 Outlined 输入框颜色、`CreateLocalPlaylistCoverPickerAdapter` 与 `PmMinimalDialog`。首行封面在左，自适应宽“更换封面”药丸按钮在右上方，下方依次为两行名称、三行描述与全宽保存按钮；输入框统一 12dp 圆角，字数统计使用主题淡色。保存中旋转图标加文案，禁用操作，返回提示放弃草稿。`styles_playlist_edit.xml` 提供 M3 输入框与封面圆角。
 
-- App 分享 Sheet：`ui/dialog/AppShareBottomSheet.kt`、`res/layout/bottom_sheet_app_share.xml`，从设置“关于”下方进入；复用 `include_share_info_header.xml`、`ShareQrBitmapFactory`、Material3 BottomSheet、Coil 与 PmMessage。图标/名称/版本、带白边黑白二维码、描述与“复制链接 / 更多”双圆形操作；`bg_app_share_action.xml` 使用主题蓝图标和亮暗自适应灰底，远程图失败回退 `ic_pm_icon`。独立 AppShareRepository 提供完整缓存与刷新，不复用要求登录的音乐分享 Sheet。
+- App 分享 Sheet：`ui/dialog/AppShareBottomSheet.kt`、`res/layout/bottom_sheet_app_share.xml`，从设置“关于”下方进入；复用 `include_share_info_header.xml`、`ShareQrBitmapFactory`、Material3 BottomSheet、Coil 与 PmMessage。图标/名称/版本、带白边黑白二维码、描述与“复制链接 / 更多”双圆形操作；`bg_app_share_action.xml` 使用主题蓝图标和亮暗自适应灰底，远程图失败回退 `ic_pm_icon`。独立 AppShareRepository 提供按设备/账号隔离的专属缓存与刷新，不复用音乐分享 Sheet；二维码区复用 Material CircularProgressIndicator，首次加载禁用复制/更多，失败显示重试按钮，只有网络不可达才保留同身份离线码。
 
 - 本地歌曲扫描页：`pm/app/src/main/res/layout/activity_local_music_scan.xml`，用于扫描歌曲初始页、扫描中、结果列表和底部导入栏；`LocalMusicScanActivity` 复用 edge-to-edge、安全区、Material 主按钮、`PmSwitch` 过滤设置和歌曲结果行。
 - 导入与导出页面：`pm/app/src/main/res/layout/activity_data_management.xml`，保留本地数据指标磁贴；歌单与收藏、播放日志采用图标加标题左侧、操作按钮右侧的左右布局，歌单与收藏的“导入 / 导出”按钮保持同款；页面不展示额外说明文案，仍保留播放日志档位选择及清空确认；故障上报以同款卡片承载统计指标、上报按钮和必要时间信息；四张卡片使用统一的圆角、描边和内边距，前三张标题左侧使用 `data_icon_local.webp`、`data_icon_playlist.webp`、`data_icon_diagnostics.webp` 渐变图标；`DataManagementActivity` 复用 edge-to-edge、安全区、`showSettingsOptionPicker` 及 `PmMinimalDialog` 统一确认弹窗。

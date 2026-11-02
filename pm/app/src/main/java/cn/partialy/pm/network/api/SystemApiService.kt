@@ -65,7 +65,10 @@ import retrofit2.http.Url
 
 interface SystemApiService {
     @GET("api/config/app-share")
-    suspend fun getAppShare(): AppShareResponse
+    suspend fun getAppShare(
+        @Header("x-pm-device-token") deviceToken: String,
+        @Header("Authorization") authorization: String?,
+    ): AppShareResponse
 
     @GET
     suspend fun getBootstrapConfig(@Url path: String): BootstrapConfigResponse

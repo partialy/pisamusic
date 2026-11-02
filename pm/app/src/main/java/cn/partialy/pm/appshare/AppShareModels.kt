@@ -15,4 +15,6 @@ data class AppShareConfig(
     val qrCodeText: String = "",
     val copyText: String = "",
     val updatedAt: Long = 0,
+    val shareCode: String? = null,
+    val trackingEnabled: Boolean = false,
 )

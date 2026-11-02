@@ -38,16 +38,47 @@
                 app:tint="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
 
-        <ImageView
-            android:id="@+id/appShareQrImage"
+        <FrameLayout
             android:layout_width="232dp"
             android:layout_height="232dp"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="24dp"
-            android:background="@android:color/white"
-            android:contentDescription="@string/share_qr_code"
-            android:padding="12dp"
-            android:scaleType="fitCenter" />
+            android:layout_marginTop="24dp">
+
+            <ImageView
+                android:id="@+id/appShareQrImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/white"
+                android:contentDescription="@string/share_qr_code"
+                android:padding="12dp"
+                android:scaleType="fitCenter" />
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/appShareProgress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:indeterminate="true" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/appShareStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textSize="13sp"
+            android:accessibilityLiveRegion="polite" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/appShareRetry"
+            style="?attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:text="@string/app_share_retry"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/appShareDescription"

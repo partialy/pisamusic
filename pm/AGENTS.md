@@ -230,7 +230,7 @@
 
 ## 分享补充
 
-- 设置页“关于”下方的“分享App”使用独立 `appshare/AppShareRepository`、DTO 与 `ui/dialog/AppShareBottomSheet`，通过 `SystemApiService` 的公开 `GET /api/config/app-share` 获取分发配置；不要求登录、不创建歌曲/歌单分享记录。每次打开立即显示 SharedPreferences 单 JSON 完整缓存或默认配置，再异步刷新；失败保留快照，无固定有效期；服务端版本为空或占位版本时回退本机版本。二维码复用 `ShareQrBitmapFactory` 保持黑白及白边，远程图标失败回退本地图标；复制与系统 ACTION_SEND 共用当前完整快照的 copyText，关闭或宿主销毁时取消刷新。入口图标从 `pm/icons/share_app_分享App_压缩.webp` 复制为 `settings_ic_app_share.webp`，保留原文件。
+- 设置页“关于”下方的“分享App”使用独立 `appshare/AppShareRepository`、DTO 与 `ui/dialog/AppShareBottomSheet`。复用加密 `GET /api/config/app-share`，显式携带设备 `x-pm-device-token` 和当前账号 Bearer（游客不带账号），由服务端返回 `shareCode/trackingEnabled` 与完整二维码、文案；不创建歌曲/歌单分享记录。设备缺失/过期时复用设备上报，账号临近过期/认证失败时复用账号刷新，失败不能降级游客。SharedPreferences 以设备 ID + 账号 ID（或游客）隔离整份专属快照，旧单键配置不作为推广码；打开显示同身份缓存并刷新，首次加载禁用分享，失败可重试，仅网络不可达允许继续使用同身份离线码。账号/设备变化、关闭或宿主销毁取消旧任务，渲染及点击均复核身份；二维码与复制/系统分享原子使用同一快照。复用 ShareQrBitmapFactory、Coil 和 PmMessage，不引入第三方分享 SDK。
 
 - Android 音乐分享代码集中在 `share/` 模块：`ShareLink` 解析 / 生成 `https://pisamusic.partialy.cn/scan?type=music-share&uuid=<uuid>` 与 `pisamusic://scan?type=music-share&uuid=<uuid>`，`ShareRepository` 通过 `SystemApiService` 访问 `/api/shares`，`ShareQrBitmapFactory` 统一生成二维码并被一起听二维码复用。
 - 歌曲和歌单分享入口复用 `SongMoreMenu`、`PlaylistActionBottomSheet` 与 `ShareBottomSheet`。创建分享必须读取 `AccountSessionStore`，未登录时只提示“请先登录后再分享”，不得创建分享记录；同一账号重复分享同一 `source:id` 时由服务端复用既有 uuid。
