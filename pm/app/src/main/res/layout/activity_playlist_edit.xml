@@ -30,22 +30,23 @@
                     android:contentDescription="@string/playlist_edit_cover" app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.PlaylistEdit.Cover" />
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                     android:layout_marginStart="12dp" android:orientation="vertical">
-                    <com.google.android.material.textfield.TextInputLayout android:id="@+id/nameLayout"
-                        style="@style/Widget.PlaylistEdit.Input" android:layout_width="match_parent"
-                        android:layout_height="wrap_content" android:hint="@string/playlist_edit_name"
-                        app:counterEnabled="true" app:counterMaxLength="50">
-                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/nameInput"
-                            android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:inputType="text" android:singleLine="true" android:imeOptions="actionDone"
-                            android:textSize="15sp" android:textColor="@color/listen_together_field_value" />
-                    </com.google.android.material.textfield.TextInputLayout>
                     <com.google.android.material.button.MaterialButton android:id="@+id/coverButton"
-                        android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginTop="6dp"
+                        android:layout_width="wrap_content" android:layout_height="48dp"
                         android:text="@string/playlist_edit_cover" android:textColor="@android:color/white"
                         android:paddingHorizontal="20dp" android:minWidth="0dp" app:cornerRadius="24dp"
                         app:backgroundTint="?attr/colorPrimary" />
                 </LinearLayout>
             </LinearLayout>
+            <com.google.android.material.textfield.TextInputLayout android:id="@+id/nameLayout"
+                style="@style/Widget.PlaylistEdit.Input" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="20dp"
+                android:hint="@string/playlist_edit_name" app:counterEnabled="true" app:counterMaxLength="50">
+                <com.google.android.material.textfield.TextInputEditText android:id="@+id/nameInput"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:inputType="textMultiLine|textCapSentences" android:gravity="top|start"
+                    android:lines="2" android:imeOptions="actionDone"
+                    android:textSize="15sp" android:textColor="@color/listen_together_field_value" />
+            </com.google.android.material.textfield.TextInputLayout>
             <com.google.android.material.textfield.TextInputLayout android:id="@+id/descriptionLayout"
                 style="@style/Widget.PlaylistEdit.Input" android:layout_width="match_parent"
                 android:layout_height="wrap_content" android:layout_marginTop="20dp"

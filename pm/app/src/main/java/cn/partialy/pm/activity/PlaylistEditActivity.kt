@@ -195,6 +195,7 @@ class PlaylistEditActivity : BaseActivity() {
         private const val EXTRA_ID = "playlist_edit_id"
         fun start(context: Context, playlistId: String) {
             context.startActivity(Intent(context, PlaylistEditActivity::class.java).putExtra(EXTRA_ID, playlistId))
+            AppActivityTransitions.applyForward(context)
         }
     }
 }
