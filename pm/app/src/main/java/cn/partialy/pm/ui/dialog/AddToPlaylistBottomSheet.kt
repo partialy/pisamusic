@@ -206,8 +206,9 @@ object AddToPlaylistBottomSheet {
             val url = item.cover.trim()
             if (url.startsWith("http://") || url.startsWith("https://")) {
                 iv.load(url) {
-                    placeholder(MinePlaylistCoverResolver.fallbackCoverRes)
-                    error(MinePlaylistCoverResolver.fallbackCoverRes)
+                    val fallback = MinePlaylistCoverResolver.defaultLocalCoverRes()
+                    placeholder(fallback)
+                    error(fallback)
                 }
             } else {
                 iv.setImageResource(

@@ -110,9 +110,14 @@ class MinePlaylistsAdapter(
             }
             val url = item.cover.trim()
             if (url.startsWith("http://") || url.startsWith("https://")) {
+                val fallback = if (item.type == CollectedPlaylistType.LOCAL) {
+                    MinePlaylistCoverResolver.defaultLocalCoverRes()
+                } else {
+                    MinePlaylistCoverResolver.fallbackCoverRes
+                }
                 iv.load(url) {
-                    placeholder(MinePlaylistCoverResolver.fallbackCoverRes)
-                    error(MinePlaylistCoverResolver.fallbackCoverRes)
+                    placeholder(fallback)
+                    error(fallback)
                 }
             } else {
                 iv.setImageResource(

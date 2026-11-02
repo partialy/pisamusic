@@ -74,7 +74,16 @@ class LocalPlaylistManagementAdapter(
                 }
                 return
             }
-            imageView.setImageResource(MinePlaylistCoverResolver.defaultLocalCoverRes())
+            val fallback = MinePlaylistCoverResolver.defaultLocalCoverRes()
+            val url = item.cover.trim()
+            if (url.startsWith("https://") || url.startsWith("http://")) {
+                imageView.load(url) {
+                    placeholder(fallback)
+                    error(fallback)
+                }
+            } else {
+                imageView.setImageResource(fallback)
+            }
         }
     }
 }
