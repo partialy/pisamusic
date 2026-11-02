@@ -23,6 +23,7 @@ data class DownloadEnqueueSummary(
     val enqueuedKeys: Set<String>,
     val skippedKeys: Set<String>,
     val failedKeys: Set<String>,
+    val completedSkippedKeys: Set<String> = emptySet(),
 )
 
 /** 仅保证进程存活期间执行；两个 FIFO worker 的槽位涵盖取链到文件处理全流程。 */
@@ -68,6 +69,7 @@ class DownloadQueueCoordinator @Inject constructor(
             enqueueLock.withLock {
                 val enqueued = linkedSetOf<String>()
                 val skipped = linkedSetOf<String>()
+                val completedSkipped = linkedSetOf<String>()
                 val failed = linkedSetOf<String>()
                 for (song in songs.distinctBy { "${it.type}:${it.id}" }) {
                     val key = "${song.type}:${song.id}"
@@ -84,6 +86,13 @@ class DownloadQueueCoordinator @Inject constructor(
                     val task = if (duplicate) null else repository.enqueueTask(song, choice.toPlaybackQualityKey())
                     if (task == null) {
                         skipped += key
+                        // 仅把真实存在文件的已完成任务归为“已下载”。
+                        if (repository.tasks.value.any { existing ->
+                                existing.source == song.type && existing.songId == song.id &&
+                                    existing.qualityKey == choice.toPlaybackQualityKey() &&
+                                    existing.status == DownloadTaskStatus.COMPLETED &&
+                                    existing.targetPath?.let(::File)?.isFile == true
+                            }) completedSkipped += key
                     } else {
                         val request = Request(task.id, song.copy(embeddedCoverArt = null, lyric = null), choice)
                         requests[task.id] = request
@@ -92,7 +101,7 @@ class DownloadQueueCoordinator @Inject constructor(
                     }
                     yield()
                 }
-                DownloadEnqueueSummary(enqueued, skipped, failed)
+                DownloadEnqueueSummary(enqueued, skipped, failed, completedSkipped)
             }
         }.await()
 

@@ -35,6 +35,13 @@
 
 ## Android 架构
 
+- 轮廓输入框统一引用 `res/values/dimens.xml` 中的 `pm_text_input_corner_radius`（12dp）；M3 和 MaterialComponents 分别继承 `Widget.Pm.TextInput.Outlined.*` 样式，不覆盖各页面的描边、背景和错误提示。
+- `PmMessageHost` 的轻提示胶囊中心位于窗口可见区域顶部起 33%，保持 IME/状态栏/刘海安全区裁剪；单曲入队、重复、已完成和失败分别提示，批量维持数量汇总。
+- 歌单与我的收藏搜索页使用不透明矩形 `bg_playlist_search_play_all` 背景；搜索无结果仍可显示 0 首但禁止播放，不修改正常歌单详情及云盘行为。
+- 一起听空闲时隐藏副标题、房间 ID 不显示随机生成提示，进入房间后继续显示房间名；定时关闭小时/分钟复用一起听圆形步进器，时长 1～1439 分钟，输入完成后规范化并在底部展示预计停播时间及等待当前歌曲说明。
+- “歌曲更多 → 添加到歌单 → 新建歌单”成功后必须等 SQLite 原子保存及弹窗关闭，再显示唯一“已创建歌单，添加成功”；取消、失败和 Activity 销毁不误报成功。
+
+
 - 自建本地歌单创建弹窗 `LocalPlaylistCreateDialog` 统一用于“我的”与添加到歌单；仅输入名称（非空、最多 50 字符），默认描述为空，未指定封面时使用 `home_feature_cloud_music.webp` 回退。用户主动新增歌曲时，以去重、校验后**最后一首实际新增歌曲**的合法 HTTP(S) 封面更新歌单；最后一首为本地音源或无有效封面则保留原封面，不回退更早歌曲。允许覆盖手动选择的封面，删除/排序/同步下行不触发；在线转本地继续采用原歌单封面。曲目、封面及同步 outbox 在 SQLite 同一事务内写入，成功后才清理不再引用的 App 私有旧封面。创建入口使用 `ic_new_local_playlist.webp`，编辑页封面选择功能不受影响。
 - 普通本地歌单（含在线转本地副本）的更多菜单在详情下方提供“编辑”，进入 `PlaylistEditActivity`；系统“我的收藏”和 KG/WY 在线歌单不显示编辑。`ui/playlistedit/PlaylistEditViewModel` 使用 SavedStateHandle 保存名称、描述与封面草稿，复用 `updateLocalPlaylistMeta()` 和 playlistsFlow 刷新；名称必填最多 50 字符，描述可空最多 500 字符。封面支持模板、默认或系统图片选择，ImageDecoder 校正方向并规范化为最长边 1024px JPEG；临时图仅预览，提交时生成独立持久图，数据库成功后才清理无引用旧图，失败保留草稿。自定义图只保证本设备使用，不新增上传接口；跨设备无法读取时回退默认封面。分享详情页本地封面和网络封面统一复用 PlaylistCoverRequestBinder，公开分享不接受本地文件路径。
 

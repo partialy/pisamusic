@@ -28,6 +28,7 @@ object LocalPlaylistCreateDialog {
         val title = root.findViewById<TextInputEditText>(R.id.playlistTitleEdit)
         var busy = false
         var closed = false
+        var createdPlaylistId: String? = null
 
         val dialog = PmSlotDialog.Builder(activity)
             .setContentView(root)
@@ -37,6 +38,10 @@ object LocalPlaylistCreateDialog {
                 val name = title.text?.toString()?.trim().orEmpty()
                 if (name.isBlank()) {
                     PmMessage.warning(activity, R.string.toast_playlist_name_required)
+                    return@setConfirmButton
+                }
+                if (songs.isNotEmpty() && songs.none { it.id.isNotBlank() }) {
+                    PmMessage.warning(activity, R.string.local_playlist_create_invalid_song)
                     return@setConfirmButton
                 }
                 busy = true
@@ -60,7 +65,7 @@ object LocalPlaylistCreateDialog {
                     busy = false
                     if (closed || activity.isDestroyed || activity.isFinishing) return@launch
                     result.onSuccess { id ->
-                        onCreated(id)
+                        createdPlaylistId = id
                         dialog.dismiss()
                     }.onFailure {
                         dialog.setCancelable(true)
@@ -81,6 +86,10 @@ object LocalPlaylistCreateDialog {
         dialog.setOnDismissListener {
             closed = true
             activity.lifecycle.removeObserver(observer)
+            // PmMessage 必须在弹窗窗口实际关闭后再绑定至 Activity，避免被关闭的 Dialog 吞掉。
+            if (!activity.isDestroyed && !activity.isFinishing) {
+                createdPlaylistId?.let(onCreated)
+            }
             onDismiss()
         }
         title.requestFocus()

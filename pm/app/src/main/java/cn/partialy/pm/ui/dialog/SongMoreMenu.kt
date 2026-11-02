@@ -57,16 +57,22 @@ object SongMoreMenu {
                 R.drawable.ic_playlist_24,
                 activity.getString(R.string.song_more_add_to_playlist),
             ) {
+                var newPlaylistCreated = false
                 AddToPlaylistBottomSheet.show(
                     activity,
                     listOf(song),
                     deps.musicController,
                     deps.playlistCollectionManager,
                     allowQueueTarget = deps.allowQueueTarget && song.playable,
+                    onNewPlaylistCreated = { newPlaylistCreated = true },
                     onResult = { result ->
-                        val message = activity.getString(R.string.online_batch_add_result, result.added.size, result.existing.size, result.failed.size)
-                        if (result.failed.isNotEmpty()) PmMessage.warning(activity, message)
-                        else PmMessage.success(activity, message)
+                        if (newPlaylistCreated && result.added.size == 1 && result.failed.isEmpty()) {
+                            PmMessage.success(activity, R.string.local_playlist_created_song_added)
+                        } else {
+                            val message = activity.getString(R.string.online_batch_add_result, result.added.size, result.existing.size, result.failed.size)
+                            if (result.failed.isNotEmpty()) PmMessage.warning(activity, message)
+                            else PmMessage.success(activity, message)
+                        }
                     },
                 )
             })

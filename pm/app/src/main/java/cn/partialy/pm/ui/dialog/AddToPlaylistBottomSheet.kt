@@ -46,6 +46,7 @@ object AddToPlaylistBottomSheet {
         allowQueueTarget: Boolean = true,
         onResult: (cn.partialy.pm.player.PlaylistAppendResult) -> Unit = {},
         onFinished: () -> Unit = {},
+        onNewPlaylistCreated: (String) -> Unit = {},
     ) {
         var finished = false
         fun finish() { if (!finished) { finished = true; onFinished() } }
@@ -89,7 +90,16 @@ object AddToPlaylistBottomSheet {
                             report(cn.partialy.pm.player.PlaylistAppendResult(result?.added.orEmpty(), result?.existing.orEmpty(), result?.failed ?: songs))
                         }
                         AddToTarget.NewPlaylist -> LocalPlaylistCreateDialog.show(activity, playlistCollectionManager, songs,
-                            onCreated = { report(cn.partialy.pm.player.PlaylistAppendResult(songs.filter { it.id.isNotBlank() }.distinctBy { it.type to it.id }, emptyList(), songs.filter { it.id.isBlank() })) }, onDismiss = ::finish)
+                            onCreated = { playlistId ->
+                                onNewPlaylistCreated(playlistId)
+                                report(cn.partialy.pm.player.PlaylistAppendResult(
+                                    songs.filter { it.id.isNotBlank() }.distinctBy { it.type to it.id },
+                                    emptyList(),
+                                    songs.filter { it.id.isBlank() },
+                                ))
+                            },
+                            onDismiss = ::finish,
+                        )
                     }
                 }
                 if (songs.size > 100) {

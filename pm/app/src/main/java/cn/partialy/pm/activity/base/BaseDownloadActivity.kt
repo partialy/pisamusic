@@ -71,8 +71,23 @@ abstract class BaseDownloadActivity : BaseActivity() {
                 ) ?: return@launch
                 val summary = downloadQueueCoordinator.enqueue(songs, selected.choice)
                 val message = getString(R.string.download_queue_summary, summary.enqueuedKeys.size, summary.skippedKeys.size, summary.failedKeys.size)
-                if (summary.failedKeys.isNotEmpty()) PmMessage.warning(this@BaseDownloadActivity, message)
-                else PmMessage.success(this@BaseDownloadActivity, message)
+                when {
+                    summary.failedKeys.isNotEmpty() -> PmMessage.warning(
+                        this@BaseDownloadActivity,
+                        if (songs.size == 1) getString(R.string.download_queue_enqueue_failed) else message,
+                    )
+                    songs.size == 1 && summary.enqueuedKeys.isNotEmpty() ->
+                        PmMessage.success(this@BaseDownloadActivity, R.string.download_queue_added_single)
+                    songs.size == 1 && summary.skippedKeys.isNotEmpty() -> {
+                        val key = summary.skippedKeys.first()
+                        val text = if (key in summary.completedSkippedKeys) {
+                            R.string.download_queue_already_completed
+                        } else R.string.download_queue_already_queued
+                        PmMessage.info(this@BaseDownloadActivity, text)
+                    }
+                    summary.enqueuedKeys.isNotEmpty() -> PmMessage.success(this@BaseDownloadActivity, message)
+                    summary.skippedKeys.isNotEmpty() -> PmMessage.info(this@BaseDownloadActivity, message)
+                }
                 onResult(summary)
             } catch (error: CancellationException) {
                 throw error

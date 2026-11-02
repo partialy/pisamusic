@@ -12,6 +12,8 @@
 
 ## 基础控件
 
+- 轮廓 `TextInputLayout` 统一使用 `@dimen/pm_text_input_corner_radius`（12dp），通过 `Widget.Pm.TextInput.Outlined.Material3` / `.MaterialComponents` 保持原有组件风格与个性化颜色。
+
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
 | 页面内容左基线 / 顶部前导按钮 | 普通页面外层内容、返回与菜单按钮 | `pm/app/src/main/res/values/dimens.xml`、`pm/app/src/main/res/values/styles.xml` | `pm_page_content_start`、`Widget.Pm.PageLeadingAction`、`ic_back_24.xml`、`ic_menu_24.xml` | 除播放主界面外，可见内容统一从 12dp 开始；返回箭头和三条杠使用 48dp 点击区，矢量已移除左透明画布，实际笔画左缘同样落在 12dp。嵌套列表不得把页面 padding 与 item padding 重复叠加。 |
@@ -87,6 +89,9 @@
 
 ## 播放相关
 
+- 歌单与收藏独立搜索页的 52dp 播放栏使用不透明矩形 `bg_playlist_search_play_all.xml`，无分割线，0 首不播放；详情页原有折叠工具条不变。
+- 定时关闭自定义时间使用一起听同款双卡片和圆形加减按钮，小时/分钟可编辑，1～1439 分钟归一化；底部按钮上方显示预计停播时间。
+
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
 | 播放队列 BottomSheet | 当前播放列表、清空、队列空状态 | `pm/app/src/main/res/layout/bottom_sheet_playlist.xml` | `PlayerActivity`、`PlaylistAdapter` | 播放队列面板参考。 |
@@ -103,6 +108,8 @@
 | 歌源标签 | KG/WY/KW/CLOUD/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定；KG/WY/KW/CLOUD 必须分别显示同规格的 16dp 圆角描边方块 `K` / `Y` / `W` / `C`（无额外 padding、居中），KW 使用橙色，Cloud 使用青绿色。LOCAL 保留自适应矩形，禁止调用方单独设置来源文案、背景或 padding。 |
 
 ## 状态、错误与 WebView
+
+- `PmMessageHost` 胶囊中心位于窗口安全区域顶部起 33%，单曲下载与新建歌单分别显示业务成功消息；新建本地歌单成功提示必须在弹窗关闭后发出，且不重复通用计数提示。
 
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
