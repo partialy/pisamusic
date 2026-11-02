@@ -18,14 +18,16 @@ export function normalizeAppShareConfig(body: unknown): Omit<AppShareConfig, "up
   if (Buffer.byteLength(qrCodeText, "utf8") > 2000) throw new Error("二维码链接 UTF-8 长度不能超过 2000 字节");
   let url: URL;
   try { url = new URL(qrCodeText); } catch { throw new Error("二维码链接必须是完整 HTTP/HTTPS URL"); }
-  if (!["http:", "https:"].includes(url.protocol) || !url.hostname || url.username || url.password) throw new Error("二维码链接必须是完整 HTTP/HTTPS URL，且不含账号密码");
+  if (url.origin !== "https://pisamusic.partialy.cn" || url.username || url.password || !/^\/app-share\/?$/.test(url.pathname) || url.hash || url.searchParams.has("code")) throw new Error("二维码链接必须是本站 HTTPS /app-share/ 路径，不能包含 code 或锚点");
+  if ([...url.searchParams].some(([key, value]) => !/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(key) || value.length > 200)) throw new Error("二维码链接查询参数无效");
+  url.pathname = "/app-share/";
   const iconFileId = b.iconFileId === null ? null : text(b.iconFileId, "图标文件 ID", 120, true);
   if (iconFileId) {
     const file = readFileRecordById(iconFileId);
     if (!file || file.usageType !== "app-share-icon" || file.status !== "uploaded" || deletingAppShareIcons.has(iconFileId)) throw new Error("图标文件无效或正在删除");
   }
   return { appName: text(b.appName, "App 名称", 60, true), versionOverride: text(b.versionOverride, "版本覆盖", 40),
-    iconFileId, description: text(b.description, "描述", 500), qrCodeText, copyTemplate: text(b.copyTemplate, "复制模板", 1000) };
+    iconFileId, description: text(b.description, "描述", 500), qrCodeText: url.toString(), copyTemplate: text(b.copyTemplate, "复制模板", 1000) };
 }
 export function renderAppShareCopy(template: string, url: string): string {
   return template.includes("{url}") ? template.split("{url}").join(url) : [template, url].filter(Boolean).join("\n");

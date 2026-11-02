@@ -1,7 +1,7 @@
-import { readPublicAppShare } from "../services/appShareService";
+import { AppShareTrackingError, getIdentityAppShare, trackWebsiteDownload, resolveTrackedDownloadTarget } from "../services/appShareTrackingService";
 import { Router } from "express";
 import type { Request } from "express";
-import { recordDownload } from "../db/analyticsStore";
+
 import {
   type AppConfig,
   type ReleaseConfig,
@@ -20,8 +20,9 @@ import { fail, ok } from "../types/response";
 
 export const configRouter = Router();
 configRouter.get("/app-share", (_req, res) => {
-  try { const share = readPublicAppShare(); return res.json(ok({ ...share, iconUrl: toAbsoluteUrl(share.iconUrl, _req) })); }
-  catch (e) { return res.status(500).json(fail("读取 App 分享配置失败", 500)); }
+  res.setHeader("Cache-Control", "private, no-store"); res.vary("Authorization"); res.vary("x-pm-device-token");
+  try { const share = getIdentityAppShare(_req); return res.json(ok({ ...share, iconUrl: toAbsoluteUrl(share.iconUrl, _req) })); }
+  catch (e) { const status = e instanceof AppShareTrackingError ? e.status : 500; return res.status(status).json(fail(e instanceof AppShareTrackingError ? e.message : "读取 App 分享配置失败", status)); }
 });
 
 function cleanString(val: unknown, maxLen: number): string {
@@ -364,12 +365,14 @@ configRouter.get("/download/:platform", (req, res) => {
     }
 
     const fileRecordId = extractFileRecordId(downloadUrl);
+    // 先核验实际对象并生成签名，再统计成功的下载触发，避免第二跳失败被误计数。
+    const redirectUrl = resolveTrackedDownloadTarget(downloadUrl, fileRecordId);
     const ipAddress = cleanIp(req);
     const userAgent = cleanString(req.headers["user-agent"], 512);
     const referrer = cleanString(req.headers.referer || req.headers.referrer, 512);
 
     try {
-      recordDownload({
+      trackWebsiteDownload(req, {
         platform,
         version: release.latestVersion,
         fileRecordId,
@@ -383,9 +386,12 @@ configRouter.get("/download/:platform", (req, res) => {
       console.warn("[analytics] recordDownload failed:", err);
     }
 
-    res.redirect(302, downloadUrl);
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Cache-Control", "no-store");
+    res.redirect(302, redirectUrl);
   } catch (err) {
     const message = err instanceof Error ? err.message : "下载重定向失败";
-    res.status(500).json(fail(message, 500));
+    const status = err instanceof AppShareTrackingError ? err.status : 500;
+    res.status(status).json(fail(message, status));
   }
 });

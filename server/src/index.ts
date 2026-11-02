@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { appShareRouter } from "./routes/appShare";
 import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
@@ -109,6 +110,8 @@ app.use(
   express.json({ limit: configManager.get("http.faultReportBodyLimit", "5mb") }),
 );
 app.use(express.json({ limit: configManager.get("http.jsonBodyLimit", "1mb") }));
+app.use(createIpRateLimitMiddleware({ group: "app-share-public", getPolicy: () => ({ paths: ["/api/app-share/public/*", "/api/app-share/visits"], windowSeconds: 60, maxRequests: 60 }) }));
+app.use(createIpRateLimitMiddleware({ group: "app-share-identity", getPolicy: () => ({ paths: ["/api/config/app-share"], windowSeconds: 60, maxRequests: 60 }) }));
 app.use(logInterceptor);
 
 const DEFAULT_PLAINTEXT_PATHS = [
@@ -117,6 +120,8 @@ const DEFAULT_PLAINTEXT_PATHS = [
   "/api/config/check-update",
   "/api/config/get",
   "/api/config/app-share",
+  "/api/app-share/public/*",
+  "/api/app-share/visits",
   "/api/config/releases",
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
@@ -142,6 +147,8 @@ const DEFAULT_PLAINTEXT_PATHS = [
 const MANDATORY_PLAINTEXT_PATHS = [
   "/api/config/get",
   "/api/config/app-share",
+  "/api/app-share/public/*",
+  "/api/app-share/visits",
   "/api/config/releases",
   "/api/config/release-files/*",
   "/api/config/desktop-updates/*",
@@ -171,6 +178,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/config", configRouter);
+app.use("/api/app-share", appShareRouter);
 app.use("/api/announcements", announcementsRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/auth", authRouter);

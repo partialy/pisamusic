@@ -8,6 +8,7 @@
     "test:file-management": "pnpm build && node --test dist/services/fileManagementService.spec.js",
     "test:fault-reports": "pnpm build && node --test dist/db/faultReportStore.spec.js",
     "test:analytics": "pnpm build && node --test dist/db/analyticsStore.spec.js dist/db/dashboardStore.spec.js",
+    "test:app-share": "pnpm build && node --test dist/db/appShareTrackingStore.spec.js dist/routes/appShareTracking.case.js",
     "test:website-records": "pnpm build && node --test dist/db/websiteRecordStore.case.js",
     "test:listening": "pnpm build && node --test dist/services/listeningService.spec.js",
     "test:listen-together": "pnpm build && node --test dist/db/listenTogetherHistoryStore.spec.js dist/services/adminListenTogetherService.spec.js",

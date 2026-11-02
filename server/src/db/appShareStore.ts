@@ -11,7 +11,7 @@ export type AppShareConfig = {
 };
 export const APP_SHARE_DEFAULTS: AppShareConfig = {
   appName: "Pisa Music", versionOverride: "", iconFileId: null,
-  description: "发现更多好音乐", qrCodeText: "https://pisamusic.partialy.cn/download/",
+  description: "发现更多好音乐", qrCodeText: "https://pisamusic.partialy.cn/app-share/",
   copyTemplate: "分享 Pisa Music，发现更多好音乐！\n{url}", updatedAt: 0,
 };
 export function readAppShareConfig(): AppShareConfig {
