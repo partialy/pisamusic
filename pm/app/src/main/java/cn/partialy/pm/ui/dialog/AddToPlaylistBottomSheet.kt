@@ -155,7 +155,7 @@ object AddToPlaylistBottomSheet {
             holder.cover.dispose()
             when (val item = items[position]) {
                 AddToTarget.NewPlaylist -> {
-                    holder.cover.setImageResource(R.drawable.ic_playlist_24)
+                    holder.cover.setImageResource(R.drawable.ic_new_local_playlist)
                     holder.name.setText(R.string.dialog_create_local_playlist_title)
                     holder.count.text = ""
                 }
