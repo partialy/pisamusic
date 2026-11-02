@@ -2,7 +2,9 @@
 
 ## 后台文件管理与 PC 发布补充
 
-- App 推广分享与歌曲/歌单分享独立：配置存于 SQLite 单条 `app_share_config`，公开入口为 `GET /api/config/app-share`，管理员通过 `/api/admin/app-share` 读取、保存及上传图标。Admin「系统设置 → App分享」独立保存草稿；图标在七牛公开图片空间上传核验后登记 `file_records`（`usage_type='app-share-icon'`），保存配置才切换引用，当前引用图标禁止删除，旧图保留可清理。Android 设置页「关于」下的「分享App」立即展示缓存/默认 Sheet，再异步刷新，复制与系统分享复用同一份完整文案；默认二维码为 `https://pisamusic.partialy.cn/download/`，不增加歌曲分享记录或微信/QQ SDK。
+- App 推广分享与歌曲/歌单分享独立：配置存于 SQLite 单条 `app_share_config`，获取入口仍为 `GET /api/config/app-share`。旧无设备凭证请求返回通用配置；新版通过 `x-pm-device-token` 和显式账号 Authorization 绑定设备与账号（游客独立），幂等获取六位 Base62 短码，不新增获取链接接口，认证失败不得降级游客。响应 `private, no-store`，新增 `shareCode` / `trackingEnabled`，原 `qrCodeText` / `copyText` 由服务端统一渲染专属链接。管理员通过 `/api/admin/app-share` 保存配置和上传图标，二维码地址仅允许本站 HTTPS `/app-share/`，禁止手填 code。图标核验后登记 `file_records`（`usage_type='app-share-icon'`），保存才切换引用，当前图标禁止删除。Android 按账号和设备隔离缓存，首次获取前禁用二维码、复制和系统分享，关闭或身份变化时丢弃迟到响应，不引入微信/QQ SDK。
+- App 推广追踪独立使用 `app_share_records`、`app_share_visits`、`app_share_downloads`、`app_share_daily_stats` 四表；只有 `/app-share/` 页面成功上报 `/api/app-share/visits` 才计 PV/日 UV，`/download/`、首页、音乐分享和一起听不计推广访问。公开短码校验为 `/api/app-share/public/:code`；明文白名单只开放这两个浏览器接口，管理接口仍需 JWT 和加密。官网下载原入口 `/api/config/download/:platform` 在成功跳转时追加推广下载触发，显式 code 优先（无效码禁止回退 Cookie），否则使用 7 天签名 Cookie 的最后有效触点；不向外部安装包地址透传 code。下载触发不等于安装、注册或邀请成功。主记录和日报长期保留，明细按分析保留期清理；全站日 UV 单独去重，跨天汇总称累计日 UV。
+- Admin「运营与发布 → 分享记录」使用 `/api/admin/app-share-records` 提供筛选、排序、详情事件分页、趋势、CSV 导出和单向失效；失效记录保留，同身份再次获取产生新码，不支持删除、恢复或修改计数。生产部署需设置独立 `APP_SHARE_ATTRIBUTION_SECRET`，并由管理员通过现有内容管理发布推广隐私条款；不在数据库迁移中覆盖管理员政策，发布说明见 `docs/app-share/tracking-release.md`。
 - 七牛上传文件统一登记到 `server` SQLite 的 `file_records` 表，后台管理接口为 `GET /api/admin/files` 和 `DELETE /api/admin/files/:id`。
 - 旧 `release_files` / `desktop_update_assets` 表已废弃，启动时会删除；发布安装包、PC 自动更新 `latest.yml` / EXE / blockmap 都直接读写 `file_records`，不要恢复旧表或旧表迁移逻辑。
 - PC 发布页的“上传安装包到七牛云”和“PC 自动更新文件 / 安装包 EXE”必须联动复用同一七牛对象；上传任意一处的 EXE 后，需要自动同步另一处的下载地址、文件大小、`releaseFileId` 或 installer 资产状态。
