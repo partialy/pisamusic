@@ -61,6 +61,11 @@
 
 ## 播放器规则
 
+- 播放页歌词设置 Sheet 与一起听共用主题背景、卡片和圆形步进器，分显示、排版、颜色和效果四区；顶部固定深色渐变预览，下方单独滚动，Sheet 上限为可用窗口约 80%。
+- 歌词设置预览由 `ui/player/LyricPreviewController` 管理独立 8 秒无声样本时钟，普通模式复用 `LyricsAdapter`、逐字模式复用 `KaraokeLyricsView`，禁止读取或修改真实播放器进度；样式/模式更新保留模拟进度。`LyricSettingsSheetWindow` 负责宿主/IME 可见性、颜色管理返回刷新和尺寸分配；暂停必须停止预览 tick 与渲染器帧，关闭必须释放。系统禁动画时静态高亮；大字号按实际换行高度扩展预览；小窗口先压缩预览，无法同时保留完整当前行与设置操作区时临时隐藏并暂停预览。
+- 歌词设置继续使用 `LyricDisplayPrefs` 即时保存及原播放器刷新回调；`LyricSettingsStepper` 统一数字输入与长按，字号 12–30sp、放大增量 2–8sp，非法输入恢复最后有效值，失焦/完成/关闭提交，松手、边界或离开界面停止长按。
+
+
 - `MusicController` 是 UI 和 Service 使用的统一播放器门面，也是 App 级播放单例；`MusicService` 只负责前台通知、MediaSessionService 承载和状态栏歌词，不在 `onDestroy()` 中释放播放器。只有明确的应用级退出 / 进程级清理流程才调用 `MusicController.release()`。
 - `PlaylistManager` 管理播放列表、当前下标、下一首队列和 `StateFlow`；主列表与“下一首播放”队列都按 `SongType + songId` 识别歌曲，同一音源同一歌曲不得重复入队，已有占位歌曲执行插播时应移动到目标位置而不是复制。
 - `PlayerEngine` 管理 ExoPlayer、MediaSession、播放事件、进度、播放模式和状态持久化。

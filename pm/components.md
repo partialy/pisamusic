@@ -94,7 +94,7 @@
 | 歌单列表底部状态 / 增量加载指示器 | 歌单详情流式拉取剩余歌曲底部加载指示器与到底提示 | `pm/app/src/main/res/layout/item_playlist_detail_status.xml` | `PlaylistDetailContentAdapter.StatusViewHolder`、`CircularProgressIndicator` | 包含 18dp 旋转 `CircularProgressIndicator` 与 14sp 次级文字；流式加载中显示指示器与“正在加载剩余歌曲…”，全部完成或无更多时隐藏指示器并显示“已经到底了~”，初始与空搜状态自适应居中。 |
 | 收藏独立搜索页 | 从“我的收藏”右上角进入，实时过滤收藏歌曲 | `pm/app/src/main/res/layout/activity_loved_songs_search.xml` | `LovedSongsSearchActivity`、`PlaylistDetailContentAdapter`、`HomeMiniPlayerBinder` | 查询为空时保留搜索栏与迷你播放器；按歌名/歌手过滤展示，播放仍使用完整收藏列表并按 `type + id` 定位。 |
 | 歌单收藏独立搜索页 | 从“歌单收藏”右上角进入，实时过滤收藏歌单 | `pm/app/src/main/res/layout/activity_favorite_playlists_search.xml` | `FavoritePlaylistsSearchActivity`、`HomePlaylistGridAdapter`、`HomeMiniPlayerBinder` | 无播放全部工具条；按歌单名称过滤展示 3 列卡片网格，点击跳转对应平台歌单详情。 |
-| 歌词设置面板 | 歌词样式设置、滑轨、分段按钮、步进器 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `LyricSettingsSheet` | 歌词相关设置优先参考。 |
+| 歌词设置面板 | 四分区设置、固定预览、滑轨、分段按钮、长按步进器 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `LyricSettingsSheet`、`LyricSettingsStepper`、`LyricSettingsSheetWindow` | 复用一起听背景/卡片/圆形步进器；固定头部与预览，下方独立滚动，最大约 80% 可用窗口，IME 或小窗口空间不足时临时收起并暂停预览。 |
 | 迷你播放器 | 底部迷你播放器 | `pm/app/src/main/res/layout/home_mini_player.xml` | `HomeMiniPlayerBinder` | 首页/主界面底部播放入口参考。 |
 | 播放按钮缓冲态 | 主播放按钮和迷你播放器缓冲反馈 | `pm/app/src/main/res/drawable/ic_loading_loop_24.xml` | `PlaybackButtonStateRenderer` | VectorDrawable 只承载图形；Media3 `STATE_BUFFERING` 时由 ObjectAnimator 以 1.5 秒周期持续旋转，销毁时必须释放。 |
 | 动态歌词背景 | 播放页封面取色流光、模糊封面漂移和静态旧背景回退 | `ui/player/background/FlowingCoverBackgroundView.kt`、`PlayerBackgroundController.kt` | `activity_player.xml`、`SettingsPrefs`、`PlaybackSettingsActivity` | “播放设置 → 动态歌词背景”默认开启；开启时流光色板与低透明度模糊封面共存，关闭时恢复原静态模糊封面。切歌色板交叉渐变，页面不可见时停止动画。 |
@@ -142,3 +142,5 @@
 | 添加到目标选择器 | 单曲或批量添加到队列、已有或新建自建歌单 | `ui/dialog/AddToPlaylistBottomSheet.kt`、`res/layout/item_pick_local_playlist_row.xml` | 共用目标行、封面与队列计数；超过 100 首确认；返回实际新增、已存在与失败结果。 |
 | 在线转本地确认与进度 | 完整抓取 KG/WY 歌单并事务创建本地副本 | `ui/playlistdetail/OnlinePlaylistToLocalCoordinator.kt`、`OnlinePlaylistToLocalViewModel.kt` | 复用 `PmMinimalDialog` 与 Material 加载指示器；加载可取消、保存不可取消；ViewModel 保留旋转会话，成功只跳转一次。 |
 | 高清 Hero 封面 | 在线歌单详情大封面 | `ui/playlistdetail/PlaylistHeroCoverUrl.kt`、`PlaylistDetailHeaderController.kt` | 已知平台 500px 候选失败后回退原 URL，再用既有占位；不影响列表缩略图。 |
+
+- 歌词样式实时预览：`include_lyric_settings_preview.xml`、`bg_lyric_settings_preview.xml`、`ui/player/LyricPreviewController.kt` 与 `LyricPreviewSamples.kt`；8 秒原创三行无声样本，复用普通/逐字渲染器，透明覆盖阻断歌词触摸，样式变化保留时间轴；隐藏暂停、关闭释放、系统禁动画静态展示。预览基准 160dp，大字号按换行高度扩展。
