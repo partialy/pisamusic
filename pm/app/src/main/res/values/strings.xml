@@ -524,7 +524,6 @@
     <string name="loved_songs_management_unlove_success">已取消收藏 %1$d 首歌曲</string>
     <string name="loved_songs_management_empty">暂无匹配的收藏歌曲</string>
     <string name="mine_playlist_more_coming">更多功能即将推出</string>
-    <string name="mine_playlist_more_sheet_title">歌单</string>
     <string name="mine_playlist_action_delete">删除歌单</string>
     <string name="mine_playlist_delete_confirm_title">删除歌单</string>
     <string name="mine_playlist_delete_confirm_message">确定删除「%1$s」？此操作无法撤销。</string>

@@ -10,6 +10,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import cn.partialy.pm.databinding.FragmentMinePlaylistsTabBinding
 import cn.partialy.pm.model.CollectedPlaylistType
+import cn.partialy.pm.model.toCanonicalPlaylist
+import cn.partialy.pm.ui.dialog.PlaylistActionBottomSheet
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -27,7 +29,12 @@ class MinePlaylistsTabFragment : Fragment() {
 
     private val adapter = MinePlaylistsAdapter(
         onMoreClick = { playlist ->
-            MinePlaylistMoreBottomSheet.show(this, playlist, playlistCollectionManager)
+            PlaylistActionBottomSheet.show(
+                activity = requireActivity(),
+                playlist = playlist.toCanonicalPlaylist(),
+                deleteTarget = playlist,
+                manager = playlistCollectionManager,
+            )
         },
     )
 
