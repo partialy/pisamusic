@@ -272,8 +272,12 @@ object LyricParser {
             .replace("\r\n", "\n")
 
     private fun looksLikeKrc(text: String): Boolean =
-        krcHeaderRegex.containsMatchIn(text) && krcWordRegex.containsMatchIn(text)
+        normalizeNewlines(text).lineSequence().any { line ->
+            krcHeaderRegex.containsMatchIn(line.trim()) && krcWordRegex.containsMatchIn(line)
+        }
 
     private fun looksLikeYrc(text: String): Boolean =
-        yrcHeaderRegex.containsMatchIn(text) && yrcWordRegex.containsMatchIn(text)
+        normalizeNewlines(text).lineSequence().any { line ->
+            yrcHeaderRegex.containsMatchIn(line.trim()) && yrcWordRegex.containsMatchIn(line)
+        }
 }

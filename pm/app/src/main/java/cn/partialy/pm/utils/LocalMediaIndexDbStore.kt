@@ -106,8 +106,53 @@ class LocalMediaIndexDbStore(context: Context) {
         }
     }
 
+    /**
+     * 逐字歌词采用独立的持久索引，避免普通 LRC 的缓存更新覆盖 KRC/YRC。
+     * LOCAL 的 song.id 使用最终音频绝对路径。
+     */
+    fun getWordLyricIndex(song: SongInfo): LyricIndex? {
+        helper.readableDatabase.query(
+            "word_lyric_index",
+            arrayOf("lyric", "source"),
+            "song_key = ?",
+            arrayOf(song.mediaKey()),
+            null, null, null, "1",
+        ).use { cursor ->
+            if (!cursor.moveToFirst()) return null
+            val lyric = cursor.getString(0).orEmpty()
+            return lyric.takeIf(String::isNotBlank)?.let { LyricIndex(it, cursor.getString(1).orEmpty()) }
+        }
+    }
+
+    fun upsertWordLyric(song: SongInfo, lyric: String, source: String) {
+        if (song.type != SongType.LOCAL) return
+        val format = when {
+            source.contains("krc", true) -> cn.partialy.pm.lyric.LyricFormat.KRC
+            source.contains("yrc", true) -> cn.partialy.pm.lyric.LyricFormat.YRC
+            else -> return
+        }
+        val parsed = cn.partialy.pm.lyric.LyricParser.parseContent(
+            cn.partialy.pm.lyric.RawLyric(lyric, format, source)
+        )
+        if (!parsed.hasWordTiming) return
+        val values = ContentValues().apply {
+            put("song_key", song.mediaKey())
+            put("lyric", lyric)
+            put("source", source)
+            put("updated_at", System.currentTimeMillis())
+        }
+        helper.writableDatabase.insertWithOnConflict(
+            "word_lyric_index", null, values, SQLiteDatabase.CONFLICT_REPLACE
+        )
+    }
+
+    fun removeWordLyric(song: SongInfo) {
+        helper.writableDatabase.delete("word_lyric_index", "song_key = ?", arrayOf(song.mediaKey()))
+    }
+
     fun clearLyrics() {
         helper.writableDatabase.delete("lyric_index", null, null)
+        helper.writableDatabase.delete("word_lyric_index", null, null)
     }
 
     fun lyricBytes(): Long {
@@ -151,18 +196,35 @@ class LocalMediaIndexDbStore(context: Context) {
                 )
                 """.trimIndent()
             )
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS word_lyric_index (
+                    song_key TEXT PRIMARY KEY,
+                    lyric TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """.trimIndent())
             db.execSQL("CREATE INDEX idx_lyric_index_type_id ON lyric_index(song_type, song_id)")
             db.execSQL("CREATE INDEX idx_cover_index_type_id ON cover_index(song_type, song_id)")
         }
 
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            // Future media-index migrations live here.
+            if (oldVersion < 2) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS word_lyric_index (
+                        song_key TEXT PRIMARY KEY,
+                        lyric TEXT NOT NULL,
+                        source TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
         }
     }
 
     companion object {
         private const val DB_NAME = "pm_media_index.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
 
         fun mediaKey(type: SongType, id: String): String = "${type.name}:$id"
     }

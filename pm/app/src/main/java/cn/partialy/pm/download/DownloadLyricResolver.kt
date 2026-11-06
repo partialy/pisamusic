@@ -21,6 +21,7 @@ data class DownloadLyricAsset(
 
 data class ResolvedDownloadLyrics(
     val embeddedText: String = "",
+    val originalWordAsset: DownloadLyricAsset? = null,
     val sidecars: List<DownloadLyricAsset> = emptyList(),
     val sidecarsRequested: Boolean = false,
 ) {
@@ -51,12 +52,13 @@ class DownloadLyricResolver @Inject constructor(
             DownloadLyricVariants.EMPTY
         }
         val embeddedText = if (embedLyrics) {
-            (variants.word ?: variants.line)?.text.orEmpty()
+            EmbeddedLyricFormatter.standardLrc(variants.line, variants.word)
         } else {
             ""
         }
         return ResolvedDownloadLyrics(
             embeddedText = embeddedText,
+            originalWordAsset = variants.word,
             sidecars = DownloadLyricSelector.select(mode, variants.word, variants.line),
             sidecarsRequested = sidecarsRequested,
         )

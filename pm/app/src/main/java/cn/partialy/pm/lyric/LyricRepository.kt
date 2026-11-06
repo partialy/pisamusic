@@ -30,12 +30,33 @@ class LyricRepository @Inject constructor(
     }
 
     private suspend fun loadLocalLyrics(song: SongInfo): LyricContent {
+        readIndexedWordLyrics(song)?.let { return it }
+        readSiblingWordLyrics(song)?.let { return it }
         readEmbeddedLyrics(song)?.let { return it }
         readSiblingLyrics(song)?.let { return it }
         readIndexedLyrics(song)?.let { return it }
         readLegacyLocalCache(song)?.let { return it }
         fetchLocalLyricsByKeywords(song)?.let { return it }
         return LyricContent.noLyrics()
+    }
+
+    private fun readIndexedWordLyrics(song: SongInfo): LyricContent? {
+        val entry = mediaIndexDb.getWordLyricIndex(song) ?: return null
+        val parsed = LyricParser.parseBest(entry.lyric, source = entry.source)
+        return parsed.takeIf { it.hasWordTiming }
+    }
+
+    private fun readSiblingWordLyrics(song: SongInfo): LyricContent? {
+        val audio = File(song.id)
+        for ((ext, format) in listOf("krc" to LyricFormat.KRC, "yrc" to LyricFormat.YRC)) {
+            val sibling = File(audio.parentFile, "${audio.nameWithoutExtension}.$ext")
+            val raw = runCatching { sibling.takeIf(File::isFile)?.readText()?.trim().orEmpty() }.getOrDefault("")
+            val parsed = LyricParser.parseContent(RawLyric(raw, format, "sibling_$ext"))
+            if (!parsed.hasWordTiming) continue
+            mediaIndexDb.upsertWordLyric(song, raw, "sibling_$ext")
+            return parsed
+        }
+        return null
     }
 
     private fun readEmbeddedLyrics(song: SongInfo): LyricContent? {
