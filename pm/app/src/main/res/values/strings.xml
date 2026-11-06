@@ -1218,6 +1218,10 @@
     <string name="download_management_completed_tab">已完成</string>
     <string name="download_management_search_hint">搜索歌曲或歌手</string>
     <string name="download_management_edit">编辑</string>
+    <string name="download_management_repair_action">修复信息</string>
+    <string name="download_management_repair_summary">修复完成：成功 %1$d，跳过 %2$d，失败 %3$d</string>
+    <string name="download_management_repairing">正在修复歌曲信息</string>
+    <string name="download_management_metadata_warning">已下载 · %1$s</string>
     <string name="download_management_done">完成</string>
     <string name="download_management_selected_count">已选 %1$d 项</string>
     <string name="download_management_select_all">全选</string>

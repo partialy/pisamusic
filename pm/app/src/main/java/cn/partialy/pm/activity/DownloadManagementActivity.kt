@@ -9,6 +9,11 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.Gravity
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.PopupWindow
+import java.io.File
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -24,6 +29,9 @@ import cn.partialy.pm.download.task.DownloadTask
 import cn.partialy.pm.download.task.DownloadTaskRepository
 import cn.partialy.pm.download.task.DownloadTaskStatus
 import cn.partialy.pm.download.task.DownloadQueueCoordinator
+import cn.partialy.pm.download.AudioMetadataRepairer
+import cn.partialy.pm.download.AudioMetadataVerifier
+import cn.partialy.pm.ui.message.MessageType
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.PmSlotDialog
 import cn.partialy.pm.ui.download.DownloadTaskAdapter
@@ -43,6 +51,10 @@ class DownloadManagementActivity : BaseActivity() {
     @Inject
     lateinit var downloadQueueCoordinator: DownloadQueueCoordinator
 
+    @Inject
+    lateinit var audioMetadataRepairer: AudioMetadataRepairer
+
+    private var editMenuPopup: PopupWindow? = null
     private lateinit var binding: ActivityDownloadManagementBinding
     private lateinit var taskAdapter: DownloadTaskAdapter
     private var tasks: List<DownloadTask> = emptyList()
@@ -63,6 +75,7 @@ class DownloadManagementActivity : BaseActivity() {
         applyInsets()
         setupList()
         setupActions()
+        updateTabStyle()
         observeTasks()
     }
 
@@ -86,10 +99,16 @@ class DownloadManagementActivity : BaseActivity() {
     }
 
     private fun setupActions() = with(binding) {
-        backButton.setOnClickListener { finish() }
+        backButton.setOnClickListener {
+            if (taskAdapter.selectionMode) setEditing(false) else finish()
+        }
         downloadingTab.setOnClickListener { selectTab(TAB_DOWNLOADING) }
         completedTab.setOnClickListener { selectTab(TAB_COMPLETED) }
-        editButton.setOnClickListener { setEditing(!taskAdapter.selectionMode) }
+        moreButton.setOnClickListener { showEditMenu() }
+        doneButton.setOnClickListener { setEditing(false) }
+        repairAction.setOnClickListener {
+            if (taskAdapter.selection.isNotEmpty()) repairTasks(taskAdapter.selection)
+        }
         selectAllAction.setOnClickListener { taskAdapter.selectAll() }
         invertAction.setOnClickListener { taskAdapter.invertSelection() }
         deleteAction.setOnClickListener {
@@ -112,6 +131,57 @@ class DownloadManagementActivity : BaseActivity() {
         })
     }
 
+    private fun showEditMenu() {
+        editMenuPopup?.dismiss()
+        val content = layoutInflater.inflate(R.layout.layout_search_source_dropdown, null, false)
+        val container = content.findViewById<LinearLayout>(R.id.searchSourceOptionsContainer)
+        val row = layoutInflater.inflate(R.layout.item_compact_action_menu_row, container, false)
+        val color = com.google.android.material.color.MaterialColors.getColor(
+            container, com.google.android.material.R.attr.colorOnSurface,
+            ContextCompat.getColor(this, R.color.colorOnBgNormal),
+        )
+        row.findViewById<ImageView>(R.id.actionMenuItemIcon).apply {
+            setImageResource(R.drawable.ic_edit_24)
+            setColorFilter(color)
+        }
+        row.findViewById<TextView>(R.id.actionMenuItemText).apply {
+            setText(R.string.download_management_edit)
+            setTextColor(color)
+        }
+        row.setOnClickListener {
+            editMenuPopup?.dismiss()
+            setEditing(true)
+        }
+        container.addView(row)
+        editMenuPopup = PopupWindow(content, 120.dp,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT, true).apply {
+            isOutsideTouchable = true
+            elevation = 8.dp.toFloat()
+        }
+        editMenuPopup?.showAsDropDown(binding.moreButton, 0, 6.dp, Gravity.END)
+    }
+
+    private fun repairTasks(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        setEditing(false)
+        lifecycleScope.launch {
+            try {
+                val result = audioMetadataRepairer.repairSelected(ids)
+                val message = getString(R.string.download_management_repair_summary,
+                    result.success, result.skipped, result.failed)
+                PmMessage.show(
+                    this@DownloadManagementActivity,
+                    if (result.failed > 0) MessageType.WARNING else MessageType.SUCCESS,
+                    message, 2500L, null,
+                )
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                PmMessage.error(this@DownloadManagementActivity, R.string.download_management_delete_failed)
+            }
+        }
+    }
+
     private fun onTaskClick(task: DownloadTask) {
         if (task.status == DownloadTaskStatus.COMPLETED) return
         if (task.status.isActive) {
@@ -121,6 +191,15 @@ class DownloadManagementActivity : BaseActivity() {
                 .setCancelButton()
                 .setConfirmButton(getString(R.string.download_queue_cancel_action)) {
                     downloadTaskRepository.cancelTask(task.id)
+                }.show()
+        } else if (task.status == DownloadTaskStatus.FAILED &&
+            task.targetPath?.let(::File)?.let(AudioMetadataVerifier::isReadable) == true) {
+            PmMinimalDialog.Builder(this)
+                .setTitle(getString(R.string.download_management_repair_action))
+                .setMessage(getString(R.string.download_management_repair_action))
+                .setCancelButton()
+                .setConfirmButton(getString(R.string.download_management_repair_action)) {
+                    repairTasks(setOf(task.id))
                 }.show()
         } else {
             PmMinimalDialog.Builder(this)
@@ -194,26 +273,27 @@ class DownloadManagementActivity : BaseActivity() {
                 R.string.download_management_empty_downloading
             },
         )
-        binding.editButton.isEnabled = filtered.isNotEmpty() || taskAdapter.selectionMode
-        binding.editButton.alpha = if (binding.editButton.isEnabled) 1f else 0.45f
     }
 
     private fun setEditing(editing: Boolean) = with(binding) {
         taskAdapter.selectionMode = editing
         actionSurface.isVisible = editing
-        editButton.setText(if (editing) R.string.download_management_done else R.string.download_management_edit)
-        titleTextView.setText(R.string.download_management_title)
+        headerTabs.isVisible = !editing
+        selectedCountTextView.isVisible = editing
+        moreButton.isVisible = !editing
+        doneButton.isVisible = editing
+        repairAction.isVisible = editing && selectedTab == TAB_COMPLETED
+        backButton.setImageResource(if (editing) R.drawable.ic_close_24dp else R.drawable.ic_back_24)
+        selectedCountTextView.text = getString(R.string.download_management_selected_count, 0)
     }
 
     private fun onSelectionChanged(selection: Set<String>) = with(binding) {
-        if (taskAdapter.selectionMode) {
-            titleTextView.text = getString(R.string.download_management_selected_count, selection.size)
-        } else {
-            titleTextView.setText(R.string.download_management_title)
-        }
+        selectedCountTextView.text = getString(R.string.download_management_selected_count, selection.size)
         val hasSelection = selection.isNotEmpty()
         deleteAction.isEnabled = hasSelection
         deleteAction.alpha = if (hasSelection) 1f else 0.45f
+        repairAction.isEnabled = hasSelection
+        repairAction.alpha = if (hasSelection) 1f else 0.45f
     }
 
     private fun showDeleteConfirmation() {
@@ -265,6 +345,11 @@ class DownloadManagementActivity : BaseActivity() {
             (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
                 ?.hideSoftInputFromWindow(view.windowToken, 0)
         }
+    }
+
+    override fun onDestroy() {
+        editMenuPopup?.dismiss()
+        super.onDestroy()
     }
 
     override fun finish() {

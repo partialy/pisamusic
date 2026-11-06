@@ -128,7 +128,15 @@ class DownloadTaskAdapter(
                     task.progress.coerceIn(0, 100),
                 )
                 DownloadTaskStatus.PROCESSING -> getString(R.string.download_management_status_processing)
-                DownloadTaskStatus.COMPLETED -> getString(R.string.download_management_status_completed)
+                DownloadTaskStatus.COMPLETED -> when (task.metadataStatus) {
+                    cn.partialy.pm.download.MetadataWriteStatus.PENDING ->
+                        getString(R.string.download_management_repairing)
+                    cn.partialy.pm.download.MetadataWriteStatus.FAILED,
+                    cn.partialy.pm.download.MetadataWriteStatus.PARTIAL ->
+                        getString(R.string.download_management_metadata_warning,
+                            task.metadataWarning?.takeIf(String::isNotBlank) ?: "歌曲信息写入异常")
+                    else -> getString(R.string.download_management_status_completed)
+                }
                 DownloadTaskStatus.FAILED -> task.errorMessage
                     ?.takeIf(String::isNotBlank)
                     ?: getString(R.string.download_management_status_failed)
