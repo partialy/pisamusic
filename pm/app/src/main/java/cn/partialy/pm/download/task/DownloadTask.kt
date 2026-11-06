@@ -36,6 +36,8 @@ data class DownloadTask(
     val createdAt: Long,
     val updatedAt: Long,
     val completedAt: Long?,
+    val metadataStatus: cn.partialy.pm.download.MetadataWriteStatus = cn.partialy.pm.download.MetadataWriteStatus.UNKNOWN,
+    val metadataWarning: String? = null,
 )
 
 data class DownloadTaskRemovalResult(

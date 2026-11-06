@@ -4,6 +4,11 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.download.MetadataWriteResult
+import cn.partialy.pm.download.MetadataWriteStatus
+import cn.partialy.pm.download.AudioFileTransaction
+import cn.partialy.pm.utils.DownloadPathManager
+import cn.partialy.pm.utils.LocalMediaIndexDbStore
 import cn.partialy.pm.model.SongType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -144,6 +149,43 @@ class DownloadTaskRepository @Inject constructor(
         }
     }
 
+    /** 元数据状态独立于主下载状态，允许在 COMPLETED 之后更新。 */
+    fun updateMetadata(taskId: String, result: MetadataWriteResult) {
+        synchronized(stateLock) {
+            if (taskId in removingIds || taskId in removedIds) return
+            val task = find(taskId) ?: return
+            val changed = task.copy(
+                metadataStatus = result.status,
+                metadataWarning = result.warning?.take(500),
+                updatedAt = System.currentTimeMillis(),
+            )
+            _tasks.value = (_tasks.value.filterNot { it.id == taskId } + changed)
+                .sortedByDescending(DownloadTask::updatedAt)
+            persist(changed)
+        }
+    }
+
+    /** 历史失败任务的音频已存在，修复后无需重新下载。 */
+    fun recoverAsCompleted(taskId: String, targetPath: String, sidecarPaths: List<String>) {
+        synchronized(stateLock) {
+            if (taskId in removedIds || taskId in removingIds) return
+            val current = find(taskId) ?: return
+            if (current.status != DownloadTaskStatus.FAILED || !File(targetPath).isFile) return
+            val changed = current.copy(
+                status = DownloadTaskStatus.COMPLETED,
+                targetPath = targetPath,
+                sidecarPaths = sidecarPaths,
+                progress = 100,
+                errorMessage = null,
+                completedAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis(),
+            )
+            _tasks.value = (_tasks.value.filterNot { it.id == taskId } + changed)
+                .sortedByDescending(DownloadTask::updatedAt)
+            persist(changed)
+        }
+    }
+
     fun markFailed(taskId: String, errorMessage: String?) {
         update(taskId) {
             if (it.status == DownloadTaskStatus.CANCELLED) it else it.copy(
@@ -265,9 +307,27 @@ class DownloadTaskRepository @Inject constructor(
             "status IN ($placeholders)",
             active.map(DownloadTaskStatus::name).toTypedArray(),
         )
+        helper.writableDatabase.execSQL(
+            "UPDATE download_tasks SET metadata_status = 'INTERRUPTED' WHERE metadata_status = 'PENDING'",
+        )
     }
 
     private fun loadInitialTasks(): List<DownloadTask> {
+        // 包括历史下载目录，避免修改下载路径后遗漏未结束的文件事务。
+        val recoveryDirectories = linkedSetOf(File(DownloadPathManager.getDownloadPath(context)))
+        runCatching {
+            helper.readableDatabase.rawQuery(
+                "SELECT DISTINCT target_path FROM download_tasks WHERE target_path IS NOT NULL",
+                emptyArray(),
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    File(cursor.getString(0)).parentFile?.let(recoveryDirectories::add)
+                }
+            }
+        }
+        recoveryDirectories.forEach { directory ->
+            runCatching { AudioFileTransaction.recoverPending(directory) }
+        }
         recoverInterruptedTasks()
         return helper.readableDatabase.query(
             "download_tasks",
@@ -309,6 +369,13 @@ class DownloadTaskRepository @Inject constructor(
                 failed += rawPath
             }
         }
+        if (!target.exists()) {
+            runCatching {
+                LocalMediaIndexDbStore(context).removeWordLyric(
+                    SongInfo(target.absolutePath, SongType.LOCAL, task.title, task.artist, ""),
+                )
+            }
+        }
         return failed
     }
 
@@ -332,6 +399,8 @@ class DownloadTaskRepository @Inject constructor(
         put("created_at", createdAt)
         put("updated_at", updatedAt)
         put("completed_at", completedAt)
+        put("metadata_status", metadataStatus.name)
+        put("metadata_warning", metadataWarning)
     }
 
     private fun Cursor.toDownloadTask(): DownloadTask {
@@ -363,6 +432,10 @@ class DownloadTaskRepository @Inject constructor(
             createdAt = getLong(getColumnIndexOrThrow("created_at")),
             updatedAt = getLong(getColumnIndexOrThrow("updated_at")),
             completedAt = getNullableLong("completed_at"),
+            metadataStatus = runCatching {
+                MetadataWriteStatus.valueOf(getString(getColumnIndexOrThrow("metadata_status")))
+            }.getOrDefault(MetadataWriteStatus.UNKNOWN),
+            metadataWarning = getNullableString("metadata_warning"),
         )
     }
 

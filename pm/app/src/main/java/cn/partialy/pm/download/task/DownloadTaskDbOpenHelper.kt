@@ -29,7 +29,9 @@ internal class DownloadTaskDbOpenHelper(context: Context) :
                 error_message TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,
-                completed_at INTEGER
+                completed_at INTEGER,
+                metadata_status TEXT NOT NULL DEFAULT 'UNKNOWN',
+                metadata_warning TEXT
             )
             """.trimIndent(),
         )
@@ -37,10 +39,15 @@ internal class DownloadTaskDbOpenHelper(context: Context) :
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_download_tasks_status ON download_tasks(status, updated_at DESC)")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE download_tasks ADD COLUMN metadata_status TEXT NOT NULL DEFAULT 'UNKNOWN'")
+            db.execSQL("ALTER TABLE download_tasks ADD COLUMN metadata_warning TEXT")
+        }
+    }
 
     companion object {
         private const val DB_NAME = "pm_download_tasks.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
     }
 }

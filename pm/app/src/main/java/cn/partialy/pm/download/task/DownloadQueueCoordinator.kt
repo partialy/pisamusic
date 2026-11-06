@@ -205,8 +205,16 @@ class DownloadQueueCoordinator @Inject constructor(
                         }
                         override fun onProcessing(file: File) = repository.markProcessing(id, file.absolutePath)
                         override fun onProducedFiles(file: File, sidecarPaths: List<String>) = repository.recordProducedFiles(id, file.absolutePath, sidecarPaths)
-                        override fun onSuccess(file: File, lyricResult: LyricSidecarWriteResult) {
+                        override fun onSuccess(file: File, lyricResult: LyricSidecarWriteResult, metadataResult: MetadataWriteResult) {
+                            lyrics.originalWordAsset?.let { asset ->
+                                runCatching {
+                                    val song = request.song.copy(id = file.absolutePath, type = SongType.LOCAL)
+                                    cn.partialy.pm.utils.LocalMediaIndexDbStore(context)
+                                        .upsertWordLyric(song, asset.text, "download_${asset.extension}")
+                                }.onFailure { Log.w("DownloadQueue", "word lyric index failed", it) }
+                            }
                             repository.markCompleted(id, file.absolutePath, lyricResult.savedPaths)
+                            repository.updateMetadata(id, metadataResult)
                             finished.complete(Unit)
                         }
                         override fun onCancelled() { repository.markCancelled(id); finished.complete(Unit) }

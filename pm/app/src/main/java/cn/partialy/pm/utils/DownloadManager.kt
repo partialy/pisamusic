@@ -8,6 +8,9 @@ import cn.partialy.pm.R
 import cn.partialy.pm.download.LyricSidecarWriteResult
 import cn.partialy.pm.download.LyricSidecarWriter
 import cn.partialy.pm.download.ResolvedDownloadLyrics
+import cn.partialy.pm.download.MetadataWriteResult
+import cn.partialy.pm.download.MetadataWriteStatus
+import cn.partialy.pm.download.LyricSidecarStatus
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.utils.JavaUtils.JDownloadManager
@@ -28,7 +31,7 @@ class DownloadManager private constructor(private val context: Context) {
         fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long)
         fun onProcessing(file: File) = Unit
         fun onProducedFiles(file: File, sidecarPaths: List<String>) = Unit
-        fun onSuccess(file: File, lyricResult: LyricSidecarWriteResult)
+        fun onSuccess(file: File, lyricResult: LyricSidecarWriteResult, metadataResult: MetadataWriteResult)
         fun onCancelled() = Unit
         fun onFailure(e: Exception)
     }
@@ -86,7 +89,7 @@ class DownloadManager private constructor(private val context: Context) {
                 }
             }
 
-            override fun onSuccess(filePath: String) {
+            override fun onSuccess(filePath: String, metadataStatus: String?, metadataWarning: String?) {
                 val file = File(filePath)
                 if (cancelledTaskIds.contains(taskId)) {
                     finishCancelled(taskId, callback)
@@ -107,7 +110,14 @@ class DownloadManager private constructor(private val context: Context) {
                         }
                         // 确保最终进度为100%
                         callback.onProgress(100, file.length(), file.length())
-                        callback.onSuccess(file, lyricResult)
+                        val initial = MetadataWriteResult.fromRaw(metadataStatus, metadataWarning)
+                        val outcome = if (lyricResult.status == LyricSidecarStatus.FAILED) {
+                            MetadataWriteResult(
+                                if (initial.status == MetadataWriteStatus.SUCCESS) MetadataWriteStatus.PARTIAL else MetadataWriteStatus.FAILED,
+                                listOfNotNull(initial.warning, "独立歌词文件保存失败").joinToString("；"),
+                            )
+                        } else initial
+                        callback.onSuccess(file, lyricResult, outcome)
                     }
                 }
             }

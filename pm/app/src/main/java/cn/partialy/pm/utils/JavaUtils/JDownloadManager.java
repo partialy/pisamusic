@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 
 import cn.partialy.pm.R;
 import cn.partialy.pm.utils.AudioMetadataEmbedder;
+import cn.partialy.pm.download.AudioMetadataVerifier;
 import cn.partialy.pm.utils.DownloadPathManager;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
@@ -35,7 +36,7 @@ public class JDownloadManager {
 
     public interface DownloadCallback {
         void onProgress(int progress, long downloadedBytes, long totalBytes);
-        void onSuccess(String filePath);
+        void onSuccess(String filePath, String metadataStatus, String metadataWarning);
         void onError(String error);
         void onCancelled();
     }
@@ -117,6 +118,7 @@ public class JDownloadManager {
             DownloadCallback callback
     ) {
         File partialFile = new File(downloadDir, fileName + ".part");
+        File stagedFile = new File(downloadDir, fileName + ".stage." + getFileExtension(fileName));
         boolean fileAlreadyExisted = file.exists();
         try {
             if (isCancelled(taskId)) {
@@ -128,7 +130,7 @@ public class JDownloadManager {
             }
             if (file.exists()) {
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    callback.onSuccess(file.getPath());
+                    callback.onSuccess(file.getPath(), "SKIPPED", null);
                 });
                 return;
             }
@@ -183,45 +185,65 @@ public class JDownloadManager {
             if (isCancelled(taskId)) {
                 throw new DownloadCancelledException();
             }
-            Files.move(partialFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            if (!embedMetadata || !isSupportedFormat(getFileExtension(file.getName()).toLowerCase())) {
-                new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath()));
-                return;
-            }
-
-            byte[] cover = null;
-            if (coverUrl != null && !coverUrl.isEmpty()) {
-                try {
-                    Request coverRequest = new Request.Builder().url(coverUrl).build();
-                    Call coverCall = client.newCall(coverRequest);
-                    activeCalls.put(taskId, coverCall);
-                    try (Response coverResponse = coverCall.execute()) {
-                        if (coverResponse.isSuccessful() && coverResponse.body() != null) {
-                            cover = coverResponse.body().bytes();
+            // 用真实音频扩展名命名临时文件，供 jaudiotagger 按格式识别。
+            Files.move(partialFile.toPath(), stagedFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            String metadataStatus = "SKIPPED";
+            String metadataWarning = null;
+            if (embedMetadata && isSupportedFormat(getFileExtension(file.getName()).toLowerCase())) {
+                if (!AudioMetadataVerifier.isReadable(stagedFile)) {
+                    metadataWarning = "此格式暂不支持内嵌标签";
+                } else {
+                byte[] cover = null;
+                if (coverUrl != null && !coverUrl.isEmpty()) {
+                    try {
+                        Request coverRequest = new Request.Builder().url(coverUrl).build();
+                        Call coverCall = client.newCall(coverRequest);
+                        activeCalls.put(taskId, coverCall);
+                        try (Response coverResponse = coverCall.execute()) {
+                            if (coverResponse.isSuccessful() && coverResponse.body() != null) {
+                                cover = coverResponse.body().bytes();
+                            }
+                        } finally {
+                            activeCalls.remove(taskId, coverCall);
                         }
-                    } finally {
-                        activeCalls.remove(taskId, coverCall);
+                    } catch (Exception ignored) {
+                        // 封面网络失败不能让音频下载失败。
                     }
-                } catch (Exception ignored) {
+                }
+                if (isCancelled(taskId)) throw new DownloadCancelledException();
+                boolean coverMissing = coverUrl != null && !coverUrl.isEmpty() && (cover == null || cover.length == 0);
+                try {
+                    if ((title == null || title.isBlank()) && (artist == null || artist.isBlank()) &&
+                        (album == null || album.isBlank()) && (lyric == null || lyric.isBlank()) &&
+                        (cover == null || cover.length == 0)) {
+                        metadataStatus = coverMissing ? "PARTIAL" : "SKIPPED";
+                        metadataWarning = coverMissing ? "封面获取失败" : null;
+                    } else {
+                    AudioMetadataEmbedder.embed(stagedFile, title, artist, album, lyric, cover);
+                    if (!AudioMetadataVerifier.verify(stagedFile, title, artist, album, lyric, cover != null && cover.length > 0)) {
+                        throw new IllegalStateException("元数据写入后校验失败");
+                    }
+                    metadataStatus = coverMissing ? "PARTIAL" : "SUCCESS";
+                    metadataWarning = coverMissing ? "封面获取失败" : null;
+                    }
+                } catch (Exception error) {
+                    // 音频本身仍有效时降级为“已下载，附加信息失败”。
+                    if (!AudioMetadataVerifier.isReadable(stagedFile)) {
+                        throw new IllegalStateException("标签处理后音频不可读取", error);
+                    }
+                    metadataStatus = "FAILED";
+                    metadataWarning = "歌曲标签处理失败：" + (error.getMessage() == null ? "未知错误" : error.getMessage());
+                }
                 }
             }
-
-            if (isCancelled(taskId)) {
-                throw new DownloadCancelledException();
-            }
-            try {
-                AudioMetadataEmbedder.embed(file, title, artist, album, lyric, cover);
-                new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath()));
-            } catch (Exception error) {
-                new Handler(Looper.getMainLooper()).post(() -> callback.onError(context.getString(
-                        R.string.download_metadata_write_failed,
-                        error.getMessage()
-                )));
-            }
+            if (isCancelled(taskId)) throw new DownloadCancelledException();
+            Files.move(stagedFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            final String outcome = metadataStatus;
+            final String warning = metadataWarning;
+            new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath(), outcome, warning));
         } catch (Exception e) {
-            if (partialFile.exists()) {
-                partialFile.delete();
-            }
+            if (partialFile.exists()) partialFile.delete();
+            if (stagedFile.exists()) stagedFile.delete();
             if (isCancelled(taskId) || e instanceof DownloadCancelledException) {
                 if (!fileAlreadyExisted && file.exists()) {
                     file.delete();

@@ -27,6 +27,8 @@ object AudioMetadataEmbedder {
         lyric: String?,
         coverBytes: ByteArray?,
     ) {
+        if (title.isBlank() && artist.isBlank() && album.isNullOrBlank() &&
+            lyric.isNullOrBlank() && (coverBytes == null || coverBytes.isEmpty())) return
         val ext = file.extension.lowercase()
         val audioFile = AudioFileIO.read(file)
         val tag = audioFile.tagOrCreateDefault
