@@ -67,6 +67,7 @@ import cn.partialy.pm.ui.dialog.SongMoreMenu
 import cn.partialy.pm.ui.dialog.SongMoreMenuDependencies
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.showDownloadQualityPicker
+import cn.partialy.pm.ui.player.PlayerPagesController
 import cn.partialy.pm.ui.player.LyricRow
 import cn.partialy.pm.ui.player.LyricSettingsSheet
 import cn.partialy.pm.ui.player.LyricsAdapter
@@ -115,6 +116,7 @@ class PlayerActivity : BaseDownloadActivity() {
     @Inject lateinit var audioEffectsManager: AudioEffectsManager
 
     private lateinit var binding: ActivityPlayerBinding
+    private lateinit var pages: PlayerPagesController
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<FrameLayout>
     private var listenTogetherDialog: BottomSheetDialog? = null
     private var listenTogetherSheetBinding: LayoutListenTogetherBottomSheetBinding? = null
@@ -128,6 +130,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private var lastUserLyricScrollAtMs: Long = 0L
     private var lyricScrollState: Int = RecyclerView.SCROLL_STATE_IDLE
     private var lyricCenterSeekIndex: Int = -1
+    private var playerVisible = false
     private var karaokeSyncJob: Job? = null
     private var lyricLoadJob: Job? = null
     private lateinit var playbackButtonStateRenderer: PlaybackButtonStateRenderer
@@ -138,7 +141,12 @@ class PlayerActivity : BaseDownloadActivity() {
     private var allPlaylistSongs: List<SongInfo> = emptyList()
     /** 自动跟唱等代码触发的 [smoothScrollLyricsToCenter] 期间为 true，避免误显中线指示器。 */
     private var lyricsProgrammaticScrollInProgress: Boolean = false
-    private val lyricSeekButtonHideRunnable = Runnable { updateLyricCenterSeekUi() }
+    private val lyricSeekButtonHideRunnable = Runnable {
+        updateLyricCenterSeekUi()
+        if (SystemClock.elapsedRealtime() - lastUserLyricScrollAtMs >= 3_000 && lyricCurrentIndex >= 0) {
+            smoothScrollLyricsToCenter(lyricCurrentIndex)
+        }
+    }
     private val listenTogetherScanLauncher = registerForActivityResult(ScanContract()) { result ->
         val contents = result.contents
         if (contents.isNullOrBlank()) {
@@ -154,11 +162,14 @@ class PlayerActivity : BaseDownloadActivity() {
         try {
             binding = ActivityPlayerBinding.inflate(layoutInflater)
             setContentView(binding.root)
+            pages = PlayerPagesController(binding, savedInstanceState?.getInt("player_page"))
             playerBackgroundController = PlayerBackgroundController(
                 legacyBackground = binding.blurredBgImageView,
                 flowingBackground = binding.flowingCoverBackgroundView,
                 scope = lifecycleScope,
+                scrim = binding.bgScrim,
             )
+            playerBackgroundController.setConfig(SettingsPrefs.getPlayerFlowBackgroundConfig(this))
             playerBackgroundController.setDynamicEnabled(
                 SettingsPrefs.isDynamicLyricBackgroundEnabled(this),
             )
@@ -229,6 +240,7 @@ class PlayerActivity : BaseDownloadActivity() {
     override fun onResume() {
         super.onResume()
         if (::playerBackgroundController.isInitialized) {
+            playerBackgroundController.setConfig(SettingsPrefs.getPlayerFlowBackgroundConfig(this))
             playerBackgroundController.setDynamicEnabled(
                 SettingsPrefs.isDynamicLyricBackgroundEnabled(this),
             )
@@ -241,11 +253,17 @@ class PlayerActivity : BaseDownloadActivity() {
 
     override fun onStart() {
         super.onStart()
+        playerVisible = true
         if (::playerBackgroundController.isInitialized) playerBackgroundController.onStart()
+        if (::pages.isInitialized) pages.setStarted(true)
+        if (::lyricsAdapter.isInitialized) startKaraokeSync()
     }
 
     override fun onStop() {
+        playerVisible = false
         if (::playerBackgroundController.isInitialized) playerBackgroundController.onStop()
+        if (::pages.isInitialized) pages.setStarted(false)
+        stopKaraokeSync()
         super.onStop()
     }
 
@@ -441,6 +459,8 @@ class PlayerActivity : BaseDownloadActivity() {
             ) { playbackState, isPlaying -> playbackState to isPlaying }
                 .collect { (playbackState, isPlaying) ->
                     playbackButtonStateRenderer.render(playbackState, isPlaying)
+                    pages.setPlayback(isPlaying)
+                    updateCompactLyrics(currentPlaybackPositionMs())
                 }
         }
 
@@ -452,7 +472,8 @@ class PlayerActivity : BaseDownloadActivity() {
                 if (song == null) {
                     (binding.playlistBottomSheet.playlistRecyclerView.adapter as? PlaylistAdapter)
                         ?.setCurrentPlayingSong(null)
-                    SongSourceTagBinder.hide(binding.songSourceTagTextView)
+                    pages.bindSong(null)
+                    playerBackgroundController.bind(songKey = "empty", model = null)
                     submitLyrics(LyricContent.noLyrics())
                     return@collectLatest
                 }
@@ -467,15 +488,10 @@ class PlayerActivity : BaseDownloadActivity() {
 
                 (binding.playlistBottomSheet.playlistRecyclerView.adapter as? PlaylistAdapter)
                     ?.setCurrentPlayingSong(song)
-                binding.songTitleTextView.text = song.name
-                binding.artistTextView.text = song.artist
-                SongSourceTagBinder.bind(
-                    binding.songSourceTagTextView,
-                    song.type,
-                    SongSourceTagBinder.Surface.ON_DARK,
-                )
                 syncLoveButton(song)
                 applyLocalMediaFallbacks(song)
+                if (musicController.currentSong.value?.let(::songIdentityKey) != lyricSongKey) return@collectLatest
+                pages.bindSong(song)
                 playerBackgroundController.bind(
                     songKey = songIdentityKey(song),
                     model = SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_XLARGE),
@@ -492,7 +508,6 @@ class PlayerActivity : BaseDownloadActivity() {
         lifecycleScope.launch {
             musicController.currentPosition.collect { position ->
                 binding.currentTimeTextView.text = formatTime(position.toInt())
-                updateLyricTime(position)
             }
         }
 
@@ -561,6 +576,7 @@ class PlayerActivity : BaseDownloadActivity() {
 
     private fun renderListenTogetherChip(state: ListenTogetherState) {
         val room = state.room
+        pages.setTogetherActive(room != null)
         if (room == null) {
             binding.listenTogetherChip.visibility = View.GONE
             applyListenTogetherLyricSpacing()
@@ -1018,29 +1034,29 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun setupLyricsList() {
         lyricsAdapter = LyricsAdapter()
         lyricsAdapter.applyStyleFromPrefs(this)
-        binding.lyricCenterSeekOverlay.setOnClickListener {
+        pages.lyrics.lyricCenterSeekOverlay.setOnClickListener {
             val idx = lyricCenterSeekIndex
             val rows = lyricRows
             if (idx < 0 || idx >= rows.size) return@setOnClickListener
-            binding.lyricsRecyclerView.removeCallbacks(lyricSeekButtonHideRunnable)
-            binding.lyricCenterSeekOverlay.visibility = View.GONE
+            pages.lyrics.lyricsRecyclerView.removeCallbacks(lyricSeekButtonHideRunnable)
+            pages.lyrics.lyricCenterSeekOverlay.visibility = View.GONE
             lastUserLyricScrollAtMs = SystemClock.elapsedRealtime()
             lifecycleScope.launch {
-                binding.karaokeLyricsView.resumeAutoScroll()
+                pages.lyrics.karaokeLyricsView.resumeAutoScroll()
                 listenTogetherManager.requestSeek(rows[idx].startTime)
             }
         }
-        binding.karaokeLyricsView.onBrowseLineChanged = { idx ->
+        pages.lyrics.karaokeLyricsView.onBrowseLineChanged = { idx ->
             lyricCenterSeekIndex = idx
             updateKaraokeCenterSeekUi()
         }
-        binding.karaokeLyricsView.onBrowseEnded = {
-            if (binding.karaokeLyricsView.visibility == View.VISIBLE) {
-                binding.lyricCenterSeekOverlay.visibility = View.GONE
+        pages.lyrics.karaokeLyricsView.onBrowseEnded = {
+            if (pages.lyrics.karaokeLyricsView.visibility == View.VISIBLE) {
+                pages.lyrics.lyricCenterSeekOverlay.visibility = View.GONE
                 lyricCenterSeekIndex = -1
             }
         }
-        binding.lyricsRecyclerView.apply {
+        pages.lyrics.lyricsRecyclerView.apply {
             layoutManager = LinearLayoutManager(this@PlayerActivity)
             adapter = lyricsAdapter
             itemAnimator = null
@@ -1072,7 +1088,7 @@ class PlayerActivity : BaseDownloadActivity() {
 
     /** 与 [smoothScrollLyricsToCenter] 使用同一竖直中线，取距中线最近的一行。 */
     private fun findLyricIndexAtCenter(): Int {
-        val rv = binding.lyricsRecyclerView
+        val rv = pages.lyrics.lyricsRecyclerView
         val lm = rv.layoutManager as? LinearLayoutManager ?: return -1
         if (rv.height <= 0) return -1
         val parentCenter =
@@ -1095,10 +1111,10 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun updateLyricCenterSeekUi() {
-        val rv = binding.lyricsRecyclerView
+        val rv = pages.lyrics.lyricsRecyclerView
         rv.removeCallbacks(lyricSeekButtonHideRunnable)
-        val overlay = binding.lyricCenterSeekOverlay
-        if (binding.karaokeLyricsView.visibility == View.VISIBLE) {
+        val overlay = pages.lyrics.lyricCenterSeekOverlay
+        if (pages.lyrics.karaokeLyricsView.visibility == View.VISIBLE) {
             updateKaraokeCenterSeekUi()
             return
         }
@@ -1122,7 +1138,7 @@ class PlayerActivity : BaseDownloadActivity() {
         val visible = show && lyricCenterSeekIndex >= 0
         overlay.visibility = if (visible) View.VISIBLE else View.GONE
         if (visible && lyricCenterSeekIndex < rows.size) {
-            binding.lyricCenterSeekTimeText.text =
+            pages.lyrics.lyricCenterSeekTimeText.text =
                 formatTime(rows[lyricCenterSeekIndex].startTime.toInt())
         }
         if (show && lyricScrollState == RecyclerView.SCROLL_STATE_IDLE && inBrowseWindow) {
@@ -1132,21 +1148,21 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun updateKaraokeCenterSeekUi() {
-        val overlay = binding.lyricCenterSeekOverlay
+        val overlay = pages.lyrics.lyricCenterSeekOverlay
         val rows = lyricRows
-        val idx = binding.karaokeLyricsView.browsedLineIndex
+        val idx = pages.lyrics.karaokeLyricsView.browsedLineIndex
         lyricCenterSeekIndex = idx
-        if (binding.karaokeLyricsView.visibility != View.VISIBLE || idx !in rows.indices) {
+        if (pages.lyrics.karaokeLyricsView.visibility != View.VISIBLE || idx !in rows.indices) {
             overlay.visibility = View.GONE
             return
         }
-        binding.lyricCenterSeekTimeText.text = formatTime(rows[idx].startTime.toInt())
+        pages.lyrics.lyricCenterSeekTimeText.text = formatTime(rows[idx].startTime.toInt())
         overlay.visibility = View.VISIBLE
     }
 
     /** 上下各约为列表可视高度一半，首尾句可滚到与当前高亮相同的竖直中线位置。 */
     private fun applyLyricsRecyclerVerticalPadding() {
-        val rv = binding.lyricsRecyclerView
+        val rv = pages.lyrics.lyricsRecyclerView
         val h = rv.height
         if (h <= 0) return
         val bottomPad = h / 2
@@ -1162,12 +1178,12 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun applyListenTogetherLyricSpacing() {
-        binding.lyricsRecyclerView.post { applyLyricsRecyclerVerticalPadding() }
+        pages.lyrics.lyricsRecyclerView.post { applyLyricsRecyclerVerticalPadding() }
         applyKaraokeListenTogetherPadding()
     }
 
     private fun applyKaraokeListenTogetherPadding() {
-        val view = binding.karaokeLyricsView
+        val view = pages.lyrics.karaokeLyricsView
         if (karaokeBasePaddingTop < 0) {
             karaokeBasePaddingTop = view.paddingTop
             karaokeBasePaddingBottom = view.paddingBottom
@@ -1271,20 +1287,23 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun submitLyrics(content: LyricContent) {
+        pages.lyrics.karaokeLyricsView.resetContent()
         lyricContent = content
         lyricRows = content.displayLines
         lyricCurrentIndex = if (lyricRows.isEmpty()) -1 else 0
         applyLyricDisplayMode()
+        updateCompactLyrics(currentPlaybackPositionMs())
         lyricsAdapter.submitList(lyricRows) {
             lyricsAdapter.setCurrentIndex(lyricCurrentIndex)
             if (lyricCurrentIndex >= 0) {
-                binding.lyricsRecyclerView.post { smoothScrollLyricsToCenter(lyricCurrentIndex) }
+                pages.lyrics.lyricsRecyclerView.post { smoothScrollLyricsToCenter(lyricCurrentIndex) }
             }
-            binding.lyricsRecyclerView.post { updateLyricCenterSeekUi() }
+            pages.lyrics.lyricsRecyclerView.post { updateLyricCenterSeekUi() }
         }
     }
 
     private fun updateLyricTime(currentTime: Long) {
+        updateCompactLyrics(currentTime)
         val rows = lyricRows
         if (rows.isEmpty()) return
         val current = LyricParser.findCurrentLine(rows, currentTime) ?: return
@@ -1294,14 +1313,14 @@ class PlayerActivity : BaseDownloadActivity() {
         lyricCurrentIndex = idx
         lyricsAdapter.setCurrentIndex(idx)
         val sinceUser = SystemClock.elapsedRealtime() - lastUserLyricScrollAtMs
-        if (sinceUser >= 3_000 && binding.karaokeLyricsView.visibility != View.VISIBLE) {
+        if (sinceUser >= 3_000 && pages.lyrics.karaokeLyricsView.visibility != View.VISIBLE) {
             smoothScrollLyricsToCenter(idx)
         }
     }
 
     private fun smoothScrollLyricsToCenter(position: Int) {
-        val lm = binding.lyricsRecyclerView.layoutManager as? LinearLayoutManager ?: return
-        if (binding.lyricsRecyclerView.height <= 0) return
+        val lm = pages.lyrics.lyricsRecyclerView.layoutManager as? LinearLayoutManager ?: return
+        if (pages.lyrics.lyricsRecyclerView.height <= 0) return
         val scroller = object : LinearSmoothScroller(this) {
             override fun getVerticalSnapPreference(): Int = SNAP_TO_ANY
 
@@ -1314,8 +1333,8 @@ class PlayerActivity : BaseDownloadActivity() {
 
             override fun calculateDyToMakeVisible(view: View, snapPreference: Int): Int {
                 val parentCenter =
-                    (binding.lyricsRecyclerView.paddingTop +
-                        (binding.lyricsRecyclerView.height - binding.lyricsRecyclerView.paddingTop - binding.lyricsRecyclerView.paddingBottom) / 2)
+                    (pages.lyrics.lyricsRecyclerView.paddingTop +
+                        (pages.lyrics.lyricsRecyclerView.height - pages.lyrics.lyricsRecyclerView.paddingTop - pages.lyrics.lyricsRecyclerView.paddingBottom) / 2)
                 val childCenter = (view.top + view.bottom) / 2
                 // dy>0 表示内容上移（向下滚动），dy<0 表示内容下移（向上滚动）
                 return parentCenter - childCenter
@@ -1328,24 +1347,36 @@ class PlayerActivity : BaseDownloadActivity() {
 
     private fun applyLyricDisplayMode() {
         val useKaraoke = LyricDisplayPrefs.isUseWordLyricEnabled(this) && lyricContent.hasWordTiming
-        binding.karaokeLyricsView.visibility = if (useKaraoke) View.VISIBLE else View.GONE
-        binding.lyricsRecyclerView.visibility = if (useKaraoke) View.GONE else View.VISIBLE
+        pages.lyrics.karaokeLyricsView.visibility = if (useKaraoke) View.VISIBLE else View.GONE
+        pages.lyrics.lyricsRecyclerView.visibility = if (useKaraoke) View.GONE else View.VISIBLE
         applyListenTogetherLyricSpacing()
         if (useKaraoke) {
-            binding.lyricCenterSeekOverlay.visibility = View.GONE
+            pages.lyrics.lyricCenterSeekOverlay.visibility = View.GONE
             updateKaraokeLyricsView(currentPlaybackPositionMs())
             startKaraokeSync()
         } else {
-            binding.karaokeLyricsView.resumeAutoScroll()
-            stopKaraokeSync()
+            pages.lyrics.karaokeLyricsView.resumeAutoScroll()
+            startKaraokeSync()
         }
     }
 
+    private fun updateCompactLyrics(positionMs: Long) {
+        pages.cover.compactLyrics.bind(
+            lines = lyricRows,
+            currentIndex = cn.partialy.pm.ui.player.CompactLyricRules.currentIndex(lyricRows, positionMs),
+            positionMs = positionMs,
+            isPlaying = musicController.isPlaying.value,
+            style = LyricDisplayPrefs.readStyle(this),
+            useWordTiming = LyricDisplayPrefs.isUseWordLyricEnabled(this),
+        )
+    }
+
     private fun startKaraokeSync() {
-        if (karaokeSyncJob?.isActive == true) return
+        if (!playerVisible || karaokeSyncJob?.isActive == true) return
         karaokeSyncJob = lifecycleScope.launch {
             while (isActive) {
-                updateKaraokeLyricsView(currentPlaybackPositionMs())
+                val position = currentPlaybackPositionMs()
+                updateLyricTime(position)
                 delay(KARAOKE_SYNC_INTERVAL_MS)
             }
         }
@@ -1357,7 +1388,7 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun updateKaraokeLyricsView(positionMs: Long, index: Int? = null) {
-        if (binding.karaokeLyricsView.visibility != View.VISIBLE) return
+        if (pages.lyrics.karaokeLyricsView.visibility != View.VISIBLE) return
         val current = if (index != null) {
             LyricParser.findCurrentLine(lyricRows, positionMs)?.takeIf { it.index == index }
         } else {
@@ -1367,7 +1398,7 @@ class PlayerActivity : BaseDownloadActivity() {
             lyricCurrentIndex = current.index
             lyricsAdapter.setCurrentIndex(current.index)
         }
-        binding.karaokeLyricsView.bind(
+        pages.lyrics.karaokeLyricsView.bind(
             lines = lyricRows,
             currentIndex = current.index,
             positionMs = positionMs,
@@ -1379,12 +1410,18 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun currentPlaybackPositionMs(): Long =
         musicController.exoPlayer?.currentPosition ?: musicController.currentPosition.value
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        if (::pages.isInitialized) outState.putInt("player_page", pages.currentPage)
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onDestroy() {
         lyricLoadJob?.cancel()
         lyricLoadJob = null
         if (::playbackButtonStateRenderer.isInitialized) playbackButtonStateRenderer.release()
         stopKaraokeSync()
         if (::playerBackgroundController.isInitialized) playerBackgroundController.release()
+        if (::pages.isInitialized) pages.release()
         super.onDestroy()
     }
 

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+            <LinearLayout
+        android:id="@+id/headerSongInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical">
+
+                <TextView
+        android:id="@+id/songTitleTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="@string/song_name"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="8dp">
+
+                    <TextView
+        android:id="@+id/artistTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:maxLines="1"
+        android:text="@string/singer"
+        android:textColor="#B0B0B0"
+        android:textSize="13sp"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintEnd_toStartOf="@id/songSourceTagTextView"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintHorizontal_chainStyle="packed"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+        android:id="@+id/songSourceTagTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="3dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/artistTextView"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/artistTextView"
+        app:layout_constraintTop_toTopOf="@id/artistTextView" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </LinearLayout>
+
+
+    <cn.partialy.pm.ui.player.LyricsFadeLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+            <cn.partialy.pm.ui.player.PlayerLyricsRecyclerView
+        android:id="@+id/lyricsRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingHorizontal="36dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never" />
+
+            <cn.partialy.pm.ui.player.KaraokeLyricsView
+        android:id="@+id/karaokeLyricsView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingHorizontal="72dp"
+        android:paddingVertical="16dp"
+        android:visibility="gone" />
+
+            <LinearLayout
+        android:id="@+id/lyricCenterSeekOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginHorizontal="8dp"
+        android:background="@drawable/bg_lyric_center_seek_overlay"
+        android:clickable="true"
+        android:contentDescription="@string/lyric_seek_from_line"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="4dp"
+        android:visibility="gone">
+
+                <TextView
+        android:id="@+id/lyricCenterSeekTimeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textColor="#CCFFFFFF"
+        android:layout_marginStart="8dp"
+        android:textSize="11sp" />
+
+                <Space
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="match_parent" />
+
+                <ImageButton
+        android:id="@+id/lyricCenterSeekButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@android:color/transparent"
+        android:clickable="false"
+        android:contentDescription="@null"
+        android:focusable="false"
+        android:padding="8dp"
+        android:src="@drawable/ic_play_24"
+        app:tint="#CCFFFFFF" />
+            </LinearLayout>
+
+
+    </cn.partialy.pm.ui.player.LyricsFadeLayout>
+</LinearLayout>
+

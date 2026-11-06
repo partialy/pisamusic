@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="ShapeAppearance.Pm.PlayerCover" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+    <string name="player_show_full_lyrics">查看完整歌词</string>
+    <string name="player_page_cover_description">封面，第 1 页，共 2 页</string>
+    <string name="player_page_lyrics_description">歌词，第 2 页，共 2 页</string>
+</resources>

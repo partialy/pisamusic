@@ -44,6 +44,8 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private var velocityTracker: VelocityTracker? = null
     private var lastTouchY = 0f
     private var touchDownY = 0f
+    private var touchDownX = 0f
+    private var gestureDirection = PlayerSwipeDirectionPolicy.Direction.UNDECIDED
     private var isDragging = false
     private var browseCenterPosition = 0f
     private var browseLineIndex = -1
@@ -60,6 +62,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private var anchorPositionMs: Long = 0L
     private var anchorUptimeMs: Long = 0L
     private var isPlaying: Boolean = false
+    private var renderingActive = true
     private var positionMs: Long = 0L
 
     private var prevCurrentIndex: Int = -1
@@ -81,6 +84,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
     init {
         isClickable = true
         frameCallback = Choreographer.FrameCallback { frameTimeNanos ->
+            if (!renderingActive || !isShown || windowVisibility != VISIBLE) return@FrameCallback
             val frameUptimeMs = frameTimeNanos / 1_000_000L
             var needNextFrame = false
 
@@ -134,8 +138,27 @@ class KaraokeLyricsView @JvmOverloads constructor(
         }
     }
 
+    /** 保留浏览状态与三秒恢复计时，仅暂停屏幕帧调度。 */
+    fun setRenderingActive(active: Boolean) {
+        renderingActive = active
+        choreographer.removeFrameCallback(frameCallback)
+        if (active && isShown && windowVisibility == VISIBLE) {
+            anchorUptimeMs = SystemClock.uptimeMillis()
+            choreographer.postFrameCallback(frameCallback)
+        }
+    }
+
     val browsedLineIndex: Int
         get() = if (isBrowsing && !isAutoReturning) browseLineIndex else -1
+
+    /** 更换歌词数据前清理上一首的行号与位移动画，不继承跨歌曲过渡。 */
+    fun resetContent() {
+        stopAnimations()
+        lines = emptyList()
+        currentIndex = -1
+        prevCurrentIndex = -1
+        invalidate()
+    }
 
     fun resumeAutoScroll() {
         finishBrowsing(notify = true)
@@ -188,11 +211,11 @@ class KaraokeLyricsView @JvmOverloads constructor(
             return
         }
 
-        if ((isPlaying && !wasPlaying) ||
+        if (renderingActive && ((isPlaying && !wasPlaying) ||
             lineAnimProgress < 1f ||
             scaleAnimProgress < 1f ||
             !scroller.isFinished ||
-            isAutoReturning
+            isAutoReturning)
         ) {
             choreographer.removeFrameCallback(frameCallback)
             choreographer.postFrameCallback(frameCallback)
@@ -220,21 +243,33 @@ class KaraokeLyricsView @JvmOverloads constructor(
         if (lines.isEmpty()) return super.onTouchEvent(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                parent?.requestDisallowInterceptTouchEvent(true)
+                parent?.requestDisallowInterceptTouchEvent(false)
+                gestureDirection = PlayerSwipeDirectionPolicy.Direction.UNDECIDED
+                touchDownX = event.x
+                recycleVelocityTracker()
                 scroller.forceFinished(true)
                 velocityTracker = VelocityTracker.obtain().also { it.addMovement(event) }
                 lastTouchY = event.y
                 touchDownY = event.y
                 isDragging = false
                 isAutoReturning = false
-                beginBrowsing()
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
                 velocityTracker?.addMovement(event)
                 val dy = event.y - lastTouchY
-                if (!isDragging && abs(event.y - touchDownY) > touchSlop) {
+                gestureDirection = PlayerSwipeDirectionPolicy.resolve(
+                    event.x - touchDownX, event.y - touchDownY, touchSlop.toFloat(), gestureDirection,
+                )
+                if (gestureDirection == PlayerSwipeDirectionPolicy.Direction.HORIZONTAL) {
+                    parent?.requestDisallowInterceptTouchEvent(false)
+                    recycleVelocityTracker()
+                    return true
+                }
+                if (!isDragging && gestureDirection == PlayerSwipeDirectionPolicy.Direction.VERTICAL) {
+                    parent?.requestDisallowInterceptTouchEvent(true)
                     isDragging = true
+                    beginBrowsing()
                 }
                 if (isDragging) {
                     val stride = rowStride().coerceAtLeast(1f)
@@ -253,9 +288,15 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 val velocityY = velocityTracker?.yVelocity ?: 0f
                 recycleVelocityTracker()
                 parent?.requestDisallowInterceptTouchEvent(false)
-                if (!isDragging) performClick()
+                val direction = gestureDirection
+                gestureDirection = PlayerSwipeDirectionPolicy.Direction.UNDECIDED
+                if (direction == PlayerSwipeDirectionPolicy.Direction.HORIZONTAL) return true
+                if (!isDragging) {
+                    beginBrowsing()
+                    performClick()
+                }
                 isDragging = false
-                if (abs(velocityY) >= minimumFlingVelocity) {
+                if (direction == PlayerSwipeDirectionPolicy.Direction.VERTICAL && abs(velocityY) >= minimumFlingVelocity) {
                     startBrowseFling(velocityY)
                 } else {
                     snapBrowseCenter()
@@ -263,12 +304,12 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 resetBrowseTimeout()
                 return true
             }
-            MotionEvent.ACTION_CANCEL -> {
+            MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
+                gestureDirection = PlayerSwipeDirectionPolicy.Direction.HORIZONTAL
                 recycleVelocityTracker()
                 parent?.requestDisallowInterceptTouchEvent(false)
                 isDragging = false
-                snapBrowseCenter()
-                resetBrowseTimeout()
+                if (isBrowsing) resetBrowseTimeout()
                 return true
             }
         }
@@ -282,7 +323,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        if (visibility == VISIBLE && (isPlaying || !scroller.isFinished)) {
+        if (renderingActive && visibility == VISIBLE && (isPlaying || !scroller.isFinished)) {
             anchorUptimeMs = SystemClock.uptimeMillis()
             choreographer.postFrameCallback(frameCallback)
         } else {
