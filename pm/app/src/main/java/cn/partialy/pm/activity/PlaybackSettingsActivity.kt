@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
+import cn.partialy.pm.ui.player.background.DynamicBackgroundSettingsSheet
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.SleepTimerPresetSettingsBottomSheet
@@ -44,6 +45,12 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
                     summary = getString(R.string.settings_dynamic_lyric_background_summary),
                 ),
                 SubSettingsItem.Navigation(
+                    id = ITEM_DYNAMIC_BACKGROUND_SETTINGS,
+                    title = getString(R.string.dynamic_background_settings_title),
+                    value = getString(if (SettingsPrefs.getPlayerFlowBackgroundConfig(this).isDefault)
+                        R.string.dynamic_background_default else R.string.dynamic_background_custom),
+                ),
+                SubSettingsItem.Navigation(
                     id = ITEM_SLEEP_TIMER_CONFIG,
                     title = getString(R.string.settings_sleep_timer_config),
                     value = getString(
@@ -57,6 +64,11 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
 
     override fun onSettingsItemClick(item: SubSettingsItem) {
         when (item.id) {
+            ITEM_DYNAMIC_BACKGROUND_SETTINGS -> DynamicBackgroundSettingsSheet.show(
+                activity = this,
+                song = musicController.currentSong.value,
+                onSaved = ::refreshSettings,
+            )
             ITEM_AUTO_SWITCH_LIST -> showAutoSwitchListPicker()
             ITEM_AUDIO_COEXISTENCE -> showAudioCoexistencePicker()
             ITEM_SLEEP_TIMER_CONFIG -> SleepTimerPresetSettingsBottomSheet.show(
@@ -174,6 +186,7 @@ class PlaybackSettingsActivity : SubSettingsActivity() {
         private const val ITEM_AUTO_SWITCH_LIST = "auto_switch_list"
         private const val ITEM_AUDIO_COEXISTENCE = "audio_coexistence"
         private const val ITEM_DYNAMIC_LYRIC_BACKGROUND = "dynamic_lyric_background"
+        private const val ITEM_DYNAMIC_BACKGROUND_SETTINGS = "dynamic_background_settings"
         private const val ITEM_SLEEP_TIMER_CONFIG = "sleep_timer_config"
 
         fun start(context: Context) {

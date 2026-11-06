@@ -5,6 +5,9 @@ import android.os.Environment
 import android.os.StatFs
 import androidx.appcompat.app.AppCompatDelegate
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.ui.player.background.PlayerFlowBackgroundConfig
+import cn.partialy.pm.ui.player.background.PlayerFlowColorMode
+import org.json.JSONObject
 
 object SettingsPrefs {
     private const val PREFS_NAME = "user_settings"
@@ -211,6 +214,43 @@ object SettingsPrefs {
 
     fun setDynamicLyricBackgroundEnabled(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_DYNAMIC_LYRIC_BACKGROUND, enabled).apply()
+    }
+
+    internal fun getPlayerFlowBackgroundConfig(context: Context): PlayerFlowBackgroundConfig = runCatching {
+        val raw = prefs(context).all["player_flow_background_config"] as? String
+            ?: return@runCatching PlayerFlowBackgroundConfig()
+        val json = JSONObject(raw)
+        fun value(key: String, fallback: Int): Int = (json.opt(key) as? Number)?.toInt() ?: fallback
+        PlayerFlowBackgroundConfig(
+            speedX10 = value("speedX10", 10),
+            motionAmplitudePercent = value("motionAmplitudePercent", 50),
+            glowIntensityPercent = value("glowIntensityPercent", 50),
+            brightnessPercent = value("brightnessPercent", 50),
+            saturationPercent = value("saturationPercent", 50),
+            colorMode = PlayerFlowColorMode.values().firstOrNull { it.name == json.optString("colorMode") }
+                ?: PlayerFlowColorMode.FOLLOW_COVER,
+        ).normalized()
+    }.getOrDefault(PlayerFlowBackgroundConfig())
+
+    internal fun setPlayerFlowBackgroundConfig(context: Context, config: PlayerFlowBackgroundConfig) {
+        val safe = config.normalized()
+        val json = JSONObject().apply {
+            put("speedX10", safe.speedX10)
+            put("motionAmplitudePercent", safe.motionAmplitudePercent)
+            put("glowIntensityPercent", safe.glowIntensityPercent)
+            put("brightnessPercent", safe.brightnessPercent)
+            put("saturationPercent", safe.saturationPercent)
+            put("colorMode", safe.colorMode.name)
+        }
+        // 整组参数以单个值提交，观察者不会读到部分更新。
+        prefs(context).edit().putString("player_flow_background_config", json.toString()).apply()
+    }
+
+    fun getPlayerPageIndex(context: Context): Int =
+        ((prefs(context).all["player_page_index"] as? Int) ?: 0).coerceIn(0, 1)
+
+    fun setPlayerPageIndex(context: Context, index: Int) {
+        prefs(context).edit().putInt("player_page_index", index.coerceIn(0, 1)).apply()
     }
 
     fun computeAutoAudioCacheMb(): Long {

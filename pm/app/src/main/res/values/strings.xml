@@ -1254,4 +1254,20 @@
     <string name="app_share_load_failed">获取专属链接失败，请重试；登录失效时请重新登录</string>
     <string name="app_share_offline_cached">刷新失败，正在使用当前身份的离线链接</string>
     <string name="app_share_no_target">暂无可用的分享应用</string>
+    <string name="dynamic_background_settings_title">动态背景设置</string>
+    <string name="dynamic_background_default">默认</string>
+    <string name="dynamic_background_custom">自定义</string>
+    <string name="dynamic_background_preview">动态背景预览</string>
+    <string name="dynamic_background_speed">流动速度</string>
+    <string name="dynamic_background_motion">运动幅度</string>
+    <string name="dynamic_background_glow">光晕强度</string>
+    <string name="dynamic_background_brightness">亮度</string>
+    <string name="dynamic_background_saturation">饱和度</string>
+    <string name="dynamic_background_color_mode">颜色模式</string>
+    <string name="dynamic_background_follow">跟随封面</string>
+    <string name="dynamic_background_soft">柔和</string>
+    <string name="dynamic_background_vivid">鲜艳</string>
+    <string name="dynamic_background_restore">恢复默认</string>
+    <string name="dynamic_background_save">保存</string>
+    <string name="dynamic_background_parameter_value">%1$s · %2$s</string>
 </resources>
