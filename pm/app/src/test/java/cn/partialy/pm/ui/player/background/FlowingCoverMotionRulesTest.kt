@@ -17,13 +17,23 @@ class FlowingCoverMotionRulesTest {
     }
 
     @Test
-    fun `motion stays subtle and slow`() {
-        FlowingCoverMotionRules.specs(42L).forEach { spec ->
-            assertTrue(spec.durationMs in 29_000L..53_000L)
-            assertTrue(spec.translationXFraction in -0.12f..0.12f)
-            assertTrue(spec.translationYFraction in -0.12f..0.12f)
-            assertTrue(spec.scale in 1.04f..1.18f)
-            assertTrue(spec.rotationDegrees in -2.0f..2.0f)
+    fun `trajectory is continuous and visibly moving`() {
+        FlowingCoverMotionRules.specs(42).forEachIndexed { index, spec ->
+            assertTrue(spec.periodSeconds in 16.0..28.0)
+            val start = FlowingCoverMotionRules.position(spec, index, 5.0, 1f)
+            val nearby = FlowingCoverMotionRules.position(spec, index, 5.001, 1f)
+            val later = FlowingCoverMotionRules.position(spec, index, 10.0, 1f)
+            assertTrue(kotlin.math.abs(start.x - nearby.x) < 0.001)
+            assertNotEquals(start, later)
+            assertEquals(FlowingCoverMotionRules.position(spec, index, 0.0, 0f).x,
+                FlowingCoverMotionRules.position(spec, index, 10.0, 0f).x)
         }
+    }
+
+    @Test
+    fun `preview and power save have reduced frame budget`() {
+        assertEquals(34L, FlowingCoverMotionRules.frameIntervalMs(false, false))
+        assertEquals(67L, FlowingCoverMotionRules.frameIntervalMs(true, false))
+        assertEquals(67L, FlowingCoverMotionRules.frameIntervalMs(false, true))
     }
 }

@@ -1,273 +1,152 @@
 package cn.partialy.pm.ui.player.background
 
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.content.BroadcastReceiver
 import android.content.Context
-import android.graphics.drawable.GradientDrawable
+import android.content.Intent
+import android.content.IntentFilter
+import android.database.ContentObserver
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.RadialGradient
+import android.graphics.Shader
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
+import android.os.SystemClock
+import android.provider.Settings
 import android.util.AttributeSet
 import android.view.View
-import android.widget.FrameLayout
-import androidx.core.graphics.ColorUtils
-import androidx.interpolator.view.animation.FastOutSlowInInterpolator
+import androidx.core.content.ContextCompat
 
+/** 单一不透明画布；每个光场外缘透明，不再移动有矩形边界的子 View。 */
 internal class FlowingCoverBackgroundView @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0,
-) : FrameLayout(context, attrs, defStyleAttr) {
-
-    private data class LayerBank(
-        val container: FrameLayout,
-        val blobs: List<View>,
-        var animators: List<AnimatorSet> = emptyList(),
-        var motionSpecs: List<FlowingCoverMotionSpec> = emptyList(),
-    )
-
-    private val banks = List(BANK_COUNT) { createLayerBank() }
-    private var activeBank: LayerBank? = null
-    private var transitioningBank: LayerBank? = null
-    private var crossfadeAnimator: AnimatorSet? = null
-    private var isMotionRequested = false
-    private var isReleased = false
-
-    init {
-        clipChildren = false
-        clipToPadding = false
-        banks.forEach { bank ->
-            addView(bank.container)
-            bank.container.alpha = 0f
-            bank.container.visibility = INVISIBLE
+    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
+) : View(context, attrs, defStyleAttr) {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val matrix = Matrix()
+    private val position = FloatArray(3)
+    private val shaders = Array(4) {
+        RadialGradient(0f, 0f, 1f, intArrayOf(Color.WHITE, 0xA0FFFFFF.toInt(), Color.TRANSPARENT), floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP)
+    }
+    private val filterColors = IntArray(4)
+    private val filters = arrayOfNulls<android.graphics.PorterDuffColorFilter>(4)
+    private var source = CoverFlowPaletteRules.fromCandidates(emptyList())
+    private var from = source
+    private var target = source
+    private val displayed = IntArray(5)
+    private var transitionStart = 0L
+    private var transitioning = false
+    private var specs = FlowingCoverMotionRules.specs(0L)
+    private var seeded = false
+    private var config = PlayerFlowBackgroundConfig()
+    private var preview = false
+    private var requested = false
+    private var released = false
+    private var lastTick = 0L
+    private var phaseSeconds = 0.0
+    private var attached = false
+    private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    private val tick = object : Runnable {
+        override fun run() {
+            if (!eligible()) return
+            val now = SystemClock.uptimeMillis()
+            if (lastTick != 0L) phaseSeconds += (now - lastTick).coerceAtMost(150L) / 1000.0 * config.speedMultiplier
+            lastTick = now
+            invalidate()
+            postDelayed(this, FlowingCoverMotionRules.frameIntervalMs(preview, powerManager.isPowerSaveMode))
         }
     }
+    private val settingsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) = refreshScheduling()
+    }
+    private val powerReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = refreshScheduling()
+    }
 
+    fun setPreviewMode(enabled: Boolean) { preview = enabled; refreshScheduling() }
+    fun setConfig(value: PlayerFlowBackgroundConfig) {
+        config = value.normalized()
+        updatePalette(source, animateTransition = true)
+    }
     fun submitPalette(palette: CoverFlowPalette, seed: Long, animateTransition: Boolean) {
-        if (isReleased) return
-
-        settleLatestTransition()
-        val outgoingBank = activeBank
-        val incomingBank = banks.firstOrNull { it !== outgoingBank } ?: return
-        populateBank(incomingBank, palette, seed)
-        visibility = VISIBLE
-
-        if (outgoingBank == null) {
-            incomingBank.container.alpha = 1f
-            incomingBank.container.visibility = VISIBLE
-            activeBank = incomingBank
-            startVisibleMotionIfEligible()
-            return
-        }
-
-        if (!animateTransition || !ValueAnimator.areAnimatorsEnabled()) {
-            hideBank(outgoingBank)
-            incomingBank.container.alpha = 1f
-            incomingBank.container.visibility = VISIBLE
-            activeBank = incomingBank
-            startVisibleMotionIfEligible()
-            return
-        }
-
-        incomingBank.container.alpha = 0f
-        incomingBank.container.visibility = VISIBLE
-        transitioningBank = incomingBank
-        startVisibleMotionIfEligible()
-        crossfadeAnimator = AnimatorSet().apply {
-            playTogether(
-                ObjectAnimator.ofFloat(outgoingBank.container, View.ALPHA, outgoingBank.container.alpha, 0f),
-                ObjectAnimator.ofFloat(incomingBank.container, View.ALPHA, 0f, 1f),
-            )
-            duration = PALETTE_CROSSFADE_DURATION_MS
-            interpolator = FastOutSlowInInterpolator()
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (crossfadeAnimator !== this@apply) return
-                    hideBank(outgoingBank)
-                    incomingBank.container.alpha = 1f
-                    activeBank = incomingBank
-                    transitioningBank = null
-                    crossfadeAnimator?.removeAllListeners()
-                    crossfadeAnimator = null
-                }
-            })
-            start()
-        }
+        if (released) return
+        if (!seeded) { specs = FlowingCoverMotionRules.specs(seed); seeded = true }
+        updatePalette(palette, animateTransition)
     }
-
-    fun startMotion() {
-        if (isReleased) return
-        isMotionRequested = true
-        startVisibleMotionIfEligible()
+    private fun updatePalette(palette: CoverFlowPalette, animateTransition: Boolean) {
+        if (released) return
+        updateColors(SystemClock.uptimeMillis())
+        from = CoverFlowPalette(displayed[0], displayed.drop(1))
+        source = palette
+        target = CoverFlowPaletteRules.applyConfig(palette, config)
+        transitioning = animateTransition && ValueAnimator.areAnimatorsEnabled() && requested
+        transitionStart = SystemClock.uptimeMillis()
+        if (!transitioning) from = target
+        invalidate()
     }
-
-    fun stopMotion() {
-        isMotionRequested = false
-        banks.forEach(::cancelBankMotion)
-    }
-
-    fun release() {
-        if (isReleased) return
-        isReleased = true
-        isMotionRequested = false
-        cancelCrossfade()
-        transitioningBank = null
-        activeBank = null
-        banks.forEach { bank ->
-            cancelBankMotion(bank)
-            bank.motionSpecs = emptyList()
-            bank.blobs.forEach { blob ->
-                resetBlobTransform(blob)
-                blob.background = null
-            }
-            bank.container.background = null
-            bank.container.alpha = 0f
-            bank.container.visibility = INVISIBLE
-        }
-        visibility = GONE
-    }
+    fun startMotion() { if (!released) { requested = true; refreshScheduling() } }
+    fun stopMotion() { requested = false; refreshScheduling() }
+    fun release() { stopMotion(); released = true; unregisterObservers() }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        startVisibleMotionIfEligible()
+        attached = true
+        context.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, settingsObserver)
+        ContextCompat.registerReceiver(context, powerReceiver, IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+        refreshScheduling()
     }
-
-    override fun onDetachedFromWindow() {
-        settleLatestTransition()
-        banks.forEach(::cancelBankMotion)
-        super.onDetachedFromWindow()
+    override fun onDetachedFromWindow() { unregisterObservers(); refreshScheduling(); super.onDetachedFromWindow() }
+    private fun unregisterObservers() {
+        if (!attached) return
+        attached = false
+        context.contentResolver.unregisterContentObserver(settingsObserver)
+        context.unregisterReceiver(powerReceiver)
     }
-
-    override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
-        super.onSizeChanged(width, height, oldWidth, oldHeight)
-        if (width != oldWidth || height != oldHeight) {
-            banks.forEach(::cancelBankMotion)
-            startVisibleMotionIfEligible()
-        }
+    override fun onVisibilityChanged(changedView: View, visibility: Int) { super.onVisibilityChanged(changedView, visibility); if (attached) refreshScheduling() }
+    override fun onWindowVisibilityChanged(visibility: Int) { super.onWindowVisibilityChanged(visibility); if (attached) refreshScheduling() }
+    private fun eligible() = attached && requested && !released && isShown && windowVisibility == VISIBLE && ValueAnimator.areAnimatorsEnabled()
+    private fun refreshScheduling() {
+        removeCallbacks(tick)
+        lastTick = 0L
+        if (eligible()) post(tick)
+        if (!ValueAnimator.areAnimatorsEnabled()) { transitioning = false; from = target }
+        invalidate()
     }
-
-    private fun createLayerBank(): LayerBank {
-        val container = FrameLayout(context).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            clipChildren = false
-            clipToPadding = false
-        }
-        val blobs = List(BLOB_COUNT) { createBlobView() }
-        blobs.forEach(container::addView)
-        return LayerBank(container = container, blobs = blobs)
+    private fun updateColors(now: Long) {
+        val progress = if (transitioning) ((now - transitionStart) / 1250f).coerceIn(0f, 1f) else 1f
+        val eased = progress * progress * (3f - 2f * progress)
+        displayed[0] = CoverFlowPaletteRules.interpolateColor(from.baseColor, target.baseColor, eased)
+        for (index in 0..3) displayed[index + 1] = CoverFlowPaletteRules.interpolateColor(from.blobColors[index], target.blobColors[index], eased)
+        if (progress >= 1f) transitioning = false
     }
-
-    private fun createBlobView(): View = View(context).apply {
-        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-    }
-
-    private fun blobDrawable(color: Int, index: Int): GradientDrawable =
-        GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            intArrayOf(
-                ColorUtils.setAlphaComponent(color, BLOB_ALPHAS[index]),
-                ColorUtils.setAlphaComponent(color, 0),
-            ),
-        ).apply {
-            gradientType = GradientDrawable.RADIAL_GRADIENT
-            gradientRadius = resources.displayMetrics.widthPixels * (0.72f + index * 0.08f)
-            setGradientCenter(BLOB_CENTER_X[index], BLOB_CENTER_Y[index])
-        }
-
-    private fun populateBank(bank: LayerBank, palette: CoverFlowPalette, seed: Long) {
-        cancelBankMotion(bank)
-        bank.container.setBackgroundColor(palette.baseColor)
-        bank.blobs.forEachIndexed { index, blob ->
-            resetBlobTransform(blob)
-            blob.background = blobDrawable(palette.blobColors[index], index)
-        }
-        bank.motionSpecs = FlowingCoverMotionRules.specs(seed)
-        bank.container.alpha = 0f
-        bank.container.visibility = VISIBLE
-    }
-
-    private fun startVisibleMotionIfEligible() {
-        if (!canStartMotion()) return
-        banks.filter { it.container.visibility == VISIBLE }.forEach(::startBankMotion)
-    }
-
-    private fun canStartMotion(): Boolean =
-        isMotionRequested && isAttachedToWindow && width > 0 && ValueAnimator.areAnimatorsEnabled()
-
-    private fun startBankMotion(bank: LayerBank) {
-        if (bank.animators.isNotEmpty() || bank.motionSpecs.size != BLOB_COUNT) return
-        bank.animators = bank.blobs.zip(bank.motionSpecs).map { (blob, spec) ->
-            AnimatorSet().apply {
-                playTogether(
-                    infinitePropertyAnimator(blob, View.TRANSLATION_X, blob.translationX, width * spec.translationXFraction, spec.durationMs),
-                    infinitePropertyAnimator(blob, View.TRANSLATION_Y, blob.translationY, height * spec.translationYFraction, spec.durationMs),
-                    infinitePropertyAnimator(blob, View.SCALE_X, blob.scaleX, spec.scale, spec.durationMs),
-                    infinitePropertyAnimator(blob, View.SCALE_Y, blob.scaleY, spec.scale, spec.durationMs),
-                    infinitePropertyAnimator(blob, View.ROTATION, blob.rotation, spec.rotationDegrees, spec.durationMs),
-                )
-                start()
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        updateColors(SystemClock.uptimeMillis())
+        canvas.drawColor(displayed[0])
+        val extent = maxOf(width, height).toFloat()
+        for (index in 0..3) {
+            FlowingCoverMotionRules.positionInto(specs[index], index, phaseSeconds, config.motionAmplitudePercent / 50f, position)
+            val radius = extent * position[2]
+            matrix.setScale(radius, radius * 1.12f)
+            matrix.postTranslate(position[0] * width, position[1] * height)
+            shaders[index].setLocalMatrix(matrix)
+            paint.shader = shaders[index]
+            if (filters[index] == null || filterColors[index] != displayed[index + 1]) {
+                filterColors[index] = displayed[index + 1]
+                filters[index] = android.graphics.PorterDuffColorFilter(displayed[index + 1], android.graphics.PorterDuff.Mode.MULTIPLY)
             }
+            paint.colorFilter = filters[index]
+            paint.alpha = (55 + config.glowIntensityPercent * 0.95f).toInt()
+            canvas.drawPaint(paint)
         }
-    }
-
-    private fun infinitePropertyAnimator(
-        view: View,
-        property: android.util.Property<View, Float>,
-        start: Float,
-        end: Float,
-        durationMs: Long,
-    ): ObjectAnimator = ObjectAnimator.ofFloat(view, property, start, end).apply {
-        duration = durationMs
-        repeatMode = ValueAnimator.REVERSE
-        repeatCount = ValueAnimator.INFINITE
-    }
-
-    private fun cancelBankMotion(bank: LayerBank) {
-        bank.animators.forEach { animator ->
-            animator.removeAllListeners()
-            animator.cancel()
-        }
-        bank.animators = emptyList()
-    }
-
-    private fun settleLatestTransition() {
-        val latestBank = transitioningBank ?: return
-        cancelCrossfade()
-        activeBank?.let { previousBank ->
-            hideBank(previousBank)
-        }
-        latestBank.container.alpha = 1f
-        latestBank.container.visibility = VISIBLE
-        activeBank = latestBank
-        transitioningBank = null
-    }
-
-    private fun cancelCrossfade() {
-        crossfadeAnimator?.removeAllListeners()
-        crossfadeAnimator?.cancel()
-        crossfadeAnimator = null
-    }
-
-    private fun hideBank(bank: LayerBank) {
-        bank.container.alpha = 0f
-        bank.container.visibility = INVISIBLE
-        cancelBankMotion(bank)
-    }
-
-    private fun resetBlobTransform(blob: View) {
-        blob.translationX = 0f
-        blob.translationY = 0f
-        blob.scaleX = 1f
-        blob.scaleY = 1f
-        blob.rotation = 0f
-    }
-
-    private companion object {
-        const val BANK_COUNT = 2
-        const val BLOB_COUNT = 4
-        const val PALETTE_CROSSFADE_DURATION_MS = 900L
-
-        val BLOB_ALPHAS = intArrayOf(150, 132, 118, 104)
-        val BLOB_CENTER_X = floatArrayOf(0.18f, 0.78f, 0.26f, 0.72f)
-        val BLOB_CENTER_Y = floatArrayOf(0.22f, 0.28f, 0.78f, 0.74f)
+        paint.shader = null
+        paint.colorFilter = null
+        // 圆滑的统一暗化与深色底色共同约束极端亮封面，避免局部矩形遮罩。
+        paint.color = Color.BLACK
+        paint.alpha = CoverFlowPaletteRules.scrimAlpha(target)
+        canvas.drawPaint(paint)
     }
 }

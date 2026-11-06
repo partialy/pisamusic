@@ -1,8 +1,5 @@
 package cn.partialy.pm.ui.player.background
 
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -34,11 +31,13 @@ internal class PlayerBackgroundController(
     private val legacyBackground: ImageView,
     private val flowingBackground: FlowingCoverBackgroundView,
     private val scope: CoroutineScope,
+    private val scrim: View? = null,
     private val paletteExtractor: CoverFlowPaletteExtractor = CoverFlowPaletteExtractor(),
 ) {
     private var requestDisposable: Disposable? = null
     private var extractionJob: Job? = null
-    private var textureAnimator: AnimatorSet? = null
+    private var blurJob: Job? = null
+    private var requestVersion = 0L
     private var currentSongKey: String? = null
     private var currentDrawable: Drawable? = null
     private var dynamicEnabled = true
@@ -47,7 +46,6 @@ internal class PlayerBackgroundController(
 
     private var extractionSongKey: String? = null
     private var extractionDrawable: Drawable? = null
-    private var pendingTextureLayoutListener: View.OnLayoutChangeListener? = null
     private var hasVisiblePalette = false
     private var released = false
 
@@ -58,21 +56,39 @@ internal class PlayerBackgroundController(
     fun bind(songKey: String, model: Any?) {
         if (released) return
 
+        requestVersion++
         currentSongKey = songKey
         requestDisposable?.dispose()
         requestDisposable = null
         cancelPaletteExtraction()
         currentDrawable = null
-        restartPendingTextureMotionForCurrentSong()
+        blurJob?.cancel()
 
         submitFallbackPaletteIfNeeded(songKey)
         applyBlurBackground(songKey, model)
+    }
+
+    /** 空歌曲预览直接使用默认色板，不把 App 图标误作封面提色。 */
+    fun bindFallback(songKey: String = "background-preview-fallback") {
+        if (released) return
+        requestVersion++
+        currentSongKey = songKey
+        requestDisposable?.dispose()
+        requestDisposable = null
+        cancelPaletteExtraction()
+        blurJob?.cancel()
+        currentDrawable = null
+        legacyBackground.setImageDrawable(null)
+        flowingBackground.submitPalette(FALLBACK_PALETTE, songKey.hashCode().toLong(), hasVisiblePalette)
+        hasVisiblePalette = true
+        startDynamicMotionIfEligible()
     }
 
     fun setDynamicEnabled(enabled: Boolean) {
         if (released) return
 
         dynamicEnabled = enabled
+        if (enabled) blurJob?.cancel()
         if (enabled) {
             applyDynamicMode()
             ensureDynamicPaletteForCurrentDrawable()
@@ -81,6 +97,10 @@ internal class PlayerBackgroundController(
             cancelPaletteExtraction()
             applyLegacyMode()
         }
+    }
+
+    fun setConfig(config: PlayerFlowBackgroundConfig) {
+        flowingBackground.setConfig(config)
     }
 
     fun onStart() {
@@ -93,7 +113,7 @@ internal class PlayerBackgroundController(
     fun onStop() {
         started = false
         flowingBackground.stopMotion()
-        stopTextureMotion(resetTransform = false)
+
     }
 
     fun release() {
@@ -105,17 +125,20 @@ internal class PlayerBackgroundController(
         requestDisposable?.dispose()
         requestDisposable = null
         cancelPaletteExtraction()
-        stopTextureMotion(resetTransform = false)
+
         flowingBackground.release()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             legacyBackground.setRenderEffect(null)
         }
+        blurJob?.cancel()
+        legacyBackground.setImageDrawable(null)
         currentDrawable = null
         hasVisiblePalette = false
         paletteCache.evictAll()
     }
 
     private fun applyBlurBackground(capturedSongKey: String, model: Any?) {
+        val capturedVersion = requestVersion
         val backgroundModel = model ?: R.drawable.ic_pm_icon
         val requestBuilder = ImageRequest.Builder(legacyBackground.context)
             .data(backgroundModel)
@@ -127,19 +150,19 @@ internal class PlayerBackgroundController(
 
         val request = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             legacyBackground.setRenderEffect(
-                RenderEffect.createBlurEffect(400f, 400f, Shader.TileMode.CLAMP),
+                RenderEffect.createBlurEffect(60f, 60f, Shader.TileMode.CLAMP),
             )
             requestBuilder
                 .crossfade(true)
                 .target(GuardedImageViewTarget(capturedSongKey))
                 .listener(object : ImageRequest.Listener {
                     override fun onSuccess(request: ImageRequest, result: SuccessResult) {
-                        if (capturedSongKey != currentSongKey || released) return
+                        if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return
                         onDrawableResolved(capturedSongKey, result.drawable, renderLegacyBlur = false)
                     }
 
                     override fun onError(request: ImageRequest, result: ErrorResult) {
-                        if (capturedSongKey != currentSongKey || released) return
+                        if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return
                         result.drawable?.let { drawable ->
                             onDrawableResolved(capturedSongKey, drawable, renderLegacyBlur = false)
                         }
@@ -150,15 +173,15 @@ internal class PlayerBackgroundController(
             requestBuilder
                 .target(
                     onStart = { placeholder ->
-                        if (capturedSongKey != currentSongKey || released) return@target
+                        if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return@target
                         applyLegacyBlurBackground(placeholder)
                     },
                     onSuccess = { drawable ->
-                        if (capturedSongKey != currentSongKey || released) return@target
+                        if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return@target
                         onDrawableResolved(capturedSongKey, drawable, renderLegacyBlur = true)
                     },
                     onError = { drawable ->
-                        if (capturedSongKey != currentSongKey || released) return@target
+                        if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return@target
                         drawable?.let {
                             onDrawableResolved(capturedSongKey, it, renderLegacyBlur = true)
                         }
@@ -254,135 +277,25 @@ internal class PlayerBackgroundController(
     private fun applyLegacyMode() {
         flowingBackground.visibility = View.GONE
         flowingBackground.stopMotion()
-        stopTextureMotion(resetTransform = true)
+        legacyBackground.visibility = View.VISIBLE
+        legacyBackground.alpha = 1f
+        legacyBackground.scaleType = ImageView.ScaleType.CENTER_CROP
+        legacyBackground.scaleX = 1.25f
+        legacyBackground.scaleY = 1.25f
+        scrim?.setBackgroundColor(0x80000000.toInt())
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) applyLegacyBlurBackground(currentDrawable)
     }
 
     private fun applyDynamicMode() {
         flowingBackground.visibility = View.VISIBLE
-        legacyBackground.alpha = 0.22f
-        legacyBackground.scaleX = 1.12f
-        legacyBackground.scaleY = 1.12f
+        legacyBackground.visibility = View.INVISIBLE
+        legacyBackground.alpha = 0f
+        scrim?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
     }
 
     private fun startDynamicMotionIfEligible() {
-        if (!started || !dynamicEnabled || !ValueAnimator.areAnimatorsEnabled() || released) {
-            flowingBackground.stopMotion()
-            stopTextureMotion(resetTransform = false)
-            return
-        }
-
-        flowingBackground.startMotion()
-        startTextureMotion()
-    }
-
-    private fun startTextureMotion() {
-        if (textureAnimator != null || pendingTextureLayoutListener != null) return
-        if (legacyBackground.width <= 0 || legacyBackground.height <= 0) {
-            val capturedSongKey = currentSongKey
-            val layoutListener = object : View.OnLayoutChangeListener {
-                override fun onLayoutChange(
-                    view: View,
-                    left: Int,
-                    top: Int,
-                    right: Int,
-                    bottom: Int,
-                    oldLeft: Int,
-                    oldTop: Int,
-                    oldRight: Int,
-                    oldBottom: Int,
-                ) {
-                    if (view.width <= 0 || view.height <= 0) return
-                    view.removeOnLayoutChangeListener(this)
-                    if (pendingTextureLayoutListener !== this) return
-                    pendingTextureLayoutListener = null
-                    if (capturedSongKey != currentSongKey || released) return
-                    if (!started || !dynamicEnabled || !ValueAnimator.areAnimatorsEnabled()) return
-                    createAndStartTextureAnimator()
-                }
-            }
-            pendingTextureLayoutListener = layoutListener
-            legacyBackground.addOnLayoutChangeListener(layoutListener)
-            return
-        }
-
-        createAndStartTextureAnimator()
-    }
-
-    private fun createAndStartTextureAnimator() {
-        if (textureAnimator != null) return
-        val width = legacyBackground.width.toFloat()
-        val height = legacyBackground.height.toFloat()
-        if (width <= 0f || height <= 0f) return
-
-        textureAnimator = AnimatorSet().apply {
-            playTogether(
-                repeatingAnimator(
-                    property = View.TRANSLATION_X,
-                    from = -0.035f * width,
-                    to = 0.035f * width,
-                    durationMs = 34_000L,
-                ),
-                repeatingAnimator(
-                    property = View.TRANSLATION_Y,
-                    from = -0.025f * height,
-                    to = 0.025f * height,
-                    durationMs = 41_000L,
-                ),
-                repeatingAnimator(
-                    property = View.ROTATION,
-                    from = -1.2f,
-                    to = 1.2f,
-                    durationMs = 47_000L,
-                ),
-                repeatingAnimator(
-                    property = View.SCALE_X,
-                    from = 1.10f,
-                    to = 1.16f,
-                    durationMs = 53_000L,
-                ),
-                repeatingAnimator(
-                    property = View.SCALE_Y,
-                    from = 1.10f,
-                    to = 1.16f,
-                    durationMs = 53_000L,
-                ),
-            )
-            start()
-        }
-    }
-
-    private fun restartPendingTextureMotionForCurrentSong() {
-        val pendingListener = pendingTextureLayoutListener ?: return
-        legacyBackground.removeOnLayoutChangeListener(pendingListener)
-        pendingTextureLayoutListener = null
-        startDynamicMotionIfEligible()
-    }
-
-    private fun repeatingAnimator(
-        property: android.util.Property<View, Float>,
-        from: Float,
-        to: Float,
-        durationMs: Long,
-    ): ObjectAnimator = ObjectAnimator.ofFloat(legacyBackground, property, from, to).apply {
-        duration = durationMs
-        repeatMode = ValueAnimator.REVERSE
-        repeatCount = ValueAnimator.INFINITE
-    }
-
-    private fun stopTextureMotion(resetTransform: Boolean) {
-        pendingTextureLayoutListener?.let(legacyBackground::removeOnLayoutChangeListener)
-        pendingTextureLayoutListener = null
-        textureAnimator?.cancel()
-        textureAnimator = null
-        if (!resetTransform) return
-
-        legacyBackground.animate().cancel()
-        legacyBackground.alpha = 1f
-        legacyBackground.translationX = 0f
-        legacyBackground.translationY = 0f
-        legacyBackground.scaleX = 1f
-        legacyBackground.scaleY = 1f
-        legacyBackground.rotation = 0f
+        if (started && dynamicEnabled && !released) flowingBackground.startMotion()
+        else flowingBackground.stopMotion()
     }
 
     private fun cancelPaletteExtraction() {
@@ -394,50 +307,77 @@ internal class PlayerBackgroundController(
 
     private fun applyLegacyBlurBackground(drawable: Drawable?) {
         drawable ?: return
-        val bitmap = drawable.toBitmap()
-        val blurred = blurBitmapWithRenderScript(bitmap, 25f)
-        legacyBackground.setImageBitmap(blurred)
+        if (dynamicEnabled || released) return
+        blurJob?.cancel()
+        val capturedVersion = requestVersion
+        blurJob = scope.launch {
+            var prepared: Bitmap? = null
+            var adopted = false
+            try {
+                withContext(Dispatchers.Default) {
+                    val bitmap = drawable.toBitmap(width = 256, height = 256, config = Bitmap.Config.ARGB_8888)
+                    try { prepared = blurBitmapWithRenderScript(bitmap, 25f) }
+                    finally { if (bitmap !== (drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap) bitmap.recycle() }
+                }
+                if (capturedVersion == requestVersion && !released && !dynamicEnabled) {
+                    legacyBackground.setImageBitmap(prepared)
+                    adopted = true
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (capturedVersion == requestVersion && !released && !dynamicEnabled) legacyBackground.setImageDrawable(drawable)
+            } finally {
+                if (!adopted) prepared?.recycle()
+            }
+        }
     }
 
     @Suppress("DEPRECATION")
     private fun blurBitmapWithRenderScript(source: Bitmap, radius: Float): Bitmap {
-        val scaledWidth = (source.width / 8).coerceAtLeast(1)
-        val scaledHeight = (source.height / 8).coerceAtLeast(1)
-        val input = Bitmap.createScaledBitmap(source, scaledWidth, scaledHeight, true)
+        val input = Bitmap.createScaledBitmap(source, 32, 32, true)
         val output = Bitmap.createBitmap(input.width, input.height, Bitmap.Config.ARGB_8888)
-
         val rs = RenderScript.create(legacyBackground.context)
-        val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
-        val allocIn = Allocation.createFromBitmap(rs, input)
-        val allocOut = Allocation.createFromBitmap(rs, output)
-        script.setRadius(radius)
-        script.setInput(allocIn)
-        script.forEach(allocOut)
-        allocOut.copyTo(output)
-
-        script.destroy()
-        allocIn.destroy()
-        allocOut.destroy()
-        rs.destroy()
-
-        return output
+        var script: ScriptIntrinsicBlur? = null
+        var allocIn: Allocation? = null
+        var allocOut: Allocation? = null
+        try {
+            script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
+            allocIn = Allocation.createFromBitmap(rs, input)
+            allocOut = Allocation.createFromBitmap(rs, output)
+            script.setRadius(radius)
+            script.setInput(allocIn)
+            script.forEach(allocOut)
+            allocOut.copyTo(output)
+            return output
+        } catch (failure: Exception) {
+            output.recycle()
+            throw failure
+        } finally {
+            script?.destroy()
+            allocIn?.destroy()
+            allocOut?.destroy()
+            rs.destroy()
+            if (input !== source) input.recycle()
+        }
     }
 
     private inner class GuardedImageViewTarget(
         private val capturedSongKey: String,
     ) : ImageViewTarget(legacyBackground) {
+        private val capturedVersion = requestVersion
         override fun onStart(placeholder: Drawable?) {
-            if (capturedSongKey != currentSongKey || released) return
+            if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return
             super.onStart(placeholder)
         }
 
         override fun onSuccess(result: Drawable) {
-            if (capturedSongKey != currentSongKey || released) return
+            if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return
             super.onSuccess(result)
         }
 
         override fun onError(error: Drawable?) {
-            if (capturedSongKey != currentSongKey || released) return
+            if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return
             super.onError(error)
         }
     }

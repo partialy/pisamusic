@@ -46,9 +46,10 @@ internal object CoverFlowPaletteRules {
         if (selected.isEmpty()) return fallbackPalette
 
         val dominantHsl = rgbToHsl(selected.first())
-        val blobSaturation = dominantHsl.saturation.coerceIn(MIN_BLOB_SATURATION, MAX_BLOB_SATURATION)
+        val monochrome = dominantHsl.saturation < 0.08
+        val blobSaturation = if (monochrome) 0.13 else dominantHsl.saturation.coerceIn(0.20, MAX_BLOB_SATURATION)
         val blobLightness = dominantHsl.lightness.coerceIn(MIN_BLOB_LIGHTNESS, MAX_BLOB_LIGHTNESS)
-        val hueRotations = doubleArrayOf(28.0, -34.0, 58.0)
+        val hueRotations = doubleArrayOf(18.0, -22.0, 35.0)
 
         hueRotations.forEach { rotation ->
             if (selected.size == 4) return@forEach
@@ -61,9 +62,37 @@ internal object CoverFlowPaletteRules {
                 dominantHsl.saturation,
                 dominantHsl.lightness.coerceIn(MIN_BASE_LIGHTNESS, MAX_BASE_LIGHTNESS),
             ),
-            blobColors = selected.take(4),
+            blobColors = selected.take(4).map { color ->
+                val hsl = rgbToHsl(color)
+                hslToColor(if (monochrome) 215.0 else hsl.hue, if (monochrome) 0.13 else hsl.saturation.coerceIn(0.20, MAX_BLOB_SATURATION), hsl.lightness.coerceIn(0.28, 0.62))
+            },
         )
     }
+
+    fun applyConfig(palette: CoverFlowPalette, config: PlayerFlowBackgroundConfig): CoverFlowPalette {
+        val value = config.normalized()
+        val modeSaturation = when (value.colorMode) {
+            PlayerFlowColorMode.FOLLOW_COVER -> 1.0
+            PlayerFlowColorMode.SOFT -> 0.65
+            PlayerFlowColorMode.VIVID -> 1.25
+        }
+        fun transform(color: Int, base: Boolean): Int {
+            val hsl = rgbToHsl(color)
+            return hslToColor(hsl.hue,
+                (hsl.saturation * (0.35 + value.saturationPercent * 0.013) * modeSaturation).coerceIn(0.0, 0.88),
+                (hsl.lightness + (value.brightnessPercent - 50) * if (base) 0.001 else 0.002).coerceIn(if (base) 0.04 else 0.18, if (base) 0.17 else 0.65))
+        }
+        return CoverFlowPalette(transform(palette.baseColor, true), palette.blobColors.map { transform(it, false) })
+    }
+
+    fun interpolateColor(from: Int, to: Int, fraction: Float): Int {
+        val t = fraction.coerceIn(0f, 1f)
+        fun channel(shift: Int) = (((from ushr shift and 255) * (1f - t) + (to ushr shift and 255) * t).roundToInt() shl shift)
+        return channel(24) or channel(16) or channel(8) or channel(0)
+    }
+
+    fun scrimAlpha(palette: CoverFlowPalette): Int =
+        (18 + palette.blobColors.maxOf { relativeLuminance(it) } * 65).roundToInt().coerceIn(18, 60)
 
     fun colorDistance(first: Int, second: Int): Double {
         val redDifference = red(first) / 255.0 - red(second) / 255.0
