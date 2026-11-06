@@ -71,6 +71,12 @@
 
 ## 播放器规则
 
+- 播放器中央采用 `ViewPager2` 固定双页：封面/自绘黑胶/三行歌词与完整歌词；`PlayerPagesController` 管理视图，`PlayerActivity` 统一分发歌曲、歌词和媒体位置，两页不重复订阅或请求。顶部中央只显示分页指示器，现有功能栏、进度条和控制区保持独立。页面索引使用 `SettingsPrefs` 记忆，短期 Bundle 恢复优先，切歌不跳页。
+- 一起听胶囊仍位于原 `lyricsContainer` 顶部中央，坐标、大小和回调不变；入房隐藏第二页 `headerSongInfo`（保留槽高度），退出恢复。封面页只增加安全顶部空间，三行歌词下方歌曲信息保持显示。禁止移动胶囊解决重叠。
+- 动态背景由 `FlowingCoverBackgroundView` 单 Canvas 绘制四个透明径向光场，不叠加模糊封面纹理；切歌只插值色板，保留轨迹相位。正常约 30fps，省电及预览约 15fps，禁动画显示静态渐变，离开页面停止。关闭动态时使用静态模糊封面，旧版模糊在线程池执行。
+- “播放设置 → 动态背景设置”使用 `DynamicBackgroundSettingsSheet` 独立草稿和当前歌曲色板预览；取消不写入，恢复默认只改草稿，保存通过 `SettingsPrefs` 单 JSON key 原子提交规范化参数，播放器 onResume 平滑应用。旧动态开关 key 保持不变。无歌曲预览直接使用默认色板，关闭 Sheet 必须释放预览请求及帧回调。
+- `CompactLyricsView` 只接收统一媒体位置与现有 `LyricLine/LyricWord`，三行单行居中，邻行省略，当前行超长延迟 350ms 后向左滚动、不循环；暂停冻结、Seek 重算、禁动画静止但高亮继续更新。`PlayerSwipeDirectionPolicy` 仲裁中央横/纵手势，横滑不触发歌词浏览或 Seek。切换歌词内容须重置旧逐字行号/过渡状态；完整歌词隐藏或宿主停止时停帧但保留浏览恢复语义。
+
 - 播放页歌词设置 Sheet 与一起听共用主题背景、卡片和圆形步进器，分显示、排版、颜色和效果四区；顶部固定深色渐变预览，下方单独滚动，Sheet 上限为可用窗口约 80%。
 - 歌词设置预览由 `ui/player/LyricPreviewController` 管理独立 8 秒无声样本时钟，普通模式复用 `LyricsAdapter`、逐字模式复用 `KaraokeLyricsView`，禁止读取或修改真实播放器进度；样式/模式更新保留模拟进度。`LyricSettingsSheetWindow` 负责宿主/IME 可见性、颜色管理返回刷新和尺寸分配；暂停必须停止预览 tick 与渲染器帧，关闭必须释放。系统禁动画时静态高亮；大字号按实际换行高度扩展预览；小窗口先压缩预览，无法同时保留完整当前行与设置操作区时临时隐藏并暂停预览。
 - 歌词设置继续使用 `LyricDisplayPrefs` 即时保存及原播放器刷新回调；`LyricSettingsStepper` 统一数字输入与长按，字号 12–30sp、放大增量 2–8sp，非法输入恢复最后有效值，失焦/完成/关闭提交，松手、边界或离开界面停止长按。

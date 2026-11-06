@@ -151,5 +151,6 @@ internal object DynamicBackgroundSettingsSheet {
         loadDraft()
         activity.lifecycle.addObserver(observer)
         dialog.show()
+        cn.partialy.pm.ui.message.PmMessage.register(dialog)
     }
 }

@@ -102,7 +102,11 @@
 | 歌词设置面板 | 四分区设置、固定预览、滑轨、分段按钮、长按步进器 | `pm/app/src/main/res/layout/bottom_sheet_lyric_settings.xml` | `LyricSettingsSheet`、`LyricSettingsStepper`、`LyricSettingsSheetWindow` | 与一起听 Sheet 一致：左右/顶部 16dp、标题高 40dp、首内容/分区间距 12dp、底部 16dp、卡片左右内边距 12dp、步进按钮 30dp；复用原背景/卡片，固定头部与预览，下方独立滚动，最大约 80% 可用窗口，IME 或小窗口不足时收起并暂停预览；预览测量按最新 16dp 外边距计算。 |
 | 迷你播放器 | 底部迷你播放器 | `pm/app/src/main/res/layout/home_mini_player.xml` | `HomeMiniPlayerBinder` | 首页/主界面底部播放入口参考。 |
 | 播放按钮缓冲态 | 主播放按钮和迷你播放器缓冲反馈 | `pm/app/src/main/res/drawable/ic_loading_loop_24.xml` | `PlaybackButtonStateRenderer` | VectorDrawable 只承载图形；Media3 `STATE_BUFFERING` 时由 ObjectAnimator 以 1.5 秒周期持续旋转，销毁时必须释放。 |
-| 动态歌词背景 | 播放页封面取色流光、模糊封面漂移和静态旧背景回退 | `ui/player/background/FlowingCoverBackgroundView.kt`、`PlayerBackgroundController.kt` | `activity_player.xml`、`SettingsPrefs`、`PlaybackSettingsActivity` | “播放设置 → 动态歌词背景”默认开启；开启时流光色板与低透明度模糊封面共存，关闭时恢复原静态模糊封面。切歌色板交叉渐变，页面不可见时停止动画。 |
+| 动态歌词背景 | 单 Canvas 封面色板光场与静态模糊回退 | `ui/player/background/FlowingCoverBackgroundView.kt`、`PlayerBackgroundController.kt` | `PlayerFlowBackgroundConfig`、`SettingsPrefs` | 动态完全隐藏模糊纹理；1250ms 色板插值保留运动相位，30/15fps 与系统禁动画/生命周期降级。 |
+| 动态背景设置 Sheet | 五个参数滑轨、色彩模式、独立预览与草稿保存 | `bottom_sheet_dynamic_background_settings.xml` | `DynamicBackgroundSettingsSheet`、同一背景 Controller | 默认/自定义摘要；恢复默认仅改草稿，取消丢弃，保存原子写入，关闭释放 15fps 预览；无曲使用默认色板。 |
+| 双页播放器 | 中央封面/歌词横向切页与顶部分页指示器 | `player_page_cover.xml`、`player_page_lyrics.xml` | `PlayerPagesController`、`PlayerPagesAdapter`、`PlayerPageIndicatorView` | 固定两页与单一状态来源，现有控制栏不参与切页；一起听胶囊坐标不变，互斥隐藏第二页标题槽，第一页信息保留。 |
+| 封面黑胶与紧凑歌词 | 自适应封面、旋转唱片、三句单行歌词 | `PlayerCoverStageLayout`、`VinylDiscView`、`CompactLyricsView` | `SongCoverUrl`、`SongSourceTagBinder`、`CompactLyricRules` | 复用高清/本地封面策略和逐字时间；点击进入完整歌词，不 Seek；黑胶仅播放/页面可见且系统允许动画时旋转，暂停保留角度。 |
+| 完整歌词渐隐与方向仲裁 | 普通/逐字歌词透明边缘与纵向浏览 | `LyricsFadeLayout`、`PlayerLyricsRecyclerView`、`KaraokeLyricsView` | `PlayerSwipeDirectionPolicy` | 中央横向交给 Pager，纵向保留浏览/中线 Seek/三秒恢复；多指重置本次方向，系统边缘返回优先。 |
 | 歌词行 | 普通歌词 RecyclerView 行 | `pm/app/src/main/res/layout/item_lyric_line.xml` | `LyricsAdapter` | 非卡拉 OK View 的普通歌词行。 |
 | 卡拉 OK 歌词 View | 逐字歌词渲染 | `pm/app/src/main/java/cn/partialy/pm/ui/player/KaraokeLyricsView.kt` | `LyricDisplayStyle` | 自绘歌词，不要用普通 TextView 代替。 |
 | 歌源标签 | KG/WY/KW/CLOUD/LOCAL 标签 | `pm/app/src/main/java/cn/partialy/pm/ui/widget/SongSourceTagBinder.kt` | `song_tag_*` 颜色资源 | 歌源标识统一从这里绑定；KG/WY/KW/CLOUD 必须分别显示同规格的 16dp 圆角描边方块 `K` / `Y` / `W` / `C`（无额外 padding、居中），KW 使用橙色，Cloud 使用青绿色。LOCAL 保留自适应矩形，禁止调用方单独设置来源文案、背景或 padding。 |

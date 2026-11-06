@@ -1,35 +1,181 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp" android:background="@drawable/bg_lyric_settings_sheet">
-    <View android:layout_width="32dp" android:layout_height="4dp" android:layout_gravity="center_horizontal" android:background="?attr/colorOutlineVariant" android:layout_marginBottom="12dp" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="40dp" android:text="@string/dynamic_background_settings_title" android:textAppearance="@style/TextAppearance.Material3.TitleLarge" android:textColor="?attr/colorOnSurface" android:textStyle="bold" />
-    <FrameLayout android:id="@+id/backgroundPreview" android:layout_width="match_parent" android:layout_height="96dp" android:layout_marginTop="8dp" android:importantForAccessibility="noHideDescendants">
-        <cn.partialy.pm.ui.player.background.FlowingCoverBackgroundView android:id="@+id/previewFlow" android:layout_width="match_parent" android:layout_height="match_parent" />
-        <ImageView android:id="@+id/previewTexture" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop" />
-        <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="@string/dynamic_background_preview" android:textColor="#FFFFFF" android:background="#33000000" android:textSize="18sp" />
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="@drawable/bg_lyric_settings_sheet">
+    <View
+        android:layout_width="32dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:background="?attr/colorOutlineVariant"
+        android:layout_marginBottom="12dp" />
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="40dp"
+        android:text="@string/dynamic_background_settings_title"
+        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+        android:textColor="?attr/colorOnSurface"
+        android:textStyle="bold" />
+    <FrameLayout
+        android:id="@+id/backgroundPreview"
+        android:layout_width="match_parent"
+        android:layout_height="96dp"
+        android:layout_marginTop="8dp"
+        android:importantForAccessibility="noHideDescendants">
+        <cn.partialy.pm.ui.player.background.FlowingCoverBackgroundView
+        android:id="@+id/previewFlow"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+        <ImageView
+        android:id="@+id/previewTexture"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop" />
+        <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="@string/dynamic_background_preview"
+        android:textColor="#FFFFFF"
+        android:background="#33000000"
+        android:textSize="18sp" />
     </FrameLayout>
-    <androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="false" android:scrollbars="none">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingTop="12dp">
-        <TextView android:id="@+id/speedLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:labelFor="@id/speedSlider" android:text="@string/dynamic_background_speed" android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider android:id="@+id/speedSlider" android:layout_width="match_parent" android:layout_height="48dp" android:contentDescription="@string/dynamic_background_speed" />
-        <TextView android:id="@+id/motionLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:labelFor="@id/motionSlider" android:text="@string/dynamic_background_motion" android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider android:id="@+id/motionSlider" android:layout_width="match_parent" android:layout_height="48dp" android:contentDescription="@string/dynamic_background_motion" />
-        <TextView android:id="@+id/glowLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:labelFor="@id/glowSlider" android:text="@string/dynamic_background_glow" android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider android:id="@+id/glowSlider" android:layout_width="match_parent" android:layout_height="48dp" android:contentDescription="@string/dynamic_background_glow" />
-        <TextView android:id="@+id/brightnessLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:labelFor="@id/brightnessSlider" android:text="@string/dynamic_background_brightness" android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider android:id="@+id/brightnessSlider" android:layout_width="match_parent" android:layout_height="48dp" android:contentDescription="@string/dynamic_background_brightness" />
-        <TextView android:id="@+id/saturationLabel" android:layout_width="match_parent" android:layout_height="wrap_content" android:labelFor="@id/saturationSlider" android:text="@string/dynamic_background_saturation" android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider android:id="@+id/saturationSlider" android:layout_width="match_parent" android:layout_height="48dp" android:contentDescription="@string/dynamic_background_saturation" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/dynamic_background_color_mode" android:textColor="?attr/colorOnSurface" />
-        <RadioGroup android:id="@+id/colorModeGroup" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-            <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/modeFollow" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/dynamic_background_follow" />
-            <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/modeSoft" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/dynamic_background_soft" />
-            <com.google.android.material.radiobutton.MaterialRadioButton android:id="@+id/modeVivid" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/dynamic_background_vivid" />
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="false"
+        android:scrollbars="none">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="12dp">
+        <TextView
+        android:id="@+id/speedLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:labelFor="@id/speedSlider"
+        android:text="@string/dynamic_background_speed"
+        android:textColor="?attr/colorOnSurface" />
+        <com.google.android.material.slider.Slider
+        android:id="@+id/speedSlider"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:contentDescription="@string/dynamic_background_speed" />
+        <TextView
+        android:id="@+id/motionLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:labelFor="@id/motionSlider"
+        android:text="@string/dynamic_background_motion"
+        android:textColor="?attr/colorOnSurface" />
+        <com.google.android.material.slider.Slider
+        android:id="@+id/motionSlider"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:contentDescription="@string/dynamic_background_motion" />
+        <TextView
+        android:id="@+id/glowLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:labelFor="@id/glowSlider"
+        android:text="@string/dynamic_background_glow"
+        android:textColor="?attr/colorOnSurface" />
+        <com.google.android.material.slider.Slider
+        android:id="@+id/glowSlider"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:contentDescription="@string/dynamic_background_glow" />
+        <TextView
+        android:id="@+id/brightnessLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:labelFor="@id/brightnessSlider"
+        android:text="@string/dynamic_background_brightness"
+        android:textColor="?attr/colorOnSurface" />
+        <com.google.android.material.slider.Slider
+        android:id="@+id/brightnessSlider"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:contentDescription="@string/dynamic_background_brightness" />
+        <TextView
+        android:id="@+id/saturationLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:labelFor="@id/saturationSlider"
+        android:text="@string/dynamic_background_saturation"
+        android:textColor="?attr/colorOnSurface" />
+        <com.google.android.material.slider.Slider
+        android:id="@+id/saturationSlider"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:contentDescription="@string/dynamic_background_saturation" />
+        <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/dynamic_background_color_mode"
+        android:textColor="?attr/colorOnSurface" />
+        <RadioGroup
+        android:id="@+id/colorModeGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+            <com.google.android.material.radiobutton.MaterialRadioButton
+        android:id="@+id/modeFollow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:text="@string/dynamic_background_follow" />
+            <com.google.android.material.radiobutton.MaterialRadioButton
+        android:id="@+id/modeSoft"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:text="@string/dynamic_background_soft" />
+            <com.google.android.material.radiobutton.MaterialRadioButton
+        android:id="@+id/modeVivid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:text="@string/dynamic_background_vivid" />
         </RadioGroup>
     </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-    <com.google.android.material.button.MaterialButton android:id="@+id/restoreDefaults" style="@style/Widget.Material3.Button.TextButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/dynamic_background_restore" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-        <com.google.android.material.button.MaterialButton android:id="@+id/cancelButton" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="48dp" android:layout_weight="1" android:layout_marginEnd="6dp" android:text="@string/cancel" android:textColor="@color/action_secondary_text" app:backgroundTint="@color/action_secondary_background" />
-        <com.google.android.material.button.MaterialButton android:id="@+id/saveButton" android:layout_width="0dp" android:layout_height="wrap_content" android:minHeight="48dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="@string/dynamic_background_save" android:textColor="@color/action_primary_text" />
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/restoreDefaults"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:text="@string/dynamic_background_restore" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <com.google.android.material.button.MaterialButton
+        android:id="@+id/cancelButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:layout_weight="1"
+        android:layout_marginEnd="6dp"
+        android:text="@string/cancel"
+        android:textColor="@color/action_secondary_text"
+        app:backgroundTint="@color/action_secondary_background" />
+        <com.google.android.material.button.MaterialButton
+        android:id="@+id/saveButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:layout_weight="1"
+        android:layout_marginStart="6dp"
+        android:text="@string/dynamic_background_save"
+        android:textColor="@color/action_primary_text" />
     </LinearLayout>
 </LinearLayout>
