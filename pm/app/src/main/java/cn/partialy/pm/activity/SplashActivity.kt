@@ -88,7 +88,7 @@ class SplashActivity : AppCompatActivity() {
                 }
 
                 override fun onMessage(message: String) {
-                    PmMessage.error(this@SplashActivity, message)
+                    PmMessage.info(this@SplashActivity, message)
                 }
             },
         )
