@@ -481,13 +481,7 @@ class SearchActivity : BaseDownloadActivity() {
 
     private fun addToListAndPlay(row: SearchTrackRow) {
         lifecycleScope.launch {
-            val base = row.toSongInfo()
-            val cover = if ("{size}" in base.coverUrl) {
-                base.coverUrl.replace("{size}", "240")
-            } else {
-                base.coverUrl
-            }
-            playbackSuccessNotifier.play(base.copy(coverUrl = cover))
+            playbackSuccessNotifier.play(row.toSongInfo())
         }
     }
 

@@ -12,7 +12,7 @@ fun SearchSongInfo.toSearchTrackRow(): SearchTrackRow {
         stableId = "kg_$hash",
         title = displayTitle(),
         artist = singerName,
-        coverUrl = image.orEmpty().replace("{size}", "120"),
+        coverUrl = image.orEmpty(),
         durationSec = duration,
         source = SongType.KG,
         playRef = hash,

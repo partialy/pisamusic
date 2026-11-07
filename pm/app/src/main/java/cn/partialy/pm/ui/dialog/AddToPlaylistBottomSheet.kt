@@ -14,8 +14,10 @@ import cn.partialy.pm.R
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
+import cn.partialy.pm.model.toCanonicalSource
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.ui.mine.MinePlaylistCoverResolver
+import cn.partialy.pm.utils.SongCoverUrl
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -213,7 +215,8 @@ object AddToPlaylistBottomSheet {
                 }
                 return
             }
-            val url = item.cover.trim()
+            val source = item.type.toCanonicalSource().takeUnless { it == "local" }.orEmpty()
+            val url = SongCoverUrl.getRemoteCover(source, item.cover, SongCoverUrl.SIZE_MEDIUM)
             if (url.startsWith("http://") || url.startsWith("https://")) {
                 iv.load(url) {
                     val fallback = MinePlaylistCoverResolver.defaultLocalCoverRes()

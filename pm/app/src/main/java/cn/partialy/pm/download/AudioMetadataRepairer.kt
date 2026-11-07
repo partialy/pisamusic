@@ -130,7 +130,8 @@ class AudioMetadataRepairer @Inject constructor(
         val coverUrl = runCatching {
             cn.partialy.pm.utils.SongCoverUrl.getSongCover(
                 song, cn.partialy.pm.utils.SongCoverUrl.SIZE_MEDIUM)
-        }.getOrNull()?.takeIf(String::isNotBlank) ?: task.coverUrl
+        }.getOrNull()?.takeIf(String::isNotBlank) ?: cn.partialy.pm.utils.SongCoverUrl.getRemoteCover(
+            task.source.name.lowercase(), task.coverUrl, cn.partialy.pm.utils.SongCoverUrl.SIZE_MEDIUM)
         val cover = if (needCover && coverUrl.isNotBlank()) {
             runCatching {
                 client.newCall(Request.Builder().url(coverUrl).build()).execute().use { response ->

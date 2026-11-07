@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemSearchPlaylistBinding
 import cn.partialy.pm.model.SearchPlaylistInfo
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 
 class SearchPlaylistAdapter(
@@ -31,7 +32,9 @@ class SearchPlaylistAdapter(
             binding.titleTextView.text = item.name
             binding.subtitleTextView.text = buildSubtitle(item)
             if (item.coverUrl.isNotBlank()) {
-                binding.coverImageView.load(item.coverUrl)
+                binding.coverImageView.load(
+                    SongCoverUrl.getRemoteCover(item.source.name, item.coverUrl, SongCoverUrl.SIZE_MEDIUM),
+                )
             } else {
                 binding.coverImageView.setImageResource(R.drawable.ic_playlist_24)
             }

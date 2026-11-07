@@ -9,11 +9,33 @@ object SongCoverUrl {
     const val SIZE_LARGE = 360
     const val SIZE_XLARGE = 480
     const val SIZE_PLAYER = 720
+    const val SIZE_DETAIL = 1024
 
     fun getKgImageUrl(url: String?, size: Int = SIZE_SMALL, fallback: String = ""): String {
         val raw = url?.trim().orEmpty()
         if (raw.isBlank()) return fallback
-        return raw.replace("{size}", normalizeSize(size).toString())
+        val target = normalizeSize(size).toString()
+        val resolved = raw.replace("{size}", target)
+        // 历史收藏、同步和播放状态可能已存成缩略图；只改已知 KG CDN 的尺寸段。
+        return if (isKgCdn(resolved)) resolved.replace(Regex("^(https?://[^/?#]+/stdmusic/)\\d+(/)", RegexOption.IGNORE_CASE)) {
+            "${it.groupValues[1]}$target${it.groupValues[2]}"
+        } else resolved
+    }
+
+    /** DTO/分享保留原始地址，校验时仅临时展开模板，不把展示尺寸写回数据。 */
+    fun getRawRemoteCover(url: String?): String {
+        val raw = url?.trim().orEmpty()
+        return raw.takeIf {
+            runCatching {
+                val uri = java.net.URI(raw.replace("{size}", "240"))
+                uri.scheme in listOf("http", "https") && !uri.host.isNullOrBlank() && uri.rawUserInfo == null
+            }.getOrDefault(false)
+        }.orEmpty()
+    }
+
+    private fun isKgCdn(url: String): Boolean {
+        val host = runCatching { java.net.URI(url.replace("{size}", "240")).host?.lowercase() }.getOrNull().orEmpty()
+        return host == "kugou.com" || host.endsWith(".kugou.com") || host == "kgimg.com" || host.endsWith(".kgimg.com")
     }
 
     fun getSongCover(song: SongInfo, size: Int = SIZE_SMALL, fallback: String = ""): String =
@@ -36,7 +58,7 @@ object SongCoverUrl {
             "wy" -> getWyCoverSizeUrl(raw, wySizeOf(size), fallback)
             "kw" -> raw
             "local" -> fallback
-            else -> raw
+            else -> if (source.isBlank() && isKgCdn(raw)) getKgImageUrl(raw, size, fallback) else raw
         }.ifBlank { fallback }
     }
 
@@ -62,9 +84,7 @@ object SongCoverUrl {
                 val secure = if (kgHost && uri?.scheme == "http") url.replaceFirst("http:", "https:") else url
                 val reduced = if (song.type == SongType.KG && kgHost) {
                     listOf(SIZE_XLARGE, SIZE_MEDIUM).map { size ->
-                        secure.replace(Regex("(/stdmusic/)\\d+(/)")) { match ->
-                            "${match.groupValues[1]}$size${match.groupValues[2]}"
-                        }
+                        getKgImageUrl(secure, size)
                     }
                 } else emptyList()
                 listOf(secure) + reduced + url
@@ -113,6 +133,7 @@ object SongCoverUrl {
             SIZE_LARGE -> SIZE_LARGE
             SIZE_XLARGE -> SIZE_XLARGE
             SIZE_PLAYER -> SIZE_PLAYER
+            SIZE_DETAIL -> SIZE_DETAIL
             else -> SIZE_SMALL
         }
 
@@ -123,6 +144,7 @@ object SongCoverUrl {
             SIZE_LARGE -> 1024
             SIZE_XLARGE -> 1920
             SIZE_PLAYER -> SIZE_PLAYER
+            SIZE_DETAIL -> SIZE_DETAIL
             else -> 100
         }
 }

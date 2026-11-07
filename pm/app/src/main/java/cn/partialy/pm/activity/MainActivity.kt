@@ -657,7 +657,7 @@ class MainActivity : BaseDownloadActivity() {
                 id = id,
                 name = name,
                 intro = "",
-                cover = rawCover.replace("{size}", "240"),
+                cover = rawCover,
                 count = item.count ?: 0,
             )
             if (playlistCollectionManager.addNetworkPlaylist(cp)) added++ else skipped++

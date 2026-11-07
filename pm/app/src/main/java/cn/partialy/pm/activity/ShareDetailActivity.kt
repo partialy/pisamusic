@@ -140,7 +140,7 @@ class ShareDetailActivity : BaseActivity() {
 
     private fun renderLocalSong(song: CanonicalSong) {
         val safeSong = song.copy(
-            cover = SongCoverUrl.getRemoteCover(song.source, song.cover, SongCoverUrl.SIZE_MEDIUM),
+            cover = if (song.source == "local") "" else SongCoverUrl.getRawRemoteCover(song.cover),
         )
         binding.shareDetailLoading.isVisible = false
         binding.shareDetailErrorGroup.isVisible = false
@@ -364,15 +364,7 @@ class ShareDetailActivity : BaseActivity() {
     }
 
     private fun bindCover(source: String, coverUrl: String) {
-        val cover = SongCoverUrl.getRemoteCover(source, coverUrl, SongCoverUrl.SIZE_MEDIUM)
-        if (cover.isNotBlank()) {
-            binding.shareDetailCover.load(cover) {
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
-            }
-        } else {
-            binding.shareDetailCover.setImageResource(R.drawable.ic_pm_icon)
-        }
+        bindPlaylistCover(source, coverUrl)
     }
 
     private fun bindPlaylistCover(source: String, cover: String, fallbackRes: Int = R.drawable.ic_pm_icon) {
@@ -400,7 +392,7 @@ class ShareDetailActivity : BaseActivity() {
             name = name,
             singer = singer,
             album = rawString("album"),
-            cover = SongCoverUrl.getRemoteCover(source, coverUrl, SongCoverUrl.SIZE_MEDIUM),
+            cover = SongCoverUrl.getRawRemoteCover(rawString("cover").ifBlank { coverUrl }),
             duration = rawNumber("duration").toInt(),
         )
     }
@@ -415,7 +407,7 @@ class ShareDetailActivity : BaseActivity() {
             source = source,
             name = name,
             desc = rawString("desc").ifBlank { description },
-            cover = SongCoverUrl.getRemoteCover(source, coverUrl, SongCoverUrl.SIZE_MEDIUM),
+            cover = SongCoverUrl.getRawRemoteCover(rawString("cover").ifBlank { coverUrl }),
             song_count = rawNumber("song_count").toInt(),
         )
     }

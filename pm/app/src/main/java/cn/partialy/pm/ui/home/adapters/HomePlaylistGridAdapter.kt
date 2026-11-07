@@ -8,6 +8,8 @@ import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemHomeRecommendPlaylistBinding
 import cn.partialy.pm.model.HomeRecommendPlaylist
+import cn.partialy.pm.model.toCanonicalSource
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 import kotlin.math.max
 
@@ -36,7 +38,10 @@ class HomePlaylistGridAdapter(
             binding.titleTextView.text = item.name
             binding.playCountTextView.text = item.playCountLabel
             if (item.coverUrl.isNotBlank()) {
-                binding.coverImageView.load(item.coverUrl)
+                val source = item.sourceType.toCanonicalSource().takeUnless { it == "local" }.orEmpty()
+                binding.coverImageView.load(
+                    SongCoverUrl.getRemoteCover(source, item.coverUrl, SongCoverUrl.SIZE_MEDIUM),
+                )
             } else {
                 binding.coverImageView.setImageResource(R.drawable.ic_playlist_24)
             }

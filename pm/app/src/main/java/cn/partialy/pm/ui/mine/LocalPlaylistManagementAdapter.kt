@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemLocalPlaylistManagementBinding
 import cn.partialy.pm.model.CollectedPlaylist
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 
 class LocalPlaylistManagementAdapter(
@@ -75,7 +76,7 @@ class LocalPlaylistManagementAdapter(
                 return
             }
             val fallback = MinePlaylistCoverResolver.defaultLocalCoverRes()
-            val url = item.cover.trim()
+            val url = SongCoverUrl.getRemoteCover("", item.cover, SongCoverUrl.SIZE_MEDIUM)
             if (url.startsWith("https://") || url.startsWith("http://")) {
                 imageView.load(url) {
                     placeholder(fallback)

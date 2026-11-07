@@ -12,6 +12,8 @@ import cn.partialy.pm.activity.WyPlaylistDetailActivity
 import cn.partialy.pm.databinding.ItemMinePlaylistRowBinding
 import cn.partialy.pm.model.CollectedPlaylist
 import cn.partialy.pm.model.CollectedPlaylistType
+import cn.partialy.pm.model.toCanonicalSource
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 
 class MinePlaylistsAdapter(
@@ -108,7 +110,8 @@ class MinePlaylistsAdapter(
                 }
                 return
             }
-            val url = item.cover.trim()
+            val source = item.type.toCanonicalSource().takeUnless { it == "local" }.orEmpty()
+            val url = SongCoverUrl.getRemoteCover(source, item.cover, SongCoverUrl.SIZE_MEDIUM)
             if (url.startsWith("http://") || url.startsWith("https://")) {
                 val fallback = if (item.type == CollectedPlaylistType.LOCAL) {
                     MinePlaylistCoverResolver.defaultLocalCoverRes()

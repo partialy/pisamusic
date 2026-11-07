@@ -71,6 +71,10 @@
 
 ## 播放器规则
 
+- 歌曲更多详情、分享歌曲详情和歌单详情的远程封面复用 `PlaylistCoverRequestBinder` 与 `requestablePlaylistCoverCandidates`，优先 1024，失败依次回退 720/480/240 和原始地址。KG 模板/已知 CDN 固定尺寸、WY 真实 query 中的 param/thumbnail 都按尺寸生成，编码参数及 fragment 保持；列表/搜索歌单列表仍独立按缩略图尺寸取用，不把大图 URL 写回 DTO。
+
+- KG 歌曲/歌单从接口 DTO、搜索行到 SongInfo、收藏/同步、一起听和分享必须保留原始封面（含 `{size}` 模板），禁止在转换或播放入口固定为 120/240。显示、通知与封面下载时统一调用 `SongCoverUrl` 指定尺寸；播放封面首选 720，列表按 120/240 取图。历史固定尺寸封面仅对已知 KG CDN 的 `/stdmusic/<尺寸>/` 段按需替换，不改未知域名或任意数字路径，不批量改写历史数据库。
+
 - 播放器中央采用 `ViewPager2` 固定双页：封面/自绘黑胶/三行歌词与完整歌词；`PlayerPagesController` 管理视图，`PlayerActivity` 统一分发歌曲、歌词和媒体位置，两页不重复订阅或请求。顶部中央只显示分页指示器，现有功能栏、进度条和控制区保持独立。页面索引使用 `SettingsPrefs` 记忆，短期 Bundle 恢复优先，切歌不跳页。
 - 一起听胶囊仍位于原 `lyricsContainer` 顶部中央，坐标、大小和回调不变；两页歌名/歌手均位于顶部，入房统一设为 `INVISIBLE`（保留槽高度），退出恢复。封面页按顶部标题、封面、底部居中三行歌词的顺序布局；禁止移动胶囊解决重叠。
 - 动态背景由 `FlowingCoverBackgroundView` 单 Canvas 绘制四个透明径向光场，不叠加模糊封面纹理；切歌只插值色板，保留轨迹相位。正常约 30fps，省电及预览约 15fps，禁动画显示静态渐变，离开页面停止。关闭动态时使用静态模糊封面，旧版模糊在线程池执行。
@@ -303,7 +307,7 @@
 - `OnlinePlaylistBatchActivity` 负责在线歌单歌曲多选，底部固定为“全选 / 反选 / 操作”，操作菜单提供下载、收藏、添加到；复用本地批量管理的歌曲行与选择规则，搜索防抖 150ms，40 条渲染窗口，全选和反选作用于过滤全集，保留筛选外选择。未完整加载时允许手选，禁用全量全选，失败可重试；Intent 只传来源、歌单 ID 和轻量会话引用，重建可重新加载。
 - 单曲与批量添加目标共用 `AddToPlaylistBottomSheet`，支持当前队列、已有自建歌单及新建歌单；新建表单共用 `LocalPlaylistCreateDialog`。超过 100 首添加前确认一次；仅根据实际提交结果清除成功或已存在项的勾选，失败保留。队列追加走 `MusicController.appendSongsLazyWithResult`，保持原顺序且不自动播放。
 - 本地歌单歌曲统一按 `SongType + songId` 识别，SQLite V13 主键为 `(playlist_id, song_type, song_id)`，V12 升级保留原数据、顺序与 payload。`createLocalPlaylistWithSongs` 与批量追加将歌单、歌曲和账号快照对应的 outbox 写在同一事务内，提交后才发布内存与 Flow；异步镜像和网络失败不撤销本地成功。启动时已有 SQLite 歌单不再合并旧 JSON 曲目；ZIP 恢复通过显式事务追加 API 合并歌曲，不依赖启动迁移。
-- 在线转本地歌单由 `OnlinePlaylistToLocalViewModel` 持有会话、`OnlinePlaylistToLocalCoordinator` 展示确认和进度；旋转保留会话，进程重建不自动重新提交。加载阶段可取消，进入短事务保存阶段后不可取消或重复提交，成功结果消费后打开新 UUID 的本地歌单。当前详情没有可靠的全量快照标记，因此转换重新分页读取；KG 依赖明确且一致的总数，WY 先通过 `/playlist/detail` 获取完整 `trackIds` 与 `trackCount`，分页结果必须逐页匹配权威歌曲身份与顺序，且明确存在 `songs` 数组（允许经校验的空数组），不能用旧 totalHint 截断。缺页、重复页、错误和超时不得保存为完整歌单；有效歌曲按来源+ID 保留首次记录与顺序，保留已知不可播放标记，汇总提示无效或重复跳过数量。转换封面保存可请求 URL，不保存 `{size}` 模板，不下载音频或修改原歌单。
+- 在线转本地歌单由 `OnlinePlaylistToLocalViewModel` 持有会话、`OnlinePlaylistToLocalCoordinator` 展示确认和进度；旋转保留会话，进程重建不自动重新提交。加载阶段可取消，进入短事务保存阶段后不可取消或重复提交，成功结果消费后打开新 UUID 的本地歌单。当前详情没有可靠的全量快照标记，因此转换重新分页读取；KG 依赖明确且一致的总数，WY 先通过 `/playlist/detail` 获取完整 `trackIds` 与 `trackCount`，分页结果必须逐页匹配权威歌曲身份与顺序，且明确存在 `songs` 数组（允许经校验的空数组），不能用旧 totalHint 截断。缺页、重复页、错误和超时不得保存为完整歌单；有效歌曲按来源+ID 保留首次记录与顺序，保留已知不可播放标记，汇总提示无效或重复跳过数量。转换封面保存合法远程原始 URL（保留 KG `{size}` 模板），展示时再按所需尺寸生成可请求 URL，不下载音频或修改原歌单。
 - 批量收藏只通过 `LoveManager` 幂等添加未收藏歌曲，不得循环 toggle；仅新入库歌曲产生 UPSERT 同步。批量下载一次选择音质，超过 100 首先确认总量，操作结束保留筛选，只清除成功处理或已存在项目的选择。
 - 下载入口只负责音质选择和入队，不再弹出进度 Sheet。应用级 `DownloadQueueCoordinator` 以 FIFO 调度，最多 2 个任务覆盖准备、取链、下载和文件处理全流程；不持有 Activity，进程存活时离开页面继续执行，进程重启未完成项仍标失败。
 - 下载可在同来源、当前账号允许的较低音质回退，仓库记录实际音质；歌词是可选资产，获取失败不阻断音频，也不得报成音频取链失败。云盘临近执行才签发 URL，不持久化播放地址。

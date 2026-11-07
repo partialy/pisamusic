@@ -8,6 +8,7 @@ data class SongInfo(
     val type: SongType,
     val name: String,
     val artist: String,
+    /** 原始封面地址；KG 保留 {size}，由 SongCoverUrl 在取图时解析尺寸。 */
     var coverUrl: String,
     /** 内嵌封面（本地/已下载列表）；非空时列表优先用字节加载，避免 data URI。 */
     var embeddedCoverArt: ByteArray? = null,

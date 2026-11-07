@@ -453,7 +453,7 @@ internal fun cn.partialy.pm.model.KgPlaylistTrackRow.toSongInfoOrNull(): SongInf
     val id = hash.trim()
     if (id.isEmpty()) return null
 
-    val coverUrl = cover.replace("{size}", "120")
+    val coverUrl = cover
     val (artist, title) = run {
         val fromSinger = singerinfo.map { it.name.trim() }.filter { it.isNotEmpty() }
         if (fromSinger.isNotEmpty()) {

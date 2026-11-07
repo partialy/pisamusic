@@ -7,13 +7,9 @@ import cn.partialy.pm.model.KgPlaylistDetailItem
 import cn.partialy.pm.model.TopPlaylistSpecialItem
 object ConvertUtil {
 
-    private fun normalizeKgPlaylistCoverUrl(url: String): String =
-        url.replace("{size}", "240")
-
     /** 首页 top/playlist 单条 → 收藏结构（id 优先 global_collection_id）。 */
     fun convertKgTopPlaylistItemToCollected(item: TopPlaylistSpecialItem): CollectedPlaylist {
         val coverRaw = item.flexibleCover.ifBlank { item.imgUrl }.ifBlank { item.pic }
-        val cover = if (coverRaw.isNotBlank()) normalizeKgPlaylistCoverUrl(coverRaw) else ""
         val countLong = item.playCount.takeIf { it > 0 } ?: item.collectCount
         val count = countLong.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
         val title = item.specialName.ifBlank { item.show }
@@ -25,7 +21,7 @@ object ConvertUtil {
             id = id,
             name = title,
             intro = item.intro,
-            cover = cover,
+            cover = coverRaw,
             count = count,
         )
     }
@@ -36,7 +32,6 @@ object ConvertUtil {
 
     /** 歌单详情 /playlist/detail 单条 → 收藏结构。 */
     fun convertKgPlaylistDetailToCollected(item: KgPlaylistDetailItem): CollectedPlaylist {
-        val cover = if (item.pic.isNotBlank()) normalizeKgPlaylistCoverUrl(item.pic) else ""
         val title = item.name
         val id = item.globalCollectionId.ifBlank {
             "pl_${title.hashCode()}_${item.count}_${item.pic.hashCode()}"
@@ -46,7 +41,7 @@ object ConvertUtil {
             id = id,
             name = title,
             intro = item.intro,
-            cover = cover,
+            cover = item.pic,
             count = item.count.coerceAtLeast(0),
         )
     }

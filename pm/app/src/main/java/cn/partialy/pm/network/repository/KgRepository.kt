@@ -265,11 +265,8 @@ class KgRepository @Inject constructor(
         }
     }
 
-    private fun normalizePlaylistCoverUrl(url: String): String = url.replace("{size}", "240")
-
     private fun TopPlaylistSpecialItem.toHomeRecommendPlaylist(): HomeRecommendPlaylist {
         val coverRaw = flexibleCover.ifBlank { imgUrl }.ifBlank { pic }
-        val cover = if (coverRaw.isNotBlank()) normalizePlaylistCoverUrl(coverRaw) else ""
         val count = playCount.takeIf { it > 0 } ?: collectCount
         val title = specialName.ifBlank { show }
         val stableId = globalCollectionId.ifBlank {
@@ -278,7 +275,7 @@ class KgRepository @Inject constructor(
         return HomeRecommendPlaylist(
             id = stableId,
             name = title,
-            coverUrl = cover,
+            coverUrl = coverRaw,
             playCountLabel = formatKgPlayCount(count),
         )
     }
@@ -338,7 +335,7 @@ class KgRepository @Inject constructor(
                 },
             )
             val mapped = data.lists.map { item ->
-                val cover = normalizePlaylistCoverUrl(item.img)
+                val cover = item.img
                 val includeName = item.contain.substringBefore("、")
                     .substringBefore("/")
                     .trim()

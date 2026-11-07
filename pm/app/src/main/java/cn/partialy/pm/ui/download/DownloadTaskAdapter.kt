@@ -10,6 +10,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ItemDownloadTaskBinding
 import cn.partialy.pm.download.task.DownloadTask
 import cn.partialy.pm.download.task.DownloadTaskStatus
+import cn.partialy.pm.utils.SongCoverUrl
 import coil.load
 
 class DownloadTaskAdapter(
@@ -87,7 +88,7 @@ class DownloadTaskAdapter(
                 if (selectionMode) toggleSelection(task.id) else onTaskClick(task)
             }
 
-            coverImageView.load(task.coverUrl.takeIf { !it.isNullOrBlank() }) {
+            coverImageView.load(SongCoverUrl.getRemoteCover(task.source.name.lowercase(), task.coverUrl, SongCoverUrl.SIZE_SMALL).takeIf { it.isNotBlank() }) {
                 crossfade(true)
                 placeholder(R.drawable.mine_entry_my_songs)
                 error(R.drawable.mine_entry_my_songs)

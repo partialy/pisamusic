@@ -26,8 +26,8 @@ class LocalPlaylistAutoCoverRulesTest {
         assertNull(LocalPlaylistAutoCoverRules.fromLastAddedSong(listOf(song("b", cover = "not a URL"))))
     }
 
-    @Test fun knownKgTemplateIsResolvedBeforePersistence() {
-        assertEquals("https://imgessl.kugou.com/500/image.jpg",
+    @Test fun knownKgTemplateIsPreservedForDisplayTimeSizing() {
+        assertEquals("https://imgessl.kugou.com/{size}/image.jpg",
             LocalPlaylistAutoCoverRules.fromLastAddedSong(listOf(
                 song("a", SongType.KG, "https://imgessl.kugou.com/{size}/image.jpg"),
             )))

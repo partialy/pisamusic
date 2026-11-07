@@ -46,7 +46,7 @@ object ShareBottomSheet {
             activity = activity,
             title = safe.name,
             description = safe.singer,
-            cover = safe.cover,
+            cover = SongCoverUrl.getRemoteCover(safe.source, safe.cover, SongCoverUrl.SIZE_MEDIUM),
         ) { repository, token ->
             repository.createSongShare(token, safe)
         }
@@ -61,7 +61,7 @@ object ShareBottomSheet {
             activity = activity,
             title = safe.name,
             description = description,
-            cover = safe.cover,
+            cover = SongCoverUrl.getRemoteCover(safe.source, safe.cover, SongCoverUrl.SIZE_MEDIUM),
         ) { repository, token ->
             repository.createPlaylistShare(token, safe)
         }
@@ -172,12 +172,12 @@ object ShareBottomSheet {
         ).shareRepository()
 
     private fun CanonicalSong.shareSafe(): CanonicalSong {
-        val safeCover = SongCoverUrl.getRemoteCover(source, cover, SongCoverUrl.SIZE_MEDIUM)
+        val safeCover = if (source == "local") "" else SongCoverUrl.getRawRemoteCover(cover)
         return copy(cover = safeCover, coverSize = coverSize.takeIf { safeCover.isNotBlank() })
     }
 
     private fun CanonicalPlaylist.shareSafe(): CanonicalPlaylist {
-        val safeCover = SongCoverUrl.getRemoteCover(source, cover, SongCoverUrl.SIZE_MEDIUM)
+        val safeCover = if (source == "local") "" else SongCoverUrl.getRawRemoteCover(cover)
         return copy(cover = safeCover, coverSize = coverSize.takeIf { safeCover.isNotBlank() })
     }
 

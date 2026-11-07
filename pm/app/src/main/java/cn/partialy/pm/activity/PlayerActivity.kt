@@ -808,7 +808,7 @@ class PlayerActivity : BaseDownloadActivity() {
         if (currentSong != null) {
             sheetBinding.listenTogetherCurrentSongName.text = currentSong.name
             sheetBinding.listenTogetherCurrentSongArtist.text = currentSong.artist
-            val cover = currentSong.coverUrl
+            val cover = SongCoverUrl.getSongCover(currentSong, SongCoverUrl.SIZE_SMALL)
             if (cover.isNotBlank()) {
                 sheetBinding.listenTogetherCurrentSongCover.load(cover)
             } else {
@@ -845,7 +845,7 @@ class PlayerActivity : BaseDownloadActivity() {
             sheetBinding.listenTogetherRoomSongView.text = roomSong.name
             sheetBinding.listenTogetherRoomSongArtist.text = roomSong.singer
             sheetBinding.listenTogetherRoomSongArtist.visibility = View.VISIBLE
-            val cover = roomSong.cover
+            val cover = SongCoverUrl.getRemoteCover(roomSong.source, roomSong.cover, SongCoverUrl.SIZE_SMALL)
             if (cover.isNotBlank()) {
                 sheetBinding.listenTogetherRoomSongCover.load(cover) {
                     crossfade(true)

@@ -221,7 +221,7 @@ data class SearchSongInfo(
                 name = displayTitle(),
                 album = null,
                 artist = singerName,
-                coverUrl = image.orEmpty().replace("{size}", "120"),
+                coverUrl = image.orEmpty(),
                 lyric = null,
                 duration = duration,
             )

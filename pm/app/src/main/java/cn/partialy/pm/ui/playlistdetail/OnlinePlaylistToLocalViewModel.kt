@@ -76,7 +76,7 @@ class OnlinePlaylistToLocalViewModel @Inject constructor(
                 // SQLite 事务很短，进入保存后必须完成，离页/旋转不得留下未知提交状态。
                 withContext(NonCancellable + Dispatchers.IO) {
                     val id = manager.createLocalPlaylistWithSongs(metadata.name, complete.songs,
-                        metadata.desc, requestablePlaylistCoverCandidates(source, metadata.cover).firstOrNull().orEmpty())
+                        metadata.desc, rawRemotePlaylistCoverOrNull(source, metadata.cover).orEmpty())
                     mutableState.value = PlaylistConversionState(PlaylistConversionStage.SUCCESS,
                         complete.readCount, complete.skippedCount, id, complete.songs.size)
                 }

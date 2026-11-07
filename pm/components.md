@@ -152,6 +152,6 @@
 | 在线歌单多选页 | KG/WY 歌曲搜索、多选、下载、收藏与添加到 | `activity/OnlinePlaylistBatchActivity.kt`、`res/layout/activity_online_playlist_batch.xml` | 复用 `LocalPlaylistSongManagementAdapter`；底部全选、反选、操作三项；操作菜单复用 `ActionMenuBottomSheet`；未完整加载时禁用全量全选，缺页显示重试；搜索外勾选保留。 |
 | 添加到目标选择器 | 单曲或批量添加到队列、已有或新建自建歌单 | `ui/dialog/AddToPlaylistBottomSheet.kt`、`res/layout/item_pick_local_playlist_row.xml` | 共用目标行、封面与队列计数；超过 100 首确认；返回实际新增、已存在与失败结果。 |
 | 在线转本地确认与进度 | 完整抓取 KG/WY 歌单并事务创建本地副本 | `ui/playlistdetail/OnlinePlaylistToLocalCoordinator.kt`、`OnlinePlaylistToLocalViewModel.kt` | 复用 `PmMinimalDialog` 与 Material 加载指示器；加载可取消、保存不可取消；ViewModel 保留旋转会话，成功只跳转一次。 |
-| 高清 Hero 封面 | 在线歌单详情大封面 | `ui/playlistdetail/PlaylistHeroCoverUrl.kt`、`PlaylistDetailHeaderController.kt` | 已知平台 500px 候选失败后回退原 URL，再用既有占位；不影响列表缩略图。 |
+| 高清 Hero 封面 | 在线歌单详情大封面 | `ui/playlistdetail/PlaylistHeroCoverUrl.kt`、`PlaylistDetailHeaderController.kt` | 歌曲更多/分享详情与歌单详情统一优先 1024，失败按 720/480/240/原 URL 降级，再用既有占位；KG 解析模板及已知固定尺寸目录，WY 解析真实 query 尺寸并保留编码参数/fragment；列表缩略图独立取用。 |
 
 - 歌词样式实时预览：`include_lyric_settings_preview.xml`、`bg_lyric_settings_preview.xml`、`ui/player/LyricPreviewController.kt` 与 `LyricPreviewSamples.kt`；8 秒原创三行无声样本，复用普通/逐字渲染器，透明覆盖阻断歌词触摸，样式变化保留时间轴；隐藏暂停、关闭释放、系统禁动画静态展示。预览基准 96dp、圆角 12dp，大字号按换行高度扩展。
