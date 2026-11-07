@@ -282,7 +282,14 @@ public class JDownloadManager {
                 if (append) {
                     boolean validatorMatches = canResume && cn.partialy.pm.download.DownloadResumePolicy.responseValidatorMatches(saved.etag, saved.modified, response.header("ETag"), response.header("Last-Modified"));
                     total = canResume ? cn.partialy.pm.download.DownloadResumePolicy.validatedTotal(response.header("Content-Range"), offset, saved.total, body.contentLength(), validatorMatches) : -1;
-                    if (total < 0) throw new java.io.IOException("续传资源校验失败");
+                    if (total < 0) {
+                        // 206 校验失败时禁止追加旧文件；改发无 Range 的完整请求，保守回退重下。
+                        if (canResume && attempt == 0) {
+                            canResume = false;
+                            continue;
+                        }
+                        throw new java.io.IOException("续传资源校验失败");
+                    }
                 } else if (response.code() != 200) throw new java.io.IOException("下载状态无效");
                 String etag = response.header("ETag"), modified = response.header("Last-Modified");
                 long count = append ? offset : 0;
