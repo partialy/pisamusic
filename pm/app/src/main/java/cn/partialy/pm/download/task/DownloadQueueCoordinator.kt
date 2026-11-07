@@ -183,6 +183,7 @@ class DownloadQueueCoordinator @Inject constructor(
             // 两个不同请求档位回退为同一真实档位时，共享文件也必须串行核查。
             identityLocks.getOrPut(identity) { Mutex() }.withLock {
                 currentCoroutineContext().ensureActive()
+                if (repository.discardResolvedDuplicate(request.taskId, request.generation)) return@withLock
                 val existing = repository.tasks.value.firstOrNull {
                     it.id != request.taskId && it.source == request.song.type && it.songId == request.song.id &&
                         it.qualityKey == resource.choice.toPlaybackQualityKey() && it.status == DownloadTaskStatus.COMPLETED &&
@@ -204,7 +205,7 @@ class DownloadQueueCoordinator @Inject constructor(
             val kind = (error as? DownloadResolutionException)?.kind ?: DownloadFailureKind.STORAGE
             repository.withAttempt(request.taskId, request.generation) {
                 if (request.exactQuality) { repository.requestPause(request.taskId); repository.markPaused(request.taskId, request.generation, kind.description) }
-                else repository.markFailed(request.taskId, kind.description)
+                else repository.settleStoppedFailure(request.taskId, request.generation, kind.description)
             }
             Log.w("DownloadQueue", "source=${request.song.type} id=${request.song.id} quality=${request.choice.toPlaybackQualityKey()} stage=execute errorKind=$kind")
         }
@@ -305,7 +306,7 @@ class DownloadQueueCoordinator @Inject constructor(
                         override fun onCancelled() { repository.withAttempt(id, request.generation) { repository.markCancelled(id) }; finished.complete(Unit) }
                         override fun onFailure(e: Exception) {
                             refreshUrl = urlAttempt == 0 && listOf("HTTP 401", "HTTP 403", "HTTP 404").any { e.message?.contains(it) == true }
-                            if (!refreshUrl) repository.withAttempt(id, request.generation) { repository.markFailed(id, DownloadFailureKind.STORAGE.description) }
+                            if (!refreshUrl) repository.settleStoppedFailure(id, request.generation, DownloadFailureKind.STORAGE.description)
                             finished.complete(Unit)
                         }
                     },

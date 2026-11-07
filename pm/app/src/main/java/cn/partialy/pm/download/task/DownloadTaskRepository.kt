@@ -114,6 +114,31 @@ class DownloadTaskRepository @Inject constructor(
         changed
     }
 
+    /** 内核已经停止时，按最后接受的用户意图收敛；取消优先于暂停。 */
+    fun settleStoppedFailure(taskId: String, generation: Long, message: String?) = synchronized(stateLock) {
+        if (!matches(taskId, generation)) return@synchronized
+        when (cn.partialy.pm.download.DownloadResumePolicy.stoppedFailureStatus(find(taskId)?.status?.name)) {
+            "PAUSED" -> markPaused(taskId, generation, message)
+            "CANCELLED" -> Unit
+            else -> markFailed(taskId, message)
+        }
+    }
+
+    /** 仅移除尚未取得文件所有权的重复占位行，不触碰已有任务/文件及暂停意图。 */
+    fun discardResolvedDuplicate(taskId: String, generation: Long): Boolean = synchronized(stateLock) {
+        val current = find(taskId) ?: return@synchronized false
+        if (!matches(taskId, generation) || current.targetPath != null || !current.status.hasUnfinishedIntent) return@synchronized false
+        val duplicate = _tasks.value.any { other ->
+            other.id != current.id && other.source == current.source && other.songId == current.songId && other.qualityKey == current.qualityKey &&
+                (other.status.hasUnfinishedIntent || (other.status == DownloadTaskStatus.COMPLETED && other.targetPath?.let(::File)?.isFile == true)) && cn.partialy.pm.download.DownloadResumePolicy.resolvedDuplicateWins(false, other.targetPath != null, current.createdAt, current.id, other.createdAt, other.id)
+        }
+        if (!duplicate) return@synchronized false
+        removedIds += taskId
+        _tasks.value = _tasks.value.filterNot { it.id == taskId }
+        scope.launch { helper.writableDatabase.delete("download_tasks", "id=?", arrayOf(taskId)) }
+        true
+    }
+
     fun setPauseReason(taskId: String, reason: String) {
         synchronized(stateLock) {
             val task = find(taskId) ?: return
@@ -430,8 +455,8 @@ class DownloadTaskRepository @Inject constructor(
             }
         }
         recordedPaths.distinct().forEach { rawPath ->
-            val file = runCatching { File(rawPath).canonicalFile }.getOrNull()
-            if (file == null) {
+            val file = File(rawPath)
+            if (!cn.partialy.pm.download.DownloadResumePolicy.safeRecordedPath(file, parent)) {
                 failed += rawPath
             } else if (file.exists() && !file.delete()) {
                 failed += rawPath

@@ -18,4 +18,23 @@ class DownloadResumePolicyTest {
         assertFalse(DownloadResumePolicy.acceptsGeneration(2, 2, true))
         assertFalse(DownloadResumePolicy.acceptsGeneration(0, -1, false))
     }
+    @Test fun lateFailureHonorsPauseAndCancel() {
+        assertEquals("PAUSED", DownloadResumePolicy.stoppedFailureStatus("PAUSING"))
+        assertEquals("CANCELLED", DownloadResumePolicy.stoppedFailureStatus("CANCELLED"))
+        assertEquals("FAILED", DownloadResumePolicy.stoppedFailureStatus("DOWNLOADING"))
+    }
+    @Test fun resolvedQualityKeepsOwnerOrOldestPlaceholder() {
+        assertTrue(DownloadResumePolicy.resolvedDuplicateWins(false, true, 1, "a", 2, "b"))
+        assertTrue(DownloadResumePolicy.resolvedDuplicateWins(false, false, 2, "b", 1, "a"))
+        assertTrue(DownloadResumePolicy.resolvedDuplicateWins(false, false, 1, "b", 1, "a"))
+        assertFalse(DownloadResumePolicy.resolvedDuplicateWins(false, false, 1, "a", 2, "b"))
+        assertFalse(DownloadResumePolicy.resolvedDuplicateWins(true, true, 2, "b", 1, "a"))
+    }
+    @Test fun derivedPartNeverEscapesParentOrTraverses() {
+        val parent = java.io.File(System.getProperty("java.io.tmpdir")).canonicalFile
+        assertTrue(DownloadResumePolicy.safeRecordedPath(java.io.File(parent, "download-policy-safe.part"), parent))
+        assertFalse(DownloadResumePolicy.safeRecordedPath(java.io.File(parent, "../download-policy.part"), parent))
+        assertFalse(DownloadResumePolicy.safeRecordedPath(java.io.File(parent.parentFile, "download-policy.part"), parent))
+        assertFalse(DownloadResumePolicy.safeRecordedPath(parent, parent))
+    }
 }
