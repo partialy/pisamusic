@@ -74,6 +74,7 @@
 - 播放器中央采用 `ViewPager2` 固定双页：封面/自绘黑胶/三行歌词与完整歌词；`PlayerPagesController` 管理视图，`PlayerActivity` 统一分发歌曲、歌词和媒体位置，两页不重复订阅或请求。顶部中央只显示分页指示器，现有功能栏、进度条和控制区保持独立。页面索引使用 `SettingsPrefs` 记忆，短期 Bundle 恢复优先，切歌不跳页。
 - 一起听胶囊仍位于原 `lyricsContainer` 顶部中央，坐标、大小和回调不变；入房隐藏第二页 `headerSongInfo`（保留槽高度），退出恢复。封面页只增加安全顶部空间，三行歌词下方歌曲信息保持显示。禁止移动胶囊解决重叠。
 - 动态背景由 `FlowingCoverBackgroundView` 单 Canvas 绘制四个透明径向光场，不叠加模糊封面纹理；切歌只插值色板，保留轨迹相位。正常约 30fps，省电及预览约 15fps，禁动画显示静态渐变，离开页面停止。关闭动态时使用静态模糊封面，旧版模糊在线程池执行。
+- 动态背景设置 Sheet 视觉复用歌词样式：歌词不透明度同款 `SeekBar` 轨道/滑块、三段 `MaterialButtonToggleGroup`、分组卡片与圆角预览；恢复默认固定为标题右侧 refresh 图标。`DynamicBackgroundSettingsWindow` 先保留标题和底部取消/保存区，再给滚动列表分配安全窗口内的剩余高度；空间不足时隐藏并暂停预览，保存按钮显式使用主题色背景。
 - “播放设置 → 动态背景设置”使用 `DynamicBackgroundSettingsSheet` 独立草稿和当前歌曲色板预览；取消不写入，恢复默认只改草稿，保存通过 `SettingsPrefs` 单 JSON key 原子提交规范化参数，播放器 onResume 平滑应用。旧动态开关 key 保持不变。无歌曲预览直接使用默认色板，关闭 Sheet 必须释放预览请求及帧回调。
 - `CompactLyricsView` 只接收统一媒体位置与现有 `LyricLine/LyricWord`，三行单行居中，邻行省略，当前行超长延迟 350ms 后向左滚动、不循环；暂停冻结、Seek 重算、禁动画静止但高亮继续更新。`PlayerSwipeDirectionPolicy` 仲裁中央横/纵手势，横滑不触发歌词浏览或 Seek。切换歌词内容须重置旧逐字行号/过渡状态；完整歌词隐藏或宿主停止时停帧但保留浏览恢复语义。
 

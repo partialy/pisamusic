@@ -1,181 +1,371 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:background="@drawable/bg_lyric_settings_sheet">
-    <View
-        android:layout_width="32dp"
-        android:layout_height="4dp"
-        android:layout_gravity="center_horizontal"
-        android:background="?attr/colorOutlineVariant"
-        android:layout_marginBottom="12dp" />
-    <TextView
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_lyric_settings_sheet"
+    android:paddingTop="16dp">
+
+    <LinearLayout
+        android:id="@+id/backgroundSettingsHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="40dp"
-        android:text="@string/dynamic_background_settings_title"
-        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-        android:textColor="?attr/colorOnSurface"
-        android:textStyle="bold" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="12dp">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="@string/dynamic_background_settings_title"
+            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+            android:textColor="?attr/colorOnSurface"
+            android:textStyle="bold" />
+        <ImageButton
+            android:id="@+id/restoreDefaults"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/dynamic_background_restore"
+            android:padding="8dp"
+            android:src="@drawable/ic_refresh_24"
+            app:tint="?attr/colorOnSurfaceVariant" />
+    </LinearLayout>
+
     <FrameLayout
         android:id="@+id/backgroundPreview"
         android:layout_width="match_parent"
         android:layout_height="96dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="@drawable/bg_lyric_settings_preview"
+        android:clipToOutline="true"
         android:importantForAccessibility="noHideDescendants">
         <cn.partialy.pm.ui.player.background.FlowingCoverBackgroundView
-        android:id="@+id/previewFlow"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+            android:id="@+id/previewFlow"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
         <ImageView
-        android:id="@+id/previewTexture"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop" />
+            android:id="@+id/previewTexture"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop" />
         <TextView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:text="@string/dynamic_background_preview"
-        android:textColor="#FFFFFF"
-        android:background="#33000000"
-        android:textSize="18sp" />
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="@string/dynamic_background_preview"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp" />
     </FrameLayout>
+
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/backgroundSettingsScroll"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="wrap_content"
         android:fillViewport="false"
-        android:scrollbars="none">
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="12dp">
-        <TextView
-        android:id="@+id/speedLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:labelFor="@id/speedSlider"
-        android:text="@string/dynamic_background_speed"
-        android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider
-        android:id="@+id/speedSlider"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:contentDescription="@string/dynamic_background_speed" />
-        <TextView
-        android:id="@+id/motionLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:labelFor="@id/motionSlider"
-        android:text="@string/dynamic_background_motion"
-        android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider
-        android:id="@+id/motionSlider"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:contentDescription="@string/dynamic_background_motion" />
-        <TextView
-        android:id="@+id/glowLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:labelFor="@id/glowSlider"
-        android:text="@string/dynamic_background_glow"
-        android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider
-        android:id="@+id/glowSlider"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:contentDescription="@string/dynamic_background_glow" />
-        <TextView
-        android:id="@+id/brightnessLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:labelFor="@id/brightnessSlider"
-        android:text="@string/dynamic_background_brightness"
-        android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider
-        android:id="@+id/brightnessSlider"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:contentDescription="@string/dynamic_background_brightness" />
-        <TextView
-        android:id="@+id/saturationLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:labelFor="@id/saturationSlider"
-        android:text="@string/dynamic_background_saturation"
-        android:textColor="?attr/colorOnSurface" />
-        <com.google.android.material.slider.Slider
-        android:id="@+id/saturationSlider"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:contentDescription="@string/dynamic_background_saturation" />
-        <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/dynamic_background_color_mode"
-        android:textColor="?attr/colorOnSurface" />
-        <RadioGroup
-        android:id="@+id/colorModeGroup"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-            <com.google.android.material.radiobutton.MaterialRadioButton
-        android:id="@+id/modeFollow"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        android:text="@string/dynamic_background_follow" />
-            <com.google.android.material.radiobutton.MaterialRadioButton
-        android:id="@+id/modeSoft"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        android:text="@string/dynamic_background_soft" />
-            <com.google.android.material.radiobutton.MaterialRadioButton
-        android:id="@+id/modeVivid"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        android:text="@string/dynamic_background_vivid" />
-        </RadioGroup>
-    </LinearLayout>
+        android:scrollbars="none"
+        android:overScrollMode="never"
+        android:clipToPadding="false">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="12dp">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/dynamic_background_section_motion"
+                android:textColor="@color/listen_together_field_label"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_listen_together_create_card"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="12dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="0dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:labelFor="@id/speedSlider"
+                        android:text="@string/dynamic_background_speed"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        android:id="@+id/speedValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/speedSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="8dp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:progressDrawable="@drawable/bg_lyric_settings_seekbar_progress"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/bg_lyric_settings_seekbar_thumb"
+                    android:thumbOffset="6dp"
+                    android:contentDescription="@string/dynamic_background_speed" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:labelFor="@id/motionSlider"
+                        android:text="@string/dynamic_background_motion"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        android:id="@+id/motionValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/motionSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="8dp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:progressDrawable="@drawable/bg_lyric_settings_seekbar_progress"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/bg_lyric_settings_seekbar_thumb"
+                    android:thumbOffset="6dp"
+                    android:contentDescription="@string/dynamic_background_motion" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:labelFor="@id/glowSlider"
+                        android:text="@string/dynamic_background_glow"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        android:id="@+id/glowValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/glowSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="8dp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:progressDrawable="@drawable/bg_lyric_settings_seekbar_progress"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/bg_lyric_settings_seekbar_thumb"
+                    android:thumbOffset="6dp"
+                    android:contentDescription="@string/dynamic_background_glow" />
+            </LinearLayout>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/dynamic_background_section_color"
+                android:textColor="@color/listen_together_field_label"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_listen_together_create_card"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="12dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="0dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:labelFor="@id/brightnessSlider"
+                        android:text="@string/dynamic_background_brightness"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        android:id="@+id/brightnessValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/brightnessSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="8dp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:progressDrawable="@drawable/bg_lyric_settings_seekbar_progress"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/bg_lyric_settings_seekbar_thumb"
+                    android:thumbOffset="6dp"
+                    android:contentDescription="@string/dynamic_background_brightness" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:labelFor="@id/saturationSlider"
+                        android:text="@string/dynamic_background_saturation"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                        android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        android:id="@+id/saturationValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="?attr/colorPrimary"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/saturationSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="32dp"
+                    android:layout_marginTop="8dp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:progressDrawable="@drawable/bg_lyric_settings_seekbar_progress"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/bg_lyric_settings_seekbar_thumb"
+                    android:thumbOffset="6dp"
+                    android:contentDescription="@string/dynamic_background_saturation" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/dynamic_background_color_mode"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/colorModeGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    app:singleSelection="true"
+                    app:selectionRequired="true">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/modeFollow"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:paddingHorizontal="4dp"
+                        android:text="@string/dynamic_background_follow"
+                        android:textColor="@color/lyric_settings_segment_text"
+                        app:backgroundTint="@color/lyric_settings_segment_bg"
+                        app:rippleColor="@color/settings_row_value_faded_primary"
+                        app:strokeColor="@color/lyric_settings_segment_stroke" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/modeSoft"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:paddingHorizontal="4dp"
+                        android:text="@string/dynamic_background_soft"
+                        android:textColor="@color/lyric_settings_segment_text"
+                        app:backgroundTint="@color/lyric_settings_segment_bg"
+                        app:rippleColor="@color/settings_row_value_faded_primary"
+                        app:strokeColor="@color/lyric_settings_segment_stroke" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/modeVivid"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:paddingHorizontal="4dp"
+                        android:text="@string/dynamic_background_vivid"
+                        android:textColor="@color/lyric_settings_segment_text"
+                        app:backgroundTint="@color/lyric_settings_segment_bg"
+                        app:rippleColor="@color/settings_row_value_faded_primary"
+                        app:strokeColor="@color/lyric_settings_segment_stroke" />
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+            </LinearLayout>
+        </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/restoreDefaults"
-        style="@style/Widget.Material3.Button.TextButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        android:text="@string/dynamic_background_restore" />
+
     <LinearLayout
+        android:id="@+id/backgroundSettingsFooter"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="16dp">
         <com.google.android.material.button.MaterialButton
-        android:id="@+id/cancelButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        android:layout_weight="1"
-        android:layout_marginEnd="6dp"
-        android:text="@string/cancel"
-        android:textColor="@color/action_secondary_text"
-        app:backgroundTint="@color/action_secondary_background" />
+            android:id="@+id/cancelButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:minHeight="50dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:text="@string/cancel"
+            android:textAllCaps="false"
+            android:textColor="@color/action_secondary_text"
+            app:backgroundTint="@color/action_secondary_background"
+            app:cornerRadius="25dp" />
         <com.google.android.material.button.MaterialButton
-        android:id="@+id/saveButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        android:layout_weight="1"
-        android:layout_marginStart="6dp"
-        android:text="@string/dynamic_background_save"
-        android:textColor="@color/action_primary_text" />
+            android:id="@+id/saveButton"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:minHeight="50dp"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text="@string/dynamic_background_save"
+            android:textAllCaps="false"
+            android:textColor="@color/action_primary_text"
+            app:backgroundTint="?attr/colorPrimary"
+            app:cornerRadius="25dp" />
     </LinearLayout>
 </LinearLayout>

@@ -1269,5 +1269,6 @@
     <string name="dynamic_background_vivid">鲜艳</string>
     <string name="dynamic_background_restore">恢复默认</string>
     <string name="dynamic_background_save">保存</string>
-    <string name="dynamic_background_parameter_value">%1$s · %2$s</string>
+    <string name="dynamic_background_section_motion">动态效果</string>
+    <string name="dynamic_background_section_color">色彩</string>
 </resources>
