@@ -30,6 +30,9 @@ class DownloadManager private constructor(private val context: Context) {
     interface DownloadCallback {
         fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long)
         fun onProcessing(file: File) = Unit
+        fun beginProcessing(file: File): Boolean { onProcessing(file); return true }
+        fun onPaused(downloadedBytes: Long) = Unit
+        fun onCheckpoint(etag: String?, modified: String?, total: Long, fileModified: Long) = Unit
         fun onProducedFiles(file: File, sidecarPaths: List<String>) = Unit
         fun onSuccess(file: File, lyricResult: LyricSidecarWriteResult, metadataResult: MetadataWriteResult)
         fun onCancelled() = Unit
@@ -52,7 +55,9 @@ class DownloadManager private constructor(private val context: Context) {
         resolvedLyrics: ResolvedDownloadLyrics = ResolvedDownloadLyrics.NONE,
         targetDirectory: String = DownloadPathManager.getDownloadPath(context),
         callback: DownloadCallback,
+        resumeInfo: JDownloadManager.ResumeInfo? = null,
     ) {
+        if (resumeInfo != null) JDownloadManager.setResumeInfo(taskId, resumeInfo)
         val embedMetadata = songInfo.type != SongType.KW
         val coverUrl = if (embedMetadata && SettingsPrefs.isWriteCoverEnabled(context)) {
             resolveEmbedCoverUrl(songInfo)
@@ -89,13 +94,17 @@ class DownloadManager private constructor(private val context: Context) {
                 }
             }
 
+            override fun onPaused(bytes: Long) = callback.onPaused(bytes)
+            override fun onCheckpoint(etag: String?, modified: String?, total: Long, fileModified: Long) = callback.onCheckpoint(etag, modified, total, fileModified)
+            override fun onProcessing(): Boolean = callback.beginProcessing(File(targetDirectory, fileName))
+
             override fun onSuccess(filePath: String, metadataStatus: String?, metadataWarning: String?) {
                 val file = File(filePath)
                 if (cancelledTaskIds.contains(taskId)) {
                     finishCancelled(taskId, callback)
                     return
                 }
-                mainHandler.post { callback.onProcessing(file) }
+
                 sidecarExecutor.execute {
                     if (cancelledTaskIds.contains(taskId)) {
                         finishCancelled(taskId, callback)
@@ -149,6 +158,8 @@ class DownloadManager private constructor(private val context: Context) {
             javaCallback,
         )
     }
+
+    fun pause(taskId: String) = JDownloadManager.pause(taskId)
 
     fun cancel(taskId: String) {
         cancelledTaskIds += taskId

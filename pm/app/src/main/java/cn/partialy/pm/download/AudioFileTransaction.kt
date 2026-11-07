@@ -13,7 +13,7 @@ object AudioFileTransaction {
     private const val TAG = "AudioFileTransaction"
     private const val JOURNAL_SUFFIX = ".pm-repair-journal"
 
-    fun replace(original: File, transform: (File) -> Unit, verify: (File) -> Boolean) {
+    fun replace(original: File, transform: (File) -> Unit, verify: (File) -> Boolean) = DownloadFileLocks.withFile(original) {
         require(original.isFile && original.length() > 0L) { "音频文件不存在" }
         val parent = original.parentFile ?: error("文件没有所在目录")
         val reserve = original.length() + maxOf(8L * 1024 * 1024, original.length() / 10L)

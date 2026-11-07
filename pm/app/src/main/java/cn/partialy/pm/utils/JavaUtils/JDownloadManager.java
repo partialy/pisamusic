@@ -28,6 +28,9 @@ public class JDownloadManager {
     private static final OkHttpClient client = new OkHttpClient();
     private static final ConcurrentHashMap<String, Object> fileLocks = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Call> activeCalls = new ConcurrentHashMap<>();
+    private static final java.util.Set<String> pausedTaskIds = ConcurrentHashMap.newKeySet();
+    private static final java.util.Set<String> processingTaskIds = ConcurrentHashMap.newKeySet();
+    private static final ConcurrentHashMap<String, ResumeInfo> resumeInfo = new ConcurrentHashMap<>();
     private static final java.util.Set<String> cancelledTaskIds = ConcurrentHashMap.newKeySet();
 
     public static String getDownloadPath(Context context) {
@@ -39,6 +42,24 @@ public class JDownloadManager {
         void onSuccess(String filePath, String metadataStatus, String metadataWarning);
         void onError(String error);
         void onCancelled();
+        default void onPaused(long bytes) {}
+        default boolean onProcessing() { return true; }
+        default void onCheckpoint(String etag, String modified, long total, long fileModified) {}
+    }
+
+    public static class ResumeInfo {
+        public final String etag, modified;
+        public final long total, bytes, fileModified;
+        public ResumeInfo(String etag, String modified, long total, long bytes, long fileModified) {
+            this.etag = etag; this.modified = modified; this.total = total; this.bytes = bytes; this.fileModified = fileModified;
+        }
+    }
+    public static void setResumeInfo(String id, ResumeInfo info) { resumeInfo.put(id, info); }
+    public static void pause(String id) {
+        if (processingTaskIds.contains(id)) return;
+        pausedTaskIds.add(id);
+        Call call = activeCalls.get(id);
+        if (call != null) call.cancel();
     }
 
     /**
@@ -67,7 +88,7 @@ public class JDownloadManager {
             File downloadDir = new File(targetDirectory);
             File targetFile = new File(downloadDir, fileName);
             String targetPath = targetFile.getAbsolutePath();
-            Object fileLock = fileLocks.computeIfAbsent(targetPath, ignored -> new Object());
+            Object fileLock = cn.partialy.pm.download.DownloadFileLocks.lockFor(targetFile);
             synchronized (fileLock) {
                 try {
                     downloadLocked(
@@ -86,7 +107,9 @@ public class JDownloadManager {
                             callback
                     );
                 } finally {
-                    fileLocks.remove(targetPath, fileLock);
+                    processingTaskIds.remove(taskId);
+                    pausedTaskIds.remove(taskId);
+                    resumeInfo.remove(taskId);
                     activeCalls.remove(taskId);
                     cancelledTaskIds.remove(taskId);
                 }
@@ -95,6 +118,7 @@ public class JDownloadManager {
     }
 
     public static void cancel(String taskId) {
+        if (processingTaskIds.contains(taskId)) return;
         cancelledTaskIds.add(taskId);
         Call call = activeCalls.get(taskId);
         if (call != null) {
@@ -135,58 +159,18 @@ public class JDownloadManager {
                 return;
             }
 
-            Request request = new Request.Builder().url(url).build();
-            Call audioCall = client.newCall(request);
-            activeCalls.put(taskId, audioCall);
-            try (Response response = audioCall.execute()) {
-                if (!response.isSuccessful()) {
-                    int code = response.code();
-                    new Handler(Looper.getMainLooper()).post(() -> callback.onError("HTTP " + code));
-                    return;
-                }
-                ResponseBody body = response.body();
-                if (body == null) {
-                    new Handler(Looper.getMainLooper()).post(() ->
-                            callback.onError(context.getString(R.string.download_empty_response)));
-                    return;
-                }
-
-                if (partialFile.exists()) {
-                    partialFile.delete();
-                }
-                long contentLength = body.contentLength();
-                try (
-                        InputStream inputStream = body.byteStream();
-                        FileOutputStream outputStream = new FileOutputStream(partialFile)
-                ) {
-                    byte[] buffer = new byte[4096];
-                    long downloadedLength = 0;
-                    int len;
-                    while ((len = inputStream.read(buffer)) != -1) {
-                        if (isCancelled(taskId)) {
-                            throw new DownloadCancelledException();
-                        }
-                        outputStream.write(buffer, 0, len);
-                        downloadedLength += len;
-
-                        int progress = contentLength > 0
-                                ? (int) ((downloadedLength * 100L) / contentLength)
-                                : 0;
-                        long finalDownloaded = downloadedLength;
-                        new Handler(Looper.getMainLooper()).post(() ->
-                                callback.onProgress(progress, finalDownloaded, contentLength));
-                    }
-                    outputStream.flush();
-                }
-            } finally {
-                activeCalls.remove(taskId, audioCall);
+            transfer(taskId, url, partialFile, callback);
+            if (isCancelled(taskId)) throw new DownloadCancelledException();
+            if (pausedTaskIds.contains(taskId)) throw new DownloadPausedException();
+            // 同步确认用户意图之后，处理阶段不可再暂停或取消。
+            if (!callback.onProcessing()) {
+                if (isCancelled(taskId)) throw new DownloadCancelledException();
+                throw new DownloadPausedException();
             }
-
-            if (isCancelled(taskId)) {
-                throw new DownloadCancelledException();
-            }
+            processingTaskIds.add(taskId);
             // 用真实音频扩展名命名临时文件，供 jaudiotagger 按格式识别。
             Files.move(partialFile.toPath(), stagedFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            if (!AudioMetadataVerifier.isReadable(stagedFile)) throw new java.io.IOException("音频完整性校验失败");
             String metadataStatus = "SKIPPED";
             String metadataWarning = null;
             if (embedMetadata && isSupportedFormat(getFileExtension(file.getName()).toLowerCase())) {
@@ -242,9 +226,13 @@ public class JDownloadManager {
             final String warning = metadataWarning;
             new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath(), outcome, warning));
         } catch (Exception e) {
-            if (partialFile.exists()) partialFile.delete();
+            if (pausedTaskIds.contains(taskId) || e instanceof DownloadPausedException) {
+                callback.onPaused(partialFile.length());
+                return;
+            }
             if (stagedFile.exists()) stagedFile.delete();
             if (isCancelled(taskId) || e instanceof DownloadCancelledException) {
+                if (partialFile.exists()) partialFile.delete();
                 if (!fileAlreadyExisted && file.exists()) {
                     file.delete();
                 }
@@ -254,6 +242,71 @@ public class JDownloadManager {
             new Handler(Looper.getMainLooper()).post(() ->
                     callback.onError(context.getString(R.string.download_error_detail, e.getMessage())));
         }
+    }
+
+    private static final class DownloadPausedException extends Exception {}
+
+    private static void transfer(String id, String url, File part, DownloadCallback callback) throws Exception {
+        ResumeInfo saved = resumeInfo.get(id);
+        long offset = part.isFile() ? part.length() : 0;
+        boolean strong = saved != null && saved.etag != null && !saved.etag.startsWith("W/");
+        boolean canResume = offset > 0 && saved != null && saved.bytes == offset && saved.fileModified == part.lastModified()
+                && saved.total >= offset && (strong || saved.modified != null);
+        for (int attempt = 0; attempt < 2; attempt++) {
+            if (isCancelled(id)) throw new DownloadCancelledException();
+            if (pausedTaskIds.contains(id)) throw new DownloadPausedException();
+            Request.Builder builder = new Request.Builder().url(url).header("Accept-Encoding", "identity");
+            if (canResume) builder.header("Range", "bytes=" + offset + "-").header("If-Range", strong ? saved.etag : saved.modified);
+            Call call = client.newCall(builder.build());
+            activeCalls.put(id, call);
+            try (Response response = call.execute()) {
+                if (response.code() == 416 && canResume) {
+                    // 长度相等不足以证明音频完整，受控重启完整请求。
+                    canResume = false;
+                    continue;
+                }
+                if (!response.isSuccessful()) throw new java.io.IOException("HTTP " + response.code());
+                String encoding = response.header("Content-Encoding");
+                if (encoding != null && !encoding.equalsIgnoreCase("identity")) throw new java.io.IOException("不支持的内容编码");
+                ResponseBody body = response.body();
+                if (body == null) throw new java.io.IOException("下载响应为空");
+                boolean append = response.code() == 206;
+                long total = body.contentLength();
+                if (append) {
+                    java.util.regex.Matcher range = java.util.regex.Pattern.compile("bytes (\\d+)-(\\d+)/(\\d+)").matcher(String.valueOf(response.header("Content-Range")));
+                    if (!canResume || !range.matches()) throw new java.io.IOException("续传范围无效");
+                    long start = Long.parseLong(range.group(1)), end = Long.parseLong(range.group(2));
+                    total = Long.parseLong(range.group(3));
+                    boolean validatorMatches = strong ? saved.etag.equals(response.header("ETag")) : saved.modified.equals(response.header("Last-Modified"));
+                    if (start != offset || end < start || end >= total || total != saved.total || !validatorMatches
+                            || (body.contentLength() >= 0 && body.contentLength() != end - start + 1)) throw new java.io.IOException("续传资源校验失败");
+                } else if (response.code() != 200) throw new java.io.IOException("下载状态无效");
+                String etag = response.header("ETag"), modified = response.header("Last-Modified");
+                long count = append ? offset : 0;
+                try (InputStream input = body.byteStream(); FileOutputStream output = new FileOutputStream(part, append)) {
+                    callback.onCheckpoint(etag, modified, total, part.lastModified());
+                    byte[] buffer = new byte[32768];
+                    int size;
+                    while ((size = input.read(buffer)) != -1) {
+                        if (isCancelled(id)) throw new DownloadCancelledException();
+                        if (pausedTaskIds.contains(id)) throw new DownloadPausedException();
+                        output.write(buffer, 0, size);
+                        count += size;
+                        if (total >= 0 && count > total) throw new java.io.IOException("下载长度超出预期");
+                        callback.onProgress(total > 0 ? (int) Math.min(100, count * 100 / total) : 0, count, Math.max(0, total));
+                    }
+                    output.flush();
+                    output.getFD().sync();
+                    if (total >= 0 && count != total) throw new java.io.IOException("下载未完成");
+                } finally {
+                    callback.onCheckpoint(etag, modified, total, part.lastModified());
+                }
+                return;
+            } finally {
+                activeCalls.remove(id, call);
+            }
+        }
+        throw new java.io.IOException("续传重试失败");
     }
 
     private static boolean isCancelled(String taskId) {
