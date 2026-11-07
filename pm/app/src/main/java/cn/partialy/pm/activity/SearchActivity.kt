@@ -1,6 +1,7 @@
 package cn.partialy.pm.activity
 
 import cn.partialy.pm.ui.message.PmMessage
+import cn.partialy.pm.ui.message.SongPlaybackSuccessNotifier
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -76,6 +77,11 @@ class SearchActivity : BaseDownloadActivity() {
     private var errorWebController: LocalGenericErrorWebViewController? = null
     private var searchScreenMode: SearchScreenMode = SearchScreenMode.INITIAL
     private var shouldRequestInitialSearchFocus = true
+    private val playbackSuccessNotifier by lazy {
+        SongPlaybackSuccessNotifier(this, musicController) { song ->
+            PmMessage.success(this, getString(R.string.search_start_playing, song.name))
+        }
+    }
 
     /** 0 单曲，1 歌单 */
     private var searchResultCategory: Int = 0
@@ -239,7 +245,6 @@ class SearchActivity : BaseDownloadActivity() {
         searchResultsAdapter = SearchResultsAdapter(
             onItemClick = { row ->
                 addToListAndPlay(row)
-                PmMessage.info(this, getString(R.string.search_start_playing, row.title))
             },
             onDownloadClick = { row ->
                 onDownloadClick(row.toSongInfo())
@@ -482,7 +487,7 @@ class SearchActivity : BaseDownloadActivity() {
             } else {
                 base.coverUrl
             }
-            musicController.addToPlayList(base.copy(coverUrl = cover), true)
+            playbackSuccessNotifier.play(base.copy(coverUrl = cover))
         }
     }
 

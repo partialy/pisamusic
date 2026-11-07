@@ -1,6 +1,7 @@
 package cn.partialy.pm.ui.home.fragments
 
 import cn.partialy.pm.ui.message.PmMessage
+import cn.partialy.pm.ui.message.SongPlaybackSuccessNotifier
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -74,6 +75,7 @@ class RecommendedSongsFragment : BaseSongFragment() {
     private var errorWebController: LocalGenericErrorWebViewController? = null
     private var pullRefreshing = false
     private var topCardsRequested = false
+    private var playbackSuccessNotifier: SongPlaybackSuccessNotifier? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,6 +109,9 @@ class RecommendedSongsFragment : BaseSongFragment() {
     }
 
     override fun setupRecyclerView() {
+        playbackSuccessNotifier = SongPlaybackSuccessNotifier(viewLifecycleOwner, musicController) { song ->
+            PmMessage.success(this, getString(R.string.search_start_playing, song.name))
+        }
         featureCardsAdapter = HomeFeatureCardsAdapter { kind ->
             when (kind) {
                 HomeFeatureCardKind.CLOUD_MUSIC -> {
@@ -272,6 +277,8 @@ class RecommendedSongsFragment : BaseSongFragment() {
     }
 
     override fun onDestroyView() {
+        playbackSuccessNotifier?.cancelPending()
+        playbackSuccessNotifier = null
         errorWebController?.detach()
         errorWebController = null
         val wv = binding.recommendErrorWebView
@@ -300,6 +307,7 @@ class RecommendedSongsFragment : BaseSongFragment() {
     }
 
     private fun playAllDaily() {
+        playbackSuccessNotifier?.cancelPending()
         val songs = viewModel.dailyRecommendSongs.value.map { it.convertToSongInfo() }
         if (songs.isEmpty()) {
             PmMessage.warning(this@RecommendedSongsFragment, R.string.playlist_empty_hint)
@@ -312,7 +320,7 @@ class RecommendedSongsFragment : BaseSongFragment() {
         return HomeDailySongGridAdapter(
             isLiked = { song -> loveManager.isSongInLoveList(song) },
             onItemClick = { rec, _ ->
-                musicController.addToPlayList(rec.convertToSongInfo(), autoPlay = true)
+                playbackSuccessNotifier?.play(rec.convertToSongInfo())
             },
             onDownloadClick = { rec, _ -> downloadRecommendSong(rec) },
             onLoveClick = { rec, _ ->
