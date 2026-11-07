@@ -1,12 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingHorizontal="20dp"
+    android:paddingTop="0dp"
+    android:paddingBottom="8dp">
+
+    <!-- 标题占据顶部固定区域；一起听时仅隐藏内容，保留高度避免封面跳动。 -->
+    <LinearLayout
+        android:id="@+id/coverSongInfo"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingHorizontal="20dp"
-        android:paddingBottom="8dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
         android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/songTitleTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/song_name"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="8dp">
+
+            <TextView
+                android:id="@+id/artistTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:text="@string/singer"
+                android:textColor="#B0B0B0"
+                android:textSize="13sp"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintEnd_toStartOf="@id/songSourceTagTextView"
+                app:layout_constraintHorizontal_bias="0.5"
+                app:layout_constraintHorizontal_chainStyle="packed"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/songSourceTagTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3dp"
+                android:visibility="gone"
+                app:layout_constraintBottom_toBottomOf="@id/artistTextView"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@id/artistTextView"
+                app:layout_constraintTop_toTopOf="@id/artistTextView" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
+
     <cn.partialy.pm.ui.player.PlayerCoverStageLayout
         android:id="@+id/coverStage"
         android:layout_width="match_parent"
@@ -15,19 +70,22 @@
         android:clickable="true"
         android:focusable="true"
         android:contentDescription="@string/player_show_full_lyrics">
+
         <cn.partialy.pm.ui.player.VinylDiscView
-        android:id="@+id/vinylDisc"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:importantForAccessibility="no" />
+            android:id="@+id/vinylDisc"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no" />
+
         <com.google.android.material.imageview.ShapeableImageView
-        android:id="@+id/coverImage"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:contentDescription="@null"
-        app:shapeAppearanceOverlay="@style/ShapeAppearance.Pm.PlayerCover" />
+            android:id="@+id/coverImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Pm.PlayerCover" />
     </cn.partialy.pm.ui.player.PlayerCoverStageLayout>
+
     <cn.partialy.pm.ui.player.CompactLyricsView
         android:id="@+id/compactLyrics"
         android:layout_width="match_parent"
@@ -35,58 +93,4 @@
         android:clickable="true"
         android:focusable="true"
         android:contentDescription="@string/player_show_full_lyrics" />
-            <LinearLayout
-        android:id="@+id/coverSongInfo"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="vertical">
-
-                <TextView
-        android:id="@+id/songTitleTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:text="@string/song_name"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold" />
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingHorizontal="8dp">
-
-                    <TextView
-        android:id="@+id/artistTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:gravity="center_vertical"
-        android:maxLines="1"
-        android:text="@string/singer"
-        android:textColor="#B0B0B0"
-        android:textSize="13sp"
-        app:layout_constrainedWidth="true"
-        app:layout_constraintEnd_toStartOf="@id/songSourceTagTextView"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintHorizontal_chainStyle="packed"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-                    <TextView
-        android:id="@+id/songSourceTagTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="3dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/artistTextView"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/artistTextView"
-        app:layout_constraintTop_toTopOf="@id/artistTextView" />
-                </androidx.constraintlayout.widget.ConstraintLayout>
-            </LinearLayout>
-
-
 </LinearLayout>

@@ -274,11 +274,19 @@ fun ListenTogetherSong.toSongInfo(): SongInfo? {
         },
         name = name,
         artist = singer,
-        coverUrl = cover,
+        coverUrl = resolvedCoverUrl(),
         album = album,
         duration = (duration / 1000L).coerceAtLeast(0L).toInt(),
     )
 }
+
+/** 兼容只有 coverSize 的房间/PC 歌曲快照，不把有效封面丢成空字符串。 */
+private fun ListenTogetherSong.resolvedCoverUrl(): String =
+    listOf(cover.orEmpty(), coverSize?.xl.orEmpty(), coverSize?.l.orEmpty(),
+        coverSize?.m.orEmpty(), coverSize?.s.orEmpty())
+        .map { it.trim() }
+        .firstOrNull { it.startsWith("https://") || it.startsWith("http://") }
+        .orEmpty()
 
 fun ListenTogetherSong.toSongRef(): ListenTogetherSongRef =
     ListenTogetherSongRef(source = source.lowercase(), id = id)
