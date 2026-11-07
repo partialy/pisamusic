@@ -54,7 +54,11 @@ class DownloadQueueCoordinator @Inject constructor(
         repeat(2) {
             scope.launch {
                 for (request in queue) {
-                    if (!repository.claim(request.taskId, request.generation)) continue
+                    if (!repository.claim(request.taskId, request.generation)) {
+                        // 暂停/取消/重试后的旧请求不可再占用请求索引或参与重复判定。
+                        requests.remove(request.taskId, request)
+                        continue
+                    }
                     val job = scope.launch(start = CoroutineStart.LAZY) { execute(request) }
                     executions[request.taskId] = job
                     job.start()
@@ -178,11 +182,19 @@ class DownloadQueueCoordinator @Inject constructor(
             val session = AccountSessionStore.read(context)
             val resource = if (request.exactQuality) urlResolver.resolveExact(request.song, request.choice, MusicQualityAccessState(session.loggedIn, session.vipActive))
                 else urlResolver.resolve(request.song, request.choice, MusicQualityAccessState(session.loggedIn, session.vipActive))
-            repository.updateQuality(request.taskId, resource.choice.toPlaybackQualityKey())
+            // 取链可能晚于用户暂停/取消或新一代重试完成；旧执行不得修改新任务。
+            currentCoroutineContext().ensureActive()
+            if (!repository.matches(request.taskId, request.generation) ||
+                repository.find(request.taskId)?.status != DownloadTaskStatus.PREPARING) return
+            repository.withAttempt(request.taskId, request.generation) {
+                repository.updateQuality(request.taskId, resource.choice.toPlaybackQualityKey())
+            }
             val identity = "${request.song.type}:${request.song.id}:${resource.choice.toPlaybackQualityKey()}"
             // 两个不同请求档位回退为同一真实档位时，共享文件也必须串行核查。
             identityLocks.getOrPut(identity) { Mutex() }.withLock {
                 currentCoroutineContext().ensureActive()
+                if (!repository.matches(request.taskId, request.generation) ||
+                    repository.find(request.taskId)?.status != DownloadTaskStatus.PREPARING) return@withLock
                 if (repository.discardResolvedDuplicate(request.taskId, request.generation)) return@withLock
                 val existing = repository.tasks.value.firstOrNull {
                     it.id != request.taskId && it.source == request.song.type && it.songId == request.song.id &&
@@ -190,12 +202,20 @@ class DownloadQueueCoordinator @Inject constructor(
                         it.targetPath?.let(::File)?.isFile == true
                 }
                 if (existing != null) {
-                    repository.updateTarget(request.taskId, existing.fileName.orEmpty(), existing.targetPath!!)
-                    repository.markCompleted(request.taskId, existing.targetPath, existing.sidecarPaths)
+                    repository.withAttempt(request.taskId, request.generation) {
+                        if (repository.find(request.taskId)?.status == DownloadTaskStatus.PREPARING) {
+                            repository.updateTarget(request.taskId, existing.fileName.orEmpty(), existing.targetPath!!)
+                            repository.markCompleted(request.taskId, existing.targetPath, existing.sidecarPaths)
+                        }
+                    }
                     return@withLock
                 }
                 val target = repository.find(request.taskId)?.targetPath?.let(::File) ?: reserveTarget(request, resource.extension)
-                repository.updateTarget(request.taskId, target.name, target.absolutePath)
+                repository.withAttempt(request.taskId, request.generation) {
+                    if (repository.find(request.taskId)?.status == DownloadTaskStatus.PREPARING) {
+                        repository.updateTarget(request.taskId, target.name, target.absolutePath)
+                    }
+                }
                 download(request, resource, target, lyrics)
             }
         } catch (error: CancellationException) {
@@ -235,8 +255,12 @@ class DownloadQueueCoordinator @Inject constructor(
             var index = 2
             while (occupied(target)) target = File(directory, "$base [$suffix-${index++}].$extension")
         }
-        // 锁内写入路径保留，另一个 worker 不能选中同一尚未创建的文件。
-        repository.updateTarget(request.taskId, target.name, target.absolutePath)
+        // 锁内写入路径保留；旧执行代次不可覆盖恢复/重试后新代次的路径。
+        repository.withAttempt(request.taskId, request.generation) {
+            if (repository.find(request.taskId)?.status == DownloadTaskStatus.PREPARING) {
+                repository.updateTarget(request.taskId, target.name, target.absolutePath)
+            }
+        }
         target
     }
 
