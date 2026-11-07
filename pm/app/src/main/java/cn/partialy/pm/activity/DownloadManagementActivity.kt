@@ -130,7 +130,12 @@ class DownloadManagementActivity : BaseActivity() {
         val state = model.state.value
         val actions = mutableListOf(MenuAction(R.string.download_management_edit, R.drawable.ic_edit_24, state.visibleTasks(state.page).isNotEmpty()) { model.edit(true) })
         if (state.page == 0) {
-            actions += MenuAction(R.string.download_ui_pause_all, R.drawable.ic_pause_24, state.tasks.any { it.status.canPause }) { coordinator.pauseAll() }
+            actions += MenuAction(R.string.download_ui_pause_all, R.drawable.ic_pause_24, state.tasks.any { it.status.canPause }) {
+                lifecycleScope.launch {
+                    val count = withContext(Dispatchers.IO) { coordinator.pauseAll() }
+                    PmMessage.info(this@DownloadManagementActivity, getString(R.string.download_ui_paused, count))
+                }
+            }
             actions += MenuAction(R.string.download_ui_resume_all, R.drawable.ic_play_24, state.tasks.any { it.status.canResume }) {
                 lifecycleScope.launch { val count = withContext(Dispatchers.IO) { coordinator.resumeAll() }; PmMessage.info(this@DownloadManagementActivity, getString(R.string.download_ui_resumed, count)) }
             }
