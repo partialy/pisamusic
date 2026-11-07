@@ -164,3 +164,13 @@
 
 - 下载终态动作统一使用 `DownloadTaskActionMenu`，详情使用 `DownloadTaskDetailDialog` 的 PmSlot 固定歌曲头与可滚动字段，歌名/歌手/专辑/路径整行复制；Android13+采用系统剪贴板反馈。`DownloadTaskFileReader` 在 IO 与共同文件锁内读取单文件标签/封面/时长，仅生成LOCAL快照，不导入本地库。已完成可读音频调用 MusicController.play 保留原队列；一起听时拒绝本地播放。
 - `DeleteDownloadTasksUseCase` 统一单条/多选/全终态清除的去重大小预览与结果汇总；确认瞬间抓取ID，默认仅删记录，unfinished任务等待停止并同步清专属临时文件。文件删除在仓库canonical路径锁内按实体分组，保护当前LOCAL（含暂停）和未选共享引用，校验sidecar边界，失败保留记录。PROCESSING删除先等待完成及metadata回调，避免跳过后状态失真。
+
+
+## 下载管理双页 UI 增量索引（2026-11-07）
+
+| 组件 | 场景 | Kotlin 入口 | 布局 / 资源 | 使用约束 |
+| --- | --- | --- | --- | --- |
+| 下载管理双页 | 下载中/已完成横滑、Tab、搜索、长按多选 | `activity/DownloadManagementActivity.kt`、`ui/download/DownloadTaskPageFragment.kt`、`DownloadManagementViewModel.kt` | `activity_download_management.xml`、`fragment_download_task_page.xml` | 下载中不展示搜索；编辑锁定 ViewPager2；已完成搜索与滚动状态独立保持。 |
+| 下载任务紧凑歌曲行 | 下载中进度、已完成状态与操作 | `ui/download/DownloadTaskAdapter.kt`、`DownloadProgressBackgroundDrawable.kt`、`DownloadStatusTagBinder.kt`、`DownloadQualityLabelFormatter.kt` | `item_download_task.xml` | 复用 `SongSourceTagBinder`；原始音质 key 禁止展示；行中暂停/恢复、尾部 X 取消确认、终态尾部更多，动画离屏/暂停停帧。 |
+| 下载任务操作与详情 | 播放、修复信息、详情、重新下载、删除 | `ui/download/DownloadTaskActionMenu.kt`、`DownloadTaskDetailDialog.kt`、`DownloadTaskFileReader.kt` | `ActionMenuBottomSheet`、`PmSlotDialog` | 详情歌名、歌手、专辑、路径整行可点击复制；实际音频信息优先异步读取；本地播放插入当前队列，不整体替换。 |
+| 下载任务批量删除 | 选择全部、反选、清除全部与删除磁盘文件 | `download/task/DeleteDownloadTasksUseCase.kt`、`DownloadTaskRepository.kt` | `dialog_local_music_delete_confirm.xml`、`PmSlotDialog` | 默认只删除记录；物理文件删除须检查占用、共享引用、路径与文件删除错误；清除全部不受搜索限制。 |

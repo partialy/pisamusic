@@ -327,3 +327,14 @@
 
 - 下载终态动作统一使用 `DownloadTaskActionMenu`，详情使用 `DownloadTaskDetailDialog` 的 PmSlot 固定歌曲头与可滚动字段，歌名/歌手/专辑/路径整行复制；Android13+采用系统剪贴板反馈。`DownloadTaskFileReader` 在 IO 与共同文件锁内读取单文件标签/封面/时长，仅生成LOCAL快照，不导入本地库。已完成可读音频调用 MusicController.play 保留原队列；一起听时拒绝本地播放。
 - `DeleteDownloadTasksUseCase` 统一单条/多选/全终态清除的去重大小预览与结果汇总；确认瞬间抓取ID，默认仅删记录，unfinished任务等待停止并同步清专属临时文件。文件删除在仓库canonical路径锁内按实体分组，保护当前LOCAL（含暂停）和未选共享引用，校验sidecar边界，失败保留记录。PROCESSING删除先等待完成及metadata回调，避免跳过后状态失真。
+
+
+## 下载管理双页与断点续传补充（2026-11-07）
+
+- `DownloadManagementActivity` 顶部为“下载中 / 已完成”双 Tab，内容采用 `ViewPager2 + DownloadTaskPageFragment`：下载中无搜索，已完成保留搜索；横滑与点击 Tab 同步，编辑时锁定翻页。双 Tab 均支持长按进入编辑并默认勾选当前项，筛选与选中独立。
+- 下载任务显示复用歌曲列表的封面、双行文字、`SongSourceTagBinder`；状态 Tag 在歌名后，音质 Tag 独立格式化，不向用户展示 `kg:...` / `wy-br:...` 等内部 key。下载中以整行淡蓝色进度背景与低强度流光展示进度；暂停、离屏、禁动画时必须停帧；尾部仅取消 X 且必须二次确认。
+- `DownloadTaskRepository` 任务状态包含 `PAUSING/PAUSED`，主状态和元数据状态分离；PAUSED 长期保留临时文件，两个 Worker FIFO 运行；不创建后台常驻下载服务。任务采用 `attemptGeneration` 防旧回调越权更新；暂停必须等到真实流和文件写入停下后才能标记 PAUSED。
+- `DownloadQueueCoordinator` 控制单项/全部暂停与恢复；恢复必须保持原实际音质，原目录不可用或权限不符时保留暂停记录和部分文件，不静默改音质。过期 Channel 请求须从 `requests` 索引移除。`JDownloadManager` 的 HTTP Range/If-Range 必须严格验证 ETag/Last-Modified/Content-Range，禁止将不一致内容直接追加到 .part。
+- 已完成包含 COMPLETED/FAILED/CANCELLED 终态；可读音频单击通过 `MusicController.play(LOCAL SongInfo)` 加入或定位当前队列并立即播放，不调用 `setPlayListLazy` 替换队列；一起听房间不允许本地音频。单项操作菜单复用 `ActionMenuBottomSheet`，详情复用 `PmSlotDialog`，歌名/歌手/专辑/路径点击直接复制。
+- 已完成菜单“清除全部”针对确认时所有终态任务 ID 快照，不受搜索影响；默认仅删记录，用户可选择连同音频/歌词文件删除。物理删除需核对规范路径、播放器占用和共享引用；文件删除失败保留对应记录与错误，不能误报成功。单条、多选与全部清除复用 `DeleteDownloadTasksUseCase`。
+- 下载任务数据库 `pm_download_tasks.db` v3 采用无损迁移，不能破坏 v2 的已有任务、路径、元数据警告或用户文件。下载界面新组件索引应同步更新 `components.md`。
