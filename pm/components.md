@@ -104,8 +104,8 @@
 | 播放按钮缓冲态 | 主播放按钮和迷你播放器缓冲反馈 | `pm/app/src/main/res/drawable/ic_loading_loop_24.xml` | `PlaybackButtonStateRenderer` | VectorDrawable 只承载图形；Media3 `STATE_BUFFERING` 时由 ObjectAnimator 以 1.5 秒周期持续旋转，销毁时必须释放。 |
 | 动态歌词背景 | 单 Canvas 封面色板光场与静态模糊回退 | `ui/player/background/FlowingCoverBackgroundView.kt`、`PlayerBackgroundController.kt` | `PlayerFlowBackgroundConfig`、`SettingsPrefs` | 动态完全隐藏模糊纹理；1250ms 色板插值保留运动相位，30/15fps 与系统禁动画/生命周期降级。 |
 | 动态背景设置 Sheet | 歌词样式同款细滑轨、三段色彩模式、独立预览与草稿保存 | `bottom_sheet_dynamic_background_settings.xml` | `DynamicBackgroundSettingsSheet`、同一背景 Controller | 默认/自定义摘要；标题右侧 refresh 图标仅重置草稿；复用歌词不透明度 SeekBar drawable 和三段选择颜色，16dp 外边距、12dp 分组卡片内边距、圆角预览；固定取消/保存区，`DynamicBackgroundSettingsWindow` 根据安全窗口分配列表高度，小窗口先隐藏预览；取消丢弃、保存原子写入、关闭释放 15fps 预览，无曲使用默认色板。 |
-| 双页播放器 | 中央封面/歌词横向切页与顶部分页指示器 | `player_page_cover.xml`、`player_page_lyrics.xml` | `PlayerPagesController`、`PlayerPagesAdapter`、`PlayerPageIndicatorView` | 固定两页与单一状态来源，现有控制栏不参与切页；一起听胶囊坐标不变，互斥隐藏第二页标题槽，第一页信息保留。 |
-| 封面黑胶与紧凑歌词 | 自适应封面、旋转唱片、三句单行歌词 | `PlayerCoverStageLayout`、`VinylDiscView`、`CompactLyricsView` | `SongCoverUrl`、`SongSourceTagBinder`、`CompactLyricRules` | 复用高清/本地封面策略和逐字时间；点击进入完整歌词，不 Seek；黑胶仅播放/页面可见且系统允许动画时旋转，暂停保留角度。 |
+| 双页播放器 | 中央封面/歌词横向切页与顶部分页指示器 | `player_page_cover.xml`、`player_page_lyrics.xml` | `PlayerPagesController`、`PlayerPagesAdapter`、`PlayerPageIndicatorView` | 固定两页与单一状态来源，现有控制栏不参与切页；两页歌名/歌手紧接 headerBar，均在一起听时隐藏并保留标题槽；胶囊坐标不变。 |
+| 封面黑胶与紧凑歌词 | 自适应封面、旋转唱片、三句单行歌词 | `PlayerCoverStageLayout`、`VinylDiscView`、`CompactLyricsView` | `SongCoverRequestBinder`、`SongCoverUrl`、`SongSourceTagBinder`、`CompactLyricRules` | 复用高清/本地封面策略和逐字时间，封面请求支持候选回退及切歌代次守卫；点击进入完整歌词，不 Seek；黑胶仅播放/页面可见且系统允许动画时旋转，暂停保留角度。 |
 | 完整歌词渐隐与方向仲裁 | 普通/逐字歌词透明边缘与纵向浏览 | `LyricsFadeLayout`、`PlayerLyricsRecyclerView`、`KaraokeLyricsView` | `PlayerSwipeDirectionPolicy` | 中央横向交给 Pager，纵向保留浏览/中线 Seek/三秒恢复；多指重置本次方向，系统边缘返回优先。 |
 | 歌词行 | 普通歌词 RecyclerView 行 | `pm/app/src/main/res/layout/item_lyric_line.xml` | `LyricsAdapter` | 非卡拉 OK View 的普通歌词行。 |
 | 卡拉 OK 歌词 View | 逐字歌词渲染 | `pm/app/src/main/java/cn/partialy/pm/ui/player/KaraokeLyricsView.kt` | `LyricDisplayStyle` | 自绘歌词，不要用普通 TextView 代替。 |

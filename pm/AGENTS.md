@@ -72,11 +72,11 @@
 ## 播放器规则
 
 - 播放器中央采用 `ViewPager2` 固定双页：封面/自绘黑胶/三行歌词与完整歌词；`PlayerPagesController` 管理视图，`PlayerActivity` 统一分发歌曲、歌词和媒体位置，两页不重复订阅或请求。顶部中央只显示分页指示器，现有功能栏、进度条和控制区保持独立。页面索引使用 `SettingsPrefs` 记忆，短期 Bundle 恢复优先，切歌不跳页。
-- 一起听胶囊仍位于原 `lyricsContainer` 顶部中央，坐标、大小和回调不变；入房隐藏第二页 `headerSongInfo`（保留槽高度），退出恢复。封面页只增加安全顶部空间，三行歌词下方歌曲信息保持显示。禁止移动胶囊解决重叠。
+- 一起听胶囊仍位于原 `lyricsContainer` 顶部中央，坐标、大小和回调不变；两页歌名/歌手均位于顶部，入房统一设为 `INVISIBLE`（保留槽高度），退出恢复。封面页按顶部标题、封面、底部居中三行歌词的顺序布局；禁止移动胶囊解决重叠。
 - 动态背景由 `FlowingCoverBackgroundView` 单 Canvas 绘制四个透明径向光场，不叠加模糊封面纹理；切歌只插值色板，保留轨迹相位。正常约 30fps，省电及预览约 15fps，禁动画显示静态渐变，离开页面停止。关闭动态时使用静态模糊封面，旧版模糊在线程池执行。
 - 动态背景设置 Sheet 视觉复用歌词样式：歌词不透明度同款 `SeekBar` 轨道/滑块、三段 `MaterialButtonToggleGroup`、分组卡片与圆角预览；恢复默认固定为标题右侧 refresh 图标。`DynamicBackgroundSettingsWindow` 先保留标题和底部取消/保存区，再给滚动列表分配安全窗口内的剩余高度；空间不足时隐藏并暂停预览，保存按钮显式使用主题色背景。
 - “播放设置 → 动态背景设置”使用 `DynamicBackgroundSettingsSheet` 独立草稿和当前歌曲色板预览；取消不写入，恢复默认只改草稿，保存通过 `SettingsPrefs` 单 JSON key 原子提交规范化参数，播放器 onResume 平滑应用。旧动态开关 key 保持不变。无歌曲预览直接使用默认色板，关闭 Sheet 必须释放预览请求及帧回调。
-- `CompactLyricsView` 只接收统一媒体位置与现有 `LyricLine/LyricWord`，三行单行居中，邻行省略，当前行超长延迟 350ms 后向左滚动、不循环；暂停冻结、Seek 重算、禁动画静止但高亮继续更新。`PlayerSwipeDirectionPolicy` 仲裁中央横/纵手势，横滑不触发歌词浏览或 Seek。切换歌词内容须重置旧逐字行号/过渡状态；完整歌词隐藏或宿主停止时停帧但保留浏览恢复语义。
+- `CompactLyricsView` 只接收统一媒体位置与现有 `LyricLine/LyricWord`，封面可见且播放时使用 `Choreographer` 逐帧推进歌词高亮、水平滚动和 380ms 行切换（含旧行向上/新行进入的插值），不可再依赖 Activity 100ms 同步产生 10fps 动画。三行单行居中，邻行省略，当前行超长延迟 350ms 后向左滚动、不循环；暂停冻结、Seek 重算、禁动画静止但高亮继续更新，离开封面页、宿主停止或 View detach 必须停帧。播放页封面优先请求 `SongCoverUrl.SIZE_PLAYER`（720px）；完整歌词页继续独立逐帧渲染。`PlayerSwipeDirectionPolicy` 仲裁中央横/纵手势，横滑不触发歌词浏览或 Seek。切换歌词内容须重置旧逐字行号/过渡状态；完整歌词隐藏或宿主停止时停帧但保留浏览恢复语义。
 
 - 播放页歌词设置 Sheet 与一起听共用主题背景、卡片和圆形步进器，分显示、排版、颜色和效果四区；顶部固定深色渐变预览，下方单独滚动，Sheet 上限为可用窗口约 80%。
 - 歌词设置预览由 `ui/player/LyricPreviewController` 管理独立 8 秒无声样本时钟，普通模式复用 `LyricsAdapter`、逐字模式复用 `KaraokeLyricsView`，禁止读取或修改真实播放器进度；样式/模式更新保留模拟进度。`LyricSettingsSheetWindow` 负责宿主/IME 可见性、颜色管理返回刷新和尺寸分配；暂停必须停止预览 tick 与渲染器帧，关闭必须释放。系统禁动画时静态高亮；大字号按实际换行高度扩展预览；小窗口先压缩预览，无法同时保留完整当前行与设置操作区时临时隐藏并暂停预览。
@@ -230,6 +230,9 @@
 - 一起听实时连接使用 `io.socket:socket.io-client`，连接时通过 Socket.IO `auth.token` 传 `Bearer <userToken>`；账号切换、退出房间、被踢出或房间销毁时必须断开 socket 并清空本地一起听状态。
 - 一起听只支持在线歌曲，不支持 `SongType.LOCAL`；创建房间默认 `memberOperation=false`，房主可在房间面板切换“成员可操作”。成员未获授权时必须提示无权限并向服务端同步房间状态，不要本地抢控制权。
 - 房主点击房间面板内其他成员的胶囊时，通过通用操作菜单执行“转让房主”或“移出成员”；自己的胶囊和普通成员看到的胶囊不可操作。两个动作必须二次确认，不做本地乐观更新，成员列表和房主身份继续以 Socket ACK 及 `MEMBER_KICKED` / `HOST_TRANSFERRED` 广播为准。
+- 房主成功切换整张播放列表时，`PlaylistManager.onPlaylistReplaced` 在 Applied 提交边界同步通知 `MusicController` / `ListenTogetherManager`，替换权威房间队列并先广播完整 DELTA，再广播带新队列指针的 CHANGE_SONG；同曲跨歌单也必须触发。替换中不得由 currentSong collector 抢发旧指针；普通单曲播放、追加、恢复、失败/过期准备和同源定位不触发整列表替换。断连时保留最新房主队列，重连先发布再跟随房间；重试读取最新 playWhenReady，ACK 后补齐最新播放状态和进度。结构快照和 DELTA 仅接收当前房主，拒绝低版本分块覆盖新队列。
+- 一起听歌曲转换必须兼容 `cover` 为空而 `coverSize` 有效的快照。播放页取图统一由 `SongCoverRequestBinder` 调用 `SongCoverUrl.getPlayerCoverCandidates`，保留 720px 首选、已知酷狗 CDN HTTPS 与较小尺寸失败回退；快速切歌以代次守卫丢弃旧回退，不改持久化封面原值。
+- 搜索及首页推荐的单曲点击使用 `SongPlaybackSuccessNotifier`；播放事件确认目标歌曲实际起播后仅发一条 Success，快速点击只保留最新等待，错误、暂停或离页清理，不把提交播放请求立即当作成功。
 - 一起听开启后播放器队列面板展示房间专属队列，不能再使用本地 `MusicController.playList` 作为上一首、下一首、点歌或删除依据。房间队列不落服务端，由房主设备维护权威队列；服务端 `listen:queue` / `QUEUE_EVENT` 只负责校验成员并转发快照、增量和成员命令。
 - 新成员加入时由房主通过 `QUEUE_EVENT` 分片发送队列快照，单片默认 200 首；常规队列变更由房主广播 `QUEUE_DELTA`，自然播放结束只允许房主决定下一首并发送 `listen:change_song`。
 - 一起听切歌采用 latest-wins：`MusicController.playLatest` 是可等待、可取消的同步播放入口，旧 URL 解析结果不得覆盖后发歌曲。歌曲与队列指针只跟随 `CHANGE_SONG`，切歌链路使用 `transitionId`，队列指针优先使用 `queueItemId`；只有 ID 匹配的 `CHANGE_SONG` 广播或 ACK 可以提前解除切歌锁，心跳及其他进度事件不能解除。
