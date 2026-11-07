@@ -256,14 +256,14 @@ public class JDownloadManager {
     private static void transfer(String id, String url, File part, DownloadCallback callback) throws Exception {
         ResumeInfo saved = resumeInfo.get(id);
         long offset = part.isFile() ? part.length() : 0;
-        boolean strong = saved != null && saved.etag != null && !saved.etag.startsWith("W/");
+        String validator = saved == null ? null : cn.partialy.pm.download.DownloadResumePolicy.ifRangeValidator(saved.etag, saved.modified);
         boolean canResume = offset > 0 && saved != null && saved.bytes == offset && saved.fileModified == part.lastModified()
-                && saved.total >= offset && (strong || saved.modified != null);
+                && saved.total >= offset && validator != null;
         for (int attempt = 0; attempt < 2; attempt++) {
             if (isCancelled(id)) throw new DownloadCancelledException();
             if (pausedTaskIds.contains(id)) throw new DownloadPausedException();
             Request.Builder builder = new Request.Builder().url(url).header("Accept-Encoding", "identity");
-            if (canResume) builder.header("Range", "bytes=" + offset + "-").header("If-Range", strong ? saved.etag : saved.modified);
+            if (canResume) builder.header("Range", "bytes=" + offset + "-").header("If-Range", validator);
             Call call = client.newCall(builder.build());
             activeCalls.put(id, call);
             try (Response response = call.execute()) {
@@ -280,7 +280,7 @@ public class JDownloadManager {
                 boolean append = response.code() == 206;
                 long total = body.contentLength();
                 if (append) {
-                    boolean validatorMatches = canResume && (strong ? saved.etag.equals(response.header("ETag")) : saved.modified.equals(response.header("Last-Modified")));
+                    boolean validatorMatches = canResume && cn.partialy.pm.download.DownloadResumePolicy.responseValidatorMatches(saved.etag, saved.modified, response.header("ETag"), response.header("Last-Modified"));
                     total = canResume ? cn.partialy.pm.download.DownloadResumePolicy.validatedTotal(response.header("Content-Range"), offset, saved.total, body.contentLength(), validatorMatches) : -1;
                     if (total < 0) throw new java.io.IOException("续传资源校验失败");
                 } else if (response.code() != 200) throw new java.io.IOException("下载状态无效");
