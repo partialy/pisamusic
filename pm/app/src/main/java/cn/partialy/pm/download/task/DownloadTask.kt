@@ -6,6 +6,8 @@ enum class DownloadTaskStatus {
     QUEUED,
     PREPARING,
     DOWNLOADING,
+    PAUSING,
+    PAUSED,
     PROCESSING,
     COMPLETED,
     FAILED,
@@ -13,7 +15,12 @@ enum class DownloadTaskStatus {
     ;
 
     val isActive: Boolean
-        get() = this == QUEUED || this == PREPARING || this == DOWNLOADING || this == PROCESSING
+        get() = !isTerminal
+    val isTerminal get() = this in setOf(COMPLETED, FAILED, CANCELLED)
+    val canPause get() = this in setOf(QUEUED, PREPARING, DOWNLOADING)
+    val canResume get() = this == PAUSED
+    val ownsWorker get() = this in setOf(PREPARING, DOWNLOADING, PAUSING, PROCESSING)
+    val hasUnfinishedIntent get() = !isTerminal
 }
 
 data class DownloadTask(
@@ -38,6 +45,14 @@ data class DownloadTask(
     val completedAt: Long?,
     val metadataStatus: cn.partialy.pm.download.MetadataWriteStatus = cn.partialy.pm.download.MetadataWriteStatus.UNKNOWN,
     val metadataWarning: String? = null,
+    val attemptGeneration: Long = 0,
+    val resumeEtag: String? = null,
+    val resumeLastModified: String? = null,
+    val resumeTotalBytes: Long? = null,
+    val resumeQualityKey: String? = null,
+    val resumeResourceIdentity: String? = null,
+    val resumeFileModified: Long? = null,
+    val pauseReason: String? = null,
 )
 
 data class DownloadTaskRemovalResult(

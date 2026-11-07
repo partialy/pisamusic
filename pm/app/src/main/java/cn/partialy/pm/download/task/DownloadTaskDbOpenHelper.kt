@@ -31,7 +31,10 @@ internal class DownloadTaskDbOpenHelper(context: Context) :
                 updated_at INTEGER NOT NULL,
                 completed_at INTEGER,
                 metadata_status TEXT NOT NULL DEFAULT 'UNKNOWN',
-                metadata_warning TEXT
+                metadata_warning TEXT,
+                attempt_generation INTEGER NOT NULL DEFAULT 0,
+                resume_etag TEXT, resume_last_modified TEXT, resume_total_bytes INTEGER,
+                resume_quality_key TEXT, resume_resource_identity TEXT, resume_file_modified INTEGER, pause_reason TEXT
             )
             """.trimIndent(),
         )
@@ -44,10 +47,16 @@ internal class DownloadTaskDbOpenHelper(context: Context) :
             db.execSQL("ALTER TABLE download_tasks ADD COLUMN metadata_status TEXT NOT NULL DEFAULT 'UNKNOWN'")
             db.execSQL("ALTER TABLE download_tasks ADD COLUMN metadata_warning TEXT")
         }
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE download_tasks ADD COLUMN attempt_generation INTEGER NOT NULL DEFAULT 0")
+            listOf("resume_etag TEXT", "resume_last_modified TEXT", "resume_total_bytes INTEGER", "resume_quality_key TEXT", "resume_resource_identity TEXT", "resume_file_modified INTEGER", "pause_reason TEXT").forEach {
+                db.execSQL("ALTER TABLE download_tasks ADD COLUMN $it")
+            }
+        }
     }
 
     companion object {
         private const val DB_NAME = "pm_download_tasks.db"
-        private const val DB_VERSION = 2
+        private const val DB_VERSION = 3
     }
 }

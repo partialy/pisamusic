@@ -83,10 +83,42 @@ class DownloadTaskRepository @Inject constructor(
         return task
     }
 
-    fun claim(taskId: String): Boolean = synchronized(stateLock) {
-        if (find(taskId)?.status != DownloadTaskStatus.QUEUED || taskId in removingIds || taskId in removedIds) return@synchronized false
+    fun claim(taskId: String, generation: Long = find(taskId)?.attemptGeneration ?: -1): Boolean = synchronized(stateLock) {
+        if (find(taskId)?.attemptGeneration != generation || find(taskId)?.status != DownloadTaskStatus.QUEUED || taskId in removingIds || taskId in removedIds) return@synchronized false
         update(taskId) { it.copy(status = DownloadTaskStatus.PREPARING) }
         true
+    }
+
+    fun withAttempt(taskId: String, generation: Long, block: () -> Unit) = synchronized(stateLock) {
+        if (matches(taskId, generation)) block()
+    }
+
+    fun matches(taskId: String, generation: Long): Boolean = synchronized(stateLock) {
+        find(taskId)?.attemptGeneration == generation && taskId !in removingIds && taskId !in removedIds
+    }
+
+    fun requeue(taskId: String): DownloadTask? = synchronized(stateLock) {
+        val task = find(taskId) ?: return@synchronized null
+        if (taskId in removingIds || taskId in removedIds || task.status !in setOf(DownloadTaskStatus.PAUSED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)) return@synchronized null
+        val changed = task.copy(status = DownloadTaskStatus.QUEUED, attemptGeneration = task.attemptGeneration + 1, errorMessage = null, pauseReason = null, updatedAt = System.currentTimeMillis())
+        publish(changed)
+        persist(changed)
+        changed
+    }
+
+    fun requestPause(taskId: String): Boolean = synchronized(stateLock) {
+        val task = find(taskId) ?: return@synchronized false
+        if (!task.status.canPause) return@synchronized false
+        update(taskId) { it.copy(status = if (it.status == DownloadTaskStatus.QUEUED) DownloadTaskStatus.PAUSED else DownloadTaskStatus.PAUSING) }
+        true
+    }
+
+    fun markPaused(taskId: String, generation: Long, reason: String? = null) {
+        update(taskId, generation) { it.copy(status = DownloadTaskStatus.PAUSED, downloadedBytes = it.targetPath?.let { path -> File(path + ".part").length() } ?: 0L, pauseReason = reason) }
+    }
+
+    fun saveResume(taskId: String, generation: Long, etag: String?, modified: String?, total: Long, identity: String, fileModified: Long) {
+        update(taskId, generation) { it.copy(resumeEtag = etag, resumeLastModified = modified, resumeTotalBytes = total, resumeQualityKey = it.qualityKey, resumeResourceIdentity = identity, resumeFileModified = fileModified) }
     }
 
     fun updateQuality(taskId: String, qualityKey: String) {
@@ -253,17 +285,20 @@ class DownloadTaskRepository @Inject constructor(
         }
     }
 
-    private fun update(taskId: String, transform: (DownloadTask) -> DownloadTask) {
+    private fun update(taskId: String, generation: Long? = null, transform: (DownloadTask) -> DownloadTask) {
         synchronized(stateLock) {
             if (taskId in removingIds || taskId in removedIds) return
             val current = _tasks.value.firstOrNull { it.id == taskId } ?: return
+            if (generation != null && current.attemptGeneration != generation) return
             if (!current.status.isActive) return
             val changed = transform(current).copy(updatedAt = System.currentTimeMillis())
             val legal = when (current.status) {
-                DownloadTaskStatus.QUEUED -> setOf(DownloadTaskStatus.QUEUED, DownloadTaskStatus.PREPARING, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
-                DownloadTaskStatus.PREPARING -> setOf(DownloadTaskStatus.PREPARING, DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
-                DownloadTaskStatus.DOWNLOADING -> setOf(DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
-                DownloadTaskStatus.PROCESSING -> setOf(DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
+                DownloadTaskStatus.QUEUED -> setOf(DownloadTaskStatus.QUEUED, DownloadTaskStatus.PAUSED, DownloadTaskStatus.PREPARING, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
+                DownloadTaskStatus.PREPARING -> setOf(DownloadTaskStatus.PREPARING, DownloadTaskStatus.PAUSING, DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
+                DownloadTaskStatus.DOWNLOADING -> setOf(DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.PAUSING, DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED)
+                DownloadTaskStatus.PROCESSING -> setOf(DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED)
+                DownloadTaskStatus.PAUSING -> setOf(DownloadTaskStatus.PAUSING, DownloadTaskStatus.PAUSED, DownloadTaskStatus.CANCELLED)
+                DownloadTaskStatus.PAUSED -> setOf(DownloadTaskStatus.PAUSED, DownloadTaskStatus.QUEUED, DownloadTaskStatus.CANCELLED)
                 else -> emptySet()
             }
             if (changed.status !in legal) return
@@ -286,7 +321,7 @@ class DownloadTaskRepository @Inject constructor(
             helper.writableDatabase.insertWithOnConflict(
                 "download_tasks",
                 null,
-                task.toContentValues(),
+                synchronized(stateLock) { find(task.id)?.toContentValues() ?: return@launch },
                 android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE,
             )
         }
@@ -401,6 +436,15 @@ class DownloadTaskRepository @Inject constructor(
         put("completed_at", completedAt)
         put("metadata_status", metadataStatus.name)
         put("metadata_warning", metadataWarning)
+        put("attempt_generation", attemptGeneration)
+        put("resume_etag", resumeEtag)
+        put("resume_last_modified", resumeLastModified)
+        put("resume_total_bytes", resumeTotalBytes)
+        put("resume_quality_key", resumeQualityKey)
+        put("resume_resource_identity", resumeResourceIdentity)
+        put("resume_file_modified", resumeFileModified)
+        put("pause_reason", pauseReason)
+
     }
 
     private fun Cursor.toDownloadTask(): DownloadTask {
@@ -436,6 +480,15 @@ class DownloadTaskRepository @Inject constructor(
                 MetadataWriteStatus.valueOf(getString(getColumnIndexOrThrow("metadata_status")))
             }.getOrDefault(MetadataWriteStatus.UNKNOWN),
             metadataWarning = getNullableString("metadata_warning"),
+            attemptGeneration = getLong(getColumnIndexOrThrow("attempt_generation")),
+            resumeEtag = getNullableString("resume_etag"),
+            resumeLastModified = getNullableString("resume_last_modified"),
+            resumeTotalBytes = getNullableLong("resume_total_bytes"),
+            resumeQualityKey = getNullableString("resume_quality_key"),
+            resumeResourceIdentity = getNullableString("resume_resource_identity"),
+            resumeFileModified = getNullableLong("resume_file_modified"),
+            pauseReason = getNullableString("pause_reason"),
+
         )
     }
 
