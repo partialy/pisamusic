@@ -58,6 +58,13 @@ class DownloadUrlResolver @Inject constructor(
         throw DownloadResolutionException(failure)
     }
 
+    suspend fun resolveExact(song: SongInfo, choice: DownloadQualityChoice, access: MusicQualityAccessState): ResolvedDownloadUrl {
+        if (!MusicQualityAccessPolicy.isChoiceAllowed(song.type, choice, access)) throw DownloadResolutionException(DownloadFailureKind.ACCESS)
+        val result = resolveChoice(song, choice)
+        if (result.choice.toPlaybackQualityKey() != choice.toPlaybackQualityKey()) throw DownloadResolutionException(DownloadFailureKind.UNAVAILABLE)
+        return result
+    }
+
     private suspend fun resolveChoice(song: SongInfo, choice: DownloadQualityChoice): ResolvedDownloadUrl {
         val raw: String?
         val extension: String

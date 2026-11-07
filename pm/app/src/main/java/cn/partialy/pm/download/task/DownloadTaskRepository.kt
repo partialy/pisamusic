@@ -38,6 +38,14 @@ class DownloadTaskRepository @Inject constructor(
     private val stateLock = Any()
     private val removingIds = ConcurrentHashMap.newKeySet<String>()
     private val removedIds = ConcurrentHashMap.newKeySet<String>()
+    private val taskOrder = Comparator<DownloadTask> { a, b ->
+        when {
+            !a.status.isTerminal && !b.status.isTerminal -> compareValuesBy(a, b, { it.createdAt }, { it.id })
+            a.status.isTerminal && b.status.isTerminal -> compareValuesBy(b, a, { it.completedAt ?: it.updatedAt }, { it.id })
+            a.status.isTerminal -> 1
+            else -> -1
+        }
+    }
     private val _tasks = MutableStateFlow(loadInitialTasks())
     val tasks: StateFlow<List<DownloadTask>> = _tasks.asStateFlow()
 
@@ -94,7 +102,7 @@ class DownloadTaskRepository @Inject constructor(
     }
 
     fun matches(taskId: String, generation: Long): Boolean = synchronized(stateLock) {
-        find(taskId)?.attemptGeneration == generation && taskId !in removingIds && taskId !in removedIds
+        cn.partialy.pm.download.DownloadResumePolicy.acceptsGeneration(generation, find(taskId)?.attemptGeneration ?: -1, taskId in removingIds || taskId in removedIds)
     }
 
     fun requeue(taskId: String): DownloadTask? = synchronized(stateLock) {
@@ -104,6 +112,16 @@ class DownloadTaskRepository @Inject constructor(
         publish(changed)
         persist(changed)
         changed
+    }
+
+    fun setPauseReason(taskId: String, reason: String) {
+        synchronized(stateLock) {
+            val task = find(taskId) ?: return
+            if (taskId in removingIds || taskId in removedIds) return
+            val changed = task.copy(pauseReason = reason, errorMessage = reason)
+            publish(changed)
+            persist(changed)
+        }
     }
 
     fun requestPause(taskId: String): Boolean = synchronized(stateLock) {
@@ -118,7 +136,7 @@ class DownloadTaskRepository @Inject constructor(
     }
 
     fun saveResume(taskId: String, generation: Long, etag: String?, modified: String?, total: Long, identity: String, fileModified: Long) {
-        update(taskId, generation) { it.copy(resumeEtag = etag, resumeLastModified = modified, resumeTotalBytes = total, resumeQualityKey = it.qualityKey, resumeResourceIdentity = identity, resumeFileModified = fileModified) }
+        update(taskId, generation) { it.copy(resumeEtag = etag, resumeLastModified = modified, resumeTotalBytes = total, resumeQualityKey = it.qualityKey, resumeResourceIdentity = identity, resumeFileModified = fileModified, downloadedBytes = it.targetPath?.let { path -> File(path + ".part").length() } ?: it.downloadedBytes) }
     }
 
     fun updateQuality(taskId: String, qualityKey: String) {
@@ -192,7 +210,7 @@ class DownloadTaskRepository @Inject constructor(
                 updatedAt = System.currentTimeMillis(),
             )
             _tasks.value = (_tasks.value.filterNot { it.id == taskId } + changed)
-                .sortedByDescending(DownloadTask::updatedAt)
+                .sortedWith(taskOrder)
             persist(changed)
         }
     }
@@ -213,7 +231,7 @@ class DownloadTaskRepository @Inject constructor(
                 updatedAt = System.currentTimeMillis(),
             )
             _tasks.value = (_tasks.value.filterNot { it.id == taskId } + changed)
-                .sortedByDescending(DownloadTask::updatedAt)
+                .sortedWith(taskOrder)
             persist(changed)
         }
     }
@@ -235,9 +253,20 @@ class DownloadTaskRepository @Inject constructor(
 
     fun cancelTask(taskId: String) {
         val current = find(taskId) ?: return
-        if (!current.status.isActive) return
+        if (!current.status.isActive || current.status == DownloadTaskStatus.PROCESSING) return
         markCancelled(taskId)
         stopExecution(taskId)
+        scope.launch {
+            awaitExecution(taskId)
+            current.targetPath?.let { path ->
+                cn.partialy.pm.download.DownloadFileLocks.withFile(File(path)) {
+                    if (find(taskId)?.status != DownloadTaskStatus.CANCELLED || find(taskId)?.attemptGeneration != current.attemptGeneration) return@withFile
+                    listOf(File(path + ".part"), File(path + ".stage." + File(path).extension)).forEach { temporary ->
+                        if (temporary.canonicalPath == temporary.absolutePath && temporary.isFile) temporary.delete()
+                    }
+                }
+            }
+        }
     }
 
     suspend fun removeTasks(ids: Set<String>, deleteFiles: Boolean): DownloadTaskRemovalResult {
@@ -254,9 +283,9 @@ class DownloadTaskRepository @Inject constructor(
                     val failedPaths = mutableListOf<String>()
                     val removableIds = finalSnapshot.mapNotNull { task ->
                         val sharedFile = tasks.value.any { other ->
-                            other.id !in ids && task.targetPath != null && other.targetPath == task.targetPath
+                            other.id !in ids && task.targetPath != null && runCatching { other.targetPath?.let { File(it).canonicalPath } == File(task.targetPath).canonicalPath }.getOrDefault(true)
                         }
-                        val taskFailures = if (deleteFiles && !sharedFile) deleteRecordedFiles(task) else emptyList()
+                        val taskFailures = if (deleteFiles && !sharedFile) task.targetPath?.let { path -> cn.partialy.pm.download.DownloadFileLocks.withFile(File(path)) { deleteRecordedFiles(task) } } ?: emptyList() else emptyList()
                         failedPaths += taskFailures
                         task.id.takeIf { taskFailures.isEmpty() }
                     }.toSet()
@@ -295,7 +324,7 @@ class DownloadTaskRepository @Inject constructor(
             val legal = when (current.status) {
                 DownloadTaskStatus.QUEUED -> setOf(DownloadTaskStatus.QUEUED, DownloadTaskStatus.PAUSED, DownloadTaskStatus.PREPARING, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
                 DownloadTaskStatus.PREPARING -> setOf(DownloadTaskStatus.PREPARING, DownloadTaskStatus.PAUSING, DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
-                DownloadTaskStatus.DOWNLOADING -> setOf(DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.PAUSING, DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED)
+                DownloadTaskStatus.DOWNLOADING -> setOf(DownloadTaskStatus.DOWNLOADING, DownloadTaskStatus.PAUSING, DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)
                 DownloadTaskStatus.PROCESSING -> setOf(DownloadTaskStatus.PROCESSING, DownloadTaskStatus.COMPLETED, DownloadTaskStatus.FAILED)
                 DownloadTaskStatus.PAUSING -> setOf(DownloadTaskStatus.PAUSING, DownloadTaskStatus.PAUSED, DownloadTaskStatus.CANCELLED)
                 DownloadTaskStatus.PAUSED -> setOf(DownloadTaskStatus.PAUSED, DownloadTaskStatus.QUEUED, DownloadTaskStatus.CANCELLED)
@@ -303,7 +332,7 @@ class DownloadTaskRepository @Inject constructor(
             }
             if (changed.status !in legal) return
             _tasks.value = (_tasks.value.filterNot { it.id == taskId } + changed)
-                .sortedByDescending(DownloadTask::updatedAt)
+                .sortedWith(taskOrder)
             persist(changed)
         }
     }
@@ -311,7 +340,7 @@ class DownloadTaskRepository @Inject constructor(
     private fun publish(task: DownloadTask) {
         synchronized(stateLock) {
             _tasks.value = (_tasks.value.filterNot { it.id == task.id } + task)
-                .sortedByDescending(DownloadTask::updatedAt)
+                .sortedWith(taskOrder)
         }
     }
 
@@ -329,19 +358,22 @@ class DownloadTaskRepository @Inject constructor(
 
     private fun recoverInterruptedTasks() {
         val now = System.currentTimeMillis()
-        val active = DownloadTaskStatus.entries.filter { it.isActive }
-        val placeholders = active.joinToString(",") { "?" }
-        val values = ContentValues().apply {
-            put("status", DownloadTaskStatus.FAILED.name)
-            put("error_message", "下载任务因应用重启中断")
-            put("updated_at", now)
+        val db = helper.writableDatabase
+        db.rawQuery("SELECT id, status, target_path FROM download_tasks WHERE status IN ('QUEUED','PREPARING','DOWNLOADING','PAUSING','PROCESSING')", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                val id = cursor.getString(0)
+                val processing = cursor.getString(1) == DownloadTaskStatus.PROCESSING.name
+                val file = cursor.getString(2)?.let(::File)
+                val valid = processing && file != null && cn.partialy.pm.download.AudioMetadataVerifier.isReadable(file)
+                val values = ContentValues().apply {
+                    put("status", if (valid) DownloadTaskStatus.COMPLETED.name else DownloadTaskStatus.PAUSED.name)
+                    put("pause_reason", if (valid) null as String? else "下载任务因应用重启中断")
+                    put("updated_at", now)
+                    if (valid) { put("completed_at", now); put("progress", 100) }
+                }
+                db.update("download_tasks", values, "id=?", arrayOf(id))
+            }
         }
-        helper.writableDatabase.update(
-            "download_tasks",
-            values,
-            "status IN ($placeholders)",
-            active.map(DownloadTaskStatus::name).toTypedArray(),
-        )
         helper.writableDatabase.execSQL(
             "UPDATE download_tasks SET metadata_status = 'INTERRUPTED' WHERE metadata_status = 'PENDING'",
         )
@@ -375,13 +407,14 @@ class DownloadTaskRepository @Inject constructor(
         ).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) add(cursor.toDownloadTask())
-            }
+            }.sortedWith(taskOrder)
         }
     }
 
     private fun deleteRecordedFiles(task: DownloadTask): List<String> {
         val target = task.targetPath?.let { runCatching { File(it).canonicalFile }.getOrNull() }
             ?: return emptyList()
+        if (File(task.targetPath!!).absolutePath != target.path) return listOf(task.targetPath)
         val parent = target.parentFile ?: return listOfNotNull(task.targetPath)
         val failed = mutableListOf<String>()
         val recordedPaths = buildList {
@@ -389,10 +422,10 @@ class DownloadTaskRepository @Inject constructor(
             add(target.path + ".part")
             task.sidecarPaths.forEach { rawPath ->
                 val sidecar = runCatching { File(rawPath).canonicalFile }.getOrNull()
-                if (sidecar == null || sidecar.parentFile != parent) {
+                if (sidecar == null || sidecar.parentFile != parent || File(rawPath).absolutePath != sidecar.path || sidecar.nameWithoutExtension != target.nameWithoutExtension || sidecar.extension.lowercase() !in setOf("lrc", "krc", "yrc")) {
                     failed += rawPath
                 } else {
-                    add(sidecar.path)
+                    if (tasks.value.none { other -> other.id != task.id && other.sidecarPaths.any { runCatching { File(it).canonicalFile == sidecar }.getOrDefault(true) } }) add(sidecar.path)
                 }
             }
         }

@@ -33,32 +33,34 @@ class DownloadQueueCoordinator @Inject constructor(
     private val repository: DownloadTaskRepository,
     private val urlResolver: DownloadUrlResolver,
     private val lyricResolver: DownloadLyricResolver,
+    private val repairer: javax.inject.Provider<AudioMetadataRepairer>,
 ) {
-    private data class Request(val taskId: String, val song: SongInfo, val choice: DownloadQualityChoice)
+    private data class Request(val taskId: String, val song: SongInfo, val choice: DownloadQualityChoice, val generation: Long = 0, val exactQuality: Boolean = false)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val queue = Channel<Request>(Channel.UNLIMITED)
     private val enqueueLock = Mutex()
     private val pathLock = Any()
     private val requests = ConcurrentHashMap<String, Request>()
     private val executions = ConcurrentHashMap<String, Job>()
-    private val kernelIds = ConcurrentHashMap.newKeySet<String>()
+    private val kernelTokens = ConcurrentHashMap<String, String>()
     private val identityLocks = ConcurrentHashMap<String, Mutex>()
 
     init {
         repository.stopExecution = { id ->
             executions[id]?.cancel()
-            if (id in kernelIds) DownloadManager.getInstance(context).cancel(id)
+            kernelTokens[id]?.let { DownloadManager.getInstance(context).cancel(it) }
         }
         repository.awaitExecution = { id -> executions[id]?.join(); Unit }
         repeat(2) {
             scope.launch {
                 for (request in queue) {
+                    if (!repository.claim(request.taskId, request.generation)) continue
                     val job = scope.launch(start = CoroutineStart.LAZY) { execute(request) }
                     executions[request.taskId] = job
                     job.start()
                     job.join()
                     executions.remove(request.taskId, job)
-                    requests.remove(request.taskId)
+                    requests.remove(request.taskId, request)
                 }
             }
         }
@@ -105,14 +107,64 @@ class DownloadQueueCoordinator @Inject constructor(
             }
         }.await()
 
-    suspend fun retry(task: DownloadTask): DownloadEnqueueSummary {
-        val choice = playbackQualityChoiceFromKey(task.qualityKey)
-            ?: return DownloadEnqueueSummary(emptySet(), emptySet(), setOf("${task.source}:${task.songId}"))
-        return enqueue(listOf(SongInfo(task.songId, task.source, task.title, task.artist, task.coverUrl, album = task.album)), choice)
+    fun pause(taskId: String): Boolean {
+        if (!repository.requestPause(taskId)) return false
+        if (repository.find(taskId)?.status == DownloadTaskStatus.PAUSING) {
+            if (kernelTokens.containsKey(taskId)) DownloadManager.getInstance(context).pause(kernelTokens.getValue(taskId))
+            else executions[taskId]?.cancel()
+        }
+        return true
+    }
+
+    fun pauseAll(): Int = repository.tasks.value.filter { it.status.canPause }.map { it.id }.count(::pause)
+
+    suspend fun resume(taskId: String): Boolean = enqueueLock.withLock {
+        val task = repository.find(taskId) ?: return@withLock false
+        if (!task.status.canResume) return@withLock false
+        resumeTask(task)
+    }
+
+    suspend fun resumeAll(): Int {
+        val ids = repository.tasks.value.filter { it.status.canResume }.sortedWith(compareBy<DownloadTask> { it.createdAt }.thenBy { it.id }).map { it.id }
+        var count = 0
+        ids.forEach { if (resume(it)) count++ }
+        return count
+    }
+
+    private suspend fun resumeTask(task: DownloadTask): Boolean {
+        val choice = playbackQualityChoiceFromKey(task.qualityKey) ?: return false
+        val session = AccountSessionStore.read(context)
+        val access = MusicQualityAccessState(session.loggedIn, session.vipActive)
+        if (!MusicQualityAccessPolicy.isChoiceAllowed(task.source, choice, access)) {
+            repository.setPauseReason(task.id, DownloadFailureKind.ACCESS.description)
+            return false
+        }
+        val target = task.targetPath?.let(::File)
+        if (target != null && (!target.isAbsolute || target.canonicalPath != target.absolutePath || target.parentFile?.let { !it.isDirectory || !it.canWrite() } != false)) {
+            repository.setPauseReason(task.id, "原下载目录不可用")
+            return false
+        }
+        val queued = repository.requeue(task.id) ?: return false
+        val song = SongInfo(task.songId, task.source, task.title, task.artist, task.coverUrl, album = task.album)
+        val request = Request(task.id, song, choice, queued.attemptGeneration, exactQuality = true)
+        requests[task.id] = request
+        queue.send(request)
+        return true
+    }
+
+    suspend fun retry(task: DownloadTask): DownloadEnqueueSummary = enqueueLock.withLock {
+        val current = repository.find(task.id)
+        val key = "${task.source}:${task.songId}"
+        if (current?.status == DownloadTaskStatus.FAILED && current.targetPath?.let { AudioMetadataVerifier.isReadable(File(it)) } == true) {
+            repairer.get().repairSelected(setOf(current.id))
+            val restored = repository.find(current.id)?.status == DownloadTaskStatus.COMPLETED
+            return@withLock DownloadEnqueueSummary(if (restored) setOf(key) else emptySet(), emptySet(), if (restored) emptySet() else setOf(key))
+        }
+        val success = current != null && current.status.isTerminal && current.status != DownloadTaskStatus.COMPLETED && resumeTask(current)
+        DownloadEnqueueSummary(if (success) setOf(key) else emptySet(), emptySet(), if (success) emptySet() else setOf(key))
     }
 
     private suspend fun execute(request: Request) {
-        if (!repository.claim(request.taskId)) return
         try {
             val lyrics = try {
                 lyricResolver.resolve(request.song, SettingsPrefs.isWriteLyricsEnabled(context), SettingsPrefs.getDownloadLyricMode(context))
@@ -124,7 +176,8 @@ class DownloadQueueCoordinator @Inject constructor(
             }
             currentCoroutineContext().ensureActive()
             val session = AccountSessionStore.read(context)
-            val resource = urlResolver.resolve(request.song, request.choice, MusicQualityAccessState(session.loggedIn, session.vipActive))
+            val resource = if (request.exactQuality) urlResolver.resolveExact(request.song, request.choice, MusicQualityAccessState(session.loggedIn, session.vipActive))
+                else urlResolver.resolve(request.song, request.choice, MusicQualityAccessState(session.loggedIn, session.vipActive))
             repository.updateQuality(request.taskId, resource.choice.toPlaybackQualityKey())
             val identity = "${request.song.type}:${request.song.id}:${resource.choice.toPlaybackQualityKey()}"
             // 两个不同请求档位回退为同一真实档位时，共享文件也必须串行核查。
@@ -140,15 +193,19 @@ class DownloadQueueCoordinator @Inject constructor(
                     repository.markCompleted(request.taskId, existing.targetPath, existing.sidecarPaths)
                     return@withLock
                 }
-                val target = reserveTarget(request, resource.extension)
+                val target = repository.find(request.taskId)?.targetPath?.let(::File) ?: reserveTarget(request, resource.extension)
                 repository.updateTarget(request.taskId, target.name, target.absolutePath)
                 download(request, resource, target, lyrics)
             }
         } catch (error: CancellationException) {
-            repository.markCancelled(request.taskId)
+            if (repository.find(request.taskId)?.status == DownloadTaskStatus.PAUSING) repository.markPaused(request.taskId, request.generation)
+            else repository.withAttempt(request.taskId, request.generation) { repository.markCancelled(request.taskId) }
         } catch (error: Exception) {
             val kind = (error as? DownloadResolutionException)?.kind ?: DownloadFailureKind.STORAGE
-            repository.markFailed(request.taskId, kind.description)
+            repository.withAttempt(request.taskId, request.generation) {
+                if (request.exactQuality) { repository.requestPause(request.taskId); repository.markPaused(request.taskId, request.generation, kind.description) }
+                else repository.markFailed(request.taskId, kind.description)
+            }
             Log.w("DownloadQueue", "source=${request.song.type} id=${request.song.id} quality=${request.choice.toPlaybackQualityKey()} stage=execute errorKind=$kind")
         }
     }
@@ -189,22 +246,48 @@ class DownloadQueueCoordinator @Inject constructor(
         if (!MusicQualityAccessPolicy.isChoiceAllowed(request.song.type, resource.choice, MusicQualityAccessState(session.loggedIn, session.vipActive))) {
             throw DownloadResolutionException(DownloadFailureKind.ACCESS)
         }
-        kernelIds += id
+        var kernelToken = "$id:${request.generation}:0"
+        kernelTokens[id] = kernelToken
         try {
             // 取消后仍等待内核最终回调，不能提前释放并发槽位或删除正在处理的文件。
             withContext(NonCancellable) {
-                if (repository.find(id)?.status?.isActive != true) return@withContext
+                if (!repository.matches(id, request.generation) || repository.find(id)?.status !in setOf(DownloadTaskStatus.PREPARING, DownloadTaskStatus.DOWNLOADING)) {
+                    if (repository.find(id)?.status == DownloadTaskStatus.PAUSING) repository.markPaused(id, request.generation)
+                    return@withContext
+                }
+                var currentResource = resource
+                for (urlAttempt in 0..1) {
+                kernelToken = "$id:${request.generation}:$urlAttempt"
+                kernelTokens[id] = kernelToken
+                var refreshUrl = false
                 val finished = CompletableDeferred<Unit>()
                 repository.markDownloading(id)
+                val task = repository.find(id)!!
+                val identity = "${task.source}:${task.songId}:${task.qualityKey}"
+                val resumeInfo = if (task.resumeQualityKey == task.qualityKey && task.resumeResourceIdentity == identity) cn.partialy.pm.utils.JavaUtils.JDownloadManager.ResumeInfo(task.resumeEtag, task.resumeLastModified, task.resumeTotalBytes ?: -1, task.downloadedBytes, task.resumeFileModified ?: -1) else null
                 DownloadManager.getInstance(context).startDownload(
-                    taskId = id, url = resource.url, fileName = target.name, songInfo = request.song,
+                    taskId = kernelToken, url = currentResource.url, fileName = target.name, songInfo = request.song,
                     resolvedLyrics = lyrics, targetDirectory = target.parentFile!!.absolutePath,
+                    resumeInfo = resumeInfo,
                     callback = object : DownloadManager.DownloadCallback {
-                        override fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long) {
-                            repository.updateProgress(id, progress, downloadedSize, totalSize)
+                        override fun beginProcessing(file: File): Boolean {
+                            repository.withAttempt(id, request.generation) {
+                                if (repository.find(id)?.status == DownloadTaskStatus.DOWNLOADING) repository.markProcessing(id, file.absolutePath)
+                            }
+                            return repository.matches(id, request.generation) && repository.find(id)?.status == DownloadTaskStatus.PROCESSING
                         }
-                        override fun onProcessing(file: File) = repository.markProcessing(id, file.absolutePath)
-                        override fun onProducedFiles(file: File, sidecarPaths: List<String>) = repository.recordProducedFiles(id, file.absolutePath, sidecarPaths)
+                        override fun onCheckpoint(etag: String?, modified: String?, total: Long, fileModified: Long) {
+                            repository.saveResume(id, request.generation, etag, modified, total, identity, fileModified)
+                        }
+                        override fun onPaused(downloadedBytes: Long) {
+                            repository.markPaused(id, request.generation)
+                            finished.complete(Unit)
+                        }
+                        override fun onProgress(progress: Int, downloadedSize: Long, totalSize: Long) {
+                            repository.withAttempt(id, request.generation) { repository.updateProgress(id, progress, downloadedSize, totalSize) }
+                        }
+                        override fun onProcessing(file: File) = Unit
+                        override fun onProducedFiles(file: File, sidecarPaths: List<String>) = repository.withAttempt(id, request.generation) { repository.recordProducedFiles(id, file.absolutePath, sidecarPaths) }
                         override fun onSuccess(file: File, lyricResult: LyricSidecarWriteResult, metadataResult: MetadataWriteResult) {
                             lyrics.originalWordAsset?.let { asset ->
                                 runCatching {
@@ -213,21 +296,32 @@ class DownloadQueueCoordinator @Inject constructor(
                                         .upsertWordLyric(song, asset.text, "download_${asset.extension}")
                                 }.onFailure { Log.w("DownloadQueue", "word lyric index failed", it) }
                             }
-                            repository.markCompleted(id, file.absolutePath, lyricResult.savedPaths)
-                            repository.updateMetadata(id, metadataResult)
+                            repository.withAttempt(id, request.generation) {
+                                repository.markCompleted(id, file.absolutePath, lyricResult.savedPaths)
+                                repository.updateMetadata(id, metadataResult)
+                            }
                             finished.complete(Unit)
                         }
-                        override fun onCancelled() { repository.markCancelled(id); finished.complete(Unit) }
+                        override fun onCancelled() { repository.withAttempt(id, request.generation) { repository.markCancelled(id) }; finished.complete(Unit) }
                         override fun onFailure(e: Exception) {
-                            repository.markFailed(id, DownloadFailureKind.STORAGE.description)
+                            refreshUrl = urlAttempt == 0 && listOf("HTTP 401", "HTTP 403", "HTTP 404").any { e.message?.contains(it) == true }
+                            if (!refreshUrl) repository.withAttempt(id, request.generation) { repository.markFailed(id, DownloadFailureKind.STORAGE.description) }
                             finished.complete(Unit)
                         }
                     },
                 )
                 finished.await()
+                if (!refreshUrl) break
+                if (repository.find(id)?.status != DownloadTaskStatus.DOWNLOADING) {
+                    if (repository.find(id)?.status == DownloadTaskStatus.PAUSING) repository.markPaused(id, request.generation)
+                    break
+                }
+                val latestSession = AccountSessionStore.read(context)
+                currentResource = urlResolver.resolveExact(request.song, currentResource.choice, MusicQualityAccessState(latestSession.loggedIn, latestSession.vipActive))
+                }
             }
         } finally {
-            kernelIds -= id
+            kernelTokens.remove(id, kernelToken)
         }
     }
 }

@@ -152,7 +152,14 @@ public class JDownloadManager {
             if (!downloadDir.exists()) {
                 downloadDir.mkdirs();
             }
+            if (!partialFile.getCanonicalPath().equals(partialFile.getAbsolutePath()) || !stagedFile.getCanonicalPath().equals(stagedFile.getAbsolutePath()) || !file.getCanonicalPath().equals(file.getAbsolutePath())) {
+                throw new java.io.IOException("下载路径包含符号链接或非规范路径");
+            }
+            if (partialFile.exists() && !partialFile.isFile()) throw new java.io.IOException("临时路径不是普通文件");
             if (file.exists()) {
+                if (!AudioMetadataVerifier.isReadable(file)) throw new java.io.IOException("已有音频不可读取");
+                if (!callback.onProcessing()) throw new DownloadPausedException();
+                processingTaskIds.add(taskId);
                 new Handler(Looper.getMainLooper()).post(() -> {
                     callback.onSuccess(file.getPath(), "SKIPPED", null);
                 });
@@ -226,7 +233,7 @@ public class JDownloadManager {
             final String warning = metadataWarning;
             new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath(), outcome, warning));
         } catch (Exception e) {
-            if (pausedTaskIds.contains(taskId) || e instanceof DownloadPausedException) {
+            if (!isCancelled(taskId) && (pausedTaskIds.contains(taskId) || e instanceof DownloadPausedException)) {
                 callback.onPaused(partialFile.length());
                 return;
             }
@@ -273,13 +280,9 @@ public class JDownloadManager {
                 boolean append = response.code() == 206;
                 long total = body.contentLength();
                 if (append) {
-                    java.util.regex.Matcher range = java.util.regex.Pattern.compile("bytes (\\d+)-(\\d+)/(\\d+)").matcher(String.valueOf(response.header("Content-Range")));
-                    if (!canResume || !range.matches()) throw new java.io.IOException("续传范围无效");
-                    long start = Long.parseLong(range.group(1)), end = Long.parseLong(range.group(2));
-                    total = Long.parseLong(range.group(3));
-                    boolean validatorMatches = strong ? saved.etag.equals(response.header("ETag")) : saved.modified.equals(response.header("Last-Modified"));
-                    if (start != offset || end < start || end >= total || total != saved.total || !validatorMatches
-                            || (body.contentLength() >= 0 && body.contentLength() != end - start + 1)) throw new java.io.IOException("续传资源校验失败");
+                    boolean validatorMatches = canResume && (strong ? saved.etag.equals(response.header("ETag")) : saved.modified.equals(response.header("Last-Modified")));
+                    total = canResume ? cn.partialy.pm.download.DownloadResumePolicy.validatedTotal(response.header("Content-Range"), offset, saved.total, body.contentLength(), validatorMatches) : -1;
+                    if (total < 0) throw new java.io.IOException("续传资源校验失败");
                 } else if (response.code() != 200) throw new java.io.IOException("下载状态无效");
                 String etag = response.header("ETag"), modified = response.header("Last-Modified");
                 long count = append ? offset : 0;

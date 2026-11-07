@@ -96,7 +96,11 @@ class DownloadManager private constructor(private val context: Context) {
 
             override fun onPaused(bytes: Long) = callback.onPaused(bytes)
             override fun onCheckpoint(etag: String?, modified: String?, total: Long, fileModified: Long) = callback.onCheckpoint(etag, modified, total, fileModified)
-            override fun onProcessing(): Boolean = callback.beginProcessing(File(targetDirectory, fileName))
+            override fun onProcessing(): Boolean = synchronized(processingTaskIds) {
+                val accepted = callback.beginProcessing(File(targetDirectory, fileName))
+                if (accepted) processingTaskIds.add(taskId)
+                accepted
+            }
 
             override fun onSuccess(filePath: String, metadataStatus: String?, metadataWarning: String?) {
                 val file = File(filePath)
@@ -110,7 +114,7 @@ class DownloadManager private constructor(private val context: Context) {
                         finishCancelled(taskId, callback)
                         return@execute
                     }
-                    val lyricResult = LyricSidecarWriter.write(file, resolvedLyrics)
+                    val lyricResult = cn.partialy.pm.download.DownloadFileLocks.withFile(file) { LyricSidecarWriter.write(file, resolvedLyrics) }
                     mainHandler.post {
                         callback.onProducedFiles(file, lyricResult.savedPaths)
                         if (cancelledTaskIds.remove(taskId)) {
@@ -126,6 +130,7 @@ class DownloadManager private constructor(private val context: Context) {
                                 listOfNotNull(initial.warning, "独立歌词文件保存失败").joinToString("；"),
                             )
                         } else initial
+                        processingTaskIds.remove(taskId)
                         callback.onSuccess(file, lyricResult, outcome)
                     }
                 }
@@ -134,6 +139,7 @@ class DownloadManager private constructor(private val context: Context) {
             override fun onError(error: String) {
                 Handler(Looper.getMainLooper()).post {
                     cancelledTaskIds.remove(taskId)
+                    processingTaskIds.remove(taskId)
                     callback.onFailure(Exception(error))
                 }
             }
@@ -162,8 +168,11 @@ class DownloadManager private constructor(private val context: Context) {
     fun pause(taskId: String) = JDownloadManager.pause(taskId)
 
     fun cancel(taskId: String) {
-        cancelledTaskIds += taskId
-        JDownloadManager.cancel(taskId)
+        synchronized(processingTaskIds) {
+            if (taskId in processingTaskIds) return
+            cancelledTaskIds += taskId
+            JDownloadManager.cancel(taskId)
+        }
     }
 
     private fun finishCancelled(taskId: String, callback: DownloadCallback) {
@@ -248,6 +257,7 @@ class DownloadManager private constructor(private val context: Context) {
         )
         private val mainHandler = Handler(Looper.getMainLooper())
         private val sidecarExecutor = Executors.newSingleThreadExecutor()
+        private val processingTaskIds = ConcurrentHashMap.newKeySet<String>()
         private val cancelledTaskIds = ConcurrentHashMap.newKeySet<String>()
 
         @SuppressLint("StaticFieldLeak")
