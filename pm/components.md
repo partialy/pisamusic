@@ -161,3 +161,6 @@
 - `DownloadManagementActivity` + `DownloadTaskPageFragment` + `DownloadManagementViewModel`：下载中/已完成两个 ViewPager2 页面；已完成独立搜索，过滤外选择保留，长按进入编辑并选中，编辑锁页，返回优先退出编辑。
 - `DownloadTaskAdapter`、`item_download_task.xml`、`DownloadProgressBackgroundDrawable`：40dp封面紧凑双行、标准音源/音质与单一优先级状态标签、局部进度更新、LOCAL当前歌曲频谱；进度高光仅页面可见且附着/传输中运行，遵循系统禁动画。
 - `DownloadTaskRecyclerView` 只在列表内仲裁横纵方向，边缘触摸不交给Pager；更多菜单复用原紧凑菜单布局，无对象操作禁用。
+
+- 下载终态动作统一使用 `DownloadTaskActionMenu`，详情使用 `DownloadTaskDetailDialog` 的 PmSlot 固定歌曲头与可滚动字段，歌名/歌手/专辑/路径整行复制；Android13+采用系统剪贴板反馈。`DownloadTaskFileReader` 在 IO 与共同文件锁内读取单文件标签/封面/时长，仅生成LOCAL快照，不导入本地库。已完成可读音频调用 MusicController.play 保留原队列；一起听时拒绝本地播放。
+- `DeleteDownloadTasksUseCase` 统一单条/多选/全终态清除的去重大小预览与结果汇总；确认瞬间抓取ID，默认仅删记录，unfinished任务等待停止并同步清专属临时文件。文件删除在仓库canonical路径锁内按实体分组，保护当前LOCAL（含暂停）和未选共享引用，校验sidecar边界，失败保留记录。PROCESSING删除先等待完成及metadata回调，避免跳过后状态失真。

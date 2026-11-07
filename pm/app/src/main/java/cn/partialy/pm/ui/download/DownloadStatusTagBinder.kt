@@ -17,7 +17,7 @@ object DownloadStatusTagBinder {
 
     fun labelRes(task: DownloadTask): Int = when {
         isFileMissing(task) -> R.string.download_row_missing
-        task.metadataStatus in setOf(MetadataWriteStatus.PARTIAL, MetadataWriteStatus.FAILED, MetadataWriteStatus.PENDING) -> R.string.download_row_repair
+        task.metadataStatus in setOf(MetadataWriteStatus.PARTIAL, MetadataWriteStatus.FAILED, MetadataWriteStatus.PENDING, MetadataWriteStatus.INTERRUPTED) -> R.string.download_row_repair
         task.status == DownloadTaskStatus.FAILED -> R.string.download_management_status_failed
         task.status == DownloadTaskStatus.CANCELLED -> R.string.download_management_status_cancelled
         else -> R.string.download_management_status_completed

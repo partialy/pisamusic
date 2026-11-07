@@ -58,4 +58,8 @@ data class DownloadTask(
 data class DownloadTaskRemovalResult(
     val removedCount: Int,
     val failedPaths: List<String>,
+    val deletedFileCount: Int = 0,
+    val sharedFileCount: Int = 0,
+    val skippedInUseCount: Int = 0,
+    val failedCount: Int = 0,
 )

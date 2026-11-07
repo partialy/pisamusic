@@ -21,6 +21,7 @@ class DownloadProgressBackgroundDrawable(private val color: Int) : Drawable() {
     private var scheduled = false
     private var phase = 0f
     private var drawableAlpha = 255
+    private var selected = false
     private val frame = object : Runnable {
         override fun run() {
             scheduled = false
@@ -62,8 +63,19 @@ class DownloadProgressBackgroundDrawable(private val color: Int) : Drawable() {
         synchronize()
         return changed
     }
+    override fun isStateful() = true
+    override fun onStateChange(state: IntArray): Boolean {
+        val next = android.R.attr.state_activated in state
+        if (next == selected) return false
+        selected = next; invalidateSelf(); return true
+    }
     override fun draw(canvas: Canvas) {
         if (bounds.isEmpty) return
+        if (selected) {
+            paint.shader = null
+            paint.color = ColorUtils.setAlphaComponent(color, 14 * drawableAlpha / 255)
+            canvas.drawRect(bounds, paint)
+        }
         val width = bounds.width().toFloat()
         val fillWidth = if (indeterminate) width else width * progress
         if (fillWidth <= 0f) return

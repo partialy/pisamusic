@@ -313,26 +313,79 @@ class DownloadTaskRepository @Inject constructor(
         }
     }
 
-    suspend fun removeTasks(ids: Set<String>, deleteFiles: Boolean): DownloadTaskRemovalResult {
+    suspend fun removeTasks(
+        ids: Set<String>,
+        deleteFiles: Boolean,
+        isFileInUse: (String) -> Boolean = { false },
+    ): DownloadTaskRemovalResult {
         if (ids.isEmpty()) return DownloadTaskRemovalResult(0, emptyList())
         val snapshot = tasks.value.filter { it.id in ids }
         snapshot.filter { it.status.isActive }.forEach { cancelTask(it.id) }
-        removingIds += ids
+        // PROCESSING 不可取消，先让同代次提交及 metadata 回调完整结束。
+        synchronized(stateLock) { removingIds += ids.filter { find(it)?.status != DownloadTaskStatus.PROCESSING } }
         // 等待下载内核及 sidecar 停止写入后再删文件。
         return withContext(NonCancellable) {
             snapshot.forEach { awaitExecution(it.id) }
+            synchronized(stateLock) { removingIds += ids }
             withContext(databaseDispatcher) {
                 try {
                     val finalSnapshot = tasks.value.filter { it.id in ids }
                     val failedPaths = mutableListOf<String>()
-                    val removableIds = finalSnapshot.mapNotNull { task ->
-                        val sharedFile = tasks.value.any { other ->
-                            other.id !in ids && task.targetPath != null && runCatching { other.targetPath?.let { File(it).canonicalPath } == File(task.targetPath).canonicalPath }.getOrDefault(true)
+                    var deletedFiles = 0
+                    var sharedFiles = 0
+                    var inUse = 0
+                    var failures = 0
+                    val removableIds = mutableSetOf<String>()
+                    val failedTaskIds = mutableSetOf<String>()
+                    // 按实体音频分组，选中集合共享文件只删除一次；保留失败组的全部历史记录。
+                    val groups = finalSnapshot.groupBy { task ->
+                        task.targetPath?.let { runCatching { File(it).canonicalPath }.getOrDefault(it) } ?: "id:${task.id}"
+                    }
+                    groups.values.forEach { group ->
+                        if (!deleteFiles || group.first().targetPath == null) {
+                            val errors = group.filter { item -> item.status == DownloadTaskStatus.CANCELLED && snapshot.any { it.id == item.id && it.status.isActive } }
+                                .flatMap { cleanupCancelledTemporary(it, ids) }.distinct()
+                            if (errors.isEmpty()) removableIds += group.map { it.id }
+                            else {
+                                failedPaths += errors
+                                failures += group.size
+                                failedTaskIds += group.map { it.id }
+                            }
+                        } else {
+                            val representative = group.first().copy(sidecarPaths = group.flatMap { it.sidecarPaths }.distinct())
+                            val target = File(representative.targetPath!!)
+                            try {
+                                cn.partialy.pm.download.DownloadFileLocks.withFile(target) {
+                                    if (group.any { item -> item.targetPath?.let { !File(it).isAbsolute || File(it).absolutePath != File(it).canonicalPath } != false }) {
+                                        failedPaths += group.mapNotNull { it.targetPath }
+                                        failures += group.size
+                                        failedTaskIds += group.map { it.id }
+                                    } else if (isFileInUse(target.canonicalPath)) {
+                                        inUse += group.size
+                                    } else {
+                                        val shared = tasks.value.any { other ->
+                                            other.id !in ids && other.targetPath?.let { runCatching { File(it).canonicalFile == target.canonicalFile }.getOrDefault(true) } == true
+                                        }
+                                        if (shared) {
+                                            sharedFiles++
+                                            removableIds += group.map { it.id }
+                                        } else {
+                                            val existed = target.isFile
+                                            val errors = deleteRecordedFiles(representative, ids)
+                                            failedPaths += errors
+                                            if (existed && !target.exists()) deletedFiles++
+                                            if (errors.isEmpty()) removableIds += group.map { it.id }
+                                            else { failures += group.size; failedTaskIds += group.map { it.id } }
+                                        }
+                                    }
+                                }
+                            } catch (_: Exception) {
+                                failedPaths += group.mapNotNull { it.targetPath }
+                                failures += group.size
+                                failedTaskIds += group.map { it.id }
+                            }
                         }
-                        val taskFailures = if (deleteFiles && !sharedFile) task.targetPath?.let { path -> cn.partialy.pm.download.DownloadFileLocks.withFile(File(path)) { deleteRecordedFiles(task) } } ?: emptyList() else emptyList()
-                        failedPaths += taskFailures
-                        task.id.takeIf { taskFailures.isEmpty() }
-                    }.toSet()
+                    }
                     val removed = if (removableIds.isEmpty()) {
                         0
                     } else {
@@ -345,12 +398,14 @@ class DownloadTaskRepository @Inject constructor(
                     }
                     removedIds += removableIds
                     synchronized(stateLock) {
-                        _tasks.value = _tasks.value.filterNot { it.id in removableIds }
+                        _tasks.value = _tasks.value.filterNot { it.id in removableIds }.map {
+                            if (it.id in failedTaskIds) it.copy(errorMessage = listOfNotNull(it.errorMessage, context.getString(cn.partialy.pm.R.string.download_management_delete_partial_failed)).distinct().joinToString("; ").take(500)) else it
+                        }
                     }
                     removingIds.removeAll(ids)
                     tasks.value.filter { it.id in ids && it.id !in removableIds }
                         .forEach { persist(it) }
-                    DownloadTaskRemovalResult(removed, failedPaths)
+                    DownloadTaskRemovalResult(removed, failedPaths.distinct(), deletedFiles, sharedFiles, inUse, failures)
                 } finally {
                     removingIds.removeAll(ids)
                 }
@@ -455,7 +510,21 @@ class DownloadTaskRepository @Inject constructor(
         }
     }
 
-    private fun deleteRecordedFiles(task: DownloadTask): List<String> {
+    private fun cleanupCancelledTemporary(task: DownloadTask, deletingIds: Set<String>): List<String> {
+        val target = task.targetPath?.let(::File) ?: return emptyList()
+        return try {
+            cn.partialy.pm.download.DownloadFileLocks.withFile(target) {
+                if (tasks.value.any { other -> other.id !in deletingIds && other.targetPath?.let { File(it).canonicalFile == target.canonicalFile } == true }) return@withFile emptyList()
+                val parent = target.parentFile ?: return@withFile listOf(target.path)
+                if (!cn.partialy.pm.download.DownloadResumePolicy.safeRecordedPath(target, parent)) return@withFile listOf(target.path)
+                listOf(File(target.path + ".part"), File(target.path + ".stage." + target.extension)).mapNotNull { file ->
+                    file.path.takeIf { !cn.partialy.pm.download.DownloadResumePolicy.safeRecordedPath(file, parent) || file.exists() && !file.delete() }
+                }
+            }
+        } catch (_: Exception) { listOf(target.path) }
+    }
+
+    private fun deleteRecordedFiles(task: DownloadTask, deletingIds: Set<String>): List<String> {
         val target = task.targetPath?.let { runCatching { File(it).canonicalFile }.getOrNull() }
             ?: return emptyList()
         if (File(task.targetPath!!).absolutePath != target.path) return listOf(task.targetPath)
@@ -464,15 +533,20 @@ class DownloadTaskRepository @Inject constructor(
         val recordedPaths = buildList {
             add(target.path)
             add(target.path + ".part")
+            add(target.path + ".stage." + target.extension)
             task.sidecarPaths.forEach { rawPath ->
                 val sidecar = runCatching { File(rawPath).canonicalFile }.getOrNull()
                 if (sidecar == null || sidecar.parentFile != parent || File(rawPath).absolutePath != sidecar.path || sidecar.nameWithoutExtension != target.nameWithoutExtension || sidecar.extension.lowercase() !in setOf("lrc", "krc", "yrc")) {
                     failed += rawPath
                 } else {
-                    if (tasks.value.none { other -> other.id != task.id && other.sidecarPaths.any { runCatching { File(it).canonicalFile == sidecar }.getOrDefault(true) } }) add(sidecar.path)
+                    if (tasks.value.none { other -> other.id !in deletingIds && other.sidecarPaths.any { runCatching { File(it).canonicalFile == sidecar }.getOrDefault(true) } }) add(sidecar.path)
                 }
             }
         }
+        // 所有路径先验证再开始实体删除，拒绝相对路径、符号链接与越界 sidecar。
+        if (failed.isNotEmpty()) return failed
+        val invalid = recordedPaths.filter { !cn.partialy.pm.download.DownloadResumePolicy.safeRecordedPath(File(it), parent) }
+        if (invalid.isNotEmpty()) return invalid
         recordedPaths.distinct().forEach { rawPath ->
             val file = File(rawPath)
             if (!cn.partialy.pm.download.DownloadResumePolicy.safeRecordedPath(file, parent)) {

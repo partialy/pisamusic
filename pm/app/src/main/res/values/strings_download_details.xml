@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_details_title">详情</string>
+    <string name="download_details_play">播放</string>
+    <string name="download_details_retry">重新下载</string>
+    <string name="download_details_name">歌名</string>
+    <string name="download_details_artist">歌手</string>
+    <string name="download_details_source">音源</string>
+    <string name="download_details_quality">音质</string>
+    <string name="download_details_state">状态</string>
+    <string name="download_details_metadata">歌曲信息</string>
+    <string name="download_details_album">专辑</string>
+    <string name="download_details_duration">时长</string>
+    <string name="download_details_size">文件大小</string>
+    <string name="download_details_path">完整路径</string>
+    <string name="download_details_created">创建时间</string>
+    <string name="download_details_completed">完成时间</string>
+    <string name="download_details_updated">最后更新时间</string>
+    <string name="download_details_error">异常说明</string>
+    <string name="download_details_unknown">未知</string>
+    <string name="download_details_file_missing">文件不存在或已移动</string>
+    <string name="download_details_file_unreadable">音频文件不可读取或格式异常</string>
+    <string name="download_details_copy_cd">复制%1$s：%2$s</string>
+    <string name="download_details_copied">已复制%1$s</string>
+    <string name="download_details_copy_failed">复制失败</string>
+    <string name="download_details_metadata_success">完整</string>
+    <string name="download_details_metadata_pending">处理中</string>
+    <string name="download_details_metadata_partial">部分信息未写入</string>
+    <string name="download_details_metadata_failed">信息写入失败</string>
+    <string name="download_details_metadata_skipped">未写入</string>
+    <string name="download_details_metadata_interrupted">信息处理已中断</string>
+    <string name="download_details_source_kg">酷狗</string>
+    <string name="download_details_source_wy">网易云</string>
+    <string name="download_details_source_kw">酷我</string>
+    <string name="download_details_source_cloud">云盘</string>
+    <string name="download_details_source_local">本地</string>
+</resources>

@@ -62,7 +62,12 @@ class DownloadTaskPageFragment : Fragment(R.layout.fragment_download_task_page) 
             }
         }
     }
-    override fun onResume() { super.onResume(); taskAdapter?.setPageActive(model.state.value.page == page) }
+    override fun onResume() {
+        super.onResume()
+        taskAdapter?.setPageActive(model.state.value.page == page)
+        // 从文件管理器等外部页面返回时，刷新派生文件丢失状态，不改写历史主状态。
+        taskAdapter?.let { it.notifyItemRangeChanged(0, it.itemCount, "file") }
+    }
     override fun onPause() { taskAdapter?.setPageActive(false); super.onPause() }
     override fun onDestroyView() {
         taskAdapter?.setPageActive(false)
