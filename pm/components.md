@@ -155,3 +155,9 @@
 | 高清 Hero 封面 | 在线歌单详情大封面 | `ui/playlistdetail/PlaylistHeroCoverUrl.kt`、`PlaylistDetailHeaderController.kt` | 歌曲更多/分享详情与歌单详情统一优先 1024，失败按 720/480/240/原 URL 降级，再用既有占位；KG 解析模板及已知固定尺寸目录，WY 解析真实 query 尺寸并保留编码参数/fragment；列表缩略图独立取用。 |
 
 - 歌词样式实时预览：`include_lyric_settings_preview.xml`、`bg_lyric_settings_preview.xml`、`ui/player/LyricPreviewController.kt` 与 `LyricPreviewSamples.kt`；8 秒原创三行无声样本，复用普通/逐字渲染器，透明覆盖阻断歌词触摸，样式变化保留时间轴；隐藏暂停、关闭释放、系统禁动画静态展示。预览基准 96dp、圆角 12dp，大字号按换行高度扩展。
+
+## 下载管理双页（2026-11-07）
+
+- `DownloadManagementActivity` + `DownloadTaskPageFragment` + `DownloadManagementViewModel`：下载中/已完成两个 ViewPager2 页面；已完成独立搜索，过滤外选择保留，长按进入编辑并选中，编辑锁页，返回优先退出编辑。
+- `DownloadTaskAdapter`、`item_download_task.xml`、`DownloadProgressBackgroundDrawable`：40dp封面紧凑双行、标准音源/音质与单一优先级状态标签、局部进度更新、LOCAL当前歌曲频谱；进度高光仅页面可见且附着/传输中运行，遵循系统禁动画。
+- `DownloadTaskRecyclerView` 只在列表内仲裁横纵方向，边缘触摸不交给Pager；更多菜单复用原紧凑菜单布局，无对象操作禁用。

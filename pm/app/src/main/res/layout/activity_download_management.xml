@@ -104,85 +104,14 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/searchField"
-        android:layout_width="0dp"
-        android:layout_height="44dp"
-        android:layout_marginStart="@dimen/pm_page_content_start"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="@dimen/pm_page_content_start"
-        android:background="@drawable/bg_search_field"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/downloadManagementHeader">
-
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:layout_marginStart="12dp"
-            android:alpha="0.55"
-            android:contentDescription="@null"
-            android:importantForAccessibility="no"
-            android:src="@drawable/ic_search_24"
-            app:tint="@color/home_tab_unselected" />
-
-        <EditText
-            android:id="@+id/searchInput"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@null"
-            android:hint="@string/download_management_search_hint"
-            android:imeOptions="actionSearch"
-            android:importantForAutofill="no"
-            android:inputType="text"
-            android:maxLines="1"
-            android:paddingStart="8dp"
-            android:paddingEnd="4dp"
-            android:singleLine="true"
-            android:textColor="?attr/colorOnSurface"
-            android:textColorHint="?android:attr/textColorSecondary"
-            android:textSize="16sp" />
-
-        <ImageButton
-            android:id="@+id/clearSearchButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/loved_songs_search_clear_cd"
-            android:padding="8dp"
-            android:src="@drawable/ic_close_24dp"
-            android:visibility="gone"
-            app:tint="?attr/colorOnSurfaceVariant" />
-    </LinearLayout>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/taskRecyclerView"
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/taskPager"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:overScrollMode="never"
-        android:paddingTop="8dp"
-        android:paddingBottom="12dp"
+        app:layout_constraintTop_toBottomOf="@id/downloadManagementHeader"
         app:layout_constraintBottom_toTopOf="@id/actionSurface"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/searchField" />
-
-    <TextView
-        android:id="@+id/emptyView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/download_management_empty_downloading"
-        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/actionSurface"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/searchField" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <LinearLayout
         android:id="@+id/actionSurface"

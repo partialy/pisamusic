@@ -1,109 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="?attr/selectableItemBackground"
-    android:clickable="true"
-    android:focusable="true"
-    android:minHeight="76dp"
-    android:paddingStart="@dimen/pm_page_content_start"
-    android:paddingTop="8dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="8dp">
-
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:minHeight="56dp" android:paddingTop="4dp" android:paddingBottom="4dp"
+    android:paddingStart="@dimen/pm_page_content_start" android:paddingEnd="4dp"
+    android:gravity="center_vertical" android:orientation="horizontal"
+    android:clickable="true" android:focusable="true" android:foreground="?attr/selectableItemBackground">
     <com.google.android.material.checkbox.MaterialCheckBox
-        android:id="@+id/selectionCheckBox"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:contentDescription="@string/download_management_select_task"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <com.google.android.material.imageview.ShapeableImageView
-        android:id="@+id/coverImageView"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:contentDescription="@null"
-        android:scaleType="centerCrop"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/selectionCheckBox"
-        app:layout_constraintTop_toTopOf="parent"
-        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small"
-        tools:src="@drawable/mine_entry_my_songs" />
-
-    <TextView
-        android:id="@+id/titleTextView"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-        android:textColor="?attr/colorOnSurface"
-        app:layout_constraintEnd_toStartOf="@id/sizeTextView"
-        app:layout_constraintStart_toEndOf="@id/coverImageView"
-        app:layout_constraintTop_toTopOf="@id/coverImageView"
-        tools:text="歌曲名称" />
-
-    <TextView
-        android:id="@+id/sizeTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        app:layout_constraintBaseline_toBaselineOf="@id/titleTextView"
-        app:layout_constraintEnd_toEndOf="parent"
-        tools:text="8.2 MB" />
-
-    <TextView
-        android:id="@+id/subtitleTextView"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:layout_marginTop="2dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/coverImageView"
-        app:layout_constraintTop_toBottomOf="@id/titleTextView"
-        tools:text="歌手 · KG · 320K" />
-
-    <TextView
-        android:id="@+id/statusTextView"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:layout_marginTop="2dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
-        android:textColor="@color/primary"
-        app:layout_constraintBottom_toTopOf="@id/progressIndicator"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/coverImageView"
-        app:layout_constraintTop_toBottomOf="@id/subtitleTextView"
-        tools:text="下载中 48%" />
-
-    <com.google.android.material.progressindicator.LinearProgressIndicator
-        android:id="@+id/progressIndicator"
-        android:layout_width="0dp"
-        android:layout_height="3dp"
-        android:layout_marginStart="10dp"
-        android:layout_marginBottom="2dp"
-        android:max="100"
-        android:visibility="gone"
-        app:indicatorColor="@color/primary"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/coverImageView"
-        app:trackColor="?attr/colorSurfaceVariant"
-        app:trackCornerRadius="2dp"
-        app:trackThickness="3dp" />
-</androidx.constraintlayout.widget.ConstraintLayout>
+        android:id="@+id/selectionCheckBox" android:layout_width="48dp" android:layout_height="48dp"
+        android:visibility="gone" android:contentDescription="@string/download_management_select_task" />
+    <FrameLayout android:layout_width="40dp" android:layout_height="40dp">
+        <com.google.android.material.imageview.ShapeableImageView android:id="@+id/coverImageView"
+            android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="centerCrop"
+            android:contentDescription="@null" app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
+        <com.google.android.material.imageview.ShapeableImageView android:id="@+id/currentSongCoverMask"
+            android:layout_width="match_parent" android:layout_height="match_parent" android:src="@android:color/black"
+            android:alpha="0.4" android:visibility="gone" app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
+        <cn.partialy.pm.ui.widget.PlayingSpectrumView android:id="@+id/playingSpectrumView"
+            android:layout_width="18dp" android:layout_height="22dp" android:layout_gravity="center" android:visibility="gone" />
+    </FrameLayout>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:layout_marginStart="10dp" android:orientation="vertical">
+        <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView android:id="@+id/titleTextView" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="14sp" android:textColor="?android:textColorPrimary" android:maxLines="1" android:ellipsize="end"
+                app:layout_constrainedWidth="true" app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/statusTagTextView" app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintHorizontal_chainStyle="packed" app:layout_constraintHorizontal_bias="0" />
+            <TextView android:id="@+id/statusTagTextView" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="4dp" android:maxLines="1" android:visibility="gone"
+                app:layout_constraintStart_toEndOf="@id/titleTextView" app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/titleTextView" app:layout_constraintBottom_toBottomOf="@id/titleTextView" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+        <androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+            <TextView android:id="@+id/subtitleTextView" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:textSize="12sp" android:textColor="?android:textColorSecondary" android:maxLines="1" android:ellipsize="end"
+                app:layout_constrainedWidth="true" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toStartOf="@id/sourceTagTextView"
+                app:layout_constraintTop_toTopOf="parent" app:layout_constraintHorizontal_chainStyle="packed" app:layout_constraintHorizontal_bias="0" />
+            <TextView android:id="@+id/sourceTagTextView" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="3dp" app:layout_constraintStart_toEndOf="@id/subtitleTextView"
+                app:layout_constraintEnd_toStartOf="@id/qualityTagTextView" app:layout_constraintTop_toTopOf="@id/subtitleTextView"
+                app:layout_constraintBottom_toBottomOf="@id/subtitleTextView" />
+            <TextView android:id="@+id/qualityTagTextView" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="3dp" android:maxLines="1" app:layout_constraintStart_toEndOf="@id/sourceTagTextView"
+                app:layout_constraintEnd_toStartOf="@id/statusTextView" app:layout_constraintTop_toTopOf="@id/subtitleTextView"
+                app:layout_constraintBottom_toBottomOf="@id/subtitleTextView" />
+            <TextView android:id="@+id/statusTextView" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginStart="6dp" android:textSize="11sp" android:textColor="?attr/colorOnSurfaceVariant"
+                android:maxLines="1" android:fontFeatureSettings="tnum" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="@id/subtitleTextView"
+                app:layout_constraintBottom_toBottomOf="@id/subtitleTextView" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
+    <ImageButton android:id="@+id/btnMore" android:layout_width="48dp" android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless" android:padding="12dp"
+        android:contentDescription="@string/more" android:src="@drawable/ic_more_vert_24" app:tint="@color/home_tab_unselected" />
+</LinearLayout>

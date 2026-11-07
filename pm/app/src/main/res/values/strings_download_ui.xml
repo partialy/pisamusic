@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_ui_pause_all">全部暂停</string>
+    <string name="download_ui_resume_all">全部继续</string>
+    <string name="download_ui_clear_all">清除全部</string>
+    <string name="download_ui_resumed">已继续 %1$d 项</string>
+    <string name="download_ui_resume_failed">无法继续，请检查权限与下载目录</string>
+    <string name="download_ui_operation_failed">操作失败，请重试</string>
+</resources>

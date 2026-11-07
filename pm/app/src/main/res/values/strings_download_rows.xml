@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_row_pausing">暂停中</string>
+    <string name="download_row_paused">已暂停</string>
+    <string name="download_row_missing">文件丢失</string>
+    <string name="download_row_repair">待修复</string>
+    <string name="download_row_quality_default">默认</string>
+    <string name="download_row_quality_unknown">未知音质</string>
+    <string name="download_row_quality_max">最高可用</string>
+    <string name="download_row_unknown_progress">下载中</string>
+    <string name="download_row_cancel">取消下载</string>
+    <string name="download_row_progress">%1$d%%</string>
+</resources>

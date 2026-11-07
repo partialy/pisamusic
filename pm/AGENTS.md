@@ -318,3 +318,9 @@
 - `download/task` 仓库使用 v3 增量数据库，保存执行代次和续传验证器，不保存带凭证 URL。暂停先 PAUSING，内核关闭流并保存实际 `.part` 游标后才 PAUSED；PROCESSING 不接受暂停/取消。
 - `DownloadQueueCoordinator.pause/resume/pauseAll/resumeAll` 是暂停恢复入口，恢复和失败重试沿用原 ID 并增加代次，FIFO 排队；恢复严格检查原实际音质权限和原目录，不自动降档。失败但正式音频有效时优先走原信息修复流程。
 - HTTP 内核只对严格验证的 206 追加，200 受控重写，416 保守完整重取；普通失败保留 `.part`，主动取消清理专属临时文件。`DownloadResumePolicy` 承载纯规则，`DownloadFileLocks` 统一下载、文件事务、歌词写入和删除的 canonical 路径互斥。
+
+## 下载管理双页（2026-11-07）
+
+- `DownloadManagementActivity` + `DownloadTaskPageFragment` + `DownloadManagementViewModel`：下载中/已完成两个 ViewPager2 页面；已完成独立搜索，过滤外选择保留，长按进入编辑并选中，编辑锁页，返回优先退出编辑。
+- `DownloadTaskAdapter`、`item_download_task.xml`、`DownloadProgressBackgroundDrawable`：40dp封面紧凑双行、标准音源/音质与单一优先级状态标签、局部进度更新、LOCAL当前歌曲频谱；进度高光仅页面可见且附着/传输中运行，遵循系统禁动画。
+- `DownloadTaskRecyclerView` 只在列表内仲裁横纵方向，边缘触摸不交给Pager；更多菜单复用原紧凑菜单布局，无对象操作禁用。
