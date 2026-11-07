@@ -11,7 +11,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.*;
 
 public class DownloadPlaybackReservationsTest {
-    @Rule public TemporaryFolder directory = new TemporaryFolder();
+    @Rule public TemporaryFolder directory = new TemporaryFolder(createTempParent());
+
+    private static File createTempParent() {
+        File parent = new File(System.getProperty("user.dir"), "build/tmp/download-playback-reservations");
+        if (!parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
+            throw new IllegalStateException("无法创建工程内测试临时目录：" + parent);
+        }
+        return parent;
+    }
 
     @Test public void overlappingPreparationsKeepReservationUntilLastHandleCloses() throws Exception {
         File file = directory.newFile("song.mp3");
