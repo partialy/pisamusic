@@ -1,6 +1,7 @@
 package cn.partialy.pm.download.task
 
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.download.DownloadFileLocks
 import cn.partialy.pm.player.MusicController
 import java.io.File
 import javax.inject.Inject
@@ -26,8 +27,8 @@ class DeleteDownloadTasksUseCase @Inject constructor(
     }
     suspend fun execute(ids: Set<String>, deleteFiles: Boolean): DownloadTaskRemovalResult = deletion.withLock {
         repository.removeTasks(ids.toSet(), deleteFiles) { path ->
-            // 仓库在最终文件锁内调用；暂停的播放器也持有文件，不能仅检查 isPlaying。
-            musicController.currentSong.value?.takeIf { it.type == SongType.LOCAL }?.let {
+            // 与异步建 MediaItem 的预留使用同一文件锁，发布 currentSong 前也不可删除。
+            DownloadFileLocks.isPlaybackReserved(File(path)) || musicController.currentSong.value?.takeIf { it.type == SongType.LOCAL }?.let {
                 runCatching { File(it.id).canonicalPath == path }.getOrDefault(true)
             } == true
         }

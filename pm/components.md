@@ -174,3 +174,5 @@
 | 下载任务紧凑歌曲行 | 下载中进度、已完成状态与操作 | `ui/download/DownloadTaskAdapter.kt`、`DownloadProgressBackgroundDrawable.kt`、`DownloadStatusTagBinder.kt`、`DownloadQualityLabelFormatter.kt` | `item_download_task.xml` | 复用 `SongSourceTagBinder`；原始音质 key 禁止展示；行中暂停/恢复、尾部 X 取消确认、终态尾部更多，动画离屏/暂停停帧。 |
 | 下载任务操作与详情 | 播放、修复信息、详情、重新下载、删除 | `ui/download/DownloadTaskActionMenu.kt`、`DownloadTaskDetailDialog.kt`、`DownloadTaskFileReader.kt` | `ActionMenuBottomSheet`、`PmSlotDialog` | 详情歌名、歌手、专辑、路径整行可点击复制；实际音频信息优先异步读取；本地播放插入当前队列，不整体替换。 |
 | 下载任务批量删除 | 选择全部、反选、清除全部与删除磁盘文件 | `download/task/DeleteDownloadTasksUseCase.kt`、`DownloadTaskRepository.kt` | `dialog_local_music_delete_confirm.xml`、`PmSlotDialog` | 默认只删除记录；物理文件删除须检查占用、共享引用、路径与文件删除错误；清除全部不受搜索限制。 |
+
+- LOCAL绝对文件的单曲异步准备使用 `DownloadFileLocks.reserveForPlayback` / `DownloadPlaybackReservations.Handle`：创建MediaItem前在共同canonical锁内验证文件并持有预留，直到currentSong发布或失败/取消finally释放；删除在同锁内同时检查短期预留与currentSong，content://导入路径维持原流程。预留句柄跨挂起但不跨挂起持有监视器。仅清记录也清理FAILED/CANCELLED遗留专属part/stage（共享/非法路径保留，失败保留记录），不触碰正式音频/歌词索引。

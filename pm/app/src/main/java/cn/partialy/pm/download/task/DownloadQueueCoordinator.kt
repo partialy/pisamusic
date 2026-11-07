@@ -61,10 +61,21 @@ class DownloadQueueCoordinator @Inject constructor(
                     }
                     val job = scope.launch(start = CoroutineStart.LAZY) { execute(request) }
                     executions[request.taskId] = job
-                    job.start()
-                    job.join()
-                    executions.remove(request.taskId, job)
-                    requests.remove(request.taskId, request)
+                    try {
+                        // claim 后才发布 job；暂停可能已在登记前命中，先核对已有意图。
+                        if (repository.find(request.taskId)?.status == DownloadTaskStatus.PAUSING) job.cancel()
+                        else job.start()
+                        job.join()
+                    } finally {
+                        // 包括 LAZY job 启动前取消及 execute 正常早退，实际执行结束才确认暂停。
+                        if (job.isCompleted) repository.withAttempt(request.taskId, request.generation) {
+                            if (repository.find(request.taskId)?.status == DownloadTaskStatus.PAUSING) {
+                                repository.markPaused(request.taskId, request.generation)
+                            }
+                        }
+                        executions.remove(request.taskId, job)
+                        requests.remove(request.taskId, request)
+                    }
                 }
             }
         }

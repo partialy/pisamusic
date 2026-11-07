@@ -338,3 +338,5 @@
 - 已完成包含 COMPLETED/FAILED/CANCELLED 终态；可读音频单击通过 `MusicController.play(LOCAL SongInfo)` 加入或定位当前队列并立即播放，不调用 `setPlayListLazy` 替换队列；一起听房间不允许本地音频。单项操作菜单复用 `ActionMenuBottomSheet`，详情复用 `PmSlotDialog`，歌名/歌手/专辑/路径点击直接复制。
 - 已完成菜单“清除全部”针对确认时所有终态任务 ID 快照，不受搜索影响；默认仅删记录，用户可选择连同音频/歌词文件删除。物理删除需核对规范路径、播放器占用和共享引用；文件删除失败保留对应记录与错误，不能误报成功。单条、多选与全部清除复用 `DeleteDownloadTasksUseCase`。
 - 下载任务数据库 `pm_download_tasks.db` v3 采用无损迁移，不能破坏 v2 的已有任务、路径、元数据警告或用户文件。下载界面新组件索引应同步更新 `components.md`。
+
+- LOCAL绝对文件的单曲异步准备使用 `DownloadFileLocks.reserveForPlayback` / `DownloadPlaybackReservations.Handle`：创建MediaItem前在共同canonical锁内验证文件并持有预留，直到currentSong发布或失败/取消finally释放；删除在同锁内同时检查短期预留与currentSong，content://导入路径维持原流程。预留句柄跨挂起但不跨挂起持有监视器。仅清记录也清理FAILED/CANCELLED遗留专属part/stage（共享/非法路径保留，失败保留记录），不触碰正式音频/歌词索引。

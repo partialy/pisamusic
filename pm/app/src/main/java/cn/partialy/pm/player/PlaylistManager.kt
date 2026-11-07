@@ -5,9 +5,13 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
+import cn.partialy.pm.download.DownloadFileLocks
+import cn.partialy.pm.download.DownloadPlaybackReservations
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -249,33 +253,45 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         if (!song.playable) return false
         restoreGate.invalidate()
         val generation = preparationGate.nextReplacement()
-        val mediaItem = withContext(Dispatchers.IO) {
-            factory.createMediaItem(song)
-        }
-        return withContext(Dispatchers.Main.immediate) {
-            if (!isLatest() || !preparationGate.isCurrent(generation)) return@withContext false
-            val player = exoPlayer ?: return@withContext false
-            var index = _playList.value.indexOfFirst {
-                it.type == song.type && it.id == song.id
+        val localFile = song.takeIf { it.type == SongType.LOCAL }?.id?.let(::File)?.takeIf { it.isAbsolute }
+        var reservation: DownloadPlaybackReservations.Handle? = null
+        try {
+            if (localFile != null) {
+                // 赋值在 IO 块内部：若返回主线程时取消，finally 仍能释放已取得的预留。
+                withContext(Dispatchers.IO) { reservation = DownloadFileLocks.reserveForPlayback(localFile) }
+                if (reservation == null) return false
             }
-            if (index < 0) {
-                _sourceId = "list_updated"
-                val newList = _playList.value + song
-                _playList.value = newList
-                index = newList.lastIndex
-                player.addMediaItem(mediaItem)
-            } else {
-                if (index !in 0 until player.mediaItemCount) return@withContext false
-                player.replaceMediaItem(index, mediaItem)
+            val mediaItem = withContext(Dispatchers.IO) {
+                factory.createMediaItem(song)
             }
-            if (!isLatest()) return@withContext false
-            if (!autoPlay) player.pause()
-            _currentIndex.value = index
-            _currentSong.value = song
-            player.seekTo(index, 0L)
-            player.prepare()
-            if (autoPlay) player.play() else player.pause()
-            true
+            return withContext(Dispatchers.Main.immediate) {
+                if (!isLatest() || !preparationGate.isCurrent(generation)) return@withContext false
+                val player = exoPlayer ?: return@withContext false
+                var index = _playList.value.indexOfFirst {
+                    it.type == song.type && it.id == song.id
+                }
+                if (index < 0) {
+                    _sourceId = "list_updated"
+                    val newList = _playList.value + song
+                    _playList.value = newList
+                    index = newList.lastIndex
+                    player.addMediaItem(mediaItem)
+                } else {
+                    if (index !in 0 until player.mediaItemCount) return@withContext false
+                    player.replaceMediaItem(index, mediaItem)
+                }
+                if (!isLatest()) return@withContext false
+                if (!autoPlay) player.pause()
+                _currentIndex.value = index
+                _currentSong.value = song
+                player.seekTo(index, 0L)
+                player.prepare()
+                if (autoPlay) player.play() else player.pause()
+                true
+            }
+        } finally {
+            // 成功时 currentSong 已发布；失败、过期请求与取消均释放短期预留。
+            withContext(NonCancellable + Dispatchers.IO) { reservation?.close() }
         }
     }
 

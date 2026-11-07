@@ -343,8 +343,8 @@ class DownloadTaskRepository @Inject constructor(
                     }
                     groups.values.forEach { group ->
                         if (!deleteFiles || group.first().targetPath == null) {
-                            val errors = group.filter { item -> item.status == DownloadTaskStatus.CANCELLED && snapshot.any { it.id == item.id && it.status.isActive } }
-                                .flatMap { cleanupCancelledTemporary(it, ids) }.distinct()
+                            val errors = group.filter { it.status == DownloadTaskStatus.CANCELLED || it.status == DownloadTaskStatus.FAILED }
+                                .flatMap { cleanupTaskTemporary(it, ids) }.distinct()
                             if (errors.isEmpty()) removableIds += group.map { it.id }
                             else {
                                 failedPaths += errors
@@ -510,7 +510,7 @@ class DownloadTaskRepository @Inject constructor(
         }
     }
 
-    private fun cleanupCancelledTemporary(task: DownloadTask, deletingIds: Set<String>): List<String> {
+    private fun cleanupTaskTemporary(task: DownloadTask, deletingIds: Set<String>): List<String> {
         val target = task.targetPath?.let(::File) ?: return emptyList()
         return try {
             cn.partialy.pm.download.DownloadFileLocks.withFile(target) {
