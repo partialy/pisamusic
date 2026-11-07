@@ -37,4 +37,14 @@ class DownloadResumePolicyTest {
         assertFalse(DownloadResumePolicy.safeRecordedPath(java.io.File(parent.parentFile, "download-policy.part"), parent))
         assertFalse(DownloadResumePolicy.safeRecordedPath(parent, parent))
     }
+    @Test fun missingCompletedFileCanRetryButExistingCompletedCannot() {
+        assertTrue(DownloadResumePolicy.canRequeue("COMPLETED", true))
+        assertFalse(DownloadResumePolicy.canRequeue("COMPLETED", false))
+        assertTrue(DownloadResumePolicy.canRequeue("PAUSED", false))
+        assertTrue(DownloadResumePolicy.canRequeue("FAILED", false))
+        assertTrue(DownloadResumePolicy.canRequeue("CANCELLED", false))
+        listOf("QUEUED", "PREPARING", "DOWNLOADING", "PAUSING", "PROCESSING").forEach {
+            assertFalse(DownloadResumePolicy.canRequeue(it, true))
+        }
+    }
 }

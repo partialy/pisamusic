@@ -17,6 +17,10 @@ public final class DownloadResumePolicy {
             return total;
         } catch (NumberFormatException ignored) { return -1; }
     }
+    public static boolean canRequeue(String status, boolean completedFileMissing) {
+        return "PAUSED".equals(status) || "FAILED".equals(status) || "CANCELLED".equals(status)
+                || ("COMPLETED".equals(status) && completedFileMissing);
+    }
     public static String stoppedFailureStatus(String status) {
         if ("PAUSING".equals(status)) return "PAUSED";
         if ("CANCELLED".equals(status)) return "CANCELLED";

@@ -107,8 +107,27 @@ class DownloadTaskRepository @Inject constructor(
 
     fun requeue(taskId: String): DownloadTask? = synchronized(stateLock) {
         val task = find(taskId) ?: return@synchronized null
-        if (taskId in removingIds || taskId in removedIds || task.status !in setOf(DownloadTaskStatus.PAUSED, DownloadTaskStatus.FAILED, DownloadTaskStatus.CANCELLED)) return@synchronized null
-        val changed = task.copy(status = DownloadTaskStatus.QUEUED, attemptGeneration = task.attemptGeneration + 1, errorMessage = null, pauseReason = null, updatedAt = System.currentTimeMillis())
+        if (taskId in removingIds || taskId in removedIds || !cn.partialy.pm.download.DownloadResumePolicy.canRequeue(task.status.name, task.status == DownloadTaskStatus.COMPLETED && task.targetPath?.let { !File(it).exists() } == true)) return@synchronized null
+        val restartFromZero = task.status == DownloadTaskStatus.COMPLETED || task.status == DownloadTaskStatus.CANCELLED
+        val changed = task.copy(
+            status = DownloadTaskStatus.QUEUED,
+            attemptGeneration = task.attemptGeneration + 1,
+            errorMessage = null,
+            pauseReason = null,
+            completedAt = null,
+            progress = if (restartFromZero) 0 else task.progress,
+            downloadedBytes = if (restartFromZero) 0 else task.downloadedBytes,
+            totalBytes = if (restartFromZero) 0 else task.totalBytes,
+            resumeEtag = if (restartFromZero) null else task.resumeEtag,
+            resumeLastModified = if (restartFromZero) null else task.resumeLastModified,
+            resumeTotalBytes = if (restartFromZero) null else task.resumeTotalBytes,
+            resumeQualityKey = if (restartFromZero) null else task.resumeQualityKey,
+            resumeResourceIdentity = if (restartFromZero) null else task.resumeResourceIdentity,
+            resumeFileModified = if (restartFromZero) null else task.resumeFileModified,
+            metadataStatus = if (restartFromZero) MetadataWriteStatus.UNKNOWN else task.metadataStatus,
+            metadataWarning = if (restartFromZero) null else task.metadataWarning,
+            updatedAt = System.currentTimeMillis(),
+        )
         publish(changed)
         persist(changed)
         changed

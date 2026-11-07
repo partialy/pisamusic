@@ -160,7 +160,7 @@ class DownloadQueueCoordinator @Inject constructor(
             val restored = repository.find(current.id)?.status == DownloadTaskStatus.COMPLETED
             return@withLock DownloadEnqueueSummary(if (restored) setOf(key) else emptySet(), emptySet(), if (restored) emptySet() else setOf(key))
         }
-        val success = current != null && current.status.isTerminal && current.status != DownloadTaskStatus.COMPLETED && resumeTask(current)
+        val success = current != null && current.status.isTerminal && DownloadResumePolicy.canRequeue(current.status.name, current.status == DownloadTaskStatus.COMPLETED && current.targetPath?.let { !File(it).exists() } == true) && resumeTask(current)
         DownloadEnqueueSummary(if (success) setOf(key) else emptySet(), emptySet(), if (success) emptySet() else setOf(key))
     }
 
