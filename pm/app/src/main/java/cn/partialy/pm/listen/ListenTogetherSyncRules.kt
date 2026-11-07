@@ -5,6 +5,18 @@ internal data class QueuePointerResolution(
     val requestSnapshot: Boolean = false,
 )
 
+internal fun shouldAcceptHostQueueStructure(
+    currentUserId: String,
+    hostUserId: String?,
+    fromUserId: String,
+): Boolean = !hostUserId.isNullOrBlank() && currentUserId != hostUserId && fromUserId == hostUserId
+
+internal fun shouldAcceptQueueSnapshotVersion(incomingVersion: Long, currentVersion: Long): Boolean =
+    incomingVersion >= currentVersion
+
+internal fun playlistReplacementAutoPlay(initialRequest: Boolean, playWhenReady: Boolean): Boolean =
+    initialRequest || playWhenReady
+
 internal fun resolveQueuePointer(
     queue: ListenTogetherQueueState,
     song: ListenTogetherSong?,

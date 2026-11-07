@@ -31,6 +31,11 @@ sealed interface PlaylistSetResult {
 @UnstableApi
 class PlaylistManager(private val factory: MediaItemFactory) {
 
+    /** 成功整列表替换的同步通知；追加、单曲播放和恢复列表不触发。 */
+    var onPlaylistReplaced: ((PlaylistSetResult.Applied) -> Unit)? = null
+    var isApplyingPlaylistReplacement: Boolean = false
+        private set
+
     private val preparationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val preparationGate = PlaylistPreparationGate()
     private val restoreGate = PlaylistPreparationGate()
@@ -155,20 +160,28 @@ class PlaylistManager(private val factory: MediaItemFactory) {
                     return@withLock
                 }
 
-                _sourceId = newSourceId
-                _playList.value = list
-                _currentIndex.value = idx
-                _currentSong.value = list[idx]
-                playNextQueueInternal.clear()
-                preparedPlayNextItems.clear()
-                _playNextQueue.value = emptyList()
+                isApplyingPlaylistReplacement = true
+                try {
+                    _sourceId = newSourceId
+                    _playList.value = list
+                    _currentIndex.value = idx
+                    _currentSong.value = list[idx]
+                    playNextQueueInternal.clear()
+                    preparedPlayNextItems.clear()
+                    _playNextQueue.value = emptyList()
 
-                exoPlayer?.apply {
-                    clearMediaItems()
-                    setMediaItems(mediaItems, idx, 0)
-                    if (list[idx].type != SongType.CLOUD) prepare()
+                    exoPlayer?.apply {
+                        clearMediaItems()
+                        setMediaItems(mediaItems, idx, 0)
+                        if (list[idx].type != SongType.CLOUD) prepare()
+                    }
+                    // 同步通知先于启动播放，不能用可丢失或合并的 Flow 代替此提交边界。
+                    val result = PlaylistSetResult.Applied(list, idx)
+                    onPlaylistReplaced?.invoke(result)
+                    onResult(result)
+                } finally {
+                    isApplyingPlaylistReplacement = false
                 }
-                onResult(PlaylistSetResult.Applied(list, idx))
             }
         }
     }

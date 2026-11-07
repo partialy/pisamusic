@@ -9,6 +9,7 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.player.MusicController
+import cn.partialy.pm.player.PlaylistSetResult
 import cn.partialy.pm.player.diagnostic.PlaybackControlSource
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -65,9 +66,12 @@ class ListenTogetherManager @Inject constructor(
     private var syncSeq = 0L
     private var pendingSnapshotId: String? = null
     private var pendingSnapshotChunkCount: Int = 0
+    private var pendingSnapshotQueueVersion: Long = -1L
     private val pendingSnapshotChunks = mutableMapOf<Int, List<ListenTogetherQueueItem>>()
+    private var pendingHostPlaylistReplacement = false
 
     init {
+        musicController.setPlaylistReplacementListener(::onPlaylistReplaced)
         observeLocalPlayer()
     }
 
@@ -466,7 +470,7 @@ class ListenTogetherManager @Inject constructor(
                     return@launch
                 }
                 applyRoom(room, joining = false)
-                syncPlayerToRoom(room, operatorUserId = null)
+                if (!publishPendingHostPlaylist()) syncPlayerToRoom(room, operatorUserId = null)
                 requestQueueSnapshot()
             }
         }
@@ -481,7 +485,7 @@ class ListenTogetherManager @Inject constructor(
                 }
                 val room = ack.data?.room ?: return@launch
                 applyRoom(room, joining = false)
-                syncPlayerToRoom(room, operatorUserId = null)
+                if (!publishPendingHostPlaylist()) syncPlayerToRoom(room, operatorUserId = null)
                 requestQueueSnapshot()
             }
         }
@@ -542,7 +546,8 @@ class ListenTogetherManager @Inject constructor(
             musicController.playbackState.collect { playbackState ->
                 if (playbackState != Player.STATE_ENDED) return@collect
                 val state = _state.value
-                if (!state.enabled || !state.socketConnected || state.syncingFromRemote || !state.isHost) return@collect
+                if (!state.enabled || !state.socketConnected || state.syncingFromRemote || !state.isHost ||
+                    musicController.isApplyingPlaylistReplacement || pendingHostPlaylistReplacement) return@collect
                 val room = _state.value.room ?: return@collect
                 val key = musicController.currentSong.value.key()
                 if (key == null || lastEndedSongKey == key) return@collect
@@ -611,6 +616,92 @@ class ListenTogetherManager @Inject constructor(
                 items = items,
             ),
         )
+    }
+
+    private fun onPlaylistReplaced(result: PlaylistSetResult.Applied) {
+        val state = _state.value
+        if (!state.isHost) return
+        val selected = result.songs.getOrNull(result.startIndex) ?: return
+        if (selected.type == SongType.LOCAL || selected.type == SongType.CLOUD) {
+            emitUnsupportedSong(selected)
+            return
+        }
+        // 先取消旧任务，再同步发布队列；currentSong 的 collector 可能已在通知前被唤醒。
+        hostPlaybackJob?.cancel()
+        hostPlaybackJob = null
+        activeHostTransitionId = null
+        syncSeq += 1
+        syncJob?.cancel()
+        syncJob = null
+        expectedLocalSongKeys.clear()
+        lastSongKey = selected.key()
+        lastEndedSongKey = null
+        val queue = replaceHostPlaylistQueue(
+            previous = state.queue,
+            songs = result.songs.filter {
+                it.type != SongType.LOCAL && it.type != SongType.CLOUD && it.playable
+            }.map { it.toListenTogetherSong() },
+            selected = selected.toListenTogetherSong(),
+            userId = state.currentUserId,
+        )
+        _state.value = _state.value.copy(queue = queue, syncingFromRemote = false)
+        pendingHostPlaylistReplacement = true
+        publishPendingHostPlaylist(initialRequest = true)
+    }
+
+    /** 断连期间保留房主已提交的列表，重连先发队列再发歌曲，不能应用旧房间歌曲。 */
+    private fun publishPendingHostPlaylist(initialRequest: Boolean = false): Boolean {
+        if (!pendingHostPlaylistReplacement) return false
+        val state = _state.value
+        if (!state.isHost) {
+            pendingHostPlaylistReplacement = false
+            return false
+        }
+        if (!state.socketConnected) return true
+        val room = state.room ?: return false
+        val queue = state.queue
+        val item = queue.items.firstOrNull { it.queueItemId == queue.currentItemId } ?: return false
+        val transitionId = UUID.randomUUID().toString()
+        adoptTransition(transitionId)
+        emitQueueDelta(queue)
+        socketClient.emitChangeSong(
+            roomId = room.roomId,
+            song = item.song,
+            autoPlay = playlistReplacementAutoPlay(initialRequest, musicController.playWhenReady),
+            transitionId = transitionId,
+            queueItemId = item.queueItemId,
+        ) { ack ->
+            scope.launch {
+                if (_state.value.room?.roomId != room.roomId) return@launch
+                handleRoomAck(ack)
+                if (ack.success && ack.data?.applied != false &&
+                    _state.value.queue.queueVersion == queue.queueVersion) {
+                    pendingHostPlaylistReplacement = false
+                    endTransition(ack.data?.transitionId ?: transitionId, ACTION_CHANGE_SONG)
+                    publishLatestHostPlaybackIntent()
+                }
+            }
+        }
+        return true
+    }
+
+    /** 取链、暂停或断连等待 ACK 期间意图和进度仍可变化，提交后再补齐最新快照。 */
+    private fun publishLatestHostPlaybackIntent() {
+        val state = _state.value
+        val room = state.room ?: return
+        if (!state.isHost || !state.socketConnected) return
+        val song = musicController.currentSong.value ?: return
+        val songRef = song.toListenTogetherSongRef() ?: return
+        val position = musicController.currentPosition.value.coerceAtLeast(0L)
+        if (musicController.playWhenReady) {
+            socketClient.emitPlay(
+                roomId = room.roomId,
+                song = song.toListenTogetherSong(musicController.duration.value),
+                position = position,
+            ) { handleRoomAck(it) }
+        } else {
+            socketClient.emitPause(room.roomId, songRef, position) { handleRoomAck(it) }
+        }
     }
 
     private fun addSongAndPlayAsHost(
@@ -853,6 +944,12 @@ class ListenTogetherManager @Inject constructor(
         val kind = data.getString("kind")
         val fromUserId = data.getString("fromUserId")
         if (fromUserId == _state.value.currentUserId) return
+        if ((kind == QUEUE_KIND_SNAPSHOT_CHUNK || kind == QUEUE_KIND_DELTA) &&
+            !shouldAcceptHostQueueStructure(
+                currentUserId = _state.value.currentUserId,
+                hostUserId = _state.value.room?.hostUserId,
+                fromUserId = fromUserId,
+            )) return
         when (kind) {
             QUEUE_KIND_SNAPSHOT_REQUEST -> {
                 if (_state.value.isHost && fromUserId.isNotBlank()) sendQueueSnapshot(fromUserId)
@@ -898,9 +995,14 @@ class ListenTogetherManager @Inject constructor(
 
     private fun applyQueueSnapshotChunk(chunk: ListenTogetherQueueSnapshotChunk) {
         if (chunk.snapshotId.isBlank() || chunk.chunkCount <= 0) return
+        if (!shouldAcceptQueueSnapshotVersion(
+                chunk.queueVersion,
+                maxOf(_state.value.queue.queueVersion, pendingSnapshotQueueVersion),
+            )) return
         if (pendingSnapshotId != chunk.snapshotId) {
             pendingSnapshotId = chunk.snapshotId
             pendingSnapshotChunkCount = chunk.chunkCount
+            pendingSnapshotQueueVersion = chunk.queueVersion
             pendingSnapshotChunks.clear()
             _state.value = _state.value.copy(
                 queue = _state.value.queue.copy(syncing = true, snapshotId = chunk.snapshotId),
@@ -920,11 +1022,18 @@ class ListenTogetherManager @Inject constructor(
         )
         pendingSnapshotId = null
         pendingSnapshotChunkCount = 0
+        pendingSnapshotQueueVersion = -1L
         pendingSnapshotChunks.clear()
     }
 
     private fun applyQueueDelta(delta: ListenTogetherQueueDelta) {
         if (delta.queueVersion < _state.value.queue.queueVersion) return
+        if (pendingSnapshotQueueVersion < delta.queueVersion) {
+            pendingSnapshotId = null
+            pendingSnapshotChunkCount = 0
+            pendingSnapshotQueueVersion = -1L
+            pendingSnapshotChunks.clear()
+        }
         val currentQueue = _state.value.queue
         val retainedCurrentItemId = currentQueue.currentItemId
             ?.takeIf { currentId -> delta.items.any { it.queueItemId == currentId } }
@@ -1009,6 +1118,10 @@ class ListenTogetherManager @Inject constructor(
     private fun emitHostHeartbeat() {
         val room = _state.value.room ?: return
         if (!_state.value.socketConnected || room.hostUserId != _state.value.currentUserId) return
+        if (pendingHostPlaylistReplacement) {
+            publishPendingHostPlaylist()
+            return
+        }
         if (activeHostTransitionId != null || hostPlaybackJob?.isActive == true) return
         val song = musicController.currentSong.value ?: return
         if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) return
@@ -1120,6 +1233,7 @@ class ListenTogetherManager @Inject constructor(
     }
 
     private fun syncPlayerToRoom(room: ListenTogetherRoom, operatorUserId: String?) {
+        if (pendingHostPlaylistReplacement && _state.value.isHost) return
         val remoteSong = room.song ?: return
         val remoteSongInfo = remoteSong.toSongInfo() ?: run {
             emitUnsupportedSource(remoteSong.source)
@@ -1188,6 +1302,7 @@ class ListenTogetherManager @Inject constructor(
             joining = joining,
             lastVersion = version.coerceAtLeast(room.version),
         )
+        if (!_state.value.isHost) pendingHostPlaylistReplacement = false
         ensureHostQueueInitialized()
         updateHeartbeat()
     }
@@ -1195,13 +1310,15 @@ class ListenTogetherManager @Inject constructor(
     private fun updateCurrentRoom(version: Long, block: (ListenTogetherRoom) -> ListenTogetherRoom) {
         val room = _state.value.room ?: return
         _state.value = _state.value.copy(room = block(room), lastVersion = version)
+        if (!_state.value.isHost) pendingHostPlaylistReplacement = false
         ensureHostQueueInitialized()
         updateHeartbeat()
     }
 
     private fun shouldEmitLocalPlayback(): Boolean {
         val state = _state.value
-        return state.enabled && state.socketConnected && !state.syncingFromRemote && canControl(state)
+        return state.enabled && state.socketConnected && !state.syncingFromRemote && canControl(state) &&
+            !(state.isHost && musicController.isApplyingPlaylistReplacement) && !pendingHostPlaylistReplacement
     }
 
     private fun guardControl(): Boolean {
@@ -1327,7 +1444,9 @@ class ListenTogetherManager @Inject constructor(
         syncJob = null
         pendingSnapshotId = null
         pendingSnapshotChunkCount = 0
+        pendingSnapshotQueueVersion = -1L
         pendingSnapshotChunks.clear()
+        pendingHostPlaylistReplacement = false
         expectedLocalSongKeys.clear()
         lastSongKey = null
         lastEndedSongKey = null

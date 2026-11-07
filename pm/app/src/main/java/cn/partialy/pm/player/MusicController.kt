@@ -98,6 +98,8 @@ class MusicController @Inject constructor(
 
     val currentSong: StateFlow<SongInfo?> get() = playlistManager.currentSong
     val isPlaying: StateFlow<Boolean> get() = engine.isPlaying
+    /** 缓冲期间也保留真实播放意图，不能用 isPlaying 推断用户是否暂停。 */
+    val playWhenReady: Boolean get() = engine.exoPlayer?.playWhenReady == true
     val playList: StateFlow<List<SongInfo>> get() = playlistManager.playList
     val currentIndex: StateFlow<Int> get() = playlistManager.currentIndex
     val progress: StateFlow<Long> get() = engine.progress
@@ -111,6 +113,13 @@ class MusicController @Inject constructor(
     // ==================== 播放控制 ====================
 
     fun isPlayListSource(sourceId: String): Boolean = playlistManager.sourceId == sourceId
+
+    val isApplyingPlaylistReplacement: Boolean get() = playlistManager.isApplyingPlaylistReplacement
+
+    /** 一起听只订阅成功整列表替换，避免把普通单曲追加误认为切换歌单。 */
+    fun setPlaylistReplacementListener(listener: (PlaylistSetResult.Applied) -> Unit) {
+        playlistManager.onPlaylistReplaced = listener
+    }
 
     fun togglePlayPause(source: PlaybackControlSource = PlaybackControlSource.APP_UI) =
         engine.togglePlayPause(source)
