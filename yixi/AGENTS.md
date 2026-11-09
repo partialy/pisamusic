@@ -1,5 +1,16 @@
 # AGENTS.md
 
+## 规范导航与服务发现文档维护
+
+- 前端改动运行对应构建；视觉或交互改动检查 Electron 窗口。纯文档调整只检查链接、内容与差异。
+- 本文件只维护 PC 桌面端实现规则；手机、Admin、Server 规范见[根模块索引](../AGENTS.md)。
+- 修改跨端接口、账号、同步、分享、一起听、发布等公共行为时，按需阅读[跨模块契约](../agents/CROSS_MODULE.md)对应章节；后端修改另读 [Server 入口](../server/AGENTS.md)。
+- 本文件中的 `yixi/`、`server/` 等源码路径以及 `pnpm --dir yixi ...` 命令均相对仓库根目录；主题详细规范见 [THEME.md](THEME.md)。
+- 正式包先读取第 0 层服务发现文件 `https://pisamusic.partialy.cn/pm-config/config-v1.json`；维护该 JSON 时先修改地址，再递增 `configVersion`，最后更新 `publishedAt`，`configVersion` 只能单调递增，不能通过恢复旧数字回滚。
+- 发现文档的 `serviceOrigins` 按 `priority` 从小到大选择，客户端按 `environment/development → remote → cache → embedded` 解析；缓存只存 main-only SQLite `service_discovery_cache` 表，不得放入 renderer 可通过 settings IPC 访问的通用 key，更低版本远程文档不得覆盖缓存或内存快照。
+- `serviceOrigins[].apiBaseUrl`、`realtimeBaseUrl` 和开发环境变量覆盖必须是纯 origin：仅 HTTPS（开发 localhost 可用 HTTP），且不得包含认证信息、路径、query 或 hash；自动更新 feed 允许路径，但仍只允许不含认证信息、query、hash 的 HTTPS URL，后台保存时执行同样校验。
+- 远程发现或业务 API 故障进入本地模式时，自动更新仍可使用发现快照中的更新 feed；`minimumSupportedVersion` 目前仅是发现元数据，不强制升级。
+
 ## 播放界面控制面板显隐规则补充
 
 - 播放界面控制面板的鼠标位置与空闲判断由 main 侧 `PlayerControlsActivityTracker` 统一负责。
@@ -361,6 +372,3 @@
 - 验证命令：
   - 单元测试：`pnpm --dir yixi test:desktop-lyric`（覆盖 DTO 归一化、SQLite Repository、多屏边界、时钟同步、Canvas 渲染与排版几何）。
   - 编译与全量检查：`pnpm --dir yixi build:t`。
-
-
-

@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## 规范导航与 UI 复用
+
+- 本文件只维护手机端实现规则；PC、Admin、Server 规范见[根模块索引](../AGENTS.md)。
+- 修改跨端接口、账号、同步、分享、一起听、发布等公共行为时，按需阅读[跨模块契约](../agents/CROSS_MODULE.md)对应章节；后端修改另读 [Server 入口](../server/AGENTS.md)。
+- 新构建 `pm` UI 界面、弹窗、表单、列表行、按钮、开关、卡片等视觉或交互单元前，先查看 [组件索引](components.md)；有同款或近似 UI 时优先复用对应 layout、drawable、style、Kotlin 封装或交互模式，只有没有合适参考时才新建，新建可复用 UI 后同步补充该索引。
+
 本文件用于指导 Codex / Claude Code 在 `pm/` 手机端 App 项目内协作。外层总规则见 `../AGENTS.md`。
 
 ## App 介绍
