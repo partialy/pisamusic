@@ -635,9 +635,22 @@ class PlayerActivity : BaseDownloadActivity() {
                 }.thenBy { it.joinedAt.takeIf { joinedAt -> joinedAt > 0L } ?: Long.MAX_VALUE }
                     .thenBy { it.displayName() },
             )
-        bindListenTogetherAvatar(binding.listenTogetherAvatarFirst, displayMembers.getOrNull(0))
-        bindListenTogetherAvatar(binding.listenTogetherAvatarSecond, displayMembers.getOrNull(1))
-        binding.listenTogetherAvatarMoreBadge.visibility = if (displayMembers.size > 2) {
+        val peopleCount = room.displayPeople()
+        val firstMember = if (peopleCount == 1 && currentUserId.isNotBlank()) {
+            room.members.firstOrNull { it.userId == currentUserId } ?: displayMembers.firstOrNull()
+        } else {
+            displayMembers.firstOrNull()
+        }
+        bindListenTogetherAvatar(binding.listenTogetherAvatarFirst, firstMember)
+
+        val secondMember = displayMembers.getOrNull(1).takeIf { peopleCount >= 2 }
+        binding.listenTogetherAvatarSecondContainer.visibility = if (secondMember != null) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+        secondMember?.let { bindListenTogetherAvatar(binding.listenTogetherAvatarSecond, it) }
+        binding.listenTogetherAvatarMoreBadge.visibility = if (peopleCount > 2 && displayMembers.size > 2) {
             View.VISIBLE
         } else {
             View.GONE

@@ -18,12 +18,14 @@
 
 ## 构建与运行
 
+- Android 版本发布简述维护在 `RELEASE_NOTES.md`；版本号与构建号以 `app/build.gradle.kts` 的 `versionName` / `versionCode` 为准。
 - Debug 构建：`.\gradlew.bat assembleDebug`
 - Release 构建：`.\gradlew.bat assembleRelease`
 - 安装 Debug：`.\gradlew.bat installDebug`
 - 单元测试：`.\gradlew.bat testDebugUnitTest`
 - 清理：`.\gradlew.bat clean`
 - macOS / Linux 可使用 `./gradlew ...`
+- 构建资源默认在 `gradle.properties` 配置：Gradle / Kotlin daemon 堆上限各 4GB、Gradle Metaspace 上限 1GB，开启项目间并行和本地构建缓存，worker 上限 8；这些是上限而非预分配。当前为单 `app` 模块，项目间并行收益有限；低内存设备可通过用户级 Gradle 配置覆盖，日常构建不要先执行 `clean`，以保留增量输出。
 
 后端环境：
 

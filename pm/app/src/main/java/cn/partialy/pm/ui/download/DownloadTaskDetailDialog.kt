@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -21,6 +22,7 @@ import cn.partialy.pm.model.SongType
 import cn.partialy.pm.ui.dialog.PmSlotDialog
 import cn.partialy.pm.ui.dialog.SongInfoHeaderBinder
 import cn.partialy.pm.ui.message.PmMessage
+import cn.partialy.pm.ui.widget.SongSourceTagBinder
 import com.google.android.material.color.MaterialColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -48,26 +50,67 @@ object DownloadTaskDetailDialog {
                 PmMessage.error(activity, R.string.download_details_copy_failed, dialog = dialog)
             }
         }
-        fun row(@StringRes labelRes: Int, value: String?, copyable: Boolean = false) {
+        fun row(
+            @StringRes labelRes: Int,
+            value: String?,
+            copyable: Boolean = false,
+            stacked: Boolean = false,
+            sourceTag: SongType? = null,
+        ) {
             val actual = value?.takeIf(String::isNotBlank)
             val label = activity.getString(labelRes)
             val row = LinearLayout(activity).apply {
-                orientation = LinearLayout.VERTICAL
+                orientation = if (stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+                gravity = if (stacked) Gravity.NO_GRAVITY else Gravity.CENTER_VERTICAL
                 minimumHeight = dp(48)
                 setPadding(0, dp(8), 0, dp(8))
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             }
             row.addView(TextView(activity).apply {
                 text = label
-                textSize = 11f
-                setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
-            })
-            row.addView(TextView(activity).apply {
-                text = actual ?: unknown
                 textSize = 13f
                 setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface))
-                setPadding(0, dp(2), 0, 0)
-            })
+            }, LinearLayout.LayoutParams(
+                if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ))
+            if (sourceTag != null) {
+                val tagContainer = LinearLayout(activity).apply {
+                    gravity = Gravity.END or Gravity.CENTER_VERTICAL
+                }
+                row.addView(tagContainer, LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f,
+                ).apply { marginStart = dp(12) })
+                val tagView = TextView(activity)
+                tagContainer.addView(tagView, LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                ))
+                SongSourceTagBinder.bind(tagView, sourceTag)
+                if (sourceTag == SongType.KG || sourceTag == SongType.WY || sourceTag == SongType.KW) {
+                    tagView.text = sourceTag.name
+                    tagView.setPadding(dp(5), dp(1), dp(5), dp(1))
+                    tagView.layoutParams = tagView.layoutParams.apply {
+                        width = ViewGroup.LayoutParams.WRAP_CONTENT
+                        height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                }
+            } else {
+                row.addView(TextView(activity).apply {
+                    text = actual ?: unknown
+                    textSize = 13f
+                    setTextColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurfaceVariant))
+                    if (stacked) {
+                        setPadding(0, dp(4), 0, 0)
+                    } else {
+                        gravity = Gravity.END
+                        textAlignment = View.TEXT_ALIGNMENT_VIEW_END
+                    }
+                }, LinearLayout.LayoutParams(
+                    if (stacked) ViewGroup.LayoutParams.MATCH_PARENT else 0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    if (stacked) 0f else 1f,
+                ).apply { if (!stacked) marginStart = dp(12) })
+            }
             if (copyable && actual != null) {
                 val background = TypedValue()
                 activity.theme.resolveAttribute(android.R.attr.selectableItemBackground, background, true)
@@ -79,13 +122,6 @@ object DownloadTaskDetailDialog {
                 row.setOnClickListener { copy(labelRes, actual) }
             }
             body.addView(row)
-        }
-        val sourceRes = when (task.source) {
-            SongType.KG -> R.string.download_details_source_kg
-            SongType.WY -> R.string.download_details_source_wy
-            SongType.KW -> R.string.download_details_source_kw
-            SongType.CLOUD -> R.string.download_details_source_cloud
-            SongType.LOCAL -> R.string.download_details_source_local
         }
         val stateRes = when (task.status) {
             DownloadTaskStatus.QUEUED -> R.string.download_management_status_queued
@@ -111,7 +147,7 @@ object DownloadTaskDetailDialog {
         fun time(value: Long?) = value?.takeIf { it > 0 }?.let { formatter.format(Date(it)) }
         row(R.string.download_details_name, file.song.name, true)
         row(R.string.download_details_artist, file.song.artist, true)
-        row(R.string.download_details_source, activity.getString(sourceRes))
+        row(R.string.download_details_source, null, sourceTag = task.source)
         row(R.string.download_details_quality, DownloadQualityLabelFormatter.format(activity, task.qualityKey))
         row(R.string.download_details_state, activity.getString(if (!file.exists && (task.targetPath != null || task.status == DownloadTaskStatus.COMPLETED)) R.string.download_row_missing else stateRes))
         row(R.string.download_details_metadata, activity.getString(metadataRes))
@@ -122,14 +158,15 @@ object DownloadTaskDetailDialog {
             else String.format(Locale.getDefault(), "%d:%02d", seconds / 60, seconds % 60)
         })
         row(R.string.download_details_size, file.sizeBytes?.let { android.text.format.Formatter.formatShortFileSize(activity, it) })
-        row(R.string.download_details_path, task.targetPath, true)
+        row(R.string.download_details_path, task.targetPath, copyable = true, stacked = true)
         row(R.string.download_details_created, time(task.createdAt))
         if (task.status == DownloadTaskStatus.FAILED || task.status == DownloadTaskStatus.CANCELLED) {
             row(R.string.download_details_updated, time(task.updatedAt))
         } else {
             row(R.string.download_details_completed, time(task.completedAt))
         }
-        val errors = listOfNotNull(file.error, task.errorMessage, task.metadataWarning).filter(String::isNotBlank).distinct()
+        val errors = listOfNotNull(file.error, task.errorMessage, task.metadataWarning)
+            .map { it.trim() }.filter(String::isNotBlank).distinct()
         if (errors.isNotEmpty()) row(R.string.download_details_error, errors.joinToString("\n"))
         dialog = PmSlotDialog.Builder(activity)
             .setHeaderLayout(R.layout.include_song_info_header) { header, _ ->
