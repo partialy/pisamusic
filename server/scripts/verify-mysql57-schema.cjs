@@ -14,8 +14,14 @@ for (const table of tables) {
 
   if (!table.columns) continue; // 归档表仅包含固定存储列，无动态业务索引
   const columns = new Map(table.columns.map(col => [col.name, col]));
+  const indexNames = new Set();
   for (const line of table.createSql.split("\n")) {
     if (!/^\s*(PRIMARY KEY|UNIQUE KEY|KEY)\b/.test(line)) continue;
+    const namedIndex = /(?:UNIQUE KEY|KEY)\s+`([^`]+)`/.exec(line);
+    if (namedIndex) {
+      assert(!indexNames.has(namedIndex[1]), `重复索引名：${table.name}.${namedIndex[1]}`);
+      indexNames.add(namedIndex[1]);
+    }
     const begin = line.indexOf("(");
     const end = line.lastIndexOf(")");
     assert(begin >= 0 && end > begin, `索引语法异常：${table.name} ${line}`);
