@@ -176,3 +176,12 @@
 | 下载任务批量删除 | 选择全部、反选、清除全部与删除磁盘文件 | `download/task/DeleteDownloadTasksUseCase.kt`、`DownloadTaskRepository.kt` | `dialog_local_music_delete_confirm.xml`、`PmSlotDialog` | 默认只删除记录；物理文件删除须检查占用、共享引用、路径与文件删除错误；清除全部不受搜索限制。 |
 
 - LOCAL绝对文件的单曲异步准备使用 `DownloadFileLocks.reserveForPlayback` / `DownloadPlaybackReservations.Handle`：创建MediaItem前在共同canonical锁内验证文件并持有预留，直到currentSong发布或失败/取消finally释放；删除在同锁内同时检查短期预留与currentSong，content://导入路径维持原流程。预留句柄跨挂起但不跨挂起持有监视器。仅清记录也清理FAILED/CANCELLED遗留专属part/stage（共享/非法路径保留，失败保留记录），不触碰正式音频/歌词索引。
+
+## 歌单批量操作统一与长按预选（2026-11-10）
+
+| 组件/能力 | 职责 | 主要位置 | 复用约束 |
+|---|---|---|---|
+| 歌单歌曲行长按 | 四种歌单详情长按进入批量页并选中 | `ui/widget/SongListItemBinder.kt`、`ui/playlistdetail/PlaylistDetailContentAdapter.kt`、`BatchLongPressGuard.kt` | 回调可选；只作用于歌曲行主体， RecyclerView 复用时重设监听 |
+| 统一批量操作菜单 | 收藏/本地删除、下载、添加到；在线下载、收藏、添加到 | `ui/mine/PlaylistBatchActionCoordinator.kt`、`ui/dialog/ActionMenuBottomSheet.kt` | 操作 Sheet 关闭后执行，危险操作单独确认；按实际结果解除勾选 |
+| 混合音源批量下载 | LOCAL/不可播放过滤、分源选音质、汇总入队结果 | `ui/mine/PlaylistBatchDownloadPlanner.kt`、`activity/base/BaseDownloadActivity.kt` | 按源匹配音质；整体超过 100 首有效项先确认；退出取消后续弹窗，不取消已入队任务 |
+| 添加到目标选择 | 当前队列、已有歌单、新建歌单，排除当前本地歌单 | `ui/dialog/AddToPlaylistBottomSheet.kt` | `excludeLocalPlaylistId` 可选且默认不排除；必须保留其他入口 |

@@ -348,3 +348,11 @@
 - 下载任务数据库 `pm_download_tasks.db` v3 采用无损迁移，不能破坏 v2 的已有任务、路径、元数据警告或用户文件。下载界面新组件索引应同步更新 `components.md`。
 
 - LOCAL绝对文件的单曲异步准备使用 `DownloadFileLocks.reserveForPlayback` / `DownloadPlaybackReservations.Handle`：创建MediaItem前在共同canonical锁内验证文件并持有预留，直到currentSong发布或失败/取消finally释放；删除在同锁内同时检查短期预留与currentSong，content://导入路径维持原流程。预留句柄跨挂起但不跨挂起持有监视器。仅清记录也清理FAILED/CANCELLED遗留专属part/stage（共享/非法路径保留，失败保留记录），不触碰正式音频/歌词索引。
+
+## 四类歌单详情长按与统一批量操作（2026-11-10）
+
+- KG、WY 在线歌单、我的收藏和本地自建歌单详情统一通过 `PlaylistDetailContentAdapter.onSongLongClick` / `SongListItemBinder.onLongClick` 处理歌曲行主体长按；`BatchLongPressGuard` 避免连续打开重复页面。长按使用 `SongType + SongId` 初始选中，普通批量入口不预选；独立歌曲搜索页不启用长按。
+- 三种歌曲批量 Activity 使用 `playlistSongKey` 稳定选择标识，保留搜索、筛选外选择、旋转恢复与自动定位。在线歌单分页过程中不能提前依据不完整列表清除初选，权威全量确认不存在才移除。
+- 收藏与本地歌单歌曲批量页第三格统一“操作”，菜单为删除、下载、添加到；在线批量页保留下载、收藏、添加到。菜单与结果统一经 `PlaylistBatchActionCoordinator`，删除只移除所属歌单/收藏关系，不能删除磁盘音频或其他歌单曲目。
+- `AddToPlaylistBottomSheet` 支持 `excludeLocalPlaylistId`（从当前歌单发起时隐藏自身），队列/其他歌单/新建入口保留；成功或已存在项才撤销选择。
+- 混合源批量下载通过 `planPlaylistBatchDownload` 按首次出现的音源顺序分组，跳过 LOCAL、不可播放或无效 ID；`BaseDownloadActivity.startPlaylistBatchDownloadFlow` 每组选择匹配音质，超过 100 首有效项目总量先确认一次，整批只发一次结果汇总。取消后续组、Activity 不可见或销毁不回滚已进入进程级队列的任务。
