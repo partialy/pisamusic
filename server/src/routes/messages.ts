@@ -10,15 +10,15 @@ import { fail, ok } from "../types/response";
 
 export const messagesRouter = Router();
 
-function identityFromRequest(req: Request) {
-  const user = verifyUserToken(tokenFromRequest(req));
-  const deviceToken = deviceMessageIdentityFromRequest(req);
+async function identityFromRequest(req: Request) {
+  const user = (await verifyUserToken(tokenFromRequest(req)));
+  const deviceToken = (await deviceMessageIdentityFromRequest(req));
   const device = deviceToken ? { kind: deviceToken.kind, id: deviceToken.deviceId } : null;
   return { userId: user?.id ?? null, device };
 }
 
-function requireMessageIdentity(req: Request, res: Response) {
-  const identity = identityFromRequest(req);
+async function requireMessageIdentity(req: Request, res: Response) {
+  const identity = (await identityFromRequest(req));
   if (!identity.userId && !identity.device) {
     res.status(401).json(fail("缺少有效的账号或设备身份", 401));
     return null;
@@ -32,22 +32,22 @@ function handleError(res: Response, error: unknown, fallback: string): void {
   res.status(status).json(fail(message, status));
 }
 
-messagesRouter.get("/unread", (req, res) => {
-  const identity = requireMessageIdentity(req, res);
+messagesRouter.get("/unread", async (req, res) => {
+  const identity = (await requireMessageIdentity(req, res));
   if (!identity) return;
   try {
-    return res.json(ok(listUnreadForIdentity(identity, req.query.limit)));
+    return res.json(ok((await listUnreadForIdentity(identity, req.query.limit))));
   } catch (error) {
     handleError(res, error, "读取未读消息失败");
     return undefined;
   }
 });
 
-messagesRouter.post("/:id/read", (req, res) => {
-  const identity = requireMessageIdentity(req, res);
+messagesRouter.post("/:id/read", async (req, res) => {
+  const identity = (await requireMessageIdentity(req, res));
   if (!identity) return;
   try {
-    const receipt = markDirectMessageReadForIdentity(identity, req.params.id);
+    const receipt = (await markDirectMessageReadForIdentity(identity, req.params.id));
     if (!receipt) return res.status(404).json(fail("消息不存在", 404));
     return res.json(ok(receipt));
   } catch (error) {

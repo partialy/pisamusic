@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { isMaintenanceMode } from "../operations/maintenance";
 import { readDynamicConfigById } from "../db/dynamicConfigStore";
 import {
   addUserSocket,
@@ -264,11 +265,11 @@ function transferHostIfNeeded(room: ListenTogetherRoom, removedUserId: string): 
   return { oldHostUserId, newHostUserId: nextHost.userId };
 }
 
-function removeMemberFromRoom(
+async function removeMemberFromRoom(
   room: ListenTogetherRoom,
   userId: string,
   leaveReason: ListenTogetherMemberLeaveReason = "left",
-): LeaveRoomResult {
+): Promise<LeaveRoomResult> {
   const member = requireMember(room, userId);
   const roomName = room.roomId;
   room.members = room.members.filter((item) => item.userId !== userId);
@@ -277,19 +278,19 @@ function removeMemberFromRoom(
   incrementRoom(room);
 
   if (room.recordId) {
-    recordMemberLeft({
+    (await recordMemberLeft({
       roomRecordId: room.recordId,
       userId,
       leftAt: now(),
       leaveReason,
-    });
+    }));
   }
 
   const transfer = transferHostIfNeeded(room, userId);
   const targetSocketIds = getUserSockets(userId);
   if (room.members.length === 0) {
     if (room.recordId) {
-      closeRoomRecord({
+      (await closeRoomRecord({
         roomRecordId: room.recordId,
         endedAt: now(),
         endReason: "empty",
@@ -297,7 +298,7 @@ function removeMemberFromRoom(
         lastSong: room.song,
         finalPlaybackStatus: room.status,
         finalPosition: room.position,
-      });
+      }));
     }
     const destroyedRoom = publicRoom(room);
     const destroyed = broadcast(room, "ROOM_DESTROYED", { room: destroyedRoom, removedUserId: userId });
@@ -314,11 +315,11 @@ function removeMemberFromRoom(
   if (transfer && room.recordId) {
     const newHost = findMember(room, transfer.newHostUserId);
     if (newHost) {
-      updateRoomRecordSnapshot({
+      (await updateRoomRecordSnapshot({
         roomRecordId: room.recordId,
         host: userFromMember(newHost),
         updatedAt: now(),
-      });
+      }));
     }
   }
 
@@ -350,8 +351,8 @@ function removeMemberFromRoom(
   };
 }
 
-export function readListenTogetherConfig(): ListenTogetherConfig {
-  const item = readDynamicConfigById(LISTEN_TOGETHER_CONFIG_ID);
+export async function readListenTogetherConfig(): Promise<ListenTogetherConfig> {
+  const item = (await readDynamicConfigById(LISTEN_TOGETHER_CONFIG_ID));
   return {
     maxPeopleLimit: clampMaxPeople(item?.content),
     defaultMaxPeople: LISTEN_TOGETHER_DEFAULT_MAX_PEOPLE,
@@ -359,7 +360,7 @@ export function readListenTogetherConfig(): ListenTogetherConfig {
   };
 }
 
-export function createListenTogetherRoom(user: PublicUser, input: ListenTogetherCreateRoomInput): ListenTogetherPublicRoom {
+export async function createListenTogetherRoom(user: PublicUser, input: ListenTogetherCreateRoomInput): Promise<ListenTogetherPublicRoom> {
   const authUser = userFromPublicUser(user);
   const existingRoomId = getUserRoom(authUser.userId);
   const replaceExisting = input.replaceExisting === true;
@@ -367,9 +368,9 @@ export function createListenTogetherRoom(user: PublicUser, input: ListenTogether
     throw new ListenTogetherError("用户已经在其它房间内", "USER_ALREADY_HAS_ROOM", 400);
   }
   if (existingRoomId) {
-    leaveListenTogetherRoom(authUser.userId, existingRoomId, "replace_existing");
+    (await leaveListenTogetherRoom(authUser.userId, existingRoomId, "replace_existing"));
   }
-  const config = readListenTogetherConfig();
+  const config = (await readListenTogetherConfig());
   const requestedRoomId = normalizeOptionalRoomId(input.roomId);
   let roomId = requestedRoomId;
   if (roomId && getRoom(roomId)) {
@@ -393,7 +394,7 @@ export function createListenTogetherRoom(user: PublicUser, input: ListenTogether
   const memberOperation = normalizeMemberOperation(input.memberOperation);
   const roomName = validateRoomName(input.roomName);
 
-  openRoomRecord({
+  (await openRoomRecord({
     id: recordId,
     roomId,
     roomName,
@@ -401,7 +402,7 @@ export function createListenTogetherRoom(user: PublicUser, input: ListenTogether
     maxPeople,
     memberOperation,
     createdAt: timestamp,
-  });
+  }));
 
   const room: ListenTogetherRoom = {
     recordId,
@@ -425,7 +426,7 @@ export function getListenTogetherRoom(roomId: unknown): ListenTogetherPublicRoom
   return publicRoom(requireRoom(roomId));
 }
 
-export function joinListenTogetherRoom(user: ListenTogetherSocketUser, roomIdInput: unknown): JoinRoomResult {
+export async function joinListenTogetherRoom(user: ListenTogetherSocketUser, roomIdInput: unknown): Promise<JoinRoomResult> {
   const room = requireRoom(roomIdInput);
   const existingRoomId = getUserRoom(user.userId);
   if (existingRoomId && existingRoomId !== room.roomId) {
@@ -439,11 +440,11 @@ export function joinListenTogetherRoom(user: ListenTogetherSocketUser, roomIdInp
     setUserRoom(user.userId, room.roomId);
     clearOfflineTimer(user.userId);
     if (room.recordId) {
-      touchMemberLastSeen({
+      (await touchMemberLastSeen({
         roomRecordId: room.recordId,
         userId: user.userId,
         lastSeenAt: timestamp,
-      });
+      }));
     }
     if (wasOffline) {
       incrementRoom(room);
@@ -472,12 +473,12 @@ export function joinListenTogetherRoom(user: ListenTogetherSocketUser, roomIdInp
   room.members.push(member);
   setUserRoom(user.userId, room.roomId);
   if (room.recordId) {
-    recordMemberJoined({
+    (await recordMemberJoined({
       roomRecordId: room.recordId,
       user,
       role: "member",
       joinedAt: timestamp,
-    });
+    }));
   }
   incrementRoom(room);
   updateRoom(room);
@@ -491,14 +492,14 @@ export function joinListenTogetherRoom(user: ListenTogetherSocketUser, roomIdInp
   };
 }
 
-export function leaveListenTogetherRoom(
+export async function leaveListenTogetherRoom(
   userId: string,
   roomIdInput: unknown,
   leaveReason: ListenTogetherMemberLeaveReason = "left",
-): LeaveRoomResult {
+): Promise<LeaveRoomResult> {
   const room = requireRoom(roomIdInput);
   ensureUserInRoom(room, userId);
-  return removeMemberFromRoom(room, userId, leaveReason);
+  return (await removeMemberFromRoom(room, userId, leaveReason));
 }
 
 export function playListenTogether(user: ListenTogetherSocketUser, payload: unknown): RoomChangeResult {
@@ -562,7 +563,7 @@ export function pauseListenTogether(user: ListenTogetherSocketUser, payload: unk
   };
 }
 
-export function changeListenTogetherSong(user: ListenTogetherSocketUser, payload: unknown): RoomChangeResult {
+export async function changeListenTogetherSong(user: ListenTogetherSocketUser, payload: unknown): Promise<RoomChangeResult> {
   const body = isRecord(payload) ? payload : {};
   const room = requireRoom(body.roomId);
   ensureCanControl(room, user.userId);
@@ -575,13 +576,13 @@ export function changeListenTogetherSong(user: ListenTogetherSocketUser, payload
   incrementRoom(room);
   updateRoom(room);
   if (room.recordId) {
-    updateRoomRecordSnapshot({
+    (await updateRoomRecordSnapshot({
       roomRecordId: room.recordId,
       song: room.song,
       playbackStatus: room.status,
       position: 0,
       updatedAt: now(),
-    });
+    }));
   }
   return {
     room: publicRoom(room),
@@ -648,10 +649,10 @@ export function endListenTogether(user: ListenTogetherSocketUser, payload: unkno
   };
 }
 
-export function syncListenTogetherRoom(
+export async function syncListenTogetherRoom(
   user: ListenTogetherSocketUser,
   roomIdInput: unknown,
-): { room: ListenTogetherPublicRoom; serverTime: number; broadcast?: ListenTogetherBroadcast } {
+): Promise<{ room: ListenTogetherPublicRoom; serverTime: number; broadcast?: ListenTogetherBroadcast }> {
   const room = requireRoom(roomIdInput);
   const member = ensureUserInRoom(room, user.userId);
   let changed: ListenTogetherBroadcast | undefined;
@@ -659,11 +660,11 @@ export function syncListenTogetherRoom(
     updateMemberIdentity(member, user, now());
     clearOfflineTimer(user.userId);
     if (room.recordId) {
-      touchMemberLastSeen({
+      (await touchMemberLastSeen({
         roomRecordId: room.recordId,
         userId: user.userId,
         lastSeenAt: now(),
-      });
+      }));
     }
     incrementRoom(room);
     updateRoom(room);
@@ -673,7 +674,7 @@ export function syncListenTogetherRoom(
   return { room: publicRoom(room), serverTime: now(), broadcast: changed };
 }
 
-export function updateListenTogetherRoom(user: ListenTogetherSocketUser, payload: unknown): RoomChangeResult {
+export async function updateListenTogetherRoom(user: ListenTogetherSocketUser, payload: unknown): Promise<RoomChangeResult> {
   const body = isRecord(payload) ? payload : {};
   const room = requireRoom(body.roomId);
   ensureHost(room, user.userId);
@@ -682,7 +683,7 @@ export function updateListenTogetherRoom(user: ListenTogetherSocketUser, payload
     room.roomName = validateRoomName(data.roomName);
   }
   if (Object.prototype.hasOwnProperty.call(data, "maxPeople")) {
-    const config = readListenTogetherConfig();
+    const config = (await readListenTogetherConfig());
     const maxPeople = normalizeMaxPeople(data.maxPeople, config.maxPeopleLimit);
     if (maxPeople < room.members.length) {
       throw new ListenTogetherError("最大人数不能小于当前房间人数", "INVALID_MAX_PEOPLE", 400);
@@ -695,13 +696,13 @@ export function updateListenTogetherRoom(user: ListenTogetherSocketUser, payload
   incrementRoom(room);
   updateRoom(room);
   if (room.recordId) {
-    updateRoomRecordSnapshot({
+    (await updateRoomRecordSnapshot({
       roomRecordId: room.recordId,
       roomName: room.roomName,
       maxPeople: room.maxPeople,
       memberOperation: room.memberOperation,
       updatedAt: now(),
-    });
+    }));
   }
   return {
     room: publicRoom(room),
@@ -713,7 +714,7 @@ export function updateListenTogetherRoom(user: ListenTogetherSocketUser, payload
   };
 }
 
-export function kickListenTogetherMember(user: ListenTogetherSocketUser, payload: unknown): LeaveRoomResult {
+export async function kickListenTogetherMember(user: ListenTogetherSocketUser, payload: unknown): Promise<LeaveRoomResult> {
   const body = isRecord(payload) ? payload : {};
   const room = requireRoom(body.roomId);
   ensureHost(room, user.userId);
@@ -737,12 +738,12 @@ export function kickListenTogetherMember(user: ListenTogetherSocketUser, payload
   removeUserRoom(targetUserId);
   clearOfflineTimer(targetUserId);
   if (room.recordId) {
-    recordMemberLeft({
+    (await recordMemberLeft({
       roomRecordId: room.recordId,
       userId: targetUserId,
       leftAt: now(),
       leaveReason: "kicked",
-    });
+    }));
   }
   incrementRoom(room);
   updateRoom(room);
@@ -762,7 +763,7 @@ export function kickListenTogetherMember(user: ListenTogetherSocketUser, payload
   };
 }
 
-export function transferListenTogetherHost(user: ListenTogetherSocketUser, payload: unknown): RoomChangeResult {
+export async function transferListenTogetherHost(user: ListenTogetherSocketUser, payload: unknown): Promise<RoomChangeResult> {
   const body = isRecord(payload) ? payload : {};
   const room = requireRoom(body.roomId);
   ensureHost(room, user.userId);
@@ -780,11 +781,11 @@ export function transferListenTogetherHost(user: ListenTogetherSocketUser, paylo
   incrementRoom(room);
   updateRoom(room);
   if (room.recordId) {
-    updateRoomRecordSnapshot({
+    (await updateRoomRecordSnapshot({
       roomRecordId: room.recordId,
       host: userFromMember(target),
       updatedAt: now(),
-    });
+    }));
   }
   return {
     room: publicRoom(room),
@@ -820,19 +821,20 @@ export function disconnectListenTogetherSocket(
   updateRoom(room);
   setOfflineTimer(
     userId,
-    setTimeout(() => {
+    setTimeout(async () => {
       clearOfflineTimer(userId);
-      onExpired(expireOfflineListenTogetherMember(userId));
+      if (isMaintenanceMode()) return;
+      onExpired((await expireOfflineListenTogetherMember(userId)));
     }, LISTEN_TOGETHER_OFFLINE_GRACE_MS),
   );
 }
 
-export function expireOfflineListenTogetherMember(userId: string): ExpireUserResult {
+export async function expireOfflineListenTogetherMember(userId: string): Promise<ExpireUserResult> {
   const roomId = getUserRoom(userId);
   if (!roomId) return null;
   const room = getRoom(roomId);
   if (!room) return null;
   const member = findMember(room, userId);
   if (!member || member.online) return null;
-  return removeMemberFromRoom(room, userId, "offline_timeout");
+  return (await removeMemberFromRoom(room, userId, "offline_timeout"));
 }

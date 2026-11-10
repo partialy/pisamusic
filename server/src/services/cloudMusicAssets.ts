@@ -172,17 +172,17 @@ function validateAssetDeclaration(asset: CloudMusicReservedAsset): void {
   ) throw new Error("网盘音乐资产 Key 与预登记信息不一致");
 }
 
-function readVerifiedPendingAsset(uuid: string, asset: CloudMusicReservedAsset): CloudMusicReservedAsset {
+async function readVerifiedPendingAsset(uuid: string, asset: CloudMusicReservedAsset): Promise<CloudMusicReservedAsset> {
   if (uuid !== asset.trackUuid) throw new Error("网盘音乐资产不属于当前曲目");
   if (asset.state !== "pending" || asset.fileStatus !== "pending" || asset.deletedAt !== null) {
     throw new Error("只有 pending 资产可以签发上传凭证");
   }
-  const track = readCloudMusicTrack(uuid);
+  const track = (await readCloudMusicTrack(uuid));
   const registeredAsset = track?.assets.find((item) => item.id === asset.id && item.fileRecordId === asset.fileRecordId);
   if (!track || track.status !== "temp" || !registeredAsset || registeredAsset.state !== "pending") {
     throw new Error("只有 temp 曲目的 pending 资产可以签发上传凭证");
   }
-  const file = readFileRecordById(asset.fileRecordId);
+  const file = (await readFileRecordById(asset.fileRecordId));
   if (
     !file
     || file.usageType !== "cloud-music"
@@ -200,11 +200,11 @@ function readVerifiedPendingAsset(uuid: string, asset: CloudMusicReservedAsset):
   return asset;
 }
 
-export function createCloudMusicAssetUploadToken(input: {
+export async function createCloudMusicAssetUploadToken(input: {
   uuid: string;
   asset: CloudMusicReservedAsset;
-}): QiniuUploadTokenInfo {
-  const asset = readVerifiedPendingAsset(input.uuid, input.asset);
+}): Promise<QiniuUploadTokenInfo> {
+  const asset = (await readVerifiedPendingAsset(input.uuid, input.asset));
   if (asset.kind === "cover-extracted") throw new Error("内嵌封面只能由服务端上传");
   return createFixedQiniuUploadToken({
     bucket: asset.bucket,
@@ -215,7 +215,7 @@ export function createCloudMusicAssetUploadToken(input: {
 }
 
 export async function statCloudMusicAsset(asset: CloudMusicReservedAsset): Promise<QiniuObjectStat> {
-  readVerifiedPendingAsset(asset.trackUuid, asset);
+  (await readVerifiedPendingAsset(asset.trackUuid, asset));
   const stat = await statQiniuObject(asset.bucket, asset.objectKey);
   if (stat.fileSize !== asset.fileSize) throw new Error("七牛对象真实大小与预登记不一致");
   return stat;
@@ -245,7 +245,7 @@ export function detectCoverMimeType(data: Uint8Array): CloudMusicCoverMimeType |
 }
 
 export async function uploadExtractedCover(input: ExtractedCoverUploadInput): Promise<CloudMusicFileInfo> {
-  const track = readCloudMusicTrack(input.uuid);
+  const track = (await readCloudMusicTrack(input.uuid));
   if (!track || track.status !== "temp") throw new Error("只有 temp 曲目可以登记内嵌封面");
   const mimeType = normalizeMimeType(input.mimeType);
   const detectedMimeType = detectCoverMimeType(input.data);
@@ -259,7 +259,7 @@ export async function uploadExtractedCover(input: ExtractedCoverUploadInput): Pr
   const fileName = `cover-embedded${ext}`;
   const bucket = String(process.env.QINIU_BUCKET ?? "").trim();
   if (!bucket) throw new Error("缺少七牛配置：QINIU_BUCKET");
-  const reserved = reserveCloudMusicAsset({
+  const reserved = (await reserveCloudMusicAsset({
     trackUuid: input.uuid,
     assetId: randomUUID(),
     fileRecordId: randomUUID(),
@@ -269,7 +269,7 @@ export async function uploadExtractedCover(input: ExtractedCoverUploadInput): Pr
     fileName,
     mimeType,
     fileSize: input.data.byteLength,
-  });
+  }));
   const stat = await uploadQiniuBuffer({
     bucket: reserved.bucket,
     key: reserved.objectKey,
@@ -280,12 +280,12 @@ export async function uploadExtractedCover(input: ExtractedCoverUploadInput): Pr
   if (stat.fileSize !== reserved.fileSize || normalizeMimeType(stat.mimeType) !== mimeType) {
     throw new Error("内嵌封面上传结果与预登记不一致");
   }
-  confirmCloudMusicAsset({
+  (await confirmCloudMusicAsset({
     fileRecordId: reserved.fileRecordId,
     hash: stat.hash,
     mimeType: stat.mimeType,
     fileSize: stat.fileSize,
-  });
+  }));
   return {
     assetId: reserved.id,
     fileRecordId: reserved.fileRecordId,

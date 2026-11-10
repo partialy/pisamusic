@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { DatabaseSync } from "node:sqlite";
+import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
 
 export type DirectMessageTargetKind = "user" | "android_device" | "desktop_device";
@@ -121,19 +121,15 @@ function normalizeOffset(offset: number | undefined): number {
   return Math.max(0, value);
 }
 
-function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = fn();
-    db.exec("COMMIT");
+async function runInTransaction<T>(db: DatabaseSync, fn: () => Promise<T>): Promise<T> {
+  return (await db.transaction(async () => {
+    const result = (await fn());
+
     return result;
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+  }));
 }
 
-export function insertDirectMessage(input: InsertDirectMessageInput): StoredDirectMessage {
+export async function insertDirectMessage(input: InsertDirectMessageInput): Promise<StoredDirectMessage> {
   const db = getAppDb();
   const id = input.id ? nonEmpty(input.id, "消息ID") : randomUUID();
   const content = nonEmpty(input.content, "消息内容");
@@ -142,29 +138,19 @@ export function insertDirectMessage(input: InsertDirectMessageInput): StoredDire
   if (!Number.isSafeInteger(createdAt) || createdAt < 0) throw new Error("创建时间无效");
   const target = targetColumns(input.target);
 
-  db.prepare(
-    `INSERT INTO direct_messages (
+  (await db.execute(`INSERT INTO direct_messages (
       id, user_id, android_device_id, desktop_device_id, content, created_by_admin, created_at,
       read_at, read_platform, read_device_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`,
-  ).run(
-    id,
-    target.user_id,
-    target.android_device_id,
-    target.desktop_device_id,
-    content,
-    createdByAdmin,
-    createdAt,
-  );
-  return mapRow(readDirectMessageById(db, id)!);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL)`, [id, target.user_id, target.android_device_id, target.desktop_device_id, content, createdByAdmin, createdAt]));
+  return mapRow((await readDirectMessageById(db, id))!);
 }
 
-export function readDirectMessageForIdentity(identity: DirectMessageIdentity, id: string): StoredDirectMessage | null {
-  const row = readDirectMessageById(getAppDb(), id);
+export async function readDirectMessageForIdentity(identity: DirectMessageIdentity, id: string): Promise<StoredDirectMessage | null> {
+  const row = (await readDirectMessageById(getAppDb(), id));
   return row && ownsMessage(row, identity) ? mapRow(row) : null;
 }
 
-export function listUnreadDirectMessages(identity: DirectMessageIdentity, limit: number): DirectMessagePage {
+export async function listUnreadDirectMessages(identity: DirectMessageIdentity, limit: number): Promise<DirectMessagePage> {
   const safeLimit = normalizeLimit(limit, 50, 100);
   const where: string[] = [];
   const params: (string | number)[] = [];
@@ -183,21 +169,19 @@ export function listUnreadDirectMessages(identity: DirectMessageIdentity, limit:
   if (where.length === 0) return { items: [], hasMore: false };
 
   params.push(safeLimit + 1);
-  const rows = getAppDb().prepare(
-    `SELECT *
+  const rows = (await getAppDb().query(`SELECT *
      FROM direct_messages
      WHERE read_at IS NULL
        AND (${where.join(" OR ")})
      ORDER BY created_at ASC, id ASC
-     LIMIT ?`,
-  ).all(...params) as DirectMessageRow[];
+     LIMIT ?`, [...params])) as DirectMessageRow[];
   return {
     items: rows.slice(0, safeLimit).map(mapRow),
     hasMore: rows.length > safeLimit,
   };
 }
 
-export function listAdminDirectMessages(input: ListAdminDirectMessagesInput = {}): AdminDirectMessagePage {
+export async function listAdminDirectMessages(input: ListAdminDirectMessagesInput = {}): Promise<AdminDirectMessagePage> {
   const target = input.target;
   const where: string[] = [];
   const params: string[] = [];
@@ -232,42 +216,38 @@ export function listAdminDirectMessages(input: ListAdminDirectMessagesInput = {}
   const limit = normalizeLimit(input.limit, 30, 100);
   const offset = normalizeOffset(input.offset);
   const db = getAppDb();
-  const totalRow = db.prepare(`SELECT COUNT(*) AS count FROM direct_messages ${condition}`).get(...params) as { count: number };
-  const rows = db.prepare(
-    `SELECT * FROM direct_messages ${condition}
+  const totalRow = (await db.queryOne(`SELECT COUNT(*) AS count FROM direct_messages ${condition}`, [...params])) as { count: number };
+  const rows = (await db.query(`SELECT * FROM direct_messages ${condition}
      ORDER BY created_at DESC, id DESC
-     LIMIT ? OFFSET ?`,
-  ).all(...params, limit, offset) as DirectMessageRow[];
+     LIMIT ? OFFSET ?`, [...params, limit, offset])) as DirectMessageRow[];
   return { items: rows.map(mapRow), total: totalRow.count };
 }
 
-export function deleteDirectMessage(id: string): boolean {
+export async function deleteDirectMessage(id: string): Promise<boolean> {
   const messageId = nonEmpty(id, "消息 ID");
-  const result = getAppDb().prepare("DELETE FROM direct_messages WHERE id = ?").run(messageId);
-  return result.changes > 0;
+  const result = (await getAppDb().execute("DELETE FROM direct_messages WHERE id = ?", [messageId]));
+  return result.affectedRows > 0;
 }
 
-export function markDirectMessageRead(
+export async function markDirectMessageRead(
   identity: DirectMessageIdentity,
   id: string,
   readAt = Date.now(),
-): StoredDirectMessage | null {
+): Promise<StoredDirectMessage | null> {
   if (!Number.isSafeInteger(readAt) || readAt < 0) throw new Error("阅读时间无效");
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const row = readDirectMessageById(db, id);
+  return (await runInTransaction(db, async () => {
+    const row = (await readDirectMessageById(db, id));
     if (!row || !ownsMessage(row, identity)) return null;
     if (row.read_at === null) {
-      db.prepare(
-        `UPDATE direct_messages
+      (await db.execute(`UPDATE direct_messages
          SET read_at = ?, read_platform = ?, read_device_id = ?
-         WHERE id = ? AND read_at IS NULL`,
-      ).run(readAt, identity.device?.kind ?? null, identity.device?.id ?? null, id);
+         WHERE id = ? AND read_at IS NULL`, [readAt, identity.device?.kind ?? null, identity.device?.id ?? null, id]));
     }
-    return mapRow(readDirectMessageById(db, id)!);
-  });
+    return mapRow((await readDirectMessageById(db, id))!);
+  }));
 }
 
-function readDirectMessageById(db: DatabaseSync, id: string): DirectMessageRow | null {
-  return (db.prepare("SELECT * FROM direct_messages WHERE id = ?").get(id) as DirectMessageRow | undefined) ?? null;
+async function readDirectMessageById(db: DatabaseSync, id: string): Promise<DirectMessageRow | null> {
+  return ((await db.queryOne("SELECT * FROM direct_messages WHERE id = ?", [id])) as DirectMessageRow | undefined) ?? null;
 }

@@ -15,6 +15,7 @@
     "test:direct-messages": "pnpm build && node --test dist/services/directMessageService.spec.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "verify:mysql57": "pnpm build && node scripts/verify-mysql57-schema.cjs",
     "build:all": "pnpm build && pnpm --dir admin build && pnpm --dir frontend build",
     "start": "node dist/index.js"
   },
@@ -23,7 +24,7 @@
   "license": "ISC",
   "type": "commonjs",
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.16.0"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -31,8 +32,9 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "music-metadata": "^11.12.3",
     "multer": "^1.4.5-lts.2",
+    "music-metadata": "^11.12.3",
+    "mysql2": "^3.24.6",
     "qiniu": "^7.15.2",
     "socket.io": "^4.8.3"
   },

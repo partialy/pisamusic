@@ -68,7 +68,7 @@ export async function sendContactCode(
     if (channel === "email") await sendVerifyCodeEmail(contact, code);
     else await sendVerifyCodeSms(contact, code);
 
-    insertVerificationCodeRecord({
+    (await insertVerificationCodeRecord({
       channel,
       target: contact,
       purpose,
@@ -80,10 +80,10 @@ export async function sendContactCode(
       status: "sent",
       createdAt: now,
       expiresAt,
-    });
+    }));
   } catch (error) {
     const message = error instanceof Error ? error.message : "验证码发送失败";
-    insertVerificationCodeRecord({
+    (await insertVerificationCodeRecord({
       channel,
       target: contact,
       purpose,
@@ -96,7 +96,7 @@ export async function sendContactCode(
       errorMessage: message,
       createdAt: now,
       expiresAt,
-    });
+    }));
     throw error;
   }
 
@@ -115,7 +115,7 @@ export async function sendContactCode(
   return { expiresAt: entry.expiresAt, nextSendAt: entry.nextSendAt };
 }
 
-export function verifyContactCode(channel: ContactChannel, contact: string, purpose: ContactCodePurpose, code: string): boolean {
+export async function verifyContactCode(channel: ContactChannel, contact: string, purpose: ContactCodePurpose, code: string): Promise<boolean> {
   const now = Date.now();
   evictExpired(now);
   const cacheKey = key(channel, contact, purpose);
@@ -123,16 +123,16 @@ export function verifyContactCode(channel: ContactChannel, contact: string, purp
   if (!entry || entry.purpose !== purpose || entry.expiresAt <= now) return false;
   if (entry.code !== code.trim()) return false;
   codeMap.delete(cacheKey);
-  markVerificationCodeVerified(channel, contact, purpose, code);
+  (await markVerificationCodeVerified(channel, contact, purpose, code));
   return true;
 }
 
 export async function sendEmailCode(email: string, purpose: EmailCodePurpose, meta?: SendContactCodeMeta) {
-  return sendContactCode("email", email, purpose, meta);
+  return (await sendContactCode("email", email, purpose, meta));
 }
 
-export function verifyEmailCode(email: string, purpose: EmailCodePurpose, code: string): boolean {
-  return verifyContactCode("email", email, purpose, code);
+export async function verifyEmailCode(email: string, purpose: EmailCodePurpose, code: string): Promise<boolean> {
+  return (await verifyContactCode("email", email, purpose, code));
 }
 
 function shouldDebugLogCode(): boolean {

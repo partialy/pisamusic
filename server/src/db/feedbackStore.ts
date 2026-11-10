@@ -151,55 +151,34 @@ const LIST_SELECT = `
   LEFT JOIN feedback_images fi ON fi.feedback_id = f.id
 `;
 
-export function insertFeedback(item: FeedbackCreateInput): void {
+export async function insertFeedback(item: FeedbackCreateInput): Promise<void> {
   const db = getAppDb();
-  db.exec("BEGIN");
-  try {
-    db.prepare(
-      `INSERT OR IGNORE INTO feedback (
+  return (await db.transaction(async () => {
+    (await db.execute(db.dialect === "mysql" ? "INSERT INTO feedback (\n        id, created_at, feedback_type, description, contact, device_json, status, processed_at\n      ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL) ON DUPLICATE KEY UPDATE id=id" : `INSERT OR IGNORE INTO feedback (
         id, created_at, feedback_type, description, contact, device_json, status, processed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL)`,
-    ).run(
-      item.id,
-      item.createdAt,
-      item.feedbackType,
-      item.description,
-      item.contact,
-      JSON.stringify(item.device ?? {}),
-    );
-    const insertImage = db.prepare(
-      `INSERT INTO feedback_images (feedback_id, image_path, sort_order)
+      ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL)`, [item.id, item.createdAt, item.feedbackType, item.description, item.contact, JSON.stringify(item.device ?? {})]));
+
+    await (async () => { for (const [index, imagePath] of item.imagePaths.entries()) {
+      (await db.execute(`INSERT INTO feedback_images (feedback_id, image_path, sort_order)
        SELECT ?, ?, ?
        WHERE NOT EXISTS (
          SELECT 1 FROM feedback_images WHERE feedback_id = ? AND image_path = ?
-       )`,
-    );
-    item.imagePaths.forEach((imagePath, index) => {
-      insertImage.run(item.id, imagePath, index, item.id, imagePath);
-    });
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+       )`, [item.id, imagePath, index, item.id, imagePath]));
+    } })();
+
+  }));
 }
 
-export function listAdminFeedback(filter: AdminFeedbackFilter): AdminFeedbackListResult {
+export async function listAdminFeedback(filter: AdminFeedbackFilter): Promise<AdminFeedbackListResult> {
   const db = getAppDb();
   const { offset, limit } = normalizePagination(filter.offset, filter.limit);
   const where = buildWhere(filter);
-  const totalRow = db
-    .prepare(`SELECT COUNT(*) AS total FROM feedback f ${where.sql}`)
-    .get(...where.params) as { total: number };
-  const rows = db
-    .prepare(
-      `${LIST_SELECT}
+  const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM feedback f ${where.sql}`, [...where.params])) as { total: number };
+  const rows = (await db.query(`${LIST_SELECT}
        ${where.sql}
        GROUP BY f.id
        ORDER BY f.created_at DESC, f.id DESC
-       LIMIT ? OFFSET ?`,
-    )
-    .all(...where.params, limit, offset) as FeedbackListRow[];
+       LIMIT ? OFFSET ?`, [...where.params, limit, offset])) as FeedbackListRow[];
   return {
     items: rows.map((row) => mapListRow(row)),
     total: Number(totalRow.total) || 0,
@@ -208,11 +187,9 @@ export function listAdminFeedback(filter: AdminFeedbackFilter): AdminFeedbackLis
   };
 }
 
-export function readAdminFeedbackDetail(id: string): AdminFeedbackDetail | null {
+export async function readAdminFeedbackDetail(id: string): Promise<AdminFeedbackDetail | null> {
   const db = getAppDb();
-  const row = db
-    .prepare(
-      `SELECT
+  const row = (await db.queryOne(`SELECT
         f.id,
         f.created_at,
         f.feedback_type,
@@ -233,18 +210,12 @@ export function readAdminFeedbackDetail(id: string): AdminFeedbackDetail | null 
        LEFT JOIN feedback_images fi ON fi.feedback_id = f.id
        WHERE f.id = ?
        GROUP BY f.id
-       LIMIT 1`,
-    )
-    .get(id) as FeedbackDetailRow | undefined;
+       LIMIT 1`, [id])) as FeedbackDetailRow | undefined;
   if (!row) return null;
-  const imageRows = db
-    .prepare(
-      `SELECT image_path
+  const imageRows = (await db.query(`SELECT image_path
        FROM feedback_images
        WHERE feedback_id = ?
-       ORDER BY sort_order ASC, id ASC`,
-    )
-    .all(id) as Array<{ image_path: string }>;
+       ORDER BY sort_order ASC, id ASC`, [id])) as Array<{ image_path: string }>;
   return {
     ...mapListRow(row, false),
     device: parseDevice(row.device_json),
@@ -254,23 +225,19 @@ export function readAdminFeedbackDetail(id: string): AdminFeedbackDetail | null 
   };
 }
 
-export function updateAdminFeedbackStatus(id: string, status: FeedbackStatus): AdminFeedbackDetail | null {
+export async function updateAdminFeedbackStatus(id: string, status: FeedbackStatus): Promise<AdminFeedbackDetail | null> {
   const processedAt = status === "processed" ? new Date().toISOString() : null;
-  const result = getAppDb()
-    .prepare("UPDATE feedback SET status = ?, processed_at = ? WHERE id = ?")
-    .run(status, processedAt, id);
-  if (result.changes === 0) return null;
-  return readAdminFeedbackDetail(id);
+  const result = (await getAppDb().execute("UPDATE feedback SET status = ?, processed_at = ? WHERE id = ?", [status, processedAt, id]));
+  if (result.affectedRows === 0) return null;
+  return (await readAdminFeedbackDetail(id));
 }
 
-export function deleteAdminFeedback(id: string): boolean {
+export async function deleteAdminFeedback(id: string): Promise<boolean> {
   const db = getAppDb();
-  const imageRows = db
-    .prepare("SELECT image_path FROM feedback_images WHERE feedback_id = ?")
-    .all(id) as Array<{ image_path: string }>;
+  const imageRows = (await db.query("SELECT image_path FROM feedback_images WHERE feedback_id = ?", [id])) as Array<{ image_path: string }>;
 
-  const result = db.prepare("DELETE FROM feedback WHERE id = ?").run(id);
-  if (result.changes === 0) return false;
+  const result = (await db.execute("DELETE FROM feedback WHERE id = ?", [id]));
+  if (result.affectedRows === 0) return false;
 
   for (const img of imageRows) {
     if (img.image_path) {

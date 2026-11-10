@@ -187,20 +187,18 @@ export function normalizeFaultReportCreateInput(value: unknown): FaultReportCrea
   return { reportId, scene: reportScene, environment, logs };
 }
 
-function uniqueReportId(preferred: string): string {
+async function uniqueReportId(preferred: string): Promise<string> {
   const db = getAppDb();
-  if (!db.prepare("SELECT 1 FROM fault_reports WHERE id = ?").get(preferred)) return preferred;
+  if (!(await db.queryOne("SELECT 1 FROM fault_reports WHERE id = ?", [preferred]))) return preferred;
   let candidate = randomUUID();
-  while (db.prepare("SELECT 1 FROM fault_reports WHERE id = ?").get(candidate)) candidate = randomUUID();
+  while ((await db.queryOne("SELECT 1 FROM fault_reports WHERE id = ?", [candidate]))) candidate = randomUUID();
   return candidate;
 }
 
-export function createFaultReport(input: FaultReportCreateInput, userId: string | null): FaultReportCreateResult {
+export async function createFaultReport(input: FaultReportCreateInput, userId: string | null): Promise<FaultReportCreateResult> {
   const db = getAppDb();
   const placeholders = input.logs.map(() => "?").join(",");
-  const existingRows = db.prepare(
-    `SELECT client_log_id FROM fault_report_logs WHERE client_log_id IN (${placeholders})`,
-  ).all(...input.logs.map((item) => item.clientLogId)) as Array<{ client_log_id: string }>;
+  const existingRows = (await db.query(`SELECT client_log_id FROM fault_report_logs WHERE client_log_id IN (${placeholders})`, [...input.logs.map((item) => item.clientLogId)])) as Array<{ client_log_id: string }>;
   const existingIds = new Set(existingRows.map((row) => row.client_log_id));
   const freshLogs = input.logs.filter((item) => !existingIds.has(item.clientLogId));
   const createdAt = Date.now();
@@ -208,51 +206,23 @@ export function createFaultReport(input: FaultReportCreateInput, userId: string 
     return { reportId: null, acceptedCount: 0, duplicateCount: input.logs.length, receivedCount: input.logs.length, createdAt };
   }
 
-  const reportId = uniqueReportId(input.reportId);
-  db.exec("BEGIN");
-  try {
-    db.prepare(
-      `INSERT INTO fault_reports (
+  const reportId = (await uniqueReportId(input.reportId));
+  await db.transaction(async () => {
+    (await db.execute(`INSERT INTO fault_reports (
         id, user_id, scene, platform, arch, app_version, app_version_code, os_version, sdk_int,
         brand, model, network_type, log_count, status, created_at, processed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL)`,
-    ).run(
-      reportId,
-      userId,
-      input.scene,
-      input.environment.platform,
-      input.environment.arch,
-      input.environment.appVersion,
-      input.environment.appVersionCode,
-      input.environment.osVersion,
-      input.environment.sdkInt,
-      input.environment.brand,
-      input.environment.model,
-      input.environment.networkType,
-      freshLogs.length,
-      createdAt,
-    );
-    const insert = db.prepare(
-      `INSERT INTO fault_report_logs (
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL)`, [reportId, userId, input.scene, input.environment.platform, input.environment.arch, input.environment.appVersion, input.environment.appVersionCode, input.environment.osVersion, input.environment.sdkInt, input.environment.brand, input.environment.model, input.environment.networkType, freshLogs.length, createdAt]));
+
+    for (const log of freshLogs) {
+      (await db.execute(`INSERT INTO fault_report_logs (
         client_log_id, report_id, occurred_at, scene, failure_type, method_name,
         request_method, request_url, request_params_json, nonce_id, response_code,
         response_body, resolved_url, error_type, error_message, stack_trace,
         song_source, song_id, quality
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    for (const log of freshLogs) {
-      insert.run(
-        log.clientLogId, reportId, log.occurredAt, log.scene, log.failureType, log.methodName,
-        log.requestMethod, log.requestUrl, log.requestParamsJson, log.nonceId, log.responseCode,
-        log.responseBody, log.resolvedUrl, log.errorType, log.errorMessage, log.stackTrace,
-        log.songSource, log.songId, log.quality,
-      );
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [log.clientLogId, reportId, log.occurredAt, log.scene, log.failureType, log.methodName, log.requestMethod, log.requestUrl, log.requestParamsJson, log.nonceId, log.responseCode, log.responseBody, log.resolvedUrl, log.errorType, log.errorMessage, log.stackTrace, log.songSource, log.songId, log.quality]));
     }
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+
+  });
   return {
     reportId,
     acceptedCount: freshLogs.length,
@@ -302,24 +272,20 @@ function whereClause(filter: AdminFaultReportFilter): { sql: string; params: Arr
   return { sql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", params };
 }
 
-export function listAdminFaultReports(filter: AdminFaultReportFilter) {
+export async function listAdminFaultReports(filter: AdminFaultReportFilter) {
   const db = getAppDb();
   const page = pagination(filter.offset, filter.limit);
   const where = whereClause(filter);
-  const total = Number((db.prepare(`SELECT COUNT(*) AS total FROM fault_reports r ${where.sql}`).get(...where.params) as { total: number }).total) || 0;
-  const rows = db.prepare(
-    `SELECT r.* FROM fault_reports r ${where.sql} ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?`,
-  ).all(...where.params, page.limit, page.offset) as FaultReportRow[];
+  const total = Number(((await db.queryOne(`SELECT COUNT(*) AS total FROM fault_reports r ${where.sql}`, [...where.params])) as { total: number }).total) || 0;
+  const rows = (await db.query(`SELECT r.* FROM fault_reports r ${where.sql} ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?`, [...where.params, page.limit, page.offset])) as FaultReportRow[];
   return { items: rows.map(mapReport), total, ...page };
 }
 
-export function readAdminFaultReport(id: string): AdminFaultReportDetail | null {
+export async function readAdminFaultReport(id: string): Promise<AdminFaultReportDetail | null> {
   const db = getAppDb();
-  const report = db.prepare("SELECT * FROM fault_reports WHERE id = ?").get(id) as FaultReportRow | undefined;
+  const report = (await db.queryOne("SELECT * FROM fault_reports WHERE id = ?", [id])) as FaultReportRow | undefined;
   if (!report) return null;
-  const logs = db.prepare(
-    `SELECT * FROM fault_report_logs WHERE report_id = ? ORDER BY occurred_at DESC, client_log_id DESC`,
-  ).all(id) as Array<Record<string, unknown>>;
+  const logs = (await db.query(`SELECT * FROM fault_report_logs WHERE report_id = ? ORDER BY occurred_at DESC, client_log_id DESC`, [id])) as Array<Record<string, unknown>>;
   return {
     ...mapReport(report),
     logs: logs.map((row) => ({
@@ -333,12 +299,12 @@ export function readAdminFaultReport(id: string): AdminFaultReportDetail | null 
   };
 }
 
-export function updateAdminFaultReportStatus(id: string, status: FaultReportStatus): AdminFaultReportDetail | null {
+export async function updateAdminFaultReportStatus(id: string, status: FaultReportStatus): Promise<AdminFaultReportDetail | null> {
   const processedAt = status === "processed" ? Date.now() : null;
-  const result = getAppDb().prepare("UPDATE fault_reports SET status = ?, processed_at = ? WHERE id = ?").run(status, processedAt, id);
-  return result.changes > 0 ? readAdminFaultReport(id) : null;
+  const result = (await getAppDb().execute("UPDATE fault_reports SET status = ?, processed_at = ? WHERE id = ?", [status, processedAt, id]));
+  return result.affectedRows > 0 ? (await readAdminFaultReport(id)) : null;
 }
 
-export function deleteAdminFaultReport(id: string): boolean {
-  return getAppDb().prepare("DELETE FROM fault_reports WHERE id = ?").run(id).changes > 0;
+export async function deleteAdminFaultReport(id: string): Promise<boolean> {
+  return (await getAppDb().execute("DELETE FROM fault_reports WHERE id = ?", [id])).affectedRows > 0;
 }

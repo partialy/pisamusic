@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import { type DbClient as DatabaseSync } from "./core/types";
 import {
   isAccountAvatarKey,
   readUserByEmail,
@@ -194,15 +194,13 @@ function buildUserWhere(keyword: string): { sql: string; params: string[] } {
   };
 }
 
-export function listAdminUsers(rawKeyword: unknown, rawOffset: unknown, rawLimit: unknown): AdminUserListResult {
+export async function listAdminUsers(rawKeyword: unknown, rawOffset: unknown, rawLimit: unknown): Promise<AdminUserListResult> {
   const db = getAppDb();
   const keyword = normalizeKeyword(rawKeyword);
   const { offset, limit } = normalizePagination(rawOffset, rawLimit);
   const where = buildUserWhere(keyword);
-  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM users u ${where.sql}`).get(...where.params) as { total: number };
-  const rows = db
-    .prepare(`${userStatsSelect(where.sql)} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`)
-    .all(...where.params, limit, offset) as UserStatsRow[];
+  const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM users u ${where.sql}`, [...where.params])) as { total: number };
+  const rows = (await db.query(`${userStatsSelect(where.sql)} ORDER BY u.created_at DESC LIMIT ? OFFSET ?`, [...where.params, limit, offset])) as UserStatsRow[];
   return {
     users: rows.map(mapUserRow),
     total: totalRow.total,
@@ -211,25 +209,25 @@ export function listAdminUsers(rawKeyword: unknown, rawOffset: unknown, rawLimit
   };
 }
 
-export function readAdminUserDetail(id: string): AdminUserDetail | null {
+export async function readAdminUserDetail(id: string): Promise<AdminUserDetail | null> {
   const db = getAppDb();
-  const row = db.prepare(`${userStatsSelect("WHERE u.id = ?")} LIMIT 1`).get(id) as UserStatsRow | undefined;
+  const row = (await db.queryOne(`${userStatsSelect("WHERE u.id = ?")} LIMIT 1`, [id])) as UserStatsRow | undefined;
   if (!row) return null;
   return mapUserRow(row);
 }
 
-export function listAdminUserLibraryItems(
+export async function listAdminUserLibraryItems(
   userId: string,
   kind: AdminUserLibraryKind,
   rawOffset: unknown,
   rawLimit: unknown,
-): AdminUserLibraryPage | null {
-  if (!readUserById(userId)) return null;
+): Promise<AdminUserLibraryPage | null> {
+  if (!(await readUserById(userId))) return null;
   const db = getAppDb();
   const { offset, limit } = normalizePagination(rawOffset, rawLimit ?? 30);
 
   if (kind === "listeningHistory") {
-    const trackPage = listTrackStats(userId, { sort: "lastListenedAt", offset, limit });
+    const trackPage = (await listTrackStats(userId, { sort: "lastListenedAt", offset, limit }));
     return {
       items: trackPage.items.map((track) => ({
         itemKey: `${track.source}:${track.songId}`,
@@ -254,48 +252,46 @@ export function listAdminUserLibraryItems(
   }
 
   const itemType = itemTypeForKind(kind);
-  const totalRow = db
-    .prepare("SELECT COUNT(*) AS total FROM user_sync_items WHERE user_id = ? AND item_type = ? AND deleted = 0")
-    .get(userId, itemType) as { total: number };
+  const totalRow = (await db.queryOne("SELECT COUNT(*) AS total FROM user_sync_items WHERE user_id = ? AND item_type = ? AND deleted = 0", [userId, itemType])) as { total: number };
   return {
-    items: listUserSyncItems(db, userId, itemType, offset, limit),
+    items: (await listUserSyncItems(db, userId, itemType, offset, limit)),
     total: totalRow.total,
     offset,
     limit,
   };
 }
 
-export function updateAdminUser(id: string, input: AdminUserUpdateInput): AdminUserListItem | null {
-  const current = readUserById(id);
+export async function updateAdminUser(id: string, input: AdminUserUpdateInput): Promise<AdminUserListItem | null> {
+  const current = (await readUserById(id));
   if (!current) return null;
   if (input.email && input.email !== current.email) {
-    const existing = readUserByEmail(input.email);
+    const existing = (await readUserByEmail(input.email));
     if (existing && existing.id !== id) throw new Error("该邮箱已被注册");
   }
   if (input.username && input.username !== current.username) {
-    const existing = readUserByUsername(input.username);
+    const existing = (await readUserByUsername(input.username));
     if (existing && existing.id !== id) throw new Error("该用户名已被使用");
   }
   const hasProfileUpdate = input.username !== undefined || input.email !== undefined || input.avatarKey !== undefined;
   const hasVipUpdate = input.vipEnabled !== undefined || input.vipExpiresAt !== undefined;
   if (hasProfileUpdate) {
-    updateUserProfile(id, input);
+    (await updateUserProfile(id, input));
   }
   if (hasVipUpdate) {
-    updateUserVip(
+    (await updateUserVip(
       id,
       input.vipEnabled ?? current.vipEnabled,
       input.vipExpiresAt !== undefined ? input.vipExpiresAt : current.vipExpiresAt,
-    );
+    ));
   }
-  const detail = readAdminUserDetail(id);
+  const detail = (await readAdminUserDetail(id));
   if (!detail) throw new Error("用户资料更新失败");
   return detail;
 }
 
-export function deleteAdminUser(id: string): boolean {
-  const result = getAppDb().prepare("DELETE FROM users WHERE id = ?").run(id);
-  return result.changes > 0;
+export async function deleteAdminUser(id: string): Promise<boolean> {
+  const result = (await getAppDb().execute("DELETE FROM users WHERE id = ?", [id]));
+  return result.affectedRows > 0;
 }
 
 export function normalizeAdminAvatarKey(value: string): AccountAvatarKey | null {
@@ -308,16 +304,12 @@ function itemTypeForKind(kind: AdminUserLibraryKind): string {
   return "favorite_song";
 }
 
-function listUserSyncItems(db: DatabaseSync, userId: string, itemType: string, offset: number, limit: number): AdminUserLibraryItem[] {
-  const rows = db
-    .prepare(
-      `SELECT item_key, payload_json, client_updated_at, server_updated_at
+async function listUserSyncItems(db: DatabaseSync, userId: string, itemType: string, offset: number, limit: number): Promise<AdminUserLibraryItem[]> {
+  const rows = (await db.query(`SELECT item_key, payload_json, client_updated_at, server_updated_at
        FROM user_sync_items
        WHERE user_id = ? AND item_type = ? AND deleted = 0
        ORDER BY server_updated_at DESC, item_key ASC
-       LIMIT ? OFFSET ?`,
-    )
-    .all(userId, itemType, limit, offset) as SyncItemRow[];
+       LIMIT ? OFFSET ?`, [userId, itemType, limit, offset])) as SyncItemRow[];
   return rows.map((row) => mapSyncItem(row, itemType));
 }
 

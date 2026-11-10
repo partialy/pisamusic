@@ -52,9 +52,9 @@ function handleError(res: Response, error: unknown, fallback: string): void {
 
 listeningRouter.use(requireUserJwt);
 
-listeningRouter.post("/fragments/batch", (req: ListeningRequest, res) => {
+listeningRouter.post("/fragments/batch", async (req: ListeningRequest, res) => {
   try {
-    const result = ingestListeningBatch(getBatchAuth(req), req.body);
+    const result = (await ingestListeningBatch(getBatchAuth(req), req.body));
     return res.json(ok({
       accepted: result.acceptedEventIds,
       duplicate: result.duplicateEventIds,
@@ -68,16 +68,16 @@ listeningRouter.post("/fragments/batch", (req: ListeningRequest, res) => {
   }
 });
 
-listeningRouter.get("/summary", (req: ListeningRequest, res) => {
+listeningRouter.get("/summary", async (req: ListeningRequest, res) => {
   try {
-    return res.json(ok(getListeningSummary(getUserId(req))));
+    return res.json(ok((await getListeningSummary(getUserId(req)))));
   } catch (error) {
     handleError(res, error, "读取听歌汇总失败");
     return undefined;
   }
 });
 
-listeningRouter.get("/tracks", (req: ListeningRequest, res) => {
+listeningRouter.get("/tracks", async (req: ListeningRequest, res) => {
   try {
     const rawSource = typeof req.query.source === "string" ? req.query.source : undefined;
     if (rawSource && !["kg", "wy", "kw", "cloud", "local"].includes(rawSource)) {
@@ -93,12 +93,12 @@ listeningRouter.get("/tracks", (req: ListeningRequest, res) => {
       lastListenedAt: "lastListenedAt",
     } as const;
     if (rawSort && !(rawSort in sortMap)) throw new ListeningValidationError("sort 不受支持");
-    return res.json(ok(getListeningTracks(getUserId(req), {
+    return res.json(ok((await getListeningTracks(getUserId(req), {
       source: rawSource as "kg" | "wy" | "kw" | "cloud" | "local" | undefined,
       sort: rawSort ? sortMap[rawSort as keyof typeof sortMap] : undefined,
       offset: parseQueryInteger(req.query.offset, "offset", 0, 0),
       limit: parseQueryInteger(req.query.limit, "limit", 20, 1),
-    })));
+    }))));
   } catch (error) {
     handleError(res, error, "读取听歌歌曲列表失败");
     return undefined;

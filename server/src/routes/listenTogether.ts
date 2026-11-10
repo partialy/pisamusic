@@ -23,18 +23,18 @@ function handleError(res: Response, error: unknown, fallback: string): void {
   res.status(500).json(fail(message, 500));
 }
 
-listenTogetherRouter.get("/config", (_req, res) => {
+listenTogetherRouter.get("/config", async (_req, res) => {
   try {
-    res.json(ok(readListenTogetherConfig()));
+    res.json(ok((await readListenTogetherConfig())));
   } catch (error) {
     handleError(res, error, "读取一起听配置失败");
   }
 });
 
-listenTogetherRouter.post("/rooms", requireUserJwt, (req: UserAuthedRequest, res) => {
+listenTogetherRouter.post("/rooms", requireUserJwt, async (req: UserAuthedRequest, res) => {
   try {
     const user = getUserAuth(req).user;
-    res.json(ok({ room: createListenTogetherRoom(user, req.body) }, "创建成功"));
+    res.json(ok({ room: (await createListenTogetherRoom(user, req.body)) }, "创建成功"));
   } catch (error) {
     handleError(res, error, "创建房间失败");
   }

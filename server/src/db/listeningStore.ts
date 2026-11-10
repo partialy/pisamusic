@@ -1,4 +1,4 @@
-import { type DatabaseSync } from "node:sqlite";
+import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
 
 export type ListeningSource = "kg" | "wy" | "kw" | "cloud" | "local";
@@ -74,17 +74,13 @@ function db(): DatabaseSync {
   return getAppDb();
 }
 
-export function runListeningTransaction<T>(fn: () => T): T {
+export async function runListeningTransaction<T>(fn: () => Promise<T>): Promise<T> {
   const database = db();
-  database.exec("BEGIN IMMEDIATE");
-  try {
-    const result = fn();
-    database.exec("COMMIT");
+  return (await database.transaction(async () => {
+    const result = (await fn());
+
     return result;
-  } catch (error) {
-    database.exec("ROLLBACK");
-    throw error;
-  }
+  }));
 }
 
 export function mergeCoverage(existing: readonly (readonly [number, number])[], incoming: readonly [number, number]): CoverageMergeResult {
@@ -116,66 +112,55 @@ export function mergeCoverage(existing: readonly (readonly [number, number])[], 
   return { startMs, endMs, creditedMs: endMs - startMs - oldCoverage };
 }
 
-export function insertFragmentIfAbsent(fragment: StoredListeningFragment): "inserted" | "duplicate" | "conflict" {
+export async function insertFragmentIfAbsent(fragment: StoredListeningFragment): Promise<"inserted" | "duplicate" | "conflict"> {
   const database = db();
-  const existing = database.prepare(
-    `SELECT payload_json FROM listening_fragments
-     WHERE user_id = ? AND device_id = ? AND event_id = ?`,
-  ).get(fragment.userId, fragment.deviceId, fragment.eventId) as { payload_json: string } | undefined;
+  const existing = (await database.queryOne(`SELECT payload_json FROM listening_fragments
+     WHERE user_id = ? AND device_id = ? AND event_id = ?`, [fragment.userId, fragment.deviceId, fragment.eventId])) as { payload_json: string } | undefined;
   if (existing) return existing.payload_json === fragment.payloadJson ? "duplicate" : "conflict";
 
-  database.prepare(
-    `INSERT INTO listening_fragments (
+  (await database.execute(`INSERT INTO listening_fragments (
       user_id, device_id, event_id, play_session_id, platform, source, song_id,
       title, artist, album, track_duration_ms, start_ms, end_ms, active_duration_ms,
       terminal_reason, payload_json, received_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    fragment.userId, fragment.deviceId, fragment.eventId, fragment.playSessionId,
-    fragment.platform, fragment.source, fragment.songId, fragment.title, fragment.artist,
-    fragment.album, fragment.trackDurationMs, fragment.startedAtMs, fragment.endedAtMs,
-    fragment.activeDurationMs, fragment.terminalReason, fragment.payloadJson, Date.now(),
-  );
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [fragment.userId, fragment.deviceId, fragment.eventId, fragment.playSessionId, fragment.platform, fragment.source, fragment.songId, fragment.title, fragment.artist, fragment.album, fragment.trackDurationMs, fragment.startedAtMs, fragment.endedAtMs, fragment.activeDurationMs, fragment.terminalReason, fragment.payloadJson, Date.now()]));
   return "inserted";
 }
 
-export function isPlaySessionCompatible(fragment: Pick<StoredListeningFragment, "userId" | "deviceId" | "playSessionId" | "source" | "songId">): boolean {
-  const current = db().prepare(
-    `SELECT source, song_id FROM listening_play_sessions
-     WHERE user_id = ? AND device_id = ? AND play_session_id = ?`,
-  ).get(fragment.userId, fragment.deviceId, fragment.playSessionId) as { source: ListeningSource; song_id: string } | undefined;
+export async function isPlaySessionCompatible(fragment: Pick<StoredListeningFragment, "userId" | "deviceId" | "playSessionId" | "source" | "songId">): Promise<boolean> {
+  const current = (await db().queryOne(`SELECT source, song_id FROM listening_play_sessions
+     WHERE user_id = ? AND device_id = ? AND play_session_id = ?`, [fragment.userId, fragment.deviceId, fragment.playSessionId])) as { source: ListeningSource; song_id: string } | undefined;
   return !current || (current.source === fragment.source && current.song_id === fragment.songId);
 }
 
-function mergeInterval(
+async function mergeInterval(
   selectSql: string,
   deleteSql: string,
   insertSql: string,
   params: readonly (string | number)[],
   startMs: number,
   endMs: number,
-): CoverageMergeResult {
+): Promise<CoverageMergeResult> {
   const database = db();
-  const rows = database.prepare(selectSql).all(...params, endMs, startMs) as IntervalRow[];
+  const rows = (await database.query(selectSql, [...params, endMs, startMs])) as IntervalRow[];
   const merged = mergeCoverage(rows.map((row) => [row.start_ms, row.end_ms] as const), [startMs, endMs]);
-  if (rows.length > 0) database.prepare(deleteSql).run(...params, endMs, startMs);
-  database.prepare(insertSql).run(...params, merged.startMs, merged.endMs);
+  if (rows.length > 0) (await database.execute(deleteSql, [...params, endMs, startMs]));
+  (await database.execute(insertSql, [...params, merged.startMs, merged.endMs]));
   return merged;
 }
 
-export function mergeUserInterval(userId: string, startMs: number, endMs: number): CoverageMergeResult {
-  return mergeInterval(
+export async function mergeUserInterval(userId: string, startMs: number, endMs: number): Promise<CoverageMergeResult> {
+  return (await mergeInterval(
     `SELECT start_ms, end_ms FROM user_listening_intervals
      WHERE user_id = ? AND start_ms <= ? AND end_ms >= ?`,
     `DELETE FROM user_listening_intervals
      WHERE user_id = ? AND start_ms <= ? AND end_ms >= ?`,
     "INSERT INTO user_listening_intervals (user_id, start_ms, end_ms) VALUES (?, ?, ?)",
     [userId], startMs, endMs,
-  );
+  ));
 }
 
-export function mergeTrackInterval(userId: string, source: ListeningSource, songId: string, startMs: number, endMs: number): CoverageMergeResult {
-  return mergeInterval(
+export async function mergeTrackInterval(userId: string, source: ListeningSource, songId: string, startMs: number, endMs: number): Promise<CoverageMergeResult> {
+  return (await mergeInterval(
     `SELECT start_ms, end_ms FROM user_track_listening_intervals
      WHERE user_id = ? AND source = ? AND song_id = ? AND start_ms <= ? AND end_ms >= ?`,
     `DELETE FROM user_track_listening_intervals
@@ -183,27 +168,24 @@ export function mergeTrackInterval(userId: string, source: ListeningSource, song
     `INSERT INTO user_track_listening_intervals (user_id, source, song_id, start_ms, end_ms)
      VALUES (?, ?, ?, ?, ?)`,
     [userId, source, songId], startMs, endMs,
-  );
+  ));
 }
 
-export function addListeningTotal(userId: string, creditedMs: number, updatedAt: number): void {
+export async function addListeningTotal(userId: string, creditedMs: number, updatedAt: number): Promise<void> {
   const database = db();
-  database.prepare(
-    `INSERT INTO user_listening_stats (user_id, total_ms, updated_at) VALUES (?, ?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET total_ms = total_ms + excluded.total_ms, updated_at = excluded.updated_at`,
-  ).run(userId, creditedMs, updatedAt);
+  (await database.execute(database.dialect === "mysql" ? "INSERT INTO user_listening_stats (user_id, total_ms, updated_at) VALUES (?, ?, ?)\n     ON DUPLICATE KEY UPDATE total_ms = total_ms + VALUES(total_ms), updated_at = VALUES(updated_at)" : `INSERT INTO user_listening_stats (user_id, total_ms, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET total_ms = total_ms + excluded.total_ms, updated_at = excluded.updated_at`, [userId, creditedMs, updatedAt]));
 }
 
-export function upsertTrackStat(
+export async function upsertTrackStat(
   fragment: StoredListeningFragment,
   creditedMs: number,
   playCountIncrement: number,
   completedCountIncrement: number,
-): void {
+): Promise<void> {
   const now = Date.now();
   const database = db();
-  database.prepare(
-    `INSERT INTO user_track_stats (
+  (await database.execute(database.dialect === "mysql" ? "INSERT INTO user_track_stats (\n      user_id, source, song_id, title, artist, album, duration_ms, listened_ms,\n      play_count, completed_count, first_listened_at, last_listened_at, updated_at\n    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n    ON DUPLICATE KEY UPDATE\n      title = CASE WHEN VALUES(title) <> '' THEN VALUES(title) ELSE title END,\n      artist = CASE WHEN VALUES(artist) <> '' THEN VALUES(artist) ELSE artist END,\n      album = CASE WHEN VALUES(album) <> '' THEN VALUES(album) ELSE album END,\n      duration_ms = COALESCE(VALUES(duration_ms), duration_ms),\n      listened_ms = listened_ms + VALUES(listened_ms),\n      play_count = play_count + VALUES(play_count),\n      completed_count = completed_count + VALUES(completed_count),\n      first_listened_at = LEAST(first_listened_at, VALUES(first_listened_at)),\n      last_listened_at = GREATEST(last_listened_at, VALUES(last_listened_at)),\n      updated_at = VALUES(updated_at)" : `INSERT INTO user_track_stats (
       user_id, source, song_id, title, artist, album, duration_ms, listened_ms,
       play_count, completed_count, first_listened_at, last_listened_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -217,12 +199,7 @@ export function upsertTrackStat(
       completed_count = completed_count + excluded.completed_count,
       first_listened_at = MIN(first_listened_at, excluded.first_listened_at),
       last_listened_at = MAX(last_listened_at, excluded.last_listened_at),
-      updated_at = excluded.updated_at`,
-  ).run(
-    fragment.userId, fragment.source, fragment.songId, fragment.title, fragment.artist,
-    fragment.album, fragment.trackDurationMs, creditedMs, playCountIncrement,
-    completedCountIncrement, fragment.startedAtMs, fragment.endedAtMs, now,
-  );
+      updated_at = excluded.updated_at`, [fragment.userId, fragment.source, fragment.songId, fragment.title, fragment.artist, fragment.album, fragment.trackDurationMs, creditedMs, playCountIncrement, completedCountIncrement, fragment.startedAtMs, fragment.endedAtMs, now]));
 }
 
 type SessionRow = {
@@ -235,12 +212,10 @@ type SessionRow = {
   natural_end_seen: number;
 };
 
-export function upsertPlaySession(fragment: StoredListeningFragment): { playCountIncrement: number; completedCountIncrement: number } {
+export async function upsertPlaySession(fragment: StoredListeningFragment): Promise<{ playCountIncrement: number; completedCountIncrement: number }> {
   const database = db();
-  const current = database.prepare(
-    `SELECT source, song_id, track_duration_ms, accumulated_ms, qualified_counted, completed_counted, natural_end_seen
-     FROM listening_play_sessions WHERE user_id = ? AND device_id = ? AND play_session_id = ?`,
-  ).get(fragment.userId, fragment.deviceId, fragment.playSessionId) as SessionRow | undefined;
+  const current = (await database.queryOne(`SELECT source, song_id, track_duration_ms, accumulated_ms, qualified_counted, completed_counted, natural_end_seen
+     FROM listening_play_sessions WHERE user_id = ? AND device_id = ? AND play_session_id = ?`, [fragment.userId, fragment.deviceId, fragment.playSessionId])) as SessionRow | undefined;
 
   const terminalNaturalEnd = fragment.terminalReason === "natural_end";
   if (!current) {
@@ -248,15 +223,10 @@ export function upsertPlaySession(fragment: StoredListeningFragment): { playCoun
     const thresholdMs = qualifiedThreshold(fragment.trackDurationMs);
     const qualified = accumulatedMs >= thresholdMs;
     const completed = qualified && terminalNaturalEnd;
-    database.prepare(
-      `INSERT INTO listening_play_sessions (
+    (await database.execute(`INSERT INTO listening_play_sessions (
         user_id, device_id, play_session_id, source, song_id, track_duration_ms,
         accumulated_ms, qualified_counted, completed_counted, natural_end_seen
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      fragment.userId, fragment.deviceId, fragment.playSessionId, fragment.source, fragment.songId,
-      fragment.trackDurationMs, accumulatedMs, qualified ? 1 : 0, completed ? 1 : 0, terminalNaturalEnd ? 1 : 0,
-    );
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [fragment.userId, fragment.deviceId, fragment.playSessionId, fragment.source, fragment.songId, fragment.trackDurationMs, accumulatedMs, qualified ? 1 : 0, completed ? 1 : 0, terminalNaturalEnd ? 1 : 0]));
     return { playCountIncrement: qualified ? 1 : 0, completedCountIncrement: completed ? 1 : 0 };
   }
   if (current.source !== fragment.source || current.song_id !== fragment.songId) {
@@ -267,14 +237,9 @@ export function upsertPlaySession(fragment: StoredListeningFragment): { playCoun
   const naturalEndSeen = current.natural_end_seen !== 0 || terminalNaturalEnd;
   const qualified = current.qualified_counted !== 0 || accumulatedMs >= qualifiedThreshold(durationMs);
   const completed = current.completed_counted !== 0 || (qualified && naturalEndSeen);
-  database.prepare(
-    `UPDATE listening_play_sessions
+  (await database.execute(`UPDATE listening_play_sessions
      SET track_duration_ms = ?, accumulated_ms = ?, qualified_counted = ?, completed_counted = ?, natural_end_seen = ?
-     WHERE user_id = ? AND device_id = ? AND play_session_id = ?`,
-  ).run(
-    durationMs, accumulatedMs, qualified ? 1 : 0, completed ? 1 : 0, naturalEndSeen ? 1 : 0,
-    fragment.userId, fragment.deviceId, fragment.playSessionId,
-  );
+     WHERE user_id = ? AND device_id = ? AND play_session_id = ?`, [durationMs, accumulatedMs, qualified ? 1 : 0, completed ? 1 : 0, naturalEndSeen ? 1 : 0, fragment.userId, fragment.deviceId, fragment.playSessionId]));
   return {
     playCountIncrement: !current.qualified_counted && qualified ? 1 : 0,
     completedCountIncrement: !current.completed_counted && completed ? 1 : 0,
@@ -287,27 +252,25 @@ function qualifiedThreshold(trackDurationMs: number | null): number {
     : 30_000;
 }
 
-export function readListeningSummaryState(userId: string): { totalMs: number } {
-  const row = db().prepare("SELECT total_ms FROM user_listening_stats WHERE user_id = ?").get(userId) as { total_ms: number } | undefined;
+export async function readListeningSummaryState(userId: string): Promise<{ totalMs: number }> {
+  const row = (await db().queryOne("SELECT total_ms FROM user_listening_stats WHERE user_id = ?", [userId])) as { total_ms: number } | undefined;
   return { totalMs: row?.total_ms ?? 0 };
 }
 
-export function listTrackStats(
+export async function listTrackStats(
   userId: string,
   query: { source?: ListeningSource; sort: "listenedMs" | "playCount" | "lastListenedAt"; offset: number; limit: number },
-): ListeningTrackPage {
+): Promise<ListeningTrackPage> {
   const database = db();
   const where = query.source ? "WHERE user_id = ? AND source = ?" : "WHERE user_id = ?";
   const params: (string | number)[] = query.source ? [userId, query.source] : [userId];
-  const count = database.prepare(`SELECT COUNT(*) AS total FROM user_track_stats ${where}`).get(...params) as { total: number };
+  const count = (await database.queryOne(`SELECT COUNT(*) AS total FROM user_track_stats ${where}`, [...params])) as { total: number };
   const orderBy = query.sort === "playCount"
     ? "play_count DESC, last_listened_at DESC"
     : query.sort === "lastListenedAt"
       ? "last_listened_at DESC"
       : "listened_ms DESC, last_listened_at DESC";
-  const rows = database.prepare(
-    `SELECT * FROM user_track_stats ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
-  ).all(...params, query.limit, query.offset) as Array<{
+  const rows = (await database.query(`SELECT * FROM user_track_stats ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`, [...params, query.limit, query.offset])) as Array<{
     source: ListeningSource; song_id: string; title: string; artist: string; album: string;
     duration_ms: number | null; listened_ms: number; play_count: number; completed_count: number;
     first_listened_at: number; last_listened_at: number;
@@ -324,12 +287,10 @@ export function listTrackStats(
   };
 }
 
-export function readLevelConfig(): ListeningLevelConfig {
+export async function readLevelConfig(): Promise<ListeningLevelConfig> {
   const database = db();
-  const config = database.prepare("SELECT version, updated_at FROM listening_level_config WHERE id = 1").get() as { version: number; updated_at: number };
-  const rules = database.prepare(
-    "SELECT level, min_minutes, max_minutes FROM listening_level_rules ORDER BY level ASC",
-  ).all() as Array<{ level: number; min_minutes: number; max_minutes: number | null }>;
+  const config = (await database.queryOne("SELECT version, updated_at FROM listening_level_config WHERE id = 1", [])) as { version: number; updated_at: number };
+  const rules = (await database.query("SELECT level, min_minutes, max_minutes FROM listening_level_rules ORDER BY level ASC", [])) as Array<{ level: number; min_minutes: number; max_minutes: number | null }>;
   return {
     version: config.version,
     updatedAt: config.updated_at,
@@ -337,18 +298,16 @@ export function readLevelConfig(): ListeningLevelConfig {
   };
 }
 
-export function replaceLevelConfig(expectedVersion: number, rules: readonly ListeningLevelRule[]): ListeningLevelConfig {
-  return runListeningTransaction(() => {
+export async function replaceLevelConfig(expectedVersion: number, rules: readonly ListeningLevelRule[]): Promise<ListeningLevelConfig> {
+  return (await runListeningTransaction(async () => {
     const database = db();
-    const current = database.prepare("SELECT version FROM listening_level_config WHERE id = 1").get() as { version: number };
+    const current = (await database.queryOne("SELECT version FROM listening_level_config WHERE id = 1", [])) as { version: number };
     if (current.version !== expectedVersion) throw new ListeningLevelVersionConflictError();
     const now = Date.now();
-    database.prepare("DELETE FROM listening_level_rules").run();
-    const insert = database.prepare(
-      "INSERT INTO listening_level_rules (level, min_minutes, max_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-    );
-    for (const rule of rules) insert.run(rule.level, rule.minMinutes, rule.maxMinutes, now, now);
-    database.prepare("UPDATE listening_level_config SET version = version + 1, updated_at = ? WHERE id = 1").run(now);
-    return readLevelConfig();
-  });
+    (await database.execute("DELETE FROM listening_level_rules", []));
+
+    for (const rule of rules) (await database.execute("INSERT INTO listening_level_rules (level, min_minutes, max_minutes, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", [rule.level, rule.minMinutes, rule.maxMinutes, now, now]));
+    (await database.execute("UPDATE listening_level_config SET version = version + 1, updated_at = ? WHERE id = 1", [now]));
+    return (await readLevelConfig());
+  }));
 }

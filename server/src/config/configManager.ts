@@ -1,4 +1,4 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { DbClient } from "../db/core/types";
 import { getAppDb } from "../db/appDb";
 import { CONFIG_DEFINITIONS, DEFINITION_MAP, validateConfigBatch } from "./configDefinitions";
 import type {
@@ -10,13 +10,13 @@ import type {
 } from "./configTypes";
 
 export class RuntimeConfigManager {
-  private readonly dbProvider: () => DatabaseSync;
+  private readonly dbProvider: () => DbClient;
   private readonly memoryMap = new Map<string, ConfigJsonValue>();
   private readonly updatedAtMap = new Map<string, number>();
   private readonly listeners = new Set<ConfigChangeListener>();
   private initialized = false;
 
-  constructor(dbProvider: () => DatabaseSync = getAppDb) {
+  constructor(dbProvider: () => DbClient = getAppDb) {
     this.dbProvider = dbProvider;
   }
 
@@ -24,12 +24,12 @@ export class RuntimeConfigManager {
     return this.initialized;
   }
 
-  public initialize(): void {
+  public async initialize(): Promise<void> {
     const db = this.dbProvider();
     const now = Date.now();
 
     // 1. 读取数据库现有配置
-    const rows = db.prepare("SELECT key, name, value_json, updated_at FROM runtime_configs").all() as {
+    const rows = await db.query("SELECT `key`, name, value_json, updated_at FROM runtime_configs") as {
       key: string;
       name?: string;
       value_json: string;
@@ -90,25 +90,14 @@ export class RuntimeConfigManager {
     }
 
     if (toInsert.length > 0 || toUpdateName.length > 0) {
-      const insertStmt = db.prepare(
-        "INSERT INTO runtime_configs (key, name, value_json, updated_at) VALUES (?, ?, ?, ?)",
-      );
-      const updateNameStmt = db.prepare(
-        "UPDATE runtime_configs SET name = ? WHERE key = ?",
-      );
-      db.exec("BEGIN");
-      try {
+      await db.transaction(async (tx) => {
         for (const item of toInsert) {
-          insertStmt.run(item.key, item.name, item.valueJson, item.updatedAt);
+          await tx.execute("INSERT INTO runtime_configs (`key`, name, value_json, updated_at) VALUES (?, ?, ?, ?)", [item.key, item.name, item.valueJson, item.updatedAt]);
         }
         for (const item of toUpdateName) {
-          updateNameStmt.run(item.name, item.key);
+          await tx.execute("UPDATE runtime_configs SET name = ? WHERE `key` = ?", [item.name, item.key]);
         }
-        db.exec("COMMIT");
-      } catch (err) {
-        db.exec("ROLLBACK");
-        throw err;
-      }
+      });
     }
 
     this.initialized = true;
@@ -136,11 +125,11 @@ export class RuntimeConfigManager {
     return (val as unknown as T) ?? defaultValue;
   }
 
-  public set<T extends ConfigJsonValue>(key: string, value: T): void {
-    this.setMany([{ key, value }]);
+  public async set<T extends ConfigJsonValue>(key: string, value: T): Promise<void> {
+    await this.setMany([{ key, value }]);
   }
 
-  public setMany(changes: readonly ConfigChange[]): Readonly<Record<string, ConfigJsonValue>> {
+  public async setMany(changes: readonly ConfigChange[]): Promise<Readonly<Record<string, ConfigJsonValue>>> {
     if (!changes || changes.length === 0) {
       return this.snapshot();
     }
@@ -153,28 +142,16 @@ export class RuntimeConfigManager {
 
     const db = this.dbProvider();
     const now = Date.now();
-    const upsertStmt = db.prepare(
-      `INSERT INTO runtime_configs (key, name, value_json, updated_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET
-         name = excluded.name,
-         value_json = excluded.value_json,
-         updated_at = excluded.updated_at`,
-    );
-
-    // 2. 数据库事务原子提交
-    db.exec("BEGIN");
-    try {
+    const upsertSql = db.dialect === "mysql"
+      ? "INSERT INTO runtime_configs (`key`, name, value_json, updated_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), value_json = VALUES(value_json), updated_at = VALUES(updated_at)"
+      : "INSERT INTO runtime_configs (`key`, name, value_json, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(`key`) DO UPDATE SET name = excluded.name, value_json = excluded.value_json, updated_at = excluded.updated_at";
+    // 数据提交后再更新内存，避免写入失败产生假配置。
+    await db.transaction(async (tx) => {
       for (const item of normalized) {
         const def = DEFINITION_MAP.get(item.key);
-        const name = def?.label ?? item.key;
-        upsertStmt.run(item.key, name, JSON.stringify(item.value), now);
+        await tx.execute(upsertSql, [item.key, def?.label ?? item.key, JSON.stringify(item.value), now]);
       }
-      db.exec("COMMIT");
-    } catch (err) {
-      db.exec("ROLLBACK");
-      throw err;
-    }
+    });
 
     // 3. 只有 DB 提交成功后才更新内存 Map
     const changedKeys: string[] = [];
@@ -249,6 +226,6 @@ export class RuntimeConfigManager {
 
 export const configManager = new RuntimeConfigManager();
 
-export function createConfigManager(db: DatabaseSync): RuntimeConfigManager {
+export function createConfigManager(db: DbClient): RuntimeConfigManager {
   return new RuntimeConfigManager(() => db);
 }

@@ -42,9 +42,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-adminCloudMusicRouter.get("/temp-summary", (_req, res) => {
+adminCloudMusicRouter.get("/temp-summary", async (_req, res) => {
   try {
-    const summary = getTempSummary();
+    const summary = (await getTempSummary());
     res.json(ok(summary));
   } catch (error) {
     const message = error instanceof Error ? error.message : "获取临时文件摘要失败";
@@ -68,14 +68,14 @@ adminCloudMusicRouter.post("/temp-cleanup", async (req, res) => {
   }
 });
 
-adminCloudMusicRouter.post("/upload-sessions", (req, res) => {
+adminCloudMusicRouter.post("/upload-sessions", async (req, res) => {
   try {
     const body = req.body as CloudMusicUploadSessionRequest;
     if (!body || !isRecord(body) || !isRecord(body.audio)) {
       res.status(400).json(fail("缺少音频文件信息", 400));
       return;
     }
-    const session = createAdminUploadSession(body);
+    const session = (await createAdminUploadSession(body));
     res.json(ok(session));
   } catch (error) {
     const message = error instanceof Error ? error.message : "创建上传会话失败";
@@ -83,7 +83,7 @@ adminCloudMusicRouter.post("/upload-sessions", (req, res) => {
   }
 });
 
-adminCloudMusicRouter.post("/:uuid/assets/:kind/reserve", (req, res) => {
+adminCloudMusicRouter.post("/:uuid/assets/:kind/reserve", async (req, res) => {
   try {
     const { uuid, kind } = req.params;
     if (kind !== "cover-uploaded" && kind !== "lyrics") {
@@ -98,12 +98,12 @@ adminCloudMusicRouter.post("/:uuid/assets/:kind/reserve", (req, res) => {
       res.status(400).json(fail("文件声明信息不完整", 400));
       return;
     }
-    const ticket = reserveAsset(uuid, {
+    const ticket = (await reserveAsset(uuid, {
       fileName,
       fileSize,
       mimeType,
       kind,
-    });
+    }));
     res.json(ok(ticket));
   } catch (error) {
     const message = error instanceof Error ? error.message : "预登记资产失败";
@@ -137,7 +137,7 @@ adminCloudMusicRouter.delete("/:uuid/cover", async (req, res) => {
   }
 });
 
-adminCloudMusicRouter.get("/", (req, res) => {
+adminCloudMusicRouter.get("/", async (req, res) => {
   try {
     const keyword = typeof req.query.keyword === "string" ? req.query.keyword.trim() : undefined;
     const status = typeof req.query.status === "string" && req.query.status !== "all"
@@ -149,13 +149,13 @@ adminCloudMusicRouter.get("/", (req, res) => {
     const offset = Math.max(0, parseInt(String(req.query.offset ?? "0"), 10) || 0);
     const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit ?? "30"), 10) || 30));
 
-    const result = list({
+    const result = (await list({
       keyword,
       status,
       uploadState,
       offset,
       limit,
-    });
+    }));
     res.json(ok(result));
   } catch (error) {
     const message = error instanceof Error ? error.message : "获取网盘音乐列表失败";
@@ -163,10 +163,10 @@ adminCloudMusicRouter.get("/", (req, res) => {
   }
 });
 
-adminCloudMusicRouter.get("/:uuid/preview-url", (req, res) => {
+adminCloudMusicRouter.get("/:uuid/preview-url", async (req, res) => {
   try {
     const { uuid } = req.params;
-    const urls = preview(uuid);
+    const urls = (await preview(uuid));
     res.json(ok(urls));
   } catch (error) {
     const message = error instanceof Error ? error.message : "获取试听地址失败";
@@ -174,10 +174,10 @@ adminCloudMusicRouter.get("/:uuid/preview-url", (req, res) => {
   }
 });
 
-adminCloudMusicRouter.get("/:uuid", (req, res) => {
+adminCloudMusicRouter.get("/:uuid", async (req, res) => {
   try {
     const { uuid } = req.params;
-    const detail = getAdminDetail(uuid);
+    const detail = (await getAdminDetail(uuid));
     if (!detail) {
       res.status(404).json(fail("网盘音乐曲目不存在", 404));
       return;
@@ -189,7 +189,7 @@ adminCloudMusicRouter.get("/:uuid", (req, res) => {
   }
 });
 
-adminCloudMusicRouter.put("/:uuid", (req, res) => {
+adminCloudMusicRouter.put("/:uuid", async (req, res) => {
   try {
     const { uuid } = req.params;
     const body = req.body as CloudMusicAdminSaveInput;
@@ -198,7 +198,7 @@ adminCloudMusicRouter.put("/:uuid", (req, res) => {
       return;
     }
     const adminUsername = getAdminUsername(req);
-    const track = saveAdminDraft(uuid, body, adminUsername);
+    const track = (await saveAdminDraft(uuid, body, adminUsername));
     res.json(ok(track));
   } catch (error) {
     const message = error instanceof Error ? error.message : "保存网盘音乐失败";

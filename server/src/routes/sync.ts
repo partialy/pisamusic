@@ -36,18 +36,18 @@ function handleError(res: Response, error: unknown, fallback: string): void {
 
 syncRouter.use(requireUserJwt, attachSyncAuth);
 
-syncRouter.get("/changes", (req: SyncRequest, res) => {
+syncRouter.get("/changes", async (req: SyncRequest, res) => {
   try {
-    res.json(ok(listSyncChanges(getAuth(req), req.query.since)));
+    res.json(ok((await listSyncChanges(getAuth(req), req.query.since))));
   } catch (error) {
     handleError(res, error, "拉取同步变更失败");
   }
 });
 
-syncRouter.post("/changes", (req: SyncRequest, res) => {
+syncRouter.post("/changes", async (req: SyncRequest, res) => {
   try {
     const body = req.body as Record<string, unknown>;
-    res.json(ok(applySyncChanges(getAuth(req), body.changes)));
+    res.json(ok((await applySyncChanges(getAuth(req), body.affectedRows))));
   } catch (error) {
     handleError(res, error, "推送同步变更失败");
   }

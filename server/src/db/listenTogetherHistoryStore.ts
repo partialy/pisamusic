@@ -72,7 +72,7 @@ function parseJsonSafe<T>(raw: string | null | undefined, fallback: T): T {
   }
 }
 
-export function openRoomRecord(input: {
+export async function openRoomRecord(input: {
   id: string;
   roomId: string;
   roomName: string;
@@ -80,15 +80,13 @@ export function openRoomRecord(input: {
   maxPeople: number;
   memberOperation: boolean;
   createdAt: number;
-}): void {
+}): Promise<void> {
   const db = getAppDb();
   const hostJson = JSON.stringify(input.host);
   const memberId = crypto.randomUUID();
 
-  db.exec("BEGIN");
-  try {
-    db.prepare(
-      `INSERT INTO listen_together_room_records (
+  return (await db.transaction(async () => {
+    (await db.execute(`INSERT INTO listen_together_room_records (
         id, room_id, room_name, lifecycle_status,
         initial_host_user_id, initial_host_snapshot_json,
         final_host_user_id, final_host_snapshot_json,
@@ -104,171 +102,95 @@ export function openRoomRecord(input: {
         1, 1, 1, 1,
         NULL, 'paused', 0,
         ?, ?, NULL, NULL, NULL
-      )`,
-    ).run(
-      input.id,
-      input.roomId,
-      input.roomName,
-      input.host.userId,
-      hostJson,
-      input.host.userId,
-      hostJson,
-      input.maxPeople,
-      input.memberOperation ? 1 : 0,
-      input.createdAt,
-      input.createdAt,
-    );
+      )`, [input.id, input.roomId, input.roomName, input.host.userId, hostJson, input.host.userId, hostJson, input.maxPeople, input.memberOperation ? 1 : 0, input.createdAt, input.createdAt]));
 
-    db.prepare(
-      `INSERT INTO listen_together_room_members (
+    (await db.execute(`INSERT INTO listen_together_room_members (
         id, room_record_id, user_id, user_snapshot_json,
         role, joined_at, last_seen_at, left_at, leave_reason
       ) VALUES (
         ?, ?, ?, ?,
         'host', ?, ?, NULL, NULL
-      )`,
-    ).run(
-      memberId,
-      input.id,
-      input.host.userId,
-      hostJson,
-      input.createdAt,
-      input.createdAt,
-    );
+      )`, [memberId, input.id, input.host.userId, hostJson, input.createdAt, input.createdAt]));
 
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
+
+  }));
 }
 
-export function recordMemberJoined(input: {
+export async function recordMemberJoined(input: {
   roomRecordId: string;
   user: ListenTogetherSocketUser;
   role: "host" | "member";
   joinedAt: number;
-}): void {
+}): Promise<void> {
   const db = getAppDb();
   const userJson = JSON.stringify(input.user);
   const memberId = crypto.randomUUID();
 
-  db.exec("BEGIN");
-  try {
+  return (await db.transaction(async () => {
     // If there is already an open segment for this user in this room, close it first
-    db.prepare(
-      `UPDATE listen_together_room_members
+    (await db.execute(`UPDATE listen_together_room_members
        SET left_at = ?, leave_reason = 'replace_existing'
-       WHERE room_record_id = ? AND user_id = ? AND left_at IS NULL`,
-    ).run(input.joinedAt, input.roomRecordId, input.user.userId);
+       WHERE room_record_id = ? AND user_id = ? AND left_at IS NULL`, [input.joinedAt, input.roomRecordId, input.user.userId]));
 
-    db.prepare(
-      `INSERT INTO listen_together_room_members (
+    (await db.execute(`INSERT INTO listen_together_room_members (
         id, room_record_id, user_id, user_snapshot_json,
         role, joined_at, last_seen_at, left_at, leave_reason
       ) VALUES (
         ?, ?, ?, ?,
         ?, ?, ?, NULL, NULL
-      )`,
-    ).run(
-      memberId,
-      input.roomRecordId,
-      input.user.userId,
-      userJson,
-      input.role,
-      input.joinedAt,
-      input.joinedAt,
-    );
+      )`, [memberId, input.roomRecordId, input.user.userId, userJson, input.role, input.joinedAt, input.joinedAt]));
 
-    const openCountRow = db
-      .prepare(
-        `SELECT COUNT(*) as cnt FROM listen_together_room_members WHERE room_record_id = ? AND left_at IS NULL`,
-      )
-      .get(input.roomRecordId) as { cnt: number };
-    const uniqueCountRow = db
-      .prepare(
-        `SELECT COUNT(DISTINCT user_id) as cnt FROM listen_together_room_members WHERE room_record_id = ?`,
-      )
-      .get(input.roomRecordId) as { cnt: number };
-    const totalJoinsRow = db
-      .prepare(
-        `SELECT COUNT(*) as cnt FROM listen_together_room_members WHERE room_record_id = ?`,
-      )
-      .get(input.roomRecordId) as { cnt: number };
+    const openCountRow = (await db.queryOne(`SELECT COUNT(*) as cnt FROM listen_together_room_members WHERE room_record_id = ? AND left_at IS NULL`, [input.roomRecordId])) as { cnt: number };
+    const uniqueCountRow = (await db.queryOne(`SELECT COUNT(DISTINCT user_id) as cnt FROM listen_together_room_members WHERE room_record_id = ?`, [input.roomRecordId])) as { cnt: number };
+    const totalJoinsRow = (await db.queryOne(`SELECT COUNT(*) as cnt FROM listen_together_room_members WHERE room_record_id = ?`, [input.roomRecordId])) as { cnt: number };
 
-    db.prepare(
-      `UPDATE listen_together_room_records
+    (await db.execute(`UPDATE listen_together_room_records
        SET peak_people = MAX(peak_people, ?),
            total_join_count = ?,
            unique_people = ?,
            final_people = ?,
            updated_at = ?
-       WHERE id = ?`,
-    ).run(
-      openCountRow.cnt,
-      totalJoinsRow.cnt,
-      uniqueCountRow.cnt,
-      openCountRow.cnt,
-      input.joinedAt,
-      input.roomRecordId,
-    );
+       WHERE id = ?`, [openCountRow.cnt, totalJoinsRow.cnt, uniqueCountRow.cnt, openCountRow.cnt, input.joinedAt, input.roomRecordId]));
 
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
+
+  }));
 }
 
-export function recordMemberLeft(input: {
+export async function recordMemberLeft(input: {
   roomRecordId: string;
   userId: string;
   leftAt: number;
   leaveReason: ListenTogetherMemberLeaveReason;
-}): void {
+}): Promise<void> {
   const db = getAppDb();
-  db.exec("BEGIN");
-  try {
-    db.prepare(
-      `UPDATE listen_together_room_members
+  return (await db.transaction(async () => {
+    (await db.execute(`UPDATE listen_together_room_members
        SET left_at = ?, leave_reason = ?
-       WHERE room_record_id = ? AND user_id = ? AND left_at IS NULL`,
-    ).run(input.leftAt, input.leaveReason, input.roomRecordId, input.userId);
+       WHERE room_record_id = ? AND user_id = ? AND left_at IS NULL`, [input.leftAt, input.leaveReason, input.roomRecordId, input.userId]));
 
-    const openCountRow = db
-      .prepare(
-        `SELECT COUNT(*) as cnt FROM listen_together_room_members WHERE room_record_id = ? AND left_at IS NULL`,
-      )
-      .get(input.roomRecordId) as { cnt: number };
+    const openCountRow = (await db.queryOne(`SELECT COUNT(*) as cnt FROM listen_together_room_members WHERE room_record_id = ? AND left_at IS NULL`, [input.roomRecordId])) as { cnt: number };
 
-    db.prepare(
-      `UPDATE listen_together_room_records
+    (await db.execute(`UPDATE listen_together_room_records
        SET final_people = ?,
            updated_at = ?
-       WHERE id = ?`,
-    ).run(openCountRow.cnt, input.leftAt, input.roomRecordId);
+       WHERE id = ?`, [openCountRow.cnt, input.leftAt, input.roomRecordId]));
 
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
+
+  }));
 }
 
-export function touchMemberLastSeen(input: {
+export async function touchMemberLastSeen(input: {
   roomRecordId: string;
   userId: string;
   lastSeenAt: number;
-}): void {
+}): Promise<void> {
   const db = getAppDb();
-  db.prepare(
-    `UPDATE listen_together_room_members
+  (await db.execute(`UPDATE listen_together_room_members
      SET last_seen_at = ?
-     WHERE room_record_id = ? AND user_id = ? AND left_at IS NULL`,
-  ).run(input.lastSeenAt, input.roomRecordId, input.userId);
+     WHERE room_record_id = ? AND user_id = ? AND left_at IS NULL`, [input.lastSeenAt, input.roomRecordId, input.userId]));
 }
 
-export function updateRoomRecordSnapshot(input: {
+export async function updateRoomRecordSnapshot(input: {
   roomRecordId: string;
   roomName?: string;
   host?: ListenTogetherSocketUser;
@@ -278,7 +200,7 @@ export function updateRoomRecordSnapshot(input: {
   playbackStatus?: ListenTogetherStatus;
   position?: number;
   updatedAt: number;
-}): void {
+}): Promise<void> {
   const db = getAppDb();
   const sets: string[] = ["updated_at = ?"];
   const params: (string | number | null)[] = [input.updatedAt];
@@ -315,12 +237,10 @@ export function updateRoomRecordSnapshot(input: {
   }
 
   params.push(input.roomRecordId);
-  db.prepare(
-    `UPDATE listen_together_room_records SET ${sets.join(", ")} WHERE id = ?`,
-  ).run(...params);
+  (await db.execute(`UPDATE listen_together_room_records SET ${sets.join(", ")} WHERE id = ?`, [...params]));
 }
 
-export function closeRoomRecord(input: {
+export async function closeRoomRecord(input: {
   roomRecordId: string;
   endedAt: number;
   endReason: ListenTogetherRoomEndReason;
@@ -329,18 +249,15 @@ export function closeRoomRecord(input: {
   lastSong?: ListenTogetherSong | null;
   finalPlaybackStatus?: ListenTogetherStatus;
   finalPosition?: number;
-}): void {
+}): Promise<void> {
   const db = getAppDb();
-  db.exec("BEGIN");
-  try {
+  return (await db.transaction(async () => {
     const leaveReason = input.endReason === "admin_dissolved" ? "admin_dissolved" : "left";
 
     // Close any unclosed member segments
-    db.prepare(
-      `UPDATE listen_together_room_members
+    (await db.execute(`UPDATE listen_together_room_members
        SET left_at = ?, leave_reason = COALESCE(leave_reason, ?)
-       WHERE room_record_id = ? AND left_at IS NULL`,
-    ).run(input.endedAt, leaveReason, input.roomRecordId);
+       WHERE room_record_id = ? AND left_at IS NULL`, [input.endedAt, leaveReason, input.roomRecordId]));
 
     const sets: string[] = [
       "lifecycle_status = 'closed'",
@@ -377,54 +294,39 @@ export function closeRoomRecord(input: {
     }
 
     params.push(input.roomRecordId);
-    db.prepare(
-      `UPDATE listen_together_room_records SET ${sets.join(", ")} WHERE id = ?`,
-    ).run(...params);
+    (await db.execute(`UPDATE listen_together_room_records SET ${sets.join(", ")} WHERE id = ?`, [...params]));
 
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
+
+  }));
 }
 
-export function closeStaleActiveRoomRecords(endedAt: number): number {
+export async function closeStaleActiveRoomRecords(endedAt: number): Promise<number> {
   const db = getAppDb();
-  db.exec("BEGIN");
-  try {
-    const activeRows = db
-      .prepare(`SELECT id FROM listen_together_room_records WHERE lifecycle_status = 'active'`)
-      .all() as { id: string }[];
+  return (await db.transaction(async () => {
+    const activeRows = (await db.query(`SELECT id FROM listen_together_room_records WHERE lifecycle_status = 'active'`, [])) as { id: string }[];
 
     if (activeRows.length === 0) {
-      db.exec("COMMIT");
+
       return 0;
     }
 
     for (const row of activeRows) {
-      db.prepare(
-        `UPDATE listen_together_room_members
+      (await db.execute(`UPDATE listen_together_room_members
          SET left_at = ?, leave_reason = 'server_restart'
-         WHERE room_record_id = ? AND left_at IS NULL`,
-      ).run(endedAt, row.id);
+         WHERE room_record_id = ? AND left_at IS NULL`, [endedAt, row.id]));
 
-      db.prepare(
-        `UPDATE listen_together_room_records
+      (await db.execute(`UPDATE listen_together_room_records
          SET lifecycle_status = 'closed',
              ended_at = ?,
              end_reason = 'server_restart',
              final_people = 0,
              updated_at = ?
-         WHERE id = ?`,
-      ).run(endedAt, endedAt, row.id);
+         WHERE id = ?`, [endedAt, endedAt, row.id]));
     }
 
-    db.exec("COMMIT");
+
     return activeRows.length;
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
+  }));
 }
 
 type DbRoomRecordRow = {
@@ -506,12 +408,12 @@ function mapRowToItem(row: DbRoomRecordRow): AdminRoomHistoryListItem {
   };
 }
 
-export function listRoomHistory(query: AdminRoomHistoryQuery): {
+export async function listRoomHistory(query: AdminRoomHistoryQuery): Promise<{
   items: AdminRoomHistoryListItem[];
   total: number;
   offset: number;
   limit: number;
-} {
+}> {
   const db = getAppDb();
   const conditions: string[] = [];
   const params: (string | number)[] = [];
@@ -543,21 +445,15 @@ export function listRoomHistory(query: AdminRoomHistoryQuery): {
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  const countRow = db
-    .prepare(`SELECT COUNT(*) as total FROM listen_together_room_records ${whereClause}`)
-    .get(...params) as { total: number };
+  const countRow = (await db.queryOne(`SELECT COUNT(*) as total FROM listen_together_room_records ${whereClause}`, [...params])) as { total: number };
 
   const limit = Math.max(1, Math.min(100, query.limit || 20));
   const offset = Math.max(0, query.offset || 0);
 
-  const rows = db
-    .prepare(
-      `SELECT * FROM listen_together_room_records
+  const rows = (await db.query(`SELECT * FROM listen_together_room_records
        ${whereClause}
        ORDER BY ended_at DESC, id DESC
-       LIMIT ? OFFSET ?`,
-    )
-    .all(...params, limit, offset) as unknown as DbRoomRecordRow[];
+       LIMIT ? OFFSET ?`, [...params, limit, offset])) as unknown as DbRoomRecordRow[];
 
   return {
     items: rows.map(mapRowToItem),
@@ -567,21 +463,15 @@ export function listRoomHistory(query: AdminRoomHistoryQuery): {
   };
 }
 
-export function readRoomHistoryDetail(roomRecordId: string): AdminRoomHistoryDetail | null {
+export async function readRoomHistoryDetail(roomRecordId: string): Promise<AdminRoomHistoryDetail | null> {
   const db = getAppDb();
-  const recordRow = db
-    .prepare(`SELECT * FROM listen_together_room_records WHERE id = ?`)
-    .get(roomRecordId) as unknown as DbRoomRecordRow | undefined;
+  const recordRow = (await db.queryOne(`SELECT * FROM listen_together_room_records WHERE id = ?`, [roomRecordId])) as unknown as DbRoomRecordRow | undefined;
 
   if (!recordRow) return null;
 
-  const memberRows = db
-    .prepare(
-      `SELECT * FROM listen_together_room_members
+  const memberRows = (await db.query(`SELECT * FROM listen_together_room_members
        WHERE room_record_id = ?
-       ORDER BY joined_at ASC`,
-    )
-    .all(roomRecordId) as unknown as DbRoomMemberRow[];
+       ORDER BY joined_at ASC`, [roomRecordId])) as unknown as DbRoomMemberRow[];
 
   const members: AdminRoomMemberHistoryItem[] = memberRows.map((row) => {
     const user = parseJsonSafe<ListenTogetherSocketUser>(row.user_snapshot_json, {

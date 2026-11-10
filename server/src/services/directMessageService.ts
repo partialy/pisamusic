@@ -83,10 +83,10 @@ function normalizeInteger(value: unknown, fallback: number, minimum: number, max
   return Math.max(minimum, Math.min(parsed, maximum));
 }
 
-function targetExists(target: DirectMessageTarget): boolean {
-  if (target.kind === "user") return Boolean(readUserById(target.id));
+async function targetExists(target: DirectMessageTarget): Promise<boolean> {
+  if (target.kind === "user") return Boolean((await readUserById(target.id)));
   const table = target.kind === "android_device" ? "device_info" : "desktop_device_info";
-  return Boolean(getDeviceDb().prepare(`SELECT 1 FROM ${table} WHERE id = ?`).get(target.id));
+  return Boolean((await getDeviceDb().queryOne(`SELECT 1 FROM ${table} WHERE id = ?`, [target.id])));
 }
 
 function targetFromStored(item: StoredDirectMessage): { targetKind: DirectMessageTargetKind; targetId: string } {
@@ -115,38 +115,38 @@ function toAdminDirectMessageItem(item: StoredDirectMessage): AdminDirectMessage
   };
 }
 
-export function createDirectMessage(input: CreateDirectMessageInput): AdminDirectMessageItem {
+export async function createDirectMessage(input: CreateDirectMessageInput): Promise<AdminDirectMessageItem> {
   const kind = normalizeTargetKind(input.targetKind);
   const target: DirectMessageTarget = { kind, id: normalizeText(input.targetId, "接收方 ID", 128) } as DirectMessageTarget;
-  if (!targetExists(target)) throw new DirectMessageTargetNotFoundError("接收方不存在");
+  if (!(await targetExists(target))) throw new DirectMessageTargetNotFoundError("接收方不存在");
   const createdByAdmin = normalizeText(input.createdByAdmin, "管理员", 128);
   const content = normalizeText(input.content, "消息内容", 2_000);
-  return toAdminDirectMessageItem(insertDirectMessage({
+  return toAdminDirectMessageItem((await insertDirectMessage({
     id: randomUUID(),
     target,
     content,
     createdByAdmin,
     createdAt: Date.now(),
-  }));
+  })));
 }
 
-export function listUnreadForIdentity(identity: DirectMessageIdentity, limit: unknown): DirectMessageUnreadPage {
+export async function listUnreadForIdentity(identity: DirectMessageIdentity, limit: unknown): Promise<DirectMessageUnreadPage> {
   if (!identity.userId && !identity.device) throw new DirectMessageValidationError("缺少有效的账号或设备身份");
-  const page = listUnreadDirectMessages(identity, normalizeInteger(limit, 50, 1, 50));
+  const page = (await listUnreadDirectMessages(identity, normalizeInteger(limit, 50, 1, 50)));
   return {
     items: page.items.map(toDirectMessageItem),
     hasMore: page.hasMore,
   };
 }
 
-export function markDirectMessageReadForIdentity(identity: DirectMessageIdentity, id: unknown): { id: string; readAt: number } | null {
+export async function markDirectMessageReadForIdentity(identity: DirectMessageIdentity, id: unknown): Promise<{ id: string; readAt: number } | null> {
   if (!identity.userId && !identity.device) throw new DirectMessageValidationError("缺少有效的账号或设备身份");
   const messageId = normalizeText(id, "消息 ID", 128);
-  const item = markDirectMessageRead(identity, messageId);
+  const item = (await markDirectMessageRead(identity, messageId));
   return item?.readAt == null ? null : { id: item.id, readAt: item.readAt };
 }
 
-export function listAdminDirectMessagePage(input: ListAdminDirectMessagesInput = {}): AdminDirectMessagePage {
+export async function listAdminDirectMessagePage(input: ListAdminDirectMessagesInput = {}): Promise<AdminDirectMessagePage> {
   const targetKindProvided = input.targetKind !== undefined && input.targetKind !== null && input.targetKind !== "";
   const targetIdProvided = input.targetId !== undefined && input.targetId !== null && input.targetId !== "";
   if (targetKindProvided !== targetIdProvided) {
@@ -157,7 +157,7 @@ export function listAdminDirectMessagePage(input: ListAdminDirectMessagesInput =
     : undefined;
   const offset = normalizeInteger(input.offset, 0, 0, Number.MAX_SAFE_INTEGER);
   const limit = normalizeInteger(input.limit, 30, 1, 100);
-  const page = listAdminDirectMessages({ target, offset, limit });
+  const page = (await listAdminDirectMessages({ target, offset, limit }));
   return {
     items: page.items.map(toAdminDirectMessageItem),
     total: page.total,
@@ -166,9 +166,9 @@ export function listAdminDirectMessagePage(input: ListAdminDirectMessagesInput =
   };
 }
 
-export function deleteDirectMessageById(id: unknown): { id: string } {
+export async function deleteDirectMessageById(id: unknown): Promise<{ id: string }> {
   const messageId = normalizeText(id, "消息 ID", 128);
-  if (!deleteDirectMessage(messageId)) {
+  if (!(await deleteDirectMessage(messageId))) {
     throw new DirectMessageNotFoundError("消息不存在");
   }
   return { id: messageId };

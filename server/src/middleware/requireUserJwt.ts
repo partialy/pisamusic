@@ -24,20 +24,20 @@ export function tokenFromRequest(req: Request): string {
   return raw.slice("Bearer ".length).trim();
 }
 
-export function verifyUserToken(rawToken: string): PublicUser | null {
+export async function verifyUserToken(rawToken: string): Promise<PublicUser | null> {
   if (!rawToken) return null;
   try {
     const payload = jwt.verify(rawToken, getUserJwtSecret()) as UserJwtPayload;
     if (!payload.sub) return null;
-    const user = readUserById(payload.sub);
+    const user = (await readUserById(payload.sub));
     return user ? toPublicUser(user) : null;
   } catch {
     return null;
   }
 }
 
-export function requireUserJwt(req: UserAuthedRequest, res: Response, next: NextFunction): void {
-  const user = verifyUserToken(tokenFromRequest(req));
+export async function requireUserJwt(req: UserAuthedRequest, res: Response, next: NextFunction): Promise<void> {
+  const user = (await verifyUserToken(tokenFromRequest(req)));
   if (!user) {
     res.status(401).json(fail("账号登录已失效，请重新登录", 401));
     return;

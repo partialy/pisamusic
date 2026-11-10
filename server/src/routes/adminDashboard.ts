@@ -6,7 +6,7 @@ import { fail, ok } from "../types/response";
 
 export const adminDashboardRouter = Router();
 
-adminDashboardRouter.get("/", (req: Request, res: Response) => {
+adminDashboardRouter.get("/", async (req: Request, res: Response) => {
   try {
     const rawDays = req.query.days;
     const days = rawDays !== undefined ? Number(rawDays) : 30;
@@ -16,7 +16,7 @@ adminDashboardRouter.get("/", (req: Request, res: Response) => {
       return;
     }
 
-    const data = readAdminDashboard(days as DashboardRangeDays);
+    const data = (await readAdminDashboard(days as DashboardRangeDays));
     res.json(ok(data));
   } catch (err) {
     const message = err instanceof Error ? err.message : "获取仪表盘数据失败";

@@ -24,7 +24,7 @@ function normalizeValid(value: unknown): boolean | undefined | null {
   return null;
 }
 
-adminSharesRouter.get("/", (req, res) => {
+adminSharesRouter.get("/", async (req, res) => {
   try {
     const typeValue = typeof req.query.type === "string" ? req.query.type.trim() : "";
     const validValue = typeof req.query.valid === "string" ? req.query.valid.trim() : undefined;
@@ -34,13 +34,13 @@ adminSharesRouter.get("/", (req, res) => {
     if (valid === null) return res.status(400).json(fail("Invalid share valid filter", 400));
     return res.json(
       ok(
-        listAdminShares({
+        (await listAdminShares({
           type,
           valid,
           sharer: typeof req.query.sharer === "string" ? req.query.sharer : undefined,
           offset: req.query.offset,
           limit: req.query.limit,
-        }),
+        })),
       ),
     );
   } catch (error) {
@@ -49,11 +49,11 @@ adminSharesRouter.get("/", (req, res) => {
   }
 });
 
-adminSharesRouter.patch("/:uuid/invalid", (req, res) => {
+adminSharesRouter.patch("/:uuid/invalid", async (req, res) => {
   try {
     const uuid = String(req.params.uuid ?? "").trim();
     if (!SHARE_UUID_RE.test(uuid)) return res.status(400).json(fail("Invalid share uuid", 400));
-    const updated = invalidateShareRecord(uuid);
+    const updated = (await invalidateShareRecord(uuid));
     if (!updated) return res.status(404).json(fail("Share record not found", 404));
     return res.json(ok(updated, "Share record invalidated"));
   } catch (error) {

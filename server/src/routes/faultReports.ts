@@ -5,11 +5,11 @@ import { fail, ok } from "../types/response";
 
 export const faultReportsRouter = Router();
 
-faultReportsRouter.post("/", (req, res) => {
+faultReportsRouter.post("/", async (req, res) => {
   try {
     const input = normalizeFaultReportCreateInput(req.body);
-    const user = verifyUserToken(tokenFromRequest(req));
-    return res.json(ok(createFaultReport(input, user?.id ?? null), "故障信息上报成功"));
+    const user = (await verifyUserToken(tokenFromRequest(req)));
+    return res.json(ok((await createFaultReport(input, user?.id ?? null)), "故障信息上报成功"));
   } catch (error) {
     if (error instanceof FaultReportValidationError) {
       return res.status(400).json(fail(error.message, 400));

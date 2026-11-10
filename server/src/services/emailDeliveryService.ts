@@ -17,12 +17,12 @@ type GatewayResponse = {
 
 export async function sendVerifyCodeEmail(to: string, code: string): Promise<void> {
   const body = JSON.stringify({
-    provider: getEmailProvider(),
+    provider: (await getEmailProvider()),
     type: "verify_code",
     code,
     to,
   });
-  const signed = signGatewayUrl("POST", getEmailServiceUrl(), body, getGatewaySignConfig());
+  const signed = signGatewayUrl("POST", (await getEmailServiceUrl()), body, (await getGatewaySignConfig()));
   const response = await fetch(signed.url, {
     method: "POST",
     headers: {
@@ -42,18 +42,18 @@ export async function sendVerifyCodeEmail(to: string, code: string): Promise<voi
   if (businessError) throw new Error(businessError);
 }
 
-function getGatewaySignConfig(): GatewaySignConfig {
-  const configured = readAppConfig().bootstrap.gatewaySign;
+async function getGatewaySignConfig(): Promise<GatewaySignConfig> {
+  const configured = (await readAppConfig()).bootstrap.gatewaySign;
   if (configured?.secret && configured.as) return configured;
   return DEFAULT_GATEWAY_SIGN;
 }
 
-function getEmailServiceUrl(): string {
-  return readAppConfig().email.serviceUrl || DEFAULT_EMAIL_SERVICE_URL;
+async function getEmailServiceUrl(): Promise<string> {
+  return (await readAppConfig()).email.serviceUrl || DEFAULT_EMAIL_SERVICE_URL;
 }
 
-function getEmailProvider(): string {
-  return readAppConfig().email.provider || DEFAULT_EMAIL_PROVIDER;
+async function getEmailProvider(): Promise<string> {
+  return (await readAppConfig()).email.provider || DEFAULT_EMAIL_PROVIDER;
 }
 
 function parseJson(raw: string): unknown {

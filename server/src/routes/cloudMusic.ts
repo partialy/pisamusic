@@ -38,27 +38,27 @@ function getUserFromReq(req: Request) {
   return auth.user;
 }
 
-cloudMusicRouter.get("/summary", (req, res) => {
+cloudMusicRouter.get("/summary", async (req, res) => {
   try {
-    const user = verifyUserToken(tokenFromRequest(req));
-    res.json(ok(getPublicSummary(user?.id)));
+    const user = (await verifyUserToken(tokenFromRequest(req)));
+    res.json(ok((await getPublicSummary(user?.id))));
   } catch (error) {
     const message = error instanceof Error ? error.message : "获取网盘音乐概览失败";
     res.status(500).json(fail(message, 500));
   }
 });
 
-cloudMusicRouter.get("/search", (req, res) => {
+cloudMusicRouter.get("/search", async (req, res) => {
   try {
     const keyword = typeof req.query.keyword === "string" ? req.query.keyword.trim() : undefined;
     const offset = Math.max(0, parseInt(String(req.query.offset ?? "0"), 10) || 0);
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "30"), 10) || 30));
 
-    const result = searchPublicTracks({
+    const result = (await searchPublicTracks({
       keyword,
       offset,
       limit,
-    });
+    }));
     res.json(ok(result));
   } catch (error) {
     const message = error instanceof Error ? error.message : "搜索网盘音乐失败";
@@ -66,10 +66,10 @@ cloudMusicRouter.get("/search", (req, res) => {
   }
 });
 
-cloudMusicRouter.get("/tracks/:uuid", (req, res) => {
+cloudMusicRouter.get("/tracks/:uuid", async (req, res) => {
   try {
     const { uuid } = req.params;
-    const track = getPublicTrackDetail(uuid);
+    const track = (await getPublicTrackDetail(uuid));
     if (!track) {
       res.status(404).json(fail("曲目不存在", 404));
       return;
@@ -81,10 +81,10 @@ cloudMusicRouter.get("/tracks/:uuid", (req, res) => {
   }
 });
 
-cloudMusicRouter.get("/tracks/:uuid/play-url", (req, res) => {
+cloudMusicRouter.get("/tracks/:uuid/play-url", async (req, res) => {
   try {
     const { uuid } = req.params;
-    const playInfo = getPublicPlayUrl(uuid);
+    const playInfo = (await getPublicPlayUrl(uuid));
     res.json(ok(playInfo));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
@@ -95,7 +95,7 @@ cloudMusicRouter.get("/tracks/:uuid/play-url", (req, res) => {
   }
 });
 
-cloudMusicRouter.get("/tracks/:uuid/cover", (req, res) => {
+cloudMusicRouter.get("/tracks/:uuid/cover", async (req, res) => {
   res.set("Cache-Control", "no-store");
   try {
     const uuid = req.params.uuid.trim();
@@ -103,7 +103,7 @@ cloudMusicRouter.get("/tracks/:uuid/cover", (req, res) => {
       res.status(400).json(fail("曲目 UUID 不能为空", 400));
       return;
     }
-    const redirectUrl = getPublicCoverRedirect(uuid);
+    const redirectUrl = (await getPublicCoverRedirect(uuid));
     res.redirect(302, redirectUrl);
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
@@ -114,10 +114,10 @@ cloudMusicRouter.get("/tracks/:uuid/cover", (req, res) => {
   }
 });
 
-cloudMusicRouter.get("/tracks/:uuid/lyrics-url", (req, res) => {
+cloudMusicRouter.get("/tracks/:uuid/lyrics-url", async (req, res) => {
   try {
     const { uuid } = req.params;
-    const lyricsInfo = getPublicLyricsUrl(uuid);
+    const lyricsInfo = (await getPublicLyricsUrl(uuid));
     res.json(ok(lyricsInfo));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
@@ -130,7 +130,7 @@ cloudMusicRouter.get("/tracks/:uuid/lyrics-url", (req, res) => {
 
 // ==================== 用户投稿相关接口（要求账号登录） ====================
 
-cloudMusicRouter.post("/submit/upload-sessions", requireUserJwt, (req, res) => {
+cloudMusicRouter.post("/submit/upload-sessions", requireUserJwt, async (req, res) => {
   try {
     const user = getUserFromReq(req);
     const body = req.body as CloudMusicUploadSessionRequest;
@@ -138,7 +138,7 @@ cloudMusicRouter.post("/submit/upload-sessions", requireUserJwt, (req, res) => {
       res.status(400).json(fail("缺少音频文件信息", 400));
       return;
     }
-    const session = createUserUploadSession(body, user);
+    const session = (await createUserUploadSession(body, user));
     res.json(ok(session));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
@@ -149,7 +149,7 @@ cloudMusicRouter.post("/submit/upload-sessions", requireUserJwt, (req, res) => {
   }
 });
 
-cloudMusicRouter.post("/submit/:uuid/assets/:kind/reserve", requireUserJwt, (req, res) => {
+cloudMusicRouter.post("/submit/:uuid/assets/:kind/reserve", requireUserJwt, async (req, res) => {
   try {
     const user = getUserFromReq(req);
     const uuid = String(req.params.uuid ?? "").trim();
@@ -166,7 +166,7 @@ cloudMusicRouter.post("/submit/:uuid/assets/:kind/reserve", requireUserJwt, (req
       res.status(400).json(fail("文件声明信息不完整", 400));
       return;
     }
-    const ticket = reserveUserAsset(uuid, { fileName, fileSize, mimeType, kind }, user);
+    const ticket = (await reserveUserAsset(uuid, { fileName, fileSize, mimeType, kind }, user));
     res.json(ok(ticket));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
@@ -212,7 +212,7 @@ cloudMusicRouter.delete("/submit/:uuid/cover", requireUserJwt, async (req, res) 
   }
 });
 
-cloudMusicRouter.post("/submit/:uuid/save", requireUserJwt, (req, res) => {
+cloudMusicRouter.post("/submit/:uuid/save", requireUserJwt, async (req, res) => {
   try {
     const user = getUserFromReq(req);
     const uuid = String(req.params.uuid ?? "").trim();
@@ -221,7 +221,7 @@ cloudMusicRouter.post("/submit/:uuid/save", requireUserJwt, (req, res) => {
       res.status(400).json(fail("请求体格式不正确", 400));
       return;
     }
-    const track = saveUserSubmission(uuid, body, user);
+    const track = (await saveUserSubmission(uuid, body, user));
     res.json(ok(track));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
@@ -232,12 +232,12 @@ cloudMusicRouter.post("/submit/:uuid/save", requireUserJwt, (req, res) => {
   }
 });
 
-cloudMusicRouter.get("/submit/my-history", requireUserJwt, (req, res) => {
+cloudMusicRouter.get("/submit/my-history", requireUserJwt, async (req, res) => {
   try {
     const user = getUserFromReq(req);
     const offset = Math.max(0, parseInt(String(req.query.offset ?? "0"), 10) || 0);
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? "30"), 10) || 30));
-    const result = getUserSubmissionHistory(user.id, offset, limit);
+    const result = (await getUserSubmissionHistory(user.id, offset, limit));
     res.json(ok(result));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"
@@ -248,7 +248,7 @@ cloudMusicRouter.get("/submit/my-history", requireUserJwt, (req, res) => {
   }
 });
 
-cloudMusicRouter.post("/submit/:uuid/resubmit", requireUserJwt, (req, res) => {
+cloudMusicRouter.post("/submit/:uuid/resubmit", requireUserJwt, async (req, res) => {
   try {
     const user = getUserFromReq(req);
     const uuid = String(req.params.uuid ?? "").trim();
@@ -257,7 +257,7 @@ cloudMusicRouter.post("/submit/:uuid/resubmit", requireUserJwt, (req, res) => {
       res.status(400).json(fail("请求体格式不正确", 400));
       return;
     }
-    const track = resubmitUserTrack(uuid, body, user);
+    const track = (await resubmitUserTrack(uuid, body, user));
     res.json(ok(track));
   } catch (error) {
     const statusCode = typeof error === "object" && error !== null && "statusCode" in error && typeof error.statusCode === "number"

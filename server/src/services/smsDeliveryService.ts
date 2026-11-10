@@ -15,9 +15,9 @@ type GatewayResponse = {
 };
 
 export async function sendVerifyCodeSms(phone: string, code: string): Promise<void> {
-  const endpoint = smsServiceUrl();
+  const endpoint = (await smsServiceUrl());
   const body = JSON.stringify({ phone, code, time: 5 });
-  const signed = signGatewayUrl("POST", endpoint, body, gatewaySignConfig());
+  const signed = signGatewayUrl("POST", endpoint, body, (await gatewaySignConfig()));
   const response = await fetch(signed.url, {
     method: "POST",
     headers: {
@@ -36,14 +36,14 @@ export async function sendVerifyCodeSms(phone: string, code: string): Promise<vo
   if (businessError) throw new Error(businessError);
 }
 
-function smsServiceUrl(): string {
-  const configured = readAppConfig().email.serviceUrl || DEFAULT_EMAIL_SERVICE_URL;
+async function smsServiceUrl(): Promise<string> {
+  const configured = (await readAppConfig()).email.serviceUrl || DEFAULT_EMAIL_SERVICE_URL;
   if (configured.endsWith("/email")) return `${configured.slice(0, -"/email".length)}/sms`;
   return configured.replace(/\/email(?:\/?$)/, "/sms");
 }
 
-function gatewaySignConfig(): GatewaySignConfig {
-  const configured = readAppConfig().bootstrap.gatewaySign;
+async function gatewaySignConfig(): Promise<GatewaySignConfig> {
+  const configured = (await readAppConfig()).bootstrap.gatewaySign;
   if (configured?.secret && configured.as) return configured;
   return DEFAULT_GATEWAY_SIGN;
 }

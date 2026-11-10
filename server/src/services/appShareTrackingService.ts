@@ -110,26 +110,26 @@ export function safeReferrer(value: unknown): string {
     return "";
   }
 }
-export function getIdentityAppShare(req: Request) {
-  const share = readPublicAppShare();
+export async function getIdentityAppShare(req: Request) {
+  const share = (await readPublicAppShare());
   // 旧版客户端可能由拦截器自动附加登录 Authorization，但未发送设备凭证。
   // 此类请求必须继续返回通用配置，不能因旧登录态失效而破坏接口兼容。
   if (req.header("x-pm-device-token") === undefined)
     return { ...share, trackingEnabled: false };
   const authPresent = req.header("authorization") !== undefined;
-  const user = authPresent ? verifyUserToken(tokenFromRequest(req)) : null;
+  const user = authPresent ? (await verifyUserToken(tokenFromRequest(req))) : null;
   if (authPresent && !user)
     throw new AppShareTrackingError("账号登录已失效，请重新登录", 401);
-  const identity = deviceMessageIdentityFromRequest(req);
+  const identity = (await deviceMessageIdentityFromRequest(req));
   if (!identity || identity.kind !== "android")
     throw new AppShareTrackingError("设备凭证已失效，请重新上报", 401);
-  const record = getOrCreateTrackingRecord({
+  const record = (await getOrCreateTrackingRecord({
     deviceKind: "android",
     deviceId: identity.deviceId,
     userId: user?.id ?? null,
     userName: user?.username ?? "游客",
-    deviceName: readTrackingDeviceName(identity.deviceId),
-  });
+    deviceName: (await readTrackingDeviceName(identity.deviceId)),
+  }));
   let url: URL;
   try {
     url = new URL(share.qrCodeText);
@@ -148,15 +148,15 @@ export function getIdentityAppShare(req: Request) {
   return {
     ...share,
     qrCodeText,
-    copyText: renderAppShareCopy(readAppShareConfig().copyTemplate, qrCodeText),
+    copyText: renderAppShareCopy((await readAppShareConfig()).copyTemplate, qrCodeText),
     shareCode: record.code,
     trackingEnabled: true,
   };
 }
-export function publicTrackingCode(code: string) {
-  if (!SHARE_CODE_RE.test(code) || !readTrackingCode(code))
+export async function publicTrackingCode(code: string) {
+  if (!SHARE_CODE_RE.test(code) || !(await readTrackingCode(code)))
     throw new AppShareTrackingError("分享链接无效", 404);
-  const share = readPublicAppShare();
+  const share = (await readPublicAppShare());
   return {
     code,
     valid: true,
@@ -168,7 +168,7 @@ export function publicTrackingCode(code: string) {
 function stringInput(value: unknown, max: number) {
   return typeof value === "string" ? value.slice(0, max) : "";
 }
-export function acceptTrackingVisit(req: Request, res: Response) {
+export async function acceptTrackingVisit(req: Request, res: Response) {
   const body = req.body as Record<string, unknown> | undefined;
   if (
     !body ||
@@ -190,8 +190,8 @@ export function acceptTrackingVisit(req: Request, res: Response) {
     throw new AppShareTrackingError("访问时间或顺序无效");
   const visitorHash = hashVisitorId(String(body.visitorId));
   const ua = stringInput(req.header("user-agent"), 512);
-  maybeCleanupAnalytics(now);
-  const result = recordTrackingVisit({
+  (await maybeCleanupAnalytics(now));
+  const result = (await recordTrackingVisit({
     eventId: String(body.eventId),
     visitorHash,
     code: String(body.code),
@@ -201,7 +201,7 @@ export function acceptTrackingVisit(req: Request, res: Response) {
     userAgent: ua,
     browserDeviceType: /android|iphone|mobile/i.test(ua) ? "mobile" : "desktop",
     now,
-  });
+  }));
   // Cookie仅绑定匿名浏览器hash，最终触点从库中按导航顺序查询，迟到响应不会覆盖新触点。
   res.cookie(COOKIE, signAttribution(visitorHash, now), {
     httpOnly: true,
@@ -212,26 +212,26 @@ export function acceptTrackingVisit(req: Request, res: Response) {
   });
   return result;
 }
-export function trackWebsiteDownload(req: Request, input: DownloadRecordInput) {
-  maybeCleanupAnalytics(input.occurredAt ?? Date.now());
+export async function trackWebsiteDownload(req: Request, input: DownloadRecordInput) {
+  (await maybeCleanupAnalytics(input.occurredAt ?? Date.now()));
   const explicit = Object.prototype.hasOwnProperty.call(req.query, "code");
   const code =
     typeof req.query.code === "string" && SHARE_CODE_RE.test(req.query.code)
       ? req.query.code
       : undefined;
-  recordTrackedDownload(input, {
+  (await recordTrackedDownload(input, {
     explicit,
     code,
     visitorHash: cookieHash(req),
     safeReferrerPath: safeReferrer(input.referrer),
-  });
+  }));
 }
-export function resolveTrackedDownloadTarget(
+export async function resolveTrackedDownloadTarget(
   downloadUrl: string,
   fileRecordId: string | null,
-): string {
+): Promise<string> {
   if (fileRecordId) {
-    const file = readReleaseFileById(fileRecordId);
+    const file = (await readReleaseFileById(fileRecordId));
     if (!file || file.status !== "uploaded")
       throw new AppShareTrackingError("安装包不存在或已删除", 404);
     return createPrivateQiniuDownloadUrl(file.objectKey);
@@ -301,30 +301,30 @@ export function trackingFilters(
     limit: Math.max(1, integer(query.limit, 20, 100)),
   };
 }
-export function managedTrackingList(query: Record<string, unknown>) {
-  return listTrackingRecords(trackingFilters(query));
+export async function managedTrackingList(query: Record<string, unknown>) {
+  return (await listTrackingRecords(trackingFilters(query)));
 }
-export function managedTrackingDetail(
+export async function managedTrackingDetail(
   id: string,
   query: Record<string, unknown>,
 ) {
   if (!UUID.test(id)) throw new AppShareTrackingError("记录不存在", 404);
-  const result = trackingRecordDetail(
+  const result = (await trackingRecordDetail(
     id,
     integer(query.visitOffset, 0, 1000000),
     integer(query.downloadOffset, 0, 1000000),
     Math.max(1, integer(query.limit, 20, 100)),
-  );
+  ));
   if (!result) throw new AppShareTrackingError("记录不存在", 404);
   return result;
 }
-export function invalidateManagedTracking(id: string) {
-  if (!UUID.test(id) || !invalidateTrackingRecord(id))
+export async function invalidateManagedTracking(id: string) {
+  if (!UUID.test(id) || !(await invalidateTrackingRecord(id)))
     throw new AppShareTrackingError("记录不存在", 404);
   return { id, valid: false };
 }
-export function exportManagedTracking(query: Record<string, unknown>) {
-  const rows = listTrackingRecords(trackingFilters(query), true).items;
+export async function exportManagedTracking(query: Record<string, unknown>) {
+  const rows = (await listTrackingRecords(trackingFilters(query), true)).items;
   const csvCell = (value: unknown) => {
     let text = value == null ? "" : String(value);
     if (/^[\s]*[=+\-@\t\r]/.test(text)) text = "'" + text;

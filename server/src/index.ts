@@ -28,12 +28,17 @@ import { syncRouter } from "./routes/sync";
 import { webMusicRouter } from "./routes/webMusic";
 import { fail } from "./types/response";
 import { closeStaleActiveRoomRecords } from "./db/listenTogetherHistoryStore";
+import { initializeDatabase } from "./db/appDb";
+import { readDatabaseConfig } from "./db/core/createDatabase";
+import { validateDatabaseSwitch } from "./operations/startup";
+import { readOperationState, registerQuiesceHook } from "./operations/maintenance";
+import { maintenanceMode } from "./middleware/maintenanceMode";
 
 // 启动优先初始化运行时策略管理器
-configManager.initialize();
+// 由 bootstrap() 在数据库就绪后执行
 
 // 回收上次进程遗留的 active 一起听房间记录
-closeStaleActiveRoomRecords(Date.now());
+// 由 bootstrap() 在非维护模式执行
 
 const app = express();
 const port = Number(process.env.PORT ?? "53380");
@@ -164,14 +169,15 @@ const MANDATORY_PLAINTEXT_PATHS = [
   "/uploads/*",
 ];
 
-function loadPlaintextPaths(): string[] {
-  const paths = readPlaintextPaths().filter((s) => s.length > 0);
+async function loadPlaintextPaths(): Promise<string[]> {
+  const paths = (await readPlaintextPaths()).filter((s) => s.length > 0);
   const base = paths.length > 0 ? paths : DEFAULT_PLAINTEXT_PATHS;
   return [...new Set([...base, ...MANDATORY_PLAINTEXT_PATHS])];
 }
 
-setPlaintextPaths(loadPlaintextPaths());
+// 由 bootstrap() 在数据库就绪后加载加密白名单
 app.use(encryptionMiddleware());
+app.use(maintenanceMode);
 
 app.get("/api/health", (_req, res) => {
   res.json({ msg: "ok", code: 0, data: { status: "up" }, success: true });
@@ -228,9 +234,29 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 const httpServer = createServer(app);
-initRealtimeServer(httpServer);
 
-httpServer.listen(port, () => {
+async function bootstrap(): Promise<void> {
+  const state = readOperationState();
+  if (state.activatedMysql && readDatabaseConfig().type === "SQLITE") {
+    throw new Error("MySQL 已正式启用，禁止在旧 SQLite 上执行初始化或写入，请先核对增量数据");
+  }
+  const db = await initializeDatabase({ readOnlyStartup: state.maintenance });
+  await validateDatabaseSwitch(db);
+  if (!readOperationState().maintenance) {
+    await closeStaleActiveRoomRecords(Date.now());
+    await configManager.initialize();
+  }
+  setPlaintextPaths(await loadPlaintextPaths());
+  const io = initRealtimeServer(httpServer);
+  registerQuiesceHook(async () => { io.disconnectSockets(true); });
+  httpServer.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`[bootstrap-server] listening on http://localhost:${port}`);
+});
+
+}
+
+void bootstrap().catch((error: unknown) => {
+  console.error("[bootstrap-server] startup failed:", error);
+  process.exitCode = 1;
 });

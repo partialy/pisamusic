@@ -27,7 +27,7 @@ function cleanDimension(val: unknown): number {
   return Math.trunc(num);
 }
 
-analyticsRouter.post("/site-visit", (req: Request, res: Response) => {
+analyticsRouter.post("/site-visit", async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, unknown>;
     if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -56,7 +56,7 @@ analyticsRouter.post("/site-visit", (req: Request, res: Response) => {
     const userAgent = cleanString(req.headers["user-agent"], 512);
     const ipAddress = cleanIp(req);
 
-    const result = recordSiteVisit({
+    const result = (await recordSiteVisit({
       visitorId,
       path,
       referrer,
@@ -66,7 +66,7 @@ analyticsRouter.post("/site-visit", (req: Request, res: Response) => {
       screenHeight,
       ipAddress,
       userAgent,
-    });
+    }));
 
     res.json(ok({ accepted: result.accepted, visitDay: result.visitDay }));
   } catch (err) {

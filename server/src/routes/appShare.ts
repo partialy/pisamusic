@@ -12,9 +12,9 @@ appShareRouter.use((_req, res, next) => {
   res.setHeader("Referrer-Policy", "no-referrer");
   next();
 });
-appShareRouter.get("/public/:code", (req, res) => {
+appShareRouter.get("/public/:code", async (req, res) => {
   try {
-    return res.json(ok(publicTrackingCode(String(req.params.code))));
+    return res.json(ok((await publicTrackingCode(String(req.params.code)))));
   } catch (error) {
     const status = error instanceof AppShareTrackingError ? error.status : 500;
     return res
@@ -22,7 +22,7 @@ appShareRouter.get("/public/:code", (req, res) => {
       .json(fail(status === 500 ? "读取分享链接失败" : "分享链接无效", status));
   }
 });
-appShareRouter.post("/visits", (req, res) => {
+appShareRouter.post("/visits", async (req, res) => {
   if (
     isBotUserAgent(
       req.header("user-agent") ?? "",
@@ -46,7 +46,7 @@ appShareRouter.post("/visits", (req, res) => {
   )
     return res.status(403).json(fail("无效访问", 403));
   try {
-    return res.json(ok(acceptTrackingVisit(req, res)));
+    return res.json(ok((await acceptTrackingVisit(req, res))));
   } catch (error) {
     const status =
       error instanceof AppShareTrackingError

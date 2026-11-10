@@ -92,19 +92,19 @@ function hostFromRoom(room: ListenTogetherRoom): ListenTogetherSocketUser {
   };
 }
 
-export function listAdminOnlineRooms(input: {
+export async function listAdminOnlineRooms(input: {
   keyword?: string;
   offset: number;
   limit: number;
-}): AdminOnlineRoomPage {
+}): Promise<AdminOnlineRoomPage> {
   const allRooms = listRooms();
   const kw = input.keyword ? input.keyword.trim().toLowerCase() : "";
 
-  let filtered = allRooms.map((room) => {
+  let filtered = await Promise.all(allRooms.map(async (room) => {
     const host = hostFromRoom(room);
     const onlinePeople = room.members.filter((m) => m.online).length;
     const currentPeople = room.members.length;
-    const historyDetail = room.recordId ? readRoomHistoryDetail(room.recordId) : null;
+    const historyDetail = room.recordId ? (await readRoomHistoryDetail(room.recordId)) : null;
     const peakPeople = historyDetail?.peakPeople ?? currentPeople;
     const totalJoinCount = historyDetail?.totalJoinCount ?? currentPeople;
     const uniquePeople = historyDetail?.uniquePeople ?? currentPeople;
@@ -128,7 +128,7 @@ export function listAdminOnlineRooms(input: {
       updatedAt: room.updatedAt,
     };
     return item;
-  });
+  }));
 
   if (kw) {
     filtered = filtered.filter((item) => {
@@ -159,14 +159,14 @@ export function listAdminOnlineRooms(input: {
   };
 }
 
-export function readAdminOnlineRoom(recordId: string): AdminOnlineRoomDetail | null {
+export async function readAdminOnlineRoom(recordId: string): Promise<AdminOnlineRoomDetail | null> {
   const room = getRoomByRecordId(recordId);
   if (!room) return null;
 
   const host = hostFromRoom(room);
   const onlinePeople = room.members.filter((m) => m.online).length;
   const currentPeople = room.members.length;
-  const historyDetail = room.recordId ? readRoomHistoryDetail(room.recordId) : null;
+  const historyDetail = room.recordId ? (await readRoomHistoryDetail(room.recordId)) : null;
   const peakPeople = historyDetail?.peakPeople ?? currentPeople;
   const totalJoinCount = historyDetail?.totalJoinCount ?? currentPeople;
   const uniquePeople = historyDetail?.uniquePeople ?? currentPeople;
@@ -202,18 +202,18 @@ export function readAdminOnlineRoom(recordId: string): AdminOnlineRoomDetail | n
   };
 }
 
-export function listAdminRoomHistory(input: AdminRoomHistoryQuery): AdminRoomHistoryPage {
-  return listRoomHistory(input);
+export async function listAdminRoomHistory(input: AdminRoomHistoryQuery): Promise<AdminRoomHistoryPage> {
+  return (await listRoomHistory(input));
 }
 
-export function readAdminRoomHistory(recordId: string): AdminRoomHistoryDetail | null {
-  return readRoomHistoryDetail(recordId);
+export async function readAdminRoomHistory(recordId: string): Promise<AdminRoomHistoryDetail | null> {
+  return (await readRoomHistoryDetail(recordId));
 }
 
-export function dissolveAdminOnlineRoom(input: {
+export async function dissolveAdminOnlineRoom(input: {
   recordId: string;
   adminUsername: string;
-}): { recordId: string; roomId: string; endedAt: number } {
+}): Promise<{ recordId: string; roomId: string; endedAt: number }> {
   const room = getRoomByRecordId(input.recordId);
   if (!room) {
     throw new ListenTogetherError("房间不存在或已结束", "ROOM_NOT_FOUND", 404);
@@ -228,7 +228,7 @@ export function dissolveAdminOnlineRoom(input: {
   const allSocketIds = room.members.flatMap((m) => getUserSockets(m.userId));
 
   // 1. Close history record
-  closeRoomRecord({
+  (await closeRoomRecord({
     roomRecordId: recordId,
     endedAt,
     endReason: "admin_dissolved",
@@ -237,7 +237,7 @@ export function dissolveAdminOnlineRoom(input: {
     lastSong: room.song,
     finalPlaybackStatus: room.status,
     finalPosition: room.position,
-  });
+  }));
 
   // 2. Clear timers and userRooms
   for (const member of room.members) {

@@ -3,6 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { legacyHtmlToPlainText } from "./plainTextContent";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { type DbClient, type DbTransaction } from "./core/types";
+import { createDatabase, readDatabaseConfig } from "./core/createDatabase";
+import { SqliteClient } from "./core/sqliteClient";
+import { assertSchemaCurrent } from "./schema/runner";
 
 function getDbPath(): string {
   const configuredPath = String(process.env.PISA_APP_DB_PATH ?? "").trim();
@@ -794,7 +799,9 @@ function migrateDynamicConfigs(db: DatabaseSync) {
 function migrateAnnouncements(db: DatabaseSync) {
   const cols = getColumnNames(db, "announcements");
   if (cols.has("content") || !cols.has("content_json")) {
-    db.exec("DROP TABLE IF EXISTS announcements");
+    const count = db.prepare("SELECT COUNT(*) AS n FROM announcements").get() as { n: number };
+    if (count.n > 0) throw new Error("检测到旧公告结构且含数据，请先通过迁移工具无损升级；原表已保留");
+    db.exec("ALTER TABLE announcements RENAME TO announcements_legacy_preserved");
     db.exec(`
       CREATE TABLE announcements (
         id                  TEXT    PRIMARY KEY,
@@ -998,24 +1005,13 @@ function migrateRuntimeConfigs(db: DatabaseSync) {
 function migrateListenTogether(db: DatabaseSync) {
   const cols = getColumnNames(db, "listen_together_room_records");
   if (cols.size > 0 && !cols.has("lifecycle_status")) {
-    db.exec(`
-      DROP TABLE IF EXISTS listen_together_room_members;
-      DROP TABLE IF EXISTS listen_together_room_records;
-    `);
+    throw new Error("检测到旧一起听表结构，请先通过迁移工具无损升级；原表已保留");
   }
 }
 
 function initSchema(db: DatabaseSync) {
   migrateListenTogether(db);
-  db.exec(`
-    DROP TABLE IF EXISTS sync_applied_ops;
-    DROP TABLE IF EXISTS sync_change_log;
-    DROP TABLE IF EXISTS sync_items;
-    DROP TABLE IF EXISTS sync_devices;
-    DROP TABLE IF EXISTS sync_spaces;
-    DROP TABLE IF EXISTS release_files;
-    DROP TABLE IF EXISTS desktop_update_assets;
-  `);
+  // 历史表保留给离线迁移与审计，不在启动时删除用户数据。
   db.exec(CREATE_SQL);
   db.exec(APP_SHARE_TRACKING_SQL);
   db.exec(`
@@ -1039,17 +1035,45 @@ function initSchema(db: DatabaseSync) {
   repairFileRecords(db);
 }
 
-let singleton: DatabaseSync | null = null;
-
-export function getAppDb(): DatabaseSync {
+let singleton: DbClient | null = null;
+const transactionContext = new AsyncLocalStorage<DbClient>();
+function scopedClient(client: DbClient): DbClient {
+  return {
+    dialect: client.dialect,
+    query: (sql, params) => (transactionContext.getStore() ?? client).query(sql, params),
+    queryOne: (sql, params) => (transactionContext.getStore() ?? client).queryOne(sql, params),
+    execute: (sql, params) => (transactionContext.getStore() ?? client).execute(sql, params),
+    transaction: async (action) => {
+      const current = transactionContext.getStore();
+      if (current) return action(current);
+      return client.transaction(async (tx: DbTransaction) => {
+        const scoped: DbClient = { ...tx, dialect: tx.dialect, query: tx.query.bind(tx), queryOne: tx.queryOne.bind(tx), execute: tx.execute.bind(tx), transaction: async (nested) => nested(tx), close: async () => { throw new Error("事务中不能关闭数据库"); } };
+        return transactionContext.run(scoped, () => action(tx));
+      });
+    },
+    close: () => client.close(),
+  };
+}
+export async function initializeDatabase(options: { readOnlyStartup?: boolean } = {}): Promise<DbClient> {
   if (singleton) return singleton;
-  const dbPath = getDbPath();
-  const dir = path.dirname(dbPath);
-  fs.mkdirSync(dir, { recursive: true });
-  const db = new DatabaseSync(dbPath);
-  db.exec("PRAGMA journal_mode = WAL;");
-  db.exec("PRAGMA foreign_keys = ON;");
-  initSchema(db);
-  singleton = db;
-  return db;
+  const config = readDatabaseConfig();
+  let client: DbClient;
+  if (config.type === "SQLITE") {
+    fs.mkdirSync(path.dirname(config.path), { recursive: true });
+    const raw = new DatabaseSync(config.path);
+    try {
+      raw.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+      if (!options.readOnlyStartup) initSchema(raw);
+      client = new SqliteClient(raw);
+    } catch (error) { raw.close(); throw error; }
+  } else {
+    client = await createDatabase(config);
+    try { await assertSchemaCurrent(client); } catch (error) { await client.close(); throw error; }
+  }
+  singleton = scopedClient(client);
+  return singleton;
+}
+export function getAppDb(): DbClient {
+  if (!singleton) throw new Error("数据库尚未初始化，请先 await initializeDatabase()");
+  return singleton;
 }

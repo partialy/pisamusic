@@ -19,7 +19,7 @@ function readPlatform(body: unknown): "android" | "desktop" | null {
   return body.platform === "android" || body.platform === "desktop" ? body.platform : null;
 }
 
-announcementsRouter.post("/:id/read", (req: Request, res: Response) => {
+announcementsRouter.post("/:id/read", async (req: Request, res: Response) => {
   try {
     const announcementId = String(req.params.id ?? "").trim();
     const platform = readPlatform(req.body);
@@ -30,25 +30,25 @@ announcementsRouter.post("/:id/read", (req: Request, res: Response) => {
       return res.status(400).json(fail("platform 必须是 android 或 desktop", 400));
     }
 
-    const deviceIdentity = deviceMessageIdentityFromRequest(req);
+    const deviceIdentity = (await deviceMessageIdentityFromRequest(req));
     if (!deviceIdentity) {
       return res.status(401).json(fail("缺少有效的设备身份", 401));
     }
 
     const rawUserToken = tokenFromRequest(req);
-    const user = rawUserToken ? verifyUserToken(rawUserToken) : null;
+    const user = rawUserToken ? (await verifyUserToken(rawUserToken)) : null;
     if (rawUserToken && !user) {
       return res.status(401).json(fail("账号登录已失效，请重新登录", 401));
     }
 
-    const receipt = recordAnnouncementRead({
+    const receipt = (await recordAnnouncementRead({
       announcementId,
       platform,
       deviceIdentity,
       user,
       clientIp: getClientIp(req),
       userAgent: req.get("user-agent") ?? "",
-    });
+    }));
     return res.json(ok({
       announcementId: receipt.announcementId,
       readAt: receipt.readAt,

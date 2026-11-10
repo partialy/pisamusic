@@ -369,7 +369,7 @@ export async function deleteQiniuObject(bucket: string, key: string): Promise<vo
 }
 
 export async function statQiniuObject(bucket: string, key: string): Promise<QiniuObjectStat> {
-  return statQiniuObjectInSpace("release", bucket, key);
+  return (await statQiniuObjectInSpace("release", bucket, key));
 }
 
 export async function statQiniuObjectInSpace(space: QiniuSpace, bucket: string, key: string): Promise<QiniuObjectStat> {
@@ -395,7 +395,7 @@ export async function uploadQiniuBuffer(input: FixedQiniuUploadTokenInput & { da
   const putExtra = new qiniu.form_up.PutExtra(undefined, undefined, input.mimeType);
   const result = await uploader.putStream(token.uploadToken, input.key, Readable.from(input.data), putExtra);
   if (result.resp.statusCode !== 200) throw new Error(`七牛上传失败：HTTP ${result.resp.statusCode}`);
-  return statQiniuObject(input.bucket, input.key);
+  return (await statQiniuObject(input.bucket, input.key));
 }
 
 export async function deleteAccountAvatarObject(key: string): Promise<void> {

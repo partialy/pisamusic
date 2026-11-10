@@ -19,9 +19,9 @@ import { readHydratedAnnouncements } from "../services/announcementService";
 import { fail, ok } from "../types/response";
 
 export const configRouter = Router();
-configRouter.get("/app-share", (_req, res) => {
+configRouter.get("/app-share", async (_req, res) => {
   res.setHeader("Cache-Control", "private, no-store"); res.vary("Authorization"); res.vary("x-pm-device-token");
-  try { const share = getIdentityAppShare(_req); return res.json(ok({ ...share, iconUrl: toAbsoluteUrl(share.iconUrl, _req) })); }
+  try { const share = (await getIdentityAppShare(_req)); return res.json(ok({ ...share, iconUrl: toAbsoluteUrl(share.iconUrl, _req) })); }
   catch (e) { const status = e instanceof AppShareTrackingError ? e.status : 500; return res.status(status).json(fail(e instanceof AppShareTrackingError ? e.message : "读取 App 分享配置失败", status)); }
 });
 
@@ -42,8 +42,8 @@ function extractFileRecordId(downloadUrl: string): string | null {
   return match ? match[1] ?? null : null;
 }
 
-function blockedResponse() {
-  const cfg = readAppConfig();
+async function blockedResponse() {
+  const cfg = (await readAppConfig());
   const state = shouldBlock(cfg);
   return { cfg, state };
 }
@@ -96,9 +96,9 @@ function absolutizeHistoryDownloads(items: UpdateHistoryItem[], req: Request): U
   }));
 }
 
-configRouter.get("/bootstrap", (_req, res) => {
+configRouter.get("/bootstrap", async (_req, res) => {
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
@@ -110,9 +110,9 @@ configRouter.get("/bootstrap", (_req, res) => {
   }
 });
 
-configRouter.get("/check-update", (req, res) => {
+configRouter.get("/check-update", async (req, res) => {
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
@@ -124,9 +124,9 @@ configRouter.get("/check-update", (req, res) => {
   }
 });
 
-configRouter.get("/releases", (req, res) => {
+configRouter.get("/releases", async (req, res) => {
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
@@ -138,9 +138,9 @@ configRouter.get("/releases", (req, res) => {
   }
 });
 
-configRouter.get("/desktop-updates/:platform/:arch/latest.yml", (req, res) => {
+configRouter.get("/desktop-updates/:platform/:arch/latest.yml", async (req, res) => {
   try {
-    const { state } = blockedResponse();
+    const { state } = (await blockedResponse());
     if (state.blocked) {
       res.status(403).type("text/plain").send(state.reason);
       return;
@@ -151,7 +151,7 @@ configRouter.get("/desktop-updates/:platform/:arch/latest.yml", (req, res) => {
       res.status(404).type("text/plain").send("Not found");
       return;
     }
-    const asset = readActiveDesktopUpdateAsset("latest.yml", platform, arch);
+    const asset = (await readActiveDesktopUpdateAsset("latest.yml", platform, arch));
     if (!asset) {
       res.status(404).type("text/plain").send("latest.yml not configured");
       return;
@@ -163,9 +163,9 @@ configRouter.get("/desktop-updates/:platform/:arch/latest.yml", (req, res) => {
   }
 });
 
-configRouter.get("/desktop-updates/:platform/:arch/:fileName", (req, res) => {
+configRouter.get("/desktop-updates/:platform/:arch/:fileName", async (req, res) => {
   try {
-    const { state } = blockedResponse();
+    const { state } = (await blockedResponse());
     if (state.blocked) {
       res.status(403).type("text/plain").send(state.reason);
       return;
@@ -177,7 +177,7 @@ configRouter.get("/desktop-updates/:platform/:arch/:fileName", (req, res) => {
       res.status(404).type("text/plain").send("Not found");
       return;
     }
-    const asset = readActiveDesktopUpdateAsset(fileName, platform, arch);
+    const asset = (await readActiveDesktopUpdateAsset(fileName, platform, arch));
     if (!asset) {
       res.status(404).type("text/plain").send("update asset not configured");
       return;
@@ -189,9 +189,9 @@ configRouter.get("/desktop-updates/:platform/:arch/:fileName", (req, res) => {
   }
 });
 
-configRouter.get("/discover", (_req, res) => {
+configRouter.get("/discover", async (_req, res) => {
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
@@ -203,9 +203,9 @@ configRouter.get("/discover", (_req, res) => {
   }
 });
 
-configRouter.get("/get", (_req, res) => {
+configRouter.get("/get", async (_req, res) => {
   try {
-    const { state } = blockedResponse();
+    const { state } = (await blockedResponse());
     if (state.blocked) {
       res.status(403).json(fail(state.reason, -233));
       return;
@@ -215,7 +215,7 @@ configRouter.get("/get", (_req, res) => {
       res.status(400).json(fail("id 不能为空", 400));
       return;
     }
-    const item = readDynamicConfigById(id);
+    const item = (await readDynamicConfigById(id));
     if (!item) {
       res.status(404).json(fail("配置不存在", 404));
       return;
@@ -233,9 +233,9 @@ configRouter.get("/get", (_req, res) => {
   }
 });
 
-configRouter.get("/agreement", (_req, res) => {
+configRouter.get("/agreement", async (_req, res) => {
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
@@ -247,9 +247,9 @@ configRouter.get("/agreement", (_req, res) => {
   }
 });
 
-configRouter.get("/service-agreement", (_req, res) => {
+configRouter.get("/service-agreement", async (_req, res) => {
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
@@ -261,9 +261,9 @@ configRouter.get("/service-agreement", (_req, res) => {
   }
 });
 
-configRouter.get("/privacy-policy", (_req, res) => {
+configRouter.get("/privacy-policy", async (_req, res) => {
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
@@ -275,43 +275,43 @@ configRouter.get("/privacy-policy", (_req, res) => {
   }
 });
 
-configRouter.get("/announcements", (_req, res) => {
+configRouter.get("/announcements", async (_req, res) => {
   try {
-    const { state } = blockedResponse();
+    const { state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
     }
-    res.json(ok(readHydratedAnnouncements({ enabledOnly: true })));
+    res.json(ok((await readHydratedAnnouncements({ enabledOnly: true }))));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
     res.status(500).json(fail(message, 500));
   }
 });
 
-configRouter.get("/update-history", (req, res) => {
+configRouter.get("/update-history", async (req, res) => {
   try {
-    const { state } = blockedResponse();
+    const { state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
     }
-    res.json(ok(absolutizeHistoryDownloads(readUpdateHistory(), req)));
+    res.json(ok(absolutizeHistoryDownloads((await readUpdateHistory()), req)));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
     res.status(500).json(fail(message, 500));
   }
 });
 
-configRouter.get("/release-files/:id/download", (req, res) => {
+configRouter.get("/release-files/:id/download", async (req, res) => {
   try {
-    const { state } = blockedResponse();
+    const { state } = (await blockedResponse());
     if (state.blocked) {
       res.status(403).json(fail(state.reason, -233));
       return;
     }
     const id = String(req.params.id ?? "").trim();
-    const file = readReleaseFileById(id);
+    const file = (await readReleaseFileById(id));
     if (!file || file.status !== "uploaded") {
       res.status(404).json(fail("安装包不存在或已删除", 404));
       return;
@@ -323,9 +323,9 @@ configRouter.get("/release-files/:id/download", (req, res) => {
   }
 });
 
-configRouter.get("/about", (_req, res) => {
+configRouter.get("/about", async (_req, res) => {
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.json(fail(state.reason, -233));
       return;
@@ -337,7 +337,7 @@ configRouter.get("/about", (_req, res) => {
   }
 });
 
-configRouter.get("/download/:platform", (req, res) => {
+configRouter.get("/download/:platform", async (req, res) => {
   const platformParam = String(req.params.platform ?? "").trim().toLowerCase();
   if (platformParam !== "android" && platformParam !== "desktop") {
     res.status(404).json(fail("Not Found", 404));
@@ -346,7 +346,7 @@ configRouter.get("/download/:platform", (req, res) => {
   const platform = platformParam as "android" | "desktop";
 
   try {
-    const { cfg, state } = blockedResponse();
+    const { cfg, state } = (await blockedResponse());
     if (state.blocked) {
       res.status(403).json(fail(state.reason, -233));
       return;
@@ -366,13 +366,13 @@ configRouter.get("/download/:platform", (req, res) => {
 
     const fileRecordId = extractFileRecordId(downloadUrl);
     // 先核验实际对象并生成签名，再统计成功的下载触发，避免第二跳失败被误计数。
-    const redirectUrl = resolveTrackedDownloadTarget(downloadUrl, fileRecordId);
+    const redirectUrl = (await resolveTrackedDownloadTarget(downloadUrl, fileRecordId));
     const ipAddress = cleanIp(req);
     const userAgent = cleanString(req.headers["user-agent"], 512);
     const referrer = cleanString(req.headers.referer || req.headers.referrer, 512);
 
     try {
-      trackWebsiteDownload(req, {
+      (await trackWebsiteDownload(req, {
         platform,
         version: release.latestVersion,
         fileRecordId,
@@ -380,7 +380,7 @@ configRouter.get("/download/:platform", (req, res) => {
         referrer,
         userAgent,
         occurredAt: Date.now(),
-      });
+      }));
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn("[analytics] recordDownload failed:", err);

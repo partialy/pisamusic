@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import type { DbClient, DbTransaction } from "./core/types";
 import { getAppDb } from "./appDb";
 import { normalizePlainTextContent } from "./plainTextContent";
 import { parseAnnouncementContent, toStoredAnnouncementContent, type AnnouncementContent } from "../services/announcementContent";
@@ -426,16 +426,8 @@ function parseEmailProviders(raw?: string | null): EmailProviderConfig[] {
   }
 }
 
-function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = fn();
-    db.exec("COMMIT");
-    return result;
-  } catch (e) {
-    db.exec("ROLLBACK");
-    throw e;
-  }
+async function runInTransaction<T>(db: DbClient, fn: (db: DbTransaction) => Promise<T>): Promise<T> {
+  return db.transaction(fn);
 }
 
 type FileRecordRow = {
@@ -640,40 +632,38 @@ function desktopAssetFromRecord(record?: FileRecordInfo | null): DesktopUpdateAs
   };
 }
 
-function readFileRecordByIdWithDb(db: DatabaseSync, id: string): FileRecordInfo | null {
-  const row = db.prepare("SELECT * FROM file_records WHERE id = ?").get(id) as FileRecordRow | undefined;
+async function readFileRecordByIdWithDb(db: DbTransaction, id: string): Promise<FileRecordInfo | null> {
+  const row = (await db.queryOne("SELECT * FROM file_records WHERE id = ?", [id])) as FileRecordRow | undefined;
   return mapFileRecord(row);
 }
 
-function readFileRecordRowById(db: DatabaseSync, id: string): FileRecordRow | null {
-  return (db.prepare("SELECT * FROM file_records WHERE id = ?").get(id) as FileRecordRow | undefined) ?? null;
+async function readFileRecordRowById(db: DbTransaction, id: string): Promise<FileRecordRow | null> {
+  return ((await db.queryOne("SELECT * FROM file_records WHERE id = ?", [id])) as FileRecordRow | undefined) ?? null;
 }
 
-function readFileRecordByProviderKey(provider: "qiniu", bucket: string, objectKey: string): FileRecordInfo | null {
-  const row = getAppDb()
-    .prepare("SELECT * FROM file_records WHERE provider = ? AND bucket = ? AND object_key = ?")
-    .get(provider, bucket, objectKey) as FileRecordRow | undefined;
+async function readFileRecordByProviderKey(provider: "qiniu", bucket: string, objectKey: string): Promise<FileRecordInfo | null> {
+  const row = (await getAppDb().queryOne("SELECT * FROM file_records WHERE provider = ? AND bucket = ? AND object_key = ?", [provider, bucket, objectKey])) as FileRecordRow | undefined;
   return mapFileRecord(row);
 }
 
-function updateFileReferences(db: DatabaseSync, id: string, updater: (refs: FileRecordReference[]) => FileRecordReference[]): void {
-  const row = readFileRecordRowById(db, id);
+async function updateFileReferences(db: DbTransaction, id: string, updater: (refs: FileRecordReference[]) => FileRecordReference[]): Promise<void> {
+  const row = (await readFileRecordRowById(db, id));
   if (!row) throw new Error("文件记录不存在");
   const refs = updater(parseFileReferences(row.referenced_by));
-  db.prepare("UPDATE file_records SET referenced_by = ? WHERE id = ?").run(serializeFileReferences(refs), id);
+  (await db.execute("UPDATE file_records SET referenced_by = ? WHERE id = ?", [serializeFileReferences(refs), id]));
 }
 
-function addFileReference(db: DatabaseSync, id: string, ref: FileRecordReference): void {
-  updateFileReferences(db, id, (refs) => [...refs.filter((item) => fileReferenceKey(item) !== fileReferenceKey(ref)), ref]);
+async function addFileReference(db: DbTransaction, id: string, ref: FileRecordReference): Promise<void> {
+  (await updateFileReferences(db, id, (refs) => [...refs.filter((item) => fileReferenceKey(item) !== fileReferenceKey(ref)), ref]));
 }
 
-function removeFileReferences(db: DatabaseSync, predicate: (ref: FileRecordReference, row: FileRecordRow) => boolean): void {
-  const rows = db.prepare("SELECT * FROM file_records WHERE referenced_by <> ''").all() as FileRecordRow[];
+async function removeFileReferences(db: DbTransaction, predicate: (ref: FileRecordReference, row: FileRecordRow) => boolean): Promise<void> {
+  const rows = (await db.query("SELECT * FROM file_records WHERE referenced_by <> ''", [])) as FileRecordRow[];
   for (const row of rows) {
     const refs = parseFileReferences(row.referenced_by);
     const next = refs.filter((ref) => !predicate(ref, row));
     if (next.length !== refs.length) {
-      db.prepare("UPDATE file_records SET referenced_by = ? WHERE id = ?").run(serializeFileReferences(next), row.id);
+      (await db.execute("UPDATE file_records SET referenced_by = ? WHERE id = ?", [serializeFileReferences(next), row.id]));
     }
   }
 }
@@ -682,12 +672,32 @@ function downloadUrlBelongsToReleaseFile(downloadUrl: string, file: ReleaseFileI
   return downloadUrl === file.downloadUrl || downloadUrl.includes(buildReleaseDownloadPath(file.id));
 }
 
-export function replaceAppConfig(config: AppConfig) {
-  const db = getAppDb();
-  runInTransaction(db, () => {
+export async function replaceAppConfig(config: AppConfig) {
+  await getAppDb().transaction((tx) => replaceAppConfigWithDb(tx, config));
+}
+
+async function replaceAppConfigWithDb(db: DbTransaction, config: AppConfig): Promise<void> {
     const now = Date.now();
-    db.prepare(
-      `INSERT INTO app_settings (
+    (await db.execute((db.dialect === "mysql" ? `INSERT INTO app_settings (
+        id, app_available, unavailable_reason, bootstrap_version, bootstrap_updated_at,
+        gateway_secret, gateway_as, email_service_url, email_provider, email_providers_json, updater_enabled, updater_feed_base_url,
+        updater_check_startup, updater_startup_delay, created_at, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        app_available = VALUES(app_available),
+        unavailable_reason = VALUES(unavailable_reason),
+        bootstrap_version = VALUES(bootstrap_version),
+        bootstrap_updated_at = VALUES(bootstrap_updated_at),
+        gateway_secret = VALUES(gateway_secret),
+        gateway_as = VALUES(gateway_as),
+        email_service_url = VALUES(email_service_url),
+        email_provider = VALUES(email_provider),
+        email_providers_json = VALUES(email_providers_json),
+        updater_enabled = VALUES(updater_enabled),
+        updater_feed_base_url = VALUES(updater_feed_base_url),
+        updater_check_startup = VALUES(updater_check_startup),
+        updater_startup_delay = VALUES(updater_startup_delay),
+        updated_at = VALUES(updated_at)` : `INSERT INTO app_settings (
         id, app_available, unavailable_reason, bootstrap_version, bootstrap_updated_at,
         gateway_secret, gateway_as, email_service_url, email_provider, email_providers_json, updater_enabled, updater_feed_base_url,
         updater_check_startup, updater_startup_delay, created_at, updated_at
@@ -706,50 +716,31 @@ export function replaceAppConfig(config: AppConfig) {
         updater_feed_base_url = excluded.updater_feed_base_url,
         updater_check_startup = excluded.updater_check_startup,
         updater_startup_delay = excluded.updater_startup_delay,
-        updated_at = excluded.updated_at`,
-    ).run(
-      boolToDb(config.availability.appAvailable),
-      config.availability.unavailableReason,
-      config.bootstrap.version,
-      config.bootstrap.updatedAt,
-      config.bootstrap.gatewaySign?.secret ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.secret ?? "",
-      config.bootstrap.gatewaySign?.as ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.as ?? "",
-      normalizeEmailConfig(config.email).serviceUrl,
-      normalizeEmailConfig(config.email).provider,
-      JSON.stringify(normalizeEmailConfig(config.email).providers),
-      boolToDb(normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).enabled),
-      normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).feedBaseUrl,
-      boolToDb(normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).checkOnStartup),
-      normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).startupDelayMs,
-      now,
-      now,
-    );
+        updated_at = excluded.updated_at`), [boolToDb(config.availability.appAvailable), config.availability.unavailableReason, config.bootstrap.version, config.bootstrap.updatedAt, config.bootstrap.gatewaySign?.secret ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.secret ?? "", config.bootstrap.gatewaySign?.as ?? DEFAULT_APP_CONFIG.bootstrap.gatewaySign?.as ?? "", normalizeEmailConfig(config.email).serviceUrl, normalizeEmailConfig(config.email).provider, JSON.stringify(normalizeEmailConfig(config.email).providers), boolToDb(normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).enabled), normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).feedBaseUrl, boolToDb(normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).checkOnStartup), normalizeDesktopUpdaterConfig(config.bootstrap.updater?.desktop).startupDelayMs, now, now]));
 
-    replaceEndpoints(db, config.bootstrap.endpoints);
-    replaceContentPage(db, "agreement", config.agreement);
-    replaceContentPage(db, "privacy", config.privacy);
-    replaceAbout(db, config.about);
-    replaceCurrentUpdate(db, config.update);
-    replaceReleases(db, {
+    (await replaceEndpoints(db, config.bootstrap.endpoints));
+    (await replaceContentPage(db, "agreement", config.agreement));
+    (await replaceContentPage(db, "privacy", config.privacy));
+    (await replaceAbout(db, config.about));
+    (await replaceCurrentUpdate(db, config.update));
+    (await replaceReleases(db, {
       android: normalizeRelease("android", config.releases?.android, config.update),
       desktop: normalizeRelease("desktop", config.releases?.desktop),
-    });
-    replaceDiscover(db, config.discover ?? DEFAULT_APP_CONFIG.discover);
-    replacePlaintextPathsWithDb(db, config.encryption?.plaintextPaths ?? []);
-  });
+    }));
+    (await replaceDiscover(db, config.discover ?? DEFAULT_APP_CONFIG.discover));
+    (await replacePlaintextPathsWithDb(db, config.encryption?.plaintextPaths ?? []));
 }
 
-function replaceEndpoints(db: DatabaseSync, endpoints: Record<string, string>) {
-  db.prepare("DELETE FROM bootstrap_endpoints").run();
-  const insert = db.prepare("INSERT INTO bootstrap_endpoints (key, value, sort_order) VALUES (?, ?, ?)");
-  Object.entries(endpoints).forEach(([key, value], index) => insert.run(key, value, index));
+async function replaceEndpoints(db: DbTransaction, endpoints: Record<string, string>) {
+  (await db.execute("DELETE FROM bootstrap_endpoints", []));
+  for (const [index, [key, value]] of Object.entries(endpoints).entries()) {
+    await db.execute("INSERT INTO bootstrap_endpoints (`key`, value, sort_order) VALUES (?, ?, ?)", [key, value, index]);
+  }
 }
 
-function replaceContentPage(db: DatabaseSync, code: string, page: TextContentConfig) {
+async function replaceContentPage(db: DbTransaction, code: string, page: TextContentConfig) {
   const content = normalizePlainTextContent(page.content);
-  const current = db.prepare(
-    "SELECT title, content, version FROM content_pages WHERE code = ?",
-  ).get(code) as { title: string; content: string; version: number } | undefined;
+  const current = (await db.queryOne("SELECT title, content, version FROM content_pages WHERE code = ?", [code])) as { title: string; content: string; version: number } | undefined;
   const changed = !current || current.title !== page.title || current.content !== content;
   const currentVersion = current && Number.isSafeInteger(current.version) && current.version > 0
     ? current.version
@@ -758,20 +749,33 @@ function replaceContentPage(db: DatabaseSync, code: string, page: TextContentCon
     throw new Error(`${code} 版本号已达到上限`);
   }
   const version = changed ? (current ? currentVersion + 1 : 1) : currentVersion;
-  db.prepare(
-    `INSERT INTO content_pages (code, title, content, version, updated_at)
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO content_pages (code, title, content, version, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       title = VALUES(title),
+       content = VALUES(content),
+       version = VALUES(version),
+       updated_at = VALUES(updated_at)` : `INSERT INTO content_pages (code, title, content, version, updated_at)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(code) DO UPDATE SET
        title = excluded.title,
        content = excluded.content,
        version = excluded.version,
-       updated_at = excluded.updated_at`,
-  ).run(code, page.title, content, version, Date.now());
+       updated_at = excluded.updated_at`), [code, page.title, content, version, Date.now()]));
 }
 
-function replaceAbout(db: DatabaseSync, about: AboutConfig) {
-  db.prepare(
-    `INSERT INTO about_config (
+async function replaceAbout(db: DbTransaction, about: AboutConfig) {
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO about_config (
+      id, app_name, website_label, website_url, description, team, copyright, updated_at
+    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      app_name = VALUES(app_name),
+      website_label = VALUES(website_label),
+      website_url = VALUES(website_url),
+      description = VALUES(description),
+      team = VALUES(team),
+      copyright = VALUES(copyright),
+      updated_at = VALUES(updated_at)` : `INSERT INTO about_config (
       id, app_name, website_label, website_url, description, team, copyright, updated_at
     ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
@@ -781,21 +785,21 @@ function replaceAbout(db: DatabaseSync, about: AboutConfig) {
       description = excluded.description,
       team = excluded.team,
       copyright = excluded.copyright,
-      updated_at = excluded.updated_at`,
-  ).run(
-    about.appName,
-    about.websiteLabel,
-    about.websiteUrl,
-    about.description,
-    about.team,
-    about.copyright,
-    Date.now(),
-  );
+      updated_at = excluded.updated_at`), [about.appName, about.websiteLabel, about.websiteUrl, about.description, about.team, about.copyright, Date.now()]));
 }
 
-function replaceCurrentUpdate(db: DatabaseSync, update: AppUpdate) {
-  db.prepare(
-    `INSERT INTO current_update (
+async function replaceCurrentUpdate(db: DbTransaction, update: AppUpdate) {
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO current_update (
+      id, latest_version, update_time, force_update, download_url, official_url, update_content, updated_at
+    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      latest_version = VALUES(latest_version),
+      update_time = VALUES(update_time),
+      force_update = VALUES(force_update),
+      download_url = VALUES(download_url),
+      official_url = VALUES(official_url),
+      update_content = VALUES(update_content),
+      updated_at = VALUES(updated_at)` : `INSERT INTO current_update (
       id, latest_version, update_time, force_update, download_url, official_url, update_content, updated_at
     ) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
@@ -805,23 +809,27 @@ function replaceCurrentUpdate(db: DatabaseSync, update: AppUpdate) {
       download_url = excluded.download_url,
       official_url = excluded.official_url,
       update_content = excluded.update_content,
-      updated_at = excluded.updated_at`,
-  ).run(
-    update.latestVersion,
-    update.updateTime,
-    boolToDb(update.forceUpdate),
-    update.downloadUrl,
-    update.officialUrl,
-    update.updateContent,
-    Date.now(),
-  );
+      updated_at = excluded.updated_at`), [update.latestVersion, update.updateTime, boolToDb(update.forceUpdate), update.downloadUrl, update.officialUrl, update.updateContent, Date.now()]));
 }
 
-function replaceReleases(db: DatabaseSync, releases: ReleaseConfig) {
+async function replaceReleases(db: DbTransaction, releases: ReleaseConfig) {
   for (const platform of RELEASE_PLATFORMS) {
     const release = normalizeRelease(platform, releases[platform], platform === "android" ? appUpdateFromRelease(releases.android) : undefined);
-    db.prepare(
-      `INSERT INTO release_info (
+    (await db.execute((db.dialect === "mysql" ? `INSERT INTO release_info (
+        platform, latest_version, update_time, force_update, download_url, official_url,
+        update_content, platform_label, file_size_text, available, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        latest_version = VALUES(latest_version),
+        update_time = VALUES(update_time),
+        force_update = VALUES(force_update),
+        download_url = VALUES(download_url),
+        official_url = VALUES(official_url),
+        update_content = VALUES(update_content),
+        platform_label = VALUES(platform_label),
+        file_size_text = VALUES(file_size_text),
+        available = VALUES(available),
+        updated_at = VALUES(updated_at)` : `INSERT INTO release_info (
         platform, latest_version, update_time, force_update, download_url, official_url,
         update_content, platform_label, file_size_text, available, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -835,36 +843,28 @@ function replaceReleases(db: DatabaseSync, releases: ReleaseConfig) {
         platform_label = excluded.platform_label,
         file_size_text = excluded.file_size_text,
         available = excluded.available,
-        updated_at = excluded.updated_at`,
-    ).run(
-      platform,
-      release.latestVersion,
-      release.updateTime,
-      boolToDb(release.forceUpdate),
-      release.downloadUrl,
-      release.officialUrl,
-      release.updateContent,
-      release.platformLabel,
-      release.fileSizeText,
-      boolToDb(release.available),
-      Date.now(),
-    );
+        updated_at = excluded.updated_at`), [platform, release.latestVersion, release.updateTime, boolToDb(release.forceUpdate), release.downloadUrl, release.officialUrl, release.updateContent, release.platformLabel, release.fileSizeText, boolToDb(release.available), Date.now()]));
   }
 }
 
-function replaceDiscover(db: DatabaseSync, discover: DiscoverConfig) {
-  db.prepare(
-    `INSERT INTO discover_config (id, url, updated_at)
+async function replaceDiscover(db: DbTransaction, discover: DiscoverConfig) {
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO discover_config (id, url, updated_at)
+     VALUES (1, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       url = VALUES(url),
+       updated_at = VALUES(updated_at)` : `INSERT INTO discover_config (id, url, updated_at)
      VALUES (1, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        url = excluded.url,
-       updated_at = excluded.updated_at`,
-  ).run(discover.url, discover.updatedAt);
+       updated_at = excluded.updated_at`), [discover.url, discover.updatedAt]));
 }
 
-export function readAppConfig(): AppConfig {
-  const db = getAppDb();
-  const settings = db.prepare("SELECT * FROM app_settings WHERE id = 1").get() as
+export async function readAppConfig(): Promise<AppConfig> {
+  return getAppDb().transaction(readAppConfigWithDb);
+}
+
+async function readAppConfigWithDb(db: DbTransaction): Promise<AppConfig> {
+  const settings = (await db.queryOne("SELECT * FROM app_settings WHERE id = 1", [])) as
     | {
         app_available: number;
         unavailable_reason: string;
@@ -881,16 +881,14 @@ export function readAppConfig(): AppConfig {
         updater_startup_delay: number;
       }
     | undefined;
-  const endpoints = db
-    .prepare("SELECT key, value FROM bootstrap_endpoints ORDER BY sort_order ASC, key ASC")
-    .all() as { key: string; value: string }[];
-  const pages = db.prepare("SELECT code, title, content, version FROM content_pages").all() as {
+  const endpoints = (await db.query("SELECT `key`, value FROM bootstrap_endpoints ORDER BY sort_order ASC, `key` ASC", [])) as { key: string; value: string }[];
+  const pages = (await db.query("SELECT code, title, content, version FROM content_pages", [])) as {
     code: string;
     title: string;
     content: string;
     version: number;
   }[];
-  const about = db.prepare("SELECT * FROM about_config WHERE id = 1").get() as
+  const about = (await db.queryOne("SELECT * FROM about_config WHERE id = 1", [])) as
     | {
         app_name: string;
         website_label: string;
@@ -900,7 +898,7 @@ export function readAppConfig(): AppConfig {
         copyright: string;
       }
     | undefined;
-  const update = db.prepare("SELECT * FROM current_update WHERE id = 1").get() as
+  const update = (await db.queryOne("SELECT * FROM current_update WHERE id = 1", [])) as
     | {
         latest_version: string;
         update_time: string;
@@ -910,7 +908,7 @@ export function readAppConfig(): AppConfig {
         update_content: string;
       }
     | undefined;
-  const releaseRows = db.prepare("SELECT * FROM release_info").all() as {
+  const releaseRows = (await db.query("SELECT * FROM release_info", [])) as {
     platform: ReleasePlatform;
     latest_version: string;
     update_time: string;
@@ -922,7 +920,7 @@ export function readAppConfig(): AppConfig {
     file_size_text: string;
     available: number;
   }[];
-  const discover = db.prepare("SELECT * FROM discover_config WHERE id = 1").get() as
+  const discover = (await db.queryOne("SELECT * FROM discover_config WHERE id = 1", [])) as
     | {
         url: string;
         updated_at: number;
@@ -1006,7 +1004,7 @@ export function readAppConfig(): AppConfig {
         }
       : DEFAULT_APP_CONFIG.discover,
     encryption: {
-      plaintextPaths: readPlaintextPaths(),
+      plaintextPaths: (await readPlaintextPaths(db)),
     },
   };
 }
@@ -1019,8 +1017,12 @@ export function shouldBlock(config: AppConfig): { blocked: boolean; reason: stri
   };
 }
 
-export function saveAppConfigSections(sections: EditableAppConfigSections): AppConfig {
-  const current = readAppConfig();
+export async function saveAppConfigSections(sections: EditableAppConfigSections): Promise<AppConfig> {
+  return getAppDb().transaction((tx) => saveAppConfigSectionsWithDb(tx, sections));
+}
+
+async function saveAppConfigSectionsWithDb(db: DbTransaction, sections: EditableAppConfigSections): Promise<AppConfig> {
+  const current = await readAppConfigWithDb(db);
   const next: AppConfig = {
     ...current,
     availability: sections.availability ?? current.availability,
@@ -1048,8 +1050,8 @@ export function saveAppConfigSections(sections: EditableAppConfigSections): AppC
     about: sections.about ?? current.about,
     discover: sections.discover ?? current.discover,
   };
-  replaceAppConfig(next);
-  return readAppConfig();
+  (await replaceAppConfigWithDb(db, next));
+  return (await readAppConfigWithDb(db));
 }
 
 type CreateFileRecordInput = Omit<FileRecordInfo, "status" | "createdAt" | "deletedAt" | "referencedBy" | "ownerType" | "ownerUserId" | "ownerSnapshot"> & {
@@ -1059,18 +1061,38 @@ type CreateFileRecordInput = Omit<FileRecordInfo, "status" | "createdAt" | "dele
   ownerSnapshot?: Record<string, unknown>;
 };
 
-export function readReleaseFileById(id: string): ReleaseFileInfo | null {
-  const record = readFileRecordByIdWithDb(getAppDb(), id);
+export async function readReleaseFileById(id: string): Promise<ReleaseFileInfo | null> {
+  const record = (await readFileRecordByIdWithDb(getAppDb(), id));
   return releaseFileFromRecord(record);
 }
 
-export function createFileRecord(input: CreateFileRecordInput): FileRecordInfo {
+export async function createFileRecord(input: CreateFileRecordInput): Promise<FileRecordInfo> {
   const db = getAppDb();
   const now = Date.now();
   const platform = normalizeRecordPlatform(input);
   const downloadUrl = input.assetType === "installer" ? buildReleaseDownloadPath(input.id) : "";
-  db.prepare(
-    `INSERT INTO file_records (
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO file_records (
+      id, usage_type, owner_type, owner_user_id, owner_snapshot_json, platform, version, asset_type, provider, bucket, object_key,
+      hash, file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', ?, ?, NULL)
+    ON DUPLICATE KEY UPDATE
+      usage_type = CASE
+        WHEN VALUES(usage_type) = 'desktop-update' OR file_records.usage_type = 'desktop-update' THEN 'desktop-update'
+        ELSE VALUES(usage_type)
+      END,
+      owner_type = VALUES(owner_type),
+      owner_user_id = VALUES(owner_user_id),
+      owner_snapshot_json = VALUES(owner_snapshot_json),
+      platform = CASE WHEN VALUES(platform) <> '' THEN VALUES(platform) ELSE file_records.platform END,
+      version = CASE WHEN VALUES(version) <> '' THEN VALUES(version) ELSE file_records.version END,
+      asset_type = CASE WHEN VALUES(asset_type) <> '' THEN VALUES(asset_type) ELSE file_records.asset_type END,
+      hash = VALUES(hash),
+      file_name = VALUES(file_name),
+      mime_type = VALUES(mime_type),
+      file_size = VALUES(file_size),
+      download_url = CASE WHEN VALUES(asset_type) = 'installer' THEN file_records.download_url ELSE '' END,
+      status = 'uploaded',
+      deleted_at = NULL` : `INSERT INTO file_records (
       id, usage_type, owner_type, owner_user_id, owner_snapshot_json, platform, version, asset_type, provider, bucket, object_key,
       hash, file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', ?, ?, NULL)
@@ -1091,38 +1113,18 @@ export function createFileRecord(input: CreateFileRecordInput): FileRecordInfo {
       file_size = excluded.file_size,
       download_url = CASE WHEN excluded.asset_type = 'installer' THEN file_records.download_url ELSE '' END,
       status = 'uploaded',
-      deleted_at = NULL`,
-  ).run(
-    input.id,
-    input.usageType,
-    input.ownerType ?? "system",
-    input.ownerUserId ?? null,
-    JSON.stringify(input.ownerSnapshot ?? { displayName: "system" }),
-    platform,
-    input.version,
-    input.assetType,
-    input.provider,
-    input.bucket,
-    input.objectKey,
-    input.hash,
-    input.fileName,
-    input.mimeType,
-    input.fileSize,
-    downloadUrl,
-    serializeFileReferences([]),
-    now,
-  );
-  const saved = readFileRecordByProviderKey(input.provider, input.bucket, input.objectKey);
+      deleted_at = NULL`), [input.id, input.usageType, input.ownerType ?? "system", input.ownerUserId ?? null, JSON.stringify(input.ownerSnapshot ?? { displayName: "system" }), platform, input.version, input.assetType, input.provider, input.bucket, input.objectKey, input.hash, input.fileName, input.mimeType, input.fileSize, downloadUrl, serializeFileReferences([]), now]));
+  const saved = (await readFileRecordByProviderKey(input.provider, input.bucket, input.objectKey));
   if (!saved) throw new Error("文件记录保存失败");
   const canonicalDownloadUrl = canonicalDownloadUrlForRecord(saved);
   if (saved.downloadUrl !== canonicalDownloadUrl) {
-    db.prepare("UPDATE file_records SET download_url = ? WHERE id = ?").run(canonicalDownloadUrl, saved.id);
-    return readFileRecordByIdWithDb(db, saved.id) ?? saved;
+    (await db.execute("UPDATE file_records SET download_url = ? WHERE id = ?", [canonicalDownloadUrl, saved.id]));
+    return (await readFileRecordByIdWithDb(db, saved.id)) ?? saved;
   }
   return saved;
 }
 
-export function createAnnouncementImageFileRecord(input: {
+export async function createAnnouncementImageFileRecord(input: {
   id: string;
   announcementId: string;
   provider: "qiniu";
@@ -1132,8 +1134,8 @@ export function createAnnouncementImageFileRecord(input: {
   fileName: string;
   mimeType: string;
   fileSize: number;
-}): FileRecordInfo {
-  const record = createFileRecord({
+}): Promise<FileRecordInfo> {
+  const record = (await createFileRecord({
     id: input.id,
     usageType: "announcement-image",
     platform: "",
@@ -1147,17 +1149,17 @@ export function createAnnouncementImageFileRecord(input: {
     mimeType: input.mimeType,
     fileSize: input.fileSize,
     downloadUrl: "",
-  });
-  addFileReference(getAppDb(), record.id, { type: "announcement-image", id: input.announcementId });
-  return readFileRecordById(record.id) ?? record;
+  }));
+  (await addFileReference(getAppDb(), record.id, { type: "announcement-image", id: input.announcementId }));
+  return (await readFileRecordById(record.id)) ?? record;
 }
 
-export function reconcileAnnouncementImageReferences(announcementId: string, fileIds: string[]): FileRecordInfo[] {
+export async function reconcileAnnouncementImageReferences(announcementId: string, fileIds: string[]): Promise<FileRecordInfo[]> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
+  return (await runInTransaction(db, async (db) => {
     const uniqueIds = [...new Set(fileIds)];
     for (const fileId of uniqueIds) {
-      const row = readFileRecordRowById(db, fileId);
+      const row = (await readFileRecordRowById(db, fileId));
       const record = mapFileRecord(row);
       if (!record || record.usageType !== "announcement-image" || record.status !== "uploaded") {
         throw new Error(`公告图片文件无效：${fileId}`);
@@ -1165,25 +1167,25 @@ export function reconcileAnnouncementImageReferences(announcementId: string, fil
     }
 
     const removed: FileRecordInfo[] = [];
-    const rows = db.prepare("SELECT * FROM file_records WHERE usage_type = 'announcement-image'").all() as FileRecordRow[];
+    const rows = (await db.query("SELECT * FROM file_records WHERE usage_type = 'announcement-image'", [])) as FileRecordRow[];
     for (const row of rows) {
       const refs = parseFileReferences(row.referenced_by);
       const hasReference = refs.some((ref) => ref.type === "announcement-image" && ref.id === announcementId);
       if (hasReference && !uniqueIds.includes(row.id)) {
         const next = refs.filter((ref) => !(ref.type === "announcement-image" && ref.id === announcementId));
-        db.prepare("UPDATE file_records SET referenced_by = ? WHERE id = ?").run(serializeFileReferences(next), row.id);
-        const updated = readFileRecordByIdWithDb(db, row.id);
+        (await db.execute("UPDATE file_records SET referenced_by = ? WHERE id = ?", [serializeFileReferences(next), row.id]));
+        const updated = (await readFileRecordByIdWithDb(db, row.id));
         if (updated) removed.push(updated);
       }
     }
     for (const fileId of uniqueIds) {
-      addFileReference(db, fileId, { type: "announcement-image", id: announcementId });
+      (await addFileReference(db, fileId, { type: "announcement-image", id: announcementId }));
     }
     return removed;
-  });
+  }));
 }
 
-export function createReleaseUploadRecord(input: {
+export async function createReleaseUploadRecord(input: {
   id: string;
   platform: ReleasePlatform;
   version?: string;
@@ -1194,8 +1196,8 @@ export function createReleaseUploadRecord(input: {
   fileName: string;
   mimeType: string;
   fileSize: number;
-}): ReleaseFileInfo {
-  const record = createFileRecord({
+}): Promise<ReleaseFileInfo> {
+  const record = (await createFileRecord({
     id: input.id,
     usageType: "release-package",
     platform: input.platform,
@@ -1209,14 +1211,14 @@ export function createReleaseUploadRecord(input: {
     mimeType: input.mimeType,
     fileSize: input.fileSize,
     downloadUrl: "",
-  });
+  }));
   const releaseFile = releaseFileFromRecord(record);
   if (!releaseFile) throw new Error("安装包文件保存失败");
   const desktopUpdateAsset = desktopAssetFromRecord(record);
   return desktopUpdateAsset ? { ...releaseFile, desktopUpdateAsset } : releaseFile;
 }
 
-export function createDesktopUpdateUploadRecord(input: {
+export async function createDesktopUpdateUploadRecord(input: {
   id: string;
   version: string;
   platform: "win32";
@@ -1229,8 +1231,8 @@ export function createDesktopUpdateUploadRecord(input: {
   fileName: string;
   mimeType: string;
   fileSize: number;
-}): DesktopUpdateAssetInfo {
-  const record = createFileRecord({
+}): Promise<DesktopUpdateAssetInfo> {
+  const record = (await createFileRecord({
     id: input.id,
     usageType: "desktop-update",
     platform: `${input.platform}/${input.arch}`,
@@ -1244,61 +1246,52 @@ export function createDesktopUpdateUploadRecord(input: {
     mimeType: input.mimeType,
     fileSize: input.fileSize,
     downloadUrl: "",
-  });
+  }));
   const asset = desktopAssetFromRecord(record);
   if (!asset) throw new Error("自动更新文件保存失败");
   return asset;
 }
 
-export function readDesktopUpdateAssets(version: string, platform = "win32", arch = "x64"): DesktopUpdateAssetInfo[] {
-  const db = getAppDb();
-  const rows = db
-    .prepare(
-      `SELECT * FROM file_records
+export async function readDesktopUpdateAssets(version: string, platform = "win32", arch = "x64", db: DbTransaction = getAppDb()): Promise<DesktopUpdateAssetInfo[]> {
+  const rows = (await db.query(`SELECT * FROM file_records
        WHERE version = ?
          AND status = 'uploaded'
          AND asset_type IN ('latest-yml', 'installer', 'blockmap')
          AND (platform = ? OR (asset_type = 'installer' AND platform = 'desktop'))
-       ORDER BY created_at DESC`,
-    )
-    .all(version, `${platform}/${arch}`) as FileRecordRow[];
+       ORDER BY created_at DESC`, [version, `${platform}/${arch}`])) as FileRecordRow[];
   return rows.map((row) => desktopAssetFromRecord(mapFileRecord(row))).filter((asset): asset is DesktopUpdateAssetInfo => Boolean(asset));
 }
 
-export function activateDesktopUpdateVersion(version: string, platform = "win32", arch = "x64"): DesktopUpdateAssetInfo[] {
+export async function activateDesktopUpdateVersion(version: string, platform = "win32", arch = "x64"): Promise<DesktopUpdateAssetInfo[]> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const assets = readDesktopUpdateAssets(version, platform, arch);
+  return (await runInTransaction(db, async (db) => {
+    const assets = (await readDesktopUpdateAssets(version, platform, arch, db));
     const hasLatest = assets.some((asset) => asset.fileType === "latest-yml" && asset.fileName === "latest.yml");
     const hasInstaller = assets.some((asset) => asset.fileType === "installer");
     if (!hasLatest) throw new Error("缺少 latest.yml，请先上传 electron-builder 生成的 latest.yml");
     if (!hasInstaller) throw new Error("缺少安装包 EXE，请先上传与 latest.yml 对应的 Windows 安装包");
-    removeFileReferences(db, (ref, row) => ref.type === "active-desktop-update" && (row.platform === `${platform}/${arch}` || row.platform === "desktop"));
+    (await removeFileReferences(db, (ref, row) => ref.type === "active-desktop-update" && (row.platform === `${platform}/${arch}` || row.platform === "desktop")));
     for (const asset of assets) {
-      addFileReference(db, asset.id, {
+      (await addFileReference(db, asset.id, {
         type: "active-desktop-update",
         platform: "win32",
         version,
         fileName: asset.fileName,
-      });
+      }));
     }
-    return readDesktopUpdateAssets(version, platform, arch).map((asset) => ({ ...asset, active: true }));
-  });
+    return (await readDesktopUpdateAssets(version, platform, arch, db)).map((asset) => ({ ...asset, active: true }));
+  }));
 }
 
-export function readActiveDesktopUpdateAsset(fileName: string, platform = "win32", arch = "x64"): DesktopUpdateAssetInfo | null {
+export async function readActiveDesktopUpdateAsset(fileName: string, platform = "win32", arch = "x64"): Promise<DesktopUpdateAssetInfo | null> {
   const db = getAppDb();
-  const rows = db
-    .prepare(
-      `SELECT * FROM file_records
+  const rows = (await db.query(`SELECT * FROM file_records
        WHERE status = 'uploaded'
          AND file_name = ?
          AND asset_type IN ('latest-yml', 'installer', 'blockmap')
          AND (platform = ? OR (asset_type = 'installer' AND platform = 'desktop'))
          AND referenced_by LIKE '%active-desktop-update%'
-       ORDER BY created_at DESC`,
-    )
-    .all(fileName, `${platform}/${arch}`) as FileRecordRow[];
+       ORDER BY created_at DESC`, [fileName, `${platform}/${arch}`])) as FileRecordRow[];
   for (const row of rows) {
     const refs = parseFileReferences(row.referenced_by);
     if (hasFileReference(refs, "active-desktop-update", (ref) => !ref.platform || ref.platform === "win32")) {
@@ -1308,11 +1301,11 @@ export function readActiveDesktopUpdateAsset(fileName: string, platform = "win32
   return null;
 }
 
-export function readFileRecordById(id: string): FileRecordInfo | null {
-  return readFileRecordByIdWithDb(getAppDb(), id);
+export async function readFileRecordById(id: string): Promise<FileRecordInfo | null> {
+  return (await readFileRecordByIdWithDb(getAppDb(), id));
 }
 
-export function listFileRecords(query: FileRecordListQuery = {}): FileRecordListResult {
+export async function listFileRecords(query: FileRecordListQuery = {}): Promise<FileRecordListResult> {
   const db = getAppDb();
   const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
   const offset = Math.max(0, Number(query.offset) || 0);
@@ -1340,14 +1333,10 @@ export function listFileRecords(query: FileRecordListQuery = {}): FileRecordList
     params.push(keyword, keyword);
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM file_records ${whereSql}`).get(...params) as { total: number };
-  const rows = db
-    .prepare(
-      `SELECT * FROM file_records ${whereSql}
+  const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM file_records ${whereSql}`, [...params])) as { total: number };
+  const rows = (await db.query(`SELECT * FROM file_records ${whereSql}
        ORDER BY created_at DESC, rowid DESC
-       LIMIT ? OFFSET ?`,
-    )
-    .all(...params, limit, offset) as FileRecordRow[];
+       LIMIT ? OFFSET ?`, [...params, limit, offset])) as FileRecordRow[];
   return {
     items: rows.map((row) => mapFileRecord(row)).filter((item): item is FileRecordInfo => Boolean(item)),
     total: Number(totalRow.total) || 0,
@@ -1356,9 +1345,9 @@ export function listFileRecords(query: FileRecordListQuery = {}): FileRecordList
   };
 }
 
-export function findFileRecordDeleteBlockers(id: string): string[] {
+export async function findFileRecordDeleteBlockers(id: string): Promise<string[]> {
   const db = getAppDb();
-  const row = readFileRecordRowById(db, id);
+  const row = (await readFileRecordRowById(db, id));
   if (!row || row.status === "deleted") return [];
   const refs = parseFileReferences(row.referenced_by);
   return Array.from(
@@ -1370,8 +1359,8 @@ export function findFileRecordDeleteBlockers(id: string): string[] {
   );
 }
 
-export function markFileRecordDeleted(id: string): FileRecordInfo {
-  return deleteFileRecordAndCleanupReferences(id);
+export async function markFileRecordDeleted(id: string): Promise<FileRecordInfo> {
+  return (await deleteFileRecordAndCleanupReferences(id));
 }
 
 function downloadUrlMatchesFile(downloadUrl: string, fileId: string): boolean {
@@ -1379,100 +1368,87 @@ function downloadUrlMatchesFile(downloadUrl: string, fileId: string): boolean {
   return Boolean(downloadUrl) && (downloadUrl === filePath || downloadUrl.includes(filePath));
 }
 
-function clearHistoryFileReferences(db: DatabaseSync, fileId: string): void {
-  const rows = db
-    .prepare("SELECT id, download_url FROM update_history WHERE release_file_id = ?")
-    .all(fileId) as Array<{ id: string; download_url: string }>;
+async function clearHistoryFileReferences(db: DbTransaction, fileId: string): Promise<void> {
+  const rows = (await db.query("SELECT id, download_url FROM update_history WHERE release_file_id = ?", [fileId])) as Array<{ id: string; download_url: string }>;
   for (const row of rows) {
-    db.prepare("UPDATE update_history SET release_file_id = NULL, download_url = ? WHERE id = ?").run(
-      downloadUrlMatchesFile(row.download_url, fileId) ? "" : row.download_url,
-      row.id,
-    );
+    (await db.execute("UPDATE update_history SET release_file_id = NULL, download_url = ? WHERE id = ?", [downloadUrlMatchesFile(row.download_url, fileId) ? "" : row.download_url, row.id]));
   }
 }
 
-function clearCurrentReleaseFileReferences(db: DatabaseSync, fileId: string): void {
+async function clearCurrentReleaseFileReferences(db: DbTransaction, fileId: string): Promise<void> {
   const now = Date.now();
-  const releaseRows = db
-    .prepare("SELECT platform, download_url FROM release_info")
-    .all() as Array<{ platform: ReleasePlatform; download_url: string }>;
+  const releaseRows = (await db.query("SELECT platform, download_url FROM release_info", [])) as Array<{ platform: ReleasePlatform; download_url: string }>;
   let clearAndroidCurrentUpdate = false;
 
   for (const row of releaseRows) {
     if (!downloadUrlMatchesFile(row.download_url, fileId)) continue;
-    db.prepare(
-      `UPDATE release_info
+    (await db.execute(`UPDATE release_info
        SET download_url = '', file_size_text = '', available = 0, updated_at = ?
-       WHERE platform = ?`,
-    ).run(now, row.platform);
+       WHERE platform = ?`, [now, row.platform]));
     if (row.platform === "android") clearAndroidCurrentUpdate = true;
   }
 
-  const currentUpdate = db.prepare("SELECT download_url FROM current_update WHERE id = 1").get() as
+  const currentUpdate = (await db.queryOne("SELECT download_url FROM current_update WHERE id = 1", [])) as
     | { download_url: string }
     | undefined;
   if (clearAndroidCurrentUpdate || downloadUrlMatchesFile(currentUpdate?.download_url ?? "", fileId)) {
-    db.prepare("UPDATE current_update SET download_url = '', updated_at = ? WHERE id = 1").run(now);
+    (await db.execute("UPDATE current_update SET download_url = '', updated_at = ? WHERE id = 1", [now]));
   }
 }
 
-function deleteFileRecordAndCleanupReferencesWithDb(db: DatabaseSync, id: string, now = Date.now()): FileRecordInfo {
-  const file = readFileRecordByIdWithDb(db, id);
+async function deleteFileRecordAndCleanupReferencesWithDb(db: DbTransaction, id: string, now = Date.now()): Promise<FileRecordInfo> {
+  const file = (await readFileRecordByIdWithDb(db, id));
   if (!file) throw new Error("文件记录不存在");
-  clearHistoryFileReferences(db, id);
-  clearCurrentReleaseFileReferences(db, id);
-  db.prepare("UPDATE file_records SET status = 'deleted', referenced_by = ?, deleted_at = ? WHERE id = ?").run(serializeFileReferences([]), now, id);
-  const deleted = readFileRecordByIdWithDb(db, id);
+  (await clearHistoryFileReferences(db, id));
+  (await clearCurrentReleaseFileReferences(db, id));
+  (await db.execute("UPDATE file_records SET status = 'deleted', referenced_by = ?, deleted_at = ? WHERE id = ?", [serializeFileReferences([]), now, id]));
+  const deleted = (await readFileRecordByIdWithDb(db, id));
   if (!deleted) throw new Error("文件状态更新失败");
   return deleted;
 }
 
-export function deleteFileRecordAndCleanupReferences(id: string): FileRecordInfo {
+export async function deleteFileRecordAndCleanupReferences(id: string): Promise<FileRecordInfo> {
   const db = getAppDb();
-  return runInTransaction(db, () => deleteFileRecordAndCleanupReferencesWithDb(db, id));
+  return (await runInTransaction(db, async (db) => (await deleteFileRecordAndCleanupReferencesWithDb(db, id))));
 }
 
-export function readReleaseFileForHistory(historyId: string): ReleaseFileInfo | null {
+export async function readReleaseFileForHistory(historyId: string): Promise<ReleaseFileInfo | null> {
   const db = getAppDb();
-  const row = db
-    .prepare(
-      `SELECT f.*
+  const row = (await db.queryOne(`SELECT f.*
        FROM update_history h
        JOIN file_records f ON f.id = h.release_file_id
-       WHERE h.id = ?`,
-    )
-    .get(historyId) as FileRecordRow | undefined;
+       WHERE h.id = ?`, [historyId])) as FileRecordRow | undefined;
   const releaseFile = releaseFileFromRecord(mapFileRecord(row));
   return releaseFile ? { ...releaseFile, historyId } : null;
 }
 
-export function markReleaseFileDeletedForHistory(historyId: string): ReleaseFileInfo {
-  const file = readReleaseFileForHistory(historyId);
+export async function markReleaseFileDeletedForHistory(historyId: string): Promise<ReleaseFileInfo> {
+  const file = (await readReleaseFileForHistory(historyId));
   if (!file) throw new Error("该发布记录没有可删除的七牛安装包");
-  const deleted = deleteFileRecordAndCleanupReferences(file.id);
+  const deleted = (await deleteFileRecordAndCleanupReferences(file.id));
   const releaseFile = releaseFileFromRecord(deleted);
   if (!releaseFile) throw new Error("安装包文件状态更新失败");
   return { ...releaseFile, historyId };
 }
 
-function findDesktopInstallerForVersion(version: string): ReleaseFileInfo | null {
-  const asset = readDesktopUpdateAssets(version).find((item) => item.fileType === "installer");
+async function findDesktopInstallerForVersion(version: string): Promise<ReleaseFileInfo | null> {
+  const asset = (await readDesktopUpdateAssets(version)).find((item) => item.fileType === "installer");
   return asset?.releaseFile ?? null;
 }
 
-export function publishUpdate(
+export async function publishUpdate(
   update: AppUpdate,
   historyId: string,
   platform: ReleasePlatform = "android",
   releaseFileId?: string | null,
-): UpdateHistoryItem {
+): Promise<UpdateHistoryItem> {
   const db = getAppDb();
-  const current = readAppConfig();
+  const current = (await readAppConfig());
   const initialRelease = normalizeRelease(platform, update, platform === "android" ? update : undefined);
   const releaseFile = releaseFileId
-    ? readReleaseFileById(releaseFileId)
+    ? (await readReleaseFileById(releaseFileId))
     : platform === "desktop" && initialRelease.available
-      ? findDesktopInstallerForVersion(initialRelease.latestVersion)
+      ? (await findDesktopInstallerForVersion(initialRelease.latestVersion))
       : null;
   if (releaseFileId && !releaseFile) throw new Error("安装包文件不存在");
   if (releaseFile && releaseFile.status !== "uploaded") throw new Error("安装包文件已删除");
@@ -1492,21 +1468,21 @@ export function publishUpdate(
     releaseFileId: releaseFile?.id ?? null,
     releaseFile: releaseFile ? { ...releaseFile, historyId } : null,
   };
-  runInTransaction(db, () => {
+  (await runInTransaction(db, async (db) => {
     if (platform === "android") {
-      replaceCurrentUpdate(db, appUpdateFromRelease(release));
+      (await replaceCurrentUpdate(db, appUpdateFromRelease(release)));
     }
-    replaceReleases(db, {
+    (await replaceReleases(db, {
       android: platform === "android" ? release : current.releases.android,
       desktop: platform === "desktop" ? release : current.releases.desktop,
-    });
-    insertUpdateHistory(db, item);
-    removeFileReferences(db, (ref) => ref.type === "current-release" && ref.platform === platform);
+    }));
+    (await insertUpdateHistory(db, item));
+    (await removeFileReferences(db, (ref) => ref.type === "current-release" && ref.platform === platform));
     if (releaseFile) {
-      addFileReference(db, releaseFile.id, { type: "history", id: historyId, platform, version: release.latestVersion });
-      addFileReference(db, releaseFile.id, { type: "current-release", platform, version: release.latestVersion });
+      (await addFileReference(db, releaseFile.id, { type: "history", id: historyId, platform, version: release.latestVersion }));
+      (await addFileReference(db, releaseFile.id, { type: "current-release", platform, version: release.latestVersion }));
     }
-  });
+  }));
   return item;
 }
 
@@ -1521,19 +1497,19 @@ function releaseMatchesHistory(release: ReleaseInfo, item: UpdateHistoryItem): b
   );
 }
 
-export function updatePublishedUpdate(
+export async function updatePublishedUpdate(
   historyId: string,
   update: AppUpdate,
   platform: ReleasePlatform = "android",
   releaseFileId?: string | null,
-): UpdateHistoryItem {
+): Promise<UpdateHistoryItem> {
   const db = getAppDb();
-  const current = readAppConfig();
-  const existing = readUpdateHistory().find((item) => item.id === historyId);
+  const current = (await readAppConfig());
+  const existing = (await readUpdateHistory()).find((item) => item.id === historyId);
   if (!existing) throw new Error("发布记录不存在");
   if (existing.platform !== platform) throw new Error("发布记录平台不能修改");
 
-  const releaseFile = releaseFileId ? readReleaseFileById(releaseFileId) : null;
+  const releaseFile = releaseFileId ? (await readReleaseFileById(releaseFileId)) : null;
   if (releaseFileId && !releaseFile) throw new Error("安装包文件不存在");
   if (releaseFile && releaseFile.status !== "uploaded") throw new Error("安装包文件已删除");
   if (releaseFile && releaseFile.platform !== platform) throw new Error("安装包文件平台不匹配");
@@ -1547,43 +1523,32 @@ export function updatePublishedUpdate(
     ? { ...release, fileSizeText: current.releases[platform].fileSizeText }
     : release;
 
-  runInTransaction(db, () => {
-    db.prepare(
-      `UPDATE update_history
+  (await runInTransaction(db, async (db) => {
+    (await db.execute(`UPDATE update_history
        SET version = ?, update_time = ?, force_update = ?, download_url = ?, official_url = ?, update_content = ?, release_file_id = ?
-       WHERE id = ?`,
-    ).run(
-      release.latestVersion,
-      release.updateTime,
-      boolToDb(release.forceUpdate),
-      release.downloadUrl,
-      release.officialUrl,
-      release.updateContent,
-      releaseFile?.id ?? null,
-      historyId,
-    );
+       WHERE id = ?`, [release.latestVersion, release.updateTime, boolToDb(release.forceUpdate), release.downloadUrl, release.officialUrl, release.updateContent, releaseFile?.id ?? null, historyId]));
 
-    removeFileReferences(db, (ref) => ref.type === "history" && ref.id === historyId);
+    (await removeFileReferences(db, (ref) => ref.type === "history" && ref.id === historyId));
     if (releaseFile) {
-      addFileReference(db, releaseFile.id, { type: "history", id: historyId, platform, version: release.latestVersion });
+      (await addFileReference(db, releaseFile.id, { type: "history", id: historyId, platform, version: release.latestVersion }));
     }
 
     if (shouldSyncCurrent) {
       if (platform === "android") {
-        replaceCurrentUpdate(db, appUpdateFromRelease(currentRelease));
+        (await replaceCurrentUpdate(db, appUpdateFromRelease(currentRelease)));
       }
-      replaceReleases(db, {
+      (await replaceReleases(db, {
         android: platform === "android" ? currentRelease : current.releases.android,
         desktop: platform === "desktop" ? currentRelease : current.releases.desktop,
-      });
-      removeFileReferences(db, (ref) => ref.type === "current-release" && ref.platform === platform);
+      }));
+      (await removeFileReferences(db, (ref) => ref.type === "current-release" && ref.platform === platform));
       if (releaseFile) {
-        addFileReference(db, releaseFile.id, { type: "current-release", platform, version: release.latestVersion });
+        (await addFileReference(db, releaseFile.id, { type: "current-release", platform, version: release.latestVersion }));
       }
     }
-  });
+  }));
 
-  const updated = readUpdateHistory().find((item) => item.id === historyId);
+  const updated = (await readUpdateHistory()).find((item) => item.id === historyId);
   if (!updated) throw new Error("发布记录更新失败");
   return updated;
 }
@@ -1593,34 +1558,30 @@ function findLatestHistoryForPlatform(items: UpdateHistoryItem[], platform: Rele
   return samePlatform[samePlatform.length - 1] ?? null;
 }
 
-function readFilesForHistoryDeletion(history: UpdateHistoryItem): FileRecordInfo[] {
+async function readFilesForHistoryDeletion(history: UpdateHistoryItem): Promise<FileRecordInfo[]> {
   const db = getAppDb();
   const ids = new Set<string>();
   if (history.releaseFileId) ids.add(history.releaseFileId);
 
   if (history.platform === "desktop") {
-    const rows = db
-      .prepare(
-        `SELECT id
+    const rows = (await db.query(`SELECT id
          FROM file_records
          WHERE version = ?
            AND status = 'uploaded'
            AND asset_type IN ('latest-yml', 'installer', 'blockmap')
-           AND platform IN ('desktop', ?)`,
-      )
-      .all(history.version, DESKTOP_UPDATE_PLATFORM) as Array<{ id: string }>;
+           AND platform IN ('desktop', ?)`, [history.version, DESKTOP_UPDATE_PLATFORM])) as Array<{ id: string }>;
     for (const row of rows) ids.add(row.id);
   }
 
-  return [...ids]
-    .map((id) => readFileRecordByIdWithDb(db, id))
+  return (await Promise.all([...ids]
+    .map((id) => readFileRecordByIdWithDb(db, id))))
     .filter((file): file is FileRecordInfo => Boolean(file && file.status === "uploaded"));
 }
 
-export function prepareUpdateHistoryDeletion(
+export async function prepareUpdateHistoryDeletion(
   historyId: string,
-): { ok: true; plan: UpdateHistoryDeletionPlan } | { ok: false; reason: "NOT_FOUND" | "LATEST_NOT_DELETABLE" } {
-  const history = readUpdateHistory();
+): Promise<{ ok: true; plan: UpdateHistoryDeletionPlan } | { ok: false; reason: "NOT_FOUND" | "LATEST_NOT_DELETABLE" }> {
+  const history = (await readUpdateHistory());
   const target = history.find((item) => item.id === historyId);
   if (!target) return { ok: false, reason: "NOT_FOUND" };
   if (findLatestHistoryForPlatform(history, target.platform)?.id === target.id) {
@@ -1630,15 +1591,15 @@ export function prepareUpdateHistoryDeletion(
     ok: true,
     plan: {
       history: target,
-      files: readFilesForHistoryDeletion(target),
+      files: (await readFilesForHistoryDeletion(target)),
     },
   };
 }
 
-export function completeUpdateHistoryDeletion(historyId: string, fileIds: string[]): FileRecordInfo[] {
+export async function completeUpdateHistoryDeletion(historyId: string, fileIds: string[]): Promise<FileRecordInfo[]> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const history = readUpdateHistory();
+  return (await runInTransaction(db, async (db) => {
+    const history = (await readUpdateHistory(db));
     const target = history.find((item) => item.id === historyId);
     if (!target) throw new Error("发布记录不存在");
     if (findLatestHistoryForPlatform(history, target.platform)?.id === target.id) {
@@ -1648,40 +1609,26 @@ export function completeUpdateHistoryDeletion(historyId: string, fileIds: string
     const now = Date.now();
     const deletedFiles: FileRecordInfo[] = [];
     for (const fileId of new Set(fileIds)) {
-      const file = readFileRecordByIdWithDb(db, fileId);
+      const file = (await readFileRecordByIdWithDb(db, fileId));
       if (!file || file.status === "deleted") continue;
-      deletedFiles.push(deleteFileRecordAndCleanupReferencesWithDb(db, fileId, now));
+      deletedFiles.push((await deleteFileRecordAndCleanupReferencesWithDb(db, fileId, now)));
     }
-    removeFileReferences(db, (ref) => ref.type === "history" && ref.id === historyId);
-    db.prepare("UPDATE update_history SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL").run(now, historyId);
+    (await removeFileReferences(db, (ref) => ref.type === "history" && ref.id === historyId));
+    (await db.execute("UPDATE update_history SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL", [now, historyId]));
     return deletedFiles;
-  });
+  }));
 }
 
-export function insertUpdateHistory(db: DatabaseSync, item: UpdateHistoryItem, createdAt = Date.now()) {
-  db.prepare(
-    `INSERT OR IGNORE INTO update_history (
+export async function insertUpdateHistory(db: DbTransaction, item: UpdateHistoryItem, createdAt = Date.now()) {
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO update_history (
       id, platform, version, update_time, force_update, download_url, official_url, update_content, release_file_id, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    item.id,
-    item.platform,
-    item.version,
-    item.updateTime,
-    boolToDb(item.forceUpdate),
-    item.downloadUrl,
-    item.officialUrl,
-    item.updateContent,
-    item.releaseFileId ?? null,
-    createdAt,
-  );
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id` : `INSERT OR IGNORE INTO update_history (
+      id, platform, version, update_time, force_update, download_url, official_url, update_content, release_file_id, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`), [item.id, item.platform, item.version, item.updateTime, boolToDb(item.forceUpdate), item.downloadUrl, item.officialUrl, item.updateContent, item.releaseFileId ?? null, createdAt]));
 }
 
-export function readUpdateHistory(): UpdateHistoryItem[] {
-  const db = getAppDb();
-  const rows = db
-    .prepare(
-      `SELECT h.*, f.id AS file_id, f.usage_type, f.owner_type, f.owner_user_id, f.owner_snapshot_json,
+export async function readUpdateHistory(db: DbTransaction = getAppDb()): Promise<UpdateHistoryItem[]> {
+  const rows = (await db.query((db.dialect === "mysql" ? `SELECT h.*, f.id AS file_id, f.usage_type, f.owner_type, f.owner_user_id, f.owner_snapshot_json,
         f.platform AS file_platform, f.version AS file_version,
         f.asset_type, f.provider, f.bucket, f.object_key, f.hash, f.file_name, f.mime_type,
         f.file_size, f.download_url AS file_download_url, f.status, f.referenced_by, f.created_at AS file_created_at,
@@ -1689,9 +1636,15 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
        FROM update_history h
        LEFT JOIN file_records f ON f.id = h.release_file_id
        WHERE h.deleted_at IS NULL
-       ORDER BY h.created_at ASC, h.rowid ASC`,
-    )
-    .all() as Array<{
+       ORDER BY h.created_at ASC, h.id ASC` : `SELECT h.*, f.id AS file_id, f.usage_type, f.owner_type, f.owner_user_id, f.owner_snapshot_json,
+        f.platform AS file_platform, f.version AS file_version,
+        f.asset_type, f.provider, f.bucket, f.object_key, f.hash, f.file_name, f.mime_type,
+        f.file_size, f.download_url AS file_download_url, f.status, f.referenced_by, f.created_at AS file_created_at,
+        f.deleted_at AS file_deleted_at
+       FROM update_history h
+       LEFT JOIN file_records f ON f.id = h.release_file_id
+       WHERE h.deleted_at IS NULL
+       ORDER BY h.created_at ASC, h.rowid ASC`), [])) as Array<{
       id: string;
       platform?: ReleasePlatform;
       version: string;
@@ -1761,10 +1714,10 @@ export function readUpdateHistory(): UpdateHistoryItem[] {
     };
   });
 }
-export function readAnnouncements(options: { enabledOnly?: boolean } = {}): Announcement[] {
+export async function readAnnouncements(options: { enabledOnly?: boolean } = {}): Promise<Announcement[]> {
   const db = getAppDb();
   const where = options.enabledOnly ? " WHERE enabled = 1" : "";
-  const rows = db.prepare(`SELECT * FROM announcements${where} ORDER BY sort_order ASC, rowid ASC`).all() as {
+  const rows = (await db.query((db.dialect === "mysql" ? `SELECT * FROM announcements${where} ORDER BY sort_order ASC, id ASC` : `SELECT * FROM announcements${where} ORDER BY sort_order ASC, rowid ASC`), [])) as {
     id: string;
     content_json: string;
     time: string;
@@ -1796,17 +1749,27 @@ export function readAnnouncements(options: { enabledOnly?: boolean } = {}): Anno
   });
 }
 
-export function saveAnnouncement(announcement: Announcement): Announcement {
+export async function saveAnnouncement(announcement: Announcement): Promise<Announcement> {
   const db = getAppDb();
-  const existing = db.prepare("SELECT sort_order FROM announcements WHERE id = ?").get(announcement.id) as
+  const existing = (await db.queryOne("SELECT sort_order FROM announcements WHERE id = ?", [announcement.id])) as
     | { sort_order: number }
     | undefined;
-  const maxRow = db.prepare("SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM announcements").get() as {
+  const maxRow = (await db.queryOne("SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM announcements", [])) as {
     max_order: number;
   };
   const sortOrder = existing?.sort_order ?? maxRow.max_order + 1;
-  db.prepare(
-    `INSERT INTO announcements (
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO announcements (
+      id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      content_json = VALUES(content_json),
+      time = VALUES(time),
+      publisher = VALUES(publisher),
+      confirm_text = VALUES(confirm_text),
+      show_every_time = VALUES(show_every_time),
+      show_goto_button = VALUES(show_goto_button),
+      goto_url = VALUES(goto_url),
+      enabled = VALUES(enabled)` : `INSERT INTO announcements (
       id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
@@ -1817,89 +1780,66 @@ export function saveAnnouncement(announcement: Announcement): Announcement {
       show_every_time = excluded.show_every_time,
       show_goto_button = excluded.show_goto_button,
       goto_url = excluded.goto_url,
-      enabled = excluded.enabled`,
-  ).run(
-    announcement.id,
-    JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
-    announcement.time,
-    announcement.publisher,
-    announcement.confirmText,
-    boolToDb(Boolean(announcement.showEveryTime)),
-    boolToDb(announcement.showGotoButton),
-    announcement.gotoUrl ?? "",
-    sortOrder,
-    announcement.enabled === false ? 0 : 1,
-  );
+      enabled = excluded.enabled`), [announcement.id, JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))), announcement.time, announcement.publisher, announcement.confirmText, boolToDb(Boolean(announcement.showEveryTime)), boolToDb(announcement.showGotoButton), announcement.gotoUrl ?? "", sortOrder, announcement.enabled === false ? 0 : 1]));
   return announcement;
 }
 
-export function deleteAnnouncement(id: string): boolean {
+export async function deleteAnnouncement(id: string): Promise<boolean> {
   const db = getAppDb();
-  const result = db.prepare("DELETE FROM announcements WHERE id = ?").run(id);
-  return result.changes > 0;
+  const result = (await db.execute("DELETE FROM announcements WHERE id = ?", [id]));
+  return result.affectedRows > 0;
 }
 
-export function insertAnnouncement(db: DatabaseSync, announcement: Announcement, sortOrder: number) {
-  db.prepare(
-    `INSERT OR IGNORE INTO announcements (
+export async function insertAnnouncement(db: DbTransaction, announcement: Announcement, sortOrder: number) {
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO announcements (
       id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    announcement.id,
-    JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))),
-    announcement.time,
-    announcement.publisher,
-    announcement.confirmText,
-    boolToDb(Boolean(announcement.showEveryTime)),
-    boolToDb(announcement.showGotoButton),
-    announcement.gotoUrl ?? "",
-    sortOrder,
-    announcement.enabled === false ? 0 : 1,
-  );
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id` : `INSERT OR IGNORE INTO announcements (
+      id, content_json, time, publisher, confirm_text, show_every_time, show_goto_button, goto_url, sort_order, enabled
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`), [announcement.id, JSON.stringify(toStoredAnnouncementContent(parseAnnouncementContent(announcement.content))), announcement.time, announcement.publisher, announcement.confirmText, boolToDb(Boolean(announcement.showEveryTime)), boolToDb(announcement.showGotoButton), announcement.gotoUrl ?? "", sortOrder, announcement.enabled === false ? 0 : 1]));
 }
 
-export function readPlaintextPaths(): string[] {
-  const db = getAppDb();
-  const rows = db
-    .prepare("SELECT path FROM encryption_plaintext_paths ORDER BY sort_order ASC, path ASC")
-    .all() as { path: string }[];
+export async function readPlaintextPaths(db: DbTransaction = getAppDb()): Promise<string[]> {
+  const rows = (await db.query("SELECT path FROM encryption_plaintext_paths ORDER BY sort_order ASC, path ASC", [])) as { path: string }[];
   return rows.map((row) => row.path);
 }
 
-export function replacePlaintextPaths(paths: string[]) {
+export async function replacePlaintextPaths(paths: string[]) {
   const db = getAppDb();
-  runInTransaction(db, () => replacePlaintextPathsWithDb(db, paths));
+  (await runInTransaction(db, async (db) => (await replacePlaintextPathsWithDb(db, paths))));
 }
 
-function replacePlaintextPathsWithDb(db: DatabaseSync, paths: string[]) {
-  db.prepare("DELETE FROM encryption_plaintext_paths").run();
-  const insert = db.prepare("INSERT INTO encryption_plaintext_paths (path, sort_order) VALUES (?, ?)");
-  paths.forEach((path, index) => insert.run(path, index));
+async function replacePlaintextPathsWithDb(db: DbTransaction, paths: string[]) {
+  (await db.execute("DELETE FROM encryption_plaintext_paths", []));
+  for (const [index, path] of paths.entries()) {
+    await db.execute("INSERT INTO encryption_plaintext_paths (path, sort_order) VALUES (?, ?)", [path, index]);
+  }
 }
 
-export function readAdminUser(username: string): AdminUser | null {
+export async function readAdminUser(username: string): Promise<AdminUser | null> {
   const db = getAppDb();
-  const row = db.prepare("SELECT username, password_hash FROM admin_users WHERE username = ?").get(username) as
+  const row = (await db.queryOne("SELECT username, password_hash FROM admin_users WHERE username = ?", [username])) as
     | { username: string; password_hash: string }
     | undefined;
   return row ? { username: row.username, passwordHash: row.password_hash } : null;
 }
 
-export function readAnyAdminUser(): AdminUser | null {
+export async function readAnyAdminUser(): Promise<AdminUser | null> {
   const db = getAppDb();
-  const row = db.prepare("SELECT username, password_hash FROM admin_users ORDER BY rowid ASC LIMIT 1").get() as
+  const row = (await db.queryOne((db.dialect === "mysql" ? "SELECT username, password_hash FROM admin_users ORDER BY username ASC LIMIT 1" : "SELECT username, password_hash FROM admin_users ORDER BY rowid ASC LIMIT 1"), [])) as
     | { username: string; password_hash: string }
     | undefined;
   return row ? { username: row.username, passwordHash: row.password_hash } : null;
 }
 
-export function upsertAdminUser(user: AdminUser) {
+export async function upsertAdminUser(user: AdminUser) {
   const db = getAppDb();
-  db.prepare(
-    `INSERT INTO admin_users (username, password_hash, updated_at)
+  (await db.execute((db.dialect === "mysql" ? `INSERT INTO admin_users (username, password_hash, updated_at)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       password_hash = VALUES(password_hash),
+       updated_at = VALUES(updated_at)` : `INSERT INTO admin_users (username, password_hash, updated_at)
      VALUES (?, ?, ?)
      ON CONFLICT(username) DO UPDATE SET
        password_hash = excluded.password_hash,
-       updated_at = excluded.updated_at`,
-  ).run(user.username, user.passwordHash, Date.now());
+       updated_at = excluded.updated_at`), [user.username, user.passwordHash, Date.now()]));
 }

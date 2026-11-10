@@ -70,18 +70,17 @@ function normalizePageValue(value: number | undefined, fallback: number, max: nu
   return Math.min(max, Math.max(0, Math.trunc(value as number)));
 }
 
-export function announcementExists(announcementId: string): boolean {
-  const row = getAppDb().prepare("SELECT 1 AS found FROM announcements WHERE id = ?").get(announcementId) as
+export async function announcementExists(announcementId: string): Promise<boolean> {
+  const row = (await getAppDb().queryOne("SELECT 1 AS found FROM announcements WHERE id = ?", [announcementId])) as
     | { found: number }
     | undefined;
   return Boolean(row);
 }
 
-export function upsertAnnouncementRead(input: AnnouncementReadInput): AnnouncementReadReceipt {
+export async function upsertAnnouncementRead(input: AnnouncementReadInput): Promise<AnnouncementReadReceipt> {
   const db = getAppDb();
   const now = input.readAt;
-  db.prepare(
-    `INSERT INTO announcement_reads (
+  (await db.execute(db.dialect === "mysql" ? "INSERT INTO announcement_reads (\n      id, announcement_id, reader_key, user_id, user_snapshot_json,\n      platform, device_id, device_snapshot_json, client_ip, user_agent, created_at, read_at\n    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n    ON DUPLICATE KEY UPDATE\n      user_id = VALUES(user_id),\n      user_snapshot_json = VALUES(user_snapshot_json),\n      platform = VALUES(platform),\n      device_id = VALUES(device_id),\n      device_snapshot_json = VALUES(device_snapshot_json),\n      client_ip = VALUES(client_ip),\n      user_agent = VALUES(user_agent),\n      read_at = VALUES(read_at)" : `INSERT INTO announcement_reads (
       id, announcement_id, reader_key, user_id, user_snapshot_json,
       platform, device_id, device_snapshot_json, client_ip, user_agent, created_at, read_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -93,29 +92,11 @@ export function upsertAnnouncementRead(input: AnnouncementReadInput): Announceme
       device_snapshot_json = excluded.device_snapshot_json,
       client_ip = excluded.client_ip,
       user_agent = excluded.user_agent,
-      read_at = excluded.read_at`,
-  ).run(
-    randomUUID(),
-    input.announcementId,
-    input.readerKey,
-    input.userId,
-    JSON.stringify(input.userSnapshot ?? {}),
-    input.platform,
-    input.deviceId,
-    JSON.stringify(input.deviceSnapshot),
-    input.clientIp,
-    input.userAgent,
-    now,
-    now,
-  );
+      read_at = excluded.read_at`, [randomUUID(), input.announcementId, input.readerKey, input.userId, JSON.stringify(input.userSnapshot ?? {}), input.platform, input.deviceId, JSON.stringify(input.deviceSnapshot), input.clientIp, input.userAgent, now, now]));
 
-  const row = db
-    .prepare(
-      `SELECT id, announcement_id, created_at, read_at
+  const row = (await db.queryOne(`SELECT id, announcement_id, created_at, read_at
        FROM announcement_reads
-       WHERE announcement_id = ? AND reader_key = ?`,
-    )
-    .get(input.announcementId, input.readerKey) as
+       WHERE announcement_id = ? AND reader_key = ?`, [input.announcementId, input.readerKey])) as
     | { id: string; announcement_id: string; created_at: number; read_at: number }
     | undefined;
   if (!row) throw new Error("公告已读回执写入后读取失败");
@@ -127,27 +108,21 @@ export function upsertAnnouncementRead(input: AnnouncementReadInput): Announceme
   };
 }
 
-export function readAnnouncementReads(
+export async function readAnnouncementReads(
   announcementId: string,
   offsetValue = 0,
   limitValue = 20,
-): AnnouncementReadPage {
+): Promise<AnnouncementReadPage> {
   const offset = normalizePageValue(offsetValue, 0, Number.MAX_SAFE_INTEGER);
   const limit = normalizePageValue(limitValue, 20, MAX_PAGE_SIZE) || 1;
   const db = getAppDb();
-  const totalRow = db
-    .prepare("SELECT COUNT(*) AS total FROM announcement_reads WHERE announcement_id = ?")
-    .get(announcementId) as { total: number };
-  const rows = db
-    .prepare(
-      `SELECT id, announcement_id, user_id, user_snapshot_json, platform, device_id,
+  const totalRow = (await db.queryOne("SELECT COUNT(*) AS total FROM announcement_reads WHERE announcement_id = ?", [announcementId])) as { total: number };
+  const rows = (await db.query(`SELECT id, announcement_id, user_id, user_snapshot_json, platform, device_id,
               device_snapshot_json, created_at, read_at
        FROM announcement_reads
        WHERE announcement_id = ?
        ORDER BY read_at DESC, id DESC
-       LIMIT ? OFFSET ?`,
-    )
-    .all(announcementId, limit, offset) as AnnouncementReadRow[];
+       LIMIT ? OFFSET ?`, [announcementId, limit, offset])) as AnnouncementReadRow[];
 
   const items = rows.map((row) => {
     const userSnapshot = parseSnapshot(row.user_snapshot_json);

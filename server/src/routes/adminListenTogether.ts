@@ -24,10 +24,10 @@ adminListenTogetherRouter.get("/online", (req: Request, res: Response) => {
   }
 });
 
-adminListenTogetherRouter.get("/online/:recordId", (req: Request, res: Response) => {
+adminListenTogetherRouter.get("/online/:recordId", async (req: Request, res: Response) => {
   try {
     const recordId = String(req.params.recordId ?? "");
-    const detail = readAdminOnlineRoom(recordId);
+    const detail = (await readAdminOnlineRoom(recordId));
     if (!detail) {
       res.status(404).json(fail("在线房间不存在或已结束", 404));
       return;
@@ -39,11 +39,11 @@ adminListenTogetherRouter.get("/online/:recordId", (req: Request, res: Response)
   }
 });
 
-adminListenTogetherRouter.post("/online/:recordId/dissolve", (req: Request, res: Response) => {
+adminListenTogetherRouter.post("/online/:recordId/dissolve", async (req: Request, res: Response) => {
   try {
     const recordId = String(req.params.recordId ?? "");
     const adminUsername = (req as Request & { adminUsername?: string }).adminUsername || "admin";
-    const result = dissolveAdminOnlineRoom({ recordId, adminUsername });
+    const result = (await dissolveAdminOnlineRoom({ recordId, adminUsername }));
     res.json(ok(result));
   } catch (error) {
     if (error instanceof ListenTogetherError) {
@@ -55,7 +55,7 @@ adminListenTogetherRouter.post("/online/:recordId/dissolve", (req: Request, res:
   }
 });
 
-adminListenTogetherRouter.get("/history", (req: Request, res: Response) => {
+adminListenTogetherRouter.get("/history", async (req: Request, res: Response) => {
   try {
     const keyword = typeof req.query.keyword === "string" ? req.query.keyword : undefined;
     const endReason = typeof req.query.endReason === "string" && req.query.endReason.trim()
@@ -70,14 +70,14 @@ adminListenTogetherRouter.get("/history", (req: Request, res: Response) => {
     const offset = Number(req.query.offset ?? 0);
     const limit = Number(req.query.limit ?? 20);
 
-    const result = listAdminRoomHistory({
+    const result = (await listAdminRoomHistory({
       keyword,
       endReason,
       startFrom,
       startTo,
       offset,
       limit,
-    });
+    }));
     res.json(ok(result));
   } catch (error) {
     const msg = error instanceof Error ? error.message : "获取房间历史列表失败";
@@ -85,10 +85,10 @@ adminListenTogetherRouter.get("/history", (req: Request, res: Response) => {
   }
 });
 
-adminListenTogetherRouter.get("/history/:recordId", (req: Request, res: Response) => {
+adminListenTogetherRouter.get("/history/:recordId", async (req: Request, res: Response) => {
   try {
     const recordId = String(req.params.recordId ?? "");
-    const detail = readAdminRoomHistory(recordId);
+    const detail = (await readAdminRoomHistory(recordId));
     if (!detail) {
       res.status(404).json(fail("房间历史不存在", 404));
       return;

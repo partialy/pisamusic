@@ -55,15 +55,13 @@ function isDeviceMessagePayload(value: unknown): value is DeviceMessageJwtPayloa
     && payload.fingerprint.length > 0;
 }
 
-function isCurrentDeviceIdentity(identity: DeviceMessageIdentity): boolean {
+async function isCurrentDeviceIdentity(identity: DeviceMessageIdentity): Promise<boolean> {
   const table = identity.kind === "android" ? "device_info" : "desktop_device_info";
-  const row = getDeviceDb()
-    .prepare(`SELECT 1 FROM ${table} WHERE id = ? AND fingerprint = ?`)
-    .get(identity.deviceId, identity.fingerprint) as { 1: number } | undefined;
+  const row = (await getDeviceDb().queryOne(`SELECT 1 FROM ${table} WHERE id = ? AND fingerprint = ?`, [identity.deviceId, identity.fingerprint])) as { 1: number } | undefined;
   return Boolean(row);
 }
 
-export function verifyDeviceMessageToken(rawToken: string): DeviceMessageIdentity | null {
+export async function verifyDeviceMessageToken(rawToken: string): Promise<DeviceMessageIdentity | null> {
   if (!rawToken) return null;
   try {
     const payload = jwt.verify(rawToken, getDeviceMessageJwtSecret());
@@ -73,13 +71,13 @@ export function verifyDeviceMessageToken(rawToken: string): DeviceMessageIdentit
       deviceId: payload.deviceId,
       fingerprint: payload.fingerprint,
     };
-    return isCurrentDeviceIdentity(identity) ? identity : null;
+    return (await isCurrentDeviceIdentity(identity)) ? identity : null;
   } catch {
     return null;
   }
 }
 
-export function deviceMessageIdentityFromRequest(req: Request): DeviceMessageIdentity | null {
+export async function deviceMessageIdentityFromRequest(req: Request): Promise<DeviceMessageIdentity | null> {
   const rawToken = req.header("x-pm-device-token");
-  return rawToken ? verifyDeviceMessageToken(rawToken.trim()) : null;
+  return rawToken ? (await verifyDeviceMessageToken(rawToken.trim())) : null;
 }

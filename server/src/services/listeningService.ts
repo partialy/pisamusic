@@ -171,7 +171,7 @@ function normalizedEventId(raw: unknown): string | null {
   }
 }
 
-export function ingestListeningBatch(auth: ListeningAuth, input: unknown): ListeningIngestResult {
+export async function ingestListeningBatch(auth: ListeningAuth, input: unknown): Promise<ListeningIngestResult> {
   if (!auth.userId || !auth.deviceId) throw new ListeningValidationError("缺少账号或设备身份");
   const batch = normalizeBatch(input);
   const now = Date.now();
@@ -212,13 +212,13 @@ export function ingestListeningBatch(auth: ListeningAuth, input: unknown): Liste
     candidates.push(normalized[0]);
   }
 
-  runListeningTransaction(() => {
+  (await runListeningTransaction(async () => {
     for (const candidate of candidates) {
-      if (!isPlaySessionCompatible(candidate)) {
+      if (!(await isPlaySessionCompatible(candidate))) {
         rejected.push({ eventId: candidate.eventId, reason: "同一播放会话不能关联不同歌曲" });
         continue;
       }
-      const result = insertFragmentIfAbsent(candidate);
+      const result = (await insertFragmentIfAbsent(candidate));
       if (result === "duplicate") {
         duplicateEventIds.push(candidate.eventId);
         continue;
@@ -227,46 +227,46 @@ export function ingestListeningBatch(auth: ListeningAuth, input: unknown): Liste
         rejected.push({ eventId: candidate.eventId, reason: "eventId 已用于不同播放片段" });
         continue;
       }
-      const userCoverage = mergeUserInterval(candidate.userId, candidate.startedAtMs, candidate.endedAtMs);
-      const trackCoverage = mergeTrackInterval(
+      const userCoverage = (await mergeUserInterval(candidate.userId, candidate.startedAtMs, candidate.endedAtMs));
+      const trackCoverage = (await mergeTrackInterval(
         candidate.userId, candidate.source, candidate.songId,
         candidate.startedAtMs, candidate.endedAtMs,
-      );
-      addListeningTotal(candidate.userId, userCoverage.creditedMs, now);
-      const sessionCounts = upsertPlaySession(candidate);
-      upsertTrackStat(candidate, trackCoverage.creditedMs, sessionCounts.playCountIncrement, sessionCounts.completedCountIncrement);
+      ));
+      (await addListeningTotal(candidate.userId, userCoverage.creditedMs, now));
+      const sessionCounts = (await upsertPlaySession(candidate));
+      (await upsertTrackStat(candidate, trackCoverage.creditedMs, sessionCounts.playCountIncrement, sessionCounts.completedCountIncrement));
       acceptedEventIds.push(candidate.eventId);
     }
-  });
+  }));
 
   return {
     acceptedEventIds,
     duplicateEventIds,
     rejected,
-    summary: getListeningSummary(auth.userId),
+    summary: (await getListeningSummary(auth.userId)),
     serverTimeMs: now,
   };
 }
 
-export function getListeningSummary(userId: string): ListeningSummary {
-  const { totalMs } = readListeningSummaryState(userId);
+export async function getListeningSummary(userId: string): Promise<ListeningSummary> {
+  const { totalMs } = (await readListeningSummaryState(userId));
   const totalMinutes = Math.floor(totalMs / 60_000);
-  const config = readLevelConfig();
+  const config = (await readLevelConfig());
   const level = config.rules.find((rule) => totalMinutes >= rule.minMinutes && (rule.maxMinutes === null || totalMinutes <= rule.maxMinutes));
   if (!level) throw new Error("听歌等级配置未覆盖当前累计分钟");
   return { totalMs, totalMinutes, level };
 }
 
-export function getListeningTracks(userId: string, query: ListeningTrackQuery): ListeningTrackPage {
+export async function getListeningTracks(userId: string, query: ListeningTrackQuery): Promise<ListeningTrackPage> {
   const source = query.source && SOURCES.includes(query.source) ? query.source : undefined;
   const sort = query.sort === "playCount" || query.sort === "lastListenedAt" ? query.sort : "listenedMs";
   const offset = Math.max(0, Math.floor(query.offset ?? 0));
   const limit = Math.min(100, Math.max(1, Math.floor(query.limit ?? 20)));
-  return listTrackStats(userId, { source, sort, offset, limit });
+  return (await listTrackStats(userId, { source, sort, offset, limit }));
 }
 
-export function getListeningLevelConfig(): ListeningLevelConfig {
-  return readLevelConfig();
+export async function getListeningLevelConfig(): Promise<ListeningLevelConfig> {
+  return (await readLevelConfig());
 }
 
 function normalizeLevelRules(input: unknown): { expectedVersion: number; rules: ListeningLevelRule[] } {
@@ -304,7 +304,7 @@ function normalizeLevelRules(input: unknown): { expectedVersion: number; rules: 
   return { expectedVersion: input.expectedVersion, rules };
 }
 
-export function saveListeningLevelConfig(input: unknown): ListeningLevelConfig {
+export async function saveListeningLevelConfig(input: unknown): Promise<ListeningLevelConfig> {
   const normalized = normalizeLevelRules(input);
-  return replaceLevelConfig(normalized.expectedVersion, normalized.rules);
+  return (await replaceLevelConfig(normalized.expectedVersion, normalized.rules));
 }

@@ -142,7 +142,7 @@ function mapRowToRecord(row: VerificationCodeRow): VerificationCodeRecord {
   };
 }
 
-export function insertVerificationCodeRecord(input: InsertVerificationCodeInput): string {
+export async function insertVerificationCodeRecord(input: InsertVerificationCodeInput): Promise<string> {
   const db = getAppDb();
   const id = input.id || randomUUID();
   const now = input.createdAt || Date.now();
@@ -153,56 +153,36 @@ export function insertVerificationCodeRecord(input: InsertVerificationCodeInput)
   const userAgent = normalizeText(input.userAgent, 512);
   const userId = input.userId || null;
 
-  db.prepare(
-    `INSERT INTO verification_code_records (
+  (await db.execute(`INSERT INTO verification_code_records (
       id, channel, target, purpose, code, user_id, device_id, client_ip, user_agent,
       status, error_message, created_at, expires_at, verified_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-  ).run(
-    id,
-    input.channel,
-    input.target,
-    input.purpose,
-    input.code,
-    userId,
-    deviceId,
-    clientIp,
-    userAgent,
-    status,
-    errorMessage,
-    now,
-    input.expiresAt,
-  );
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`, [id, input.channel, input.target, input.purpose, input.code, userId, deviceId, clientIp, userAgent, status, errorMessage, now, input.expiresAt]));
   return id;
 }
 
-export function markVerificationCodeVerified(
+export async function markVerificationCodeVerified(
   channel: VerificationCodeChannel,
   target: string,
   purpose: VerificationCodePurpose,
   code: string,
-): boolean {
+): Promise<boolean> {
   const db = getAppDb();
   const now = Date.now();
   // 查找最近一条未过期且状态为 sent 的匹配记录
-  const row = db.prepare(
-    `SELECT id FROM verification_code_records
+  const row = (await db.queryOne(`SELECT id FROM verification_code_records
      WHERE channel = ? AND target = ? AND purpose = ? AND code = ? AND status = 'sent' AND expires_at > ?
-     ORDER BY created_at DESC LIMIT 1`,
-  ).get(channel, target, purpose, code, now) as { id: string } | undefined;
+     ORDER BY created_at DESC LIMIT 1`, [channel, target, purpose, code, now])) as { id: string } | undefined;
 
   if (!row) return false;
 
-  const result = db.prepare(
-    `UPDATE verification_code_records
+  const result = (await db.execute(`UPDATE verification_code_records
      SET status = 'verified', verified_at = ?
-     WHERE id = ?`,
-  ).run(now, row.id);
+     WHERE id = ?`, [now, row.id]));
 
-  return result.changes > 0;
+  return result.affectedRows > 0;
 }
 
-export function listVerificationCodeRecords(query: VerificationCodeQuery): VerificationCodePage {
+export async function listVerificationCodeRecords(query: VerificationCodeQuery): Promise<VerificationCodePage> {
   const db = getAppDb();
   const { offset, limit } = normalizePagination(query.offset, query.limit);
 
@@ -244,15 +224,12 @@ export function listVerificationCodeRecords(query: VerificationCodeQuery): Verif
 
   const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  const countRow = db.prepare(
-    `SELECT COUNT(*) AS total
+  const countRow = (await db.queryOne(`SELECT COUNT(*) AS total
      FROM verification_code_records v
      LEFT JOIN users u ON u.id = v.user_id
-     ${whereSql}`,
-  ).get(...params) as { total: number };
+     ${whereSql}`, [...params])) as { total: number };
 
-  const rows = db.prepare(
-    `SELECT
+  const rows = (await db.query(`SELECT
        v.*,
        u.email AS u_email, u.phone AS u_phone, u.username AS u_username,
        u.avatar AS u_avatar, u.avatar_key AS u_avatar_key,
@@ -263,8 +240,7 @@ export function listVerificationCodeRecords(query: VerificationCodeQuery): Verif
      LEFT JOIN users u ON u.id = v.user_id
      ${whereSql}
      ORDER BY v.created_at DESC
-     LIMIT ? OFFSET ?`,
-  ).all(...params, limit, offset) as VerificationCodeRow[];
+     LIMIT ? OFFSET ?`, [...params, limit, offset])) as VerificationCodeRow[];
 
   return {
     items: rows.map(mapRowToRecord),
@@ -274,7 +250,7 @@ export function listVerificationCodeRecords(query: VerificationCodeQuery): Verif
   };
 }
 
-export function deleteVerificationCodeRecord(id: string): boolean {
-  const result = getAppDb().prepare("DELETE FROM verification_code_records WHERE id = ?").run(id);
-  return result.changes > 0;
+export async function deleteVerificationCodeRecord(id: string): Promise<boolean> {
+  const result = (await getAppDb().execute("DELETE FROM verification_code_records WHERE id = ?", [id]));
+  return result.affectedRows > 0;
 }

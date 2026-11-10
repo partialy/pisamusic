@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { DatabaseSync } from "node:sqlite";
+import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
 import { buildUrl, isAccountAvatarObjectKey } from "../services/qiniuReleaseFiles";
 
@@ -94,87 +94,70 @@ export function accountAvatarUrl(userId: string, key: string, updatedAt = 0): st
   return `${buildUrl(key, "public-image")}${suffix}`;
 }
 
-function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = fn();
-    db.exec("COMMIT");
+async function runInTransaction<T>(db: DatabaseSync, fn: () => Promise<T>): Promise<T> {
+  return (await db.transaction(async () => {
+    const result = (await fn());
+
     return result;
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+  }));
 }
 
-export function createUser(input: CreateUserInput): UserRecord {
+export async function createUser(input: CreateUserInput): Promise<UserRecord> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
+  return (await runInTransaction(db, async () => {
     const now = Date.now();
     const id = randomUUID().replace(/-/g, "");
-    db.prepare(
-      `INSERT INTO users (
+    (await db.execute(`INSERT INTO users (
         id, email, phone, username, password_hash, avatar, avatar_key, sync_version, created_at, updated_at, last_login_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
-    ).run(
-      id,
-      input.email,
-      input.phone ?? null,
-      input.username,
-      input.passwordHash,
-      input.avatar ?? avatarUrlForKey("default"),
-      "default",
-      now,
-      now,
-      now,
-    );
-    const created = readUserById(id);
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`, [id, input.email, input.phone ?? null, input.username, input.passwordHash, input.avatar ?? avatarUrlForKey("default"), "default", now, now, now]));
+    const created = (await readUserById(id));
     if (!created) throw new Error("用户创建失败");
     return created;
-  });
+  }));
 }
 
-export function readUserById(id: string): UserRecord | null {
-  const row = getAppDb().prepare("SELECT * FROM users WHERE id = ?").get(id) as UserRow | undefined;
+export async function readUserById(id: string): Promise<UserRecord | null> {
+  const row = (await getAppDb().queryOne("SELECT * FROM users WHERE id = ?", [id])) as UserRow | undefined;
   return row ? mapUserRow(row) : null;
 }
 
-export function readUserByEmail(email: string): UserRecord | null {
-  const row = getAppDb().prepare("SELECT * FROM users WHERE email = ?").get(email) as UserRow | undefined;
+export async function readUserByEmail(email: string): Promise<UserRecord | null> {
+  const row = (await getAppDb().queryOne("SELECT * FROM users WHERE email = ?", [email])) as UserRow | undefined;
   return row ? mapUserRow(row) : null;
 }
 
-export function readUserByPhone(phone: string): UserRecord | null {
-  const row = getAppDb().prepare("SELECT * FROM users WHERE phone = ?").get(phone) as UserRow | undefined;
+export async function readUserByPhone(phone: string): Promise<UserRecord | null> {
+  const row = (await getAppDb().queryOne("SELECT * FROM users WHERE phone = ?", [phone])) as UserRow | undefined;
   return row ? mapUserRow(row) : null;
 }
 
-export function readUserByUsername(username: string): UserRecord | null {
-  const row = getAppDb().prepare("SELECT * FROM users WHERE username = ?").get(username) as UserRow | undefined;
+export async function readUserByUsername(username: string): Promise<UserRecord | null> {
+  const row = (await getAppDb().queryOne("SELECT * FROM users WHERE username = ?", [username])) as UserRow | undefined;
   return row ? mapUserRow(row) : null;
 }
 
-export function readUserByIdentifier(identifier: string): UserRecord | null {
-  if (identifier.includes("@")) return readUserByEmail(identifier);
-  if (/^1\d{10}$/.test(identifier)) return readUserByPhone(identifier);
-  return readUserByUsername(identifier);
+export async function readUserByIdentifier(identifier: string): Promise<UserRecord | null> {
+  if (identifier.includes("@")) return (await readUserByEmail(identifier));
+  if (/^1\d{10}$/.test(identifier)) return (await readUserByPhone(identifier));
+  return (await readUserByUsername(identifier));
 }
 
-export function touchUserLogin(id: string): void {
-  getAppDb().prepare("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?").run(Date.now(), Date.now(), id);
+export async function touchUserLogin(id: string): Promise<void> {
+  (await getAppDb().execute("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?", [Date.now(), Date.now(), id]));
 }
 
-export function userExistsForRegister(email: string | null, phone: string | null, username: string): { emailExists: boolean; phoneExists: boolean; usernameExists: boolean } {
+export async function userExistsForRegister(email: string | null, phone: string | null, username: string): Promise<{ emailExists: boolean; phoneExists: boolean; usernameExists: boolean }> {
   const db = getAppDb();
-  const emailRow = email ? db.prepare("SELECT id FROM users WHERE email = ?").get(email) as { id: string } | undefined : undefined;
-  const phoneRow = phone ? db.prepare("SELECT id FROM users WHERE phone = ?").get(phone) as { id: string } | undefined : undefined;
-  const usernameRow = db.prepare("SELECT id FROM users WHERE username = ?").get(username) as { id: string } | undefined;
+  const emailRow = email ? (await db.queryOne("SELECT id FROM users WHERE email = ?", [email])) as { id: string } | undefined : undefined;
+  const phoneRow = phone ? (await db.queryOne("SELECT id FROM users WHERE phone = ?", [phone])) as { id: string } | undefined : undefined;
+  const usernameRow = (await db.queryOne("SELECT id FROM users WHERE username = ?", [username])) as { id: string } | undefined;
   return { emailExists: Boolean(emailRow), phoneExists: Boolean(phoneRow), usernameExists: Boolean(usernameRow) };
 }
 
-export function updateUserProfile(id: string, input: UpdateUserProfileInput): UserRecord {
+export async function updateUserProfile(id: string, input: UpdateUserProfileInput): Promise<UserRecord> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const current = readUserById(id);
+  return (await runInTransaction(db, async () => {
+    const current = (await readUserById(id));
     if (!current) throw new Error("用户不存在");
     const nextEmail = input.email ?? current.email;
     const nextPhone = input.phone === undefined ? current.phone : input.phone;
@@ -182,44 +165,41 @@ export function updateUserProfile(id: string, input: UpdateUserProfileInput): Us
     const nextAvatarKey = normalizeAccountAvatarKey(id, input.avatarKey ?? current.avatarKey);
     const now = Date.now();
     const nextAvatarUrl = accountAvatarUrl(id, nextAvatarKey, now);
-    db.prepare(
-      `UPDATE users
+    (await db.execute(`UPDATE users
        SET email = ?, phone = ?, username = ?, avatar_key = ?, avatar = ?, updated_at = ?
-       WHERE id = ?`,
-    ).run(nextEmail, nextPhone, nextUsername, nextAvatarKey, nextAvatarUrl, now, id);
-    const updated = readUserById(id);
+       WHERE id = ?`, [nextEmail, nextPhone, nextUsername, nextAvatarKey, nextAvatarUrl, now, id]));
+    const updated = (await readUserById(id));
     if (!updated) throw new Error("用户资料更新失败");
     return updated;
-  });
+  }));
 }
 
-export function updateUserPassword(id: string, passwordHash: string): UserRecord {
+export async function updateUserPassword(id: string, passwordHash: string): Promise<UserRecord> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const current = readUserById(id);
+  return (await runInTransaction(db, async () => {
+    const current = (await readUserById(id));
     if (!current) throw new Error("用户不存在");
-    db.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?").run(passwordHash, Date.now(), id);
-    const updated = readUserById(id);
+    (await db.execute("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?", [passwordHash, Date.now(), id]));
+    const updated = (await readUserById(id));
     if (!updated) throw new Error("密码更新失败");
     return updated;
-  });
+  }));
 }
 
-export function updateUserVip(id: string, vipEnabled: boolean, vipExpiresAt: number | null): UserRecord {
+export async function updateUserVip(id: string, vipEnabled: boolean, vipExpiresAt: number | null): Promise<UserRecord> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const current = readUserById(id);
+  return (await runInTransaction(db, async () => {
+    const current = (await readUserById(id));
     if (!current) throw new Error("用户不存在");
     const expiresAt = vipEnabled ? vipExpiresAt : null;
     if (vipEnabled && (expiresAt == null || !Number.isFinite(expiresAt) || !Number.isInteger(expiresAt) || expiresAt <= Date.now())) {
       throw new Error("启用 VIP 时必须设置晚于当前时间的到期时间");
     }
-    db.prepare("UPDATE users SET vip_enabled = ?, vip_expires_at = ?, updated_at = ? WHERE id = ?")
-      .run(vipEnabled ? 1 : 0, expiresAt, Date.now(), id);
-    const updated = readUserById(id);
+    (await db.execute("UPDATE users SET vip_enabled = ?, vip_expires_at = ?, updated_at = ? WHERE id = ?", [vipEnabled ? 1 : 0, expiresAt, Date.now(), id]));
+    const updated = (await readUserById(id));
     if (!updated) throw new Error("用户 VIP 权益更新失败");
     return updated;
-  });
+  }));
 }
 
 export function toPublicUser(user: UserRecord): PublicUser {

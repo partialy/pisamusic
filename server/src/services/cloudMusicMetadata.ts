@@ -164,7 +164,7 @@ function warningMessage(value: unknown): string {
 
 export async function extractCloudMusicMetadata(input: MetadataExtractInput): Promise<CloudMusicExtractedMetadata> {
   requireCloudMusicAssetExtension("audio", input.fileName);
-  return withDownloadedTempFile(input, CLOUD_MUSIC_AUDIO_MAX_SIZE, async (tempPath) => {
+  return (await withDownloadedTempFile(input, CLOUD_MUSIC_AUDIO_MAX_SIZE, async (tempPath) => {
     const { parseFile } = await import("music-metadata");
     const parsed = await parseFile(tempPath, { duration: true });
     const { common, format } = parsed;
@@ -227,25 +227,25 @@ export async function extractCloudMusicMetadata(input: MetadataExtractInput): Pr
       warnings,
       embeddedCover,
     };
-  });
+  }));
 }
 
 export async function validateCloudMusicCover(input: CloudMusicCoverValidationInput): Promise<CloudMusicCoverValidation> {
   const expectedMimeType = input.expectedMimeType.split(";", 1)[0].trim().toLowerCase();
   const extensionMimeType = coverMimeTypeForExtension(input.fileName);
   if (expectedMimeType !== extensionMimeType) throw new Error("封面预登记 MIME 与扩展名不一致");
-  return withDownloadedTempFile(input, CLOUD_MUSIC_COVER_MAX_SIZE, async (tempPath) => {
+  return (await withDownloadedTempFile(input, CLOUD_MUSIC_COVER_MAX_SIZE, async (tempPath) => {
     const data = await readFile(tempPath);
     const mimeType = detectCoverMimeType(data);
     if (!mimeType) throw new Error("封面文件头不支持，仅允许 JPEG、PNG、WebP");
     if (mimeType !== expectedMimeType) throw new Error("封面文件头与预登记 MIME 不一致");
     return { mimeType };
-  });
+  }));
 }
 
 export async function validateCloudMusicLyrics(input: MetadataExtractInput): Promise<CloudMusicLyricsValidation> {
   requireCloudMusicAssetExtension("lyrics", input.fileName);
-  return withDownloadedTempFile(input, CLOUD_MUSIC_LYRICS_MAX_SIZE, async (tempPath) => {
+  return (await withDownloadedTempFile(input, CLOUD_MUSIC_LYRICS_MAX_SIZE, async (tempPath) => {
     const data = await readFile(tempPath);
     let text: string;
     try {
@@ -255,5 +255,5 @@ export async function validateCloudMusicLyrics(input: MetadataExtractInput): Pro
     }
     const ext = path.extname(input.fileName).slice(1).toLowerCase();
     return { format: ext || "txt", characterCount: text.length };
-  });
+  }));
 }

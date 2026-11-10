@@ -40,11 +40,9 @@ function mapDynamicConfig(row?: DynamicConfigRow): DynamicConfigItem | null {
   };
 }
 
-export function listDynamicConfigs(): DynamicConfigItem[] {
+export async function listDynamicConfigs(): Promise<DynamicConfigItem[]> {
   const db = getAppDb();
-  const rows = db
-    .prepare("SELECT id, type, content, created_at, updated_at FROM dynamic_configs ORDER BY updated_at DESC, id ASC")
-    .all() as DynamicConfigRow[];
+  const rows = (await db.query("SELECT id, type, content, created_at, updated_at FROM dynamic_configs ORDER BY updated_at DESC, id ASC", [])) as DynamicConfigRow[];
   return rows.map((row) => ({
     id: row.id,
     type: normalizeDynamicConfigType(row.type),
@@ -54,39 +52,35 @@ export function listDynamicConfigs(): DynamicConfigItem[] {
   }));
 }
 
-export function readDynamicConfigById(id: string): DynamicConfigItem | null {
+export async function readDynamicConfigById(id: string): Promise<DynamicConfigItem | null> {
   const db = getAppDb();
-  const row = db
-    .prepare("SELECT id, type, content, created_at, updated_at FROM dynamic_configs WHERE id = ?")
-    .get(id) as DynamicConfigRow | undefined;
+  const row = (await db.queryOne("SELECT id, type, content, created_at, updated_at FROM dynamic_configs WHERE id = ?", [id])) as DynamicConfigRow | undefined;
   return mapDynamicConfig(row);
 }
 
-export function saveDynamicConfig(input: {
+export async function saveDynamicConfig(input: {
   id: string;
   type: DynamicConfigType;
   content: string;
-}): DynamicConfigItem {
+}): Promise<DynamicConfigItem> {
   const db = getAppDb();
-  const existing = readDynamicConfigById(input.id);
+  const existing = (await readDynamicConfigById(input.id));
   const now = Date.now();
-  db.prepare(
-    `INSERT INTO dynamic_configs (id, type, content, created_at, updated_at)
+  (await db.execute(db.dialect === "mysql" ? "INSERT INTO dynamic_configs (id, type, content, created_at, updated_at)\n     VALUES (?, ?, ?, ?, ?)\n     ON DUPLICATE KEY UPDATE\n       type = VALUES(type),\n       content = VALUES(content),\n       updated_at = VALUES(updated_at)" : `INSERT INTO dynamic_configs (id, type, content, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        type = excluded.type,
        content = excluded.content,
-       updated_at = excluded.updated_at`,
-  ).run(input.id, input.type, input.content, existing?.createdAt ?? now, now);
-  const saved = readDynamicConfigById(input.id);
+       updated_at = excluded.updated_at`, [input.id, input.type, input.content, existing?.createdAt ?? now, now]));
+  const saved = (await readDynamicConfigById(input.id));
   if (!saved) {
     throw new Error("动态配置保存失败");
   }
   return saved;
 }
 
-export function deleteDynamicConfig(id: string): boolean {
+export async function deleteDynamicConfig(id: string): Promise<boolean> {
   const db = getAppDb();
-  const result = db.prepare("DELETE FROM dynamic_configs WHERE id = ?").run(id);
-  return result.changes > 0;
+  const result = (await db.execute("DELETE FROM dynamic_configs WHERE id = ?", [id]));
+  return result.affectedRows > 0;
 }

@@ -1,5 +1,6 @@
 import { adminAppShareRecordsRouter } from "./adminAppShareRecords";
 import { adminAppShareRouter } from "./adminAppShare";
+import { adminDatabaseMigrationRouter } from "./adminDatabaseMigration";
 import { Router } from "express";
 import type { Request } from "express";
 import { randomUUID } from "node:crypto";
@@ -622,7 +623,7 @@ adminRouter.post("/login", async (req, res) => {
     const password = String(body?.password ?? "");
     if (!username || !password) return res.status(400).json(fail("?????????", 400));
 
-    const auth = readAdminUser(username);
+    const auth = (await readAdminUser(username));
     if (!auth || !bcrypt.compareSync(password, auth.passwordHash)) {
       return res.status(401).json(fail("鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒", 401));
     }
@@ -636,6 +637,7 @@ adminRouter.post("/login", async (req, res) => {
 });
 
 adminRouter.use(requireAdminJwt);
+adminRouter.use("/database-migration", adminDatabaseMigrationRouter);
 adminRouter.use("/app-share", adminAppShareRouter);
 adminRouter.use("/app-share-records", adminAppShareRecordsRouter);
 adminRouter.use("/announcements", adminAnnouncementsRouter);
@@ -665,11 +667,11 @@ adminRouter.post("/change-password", async (req, res) => {
     if (newPassword.length > 128) return res.status(400).json(fail("?????", 400));
     if (currentPassword === newPassword) return res.status(400).json(fail("鏂板瘑鐮佷笉鑳戒笌褰撳墠瀵嗙爜鐩稿悓", 400));
 
-    const auth = readAnyAdminUser();
+    const auth = (await readAnyAdminUser());
     if (!auth || auth.username !== username) return res.status(500).json(fail("璐﹀彿閰嶇疆寮傚父", 500));
     if (!bcrypt.compareSync(currentPassword, auth.passwordHash)) return res.status(400).json(fail("褰撳墠瀵嗙爜閿欒", 400));
 
-    upsertAdminUser({ username: auth.username, passwordHash: bcrypt.hashSync(newPassword, 10) });
+    (await upsertAdminUser({ username: auth.username, passwordHash: bcrypt.hashSync(newPassword, 10) }));
     return res.json(ok({ updated: true }, "?????"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "淇敼瀵嗙爜澶辫触";
@@ -677,49 +679,49 @@ adminRouter.post("/change-password", async (req, res) => {
   }
 });
 
-adminRouter.get("/app-config", (_req, res) => {
+adminRouter.get("/app-config", async (_req, res) => {
   try {
-    return res.json(ok(readAppConfig()));
+    return res.json(ok((await readAppConfig())));
   } catch (e) {
     const message = e instanceof Error ? e.message : "璇诲彇閰嶇疆澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminRouter.post("/app-config-sections", (req, res) => {
+adminRouter.post("/app-config-sections", async (req, res) => {
   try {
     const result = normalizeAppConfigSections(req.body);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(saveAppConfigSections(result.value), "?????"));
+    return res.json(ok((await saveAppConfigSections(result.value)), "?????"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "淇濆瓨閰嶇疆澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminRouter.get("/announcements", (_req, res) => {
+adminRouter.get("/announcements", async (_req, res) => {
   try {
-    return res.json(ok(readHydratedAnnouncements()));
+    return res.json(ok((await readHydratedAnnouncements())));
   } catch (e) {
     const message = e instanceof Error ? e.message : "璇诲彇鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminRouter.post("/announcements", (req, res) => {
+adminRouter.post("/announcements", async (req, res) => {
   try {
     const result = normalizeAnnouncement(req.body);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(saveManagedAnnouncement(result.value), "公告已保存"));
+    return res.json(ok((await saveManagedAnnouncement(result.value)), "公告已保存"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "淇濆瓨鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminRouter.put("/announcements/:id", (req, res) => {
+adminRouter.put("/announcements/:id", async (req, res) => {
   try {
-    const existing = readHydratedAnnouncements().find((item) => item.id === req.params.id);
+    const existing = (await readHydratedAnnouncements()).find((item) => item.id === req.params.id);
     const body = isRecord(req.body) ? req.body : {};
     const result = normalizeAnnouncement({
       ...body,
@@ -727,16 +729,16 @@ adminRouter.put("/announcements/:id", (req, res) => {
       ...(body.enabled === undefined && existing ? { enabled: existing.enabled } : {}),
     });
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    return res.json(ok(saveManagedAnnouncement(result.value), "公告已保存"));
+    return res.json(ok((await saveManagedAnnouncement(result.value)), "公告已保存"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "淇濆瓨鍏憡澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminRouter.delete("/announcements/:id", (req, res) => {
+adminRouter.delete("/announcements/:id", async (req, res) => {
   try {
-    const deleted = deleteManagedAnnouncement(String(req.params.id ?? "").trim());
+    const deleted = (await deleteManagedAnnouncement(String(req.params.id ?? "").trim()));
     if (!deleted) return res.status(404).json(fail("?????", 404));
     return res.json(ok(null, "?????"));
   } catch (e) {
@@ -783,16 +785,16 @@ adminRouter.post("/announcements/images/complete", async (req, res) => {
   }
 });
 
-adminRouter.get("/update-history", (_req, res) => {
+adminRouter.get("/update-history", async (_req, res) => {
   try {
-    return res.json(ok(readUpdateHistory()));
+    return res.json(ok((await readUpdateHistory())));
   } catch (e) {
     const message = e instanceof Error ? e.message : "璇诲彇鏇存柊鍘嗗彶澶辫触";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminRouter.get("/files", (req, res) => {
+adminRouter.get("/files", async (req, res) => {
   try {
     const status = String(req.query.status ?? "uploaded");
     const usageType = String(req.query.usageType ?? "all");
@@ -801,7 +803,7 @@ adminRouter.get("/files", (req, res) => {
     const keyword = String(req.query.keyword ?? "");
     const offset = Number(req.query.offset ?? 0);
     const limit = Number(req.query.limit ?? 20);
-    return res.json(ok(listFileRecords({
+    return res.json(ok((await listFileRecords({
       status: status === "deleted" || status === "all" ? status : "uploaded",
       usageType: usageType === "release-package" || usageType === "desktop-update" || usageType === "app-share-icon" ? usageType : "all",
       platform,
@@ -809,7 +811,7 @@ adminRouter.get("/files", (req, res) => {
       keyword,
       offset,
       limit,
-    })));
+    }))));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取文件记录失败";
     return res.status(500).json(fail(message, 500));
@@ -840,11 +842,11 @@ adminRouter.post("/release-files/upload-token", (req, res) => {
   }
 });
 
-adminRouter.post("/release-files/complete", (req, res) => {
+adminRouter.post("/release-files/complete", async (req, res) => {
   try {
     const payload = normalizeUploadCompletePayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    const file = createReleaseUploadRecord({
+    const file = (await createReleaseUploadRecord({
       id: randomUUID(),
       platform: payload.value.platform,
       version: payload.value.version,
@@ -855,7 +857,7 @@ adminRouter.post("/release-files/complete", (req, res) => {
       fileName: payload.value.fileName,
       mimeType: payload.value.mimeType,
       fileSize: payload.value.fileSize,
-    });
+    }));
     return res.json(ok(file, "安装包已登记"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "登记安装包失败";
@@ -873,11 +875,11 @@ adminRouter.post("/desktop-updates/upload-token", (req, res) => {
   }
 });
 
-adminRouter.post("/desktop-updates/complete", (req, res) => {
+adminRouter.post("/desktop-updates/complete", async (req, res) => {
   try {
     const payload = normalizeDesktopUpdateCompletePayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    const asset = createDesktopUpdateUploadRecord({
+    const asset = (await createDesktopUpdateUploadRecord({
       id: randomUUID(),
       version: payload.value.version,
       platform: payload.value.platform,
@@ -890,18 +892,18 @@ adminRouter.post("/desktop-updates/complete", (req, res) => {
       fileName: payload.value.fileName,
       mimeType: payload.value.mimeType,
       fileSize: payload.value.fileSize,
-    });
+    }));
     return res.json(ok(asset, "自动更新文件已登记"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "登记自动更新文件失败";
     return res.status(500).json(fail(message, 500));
   }
 });
-adminRouter.post("/desktop-updates/activate", (req, res) => {
+adminRouter.post("/desktop-updates/activate", async (req, res) => {
   try {
     const payload = normalizeDesktopUpdateActivatePayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    const assets = activateDesktopUpdateVersion(payload.value.version, payload.value.platform, payload.value.arch);
+    const assets = (await activateDesktopUpdateVersion(payload.value.version, payload.value.platform, payload.value.arch));
     return res.json(ok({ assets }, "PC 自动更新版本已启用"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "启用 PC 自动更新版本失败";
@@ -909,11 +911,11 @@ adminRouter.post("/desktop-updates/activate", (req, res) => {
   }
 });
 
-adminRouter.post("/publish-update", (req, res) => {
+adminRouter.post("/publish-update", async (req, res) => {
   try {
     const payload = normalizePayload(req.body);
     if (!payload) return res.status(400).json(fail("发布信息不完整", 400));
-    const history = publishUpdate(payload.release, randomUUID(), payload.platform, payload.releaseFileId);
+    const history = (await publishUpdate(payload.release, randomUUID(), payload.platform, payload.releaseFileId));
     return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform }, "发布成功"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "发布更新失败";
@@ -921,13 +923,13 @@ adminRouter.post("/publish-update", (req, res) => {
   }
 });
 
-adminRouter.put("/update-history/:id", (req, res) => {
+adminRouter.put("/update-history/:id", async (req, res) => {
   try {
     const historyId = String(req.params.id ?? "").trim();
     if (!historyId) return res.status(400).json(fail("发布记录 ID 不能为空", 400));
     const payload = normalizePayload(req.body);
     if (!payload) return res.status(400).json(fail("发布信息不完整", 400));
-    const history = updatePublishedUpdate(historyId, payload.release, payload.platform, payload.releaseFileId);
+    const history = (await updatePublishedUpdate(historyId, payload.release, payload.platform, payload.releaseFileId));
     return res.json(ok({ id: history.id, update: payload.release, platform: payload.platform, history }, "发布记录已保存"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "保存发布记录失败";
@@ -936,11 +938,11 @@ adminRouter.put("/update-history/:id", (req, res) => {
   }
 });
 
-adminRouter.get("/update-history/:id/delete-preview", (req, res) => {
+adminRouter.get("/update-history/:id/delete-preview", async (req, res) => {
   try {
     const historyId = String(req.params.id ?? "").trim();
     if (!historyId) return res.status(400).json(fail("发布记录 ID 不能为空", 400));
-    return res.json(ok(previewManagedUpdateHistoryDeletion(historyId)));
+    return res.json(ok((await previewManagedUpdateHistoryDeletion(historyId))));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取版本删除预览失败";
     const status = message === "发布记录不存在" ? 404 : message === "当前最新版本不可删除" ? 400 : 500;
@@ -978,13 +980,13 @@ adminRouter.get("/encryption-config", (_req, res) => {
   return res.json(ok({ plaintextPaths: getPlaintextPaths() }));
 });
 
-adminRouter.post("/encryption-config", (req, res) => {
+adminRouter.post("/encryption-config", async (req, res) => {
   try {
     const body = req.body as Record<string, unknown>;
     const result = sanitizePathList(body?.plaintextPaths);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
     const paths = [...new Set([...result.paths, ...MANDATORY_PLAINTEXT_PATHS])];
-    replacePlaintextPaths(paths);
+    (await replacePlaintextPaths(paths));
     setPlaintextPaths(paths);
     return res.json(ok({ plaintextPaths: paths }, "鐧藉悕鍗曞凡鏇存柊"));
   } catch (e) {
@@ -1093,7 +1095,7 @@ function mapDesktopDeviceRow(row: DesktopDeviceInfoRow) {
   };
 }
 
-adminRouter.get("/device/list", (req, res) => {
+adminRouter.get("/device/list", async (req, res) => {
   try {
     const db = getDeviceDb();
     const search = String(req.query.search ?? "").trim();
@@ -1117,9 +1119,8 @@ adminRouter.get("/device/list", (req, res) => {
     }
 
     const where = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
-    const countRow = db.prepare(`SELECT COUNT(*) as total FROM device_info ${where}`).get(...params) as { total: number };
-    const rows = db.prepare(`SELECT * FROM device_info ${where} ORDER BY last_active_at DESC LIMIT ? OFFSET ?`)
-      .all(...params, limit, offset) as DeviceInfoRow[];
+    const countRow = (await db.queryOne(`SELECT COUNT(*) as total FROM device_info ${where}`, [...params])) as { total: number };
+    const rows = (await db.query(`SELECT * FROM device_info ${where} ORDER BY last_active_at DESC LIMIT ? OFFSET ?`, [...params, limit, offset])) as DeviceInfoRow[];
 
     return res.json(ok({ devices: rows.map(mapDeviceRow), total: countRow.total, offset, limit }));
   } catch (e) {
@@ -1128,12 +1129,12 @@ adminRouter.get("/device/list", (req, res) => {
   }
 });
 
-adminRouter.get("/device/:id", (req, res) => {
+adminRouter.get("/device/:id", async (req, res) => {
   const id = String(req.params.id ?? "").trim();
   if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid device ID", 400));
   try {
     const db = getDeviceDb();
-    const row = db.prepare("SELECT * FROM device_info WHERE id = ?").get(id) as DeviceInfoRow | undefined;
+    const row = (await db.queryOne("SELECT * FROM device_info WHERE id = ?", [id])) as DeviceInfoRow | undefined;
     if (!row) return res.status(404).json(fail("Device not found", 404));
     return res.json(ok(mapDeviceRow(row)));
   } catch (e) {
@@ -1142,7 +1143,7 @@ adminRouter.get("/device/:id", (req, res) => {
   }
 });
 
-adminRouter.post("/device/:id/lock", (req, res) => {
+adminRouter.post("/device/:id/lock", async (req, res) => {
   const id = String(req.params.id ?? "").trim();
   if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid device ID", 400));
   try {
@@ -1154,11 +1155,11 @@ adminRouter.post("/device/:id/lock", (req, res) => {
     }
 
     const db = getDeviceDb();
-    const existing = db.prepare("SELECT id FROM device_info WHERE id = ?").get(id) as { id: string } | undefined;
+    const existing = (await db.queryOne("SELECT id FROM device_info WHERE id = ?", [id])) as { id: string } | undefined;
     if (!existing) return res.status(404).json(fail("Device not found", 404));
 
-    db.prepare("UPDATE device_info SET locked = ?, lock_end_time = ? WHERE id = ?").run(locked ? 1 : 0, lockEndTime, id);
-    const updated = db.prepare("SELECT * FROM device_info WHERE id = ?").get(id) as DeviceInfoRow;
+    (await db.execute("UPDATE device_info SET locked = ?, lock_end_time = ? WHERE id = ?", [locked ? 1 : 0, lockEndTime, id]));
+    const updated = (await db.queryOne("SELECT * FROM device_info WHERE id = ?", [id])) as DeviceInfoRow;
     return res.json(ok(mapDeviceRow(updated)));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "鎿嶄綔澶辫触";
@@ -1166,14 +1167,14 @@ adminRouter.post("/device/:id/lock", (req, res) => {
   }
 });
 
-adminRouter.delete("/device/:id", (req, res) => {
+adminRouter.delete("/device/:id", async (req, res) => {
   const id = String(req.params.id ?? "").trim();
   if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid device ID", 400));
   try {
     const db = getDeviceDb();
-    const existing = db.prepare("SELECT id FROM device_info WHERE id = ?").get(id) as { id: string } | undefined;
+    const existing = (await db.queryOne("SELECT id FROM device_info WHERE id = ?", [id])) as { id: string } | undefined;
     if (!existing) return res.status(404).json(fail("Device not found", 404));
-    db.prepare("DELETE FROM device_info WHERE id = ?").run(id);
+    (await db.execute("DELETE FROM device_info WHERE id = ?", [id]));
     return res.json(ok(null, "?????"));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "鍒犻櫎璁惧澶辫触";
@@ -1181,7 +1182,7 @@ adminRouter.delete("/device/:id", (req, res) => {
   }
 });
 
-adminRouter.get("/desktop-device/list", (req, res) => {
+adminRouter.get("/desktop-device/list", async (req, res) => {
   try {
     const db = getDeviceDb();
     const search = String(req.query.search ?? "").trim();
@@ -1205,9 +1206,8 @@ adminRouter.get("/desktop-device/list", (req, res) => {
     }
 
     const where = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
-    const countRow = db.prepare(`SELECT COUNT(*) as total FROM desktop_device_info ${where}`).get(...params) as { total: number };
-    const rows = db.prepare(`SELECT * FROM desktop_device_info ${where} ORDER BY last_active_at DESC LIMIT ? OFFSET ?`)
-      .all(...params, limit, offset) as DesktopDeviceInfoRow[];
+    const countRow = (await db.queryOne(`SELECT COUNT(*) as total FROM desktop_device_info ${where}`, [...params])) as { total: number };
+    const rows = (await db.query(`SELECT * FROM desktop_device_info ${where} ORDER BY last_active_at DESC LIMIT ? OFFSET ?`, [...params, limit, offset])) as DesktopDeviceInfoRow[];
 
     return res.json(ok({ devices: rows.map(mapDesktopDeviceRow), total: countRow.total, offset, limit }));
   } catch (e) {
@@ -1216,12 +1216,12 @@ adminRouter.get("/desktop-device/list", (req, res) => {
   }
 });
 
-adminRouter.get("/desktop-device/:id", (req, res) => {
+adminRouter.get("/desktop-device/:id", async (req, res) => {
   const id = String(req.params.id ?? "").trim();
   if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid desktop device ID", 400));
   try {
     const db = getDeviceDb();
-    const row = db.prepare("SELECT * FROM desktop_device_info WHERE id = ?").get(id) as DesktopDeviceInfoRow | undefined;
+    const row = (await db.queryOne("SELECT * FROM desktop_device_info WHERE id = ?", [id])) as DesktopDeviceInfoRow | undefined;
     if (!row) return res.status(404).json(fail("Desktop device not found", 404));
     return res.json(ok(mapDesktopDeviceRow(row)));
   } catch (e) {
@@ -1230,7 +1230,7 @@ adminRouter.get("/desktop-device/:id", (req, res) => {
   }
 });
 
-adminRouter.post("/desktop-device/:id/lock", (req, res) => {
+adminRouter.post("/desktop-device/:id/lock", async (req, res) => {
   const id = String(req.params.id ?? "").trim();
   if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid desktop device ID", 400));
   try {
@@ -1242,11 +1242,11 @@ adminRouter.post("/desktop-device/:id/lock", (req, res) => {
     }
 
     const db = getDeviceDb();
-    const existing = db.prepare("SELECT id FROM desktop_device_info WHERE id = ?").get(id) as { id: string } | undefined;
+    const existing = (await db.queryOne("SELECT id FROM desktop_device_info WHERE id = ?", [id])) as { id: string } | undefined;
     if (!existing) return res.status(404).json(fail("Desktop device not found", 404));
 
-    db.prepare("UPDATE desktop_device_info SET locked = ?, lock_end_time = ? WHERE id = ?").run(locked ? 1 : 0, lockEndTime, id);
-    const updated = db.prepare("SELECT * FROM desktop_device_info WHERE id = ?").get(id) as DesktopDeviceInfoRow;
+    (await db.execute("UPDATE desktop_device_info SET locked = ?, lock_end_time = ? WHERE id = ?", [locked ? 1 : 0, lockEndTime, id]));
+    const updated = (await db.queryOne("SELECT * FROM desktop_device_info WHERE id = ?", [id])) as DesktopDeviceInfoRow;
     return res.json(ok(mapDesktopDeviceRow(updated)));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "鎿嶄綔 PC 璁惧澶辫触";
@@ -1254,14 +1254,14 @@ adminRouter.post("/desktop-device/:id/lock", (req, res) => {
   }
 });
 
-adminRouter.delete("/desktop-device/:id", (req, res) => {
+adminRouter.delete("/desktop-device/:id", async (req, res) => {
   const id = String(req.params.id ?? "").trim();
   if (!UUID_RE.test(id)) return res.status(400).json(fail("Invalid desktop device ID", 400));
   try {
     const db = getDeviceDb();
-    const existing = db.prepare("SELECT id FROM desktop_device_info WHERE id = ?").get(id) as { id: string } | undefined;
+    const existing = (await db.queryOne("SELECT id FROM desktop_device_info WHERE id = ?", [id])) as { id: string } | undefined;
     if (!existing) return res.status(404).json(fail("Desktop device not found", 404));
-    db.prepare("DELETE FROM desktop_device_info WHERE id = ?").run(id);
+    (await db.execute("DELETE FROM desktop_device_info WHERE id = ?", [id]));
     return res.json(ok(null, "PC ?????"));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "鍒犻櫎 PC 璁惧澶辫触";

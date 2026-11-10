@@ -103,20 +103,20 @@ function normalizeLibraryKind(value: unknown): AdminUserLibraryKind | null {
     : null;
 }
 
-adminUsersRouter.get("/", (req, res) => {
+adminUsersRouter.get("/", async (req, res) => {
   try {
-    return res.json(ok(listAdminUsers(req.query.keyword, req.query.offset, req.query.limit)));
+    return res.json(ok((await listAdminUsers(req.query.keyword, req.query.offset, req.query.limit))));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取用户列表失败";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminUsersRouter.get("/:id", (req, res) => {
+adminUsersRouter.get("/:id", async (req, res) => {
   try {
     const id = normalizeUserId(req.params.id);
     if (!id.ok) return res.status(400).json(fail(id.msg, 400));
-    const detail = readAdminUserDetail(id.value);
+    const detail = (await readAdminUserDetail(id.value));
     if (!detail) return res.status(404).json(fail("用户不存在", 404));
     return res.json(ok(detail));
   } catch (e) {
@@ -125,13 +125,13 @@ adminUsersRouter.get("/:id", (req, res) => {
   }
 });
 
-adminUsersRouter.get("/:id/library", (req, res) => {
+adminUsersRouter.get("/:id/library", async (req, res) => {
   try {
     const id = normalizeUserId(req.params.id);
     if (!id.ok) return res.status(400).json(fail(id.msg, 400));
     const kind = normalizeLibraryKind(req.query.kind);
     if (!kind) return res.status(400).json(fail("数据类型不正确", 400));
-    const page = listAdminUserLibraryItems(id.value, kind, req.query.offset, req.query.limit ?? 30);
+    const page = (await listAdminUserLibraryItems(id.value, kind, req.query.offset, req.query.limit ?? 30));
     if (!page) return res.status(404).json(fail("用户不存在", 404));
     return res.json(ok(page));
   } catch (e) {
@@ -140,13 +140,13 @@ adminUsersRouter.get("/:id/library", (req, res) => {
   }
 });
 
-adminUsersRouter.put("/:id", (req, res) => {
+adminUsersRouter.put("/:id", async (req, res) => {
   try {
     const id = normalizeUserId(req.params.id);
     if (!id.ok) return res.status(400).json(fail(id.msg, 400));
     const payload = normalizeUpdatePayload(req.body);
     if (!payload.ok) return res.status(400).json(fail(payload.msg, 400));
-    const updated = updateAdminUser(id.value, payload.value);
+    const updated = (await updateAdminUser(id.value, payload.value));
     if (!updated) return res.status(404).json(fail("用户不存在", 404));
     return res.json(ok(updated, "用户资料已保存"));
   } catch (e) {
@@ -160,11 +160,11 @@ adminUsersRouter.put("/:id", (req, res) => {
   }
 });
 
-adminUsersRouter.delete("/:id", (req, res) => {
+adminUsersRouter.delete("/:id", async (req, res) => {
   try {
     const id = normalizeUserId(req.params.id);
     if (!id.ok) return res.status(400).json(fail(id.msg, 400));
-    const deleted = deleteAdminUser(id.value);
+    const deleted = (await deleteAdminUser(id.value));
     if (!deleted) return res.status(404).json(fail("用户不存在", 404));
     return res.json(ok(null, "用户已删除"));
   } catch (e) {

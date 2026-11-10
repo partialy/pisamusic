@@ -49,17 +49,13 @@ function clean(value: string, maxLength: number): string {
   return trimmed.length <= maxLength ? trimmed : trimmed.slice(0, maxLength);
 }
 
-function readDeviceSnapshot(identity: DeviceMessageIdentity): Record<string, unknown> {
+async function readDeviceSnapshot(identity: DeviceMessageIdentity): Promise<Record<string, unknown>> {
   const db = getDeviceDb();
   if (identity.kind === "android") {
-    const row = db
-      .prepare(
-        `SELECT id, device_name, brand, model, os_version, sdk_version,
+    const row = (await db.queryOne(`SELECT id, device_name, brand, model, os_version, sdk_version,
                 app_version, app_version_code, first_seen_at, last_active_at
          FROM device_info
-         WHERE id = ? AND fingerprint = ?`,
-      )
-      .get(identity.deviceId, identity.fingerprint) as AndroidDeviceRow | undefined;
+         WHERE id = ? AND fingerprint = ?`, [identity.deviceId, identity.fingerprint])) as AndroidDeviceRow | undefined;
     if (!row) throw new AnnouncementReadValidationError("设备身份无效", 401);
     return {
       deviceName: row.device_name,
@@ -74,14 +70,10 @@ function readDeviceSnapshot(identity: DeviceMessageIdentity): Record<string, unk
     };
   }
 
-  const row = db
-    .prepare(
-      `SELECT id, device_name, hostname, os_name, os_version, platform, arch,
+  const row = (await db.queryOne(`SELECT id, device_name, hostname, os_name, os_version, platform, arch,
               app_version, first_seen_at, last_active_at
        FROM desktop_device_info
-       WHERE id = ? AND fingerprint = ?`,
-    )
-    .get(identity.deviceId, identity.fingerprint) as DesktopDeviceRow | undefined;
+       WHERE id = ? AND fingerprint = ?`, [identity.deviceId, identity.fingerprint])) as DesktopDeviceRow | undefined;
   if (!row) throw new AnnouncementReadValidationError("设备身份无效", 401);
   return {
     deviceName: row.device_name,
@@ -111,27 +103,27 @@ function publicUserSnapshot(user: PublicUser | null): Record<string, unknown> | 
   };
 }
 
-export function recordAnnouncementRead(input: {
+export async function recordAnnouncementRead(input: {
   announcementId: string;
   platform: AnnouncementReadPlatform;
   deviceIdentity: DeviceMessageIdentity;
   user: PublicUser | null;
   clientIp: string;
   userAgent: string;
-}): AnnouncementReadReceipt {
-  if (!announcementExists(input.announcementId)) {
+}): Promise<AnnouncementReadReceipt> {
+  if (!(await announcementExists(input.announcementId))) {
     throw new AnnouncementReadValidationError("公告不存在", 404);
   }
   if (input.deviceIdentity.kind !== input.platform) {
     throw new AnnouncementReadValidationError("设备平台与请求不匹配", 400);
   }
 
-  const deviceSnapshot = readDeviceSnapshot(input.deviceIdentity);
+  const deviceSnapshot = (await readDeviceSnapshot(input.deviceIdentity));
   const userSnapshot = publicUserSnapshot(input.user);
   const readerKey = `${input.user ? `user:${input.user.id}` : "guest"}:${input.platform}:${input.deviceIdentity.deviceId}`;
   const now = Date.now();
 
-  return upsertAnnouncementRead({
+  return (await upsertAnnouncementRead({
     announcementId: input.announcementId,
     readerKey,
     userId: input.user?.id ?? null,
@@ -142,5 +134,5 @@ export function recordAnnouncementRead(input: {
     clientIp: clean(input.clientIp, 128),
     userAgent: clean(input.userAgent, 512),
     readAt: now,
-  });
+  }));
 }

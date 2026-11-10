@@ -73,48 +73,48 @@ function normalizePayload(body: unknown, fixedId?: string): { ok: true; value: P
   };
 }
 
-adminDynamicConfigRouter.get("/", (_req, res) => {
+adminDynamicConfigRouter.get("/", async (_req, res) => {
   try {
-    return res.json(ok(listDynamicConfigs()));
+    return res.json(ok((await listDynamicConfigs())));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取动态配置失败";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminDynamicConfigRouter.post("/", (req, res) => {
+adminDynamicConfigRouter.post("/", async (req, res) => {
   try {
     const result = normalizePayload(req.body);
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    if (readDynamicConfigById(result.value.id)) {
+    if ((await readDynamicConfigById(result.value.id))) {
       return res.status(409).json(fail("动态配置已存在", 409));
     }
-    return res.json(ok(saveDynamicConfig(result.value), "动态配置已保存"));
+    return res.json(ok((await saveDynamicConfig(result.value)), "动态配置已保存"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "保存动态配置失败";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminDynamicConfigRouter.put("/:id", (req, res) => {
+adminDynamicConfigRouter.put("/:id", async (req, res) => {
   try {
     const result = normalizePayload(req.body, String(req.params.id ?? "").trim());
     if (!result.ok) return res.status(400).json(fail(result.msg, 400));
-    if (!readDynamicConfigById(result.value.id)) {
+    if (!(await readDynamicConfigById(result.value.id))) {
       return res.status(404).json(fail("动态配置不存在", 404));
     }
-    return res.json(ok(saveDynamicConfig(result.value), "动态配置已保存"));
+    return res.json(ok((await saveDynamicConfig(result.value)), "动态配置已保存"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "保存动态配置失败";
     return res.status(500).json(fail(message, 500));
   }
 });
 
-adminDynamicConfigRouter.delete("/:id", (req, res) => {
+adminDynamicConfigRouter.delete("/:id", async (req, res) => {
   try {
     const id = normalizeId(req.params.id);
     if (!id.ok) return res.status(400).json(fail(id.msg, 400));
-    const deleted = deleteDynamicConfig(id.value);
+    const deleted = (await deleteDynamicConfig(id.value));
     if (!deleted) return res.status(404).json(fail("动态配置不存在", 404));
     return res.json(ok(null, "动态配置已删除"));
   } catch (e) {

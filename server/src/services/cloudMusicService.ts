@@ -213,9 +213,9 @@ function findCurrentAsset(assets: CloudMusicAsset[], kind: CloudMusicAssetKind):
   return assets.find((item) => item.kind === kind && item.state === "uploaded" && item.deletedAt === null) ?? null;
 }
 
-function resolveFileInfo(asset: CloudMusicAsset | null): CloudMusicFileInfo | null {
+async function resolveFileInfo(asset: CloudMusicAsset | null): Promise<CloudMusicFileInfo | null> {
   if (!asset) return null;
-  const file = readFileRecordById(asset.fileRecordId);
+  const file = (await readFileRecordById(asset.fileRecordId));
   if (!file) return null;
   return {
     bucket: file.bucket,
@@ -231,7 +231,7 @@ function resolveFileInfo(asset: CloudMusicAsset | null): CloudMusicFileInfo | nu
   };
 }
 
-export function toCloudMusicTrackDto(track: StoreTrack): CloudMusicTrackDto {
+export async function toCloudMusicTrackDto(track: StoreTrack): Promise<CloudMusicTrackDto> {
   const uploadedCoverAsset = findCurrentAsset(track.assets, "cover-uploaded");
   const extractedCoverAsset = findCurrentAsset(track.assets, "cover-extracted");
   const lyricsAsset = findCurrentAsset(track.assets, "lyrics");
@@ -245,7 +245,7 @@ export function toCloudMusicTrackDto(track: StoreTrack): CloudMusicTrackDto {
   };
 
   if (uploadedCoverAsset) {
-    const file = readFileRecordById(uploadedCoverAsset.fileRecordId);
+    const file = (await readFileRecordById(uploadedCoverAsset.fileRecordId));
     if (file && file.status === "uploaded") {
       cover = {
         source: "uploaded",
@@ -253,7 +253,7 @@ export function toCloudMusicTrackDto(track: StoreTrack): CloudMusicTrackDto {
       };
     }
   } else if (extractedCoverAsset) {
-    const file = readFileRecordById(extractedCoverAsset.fileRecordId);
+    const file = (await readFileRecordById(extractedCoverAsset.fileRecordId));
     if (file && file.status === "uploaded") {
       cover = {
         source: "embedded",
@@ -264,7 +264,7 @@ export function toCloudMusicTrackDto(track: StoreTrack): CloudMusicTrackDto {
 
   let lyrics: CloudMusicTrackDto["lyrics"] = null;
   if (lyricsAsset) {
-    const file = readFileRecordById(lyricsAsset.fileRecordId);
+    const file = (await readFileRecordById(lyricsAsset.fileRecordId));
     if (file && file.status === "uploaded") {
       const ext = path.extname(file.fileName).slice(1).toLowerCase();
       const format = (track.lyricsFormat as "lrc" | "txt") || (ext === "txt" ? "txt" : "lrc");
@@ -275,12 +275,12 @@ export function toCloudMusicTrackDto(track: StoreTrack): CloudMusicTrackDto {
     }
   }
 
-  const audioFile = resolveFileInfo(audioAsset);
+  const audioFile = (await resolveFileInfo(audioAsset));
   const playable = track.status === "active" && track.uploadState === "ready" && audioFile !== null && audioFile.fileSize > 0;
 
   let owner: CloudMusicOwner = { type: "system", userId: null, displayName: "system" };
   if (audioAsset) {
-    const file = readFileRecordById(audioAsset.fileRecordId);
+    const file = (await readFileRecordById(audioAsset.fileRecordId));
     if (file && file.ownerType === "user" && file.ownerUserId) {
       const displayName = typeof file.ownerSnapshot?.username === "string" && file.ownerSnapshot.username.trim()
         ? file.ownerSnapshot.username.trim()
@@ -344,10 +344,10 @@ export function toCloudMusicPublicTrack(dto: CloudMusicTrackDto): CloudMusicPubl
   };
 }
 
-function createUploadSessionInternal(
+async function createUploadSessionInternal(
   input: CloudMusicUploadSessionRequest,
   owner?: { type: "system" | "user"; userId?: string | null; snapshot?: Record<string, unknown> },
-): CloudMusicUploadSession {
+): Promise<CloudMusicUploadSession> {
   const uuid = randomUUID();
   const bucket = getRequiredBucket();
   const now = new Date();
@@ -386,7 +386,7 @@ function createUploadSessionInternal(
     };
   }
 
-  const track = dbCreateUploadSession({
+  const track = (await dbCreateUploadSession({
     uuid,
     audio: {
       assetId: audioAssetId,
@@ -400,13 +400,13 @@ function createUploadSessionInternal(
     cover: coverAssetInput,
     lyrics: lyricsAssetInput,
     owner,
-  });
+  }));
 
   const tickets: CloudMusicAssetUploadTicket[] = [];
 
-  const audioReserved = readCloudMusicReservedAsset(audioFileRecordId);
+  const audioReserved = (await readCloudMusicReservedAsset(audioFileRecordId));
   if (!audioReserved) throw new Error("音频资产预登记失败");
-  const audioTicket = createCloudMusicAssetUploadToken({ uuid, asset: audioReserved });
+  const audioTicket = (await createCloudMusicAssetUploadToken({ uuid, asset: audioReserved }));
   tickets.push({
     assetId: audioAssetId,
     fileRecordId: audioFileRecordId,
@@ -417,9 +417,9 @@ function createUploadSessionInternal(
   });
 
   if (coverAssetInput) {
-    const coverReserved = readCloudMusicReservedAsset(coverAssetInput.fileRecordId);
+    const coverReserved = (await readCloudMusicReservedAsset(coverAssetInput.fileRecordId));
     if (!coverReserved) throw new Error("封面资产预登记失败");
-    const coverTicket = createCloudMusicAssetUploadToken({ uuid, asset: coverReserved });
+    const coverTicket = (await createCloudMusicAssetUploadToken({ uuid, asset: coverReserved }));
     tickets.push({
       assetId: coverAssetInput.assetId,
       fileRecordId: coverAssetInput.fileRecordId,
@@ -431,9 +431,9 @@ function createUploadSessionInternal(
   }
 
   if (lyricsAssetInput) {
-    const lyricsReserved = readCloudMusicReservedAsset(lyricsAssetInput.fileRecordId);
+    const lyricsReserved = (await readCloudMusicReservedAsset(lyricsAssetInput.fileRecordId));
     if (!lyricsReserved) throw new Error("歌词资产预登记失败");
-    const lyricsTicket = createCloudMusicAssetUploadToken({ uuid, asset: lyricsReserved });
+    const lyricsTicket = (await createCloudMusicAssetUploadToken({ uuid, asset: lyricsReserved }));
     tickets.push({
       assetId: lyricsAssetInput.assetId,
       fileRecordId: lyricsAssetInput.fileRecordId,
@@ -446,31 +446,31 @@ function createUploadSessionInternal(
 
   return {
     uuid,
-    track: toCloudMusicTrackDto(track),
+    track: (await toCloudMusicTrackDto(track)),
     tickets,
   };
 }
 
-export function createAdminUploadSession(input: CloudMusicUploadSessionRequest): CloudMusicUploadSession {
-  return createUploadSessionInternal(input, { type: "system", userId: null, snapshot: { displayName: "system" } });
+export async function createAdminUploadSession(input: CloudMusicUploadSessionRequest): Promise<CloudMusicUploadSession> {
+  return (await createUploadSessionInternal(input, { type: "system", userId: null, snapshot: { displayName: "system" } }));
 }
 
-export function createUserUploadSession(
+export async function createUserUploadSession(
   input: CloudMusicUploadSessionRequest,
   user: { id: string; username: string; email: string },
-): CloudMusicUploadSession {
-  return createUploadSessionInternal(input, {
+): Promise<CloudMusicUploadSession> {
+  return (await createUploadSessionInternal(input, {
     type: "user",
     userId: user.id,
     snapshot: { userId: user.id, username: user.username, email: user.email },
-  });
+  }));
 }
 
-export function reserveAsset(uuid: string, input: CloudMusicAssetReserveRequest): CloudMusicAssetUploadTicket {
+export async function reserveAsset(uuid: string, input: CloudMusicAssetReserveRequest): Promise<CloudMusicAssetUploadTicket> {
   if (input.kind !== "cover-uploaded" && input.kind !== "lyrics") {
     throw new Error("仅支持预登记封面或歌词资产");
   }
-  const track = readCloudMusicTrack(uuid);
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在");
 
   requireCloudMusicAssetExtension(input.kind, input.fileName);
@@ -480,7 +480,7 @@ export function reserveAsset(uuid: string, input: CloudMusicAssetReserveRequest)
   const objectKey = buildCloudMusicAssetObjectKey(uuid, input.kind, input.fileName);
   const mimeType = inferAssetMimeType(input.kind, input.fileName, input.mimeType);
 
-  const reserved = reserveCloudMusicAsset({
+  const reserved = (await reserveCloudMusicAsset({
     trackUuid: uuid,
     assetId,
     fileRecordId,
@@ -490,9 +490,9 @@ export function reserveAsset(uuid: string, input: CloudMusicAssetReserveRequest)
     fileName: input.fileName,
     mimeType,
     fileSize: input.fileSize,
-  });
+  }));
 
-  const ticket = createCloudMusicAssetUploadToken({ uuid, asset: reserved });
+  const ticket = (await createCloudMusicAssetUploadToken({ uuid, asset: reserved }));
   return {
     assetId,
     fileRecordId,
@@ -504,7 +504,7 @@ export function reserveAsset(uuid: string, input: CloudMusicAssetReserveRequest)
 }
 
 export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Promise<CloudMusicTrackDto> {
-  const track = readCloudMusicTrack(uuid, true);
+  const track = (await readCloudMusicTrack(uuid, true));
   if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在");
 
   const pendingAsset = track.assets.find((item) => item.kind === kind && item.state === "pending" && item.deletedAt === null);
@@ -512,19 +512,19 @@ export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Pro
   if (!pendingAsset) {
     const currentAsset = track.assets.find((item) => item.kind === kind && item.state === "uploaded" && item.isCurrent && item.deletedAt === null);
     if (currentAsset) {
-      return toCloudMusicTrackDto(track);
+      return (await toCloudMusicTrackDto(track));
     }
     throw new Error(`未找到待确认的 ${kind} 资产记录`);
   }
 
-  const reserved = readCloudMusicReservedAsset(pendingAsset.fileRecordId);
+  const reserved = (await readCloudMusicReservedAsset(pendingAsset.fileRecordId));
   if (!reserved) throw new Error(`待确认的 ${kind} 预登记资产不存在`);
 
   const stat = await statCloudMusicAsset(reserved);
 
   if (kind === "audio") {
     const db = getAppDb();
-    db.prepare(`UPDATE cloud_music_tracks SET upload_state = 'processing', updated_at = ? WHERE uuid = ?`).run(Date.now(), uuid);
+    (await db.execute(`UPDATE cloud_music_tracks SET upload_state = 'processing', updated_at = ? WHERE uuid = ?`, [Date.now(), uuid]));
     const signedUrl = createCloudMusicAssetUrl(reserved, 300);
 
     try {
@@ -546,7 +546,7 @@ export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Pro
         }
       }
 
-      const updated = confirmCloudMusicAsset({
+      const updated = (await confirmCloudMusicAsset({
         fileRecordId: reserved.fileRecordId,
         hash: stat.hash,
         mimeType: stat.mimeType,
@@ -567,18 +567,18 @@ export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Pro
           trackNo: extracted.trackNo,
           metadata: extracted.metadata,
         },
-      });
-      return toCloudMusicTrackDto(updated);
+      }));
+      return (await toCloudMusicTrackDto(updated));
     } catch (parseError) {
       const reason = parseError instanceof Error ? parseError.message : String(parseError);
-      confirmCloudMusicAsset({
+      (await confirmCloudMusicAsset({
         fileRecordId: reserved.fileRecordId,
         hash: stat.hash,
         mimeType: stat.mimeType,
         fileSize: stat.fileSize,
         uploadState: "failed",
         statusReason: reason,
-      });
+      }));
       throw parseError;
     }
   }
@@ -591,13 +591,13 @@ export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Pro
       expectedSize: stat.fileSize,
       expectedMimeType: reserved.mimeType,
     });
-    const updated = confirmCloudMusicAsset({
+    const updated = (await confirmCloudMusicAsset({
       fileRecordId: reserved.fileRecordId,
       hash: stat.hash,
       mimeType: stat.mimeType,
       fileSize: stat.fileSize,
-    });
-    return toCloudMusicTrackDto(updated);
+    }));
+    return (await toCloudMusicTrackDto(updated));
   }
 
   if (kind === "lyrics") {
@@ -607,7 +607,7 @@ export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Pro
       fileName: reserved.fileName,
       expectedSize: stat.fileSize,
     });
-    const updated = confirmCloudMusicAsset({
+    const updated = (await confirmCloudMusicAsset({
       fileRecordId: reserved.fileRecordId,
       hash: stat.hash,
       mimeType: stat.mimeType,
@@ -615,15 +615,15 @@ export async function confirmAsset(uuid: string, kind: CloudMusicAssetKind): Pro
       parsed: {
         lyricsFormat: lyricsVal.format,
       },
-    });
-    return toCloudMusicTrackDto(updated);
+    }));
+    return (await toCloudMusicTrackDto(updated));
   }
 
   throw new Error(`不支持的资产类型确认: ${kind}`);
 }
 
-export function saveAdminDraft(uuid: string, input: CloudMusicAdminSaveInput, adminUsername: string): CloudMusicTrackDto {
-  const track = readCloudMusicTrack(uuid);
+export async function saveAdminDraft(uuid: string, input: CloudMusicAdminSaveInput, adminUsername: string): Promise<CloudMusicTrackDto> {
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在");
 
   const title = input.title.trim();
@@ -648,26 +648,26 @@ export function saveAdminDraft(uuid: string, input: CloudMusicAdminSaveInput, ad
     throw new Error("网盘音乐音频未就绪，不可保存为正式状态");
   }
 
-  updateCloudMusicDraft(uuid, {
+  (await updateCloudMusicDraft(uuid, {
     title,
     artist,
     album,
     durationMs,
-  });
+  }));
 
-  const updated = transitionCloudMusicStatus({
+  const updated = (await transitionCloudMusicStatus({
     uuid,
     status: input.status,
     statusReason: input.statusReason?.trim() ?? "",
     reviewedBy: adminUsername,
-  });
+  }));
 
   if (!updated) throw new Error("保存网盘音乐状态失败");
-  return toCloudMusicTrackDto(updated);
+  return (await toCloudMusicTrackDto(updated));
 }
 
 export async function review(uuid: string, input: CloudMusicReviewInput, adminUsername: string): Promise<CloudMusicTrackDto> {
-  const track = readCloudMusicTrack(uuid);
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在或已被销毁");
 
   if (input.decision === "approve") {
@@ -677,14 +677,14 @@ export async function review(uuid: string, input: CloudMusicReviewInput, adminUs
     if (track.uploadState !== "ready") {
       throw new Error("网盘音乐音频未就绪，不能审核通过");
     }
-    const updated = transitionCloudMusicStatus({
+    const updated = (await transitionCloudMusicStatus({
       uuid,
       status: input.targetStatus,
       statusReason: input.reason?.trim() || "管理员审核通过",
       reviewedBy: adminUsername,
-    });
+    }));
     if (!updated) throw new Error("审核操作失败");
-    return toCloudMusicTrackDto(updated);
+    return (await toCloudMusicTrackDto(updated));
   }
 
   if (input.decision === "reject") {
@@ -692,25 +692,25 @@ export async function review(uuid: string, input: CloudMusicReviewInput, adminUs
     if (!reason || reason.length > 500) {
       throw new Error("审核驳回原因长度应在 1-500 字符之间");
     }
-    const updated = transitionCloudMusicStatus({
+    const updated = (await transitionCloudMusicStatus({
       uuid,
       status: "rejected",
       statusReason: reason,
       reviewedBy: adminUsername,
-    });
+    }));
     if (!updated) throw new Error("审核操作失败");
-    return toCloudMusicTrackDto(updated);
+    return (await toCloudMusicTrackDto(updated));
   }
 
   if (input.decision === "resubmit") {
-    const updated = transitionCloudMusicStatus({
+    const updated = (await transitionCloudMusicStatus({
       uuid,
       status: "pending_review",
       statusReason: input.reason?.trim() || `管理员 ${adminUsername} 设为待审核`,
       reviewedBy: adminUsername,
-    });
+    }));
     if (!updated) throw new Error("重新送审失败");
-    return toCloudMusicTrackDto(updated);
+    return (await toCloudMusicTrackDto(updated));
   }
 
   if (input.decision === "ban_destroy") {
@@ -719,103 +719,99 @@ export async function review(uuid: string, input: CloudMusicReviewInput, adminUs
       throw new Error("违规销毁原因长度应在 1-500 字符之间");
     }
     // 记录违规销毁原因
-    transitionCloudMusicStatus({
+    (await transitionCloudMusicStatus({
       uuid,
       status: "rejected",
       statusReason: `【违规销毁】${reason}`,
       reviewedBy: adminUsername,
-    });
+    }));
     // 调用 deleteCloudMusic 清理七牛云物理文件并标记软删除
-    return deleteCloudMusic(uuid);
+    return (await deleteCloudMusic(uuid));
   }
 
   throw new Error("未知的审核决策");
 }
 
-export function list(input: CloudMusicListInput): CloudMusicListResult {
-  const result: StoreListResult = listCloudMusicTracks(input);
+export async function list(input: CloudMusicListInput): Promise<CloudMusicListResult> {
+  const result: StoreListResult = (await listCloudMusicTracks(input));
   return {
-    items: result.items.map(toCloudMusicTrackDto),
+    items: await Promise.all(result.items.map(toCloudMusicTrackDto)),
     total: result.total,
     offset: result.offset,
     limit: result.limit,
   };
 }
 
-export function getAdminDetail(uuid: string): CloudMusicTrackDto | null {
-  const track = readCloudMusicTrack(uuid, false);
-  return track ? toCloudMusicTrackDto(track) : null;
+export async function getAdminDetail(uuid: string): Promise<CloudMusicTrackDto | null> {
+  const track = (await readCloudMusicTrack(uuid, false));
+  return track ? (await toCloudMusicTrackDto(track)) : null;
 }
 
 export async function removeManualCover(uuid: string): Promise<CloudMusicTrackDto> {
-  const track = readCloudMusicTrack(uuid);
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在");
 
   const uploadedCover = track.assets.find((item) => item.kind === "cover-uploaded" && item.state === "uploaded" && item.isCurrent && item.deletedAt === null);
-  if (!uploadedCover) return toCloudMusicTrackDto(track);
+  if (!uploadedCover) return (await toCloudMusicTrackDto(track));
 
-  const file = readFileRecordById(uploadedCover.fileRecordId);
+  const file = (await readFileRecordById(uploadedCover.fileRecordId));
   if (file && file.status !== "deleted") {
     await deleteCloudMusicAsset({ bucket: file.bucket, objectKey: file.objectKey }).catch(() => undefined);
   }
 
   const db = getAppDb();
   const now = Date.now();
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    db.prepare(`UPDATE cloud_music_assets SET state = 'deleted', is_current = 0, deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, uploadedCover.id);
-    db.prepare(`UPDATE file_records SET status = 'deleted', referenced_by = '[]', deleted_at = ? WHERE id = ?`).run(now, uploadedCover.fileRecordId);
-    db.prepare(`
+  await db.transaction(async () => {
+    (await db.execute(`UPDATE cloud_music_assets SET state = 'deleted', is_current = 0, deleted_at = ?, updated_at = ? WHERE id = ?`, [now, now, uploadedCover.id]));
+    (await db.execute(`UPDATE file_records SET status = 'deleted', referenced_by = '[]', deleted_at = ? WHERE id = ?`, [now, uploadedCover.fileRecordId]));
+    (await db.execute(`
       UPDATE cloud_music_assets
       SET is_current = 1, updated_at = ?
       WHERE track_uuid = ? AND kind = 'cover-extracted' AND state = 'uploaded' AND deleted_at IS NULL
-    `).run(now, uuid);
-    db.exec("COMMIT");
-  } catch (err) {
-    db.exec("ROLLBACK");
-    throw err;
-  }
+    `, [now, uuid]));
 
-  const updated = readCloudMusicTrack(uuid);
+  });
+
+  const updated = (await readCloudMusicTrack(uuid));
   if (!updated) throw new Error("刷新曲目状态失败");
-  return toCloudMusicTrackDto(updated);
+  return (await toCloudMusicTrackDto(updated));
 }
 
 export async function deleteCloudMusic(uuid: string): Promise<CloudMusicTrackDto> {
-  const track = readCloudMusicTrack(uuid, true);
+  const track = (await readCloudMusicTrack(uuid, true));
   if (!track) throw new Error("网盘音乐曲目不存在");
 
   for (const asset of track.assets) {
     if (asset.deletedAt === null) {
-      const file = readFileRecordById(asset.fileRecordId);
+      const file = (await readFileRecordById(asset.fileRecordId));
       if (file && file.status !== "deleted") {
         await deleteCloudMusicAsset({ bucket: file.bucket, objectKey: file.objectKey }).catch(() => undefined);
       }
     }
   }
 
-  const deleted = markCloudMusicDeleted(uuid, Date.now());
+  const deleted = (await markCloudMusicDeleted(uuid, Date.now()));
   if (!deleted) throw new Error("删除网盘音乐记录失败");
-  return toCloudMusicTrackDto(deleted);
+  return (await toCloudMusicTrackDto(deleted));
 }
 
-export function preview(uuid: string): CloudMusicResourceUrls {
-  const track = readCloudMusicTrack(uuid);
+export async function preview(uuid: string): Promise<CloudMusicResourceUrls> {
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在");
 
   const audioAsset = track.assets.find((item) => item.kind === "audio" && item.state === "uploaded" && item.deletedAt === null);
   if (!audioAsset) throw new Error("音频文件尚未上传，无法试听");
 
-  const audioFile = readFileRecordById(audioAsset.fileRecordId);
+  const audioFile = (await readFileRecordById(audioAsset.fileRecordId));
   if (!audioFile || audioFile.status !== "uploaded") throw new Error("音频文件记录状态不正确");
 
   const audioUrl = createCloudMusicAssetUrl(audioFile, 3600);
-  const dto = toCloudMusicTrackDto(track);
+  const dto = (await toCloudMusicTrackDto(track));
 
   let lyricsUrl: string | null = null;
   const lyricsAsset = track.assets.find((item) => item.kind === "lyrics" && item.state === "uploaded" && item.deletedAt === null);
   if (lyricsAsset) {
-    const lyricsFile = readFileRecordById(lyricsAsset.fileRecordId);
+    const lyricsFile = (await readFileRecordById(lyricsAsset.fileRecordId));
     if (lyricsFile && lyricsFile.status === "uploaded") {
       lyricsUrl = createCloudMusicAssetUrl(lyricsFile, 3600);
     }
@@ -833,7 +829,7 @@ export function preview(uuid: string): CloudMusicResourceUrls {
 
 export async function cleanupTemp(input: CloudMusicTempCleanupInput): Promise<CloudMusicTempCleanupResult> {
   const threshold = input.olderThanHours === 0 ? Date.now() : Date.now() - input.olderThanHours * 3600 * 1000;
-  const staleTracks = listStaleTempTracks(threshold, 500);
+  const staleTracks = (await listStaleTempTracks(threshold, 500));
 
   let deletedCount = 0;
   const failed: Array<{ uuid: string; message: string }> = [];
@@ -857,37 +853,37 @@ export async function cleanupTemp(input: CloudMusicTempCleanupInput): Promise<Cl
   };
 }
 
-export function getTempSummary(): CloudMusicTempSummary {
+export async function getTempSummary(): Promise<CloudMusicTempSummary> {
   const db = getAppDb();
   const now = Date.now();
   const h24 = now - 24 * 3600 * 1000;
   const h72 = now - 72 * 3600 * 1000;
 
-  const totalRow = db.prepare(`
+  const totalRow = (await db.queryOne(`
     SELECT COUNT(DISTINCT t.uuid) AS count, COALESCE(SUM(f.file_size), 0) AS bytes
     FROM cloud_music_tracks t
     LEFT JOIN cloud_music_assets a ON a.track_uuid = t.uuid AND a.deleted_at IS NULL
     LEFT JOIN file_records f ON f.id = a.file_record_id AND f.status <> 'deleted'
     WHERE t.status = 'temp' AND t.deleted_at IS NULL
-  `).get() as { count: number; bytes: number };
+  `, [])) as { count: number; bytes: number };
 
-  const h24Row = db.prepare(`
+  const h24Row = (await db.queryOne(`
     SELECT COUNT(DISTINCT t.uuid) AS count, COALESCE(SUM(f.file_size), 0) AS bytes
     FROM cloud_music_tracks t
     LEFT JOIN cloud_music_assets a ON a.track_uuid = t.uuid AND a.deleted_at IS NULL
     LEFT JOIN file_records f ON f.id = a.file_record_id AND f.status <> 'deleted'
     WHERE t.status = 'temp' AND t.deleted_at IS NULL AND t.created_at < ?
-  `).get(h24) as { count: number; bytes: number };
+  `, [h24])) as { count: number; bytes: number };
 
-  const h72Row = db.prepare(`
+  const h72Row = (await db.queryOne(`
     SELECT COUNT(DISTINCT t.uuid) AS count, COALESCE(SUM(f.file_size), 0) AS bytes
     FROM cloud_music_tracks t
     LEFT JOIN cloud_music_assets a ON a.track_uuid = t.uuid AND a.deleted_at IS NULL
     LEFT JOIN file_records f ON f.id = a.file_record_id AND f.status <> 'deleted'
     WHERE t.status = 'temp' AND t.deleted_at IS NULL AND t.created_at < ?
-  `).get(h72) as { count: number; bytes: number };
+  `, [h72])) as { count: number; bytes: number };
 
-  const staleAssetsRow = db.prepare(`
+  const staleAssetsRow = (await db.queryOne(`
     SELECT COUNT(a.id) AS count, COALESCE(SUM(f.file_size), 0) AS bytes
     FROM cloud_music_assets a
     JOIN file_records f ON f.id = a.file_record_id
@@ -895,7 +891,7 @@ export function getTempSummary(): CloudMusicTempSummary {
       AND a.deleted_at IS NULL
       AND a.created_at < ?
       AND f.status <> 'deleted'
-  `).get(h24) as { count: number; bytes: number };
+  `, [h24])) as { count: number; bytes: number };
 
   return {
     total: { count: Number(totalRow.count) || 0, bytes: Number(totalRow.bytes) || 0 },
@@ -905,30 +901,30 @@ export function getTempSummary(): CloudMusicTempSummary {
   };
 }
 
-export function searchPublicTracks(input: CloudMusicSearchInput): CloudMusicSearchResponse {
-  const result = searchVisibleCloudMusic(input);
+export async function searchPublicTracks(input: CloudMusicSearchInput): Promise<CloudMusicSearchResponse> {
+  const result = (await searchVisibleCloudMusic(input));
   return {
     source: "cloud",
-    items: result.items.map(toCloudMusicTrackDto).map(toCloudMusicPublicTrack),
+    items: (await Promise.all(result.items.map(toCloudMusicTrackDto))).map(toCloudMusicPublicTrack),
     total: result.total,
     offset: result.offset,
     limit: result.limit,
   };
 }
 
-export function getPublicSummary(userId?: string): CloudMusicPublicSummary {
-  return readVisibleCloudMusicSummary(userId);
+export async function getPublicSummary(userId?: string): Promise<CloudMusicPublicSummary> {
+  return (await readVisibleCloudMusicSummary(userId));
 }
 
-export function getPublicTrackDetail(uuid: string): CloudMusicPublicTrack | null {
-  const track = readCloudMusicTrack(uuid);
+export async function getPublicTrackDetail(uuid: string): Promise<CloudMusicPublicTrack | null> {
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) return null;
   if (track.status !== "active" && track.status !== "disabled") return null;
-  return toCloudMusicPublicTrack(toCloudMusicTrackDto(track));
+  return toCloudMusicPublicTrack((await toCloudMusicTrackDto(track)));
 }
 
-export function getPublicPlayUrl(uuid: string): CloudMusicPlayUrlResponse {
-  const track = readCloudMusicTrack(uuid);
+export async function getPublicPlayUrl(uuid: string): Promise<CloudMusicPlayUrlResponse> {
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) {
     const err = new Error("曲目不存在");
     (err as unknown as { statusCode: number }).statusCode = 404;
@@ -953,7 +949,7 @@ export function getPublicPlayUrl(uuid: string): CloudMusicPlayUrlResponse {
     throw err;
   }
 
-  const audioFile = readFileRecordById(audioAsset.fileRecordId);
+  const audioFile = (await readFileRecordById(audioAsset.fileRecordId));
   if (!audioFile || audioFile.status !== "uploaded") {
     const err = new Error("音频文件不存在");
     (err as unknown as { statusCode: number }).statusCode = 404;
@@ -969,8 +965,8 @@ export function getPublicPlayUrl(uuid: string): CloudMusicPlayUrlResponse {
   };
 }
 
-export function getPublicCoverRedirect(uuid: string): string {
-  const track = readCloudMusicTrack(uuid);
+export async function getPublicCoverRedirect(uuid: string): Promise<string> {
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null || (track.status !== "active" && track.status !== "disabled")) {
     const err = new Error("曲目不存在");
     (err as unknown as { statusCode: number }).statusCode = 404;
@@ -981,14 +977,14 @@ export function getPublicCoverRedirect(uuid: string): string {
     ?? findCurrentAsset(track.assets, "cover-extracted");
   if (!coverAsset) return CLOUD_MUSIC_DEFAULT_COVER_PATH;
 
-  const coverFile = readFileRecordById(coverAsset.fileRecordId);
+  const coverFile = (await readFileRecordById(coverAsset.fileRecordId));
   return coverFile && coverFile.status === "uploaded"
     ? createCloudMusicAssetUrl(coverFile, 3600)
     : CLOUD_MUSIC_DEFAULT_COVER_PATH;
 }
 
-export function getPublicLyricsUrl(uuid: string): CloudMusicLyricsUrlResponse {
-  const track = readCloudMusicTrack(uuid);
+export async function getPublicLyricsUrl(uuid: string): Promise<CloudMusicLyricsUrlResponse> {
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) {
     const err = new Error("曲目不存在");
     (err as unknown as { statusCode: number }).statusCode = 404;
@@ -1014,7 +1010,7 @@ export function getPublicLyricsUrl(uuid: string): CloudMusicLyricsUrlResponse {
     throw err;
   }
 
-  const lyricsFile = readFileRecordById(lyricsAsset.fileRecordId);
+  const lyricsFile = (await readFileRecordById(lyricsAsset.fileRecordId));
   if (!lyricsFile || lyricsFile.status !== "uploaded") {
     const err = new Error("歌词文件不存在");
     (err as unknown as { statusCode: number }).statusCode = 404;
@@ -1041,27 +1037,27 @@ export type CloudMusicUserSubmitInput = {
   durationMs: number;
 };
 
-export function checkUserTrackOwnership(uuid: string, userId: string): void {
-  const track = readCloudMusicTrack(uuid);
+export async function checkUserTrackOwnership(uuid: string, userId: string): Promise<void> {
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) {
     throw new Error("网盘音乐曲目不存在");
   }
   const audioAsset = track.assets.find((item) => item.kind === "audio" && item.deletedAt === null);
   if (audioAsset) {
-    const file = readFileRecordById(audioAsset.fileRecordId);
+    const file = (await readFileRecordById(audioAsset.fileRecordId));
     if (file && file.ownerType === "user" && file.ownerUserId && file.ownerUserId !== userId) {
       throw new Error("无权操作此曲目");
     }
   }
 }
 
-export function reserveUserAsset(
+export async function reserveUserAsset(
   uuid: string,
   input: CloudMusicAssetReserveRequest,
   user: { id: string; username: string; email: string },
-): CloudMusicAssetUploadTicket {
-  checkUserTrackOwnership(uuid, user.id);
-  const ticket = reserveAsset(uuid, input);
+): Promise<CloudMusicAssetUploadTicket> {
+  (await checkUserTrackOwnership(uuid, user.id));
+  const ticket = (await reserveAsset(uuid, input));
   return ticket;
 }
 
@@ -1070,25 +1066,25 @@ export async function confirmUserAsset(
   kind: CloudMusicAssetKind,
   user: { id: string; username: string; email: string },
 ): Promise<CloudMusicTrackDto> {
-  checkUserTrackOwnership(uuid, user.id);
-  return confirmAsset(uuid, kind);
+  (await checkUserTrackOwnership(uuid, user.id));
+  return (await confirmAsset(uuid, kind));
 }
 
 export async function removeUserManualCover(
   uuid: string,
   user: { id: string; username: string; email: string },
 ): Promise<CloudMusicTrackDto> {
-  checkUserTrackOwnership(uuid, user.id);
-  return removeManualCover(uuid);
+  (await checkUserTrackOwnership(uuid, user.id));
+  return (await removeManualCover(uuid));
 }
 
-export function saveUserSubmission(
+export async function saveUserSubmission(
   uuid: string,
   input: CloudMusicUserSubmitInput,
   user: { id: string; username: string; email: string },
-): CloudMusicTrackDto {
-  checkUserTrackOwnership(uuid, user.id);
-  const track = readCloudMusicTrack(uuid);
+): Promise<CloudMusicTrackDto> {
+  (await checkUserTrackOwnership(uuid, user.id));
+  const track = (await readCloudMusicTrack(uuid));
   if (!track || track.deletedAt !== null) throw new Error("网盘音乐曲目不存在");
 
   if (track.status !== "temp" && track.status !== "rejected") {
@@ -1113,46 +1109,46 @@ export function saveUserSubmission(
     throw new Error("音频文件尚未上传完成或解析失败，无法提交投稿");
   }
 
-  updateCloudMusicDraft(uuid, {
+  (await updateCloudMusicDraft(uuid, {
     title,
     artist,
     album,
     durationMs,
     status: "pending_review",
     statusReason: `用户 ${user.username} 投稿，等待审核`,
-  });
+  }));
 
-  const updated = readCloudMusicTrack(uuid);
+  const updated = (await readCloudMusicTrack(uuid));
   if (!updated) throw new Error("保存投稿状态失败");
-  return toCloudMusicTrackDto(updated);
+  return (await toCloudMusicTrackDto(updated));
 }
 
-export function getUserSubmissionHistory(
+export async function getUserSubmissionHistory(
   userId: string,
   offset = 0,
   limit = 30,
-): {
+): Promise<{
   items: CloudMusicTrackDto[];
   total: number;
   offset: number;
   limit: number;
-} {
-  const result = readUserSubmissions(userId, offset, limit);
+}> {
+  const result = (await readUserSubmissions(userId, offset, limit));
   return {
-    items: result.items.map(toCloudMusicTrackDto),
+    items: await Promise.all(result.items.map(toCloudMusicTrackDto)),
     total: result.total,
     offset: result.offset,
     limit: result.limit,
   };
 }
 
-export function resubmitUserTrack(
+export async function resubmitUserTrack(
   uuid: string,
   input: CloudMusicUserSubmitInput,
   user: { id: string; username: string; email: string },
-): CloudMusicTrackDto {
-  checkUserTrackOwnership(uuid, user.id);
-  const track = readCloudMusicTrack(uuid, true);
+): Promise<CloudMusicTrackDto> {
+  (await checkUserTrackOwnership(uuid, user.id));
+  const track = (await readCloudMusicTrack(uuid, true));
   if (!track) throw new Error("网盘音乐曲目不存在");
 
   if (track.status === "deleted" || track.deletedAt !== null) {
@@ -1181,18 +1177,18 @@ export function resubmitUserTrack(
     throw new Error("时长不正确，应大于 0 且小于 24 小时");
   }
 
-  updateCloudMusicDraft(uuid, {
+  (await updateCloudMusicDraft(uuid, {
     title,
     artist,
     album,
     durationMs,
     status: "pending_review",
     statusReason: `用户 ${user.username} 修改后重新提审`,
-  });
+  }));
 
-  const updated = readCloudMusicTrack(uuid);
+  const updated = (await readCloudMusicTrack(uuid));
   if (!updated) throw new Error("重新提审失败");
-  return toCloudMusicTrackDto(updated);
+  return (await toCloudMusicTrackDto(updated));
 }
 
 

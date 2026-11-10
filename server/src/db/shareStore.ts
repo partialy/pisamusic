@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { DatabaseSync } from "node:sqlite";
+import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
 import type { PublicUser } from "./userStore";
 
@@ -281,16 +281,12 @@ function buildAdminWhere(filter: AdminShareFilter): { sql: string; params: Array
   };
 }
 
-function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = fn();
-    db.exec("COMMIT");
+async function runInTransaction<T>(db: DatabaseSync, fn: () => Promise<T>): Promise<T> {
+  return (await db.transaction(async () => {
+    const result = (await fn());
+
     return result;
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+  }));
 }
 
 export function normalizeSharePayload(type: ShareType, rawJson: unknown): NormalizedSharePayload {
@@ -323,27 +319,22 @@ export function normalizeSharePayload(type: ShareType, rawJson: unknown): Normal
   };
 }
 
-export function createShareRecord(input: ShareCreateInput, sharer: ShareSharer): ShareRecord {
+export async function createShareRecord(input: ShareCreateInput, sharer: ShareSharer): Promise<ShareRecord> {
   const normalized = normalizeSharePayload(input.type, input.rawJson);
   const now = Date.now();
   const sharerSnapshot = buildSharerSnapshot(sharer.user);
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const existing = db
-      .prepare(
-        `SELECT *
+  return (await runInTransaction(db, async () => {
+    const existing = (await db.queryOne(`SELECT *
          FROM share_records
          WHERE sharer_user_id = ?
            AND type = ?
            AND subject_key = ?
            AND valid = 1
-         LIMIT 1`,
-      )
-      .get(sharer.userId, input.type, normalized.subjectKey) as ShareRow | undefined;
+         LIMIT 1`, [sharer.userId, input.type, normalized.subjectKey])) as ShareRow | undefined;
     if (existing) {
       const sharerSnapshotJson = JSON.stringify(sharerSnapshot);
-      db.prepare(
-        `UPDATE share_records
+      (await db.execute(`UPDATE share_records
          SET source = ?,
              source_id = ?,
              title = ?,
@@ -352,18 +343,7 @@ export function createShareRecord(input: ShareCreateInput, sharer: ShareSharer):
              raw_json = ?,
              sharer_snapshot_json = ?,
              updated_at = ?
-         WHERE uuid = ?`,
-      ).run(
-        normalized.source,
-        normalized.sourceId,
-        normalized.title,
-        normalized.description,
-        normalized.coverUrl,
-        normalized.rawJsonText,
-        sharerSnapshotJson,
-        now,
-        existing.uuid,
-      );
+         WHERE uuid = ?`, [normalized.source, normalized.sourceId, normalized.title, normalized.description, normalized.coverUrl, normalized.rawJsonText, sharerSnapshotJson, now, existing.uuid]));
       return mapRow({
         ...existing,
         source: normalized.source,
@@ -378,79 +358,49 @@ export function createShareRecord(input: ShareCreateInput, sharer: ShareSharer):
     }
 
     const uuid = randomUUID();
-  db.prepare(
-    `INSERT INTO share_records (
+  (await db.execute(`INSERT INTO share_records (
       uuid, type, source, source_id, subject_key, title, description, cover_url, raw_json,
       sharer_user_id, sharer_snapshot_json, created_at, updated_at, access_count, valid, invalidated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NULL)`,
-  ).run(
-    uuid,
-    input.type,
-    normalized.source,
-    normalized.sourceId,
-    normalized.subjectKey,
-    normalized.title,
-    normalized.description,
-    normalized.coverUrl,
-    normalized.rawJsonText,
-    sharer.userId,
-    JSON.stringify(sharerSnapshot),
-    now,
-    now,
-  );
-  const created = readPublicShare(uuid);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, NULL)`, [uuid, input.type, normalized.source, normalized.sourceId, normalized.subjectKey, normalized.title, normalized.description, normalized.coverUrl, normalized.rawJsonText, sharer.userId, JSON.stringify(sharerSnapshot), now, now]));
+  const created = (await readPublicShare(uuid));
   if (!created) throw new Error("分享记录创建失败");
   return created;
-  });
+  }));
 }
 
-export function readPublicShare(uuid: string): ShareRecord | null {
+export async function readPublicShare(uuid: string): Promise<ShareRecord | null> {
   if (!UUID_PATTERN.test(uuid)) return null;
-  const row = getAppDb()
-    .prepare(
-      `SELECT *
+  const row = (await getAppDb().queryOne(`SELECT *
        FROM share_records
        WHERE uuid = ? AND valid = 1
-       LIMIT 1`,
-    )
-    .get(uuid) as ShareRow | undefined;
+       LIMIT 1`, [uuid])) as ShareRow | undefined;
   return row ? mapRow(row) : null;
 }
 
-export function readPublicShareAndIncrement(uuid: string): ShareRecord | null {
+export async function readPublicShareAndIncrement(uuid: string): Promise<ShareRecord | null> {
   if (!UUID_PATTERN.test(uuid)) return null;
-  return runInTransaction(getAppDb(), () => {
-    const row = getAppDb()
-      .prepare(
-        `SELECT *
+  return (await runInTransaction(getAppDb(), async () => {
+    const row = (await getAppDb().queryOne(`SELECT *
          FROM share_records
          WHERE uuid = ? AND valid = 1
-         LIMIT 1`,
-      )
-      .get(uuid) as ShareRow | undefined;
+         LIMIT 1`, [uuid])) as ShareRow | undefined;
     if (!row) return null;
     const nextAccessCount = (Number(row.access_count) || 0) + 1;
-    getAppDb()
-      .prepare("UPDATE share_records SET access_count = ?, updated_at = ? WHERE uuid = ?")
-      .run(nextAccessCount, Date.now(), uuid);
+    (await getAppDb().execute("UPDATE share_records SET access_count = ?, updated_at = ? WHERE uuid = ?", [nextAccessCount, Date.now(), uuid]));
     return mapRow({ ...row, access_count: nextAccessCount });
-  });
+  }));
 }
 
-export function listAdminShares(filter: AdminShareFilter): AdminShareListResult {
+export async function listAdminShares(filter: AdminShareFilter): Promise<AdminShareListResult> {
   const db = getAppDb();
   const { offset, limit } = normalizePagination(filter.offset, filter.limit);
   const where = buildAdminWhere(filter);
   const fromSql = `FROM share_records s LEFT JOIN users u ON u.id = s.sharer_user_id ${where.sql}`;
-  const totalRow = db.prepare(`SELECT COUNT(*) AS total ${fromSql}`).get(...where.params) as { total: number };
-  const rows = db
-    .prepare(
-      `SELECT s.*
+  const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total ${fromSql}`, [...where.params])) as { total: number };
+  const rows = (await db.query(`SELECT s.*
        ${fromSql}
        ORDER BY s.updated_at DESC, s.created_at DESC, s.uuid ASC
-       LIMIT ? OFFSET ?`,
-    )
-    .all(...where.params, limit, offset) as AdminShareRow[];
+       LIMIT ? OFFSET ?`, [...where.params, limit, offset])) as AdminShareRow[];
   return {
     items: rows.map(mapAdminRow),
     total: Number(totalRow.total) || 0,
@@ -459,22 +409,18 @@ export function listAdminShares(filter: AdminShareFilter): AdminShareListResult 
   };
 }
 
-export function readAdminShareRecord(uuid: string): AdminShareListItem | null {
+export async function readAdminShareRecord(uuid: string): Promise<AdminShareListItem | null> {
   if (!UUID_PATTERN.test(uuid)) return null;
-  const row = getAppDb()
-    .prepare("SELECT * FROM share_records WHERE uuid = ? LIMIT 1")
-    .get(uuid) as AdminShareRow | undefined;
+  const row = (await getAppDb().queryOne("SELECT * FROM share_records WHERE uuid = ? LIMIT 1", [uuid])) as AdminShareRow | undefined;
   return row ? mapAdminRow(row) : null;
 }
 
-export function invalidateShareRecord(uuid: string): AdminShareListItem | null {
+export async function invalidateShareRecord(uuid: string): Promise<AdminShareListItem | null> {
   if (!UUID_PATTERN.test(uuid)) return null;
-  const existing = readAdminShareRecord(uuid);
+  const existing = (await readAdminShareRecord(uuid));
   if (!existing) return null;
   if (!existing.valid) return existing;
   const now = Date.now();
-  getAppDb()
-    .prepare("UPDATE share_records SET valid = 0, invalidated_at = ?, updated_at = ? WHERE uuid = ?")
-    .run(now, now, uuid);
-  return readAdminShareRecord(uuid);
+  (await getAppDb().execute("UPDATE share_records SET valid = 0, invalidated_at = ?, updated_at = ? WHERE uuid = ?", [now, now, uuid]));
+  return (await readAdminShareRecord(uuid));
 }

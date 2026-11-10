@@ -58,7 +58,7 @@ function asRecord(v: unknown): Record<string, unknown> {
   return {};
 }
 
-deviceRouter.post("/desktop/report", (req: Request, res: Response) => {
+deviceRouter.post("/desktop/report", async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, unknown>;
     const clientId = clip(String(body.clientId ?? ""), 256);
@@ -86,13 +86,10 @@ deviceRouter.post("/desktop/report", (req: Request, res: Response) => {
       locked: number;
       lock_end_time: number | null;
     };
-    const existing = db
-      .prepare(`SELECT id, locked, lock_end_time FROM desktop_device_info WHERE fingerprint = ?`)
-      .get(fp) as ExistingRow | undefined;
+    const existing = (await db.queryOne(`SELECT id, locked, lock_end_time FROM desktop_device_info WHERE fingerprint = ?`, [fp])) as ExistingRow | undefined;
 
     if (existing) {
-      db.prepare(
-        `UPDATE desktop_device_info SET
+      (await db.execute(`UPDATE desktop_device_info SET
           device_name = ?,
           hostname = ?,
           os_name = ?,
@@ -103,44 +100,14 @@ deviceRouter.post("/desktop/report", (req: Request, res: Response) => {
           last_active_at = ?,
           last_seen_ip = ?,
           extra_info = ?
-        WHERE fingerprint = ?`,
-      ).run(
-        deviceName,
-        hostname,
-        osName,
-        osVersion,
-        platform,
-        arch,
-        appVersion,
-        now,
-        ip,
-        extras,
-        fp,
-      );
+        WHERE fingerprint = ?`, [deviceName, hostname, osName, osVersion, platform, arch, appVersion, now, ip, extras, fp]));
     } else {
       const id = randomUUID();
-      db.prepare(
-        `INSERT INTO desktop_device_info (
+      (await db.execute(`INSERT INTO desktop_device_info (
           id, fingerprint, device_name, hostname, os_name, os_version, platform,
           arch, app_version, locked, lock_end_time, first_seen_at, last_active_at,
           first_seen_ip, last_seen_ip, extra_info
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?)`,
-      ).run(
-        id,
-        fp,
-        deviceName,
-        hostname,
-        osName,
-        osVersion,
-        platform,
-        arch,
-        appVersion,
-        now,
-        now,
-        ip,
-        ip,
-        extras,
-      );
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?)`, [id, fp, deviceName, hostname, osName, osVersion, platform, arch, appVersion, now, now, ip, ip, extras]));
     }
 
     type OutRow = {
@@ -150,11 +117,7 @@ deviceRouter.post("/desktop/report", (req: Request, res: Response) => {
       last_active_at: number;
       first_seen_at: number;
     };
-    const out = db
-      .prepare(
-        `SELECT id, locked, lock_end_time, last_active_at, first_seen_at FROM desktop_device_info WHERE fingerprint = ?`,
-      )
-      .get(fp) as OutRow | undefined;
+    const out = (await db.queryOne(`SELECT id, locked, lock_end_time, last_active_at, first_seen_at FROM desktop_device_info WHERE fingerprint = ?`, [fp])) as OutRow | undefined;
 
     if (!out) {
       res.status(500).json(fail("写入后读取失败", 500));
@@ -162,12 +125,12 @@ deviceRouter.post("/desktop/report", (req: Request, res: Response) => {
     }
 
     try {
-      recordDeviceDailyActivity({
+      (await recordDeviceDailyActivity({
         deviceType: "desktop",
         deviceId: out.id,
         appVersion,
         occurredAt: now,
-      });
+      }));
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn("[analytics] recordDeviceDailyActivity (desktop) failed:", err);
@@ -189,7 +152,7 @@ deviceRouter.post("/desktop/report", (req: Request, res: Response) => {
   }
 });
 
-deviceRouter.get("/desktop/:id", (req: Request, res: Response) => {
+deviceRouter.get("/desktop/:id", async (req: Request, res: Response) => {
   const id = String(req.params.id ?? "").trim();
   if (!UUID_RE.test(id)) {
     res.status(404).json(fail("Not Found", 404));
@@ -207,12 +170,8 @@ deviceRouter.get("/desktop/:id", (req: Request, res: Response) => {
       arch: string;
       app_version: string;
     };
-    const row = db
-      .prepare(
-        `SELECT id, locked, lock_end_time, last_active_at, first_seen_at, platform, arch, app_version
-         FROM desktop_device_info WHERE id = ?`,
-      )
-      .get(id) as GetRow | undefined;
+    const row = (await db.queryOne(`SELECT id, locked, lock_end_time, last_active_at, first_seen_at, platform, arch, app_version
+         FROM desktop_device_info WHERE id = ?`, [id])) as GetRow | undefined;
     if (!row) {
       res.status(404).json(fail("Not Found", 404));
       return;
@@ -235,7 +194,7 @@ deviceRouter.get("/desktop/:id", (req: Request, res: Response) => {
   }
 });
 
-deviceRouter.post("/report", (req: Request, res: Response) => {
+deviceRouter.post("/report", async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, unknown>;
     const androidId = clip(String(body.androidId ?? ""), 256);
@@ -275,9 +234,7 @@ deviceRouter.post("/report", (req: Request, res: Response) => {
       locked: number;
       lock_end_time: number | null;
     };
-    const existing = db
-      .prepare(`SELECT id, extra_info, locked, lock_end_time FROM device_info WHERE fingerprint = ?`)
-      .get(fp) as ExistingRow | undefined;
+    const existing = (await db.queryOne(`SELECT id, extra_info, locked, lock_end_time FROM device_info WHERE fingerprint = ?`, [fp])) as ExistingRow | undefined;
 
     const mergedExtra = mergeExtraJson(existing?.extra_info ?? "{}", extraPatch);
     const sdkT = Math.trunc(sdkVersion);
@@ -287,8 +244,7 @@ deviceRouter.post("/report", (req: Request, res: Response) => {
     const loc = locale || null;
 
     if (existing) {
-      db.prepare(
-        `UPDATE device_info SET
+      (await db.execute(`UPDATE device_info SET
           device_name = ?,
           brand = ?,
           model = ?,
@@ -302,51 +258,15 @@ deviceRouter.post("/report", (req: Request, res: Response) => {
           last_timezone = ?,
           last_locale = ?,
           extra_info = ?
-        WHERE fingerprint = ?`,
-      ).run(
-        deviceName,
-        brand,
-        model,
-        osVersion,
-        sdkT,
-        appVersion,
-        appVcT,
-        now,
-        ip,
-        cc,
-        tz,
-        loc,
-        mergedExtra,
-        fp,
-      );
+        WHERE fingerprint = ?`, [deviceName, brand, model, osVersion, sdkT, appVersion, appVcT, now, ip, cc, tz, loc, mergedExtra, fp]));
     } else {
       const id = randomUUID();
-      db.prepare(
-        `INSERT INTO device_info (
+      (await db.execute(`INSERT INTO device_info (
           id, fingerprint, device_name, brand, model, os_version, sdk_version,
           app_version, app_version_code, locked, lock_end_time,
           first_seen_at, last_active_at, first_seen_ip, last_seen_ip,
           last_country_code, last_timezone, last_locale, extra_info
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        id,
-        fp,
-        deviceName,
-        brand,
-        model,
-        osVersion,
-        sdkT,
-        appVersion,
-        appVcT,
-        now,
-        now,
-        ip,
-        ip,
-        cc,
-        tz,
-        loc,
-        mergedExtra,
-      );
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`, [id, fp, deviceName, brand, model, osVersion, sdkT, appVersion, appVcT, now, now, ip, ip, cc, tz, loc, mergedExtra]));
     }
 
     type OutRow = {
@@ -356,11 +276,7 @@ deviceRouter.post("/report", (req: Request, res: Response) => {
       last_active_at: number;
       first_seen_at: number;
     };
-    const out = db
-      .prepare(
-        `SELECT id, locked, lock_end_time, last_active_at, first_seen_at FROM device_info WHERE fingerprint = ?`,
-      )
-      .get(fp) as OutRow | undefined;
+    const out = (await db.queryOne(`SELECT id, locked, lock_end_time, last_active_at, first_seen_at FROM device_info WHERE fingerprint = ?`, [fp])) as OutRow | undefined;
 
     if (!out) {
       res.status(500).json(fail("写入后读取失败", 500));
@@ -368,12 +284,12 @@ deviceRouter.post("/report", (req: Request, res: Response) => {
     }
 
     try {
-      recordDeviceDailyActivity({
+      (await recordDeviceDailyActivity({
         deviceType: "android",
         deviceId: out.id,
         appVersion,
         occurredAt: now,
-      });
+      }));
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn("[analytics] recordDeviceDailyActivity (android) failed:", err);
@@ -395,7 +311,7 @@ deviceRouter.post("/report", (req: Request, res: Response) => {
   }
 });
 
-deviceRouter.get("/:id", (req: Request, res: Response) => {
+deviceRouter.get("/:id", async (req: Request, res: Response) => {
   const id = String(req.params.id ?? "").trim();
   if (!UUID_RE.test(id)) {
     res.status(404).json(fail("Not Found", 404));
@@ -413,12 +329,8 @@ deviceRouter.get("/:id", (req: Request, res: Response) => {
       model: string;
       app_version: string;
     };
-    const row = db
-      .prepare(
-        `SELECT id, locked, lock_end_time, last_active_at, first_seen_at, brand, model, app_version
-         FROM device_info WHERE id = ?`,
-      )
-      .get(id) as GetRow | undefined;
+    const row = (await db.queryOne(`SELECT id, locked, lock_end_time, last_active_at, first_seen_at, brand, model, app_version
+         FROM device_info WHERE id = ?`, [id])) as GetRow | undefined;
     if (!row) {
       res.status(404).json(fail("Not Found", 404));
       return;

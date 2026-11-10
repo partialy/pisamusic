@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
 
 export const SYNC_ITEM_TYPES = new Set([
@@ -62,62 +62,50 @@ function parsePayload(raw: string): unknown {
   }
 }
 
-function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = fn();
-    db.exec("COMMIT");
+async function runInTransaction<T>(db: DatabaseSync, fn: () => Promise<T>): Promise<T> {
+  return (await db.transaction(async () => {
+    const result = (await fn());
+
     return result;
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+  }));
 }
 
-export function listSyncChanges(auth: SyncAuth, since: unknown): { version: number; changes: SyncChange[] } {
+export async function listSyncChanges(auth: SyncAuth, since: unknown): Promise<{ version: number; changes: SyncChange[] }> {
   const normalizedSince = Math.max(0, Math.trunc(Number(since) || 0));
   const db = getAppDb();
-  const rows = db
-    .prepare(
-      `SELECT version, op_id, device_id, item_type, item_key, action, payload_json,
+  const rows = (await db.query(`SELECT version, op_id, device_id, item_type, item_key, action, payload_json,
               client_updated_at, server_updated_at
        FROM user_sync_change_log
        WHERE user_id = ? AND version > ?
        ORDER BY version ASC
-       LIMIT ?`,
-    )
-    .all(auth.userId, normalizedSince, MAX_CHANGES_PER_PULL) as SyncChangeRow[];
+       LIMIT ?`, [auth.userId, normalizedSince, MAX_CHANGES_PER_PULL])) as SyncChangeRow[];
   return {
-    version: getUserSyncVersion(db, auth.userId),
+    version: (await getUserSyncVersion(db, auth.userId)),
     changes: rows.map(toSyncChange),
   };
 }
 
-export function applySyncChanges(
+export async function applySyncChanges(
   auth: SyncAuth,
   rawChanges: unknown,
-): { version: number; accepted: number; skipped: number } {
+): Promise<{ version: number; accepted: number; skipped: number }> {
   const changes = normalizeChanges(rawChanges);
   const db = getAppDb();
-  return runInTransaction(db, () => {
+  return (await runInTransaction(db, async () => {
     let accepted = 0;
     let skipped = 0;
     for (const change of changes) {
-      const existing = db
-        .prepare(
-          `SELECT server_version FROM user_sync_applied_ops
-           WHERE user_id = ? AND device_id = ? AND op_id = ?`,
-        )
-        .get(auth.userId, auth.deviceId, change.opId) as { server_version: number } | undefined;
+      const existing = (await db.queryOne(`SELECT server_version FROM user_sync_applied_ops
+           WHERE user_id = ? AND device_id = ? AND op_id = ?`, [auth.userId, auth.deviceId, change.opId])) as { server_version: number } | undefined;
       if (existing) {
         skipped += 1;
         continue;
       }
-      applyOneChange(db, auth, change);
+      (await applyOneChange(db, auth, change));
       accepted += 1;
     }
-    return { version: getUserSyncVersion(db, auth.userId), accepted, skipped };
-  });
+    return { version: (await getUserSyncVersion(db, auth.userId)), accepted, skipped };
+  }));
 }
 
 function normalizeChanges(rawChanges: unknown): SyncChangeInput[] {
@@ -145,13 +133,12 @@ function normalizeChanges(rawChanges: unknown): SyncChangeInput[] {
   });
 }
 
-function applyOneChange(db: DatabaseSync, auth: SyncAuth, change: SyncChangeInput) {
-  const nextVersion = getUserSyncVersion(db, auth.userId) + 1;
+async function applyOneChange(db: DatabaseSync, auth: SyncAuth, change: SyncChangeInput) {
+  const nextVersion = (await getUserSyncVersion(db, auth.userId)) + 1;
   const now = Date.now();
   const payloadJson = change.action === "delete" ? "{}" : stringifyPayload(change.payload);
-  db.prepare("UPDATE users SET sync_version = ?, updated_at = ? WHERE id = ?").run(nextVersion, now, auth.userId);
-  db.prepare(
-    `INSERT INTO user_sync_items (
+  (await db.execute("UPDATE users SET sync_version = ?, updated_at = ? WHERE id = ?", [nextVersion, now, auth.userId]));
+  (await db.execute(db.dialect === "mysql" ? "INSERT INTO user_sync_items (\n      user_id, item_type, item_key, payload_json, deleted, last_op_id, last_device_id,\n      client_updated_at, server_version, server_updated_at\n    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n    ON DUPLICATE KEY UPDATE\n      payload_json = VALUES(payload_json),\n      deleted = VALUES(deleted),\n      last_op_id = VALUES(last_op_id),\n      last_device_id = VALUES(last_device_id),\n      client_updated_at = VALUES(client_updated_at),\n      server_version = VALUES(server_version),\n      server_updated_at = VALUES(server_updated_at)" : `INSERT INTO user_sync_items (
       user_id, item_type, item_key, payload_json, deleted, last_op_id, last_device_id,
       client_updated_at, server_version, server_updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -162,44 +149,17 @@ function applyOneChange(db: DatabaseSync, auth: SyncAuth, change: SyncChangeInpu
       last_device_id = excluded.last_device_id,
       client_updated_at = excluded.client_updated_at,
       server_version = excluded.server_version,
-      server_updated_at = excluded.server_updated_at`,
-  ).run(
-    auth.userId,
-    change.itemType,
-    change.itemKey,
-    payloadJson,
-    change.action === "delete" ? 1 : 0,
-    change.opId,
-    auth.deviceId,
-    change.clientUpdatedAt ?? "",
-    nextVersion,
-    now,
-  );
-  db.prepare(
-    `INSERT INTO user_sync_change_log (
+      server_updated_at = excluded.server_updated_at`, [auth.userId, change.itemType, change.itemKey, payloadJson, change.action === "delete" ? 1 : 0, change.opId, auth.deviceId, change.clientUpdatedAt ?? "", nextVersion, now]));
+  (await db.execute(`INSERT INTO user_sync_change_log (
       user_id, version, op_id, device_id, item_type, item_key, action, payload_json,
       client_updated_at, server_updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    auth.userId,
-    nextVersion,
-    change.opId,
-    auth.deviceId,
-    change.itemType,
-    change.itemKey,
-    change.action,
-    payloadJson,
-    change.clientUpdatedAt ?? "",
-    now,
-  );
-  db.prepare(
-    `INSERT INTO user_sync_applied_ops (user_id, device_id, op_id, server_version, applied_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(auth.userId, auth.deviceId, change.opId, nextVersion, now);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [auth.userId, nextVersion, change.opId, auth.deviceId, change.itemType, change.itemKey, change.action, payloadJson, change.clientUpdatedAt ?? "", now]));
+  (await db.execute(`INSERT INTO user_sync_applied_ops (user_id, device_id, op_id, server_version, applied_at)
+     VALUES (?, ?, ?, ?, ?)`, [auth.userId, auth.deviceId, change.opId, nextVersion, now]));
 }
 
-function getUserSyncVersion(db: DatabaseSync, userId: string): number {
-  const row = db.prepare("SELECT sync_version FROM users WHERE id = ?").get(userId) as
+async function getUserSyncVersion(db: DatabaseSync, userId: string): Promise<number> {
+  const row = (await db.queryOne("SELECT sync_version FROM users WHERE id = ?", [userId])) as
     | { sync_version: number }
     | undefined;
   return row?.sync_version ?? 0;

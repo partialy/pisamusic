@@ -122,32 +122,24 @@ function trendFromRows(rows: Daily[]) {
   }
   return [...days.values()].sort((a, b) => a.day.localeCompare(b.day));
 }
-export function listTrackingRecords(f: TrackingFilters, exportAll = false) {
+export async function listTrackingRecords(f: TrackingFilters, exportAll = false) {
   const db = getAppDb();
   const w = where(f);
   const total = Number(
     (
-      db.prepare("SELECT COUNT(*) AS n" + JOIN + w.sql).get(...w.args) as {
+      (await db.queryOne("SELECT COUNT(*) AS n" + JOIN + w.sql, [...w.args])) as {
         n: number;
       }
     ).n,
   );
-  const rows = db
-    .prepare(
-      SELECT +
+  const rows = (await db.query(SELECT +
         JOIN +
         w.sql +
         ` ORDER BY ${order(f)}` +
-        (exportAll ? "" : " LIMIT ? OFFSET ?"),
-    )
-    .all(...w.args, ...(exportAll ? [] : [f.limit, f.offset])) as AdminRow[];
-  const sums = db
-    .prepare(
-      `SELECT COUNT(*) AS total,COALESCE(SUM(r.valid),0) AS validCount,COALESCE(SUM(r.visit_count),0) AS visitCount,COALESCE(SUM(r.download_count),0) AS downloadCount,COALESCE(SUM(r.android_download_count),0) AS androidDownloadCount,COALESCE(SUM(r.desktop_download_count),0) AS desktopDownloadCount` +
+        (exportAll ? "" : " LIMIT ? OFFSET ?"), [...w.args, ...(exportAll ? [] : [f.limit, f.offset])])) as AdminRow[];
+  const sums = (await db.queryOne(`SELECT COUNT(*) AS total,COALESCE(SUM(r.valid),0) AS validCount,COALESCE(SUM(r.visit_count),0) AS visitCount,COALESCE(SUM(r.download_count),0) AS downloadCount,COALESCE(SUM(r.android_download_count),0) AS androidDownloadCount,COALESCE(SUM(r.desktop_download_count),0) AS desktopDownloadCount` +
         JOIN +
-        w.sql,
-    )
-    .get(...w.args) as {
+        w.sql, [...w.args])) as {
     total: number;
     validCount: number;
     visitCount: number;
@@ -161,13 +153,9 @@ export function listTrackingRecords(f: TrackingFilters, exportAll = false) {
     f.valid !== undefined ||
     f.from !== undefined ||
     f.to !== undefined;
-  const daily = db
-    .prepare(
-      filtered
+  const daily = (await db.query(filtered
         ? `SELECT s.* FROM app_share_daily_stats s WHERE s.scope='record' AND s.share_record_key IN (SELECT r.id${JOIN}${w.sql})`
-        : `SELECT * FROM app_share_daily_stats WHERE scope='global'`,
-    )
-    .all(...(filtered ? w.args : [])) as Daily[];
+        : `SELECT * FROM app_share_daily_stats WHERE scope='global'`, [...(filtered ? w.args : [])])) as Daily[];
   const trend = trendFromRows(daily);
   const summary = {
     ...sums,
@@ -186,32 +174,22 @@ export function listTrackingRecords(f: TrackingFilters, exportAll = false) {
     trend,
   };
 }
-export function trackingRecordDetail(
+export async function trackingRecordDetail(
   id: string,
   visitOffset: number,
   downloadOffset: number,
   limit: number,
 ) {
   const db = getAppDb();
-  const row = db.prepare(SELECT + JOIN + " WHERE r.id=?").get(id) as
+  const row = (await db.queryOne(SELECT + JOIN + " WHERE r.id=?", [id])) as
     AdminRow | undefined;
   if (!row) return null;
-  const visits = db
-    .prepare(
-      `SELECT event_id AS eventId,visit_day AS visitDay,opened_at AS openedAt,received_at AS receivedAt,referrer_path AS referrerPath,user_agent AS userAgent,browser_device_type AS browserDeviceType,is_unique_for_share_day AS isUniqueForShareDay FROM app_share_visits WHERE share_record_id=? ORDER BY received_at DESC,event_id DESC LIMIT ? OFFSET ?`,
-    )
-    .all(id, limit, visitOffset);
-  const downloads = db
-    .prepare(
-      `SELECT id,platform,version,triggered_at AS triggeredAt,attribution_source AS attributionSource,safe_referrer_path AS referrerPath,safe_user_agent AS userAgent FROM app_share_downloads WHERE share_record_id=? ORDER BY triggered_at DESC,id DESC LIMIT ? OFFSET ?`,
-    )
-    .all(id, limit, downloadOffset);
-  const count = (table: string) =>
+  const visits = (await db.query(`SELECT event_id AS eventId,visit_day AS visitDay,opened_at AS openedAt,received_at AS receivedAt,referrer_path AS referrerPath,user_agent AS userAgent,browser_device_type AS browserDeviceType,is_unique_for_share_day AS isUniqueForShareDay FROM app_share_visits WHERE share_record_id=? ORDER BY received_at DESC,event_id DESC LIMIT ? OFFSET ?`, [id, limit, visitOffset]));
+  const downloads = (await db.query(`SELECT id,platform,version,triggered_at AS triggeredAt,attribution_source AS attributionSource,safe_referrer_path AS referrerPath,safe_user_agent AS userAgent FROM app_share_downloads WHERE share_record_id=? ORDER BY triggered_at DESC,id DESC LIMIT ? OFFSET ?`, [id, limit, downloadOffset]));
+  const count = async (table: string) =>
     Number(
       (
-        db
-          .prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE share_record_id=?`)
-          .get(id) as {
+        (await db.queryOne(`SELECT COUNT(*) AS n FROM ${table} WHERE share_record_id=?`, [id])) as {
           n: number;
         }
       ).n,
@@ -219,12 +197,10 @@ export function trackingRecordDetail(
   return {
     record: dto(row),
     trend: trendFromRows(
-      db
-        .prepare("SELECT * FROM app_share_daily_stats WHERE share_record_key=?")
-        .all(id) as Daily[],
+      (await db.query("SELECT * FROM app_share_daily_stats WHERE share_record_key=?", [id])) as Daily[],
     ),
-    visits: { items: visits, total: count("app_share_visits") },
-    downloads: { items: downloads, total: count("app_share_downloads") },
+    visits: { items: visits, total: (await count("app_share_visits")) },
+    downloads: { items: downloads, total: (await count("app_share_downloads")) },
     retentionDays: getAnalyticsRetentionDays(),
   };
 }

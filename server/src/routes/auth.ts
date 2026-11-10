@@ -92,12 +92,12 @@ function storageEmail(contact: Contact): string {
   return contact.email ?? `${contact.phone}@phone.invalid`;
 }
 
-function autoUsername(contact: Contact): string {
+async function autoUsername(contact: Contact): Promise<string> {
   const raw = contact.email ? contact.email.split("@")[0] : `用户${contact.phone?.slice(-4) ?? ""}`;
   const cleaned = raw.replace(/[^A-Za-z0-9_\-\u4e00-\u9fa5]/g, "").slice(0, 24) || "用户";
   const base = cleaned.length >= 2 ? cleaned : `${cleaned}用户`;
   let candidate = base;
-  for (let index = 0; readUserByUsername(candidate); index += 1) {
+  for (let index = 0; (await readUserByUsername(candidate)); index += 1) {
     const suffix = index === 0 ? randomUUID().replace(/-/g, "").slice(0, 6) : String(index);
     candidate = `${base.slice(0, 32 - suffix.length)}${suffix}`;
   }
@@ -127,9 +127,9 @@ function issueToken(user: UserRecord | PublicUser): AuthTokenResponse {
   };
 }
 
-function loginResult(user: UserRecord): AuthTokenResponse {
-  touchUserLogin(user.id);
-  const updated = readUserByIdentifier(user.email) ?? user;
+async function loginResult(user: UserRecord): Promise<AuthTokenResponse> {
+  (await touchUserLogin(user.id));
+  const updated = (await readUserByIdentifier(user.email)) ?? user;
   return issueToken(updated);
 }
 
@@ -162,7 +162,7 @@ authRouter.post("/email-code", async (req, res) => {
     if (emailError) return res.status(400).json(fail(emailError, 400));
     if (!purpose || purpose === "profile_email" || purpose === "profile_phone") return res.status(400).json(fail("验证码用途不正确", 400));
 
-    const matchedUser = readUserByEmail(email);
+    const matchedUser = (await readUserByEmail(email));
     if (purpose === "register" && matchedUser) {
       return res.status(400).json(fail("该邮箱已注册", 400));
     }
@@ -185,7 +185,7 @@ authRouter.post("/phone-code", async (req, res) => {
     const phoneError = validatePhone(phone);
     if (phoneError) return res.status(400).json(fail(phoneError, 400));
     if (!purpose || purpose === "profile_email" || purpose === "profile_phone") return res.status(400).json(fail("验证码用途不正确", 400));
-    const matchedUser = readUserByPhone(phone);
+    const matchedUser = (await readUserByPhone(phone));
     if (purpose === "register" && matchedUser) return res.status(400).json(fail("该手机号已注册", 400));
     if (purpose === "reset_password" && !matchedUser) {
       return res.status(404).json(fail("该手机号尚未注册", 404));
@@ -197,7 +197,7 @@ authRouter.post("/phone-code", async (req, res) => {
   }
 });
 
-authRouter.post("/register", (req, res) => {
+authRouter.post("/register", async (req, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const contact = readContact(req.body);
@@ -212,25 +212,25 @@ authRouter.post("/register", (req, res) => {
     if (passwordError) return res.status(400).json(fail(passwordError, 400));
     if (!code) return res.status(400).json(fail("验证码不能为空", 400));
 
-    const exists = userExistsForRegister(contact.email ?? null, contact.phone ?? null, username);
+    const exists = (await userExistsForRegister(contact.email ?? null, contact.phone ?? null, username));
     if (exists.emailExists) return res.status(400).json(fail("该邮箱已注册", 400));
     if (exists.phoneExists) return res.status(400).json(fail("该手机号已注册", 400));
     if (exists.usernameExists) return res.status(400).json(fail("该用户名已被使用", 400));
-    if (!verifyContactCode(contact.channel, contact.value, "register", code)) return res.status(400).json(fail("验证码错误或已过期", 400));
+    if (!(await verifyContactCode(contact.channel, contact.value, "register", code))) return res.status(400).json(fail("验证码错误或已过期", 400));
 
-    const user = createUser({
+    const user = (await createUser({
       email: storageEmail(contact),
       phone: contact.phone,
       username,
       passwordHash: bcrypt.hashSync(password, 10),
-    });
+    }));
     return res.json(ok(issueToken(user), "注册成功"));
   } catch (error) {
     handleError(res, error, "注册失败");
   }
 });
 
-authRouter.post("/login/password", (req, res) => {
+authRouter.post("/login/password", async (req, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const rawIdentifier = normalizeText(req.body.identifier, 254);
@@ -240,43 +240,43 @@ authRouter.post("/login/password", (req, res) => {
       : PHONE_RE.test(normalizedPhone) ? normalizedPhone : rawIdentifier;
     const password = typeof req.body.password === "string" ? req.body.password : "";
     if (!identifier || !password) return res.status(400).json(fail("请输入用户名/邮箱和密码", 400));
-    const user = readUserByIdentifier(identifier);
+    const user = (await readUserByIdentifier(identifier));
     if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
       return res.status(401).json(fail("账号或密码错误", 401));
     }
-    return res.json(ok(loginResult(user), "登录成功"));
+    return res.json(ok((await loginResult(user)), "登录成功"));
   } catch (error) {
     handleError(res, error, "登录失败");
   }
 });
 
-authRouter.post("/login/code", (req, res) => {
+authRouter.post("/login/code", async (req, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const contact = readContact(req.body);
     const code = normalizeText(req.body.code, 16);
     if ("error" in contact) return res.status(400).json(fail(contact.error, 400));
     if (!code) return res.status(400).json(fail("验证码不能为空", 400));
-    const user = contact.channel === "email" ? readUserByEmail(contact.value) : readUserByPhone(contact.value);
-    if (!verifyContactCode(contact.channel, contact.value, "login", code)) return res.status(400).json(fail("验证码错误或已过期", 400));
-    if (user) return res.json(ok(loginResult(user), "登录成功"));
-    const created = createUser({
+    const user = contact.channel === "email" ? (await readUserByEmail(contact.value)) : (await readUserByPhone(contact.value));
+    if (!(await verifyContactCode(contact.channel, contact.value, "login", code))) return res.status(400).json(fail("验证码错误或已过期", 400));
+    if (user) return res.json(ok((await loginResult(user)), "登录成功"));
+    const created = (await createUser({
       email: storageEmail(contact),
       phone: contact.phone,
-      username: autoUsername(contact),
+      username: (await autoUsername(contact)),
       passwordHash: bcrypt.hashSync(randomUUID(), 10),
-    });
-    return res.json(ok(loginResult(created), "注册并登录成功"));
+    }));
+    return res.json(ok((await loginResult(created)), "注册并登录成功"));
   } catch (error) {
     handleError(res, error, "登录失败");
   }
 });
 
-authRouter.post("/password/change", requireUserJwt, (req: UserAuthedRequest, res) => {
+authRouter.post("/password/change", requireUserJwt, async (req: UserAuthedRequest, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const auth = getUserAuth(req);
-    const current = readUserById(auth.userId);
+    const current = (await readUserById(auth.userId));
     if (!current) return res.status(404).json(fail("用户不存在", 404));
     const currentPassword = typeof req.body.currentPassword === "string" ? req.body.currentPassword : "";
     const newPassword = typeof req.body.newPassword === "string" ? req.body.newPassword : "";
@@ -287,14 +287,14 @@ authRouter.post("/password/change", requireUserJwt, (req: UserAuthedRequest, res
     if (!bcrypt.compareSync(currentPassword, current.passwordHash)) {
       return res.status(400).json(fail("当前密码错误", 400));
     }
-    updateUserPassword(current.id, bcrypt.hashSync(newPassword, 10));
+    (await updateUserPassword(current.id, bcrypt.hashSync(newPassword, 10)));
     return res.json(ok({ updated: true }, "密码已修改"));
   } catch (error) {
     handleError(res, error, "密码修改失败");
   }
 });
 
-authRouter.post("/password/reset", (req, res) => {
+authRouter.post("/password/reset", async (req, res) => {
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const contact = readContact(req.body);
@@ -304,12 +304,12 @@ authRouter.post("/password/reset", (req, res) => {
     if ("error" in contact) return res.status(400).json(fail(contact.error, 400));
     if (passwordError) return res.status(400).json(fail(passwordError, 400));
     if (!code) return res.status(400).json(fail("验证码不能为空", 400));
-    const user = contact.channel === "email" ? readUserByEmail(contact.value) : readUserByPhone(contact.value);
+    const user = contact.channel === "email" ? (await readUserByEmail(contact.value)) : (await readUserByPhone(contact.value));
     if (!user) return res.status(404).json(fail("该账号尚未注册", 404));
-    if (!verifyContactCode(contact.channel, contact.value, "reset_password", code)) {
+    if (!(await verifyContactCode(contact.channel, contact.value, "reset_password", code))) {
       return res.status(400).json(fail("验证码错误或已过期", 400));
     }
-    updateUserPassword(user.id, bcrypt.hashSync(newPassword, 10));
+    (await updateUserPassword(user.id, bcrypt.hashSync(newPassword, 10)));
     return res.json(ok({ updated: true }, "密码已重置"));
   } catch (error) {
     handleError(res, error, "密码重置失败");
@@ -351,7 +351,7 @@ authRouter.post("/profile/email-code", requireUserJwt, async (req: UserAuthedReq
     const emailError = validateEmail(email);
     if (emailError) return res.status(400).json(fail(emailError, 400));
     if (email === auth.user.email) return res.status(400).json(fail("新邮箱不能与当前邮箱相同", 400));
-    if (readUserByEmail(email)) return res.status(400).json(fail("该邮箱已被注册", 400));
+    if ((await readUserByEmail(email))) return res.status(400).json(fail("该邮箱已被注册", 400));
     const meta = extractSendMeta(req, auth.userId);
     return res.json(ok(await sendEmailCode(email, "profile_email", meta), "验证码已发送"));
   } catch (error) {
@@ -367,7 +367,7 @@ authRouter.post("/profile/phone-code", requireUserJwt, async (req: UserAuthedReq
     const phoneError = validatePhone(phone);
     if (phoneError) return res.status(400).json(fail(phoneError, 400));
     if (phone === auth.user.phone) return res.status(400).json(fail("新手机号不能与当前手机号相同", 400));
-    if (readUserByPhone(phone)) return res.status(400).json(fail("该手机号已被注册", 400));
+    if ((await readUserByPhone(phone))) return res.status(400).json(fail("该手机号已被注册", 400));
     const meta = extractSendMeta(req, auth.userId);
     return res.json(ok(await sendContactCode("phone", phone, "profile_phone", meta), "验证码已发送"));
   } catch (error) {
@@ -379,7 +379,7 @@ authRouter.patch("/profile", requireUserJwt, async (req: UserAuthedRequest, res)
   try {
     if (!isRecord(req.body)) return res.status(400).json(fail("请求体必须是对象", 400));
     const auth = getUserAuth(req);
-    const current = readUserById(auth.userId);
+    const current = (await readUserById(auth.userId));
     if (!current) return res.status(404).json(fail("用户不存在", 404));
 
     const patch: { username?: string; email?: string; phone?: string; avatarKey?: string } = {};
@@ -387,7 +387,7 @@ authRouter.patch("/profile", requireUserJwt, async (req: UserAuthedRequest, res)
       const username = normalizeText(req.body.username, 32);
       const usernameError = validateUsername(username);
       if (usernameError) return res.status(400).json(fail(usernameError, 400));
-      const existing = readUserByUsername(username);
+      const existing = (await readUserByUsername(username));
       if (existing && existing.id !== current.id) return res.status(400).json(fail("该用户名已被使用", 400));
       patch.username = username;
     }
@@ -407,9 +407,9 @@ authRouter.patch("/profile", requireUserJwt, async (req: UserAuthedRequest, res)
       if (emailError) return res.status(400).json(fail(emailError, 400));
       if (email !== current.email) {
         if (!code) return res.status(400).json(fail("修改邮箱需要验证码", 400));
-        const existing = readUserByEmail(email);
+        const existing = (await readUserByEmail(email));
         if (existing && existing.id !== current.id) return res.status(400).json(fail("该邮箱已被注册", 400));
-        if (!verifyEmailCode(email, "profile_email", code)) {
+        if (!(await verifyEmailCode(email, "profile_email", code))) {
           return res.status(400).json(fail("验证码错误或已过期", 400));
         }
         patch.email = email;
@@ -423,9 +423,9 @@ authRouter.patch("/profile", requireUserJwt, async (req: UserAuthedRequest, res)
       if (phoneError) return res.status(400).json(fail(phoneError, 400));
       if (phone !== current.phone) {
         if (!code) return res.status(400).json(fail("修改手机号需要验证码", 400));
-        const existing = readUserByPhone(phone);
+        const existing = (await readUserByPhone(phone));
         if (existing && existing.id !== current.id) return res.status(400).json(fail("该手机号已被注册", 400));
-        if (!verifyContactCode("phone", phone, "profile_phone", code)) {
+        if (!(await verifyContactCode("phone", phone, "profile_phone", code))) {
           return res.status(400).json(fail("验证码错误或已过期", 400));
         }
         patch.phone = phone;
@@ -439,7 +439,7 @@ authRouter.patch("/profile", requireUserJwt, async (req: UserAuthedRequest, res)
     if ("avatarKey" in patch && patch.avatarKey !== current.avatarKey && isAccountAvatarObjectKey(current.id, current.avatarKey)) {
       await deleteAccountAvatarObject(current.avatarKey);
     }
-    const updated = updateUserProfile(current.id, patch);
+    const updated = (await updateUserProfile(current.id, patch));
     return res.json(ok(issueToken(updated), "资料已更新"));
   } catch (error) {
     handleError(res, error, "资料更新失败");

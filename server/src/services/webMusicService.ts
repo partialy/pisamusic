@@ -30,8 +30,8 @@ function endpoint(endpoints: Record<string, string>, key: string, fallback: stri
   return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
-function getRuntimeEndpoints() {
-  const cfg = readAppConfig();
+async function getRuntimeEndpoints() {
+  const cfg = (await readAppConfig());
   const endpoints = cfg.bootstrap.endpoints ?? {};
   const proxyBase = endpoint(endpoints, "proxyBaseUrl", "http://127.0.0.1:38888");
 
@@ -45,13 +45,13 @@ function getRuntimeEndpoints() {
   };
 }
 
-function getSignConfig() {
-  const cfg = readAppConfig();
+async function getSignConfig() {
+  const cfg = (await readAppConfig());
   return cfg.bootstrap.gatewaySign ?? DEFAULT_GATEWAY_SIGN;
 }
 
 async function requestSignedGateway<T>(rawUrl: string, method = "GET", body?: unknown): Promise<T> {
-  const signConfig = getSignConfig();
+  const signConfig = (await getSignConfig());
   const bodyStr = body !== undefined ? JSON.stringify(body) : "";
   const signed = signGatewayUrl(method, rawUrl, bodyStr, signConfig);
 
@@ -97,7 +97,7 @@ export async function searchWebMusic(
     return { songs: [], total: 0, hasMore: false };
   }
 
-  const endpoints = getRuntimeEndpoints();
+  const endpoints = (await getRuntimeEndpoints());
   let rawSongs: any[] = [];
   let total = 0;
 
@@ -181,7 +181,7 @@ export async function searchWebMusic(
 }
 
 export async function getWebRecommendations(source: WebMusicSource): Promise<{ songs: WebSong[] }> {
-  const endpoints = getRuntimeEndpoints();
+  const endpoints = (await getRuntimeEndpoints());
 
   try {
     if (source === "wy") {
@@ -239,7 +239,7 @@ export async function getWebSongUrl(
   id: string
 ): Promise<{ url: string }> {
   if (!id) return { url: "" };
-  const endpoints = getRuntimeEndpoints();
+  const endpoints = (await getRuntimeEndpoints());
 
   if (source === "wy") {
     // 取链统一走 proxy-service，避免落到 wy-service 的非代理端点。
@@ -295,7 +295,7 @@ export async function getWebSongLyric(
   id: string
 ): Promise<{ lrc: string }> {
   if (!id) return { lrc: "" };
-  const endpoints = getRuntimeEndpoints();
+  const endpoints = (await getRuntimeEndpoints());
 
   if (source === "wy") {
     try {

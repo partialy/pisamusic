@@ -22,8 +22,8 @@ export type DeletedUpdateHistory = {
   deletedFiles: FileRecordInfo[];
 };
 
-export function previewManagedUpdateHistoryDeletion(historyId: string): UpdateHistoryDeletionPlan {
-  const prepared = prepareUpdateHistoryDeletion(historyId);
+export async function previewManagedUpdateHistoryDeletion(historyId: string): Promise<UpdateHistoryDeletionPlan> {
+  const prepared = (await prepareUpdateHistoryDeletion(historyId));
   if (!prepared.ok) {
     if (prepared.reason === "NOT_FOUND") throw new Error("发布记录不存在");
     throw new Error("当前最新版本不可删除");
@@ -32,16 +32,16 @@ export function previewManagedUpdateHistoryDeletion(historyId: string): UpdateHi
 }
 
 export async function deleteManagedFileRecord(id: string): Promise<FileRecordInfo> {
-  const file = readFileRecordById(id);
+  const file = (await readFileRecordById(id));
   if (!file) throw new Error("文件记录不存在");
 
   if (file.usageType === "app-share-icon") {
-    if (readAppShareConfig().iconFileId === id) throw new Error("当前 App 分享图标不能删除，请先更换图标");
+    if ((await readAppShareConfig()).iconFileId === id) throw new Error("当前 App 分享图标不能删除，请先更换图标");
     if (deletingAppShareIcons.has(id)) throw new Error("图标正在删除，请稍后重试");
     deletingAppShareIcons.add(id);
     try {
       if (file.status !== "deleted") await deleteQiniuObject(file.bucket, file.objectKey);
-      return deleteFileRecordAndCleanupReferences(id);
+      return (await deleteFileRecordAndCleanupReferences(id));
     } finally { deletingAppShareIcons.delete(id); }
   }
   if (file.usageType === "announcement-image" && file.referencedBy.length > 0) {
@@ -49,10 +49,10 @@ export async function deleteManagedFileRecord(id: string): Promise<FileRecordInf
   }
 
   if (file.usageType === "cloud-music") {
-    const track = readCloudMusicByFileRecordId(id);
+    const track = (await readCloudMusicByFileRecordId(id));
     if (track) {
       await deleteCloudMusic(track.uuid);
-      const deleted = readFileRecordById(id);
+      const deleted = (await readFileRecordById(id));
       if (!deleted) throw new Error("网盘音乐文件记录删除失败");
       return deleted;
     }
@@ -62,16 +62,16 @@ export async function deleteManagedFileRecord(id: string): Promise<FileRecordInf
     await deleteQiniuObject(file.bucket, file.objectKey);
   }
 
-  return deleteFileRecordAndCleanupReferences(id);
+  return (await deleteFileRecordAndCleanupReferences(id));
 }
 
 export async function deleteManagedReleaseFileForHistory(historyId: string): Promise<ReleaseFileInfo> {
-  const file = readReleaseFileForHistory(historyId);
+  const file = (await readReleaseFileForHistory(historyId));
   if (!file) throw new Error("该发布记录没有可删除的安装包");
 
   await deleteManagedFileRecord(file.id);
 
-  const deleted = readReleaseFileById(file.id);
+  const deleted = (await readReleaseFileById(file.id));
   if (!deleted) throw new Error("安装包文件状态更新失败");
   return { ...deleted, historyId };
 }
@@ -80,7 +80,7 @@ export async function deleteManagedUpdateHistory(
   historyId: string,
   deleteObject: DeleteObject = deleteQiniuObject,
 ): Promise<DeletedUpdateHistory> {
-  const plan = previewManagedUpdateHistoryDeletion(historyId);
+  const plan = (await previewManagedUpdateHistoryDeletion(historyId));
 
   for (const file of plan.files) {
     if (file.provider === "qiniu") {
@@ -90,9 +90,9 @@ export async function deleteManagedUpdateHistory(
 
   return {
     id: historyId,
-    deletedFiles: completeUpdateHistoryDeletion(
+    deletedFiles: (await completeUpdateHistoryDeletion(
       historyId,
       plan.files.map((file) => file.id),
-    ),
+    )),
   };
 }

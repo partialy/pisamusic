@@ -1,5 +1,5 @@
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { type DbClient as DatabaseSync } from "./core/types";
 import { getAppDb } from "./appDb";
 
 export type CloudMusicStatus = "temp" | "active" | "disabled" | "offline" | "pending_review" | "rejected" | "deleted";
@@ -193,16 +193,12 @@ type ReservedAssetRow = CloudMusicAssetRow & {
   file_size: number;
 };
 
-function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const result = fn();
-    db.exec("COMMIT");
+async function runInTransaction<T>(db: DatabaseSync, fn: () => Promise<T>): Promise<T> {
+  return (await db.transaction(async () => {
+    const result = (await fn());
+
     return result;
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
+  }));
 }
 
 function parseMetadata(raw: string): Record<string, unknown> {
@@ -228,15 +224,13 @@ function mapAsset(row: CloudMusicAssetRow): CloudMusicAsset {
   };
 }
 
-function readAssets(db: DatabaseSync, trackUuid: string, includeDeleted: boolean): CloudMusicAsset[] {
+async function readAssets(db: DatabaseSync, trackUuid: string, includeDeleted: boolean): Promise<CloudMusicAsset[]> {
   const where = includeDeleted ? "track_uuid = ?" : "track_uuid = ? AND deleted_at IS NULL";
-  const rows = db.prepare(
-    `SELECT * FROM cloud_music_assets WHERE ${where} ORDER BY created_at ASC, id ASC`,
-  ).all(trackUuid) as CloudMusicAssetRow[];
+  const rows = (await db.query(`SELECT * FROM cloud_music_assets WHERE ${where} ORDER BY created_at ASC, id ASC`, [trackUuid])) as CloudMusicAssetRow[];
   return rows.map(mapAsset);
 }
 
-function mapTrack(db: DatabaseSync, row: CloudMusicTrackRow, includeDeleted = false): CloudMusicTrack {
+async function mapTrack(db: DatabaseSync, row: CloudMusicTrackRow, includeDeleted = false): Promise<CloudMusicTrack> {
   return {
     uuid: row.uuid,
     status: row.status as CloudMusicStatus,
@@ -260,62 +254,39 @@ function mapTrack(db: DatabaseSync, row: CloudMusicTrackRow, includeDeleted = fa
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
-    assets: readAssets(db, row.uuid, includeDeleted),
+    assets: (await readAssets(db, row.uuid, includeDeleted)),
   };
 }
 
-function readTrackWithDb(db: DatabaseSync, uuid: string, includeDeleted = false): CloudMusicTrack | null {
+async function readTrackWithDb(db: DatabaseSync, uuid: string, includeDeleted = false): Promise<CloudMusicTrack | null> {
   const deletedClause = includeDeleted ? "" : "AND deleted_at IS NULL";
-  const row = db.prepare(
-    `SELECT * FROM cloud_music_tracks WHERE uuid = ? ${deletedClause}`,
-  ).get(uuid) as CloudMusicTrackRow | undefined;
-  return row ? mapTrack(db, row, includeDeleted) : null;
+  const row = (await db.queryOne(`SELECT * FROM cloud_music_tracks WHERE uuid = ? ${deletedClause}`, [uuid])) as CloudMusicTrackRow | undefined;
+  return row ? (await mapTrack(db, row, includeDeleted)) : null;
 }
 
-function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput, now: number): CloudMusicReservedAsset {
+async function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput, now: number): Promise<CloudMusicReservedAsset> {
   if (!Number.isSafeInteger(input.fileSize) || input.fileSize <= 0) throw new Error("网盘音乐资产声明大小不正确");
   if (!input.mimeType.trim()) throw new Error("网盘音乐资产 MIME 不能为空");
-  const track = db.prepare(
-    "SELECT uuid FROM cloud_music_tracks WHERE uuid = ? AND deleted_at IS NULL",
-  ).get(input.trackUuid) as { uuid: string } | undefined;
+  const track = (await db.queryOne("SELECT uuid FROM cloud_music_tracks WHERE uuid = ? AND deleted_at IS NULL", [input.trackUuid])) as { uuid: string } | undefined;
   if (!track) throw new Error("网盘音乐曲目不存在");
 
   const ownerType = input.ownerType ?? "system";
   const ownerUserId = input.ownerUserId ?? null;
   const ownerSnapshotJson = JSON.stringify(input.ownerSnapshot ?? { displayName: ownerType });
 
-  db.prepare(
-    `INSERT INTO file_records (
+  (await db.execute(`INSERT INTO file_records (
       id, usage_type, owner_type, owner_user_id, owner_snapshot_json,
       platform, version, asset_type, provider, bucket, object_key, hash,
       file_name, mime_type, file_size, download_url, status, referenced_by, created_at, deleted_at
-    ) VALUES (?, 'cloud-music', ?, ?, ?, 'server', '', ?, 'qiniu', ?, ?, '', ?, ?, ?, '', 'pending', ?, ?, NULL)`,
-  ).run(
-    input.fileRecordId,
-    ownerType,
-    ownerUserId,
-    ownerSnapshotJson,
-    input.kind,
-    input.bucket,
-    input.objectKey,
-    input.fileName,
-    input.mimeType,
-    input.fileSize,
-    JSON.stringify([{ type: "cloud-music", id: input.trackUuid }]),
-    now,
-  );
-  db.prepare(
-    `INSERT INTO cloud_music_assets (
+    ) VALUES (?, 'cloud-music', ?, ?, ?, 'server', '', ?, 'qiniu', ?, ?, '', ?, ?, ?, '', 'pending', ?, ?, NULL)`, [input.fileRecordId, ownerType, ownerUserId, ownerSnapshotJson, input.kind, input.bucket, input.objectKey, input.fileName, input.mimeType, input.fileSize, JSON.stringify([{ type: "cloud-music", id: input.trackUuid }]), now]));
+  (await db.execute(`INSERT INTO cloud_music_assets (
       id, track_uuid, file_record_id, kind, state, is_current, created_at, updated_at, deleted_at
-    ) VALUES (?, ?, ?, ?, 'pending', 0, ?, ?, NULL)`,
-  ).run(input.assetId, input.trackUuid, input.fileRecordId, input.kind, now, now);
+    ) VALUES (?, ?, ?, ?, 'pending', 0, ?, ?, NULL)`, [input.assetId, input.trackUuid, input.fileRecordId, input.kind, now, now]));
 
-  const row = db.prepare(
-    `SELECT a.*, f.bucket, f.object_key, f.file_name, f.mime_type, f.file_size
+  const row = (await db.queryOne(`SELECT a.*, f.bucket, f.object_key, f.file_name, f.mime_type, f.file_size
      FROM cloud_music_assets a
      JOIN file_records f ON f.id = a.file_record_id
-     WHERE a.id = ?`,
-  ).get(input.assetId) as ReservedAssetRow | undefined;
+     WHERE a.id = ?`, [input.assetId])) as ReservedAssetRow | undefined;
   if (!row) throw new Error("网盘音乐资产预登记失败");
   return {
     ...mapAsset(row),
@@ -329,7 +300,7 @@ function reserveAssetWithDb(db: DatabaseSync, input: CloudMusicAssetReserveInput
   };
 }
 
-function updateDraftWithDb(db: DatabaseSync, uuid: string, input: CloudMusicDraftUpdateInput, now: number): void {
+async function updateDraftWithDb(db: DatabaseSync, uuid: string, input: CloudMusicDraftUpdateInput, now: number): Promise<void> {
   const assignments: string[] = [];
   const values: Array<string | number | null> = [];
   if (input.status !== undefined) {
@@ -367,9 +338,7 @@ function updateDraftWithDb(db: DatabaseSync, uuid: string, input: CloudMusicDraf
   if (assignments.length === 0) return;
   assignments.push("updated_at = ?");
   values.push(now, uuid);
-  db.prepare(
-    `UPDATE cloud_music_tracks SET ${assignments.join(", ")} WHERE uuid = ? AND deleted_at IS NULL`,
-  ).run(...values);
+  (await db.execute(`UPDATE cloud_music_tracks SET ${assignments.join(", ")} WHERE uuid = ? AND deleted_at IS NULL`, [...values]));
 }
 
 function assertUploadTransition(current: CloudMusicUploadState, next: Exclude<CloudMusicUploadState, "reserved">): void {
@@ -385,65 +354,61 @@ function assertUploadTransition(current: CloudMusicUploadState, next: Exclude<Cl
   }
 }
 
-export function createCloudMusicUploadSession(input: CloudMusicSessionCreateInput): CloudMusicTrack {
+export async function createCloudMusicUploadSession(input: CloudMusicSessionCreateInput): Promise<CloudMusicTrack> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
+  return (await runInTransaction(db, async () => {
     const now = Date.now();
     const ownerType = input.owner?.type ?? "system";
     const ownerUserId = input.owner?.userId ?? null;
     const ownerSnapshot = input.owner?.snapshot ?? { displayName: ownerType };
 
-    db.prepare(
-      `INSERT INTO cloud_music_tracks (
+    (await db.execute(`INSERT INTO cloud_music_tracks (
         uuid, status, upload_state, status_reason, title, artist, created_at, updated_at, deleted_at
-      ) VALUES (?, 'temp', 'reserved', '', ?, '未知歌手', ?, ?, NULL)`,
-    ).run(input.uuid, path.basename(input.audio.fileName), now, now);
+      ) VALUES (?, 'temp', 'reserved', '', ?, '未知歌手', ?, ?, NULL)`, [input.uuid, path.basename(input.audio.fileName), now, now]));
 
-    reserveAssetWithDb(db, {
+    (await reserveAssetWithDb(db, {
       ...input.audio,
       trackUuid: input.uuid,
       kind: "audio",
       ownerType,
       ownerUserId,
       ownerSnapshot,
-    }, now);
+    }, now));
 
     if (input.cover) {
-      reserveAssetWithDb(db, {
+      (await reserveAssetWithDb(db, {
         ...input.cover,
         trackUuid: input.uuid,
         kind: "cover-uploaded",
         ownerType,
         ownerUserId,
         ownerSnapshot,
-      }, now);
+      }, now));
     }
     if (input.lyrics) {
-      reserveAssetWithDb(db, {
+      (await reserveAssetWithDb(db, {
         ...input.lyrics,
         trackUuid: input.uuid,
         kind: "lyrics",
         ownerType,
         ownerUserId,
         ownerSnapshot,
-      }, now);
+      }, now));
     }
 
-    const track = readTrackWithDb(db, input.uuid);
+    const track = (await readTrackWithDb(db, input.uuid));
     if (!track) throw new Error("网盘音乐上传会话创建失败");
     return track;
-  });
+  }));
 }
 
-export function readTrackOwnerInfo(uuid: string): { ownerType: string; ownerUserId: string | null; ownerSnapshot: Record<string, unknown> } | null {
+export async function readTrackOwnerInfo(uuid: string): Promise<{ ownerType: string; ownerUserId: string | null; ownerSnapshot: Record<string, unknown> } | null> {
   const db = getAppDb();
-  const row = db.prepare(
-    `SELECT f.owner_type, f.owner_user_id, f.owner_snapshot_json
+  const row = (await db.queryOne(`SELECT f.owner_type, f.owner_user_id, f.owner_snapshot_json
      FROM cloud_music_assets a
      JOIN file_records f ON f.id = a.file_record_id
      WHERE a.track_uuid = ? AND a.kind = 'audio' AND a.deleted_at IS NULL
-     LIMIT 1`,
-  ).get(uuid) as { owner_type: string; owner_user_id: string | null; owner_snapshot_json: string } | undefined;
+     LIMIT 1`, [uuid])) as { owner_type: string; owner_user_id: string | null; owner_snapshot_json: string } | undefined;
   if (!row) return null;
   let snapshot: Record<string, unknown> = {};
   try {
@@ -458,65 +423,52 @@ export function readTrackOwnerInfo(uuid: string): { ownerType: string; ownerUser
   };
 }
 
-export function reserveCloudMusicAsset(input: CloudMusicAssetReserveInput): CloudMusicReservedAsset {
+export async function reserveCloudMusicAsset(input: CloudMusicAssetReserveInput): Promise<CloudMusicReservedAsset> {
   const db = getAppDb();
-  return runInTransaction(db, () => reserveAssetWithDb(db, input, Date.now()));
+  return (await runInTransaction(db, async () => (await reserveAssetWithDb(db, input, Date.now()))));
 }
 
-export function confirmCloudMusicAsset(input: CloudMusicAssetConfirmInput): CloudMusicTrack {
+export async function confirmCloudMusicAsset(input: CloudMusicAssetConfirmInput): Promise<CloudMusicTrack> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
+  return (await runInTransaction(db, async () => {
     const now = Date.now();
-    const asset = db.prepare(
-      `SELECT * FROM cloud_music_assets WHERE file_record_id = ? AND deleted_at IS NULL`,
-    ).get(input.fileRecordId) as CloudMusicAssetRow | undefined;
+    const asset = (await db.queryOne(`SELECT * FROM cloud_music_assets WHERE file_record_id = ? AND deleted_at IS NULL`, [input.fileRecordId])) as CloudMusicAssetRow | undefined;
     if (!asset) throw new Error("网盘音乐资产不存在");
-    const trackRow = db.prepare(
-      `SELECT upload_state FROM cloud_music_tracks WHERE uuid = ? AND deleted_at IS NULL`,
-    ).get(asset.track_uuid) as { upload_state: CloudMusicUploadState } | undefined;
+    const trackRow = (await db.queryOne(`SELECT upload_state FROM cloud_music_tracks WHERE uuid = ? AND deleted_at IS NULL`, [asset.track_uuid])) as { upload_state: CloudMusicUploadState } | undefined;
     if (!trackRow) throw new Error("网盘音乐曲目不存在");
     const nextUploadState = asset.kind === "audio"
       ? input.uploadState ?? "uploaded"
       : trackRow.upload_state;
     if (asset.kind === "audio") assertUploadTransition(trackRow.upload_state, nextUploadState as Exclude<CloudMusicUploadState, "reserved">);
 
-    db.prepare(
-      `UPDATE file_records
+    (await db.execute(`UPDATE file_records
        SET hash = ?, mime_type = ?, file_size = ?, status = 'uploaded', deleted_at = NULL
-       WHERE id = ? AND status <> 'deleted'`,
-    ).run(input.hash, input.mimeType, Math.max(0, Math.trunc(input.fileSize)), input.fileRecordId);
-    db.prepare(
-      `UPDATE cloud_music_assets
+       WHERE id = ? AND status <> 'deleted'`, [input.hash, input.mimeType, Math.max(0, Math.trunc(input.fileSize)), input.fileRecordId]));
+    (await db.execute(`UPDATE cloud_music_assets
        SET state = 'superseded', is_current = 0, updated_at = ?
-       WHERE track_uuid = ? AND kind = ? AND id <> ? AND is_current = 1 AND deleted_at IS NULL`,
-    ).run(now, asset.track_uuid, asset.kind, asset.id);
-    db.prepare(
-      `UPDATE cloud_music_assets
+       WHERE track_uuid = ? AND kind = ? AND id <> ? AND is_current = 1 AND deleted_at IS NULL`, [now, asset.track_uuid, asset.kind, asset.id]));
+    (await db.execute(`UPDATE cloud_music_assets
        SET state = 'uploaded', is_current = 1, updated_at = ?
-       WHERE id = ? AND deleted_at IS NULL`,
-    ).run(now, asset.id);
+       WHERE id = ? AND deleted_at IS NULL`, [now, asset.id]));
     if (asset.kind === "audio") {
-      if (input.parsed) updateDraftWithDb(db, asset.track_uuid, input.parsed, now);
-      db.prepare(
-        `UPDATE cloud_music_tracks
+      if (input.parsed) (await updateDraftWithDb(db, asset.track_uuid, input.parsed, now));
+      (await db.execute(`UPDATE cloud_music_tracks
          SET upload_state = ?, status_reason = ?, updated_at = ?
-         WHERE uuid = ? AND deleted_at IS NULL`,
-      ).run(nextUploadState, input.statusReason ?? "", now, asset.track_uuid);
+         WHERE uuid = ? AND deleted_at IS NULL`, [nextUploadState, input.statusReason ?? "", now, asset.track_uuid]));
     }
 
-    const track = readTrackWithDb(db, asset.track_uuid);
+    const track = (await readTrackWithDb(db, asset.track_uuid));
     if (!track) throw new Error("网盘音乐资产确认失败");
     return track;
-  });
+  }));
 }
 
-export function readCloudMusicTrack(uuid: string, includeDeleted = false): CloudMusicTrack | null {
-  return readTrackWithDb(getAppDb(), uuid, includeDeleted);
+export async function readCloudMusicTrack(uuid: string, includeDeleted = false): Promise<CloudMusicTrack | null> {
+  return (await readTrackWithDb(getAppDb(), uuid, includeDeleted));
 }
 
-export function readCloudMusicReservedAsset(fileRecordId: string): CloudMusicReservedAsset | null {
-  const row = getAppDb().prepare(
-    `SELECT a.*, f.bucket, f.object_key, f.file_name, f.mime_type, f.file_size
+export async function readCloudMusicReservedAsset(fileRecordId: string): Promise<CloudMusicReservedAsset | null> {
+  const row = (await getAppDb().queryOne(`SELECT a.*, f.bucket, f.object_key, f.file_name, f.mime_type, f.file_size
      FROM cloud_music_assets a
      JOIN cloud_music_tracks t ON t.uuid = a.track_uuid
      JOIN file_records f ON f.id = a.file_record_id
@@ -526,8 +478,7 @@ export function readCloudMusicReservedAsset(fileRecordId: string): CloudMusicRes
        AND t.status = 'temp'
        AND t.deleted_at IS NULL
        AND f.status = 'pending'
-       AND f.deleted_at IS NULL`,
-  ).get(fileRecordId) as ReservedAssetRow | undefined;
+       AND f.deleted_at IS NULL`, [fileRecordId])) as ReservedAssetRow | undefined;
   if (!row) return null;
   return {
     ...mapAsset(row),
@@ -541,7 +492,7 @@ export function readCloudMusicReservedAsset(fileRecordId: string): CloudMusicRes
   };
 }
 
-function queryTracks(input: CloudMusicListInput, visibleOnly: boolean): CloudMusicListResult {
+async function queryTracks(input: CloudMusicListInput, visibleOnly: boolean): Promise<CloudMusicListResult> {
   const db = getAppDb();
   const offset = Math.max(0, Math.trunc(input.offset ?? 0));
   const limit = Math.min(200, Math.max(1, Math.trunc(input.limit ?? 30)));
@@ -572,49 +523,41 @@ function queryTracks(input: CloudMusicListInput, visibleOnly: boolean): CloudMus
     params.push(pattern, pattern, pattern);
   }
   const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
-  const total = Number((db.prepare(
-    `SELECT COUNT(*) AS total FROM cloud_music_tracks ${whereSql}`,
-  ).get(...params) as { total: number }).total) || 0;
-  const rows = db.prepare(
-    `SELECT * FROM cloud_music_tracks ${whereSql}
-     ORDER BY updated_at DESC, uuid ASC LIMIT ? OFFSET ?`,
-  ).all(...params, limit, offset) as CloudMusicTrackRow[];
+  const total = Number(((await db.queryOne(`SELECT COUNT(*) AS total FROM cloud_music_tracks ${whereSql}`, [...params])) as { total: number }).total) || 0;
+  const rows = (await db.query(`SELECT * FROM cloud_music_tracks ${whereSql}
+     ORDER BY updated_at DESC, uuid ASC LIMIT ? OFFSET ?`, [...params, limit, offset])) as CloudMusicTrackRow[];
   return {
-    items: rows.map((row) => mapTrack(db, row, Boolean(input.includeDeleted))),
+    items: await Promise.all(rows.map(async (row) => (await mapTrack(db, row, Boolean(input.includeDeleted))))),
     total,
     offset,
     limit,
   };
 }
 
-export function listCloudMusicTracks(input: CloudMusicListInput): CloudMusicListResult {
-  return queryTracks(input, false);
+export async function listCloudMusicTracks(input: CloudMusicListInput): Promise<CloudMusicListResult> {
+  return (await queryTracks(input, false));
 }
 
-export function searchVisibleCloudMusic(input: CloudMusicSearchInput): CloudMusicListResult {
-  return queryTracks(input, true);
+export async function searchVisibleCloudMusic(input: CloudMusicSearchInput): Promise<CloudMusicListResult> {
+  return (await queryTracks(input, true));
 }
 
-export function readVisibleCloudMusicSummary(userId?: string): CloudMusicPublicSummary {
+export async function readVisibleCloudMusicSummary(userId?: string): Promise<CloudMusicPublicSummary> {
   const db = getAppDb();
-  const row = db.prepare(
-    `SELECT COUNT(*) AS total, MAX(updated_at) AS latest_updated_at
+  const row = (await db.queryOne(`SELECT COUNT(*) AS total, MAX(updated_at) AS latest_updated_at
      FROM cloud_music_tracks
-     WHERE status IN ('active', 'disabled') AND deleted_at IS NULL`,
-  ).get() as { total: number; latest_updated_at: number | null };
+     WHERE status IN ('active', 'disabled') AND deleted_at IS NULL`, [])) as { total: number; latest_updated_at: number | null };
 
   let myContributions = 0;
   if (userId) {
-    const userRow = db.prepare(
-      `SELECT COUNT(DISTINCT t.uuid) AS count
+    const userRow = (await db.queryOne(`SELECT COUNT(DISTINCT t.uuid) AS count
        FROM cloud_music_tracks t
        JOIN cloud_music_assets a ON a.track_uuid = t.uuid
        JOIN file_records f ON f.id = a.file_record_id
        WHERE t.status IN ('active', 'disabled')
          AND t.deleted_at IS NULL
          AND a.kind = 'audio'
-         AND f.owner_user_id = ?`,
-    ).get(userId) as { count: number } | undefined;
+         AND f.owner_user_id = ?`, [userId])) as { count: number } | undefined;
     myContributions = Number(userRow?.count) || 0;
   }
 
@@ -625,58 +568,51 @@ export function readVisibleCloudMusicSummary(userId?: string): CloudMusicPublicS
   };
 }
 
-export function readUserSubmissions(userId: string, offset = 0, limit = 30): CloudMusicListResult {
+export async function readUserSubmissions(userId: string, offset = 0, limit = 30): Promise<CloudMusicListResult> {
   const db = getAppDb();
   const safeOffset = Math.max(0, Math.trunc(offset));
   const safeLimit = Math.min(100, Math.max(1, Math.trunc(limit)));
 
-  const countRow = db.prepare(
-    `SELECT COUNT(DISTINCT t.uuid) AS total
+  const countRow = (await db.queryOne(`SELECT COUNT(DISTINCT t.uuid) AS total
      FROM cloud_music_tracks t
      JOIN cloud_music_assets a ON a.track_uuid = t.uuid
      JOIN file_records f ON f.id = a.file_record_id
-     WHERE f.owner_user_id = ?`,
-  ).get(userId) as { total: number } | undefined;
+     WHERE f.owner_user_id = ?`, [userId])) as { total: number } | undefined;
 
   const total = Number(countRow?.total) || 0;
 
-  const rows = db.prepare(
-    `SELECT DISTINCT t.*
+  const rows = (await db.query(`SELECT DISTINCT t.*
      FROM cloud_music_tracks t
      JOIN cloud_music_assets a ON a.track_uuid = t.uuid
      JOIN file_records f ON f.id = a.file_record_id
      WHERE f.owner_user_id = ?
      ORDER BY t.created_at DESC
-     LIMIT ? OFFSET ?`,
-  ).all(userId, safeLimit, safeOffset) as CloudMusicTrackRow[];
+     LIMIT ? OFFSET ?`, [userId, safeLimit, safeOffset])) as CloudMusicTrackRow[];
 
   return {
-    items: rows.map((row) => mapTrack(db, row, true)),
+    items: await Promise.all(rows.map(async (row) => (await mapTrack(db, row, true)))),
     total,
     offset: safeOffset,
     limit: safeLimit,
   };
 }
 
-export function updateCloudMusicDraft(uuid: string, input: CloudMusicDraftUpdateInput): CloudMusicTrack | null {
+export async function updateCloudMusicDraft(uuid: string, input: CloudMusicDraftUpdateInput): Promise<CloudMusicTrack | null> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    updateDraftWithDb(db, uuid, input, Date.now());
-    return readTrackWithDb(db, uuid);
-  });
+  return (await runInTransaction(db, async () => {
+    (await updateDraftWithDb(db, uuid, input, Date.now()));
+    return (await readTrackWithDb(db, uuid));
+  }));
 }
 
-export function transitionCloudMusicStatus(input: CloudMusicStatusTransitionInput): CloudMusicTrack | null {
+export async function transitionCloudMusicStatus(input: CloudMusicStatusTransitionInput): Promise<CloudMusicTrack | null> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
+  return (await runInTransaction(db, async () => {
     const now = Date.now();
-    const existing = db.prepare(
-      `SELECT upload_state FROM cloud_music_tracks WHERE uuid = ? AND deleted_at IS NULL`,
-    ).get(input.uuid) as { upload_state: CloudMusicUploadState } | undefined;
+    const existing = (await db.queryOne(`SELECT upload_state FROM cloud_music_tracks WHERE uuid = ? AND deleted_at IS NULL`, [input.uuid])) as { upload_state: CloudMusicUploadState } | undefined;
     if (!existing) return null;
     if (input.status === "active" || input.status === "disabled") {
-      const readyAudio = db.prepare(
-        `SELECT 1 AS ready
+      const readyAudio = (await db.queryOne(`SELECT 1 AS ready
          FROM cloud_music_assets a
          JOIN file_records f ON f.id = a.file_record_id
          WHERE a.track_uuid = ?
@@ -686,8 +622,7 @@ export function transitionCloudMusicStatus(input: CloudMusicStatusTransitionInpu
            AND a.deleted_at IS NULL
            AND f.status = 'uploaded'
            AND f.deleted_at IS NULL
-         LIMIT 1`,
-      ).get(input.uuid) as { ready: number } | undefined;
+         LIMIT 1`, [input.uuid])) as { ready: number } | undefined;
       if (existing.upload_state !== "ready" || !readyAudio) {
         throw new Error("网盘音乐尚未准备完成，不能转为客户端可见状态");
       }
@@ -695,57 +630,45 @@ export function transitionCloudMusicStatus(input: CloudMusicStatusTransitionInpu
     const reviewedAt = input.reviewedAt === undefined
       ? input.reviewedBy === undefined ? null : now
       : input.reviewedAt;
-    db.prepare(
-      `UPDATE cloud_music_tracks
+    (await db.execute(`UPDATE cloud_music_tracks
        SET status = ?, status_reason = ?, reviewed_by = ?, reviewed_at = ?, updated_at = ?
-       WHERE uuid = ? AND deleted_at IS NULL`,
-    ).run(input.status, input.statusReason ?? "", input.reviewedBy ?? "", reviewedAt, now, input.uuid);
-    return readTrackWithDb(db, input.uuid);
-  });
+       WHERE uuid = ? AND deleted_at IS NULL`, [input.status, input.statusReason ?? "", input.reviewedBy ?? "", reviewedAt, now, input.uuid]));
+    return (await readTrackWithDb(db, input.uuid));
+  }));
 }
 
-export function listStaleTempTracks(olderThan: number, limit: number): CloudMusicTrack[] {
+export async function listStaleTempTracks(olderThan: number, limit: number): Promise<CloudMusicTrack[]> {
   const db = getAppDb();
-  const rows = db.prepare(
-    `SELECT * FROM cloud_music_tracks
+  const rows = (await db.query(`SELECT * FROM cloud_music_tracks
      WHERE status = 'temp' AND deleted_at IS NULL AND created_at < ?
-     ORDER BY created_at ASC LIMIT ?`,
-  ).all(olderThan, Math.min(500, Math.max(1, Math.trunc(limit)))) as CloudMusicTrackRow[];
-  return rows.map((row) => mapTrack(db, row));
+     ORDER BY created_at ASC LIMIT ?`, [olderThan, Math.min(500, Math.max(1, Math.trunc(limit)))])) as CloudMusicTrackRow[];
+  return Promise.all(rows.map(async (row) => (await mapTrack(db, row))));
 }
 
-export function markCloudMusicDeleted(uuid: string, deletedAt: number): CloudMusicTrack | null {
+export async function markCloudMusicDeleted(uuid: string, deletedAt: number): Promise<CloudMusicTrack | null> {
   const db = getAppDb();
-  return runInTransaction(db, () => {
-    const existing = readTrackWithDb(db, uuid, true);
+  return (await runInTransaction(db, async () => {
+    const existing = (await readTrackWithDb(db, uuid, true));
     if (!existing) return null;
-    db.prepare(
-      `UPDATE cloud_music_tracks
+    (await db.execute(`UPDATE cloud_music_tracks
        SET status = 'deleted', deleted_at = ?, updated_at = ?
-       WHERE uuid = ?`,
-    ).run(deletedAt, deletedAt, uuid);
-    db.prepare(
-      `UPDATE cloud_music_assets
+       WHERE uuid = ?`, [deletedAt, deletedAt, uuid]));
+    (await db.execute(`UPDATE cloud_music_assets
        SET state = 'deleted', is_current = 0, deleted_at = ?, updated_at = ?
-       WHERE track_uuid = ?`,
-    ).run(deletedAt, deletedAt, uuid);
-    db.prepare(
-      `UPDATE file_records
+       WHERE track_uuid = ?`, [deletedAt, deletedAt, uuid]));
+    (await db.execute(`UPDATE file_records
        SET status = 'deleted', referenced_by = '[]', deleted_at = ?
-       WHERE id IN (SELECT file_record_id FROM cloud_music_assets WHERE track_uuid = ?)`,
-    ).run(deletedAt, uuid);
-    return readTrackWithDb(db, uuid, true);
-  });
+       WHERE id IN (SELECT file_record_id FROM cloud_music_assets WHERE track_uuid = ?)`, [deletedAt, uuid]));
+    return (await readTrackWithDb(db, uuid, true));
+  }));
 }
 
-export function readCloudMusicByFileRecordId(fileRecordId: string): CloudMusicTrack | null {
+export async function readCloudMusicByFileRecordId(fileRecordId: string): Promise<CloudMusicTrack | null> {
   const db = getAppDb();
-  const row = db.prepare(
-    `SELECT t.*
+  const row = (await db.queryOne(`SELECT t.*
      FROM cloud_music_tracks t
      JOIN cloud_music_assets a ON a.track_uuid = t.uuid
      WHERE a.file_record_id = ?
-     LIMIT 1`,
-  ).get(fileRecordId) as CloudMusicTrackRow | undefined;
-  return row ? mapTrack(db, row, true) : null;
+     LIMIT 1`, [fileRecordId])) as CloudMusicTrackRow | undefined;
+  return row ? (await mapTrack(db, row, true)) : null;
 }

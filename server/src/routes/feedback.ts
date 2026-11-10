@@ -107,7 +107,7 @@ feedbackRouter.post(
       const id = randomUUID();
       const createdAt = new Date().toISOString();
       const imagePaths = files.map((f) => path.posix.join("uploads", "feedback", f.filename));
-      insertFeedback({
+      (await insertFeedback({
         id,
         createdAt,
         feedbackType: feedback_type as FeedbackType,
@@ -115,7 +115,7 @@ feedbackRouter.post(
         contact,
         device,
         imagePaths,
-      });
+      }));
 
       return res.json(ok({ id, createdAt }, "提交成功"));
     } catch (e) {

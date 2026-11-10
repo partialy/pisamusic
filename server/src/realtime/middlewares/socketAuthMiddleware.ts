@@ -8,9 +8,9 @@ function normalizeToken(value: unknown): string {
   return token.startsWith("Bearer ") ? token.slice("Bearer ".length).trim() : token;
 }
 
-export function socketAuthMiddleware(socket: Socket, next: (err?: ExtendedError) => void): void {
+export async function socketAuthMiddleware(socket: Socket, next: (err?: ExtendedError) => void): Promise<void> {
   const token = normalizeToken(socket.handshake.auth?.token);
-  const user = verifyUserToken(token);
+  const user = (await verifyUserToken(token));
   if (!user) {
     next(new Error("UNAUTHORIZED"));
     return;

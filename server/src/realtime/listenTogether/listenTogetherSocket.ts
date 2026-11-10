@@ -26,7 +26,7 @@ import {
 
 type AckFn = (response: ListenTogetherAck) => void;
 
-type LeaveResult = ReturnType<typeof leaveListenTogetherRoom>;
+type LeaveResult = Awaited<ReturnType<typeof leaveListenTogetherRoom>>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -88,16 +88,21 @@ function registerRoomChangeEvent(
   handler: (
     user: AuthedRealtimeSocket["data"]["user"],
     payload: unknown,
-  ) => {
+  ) => Promise<{
+    broadcast?: ListenTogetherBroadcast;
+    room: unknown;
+    transitionId?: string;
+    applied: boolean;
+  }> | {
     broadcast?: ListenTogetherBroadcast;
     room: unknown;
     transitionId?: string;
     applied: boolean;
   },
 ): void {
-  socket.on(eventName, (payload: unknown, ack?: AckFn) => {
+  socket.on(eventName, async (payload: unknown, ack?: AckFn) => {
     try {
-      const result = handler(socket.data.user, payload);
+      const result = await handler(socket.data.user, payload);
       ackOk(ack, {
         room: result.room,
         transitionId: result.transitionId,
@@ -157,9 +162,9 @@ export function registerListenTogetherSocket(io: Server, socket: AuthedRealtimeS
   const user = socket.data.user;
   connectListenTogetherSocket(user.userId, socket.id);
 
-  socket.on(listenTogetherClientEvents.join, (payload: unknown, ack?: AckFn) => {
+  socket.on(listenTogetherClientEvents.join, async (payload: unknown, ack?: AckFn) => {
     try {
-      const result = joinListenTogetherRoom(user, roomIdFromPayload(payload));
+      const result = (await joinListenTogetherRoom(user, roomIdFromPayload(payload)));
       const roomName = listenRoomName(result.room.roomId);
       socket.join(roomName);
       ackOk(ack, { room: result.room, serverTime: result.serverTime }, "加入成功");
@@ -171,9 +176,9 @@ export function registerListenTogetherSocket(io: Server, socket: AuthedRealtimeS
     }
   });
 
-  socket.on(listenTogetherClientEvents.leave, (payload: unknown, ack?: AckFn) => {
+  socket.on(listenTogetherClientEvents.leave, async (payload: unknown, ack?: AckFn) => {
     try {
-      const result = leaveListenTogetherRoom(user.userId, roomIdFromPayload(payload));
+      const result = (await leaveListenTogetherRoom(user.userId, roomIdFromPayload(payload)));
       ackOk(ack, null, "离开成功");
       broadcastLeaveResult(io, result);
     } catch (error) {
@@ -190,9 +195,9 @@ export function registerListenTogetherSocket(io: Server, socket: AuthedRealtimeS
   registerRoomChangeEvent(io, socket, listenTogetherClientEvents.transferHost, transferListenTogetherHost);
   registerQueueEvent(io, socket);
 
-  socket.on(listenTogetherClientEvents.sync, (payload: unknown, ack?: AckFn) => {
+  socket.on(listenTogetherClientEvents.sync, async (payload: unknown, ack?: AckFn) => {
     try {
-      const result = syncListenTogetherRoom(user, roomIdFromPayload(payload));
+      const result = (await syncListenTogetherRoom(user, roomIdFromPayload(payload)));
       socket.join(listenRoomName(result.room.roomId));
       ackOk(ack, { room: result.room, serverTime: result.serverTime });
       if (result.broadcast) emitBroadcastFromSocket(socket, result.broadcast);
@@ -201,9 +206,9 @@ export function registerListenTogetherSocket(io: Server, socket: AuthedRealtimeS
     }
   });
 
-  socket.on(listenTogetherClientEvents.kickMember, (payload: unknown, ack?: AckFn) => {
+  socket.on(listenTogetherClientEvents.kickMember, async (payload: unknown, ack?: AckFn) => {
     try {
-      const result = kickListenTogetherMember(user, payload);
+      const result = (await kickListenTogetherMember(user, payload));
       ackOk(ack, null, "已移出成员");
       broadcastLeaveResult(io, result);
     } catch (error) {

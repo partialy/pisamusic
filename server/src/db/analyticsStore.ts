@@ -49,7 +49,7 @@ export function hashVisitorId(visitorId: string): string {
   return createHash("sha256").update(`${salt}${visitorId.trim()}`, "utf8").digest("hex");
 }
 
-export function maybeCleanupAnalytics(now = Date.now()): void {
+export async function maybeCleanupAnalytics(now = Date.now()): Promise<void> {
   const today = toShanghaiDay(now);
   if (lastCleanupDay === today) return;
 
@@ -58,11 +58,11 @@ export function maybeCleanupAnalytics(now = Date.now()): void {
     const retentionDays = getAnalyticsRetentionDays();
     const cutoffTimestamp = now - retentionDays * 24 * 60 * 60 * 1000;
 
-    db.prepare("DELETE FROM site_visit_records WHERE created_at < ?").run(cutoffTimestamp);
-    db.prepare("DELETE FROM download_records WHERE created_at < ?").run(cutoffTimestamp);
-    db.prepare("DELETE FROM device_daily_activity WHERE last_seen_at < ?").run(cutoffTimestamp);
-    db.prepare("DELETE FROM app_share_visits WHERE received_at < ?").run(cutoffTimestamp);
-    db.prepare("DELETE FROM app_share_downloads WHERE triggered_at < ?").run(cutoffTimestamp);
+    (await db.execute("DELETE FROM site_visit_records WHERE created_at < ?", [cutoffTimestamp]));
+    (await db.execute("DELETE FROM download_records WHERE created_at < ?", [cutoffTimestamp]));
+    (await db.execute("DELETE FROM device_daily_activity WHERE last_seen_at < ?", [cutoffTimestamp]));
+    (await db.execute("DELETE FROM app_share_visits WHERE received_at < ?", [cutoffTimestamp]));
+    (await db.execute("DELETE FROM app_share_downloads WHERE triggered_at < ?", [cutoffTimestamp]));
     lastCleanupDay = today;
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -70,74 +70,54 @@ export function maybeCleanupAnalytics(now = Date.now()): void {
   }
 }
 
-export function recordSiteVisit(input: SiteVisitInput): { accepted: boolean; visitDay: string } {
+export async function recordSiteVisit(input: SiteVisitInput): Promise<{ accepted: boolean; visitDay: string }> {
   const now = input.occurredAt ?? Date.now();
   const visitDay = toShanghaiDay(now);
   const visitorHash = hashVisitorId(input.visitorId);
   const id = randomUUID();
 
-  maybeCleanupAnalytics(now);
+  (await maybeCleanupAnalytics(now));
 
   const db = getAppDb();
-  const stmt = db.prepare(`
+
+
+  const result = (await db.execute(db.dialect === "mysql" ? "\n    INSERT INTO site_visit_records (\n      id, visit_day, visitor_hash, ip_address, path, referrer,\n      user_agent, language, timezone, screen_width, screen_height, created_at\n    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n    ON DUPLICATE KEY UPDATE id=id\n  " : `
     INSERT INTO site_visit_records (
       id, visit_day, visitor_hash, ip_address, path, referrer,
       user_agent, language, timezone, screen_width, screen_height, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(visit_day, visitor_hash) DO NOTHING
-  `);
-
-  const result = stmt.run(
-    id,
-    visitDay,
-    visitorHash,
-    input.ipAddress || "",
-    input.path || "/",
-    input.referrer || "",
-    input.userAgent || "",
-    input.language || "",
-    input.timezone || "",
-    Math.max(0, Math.trunc(input.screenWidth || 0)),
-    Math.max(0, Math.trunc(input.screenHeight || 0)),
-    now,
-  );
+  `, [id, visitDay, visitorHash, input.ipAddress || "", input.path || "/", input.referrer || "", input.userAgent || "", input.language || "", input.timezone || "", Math.max(0, Math.trunc(input.screenWidth || 0)), Math.max(0, Math.trunc(input.screenHeight || 0)), now]));
 
   return {
-    accepted: Number(result.changes) === 1,
+    accepted: Number(result.affectedRows) === 1,
     visitDay,
   };
 }
 
-export function recordDeviceDailyActivity(input: DeviceDailyActivityInput): void {
+export async function recordDeviceDailyActivity(input: DeviceDailyActivityInput): Promise<void> {
   const now = input.occurredAt ?? Date.now();
   const activityDay = toShanghaiDay(now);
 
-  maybeCleanupAnalytics(now);
+  (await maybeCleanupAnalytics(now));
 
   const db = getAppDb();
-  db.prepare(`
+  (await db.execute(db.dialect === "mysql" ? "\n    INSERT INTO device_daily_activity (\n      activity_day, device_type, device_id, app_version, first_seen_at, last_seen_at\n    ) VALUES (?, ?, ?, ?, ?, ?)\n    ON DUPLICATE KEY UPDATE\n      app_version = VALUES(app_version),\n      last_seen_at = VALUES(last_seen_at)\n  " : `
     INSERT INTO device_daily_activity (
       activity_day, device_type, device_id, app_version, first_seen_at, last_seen_at
     ) VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(activity_day, device_type, device_id) DO UPDATE SET
       app_version = excluded.app_version,
       last_seen_at = excluded.last_seen_at
-  `).run(
-    activityDay,
-    input.deviceType,
-    input.deviceId,
-    input.appVersion || "",
-    now,
-    now,
-  );
+  `, [activityDay, input.deviceType, input.deviceId, input.appVersion || "", now, now]));
 }
 
-export function recordDownload(input: DownloadRecordInput): void {
-  maybeCleanupAnalytics(input.occurredAt ?? Date.now());
-  insertDownloadRecord(input);
+export async function recordDownload(input: DownloadRecordInput): Promise<void> {
+  (await maybeCleanupAnalytics(input.occurredAt ?? Date.now()));
+  (await insertDownloadRecord(input));
 }
 
-export function insertDownloadRecord(input: DownloadRecordInput): string {
+export async function insertDownloadRecord(input: DownloadRecordInput): Promise<string> {
   const now = input.occurredAt ?? Date.now();
   const downloadDay = toShanghaiDay(now);
   const id = randomUUID();
@@ -145,21 +125,11 @@ export function insertDownloadRecord(input: DownloadRecordInput): string {
 
 
   const db = getAppDb();
-  db.prepare(`
+  (await db.execute(`
     INSERT INTO download_records (
       id, download_day, platform, version, file_record_id,
       ip_address, referrer, user_agent, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    id,
-    downloadDay,
-    input.platform,
-    input.version || "",
-    input.fileRecordId || null,
-    input.ipAddress || "",
-    input.referrer || "",
-    input.userAgent || "",
-    now,
-  );
+  `, [id, downloadDay, input.platform, input.version || "", input.fileRecordId || null, input.ipAddress || "", input.referrer || "", input.userAgent || "", now]));
   return id;
 }

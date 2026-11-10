@@ -24,32 +24,32 @@ function errorResponse(error: unknown, res: import("express").Response) {
       ),
     );
 }
-adminAppShareRecordsRouter.get("/", (req, res) => {
+adminAppShareRecordsRouter.get("/", async (req, res) => {
   try {
-    return res.json(ok(managedTrackingList(req.query)));
+    return res.json(ok((await managedTrackingList(req.query))));
   } catch (error) {
     return errorResponse(error, res);
   }
 });
-adminAppShareRecordsRouter.get("/export", (req, res) => {
+adminAppShareRecordsRouter.get("/export", async (req, res) => {
   try {
-    return res.json(ok(exportManagedTracking(req.query)));
+    return res.json(ok((await exportManagedTracking(req.query))));
   } catch (error) {
     return errorResponse(error, res);
   }
 });
-adminAppShareRecordsRouter.get("/:id", (req, res) => {
+adminAppShareRecordsRouter.get("/:id", async (req, res) => {
   try {
     return res.json(
-      ok(managedTrackingDetail(String(req.params.id), req.query)),
+      ok((await managedTrackingDetail(String(req.params.id), req.query))),
     );
   } catch (error) {
     return errorResponse(error, res);
   }
 });
-adminAppShareRecordsRouter.patch("/:id/invalid", (req, res) => {
+adminAppShareRecordsRouter.patch("/:id/invalid", async (req, res) => {
   try {
-    return res.json(ok(invalidateManagedTracking(String(req.params.id))));
+    return res.json(ok((await invalidateManagedTracking(String(req.params.id)))));
   } catch (error) {
     return errorResponse(error, res);
   }

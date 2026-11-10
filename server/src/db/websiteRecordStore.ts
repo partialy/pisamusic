@@ -123,25 +123,21 @@ function mapDownloadDetail(row: DownloadRow): AdminDownloadDetail {
   };
 }
 
-export function listAdminWebsiteRecords(
+export async function listAdminWebsiteRecords(
   type: WebsiteRecordType,
   pagination: { offset?: unknown; limit?: unknown },
-): AdminWebsiteRecordListResult {
+): Promise<AdminWebsiteRecordListResult> {
   const db = getAppDb();
   const { offset, limit } = normalizePagination(pagination.offset, pagination.limit);
 
   if (type === "visit") {
-    const totalRow = db.prepare("SELECT COUNT(*) AS total FROM site_visit_records").get() as { total: number };
-    const rows = db
-      .prepare(
-        `SELECT
+    const totalRow = (await db.queryOne("SELECT COUNT(*) AS total FROM site_visit_records", [])) as { total: number };
+    const rows = (await db.query(`SELECT
           id, visit_day, visitor_hash, ip_address, path, referrer,
           user_agent, language, timezone, screen_width, screen_height, created_at
          FROM site_visit_records
          ORDER BY created_at DESC, id DESC
-         LIMIT ? OFFSET ?`,
-      )
-      .all(limit, offset) as SiteVisitRow[];
+         LIMIT ? OFFSET ?`, [limit, offset])) as SiteVisitRow[];
     return {
       items: rows.map(mapSiteVisitListItem),
       total: Number(totalRow.total) || 0,
@@ -150,17 +146,13 @@ export function listAdminWebsiteRecords(
     };
   }
 
-  const totalRow = db.prepare("SELECT COUNT(*) AS total FROM download_records").get() as { total: number };
-  const rows = db
-    .prepare(
-      `SELECT
+  const totalRow = (await db.queryOne("SELECT COUNT(*) AS total FROM download_records", [])) as { total: number };
+  const rows = (await db.query(`SELECT
         id, download_day, platform, version, file_record_id,
         ip_address, referrer, user_agent, created_at
        FROM download_records
        ORDER BY created_at DESC, id DESC
-       LIMIT ? OFFSET ?`,
-    )
-    .all(limit, offset) as DownloadRow[];
+       LIMIT ? OFFSET ?`, [limit, offset])) as DownloadRow[];
   return {
     items: rows.map(mapDownloadListItem),
     total: Number(totalRow.total) || 0,
@@ -169,32 +161,24 @@ export function listAdminWebsiteRecords(
   };
 }
 
-export function readAdminWebsiteRecordDetail(
+export async function readAdminWebsiteRecordDetail(
   type: WebsiteRecordType,
   id: string,
-): AdminWebsiteRecordDetail | null {
+): Promise<AdminWebsiteRecordDetail | null> {
   const db = getAppDb();
   if (type === "visit") {
-    const row = db
-      .prepare(
-        `SELECT
+    const row = (await db.queryOne(`SELECT
           id, visit_day, visitor_hash, ip_address, path, referrer,
           user_agent, language, timezone, screen_width, screen_height, created_at
          FROM site_visit_records
-         WHERE id = ?`,
-      )
-      .get(id) as SiteVisitRow | undefined;
+         WHERE id = ?`, [id])) as SiteVisitRow | undefined;
     return row ? mapSiteVisitDetail(row) : null;
   }
 
-  const row = db
-    .prepare(
-      `SELECT
+  const row = (await db.queryOne(`SELECT
         id, download_day, platform, version, file_record_id,
         ip_address, referrer, user_agent, created_at
        FROM download_records
-       WHERE id = ?`,
-    )
-    .get(id) as DownloadRow | undefined;
+       WHERE id = ?`, [id])) as DownloadRow | undefined;
   return row ? mapDownloadDetail(row) : null;
 }

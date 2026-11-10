@@ -21,11 +21,11 @@ function buildAppUrl(uuid: string): string {
   return `pisamusic://scan?type=${MUSIC_SHARE_TYPE}&uuid=${encodeURIComponent(uuid)}`;
 }
 
-sharesRouter.post("/", requireUserJwt, (req: UserAuthedRequest, res) => {
+sharesRouter.post("/", requireUserJwt, async (req: UserAuthedRequest, res) => {
   try {
     const auth = getUserAuth(req);
     const type = String(req.body?.type ?? "") as ShareType;
-    const share = createShareRecord(
+    const share = (await createShareRecord(
       {
         type,
         rawJson: req.body?.rawJson,
@@ -34,7 +34,7 @@ sharesRouter.post("/", requireUserJwt, (req: UserAuthedRequest, res) => {
         userId: auth.userId,
         user: auth.user,
       },
-    );
+    ));
     res.json(
       ok(
         {
@@ -56,9 +56,9 @@ sharesRouter.post("/", requireUserJwt, (req: UserAuthedRequest, res) => {
   }
 });
 
-sharesRouter.get("/public/:uuid", (req, res) => {
+sharesRouter.get("/public/:uuid", async (req, res) => {
   try {
-    const share = readPublicShareAndIncrement(req.params.uuid);
+    const share = (await readPublicShareAndIncrement(req.params.uuid));
     if (!share) {
       res.status(404).json(fail("分享不存在或已失效", 404));
       return;

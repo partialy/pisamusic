@@ -21,9 +21,9 @@ adminRuntimeConfigRouter.get("/", (_req, res) => {
   }
 });
 
-adminRuntimeConfigRouter.patch("/", (req, res) => {
+adminRuntimeConfigRouter.patch("/", async (req, res) => {
   try {
-    const rawChanges = req.body?.changes;
+    const rawChanges = req.body?.affectedRows;
     if (!Array.isArray(rawChanges) || rawChanges.length === 0) {
       res.status(400).json(fail("changes 列表不能为空", 400));
       return;
@@ -34,7 +34,7 @@ adminRuntimeConfigRouter.patch("/", (req, res) => {
       value: item.value,
     }));
 
-    const snapshot = configManager.setMany(changes);
+    const snapshot = (await configManager.setMany(changes));
     const items = configManager.getAllDTOs();
 
     res.json(
