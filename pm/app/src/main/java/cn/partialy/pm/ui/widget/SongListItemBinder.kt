@@ -2,6 +2,7 @@ package cn.partialy.pm.ui.widget
 
 import android.content.res.ColorStateList
 import android.view.View
+import android.view.HapticFeedbackConstants
 import android.widget.ImageButton
 import androidx.core.content.ContextCompat
 import cn.partialy.pm.R
@@ -21,6 +22,7 @@ data class SongListItemOptions(
 /** 歌曲行的操作回调；未提供的回调会移除对应 View 的旧监听。 */
 data class SongListItemActions(
     val onClick: ((SongInfo) -> Unit)? = null,
+    val onLongClick: ((SongInfo) -> Unit)? = null,
     val onLoveClick: ((SongInfo) -> Unit)? = null,
     val onDownloadClick: ((SongInfo) -> Unit)? = null,
     val onMoreClick: ((SongInfo) -> Unit)? = null,
@@ -91,6 +93,13 @@ class SongListItemBinder(private val binding: ItemSongListBinding) {
 
         root.alpha = if (options.enabled) ENABLED_ALPHA else DISABLED_ALPHA
         bindAction(root, song, options.enabled, actions.onClick)
+        root.setOnLongClickListener(if (options.enabled && actions.onLongClick != null) {
+            View.OnLongClickListener {
+                root.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                actions.onLongClick.invoke(song)
+                true
+            }
+        } else null)
         bindAction(btnLove, song, options.enabled && options.showLove, actions.onLoveClick)
         bindAction(btnDownload, song, options.enabled && options.showDownload, actions.onDownloadClick)
         bindAction(btnMore, song, options.enabled && options.showMore, actions.onMoreClick)

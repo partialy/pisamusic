@@ -38,6 +38,7 @@ class PlaylistDetailContentAdapter(
     private val onLoveClick: (SongInfo) -> Unit,
     private val onDownloadClick: (SongInfo) -> Unit,
     private val onMoreClick: (SongInfo) -> Unit,
+    private val onSongLongClick: ((SongInfo) -> Unit)? = null,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>(), SongListPlaybackStateTarget {
 
     val currentSongs: List<SongInfo>
@@ -311,6 +312,7 @@ class PlaylistDetailContentAdapter(
                 playbackState = playbackState,
                 actions = SongListItemActions(
                     onClick = onSongClick,
+                    onLongClick = onSongLongClick,
                     onLoveClick = onLoveClick,
                     onDownloadClick = onDownloadClick,
                     onMoreClick = onMoreClick,

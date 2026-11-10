@@ -76,6 +76,7 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
 
     private lateinit var headerController: PlaylistDetailHeaderController
     private lateinit var contentAdapter: PlaylistDetailContentAdapter
+    private val batchLongPressGuard = cn.partialy.pm.ui.playlistdetail.BatchLongPressGuard()
     private lateinit var interactionController: PlaylistDetailInteractionController
 
     private fun createContentAdapter() = PlaylistDetailContentAdapter(
@@ -87,6 +88,12 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
         },
         onDownloadClick = ::onDownloadClick,
         onMoreClick = ::openSongMoreMenu,
+        onSongLongClick = { song ->
+            if (!isFinishing && !isDestroyed && batchLongPressGuard.acquire()) {
+                OnlinePlaylistBatchActivity.start(this, SongType.WY, pagingPlaylistId, headerController.state.title,
+                    contentAdapter.currentSongs, playlistTrackTotalHint, cn.partialy.pm.ui.mine.playlistSongKey(song))
+            }
+        },
     )
 
     @OptIn(UnstableApi::class)

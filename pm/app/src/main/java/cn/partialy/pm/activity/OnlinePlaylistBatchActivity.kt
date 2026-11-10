@@ -49,6 +49,7 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
     private var sourceSongs: List<SongInfo> = emptyList()
     private var filteredSongs: List<SongInfo> = emptyList()
     private val selectedKeys = linkedSetOf<String>()
+    private var pendingInitialScrollKey: String? = null
     private var complete = false
     private var loadFailed = false
     private var busy = false
@@ -64,7 +65,10 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
             ?.takeIf { it == SongType.KG || it == SongType.WY } ?: run { finish(); return }
         playlistId = intent.getStringExtra(ID).orEmpty()
         if (playlistId.isBlank()) { finish(); return }
-        selectedKeys.addAll(savedInstanceState?.getStringArrayList(SELECTED).orEmpty())
+        selectedKeys.addAll(savedInstanceState?.getStringArrayList(SELECTED)
+            ?: listOfNotNull(intent.getStringExtra(INITIAL_SELECTED)))
+        pendingInitialScrollKey = savedInstanceState?.getString(PENDING_SCROLL)
+            ?: intent.getStringExtra(INITIAL_SELECTED)
         sourceSongs = OnlinePlaylistBatchSessionStore.get(savedInstanceState?.getString(TOKEN) ?: intent.getStringExtra(TOKEN))
         val isNight = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = !isNight, lightNavigationBarIcons = !isNight)
@@ -210,7 +214,22 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
     }
 
     private fun render() {
+        val initialIndex = pendingInitialScrollKey?.let { key ->
+            filteredSongs.indexOfFirst { playlistSongKey(it) == key }.takeIf { it >= 0 }
+        }
+        if (initialIndex != null) {
+            renderedCount = maxOf(renderedCount, initialIndex + 1)
+            pendingInitialScrollKey = null
+        } else if (complete) {
+            pendingInitialScrollKey = null
+        }
         adapter.submit(filteredSongs.take(renderedCount), selectedKeys)
+        if (initialIndex != null) {
+            binding.songRecyclerView.post {
+                (binding.songRecyclerView.layoutManager as? LinearLayoutManager)
+                    ?.scrollToPositionWithOffset(initialIndex, 0)
+            }
+        }
         binding.selectionCounterTextView.text = getString(R.string.local_playlist_song_management_selection_count, selectedKeys.size, sourceSongs.size)
         binding.emptyView.isVisible = filteredSongs.isEmpty()
         binding.songRecyclerView.isVisible = filteredSongs.isNotEmpty()
@@ -233,6 +252,7 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putString(QUERY, binding.searchInput.text.toString())
         outState.putStringArrayList(SELECTED, ArrayList(selectedKeys))
+        outState.putString(PENDING_SCROLL, pendingInitialScrollKey)
         outState.putString(TOKEN, OnlinePlaylistBatchSessionStore.put(sourceSongs))
         super.onSaveInstanceState(outState)
     }
@@ -248,11 +268,14 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
         private const val TOKEN = "sessionToken"
         private const val QUERY = "query"
         private const val SELECTED = "selectedKeys"
+        private const val INITIAL_SELECTED = "initial_selected_song_key"
+        private const val PENDING_SCROLL = "pendingScroll"
 
-        fun start(context: Context, source: SongType, playlistId: String, title: String, songs: List<SongInfo>, total: Int) {
+        fun start(context: Context, source: SongType, playlistId: String, title: String, songs: List<SongInfo>, total: Int, initialSelectedKey: String? = null) {
             context.startActivity(Intent(context, OnlinePlaylistBatchActivity::class.java).apply {
                 putExtra(SOURCE, source.name); putExtra(ID, playlistId); putExtra(TITLE, title)
                 putExtra(TOTAL, total); putExtra(TOKEN, OnlinePlaylistBatchSessionStore.put(songs))
+                putExtra(INITIAL_SELECTED, initialSelectedKey)
             })
             AppActivityTransitions.applyForward(context)
         }

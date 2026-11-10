@@ -48,6 +48,7 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
     private lateinit var adapter: LocalPlaylistSongManagementAdapter
     private lateinit var playlistId: String
     private val selectedKeys = linkedSetOf<String>()
+    private var pendingInitialScrollKey: String? = null
     private var sourceSongs: List<SongInfo> = emptyList()
     private var filteredSongs: List<SongInfo> = emptyList()
     private var renderedCount = PAGE_SIZE
@@ -69,9 +70,14 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
             getString(R.string.local_playlist_song_management_title)
         }
 
+        selectedKeys.addAll(savedInstanceState?.getStringArrayList(SAVED_SELECTION)
+            ?: listOfNotNull(intent.getStringExtra(EXTRA_INITIAL_SELECTED)))
+        pendingInitialScrollKey = savedInstanceState?.getString(SAVED_SCROLL)
+            ?: intent.getStringExtra(EXTRA_INITIAL_SELECTED)
         enableEdgeToEdgeSystemBars()
         applyInsets()
         setupHeader()
+        binding.searchInput.setText(savedInstanceState?.getString(SAVED_QUERY).orEmpty())
         setupList()
         setupActions()
         onBackPressedDispatcher.addCallback(this) { finishAnimated() }
@@ -208,7 +214,20 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
 
     private fun render() {
         val rendered = filteredSongs.take(renderedCount)
-        adapter.submit(rendered, selectedKeys)
+        val initialIndex = pendingInitialScrollKey?.let { key ->
+            filteredSongs.indexOfFirst { playlistSongKey(it) == key }.takeIf { it >= 0 }
+        }
+        if (initialIndex != null) {
+            renderedCount = maxOf(renderedCount, initialIndex + 1)
+            pendingInitialScrollKey = null
+        }
+        adapter.submit(filteredSongs.take(renderedCount), selectedKeys)
+        if (initialIndex != null) {
+            binding.songRecyclerView.post {
+                (binding.songRecyclerView.layoutManager as? LinearLayoutManager)
+                    ?.scrollToPositionWithOffset(initialIndex, 0)
+            }
+        }
         binding.selectionCounterTextView.text = getString(
             R.string.local_playlist_song_management_selection_count,
             selectedKeys.size,
@@ -239,7 +258,18 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
         super.onDestroy()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putStringArrayList(SAVED_SELECTION, ArrayList(selectedKeys))
+        outState.putString(SAVED_SCROLL, pendingInitialScrollKey)
+        outState.putString(SAVED_QUERY, binding.searchInput.text?.toString().orEmpty())
+        super.onSaveInstanceState(outState)
+    }
+
     companion object {
+        private const val EXTRA_INITIAL_SELECTED = "initial_selected_song_key"
+        private const val SAVED_SELECTION = "selectedKeys"
+        private const val SAVED_SCROLL = "pendingScroll"
+        private const val SAVED_QUERY = "query"
         private const val PAGE_SIZE = 40
         private const val LOAD_MORE_THRESHOLD = 8
         private const val FILTER_DEBOUNCE_MS = 150L
@@ -247,10 +277,11 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
         private const val EXTRA_PLAYLIST_ID = "playlist_id"
         private const val EXTRA_PLAYLIST_TITLE = "playlist_title"
 
-        fun start(context: Context, playlistId: String, title: String) {
+        fun start(context: Context, playlistId: String, title: String, initialSelectedKey: String? = null) {
             val intent = Intent(context, LocalPlaylistSongManagementActivity::class.java).apply {
                 putExtra(EXTRA_PLAYLIST_ID, playlistId)
                 putExtra(EXTRA_PLAYLIST_TITLE, title)
+                putExtra(EXTRA_INITIAL_SELECTED, initialSelectedKey)
             }
             context.startActivity(intent)
             AppActivityTransitions.applyForward(context)

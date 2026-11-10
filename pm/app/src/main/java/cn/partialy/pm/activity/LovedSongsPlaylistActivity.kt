@@ -47,6 +47,7 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
 
     private lateinit var headerController: PlaylistDetailHeaderController
     private lateinit var contentAdapter: PlaylistDetailContentAdapter
+    private val batchLongPressGuard = cn.partialy.pm.ui.playlistdetail.BatchLongPressGuard()
     private lateinit var interactionController: PlaylistDetailInteractionController
 
     private fun createContentAdapter() = PlaylistDetailContentAdapter(
@@ -55,6 +56,11 @@ class LovedSongsPlaylistActivity : BaseDownloadActivity() {
         onLoveClick = { loveManager.toggleLikeStatus(it) },
         onDownloadClick = ::onDownloadClick,
         onMoreClick = ::openSongMoreMenu,
+        onSongLongClick = { song ->
+            if (!isFinishing && !isDestroyed && batchLongPressGuard.acquire()) {
+                LovedSongsManagementActivity.start(this, initialSelectedKey = cn.partialy.pm.ui.mine.playlistSongKey(song))
+            }
+        },
     )
 
     @OptIn(UnstableApi::class)
