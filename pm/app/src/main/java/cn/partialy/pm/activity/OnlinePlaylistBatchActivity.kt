@@ -67,8 +67,8 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
         if (playlistId.isBlank()) { finish(); return }
         selectedKeys.addAll(savedInstanceState?.getStringArrayList(SELECTED)
             ?: listOfNotNull(intent.getStringExtra(INITIAL_SELECTED)))
-        pendingInitialScrollKey = savedInstanceState?.getString(PENDING_SCROLL)
-            ?: intent.getStringExtra(INITIAL_SELECTED)
+        pendingInitialScrollKey = if (savedInstanceState != null) savedInstanceState.getString(PENDING_SCROLL)
+            else intent.getStringExtra(INITIAL_SELECTED)
         sourceSongs = OnlinePlaylistBatchSessionStore.get(savedInstanceState?.getString(TOKEN) ?: intent.getStringExtra(TOKEN))
         val isNight = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = !isNight, lightNavigationBarIcons = !isNight)
@@ -154,46 +154,54 @@ class OnlinePlaylistBatchActivity : BaseDownloadActivity() {
         if (busy) return
         val songs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
         if (songs.isEmpty()) return
-        cn.partialy.pm.ui.dialog.ActionMenuBottomSheet.show(this, listOf(
-            cn.partialy.pm.ui.dialog.ActionMenuItem(R.drawable.ic_download_24, getString(R.string.online_batch_download)) { downloadSelected() },
-            cn.partialy.pm.ui.dialog.ActionMenuItem(R.drawable.ic_love_24, getString(R.string.online_batch_favorite)) { favoriteSelected() },
-            cn.partialy.pm.ui.dialog.ActionMenuItem(R.drawable.ic_playlist_24, getString(R.string.online_batch_add)) {
-                busy = true
-                render()
-                cn.partialy.pm.ui.dialog.AddToPlaylistBottomSheet.show(this, songs, musicController, playlistCollectionManager,
-                    onResult = { result ->
-                        (result.added + result.existing).forEach { selectedKeys.remove(playlistSongKey(it)) }
-                        PmMessage.show(this@OnlinePlaylistBatchActivity, if (result.failed.isNotEmpty()) cn.partialy.pm.ui.message.MessageType.WARNING else cn.partialy.pm.ui.message.MessageType.SUCCESS, getString(R.string.online_batch_add_result, result.added.size, result.existing.size, result.failed.size), 2000L, null)
-                        render()
-                    }, onFinished = { busy = false; render() })
+        cn.partialy.pm.ui.mine.PlaylistBatchActionCoordinator.show(this, songs, listOf(
+            cn.partialy.pm.ui.dialog.ActionMenuItem(
+                R.drawable.ic_download_24, getString(R.string.online_batch_download),
+            ) { downloadSelected() },
+            cn.partialy.pm.ui.dialog.ActionMenuItem(
+                R.drawable.ic_love_24, getString(R.string.online_batch_favorite),
+            ) { favoriteSelected() },
+            cn.partialy.pm.ui.dialog.ActionMenuItem(
+                R.drawable.ic_playlist_24, getString(R.string.online_batch_add),
+            ) { addSelected() },
+        ))
+    }
+
+    private fun addSelected() {
+        if (busy) return
+        val songs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
+        if (songs.isEmpty()) return
+        busy = true
+        render()
+        cn.partialy.pm.ui.mine.PlaylistBatchActionCoordinator.addSelected(
+            this, songs, musicController, playlistCollectionManager,
+            onHandled = { keys ->
+                selectedKeys.removeAll(keys)
+                if (!isDestroyed) render()
             },
-        ), bindHeader = { cn.partialy.pm.ui.dialog.SongInfoHeaderBinder.bind(it, songs.first()) })
+            onFinished = {
+                busy = false
+                if (!isDestroyed) render()
+            },
+        )
     }
 
     private fun downloadSelected() {
+        if (busy) return
         val songs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
-        if (songs.isEmpty() || busy) return
+        if (songs.isEmpty()) return
         busy = true
         render()
-        val finishFlow = { busy = false; render() }
-        var downloadHandedOff = false
-        val enqueue = {
-            downloadHandedOff = true
-            startSongsDownloadFlow(songs, onResult = { result ->
-                val handled = result.enqueuedKeys + result.skippedKeys
-                songs.filter { "${it.type}:${it.id}" in handled }.forEach { selectedKeys.remove(playlistSongKey(it)) }
-                render()
-            }, onFinished = finishFlow)
-        }
-        if (songs.size > 100) {
-            PmMinimalDialog.show(this,
-                message = getString(R.string.online_batch_large_download, songs.size),
-                cancelText = getString(R.string.cancel), confirmText = getString(R.string.dialog_ok),
-                onCancel = finishFlow, onConfirm = { enqueue() }).setOnDismissListener {
-                    // 确认回调同步打开音质选择器；取消/手势关闭只释放尚未转交的流程。
-                    if (!downloadHandedOff) finishFlow()
-                }
-        } else enqueue()
+        startPlaylistBatchDownloadFlow(songs,
+            onHandled = { keys ->
+                selectedKeys.removeAll(keys)
+                if (!isDestroyed) render()
+            },
+            onFinished = {
+                busy = false
+                if (!isDestroyed) render()
+            },
+        )
     }
 
     private fun favoriteSelected() {

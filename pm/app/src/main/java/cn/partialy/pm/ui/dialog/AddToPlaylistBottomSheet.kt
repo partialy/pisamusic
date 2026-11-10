@@ -46,6 +46,7 @@ object AddToPlaylistBottomSheet {
         musicController: MusicController,
         playlistCollectionManager: PlaylistCollectionManager,
         allowQueueTarget: Boolean = true,
+        excludeLocalPlaylistId: String? = null,
         onResult: (cn.partialy.pm.player.PlaylistAppendResult) -> Unit = {},
         onFinished: () -> Unit = {},
         onNewPlaylistCreated: (String) -> Unit = {},
@@ -62,7 +63,7 @@ object AddToPlaylistBottomSheet {
         val rv = root.findViewById<RecyclerView>(R.id.pickPlaylistRecyclerView)
 
         val localPlaylists = playlistCollectionManager.getAllPlaylists()
-            .filter { it.type == CollectedPlaylistType.LOCAL }
+            .filter { it.type == CollectedPlaylistType.LOCAL && it.id != excludeLocalPlaylistId }
         val items = buildList {
             if (allowQueueTarget) {
                 add(AddToTarget.CurrentQueue(musicController.playList.value.size))

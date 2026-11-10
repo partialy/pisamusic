@@ -15,7 +15,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import cn.partialy.pm.R
-import cn.partialy.pm.activity.base.BaseActivity
+import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityLocalPlaylistSongManagementBinding
 import cn.partialy.pm.model.CollectedPlaylistType
 import cn.partialy.pm.model.SongInfo
@@ -39,7 +39,7 @@ import javax.inject.Inject
 
 /** 本地歌单歌曲的筛选、批量选择与删除页面；[playlistsFlow] 与本地快照是列表的权威来源。 */
 @AndroidEntryPoint
-class LocalPlaylistSongManagementActivity : BaseActivity() {
+class LocalPlaylistSongManagementActivity : BaseDownloadActivity() {
 
     @Inject
     lateinit var playlistCollectionManager: PlaylistCollectionManager
@@ -53,6 +53,7 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
     private var filteredSongs: List<SongInfo> = emptyList()
     private var renderedCount = PAGE_SIZE
     private var filterJob: Job? = null
+    private var busy = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityLocalPlaylistSongManagementBinding.inflate(layoutInflater)
@@ -72,8 +73,8 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
 
         selectedKeys.addAll(savedInstanceState?.getStringArrayList(SAVED_SELECTION)
             ?: listOfNotNull(intent.getStringExtra(EXTRA_INITIAL_SELECTED)))
-        pendingInitialScrollKey = savedInstanceState?.getString(SAVED_SCROLL)
-            ?: intent.getStringExtra(EXTRA_INITIAL_SELECTED)
+        pendingInitialScrollKey = if (savedInstanceState != null) savedInstanceState.getString(SAVED_SCROLL)
+            else intent.getStringExtra(EXTRA_INITIAL_SELECTED)
         enableEdgeToEdgeSystemBars()
         applyInsets()
         setupHeader()
@@ -132,51 +133,121 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
 
     private fun setupActions() {
         binding.allAction.setOnClickListener {
+            if (busy) return@setOnClickListener
             val allKeys = selectAllPlaylistSongs(filteredSongs, selectedKeys)
             selectedKeys.clear()
             selectedKeys.addAll(allKeys)
             render()
         }
         binding.invertAction.setOnClickListener {
+            if (busy) return@setOnClickListener
             val nextSelected = invertPlaylistSongs(filteredSongs, selectedKeys)
             selectedKeys.clear()
             selectedKeys.addAll(nextSelected)
             render()
         }
-        binding.deleteAction.setOnClickListener {
-            val selectedSongs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
-            if (selectedSongs.isEmpty()) return@setOnClickListener
-            PmMinimalDialog.show(
-                context = this,
-                title = getString(R.string.local_playlist_song_management_delete_confirm_title),
-                message = getString(
-                    R.string.local_playlist_song_management_delete_confirm_message,
-                    selectedSongs.size,
-                ),
-                cancelText = getString(R.string.cancel),
-                confirmText = getString(R.string.dialog_ok),
-                confirmColor = ContextCompat.getColor(this, R.color.pm_dialog_danger),
-                onConfirm = {
+        binding.operationAction.setOnClickListener { showOperations() }
+    }
+
+    private fun showOperations() {
+        if (busy) return
+        val songs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
+        if (songs.isEmpty()) return
+        cn.partialy.pm.ui.mine.PlaylistBatchActionCoordinator.show(this, songs, listOf(
+            cn.partialy.pm.ui.dialog.ActionMenuItem(
+                R.drawable.ic_delete_24, getString(R.string.delete), R.color.pm_dialog_danger,
+            ) { confirmDeleteSelected() },
+            cn.partialy.pm.ui.dialog.ActionMenuItem(
+                R.drawable.ic_download_24, getString(R.string.online_batch_download),
+            ) { downloadSelected() },
+            cn.partialy.pm.ui.dialog.ActionMenuItem(
+                R.drawable.ic_playlist_24, getString(R.string.online_batch_add),
+            ) { addSelected() },
+        ))
+    }
+
+    private fun downloadSelected() {
+        if (busy) return
+        val songs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
+        if (songs.isEmpty()) return
+        busy = true
+        render()
+        startPlaylistBatchDownloadFlow(songs,
+            onHandled = { keys ->
+                selectedKeys.removeAll(keys)
+                if (!isDestroyed) render()
+            },
+            onFinished = {
+                busy = false
+                if (!isDestroyed) render()
+            })
+    }
+
+    private fun addSelected() {
+        if (busy) return
+        val songs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
+        if (songs.isEmpty()) return
+        busy = true
+        render()
+        cn.partialy.pm.ui.mine.PlaylistBatchActionCoordinator.addSelected(
+            this, songs, musicController, playlistCollectionManager,
+            excludeLocalPlaylistId = playlistId,
+            onHandled = { keys ->
+                selectedKeys.removeAll(keys)
+                if (!isDestroyed) render()
+            },
+            onFinished = {
+                busy = false
+                if (!isDestroyed) render()
+            },
+        )
+    }
+
+    private fun confirmDeleteSelected() {
+        if (busy) return
+        val songs = resolveSelectedPlaylistSongs(sourceSongs, selectedKeys)
+        if (songs.isEmpty()) return
+        PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.local_playlist_song_management_delete_confirm_title),
+            message = getString(R.string.local_playlist_song_management_delete_confirm_message, songs.size),
+            cancelText = getString(R.string.cancel),
+            confirmText = getString(R.string.dialog_ok),
+            confirmColor = ContextCompat.getColor(this, R.color.pm_dialog_danger),
+            onConfirm = {
+                if (!busy) {
+                    busy = true
+                    render()
+                    val keys = selectedKeys.toSet()
                     lifecycleScope.launch {
-                        val removed = withContext(Dispatchers.IO) {
-                            playlistCollectionManager.removeSongsFromLocalPlaylistByIdentity(
-                                playlistId,
-                                selectedSongs,
-                            )
-                        }
-                        if (removed) {
-                            selectedKeys.clear()
-                            PmMessage.success(
-                                this@LocalPlaylistSongManagementActivity,
-                                getString(
-                                    R.string.local_playlist_song_management_delete_success,
-                                    selectedSongs.size,
-                                ))
+                        try {
+                            val removedKeys = withContext(Dispatchers.IO) {
+                                val targets = resolveSelectedPlaylistSongs(
+                                    playlistCollectionManager.getLocalPlaylistSongs(playlistId), keys)
+                                playlistCollectionManager.removeSongsFromLocalPlaylistByIdentity(playlistId, targets)
+                                val remaining = playlistCollectionManager.getLocalPlaylistSongs(playlistId)
+                                    .mapTo(hashSetOf(), ::playlistSongKey)
+                                targets.mapTo(linkedSetOf(), ::playlistSongKey) - remaining
+                            }
+                            selectedKeys.removeAll(removedKeys)
+                            if (removedKeys.isNotEmpty()) {
+                                PmMessage.success(this@LocalPlaylistSongManagementActivity,
+                                    getString(R.string.local_playlist_song_management_delete_success, removedKeys.size))
+                            } else {
+                                PmMessage.warning(this@LocalPlaylistSongManagementActivity, R.string.playlist_batch_remove_failed)
+                            }
+                        } catch (cancel: kotlinx.coroutines.CancellationException) {
+                            throw cancel
+                        } catch (_: Exception) {
+                            PmMessage.error(this@LocalPlaylistSongManagementActivity, R.string.playlist_batch_remove_failed)
+                        } finally {
+                            busy = false
+                            if (!isDestroyed) render()
                         }
                     }
-                },
-            )
-        }
+                }
+            },
+        )
     }
 
     private fun updateSource(songs: List<SongInfo>) {
@@ -235,8 +306,12 @@ class LocalPlaylistSongManagementActivity : BaseActivity() {
         )
         binding.songRecyclerView.isVisible = rendered.isNotEmpty()
         binding.emptyView.isVisible = filteredSongs.isEmpty()
-        binding.deleteAction.isEnabled = selectedKeys.isNotEmpty()
-        binding.deleteAction.alpha = if (selectedKeys.isEmpty()) DISABLED_ACTION_ALPHA else 1f
+        binding.operationAction.isEnabled = selectedKeys.isNotEmpty() && !busy
+        binding.operationAction.alpha = if (binding.operationAction.isEnabled) 1f else DISABLED_ACTION_ALPHA
+        listOf(binding.allAction, binding.invertAction).forEach {
+            it.isEnabled = !busy && filteredSongs.isNotEmpty()
+            it.alpha = if (it.isEnabled) 1f else DISABLED_ACTION_ALPHA
+        }
     }
 
     private fun applyInsets() {
