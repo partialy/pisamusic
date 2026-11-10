@@ -13,4 +13,7 @@
     <string name="online_batch_large_add">即将添加 %1$d 首歌曲到“%2$s”，是否继续？</string>
     <string name="online_batch_add_result">成功 %1$d 首，跳过 %2$d 首，失败 %3$d 首</string>
     <string name="online_batch_create_failed">创建失败，请重试</string>
+    <string name="playlist_batch_nothing_downloadable">没有可下载的歌曲</string>
+    <string name="playlist_batch_download_summary">入队 %1$d 首，已存在 %2$d 首，失败 %3$d 首，跳过本地 %4$d 首，不可用 %5$d 首</string>
+    <string name="playlist_batch_download_canceled">；已取消后续 %1$d 首</string>
 </resources>
