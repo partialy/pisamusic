@@ -31,3 +31,11 @@
 - 涉及账号、分享、消息、发布、云盘等公共行为时，按需阅读[跨模块契约](../../agents/CROSS_MODULE.md)对应章节。
 - API 新增、字段 / 规则变更或删除时，同步 `server/apidoc/` 对应文档与 `index.md`；需要修改后端时读取 [Server 后端规范](../agents/SERVER.md)。
 - 前端改动运行对应构建；视觉或交互改动检查浏览器页面。纯文档调整只检查路径、链接、内容归属与差异，不运行完整测试。
+
+## 数据库迁移管理页
+
+- 「系统设置 → 数据迁移」路由 `/database-migration`，页面 `src/pages/DatabaseMigrationPage.tsx`；对应 API 封装 `src/api/databaseMigration.ts`。
+- 展示 DB_TYPE、MySQL 5.7 连接状态、服务器 SQLite / 上传 .db 来源、完整数据库备份生成与下载、预检查、迁移进度、历史日志和 JSON 报告。
+- 普通 JSON 请求使用现有 Admin JWT + AES-GCM `fetchWithAuth`；`multipart/form-data` 上传使用独立 XHR，带 JWT、`x-pm-random`，响应 JSON 仍通过 AES-GCM 解密；备份下载使用二进制响应，不经 JSON 解包。
+- 迁移时维护模式会让普通业务返回 503；禁止在 Admin 自动切换 DB_TYPE、改写 .env、重启 Server。迁移校验成功后只显示手动切换与重启指引；MYSQL 正式运行不提供向当前生产库覆盖导入。
+- 详见 [迁移接口与安全流程](../apidoc/databaseMigration/overview.md)。实际 MySQL 5.7 数据迁移须独立验收，不能只依赖前端构建成功。

@@ -55,3 +55,12 @@
 
 - 服务端接口文档与索引规范：服务端接口文档存放在 `server/apidoc/`，按模块分目录维护（如 `user/`、`config/`、`device/`、`sync/`、`shares/`、`listenTogether/`、`feedback/`、`faultReports/`、`analytics/`、`admin/`、`system/`、`common/`），统一索引为 `server/apidoc/index.md`。任何新增、修改、重构或删除（CRUD）服务端接口的改动，必须同步更新对应模块下的文档文件（如 `server/apidoc/<module>/<apiName>.md`）及 `server/apidoc/index.md` 索引链接与描述，确保接口定义与文档始终保持一致。
 - 服务端改动至少运行 TypeScript 构建，并按影响面检查相关接口。
+
+## SQLite / MySQL 5.7 双数据库与迁移运维
+
+- Server 支持 `DB_TYPE=SQLITE|MYSQL`（缺省 SQLITE），`PISA_APP_DB_PATH` 指向 SQLite；MySQL 5.7 通过 `MYSQL_URL` 连接，不允许连接失败自动回退 SQLite。Node 版本要求 `>=22.16.0`。
+- 数据库访问层为 `src/db/core/` 的异步 DbClient；Store/Service/Route 必须 await 结果，事务必须绑定同一连接；不再在模块 import 阶段调用未初始化的数据库。
+- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，版本账本为 `schema_migrations`；不得在生产启动时运行破坏性自动删表。业务存储仍保留 SQLite 兼容模式。
+- Admin 数据迁移接口为 `/api/admin/database-migration/*`，页面位于「系统设置 → 数据迁移」。迁移器在 `src/operations/`：空 MySQL 目标库、完整 SQLite Backup 快照、逐表校验和失败保护。API 说明见 [数据库迁移文档](../apidoc/databaseMigration/overview.md)。
+- 维护状态存于 `server/data/operations/`；普通业务请求直接 503、Socket.IO 连接被拒绝，数据库模式切换只能通过配置并重启。完整备份包含 WAL 已提交数据，原始 `pm.db` 永不自动删除。
+- 静态 Schema 校验命令：`pnpm --dir server verify:mysql57`；不能替代在真实 MySQL 5.7 上执行 DDL/迁移及人工业务验收。不要把备份 .db 放入公共静态目录，也不得提交 .env 真实密码。

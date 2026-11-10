@@ -9,6 +9,7 @@
 
 ## 模块快速导航
 
+- [数据库迁移与 SQLite 完整备份](./databaseMigration/overview.md)：MySQL 5.7 目标库迁移、维护模式、备份上传/下载、任务日志与切换流程。
 - [App 分享配置与图标上传](./appShare/config.md)：兼容读取配置、设备/账号专属短码、管理保存、七牛图标上传与删除保护。
 - [App 推广追踪](./appShare/tracking.md)：公开短码校验与访问上报、7天下载归因、管理员分享记录/详情/失效/CSV导出。
 

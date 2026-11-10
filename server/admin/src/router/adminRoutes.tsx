@@ -19,7 +19,8 @@ export type AdminRouteKey =
   | "appShareRecords"
   | "dynamicConfig"
   | "runtimeConfig"
-  | "encryption";
+  | "encryption"
+  | "databaseMigration";
 
 export type AdminRouteGroupKey =
   | "user_group"
@@ -67,6 +68,7 @@ export const ADMIN_ROUTES: AdminRouteItem[] = [
   { key: "dynamicConfig", path: "/dynamic-configs", title: "动态配置", groupKey: "system_group", groupTitle: "系统设置" },
   { key: "runtimeConfig", path: "/runtime-config", title: "运行策略", groupKey: "system_group", groupTitle: "系统设置" },
   { key: "encryption", path: "/encryption", title: "加密白名单", groupKey: "system_group", groupTitle: "系统设置" },
+  { key: "databaseMigration", path: "/database-migration", title: "数据迁移", groupKey: "system_group", groupTitle: "系统设置", hideGlobalActions: true },
 ];
 
 export function findAdminRouteByPath(pathname: string): AdminRouteItem | undefined {

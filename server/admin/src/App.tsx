@@ -27,6 +27,7 @@ const ContentManagementPage = lazy(() => import("./pages/ContentManagementPage")
 const AnnouncementsManagementPage = lazy(() => import("./pages/AnnouncementsManagementPage"));
 const DynamicConfigPage = lazy(() => import("./pages/DynamicConfigPage"));
 const EncryptionPage = lazy(() => import("./pages/EncryptionPage"));
+const DatabaseMigrationPage = lazy(() => import("./pages/DatabaseMigrationPage"));
 const DevicesPage = lazy(() => import("./pages/DevicesPage"));
 const ListenTogetherManagementPage = lazy(() => import("./pages/ListenTogetherManagementPage"));
 
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="/dynamic-configs" element={<DynamicConfigPage />} />
             <Route path="/runtime-config" element={<RuntimeConfigRoute />} />
             <Route path="/encryption" element={<EncryptionPage />} />
+            <Route path="/database-migration" element={<DatabaseMigrationPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
