@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { readInstallation } from "../db/installationStore";
+import { readAdminUser } from "../db/configStore";
 import { fail } from "../types/response";
 
 export type AdminAuthedRequest = Request & {
@@ -19,7 +21,7 @@ export function getAdminJwtSecret(): string {
   return process.env.ADMIN_JWT_SECRET ?? "pisa-admin-dev-secret-change-in-production";
 }
 
-export function requireAdminJwt(req: AdminAuthedRequest, res: Response, next: NextFunction): void {
+export async function requireAdminJwt(req: AdminAuthedRequest, res: Response, next: NextFunction): Promise<void> {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
     res.status(401).json(fail("需要登录", 401));
@@ -31,12 +33,17 @@ export function requireAdminJwt(req: AdminAuthedRequest, res: Response, next: Ne
     return;
   }
   try {
-    const decoded = jwt.verify(raw, getAdminJwtSecret()) as { sub?: unknown };
+    const decoded = jwt.verify(raw, getAdminJwtSecret()) as { sub?: unknown; installationId?: unknown };
     if (typeof decoded.sub !== "string" || !decoded.sub.trim()) {
       res.status(401).json(fail("登录已失效，请重新登录", 401));
       return;
     }
     const username = decoded.sub.trim();
+    const installation = await readInstallation();
+    if (!installation?.initialized_at || installation.transfer_status !== "ready" || decoded.installationId !== installation.installation_id || !await readAdminUser(username)) {
+      res.status(401).json(fail("登录已失效，请重新登录", 401));
+      return;
+    }
     req.adminAuth = { username };
     req.adminUsername = username;
     next();

@@ -7,14 +7,14 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { type DbClient, type DbTransaction } from "./core/types";
 import { createDatabase, readDatabaseConfig } from "./core/createDatabase";
 import { SqliteClient } from "./core/sqliteClient";
-import { assertSchemaCurrent } from "./schema/runner";
+import { prepareDatabaseSchema, initializeSqliteSchemaMetadata } from "./schema/runner";
 
 function getDbPath(): string {
   const configuredPath = String(process.env.PISA_APP_DB_PATH ?? "").trim();
   return path.resolve(configuredPath || path.join(process.cwd(), "data/pm.db"));
 }
 
-const CREATE_SQL = `
+export const CREATE_SQL = `
 CREATE TABLE IF NOT EXISTS device_info (
     id                  TEXT        PRIMARY KEY,
     fingerprint         TEXT        NOT NULL UNIQUE,
@@ -1009,7 +1009,7 @@ function migrateListenTogether(db: DatabaseSync) {
   }
 }
 
-function initSchema(db: DatabaseSync) {
+export function initSchema(db: DatabaseSync) {
   migrateListenTogether(db);
   // 历史表保留给离线迁移与审计，不在启动时删除用户数据。
   db.exec(CREATE_SQL);
@@ -1063,12 +1063,16 @@ export async function initializeDatabase(options: { readOnlyStartup?: boolean } 
     const raw = new DatabaseSync(config.path);
     try {
       raw.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
-      if (!options.readOnlyStartup) initSchema(raw);
+      const hasInstallation = raw.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='app_installation'").get();
+      const installation = hasInstallation ? raw.prepare("SELECT transfer_status FROM app_installation WHERE id=1").get() as { transfer_status: string } | undefined : undefined;
+      const incompleteTransfer = Boolean(hasInstallation) && (!installation || installation.transfer_status !== "ready");
+      if (!options.readOnlyStartup && !incompleteTransfer) initSchema(raw);
       client = new SqliteClient(raw);
+      if (!incompleteTransfer) await initializeSqliteSchemaMetadata(client);
     } catch (error) { raw.close(); throw error; }
   } else {
     client = await createDatabase(config);
-    try { await assertSchemaCurrent(client); } catch (error) { await client.close(); throw error; }
+    try { await prepareDatabaseSchema(client); } catch (error) { await client.close(); throw error; }
   }
   singleton = scopedClient(client);
   return singleton;

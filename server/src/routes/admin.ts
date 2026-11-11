@@ -1,3 +1,4 @@
+import { readInstallation } from "../db/installationStore";
 import { adminAppShareRecordsRouter } from "./adminAppShareRecords";
 import { adminAppShareRouter } from "./adminAppShare";
 import { adminDatabaseMigrationRouter } from "./adminDatabaseMigration";
@@ -78,7 +79,7 @@ const JWT_EXPIRES: jwt.SignOptions["expiresIn"] = "7d";
 const PATH_REGEX = /^\/[A-Za-z0-9._\-/*]*$/;
 const EMAIL_PROVIDER_CODE_REGEX = /^[a-z][a-z0-9_-]*$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MANDATORY_PLAINTEXT_PATHS = ["/api/app-share/public/*", "/api/app-share/visits", "/api/config/releases", "/api/config/release-files/*", "/api/config/desktop-updates/*", "/api/config/discover", "/api/cloud-music/tracks/*/cover", "/discover/*"];
+const MANDATORY_PLAINTEXT_PATHS = ["/api/health", "/api/setup/*", "/api/app-share/public/*", "/api/app-share/visits", "/api/config/releases", "/api/config/release-files/*", "/api/config/desktop-updates/*", "/api/config/discover", "/api/cloud-music/tracks/*/cover", "/discover/*"];
 const MANDATORY_PLAINTEXT_PATH_SET = new Set(MANDATORY_PLAINTEXT_PATHS);
 
 function getUsernameFromJwt(req: Request): string | null {
@@ -628,7 +629,7 @@ adminRouter.post("/login", async (req, res) => {
       return res.status(401).json(fail("鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒", 401));
     }
 
-    const token = jwt.sign({ sub: username }, getAdminJwtSecret(), { expiresIn: JWT_EXPIRES });
+    const token = jwt.sign({ sub: username, installationId: (await readInstallation())?.installation_id }, getAdminJwtSecret(), { expiresIn: JWT_EXPIRES });
     return res.json(ok({ token, username }, "鐧诲綍鎴愬姛"));
   } catch (e) {
     const message = e instanceof Error ? e.message : "鐧诲綍澶辫触";

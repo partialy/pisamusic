@@ -4,6 +4,7 @@ import { socketAuthMiddleware } from "./middlewares/socketAuthMiddleware";
 import { registerListenTogetherSocket } from "./listenTogether/listenTogetherSocket";
 import { initListenTogetherPublisher } from "./listenTogether/listenTogetherPublisher";
 import type { AuthedRealtimeSocket } from "./socketTypes";
+import { isInstallationReady } from "../services/setupService";
 import { isMaintenanceMode } from "../operations/maintenance";
 
 export function initRealtimeServer(httpServer: HttpServer): Server {
@@ -16,9 +17,12 @@ export function initRealtimeServer(httpServer: HttpServer): Server {
 
   initListenTogetherPublisher(io);
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     if (isMaintenanceMode()) return next(new Error("SERVICE_UNAVAILABLE"));
-    next();
+    try {
+      if (!await isInstallationReady()) return next(new Error("SETUP_REQUIRED"));
+      next();
+    } catch { next(new Error("SERVICE_UNAVAILABLE")); }
   });
   io.use(socketAuthMiddleware);
   io.on("connection", (socket) => {

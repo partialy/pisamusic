@@ -1,3 +1,4 @@
+import { readInstallation } from "../db/installationStore";
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { readUserById, type PublicUser, toPublicUser } from "../db/userStore";
@@ -5,6 +6,7 @@ import { fail } from "../types/response";
 
 export type UserJwtPayload = jwt.JwtPayload & {
   sub: string;
+  installationId?: string;
 };
 
 export type UserAuthedRequest = Request & {
@@ -29,6 +31,9 @@ export async function verifyUserToken(rawToken: string): Promise<PublicUser | nu
   try {
     const payload = jwt.verify(rawToken, getUserJwtSecret()) as UserJwtPayload;
     if (!payload.sub) return null;
+    const installation = await readInstallation();
+    if (!installation?.initialized_at || installation.transfer_status !== "ready") return null;
+    if (!payload.installationId || payload.installationId !== installation.installation_id) return null;
     const user = (await readUserById(payload.sub));
     return user ? toPublicUser(user) : null;
   } catch {

@@ -60,6 +60,11 @@ export function registerUnauthorizedHandler(handler: (() => void) | null): void 
   unauthorizedHandler = handler;
 }
 
+export function handleUnauthorized(): void {
+  clearStoredToken();
+  unauthorizedHandler?.();
+}
+
 function authHeaders(): Record<string, string> {
   const t = getStoredToken();
   const h = { ...JSON_HEADERS };
@@ -77,8 +82,7 @@ export async function fetchWithAuth(url: string, init?: RequestInit): Promise<Re
     headers: { ...authHeaders(), ...(init?.headers as Record<string, string>) },
   });
   if (res.status === 401 && !url.includes("/api/admin/login")) {
-    clearStoredToken();
-    unauthorizedHandler?.();
+    handleUnauthorized();
   }
   return res;
 }

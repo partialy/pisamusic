@@ -1,7 +1,7 @@
 import type { ApiResponse } from "../types/api";
 import { getStoredToken } from "../auth/token";
 import { decrypt, randomFullKey } from "./crypto";
-import { fetchWithAuth, parseJson } from "./client";
+import { fetchWithAuth, handleUnauthorized, parseJson } from "./client";
 
 const PREFIX = "/api/admin/database-migration";
 
@@ -32,6 +32,8 @@ export type UploadedDatabase = {
 export type DatabaseStatus = {
   dbType: "SQLITE" | "MYSQL";
   sqliteFile?: string;
+  sqliteConfigured?: boolean;
+  target?: { type: "MYSQL" | "SQLITE"; host?: string; port?: number; database?: string; file?: string };
   maintenance: boolean;
   activeTaskId?: string;
   mysql: {
@@ -46,6 +48,7 @@ export type DatabaseStatus = {
   snapshots: DatabaseSnapshot[];
 };
 export type PreflightResult = {
+  target?: { type: "MYSQL" | "SQLITE"; host?: string; port?: number; database?: string; file?: string };
   passed: boolean;
   checks: Array<{ name: string; ok: boolean; detail: string }>;
   tables: SourceTable[];
@@ -62,7 +65,7 @@ export type TableResult = {
 };
 export type MigrationTask = {
   id: string;
-  status: "PRECHECKING" | "QUIESCING" | "SNAPSHOTTING" | "INITIALIZING" | "IMPORTING" | "VERIFYING" | "READY_TO_SWITCH" | "FAILED" | "INTERRUPTED" | "CANCELLED";
+  status: "PRECHECKING" | "QUIESCING" | "SNAPSHOTTING" | "INITIALIZING" | "IMPORTING" | "VERIFYING" | "READY_TO_SWITCH" | "FAILED" | "INTERRUPTED" | "CANCELLED" | "COMPLETED";
   source: MigrationSource;
   createdAt: number;
   updatedAt: number;
@@ -74,6 +77,11 @@ export type MigrationTask = {
   error?: string;
   snapshotId?: string;
   sourceSha256?: string;
+  targetBackupId?: string;
+  targetUsable?: boolean;
+  mode?: "sync" | "switch";
+  sourceDialect?: string;
+  targetDialect?: string;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -93,8 +101,8 @@ export const preflightDatabase = (source: MigrationSource, retryTaskId?: string)
   post("/preflight", { ...source, retryTaskId });
 export const createDatabaseSnapshot = (source: MigrationSource): Promise<DatabaseSnapshot> =>
   post("/snapshots", source);
-export const beginMigration = (source: MigrationSource, retryTaskId?: string): Promise<MigrationTask> =>
-  post("/tasks", { ...source, retryTaskId, confirm: true });
+export const beginMigration = (source: MigrationSource, retryTaskId?: string, mode: "sync" | "switch" = "switch"): Promise<MigrationTask> =>
+  post("/tasks", { ...source, retryTaskId, confirm: true, confirmOverwrite: true, mode });
 export const listMigrationTasks = (): Promise<MigrationTask[]> => request("/tasks");
 export const fetchMigrationTask = (id: string): Promise<MigrationTask> => request(`/tasks/${encodeURIComponent(id)}`);
 export const exitDatabaseMaintenance = (): Promise<{ maintenance: boolean }> =>
@@ -157,6 +165,11 @@ export function uploadDatabaseFile(
     xhr.onerror = () => reject(new Error("网络错误，上传失败"));
     xhr.onabort = () => reject(new Error("上传已取消"));
     xhr.onload = () => {
+      if (xhr.status === 401) {
+        handleUnauthorized();
+        reject(new Error("登录已失效，请重新登录"));
+        return;
+      }
       void (async () => {
         try {
           const envelope = JSON.parse(xhr.responseText) as { isEnc?: boolean; encData?: string };

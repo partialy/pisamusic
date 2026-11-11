@@ -1,160 +1,123 @@
-import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { setImmediate as yieldEventLoop } from "node:timers/promises";
 import { createDatabase, readDatabaseConfig } from "../db/core/createDatabase";
+import { getAppDb } from "../db/appDb";
 import type { DbClient } from "../db/core/types";
-import { initializeSchema, MYSQL_TABLES, MYSQL_ARCHIVE_TABLES, schemaFingerprint as expectedSchemaFingerprint } from "../db/schema/runner";
-import type { SchemaTable } from "../db/schema/types";
-import { enterMaintenance, exitMaintenance, readOperationState, writeOperationState } from "./maintenance";
+import { prepareDatabaseSchema } from "../db/schema/runner";
+import { markTransferReady, readInstallation } from "../db/installationStore";
+import { enterMaintenance, exitMaintenance, readOperationState } from "./maintenance";
 import { activeTask, getTask, newTask, saveTask, type MigrationTask } from "./migrationTasks";
-import { openTarget, safeError, schemaFingerprint, targetFingerprint, targetTables } from "./mysqlTarget";
-import { archiveJson, checkSourceTables, normalizedRow, selectSourceColumns } from "./sourceCompatibility";
-import { createSnapshot, getSnapshot, hashFile, inspectSqlite, quoteIdentifier as q, sourcePath, type Source, type SourceTable } from "./sqliteSnapshots";
+import { safeError } from "./mysqlTarget";
+import { createSnapshot, getSnapshot, hashFile, inspectSqlite, sourcePath, type Source, type SourceTable } from "./sqliteSnapshots";
+import { resourcePath } from "./stateStore";
+import { snapshotDatabase } from "./databaseSnapshot";
+import { standbyConfig, configIdentity, inspectTarget, redactedTarget, targetExists } from "./databaseTarget";
+import { archiveLegacyTables, ensureSqliteArchives, replaceFromSnapshot, validateCopySource } from "./databaseCopy";
 
-const batchSize = Math.min(2000, Math.max(1, Number(process.env.DB_MIGRATION_BATCH_SIZE) || 500));
-export interface Preflight { passed: boolean; checks: Array<{name:string;ok:boolean;detail:string}>; tables: SourceTable[]; totalRows:number }
-export async function preflight(source: Source, retryTaskId?: string): Promise<Preflight> {
-  const checks: Preflight["checks"] = [];
-  let tables: SourceTable[] = [];
-  try {
-    tables = inspectSqlite(sourcePath(source));
-    checks.push({name:"SQLite 完整性",ok:true,detail:`${tables.length} 张表`});
-    const errors = checkSourceTables(tables);
-    checks.push({name:"源结构兼容",ok:!errors.length,detail:errors.join("；") || "字段与历史归档映射已识别"});
-  } catch (e) { checks.push({name:"SQLite 来源",ok:false,detail:safeError(e)}); }
-  checks.push({name:"运行模式",ok:readDatabaseConfig().type === "SQLITE",detail:"仅 SQLite 模式可迁移，MySQL 正式运行后禁止再次导入"});
-  let target: DbClient | undefined;
-  try {
-    target = await openTarget();
-    const names = await targetTables(target);
-    let owned = false;
-    if (retryTaskId && names.length) { await assertRetryOwnership(target,getTask(retryTaskId),names); owned = true; }
-    checks.push({name:"MySQL 5.7 与空库",ok:names.length===0 || owned,detail:owned ? "目标仅含上次任务创建的对象，重试将清理后重建" : names.length ? "目标存在数据表，禁止覆盖" : "连接成功，目标为空"});
-  } catch(e) { checks.push({name:"MySQL 目标",ok:false,detail:safeError(e)}); }
-  finally { await target?.close(); }
-  return {passed:checks.every(c=>c.ok),checks,tables,totalRows:tables.filter(t=>t.name!=="schema_migrations").reduce((n,t)=>n+t.count,0)};
+export interface Preflight { passed:boolean; checks:Array<{name:string;ok:boolean;detail:string}>; tables:SourceTable[]; totalRows:number; target?:ReturnType<typeof redactedTarget> }
+export interface MigrationOptions { mode?:"sync"|"switch"; confirmOverwrite?:boolean }
+export async function preflight(source:Source,_retryTaskId?:string):Promise<Preflight>{
+  const checks:Preflight["checks"]=[];let tables:SourceTable[]=[];let target:DbClient|undefined;let targetInfo:Preflight["target"];
+  try{
+    if(source.sourceType==="server"&&readDatabaseConfig().type==="MYSQL"){
+      const {catalog}=await import("./databaseSnapshot.js");
+      tables=(await catalog(getAppDb())).map(t=>({name:t.name,count:t.count,columns:t.columns,primaryKey:t.primaryKey}));
+    }else tables=inspectSqlite(sourcePath(source));
+    validateCopySource(tables);checks.push({name:"源库结构",ok:true,detail:`${tables.length} 张表，未识别非空数据禁止静默丢弃`});
+    if(source.sourceType!=="server"||readDatabaseConfig().type==="SQLITE"){
+      const db=new DatabaseSync(sourcePath(source),{readOnly:true});
+      try{
+        if(tables.some(t=>t.name==="app_installation")){
+          const marker=db.prepare("SELECT transfer_status FROM app_installation WHERE id=1").get();
+          if(marker?.transfer_status!=="ready")throw new Error("来源含未完成复制标记，禁止使用半成品");
+        }
+      }finally{db.close();}
+    }else if((await readInstallation())?.transfer_status!=="ready")throw new Error("当前源库有未完成复制标记");
+  }catch(error){checks.push({name:"源库检查",ok:false,detail:safeError(error)});}
+  try{
+    const config=standbyConfig();targetInfo=redactedTarget(config);
+    if(source.sourceType!=="server"&&config.type==="SQLITE")throw new Error("外部 SQLite 文件只能导入 MySQL，禁止覆盖当前运行库");
+    if(targetExists(config)){target=await createDatabase(config);await inspectTarget(target);}
+    checks.push({name:"目标库",ok:true,detail:"目标已有数据将先备份再完整替换，目标须停止其他服务写入"});
+  }catch(error){checks.push({name:"目标库检查",ok:false,detail:safeError(error)});}
+  finally{await target?.close();}
+  return {passed:checks.every(c=>c.ok),checks,tables,totalRows:tables.filter(t=>t.name!=="schema_migrations").reduce((n,t)=>n+t.count,0),target:targetInfo};
 }
-async function assertRetryOwnership(db: DbClient, task: MigrationTask, names: string[]): Promise<void> {
-  if (!["FAILED","INTERRUPTED"].includes(task.status) || task.targetFingerprint !== targetFingerprint() || task.schemaFingerprint && task.schemaFingerprint !== expectedSchemaFingerprint) throw new Error("失败任务或目标指纹不匹配，禁止清理");
-  if (readOperationState().activatedMysql) throw new Error("目标已正式启用，禁止清理");
-  const row = await db.queryOne<{task_id:string;created_objects_json:string}>("SELECT task_id,created_objects_json FROM schema_migrations WHERE version=1");
-  if (!row || row.task_id !== task.id) throw new Error("无法核验迁移对象所有权");
-  const created = JSON.parse(row.created_objects_json) as string[];
-  const allowed = new Set(["schema_migrations",...MYSQL_TABLES.map(t=>t.name),...MYSQL_ARCHIVE_TABLES.map(t=>t.name)]);
-  if (names.some(name=>!created.includes(name) || !allowed.has(name))) throw new Error("发现不属于失败任务的目标表，禁止清理");
-}
-function orderedTables(): SchemaTable[] {
-  const remaining = [...MYSQL_TABLES]; const ordered: SchemaTable[] = []; const done = new Set<string>();
-  while (remaining.length) {
-    const index = remaining.findIndex(t=>t.foreignSql.every(sql=>[...sql.matchAll(/REFERENCES\s+`?([A-Za-z_][A-Za-z0-9_]*)`?/gi)].every(m=>done.has(m[1]!))));
-    if (index < 0) throw new Error("目标外键存在循环依赖，需要明确 staging 方案");
-    const table = remaining.splice(index,1)[0]!; ordered.push(table); done.add(table.name);
-  }
-  return ordered;
-}
-async function clearRetryTarget(db: DbClient, previous: MigrationTask): Promise<void> {
-  const names = await targetTables(db);
-  if (!names.length) return;
-  await assertRetryOwnership(db,previous,names);
-  // 子表先删除，不关闭外键校验。只处理已核验的本任务表。
-  const order = [...MYSQL_ARCHIVE_TABLES.map(t=>t.name),...orderedTables().reverse().map(t=>t.name),"schema_migrations"];
-  for (const name of order) if (names.includes(name)) await db.execute(`DROP TABLE ${q(name)}`);
-}
-export function startMigration(source: Source, retryTaskId?: string): MigrationTask {
-  if (readDatabaseConfig().type !== "SQLITE") throw new Error("MySQL 模式禁止导入");
-  if (activeTask()) throw new Error("已有迁移任务正在运行");
-  const state = readOperationState();
-  if (state.activatedMysql) throw new Error("MySQL 已正式启用，禁止重复导入");
-  if (state.maintenance && state.taskId && state.taskId !== retryTaskId) throw new Error("请先处理现有维护任务，或指定失败任务重试");
-  const task = newTask(source);
-  void runMigration(task,retryTaskId).catch(e=>{ task.error=safeError(e); saveTask(task,"FAILED","迁移失败，保留维护状态与源库"); });
+export function startMigration(source:Source,_retryTaskId?:string,options:MigrationOptions={}):MigrationTask{
+  if(activeTask())throw new Error("已有复制任务正在运行");
+  if(options.confirmOverwrite!==true)throw new Error("需明确确认目标已停止写入并允许完整覆盖");
+  if(options.mode!=="sync"&&options.mode!=="switch")throw new Error("请选择同步副本或准备切库");
+  const identity=configIdentity(standbyConfig());
+  const task=newTask(source);task.mode=options.mode;task.sourceDialect=readDatabaseConfig().type==="MYSQL"?"mysql":"sqlite";
+  task.targetDialect=task.sourceDialect==="mysql"?"sqlite":"mysql";task.targetFingerprint=identity;
+  saveTask(task);
+  void runMigration(task).catch(error=>{task.targetUsable=false;task.error=safeError(error);saveTask(task,"FAILED","复制失败，保留源库、目标备份与维护状态；确认任务停止后可恢复源库");});
   return task;
 }
-async function runMigration(task: MigrationTask, retryTaskId?: string): Promise<void> {
-  const check = await preflight(task.source,retryTaskId);
-  if (!check.passed) throw new Error("预检查未通过："+check.checks.filter(c=>!c.ok).map(c=>c.detail).join("；"));
-  saveTask(task,"QUIESCING","进入维护并排空在途业务");
-  await enterMaintenance(task.id);
-  saveTask(task,"SNAPSHOTTING","生成维护后的一致性完整快照");
-  const snapshot = await createSnapshot(task.source);
-  task.snapshotId=snapshot.id; task.sourceSha256=snapshot.sha256; task.targetFingerprint=targetFingerprint(); task.schemaFingerprint=expectedSchemaFingerprint;
-  const errors = checkSourceTables(snapshot.tables);
-  if (errors.length) throw new Error("源库兼容检查失败："+errors.join("；"));
-  const source = new DatabaseSync(sourcePath({sourceType:"snapshot",sourceId:snapshot.id}),{readOnly:true});
-  let db: DbClient | undefined;
-  try {
-    db=await openTarget();
-    if (retryTaskId) await clearRetryTarget(db,getTask(retryTaskId));
-    if ((await targetTables(db)).length) throw new Error("目标库已被修改，不再为空");
-    saveTask(task,"INITIALIZING","初始化版本化 MySQL 5.7 Schema");
-    await initializeSchema(db,task.id);
-    task.ownedTables=await targetTables(db);
-    task.totalRows=snapshot.tables.filter(t=>t.name!=="schema_migrations").reduce((n,t)=>n+t.count,0);
-    saveTask(task,"IMPORTING","按外键依赖顺序分批导入");
-    for (const table of orderedTables()) await importTable(source,db,table,snapshot.tables.find(t=>t.name===table.name),task);
-    for (const archive of MYSQL_ARCHIVE_TABLES) await importArchive(source,db,archive,snapshot.tables.find(t=>t.name===archive.sourceTable),task);
-    saveTask(task,"VERIFYING","检查逐表记录、主键与全部字段摘要");
-    for (const table of MYSQL_TABLES) await verifyTable(source,db,table,snapshot.tables.find(t=>t.name===table.name),task);
-    if (await hashFile(sourcePath({sourceType:"snapshot",sourceId:snapshot.id})) !== snapshot.sha256) throw new Error("源快照 SHA-256 已变化");
-    const fingerprint=await schemaFingerprint(db);
-    // 数据完成标记独立于Schema applied，启动必须同时验证本地成功任务。
-    await db.execute("UPDATE schema_migrations SET status=?,completed_at=? WHERE version=1 AND task_id=?",["applied",Date.now(),task.id]);
-    writeOperationState({targetFingerprint:fingerprint});
-    saveTask(task,"READY_TO_SWITCH","全量校验通过；保持维护，请修改 DB_TYPE=MYSQL 后重启");
-  } finally { source.close(); await db?.close(); }
-}
-async function importTable(source: DatabaseSync,db:DbClient,table:SchemaTable,info:SourceTable|undefined,task:MigrationTask):Promise<void> {
-  const result={name:table.name,sourceCount:info?.count??0,status:"IMPORTING"}; task.tables.push(result);task.currentTable=table.name;
-  if (info) {
-    const columns=table.columns.filter(c=>!c.generated); const fields=columns.map(c=>q(c.name)).join(",");
-    for (let offset=0;offset<info.count;offset+=batchSize) {
-      const rows=source.prepare(`SELECT ${selectSourceColumns(source,table,info)} FROM ${q(table.name)} ORDER BY ${table.primaryKey.map(q).join(",")} LIMIT ? OFFSET ?`).all(batchSize,offset);
-      await db.transaction(async tx=>{for(const row of rows) await tx.execute(`INSERT INTO ${q(table.name)} (${fields}) VALUES (${columns.map(()=>"?").join(",")})`,normalizedRow(row,columns));});
-      task.processedRows+=rows.length;saveTask(task);await yieldEventLoop();
-    }
-  }
-  result.status="IMPORTED";saveTask(task);
-}
-async function verifyTable(source:DatabaseSync,db:DbClient,table:SchemaTable,info:SourceTable|undefined,task:MigrationTask):Promise<void> {
-  const result=task.tables.find(t=>t.name===table.name)!;task.currentTable=table.name;
-  const count=Number((await db.queryOne<{n:number}>(`SELECT COUNT(*) AS n FROM ${q(table.name)}`))!.n);result.targetCount=count;
-  if(count!==(info?.count??0)) throw new Error(`表记录数不一致 ${table.name}`);
-  const columns=table.columns.filter(c=>!c.generated);const left=createHash("sha256"),right=createHash("sha256");
-  const fields=columns.map(c=>q(c.name)).join(",");const order=table.primaryKey.map(q).join(",");
-  for(let offset=0;offset<count;offset+=batchSize){
-    const rows=source.prepare(`SELECT ${selectSourceColumns(source,table,info!)} FROM ${q(table.name)} ORDER BY ${order} LIMIT ? OFFSET ?`).all(batchSize,offset);
-    const target=await db.query<Record<string,unknown>>(`SELECT ${fields} FROM ${q(table.name)} ORDER BY ${order} LIMIT ${batchSize} OFFSET ${offset}`);
-    for(const row of rows) left.update(JSON.stringify(normalizedRow(row,columns))+"\n");
-    for(const row of target) right.update(JSON.stringify(normalizedRow(row,columns))+"\n");
-    await yieldEventLoop();
-  }
-  result.sourceHash=left.digest("hex");result.targetHash=right.digest("hex");
-  if(result.sourceHash!==result.targetHash) throw new Error(`主键或字段校验不一致 ${table.name}`);
-  result.status="VERIFIED";saveTask(task);
-}
-async function importArchive(source:DatabaseSync,db:DbClient,archive:typeof MYSQL_ARCHIVE_TABLES[number],info:SourceTable|undefined,task:MigrationTask):Promise<void>{
-  const result={name:archive.name,sourceCount:info?.count??0,targetCount:0,status:"IMPORTING"};task.tables.push(result);task.currentTable=archive.name;
-  if(info){
-    const ddl=String(source.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(info.name)!.sql);
-    for(let offset=0;offset<info.count;offset+=batchSize){
-      const rows=source.prepare(`SELECT * FROM ${q(info.name)} ORDER BY rowid LIMIT ? OFFSET ?`).all(batchSize,offset);
-      await db.transaction(async tx=>{for(const row of rows) await tx.execute(`INSERT INTO ${q(archive.name)}(source_schema_sql,source_row_json) VALUES(?,?)`,[ddl,archiveJson(row)]);});
-      const target=await db.query<{source_schema_sql:string;source_row_json:string}>(`SELECT source_schema_sql,source_row_json FROM ${q(archive.name)} ORDER BY archive_row_id LIMIT ${batchSize} OFFSET ${offset}`);
-      if(target.length!==rows.length||target.some((row,i)=>row.source_schema_sql!==ddl||row.source_row_json!==archiveJson(rows[i]))) throw new Error(`历史归档校验失败 ${info.name}`);
-      task.processedRows+=rows.length;saveTask(task);await yieldEventLoop();
-    }
-  }
-  result.targetCount=Number((await db.queryOne<{n:number}>(`SELECT COUNT(*) AS n FROM ${q(archive.name)}`))!.n);
-  if(result.sourceCount!==result.targetCount) throw new Error(`历史归档记录数不一致 ${archive.name}`);
-  result.status="VERIFIED";saveTask(task);
+async function runMigration(task:MigrationTask):Promise<void>{
+  const check=await preflight(task.source);if(!check.passed)throw new Error("预检查未通过："+check.checks.filter(c=>!c.ok).map(c=>c.detail).join("；"));
+  saveTask(task,"QUIESCING","进入维护并排空业务写入");await enterMaintenance(task.id);
+  saveTask(task,"SNAPSHOTTING","备份源库与目标库，备份失败不覆盖");
+  const snapshot=await createSnapshot(task.source);task.snapshotId=snapshot.id;task.sourceSha256=snapshot.sha256;saveTask(task);
+  const work=resourcePath("working",task.id,".db");fs.mkdirSync(path.dirname(work),{recursive:true});
+  let source:DatabaseSync|undefined,target:DbClient|undefined;
+  try{
+    const config=standbyConfig();if(configIdentity(config)!==task.targetFingerprint)throw new Error("任务执行期间目标配置已改变");
+    target=await createDatabase(config);await inspectTarget(target);
+    const backup=await snapshotDatabase(target);task.targetBackupId=backup.id;saveTask(task);
+    fs.copyFileSync(sourcePath({sourceType:"snapshot",sourceId:snapshot.id}),work);
+    source=new DatabaseSync(work);archiveLegacyTables(source);
+    saveTask(task,"INITIALIZING","准备目标表结构与复制中断标记");
+    await prepareDatabaseSchema(target,task.id);await ensureSqliteArchives(target);
+    saveTask(task,"IMPORTING","以源库为准完整替换目标业务数据");
+    await replaceFromSnapshot(source,target,task);
+    if(await hashFile(sourcePath({sourceType:"snapshot",sourceId:snapshot.id}))!==snapshot.sha256)throw new Error("源备份摘要变化，保持目标不可切换");
+    await markTransferReady(target);task.targetUsable=true;
+    if(task.mode==="switch")saveTask(task,"READY_TO_SWITCH","目标全量校验通过，保持维护；修改 DB_TYPE 后重启");
+    else{await exitMaintenance();saveTask(task,"COMPLETED","副本同步完成，源库恢复；源库后续写入会使副本过时");}
+  }finally{source?.close();await target?.close();if(fs.existsSync(work))fs.unlinkSync(work);}
 }
 export async function cancelMaintenance():Promise<void>{
-  if(readDatabaseConfig().type!=="SQLITE"||activeTask()) throw new Error("当前模式或运行中任务不允许退出维护");
-  const state=readOperationState();
-  if(state.activatedMysql) throw new Error("MySQL 已正式启用，禁止直接回退");
-  if(state.taskId){const task=getTask(state.taskId);if(task.snapshotId){const snapshot=getSnapshot(task.snapshotId);if(await hashFile(sourcePath({sourceType:"snapshot",sourceId:snapshot.id}))!==snapshot.sha256) throw new Error("回滚快照校验失败");}}
-  // 连接当前SQLite验证可读，不执行初始化或修复。
-  inspectSqlite(sourcePath({sourceType:"server"}));
-  await exitMaintenance();
-  if(state.taskId) saveTask(getTask(state.taskId),"CANCELLED","管理员确认取消迁移并恢复 SQLite");
+  if(activeTask())throw new Error("复制任务仍在运行，不能退出维护");
+  await getAppDb().queryOne("SELECT 1 AS readable");
+  if((await readInstallation())?.transfer_status!=="ready")throw new Error("当前库是未完成复制的目标，不能恢复业务");
+  const state=readOperationState();await exitMaintenance();
+  if(state.taskId){const task=getTask(state.taskId);saveTask(task,task.status,"管理员确认复制已停止，恢复源库业务；切库前必须重新同步");}
+}
+
+/** 离线恢复：先停止目标服务，不要求本机旧迁移完成记录。 */
+export async function restoreTargetBackup(snapshotId:string,confirm:boolean):Promise<void>{
+  if(!confirm||activeTask())throw new Error("请确认停止目标服务且无复制任务运行");
+  const backup=getSnapshot(snapshotId),file=sourcePath({sourceType:"snapshot",sourceId:snapshotId});
+  if(await hashFile(file)!==backup.sha256)throw new Error("备份摘要不匹配，禁止恢复");
+  const source=new DatabaseSync(file,{readOnly:true});let target:DbClient|undefined;
+  try{
+    // 先独立确认备份可恢复，再连接目标；备份里的半成品绝不能因恢复操作升级为 ready。
+    const { MYSQL_TABLES, SCHEMA_VERSION } = await import("../db/schema/runner.js");
+    const { BACKUP_MANIFEST } = await import("./databaseSnapshot.js");
+    const tables = inspectSqlite(file).filter(table=>table.name!==BACKUP_MANIFEST);
+    validateCopySource(tables);
+    const names = new Set(tables.map(table=>table.name));
+    if (tables.length) {
+      const missing = MYSQL_TABLES.filter(table=>!names.has(table.name));
+      if (missing.length) throw new Error(`备份业务结构不完整，禁止恢复：${missing.map(table=>table.name).join(",")}`);
+      let version: number | undefined;
+      if (names.has("schema_migrations")) {
+        const ledger = source.prepare("SELECT version,status FROM schema_migrations ORDER BY version DESC LIMIT 1").get();
+        version = Number(ledger?.version);
+        if (!ledger || ledger.status!=="applied" || ![1,SCHEMA_VERSION].includes(version)) throw new Error("备份 Schema 账本未完成或版本不支持，禁止恢复");
+      }
+      if (names.has("app_installation")) {
+        const markers = source.prepare("SELECT id,transfer_status FROM app_installation").all();
+        if (markers.length!==1 || Number(markers[0]?.id)!==1 || markers[0]?.transfer_status!=="ready") throw new Error("备份包含未完成复制或缺失安装标记，禁止恢复");
+        if (version!==SCHEMA_VERSION) throw new Error("带安装标记的备份缺少当前完整 Schema 账本，禁止恢复");
+      } else if (version===SCHEMA_VERSION) throw new Error("当前版本备份缺失安装标记，禁止恢复");
+      // 无标记的旧备份仅兼容完整业务结构，账本可缺省或为已应用 v1；归档容器允许补空。
+    }
+    target=await createDatabase(standbyConfig());await inspectTarget(target);await prepareDatabaseSchema(target,"backup-restore");await ensureSqliteArchives(target);
+    const task=newTask({sourceType:"snapshot",sourceId:snapshotId});
+    try{await replaceFromSnapshot(source,target,task);await markTransferReady(target);task.targetUsable=true;saveTask(task,"COMPLETED","目标备份恢复并校验成功");}
+    catch(error){task.error=safeError(error);saveTask(task,"FAILED","恢复失败，目标保持不可切换");throw error;}
+  }finally{source.close();await target?.close();}
 }

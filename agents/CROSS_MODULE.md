@@ -4,6 +4,8 @@
 
 ## 账号、权益与同步
 
+- Server管理员与用户JWT均绑定当前数据库的 `installationId`。独立安装的数据库隔离登录态，完整复制保留源身份；升级前不带该字段的旧token需要重新登录，用户DTO与同步协议不变。未安装或复制未完成时业务HTTP/Socket返回不可用，安装流程仅由Admin处理，见[首次安装](../server/apidoc/system/setup.md)。
+
 - 手机端与桌面端账号由外层 `server/` 的 `/api/auth/*` 提供服务，支持邮箱/手机号验证码注册、用户名/邮箱/手机号密码登录、邮箱/手机号验证码登录和 7 天 token 刷新。收藏/歌单同步由 `/api/sync/*` 提供服务，使用账号 `Authorization: Bearer <userToken>` 鉴权并按用户隔离数据；两端同步入口均基于账号登录，账号切换时同步游标必须按账号隔离并重新 seed 本地 outbox；旧同步码绑定空间流程已废弃，不要恢复 `/api/sync/spaces*`。
 - 账号资料由 `/api/auth/profile*` 提供服务，支持修改昵称、头像 key 和经新邮箱验证码确认后的邮箱；公开用户字段包含 `id`、`username`、`email`、`avatarKey`、`avatarUrl`、`vip`、`vipExpiresAt`、`createdAt`。`vip` 与 `vipExpiresAt` 主要用于客户端内部音质/功能权益判断；允许的前端展示仅包括 Android“我的”页为有效 VIP 在邮箱下显示金色纯到期时间标签，以及 PC Header 昵称尾部的金色斜体方块 `V` 和用户资料页“特权到期时间”，不得扩展展示 VIP 等级、会员名称或其他标识。默认头像固定使用 `server/static/account-avatars/default.jpg`；自定义头像通过 `/api/auth/avatar/upload-token` 获取七牛 token 后由客户端直传到 `QINIU_PUBLIC_IMAGE_BUCKET` 公开图片空间，用户表 `avatar_key` 记录七牛对象 key，`avatarUrl` 直接返回公开直链；旧的多张内置头像自选功能已废弃，不要恢复。
 - PisaMusic 系统账号 VIP 与 KG / WY 第三方音乐账号 VIP 完全分离。系统权益仅存 `users.vip_enabled`、`users.vip_expires_at`：有效 VIP 必须同时启用且到期毫秒时间戳晚于当前时间，公开 DTO 的 `vip` 由服务端实时计算并保留 `vipExpiresAt` 原值；不支持永久 VIP。后台仅可通过 `PUT /api/admin/users/:id` 以 `vipEnabled` 与未来的 `vipExpiresAt` 设置，关闭时必须写入 `0 / NULL`，不要把第三方 Cookie、VIP 字段或展示逻辑混入系统账号。

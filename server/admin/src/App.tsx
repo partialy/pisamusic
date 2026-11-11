@@ -5,6 +5,7 @@ import RequireAuth from "./auth/RequireAuth";
 import AdminLayout from "./layouts/AdminLayout";
 import { useAdminLayout } from "./layouts/AdminLayoutContext";
 import { AdminConfigWorkspaceProvider } from "./state/AdminConfigWorkspaceContext";
+import InstallationGuard from "./auth/InstallationGuard";
 import LoginPage from "./components/LoginPage";
 
 const DashboardTab = lazy(() => import("./components/tabs/DashboardTab"));
@@ -63,6 +64,7 @@ function RuntimeConfigRoute() {
 
 export default function App() {
   return (
+    <InstallationGuard>
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -102,5 +104,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </AuthProvider>
+    </InstallationGuard>
   );
 }

@@ -51,6 +51,12 @@ export async function hashFile(file: string): Promise<string> {
 }
 let snapshotBusy = false;
 export async function createSnapshot(source: Source): Promise<Snapshot> {
+  if (source.sourceType === "server" && (process.env.DB_TYPE || "SQLITE").trim().toUpperCase() === "MYSQL") {
+    const { createDatabase } = await import("../db/core/createDatabase.js");
+    const { snapshotDatabase } = await import("./databaseSnapshot.js");
+    const db = await createDatabase();
+    try { return await snapshotDatabase(db); } finally { await db.close(); }
+  }
   if (snapshotBusy) throw new Error("已有备份正在生成");
   snapshotBusy = true;
   const id = randomUUID();

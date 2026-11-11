@@ -34,8 +34,10 @@
 
 ## 数据库迁移管理页
 
+- Admin外层 `InstallationGuard` 在鉴权前查询 `/api/setup/status`；未安装进入 `/#/setup`，失败显示重试，不完整传输目标禁止初始化。首管通过安装令牌创建，完成后登录；同站点切换独立数据库时按 `installationId` 清理旧会话。
+
 - 「系统设置 → 数据迁移」路由 `/database-migration`，页面 `src/pages/DatabaseMigrationPage.tsx`；对应 API 封装 `src/api/databaseMigration.ts`。
-- 展示 DB_TYPE、MySQL 5.7 连接状态、服务器 SQLite / 上传 .db 来源、完整数据库备份生成与下载、预检查、迁移进度、历史日志和 JSON 报告。
+- 展示当前运行引擎及env指定的另一目标，支持SQLite↔MySQL 5.7全量覆盖、完整备份、源与目标备份下载、进度日志和报告。SQLite运行时保留上传/快照来源，MySQL运行时以当前库为源。
 - 普通 JSON 请求使用现有 Admin JWT + AES-GCM `fetchWithAuth`；`multipart/form-data` 上传使用独立 XHR，带 JWT、`x-pm-random`，响应 JSON 仍通过 AES-GCM 解密；备份下载使用二进制响应，不经 JSON 解包。
-- 迁移时维护模式会让普通业务返回 503；禁止在 Admin 自动切换 DB_TYPE、改写 .env、重启 Server。迁移校验成功后只显示手动切换与重启指引；MYSQL 正式运行不提供向当前生产库覆盖导入。
+- 迁移维护时业务503；覆盖确认须说明目标停写、删除多余记录、先备份及文件资产不复制。`sync/COMPLETED` 恢复源库，`switch/READY_TO_SWITCH` 保持维护；两种引擎均可在无活动任务后确认恢复源库。Admin不改env、不自动切库或重启。
 - 详见 [迁移接口与安全流程](../apidoc/databaseMigration/overview.md)。实际 MySQL 5.7 数据迁移须独立验收，不能只依赖前端构建成功。

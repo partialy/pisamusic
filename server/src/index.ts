@@ -29,9 +29,11 @@ import { webMusicRouter } from "./routes/webMusic";
 import { fail } from "./types/response";
 import { closeStaleActiveRoomRecords } from "./db/listenTogetherHistoryStore";
 import { initializeDatabase } from "./db/appDb";
-import { readDatabaseConfig } from "./db/core/createDatabase";
+import { setupRouter } from "./routes/setup";
+import { installationGate } from "./middleware/installation";
+import { initializeInstallation, isInstallationReady } from "./services/setupService";
 import { validateDatabaseSwitch } from "./operations/startup";
-import { readOperationState, registerQuiesceHook } from "./operations/maintenance";
+import { bindOperationDatabase, readOperationState, registerQuiesceHook, registerResumeHook } from "./operations/maintenance";
 import { maintenanceMode } from "./middleware/maintenanceMode";
 
 // 启动优先初始化运行时策略管理器
@@ -118,6 +120,7 @@ app.use(express.json({ limit: configManager.get("http.jsonBodyLimit", "1mb") }))
 app.use(createIpRateLimitMiddleware({ group: "app-share-public", getPolicy: () => ({ paths: ["/api/app-share/public/*", "/api/app-share/visits"], windowSeconds: 60, maxRequests: 60 }) }));
 app.use(createIpRateLimitMiddleware({ group: "app-share-identity", getPolicy: () => ({ paths: ["/api/config/app-share"], windowSeconds: 60, maxRequests: 60 }) }));
 app.use(logInterceptor);
+app.use(createIpRateLimitMiddleware({ group: "setup", getPolicy: () => ({ paths: ["/api/setup/complete"], windowSeconds: 60, maxRequests: 10 }) }));
 
 const DEFAULT_PLAINTEXT_PATHS = [
   "/api/health",
@@ -150,6 +153,8 @@ const DEFAULT_PLAINTEXT_PATHS = [
 ];
 
 const MANDATORY_PLAINTEXT_PATHS = [
+  "/api/health",
+  "/api/setup/*",
   "/api/config/get",
   "/api/config/app-share",
   "/api/app-share/public/*",
@@ -176,6 +181,7 @@ async function loadPlaintextPaths(): Promise<string[]> {
 }
 
 // 由 bootstrap() 在数据库就绪后加载加密白名单
+app.use(installationGate);
 app.use(encryptionMiddleware());
 app.use(maintenanceMode);
 
@@ -183,6 +189,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ msg: "ok", code: 0, data: { status: "up" }, success: true });
 });
 
+app.use("/api/setup", setupRouter);
 app.use("/api/config", configRouter);
 app.use("/api/app-share", appShareRouter);
 app.use("/api/announcements", announcementsRouter);
@@ -236,17 +243,19 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 const httpServer = createServer(app);
 
 async function bootstrap(): Promise<void> {
-  const state = readOperationState();
-  if (state.activatedMysql && readDatabaseConfig().type === "SQLITE") {
-    throw new Error("MySQL 已正式启用，禁止在旧 SQLite 上执行初始化或写入，请先核对增量数据");
-  }
-  const db = await initializeDatabase({ readOnlyStartup: state.maintenance });
+  const db = await initializeDatabase();
   await validateDatabaseSwitch(db);
-  if (!readOperationState().maintenance) {
-    await closeStaleActiveRoomRecords(Date.now());
+  await initializeInstallation();
+  await bindOperationDatabase(db);
+  const resumeBusiness = async () => {
+    if (!await isInstallationReady()) throw new Error("数据库未就绪，禁止恢复业务");
     await configManager.initialize();
-  }
-  setPlaintextPaths(await loadPlaintextPaths());
+    await closeStaleActiveRoomRecords(Date.now());
+    setPlaintextPaths(await loadPlaintextPaths());
+  };
+  registerResumeHook(resumeBusiness);
+  if (!readOperationState().maintenance && await isInstallationReady()) await resumeBusiness();
+  else setPlaintextPaths([...new Set([...DEFAULT_PLAINTEXT_PATHS, ...MANDATORY_PLAINTEXT_PATHS])]);
   const io = initRealtimeServer(httpServer);
   registerQuiesceHook(async () => { io.disconnectSockets(true); });
   httpServer.listen(port, () => {

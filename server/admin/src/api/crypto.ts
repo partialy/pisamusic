@@ -120,6 +120,11 @@ export async function encryptedFetch(url: string, init?: RequestInit): Promise<R
   const contentType = rawResponse.headers.get("Content-Type") ?? "";
   if (!contentType.toLowerCase().includes("json")) return rawResponse;
 
+  // 鉴权中间件可能在加密链路前拒绝过期或跨安装 JWT。保留 401 供统一登录失效处理。
+  if (rawResponse.status === 401) {
+    const value = await rawResponse.clone().json().catch(() => null);
+    if (!isEnvelope(value)) return rawResponse;
+  }
   const rawText = await rawResponse.text();
   const parsed = rawText ? (JSON.parse(rawText) as unknown) : null;
   if (!isEnvelope(parsed)) {

@@ -4,6 +4,7 @@ import { readOperationState } from "./maintenance";
 import { activeTask } from "./migrationTasks";
 import { openTarget, safeError, targetConfig } from "./mysqlTarget";
 import { listSnapshots } from "./sqliteSnapshots";
+import { redactedTarget } from "./databaseTarget";
 
 export async function databaseStatus(){
   const config=readDatabaseConfig();
@@ -14,5 +15,7 @@ export async function databaseStatus(){
       db=await openTarget();mysql.connected=true;mysql.version=(await db.queryOne<{version:string}>("SELECT VERSION() AS version"))?.version;
     }catch(e){mysql.connected=false;mysql.error=safeError(e);}finally{await db?.close();}
   }
-  return {dbType:config.type,sqliteFile:config.type==="SQLITE"?path.basename(config.path):undefined,maintenance:readOperationState().maintenance,activeTaskId:activeTask()?.id,mysql,snapshots:listSnapshots()};
+  let target: ReturnType<typeof redactedTarget>|undefined;
+  try { target=redactedTarget(); } catch { /* 另一种数据库未配置时仍允许当前库独立部署。 */ }
+  return {dbType:config.type,sqliteFile:process.env.PISA_APP_DB_PATH?path.basename(process.env.PISA_APP_DB_PATH):config.type==="SQLITE"?path.basename(config.path):undefined,sqliteConfigured:!!process.env.PISA_APP_DB_PATH,maintenance:readOperationState().maintenance,activeTaskId:activeTask()?.id,target,mysql,snapshots:listSnapshots()};
 }

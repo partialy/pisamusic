@@ -1,3 +1,4 @@
+import { readInstallation } from "../db/installationStore";
 import { Router } from "express";
 import type { Response } from "express";
 import bcrypt from "bcryptjs";
@@ -117,9 +118,9 @@ function validatePassword(password: string): string | null {
   return null;
 }
 
-function issueToken(user: UserRecord | PublicUser): AuthTokenResponse {
+async function issueToken(user: UserRecord | PublicUser): Promise<AuthTokenResponse> {
   const publicUser = "passwordHash" in user ? toPublicUser(user) : user;
-  const token = jwt.sign({ sub: publicUser.id }, getUserJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
+  const token = jwt.sign({ sub: publicUser.id, installationId: (await readInstallation())?.installation_id }, getUserJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
   return {
     token,
     expiresAt: Date.now() + JWT_EXPIRES_SECONDS * 1000,
@@ -224,7 +225,7 @@ authRouter.post("/register", async (req, res) => {
       username,
       passwordHash: bcrypt.hashSync(password, 10),
     }));
-    return res.json(ok(issueToken(user), "注册成功"));
+    return res.json(ok(await issueToken(user), "注册成功"));
   } catch (error) {
     handleError(res, error, "注册失败");
   }
@@ -316,9 +317,9 @@ authRouter.post("/password/reset", async (req, res) => {
   }
 });
 
-authRouter.post("/refresh", requireUserJwt, (req: UserAuthedRequest, res) => {
+authRouter.post("/refresh", requireUserJwt, async (req: UserAuthedRequest, res) => {
   const auth = getUserAuth(req);
-  return res.json(ok(issueToken(auth.user), "登录已刷新"));
+  return res.json(ok(await issueToken(auth.user), "登录已刷新"));
 });
 
 authRouter.get("/me", requireUserJwt, (req: UserAuthedRequest, res) => {
@@ -433,14 +434,14 @@ authRouter.patch("/profile", requireUserJwt, async (req: UserAuthedRequest, res)
     }
 
     if (!("username" in patch) && !("email" in patch) && !("phone" in patch) && !("avatarKey" in patch)) {
-      return res.json(ok(issueToken(current), "资料未变化"));
+      return res.json(ok(await issueToken(current), "资料未变化"));
     }
 
     if ("avatarKey" in patch && patch.avatarKey !== current.avatarKey && isAccountAvatarObjectKey(current.id, current.avatarKey)) {
       await deleteAccountAvatarObject(current.avatarKey);
     }
     const updated = (await updateUserProfile(current.id, patch));
-    return res.json(ok(issueToken(updated), "资料已更新"));
+    return res.json(ok(await issueToken(updated), "资料已更新"));
   } catch (error) {
     handleError(res, error, "资料更新失败");
   }

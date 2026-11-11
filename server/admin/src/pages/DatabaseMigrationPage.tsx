@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, Button, Card, Descriptions, Divider, Modal, Progress, Radio, Space,
-  Table, Tag, Typography, Upload, message,
+  Table, Tag, Typography, Upload, Select, message,
 } from "antd";
 import {
   CloudUploadOutlined, DatabaseOutlined, DownloadOutlined,
@@ -16,11 +16,11 @@ import {
 } from "../api/databaseMigration";
 
 const { Text, Paragraph, Title } = Typography;
-const terminalStates = new Set(["READY_TO_SWITCH", "FAILED", "INTERRUPTED", "CANCELLED"]);
+const terminalStates = new Set(["COMPLETED", "READY_TO_SWITCH", "FAILED", "INTERRUPTED", "CANCELLED"]);
 const stateLabels: Record<string, string> = {
   PRECHECKING: "预检查", QUIESCING: "进入维护", SNAPSHOTTING: "生成完整快照",
-  INITIALIZING: "初始化 MySQL", IMPORTING: "迁移数据", VERIFYING: "数据校验",
-  READY_TO_SWITCH: "等待切换", FAILED: "失败", INTERRUPTED: "中断", CANCELLED: "已取消",
+  INITIALIZING: "准备目标数据库", IMPORTING: "迁移数据", VERIFYING: "数据校验",
+  COMPLETED: "同步完成", READY_TO_SWITCH: "等待切换", FAILED: "失败", INTERRUPTED: "中断", CANCELLED: "已取消",
 };
 const dateTime = (timestamp?: number) => timestamp ? new Date(timestamp).toLocaleString("zh-CN") : "—";
 const displaySize = (value?: number) => {
@@ -30,7 +30,7 @@ const displaySize = (value?: number) => {
   return `${(value / divisor).toFixed(2)} ${unit}`;
 };
 const badgeStatus = (status: string) =>
-  status === "READY_TO_SWITCH" || status === "VERIFIED" ? "success"
+  status === "COMPLETED" || status === "READY_TO_SWITCH" || status === "VERIFIED" ? "success"
     : status === "FAILED" || status === "INTERRUPTED" ? "error"
     : status === "CANCELLED" ? "default" : "processing";
 
@@ -39,19 +39,30 @@ export default function DatabaseMigrationPage() {
   const [status, setStatus] = useState<DatabaseStatus | null>(null);
   const [tasks, setTasks] = useState<MigrationTask[]>([]);
   const [task, setTask] = useState<MigrationTask | null>(null);
-  const [sourceType, setSourceType] = useState<"server" | "upload">("server");
+  const [sourceType, setSourceType] = useState<"server" | "upload" | "snapshot">("server");
+  const [snapshotSourceId, setSnapshotSourceId] = useState<string>();
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [upload, setUpload] = useState<UploadedDatabase | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const [check, setCheck] = useState<PreflightResult | null>(null);
+  const [checkResult, setCheck] = useState<PreflightResult | null>(null);
+  const [checkContext, setCheckContext] = useState("");
+  const checkGeneration = useRef(0);
   const [snapshot, setSnapshot] = useState<DatabaseSnapshot | null>(null);
   const [retryTaskId, setRetryTaskId] = useState<string>();
   const [busy, setBusy] = useState<string>("");
 
-  const source = useMemo<MigrationSource | null>(() => sourceType === "server"
+  const source = useMemo<MigrationSource | null>(() => status?.dbType === "MYSQL" || sourceType === "server"
     ? { sourceType: "server" }
+    : sourceType === "snapshot" ? snapshotSourceId ? { sourceType: "snapshot", sourceId: snapshotSourceId } : null
     : upload ? { sourceType: "upload", sourceId: upload.id } : null,
-  [sourceType, upload]);
+  [status?.dbType, sourceType, upload, snapshotSourceId]);
+  const context = JSON.stringify([source, retryTaskId, status?.dbType, status?.target, status?.mysql.host, status?.mysql.port, status?.mysql.database, status?.sqliteFile, status?.activeTaskId, status?.maintenance]);
+  const currentContext = useRef(context);
+  if (currentContext.current !== context) {
+    currentContext.current = context;
+    checkGeneration.current += 1;
+  }
+  const check = checkContext === context ? checkResult : null;
 
   const refresh = useCallback(async () => {
     try {
@@ -70,11 +81,14 @@ export default function DatabaseMigrationPage() {
 
   useEffect(() => {
     if (!task || terminalStates.has(task.status)) return;
+    let disposed = false;
     const timer = window.setInterval(() => {
-      void fetchMigrationTask(task.id).then(setTask).catch(() => undefined);
+      void fetchMigrationTask(task.id).then(next => { if (!disposed) setTask(next); }).catch(error => {
+        if (!disposed) { messageApi.error(error instanceof Error ? error.message : "任务状态读取失败，请刷新重试"); window.clearInterval(timer); }
+      });
     }, 1000);
-    return () => window.clearInterval(timer);
-  }, [task?.id, task?.status]);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [task?.id, task?.status, messageApi]);
 
   useEffect(() => {
     if (task && terminalStates.has(task.status)) void refresh();
@@ -89,7 +103,7 @@ export default function DatabaseMigrationPage() {
     finally { setBusy(""); }
   };
 
-  const switchSource = (value: "server" | "upload") => {
+  const switchSource = (value: "server" | "upload" | "snapshot") => {
     setSourceType(value);
     setCheck(null);
     setSnapshot(null);
@@ -98,8 +112,13 @@ export default function DatabaseMigrationPage() {
 
   const doCheck = () => {
     if (!source) return;
+    const generation = ++checkGeneration.current;
+    const requestContext = context;
+    setCheck(null);
     void run("check", async () => {
       const result = await preflightDatabase(source, retryTaskId);
+      if (generation !== checkGeneration.current || requestContext !== currentContext.current) return;
+      setCheckContext(requestContext);
       setCheck(result);
       if (result.passed) messageApi.success("预检查通过，可以开始迁移");
       else messageApi.warning("预检查未通过，请查看检查结果");
@@ -110,7 +129,7 @@ export default function DatabaseMigrationPage() {
     void run("snapshot", async () => {
       const result = await createDatabaseSnapshot(source);
       setSnapshot(result);
-      messageApi.success("完整 SQLite 快照已生成");
+      messageApi.success("完整数据库备份已生成");
       await refresh();
     });
   };
@@ -127,16 +146,20 @@ export default function DatabaseMigrationPage() {
       } finally { setProgress(null); }
     });
   };
-  const start = () => {
+  const start = (mode: "sync" | "switch") => {
     if (!source || !check?.passed) return;
     Modal.confirm({
       title: retryTaskId ? "确认重新迁移？" : "确认开始迁移？",
       icon: <ExclamationCircleOutlined />,
-      content: "迁移会开启维护模式，普通 API 返回 503，Socket.IO 断开。目标只能是空 MySQL 5.7 库，成功后须手动修改 DB_TYPE 并重启服务。原 SQLite 保留。",
+      content: `源库 ${status?.dbType} → 目标 ${check.target ? check.target.type === "MYSQL" ? `${check.target.host}:${check.target.port}/${check.target.database}` : check.target.file : targetDialect}。操作会进入维护模式，覆盖目标业务数据并删除多余记录。请先生成并下载备份，停止使用目标库的其他服务。${mode === "sync" ? "完成后恢复当前源库运行。" : "完成后保持维护，须手动修改 DB_TYPE 并重启。"} 本地上传文件和七牛等外部资源不会复制。`,
       okText: "进入维护并迁移", okType: "danger", cancelText: "取消",
       onOk: async () => {
+        if (currentContext.current !== context || active || busy) {
+          messageApi.warning("迁移来源或数据库状态已变化，请重新预检查");
+          return;
+        }
         await run("start", async () => {
-          const next = await beginMigration(source, retryTaskId);
+          const next = await beginMigration(source, retryTaskId, mode);
           setTask(next);
           setCheck(null);
           messageApi.success("迁移任务已创建");
@@ -146,8 +169,8 @@ export default function DatabaseMigrationPage() {
     });
   };
   const cancelMaintenance = () => Modal.confirm({
-    title: "确认安全恢复 SQLite？",
-    content: "仅在尚未正式启用 MySQL、没有新业务写入且无任务运行时才能解除维护。",
+    title: `确认恢复当前 ${status?.dbType} 服务？`,
+    content: "恢复当前 DB_TYPE 对应的源库。请确认尚未切换目标库，且没有其他实例向目标库写入。",
     okType: "danger", okText: "确认退出维护", cancelText: "返回",
     onOk: async () => {
       await run("exit", async () => {
@@ -159,10 +182,11 @@ export default function DatabaseMigrationPage() {
     },
   });
 
-  const active = Boolean(task && !terminalStates.has(task.status));
-  const canMigrate = status?.dbType === "SQLITE" && !active && Boolean(source);
+  const active = Boolean(status?.activeTaskId) || Boolean(task && !terminalStates.has(task.status));
+  const targetDialect = status?.dbType === "MYSQL" ? "SQLITE" : "MYSQL";
+  const canMigrate = Boolean(status) && !active && Boolean(source) && !busy;
   const shownSnapshot = snapshot ?? (sourceType === "server" ? status?.snapshots?.[0] : undefined) ?? null;
-  const percent = task ? task.status === "READY_TO_SWITCH" ? 100
+  const percent = task ? ["COMPLETED", "READY_TO_SWITCH"].includes(task.status) ? 100
     : task.totalRows ? Math.min(99, Math.round(task.processedRows * 100 / task.totalRows)) : 0 : 0;
 
   return (
@@ -171,45 +195,47 @@ export default function DatabaseMigrationPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Title level={4} className="!mb-1">数据库迁移</Title>
-          <Text type="secondary">SQLite 完整备份 / MySQL 5.7 数据迁移 / 迁移报告</Text>
+          <Text type="secondary">SQLite ↔ MySQL 完整备份 / 覆盖同步 / 切换准备</Text>
         </div>
-        <Button icon={<ReloadOutlined />} loading={busy === "refresh"} onClick={() => void run("refresh", refresh)}>刷新状态</Button>
+        <Button icon={<ReloadOutlined />} loading={busy === "refresh"} disabled={Boolean(busy)} onClick={() => void run("refresh", refresh)}>刷新状态</Button>
       </div>
 
       {status?.maintenance && <Alert type="warning" showIcon message="当前处于数据库维护模式"
-        description="普通业务接口已停止访问。迁移失败时可安全退出维护；迁移成功后保持维护，直到切换数据库并重启。"
-        action={status.dbType === "SQLITE" && !active
+        description="普通业务接口已停止访问。迁移失败时可安全退出维护；同步完成后恢复当前库；准备切换完成后保持维护，直到手动切换并重启。"
+        action={!active
           ? <Button danger size="small" onClick={cancelMaintenance}>安全退出维护</Button> : undefined} />}
-      {status?.dbType === "MYSQL" && <Alert type="info" showIcon message="当前以 MySQL 模式运行"
-        description="生产 MySQL 模式禁止重复导入旧 SQLite，当前页面只提供连接状态及历史迁移记录。" />}
+      <Alert type="warning" showIcon message="目标业务数据将被覆盖，多余记录会删除" description="请先备份并停止使用目标库的其他服务。数据库迁移不会复制上传文件及七牛等外部资源。" />
 
       <Card title={<Space><DatabaseOutlined /> 数据库状态</Space>} loading={!status}>
         {status && <Descriptions column={{ xs: 1, sm: 2, md: 3 }} size="small">
           <Descriptions.Item label="当前运行"><Tag color={status.dbType === "MYSQL" ? "blue" : "default"}>{status.dbType}</Tag></Descriptions.Item>
-          <Descriptions.Item label="原 SQLite">{status.sqliteFile || "—"}</Descriptions.Item>
+          <Descriptions.Item label="迁移目标">{status.target ? status.target.type === "MYSQL" ? `${status.target.host}:${status.target.port}/${status.target.database}` : status.target.file : targetDialect}</Descriptions.Item>
+          <Descriptions.Item label="SQLite 路径">{status.sqliteFile || "—"}</Descriptions.Item>
           <Descriptions.Item label="MySQL 配置">{status.mysql.configured ? "已设置 MYSQL_URL" : <Text type="warning">未配置 MYSQL_URL</Text>}</Descriptions.Item>
           <Descriptions.Item label="MySQL 状态"><Tag color={status.mysql.connected ? "success" : "error"}>{status.mysql.connected ? "连接正常" : "未连接"}</Tag></Descriptions.Item>
           <Descriptions.Item label="MySQL 版本">{status.mysql.version || "—"}</Descriptions.Item>
-          <Descriptions.Item label="目标实例">{status.mysql.database ? `${status.mysql.host}:${status.mysql.port}/${status.mysql.database}` : "—"}</Descriptions.Item>
+          <Descriptions.Item label="MySQL 实例">{status.mysql.database ? `${status.mysql.host}:${status.mysql.port}/${status.mysql.database}` : "—"}</Descriptions.Item>
         </Descriptions>}
         {status?.mysql.error && <Text type="danger">{status.mysql.error}</Text>}
       </Card>
 
-      {status?.dbType !== "MYSQL" && <Card title={<Space><SafetyCertificateOutlined /> 数据来源与 SQLite 备份</Space>}>
-        <Radio.Group value={sourceType} onChange={event => switchSource(event.target.value)} className="mb-4">
-          <Radio value="server">使用服务器原 SQLite</Radio>
+      <Card title={<Space><SafetyCertificateOutlined /> 数据来源与完整备份</Space>}>
+        <Paragraph>当前源库：<Text strong>{status?.dbType || "—"}</Text> → 目标：<Text strong>{targetDialect}</Text>（服务端环境配置）</Paragraph>
+        {status?.dbType === "SQLITE" && <Radio.Group disabled={active || Boolean(busy)} value={sourceType} onChange={event => switchSource(event.target.value)} className="mb-4">
+          <Radio value="server">当前服务器数据库</Radio>
+          <Radio value="snapshot">选择 SQLite 备份</Radio>
           <Radio value="upload">上传完整 .db 文件</Radio>
-        </Radio.Group>
-        {sourceType === "server" ? (
-          <Paragraph type="secondary">从服务端 PISA_APP_DB_PATH 读取原数据库，自动包含 WAL 已提交数据；无需手工复制 .db-wal。</Paragraph>
-        ) : (
+        </Radio.Group>}
+        {status?.dbType === "MYSQL" || sourceType === "server" ? (
+          <Paragraph type="secondary">读取当前 DB_TYPE 对应的运行库，SQLite 包含 WAL 已提交数据，MySQL 导出为便携 SQLite .db 备份。</Paragraph>
+        ) : sourceType === "snapshot" ? <Select className="mb-4 w-full" placeholder="选择完整 SQLite 备份" value={snapshotSourceId} disabled={active || Boolean(busy)} options={status?.snapshots.map(item => ({ value: item.id, label: `${dateTime(item.createdAt)} · ${displaySize(item.size)} · ${item.id}` }))} onChange={value => { setSnapshotSourceId(value); setCheck(null); setSnapshot(null); setRetryTaskId(undefined); }} /> : (
           <Space direction="vertical" className="mb-4 w-full">
-            <Upload maxCount={1} accept=".db" beforeUpload={file => { setUploadFile(file); setUpload(null); setCheck(null); setRetryTaskId(undefined); return false; }}
+            <Upload disabled={active || Boolean(busy)} maxCount={1} accept=".db" beforeUpload={file => { setUploadFile(file); setUpload(null); setCheck(null); setRetryTaskId(undefined); return false; }}
               onRemove={() => { setUploadFile(null); setUpload(null); setCheck(null); }}>
               <Button icon={<CloudUploadOutlined />}>选择完整 SQLite .db 文件</Button>
             </Upload>
             <Space wrap>
-              <Button loading={busy === "upload"} disabled={!uploadFile || active} onClick={doUpload}>上传并校验</Button>
+              <Button loading={busy === "upload"} disabled={!uploadFile || active || Boolean(busy)} onClick={doUpload}>上传并校验</Button>
               {upload && <Tag color="success">{upload.tables.length} 张表 · {displaySize(upload.size)} · 上传成功</Tag>}
             </Space>
             {progress !== null && <Progress percent={progress} size="small" />}
@@ -218,7 +244,7 @@ export default function DatabaseMigrationPage() {
         )}
 
         <Space wrap>
-          <Button icon={<DatabaseOutlined />} disabled={!source || active} loading={busy === "snapshot"} onClick={createSnapshot}>生成完整 .db</Button>
+          <Button icon={<DatabaseOutlined />} disabled={!source || active || Boolean(busy)} loading={busy === "snapshot"} onClick={createSnapshot}>生成完整 .db</Button>
           {shownSnapshot && <Button icon={<DownloadOutlined />} loading={busy === "download"} onClick={() => void run("download", () => saveSnapshotFile(shownSnapshot.id))}>下载已生成备份</Button>}
         </Space>
         {shownSnapshot && <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -230,12 +256,13 @@ export default function DatabaseMigrationPage() {
             <Descriptions.Item label="SHA-256" span={2}><Text copyable className="break-all">{shownSnapshot.sha256}</Text></Descriptions.Item>
           </Descriptions>
         </div>}
-      </Card>}
+      </Card>
 
-      {status?.dbType !== "MYSQL" && <Card title="迁移预检查与执行">
+      <Card title="迁移预检查与执行">
         <Space wrap>
-          <Button onClick={doCheck} disabled={!canMigrate} loading={busy === "check"}>检查源库与 MySQL</Button>
-          <Button type="primary" danger onClick={start} disabled={!canMigrate || !check?.passed} loading={busy === "start"}>开始一键迁移</Button>
+          <Button onClick={doCheck} disabled={!canMigrate} loading={busy === "check"}>检查源库与目标库</Button>
+          <Button onClick={() => start("sync")} disabled={!canMigrate || !check?.passed} loading={busy === "start"}>覆盖同步后恢复当前库</Button>
+          <Button type="primary" danger onClick={() => start("switch")} disabled={!canMigrate || !check?.passed} loading={busy === "start"}>覆盖同步并准备切换</Button>
         </Space>
         {check && <div className="mt-4 space-y-3">
           <Alert showIcon type={check.passed ? "success" : "error"} message={check.passed ? "全部预检查通过" : "预检查存在阻断项"}
@@ -247,9 +274,9 @@ export default function DatabaseMigrationPage() {
               { title: "说明", dataIndex: "detail", render: (value: string) => <Text className="break-all">{value}</Text> },
             ]} />
           <Table rowKey="name" size="small" dataSource={check.tables} pagination={{ pageSize: 8, showSizeChanger: false }}
-            columns={[{ title: "SQLite 表名", dataIndex: "name" }, { title: "记录数", dataIndex: "count", align: "right" }]} />
+            columns={[{ title: "源数据表", dataIndex: "name" }, { title: "记录数", dataIndex: "count", align: "right" }]} />
         </div>}
-      </Card>}
+      </Card>
 
       <Card title="迁移任务及进度">
         {task ? <div className="space-y-3">
@@ -258,21 +285,24 @@ export default function DatabaseMigrationPage() {
             <Text type="secondary">任务 {task.id}</Text>
             <Text type="secondary">创建于 {dateTime(task.createdAt)}</Text>
           </Space>
-          <Progress percent={percent} status={task.status === "FAILED" ? "exception" : task.status === "READY_TO_SWITCH" ? "success" : "active"} />
+          <Progress percent={percent} status={task.status === "FAILED" ? "exception" : ["COMPLETED", "READY_TO_SWITCH"].includes(task.status) ? "success" : "active"} />
           <Space wrap>
             <Text>当前表：{task.currentTable || "—"}</Text>
             <Text>已迁移 {task.processedRows.toLocaleString()} / {task.totalRows.toLocaleString()} 条</Text>
             <Text>校验通过 {task.tables.filter(item => item.status === "VERIFIED").length} 张表</Text>
           </Space>
           {task.status === "READY_TO_SWITCH" && <Alert type="success" showIcon message="迁移成功，等待手动切换"
-            description={<span>数据校验通过，请将服务端环境变量设置为 <Text code>DB_TYPE=MYSQL</Text>，确认 <Text code>MYSQL_URL</Text> 指向本次目标库，然后通过既有部署方式重启 Server。重启前不要解除维护模式。</span>} />}
+            description={<span>数据校验通过，请将服务端环境变量设置为 <Text code>DB_TYPE={task.targetDialect?.toUpperCase() || targetDialect}</Text>，确认目标配置指向本次目标库，然后通过既有部署方式重启 Server。重启前不要解除维护模式。</span>} />}
+          {task.status === "COMPLETED" && <Alert type="success" showIcon message="同步完成，当前源库已恢复运行" description="后续写入不会自动同步，需要切换时请重新准备切换。" />}
+          <Text type="secondary">模式：{task.mode === "sync" ? "覆盖同步" : "准备切换"} · {task.sourceDialect || "源库"} → {task.targetDialect || "目标库"} · 目标可用：{task.targetUsable === true ? "是" : "尚未确认"}</Text>
           {(task.error || task.status === "INTERRUPTED") && <Alert type="error" showIcon
             message={task.status === "INTERRUPTED" ? "迁移中断" : "迁移失败"} description={task.error || "服务器意外重启，保持维护状态"} />}
           <Space wrap>
             <Button icon={<DownloadOutlined />} onClick={() => void run("report", () => saveMigrationReport(task.id))} loading={busy === "report"}>导出 JSON 报告</Button>
-            {task.snapshotId && <Button onClick={() => void run("download", () => saveSnapshotFile(task.snapshotId!))}>下载本次迁移快照</Button>}
-            {status?.dbType === "SQLITE" && ["FAILED", "INTERRUPTED"].includes(task.status) &&
-              <Button onClick={() => { setRetryTaskId(task.id); setSourceType(task.source.sourceType === "server" ? "server" : "upload"); if (task.source.sourceType === "upload" && task.source.sourceId) setUpload({ id: task.source.sourceId, size: 0, createdAt: task.createdAt, tables: [] }); setCheck(null); messageApi.info("已设为重试任务，请先重新预检查"); }}>使用此任务重新检查</Button>}
+            {task.snapshotId && <Button onClick={() => void run("download", () => saveSnapshotFile(task.snapshotId!))}>下载源库备份</Button>}
+            {task.targetBackupId && <Button onClick={() => void run("download", () => saveSnapshotFile(task.targetBackupId!))}>下载覆盖前目标库备份</Button>}
+            {["FAILED", "INTERRUPTED"].includes(task.status) &&
+              <Button disabled={active || Boolean(busy)} onClick={() => { setRetryTaskId(task.id); setSourceType(status?.dbType === "MYSQL" ? "server" : task.source.sourceType); if (task.source.sourceType === "snapshot") setSnapshotSourceId(task.source.sourceId); if (task.source.sourceType === "upload" && task.source.sourceId) setUpload({ id: task.source.sourceId, size: 0, createdAt: task.createdAt, tables: [] }); setCheck(null); messageApi.info("已设为重试任务，请先重新预检查"); }}>使用此任务重新检查</Button>}
           </Space>
           <Divider className="!my-3" />
           <Table rowKey="name" size="small" pagination={{ pageSize: 8, showSizeChanger: false }} dataSource={task.tables}
@@ -289,7 +319,7 @@ export default function DatabaseMigrationPage() {
         <Table rowKey="id" size="small" dataSource={tasks} pagination={{ pageSize: 8, showSizeChanger: false }}
           columns={[
             { title: "创建时间", dataIndex: "createdAt", render: dateTime },
-            { title: "来源", dataIndex: ["source", "sourceType"], render: (value: string) => value === "server" ? "服务器 SQLite" : "上传文件" },
+            { title: "来源", dataIndex: ["source", "sourceType"], render: (value: string) => value === "server" ? "服务器运行库" : value === "snapshot" ? "SQLite 备份" : "上传文件" },
             { title: "结果", dataIndex: "status", render: (value: string) => <Tag color={badgeStatus(value)}>{stateLabels[value] || value}</Tag> },
             { title: "迁移记录", dataIndex: "processedRows", align: "right", render: (value: number) => value?.toLocaleString() },
             { title: "操作", key: "operations", render: (_: unknown, record: MigrationTask) =>
@@ -297,7 +327,7 @@ export default function DatabaseMigrationPage() {
                 <Button size="small" type="link" onClick={() => void run("report", () => saveMigrationReport(record.id))}>报告</Button></Space> },
           ]} />
       </Card>
-      <Text type="secondary" className="block text-xs">数据迁移只修改独立的目标 MySQL 库，原始 SQLite 和七牛云文件不会自动删除。MySQL 5.7 已停止常规安全维护，生产部署请限制网络访问。</Text>
+      <Text type="secondary" className="block text-xs">迁移覆盖服务端配置的另一种数据库，源库保留，外部资源不会自动复制。切换前请检查目标数据、资源路径与配置。</Text>
     </div>
   );
 }

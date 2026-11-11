@@ -31,14 +31,14 @@ adminDatabaseMigrationRouter.post("/uploads",action(async(req,res)=>{
   }finally{release();}
 }));
 adminDatabaseMigrationRouter.post("/tasks",action(async(req,res)=>{
-  if(req.body?.confirm!==true){res.status(400).json(fail("需确认维护模式和空目标库",400));return;}
+  if(req.body?.confirm!==true || req.body?.confirmOverwrite!==true){res.status(400).json(fail("需确认维护模式、目标停写和完整覆盖",400));return;}
   if(activeTask()){res.status(409).json(fail("已有迁移任务正在执行",409));return;}
-  res.status(202).json(ok(startMigration(parseSource(req.body),req.body?.retryTaskId)));
+  res.status(202).json(ok(startMigration(parseSource(req.body),req.body?.retryTaskId,{mode:req.body?.mode,confirmOverwrite:req.body?.confirmOverwrite})));
 }));
 adminDatabaseMigrationRouter.get("/tasks",action(async(_req,res)=>{res.json(ok(listTasks()));}));
 adminDatabaseMigrationRouter.get("/tasks/:id",action(async(req,res)=>{res.json(ok(getTask(String(req.params.id))));}));
 adminDatabaseMigrationRouter.get("/tasks/:id/report",action(async(req,res)=>{res.setHeader("Content-Disposition",`attachment; filename="migration-report.json"`);res.json(ok(getTask(String(req.params.id))));}));
 adminDatabaseMigrationRouter.post("/maintenance/exit",action(async(req,res)=>{
-  if(req.body?.confirm!==true){res.status(400).json(fail("需确认安全恢复 SQLite",400));return;}
+  if(req.body?.confirm!==true){res.status(400).json(fail("需确认任务已停止并恢复当前源库",400));return;}
   await cancelMaintenance();res.json(ok({maintenance:false}));
 }));

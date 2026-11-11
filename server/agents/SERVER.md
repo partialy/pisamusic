@@ -56,11 +56,16 @@
 - 服务端接口文档与索引规范：服务端接口文档存放在 `server/apidoc/`，按模块分目录维护（如 `user/`、`config/`、`device/`、`sync/`、`shares/`、`listenTogether/`、`feedback/`、`faultReports/`、`analytics/`、`admin/`、`system/`、`common/`），统一索引为 `server/apidoc/index.md`。任何新增、修改、重构或删除（CRUD）服务端接口的改动，必须同步更新对应模块下的文档文件（如 `server/apidoc/<module>/<apiName>.md`）及 `server/apidoc/index.md` 索引链接与描述，确保接口定义与文档始终保持一致。
 - 服务端改动至少运行 TypeScript 构建，并按影响面检查相关接口。
 
-## SQLite / MySQL 5.7 双数据库与迁移运维
+## SQLite / MySQL 5.7 独立部署、安装与复制
 
 - Server 支持 `DB_TYPE=SQLITE|MYSQL`（缺省 SQLITE），`PISA_APP_DB_PATH` 指向 SQLite；MySQL 5.7 通过 `MYSQL_URL` 连接，不允许连接失败自动回退 SQLite。Node 版本要求 `>=22.16.0`。
 - 数据库访问层为 `src/db/core/` 的异步 DbClient；Store/Service/Route 必须 await 结果，事务必须绑定同一连接；不再在模块 import 阶段调用未初始化的数据库。
-- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，版本账本为 `schema_migrations`；不得在生产启动时运行破坏性自动删表。业务存储仍保留 SQLite 兼容模式。
-- Admin 数据迁移接口为 `/api/admin/database-migration/*`，页面位于「系统设置 → 数据迁移」。迁移器在 `src/operations/`：空 MySQL 目标库、完整 SQLite Backup 快照、逐表校验和失败保护。API 说明见 [数据库迁移文档](../apidoc/databaseMigration/overview.md)。
-- 维护状态存于 `server/data/operations/`；普通业务请求直接 503、Socket.IO 连接被拒绝，数据库模式切换只能通过配置并重启。完整备份包含 WAL 已提交数据，原始 `pm.db` 永不自动删除。
+- `DB_TYPE` 唯一选择运行库；不依赖本机迁移记录、旧 `activatedMysql` 或连接串指纹，也不禁止切回 SQLite。另一引擎仅在复制时需要配置。
+- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，空专用库可直接建表；`schema_migrations` 当前 v2，已有 v1 库经兼容校验后升级。不在生产启动执行破坏性删表，也不以整包DDL哈希相等代替版本升级。
+- 安装标记为库内 `app_installation`，与Schema账本分离；首管、默认配置和标记事务提交。已有管理员库兼容补标记，无管理员走安装令牌保护的向导；接口为 `/api/setup/status`、`/api/setup/complete`，参见[安装文档](../apidoc/system/setup.md)。
+- 未安装/复制未完成的库禁止业务HTTP和Socket，不开放重新接管失败目标。管理员及用户JWT绑定安装身份，旧token需重新登录；完整副本保留源身份。
+- Admin「系统设置 → 数据迁移」调用 `/api/admin/database-migration/*`；`src/operations/` 支持SQLite↔MySQL全量覆盖。先排空源写入、备份源与目标，再事务替换及逐表摘要校验；目标须停止其他服务写入。不复制Schema账本或文件资产，未知非空数据禁止静默丢弃。
+- `sync` 成功恢复源库，`switch` 成功保持维护等待手动改env重启；失败保留备份和报告，目标库持久化 `incomplete`。重试从头执行；离线备份恢复入口为 `scripts/restore-database-backup.cjs`。
+- 运行记录存于 `server/data/operations/`，维护状态按引擎与安装身份隔离，不读取旧全局 `state.json`。SQLite备份包含WAL，MySQL导出为含原始DDL的便携SQLite。详见[复制与恢复文档](../apidoc/databaseMigration/overview.md)。
+- 隔离验收命令为 `pnpm --dir server verify:databases`；只创建随机测试MySQL库和项目内临时文件，不写env业务库。旧记录人工清理脚本为 `scripts/sql/cleanup-legacy-migration-metadata.sql`，当前Schema与安装标记必须保留。
 - 静态 Schema 校验命令：`pnpm --dir server verify:mysql57`；不能替代在真实 MySQL 5.7 上执行 DDL/迁移及人工业务验收。不要把备份 .db 放入公共静态目录，也不得提交 .env 真实密码。
