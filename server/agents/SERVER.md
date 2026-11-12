@@ -4,6 +4,10 @@
 
 - Node.js / TypeScript 后端集中在 `server/`，不要移回 `pm/server` 或 `yixi`。
 - Controller / Route 仅处理参数、基础校验与响应；业务在 Service，持久化在 Store / Repository，不把业务和数据库细节堆进路由。
+- 单文件规模与防耦合红线：单文件代码行数尽量控制在 500 行以内，严格禁止超过 1000 行。严禁将新功能或无关业务继续向 `configStore.ts`、`admin.ts`、`cloudMusicService.ts`、`appDb.ts` 等历史大文件回塞。
+  - **Store 层边界**：Store 必须按数据表/领域实体独立建文件（1 个 Store 对应 1 张核心实体表及其从属表）。`configStore.ts` 仅保留基础系统配置，文件记录必须在 `fileRecordStore.ts`、发布历史在 `updateHistoryStore.ts`、系统公告在 `announcementStore.ts`、管理员账户在 `adminUserStore.ts`、加解密路径在 `encryptionStore.ts`。
+  - **Route 层边界**：`routes/admin.ts` 严格定位为子路由装配中心，禁止在 `admin.ts` 内部直接内联编写超过 5 行的业务路由实现；所有管理端路由必须拆分为独立的 `adminXxx.ts` 子 Router，并在 `admin.ts` 中通过 `adminRouter.use("/xxx", ...)` 挂载。
+  - **Service 层边界**：复杂的跨端业务服务必须按角色与视角拆分（如 Public 只读检索、User 用户投稿与管理、Admin 后台运维与审核），底层音视频二进制提取或第三方 SDK 交互必须提取为独立 Helper，避免全生命周期逻辑堆在单个巨大 Service。
 - 涉及账号、同步、消息、分享、一起听、云盘、发布、故障或听歌统计时，按需查阅[跨模块契约](../../agents/CROSS_MODULE.md)对应章节。
 
 ## 运行与构建
@@ -22,7 +26,7 @@
 - 旧 `release_files` / `desktop_update_assets` 表已废弃，启动时会删除；发布安装包、PC 自动更新 `latest.yml` / EXE / blockmap 都直接读写 `file_records`，不要恢复旧表或旧表迁移逻辑。
 - 文件管理允许删除被历史、当前 Android / PC 发布版本或 active PC 自动更新引用的七牛对象；删除时必须调用七牛删除对象，把本地记录标记为 `deleted`，同步清理 `update_history.release_file_id`、`file_records.referenced_by`、当前发布下载地址和 active 自动更新引用，不要物理删除数据库记录。
 - 发布历史的完整删除仅允许非当前版本：`update_history` 使用 `deleted_at` 逻辑删除，Android 同步删除关联安装包，PC 同步删除该版本安装包、`latest.yml` 和 blockmap；七牛对象实际删除，`file_records` 保留并标记为 `deleted`。当前 Android / PC 版本必须先发布替代版本后才能删除。
-- 网盘音乐（`source: "cloud"`）独立存储与分发，曲库记录与资产分别登记在 SQLite 的 `cloud_music_tracks` 和 `cloud_music_assets` 表，物理文件登记在 `file_records`（`usage_type='cloud-music'`，支持所有者关联）。上传采用预登记会话 + 七牛私有直传 + `stat` 校验 + 音频元数据（`music-metadata`）解析。公开检索与详情入口为 `/api/cloud-music/*`，播放及歌词链接签发 1 小时私有签名 URL（`disabled` 曲目不可播）；后台管理接口为 `/api/admin/cloud-music/*`，支持状态流转、审核、试听与临时文件一键清理。网盘音乐不参与第三方音乐源聚合。
+- 网盘音乐（`source: "cloud"`）独立存储与分发，曲库记录与资产分别登记在 SQLite 的 `cloud_music_tracks` 和 `cloud_music_assets` 表，物理文件登记在 `file_records`（`usage_type='cloud-music'`，支持所有者关联）。管理端 `/api/admin/cloud-music/*` 由浏览器本地解析音频标签、内嵌封面与内嵌歌词并直传七牛，服务端 `complete` 仅调用七牛 `stat` 校验对象并接收前端解析的规格与元数据直接入库（无需服务端临时下载文件）；客户端用户投稿 `/api/cloud-music/submit/*` 保持服务端 `stat` 校验与 `music-metadata` 解析。公开检索与详情入口为 `/api/cloud-music/*`，播放及歌词链接签发 1 小时私有签名 URL（`disabled` 曲目不可播）；后台管理支持批量上传队列、状态流转、审核、试听与临时文件一键清理。网盘音乐不参与第三方音乐源聚合。
 - 服务端版本发布支持手填直链或后台上传安装包到七牛云。七牛配置使用 `server/.env` 中的 `QINIU_ACCESS_KEY`、`QINIU_SECRET_KEY`、`QINIU_BUCKET`、`QINIU_UPLOAD_URL`、`QINIU_DOMAIN`、`QINIU_DOMAIN_CDN`；`server/.env` 不提交，提交 `server/.env.example` 作为模板。
 - 七牛安装包信息统一保存在 `file_records` 表，发布历史通过 `update_history.release_file_id` 记录文件记录 ID。上传到七牛的安装包对外下载地址必须使用服务端 `/api/config/release-files/:id/download` 入口，由服务端生成七牛私有空间临时签名 URL 后跳转，不要把七牛对象直链直接下发给客户端。删除发布记录关联安装包时只删除七牛对象与文件状态，不删除历史记录；如果当前 Android / PC 发布配置正引用该文件下载地址，需要同步清空下载地址并关闭下载状态。
 - 七牛安装包上传：管理后台通过 `/api/admin/release-files/upload-token` 获取上传凭证，客户端直传七牛后调用 `/api/admin/release-files/complete` 登记文件，再发布版本；删除历史安装包使用 `/api/admin/update-history/:id/release-file`。
@@ -61,7 +65,7 @@
 - Server 支持 `DB_TYPE=SQLITE|MYSQL`（缺省 SQLITE），`PISA_APP_DB_PATH` 指向 SQLite；MySQL 5.7 通过 `MYSQL_URL` 连接，不允许连接失败自动回退 SQLite。Node 版本要求 `>=22.16.0`。
 - 数据库访问层为 `src/db/core/` 的异步 DbClient；Store/Service/Route 必须 await 结果，事务必须绑定同一连接；不再在模块 import 阶段调用未初始化的数据库。
 - `DB_TYPE` 唯一选择运行库；不依赖本机迁移记录、旧 `activatedMysql` 或连接串指纹，也不禁止切回 SQLite。另一引擎仅在复制时需要配置。
-- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，空专用库可直接建表；`schema_migrations` 当前 v3，已有 v1 库先补 v2 安装元数据，再进行 v2→v3 官网域名统计增量升级。DDL 意图逐步记账，失败阻断业务启动，同任务可幂等续迁；全部结构校验通过才标记 applied。不在生产启动执行破坏性删表，也不以整包DDL哈希相等代替版本升级。
+- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，空专用库可直接建表；`schema_migrations` 当前 v4，已有 v1 库先补 v2 安装元数据，再进行 v2→v3 官网域名统计和 v3→v4 同步日志保留下限增量升级。DDL 意图逐步记账，失败阻断业务启动，同任务可幂等续迁；全部结构校验通过才标记 applied。不在生产启动执行破坏性删表，也不以整包DDL哈希相等代替版本升级。
 - 安装标记为库内 `app_installation`，与Schema账本分离；首管、默认配置和标记事务提交。已有管理员库兼容补标记，无管理员走安装令牌保护的向导；接口为 `/api/setup/status`、`/api/setup/complete`，参见[安装文档](../apidoc/system/setup.md)。
 - 未安装/复制未完成的库禁止业务HTTP和Socket，不开放重新接管失败目标。管理员及用户JWT绑定安装身份，旧token需重新登录；完整副本保留源身份。
 - Admin「系统设置 → 数据迁移」调用 `/api/admin/database-migration/*`；`src/operations/` 支持SQLite↔MySQL全量覆盖。先排空源写入、备份源与目标，再事务替换及逐表摘要校验；目标须停止其他服务写入。不复制Schema账本或文件资产，未知非空数据禁止静默丢弃。
@@ -75,4 +79,12 @@
 - 同源反代保留原始 Host（如 `proxy_set_header Host $host;`），`utils/websiteDomain.ts` 规范化域名，不信任 X-Forwarded-Host，不配置白名单。无效/历史域名使用空串，不从 Referrer 猜测。各节点共享数据库与 `ANALYTICS_HASH_SALT`。
 - `/api/analytics/page-view` 明文采集，Service/Store 同事务写入事件 UUID 幂等 PV 和每日每域名访客 UV；旧 site-visit 仅写 UV。PV 位于 `site_page_view_records`，UV 唯一约束为 `(visit_day,domain,visitor_hash)`，下载原有推广归因事务透传域名。三类明细按分析保留期清理。
 - Admin `GET /api/admin/website-records/stats` 按 7/30/90 天与可选域名返回零填充趋势、汇总、域名排行及页面 PV 排行；列表增加 domain/startDay/endDay 筛选。Dashboard 统一累计日 UV，允许同人跨域重复。官网普通 PV 与 App 推广归因独立，Android/PC 契约不变。
-- 升级发布先停各节点写入并备份，完成 Schema v3 后发布官网；禁止旧 v2 Server 长期混跑。复制表清单与恢复默认值保留新增 domain/PV；静态 DDL 校验不能替代真实 MySQL 5.7 升级与多域名验收。
+- 升级发布先停各节点写入并备份，完成当前 Schema v4（含 v3 官网统计）后发布官网；禁止旧 Server 与新同步清理流程长期混跑。复制表清单与恢复默认值保留新增 domain/PV；静态 DDL 校验不能替代真实 MySQL 5.7 升级与多域名验收。
+
+## 账号收藏同步
+
+- `/api/sync/changes` 按 route → `services/syncService.ts` → `db/syncStore.ts` 分层；服务层负责校验、opId 过滤、同 key 合并、canonical no-op 与默认开启的 LWW，Store 负责用户行锁、原子批量版本分配和批量持久化。参数错误 400，快照过期 409，数据库错误 500。
+- Schema v4 新增 `users.sync_log_floor`（最后裁剪版本；since==floor 仍可增量），SQLite 与 MySQL 启动增量升级，MySQL 失败保留账本阻断启动。复制描述符包含 floor 默认值 0，保留历史源兼容。
+- 新端 GET `protocol=2` 使用 `snapshotVersion` / `cursor` / `hasMore`，快照页在用户行锁内读取；版本变化返回 409 重启累计，末页才对账和推进游标。旧端一次返回包含墓碑的完整快照 changes，避免分页循环。收藏时间 `favoritedAt` 契约见[跨模块同步](../../agents/CROSS_MODULE.md)和[接口说明](../apidoc/sync/getSyncChanges.md)。
+- `services/syncCleanup.ts` 启动后每小时检查每日门禁，参与维护排空；默认清理 90 天前且超出每用户最近 1000 条的连续日志前缀，并原子推进 floor；applied_ops 保留 30 天，实体及墓碑长期保留。运行时策略为 `sync.logRetentionDays`、`sync.logMinimumEntries`、`sync.lwwEnabled`。客户端未来时钟限制为当前+5分钟，相同 no-op 也推进冲突时钟。
+- 聚焦验收 `pnpm --dir server verify:sync`：内存 SQLite + 配置可连接时随机隔离 MySQL 库；不会使用业务库，连接失败不回退。只跑 SQLite 可在构建后执行 `node server/scripts/verify-sync.cjs --sqlite-only`。
