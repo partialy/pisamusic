@@ -32,7 +32,8 @@
             android:id="@+id/backButton"
             style="@style/Widget.Pm.PageLeadingAction"
             android:contentDescription="@string/download_management_title"
-            android:src="@drawable/ic_back_24" />
+            android:src="@drawable/ic_back_24"
+            app:tint="?attr/colorOnSurface" />
 
         <FrameLayout
             android:layout_width="0dp"

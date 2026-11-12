@@ -54,6 +54,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
             createPlaybackDiagnosticTables(db)
         }
         if (oldVersion < 13) migratePlaylistSongIdentity(db)
+        if (oldVersion < 14) addColumnIfMissing(db, "local_songs", "album", "TEXT NOT NULL DEFAULT ''")
     }
 
     private fun createLocalPlaylistTables(db: SQLiteDatabase) {
@@ -323,6 +324,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
                 file_path TEXT NOT NULL DEFAULT '',
                 title TEXT NOT NULL DEFAULT '',
                 artist TEXT NOT NULL DEFAULT '',
+                album TEXT NOT NULL DEFAULT '',
                 duration INTEGER,
                 size INTEGER,
                 mime_type TEXT NOT NULL DEFAULT '',
@@ -387,7 +389,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
 
     companion object {
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 13
+        private const val DB_VERSION = 14
     }
 
     private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {

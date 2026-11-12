@@ -14,6 +14,7 @@ data class LocalMusicMediaRow(
     val displayName: String,
     val duration: Long?,
     val size: Long?,
+    val album: String? = null,
 )
 
 object LocalMusicMediaStore {

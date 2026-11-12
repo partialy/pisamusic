@@ -207,6 +207,8 @@
 - 账号接口通过 `ConfigManager` / `SystemApiService` 访问外层服务端 `/api/auth/*`，继续走系统服务端 AES-GCM 加密链路；登录 token 由 `AccountSessionStore` 持久化并同步到 `TokenManager`。`LoginActivity` 支持用户名/邮箱/手机号密码登录及邮箱/手机号验证码登录；注册账号、找回密码由 `AccountAssistActivity` 的原生页面承载，支持邮箱/手机号切换并调用对应验证码、注册和 `reset_password` 接口。
 - 同步接口通过外层服务端 `/api/sync/*` 拉取/推送增量，使用账号 `Authorization: Bearer <userToken>` 鉴权；旧同步码创建、加入、重置和解绑设备流程已移除。
 - `SyncManager` 是手机端账号同步编排入口，负责登录后 seed 本地 outbox、拉取/推送增量和应用远端 tombstone；未登录时只记录本地 outbox，不主动推送；同步游标按账号隔离，账号切换时必须重置游标并重新 seed 本地 outbox。
+- 收藏歌曲以 SQLite 为权威：`loveList.json` 只首次迁移，已有 SQLite 收藏或收藏 outbox 时不再回灌镜像；显式备份导入仍允许追加。`LoveManager` 在同一锁内处理本机操作、首次 seed 和远端下行，同账号同歌曲有 pending 时保留本机最新操作；收藏增删与 outbox 同事务提交。
+- 同步运行中新增请求必须补跑；outbox 分批排空。远端同步每页最多 1000 条，按实际处理的日志版本继续拉取至追平账号版本，空缺页报错且不跳游标；成功游标只推进到已拉取并应用的版本，不能用全局响应版本或 push 版本跳过未处理的变更。
 - `sync_outbox` 表保存本地待推送 op，收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更必须写入 outbox；已登录账号时由 `SyncWorkRunner` 触发后台增量同步。
 - `sync_outbox` 按账号 `account_id` 隔离读取和推送；账号切换、退出登录或 refresh 失效时必须清理旧账号/未归属 outbox，避免把上一账号待同步操作推给新账号。
 - 同步 payload 只允许使用 `CanonicalSong` / `CanonicalPlaylist` 字段；不要同步 `source=local` 歌曲，不要同步播放 URL、filePath、歌词正文、内嵌封面。本地文件封面在自建歌单同步时置空，另一端应显示默认封面。
@@ -288,10 +290,12 @@
 - 本地账号 session 保存 `phone`；个人资料页邮箱和手机号均按前三位 + 六个星号 + 后两位展示，点击对应行进入换绑流程，手机号通过 `/api/auth/profile/phone-code` 与 `PATCH /api/auth/profile` 完成。
 
 - 本地歌曲列表不再直接把 MediaStore 查询结果作为运行时唯一来源；`pm_local_music.db` 的 `local_songs` 表是本地歌曲索引，`origin=media_store` 表示系统媒体库扫描项，`origin=imported_uri` 表示用户通过文件选择器导入的外部文档引用。
+- 本地库 v14 无损增加 `local_songs.album`；`LocalAudioMetadataReader` 对文件和 URI 统一逐字段读取 jaudiotagger / Android Retriever，保留毫秒时长。扫描、导入及已有索引读取均补齐歌名、歌手、专辑；空值不覆盖有效旧字段，刷新仅更新未删除的已导入记录，不重新导入移除项。页面加载取消旧请求，防止较晚返回的旧快照覆盖结果。
 - 进入本地歌曲页或编辑页时只读取 `local_songs` 中未删除的已导入记录，不再自动同步 MediaStore 入库；系统媒体库歌曲必须通过“扫描歌曲”页预览、勾选并点击“导入”后才写入。
 - “扫描歌曲”页支持全盘 MediaStore 扫描和自定义文件夹扫描，默认过滤 60s 以下歌曲；扫描结果先展示为可取消勾选的候选列表，已存在歌曲标记为“已存在”且不重复导入。系统库中已消失的 `media_store` 记录如需清理时标记 `is_deleted=1`，不要物理删除历史记录。
 - “导入歌曲”只记录 `content://` 引用和元信息，并申请持久读取权限，不复制音频文件；重复过滤优先按 `content_uri`，其次按 `media_store_id`，再按 `display_name + size + duration` 兜底。
 - 编辑列表删除默认只移除 SQLite 引用；用户勾选“一并删除本地文件”时再尝试删除原始文件。删除授权失败时仍保留列表移除结果，并提示原文件可能未删除。
+- 本地歌曲 Tab 长按歌曲行进入原编辑页，按播放 ID 映射 `recordId` 初选并定位，防重复打开；底栏为全选 / 反选 / 删除，全选与反选作用于搜索结果全集并保留筛选外选择，旋转恢复搜索、选择和滚动。已下载 Tab 的管理入口打开下载管理，不编辑本地索引。
 
 ## 公告模块规范
 
@@ -322,6 +326,11 @@
 - 同曲同实际音质活跃或 PAUSED 任务、已完成且文件存在的任务跳过；失败、取消或文件丢失可以重新入队。目标文件名冲突必须唯一化，取消或删除后的迟到回调不得恢复任务状态。进度、失败、取消和重试在下载管理查看或操作，批量只提示一次汇总。
 
 ## 下载内核暂停与续传
+
+- 下载和“修复信息”通过 `AudioMetadataEmbedder` 显式挂回新 Tag，并在同目录文件事务内写入、回读验证后替换；成功后 `AudioMediaScanner` 通知系统刷新正式文件。`LocalAudioMetadataReader` 同时用于已下载列表与下载详情，单字段异常不丢失整首歌曲。
+- 下载封面与缺图修复共用 `DownloadCoverFetcher`，优先 1024，依次回退 720 / 480 / 240 / 原地址，校验响应确为图片，不放大小图；继续遵循写入封面开关，获取失败不阻断音频成功，已有封面不覆盖。
+- `AudioSourceTag` 将独立 `pm-info` 字段写入支持的音频格式：`kg:<原ID>`、`wy:<原ID>`、`kw:<原ID>`、`cloud:<UUID>`；不受普通标签开关影响，LOCAL 或空 ID 不写。MP3 用 TXXX，FLAC/OGG 用 Vorbis 自定义键，M4A 用 `cn.partialy.pm` freeform，WAV/AIFF 用 ID3，WMA 用 ASF 自定义字段，不占用备注。KW 仅新增来源字段，维持原有普通标签/歌词/封面写入策略。
+- 手动“修复信息”可根据可靠下载记录补写缺失来源字段，已有不同值保留并提示；不自动批量改写历史文件或猜测本地文件来源。格式不支持或附加字段失败应保留可读音频，并在下载管理报告元信息警告。
 
 - `download/task` 仓库使用 v3 增量数据库，保存执行代次和续传验证器，不保存带凭证 URL。暂停先 PAUSING，内核关闭流并保存实际 `.part` 游标后才 PAUSED；PROCESSING 不接受暂停/取消。
 - `DownloadQueueCoordinator.pause/resume/pauseAll/resumeAll` 是暂停恢复入口，恢复和失败重试沿用原 ID 并增加代次，FIFO 排队；恢复严格检查原实际音质权限和原目录，不自动降档。失败但正式音频有效时优先走原信息修复流程。

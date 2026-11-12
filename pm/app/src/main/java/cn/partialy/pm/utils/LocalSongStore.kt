@@ -3,7 +3,6 @@ package cn.partialy.pm.utils
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
@@ -35,6 +34,7 @@ data class LocalSongScanCandidate(
     val mimeType: String,
     val displayName: String,
     val isExisting: Boolean,
+    val album: String? = null,
 )
 
 @Singleton
@@ -70,6 +70,7 @@ class LocalSongStore @Inject constructor(
                     filePath = row.filePath,
                     title = row.title,
                     artist = row.artist,
+                    album = row.album,
                     duration = row.duration,
                     size = row.size,
                     mimeType = row.mimeType,
@@ -114,6 +115,7 @@ class LocalSongStore @Inject constructor(
                     filePath = "",
                     title = meta.title,
                     artist = meta.artist,
+                    album = meta.album,
                     duration = meta.duration,
                     size = meta.size,
                     mimeType = meta.mimeType,
@@ -183,6 +185,7 @@ class LocalSongStore @Inject constructor(
                     filePath = candidate.filePath,
                     title = candidate.title,
                     artist = candidate.artist,
+                    album = candidate.album,
                     duration = candidate.duration,
                     size = candidate.size,
                     mimeType = candidate.mimeType,
@@ -204,7 +207,7 @@ class LocalSongStore @Inject constructor(
             .distinctBy { it.playIdentity() }
             .map { it.toSongInfo() }
 
-    fun queryRows(includeDeleted: Boolean = false): List<LocalMusicMediaRow> {
+    fun queryRows(includeDeleted: Boolean = false, refreshTags: Boolean = true): List<LocalMusicMediaRow> {
         val where = if (includeDeleted) null else "is_deleted = 0"
         val db = helper.readableDatabase
         val rows = mutableListOf<LocalMusicMediaRow>()
@@ -221,7 +224,57 @@ class LocalSongStore @Inject constructor(
                 rows.add(cursor.toLocalRow())
             }
         }
-        return if (includeDeleted) rows else rows.distinctBy { it.playIdentity() }
+        if (includeDeleted) return rows
+        val uniqueRows = rows.distinctBy { it.playIdentity() }
+        return if (refreshTags) refreshMetadata(uniqueRows) else uniqueRows
+    }
+
+    /** 只刷新已导入且未删除的记录，不扫描入库或恢复用户移除的歌曲。 */
+    private fun refreshMetadata(rows: List<LocalMusicMediaRow>): List<LocalMusicMediaRow> {
+        val refreshed = rows.map { row ->
+            val metadata = readMetadata(row.contentUri, row.filePath, row.displayName)
+            row.copy(
+                title = metadata.title ?: row.title,
+                artist = metadata.artist ?: row.artist,
+                album = metadata.album ?: row.album,
+                duration = row.duration ?: metadata.durationMs,
+            )
+        }
+        val changed = rows.zip(refreshed).filter { (before, after) -> before != after }
+        if (changed.isNotEmpty()) {
+            val db = helper.writableDatabase
+            db.beginTransaction()
+            try {
+                changed.forEach { (_, row) ->
+                    val values = ContentValues().apply {
+                        put("title", row.title)
+                        put("artist", row.artist)
+                        put("album", row.album.orEmpty())
+                        row.duration?.let { put("duration", it) }
+                        put("updated_at", System.currentTimeMillis())
+                    }
+                    db.update(TABLE, values, "id = ? AND is_deleted = 0", arrayOf(row.recordId))
+                }
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
+            }
+        }
+        val activeIds = helper.readableDatabase.query(
+            TABLE, arrayOf("id"), "is_deleted = 0", null, null, null, null,
+        ).use { cursor ->
+            buildSet { while (cursor.moveToNext()) add(cursor.getString(0)) }
+        }
+        return refreshed.filter { it.recordId in activeIds }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title.ifBlank { it.displayName } })
+    }
+
+    private fun readMetadata(contentUri: String, filePath: String, displayName: String): LocalAudioMetadata {
+        val file = filePath.takeIf(String::isNotBlank)?.let(::File)
+        val direct = if (file?.canRead() == true) LocalAudioMetadataReader.read(context, file)
+            else LocalAudioMetadata()
+        if (direct.isComplete || contentUri.isBlank()) return direct
+        return direct.supplementedBy(LocalAudioMetadataReader.read(context, Uri.parse(contentUri), displayName))
     }
 
     fun queryRowsByIds(ids: Set<String>): List<LocalMusicMediaRow> {
@@ -253,6 +306,7 @@ class LocalSongStore @Inject constructor(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.SIZE,
@@ -270,6 +324,7 @@ class LocalSongStore @Inject constructor(
             val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
             val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
@@ -280,16 +335,18 @@ class LocalSongStore @Inject constructor(
                 val contentUri = LocalMusicMediaStore.contentUri(mediaId).toString()
                 val displayName = cursor.getString(displayCol).orEmpty()
                 val path = cursor.getString(dataCol).orEmpty()
+                val metadata = readMetadata(contentUri, path, displayName)
                 rows.add(
                     MediaStoreRow(
                         mediaId = mediaId,
                         contentUri = contentUri,
                         filePath = path,
-                        title = cursor.getString(titleCol).orEmpty().ifBlank {
+                        title = metadata.title ?: cursor.getString(titleCol).orEmpty().ifBlank {
                             displayName.ifBlank { File(path).nameWithoutExtension }
                         },
-                        artist = cursor.getString(artistCol).orEmpty(),
-                        duration = cursor.getNullableLong(durationCol),
+                        artist = metadata.artist ?: cursor.getString(artistCol).orEmpty(),
+                        album = metadata.album ?: cursor.getString(albumCol),
+                        duration = cursor.getNullableLong(durationCol) ?: metadata.durationMs,
                         size = cursor.getNullableLong(sizeCol),
                         mimeType = cursor.getString(mimeCol).orEmpty(),
                         displayName = displayName,
@@ -319,12 +376,13 @@ class LocalSongStore @Inject constructor(
             }
         }
 
-        val mediaMeta = readRetrieverMetadata(uri)
+        val mediaMeta = LocalAudioMetadataReader.read(context, uri, displayName)
         return ImportedSongMetadata(
             contentUri = contentUri,
-            title = mediaMeta.title.ifBlank { displayName.substringBeforeLast('.', displayName) },
-            artist = mediaMeta.artist,
-            duration = mediaMeta.duration,
+            title = mediaMeta.title ?: displayName.substringBeforeLast('.', displayName),
+            artist = mediaMeta.artist.orEmpty(),
+            album = mediaMeta.album,
+            duration = mediaMeta.durationMs,
             size = size,
             mimeType = context.contentResolver.getType(uri).orEmpty(),
             displayName = displayName,
@@ -363,22 +421,6 @@ class LocalSongStore @Inject constructor(
         )
     }
 
-    private fun readRetrieverMetadata(uri: Uri): RetrieverMetadata {
-        val retriever = MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(context, uri)
-            RetrieverMetadata(
-                title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE).orEmpty(),
-                artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST).orEmpty(),
-                duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull(),
-            )
-        } catch (_: Exception) {
-            RetrieverMetadata()
-        } finally {
-            runCatching { retriever.release() }
-        }
-    }
-
     private fun upsertRowLocked(
         id: String,
         origin: String,
@@ -387,6 +429,7 @@ class LocalSongStore @Inject constructor(
         filePath: String,
         title: String,
         artist: String,
+        album: String?,
         duration: Long?,
         size: Long?,
         mimeType: String,
@@ -404,6 +447,7 @@ class LocalSongStore @Inject constructor(
             put("file_path", filePath)
             put("title", title)
             put("artist", artist)
+            put("album", album.orEmpty())
             if (duration != null) put("duration", duration) else putNull("duration")
             if (size != null) put("size", size) else putNull("size")
             put("mime_type", mimeType)
@@ -431,7 +475,7 @@ class LocalSongStore @Inject constructor(
     }
 
     private fun markMissingMediaStoreRowsDeletedLocked(seenIds: Set<String>, now: Long) {
-        val rows = queryRows(includeDeleted = false)
+        val rows = queryRows(includeDeleted = false, refreshTags = false)
             .filter { it.origin == ORIGIN_MEDIA_STORE && it.recordId !in seenIds }
         rows.forEach { row ->
             val values = ContentValues().apply {
@@ -489,6 +533,7 @@ class LocalSongStore @Inject constructor(
             type = SongType.LOCAL,
             name = title.ifBlank { displayName.ifBlank { File(playId).nameWithoutExtension } },
             artist = artist,
+            album = album,
             coverUrl = "",
             embeddedCoverArt = coverBytes,
             duration = duration?.toInt(),
@@ -515,6 +560,7 @@ class LocalSongStore @Inject constructor(
             filePath = getString(getColumnIndexOrThrow("file_path")).orEmpty(),
             title = getString(getColumnIndexOrThrow("title")).orEmpty(),
             artist = getString(getColumnIndexOrThrow("artist")).orEmpty(),
+            album = getString(getColumnIndexOrThrow("album"))?.takeIf(String::isNotBlank),
             displayName = getString(getColumnIndexOrThrow("display_name")).orEmpty(),
             duration = getNullableLong(getColumnIndexOrThrow("duration")),
             size = getNullableLong(getColumnIndexOrThrow("size")),
@@ -548,6 +594,7 @@ class LocalSongStore @Inject constructor(
             mimeType = mimeType,
             displayName = displayName,
             isExisting = duplicate != null && !duplicate.isDeleted,
+            album = album,
         )
     }
 
@@ -572,6 +619,7 @@ class LocalSongStore @Inject constructor(
             mimeType = mimeType,
             displayName = displayName,
             isExisting = duplicate != null && !duplicate.isDeleted,
+            album = album,
         )
     }
 
@@ -606,6 +654,7 @@ class LocalSongStore @Inject constructor(
         val filePath: String,
         val title: String,
         val artist: String,
+        val album: String?,
         val duration: Long?,
         val size: Long?,
         val mimeType: String,
@@ -616,16 +665,11 @@ class LocalSongStore @Inject constructor(
         val contentUri: String,
         val title: String,
         val artist: String,
+        val album: String?,
         val duration: Long?,
         val size: Long?,
         val mimeType: String,
         val displayName: String,
-    )
-
-    private data class RetrieverMetadata(
-        val title: String = "",
-        val artist: String = "",
-        val duration: Long? = null,
     )
 
     private data class DuplicateRow(
@@ -667,6 +711,7 @@ class LocalSongStore @Inject constructor(
             "file_path",
             "title",
             "artist",
+            "album",
             "duration",
             "size",
             "mime_type",

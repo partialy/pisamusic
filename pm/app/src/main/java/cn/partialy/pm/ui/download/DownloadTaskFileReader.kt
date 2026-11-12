@@ -7,11 +7,11 @@ import cn.partialy.pm.download.task.DownloadTask
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.utils.AudioEmbeddedArtReader
+import cn.partialy.pm.utils.LocalAudioMetadataReader
 import cn.partialy.pm.utils.SongCoverUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.FieldKey
 import java.io.File
 
 /** 文件读取结果只用于当前操作，不回写任务或本地曲库。durationMs 为毫秒。 */
@@ -46,17 +46,15 @@ object DownloadTaskFileReader {
                     val size = file.length().takeIf { it >= 0 } ?: historicalSize
                     try {
                         check(file.canRead() && (size ?: 0) > 0)
-                        val audio = AudioFileIO.read(file)
-                        val header = audio.audioHeader
-                        check(header != null)
-                        val tag = audio.tag
-                        fun field(key: FieldKey): String? = runCatching { tag?.getFirst(key)?.takeIf(String::isNotBlank) }.getOrNull()
-                        val seconds = header.trackLength.takeIf { it > 0 }
+                        val audio = runCatching { AudioFileIO.read(file) }.getOrNull()
+                        val metadata = LocalAudioMetadataReader.read(context, file)
+                        check(audio?.audioHeader != null || metadata.durationSeconds != null)
+                        val seconds = metadata.durationSeconds
                         val song = fallback.copy(
-                            name = field(FieldKey.TITLE) ?: fallback.name,
-                            artist = field(FieldKey.ARTIST) ?: fallback.artist,
-                            album = field(FieldKey.ALBUM) ?: fallback.album,
-                            embeddedCoverArt = AudioEmbeddedArtReader.readEmbeddedCoverBytesWithTag(context, file, tag),
+                            name = metadata.title ?: fallback.name,
+                            artist = metadata.artist ?: fallback.artist,
+                            album = metadata.album ?: fallback.album,
+                            embeddedCoverArt = AudioEmbeddedArtReader.readEmbeddedCoverBytesWithTag(context, file, audio?.tag),
                             // 与现有 DownloadManager.getDownloadedFiles 的 LOCAL 时长保持一致。
                             duration = seconds,
                         )

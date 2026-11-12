@@ -1,6 +1,7 @@
 package cn.partialy.pm.download
 
 import java.io.File
+import cn.partialy.pm.utils.AudioSourceTag
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 
@@ -11,6 +12,7 @@ object AudioMetadataVerifier {
     }.getOrDefault(false)
 
     @JvmStatic
+    @JvmOverloads
     fun verify(
         file: File,
         title: String?,
@@ -18,6 +20,7 @@ object AudioMetadataVerifier {
         album: String?,
         lyric: String?,
         expectedCover: Boolean,
+        expectedSourceInfo: String? = null,
     ): Boolean = runCatching {
         val audio = AudioFileIO.read(file)
         val tag = audio.tag
@@ -28,6 +31,7 @@ object AudioMetadataVerifier {
             check(FieldKey.ARTIST, artist) &&
             check(FieldKey.ALBUM, album) &&
             check(FieldKey.LYRICS, lyric) &&
-            (!expectedCover || tag?.firstArtwork != null)
+            (!expectedCover || tag?.firstArtwork != null) &&
+            (expectedSourceInfo.isNullOrBlank() || AudioSourceTag.read(tag) == expectedSourceInfo)
     }.getOrDefault(false)
 }

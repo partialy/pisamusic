@@ -41,11 +41,14 @@ import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
 import cn.partialy.pm.ui.local.LocalFragmentStateAdapter
 import cn.partialy.pm.ui.local.viewModels.DownloadedMusicViewModel
 import cn.partialy.pm.ui.local.viewModels.LocalMusicViewModel
+import cn.partialy.pm.ui.playlistdetail.BatchLongPressGuard
 import cn.partialy.pm.utils.DownloadManager
 import cn.partialy.pm.utils.LocalSongProvider
 import com.google.android.material.color.MaterialColors
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -60,6 +63,8 @@ class LocalMusicActivity : BaseDownloadActivity() {
     private val downloadedSongs = mutableListOf<SongInfo>()
     private var miniPlayerBinder: HomeMiniPlayerBinder? = null
     private var localMenuPopup: PopupWindow? = null
+    private val batchLongPressGuard = BatchLongPressGuard()
+    private var musicLoadJob: Job? = null
 
     @Inject
     lateinit var localSongProvider: LocalSongProvider
@@ -257,10 +262,11 @@ class LocalMusicActivity : BaseDownloadActivity() {
         addLocalMenuRow(
             container = container,
             iconRes = R.drawable.ic_edit_24,
-            text = getString(R.string.local_music_edit_list),
+            text = getString(if (binding.viewPager.currentItem == TAB_LOCAL) R.string.local_music_edit_list else R.string.download_management_title),
         ) {
             localMenuPopup?.dismiss()
-            openEditLocalMusic()
+            if (binding.viewPager.currentItem == TAB_LOCAL) openEditLocalMusic()
+            else DownloadManagementActivity.start(this)
         }
 
         val width = (resources.displayMetrics.density * 120).toInt()
@@ -305,8 +311,12 @@ class LocalMusicActivity : BaseDownloadActivity() {
         container.addView(row)
     }
 
-    private fun openEditLocalMusic() {
-        localMusicEditLauncher.launch(Intent(this, LocalMusicEditActivity::class.java))
+    fun openEditLocalMusic(initialSong: SongInfo? = null) {
+        if (isFinishing || isDestroyed || binding.viewPager.currentItem != TAB_LOCAL) return
+        if (initialSong != null && !batchLongPressGuard.acquire()) return
+        localMusicEditLauncher.launch(Intent(this, LocalMusicEditActivity::class.java).apply {
+            putExtra(LocalMusicEditActivity.EXTRA_INITIAL_SONG_ID, initialSong?.id)
+        })
         AppActivityTransitions.applyForward(this)
     }
 
@@ -319,11 +329,8 @@ class LocalMusicActivity : BaseDownloadActivity() {
         uris.forEach(::takeReadPersistablePermission)
         lifecycleScope.launch(Dispatchers.IO) {
             val result = localSongProvider.importSongs(uris)
-            val songsLocal = queryLocalMusic()
             withContext(Dispatchers.Main) {
-                localSongs.clear()
-                localSongs.addAll(songsLocal)
-                applyCurrentSearchFilter()
+                loadLocalMusic()
                 PmMessage.success(
                     this@LocalMusicActivity,
                     getString(R.string.local_music_import_done, result.importedCount, result.skippedCount))
@@ -338,7 +345,8 @@ class LocalMusicActivity : BaseDownloadActivity() {
     }
 
     private fun loadLocalMusic() {
-        lifecycleScope.launch(Dispatchers.IO) {
+        musicLoadJob?.cancel()
+        musicLoadJob = lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val songsLocal = queryLocalMusic()
                 val songsDownload = queryDownloadedMusic()
@@ -350,6 +358,8 @@ class LocalMusicActivity : BaseDownloadActivity() {
                     downloadedSongs.addAll(songsDownload)
                     applyCurrentSearchFilter()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 e.printStackTrace()
             }

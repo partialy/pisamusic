@@ -38,6 +38,13 @@ class SyncOutboxStore(context: Context) {
 
     internal fun accountSnapshot(): String = currentAccountId()
 
+    fun hasPending(accountId: String, itemType: String, itemKey: String): Boolean {
+        helper.readableDatabase.query(
+            "sync_outbox", arrayOf("id"), "account_id = ? AND item_type = ? AND item_key = ?",
+            arrayOf(accountId.trim(), itemType, itemKey), null, null, null, "1",
+        ).use { return it.moveToFirst() }
+    }
+
     fun listPending(accountId: String, limit: Int = 200): List<PendingSyncOp> {
         val normalizedAccountId = accountId.trim()
         if (normalizedAccountId.isBlank()) return emptyList()

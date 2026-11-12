@@ -2,11 +2,16 @@ package cn.partialy.pm.utils
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import cn.partialy.pm.download.AudioFileTransaction
+import cn.partialy.pm.download.AudioMetadataVerifier
 import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.audio.mp3.MP3File
 import org.jaudiotagger.audio.flac.metadatablock.MetadataBlockDataPicture
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.Tag
 import org.jaudiotagger.tag.flac.FlacTag
+import org.jaudiotagger.tag.id3.ID3v22Tag
+import org.jaudiotagger.tag.id3.ID3v23Tag
 import org.jaudiotagger.tag.images.StandardArtwork
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -18,6 +23,7 @@ import java.io.File
 object AudioMetadataEmbedder {
 
     @JvmStatic
+    @JvmOverloads
     @Throws(Exception::class)
     fun embed(
         file: File,
@@ -26,12 +32,21 @@ object AudioMetadataEmbedder {
         album: String?,
         lyric: String?,
         coverBytes: ByteArray?,
-    ) {
+        sourceInfo: String? = null,
+    ): String? {
         if (title.isBlank() && artist.isBlank() && album.isNullOrBlank() &&
-            lyric.isNullOrBlank() && (coverBytes == null || coverBytes.isEmpty())) return
+            lyric.isNullOrBlank() && (coverBytes == null || coverBytes.isEmpty()) && sourceInfo.isNullOrBlank()) return null
         val ext = file.extension.lowercase()
         val audioFile = AudioFileIO.read(file)
-        val tag = audioFile.tagOrCreateDefault
+        // 创建后必须挂回 AudioFile；仅 getTagOrCreateDefault 不会保存新标签。
+        val originalTag = audioFile.tagOrCreateDefault
+        val tag = when {
+            audioFile is MP3File && !audioFile.hasID3v2Tag() ->
+                audioFile.getID3v1Tag()?.let { ID3v23Tag(it) } ?: ID3v23Tag()
+            originalTag is ID3v22Tag -> ID3v23Tag(originalTag)
+            else -> originalTag
+        }
+        audioFile.tag = tag
 
         val titleStr = title.trim()
         if (titleStr.isNotEmpty()) tag.setField(FieldKey.TITLE, titleStr)
@@ -56,7 +71,33 @@ object AudioMetadataEmbedder {
             }
         }
 
+        val sourceWarning = if (!sourceInfo.isNullOrBlank()) {
+            try {
+                AudioSourceTag.write(tag, sourceInfo)
+                null
+            } catch (error: Exception) {
+                "来源字段写入失败：${error.message ?: "当前格式不支持"}"
+            }
+        } else null
+
         audioFile.commit()
+        return sourceWarning
+    }
+
+    /** 下载也只改同目录副本，标签失败时保留刚下载的原音频。 */
+    @JvmStatic
+    fun embedSafely(
+        file: File, title: String, artist: String, album: String?, lyric: String?,
+        coverBytes: ByteArray?, sourceInfo: String?,
+    ): String? {
+        var sourceWarning: String? = null
+        AudioFileTransaction.replace(file, { staging ->
+            sourceWarning = embed(staging, title, artist, album, lyric, coverBytes, sourceInfo)
+        }, { candidate ->
+            AudioMetadataVerifier.verify(candidate, title, artist, album, lyric,
+                coverBytes != null && coverBytes.isNotEmpty(), sourceInfo.takeIf { sourceWarning == null })
+        })
+        return sourceWarning
     }
 
     private fun attachId3Picture(tag: Tag, coverBytes: ByteArray) {

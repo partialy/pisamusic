@@ -33,6 +33,7 @@ import cn.partialy.pm.utils.LocalSongStore
 import com.google.android.material.checkbox.MaterialCheckBox
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -47,7 +48,13 @@ class LocalMusicEditActivity : BaseActivity() {
     private val selectedIds = mutableSetOf<String>()
     private lateinit var adapter: LocalMusicEditAdapter
     private var allRows: List<LocalMusicMediaRow> = emptyList()
+    private var filteredRows: List<LocalMusicMediaRow> = emptyList()
+    private var hasLoadedRows = false
+    private var pendingInitialSongId: String? = null
+    private var pendingScrollRecordId: String? = null
+    private var pendingScrollOffset = 0
     private var pendingDeleteHadFailure = false
+    private var rowsLoadJob: Job? = null
 
     private val deleteLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
@@ -92,14 +99,30 @@ class LocalMusicEditActivity : BaseActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         binding.toolbar.setNavigationOnClickListener { finish() }
 
+        selectedIds.addAll(savedInstanceState?.getStringArrayList(SAVED_SELECTION).orEmpty())
+        pendingInitialSongId = if (savedInstanceState == null) intent.getStringExtra(EXTRA_INITIAL_SONG_ID)
+            else savedInstanceState.getString(SAVED_INITIAL_SONG)
+        pendingScrollRecordId = savedInstanceState?.getString(SAVED_SCROLL_RECORD)
+        pendingScrollOffset = savedInstanceState?.getInt(SAVED_SCROLL_OFFSET) ?: 0
+        binding.localEditSearchInput.setText(savedInstanceState?.getString(SAVED_QUERY).orEmpty())
         binding.btnDeleteSelected.setOnClickListener {
             if (selectedIds.isNotEmpty()) confirmDelete()
         }
-        setupSearchFilter()
+        binding.selectAllAction.setOnClickListener {
+            selectedIds.addAll(filteredRows.map { it.recordId })
+            adapter.refreshSelection()
+        }
+        binding.invertAction.setOnClickListener {
+            filteredRows.forEach { row ->
+                if (!selectedIds.remove(row.recordId)) selectedIds.add(row.recordId)
+            }
+            adapter.refreshSelection()
+        }
 
         adapter = LocalMusicEditAdapter(selectedIds) { refreshDeleteButton() }
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
         binding.recyclerView.adapter = adapter
+        setupSearchFilter()
 
         refreshDeleteButton()
         loadRows()
@@ -109,6 +132,11 @@ class LocalMusicEditActivity : BaseActivity() {
         val has = selectedIds.isNotEmpty()
         binding.btnDeleteSelected.isEnabled = has
         binding.btnDeleteSelected.alpha = if (has) 1f else 0.45f
+        binding.toolbar.subtitle = getString(R.string.download_management_selected_count, selectedIds.size)
+        listOf(binding.selectAllAction, binding.invertAction).forEach { action ->
+            action.isEnabled = filteredRows.isNotEmpty()
+            action.alpha = if (action.isEnabled) 1f else 0.45f
+        }
     }
 
     private fun setupSearchFilter() {
@@ -116,7 +144,7 @@ class LocalMusicEditActivity : BaseActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                applySearchFilter(clearSelection = false)
+                applySearchFilter()
             }
 
             override fun afterTextChanged(s: Editable?) = Unit
@@ -129,18 +157,32 @@ class LocalMusicEditActivity : BaseActivity() {
     }
 
     private fun loadRows() {
-        lifecycleScope.launch(Dispatchers.IO) {
+        rowsLoadJob?.cancel()
+        rowsLoadJob = lifecycleScope.launch(Dispatchers.IO) {
             val rows = localSongStore.queryRows()
             withContext(Dispatchers.Main) {
                 allRows = rows
-                applySearchFilter(clearSelection = true)
+                hasLoadedRows = true
+                selectedIds.retainAll(rows.mapTo(hashSetOf()) { it.recordId })
+                // 播放 ID 可能是 content URI 或文件路径，不能直接作为索引主键。
+                pendingInitialSongId?.let { initialId ->
+                    rows.firstOrNull { row ->
+                        LocalSongStore.resolvePlaybackId(row.contentUri, row.filePath, row.recordId) == initialId
+                    }?.let { row ->
+                        selectedIds.add(row.recordId)
+                        pendingScrollRecordId = row.recordId
+                        pendingScrollOffset = 0
+                    }
+                    pendingInitialSongId = null
+                }
+                applySearchFilter()
             }
         }
     }
 
-    private fun applySearchFilter(clearSelection: Boolean) {
+    private fun applySearchFilter() {
         val keyword = binding.localEditSearchInput.text?.toString().orEmpty().trim()
-        val filtered = if (keyword.isBlank()) {
+        filteredRows = if (keyword.isBlank()) {
             allRows
         } else {
             allRows.filter { row ->
@@ -149,8 +191,16 @@ class LocalMusicEditActivity : BaseActivity() {
                     row.displayName.contains(keyword, ignoreCase = true)
             }
         }
-        adapter.submitList(filtered, clearSelection = clearSelection)
-        val empty = filtered.isEmpty()
+        adapter.submitList(filteredRows)
+        pendingScrollRecordId?.takeIf { hasLoadedRows }?.let { recordId ->
+            val index = filteredRows.indexOfFirst { it.recordId == recordId }
+            if (index >= 0) {
+                (binding.recyclerView.layoutManager as? LinearLayoutManager)
+                    ?.scrollToPositionWithOffset(index, pendingScrollOffset)
+            }
+            pendingScrollRecordId = null
+        }
+        val empty = filteredRows.isEmpty()
         binding.emptyView.visibility = if (empty) View.VISIBLE else View.GONE
         binding.recyclerView.visibility = if (empty) View.GONE else View.VISIBLE
         refreshDeleteButton()
@@ -279,6 +329,29 @@ class LocalMusicEditActivity : BaseActivity() {
     override fun finish() {
         super.finish()
         AppActivityTransitions.applyBack(this)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putStringArrayList(SAVED_SELECTION, ArrayList(selectedIds))
+        outState.putString(SAVED_QUERY, binding.localEditSearchInput.text?.toString().orEmpty())
+        outState.putString(SAVED_INITIAL_SONG, pendingInitialSongId)
+        val layoutManager = binding.recyclerView.layoutManager as? LinearLayoutManager
+        val firstPosition = layoutManager?.findFirstVisibleItemPosition() ?: -1
+        val firstRow = adapter.currentRows().getOrNull(firstPosition)
+        outState.putString(SAVED_SCROLL_RECORD, firstRow?.recordId ?: pendingScrollRecordId)
+        outState.putInt(SAVED_SCROLL_OFFSET, if (firstRow != null) {
+            layoutManager?.findViewByPosition(firstPosition)?.top ?: 0
+        } else pendingScrollOffset)
+        super.onSaveInstanceState(outState)
+    }
+
+    companion object {
+        const val EXTRA_INITIAL_SONG_ID = "initial_local_song_id"
+        private const val SAVED_SELECTION = "selected_local_record_ids"
+        private const val SAVED_QUERY = "local_edit_query"
+        private const val SAVED_INITIAL_SONG = "initial_local_song_id_pending"
+        private const val SAVED_SCROLL_RECORD = "local_edit_scroll_record"
+        private const val SAVED_SCROLL_OFFSET = "local_edit_scroll_offset"
     }
 
     private data class OriginalDeleteResult(

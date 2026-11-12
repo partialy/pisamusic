@@ -14,12 +14,13 @@ class LocalMusicEditAdapter(
 
     private val items = mutableListOf<LocalMusicMediaRow>()
 
-    fun submitList(rows: List<LocalMusicMediaRow>, clearSelection: Boolean = true) {
+    fun submitList(rows: List<LocalMusicMediaRow>) {
         items.clear()
         items.addAll(rows)
-        if (clearSelection) {
-            selectedIds.clear()
-        }
+        refreshSelection()
+    }
+
+    fun refreshSelection() {
         notifyDataSetChanged()
         onSelectionChanged()
     }

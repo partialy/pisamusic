@@ -185,3 +185,10 @@
 | 统一批量操作菜单 | 收藏/本地删除、下载、添加到；在线下载、收藏、添加到 | `ui/mine/PlaylistBatchActionCoordinator.kt`、`ui/dialog/ActionMenuBottomSheet.kt` | 操作 Sheet 关闭后执行，危险操作单独确认；按实际结果解除勾选 |
 | 混合音源批量下载 | LOCAL/不可播放过滤、分源选音质、汇总入队结果 | `ui/mine/PlaylistBatchDownloadPlanner.kt`、`activity/base/BaseDownloadActivity.kt` | 按源匹配音质；整体超过 100 首有效项先确认；退出取消后续弹窗，不取消已入队任务 |
 | 添加到目标选择 | 当前队列、已有歌单、新建歌单，排除当前本地歌单 | `ui/dialog/AddToPlaylistBottomSheet.kt` | `excludeLocalPlaylistId` 可选且默认不排除；必须保留其他入口 |
+
+## 本地歌曲编辑与长按（2026-11-12）
+
+| 组件/能力 | 主要位置 | 使用约束 |
+|---|---|---|
+| 本地歌曲长按编辑 | `LocalMusicFragment`、`LocalMusicAdapter`、`LocalMusicActivity` | 复用 `SongListItemBinder.onLongClick` 和 `BatchLongPressGuard`，只在本地歌曲 Tab 开启；进入现有编辑页并选中、定位该歌曲，不触发播放。已下载 Tab 的更多菜单转到下载管理。 |
+| 本地歌曲多选 | `LocalMusicEditActivity`、`LocalMusicEditAdapter`、`activity_local_music_edit.xml` | 底栏为全选/反选/删除；选择使用索引 `recordId`，长按播放 ID 在权威列表加载后映射。全选/反选作用于完整搜索结果，保留筛选外选择；搜索、选择、滚动位置支持重建恢复；删除确认默认仅移除索引。 |

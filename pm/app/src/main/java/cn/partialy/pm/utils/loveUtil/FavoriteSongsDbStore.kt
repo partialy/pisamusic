@@ -9,12 +9,15 @@ import cn.partialy.pm.model.SongType
 import cn.partialy.pm.model.fromCanonicalSource
 import cn.partialy.pm.model.payloadPlayableOrDefault
 import cn.partialy.pm.model.toCanonicalSong
+import cn.partialy.pm.sync.SyncOutboxStore
+import cn.partialy.pm.sync.SyncPayloads
 import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
 import com.google.gson.Gson
 
 internal class FavoriteSongsDbStore(context: Context) {
     private val helper = LocalMusicDbOpenHelper(context.applicationContext)
     private val gson = Gson()
+    private val outbox = SyncOutboxStore(context)
 
     fun getSongs(): List<SongInfo> {
         helper.readableDatabase.query(
@@ -48,49 +51,71 @@ internal class FavoriteSongsDbStore(context: Context) {
         ).use { return it.moveToFirst() }
     }
 
-    fun addSong(song: SongInfo): Boolean {
-        if (song.id.isBlank()) return false
-        val now = System.currentTimeMillis()
-        val result = helper.writableDatabase.insertWithOnConflict(
-            TABLE,
-            null,
-            song.toValues(createdAt = now, updatedAt = now),
-            SQLiteDatabase.CONFLICT_IGNORE,
-        )
-        return result != -1L
+    /** 收藏和同账号待同步操作在同一事务内提交。null 表示迁移或远端下行。 */
+    fun addSong(song: SongInfo, accountId: String? = null): Boolean = transaction { db ->
+        val added = insertSong(db, song)
+        if (added && accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_UPSERT)
+        added
     }
 
-    fun removeSong(song: SongInfo): Boolean {
-        if (song.id.isBlank()) return false
-        return helper.writableDatabase.delete(
+    fun removeSong(song: SongInfo, accountId: String? = null): Boolean = transaction { db ->
+        val removed = song.id.isNotBlank() && db.delete(
             TABLE,
             "song_type = ? AND song_id = ?",
             arrayOf(song.type.name, song.id),
         ) > 0
+        if (removed && accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_DELETE)
+        removed
     }
 
-    fun mergeLegacySongs(songs: List<SongInfo>): Int {
-        if (songs.isEmpty()) return 0
-        val db = helper.writableDatabase
+    fun mergeLegacySongs(songs: List<SongInfo>, accountId: String? = null): Int = transaction { db ->
         var added = 0
+        var createdAt = System.currentTimeMillis()
+        for (song in songs) {
+            if (!insertSong(db, song, createdAt++)) continue
+            added++
+            if (accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_UPSERT)
+        }
+        added
+    }
+
+    /** 已有数据库或删除事件时，旧 JSON 仅是镜像，不能再次作为迁移来源。 */
+    fun hasAuthoritativeData(): Boolean {
+        val db = helper.readableDatabase
+        db.rawQuery("SELECT 1 FROM $TABLE LIMIT 1", null).use {
+            if (it.moveToFirst()) return true
+        }
+        db.rawQuery(
+            "SELECT 1 FROM sync_outbox WHERE item_type = ? LIMIT 1",
+            arrayOf(SyncPayloads.TYPE_FAVORITE_SONG),
+        ).use { return it.moveToFirst() }
+    }
+
+    private fun insertSong(db: SQLiteDatabase, song: SongInfo, createdAt: Long = System.currentTimeMillis()): Boolean {
+        if (song.id.isBlank()) return false
+        return db.insertWithOnConflict(
+            TABLE, null, song.toValues(createdAt, createdAt), SQLiteDatabase.CONFLICT_IGNORE,
+        ) != -1L
+    }
+
+    private fun enqueue(db: SQLiteDatabase, accountId: String, song: SongInfo, action: String) {
+        if (song.type == SongType.LOCAL) return
+        outbox.enqueueInTransaction(
+            db, accountId, SyncPayloads.TYPE_FAVORITE_SONG, SyncPayloads.songKey(song), action,
+            if (action == SyncPayloads.ACTION_DELETE) "{}" else SyncPayloads.songPayload(song),
+        )
+    }
+
+    private fun <T> transaction(action: (SQLiteDatabase) -> T): T {
+        val db = helper.writableDatabase
         db.beginTransaction()
         try {
-            var createdAt = System.currentTimeMillis()
-            for (song in songs) {
-                if (song.id.isBlank()) continue
-                val result = db.insertWithOnConflict(
-                    TABLE,
-                    null,
-                    song.toValues(createdAt = createdAt++, updatedAt = createdAt),
-                    SQLiteDatabase.CONFLICT_IGNORE,
-                )
-                if (result != -1L) added++
-            }
+            val result = action(db)
             db.setTransactionSuccessful()
+            return result
         } finally {
             db.endTransaction()
         }
-        return added
     }
 
     fun clearAll() {

@@ -15,6 +15,8 @@ import java.util.concurrent.Executors;
 
 import cn.partialy.pm.R;
 import cn.partialy.pm.utils.AudioMetadataEmbedder;
+import cn.partialy.pm.utils.AudioMediaScanner;
+import cn.partialy.pm.download.DownloadCoverFetcher;
 import cn.partialy.pm.download.AudioMetadataVerifier;
 import cn.partialy.pm.utils.DownloadPathManager;
 import okhttp3.Call;
@@ -63,8 +65,8 @@ public class JDownloadManager {
     }
 
     /**
-     * @param coverUrl      封面地址；可为 null。嵌入时由 OkHttp 拉取字节。
-     * @param embedMetadata false 时（如酷我）仅下载，不写标签。
+     * @param coverCandidates 高清优先的封面候选，空列表表示不写封面。
+     * @param embedMetadata 是否需要处理标签；来源字段独立于普通标签设置。
      */
     public static void download(
             String taskId,
@@ -72,12 +74,13 @@ public class JDownloadManager {
             String url,
             String fileName,
             String targetDirectory,
-            String coverUrl,
+            java.util.List<String> coverCandidates,
             boolean embedMetadata,
             String title,
             String artist,
             String album,
             String lyric,
+            String sourceInfo,
             DownloadCallback callback
     ) {
         executorService.execute(() -> {
@@ -96,12 +99,13 @@ public class JDownloadManager {
                             taskId,
                             url,
                             fileName,
-                            coverUrl,
+                            coverCandidates,
                             embedMetadata,
                             title,
                             artist,
                             album,
                             lyric,
+                            sourceInfo,
                             downloadDir,
                             targetFile,
                             callback
@@ -131,12 +135,13 @@ public class JDownloadManager {
             String taskId,
             String url,
             String fileName,
-            String coverUrl,
+            java.util.List<String> coverCandidates,
             boolean embedMetadata,
             String title,
             String artist,
             String album,
             String lyric,
+            String sourceInfo,
             File downloadDir,
             File file,
             DownloadCallback callback
@@ -181,41 +186,24 @@ public class JDownloadManager {
             String metadataStatus = "SKIPPED";
             String metadataWarning = null;
             if (embedMetadata && isSupportedFormat(getFileExtension(file.getName()).toLowerCase())) {
-                if (!AudioMetadataVerifier.isReadable(stagedFile)) {
-                    metadataWarning = "此格式暂不支持内嵌标签";
-                } else {
-                byte[] cover = null;
-                if (coverUrl != null && !coverUrl.isEmpty()) {
-                    try {
-                        Request coverRequest = new Request.Builder().url(coverUrl).build();
-                        Call coverCall = client.newCall(coverRequest);
-                        activeCalls.put(taskId, coverCall);
-                        try (Response coverResponse = coverCall.execute()) {
-                            if (coverResponse.isSuccessful() && coverResponse.body() != null) {
-                                cover = coverResponse.body().bytes();
-                            }
-                        } finally {
-                            activeCalls.remove(taskId, coverCall);
-                        }
-                    } catch (Exception ignored) {
-                        // 封面网络失败不能让音频下载失败。
-                    }
-                }
+                String extension = getFileExtension(file.getName()).toLowerCase(java.util.Locale.ROOT);
+                boolean coverSupported = extension.equals("mp3") || extension.equals("flac") || extension.equals("m4a");
+                byte[] cover = coverSupported ? DownloadCoverFetcher.fetch(client, coverCandidates) : null;
                 if (isCancelled(taskId)) throw new DownloadCancelledException();
-                boolean coverMissing = coverUrl != null && !coverUrl.isEmpty() && (cover == null || cover.length == 0);
+                boolean coverMissing = coverSupported && !coverCandidates.isEmpty() && (cover == null || cover.length == 0);
+                String coverWarning = !coverSupported && !coverCandidates.isEmpty() ? "当前格式不支持内嵌封面" :
+                        coverMissing ? "封面获取失败" : null;
                 try {
                     if ((title == null || title.isBlank()) && (artist == null || artist.isBlank()) &&
                         (album == null || album.isBlank()) && (lyric == null || lyric.isBlank()) &&
-                        (cover == null || cover.length == 0)) {
-                        metadataStatus = coverMissing ? "PARTIAL" : "SKIPPED";
-                        metadataWarning = coverMissing ? "封面获取失败" : null;
+                        (cover == null || cover.length == 0) && (sourceInfo == null || sourceInfo.isBlank())) {
+                        metadataStatus = coverWarning != null ? "PARTIAL" : "SKIPPED";
+                        metadataWarning = coverWarning;
                     } else {
-                    AudioMetadataEmbedder.embed(stagedFile, title, artist, album, lyric, cover);
-                    if (!AudioMetadataVerifier.verify(stagedFile, title, artist, album, lyric, cover != null && cover.length > 0)) {
-                        throw new IllegalStateException("元数据写入后校验失败");
-                    }
-                    metadataStatus = coverMissing ? "PARTIAL" : "SUCCESS";
-                    metadataWarning = coverMissing ? "封面获取失败" : null;
+                        String sourceWarning = AudioMetadataEmbedder.embedSafely(stagedFile, title, artist, album, lyric, cover, sourceInfo);
+                        metadataStatus = coverWarning != null || sourceWarning != null ? "PARTIAL" : "SUCCESS";
+                        metadataWarning = coverWarning;
+                        if (sourceWarning != null) metadataWarning = metadataWarning == null ? sourceWarning : metadataWarning + "；" + sourceWarning;
                     }
                 } catch (Exception error) {
                     // 音频本身仍有效时降级为“已下载，附加信息失败”。
@@ -225,10 +213,13 @@ public class JDownloadManager {
                     metadataStatus = "FAILED";
                     metadataWarning = "歌曲标签处理失败：" + (error.getMessage() == null ? "未知错误" : error.getMessage());
                 }
-                }
+            } else if (embedMetadata) {
+                metadataStatus = "PARTIAL";
+                metadataWarning = "当前格式不支持内嵌标签及来源字段";
             }
             if (isCancelled(taskId)) throw new DownloadCancelledException();
             Files.move(stagedFile.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            AudioMediaScanner.refresh(context, file);
             final String outcome = metadataStatus;
             final String warning = metadataWarning;
             new Handler(Looper.getMainLooper()).post(() -> callback.onSuccess(file.getPath(), outcome, warning));

@@ -17,6 +17,7 @@ import cn.partialy.pm.ui.widget.SongListPlaybackStateTarget
 class LocalMusicAdapter(
     private val onSongClick: (SongInfo, Int) -> Unit,
     private val onMoreBtnClick: (SongInfo, Int) -> Unit,
+    private val onSongLongClick: ((SongInfo) -> Unit)? = null,
 ) : ListAdapter<SongInfo, LocalMusicAdapter.ViewHolder>(LocalMusicDiffCallback()),
     SongListPlaybackStateTarget {
 
@@ -51,6 +52,7 @@ class LocalMusicAdapter(
                 actions = SongListItemActions(
                     onClick = { onSongClick(it, bindingAdapterPosition) },
                     onMoreClick = { onMoreBtnClick(it, bindingAdapterPosition) },
+                    onLongClick = onSongLongClick,
                 ),
             )
         }

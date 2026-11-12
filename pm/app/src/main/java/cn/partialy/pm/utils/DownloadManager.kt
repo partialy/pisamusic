@@ -11,12 +11,12 @@ import cn.partialy.pm.download.ResolvedDownloadLyrics
 import cn.partialy.pm.download.MetadataWriteResult
 import cn.partialy.pm.download.MetadataWriteStatus
 import cn.partialy.pm.download.LyricSidecarStatus
+import cn.partialy.pm.download.DownloadCoverFetcher
 import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.utils.JavaUtils.JDownloadManager
 import cn.partialy.pm.utils.SettingsPrefs
 import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.FieldKey
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.ConcurrentHashMap
@@ -59,11 +59,12 @@ class DownloadManager private constructor(private val context: Context) {
     ) {
         if (resumeInfo != null) JDownloadManager.setResumeInfo(taskId, resumeInfo)
         val embedMetadata = songInfo.type != SongType.KW
-        val coverUrl = if (embedMetadata && SettingsPrefs.isWriteCoverEnabled(context)) {
-            resolveEmbedCoverUrl(songInfo)
+        val coverCandidates = if (embedMetadata && SettingsPrefs.isWriteCoverEnabled(context)) {
+            DownloadCoverFetcher.candidates(songInfo)
         } else {
-            null
+            emptyList()
         }
+        val sourceInfo = AudioSourceTag.value(songInfo.type, songInfo.id)
         val title = if (embedMetadata && SettingsPrefs.isWriteTagsEnabled(context)) songInfo.name else ""
         val artist = if (embedMetadata && SettingsPrefs.isWriteTagsEnabled(context)) songInfo.artist else ""
         val album = if (embedMetadata && SettingsPrefs.isWriteTagsEnabled(context)) (songInfo.album ?: "") else ""
@@ -155,12 +156,13 @@ class DownloadManager private constructor(private val context: Context) {
             url,
             fileName,
             targetDirectory,
-            coverUrl,
-            embedMetadata,
+            coverCandidates,
+            embedMetadata || sourceInfo != null,
             title,
             artist,
             album,
             lyric,
+            sourceInfo,
             javaCallback,
         )
     }
@@ -180,13 +182,6 @@ class DownloadManager private constructor(private val context: Context) {
         mainHandler.post { callback.onCancelled() }
     }
 
-    private fun resolveEmbedCoverUrl(songInfo: SongInfo): String? = when (songInfo.type) {
-        SongType.KW, SongType.LOCAL -> null
-        SongType.KG, SongType.WY, SongType.CLOUD -> SongCoverUrl
-            .getSongCover(songInfo, SongCoverUrl.SIZE_MEDIUM)
-            .takeIf { it.isNotBlank() }
-    }
-
     fun getDownloadedFiles(): List<SongInfo> {
         // 获取下载的文件
         val downloadDir = File(DownloadPathManager.getDownloadPath(context))
@@ -194,11 +189,12 @@ class DownloadManager private constructor(private val context: Context) {
             file.isFile && file.extension.lowercase() in AUDIO_FILE_EXTENSIONS
         }
         val list : MutableList<SongInfo> = mutableListOf()
-        files?.map { file ->
-            println(file.name)
+        files?.forEach { file ->
             try {
                 // 读取元数据
-                val audioFile = AudioFileIO.read(file)
+                val audioFile = runCatching { AudioFileIO.read(file) }.getOrNull()
+                val metadata = LocalAudioMetadataReader.read(context, file)
+                if (audioFile?.audioHeader == null && metadata.durationSeconds == null) return@forEach
                 
                 // 更安全的文件名解析
                 val fileNameParts = file.name.split(" - ", limit = 2)
@@ -210,24 +206,17 @@ class DownloadManager private constructor(private val context: Context) {
                 
                 val fileSongName = fileNameWithExt.substringBeforeLast(".")
                 
-                var title = fileSongName
-                var artist = fileSinger
-                var album = context.getString(R.string.download_unknown_album)
-
-                audioFile.tag?.let { tag ->
-                    title = tag.getFirst(FieldKey.TITLE).takeIf { it.isNotEmpty() } ?: fileSongName
-                    artist = tag.getFirst(FieldKey.ARTIST).takeIf { it.isNotEmpty() } ?: fileSinger
-                    album = tag.getFirst(FieldKey.ALBUM).takeIf { it.isNotEmpty() }
-                        ?: context.getString(R.string.download_unknown_album)
-                }
+                val title = metadata.title ?: fileSongName
+                val artist = metadata.artist ?: fileSinger
+                val album = metadata.album ?: context.getString(R.string.download_unknown_album)
 
                 val coverBytes = AudioEmbeddedArtReader.readEmbeddedCoverBytesWithTag(
                     context,
                     file,
-                    audioFile.tag,
+                    audioFile?.tag,
                 )
 
-                val duration = audioFile.audioHeader.trackLength
+                val duration = metadata.durationSeconds
                 val id = file.path
 
                 list.add(

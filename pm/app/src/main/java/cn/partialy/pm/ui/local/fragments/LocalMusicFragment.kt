@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import cn.partialy.pm.R
+import cn.partialy.pm.activity.LocalMusicActivity
 import cn.partialy.pm.databinding.FragmentLocalMusicBinding
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.ui.base.BaseSongFragment
@@ -83,7 +84,10 @@ class LocalMusicFragment : BaseSongFragment() {
                         showShare = false,
                     ),
                 )
-            }
+            },
+            onSongLongClick = { song ->
+                (activity as? LocalMusicActivity)?.openEditLocalMusic(song)
+            },
         )
 
         binding.localSongRecyclerView.apply {

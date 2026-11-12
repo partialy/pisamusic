@@ -10,6 +10,8 @@ import cn.partialy.pm.model.SongInfo
 import cn.partialy.pm.model.SongType
 import cn.partialy.pm.player.MusicController
 import cn.partialy.pm.utils.AudioMetadataEmbedder
+import cn.partialy.pm.utils.AudioMediaScanner
+import cn.partialy.pm.utils.AudioSourceTag
 import cn.partialy.pm.utils.LocalMediaIndexDbStore
 import cn.partialy.pm.utils.SettingsPrefs
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,7 +27,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 
@@ -80,9 +81,8 @@ class AudioMetadataRepairer @Inject constructor(
         val file = task.targetPath?.let(::File)
             ?: return MetadataWriteResult(MetadataWriteStatus.FAILED, "音频文件路径缺失")
         if (!file.isFile) return MetadataWriteResult(MetadataWriteStatus.FAILED, "音频文件已不存在")
-        if (task.source == SongType.KW) {
-            return MetadataWriteResult(MetadataWriteStatus.SKIPPED, "此音源暂不支持内嵌标签")
-        }
+        // KW 仅补来源字段，不开启原来跳过的歌词、封面和普通标签写入。
+        val canWriteMetadata = task.source != SongType.KW
         val current = musicController.currentSong.value
         if (current?.type == SongType.LOCAL &&
             runCatching { File(current.id).canonicalFile == file.canonicalFile }.getOrDefault(false)) {
@@ -98,61 +98,62 @@ class AudioMetadataRepairer @Inject constructor(
         val song = SongInfo(task.songId, task.source, task.title, task.artist, task.coverUrl, album = task.album)
         val audio = AudioFileIO.read(file)
         val tag = audio.tag
-        fun missing(key: FieldKey): Boolean = tag?.getFirst(key).isNullOrBlank()
-        val title = task.title.takeIf { SettingsPrefs.isWriteTagsEnabled(context) && missing(FieldKey.TITLE) }.orEmpty()
-        val artist = task.artist.takeIf { SettingsPrefs.isWriteTagsEnabled(context) && missing(FieldKey.ARTIST) }.orEmpty()
-        val album = task.album.takeIf { SettingsPrefs.isWriteTagsEnabled(context) && missing(FieldKey.ALBUM) }.orEmpty()
+        fun field(key: FieldKey): String = runCatching { tag?.getFirst(key).orEmpty() }.getOrDefault("")
+        fun missing(key: FieldKey): Boolean = field(key).isBlank()
+        val writeTags = canWriteMetadata && SettingsPrefs.isWriteTagsEnabled(context)
+        val title = task.title.takeIf { writeTags && missing(FieldKey.TITLE) }.orEmpty()
+        val artist = task.artist.takeIf { writeTags && missing(FieldKey.ARTIST) }.orEmpty()
+        val album = task.album.takeIf { writeTags && missing(FieldKey.ALBUM) }.orEmpty()
+        val expectedSource = AudioSourceTag.value(task.source, task.songId)
+        val existingSource = AudioSourceTag.read(tag)
+        val sourceInfo = expectedSource.takeIf { existingSource == null }
+        val sourceConflict = expectedSource != null && existingSource != null && existingSource != expectedSource
         val local = song.copy(id = file.absolutePath, type = SongType.LOCAL)
-        val oldLyrics = tag?.getFirst(FieldKey.LYRICS).orEmpty()
+        val oldLyrics = field(FieldKey.LYRICS)
         val oldParsed = LyricParser.parseBest(oldLyrics, "embedded")
         val oldWord = if (oldParsed.hasWordTiming) {
             val format = oldParsed.format
             DownloadLyricAsset(oldLyrics, if (format == LyricFormat.KRC) "krc" else "yrc")
         } else null
-        val fetched = if (SettingsPrefs.isWriteLyricsEnabled(context)) {
+        val writeLyrics = canWriteMetadata && SettingsPrefs.isWriteLyricsEnabled(context)
+        val fetched = if (writeLyrics) {
             lyricResolver.resolve(song, true, SettingsPrefs.DownloadLyricMode.Off)
         } else ResolvedDownloadLyrics.NONE
-        val sourceWord = fetched.originalWordAsset ?: oldWord
+        val sourceWord = if (canWriteMetadata) fetched.originalWordAsset ?: oldWord else null
         // 先持久化旧逐字歌词，确认成功后再允许覆盖旧字段。
         if (sourceWord != null) {
             index.upsertWordLyric(local, sourceWord.text, "repair_${sourceWord.extension}")
         }
         val storedWord = index.getWordLyricIndex(local) != null
         val lyrics = when {
-            !SettingsPrefs.isWriteLyricsEnabled(context) -> ""
+            !writeLyrics -> ""
             oldParsed.hasWordTiming && storedWord ->
                 EmbeddedLyricFormatter.standardLrc(null, oldWord)
                     .ifBlank { fetched.embeddedText }
             missing(FieldKey.LYRICS) -> fetched.embeddedText
             else -> ""
         }
-        val needCover = SettingsPrefs.isWriteCoverEnabled(context) && tag?.firstArtwork == null
-        val coverUrl = runCatching {
-            cn.partialy.pm.utils.SongCoverUrl.getSongCover(
-                song, cn.partialy.pm.utils.SongCoverUrl.SIZE_MEDIUM)
-        }.getOrNull()?.takeIf(String::isNotBlank) ?: cn.partialy.pm.utils.SongCoverUrl.getRemoteCover(
-            task.source.name.lowercase(), task.coverUrl, cn.partialy.pm.utils.SongCoverUrl.SIZE_MEDIUM)
-        val cover = if (needCover && coverUrl.isNotBlank()) {
-            runCatching {
-                client.newCall(Request.Builder().url(coverUrl).build()).execute().use { response ->
-                    if (response.isSuccessful) response.body?.bytes() else null
-                }
-            }.getOrNull()
-        } else null
-        val coverMissing = needCover && coverUrl.isNotBlank() && (cover == null || cover.isEmpty())
-        if (listOf(title, artist, album, lyrics).all(String::isBlank) && (cover == null || cover.isEmpty())) {
-            return if (coverMissing) MetadataWriteResult(MetadataWriteStatus.PARTIAL, "封面获取失败")
-                else MetadataWriteResult(MetadataWriteStatus.SKIPPED, "没有需要补写的信息")
+        val needCover = canWriteMetadata && ext in setOf("mp3", "flac", "m4a") &&
+            SettingsPrefs.isWriteCoverEnabled(context) && tag?.firstArtwork == null
+        val coverCandidates = if (needCover) DownloadCoverFetcher.candidates(song) else emptyList()
+        val cover = DownloadCoverFetcher.fetch(client, coverCandidates)
+        val coverMissing = needCover && coverCandidates.isNotEmpty() && (cover == null || cover.isEmpty())
+        val warnings = mutableListOf<String>().apply { addAll(listOfNotNull(
+            "封面获取失败".takeIf { coverMissing },
+            "已有来源字段与下载记录不同，已保留原值".takeIf { sourceConflict },
+        )) }
+        if (listOf(title, artist, album, lyrics).all(String::isBlank) &&
+            (cover == null || cover.isEmpty()) && sourceInfo == null) {
+            AudioMediaScanner.refresh(context, file)
+            return if (warnings.isNotEmpty()) MetadataWriteResult(MetadataWriteStatus.PARTIAL, warnings.joinToString("；"))
+            else MetadataWriteResult(MetadataWriteStatus.SKIPPED, "没有需要补写的信息")
         }
         repository.updateMetadata(task.id, MetadataWriteResult(MetadataWriteStatus.PENDING))
         withContext(NonCancellable) {
-            AudioFileTransaction.replace(file, { staging ->
-                AudioMetadataEmbedder.embed(staging, title, artist, album, lyrics, cover)
-            }, { candidate ->
-                AudioMetadataVerifier.verify(candidate, title, artist, album, lyrics, !(cover == null || cover.isEmpty()))
-            })
+            AudioMetadataEmbedder.embedSafely(file, title, artist, album, lyrics, cover, sourceInfo)?.let(warnings::add)
+            AudioMediaScanner.refresh(context, file)
         }
-        return if (coverMissing) MetadataWriteResult(MetadataWriteStatus.PARTIAL, "封面获取失败")
+        return if (warnings.isNotEmpty()) MetadataWriteResult(MetadataWriteStatus.PARTIAL, warnings.joinToString("；"))
             else MetadataWriteResult(MetadataWriteStatus.SUCCESS)
     }
 }
