@@ -11,12 +11,12 @@ import { fail, ok } from "../types/response";
 
 export const adminListenTogetherRouter = Router();
 
-adminListenTogetherRouter.get("/online", (req: Request, res: Response) => {
+adminListenTogetherRouter.get("/online", async (req: Request, res: Response) => {
   try {
     const keyword = typeof req.query.keyword === "string" ? req.query.keyword : undefined;
     const offset = Number(req.query.offset ?? 0);
     const limit = Number(req.query.limit ?? 20);
-    const result = listAdminOnlineRooms({ keyword, offset, limit });
+    const result = await listAdminOnlineRooms({ keyword, offset, limit });
     res.json(ok(result));
   } catch (error) {
     const msg = error instanceof Error ? error.message : "获取在线房间列表失败";

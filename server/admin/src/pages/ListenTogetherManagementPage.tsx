@@ -63,8 +63,8 @@ export default function ListenTogetherManagementPage() {
           offset: onlineOffset,
           limit: onlineLimit,
         });
-        setOnlineItems(result.items);
-        setOnlineTotal(result.total);
+        setOnlineItems(Array.isArray(result?.items) ? result.items : []);
+        setOnlineTotal(Number(result?.total || 0));
       } catch (e) {
         if (!silent) {
           void message.error(e instanceof Error ? e.message : "加载在线房间失败");
@@ -87,8 +87,8 @@ export default function ListenTogetherManagementPage() {
         offset: historyOffset,
         limit: historyLimit,
       });
-      setHistoryItems(result.items);
-      setHistoryTotal(result.total);
+      setHistoryItems(Array.isArray(result?.items) ? result.items : []);
+      setHistoryTotal(Number(result?.total || 0));
     } catch (e) {
       void message.error(e instanceof Error ? e.message : "加载历史房间失败");
     } finally {
@@ -165,7 +165,7 @@ export default function ListenTogetherManagementPage() {
   };
 
   // Metrics calculation
-  const totalOnlineListeners = onlineItems.reduce((sum, r) => sum + r.onlinePeople, 0);
+  const totalOnlineListeners = (onlineItems || []).reduce((sum, r) => sum + (r?.onlinePeople || 0), 0);
 
   return (
     <div style={{ padding: "0 4px" }}>

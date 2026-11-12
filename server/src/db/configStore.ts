@@ -1334,8 +1334,9 @@ export async function listFileRecords(query: FileRecordListQuery = {}): Promise<
   }
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM file_records ${whereSql}`, [...params])) as { total: number };
+  const orderKey = db.dialect === "mysql" ? "id" : "rowid";
   const rows = (await db.query(`SELECT * FROM file_records ${whereSql}
-       ORDER BY created_at DESC, rowid DESC
+       ORDER BY created_at DESC, ${orderKey} DESC
        LIMIT ? OFFSET ?`, [...params, limit, offset])) as FileRecordRow[];
   return {
     items: rows.map((row) => mapFileRecord(row)).filter((item): item is FileRecordInfo => Boolean(item)),
