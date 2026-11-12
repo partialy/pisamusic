@@ -64,6 +64,9 @@ internal class CompactDiscRenderer(private val density: Float) {
 
     fun draw(canvas: Canvas, angle: Float) {
         if (radius <= 0f) return
+        val checkpoint = canvas.save()
+        // 整张 CD 作为一个整体旋转，金属材质与高光和盘内封面保持相同角度。
+        canvas.rotate(angle, centerX, centerY)
         paint.style = Paint.Style.FILL
         paint.color = Color.WHITE
         paint.shader = surfaceShader
@@ -83,14 +86,10 @@ internal class CompactDiscRenderer(private val density: Float) {
         canvas.drawCircle(centerX, centerY, radius, paint)
         paint.shader = null
 
-        // 封面随盘旋转，高光保持在光源方向，避免整块材质像贴纸一样转动。
-        val checkpoint = canvas.save()
-        canvas.rotate(angle, centerX, centerY)
         paint.shader = artworkShader
         paint.color = tint
         canvas.drawCircle(centerX, centerY, radius * LABEL_RADIUS, paint)
         paint.shader = null
-        canvas.restoreToCount(checkpoint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = density * .8f
         paint.color = 0x60FFFFFF
@@ -107,13 +106,14 @@ internal class CompactDiscRenderer(private val density: Float) {
         canvas.drawCircle(centerX, centerY, radius * .071f, paint)
         paint.style = Paint.Style.FILL
         paint.color = 0xFF111215.toInt()
-        canvas.drawCircle(centerX, centerY, radius * .065f, paint)
+        canvas.drawCircle(centerX, centerY, radius * CENTER_HOLE_RADIUS, paint)
 
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = density * .8f
         paint.color = 0x80FFFFFF.toInt()
         canvas.drawCircle(centerX, centerY, radius - paint.strokeWidth / 2f, paint)
         paint.style = Paint.Style.FILL
+        canvas.restoreToCount(checkpoint)
     }
 
     private fun sampleTint(bitmap: Bitmap): Int {
@@ -134,8 +134,9 @@ internal class CompactDiscRenderer(private val density: Float) {
         return if (weight == 0L) SILVER else Color.rgb((red / weight).toInt(), (green / weight).toInt(), (blue / weight).toInt())
     }
 
-    private companion object {
-        const val LABEL_RADIUS = .68f
-        val SILVER = Color.rgb(208, 210, 216)
+    companion object {
+        const val CENTER_HOLE_RADIUS = .065f
+        private const val LABEL_RADIUS = .68f
+        private val SILVER = Color.rgb(208, 210, 216)
     }
 }

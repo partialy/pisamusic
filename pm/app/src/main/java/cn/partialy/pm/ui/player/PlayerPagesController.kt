@@ -43,6 +43,7 @@ internal class PlayerPagesController(private val host: ActivityPlayerBinding, re
     fun bindSong(song: SongInfo?) {
         val key = song?.let { "${it.type}:${it.id}" }
         val changed = key != songKey
+        val switchingSong = changed && key != null && songKey != null
         songKey = key
         for ((title, artist, tag) in listOf(
             Triple(cover.songTitleTextView, cover.artistTextView, cover.songSourceTagTextView),
@@ -54,6 +55,8 @@ internal class PlayerPagesController(private val host: ActivityPlayerBinding, re
             else SongSourceTagBinder.bind(tag, song.type, SongSourceTagBinder.Surface.ON_DARK)
         }
         coverRequest.bind(song, crossfade = changed)
+        if (switchingSong) cover.coverStage.animateSongChange()
+        else if (key == null) cover.coverStage.resetTransition()
     }
 
     fun setTogetherActive(active: Boolean) {
@@ -65,6 +68,7 @@ internal class PlayerPagesController(private val host: ActivityPlayerBinding, re
     fun setPlayback(playing: Boolean) = cover.compactDisc.setPlayback(playing)
     fun setStarted(started: Boolean) { this.started = started; updateDiscVisibility() }
     private fun updateDiscVisibility() {
+        cover.coverStage.setActive(started && currentPage == 0)
         cover.compactDisc.setActive(started && currentPage == 0)
         cover.compactLyrics.setRenderingActive(started && currentPage == 0)
         lyrics.karaokeLyricsView.setRenderingActive(started && currentPage == 1)
