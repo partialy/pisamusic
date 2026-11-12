@@ -13,3 +13,6 @@
 - Admin 调整同时需要新增或修改接口时，再读取后端规范并同步接口文档。
 - `data/`、`uploads/` 为运行数据，`dist/`、`web-admin/`、`web-user/` 为构建产物，默认不纳入源码变更；不要擅自清理数据。
 - 各模块详细规则维护在对应文件；此入口只更新职责与路径。
+- Server、Admin、React 官网发布版本当前统一为 `1.1.0`；三端先执行 `pnpm --dir server build:all`。部署 ZIP 包含 `dist/`、`web-admin/`、`web-user/` 与静态官网 `frontend-html/`，排除测试程序和运行数据；升级与部署说明见 [发布说明](RELEASE_NOTES.md)。
+
+- 官网域名统计涉及后端 Schema v3、官网公共 PV 采集与 Admin「官网记录 → 域名统计」；实施与上线检查见 [改造记录](agents/WEBSITE_DOMAIN_ANALYTICS_IMPLEMENTATION_PLAN.md)，按本表加载受影响模块规范。

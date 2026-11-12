@@ -110,7 +110,7 @@ export async function readAdminDashboard(
   }
 
   // 7. Site visits (UV) per day
-  const siteVisitRows = (await db.query(`SELECT visit_day AS day, COUNT(DISTINCT visitor_hash) AS cnt
+  const siteVisitRows = (await db.query(`SELECT visit_day AS day, COUNT(*) AS cnt
        FROM site_visit_records
        WHERE visit_day >= ?
        GROUP BY visit_day`, [startDateStr])) as DayCountRow[];
@@ -161,7 +161,7 @@ export async function readAdminDashboard(
        FROM device_daily_activity
        WHERE activity_day >= ?`, [sevenDaysStartStr])) as { total: number };
 
-  const siteVisitsTodayRow = (await db.queryOne(`SELECT COUNT(DISTINCT visitor_hash) AS total FROM site_visit_records WHERE visit_day = ?`, [today])) as { total: number };
+  const siteVisitsTodayRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM site_visit_records WHERE visit_day = ?`, [today])) as { total: number };
   const siteVisits7dRow = (await db.queryOne(`SELECT COUNT(*) AS total
        FROM site_visit_records
        WHERE visit_day >= ?`, [sevenDaysStartStr])) as { total: number };

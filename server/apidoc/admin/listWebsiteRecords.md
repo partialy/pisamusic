@@ -17,7 +17,9 @@
 | :--- | :--- | :--- | :--- |
 | `type` | `string` | 是 | 记录类型，仅支持 `visit`（访问记录）或 `download`（下载记录） |
 | `offset` | `number` | 否 | 分页起始偏移量，默认 0 |
-| `limit` | `number` | 否 | 每页条数（默认 20） |
+| `limit` | `number` | 否 | 每页条数，默认 20，最大 100 |
+| `domain` | `string` | 否 | 省略全部；空串未知；非空为不含协议/端口的规范域名 |
+| `startDay` / `endDay` | `string` | 否 | 北京时间日期 YYYY-MM-DD，包含起止日；开始不得晚于结束 |
 
 ---
 
@@ -30,14 +32,15 @@
   "code": 0,
   "msg": "ok",
   "data": {
-    "type": "visit",
     "items": [
       {
         "id": "rec_123",
+        "domain": "music.example.com",
         "visitDay": "2026-08-26",
         "path": "/download",
         "language": "zh-CN",
-        "timezone": "Asia/Shanghai",
+        "ipAddress": "120.24.0.1",
+        "referrer": "https://www.google.com/",
         "screenWidth": 1920,
         "screenHeight": 1080,
         "createdAt": 1700000000000
@@ -50,3 +53,5 @@
   "success": true
 }
 ```
+
+列表、分页总数使用相同筛选；访问记录仍为每日每域名 UV，不改为逐次 PV 流水。旧记录 domain 为空，后台显示未知域名。详情与列表均返回 domain。

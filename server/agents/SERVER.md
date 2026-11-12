@@ -45,7 +45,7 @@
 - 用户管理模块：后台接口挂载在 `/api/admin/users*`，支持用户分页查询、资料编辑、详情统计和硬删除；详情统计读取 `user_sync_items` 中未删除的 `favorite_song`、`favorite_playlist`、`user_playlist` 以及 `user_track_stats` / `user_listening_stats` 听歌统计，详情表格数据通过 `/api/admin/users/:id/library` 按分类（含 `favoriteSongs`、`favoritePlaylists`、`userPlaylists`、`listeningHistory`）分页加载，默认每页 30 条；不要暴露 `password_hash`，不要把用户管理逻辑继续堆进通用 admin 大文件。
 - 反馈管理模块：客户端继续通过 `POST /api/feedback` 提交反馈，记录保存在 SQLite 的 `feedback` / `feedback_images` 表，图片位于 `server/uploads/feedback/` 并通过 `/uploads/feedback/*` 访问；后台鉴权接口挂载在 `GET /api/admin/feedback`、`GET /api/admin/feedback/:id`、`PATCH /api/admin/feedback/:id/status` 和 `DELETE /api/admin/feedback/:id`，支持类型、状态、关键词筛选、`pending` / `processed` 两态处理流转及记录与附件级联删除。反馈持久化和后台查询统一放在独立 feedback store，不要重新堆进通用 `configStore` 或 `admin.ts`。
 - 验证码记录模块：发送验证码（邮箱/短信）统一持久化到 SQLite 的 `verification_code_records` 表，记录通道（`email` / `phone`）、目标联系人、用途（`register` / `login` / `reset_password` / `profile_email` / `profile_phone`）、验证码、触发用户（若有）、触发设备 ID（`x-pm-device-id`）、客户端 IP、发送状态（`sent` / `verified` / `expired` / `failed`）及时间；验证成功时自动将对应记录流转为 `verified` 并记录 `verified_at`。后台管理接口为 `GET /api/admin/verification-codes` 与 `DELETE /api/admin/verification-codes/:id`，前端作为“验证码记录”置于左侧菜单用户管理下方，支持多维筛选与分页。
-- 统计与仪表盘模块：公开接口为 `POST /api/analytics/site-visit`（强制明文，日 UV 上报）与 `GET /api/config/download/:platform`（强制明文，官网安装包下载重定向与统计）；管理端聚合接口挂载在 `GET /api/admin/dashboard?days=7|30|90`（需 JWT 鉴权与加密，返回 7/30/90 天零填充日序列与聚合汇总，严禁返回单条 IP、访客 hash 或明细 User-Agent）。后台“官网记录”通过 `GET /api/admin/website-records?type=visit|download&offset&limit` 分页读取摘要，并通过 `GET /api/admin/website-records/:type/:id` 查看单条完整字段；两者同样要求管理员 JWT 和加密通信。原始事件写入 `site_visit_records`、`download_records`、`device_daily_activity` 表，通过 `ANALYTICS_RETENTION_DAYS`（默认 180 天）每日门禁清理过期数据；官网日 UV 基于 localStorage 访客 ID 加盐哈希（`ANALYTICS_HASH_SALT`）并由数据库唯一索引最终去重；管理后台采用 Recharts 懒加载仪表盘作为默认主页，“官网记录”固定放在左侧菜单第三项。
+- 统计与仪表盘模块：公开接口为 `POST /api/analytics/page-view`（强制明文，PV/域名日 UV 上报）与旧 `POST /api/analytics/site-visit`（仅日 UV）与 `GET /api/config/download/:platform`（强制明文，官网安装包下载重定向与统计）；管理端聚合接口挂载在 `GET /api/admin/dashboard?days=7|30|90`（需 JWT 鉴权与加密，返回 7/30/90 天零填充日序列与聚合汇总，严禁返回单条 IP、访客 hash 或明细 User-Agent）。后台“官网记录”通过 `GET /api/admin/website-records?type=visit|download&offset&limit` 分页读取摘要，并通过 `GET /api/admin/website-records/:type/:id` 查看单条完整字段；两者同样要求管理员 JWT 和加密通信。原始事件写入 `site_visit_records`、`site_page_view_records`、`download_records`、`device_daily_activity` 表，通过 `ANALYTICS_RETENTION_DAYS`（默认 180 天）每日门禁清理过期数据；官网日 UV 按日期、域名、访客去重，基于 localStorage 访客 ID 加盐哈希（`ANALYTICS_HASH_SALT`）并由数据库唯一索引最终去重；管理后台采用 Recharts 懒加载仪表盘作为默认主页，“官网记录”固定放在左侧菜单第三项。
 
 ## 实时通信
 
@@ -61,7 +61,7 @@
 - Server 支持 `DB_TYPE=SQLITE|MYSQL`（缺省 SQLITE），`PISA_APP_DB_PATH` 指向 SQLite；MySQL 5.7 通过 `MYSQL_URL` 连接，不允许连接失败自动回退 SQLite。Node 版本要求 `>=22.16.0`。
 - 数据库访问层为 `src/db/core/` 的异步 DbClient；Store/Service/Route 必须 await 结果，事务必须绑定同一连接；不再在模块 import 阶段调用未初始化的数据库。
 - `DB_TYPE` 唯一选择运行库；不依赖本机迁移记录、旧 `activatedMysql` 或连接串指纹，也不禁止切回 SQLite。另一引擎仅在复制时需要配置。
-- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，空专用库可直接建表；`schema_migrations` 当前 v2，已有 v1 库经兼容校验后升级。不在生产启动执行破坏性删表，也不以整包DDL哈希相等代替版本升级。
+- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，空专用库可直接建表；`schema_migrations` 当前 v3，已有 v1 库先补 v2 安装元数据，再进行 v2→v3 官网域名统计增量升级。DDL 意图逐步记账，失败阻断业务启动，同任务可幂等续迁；全部结构校验通过才标记 applied。不在生产启动执行破坏性删表，也不以整包DDL哈希相等代替版本升级。
 - 安装标记为库内 `app_installation`，与Schema账本分离；首管、默认配置和标记事务提交。已有管理员库兼容补标记，无管理员走安装令牌保护的向导；接口为 `/api/setup/status`、`/api/setup/complete`，参见[安装文档](../apidoc/system/setup.md)。
 - 未安装/复制未完成的库禁止业务HTTP和Socket，不开放重新接管失败目标。管理员及用户JWT绑定安装身份，旧token需重新登录；完整副本保留源身份。
 - Admin「系统设置 → 数据迁移」调用 `/api/admin/database-migration/*`；`src/operations/` 支持SQLite↔MySQL全量覆盖。先排空源写入、备份源与目标，再事务替换及逐表摘要校验；目标须停止其他服务写入。不复制Schema账本或文件资产，未知非空数据禁止静默丢弃。
@@ -69,3 +69,10 @@
 - 运行记录存于 `server/data/operations/`，维护状态按引擎与安装身份隔离，不读取旧全局 `state.json`。SQLite备份包含WAL，MySQL导出为含原始DDL的便携SQLite。详见[复制与恢复文档](../apidoc/databaseMigration/overview.md)。
 - 隔离验收命令为 `pnpm --dir server verify:databases`；只创建随机测试MySQL库和项目内临时文件，不写env业务库。旧记录人工清理脚本为 `scripts/sql/cleanup-legacy-migration-metadata.sql`，当前Schema与安装标记必须保留。
 - 静态 Schema 校验命令：`pnpm --dir server verify:mysql57`；不能替代在真实 MySQL 5.7 上执行 DDL/迁移及人工业务验收。不要把备份 .db 放入公共静态目录，也不得提交 .env 真实密码。
+
+## 官网域名访问统计
+
+- 同源反代保留原始 Host（如 `proxy_set_header Host $host;`），`utils/websiteDomain.ts` 规范化域名，不信任 X-Forwarded-Host，不配置白名单。无效/历史域名使用空串，不从 Referrer 猜测。各节点共享数据库与 `ANALYTICS_HASH_SALT`。
+- `/api/analytics/page-view` 明文采集，Service/Store 同事务写入事件 UUID 幂等 PV 和每日每域名访客 UV；旧 site-visit 仅写 UV。PV 位于 `site_page_view_records`，UV 唯一约束为 `(visit_day,domain,visitor_hash)`，下载原有推广归因事务透传域名。三类明细按分析保留期清理。
+- Admin `GET /api/admin/website-records/stats` 按 7/30/90 天与可选域名返回零填充趋势、汇总、域名排行及页面 PV 排行；列表增加 domain/startDay/endDay 筛选。Dashboard 统一累计日 UV，允许同人跨域重复。官网普通 PV 与 App 推广归因独立，Android/PC 契约不变。
+- 升级发布先停各节点写入并备份，完成 Schema v3 后发布官网；禁止旧 v2 Server 长期混跑。复制表清单与恢复默认值保留新增 domain/PV；静态 DDL 校验不能替代真实 MySQL 5.7 升级与多域名验收。

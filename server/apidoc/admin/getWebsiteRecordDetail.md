@@ -30,6 +30,8 @@
   "msg": "ok",
   "data": {
     "id": "rec_123",
+    "domain": "music.example.com",
+    "visitorHash": "64位十六进制哈希",
     "visitDay": "2026-08-26",
     "path": "/download",
     "referrer": "https://www.google.com/",
@@ -53,13 +55,15 @@
   "msg": "ok",
   "data": {
     "id": "dl_456",
+    "domain": "music.example.com",
+    "downloadDay": "2026-11-11",
     "platform": "desktop",
     "version": "1.5.0",
     "fileRecordId": "f_desktop_150",
     "ipAddress": "120.24.0.1",
     "referrer": "https://pisamusic.partialy.cn/download",
     "userAgent": "Mozilla/5.0...",
-    "occurredAt": 1700000000000
+    "createdAt": 1700000000000
   },
   "success": true
 }

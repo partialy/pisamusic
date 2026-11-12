@@ -1,3 +1,4 @@
+import { getWebsiteDomain } from "../utils/websiteDomain";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Request, Response } from "express";
 import { deviceMessageIdentityFromRequest } from "../middleware/deviceMessageToken";
@@ -219,7 +220,7 @@ export async function trackWebsiteDownload(req: Request, input: DownloadRecordIn
     typeof req.query.code === "string" && SHARE_CODE_RE.test(req.query.code)
       ? req.query.code
       : undefined;
-  (await recordTrackedDownload(input, {
+  (await recordTrackedDownload({ ...input, domain: getWebsiteDomain(req) }, {
     explicit,
     code,
     visitorHash: cookieHash(req),

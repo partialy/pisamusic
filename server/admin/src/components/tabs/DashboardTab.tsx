@@ -195,13 +195,13 @@ export default function DashboardTab({ themeColor }: DashboardTabProps) {
             <DashboardMetricCard
               label="今日官网访客"
               value={data.summary.siteVisitsToday}
-              hint="自然日去重 UV"
+              hint="各域名自然日 UV 合计"
               accentColor="#f59e0b"
             />
             <DashboardMetricCard
               label="7 日官网访客"
               value={data.summary.siteVisits7d}
-              hint="7 日各日 UV 合计"
+              hint="7 日各域名日 UV 合计"
               accentColor="#f97316"
             />
             <DashboardMetricCard
@@ -407,7 +407,7 @@ export default function DashboardTab({ themeColor }: DashboardTabProps) {
             {/* Chart 4: Site Visits */}
             <DashboardTrendCard
               title="官网访问量趋势"
-              description="每日按上海自然日去重的官网访客 UV"
+              description="北京时间各域名每日 UV 合计；同一人跨域访问可能重复计算"
               extra={
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: themeColor }} />

@@ -59,5 +59,9 @@
 
 | 字段名 | 类型 | 说明 |
 | :--- | :--- | :--- |
-| `accepted` | `boolean` | 是否记录成功（若当天该访客已记录 UV 则仍返回 true） |
+| `accepted` | `boolean` | 是否记录成功（当天同域名该访客已记录 UV 时返回 false） |
 | `visitDay` | `string` | 统计归属的东八区自然日日期（`YYYY-MM-DD`） |
+
+## 域名统计兼容说明
+
+本接口仅写入每日 UV，不生成 PV。域名由原始 Host 统一规范化获得；不接受客户端域名，不信任 X-Forwarded-Host。唯一键为北京时间日期＋域名＋访客 hash；历史空域名保留。路径归一化为公开页面类别，来源去 query/Fragment/认证信息，已识别爬虫跳过。新官网使用 [PV/UV 统一采集](reportPageView.md)。

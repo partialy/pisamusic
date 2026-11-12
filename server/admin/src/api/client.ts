@@ -51,6 +51,7 @@ import type { RuntimeConfigChange, RuntimeConfigResponse } from "../types/runtim
 import type { AdminDashboardData, DashboardRangeDays } from "../types/dashboard";
 import { clearStoredToken, getStoredToken } from "../auth/token";
 import { encryptedFetch } from "./crypto";
+import type { WebsiteRecordFilter } from "../types/websiteAnalytics";
 
 const JSON_HEADERS: Record<string, string> = { "Content-Type": "application/json" };
 
@@ -788,8 +789,12 @@ export async function fetchAdminFeedbackDetail(id: string): Promise<AdminFeedbac
 export async function fetchAdminWebsiteVisitRecords(
   offset: number,
   limit: number,
+  filter: WebsiteRecordFilter = {},
 ): Promise<AdminWebsiteVisitListResponse> {
   const params = new URLSearchParams({ type: "visit", offset: String(offset), limit: String(limit) });
+  if (filter.domain !== undefined) params.set("domain", filter.domain);
+  if (filter.startDay) params.set("startDay", filter.startDay);
+  if (filter.endDay) params.set("endDay", filter.endDay);
   const res = await fetchWithAuth(`/api/admin/website-records?${params.toString()}`);
   const body = await parseJson<AdminWebsiteVisitListResponse>(res);
   if (!res.ok || !body.success || body.data == null) {
@@ -801,8 +806,12 @@ export async function fetchAdminWebsiteVisitRecords(
 export async function fetchAdminWebsiteDownloadRecords(
   offset: number,
   limit: number,
+  filter: WebsiteRecordFilter = {},
 ): Promise<AdminWebsiteDownloadListResponse> {
   const params = new URLSearchParams({ type: "download", offset: String(offset), limit: String(limit) });
+  if (filter.domain !== undefined) params.set("domain", filter.domain);
+  if (filter.startDay) params.set("startDay", filter.startDay);
+  if (filter.endDay) params.set("endDay", filter.endDay);
   const res = await fetchWithAuth(`/api/admin/website-records?${params.toString()}`);
   const body = await parseJson<AdminWebsiteDownloadListResponse>(res);
   if (!res.ok || !body.success || body.data == null) {

@@ -1,9 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import { getAppDb } from "./appDb";
+import type { DbTransaction } from "./core/types";
 import { toShanghaiDay } from "../utils/analyticsDate";
 
 export type SiteVisitInput = {
   visitorId: string;
+  domain?: string;
   ipAddress: string;
   path: string;
   referrer: string;
@@ -23,6 +25,7 @@ export type DeviceDailyActivityInput = {
 };
 
 export type DownloadRecordInput = {
+  domain?: string;
   platform: "android" | "desktop";
   version: string;
   fileRecordId: string | null;
@@ -59,6 +62,7 @@ export async function maybeCleanupAnalytics(now = Date.now()): Promise<void> {
     const cutoffTimestamp = now - retentionDays * 24 * 60 * 60 * 1000;
 
     (await db.execute("DELETE FROM site_visit_records WHERE created_at < ?", [cutoffTimestamp]));
+    await db.execute("DELETE FROM site_page_view_records WHERE created_at < ?", [cutoffTimestamp]);
     (await db.execute("DELETE FROM download_records WHERE created_at < ?", [cutoffTimestamp]));
     (await db.execute("DELETE FROM device_daily_activity WHERE last_seen_at < ?", [cutoffTimestamp]));
     (await db.execute("DELETE FROM app_share_visits WHERE received_at < ?", [cutoffTimestamp]));
@@ -70,29 +74,47 @@ export async function maybeCleanupAnalytics(now = Date.now()): Promise<void> {
   }
 }
 
+async function insertUnique(db: DbTransaction, sql: string, values: (string | number)[]): Promise<boolean> {
+  try { await db.execute(sql, values); return true; }
+  catch (error) {
+    const e = error as { code?: string; errcode?: number; message?: string };
+    // 不使用 MySQL no-op affectedRows：FOUND_ROWS 模式会把重复事件也返回为 1。
+    if (e.code === "ER_DUP_ENTRY" || (e.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/.test(e.message ?? ""))) return false;
+    throw error;
+  }
+}
+
+async function insertSiteVisit(db: DbTransaction, input: SiteVisitInput, now: number): Promise<boolean> {
+  return insertUnique(db, `INSERT INTO site_visit_records (
+    id, visit_day, domain, visitor_hash, ip_address, path, referrer,
+    user_agent, language, timezone, screen_width, screen_height, created_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+    randomUUID(), toShanghaiDay(now), input.domain || "", hashVisitorId(input.visitorId),
+    input.ipAddress || "", input.path || "/", input.referrer || "", input.userAgent || "",
+    input.language || "", input.timezone || "", Math.max(0, Math.trunc(input.screenWidth || 0)),
+    Math.max(0, Math.trunc(input.screenHeight || 0)), now,
+  ]);
+}
+
 export async function recordSiteVisit(input: SiteVisitInput): Promise<{ accepted: boolean; visitDay: string }> {
   const now = input.occurredAt ?? Date.now();
-  const visitDay = toShanghaiDay(now);
-  const visitorHash = hashVisitorId(input.visitorId);
-  const id = randomUUID();
+  await maybeCleanupAnalytics(now);
+  return { accepted: await insertSiteVisit(getAppDb(), input, now), visitDay: toShanghaiDay(now) };
+}
 
-  (await maybeCleanupAnalytics(now));
-
-  const db = getAppDb();
-
-
-  const result = (await db.execute(db.dialect === "mysql" ? "\n    INSERT INTO site_visit_records (\n      id, visit_day, visitor_hash, ip_address, path, referrer,\n      user_agent, language, timezone, screen_width, screen_height, created_at\n    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n    ON DUPLICATE KEY UPDATE id=id\n  " : `
-    INSERT INTO site_visit_records (
-      id, visit_day, visitor_hash, ip_address, path, referrer,
-      user_agent, language, timezone, screen_width, screen_height, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(visit_day, visitor_hash) DO NOTHING
-  `, [id, visitDay, visitorHash, input.ipAddress || "", input.path || "/", input.referrer || "", input.userAgent || "", input.language || "", input.timezone || "", Math.max(0, Math.trunc(input.screenWidth || 0)), Math.max(0, Math.trunc(input.screenHeight || 0)), now]));
-
-  return {
-    accepted: Number(result.affectedRows) === 1,
-    visitDay,
-  };
+export async function recordPageView(input: SiteVisitInput & { eventId: string }): Promise<{
+  pvAccepted: boolean; uvAccepted: boolean; visitDay: string;
+}> {
+  const now = input.occurredAt ?? Date.now();
+  await maybeCleanupAnalytics(now);
+  return getAppDb().transaction(async tx => {
+    const pvAccepted = await insertUnique(tx, `INSERT INTO site_page_view_records
+      (id, visit_day, domain, visitor_hash, path, referrer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [input.eventId.toLowerCase(), toShanghaiDay(now), input.domain || "", hashVisitorId(input.visitorId), input.path, input.referrer, now]);
+    // 重试跨过午夜时也不应产生另一天的虚假 UV。
+    const uvAccepted = pvAccepted ? await insertSiteVisit(tx, input, now) : false;
+    return { pvAccepted, uvAccepted, visitDay: toShanghaiDay(now) };
+  });
 }
 
 export async function recordDeviceDailyActivity(input: DeviceDailyActivityInput): Promise<void> {
@@ -127,9 +149,9 @@ export async function insertDownloadRecord(input: DownloadRecordInput): Promise<
   const db = getAppDb();
   (await db.execute(`
     INSERT INTO download_records (
-      id, download_day, platform, version, file_record_id,
+      id, download_day, domain, platform, version, file_record_id,
       ip_address, referrer, user_agent, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, downloadDay, input.platform, input.version || "", input.fileRecordId || null, input.ipAddress || "", input.referrer || "", input.userAgent || "", now]));
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, downloadDay, input.domain || "", input.platform, input.version || "", input.fileRecordId || null, input.ipAddress || "", input.referrer || "", input.userAgent || "", now]));
   return id;
 }

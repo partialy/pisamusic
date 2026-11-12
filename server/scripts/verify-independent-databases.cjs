@@ -45,6 +45,9 @@ async function worker(mode) {
       await db.execute("INSERT INTO user_sync_items(user_id,item_type,item_key,payload_json,deleted,server_version,server_updated_at) VALUES(?,?,?,?,?,?,?)", ["user-1", "favorite_song", "kg:1", '{"name":"往返音乐🎶"}', 1, 9007199254740000, 4]);
       await db.execute("INSERT INTO dynamic_configs(id,type,content,created_at,updated_at) VALUES(?,?,?,?,?)", ["roundtrip", "string", "多行\n引号\" emoji🎶", 3, 4]);
       await db.execute("INSERT INTO user_listening_stats(user_id,total_ms,updated_at) VALUES(?,?,?)", ["user-1", 1234567890123, 5]);
+      await db.execute("INSERT INTO site_visit_records(id,visit_day,domain,visitor_hash,created_at) VALUES(?,?,?,?,?)", ["uv-domain", "2026-11-11", "node.example.com", "visitor-hash", 123]);
+      await db.execute("INSERT INTO site_page_view_records(id,visit_day,domain,visitor_hash,path,referrer,created_at) VALUES(?,?,?,?,?,?,?)", ["pv-domain", "2026-11-11", "node.example.com", "visitor-hash", "/listen/", "", 124]);
+      await db.execute("INSERT INTO download_records(id,download_day,domain,platform,created_at) VALUES(?,?,?,?,?)", ["download-domain", "2026-11-11", "node.example.com", "android", 125]);
       const marker = await readInstallation();
       fs.writeFileSync(path.join(process.cwd(), "installation-id.txt"), marker.installation_id);
     } else if (mode === "sync" || mode === "switch") {
@@ -66,6 +69,8 @@ async function worker(mode) {
       console.log(`PASS ${db.dialect} ${mode}：${latest.tables.length}表 / ${latest.processedRows}行 / 目标备份与逐字段摘要`);
     } else if (mode === "check") {
       const row = await db.queryOne("SELECT * FROM dynamic_configs WHERE id='roundtrip'"); assert.equal(row.content, "多行\n引号\" emoji🎶");
+      for (const table of ["site_visit_records", "site_page_view_records", "download_records"]) assert.equal((await db.queryOne(`SELECT domain FROM ${table} LIMIT 1`)).domain, "node.example.com");
+      assert.equal((await db.queryOne("SELECT path FROM site_page_view_records WHERE id='pv-domain'")).path, "/listen/");
       const item = await db.queryOne("SELECT * FROM user_sync_items WHERE user_id='user-1'"); assert.equal(Number(item.deleted), 1); assert.equal(Number(item.server_version), 9007199254740000);
       assert.equal(Number((await db.queryOne("SELECT total_ms FROM user_listening_stats WHERE user_id='user-1'")).total_ms), 1234567890123);
       assert.equal((await readInstallation()).installation_id, fs.readFileSync(path.join(process.cwd(), "installation-id.txt"), "utf8"));
@@ -87,13 +92,13 @@ async function worker(mode) {
     } else if (mode === "incomplete") {
       await markTransferIncomplete(db, "test-interrupted");
     } else if (mode === "v1") {
-      await db.execute("DELETE FROM schema_migrations WHERE version=2");
+      await db.execute("DELETE FROM schema_migrations WHERE version>=2");
       await db.execute("DROP TABLE app_installation");
       const mysql = db.dialect === "mysql";
       await db.execute(mysql ? "INSERT IGNORE INTO schema_migrations(version,fingerprint,status,task_id,created_objects_json,started_at,completed_at) VALUES(1,'old-fingerprint','applied','obsolete-task','[]',1,1)" : "INSERT OR IGNORE INTO schema_migrations(version,fingerprint,status,started_at,completed_at) VALUES(1,'old-fingerprint','applied',1,1)");
     } else if (mode === "adopt") {
       assert.equal((await setupStatus()).initialized, true);
-      assert.equal(Number((await db.queryOne("SELECT MAX(version) AS n FROM schema_migrations")).n), 2);
+      assert.equal(Number((await db.queryOne("SELECT MAX(version) AS n FROM schema_migrations")).n), 3);
       if(db.dialect==="sqlite")fs.writeFileSync(path.join(process.cwd(), "installation-id.txt"), (await readInstallation()).installation_id);
       console.log("PASS v1旧库升级、管理员兼容认领、不依赖本机旧迁移记录");
     } else if (mode === "rollback") {
@@ -158,7 +163,7 @@ async function main() {
     await admin.query("USE `"+database+"`");
     const cleanup=fs.readFileSync(path.join(__dirname,"sql/cleanup-legacy-migration-metadata.sql"),"utf8").split("\n").filter(line=>!line.trim().startsWith("--")).join("\n");
     for(const statement of cleanup.split(";").filter(s=>s.trim()))await admin.query(statement);
-    const [ledger]=await admin.query("SELECT version,status FROM schema_migrations");assert.equal(ledger.length,1);assert.equal(Number(ledger[0].version),2);
+    const [ledger]=await admin.query("SELECT version,status FROM schema_migrations");assert.equal(ledger.length,1);assert.equal(Number(ledger[0].version),3);
     const [admins]=await admin.query("SELECT COUNT(*) AS n FROM admin_users");assert.equal(Number(admins[0].n),1);
     console.log("PASS 旧迁移元数据清理SQL保留当前Schema、安装与管理员");
     await admin.query("DROP DATABASE `"+database+"`");created=false;

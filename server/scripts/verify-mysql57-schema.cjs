@@ -46,6 +46,6 @@ for (const table of tables) {
     checkedIndexes++;
   }
 }
-assert.equal(MYSQL_TABLES.length, 49, "当前业务表清单发生变化，需要更新迁移映射");
+assert.equal(MYSQL_TABLES.length, 50, "当前业务表清单发生变化，需要更新迁移映射");
 console.log(`MySQL 5.7 静态 Schema 检查通过：业务表 ${MYSQL_TABLES.length}、历史归档表 ${MYSQL_ARCHIVE_TABLES.length}、索引 ${checkedIndexes}`);
 console.log("注意：此检查不代替在真实 MySQL 5.7 实例上执行 DDL 和完整数据迁移。");

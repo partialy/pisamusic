@@ -481,6 +481,13 @@ export const tables4: readonly SchemaTable[] = [
         "sqliteType": "TEXT"
       },
       {
+        "name": "domain",
+        "type": "VARCHAR(253)",
+        "nullable": false,
+        "sqliteType": "TEXT",
+        "default": "''"
+      },
+      {
         "name": "visitor_hash",
         "type": "VARCHAR(191)",
         "nullable": false,
@@ -552,7 +559,7 @@ export const tables4: readonly SchemaTable[] = [
     "primaryKey": [
       "id"
     ],
-    "createSql": "CREATE TABLE `site_visit_records` (\n  `id` VARCHAR(191) NOT NULL,\n  `visit_day` VARCHAR(191) NOT NULL,\n  `visitor_hash` VARCHAR(191) NOT NULL,\n  `ip_address` VARCHAR(1024) NOT NULL DEFAULT '',\n  `path` VARCHAR(1024) NOT NULL DEFAULT '/',\n  `referrer` LONGTEXT NOT NULL,\n  `user_agent` LONGTEXT NOT NULL,\n  `language` VARCHAR(1024) NOT NULL DEFAULT '',\n  `timezone` VARCHAR(1024) NOT NULL DEFAULT '',\n  `screen_width` BIGINT NOT NULL DEFAULT 0,\n  `screen_height` BIGINT NOT NULL DEFAULT 0,\n  `created_at` BIGINT NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `idx_site_visit_created` (`created_at`),\n  KEY `idx_site_visit_day` (`visit_day`),\n  UNIQUE KEY `ux_site_visit_day_visitor` (`visit_day`, `visitor_hash`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC",
+    "createSql": "CREATE TABLE `site_visit_records` (\n  `id` VARCHAR(191) NOT NULL,\n  `visit_day` VARCHAR(191) NOT NULL,\n  `visitor_hash` VARCHAR(191) NOT NULL,\n  `ip_address` VARCHAR(1024) NOT NULL DEFAULT '',\n  `path` VARCHAR(1024) NOT NULL DEFAULT '/',\n  `referrer` LONGTEXT NOT NULL,\n  `user_agent` LONGTEXT NOT NULL,\n  `language` VARCHAR(1024) NOT NULL DEFAULT '',\n  `timezone` VARCHAR(1024) NOT NULL DEFAULT '',\n  `screen_width` BIGINT NOT NULL DEFAULT 0,\n  `screen_height` BIGINT NOT NULL DEFAULT 0,\n  `created_at` BIGINT NOT NULL,\n  `domain` VARCHAR(253) NOT NULL DEFAULT '',\n  PRIMARY KEY (`id`),\n  KEY `idx_site_visit_created` (`created_at`),\n  KEY `idx_site_visit_day` (`visit_day`),\n  KEY `idx_site_visit_domain_day` (`domain`, `visit_day`),\n  UNIQUE KEY `ux_site_visit_day_domain_visitor` (`visit_day`, `domain`, `visitor_hash`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC",
     "foreignSql": []
   },
   {
@@ -569,6 +576,13 @@ export const tables4: readonly SchemaTable[] = [
         "type": "VARCHAR(191)",
         "nullable": false,
         "sqliteType": "TEXT"
+      },
+      {
+        "name": "domain",
+        "type": "VARCHAR(253)",
+        "nullable": false,
+        "sqliteType": "TEXT",
+        "default": "''"
       },
       {
         "name": "platform",
@@ -620,7 +634,7 @@ export const tables4: readonly SchemaTable[] = [
     "primaryKey": [
       "id"
     ],
-    "createSql": "CREATE TABLE `download_records` (\n  `id` VARCHAR(191) NOT NULL,\n  `download_day` VARCHAR(191) NOT NULL,\n  `platform` VARCHAR(191) NOT NULL,\n  `version` VARCHAR(1024) NOT NULL DEFAULT '',\n  `file_record_id` LONGTEXT NULL,\n  `ip_address` VARCHAR(1024) NOT NULL DEFAULT '',\n  `referrer` LONGTEXT NOT NULL,\n  `user_agent` LONGTEXT NOT NULL,\n  `created_at` BIGINT NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `idx_download_created` (`created_at`),\n  KEY `idx_download_day_platform` (`download_day`, `platform`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC",
+    "createSql": "CREATE TABLE `download_records` (\n  `id` VARCHAR(191) NOT NULL,\n  `download_day` VARCHAR(191) NOT NULL,\n  `platform` VARCHAR(191) NOT NULL,\n  `version` VARCHAR(1024) NOT NULL DEFAULT '',\n  `file_record_id` LONGTEXT NULL,\n  `ip_address` VARCHAR(1024) NOT NULL DEFAULT '',\n  `referrer` LONGTEXT NOT NULL,\n  `user_agent` LONGTEXT NOT NULL,\n  `created_at` BIGINT NOT NULL,\n  `domain` VARCHAR(253) NOT NULL DEFAULT '',\n  PRIMARY KEY (`id`),\n  KEY `idx_download_domain_day` (`domain`, `download_day`),\n  KEY `idx_download_created` (`created_at`),\n  KEY `idx_download_day_platform` (`download_day`, `platform`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin ROW_FORMAT=DYNAMIC",
     "foreignSql": []
   },
   {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { recordSiteVisit } from "../db/analyticsStore";
+import { collectWebsiteAnalytics } from "../services/websiteAnalyticsService";
+import { getWebsiteDomain } from "../utils/websiteDomain";
 import { fail, ok } from "../types/response";
 
 export const analyticsRouter = Router();
@@ -27,7 +28,7 @@ function cleanDimension(val: unknown): number {
   return Math.trunc(num);
 }
 
-analyticsRouter.post("/site-visit", async (req: Request, res: Response) => {
+const collectVisit = (pageView: boolean) => async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, unknown>;
     if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -41,12 +42,17 @@ analyticsRouter.post("/site-visit", async (req: Request, res: Response) => {
       return;
     }
 
+    const eventId = typeof body.eventId === "string" ? body.eventId.trim() : "";
+    if (pageView && !UUID_RE.test(eventId)) {
+      res.status(400).json(fail("eventId 必须是有效的 UUID", 400));
+      return;
+    }
     const rawPath = typeof body.path === "string" ? body.path.trim() : "/";
     if (!rawPath.startsWith("/")) {
       res.status(400).json(fail("path 必须以 / 开头", 400));
       return;
     }
-    const path = cleanString(rawPath, 256) || "/";
+    const path = cleanString(rawPath, 256);
     const referrer = cleanString(body.referrer, 512);
     const language = cleanString(body.language, 32);
     const timezone = cleanString(body.timezone, 64);
@@ -56,21 +62,17 @@ analyticsRouter.post("/site-visit", async (req: Request, res: Response) => {
     const userAgent = cleanString(req.headers["user-agent"], 512);
     const ipAddress = cleanIp(req);
 
-    const result = (await recordSiteVisit({
-      visitorId,
-      path,
-      referrer,
-      language,
-      timezone,
-      screenWidth,
-      screenHeight,
-      ipAddress,
-      userAgent,
-    }));
-
-    res.json(ok({ accepted: result.accepted, visitDay: result.visitDay }));
+    const input = {
+      visitorId, domain: getWebsiteDomain(req), path, referrer,
+      language, timezone, screenWidth, screenHeight, ipAddress, userAgent,
+    };
+    const result = await collectWebsiteAnalytics(input, pageView ? eventId : undefined);
+    res.json(ok(result));
   } catch (err) {
     const message = err instanceof Error ? err.message : "记录访问失败";
     res.status(500).json(fail(message, 500));
   }
-});
+};
+
+analyticsRouter.post("/site-visit", collectVisit(false));
+analyticsRouter.post("/page-view", collectVisit(true));

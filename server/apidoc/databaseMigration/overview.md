@@ -7,7 +7,7 @@
 - MySQL 5.7 使用 `MYSQL_URL`；预先创建专用数据库和账号，首次空库由服务端建表。
 - 独立部署只配置使用的引擎。使用双向复制时才需同时配置两种数据库；MySQL → SQLite 必须明确填写 `PISA_APP_DB_PATH`。
 - 启动不依赖本机迁移完成记录、旧 `activatedMysql` 或连接串指纹。调整同库端口无需更新任务。
-- 库内 `schema_migrations` 只维护结构版本（当前 v2）；`app_installation` 维护安装身份与完整性，两者分开。
+- 库内 `schema_migrations` 只维护结构版本（当前 v3）；`app_installation` 维护安装身份与完整性，两者分开。
 - 完整库可复制到新部署目录后启动，不要求携带旧 `data/operations`。
 
 ## 首次安装
@@ -78,3 +78,7 @@ pnpm verify:setup-http
 ```
 
 脚本只创建随机命名的隔离MySQL库和项目内临时SQLite文件，覆盖独立安装、并发保护、旧库升级、两向往返、重复覆盖与失败防护；不写env指定的业务库。测试账号需有创建/删除隔离库权限。仅SQLite验收可执行 `node scripts/verify-independent-databases.cjs --sqlite-only`。
+
+## 官网域名统计 v3
+
+UV/下载 domain 与 `site_page_view_records` 随全量复制保留；旧 v2 源缺少 domain 时使用空串，不猜测历史域名。已有 MySQL v2 目标在复制前完成幂等增量升级；DDL 失败保留账本并禁止业务启动，同版本可续迁。生产升级流程见 [域名统计改造记录](../../agents/WEBSITE_DOMAIN_ANALYTICS_IMPLEMENTATION_PLAN.md)。

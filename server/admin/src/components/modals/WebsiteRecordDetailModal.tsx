@@ -58,6 +58,9 @@ export default function WebsiteRecordDetailModal(props: Props) {
             <Descriptions.Item label="访问日期">
               {record.visitDay}
             </Descriptions.Item>
+            <Descriptions.Item label="访问域名" span={2}>
+              <Text copyable={record.domain ? { text: record.domain } : undefined}>{record.domain || "未知域名"}</Text>
+            </Descriptions.Item>
             <Descriptions.Item label="访问时间">
               {formatTimestamp(record.createdAt)} ({record.createdAt})
             </Descriptions.Item>
@@ -135,6 +138,9 @@ export default function WebsiteRecordDetailModal(props: Props) {
           </Descriptions.Item>
           <Descriptions.Item label="下载日期">
             {record.downloadDay}
+          </Descriptions.Item>
+          <Descriptions.Item label="访问域名" span={2}>
+            <Text copyable={record.domain ? { text: record.domain } : undefined}>{record.domain || "未知域名"}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="下载时间">
             {formatTimestamp(record.createdAt)} ({record.createdAt})

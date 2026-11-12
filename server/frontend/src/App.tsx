@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import HomePage from "./Home/HomePage";
 import ListenPage from "./Listen/ListenPage";
+import { reportPageView } from "./api/analytics";
 
 interface StaticRouteRedirectProps {
   /** 需要补齐尾斜杠的静态目录路径。 */
@@ -32,13 +33,22 @@ export default function App() {
   useEffect(() => {
     const handleLocationChange = () => {
       setIsListen(checkIsListenRoute());
+      reportPageView();
+    };
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      setIsListen(checkIsListenRoute());
+      reportPageView({ restoredFromCache: true });
     };
 
+    handleLocationChange();
     window.addEventListener("hashchange", handleLocationChange);
     window.addEventListener("popstate", handleLocationChange);
+    window.addEventListener("pageshow", handlePageShow);
     return () => {
       window.removeEventListener("hashchange", handleLocationChange);
       window.removeEventListener("popstate", handleLocationChange);
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, []);
 
@@ -62,6 +72,7 @@ export default function App() {
           } else {
             window.history.pushState(null, "", "/");
           }
+          reportPageView();
           setIsListen(false);
         }}
       />

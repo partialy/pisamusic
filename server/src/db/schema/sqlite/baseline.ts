@@ -584,6 +584,7 @@ CREATE INDEX IF NOT EXISTS idx_verification_code_created ON verification_code_re
 
 CREATE TABLE IF NOT EXISTS site_visit_records (
     id              TEXT    PRIMARY KEY,
+    domain          TEXT    NOT NULL DEFAULT '',
     visit_day       TEXT    NOT NULL,
     visitor_hash    TEXT    NOT NULL,
     ip_address      TEXT    NOT NULL DEFAULT '',
@@ -596,8 +597,9 @@ CREATE TABLE IF NOT EXISTS site_visit_records (
     screen_height   INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ux_site_visit_day_visitor
-ON site_visit_records (visit_day, visitor_hash);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_site_visit_day_domain_visitor
+ON site_visit_records (visit_day, domain, visitor_hash);
+CREATE INDEX IF NOT EXISTS idx_site_visit_domain_day ON site_visit_records (domain, visit_day);
 CREATE INDEX IF NOT EXISTS idx_site_visit_day
 ON site_visit_records (visit_day);
 CREATE INDEX IF NOT EXISTS idx_site_visit_created
@@ -605,6 +607,7 @@ ON site_visit_records (created_at);
 
 CREATE TABLE IF NOT EXISTS download_records (
     id              TEXT    PRIMARY KEY,
+    domain          TEXT    NOT NULL DEFAULT '',
     download_day    TEXT    NOT NULL,
     platform        TEXT    NOT NULL CHECK (platform IN ('android', 'desktop')),
     version         TEXT    NOT NULL DEFAULT '',
@@ -618,6 +621,21 @@ CREATE INDEX IF NOT EXISTS idx_download_day_platform
 ON download_records (download_day, platform);
 CREATE INDEX IF NOT EXISTS idx_download_created
 ON download_records (created_at);
+
+CREATE INDEX IF NOT EXISTS idx_download_domain_day ON download_records (domain, download_day);
+
+CREATE TABLE IF NOT EXISTS site_page_view_records (
+    id TEXT PRIMARY KEY,
+    visit_day TEXT NOT NULL,
+    domain TEXT NOT NULL DEFAULT '',
+    visitor_hash TEXT NOT NULL,
+    path TEXT NOT NULL,
+    referrer TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_site_pv_domain_day ON site_page_view_records (domain, visit_day);
+CREATE INDEX IF NOT EXISTS idx_site_pv_day_path ON site_page_view_records (visit_day, path);
+CREATE INDEX IF NOT EXISTS idx_site_pv_created ON site_page_view_records (created_at);
 
 CREATE TABLE IF NOT EXISTS device_daily_activity (
     activity_day    TEXT    NOT NULL,

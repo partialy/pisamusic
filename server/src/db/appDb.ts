@@ -599,6 +599,7 @@ CREATE INDEX IF NOT EXISTS idx_verification_code_created ON verification_code_re
 
 CREATE TABLE IF NOT EXISTS site_visit_records (
     id              TEXT    PRIMARY KEY,
+    domain          TEXT    NOT NULL DEFAULT '',
     visit_day       TEXT    NOT NULL,
     visitor_hash    TEXT    NOT NULL,
     ip_address      TEXT    NOT NULL DEFAULT '',
@@ -611,8 +612,9 @@ CREATE TABLE IF NOT EXISTS site_visit_records (
     screen_height   INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ux_site_visit_day_visitor
-ON site_visit_records (visit_day, visitor_hash);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_site_visit_day_domain_visitor
+ON site_visit_records (visit_day, domain, visitor_hash);
+CREATE INDEX IF NOT EXISTS idx_site_visit_domain_day ON site_visit_records (domain, visit_day);
 CREATE INDEX IF NOT EXISTS idx_site_visit_day
 ON site_visit_records (visit_day);
 CREATE INDEX IF NOT EXISTS idx_site_visit_created
@@ -620,6 +622,7 @@ ON site_visit_records (created_at);
 
 CREATE TABLE IF NOT EXISTS download_records (
     id              TEXT    PRIMARY KEY,
+    domain          TEXT    NOT NULL DEFAULT '',
     download_day    TEXT    NOT NULL,
     platform        TEXT    NOT NULL CHECK (platform IN ('android', 'desktop')),
     version         TEXT    NOT NULL DEFAULT '',
@@ -633,6 +636,21 @@ CREATE INDEX IF NOT EXISTS idx_download_day_platform
 ON download_records (download_day, platform);
 CREATE INDEX IF NOT EXISTS idx_download_created
 ON download_records (created_at);
+
+CREATE INDEX IF NOT EXISTS idx_download_domain_day ON download_records (domain, download_day);
+
+CREATE TABLE IF NOT EXISTS site_page_view_records (
+    id TEXT PRIMARY KEY,
+    visit_day TEXT NOT NULL,
+    domain TEXT NOT NULL DEFAULT '',
+    visitor_hash TEXT NOT NULL,
+    path TEXT NOT NULL,
+    referrer TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_site_pv_domain_day ON site_page_view_records (domain, visit_day);
+CREATE INDEX IF NOT EXISTS idx_site_pv_day_path ON site_page_view_records (visit_day, path);
+CREATE INDEX IF NOT EXISTS idx_site_pv_created ON site_page_view_records (created_at);
 
 CREATE TABLE IF NOT EXISTS device_daily_activity (
     activity_day    TEXT    NOT NULL,
@@ -1009,8 +1027,27 @@ function migrateListenTogether(db: DatabaseSync) {
   }
 }
 
+function migrateWebsiteDomains(db: DatabaseSync) {
+  db.exec("SAVEPOINT website_domain_v3");
+  try {
+    for (const table of ["site_visit_records", "download_records"]) {
+      const columns = getColumnNames(db, table);
+      if (columns.size && !columns.has("domain")) db.exec(`ALTER TABLE ${table} ADD COLUMN domain TEXT NOT NULL DEFAULT ''`);
+    }
+    if (getColumnNames(db, "site_visit_records").size) {
+      db.exec("CREATE UNIQUE INDEX IF NOT EXISTS ux_site_visit_day_domain_visitor ON site_visit_records (visit_day,domain,visitor_hash)");
+      db.exec("DROP INDEX IF EXISTS ux_site_visit_day_visitor");
+    }
+    db.exec("RELEASE website_domain_v3");
+  } catch (error) {
+    db.exec("ROLLBACK TO website_domain_v3; RELEASE website_domain_v3");
+    throw error;
+  }
+}
+
 export function initSchema(db: DatabaseSync) {
   migrateListenTogether(db);
+  migrateWebsiteDomains(db);
   // 历史表保留给离线迁移与审计，不在启动时删除用户数据。
   db.exec(CREATE_SQL);
   db.exec(APP_SHARE_TRACKING_SQL);

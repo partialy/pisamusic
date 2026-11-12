@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   Button,
   Card,
+  DatePicker,
+  Input,
   Segmented,
+  Select,
+  Spin,
   Table,
   Tag,
   Tooltip,
@@ -25,6 +29,10 @@ import type {
 } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
 import WebsiteRecordDetailModal from "../modals/WebsiteRecordDetailModal";
+import type { Dayjs } from "dayjs";
+import type { WebsiteRecordFilter } from "../../types/websiteAnalytics";
+
+const WebsiteDomainStats = lazy(() => import("./WebsiteDomainStats"));
 
 const { Text } = Typography;
 
@@ -36,8 +44,14 @@ type RecordOffsets = Record<WebsiteRecordType, number>;
 
 const PAGE_LIMIT = 20;
 
-export default function WebsiteRecordsTab({ themeColor: _ }: Props) {
+export default function WebsiteRecordsTab({ themeColor }: Props) {
+  const [activeTab, setActiveTab] = useState<WebsiteRecordType | "stats">("visit");
   const [recordType, setRecordType] = useState<WebsiteRecordType>("visit");
+  const [domainMode, setDomainMode] = useState<"all" | "unknown" | "custom">("all");
+  const [domainInput, setDomainInput] = useState("");
+  const [domain, setDomain] = useState<string | undefined>();
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [offsets, setOffsets] = useState<RecordOffsets>({ visit: 0, download: 0 });
   const [visitItems, setVisitItems] = useState<AdminWebsiteVisitListItem[]>([]);
   const [downloadItems, setDownloadItems] = useState<AdminWebsiteDownloadListItem[]>([]);
@@ -52,16 +66,22 @@ export default function WebsiteRecordsTab({ themeColor: _ }: Props) {
   const total = totals[recordType];
 
   const loadRecords = useCallback(async () => {
+    if (activeTab === "stats") return;
     const requestId = ++requestIdRef.current;
     setLoading(true);
+    const filter: WebsiteRecordFilter = {
+      domain,
+      startDay: dateRange?.[0].format("YYYY-MM-DD"),
+      endDay: dateRange?.[1].format("YYYY-MM-DD"),
+    };
     try {
       if (recordType === "visit") {
-        const data = await fetchAdminWebsiteVisitRecords(offsets.visit, PAGE_LIMIT);
+        const data = await fetchAdminWebsiteVisitRecords(offsets.visit, PAGE_LIMIT, filter);
         if (requestId !== requestIdRef.current) return;
         setVisitItems(data.items);
         setTotals((current) => ({ ...current, visit: data.total }));
       } else {
-        const data = await fetchAdminWebsiteDownloadRecords(offsets.download, PAGE_LIMIT);
+        const data = await fetchAdminWebsiteDownloadRecords(offsets.download, PAGE_LIMIT, filter);
         if (requestId !== requestIdRef.current) return;
         setDownloadItems(data.items);
         setTotals((current) => ({ ...current, download: data.total }));
@@ -72,11 +92,17 @@ export default function WebsiteRecordsTab({ themeColor: _ }: Props) {
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [offsets.download, offsets.visit, recordType]);
+  }, [offsets.download, offsets.visit, recordType, domain, dateRange, activeTab]);
 
   useEffect(() => {
     void loadRecords();
+    return () => { requestIdRef.current += 1; };
   }, [loadRecords]);
+
+  const changeDomain = (nextDomain: string | undefined) => {
+    setDomain(nextDomain);
+    setOffsets({ visit: 0, download: 0 });
+  };
 
   const handlePageChange = (page: number) => {
     const nextOffset = (page - 1) * PAGE_LIMIT;
@@ -99,6 +125,7 @@ export default function WebsiteRecordsTab({ themeColor: _ }: Props) {
   };
 
   const visitColumns: ColumnsType<AdminWebsiteVisitListItem> = [
+    { title: "访问域名", dataIndex: "domain", key: "domain", width: 200, ellipsis: true, render: (value: string) => value || "未知域名" },
     {
       title: "访问日期",
       dataIndex: "visitDay",
@@ -180,6 +207,7 @@ export default function WebsiteRecordsTab({ themeColor: _ }: Props) {
   ];
 
   const downloadColumns: ColumnsType<AdminWebsiteDownloadListItem> = [
+    { title: "访问域名", dataIndex: "domain", key: "domain", width: 200, ellipsis: true, render: (value: string) => value || "未知域名" },
     {
       title: "下载日期",
       dataIndex: "downloadDay",
@@ -270,32 +298,73 @@ export default function WebsiteRecordsTab({ themeColor: _ }: Props) {
         bordered={false}
         className="shadow-sm rounded-2xl"
         title={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 py-2">
             <span className="text-lg font-bold text-slate-800">官网记录</span>
             <Segmented
               options={[
                 { label: "访问记录", value: "visit" },
                 { label: "下载记录", value: "download" },
+                { label: "域名统计", value: "stats" },
               ]}
-              value={recordType}
-              onChange={(val) => setRecordType(val as WebsiteRecordType)}
+              value={activeTab}
+              onChange={(val) => {
+                setActiveTab(val as WebsiteRecordType | "stats");
+                if (val !== "stats") setRecordType(val as WebsiteRecordType);
+              }}
             />
-            <span className="text-xs font-normal text-slate-500">
+            {activeTab !== "stats" ? <span className="text-xs font-normal text-slate-500">
               共 {total} 条{recordType === "visit" ? "访问" : "下载"}记录
-            </span>
+            </span> : null}
           </div>
         }
         extra={
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => void loadRecords()}
-            loading={loading}
+            onClick={() => {
+              if (activeTab === "stats") setRefreshKey((value) => value + 1);
+              else void loadRecords();
+            }}
+            loading={activeTab !== "stats" && loading}
           >
             刷新
           </Button>
         }
       >
-        {recordType === "visit" ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Select
+            aria-label="访问域名筛选"
+            value={domainMode}
+            style={{ width: 150 }}
+            options={[{ label: "全部域名", value: "all" }, { label: "未知域名", value: "unknown" }, { label: "指定域名", value: "custom" }]}
+            onChange={(value) => {
+              setDomainMode(value);
+              changeDomain(value === "unknown" ? "" : value === "custom" && domainInput.trim() ? domainInput.trim().toLowerCase().replace(/\.$/, "") : undefined);
+            }}
+          />
+          {domainMode === "custom" ? <Input.Search
+            aria-label="指定访问域名"
+            placeholder="输入域名，如 music.example.com"
+            value={domainInput}
+            onChange={(event) => setDomainInput(event.target.value)}
+            onSearch={(value) => changeDomain(value.trim() ? value.trim().toLowerCase().replace(/\.$/, "") : undefined)}
+            enterButton="筛选"
+            style={{ width: 330, maxWidth: "100%" }}
+          /> : null}
+          {activeTab !== "stats" ? <DatePicker.RangePicker
+            aria-label="记录日期范围（北京时间）"
+            value={dateRange}
+            onChange={(value) => {
+              setDateRange(value?.[0] && value[1] ? [value[0], value[1]] : null);
+              setOffsets({ visit: 0, download: 0 });
+            }}
+          /> : null}
+          {activeTab !== "stats" ? <Text type="secondary">日期按北京时间；访问记录为每日域名 UV</Text> : null}
+        </div>
+        {activeTab === "stats" ? (
+          <Suspense fallback={<div className="py-16 text-center"><Spin /></div>}>
+            <WebsiteDomainStats domain={domain} themeColor={themeColor} refreshKey={refreshKey} />
+          </Suspense>
+        ) : recordType === "visit" ? (
           <Table<AdminWebsiteVisitListItem>
             rowKey="id"
             columns={visitColumns}

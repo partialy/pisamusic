@@ -561,6 +561,7 @@ export type WebsiteRecordType = "visit" | "download";
 
 export type AdminWebsiteVisitListItem = {
   id: string;
+  domain: string;
   visitDay: string;
   path: string;
   referrer: string;
@@ -579,6 +580,7 @@ export type AdminWebsiteVisitDetail = AdminWebsiteVisitListItem & {
 
 export type AdminWebsiteDownloadListItem = {
   id: string;
+  domain: string;
   downloadDay: string;
   platform: "android" | "desktop";
   version: string;

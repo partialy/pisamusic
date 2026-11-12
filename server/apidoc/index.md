@@ -173,6 +173,7 @@
 
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
+| 官网页面 PV 与每日域名 UV 上报 | `POST` | `/api/analytics/page-view` | 无 (明文) | [./analytics/reportPageView.md](./analytics/reportPageView.md) |
 | 官网页面访问与日 UV 统计上报 | `POST` | `/api/analytics/site-visit` | 无 (明文) | [./analytics/reportSiteVisit.md](./analytics/reportSiteVisit.md) |
 
 ---
@@ -272,6 +273,7 @@
 | :--- | :--- | :--- | :--- |
 | 获取仪表盘聚合数据 | `GET` | `/api/admin/dashboard` | [./admin/getDashboard.md](./admin/getDashboard.md) |
 | 分页查询官网访问/下载记录摘要 | `GET` | `/api/admin/website-records` | [./admin/listWebsiteRecords.md](./admin/listWebsiteRecords.md) |
+| 官网域名 UV/PV/下载聚合统计 | `GET` | `/api/admin/website-records/stats` | [./admin/websiteStats.md](./admin/websiteStats.md) |
 | 获取官网记录详情 | `GET` | `/api/admin/website-records/:type/:id` | [./admin/getWebsiteRecordDetail.md](./admin/getWebsiteRecordDetail.md) |
 
 ### 13.6 动态配置管理
