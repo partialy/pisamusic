@@ -49,6 +49,7 @@ class DataManagementActivity : BaseActivity() {
 
     @Inject lateinit var playlistCollectionManager: PlaylistCollectionManager
     @Inject lateinit var playbackDiagnosticStore: PlaybackDiagnosticStore
+    @Inject lateinit var syncManager: cn.partialy.pm.sync.SyncManager
     @Inject lateinit var faultReportRepository: FaultReportRepository
 
     private lateinit var binding: ActivityDataManagementBinding
@@ -122,7 +123,7 @@ class DataManagementActivity : BaseActivity() {
         lifecycleScope.launch {
             val stats = withContext(Dispatchers.IO) { calculateDataStats() }
             binding.overviewLovedCount.text = getString(R.string.data_count_songs_format, stats.lovedCount)
-            binding.overviewLovedSize.text = formatSize(stats.lovedSize)
+            binding.overviewLovedSize.text = getString(R.string.data_shared_db_size, formatSize(stats.lovedSize))
             binding.overviewPlaylistCount.text = getString(R.string.data_count_playlists_format, stats.playlistCount)
             binding.overviewPlaylistSize.text = formatSize(stats.playlistSize)
             binding.overviewTotalSize.text = formatSize(stats.totalSize)
@@ -139,10 +140,8 @@ class DataManagementActivity : BaseActivity() {
 
     private fun calculateDataStats(): DataStats {
         val filesDir = this.filesDir
-        loveManager.syncLegacyMirrorNow()
         playlistCollectionManager.syncLegacyMirrorNow()
-        val loveFile = File(filesDir, "loveList.json")
-        val lovedSize = if (loveFile.exists()) loveFile.length() else 0L
+        val lovedSize = getDatabasePath("pm_local_music.db").takeIf { it.exists() }?.length() ?: 0L
         val lovedCount = loveManager.getLoveList().size
 
         val playlists = playlistCollectionManager.getAllPlaylists()
@@ -153,9 +152,6 @@ class DataManagementActivity : BaseActivity() {
         filesDir.listFiles()
             ?.filter { it.name.startsWith("songs_") && it.name.endsWith(".json") }
             ?.forEach { playlistSize += it.length() }
-        getDatabasePath("pm_local_music.db").takeIf { it.exists() }?.let {
-            playlistSize += it.length()
-        }
 
         return DataStats(
             lovedCount = lovedCount,
@@ -258,12 +254,8 @@ class DataManagementActivity : BaseActivity() {
     private fun performDeleteAll() {
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
-                val filesDir = this@DataManagementActivity.filesDir
-                loveManager.clearLoveList()
-                playlistCollectionManager.clearAll()
-                File(filesDir, "loveList.json").delete()
+                syncManager.clearLocalDataOnly()
             }
-            loveManager.reload()
             loadDataOverview()
             PmMessage.success(this@DataManagementActivity, R.string.data_delete_success)
         }
@@ -292,7 +284,7 @@ class DataManagementActivity : BaseActivity() {
                         ZipOutputStream(BufferedOutputStream(out)).use { zip ->
                             for ((name, file) in filesToPack) {
                                 zip.putNextEntry(ZipEntry(name))
-                                file.inputStream().use { it.copyTo(zip) }
+                                file().use { it.copyTo(zip) }
                                 zip.closeEntry()
                             }
                         }
@@ -313,18 +305,19 @@ class DataManagementActivity : BaseActivity() {
     }
 
     /** 收集需要打包的文件：loveList + playlists 索引 + 本地歌单曲目 */
-    private fun collectExportFiles(filesDir: File): List<Pair<String, File>> {
-        loveManager.syncLegacyMirrorNow()
+    private fun collectExportFiles(filesDir: File): List<Pair<String, () -> java.io.InputStream>> {
         playlistCollectionManager.syncLegacyMirrorNow()
-        val result = mutableListOf<Pair<String, File>>()
-        val loveFile = File(filesDir, "loveList.json")
-        if (loveFile.exists() && loveFile.length() > 2) result.add("loveList.json" to loveFile)
+        val result = mutableListOf<Pair<String, () -> java.io.InputStream>>()
+        if (loveManager.getLoveList().isNotEmpty()) {
+            val bytes = loveManager.exportBackupBytes()
+            result.add("loveList.json" to { bytes.inputStream() })
+        }
 
         val playlistIndex = File(filesDir, "collected_playlists.json")
         if (playlistIndex.exists() && playlistIndex.length() > 2) {
-            result.add("collected_playlists.json" to playlistIndex)
+            result.add("collected_playlists.json" to { playlistIndex.inputStream() })
             filesDir.listFiles()?.filter { it.name.startsWith("songs_") && it.name.endsWith(".json") }
-                ?.forEach { result.add(it.name to it) }
+                ?.forEach { result.add(it.name to { it.inputStream() }) }
         }
         return result
     }
@@ -413,7 +406,7 @@ class DataManagementActivity : BaseActivity() {
         } catch (_: Exception) { emptyList() }
         if (imported.isEmpty()) return 0
 
-        return loveManager.mergeLegacySongs(imported)
+        return loveManager.importSongs(imported)
     }
 
     /** 合并歌单索引：按 type+id 去重，追加新歌单 */

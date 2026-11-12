@@ -52,9 +52,9 @@ internal class FavoriteSongsDbStore(context: Context) {
     }
 
     /** 收藏和同账号待同步操作在同一事务内提交。null 表示迁移或远端下行。 */
-    fun addSong(song: SongInfo, accountId: String? = null): Boolean = transaction { db ->
-        val added = insertSong(db, song)
-        if (added && accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_UPSERT)
+    fun addSong(song: SongInfo, accountId: String? = null, createdAt: Long = System.currentTimeMillis()): Boolean = transaction { db ->
+        val added = insertSong(db, song, createdAt)
+        if (added && accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_UPSERT, createdAt)
         added
     }
 
@@ -70,11 +70,11 @@ internal class FavoriteSongsDbStore(context: Context) {
 
     fun mergeLegacySongs(songs: List<SongInfo>, accountId: String? = null): Int = transaction { db ->
         var added = 0
-        var createdAt = System.currentTimeMillis()
+        var createdAt = System.currentTimeMillis() + songs.size
         for (song in songs) {
-            if (!insertSong(db, song, createdAt++)) continue
+            if (!insertSong(db, song, createdAt--)) continue
             added++
-            if (accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_UPSERT)
+            if (accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_UPSERT, createdAt + 1)
         }
         added
     }
@@ -98,11 +98,11 @@ internal class FavoriteSongsDbStore(context: Context) {
         ) != -1L
     }
 
-    private fun enqueue(db: SQLiteDatabase, accountId: String, song: SongInfo, action: String) {
+    private fun enqueue(db: SQLiteDatabase, accountId: String, song: SongInfo, action: String, favoritedAt: Long? = null) {
         if (song.type == SongType.LOCAL) return
         outbox.enqueueInTransaction(
             db, accountId, SyncPayloads.TYPE_FAVORITE_SONG, SyncPayloads.songKey(song), action,
-            if (action == SyncPayloads.ACTION_DELETE) "{}" else SyncPayloads.songPayload(song),
+            if (action == SyncPayloads.ACTION_DELETE) "{}" else SyncPayloads.songPayload(song, favoritedAt),
         )
     }
 
@@ -116,6 +116,24 @@ internal class FavoriteSongsDbStore(context: Context) {
         } finally {
             db.endTransaction()
         }
+    }
+
+    fun favoriteTimes(): Map<String, Long> = helper.readableDatabase.query(
+        TABLE, arrayOf("song_type", "song_id", "created_at"), null, null, null, null, null,
+    ).use { cursor ->
+        buildMap { while (cursor.moveToNext()) put("${cursor.getString(0)}:${cursor.getString(1)}", cursor.getLong(2)) }
+    }
+
+    /** Android 旧 SQLite 也兼容：事务内 update，缺失才 insert。 */
+    fun upsertSongFromSync(song: SongInfo, favoritedAt: Long?) = transaction { db ->
+        val existing = db.query(TABLE, arrayOf("created_at"), "song_type = ? AND song_id = ?",
+            arrayOf(song.type.name, song.id), null, null, null).use { if (it.moveToFirst()) it.getLong(0) else null }
+        val createdAt = favoritedAt?.takeIf { it > 0 } ?: existing ?: System.currentTimeMillis()
+        val values = song.toValues(createdAt, System.currentTimeMillis())
+        if (db.update(TABLE, values, "song_type = ? AND song_id = ?", arrayOf(song.type.name, song.id)) == 0) {
+            db.insertOrThrow(TABLE, null, values)
+        }
+        createdAt
     }
 
     fun clearAll() {

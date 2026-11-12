@@ -286,7 +286,6 @@ class SplashActivity : AppCompatActivity() {
         cancelLocalModeButton()
         if (!isFinishing && !isDestroyed) {
             startMainActivity(localModeReason)
-            finish()
         }
     }
 
@@ -421,7 +420,6 @@ class SplashActivity : AppCompatActivity() {
         binding.splashWebView.postDelayed({
             if (!isFinishing && !isDestroyed) {
                 startMainActivity(localModeReason)
-                finish()
             }
         }, 1000L)
     }
@@ -430,16 +428,34 @@ class SplashActivity : AppCompatActivity() {
         intent?.dataString?.trim()?.takeIf { it.isNotEmpty() }?.let { pendingScanLink = it }
     }
 
+    @Inject lateinit var loveManager: cn.partialy.pm.utils.loveUtil.LoveManager
+    private var openingMain = false
+
     private fun startMainActivity(localModeReason: String? = null) {
-        if (!localModeReason.isNullOrBlank()) {
-            configManager.enterLocalMode()
+        if (openingMain) return
+        openingMain = true
+        lifecycleScope.launch {
+            try {
+                loveManager.awaitPreloaded()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                openingMain = false
+                hasNavigated = false
+                showErrorDialog(e.message ?: "收藏数据读取失败")
+                return@launch
+            }
+            if (!localModeReason.isNullOrBlank()) {
+                configManager.enterLocalMode()
+            }
+            MainActivity.start(
+                context = this@SplashActivity,
+                localModeReason = localModeReason,
+                scanLink = pendingScanLink,
+            )
+            pendingScanLink = null
+            finish()
         }
-        MainActivity.start(
-            context = this,
-            localModeReason = localModeReason,
-            scanLink = pendingScanLink,
-        )
-        pendingScanLink = null
     }
 
     private fun openOfficialSite() {
@@ -501,14 +517,12 @@ class SplashActivity : AppCompatActivity() {
                 if (hasNavigated) return@onSuccess
                 hasNavigated = true
                 startMainActivity()
-                finish()
             }.onFailure {
                 updateSheetHandle?.dismiss()
                 updateSheetHandle = null
                 if (hasNavigated) return@onFailure
                 hasNavigated = true
                 startMainActivity(it.message ?: getString(R.string.splash_update_verify_failed))
-                finish()
             }
         }
     }

@@ -105,7 +105,7 @@ class LyricRepository @Inject constructor(
 
     private fun readIndexedLyrics(song: SongInfo): LyricContent? {
         val entry = mediaIndexDb.getLyricIndex(song) ?: return null
-        val content = LyricParser.parseBest(entry.lyric, entry.source)
+        val content = parseCachedLyrics(song, entry.lyric, entry.source)
         return content.takeIf { it.hasLyrics }
     }
 
@@ -163,10 +163,19 @@ class LyricRepository @Inject constructor(
         val cacheFile = File(context.cacheDir, "${song.type.name}_${song.id}")
         if (!cacheFile.exists()) return null
         val text = runCatching { cacheFile.readText() }.getOrDefault("").trim()
-        val content = LyricParser.parseBest(text, source = "legacy_file")
+        val content = parseCachedLyrics(song, text, source = "legacy_file")
         if (!content.hasLyrics) return null
         mediaIndexDb.upsertLyric(song, text, source = content.source)
         return content
+    }
+
+    private fun parseCachedLyrics(song: SongInfo, text: String, source: String): LyricContent {
+        val parsed = LyricParser.parseBest(text, source)
+        return if (song.type == SongType.CLOUD && !parsed.hasLyrics) {
+            parsePlainText(text, source = "cloud_txt")
+        } else {
+            parsed
+        }
     }
 
     private suspend fun fetchRemoteLyrics(song: SongInfo): LyricContent {
@@ -200,17 +209,16 @@ class LyricRepository @Inject constructor(
             val resource = cloudMusicRepository.getLyricsResource(song.id)
             val text = cloudMusicRepository.fetchLyricsText(resource).trim()
             if (text.isBlank()) return LyricContent.noLyrics()
-            when (resource.format?.lowercase()) {
-                "txt" -> parsePlainText(text, source = "cloud_txt")
-                else -> LyricParser.parseBest(text, source = "cloud_lrc").also { content ->
-                    if (content.hasLyrics) {
-                        runCatching {
-                            File(context.cacheDir, "${song.type.name}_${song.id}").writeText(text)
-                            mediaIndexDb.upsertLyric(song, text, source = "cloud_lrc")
-                        }
-                    }
+            // 旧资源可能把纯文本标成 LRC，或把带时间轴歌词标成 TXT；以内容为准。
+            val timed = LyricParser.parseBest(text, source = "cloud")
+            val content = if (timed.hasLyrics) timed else parsePlainText(text, source = "cloud_txt")
+            if (content.hasLyrics) {
+                runCatching {
+                    File(context.cacheDir, "${song.type.name}_${song.id}").writeText(text)
+                    mediaIndexDb.upsertLyric(song, text, source = content.source)
                 }
             }
+            content
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {

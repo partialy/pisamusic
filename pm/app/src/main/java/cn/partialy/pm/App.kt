@@ -17,8 +17,11 @@ class App : Application() {
     @Inject
     lateinit var configManager: ConfigManager
 
+    @Inject lateinit var loveManager: cn.partialy.pm.utils.loveUtil.LoveManager
+
     override fun onCreate() {
         super.onCreate()
+        loveManager.preloadFromDiskAsync()
         PmMessage.init(this)
         TokenManager.init(this)
         SettingsPrefs.applyAutoAudioCacheIfNeeded(this)

@@ -1,6 +1,8 @@
 package cn.partialy.pm.sync
 
 import android.content.Context
+import androidx.work.*
+import java.util.concurrent.TimeUnit
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -20,6 +22,16 @@ object SyncWorkRunner {
         if (!SyncPrefs.getState(context).loggedIn) return
         requested.set(true)
         startIfNeeded(context.applicationContext)
+    }
+
+    fun scheduleRetry(context: Context) {
+        if (!SyncPrefs.getState(context).loggedIn) return
+        val work = OneTimeWorkRequestBuilder<SyncRetryWorker>()
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setInitialDelay(30, TimeUnit.SECONDS)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+        WorkManager.getInstance(context.applicationContext).enqueueUniqueWork("account-sync-retry", ExistingWorkPolicy.KEEP, work)
     }
 
     private fun startIfNeeded(appContext: Context) {
@@ -46,5 +58,15 @@ object SyncWorkRunner {
     @InstallIn(SingletonComponent::class)
     interface SyncEntryPoint {
         fun syncManager(): SyncManager
+    }
+}
+
+/** 标准 Worker 构造，复用应用 Hilt entry point，无需额外 WorkerFactory。 */
+class SyncRetryWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        if (!SyncPrefs.getState(applicationContext).loggedIn) return Result.success()
+        val entryPoint = EntryPointAccessors.fromApplication(applicationContext, SyncWorkRunner.SyncEntryPoint::class.java)
+        val state = entryPoint.syncManager().syncNow()
+        return if (!state.loggedIn || state.lastError.isBlank()) Result.success() else Result.retry()
     }
 }

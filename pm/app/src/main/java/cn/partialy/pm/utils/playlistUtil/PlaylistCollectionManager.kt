@@ -545,6 +545,15 @@ class PlaylistCollectionManager @Inject constructor(
         return true
     }
 
+    fun <T> withSyncGuard(accountId: String, itemType: String, itemKey: String, action: () -> T): T? {
+        ensureIndexLoaded()
+        synchronized(lock) {
+            if (syncOutbox.accountSnapshot() != accountId || syncOutbox.hasPending(accountId, itemType, itemKey)) return null
+            if (itemType == SyncPayloads.TYPE_USER_PLAYLIST && syncOutbox.hasPendingPlaylist(accountId, itemKey.substringAfter(":"))) return null
+            return action()
+        }
+    }
+
     fun upsertPlaylistFromSync(playlist: cn.partialy.pm.model.CanonicalPlaylist, favorite: Boolean) {
         val next = playlist.toCollectedPlaylist()
         if (next.id.isBlank()) return
@@ -588,6 +597,8 @@ class PlaylistCollectionManager @Inject constructor(
         if (playlistId.isBlank()) return
         removeSongsFromLocalPlaylistFromSync(playlistId, listOf(song.toSongInfo()))
     }
+
+    fun <T> withDataLock(action: () -> T): T = synchronized(lock) { action() }
 
     fun clearAll() {
         ensureIndexLoaded()

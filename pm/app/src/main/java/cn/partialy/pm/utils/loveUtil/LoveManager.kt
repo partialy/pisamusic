@@ -31,13 +31,15 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
     private val syncOutbox = SyncOutboxStore(context)
     private val lock = Any()
     private var loaded = false
+    private var syncBatchDepth = 0
+    private var latestFavoriteTime = 0L
     private val songsByKey = LinkedHashMap<String, SongInfo>()
+    private val favoriteTimes = HashMap<String, Long>()
 
     private val _loveListFlow = MutableStateFlow<List<SongInfo>>(emptyList())
     val loveListFlow: StateFlow<List<SongInfo>> = _loveListFlow.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val mirrorLock = Any()
     private val migrationPrefs = context.getSharedPreferences("pm_favorite_migration", Context.MODE_PRIVATE)
 
     private fun loveFile(): File = File(context.filesDir, fileName)
@@ -71,7 +73,11 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
                     "无法保存收藏迁移状态"
                 }
             }
+            loveFile().takeIf { it.exists() }?.delete()
             val list = db.getSongs()
+            favoriteTimes.clear()
+            favoriteTimes.putAll(db.favoriteTimes())
+            latestFavoriteTime = favoriteTimes.values.maxOrNull() ?: 0L
             songsByKey.clear()
             for (s in list) songsByKey[s.storageKey()] = s
             refreshFlowLocked()
@@ -94,26 +100,28 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         }
     }
 
+    suspend fun awaitPreloaded() = kotlinx.coroutines.withContext(Dispatchers.IO) { ensureLoaded() }
+
     private fun refreshFlowLocked() {
-        _loveListFlow.value = songsByKey.values.toList()
+        if (syncBatchDepth > 0) return
+        _loveListFlow.value = orderedSongsLocked()
     }
 
-    /** 收藏默认按添加时间倒序展示，新收藏应立即进入列表首位。 */
-    private fun putNewestFirstLocked(song: SongInfo) {
+    private fun orderedSongsLocked(): List<SongInfo> = songsByKey.values.sortedByDescending { favoriteTimes[it.storageKey()] ?: 0L }
+
+    /** 批量插入只更新索引，最后统一排序发布，避免逐项重建 Map。 */
+    private fun nextFavoriteTimeLocked(): Long = maxOf(System.currentTimeMillis(), latestFavoriteTime + 1).also { latestFavoriteTime = it }
+
+    private fun putNewestFirstLocked(song: SongInfo, createdAt: Long) {
         val key = song.storageKey()
-        val reordered = LinkedHashMap<String, SongInfo>(songsByKey.size + 1)
-        reordered[key] = song
-        songsByKey.forEach { (existingKey, existingSong) ->
-            if (existingKey != key) reordered[existingKey] = existingSong
-        }
-        songsByKey.clear()
-        songsByKey.putAll(reordered)
+        songsByKey[key] = song
+        favoriteTimes[key] = createdAt
     }
 
     fun getLoveList(): List<SongInfo> {
         ensureLoaded()
         synchronized(lock) {
-            return songsByKey.values.toList()
+            return orderedSongsLocked()
         }
     }
 
@@ -124,32 +132,9 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         return copy(embeddedCoverArt = null)
     }
 
-    private fun persistAsync() {
-        scope.launch { syncLegacyMirrorNow() }
-    }
+    fun exportBackupBytes(): ByteArray = gson.toJson(getLoveList().map { it.forPersistence() }).toByteArray(Charsets.UTF_8)
 
-    fun syncLegacyMirrorNow() {
-        ensureLoaded()
-        synchronized(mirrorLock) {
-            // 获取写锁之后再抓最新快照，避免旧异步任务覆盖新镜像。
-            val snapshot = synchronized(lock) {
-                songsByKey.values.map { it.forPersistence() }
-            }
-            writeLegacyMirror(snapshot)
-        }
-    }
-
-    private fun writeLegacyMirror(snapshot: List<SongInfo>) {
-        try {
-            val file = loveFile()
-            file.parentFile?.mkdirs()
-            file.writeText(gson.toJson(snapshot))
-        } catch (e: Exception) {
-            Log.e(TAG, "save love list failed", e)
-        }
-    }
-
-    fun mergeLegacySongs(songs: List<SongInfo>): Int {
+    fun importSongs(songs: List<SongInfo>): Int {
         ensureLoaded()
         val added = synchronized(lock) {
             val count = db.mergeLegacySongs(songs.map { it.forPersistence() }, syncOutbox.accountSnapshot())
@@ -157,7 +142,6 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
             count
         }
         if (added > 0) SyncWorkRunner.request(context)
-        persistAsync()
         return added
     }
 
@@ -167,15 +151,19 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
             if (songsByKey.containsKey(songInfo.storageKey())) {
                 if (db.removeSong(songInfo, syncOutbox.accountSnapshot())) {
                     songsByKey.remove(songInfo.storageKey())
+                    favoriteTimes.remove(songInfo.storageKey())
                 }
-            } else if (db.addSong(songInfo.forPersistence(), syncOutbox.accountSnapshot())) {
-                putNewestFirstLocked(songInfo.forPersistence())
+            } else {
+                val createdAt = nextFavoriteTimeLocked()
+                if (db.addSong(songInfo.forPersistence(), syncOutbox.accountSnapshot(), createdAt)) {
+                    putNewestFirstLocked(songInfo.forPersistence(), createdAt)
+                }
             }
+            favoriteTimes.putAll(db.favoriteTimes())
             refreshFlowLocked()
             songsByKey.containsKey(songInfo.storageKey())
         }
         SyncWorkRunner.request(context)
-        persistAsync()
         return liked
     }
 
@@ -195,6 +183,7 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
             for (song in songs.distinctBy { it.storageKey() }) {
                 if (db.removeSong(song, accountId)) {
                     songsByKey.remove(song.storageKey())
+                    favoriteTimes.remove(song.storageKey())
                     removedCount++
                 }
             }
@@ -204,7 +193,6 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         }
         if (removedCount > 0) {
             SyncWorkRunner.request(context)
-            persistAsync()
         }
         return removedCount
     }
@@ -215,7 +203,7 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         val failed: List<SongInfo>,
     )
 
-    /** 幂等添加；只为新增项写同步事件，集中刷新列表与备份镜像。 */
+    /** 幂等添加；只为新增项写同步事件，集中排序刷新列表。 */
     fun addSongsToLoveList(songs: Collection<SongInfo>): BatchAddResult {
         ensureLoaded()
         val added = mutableListOf<SongInfo>()
@@ -228,11 +216,12 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
                     failed.add(song)
                     continue
                 }
+                val createdAt = nextFavoriteTimeLocked()
                 try {
                     if (songsByKey.containsKey(song.storageKey())) {
                         existing.add(song)
-                    } else if (db.addSong(song.forPersistence(), accountId)) {
-                        putNewestFirstLocked(song.forPersistence())
+                    } else if (db.addSong(song.forPersistence(), accountId, createdAt)) {
+                        putNewestFirstLocked(song.forPersistence(), createdAt)
                         added.add(song)
                     } else if (db.contains(song)) {
                         songsByKey[song.storageKey()] = song.forPersistence()
@@ -242,11 +231,11 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
                     failed.add(song)
                 }
             }
+            favoriteTimes.putAll(db.favoriteTimes())
             refreshFlowLocked()
         }
         if (added.isNotEmpty()) {
             SyncWorkRunner.request(context)
-            persistAsync()
         }
         return BatchAddResult(added, existing, failed)
     }
@@ -257,12 +246,11 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
         ensureLoaded()
         synchronized(lock) {
             if (shouldKeepLocalChange(next, accountId)) return
-            val inserted = db.addSong(next)
-            if (inserted) putNewestFirstLocked(next)
-            else songsByKey[next.storageKey()] = next
+            favoriteTimes[next.storageKey()] = db.upsertSongFromSync(next, song.favoritedAt)
+            latestFavoriteTime = maxOf(latestFavoriteTime, favoriteTimes[next.storageKey()] ?: 0L)
+            songsByKey[next.storageKey()] = next
             refreshFlowLocked()
         }
-        persistAsync()
     }
 
     fun removeFromSync(song: cn.partialy.pm.model.CanonicalSong, accountId: String) {
@@ -273,9 +261,9 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
             if (shouldKeepLocalChange(next, accountId)) return
             db.removeSong(next)
             songsByKey.remove(next.storageKey())
+            favoriteTimes.remove(next.storageKey())
             refreshFlowLocked()
         }
-        persistAsync()
     }
 
     /** 和本机变更共用 lock；检查 pending 后到数据库/内存发布之间不能插入新操作。 */
@@ -293,21 +281,46 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
                 if (song.type == SongType.LOCAL || shouldKeepLocalChange(song, accountId)) continue
                 syncOutbox.enqueue(
                     SyncPayloads.TYPE_FAVORITE_SONG, SyncPayloads.songKey(song),
-                    SyncPayloads.ACTION_UPSERT, SyncPayloads.songPayload(song),
+                    SyncPayloads.ACTION_UPSERT, SyncPayloads.songPayload(song, favoriteTimes[song.storageKey()]),
                 )
             }
         }
     }
 
+    /** 完整快照结束后才执行缺失删除；每项与本机写入使用同一把锁。 */
+    fun reconcileSnapshot(remoteKeys: Set<String>, initialSongs: List<SongInfo>, accountId: String) {
+        ensureLoaded()
+        synchronized(lock) {
+            for (song in initialSongs) {
+                if (song.type == SongType.LOCAL || SyncPayloads.songKey(song) in remoteKeys || shouldKeepLocalChange(song, accountId)) continue
+                db.removeSong(song)
+                songsByKey.remove(song.storageKey())
+                favoriteTimes.remove(song.storageKey())
+            }
+            refreshFlowLocked()
+        }
+    }
+
+    fun <T> withSyncBatch(action: () -> T): T = synchronized(lock) {
+        syncBatchDepth++
+        try { action() } finally {
+            syncBatchDepth--
+            refreshFlowLocked()
+        }
+    }
+
+    fun <T> withDataLock(action: () -> T): T = synchronized(lock) { action() }
+
     fun clearLoveList() {
         ensureLoaded()
         synchronized(lock) {
-            if (songsByKey.isEmpty()) return
             db.clearAll()
             songsByKey.clear()
+            favoriteTimes.clear()
+            latestFavoriteTime = 0L
+            loveFile().takeIf { it.exists() }?.delete()
             refreshFlowLocked()
         }
-        persistAsync()
     }
 
     private fun SongInfo.storageKey(): String = "${type.name}:$id"

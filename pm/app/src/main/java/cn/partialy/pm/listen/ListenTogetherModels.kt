@@ -248,7 +248,7 @@ class ListenTogetherApiException(
 ) : RuntimeException(message)
 
 fun SongInfo.toListenTogetherSong(durationMs: Long? = null): ListenTogetherSong {
-    require(type != SongType.CLOUD) { "cloud songs are not supported by listen together" }
+    require(type != SongType.LOCAL) { "local songs are not supported by listen together" }
     return ListenTogetherSong(
         id = id,
         source = type.name.lowercase(),
@@ -263,13 +263,13 @@ fun SongInfo.toListenTogetherSong(durationMs: Long? = null): ListenTogetherSong 
 }
 
 fun ListenTogetherSong.toSongInfo(): SongInfo? {
-    if (source.equals("cloud", ignoreCase = true)) return null
+    if (source.equals("local", ignoreCase = true)) return null
     return SongInfo(
         id = id.ifBlank { urlParam },
         type = when (source.lowercase()) {
             "wy" -> SongType.WY
             "kw" -> SongType.KW
-            "local" -> SongType.LOCAL
+            "cloud" -> SongType.CLOUD
             else -> SongType.KG
         },
         name = name,
@@ -292,7 +292,7 @@ fun ListenTogetherSong.toSongRef(): ListenTogetherSongRef =
     ListenTogetherSongRef(source = source.lowercase(), id = id)
 
 fun SongInfo.toListenTogetherSongRef(): ListenTogetherSongRef? =
-    if (type == SongType.CLOUD) null else ListenTogetherSongRef(source = type.name.lowercase(), id = id)
+    if (type == SongType.LOCAL) null else ListenTogetherSongRef(source = type.name.lowercase(), id = id)
 
 fun ListenTogetherRoom.targetPosition(nowMs: Long = System.currentTimeMillis()): Long {
     if (status != ListenTogetherRoom.STATUS_PLAYING) return position.coerceAtLeast(0L)

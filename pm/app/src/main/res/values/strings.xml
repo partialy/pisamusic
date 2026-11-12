@@ -67,6 +67,7 @@
     <string name="settings_cache_management">缓存管理</string>
     <string name="settings_feature_coming_soon">敬请期待</string>
     <string name="data_overview_title">本地数据</string>
+    <string name="data_shared_db_size">共享数据库 %1$s</string>
     <string name="data_loved_songs_tile_title">收藏歌曲</string>
     <string name="data_playlist_tile_title">歌单总数</string>
     <string name="data_storage_tile_title">数据占用</string>
@@ -74,8 +75,8 @@
     <string name="data_count_playlists_format">%1$d 个</string>
     <string name="data_delete_button">清除</string>
     <string name="data_delete_confirm_title">确认清除</string>
-    <string name="data_delete_confirm_msg">将删除全部收藏歌曲和歌单数据，无法恢复。是否继续？</string>
-    <string name="data_delete_success">已清除所有数据</string>
+    <string name="data_delete_confirm_msg">仅清空本机收藏歌曲和歌单，并丢弃尚未同步的本机操作。云端数据不受影响，下次同步将恢复云端内容。是否继续？</string>
+    <string name="data_delete_success">已清空本机数据，云端数据不受影响</string>
     <string name="data_backup_restore_title">歌单与收藏</string>
     <string name="data_export_button">导出</string>
     <string name="data_export_success">导出成功：%1$s</string>

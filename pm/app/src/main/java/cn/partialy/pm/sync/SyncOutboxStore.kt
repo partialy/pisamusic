@@ -77,6 +77,19 @@ class SyncOutboxStore(context: Context) {
         }
     }
 
+    data class PendingBatch(val changes: List<PendingSyncOp>, val opIds: List<String>)
+
+    /** 只删除本次发送快照内的 ID；发送期间追加的同 key 操作留待下一批。 */
+    fun coalescedPending(accountId: String): PendingBatch {
+        return coalescePendingOps(listPending(accountId, Int.MAX_VALUE))
+    }
+
+    fun hasPendingPlaylist(accountId: String, playlistId: String): Boolean =
+        listPending(accountId, Int.MAX_VALUE).any {
+            (it.itemType == SyncPayloads.TYPE_USER_PLAYLIST && it.itemKey == "local:$playlistId") ||
+                (it.itemType == SyncPayloads.TYPE_PLAYLIST_TRACK && it.itemKey.startsWith("$playlistId|"))
+        }
+
     fun removeOps(opIds: Collection<String>) {
         if (opIds.isEmpty()) return
         val db = helper.writableDatabase
@@ -131,4 +144,9 @@ data class PendingSyncOp(
             payload = payload,
             clientUpdatedAt = Instant.ofEpochMilli(createdAt).toString(),
         )
+}
+
+internal fun coalescePendingOps(pending: List<PendingSyncOp>): SyncOutboxStore.PendingBatch {
+    val groups = pending.groupBy { it.itemType to it.itemKey }.values.take(200)
+    return SyncOutboxStore.PendingBatch(groups.map { it.last() }, groups.flatMap { group -> group.map { it.opId } })
 }

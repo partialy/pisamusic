@@ -182,6 +182,9 @@ interface SystemApiService {
         @Header("Authorization") authorization: String,
         @Header("x-pm-device-id") deviceId: String,
         @Query("since") since: Long,
+        @Query("protocol") protocol: Int = 2,
+        @Query("snapshotVersion") snapshotVersion: Long? = null,
+        @Query("cursor") cursor: String? = null,
     ): SyncChangesResponse
 
     @POST("api/sync/changes")

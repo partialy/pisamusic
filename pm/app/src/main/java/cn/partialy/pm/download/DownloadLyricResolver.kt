@@ -84,13 +84,8 @@ class DownloadLyricResolver @Inject constructor(
         val resource = cloudMusicRepository.getLyricsResource(song.id)
         val text = cloudMusicRepository.fetchLyricsText(resource).trim()
         if (text.isEmpty()) return DownloadLyricVariants.EMPTY
-        val raw = when (resource.format?.trim()?.lowercase()) {
-            "krc" -> RawLyric(text, LyricFormat.KRC, "cloud_krc")
-            "yrc" -> RawLyric(text, LyricFormat.YRC, "cloud_yrc")
-            "lrc" -> RawLyric(text, LyricFormat.LRC, "cloud_lrc")
-            "txt" -> null
-            else -> inferRawLyric(text)
-        }
+        // 依据真实时间轴判定格式，兼容历史错标的 TXT/LRC 资源。
+        val raw = inferRawLyric(text)
         if (raw == null) {
             return DownloadLyricVariants(
                 line = DownloadLyricAsset(text, "txt"),

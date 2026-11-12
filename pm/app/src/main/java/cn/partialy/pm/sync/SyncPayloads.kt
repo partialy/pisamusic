@@ -30,7 +30,8 @@ object SyncPayloads {
 
     fun playlistTrackKey(playlistId: String, song: SongInfo): String = "${playlistId}|${songKey(song)}"
 
-    fun songPayload(song: SongInfo): String = gson.toJson(song.toCanonicalSong())
+    fun songPayload(song: SongInfo, favoritedAt: Long? = null): String =
+        gson.toJson(song.toCanonicalSong().copy(favoritedAt = favoritedAt))
     fun playlistPayload(playlist: CollectedPlaylist, clearLocalFileCover: Boolean = true): String {
         val canonical = playlist.toCanonicalPlaylist().let {
             if (clearLocalFileCover && it.source == "local" && isLocalOnlyCover(it.cover)) {
@@ -64,6 +65,7 @@ object SyncPayloads {
             size = payload.longMapValue("size"),
             vip = payload.booleanValue("vip"),
             playable = payload.booleanValue("playable") ?: true,
+            favoritedAt = payload.stringValue("favoritedAt").toDoubleOrNull()?.toLong()?.takeIf { it > 0 },
         )
     }
 

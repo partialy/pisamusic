@@ -61,6 +61,7 @@ android {
 dependencies {
     // AndroidX 核心库
     implementation(libs.androidx.core.ktx)
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.lifecycle.livedata.ktx)

@@ -384,9 +384,9 @@ class ConfigManager @Inject constructor(
         return response.data
     }
 
-    suspend fun getSyncChanges(token: String, deviceId: String, since: Long): SyncChangesResult {
+    suspend fun getSyncChanges(token: String, deviceId: String, since: Long, snapshotVersion: Long? = null, cursor: String? = null): SyncChangesResult {
         val response = systemCall("拉取同步变更失败") {
-            systemApiService.getSyncChanges("Bearer $token", deviceId, since)
+            systemApiService.getSyncChanges("Bearer $token", deviceId, since, 2, snapshotVersion, cursor)
         }
         if (!response.success || response.code != 0) throw ApiException(response.code, response.msg.ifBlank { "拉取同步变更失败" })
         return response.data

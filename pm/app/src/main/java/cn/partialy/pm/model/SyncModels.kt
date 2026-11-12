@@ -9,7 +9,12 @@ data class SyncChangesResponse(
 
 data class SyncChangesResult(
     val version: Long,
-    val changes: List<SyncChange>,
+    val changes: List<SyncChange> = emptyList(),
+    val mode: String = "delta",
+    val items: List<SyncChange>? = null,
+    val snapshotVersion: Long? = null,
+    val cursor: String? = null,
+    val hasMore: Boolean = false,
 )
 
 data class SyncPushRequest(

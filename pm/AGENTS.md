@@ -137,9 +137,9 @@
 
 - 下载任务以 `pm_download_tasks.db` 的 `download_tasks` 表为主存储，由 `DownloadTaskRepository` 管理；“我的 → 下载管理”分为下载中与已完成，支持搜索和批量删除。选择一并删除文件时，只删除任务精确记录的音频、`.part` 和同目录歌词文件；物理删除失败必须保留对应任务记录，便于用户重试。
 - 自建本地歌单及其歌曲关系以 `pm_local_music.db` SQLite 数据库为主存储，由 `LocalPlaylistDbStore` 管理。
-- 收藏歌曲以 `pm_local_music.db` 的 `favorite_songs` 表为主存储，由 `LoveManager` 管理；旧版 `loveList.json` 仅用于迁移、导入导出兼容和备份镜像。
+- 收藏歌曲以 `pm_local_music.db` 的 `favorite_songs` 表为主存储，由 `LoveManager` 管理；旧版 `loveList.json` 仅用于一次性读取迁移，ZIP 同名条目由权威数据即时生成，不再写备份镜像。
 - `PlaylistCollectionManager` 仍是收藏/自建歌单的统一入口；网络歌单收藏写入 `favorite_playlists`，自建歌单写入本地歌单表。旧版 `collected_playlists.json` 与 `songs_<playlistId>.json` 会在加载时迁移到 SQLite。
-- 本地歌单与收藏 JSON 文件仅用于导入导出兼容和备份镜像，不要再作为新的运行时主存储。
+- 本地歌单 JSON 文件仅用于导入导出兼容和备份镜像，收藏歌曲不再写 JSON 文件，不要再作为新的运行时主存储。
 - “我的”页本地歌单分组头左侧管理图标进入 `LocalPlaylistManagementActivity`，右侧加号继续新建歌单。管理页只处理 `CollectedPlaylistType.LOCAL`：从 `playlistsFlow` 接收权威数据，搜索结果按 40 条分段展示；全选、反选和删除选择均以完整筛选快照为准，批量删除确认统一复用 `PlaylistDeleteConfirmation`。
 - 酷狗 / 网易第三方登录态统一由 `MusicCookieManager` 管理，存储在 `pm_local_music.db` 的 `third_party_login_sessions` 表；Cookie 与第三方用户摘要（昵称、用户名、第三方 VIP、头像、背景图等）都从该入口读取，不要恢复 `kugou_cookie_user.json`、`wy_cookie_user.json` 或侧栏 profile JSON 缓存作为运行时来源。不得用该存储推断或展示 PisaMusic 系统账号 VIP。
 - 主界面侧拉栏不恢复旧的 KG / WY 纵向独立大卡、独立退出按钮或更多登录菜单；功能卡首行固定为 KG / WY 左右双列小入口，中间使用竖向分隔线，双列账号行使用 8dp 外层水平内边距，使左侧 K 标签与下方 16dp 功能图标左缘对齐。来源标签统一复用 `SongSourceTagBinder`：未登录时不显示头像，只显示 K/Y、“未登录”和紧随文本的右箭头，点击分别进入 KG / WY 登录；已登录时隐藏箭头，显示 24dp 圆形头像和单行昵称。两个来源均未登录时导入行显示“登录后可导入歌单”且不显示清理按钮；任一来源登录时显示“导入歌单”和右侧红色“清除登录”，清理只允许调用 `MusicCookieManager.clearAll()` 清除第三方会话，不得影响 PisaMusic 系统账号。任一来源登录后，导入行可点击并拉取已登录平台歌单写入本地收藏；“清除登录”必须二次确认。“定时关闭”由 `SleepTimerManager` 保存目标时间并在进程内倒计时，入口仅在启用或等待本曲结束时显示状态，点击通过 `SleepTimerBottomSheet` 设置、更新或取消。默认四个快捷档位为 5/15/30/60 分钟，必须保持四槽存储并允许在“设置 → 播放设置 → 定时配置”分别改为 1～1439 分钟；Sheet 不显示“快捷时间”标题，快捷项固定为等距 60dp 圆形双行按钮，上方为数字、下方为 `min`，未选中使用透明背景与中性色圆边框/文字，选中使用淡 primary 背景与 primary 边框/文字；“自定义时间”标题固定简化为“自定义”；“播完整首歌再停止”开关不得显示额外说明文案。开关开启后，倒计时结束时若仍在播放则进入等待态，`PlayerEngine` 只在自然自动切歌、单曲循环完成或列表末尾结束时通过 `MusicController.setSongEndedInterceptor` 同步阻止后续自动续播，再由定时管理器暂停并清理状态；手动切歌不得触发。
@@ -164,7 +164,7 @@
 - discovery 缓存只保存发现文档原文与版本，不缓存 bootstrap 音源配置；远程文档版本低于当前快照时不得覆盖或降级。一起听 Socket 每次连接读取当前 realtime origin，反馈地址和账号相对头像统一按当前 API origin 解析；绝对头像仅接受合法 HTTPS URL。
 - 首页推荐页由 `RecommendedSongsViewModel` 聚合 KG 每日推荐 / 推荐歌单与 WY `/personalized` 推荐歌单、`/personalized/newsong` 推荐新歌；新增首页推荐来源时需要补齐模型、Repository 映射、`SongType`/`CollectedPlaylistType` UI 分流和播放 URL 解析。
 - 首页推荐顶部三张功能卡固定为云盘共享音乐空间、每日推荐、雷达歌单；第一张点击后切换到首页第二个“云盘”Tab，三张卡片使用无内嵌文字的简约底图并由布局统一叠字。卡片固定为 `128dp × 170dp`，横向间距 `10dp`，横向列表约露出半张第三卡；卡片 elevation 固定 `1dp`，底部使用 `80dp`、顶部全透明的渐变羽化层承载标题/描述，避免恢复为大面积硬黑遮罩；“今日推荐”左上使用动态 `M-d 周X` 日期标签，不得恢复为纯图片或静态日期。云盘 Hero 副标题统一为“宝藏歌曲&珍藏歌曲共享”。
-- 云盘歌曲当前不扩展一起听协议；相关菜单隐藏或提示“云盘歌曲暂不支持一起听”，收到 Cloud 歌曲也必须在一起听入口拒绝，后续需要同时扩展 Android、PC 与 server 协议后才能开放。
+- 一起听支持 `CLOUD`（`source=cloud`、`id/urlParam=UUID`）创建房间、共享队列、切歌、播放/暂停、进度同步与结束续播；仅拒绝 LOCAL。房间及队列只传稳定元数据、空 `url`，接收设备通过 `MusicController.playLatest` → `MediaItemFactory` → `CloudMusicRepository` 临播放签发自己的 URL，不共享或持久化签名地址。非房间播放拖动进度直接 Seek，不经过一起听协议检查。
 - KG / WY 已登录且本地存在对应 Cookie 时，非播放 URL 的数据接口（搜索、推荐、歌单、歌词等）必须优先走 `KugouCookieRepository` / `WyCookieRepository` 的 Cookie 请求，失败后回退匿名 Retrofit；唯一例外是 KG `search/suggest` 搜索提示词，为保证输入变化时能取消底层 OkHttp Call，固定使用匿名 Retrofit `suspend` 接口。播放和下载 URL 仍只走现有 `KgUrlProxyApiService` / `WyUrlProxyApiService` 代理链路，不带 Cookie。
 - 修改 endpoint 字段时，检查 Android `SystemData.kt` / `ConfigManager.kt`，以及 `../server/` 中的配置存储、类型和管理后台表单。
 - 修改发现页字段时，检查 Android `DiscoverInfo` / `DiscoverFragment`，以及 `../server/` 的 discover 配置和管理后台系统页。
@@ -365,3 +365,16 @@
 - 收藏与本地歌单歌曲批量页第三格统一“操作”，菜单为删除、下载、添加到；在线批量页保留下载、收藏、添加到。菜单与结果统一经 `PlaylistBatchActionCoordinator`，删除只移除所属歌单/收藏关系，不能删除磁盘音频或其他歌单曲目。
 - `AddToPlaylistBottomSheet` 支持 `excludeLocalPlaylistId`（从当前歌单发起时隐藏自身），队列/其他歌单/新建入口保留；成功或已存在项才撤销选择。
 - 混合源批量下载通过 `planPlaylistBatchDownload` 按首次出现的音源顺序分组，跳过 LOCAL、不可播放或无效 ID；`BaseDownloadActivity.startPlaylistBatchDownloadFlow` 每组选择匹配音质，超过 100 首有效项目总量先确认一次，整批只发一次结果汇总。取消后续组、Activity 不可见或销毁不回滚已进入进程级队列的任务。
+
+
+## 收藏与账号同步（2026-11-12）
+
+- 收藏歌曲只持久化 SQLite `favorite_songs`；`LoveManager` 保留内存索引及 Flow，批量收藏集中排序发布。旧 `loveList.json` 仅在未完成迁移时读取，迁移标记同步保存后删除；已迁移用户残留文件直接清理，不再写镜像。ZIP 备份直接从 SQLite 对应内存快照生成 `loveList.json` 字节条目，旧备份仍经 `importSongs` 合并；数据概览按歌曲数和共享 SQLite 文件整体体积统计。
+- `CanonicalSong.favoritedAt` 是收藏关系毫秒时间戳；本机新增和 seed 使用数据库 `created_at`，下行更新歌曲元数据并保留原时间，远端带合法时间时覆盖。按收藏时间倒序展示，LOCAL 收藏不参与账号同步。
+- `SyncManager` 编排拉取/推送，`FavoriteSongSyncApplier`、`PlaylistSyncApplier` 分别处理歌曲/歌单与曲目下行和 seed。outbox 按类型和 key 合并到最后操作，成功只删除本批合并的 opId，发送期间新增操作保留。push 后从原游标重新拉取；响应有 skipped 时强制全量快照，应用曾被 pending 遮挡且被服务端 LWW 拒绝的旧操作对应远端状态。
+- GET 同步请求声明 `protocol=2`；快照以 `snapshotVersion` 和 `cursor` 固定分页，409 最多重新拉取三轮，失败交由后台退避重试。所有快照页完整到齐后才应用和缺失对账，游标只推进到完整快照版本；pending 和快照开始后新增数据保留，有 pending 子曲目的父歌单不可被缺失删除。普通 delta 才跳过同设备回声，快照必须恢复同设备已有云端项。
+- 设备标识优先沿用 `ServerDevicePrefs`，为空时生成 UUID 并同步保存，不再使用厂商型号兜底。即时同步保持进程内合并触发，失败追加唯一 WorkManager 任务（联网约束、30 秒起指数退避）；标准 CoroutineWorker 通过现有 Hilt entry point 取得 SyncManager。
+- 数据管理的清空操作只清本机收藏和歌单，并丢弃 pending；和同步共用 Mutex 串行，清空后保留账号绑定、重置游标为 0，不生成云端 delete，也不重新 seed。下一次同步可恢复云端数据。
+- Application 在 IO 预热收藏；启动页导航到主界面前异步等待预热完成，读取失败保留启动页提示。同步公开读取方法仍保证返回权威数据，不用空列表替代尚未加载状态；绕过启动页的直接调用仍保留同步加载兼容入口。
+
+- 云盘歌词拉取及下载以内容检测 LRC/KRC/YRC 时间轴，兼容旧资源 TXT/LRC 扩展名错标；无真实时间轴时按纯文本展示、缓存并下载为 TXT，播放器合成的行展示区间不作为同步时间戳保存。云盘 API `durationMs` 转入 `SongInfo.duration` 时换算为秒，与房间毫秒 DTO 边界保持一致。

@@ -19,6 +19,8 @@ data class CanonicalSong(
     val vip: Boolean? = null,
     /** 网盘等自有来源的服务端可播放标记；缺失时兼容旧快照为可播放。 */
     val playable: Boolean? = true,
+    /** 收藏关系创建时间，毫秒；普通歌单歌曲可省略。 */
+    val favoritedAt: Long? = null,
 )
 
 data class CanonicalCoverSize(

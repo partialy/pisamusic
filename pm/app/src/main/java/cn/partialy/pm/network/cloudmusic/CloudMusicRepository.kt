@@ -118,7 +118,7 @@ class CloudMusicRepository @Inject constructor(
         artist = dto.artist,
         coverUrl = resolveStableCover(dto.cover),
         album = dto.album,
-        duration = dto.durationMs.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+        duration = (dto.durationMs / 1000L).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
         playable = dto.playable,
     )
 

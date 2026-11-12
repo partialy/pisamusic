@@ -88,7 +88,7 @@ class ListenTogetherManager @Inject constructor(
             emitMessage(text(R.string.listen_together_create_need_song), ListenTogetherMessageType.WARNING)
             return
         }
-        if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) {
+        if (song.type == SongType.LOCAL) {
             emitUnsupportedSong(song)
             return
         }
@@ -271,7 +271,7 @@ class ListenTogetherManager @Inject constructor(
 
     fun requestQueueSong(song: SongInfo) {
         if (!guardControl()) return
-        if ((song.type == SongType.LOCAL || song.type == SongType.CLOUD) && _state.value.enabled) {
+        if (song.type == SongType.LOCAL && _state.value.enabled) {
             emitUnsupportedSong(song)
             return
         }
@@ -291,7 +291,7 @@ class ListenTogetherManager @Inject constructor(
             emitQueueCommand(
                 ListenTogetherQueueCommand(
                     command = QUEUE_COMMAND_ADD_AND_PLAY,
-                    song = song.toListenTogetherSong(musicController.duration.value),
+                    song = song.toListenTogetherSong(),
                     transitionId = transitionId,
                 ),
             )
@@ -385,6 +385,11 @@ class ListenTogetherManager @Inject constructor(
     }
 
     fun requestSeek(positionMs: Long) {
+        // 普通播放不经过房间的歌曲协议与权限校验。
+        val roomId = _state.value.room?.roomId ?: run {
+            musicController.seekToPositionMs(positionMs)
+            return
+        }
         if (!guardControl()) return
         val song = musicController.currentSong.value ?: return
         val songRef = song.toListenTogetherSongRef() ?: run {
@@ -392,7 +397,6 @@ class ListenTogetherManager @Inject constructor(
             return
         }
         musicController.seekToPositionMs(positionMs)
-        val roomId = _state.value.room?.roomId ?: return
         socketClient.emitSeek(
             roomId = roomId,
             songRef = songRef,
@@ -502,7 +506,7 @@ class ListenTogetherManager @Inject constructor(
                 if (lastSongKey == key) return@collect
                 lastSongKey = key
                 if (song == null || !shouldEmitLocalPlayback()) return@collect
-                if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) {
+                if (song.type == SongType.LOCAL) {
                     emitUnsupportedSong(song)
                     return@collect
                 }
@@ -526,7 +530,7 @@ class ListenTogetherManager @Inject constructor(
                 if (previous == null || previous == playing || !shouldEmitLocalPlayback()) return@collect
                 val room = _state.value.room ?: return@collect
                 val song = musicController.currentSong.value ?: return@collect
-                if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) return@collect
+                if (song.type == SongType.LOCAL) return@collect
                 if (playing) {
                     socketClient.emitPlay(
                         roomId = room.roomId,
@@ -573,7 +577,7 @@ class ListenTogetherManager @Inject constructor(
         transitionId: String,
         queueItemId: String?,
     ) {
-        if (song.type == SongType.CLOUD) {
+        if (song.type == SongType.LOCAL) {
             emitUnsupportedSong(song)
             return
         }
@@ -599,9 +603,9 @@ class ListenTogetherManager @Inject constructor(
         if (!state.isHost || state.queue.items.isNotEmpty()) return
         val currentSong = musicController.currentSong.value
         val songs = musicController.playList.value
-            .filter { it.type != SongType.LOCAL && it.type != SongType.CLOUD }
+            .filter { it.type != SongType.LOCAL }
             .toMutableList()
-        if (currentSong != null && currentSong.type != SongType.LOCAL && currentSong.type != SongType.CLOUD) {
+        if (currentSong != null && currentSong.type != SongType.LOCAL) {
             val exists = songs.any { it.type == currentSong.type && it.id == currentSong.id }
             if (!exists) songs.add(0, currentSong)
         }
@@ -622,7 +626,7 @@ class ListenTogetherManager @Inject constructor(
         val state = _state.value
         if (!state.isHost) return
         val selected = result.songs.getOrNull(result.startIndex) ?: return
-        if (selected.type == SongType.LOCAL || selected.type == SongType.CLOUD) {
+        if (selected.type == SongType.LOCAL) {
             emitUnsupportedSong(selected)
             return
         }
@@ -639,7 +643,7 @@ class ListenTogetherManager @Inject constructor(
         val queue = replaceHostPlaylistQueue(
             previous = state.queue,
             songs = result.songs.filter {
-                it.type != SongType.LOCAL && it.type != SongType.CLOUD && it.playable
+                it.type != SongType.LOCAL && it.playable
             }.map { it.toListenTogetherSong() },
             selected = selected.toListenTogetherSong(),
             userId = state.currentUserId,
@@ -710,7 +714,7 @@ class ListenTogetherManager @Inject constructor(
         transitionId: String,
         source: PlaybackControlSource = PlaybackControlSource.LISTEN_TOGETHER,
     ) {
-        if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) {
+        if (song.type == SongType.LOCAL) {
             emitUnsupportedSong(song)
             return
         }
@@ -1124,7 +1128,7 @@ class ListenTogetherManager @Inject constructor(
         }
         if (activeHostTransitionId != null || hostPlaybackJob?.isActive == true) return
         val song = musicController.currentSong.value ?: return
-        if (song.type == SongType.LOCAL || song.type == SongType.CLOUD) return
+        if (song.type == SongType.LOCAL) return
         val position = musicController.currentPosition.value.coerceAtLeast(0L)
         if (musicController.isPlaying.value) {
             socketClient.emitPlay(
@@ -1243,7 +1247,6 @@ class ListenTogetherManager @Inject constructor(
         // server 的回声广播仅用于元数据，不应再回放或 seek，否则会触发 observeLocalPlayer
         // 二次 emit 引起两首歌之间反复跳动。
         if (!operatorUserId.isNullOrBlank() && operatorUserId == _state.value.currentUserId) return
-        val target = room.targetPosition()
         // 串行化：领取最新令牌并取消上一个尚未完成的 sync 协程，避免快速连切时多个协程
         // 重叠把 syncingFromRemote 标志互相踩踏，导致抑制失效引发回发 change_song 的反馈环。
         val seq = ++syncSeq
@@ -1261,6 +1264,8 @@ class ListenTogetherManager @Inject constructor(
                     )
                     if (!applied || seq != syncSeq) return@launch
                 }
+                // 各设备取云盘签名耗时不同，准备完成后再计算当前房间进度。
+                val target = room.targetPosition()
                 val current = musicController.currentPosition.value
                 if (abs(current - target) > 1000L) {
                     musicController.seekToPositionMs(target)
@@ -1471,10 +1476,10 @@ class ListenTogetherManager @Inject constructor(
     }
 
     private fun emitUnsupportedSource(source: String?) {
-        val message = if (source.equals("cloud", ignoreCase = true)) {
-            R.string.listen_together_cloud_unsupported
-        } else {
+        val message = if (source.equals("local", ignoreCase = true)) {
             R.string.listen_together_local_unsupported
+        } else {
+            R.string.listen_together_song_sync_failed
         }
         emitMessage(text(message), ListenTogetherMessageType.WARNING)
     }
