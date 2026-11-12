@@ -47,7 +47,7 @@ syncRouter.get("/changes", async (req: SyncRequest, res) => {
 syncRouter.post("/changes", async (req: SyncRequest, res) => {
   try {
     const body = req.body as Record<string, unknown>;
-    res.json(ok((await applySyncChanges(getAuth(req), body.affectedRows))));
+    res.json(ok((await applySyncChanges(getAuth(req), body.changes))));
   } catch (error) {
     handleError(res, error, "推送同步变更失败");
   }

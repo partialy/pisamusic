@@ -23,7 +23,7 @@ adminRuntimeConfigRouter.get("/", (_req, res) => {
 
 adminRuntimeConfigRouter.patch("/", async (req, res) => {
   try {
-    const rawChanges = req.body?.affectedRows;
+    const rawChanges = req.body?.changes;
     if (!Array.isArray(rawChanges) || rawChanges.length === 0) {
       res.status(400).json(fail("changes 列表不能为空", 400));
       return;
