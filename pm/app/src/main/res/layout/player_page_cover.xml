@@ -71,8 +71,8 @@
         android:focusable="true"
         android:contentDescription="@string/player_show_full_lyrics">
 
-        <cn.partialy.pm.ui.player.VinylDiscView
-            android:id="@+id/vinylDisc"
+        <cn.partialy.pm.ui.player.CompactDiscView
+            android:id="@+id/compactDisc"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:importantForAccessibility="no" />

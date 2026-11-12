@@ -1,5 +1,6 @@
 package cn.partialy.pm.ui.player
 
+import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import cn.partialy.pm.R
 import cn.partialy.pm.model.SongInfo
@@ -8,7 +9,10 @@ import coil.load
 import coil.request.Disposable
 
 /** 与歌单封面一致使用候选请求及代次守卫，快速切歌不允许旧回退覆盖新封面。 */
-internal class SongCoverRequestBinder(private val view: ImageView) {
+internal class SongCoverRequestBinder(
+    private val view: ImageView,
+    private val onArtworkChanged: (Drawable?) -> Unit,
+) {
     private var request: Disposable? = null
     private var generation = 0
     private var disposed = false
@@ -16,6 +20,7 @@ internal class SongCoverRequestBinder(private val view: ImageView) {
     fun bind(song: SongInfo?, crossfade: Boolean) {
         val token = ++generation
         request?.dispose()
+        onArtworkChanged(null)
         load(song?.let(SongCoverUrl::getPlayerCoverCandidates).orEmpty(), 0, token, crossfade)
     }
 
@@ -28,9 +33,16 @@ internal class SongCoverRequestBinder(private val view: ImageView) {
             // 播放封面经过圆角遮罩，保持各设备采用一致的位图绘制路径。
             allowHardware(false)
             crossfade(crossfade)
-            listener(onError = { _, _ ->
-                if (index + 1 < candidates.size) view.post { load(candidates, index + 1, token, crossfade) }
-            })
+            listener(
+                onSuccess = { _, result ->
+                    if (!disposed && token == generation) onArtworkChanged(result.drawable)
+                },
+                onError = { _, _ ->
+                    if (!disposed && token == generation && index + 1 < candidates.size) {
+                        view.post { load(candidates, index + 1, token, crossfade) }
+                    }
+                },
+            )
         }
     }
 
