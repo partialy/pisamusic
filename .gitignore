@@ -16,12 +16,22 @@ Thumbs.db
 **/.idea/
 .vscode/
 
-# Logs and crash dumps.
+# Logs, error dumps and temporary outputs.
 *.log
 hs_err_pid*.log
 replay_pid*.log
+*-errors.txt
 .superpowers/
+
+# Documentation & spec plans.
 docs/
+pm/docs/
+server/docs/
+yixi/docs/
+**/docs/
+
+# Server / tooling scripts.
+server/scripts/
 # Android / Gradle.
 **/.gradle/
 **/build/
@@ -52,13 +62,12 @@ server/web/
 server/web-admin/
 server/web-user/
 server/.env
-server/data/*.db
-server/data/*.db-shm
-server/data/*.db-wal
+server/data/
 server/feedback.json
 
 # App/runtime local data.
 /cookie
+data/
 pm-electron/data/
 *-example.md
 .trae/
