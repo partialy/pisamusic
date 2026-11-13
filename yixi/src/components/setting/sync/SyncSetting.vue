@@ -1,5 +1,6 @@
 <template>
-  <div class="sync-setting">
+  <div class="settings-stack sync-setting">
+    <SettingSection title="同步账号" description="登录后自动同步收藏与歌单。">
     <div class="account-panel">
       <div class="account-main">
         <n-avatar :src="userInfo.avatar || avatarImg" round :size="48" />
@@ -17,6 +18,8 @@
       </n-space>
     </div>
 
+    </SettingSection>
+    <SettingSection title="同步状态" description="查看当前账号的同步结果。">
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">账号同步状态</div>
@@ -37,10 +40,12 @@
         <div class="setting-desc">{{ state.lastError }}</div>
       </div>
     </div>
+    </SettingSection>
   </div>
 </template>
 
 <script setup lang="ts">
+import SettingSection from "../SettingSection.vue";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { NAvatar, NButton, NSpace } from "naive-ui";
 import { storeToRefs } from "pinia";
@@ -149,59 +154,11 @@ function errorMessage(error: unknown, fallback: string) {
 </script>
 
 <style lang="scss" scoped>
-.sync-setting {
-  display: grid;
-  gap: 12px;
-
-  .account-panel,
-  .setting-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 16px 20px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
-  }
-
-  .setting-item {
-    background: transparent;
-
-    &:hover {
-      background: var(--color-setting-hover);
-    }
-  }
-
-  .account-main {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    gap: 14px;
-  }
-
-  .account-text,
-  .setting-info {
-    min-width: 0;
-  }
-
-  .account-name,
-  .setting-title {
-    color: var(--text-primary);
-    font-size: 15px;
-    font-weight: 700;
-  }
-
-  .account-desc,
-  .setting-desc {
-    margin-top: 4px;
-    color: var(--text-muted);
-    font-size: 13px;
-    line-height: 1.5;
-    word-break: break-all;
-  }
-
-  .error-item {
-    background: rgba(208, 48, 80, 0.08);
-  }
-}
+@use "../settingLayout.scss";
+.account-panel { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 12px 14px; }
+.account-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.account-text { min-width: 0; }
+.account-name { color: var(--text-primary); font-size: 14px; font-weight: 600; }
+.account-desc { color: var(--text-secondary); margin-top: 4px; font-size: 12px; overflow-wrap: anywhere; }
+.error-item .setting-desc { color: var(--text-primary); }
 </style>

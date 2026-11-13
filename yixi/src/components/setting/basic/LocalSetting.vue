@@ -1,6 +1,7 @@
 <template>
-  <div class="setting-con">
-    <div class="setting-item scan-item">
+  <div class="settings-stack setting-con">
+    <SettingSection title="本地曲库" description="管理用于扫描本地音乐的目录。">
+    <div class="setting-item single-column scan-item">
       <div class="setting-info">
         <div class="setting-title">本地扫描目录</div>
         <div class="setting-desc">最多添加 10 个本地音乐文件夹，修改后会自动重建本地曲库</div>
@@ -30,7 +31,9 @@
       </div>
     </div>
 
-    <div class="setting-item">
+    </SettingSection>
+    <SettingSection title="播放缓存" description="管理缓存位置、容量与清理。">
+    <div class="setting-item single-column">
       <div class="setting-info">
         <div class="setting-title">缓存目录</div>
         <div class="setting-desc">{{ cacheDirectoryDescription }}</div>
@@ -70,7 +73,9 @@
       </div>
     </div>
 
-    <div class="setting-item">
+    </SettingSection>
+    <SettingSection title="歌曲下载" description="设置下载位置、文件命名和歌词资产。">
+    <div class="setting-item single-column">
       <div class="setting-info">
         <div class="setting-title">下载目录</div>
         <div class="setting-desc">设置下载歌曲的保存位置</div>
@@ -136,10 +141,12 @@
         :options="downloadLyricsOptions"
         @update:value="settingStore.updateDownloadLyricsMode" />
     </div>
+    </SettingSection>
   </div>
 </template>
 
 <script setup lang="ts">
+import SettingSection from "../SettingSection.vue";
 import { NButton, NInput, NInputNumber, NPopconfirm, NSelect, NSwitch, useMessage } from "naive-ui";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useSettingStore, type SongNamingMode } from "@/store/settingStore";
@@ -236,81 +243,13 @@ function formatBytes(bytes: number) {
 </script>
 
 <style lang="scss" scoped>
-.setting-con {
-  .setting-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 14px 20px;
-    border-radius: 8px;
-
-    &:hover {
-      background: var(--color-setting-hover);
-    }
-  }
-
-  .scan-item {
-    align-items: flex-start;
-  }
-
-  .setting-info {
-    min-width: 0;
-  }
-
-  .setting-title {
-    color: var(--color-text-default);
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .setting-desc {
-    margin-top: 4px;
-    color: var(--color-text-secondary);
-    font-size: 12px;
-  }
-
-  .scan-list {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .path-input {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-
-    .path-field {
-      width: 260px;
-    }
-  }
-
-  .scan-count {
-    min-width: 42px;
-    color: var(--color-text-secondary);
-    font-size: 12px;
-    text-align: right;
-  }
-
-  .size-input {
-    width: 140px;
-    flex-shrink: 0;
-  }
-
-  .cache-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .naming-select {
-    width: 220px;
-    flex-shrink: 0;
-  }
-}
+@use "../settingLayout.scss";
+.scan-list { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.path-input { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.path-field { flex: 1; min-width: 0; }
+.path-input :deep(.n-button) { flex-shrink: 0; }
+.scan-count { color: var(--text-secondary); font-size: 12px; }
+.size-input { width: 140px; }
+.cache-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.naming-select { width: 220px; max-width: 100%; }
 </style>

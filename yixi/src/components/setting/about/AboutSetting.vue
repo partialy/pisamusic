@@ -15,7 +15,7 @@
           <span>当前版本 {{ appVersion || "-" }}</span>
           <span v-if="about.team">{{ about.team }}</span>
         </div>
-        <n-button class="hero-refresh" tertiary :loading="aboutLoading" @click="loadAboutInfo">刷新信息</n-button>
+        <n-button round class="hero-refresh" tertiary :loading="aboutLoading" @click="loadAboutInfo">刷新信息</n-button>
       </div>
     </section>
 
@@ -24,9 +24,9 @@
         <div>
           <p class="card-label">官方网站</p>
           <h2>PisaMusic官网</h2>
-          <p class="card-desc">{{ about.websiteUrl || "https://pisamsuic.partialy.cn" }}</p>
+          <p class="card-desc">{{ about.websiteUrl || "https://pisamusic.partialy.cn" }}</p>
         </div>
-        <n-button secondary :disabled="!about.websiteUrl" @click="openWebsite">打开</n-button>
+        <n-button round secondary :disabled="!about.websiteUrl" @click="openWebsite">打开</n-button>
       </div>
     </section>
 
@@ -37,12 +37,12 @@
         <p>{{ updateText }}</p>
       </div>
       <div class="update-actions">
-        <n-button :loading="checking" secondary @click="checkUpdate">检查更新</n-button>
-        <n-button v-if="developmentRuntime" :loading="checking" tertiary type="primary" @click="simulateCheckUpdate">
+        <n-button round :loading="checking" secondary @click="checkUpdate">检查更新</n-button>
+        <n-button round v-if="developmentRuntime" :loading="checking" tertiary type="primary" @click="simulateCheckUpdate">
           模拟检查更新
         </n-button>
-        <n-button v-if="canDownload" type="primary" @click="downloadUpdate">下载更新</n-button>
-        <n-button v-if="canInstall" type="primary" @click="installUpdate">重启安装</n-button>
+        <n-button round v-if="canDownload" type="primary" @click="downloadUpdate">下载更新</n-button>
+        <n-button round v-if="canInstall" type="primary" @click="installUpdate">重启安装</n-button>
       </div>
     </section>
 
@@ -431,7 +431,7 @@ onBeforeUnmount(() => {
 .info-card,
 .update-card {
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--surface-card);
   box-sizing: border-box;
 }
@@ -578,7 +578,7 @@ h2 {
 .entry-item {
   min-height: 96px;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--surface-card);
   color: var(--text-primary);
   cursor: pointer;
@@ -603,7 +603,7 @@ h2 {
 .entry-icon {
   width: 42px;
   height: 42px;
-  border-radius: 8px;
+  border-radius: 12px;
   color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   display: inline-flex;

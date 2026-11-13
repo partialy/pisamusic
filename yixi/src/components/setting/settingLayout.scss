@@ -1,0 +1,10 @@
+.settings-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding-bottom: 20px; container-type: inline-size; }
+.setting-item, .shortcut-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; min-width: 0; padding: 12px 14px; border-radius: 12px; transition: background-color .18s; }
+.setting-item:hover, .shortcut-row:hover { background: var(--surface-hover); }
+.setting-info, .item-info { flex: 1 1 200px; min-width: 0; }
+.setting-title, .item-title { color: var(--text-primary); font-size: 14px; font-weight: 600; }
+.setting-desc, .item-desc { margin-top: 4px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.setting-item.single-column { align-items: stretch; flex-direction: column; }
+.setting-item.single-column > .setting-info, .setting-item.single-column > .item-info { flex: auto; }
+:deep(.n-button:not(.n-button--circle-type)) { border-radius: 999px; }
+@container (max-width: 600px) { .setting-item > .setting-adjustment { width: 100%; } }

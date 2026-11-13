@@ -1,5 +1,6 @@
 <template>
-  <div class="shortcut-setting">
+  <div class="settings-stack shortcut-setting">
+    <SettingSection title="快捷键开关" description="控制应用内与系统全局快捷键。">
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">开启快捷键</div>
@@ -21,6 +22,8 @@
         @update:value="shortcutStore.updateGlobal" />
     </div>
 
+    </SettingSection>
+    <SettingSection title="快捷键绑定" description="点击快捷键后按下新组合键，Esc 取消录入。">
     <n-alert
       v-if="shortcutStore.setting.enabled && shortcutStore.setting.global && shortcutStore.failedRegistrationResults.length"
       type="warning"
@@ -63,10 +66,12 @@
       </n-button>
       <span class="setting-tip">点击快捷键后按下新组合键，Esc 取消录入。</span>
     </div>
+    </SettingSection>
   </div>
 </template>
 
 <script setup lang="ts">
+import SettingSection from "../SettingSection.vue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { NAlert, NButton, NSwitch, NTag } from "naive-ui";
 import {
@@ -127,71 +132,10 @@ async function handleRecordingKeydown(event: KeyboardEvent) {
 </script>
 
 <style lang="scss" scoped>
-.shortcut-setting {
-  width: 100%;
-  padding-bottom: 18px;
-
-  .setting-item,
-  .shortcut-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 14px 20px;
-    border-radius: 8px;
-
-    &:hover {
-      background: var(--color-setting-hover);
-    }
-  }
-
-  .setting-info {
-    min-width: 0;
-  }
-
-  .setting-title {
-    color: var(--color-text-default);
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .setting-desc {
-    margin-top: 4px;
-    color: var(--color-text-secondary);
-    font-size: 12px;
-  }
-
-  .shortcut-alert {
-    margin: 8px 20px;
-  }
-
-  .shortcut-list {
-    margin-top: 6px;
-  }
-
-  .shortcut-control {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    flex-shrink: 0;
-  }
-
-  .shortcut-button {
-    width: 180px;
-    justify-content: center;
-  }
-
-  .setting-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 20px;
-  }
-
-  .setting-tip {
-    color: var(--color-text-secondary);
-    font-size: 12px;
-  }
-}
+@use "../settingLayout.scss";
+.shortcut-alert { margin-bottom: 12px; }
+.shortcut-control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.shortcut-button { min-width: 180px; justify-content: center; }
+.setting-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 14px; }
+.setting-tip { color: var(--text-secondary); font-size: 12px; }
 </style>

@@ -1,5 +1,6 @@
 <template>
-  <div class="setting-con">
+  <div class="settings-stack setting-con">
+    <SettingSection title="主题与外观" description="设置应用主题与强调色。">
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">主题模式</div>
@@ -45,6 +46,8 @@
         @update:value="handleFollowSongAccentChange" />
     </div>
 
+    </SettingSection>
+    <SettingSection title="应用背景" description="选择背景颜色或图片，调节图片显示效果。">
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">背景模式</div>
@@ -81,7 +84,7 @@
           @update:value="handleGradientDirectionChange" />
       </div>
 
-      <div class="setting-item gradient-setting-item">
+      <div class="setting-item single-column gradient-setting-item">
         <div class="setting-info">
           <div class="setting-title">渐变颜色</div>
           <div class="setting-desc">关闭自动背景后可编辑，最多 5 个颜色。</div>
@@ -185,78 +188,24 @@
         </div>
       </div>
 
-      <div class="setting-item blur-setting-item">
+      <div class="setting-item single-column blur-setting-item">
         <div class="setting-info">
           <div class="setting-title">背景模糊度</div>
           <div class="setting-desc">调节背景图片的模糊程度（0-100）。</div>
         </div>
-        <div class="blur-slider-control">
-          <button
-            type="button"
-            class="blur-step-btn"
-            title="减少模糊度"
-            :disabled="themeStore.backgroundBlur <= 0"
-            @click="handleStepBlur(-1)">
-            <n-icon :size="14"><Minus /></n-icon>
-          </button>
-          <div class="blur-slider-wrap">
-            <n-slider
-              class="blur-slider"
-              :value="themeStore.backgroundBlur"
-              :min="0"
-              :max="100"
-              :step="1"
-              :tooltip="false"
-              @update:value="handleBlurChange" />
-          </div>
-          <button
-            type="button"
-            class="blur-step-btn"
-            title="增加模糊度"
-            :disabled="themeStore.backgroundBlur >= 100"
-            @click="handleStepBlur(1)">
-            <n-icon :size="14"><Plus /></n-icon>
-          </button>
-          <span class="blur-val-text">{{ themeStore.backgroundBlur }}%</span>
-        </div>
+        <SettingAdjustment :value="themeStore.backgroundBlur" label="背景模糊度" @update:value="handleBlurChange" />
       </div>
 
-      <div class="setting-item blur-setting-item">
+      <div class="setting-item single-column blur-setting-item">
         <div class="setting-info">
           <div class="setting-title">背景亮度</div>
           <div class="setting-desc">调节背景图片的明暗程度（0-100%）。</div>
         </div>
-        <div class="blur-slider-control">
-          <button
-            type="button"
-            class="blur-step-btn"
-            title="降低亮度"
-            :disabled="themeStore.backgroundBrightness <= 0"
-            @click="handleStepBrightness(-1)">
-            <n-icon :size="14"><Minus /></n-icon>
-          </button>
-          <div class="blur-slider-wrap">
-            <n-slider
-              class="blur-slider"
-              :value="themeStore.backgroundBrightness"
-              :min="0"
-              :max="100"
-              :step="1"
-              :tooltip="false"
-              @update:value="handleBrightnessChange" />
-          </div>
-          <button
-            type="button"
-            class="blur-step-btn"
-            title="提高亮度"
-            :disabled="themeStore.backgroundBrightness >= 100"
-            @click="handleStepBrightness(1)">
-            <n-icon :size="14"><Plus /></n-icon>
-          </button>
-          <span class="blur-val-text">{{ themeStore.backgroundBrightness }}%</span>
-        </div>
+        <SettingAdjustment :value="themeStore.backgroundBrightness" label="背景亮度" @update:value="handleBrightnessChange" />
       </div>
     </template>
+
+    </SettingSection>
 
     <!-- 图片库 Modal -->
     <AppImageCenterModal
@@ -267,6 +216,8 @@
 </template>
 
 <script setup lang="ts">
+import SettingSection from "../SettingSection.vue";
+import SettingAdjustment from "../SettingAdjustment.vue";
 import { onMounted, ref } from "vue";
 import {
   NButton,
@@ -277,7 +228,7 @@ import {
   NSelect,
   NSwitch,
 } from "naive-ui";
-import { Upload, Check, Minus, Plus, Images } from "lucide-vue-next";
+import { Upload, Check, Images } from "lucide-vue-next";
 import {
   useThemeStore,
   type BackgroundMode,
@@ -354,17 +305,11 @@ const handleBlurChange = (val: number) => {
   void themeStore.setBackgroundBlur(val);
 };
 
-const handleStepBlur = (delta: number) => {
-  void themeStore.setBackgroundBlur(themeStore.backgroundBlur + delta);
-};
 
 const handleBrightnessChange = (val: number) => {
   void themeStore.setBackgroundBrightness(val);
 };
 
-const handleStepBrightness = (delta: number) => {
-  void themeStore.setBackgroundBrightness(themeStore.backgroundBrightness + delta);
-};
 
 const handleSelectCustomImage = async () => {
   try {
@@ -404,42 +349,15 @@ const handleFileInputChange = (event: Event) => {
 </script>
 
 <style lang="scss" scoped>
+@use "../settingLayout.scss";
 .setting-con {
-  .setting-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 14px 20px;
-    border-radius: 8px;
-    transition: background-color 0.18s ease;
-
-    &:hover {
-      background: var(--surface-hover);
-    }
-  }
-
-  .setting-info {
-    min-width: 0;
-  }
-
-  .setting-title {
-    color: var(--text-primary);
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .setting-desc {
-    margin-top: 4px;
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-
   .accent-setting {
     display: flex;
     align-items: center;
     gap: 12px;
     width: 280px;
+    max-width: 100%;
+    flex-wrap: wrap;
   }
 
   .theme-mode-group {
@@ -461,7 +379,8 @@ const handleFileInputChange = (event: Event) => {
   }
 
   .gradient-colors {
-    width: 300px;
+    width: 100%;
+    max-width: 400px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -503,6 +422,8 @@ const handleFileInputChange = (event: Event) => {
   }
 
   .gallery-control {
+    max-width: 100%;
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -523,7 +444,7 @@ const handleFileInputChange = (event: Event) => {
     width: 88px;
     height: 66px;
     aspect-ratio: 4 / 3;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
     border: 1px solid var(--border-subtle);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -578,89 +499,5 @@ const handleFileInputChange = (event: Event) => {
     justify-content: center;
   }
 
-  .blur-setting-item {
-    align-items: center;
-  }
-
-  .blur-slider-control {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 280px;
-    flex-shrink: 0;
-
-    .blur-step-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: 1px solid var(--border-subtle);
-      background: var(--surface-card);
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: all 0.2s ease;
-
-      &:hover:not(:disabled) {
-        background: var(--color-primary);
-        color: #ffffff;
-        border-color: var(--color-primary);
-        transform: scale(1.05);
-      }
-
-      &:active:not(:disabled) {
-        transform: scale(0.95);
-      }
-
-      &:disabled {
-        opacity: 0.35;
-        cursor: not-allowed;
-      }
-    }
-
-    .blur-slider-wrap {
-      flex: 1;
-      display: flex;
-      align-items: center;
-
-      :deep(.n-slider) {
-        .n-slider-rail {
-          height: 4px;
-          border-radius: 2px;
-          background-color: var(--border-subtle);
-
-          .n-slider-rail__fill {
-            background-color: var(--color-primary);
-            border-radius: 2px;
-          }
-        }
-
-        .n-slider-handle {
-          width: 12px;
-          height: 12px;
-          background-color: #ffffff;
-          border: 2px solid var(--color-primary);
-          border-radius: 50%;
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-          transition: transform 0.15s ease;
-        }
-
-        &:hover .n-slider-handle {
-          transform: scale(1.25);
-        }
-      }
-    }
-
-    .blur-val-text {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary);
-      min-width: 38px;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-  }
 }
 </style>

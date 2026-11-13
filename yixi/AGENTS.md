@@ -394,3 +394,9 @@
 - 歌词 sidecar 使用音频最终 basename 与真实扩展名，排除已有音频/歌词命名冲突，独占创建避免覆盖；下载缓存使用 taskId 隔离并发。sidecar 失败记录可选资产警告，不影响已落盘音频成功状态。
 - 多歌词路径放在下载记录 `payload.downloadLyricPaths`，兼容旧 `lyricPath`，不新增数据库列；从列表移除不删文件，现有删除音频流程只清理记录中与音频同目录同 basename 且未被其他音频下载记录引用的 `.lrc/.krc/.yrc`（旧 `lyricPath` 与多路径字段均参与引用保护）。当前无取消下载 IPC，不新增管理能力。
 - MP3 自定义 UTF-16 帧各字符串补 BOM；普通标签库重写歌词帧时，关闭歌词写入须恢复原 USLT，FLAC/M4A 同样不得删除既有歌词。
+
+## 设置页分组与调整控件
+
+- 设置页保留 basic/local/sync/lyric/shortcut/advance/about/announcements 八个 Tab；字段型页面使用 `src/components/setting/SettingSection.vue` 分组卡片，标题、说明与操作槽统一管理。关于、公告继续使用内容布局。
+- `settingLayout.scss` 由各设置组件在 scoped 样式内引用，统一设置行、文字层级、间距与换行；本地设置分曲库、缓存、下载三组，目录与快捷键绑定保持单列。
+- 基本/歌词背景模糊度与亮度共用 `SettingAdjustment.vue`：圆形加减按钮固定 28px，轨道可伸缩，百分比固定 44px；窄内容区整组换行，不压缩按钮。不在组件中添加主题模式分支。

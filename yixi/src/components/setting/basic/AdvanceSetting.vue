@@ -1,18 +1,12 @@
 <template>
-  <div class="advance-setting">
+  <div class="settings-stack advance-setting">
     <FaultReportSection />
 
     <template v-if="isDev">
-      <section class="debug-section">
-        <div class="section-head">
-          <div>
-            <h3>Cookie 调试</h3>
-            <p>查看本地 Cookie 请求头、使用 Cookie 请求用户信息，并导出 KG/WY Cookie JSON 文件。</p>
-          </div>
-          <n-button secondary :loading="cookieExporting" @click="exportCookies">
+      <SettingSection title="Cookie 调试" description="查看本地 Cookie 请求头、使用 Cookie 请求用户信息，并导出 KG/WY Cookie JSON 文件。">
+<template #actions><n-button secondary :loading="cookieExporting" @click="exportCookies">
             导出 Cookie 文件
-          </n-button>
-        </div>
+          </n-button></template>
 
         <div class="debug-actions">
           <n-button secondary @click="showCookie('kg')">查看酷狗 Cookie</n-button>
@@ -32,21 +26,15 @@
           :autosize="{ minRows: 8, maxRows: 18 }"
           :value="cookieDebugOutput"
           placeholder="Cookie 调试结果会显示在这里" />
-      </section>
+      </SettingSection>
 
-      <section class="debug-section">
-        <div class="section-head">
-          <div>
-            <h3>Debug 网络错误记录</h3>
-            <p>当前共 {{ pageData.total }} 条，仅记录 Electron 主进程发起的失败请求。</p>
-          </div>
-          <n-dropdown
+      <SettingSection title="Debug 网络错误记录" :description="`当前共 ${pageData.total} 条，仅记录 Electron 主进程发起的失败请求。`">
+<template #actions><n-dropdown
             trigger="click"
             :options="exportOptions"
             @select="handleExportSelect">
             <n-button secondary :loading="exporting">导出 JSON</n-button>
-          </n-dropdown>
-        </div>
+          </n-dropdown></template>
 
         <n-data-table
           :columns="columns"
@@ -62,7 +50,7 @@
             :item-count="pageData.total"
             @update:page="handlePageChange" />
         </div>
-      </section>
+      </SettingSection>
     </template>
 
     <n-modal
@@ -120,6 +108,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingSection from "../SettingSection.vue";
 import { h, onMounted, ref } from "vue";
 import {
   NButton,
@@ -363,41 +352,7 @@ function prettyJson(value: unknown) {
 </script>
 
 <style lang="scss" scoped>
-.advance-setting {
-  width: 100%;
-  min-height: 100%;
-  padding: 8px 0 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.debug-section {
-  padding: 18px 20px;
-  border-radius: 8px;
-  background: var(--color-card-bg);
-}
-
-.section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 16px;
-}
-
-.section-head h3 {
-  color: var(--color-text-default);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.section-head p {
-  margin-top: 6px;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-
+@use "../settingLayout.scss";
 .debug-actions {
   display: flex;
   flex-wrap: wrap;
@@ -469,7 +424,7 @@ function prettyJson(value: unknown) {
   max-height: 240px;
   overflow: auto;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: 12px;
   color: var(--color-text-default);
   background: var(--surface-input);
   border: 1px solid var(--border-subtle);

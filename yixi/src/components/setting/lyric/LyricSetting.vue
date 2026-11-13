@@ -1,12 +1,7 @@
 <template>
-  <div class="lyric-setting">
-    <section class="setting-card">
-      <div class="section-header">
-        <div>
-          <h3>歌词界面背景</h3>
-          <p>设置全屏主播放器界面的背景风格与效果。</p>
-        </div>
-        <n-button
+  <div class="settings-stack lyric-setting">
+    <SettingSection title="歌词界面背景" description="设置全屏主播放器界面的背景风格与效果。">
+<template #actions><n-button
           secondary
           round
           size="small"
@@ -15,8 +10,7 @@
             <n-icon :size="14"><RotateCcw /></n-icon>
           </template>
           恢复默认
-        </n-button>
-      </div>
+        </n-button></template>
 
       <div class="setting-grid">
         <div class="setting-item wide">
@@ -75,86 +69,26 @@
             </div>
           </div>
 
-          <div class="setting-item wide">
+          <div class="setting-item single-column wide">
             <div class="item-info">
               <div class="item-title">背景模糊度</div>
               <div class="item-desc">调节歌词背景虚化程度（0-100）。</div>
             </div>
-            <div class="setting-control slider-control">
-              <button
-                type="button"
-                class="step-btn"
-                title="减少模糊度"
-                :disabled="(setting.backgroundBlur ?? 0) <= 0"
-                @click="handleStepBlur(-1)">
-                <n-icon :size="14"><Minus /></n-icon>
-              </button>
-              <div class="slider-wrap">
-                <n-slider
-                  :value="setting.backgroundBlur ?? 0"
-                  :min="0"
-                  :max="100"
-                  :step="1"
-                  :tooltip="false"
-                  @update:value="handleBlurChange" />
-              </div>
-              <button
-                type="button"
-                class="step-btn"
-                title="增加模糊度"
-                :disabled="(setting.backgroundBlur ?? 0) >= 100"
-                @click="handleStepBlur(1)">
-                <n-icon :size="14"><Plus /></n-icon>
-              </button>
-              <span class="val-text">{{ setting.backgroundBlur ?? 0 }}%</span>
-            </div>
+            <SettingAdjustment :value="setting.backgroundBlur ?? 0" label="背景模糊度" @update:value="handleBlurChange" />
           </div>
 
-          <div class="setting-item wide">
+          <div class="setting-item single-column wide">
             <div class="item-info">
               <div class="item-title">背景亮度</div>
               <div class="item-desc">调节背景图片的明暗程度（0-100%）。</div>
             </div>
-            <div class="setting-control slider-control">
-              <button
-                type="button"
-                class="step-btn"
-                title="降低亮度"
-                :disabled="(setting.backgroundBrightness ?? 100) <= 0"
-                @click="handleStepBrightness(-1)">
-                <n-icon :size="14"><Minus /></n-icon>
-              </button>
-              <div class="slider-wrap">
-                <n-slider
-                  :value="setting.backgroundBrightness ?? 100"
-                  :min="0"
-                  :max="100"
-                  :step="1"
-                  :tooltip="false"
-                  @update:value="handleBrightnessChange" />
-              </div>
-              <button
-                type="button"
-                class="step-btn"
-                title="提高亮度"
-                :disabled="(setting.backgroundBrightness ?? 100) >= 100"
-                @click="handleStepBrightness(1)">
-                <n-icon :size="14"><Plus /></n-icon>
-              </button>
-              <span class="val-text">{{ setting.backgroundBrightness ?? 100 }}%</span>
-            </div>
+            <SettingAdjustment :value="setting.backgroundBrightness ?? 100" label="背景亮度" @update:value="handleBrightnessChange" />
           </div>
         </template>
       </div>
-    </section>
+    </SettingSection>
 
-    <section class="setting-card">
-      <div class="section-header">
-        <div>
-          <h3>窗口歌词</h3>
-          <p>控制主播放器里的歌词渲染效果。</p>
-        </div>
-      </div>
+    <SettingSection title="窗口歌词" description="控制主播放器里的歌词渲染效果。">
 
       <div class="setting-grid">
         <div class="setting-item">
@@ -221,15 +155,9 @@
           </div>
         </div>
       </div>
-    </section>
+    </SettingSection>
 
-    <section class="setting-card">
-      <div class="section-header">
-        <div>
-          <h3>窗口歌词文字</h3>
-          <p>调整主播放器歌词的字体、颜色和透明度。</p>
-        </div>
-      </div>
+    <SettingSection title="窗口歌词文字" description="调整主播放器歌词的字体、颜色和透明度。">
 
       <div class="setting-grid">
         <div class="setting-item">
@@ -320,15 +248,9 @@
           </div>
         </div>
       </div>
-    </section>
+    </SettingSection>
 
-    <section class="setting-card">
-      <div class="section-header">
-        <div>
-          <h3>桌面歌词</h3>
-          <p>独立桌面歌词窗口的显示与文字设置。</p>
-        </div>
-      </div>
+    <SettingSection title="桌面歌词" description="独立桌面歌词窗口的显示与文字设置。">
 
       <div class="setting-grid">
         <div class="setting-item">
@@ -486,7 +408,7 @@
           </div>
         </div>
       </div>
-    </section>
+    </SettingSection>
 
     <!-- 图片库 Modal -->
     <AppImageCenterModal
@@ -497,6 +419,8 @@
 </template>
 
 <script setup lang="ts">
+import SettingSection from "../SettingSection.vue";
+import SettingAdjustment from "../SettingAdjustment.vue";
 import {
   NButton,
   NColorPicker,
@@ -505,11 +429,10 @@ import {
   NRadioButton,
   NRadioGroup,
   NSelect,
-  NSlider,
   NSwitch,
   useMessage,
 } from "naive-ui";
-import { Images, Minus, Pipette, Plus, RotateCcw } from "lucide-vue-next";
+import { Images, Pipette, RotateCcw } from "lucide-vue-next";
 import { useLyricStore } from "@/store/lyricStore";
 import { useDesktopLyricStore } from "@/store/desktopLyric";
 import { useThemeStore } from "@/store/theme";
@@ -617,19 +540,11 @@ function handleBlurChange(val: number) {
   setting.value.backgroundBlur = val;
 }
 
-function handleStepBlur(delta: number) {
-  const current = setting.value.backgroundBlur ?? 0;
-  setting.value.backgroundBlur = Math.max(0, Math.min(100, current + delta));
-}
 
 function handleBrightnessChange(val: number) {
   setting.value.backgroundBrightness = val;
 }
 
-function handleStepBrightness(delta: number) {
-  const current = setting.value.backgroundBrightness ?? 100;
-  setting.value.backgroundBrightness = Math.max(0, Math.min(100, current + delta));
-}
 
 function handleResetDefault() {
   lyric.resetBackgroundToDefault();
@@ -723,83 +638,8 @@ const handleDesktopLyricLock = async (value: boolean) => {
 </script>
 
 <style lang="scss" scoped>
-.lyric-setting {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding-bottom: 20px;
-}
-
-.setting-card {
-  padding: 18px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  background: var(--surface-card);
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 16px;
-
-  h3 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 16px;
-    font-weight: 700;
-  }
-
-  p {
-    margin: 4px 0 0;
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
-}
-
-.setting-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.setting-item {
-  min-height: 68px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  transition: background-color 0.2s ease;
-
-  &:hover {
-    background: var(--surface-hover);
-  }
-
-  &.wide {
-    grid-column: span 2;
-  }
-}
-
-.item-info {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding-right: 12px;
-}
-
-.item-title {
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.item-desc {
-  margin-top: 4px;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
+@use "../settingLayout.scss";
+.setting-grid { display: flex; flex-direction: column; gap: 4px; }
 
 .setting-control {
   width: 150px;
@@ -833,7 +673,9 @@ const handleDesktopLyricLock = async (value: boolean) => {
 }
 
 .wide-control {
-  width: min(420px, 42vw);
+  width: auto;
+  max-width: 100%;
+  flex-wrap: wrap;
 }
 
 .image-pick-control {
@@ -845,7 +687,7 @@ const handleDesktopLyricLock = async (value: boolean) => {
   .current-thumb-wrap {
     width: 52px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
     border: 1.5px solid var(--border-subtle);
     background: var(--surface-card);
@@ -873,7 +715,7 @@ const handleDesktopLyricLock = async (value: boolean) => {
     .recent-thumb-item {
       width: 38px;
       height: 28px;
-      border-radius: 6px;
+      border-radius: 12px;
       overflow: hidden;
       border: 2px solid transparent;
       cursor: pointer;
@@ -900,67 +742,10 @@ const handleDesktopLyricLock = async (value: boolean) => {
   }
 }
 
-.slider-control {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-
-  .slider-wrap {
-    width: 180px;
-  }
-
-  .step-btn {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 1px solid var(--border-subtle);
-    background: var(--surface-card);
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.15s ease;
-
-    &:hover:not(:disabled) {
-      border-color: var(--border-default);
-      color: var(--text-accent);
-      background: var(--surface-card-hover);
-    }
-
-    &:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
-  }
-
-  .val-text {
-    width: 44px;
-    text-align: right;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-secondary);
-  }
-}
-
 :deep(.setting-control .n-input-number),
 :deep(.setting-control .n-select),
 :deep(.setting-control .n-color-picker) {
   width: 100%;
 }
 
-@media (max-width: 1180px) {
-  .setting-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .setting-item.wide {
-    grid-column: auto;
-  }
-
-  .wide-control {
-    width: min(360px, 44vw);
-  }
-}
 </style>

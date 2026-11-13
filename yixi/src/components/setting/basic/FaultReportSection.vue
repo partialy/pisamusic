@@ -1,17 +1,6 @@
 <template>
-  <section class="fault-report-section">
-    <div class="section-head">
-      <div class="title-group">
-        <span class="section-icon" aria-hidden="true">
-          <n-icon :component="ShieldCheck" />
-        </span>
-        <div>
-          <h3>故障上报</h3>
-          <p>上报 PC 主进程网络请求失败信息，帮助定位服务和音源连接问题。</p>
-        </div>
-      </div>
-      <span class="privacy-badge">已脱敏</span>
-    </div>
+  <SettingSection title="故障上报" description="上报 PC 主进程网络请求失败信息，帮助定位服务和音源连接问题。">
+    <template #actions><span class="privacy-badge">已脱敏</span></template>
 
     <div v-if="loadError" class="load-error">
       <div>
@@ -64,13 +53,14 @@
         </n-popconfirm>
       </div>
     </template>
-  </section>
+  </SettingSection>
 </template>
 
 <script setup lang="ts">
+import SettingSection from "../SettingSection.vue";
 import { computed, onMounted, ref } from "vue";
 import { NButton, NIcon, NPopconfirm } from "naive-ui";
-import { CloudUpload, LockKeyhole, ShieldCheck } from "lucide-vue-next";
+import { CloudUpload, LockKeyhole } from "lucide-vue-next";
 
 defineOptions({ name: "FaultReportSection" });
 
@@ -144,67 +134,16 @@ function errorMessage(error: unknown, fallback: string) {
 </script>
 
 <style lang="scss" scoped>
-.fault-report-section {
-  padding: 20px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-default));
-  border-radius: 10px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 42%),
-    var(--color-card-bg);
-}
-
-.section-head,
-.title-group,
-.report-action,
-.privacy-note,
-.load-error {
-  display: flex;
-  align-items: center;
-}
-
-.section-head,
-.report-action,
-.load-error {
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.title-group {
-  min-width: 0;
-  gap: 12px;
-}
-
-.section-icon {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 13%, transparent);
-  font-size: 20px;
-}
-
-.section-head h3 {
-  color: var(--color-text-default);
-  font-size: 16px;
-  font-weight: 650;
-}
-
-.section-head p,
-.load-error p {
-  margin-top: 5px;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-
+@use "../settingLayout.scss";
+.report-action, .privacy-note, .load-error { display: flex; align-items: center; }
+.report-action, .load-error { justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.load-error p { margin-top: 5px; color: var(--text-secondary); font-size: 12px; }
 .privacy-badge {
   flex-shrink: 0;
   padding: 4px 9px;
   border-radius: 999px;
   color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  background: var(--surface-input);
   font-size: 11px;
   font-weight: 700;
 }
@@ -213,7 +152,6 @@ function errorMessage(error: unknown, fallback: string) {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 18px;
   transition: opacity 0.18s ease;
 
   &.loading {
@@ -231,7 +169,7 @@ function errorMessage(error: unknown, fallback: string) {
 .stat-item {
   min-width: 0;
   padding: 13px 14px;
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--surface-control-hover);
 
   span,
@@ -242,12 +180,12 @@ function errorMessage(error: unknown, fallback: string) {
   }
 
   span {
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     font-size: 11px;
   }
 
   strong {
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 17px;
     font-weight: 680;
   }
@@ -259,16 +197,16 @@ function errorMessage(error: unknown, fallback: string) {
   gap: 10px;
   margin-top: 10px;
   padding: 12px 14px;
-  border-top: 1px solid var(--color-border-default);
-  border-bottom: 1px solid var(--color-border-default);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
 
   span {
-    color: var(--color-text-secondary);
+    color: var(--text-secondary);
     font-size: 11px;
   }
 
   strong {
-    color: var(--color-text-default);
+    color: var(--text-primary);
     font-size: 13px;
     font-weight: 600;
   }
@@ -283,7 +221,7 @@ function errorMessage(error: unknown, fallback: string) {
   max-width: 680px;
   align-items: flex-start;
   gap: 8px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.55;
 
@@ -297,9 +235,9 @@ function errorMessage(error: unknown, fallback: string) {
 .load-error {
   margin-top: 18px;
   padding: 14px;
-  border-radius: 8px;
-  color: var(--color-text-default);
-  background: color-mix(in srgb, #d03050 10%, var(--surface-card));
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: var(--surface-input);
 }
 
 @media (max-width: 900px) {
