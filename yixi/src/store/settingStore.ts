@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import electronAPI from "@/utils/electron";
 import { toRaw } from "vue";
+import { normalizeDownloadSettings, type DownloadLyricsMode } from "@/utils/downloadSettings";
 
 export type SongNamingMode =
   | "artist-title"
@@ -16,7 +17,8 @@ export type LocalSetting = {
   songNamingMode: SongNamingMode;
   embedDownloadCover: boolean;
   embedDownloadLyrics: boolean;
-  saveDownloadLyricsFile: boolean;
+  embedDownloadTags: boolean;
+  downloadLyricsMode: DownloadLyricsMode;
 };
 
 const LOCAL_SETTING_KEY = "local-setting";
@@ -29,7 +31,8 @@ const DEFAULT_LOCAL_SETTING: LocalSetting = {
   songNamingMode: "artist-title",
   embedDownloadCover: true,
   embedDownloadLyrics: true,
-  saveDownloadLyricsFile: true,
+  embedDownloadTags: true,
+  downloadLyricsMode: "off",
 };
 
 export const useSettingStore = defineStore("setting", {
@@ -110,8 +113,13 @@ export const useSettingStore = defineStore("setting", {
       await this.persistLocalSetting();
     },
 
-    async updateSaveDownloadLyricsFile(value: boolean) {
-      this.local.saveDownloadLyricsFile = Boolean(value);
+    async updateEmbedDownloadTags(value: boolean) {
+      this.local.embedDownloadTags = Boolean(value);
+      await this.persistLocalSetting();
+    },
+
+    async updateDownloadLyricsMode(value: DownloadLyricsMode) {
+      this.local.downloadLyricsMode = value;
       await this.persistLocalSetting();
     },
 
@@ -156,9 +164,7 @@ function normalizeLocalSetting(
     songNamingMode: isSongNamingMode(input?.songNamingMode)
       ? input.songNamingMode
       : DEFAULT_LOCAL_SETTING.songNamingMode,
-    embedDownloadCover: normalizeBoolean(input?.embedDownloadCover, DEFAULT_LOCAL_SETTING.embedDownloadCover),
-    embedDownloadLyrics: normalizeBoolean(input?.embedDownloadLyrics, DEFAULT_LOCAL_SETTING.embedDownloadLyrics),
-    saveDownloadLyricsFile: normalizeBoolean(input?.saveDownloadLyricsFile, DEFAULT_LOCAL_SETTING.saveDownloadLyricsFile),
+    ...normalizeDownloadSettings(input),
   };
 }
 
@@ -171,7 +177,8 @@ function shouldPersistNormalizedSetting(
         input.scanDirectory ||
         typeof input.embedDownloadCover !== "boolean" ||
         typeof input.embedDownloadLyrics !== "boolean" ||
-        typeof input.saveDownloadLyricsFile !== "boolean")
+        typeof input.embedDownloadTags !== "boolean" ||
+        !["off", "word", "line", "all"].includes(input.downloadLyricsMode ?? ""))
   );
 }
 
@@ -188,10 +195,6 @@ function normalizeCacheLimit(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return DEFAULT_LOCAL_SETTING.cacheLimitGb;
   return Math.max(0, Math.round(parsed * 10) / 10);
-}
-
-function normalizeBoolean(value: unknown, fallback: boolean) {
-  return typeof value === "boolean" ? value : fallback;
 }
 
 function isSongNamingMode(value: unknown): value is SongNamingMode {

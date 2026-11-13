@@ -99,6 +99,14 @@
 
     <div class="setting-item">
       <div class="setting-info">
+        <div class="setting-title">写入歌曲标签</div>
+        <div class="setting-desc">写入歌名、歌手和专辑；关闭仍保留音源标记</div>
+      </div>
+      <n-switch :value="settingStore.local.embedDownloadTags" @update:value="settingStore.updateEmbedDownloadTags" />
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
         <div class="setting-title">写入封面标签</div>
         <div class="setting-desc">下载歌曲时将封面写入音频文件元数据</div>
       </div>
@@ -110,7 +118,7 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">写入歌词标签</div>
-        <div class="setting-desc">下载歌曲时将歌词写入音频文件元数据</div>
+        <div class="setting-desc">写入标准逐行 LRC，逐字歌词自动转换；关闭保留文件既有歌词</div>
       </div>
       <n-switch
         :value="settingStore.local.embedDownloadLyrics"
@@ -120,11 +128,13 @@
     <div class="setting-item">
       <div class="setting-info">
         <div class="setting-title">下载歌词到同目录</div>
-        <div class="setting-desc">下载歌曲时在歌曲文件旁生成同名 .lrc 文件</div>
+        <div class="setting-desc">逐字保存真实 KRC/YRC，缺失时回退 LRC；全部保存可用版本</div>
       </div>
-      <n-switch
-        :value="settingStore.local.saveDownloadLyricsFile"
-        @update:value="settingStore.updateSaveDownloadLyricsFile" />
+      <n-select
+        class="naming-select"
+        :value="settingStore.local.downloadLyricsMode"
+        :options="downloadLyricsOptions"
+        @update:value="settingStore.updateDownloadLyricsMode" />
     </div>
   </div>
 </template>
@@ -158,6 +168,12 @@ const cacheUsageDescription = computed(() => {
   const writing = status.writingCount > 0 ? `，正在写入 ${status.writingCount} 项` : "";
   return `${formatBytes(status.usedBytes)} / ${formatBytes(status.limitBytes)}，${status.entryCount} 首歌曲（${status.readyCount} 首完整）${writing}`;
 });
+const downloadLyricsOptions = [
+  { label: "关闭", value: "off" },
+  { label: "逐字歌词", value: "word" },
+  { label: "逐行歌词（LRC）", value: "line" },
+  { label: "全部", value: "all" },
+];
 const songNamingOptions = [
   { label: "歌手 - 歌名", value: "artist-title" },
   { label: "歌名 - 歌手", value: "title-artist" },

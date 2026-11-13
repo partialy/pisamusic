@@ -231,7 +231,7 @@
 - Windows 打包：`pnpm --dir yixi build:win`
 ## 本地曲库与下载页规则补充
 
-- “本地与下载”页面位于 `src/views/localDownload.vue`，首版包含“本地歌曲 / 下载歌曲”两个 tab；下载歌曲暂为空态，不要在没有下载落盘链路前伪造下载记录。
+- “本地与下载”页面位于 `src/views/localDownload.vue`，包含“本地歌曲 / 下载歌曲”两个 tab；下载通过 main 侧真实落盘与 download_records 展示，仅支持 KG/WY/KW，不扩展云盘下载。
 - 本地扫描目录统一存入 SQLite settings 的 `local-setting.scanDirectories`，最多 10 个；旧 `scanDirectory` 读取时只能作为兼容迁移来源，不要继续写入旧字段。
 - 本地曲库扫描只允许在 main 侧实现，入口集中在 `electron/localLibrary/localLibraryService.ts` 和 `library:local:*` IPC；renderer 不直接访问文件系统或 SQLite。
 - 本地歌曲写入 SQLite `local_songs`，扫描指纹写入 `local_library_scan_meta`；启动时智能扫描，设置变更和页面“立即刷新”强制重建。扫描失败必须保留旧库，不要先清空旧数据。
@@ -384,3 +384,13 @@
 - main/renderer 共用 `src/utils/songCoverUrl.ts` 纯规则；KG 持久化保留原始 `{size}` 模板，旧 KG CDN 固定尺寸路径仅在请求时兼容，不批量改写历史数据。未知域名 URL 保持原样。
 - 请求尺寸统一使用实际像素：歌曲行、队列、底栏 240；卡片与弹窗 480；详情 720；大播放器和下载优先 1024。WY 通过 query `param=<size>y<size>` 设置，保留其他参数；旧 `coverSize` 仅作兼容读取，不新增协议。
 - 大播放器与下载使用 1024→720→480→240 候选降档并去重；本地内嵌封面和默认资源保留原链路。下载封面有独立超时，nativeImage 解码校验后统一 PNG，封面失败不阻断音频。
+
+
+## 下载设置与歌词资产规则补充
+
+- `src/utils/downloadSettings.ts` 统一 main/renderer 下载策略。外置歌词 `downloadLyricsMode` 为 `off/word/line/all`，新用户默认关闭；旧 `saveDownloadLyricsFile=true/false` 分别迁移为逐行/关闭。保留四项 PC 命名规则与扫描、缓存、下载目录设置。
+- `embedDownloadTags/embedDownloadCover/embedDownloadLyrics` 独立控制普通歌曲标签、封面和内嵌歌词，关闭即跳过该类写入，保留音频原有资产；音源自定义标记仍兼容写入，不增加 pm-info。
+- `electron/download/downloadLyrics.ts` 按实际语法识别 KG KRC / WY YRC / LRC，复用 `LyricParser` 转标准逐行 LRC供内嵌。外置逐字缺失回退 LRC，全部模式保存实际可用逐字版本及逐行版本，不用 `.lrc` 冒充逐字格式。
+- 歌词 sidecar 使用音频最终 basename 与真实扩展名，排除已有音频/歌词命名冲突，独占创建避免覆盖；下载缓存使用 taskId 隔离并发。sidecar 失败记录可选资产警告，不影响已落盘音频成功状态。
+- 多歌词路径放在下载记录 `payload.downloadLyricPaths`，兼容旧 `lyricPath`，不新增数据库列；从列表移除不删文件，现有删除音频流程只清理记录中与音频同目录同 basename 的 `.lrc/.krc/.yrc`。当前无取消下载 IPC，不新增管理能力。
+- MP3 自定义 UTF-16 帧各字符串补 BOM；普通标签库重写歌词帧时，关闭歌词写入须恢复原 USLT，FLAC/M4A 同样不得删除既有歌词。

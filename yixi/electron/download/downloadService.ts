@@ -1,6 +1,6 @@
 import { nativeImage } from "electron";
 import { randomUUID } from "node:crypto";
-import { createWriteStream } from "node:fs";
+import { constants, createWriteStream } from "node:fs";
 import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getAppDataPath } from "../core/appPaths";
@@ -15,6 +15,8 @@ import { fetchLyrics, resolvePlayableUrl } from "../music/musicService";
 import { getCurrentQualityAccessLevel } from "../music/qualityAccess";
 import { normalizeQualityKeyForAccess } from "../../src/musicQuality/musicQualityPolicy";
 import { getSongCoverCandidates } from "../../src/utils/songCoverUrl";
+import { normalizeDownloadSettings } from "../../src/utils/downloadSettings";
+import { buildDownloadLyrics, selectDownloadLyrics } from "./downloadLyrics";
 import { writeAudioMetadata } from "./audioMetadataWriter";
 
 type DownloadTrackPayload = {
@@ -58,9 +60,9 @@ type DownloadTask = {
 
 type SidecarPaths = {
   metadataJsonPath: string;
-  lyricPath: string;
   coverPath: string;
-  finalLyricPath: string;
+  directory: string;
+  baseName: string;
 };
 
 type CoverAsset = {
@@ -73,6 +75,8 @@ type DownloadMetadataSetting = {
   embedDownloadCover?: boolean;
   embedDownloadLyrics?: boolean;
   saveDownloadLyricsFile?: boolean;
+  embedDownloadTags?: boolean;
+  downloadLyricsMode?: string;
 };
 
 const downloadTasks = new Map<string, DownloadTask>();
@@ -154,21 +158,29 @@ async function runDownloadTask(
     }
 
     const extension = inferAudioExtension(url, response.headers.get("content-type"), qualityKey);
-    const baseName = await createUniqueBaseName(directory, buildBaseName(song), extension);
-    const filePath = path.join(directory, `${baseName}.${extension}`);
+    let baseName = await createUniqueBaseName(directory, buildBaseName(song), extension);
+    let filePath = path.join(directory, `${baseName}.${extension}`);
     const cacheRoot = getAppDataPath("downloads", "cache");
     await mkdir(cacheRoot, { recursive: true });
-    const cachePath = path.join(cacheRoot, `${baseName}.${extension}`);
+    const cachePath = path.join(cacheRoot, `${snapshot.taskId}.${extension}`);
     const totalBytes = Number(response.headers.get("content-length")) || 0;
     markTask(snapshot, { totalBytes, filePath });
 
     await streamResponseToFile(response, cachePath, snapshot);
-    await copyFile(cachePath, filePath);
+    // 并发任务也不能覆盖已落盘音频；缓存名使用 taskId，彼此隔离。
+    while (true) {
+      try { await copyFile(cachePath, filePath, constants.COPYFILE_EXCL); break; }
+      catch (error: any) {
+        if (error?.code !== "EEXIST") throw error;
+        baseName = await createUniqueBaseName(directory, buildBaseName(song), extension);
+        filePath = path.join(directory, `${baseName}.${extension}`);
+      }
+    }
 
     const metadataOptions = getDownloadMetadataOptions();
-    const sidecars = sidecarPaths(cacheRoot, directory, baseName);
-    const metadata = await buildDownloadMetadata(song, source, qualityKey);
-    await writeSidecars(sidecars, metadata, metadataOptions);
+    const sidecars = sidecarPaths(cacheRoot, directory, baseName, snapshot.taskId);
+    const metadata = await buildDownloadMetadata(song, source, qualityKey, metadataOptions);
+    const sidecarResult = await writeSidecars(sidecars, metadata, metadataOptions);
 
     let metadataStatus: DownloadMetadataStatus = "embedded";
     let message = "下载完成";
@@ -183,6 +195,10 @@ async function runDownloadTask(
       message = `下载完成，元数据已写入缓存：${error instanceof Error ? error.message : String(error)}`;
     }
 
+    if (sidecarResult.warnings.length) {
+      metadataStatus = "sidecar";
+      message += `，可选资产警告：${sidecarResult.warnings.join("；")}`;
+    }
     markTask(snapshot, {
       status: "completed",
       progress: 100,
@@ -196,9 +212,10 @@ async function runDownloadTask(
       status: "completed",
       metadataStatus,
       cachePath,
-      metadataJsonPath: sidecars.metadataJsonPath,
-      lyricPath: metadataOptions.saveDownloadLyricsFile && metadata.lyrics ? sidecars.finalLyricPath : "",
-      coverPath: sidecars.coverPath,
+      metadataJsonPath: sidecarResult.metadataJsonPath,
+      lyricPath: sidecarResult.lyricPaths[0] ?? "",
+      lyricPaths: sidecarResult.lyricPaths,
+      coverPath: sidecarResult.coverPath,
       message,
       completedAt: new Date().toISOString(),
     });
@@ -276,6 +293,7 @@ function recordDownload(input: {
   cachePath?: string;
   metadataJsonPath?: string;
   lyricPath?: string;
+  lyricPaths?: string[];
   coverPath?: string;
   message?: string;
   completedAt?: string;
@@ -295,7 +313,7 @@ function recordDownload(input: {
     totalBytes: input.snapshot.totalBytes,
     receivedBytes: input.snapshot.receivedBytes,
     completedAt: input.completedAt,
-    payload: stripRuntimeFields(input.song),
+    payload: { ...stripRuntimeFields(input.song), ...(input.lyricPaths ? { downloadLyricPaths: input.lyricPaths } : {}) },
     message: input.message ?? input.snapshot.error,
   };
   getAppDatabase().upsertDownloadRecord(record);
@@ -403,31 +421,28 @@ function buildBaseName(song: TrackSnapshot) {
 
 function getDownloadMetadataOptions() {
   const setting = getAppDatabase().getSetting<DownloadMetadataSetting>("local-setting")?.value;
-  return {
-    embedDownloadCover: setting?.embedDownloadCover !== false,
-    embedDownloadLyrics: setting?.embedDownloadLyrics !== false,
-    saveDownloadLyricsFile: setting?.saveDownloadLyricsFile !== false,
-  };
+  return normalizeDownloadSettings(setting);
 }
 
 async function createUniqueBaseName(directory: string, baseName: string, extension: string) {
   let candidate = baseName || "未命名歌曲";
   let index = 1;
-  while (await fileExists(path.join(directory, `${candidate}.${extension}`))) {
+  while ((await Promise.all([extension, "mp3", "flac", "m4a", "aac", "wav", "ogg", "krc", "yrc", "lrc"].map(ext => fileExists(path.join(directory, `${candidate}.${ext}`))))).some(Boolean)) {
     index += 1;
     candidate = `${baseName} (${index})`;
   }
   return candidate;
 }
 
-async function buildDownloadMetadata(song: TrackSnapshot, source: string, qualityKey: string) {
+async function buildDownloadMetadata(song: TrackSnapshot, source: string, qualityKey: string, options: ReturnType<typeof getDownloadMetadataOptions>) {
   const [lyrics, cover] = await Promise.all([
-    fetchLyrics({ source: source as "kg" | "wy" | "kw", id: song.id, hash: toStringValue(song.urlParam) }).catch(() => ({
+    options.embedDownloadLyrics || options.downloadLyricsMode !== "off" ? fetchLyrics({ source: source as "kg" | "wy" | "kw", id: song.id, hash: toStringValue(song.urlParam) }).catch(() => ({
       krc: "",
       lrc: "",
-    })),
-    fetchCover(song).catch(() => null),
+    })) : Promise.resolve({ krc: "", lrc: "" }),
+    options.embedDownloadCover ? fetchCover(song).catch(() => null) : Promise.resolve(null),
   ]);
+  const lyricAssets = buildDownloadLyrics(source, lyrics, { lyric: toStringValue(song.lyric), krc: toStringValue(song.krc) });
   return {
     title: song.name || "",
     artist: song.singer || "",
@@ -436,7 +451,8 @@ async function buildDownloadMetadata(song: TrackSnapshot, source: string, qualit
     songId: song.id,
     qualityKey,
     cover,
-    lyrics: lyrics.lrc || lyrics.krc || toStringValue(song.lyric) || toStringValue(song.krc),
+    lyrics: lyricAssets.standardLrc,
+    lyricAssets: lyricAssets.assets,
     payload: song,
   };
 }
@@ -447,6 +463,7 @@ async function embedMetadata(
   options: ReturnType<typeof getDownloadMetadataOptions>
 ) {
   return writeAudioMetadata(filePath, metadata, {
+    embedTags: options.embedDownloadTags,
     embedCover: options.embedDownloadCover,
     embedLyrics: options.embedDownloadLyrics,
   });
@@ -457,30 +474,36 @@ async function writeSidecars(
   metadata: Awaited<ReturnType<typeof buildDownloadMetadata>>,
   options: ReturnType<typeof getDownloadMetadataOptions>
 ) {
-  await writeFile(paths.metadataJsonPath, JSON.stringify({
-    title: metadata.title,
-    artist: metadata.artist,
-    album: metadata.album,
-    source: metadata.source,
-    songId: metadata.songId,
-    qualityKey: metadata.qualityKey,
-    lyrics: metadata.lyrics,
-    payload: metadata.payload,
+  const warnings: string[] = [];
+  const lyricPaths: string[] = [];
+  const optionalWrite = async (target: string, data: string | Buffer, exclusive = false) => {
+    try {
+      await writeFile(target, data, exclusive ? { flag: "wx" } : undefined);
+      return true;
+    } catch (error) {
+      warnings.push(`${path.basename(target)}：${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+  };
+  const metadataWritten = await optionalWrite(paths.metadataJsonPath, JSON.stringify({
+    title: metadata.title, artist: metadata.artist, album: metadata.album,
+    source: metadata.source, songId: metadata.songId, qualityKey: metadata.qualityKey,
+    lyrics: metadata.lyrics, lyricAssets: metadata.lyricAssets, payload: metadata.payload,
   }, null, 2));
-  if (metadata.lyrics && options.saveDownloadLyricsFile) {
-    await writeFile(paths.finalLyricPath, metadata.lyrics);
+  for (const asset of selectDownloadLyrics(metadata.lyricAssets, options.downloadLyricsMode)) {
+    const target = path.join(paths.directory, `${paths.baseName}.${asset.format}`);
+    if (await optionalWrite(target, asset.text, true)) lyricPaths.push(target);
   }
-  if (metadata.cover) {
-    await writeFile(paths.coverPath, metadata.cover.data);
-  }
+  const coverWritten = metadata.cover ? await optionalWrite(paths.coverPath, metadata.cover.data) : false;
+  return { warnings, lyricPaths, metadataJsonPath: metadataWritten ? paths.metadataJsonPath : "", coverPath: coverWritten ? paths.coverPath : "" };
 }
 
-function sidecarPaths(cacheRoot: string, directory: string, baseName: string): SidecarPaths {
+function sidecarPaths(cacheRoot: string, directory: string, baseName: string, taskId: string): SidecarPaths {
   return {
-    metadataJsonPath: path.join(cacheRoot, `${baseName}.json`),
-    lyricPath: path.join(cacheRoot, `${baseName}.lrc`),
-    finalLyricPath: path.join(directory, `${baseName}.lrc`),
-    coverPath: path.join(cacheRoot, `${baseName}.png`),
+    metadataJsonPath: path.join(cacheRoot, `${taskId}.json`),
+    directory,
+    baseName,
+    coverPath: path.join(cacheRoot, `${taskId}.png`),
   };
 }
 

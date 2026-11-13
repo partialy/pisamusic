@@ -81,8 +81,7 @@ export async function removeLocalSongFromList(payload: { filePath?: string; dele
   if (!filePath) return { removed: false, deleted: false };
 
   const db = getAppDatabase();
-  db.removeLocalSongByFilePath(filePath);
-  db.removeDownloadRecordsByFilePath(filePath);
+  const records = db.listDownloadRecords().filter(record => normalizeFilePath(record.filePath) === filePath);
   let deleted = false;
 
   if (payload.deleteFile) {
@@ -95,6 +94,21 @@ export async function removeLocalSongFromList(payload: { filePath?: string; dele
     }
   }
 
+  if (payload.deleteFile) {
+    // 只删除记录中与音频同目录、同 basename 的已创建歌词，兼容旧 lyricPath。
+    const stem = filePath.slice(0, -extname(filePath).length);
+    const lyrics = records.flatMap(record => [record.lyricPath, ...(Array.isArray(record.payload.downloadLyricPaths) ? record.payload.downloadLyricPaths : [])]);
+    for (const lyric of new Set(lyrics)) {
+      if (typeof lyric !== "string") continue;
+      const target = normalizeFilePath(lyric);
+      if (![".lrc", ".krc", ".yrc"].some(ext => target === `${stem}${ext}`)) continue;
+      try { await unlink(target); } catch (error: any) {
+        if (error?.code !== "ENOENT") logger.warn(`删除下载歌词失败：${target}`, error);
+      }
+    }
+  }
+  db.removeLocalSongByFilePath(filePath);
+  db.removeDownloadRecordsByFilePath(filePath);
   clearCoverCache(filePath);
   return { removed: true, deleted };
 }

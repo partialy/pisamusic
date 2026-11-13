@@ -17,6 +17,7 @@ export type AudioMetadata = {
 };
 
 export type AudioMetadataWriteOptions = {
+  embedTags: boolean;
   embedCover: boolean;
   embedLyrics: boolean;
 };
@@ -34,7 +35,18 @@ export async function writeAudioMetadata(
   options: AudioMetadataWriteOptions
 ): Promise<AudioMetadataWriteResult> {
   const warnings: string[] = [];
+  // 原生普通标签写入会重序列化 USLT（连语言字段也会改变），关闭歌词时恢复原帧。
+  const preserveMp3Lyrics = path.extname(filePath).toLowerCase() === ".mp3"
+    && (!options.embedLyrics || !metadata.lyrics);
+  const originalLyrics = preserveMp3Lyrics
+    ? parseId3Tag(await readFile(filePath)).frames.filter(frame => frame.id === "USLT") : null;
   await writeBaseTags(filePath, metadata, options);
+  if (originalLyrics) {
+    const parsed = parseId3Tag(await readFile(filePath));
+    await writeFile(filePath, Buffer.concat([
+      buildId3v23Tag([...parsed.frames.filter(frame => frame.id !== "USLT"), ...originalLyrics]), parsed.audio,
+    ]));
+  }
 
   if (options.embedLyrics || metadata.source || metadata.songId || metadata.qualityKey) {
     const customResult = await writeFormatSpecificMetadata(filePath, metadata, options);
@@ -52,20 +64,14 @@ async function writeBaseTags(
   metadata: AudioMetadata,
   options: AudioMetadataWriteOptions
 ) {
-  await writeTags(filePath, {
-    title: metadata.title,
-    artists: metadata.artist ? [metadata.artist] : [],
-    album: metadata.album,
-    comment: metadataComment(metadata),
-    image: options.embedCover && metadata.cover
-      ? {
-          data: metadata.cover.data,
-          mimeType: metadata.cover.mimeType,
-          picType: "CoverFront" as any,
-          description: "Cover",
-        }
-      : undefined,
-  });
+  if (options.embedTags) {
+    await writeTags(filePath, {
+      title: metadata.title,
+      artists: metadata.artist ? [metadata.artist] : [],
+      album: metadata.album,
+      comment: metadataComment(metadata),
+    });
+  }
   if (options.embedCover && metadata.cover) {
     await writeCoverImageToFile(filePath, metadata.cover.data);
   }
@@ -113,7 +119,7 @@ async function writeMp3CustomMetadata(
 ) {
   const buffer = await readFile(filePath);
   const parsed = parseId3Tag(buffer);
-  const frames = parsed.frames.filter((frame) => !shouldReplaceId3Frame(frame));
+  const frames = parsed.frames.filter((frame) => !shouldReplaceId3Frame(frame, options.embedLyrics && Boolean(metadata.lyrics)));
   frames.push(createTxxxFrame("PISAMUSIC_SOURCE", metadata.source));
   frames.push(createTxxxFrame("PISAMUSIC_SONG_ID", metadata.songId));
   frames.push(createTxxxFrame("PISAMUSIC_QUALITY_KEY", metadata.qualityKey));
@@ -155,8 +161,8 @@ function parseId3Tag(buffer: Buffer) {
   return { frames, audio: buffer.subarray(tagEnd) };
 }
 
-function shouldReplaceId3Frame(frame: Id3Frame) {
-  if (frame.id === "USLT") return true;
+function shouldReplaceId3Frame(frame: Id3Frame, replaceLyrics: boolean) {
+  if (frame.id === "USLT") return replaceLyrics;
   if (frame.id !== "TXXX") return false;
   const text = decodeId3Text(frame.data.subarray(1));
   return CUSTOM_FIELDS.some((field) => text.startsWith(field));
@@ -169,6 +175,7 @@ function createTxxxFrame(description: string, value: string): Id3Frame {
       Buffer.from([1, 0xff, 0xfe]),
       Buffer.from(description, "utf16le"),
       Buffer.from([0, 0]),
+      Buffer.from([0xff, 0xfe]),
       Buffer.from(value, "utf16le"),
     ]),
   };
@@ -180,7 +187,7 @@ function createUsltFrame(lyrics: string): Id3Frame {
     data: Buffer.concat([
       Buffer.from([1]),
       Buffer.from("chi", "latin1"),
-      Buffer.from([0xff, 0xfe, 0, 0]),
+      Buffer.from([0xff, 0xfe, 0, 0, 0xff, 0xfe]),
       Buffer.from(lyrics, "utf16le"),
     ]),
   };
@@ -279,8 +286,6 @@ function upsertVorbisCommentBlock(
   comments.set("PISAMUSIC_QUALITY_KEY", metadata.qualityKey);
   if (options.embedLyrics && metadata.lyrics) {
     comments.set("LYRICS", metadata.lyrics);
-  } else {
-    comments.delete("LYRICS");
   }
   const block: FlacBlock = {
     type: 4,
@@ -394,7 +399,7 @@ function upsertIlstMetadata(
   options: AudioMetadataWriteOptions
 ) {
   const atoms = parseMp4Atoms(ilstContent, 0, ilstContent.length);
-  const filtered = atoms.filter((atom) => !shouldReplaceIlstAtom(atom));
+  const filtered = atoms.filter((atom) => !shouldReplaceIlstAtom(atom, options.embedLyrics && Boolean(metadata.lyrics)));
   const additions = [
     createFreeformAtom("PISAMUSIC_SOURCE", metadata.source),
     createFreeformAtom("PISAMUSIC_SONG_ID", metadata.songId),
@@ -406,8 +411,8 @@ function upsertIlstMetadata(
   return Buffer.concat([...filtered.map((atom) => atom.raw), ...additions]);
 }
 
-function shouldReplaceIlstAtom(atom: Mp4Atom) {
-  if (atom.type === "©lyr") return true;
+function shouldReplaceIlstAtom(atom: Mp4Atom, replaceLyrics: boolean) {
+  if (atom.type === "©lyr") return replaceLyrics;
   if (atom.type !== "----") return false;
   const children = parseMp4Atoms(atom.content, 0, atom.content.length);
   const name = children.find((child) => child.type === "name");

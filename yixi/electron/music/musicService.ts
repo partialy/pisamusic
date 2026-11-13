@@ -385,7 +385,7 @@ async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
         decode: "true",
         fmt: "krc",
       })
-    ),
+    ).catch(() => null),
     requestMusicGateway(
       "kg",
       buildUrl(endpoints.kgServer, "/lyric", {
@@ -394,7 +394,7 @@ async function fetchKgLyrics(hash: string): Promise<MusicLyricResult> {
         decode: "true",
         fmt: "lrc",
       })
-    ),
+    ).catch(() => null),
   ]);
 
   return {
