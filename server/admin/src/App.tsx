@@ -5,6 +5,7 @@ import RequireAuth from "./auth/RequireAuth";
 import AdminLayout from "./layouts/AdminLayout";
 import { useAdminLayout } from "./layouts/AdminLayoutContext";
 import { AdminConfigWorkspaceProvider } from "./state/AdminConfigWorkspaceContext";
+import { CloudMusicUploadQueueProvider } from "./state/CloudMusicUploadQueueContext";
 import InstallationGuard from "./auth/InstallationGuard";
 import LoginPage from "./components/LoginPage";
 
@@ -72,7 +73,9 @@ export default function App() {
           <Route
             element={
               <AdminConfigWorkspaceProvider>
-                <AdminLayout />
+                <CloudMusicUploadQueueProvider>
+                  <AdminLayout />
+                </CloudMusicUploadQueueProvider>
               </AdminConfigWorkspaceProvider>
             }
           >

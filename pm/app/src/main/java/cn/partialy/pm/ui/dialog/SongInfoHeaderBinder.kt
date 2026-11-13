@@ -25,11 +25,12 @@ object SongInfoHeaderBinder {
 
         val coverData = song?.let { SongCoverUrl.getSongCoverData(it, SongCoverUrl.SIZE_SMALL) }
         if (coverData == null) {
-            cover.setImageResource(R.drawable.ic_pm_icon)
+            cover.setImageResource(R.drawable.default_music_cover)
         } else {
             cover.load(coverData) {
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
+                placeholder(R.drawable.default_music_cover)
+                error(R.drawable.default_music_cover)
+                fallback(R.drawable.default_music_cover)
             }
         }
     }

@@ -13,7 +13,7 @@ export const LISTEN_TOGETHER_OFFLINE_GRACE_MS = 30_000;
 
 export type ListenTogetherStatus = "playing" | "paused" | "ended";
 export type ListenTogetherMemberRole = "host" | "member";
-export type ListenTogetherSongSource = "kg" | "qq" | "wy" | "kw" | "local";
+export type ListenTogetherSongSource = "kg" | "qq" | "wy" | "kw" | "cloud";
 
 export type ListenTogetherMemberLeaveReason =
   | "left"

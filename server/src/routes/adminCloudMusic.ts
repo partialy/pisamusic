@@ -3,10 +3,11 @@ import jwt from "jsonwebtoken";
 import { getAdminJwtSecret } from "../middleware/requireAdminJwt";
 import {
   cleanupTemp,
-  confirmAsset,
+  confirmAdminAsset,
   createAdminUploadSession,
   deleteCloudMusic,
   getAdminDetail,
+  getAdminLyricsText,
   getTempSummary,
   list,
   preview,
@@ -14,6 +15,7 @@ import {
   reserveAsset,
   review,
   saveAdminDraft,
+  type CloudMusicAdminParsedAudioInput,
   type CloudMusicAdminSaveInput,
   type CloudMusicAssetKind,
   type CloudMusicReviewInput,
@@ -118,7 +120,8 @@ adminCloudMusicRouter.post("/:uuid/assets/:kind/complete", async (req, res) => {
       res.status(400).json(fail("不支持的资产类型", 400));
       return;
     }
-    const track = await confirmAsset(uuid, kind as CloudMusicAssetKind);
+    const parsedInput = isRecord(req.body) ? (req.body as CloudMusicAdminParsedAudioInput) : undefined;
+    const track = await confirmAdminAsset(uuid, kind as CloudMusicAssetKind, parsedInput);
     res.json(ok(track));
   } catch (error) {
     const message = error instanceof Error ? error.message : "确认资产失败";
@@ -171,6 +174,16 @@ adminCloudMusicRouter.get("/:uuid/preview-url", async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "获取试听地址失败";
     res.status(400).json(fail(message, 400));
+  }
+});
+
+adminCloudMusicRouter.get("/:uuid/lyrics", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    res.json(ok(await getAdminLyricsText(req.params.uuid)));
+  } catch (error) {
+    const status = error instanceof Error && "statusCode" in error && error.statusCode === 404 ? 404 : 502;
+    res.status(status).json(fail(error instanceof Error ? error.message : "读取歌词原文失败", status));
   }
 });
 

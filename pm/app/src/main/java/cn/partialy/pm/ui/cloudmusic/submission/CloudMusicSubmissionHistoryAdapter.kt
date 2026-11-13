@@ -42,12 +42,13 @@ class CloudMusicSubmissionHistoryAdapter(
         fun bind(track: CloudMusicTrackDto) = with(binding) {
             val context = root.context
             val status = statusPresentation(track)
-            val coverModel: Any = track.cover?.url?.takeIf(String::isNotBlank) ?: R.drawable.ic_pm_icon
+            val coverModel: Any = track.cover?.url?.takeIf(String::isNotBlank) ?: R.drawable.default_music_cover
 
             submissionHistoryCover.load(coverModel) {
                 crossfade(true)
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
+                placeholder(R.drawable.default_music_cover)
+                error(R.drawable.default_music_cover)
+                fallback(R.drawable.default_music_cover)
             }
             submissionHistoryTitle.text = track.title.ifBlank {
                 context.getString(R.string.cloud_music_submission_history_unknown_title)

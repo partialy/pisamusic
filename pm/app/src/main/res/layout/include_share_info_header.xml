@@ -13,7 +13,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small"
-        tools:src="@drawable/ic_pm_icon" />
+        tools:src="@drawable/default_music_cover" />
 
     <LinearLayout
         android:id="@+id/shareInfoTextColumn"

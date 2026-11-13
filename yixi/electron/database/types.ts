@@ -13,6 +13,7 @@ export type ServiceDiscoveryCacheRecord<T = unknown> = {
 
 export type TrackSnapshot = {
   id: string;
+  favoritedAt?: number;
   source: "kg" | "wy" | "kw" | string;
   name?: string;
   singer?: string;

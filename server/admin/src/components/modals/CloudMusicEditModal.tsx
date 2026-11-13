@@ -24,6 +24,7 @@ import {
 } from "../../api/cloudMusic";
 import { uploadFileToQiniu } from "../../api/client";
 import type { CloudMusicAdminSaveInput, CloudMusicTrack } from "../../types/cloudMusic";
+import CloudMusicLyricsModal from "./CloudMusicLyricsModal";
 
 const { Text } = Typography;
 
@@ -80,6 +81,7 @@ export default function CloudMusicEditModal({
   const [error, setError] = useState("");
   const [coverUpdating, setCoverUpdating] = useState(false);
   const [lyricsUpdating, setLyricsUpdating] = useState(false);
+  const [viewingLyrics, setViewingLyrics] = useState(false);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -183,6 +185,7 @@ export default function CloudMusicEditModal({
   };
 
   return (
+    <>
     <Modal
       open
       centered
@@ -349,11 +352,13 @@ export default function CloudMusicEditModal({
                   {track.lyrics && <Tag color="success">就绪</Tag>}
                 </div>
                 <Text type="secondary" className="block text-xs mt-1">
-                  支持上传 .lrc 同步歌词文件
+                  支持上传 .lrc 同步歌词或 .txt 纯文本歌词
                 </Text>
               </div>
             </div>
 
+            <Space wrap>
+            {track.lyrics && <Button size="small" disabled={lyricsUpdating} onClick={() => setViewingLyrics(true)}>查看歌词原文</Button>}
             <label className="relative cursor-pointer rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition-all">
               {lyricsUpdating ? "上传中..." : track.lyrics ? "更换歌词" : "上传歌词"}
               <input
@@ -367,6 +372,7 @@ export default function CloudMusicEditModal({
                 }}
               />
             </label>
+            </Space>
           </div>
         </Card>
 
@@ -392,5 +398,7 @@ export default function CloudMusicEditModal({
         </Descriptions>
       </div>
     </Modal>
+    {viewingLyrics && <CloudMusicLyricsModal uuid={track.uuid} onClose={() => setViewingLyrics(false)} />}
+    </>
   );
 }

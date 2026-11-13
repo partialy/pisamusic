@@ -68,7 +68,7 @@ internal class PlayerBackgroundController(
         applyBlurBackground(songKey, model)
     }
 
-    /** 空歌曲预览直接使用默认色板，不把 App 图标误作封面提色。 */
+    /** 空歌曲预览直接使用默认色板，不从缺图封面生成预览色板。 */
     fun bindFallback(songKey: String = "background-preview-fallback") {
         if (released) return
         requestVersion++
@@ -139,12 +139,12 @@ internal class PlayerBackgroundController(
 
     private fun applyBlurBackground(capturedSongKey: String, model: Any?) {
         val capturedVersion = requestVersion
-        val backgroundModel = model ?: R.drawable.ic_pm_icon
+        val backgroundModel = model ?: R.drawable.default_music_cover
         val requestBuilder = ImageRequest.Builder(legacyBackground.context)
             .data(backgroundModel)
-            .placeholder(R.drawable.ic_pm_icon)
-            .error(R.drawable.ic_pm_icon)
-            .fallback(R.drawable.ic_pm_icon)
+            .placeholder(R.drawable.default_music_cover)
+            .error(R.drawable.default_music_cover)
+            .fallback(R.drawable.default_music_cover)
             // Palette must read pixels from the resolved cover on a software Canvas.
             .allowHardware(false)
 
@@ -174,7 +174,7 @@ internal class PlayerBackgroundController(
                 .target(
                     onStart = { placeholder ->
                         if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return@target
-                        applyLegacyBlurBackground(placeholder)
+                        if (legacyBackground.drawable == null) applyLegacyBlurBackground(placeholder)
                     },
                     onSuccess = { drawable ->
                         if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return@target
@@ -368,7 +368,7 @@ internal class PlayerBackgroundController(
         private val capturedVersion = requestVersion
         override fun onStart(placeholder: Drawable?) {
             if (capturedSongKey != currentSongKey || capturedVersion != requestVersion || released) return
-            super.onStart(placeholder)
+            if (legacyBackground.drawable == null) super.onStart(placeholder)
         }
 
         override fun onSuccess(result: Drawable) {

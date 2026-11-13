@@ -146,6 +146,7 @@ export function toFavoriteSong(row: FavoriteSongRow): FavoriteSongItem {
       source: row.source,
     })
   );
+  payload.favoritedAt = Date.parse(row.created_at);
   return {
     favoriteKey: row.favorite_key,
     trackId: row.track_id,

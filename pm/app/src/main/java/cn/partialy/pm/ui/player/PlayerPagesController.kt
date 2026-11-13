@@ -35,7 +35,8 @@ internal class PlayerPagesController(private val host: ActivityPlayerBinding, re
         host.playerPager.registerOnPageChangeCallback(pageCallback)
         cover.coverStage.setOnClickListener { host.playerPager.setCurrentItem(1, true) }
         cover.compactLyrics.setOnClickListener { host.playerPager.setCurrentItem(1, true) }
-        cover.coverImage.setImageResource(R.drawable.ic_pm_icon)
+        cover.coverImage.setImageResource(R.drawable.default_music_cover)
+        cover.compactDisc.setArtwork(cover.coverImage.drawable)
     }
 
     val currentPage: Int get() = host.playerPager.currentItem

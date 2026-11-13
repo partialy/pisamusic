@@ -148,7 +148,7 @@ class HomeDailySongGridAdapter(
         fun bindSkeleton() {
             startSkeletonAnim()
             binding.root.alpha = 1f
-            binding.coverImageView.setImageResource(R.drawable.ic_pm_icon)
+            binding.coverImageView.setImageResource(R.drawable.default_music_cover)
             binding.coverImageView.alpha = 0.25f
             binding.currentSongCoverMask.visibility = View.GONE
             binding.playingSpectrumView.setPlaybackState(selected = false, isPlaying = false)

@@ -9,6 +9,13 @@ import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.View
 import androidx.core.graphics.drawable.toBitmap
+import cn.partialy.pm.ui.player.background.CoverFlowPaletteExtractor
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /** 共享封面请求结果；仅播放且封面页可见时旋转，暂停与隐藏保留角度。 */
 class CompactDiscView @JvmOverloads constructor(
@@ -19,6 +26,11 @@ class CompactDiscView @JvmOverloads constructor(
     private var active = false
     private var angle = 0f
     private var lastFrame = 0L
+    private val paletteExtractor = CoverFlowPaletteExtractor()
+    private var paletteScope: CoroutineScope? = null
+    private var paletteJob: Job? = null
+    private var artwork: Drawable? = null
+    private var artworkGeneration = 0
     private val frame = object : Runnable {
         override fun run() {
             if (!canAnimate()) { lastFrame = 0L; return }
@@ -31,19 +43,53 @@ class CompactDiscView @JvmOverloads constructor(
     }
 
     fun setArtwork(drawable: Drawable?) {
-        // Coil 已禁用硬件位图，可直接共享；占位/失败时恢复中性的银色盘面。
+        artworkGeneration++
+        paletteJob?.cancel()
+        artwork = drawable
+        // Coil 已禁用硬件位图，可直接共享；取色复用背景的异步色板提取。
         val bitmap = (drawable as? BitmapDrawable)?.bitmap
             ?: drawable?.toBitmap(512, 512)
         renderer.setArtwork(bitmap)
+        extractSurfaceTint()
         invalidate()
+    }
+
+    private fun extractSurfaceTint() {
+        val source = artwork ?: return
+        val generation = artworkGeneration
+        paletteJob?.cancel()
+        paletteJob = paletteScope?.launch {
+            val dominant = try {
+                paletteExtractor.extractColors(source).firstOrNull()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
+            if (generation != artworkGeneration) return@launch
+            renderer.setSurfaceTint(dominant)
+            invalidate()
+        }
     }
 
     fun setPlayback(playing: Boolean) { this.playing = playing; updateFrames() }
     fun setActive(active: Boolean) { this.active = active; updateFrames() }
     private fun canAnimate() = active && playing && isAttachedToWindow && isShown && ValueAnimator.areAnimatorsEnabled()
     private fun updateFrames() { removeCallbacks(frame); lastFrame = 0L; if (canAnimate()) post(frame) }
-    override fun onAttachedToWindow() { super.onAttachedToWindow(); updateFrames() }
-    override fun onDetachedFromWindow() { removeCallbacks(frame); lastFrame = 0L; super.onDetachedFromWindow() }
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        paletteScope = MainScope()
+        extractSurfaceTint()
+        updateFrames()
+    }
+    override fun onDetachedFromWindow() {
+        removeCallbacks(frame)
+        lastFrame = 0L
+        paletteScope?.cancel()
+        paletteScope = null
+        paletteJob = null
+        super.onDetachedFromWindow()
+    }
     override fun onVisibilityAggregated(isVisible: Boolean) { super.onVisibilityAggregated(isVisible); updateFrames() }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {

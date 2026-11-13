@@ -509,9 +509,24 @@ export type SyncChangeInput = {
   clientUpdatedAt: string;
 };
 
-export async function getSyncChanges(token: string, since: number) {
-  const response = await requestSystem<{ version: number; changes: SyncChange[] }>(
-    `/api/sync/changes?since=${encodeURIComponent(String(since))}`,
+export type SyncPullResult = {
+  mode?: "snapshot" | "delta";
+  version: number;
+  changes: SyncChange[];
+  items?: SyncChange[];
+  snapshotVersion?: number;
+  cursor?: string | null;
+  hasMore?: boolean;
+};
+
+export async function getSyncChanges(token: string, since: number, page?: { snapshotVersion: number; cursor: string }) {
+  const query = new URLSearchParams({ since: String(since), limit: "1000", protocol: "2" });
+  if (page) {
+    query.set("snapshotVersion", String(page.snapshotVersion));
+    query.set("cursor", page.cursor);
+  }
+  const response = await requestSystem<SyncPullResult>(
+    `/api/sync/changes?${query}`,
     {
       token,
       headers: {
@@ -519,7 +534,10 @@ export async function getSyncChanges(token: string, since: number) {
       },
     }
   );
-  return unwrapResponse(response);
+  if (!response.success || response.code !== 0 || response.data === null) {
+    throw Object.assign(new Error(response.msg || "同步拉取失败"), { code: response.code });
+  }
+  return response.data;
 }
 
 export async function pushSyncChanges(token: string, changes: SyncChangeInput[]) {

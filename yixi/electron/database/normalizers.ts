@@ -110,6 +110,10 @@ export function normalizeTrackSnapshot(input: TrackSnapshot | Record<string, unk
   };
 
   const urlParam = toStringValue(input.urlParam);
+  if (typeof input.favoritedAt === "number" && Number.isFinite(input.favoritedAt)
+    && input.favoritedAt > 0 && input.favoritedAt <= 8.64e15) {
+    track.favoritedAt = Math.trunc(input.favoritedAt);
+  }
   if (urlParam) track.urlParam = urlParam;
 
   const coverSize = normalizeCoverSize(input.coverSize);

@@ -8,7 +8,7 @@ import {
 } from "./listenTogetherTypes";
 
 const ROOM_ID_RE = /^\d{4,8}$/;
-const SONG_SOURCES: readonly ListenTogetherSongSource[] = ["kg", "qq", "wy", "kw", "local"];
+export const SONG_SOURCES: readonly ListenTogetherSongSource[] = ["kg", "qq", "wy", "kw", "cloud"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -113,17 +113,16 @@ export function normalizeSong(value: unknown): ListenTogetherSong {
   return {
     id,
     source,
-    urlParam: optionalString(value.urlParam, 500) || id,
+    urlParam: source === "cloud" ? id : optionalString(value.urlParam, 500) || id,
     name,
     singer,
     album: optionalString(value.album, 200),
     cover: optionalString(value.cover, 1000),
     ...(coverSize ? { coverSize } : {}),
-    url: optionalString(value.url, 2000),
+    url: "",
     duration,
     ...(typeof value.vip === "boolean" ? { vip: value.vip } : {}),
     ...(size ? { size } : {}),
-    ...(typeof value.filePath === "string" ? { filePath: optionalString(value.filePath, 2000) } : {}),
   };
 }
 

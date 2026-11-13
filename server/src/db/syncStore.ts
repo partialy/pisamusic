@@ -1,22 +1,9 @@
-import { type DbClient as DatabaseSync } from "./core/types";
-import { getAppDb } from "./appDb";
-
-export const SYNC_ITEM_TYPES = new Set([
-  "favorite_song",
-  "favorite_playlist",
-  "user_playlist",
-  "playlist_track",
-]);
-
-export const SYNC_ACTIONS = new Set(["upsert", "delete"]);
-
+import type { DbTransaction, SqlValue } from "./core/types";
 export type SyncAction = "upsert" | "delete";
-
 export type SyncAuth = {
   userId: string;
   deviceId: string;
 };
-
 export type SyncChangeInput = {
   opId: string;
   itemType: string;
@@ -25,147 +12,25 @@ export type SyncChangeInput = {
   payload?: unknown;
   clientUpdatedAt?: string;
 };
-
-export type SyncChange = {
+export type SyncChange = SyncChangeInput & {
   version: number;
-  opId: string;
   deviceId: string;
-  itemType: string;
-  itemKey: string;
-  action: SyncAction;
   payload: unknown;
   clientUpdatedAt: string;
   serverUpdatedAt: number;
 };
-
-const MAX_CHANGES_PER_PUSH = 500;
-const MAX_CHANGES_PER_PULL = 1000;
-
-function normalizeText(value: unknown, max: number): string {
-  const raw = typeof value === "string" ? value.trim() : "";
-  return raw.length <= max ? raw : raw.slice(0, max);
-}
-
-function stringifyPayload(payload: unknown): string {
-  if (payload === undefined || payload === null) return "{}";
-  if (typeof payload !== "object" || Array.isArray(payload)) {
-    throw new Error("payload 必须是对象");
-  }
-  return JSON.stringify(payload);
-}
-
-function parsePayload(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
-
-async function runInTransaction<T>(db: DatabaseSync, fn: () => Promise<T>): Promise<T> {
-  return (await db.transaction(async () => {
-    const result = (await fn());
-
-    return result;
-  }));
-}
-
-export async function listSyncChanges(auth: SyncAuth, since: unknown): Promise<{ version: number; changes: SyncChange[] }> {
-  const normalizedSince = Math.max(0, Math.trunc(Number(since) || 0));
-  const db = getAppDb();
-  const rows = (await db.query(`SELECT version, op_id, device_id, item_type, item_key, action, payload_json,
-              client_updated_at, server_updated_at
-       FROM user_sync_change_log
-       WHERE user_id = ? AND version > ?
-       ORDER BY version ASC
-       LIMIT ?`, [auth.userId, normalizedSince, MAX_CHANGES_PER_PULL])) as SyncChangeRow[];
-  return {
-    version: (await getUserSyncVersion(db, auth.userId)),
-    changes: rows.map(toSyncChange),
-  };
-}
-
-export async function applySyncChanges(
-  auth: SyncAuth,
-  rawChanges: unknown,
-): Promise<{ version: number; accepted: number; skipped: number }> {
-  const changes = normalizeChanges(rawChanges);
-  const db = getAppDb();
-  return (await runInTransaction(db, async () => {
-    let accepted = 0;
-    let skipped = 0;
-    for (const change of changes) {
-      const existing = (await db.queryOne(`SELECT server_version FROM user_sync_applied_ops
-           WHERE user_id = ? AND device_id = ? AND op_id = ?`, [auth.userId, auth.deviceId, change.opId])) as { server_version: number } | undefined;
-      if (existing) {
-        skipped += 1;
-        continue;
-      }
-      (await applyOneChange(db, auth, change));
-      accepted += 1;
-    }
-    return { version: (await getUserSyncVersion(db, auth.userId)), accepted, skipped };
-  }));
-}
-
-function normalizeChanges(rawChanges: unknown): SyncChangeInput[] {
-  if (!Array.isArray(rawChanges)) throw new Error("changes 必须是数组");
-  if (rawChanges.length > MAX_CHANGES_PER_PUSH) throw new Error(`单次最多推送 ${MAX_CHANGES_PER_PUSH} 条变更`);
-  return rawChanges.map((raw) => {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("change 必须是对象");
-    const record = raw as Record<string, unknown>;
-    const itemType = normalizeText(record.itemType, 64);
-    const itemKey = normalizeText(record.itemKey, 256);
-    const action = normalizeText(record.action, 16) as SyncAction;
-    const opId = normalizeText(record.opId, 128);
-    if (!opId) throw new Error("opId 不能为空");
-    if (!SYNC_ITEM_TYPES.has(itemType)) throw new Error(`不支持的同步类型: ${itemType}`);
-    if (!itemKey) throw new Error("itemKey 不能为空");
-    if (!SYNC_ACTIONS.has(action)) throw new Error(`不支持的同步动作: ${action}`);
-    return {
-      opId,
-      itemType,
-      itemKey,
-      action,
-      payload: action === "delete" ? {} : record.payload,
-      clientUpdatedAt: normalizeText(record.clientUpdatedAt, 64),
-    };
-  });
-}
-
-async function applyOneChange(db: DatabaseSync, auth: SyncAuth, change: SyncChangeInput) {
-  const nextVersion = (await getUserSyncVersion(db, auth.userId)) + 1;
-  const now = Date.now();
-  const payloadJson = change.action === "delete" ? "{}" : stringifyPayload(change.payload);
-  (await db.execute("UPDATE users SET sync_version = ?, updated_at = ? WHERE id = ?", [nextVersion, now, auth.userId]));
-  (await db.execute(db.dialect === "mysql" ? "INSERT INTO user_sync_items (\n      user_id, item_type, item_key, payload_json, deleted, last_op_id, last_device_id,\n      client_updated_at, server_version, server_updated_at\n    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n    ON DUPLICATE KEY UPDATE\n      payload_json = VALUES(payload_json),\n      deleted = VALUES(deleted),\n      last_op_id = VALUES(last_op_id),\n      last_device_id = VALUES(last_device_id),\n      client_updated_at = VALUES(client_updated_at),\n      server_version = VALUES(server_version),\n      server_updated_at = VALUES(server_updated_at)" : `INSERT INTO user_sync_items (
-      user_id, item_type, item_key, payload_json, deleted, last_op_id, last_device_id,
-      client_updated_at, server_version, server_updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(user_id, item_type, item_key) DO UPDATE SET
-      payload_json = excluded.payload_json,
-      deleted = excluded.deleted,
-      last_op_id = excluded.last_op_id,
-      last_device_id = excluded.last_device_id,
-      client_updated_at = excluded.client_updated_at,
-      server_version = excluded.server_version,
-      server_updated_at = excluded.server_updated_at`, [auth.userId, change.itemType, change.itemKey, payloadJson, change.action === "delete" ? 1 : 0, change.opId, auth.deviceId, change.clientUpdatedAt ?? "", nextVersion, now]));
-  (await db.execute(`INSERT INTO user_sync_change_log (
-      user_id, version, op_id, device_id, item_type, item_key, action, payload_json,
-      client_updated_at, server_updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [auth.userId, nextVersion, change.opId, auth.deviceId, change.itemType, change.itemKey, change.action, payloadJson, change.clientUpdatedAt ?? "", now]));
-  (await db.execute(`INSERT INTO user_sync_applied_ops (user_id, device_id, op_id, server_version, applied_at)
-     VALUES (?, ?, ?, ?, ?)`, [auth.userId, auth.deviceId, change.opId, nextVersion, now]));
-}
-
-async function getUserSyncVersion(db: DatabaseSync, userId: string): Promise<number> {
-  const row = (await db.queryOne("SELECT sync_version FROM users WHERE id = ?", [userId])) as
-    | { sync_version: number }
-    | undefined;
-  return row?.sync_version ?? 0;
-}
-
-type SyncChangeRow = {
+export type SyncItemRow = {
+  item_type: string;
+  item_key: string;
+  payload_json: string;
+  deleted: number;
+  last_op_id: string;
+  last_device_id: string;
+  client_updated_at: string;
+  server_version: number;
+  server_updated_at: number;
+};
+export type SyncLogRow = {
   version: number;
   op_id: string;
   device_id: string;
@@ -176,17 +41,88 @@ type SyncChangeRow = {
   client_updated_at: string;
   server_updated_at: number;
 };
-
-function toSyncChange(row: SyncChangeRow): SyncChange {
-  return {
-    version: row.version,
-    opId: row.op_id,
-    deviceId: row.device_id,
-    itemType: row.item_type,
-    itemKey: row.item_key,
-    action: row.action,
-    payload: parsePayload(row.payload_json),
-    clientUpdatedAt: row.client_updated_at,
-    serverUpdatedAt: row.server_updated_at,
-  };
+/** 所有读写先锁用户行，MySQL RR 的首次一致性读由此建立在最新提交之后。 */
+export async function lockSyncUser(tx: DbTransaction, userId: string): Promise<{
+  sync_version: number;
+  sync_log_floor: number;
+}> {
+  await tx.execute("UPDATE users SET sync_version=sync_version+0 WHERE id=?", [userId]);
+  const row = await tx.queryOne<{
+    sync_version: number;
+    sync_log_floor: number;
+  }>("SELECT sync_version,sync_log_floor FROM users WHERE id=?", [userId]);
+  if (!row)
+    throw new Error("同步用户不存在");
+  return { sync_version: Number(row.sync_version), sync_log_floor: Number(row.sync_log_floor) };
+}
+export async function allocateVersions(tx: DbTransaction, userId: string, count: number): Promise<number> {
+  await tx.execute("UPDATE users SET sync_version=sync_version+?,updated_at=? WHERE id=?", [count, Date.now(), userId]);
+  return Number((await tx.queryOne<{
+    sync_version: number;
+  }>("SELECT sync_version FROM users WHERE id=?", [userId]))!.sync_version);
+}
+export async function findAppliedOps(tx: DbTransaction, auth: SyncAuth, opIds: string[]): Promise<Set<string>> {
+  if (!opIds.length)
+    return new Set();
+  const rows = await tx.query<{
+    op_id: string;
+  }>(`SELECT op_id FROM user_sync_applied_ops WHERE user_id=? AND device_id=? AND op_id IN (${opIds.map(() => "?").join(",")})`, [auth.userId, auth.deviceId, ...opIds]);
+  return new Set(rows.map(row => row.op_id));
+}
+export async function findItems(tx: DbTransaction, userId: string, keys: SyncChangeInput[]): Promise<SyncItemRow[]> {
+  if (!keys.length)
+    return [];
+  return tx.query<SyncItemRow>(`SELECT * FROM user_sync_items WHERE user_id=? AND (${keys.map(() => "(item_type=? AND item_key=?)").join(" OR ")})`, [userId, ...keys.flatMap(key => [key.itemType, key.itemKey])]);
+}
+async function insertBatch(tx: DbTransaction, table: string, fields: string[], rows: SqlValue[][], suffix = ""): Promise<void> {
+  // 限制单条 SQL 参数数及包体积；每批最多 100 行。
+  for (let offset = 0; offset < rows.length; offset += 100) {
+    const batch = rows.slice(offset, offset + 100);
+    await tx.execute(`INSERT INTO ${table} (${fields.join(",")}) VALUES ${batch.map(() => `(${fields.map(() => "?").join(",")})`).join(",")} ${suffix}`, batch.flat());
+  }
+}
+export async function insertItems(tx: DbTransaction, auth: SyncAuth, changes: SyncChange[]): Promise<void> {
+  const fields = ["user_id", "item_type", "item_key", "payload_json", "deleted", "last_op_id", "last_device_id", "client_updated_at", "server_version", "server_updated_at"];
+  const update = fields.slice(3).map(field => tx.dialect === "mysql" ? `${field}=VALUES(${field})` : `${field}=excluded.${field}`).join(",");
+  await insertBatch(tx, "user_sync_items", fields, changes.map(c => [auth.userId, c.itemType, c.itemKey, JSON.stringify(c.payload), c.action === "delete" ? 1 : 0, c.opId, auth.deviceId, c.clientUpdatedAt, c.version, c.serverUpdatedAt]), `${tx.dialect === "mysql" ? "ON DUPLICATE KEY UPDATE" : "ON CONFLICT(user_id,item_type,item_key) DO UPDATE SET"} ${update}`);
+}
+export async function insertLogs(tx: DbTransaction, auth: SyncAuth, changes: SyncChange[]): Promise<void> {
+  await insertBatch(tx, "user_sync_change_log", ["user_id", "version", "op_id", "device_id", "item_type", "item_key", "action", "payload_json", "client_updated_at", "server_updated_at"], changes.map(c => [auth.userId, c.version, c.opId, auth.deviceId, c.itemType, c.itemKey, c.action, JSON.stringify(c.payload), c.clientUpdatedAt, c.serverUpdatedAt]));
+}
+export async function updateItemClocks(tx: DbTransaction, userId: string, changes: SyncChange[]): Promise<void> {
+  for (let offset = 0; offset < changes.length; offset += 100) {
+    const batch = changes.slice(offset, offset + 100);
+    const cases = batch.map(() => "WHEN item_type=? AND item_key=? THEN ?").join(" ");
+    await tx.execute(`UPDATE user_sync_items SET client_updated_at=CASE ${cases} ELSE client_updated_at END WHERE user_id=? AND (${batch.map(() => "(item_type=? AND item_key=?)").join(" OR ")})`, [...batch.flatMap(c => [c.itemType, c.itemKey, c.clientUpdatedAt]), userId, ...batch.flatMap(c => [c.itemType, c.itemKey])]);
+  }
+}
+export async function insertAppliedOps(tx: DbTransaction, auth: SyncAuth, changes: SyncChangeInput[], version: number): Promise<void> {
+  await insertBatch(tx, "user_sync_applied_ops", ["user_id", "device_id", "op_id", "server_version", "applied_at"], changes.map(c => [auth.userId, auth.deviceId, c.opId, version, Date.now()]));
+}
+export async function listLogs(tx: DbTransaction, userId: string, since: number, limit: number): Promise<SyncLogRow[]> {
+  return tx.query<SyncLogRow>("SELECT * FROM user_sync_change_log WHERE user_id=? AND version>? ORDER BY version LIMIT ?", [userId, since, limit]);
+}
+export async function listSnapshot(tx: DbTransaction, userId: string, offset: number, limit: number, includeDeleted = false): Promise<SyncItemRow[]> {
+  return tx.query<SyncItemRow>(`SELECT * FROM user_sync_items WHERE user_id=? ${includeDeleted ? "" : "AND deleted=0"} ORDER BY server_version,item_type,item_key LIMIT ? OFFSET ?`, [userId, limit, offset]);
+}
+export async function cleanupUserSync(tx: DbTransaction, userId: string, cutoff: number, minimum: number, opsCutoff: number): Promise<void> {
+  await lockSyncUser(tx, userId);
+  const keep = await tx.queryOne<{
+    version: number;
+  }>("SELECT version FROM user_sync_change_log WHERE user_id=? ORDER BY version DESC LIMIT 1 OFFSET ?", [userId, Math.max(0, minimum - 1)]);
+  if (keep) {
+    const last = await tx.queryOne<{
+      version: number | null;
+    }>("SELECT MAX(version) AS version FROM user_sync_change_log WHERE user_id=? AND version<? AND server_updated_at<?", [userId, Number(keep.version), cutoff]);
+    if (last?.version != null) {
+      // 裁剪连续前缀；floor 表示最后一个被裁剪版本，since==floor 仍可完整增量。
+      const barrier = await tx.queryOne<{
+        version: number | null;
+      }>("SELECT MIN(version) AS version FROM user_sync_change_log WHERE user_id=? AND version<=? AND server_updated_at>=?", [userId, Number(last.version), cutoff]);
+      const floor = barrier?.version != null ? Number(barrier.version) - 1 : Number(last.version);
+      await tx.execute("DELETE FROM user_sync_change_log WHERE user_id=? AND version<=?", [userId, floor]);
+      await tx.execute("UPDATE users SET sync_log_floor=CASE WHEN sync_log_floor<? THEN ? ELSE sync_log_floor END WHERE id=?", [floor, floor, userId]);
+    }
+  }
+  await tx.execute("DELETE FROM user_sync_applied_ops WHERE user_id=? AND applied_at<?", [userId, opsCutoff]);
 }

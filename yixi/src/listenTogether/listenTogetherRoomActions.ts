@@ -129,12 +129,8 @@ export function createListenTogetherRoomActions(ctx: ListenTogetherRoomActionsCo
   /** 点播歌曲（ADD_AND_PLAY） */
   function playSongInRoom(song: Song): boolean {
     if (!ctx.enabled.value) return false;
-    if (song.source === "cloud") {
-      ctx.toast("云盘歌曲暂不支持一起听");
-      return true;
-    }
     if (!canShareSong(song)) {
-      ctx.toast("本地歌曲暂不支持一起听");
+      ctx.toast(song.playable === false ? "歌曲已停用，无法播放" : "本地歌曲暂不支持一起听");
       return true;
     }
     if (!ctx.guardControl()) return true;

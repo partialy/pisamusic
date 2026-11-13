@@ -44,7 +44,7 @@
   - `src/components/listenTogether/`：入口（双形态 chip）、未入房面板、房间面板。
 - 房间队列为房主权威：服务端只转发 `QUEUE_EVENT`（SNAPSHOT_REQUEST/SNAPSHOT_CHUNK/QUEUE_COMMAND/QUEUE_DELTA），不持久化队列；快照 200 项/块、块间 50ms；纯指针移动（NEXT/PREVIOUS/PLAY_ITEM）不 bump queueVersion、不发 DELTA，指针靠 `CHANGE_SONG` 的 `queueItemId` 对齐。
 - 协议硬约束：`PLAY/PAUSE/SEEK/ENDED` 必须携带 `songRef`；`CHANGE_SONG` 携带 `transitionId` 与 `queueItemId`；只有匹配 pending 的 CHANGE_SONG 才能结束切歌防抖；ACK `applied=false` 不得当成功处理；广播不回发起方，发起方用 ACK 中的 room 更新状态；`QUEUE_EVENT.version` 恒为 0，队列排序只看 `queueVersion`。
-- 本地歌曲（`source: "local"`）不支持一起听：不能创建房间、不能点播进房间、协议歌曲不携带 `filePath` 与真实播放 URL（`url` 发空串，接收端自行取链）。
+- 本地歌曲（`source: "local"`）不支持一起听；云盘歌曲（`source: "cloud"`）以共享 UUID 参与房间与权威队列，`urlParam=id`，各设备经现有 main 云盘接口独立获取播放签名 URL，禁用歌曲（`playable=false`）不可加入。协议歌曲不携带 `filePath` 与真实播放 URL（`url` 发空串），远端播放时取链接口再次判断 active 状态。播放器 localStorage 兼容快照与 SQLite 队列统一使用持久化歌曲 DTO，禁止把运行中的签名播放 URL 写入快照。
 - 一起听成员头像由 main 侧 `electron/listenTogether/listenTogetherAvatar.ts` 统一把服务端相对地址转为绝对地址，空值使用服务端默认账号头像；renderer 只展示图片并使用本地默认头像作为加载失败兜底，不要回退成姓名文字。
 - 所有新增播放入口（按钮、托盘、快捷键、MediaSession、歌词点击、右键菜单、列表/队列操作、自动续播与失败跳过）必须经过 `src/listenTogether/playbackCommands.ts` 统一命令层，禁止直接调用 `useAudioStore` 的 play/next/prev/seek/switchPlayList/setPlaylist/nextPlay/removeFromPlaylist/reset；一起听权限守卫在命令层与 store，不允许只靠 disabled UI。
 - 首页歌曲网格和“查看更多”歌曲页的右键、更多按钮统一复用 `src/components/common/ContextMenu.vue`；菜单至少包含播放、下一曲播放、分享、收藏、添加到歌单、添加到播放队列和详情，详情统一进入 `/media/detail`，不得在列表组件复制一套操作逻辑。
@@ -297,6 +297,12 @@
 - 同步状态保存到 SQLite settings 的 `sync-state`，本地待推送变更保存到 SQLite `sync_outbox`；收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更后需要写入 outbox 并触发后台增量同步。
 - 同步 payload 只使用 `Song` / `CommonPlaylist` canonical 字段；不推送 `source=local` 歌曲，不推送播放 URL、filePath、歌词正文、内嵌封面；自建歌单本地文件封面同步时置空。
 - 远端 tombstone 应在 main 侧应用到 SQLite 后通知 renderer 刷新 `favorites:changed` / `mine-library:changed`，不要让页面组件直接写同步状态或数据库。
+- `favorite_song.payload.favoritedAt` 为正毫秒时间戳；本地收藏及 seed 从 SQLite `created_at` 取值，下行存在合法时间时覆盖该字段，缺失时保留已收藏时间，新记录回退当前时间；收藏查询按 `created_at DESC, favorite_key ASC` 排序。
+- 拉取使用 `protocol=2&limit=1000`。`mode=snapshot` 按 `snapshotVersion/cursor` 收齐分页，409 最多重启 3 次；只在完整快照到达后于单次 SQLite 事务内对收藏歌曲、收藏歌单、自建歌单及曲目全量对账，空快照同样具有删除权威。同设备快照仍须应用；只有 delta 可过滤本设备回声。
+- 快照/增量应用前读取全部 SQLite outbox key，保留未推送本地新增、删除与元数据；未推送歌单曲目同时保护父歌单免于级联删除。快照收集中途失败或账号/token 变化时不应用旧快照；退出/清理同步状态通过 generation 防止旧请求回写。
+- 增量游标只推进至实际收到的最大 `change.version`，不使用服务端全局版本或推送返回版本；旧服务端没有分页标记时拉到空页。outbox 按 200 条连续排空，推送完成后从本轮原始游标重新拉取，恢复此前因 pending 保护而跳过的远端权威数据。
+- 推送任何一批返回 `skipped > 0` 时，排空后改为 `since=0` 拉完整权威快照，恢复因 LWW 过期而被拒绝、且远端胜出版本已落在起始游标之前的本地状态。
+- 同步聚焦检查：`pnpm --dir yixi exec vitest run --config vitest.sync.config.ts`；main 类型检查：`pnpm --dir yixi exec tsc -p tsconfig.node.json --noEmit`。
 
 ## 共享云盘模块规则补充
 

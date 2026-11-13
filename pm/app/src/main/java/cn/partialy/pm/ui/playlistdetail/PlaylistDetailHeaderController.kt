@@ -15,7 +15,7 @@ import coil.request.Disposable
 sealed interface PlaylistHeaderArtwork {
     data class Remote(
         val url: String,
-        @androidx.annotation.DrawableRes val fallbackRes: Int = R.drawable.bg_mine_header,
+        @androidx.annotation.DrawableRes val fallbackRes: Int = R.drawable.default_music_cover,
         val source: SongType? = null,
     ) : PlaylistHeaderArtwork
     data class DrawableRes(@androidx.annotation.DrawableRes val resId: Int) : PlaylistHeaderArtwork
@@ -25,7 +25,7 @@ sealed interface PlaylistHeaderArtwork {
 data class PlaylistDetailHeaderState(
     val title: String = "",
     val description: String = "",
-    val artwork: PlaylistHeaderArtwork = PlaylistHeaderArtwork.DrawableRes(R.drawable.ic_playlist_24),
+    val artwork: PlaylistHeaderArtwork = PlaylistHeaderArtwork.DrawableRes(R.drawable.default_music_cover),
     val trackCountText: String = "",
     val searchExpanded: Boolean = false,
     val searchQuery: String = "",
@@ -203,7 +203,7 @@ class PlaylistDetailHeaderController(
             is PlaylistHeaderArtwork.LocalPlaylist -> localArtworkSource(artwork.value)
         }
         val fallbackRes = (artwork as? PlaylistHeaderArtwork.Remote)?.fallbackRes
-            ?: R.drawable.bg_mine_header
+            ?: R.drawable.default_music_cover
         artworkRequest = binding.heroCoverImageView.load(source) {
             crossfade(true)
             placeholder(fallbackRes)

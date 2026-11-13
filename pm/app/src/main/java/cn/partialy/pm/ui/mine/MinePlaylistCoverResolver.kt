@@ -46,7 +46,7 @@ object MinePlaylistCoverResolver {
         LocalCoverTemplate("workout", R.drawable.playlist_cover_workout),
     )
 
-    val fallbackCoverRes: Int = R.drawable.playlist_cover_pop
+    val fallbackCoverRes: Int = R.drawable.default_music_cover
 
     private val localPrefix = "local_"
 
@@ -83,6 +83,6 @@ object MinePlaylistCoverResolver {
         file.delete()
     }
 
-    /** 本地歌单没有有效封面时统一显示云盘音乐默认图。 */
-    fun defaultLocalCoverRes(): Int = R.drawable.home_feature_cloud_music
+    /** 无有效封面时按当前深浅色主题显示默认音乐封面。 */
+    fun defaultLocalCoverRes(): Int = R.drawable.default_music_cover
 }

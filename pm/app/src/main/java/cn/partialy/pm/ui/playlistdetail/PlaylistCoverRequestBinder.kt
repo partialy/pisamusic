@@ -10,7 +10,7 @@ import coil.request.Disposable
 /** 每个信息头独立管理请求，Sheet 关闭后不再允许迟到回调重新绑定。 */
 class PlaylistCoverRequestBinder(
     private val view: ImageView,
-    private val fallbackRes: Int = R.drawable.ic_pm_icon,
+    private val fallbackRes: Int = R.drawable.default_music_cover,
 ) {
     private var request: Disposable? = null
     private var generation = 0

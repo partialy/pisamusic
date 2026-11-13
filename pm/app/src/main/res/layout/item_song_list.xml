@@ -19,7 +19,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:src="@drawable/ic_pm_icon"
+            android:src="@drawable/default_music_cover"
             app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
 
         <com.google.android.material.imageview.ShapeableImageView

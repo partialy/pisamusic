@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { Router } from "express";
-import { applySyncChanges, listSyncChanges, type SyncAuth } from "../db/syncStore";
+import { applySyncChanges, listSyncChanges, SyncValidationError, SyncSnapshotExpiredError, type SyncAuth } from "../services/syncService";
 import { getUserAuth, requireUserJwt, type UserAuthedRequest } from "../middleware/requireUserJwt";
 import { fail, ok } from "../types/response";
 
@@ -31,14 +31,15 @@ function getAuth(req: SyncRequest): SyncAuth {
 
 function handleError(res: Response, error: unknown, fallback: string): void {
   const message = error instanceof Error ? error.message : fallback;
-  res.status(400).json(fail(message, 400));
+  const status = error instanceof SyncValidationError ? 400 : error instanceof SyncSnapshotExpiredError ? 409 : 500;
+  res.status(status).json(fail(status === 500 ? fallback : message, status));
 }
 
 syncRouter.use(requireUserJwt, attachSyncAuth);
 
 syncRouter.get("/changes", async (req: SyncRequest, res) => {
   try {
-    res.json(ok((await listSyncChanges(getAuth(req), req.query.since))));
+    res.json(ok((await listSyncChanges(getAuth(req), req.query))));
   } catch (error) {
     handleError(res, error, "拉取同步变更失败");
   }
@@ -47,7 +48,7 @@ syncRouter.get("/changes", async (req: SyncRequest, res) => {
 syncRouter.post("/changes", async (req: SyncRequest, res) => {
   try {
     const body = req.body as Record<string, unknown>;
-    res.json(ok((await applySyncChanges(getAuth(req), body.changes))));
+    res.json(ok((await applySyncChanges(getAuth(req), body?.changes))));
   } catch (error) {
     handleError(res, error, "推送同步变更失败");
   }

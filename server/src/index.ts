@@ -1,3 +1,4 @@
+import { startSyncCleanup } from "./services/syncCleanup";
 import "dotenv/config";
 import { appShareRouter } from "./routes/appShare";
 import cors from "cors";
@@ -258,6 +259,7 @@ async function bootstrap(): Promise<void> {
   registerResumeHook(resumeBusiness);
   if (!readOperationState().maintenance && await isInstallationReady()) await resumeBusiness();
   else setPlaintextPaths([...new Set([...DEFAULT_PLAINTEXT_PATHS, ...MANDATORY_PLAINTEXT_PATHS])]);
+  startSyncCleanup();
   const io = initRealtimeServer(httpServer);
   registerQuiesceHook(async () => { io.disconnectSockets(true); });
   httpServer.listen(port, () => {

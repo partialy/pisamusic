@@ -50,6 +50,7 @@ import {
   normalizeOptionalRoomId,
   normalizePosition,
   normalizeSong,
+  SONG_SOURCES,
   roomIdRule,
   validateRoomId,
   validateRoomName,
@@ -111,7 +112,7 @@ function readSongRef(data: Record<string, unknown>): ListenTogetherSongRef | nul
   }
   const source = optionalString(data.songRef.source, 16);
   const id = optionalString(data.songRef.id, 256);
-  if (!source || !id || !["kg", "qq", "wy", "kw", "local"].includes(source)) {
+  if (!source || !id || !SONG_SOURCES.includes(source as ListenTogetherSongRef["source"])) {
     throw new ListenTogetherError("歌曲标识无效", "INVALID_SONG", 400);
   }
   return { source: source as ListenTogetherSongRef["source"], id };

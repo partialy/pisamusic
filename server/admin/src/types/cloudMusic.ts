@@ -91,7 +91,24 @@ export type CloudMusicUploadSession = {
   tickets: CloudMusicAssetUploadTicket[];
 };
 
-export type CloudMusicAdminSaveInput = {
+export type CloudMusicParsedSpecs = {
+  format?: string;
+  codec?: string;
+  bitrate?: number;
+  sampleRate?: number;
+  channels?: number;
+  year?: number | null;
+  trackNo?: number | null;
+};
+
+export type CloudMusicAdminCompleteAudioInput = CloudMusicParsedSpecs & {
+  title?: string;
+  artist?: string;
+  album?: string;
+  durationMs?: number;
+};
+
+export type CloudMusicAdminSaveInput = CloudMusicParsedSpecs & {
   title: string;
   artist: string;
   album: string;
@@ -114,6 +131,8 @@ export type CloudMusicResourceUrls = {
   lyricsExpiresAt: number | null;
 };
 
+export type CloudMusicLyricsText = { text: string; format: "lrc" | "txt"; fileName: string };
+
 export type CloudMusicTempSummary = {
   total: { count: number; bytes: number };
   olderThan24h: { count: number; bytes: number };
@@ -131,4 +150,47 @@ export type CloudMusicSelectedFiles = {
   audio: File;
   cover?: File;
   lyrics?: File;
+};
+
+export type CloudMusicBatchDraftItem = {
+  id: string;
+  audioFile: File;
+  parseWarning?: string;
+  title: string;
+  artist: string;
+  album: string;
+  durationMs: number;
+  durationStr: string;
+  status: "active" | "disabled" | "offline";
+  statusReason: string;
+  specs: CloudMusicParsedSpecs;
+  coverSource: "embedded" | "matched" | "manual" | "none";
+  coverFile: File | null;
+  coverPreviewUrl: string | null;
+  lyricsSource: "embedded" | "matched" | "manual" | "none";
+  lyricsText: string;
+  lyricsFormat: "lrc" | "txt";
+  lyricsFileName: string;
+};
+
+export type CloudMusicUploadTaskPhase =
+  | "waiting"
+  | "reserving"
+  | "audio"
+  | "cover"
+  | "lyrics"
+  | "saving"
+  | "done"
+  | "error";
+
+export type CloudMusicUploadTaskItem = {
+  id: string;
+  draft: CloudMusicBatchDraftItem;
+  state: "queued" | "uploading" | "completed" | "failed";
+  phase: CloudMusicUploadTaskPhase;
+  percent: number;
+  errorMessage?: string;
+  resultTrack?: CloudMusicTrack;
+  createdAt: number;
+  finishedAt?: number;
 };

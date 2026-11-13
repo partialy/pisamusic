@@ -349,6 +349,7 @@ CREATE TABLE IF NOT EXISTS users (
     vip_enabled     INTEGER NOT NULL DEFAULT 0,
     vip_expires_at  INTEGER,
     sync_version    INTEGER NOT NULL DEFAULT 0,
+    sync_log_floor  INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,
     updated_at      INTEGER NOT NULL,
     last_login_at   INTEGER

@@ -1,3 +1,4 @@
+import { normalizeListenTogetherQueueData } from "../../services/listenTogetherQueueService";
 import type { Server } from "socket.io";
 import { getRoom, getUserSockets } from "../../db/listenTogetherStore";
 import {
@@ -128,7 +129,7 @@ function registerQueueEvent(io: Server, socket: AuthedRealtimeSocket): void {
       const member = room.members.find((item) => item.userId === socket.data.user.userId);
       if (!member) throw new ListenTogetherError("用户不在房间内", "NOT_IN_ROOM", 400);
 
-      const data = isRecord(body.data) ? body.data : {};
+      const data = normalizeListenTogetherQueueData(body.data, room, socket.data.user.userId);
       const targetUserId = stringFromPayload(data.targetUserId);
       if (targetUserId && !room.members.some((item) => item.userId === targetUserId)) {
         throw new ListenTogetherError("目标用户不在房间内", "TARGET_USER_NOT_FOUND", 400);

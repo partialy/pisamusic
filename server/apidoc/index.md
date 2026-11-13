@@ -114,11 +114,11 @@
 
 ## 4. 用户数据云同步模块 (`/api/sync`)
 
-基于操作日志（ChangeLog）与游标版本机制，提供用户收藏歌曲、收藏歌单、自建歌单及歌单歌曲的多端双向增量同步。
+基于快照/操作日志与游标版本机制，提供四类实体同步；protocol=2 支持一致性快照分页、日志裁剪后的对账及收藏时间 favoritedAt。
 
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
-| 拉取增量同步变更 | `GET` | `/api/sync/changes` | User Token + Device ID | [./sync/getSyncChanges.md](./sync/getSyncChanges.md) |
+| 拉取快照/增量同步变更 | `GET` | `/api/sync/changes` | User Token + Device ID | [./sync/getSyncChanges.md](./sync/getSyncChanges.md) |
 | 推送增量同步变更 | `POST` | `/api/sync/changes` | User Token + Device ID | [./sync/pushSyncChanges.md](./sync/pushSyncChanges.md) |
 
 ---
@@ -143,7 +143,7 @@
 | 获取一起听配置 | `GET` | `/api/listen-together/config` | 无 (明文) | [./listenTogether/getListenTogetherConfig.md](./listenTogether/getListenTogetherConfig.md) |
 | 创建一起听房间 | `POST` | `/api/listen-together/rooms` | User Token | [./listenTogether/createRoom.md](./listenTogether/createRoom.md) |
 | 查询房间详情 | `GET` | `/api/listen-together/rooms/:roomId` | User Token | [./listenTogether/getRoom.md](./listenTogether/getRoom.md) |
-| 一起听 Socket.IO 实时通信协议 | `WS` | `/socket.io/` | User Token | [./listenTogether/realtimeEvents.md](./listenTogether/realtimeEvents.md) |
+| 一起听 Socket.IO 实时通信协议（云盘 UUID、各设备独立签名、拒绝 LOCAL） | `WS` | `/socket.io/` | User Token | [./listenTogether/realtimeEvents.md](./listenTogether/realtimeEvents.md) |
 
 ---
 
@@ -328,6 +328,7 @@
 | 确认网盘音乐资产上传完成 | `POST` | `/api/admin/cloud-music/:uuid/assets/:kind/complete` | [./admin/completeCloudMusicAsset.md](./admin/completeCloudMusicAsset.md) |
 | 获取网盘音乐列表 | `GET` | `/api/admin/cloud-music` | [./admin/listCloudMusic.md](./admin/listCloudMusic.md) |
 | 获取网盘音乐完整详情 | `GET` | `/api/admin/cloud-music/:uuid` | [./admin/getCloudMusicDetail.md](./admin/getCloudMusicDetail.md) |
+| 获取网盘音乐歌词原文 | `GET` | `/api/admin/cloud-music/:uuid/lyrics` | [./admin/getCloudMusicLyrics.md](./admin/getCloudMusicLyrics.md) |
 | 编辑并保存网盘音乐草稿 | `PUT` | `/api/admin/cloud-music/:uuid` | [./admin/updateCloudMusic.md](./admin/updateCloudMusic.md) |
 | 审核网盘音乐曲目 | `POST` | `/api/admin/cloud-music/:uuid/review` | [./admin/reviewCloudMusic.md](./admin/reviewCloudMusic.md) |
 | 获取管理端试听/预览地址 | `GET` | `/api/admin/cloud-music/:uuid/preview-url` | [./admin/getCloudMusicPreviewUrl.md](./admin/getCloudMusicPreviewUrl.md) |

@@ -29,7 +29,7 @@
                 android:layout_height="76dp"
                 android:contentDescription="@string/cloud_music_submission_history_cover_description"
                 android:scaleType="centerCrop"
-                android:src="@drawable/ic_pm_icon"
+                android:src="@drawable/default_music_cover"
                 app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
 
             <LinearLayout

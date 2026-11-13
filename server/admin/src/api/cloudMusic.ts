@@ -1,9 +1,12 @@
 import type {
+  CloudMusicAdminCompleteAudioInput,
   CloudMusicAdminSaveInput,
   CloudMusicAssetKind,
   CloudMusicAssetUploadTicket,
+  CloudMusicBatchDraftItem,
   CloudMusicListFilter,
   CloudMusicListResponse,
+  CloudMusicLyricsText,
   CloudMusicResourceUrls,
   CloudMusicReviewInput,
   CloudMusicSelectedFiles,
@@ -11,7 +14,9 @@ import type {
   CloudMusicTempSummary,
   CloudMusicTrack,
   CloudMusicUploadSession,
+  CloudMusicUploadTaskPhase,
 } from "../types/cloudMusic";
+import { buildLyricsFileFromDraft } from "../utils/cloudMusicLyrics";
 import { fetchWithAuth, parseJson, uploadFileToQiniu } from "./client";
 
 export async function fetchCloudMusicTracks(filter: CloudMusicListFilter): Promise<CloudMusicListResponse> {
@@ -40,6 +45,13 @@ export async function fetchCloudMusicDetail(uuid: string): Promise<CloudMusicTra
   return body.data;
 }
 
+export async function fetchCloudMusicLyricsText(uuid: string): Promise<CloudMusicLyricsText> {
+  const res = await fetchWithAuth(`/api/admin/cloud-music/${encodeURIComponent(uuid)}/lyrics`);
+  const body = await parseJson<CloudMusicLyricsText>(res);
+  if (!res.ok || !body.success || body.data == null) throw new Error(body.msg || `HTTP ${res.status}`);
+  return body.data;
+}
+
 export async function fetchCloudMusicPreviewUrl(uuid: string): Promise<CloudMusicResourceUrls> {
   const res = await fetchWithAuth(`/api/admin/cloud-music/${encodeURIComponent(uuid)}/preview-url`);
   const body = await parseJson<CloudMusicResourceUrls>(res);
@@ -49,7 +61,7 @@ export async function fetchCloudMusicPreviewUrl(uuid: string): Promise<CloudMusi
   return body.data;
 }
 
-function resolveFileMimeType(file: File, fallback: string): string {
+export function resolveFileMimeType(file: File, fallback: string): string {
   if (file.type && file.type !== "application/octet-stream") {
     return file.type;
   }
@@ -120,9 +132,14 @@ export async function reserveCloudMusicAsset(
   return body.data;
 }
 
-export async function completeCloudMusicAsset(uuid: string, kind: CloudMusicAssetKind): Promise<CloudMusicTrack> {
+export async function completeCloudMusicAsset(
+  uuid: string,
+  kind: CloudMusicAssetKind,
+  parsedInput?: CloudMusicAdminCompleteAudioInput,
+): Promise<CloudMusicTrack> {
   const res = await fetchWithAuth(`/api/admin/cloud-music/${encodeURIComponent(uuid)}/assets/${kind}/complete`, {
     method: "POST",
+    body: parsedInput ? JSON.stringify(parsedInput) : undefined,
   });
   const body = await parseJson<CloudMusicTrack>(res);
   if (!res.ok || !body.success || body.data == null) {
@@ -198,17 +215,29 @@ export async function cleanupCloudMusicTemp(olderThanHours: 0 | 24 | 72): Promis
   return body.data;
 }
 
-export async function uploadCloudMusicSession(
-  session: CloudMusicUploadSession,
-  files: CloudMusicSelectedFiles,
-  onProgress?: (state: { phase: "audio" | "cover" | "lyrics" | "processing"; percent: number }) => void,
+/**
+ * 执行单曲完整上传闭环：创建会话 -> 直传七牛 (音频/封面/歌词) -> 确认资产 -> 保存元数据并激活状态
+ */
+export async function executeCloudMusicBatchTask(
+  draft: CloudMusicBatchDraftItem,
+  onProgress?: (state: { phase: CloudMusicUploadTaskPhase; percent: number }) => void,
 ): Promise<CloudMusicTrack> {
+  const lyricsFile = buildLyricsFileFromDraft(draft);
+  const coverFile = draft.coverFile ?? undefined;
+
+  onProgress?.({ phase: "reserving", percent: 5 });
+  const session = await createCloudMusicUploadSession({
+    audio: draft.audioFile,
+    cover: coverFile,
+    lyrics: lyricsFile,
+  });
+
   const audioTicket = session.tickets.find((t) => t.kind === "audio");
   if (!audioTicket) throw new Error("缺少音频上传凭证");
 
   onProgress?.({ phase: "audio", percent: 0 });
   await uploadFileToQiniu(
-    files.audio,
+    draft.audioFile,
     {
       uploadToken: audioTicket.uploadToken,
       uploadUrl: audioTicket.uploadUrl,
@@ -222,14 +251,19 @@ export async function uploadCloudMusicSession(
     (percent) => onProgress?.({ phase: "audio", percent }),
   );
 
-  onProgress?.({ phase: "processing", percent: 100 });
-  let track = await completeCloudMusicAsset(session.uuid, "audio");
+  await completeCloudMusicAsset(session.uuid, "audio", {
+    title: draft.title.trim(),
+    artist: draft.artist.trim(),
+    album: draft.album.trim(),
+    durationMs: draft.durationMs,
+    ...draft.specs,
+  });
 
   const coverTicket = session.tickets.find((t) => t.kind === "cover-uploaded");
-  if (coverTicket && files.cover) {
+  if (coverTicket && coverFile) {
     onProgress?.({ phase: "cover", percent: 0 });
     await uploadFileToQiniu(
-      files.cover,
+      coverFile,
       {
         uploadToken: coverTicket.uploadToken,
         uploadUrl: coverTicket.uploadUrl,
@@ -242,14 +276,14 @@ export async function uploadCloudMusicSession(
       },
       (percent) => onProgress?.({ phase: "cover", percent }),
     );
-    track = await completeCloudMusicAsset(session.uuid, "cover-uploaded");
+    await completeCloudMusicAsset(session.uuid, "cover-uploaded");
   }
 
   const lyricsTicket = session.tickets.find((t) => t.kind === "lyrics");
-  if (lyricsTicket && files.lyrics) {
+  if (lyricsTicket && lyricsFile) {
     onProgress?.({ phase: "lyrics", percent: 0 });
     await uploadFileToQiniu(
-      files.lyrics,
+      lyricsFile,
       {
         uploadToken: lyricsTicket.uploadToken,
         uploadUrl: lyricsTicket.uploadUrl,
@@ -262,8 +296,20 @@ export async function uploadCloudMusicSession(
       },
       (percent) => onProgress?.({ phase: "lyrics", percent }),
     );
-    track = await completeCloudMusicAsset(session.uuid, "lyrics");
+    await completeCloudMusicAsset(session.uuid, "lyrics");
   }
 
-  return track;
+  onProgress?.({ phase: "saving", percent: 98 });
+  const saved = await saveCloudMusic(session.uuid, {
+    title: draft.title.trim(),
+    artist: draft.artist.trim(),
+    album: draft.album.trim(),
+    durationMs: draft.durationMs,
+    status: draft.status,
+    statusReason: draft.statusReason.trim(),
+    ...draft.specs,
+  });
+
+  onProgress?.({ phase: "done", percent: 100 });
+  return saved;
 }

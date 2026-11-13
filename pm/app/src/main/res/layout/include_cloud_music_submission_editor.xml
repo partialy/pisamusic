@@ -23,7 +23,7 @@
             android:contentDescription="@string/cloud_music_submission_cover_preview"
             android:padding="6dp"
             android:scaleType="centerCrop"
-            android:src="@drawable/ic_pm_icon" />
+            android:src="@drawable/default_music_cover" />
 
         <LinearLayout
             android:layout_width="0dp"

@@ -11,11 +11,11 @@ import type {
 const FALLBACK_SONG_NAME = "未知歌曲";
 const FALLBACK_SINGER = "未知歌手";
 
-/** 是否允许进入一起听房间：必须有 id，且不能是本地歌曲或云盘歌曲 */
-export function canShareSong(song: Pick<Song, "id" | "source"> | null | undefined): boolean {
+/** 是否允许进入一起听房间：必须有 id，且不能是本地歌曲或已停用歌曲 */
+export function canShareSong(song: Pick<Song, "id" | "source" | "playable"> | null | undefined): boolean {
   if (!song) return false;
   if (!song.id) return false;
-  return song.source !== "local" && song.source !== "cloud";
+  return song.source !== "local" && song.playable !== false;
 }
 
 /**
@@ -26,7 +26,7 @@ export function toListenTogetherSong(song: Song): ListenTogetherSong {
   return {
     id: song.id,
     source: song.source,
-    urlParam: song.urlParam || song.id,
+    urlParam: song.source === "cloud" ? song.id : song.urlParam || song.id,
     name: song.name || FALLBACK_SONG_NAME,
     singer: song.singer || FALLBACK_SINGER,
     album: song.album || "",
@@ -47,7 +47,7 @@ export function fromListenTogetherSong(remote: ListenTogetherSong): Song {
   return {
     id: remote.id,
     source: remote.source,
-    urlParam: remote.urlParam || remote.id,
+    urlParam: remote.source === "cloud" ? remote.id : remote.urlParam || remote.id,
     name: remote.name,
     singer: remote.singer,
     album: remote.album || "",
@@ -81,5 +81,5 @@ export function songKeyOf(song: Pick<Song, "source" | "id">): string {
 
 /** 协议歌曲再净化：转发/落队列时不携带任何播放 URL */
 export function sanitizeProtocolSong(song: ListenTogetherSong): ListenTogetherSong {
-  return { ...song, url: "" };
+  return toListenTogetherSong(fromListenTogetherSong(song));
 }

@@ -144,11 +144,12 @@ object ShareBottomSheet {
         val coverView = root.findViewById<ImageView>(R.id.shareInfoCoverView)
         val coverData = cover.remoteOrEmpty()
         if (coverData.isBlank()) {
-            coverView.setImageResource(R.drawable.ic_pm_icon)
+            coverView.setImageResource(R.drawable.default_music_cover)
         } else {
             coverView.load(coverData) {
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
+                placeholder(R.drawable.default_music_cover)
+                error(R.drawable.default_music_cover)
+                fallback(R.drawable.default_music_cover)
             }
         }
     }

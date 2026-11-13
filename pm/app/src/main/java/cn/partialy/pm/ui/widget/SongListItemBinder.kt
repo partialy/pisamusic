@@ -71,8 +71,9 @@ class SongListItemBinder(private val binding: ItemSongListBinding) {
         SongSourceTagBinder.bind(songSourceTagTextView, song.type)
         coverImageView.load(SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_SMALL)) {
             crossfade(true)
-            placeholder(R.drawable.ic_pm_icon)
-            error(R.drawable.ic_pm_icon)
+            placeholder(R.drawable.default_music_cover)
+            error(R.drawable.default_music_cover)
+            fallback(R.drawable.default_music_cover)
         }
 
         currentSongCoverMask.visibility = if (isCurrent) View.VISIBLE else View.GONE

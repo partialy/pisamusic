@@ -15,7 +15,7 @@
         android:layout_width="46dp"
         android:layout_height="46dp"
         android:scaleType="centerCrop"
-        android:src="@drawable/ic_pm_icon"
+        android:src="@drawable/default_music_cover"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small" />
 
     <LinearLayout

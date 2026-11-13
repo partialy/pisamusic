@@ -27,6 +27,7 @@
 - 文件管理允许删除被历史、当前 Android / PC 发布版本或 active PC 自动更新引用的七牛对象；删除时必须调用七牛删除对象，把本地记录标记为 `deleted`，同步清理 `update_history.release_file_id`、`file_records.referenced_by`、当前发布下载地址和 active 自动更新引用，不要物理删除数据库记录。
 - 发布历史的完整删除仅允许非当前版本：`update_history` 使用 `deleted_at` 逻辑删除，Android 同步删除关联安装包，PC 同步删除该版本安装包、`latest.yml` 和 blockmap；七牛对象实际删除，`file_records` 保留并标记为 `deleted`。当前 Android / PC 版本必须先发布替代版本后才能删除。
 - 网盘音乐（`source: "cloud"`）独立存储与分发，曲库记录与资产分别登记在 SQLite 的 `cloud_music_tracks` 和 `cloud_music_assets` 表，物理文件登记在 `file_records`（`usage_type='cloud-music'`，支持所有者关联）。管理端 `/api/admin/cloud-music/*` 由浏览器本地解析音频标签、内嵌封面与内嵌歌词并直传七牛，服务端 `complete` 仅调用七牛 `stat` 校验对象并接收前端解析的规格与元数据直接入库（无需服务端临时下载文件）；客户端用户投稿 `/api/cloud-music/submit/*` 保持服务端 `stat` 校验与 `music-metadata` 解析。公开检索与详情入口为 `/api/cloud-music/*`，播放及歌词链接签发 1 小时私有签名 URL（`disabled` 曲目不可播）；后台管理支持批量上传队列、状态流转、审核、试听与临时文件一键清理。网盘音乐不参与第三方音乐源聚合。
+- 管理端 `GET /api/admin/cloud-music/:uuid/lyrics` 只读当前 `isCurrent/uploaded` 歌词资产（允许管理员查看 disabled/pending 曲目），通过已有私有签名及域名白名单拉取 UTF-8 原文，禁止重定向，15 秒超时、2MB 及登记字节数双重限制，响应 no-store；不接受外部 URL、不修改对象或数据库。实现位于 `services/cloudMusic/cloudMusicLyricsService.ts`，无歌词返回 404，读取失败返回 502。
 - 服务端版本发布支持手填直链或后台上传安装包到七牛云。七牛配置使用 `server/.env` 中的 `QINIU_ACCESS_KEY`、`QINIU_SECRET_KEY`、`QINIU_BUCKET`、`QINIU_UPLOAD_URL`、`QINIU_DOMAIN`、`QINIU_DOMAIN_CDN`；`server/.env` 不提交，提交 `server/.env.example` 作为模板。
 - 七牛安装包信息统一保存在 `file_records` 表，发布历史通过 `update_history.release_file_id` 记录文件记录 ID。上传到七牛的安装包对外下载地址必须使用服务端 `/api/config/release-files/:id/download` 入口，由服务端生成七牛私有空间临时签名 URL 后跳转，不要把七牛对象直链直接下发给客户端。删除发布记录关联安装包时只删除七牛对象与文件状态，不删除历史记录；如果当前 Android / PC 发布配置正引用该文件下载地址，需要同步清空下载地址并关闭下载状态。
 - 七牛安装包上传：管理后台通过 `/api/admin/release-files/upload-token` 获取上传凭证，客户端直传七牛后调用 `/api/admin/release-files/complete` 登记文件，再发布版本；删除历史安装包使用 `/api/admin/update-history/:id/release-file`。
@@ -53,7 +54,7 @@
 
 ## 实时通信
 
-- 实时通信模块：`server/src/realtime/` 使用 Socket.IO 绑定 HTTP server；一起听接口挂载 `/api/listen-together`，在线态以内存权威（`server/src/db/listenTogetherStore.ts`）、生命周期与成员历史写入 SQLite（`listen_together_room_records` / `listen_together_room_members` 表）；重启不恢复在线房间，只关闭遗留记录。人数上限读取动态配置 `listen_together_max_people`，仅 `/api/listen-together/config` 默认明文开放。创建房间接口默认不覆盖用户已有房间，客户端确认替换时才传 `replaceExisting=true` 由服务端先退出旧房间再创建。一起听房间队列不存服务端，`listen:queue` / `QUEUE_EVENT` 只做房间成员校验和转发。
+- 实时通信模块：`server/src/realtime/` 使用 Socket.IO 绑定 HTTP server；一起听接口挂载 `/api/listen-together`，在线态以内存权威（`server/src/db/listenTogetherStore.ts`）、生命周期与成员历史写入 SQLite（`listen_together_room_records` / `listen_together_room_members` 表）；重启不恢复在线房间，只关闭遗留记录。人数上限读取动态配置 `listen_together_max_people`，仅 `/api/listen-together/config` 默认明文开放。创建房间接口默认不覆盖用户已有房间，客户端确认替换时才传 `replaceExisting=true` 由服务端先退出旧房间再创建。一起听房间队列不存服务端，`listen:queue` / `QUEUE_EVENT` 校验成员/房主/成员操作权限并按 DTO 白名单转发，不持久化队列。云盘 `cloud` 使用共享 UUID，各设备自行取链；歌曲规范化统一清空 URL、剔除本机路径，禁止 `local`，快照、增量和 ADD_AND_PLAY 复用同一校验。
 
 ## 接口文档与验证
 

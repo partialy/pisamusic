@@ -319,8 +319,9 @@ class CloudMusicSubmissionActivity : BaseActivity() {
         if (hasCover) {
             binding.submissionCoverImageView.load(cover?.uri) {
                 crossfade(true)
-                placeholder(R.drawable.bg_cloud_music_entry_card)
-                error(R.drawable.bg_cloud_music_entry_card)
+                placeholder(R.drawable.default_music_cover)
+                error(R.drawable.default_music_cover)
+                fallback(R.drawable.default_music_cover)
             }
         } else {
             binding.submissionCoverImageView.setImageDrawable(null)
@@ -370,13 +371,14 @@ class CloudMusicSubmissionActivity : BaseActivity() {
 
         val coverModel: Any = state.cover?.uri
             ?: track.cover?.url?.takeIf(String::isNotBlank)
-            ?: R.drawable.ic_pm_icon
+            ?: R.drawable.default_music_cover
         if (editorBinding.editorCoverPreview.tag != coverModel) {
             editorBinding.editorCoverPreview.tag = coverModel
             editorBinding.editorCoverPreview.load(coverModel) {
                 crossfade(true)
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
+                placeholder(R.drawable.default_music_cover)
+                error(R.drawable.default_music_cover)
+                fallback(R.drawable.default_music_cover)
             }
         }
         editorBinding.editorCoverFileText.text = when {
@@ -569,14 +571,16 @@ class CloudMusicSubmissionActivity : BaseActivity() {
         if (coverUri != null) {
             dialogBinding.dialogPreviewImageView.load(coverUri) {
                 crossfade(true)
-                placeholder(R.drawable.bg_cloud_music_entry_card)
-                error(R.drawable.bg_cloud_music_entry_card)
+                placeholder(R.drawable.default_music_cover)
+                error(R.drawable.default_music_cover)
+                fallback(R.drawable.default_music_cover)
             }
         } else if (!coverUrl.isNullOrBlank()) {
             dialogBinding.dialogPreviewImageView.load(coverUrl) {
                 crossfade(true)
-                placeholder(R.drawable.bg_cloud_music_entry_card)
-                error(R.drawable.bg_cloud_music_entry_card)
+                placeholder(R.drawable.default_music_cover)
+                error(R.drawable.default_music_cover)
+                fallback(R.drawable.default_music_cover)
             }
         }
 

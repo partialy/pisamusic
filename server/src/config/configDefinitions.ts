@@ -32,6 +32,24 @@ function parseStringList(val: unknown, def: string[] = []): string[] {
 }
 
 export const CONFIG_DEFINITIONS: readonly ConfigDefinition[] = [
+  {
+    key: "sync.lwwEnabled", group: "sync", groupLabel: "账号同步",
+    label: "同步时间冲突保护", description: "忽略早于已有状态的设备操作",
+    type: "boolean", defaultValue: true, parse: v => parseBoolean(v, true),
+  },
+  {
+    key: "sync.logRetentionDays", group: "sync", groupLabel: "账号同步",
+    label: "同步日志保留天数", description: "时间和最低条数同时满足才裁剪",
+    type: "number", defaultValue: 90, min: 1, max: 730,
+    parse: v => parseNumberInRange(v, 1, 730, 90),
+  },
+  {
+    key: "sync.logMinimumEntries", group: "sync", groupLabel: "账号同步",
+    label: "每用户最低同步日志数", description: "保留最近若干变更，墓碑不清理",
+    type: "number", defaultValue: 1000, min: 1, max: 100000,
+    parse: v => parseNumberInRange(v, 1, 100000, 1000),
+  },
+
   // 下载安全与限流
   {
     key: "security.releaseDownloadTtlSeconds",

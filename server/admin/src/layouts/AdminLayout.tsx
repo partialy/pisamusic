@@ -50,6 +50,7 @@ import { bgPresets, colorPresets } from "../constants/theme";
 import { loadTheme, saveTheme } from "../utils/themeStorage";
 import { useAuth } from "../auth/AuthContext";
 import { useAdminConfigWorkspace } from "../state/AdminConfigWorkspaceContext";
+import { useCloudMusicUploadQueue } from "../state/CloudMusicUploadQueueContext";
 import {
   AdminLayoutContext,
   type AdminPageActions,
@@ -61,6 +62,7 @@ import {
 } from "../router/adminRoutes";
 import JsonExportModal from "../components/modals/JsonExportModal";
 import ChangePasswordModal from "../components/modals/ChangePasswordModal";
+import CloudMusicUploadModal from "../components/modals/CloudMusicUploadModal";
 
 dayjs.locale("zh-cn");
 
@@ -81,6 +83,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { loadError, hydrated, refreshRemote, exportPayload } = useAdminConfigWorkspace();
+  const { modalOpen: uploadModalOpen, stats: uploadStats, openQueueView } = useCloudMusicUploadQueue();
 
   const [themeColor, setThemeColor] = useState(initialTheme.themeColor);
   const [bgIndex, setBgIndex] = useState(initialTheme.bgIndex);
@@ -468,6 +471,35 @@ export default function AdminLayout() {
               onClose={() => setShowChangePasswordModal(false)}
               onSuccess={() => alert("密码已更新，请妥善保管新密码。")}
             />
+          )}
+
+          {/* Global Cloud Music Batch Upload & Queue Modal */}
+          <CloudMusicUploadModal />
+
+          {/* Global Floating Upload Status Pill when modal is closed */}
+          {!uploadModalOpen && (uploadStats.active > 0 || uploadStats.failed > 0) && (
+            <div className="fixed bottom-5 right-5 z-50">
+              <button
+                type="button"
+                onClick={openQueueView}
+                className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-md hover:border-blue-400 hover:shadow-xl transition-all cursor-pointer"
+              >
+                <Badge
+                  status={uploadStats.active > 0 ? "processing" : "error"}
+                />
+                <CloudUploadOutlined
+                  className={uploadStats.active > 0 ? "text-blue-600 text-base" : "text-red-500 text-base"}
+                />
+                <span className="text-xs font-bold text-slate-800">
+                  {uploadStats.active > 0
+                    ? `网盘音乐上传中 (${uploadStats.completed}/${uploadStats.total})`
+                    : `上传队列有 ${uploadStats.failed} 项失败`}
+                </span>
+                <span className="text-[11px] text-blue-600 font-semibold">
+                  查看
+                </span>
+              </button>
+            </div>
           )}
         </div>
       </AdminLayoutContext.Provider>

@@ -671,7 +671,7 @@ export const useAudioStore = defineStore("audio", () => {
     const state = {
       volume: volume.value,
       repeatMode: repeatMode.value,
-      playlist: playlist.value,
+      playlist: playlist.value.map(toPersistedSong),
       currentSongId: currentSong.value?.id,
     };
     localStorage.setItem("audioState", JSON.stringify(state));

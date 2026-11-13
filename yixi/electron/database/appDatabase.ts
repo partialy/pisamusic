@@ -299,16 +299,21 @@ export class AppDatabase {
       .prepare(
         `SELECT favorite_key, track_id, source, title, artist, album, artwork, duration, payload_json, created_at
          FROM favorite_songs
-         ORDER BY created_at DESC`
+         ORDER BY created_at DESC, favorite_key ASC`
       )
       .all() as FavoriteSongRow[];
     return rows.map((row) => toFavoriteSong(row));
   }
 
-  addFavoriteSong(track: TrackSnapshot) {
+  addFavoriteSong(track: TrackSnapshot, fromSync = false) {
     const normalizedTrack = normalizeTrackSnapshot(track);
     const key = favoriteKey(normalizedTrack.source, normalizedTrack.id);
     const now = new Date().toISOString();
+    const existing = this.getFavoriteSong(normalizedTrack.source, normalizedTrack.id);
+    const createdAt = fromSync && normalizedTrack.favoritedAt
+      ? new Date(normalizedTrack.favoritedAt).toISOString()
+      : existing?.createdAt ?? now;
+    normalizedTrack.favoritedAt = Date.parse(createdAt);
     this.db
       .prepare(
         `INSERT INTO favorite_songs (
@@ -320,7 +325,8 @@ export class AppDatabase {
            album = excluded.album,
            artwork = excluded.artwork,
            duration = excluded.duration,
-           payload_json = excluded.payload_json`
+           payload_json = excluded.payload_json,
+           created_at = excluded.created_at`
       )
       .run(
         key,
@@ -332,7 +338,7 @@ export class AppDatabase {
         normalizedTrack.cover ?? "",
         normalizedTrack.duration ?? 0,
         JSON.stringify(normalizedTrack),
-        now
+        createdAt
       );
     return this.getFavoriteSong(normalizedTrack.source, normalizedTrack.id);
   }
@@ -641,6 +647,23 @@ export class AppDatabase {
          LIMIT ?`
       )
       .all(normalizeLimit(limit));
+  }
+
+  listPendingSyncKeys(): { item_type: string; item_key: string }[] {
+    return this.db.prepare("SELECT DISTINCT item_type, item_key FROM sync_outbox").all() as
+      { item_type: string; item_key: string }[];
+  }
+
+  applySyncTransaction<T>(apply: () => T): T {
+    this.db.exec("BEGIN IMMEDIATE TRANSACTION;");
+    try {
+      const result = apply();
+      this.db.exec("COMMIT;");
+      return result;
+    } catch (error) {
+      this.db.exec("ROLLBACK;");
+      throw error;
+    }
   }
 
   removeSyncOps(opIds: string[]) {
@@ -1053,7 +1076,7 @@ export class AppDatabase {
     return row ? toDownloadRecord(row) : null;
   }
 
-  private getFavoriteSong(source: string, id: string) {
+  getFavoriteSong(source: string, id: string) {
     const row = this.db
       .prepare(
         `SELECT favorite_key, track_id, source, title, artist, album, artwork, duration, payload_json, created_at

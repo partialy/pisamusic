@@ -99,9 +99,9 @@ class DownloadTaskAdapter(
             task = value
             if (bindCover) {
                 coverImageView.load(SongCoverUrl.getRemoteCover(value.source.name.lowercase(), value.coverUrl, SongCoverUrl.SIZE_SMALL).takeIf { it.isNotBlank() }) {
-                    placeholder(R.drawable.mine_entry_my_songs)
-                    error(R.drawable.mine_entry_my_songs)
-                    fallback(R.drawable.mine_entry_my_songs)
+                    placeholder(R.drawable.default_music_cover)
+                    error(R.drawable.default_music_cover)
+                    fallback(R.drawable.default_music_cover)
                 }
                 titleTextView.text = value.title.ifBlank { value.fileName.orEmpty().ifBlank { root.context.getString(R.string.download_management_unknown_song) } }
                 subtitleTextView.text = value.artist.ifBlank { root.context.getString(R.string.download_management_unknown_artist) }

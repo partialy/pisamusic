@@ -200,7 +200,7 @@ export type ListenTogetherErrorMessageData = {
 };
 
 // ---------------------------------------------------------------------------
-// 房间队列协议（与 PM ListenTogetherManager 常量逐字一致；服务端只转发不解析）
+// 房间队列协议（与 PM ListenTogetherManager 常量逐字一致；服务端校验权限并按字段白名单净化转发）
 // ---------------------------------------------------------------------------
 
 export const LISTEN_TOGETHER_QUEUE_KIND = {

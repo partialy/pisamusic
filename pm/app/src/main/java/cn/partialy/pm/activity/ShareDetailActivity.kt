@@ -165,7 +165,7 @@ class ShareDetailActivity : BaseActivity() {
         val fallbackRes = when {
             playlist.source == "local" && playlist.id == "favorite_songs" -> R.drawable.my_favorites_cover_peach
             playlist.source == "local" -> MinePlaylistCoverResolver.defaultLocalCoverRes()
-            else -> R.drawable.ic_pm_icon
+            else -> R.drawable.default_music_cover
         }
         bindPlaylistCover(playlist.source, playlist.cover, fallbackRes)
         renderPlaylistDetail(
@@ -367,7 +367,7 @@ class ShareDetailActivity : BaseActivity() {
         bindPlaylistCover(source, coverUrl)
     }
 
-    private fun bindPlaylistCover(source: String, cover: String, fallbackRes: Int = R.drawable.ic_pm_icon) {
+    private fun bindPlaylistCover(source: String, cover: String, fallbackRes: Int = R.drawable.default_music_cover) {
         playlistCoverBinder?.dispose()
         playlistCoverBinder = PlaylistCoverRequestBinder(binding.shareDetailCover, fallbackRes).also {
             it.bind(runCatching { SongType.valueOf(source.uppercase()) }.getOrNull(), cover)

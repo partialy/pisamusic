@@ -97,9 +97,13 @@ class HomeRecommendPlaylistAdapter(
                 val source = item.sourceType.toCanonicalSource().takeUnless { it == "local" }.orEmpty()
                 binding.coverImageView.load(
                     SongCoverUrl.getRemoteCover(source, item.coverUrl, SongCoverUrl.SIZE_MEDIUM),
-                )
+                ) {
+                    placeholder(cn.partialy.pm.R.drawable.default_music_cover)
+                    error(cn.partialy.pm.R.drawable.default_music_cover)
+                    fallback(cn.partialy.pm.R.drawable.default_music_cover)
+                }
             } else {
-                binding.coverImageView.setImageResource(cn.partialy.pm.R.drawable.ic_playlist_24)
+                binding.coverImageView.setImageResource(cn.partialy.pm.R.drawable.default_music_cover)
             }
             binding.root.isClickable = true
             binding.root.setOnClickListener { onItemClick(item) }
@@ -107,7 +111,7 @@ class HomeRecommendPlaylistAdapter(
 
         fun bindSkeleton() {
             startSkeletonAnim()
-            binding.coverImageView.setImageResource(cn.partialy.pm.R.drawable.ic_playlist_24)
+            binding.coverImageView.setImageResource(cn.partialy.pm.R.drawable.default_music_cover)
             binding.coverImageView.alpha = 0.25f
             binding.playCountTextView.text = ""
             binding.playCountTextView.background = null

@@ -33,5 +33,6 @@ raw
 *.spec.*
 *.test.ts
 *.spec.ts
+!electron/sync/syncService.test.ts
 userData/
 

@@ -15,6 +15,7 @@
     "test:direct-messages": "pnpm build && node --test dist/services/directMessageService.spec.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
+    "verify:sync": "pnpm build && node scripts/verify-sync.cjs",
     "verify:mysql57": "pnpm build && node scripts/verify-mysql57-schema.cjs",
     "check:mysql57": "pnpm build && node scripts/check-mysql57-target.cjs",
     "test:mysql57:ddl": "pnpm build && node scripts/smoke-mysql57-ddl.cjs",

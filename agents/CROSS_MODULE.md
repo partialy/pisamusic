@@ -14,6 +14,10 @@
 - 服务协议与隐私政策统一为纯文本，正文中的换行由 Android 原生页面、PC 弹窗和官网按原文显示；服务协议/隐私政策返回 `version`，标题或正文实际修改时递增，重复保存不递增。Android 启动协议接受状态必须绑定版本，PC 启动协议状态同样绑定版本。
 - 账号接口：`/api/auth/email-code` 与 `/api/auth/phone-code` 发送注册/登录/重置密码验证码；`/api/auth/register` 支持邮箱或手机号注册；`/api/auth/login/password` 支持用户名/邮箱/手机号+密码登录；`/api/auth/login/code` 支持邮箱或手机号验证码登录，未注册联系人校验成功后自动注册；`/api/auth/password/change` 登录态修改密码；`/api/auth/password/reset` 支持邮箱或手机号验证码重置密码；`/api/auth/refresh` 刷新 7 天 token；`/api/auth/me` 获取当前账号；`/api/auth/profile/email-code`、`/api/auth/profile/phone-code` 和 `PATCH /api/auth/profile` 修改资料或绑定手机号。
 - 同步接口：`/api/sync/changes` 通过账号 token 拉取/推送增量，DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准；旧同步码创建、加入、重置和解绑设备接口已移除。
+- 收藏歌曲同步 payload 可选 `favoritedAt`（毫秒时间戳），表示收藏关系的创建时间；新增和 seed 从持久化记录取值，下行用于排序，缺失兼容旧端。元数据更新不得无故重置收藏时间。
+- 新端以 `protocol=2` 拉取同步；`mode=delta` 按实际返回的日志版本推进游标，不能直接跳到账号全局 `version` 或 push 返回版本。`mode=snapshot` 必须完整收集同一 `snapshotVersion` 的全部分页后再对账，版本变化时重启；快照含有的项更新、本地多余且无 pending 的项移除，未完成分页不能删除本地数据。同账号同 key 的本机待同步操作优先。
+- 服务端兼容旧端 `changes` 字段；旧端无快照能力声明时，日志不足需返回可完整消费的兼容快照。回声过滤只应用于 delta，快照必须包含本设备来源的权威状态。设备标识使用稳定持久化身份，不能以厂商和型号作为去重身份。
+- Android“删除全部数据”只清本机，不删除云端；同时清理本机 pending 并将当前账号游标重置到 0、保持无需重新 seed，下次同步可恢复云端数据。收藏备份 ZIP 继续使用 `loveList.json` 条目，由 SQLite 按需生成，应用不再维护该文件的运行时镜像。
 
 ## 公告与专属消息
 
@@ -25,7 +29,7 @@
 
 - 官网发布信息支持 Android / PC 双端配置，推荐接口为 `GET /api/config/releases`；旧 `GET /api/config/check-update` 必须保持 Android 更新信息兼容，不要改成多端结构。
 - PC 自动升级使用 `electron-updater` 的 generic feed，服务端公开 `/api/config/desktop-updates/win32/x64/latest.yml` 和同目录文件下载入口；自动更新资源统一存储在 `file_records` 表，由后台上传 `latest.yml`、安装包 EXE 和可选 blockmap 后启用，不要手写 `latest.yml`。
-- Android 首页第二个 Tab 固定为“云盘”，PC 桌面端左侧导航在“收藏”与“我的”之间固定为“云盘”Tab；双端均通过外层 `server` 的 `/api/cloud-music/*` 浏览、搜索和播放独立 `cloud` 音源；列表分页固定每页 20 条，音质只有 `cloud:default`。`active` 可播放，`disabled` 只允许搜索和查看；客户端实际播放、切歌和下载前即时获取签名 URL，不把临时 URL 写入收藏、歌单、分享、播放状态或持久缓存。云盘歌曲当前不支持一起听。
+- Android 首页第二个 Tab 固定为“云盘”，PC 桌面端左侧导航在“收藏”与“我的”之间固定为“云盘”Tab；双端均通过外层 `server` 的 `/api/cloud-music/*` 浏览、搜索和播放独立 `cloud` 音源；列表分页固定每页 20 条，音质只有 `cloud:default`。`active` 可播放，`disabled` 只允许搜索和查看；客户端实际播放、切歌和下载前即时获取签名 URL，不把临时 URL 写入收藏、歌单、分享、播放状态或持久缓存。云盘歌曲支持一起听，使用 `source=cloud` 与稳定 UUID 作为歌曲身份，各设备独立签发播放地址，房间歌曲及队列不得携带临时播放 URL 或本地路径；LOCAL 音源仍禁止一起听。
 
 ## 扫码、音乐分享与一起听
 

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Avatar,
+  Badge,
   Button,
   Card,
   Image,
@@ -28,6 +29,7 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import {
   cleanupCloudMusicTemp,
@@ -36,6 +38,7 @@ import {
   fetchCloudMusicTempSummary,
   fetchCloudMusicTracks,
 } from "../../api/cloudMusic";
+import { useCloudMusicUploadQueue } from "../../state/CloudMusicUploadQueueContext";
 import type {
   CloudMusicListFilter,
   CloudMusicStatus,
@@ -45,7 +48,6 @@ import type {
 } from "../../types/cloudMusic";
 import CloudMusicEditModal from "../modals/CloudMusicEditModal";
 import CloudMusicReviewModal from "../modals/CloudMusicReviewModal";
-import CloudMusicUploadModal from "../modals/CloudMusicUploadModal";
 
 const { Text } = Typography;
 
@@ -94,6 +96,13 @@ function statusTag(status: CloudMusicStatus) {
 }
 
 export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
+  const {
+    stats: uploadStats,
+    openUploadWizard,
+    openQueueView,
+    subscribeTrackCompleted,
+  } = useCloudMusicUploadQueue();
+
   const [tracks, setTracks] = useState<CloudMusicTrack[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -107,7 +116,6 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
   const [uploadStateFilter, setUploadStateFilter] = useState<CloudMusicUploadState | "all">("all");
 
   // Modals state
-  const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingTrack, setEditingTrack] = useState<CloudMusicTrack | null>(null);
   const [reviewingTrack, setReviewingTrack] = useState<CloudMusicTrack | null>(null);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
@@ -143,9 +151,18 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
     }
   };
 
+  const loadTracksRef = useRef(loadTracks);
+  loadTracksRef.current = loadTracks;
+
   useEffect(() => {
     loadTracks(0);
   }, [statusFilter, uploadStateFilter]);
+
+  useEffect(() => {
+    return subscribeTrackCompleted(() => {
+      void loadTracksRef.current();
+    });
+  }, [subscribeTrackCompleted]);
 
   const handleSearch = () => {
     loadTracks(0);
@@ -432,19 +449,38 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
           </div>
         }
         extra={
-          <Space>
+          <Space wrap>
             <Button
               icon={<ClearOutlined />}
               onClick={handleOpenCleanup}
             >
               清理临时文件
             </Button>
+            <Badge
+              count={
+                uploadStats.active > 0
+                  ? uploadStats.active
+                  : uploadStats.failed > 0
+                  ? uploadStats.failed
+                  : 0
+              }
+              color={uploadStats.failed > 0 ? "red" : "blue"}
+              size="small"
+            >
+              <Button
+                icon={<UnorderedListOutlined />}
+                onClick={openQueueView}
+              >
+                上传任务
+                {uploadStats.total > 0 ? ` (${uploadStats.completed}/${uploadStats.total})` : ""}
+              </Button>
+            </Badge>
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => setShowUploadModal(true)}
+              onClick={openUploadWizard}
             >
-              上传音乐
+              批量上传音乐
             </Button>
             <Button
               icon={<ReloadOutlined />}
@@ -458,6 +494,26 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
       >
         {error && (
           <Alert type="error" showIcon message={error} className="mb-4" />
+        )}
+
+        {uploadStats.active > 0 && (
+          <Alert
+            type="info"
+            showIcon
+            className="mb-4"
+            message={
+              <div className="flex items-center justify-between text-xs">
+                <span>
+                  后台正在队列上传网盘音乐：进行中 <strong>{uploadStats.uploading}</strong> 首，
+                  等待中 <strong>{uploadStats.queued}</strong> 首，
+                  已完成 <strong>{uploadStats.completed}</strong> / {uploadStats.total} 首
+                </span>
+                <Button size="small" type="link" onClick={openQueueView}>
+                  查看进度明细
+                </Button>
+              </div>
+            }
+          />
         )}
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -559,19 +615,6 @@ export default function CloudMusicManagementTab({ themeColor: _ }: Props) {
           </div>
         )}
       </Card>
-
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <CloudMusicUploadModal
-          themeColor=""
-          onClose={() => setShowUploadModal(false)}
-          onSuccess={(newTrack) => {
-            setShowUploadModal(false);
-            setEditingTrack(newTrack);
-            loadTracks(0);
-          }}
-        />
-      )}
 
       {/* Edit Modal */}
       {editingTrack && (

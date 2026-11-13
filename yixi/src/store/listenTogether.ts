@@ -249,7 +249,7 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
       return { status: "error", message: "先播放一首在线歌曲，再创建一起听房间" };
     }
     if (!canShareSong(currentSong)) {
-      return { status: "error", message: "本地歌曲暂不支持一起听" };
+      return { status: "error", message: currentSong?.playable === false ? "歌曲已停用，无法播放" : "本地歌曲暂不支持一起听" };
     }
     const trimmedName = options.roomName?.trim();
     if (trimmedName && (trimmedName.length < 2 || trimmedName.length > 16)) {

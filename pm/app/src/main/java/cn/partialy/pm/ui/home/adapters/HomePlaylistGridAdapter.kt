@@ -41,9 +41,13 @@ class HomePlaylistGridAdapter(
                 val source = item.sourceType.toCanonicalSource().takeUnless { it == "local" }.orEmpty()
                 binding.coverImageView.load(
                     SongCoverUrl.getRemoteCover(source, item.coverUrl, SongCoverUrl.SIZE_MEDIUM),
-                )
+                ) {
+                    placeholder(R.drawable.default_music_cover)
+                    error(R.drawable.default_music_cover)
+                    fallback(R.drawable.default_music_cover)
+                }
             } else {
-                binding.coverImageView.setImageResource(R.drawable.ic_playlist_24)
+                binding.coverImageView.setImageResource(R.drawable.default_music_cover)
             }
             binding.root.setOnClickListener { onItemClick(item) }
         }

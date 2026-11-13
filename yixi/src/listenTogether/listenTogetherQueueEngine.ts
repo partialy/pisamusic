@@ -94,7 +94,7 @@ export function createListenTogetherQueueEngine(ctx: ListenTogetherQueueEngineCo
   function ensureHostQueueInitialized(): void {
     if (!ctx.isHost.value || ctx.queue.value.items.length > 0) return;
     const currentSong = ctx.audio.currentSong();
-    const songs = ctx.audio.playlist().filter((song) => song.source !== "local");
+    const songs = ctx.audio.playlist().filter(canShareSong);
     if (currentSong && canShareSong(currentSong)) {
       const exists = songs.some((song) => songKeyOf(song) === songKeyOf(currentSong));
       if (!exists) songs.unshift(currentSong);
@@ -296,7 +296,7 @@ export function createListenTogetherQueueEngine(ctx: ListenTogetherQueueEngineCo
   // ------------------------------------------------------------------
   function addSongAndPlayAsHost(song: Song, addedByUserId: string, transitionId: string): void {
     if (!canShareSong(song)) {
-      ctx.toast("本地歌曲暂不支持一起听");
+      ctx.toast(song.playable === false ? "歌曲已停用，无法播放" : "本地歌曲暂不支持一起听");
       return;
     }
     ensureHostQueueInitialized();

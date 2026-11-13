@@ -27,7 +27,12 @@ internal class CompactDiscRenderer(private val density: Float) {
     fun setArtwork(bitmap: Bitmap?) {
         artwork = bitmap
         artworkShader = bitmap?.let { BitmapShader(it, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) }
-        tint = bitmap?.let(::sampleTint) ?: SILVER
+        tint = SILVER
+        updateShaders()
+    }
+
+    fun setSurfaceTint(color: Int?) {
+        tint = color ?: SILVER
         updateShaders()
     }
 
@@ -40,9 +45,15 @@ internal class CompactDiscRenderer(private val density: Float) {
 
     private fun updateShaders() {
         if (radius <= 0f) return
-        val base = ColorUtils.blendARGB(tint, SILVER, .66f)
-        val light = ColorUtils.blendARGB(base, Color.WHITE, .74f)
-        val shade = ColorUtils.blendARGB(base, Color.BLACK, .22f)
+        val hsl = FloatArray(3)
+        ColorUtils.colorToHSL(tint, hsl)
+        // 保留主色相并降低饱和度，深色封面也抬到亮色；黑白封面接近白色盘面。
+        val monochrome = hsl[1] < .08f
+        hsl[1] = (hsl[1] * .55f).coerceAtMost(.55f)
+        hsl[2] = if (monochrome) .94f else .84f + hsl[2] * .08f
+        val base = ColorUtils.HSLToColor(hsl)
+        val light = ColorUtils.blendARGB(base, Color.WHITE, .60f)
+        val shade = ColorUtils.blendARGB(base, SILVER, .18f)
         surfaceShader = SweepGradient(
             centerX, centerY,
             intArrayOf(base, shade, light, base, light, shade, base, light, base),
@@ -73,12 +84,12 @@ internal class CompactDiscRenderer(private val density: Float) {
         canvas.drawCircle(centerX, centerY, radius, paint)
         paint.shader = null
 
-        // 密而浅的同心纹模拟 CD 数据层，保留取色后的金属反光。
+        // 较宽的同心纹和间隔，避免过密的细线在小尺寸下变成噪点。
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = (.35f * density).coerceAtLeast(.5f)
-        for (index in 0..64) {
-            paint.color = if (index % 3 == 0) 0x24FFFFFF else 0x10000000
-            canvas.drawCircle(centerX, centerY, radius * (.70f + index * .0044f), paint)
+        paint.strokeWidth = (radius * .0055f).coerceAtLeast(.65f * density)
+        for (index in 0..19) {
+            paint.color = if (index % 3 == 0) 0x3AFFFFFF else 0x12000000
+            canvas.drawCircle(centerX, centerY, radius * (.705f + index * .0144f), paint)
         }
         paint.style = Paint.Style.FILL
         paint.color = Color.WHITE
@@ -114,24 +125,6 @@ internal class CompactDiscRenderer(private val density: Float) {
         canvas.drawCircle(centerX, centerY, radius - paint.strokeWidth / 2f, paint)
         paint.style = Paint.Style.FILL
         canvas.restoreToCount(checkpoint)
-    }
-
-    private fun sampleTint(bitmap: Bitmap): Int {
-        var red = 0L
-        var green = 0L
-        var blue = 0L
-        var weight = 0L
-        // 固定 8×8 采样，不逐帧量化，也不重新下载或复制高清封面。
-        for (y in 0 until 8) for (x in 0 until 8) {
-            val color = bitmap.getPixel((bitmap.width * (x * 2 + 1) / 16).coerceAtMost(bitmap.width - 1),
-                (bitmap.height * (y * 2 + 1) / 16).coerceAtMost(bitmap.height - 1))
-            val alpha = Color.alpha(color)
-            red += Color.red(color) * alpha
-            green += Color.green(color) * alpha
-            blue += Color.blue(color) * alpha
-            weight += alpha
-        }
-        return if (weight == 0L) SILVER else Color.rgb((red / weight).toInt(), (green / weight).toInt(), (blue / weight).toInt())
     }
 
     companion object {

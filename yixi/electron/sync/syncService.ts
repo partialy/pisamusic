@@ -4,9 +4,11 @@ import { favoriteKey, normalizePlaylistSnapshot, normalizeTrackSnapshot } from "
 import type { PlaylistSnapshot, TrackSnapshot } from "../database/types";
 import {
   getAccountSession,
+  getDesktopDeviceClientId,
   getSyncChanges,
   pushSyncChanges,
   type SyncChange,
+  type SyncPullResult,
 } from "../system/systemClient";
 
 const SYNC_SETTING_KEY = "sync-state";
@@ -45,6 +47,7 @@ let syncInFlight: Promise<SyncState> | null = null;
 let lastNetworkSyncAt = 0;
 let lastNetworkSyncToken = "";
 let lastNetworkSyncVersion = 0;
+let syncGeneration = 0;
 
 export function getSyncState(): SyncState {
   const saved = getAppDatabase().getSetting<Partial<SyncState> & Record<string, unknown>>(SYNC_SETTING_KEY)?.value ?? {};
@@ -74,6 +77,7 @@ export function syncNow(): Promise<SyncState> {
 }
 
 async function runSyncNow(): Promise<SyncState> {
+  const generation = syncGeneration;
   syncRunning = true;
   try {
     let state = getSyncState();
@@ -90,12 +94,13 @@ async function runSyncNow(): Promise<SyncState> {
       return state;
     }
     try {
-      const pulled = await getSyncChanges(state.token, nextVersion);
-      pulled.changes.forEach(applyRemoteChange);
-      nextVersion = Math.max(nextVersion, pulled.version || 0);
+      nextVersion = await pullRemoteChanges(state, generation);
+      if (!isCurrentSync(state, generation)) return getSyncState();
 
-      const pending = getAppDatabase().listSyncOutbox(200) as SyncOutboxRow[];
-      if (pending.length) {
+      let pending = getAppDatabase().listSyncOutbox(200) as SyncOutboxRow[];
+      const hadPending = pending.length > 0;
+      let needsSnapshot = false;
+      while (pending.length) {
         const pushed = await pushSyncChanges(
           state.token,
           pending.map((row) => ({
@@ -107,9 +112,18 @@ async function runSyncNow(): Promise<SyncState> {
             clientUpdatedAt: row.created_at,
           }))
         );
+        if (!isCurrentSync(state, generation)) return getSyncState();
+        needsSnapshot ||= pushed.skipped > 0;
         getAppDatabase().removeSyncOps(pending.map((row) => row.op_id));
-        nextVersion = Math.max(nextVersion, pushed.version || 0);
+        pending = getAppDatabase().listSyncOutbox(200) as SyncOutboxRow[];
       }
+      if (hadPending) {
+        // 推送版本不是已拉取游标；再拉一次，避免跨过其他设备同时产生的变更。
+        // skipped 可能是比起始游标更早的远端胜出，必须从快照恢复权威状态。
+        nextVersion = await pullRemoteChanges(needsSnapshot ? { ...state, lastVersion: 0 } : state, generation);
+      }
+
+      if (!isCurrentSync(state, generation)) return getSyncState();
 
       saveSyncState({
         ...state,
@@ -120,6 +134,7 @@ async function runSyncNow(): Promise<SyncState> {
       recordNetworkSync(state.token, nextVersion);
       emitSyncChanged();
     } catch (error) {
+      if (!isCurrentSync(state, generation)) return getSyncState();
       saveSyncState({
         ...state,
         lastError: error instanceof Error ? error.message : String(error),
@@ -137,6 +152,7 @@ async function runSyncNow(): Promise<SyncState> {
 }
 
 export async function clearSyncState() {
+  syncGeneration++;
   clearPendingSyncTimer();
   syncQueued = false;
   lastNetworkSyncAt = 0;
@@ -156,6 +172,10 @@ export function startSyncOnStartup() {
 export function recordFavoriteSongChange(track: TrackSnapshot, action: "upsert" | "delete", options?: SyncRecordOptions) {
   const normalized = normalizeTrackSnapshot(track);
   if (normalized.source === "local") return;
+  if (action === "upsert") {
+    const saved = getAppDatabase().getFavoriteSong(normalized.source, normalized.id);
+    normalized.favoritedAt = saved ? Date.parse(saved.createdAt) : normalized.favoritedAt ?? Date.now();
+  }
   enqueueAndSync(TYPE_FAVORITE_SONG, favoriteKey(normalized.source, normalized.id), action, action === "delete" ? {} : syncSongPayload(normalized), options);
 }
 
@@ -206,6 +226,118 @@ function seedInitialOutbox() {
   });
 }
 
+function isCurrentSync(state: SyncState, generation: number) {
+  const current = getSyncState();
+  return generation === syncGeneration && current.userId === state.userId && current.token === state.token;
+}
+
+async function pullRemoteChanges(state: SyncState, generation: number): Promise<number> {
+  let since = state.lastVersion;
+  let snapshot: SyncChange[] = [];
+  let page: { snapshotVersion: number; cursor: string } | undefined;
+  let restarts = 0;
+  while (true) {
+    let result: SyncPullResult;
+    try {
+      result = await getSyncChanges(state.token, page ? 0 : since, page);
+    } catch (error) {
+      if (page && (error as { code?: number })?.code === 409 && restarts++ < 3) {
+        snapshot = [];
+        page = undefined;
+        since = 0;
+        continue;
+      }
+      throw error;
+    }
+    if (!isCurrentSync(state, generation)) return state.lastVersion;
+    if (result.mode === "snapshot") {
+      const version = result.snapshotVersion ?? result.version;
+      if (page && version !== page.snapshotVersion) throw new Error("同步快照版本不一致，请重试");
+      snapshot.push(...(result.items ?? result.changes));
+      if (result.hasMore) {
+        if (!result.cursor || result.cursor === page?.cursor) throw new Error("同步快照分页未前进");
+        page = { snapshotVersion: version, cursor: result.cursor };
+        continue;
+      }
+      getAppDatabase().applySyncTransaction(() => reconcileSnapshot(snapshot));
+      return version;
+    }
+    if (page) throw new Error("同步快照分页模式已改变，请重试");
+    getAppDatabase().applySyncTransaction(() => {
+      const pending = pendingSyncKeys();
+      result.changes.forEach((change) => {
+        if (change.deviceId !== getDesktopDeviceClientId() && !hasPendingChange(change, pending)) applyRemoteChange(change);
+      });
+    });
+    // 旧服务端没有 mode/hasMore；继续拉到空页，绝不使用全局 version 跳过日志。
+    const next = Math.max(since, ...result.changes.map((change) => change.version));
+    if (!result.changes.length) {
+      if (result.hasMore) throw new Error("同步增量分页未前进");
+      return since;
+    }
+    if (next <= since) throw new Error("同步增量游标未前进");
+    since = next;
+    if (result.hasMore === false) return since;
+  }
+}
+
+function syncItemKey(type: string, key: string) {
+  return JSON.stringify([type, key]);
+}
+
+function pendingSyncKeys() {
+  const keys = new Set<string>();
+  getAppDatabase().listPendingSyncKeys().forEach((row) => {
+    keys.add(syncItemKey(row.item_type, row.item_key));
+    // 歌单删除会级联删除曲目；未推送曲目同时保护父歌单。
+    if (row.item_type === TYPE_PLAYLIST_TRACK) {
+      const parsed = playlistTrackFromKey(row.item_key);
+      if (parsed) keys.add(syncItemKey(`${TYPE_USER_PLAYLIST}:pending_children`, `local:${parsed.playlistId}`));
+    }
+  });
+  return keys;
+}
+
+function hasPendingChange(change: Pick<SyncChange, "itemType" | "itemKey" | "action">, pending: Set<string>) {
+  if (pending.has(syncItemKey(change.itemType, change.itemKey))) return true;
+  if (change.itemType === TYPE_USER_PLAYLIST && change.action === "delete") {
+    return pending.has(syncItemKey(`${TYPE_USER_PLAYLIST}:pending_children`, change.itemKey));
+  }
+  if (change.itemType === TYPE_PLAYLIST_TRACK) {
+    const parsed = playlistTrackFromKey(change.itemKey);
+    return Boolean(parsed && pending.has(syncItemKey(TYPE_USER_PLAYLIST, `local:${parsed.playlistId}`)));
+  }
+  return false;
+}
+
+function reconcileSnapshot(items: SyncChange[]) {
+  const db = getAppDatabase();
+  const pending = pendingSyncKeys();
+  const remoteKeys = new Set(items.map((item) => syncItemKey(item.itemType, item.itemKey)));
+  const removeMissing = (itemType: string, itemKey: string, remove: () => void) => {
+    if (!remoteKeys.has(syncItemKey(itemType, itemKey)) && !hasPendingChange({ itemType, itemKey, action: "delete" }, pending)) remove();
+  };
+  // 只有完整快照才能删本地缺失项，快照不跳过同设备条目。
+  items.filter((item) => item.itemType === TYPE_USER_PLAYLIST).forEach((item) => {
+    if (!hasPendingChange(item, pending)) applyRemoteChange(item);
+  });
+  items.filter((item) => item.itemType !== TYPE_USER_PLAYLIST).forEach((item) => {
+    if (!hasPendingChange(item, pending)) applyRemoteChange(item);
+  });
+  db.listFavoriteSongs().filter((item) => item.source !== "local").forEach((item) => {
+    removeMissing(TYPE_FAVORITE_SONG, item.favoriteKey, () => db.removeFavoriteSong(item.source, item.trackId));
+  });
+  db.listFavoritePlaylists().filter((item) => item.source !== "local").forEach((item) => {
+    removeMissing(TYPE_FAVORITE_PLAYLIST, item.favoriteKey, () => db.removeFavoritePlaylist(item.source, item.playlistId));
+  });
+  db.listUserPlaylists("local").forEach((playlist) => {
+    db.listUserPlaylistTracks(playlist.playlistId).filter((track) => track.source !== "local").forEach((track) => {
+      removeMissing(TYPE_PLAYLIST_TRACK, `${playlist.playlistId}|${track.trackKey}`, () => db.removeUserPlaylistTrack(playlist.playlistId, track.source, track.trackId));
+    });
+    removeMissing(TYPE_USER_PLAYLIST, playlist.playlistKey, () => db.removeUserPlaylist(playlist.source, playlist.playlistId));
+  });
+}
+
 function applyRemoteChange(change: SyncChange) {
   switch (change.itemType) {
     case TYPE_FAVORITE_SONG:
@@ -229,7 +361,7 @@ function applyFavoriteSong(change: SyncChange) {
   if (change.action === "delete") {
     getAppDatabase().removeFavoriteSong(parsed.source, parsed.id);
   } else {
-    getAppDatabase().addFavoriteSong(parsed);
+    getAppDatabase().addFavoriteSong(parsed, true);
   }
 }
 

@@ -53,14 +53,16 @@ class HomeMiniPlayerBinder(
             musicController.currentSong.collect { song ->
                 if (song == null) {
                     mini.miniPlayerSongTitle.text = activity.getString(R.string.home_mini_player_hint)
+                    mini.miniPlayerCover.load(R.drawable.default_music_cover)
                 } else {
                     mini.miniPlayerSongTitle.text = buildSongArtistText(song.name, song.artist)
                     coverRotationAnimator?.cancel()
                     coverRotationAnimator = null
                     mini.miniPlayerCover.rotation = 0f
                     mini.miniPlayerCover.load(SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_SMALL)) {
-                        placeholder(R.drawable.ic_pm_icon)
-                        error(R.drawable.ic_pm_icon)
+                        placeholder(R.drawable.default_music_cover)
+                        error(R.drawable.default_music_cover)
+                        fallback(R.drawable.default_music_cover)
                     }
                 }
             }

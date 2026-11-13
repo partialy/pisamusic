@@ -9,19 +9,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal class CoverFlowPaletteExtractor {
-    suspend fun extract(drawable: Drawable): CoverFlowPalette = withContext(Dispatchers.Default) {
+    suspend fun extract(drawable: Drawable): CoverFlowPalette =
+        CoverFlowPaletteRules.fromCandidates(extractColors(drawable))
+
+    /** 按占比返回封面原始色板；背景与 CD 共用采样，具体明暗由各自展示规则决定。 */
+    suspend fun extractColors(drawable: Drawable): List<Int> = withContext(Dispatchers.Default) {
         val originalBitmap = (drawable as? BitmapDrawable)?.bitmap
         val bitmap = drawable.toBitmap(width = 48, height = 48, config = Bitmap.Config.ARGB_8888)
         try {
             val pixels = IntArray(bitmap.width * bitmap.height)
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
             val visible = pixels.filter { it ushr 24 >= 128 }
-            if (visible.isEmpty()) return@withContext CoverFlowPaletteRules.fromCandidates(emptyList())
+            if (visible.isEmpty()) return@withContext emptyList()
             // 先排除透明像素，避免量化丢失 alpha 后把透明黑色作为主色。
             val visibleBitmap = Bitmap.createBitmap(visible.toIntArray(), visible.size, 1, Bitmap.Config.ARGB_8888)
             try {
                 val palette = Palette.from(visibleBitmap).maximumColorCount(8).generate()
-                CoverFlowPaletteRules.fromCandidates(palette.swatches.sortedByDescending { it.population }.map { it.rgb })
+                palette.swatches.sortedByDescending { it.population }.map { it.rgb }
             } finally { visibleBitmap.recycle() }
         } finally {
             if (bitmap !== originalBitmap && !bitmap.isRecycled) {

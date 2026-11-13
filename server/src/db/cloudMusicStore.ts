@@ -343,8 +343,8 @@ async function updateDraftWithDb(db: DatabaseSync, uuid: string, input: CloudMus
 
 function assertUploadTransition(current: CloudMusicUploadState, next: Exclude<CloudMusicUploadState, "reserved">): void {
   const allowed: Record<CloudMusicUploadState, CloudMusicUploadState[]> = {
-    reserved: ["uploaded"],
-    uploaded: ["uploaded", "processing"],
+    reserved: ["uploaded", "ready", "failed"],
+    uploaded: ["uploaded", "processing", "ready", "failed"],
     processing: ["processing", "ready", "failed"],
     ready: ["ready"],
     failed: ["failed"],
@@ -363,8 +363,8 @@ export async function createCloudMusicUploadSession(input: CloudMusicSessionCrea
     const ownerSnapshot = input.owner?.snapshot ?? { displayName: ownerType };
 
     (await db.execute(`INSERT INTO cloud_music_tracks (
-        uuid, status, upload_state, status_reason, title, artist, created_at, updated_at, deleted_at
-      ) VALUES (?, 'temp', 'reserved', '', ?, '未知歌手', ?, ?, NULL)`, [input.uuid, path.basename(input.audio.fileName), now, now]));
+        uuid, status, upload_state, status_reason, title, artist, metadata_json, created_at, updated_at, deleted_at
+      ) VALUES (?, 'temp', 'reserved', '', ?, '未知歌手', '{}', ?, ?, NULL)`, [input.uuid, path.basename(input.audio.fileName), now, now]));
 
     (await reserveAssetWithDb(db, {
       ...input.audio,
@@ -450,8 +450,10 @@ export async function confirmCloudMusicAsset(input: CloudMusicAssetConfirmInput)
     (await db.execute(`UPDATE cloud_music_assets
        SET state = 'uploaded', is_current = 1, updated_at = ?
        WHERE id = ? AND deleted_at IS NULL`, [now, asset.id]));
+    if (input.parsed) {
+      (await updateDraftWithDb(db, asset.track_uuid, input.parsed, now));
+    }
     if (asset.kind === "audio") {
-      if (input.parsed) (await updateDraftWithDb(db, asset.track_uuid, input.parsed, now));
       (await db.execute(`UPDATE cloud_music_tracks
          SET upload_state = ?, status_reason = ?, updated_at = ?
          WHERE uuid = ? AND deleted_at IS NULL`, [nextUploadState, input.statusReason ?? "", now, asset.track_uuid]));
@@ -475,7 +477,6 @@ export async function readCloudMusicReservedAsset(fileRecordId: string): Promise
      WHERE a.file_record_id = ?
        AND a.state = 'pending'
        AND a.deleted_at IS NULL
-       AND t.status = 'temp'
        AND t.deleted_at IS NULL
        AND f.status = 'pending'
        AND f.deleted_at IS NULL`, [fileRecordId])) as ReservedAssetRow | undefined;

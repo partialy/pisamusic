@@ -42,7 +42,7 @@ class PlayerCoverStageLayout @JvmOverloads constructor(
             addUpdateListener { setCloseProgress(it.animatedValue as Float) }
         }
         val open = ValueAnimator.ofFloat(1f, 0f).apply {
-            startDelay = 1_500L
+            startDelay = 1_000L
             duration = 1_000L
             interpolator = FastOutSlowInInterpolator()
             addUpdateListener { setCloseProgress(it.animatedValue as Float) }

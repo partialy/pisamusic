@@ -21,7 +21,7 @@
             android:id="@+id/miniPlayerCover"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/ic_pisa_round_24"
+            android:src="@drawable/default_music_cover"
             app:shapeAppearanceOverlay="@style/CircleShape" />
 
         <TextView

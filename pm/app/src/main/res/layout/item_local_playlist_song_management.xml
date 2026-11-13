@@ -29,7 +29,7 @@
         app:layout_constraintStart_toEndOf="@id/selectionCheckBox"
         app:layout_constraintTop_toTopOf="parent"
         app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Small"
-        tools:src="@drawable/ic_pm_icon" />
+        tools:src="@drawable/default_music_cover" />
 
     <TextView
         android:id="@+id/titleTextView"

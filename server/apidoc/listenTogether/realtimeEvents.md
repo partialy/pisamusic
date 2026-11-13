@@ -53,3 +53,10 @@ interface ListenTogetherBroadcast<T> {
 | `PROGRESS_SYNC` | `{ position, serverTime, status }` | 房主周期性校准广播 |
 | `SYNC_RESPONSE` | `{ room, serverTime }` | 房间快照全量对齐 |
 | `QUEUE_EVENT` | `{ ...queueEventData }` | 房间共享队列同步 |
+
+## 云盘歌曲与队列转发约束
+
+- 歌曲 `source` 支持 `kg/qq/wy/kw/cloud`，禁止 `local`；`cloud` 的 `id` 为共享曲库 UUID，`urlParam` 固定为该 UUID。
+- `song` 始终清空 `url` 并剔除 `filePath`。每台设备通过 `/api/cloud-music/tracks/:uuid/play-url` 独立取签名链接；云盘停用/删除后的取链失败仅影响本机播放，不改变房间权威歌曲。
+- 队列载荷为 `{roomId,data:{kind,targetUserId?,...}}`，`kind` 只允许 `SNAPSHOT_REQUEST/SNAPSHOT_CHUNK/QUEUE_COMMAND/QUEUE_DELTA`；快照与增量仅房主可发，命令受成员操作开关约束。转发按字段白名单裁剪，不允许夹带签名 URL 或路径；所有嵌套歌曲采用同一歌曲校验。
+- 快照片最多 200 项；服务端不持久化队列，`QUEUE_EVENT.version` 恒为 0，排序使用 `queueVersion`。

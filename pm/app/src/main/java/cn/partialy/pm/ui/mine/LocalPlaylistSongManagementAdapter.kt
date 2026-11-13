@@ -64,8 +64,9 @@ class LocalPlaylistSongManagementAdapter(
             val coverData = SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_SMALL)
             binding.coverImageView.load(coverData) {
                 crossfade(true)
-                placeholder(R.drawable.ic_pm_icon)
-                error(R.drawable.ic_pm_icon)
+                placeholder(R.drawable.default_music_cover)
+                error(R.drawable.default_music_cover)
+                fallback(R.drawable.default_music_cover)
             }
         }
     }

@@ -1,6 +1,6 @@
 # 编辑并保存网盘音乐 (管理后台)
 
-管理员编辑草稿中的四个字段（歌名、歌手、专辑、时长），并保存为正式业务状态（`active`、`disabled` 或 `offline`）。首次保存将曲目由 `temp` 转为正式状态。
+管理员编辑或确认网盘音乐的元数据（歌名、歌手、专辑、时长及可选音频技术规格），并保存为正式业务状态（`active`、`disabled` 或 `offline`）。首次保存将曲目由 `temp` 转为正式状态。
 
 - **请求方法**：`PUT`
 - **请求路径**：`/api/admin/cloud-music/:uuid`
@@ -27,6 +27,13 @@
 | `durationMs` | `number` | 是 | 时长（毫秒），0 至 86400000 |
 | `status` | `string` | 是 | 目标状态：`active`、`disabled` 或 `offline` |
 | `statusReason` | `string` | 否 | 状态原因说明 |
+| `format` | `string` | 否 | 音频格式（可选更新） |
+| `codec` | `string` | 否 | 编码器（可选更新） |
+| `bitrate` | `number` | 否 | 比特率（可选更新） |
+| `sampleRate` | `number` | 否 | 采样率（可选更新） |
+| `channels` | `number` | 否 | 声道数（可选更新） |
+| `year` | `number \| null` | 否 | 年份（可选更新） |
+| `trackNo` | `number \| null` | 否 | 音轨号（可选更新） |
 
 ---
 
