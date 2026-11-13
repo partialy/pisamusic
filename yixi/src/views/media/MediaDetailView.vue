@@ -258,6 +258,7 @@ const collected = computed(() => {
 const coverUrl = computed(() => {
   if (song.value) return getSongCover(song.value, 720);
   if (!playlist.value) return defaultSongCover;
+  if (playlist.value.source === "local") return playlist.value.cover || defaultPlaylistCover;
   return getSongCover(playlist.value, 720, defaultPlaylistCover);
 });
 

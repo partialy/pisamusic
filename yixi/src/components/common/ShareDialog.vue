@@ -193,6 +193,7 @@ const cover = computed(() => {
   const current = target.value;
   if (!current) return defaultSongCover;
   if (current.type === "song") return getSongCover(current.data, 480);
+  if (current.data.source === "local") return current.data.cover || defaultPlaylistCover;
   return getSongCover(current.data, 480, defaultPlaylistCover);
 });
 

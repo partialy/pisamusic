@@ -102,6 +102,7 @@ const songCover = computed(() => {
 const playlistCover = computed(() => {
   const target = playlist.value;
   if (!target) return defaultPlaylistCover;
+  if (target.source === "local") return target.cover || defaultPlaylistCover;
   return getSongCover(target, 480, defaultPlaylistCover);
 });
 const songPath = computed(() => {
