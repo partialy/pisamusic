@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { PlaylistPlayIcon, CollectIcon, MoreIcon } from "@/icons";
 import type { Song } from "@/types/song";
-import { getKgImage } from "@/utils/common";
+import { getSongCover } from "@/utils/common";
 import { computed } from "vue";
 const props = defineProps<{
   song: Song;
@@ -44,11 +44,7 @@ const emit = defineEmits<{
 }>();
 
 const cover = computed(() => {
-  if(props.song.source == "kg") {
-    return getKgImage(props.song.cover, 120);
-  } else {
-    return props.song.coverSize?.s || props.song.cover;
-  }
+  return getSongCover(props.song, 240);
 });
 
 const handleCollect = () => {

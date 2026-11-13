@@ -78,7 +78,7 @@ import { NIcon } from "naive-ui";
 import { Info, X } from "lucide-vue-next";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { useCollectStore } from "@/store";
-import { defaultSongCover, getKgImage, getSongCover } from "@/utils/common";
+import { defaultSongCover, getSongCover } from "@/utils/common";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 
 type DetailFieldItem = {
@@ -97,13 +97,12 @@ const dialogTitle = computed(() => (song.value ? "歌曲详情" : "歌单详情"
 const songCover = computed(() => {
   if (!song.value) return defaultSongCover;
   if (song.value.source === "local" && localCover.value) return localCover.value;
-  return getSongCover(song.value, 240);
+  return getSongCover(song.value, 480);
 });
 const playlistCover = computed(() => {
   const target = playlist.value;
   if (!target) return defaultPlaylistCover;
-  if (target.source === "kg") return getKgImage(target.cover, 240);
-  return target.coverSize?.m || target.cover || defaultPlaylistCover;
+  return getSongCover(target, 480, defaultPlaylistCover);
 });
 const songPath = computed(() => {
   const target = song.value;

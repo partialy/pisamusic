@@ -139,7 +139,7 @@ import { NButton, NIcon } from "naive-ui";
 import QrcodeVue from "qrcode.vue";
 import { Check, Copy, ExternalLink, ListMusic, Music, Radio, Sparkles, X } from "lucide-vue-next";
 import type { CommonPlaylist, Song } from "@/types/song";
-import { defaultSongCover, getKgImage, getSongCover } from "@/utils/common";
+import { defaultSongCover, getSongCover } from "@/utils/common";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { createPlaylistShare, createSongShare } from "@/share/shareApi";
 import { useUserStore } from "@/store";
@@ -192,9 +192,8 @@ const description = computed(() => {
 const cover = computed(() => {
   const current = target.value;
   if (!current) return defaultSongCover;
-  if (current.type === "song") return getSongCover(current.data, 240);
-  if (current.data.source === "kg") return getKgImage(current.data.cover, 240);
-  return current.data.coverSize?.m || current.data.cover || defaultPlaylistCover;
+  if (current.type === "song") return getSongCover(current.data, 480);
+  return getSongCover(current.data, 480, defaultPlaylistCover);
 });
 
 function openForSong(song: Song) {

@@ -42,7 +42,7 @@
           @dblclick="handlePlay(song)"
           @contextmenu.stop="openSongMenu($event, song)">
           <div class="cover-wrap">
-            <img :src="getSongCover(song, 120)" :alt="song.name" />
+            <img :src="getSongCover(song, 240)" :alt="song.name" />
             <button
               type="button"
               class="cover-play"

@@ -81,7 +81,7 @@ const playlistOptions = computed(() =>
     value: playlist.id,
   }))
 );
-const coverUrl = computed(() => song.value ? getSongCover(song.value) : defaultSongCover);
+const coverUrl = computed(() => song.value ? getSongCover(song.value, 480) : defaultSongCover);
 
 watch(
   playlistOptions,

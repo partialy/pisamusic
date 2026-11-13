@@ -16,7 +16,7 @@
       <n-image
         lazy
         preview-disabled
-        :src="getSongCover(song, 120)"
+        :src="getSongCover(song, 240)"
         :fallback-src="defaultSongCover"
         class="image" />
     </div>

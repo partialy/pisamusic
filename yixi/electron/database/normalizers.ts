@@ -1,3 +1,4 @@
+import { normalizeCoverOriginal } from "../../src/utils/songCoverUrl";
 import type { PlaylistSnapshot, PlaylistSource, TrackSnapshot } from "./types";
 
 export function favoriteKey(source: string, id: string) {
@@ -26,7 +27,7 @@ export function normalizePlaylistSnapshot(input: Partial<PlaylistSnapshot> | Rec
     source,
     name: toStringValue(input.name),
     desc: toStringValue(input.desc),
-    cover: toStringValue(input.cover),
+    cover: normalizeCoverOriginal(source, toStringValue(input.cover)),
     tags: normalizePlaylistTags(input.tags),
   };
 
@@ -105,7 +106,7 @@ export function normalizeTrackSnapshot(input: TrackSnapshot | Record<string, unk
     name: toStringValue(input.name),
     singer: toStringValue(input.singer),
     album: toStringValue(input.album),
-    cover: toStringValue(input.cover),
+    cover: normalizeCoverOriginal(source, toStringValue(input.cover)),
     duration: normalizeDuration(input.duration),
   };
 

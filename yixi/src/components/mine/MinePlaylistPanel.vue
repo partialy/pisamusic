@@ -61,7 +61,7 @@ import { computed, ref } from "vue";
 import { NButton, NEmpty, NIcon, NTabPane, NTabs } from "naive-ui";
 import { Plus, RefreshCw } from "lucide-vue-next";
 import type { CommonPlaylist } from "@/types/song";
-import { getKgImage } from "@/utils/common";
+import { getSongCover } from "@/utils/common";
 import { useMineLibraryStore } from "@/store";
 import { useRouter } from "vue-router";
 import ContextMenu from "@/components/common/ContextMenu.vue";
@@ -97,8 +97,7 @@ function openContextMenu(event: MouseEvent, playlist: CommonPlaylist) {
 
 function getPlaylistCover(playlist: CommonPlaylist) {
   if (playlist.source === "local") return playlist.cover || defaultCover;
-  if (playlist.source === "kg") return getKgImage(playlist.cover, 240);
-  return playlist.coverSize?.m || playlist.cover || defaultCover;
+  return getSongCover(playlist, 480, defaultCover);
 }
 
 function sourceLabel(source: CommonPlaylist["source"]) {

@@ -115,7 +115,7 @@ const selectedQualityOption = computed(() => {
     getQualityOption(qualityKey.value) ||
     null;
 });
-const coverUrl = computed(() => song.value ? getSongCover(song.value) : defaultSongCover);
+const coverUrl = computed(() => song.value ? getSongCover(song.value, 480) : defaultSongCover);
 
 async function open(target: Song | null | undefined) {
   if (!target) {

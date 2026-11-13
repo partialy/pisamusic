@@ -1,8 +1,7 @@
-import type { Song } from "@/types/song";
 import { NIcon } from "naive-ui";
 import { h, type Component } from "vue";
 import defaultCover from "@/assets/images/default-cover.png";
-import { getKgImageUrl, getSongCoverUrl, getWyCoverUrl } from "./songCoverUrl";
+import { getKgImageUrl, getSongCoverUrl, getWyCoverUrl, getWyCoverSizeUrl, normalizeCoverOriginal } from "./songCoverUrl";
 interface IconOptions {
   style?: Record<string, string | number>;
   class?: string | Record<string, boolean> | Array<string>;
@@ -43,7 +42,7 @@ export function renderIcon(
  */
 export function getKgImage(
   url?: string,
-  size: 120 | 240 | 360 | 480 = 120
+  size: number = 240
 ): string {
   return getKgImageUrl(url, size, defaultCover);
 }
@@ -99,18 +98,18 @@ export function debounce(fn: Function, delay: number) {
 /**
  * 获取歌曲封面
  * @param song 歌曲对象
- * @param size 图片等级
+ * @param size 请求像素尺寸
  * @returns 图片的url
  */
-export function getSongCover(song: Song, size: number = 120) {
-  return getSongCoverUrl(song, size, defaultCover);
+export function getSongCover(song: Parameters<typeof getSongCoverUrl>[0], size: number = 240, fallback = defaultCover) {
+  return getSongCoverUrl(song, size, fallback);
 }
 
 export const defaultSongCover = defaultCover;
 
 export const kgUtils = {
   getCoverUrl: (item: any): string => {
-    return (
+    return normalizeCoverOriginal("kg", (
       item.sizable_cover ||
       item.flexible_cover ||
       item.Image ||
@@ -122,7 +121,7 @@ export const kgUtils = {
       item.pic ||
       (item.album || item.al)?.picUrl ||
       item.al?.xInfo?.picUrl
-    );
+    ));
   },
 };
 
@@ -142,29 +141,7 @@ export const wyUtils = {
 
   // 获取图片不同尺寸
   getCoverSizeUrl: (url: string, size: number | null = null) => {
-    try {
-      if (!url) return defaultCover;
-      const sizeUrl = size
-        ? typeof size === "number"
-          ? `?param=${size}y${size}`
-          : `?param=${size}`
-        : "";
-      const imageUrl = url?.replace(/^http:/, "https:");
-      if (imageUrl.endsWith(".jpg")) {
-        return imageUrl + sizeUrl;
-      }
-      if (imageUrl.endsWith("&")) {
-        const url = imageUrl + "cl";
-        return url.replace(
-          /(thumbnail=[0-9]+y[0-9]+&cl)/,
-          `thumbnail=${size}y${size}&`
-        );
-      }
-      return imageUrl;
-    } catch (error) {
-      console.error("图片链接处理出错：", error);
-      return defaultCover;
-    }
+    return getWyCoverSizeUrl(url, size, defaultCover);
   },
 };
 

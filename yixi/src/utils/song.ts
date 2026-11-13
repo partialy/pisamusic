@@ -1,3 +1,4 @@
+import { normalizeCoverOriginal } from "./songCoverUrl";
 import type { Song } from "@/types/song";
 
 type SongSource = Song["source"];
@@ -21,7 +22,7 @@ export function normalizeSong(input: SongInput): Song {
     name: toStringValue(raw.name),
     singer: toStringValue(raw.singer),
     album: toStringValue(raw.album),
-    cover: toStringValue(raw.cover),
+    cover: normalizeCoverOriginal(source, toStringValue(raw.cover)),
     duration: normalizeDuration(raw.duration),
   };
 

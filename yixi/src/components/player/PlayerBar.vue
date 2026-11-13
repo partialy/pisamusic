@@ -203,7 +203,7 @@ const currentQualityKey = computed(() => player.getPreferredQualityKey(currentSo
 const currentQualityOption = computed(() => {
   return getQualityOption(currentQualityKey.value) || qualityOptions.value[0] || null;
 });
-const imgSrc = useSongCoverUrl(currentSong);
+const { coverUrl: imgSrc } = useSongCoverUrl(currentSong);
 
 const currentLyricText = computed(() => {
   const text = getLyricLineText(lyric.currentLine);

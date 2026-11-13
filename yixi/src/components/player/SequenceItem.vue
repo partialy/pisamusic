@@ -43,7 +43,7 @@ const props = defineProps<{
 }>()
 
 const cover = computed(() => {
-    return getSongCover(props.item, 120)
+    return getSongCover(props.item, 240)
 })
 
 const name = computed(() => {

@@ -64,7 +64,7 @@
 import { computed, ref } from "vue";
 import { NImage, NButton, NIcon, NText, NTooltip, NCheckbox } from "naive-ui";
 import { CollectIcon, PlaylistPlayIcon } from "@/icons";
-import { getKgImage } from "@/utils/common";
+import { getSongCover } from "@/utils/common";
 import { useRouter } from "vue-router";
 import type { CommonPlaylist } from "@/types/song";
 import { useCollectStore } from "@/store/collect";
@@ -84,11 +84,7 @@ const emit = defineEmits<{
 }>();
 
 const cover = computed(() => {
-  if(props.item.source == "kg") {
-    return getKgImage(props.item.cover, 240);
-  } else {
-    return props.item.coverSize?.m || props.item.cover;
-  }
+  return props.item.source === "local" ? props.item.cover : getSongCover(props.item, 480);
 });
 
 const playCount = computed(() => {

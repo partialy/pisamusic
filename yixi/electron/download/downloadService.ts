@@ -1,3 +1,4 @@
+import { nativeImage } from "electron";
 import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
@@ -13,7 +14,7 @@ import type {
 import { fetchLyrics, resolvePlayableUrl } from "../music/musicService";
 import { getCurrentQualityAccessLevel } from "../music/qualityAccess";
 import { normalizeQualityKeyForAccess } from "../../src/musicQuality/musicQualityPolicy";
-import { getSongCoverUrl } from "../../src/utils/songCoverUrl";
+import { getSongCoverCandidates } from "../../src/utils/songCoverUrl";
 import { writeAudioMetadata } from "./audioMetadataWriter";
 
 type DownloadTrackPayload = {
@@ -479,24 +480,24 @@ function sidecarPaths(cacheRoot: string, directory: string, baseName: string): S
     metadataJsonPath: path.join(cacheRoot, `${baseName}.json`),
     lyricPath: path.join(cacheRoot, `${baseName}.lrc`),
     finalLyricPath: path.join(directory, `${baseName}.lrc`),
-    coverPath: path.join(cacheRoot, `${baseName}.jpg`),
+    coverPath: path.join(cacheRoot, `${baseName}.png`),
   };
 }
 
 async function fetchCover(song: TrackSnapshot): Promise<CoverAsset | null> {
-  const coverUrl = pickCoverUrl(song);
-  if (!coverUrl || !coverUrl.startsWith("http")) return null;
-  const response = await fetch(coverUrl);
-  if (!response.ok) return null;
-  const mimeType = response.headers.get("content-type") || "image/jpeg";
-  return {
-    data: Buffer.from(await response.arrayBuffer()),
-    mimeType,
-  };
-}
-
-function pickCoverUrl(song: TrackSnapshot) {
-  return getSongCoverUrl(song, 480);
+  for (const url of getSongCoverCandidates(song, 1024)) {
+    if (!/^https?:/.test(url)) continue;
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!response.ok) continue;
+      const data = Buffer.from(await response.arrayBuffer());
+      // 校验实际可解码图片，拒绝 HTML/JSON 错误页；统一 PNG 与标签 MIME。
+      const image = nativeImage.createFromBuffer(data);
+      if (image.isEmpty()) continue;
+      return { data: image.toPNG(), mimeType: "image/png" };
+    } catch { /* 封面失败降档，不阻断音频下载 */ }
+  }
+  return null;
 }
 
 function inferAudioExtension(url: string, contentType: string | null, qualityKey: string) {

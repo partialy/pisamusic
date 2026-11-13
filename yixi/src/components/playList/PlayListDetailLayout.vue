@@ -122,7 +122,7 @@ import {
 import { computed, onMounted, ref, watch } from "vue";
 
 import type { KGPlaylistDetailData } from "@/utils/webapi";
-import { debounce, getKgImage } from "@/utils/common";
+import { debounce, getSongCover } from "@/utils/common";
 import SearchIcon from "@/icons/header/SearchIcon.vue";
 import { CollectIcon, PlayStatic } from "@/icons";
 import { useAudioStore, useCollectStore } from "@/store";
@@ -165,11 +165,7 @@ const detailCover = computed(() => {
   if (origin === "local") {
     return listDetail.value?.cover || defaultPlaylistCover;
   }
-  if (origin == "wy") {
-    return listDetail.value?.coverSize?.l || listDetail.value?.cover;
-  } else {
-    return getKgImage(listDetail.value?.cover, 240);
-  }
+  return listDetail.value ? getSongCover(listDetail.value, 720, defaultPlaylistCover) : defaultPlaylistCover;
 });
 
 function getDetailOrigin(): DetailOrigin {

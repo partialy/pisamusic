@@ -55,7 +55,7 @@ function convertWyUserPlaylists(response: unknown): CommonPlaylist[] {
 
 function normalizeKgCover(cover: string) {
   if (!cover) return "";
-  return cover.replace("{size}", "400");
+  return cover;
 }
 
 function scalar(value: unknown) {

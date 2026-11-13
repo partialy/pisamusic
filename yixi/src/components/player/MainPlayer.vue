@@ -153,7 +153,7 @@ import { Disc3, Settings } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useAudioStore, useCommonStore, useLyricStore } from '@/store';
 import { ControlPanel, SpectrumVisualizer } from '.';
-import { defaultSongCover } from '@/utils/common';
+
 import { AMLyric, CommonLyric } from '.';
 import { LyricIcon, CloseIcon, MiniWindowIcon, RestoreIcon, ScaleIcon } from '@/icons';
 import electronAPI from '@/utils/electron';
@@ -183,7 +183,7 @@ const AMLyricView = computed(() => {
     return Boolean(currentSong.value?.id && lyricStore.hasLyric && lyricStore.setting.useAMLyric)
 })
 
-const coverUrl = useSongCoverUrl(currentSong, 360)
+const { coverUrl, onCoverError } = useSongCoverUrl(currentSong, 1024)
 
 const lyricCustomBgStyle = computed(() => {
     const blur = lyricStore.setting.backgroundBlur ?? 0;
@@ -251,10 +251,8 @@ watch([() => currentSong.value?.id, () => lyricStore.hasLyric, () => showLyric.v
 })
 
 const handleCoverError = (event: Event) => {
-    const image = event.target as HTMLImageElement | null
-    if (!image || image.dataset.fallbackCover === "true") return
-    image.dataset.fallbackCover = "true"
-    image.src = defaultSongCover
+    const image = event.target as HTMLImageElement;
+    if (image.getAttribute("src") === coverUrl.value) onCoverError();
 }
 
 const isMouseActive = ref(true);

@@ -1,3 +1,4 @@
+import { normalizeCoverOriginal } from "./songCoverUrl";
 import type { CommonPlaylist } from "@/types/song";
 
 type PlaylistSource = CommonPlaylist["source"];
@@ -20,7 +21,7 @@ export function normalizePlaylist(input: PlaylistInput): CommonPlaylist {
     source,
     name: toStringValue(raw.name),
     desc: toStringValue(raw.desc),
-    cover: toStringValue(raw.cover),
+    cover: normalizeCoverOriginal(source, toStringValue(raw.cover)),
     tags: normalizeTags(raw.tags),
   };
 

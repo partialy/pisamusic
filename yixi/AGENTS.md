@@ -378,3 +378,9 @@
 - 验证命令：
   - 单元测试：`pnpm --dir yixi test:desktop-lyric`（覆盖 DTO 归一化、SQLite Repository、多屏边界、时钟同步、Canvas 渲染与排版几何）。
   - 编译与全量检查：`pnpm --dir yixi build:t`。
+
+## 封面 URL 与尺寸规则补充
+
+- main/renderer 共用 `src/utils/songCoverUrl.ts` 纯规则；KG 持久化保留原始 `{size}` 模板，旧 KG CDN 固定尺寸路径仅在请求时兼容，不批量改写历史数据。未知域名 URL 保持原样。
+- 请求尺寸统一使用实际像素：歌曲行、队列、底栏 240；卡片与弹窗 480；详情 720；大播放器和下载优先 1024。WY 通过 query `param=<size>y<size>` 设置，保留其他参数；旧 `coverSize` 仅作兼容读取，不新增协议。
+- 大播放器与下载使用 1024→720→480→240 候选降档并去重；本地内嵌封面和默认资源保留原链路。下载封面有独立超时，nativeImage 解码校验后统一 PNG，封面失败不阻断音频。

@@ -214,7 +214,7 @@ import DownloadSongDialog from "@/components/player/DownloadSongDialog.vue";
 import { useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { useSongDownload } from "@/composables/useSongDownload";
-import { defaultSongCover, formatDuration, getKgImage, getSongCover } from "@/utils/common";
+import { defaultSongCover, formatDuration, getSongCover } from "@/utils/common";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { getPublicShare } from "@/share/shareApi";
 import {
@@ -256,10 +256,9 @@ const collected = computed(() => {
 });
 
 const coverUrl = computed(() => {
-  if (song.value) return getSongCover(song.value, 480);
+  if (song.value) return getSongCover(song.value, 720);
   if (!playlist.value) return defaultSongCover;
-  if (playlist.value.source === "kg") return getKgImage(playlist.value.cover, 480);
-  return playlist.value.coverSize?.l || playlist.value.cover || defaultPlaylistCover;
+  return getSongCover(playlist.value, 720, defaultPlaylistCover);
 });
 
 const metaItems = computed(() => {

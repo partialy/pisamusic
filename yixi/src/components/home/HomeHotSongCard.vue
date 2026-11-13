@@ -29,7 +29,7 @@
         class="hot-song"
         @dblclick="emit('play', song)">
         <span class="rank">TOP{{ index + 1 }}</span>
-        <img class="cover" :src="getSongCover(song, 120)" :alt="song.name" />
+        <img class="cover" :src="getSongCover(song, 240)" :alt="song.name" />
         <span class="song-info">
           <span class="song-name">{{ song.name }}</span>
           <span class="song-meta">{{ song.singer }} · {{ formatDuration(song.duration) }}</span>
