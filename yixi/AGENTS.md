@@ -392,5 +392,5 @@
 - `embedDownloadTags/embedDownloadCover/embedDownloadLyrics` 独立控制普通歌曲标签、封面和内嵌歌词，关闭即跳过该类写入，保留音频原有资产；音源自定义标记仍兼容写入，不增加 pm-info。
 - `electron/download/downloadLyrics.ts` 按实际语法识别 KG KRC / WY YRC / LRC，复用 `LyricParser` 转标准逐行 LRC供内嵌。外置逐字缺失回退 LRC，全部模式保存实际可用逐字版本及逐行版本，不用 `.lrc` 冒充逐字格式。
 - 歌词 sidecar 使用音频最终 basename 与真实扩展名，排除已有音频/歌词命名冲突，独占创建避免覆盖；下载缓存使用 taskId 隔离并发。sidecar 失败记录可选资产警告，不影响已落盘音频成功状态。
-- 多歌词路径放在下载记录 `payload.downloadLyricPaths`，兼容旧 `lyricPath`，不新增数据库列；从列表移除不删文件，现有删除音频流程只清理记录中与音频同目录同 basename 的 `.lrc/.krc/.yrc`。当前无取消下载 IPC，不新增管理能力。
+- 多歌词路径放在下载记录 `payload.downloadLyricPaths`，兼容旧 `lyricPath`，不新增数据库列；从列表移除不删文件，现有删除音频流程只清理记录中与音频同目录同 basename 且未被其他音频下载记录引用的 `.lrc/.krc/.yrc`（旧 `lyricPath` 与多路径字段均参与引用保护）。当前无取消下载 IPC，不新增管理能力。
 - MP3 自定义 UTF-16 帧各字符串补 BOM；普通标签库重写歌词帧时，关闭歌词写入须恢复原 USLT，FLAC/M4A 同样不得删除既有歌词。
