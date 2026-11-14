@@ -7,6 +7,16 @@ const localId = new RegExp(`^${uuid}:${uuid}$`, "i");
 const identifier = /^[a-zA-Z0-9][a-zA-Z0-9:_-]{0,127}$/;
 const localFields = new Set(["source", "id", "urlParam", "name", "singer", "album", "duration", "cover", "sortOrder"]);
 
+function containsPrivateLocation(value: string): boolean {
+  const text = value.trim();
+  // 分隔符本身可以出现在歌名/歌手中，只拦绝对路径及 URI 形态。
+  return /^[\\/]\S/.test(text)
+    || /\b[a-z]:[\\/]/i.test(text)
+    || /(?:^|\s)\\\\\S/.test(text)
+    || /(?:^|[\s("'=])[/\\](?:[^/\\\s]+[/\\])+[^/\\\s]+/.test(text)
+    || /\b(?:file|content):|\b[a-z][a-z0-9+.-]*:\/\//i.test(text);
+}
+
 export function playlistId(itemKey: string): string | null {
   const separator = itemKey.indexOf("|");
   return separator > 0 ? itemKey.slice(0, separator) : null;
@@ -53,7 +63,7 @@ export function validateSyncPayload(change: SyncChangeInput): void {
   for (const [field, value] of Object.entries(p)) {
     if (!localFields.has(field)) throw new SyncValidationError(`LOCAL 不允许字段 ${field}`);
     if (["name", "singer", "album"].includes(field)
-      && (typeof value !== "string" || value.length > 512 || /(?:[a-z]:[\\/]|file:|content:|https?:|[/\\])/i.test(value)))
+      && (typeof value !== "string" || value.length > 512 || containsPrivateLocation(value)))
       throw new SyncValidationError(`LOCAL ${field} 必须是无路径的公开文本`);
   }
   if (p.duration !== undefined && (typeof p.duration !== "number" || !Number.isFinite(p.duration) || p.duration < 0))

@@ -15,7 +15,7 @@
 - 账号接口：`/api/auth/email-code` 与 `/api/auth/phone-code` 发送注册/登录/重置密码验证码；`/api/auth/register` 支持邮箱或手机号注册；`/api/auth/login/password` 支持用户名/邮箱/手机号+密码登录；`/api/auth/login/code` 支持邮箱或手机号验证码登录，未注册联系人校验成功后自动注册；`/api/auth/password/change` 登录态修改密码；`/api/auth/password/reset` 支持邮箱或手机号验证码重置密码；`/api/auth/refresh` 刷新 7 天 token；`/api/auth/me` 获取当前账号；`/api/auth/profile/email-code`、`/api/auth/profile/phone-code` 和 `PATCH /api/auth/profile` 修改资料或绑定手机号。
 - 同步接口：`/api/sync/changes` 通过账号 token 拉取/推送增量，DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准；旧同步码创建、加入、重置和解绑设备接口已移除。
 - 歌单同步扩展统一使用 `sortOrder?:number|null`、`coverResource?:{resourceId:string}|null`、`coverPreset?:string|null`；缺字段保留、null清除，基础字段仍覆盖，delete不合并。排序同位按外层权威version再trackKey；封面类型切换显式清互斥字段，旧端仍读取cover。P1只校验资源形状，后续封面服务补归属/生命周期。
-- LOCAL仅同步自建歌单安全占位：source=local，id为deviceScopeUuid:localSongUuid，urlParam=id，itemKey为playlistId|local:id；私有播放ID与文件映射留客户端，不传路径/URI/歌词/Token/临时链接。白名单及长度见[推送契约](../server/apidoc/sync/pushSyncChanges.md#歌单扩展与-local-占位p1)。
+- LOCAL仅同步自建歌单安全占位：source=local，id为deviceScopeUuid:localSongUuid，urlParam=id，itemKey为playlistId|local:id；私有播放ID与文件映射留客户端，不传真实绝对路径/盘符路径/UNC/URI/歌词/Token/临时链接；公开元信息允许普通斜杠或反斜杠（如AC/DC），不得要求改写名称。白名单及长度见[推送契约](../server/apidoc/sync/pushSyncChanges.md#歌单扩展与-local-占位p1)。
 - 父歌单delete同事务派生所有存活曲目墓碑；最终父墓碑阻止迟到/同批子upsert，不依赖输入顺序。派生日志各占权威version，并使用父opId与实体身份确定性派生的独立opId。accepted/skipped仅计输入，不能据push版本推进pull游标。
 - 收藏歌曲同步 payload 可选 `favoritedAt`（毫秒时间戳），表示收藏关系的创建时间；新增和 seed 从持久化记录取值，下行用于排序，缺失兼容旧端。元数据更新不得无故重置收藏时间。
 - 新端以 `protocol=2` 拉取同步；`mode=delta` 按实际返回的日志版本推进游标，不能直接跳到账号全局 `version` 或 push 返回版本。`mode=snapshot` 必须完整收集同一 `snapshotVersion` 的全部分页后再对账，版本变化时重启；快照含有的项更新、本地多余且无 pending 的项移除，未完成分页不能删除本地数据。同账号同 key 的本机待同步操作优先。
