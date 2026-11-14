@@ -29,6 +29,7 @@ export default function ShareRecordDetail({ id, revision, onClose }: { id: strin
         <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }} items={[
           { key: "code", label: "短码 / 状态", children: `${record.code} / ${record.valid ? "有效" : "已失效"}` },
           { key: "user", label: "分享人", children: `${record.userName || (record.userId ? record.userId : "游客")}${record.userMissing ? "（已注销）" : ""}` },
+          { key: "source", label: "分享来源", children: record.deviceKind === "desktop" ? "PC" : "Android" },
           { key: "device", label: "设备", children: `${record.deviceName || record.deviceKind} · ${record.deviceId}${record.deviceMissing ? "（设备不存在）" : ""}` },
           { key: "created", label: "首次分享", children: shareTime(record.createdAt) },
           { key: "visit", label: "最近访问", children: shareTime(record.lastVisitAt) },

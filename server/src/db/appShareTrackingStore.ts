@@ -6,7 +6,7 @@ import {
   insertDownloadRecord,
 } from "./analyticsStore";
 export type TrackingIdentity = {
-  deviceKind: "android";
+  deviceKind: "android" | "desktop";
   deviceId: string;
   userId: string | null;
   userName: string;
@@ -42,10 +42,11 @@ export async function trackingTransaction<T>(action: () => Promise<T>): Promise<
 export async function readTrackingCode(code: string): Promise<TrackingRow | undefined> {
   return (await getAppDb().queryOne("SELECT * FROM app_share_records WHERE code=? AND valid=1", [code])) as TrackingRow | undefined;
 }
-export async function readTrackingDeviceName(id: string): Promise<string> {
+export async function readTrackingDeviceName(id: string, kind: TrackingIdentity["deviceKind"] = "android"): Promise<string> {
+  const table = kind === "desktop" ? "desktop_device_info" : "device_info";
   return (
     (
-      (await getAppDb().queryOne("SELECT device_name FROM device_info WHERE id=?", [id])) as
+      (await getAppDb().queryOne(`SELECT device_name FROM ${table} WHERE id=?`, [id])) as
         | {
             device_name: string;
           }

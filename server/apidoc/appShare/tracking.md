@@ -29,7 +29,8 @@ Cookie仅保存匿名访客hash、版本和到期时间，不包含账号或设�
 
 | 字段 | 说明 |
 |---|---|
-| keyword | 短码、用户名/历史用户名、账号ID或设备ID，最多200字符 |
+| keyword | 短码、用户名/历史用户名、账号ID、设备ID或设备实时/历史名称，最多200字符 |
+| deviceKind | all（默认）/ android / desktop，分享链接生成来源；未知值或非单值字符串返回400 |
 | valid | true / false / all，默认all |
 | timeField | createdAt（默认）/ lastVisitAt / lastDownloadAt |
 | from,to | 按所选时间维度筛选，UTC毫秒，闭区间 |
@@ -38,9 +39,11 @@ Cookie仅保存匿名访客hash、版本和到期时间，不包含账号或设�
 
 data为 `{items,total,offset,limit,summary,trend}`。每项字段：id、code、userId（游客null）、userName、userMissing、deviceId、deviceKind、deviceName、deviceMissing、createdAt、lastRequestedAt、lastVisitAt、lastDownloadAt、valid、invalidatedAt、visitCount、visitUv、androidDownloadCount、desktopDownloadCount、downloadCount、url。
 
-账号/设备存在时显示实时名称，删除后显示历史展示快照；不保留Token或指纹。时间是毫秒或null。主记录长期保留，无级联删除。
+deviceKind为android或desktop，表示生成分享链接的设备来源；androidDownloadCount / desktopDownloadCount分别表示实际下载的平台，与分享来源独立，PC链接同样可以产生Android下载。
 
-summary为 `{total,validCount,invalidCount,visitCount,visitUv,androidDownloadCount,desktopDownloadCount,downloadCount,conversionRate}`。conversionRate=下载触发/PV，PV为0时null，可大于1。未筛选时visitUv为全站累计日UV；筛选记录后为所选短码累计日UV，不可标为全站独立访客。筛选根据记录时间维度选记录，统计为所选记录历史累计。
+账号/设备存在时显示实时名称，删除后显示历史展示快照；设备按kind限定关联各自设备表，不同表同ID互不混用；不保留Token或指纹。时间是毫秒或null。主记录长期保留，无级联删除。
+
+summary为 `{total,validCount,invalidCount,visitCount,visitUv,androidDownloadCount,desktopDownloadCount,downloadCount,conversionRate}`。conversionRate=下载触发/PV，PV为0时null，可大于1。未筛选时visitUv为全站累计日UV；按来源或其他条件筛选记录后为所选短码累计日UV，不可标为全站独立访客。筛选根据记录时间维度选记录，统计为所选记录历史累计。
 
 trend每项为 `{day,visitCount,visitUv,androidDownloadCount,desktopDownloadCount,downloadCount}`，day为上海自然日。无筛选时读取独立全站日报；有筛选时汇总选中短码日报。
 
@@ -58,4 +61,4 @@ visits项：eventId、visitDay、openedAt、receivedAt、referrerPath、userAgen
 
 ## GET /api/admin/app-share-records/export
 
-管理员JWT及AES-GCM；query与列表一致，忽略分页，导出当前筛选全部记录，返回加密JSON `data:{csv:string}`。CSV带UTF-8 BOM、北京时间、正确引号转义及Excel公式注入保护。仅包含分享人、账号ID、设备名称/ID、短码、创建时间、有效状态、PV、累计日UV、分平台/总下载触发；不导出IP、Token、设备指纹或访客hash。
+管理员JWT及AES-GCM；query与列表一致，忽略分页，导出当前筛选全部记录，返回加密JSON `data:{csv:string}`。CSV带UTF-8 BOM、北京时间、正确引号转义及Excel公式注入保护。仅包含分享人、账号ID、分享来源（Android/PC）、设备名称/ID、短码、创建时间、有效状态、PV、累计日UV、分平台/总下载触发；不导出IP、Token、设备指纹或访客hash。

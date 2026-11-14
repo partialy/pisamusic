@@ -43,7 +43,8 @@
 
 ## 管理接口的后端职责
 
-- Admin「运营与发布 → 分享记录」使用 `/api/admin/app-share-records` 提供筛选、排序、详情事件分页、趋势、CSV 导出和单向失效；失效记录保留，同身份再次获取产生新码，不支持删除、恢复或修改计数。生产部署需设置独立 `APP_SHARE_ATTRIBUTION_SECRET`，并由管理员通过现有内容管理发布推广隐私条款；不在数据库迁移中覆盖管理员政策，发布说明见 `docs/app-share/tracking-release.md`。
+- App推广沿用 `GET /api/config/app-share`，设备来源取权威DeviceToken的android/desktop；按kind+设备ID+账号/guest幂等，不同设备表同ID隔离。无设备Header保持旧通用配置兼容，有设备或显式账号凭证失效返回401且不降级游客；GET不计PV/UV。无需新增推广表/迁移。
+- Admin「运营与发布 → 分享记录」使用 `/api/admin/app-share-records` 提供筛选、排序、详情事件分页、趋势、CSV 导出和单向失效；deviceKind=all/android/desktop来源筛选贯通列表/汇总/趋势/CSV，双kind限定设备JOIN并在设备删除后回退展示快照。分享来源与实际Android/PC下载平台独立统计；失效记录保留，同身份再次获取产生新码，不支持删除、恢复或修改计数。生产部署需设置独立 `APP_SHARE_ATTRIBUTION_SECRET`，并由管理员通过现有内容管理发布推广隐私条款；不在数据库迁移中覆盖管理员政策，发布说明见 `docs/app-share/tracking-release.md`。
 - PC 发布页的“上传安装包到七牛云”和“PC 自动更新文件 / 安装包 EXE”必须联动复用同一七牛对象；上传任意一处的 EXE 后，需要自动同步另一处的下载地址、文件大小、`releaseFileId` 或 installer 资产状态。
 - 分享记录后台管理接口挂载在 `/api/admin/shares`，支持按 `type=song|playlist`、分享人关键词和 `valid=true|false|all` 分页筛选，并展示访问次数和最近更新时间；操作列可按现有 `/scan?type=music-share&uuid=<uuid>` 契约预览公开页或复制分享链接；单条分享只能通过 `PATCH /api/admin/shares/:uuid/invalid` 标记失效，必须保留 `share_records` 历史记录，不删除 `raw_json`，也不要改变 `GET /api/shares/public/:uuid` 的公开读取契约。
 - 一起听房间后台管理接口挂载在 `/api/admin/listen-together/*`，支持在线房间列表/详情、历史房间分页/详情以及在线房间安全解散（`POST /api/admin/listen-together/online/:recordId/dissolve`）；解散时向房间广播 `ROOM_DESTROYED`、清理成员映射和离线定时器，并在历史表记录 `admin_dissolved` 与操作管理员，不污染普通用户接口契约。

@@ -4,9 +4,9 @@
 
 ## GET /api/config/app-share
 
-原接口兼容扩展，强制明文白名单。无设备凭证返回通用配置且 `trackingEnabled=false`，不创建推广记录。带 `x-pm-device-token` 时必须校验为有效 Android 设备，若显式携带 Authorization 则严格校验账号JWT，无效凭证返回401，不降级游客。首次按设备+账号/guest幂等创建6位短码，后续复用。新版在原字段基础上增加 `shareCode`、`trackingEnabled=true`，`qrCodeText` 和 `copyText` 替换为带 code 的最终链接。
+原接口兼容扩展，强制明文白名单。无设备凭证返回通用配置且 `trackingEnabled=false`，不创建推广记录。带 `x-pm-device-token` 时必须校验为有效 Android / desktop 设备（来源由已签发设备Token的kind权威确定，不接受请求参数指定），若显式携带 Authorization 则严格校验账号JWT，无效凭证返回401，不降级游客。首次按设备来源+设备ID+账号/guest幂等创建6位短码，后续复用。新版在原字段基础上增加 `shareCode`、`trackingEnabled=true`，`qrCodeText` 和 `copyText` 替换为带 code 的最终链接。
 
-所有响应 `Cache-Control: private, no-store`，`Vary: Authorization, x-pm-device-token`；IP限流60秒60次。Android需显式传两个Header以避免guest误归属。`data`通用示例：
+所有响应 `Cache-Control: private, no-store`，`Vary: Authorization, x-pm-device-token`；IP限流60秒60次。Android / PC 登录态需显式传两个Header以避免guest误归属；游客仅传有效设备Header。无设备Header的旧调用即使带失效Bearer仍返回通用配置；设备Header存在但为空或失效，以及显式账号凭证失效，均401，不允许去掉凭证重试游客。GET仅获取配置/身份短码，不计PV或UV。`data`通用示例：
 
 ```json
 {"appName":"Pisa Music","version":"","iconUrl":"https://服务域名/static/app-share/default.png","description":"发现更多好音乐","qrCodeText":"https://pisamusic.partialy.cn/app-share/","copyText":"分享 Pisa Music，发现更多好音乐！\nhttps://pisamusic.partialy.cn/app-share/","updatedAt":0}

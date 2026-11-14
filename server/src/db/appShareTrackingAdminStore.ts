@@ -3,6 +3,7 @@ import { type TrackingRow } from "./appShareTrackingStore";
 import { getAnalyticsRetentionDays } from "./analyticsStore";
 export type TrackingFilters = {
   keyword?: string;
+  deviceKind?: "android" | "desktop";
   valid?: boolean;
   timeField: "createdAt" | "lastVisitAt" | "lastDownloadAt";
   from?: number;
@@ -11,8 +12,8 @@ export type TrackingFilters = {
   offset: number;
   limit: number;
 };
-const JOIN = ` FROM app_share_records r LEFT JOIN users u ON u.id=r.user_id LEFT JOIN device_info d ON d.id=r.device_id`;
-const SELECT = `SELECT r.*,u.username AS live_user_name,d.device_name AS live_device_name,COALESCE((SELECT SUM(visit_uv) FROM app_share_daily_stats s WHERE s.share_record_key=r.id AND s.platform_bucket='all'),0) AS visit_uv`;
+const JOIN = ` FROM app_share_records r LEFT JOIN users u ON u.id=r.user_id LEFT JOIN device_info d ON r.device_kind='android' AND d.id=r.device_id LEFT JOIN desktop_device_info dd ON r.device_kind='desktop' AND dd.id=r.device_id`;
+const SELECT = `SELECT r.*,u.username AS live_user_name,COALESCE(d.device_name,dd.device_name) AS live_device_name,COALESCE((SELECT SUM(visit_uv) FROM app_share_daily_stats s WHERE s.share_record_key=r.id AND s.platform_bucket='all'),0) AS visit_uv`;
 type AdminRow = TrackingRow & {
   live_user_name: string | null;
   live_device_name: string | null;
@@ -46,16 +47,20 @@ function dto(r: AdminRow) {
 function where(f: TrackingFilters) {
   const clauses: string[] = [];
   const args: (string | number)[] = [];
+  if (f.deviceKind !== undefined) {
+    clauses.push("r.device_kind=?");
+    args.push(f.deviceKind);
+  }
   if (f.valid !== undefined) {
     clauses.push("r.valid=?");
     args.push(f.valid ? 1 : 0);
   }
   if (f.keyword) {
     clauses.push(
-      "(r.code LIKE ? ESCAPE '\\' OR r.user_id LIKE ? ESCAPE '\\' OR r.device_id LIKE ? ESCAPE '\\' OR u.username LIKE ? ESCAPE '\\' OR r.user_snapshot_json LIKE ? ESCAPE '\\')",
+      "(r.code LIKE ? ESCAPE '\\' OR r.user_id LIKE ? ESCAPE '\\' OR r.device_id LIKE ? ESCAPE '\\' OR u.username LIKE ? ESCAPE '\\' OR r.user_snapshot_json LIKE ? ESCAPE '\\' OR COALESCE(d.device_name,dd.device_name) LIKE ? ESCAPE '\\' OR r.device_snapshot_json LIKE ? ESCAPE '\\')",
     );
     const q = `%${f.keyword.replace(/[\\%_]/g, "\\$&")}%`;
-    args.push(q, q, q, q, q);
+    args.push(q, q, q, q, q, q, q);
   }
   const column = {
     createdAt: "r.created_at",
@@ -150,6 +155,7 @@ export async function listTrackingRecords(f: TrackingFilters, exportAll = false)
   // 无筛选时读取独立全站UV；有身份筛选时按选中短码累计日UV，避免冒称全站独立访客。
   const filtered =
     !!f.keyword ||
+    f.deviceKind !== undefined ||
     f.valid !== undefined ||
     f.from !== undefined ||
     f.to !== undefined;

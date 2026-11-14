@@ -8,7 +8,7 @@ import ShareTrendTable from "../components/appShare/ShareTrendTable";
 import { glassCardClasses } from "../constants/theme";
 
 export default function AppShareRecordsPage() {
-  const [filter, setFilter] = useState<ShareFilter>({ valid: "all", timeField: "createdAt", sort: "createdAt" });
+  const [filter, setFilter] = useState<ShareFilter>({ deviceKind: "all", valid: "all", timeField: "createdAt", sort: "createdAt" });
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<ShareRecordPage | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +56,8 @@ export default function AppShareRecordsPage() {
     <Alert showIcon type="info" message="访问仅统计 /app-share/ 的有效页面上报；UV 为按北京时间去重的累计日 UV。下载为安装包跳转触发次数，不代表安装、注册或成功邀请。" />
     <Card className={glassCardClasses}>
       <Space wrap className="w-full">
-        <Input.Search allowClear placeholder="短码 / 用户名 / 账号 ID / 设备 ID" style={{ width: 270, maxWidth: "100%" }} onSearch={keyword => updateFilter({ keyword })} />
+        <Input.Search allowClear placeholder="短码 / 用户名 / 账号 ID / 设备名 / ID" style={{ width: 270, maxWidth: "100%" }} onSearch={keyword => updateFilter({ keyword })} />
+        <Select aria-label="分享来源" value={filter.deviceKind} style={{ width: 120 }} onChange={deviceKind => updateFilter({ deviceKind })} options={[{ value: "all", label: "全部来源" }, { value: "android", label: "Android" }, { value: "desktop", label: "PC" }]} />
         <Select aria-label="有效状态" value={filter.valid} style={{ width: 120 }} onChange={valid => updateFilter({ valid })} options={[{ value: "all", label: "全部状态" }, { value: "true", label: "有效" }, { value: "false", label: "已失效" }]} />
         <Select aria-label="时间维度" value={filter.timeField} style={{ width: 140 }} onChange={timeField => updateFilter({ timeField })} options={[{ value: "createdAt", label: "首次创建时间" }, { value: "lastVisitAt", label: "最近访问时间" }, { value: "lastDownloadAt", label: "最近下载时间" }]} />
         <DatePicker.RangePicker showTime placeholder={["开始时间", "结束时间"]} onChange={range => updateFilter({ from: range?.[0]?.valueOf(), to: range?.[1]?.valueOf() })} />
@@ -65,18 +66,19 @@ export default function AppShareRecordsPage() {
         <Button icon={<DownloadOutlined />} loading={exporting} onClick={async () => { setExporting(true); try { await exportShareRecords(filter); } catch (e) { void messageApi.error(e instanceof Error ? e.message : "导出失败"); } finally { setExporting(false); } }}>导出 CSV</Button>
         <Space><Switch checked={autoRefresh} onChange={setAutoRefresh} size="small" /><Typography.Text type="secondary">30 秒自动刷新</Typography.Text></Space>
       </Space>
-      <Typography.Paragraph type="secondary" className="!mt-3 !mb-0">时间筛选用于选取分享记录（创建 / 最近访问 / 最近下载），汇总和趋势展示命中链接的全历史统计。筛选后的 UV 为各短码累计日 UV 之和；无筛选时才是全站日去重 UV。时间展示为北京时间；范围选择按浏览器本地时间输入。</Typography.Paragraph>
+      <Typography.Paragraph type="secondary" className="!mt-3 !mb-0">分享来源表示生成链接的设备，与实际下载平台分别统计。时间筛选用于选取分享记录（创建 / 最近访问 / 最近下载），汇总和趋势展示命中链接的全历史统计。筛选后的 UV 为各短码累计日 UV 之和；无筛选时才是全站日去重 UV。时间展示为北京时间；范围选择按浏览器本地时间输入。</Typography.Paragraph>
     </Card>
     {error && <Alert type="error" showIcon message={error} />}
     <Row gutter={[12, 12]}>
       {[{ title: "分享链接", value: summary?.total, suffix: summary ? `（有效 ${summary.validCount} / 失效 ${summary.invalidCount}）` : "" },
-        { title: "访问 PV", value: summary?.visitCount }, { title: filter.keyword || filter.from || filter.to || filter.valid !== "all" ? "选中短码累计日 UV 之和" : "全站累计日 UV", value: summary?.visitUv },
+        { title: "访问 PV", value: summary?.visitCount }, { title: filter.keyword || filter.from !== undefined || filter.to !== undefined || filter.valid !== "all" || filter.deviceKind !== "all" ? "选中短码累计日 UV 之和" : "全站累计日 UV", value: summary?.visitUv },
         { title: "下载触发", value: summary?.downloadCount }, { title: "下载触发 / PV", value: summary?.visitCount ? `${((summary.downloadCount / summary.visitCount) * 100).toFixed(1)}%` : "—" },
       ].map(item => <Col key={item.title} xs={24} sm={12} xl={item.title === "分享链接" ? 8 : 4}><Card className={glassCardClasses} size="small"><Statistic title={item.title} value={item.value ?? "—"} suffix={<span className="text-xs">{item.suffix}</span>} /></Card></Col>)}
     </Row>
     <Card title="分享记录" className={glassCardClasses}>
       <Table<ShareRecord> rowKey="id" loading={loading} dataSource={data?.items || []} size="small" scroll={{ x: 1800 }} pagination={{ current: offset / 20 + 1, pageSize: 20, total: data?.total || 0, showSizeChanger: false, showTotal: total => `共 ${total} 条`, onChange: page => setOffset((page - 1) * 20) }} columns={[
         { title: "分享人", width: 170, render: (_, r) => <div><div>{r.userName || (r.userId ? "账号" : "游客")}{r.userMissing && <Tag>已注销</Tag>}</div><Typography.Text type="secondary" className="text-xs">{r.userId || "未登录"}</Typography.Text></div> },
+        { title: "分享来源", dataIndex: "deviceKind", width: 100, render: kind => <Tag color={kind === "desktop" ? "blue" : "green"}>{kind === "desktop" ? "PC" : "Android"}</Tag> },
         { title: "设备", width: 170, render: (_, r) => <div>{r.deviceName || r.deviceKind}{r.deviceMissing && <Tag>设备不存在</Tag>}<div className="text-xs text-slate-500" title={r.deviceId}>{r.deviceId.slice(0, 12)}…</div></div> },
         { title: "短码", dataIndex: "code", width: 95 }, { title: "状态", dataIndex: "valid", width: 85, render: valid => <Tag color={valid ? "success" : "default"}>{valid ? "有效" : "已失效"}</Tag> },
         { title: "首次分享", dataIndex: "createdAt", width: 170, render: shareTime }, { title: "最近访问", dataIndex: "lastVisitAt", width: 170, render: shareTime }, { title: "最近下载", dataIndex: "lastDownloadAt", width: 170, render: shareTime },

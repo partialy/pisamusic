@@ -1,11 +1,12 @@
 export type ShareRecord = {
   id: string; code: string; userId: string | null; userName: string; userMissing: boolean;
-  deviceId: string; deviceKind: string; deviceName: string; deviceMissing: boolean;
+  deviceId: string; deviceKind: "android" | "desktop"; deviceName: string; deviceMissing: boolean;
   createdAt: number; lastRequestedAt: number; lastVisitAt: number | null; lastDownloadAt: number | null;
   valid: boolean; invalidatedAt: number | null; visitCount: number; visitUv: number;
   androidDownloadCount: number; desktopDownloadCount: number; downloadCount: number; url: string;
 };
 export type ShareFilter = {
+  deviceKind?: "all" | "android" | "desktop";
   keyword?: string; valid?: "true" | "false" | "all";
   timeField?: "createdAt" | "lastVisitAt" | "lastDownloadAt"; from?: number; to?: number;
   sort?: "createdAt" | "visitCount" | "downloadCount" | "lastActiveAt";

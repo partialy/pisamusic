@@ -122,14 +122,14 @@ export async function getIdentityAppShare(req: Request) {
   if (authPresent && !user)
     throw new AppShareTrackingError("账号登录已失效，请重新登录", 401);
   const identity = (await deviceMessageIdentityFromRequest(req));
-  if (!identity || identity.kind !== "android")
+  if (!identity)
     throw new AppShareTrackingError("设备凭证已失效，请重新上报", 401);
   const record = (await getOrCreateTrackingRecord({
-    deviceKind: "android",
+    deviceKind: identity.kind,
     deviceId: identity.deviceId,
     userId: user?.id ?? null,
     userName: user?.username ?? "游客",
-    deviceName: (await readTrackingDeviceName(identity.deviceId)),
+    deviceName: (await readTrackingDeviceName(identity.deviceId, identity.kind)),
   }));
   let url: URL;
   try {
@@ -275,6 +275,8 @@ export function trackingFilters(
     !["true", "false", "all"].includes(String(query.valid))
   )
     throw new AppShareTrackingError("状态无效");
+  if (query.deviceKind !== undefined && (typeof query.deviceKind !== "string" || !["all", "android", "desktop"].includes(query.deviceKind)))
+    throw new AppShareTrackingError("分享来源无效");
   const timestamp = (value: unknown) => {
     if (value === undefined || value === "") return undefined;
     const n = Number(value);
@@ -288,6 +290,7 @@ export function trackingFilters(
     throw new AppShareTrackingError("时间范围无效");
   return {
     keyword: stringInput(query.keyword, 200).trim(),
+    deviceKind: query.deviceKind === "android" || query.deviceKind === "desktop" ? query.deviceKind : undefined,
     valid:
       query.valid === "true"
         ? true
@@ -340,6 +343,7 @@ export async function exportManagedTracking(query: Record<string, unknown>) {
     [
       "分享人",
       "账号ID",
+      "分享来源",
       "设备名称",
       "设备ID",
       "短码",
@@ -356,6 +360,7 @@ export async function exportManagedTracking(query: Record<string, unknown>) {
     lines.push([
       r.userName,
       r.userId,
+      r.deviceKind === "desktop" ? "PC" : "Android",
       r.deviceName,
       r.deviceId,
       r.code,
