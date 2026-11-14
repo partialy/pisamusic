@@ -118,7 +118,7 @@ export class AccountLibraryRepository {
       // created_at 是关系字段，下行可显式更新本账号收藏时间。
       if (fromSync && input.favoritedAt) this.db.prepare("UPDATE account_library_items SET created_at = ? WHERE account_id = ? AND item_type = 'favorite_song' AND item_key = ?")
         .run(new Date(input.favoritedAt).toISOString(), this.scope.accountId, key);
-      if (this.scope.accountId && !fromSync) {
+      if (this.scope.accountId && !fromSync && track.source !== "local") {
         const payload = this.trackEvent(track);
         this.event({ itemType: "favorite_song", itemKey: `${payload.source}:${payload.id}`, action: "upsert", payload }, { fromSync });
       }
@@ -144,7 +144,7 @@ export class AccountLibraryRepository {
       const row = this.row("favorite_song", key);
       if (!row) return false;
       const removed = this.removeItem("favorite_song", key, { fromSync: true });
-      if (this.scope.accountId && !options.fromSync) {
+      if (this.scope.accountId && !options.fromSync && source !== "local") {
         const track = normalizeTrackSnapshot(JSON.parse(row.payload_json));
         this.event({ itemType: "favorite_song", itemKey: `${track.source}:${this.syncTrackId(track)}`, action: "delete" }, options);
       }

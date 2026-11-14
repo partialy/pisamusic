@@ -425,3 +425,5 @@
 - 本阶段只实现数据层；`syncService` / `persistenceIpc` / preload / renderer 尚待后续完整接入，不代表运行账号隔离已验收。后续禁止继续调用旧 record* 造成事务外重复入队；出站复用安全源字段并由协议模块最终白名单序列化，禁止将原始 TrackSnapshot 直接发送。
 
 - LOCAL新增显式 `durationMs`（非负有限毫秒）；不从历史 `duration` 数值大小猜单位。出站有可信durationMs则使用，无则duration=0并省略durationMs；后续生产者须按已知单位显式转换，在线duration保持原契约。
+
+- LOCAL收藏仅保留本机/当前账号关系，新增、删除和未关联导入均不产生favorite_song outbox或创建同步UUID；LOCAL跨端只允许playlist_track。安全源字段的私有位置检查与公共HTTPS封面尺寸参数规则须与Server同步policy一致，不合规封面置空，禁止先泄露再依赖服务端400。

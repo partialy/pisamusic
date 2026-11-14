@@ -31,7 +31,7 @@ export function publicTrack(track: TrackSnapshot, syncId?: string): Record<strin
   const result: Record<string, unknown> = { id, source: track.source, urlParam: track.source === "local" ? id : track.urlParam ?? id };
   for (const key of ["name", "singer", "album"] as const) {
     const value = track[key] ?? "";
-    if (track.source === "local" && (value.length > 512 || /^(?:[a-z]:[\\/]|[\\/]|(?:file|content):|[a-z][a-z\d+.-]*:\/\/)/i.test(value))) {
+    if (track.source === "local" && (value.length > 512 || containsPrivateLocation(value))) {
       throw new Error("本地曲目公开元信息包含私有位置或超长字段");
     }
     result[key] = value;
@@ -51,7 +51,19 @@ function safeLocalCover(value: string) {
   try {
     const url = new URL(value);
     return value.length <= 2048 && url.protocol === "https:" && !url.username && !url.password && !url.hash
+      && url.hostname.includes(".") && !/^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(url.hostname)
+      && !url.hostname.endsWith(".local") && !url.hostname.endsWith(".localhost")
       && [...url.searchParams].every(([key, v]) => /^(param|thumbnail|w|h|width|height|size|quality|q)$/.test(key)
-        && /^\d{1,5}(?:[xy_/*]\d{1,5})?!?$/.test(v));
+        && /^\d{1,5}(?:[xy_*]\d{1,5})?!?$/.test(v));
   } catch { return false; }
+}
+
+/** 与 Server LOCAL 字段校验保持一致；普通 AC/DC 等分隔符不是路径证据。 */
+function containsPrivateLocation(value: string): boolean {
+  const text = value.trim();
+  return /^[\\/]\S/.test(text)
+    || /\b[a-z]:[\\/]/i.test(text)
+    || /(?:^|\s)\\\\\S/.test(text)
+    || /(?:^|[\s("'=])[/\\](?:[^/\\\s]+[/\\])+[^/\\\s]+/.test(text)
+    || /\b(?:file|content):|\b[a-z][a-z0-9+.-]*:\/\//i.test(text);
 }
