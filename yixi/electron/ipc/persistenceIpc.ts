@@ -1,14 +1,11 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { getAppDatabase } from "../database";
-import type { PlaylistSnapshot, PlaylistSource, QueueSnapshot, TrackSnapshot } from "../database/appDatabase";
-import {
-  recordFavoritePlaylistChange,
-  recordFavoritePlaylistDelete,
-  recordFavoriteSongChange,
-  recordFavoriteSongDelete,
-  recordUserPlaylistChange,
-  recordUserPlaylistTrackChange,
-} from "../sync/syncService";
+import type { QueueSnapshot, TrackSnapshot } from "../database/appDatabase";
+import { captureAccountLibrary, isCurrentLibrary } from "../account/accountLibraryContext";
+import { scheduleLibrarySync } from "../sync/syncService";
+import { createLocalTrackResolver, prepareLibraryTrack, prepareLibraryTracks } from "../localLibrary/localTrackAccess";
+import { setupAccountLibraryIpc } from "./accountLibraryIpc";
+import { assertPublicSetting } from "./publicSettingsPolicy";
 
 let registered = false;
 
@@ -17,19 +14,23 @@ type QueueSnapshotInput = Pick<QueueSnapshot, "currentIndex" | "queue">;
 export function setupPersistenceIpc() {
   if (registered) return;
   registered = true;
+  setupAccountLibraryIpc();
 
   ipcMain.handle("settings:get", (_event, key: string) => {
+    assertPublicSetting(key);
     return getAppDatabase().getSetting(key);
   });
 
   ipcMain.handle(
     "settings:set",
     (_event, payload: { key: string; value: unknown; version?: number }) => {
+      assertPublicSetting(payload.key);
       return getAppDatabase().setSetting(payload.key, payload.value, payload.version);
     }
   );
 
   ipcMain.handle("settings:delete", (_event, key: string) => {
+    assertPublicSetting(key);
     return getAppDatabase().deleteSetting(key);
   });
 
@@ -68,111 +69,48 @@ export function setupPersistenceIpc() {
     return getAppDatabase().saveQueueSnapshot(snapshot);
   });
 
-  ipcMain.handle("library:favorites:songs:list", () => {
-    return getAppDatabase().listFavoriteSongs();
+  const scoped = (channel: string, write: boolean, work: (context: ReturnType<typeof captureAccountLibrary>, payload: any) => unknown) => {
+    ipcMain.handle(channel, (_event, payload, expectedRevision?: number) => {
+      const context = captureAccountLibrary();
+      if (expectedRevision !== undefined && expectedRevision !== context.revision) throw new Error("账号已变化，请重试");
+      if (payload?.identityRevision !== undefined && payload.identityRevision !== context.revision) throw new Error("账号已变化，请重试");
+      const result = work(context, payload);
+      if (write && isCurrentLibrary(context)) {
+        notifyFavoritesChanged();
+        notifyMineLibraryChanged();
+        scheduleLibrarySync();
+      }
+      return result;
+    });
+  };
+  const readTrack = (context: ReturnType<typeof captureAccountLibrary>, track: TrackSnapshot) => prepareLibraryTrack(track, context.repo);
+  scoped("library:favorites:songs:list", false, context => {
+    const resolve = createLocalTrackResolver(context.repo);
+    return context.repo.listFavoriteSongs().map(item => ({ ...item, payload: resolve(item.payload) }));
   });
-
-  ipcMain.handle("library:favorites:songs:add", (_event, track: TrackSnapshot) => {
-    const result = getAppDatabase().addFavoriteSong(track);
-    if (result) recordFavoriteSongChange(result.payload, "upsert");
-    notifyFavoritesChanged();
-    return result;
+  scoped("library:favorites:songs:add", true, (context, track) => context.repo.addFavoriteSong(readTrack(context, track)));
+  scoped("library:favorites:songs:remove", true, (context, payload) => context.repo.removeFavoriteSong(payload.source, payload.id));
+  scoped("library:favorites:songs:toggle", true, (context, track) => context.repo.toggleFavoriteSong(readTrack(context, track)));
+  scoped("library:favorites:songs:contains", false, (context, payload) => context.repo.containsFavoriteSong(payload.source, payload.id));
+  scoped("library:favorites:playlists:list", false, context => context.repo.listFavoritePlaylists());
+  scoped("library:favorites:playlists:add", true, (context, playlist) => context.repo.addFavoritePlaylist(playlist));
+  scoped("library:favorites:playlists:remove", true, (context, payload) => context.repo.removeFavoritePlaylist(payload.source, payload.id));
+  scoped("library:favorites:playlists:toggle", true, (context, playlist) => context.repo.toggleFavoritePlaylist(playlist));
+  scoped("library:favorites:playlists:contains", false, (context, payload) => context.repo.containsFavoritePlaylist(payload.source, payload.id));
+  scoped("library:playlists:list", false, (context, payload) => context.repo.listUserPlaylists(payload?.source));
+  scoped("library:playlists:create", true, (context, playlist) => context.repo.createUserPlaylist(playlist).playlist);
+  scoped("library:playlists:upsert", true, (context, playlist) => context.repo.upsertUserPlaylist(playlist));
+  scoped("library:playlists:replace-source", true, (context, payload) => context.repo.replaceUserPlaylists(payload.source, payload.playlists));
+  scoped("library:playlists:tracks:list", false, (context, payload) => {
+    const resolve = createLocalTrackResolver(context.repo);
+    return context.repo.listUserPlaylistTracks(payload.playlistId).map(item => ({ ...item, payload: resolve(item.payload) }));
   });
-
-  ipcMain.handle("library:favorites:songs:remove", (_event, payload: { source: string; id: string }) => {
-    const result = getAppDatabase().removeFavoriteSong(payload.source, payload.id);
-    recordFavoriteSongDelete(payload.source, payload.id);
-    notifyFavoritesChanged();
-    return result;
-  });
-
-  ipcMain.handle("library:favorites:songs:toggle", (_event, track: TrackSnapshot) => {
-    const result = getAppDatabase().toggleFavoriteSong(track);
-    if (result.collected && result.item) {
-      recordFavoriteSongChange(result.item.payload, "upsert");
-    } else {
-      recordFavoriteSongChange(track, "delete");
-    }
-    notifyFavoritesChanged();
-    return result;
-  });
-
-  ipcMain.handle("library:favorites:songs:contains", (_event, payload: { source: string; id: string }) => {
-    return getAppDatabase().containsFavoriteSong(payload.source, payload.id);
-  });
-
-  ipcMain.handle("library:favorites:playlists:list", () => {
-    return getAppDatabase().listFavoritePlaylists();
-  });
-
-  ipcMain.handle("library:favorites:playlists:add", (_event, playlist: PlaylistSnapshot) => {
-    const result = getAppDatabase().addFavoritePlaylist(playlist);
-    if (result) recordFavoritePlaylistChange(result.payload, "upsert");
-    notifyFavoritesChanged();
-    return result;
-  });
-
-  ipcMain.handle("library:favorites:playlists:remove", (_event, payload: { source: string; id: string }) => {
-    const result = getAppDatabase().removeFavoritePlaylist(payload.source, payload.id);
-    recordFavoritePlaylistDelete(payload.source, payload.id);
-    notifyFavoritesChanged();
-    return result;
-  });
-
-  ipcMain.handle("library:favorites:playlists:toggle", (_event, playlist: PlaylistSnapshot) => {
-    const result = getAppDatabase().toggleFavoritePlaylist(playlist);
-    if (result.collected && result.item) {
-      recordFavoritePlaylistChange(result.item.payload, "upsert");
-    } else {
-      recordFavoritePlaylistChange(playlist, "delete");
-    }
-    notifyFavoritesChanged();
-    return result;
-  });
-
-  ipcMain.handle("library:favorites:playlists:contains", (_event, payload: { source: string; id: string }) => {
-    return getAppDatabase().containsFavoritePlaylist(payload.source, payload.id);
-  });
-
-  ipcMain.handle("library:playlists:list", (_event, payload?: { source?: PlaylistSource | "all" }) => {
-    return getAppDatabase().listUserPlaylists(payload?.source);
-  });
-
-  ipcMain.handle("library:playlists:create", (_event, playlist: Partial<PlaylistSnapshot>) => {
-    const result = getAppDatabase().createUserPlaylist(playlist);
-    if (result) recordUserPlaylistChange(result.payload, "upsert");
-    notifyMineLibraryChanged();
-    return result;
-  });
-
-  ipcMain.handle("library:playlists:upsert", (_event, playlist: PlaylistSnapshot) => {
-    const result = getAppDatabase().upsertUserPlaylist(playlist);
-    if (result) recordUserPlaylistChange(result.payload, "upsert");
-    notifyMineLibraryChanged();
-    return result;
-  });
-
-  ipcMain.handle(
-    "library:playlists:replace-source",
-    (_event, payload: { source: Exclude<PlaylistSource, "local">; playlists: PlaylistSnapshot[] }) => {
-      return getAppDatabase().replaceUserPlaylists(payload.source, payload.playlists);
-    }
-  );
-
-  ipcMain.handle("library:playlists:tracks:list", (_event, payload: { playlistId: string }) => {
-    return getAppDatabase().listUserPlaylistTracks(payload.playlistId);
-  });
-
-  ipcMain.handle("library:playlists:tracks:add", (_event, payload: { playlistId: string; track: TrackSnapshot }) => {
-    const result = getAppDatabase().addUserPlaylistTrack(payload.playlistId, payload.track);
-    recordUserPlaylistTrackChange(payload.playlistId, payload.track, "upsert");
-    const playlist = getAppDatabase()
-      .listUserPlaylists("local")
-      .find((item) => item.playlistId === payload.playlistId);
-    if (playlist) recordUserPlaylistChange(playlist.payload, "upsert");
-    notifyMineLibraryChanged();
-    return result;
-  });
+  scoped("library:playlists:tracks:add", true, (context, payload) => context.repo.addUserPlaylistTrack(payload.playlistId, readTrack(context, payload.track)));
+  scoped("library:playlists:create-with-tracks", true, (context, payload) => context.repo.createUserPlaylist(payload.playlist, prepareLibraryTracks(payload.tracks, context.repo)));
+  scoped("library:playlists:update", true, (context, payload) => context.repo.updateUserPlaylist(payload.playlistId, payload.patch));
+  scoped("library:playlists:remove", true, (context, payload) => context.repo.removeUserPlaylist(payload.source, payload.id));
+  scoped("library:playlists:tracks:bulk-add", true, (context, payload) => context.repo.addUserPlaylistTracks(payload.playlistId, prepareLibraryTracks(payload.tracks, context.repo)));
+  scoped("library:playlists:tracks:bulk-remove", true, (context, payload) => context.repo.removeUserPlaylistTracks(payload.playlistId, payload.keys));
 
   ipcMain.handle("library:cloud:songs:list", (_event, payload?: { cloudSource?: string | "all" }) => {
     return getAppDatabase().listUserCloudSongs(payload?.cloudSource);

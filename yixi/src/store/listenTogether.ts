@@ -1018,11 +1018,11 @@ export const useListenTogetherStore = defineStore("listenTogether", () => {
     },
   );
 
-  // token 刷新（同一账号）：旧 socket 仍持旧 token，重连后由 connected 事件触发 sync 恢复房间
+  // 同账号公开身份世代变化后由 main 更新凭证并重连，renderer 不持有 token。
   watch(
-    () => userStore.token,
-    (nextToken, prevToken) => {
-      if (!room.value || !nextToken || !prevToken || nextToken === prevToken) return;
+    () => userStore.identityRevision,
+    (nextRevision, prevRevision) => {
+      if (!room.value || nextRevision === prevRevision) return;
       if (userStore.userInfo.id !== currentUserId.value) return;
       void electronAPI.connectListenTogetherSocket();
     },

@@ -300,14 +300,14 @@ export class AccountLibraryRepository {
     });
   }
   /** 仅在用户确认后调用；原未关联行保留，重复收藏不覆盖本账号关系时间。 */
-  importUnassociated() {
+  importUnassociated(prepareTrack: (track: TrackSnapshot) => TrackSnapshot = track => track) {
     if (!this.scope.accountId) throw new Error("导入需要明确账号");
     return this.transaction(() => {
       const unassociated = new AccountLibraryRepository(this.db, { accountId: "", deviceIdentity: this.scope.deviceIdentity });
       let songs = 0, favorites = 0;
       const playlists: { originalId: string; importedId: string }[] = [];
       for (const item of unassociated.listFavoriteSongs()) if (!this.containsFavoriteSong(item.source, item.trackId)) {
-        this.addFavoriteSong(item.payload); songs++;
+        this.addFavoriteSong(prepareTrack(item.payload)); songs++;
       }
       for (const item of unassociated.listFavoritePlaylists()) if (!this.containsFavoritePlaylist(item.source, item.playlistId)) {
         this.save("favorite_playlist", item.favoriteKey, item.payload, item.createdAt);
@@ -315,7 +315,7 @@ export class AccountLibraryRepository {
         favorites++;
       }
       for (const item of unassociated.listUserPlaylists("local")) {
-        const created = this.createUserPlaylist({ ...item.payload, id: randomUUID() }, unassociated.listUserPlaylistTracks(item.playlistId).map(track => track.payload));
+        const created = this.createUserPlaylist({ ...item.payload, id: randomUUID() }, unassociated.listUserPlaylistTracks(item.playlistId).map(track => prepareTrack(track.payload)));
         this.updateUserPlaylist(created.playlist.playlistId, { name: item.payload.name, desc: item.payload.desc, tags: item.payload.tags, cover: item.payload.cover, coverResource: item.payload.coverResource, coverPreset: item.payload.coverPreset });
         playlists.push({ originalId: item.playlistId, importedId: created.playlist.playlistId });
       }

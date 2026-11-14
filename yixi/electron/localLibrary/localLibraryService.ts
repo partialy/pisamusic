@@ -51,7 +51,7 @@ export function getLocalLibraryScanStatus() {
 }
 
 export function listLocalSongs() {
-  return getAppDatabase().listLocalSongs().map((item) => item.payload);
+  return getAppDatabase().listLocalSongs().map((item) => ({ ...item.payload, durationMs: item.duration * 1000 }));
 }
 
 export async function getLocalSongCover(filePath: string) {
@@ -313,6 +313,7 @@ async function buildLocalSong(file: AudioFileCandidate): Promise<LocalSongItem> 
     album,
     cover: "",
     duration,
+    durationMs: duration * 1000,
     urlParam: file.filePath,
     filePath: file.filePath,
   };

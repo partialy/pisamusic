@@ -1,3 +1,4 @@
+import { isSongPlayable, resolvePlayableSongs } from "@/utils/songAvailability";
 // 统一播放命令层：所有用户主动播放动作的唯一入口。
 // 普通模式委托 useAudioStore()；一起听模式委托 useListenTogetherStore()，
 // 由其判断连接、权限、本地歌曲与房主/成员路径。任何 UI（按钮、托盘、快捷键、
@@ -11,11 +12,6 @@ function toastInfo(message: string): void {
   window.$message?.info?.(message);
 }
 
-function isSongPlayable(song: Song | null | undefined): boolean {
-  if (!song) return false;
-  return song.playable !== false;
-}
-
 export function usePlaybackCommands() {
   const audio = useAudioStore();
   const listenTogether = useListenTogetherStore();
@@ -24,9 +20,10 @@ export function usePlaybackCommands() {
    * 单曲追加播放：若歌曲已在播放队列中则直接定位播放；若不在则追加到播放队列末尾并播放。
    * 用于搜索结果点击/双击、单曲卡片播放等场景，避免冲掉已有播放列表。
    */
-  const playSongAppend = (song: Song): void => {
+  const playSongAppend = async (song: Song): Promise<void> => {
+    [song] = await resolvePlayableSongs([song]);
     if (!isSongPlayable(song)) {
-      toastInfo("该歌曲已禁用，无法播放");
+      toastInfo(song.source === "local" ? "本地文件不可用，请在来源设备播放" : "该歌曲已禁用，无法播放");
       return;
     }
     if (listenTogether.playSongInRoom(song)) return;
@@ -48,13 +45,14 @@ export function usePlaybackCommands() {
   };
 
   /** 列表内点播：普通模式整列表切换后播放该曲；一起听模式只点播该曲 */
-  const playSongFromList = (songs: Song[], song: Song): void => {
+  const playSongFromList = async (songs: Song[], song: Song): Promise<void> => {
+    [song] = await resolvePlayableSongs([song]);
     if (!isSongPlayable(song)) {
-      toastInfo("该歌曲已禁用，无法播放");
+      toastInfo(song.source === "local" ? "本地文件不可用，请在来源设备播放" : "该歌曲已禁用，无法播放");
       return;
     }
     if (listenTogether.playSongInRoom(song)) return;
-    const playableSongs = songs.filter(isSongPlayable);
+    const playableSongs = (await resolvePlayableSongs(songs)).filter(isSongPlayable);
     void audio.switchPlayList(playableSongs.length > 0 ? playableSongs : [song], false);
     void audio.play(song);
   };
@@ -66,7 +64,7 @@ export function usePlaybackCommands() {
    */
   const playAll = async (songs: Song[], autoPlay: boolean = true): Promise<boolean> => {
     if (songs.length === 0) return false;
-    const playableSongs = songs.filter(isSongPlayable);
+    const playableSongs = (await resolvePlayableSongs(songs)).filter(isSongPlayable);
     if (playableSongs.length === 0) {
       toastInfo("列表中没有可播放的歌曲");
       return false;
@@ -92,7 +90,7 @@ export function usePlaybackCommands() {
       toastInfo("一起听中暂不支持仅添加到队列，请直接点播");
       return false;
     }
-    const playableSongs = songs.filter(isSongPlayable);
+    const playableSongs = (await resolvePlayableSongs(songs)).filter(isSongPlayable);
     if (playableSongs.length === 0) {
       toastInfo("列表中没有可添加的歌曲");
       return false;
@@ -105,9 +103,10 @@ export function usePlaybackCommands() {
   };
 
   /** 下一首播放（插播）：一起听协议无 PLAY_NEXT，房间内禁用 */
-  const playNext = (song: Song): void => {
+  const playNext = async (song: Song): Promise<void> => {
+    [song] = await resolvePlayableSongs([song]);
     if (!isSongPlayable(song)) {
-      toastInfo("该歌曲已禁用，无法播放");
+      toastInfo(song.source === "local" ? "本地文件不可用，请在来源设备播放" : "该歌曲已禁用，无法播放");
       return;
     }
     if (listenTogether.enabled) {
@@ -118,9 +117,10 @@ export function usePlaybackCommands() {
   };
 
   /** 播放队列项：一起听按 queueItemId 定位，普通模式按歌曲播放 */
-  const playQueueItem = (queueItemId: string | null, song: Song): void => {
+  const playQueueItem = async (queueItemId: string | null, song: Song): Promise<void> => {
+    [song] = await resolvePlayableSongs([song]);
     if (!isSongPlayable(song)) {
-      toastInfo("该歌曲已禁用，无法播放");
+      toastInfo(song.source === "local" ? "本地文件不可用，请在来源设备播放" : "该歌曲已禁用，无法播放");
       return;
     }
     if (queueItemId && listenTogether.playQueueItemInRoom(queueItemId)) return;

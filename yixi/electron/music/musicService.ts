@@ -1,3 +1,5 @@
+import { captureAccountLibrary } from "../account/accountLibraryContext";
+import { resolveLocalTrack } from "../localLibrary/localTrackAccess";
 import { getRuntimeEndpointsCached, requestSignedGateway } from "../system/systemClient";
 import { pathToFileURL } from "url";
 import { getUserCookie } from "../cookie/cookieService";
@@ -276,8 +278,8 @@ export async function getDynamicCover(params: DynamicCoverParams) {
 
 export async function resolvePlayableUrl(track: PlayableTrackPayload) {
   if (track.source === "local") {
-    const filePath = track.filePath || track.urlParam || track.id || "";
-    return filePath ? pathToFileURL(filePath).toString() : "";
+    const resolved = resolveLocalTrack(track as import("../database/types").TrackSnapshot, captureAccountLibrary().repo);
+    return resolved.playable === true && resolved.filePath ? pathToFileURL(resolved.filePath).toString() : "";
   }
 
   const id = track.urlParam || track.id;

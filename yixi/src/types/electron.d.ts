@@ -1,6 +1,7 @@
+import type { LibraryIdentity, UnassociatedPreview, LibraryImportResult } from "./accountLibrary";
 import type {
   AccountUser,
-  AccountSession,
+  PublicAccountSession as AccountSession,
 } from "./account";
 import type {
   ListenTogetherBroadcast,
@@ -59,12 +60,15 @@ type TrackSnapshot = {
   size?: Record<string, number>;
   vip?: boolean;
   duration?: number;
+  durationMs?: number;
   filePath?: string;
 };
 
 type PlaylistSource = "kg" | "wy" | "kw" | "qq" | "local";
 
 type PlaylistSnapshot = {
+  coverResource?: { resourceId: string } | null;
+  coverPreset?: string | null;
   id: string;
   source: PlaylistSource;
   name: string;
@@ -660,7 +664,7 @@ type CookieFileExportResult = {
 };
 
 type SyncState = {
-  token: string;
+  identityRevision: number;
   userId: string;
   seededAccountId: string;
   lastVersion: number;
@@ -899,11 +903,23 @@ type ElectronIpcApi = {
   containsFavoritePlaylist: (payload: { source: string; id: string }) => Promise<boolean>;
   onFavoritesChanged: (callback: () => void) => () => void;
   listUserPlaylists: (payload?: { source?: PlaylistSource | "all" }) => Promise<UserPlaylistItem[]>;
+  getLibraryIdentity: () => Promise<LibraryIdentity>;
+  onAccountIdentityChanged: (callback: (revision: number) => void) => () => void;
+  previewUnassociatedLibrary: () => Promise<UnassociatedPreview>;
+  getUnassociatedImportPrompt: () => Promise<UnassociatedPreview | null>;
+  importUnassociatedLibrary: (confirmationId: string) => Promise<LibraryImportResult>;
+  resolveLocalTracks: (tracks: TrackSnapshot[]) => Promise<TrackSnapshot[]>;
+  createUserPlaylistWithTracks: (payload: { playlist: Partial<PlaylistSnapshot>; tracks: TrackSnapshot[]; identityRevision?: number }) => Promise<{ playlist: UserPlaylistItem; added: string[]; existing: string[]; tracks: UserPlaylistTrackItem[] }>;
+  updateUserPlaylist: (payload: { playlistId: string; patch: Partial<Omit<PlaylistSnapshot, "id" | "source">> }) => Promise<UserPlaylistItem>;
+  removeUserPlaylist: (payload: { source: string; id: string }) => Promise<boolean>;
+  bulkAddUserPlaylistTracks: (payload: { playlistId: string; tracks: TrackSnapshot[] }) => Promise<{ added: string[]; existing: string[]; tracks: UserPlaylistTrackItem[] }>;
+  bulkRemoveUserPlaylistTracks: (payload: { playlistId: string; keys: { source: string; id: string }[] }) => Promise<{ removed: string[]; tracks: UserPlaylistTrackItem[] }>;
   createUserPlaylist: (playlist: Partial<PlaylistSnapshot>) => Promise<UserPlaylistItem | null>;
   upsertUserPlaylist: (playlist: PlaylistSnapshot) => Promise<UserPlaylistItem | null>;
   replaceUserPlaylists: (payload: {
     source: Exclude<PlaylistSource, "local">;
     playlists: PlaylistSnapshot[];
+    identityRevision?: number;
   }) => Promise<UserPlaylistItem[]>;
   listUserPlaylistTracks: (payload: { playlistId: string }) => Promise<UserPlaylistTrackItem[]>;
   addUserPlaylistTrack: (payload: {

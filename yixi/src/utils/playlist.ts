@@ -25,6 +25,9 @@ export function normalizePlaylist(input: PlaylistInput): CommonPlaylist {
     tags: normalizeTags(raw.tags),
   };
 
+  if (raw.coverResource === null) playlist.coverResource = null;
+  else if (isRecord(raw.coverResource) && typeof raw.coverResource.resourceId === "string") playlist.coverResource = { resourceId: raw.coverResource.resourceId };
+  if (raw.coverPreset === null || typeof raw.coverPreset === "string") playlist.coverPreset = raw.coverPreset;
   const coverSize = normalizeCoverSize(raw.coverSize);
   if (coverSize) playlist.coverSize = coverSize;
 

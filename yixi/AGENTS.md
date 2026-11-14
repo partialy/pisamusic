@@ -122,7 +122,7 @@
 
 ## 收藏与侧栏规则补充
 
-- 收藏歌曲、收藏歌单统一写入 SQLite 的 `favorite_songs` / `favorite_playlists`，renderer 通过 `library:favorites:*` IPC 和 `useCollectStore` 访问，不再新增文件式 `collect/*.json` 收藏持久化。
+- 收藏歌曲、收藏歌单统一写入 SQLite schema 9 的账号关系 `account_library_items`，renderer 通过 `library:favorites:*` IPC 和 `useCollectStore` 访问，不再新增文件式 `collect/*.json` 收藏持久化。
 - 旧收藏 IPC（如 `collect-song`、`collected-songs`、`collect-list`）和旧 `/mine/collect*` 收藏页已经移除，不要恢复或新增兼容调用。
 - 收藏键使用 `source:id`，组件判断收藏状态必须调用 `containsSong(song)` / `containsPlaylist(playlist)`，不要直接用裸 `id` 查询 `songMap` 或 `playlistMap`。
 - 歌曲收藏只能传递规范化后的 `Song` 纯 DTO；进入 IPC / SQLite 前必须经过 `normalizeSong()`，避免 Vue Proxy、嵌套响应式对象或运行时 `url` 字段进入收藏持久化。
@@ -417,13 +417,25 @@
 ## 账号歌单与收藏数据层（schema 9）
 
 - `electron/database/accountLibrarySchema.ts` 将旧收藏/歌单/曲目一次性复制到空账号未关联区，保留历史表用于回溯；运行权威改为 `account_library_items` / `account_playlist_tracks`，不能再直接写旧表。账号复合主键允许不同账号收藏同歌或缓存相同远端歌单 ID。
-- `AppDatabase.accountLibrary({accountId, deviceIdentity})` 创建捕获 main 可信身份的 Repository，所有 list/pending/remove/import 都限制该账号。旧 AppDatabase API 固定适配未关联区，不根据当前登录态猜归属；后续 IPC/sync 必须完整切换到显式 scope，再启用账号视图，禁止旧全库自动 seed。
+- `AppDatabase.accountLibrary({accountId, deviceIdentity})` 创建捕获 main 可信身份的 Repository，所有 list/pending/remove/import 都限制该账号。旧 AppDatabase API 固定适配未关联区，不根据当前登录态猜归属；运行 IPC/sync 统一从 `electron/account/accountLibraryContext.ts` 捕获 main 当前账号、长期设备身份及公开 identityRevision；禁止 renderer 指定账号或回到旧全库 seed。
 - `accountLibraryRepository.ts` 统一收藏关系、自建歌单 create/update/bulkAdd/bulkRemove/delete、数量/自动封面/outbox 同事务。通知与同步调度只能在成功返回后执行；远端 apply 使用 fromSync，排序单独传入 `sortOrder` 与权威 `serverVersion`，不得自行生成服务端版本。
 - 曲目重复添加不改变元信息、排序或自动封面，返回 added/existing；排序为 COALESCE(sort_order,fallback_order) → server_version → track_key。历史 fallback 为旧自增 ID；扩展缺省保留，null 显式清除。在线自动封面只取实际新增最后一首有有效远程图的非 LOCAL 歌曲，清空 coverResource/coverPreset；KG 模板原样保留。
-- `localTrackIdentityRepository.ts` 为原本机歌曲键维护长期 UUID 映射，与扫描记录删除无级联关系；不修改播放 ID、不按歌名时长猜匹配。双向查询与显式 associateLocalKey 供移动文件后确认关联；下行 resolveIncomingTrack 在原设备映射回原键，异机仍为不可播放占位，由后续播放/IPC层校验文件。
+- `localTrackIdentityRepository.ts` 为原本机歌曲键维护长期 UUID 映射，与扫描记录删除无级联关系；不修改播放 ID、不按歌名时长猜匹配。双向查询与显式 associateLocalKey 供移动文件后确认关联；下行 resolveIncomingTrack 在原设备映射回原键，异机仍为不可播放占位。`electron/localLibrary/localTrackAccess.ts` 只按 main 索引/下载记录与显式别名恢复可读文件，不把远端 ID 当路径；缺文件不删除关系/映射。
 - `importUnassociated()` 只能在用户明确确认后调用；保留未关联原件、收藏去重且保留关系时间、自建歌单创建新 UUID 账号副本。未关联 pending 不随导入搬移或上传，其他账号 pending 永远不清除。
-- 本阶段只实现数据层；`syncService` / `persistenceIpc` / preload / renderer 尚待后续完整接入，不代表运行账号隔离已验收。后续禁止继续调用旧 record* 造成事务外重复入队；出站复用安全源字段并由协议模块最终白名单序列化，禁止将原始 TrackSnapshot 直接发送。
+- `syncService` / 收藏歌单 IPC / 托盘 / preload / renderer 已接 schema 9 账号范围；运行验收仍由用户进行。关系与 outbox 在 Repository 同事务提交，IPC 只在提交后通知与调度，不再事务外 record* 重复入队。`sync/syncPayload.ts` 为出站最终白名单，禁止发送原始 TrackSnapshot。
 
-- LOCAL新增显式 `durationMs`（非负有限毫秒）；不从历史 `duration` 数值大小猜单位。出站有可信durationMs则使用，无则duration=0并省略durationMs；后续生产者须按已知单位显式转换，在线duration保持原契约。
+- LOCAL新增显式 `durationMs`（非负有限毫秒）；不从历史 `duration` 数值大小猜单位。出站有可信durationMs则使用，无则duration=0并省略durationMs；本地扫描/index 的秒显式 ×1000，可信下载 metadata 仅复用明确 durationMs，未知不猜。renderer LOCAL 优先 durationMs 转为 Song 毫秒；在线 duration 保持原契约。
 
 - LOCAL收藏仅保留本机/当前账号关系，新增、删除和未关联导入均不产生favorite_song outbox或创建同步UUID；LOCAL跨端只允许playlist_track。安全源字段的私有位置检查与公共HTTPS封面尺寸参数规则须与Server同步policy一致，不合规封面置空，禁止先泄露再依赖服务端400。
+
+
+## 账号范围、公开身份与导入接入
+
+- `electron/account/accountIdentity.ts` 的 identityRevision 在 main 会话保存/清除时递增；账号异步登录/刷新/资料提交校验请求世代，过期响应不能覆盖新账号。JWT 仅保留于 main raw AccountSession，`account:*` IPC 返回 PublicAccountSession（公开用户/过期时间/identityRevision）；renderer 不再持有 token，一起听按公开世代重连。
+- `settings:get/set/delete` 在 `ipc/publicSettingsPolicy.ts` 拒绝 account/sync/auth/credential/token/secret/main/private、设备身份、Cookie 和发现私有前缀（含账号分区）。普通 app-theme/local-setting/audioState 等设置继续使用原 API。新增 main 私有设置须纳入保留命名空间，禁止通用设置伪造会话或游标。
+- `sync-state:<accountId>` 独立保存 seed/cursor/error/time；启动、切号和退出不搬移/删除其他账号 pending。seed 仅枚举捕获账号，保留已有 pending 删除/更新；空账号不联网。完整 protocol2 快照结束后才对账，pending/删除/快照均使用同一 LOCAL 逻辑 key；ACK 只删该账号本次 opId，push.version 不推进 pull，skipped 强制权威快照。
+- 所有收藏/歌单 IPC 捕获同一 main Repository；renderer 世代只是过期请求保护，不是权限。远端 KG/WY 缓存刷新携带开始时的 identityRevision，main 拒绝切号后的迟到写入；收藏/歌单 store 即时清空当前视图与歌单曲目缓存，晚响应不写回旧账号结果。队列和本地物理库不随账号切换清空。
+- 新 typed API：`getLibraryIdentity` / `onAccountIdentityChanged`、`createUserPlaylistWithTracks`、`updateUserPlaylist`、`removeUserPlaylist`、`bulkAddUserPlaylistTracks`、`bulkRemoveUserPlaylistTracks`、`resolveLocalTracks`。create-with-tracks 与 bulk 回执基于 Repository 实际 added/existing/removed，后续 P3/P4 编辑/转换复用，不搭平行存储。
+- 设置 → 同步账号提供手动“查看并导入”，通过 `previewUnassociatedLibrary` 查询当前账号名称与未关联收藏/歌单数量；AppModal 明确确认后才调用 `importUnassociatedLibrary`。main 的一次性确认 ID 绑定身份世代、5 分钟过期，成功消费；取消不修改数据、不自动 seed，重复导入歌单会新建副本并明确告知，提交期间禁止重复/关闭。App 全局在首次登录当前账号且有未关联数据时复用同一可取消确认，main 的 account-library-import-prompt:<accountId> 记已提示；不会每次登录循环强制。手动入口随时保留。
+- LOCAL 只允许 playlist_track 跨端；LOCAL 收藏仅本机账号关系。`songAvailability.ts`、统一 playbackCommands、audio 内部续播/队列入口和 main 取链共同阻止异机/文件缺失占位，批量过滤不可用项；一起听/下载继续拒绝 LOCAL。下行关系删除仅删账号关系，不删索引或物理文件；受管文件移动/关联 UI 属后续阶段。
+- P2 封面上传/归属/引用回收、P3 编辑 UI 与 P4 完整转存交互仍按各阶段实现；P1 接入不等于这些功能或设备验收已完成。必要检查仅 TypeScript/vue-tsc 与 diff；本轮不跑 App、UI、接口、测试或迁移验证。

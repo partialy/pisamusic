@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import type { AccountUser, AccountSession } from "@/types/account";
+import type { AccountUser, PublicAccountSession as AccountSession } from "@/types/account";
 
 export type PMUserInfo = AccountUser;
 
@@ -23,12 +23,15 @@ export const useUserStore = defineStore("user", {
   state: () => ({
     userInfo: emptyUser(),
     isLogin: false,
-    token: "",
+    identityRevision: -1,
     kgID: "",
     wyID: "",
   }),
   actions: {
     async init() {
+      window.electronAPI.onAccountIdentityChanged(() => {
+        void window.electronAPI.getAccountSession().then(session => this.applySession(session));
+      });
       this.kgID = localStorage.getItem("kguid") || "";
       this.wyID = localStorage.getItem("wyuid") || "";
       try {
@@ -39,8 +42,9 @@ export const useUserStore = defineStore("user", {
     },
 
     applySession(session: AccountSession) {
-      this.isLogin = Boolean(session?.loggedIn && session.token);
-      this.token = this.isLogin ? session.token : "";
+      if (session.identityRevision < this.identityRevision) return;
+      this.identityRevision = session.identityRevision;
+      this.isLogin = Boolean(session?.loggedIn && session.user.id);
       this.userInfo = this.isLogin ? { ...session.user } : emptyUser();
     },
 

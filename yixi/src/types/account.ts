@@ -20,6 +20,8 @@ export type AccountSession = AccountAuthResult & {
   loggedIn: boolean;
 };
 
+export type PublicAccountSession = Omit<AccountSession, "token"> & { identityRevision: number };
+
 export type AccountSessionLike =
   | { loggedIn: boolean; user: AccountUser }
   | { isLogin: boolean; userInfo: AccountUser };

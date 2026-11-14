@@ -1,3 +1,4 @@
+import { beginAuthAttempt, currentAuthAttempt, identityRevision, publishAccountIdentity } from "../account/accountIdentity";
 import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
@@ -310,11 +311,14 @@ export function getAccountSession(): AccountSession {
 export function saveAccountSession(result: AccountAuthResult): AccountSession {
   const normalized = normalizeAccountAuthResult(result);
   getAppDatabase().setSetting(ACCOUNT_SESSION_KEY, normalized, 1);
+  publishAccountIdentity();
   return { ...normalized, loggedIn: true };
 }
 
 export function clearAccountSession(): AccountSession {
+  beginAuthAttempt();
   getAppDatabase().deleteSetting(ACCOUNT_SESSION_KEY);
+  publishAccountIdentity();
   return emptyAccountSession();
 }
 
@@ -327,30 +331,38 @@ export async function sendAccountEmailCode(payload: { email: string; purpose: "r
 }
 
 export async function registerAccount(payload: { email: string; username: string; password: string; code: string }) {
+  const attempt = beginAuthAttempt();
   const response = await requestSystem<AccountAuthResult>("/api/auth/register", {
     method: "POST",
     body: payload,
   });
+  if (attempt !== currentAuthAttempt()) throw new Error("账号操作已过期");
   return saveAccountSession(unwrapResponse(response));
 }
 
 export async function loginAccountByPassword(payload: { identifier: string; password: string }) {
+  const attempt = beginAuthAttempt();
   const response = await requestSystem<AccountAuthResult>("/api/auth/login/password", {
     method: "POST",
     body: payload,
   });
+  if (attempt !== currentAuthAttempt()) throw new Error("账号操作已过期");
   return saveAccountSession(unwrapResponse(response));
 }
 
 export async function loginAccountByCode(payload: { email: string; code: string }) {
+  const attempt = beginAuthAttempt();
   const response = await requestSystem<AccountAuthResult>("/api/auth/login/code", {
     method: "POST",
     body: payload,
   });
+  if (attempt !== currentAuthAttempt()) throw new Error("账号操作已过期");
   return saveAccountSession(unwrapResponse(response));
 }
 
 export async function refreshAccountSession() {
+  const revision = identityRevision();
+  const attempt = currentAuthAttempt();
   const session = getAccountSession();
   if (!session.loggedIn) return session;
   try {
@@ -358,9 +370,10 @@ export async function refreshAccountSession() {
       method: "POST",
       token: session.token,
     });
+    if (revision !== identityRevision() || attempt !== currentAuthAttempt()) throw new Error("账号操作已过期");
     return saveAccountSession(unwrapResponse(response));
   } catch (error) {
-    clearAccountSession();
+    if (revision === identityRevision() && attempt === currentAuthAttempt()) clearAccountSession();
     throw error;
   }
 }
@@ -377,6 +390,8 @@ export async function sendProfileEmailCode(payload: { email: string }) {
 }
 
 export async function updateAccountProfile(payload: { username?: string; email?: string; code?: string; avatarKey?: string }) {
+  const revision = identityRevision();
+  const attempt = currentAuthAttempt();
   const session = getAccountSession();
   if (!session.loggedIn) throw new Error("请先登录账号");
   const response = await requestSystem<AccountAuthResult>("/api/auth/profile", {
@@ -384,6 +399,7 @@ export async function updateAccountProfile(payload: { username?: string; email?:
     token: session.token,
     body: payload,
   });
+  if (revision !== identityRevision() || attempt !== currentAuthAttempt()) throw new Error("账号操作已过期");
   return saveAccountSession(unwrapResponse(response));
 }
 
@@ -422,6 +438,7 @@ export async function uploadAccountAvatar(): Promise<AccountAvatarUploadResult> 
   });
   const uploadToken = unwrapResponse(tokenResponse);
   await uploadQiniuPublicFile(uploadToken, filePath, fileName, mimeType);
+  if (session.token !== getAccountSession().token) throw new Error("账号操作已过期");
   const nextSession = await updateAccountProfile({ avatarKey: uploadToken.key });
   return { canceled: false, session: nextSession };
 }
@@ -552,7 +569,8 @@ export async function pushSyncChanges(token: string, changes: SyncChangeInput[])
       },
     }
   );
-  return unwrapResponse(response);
+  if (!response.success || response.code !== 0 || response.data === null) throw Object.assign(new Error(response.msg || "同步推送失败"), { code: response.code });
+  return response.data;
 }
 
 export async function requestSignedGateway<T>(

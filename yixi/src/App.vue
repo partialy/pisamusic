@@ -28,6 +28,7 @@
                 <MainPlayer v-if="showPlayer" class="player" />
               </Transition>
               <EqualizerModal />
+              <ImportUnassociatedLibrary :logged-in="userStore.isLogin" auto-prompt :show-entry="false" />
               <AppDirectMessagePopup :ready="directMessageReady" :online="directMessageOnline" />
             </div>
           </n-modal-provider>
@@ -76,6 +77,7 @@ import { setupPlaybackBridge, usePlaybackCommands } from "./listenTogether/playb
 import { openSharedMediaDetail } from "./share/mediaDetailRoute";
 import { listeningPlaybackAdapter } from "./listening/listeningPlaybackAdapter";
 import { setupDesktopLyricBridge } from "./desktopLyric/desktopLyricBridge";
+import ImportUnassociatedLibrary from "./components/setting/sync/ImportUnassociatedLibrary.vue";
 import AppDirectMessagePopup from "./components/directMessage/AppDirectMessagePopup.vue";
 const player = useAudioStore();
 const commonStore = useCommonStore();

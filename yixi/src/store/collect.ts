@@ -1,3 +1,4 @@
+import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 import type { CommonPlaylist, Song } from "@/types/song";
 import electronAPI from "@/utils/electron";
 import { hasPlaylistIdentity, normalizePlaylist } from "@/utils/playlist";
@@ -26,6 +27,14 @@ export const useCollectStore = defineStore("collect", () => {
   const changed = ref(false);
   let stopFavoritesListener: (() => void) | null = null;
 
+  let reloadGeneration = 0;
+  onLibraryIdentityChanged(() => {
+    reloadGeneration++;
+    songMap.value = new Map();
+    playlistMap.value = new Map();
+    void reload();
+  });
+
   const songs = computed(() => Array.from(songMap.value.values()));
   const playlists = computed(() => Array.from(playlistMap.value.values()));
 
@@ -39,15 +48,19 @@ export const useCollectStore = defineStore("collect", () => {
   }
 
   async function reload() {
+    const revision = await captureLibraryRevision();
+    const generation = ++reloadGeneration;
     try {
       const [songItems, playlistItems] = await Promise.all([
         electronAPI.listFavoriteSongs(),
         electronAPI.listFavoritePlaylists(),
       ]);
+      if (!isCurrentLibraryRevision(revision) || generation !== reloadGeneration) return;
       songMap.value = new Map(normalizeFavoriteSongs(songItems));
       playlistMap.value = new Map(normalizeFavoritePlaylists(playlistItems));
       changed.value = false;
     } catch (error: any) {
+      if (!isCurrentLibraryRevision(revision) || generation !== reloadGeneration) return;
       void electronAPI.reportError(error, {
         scope: "collect",
         action: "reload",
@@ -67,6 +80,7 @@ export const useCollectStore = defineStore("collect", () => {
   }
 
   async function collectSong(song?: Song) {
+    const revision = await captureLibraryRevision();
     if (!song) return;
     if (!hasSongIdentity(toRaw(song))) {
       window.$message.error("歌曲收藏失败：缺少来源或 ID");
@@ -77,6 +91,7 @@ export const useCollectStore = defineStore("collect", () => {
     const result = (await electronAPI.toggleFavoriteSong(
       normalizedSong
     )) as FavoriteToggleResult<FavoriteSongRecord>;
+    if (!isCurrentLibraryRevision(revision)) return;
     if (result.collected) {
       const savedSong = result.item?.payload
         ? normalizeSong(result.item.payload as Record<string, unknown>)
@@ -91,6 +106,7 @@ export const useCollectStore = defineStore("collect", () => {
   }
 
   async function collectList(playlist?: CommonPlaylist) {
+    const revision = await captureLibraryRevision();
     if (!playlist) return;
     if (!hasFavoriteIdentity(playlist)) {
       window.$message.error("歌单收藏失败：缺少来源或 ID");
@@ -102,6 +118,7 @@ export const useCollectStore = defineStore("collect", () => {
       const result = (await electronAPI.toggleFavoritePlaylist(
         normalizedPlaylist
       )) as FavoriteToggleResult<FavoritePlaylistRecord>;
+      if (!isCurrentLibraryRevision(revision)) return;
       if (result.collected) {
         const savedPlaylist = result.item?.payload
           ? normalizePlaylist(result.item.payload as Record<string, unknown>)
@@ -128,17 +145,20 @@ export const useCollectStore = defineStore("collect", () => {
   }
 
   async function removeSong(song: Song) {
+    const revision = await captureLibraryRevision();
     if (!hasSongIdentity(toRaw(song))) return;
     const normalizedSong = normalizeSong(toRaw(song));
     await electronAPI.removeFavoriteSong({
       source: normalizedSong.source,
       id: normalizedSong.id,
     });
+    if (!isCurrentLibraryRevision(revision)) return;
     songMap.value.delete(songKey(normalizedSong));
     changed.value = true;
   }
 
   async function batchRemoveSongs(songsToRemove: Song[]) {
+    const revision = await captureLibraryRevision();
     if (!songsToRemove.length) return;
     const tasks = songsToRemove.map(async (song) => {
       if (!hasSongIdentity(toRaw(song))) return;
@@ -147,24 +167,29 @@ export const useCollectStore = defineStore("collect", () => {
         source: normalizedSong.source,
         id: normalizedSong.id,
       });
+      if (!isCurrentLibraryRevision(revision)) return;
       songMap.value.delete(songKey(normalizedSong));
     });
     await Promise.all(tasks);
+    if (!isCurrentLibraryRevision(revision)) return;
     changed.value = true;
   }
 
   async function removeList(playlist: CommonPlaylist) {
+    const revision = await captureLibraryRevision();
     if (!hasFavoriteIdentity(playlist)) return;
     const normalizedPlaylist = normalizePlaylist(toRaw(playlist));
     await electronAPI.removeFavoritePlaylist({
       source: normalizedPlaylist.source,
       id: normalizedPlaylist.id,
     });
+    if (!isCurrentLibraryRevision(revision)) return;
     playlistMap.value.delete(playlistFavoriteKey(normalizedPlaylist.source, normalizedPlaylist.id));
     changed.value = true;
   }
 
   async function batchRemovePlaylists(playlistsToRemove: CommonPlaylist[]) {
+    const revision = await captureLibraryRevision();
     if (!playlistsToRemove.length) return;
     const tasks = playlistsToRemove.map(async (playlist) => {
       if (!hasFavoriteIdentity(playlist)) return;
@@ -173,9 +198,11 @@ export const useCollectStore = defineStore("collect", () => {
         source: normalizedPlaylist.source,
         id: normalizedPlaylist.id,
       });
+      if (!isCurrentLibraryRevision(revision)) return;
       playlistMap.value.delete(playlistFavoriteKey(normalizedPlaylist.source, normalizedPlaylist.id));
     });
     await Promise.all(tasks);
+    if (!isCurrentLibraryRevision(revision)) return;
     changed.value = true;
   }
 

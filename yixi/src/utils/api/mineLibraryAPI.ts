@@ -1,3 +1,4 @@
+import { captureLibraryRevision, isCurrentLibraryRevision } from "@/utils/libraryIdentity";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { reportError } from "@/utils/errorReporter";
 import { normalizeSong } from "@/utils/song";
@@ -35,11 +36,12 @@ export async function createMinePlaylist(payload: CreatePlaylistPayload) {
   });
 }
 
-export async function replaceMinePlaylists(source: Exclude<CommonPlaylist["source"], "local">, playlists: CommonPlaylist[]) {
+export async function replaceMinePlaylists(source: Exclude<CommonPlaylist["source"], "local">, playlists: CommonPlaylist[], identityRevision?: number) {
   return invokeMineApi("replaceMinePlaylists", { source, count: playlists.length }, async () => {
     const items = await window.electronAPI.replaceUserPlaylists({
       source,
       playlists,
+      identityRevision,
     });
     return items.map((item) => item.payload as CommonPlaylist);
   });
@@ -103,8 +105,11 @@ async function invokeMineApi<T>(
   payload: Record<string, unknown>,
   invoker: () => Promise<T>
 ) {
+  const revision = await captureLibraryRevision();
   try {
-    return await invoker();
+    const result = await invoker();
+    if (!isCurrentLibraryRevision(revision)) throw new Error("账号已变化，请重试");
+    return result;
   } catch (error) {
     void reportError(error, {
       scope: "mine-library",

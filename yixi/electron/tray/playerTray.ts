@@ -1,7 +1,9 @@
 import { app, BrowserWindow, Menu, nativeImage, nativeTheme, Tray } from "electron";
 import path from "path";
-import { getAppDatabase } from "../database";
-import { recordFavoriteSongChange } from "../sync/syncService";
+import { captureAccountLibrary } from "../account/accountLibraryContext";
+import { onAccountIdentityChanged } from "../account/accountIdentity";
+import { prepareLibraryTrack } from "../localLibrary/localTrackAccess";
+import { scheduleLibrarySync } from "../sync/syncService";
 
 type TrayTrack = {
   id: string;
@@ -43,6 +45,7 @@ export class PlayerTray {
     this.isDesktopLyricVisible = options.isDesktopLyricVisible;
     this.onToggleDesktopLyricLock = options.onToggleDesktopLyricLock;
     this.isDesktopLyricLocked = options.isDesktopLyricLocked;
+    onAccountIdentityChanged(() => this.refresh());
   }
 
   create() {
@@ -97,8 +100,9 @@ export class PlayerTray {
         icon: this.getTrayIcon(currentCollected ? "unlove" : "love"),
         click: () => {
           if (!this.currentSong) return;
-          const result = getAppDatabase().toggleFavoriteSong(this.currentSong as any);
-          recordFavoriteSongChange(this.currentSong as any, result.collected ? "upsert" : "delete");
+          const { repo } = captureAccountLibrary();
+          repo.toggleFavoriteSong(prepareLibraryTrack(this.currentSong, repo));
+          scheduleLibrarySync();
           this.notifyFavoritesChanged();
           this.refresh();
         },
@@ -159,7 +163,7 @@ export class PlayerTray {
 
   private isCurrentSongFavorite() {
     if (!this.currentSong) return false;
-    return getAppDatabase().containsFavoriteSong(this.currentSong.source, this.currentSong.id);
+    return captureAccountLibrary().repo.containsFavoriteSong(this.currentSong.source, this.currentSong.id);
   }
 
   private notifyFavoritesChanged() {

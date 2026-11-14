@@ -26,6 +26,11 @@ export function normalizeSong(input: SongInput): Song {
     duration: normalizeDuration(raw.duration),
   };
 
+  if (typeof raw.durationMs === "number" && Number.isFinite(raw.durationMs) && raw.durationMs >= 0) {
+    song.durationMs = raw.durationMs;
+    if (source === "local") song.duration = raw.durationMs;
+  }
+
   const coverSize = normalizeCoverSize(raw.coverSize);
   if (coverSize) song.coverSize = coverSize;
 

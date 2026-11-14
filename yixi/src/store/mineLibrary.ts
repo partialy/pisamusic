@@ -1,3 +1,4 @@
+import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import type { CommonPlaylist, Song } from "@/types/song";
@@ -32,6 +33,15 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
   const cloudError = ref("");
   let stopMineLibraryListener: (() => void) | null = null;
 
+  let cacheGeneration = 0;
+  onLibraryIdentityChanged(() => {
+    cacheGeneration++;
+    playlists.value = [];
+    playlistSongs.value = {};
+    playlistRefreshing.value = false;
+    playlistError.value = "";
+    void loadCache();
+  });
   const localPlaylists = computed(() => playlists.value.filter((item) => item.source === "local"));
   const kgPlaylists = computed(() => playlists.value.filter((item) => item.source === "kg"));
   const wyPlaylists = computed(() => playlists.value.filter((item) => item.source === "wy"));
@@ -43,6 +53,7 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
     await loadCache();
     if (!stopMineLibraryListener && window.electronAPI.onMineLibraryChanged) {
       stopMineLibraryListener = window.electronAPI.onMineLibraryChanged(() => {
+        playlistSongs.value = {};
         void loadCache();
       });
     }
@@ -50,10 +61,13 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
   }
 
   async function loadCache() {
+    const generation = ++cacheGeneration;
+    const revision = await captureLibraryRevision();
     const [playlistCache, cloudCache] = await Promise.all([
       listMinePlaylists("all"),
       listMineCloudSongs("all"),
     ]);
+    if (!isCurrentLibraryRevision(revision) || generation !== cacheGeneration) return;
     playlists.value = playlistCache;
     cloudSongs.value = cloudCache;
   }
@@ -63,6 +77,7 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
   }
 
   async function refreshPlaylists(force = false) {
+    const revision = await captureLibraryRevision();
     if (playlistRefreshing.value) return;
     if (!force && playlists.value.length) return;
     playlistRefreshing.value = true;
@@ -73,21 +88,24 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
         fetchCookiePlaylists("wy"),
       ]);
 
+      if (!isCurrentLibraryRevision(revision)) return;
       if (kgResult.status === "fulfilled") {
-        await replaceMinePlaylists("kg", kgResult.value);
+        await replaceMinePlaylists("kg", kgResult.value, revision);
       }
       if (wyResult.status === "fulfilled") {
-        await replaceMinePlaylists("wy", wyResult.value);
+        await replaceMinePlaylists("wy", wyResult.value, revision);
       }
       if (kgResult.status === "rejected" && wyResult.status === "rejected") {
         throw kgResult.reason;
       }
-      playlists.value = await listMinePlaylists("all");
+      const next = await listMinePlaylists("all");
+      if (isCurrentLibraryRevision(revision)) playlists.value = next;
     } catch (error) {
+      if (!isCurrentLibraryRevision(revision)) return;
       playlistError.value = error instanceof Error ? error.message : "歌单刷新失败";
       showLimitedWarning("歌单刷新失败，已显示本地缓存");
     } finally {
-      playlistRefreshing.value = false;
+      if (isCurrentLibraryRevision(revision)) playlistRefreshing.value = false;
     }
   }
 
@@ -109,25 +127,34 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
   }
 
   async function createPlaylist(payload: CreatePlaylistPayload) {
+    const revision = await captureLibraryRevision();
     const playlist = await createMinePlaylist(payload);
     if (!playlist) throw new Error("创建歌单失败");
-    playlists.value = await listMinePlaylists("all");
+    const next = await listMinePlaylists("all");
+    if (!isCurrentLibraryRevision(revision)) throw new Error("账号已变化，请重试");
+    playlists.value = next;
     return playlist;
   }
 
   async function addSongToPlaylist(playlistId: string, song: Song) {
+    const revision = await captureLibraryRevision();
     const songs = await addSongToMinePlaylist(playlistId, song);
+    if (!isCurrentLibraryRevision(revision)) throw new Error("账号已变化，请重试");
     playlistSongs.value = {
       ...playlistSongs.value,
       [playlistId]: songs,
     };
-    playlists.value = await listMinePlaylists("all");
+    const next = await listMinePlaylists("all");
+    if (!isCurrentLibraryRevision(revision)) throw new Error("账号已变化，请重试");
+    playlists.value = next;
     return songs;
   }
 
   async function loadPlaylistSongs(playlistId: string, force = false) {
+    const revision = await captureLibraryRevision();
     if (!force && playlistSongs.value[playlistId]) return playlistSongs.value[playlistId];
     const songs = await listMinePlaylistSongs(playlistId);
+    if (!isCurrentLibraryRevision(revision)) return [];
     playlistSongs.value = {
       ...playlistSongs.value,
       [playlistId]: songs,

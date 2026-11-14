@@ -147,7 +147,23 @@ const shortcutIpc = {
     on("shortcut:trigger", callback),
 };
 
+let libraryRevision: number | undefined;
+ipcRenderer.on("account:identity-changed", (_event: unknown, revision: number) => { libraryRevision = revision; });
+function invokeLibrary(channel: string, payload?: unknown) {
+  return ipcRenderer.invoke(channel, cloneIpcPayload(payload), libraryRevision);
+}
 const libraryIpc = {
+  getLibraryIdentity: () => ipcRenderer.invoke("library:identity").then((identity: { identityRevision: number }) => { libraryRevision = Math.max(libraryRevision ?? -1, identity.identityRevision); return identity; }),
+  onAccountIdentityChanged: (callback: (revision: number) => void) => on("account:identity-changed", callback),
+  getUnassociatedImportPrompt: () => ipcRenderer.invoke("library:unassociated:prompt"),
+  previewUnassociatedLibrary: () => ipcRenderer.invoke("library:unassociated:preview"),
+  importUnassociatedLibrary: (confirmationId: string) => ipcRenderer.invoke("library:unassociated:import", confirmationId),
+  resolveLocalTracks: (tracks: any[]) => ipcRenderer.invoke("library:local:resolve-tracks", cloneIpcPayload(tracks)),
+  createUserPlaylistWithTracks: (payload: any) => invokeLibrary("library:playlists:create-with-tracks", payload),
+  updateUserPlaylist: (payload: any) => invokeLibrary("library:playlists:update", payload),
+  removeUserPlaylist: (payload: { source: string; id: string }) => invokeLibrary("library:playlists:remove", payload),
+  bulkAddUserPlaylistTracks: (payload: any) => invokeLibrary("library:playlists:tracks:bulk-add", payload),
+  bulkRemoveUserPlaylistTracks: (payload: any) => invokeLibrary("library:playlists:tracks:bulk-remove", payload),
   addSearchHistory: (payload: { keyword: string; source?: string | null }) =>
     ipcRenderer.invoke("library:search-history:add", cloneIpcPayload(payload)),
   listSearchHistory: (limit?: number) =>
@@ -162,38 +178,38 @@ const libraryIpc = {
   getQueueSnapshot: () => ipcRenderer.invoke("library:queue-snapshot:get"),
   saveQueueSnapshot: (snapshot: { currentIndex: number; queue: any[] }) =>
     ipcRenderer.invoke("library:queue-snapshot:save", cloneIpcPayload(snapshot)),
-  listFavoriteSongs: () => ipcRenderer.invoke("library:favorites:songs:list"),
+  listFavoriteSongs: () => invokeLibrary("library:favorites:songs:list"),
   addFavoriteSong: (track: any) =>
-    ipcRenderer.invoke("library:favorites:songs:add", cloneIpcPayload(track)),
+    invokeLibrary("library:favorites:songs:add", cloneIpcPayload(track)),
   removeFavoriteSong: (payload: { source: string; id: string }) =>
-    ipcRenderer.invoke("library:favorites:songs:remove", cloneIpcPayload(payload)),
+    invokeLibrary("library:favorites:songs:remove", cloneIpcPayload(payload)),
   toggleFavoriteSong: (track: any) =>
-    ipcRenderer.invoke("library:favorites:songs:toggle", cloneIpcPayload(track)),
+    invokeLibrary("library:favorites:songs:toggle", cloneIpcPayload(track)),
   containsFavoriteSong: (payload: { source: string; id: string }) =>
-    ipcRenderer.invoke("library:favorites:songs:contains", cloneIpcPayload(payload)),
+    invokeLibrary("library:favorites:songs:contains", cloneIpcPayload(payload)),
   listFavoritePlaylists: () =>
-    ipcRenderer.invoke("library:favorites:playlists:list"),
+    invokeLibrary("library:favorites:playlists:list"),
   addFavoritePlaylist: (playlist: any) =>
-    ipcRenderer.invoke("library:favorites:playlists:add", cloneIpcPayload(playlist)),
+    invokeLibrary("library:favorites:playlists:add", cloneIpcPayload(playlist)),
   removeFavoritePlaylist: (payload: { source: string; id: string }) =>
-    ipcRenderer.invoke("library:favorites:playlists:remove", cloneIpcPayload(payload)),
+    invokeLibrary("library:favorites:playlists:remove", cloneIpcPayload(payload)),
   toggleFavoritePlaylist: (playlist: any) =>
-    ipcRenderer.invoke("library:favorites:playlists:toggle", cloneIpcPayload(playlist)),
+    invokeLibrary("library:favorites:playlists:toggle", cloneIpcPayload(playlist)),
   containsFavoritePlaylist: (payload: { source: string; id: string }) =>
-    ipcRenderer.invoke("library:favorites:playlists:contains", cloneIpcPayload(payload)),
+    invokeLibrary("library:favorites:playlists:contains", cloneIpcPayload(payload)),
   onFavoritesChanged: (callback: () => void) => on("favorites:changed", callback),
   listUserPlaylists: (payload?: { source?: "kg" | "wy" | "kw" | "qq" | "local" | "all" }) =>
-    ipcRenderer.invoke("library:playlists:list", cloneIpcPayload(payload ?? {})),
+    invokeLibrary("library:playlists:list", cloneIpcPayload(payload ?? {})),
   createUserPlaylist: (playlist: any) =>
-    ipcRenderer.invoke("library:playlists:create", cloneIpcPayload(playlist)),
+    invokeLibrary("library:playlists:create", cloneIpcPayload(playlist)),
   upsertUserPlaylist: (playlist: any) =>
-    ipcRenderer.invoke("library:playlists:upsert", cloneIpcPayload(playlist)),
+    invokeLibrary("library:playlists:upsert", cloneIpcPayload(playlist)),
   replaceUserPlaylists: (payload: { source: "kg" | "wy" | "kw" | "qq"; playlists: any[] }) =>
-    ipcRenderer.invoke("library:playlists:replace-source", cloneIpcPayload(payload)),
+    invokeLibrary("library:playlists:replace-source", cloneIpcPayload(payload)),
   listUserPlaylistTracks: (payload: { playlistId: string }) =>
-    ipcRenderer.invoke("library:playlists:tracks:list", cloneIpcPayload(payload)),
+    invokeLibrary("library:playlists:tracks:list", cloneIpcPayload(payload)),
   addUserPlaylistTrack: (payload: { playlistId: string; track: any }) =>
-    ipcRenderer.invoke("library:playlists:tracks:add", cloneIpcPayload(payload)),
+    invokeLibrary("library:playlists:tracks:add", cloneIpcPayload(payload)),
   listUserCloudSongs: (payload?: { cloudSource?: string | "all" }) =>
     ipcRenderer.invoke("library:cloud:songs:list", cloneIpcPayload(payload ?? {})),
   replaceUserCloudSongs: (payload: { cloudSource: string; songs: any[] }) =>

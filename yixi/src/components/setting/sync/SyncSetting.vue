@@ -19,6 +19,7 @@
     </div>
 
     </SettingSection>
+    <ImportUnassociatedLibrary :logged-in="isLogin" />
     <SettingSection title="同步状态" description="查看当前账号的同步结果。">
     <div class="setting-item">
       <div class="setting-info">
@@ -45,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+import ImportUnassociatedLibrary from "./ImportUnassociatedLibrary.vue";
 import SettingSection from "../SettingSection.vue";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { NAvatar, NButton, NSpace } from "naive-ui";
@@ -56,7 +58,7 @@ import avatarImg from "@/assets/defaultAdminAvatar.jpg";
 type SyncState = Awaited<ReturnType<typeof window.electronAPI.getSyncState>>;
 
 const emptyState: SyncState = {
-  token: "",
+  identityRevision: 0,
   userId: "",
   seededAccountId: "",
   lastVersion: 0,
@@ -70,6 +72,7 @@ const { openAccountLogin: openLogin } = useAccountLoginDialog();
 const state = ref<SyncState>({ ...emptyState });
 const loading = ref(false);
 const logoutLoading = ref(false);
+let stopIdentityListener: (() => void) | null = null;
 let stopSyncListener: (() => void) | null = null;
 
 const accountDesc = computed(() => {
@@ -78,7 +81,7 @@ const accountDesc = computed(() => {
 });
 
 const statusText = computed(() => {
-  if (!isLogin.value || !state.value.token) return "未开启，登录账号后启用账号同步";
+  if (!isLogin.value || !state.value.userId) return "未开启，登录账号后启用账号同步";
   if (state.value.lastError) return "账号同步异常";
   if (!state.value.lastSyncAt) return "已登录账号，尚未完成同步";
   return "账号同步正常";
@@ -90,19 +93,24 @@ const lastSyncText = computed(() => {
 });
 
 onMounted(async () => {
+  stopIdentityListener = window.electronAPI.onAccountIdentityChanged(revision => {
+    state.value = { ...emptyState, identityRevision: revision };
+    void refreshState();
+  });
   await refreshState();
   stopSyncListener = window.electronAPI.onSyncChanged?.((next) => {
-    state.value = next;
+    applyState(next);
   }) ?? null;
 });
 
 onUnmounted(() => {
   stopSyncListener?.();
+  stopIdentityListener?.();
 });
 
 async function handleSyncNow() {
   await runSyncAction(async () => {
-    state.value = await window.electronAPI.syncNow();
+    applyState(await window.electronAPI.syncNow());
     window.$message.success(state.value.lastError ? "账号同步完成，但存在错误" : "账号同步完成");
   });
 }
@@ -112,7 +120,7 @@ async function handleLogout() {
   logoutLoading.value = true;
   try {
     await userStore.logout();
-    state.value = await window.electronAPI.getSyncState();
+    applyState(await window.electronAPI.getSyncState());
     window.$message.success("已退出登录");
   } catch (error) {
     window.$message.error(errorMessage(error, "退出登录失败"));
@@ -121,8 +129,12 @@ async function handleLogout() {
   }
 }
 
+function applyState(next: SyncState) {
+  if (next.identityRevision >= state.value.identityRevision) state.value = next;
+}
+
 async function refreshState() {
-  state.value = await window.electronAPI.getSyncState();
+  applyState(await window.electronAPI.getSyncState());
 }
 
 async function runSyncAction(action: () => Promise<void>) {

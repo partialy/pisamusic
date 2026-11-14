@@ -1,3 +1,4 @@
+import { isSongPlayable, resolvePlayableSongs } from "@/utils/songAvailability";
 import { defineStore } from "pinia";
 import { Howl } from "howler"; // 音频播放库
 import { ref, computed, toRaw, watch } from "vue";
@@ -243,7 +244,19 @@ export const useAudioStore = defineStore("audio", () => {
           song = currentSong.value || playlist.value[0] || null;
         }
       }
+      if (!song && currentSong.value) {
+        const [resolved] = await resolvePlayableSongs([currentSong.value]);
+        if (!isSongPlayable(resolved)) {
+          window.$message?.info?.("当前歌曲在此设备不可播放");
+          return;
+        }
+      }
       if (song) {
+        [song] = await resolvePlayableSongs([song]);
+        if (!isSongPlayable(song)) {
+          window.$message?.info?.(song.source === "local" ? "本地文件不可用，请在来源设备播放" : "该歌曲不可播放");
+          return;
+        }
         if (currentSong.value && (currentSong.value.id !== song.id || currentSong.value.source !== song.source)) {
           listeningPlaybackAdapter.terminal(currentSong.value, duration.value * 1000, "manual_next");
         }
@@ -308,6 +321,7 @@ export const useAudioStore = defineStore("audio", () => {
    * @param _play 是否播放
    */
   const setPlaylist = async (list: Song[], _play?: Boolean) => {
+    list = (await resolvePlayableSongs(list)).filter(isSongPlayable);
     if (playlist.value.length == 0) {
       playlist.value = list;
     } else {
@@ -325,6 +339,7 @@ export const useAudioStore = defineStore("audio", () => {
    * @param autoPlay default = true
    */
   const switchPlayList = async (list: Song[], autoPlay: Boolean = true) => {
+    list = (await resolvePlayableSongs(list)).filter(isSongPlayable);
     playlist.value = list;
     interCount.value = 0;
     if (list.length && autoPlay) {
@@ -351,6 +366,7 @@ export const useAudioStore = defineStore("audio", () => {
    * @param song
    */
   const nextPlay = (song: Song): void => {
+    if (!isSongPlayable(song)) return;
     window.$message.success(`已添加到下一首播放`);
     const currentIndex = getCurrentIndex();
     const targetKey = getSongQueueKey(song);

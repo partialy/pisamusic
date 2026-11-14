@@ -1,3 +1,4 @@
+import { publicAccountSession } from "../account/accountLibraryContext";
 import { ipcMain } from "electron";
 import {
   getAnnouncements,
@@ -7,7 +8,6 @@ import {
   getAppVersion,
   clearAccountSession,
   getBootstrap,
-  getAccountSession,
   getPrivacyPolicy,
   getRuntimeEndpointsCached,
   getRuntimeEndpointsFresh,
@@ -76,8 +76,11 @@ export function setupSystemIpc() {
     return submitFeedback(payload);
   });
 
-  ipcMain.handle("account:session", () => getAccountSession());
-  ipcMain.handle("account:upload-avatar", () => uploadAccountAvatar());
+  ipcMain.handle("account:session", () => publicAccountSession());
+  ipcMain.handle("account:upload-avatar", async () => {
+    const result = await uploadAccountAvatar();
+    return { canceled: result.canceled, session: publicAccountSession() };
+  });
   ipcMain.handle("account:refresh", async () => {
     try {
       const session = await refreshAccountSession();
@@ -87,9 +90,11 @@ export function setupSystemIpc() {
         getListeningManager().onAccountLogout();
       }
       getDirectMessageManager().onAccountSessionChanged();
-      return session;
+      return publicAccountSession();
     } catch (error) {
-      getListeningManager().onAccountLogout();
+      const current = publicAccountSession();
+      if (current.loggedIn) void getListeningManager().onAccountSessionReady(current.user.id);
+      else getListeningManager().onAccountLogout();
       getDirectMessageManager().onAccountSessionChanged();
       throw error;
     }
@@ -98,10 +103,10 @@ export function setupSystemIpc() {
     getListeningManager().onAccountLogout();
     // 退出账号前先断开一起听 socket，避免旧账号连接残留
     closeListenTogetherSocket();
-    const session = clearAccountSession();
+    clearAccountSession();
     getDirectMessageManager().onAccountSessionChanged();
     await clearSyncState();
-    return session;
+    return publicAccountSession();
   });
   ipcMain.handle("account:send-email-code", (_event, payload: { email: string; purpose: "register" | "login" | "reset_password" }) =>
     sendAccountEmailCode(payload)
@@ -112,7 +117,7 @@ export function setupSystemIpc() {
       void getListeningManager().onAccountSessionReady(session.user.id);
     }
     getDirectMessageManager().onAccountSessionChanged();
-    return session;
+    return publicAccountSession();
   });
   ipcMain.handle("account:login-code", async (_event, payload: { email: string; code: string }) => {
     const session = await loginAccountByCode(payload);
@@ -120,7 +125,7 @@ export function setupSystemIpc() {
       void getListeningManager().onAccountSessionReady(session.user.id);
     }
     getDirectMessageManager().onAccountSessionChanged();
-    return session;
+    return publicAccountSession();
   });
   ipcMain.handle("account:register", async (_event, payload: { email: string; username: string; password: string; code: string }) => {
     const session = await registerAccount(payload);
@@ -128,7 +133,7 @@ export function setupSystemIpc() {
       void getListeningManager().onAccountSessionReady(session.user.id);
     }
     getDirectMessageManager().onAccountSessionChanged();
-    return session;
+    return publicAccountSession();
   });
   ipcMain.handle("account:profile-email-code", (_event, payload: { email: string }) =>
     sendProfileEmailCode(payload)
@@ -136,7 +141,7 @@ export function setupSystemIpc() {
   ipcMain.handle(
     "account:update-profile",
     (_event, payload: { username?: string; email?: string; code?: string; avatarKey?: string }) =>
-      updateAccountProfile(payload)
+      updateAccountProfile(payload).then(() => publicAccountSession())
   );
   ipcMain.handle("account:change-password", (_event, payload: { currentPassword: string; newPassword: string }) =>
     changeAccountPassword(payload)

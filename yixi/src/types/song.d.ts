@@ -22,6 +22,7 @@ export interface Song {
   vip?: boolean;
   // 单位ms
   duration: number;
+  durationMs?: number;
   // 来源
   source: "kg" | "qq" | "wy" | "kw" | "local" | "cloud";
   filePath?: string;
@@ -36,6 +37,8 @@ export interface API {
 }
 
 export interface CommonPlaylist {
+  coverResource?: { resourceId: string } | null;
+  coverPreset?: string | null;
   id: string;
   source: "kg" | "qq" | "wy" | "kw" | "local";
   name: string;
