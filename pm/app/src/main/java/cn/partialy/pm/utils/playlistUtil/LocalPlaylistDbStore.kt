@@ -18,19 +18,26 @@ import cn.partialy.pm.sync.SyncPayloads
 import com.google.gson.Gson
 
 internal class LocalPlaylistDbStore(context: Context) {
-    private val helper = LocalMusicDbOpenHelper(context.applicationContext)
+    private val helper = LocalMusicDbOpenHelper.shared(context.applicationContext)
     private val gson = Gson()
+    private val account = cn.partialy.pm.sync.LibraryAccountScope(context)
+    private val localTracks = cn.partialy.pm.sync.LocalSyncTrackStore(context)
 
-    fun getPlaylists(): List<CollectedPlaylist> {
+    fun allCoverReferences(): List<String> = helper.readableDatabase.rawQuery("SELECT cover FROM local_playlists", null).use { cursor ->
+        buildList { while (cursor.moveToNext()) add(cursor.getString(0).orEmpty()) }
+    }
+
+    fun getPlaylists(scope: String = account.current()): List<CollectedPlaylist> {
         val db = helper.readableDatabase
         val sql = """
-            SELECT p.id, p.name, p.desc, p.intro, p.cover, COUNT(s.song_id) AS song_count
+            SELECT p.id, p.name, p.desc, p.intro, p.cover, p.payload_json, COUNT(s.song_id) AS song_count
             FROM local_playlists p
-            LEFT JOIN local_playlist_songs s ON s.playlist_id = p.id
+            LEFT JOIN local_playlist_songs s ON s.playlist_id = p.id AND s.account_id = p.owner_account_id
+            WHERE p.owner_account_id = ?
             GROUP BY p.id
             ORDER BY p.created_at ASC, p.name COLLATE NOCASE ASC
         """.trimIndent()
-        db.rawQuery(sql, emptyArray()).use { cursor ->
+        db.rawQuery(sql, arrayOf(scope)).use { cursor ->
             val out = ArrayList<CollectedPlaylist>(cursor.count)
             while (cursor.moveToNext()) {
                 out.add(
@@ -41,8 +48,12 @@ internal class LocalPlaylistDbStore(context: Context) {
                         intro = cursor.getOptionalString("desc").ifBlank {
                             cursor.getString(cursor.getColumnIndexOrThrow("intro")).orEmpty()
                         },
-                        cover = cursor.getString(cursor.getColumnIndexOrThrow("cover")).orEmpty(),
+                        cover = cursor.getString(cursor.getColumnIndexOrThrow("cover")).orEmpty().ifBlank { cursor.playlistPayload()?.coverPreset?.let { "preset:$it" }.orEmpty() },
                         count = cursor.getInt(cursor.getColumnIndexOrThrow("song_count")),
+                        coverResource = cursor.playlistPayload()?.coverResource,
+                        coverPreset = cursor.playlistPayload()?.coverPreset,
+                        coverResourcePresent = cursor.playlistPayload()?.coverResourcePresent ?: false,
+                        coverPresetPresent = cursor.playlistPayload()?.coverPresetPresent ?: false,
                     )
                 )
             }
@@ -50,13 +61,13 @@ internal class LocalPlaylistDbStore(context: Context) {
         }
     }
 
-    fun playlistExists(id: String): Boolean {
+    fun playlistExists(id: String, anyScope: Boolean = false): Boolean {
         if (id.isBlank()) return false
         helper.readableDatabase.query(
             "local_playlists",
             arrayOf("id"),
-            "id = ?",
-            arrayOf(id),
+            if (anyScope) "id = ?" else "id = ? AND owner_account_id = ?",
+            if (anyScope) arrayOf(id) else arrayOf(id, account.current()),
             null,
             null,
             null,
@@ -73,6 +84,7 @@ internal class LocalPlaylistDbStore(context: Context) {
             val existingCreatedAt = queryCreatedAt(db, playlist.id)
             val values = ContentValues().apply {
                 val canonical = playlist.toCanonicalPlaylist()
+                put("owner_account_id", account.current())
                 put("id", playlist.id)
                 put("source", canonical.source)
                 put("name", playlist.name)
@@ -83,12 +95,10 @@ internal class LocalPlaylistDbStore(context: Context) {
                 put("created_at", existingCreatedAt ?: now)
                 put("updated_at", now)
             }
-            check(db.insertWithOnConflict(
-                "local_playlists",
-                null,
-                values,
-                SQLiteDatabase.CONFLICT_REPLACE,
-            ) != -1L) { "保存歌单失败" }
+            if (existingCreatedAt == null) {
+                db.insertOrThrow("local_playlists", null, values)
+            } else check(db.update("local_playlists", values, "id=? AND owner_account_id=?",
+                arrayOf(playlist.id, account.current())) == 1)
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -103,6 +113,7 @@ internal class LocalPlaylistDbStore(context: Context) {
             val now = System.currentTimeMillis()
             val canonical = playlist.toCanonicalPlaylist()
             db.insertOrThrow("local_playlists", null, ContentValues().apply {
+                put("owner_account_id", accountId)
                 put("id", playlist.id)
                 put("source", canonical.source)
                 put("name", playlist.name)
@@ -116,10 +127,10 @@ internal class LocalPlaylistDbStore(context: Context) {
             outbox.enqueueInTransaction(db, accountId, SyncPayloads.TYPE_USER_PLAYLIST,
                 SyncPayloads.playlistKey(playlist), SyncPayloads.ACTION_UPSERT, SyncPayloads.playlistPayload(playlist))
             songs.forEachIndexed { index, song ->
-                db.insertOrThrow("local_playlist_songs", null, song.toValues(playlist.id, index))
-                if (song.type != SongType.LOCAL) outbox.enqueueInTransaction(db, accountId,
-                    SyncPayloads.TYPE_PLAYLIST_TRACK, SyncPayloads.playlistTrackKey(playlist.id, song),
-                    SyncPayloads.ACTION_UPSERT, SyncPayloads.songPayload(song))
+                db.insertOrThrow("local_playlist_songs", null, song.toValues(playlist.id, index.toLong()))
+                outbox.enqueueInTransaction(db, accountId,
+                    SyncPayloads.TYPE_PLAYLIST_TRACK, SyncPayloads.playlistTrackKey(playlist.id, localTracks.bind(song, db)),
+                    SyncPayloads.ACTION_UPSERT, SyncPayloads.songPayload(localTracks.bind(song, db), sortOrder = index.toLong()))
             }
             db.setTransactionSuccessful()
         } finally {
@@ -128,44 +139,50 @@ internal class LocalPlaylistDbStore(context: Context) {
     }
 
     fun removePlaylist(id: String) {
-        if (id.isBlank()) return
+        if (id.isBlank() || !playlistExists(id)) return
         val db = helper.writableDatabase
         db.beginTransaction()
         try {
-            db.delete("local_playlist_songs", "playlist_id = ?", arrayOf(id))
-            db.delete("local_playlists", "id = ?", arrayOf(id))
+            db.delete("local_playlist_songs", "playlist_id = ? AND account_id = ?", arrayOf(id, account.current()))
+            db.delete("local_playlists", "id = ? AND owner_account_id = ?", arrayOf(id, account.current()))
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
         }
     }
 
-    fun getSongs(playlistId: String): List<SongInfo> {
+    fun getSongs(playlistId: String, scope: String = account.current()): List<SongInfo> {
         if (playlistId.isBlank()) return emptyList()
-        helper.readableDatabase.query(
+        val owned = helper.readableDatabase.rawQuery("SELECT 1 FROM local_playlists WHERE id=? AND owner_account_id=?", arrayOf(playlistId,scope)).use { it.moveToFirst() }
+        if (!owned) return emptyList()
+        val stored = helper.readableDatabase.query(
             "local_playlist_songs",
             null,
-            "playlist_id = ?",
-            arrayOf(playlistId),
+            "playlist_id = ? AND account_id = ?",
+            arrayOf(playlistId, scope),
             null,
             null,
-            "sort_order ASC",
+            "sort_order ASC, sort_version ASC, track_key ASC",
         ).use { cursor ->
             val out = ArrayList<SongInfo>(cursor.count)
             while (cursor.moveToNext()) out.add(cursor.toSongInfo())
-            return out
+            out
         }
+        return stored.map { localTracks.restore(it) }
     }
 
     fun setSongs(playlistId: String, songs: List<SongInfo>) {
-        if (playlistId.isBlank()) return
+        if (playlistId.isBlank() || !playlistExists(playlistId)) return
         val db = helper.writableDatabase
         db.beginTransaction()
         try {
-            db.delete("local_playlist_songs", "playlist_id = ?", arrayOf(playlistId))
+            val versions = db.rawQuery("SELECT song_type,song_id,sort_version FROM local_playlist_songs WHERE playlist_id=? AND account_id=?", arrayOf(playlistId,account.current())).use { cursor ->
+                buildMap { while (cursor.moveToNext()) put(cursor.getString(0) to cursor.getString(1),cursor.getLong(2)) }
+            }
+            db.delete("local_playlist_songs", "playlist_id = ? AND account_id = ?", arrayOf(playlistId, account.current()))
             songs.distinctBy { it.type to it.id }.forEachIndexed { index, song ->
                 if (song.id.isBlank()) return@forEachIndexed
-                db.insertOrThrow("local_playlist_songs", null, song.toValues(playlistId, index))
+                db.insertOrThrow("local_playlist_songs", null, song.toValues(playlistId, index.toLong()).apply { put("sort_version",versions[song.type.name to song.id] ?: 0L) })
             }
             touchPlaylist(db, playlistId)
             db.setTransactionSuccessful()
@@ -174,23 +191,30 @@ internal class LocalPlaylistDbStore(context: Context) {
         }
     }
 
-    fun addSongsWithOutbox(playlist: CollectedPlaylist, allSongs: List<SongInfo>, added: List<SongInfo>, outbox: SyncOutboxStore) {
+    fun addSongsWithOutbox(playlist: CollectedPlaylist, added: List<SongInfo>, outbox: SyncOutboxStore) {
         val db = helper.writableDatabase
         db.beginTransaction()
         try {
             val accountId = outbox.accountSnapshot()
-            setSongs(playlist.id, allSongs)
+            check(playlistExists(playlist.id)) { "歌单不属于当前账号" }
+            var nextOrder = queryNextSortOrder(db, playlist.id)
+            val actualOrders = linkedMapOf<Pair<SongType,String>,Long>()
+            added.forEach { song ->
+                val order = nextOrder++
+                db.insertOrThrow("local_playlist_songs",null,song.toValues(playlist.id,order))
+                actualOrders[song.type to song.id] = order.toLong()
+            }
             val updated = db.update("local_playlists", ContentValues().apply {
                 put("cover", playlist.cover)
                 put("payload_json", gson.toJson(playlist.toCanonicalPlaylist()))
                 put("updated_at", System.currentTimeMillis())
-            }, "id = ?", arrayOf(playlist.id))
+            }, "id = ? AND owner_account_id = ?", arrayOf(playlist.id, account.current()))
             check(updated == 1) { "更新本地歌单封面失败" }
             outbox.enqueueInTransaction(db, accountId, SyncPayloads.TYPE_USER_PLAYLIST,
                 SyncPayloads.playlistKey(playlist), SyncPayloads.ACTION_UPSERT, SyncPayloads.playlistPayload(playlist))
-            added.filter { it.type != SongType.LOCAL }.forEach { song ->
+            added.forEach { song ->
                 outbox.enqueueInTransaction(db, accountId, SyncPayloads.TYPE_PLAYLIST_TRACK,
-                    SyncPayloads.playlistTrackKey(playlist.id, song), SyncPayloads.ACTION_UPSERT, SyncPayloads.songPayload(song))
+                    SyncPayloads.playlistTrackKey(playlist.id, localTracks.bind(song, db)), SyncPayloads.ACTION_UPSERT, SyncPayloads.songPayload(localTracks.bind(song, db), sortOrder = actualOrders[song.type to song.id]))
             }
             db.setTransactionSuccessful()
         } finally {
@@ -203,7 +227,7 @@ internal class LocalPlaylistDbStore(context: Context) {
         val db = helper.writableDatabase
         db.beginTransaction()
         try {
-            if (queryCreatedAt(db, playlist.id) == null) {
+            if (!db.rawQuery("SELECT 1 FROM local_playlists WHERE id=? AND owner_account_id=''", arrayOf(playlist.id)).use { it.moveToFirst() }) {
                 val now = System.currentTimeMillis()
                 val values = ContentValues().apply {
                     val canonical = playlist.toCanonicalPlaylist()
@@ -220,13 +244,13 @@ internal class LocalPlaylistDbStore(context: Context) {
                 db.insert("local_playlists", null, values)
             }
             val existingIds = getSongIds(db, playlist.id)
-            var nextOrder = queryNextSortOrder(db, playlist.id)
+            var nextOrder = db.rawQuery("SELECT COALESCE(MAX(sort_order),-1)+1 FROM local_playlist_songs WHERE playlist_id=? AND account_id=''", arrayOf(playlist.id)).use { it.moveToFirst(); it.getLong(0) }
             for (song in songs) {
                 if (song.id.isBlank() || (song.type.name to song.id) in existingIds) continue
                 db.insert(
                     "local_playlist_songs",
                     null,
-                    song.toValues(playlist.id, nextOrder++),
+                    song.toValues(playlist.id, nextOrder++).apply { put("account_id", "") },
                 )
                 existingIds.add(song.type.name to song.id)
             }
@@ -241,8 +265,8 @@ internal class LocalPlaylistDbStore(context: Context) {
         val db = helper.writableDatabase
         db.beginTransaction()
         try {
-            db.delete("local_playlist_songs", null, null)
-            db.delete("local_playlists", null, null)
+            db.delete("local_playlist_songs", "account_id=?", arrayOf(account.current()))
+            db.delete("local_playlists", "owner_account_id=?", arrayOf(account.current()))
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -253,8 +277,8 @@ internal class LocalPlaylistDbStore(context: Context) {
         db.query(
             "local_playlists",
             arrayOf("created_at"),
-            "id = ?",
-            arrayOf(id),
+            "id = ? AND owner_account_id = ?",
+            arrayOf(id, account.current()),
             null,
             null,
             null,
@@ -268,15 +292,15 @@ internal class LocalPlaylistDbStore(context: Context) {
         val values = ContentValues().apply {
             put("updated_at", System.currentTimeMillis())
         }
-        db.update("local_playlists", values, "id = ?", arrayOf(id))
+        db.update("local_playlists", values, "id = ? AND owner_account_id = ?", arrayOf(id, account.current()))
     }
 
     private fun getSongIds(db: SQLiteDatabase, playlistId: String): MutableSet<Pair<String, String>> {
         db.query(
             "local_playlist_songs",
             arrayOf("song_type", "song_id"),
-            "playlist_id = ?",
-            arrayOf(playlistId),
+            "playlist_id = ? AND account_id = ?",
+            arrayOf(playlistId, ""),
             null,
             null,
             null,
@@ -287,18 +311,19 @@ internal class LocalPlaylistDbStore(context: Context) {
         }
     }
 
-    private fun queryNextSortOrder(db: SQLiteDatabase, playlistId: String): Int {
+    private fun queryNextSortOrder(db: SQLiteDatabase, playlistId: String): Long {
         db.rawQuery(
-            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM local_playlist_songs WHERE playlist_id = ?",
-            arrayOf(playlistId),
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM local_playlist_songs WHERE playlist_id = ? AND account_id = ?",
+            arrayOf(playlistId, account.current()),
         ).use { cursor ->
-            return if (cursor.moveToFirst()) cursor.getInt(0) else 0
+            return if (cursor.moveToFirst()) cursor.getLong(0) else 0L
         }
     }
 
-    private fun SongInfo.toValues(playlistId: String, sortOrder: Int): ContentValues =
+    private fun SongInfo.toValues(playlistId: String, sortOrder: Long): ContentValues =
         ContentValues().apply {
-            val canonical = toCanonicalSong()
+            val canonical = localTracks.bind(this@toValues, helper.writableDatabase).toCanonicalSong()
+            put("account_id", account.current())
             put("playlist_id", playlistId)
             put("song_id", id)
             put("source", canonical.source)
@@ -314,6 +339,7 @@ internal class LocalPlaylistDbStore(context: Context) {
             put("duration", duration)
             put("payload_json", gson.toJson(canonical))
             put("sort_order", sortOrder)
+            put("track_key", SyncPayloads.songKey(localTracks.bind(this@toValues, helper.writableDatabase)))
             put("updated_at", System.currentTimeMillis())
         }
 
@@ -327,6 +353,7 @@ internal class LocalPlaylistDbStore(context: Context) {
             }.getOrDefault(SongType.LOCAL)
         }
         val durationIndex = getColumnIndexOrThrow("duration")
+        val metadata = runCatching { gson.fromJson(getOptionalString("payload_json"), cn.partialy.pm.model.CanonicalSong::class.java) }.getOrNull()
         return SongInfo(
             id = getString(getColumnIndexOrThrow("song_id")).orEmpty(),
             type = type,
@@ -341,12 +368,112 @@ internal class LocalPlaylistDbStore(context: Context) {
             lyric = getString(getColumnIndexOrThrow("lyric")),
             duration = if (isNull(durationIndex)) null else getInt(durationIndex),
             playable = payloadPlayableOrDefault(getOptionalString("payload_json")),
+            localSyncId = metadata?.localSyncId, durationMs = metadata?.durationMs,
         )
     }
 
     private fun Cursor.getOptionalString(column: String): String {
         val index = getColumnIndex(column)
         return if (index >= 0 && !isNull(index)) getString(index).orEmpty() else ""
+    }
+
+    private fun Cursor.playlistPayload(): cn.partialy.pm.model.CanonicalPlaylist? = runCatching {
+        gson.fromJson(getOptionalString("payload_json"), cn.partialy.pm.model.CanonicalPlaylist::class.java)
+    }.getOrNull()
+
+    private fun <T> transaction(action: (SQLiteDatabase) -> T): T {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try { val result = action(db); db.setTransactionSuccessful(); return result }
+        finally { db.endTransaction() }
+    }
+
+    fun updateWithOutbox(playlist: CollectedPlaylist, outbox: SyncOutboxStore) = transaction { db ->
+        check(playlistExists(playlist.id)) { "歌单不属于当前账号" }
+        upsertPlaylist(playlist)
+        outbox.enqueueInTransaction(db, account.current(), SyncPayloads.TYPE_USER_PLAYLIST,
+            SyncPayloads.playlistKey(playlist), SyncPayloads.ACTION_UPSERT, SyncPayloads.playlistPayload(playlist))
+    }
+
+    fun removeWithOutbox(playlist: CollectedPlaylist, outbox: SyncOutboxStore) = transaction { db ->
+        check(playlistExists(playlist.id)) { "歌单不属于当前账号" }
+        removePlaylist(playlist.id)
+        outbox.enqueueInTransaction(db, account.current(), SyncPayloads.TYPE_USER_PLAYLIST,
+            SyncPayloads.playlistKey(playlist), SyncPayloads.ACTION_DELETE)
+        markParentDeleted(db, playlist.id)
+    }
+
+    fun replaceWithOutbox(playlistId: String, songs: List<SongInfo>, outbox: SyncOutboxStore) = transaction { db ->
+        check(playlistExists(playlistId)) { "歌单不属于当前账号" }
+        val previous = getSongs(playlistId)
+        val oldOrders = previous.associate { SyncPayloads.songKey(it) to orderOf(playlistId, it) }
+        val retained = songs.map { SyncPayloads.songKey(localTracks.bind(it, db)) }.toSet()
+        previous.filter { SyncPayloads.songKey(it) !in retained }.forEach {
+            outbox.enqueueInTransaction(db, account.current(), SyncPayloads.TYPE_PLAYLIST_TRACK,
+                SyncPayloads.playlistTrackKey(playlistId, it), SyncPayloads.ACTION_DELETE)
+        }
+        setSongs(playlistId, songs)
+        songs.forEachIndexed { index, song ->
+            val mapped = localTracks.bind(song, db)
+            val old = previous.firstOrNull { SyncPayloads.songKey(it) == SyncPayloads.songKey(mapped) }
+            if (old == null || old != mapped || oldOrders[SyncPayloads.songKey(mapped)] != index.toLong()) {
+                outbox.enqueueInTransaction(db, account.current(), SyncPayloads.TYPE_PLAYLIST_TRACK,
+                    SyncPayloads.playlistTrackKey(playlistId, mapped), SyncPayloads.ACTION_UPSERT,
+                    SyncPayloads.songPayload(mapped, sortOrder = index.toLong()))
+            }
+        }
+    }
+
+    fun removeTracksWithOutbox(playlistId: String, removed: List<SongInfo>, outbox: SyncOutboxStore) = transaction { db ->
+        check(playlistExists(playlistId)) { "歌单不属于当前账号" }
+        removed.forEach { song ->
+            val changed = db.delete("local_playlist_songs","account_id=? AND playlist_id=? AND song_type=? AND song_id=?",arrayOf(account.current(),playlistId,song.type.name,song.id))
+            if (changed > 0) outbox.enqueueInTransaction(db,account.current(),SyncPayloads.TYPE_PLAYLIST_TRACK,
+                SyncPayloads.playlistTrackKey(playlistId,song),SyncPayloads.ACTION_DELETE)
+        }
+    }
+
+    fun orderOf(playlistId: String, song: SongInfo): Long? = helper.readableDatabase.rawQuery(
+        "SELECT sort_order FROM local_playlist_songs WHERE account_id=? AND playlist_id=? AND song_type=? AND song_id=?",
+        arrayOf(account.current(),playlistId, song.type.name, song.id),
+    ).use { if (it.moveToFirst()) it.getLong(0) else null }
+
+    fun applyTrack(playlistId: String, song: SongInfo, delete: Boolean, sortOrder: Long?, version: Long) = transaction { db ->
+        if (!playlistExists(playlistId)) return@transaction
+        val deleted = db.rawQuery("SELECT 1 FROM local_playlist_tombstones WHERE account_id=? AND playlist_id=?",
+            arrayOf(account.current(), playlistId)).use { it.moveToFirst() }
+        if (deleted) return@transaction
+        val mapped = localTracks.restore(song)
+        val selection = "account_id=? AND playlist_id=? AND song_type=? AND song_id=?"
+        val args = arrayOf(account.current(),playlistId, mapped.type.name, mapped.id)
+        if (delete) db.delete("local_playlist_songs", selection, args)
+        else {
+            val priorOrder = orderOf(playlistId, mapped)
+            val order = sortOrder ?: priorOrder ?: queryNextSortOrder(db, playlistId).toLong()
+            val values = mapped.toValues(playlistId, 0).apply {
+                put("sort_order", order); put("sort_version", version)
+                put("track_key", SyncPayloads.songKey(mapped))
+            }
+            if (db.update("local_playlist_songs", values, selection, args) == 0)
+                db.insertOrThrow("local_playlist_songs", null, values)
+        }
+    }
+
+    fun acknowledgeTrackVersion(playlistId: String, song: SongInfo, version: Long) {
+        val mapped = localTracks.restore(song)
+        helper.writableDatabase.execSQL(
+            "UPDATE local_playlist_songs SET sort_version=? WHERE account_id=? AND playlist_id=? AND song_type=? AND song_id=?",
+            arrayOf(version,account.current(),playlistId,mapped.type.name,mapped.id))
+    }
+
+    fun markParentDeleted(db: SQLiteDatabase = helper.writableDatabase, playlistId: String) {
+        db.insertWithOnConflict("local_playlist_tombstones", null, ContentValues().apply {
+            put("account_id", account.current()); put("playlist_id", playlistId)
+        }, SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
+    fun clearParentDeleted(playlistId: String) {
+        helper.writableDatabase.delete("local_playlist_tombstones", "account_id=? AND playlist_id=?", arrayOf(account.current(), playlistId))
     }
 
 }

@@ -23,7 +23,6 @@ import cn.partialy.pm.databinding.ActivitySplashBinding
 import cn.partialy.pm.model.DeviceReportResult
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
-import cn.partialy.pm.sync.SyncOutboxStore
 import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.util.DeviceInfoCollector
 import cn.partialy.pm.utils.AppUpdateInstaller
@@ -295,14 +294,14 @@ class SplashActivity : AppCompatActivity() {
         runCatching {
             configManager.refreshAccountToken(session.token)
         }.onSuccess { refreshed ->
+            if (AccountSessionStore.read(this).token != session.token) return@onSuccess
             if (refreshed.user.id != session.user.id) {
-                SyncOutboxStore(this).clearAll()
                 SyncPrefs.clearAccountState(this)
             }
             AccountSessionStore.save(this, refreshed)
         }.onFailure { error ->
+            if (AccountSessionStore.read(this).token != session.token) return@onFailure
             if (error.isAccountAuthExpired()) {
-                SyncOutboxStore(this).clearAll()
                 SyncPrefs.clearAccountState(this)
                 AccountSessionStore.clear(this)
             }

@@ -210,12 +210,12 @@
 
 - 账号接口通过 `ConfigManager` / `SystemApiService` 访问外层服务端 `/api/auth/*`，继续走系统服务端 AES-GCM 加密链路；登录 token 由 `AccountSessionStore` 持久化并同步到 `TokenManager`。`LoginActivity` 支持用户名/邮箱/手机号密码登录及邮箱/手机号验证码登录；注册账号、找回密码由 `AccountAssistActivity` 的原生页面承载，支持邮箱/手机号切换并调用对应验证码、注册和 `reset_password` 接口。
 - 同步接口通过外层服务端 `/api/sync/*` 拉取/推送增量，使用账号 `Authorization: Bearer <userToken>` 鉴权；旧同步码创建、加入、重置和解绑设备流程已移除。
-- `SyncManager` 是手机端账号同步编排入口，负责登录后 seed 本地 outbox、拉取/推送增量和应用远端 tombstone；未登录时只记录本地 outbox，不主动推送；同步游标按账号隔离，账号切换时必须重置游标并重新 seed 本地 outbox。
+- `SyncManager` 是手机端账号同步编排入口，负责按当前账号作用域 seed outbox、拉取/推送增量和应用远端 tombstone；未登录时只记录未关联 outbox，不主动推送；切账号重置游标，仅 seed 该账号关系，不绑定未关联数据。
 - 收藏歌曲以 SQLite 为权威：`loveList.json` 只首次迁移，已有 SQLite 收藏或收藏 outbox 时不再回灌镜像；显式备份导入仍允许追加。`LoveManager` 在同一锁内处理本机操作、首次 seed 和远端下行，同账号同歌曲有 pending 时保留本机最新操作；收藏增删与 outbox 同事务提交。
 - 同步运行中新增请求必须补跑；outbox 分批排空。远端同步每页最多 1000 条，按实际处理的日志版本继续拉取至追平账号版本，空缺页报错且不跳游标；成功游标只推进到已拉取并应用的版本，不能用全局响应版本或 push 版本跳过未处理的变更。
 - `sync_outbox` 表保存本地待推送 op，收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更必须写入 outbox；已登录账号时由 `SyncWorkRunner` 触发后台增量同步。
-- `sync_outbox` 按账号 `account_id` 隔离读取和推送；账号切换、退出登录或 refresh 失效时必须清理旧账号/未归属 outbox，避免把上一账号待同步操作推给新账号。
-- 同步 payload 只允许使用 `CanonicalSong` / `CanonicalPlaylist` 字段；不要同步 `source=local` 歌曲，不要同步播放 URL、filePath、歌词正文、内嵌封面。本地文件封面在自建歌单同步时置空，另一端应显示默认封面。
+- `sync_outbox` 按账号 `account_id` 隔离读取和推送；账号切换、退出登录或 refresh 失效时保留各账号和未关联 pending，只有对应账号允许读取/推送；显式清空本机当前视图只删除该作用域 pending。
+- 同步 payload 经 `SyncPayloads` 平铺白名单序列化；LOCAL 仅自建歌单曲目可同步逻辑占位，禁止播放 URL、filePath、歌词正文、内嵌封面。自建歌单本机 file/content/绝对路径封面不入云，另一端回退默认或可识别预设。
 
 ## 同步设置页补充
 
@@ -378,7 +378,19 @@
 - `SyncManager` 编排拉取/推送，`FavoriteSongSyncApplier`、`PlaylistSyncApplier` 分别处理歌曲/歌单与曲目下行和 seed。outbox 按类型和 key 合并到最后操作，成功只删除本批合并的 opId，发送期间新增操作保留。push 后从原游标重新拉取；响应有 skipped 时强制全量快照，应用曾被 pending 遮挡且被服务端 LWW 拒绝的旧操作对应远端状态。
 - GET 同步请求声明 `protocol=2`；快照以 `snapshotVersion` 和 `cursor` 固定分页，409 最多重新拉取三轮，失败交由后台退避重试。所有快照页完整到齐后才应用和缺失对账，游标只推进到完整快照版本；pending 和快照开始后新增数据保留，有 pending 子曲目的父歌单不可被缺失删除。普通 delta 才跳过同设备回声，快照必须恢复同设备已有云端项。
 - 设备标识优先沿用 `ServerDevicePrefs`，为空时生成 UUID 并同步保存，不再使用厂商型号兜底。即时同步保持进程内合并触发，失败追加唯一 WorkManager 任务（联网约束、30 秒起指数退避）；标准 CoroutineWorker 通过现有 Hilt entry point 取得 SyncManager。
-- 数据管理的清空操作只清本机收藏和歌单，并丢弃 pending；和同步共用 Mutex 串行，清空后保留账号绑定、重置游标为 0，不生成云端 delete，也不重新 seed。下一次同步可恢复云端数据。
+- 数据管理的清空操作只清当前账号或未关联视图的本机收藏和歌单，并丢弃该作用域 pending；和同步共用 Mutex 串行，清空后保留账号绑定、重置游标为 0，不生成云端 delete，也不重新 seed。下一次同步可恢复云端数据。
 - Application 在 IO 预热收藏；启动页导航到主界面前异步等待预热完成，读取失败保留启动页提示。同步公开读取方法仍保证返回权威数据，不用空列表替代尚未加载状态；绕过启动页的直接调用仍保留同步加载兼容入口。
 
 - 云盘歌词拉取及下载以内容检测 LRC/KRC/YRC 时间轴，兼容旧资源 TXT/LRC 扩展名错标；无真实时间轴时按纯文本展示、缓存并下载为 TXT，播放器合成的行展示区间不作为同步时间戳保存。云盘 API `durationMs` 转入 `SongInfo.duration` 时换算为秒，与房间毫秒 DTO 边界保持一致。
+
+
+## P1 账号关系与 LOCAL 跨端占位（2026-11-14）
+
+- `pm_local_music.db` 源码版本 V15：`AccountLibrarySchema` 在 OpenHelper 升级事务内无损重建账号复合键，旧数据全部归未关联空账号，不推断历史归属。自建歌单主键 `(owner_account_id,id)`；曲目主键 `(account_id,playlist_id,song_type,song_id)`；收藏歌曲/歌单主键分别增加 `account_id`，关系与收藏时间互不覆盖。旧播放 ID、顺序、payload 及原关系保留，同 UUID 的未关联原件与云端账号歌单可共存。
+- `LibraryAccountScope`、`AccountSessionStore.libraryBoundary/libraryGeneration` 统一账号切换与 manager 缓存刷新；账号 seed/reconcile/pending/Flow 均只处理该账号，A→B→A 的迟到同步结果不回写。普通登出不清其他账号数据；旧 JSON 只做一次迁移或显式备份，不再运行时写镜像回灌。
+- 登录/注册后由 `UnassociatedLibraryImportPrompt` 明确确认，设置“收藏与同步”保留手动导入入口。`UnassociatedLibraryImporter` 在同一写事务内幂等合并收藏，并为未关联歌单创建新 UUID 账号副本与 outbox；原件保留，账号/代次变化拒绝确认结果，取消后不自动合并。
+- `local_sync_track_map` 长期保存原播放引用到 `deviceScopeUuid:localSongUuid` 的私有映射；设备 scope 首次优先长期设备 UUID，非法时持久化别名，不随重注册或扫描删除重建。LOCAL `id/urlParam` 仅传 UUID:UUID；公开名称允许 AC/DC 等普通斜杠，真实路径/URI、播放链接、歌词、鉴权及本地封面不得发送；不按名字/时长匹配异机文件。
+- LOCAL 明确时长字段为 `durationMs`；扫描和已下载读取等已知生产者同时生成毫秒字段与本机秒 `SongInfo.duration`。旧未知 LOCAL duration 不猜单位、不批量改写；解析优先明确毫秒并转换为秒，在线旧 duration 维持原语义。
+- 接收 LOCAL 时按私有映射恢复播放引用并核验文件可读性；无映射保留逻辑 ID 占位，有映射但缺文件同样不可播。统一歌曲行灰态及“当前设备无文件”；`SongInfo.availableForPlayback` 贯通 MusicController、PlaylistManager、PlayUrlGetter、MediaItemFactory 的单曲/队列/批量入口，逻辑 UUID 不会被当文件地址。LOCAL 下载/一起听禁用规则保留。
+- `sort_order` 保留既有顺序，新增 `sort_version/track_key` 按顺序、权威 change.version、稳定 key 排列；缺/null 不覆盖已存顺序。真实新增和显式替换才产生准确顺序事件，seed 不重报全量排序；同设备回声只确认权威排序版本，不覆盖本机元数据，曲目等量更新由本机 revision 通知 Flow。父删除与本机 tombstone 防迟到子项复活；create/add/update/remove/replace 的 DB 与 outbox 共用连接/事务，提交后发布内存与 Flow。
+- `coverResource/coverPreset` 保留缺失与显式 null 的区别；修改名称/描述不清资源，切封面或最后真实新增的有效远程图显式清互斥扩展；LOCAL/重复/缺图不改封面。旧封面清理检查全部账号及未关联引用。P1 不接上传接口、不伪造上传完成；预设或已有远程 URL 可展示，离线私有图片仍只在本机使用，P2/P3 再接账号上传队列与资源生命周期。

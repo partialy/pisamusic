@@ -34,7 +34,7 @@ class PlayUrlGetter @Inject constructor(
         choice: DownloadQualityChoice? = null,
         allowFallback: Boolean = true,
     ): ResolvedPlayUrl {
-        if (!songInfo.playable) return ResolvedPlayUrl("error")
+        if (!songInfo.availableForPlayback) return ResolvedPlayUrl("error")
         if (choice != null && !choice.matchesSongType(songInfo.type)) {
             return if (allowFallback) getUrl(songInfo, choice = null, allowFallback = true) else ResolvedPlayUrl("error")
         }

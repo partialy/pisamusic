@@ -228,7 +228,8 @@ class DownloadManager private constructor(private val context: Context) {
                         album = album,
                         coverUrl = "",
                         embeddedCoverArt = coverBytes,
-                        duration = duration
+                        duration = duration,
+                        durationMs = duration?.toLong()?.times(1000),
                     )
                 )
             } catch (e: Exception) {

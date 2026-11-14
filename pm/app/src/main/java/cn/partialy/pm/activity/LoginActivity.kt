@@ -307,6 +307,8 @@ class LoginActivity : BaseActivity() {
         }.also { it.start() }
     }
 
+    @javax.inject.Inject lateinit var playlistCollectionManager: cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
+
     private var completionScheduled = false
 
     private fun notifyLoggedIn(result: AccountAuthResult) {
@@ -321,6 +323,13 @@ class LoginActivity : BaseActivity() {
                 AccountSessionStore.save(this@LoginActivity, result)
                 syncManager.startAccountSync()
                 listeningManager.onAccountAvailable()
+            }
+            if (cn.partialy.pm.ui.dialog.UnassociatedLibraryImportPrompt.show(this@LoginActivity)) {
+                withContext(Dispatchers.IO) {
+                    loveManager.reload()
+                    playlistCollectionManager.reload()
+                    syncManager.syncNow()
+                }
             }
             cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenNavigate(this@LoginActivity, R.string.account_login_success) {
                 directMessageCoordinator.checkAndShow(this@LoginActivity, DirectMessageCheckSource.LOGIN)

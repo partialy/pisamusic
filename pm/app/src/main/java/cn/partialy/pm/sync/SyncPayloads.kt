@@ -24,14 +24,52 @@ object SyncPayloads {
 
     private val gson = Gson()
 
-    fun songKey(song: SongInfo): String = song.toCanonicalSong().let { "${it.source}:${it.id}" }
+    fun songKey(song: SongInfo): String = song.toCanonicalSong().let { "${it.source}:${if (song.type == SongType.LOCAL) song.localSyncId ?: it.id else it.id}" }
     fun playlistKey(playlist: CollectedPlaylist): String =
         playlist.toCanonicalPlaylist().let { "${it.source}:${it.id}" }
 
-    fun playlistTrackKey(playlistId: String, song: SongInfo): String = "${playlistId}|${songKey(song)}"
+    fun playlistTrackKey(playlistId: String, song: SongInfo): String {
+        if (song.type == SongType.LOCAL) require(LocalSyncTrackStore.isSyncId(song.localSyncId ?: song.id)) {
+            "本地歌曲缺少稳定同步身份"
+        }
+        return "${playlistId}|${songKey(song)}"
+    }
 
-    fun songPayload(song: SongInfo, favoritedAt: Long? = null): String =
-        gson.toJson(song.toCanonicalSong().copy(favoritedAt = favoritedAt))
+    fun songPayload(song: SongInfo, favoritedAt: Long? = null, sortOrder: Long? = null): String {
+        val value = if (song.type == SongType.LOCAL) {
+            val id = song.localSyncId ?: song.id
+            require(LocalSyncTrackStore.isSyncId(id)) { "本地歌曲缺少稳定同步身份" }
+            JsonObject().apply {
+                addProperty("source", "local"); addProperty("id", id); addProperty("urlParam", id)
+                addProperty("name", publicText(song.name)); addProperty("singer", publicText(song.artist))
+                addProperty("album", publicText(song.album.orEmpty()))
+                addProperty("cover", safeLocalCover(song.coverUrl))
+                song.durationMs?.takeIf { it >= 0 }?.let { addProperty("durationMs", it) }
+            }
+        } else gson.toJsonTree(song.toCanonicalSong().copy(favoritedAt = favoritedAt)).asJsonObject.apply {
+            remove("localSyncId")
+        }
+        sortOrder?.let { value.addProperty("sortOrder", it) }
+        return gson.toJson(value)
+    }
+
+    private fun publicText(value: String): String = value.take(512).takeUnless {
+        it.startsWith("/") || it.startsWith("\\") || Regex("^[A-Za-z]:[\\\\/]").containsMatchIn(it) ||
+            Regex("(?i)(file:|content:|[a-z][a-z0-9+.-]*://)").containsMatchIn(it)
+    }.orEmpty()
+
+    private fun safeLocalCover(value: String): String = runCatching {
+        val uri = java.net.URI(value)
+        val allowed = setOf("param", "thumbnail", "w", "h", "width", "height", "size", "quality", "q")
+        val querySafe = uri.rawQuery.orEmpty().split('&').filter { it.isNotEmpty() }.all { entry ->
+            val pair = entry.split('=', limit = 2)
+            pair.size == 2 && pair[0] in allowed &&
+                Regex("[0-9]{1,5}(?:[xy_*][0-9]{1,5})?!?").matches(java.net.URLDecoder.decode(pair[1], "UTF-8"))
+        }
+        val host = uri.host.orEmpty().lowercase()
+        val publicHost = host.contains('.') && !Regex("^(localhost|127[.]|10[.]|192[.]168[.]|169[.]254[.]|172[.](1[6-9]|2[0-9]|3[01])[.])").containsMatchIn(host) && !host.endsWith(".local") && !host.endsWith(".localhost")
+        value.takeIf { publicHost && it.length <= 2048 && uri.scheme == "https" && !uri.host.isNullOrBlank() && uri.userInfo == null && uri.fragment == null && querySafe }.orEmpty()
+    }.getOrDefault("")
     fun playlistPayload(playlist: CollectedPlaylist, clearLocalFileCover: Boolean = true): String {
         val canonical = playlist.toCanonicalPlaylist().let {
             if (clearLocalFileCover && it.source == "local" && isLocalOnlyCover(it.cover)) {
@@ -40,7 +78,11 @@ object SyncPayloads {
                 it
             }
         }
-        return gson.toJson(canonical)
+        return gson.toJson(gson.toJsonTree(canonical).asJsonObject.apply {
+            remove("coverResourcePresent"); remove("coverPresetPresent")
+            if (canonical.coverResourcePresent && canonical.coverResource == null) add("coverResource", JsonNull.INSTANCE)
+            if (canonical.coverPresetPresent && canonical.coverPreset == null) add("coverPreset", JsonNull.INSTANCE)
+        })
     }
 
     fun parseSong(value: Any?, itemKey: String = ""): CanonicalSong? {
@@ -61,10 +103,13 @@ object SyncPayloads {
             album = payload.stringValue("album"),
             cover = payload.stringValue("cover", "coverUrl", "pic", "image"),
             coverSize = payload.coverSizeValue("coverSize", "cover_size"),
-            duration = payload.intValue("duration", "durationMs"),
+            duration = if (source == "local") payload.stringValue("durationMs").toDoubleOrNull()
+                ?.takeIf { it.isFinite() && it >= 0 }?.div(1000)?.toInt() ?: 0 else payload.intValue("duration"),
+            durationMs = if (source == "local") payload.stringValue("durationMs").toDoubleOrNull()
+                ?.takeIf { it.isFinite() && it >= 0 }?.toLong() else null,
             size = payload.longMapValue("size"),
             vip = payload.booleanValue("vip"),
-            playable = payload.booleanValue("playable") ?: true,
+            playable = if (source == "local") false else payload.booleanValue("playable") ?: true,
             favoritedAt = payload.stringValue("favoritedAt").toDoubleOrNull()?.toLong()?.takeIf { it > 0 },
         )
     }
@@ -90,8 +135,16 @@ object SyncPayloads {
             song_count = payload.intValue("song_count", "songCount", "count"),
             play_count = payload.stringValue("play_count", "playCount"),
             collect_count = payload.stringValue("collect_count", "collectCount"),
+            coverResource = payload.get("coverResource")?.takeIf { it.isJsonObject }?.asJsonObject
+                ?.stringValue("resourceId")?.takeIf { it.isNotBlank() }?.let { cn.partialy.pm.model.CanonicalCoverResource(it) },
+            coverPreset = payload.stringValue("coverPreset").takeIf { it.isNotBlank() },
+            coverResourcePresent = payload.has("coverResource"), coverPresetPresent = payload.has("coverPreset"),
+            favoritedAt = payload.stringValue("favoritedAt").toDoubleOrNull()?.toLong()?.takeIf { it > 0 },
         )
     }
+
+    fun sortOrder(value: Any?): Long? = value.toJsonObject()?.stringValue("sortOrder")?.toDoubleOrNull()
+        ?.takeIf { it.isFinite() && it >= 0 && it <= 9007199254740991.0 && it % 1.0 == 0.0 }?.toLong()
 
     fun parseJsonObject(raw: String): Any = runCatching {
         gson.fromJson(raw.ifBlank { "{}" }, Any::class.java) ?: emptyMap<String, Any>()
@@ -124,9 +177,10 @@ object SyncPayloads {
         return parts[0] to song
     }
 
-    private fun isLocalOnlyCover(cover: String): Boolean {
+    internal fun isLocalOnlyCover(cover: String): Boolean {
         val normalized = cover.trim().lowercase()
-        return normalized.startsWith("file:") || normalized.startsWith("local_file:")
+        return normalized.startsWith("file:") || normalized.startsWith("local_file:") || normalized.startsWith("content:") ||
+            normalized.startsWith("/") || normalized.startsWith("\\") || Regex("^[a-z]:[\\\\/]").containsMatchIn(normalized)
     }
 
     private fun songKeyParts(key: String): Pair<String, String>? {

@@ -39,6 +39,8 @@ class PlaylistEditViewModel @Inject constructor(
     private val savedState: SavedStateHandle,
 ) : ViewModel() {
     private val covers = PlaylistEditCoverFiles(context)
+    private val appContext = context.applicationContext
+    private val accountGeneration = cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration
     private val mutableState = MutableStateFlow(PlaylistEditState())
     val state = mutableState.asStateFlow()
     private var playlistId = ""
@@ -53,11 +55,13 @@ class PlaylistEditViewModel @Inject constructor(
             val playlist = withContext(Dispatchers.IO) {
                 runCatching { manager.getCollectedPlaylist(CollectedPlaylistType.LOCAL, id) }.getOrNull()
             }
-            if (playlist == null) {
+            if (playlist == null || accountGeneration != cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration) {
                 mutableState.value = PlaylistEditState(loading = false, error = PlaylistEditError.NOT_FOUND)
                 return@launch
             }
-            if (savedState.get<String>("playlistId") != id) {
+            val accountId = cn.partialy.pm.network.auth.AccountSessionStore.read(appContext).user.id
+            if (savedState.get<String>("playlistId") != id || savedState.get<String>("ownerAccountId") != accountId) {
+                savedState["ownerAccountId"] = accountId
                 savedState["playlistId"] = id
                 savedState["originalName"] = playlist.name
                 savedState["originalDescription"] = playlist.intro
@@ -155,7 +159,8 @@ class PlaylistEditViewModel @Inject constructor(
         }
     }
 
-    private fun commitMetadata(draft: PlaylistEditState, name: String): String {
+    private fun commitMetadata(draft: PlaylistEditState, name: String): String = synchronized(cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary) {
+        check(accountGeneration == cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration) { "账号已变化，请重新打开歌单" }
         val previous = manager.getCollectedPlaylist(CollectedPlaylistType.LOCAL, playlistId)
             ?: error("歌单不存在")
         val newFile = covers.persist(draft.cover)
@@ -171,10 +176,10 @@ class PlaylistEditViewModel @Inject constructor(
         }
         // 清理错误不能把已经提交的元信息变更误报成保存失败。
         runCatching {
-            covers.deletePersistentIfUnused(previous.cover, manager.getAllPlaylists().map { it.cover })
+            covers.deletePersistentIfUnused(previous.cover, manager.allLocalCoverReferences())
             covers.deleteTemporary(draft.cover)
         }
-        return nextCover
+        nextCover
     }
 
     fun consumeError() {
@@ -186,7 +191,7 @@ class PlaylistEditViewModel @Inject constructor(
         covers.deleteTemporary(state.value.cover)
     }
 
-    private fun canEdit(): Boolean = !state.value.loading && !state.value.busy && !state.value.saved &&
+    private fun canEdit(): Boolean = accountGeneration == cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration && !state.value.loading && !state.value.busy && !state.value.saved &&
         savedState.get<String>("playlistId") == playlistId
 
     private fun publish(next: PlaylistEditState) {

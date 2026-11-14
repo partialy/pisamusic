@@ -66,7 +66,7 @@ class SongListItemBinder(private val binding: ItemSongListBinding) {
         val context = root.context
 
         songNameTextView.text = displayTitle ?: song.name
-        singerTextView.text = displayArtist ?: song.artist
+        singerTextView.text = if (song.type == cn.partialy.pm.model.SongType.LOCAL && !song.playable) "当前设备无文件" else displayArtist ?: song.artist
         applyTextColors(isCurrent)
         SongSourceTagBinder.bind(songSourceTagTextView, song.type)
         coverImageView.load(SongCoverUrl.getSongCoverData(song, SongCoverUrl.SIZE_SMALL)) {
@@ -92,8 +92,8 @@ class SongListItemBinder(private val binding: ItemSongListBinding) {
         btnDownload.imageTintList = normalActionTint
         btnMore.imageTintList = normalActionTint
 
-        root.alpha = if (options.enabled) ENABLED_ALPHA else DISABLED_ALPHA
-        bindAction(root, song, options.enabled, actions.onClick)
+        root.alpha = if (options.enabled && song.playable) ENABLED_ALPHA else DISABLED_ALPHA
+        bindAction(root, song, options.enabled && song.playable, actions.onClick)
         root.setOnLongClickListener(if (options.enabled && actions.onLongClick != null) {
             View.OnLongClickListener {
                 root.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)

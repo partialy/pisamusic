@@ -163,9 +163,9 @@ class MusicController @Inject constructor(
         engine.onManualPlayRequested(source)
         engine.invalidatePendingMediaRefresh()
         val requested = songs.getOrNull(startIndex)
-        val playableSongs = songs.filter(SongInfo::playable)
+        val playableSongs = songs.filter(SongInfo::availableForPlayback)
         val playableStartIndex = requested
-            ?.takeIf(SongInfo::playable)
+            ?.takeIf(SongInfo::availableForPlayback)
             ?.let { target -> playableSongs.indexOfFirst { it.type == target.type && it.id == target.id } }
             ?.takeIf { it >= 0 }
             ?: 0
@@ -176,7 +176,7 @@ class MusicController @Inject constructor(
                     engine.ensurePlayableAtIndex(result.startIndex, autoPlay = true)
                 }
                 PlaylistSetResult.SameSource -> {
-                    requested?.takeIf(SongInfo::playable)?.let { play(it, source = source) }
+                    requested?.takeIf(SongInfo::availableForPlayback)?.let { play(it, source = source) }
                 }
                 PlaylistSetResult.Failed -> engine.handlePlaybackRequestFailure()
                 PlaylistSetResult.Stale -> Unit
@@ -186,7 +186,7 @@ class MusicController @Inject constructor(
 
     /** 追加歌曲到列表尾部 */
     fun appendSongsLazy(songs: List<SongInfo>) {
-        playlistManager.appendSongsLazy(songs.filter(SongInfo::playable), onApplied = { applied ->
+        playlistManager.appendSongsLazy(songs.filter(SongInfo::availableForPlayback), onApplied = { applied ->
             if (applied) engine.persistState(force = true)
         })
     }
@@ -204,7 +204,7 @@ class MusicController @Inject constructor(
         autoPlay: Boolean = true,
         source: PlaybackControlSource = PlaybackControlSource.APP_UI,
     ) {
-        if (!songInfo.playable) return
+        if (!songInfo.availableForPlayback) return
         engine.onManualPlayRequested(source)
         playbackScope.launch {
             try {
@@ -225,7 +225,7 @@ class MusicController @Inject constructor(
         songInfo: SongInfo,
         autoPlay: Boolean = true,
         source: PlaybackControlSource = PlaybackControlSource.APP_UI,
-    ): Boolean = if (songInfo.playable) {
+    ): Boolean = if (songInfo.availableForPlayback) {
         performLatestPlay(songInfo, autoPlay, source)
     } else {
         false
@@ -272,7 +272,7 @@ class MusicController @Inject constructor(
 
     /** 下一首播放：添加到插播队列（FIFO） */
     fun addPlayNext(songInfo: SongInfo) {
-        if (songInfo.playable) playlistManager.addPlayNext(songInfo)
+        if (songInfo.availableForPlayback) playlistManager.addPlayNext(songInfo)
     }
 
     fun removeFromPlayList(songInfo: SongInfo) = playlistManager.removeFromPlayList(songInfo)

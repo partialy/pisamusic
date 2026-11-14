@@ -29,7 +29,9 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
     private val fileName = "loveList.json"
     private val db = FavoriteSongsDbStore(context)
     private val syncOutbox = SyncOutboxStore(context)
-    private val lock = Any()
+    private val accountScope = cn.partialy.pm.sync.LibraryAccountScope(context)
+    private var loadedAccount: String? = null
+    private val lock = cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary
     private var loaded = false
     private var syncBatchDepth = 0
     private var latestFavoriteTime = 0L
@@ -41,6 +43,16 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val migrationPrefs = context.getSharedPreferences("pm_favorite_migration", Context.MODE_PRIVATE)
+
+    init {
+        cn.partialy.pm.network.auth.AccountSessionStore.onLibraryAccountChanged {
+            synchronized(lock) {
+                loaded = false
+                _loveListFlow.value = emptyList()
+            }
+            reload()
+        }
+    }
 
     private fun loveFile(): File = File(context.filesDir, fileName)
 
@@ -63,7 +75,9 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
 
     private fun ensureLoaded() {
         synchronized(lock) {
-            if (loaded) return
+            val currentAccount = accountScope.current()
+            if (loaded && loadedAccount == currentAccount) return
+            loadedAccount = currentAccount
             if (!migrationPrefs.getBoolean("sqlite_authoritative", false)) {
                 if (!db.hasAuthoritativeData()) {
                     db.mergeLegacySongs(readListFromDisk().map { it.forPersistence() })

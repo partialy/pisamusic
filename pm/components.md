@@ -193,3 +193,8 @@
 |---|---|---|
 | 本地歌曲长按编辑 | `LocalMusicFragment`、`LocalMusicAdapter`、`LocalMusicActivity` | 复用 `SongListItemBinder.onLongClick` 和 `BatchLongPressGuard`，只在本地歌曲 Tab 开启；进入现有编辑页并选中、定位该歌曲，不触发播放。已下载 Tab 的更多菜单转到下载管理。 |
 | 本地歌曲多选 | `LocalMusicEditActivity`、`LocalMusicEditAdapter`、`activity_local_music_edit.xml` | 底栏为全选/反选/删除；选择使用索引 `recordId`，长按播放 ID 在权威列表加载后映射。全选/反选作用于完整搜索结果，保留筛选外选择；搜索、选择、滚动位置支持重建恢复；删除确认默认仅移除索引。 |
+
+
+## 账号未关联数据导入（2026-11-14）
+
+- `ui/dialog/UnassociatedLibraryImportPrompt` 复用 `PmMinimalDialog`，登录/注册完成与 `FavoritesSyncSettingsActivity` 的“导入本机未关联数据”共用确认；明确说明新建账号歌单副本、保留本机原件，取消不合并。确认受账号与 generation 守卫，页面销毁关闭等待，不使用通用加载框。LOCAL 异机占位复用 `SongListItemBinder` 灰态与“当前设备无文件”，更多/移除入口仍可用。

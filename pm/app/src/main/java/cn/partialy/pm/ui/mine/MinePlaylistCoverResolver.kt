@@ -55,7 +55,7 @@ object MinePlaylistCoverResolver {
     fun localTemplateRes(cover: String): Int? {
         val raw = cover.trim()
         if (isLocalFileCover(raw)) return null
-        val key = raw.lowercase()
+        val key = raw.lowercase().removePrefix("preset:")
         if (!key.startsWith(localPrefix)) return null
         return when (key.removePrefix(localPrefix)) {
             "chill" -> R.drawable.playlist_cover_chill

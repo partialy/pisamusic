@@ -74,7 +74,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
      * 重复点击同一首歌不会重复入队；若歌曲不在主列表则追加可直接播放的逻辑项到主列表尾部。
      */
     fun addPlayNext(song: SongInfo) {
-        if (!song.playable) return
+        if (!song.availableForPlayback) return
         restoreGate.invalidate()
         val generation = preparationGate.current()
         preparationScope.launch {
@@ -131,7 +131,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
     ) {
         restoreGate.invalidate()
         val generation = preparationGate.nextReplacement()
-        val playableSongs = songs.filter(SongInfo::playable)
+        val playableSongs = songs.filter(SongInfo::availableForPlayback)
         if (playableSongs.isEmpty()) {
             onResult(PlaylistSetResult.Failed)
             return
@@ -205,8 +205,8 @@ class PlaylistManager(private val factory: MediaItemFactory) {
                 preparationMutex.withLock {
                     val player = exoPlayer ?: return@withLock
                     if (!preparationGate.isCurrent(generation)) return@withLock
-                    val valid = requested.filter { it.playable && it.id.isNotBlank() }
-                    val rejected = requested.filter { !it.playable || it.id.isBlank() }
+                    val valid = requested.filter { it.availableForPlayback && it.id.isNotBlank() }
+                    val rejected = requested.filter { !it.availableForPlayback || it.id.isBlank() }
                     val keys = _playList.value.mapTo(HashSet()) { factory.keyOf(it) }
                     val pending = valid.filter { factory.keyOf(it) !in keys }
                     val existing = valid.filter { factory.keyOf(it) in keys }
@@ -250,7 +250,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
         autoPlay: Boolean,
         isLatest: () -> Boolean,
     ): Boolean {
-        if (!song.playable) return false
+        if (!song.availableForPlayback) return false
         restoreGate.invalidate()
         val generation = preparationGate.nextReplacement()
         val localFile = song.takeIf { it.type == SongType.LOCAL }?.id?.let(::File)?.takeIf { it.isAbsolute }
@@ -343,7 +343,7 @@ class PlaylistManager(private val factory: MediaItemFactory) {
 
     /** 把插播歌曲移动或插入指定位置，并保持业务列表与 ExoPlayer 列表一致。 */
     fun placePlayNextAt(index: Int, song: SongInfo): Int {
-        if (!song.playable) return exoPlayer?.currentMediaItemIndex?.coerceAtLeast(0) ?: 0
+        if (!song.availableForPlayback) return exoPlayer?.currentMediaItemIndex?.coerceAtLeast(0) ?: 0
         val placement = planPlayNextPlacement(
             songs = _playList.value,
             requestedIndex = index,

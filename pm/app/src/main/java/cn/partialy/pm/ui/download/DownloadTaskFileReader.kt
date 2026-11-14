@@ -57,6 +57,7 @@ object DownloadTaskFileReader {
                             embeddedCoverArt = AudioEmbeddedArtReader.readEmbeddedCoverBytesWithTag(context, file, audio?.tag),
                             // 与现有 DownloadManager.getDownloadedFiles 的 LOCAL 时长保持一致。
                             duration = seconds,
+                            durationMs = seconds?.toLong()?.times(1000),
                         )
                         DownloadTaskFileInfo(song, true, true, size, seconds?.toLong()?.times(1000), null)
                     } catch (_: Exception) {

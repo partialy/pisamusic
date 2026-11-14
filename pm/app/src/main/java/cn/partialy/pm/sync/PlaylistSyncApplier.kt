@@ -18,8 +18,8 @@ internal class PlaylistSyncApplier(
                     payloadJson = SyncPayloads.playlistPayload(playlist),
                 )
                 playlistCollectionManager.getLocalPlaylistSongs(playlist.id)
-                    .filter { it.type != SongType.LOCAL }
-                    .forEach { song ->
+                    .forEach track@ { song ->
+                        if (outbox.hasPending(accountId, SyncPayloads.TYPE_PLAYLIST_TRACK, SyncPayloads.playlistTrackKey(playlist.id, song))) return@track
                         outbox.enqueue(
                             itemType = SyncPayloads.TYPE_PLAYLIST_TRACK,
                             itemKey = SyncPayloads.playlistTrackKey(playlist.id, song),
@@ -43,7 +43,7 @@ internal class PlaylistSyncApplier(
             val type = if (playlist.type == CollectedPlaylistType.LOCAL) SyncPayloads.TYPE_USER_PLAYLIST else SyncPayloads.TYPE_FAVORITE_PLAYLIST
             add(type to SyncPayloads.playlistKey(playlist))
             if (playlist.type == CollectedPlaylistType.LOCAL) playlistCollectionManager.getLocalPlaylistSongs(playlist.id)
-                .filter { it.type != SongType.LOCAL }.forEach { add(SyncPayloads.TYPE_PLAYLIST_TRACK to SyncPayloads.playlistTrackKey(playlist.id, it)) }
+                .forEach { add(SyncPayloads.TYPE_PLAYLIST_TRACK to SyncPayloads.playlistTrackKey(playlist.id, it)) }
         }
     }
 
@@ -52,8 +52,16 @@ internal class PlaylistSyncApplier(
             when (change.itemType) {
                 SyncPayloads.TYPE_FAVORITE_PLAYLIST -> applyPlaylist(change.itemKey, change.action, change.payload, true)
                 SyncPayloads.TYPE_USER_PLAYLIST -> applyPlaylist(change.itemKey, change.action, change.payload, false)
-                SyncPayloads.TYPE_PLAYLIST_TRACK -> applyPlaylistTrack(change.itemKey, change.action, change.payload)
+                SyncPayloads.TYPE_PLAYLIST_TRACK -> applyPlaylistTrack(change.itemKey, change.action, change.payload, change.version)
             }
+        }
+    }
+
+    fun acknowledgeOwnVersion(change: SyncChange, accountId: String) {
+        if (change.itemType != SyncPayloads.TYPE_PLAYLIST_TRACK || change.action != SyncPayloads.ACTION_UPSERT) return
+        val (playlistId,song) = SyncPayloads.playlistTrackFromKey(change.itemKey) ?: return
+        playlistCollectionManager.withSyncGuard(accountId,change.itemType,change.itemKey) {
+            playlistCollectionManager.acknowledgeTrackVersion(playlistId,song,change.version)
         }
     }
 
@@ -72,21 +80,16 @@ internal class PlaylistSyncApplier(
         }
     }
 
-    private fun applyPlaylistTrack(itemKey: String, action: String, payload: Any?) {
+    private fun applyPlaylistTrack(itemKey: String, action: String, payload: Any?, version: Long) {
         val keyParts = SyncPayloads.playlistTrackFromKey(itemKey) ?: return
         val song = SyncPayloads.parseSong(payload, itemKey.substringAfter("|", "")) ?: keyParts.second
-        if (song.source == "local") return
-        if (action == SyncPayloads.ACTION_DELETE) {
-            playlistCollectionManager.removeTrackFromSync(keyParts.first, song)
-        } else {
-            playlistCollectionManager.addTrackFromSync(keyParts.first, song)
-        }
+        playlistCollectionManager.applyTrackFromSync(keyParts.first, song,
+            action == SyncPayloads.ACTION_DELETE, SyncPayloads.sortOrder(payload), version)
     }
 
     private fun clearLocalFileCover(playlist: CanonicalPlaylist): CanonicalPlaylist {
         if (playlist.source != "local") return playlist
-        val cover = playlist.cover.trim().lowercase()
-        if (!cover.startsWith("file:") && !cover.startsWith("local_file:")) return playlist
+        if (!SyncPayloads.isLocalOnlyCover(playlist.cover)) return playlist
         return playlist.copy(cover = "")
     }
 

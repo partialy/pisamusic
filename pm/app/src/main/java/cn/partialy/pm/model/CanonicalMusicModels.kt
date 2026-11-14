@@ -21,6 +21,8 @@ data class CanonicalSong(
     val playable: Boolean? = true,
     /** 收藏关系创建时间，毫秒；普通歌单歌曲可省略。 */
     val favoritedAt: Long? = null,
+    val durationMs: Long? = null,
+    val localSyncId: String? = null,
 )
 
 data class CanonicalCoverSize(
@@ -44,7 +46,14 @@ data class CanonicalPlaylist(
     val song_count: Int = 0,
     val play_count: String = "",
     val collect_count: String = "",
+    val coverResource: CanonicalCoverResource? = null,
+    val coverPreset: String? = null,
+    val coverResourcePresent: Boolean = false,
+    val coverPresetPresent: Boolean = false,
+    val favoritedAt: Long? = null,
 )
+
+data class CanonicalCoverResource(val resourceId: String)
 
 data class CanonicalPlaylistTag(
     val name: String,
@@ -93,6 +102,8 @@ fun SongInfo.toCanonicalSong(): CanonicalSong =
         cover = coverUrl,
         duration = duration ?: 0,
         playable = playable,
+        durationMs = durationMs,
+        localSyncId = localSyncId,
     )
 
 fun CanonicalSong.toSongInfo(): SongInfo =
@@ -104,7 +115,9 @@ fun CanonicalSong.toSongInfo(): SongInfo =
         coverUrl = cover,
         album = album,
         duration = duration,
-        playable = playable ?: true,
+        playable = if (source == "local" && cn.partialy.pm.sync.LocalSyncTrackStore.isSyncId(id)) false else playable ?: true,
+        durationMs = durationMs,
+        localSyncId = localSyncId,
     )
 
 fun CollectedPlaylist.toCanonicalPlaylist(): CanonicalPlaylist =
@@ -115,6 +128,9 @@ fun CollectedPlaylist.toCanonicalPlaylist(): CanonicalPlaylist =
         desc = intro,
         cover = cover,
         song_count = count,
+        coverResource = coverResource, coverPreset = coverPreset,
+        coverResourcePresent = coverResourcePresent, coverPresetPresent = coverPresetPresent,
+        favoritedAt = favoritedAt,
     )
 
 fun CanonicalPlaylist.toCollectedPlaylist(): CollectedPlaylist =
@@ -125,4 +141,7 @@ fun CanonicalPlaylist.toCollectedPlaylist(): CollectedPlaylist =
         intro = desc,
         cover = cover,
         count = song_count,
+        coverResource = coverResource, coverPreset = coverPreset,
+        coverResourcePresent = coverResourcePresent, coverPresetPresent = coverPresetPresent,
+        favoritedAt = favoritedAt,
     )

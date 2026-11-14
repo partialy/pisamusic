@@ -15,16 +15,17 @@ import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
 import com.google.gson.Gson
 
 internal class FavoriteSongsDbStore(context: Context) {
-    private val helper = LocalMusicDbOpenHelper(context.applicationContext)
+    private val helper = LocalMusicDbOpenHelper.shared(context.applicationContext)
     private val gson = Gson()
     private val outbox = SyncOutboxStore(context)
+    private val account = cn.partialy.pm.sync.LibraryAccountScope(context)
 
-    fun getSongs(): List<SongInfo> {
+    fun getSongs(scope: String = account.current()): List<SongInfo> {
         helper.readableDatabase.query(
             TABLE,
             null,
-            null,
-            null,
+            "account_id = ?",
+            arrayOf(scope),
             null,
             null,
             "created_at DESC, rowid DESC",
@@ -42,8 +43,8 @@ internal class FavoriteSongsDbStore(context: Context) {
         helper.readableDatabase.query(
             TABLE,
             arrayOf("song_id"),
-            "song_type = ? AND song_id = ?",
-            arrayOf(type.name, id),
+            "account_id = ? AND song_type = ? AND song_id = ?",
+            arrayOf(account.current(), type.name, id),
             null,
             null,
             null,
@@ -53,7 +54,7 @@ internal class FavoriteSongsDbStore(context: Context) {
 
     /** 收藏和同账号待同步操作在同一事务内提交。null 表示迁移或远端下行。 */
     fun addSong(song: SongInfo, accountId: String? = null, createdAt: Long = System.currentTimeMillis()): Boolean = transaction { db ->
-        val added = insertSong(db, song, createdAt)
+        val added = insertSong(db, song, createdAt, accountId ?: account.current())
         if (added && accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_UPSERT, createdAt)
         added
     }
@@ -61,8 +62,8 @@ internal class FavoriteSongsDbStore(context: Context) {
     fun removeSong(song: SongInfo, accountId: String? = null): Boolean = transaction { db ->
         val removed = song.id.isNotBlank() && db.delete(
             TABLE,
-            "song_type = ? AND song_id = ?",
-            arrayOf(song.type.name, song.id),
+            "account_id = ? AND song_type = ? AND song_id = ?",
+            arrayOf(account.current(), song.type.name, song.id),
         ) > 0
         if (removed && accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_DELETE)
         removed
@@ -72,7 +73,7 @@ internal class FavoriteSongsDbStore(context: Context) {
         var added = 0
         var createdAt = System.currentTimeMillis() + songs.size
         for (song in songs) {
-            if (!insertSong(db, song, createdAt--)) continue
+            if (!insertSong(db, song, createdAt--, accountId ?: "")) continue
             added++
             if (accountId != null) enqueue(db, accountId, song, SyncPayloads.ACTION_UPSERT, createdAt + 1)
         }
@@ -91,10 +92,10 @@ internal class FavoriteSongsDbStore(context: Context) {
         ).use { return it.moveToFirst() }
     }
 
-    private fun insertSong(db: SQLiteDatabase, song: SongInfo, createdAt: Long = System.currentTimeMillis()): Boolean {
+    private fun insertSong(db: SQLiteDatabase, song: SongInfo, createdAt: Long = System.currentTimeMillis(), scope: String = account.current()): Boolean {
         if (song.id.isBlank()) return false
         return db.insertWithOnConflict(
-            TABLE, null, song.toValues(createdAt, createdAt), SQLiteDatabase.CONFLICT_IGNORE,
+            TABLE, null, song.toValues(createdAt, createdAt).apply { put("account_id", scope) }, SQLiteDatabase.CONFLICT_IGNORE,
         ) != -1L
     }
 
@@ -118,31 +119,32 @@ internal class FavoriteSongsDbStore(context: Context) {
         }
     }
 
-    fun favoriteTimes(): Map<String, Long> = helper.readableDatabase.query(
-        TABLE, arrayOf("song_type", "song_id", "created_at"), null, null, null, null, null,
+    fun favoriteTimes(scope: String = account.current()): Map<String, Long> = helper.readableDatabase.query(
+        TABLE, arrayOf("song_type", "song_id", "created_at"), "account_id = ?", arrayOf(scope), null, null, null,
     ).use { cursor ->
         buildMap { while (cursor.moveToNext()) put("${cursor.getString(0)}:${cursor.getString(1)}", cursor.getLong(2)) }
     }
 
     /** Android 旧 SQLite 也兼容：事务内 update，缺失才 insert。 */
     fun upsertSongFromSync(song: SongInfo, favoritedAt: Long?) = transaction { db ->
-        val existing = db.query(TABLE, arrayOf("created_at"), "song_type = ? AND song_id = ?",
-            arrayOf(song.type.name, song.id), null, null, null).use { if (it.moveToFirst()) it.getLong(0) else null }
+        val existing = db.query(TABLE, arrayOf("created_at"), "account_id = ? AND song_type = ? AND song_id = ?",
+            arrayOf(account.current(), song.type.name, song.id), null, null, null).use { if (it.moveToFirst()) it.getLong(0) else null }
         val createdAt = favoritedAt?.takeIf { it > 0 } ?: existing ?: System.currentTimeMillis()
         val values = song.toValues(createdAt, System.currentTimeMillis())
-        if (db.update(TABLE, values, "song_type = ? AND song_id = ?", arrayOf(song.type.name, song.id)) == 0) {
+        if (db.update(TABLE, values, "account_id = ? AND song_type = ? AND song_id = ?", arrayOf(account.current(), song.type.name, song.id)) == 0) {
             db.insertOrThrow(TABLE, null, values)
         }
         createdAt
     }
 
     fun clearAll() {
-        helper.writableDatabase.delete(TABLE, null, null)
+        helper.writableDatabase.delete(TABLE, "account_id = ?", arrayOf(account.current()))
     }
 
     private fun SongInfo.toValues(createdAt: Long, updatedAt: Long): ContentValues =
         ContentValues().apply {
             val canonical = toCanonicalSong()
+            put("account_id", account.current())
             put("source", canonical.source)
             put("url_param", canonical.urlParam)
             put("song_type", type.name)
@@ -170,6 +172,7 @@ internal class FavoriteSongsDbStore(context: Context) {
             }.getOrDefault(SongType.KG)
         }
         val durationIndex = getColumnIndexOrThrow("duration")
+        val metadata = runCatching { gson.fromJson(getOptionalString("payload_json"), cn.partialy.pm.model.CanonicalSong::class.java) }.getOrNull()
         return SongInfo(
             id = getString(getColumnIndexOrThrow("song_id")).orEmpty(),
             type = type,
@@ -184,6 +187,7 @@ internal class FavoriteSongsDbStore(context: Context) {
             lyric = getString(getColumnIndexOrThrow("lyric")),
             duration = if (isNull(durationIndex)) null else getInt(durationIndex),
             playable = payloadPlayableOrDefault(getOptionalString("payload_json")),
+            localSyncId = metadata?.localSyncId, durationMs = metadata?.durationMs,
         )
     }
 

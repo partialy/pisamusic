@@ -82,6 +82,14 @@ class FavoritesSyncSettingsActivity : BaseActivity() {
     private fun setupButtons() {
         binding.btnSyncNow.setOnClickListener { syncNow() }
         binding.btnGoLogin.setOnClickListener { LoginActivity.start(this) }
+        binding.btnImportUnassociated.setOnClickListener {
+            lifecycleScope.launch {
+                if (cn.partialy.pm.ui.dialog.UnassociatedLibraryImportPrompt.show(this@FavoritesSyncSettingsActivity, force = true)) {
+                    withContext(Dispatchers.IO) { loveManager.reload(); playlistCollectionManager.reload() }
+                    syncNow()
+                }
+            }
+        }
     }
 
     // ==================== 数据与状态展示 ====================
@@ -145,6 +153,8 @@ class FavoritesSyncSettingsActivity : BaseActivity() {
             }
 
             // 3. 同步控制与状态
+            binding.btnImportUnassociated.visibility = if (session.loggedIn) View.VISIBLE else View.GONE
+            binding.btnImportUnassociated.isEnabled = !isSyncing
             binding.btnSyncNow.isEnabled = session.loggedIn && !isSyncing
             binding.btnSyncNow.text = if (isSyncing) {
                 getString(R.string.settings_syncing)

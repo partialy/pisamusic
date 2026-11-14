@@ -5,6 +5,12 @@ import cn.partialy.pm.model.AccountAuthResult
 import cn.partialy.pm.model.AccountUser
 
 object AccountSessionStore {
+    val libraryBoundary = Any()
+    @Volatile var libraryGeneration: Long = 0
+        private set
+    private val listeners = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
+    fun onLibraryAccountChanged(listener: () -> Unit) { listeners.add(listener) }
+    private fun notifyLibraryAccountChanged() { libraryGeneration++; listeners.forEach { it() } }
     private const val PREFS_NAME = "pm_account_session"
     private const val KEY_TOKEN = "token"
     private const val KEY_EXPIRES_AT = "expires_at"
@@ -52,7 +58,8 @@ object AccountSessionStore {
         )
     }
 
-    fun save(context: Context, result: AccountAuthResult) {
+    fun save(context: Context, result: AccountAuthResult) = synchronized(libraryBoundary) {
+        val previousId = read(context).let { if (it.loggedIn) it.user.id else "" }
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_TOKEN, result.token)
@@ -72,6 +79,7 @@ object AccountSessionStore {
             }
             .apply()
         TokenManager.setToken(result.token)
+        if (previousId != result.user.id) notifyLibraryAccountChanged()
     }
 
     fun updateUser(context: Context, user: AccountUser) {
@@ -93,8 +101,9 @@ object AccountSessionStore {
             .apply()
     }
 
-    fun clear(context: Context) {
+    fun clear(context: Context) = synchronized(libraryBoundary) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
         TokenManager.clearToken()
+        notifyLibraryAccountChanged()
     }
 }

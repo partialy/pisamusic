@@ -243,6 +243,8 @@ class AccountAssistActivity : BaseActivity() {
         }
     }
 
+    @javax.inject.Inject lateinit var playlistCollectionManager: cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
+
     private var completionScheduled = false
 
     private fun notifyRegistered(result: AccountAuthResult) {
@@ -259,6 +261,13 @@ class AccountAssistActivity : BaseActivity() {
                 listeningManager.onAccountAvailable()
             }
             binding.accountAssistBackButton.isEnabled = true
+            if (cn.partialy.pm.ui.dialog.UnassociatedLibraryImportPrompt.show(this@AccountAssistActivity)) {
+                withContext(Dispatchers.IO) {
+                    loveManager.reload()
+                    playlistCollectionManager.reload()
+                    syncManager.syncNow()
+                }
+            }
             cn.partialy.pm.ui.message.PmMessageFlow.showSuccessThenNavigate(this@AccountAssistActivity, R.string.account_login_success) {
                 directMessageCoordinator.checkAndShow(this@AccountAssistActivity, DirectMessageCheckSource.REGISTER)
                 if (!isFinishing && !isDestroyed && lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) finish()

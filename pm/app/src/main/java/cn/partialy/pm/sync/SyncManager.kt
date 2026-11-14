@@ -22,6 +22,7 @@ class SyncManager @Inject constructor(
 ) {
     private val outbox = SyncOutboxStore(context)
     private val mutex = Mutex()
+    private var syncGeneration = -1L
     private val favoriteApplier = FavoriteSongSyncApplier(loveManager)
     private val playlistApplier = PlaylistSyncApplier(playlistCollectionManager, outbox)
 
@@ -34,6 +35,7 @@ class SyncManager @Inject constructor(
 
     suspend fun syncNow(): SyncPrefs.State = withContext(Dispatchers.IO) {
         mutex.withLock {
+            syncGeneration = cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration
             val before = prepareAccountState() ?: return@withLock SyncPrefs.getState(context)
             try {
                 var appliedVersion = pull(before, before.lastVersion)
@@ -110,6 +112,7 @@ class SyncManager @Inject constructor(
                 }
                 // 只在完整权威快照到齐后发布；自身设备的数据也要恢复。
                 loveManager.withSyncBatch {
+                    if (!isCurrentAccount(before.userId)) return@withSyncBatch
                     snapshot.sortedBy { if (it.itemType == SyncPayloads.TYPE_PLAYLIST_TRACK) 1 else 0 }
                         .forEach { applyRemoteChange(it, before.userId) }
                     loveManager.reconcileSnapshot(snapshot.filter { it.itemType == SyncPayloads.TYPE_FAVORITE_SONG }
@@ -125,6 +128,9 @@ class SyncManager @Inject constructor(
                 check(change.version > appliedVersion) { "同步日志版本顺序异常" }
                 if (!isCurrentAccount(before.userId)) return appliedVersion
                 if (change.deviceId != ownDeviceId) applyRemoteChange(change, before.userId)
+                else synchronized(cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary) {
+                    if (isCurrentAccount(before.userId)) playlistApplier.acknowledgeOwnVersion(change,before.userId)
+                }
                 appliedVersion = change.version
             }
             if (appliedVersion >= pulled.version) break
@@ -133,10 +139,9 @@ class SyncManager @Inject constructor(
         return appliedVersion
     }
 
-    private fun prepareAccountState(): SyncPrefs.State? {
+    private fun prepareAccountState(): SyncPrefs.State? = synchronized(cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary) {
         val state = SyncPrefs.getState(context)
         if (!state.loggedIn) return null
-        outbox.clearForAccountBoundary(state.userId)
         if (state.needsAccountSeed) {
             SyncPrefs.resetForAccount(context, state.userId)
             seedInitialOutbox(state.userId)
@@ -151,7 +156,7 @@ class SyncManager @Inject constructor(
                 playlistCollectionManager.withDataLock {
                     loveManager.clearLoveList()
                     playlistCollectionManager.clearAll()
-                    outbox.clearAll()
+                    outbox.clearAccount(outbox.accountSnapshot())
                 }
             }
             val state = SyncPrefs.getState(context)
@@ -161,22 +166,25 @@ class SyncManager @Inject constructor(
     }
 
     fun clearLocalSyncState() {
-        outbox.clearAll()
+        // 退出仅清同步游标；各账号 pending 保留，永不转移给其他账号。
         SyncPrefs.clearAccountState(context)
     }
 
     private fun isCurrentAccount(accountId: String): Boolean =
-        SyncPrefs.getState(context).let { it.loggedIn && it.userId == accountId }
+        SyncPrefs.getState(context).let { it.loggedIn && it.userId == accountId &&
+            syncGeneration == cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration }
 
     private fun seedInitialOutbox(accountId: String) {
         favoriteApplier.seed(accountId)
         playlistApplier.seed(accountId)
     }
 
-    private fun applyRemoteChange(change: cn.partialy.pm.model.SyncChange, accountId: String) {
-        if (change.itemType == SyncPayloads.TYPE_FAVORITE_SONG) favoriteApplier.apply(change, accountId)
-        else playlistApplier.apply(change, accountId)
-    }
+    private fun applyRemoteChange(change: cn.partialy.pm.model.SyncChange, accountId: String) =
+        synchronized(cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary) {
+            if (!isCurrentAccount(accountId)) return@synchronized
+            if (change.itemType == SyncPayloads.TYPE_FAVORITE_SONG) favoriteApplier.apply(change, accountId)
+            else playlistApplier.apply(change, accountId)
+        }
 
     private fun deviceId(): String {
         val serverId = ServerDevicePrefs.getDeviceId(context).trim()

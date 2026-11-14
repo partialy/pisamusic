@@ -22,8 +22,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
@@ -31,7 +29,7 @@ import javax.inject.Singleton
 
 /**
  * 收藏网络歌单（kg/wy）与自建本地歌单（local）。
- * 索引文件 `collected_playlists.json`；仅 local 使用 `songs_<id>.json` 存曲目。
+ * SQLite 为唯一运行存储；旧 JSON 只作一次迁移与显式备份。
  */
 @Singleton
 class PlaylistCollectionManager @Inject constructor(
@@ -42,8 +40,12 @@ class PlaylistCollectionManager @Inject constructor(
     private val favoriteDb = FavoritePlaylistsDbStore(context)
     private val syncOutbox = SyncOutboxStore(context)
     private val indexFileName = "collected_playlists.json"
+    private val migrationPrefs = context.getSharedPreferences("pm_playlist_migration", Context.MODE_PRIVATE)
+    private val localSyncTracks = cn.partialy.pm.sync.LocalSyncTrackStore(context)
 
-    private val lock = Any()
+    private val accountScope = cn.partialy.pm.sync.LibraryAccountScope(context)
+    private var loadedAccount: String? = null
+    private val lock = cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary
     private var indexLoaded = false
     private val playlistsByKey = LinkedHashMap<String, CollectedPlaylist>()
 
@@ -55,8 +57,16 @@ class PlaylistCollectionManager @Inject constructor(
     val playlistsFlow: StateFlow<List<CollectedPlaylist>> = _playlistsFlow.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val persistIndexMutex = Mutex()
-    private val persistSongsMutex = Mutex()
+
+    init {
+        cn.partialy.pm.network.auth.AccountSessionStore.onLibraryAccountChanged {
+            synchronized(lock) {
+                indexLoaded = false
+                _playlistsFlow.value = emptyList()
+            }
+            reload()
+        }
+    }
 
     private fun indexFile(): File = File(context.filesDir, indexFileName)
 
@@ -84,8 +94,12 @@ class PlaylistCollectionManager @Inject constructor(
 
     private fun ensureIndexLoaded() {
         synchronized(lock) {
-            if (indexLoaded) return
+            val currentAccount = accountScope.current()
+            if (indexLoaded && loadedAccount == currentAccount) return
+            loadedAccount = currentAccount
             migrateLegacyPlaylists()
+            localSongsLoaded.clear()
+            localSongsByPlaylistId.clear()
             playlistsByKey.clear()
             for (p in favoriteDb.getPlaylists()) {
                 if (p.id.isNotBlank()) playlistsByKey[storageKey(p)] = p
@@ -99,19 +113,21 @@ class PlaylistCollectionManager @Inject constructor(
     }
 
     private fun migrateLegacyPlaylists() {
+        if (migrationPrefs.getBoolean("sqlite_authoritative", false)) return
         val legacyPlaylists = readIndexFromDisk()
         favoriteDb.mergeLegacyPlaylists(legacyPlaylists)
         val legacyLocalPlaylists = legacyPlaylists
             .filter { it.type == CollectedPlaylistType.LOCAL && it.id.isNotBlank() }
-        if (legacyLocalPlaylists.isEmpty()) return
+
         for (playlist in legacyLocalPlaylists) {
             // 已入库歌单以 SQLite 为准，过期镜像不可复活已删曲目。
-            if (localDb.playlistExists(playlist.id)) continue
+            if (localDb.playlistExists(playlist.id, anyScope = true)) continue
             localDb.mergeLegacyPlaylist(
                 playlist = playlist,
                 songs = readLocalSongsFromDisk(playlist.id).map { it.forPersistence() },
             )
         }
+        check(migrationPrefs.edit().putBoolean("sqlite_authoritative", true).commit())
     }
 
     /** 在 IO 线程读索引预热内存（仅首次有效），供主界面启动后调用。 */
@@ -136,43 +152,7 @@ class PlaylistCollectionManager @Inject constructor(
     }
 
     private fun SongInfo.forPersistence(): SongInfo {
-        if (type != SongType.LOCAL) return this
-        if (embeddedCoverArt == null) return this
-        return copy(embeddedCoverArt = null)
-    }
-
-    private fun persistIndexAsync() {
-        val snapshot = synchronized(lock) {
-            playlistsByKey.values.toList()
-        }
-        scope.launch {
-            persistIndexMutex.withLock {
-                try {
-                    val file = indexFile()
-                    file.parentFile?.mkdirs()
-                    file.writeText(gson.toJson(snapshot))
-                } catch (e: Exception) {
-                    Log.e(TAG, "save collected playlists index failed", e)
-                }
-            }
-        }
-    }
-
-    private fun persistLocalSongsAsync(playlistId: String) {
-        val snapshot = synchronized(lock) {
-            localSongsByPlaylistId[playlistId]?.map { it.forPersistence() } ?: emptyList()
-        }
-        scope.launch {
-            persistSongsMutex.withLock {
-                try {
-                    val file = songsFile(playlistId)
-                    file.parentFile?.mkdirs()
-                    file.writeText(gson.toJson(snapshot))
-                } catch (e: Exception) {
-                    Log.e(TAG, "save playlist songs failed id=$playlistId", e)
-                }
-            }
-        }
+        return localSyncTracks.bind(this)
     }
 
     private fun readLocalSongsFromDisk(playlistId: String): List<SongInfo> {
@@ -281,13 +261,12 @@ class PlaylistCollectionManager @Inject constructor(
             if (!playlistsByKey.containsKey(key)) {
                 added = favoriteDb.addPlaylist(playlist)
                 if (added) {
-                    playlistsByKey[key] = playlist
+                    playlistsByKey[key] = favoriteDb.getPlaylists().first { it.type == playlist.type && it.id == playlist.id }
                     refreshPlaylistsFlowLocked()
                 }
             }
         }
-        if (added) persistIndexAsync()
-        if (added) enqueueFavoritePlaylist(playlist, SyncPayloads.ACTION_UPSERT)
+        if (added) SyncWorkRunner.request(context)
         return added
     }
 
@@ -295,46 +274,29 @@ class PlaylistCollectionManager @Inject constructor(
         if (id.isBlank()) return false
         ensureIndexLoaded()
         var removed = false
-        var removedPlaylist: CollectedPlaylist? = null
         synchronized(lock) {
             val key = storageKey(type, id)
-            val removedPl = playlistsByKey.remove(key)
+            val removedPl = playlistsByKey[key]
             if (removedPl != null) {
-                removedPlaylist = removedPl
                 if (type == CollectedPlaylistType.LOCAL) {
-                    localDb.removePlaylist(id)
-                    MinePlaylistCoverResolver.localFileForCover(removedPl.cover)?.delete()
+                    localDb.removeWithOutbox(removedPl, syncOutbox)
                     localSongsByPlaylistId.remove(id)
                     localSongsLoaded.remove(id)
-                    try {
-                        songsFile(id).takeIf { it.exists() }?.delete()
-                        MinePlaylistCoverResolver.persistedCoverFile(context, id)
-                            .takeIf { it.exists() }
-                            ?.delete()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "delete songs file failed id=$id", e)
-                    }
+                    MinePlaylistCoverResolver.deletePersistedCoverIfUnused(context, removedPl.cover, localDb.allCoverReferences())
                 } else {
                     favoriteDb.removePlaylist(type, id)
                 }
+                playlistsByKey.remove(key)
                 refreshPlaylistsFlowLocked()
                 removed = true
             }
         }
-        if (removed) persistIndexAsync()
-        val snapshot = removedPlaylist
-        if (removed && snapshot != null) {
-            if (type == CollectedPlaylistType.LOCAL) {
-                enqueueUserPlaylist(snapshot, SyncPayloads.ACTION_DELETE)
-            } else {
-                enqueueFavoritePlaylist(snapshot, SyncPayloads.ACTION_DELETE)
-            }
-        }
+        if (removed) SyncWorkRunner.request(context)
         return removed
     }
 
     /**
-     * 新建自建歌单：type=local，id=随机 UUID，并创建空的 [songs_${id}.json]。
+     * 新建自建歌单：type=local，id=随机 UUID，SQLite 原子保存。
      */
     fun createLocalPlaylist(
         name: String,
@@ -354,7 +316,9 @@ class PlaylistCollectionManager @Inject constructor(
         val id = UUID.randomUUID().toString()
         val normalized = songs.filter { it.id.isNotBlank() }.distinctBy { it.type to it.id }
             .map { it.forPersistence() }
-        val playlist = CollectedPlaylist(CollectedPlaylistType.LOCAL, id, name, intro, cover, normalized.size)
+        val playlist = CollectedPlaylist(CollectedPlaylistType.LOCAL, id, name, intro, cover, normalized.size,
+            coverPreset = cover.takeIf { it.startsWith("local_") && !it.startsWith("local_file:") },
+            coverResourcePresent = true, coverPresetPresent = true)
         ensureIndexLoaded()
         synchronized(lock) {
             localDb.createPlaylistWithSongs(playlist, normalized, syncOutbox)
@@ -363,8 +327,6 @@ class PlaylistCollectionManager @Inject constructor(
             localSongsLoaded.add(id)
             refreshPlaylistsFlowLocked()
         }
-        persistIndexAsync()
-        persistLocalSongsAsync(id)
         runCatching { SyncWorkRunner.request(context) }
             .onFailure { Log.e(TAG, "schedule playlist sync failed; outbox retained", it) }
         return id
@@ -383,28 +345,24 @@ class PlaylistCollectionManager @Inject constructor(
         synchronized(lock) {
             val key = storageKey(CollectedPlaylistType.LOCAL, id)
             val cur = playlistsByKey[key] ?: return false
+            val coverChanged = cover != null && cover != cur.cover
             val next = cur.copy(
                 name = name ?: cur.name,
                 intro = intro ?: cur.intro,
                 cover = cover ?: cur.cover,
+                coverResource = if (coverChanged) null else cur.coverResource,
+                coverPreset = if (coverChanged) cover?.takeIf { it.startsWith("local_") && !it.startsWith("local_file:") } else cur.coverPreset,
+                coverResourcePresent = coverChanged || cur.coverResourcePresent,
+                coverPresetPresent = coverChanged || cur.coverPresetPresent,
             )
             if (next != cur) {
-                localDb.upsertPlaylist(next)
+                localDb.updateWithOutbox(next, syncOutbox)
                 playlistsByKey[key] = next
                 refreshPlaylistsFlowLocked()
                 changed = true
             }
         }
-        if (changed) {
-            synchronized(lock) {
-                playlistsByKey[storageKey(CollectedPlaylistType.LOCAL, id)]?.let {
-                    // 本地提交已成功，不能因同步队列失败让调用方回滚封面文件。
-                    runCatching { enqueueUserPlaylist(it, SyncPayloads.ACTION_UPSERT) }
-                        .onFailure { error -> Log.e(TAG, "enqueue playlist metadata failed", error) }
-                }
-            }
-            persistIndexAsync()
-        }
+        if (changed) SyncWorkRunner.request(context)
         return changed
     }
 
@@ -447,9 +405,13 @@ class PlaylistCollectionManager @Inject constructor(
             if (added.isEmpty()) return AddSongsResult(emptyList(), existing, invalid)
             val nextSongs = (before + added).map { it.forPersistence() }
             val autoCover = LocalPlaylistAutoCoverRules.fromLastAddedSong(added)
-            val next = playlist.copy(count = nextSongs.size, cover = autoCover ?: playlist.cover)
+            val next = playlist.copy(count = nextSongs.size, cover = autoCover ?: playlist.cover,
+                coverResource = if (autoCover != null) null else playlist.coverResource,
+                coverPreset = if (autoCover != null) null else playlist.coverPreset,
+                coverResourcePresent = autoCover != null || playlist.coverResourcePresent,
+                coverPresetPresent = autoCover != null || playlist.coverPresetPresent)
             try {
-                localDb.addSongsWithOutbox(next, nextSongs, added, syncOutbox)
+                localDb.addSongsWithOutbox(next, added, syncOutbox)
             } catch (e: Exception) {
                 Log.e(TAG, "add playlist songs transaction failed", e)
                 return AddSongsResult(emptyList(), existing, invalid + added)
@@ -462,12 +424,10 @@ class PlaylistCollectionManager @Inject constructor(
         oldCoverToClean?.let { previous ->
             runCatching {
                 MinePlaylistCoverResolver.deletePersistedCoverIfUnused(
-                    context, previous, getAllPlaylists().map { it.cover },
+                    context, previous, localDb.allCoverReferences(),
                 )
             }.onFailure { Log.w(TAG, "cleanup replaced playlist cover failed", it) }
         }
-        persistIndexAsync()
-        persistLocalSongsAsync(playlistId)
         runCatching { SyncWorkRunner.request(context) }
             .onFailure { Log.e(TAG, "schedule playlist sync failed; outbox retained", it) }
         return AddSongsResult(added, existing, invalid)
@@ -483,65 +443,40 @@ class PlaylistCollectionManager @Inject constructor(
     fun removeSongsFromLocalPlaylistByIdentity(playlistId: String, songs: Collection<SongInfo>): Boolean {
         if (songs.isEmpty()) return false
         ensureIndexLoaded()
-        var changed = false
-        val removedSongs = mutableListOf<SongInfo>()
         synchronized(lock) {
-            val key = storageKey(CollectedPlaylistType.LOCAL, playlistId)
-            if (!playlistsByKey.containsKey(key)) return false
+            val key = storageKey(CollectedPlaylistType.LOCAL,playlistId)
+            val parent = playlistsByKey[key] ?: return false
             ensureLocalSongsLoaded(playlistId)
-            val list = localSongsByPlaylistId[playlistId] ?: return false
-            val idSet = songs.map { it.type to it.id }.toSet()
-            removedSongs += list.filter { (it.type to it.id) in idSet }
-            if (list.removeAll { (it.type to it.id) in idSet }) {
-                changed = true
-                updateLocalPlaylistCountLocked(playlistId)
-                refreshPlaylistsFlowLocked()
-            }
+            val previous = localSongsByPlaylistId[playlistId].orEmpty()
+            val identities = songs.map { it.type to it.id }.toSet()
+            val removed = previous.filter { (it.type to it.id) in identities }
+            if (removed.isEmpty()) return false
+            localDb.removeTracksWithOutbox(playlistId,removed,syncOutbox)
+            val retained = previous.filterNot { (it.type to it.id) in identities }
+            localSongsByPlaylistId[playlistId] = retained.toMutableList()
+            playlistsByKey[key] = parent.copy(count=retained.size)
+            refreshPlaylistsFlowLocked()
         }
-        if (changed) {
-            val snapshot = synchronized(lock) {
-                localSongsByPlaylistId[playlistId]?.map { it.forPersistence() } ?: emptyList()
-            }
-            localDb.setSongs(playlistId, snapshot)
-            removedSongs.filter { it.type != SongType.LOCAL }.forEach { song ->
-                enqueuePlaylistTrack(playlistId, song, SyncPayloads.ACTION_DELETE)
-            }
-            synchronized(lock) {
-                playlistsByKey[storageKey(CollectedPlaylistType.LOCAL, playlistId)]?.let {
-                    enqueueUserPlaylist(it, SyncPayloads.ACTION_UPSERT)
-                }
-            }
-            persistIndexAsync()
-            persistLocalSongsAsync(playlistId)
-        }
-        return changed
+        SyncWorkRunner.request(context)
+        return true
     }
 
     /**
      * 覆盖本地歌单曲目顺序与内容（用于排序或全量替换）。
      */
     fun setLocalPlaylistSongs(playlistId: String, songs: List<SongInfo>): Boolean {
-        val normalized = songs.filter { it.id.isNotBlank() }.distinctBy { it.type to it.id }
-        val previous = getLocalPlaylistSongs(playlistId)
         ensureIndexLoaded()
+        val normalized = songs.filter { it.id.isNotBlank() }.distinctBy { it.type to it.id }.map { it.forPersistence() }
         synchronized(lock) {
             val key = storageKey(CollectedPlaylistType.LOCAL, playlistId)
-            if (!playlistsByKey.containsKey(key)) return false
+            val previous = playlistsByKey[key] ?: return false
+            localDb.replaceWithOutbox(playlistId, normalized, syncOutbox)
             localSongsByPlaylistId[playlistId] = normalized.toMutableList()
             localSongsLoaded.add(playlistId)
-            updateLocalPlaylistCountLocked(playlistId)
+            playlistsByKey[key] = previous.copy(count = normalized.size, localRevision = previous.localRevision + 1)
             refreshPlaylistsFlowLocked()
         }
-        localDb.setSongs(playlistId, normalized.map { it.forPersistence() })
-        val retainedKeys = normalized.map { it.type to it.id }.toSet()
-        previous.filter { (it.type to it.id) !in retainedKeys }.forEach {
-            enqueuePlaylistTrack(playlistId, it, SyncPayloads.ACTION_DELETE)
-        }
-        normalized.filter { it.type != SongType.LOCAL }.forEach {
-            enqueuePlaylistTrack(playlistId, it, SyncPayloads.ACTION_UPSERT)
-        }
-        persistIndexAsync()
-        persistLocalSongsAsync(playlistId)
+        SyncWorkRunner.request(context)
         return true
     }
 
@@ -555,19 +490,26 @@ class PlaylistCollectionManager @Inject constructor(
     }
 
     fun upsertPlaylistFromSync(playlist: cn.partialy.pm.model.CanonicalPlaylist, favorite: Boolean) {
-        val next = playlist.toCollectedPlaylist()
+        var next = playlist.toCollectedPlaylist()
         if (next.id.isBlank()) return
         ensureIndexLoaded()
         synchronized(lock) {
+            val prior = playlistsByKey[storageKey(next)]
+            next = next.copy(
+                coverResource = if (next.coverResourcePresent) next.coverResource else prior?.coverResource,
+                coverPreset = if (next.coverPresetPresent) next.coverPreset else prior?.coverPreset,
+                coverResourcePresent = next.coverResourcePresent || prior?.coverResourcePresent == true,
+                coverPresetPresent = next.coverPresetPresent || prior?.coverPresetPresent == true,
+            )
+            if (favorite && next.type != CollectedPlaylistType.LOCAL) favoriteDb.upsertFromSync(next)
+            else if (next.type == CollectedPlaylistType.LOCAL) {
+                localDb.upsertPlaylist(next)
+                localDb.clearParentDeleted(next.id)
+            }
+            if (next.cover.isBlank() && next.coverPreset != null) next = next.copy(cover = "preset:${next.coverPreset}")
             playlistsByKey[storageKey(next)] = next
             refreshPlaylistsFlowLocked()
         }
-        if (favorite && next.type != CollectedPlaylistType.LOCAL) {
-            favoriteDb.addPlaylist(next)
-        } else if (next.type == CollectedPlaylistType.LOCAL) {
-            localDb.upsertPlaylist(next)
-        }
-        persistIndexAsync()
     }
 
     fun removePlaylistFromSync(playlist: cn.partialy.pm.model.CanonicalPlaylist, favorite: Boolean) {
@@ -575,41 +517,59 @@ class PlaylistCollectionManager @Inject constructor(
         if (next.id.isBlank()) return
         ensureIndexLoaded()
         synchronized(lock) {
+            if (favorite && next.type != CollectedPlaylistType.LOCAL) favoriteDb.removePlaylist(next.type, next.id, recordChange = false)
+            else if (next.type == CollectedPlaylistType.LOCAL) {
+                localDb.removePlaylist(next.id)
+                localDb.markParentDeleted(playlistId = next.id)
+                localSongsByPlaylistId.remove(next.id)
+                localSongsLoaded.remove(next.id)
+            }
             playlistsByKey.remove(storageKey(next))
             refreshPlaylistsFlowLocked()
         }
-        if (favorite && next.type != CollectedPlaylistType.LOCAL) {
-            favoriteDb.removePlaylist(next.type, next.id)
-        } else if (next.type == CollectedPlaylistType.LOCAL) {
-            localDb.removePlaylist(next.id)
-            localSongsByPlaylistId.remove(next.id)
-            localSongsLoaded.remove(next.id)
+    }
+
+    fun applyTrackFromSync(playlistId: String, song: cn.partialy.pm.model.CanonicalSong, delete: Boolean, order: Long?, version: Long) {
+        ensureIndexLoaded()
+        synchronized(lock) {
+            val key = storageKey(CollectedPlaylistType.LOCAL, playlistId)
+            val parent = playlistsByKey[key] ?: return
+            localDb.applyTrack(playlistId, song.toSongInfo(), delete, order, version)
+            val songs = localDb.getSongs(playlistId)
+            localSongsByPlaylistId[playlistId] = songs.toMutableList()
+            localSongsLoaded.add(playlistId)
+            playlistsByKey[key] = parent.copy(count = songs.size, localRevision = parent.localRevision + 1)
+            refreshPlaylistsFlowLocked()
         }
-        persistIndexAsync()
     }
 
-    fun addTrackFromSync(playlistId: String, song: cn.partialy.pm.model.CanonicalSong) {
-        if (playlistId.isBlank() || song.source == "local") return
-        addSongsToLocalPlaylistFromSync(playlistId, listOf(song.toSongInfo()))
-    }
-
-    fun removeTrackFromSync(playlistId: String, song: cn.partialy.pm.model.CanonicalSong) {
-        if (playlistId.isBlank()) return
-        removeSongsFromLocalPlaylistFromSync(playlistId, listOf(song.toSongInfo()))
+    fun acknowledgeTrackVersion(playlistId: String, song: cn.partialy.pm.model.CanonicalSong, version: Long) {
+        ensureIndexLoaded()
+        synchronized(lock) {
+            if (!localDb.playlistExists(playlistId)) return
+            localDb.acknowledgeTrackVersion(playlistId,song.toSongInfo(),version)
+            localSongsByPlaylistId[playlistId] = localDb.getSongs(playlistId).toMutableList()
+            localSongsLoaded.add(playlistId)
+            val key = storageKey(CollectedPlaylistType.LOCAL, playlistId)
+            playlistsByKey[key]?.let { playlistsByKey[key] = it.copy(localRevision = it.localRevision + 1) }
+            refreshPlaylistsFlowLocked()
+        }
     }
 
     fun <T> withDataLock(action: () -> T): T = synchronized(lock) { action() }
 
+    fun allLocalCoverReferences(): List<String> = synchronized(lock) { localDb.allCoverReferences() }
+
     fun clearAll() {
         ensureIndexLoaded()
         synchronized(lock) {
+            localDb.clearAll()
+            favoriteDb.clearAll()
             playlistsByKey.clear()
             localSongsByPlaylistId.clear()
             localSongsLoaded.clear()
             refreshPlaylistsFlowLocked()
         }
-        localDb.clearAll()
-        favoriteDb.clearAll()
         try {
             context.filesDir.listFiles()
                 ?.filter { it.name.startsWith("songs_") && it.name.endsWith(".json") }
@@ -628,73 +588,4 @@ class PlaylistCollectionManager @Inject constructor(
         private const val TAG = "PlaylistCollectionMgr"
     }
 
-    private fun addSongsToLocalPlaylistFromSync(playlistId: String, songs: List<SongInfo>) {
-        ensureIndexLoaded()
-        synchronized(lock) {
-            val key = storageKey(CollectedPlaylistType.LOCAL, playlistId)
-            if (!playlistsByKey.containsKey(key)) return
-            ensureLocalSongsLoaded(playlistId)
-            val list = localSongsByPlaylistId.getOrPut(playlistId) { mutableListOf() }
-            val existing = list.map { it.type to it.id }.toHashSet()
-            songs.forEach { song ->
-                if (song.id.isNotBlank() && (song.type to song.id) !in existing) {
-                    list.add(song)
-                    existing.add(song.type to song.id)
-                }
-            }
-            updateLocalPlaylistCountLocked(playlistId)
-            refreshPlaylistsFlowLocked()
-        }
-        localDb.setSongs(playlistId, getLocalPlaylistSongs(playlistId).map { it.forPersistence() })
-        persistIndexAsync()
-        persistLocalSongsAsync(playlistId)
-    }
-
-    private fun removeSongsFromLocalPlaylistFromSync(playlistId: String, songs: Collection<SongInfo>) {
-        ensureIndexLoaded()
-        synchronized(lock) {
-            val key = storageKey(CollectedPlaylistType.LOCAL, playlistId)
-            if (!playlistsByKey.containsKey(key)) return
-            ensureLocalSongsLoaded(playlistId)
-            val keys = songs.map { it.type to it.id }.toSet()
-            localSongsByPlaylistId[playlistId]?.removeAll { (it.type to it.id) in keys }
-            updateLocalPlaylistCountLocked(playlistId)
-            refreshPlaylistsFlowLocked()
-        }
-        localDb.setSongs(playlistId, getLocalPlaylistSongs(playlistId).map { it.forPersistence() })
-        persistIndexAsync()
-        persistLocalSongsAsync(playlistId)
-    }
-
-    private fun enqueueFavoritePlaylist(playlist: CollectedPlaylist, action: String) {
-        syncOutbox.enqueue(
-            itemType = SyncPayloads.TYPE_FAVORITE_PLAYLIST,
-            itemKey = SyncPayloads.playlistKey(playlist),
-            action = action,
-            payloadJson = if (action == SyncPayloads.ACTION_DELETE) "{}" else SyncPayloads.playlistPayload(playlist),
-        )
-        SyncWorkRunner.request(context)
-    }
-
-    private fun enqueueUserPlaylist(playlist: CollectedPlaylist, action: String) {
-        if (playlist.type != CollectedPlaylistType.LOCAL) return
-        syncOutbox.enqueue(
-            itemType = SyncPayloads.TYPE_USER_PLAYLIST,
-            itemKey = SyncPayloads.playlistKey(playlist),
-            action = action,
-            payloadJson = if (action == SyncPayloads.ACTION_DELETE) "{}" else SyncPayloads.playlistPayload(playlist),
-        )
-        SyncWorkRunner.request(context)
-    }
-
-    private fun enqueuePlaylistTrack(playlistId: String, song: SongInfo, action: String) {
-        if (song.type == SongType.LOCAL) return
-        syncOutbox.enqueue(
-            itemType = SyncPayloads.TYPE_PLAYLIST_TRACK,
-            itemKey = SyncPayloads.playlistTrackKey(playlistId, song),
-            action = action,
-            payloadJson = if (action == SyncPayloads.ACTION_DELETE) "{}" else SyncPayloads.songPayload(song),
-        )
-        SyncWorkRunner.request(context)
-    }
 }

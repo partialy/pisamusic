@@ -66,7 +66,7 @@ class MediaItemFactory(
      * 因此只能在真正准备播放或切换音质时使用。
      */
     suspend fun createMediaItem(song: SongInfo): MediaItem {
-        require(song.playable) { "song is disabled" }
+        require(song.availableForPlayback) { "song is disabled" }
         val choice = savedPlaybackQualityChoice(song)
         val qualityKey = choice?.toPlaybackQualityKey() ?: "auto"
         return when (song.type) {
@@ -81,7 +81,7 @@ class MediaItemFactory(
      * PlayerEngine 通过 [createMediaItem] 刷新，避免整批队列长期持有过期签名。
      */
     suspend fun createQueueMediaItem(song: SongInfo): MediaItem {
-        require(song.playable) { "song is disabled" }
+        require(song.availableForPlayback) { "song is disabled" }
         return if (song.type == SongType.CLOUD) {
             createPlaceholderMediaItem(song)
         } else {
@@ -93,7 +93,7 @@ class MediaItemFactory(
         song: SongInfo,
         choice: DownloadQualityChoice,
     ): MediaItem {
-        require(song.playable) { "song is disabled" }
+        require(song.availableForPlayback) { "song is disabled" }
         if (!choice.matchesSongType(song.type)) {
             throw IllegalArgumentException("quality does not match song type")
         }

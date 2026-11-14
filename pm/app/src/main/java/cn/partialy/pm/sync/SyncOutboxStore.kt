@@ -11,7 +11,7 @@ import java.util.UUID
 
 class SyncOutboxStore(context: Context) {
     private val helperContext: Context = context.applicationContext
-    private val helper = LocalMusicDbOpenHelper(helperContext)
+    private val helper = LocalMusicDbOpenHelper.shared(helperContext)
 
     fun enqueue(itemType: String, itemKey: String, action: String, payloadJson: String = "{}") {
         if (itemType.isBlank() || itemKey.isBlank()) return
@@ -104,21 +104,8 @@ class SyncOutboxStore(context: Context) {
         }
     }
 
-    fun clearAll() {
-        helper.writableDatabase.delete("sync_outbox", null, null)
-    }
-
-    fun clearForAccountBoundary(currentUserId: String) {
-        val normalizedUserId = currentUserId.trim()
-        if (normalizedUserId.isBlank()) {
-            clearAll()
-            return
-        }
-        helper.writableDatabase.delete(
-            "sync_outbox",
-            "account_id = '' OR account_id <> ?",
-            arrayOf(normalizedUserId),
-        )
+    fun clearAccount(accountId: String) {
+        helper.writableDatabase.delete("sync_outbox", "account_id=?", arrayOf(accountId))
     }
 
     private fun currentAccountId(): String =

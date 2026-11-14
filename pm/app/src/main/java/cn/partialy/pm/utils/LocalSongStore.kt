@@ -536,7 +536,8 @@ class LocalSongStore @Inject constructor(
             album = album,
             coverUrl = "",
             embeddedCoverArt = coverBytes,
-            duration = duration?.toInt(),
+            duration = duration?.div(1000)?.toInt(),
+            durationMs = duration,
         )
     }
 

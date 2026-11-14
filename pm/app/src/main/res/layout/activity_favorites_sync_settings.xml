@@ -481,6 +481,14 @@
                             app:cornerRadius="18dp" />
                     </LinearLayout>
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnImportUnassociated"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="导入本机未关联数据"
+                        android:visibility="gone" />
+
                     <!-- Status feedback text -->
                     <TextView
                         android:id="@+id/syncStatusText"

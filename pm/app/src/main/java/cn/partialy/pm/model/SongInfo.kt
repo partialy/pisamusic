@@ -17,7 +17,14 @@ data class SongInfo(
     var duration: Int? = null,
     /** 服务端是否允许播放；旧调用方和旧快照默认可播放。 */
     val playable: Boolean = true,
-)
+    /** 私有本机引用对应的跨设备逻辑身份，不替换原播放 id。 */
+    val localSyncId: String? = null,
+    /** 已知生产者明确提供的毫秒时长；未知旧值不推断。 */
+    val durationMs: Long? = null,
+) {
+    val availableForPlayback: Boolean get() = playable && !(type == SongType.LOCAL &&
+        cn.partialy.pm.sync.LocalSyncTrackStore.isSyncId(id))
+}
 
 /** 音源：酷狗 / 网易 / 酷我 / 网盘 / 本地 */
 enum class SongType {

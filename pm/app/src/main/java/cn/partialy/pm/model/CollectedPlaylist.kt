@@ -33,4 +33,11 @@ data class CollectedPlaylist(
     val cover: String = "",
     /** 曲目数量：网络歌单来自接口；本地歌单由 SQLite 关联表统计。 */
     val count: Int = 0,
+    val coverResource: CanonicalCoverResource? = null,
+    val coverPreset: String? = null,
+    val coverResourcePresent: Boolean = false,
+    val coverPresetPresent: Boolean = false,
+    val favoritedAt: Long? = null,
+    /** 仅本机 Flow 通知；不进入 canonical 同步字段。 */
+    val localRevision: Long = 0,
 )
