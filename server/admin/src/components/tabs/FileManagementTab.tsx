@@ -25,7 +25,7 @@ const { Text } = Typography;
 
 type FileFilters = {
   status: "uploaded" | "deleted" | "pending" | "all";
-  usageType: "release-package" | "desktop-update" | "cloud-music" | "app-share-icon" | "all";
+  usageType: "release-package" | "desktop-update" | "cloud-music" | "app-share-icon" | "playlist-cover" | "all";
   keyword: string;
 };
 
@@ -221,7 +221,7 @@ export default function FileManagementTab({
           <Tooltip title={record.status === "deleted" ? "文件已删除" : "删除七牛文件与记录"}>
             <Popconfirm
               title="确认删除该七牛文件？"
-              description="删除后将调用七牛云物理删除对象，并清理发布引用。"
+              description={record.usageType === "playlist-cover" ? "歌单封面仅在没有歌单引用且超过七天保护期后允许删除。" : "删除后将调用七牛云物理删除对象，并清理发布引用。"}
               onConfirm={() => onDelete(record)}
               disabled={record.status === "deleted" || deletingId === record.id}
               okText="确认删除"
@@ -289,6 +289,7 @@ export default function FileManagementTab({
               { label: "PC 自动更新", value: "desktop-update" },
               { label: "网盘音乐", value: "cloud-music" },
               { label: "App分享图标", value: "app-share-icon" },
+              { label: "歌单封面", value: "playlist-cover" },
             ]}
           />
 

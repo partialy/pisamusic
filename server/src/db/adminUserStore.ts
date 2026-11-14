@@ -1,3 +1,5 @@
+import { detachDeletedUserCovers } from "./playlistCoverStore";
+import { lockSyncUser } from "./syncStore";
 import { type DbClient as DatabaseSync } from "./core/types";
 import {
   isAccountAvatarKey,
@@ -290,8 +292,14 @@ export async function updateAdminUser(id: string, input: AdminUserUpdateInput): 
 }
 
 export async function deleteAdminUser(id: string): Promise<boolean> {
-  const result = (await getAppDb().execute("DELETE FROM users WHERE id = ?", [id]));
-  return result.affectedRows > 0;
+  return getAppDb().transaction(async tx => {
+    const user = await tx.queryOne(`SELECT id FROM users WHERE id=?${tx.dialect === "mysql" ? " FOR UPDATE" : ""}`, [id]);
+    if (!user) return false;
+    await lockSyncUser(tx,id);
+    await detachDeletedUserCovers(tx,id);
+    const result = await tx.execute("DELETE FROM users WHERE id=?", [id]);
+    return result.affectedRows > 0;
+  });
 }
 
 export function normalizeAdminAvatarKey(value: string): AccountAvatarKey | null {

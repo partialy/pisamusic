@@ -17,9 +17,9 @@ adminFilesRouter.get("/", async (req, res) => {
     return res.json(
       ok(
         await listFileRecords({
-          status: status === "deleted" || status === "all" ? status : "uploaded",
+          status: status === "deleted" || status === "pending" || status === "all" ? status : "uploaded",
           usageType:
-            usageType === "release-package" || usageType === "desktop-update" || usageType === "app-share-icon"
+            usageType === "release-package" || usageType === "desktop-update" || usageType === "app-share-icon" || usageType === "playlist-cover"
               ? usageType
               : "all",
           platform,

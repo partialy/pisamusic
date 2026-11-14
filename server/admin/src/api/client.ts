@@ -486,7 +486,7 @@ export async function deleteUpdateHistory(historyId: string): Promise<{ id: stri
 
 export async function fetchFileRecords(params: {
   status?: "uploaded" | "deleted" | "pending" | "all";
-  usageType?: "release-package" | "desktop-update" | "cloud-music" | "app-share-icon" | "all";
+  usageType?: "release-package" | "desktop-update" | "cloud-music" | "app-share-icon" | "playlist-cover" | "all";
   platform?: string;
   version?: string;
   keyword?: string;

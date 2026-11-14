@@ -15,8 +15,8 @@
 
 | 参数名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
-| `status` | `string` | 否 | 状态筛选：`uploaded`（默认已上传生效）/ `deleted`（已标记删除）/ `all`（全部） |
-| `usageType` | `string` | 否 | 资产用途：`release-package`（安装包）/ `desktop-update`（PC自动更新）/ `app-share-icon`（App 分享图标）/ `all`（全部） |
+| `status` | `string` | 否 | 状态筛选：`uploaded`（默认已上传生效）/ `pending`（待完成）/ `deleted`（已标记删除）/ `all`（全部） |
+| `usageType` | `string` | 否 | 资产用途：`release-package`（安装包）/ `desktop-update`（PC自动更新）/ `app-share-icon`（App 分享图标）/ `playlist-cover`（用户歌单封面）/ `all`（全部） |
 | `platform` | `string` | 否 | 平台筛选：`android` / `desktop` / `win32` |
 | `version` | `string` | 否 | 版本号过滤 |
 | `keyword` | `string` | 否 | 文件名或对象 Key 模糊搜索关键词 |
@@ -66,3 +66,5 @@ App 分享图标返回 `usageType="app-share-icon"`、`assetType="image"`。`ref
   "success": true
 }
 ```
+
+歌单封面使用 `usageType="playlist-cover"`、`assetType="image"`，token签发时即有pending对象账本；`referencedBy`展示歌单引用。删除必须无引用且超过七天保护，不能绕过共享资源生命周期；见[歌单封面说明](../playlistCovers/overview.md)。

@@ -100,3 +100,7 @@
 - LOCAL 仅允许自建歌单曲目：`source=local`、`id=<deviceScopeUuid>:<localSongUuid>`（两个标准 UUID）、`urlParam=id`、`itemKey=<playlistId>|local:<id>`。只允许 source/id/urlParam/name/singer/album/durationMs/duration/cover/sortOrder；文本最多512字符，拒绝绝对路径、盘符路径、UNC、file/content URI及scheme:// URL；允许普通公开元信息中的 / 或反斜杠（如AC/DC），无需改写名称，新LOCAL使用durationMs（非负有限毫秒数），消费端显式转为本机单位；duration仅保留非负有限值的旧字段兼容，服务端不猜其单位、不推断或改写在线旧payload，cover为空或不含凭据/hash的公共HTTPS URL（query仅允许param/thumbnail/w/h/width/height/size/quality/q，值为1～5位数字或数字x/y/_/*数字，可带末尾!；拒绝签名、Token与过期参数）（最长2048字符）。禁止 filePath、歌词、token、播放/签名链接等额外字段；非法负载整批400。自建/收藏歌单自身的历史 source=local 不受歌曲占位规则影响。
 - 父 user_playlist 权威 delete 在同事务派生当前存活 playlist_track 墓碑与日志，派生版本计入账号版本，但不增加 accepted；`accepted + skipped = 输入数`。最终父墓碑屏蔽同批或迟到子 upsert，和输入先后无关；子项不创建/恢复父项。父项仍保持已有合法 upsert 的 LWW，无新增恢复入口。子墓碑时钟不早于原子项及父删除，防止旧子操作回放。
 - 无已知父项的历史曲目继续兼容；不会凭空创建父项。快照分页、floor、no-op时钟规则保持不变；新快照排除墓碑，旧快照含父子墓碑，delta包含派生删除。
+
+## 歌单封面资源（P2 / Schema v5）
+
+`coverResource` 在最终胜出项上校验JWT用户归属、ready及对象uploaded；无可引用资源400且整批回滚。服务端覆盖`cover`为权威稳定公共URL，与歌单items/log/引用同一事务更新；旧端缺字段保留，null解除，父删除释放引用，多歌单共享最后解绑七天后回收。`coverResource`和非null `coverPreset`互斥。上传接口、DTO、完整生命周期见[用户歌单封面资源](../playlistCovers/overview.md)。

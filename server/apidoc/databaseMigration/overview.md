@@ -7,7 +7,7 @@
 - MySQL 5.7 使用 `MYSQL_URL`；预先创建专用数据库和账号，首次空库由服务端建表。
 - 独立部署只配置使用的引擎。使用双向复制时才需同时配置两种数据库；MySQL → SQLite 必须明确填写 `PISA_APP_DB_PATH`。
 - 启动不依赖本机迁移完成记录、旧 `activatedMysql` 或连接串指纹。调整同库端口无需更新任务。
-- 库内 `schema_migrations` 只维护结构版本（当前 v4）；`app_installation` 维护安装身份与完整性，两者分开。
+- 库内 `schema_migrations` 只维护结构版本（当前 v5）；`app_installation` 维护安装身份与完整性，两者分开。
 - 完整库可复制到新部署目录后启动，不要求携带旧 `data/operations`。
 
 ## 首次安装
@@ -84,3 +84,7 @@ pnpm verify:setup-http
 UV/下载 domain 与 `site_page_view_records` 随全量复制保留；旧 v2 源缺少 domain 时使用空串，不猜测历史域名。已有 MySQL v2 目标在复制前完成幂等增量升级；DDL 失败保留账本并禁止业务启动，同版本可续迁。生产升级流程见 [域名统计改造记录](../../agents/WEBSITE_DOMAIN_ANALYTICS_IMPLEMENTATION_PLAN.md)。
 
 - Schema v4 新增 `users.sync_log_floor`，跨引擎复制保留游标下限；旧 v3 备份缺少该字段时使用 0，继续兼容恢复，启动时完成增量升级。
+
+## 歌单封面资源 v5
+
+Schema v5包含`playlist_cover_resources`（上传会话与资源生命周期）和`playlist_cover_refs`，自动按file_records→资源→引用的外键顺序复制，反序清空；完整复制保留pending、引用、未引用时间、删除认领/错误及编辑代次，MySQL一致性备份自动纳入两表。历史v1～v4复制/恢复允许缺少封面表并补空，新v5备份要求两表齐全；旧版本默认值规则不变。目标v4先按v5账本升级，字段/索引/外键验证失败阻断启动。恢复只复制数据库，不重传或删除七牛对象；两套数据库不得同时启用维护清理。

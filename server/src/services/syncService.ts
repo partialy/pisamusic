@@ -1,3 +1,5 @@
+import { applyCoverReferences } from "../db/playlistCoverStore";
+import { normalizeCoverChanges } from "./playlistCoverSync";
 import { getAppDb } from "../db/appDb";
 import type { DbClient } from "../db/core/types";
 import * as store from "../db/syncStore";
@@ -77,6 +79,7 @@ export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: D
     const children = await store.findPlaylistTracks(tx, auth.userId, deletions);
     const allRows = new Map([...rows, ...children].map(r => [key({ itemType: r.item_type, itemKey: r.item_key }), r]));
     const { existing, latest, derived } = planSyncChanges(inputs, [...allRows.values()], configManager.get<boolean>("sync.lwwEnabled", true));
+    await normalizeCoverChanges(tx, auth.userId, latest.values());
     const effective: store.SyncChangeInput[] = [];
     const clocks: store.SyncChange[] = [];
     for (const c of latest.values()) {
@@ -93,6 +96,7 @@ export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: D
     const entries = effective.map((c, i) => ({ ...c, version: version - effective.length + i + 1, deviceId: auth.deviceId, payload: c.payload ?? {}, clientUpdatedAt: c.clientUpdatedAt ?? "", serverUpdatedAt: Date.now() }));
     // no-op 只推进冲突时钟，不改变版本/快照内容或历史设备来源。
     await store.updateItemClocks(tx, auth.userId, clocks);
+    await applyCoverReferences(tx, auth.userId, latest.values());
     await store.insertItems(tx, auth, entries);
     await store.insertLogs(tx, auth, entries);
     await store.insertAppliedOps(tx, auth, [...unique.values()], version);

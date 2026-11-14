@@ -1,3 +1,4 @@
+import { cleanupPlaylistCovers } from "./playlistCoverCleanup";
 import { configManager } from "../config/configManager";
 import { readOperationState, trackBusinessRequest } from "../operations/maintenance";
 import { isInstallationReady } from "./setupService";
@@ -20,6 +21,7 @@ export function startSyncCleanup(): void {
     try {
       if (!readOperationState().maintenance) {
         await cleanupSyncHistory();
+        if (!readOperationState().maintenance) await cleanupPlaylistCovers();
         lastDay = day;
       }
     }

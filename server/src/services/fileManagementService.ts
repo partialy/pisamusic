@@ -1,3 +1,4 @@
+import { deletePlaylistCoverFile } from "./playlistCoverCleanup";
 import { readAppShareConfig } from "../db/appShareStore";
 import { deletingAppShareIcons } from "./appShareIconLifecycle";
 import { readCloudMusicByFileRecordId } from "../db/cloudMusicStore";
@@ -34,6 +35,8 @@ export async function previewManagedUpdateHistoryDeletion(historyId: string): Pr
 export async function deleteManagedFileRecord(id: string): Promise<FileRecordInfo> {
   const file = (await readFileRecordById(id));
   if (!file) throw new Error("文件记录不存在");
+
+  if (file.usageType === "playlist-cover") return deletePlaylistCoverFile(id);
 
   if (file.usageType === "app-share-icon") {
     if ((await readAppShareConfig()).iconFileId === id) throw new Error("当前 App 分享图标不能删除，请先更换图标");

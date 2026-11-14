@@ -88,7 +88,7 @@ export type DesktopUpdateAssetInfo = {
 
 export type FileRecordInfo = {
   id: string;
-  usageType: "release-package" | "desktop-update" | "cloud-music" | "announcement-image" | "app-share-icon";
+  usageType: "release-package" | "desktop-update" | "cloud-music" | "announcement-image" | "app-share-icon" | "playlist-cover";
   ownerType?: "system" | "user";
   ownerUserId?: string | null;
   ownerSnapshot?: Record<string, unknown>;

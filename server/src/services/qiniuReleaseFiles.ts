@@ -436,3 +436,14 @@ export function createAppShareIconUploadToken(input: { fileName: string; fileSiz
   return { provider: PROVIDER, uploadToken: policy.uploadToken(getMac()), uploadUrl: getUploadUrl(), key, bucket,
     domain, cdnDomain, downloadUrl: buildUrl(key, "public-image"), expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000 };
 }
+
+/** 仅供账号歌单封面；调用方在返回凭证前持久化会话和 pending 对象账本。 */
+export function createPlaylistCoverUploadToken(input: { userId: string; playlistId: string; uploadId: string; editGeneration: string; fileName: string; fileSize: number }): QiniuUploadTokenInfo {
+  const { bucket, domain, cdnDomain } = getSpaceConfig("public-image");
+  const key = `pisamusic/playlist-covers/${encodeURIComponent(input.userId)}/${encodeURIComponent(input.playlistId)}/${input.uploadId}-${encodeURIComponent(input.editGeneration)}${getExtension(input.fileName)}`;
+  const policy = new qiniu.rs.PutPolicy({ scope: `${bucket}:${key}`, insertOnly: 1, expires: TOKEN_TTL_SECONDS,
+    fsizeLimit: input.fileSize, mimeLimit: "image/jpeg;image/png;image/webp", detectMime: 1,
+    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)"}' });
+  return { provider: PROVIDER, uploadToken: policy.uploadToken(getMac()), uploadUrl: getUploadUrl(), key, bucket,
+    domain, cdnDomain, downloadUrl: buildUrl(key, "public-image"), expiresAt: Date.now() + TOKEN_TTL_SECONDS * 1000 };
+}

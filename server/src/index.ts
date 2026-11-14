@@ -1,3 +1,4 @@
+import { playlistCoverRouter } from "./routes/playlistCovers";
 import { startSyncCleanup } from "./services/syncCleanup";
 import "dotenv/config";
 import { appShareRouter } from "./routes/appShare";
@@ -203,6 +204,7 @@ app.use("/api/feedback", feedbackRouter);
 app.use("/api/fault-reports", faultReportsRouter);
 app.use("/api/device", deviceRouter);
 app.use("/api/sync", syncRouter);
+app.use("/api/playlist-covers", playlistCoverRouter);
 app.use("/api/listen-together", listenTogetherRouter);
 app.use("/api/listening", listeningRouter);
 app.use("/api/messages", messagesRouter);

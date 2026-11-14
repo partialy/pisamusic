@@ -67,7 +67,7 @@
 - Server 支持 `DB_TYPE=SQLITE|MYSQL`（缺省 SQLITE），`PISA_APP_DB_PATH` 指向 SQLite；MySQL 5.7 通过 `MYSQL_URL` 连接，不允许连接失败自动回退 SQLite。Node 版本要求 `>=22.16.0`。
 - 数据库访问层为 `src/db/core/` 的异步 DbClient；Store/Service/Route 必须 await 结果，事务必须绑定同一连接；不再在模块 import 阶段调用未初始化的数据库。
 - `DB_TYPE` 唯一选择运行库；不依赖本机迁移记录、旧 `activatedMysql` 或连接串指纹，也不禁止切回 SQLite。另一引擎仅在复制时需要配置。
-- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，空专用库可直接建表；`schema_migrations` 当前 v4，已有 v1 库先补 v2 安装元数据，再进行 v2→v3 官网域名统计和 v3→v4 同步日志保留下限增量升级。DDL 意图逐步记账，失败阻断业务启动，同任务可幂等续迁；全部结构校验通过才标记 applied。不在生产启动执行破坏性删表，也不以整包DDL哈希相等代替版本升级。
+- MySQL 5.7 建表定义在 `src/db/schema/mysql/`，空专用库可直接建表；`schema_migrations` 当前 v5，已有 v1 库先补 v2 安装元数据，再进行 v2→v3 官网域名统计、v3→v4 同步日志保留下限和 v4→v5 歌单封面资源增量升级。DDL 意图逐步记账，失败阻断业务启动，同任务可幂等续迁；全部结构校验通过才标记 applied。不在生产启动执行破坏性删表，也不以整包DDL哈希相等代替版本升级。
 - 安装标记为库内 `app_installation`，与Schema账本分离；首管、默认配置和标记事务提交。已有管理员库兼容补标记，无管理员走安装令牌保护的向导；接口为 `/api/setup/status`、`/api/setup/complete`，参见[安装文档](../apidoc/system/setup.md)。
 - 未安装/复制未完成的库禁止业务HTTP和Socket，不开放重新接管失败目标。管理员及用户JWT绑定安装身份，旧token需重新登录；完整副本保留源身份。
 - Admin「系统设置 → 数据迁移」调用 `/api/admin/database-migration/*`；`src/operations/` 支持SQLite↔MySQL全量覆盖。先排空源写入、备份源与目标，再事务替换及逐表摘要校验；目标须停止其他服务写入。不复制Schema账本或文件资产，未知非空数据禁止静默丢弃。
@@ -81,7 +81,7 @@
 - 同源反代保留原始 Host（如 `proxy_set_header Host $host;`），`utils/websiteDomain.ts` 规范化域名，不信任 X-Forwarded-Host，不配置白名单。无效/历史域名使用空串，不从 Referrer 猜测。各节点共享数据库与 `ANALYTICS_HASH_SALT`。
 - `/api/analytics/page-view` 明文采集，Service/Store 同事务写入事件 UUID 幂等 PV 和每日每域名访客 UV；旧 site-visit 仅写 UV。PV 位于 `site_page_view_records`，UV 唯一约束为 `(visit_day,domain,visitor_hash)`，下载原有推广归因事务透传域名。三类明细按分析保留期清理。
 - Admin `GET /api/admin/website-records/stats` 按 7/30/90 天与可选域名返回零填充趋势、汇总、域名排行及页面 PV 排行；列表增加 domain/startDay/endDay 筛选。Dashboard 统一累计日 UV，允许同人跨域重复。官网普通 PV 与 App 推广归因独立，Android/PC 契约不变。
-- 升级发布先停各节点写入并备份，完成当前 Schema v4（含 v3 官网统计）后发布官网；禁止旧 Server 与新同步清理流程长期混跑。复制表清单与恢复默认值保留新增 domain/PV；静态 DDL 校验不能替代真实 MySQL 5.7 升级与多域名验收。
+- 升级发布先停各节点写入并备份，完成当前 Schema v5（含 v3 官网统计、v4 同步保留下限）后发布官网；禁止旧 Server 与新同步清理流程长期混跑。复制表清单与恢复默认值保留新增 domain/PV；静态 DDL 校验不能替代真实 MySQL 5.7 升级与多域名验收。
 
 ## 账号收藏同步
 
@@ -94,4 +94,11 @@
 ## 歌单同步扩展策略
 
 - `syncPayloadPolicy.ts` 负责sortOrder/coverResource/coverPreset受限合并与LOCAL白名单，`syncChangePlanner.ts` 在用户锁事务权威快照上累计有效操作、处理父墓碑及派生子墓碑；syncService协调LWW/no-op/版本及Store落库，不更改protocol=2或Schema。
-- 扩展缺省保留、null显式清除；delete不merge。父删子墓碑与items/log/clocks/applied_ops同事务，派生项占版本不占输入accepted。LOCAL仅允许UUID作用域的安全歌单曲目占位；完整字段限制见[推送契约](../apidoc/sync/pushSyncChanges.md#歌单扩展与-local-占位p1)。P1资源仅校验形状，归属/引用/回收由后续封面服务接入。
+- 扩展缺省保留、null显式清除；delete不merge。父删子墓碑与items/log/clocks/applied_ops同事务，派生项占版本不占输入accepted。LOCAL仅允许UUID作用域的安全歌单曲目占位；完整字段限制见[推送契约](../apidoc/sync/pushSyncChanges.md#歌单扩展与-local-占位p1)。资源形状由策略校验，归属/ready/对象uploaded及权威URL由playlistCoverSync在同步事务内校验；无可用资源400整批回滚。
+
+## 用户歌单封面资源
+
+- 用户JWT接口`/api/playlist-covers/upload-token`、`/complete`、`/:resourceId`，Service/Route/Store独立；public-image直传、受控key绑定账号/歌单/uploadId/editGeneration，5MiB JPG/PNG/WebP，stat与imageInfo实际格式/尺寸验证（单边8192、3200万像素），不访问客户端URL。complete仅建立资源，不改权威歌单。DTO见[接口说明](../apidoc/playlistCovers/overview.md)。
+- Schema v5：`playlist_cover_resources`共用上传会话+资源生命周期行，`playlist_cover_refs`支持同用户多歌单共享；物理账本复用`file_records(playlist-cover)`，token返回前原子登记pending。SQLite appDb/baseline/runner及MySQL5.7增量DDL账本与结构验证全覆盖；复制/恢复纳入新表，历史v4缺新表补空。
+- sync最终胜出项同事务处理权威cover/共享引用，缺字段保留、null解绑、父删释放、no-op验证；资源不可用400，不能任传key。最后解绑或从未引用超过七天、上传token过期后，由既有syncCleanup每日门禁/维护排空有界清理。事务认领deleting+引用复核防并发重引用，612幂等；失败/中断五分钟lease后可重试，保留错误和对象账本。Admin文件删除沿用同一保护。
+- 删除用户先在用户锁事务中清引用、撤销资源/会话owner_user_id，再删除身份；保留资源与file_records以七天回收物理对象，不能用用户FK cascade丢弃回收记录。跨数据库复制不传七牛对象，副本不得与源同时启用维护清理。

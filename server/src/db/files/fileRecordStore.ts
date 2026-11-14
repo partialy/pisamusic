@@ -46,7 +46,7 @@ export type ReleaseFileInfo = {
   desktopUpdateAsset?: DesktopUpdateAssetInfo;
 };
 
-export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music" | "announcement-image" | "app-share-icon";
+export type FileRecordUsageType = "release-package" | "desktop-update" | "cloud-music" | "announcement-image" | "app-share-icon" | "playlist-cover";
 export type FileRecordStatus = ReleaseFileStatus | "pending";
 export type FileRecordOwnerType = "system" | "user";
 
@@ -122,7 +122,7 @@ type FileRecordReferenceBase = {
 
 export type FileRecordReference =
   | (FileRecordReferenceBase & { type: "cloud-music"; id: string })
-  | (FileRecordReferenceBase & { type: "announcement-image" | "app-share-icon"; id: string })
+  | (FileRecordReferenceBase & { type: "announcement-image" | "app-share-icon" | "playlist-cover"; id: string })
   | (FileRecordReferenceBase & { type: "history" | "current-release" | "active-desktop-update" });
 
 export type FileRecordReferenceType = FileRecordReference["type"];
@@ -148,11 +148,12 @@ export function parseFileReferences(raw: string): FileRecordReference[] {
           item.type === "cloud-music" ||
           item.type === "announcement-image" ||
           item.type === "app-share-icon" ||
+          item.type === "playlist-cover" ||
           item.type === "history"
             ? item.type
             : "history";
         const id = typeof item.id === "string" ? item.id : undefined;
-        if (type === "cloud-music" || type === "announcement-image" || type === "app-share-icon") {
+        if (type === "cloud-music" || type === "announcement-image" || type === "app-share-icon" || type === "playlist-cover") {
           return id ? [{ type, id }] : [];
         }
         return [
@@ -194,6 +195,7 @@ export function fileReferenceLabel(ref: FileRecordReference): string {
   if (ref.type === "active-desktop-update")
     return `PC 自动更新${ref.version ? ` ${ref.version}` : ""}${ref.fileName ? ` ${ref.fileName}` : ""}`;
   if (ref.type === "cloud-music") return ref.id ? `网盘音乐 ${ref.id}` : "网盘音乐";
+  if (ref.type === "playlist-cover") return `歌单封面 ${ref.id}`;
   if (ref.type === "app-share-icon") return "当前 App 分享图标";
   if (ref.type === "announcement-image") return ref.id ? `公告图片 ${ref.id}` : "公告图片";
   return ref.id ? `发布记录 ${ref.id}` : "发布记录";
@@ -251,7 +253,8 @@ export function mapFileRecord(row?: FileRecordRow | null): FileRecordInfo | null
       row.usage_type === "desktop-update" ||
       row.usage_type === "cloud-music" ||
       row.usage_type === "announcement-image" ||
-      row.usage_type === "app-share-icon"
+      row.usage_type === "app-share-icon" ||
+      row.usage_type === "playlist-cover"
         ? row.usage_type
         : "release-package",
     ownerType: row.owner_type === "user" ? "user" : "system",
@@ -399,8 +402,7 @@ export type CreateFileRecordInput = {
   downloadUrl?: string;
 };
 
-export async function createFileRecord(input: CreateFileRecordInput): Promise<FileRecordInfo> {
-  const db = getAppDb();
+export async function createFileRecord(input: CreateFileRecordInput, db: DbTransaction = getAppDb()): Promise<FileRecordInfo> {
   const now = Date.now();
   const platform = normalizeRecordPlatform(input);
   const downloadUrl = input.assetType === "installer" ? buildReleaseDownloadPath(input.id) : "";
@@ -471,7 +473,7 @@ export async function createFileRecord(input: CreateFileRecordInput): Promise<Fi
       now,
     ],
   );
-  const saved = await readFileRecordByProviderKey(input.provider, input.bucket, input.objectKey);
+  const saved = mapFileRecord(await db.queryOne<FileRecordRow>("SELECT * FROM file_records WHERE provider=? AND bucket=? AND object_key=?", [input.provider,input.bucket,input.objectKey]));
   if (!saved) throw new Error("文件记录保存失败");
   const canonicalDownloadUrl = canonicalDownloadUrlForRecord(saved);
   if (saved.downloadUrl !== canonicalDownloadUrl) {

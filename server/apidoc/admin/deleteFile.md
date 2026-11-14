@@ -50,3 +50,5 @@
   "success": false
 }
 ```
+
+用户歌单封面（playlist-cover）必须经过专用生命周期：仍被引用或未超过七天宽限期时拒绝删除，不强制解除引用；物理删除失败保留可重试账本。见[封面资源](../playlistCovers/overview.md)。
