@@ -152,7 +152,7 @@ const statusText = computed(() => {
 });
 const songCover = computed(() =>
   room.value?.song
-    ? getSongCover(fromListenTogetherSong(room.value.song), 240)
+    ? getSongCover(fromListenTogetherSong(room.value.song), 480)
     : defaultSongCover,
 );
 const inviteLink = computed(() =>
