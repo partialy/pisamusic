@@ -117,3 +117,5 @@ Delta 仅在已完整应用后以最后一条 `changes[].version` 推进游标�
 `favorite_song.payload.favoritedAt` 为可选毫秒收藏时间，客户端用它恢复收藏顺序。旧端缺失时按各端原兼容规则回退。非法参数返回 HTTP/code 400；数据库故障返回 HTTP/code 500，客户端应退避重试。
 
 歌单排序、封面可空扩展、LOCAL安全占位与父删除派生子墓碑遵循[推送扩展契约](pushSyncChanges.md#歌单扩展与-local-占位p1)。null必须保留其清除含义；排序使用外层权威version。派生子墓碑与普通delete相同，拥有独立的确定性opId，按各自version推进游标。
+
+LOCAL占位下行优先 `payload.durationMs`（可选非负有限毫秒数），客户端显式转换为本机时长单位；`duration`只作旧字段兼容，缺少durationMs时不由服务端猜单位。在线来源历史duration原样透传，不重新定义全来源单位。

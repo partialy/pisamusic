@@ -5,7 +5,7 @@ type Payload = Record<string, unknown>;
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const localId = new RegExp(`^${uuid}:${uuid}$`, "i");
 const identifier = /^[a-zA-Z0-9][a-zA-Z0-9:_-]{0,127}$/;
-const localFields = new Set(["source", "id", "urlParam", "name", "singer", "album", "duration", "cover", "sortOrder"]);
+const localFields = new Set(["source", "id", "urlParam", "name", "singer", "album", "duration", "durationMs", "cover", "sortOrder"]);
 
 function containsPrivateLocation(value: string): boolean {
   const text = value.trim();
@@ -68,6 +68,8 @@ export function validateSyncPayload(change: SyncChangeInput): void {
   }
   if (p.duration !== undefined && (typeof p.duration !== "number" || !Number.isFinite(p.duration) || p.duration < 0))
     throw new SyncValidationError("LOCAL duration 必须是非负有限数值");
+  if (p.durationMs !== undefined && (typeof p.durationMs !== "number" || !Number.isFinite(p.durationMs) || p.durationMs < 0))
+    throw new SyncValidationError("LOCAL durationMs 必须是非负有限毫秒数");
   if (p.cover !== undefined && p.cover !== "") {
     try {
       if (typeof p.cover !== "string" || p.cover.length > 2048) throw new Error();
