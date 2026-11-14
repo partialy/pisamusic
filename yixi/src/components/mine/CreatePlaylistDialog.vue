@@ -1,84 +1,67 @@
 <template>
-  <Teleport to="body">
-    <Transition name="playlist-dialog">
-      <div v-if="show" class="playlist-dialog-overlay" @click.self="closeDialog">
-        <section class="playlist-dialog-panel" role="dialog" aria-modal="true" @click.stop>
-          <header class="dialog-header">
-            <div class="dialog-title">
-              <div class="title-icon">
-                <n-icon :component="ListPlus" />
-              </div>
-              <span>新建歌单</span>
-            </div>
-            <button class="close-btn" type="button" aria-label="关闭" @click="closeDialog">
-              <n-icon :component="X" />
-            </button>
-          </header>
-
-          <div class="dialog-body">
-            <div class="cover-row">
-              <img :src="coverPreview" alt="歌单封面" />
-              <div class="cover-actions">
-                <n-button secondary class="cover-btn" @click="chooseCover">上传封面</n-button>
-                <div class="cover-tip">未上传时使用默认封面</div>
-              </div>
-            </div>
-
-            <label class="form-row">
-              <span>标题</span>
-              <n-input v-model:value="form.name" maxlength="40" show-count placeholder="输入歌单标题" />
-            </label>
-
-            <label class="form-row">
-              <span>描述</span>
-              <n-input
-                v-model:value="form.desc"
-                type="textarea"
-                maxlength="160"
-                show-count
-                placeholder="可选，写点这个歌单的心情" />
-            </label>
-
-            <div class="form-row">
-              <span>标签</span>
-              <div class="tag-box">
-                <div class="tag-list" v-if="form.tags.length">
-                  <n-tag
-                    v-for="tag in form.tags"
-                    :key="tag.id"
-                    closable
-                    round
-                    @close="removeTag(tag.id)">
-                    {{ tag.name }}
-                  </n-tag>
-                </div>
-                <div class="tag-input-row">
-                  <n-input
-                    v-model:value="tagInput"
-                    :disabled="form.tags.length >= 3"
-                    maxlength="12"
-                    placeholder="最多 3 个标签"
-                    @keyup.enter="addTag" />
-                  <n-button secondary :disabled="form.tags.length >= 3" @click="addTag">添加</n-button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <footer class="dialog-actions">
-            <n-button quaternary class="cancel-btn" @click="closeDialog">取消</n-button>
-            <n-button class="confirm-btn" :loading="submitting" @click="submit">确定</n-button>
-          </footer>
-        </section>
+  <AppModal :show="show" title="新建歌单" :icon="ListPlus" :width="480" :close-disabled="submitting" @update:show="closeDialog">
+    <div class="dialog-body">
+      <div class="cover-row">
+        <img :src="coverPreview" alt="歌单封面" />
+        <div class="cover-actions">
+          <n-button secondary class="cover-btn" @click="chooseCover">上传封面</n-button>
+          <div class="cover-tip">未上传时使用默认封面</div>
+        </div>
       </div>
-    </Transition>
-  </Teleport>
+
+      <label class="form-row">
+        <span>标题</span>
+        <n-input v-model:value="form.name" maxlength="40" show-count placeholder="输入歌单标题" />
+      </label>
+
+      <label class="form-row">
+        <span>描述</span>
+        <n-input
+          v-model:value="form.desc"
+          type="textarea"
+          maxlength="160"
+          show-count
+          placeholder="可选，写点这个歌单的心情" />
+      </label>
+
+      <div class="form-row">
+        <span>标签</span>
+        <div class="tag-box">
+          <div class="tag-list" v-if="form.tags.length">
+            <n-tag
+              v-for="tag in form.tags"
+              :key="tag.id"
+              closable
+              round
+              @close="removeTag(tag.id)">
+              {{ tag.name }}
+            </n-tag>
+          </div>
+          <div class="tag-input-row">
+            <n-input
+              v-model:value="tagInput"
+              :disabled="form.tags.length >= 3"
+              maxlength="12"
+              placeholder="最多 3 个标签"
+              @keyup.enter="addTag" />
+            <n-button secondary :disabled="form.tags.length >= 3" @click="addTag">添加</n-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <n-button quaternary class="cancel-btn" @click="closeDialog">取消</n-button>
+      <n-button class="confirm-btn" :loading="submitting" @click="submit">确定</n-button>
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
+import AppModal from "@/components/common/AppModal.vue";
 import { computed, reactive, ref } from "vue";
-import { NButton, NIcon, NInput, NTag } from "naive-ui";
-import { ListPlus, X } from "lucide-vue-next";
+import { NButton, NInput, NTag } from "naive-ui";
+import { ListPlus } from "lucide-vue-next";
 import type { CommonPlaylist } from "@/types/song";
 import { useMineLibraryStore } from "@/store";
 import { selectPlaylistCover } from "@/utils/api/mineLibraryAPI";
@@ -172,67 +155,6 @@ defineExpose({ open });
 </script>
 
 <style scoped lang="scss">
-.playlist-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.34);
-  backdrop-filter: blur(14px) saturate(118%);
-}
-
-.playlist-dialog-panel {
-  width: min(480px, calc(100vw - 32px));
-  border-radius: var(--radius-control);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-elevated);
-  backdrop-filter: var(--filter-panel);
-}
-
-.dialog-header,
-.dialog-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24px 24px 10px;
-}
-
-.dialog-title {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  color: var(--text-primary);
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.title-icon {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-}
-
-.close-btn {
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 50%;
-  color: var(--text-secondary);
-  background: transparent;
-  cursor: pointer;
-}
-
-.dialog-body {
-  padding: 14px 24px 8px;
-}
-
 .cover-row {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr);
@@ -296,16 +218,9 @@ defineExpose({ open });
   flex-wrap: wrap;
 }
 
-.dialog-actions {
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px 24px;
-}
-
 .cancel-btn,
 .confirm-btn {
   min-width: 84px;
-  height: 40px;
   border-radius: var(--radius-pill);
 }
 
@@ -320,24 +235,4 @@ defineExpose({ open });
   }
 }
 
-.playlist-dialog-enter-active,
-.playlist-dialog-leave-active {
-  transition: opacity 0.18s ease;
-
-  .playlist-dialog-panel {
-    transition:
-      transform 0.18s ease,
-      opacity 0.18s ease;
-  }
-}
-
-.playlist-dialog-enter-from,
-.playlist-dialog-leave-to {
-  opacity: 0;
-
-  .playlist-dialog-panel {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-}
 </style>

@@ -14,7 +14,7 @@
         <n-select
           v-model:value="playlistId"
           class="field-control"
-          :to="false"
+          to="body"
           :options="playlistOptions"
           placeholder="选择自建歌单" />
       </div>

@@ -407,3 +407,6 @@
 - 普通容器、菜单、输入框、普通歌曲封面使用 `--radius-control`（12px），文字操作按钮使用 `--radius-pill`（999px）。Naive UI 在 `naiveThemeAdapter.ts` 统一 common/Menu 与 Button 各尺寸；普通输入框禁止 `round` 覆盖，头像、圆形图标按钮、开关、滑块、唱片、Tab/分段导航、轨道/滚动条、微型状态/来源徽标保留专用形态。
 - 一起听、下载歌曲、添加到歌单、定时关闭复用 `src/components/common/AppModal.vue`；系统账号登录继续用动态 `$modal.create`，与声明式弹窗共用 `src/utils/appModal.ts` 的 card props/图标标题和 `src/styles/appModal.css` 壳层。不得嵌套第二层 Modal 或丢失动态实例 `destroy/onAfterLeave`（邀请登录后续接依赖）。
 - 统一左图标标题、右关闭、24px 横向内距、底部右对齐药丸操作、居中缩放与 Naive 默认遮罩/焦点管理。下载和添加歌单在提交期间禁止遮罩、Esc、右上关闭及取消；业务校验、尺寸与内部表单布局继续由所属组件控制。登录表单保留密码/验证码/注册分段，品牌精简为壳层标题与同步说明。
+
+- 新建歌单也接入 `AppModal`，添加歌单内继续新建时由 Naive 管理嵌套焦点栈；歌单 Select 菜单挂载 body，避免内部滚动区裁切。
+- 离散 message/dialog/modal API 的 ConfigProvider 使用 `theme/discreteTheme.ts` 共享响应式配置，由 App setup 的 watchEffect 同步主题/overrides；不得在模块初始化时调用 Pinia Store。Tabs 与 Checkbox 在主题适配器显式保留 Naive 3px/2px 专用形态，不继承 common 12px。

@@ -126,3 +126,6 @@ ThemeStore (Pinia)
 - 专用形态例外：圆形头像/图标按钮、唱片与唱片内层、开关/滑块/轨道、滚动条、波形/声谱与状态点、微型来源/VIP/格式/数量徽标、Tab/分段导航。例外不能扩大为一般封面、表单输入或弹窗外壳。
 - Naive UI common 的普通圆角和 Menu 为 12px；Button tiny/small/medium/large 为药丸。普通 `n-input` 不传 `round`，保留 Avatar 的 `round` 与 Button 的 `circle`。
 - 五种业务弹窗统一 `AppModal` 与 `appModalProps`/`renderModalTitle`，样式集中 `appModal.css`；动态登录保持 Naive 自有生命周期、焦点陷阱与离场回调。壳层只读语义颜色，不添加背景模式分支。关闭限制必须同时覆盖标题关闭、遮罩和 Esc。
+
+- `createDiscreteApi` 创建独立注入树，必须接 `discreteThemeConfig`；App 的 `watchEffect` 同步当前 naiveTheme/overrides，保证已打开的登录、提示和确认随主题/主色更新。共享模块不引入 Store，避免模块加载阶段的 Pinia/循环依赖问题。
+- Tabs 的 tab/close 圆角保留 3px、Checkbox 保留 2px，组件私有分段样式继续覆盖这些默认值；普通容器 common 12px 不得改变专用导航和勾选框形态。

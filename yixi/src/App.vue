@@ -45,7 +45,7 @@ import {
   NMessageProvider,
   NButton,
 } from "naive-ui";
-import { h, onBeforeUnmount, ref, Transition, watch } from "vue";
+import { h, onBeforeUnmount, ref, Transition, watch, watchEffect } from "vue";
 import { useRouter } from "vue-router";
 import { PlayerBar, MainPlayer, EqualizerModal } from "./components";
 
@@ -68,6 +68,7 @@ import {
   loadingBar,
 } from "./utils/common/message";
 import electronAPI from "./utils/electron";
+import { discreteThemeConfig } from "./theme/discreteTheme";
 import { getColorFromUrl, getSongCover } from "./utils/common";
 import { message } from "./utils/pure/message";
 import { normalizeSong } from "./utils/song";
@@ -83,6 +84,13 @@ const lyric = useLyricStore();
 const mineLibrary = useMineLibraryStore();
 const runtimeConfig = useRuntimeConfigStore();
 const themeStore = useThemeStore();
+// 与主 ConfigProvider 使用同一份响应式主题，已打开的动态弹窗也即时更新。
+watchEffect(() => {
+  discreteThemeConfig.value = {
+    theme: themeStore.naiveTheme,
+    themeOverrides: themeStore.naiveThemeOverrides,
+  };
+});
 const shortcutStore = useShortcutStore();
 const userStore = useUserStore();
 const router = useRouter();
