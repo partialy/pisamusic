@@ -10,17 +10,19 @@
           <n-form-item label="房间名称">
             <n-input v-model:value="createForm.roomName" maxlength="16" show-count placeholder="例如：今晚一起听" />
           </n-form-item>
-          <n-form-item label="自定义房间号（可选）">
-            <n-input v-model:value="createForm.roomId" maxlength="8" placeholder="4-8 位数字" />
-          </n-form-item>
-          <n-form-item label="最大人数">
-            <n-input-number
-              v-model:value="createForm.maxPeople"
-              :min="2"
-              :max="maxPeopleLimit"
-              button-placement="both"
-              style="width: 100%" />
-          </n-form-item>
+          <div class="room-options-row">
+            <n-form-item label="自定义房间号（可选）">
+              <n-input v-model:value="createForm.roomId" maxlength="8" placeholder="4-8 位数字" />
+            </n-form-item>
+            <n-form-item label="最大人数">
+              <n-input-number
+                v-model:value="createForm.maxPeople"
+                :min="2"
+                :max="maxPeopleLimit"
+                button-placement="both"
+                style="width: 100%" />
+            </n-form-item>
+          </div>
           <div class="switch-row">
             <div>
               <div class="switch-title">允许成员控制</div>
@@ -29,15 +31,17 @@
             <n-switch v-model:value="createForm.memberOperation" />
           </div>
           <div v-if="createDisabledReason" class="form-hint">{{ createDisabledReason }}</div>
-          <n-button
-            block
-            round
-            type="primary"
-            :loading="listenTogether.joining"
-            :disabled="Boolean(createDisabledReason)"
-            @click="submitCreate(false)">
-            创建房间
-          </n-button>
+          <div class="lobby-actions">
+            <n-button
+              round
+              type="primary"
+              :loading="listenTogether.joining"
+              :disabled="Boolean(createDisabledReason)"
+              @click="submitCreate(false)">
+              创建房间
+            </n-button>
+            <n-button round @click="emit('close')">关闭</n-button>
+          </div>
         </n-form>
       </n-tab-pane>
 
@@ -50,9 +54,12 @@
               placeholder="输入 4-8 位数字房间号"
               @keyup.enter="submitJoin" />
           </n-form-item>
-          <n-button block round type="primary" :loading="listenTogether.joining" @click="submitJoin">
-            加入房间
-          </n-button>
+          <div class="lobby-actions">
+            <n-button round type="primary" :loading="listenTogether.joining" @click="submitJoin">
+              加入房间
+            </n-button>
+            <n-button round @click="emit('close')">关闭</n-button>
+          </div>
         </n-form>
       </n-tab-pane>
     </n-tabs>
@@ -82,6 +89,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   entered: [];
+  close: [];
 }>();
 
 const audio = useAudioStore();
@@ -173,6 +181,20 @@ async function submitJoin(): Promise<void> {
   width: 100%;
   min-width: 0;
   padding: 6px 2px 2px;
+}
+
+.room-options-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.room-options-row > :deep(.n-form-item) { min-width: 0; }
+
+.lobby-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .lobby-heading {

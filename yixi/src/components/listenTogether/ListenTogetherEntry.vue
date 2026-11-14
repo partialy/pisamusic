@@ -25,6 +25,7 @@
       <ListenTogetherLobbyPanel
         v-else
         :initial-room-id="inviteRoomId"
+        @close="showPanel = false"
         @entered="handleEntered" />
   </AppModal>
 </template>
