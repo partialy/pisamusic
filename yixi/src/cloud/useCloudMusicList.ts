@@ -36,6 +36,8 @@ export function useCloudMusicList() {
   async function loadFirstPage(currentKeyword: string) {
     const currentToken = ++searchToken;
     loading.value = true;
+    // 新搜索接管分页状态，旧请求的 finally 不再属于当前代次。
+    loadingMore.value = false;
     errorMessage.value = null;
 
     try {
