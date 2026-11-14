@@ -617,7 +617,7 @@ const fontOptions = [
   max-width: calc(100vw - 32px);
   height: 550px;
   max-height: 85vh;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   background: var(--surface-modal) !important;
   backdrop-filter: var(--glass-blur, blur(28px));
   -webkit-backdrop-filter: var(--glass-blur, blur(28px));
@@ -762,7 +762,7 @@ const fontOptions = [
   justify-content: space-between;
   gap: 16px;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-sizing: border-box;
@@ -834,7 +834,7 @@ const fontOptions = [
 
 :deep(.n-color-picker) {
   width: 130px !important;
-  border-radius: 8px !important;
+  border-radius: var(--radius-control) !important;
   border: 1px solid var(--border-subtle) !important;
   background: var(--surface-input) !important;
   box-sizing: border-box;
@@ -885,7 +885,7 @@ const fontOptions = [
   .current-thumb-wrap {
     width: 52px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     overflow: hidden;
     border: 1.5px solid var(--border-subtle);
     background: var(--surface-card);
@@ -913,7 +913,7 @@ const fontOptions = [
     .recent-thumb-item {
       width: 38px;
       height: 28px;
-      border-radius: 6px;
+      border-radius: var(--radius-control);
       overflow: hidden;
       border: 2px solid transparent;
       cursor: pointer;

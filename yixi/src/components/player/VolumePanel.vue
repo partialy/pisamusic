@@ -25,7 +25,7 @@ const volumeText = computed(() => {
 
 <style lang="scss" scoped>
 .volume-pannel {
-    border-radius: 10px;
+    border-radius: var(--radius-control);
     width: 100%;
     height: 100%;
     background-color: var(--color-bg-default);

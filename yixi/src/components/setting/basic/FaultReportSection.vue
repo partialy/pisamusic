@@ -169,7 +169,7 @@ function errorMessage(error: unknown, fallback: string) {
 .stat-item {
   min-width: 0;
   padding: 13px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-control-hover);
 
   span,
@@ -235,7 +235,7 @@ function errorMessage(error: unknown, fallback: string) {
 .load-error {
   margin-top: 18px;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   color: var(--text-primary);
   background: var(--surface-input);
 }

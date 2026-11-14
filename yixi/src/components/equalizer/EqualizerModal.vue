@@ -287,7 +287,7 @@ const curveAreaPath = computed(() => {
 :global(.equalizer-card.n-card) {
   width: 660px;
   max-width: calc(100vw - 32px);
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   background: var(--surface-modal) !important;
   backdrop-filter: var(--filter-panel, blur(16px));
   -webkit-backdrop-filter: var(--filter-panel, blur(16px));
@@ -314,7 +314,7 @@ const curveAreaPath = computed(() => {
       justify-content: center;
       width: 32px;
       height: 32px;
-      border-radius: 10px;
+      border-radius: var(--radius-control);
       background: var(--surface-input);
       color: var(--text-secondary);
       transition: all 0.25s ease;
@@ -365,7 +365,7 @@ const curveAreaPath = computed(() => {
       align-items: center;
       gap: 5px;
       padding: 5px 10px;
-      border-radius: 8px;
+      border-radius: var(--radius-pill);
       border: 1px solid var(--border-subtle);
       background: var(--surface-card);
       color: var(--text-secondary);
@@ -386,7 +386,7 @@ const curveAreaPath = computed(() => {
       justify-content: center;
       width: 28px;
       height: 28px;
-      border-radius: 8px;
+      border-radius: var(--radius-control);
       border: none;
       background: transparent;
       color: var(--text-secondary);
@@ -405,7 +405,7 @@ const curveAreaPath = computed(() => {
   position: relative;
   width: 100%;
   height: 96px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-input);
   border: 1px solid var(--border-subtle);
   overflow: hidden;
@@ -523,7 +523,7 @@ const curveAreaPath = computed(() => {
   justify-content: space-between;
   padding: 10px 4px 4px 4px;
   background: var(--surface-input);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-subtle);
   transition: opacity 0.25s ease;
 

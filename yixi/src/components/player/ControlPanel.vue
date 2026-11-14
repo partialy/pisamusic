@@ -177,7 +177,7 @@
       <!-- 音量调节 (Popover) -->
       <n-popover
         trigger="hover"
-        style="padding: 0; border-radius: 12px"
+        style="padding: 0; border-radius: var(--radius-control)"
         arrow-point-to-center
         @wheel="handleWheel"
       >
@@ -439,7 +439,7 @@ const toggleMuted = () => {
     background: transparent;
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -487,7 +487,7 @@ const toggleMuted = () => {
     .mode-btn {
       width: 32px;
       height: 32px;
-      border-radius: 6px;
+      border-radius: var(--radius-control);
       color: rgba(255, 255, 255, 0.65);
 
       &:hover {
@@ -530,7 +530,7 @@ const toggleMuted = () => {
         min-width: 32px;
         height: 32px;
         padding: 0;
-        border-radius: 6px;
+        border-radius: var(--radius-control);
         background: transparent !important;
         border: none !important;
         color: rgba(255, 255, 255, 0.65);
@@ -623,7 +623,7 @@ const toggleMuted = () => {
   .quality-pill {
     height: 24px;
     padding: 0 9px;
-    border-radius: 6px;
+    border-radius: var(--radius-pill);
     background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 255, 255, 0.16);
     color: rgba(255, 255, 255, 0.88);

@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
     aspect-ratio: 7/10;
     width: 100%;
     height: 100%;
-    border-radius: 20px;
+    border-radius: var(--radius-control);
     overflow: hidden;
     // background: color-mix(in srgb, var(--color-bg-default) 82%, #ffffff 18%);
     // border: 1px solid var(--color-border-default);
@@ -118,7 +118,7 @@ onBeforeUnmount(() => {
   .playlist-skeleton-cover {
     width: 100%;
     height: 72%;
-    border-radius: 20px;
+    border-radius: var(--radius-control);
   }
 
   .playlist-skeleton-info {

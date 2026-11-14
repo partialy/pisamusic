@@ -67,7 +67,7 @@ const emit = defineEmits<{
   min-width: 360px;
   height: 220px;
   padding: 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border: 1px solid rgba(255, 255, 255, 0.13);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 46%),
@@ -154,7 +154,7 @@ const emit = defineEmits<{
 .cover {
   width: 34px;
   height: 34px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   object-fit: cover;
   transition: transform 0.18s ease;
 }

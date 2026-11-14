@@ -84,7 +84,7 @@ onBeforeUnmount(clearUnlockTimer);
   width: min(560px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background-color: var(--color-bg-default);
   color: var(--color-text-default);
   box-shadow: 0 18px 54px rgba(0, 0, 0, 0.24);

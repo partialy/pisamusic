@@ -235,7 +235,7 @@ const endScroll = debounce(() => {
   .lyric-item {
     width: 100%;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: var(--radius-control);
     font-weight: 600;
     opacity: 0.2;
     margin-bottom: 20px;

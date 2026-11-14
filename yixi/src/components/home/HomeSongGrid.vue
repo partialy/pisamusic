@@ -97,7 +97,7 @@ function handleAddToPlaylist(song: Song) {
   display: flex;
   align-items: center;
   gap: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-subtle);
   background: var(--surface-card);
   box-sizing: border-box;
@@ -125,6 +125,6 @@ function handleAddToPlaylist(song: Song) {
   justify-content: center;
   color: var(--text-secondary);
   border: 1px dashed var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 </style>

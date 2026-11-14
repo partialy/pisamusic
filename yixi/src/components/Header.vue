@@ -19,7 +19,6 @@
           ref="searchInput"
           placeholder="搜索"
           class="search-input"
-          round
           :style="{
             width: searchFocus ? '300px' : '200px',
             marginLeft: '1rem',
@@ -456,7 +455,7 @@ onMounted(async () => {
       max-height: 500px;
       overflow-y: auto;
       background-color: var(--color-bg-default);
-      border-radius: 12px;
+      border-radius: var(--radius-control);
       box-shadow: 0 0 10px #00000033;
       z-index: 100;
     }

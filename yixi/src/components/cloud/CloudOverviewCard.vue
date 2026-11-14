@@ -87,7 +87,7 @@ function goToHistory() {
   flex-direction: column;
   gap: 16px;
   padding: 18px 20px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-card);
@@ -118,7 +118,7 @@ function goToHistory() {
   justify-content: center;
   width: 54px;
   height: 54px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 50%, #4f46e5 100%);
   box-shadow: 0 6px 16px rgba(124, 58, 237, 0.25);
   color: #ffffff;
@@ -164,7 +164,7 @@ function goToHistory() {
   align-items: center;
   justify-content: space-around;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-input);
   border: 1px solid var(--border-subtle);
 }
@@ -181,7 +181,7 @@ function goToHistory() {
 
   &.clickable {
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     padding: 4px 0;
 
     &:hover {

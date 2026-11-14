@@ -241,7 +241,7 @@ onMounted(() => {
 
 .play-all-btn {
   height: 36px;
-  border-radius: 9px;
+  border-radius: var(--radius-pill);
   padding: 0 16px;
   flex-shrink: 0;
   font-weight: 650;
@@ -263,7 +263,7 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 2px 8px 2px 2px;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
 }
 
 .song-item {
@@ -291,7 +291,7 @@ onMounted(() => {
   position: relative;
   width: 76px;
   height: 76px;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   background: var(--surface-card);
 
@@ -387,7 +387,7 @@ onMounted(() => {
     place-items: center;
     padding: 0;
     border: 0;
-    border-radius: 5px;
+    border-radius: var(--radius-pill);
     color: var(--color-text-third);
     background: transparent;
     cursor: pointer;
@@ -412,7 +412,7 @@ onMounted(() => {
 .skeleton-cover {
   width: 76px;
   height: 76px;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
 }
 
 .skeleton-info {

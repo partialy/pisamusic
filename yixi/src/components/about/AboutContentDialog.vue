@@ -57,6 +57,6 @@ function handleVisibleChange(value: boolean) {
 <style lang="scss">
 .about-content-dialog {
   width: min(720px, calc(100vw - 48px));
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 </style>

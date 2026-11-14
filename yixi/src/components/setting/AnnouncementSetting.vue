@@ -161,7 +161,7 @@ onMounted(() => {
   gap: 16px;
   padding: 20px;
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
 }
 
@@ -178,7 +178,7 @@ onMounted(() => {
   flex-wrap: wrap;
   padding: 16px;
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
 }
 

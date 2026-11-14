@@ -505,7 +505,7 @@ function labelSource(source?: string) {
   z-index: 2;
   width: 100%;
   height: 100%;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   box-shadow:
     0 14px 36px rgba(0, 0, 0, 0.2),
@@ -661,7 +661,7 @@ function labelSource(source?: string) {
   align-items: center;
   gap: 12px;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   transition: all 0.2s ease;
@@ -674,7 +674,7 @@ function labelSource(source?: string) {
   .meta-icon-pill {
     width: 30px;
     height: 30px;
-    border-radius: 9px;
+    border-radius: var(--radius-control);
     background: var(--surface-control-active);
     color: var(--text-accent);
     display: flex;
@@ -752,7 +752,7 @@ function labelSource(source?: string) {
 .skeleton-cover {
   width: 100%;
   height: 100%;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
 }
 
 .skeleton-copy {
@@ -790,7 +790,7 @@ function labelSource(source?: string) {
   align-items: center;
   text-align: center;
   padding: 36px 32px;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   background: var(--color-card-bg);
   border: 1px solid var(--color-border-default);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06);

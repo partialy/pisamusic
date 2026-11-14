@@ -198,7 +198,7 @@ watch(
   width: 100%;
   height: 4rem;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   padding: 0 1rem;
   background: transparent;
@@ -271,7 +271,7 @@ watch(
       width: 100%;
       height: 100%;
       object-fit: cover;
-      border-radius: 8px;
+      border-radius: var(--radius-control);
       overflow: hidden;
     }
   }

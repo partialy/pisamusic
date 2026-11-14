@@ -39,7 +39,7 @@ const goHome = () => {
   padding: 2rem;
   width: 20rem;
   height: 20rem;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background-color: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-card);
@@ -65,7 +65,7 @@ const goHome = () => {
   color: var(--text-on-accent);
   background-color: var(--color-primary);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;
 

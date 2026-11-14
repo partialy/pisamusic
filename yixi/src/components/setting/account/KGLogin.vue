@@ -252,7 +252,7 @@ onUnmounted(() => {
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--color-border-default);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
 
   &.confirming img {

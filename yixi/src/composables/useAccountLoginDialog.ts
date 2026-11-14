@@ -1,6 +1,7 @@
 import { h } from "vue";
 import LoginCard from "@/components/home/LoginCard.vue";
-import { renderIcon } from "@/utils/common";
+import { UserRound } from "lucide-vue-next";
+import { appModalProps, renderModalTitle } from "@/utils/appModal";
 
 export interface AccountLoginDialogOptions {
   onAfterLeave?: () => void;
@@ -14,9 +15,9 @@ export function useAccountLoginDialog() {
         : undefined;
 
     return window.$modal.create({
-      style: { borderRadius: "10px" },
-      preset: "dialog",
-      icon: renderIcon(h("span"), {}, { color: "red" }),
+      ...appModalProps,
+      style: { width: "min(446px, calc(100vw - 32px))" },
+      title: () => renderModalTitle("登录 PisaMusic", UserRound),
       closable: true,
       content: () => h(LoginCard),
       onAfterLeave: opts?.onAfterLeave,

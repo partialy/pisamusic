@@ -72,7 +72,7 @@ const deleteSong = () => {
     align-items: center;
     justify-content: space-between;
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     color: var(--text-primary);
     transition:
         background-color 0.18s ease,
@@ -130,7 +130,7 @@ const deleteSong = () => {
         width: 40px;
         height: 40px;
         overflow: hidden;
-        border-radius: 5px;
+        border-radius: var(--radius-control);
 
         .cover-img {
             width: 100%;

@@ -346,7 +346,7 @@
 - 图片管理器（`useImageManager`）提供单例状态管理，自定义图片持久化保存到 SQLite settings 的 `custom-background-images`，预置图片与自定义图片按时间倒序合并为统一图片列表。
 - 自定义图片上传时由 Electron main 侧（`dialog:select-background-image`、`dialog:select-background-images`）将文件复制到应用数据目录下的 `backgrounds/` 目录并返回本地 `file:///` 绝对路径；同时自动通过 `imageManager.addImage(url, name)` / `imageManager.addImages(items)` 注册入库，支持文件选择对话框多选。
 - 自定义图片删除支持多选，由 main 侧 `dialog:delete-background-image` 安全校验路径并在磁盘中物理删除（仅限 `backgrounds/` 目录内文件，防路径穿越），预置图片只读受保护不可删除。
-- 图片库弹窗组件（`AppImageCenterModal.vue`）以 Modal 形式打开，复用【一起听】同款居中缩放动画（`transform-origin="center"`）、圆角实色卡片（`border-radius: 20px;`、820px × 550px 实色防透）与操作条；标题绝对居中，左上角集成“添加图片”与“删除图片（带二次确认 `AppConfirmDialog`）”圆形纯图标按钮（通过原生 `title` 提示），支持单选高亮、双击直接选中确认并返回图片地址。
+- 图片库弹窗组件（`AppImageCenterModal.vue`）以 Modal 形式打开，复用【一起听】同款居中缩放动画（`transform-origin="center"`）、圆角实色卡片（`border-radius: var(--radius-control);`（12px）、820px × 550px 实色防透）与操作条；标题绝对居中，左上角集成“添加图片”与“删除图片（带二次确认 `AppConfirmDialog`）”圆形纯图标按钮（通过原生 `title` 提示），支持单选高亮、双击直接选中确认并返回图片地址。
 - 基本设置页背景选项中，原【预置图片】行升级为【图片库】，右侧横向展示最新的 3 张图片（可直接点击切换背景），最右侧配备打开图片库图标按钮（`Images` 图标），选中确认后无缝生效为当前背景。
 
 ## 歌词背景与主播放界面设置规则补充
@@ -400,3 +400,10 @@
 - 设置页保留 basic/local/sync/lyric/shortcut/advance/about/announcements 八个 Tab；字段型页面使用 `src/components/setting/SettingSection.vue` 分组卡片，标题、说明与操作槽统一管理。关于、公告继续使用内容布局。
 - `settingLayout.scss` 由各设置组件在 scoped 样式内引用，统一设置行、文字层级、间距与换行；本地设置分曲库、缓存、下载三组，目录与快捷键绑定保持单列。
 - 基本/歌词背景模糊度与亮度共用 `SettingAdjustment.vue`：圆形加减按钮固定 28px，轨道可伸缩，百分比固定 44px；窄内容区整组换行，不压缩按钮。不在组件中添加主题模式分支。
+
+
+## PC 形态与弹窗壳层
+
+- 普通容器、菜单、输入框、普通歌曲封面使用 `--radius-control`（12px），文字操作按钮使用 `--radius-pill`（999px）。Naive UI 在 `naiveThemeAdapter.ts` 统一 common/Menu 与 Button 各尺寸；普通输入框禁止 `round` 覆盖，头像、圆形图标按钮、开关、滑块、唱片、Tab/分段导航、轨道/滚动条、微型状态/来源徽标保留专用形态。
+- 一起听、下载歌曲、添加到歌单、定时关闭复用 `src/components/common/AppModal.vue`；系统账号登录继续用动态 `$modal.create`，与声明式弹窗共用 `src/utils/appModal.ts` 的 card props/图标标题和 `src/styles/appModal.css` 壳层。不得嵌套第二层 Modal 或丢失动态实例 `destroy/onAfterLeave`（邀请登录后续接依赖）。
+- 统一左图标标题、右关闭、24px 横向内距、底部右对齐药丸操作、居中缩放与 Naive 默认遮罩/焦点管理。下载和添加歌单在提交期间禁止遮罩、Esc、右上关闭及取消；业务校验、尺寸与内部表单布局继续由所属组件控制。登录表单保留密码/验证码/注册分段，品牌精简为壳层标题与同步说明。

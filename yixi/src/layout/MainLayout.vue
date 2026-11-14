@@ -233,7 +233,7 @@ function renderMenuIcon(icon: Component) {
     width: 38px;
     height: 38px;
     flex: 0 0 auto;
-    border-radius: 12px;
+    border-radius: var(--radius-control);
     transition: all 0.3s ease-in-out;
   }
 

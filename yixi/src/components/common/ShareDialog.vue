@@ -292,7 +292,7 @@ defineExpose({ openForSong, openForPlaylist });
   position: relative;
   width: min(480px, calc(100vw - 32px));
   overflow: hidden;
-  border-radius: 26px;
+  border-radius: var(--radius-control);
   background: var(--surface-elevated);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-elevated);
@@ -387,7 +387,7 @@ defineExpose({ openForSong, openForPlaylist });
   align-items: center;
   gap: 20px;
   padding: 16px 18px;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -439,7 +439,7 @@ defineExpose({ openForSong, openForPlaylist });
   z-index: 2;
   width: 90px;
   height: 90px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 
@@ -528,7 +528,7 @@ defineExpose({ openForSong, openForPlaylist });
   justify-content: center;
   gap: 14px;
   padding: 20px;
-  border-radius: 18px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--color-bg-default) 40%, transparent);
 }
 
@@ -598,13 +598,13 @@ defineExpose({ openForSong, openForPlaylist });
   justify-content: center;
   gap: 12px;
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 
   .qr-frame {
     padding: 12px;
-    border-radius: 16px;
+    border-radius: var(--radius-control);
     background: #ffffff;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
     display: flex;
@@ -613,7 +613,7 @@ defineExpose({ openForSong, openForPlaylist });
 
     .qrcode-canvas {
       display: block;
-      border-radius: 6px;
+      border-radius: var(--radius-control);
     }
   }
 
@@ -638,7 +638,7 @@ defineExpose({ openForSong, openForPlaylist });
   align-items: center;
   gap: 8px;
   padding: 4px 6px 4px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--surface-input);
   border: 1px solid var(--border-subtle);
   transition: border-color 0.2s ease;
@@ -675,7 +675,7 @@ defineExpose({ openForSong, openForPlaylist });
     gap: 4px;
     height: 30px;
     padding: 0 10px;
-    border-radius: 10px;
+    border-radius: var(--radius-pill);
     border: none;
     background: color-mix(in srgb, var(--color-primary) 14%, transparent);
     color: var(--color-primary);

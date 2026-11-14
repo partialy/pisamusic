@@ -25,7 +25,7 @@
                 :style="{ height: height + 'px' }" item-key="key">
                 <template #stickyHeader v-if="showSearch">
                     <div class="sequence-search" v-if="showSearch">
-                        <n-input round clearable
+                        <n-input clearable
                         style="background:transparent;"
                          v-model:value="searchValue" placeholder="搜索歌曲">
                          <template #prefix>
@@ -115,15 +115,15 @@ const startIndex = computed(() => {
 
 const clearSequence = () => {
     window.$dialog.create({
-        style: { borderRadius: '10px' },
+        style: { borderRadius: "var(--radius-control)" },
         title: '清空播放列表',
         type: 'error',
         icon: () => h(DeleteIcon),
         content: '确定要清空播放列表吗？',
         // @ts-ignore
-        positiveButtonProps: { style: { borderRadius: '8px' } },
+        positiveButtonProps: { style: { borderRadius: "var(--radius-pill)" } },
         // @ts-ignore
-        negativeButtonProps: { style: { borderRadius: '8px' } },
+        negativeButtonProps: { style: { borderRadius: "var(--radius-pill)" } },
         positiveText: '确定',
         negativeText: '取消',
         onPositiveClick: () => {

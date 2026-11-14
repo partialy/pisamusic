@@ -44,7 +44,7 @@ const messageCss = `
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(226, 232, 240, 0.5);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border-radius: 1rem;
+  border-radius: var(--radius-control);
   min-width: 300px;
   max-width: 90vw;
   transition: all 0.5s cubic-bezier(0, 0, 0.2, 1);

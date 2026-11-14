@@ -189,7 +189,7 @@ defineExpose({
   min-width: 400px;
   background: var(--surface-modal);
   border: 1px solid var(--border-modal);
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   box-shadow: var(--shadow-modal);
   overflow: hidden;
   display: flex;
@@ -257,7 +257,7 @@ defineExpose({
 .dialog-button {
   padding: 8px 16px;
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s ease;

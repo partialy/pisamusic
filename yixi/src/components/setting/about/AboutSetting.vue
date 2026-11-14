@@ -431,7 +431,7 @@ onBeforeUnmount(() => {
 .info-card,
 .update-card {
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   box-sizing: border-box;
 }
@@ -449,7 +449,7 @@ onBeforeUnmount(() => {
   height: 92px;
   flex: 0 0 auto;
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: var(--radius-control);
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
 
   img {
@@ -578,7 +578,7 @@ h2 {
 .entry-item {
   min-height: 96px;
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   color: var(--text-primary);
   cursor: pointer;
@@ -603,7 +603,7 @@ h2 {
 .entry-icon {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   display: inline-flex;
@@ -680,7 +680,7 @@ h2 {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--border-modal);
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   padding: 36px 30px 30px;
   background: var(--surface-modal);
   box-shadow: var(--shadow-modal);
@@ -691,7 +691,7 @@ h2 {
   content: "";
   position: absolute;
   inset: 1px;
-  border-radius: 19px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-subtle);
   pointer-events: none;
 }
@@ -715,7 +715,7 @@ h2 {
 .update-title-icon {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   background: var(--surface-card);
   display: inline-flex;
@@ -738,7 +738,7 @@ h2 {
   margin-top: 22px;
   padding: 18px 20px;
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--surface-input);
   color: var(--text-secondary);
   font-size: 13px;
@@ -765,7 +765,7 @@ h2 {
   :deep(.n-button) {
     width: 100%;
     height: 46px;
-    border-radius: 8px;
+    border-radius: var(--radius-pill);
     font-size: 15px;
     font-weight: 800;
   }

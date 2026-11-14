@@ -186,7 +186,7 @@ defineExpose({ open });
 
 .playlist-dialog-panel {
   width: min(480px, calc(100vw - 32px));
-  border-radius: 22px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-strong);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-elevated);
@@ -243,7 +243,7 @@ defineExpose({ open });
   img {
     width: 86px;
     height: 86px;
-    border-radius: 18px;
+    border-radius: var(--radius-control);
     object-fit: cover;
     box-shadow: 0 12px 28px rgba(10, 18, 32, 0.16);
   }
@@ -257,7 +257,7 @@ defineExpose({ open });
 }
 
 .cover-btn {
-  border-radius: 12px;
+  border-radius: var(--radius-pill);
 }
 
 .cover-tip {
@@ -306,7 +306,7 @@ defineExpose({ open });
 .confirm-btn {
   min-width: 84px;
   height: 40px;
-  border-radius: 14px;
+  border-radius: var(--radius-pill);
 }
 
 .confirm-btn {

@@ -137,7 +137,7 @@ const handleCancel = () => {
 
 .close-container {
   width: 500px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   padding: 10px;
   background: var(--surface-modal);
   border: 1px solid var(--border-modal);

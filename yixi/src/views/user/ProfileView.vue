@@ -79,7 +79,7 @@ function goEdit() {
 
 function openSecurityDialog(mode: SecurityMode) {
   const modal = window.$modal.create({
-    style: { borderRadius: "12px" },
+    style: { borderRadius: "var(--radius-control)" },
     preset: "dialog",
     closable: true,
     showIcon: false,
@@ -109,7 +109,7 @@ function formatTime(value: number) {
 .empty-state {
   width: min(980px, 100%);
   margin: 0 auto;
-  border-radius: 18px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-card);
@@ -176,7 +176,7 @@ function formatTime(value: number) {
 .info-item {
   min-width: 0;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-input);
   border: 1px solid var(--border-subtle);
 

@@ -157,7 +157,7 @@ h6 {
   /* 高斯模糊效果 */
   -webkit-backdrop-filter: blur(10px);
   /* Safari浏览器兼容 */
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   /* 可选：圆角 */
   border: 1px solid rgba(255, 255, 255, 0.3);
   /* 可选：边框 */

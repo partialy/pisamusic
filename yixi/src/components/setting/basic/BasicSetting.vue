@@ -444,7 +444,7 @@ const handleFileInputChange = (event: Event) => {
     width: 88px;
     height: 66px;
     aspect-ratio: 4 / 3;
-    border-radius: 12px;
+    border-radius: var(--radius-control);
     overflow: hidden;
     border: 1px solid var(--border-subtle);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);

@@ -82,7 +82,6 @@
         v-model:value="searchKey"
         class="playlist-search"
         :class="{ focused: searchFocused || searchKey }"
-        round
         clearable
         placeholder="搜索"
         @focus="searchFocused = true"
@@ -603,7 +602,7 @@ onBeforeUnmount(() => {
 
 .shuffle-btn {
   height: 34px;
-  border-radius: 5px;
+  border-radius: var(--radius-pill);
   padding: 0 18px;
 }
 
@@ -639,7 +638,7 @@ onBeforeUnmount(() => {
 }
 
 .tag-button {
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
 
   &.active {
     color: var(--text-accent);
@@ -672,7 +671,7 @@ onBeforeUnmount(() => {
 .tag-skeleton {
   width: 82px;
   height: 34px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .empty-state {

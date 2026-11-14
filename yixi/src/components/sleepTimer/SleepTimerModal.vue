@@ -1,18 +1,5 @@
 <template>
-  <n-modal
-    :show="show"
-    preset="card"
-    class="sleep-timer-dialog"
-    :mask-closable="true"
-    @update:show="handleVisibleChange"
-  >
-    <template #header>
-      <div class="modal-header-title">
-        <n-icon :component="SleepTimerIcon" :size="20" class="header-icon" />
-        <span>定时关闭</span>
-      </div>
-    </template>
-
+  <AppModal :show="show" title="定时关闭" :icon="SleepTimerIcon" :width="500" @update:show="handleVisibleChange">
     <div class="sleep-timer-content">
       <!-- 运行中状态卡片 -->
       <div v-if="sleepTimerStore.isActive" class="active-status-card">
@@ -160,8 +147,8 @@
         <n-switch v-model:value="waitSongOption" />
       </div>
 
-      <!-- 底部操作按钮 -->
-      <div class="dialog-actions">
+    </div>
+    <template #footer>
         <n-button @click="handleClose">
           {{ sleepTimerStore.isActive ? "关闭" : "取消" }}
         </n-button>
@@ -172,14 +159,14 @@
         >
           {{ sleepTimerStore.isActive ? "更新定时" : "开始定时" }}
         </n-button>
-      </div>
-    </div>
-  </n-modal>
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
+import AppModal from "@/components/common/AppModal.vue";
 import { ref, watch } from "vue";
-import { NButton, NIcon, NInputNumber, NModal, NPopover, NSwitch } from "naive-ui";
+import { NButton, NInputNumber, NPopover, NSwitch } from "naive-ui";
 import { SleepTimerIcon } from "@/icons";
 import { useSleepTimerStore } from "@/store";
 
@@ -285,19 +272,6 @@ function formatDurationLabel(minutes: number): string {
 </script>
 
 <style scoped lang="scss">
-.modal-header-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-
-  .header-icon {
-    color: var(--color-primary);
-  }
-}
-
 .sleep-timer-content {
   display: flex;
   flex-direction: column;
@@ -310,7 +284,7 @@ function formatDurationLabel(minutes: number): string {
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 
@@ -416,7 +390,7 @@ function formatDurationLabel(minutes: number): string {
   justify-content: center;
   height: 32px;
   padding: 0 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
   font-size: 13px;
   color: var(--text-secondary);
   background: var(--surface-card);
@@ -504,7 +478,7 @@ function formatDurationLabel(minutes: number): string {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 
@@ -520,7 +494,7 @@ function formatDurationLabel(minutes: number): string {
         background: var(--surface-input) !important;
         border: 1px solid var(--border-subtle) !important;
         color: var(--text-primary) !important;
-        border-radius: 8px !important;
+        border-radius: var(--radius-control) !important;
       }
 
       :deep(.n-input__input-el) {
@@ -559,7 +533,7 @@ function formatDurationLabel(minutes: number): string {
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 
@@ -583,29 +557,4 @@ function formatDurationLabel(minutes: number): string {
   }
 }
 
-/* 底部操作 */
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding-top: 4px;
-}
-</style>
-
-<style lang="scss">
-.sleep-timer-dialog {
-  width: min(500px, calc(100vw - 32px)) !important;
-  border-radius: 20px !important;
-  background: var(--surface-modal) !important;
-  backdrop-filter: var(--filter-panel, blur(16px)) !important;
-  -webkit-backdrop-filter: var(--filter-panel, blur(16px)) !important;
-  border: 1px solid var(--border-modal) !important;
-  box-shadow: var(--shadow-modal) !important;
-  overflow: hidden !important;
-}
-
-.sleep-timer-dialog > .n-card__content,
-.sleep-timer-dialog > .n-card-header {
-  background: transparent !important;
-}
 </style>

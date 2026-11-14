@@ -1056,7 +1056,7 @@ onMounted(() => {
   justify-content: center;
   text-align: center;
   padding: 60px 20px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
@@ -1114,7 +1114,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 36px 20px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   border: 2px dashed var(--border-subtle);
   background: var(--surface-card);
   cursor: pointer;
@@ -1146,7 +1146,7 @@ onMounted(() => {
   justify-content: center;
   width: 64px;
   height: 64px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--color-source-cloud) 12%, var(--surface-card));
   color: var(--color-source-cloud);
 }
@@ -1202,7 +1202,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   cursor: pointer;
@@ -1219,7 +1219,7 @@ onMounted(() => {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface-hover);
   color: var(--text-secondary);
   flex-shrink: 0;
@@ -1289,7 +1289,7 @@ onMounted(() => {
   display: flex;
   gap: 24px;
   padding: 24px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
@@ -1305,7 +1305,7 @@ onMounted(() => {
   .cover-box {
     width: 130px;
     height: 130px;
-    border-radius: 12px;
+    border-radius: var(--radius-control);
     overflow: hidden;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 
@@ -1403,7 +1403,7 @@ onMounted(() => {
   align-items: center;
   text-align: center;
   padding: 48px 20px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
@@ -1521,7 +1521,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 64px 20px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   text-align: center;
@@ -1547,7 +1547,7 @@ onMounted(() => {
 
 .history-card {
   padding: 16px 20px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
@@ -1572,7 +1572,7 @@ onMounted(() => {
 .history-cover-box {
   width: 64px;
   height: 64px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   flex-shrink: 0;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
@@ -1645,7 +1645,7 @@ onMounted(() => {
 .reject-reason-alert {
   margin-top: 8px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
   display: flex;
@@ -1676,7 +1676,7 @@ onMounted(() => {
 .deleted-alert {
   margin-top: 8px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--surface-hover);
   color: var(--text-muted);
   font-size: 12px;
@@ -1714,13 +1714,13 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--surface-hover);
 
   .resubmit-cover-box {
     width: 60px;
     height: 60px;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     overflow: hidden;
     flex-shrink: 0;
 

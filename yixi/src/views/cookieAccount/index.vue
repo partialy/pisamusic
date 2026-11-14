@@ -93,7 +93,7 @@ const tagColor = computed(() => ({
   gap: 18px;
   padding: 24px;
   border: 1px solid color-mix(in srgb, var(--source-color) 22%, var(--color-border-default));
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--source-color) 8%, var(--color-card-bg));
 }
 
@@ -147,7 +147,7 @@ const tagColor = computed(() => ({
   gap: 12px;
   padding: 18px;
   border: 1px solid var(--color-border-default);
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--color-card-bg);
 
   > .n-icon {

@@ -6,7 +6,7 @@
     :z-index="zIndex"
     trigger="click"
     show-arrow
-    style="padding: 6px; border-radius: 12px; min-width: 140px; overflow: hidden;"
+    style="padding: 6px; border-radius: var(--radius-control); min-width: 140px; overflow: hidden;"
     class="play-mode-popover"
   >
     <template #trigger>
@@ -109,7 +109,7 @@ function handleSelect(mode: RepeatMode) {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   font-size: 13px;
   cursor: pointer;
   transition:

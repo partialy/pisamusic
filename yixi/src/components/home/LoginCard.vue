@@ -1,23 +1,16 @@
 <template>
   <div class="login-card">
-    <div class="login-head">
-      <n-image :src="logo" preview-disabled class="login-logo" />
-      <div>
-        <div class="login-title">PisaMusic</div>
-        <div class="login-subtitle">账号同步收藏与歌单</div>
-      </div>
-    </div>
+    <p class="login-subtitle">账号同步收藏与歌单</p>
 
     <n-tabs v-model:value="mode" animated type="segment" class="login-tabs">
       <n-tab-pane name="password" tab="密码登录">
         <n-form :model="passwordForm" @submit.prevent="loginByPassword">
           <n-form-item label="用户名 / 邮箱">
-            <n-input v-model:value="passwordForm.identifier" round placeholder="请输入用户名或邮箱" />
+            <n-input v-model:value="passwordForm.identifier" placeholder="请输入用户名或邮箱" />
           </n-form-item>
           <n-form-item label="密码">
             <n-input
               v-model:value="passwordForm.password"
-              round
               type="password"
               show-password-toggle
               placeholder="请输入密码" />
@@ -34,11 +27,11 @@
       <n-tab-pane name="code" tab="验证码登录">
         <n-form :model="codeForm" @submit.prevent="loginByCode">
           <n-form-item label="邮箱">
-            <n-input v-model:value="codeForm.email" round placeholder="请输入邮箱" />
+            <n-input v-model:value="codeForm.email" placeholder="请输入邮箱" />
           </n-form-item>
           <n-form-item label="验证码">
             <div class="code-row">
-              <n-input v-model:value="codeForm.code" round placeholder="6 位验证码" />
+              <n-input v-model:value="codeForm.code" placeholder="6 位验证码" />
               <n-button round secondary :disabled="codeCountdown > 0" :loading="codeSending === 'login'" @click="sendCode('login')">
                 {{ codeCountdown > 0 ? `${codeCountdown}s` : "发送" }}
               </n-button>
@@ -53,15 +46,14 @@
       <n-tab-pane name="register" tab="注册">
         <n-form :model="registerForm" @submit.prevent="register">
           <n-form-item label="邮箱">
-            <n-input v-model:value="registerForm.email" round placeholder="请输入邮箱" />
+            <n-input v-model:value="registerForm.email" placeholder="请输入邮箱" />
           </n-form-item>
           <n-form-item label="用户名">
-            <n-input v-model:value="registerForm.username" round placeholder="请输入用户名" />
+            <n-input v-model:value="registerForm.username" placeholder="请输入用户名" />
           </n-form-item>
           <n-form-item label="密码">
             <n-input
               v-model:value="registerForm.password"
-              round
               type="password"
               show-password-toggle
               placeholder="至少 6 位" />
@@ -69,14 +61,13 @@
           <n-form-item label="确认密码">
             <n-input
               v-model:value="registerForm.confirmPassword"
-              round
               type="password"
               show-password-toggle
               placeholder="请再次输入密码" />
           </n-form-item>
           <n-form-item label="验证码">
             <div class="code-row">
-              <n-input v-model:value="registerForm.code" round placeholder="6 位验证码" />
+              <n-input v-model:value="registerForm.code" placeholder="6 位验证码" />
               <n-button round secondary :disabled="registerCountdown > 0" :loading="codeSending === 'register'" @click="sendCode('register')">
                 {{ registerCountdown > 0 ? `${registerCountdown}s` : "发送" }}
               </n-button>
@@ -92,8 +83,7 @@
 </template>
 <script setup lang="ts">
 import { h, reactive, ref } from "vue";
-import { NButton, NForm, NFormItem, NImage, NInput, NTabPane, NTabs } from "naive-ui";
-import logo from "@/assets/pisamusic_icon_1024.png";
+import { NButton, NForm, NFormItem,  NInput, NTabPane, NTabs } from "naive-ui";
 import AccountSecurityDialog from "@/components/user/AccountSecurityDialog.vue";
 import { useUserStore } from "@/store";
 
@@ -213,7 +203,7 @@ async function runAuth(request: () => Promise<AccountSession>) {
 
 function openResetPassword() {
   const modal = window.$modal.create({
-    style: { borderRadius: "12px" },
+    style: { borderRadius: "var(--radius-control)" },
     preset: "dialog",
     closable: true,
     showIcon: false,
@@ -253,29 +243,8 @@ function errorMessage(error: unknown, fallback: string) {
   padding: 8px 2px 0;
 }
 
-.login-head {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.login-logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  box-shadow: 0 10px 26px rgba(40, 151, 255, 0.22);
-}
-
-.login-title {
-  color: var(--text-primary);
-  font-size: 23px;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
 .login-subtitle {
-  margin-top: 5px;
+  margin: 0 0 16px;
   color: var(--text-muted);
   font-size: 13px;
 }

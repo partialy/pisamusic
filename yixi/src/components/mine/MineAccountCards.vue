@@ -138,7 +138,7 @@ function openLogin(source: CookieSource) {
         },
       }),
     show: true,
-    style: { borderRadius: "16px" },
+    style: { borderRadius: "var(--radius-control)" },
     closeOnEsc: true,
   });
 }

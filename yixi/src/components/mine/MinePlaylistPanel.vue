@@ -154,7 +154,7 @@ function sourceLabel(source: CommonPlaylist["source"]) {
   min-width: 0;
   padding: 0;
   border: 0;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   text-align: left;
   line-height: 1.4;
@@ -170,7 +170,7 @@ function sourceLabel(source: CommonPlaylist["source"]) {
   aspect-ratio: 1;
   min-height: 0;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
 
   img {

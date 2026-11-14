@@ -86,7 +86,7 @@ const handleLove = () => {
   width: 100%;
   height: 60px;
   padding: 5px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   background: transparent;
 
@@ -112,7 +112,7 @@ const handleLove = () => {
     .image {
       width: 50px;
       height: 50px;
-      border-radius: 8px;
+      border-radius: var(--radius-control);
       overflow: hidden;
     }
   }

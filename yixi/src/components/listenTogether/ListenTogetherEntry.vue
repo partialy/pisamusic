@@ -20,20 +20,19 @@
     <Headphones v-else :size="18" />
   </button>
 
-  <n-modal v-model:show="showPanel" transform-origin="center">
-    <n-card class="listen-card" :bordered="false" role="dialog" aria-modal="true">
+  <AppModal v-model:show="showPanel" title="一起听" :icon="Headphones" :width="listenTogether.enabled ? 528 : 488">
       <ListenTogetherRoomPanel v-if="listenTogether.enabled" @left="showPanel = false" />
       <ListenTogetherLobbyPanel
         v-else
         :initial-room-id="inviteRoomId"
         @entered="handleEntered" />
-    </n-card>
-  </n-modal>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
+import AppModal from "@/components/common/AppModal.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { NAvatar, NCard, NModal } from "naive-ui";
+import { NAvatar } from "naive-ui";
 import { Headphones } from "lucide-vue-next";
 import { useListenTogetherStore, useUserStore } from "@/store";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
@@ -267,19 +266,4 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 
-:global(.listen-card.n-card) {
-  width: auto;
-  max-width: calc(100vw - 32px);
-  border-radius: 20px;
-  background: var(--surface-modal) !important;
-  backdrop-filter: var(--filter-panel, blur(16px));
-  -webkit-backdrop-filter: var(--filter-panel, blur(16px));
-  border: 1px solid var(--border-modal) !important;
-  box-shadow: var(--shadow-modal);
-  overflow: hidden;
-}
-
-:global(.listen-card.n-card > .n-card__content) {
-  background: transparent !important;
-}
 </style>

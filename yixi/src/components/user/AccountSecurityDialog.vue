@@ -7,16 +7,16 @@
 
     <n-form label-placement="top" :model="form" class="security-form">
       <n-form-item v-if="mode === 'reset-password'" label="账号邮箱">
-        <n-input v-model:value="form.email" round placeholder="请输入注册邮箱" />
+        <n-input v-model:value="form.email" placeholder="请输入注册邮箱" />
       </n-form-item>
 
       <n-form-item v-if="mode === 'change-email'" label="新邮箱">
-        <n-input v-model:value="form.email" round placeholder="请输入新邮箱" />
+        <n-input v-model:value="form.email" placeholder="请输入新邮箱" />
       </n-form-item>
 
       <n-form-item v-if="needsCode" label="验证码">
         <div class="code-row">
-          <n-input v-model:value="form.code" round placeholder="6 位验证码" />
+          <n-input v-model:value="form.code" placeholder="6 位验证码" />
           <n-button round secondary :disabled="countdown > 0" :loading="sending" @click="sendCode">
             {{ countdown > 0 ? `${countdown}s` : "发送" }}
           </n-button>
@@ -24,15 +24,15 @@
       </n-form-item>
 
       <n-form-item v-if="mode === 'change-password'" label="当前密码">
-        <n-input v-model:value="form.currentPassword" round type="password" show-password-toggle placeholder="请输入当前密码" />
+        <n-input v-model:value="form.currentPassword" type="password" show-password-toggle placeholder="请输入当前密码" />
       </n-form-item>
 
       <n-form-item v-if="mode !== 'change-email'" label="新密码">
-        <n-input v-model:value="form.newPassword" round type="password" show-password-toggle placeholder="至少 6 位" />
+        <n-input v-model:value="form.newPassword" type="password" show-password-toggle placeholder="至少 6 位" />
       </n-form-item>
 
       <n-form-item v-if="mode !== 'change-email'" label="确认新密码">
-        <n-input v-model:value="form.confirmPassword" round type="password" show-password-toggle placeholder="请再次输入新密码" />
+        <n-input v-model:value="form.confirmPassword" type="password" show-password-toggle placeholder="请再次输入新密码" />
       </n-form-item>
     </n-form>
 

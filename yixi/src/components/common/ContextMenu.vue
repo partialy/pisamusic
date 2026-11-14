@@ -3,7 +3,7 @@
     class="song-list-menu"
     placement="bottom-start"
     trigger="manual"
-    style="border-radius: 8px; max-width: 220px"
+    style="border-radius: var(--radius-control); max-width: 220px"
     :x="x"
     :y="y"
     :show="show"

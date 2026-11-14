@@ -15,6 +15,8 @@ export function createNaiveThemeOverrides(
   const railColor = trackColors[0] || (isDark ? "#1e293b" : "#edf4ff");
 
   const commonOverrides: NonNullable<GlobalThemeOverrides["common"]> = {
+    borderRadius: "12px",
+    borderRadiusSmall: "12px",
     primaryColor: accentColor,
     primaryColorHover: mixColor(accentColor, "#ffffff", 0.18),
     primaryColorPressed: mixColor(accentColor, "#000000", 0.16),
@@ -40,8 +42,14 @@ export function createNaiveThemeOverrides(
 
   const overrides: GlobalThemeOverrides = {
     common: commonOverrides,
+    Button: {
+      borderRadiusTiny: "999px",
+      borderRadiusSmall: "999px",
+      borderRadiusMedium: "999px",
+      borderRadiusLarge: "999px",
+    },
     Menu: {
-      borderRadius: "16px",
+      borderRadius: "12px",
     },
     Progress: {
       railColor: isImage ? (isDark ? "rgba(255, 255, 255, 0.16)" : "rgba(0, 0, 0, 0.12)") : railColor,

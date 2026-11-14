@@ -260,7 +260,7 @@ onBeforeUnmount(() => {
 .pick-image {
   width: 82px;
   height: 82px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .image-item {
@@ -320,6 +320,6 @@ onBeforeUnmount(() => {
 <style lang="scss">
 .about-feedback-dialog {
   width: min(680px, calc(100vw - 48px));
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 </style>

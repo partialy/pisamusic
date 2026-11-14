@@ -50,7 +50,6 @@
             v-model:value="searchKey"
             class="favorite-search"
             :class="{ focused: searchFocused || searchKey }"
-            round
             clearable
             placeholder="搜索"
             @focus="searchFocused = true"
@@ -102,7 +101,6 @@
             v-model:value="searchKey"
             class="favorite-search"
             :class="{ focused: searchFocused || searchKey }"
-            round
             clearable
             placeholder="搜索"
             @focus="searchFocused = true"
@@ -420,7 +418,7 @@ watch(searchKey, () => {
 .play-all {
   min-width: 108px;
   height: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: var(--color-primary) !important;
   border-color: var(--color-primary) !important;
   color: #fff !important;
@@ -435,7 +433,7 @@ watch(searchKey, () => {
 .exit-batch-btn,
 .batch-delete-btn {
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
 }
 
 .favorite-search {

@@ -1,0 +1,22 @@
+.app-modal-card.n-card {
+  max-height: calc(100vh - 48px);
+  border-radius: var(--radius-control);
+  background: var(--surface-modal);
+  color: var(--text-primary);
+  border: 1px solid var(--border-modal);
+  box-shadow: var(--shadow-modal);
+  backdrop-filter: var(--filter-panel, blur(16px));
+  -webkit-backdrop-filter: var(--filter-panel, blur(16px));
+  --n-padding-left: 24px;
+  --n-padding-right: 24px;
+  --n-padding-top: 20px;
+  --n-padding-bottom: 20px;
+}
+.app-modal-card.n-card > .n-card-header { padding: 20px 24px 16px; }
+.app-modal-card.n-card > .n-card__content { overflow-y: auto; min-height: 0; background: transparent; }
+.app-modal-card.n-card > .n-card__footer { padding: 16px 24px 20px; }
+.app-modal-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.app-modal-title > .n-icon { color: var(--text-accent); }
+.app-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.app-modal-actions > .n-button { min-width: 72px; height: 34px; }

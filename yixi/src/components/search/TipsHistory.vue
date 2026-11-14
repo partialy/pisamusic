@@ -114,7 +114,7 @@ onMounted(async () => {
       border: 1px solid #eee;
       padding: 4px 0 4px 1rem;
       max-width: 140px;
-      border-radius: 14px;
+      border-radius: var(--radius-control);
       font-size: 12px;
       color: var(--color-text-secondary);
 
@@ -156,7 +156,7 @@ onMounted(async () => {
 
       &:hover {
         background-color: var(--color-bg-hover);
-        border-radius: 8px;
+        border-radius: var(--radius-control);
       }
       .tips-info {
         width: calc(100% - 20px);

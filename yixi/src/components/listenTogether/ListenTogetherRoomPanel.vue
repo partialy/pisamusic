@@ -266,7 +266,8 @@ function confirmTransfer(member: ListenTogetherMember): void {
 
 <style scoped>
 .room-panel {
-  width: min(480px, calc(100vw - 48px));
+  width: 100%;
+  min-width: 0;
 }
 
 .room-heading,
@@ -329,7 +330,7 @@ function confirmTransfer(member: ListenTogetherMember): void {
   margin: 20px 0;
   padding: 14px;
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
 }
 
@@ -371,7 +372,7 @@ function confirmTransfer(member: ListenTogetherMember): void {
   flex-direction: column;
   gap: 3px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   text-align: center;
@@ -396,7 +397,7 @@ function confirmTransfer(member: ListenTogetherMember): void {
   margin-top: 12px;
   padding: 12px 14px;
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
 }
 
@@ -476,7 +477,7 @@ function confirmTransfer(member: ListenTogetherMember): void {
 
 .qr-tooltip :deep(svg) {
   display: block;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: #fff;
 }
 

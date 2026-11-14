@@ -19,7 +19,7 @@ const overlayStyle = {
 const contentStyle = {
   backgroundColor: "white",
   padding: "20px",
-  borderRadius: "8px",
+  borderRadius: "var(--radius-control)",
 };
 
 export function createDialog(node?: VNode) {

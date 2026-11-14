@@ -108,7 +108,7 @@
         </template>
       </n-button>
       <!-- 音量 -->
-      <n-popover trigger="hover" style="padding: 0; border-radius: 10px" arrow-point-to-center @wheel="handleWheel">
+      <n-popover trigger="hover" style="padding: 0; border-radius: var(--radius-control)" arrow-point-to-center @wheel="handleWheel">
         <template #trigger>
           <n-button quaternary circle @click="toggleMuted" @wheel="handleWheel">
             <n-icon size="26" :component="volumeIcon" class="icon"></n-icon>
@@ -403,7 +403,7 @@ watch(
       width: 100%;
       height: 100%;
       object-fit: cover;
-      border-radius: 8px;
+      border-radius: var(--radius-control);
       overflow: hidden;
     }
   }

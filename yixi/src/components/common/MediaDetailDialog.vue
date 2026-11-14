@@ -215,7 +215,7 @@ defineExpose({ openSong, openPlaylist });
   width: min(620px, calc(100vw - 32px));
   max-height: calc(100vh - 48px);
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-strong);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-elevated);
@@ -285,7 +285,7 @@ defineExpose({ openSong, openPlaylist });
   align-items: center;
   gap: 16px;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 }
@@ -293,7 +293,7 @@ defineExpose({ openSong, openPlaylist });
 .hero-cover {
   width: 92px;
   height: 92px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   object-fit: cover;
   box-shadow: 0 12px 28px rgba(10, 18, 32, 0.16);
 }
@@ -365,7 +365,7 @@ defineExpose({ openSong, openPlaylist });
   gap: 12px;
   padding: 10px 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   overflow: hidden;
 
@@ -416,7 +416,7 @@ defineExpose({ openSong, openPlaylist });
   margin-top: 16px;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--color-border-default) 82%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: color-mix(in srgb, var(--color-bg-default) 44%, transparent);
 }
 

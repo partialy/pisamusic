@@ -424,7 +424,7 @@ function prettyJson(value: unknown) {
   max-height: 240px;
   overflow: auto;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   color: var(--color-text-default);
   background: var(--surface-input);
   border: 1px solid var(--border-subtle);

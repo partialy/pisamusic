@@ -36,7 +36,7 @@ defineProps<{
   height: 46px;
   display: flex;
   gap: 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-control);
   align-items: center;
 
   .img {
@@ -44,7 +44,7 @@ defineProps<{
     width: 32px;
     height: 32px;
     object-fit: cover;
-    border-radius: 4px;
+    border-radius: var(--radius-control);
     overflow: hidden;
   }
 

@@ -29,7 +29,6 @@
           v-model:value="searchInput"
           class="cloud-search"
           :class="{ focused: searchFocused || searchInput }"
-          round
           clearable
           placeholder="搜索云盘歌曲"
           @update:value="onSearchInput"
@@ -192,7 +191,7 @@ onMounted(() => {
 .play-all {
   font-weight: 600;
   padding: 0 20px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
 }
 
 .toolbar-right {

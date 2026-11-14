@@ -1,66 +1,48 @@
 <template>
-  <Teleport to="body">
-    <Transition name="add-playlist-dialog">
-      <div v-if="show" class="add-dialog-overlay" @click.self="closeDialog">
-        <section class="add-dialog-panel" role="dialog" aria-modal="true" @click.stop>
-          <header class="dialog-header">
-            <div class="dialog-title">
-              <div class="title-icon">
-                <n-icon :component="PlaylistAdd" />
-              </div>
-              <span>添加到歌单</span>
-            </div>
-            <button class="close-btn" type="button" aria-label="关闭" @click="closeDialog">
-              <n-icon :component="X" />
-            </button>
-          </header>
-
-          <div class="dialog-body">
-            <div class="song-line">
-              <img :src="coverUrl" :alt="song?.name || ''" />
-              <div class="song-info">
-                <div class="song-name" :title="song?.name || ''">{{ song?.name || "未知歌曲" }}</div>
-                <div class="song-meta" :title="song?.singer || ''">{{ song?.singer || "未知歌手" }}</div>
-              </div>
-            </div>
-
-            <div v-if="playlistOptions.length" class="form-row">
-              <div class="label">歌单</div>
-              <n-select
-                v-model:value="playlistId"
-                class="field-control"
-                :to="false"
-                :options="playlistOptions"
-                placeholder="选择自建歌单" />
-            </div>
-            <div v-else class="empty-playlist">
-              <div class="empty-title">还没有自建歌单</div>
-              <div class="empty-desc">先新建一个歌单，再把这首歌放进去。</div>
-              <n-button secondary class="create-empty-btn" @click="openCreateDialog">新建歌单</n-button>
-            </div>
-          </div>
-
-          <footer class="dialog-actions">
-            <n-button quaternary class="cancel-btn" @click="closeDialog">取消</n-button>
-            <n-button
-              class="confirm-btn"
-              :disabled="!playlistOptions.length"
-              :loading="submitting"
-              @click="confirmAdd">
-              确定
-            </n-button>
-          </footer>
-        </section>
+  <AppModal :show="show" title="添加到歌单" :icon="PlaylistAdd" :close-disabled="submitting" @update:show="closeDialog">
+    <div class="dialog-body">
+      <div class="song-line">
+        <img :src="coverUrl" :alt="song?.name || ''" />
+        <div class="song-info">
+          <div class="song-name" :title="song?.name || ''">{{ song?.name || "未知歌曲" }}</div>
+          <div class="song-meta" :title="song?.singer || ''">{{ song?.singer || "未知歌手" }}</div>
+        </div>
       </div>
-    </Transition>
-  </Teleport>
+
+      <div v-if="playlistOptions.length" class="form-row">
+        <div class="label">歌单</div>
+        <n-select
+          v-model:value="playlistId"
+          class="field-control"
+          :to="false"
+          :options="playlistOptions"
+          placeholder="选择自建歌单" />
+      </div>
+      <div v-else class="empty-playlist">
+        <div class="empty-title">还没有自建歌单</div>
+        <div class="empty-desc">先新建一个歌单，再把这首歌放进去。</div>
+        <n-button secondary class="create-empty-btn" @click="openCreateDialog">新建歌单</n-button>
+      </div>
+    </div>
+
+    <template #footer>
+      <n-button quaternary class="cancel-btn" @click="closeDialog">取消</n-button>
+      <n-button
+        class="confirm-btn"
+        :disabled="!playlistOptions.length"
+        :loading="submitting"
+        @click="confirmAdd">
+        确定
+      </n-button>
+    </template>
+  </AppModal>
   <CreatePlaylistDialog ref="createDialogRef" @created="handleCreated" />
 </template>
 
 <script setup lang="ts">
+import AppModal from "@/components/common/AppModal.vue";
 import { computed, ref, watch } from "vue";
-import { NButton, NIcon, NSelect } from "naive-ui";
-import { X } from "lucide-vue-next";
+import { NButton, NSelect } from "naive-ui";
 import { PlaylistAdd } from "@/icons";
 import CreatePlaylistDialog from "@/components/mine/CreatePlaylistDialog.vue";
 import type { CommonPlaylist, Song } from "@/types/song";
@@ -139,66 +121,7 @@ defineExpose({ open });
 </script>
 
 <style scoped lang="scss">
-.add-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2250;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.34);
-  backdrop-filter: blur(14px) saturate(118%);
-}
-
-.add-dialog-panel {
-  width: min(440px, calc(100vw - 32px));
-  border-radius: 22px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-elevated);
-  backdrop-filter: var(--filter-panel);
-}
-
-.dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 24px 24px 10px;
-}
-
-.dialog-title {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  color: var(--text-primary);
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.title-icon {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-}
-
-.close-btn {
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 50%;
-  color: var(--text-secondary);
-  background: transparent;
-  cursor: pointer;
-}
-
-.dialog-body {
-  padding: 14px 24px 8px;
-}
+.dialog-body { min-width: 0; }
 
 .song-line {
   display: grid;
@@ -207,7 +130,7 @@ defineExpose({ open });
   gap: 14px;
   padding: 12px;
   margin-bottom: 18px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 
@@ -215,7 +138,7 @@ defineExpose({ open });
     width: 58px;
     height: 58px;
     object-fit: cover;
-    border-radius: 14px;
+    border-radius: var(--radius-control);
     box-shadow: 0 10px 24px rgba(10, 18, 32, 0.16);
   }
 }
@@ -225,7 +148,7 @@ defineExpose({ open });
 }
 
 .song-name,
-.song-artist {
+.song-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -237,16 +160,16 @@ defineExpose({ open });
   font-weight: 750;
 }
 
-.song-artist {
+.song-meta {
   margin-top: 4px;
   color: var(--text-secondary);
   font-size: 13px;
 }
 
-.field-block {
+.form-row {
   margin-bottom: 16px;
 
-  label {
+  .label {
     display: block;
     margin-bottom: 8px;
     color: var(--text-secondary);
@@ -261,7 +184,7 @@ defineExpose({ open });
 
 .empty-playlist {
   padding: 18px;
-  border-radius: 16px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 }
@@ -279,21 +202,13 @@ defineExpose({ open });
 
 .create-empty-btn {
   margin-top: 14px;
-  border-radius: 12px;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px 24px;
+  border-radius: var(--radius-pill);
 }
 
 .cancel-btn,
 .confirm-btn {
   min-width: 84px;
-  height: 40px;
-  border-radius: 14px;
+  border-radius: var(--radius-pill);
 }
 
 .confirm-btn {
@@ -307,24 +222,4 @@ defineExpose({ open });
   }
 }
 
-.add-playlist-dialog-enter-active,
-.add-playlist-dialog-leave-active {
-  transition: opacity 0.18s ease;
-
-  .add-dialog-panel {
-    transition:
-      transform 0.18s ease,
-      opacity 0.18s ease;
-  }
-}
-
-.add-playlist-dialog-enter-from,
-.add-playlist-dialog-leave-to {
-  opacity: 0;
-
-  .add-dialog-panel {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-}
 </style>

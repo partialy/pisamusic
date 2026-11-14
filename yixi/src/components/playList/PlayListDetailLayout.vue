@@ -61,7 +61,7 @@
               </n-button>
             </div>
 
-            <n-input round :style="{
+            <n-input :style="{
               width: searchFocus ? '150px' : '80px',
               display: 'flex',
               'align-items': 'center',
@@ -466,7 +466,7 @@ watch(
 
 .active {
   background-color: var(--surface-control-active) !important;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   box-shadow: var(--shadow-card);
 }
 
@@ -492,7 +492,7 @@ watch(
       width: 200px;
       height: 100%;
       box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.1);
-      border-radius: 20px;
+      border-radius: var(--radius-control);
       overflow: hidden;
 
       .detail-header-left-img {

@@ -152,7 +152,7 @@ const toggleCollect = (event: MouseEvent) => {
   aspect-ratio: 7/10;
   width: 100%;
   height: 100%;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   position: relative;
   background-color: var(--color-bg);
@@ -183,7 +183,7 @@ const toggleCollect = (event: MouseEvent) => {
 
   .playlist-item-image {
     height: 72%;
-    border-radius: 20px;
+    border-radius: var(--radius-control);
     overflow: hidden;
     position: relative;
 
@@ -294,7 +294,7 @@ const toggleCollect = (event: MouseEvent) => {
     background-color: var(--color-bg-hover);
 
     .playlist-item-image {
-      border-radius: 20px 20px 0 0;
+      border-radius: var(--radius-control) var(--radius-control) 0 0;
     }
 
     .playlist-item-image-img {

@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
     align-items: center;
     padding: 0 1rem;
     border: 1px solid var(--border-subtle);
-    border-radius: 12px;
+    border-radius: var(--radius-control);
     background: var(--surface-skeleton);
   }
 
@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
     flex-direction: row;
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
-    border-radius: 12px;
+    border-radius: var(--radius-control);
     padding: 0 1rem;
     margin-bottom: 6px;
     box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);

@@ -20,7 +20,7 @@ const style = `
     width: 400px;
     /* height: auto; 让卡片高度自适应内容 */
     background-color: white;
-    border-radius: 8px; /* 圆角 */
+    border-radius: var(--radius-control); /* 圆角 */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* 阴影 */
     overflow: hidden; /* 防止圆角切割内容 */
     display: flex;
@@ -88,7 +88,7 @@ const style = `
   .dialog-button {
     padding: 8px 16px; /* 按钮内边距 */
     border: 1px solid #ddd; /* 边框 */
-    border-radius: 4px; /* 按钮圆角 */
+    border-radius: var(--radius-pill); /* 按钮圆角 */
     cursor: pointer;
     font-size: 14px;
     transition: all 0.2s; /* 悬停过渡 */

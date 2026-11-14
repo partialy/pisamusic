@@ -1,7 +1,6 @@
 <template>
   <div class="lobby-panel">
     <div class="lobby-heading">
-      <h2>一起听</h2>
       <p>创建或加入房间，与手机端同步播放和队列。</p>
     </div>
 
@@ -171,7 +170,8 @@ async function submitJoin(): Promise<void> {
 
 <style scoped>
 .lobby-panel {
-  width: min(440px, calc(100vw - 48px));
+  width: 100%;
+  min-width: 0;
   padding: 6px 2px 2px;
 }
 
@@ -230,7 +230,7 @@ async function submitJoin(): Promise<void> {
   background: var(--surface-input) !important;
   border: 1px solid var(--border-subtle) !important;
   color: var(--text-primary) !important;
-  border-radius: 10px !important;
+  border-radius: var(--radius-control) !important;
 }
 
 :deep(.n-input__input-el) {
@@ -244,7 +244,7 @@ async function submitJoin(): Promise<void> {
   gap: 24px;
   margin: 2px 0 18px;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 }

@@ -600,7 +600,7 @@ onBeforeUnmount(() => {
             width: 340px;
             height: 340px;
             margin: 0 auto;
-            border-radius: 30px;
+            border-radius: var(--radius-control);
             padding: 10px;
             background: linear-gradient(
                 135deg,
@@ -637,7 +637,7 @@ onBeforeUnmount(() => {
             .glass-cover-glow {
                 position: absolute;
                 inset: 14px;
-                border-radius: 22px;
+                border-radius: var(--radius-control);
                 background: inherit;
                 filter: blur(18px);
                 opacity: 0.45;
@@ -651,7 +651,7 @@ onBeforeUnmount(() => {
                 z-index: 1;
                 width: 100%;
                 height: 100%;
-                border-radius: 20px;
+                border-radius: var(--radius-control);
                 overflow: hidden;
                 background: rgba(0, 0, 0, 0.2);
                 box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
@@ -661,7 +661,7 @@ onBeforeUnmount(() => {
                     height: 100%;
                     object-fit: cover;
                     display: block;
-                    border-radius: 20px;
+                    border-radius: var(--radius-control);
                 }
             }
         }
@@ -762,7 +762,7 @@ onBeforeUnmount(() => {
                 max-width: 90%;
                 margin-top: 2px;
                 padding: 4px 14px;
-                border-radius: 14px;
+                border-radius: var(--radius-control);
                 background: rgba(255, 255, 255, 0.1);
                 border: 1px solid rgba(255, 255, 255, 0.14);
                 color: rgba(255, 255, 255, 0.75);

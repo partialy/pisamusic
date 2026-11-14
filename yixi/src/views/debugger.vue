@@ -169,7 +169,7 @@ onMounted(() => {
   > div {
     min-width: 160px;
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     background: var(--surface-card);
     border: 1px solid var(--border-subtle);
   }
@@ -191,7 +191,7 @@ onMounted(() => {
   padding: 14px;
   overflow: auto;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--text-primary);
   background: var(--surface-input);
   font-family: Consolas, "Courier New", monospace;

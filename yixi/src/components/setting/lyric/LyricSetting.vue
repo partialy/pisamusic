@@ -687,7 +687,7 @@ const handleDesktopLyricLock = async (value: boolean) => {
   .current-thumb-wrap {
     width: 52px;
     height: 36px;
-    border-radius: 12px;
+    border-radius: var(--radius-control);
     overflow: hidden;
     border: 1.5px solid var(--border-subtle);
     background: var(--surface-card);
@@ -715,7 +715,7 @@ const handleDesktopLyricLock = async (value: boolean) => {
     .recent-thumb-item {
       width: 38px;
       height: 28px;
-      border-radius: 12px;
+      border-radius: var(--radius-control);
       overflow: hidden;
       border: 2px solid transparent;
       cursor: pointer;

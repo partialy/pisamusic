@@ -117,7 +117,7 @@ async function handleHighlightAction(block: AnnouncementBlock) {
   width: min(680px, calc(100vw - 48px));
   max-height: calc(100vh - 80px);
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background-color: var(--color-bg-default);
   color: var(--color-text-default);
   box-shadow: 0 18px 54px rgba(0, 0, 0, 0.24);
@@ -169,7 +169,7 @@ async function handleHighlightAction(block: AnnouncementBlock) {
   max-width: 100%;
   max-height: 420px;
   margin: 0 auto;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   object-fit: contain;
 }
 
@@ -177,7 +177,7 @@ async function handleHighlightAction(block: AnnouncementBlock) {
   display: block;
   padding: 24px 12px;
   border: 1px dashed var(--color-border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--color-text-secondary);
 }
 

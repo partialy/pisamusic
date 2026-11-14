@@ -225,7 +225,7 @@ onMounted(() => {
 
 .shuffle-btn {
   height: 34px;
-  border-radius: 5px;
+  border-radius: var(--radius-pill);
   padding: 0 18px;
 }
 

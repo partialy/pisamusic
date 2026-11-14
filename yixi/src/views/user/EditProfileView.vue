@@ -173,7 +173,7 @@ function errorMessage(error: unknown, fallback: string) {
 .empty-state {
   width: min(780px, 100%);
   margin: 0 auto;
-  border-radius: 18px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-card);
@@ -222,7 +222,7 @@ function errorMessage(error: unknown, fallback: string) {
   width: 100%;
   padding: 16px;
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--surface-input);
 }
 

@@ -1,84 +1,55 @@
 <template>
-  <Teleport to="body">
-    <Transition name="download-dialog">
-      <div
-        v-if="show"
-        class="download-dialog-overlay"
-        @click.self="closeDialog">
-        <section
-          class="download-dialog-panel"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="download-dialog-title"
-          @click.stop>
-          <header class="dialog-header">
-            <div class="dialog-title">
-              <div class="title-icon">
-                <n-icon :component="DownloadIcon" />
-              </div>
-              <span id="download-dialog-title">下载歌曲</span>
-            </div>
-            <button
-              class="close-btn"
-              type="button"
-              aria-label="关闭"
-              @click="closeDialog">
-              <n-icon :component="X" />
-            </button>
-          </header>
-
-          <div class="dialog-body">
-            <div class="song-line">
-              <img :src="coverUrl" :alt="song?.name || ''" />
-              <div class="song-info">
-                <div class="song-name" :title="song?.name || ''">{{ song?.name || "未知歌曲" }}</div>
-                <div class="song-meta" :title="song?.singer || ''">{{ song?.singer || "未知歌手" }}</div>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="label">音质</div>
-              <MusicQualityPicker
-                v-model="qualityKey"
-                :options="qualityOptions"
-                placement="bottom"
-                :z-index="3500"
-                @login-required="openAccountLogin"
-                @unlock-required="openUnlockFeedback">
-                <div class="quality-selector-box">
-                  <span class="selected-quality-label">{{ selectedQualityOption?.label || "选择音质" }}</span>
-                  <n-icon :component="ChevronDown" class="chevron-icon" />
-                </div>
-              </MusicQualityPicker>
-            </div>
-
-            <div class="form-row">
-              <div class="label">保存到</div>
-              <div class="path-row">
-                <n-input
-                  v-model:value="directory"
-                  class="field-control path-input"
-                  readonly
-                  placeholder="请选择下载目录" />
-                <n-button secondary class="path-btn" @click="chooseDirectory">选择</n-button>
-              </div>
-            </div>
-          </div>
-
-          <footer class="dialog-actions">
-            <n-button quaternary class="cancel-btn" @click="closeDialog">取消</n-button>
-            <n-button class="confirm-btn" :loading="submitting" @click="confirmDownload">确定下载</n-button>
-          </footer>
-        </section>
+  <AppModal :show="show" title="下载歌曲" :icon="DownloadIcon" :close-disabled="submitting" @update:show="closeDialog">
+    <div class="dialog-body">
+      <div class="song-line">
+        <img :src="coverUrl" :alt="song?.name || ''" />
+        <div class="song-info">
+          <div class="song-name" :title="song?.name || ''">{{ song?.name || "未知歌曲" }}</div>
+          <div class="song-meta" :title="song?.singer || ''">{{ song?.singer || "未知歌手" }}</div>
+        </div>
       </div>
-    </Transition>
-  </Teleport>
+
+      <div class="form-row">
+        <div class="label">音质</div>
+        <MusicQualityPicker
+          v-model="qualityKey"
+          :options="qualityOptions"
+          placement="bottom"
+          :z-index="3500"
+          @login-required="openAccountLogin"
+          @unlock-required="openUnlockFeedback">
+          <div class="quality-selector-box">
+            <span class="selected-quality-label">{{ selectedQualityOption?.label || "选择音质" }}</span>
+            <n-icon :component="ChevronDown" class="chevron-icon" />
+          </div>
+        </MusicQualityPicker>
+      </div>
+
+      <div class="form-row">
+        <div class="label">保存到</div>
+        <div class="path-row">
+          <n-input
+            v-model:value="directory"
+            class="field-control path-input"
+            readonly
+            placeholder="请选择下载目录" />
+          <n-button secondary class="path-btn" @click="chooseDirectory">选择</n-button>
+        </div>
+      </div>
+    </div>
+
+    <template #footer>
+      <n-button quaternary class="cancel-btn" @click="closeDialog">取消</n-button>
+      <n-button class="confirm-btn" :loading="submitting" @click="confirmDownload">确定下载</n-button>
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
+import AppModal from "@/components/common/AppModal.vue";
 import { computed, ref } from "vue";
 import { NButton, NIcon, NInput } from "naive-ui";
-import { Download as DownloadIcon, X, ChevronDown } from "lucide-vue-next";
+import { Download as DownloadIcon, ChevronDown } from "lucide-vue-next";
 import type { Song } from "@/types/song";
 import { useAudioStore } from "@/store/audio";
 import { useUserStore } from "@/store";
@@ -196,86 +167,7 @@ defineExpose({ open });
 </script>
 
 <style scoped lang="scss">
-.download-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background-color: rgba(0, 0, 0, 0.48);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  user-select: none;
-}
-
-.download-dialog-panel {
-  width: min(440px, calc(100vw - 32px));
-  max-width: 440px;
-  max-height: calc(100vh - 48px);
-  overflow: visible;
-  border-radius: 20px;
-  background: var(--surface-modal) !important;
-  backdrop-filter: var(--filter-panel, blur(16px));
-  -webkit-backdrop-filter: var(--filter-panel, blur(16px));
-  border: 1px solid var(--border-modal);
-  box-shadow: var(--shadow-modal);
-}
-
-.dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 22px 24px 12px;
-}
-
-.dialog-title {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.title-icon {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-accent);
-  font-size: 22px;
-}
-
-.close-btn {
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 50%;
-  color: var(--text-secondary);
-  background: var(--surface-card);
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    color: var(--text-primary);
-    background: var(--surface-card-hover);
-  }
-}
-
-.dialog-body {
-  padding: 12px 24px 8px;
-}
+.dialog-body { min-width: 0; }
 
 .song-line {
   display: grid;
@@ -284,7 +176,7 @@ defineExpose({ open });
   gap: 14px;
   padding: 12px 14px;
   margin-bottom: 18px;
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 
@@ -292,7 +184,7 @@ defineExpose({ open });
     width: 52px;
     height: 52px;
     object-fit: cover;
-    border-radius: 10px;
+    border-radius: var(--radius-control);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
   }
 }
@@ -344,7 +236,7 @@ defineExpose({ open });
   justify-content: space-between;
   height: 38px;
   padding: 0 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-subtle);
   background: var(--surface-input);
   cursor: pointer;
@@ -381,7 +273,7 @@ defineExpose({ open });
   :deep(.n-input) {
     background: var(--surface-input) !important;
     border: 1px solid var(--border-subtle) !important;
-    border-radius: 10px !important;
+    border-radius: var(--radius-control) !important;
     color: var(--text-primary) !important;
 
     .n-input__input-el {
@@ -403,7 +295,7 @@ defineExpose({ open });
 .path-btn {
   flex: 0 0 auto;
   height: 38px;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   background: var(--surface-card) !important;
   color: var(--text-primary) !important;
   border: 1px solid var(--border-subtle) !important;
@@ -415,20 +307,10 @@ defineExpose({ open });
   }
 }
 
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px 22px;
-  border-top: 1px solid var(--border-subtle);
-  margin-top: 14px;
-}
-
 .cancel-btn,
 .confirm-btn {
   min-width: 84px;
-  height: 38px;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   font-size: 13px;
   font-weight: 600;
 }
@@ -457,24 +339,4 @@ defineExpose({ open });
   }
 }
 
-.download-dialog-enter-active,
-.download-dialog-leave-active {
-  transition: opacity 0.18s ease;
-
-  .download-dialog-panel {
-    transition:
-      transform 0.18s ease,
-      opacity 0.18s ease;
-  }
-}
-
-.download-dialog-enter-from,
-.download-dialog-leave-to {
-  opacity: 0;
-
-  .download-dialog-panel {
-    opacity: 0;
-    transform: translateY(10px) scale(0.98);
-  }
-}
 </style>

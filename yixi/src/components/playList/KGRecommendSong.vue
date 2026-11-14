@@ -71,7 +71,7 @@ const handleMore = (event: MouseEvent) => {
   padding: 0.5rem 0.8rem;
   display: flex;
   flex-direction: row;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   align-items: center;
   cursor: pointer;
 
@@ -79,7 +79,7 @@ const handleMore = (event: MouseEvent) => {
     width: 60px;
     height: 60px;
     margin-right: 1rem;
-    border-radius: 5px;
+    border-radius: var(--radius-control);
     overflow: hidden;
   }
 

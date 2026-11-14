@@ -48,7 +48,6 @@
         v-model:value="searchKey"
         class="page-search"
         :class="{ focused: searchFocused || searchKey }"
-        round
         clearable
         placeholder="搜索"
         @focus="searchFocused = true"
@@ -446,7 +445,7 @@ onBeforeUnmount(() => {
 .play-all {
   min-width: 108px;
   height: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: var(--color-primary);
 }
 
@@ -490,7 +489,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 18px;
   padding: 14px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
 }
@@ -537,7 +536,7 @@ onBeforeUnmount(() => {
 
 .remove-song-dialog {
   width: 500px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   padding: 10px;
   background: var(--surface-modal);
   border: 1px solid var(--border-modal);

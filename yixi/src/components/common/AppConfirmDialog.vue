@@ -209,7 +209,7 @@ defineExpose({
 .app-confirm-card {
   width: 290px;
   max-width: calc(100vw - 32px);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -232,7 +232,7 @@ defineExpose({
   }
 
   .app-confirm-btn.cancel {
-    border-right: 1px solid var(--border-subtle);
+    border: 1px solid var(--border-subtle);
   }
 
   .app-confirm-btn:hover {
@@ -268,12 +268,14 @@ defineExpose({
 .app-confirm-actions {
   display: flex;
   flex-direction: row;
-  height: 48px;
+  gap: 10px;
+  padding: 12px 20px 18px;
 }
 
 .app-confirm-btn {
   flex: 1;
-  height: 100%;
+  height: 36px;
+  border-radius: var(--radius-pill);
   border: none;
   background: transparent;
   font-size: 15px;

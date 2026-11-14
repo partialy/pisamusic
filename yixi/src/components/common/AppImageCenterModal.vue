@@ -353,7 +353,7 @@ function handleAfterLeave() {
   max-width: calc(100vw - 32px);
   height: 550px;
   max-height: 85vh;
-  border-radius: 20px;
+  border-radius: var(--radius-control);
   background: var(--surface-modal) !important;
   backdrop-filter: var(--glass-blur, blur(28px));
   -webkit-backdrop-filter: var(--glass-blur, blur(28px));
@@ -442,7 +442,7 @@ function handleAfterLeave() {
 .image-card {
   position: relative;
   aspect-ratio: 4 / 3;
-  border-radius: 12px;
+  border-radius: var(--radius-control);
   overflow: hidden;
   border: 2px solid transparent;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);

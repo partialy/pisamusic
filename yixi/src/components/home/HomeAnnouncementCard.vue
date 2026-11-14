@@ -159,7 +159,7 @@ onMounted(() => {
   min-width: 0;
   height: 220px;
   padding: 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   border: 1px solid rgba(255, 255, 255, 0.13);
   background:
     linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 45%),
@@ -274,6 +274,6 @@ onMounted(() => {
 }
 
 .announcement-detail-button {
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
 }
 </style>

@@ -117,3 +117,12 @@ ThemeStore (Pinia)
   └── 3. naiveThemeAdapter(profile, accentColor)
           └── 计算 Naive UI GlobalTheme 及深浅色覆盖变量
 ```
+
+
+## 5. 形态 Token 与弹窗
+
+- `--radius-control: 12px`：普通卡片、容器、输入、菜单、列表行和普通歌曲封面。多段拼接封面可只保留外侧两个圆角；无背景的文本/结构节点无需人为加圆角。
+- `--radius-pill: 999px`：文字操作按钮。以组件语义修改原生按钮与显式覆盖，不通过 `button` 通配选择器改变列表卡片、导航或图标按钮。
+- 专用形态例外：圆形头像/图标按钮、唱片与唱片内层、开关/滑块/轨道、滚动条、波形/声谱与状态点、微型来源/VIP/格式/数量徽标、Tab/分段导航。例外不能扩大为一般封面、表单输入或弹窗外壳。
+- Naive UI common 的普通圆角和 Menu 为 12px；Button tiny/small/medium/large 为药丸。普通 `n-input` 不传 `round`，保留 Avatar 的 `round` 与 Button 的 `circle`。
+- 五种业务弹窗统一 `AppModal` 与 `appModalProps`/`renderModalTitle`，样式集中 `appModal.css`；动态登录保持 Naive 自有生命周期、焦点陷阱与离场回调。壳层只读语义颜色，不添加背景模式分支。关闭限制必须同时覆盖标题关闭、遮罩和 Esc。

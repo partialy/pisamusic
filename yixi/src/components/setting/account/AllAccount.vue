@@ -125,7 +125,7 @@ function openLogin(source: CookieSource) {
         },
       }),
     show: true,
-    style: { borderRadius: "10px" },
+    style: { borderRadius: "var(--radius-control)" },
     closeOnEsc: true,
   });
 }
@@ -220,7 +220,7 @@ onMounted(() => {
   gap: 18px;
   padding: 18px;
   border: 1px solid var(--color-border-default);
-  border-radius: 14px;
+  border-radius: var(--radius-control);
   background: var(--color-card-bg);
   transition:
     background-color 0.2s ease,
