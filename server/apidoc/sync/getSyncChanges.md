@@ -115,3 +115,5 @@ Delta 仅在已完整应用后以最后一条 `changes[].version` 推进游标�
 未传 `protocol=2` 的旧端遇到快照条件时，一次性返回全部最新实体（含 delete 墓碑）作为 `changes`，按 `server_version` 升序，不使用分页。最后一条版本达到当前全局版本，避免旧端重复读取第一页。旧端不能执行缺失项对账，可能保留本地历史多余项；新端只接收存活项。兼容返回可能大于 1000 条，建议升级客户端。
 
 `favorite_song.payload.favoritedAt` 为可选毫秒收藏时间，客户端用它恢复收藏顺序。旧端缺失时按各端原兼容规则回退。非法参数返回 HTTP/code 400；数据库故障返回 HTTP/code 500，客户端应退避重试。
+
+歌单排序、封面可空扩展、LOCAL安全占位与父删除派生子墓碑遵循[推送扩展契约](pushSyncChanges.md#歌单扩展与-local-占位p1)。null必须保留其清除含义；排序使用外层权威version。派生子墓碑与普通delete相同，拥有独立的确定性opId，按各自version推进游标。

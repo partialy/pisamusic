@@ -89,3 +89,8 @@
 - 新端 GET `protocol=2` 使用 `snapshotVersion` / `cursor` / `hasMore`，快照页在用户行锁内读取；版本变化返回 409 重启累计，末页才对账和推进游标。旧端一次返回包含墓碑的完整快照 changes，避免分页循环。收藏时间 `favoritedAt` 契约见[跨模块同步](../../agents/CROSS_MODULE.md)和[接口说明](../apidoc/sync/getSyncChanges.md)。
 - `services/syncCleanup.ts` 启动后每小时检查每日门禁，参与维护排空；默认清理 90 天前且超出每用户最近 1000 条的连续日志前缀，并原子推进 floor；applied_ops 保留 30 天，实体及墓碑长期保留。运行时策略为 `sync.logRetentionDays`、`sync.logMinimumEntries`、`sync.lwwEnabled`。客户端未来时钟限制为当前+5分钟，相同 no-op 也推进冲突时钟。
 - 聚焦验收 `pnpm --dir server verify:sync`：内存 SQLite + 配置可连接时随机隔离 MySQL 库；不会使用业务库，连接失败不回退。只跑 SQLite 可在构建后执行 `node server/scripts/verify-sync.cjs --sqlite-only`。
+
+## 歌单同步扩展策略
+
+- `syncPayloadPolicy.ts` 负责sortOrder/coverResource/coverPreset受限合并与LOCAL白名单，`syncChangePlanner.ts` 在用户锁事务权威快照上累计有效操作、处理父墓碑及派生子墓碑；syncService协调LWW/no-op/版本及Store落库，不更改protocol=2或Schema。
+- 扩展缺省保留、null显式清除；delete不merge。父删子墓碑与items/log/clocks/applied_ops同事务，派生项占版本不占输入accepted。LOCAL仅允许UUID作用域的安全歌单曲目占位；完整字段限制见[推送契约](../apidoc/sync/pushSyncChanges.md#歌单扩展与-local-占位p1)。P1资源仅校验形状，归属/引用/回收由后续封面服务接入。

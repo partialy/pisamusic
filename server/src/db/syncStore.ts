@@ -69,10 +69,23 @@ export async function findAppliedOps(tx: DbTransaction, auth: SyncAuth, opIds: s
   }>(`SELECT op_id FROM user_sync_applied_ops WHERE user_id=? AND device_id=? AND op_id IN (${opIds.map(() => "?").join(",")})`, [auth.userId, auth.deviceId, ...opIds]);
   return new Set(rows.map(row => row.op_id));
 }
-export async function findItems(tx: DbTransaction, userId: string, keys: SyncChangeInput[]): Promise<SyncItemRow[]> {
-  if (!keys.length)
-    return [];
-  return tx.query<SyncItemRow>(`SELECT * FROM user_sync_items WHERE user_id=? AND (${keys.map(() => "(item_type=? AND item_key=?)").join(" OR ")})`, [userId, ...keys.flatMap(key => [key.itemType, key.itemKey])]);
+export async function findItems(tx: DbTransaction, userId: string, keys: Pick<SyncChangeInput, "itemType" | "itemKey">[]): Promise<SyncItemRow[]> {
+  const unique = [...new Map(keys.map(key => [JSON.stringify([key.itemType, key.itemKey]), key])).values()];
+  const rows: SyncItemRow[] = [];
+  // 加上父项后最多可达 1000 key；分块避免 SQLite 表达式深度/参数上限。
+  for (let offset = 0; offset < unique.length; offset += 100) {
+    const batch = unique.slice(offset, offset + 100);
+    rows.push(...await tx.query<SyncItemRow>(`SELECT * FROM user_sync_items WHERE user_id=? AND (${batch.map(() => "(item_type=? AND item_key=?)").join(" OR ")})`, [userId, ...batch.flatMap(key => [key.itemType, key.itemKey])]));
+  }
+  return rows;
+}
+/** 使用精确前缀比较，避免歌单 ID 中的 SQL LIKE 通配符扩大删除范围。 */
+export async function findPlaylistTracks(tx: DbTransaction, userId: string, playlistIds: string[]): Promise<SyncItemRow[]> {
+  if (!playlistIds.length) return [];
+  const ids = [...new Set(playlistIds)];
+  const prefix = tx.dialect === "mysql" ? "LEFT(item_key,?)=?" : "substr(item_key,1,?)=?";
+  return tx.query<SyncItemRow>(`SELECT * FROM user_sync_items WHERE user_id=? AND item_type='playlist_track' AND deleted=0 AND (${ids.map(() => prefix).join(" OR ")})`,
+    [userId, ...ids.flatMap(id => [Array.from(id + "|").length, id + "|"])]);
 }
 async function insertBatch(tx: DbTransaction, table: string, fields: string[], rows: SqlValue[][], suffix = ""): Promise<void> {
   // 限制单条 SQL 参数数及包体积；每批最多 100 行。

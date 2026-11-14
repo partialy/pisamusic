@@ -4,12 +4,12 @@ import * as store from "../db/syncStore";
 import { configManager } from "../config/configManager";
 export type { SyncAuth } from "../db/syncStore";
 
-export class SyncValidationError extends Error {
-}
+export { SyncValidationError } from "./syncPayloadPolicy";
+import { SyncValidationError, validateSyncPayload, playlistId } from "./syncPayloadPolicy";
+import { planSyncChanges, syncKey as key, syncTime as time } from "./syncChangePlanner";
 export class SyncSnapshotExpiredError extends Error {
 }
 const TYPES = new Set(["favorite_song", "favorite_playlist", "user_playlist", "playlist_track"]);
-const key = (c: Pick<store.SyncChangeInput, "itemType" | "itemKey">) => JSON.stringify([c.itemType, c.itemKey]);
 const text = (v: unknown, max: number) => typeof v === "string" ? v.trim().slice(0, max) : "";
 
 /** JSON 对象递归排序，数组顺序保留；历史未规范化 JSON 也按语义比较。 */
@@ -49,10 +49,11 @@ function normalizeChanges(raw: unknown): store.SyncChangeInput[] {
       throw new SyncValidationError("同步变更字段无效");
     if (c.payload != null && (typeof c.payload !== "object" || Array.isArray(c.payload)))
       throw new SyncValidationError("payload 必须是对象");
-    return { opId, itemType, itemKey, action: action as store.SyncAction, payload: JSON.parse(canonicalPayload(action === "delete" ? {} : c.payload)), clientUpdatedAt: timestamp(c.clientUpdatedAt, now) };
+    const change = { opId, itemType, itemKey, action: action as store.SyncAction, payload: JSON.parse(canonicalPayload(action === "delete" ? {} : c.payload)), clientUpdatedAt: timestamp(c.clientUpdatedAt, now) };
+    validateSyncPayload(change);
+    return change;
   });
 }
-const time = (v: string) => /^\d+$/.test(v) ? Number(v) : (Date.parse(v) || 0);
 export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: DbClient = getAppDb()): Promise<{
   version: number;
   accepted: number;
@@ -67,20 +68,19 @@ export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: D
     for (const c of changes)
       if (!applied.has(c.opId) && !unique.has(c.opId))
         unique.set(c.opId, c);
-    const latest = new Map<string, store.SyncChangeInput>();
-    const lww = configManager.get<boolean>("sync.lwwEnabled", true);
-    for (const c of unique.values()) {
-      const prev = latest.get(key(c));
-      if (!prev || !lww || time(c.clientUpdatedAt ?? "") >= time(prev.clientUpdatedAt ?? ""))
-        latest.set(key(c), c);
-    }
-    const existing = new Map((await store.findItems(tx, auth.userId, [...latest.values()])).map(r => [key({ itemType: r.item_type, itemKey: r.item_key }), r]));
+    const inputs = [...unique.values()];
+    const parentKeys = inputs.filter(c => c.itemType === "playlist_track")
+      .map(c => playlistId(c.itemKey)).filter((id): id is string => id !== null)
+      .map(itemKey => ({ itemType: "user_playlist", itemKey }));
+    const rows = await store.findItems(tx, auth.userId, [...inputs, ...parentKeys]);
+    const deletions = inputs.filter(c => c.itemType === "user_playlist" && c.action === "delete").map(c => c.itemKey);
+    const children = await store.findPlaylistTracks(tx, auth.userId, deletions);
+    const allRows = new Map([...rows, ...children].map(r => [key({ itemType: r.item_type, itemKey: r.item_key }), r]));
+    const { existing, latest, derived } = planSyncChanges(inputs, [...allRows.values()], configManager.get<boolean>("sync.lwwEnabled", true));
     const effective: store.SyncChangeInput[] = [];
     const clocks: store.SyncChange[] = [];
     for (const c of latest.values()) {
       const item = existing.get(key(c));
-      if (lww && item && time(c.clientUpdatedAt ?? "") < time(item.client_updated_at))
-        continue;
       const noop = item && (c.action === "delete" ? Number(item.deleted) === 1 : Number(item.deleted) === 0 && canonicalPayload(JSON.parse(item.payload_json)) === canonicalPayload(c.payload));
       if (noop) {
         if (time(c.clientUpdatedAt ?? "") > time(item.client_updated_at))
@@ -96,7 +96,8 @@ export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: D
     await store.insertItems(tx, auth, entries);
     await store.insertLogs(tx, auth, entries);
     await store.insertAppliedOps(tx, auth, [...unique.values()], version);
-    return { version, accepted: entries.length, skipped: changes.length - entries.length };
+    const accepted = effective.filter(c => !derived.has(key(c))).length;
+    return { version, accepted, skipped: changes.length - accepted };
   });
 }
 function fromItem(r: store.SyncItemRow): store.SyncChange {
