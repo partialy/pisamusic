@@ -14,7 +14,8 @@
 - 服务协议与隐私政策统一为纯文本，正文中的换行由 Android 原生页面、PC 弹窗和官网按原文显示；服务协议/隐私政策返回 `version`，标题或正文实际修改时递增，重复保存不递增。Android 启动协议接受状态必须绑定版本，PC 启动协议状态同样绑定版本。
 - 账号接口：`/api/auth/email-code` 与 `/api/auth/phone-code` 发送注册/登录/重置密码验证码；`/api/auth/register` 支持邮箱或手机号注册；`/api/auth/login/password` 支持用户名/邮箱/手机号+密码登录；`/api/auth/login/code` 支持邮箱或手机号验证码登录，未注册联系人校验成功后自动注册；`/api/auth/password/change` 登录态修改密码；`/api/auth/password/reset` 支持邮箱或手机号验证码重置密码；`/api/auth/refresh` 刷新 7 天 token；`/api/auth/me` 获取当前账号；`/api/auth/profile/email-code`、`/api/auth/profile/phone-code` 和 `PATCH /api/auth/profile` 修改资料或绑定手机号。
 - 同步接口：`/api/sync/changes` 通过账号 token 拉取/推送增量，DTO 以 PC 端 `Song` / `CommonPlaylist` 字段为准；旧同步码创建、加入、重置和解绑设备接口已移除。
-- 歌单同步扩展统一使用 `sortOrder?:number|null`、`coverResource?:{resourceId:string}|null`、`coverPreset?:string|null`；缺字段保留、null清除，基础字段仍覆盖，delete不合并。排序同位按外层权威version再trackKey；封面类型切换显式清互斥字段，旧端仍读取cover。P1只校验资源形状，后续封面服务补归属/生命周期。
+- 歌单同步扩展统一使用 `sortOrder?:number|null`、`coverResource?:{resourceId:string}|null`、`coverPreset?:string|null`；缺字段保留、null清除，基础字段仍覆盖，delete不合并。排序同位按外层权威version再trackKey；封面类型切换显式清互斥字段，旧端仍读取cover。服务端在同步同一用户事务内校验资源本人归属、ready状态与对象可引用性，将cover规范化为权威公共URL并更新共享引用；失败整批回滚。
+- 用户歌单封面使用 `/api/playlist-covers/upload-token`、`/complete`、`/:resourceId`，仅本人JWT访问。会话绑定用户/歌单/编辑代次，真实JPG/PNG/WebP不超过5MiB，完成先核验对象和图像信息，只产生资源、不提前改歌单。`file_records`为唯一对象账本，资源/引用见Server Schema v5；最后解除引用或未引用完成满七天且上传Token过期后才认领回收。deleting不可重新引用，失败留账重试；Admin删除与账号硬删除不得绕过引用和保护期。接口DTO见[封面契约](../server/apidoc/playlistCovers/overview.md)。
 - LOCAL仅同步自建歌单安全占位：source=local，id为deviceScopeUuid:localSongUuid，urlParam=id，itemKey为playlistId|local:id；私有播放ID与文件映射留客户端，不传真实绝对路径/盘符路径/UNC/URI/歌词/Token/临时链接；公开元信息允许普通斜杠或反斜杠（如AC/DC），不得要求改写名称。新LOCAL发送可选durationMs（非负有限毫秒），消费端优先它并显式转换本机单位；duration仅保留旧字段兼容，不猜或改变在线旧payload的duration单位。白名单及长度见[推送契约](../server/apidoc/sync/pushSyncChanges.md#歌单扩展与-local-占位p1)。
 - 父歌单delete同事务派生所有存活曲目墓碑；最终父墓碑阻止迟到/同批子upsert，不依赖输入顺序。派生日志各占权威version，并使用父opId与实体身份确定性派生的独立opId。accepted/skipped仅计输入，不能据push版本推进pull游标。
 - 收藏歌曲同步 payload 可选 `favoritedAt`（毫秒时间戳），表示收藏关系的创建时间；新增和 seed 从持久化记录取值，下行用于排序，缺失兼容旧端。元数据更新不得无故重置收藏时间。
@@ -42,6 +43,9 @@
 - 一起听歌曲身份只允许 `listen:change_song` / `CHANGE_SONG` 改写；`PLAY`、`PAUSE`、`SEEK`、`ENDED` 必须携带当前 `songRef { source, id }`，服务端发现与 `room.song` 不一致时返回 `applied=false` 且不得修改版本、进度或广播。切歌使用 `transitionId` 关联成员命令、房主执行、广播与 ACK，`CHANGE_SONG` 同时携带 `queueItemId` 作为房间队列当前指针的权威标识。
 
 ## App 推广与归因
+
+- 分享来源支持权威设备Token的 `android` / `desktop`，不同来源的相同设备ID隔离查询；Admin的 `deviceKind=all|android|desktop` 同时作用于列表、汇总、趋势和CSV。分享来源与实际Android/Windows下载平台独立，不能把PC分享码的所有下载都算PC下载。
+- PC通过main的 `system:get-app-share` 请求上述原接口，renderer无JWT/设备Token。设备与账号/游客复合缓存仅在main内存保留，不跨身份复用；每次打开重新校验，离线同身份缓存标为未校验并禁用二维码/复制。401只做一次合法身份恢复，不移除凭据降游客；关闭/身份变化丢弃迟到响应。Header与关于共用App推广弹窗，和音乐分享弹窗独立。
 
 - App 推广分享与歌曲/歌单分享独立：配置存于 SQLite 单条 `app_share_config`，获取入口仍为 `GET /api/config/app-share`。旧无设备凭证请求返回通用配置；新版通过 `x-pm-device-token` 和显式账号 Authorization 绑定设备与账号（游客独立），幂等获取六位 Base62 短码，不新增获取链接接口，认证失败不得降级游客。响应 `private, no-store`，新增 `shareCode` / `trackingEnabled`，原 `qrCodeText` / `copyText` 由服务端统一渲染专属链接。管理员通过 `/api/admin/app-share` 保存配置和上传图标，二维码地址仅允许本站 HTTPS `/app-share/`，禁止手填 code。图标核验后登记 `file_records`（`usage_type='app-share-icon'`），保存才切换引用，当前图标禁止删除。Android 按账号和设备隔离缓存，首次获取前禁用二维码、复制和系统分享，关闭或身份变化时丢弃迟到响应，不引入微信/QQ SDK。
 - App 推广追踪独立使用 `app_share_records`、`app_share_visits`、`app_share_downloads`、`app_share_daily_stats` 四表；只有 `/app-share/` 页面成功上报 `/api/app-share/visits` 才计 PV/日 UV，`/download/`、首页、音乐分享和一起听不计推广访问。公开短码校验为 `/api/app-share/public/:code`；明文白名单只开放这两个浏览器接口，管理接口仍需 JWT 和加密。官网下载原入口 `/api/config/download/:platform` 在成功跳转时追加推广下载触发，显式 code 优先（无效码禁止回退 Cookie），否则使用 7 天签名 Cookie 的最后有效触点；不向外部安装包地址透传 code。下载触发不等于安装、注册或邀请成功。主记录和日报长期保留，明细按分析保留期清理；全站日 UV 单独去重，跨天汇总称累计日 UV。
