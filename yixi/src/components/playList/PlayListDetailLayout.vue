@@ -1,5 +1,5 @@
 <template>
-  <div class="play-list-detail-layout" v-if="!loading">
+  <div class="play-list-detail-layout" v-if="!loading && listDetail">
     <div class="detail-header" :style="{ height: isMini ? '120px' : '220px' }">
       <div class="detail-header-left" :style="{ width: isMini ? '100px' : '200px' }">
         <div class="detail-header-left-img" :style="{ width: isMini ? '100px' : '200px' }">
@@ -86,7 +86,7 @@
     <OnlinePlaylistConversionDialog v-model:show="conversionVisible" :playlist="listDetail" />
   </div>
   <!-- 骨架屏 -->
-  <div class="play-list-detail-layout" v-else>
+  <div class="play-list-detail-layout" v-else-if="loading">
     <div class="detail-header" style="height: 220px; display: flex; padding: 20px">
       <div class="detail-header-left" style="margin-right: 20px">
         <n-skeleton height="200px" width="200px" />
@@ -110,6 +110,7 @@
       <n-skeleton text style="margin: 8px 0" :repeat="10" />
     </div>
   </div>
+  <n-empty v-else :description="loadError || '歌单暂不可用'" />
 </template>
 
 <script setup lang="ts">
@@ -121,6 +122,7 @@ import {
   NText,
   NTag,
   NSkeleton,
+  NEmpty,
   useMessage,
 } from "naive-ui";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
@@ -155,11 +157,11 @@ const isPlayingAllFromHere = ref(false);
 const message = useMessage();
 const route = useRoute();
 const router = useRouter();
-let id = route.query.id;
 const searchText = ref("");
 const conversionVisible = ref(false);
 const searchFocus = ref(false);
 const loading = ref(false);
+const loadError = ref("");
 const moreLoading = ref(false);
 const allLoading = ref(false);
 const kgListDetail = ref<KGPlaylistDetailData>();
@@ -229,14 +231,21 @@ const ramdomTagType = ():
     | "error";
 };
 
-const getListDetail = async () => {
-  const origin = getDetailOrigin();
+type DetailRequest = { version: number; id: string; origin: DetailOrigin };
+const captureDetailRequest = (): DetailRequest => ({ version: loadVersion.value, id: String(route.query.id || ""), origin: getDetailOrigin() });
+const isCurrentDetailRequest = (request: DetailRequest) => request.version === loadVersion.value && request.id === route.query.id && request.origin === getDetailOrigin();
+
+const getListDetail = async (request: DetailRequest) => {
+  const { origin, id } = request;
   if (origin === "local") {
     const playlists = await listMinePlaylists("local");
+    if (!isCurrentDetailRequest(request)) return;
     const playlist = playlists.find((item) => item.id === id);
     if (!playlist) throw new Error("自建歌单不存在");
+    const songs = await listMinePlaylistSongs(id);
+    if (!isCurrentDetailRequest(request)) return;
     listDetail.value = playlist;
-    localSongCache.value = await listMinePlaylistSongs(id as string);
+    localSongCache.value = songs;
     page.value.total = localSongCache.value.length;
     return;
   }
@@ -246,6 +255,8 @@ const getListDetail = async () => {
       source: "wy",
       id: id as string,
     });
+    if (!isCurrentDetailRequest(request)) return;
+    if (String(res?.playlist?.id) !== id) throw new Error("歌单不存在或身份不匹配");
     wyListDetail.value = res?.playlist;
     page.value.total = res?.playlist.trackCount!!;
   } else {
@@ -253,23 +264,28 @@ const getListDetail = async () => {
       source: "kg",
       id: id as string,
     });
+    if (!isCurrentDetailRequest(request)) return;
+    if (String(res?.data?.[0]?.global_collection_id) !== id) throw new Error("歌单不存在或身份不匹配");
     kgListDetail.value = res?.data[0];
     page.value.total = kgListDetail.value?.count || 0;
   }
   convertDetail(origin);
 };
 
-const getSongList = async (batchSize: number) => {
-  const initialSongs = await fetchPlaylistSongs(0, batchSize);
+const getSongList = async (batchSize: number, request: DetailRequest) => {
+  const initialSongs = await fetchPlaylistSongs(0, batchSize, request);
+  if (!isCurrentDetailRequest(request)) return;
   songList.value = initialSongs;
   allSong.value = initialSongs;
 };
 
-const fetchPlaylistSongs = async (offset: number, pageSize: number): Promise<Song[]> => {
-  const origin = getDetailOrigin();
+const fetchPlaylistSongs = async (offset: number, pageSize: number, request = captureDetailRequest()): Promise<Song[]> => {
+  const { origin, id } = request;
   if (origin === "local") {
     if (!localSongCache.value.length) {
-      localSongCache.value = await listMinePlaylistSongs(id as string);
+      const songs = await listMinePlaylistSongs(id);
+      if (!isCurrentDetailRequest(request)) return [];
+      localSongCache.value = songs;
       page.value.total = localSongCache.value.length;
     }
     return localSongCache.value.slice(offset, offset + pageSize);
@@ -282,6 +298,7 @@ const fetchPlaylistSongs = async (offset: number, pageSize: number): Promise<Son
       offset,
       pageSize,
     });
+    if (!isCurrentDetailRequest(request)) return [];
     const rawList = res?.songs || [];
     return rawList.map((i: any) => convertor.WY.convertPlaylistSong(i));
   }
@@ -292,6 +309,7 @@ const fetchPlaylistSongs = async (offset: number, pageSize: number): Promise<Son
     offset,
     pageSize,
   });
+  if (!isCurrentDetailRequest(request)) return [];
   const rawList = res?.data.info || [];
   page.value.total = res?.data.count || page.value.total;
   return rawList.map((i: any) => convertor.KG.convertKGPlaylistSong(i));
@@ -376,10 +394,15 @@ const loadAll = async (batchSize: number = page.value.size) => {
 };
 
 const initData = debounce(async () => {
+  loadVersion.value += 1;
+  const request = captureDetailRequest();
   const revision = await captureLibraryRevision();
+  if (!isCurrentDetailRequest(request)) return;
   try {
-    loadVersion.value += 1;
-    id = route.query.id;
+    listDetail.value = undefined;
+    kgListDetail.value = undefined;
+    wyListDetail.value = undefined;
+    loadError.value = "";
     isPlayingAllFromHere.value = false;
     allLoading.value = false;
     allSong.value = [];
@@ -388,16 +411,20 @@ const initData = debounce(async () => {
     page.value.currentPage = 1;
     page.value.size = 50;
     page.value.total = 0;
-    await getListDetail();
+    await getListDetail(request);
+    if (!isCurrentDetailRequest(request)) return;
     const batchSize = resolveDynamicBatchSize(page.value.total);
     page.value.size = batchSize;
-    await getSongList(batchSize);
+    await getSongList(batchSize, request);
+    if (!isCurrentDetailRequest(request)) return;
     loading.value = false;
     if (page.value.total > allSong.value.length) {
-      setTimeout(() => void loadAll(batchSize), 100);
+      setTimeout(() => { if (isCurrentDetailRequest(request)) void loadAll(batchSize); }, 100);
     }
   } catch (error) {
-    if (!isCurrentLibraryRevision(revision)) return;
+    if ((request.origin === "local" && !isCurrentLibraryRevision(revision)) || !isCurrentDetailRequest(request)) return;
+    listDetail.value = undefined;
+    loadError.value = error instanceof Error ? error.message : "读取歌单失败";
     loading.value = false;
     window.$message.error(error instanceof Error ? error.message : "读取歌单失败");
     void window.electronAPI.reportError(error, { scope: "playlist-detail", action: "load" });
@@ -415,7 +442,7 @@ const stopIdentityListener = onLibraryIdentityChanged(() => {
   isPlayingAllFromHere.value = false;
   void router.replace("/mine");
 });
-onUnmounted(stopIdentityListener);
+onUnmounted(() => { loadVersion.value++; stopIdentityListener(); });
 
 onMounted(async () => {
   loading.value = true;
@@ -471,6 +498,9 @@ const onToTop = () => {
 watch(
   () => [route.query.id, route.query.origin],
   async () => {
+    loadVersion.value++;
+    listDetail.value = undefined;
+    conversionVisible.value = false;
     loading.value = true;
     initData();
   }

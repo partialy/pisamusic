@@ -14,12 +14,25 @@ async function readDetail(source: Source, id: string) {
   const response = await getPlaylistDetail({ source, id });
   const raw = source === "wy" ? response?.playlist : response?.data?.[0];
   if (!raw || String(source === "wy" ? raw.id : raw.global_collection_id) !== id) throw new Error("歌单身份不匹配，未创建本地副本。");
-  const count = Number(source === "wy" ? raw.trackCount : raw.count);
+  const rawCount = source === "wy" ? raw.trackCount : raw.count;
+  if ((typeof rawCount !== "number" && typeof rawCount !== "string") || !/^\d+$/.test(String(rawCount))) throw new Error("无法确认歌单完整曲目数量，请稍后重试。");
+  const count = Number(rawCount);
   if (!Number.isSafeInteger(count) || count < 0) throw new Error("无法确认歌单完整曲目数量，请稍后重试。");
   const playlist = source === "wy" ? convertor.WY.convertWYPlaylist(raw) : convertor.KG.convertKGPlaylist(raw, "detail");
-  const version = source === "wy" ? raw.trackUpdateTime : raw.list_ver ?? raw.update_time;
-  const trackIds: string[] | undefined = source === "wy" && Array.isArray(raw.trackIds)
-    ? raw.trackIds.map((track: { id: unknown }) => String(track.id)) : undefined;
+  const rawVersion = source === "wy" ? raw.trackUpdateTime : raw.list_ver ?? raw.update_time;
+  if ((typeof rawVersion !== "number" && typeof rawVersion !== "string") || !/^\d+$/.test(String(rawVersion))
+    || !Number.isSafeInteger(Number(rawVersion))) throw new Error("无法确认歌单版本，请稍后重试。");
+  const version = String(rawVersion);
+  let trackIds: string[] | undefined;
+  if (source === "wy") {
+    if (!Array.isArray(raw.trackIds) || raw.trackIds.length !== count) throw new Error("歌单曲目名单不完整，请稍后重试。");
+    trackIds = raw.trackIds.map((track: { id?: unknown } | null) => {
+      const trackId = track?.id;
+      if ((typeof trackId !== "string" && typeof trackId !== "number") || !/^[1-9]\d*$/.test(String(trackId))
+        || (typeof trackId === "number" && !Number.isSafeInteger(trackId))) throw new Error("歌单曲目身份无效，请稍后重试。");
+      return String(trackId);
+    });
+  }
   return { playlist, count, version, trackIds };
 }
 
