@@ -1,4 +1,5 @@
 import type { LibraryIdentity, UnassociatedPreview, LibraryImportResult } from "./accountLibrary";
+import type { AppShareResult } from "./appShare";
 import type {
   AccountUser,
   PublicAccountSession as AccountSession,
@@ -784,6 +785,7 @@ type ElectronIpcApi = {
   getAnnouncements: () => Promise<Announcement[]>;
   markAnnouncementRead: (id: string) => Promise<AnnouncementReadResult>;
   getAboutInfo: () => Promise<AboutInfo>;
+  getAppShare: () => Promise<AppShareResult>;
   getServiceAgreement: () => Promise<TextContentConfig>;
   getPrivacyPolicy: () => Promise<TextContentConfig>;
   submitFeedback: (payload: FeedbackPayload) => Promise<{ id: string; createdAt: string }>;

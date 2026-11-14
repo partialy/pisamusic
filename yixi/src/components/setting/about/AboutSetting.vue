@@ -47,6 +47,11 @@
     </section>
 
     <section class="entry-list">
+      <button type="button" class="entry-item" @click="openAppShare">
+        <span class="entry-icon"><n-icon :component="Share2" size="22" /></span>
+        <span class="entry-content"><span>分享 PisaMusic</span><small>获取当前身份的专属推广二维码和文案</small></span>
+        <n-icon class="entry-arrow" :component="ChevronRight" size="18" />
+      </button>
       <button type="button" class="entry-item" @click="openFeedback">
         <span class="entry-icon">
           <n-icon :component="MessageSquareText" size="22" />
@@ -149,13 +154,16 @@ import {
   FileText,
   MessageSquareText,
   ShieldCheck,
+  Share2,
 } from "lucide-vue-next";
 import AboutContentDialog from "@/components/about/AboutContentDialog.vue";
 import AboutFeedbackDialog from "@/components/about/AboutFeedbackDialog.vue";
 import { QUALITY_UNLOCK_FEEDBACK_QUERY_VALUE } from "@/composables/useQualityUnlockFeedback";
 import electronAPI from "@/utils/electron";
+import { useAppShareDialog } from "@/composables/useAppShareDialog";
 
 defineOptions({ name: "AboutSetting" });
+const { openAppShare } = useAppShareDialog();
 
 type LocalUpdaterState = Awaited<ReturnType<ElectronIpc["getUpdaterState"]>>;
 type AboutInfo = Awaited<ReturnType<ElectronIpc["getAboutInfo"]>>;

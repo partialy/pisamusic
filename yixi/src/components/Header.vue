@@ -108,6 +108,7 @@
       <ElectronOperation></ElectronOperation>
     </div>
     <PlaylistLinkImportDialog v-model:show="playlistImportVisible" />
+    <AppShareDialog v-model:show="appShareVisible" />
   </div>
 </template>
 
@@ -116,6 +117,8 @@ import { TipsHistory } from "./search";
 import { ElectronOperation } from "@/components";
 import { SleepTimerEntry } from "./sleepTimer";
 import PlaylistLinkImportDialog from "./playList/PlaylistLinkImportDialog.vue";
+import AppShareDialog from "./common/AppShareDialog.vue";
+import { useAppShareDialog } from "@/composables/useAppShareDialog";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import {
   NButtonGroup,
@@ -185,6 +188,7 @@ const refresh = () => {
 
 const searchFocus = ref(false);
 const playlistImportVisible = ref(false);
+const { appShareVisible, openAppShare } = useAppShareDialog();
 const searchText = ref("");
 const keywords = ref("");
 const searchInput = ref<HTMLInputElement>();
@@ -366,6 +370,7 @@ const settingOptions = computed(() => {
       key: "about",
       icon: renderIcon(AboutIcon),
     },
+    { label: "分享 PisaMusic", key: "app-share", icon: renderIcon(AboutIcon) },
     {
       label: "热重载",
       props: {
@@ -405,6 +410,8 @@ const handleSelect = async (key: string) => {
 const handleSetting = (key: string) => {
   if (key === "playlist-import") {
     playlistImportVisible.value = true;
+  } else if (key === "app-share") {
+    openAppShare();
   } else if (key == "equalizer") {
     equalizerStore.openModal();
   } else if (key == "setting") {

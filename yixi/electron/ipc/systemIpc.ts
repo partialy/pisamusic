@@ -1,4 +1,5 @@
 import { publicAccountSession } from "../account/accountLibraryContext";
+import { getAppShare } from "../system/appShareService";
 import { ipcMain } from "electron";
 import {
   getAnnouncements,
@@ -63,6 +64,8 @@ export function setupSystemIpc() {
   ipcMain.handle("system:get-about-info", () => {
     return getAboutInfo();
   });
+
+  ipcMain.handle("system:get-app-share", () => getAppShare());
 
   ipcMain.handle("system:get-service-agreement", () => {
     return getServiceAgreement();

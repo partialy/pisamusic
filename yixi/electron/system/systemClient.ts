@@ -109,6 +109,15 @@ export function getDesktopDeviceMessageToken(): string | undefined {
   return deviceMessageToken;
 }
 
+export async function refreshDesktopDeviceMessageToken(): Promise<string> {
+  const report = await reportDesktopDevice();
+  if (isDesktopDeviceLocked(report)) throw new DesktopDeviceLockedError(report);
+  const token = report.messageToken?.trim();
+  if (!token) throw new Error("设备身份不可用，请重新连接服务后重试");
+  deviceMessageToken = token;
+  return token;
+}
+
 export async function getGatewaySignConfigCached() {
   try {
     const bootstrap = await ensureBootstrap();

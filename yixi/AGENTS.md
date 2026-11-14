@@ -61,6 +61,11 @@
 
 ## 歌曲/歌单详情与分享规则补充
 
+- App 推广与歌曲/歌单分享独立：Header 设置菜单和关于页通过 `useAppShareDialog` 共用 Header 持有的 `common/AppShareDialog.vue` / `AppModal`。二维码和复制文案只用 Server 最终返回值，不在 renderer 构造统计身份或分享链接。
+- `system:get-app-share` typed IPC 经 main `system/appShareService.ts` 请求原 `/api/config/app-share`；设备消息 Token 与 JWT 留在 main。首次缺设备 Token 先重上报；401 最多一次设备重上报及已登录会话刷新后重试，始终携带捕获身份，失败不得去凭据降游客。账号刷新发布新身份世代后，旧弹窗结果作废，用户重新获取。
+- 推广缓存仅 main 内存、按长期设备 ID + 账号 ID/guest 隔离，不存任何凭据；响应须校验设备和账号 revision，同键迟到请求不能覆盖更新缓存。每次打开/重新获取都联网校验；失败仅可展示当前同身份缓存并明确未校验，禁止复制且不展示可扫描二维码。未启用 tracking（含旧 Server）明确提示，不能当作 guest 授权或专属分享成功。
+- 弹窗关闭、销毁、身份变化都会递增 renderer 请求代次并清空旧内容；身份变化后需重新获取，复制前再查 main 权威 revision。离线缓存随进程退出释放；本功能未新增持久化表或通用设置键。
+
 - Header 设置菜单的“链接导入歌单”复用 `playList/PlaylistLinkImportDialog.vue`；`utils/playlistShareLinkParser.ts` 只解析 KG/WY 公开白名单 URL，不解析短链、不请求网页、不以酷狗 `src_cid` 替代分享副本。导入只打开在线详情，不自动创建自建歌单。
 - 在线详情的“转为本地歌单”使用 `playlist/onlinePlaylistBatchLoader.ts` 固定页大小读取全集，核对身份、原始数量、首尾版本与可用曲目 ID，再调用 `onlinePlaylistConversion.ts` 单次组合事务。加载可取消、保存不可中断；每次转换产生新 UUID，携带加载开始的账号世代，禁止晚响应保存到新账号。歌曲去重，明确空歌单可保存，部分加载不能转存；转换只保存曲目信息。
 
