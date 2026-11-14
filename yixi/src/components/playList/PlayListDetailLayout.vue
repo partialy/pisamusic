@@ -47,6 +47,9 @@
                   collector.containsPlaylist(listDetail) ? "取消收藏" : "收藏"
                 }}
               </n-button>
+              <n-button v-if="listDetail?.source === 'kg' || listDetail?.source === 'wy'" round secondary style="margin-left: 10px" @click="conversionVisible = true">
+                转为本地歌单
+              </n-button>
               <n-button round secondary style="margin-left: 10px" @click="openDetailPage">
                 <template #icon>
                   <n-icon :component="Info"></n-icon>
@@ -80,6 +83,7 @@
         show-footer show-header @scroll="onScroll" @scroll-to-bottom="onToBottom" />
     </div>
     <ShareDialog ref="shareDialogRef" />
+    <OnlinePlaylistConversionDialog v-model:show="conversionVisible" :playlist="listDetail" />
   </div>
   <!-- 骨架屏 -->
   <div class="play-list-detail-layout" v-else>
@@ -119,7 +123,7 @@ import {
   NSkeleton,
   useMessage,
 } from "naive-ui";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import type { KGPlaylistDetailData } from "@/utils/webapi";
 import { debounce, getSongCover } from "@/utils/common";
@@ -131,10 +135,12 @@ import { convertor } from "@/utils/convertor";
 import type { CommonPlaylist, Song } from "@/types/song";
 import type { WYPlaylistDetail } from "@/utils/webapi";
 import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
+import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 import { listMinePlaylistSongs, listMinePlaylists } from "@/utils/api/mineLibraryAPI";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { Info, Share2 } from "lucide-vue-next";
 import ShareDialog from "@/components/common/ShareDialog.vue";
+import OnlinePlaylistConversionDialog from "./OnlinePlaylistConversionDialog.vue";
 import { openPlaylistDetail } from "@/share/mediaDetailRoute";
 
 import SongList from "@/components/list/SongList.vue";
@@ -151,6 +157,7 @@ const route = useRoute();
 const router = useRouter();
 let id = route.query.id;
 const searchText = ref("");
+const conversionVisible = ref(false);
 const searchFocus = ref(false);
 const loading = ref(false);
 const moreLoading = ref(false);
@@ -369,25 +376,46 @@ const loadAll = async (batchSize: number = page.value.size) => {
 };
 
 const initData = debounce(async () => {
-  loadVersion.value += 1;
-  id = route.query.id;
-  isPlayingAllFromHere.value = false;
-  allLoading.value = false;
-  allSong.value = [];
-  songList.value = [];
-  localSongCache.value = [];
-  page.value.currentPage = 1;
-  page.value.size = 50;
-  page.value.total = 0;
-  await getListDetail();
-  const batchSize = resolveDynamicBatchSize(page.value.total);
-  page.value.size = batchSize;
-  await getSongList(batchSize);
-  loading.value = false;
-  if (page.value.total > allSong.value.length) {
-    setTimeout(() => void loadAll(batchSize), 100);
+  const revision = await captureLibraryRevision();
+  try {
+    loadVersion.value += 1;
+    id = route.query.id;
+    isPlayingAllFromHere.value = false;
+    allLoading.value = false;
+    allSong.value = [];
+    songList.value = [];
+    localSongCache.value = [];
+    page.value.currentPage = 1;
+    page.value.size = 50;
+    page.value.total = 0;
+    await getListDetail();
+    const batchSize = resolveDynamicBatchSize(page.value.total);
+    page.value.size = batchSize;
+    await getSongList(batchSize);
+    loading.value = false;
+    if (page.value.total > allSong.value.length) {
+      setTimeout(() => void loadAll(batchSize), 100);
+    }
+  } catch (error) {
+    if (!isCurrentLibraryRevision(revision)) return;
+    loading.value = false;
+    window.$message.error(error instanceof Error ? error.message : "读取歌单失败");
+    void window.electronAPI.reportError(error, { scope: "playlist-detail", action: "load" });
   }
 }, 300);
+
+const stopIdentityListener = onLibraryIdentityChanged(() => {
+  if (getDetailOrigin() !== "local") return;
+  loadVersion.value++;
+  listDetail.value = undefined;
+  localSongCache.value = [];
+  songList.value = [];
+  allSong.value = [];
+  page.value.total = 0;
+  isPlayingAllFromHere.value = false;
+  void router.replace("/mine");
+});
+onUnmounted(stopIdentityListener);
 
 onMounted(async () => {
   loading.value = true;

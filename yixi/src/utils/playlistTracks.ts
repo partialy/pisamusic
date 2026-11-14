@@ -1,3 +1,4 @@
+import { listMinePlaylistSongs } from "@/utils/api/mineLibraryAPI";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
 import { convertor } from "@/utils/convertor";
@@ -20,8 +21,7 @@ type NetworkPlaylistSource = Exclude<SupportedPlaylistSource, "local">;
 export async function fetchAllPlaylistTracks(playlist: CommonPlaylist): Promise<Song[]> {
   const source = assertSupportedSource(playlist.source);
   if (source === "local") {
-    const tracks = await window.electronAPI.listUserPlaylistTracks({ playlistId: playlist.id });
-    return tracks.map((track) => track.payload as Song);
+    return listMinePlaylistSongs(playlist.id);
   }
 
   const total = await fetchPlaylistTotal(playlist, source);
@@ -65,12 +65,12 @@ async function fetchPlaylistTotal(playlist: CommonPlaylist, source: NetworkPlayl
   }
 }
 
-async function fetchPlaylistTrackPage(
+export async function fetchPlaylistTrackPage(
   id: string,
   source: NetworkPlaylistSource,
   offset: number,
   pageSize: number
-) {
+): Promise<Song[]> {
   const res: any = await getPlaylistTracks({
     source,
     id,

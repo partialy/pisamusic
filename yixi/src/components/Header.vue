@@ -107,6 +107,7 @@
       </n-dropdown>
       <ElectronOperation></ElectronOperation>
     </div>
+    <PlaylistLinkImportDialog v-model:show="playlistImportVisible" />
   </div>
 </template>
 
@@ -114,6 +115,7 @@
 import { TipsHistory } from "./search";
 import { ElectronOperation } from "@/components";
 import { SleepTimerEntry } from "./sleepTimer";
+import PlaylistLinkImportDialog from "./playList/PlaylistLinkImportDialog.vue";
 import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import {
   NButtonGroup,
@@ -182,6 +184,7 @@ const refresh = () => {
 };
 
 const searchFocus = ref(false);
+const playlistImportVisible = ref(false);
 const searchText = ref("");
 const keywords = ref("");
 const searchInput = ref<HTMLInputElement>();
@@ -327,6 +330,11 @@ const dropDownOptions = computed<DropdownOption[]>(() => [
 const settingOptions = computed(() => {
   const options = [
     {
+      label: "链接导入歌单",
+      key: "playlist-import",
+      icon: renderIcon(EditIcon),
+    },
+    {
       label: "均衡器",
       key: "equalizer",
       icon: renderIcon(EqualizerIcon),
@@ -395,7 +403,9 @@ const handleSelect = async (key: string) => {
 };
 
 const handleSetting = (key: string) => {
-  if (key == "equalizer") {
+  if (key === "playlist-import") {
+    playlistImportVisible.value = true;
+  } else if (key == "equalizer") {
     equalizerStore.openModal();
   } else if (key == "setting") {
     router.push("/setting");

@@ -61,6 +61,9 @@
 
 ## 歌曲/歌单详情与分享规则补充
 
+- Header 设置菜单的“链接导入歌单”复用 `playList/PlaylistLinkImportDialog.vue`；`utils/playlistShareLinkParser.ts` 只解析 KG/WY 公开白名单 URL，不解析短链、不请求网页、不以酷狗 `src_cid` 替代分享副本。导入只打开在线详情，不自动创建自建歌单。
+- 在线详情的“转为本地歌单”使用 `playlist/onlinePlaylistBatchLoader.ts` 固定页大小读取全集，核对身份、原始数量、首尾版本与可用曲目 ID，再调用 `onlinePlaylistConversion.ts` 单次组合事务。加载可取消、保存不可中断；每次转换产生新 UUID，携带加载开始的账号世代，禁止晚响应保存到新账号。歌曲去重，明确空歌单可保存，部分加载不能转存；转换只保存曲目信息。
+
 - 桌面端歌曲/歌单详情统一使用主区域路由 `/media/detail`，菜单进入时只在 query 中携带经过白名单裁剪的 canonical payload；分享外链进入时使用 `kind=share&uuid=<uuid>` 后由 main 侧读取公开分享接口。
 - 分享创建和公开读取只走 main/preload 暴露的 `share:*` IPC：`electron/system/systemClient.ts` 访问外层 `server` 的 `/api/shares` 和 `/api/shares/public/:uuid`，renderer 不直接拼接 server 地址、账号 token 或加密请求。
 - 分享链接继续复用官网扫码入口 `https://pisamusic.partialy.cn/scan?type=music-share&uuid=<uuid>` 与 `pisamusic://scan?type=music-share&uuid=<uuid>`；解析规则集中在 `src/share/shareLink.ts`，不要新增 `pisamusic://share` 或顶层 `/share`。
