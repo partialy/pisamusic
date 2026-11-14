@@ -1,3 +1,4 @@
+import { DownloadRepository } from "./downloadRepository";
 import { AccountLibraryRepository } from "./accountLibraryRepository";
 import type { LibraryScope, SyncOperationInput } from "./accountLibraryPolicy";
 import { randomUUID } from "node:crypto";
@@ -81,6 +82,7 @@ export type {
 export class AppDatabase {
   private readonly db: DatabaseSync;
   public readonly listening: ListeningStore;
+  public readonly downloads: DownloadRepository;
 
   constructor(filename: string) {
     this.db = new DatabaseSync(filename);
@@ -88,6 +90,7 @@ export class AppDatabase {
     this.db.exec("PRAGMA foreign_keys = ON;");
     migrateDatabase(this.db);
     this.listening = new ListeningStore(this.db);
+    this.downloads = new DownloadRepository(this.db);
   }
 
   close() {
@@ -530,7 +533,19 @@ export class AppDatabase {
   }
 
   listDownloadedSongs(): TrackSnapshot[] {
-    return this.listDownloadRecords()
+    const allFiles = this.downloads.files();
+    const files = allFiles.filter(file => this.downloads.task(file.taskId)?.status === "completed");
+    const legacy = this.listDownloadRecords().filter(record => !allFiles.some(file => file.legacyId === record.id));
+    return [...legacy, ...files.map(file => ({
+      ...file,
+      status: "completed",
+      payload: {
+        ...file.payload,
+        ...(Number.isSafeInteger(file.durationMs) && file.durationMs > 0
+          ? { durationMs: file.durationMs, duration: file.durationMs }
+          : {}),
+      },
+    }))]
       .filter((record) => record.status === "completed" && Boolean(record.filePath))
       .map((record) => {
         const payload = normalizeTrackSnapshot(record.payload);

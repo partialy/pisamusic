@@ -101,8 +101,13 @@
 - renderer 与 main 统一共用 `src/musicQuality/musicQualityPolicy.ts` 纯策略模块；main 侧取链、媒体缓存建 key（`source + songId + qualityKey`）与下载任务落库前必须由 `electron/music/qualityAccess.ts` 强制归一化，防止 IPC 或旧参数越权。
 - `music:resolve-playable-url` 支持 `qualityKey`；KG/WY 播放取链统一使用对应 proxy 地址且不注入 Cookie（无论是否登录第三方账号）；renderer 不直接持有 service URL 或 Cookie。
 - 下载能力集中在 `electron/download/` 和 `download:*` IPC，renderer 只能传规范化歌曲、qualityKey 和下载目录；不要在页面组件里直接写文件或嵌入音频标签。
-- 下载任务由 main 进程内存 Map 管理，`download:start` 只创建任务并返回快照；renderer 通过 `download:tasks` 轮询进度，不要在 renderer 自己维护真实下载 Promise。
-- 下载记录写入 SQLite `download_records`，保存 source/songId/qualityKey、状态、字节数、最终文件、缓存文件、元数据 JSON、歌词、封面和源 song payload 的关联关系。
+- 下载任务由 main `electron/download/downloadService.ts` 和 AppDatabase 私有下载仓库持久化管理，单曲 `download:start` 也包装同一批量 `download:enqueue`；renderer 不另建执行器。FIFO 默认并发 2，`local-setting.downloadConcurrency` 支持 1–5；新任务锁定目录、命名及标签/封面/内嵌和外置歌词配置。
+- schema 10 新建 `download_tasks`（UUID 任务/完整检查点）与 `download_files`（独立 fileId 文件实体），保留 `download_records`，只按现存 legacy id 幂等导入；旧单键已覆盖的历史不扫描或臆造。启动不联网，未完成任务统一暂停；迁移记录的缺失文件保留失败原因，不改旧表或用户音频。
+- `download:enqueue` 支持可选 main 权威 `identityRevision` 检查；`tasks/files/detail/pause/resume/pause-all/resume-all/cancel/retry` 通过 typed preload。暂停等待句柄关闭和实际字节检查点；PROCESSING 不接受暂停/取消；有限网络重试最多 2 次，迟到回调按 generation 丢弃。
+- `downloadTransfer.ts` 的受管 `downloads/tasks/<taskId>.part` 与播放 mediaCache 完全分离；不持久播放 URL，每次恢复重新授权取链。仅实际 part 长度、严格 206/Content-Range/总长及强 ETag 或 Last-Modified 一致才追加；200/416/缺失或变化校验器从零重取。未知总长、错误内容、空文件或不可读音频不能完成。
+- 完整音频排它复制后才后处理，所有音频/歌词/sidecar 不覆盖既有文件；candidate file identity 和资产 journal 记录恢复证据，未知同名文件保留并另取名字。既有下载歌词解析、元数据写入及高清封面降档由 `downloadAssets.ts` 复用。新文件实体纳入下载歌曲读取，旧 records 仅作兼容 read model，新增文件操作应使用 fileId。
+- `downloadFileLocks.ts` 按 canonical realpath 与 dev/ino 提供真实 shared/exclusive lease，拒绝路径中的 symlink/junction，供后续统一文件服务、播放引用和删除接入；旧本地删除旁路尚需文件服务阶段统一接管，不能仅靠新下载锁宣称安全删除已完成。
+- `before-quit` 先禁止入队、暂停网络、等待句柄/检查点和后处理，正常完成后才关闭数据库；重复退出有保护，30 秒异常超时直接结束进程且不提前显式关闭 DB，下次启动保守恢复。
 - `本地与下载` 页固定包含本地歌曲、下载歌曲、正在下载、下载记录四个 tab；本地歌曲需要合并扫描曲库与已下载歌曲，下载歌曲只显示 `download_records` 中完成的歌曲。
 - 下载歌曲优先用 `@yortyrh/tagpilot-lib` 写入标题、歌手、专辑、封面等音频标签；歌词稳定保存为同名 `.lrc`，标签写入失败时保留缓存侧车文件并在下载记录中标记 `sidecar`。
 

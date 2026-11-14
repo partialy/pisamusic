@@ -568,23 +568,7 @@ type DownloadTrackResult = {
   message: string;
 };
 
-type DownloadTaskSnapshot = {
-  taskId: string;
-  source: string;
-  songId: string;
-  qualityKey: string;
-  name: string;
-  status: "queued" | "running" | "completed" | "failed";
-  progress: number;
-  receivedBytes: number;
-  totalBytes: number;
-  speedBytesPerSecond: number;
-  directory: string;
-  filePath: string;
-  error: string;
-  createdAt: string;
-  updatedAt: string;
-};
+type DownloadTaskSnapshot = import("./download").DownloadTaskSnapshot;
 
 type DownloadRecordItem = {
   id: number;
@@ -867,6 +851,15 @@ type ElectronIpcApi = {
     qualityKey?: string;
     directory: string;
   }) => Promise<DownloadTaskSnapshot>;
+  enqueueDownloads: (items: import("./download").DownloadEnqueueItem[], options?: import("./download").DownloadEnqueueOptions) => Promise<import("./download").DownloadEnqueueResult>;
+  pauseDownload: (id: string) => Promise<DownloadTaskSnapshot>;
+  resumeDownload: (id: string) => Promise<DownloadTaskSnapshot>;
+  pauseAllDownloads: () => Promise<DownloadTaskSnapshot[]>;
+  resumeAllDownloads: () => Promise<DownloadTaskSnapshot[]>;
+  cancelDownload: (id: string) => Promise<DownloadTaskSnapshot>;
+  retryDownload: (id: string) => Promise<DownloadTaskSnapshot>;
+  getDownloadDetail: (id: string) => Promise<import("./download").DownloadDetail>;
+  listDownloadFiles: () => Promise<import("./download").DownloadFileSnapshot[]>;
   listDownloadTasks: () => Promise<DownloadTaskSnapshot[]>;
   listDownloadRecords: () => Promise<DownloadRecordItem[]>;
   listDownloadedSongs: () => Promise<TrackSnapshot[]>;

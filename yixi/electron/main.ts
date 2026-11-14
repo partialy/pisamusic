@@ -1,3 +1,4 @@
+import { shutdownDownloads } from "./download/downloadService";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
@@ -314,7 +315,21 @@ if (!hasSingleInstanceLock) {
     if (process.platform !== "darwin") app.quit();
   });
 
-  app.on("before-quit", () => {
+  let downloadShutdownStarted = false;
+  let downloadShutdownComplete = false;
+  app.on("before-quit", (event) => {
+    if (!downloadShutdownComplete) {
+      event.preventDefault();
+      if (downloadShutdownStarted) return;
+      downloadShutdownStarted = true;
+      isQuitting = true;
+      void shutdownDownloads().then((settled) => {
+        if (!settled) { app.exit(0); return; } // 异常有界退出不先关 DB；下次启动按检查点恢复。
+        downloadShutdownComplete = true;
+        app.quit();
+      }).catch((error) => { console.error("下载退出检查点失败", error); app.exit(1); });
+      return;
+    }
     isQuitting = true;
     disposePlayerControlsIpc();
     getListeningManager().shutdown();

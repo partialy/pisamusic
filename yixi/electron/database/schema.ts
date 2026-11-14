@@ -1,3 +1,4 @@
+import { migrateDownloads } from "./downloadSchema";
 import { migrateAccountLibrary } from "./accountLibrarySchema";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
@@ -267,6 +268,7 @@ export function migrateDatabase(db: DatabaseSync) {
   db.prepare("DELETE FROM settings WHERE key = 'desktop-service-discovery-cache-v1'").run();
   migrateAccountLibrary(db);
   ensureDownloadRecordColumns(db);
+  migrateDownloads(db);
   ensureNetworkErrorUploadColumns(db);
   db
     .prepare(

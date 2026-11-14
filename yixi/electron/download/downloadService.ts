@@ -1,581 +1,334 @@
-import { nativeImage } from "electron";
+import { identityRevision } from "../account/accountIdentity";
 import { randomUUID } from "node:crypto";
-import { constants, createWriteStream } from "node:fs";
-import { access, copyFile, mkdir, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, copyFile } from "node:fs/promises";
 import path from "node:path";
-import { getAppDataPath } from "../core/appPaths";
 import { getAppDatabase } from "../database";
-import type {
-  DownloadMetadataStatus,
-  DownloadRecordInput,
-  DownloadRecordItem,
-  TrackSnapshot,
-} from "../database/appDatabase";
-import { fetchLyrics, resolvePlayableUrl } from "../music/musicService";
-import { getCurrentQualityAccessLevel } from "../music/qualityAccess";
-import { normalizeQualityKeyForAccess } from "../../src/musicQuality/musicQualityPolicy";
-import { getSongCoverCandidates } from "../../src/utils/songCoverUrl";
-import { normalizeDownloadSettings } from "../../src/utils/downloadSettings";
-import { buildDownloadLyrics, selectDownloadLyrics } from "./downloadLyrics";
-import { writeAudioMetadata } from "./audioMetadataWriter";
-
-type DownloadTrackPayload = {
-  song: TrackSnapshot;
-  qualityKey?: string;
-  directory: string;
-};
-
-export type DownloadTaskStatus = "queued" | "running" | "completed" | "failed";
-
-export type DownloadTaskSnapshot = {
-  taskId: string;
-  source: string;
-  songId: string;
-  qualityKey: string;
-  name: string;
-  status: DownloadTaskStatus;
-  progress: number;
-  receivedBytes: number;
-  totalBytes: number;
-  speedBytesPerSecond: number;
-  directory: string;
-  filePath: string;
-  error: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type DownloadTrackResult = {
-  success: boolean;
-  filePath?: string;
-  cachePath?: string;
-  metadataStatus: DownloadMetadataStatus;
-  message: string;
-};
-
-type DownloadTask = {
-  snapshot: DownloadTaskSnapshot;
-  promise: Promise<DownloadTrackResult>;
-};
-
-type SidecarPaths = {
-  metadataJsonPath: string;
-  coverPath: string;
-  directory: string;
-  baseName: string;
-};
-
-type CoverAsset = {
-  data: Buffer;
-  mimeType: string;
-};
-
-type DownloadMetadataSetting = {
-  songNamingMode?: string;
-  embedDownloadCover?: boolean;
-  embedDownloadLyrics?: boolean;
-  saveDownloadLyricsFile?: boolean;
-  embedDownloadTags?: boolean;
-  downloadLyricsMode?: string;
-};
-
-const downloadTasks = new Map<string, DownloadTask>();
-
-export function startDownloadTask(payload: DownloadTrackPayload): DownloadTaskSnapshot {
-  const song = normalizeSong(payload.song);
-  const source = normalizeSource(song.source);
-  const qualityKey = normalizeQualityKey(source, payload.qualityKey);
-  const directory = normalizeDirectory(payload.directory);
-  const createdAt = new Date().toISOString();
-  const snapshot: DownloadTaskSnapshot = {
-    taskId: randomUUID(),
-    source,
-    songId: song.id,
-    qualityKey,
-    name: song.name || "未知歌曲",
-    status: "queued",
-    progress: 0,
-    receivedBytes: 0,
-    totalBytes: 0,
-    speedBytesPerSecond: 0,
-    directory,
-    filePath: "",
-    error: "",
-    createdAt,
-    updatedAt: createdAt,
-  };
-
-  const task: DownloadTask = {
-    snapshot,
-    promise: Promise.resolve().then(() => runDownloadTask(snapshot, song, directory, qualityKey)),
-  };
-  downloadTasks.set(snapshot.taskId, task);
-  recordDownload({
-    snapshot,
-    song,
-    status: "queued",
-    metadataStatus: "sidecar",
-    message: "等待下载",
-  });
-  task.promise.catch(() => null);
-  return cloneSnapshot(snapshot);
+import type { DownloadRecordItem, TrackSnapshot } from "../database/types";
+import type { PersistedDownloadTask } from "../database/downloadTypes";
+import type { DownloadEnqueueItem, DownloadEnqueueOptions, DownloadEnqueueResult, DownloadTaskSnapshot, DownloadDetail, DownloadFileSnapshot } from "../../src/types/download";
+import { resolvePlayableUrl } from "../music/musicService";
+import { normalizeSong, normalizeSource, normalizeQualityKey, normalizeDirectory, buildBaseName, createUniqueBaseName, getDownloadMetadataOptions, processDownloadAssets } from "./downloadAssets";
+import { acquireFileLock, identifyFile } from "./downloadFileLocks";
+import { downloadCacheRoot, managedPartPath, readPartSize, removeManagedPart, transferDownload, validateAudio, DownloadFailure } from "./downloadTransfer";
+export type { DownloadTaskSnapshot } from "../../src/types/download";
+export type DownloadTaskStatus = DownloadTaskSnapshot["status"];
+export type DownloadTrackResult = { success: boolean; filePath?: string; cachePath?: string; metadataStatus: "embedded" | "sidecar" | "failed"; message: string };
+type Active = { controller: AbortController; action: "pause" | "cancel" | null; promise: Promise<void> };
+const active = new Map<string, Active>();
+let initialization: Promise<void> | undefined;
+let accepting = true;
+let timer: ReturnType<typeof setTimeout> | undefined;
+let scheduling = false;
+let enqueueTail: Promise<void> = Promise.resolve();
+const repo = () => getAppDatabase().downloads;
+const terminal = (task: PersistedDownloadTask) => ["completed", "failed", "cancelled"].includes(task.status);
+function isRecoverable(error: unknown) {
+  if (error instanceof DownloadFailure) return error.recoverable;
+  const failure=error as { code?: string; response?: { status?: number }; cause?: { code?: string } } | null;
+  const code=failure?.code || failure?.cause?.code || "";
+  const status=failure?.response?.status || 0;
+  return /^(ECONNRESET|ECONNABORTED|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|ERR_NETWORK)$/.test(code) || status >= 500 || status === 408 || status === 429;
 }
-
-export function listDownloadTasks() {
-  return [...downloadTasks.values()].map((task) => cloneSnapshot(task.snapshot));
+function checkpoint(task: PersistedDownloadTask, expectedGeneration=task.generation) {
+  const current = repo().task(task.taskId);
+  if (!current || current.generation !== expectedGeneration) return;
+  if (current.status === "pausing" && ["preparing","running"].includes(task.status)) {
+    task.status="pausing"; task.pauseReason=current.pauseReason;
+  }
+  task.updatedAt = new Date().toISOString(); repo().save(task);
 }
-
-export function listDownloadRecords(): DownloadRecordItem[] {
-  return getAppDatabase().listDownloadRecords();
+function advanceGeneration(task: PersistedDownloadTask) {
+  const previous=task.generation;
+  task.generation++;
+  checkpoint(task,previous);
 }
-
-export function listDownloadedSongs(): TrackSnapshot[] {
-  return getAppDatabase().listDownloadedSongs();
+export function taskSnapshot(task: PersistedDownloadTask): DownloadTaskSnapshot {
+  const { taskId,fileId,source,songId,qualityKey,name,status,progress,receivedBytes,totalBytes,speedBytesPerSecond,directory,filePath,error,createdAt,updatedAt,retryCount,pauseReason,generation } = task;
+  return { taskId,fileId,source,songId,qualityKey,name,status,progress,receivedBytes,totalBytes,speedBytesPerSecond,directory,filePath,error,createdAt,updatedAt,retryCount,pauseReason,generation };
 }
-
-export async function downloadTrack(payload: DownloadTrackPayload): Promise<DownloadTrackResult> {
-  const task = startDownloadTask(payload);
-  return downloadTasks.get(task.taskId)!.promise;
-}
-
-async function runDownloadTask(
-  snapshot: DownloadTaskSnapshot,
-  song: TrackSnapshot,
-  directory: string,
-  qualityKey: string
-): Promise<DownloadTrackResult> {
-  markTask(snapshot, { status: "running", error: "" });
-  const source = normalizeSource(song.source);
-
-  try {
-    await mkdir(directory, { recursive: true });
-    const url = await resolvePlayableUrl({ ...song, source, qualityKey });
-    if (!url) throw new Error("下载失败：播放地址为空");
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`下载失败：${response.status} ${response.statusText}`);
-    }
-
-    const extension = inferAudioExtension(url, response.headers.get("content-type"), qualityKey);
-    let baseName = await createUniqueBaseName(directory, buildBaseName(song), extension);
-    let filePath = path.join(directory, `${baseName}.${extension}`);
-    const cacheRoot = getAppDataPath("downloads", "cache");
-    await mkdir(cacheRoot, { recursive: true });
-    const cachePath = path.join(cacheRoot, `${snapshot.taskId}.${extension}`);
-    const totalBytes = Number(response.headers.get("content-length")) || 0;
-    markTask(snapshot, { totalBytes, filePath });
-
-    await streamResponseToFile(response, cachePath, snapshot);
-    // 并发任务也不能覆盖已落盘音频；缓存名使用 taskId，彼此隔离。
-    while (true) {
-      try { await copyFile(cachePath, filePath, constants.COPYFILE_EXCL); break; }
-      catch (error: any) {
-        if (error?.code !== "EEXIST") throw error;
-        baseName = await createUniqueBaseName(directory, buildBaseName(song), extension);
-        filePath = path.join(directory, `${baseName}.${extension}`);
+export function initializeDownloadService() {
+  return initialization ??= (async () => {
+    for (const task of repo().tasks()) {
+      // 启动不联网，所有未终结状态均暂停；只检查准确记录，不扫描目录。
+      if (!terminal(task)) {
+        task.status = "paused"; task.pauseReason = "程序重启，等待手动继续";
+        task.speedBytesPerSecond = 0; task.retryAt = 0;
+        const actual = await readPartSize(task.taskId);
+        if (actual !== task.receivedBytes) { task.validator=""; task.validatorKind=""; task.transferComplete=false; }
+        task.receivedBytes = actual;
+        advanceGeneration(task);
+      }
+      if (task.status === "completed" && task.fileId) {
+        try { await access(task.filePath, constants.R_OK); }
+        catch { task.status = "failed"; task.error = "历史下载文件缺失或不可读，保留记录"; checkpoint(task); }
       }
     }
-
-    const metadataOptions = getDownloadMetadataOptions();
-    const sidecars = sidecarPaths(cacheRoot, directory, baseName, snapshot.taskId);
-    const metadata = await buildDownloadMetadata(song, source, qualityKey, metadataOptions);
-    const sidecarResult = await writeSidecars(sidecars, metadata, metadataOptions);
-
-    let metadataStatus: DownloadMetadataStatus = "embedded";
-    let message = "下载完成";
+  })();
+}
+export function enqueueDownloads(items: DownloadEnqueueItem[], options: DownloadEnqueueOptions = {}): Promise<DownloadEnqueueResult> {
+  const captured={ identityRevision: options.identityRevision ?? identityRevision() };
+  const request=enqueueTail.then(() => enqueueBatch(items,captured));
+  enqueueTail=request.then(() => undefined,() => undefined);
+  return request;
+}
+async function enqueueBatch(items: DownloadEnqueueItem[], options: DownloadEnqueueOptions): Promise<DownloadEnqueueResult> {
+  const revision = options.identityRevision ?? identityRevision();
+  const checkIdentity = () => { if (revision !== identityRevision()) throw new Error("账号已变化，请重新确认下载"); };
+  checkIdentity();
+  if (!accepting) throw new Error("下载服务正在退出，不能新增任务");
+  if (!Array.isArray(items) || !items.length || items.length > 5000) throw new Error("无效下载批次（1–5000项）");
+  await initializeDownloadService();
+  if (!accepting) throw new Error("下载服务正在退出");
+  checkIdentity();
+  const existingTasks = repo().tasks();
+  const result: DownloadEnqueueResult = { tasks: [], added: 0, existing: 0, rejected: [] };
+  const added: PersistedDownloadTask[] = [];
+  const setting = getAppDatabase().getSetting<Record<string, unknown>>("local-setting")?.value;
+  const configuration = { ...getDownloadMetadataOptions(),namingMode: typeof setting?.songNamingMode === "string" ? setting.songNamingMode : "artist-title" };
+  for (let index=0; index<items.length; index++) {
     try {
-      const metadataResult = await embedMetadata(filePath, metadata, metadataOptions);
-      if (!metadataResult.ok) {
-        metadataStatus = "sidecar";
-        message = `下载完成，部分元数据未写入：${metadataResult.warnings.join("；")}`;
+      const item = items[index]; const song = normalizeSong(item.song); const source = normalizeSource(song.source);
+      const qualityKey = normalizeQualityKey(source,item.qualityKey);
+      if (item.qualityKey && qualityKey !== item.qualityKey) throw new Error("所选音质当前无权限，请重新选择");
+      const directory = normalizeDirectory(item.directory);
+      let existing = [...existingTasks,...added].find(task => task.source === source && task.songId === song.id && task.qualityKey === qualityKey && !["failed","cancelled"].includes(task.status) && !(item.redownload === true && task.status === "completed"));
+      if (existing?.status === "completed") {
+        try { await access(existing.filePath,constants.R_OK); }
+        catch { existing.status="failed"; existing.error="已下载文件缺失或不可读"; checkpoint(existing); existing=undefined; }
       }
-    } catch (error) {
-      metadataStatus = "sidecar";
-      message = `下载完成，元数据已写入缓存：${error instanceof Error ? error.message : String(error)}`;
+      if (existing) { result.existing++; result.tasks.push(taskSnapshot(existing)); continue; }
+      const now = new Date().toISOString(); const taskId = randomUUID();
+      const task: PersistedDownloadTask = {
+        taskId,fileId: "",source,songId: song.id,qualityKey,name: song.name || "未知歌曲",status: "queued",
+        progress: 0,receivedBytes: 0,totalBytes: 0,speedBytesPerSecond: 0,directory,filePath: "",error: "",createdAt: now,updatedAt: now,
+        retryCount: 0,pauseReason: "",generation: 0,payload: song,
+        configuration: { ...configuration },
+        partPath: managedPartPath(taskId),extension: "",validator: "",validatorKind: "",transferComplete: false,retryAt: 0,legacyId: null,candidateIdentity: "",candidateSize: 0,assets: [],
+      };
+      added.push(task); result.tasks.push(taskSnapshot(task)); result.added++;
+    } catch (error) { result.rejected.push({ index,message: error instanceof Error ? error.message : String(error) }); }
+  }
+  // 全批校验后一次事务入队，调度只消费已提交任务。
+  if (!accepting) throw new Error("下载服务正在退出");
+  checkIdentity();
+  repo().enqueue(added); schedule(); return result;
+}
+export async function startDownloadTask(payload: DownloadEnqueueItem) {
+  const result = await enqueueDownloads([payload]);
+  if (!result.tasks.length) throw new Error(result.rejected[0]?.message || "入队失败");
+  return result.tasks[0];
+}
+export async function listDownloadTasks() { await initializeDownloadService(); return repo().tasks().map(taskSnapshot); }
+export async function getDownloadDetail(taskId: string): Promise<DownloadDetail> {
+  await initializeDownloadService(); const task = requireTask(taskId);
+  return { task: taskSnapshot(task), file: task.fileId ? repo().file(task.fileId) : null, configuration: task.configuration };
+}
+export async function listDownloadRecords(): Promise<DownloadRecordItem[]> {
+  await initializeDownloadService();
+  // 旧 UI read model 保留 number id；新权威实体以 fileId 识别，不再覆盖旧唯一键。
+  const files = repo().files();
+  const legacy = getAppDatabase().listDownloadRecords().filter(record => !files.some(file => file.legacyId === record.id));
+  return [...files.map((file,index) => ({
+    id: file.legacyId ?? -(index+1), ...file, status: repo().task(file.taskId)?.status === "failed" ? "failed" as const : "completed" as const,
+    downloadDirectory: path.dirname(file.filePath),cachePath: "",lyricPath: file.lyricPaths[0] || "",
+    totalBytes: file.size,receivedBytes: file.size,createdAt: file.completedAt,updatedAt: file.completedAt,
+  })),...legacy];
+}
+export async function listDownloadedSongs(): Promise<TrackSnapshot[]> { await initializeDownloadService(); return getAppDatabase().listDownloadedSongs(); }
+export async function listDownloadFiles() { await initializeDownloadService(); return repo().files(); }
+function requireTask(taskId: string) { const task = repo().task(taskId); if (!task) throw new Error("下载任务不存在"); return task; }
+export async function pauseDownload(taskId: string, cancel = false) {
+  await initializeDownloadService();
+  const task = requireTask(taskId);
+  if (task.status === "processing") throw new Error("后处理不可中断，请等待完成");
+  if (terminal(task)) return taskSnapshot(task);
+  const running = active.get(taskId);
+  if (running) {
+    running.action = cancel ? "cancel" : "pause";
+    task.status = "pausing"; task.pauseReason = cancel ? "取消中" : "主动暂停"; checkpoint(task);
+    running.controller.abort(new Error(task.pauseReason));
+    await running.promise;
+  } else {
+    if (cancel) await removeManagedPart(task);
+    task.status = cancel ? "cancelled" : "paused"; task.pauseReason = cancel ? "" : "主动暂停";
+    task.retryAt=0; task.speedBytesPerSecond=0; advanceGeneration(task);
+  }
+  return taskSnapshot(requireTask(taskId));
+}
+export async function resumeDownload(taskId: string, retry = false) {
+  await initializeDownloadService(); if (!accepting) throw new Error("下载服务正在退出");
+  const task = requireTask(taskId);
+  if (active.has(taskId)) throw new Error("任务尚未停止，请稍后继续");
+  if (task.status !== "paused" && !(retry && task.status === "failed")) return taskSnapshot(task);
+  if (retry && task.fileId) {
+    // 完成实体缺失后的重试创建新任务，旧 fileId/legacy 映射原样保留。
+    const existing=repo().tasks().find(item => item.taskId !== task.taskId && item.source === task.source && item.songId === task.songId && item.qualityKey === task.qualityKey && !terminal(item));
+    if (existing) return taskSnapshot(existing);
+    const newId=randomUUID(),now=new Date().toISOString();
+    const fresh: PersistedDownloadTask={ ...task, taskId:newId,fileId:"",status:"queued",progress:0,receivedBytes:0,totalBytes:0,speedBytesPerSecond:0,
+      filePath:"",error:"",createdAt:now,updatedAt:now,retryCount:0,pauseReason:"",generation:0,partPath:managedPartPath(newId),extension:"",
+      validator:"",validatorKind:"",transferComplete:false,retryAt:0,legacyId:null,candidateIdentity:"",candidateSize:0,assets:[],
+    };
+    repo().enqueue([fresh]); schedule(); return taskSnapshot(fresh);
+  }
+  task.status="queued"; task.pauseReason=""; task.error=""; task.retryAt=0;
+  if (retry) task.retryCount=0;
+  advanceGeneration(task); schedule(); return taskSnapshot(task);
+}
+export async function pauseAllDownloads() {
+  await initializeDownloadService();
+  const ids = repo().tasks().filter(task => !terminal(task) && task.status !== "processing").map(task => task.taskId);
+  return Promise.all(ids.map(id => pauseDownload(id)));
+}
+export async function resumeAllDownloads() {
+  await initializeDownloadService();
+  const ids = repo().tasks().filter(task => task.status === "paused").map(task => task.taskId);
+  return Promise.all(ids.map(id => resumeDownload(id)));
+}
+function concurrency() {
+  const value = Number(getAppDatabase().getSetting<Record<string,unknown>>("local-setting")?.value?.downloadConcurrency);
+  return Number.isInteger(value) && value >= 1 && value <= 5 ? value : 2;
+}
+function schedule(delay=0) {
+  if (!accepting) return;
+  if (timer) clearTimeout(timer);
+  timer=setTimeout(() => { timer=undefined; void pump().catch(error => console.error("下载调度失败",error)); },delay);
+}
+async function pump() {
+  if (scheduling || !accepting) return; scheduling=true;
+  try {
+    await initializeDownloadService();
+    while (accepting && active.size < concurrency()) {
+      const task=repo().tasks().find(item => item.status === "queued" && !active.has(item.taskId) && item.retryAt <= Date.now());
+      if (!task) break;
+      task.status="preparing"; task.error=""; advanceGeneration(task);
+      const run: Active = { controller: new AbortController(), action: null, promise: Promise.resolve() };
+      active.set(task.taskId,run);
+      run.promise=execute(task,run).finally(() => { active.delete(task.taskId); schedule(); });
+      void run.promise.catch(error => console.error("下载任务检查点失败",error));
     }
-
-    if (sidecarResult.warnings.length) {
-      metadataStatus = "sidecar";
-      message += `，可选资产警告：${sidecarResult.warnings.join("；")}`;
+    const next=repo().tasks().filter(item => item.status === "queued" && item.retryAt > Date.now()).sort((a,b)=>a.retryAt-b.retryAt)[0];
+    if (next && active.size < concurrency()) schedule(Math.max(1,next.retryAt-Date.now()));
+  } finally { scheduling=false; }
+}
+async function execute(task: PersistedDownloadTask, run: Active) {
+  // 超时只终止网络阶段，PROCESSING 始终等待其安全结束。
+  const timeout=setTimeout(() => { if (task.status !== "processing") run.controller.abort(new DownloadFailure("下载网络超时",true)); }, 15*60*1000);
+  try {
+    const quality=normalizeQualityKey(normalizeSource(task.source),task.qualityKey);
+    if (quality !== task.qualityKey) throw new DownloadFailure("音质权限已变化，请重新选择音质");
+    try { await access(task.directory,constants.W_OK); }
+    catch { task.status="paused"; task.pauseReason="原下载目录缺失或不可写，请恢复目录后继续"; checkpoint(task); return; }
+    if (run.controller.signal.aborted) throw run.controller.signal.reason;
+    let complete = task.transferComplete;
+    if (complete) { try { await validateAudio(managedPartPath(task.taskId),task.totalBytes); } catch { complete=false; task.transferComplete=false; } }
+    if (!complete) {
+      // 不保存 URL；每次执行都重新授权并取链。
+      const url = await resolvePlayableUrl({ ...task.payload,source: normalizeSource(task.source),qualityKey: task.qualityKey });
+      if (!url) throw new DownloadFailure("播放地址为空",true);
+      if (normalizeQualityKey(normalizeSource(task.source),task.qualityKey) !== task.qualityKey) throw new DownloadFailure("取链期间音质权限已变化，请重新选择音质");
+      if (run.controller.signal.aborted) throw run.controller.signal.reason;
+      await transferDownload(task,url,run.controller.signal,() => checkpoint(task));
     }
-    markTask(snapshot, {
-      status: "completed",
-      progress: 100,
-      receivedBytes: totalBytes || snapshot.receivedBytes,
-      totalBytes: totalBytes || snapshot.receivedBytes,
-      filePath,
-    });
-    recordDownload({
-      snapshot,
-      song,
-      status: "completed",
-      metadataStatus,
-      cachePath,
-      metadataJsonPath: sidecarResult.metadataJsonPath,
-      lyricPath: sidecarResult.lyricPaths[0] ?? "",
-      lyricPaths: sidecarResult.lyricPaths,
-      coverPath: sidecarResult.coverPath,
-      message,
-      completedAt: new Date().toISOString(),
-    });
-    return { success: true, filePath, cachePath, metadataStatus, message };
+    if (run.controller.signal.aborted) throw run.controller.signal.reason;
+    task.status="processing"; task.pauseReason=""; task.speedBytesPerSecond=0; checkpoint(task);
+    await finalize(task);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    markTask(snapshot, { status: "failed", error: message });
-    recordDownload({
-      snapshot,
-      song,
-      status: "failed",
-      metadataStatus: "failed",
-      message,
-    });
-    throw error;
-  }
-}
-
-async function streamResponseToFile(response: Response, filePath: string, snapshot: DownloadTaskSnapshot) {
-  const writer = createWriteStream(filePath);
-  const startedAt = Date.now();
-  let receivedBytes = 0;
-
-  try {
-    const body = response.body;
-    if (!body) {
-      const buffer = Buffer.from(await response.arrayBuffer());
-      writer.write(buffer);
-      receivedBytes = buffer.length;
-      updateProgress(snapshot, receivedBytes, receivedBytes, startedAt);
-      return;
-    }
-
-    const reader = body.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = Buffer.from(value);
-      receivedBytes += chunk.length;
-      if (!writer.write(chunk)) {
-        await new Promise<void>((resolve) => writer.once("drain", resolve));
+    const latest=repo().task(task.taskId);
+    if (!latest || latest.generation !== task.generation) return;
+    const message=error instanceof Error ? error.message : String(error);
+    if (run.action) {
+      if (run.action === "cancel") {
+        try { await removeManagedPart(task); task.receivedBytes=0; }
+        catch (cleanup) { task.error=`取消时临时文件未清理：${String(cleanup)}`; }
       }
-      updateProgress(snapshot, receivedBytes, snapshot.totalBytes, startedAt);
+      task.status=run.action === "cancel" ? "cancelled" : "paused";
+      task.pauseReason=run.action === "pause" ? "已暂停" : "";
+    } else {
+      const reason=run.controller.signal.aborted ? run.controller.signal.reason : error;
+      const retry=isRecoverable(reason) && task.retryCount < 2 && accepting && task.status !== "processing";
+      task.error=message;
+      if (retry) { task.retryCount++; task.retryAt=Date.now()+1000*2**task.retryCount; task.status="queued"; }
+      else task.status="failed";
     }
-  } finally {
-    await new Promise<void>((resolve, reject) => {
-      writer.end((error?: Error | null) => {
-        if (error) reject(error);
-        else resolve();
-      });
+    task.speedBytesPerSecond=0; task.receivedBytes=await readPartSize(task.taskId); checkpoint(task);
+  } finally { clearTimeout(timeout); }
+}
+async function finalize(task: PersistedDownloadTask) {
+  const partLease=await acquireFileLock(managedPartPath(task.taskId),`processing:${task.taskId}`);
+  try { await finalizeOwned(task); }
+  finally { partLease.release(); }
+  try { await removeManagedPart(task); task.partPath=""; checkpoint(task); }
+  catch (error) { console.warn("已完成任务临时文件清理失败",error); }
+}
+async function finalizeOwned(task: PersistedDownloadTask) {
+  const part=managedPartPath(task.taskId);
+  const audio=await validateAudio(part,task.totalBytes);
+  task.extension=audio.extension;
+  let lease: Awaited<ReturnType<typeof acquireFileLock>> | undefined;
+  // 有准确的已提交文件 identity 才允许重启后补做；未知同名文件始终保留并另取名称。
+  if (task.filePath && task.candidateIdentity) {
+    try {
+      const identity=await identifyFile(task.filePath);
+      let unownedSidecar=false;
+      for (const extension of ["lrc","krc","yrc"]) {
+        const assetPath=path.join(path.dirname(task.filePath),`${path.parse(task.filePath).name}.${extension}`);
+        try {
+          const asset=await identifyFile(assetPath);
+          if (!task.assets.some(known => known.path === assetPath && known.identity === asset.identity)) unownedSidecar=true;
+        } catch (error: any) { if (error?.code !== "ENOENT") unownedSidecar=true; }
+      }
+      if (identity.identity === task.candidateIdentity && !unownedSidecar) { await validateAudio(task.filePath,0); lease=await acquireFileLock(task.filePath,`processing:${task.taskId}`); }
+    } catch { /* 旧候选缺失/损坏则保留，重新从完整 .part 排它提交 */ }
+  }
+  while (!lease) {
+    const base=await createUniqueBaseName(task.directory,buildBaseName(task.payload,{songNamingMode:task.configuration.namingMode}),task.extension || "mp3");
+    task.filePath=path.join(task.directory,`${base}.${task.extension || "mp3"}`); task.candidateIdentity=""; task.candidateSize=audio.size; checkpoint(task);
+    const candidate=await acquireFileLock(task.filePath,`processing:${task.taskId}`,"exclusive",true);
+    try {
+      await copyFile(part,task.filePath,constants.COPYFILE_EXCL);
+      const identity=await identifyFile(task.filePath);
+      task.candidateIdentity=identity.identity; checkpoint(task);
+      // 新 inode 也纳入锁；路径锁在整个交接期间始终持有。
+      lease=await acquireFileLock(task.filePath,`processing:${task.taskId}`);
+    } catch (error: any) { if (error?.code !== "EEXIST") throw error; }
+    finally { candidate.release(); }
+  }
+  try {
+    const assets=await processDownloadAssets(task.filePath,downloadCacheRoot(),task.taskId,task.payload,task.qualityKey,task.configuration,{
+      assets: task.assets,
+      record: asset => { task.assets.push(asset); checkpoint(task); },
     });
-  }
+    const final=await validateAudio(task.filePath,0);
+    task.candidateSize=final.size; checkpoint(task);
+    const file: DownloadFileSnapshot={
+      fileId: randomUUID(),taskId: task.taskId,filePath: task.filePath,source: task.source,songId: task.songId,qualityKey: task.qualityKey,
+      size: final.size,durationMs: final.durationMs,metadataStatus: assets.metadataStatus,metadataJsonPath: assets.metadataJsonPath,coverPath: assets.coverPath,
+      lyricPaths: assets.lyricPaths,payload:{...task.payload,downloadLyricPaths:assets.lyricPaths},completedAt:new Date().toISOString(),legacyId:null,message:assets.message,
+    };
+    task.fileId=file.fileId; task.status="completed"; task.progress=100; task.error=""; task.updatedAt=file.completedAt;
+    repo().complete(task,file);
+  } finally { lease.release(); }
 }
-
-function updateProgress(
-  snapshot: DownloadTaskSnapshot,
-  receivedBytes: number,
-  totalBytes: number,
-  startedAt: number
-) {
-  const elapsedSeconds = Math.max((Date.now() - startedAt) / 1000, 0.001);
-  markTask(snapshot, {
-    receivedBytes,
-    totalBytes: totalBytes || receivedBytes,
-    progress: totalBytes > 0 ? Math.min(99, (receivedBytes / totalBytes) * 100) : 0,
-    speedBytesPerSecond: Math.round(receivedBytes / elapsedSeconds),
-  });
-}
-
-function recordDownload(input: {
-  snapshot: DownloadTaskSnapshot;
-  song: TrackSnapshot;
-  status: DownloadTaskStatus;
-  metadataStatus: DownloadMetadataStatus;
-  cachePath?: string;
-  metadataJsonPath?: string;
-  lyricPath?: string;
-  lyricPaths?: string[];
-  coverPath?: string;
-  message?: string;
-  completedAt?: string;
-}) {
-  const record: DownloadRecordInput = {
-    source: input.snapshot.source,
-    songId: input.snapshot.songId,
-    qualityKey: input.snapshot.qualityKey,
-    status: input.status,
-    downloadDirectory: input.snapshot.directory,
-    filePath: input.snapshot.filePath,
-    cachePath: input.cachePath ?? "",
-    metadataStatus: input.metadataStatus,
-    metadataJsonPath: input.metadataJsonPath,
-    lyricPath: input.lyricPath,
-    coverPath: input.coverPath,
-    totalBytes: input.snapshot.totalBytes,
-    receivedBytes: input.snapshot.receivedBytes,
-    completedAt: input.completedAt,
-    payload: { ...stripRuntimeFields(input.song), ...(input.lyricPaths ? { downloadLyricPaths: input.lyricPaths } : {}) },
-    message: input.message ?? input.snapshot.error,
-  };
-  getAppDatabase().upsertDownloadRecord(record);
-}
-
-function markTask(snapshot: DownloadTaskSnapshot, patch: Partial<DownloadTaskSnapshot>) {
-  Object.assign(snapshot, patch, { updatedAt: new Date().toISOString() });
-}
-
-function cloneSnapshot(snapshot: DownloadTaskSnapshot): DownloadTaskSnapshot {
-  return { ...snapshot };
-}
-
-function normalizeSong(song: TrackSnapshot): TrackSnapshot {
-  const id = toStringValue(song.id);
-  const source = toStringValue(song.source);
-  if (!id || !source) throw new Error("下载失败：歌曲缺少 source 或 id");
-  return stripRuntimeFields({
-    ...song,
-    id,
-    source,
-    name: toStringValue(song.name),
-    singer: toStringValue(song.singer),
-    album: toStringValue(song.album),
-    cover: toStringValue(song.cover),
-    urlParam: toStringValue(song.urlParam) || id,
-  });
-}
-
-function stripRuntimeFields(song: TrackSnapshot): TrackSnapshot {
-  const {
-    id,
-    source,
-    name,
-    singer,
-    album,
-    cover,
-    duration,
-    urlParam,
-    filePath,
-    coverSize,
-    size,
-    d_cover,
-    lyric,
-    krc,
-    vip,
-  } = song;
-  const track: TrackSnapshot = {
-    id: toStringValue(id),
-    source: toStringValue(source),
-    name: toStringValue(name),
-    singer: toStringValue(singer),
-    album: toStringValue(album),
-    cover: toStringValue(cover),
-    duration: typeof duration === "number" ? duration : Number(duration) || 0,
-  };
-  const nextUrlParam = toStringValue(urlParam);
-  if (nextUrlParam) track.urlParam = nextUrlParam;
-  const nextFilePath = toStringValue(filePath);
-  if (nextFilePath) track.filePath = nextFilePath;
-  if (isPlainObject(coverSize)) track.coverSize = coverSize;
-  if (isPlainObject(size)) track.size = size;
-  const dCover = toStringValue(d_cover);
-  if (dCover) track.d_cover = dCover;
-  const nextLyric = toStringValue(lyric);
-  if (nextLyric) track.lyric = nextLyric;
-  const nextKrc = toStringValue(krc);
-  if (nextKrc) track.krc = nextKrc;
-  if (typeof vip === "boolean") track.vip = vip;
-  return track;
-}
-
-function normalizeSource(source: string) {
-  if (source === "kg" || source === "wy" || source === "kw") return source;
-  throw new Error("当前歌曲来源暂不支持下载");
-}
-
-function normalizeQualityKey(source: "kg" | "wy" | "kw", qualityKey?: string) {
-  const access = getCurrentQualityAccessLevel();
-  return normalizeQualityKeyForAccess(source, qualityKey, access);
-}
-
-function normalizeDirectory(directory: string) {
-  const normalized = toStringValue(directory);
-  if (!normalized) throw new Error("下载失败：未选择下载目录");
-  return path.resolve(normalized);
-}
-
-function buildBaseName(song: TrackSnapshot) {
-  const setting = getAppDatabase().getSetting<DownloadMetadataSetting>("local-setting")?.value;
-  const title = song.name || "未知歌曲";
-  const artist = song.singer || "未知歌手";
-  switch (setting?.songNamingMode) {
-    case "title-artist":
-      return sanitizeFileName(`${title} - ${artist}`);
-    case "title":
-      return sanitizeFileName(title);
-    case "index-title-artist":
-      return sanitizeFileName(`01 - ${title} - ${artist}`);
-    case "artist-title":
-    default:
-      return sanitizeFileName(`${artist} - ${title}`);
-  }
-}
-
-function getDownloadMetadataOptions() {
-  const setting = getAppDatabase().getSetting<DownloadMetadataSetting>("local-setting")?.value;
-  return normalizeDownloadSettings(setting);
-}
-
-async function createUniqueBaseName(directory: string, baseName: string, extension: string) {
-  let candidate = baseName || "未命名歌曲";
-  let index = 1;
-  while ((await Promise.all([extension, "mp3", "flac", "m4a", "aac", "wav", "ogg", "krc", "yrc", "lrc"].map(ext => fileExists(path.join(directory, `${candidate}.${ext}`))))).some(Boolean)) {
-    index += 1;
-    candidate = `${baseName} (${index})`;
-  }
-  return candidate;
-}
-
-async function buildDownloadMetadata(song: TrackSnapshot, source: string, qualityKey: string, options: ReturnType<typeof getDownloadMetadataOptions>) {
-  const [lyrics, cover] = await Promise.all([
-    options.embedDownloadLyrics || options.downloadLyricsMode !== "off" ? fetchLyrics({ source: source as "kg" | "wy" | "kw", id: song.id, hash: toStringValue(song.urlParam) }).catch(() => ({
-      krc: "",
-      lrc: "",
-    })) : Promise.resolve({ krc: "", lrc: "" }),
-    options.embedDownloadCover ? fetchCover(song).catch(() => null) : Promise.resolve(null),
-  ]);
-  const lyricAssets = buildDownloadLyrics(source, lyrics, { lyric: toStringValue(song.lyric), krc: toStringValue(song.krc) });
-  return {
-    title: song.name || "",
-    artist: song.singer || "",
-    album: song.album || "",
-    source,
-    songId: song.id,
-    qualityKey,
-    cover,
-    lyrics: lyricAssets.standardLrc,
-    lyricAssets: lyricAssets.assets,
-    payload: song,
-  };
-}
-
-async function embedMetadata(
-  filePath: string,
-  metadata: Awaited<ReturnType<typeof buildDownloadMetadata>>,
-  options: ReturnType<typeof getDownloadMetadataOptions>
-) {
-  return writeAudioMetadata(filePath, metadata, {
-    embedTags: options.embedDownloadTags,
-    embedCover: options.embedDownloadCover,
-    embedLyrics: options.embedDownloadLyrics,
-  });
-}
-
-async function writeSidecars(
-  paths: SidecarPaths,
-  metadata: Awaited<ReturnType<typeof buildDownloadMetadata>>,
-  options: ReturnType<typeof getDownloadMetadataOptions>
-) {
-  const warnings: string[] = [];
-  const lyricPaths: string[] = [];
-  const optionalWrite = async (target: string, data: string | Buffer, exclusive = false) => {
-    try {
-      await writeFile(target, data, exclusive ? { flag: "wx" } : undefined);
-      return true;
-    } catch (error) {
-      warnings.push(`${path.basename(target)}：${error instanceof Error ? error.message : String(error)}`);
-      return false;
+export async function shutdownDownloads(timeoutMs=30000): Promise<boolean> {
+  accepting=false;
+  if (timer) { clearTimeout(timer); timer=undefined; }
+  if (!initialization) return true;
+  await initialization;
+  for (const task of repo().tasks()) {
+    if (task.status === "queued" || task.status === "paused") { task.status="paused"; task.pauseReason="程序退出"; task.retryAt=0; checkpoint(task); }
+    const run=active.get(task.taskId);
+    if (run && task.status !== "processing") {
+      task.status="pausing"; task.pauseReason="程序退出"; checkpoint(task);
+      run.action="pause"; run.controller.abort(new Error("程序退出"));
     }
-  };
-  const metadataWritten = await optionalWrite(paths.metadataJsonPath, JSON.stringify({
-    title: metadata.title, artist: metadata.artist, album: metadata.album,
-    source: metadata.source, songId: metadata.songId, qualityKey: metadata.qualityKey,
-    lyrics: metadata.lyrics, lyricAssets: metadata.lyricAssets, payload: metadata.payload,
-  }, null, 2));
-  for (const asset of selectDownloadLyrics(metadata.lyricAssets, options.downloadLyricsMode)) {
-    const target = path.join(paths.directory, `${paths.baseName}.${asset.format}`);
-    if (await optionalWrite(target, asset.text, true)) lyricPaths.push(target);
   }
-  const coverWritten = metadata.cover ? await optionalWrite(paths.coverPath, metadata.cover.data) : false;
-  return { warnings, lyricPaths, metadataJsonPath: metadataWritten ? paths.metadataJsonPath : "", coverPath: coverWritten ? paths.coverPath : "" };
-}
-
-function sidecarPaths(cacheRoot: string, directory: string, baseName: string, taskId: string): SidecarPaths {
-  return {
-    metadataJsonPath: path.join(cacheRoot, `${taskId}.json`),
-    directory,
-    baseName,
-    coverPath: path.join(cacheRoot, `${taskId}.png`),
-  };
-}
-
-async function fetchCover(song: TrackSnapshot): Promise<CoverAsset | null> {
-  for (const url of getSongCoverCandidates(song, 1024)) {
-    if (!/^https?:/.test(url)) continue;
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!response.ok) continue;
-      const data = Buffer.from(await response.arrayBuffer());
-      // 校验实际可解码图片，拒绝 HTML/JSON 错误页；统一 PNG 与标签 MIME。
-      const image = nativeImage.createFromBuffer(data);
-      if (image.isEmpty()) continue;
-      return { data: image.toPNG(), mimeType: "image/png" };
-    } catch { /* 封面失败降档，不阻断音频下载 */ }
-  }
-  return null;
-}
-
-function inferAudioExtension(url: string, contentType: string | null, qualityKey: string) {
-  const content = contentType?.toLowerCase() ?? "";
-  if (content.includes("flac")) return "flac";
-  if (content.includes("mpeg") || content.includes("mp3")) return "mp3";
-  if (content.includes("mp4") || content.includes("m4a") || content.includes("aac")) return "m4a";
-
-  const pathname = safeUrlPathname(url).toLowerCase();
-  const match = pathname.match(/\.([a-z0-9]{2,5})$/);
-  if (match?.[1]) return normalizeExtension(match[1]);
-  if (qualityKey.includes("flac") || qualityKey.includes("lossless") || qualityKey.includes("hires")) {
-    return "flac";
-  }
-  return "mp3";
-}
-
-function normalizeExtension(extension: string) {
-  if (extension === "jpeg") return "jpg";
-  if (extension === "m4a" || extension === "mp4") return "m4a";
-  if (extension === "flac") return "flac";
-  return "mp3";
-}
-
-function safeUrlPathname(url: string) {
-  try {
-    return new URL(url).pathname;
-  } catch {
-    return "";
-  }
-}
-
-async function fileExists(filePath: string) {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function sanitizeFileName(value: string) {
-  return value
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160);
-}
-
-function toStringValue(value: unknown) {
-  if (typeof value === "string") return value.trim();
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return "";
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const settled=await Promise.race([
+    Promise.allSettled([enqueueTail,...[...active.values()].map(run=>run.promise)]).then(()=>true),
+    new Promise<false>(resolve=> { timeout=setTimeout(()=>resolve(false),timeoutMs); }),
+  ]);
+  if (timeout) clearTimeout(timeout);
+  return settled;
 }

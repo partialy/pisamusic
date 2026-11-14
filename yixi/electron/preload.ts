@@ -398,6 +398,15 @@ const cookieApiIpc = {
 const downloadApiIpc = {
   startDownloadTask: (payload: { song: any; qualityKey?: string; directory: string }) =>
     ipcRenderer.invoke("download:start", cloneIpcPayload(payload)),
+  enqueueDownloads: (items: import("../src/types/download").DownloadEnqueueItem[], options?: import("../src/types/download").DownloadEnqueueOptions) => ipcRenderer.invoke("download:enqueue", cloneIpcPayload(items), cloneIpcPayload(options)),
+  pauseDownload: (id: string) => ipcRenderer.invoke("download:pause", id),
+  resumeDownload: (id: string) => ipcRenderer.invoke("download:resume", id),
+  pauseAllDownloads: () => ipcRenderer.invoke("download:pause-all"),
+  resumeAllDownloads: () => ipcRenderer.invoke("download:resume-all"),
+  cancelDownload: (id: string) => ipcRenderer.invoke("download:cancel", id),
+  retryDownload: (id: string) => ipcRenderer.invoke("download:retry", id),
+  getDownloadDetail: (id: string) => ipcRenderer.invoke("download:detail", id),
+  listDownloadFiles: () => ipcRenderer.invoke("download:files"),
   listDownloadTasks: () => ipcRenderer.invoke("download:tasks"),
   listDownloadRecords: () => ipcRenderer.invoke("download:records"),
   listDownloadedSongs: () => ipcRenderer.invoke("download:songs"),
