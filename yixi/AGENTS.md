@@ -412,3 +412,16 @@
 - 离散 message/dialog/modal API 的 ConfigProvider 使用 `theme/discreteTheme.ts` 共享响应式配置，由 App setup 的 watchEffect 同步主题/overrides；不得在模块初始化时调用 Pinia Store。Tabs 与 Checkbox 在主题适配器显式保留 Naive 3px/2px 专用形态，不继承 common 12px。
 
 - 一起听未入房面板的“自定义房间号/最大人数”并列一行；创建/加入Tab底部均以“创建房间/加入房间、关闭”排序，关闭由 Lobby emit close→Entry showPanel=false，仅收起弹窗，不退出房间、不修改房间状态。
+
+
+## 账号歌单与收藏数据层（schema 9）
+
+- `electron/database/accountLibrarySchema.ts` 将旧收藏/歌单/曲目一次性复制到空账号未关联区，保留历史表用于回溯；运行权威改为 `account_library_items` / `account_playlist_tracks`，不能再直接写旧表。账号复合主键允许不同账号收藏同歌或缓存相同远端歌单 ID。
+- `AppDatabase.accountLibrary({accountId, deviceIdentity})` 创建捕获 main 可信身份的 Repository，所有 list/pending/remove/import 都限制该账号。旧 AppDatabase API 固定适配未关联区，不根据当前登录态猜归属；后续 IPC/sync 必须完整切换到显式 scope，再启用账号视图，禁止旧全库自动 seed。
+- `accountLibraryRepository.ts` 统一收藏关系、自建歌单 create/update/bulkAdd/bulkRemove/delete、数量/自动封面/outbox 同事务。通知与同步调度只能在成功返回后执行；远端 apply 使用 fromSync，排序单独传入 `sortOrder` 与权威 `serverVersion`，不得自行生成服务端版本。
+- 曲目重复添加不改变元信息、排序或自动封面，返回 added/existing；排序为 COALESCE(sort_order,fallback_order) → server_version → track_key。历史 fallback 为旧自增 ID；扩展缺省保留，null 显式清除。在线自动封面只取实际新增最后一首有有效远程图的非 LOCAL 歌曲，清空 coverResource/coverPreset；KG 模板原样保留。
+- `localTrackIdentityRepository.ts` 为原本机歌曲键维护长期 UUID 映射，与扫描记录删除无级联关系；不修改播放 ID、不按歌名时长猜匹配。双向查询与显式 associateLocalKey 供移动文件后确认关联；下行 resolveIncomingTrack 在原设备映射回原键，异机仍为不可播放占位，由后续播放/IPC层校验文件。
+- `importUnassociated()` 只能在用户明确确认后调用；保留未关联原件、收藏去重且保留关系时间、自建歌单创建新 UUID 账号副本。未关联 pending 不随导入搬移或上传，其他账号 pending 永远不清除。
+- 本阶段只实现数据层；`syncService` / `persistenceIpc` / preload / renderer 尚待后续完整接入，不代表运行账号隔离已验收。后续禁止继续调用旧 record* 造成事务外重复入队；出站复用安全源字段并由协议模块最终白名单序列化，禁止将原始 TrackSnapshot 直接发送。
+
+- LOCAL新增显式 `durationMs`（非负有限毫秒）；不从历史 `duration` 数值大小猜单位。出站有可信durationMs则使用，无则duration=0并省略durationMs；后续生产者须按已知单位显式转换，在线duration保持原契约。

@@ -31,6 +31,7 @@ export function normalizePlaylistSnapshot(input: Partial<PlaylistSnapshot> | Rec
     tags: normalizePlaylistTags(input.tags),
   };
 
+  preservePlaylistExtensions(input, playlist);
   const coverSize = normalizeCoverSize(input.coverSize);
   if (coverSize) playlist.coverSize = coverSize;
 
@@ -110,6 +111,7 @@ export function normalizeTrackSnapshot(input: TrackSnapshot | Record<string, unk
     duration: normalizeDuration(input.duration),
   };
 
+  if (typeof input.durationMs === "number" && Number.isFinite(input.durationMs) && input.durationMs >= 0) track.durationMs = input.durationMs;
   const urlParam = toStringValue(input.urlParam);
   if (typeof input.favoritedAt === "number" && Number.isFinite(input.favoritedAt)
     && input.favoritedAt > 0 && input.favoritedAt <= 8.64e15) {
@@ -159,4 +161,16 @@ export function normalizeDuration(value: unknown) {
     if (Number.isFinite(duration)) return duration;
   }
   return 0;
+}
+
+export function preservePlaylistExtensions(input: Record<string, unknown> | Partial<PlaylistSnapshot>, result: PlaylistSnapshot) {
+  for (const key of ["coverResource", "coverPreset"] as const) {
+    if (!Object.prototype.hasOwnProperty.call(input, key) || input[key] === undefined) continue;
+    const value = input[key];
+    if (value === null) { result[key] = null; continue; }
+    const id = key === "coverResource" && isRecord(value) ? value.resourceId : value;
+    if (typeof id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9:_-]{0,127}$/.test(id)) throw new Error("非法歌单封面标识");
+    if (key === "coverResource") result.coverResource = { resourceId: id };
+    else result.coverPreset = id;
+  }
 }

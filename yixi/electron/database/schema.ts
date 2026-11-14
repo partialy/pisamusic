@@ -1,3 +1,4 @@
+import { migrateAccountLibrary } from "./accountLibrarySchema";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
@@ -264,6 +265,7 @@ export function migrateDatabase(db: DatabaseSync) {
   `);
   // 旧缓存曾位于 renderer 可读写的通用 settings 中；升级后直接清除，避免再次信任该通道。
   db.prepare("DELETE FROM settings WHERE key = 'desktop-service-discovery-cache-v1'").run();
+  migrateAccountLibrary(db);
   ensureDownloadRecordColumns(db);
   ensureNetworkErrorUploadColumns(db);
   db

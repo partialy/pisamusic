@@ -20,6 +20,8 @@ export type TrackSnapshot = {
   album?: string;
   cover?: string;
   duration?: number;
+  /** 明确毫秒；仅可信生产者填写，不由旧 duration 猜测单位。 */
+  durationMs?: number;
   filePath?: string;
   [key: string]: unknown;
 };
@@ -109,6 +111,8 @@ export type PlaylistSnapshot = {
   name: string;
   desc: string;
   cover: string;
+  coverResource?: { resourceId: string } | null;
+  coverPreset?: string | null;
   coverSize?: {
     s: string;
     m: string;

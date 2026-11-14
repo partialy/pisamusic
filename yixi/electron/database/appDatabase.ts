@@ -1,24 +1,18 @@
+import { AccountLibraryRepository } from "./accountLibraryRepository";
+import type { LibraryScope, SyncOperationInput } from "./accountLibraryPolicy";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { normalizeLimit, parseJson, stringifyJson } from "./json";
 import {
   toDownloadRecord,
-  toFavoritePlaylist,
-  toFavoriteSong,
   toLocalSong,
   toNetworkErrorDetail,
   toNetworkErrorSummary,
   toUserCloudSong,
-  toUserPlaylist,
-  toUserPlaylistTrack,
 } from "./mappers";
 import {
   favoriteKey,
-  normalizePlaylistSnapshot,
-  normalizePlaylistTags,
   normalizeTrackSnapshot,
-  requireFavoriteIdentity,
-  requireFavoriteKey,
   toStringValue,
 } from "./normalizers";
 import { migrateDatabase } from "./schema";
@@ -28,10 +22,6 @@ import type {
   DownloadRecordInput,
   DownloadRecordItem,
   DownloadRecordRow,
-  FavoritePlaylistItem,
-  FavoritePlaylistRow,
-  FavoriteSongItem,
-  FavoriteSongRow,
   LocalLibraryScanMeta,
   LocalLibraryScanMetaRow,
   LocalSongItem,
@@ -58,10 +48,6 @@ import type {
   TrackSnapshot,
   UserCloudSongItem,
   UserCloudSongRow,
-  UserPlaylistItem,
-  UserPlaylistRow,
-  UserPlaylistTrackItem,
-  UserPlaylistTrackRow,
 } from "./types";
 
 export type {
@@ -294,365 +280,30 @@ export class AppDatabase {
     };
   }
 
-  listFavoriteSongs(): FavoriteSongItem[] {
-    const rows = this.db
-      .prepare(
-        `SELECT favorite_key, track_id, source, title, artist, album, artwork, duration, payload_json, created_at
-         FROM favorite_songs
-         ORDER BY created_at DESC, favorite_key ASC`
-      )
-      .all() as FavoriteSongRow[];
-    return rows.map((row) => toFavoriteSong(row));
-  }
-
-  addFavoriteSong(track: TrackSnapshot, fromSync = false) {
-    const normalizedTrack = normalizeTrackSnapshot(track);
-    const key = favoriteKey(normalizedTrack.source, normalizedTrack.id);
-    const now = new Date().toISOString();
-    const existing = this.getFavoriteSong(normalizedTrack.source, normalizedTrack.id);
-    const createdAt = fromSync && normalizedTrack.favoritedAt
-      ? new Date(normalizedTrack.favoritedAt).toISOString()
-      : existing?.createdAt ?? now;
-    normalizedTrack.favoritedAt = Date.parse(createdAt);
-    this.db
-      .prepare(
-        `INSERT INTO favorite_songs (
-           favorite_key, track_id, source, title, artist, album, artwork, duration, payload_json, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(favorite_key) DO UPDATE SET
-           title = excluded.title,
-           artist = excluded.artist,
-           album = excluded.album,
-           artwork = excluded.artwork,
-           duration = excluded.duration,
-           payload_json = excluded.payload_json,
-           created_at = excluded.created_at`
-      )
-      .run(
-        key,
-        normalizedTrack.id,
-        normalizedTrack.source,
-        normalizedTrack.name ?? "",
-        normalizedTrack.singer ?? "",
-        normalizedTrack.album ?? "",
-        normalizedTrack.cover ?? "",
-        normalizedTrack.duration ?? 0,
-        JSON.stringify(normalizedTrack),
-        createdAt
-      );
-    return this.getFavoriteSong(normalizedTrack.source, normalizedTrack.id);
-  }
-
-  removeFavoriteSong(source: string, id: string) {
-    this.db.prepare("DELETE FROM favorite_songs WHERE favorite_key = ?").run(favoriteKey(source, id));
-    return true;
-  }
-
-  toggleFavoriteSong(track: TrackSnapshot) {
-    const normalizedTrack = normalizeTrackSnapshot(track);
-    if (this.containsFavoriteSong(normalizedTrack.source, normalizedTrack.id)) {
-      this.removeFavoriteSong(normalizedTrack.source, normalizedTrack.id);
-      return { collected: false, item: null };
-    }
-    return { collected: true, item: this.addFavoriteSong(normalizedTrack) };
-  }
-
-  containsFavoriteSong(source: string, id: string) {
-    const row = this.db
-      .prepare("SELECT favorite_key FROM favorite_songs WHERE favorite_key = ?")
-      .get(favoriteKey(source, id)) as { favorite_key: string } | undefined;
-    return Boolean(row);
-  }
-
-  listFavoritePlaylists(): FavoritePlaylistItem[] {
-    const rows = this.db
-      .prepare(
-        `SELECT favorite_key, playlist_id, source, name, description, artwork,
-                song_count, play_count, collect_count, payload_json, created_at
-         FROM favorite_playlists
-         ORDER BY created_at DESC`
-      )
-      .all() as FavoritePlaylistRow[];
-    return rows.map((row) => toFavoritePlaylist(row));
-  }
-
-  addFavoritePlaylist(playlist: PlaylistSnapshot) {
-    const normalizedPlaylist = normalizePlaylistSnapshot(playlist);
-    const { id, source } = requireFavoriteIdentity(normalizedPlaylist, "歌单");
-    const key = favoriteKey(source, id);
-    const now = new Date().toISOString();
-    this.db
-      .prepare(
-        `INSERT INTO favorite_playlists (
-           favorite_key, playlist_id, source, name, description, artwork,
-           song_count, play_count, collect_count, payload_json, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(favorite_key) DO UPDATE SET
-           name = excluded.name,
-           description = excluded.description,
-           artwork = excluded.artwork,
-           song_count = excluded.song_count,
-           play_count = excluded.play_count,
-           collect_count = excluded.collect_count,
-           payload_json = excluded.payload_json`
-      )
-      .run(
-        key,
-        id,
-        source,
-        normalizedPlaylist.name,
-        normalizedPlaylist.desc,
-        normalizedPlaylist.cover,
-        String(normalizedPlaylist.song_count ?? ""),
-        String(normalizedPlaylist.play_count ?? ""),
-        String(normalizedPlaylist.collect_count ?? ""),
-        JSON.stringify(normalizedPlaylist),
-        now
-      );
-    return this.getFavoritePlaylist(source, id);
-  }
-
-  removeFavoritePlaylist(source: string, id: string) {
-    requireFavoriteKey(source, id, "歌单");
-    this.db.prepare("DELETE FROM favorite_playlists WHERE favorite_key = ?").run(favoriteKey(source, id));
-    return true;
-  }
-
-  toggleFavoritePlaylist(playlist: PlaylistSnapshot) {
-    const normalizedPlaylist = normalizePlaylistSnapshot(playlist);
-    const { id, source } = requireFavoriteIdentity(normalizedPlaylist, "歌单");
-    if (this.containsFavoritePlaylist(source, id)) {
-      this.removeFavoritePlaylist(source, id);
-      return { collected: false, item: null };
-    }
-    return { collected: true, item: this.addFavoritePlaylist(normalizedPlaylist) };
-  }
-
-  containsFavoritePlaylist(source: string, id: string) {
-    requireFavoriteKey(source, id, "歌单");
-    const row = this.db
-      .prepare("SELECT favorite_key FROM favorite_playlists WHERE favorite_key = ?")
-      .get(favoriteKey(source, id)) as { favorite_key: string } | undefined;
-    return Boolean(row);
-  }
-
-  listUserPlaylists(source?: PlaylistSource | "all"): UserPlaylistItem[] {
-    const rows = source && source !== "all"
-      ? this.db
-          .prepare(
-            `SELECT playlist_key, playlist_id, source, name, description, artwork,
-                    song_count, play_count, collect_count, payload_json, created_at, updated_at
-             FROM user_playlists
-             WHERE source = ?
-             ORDER BY updated_at DESC, created_at DESC`
-          )
-          .all(source) as UserPlaylistRow[]
-      : this.db
-          .prepare(
-            `SELECT playlist_key, playlist_id, source, name, description, artwork,
-                    song_count, play_count, collect_count, payload_json, created_at, updated_at
-             FROM user_playlists
-             ORDER BY source = 'local' DESC, updated_at DESC, created_at DESC`
-          )
-          .all() as UserPlaylistRow[];
-    return rows.map((row) => toUserPlaylist(row));
-  }
-
-  upsertUserPlaylist(playlist: PlaylistSnapshot) {
-    const normalizedPlaylist = normalizePlaylistSnapshot(playlist);
-    const { id, source } = requireFavoriteIdentity(normalizedPlaylist, "姝屽崟");
-    const key = favoriteKey(source, id);
-    const now = new Date().toISOString();
-    this.db
-      .prepare(
-        `INSERT INTO user_playlists (
-           playlist_key, playlist_id, source, name, description, artwork,
-           song_count, play_count, collect_count, payload_json, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(playlist_key) DO UPDATE SET
-           name = excluded.name,
-           description = excluded.description,
-           artwork = excluded.artwork,
-           song_count = excluded.song_count,
-           play_count = excluded.play_count,
-           collect_count = excluded.collect_count,
-           payload_json = excluded.payload_json,
-           updated_at = excluded.updated_at`
-      )
-      .run(
-        key,
-        id,
-        source,
-        normalizedPlaylist.name,
-        normalizedPlaylist.desc,
-        normalizedPlaylist.cover,
-        String(normalizedPlaylist.song_count ?? ""),
-        String(normalizedPlaylist.play_count ?? ""),
-        String(normalizedPlaylist.collect_count ?? ""),
-        JSON.stringify(normalizedPlaylist),
-        now,
-        now
-      );
-    return this.getUserPlaylist(source, id);
-  }
-
-  createUserPlaylist(input: Partial<PlaylistSnapshot>) {
-    const playlist = normalizePlaylistSnapshot({
-      ...input,
-      id: toStringValue(input.id) || this.createLocalPlaylistId(),
-      source: "local",
-      tags: normalizePlaylistTags(input.tags).slice(0, 3),
-      song_count: input.song_count ?? 0,
-    });
-    return this.upsertUserPlaylist(playlist);
-  }
-
-  replaceUserPlaylists(source: Exclude<PlaylistSource, "local">, playlists: PlaylistSnapshot[]) {
-    const normalizedPlaylists = playlists.map((playlist) =>
-      normalizePlaylistSnapshot({ ...playlist, source })
-    );
-    const now = new Date().toISOString();
-    const insert = this.db.prepare(
-      `INSERT INTO user_playlists (
-         playlist_key, playlist_id, source, name, description, artwork,
-         song_count, play_count, collect_count, payload_json, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    this.db.exec("BEGIN IMMEDIATE TRANSACTION;");
-    try {
-      this.db.prepare("DELETE FROM user_playlists WHERE source = ?").run(source);
-      normalizedPlaylists.forEach((playlist) => {
-        insert.run(
-          favoriteKey(playlist.source, playlist.id),
-          playlist.id,
-          playlist.source,
-          playlist.name,
-          playlist.desc,
-          playlist.cover,
-          String(playlist.song_count ?? ""),
-          String(playlist.play_count ?? ""),
-          String(playlist.collect_count ?? ""),
-          JSON.stringify(playlist),
-          now,
-          now
-        );
-      });
-      this.db.exec("COMMIT;");
-    } catch (error) {
-      this.db.exec("ROLLBACK;");
-      throw error;
-    }
-    return this.listUserPlaylists(source);
-  }
-
-  listUserPlaylistTracks(playlistId: string): UserPlaylistTrackItem[] {
-    const rows = this.db
-      .prepare(
-        `SELECT playlist_id, track_key, track_id, source, title, artist, album,
-                artwork, duration, payload_json, created_at
-         FROM user_playlist_tracks
-         WHERE playlist_id = ?
-         ORDER BY id ASC`
-      )
-      .all(playlistId) as UserPlaylistTrackRow[];
-    return rows.map((row) => toUserPlaylistTrack(row));
-  }
-
-  addUserPlaylistTrack(playlistId: string, track: TrackSnapshot) {
-    const normalizedPlaylistId = toStringValue(playlistId);
-    if (!normalizedPlaylistId) throw new Error("添加歌曲需要歌单 ID");
-    const normalizedTrack = normalizeTrackSnapshot(track);
-    const trackKey = favoriteKey(normalizedTrack.source, normalizedTrack.id);
-    const now = new Date().toISOString();
-    this.db
-      .prepare(
-        `INSERT INTO user_playlist_tracks (
-           playlist_id, track_key, track_id, source, title, artist, album,
-           artwork, duration, payload_json, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(playlist_id, track_key) DO UPDATE SET
-           title = excluded.title,
-           artist = excluded.artist,
-           album = excluded.album,
-           artwork = excluded.artwork,
-           duration = excluded.duration,
-           payload_json = excluded.payload_json`
-      )
-      .run(
-        normalizedPlaylistId,
-        trackKey,
-        normalizedTrack.id,
-        normalizedTrack.source,
-        normalizedTrack.name ?? "",
-        normalizedTrack.singer ?? "",
-        normalizedTrack.album ?? "",
-        normalizedTrack.cover ?? "",
-        normalizedTrack.duration ?? 0,
-        JSON.stringify(normalizedTrack),
-        now
-      );
-    this.updateUserPlaylistSongCount(normalizedPlaylistId);
-    return this.listUserPlaylistTracks(normalizedPlaylistId);
-  }
-
-  removeUserPlaylist(source: string, id: string) {
-    const { id: playlistId, source: playlistSource } = requireFavoriteKey(source, id, "姝屽崟");
-    this.db.prepare("DELETE FROM user_playlist_tracks WHERE playlist_id = ?").run(playlistId);
-    this.db.prepare("DELETE FROM user_playlists WHERE playlist_key = ?").run(favoriteKey(playlistSource, playlistId));
-    return true;
-  }
-
-  removeUserPlaylistTrack(playlistId: string, source: string, id: string) {
-    const normalizedPlaylistId = toStringValue(playlistId);
-    if (!normalizedPlaylistId) return false;
-    const { id: trackId, source: trackSource } = requireFavoriteKey(source, id, "姝屾洸");
-    this.db
-      .prepare("DELETE FROM user_playlist_tracks WHERE playlist_id = ? AND track_key = ?")
-      .run(normalizedPlaylistId, favoriteKey(trackSource, trackId));
-    this.updateUserPlaylistSongCount(normalizedPlaylistId);
-    return true;
-  }
-
-  enqueueSyncOp(input: {
-    itemType: string;
-    itemKey: string;
-    action: "upsert" | "delete";
-    payload?: unknown;
-  }) {
-    if (!input.itemType || !input.itemKey) return null;
-    const opId = randomUUID();
-    const now = new Date().toISOString();
-    this.db
-      .prepare(
-        `INSERT INTO sync_outbox (op_id, item_type, item_key, action, payload_json, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(
-        opId,
-        input.itemType,
-        input.itemKey,
-        input.action,
-        JSON.stringify(input.payload ?? {}),
-        now
-      );
-    return opId;
-  }
-
-  listSyncOutbox(limit = 200) {
-    return this.db
-      .prepare(
-        `SELECT op_id, item_type, item_key, action, payload_json, created_at
-         FROM sync_outbox
-         ORDER BY created_at ASC, id ASC
-         LIMIT ?`
-      )
-      .all(normalizeLimit(limit));
-  }
-
-  listPendingSyncKeys(): { item_type: string; item_key: string }[] {
-    return this.db.prepare("SELECT DISTINCT item_type, item_key FROM sync_outbox").all() as
-      { item_type: string; item_key: string }[];
-  }
+  /** 兼容 API 固定使用未关联区；新 IPC/sync 使用 main 捕获的显式 scope。 */
+  accountLibrary(scope: LibraryScope) { return new AccountLibraryRepository(this.db, scope); }
+  private get unassociatedLibrary() { return this.accountLibrary({ accountId: "", deviceIdentity: "" }); }
+  listFavoriteSongs() { return this.unassociatedLibrary.listFavoriteSongs(); }
+  addFavoriteSong(track: TrackSnapshot, fromSync = false) { return this.unassociatedLibrary.addFavoriteSong(track, fromSync); }
+  removeFavoriteSong(source: string, id: string) { return this.unassociatedLibrary.removeFavoriteSong(source, id); }
+  toggleFavoriteSong(track: TrackSnapshot) { return this.unassociatedLibrary.toggleFavoriteSong(track); }
+  containsFavoriteSong(source: string, id: string) { return this.unassociatedLibrary.containsFavoriteSong(source, id); }
+  listFavoritePlaylists() { return this.unassociatedLibrary.listFavoritePlaylists(); }
+  addFavoritePlaylist(playlist: PlaylistSnapshot) { return this.unassociatedLibrary.addFavoritePlaylist(playlist); }
+  removeFavoritePlaylist(source: string, id: string) { return this.unassociatedLibrary.removeFavoritePlaylist(source, id); }
+  toggleFavoritePlaylist(playlist: PlaylistSnapshot) { return this.unassociatedLibrary.toggleFavoritePlaylist(playlist); }
+  containsFavoritePlaylist(source: string, id: string) { return this.unassociatedLibrary.containsFavoritePlaylist(source, id); }
+  listUserPlaylists(source?: PlaylistSource | "all") { return this.unassociatedLibrary.listUserPlaylists(source); }
+  upsertUserPlaylist(playlist: PlaylistSnapshot) { return this.unassociatedLibrary.upsertUserPlaylist(playlist); }
+  replaceUserPlaylists(source: Exclude<PlaylistSource, "local">, playlists: PlaylistSnapshot[]) { return this.unassociatedLibrary.replaceUserPlaylists(source, playlists); }
+  listUserPlaylistTracks(playlistId: string) { return this.unassociatedLibrary.listUserPlaylistTracks(playlistId); }
+  addUserPlaylistTrack(playlistId: string, track: TrackSnapshot) { return this.unassociatedLibrary.addUserPlaylistTrack(playlistId, track); }
+  removeUserPlaylist(source: string, id: string) { return this.unassociatedLibrary.removeUserPlaylist(source, id); }
+  removeUserPlaylistTrack(playlistId: string, source: string, id: string) { return this.unassociatedLibrary.removeUserPlaylistTrack(playlistId, source, id); }
+  enqueueSyncOp(input: SyncOperationInput) { return this.unassociatedLibrary.enqueueSyncOp(input); }
+  listSyncOutbox(limit = 200) { return this.unassociatedLibrary.listSyncOutbox(limit); }
+  listPendingSyncKeys() { return this.unassociatedLibrary.listPendingSyncKeys(); }
+  createUserPlaylist(input: Partial<PlaylistSnapshot>) { return this.unassociatedLibrary.createUserPlaylist(input).playlist; }
 
   applySyncTransaction<T>(apply: () => T): T {
     this.db.exec("BEGIN IMMEDIATE TRANSACTION;");
@@ -666,22 +317,8 @@ export class AppDatabase {
     }
   }
 
-  removeSyncOps(opIds: string[]) {
-    if (!opIds.length) return;
-    const remove = this.db.prepare("DELETE FROM sync_outbox WHERE op_id = ?");
-    this.db.exec("BEGIN IMMEDIATE TRANSACTION;");
-    try {
-      opIds.forEach((opId) => remove.run(opId));
-      this.db.exec("COMMIT;");
-    } catch (error) {
-      this.db.exec("ROLLBACK;");
-      throw error;
-    }
-  }
-
-  clearSyncOutbox() {
-    this.db.prepare("DELETE FROM sync_outbox").run();
-  }
+  removeSyncOps(opIds: string[]) { return this.unassociatedLibrary.removeSyncOps(opIds); }
+  clearSyncOutbox() { return this.unassociatedLibrary.clearSyncOutbox(); }
 
   listUserCloudSongs(cloudSource?: string | "all"): UserCloudSongItem[] {
     const rows = cloudSource && cloudSource !== "all"
@@ -1077,66 +714,7 @@ export class AppDatabase {
   }
 
   getFavoriteSong(source: string, id: string) {
-    const row = this.db
-      .prepare(
-        `SELECT favorite_key, track_id, source, title, artist, album, artwork, duration, payload_json, created_at
-         FROM favorite_songs
-         WHERE favorite_key = ?`
-      )
-      .get(favoriteKey(source, id)) as FavoriteSongRow | undefined;
-    return row ? toFavoriteSong(row) : null;
-  }
-
-  private getUserPlaylist(source: string, id: string) {
-    const row = this.db
-      .prepare(
-        `SELECT playlist_key, playlist_id, source, name, description, artwork,
-                song_count, play_count, collect_count, payload_json, created_at, updated_at
-         FROM user_playlists
-         WHERE playlist_key = ?`
-      )
-      .get(favoriteKey(source, id)) as UserPlaylistRow | undefined;
-    return row ? toUserPlaylist(row) : null;
-  }
-
-  private updateUserPlaylistSongCount(playlistId: string) {
-    const row = this.db
-      .prepare("SELECT COUNT(*) AS count FROM user_playlist_tracks WHERE playlist_id = ?")
-      .get(playlistId) as { count: number } | undefined;
-    const count = String(row?.count ?? 0);
-    const existing = this.db
-      .prepare("SELECT payload_json FROM user_playlists WHERE source = 'local' AND playlist_id = ?")
-      .get(playlistId) as { payload_json: string } | undefined;
-    const payload = existing
-      ? normalizePlaylistSnapshot(parseJson<Partial<PlaylistSnapshot>>(existing.payload_json, {
-          id: playlistId,
-          source: "local",
-        }))
-      : null;
-    if (payload) payload.song_count = count;
-    this.db
-      .prepare(
-        `UPDATE user_playlists
-         SET song_count = ?, payload_json = COALESCE(?, payload_json), updated_at = ?
-         WHERE source = 'local' AND playlist_id = ?`
-      )
-      .run(count, payload ? JSON.stringify(payload) : null, new Date().toISOString(), playlistId);
-  }
-
-  private createLocalPlaylistId() {
-    return `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  }
-
-  private getFavoritePlaylist(source: string, id: string) {
-    const row = this.db
-      .prepare(
-        `SELECT favorite_key, playlist_id, source, name, description, artwork,
-                song_count, play_count, collect_count, payload_json, created_at
-         FROM favorite_playlists
-         WHERE favorite_key = ?`
-      )
-      .get(favoriteKey(source, id)) as FavoritePlaylistRow | undefined;
-    return row ? toFavoritePlaylist(row) : null;
+    return this.listFavoriteSongs().find(item => item.source === source && item.trackId === id) ?? null;
   }
 
 }
