@@ -18,12 +18,13 @@ import cn.partialy.pm.sync.SyncPayloads
 import com.google.gson.Gson
 
 internal class LocalPlaylistDbStore(context: Context) {
-    private val helper = LocalMusicDbOpenHelper.shared(context.applicationContext)
+    private val helperContext=context.applicationContext
+    private val helper = LocalMusicDbOpenHelper.shared(helperContext)
     private val gson = Gson()
     private val account = cn.partialy.pm.sync.LibraryAccountScope(context)
     private val localTracks = cn.partialy.pm.sync.LocalSyncTrackStore(context)
 
-    fun allCoverReferences(): List<String> = helper.readableDatabase.rawQuery("SELECT cover FROM local_playlists", null).use { cursor ->
+    fun allCoverReferences(): List<String> = helper.readableDatabase.rawQuery("SELECT cover FROM local_playlists UNION ALL SELECT fallback FROM playlist_cover_edits", null).use { cursor ->
         buildList { while (cursor.moveToNext()) add(cursor.getString(0).orEmpty()) }
     }
 
@@ -105,6 +106,16 @@ internal class LocalPlaylistDbStore(context: Context) {
         }
     }
 
+    fun upsertFromSync(playlist: CollectedPlaylist, ownEcho: Boolean, clock: Long): CollectedPlaylist = transaction { db ->
+        val edits=cn.partialy.pm.playlistcover.PlaylistCoverStore(helperContext)
+        val next=edits.remote(account.current(),playlist,ownEcho,clock)
+        upsertPlaylist(next)
+        clearParentDeleted(next.id)
+        if(edits.get(account.current(),next.id)==null)
+            cn.partialy.pm.playlistcover.PlaylistCoverStore.recordLocalEdit(db,account.current(),next.id,clock)
+        next
+    }
+
     fun createPlaylistWithSongs(playlist: CollectedPlaylist, songs: List<SongInfo>, outbox: SyncOutboxStore) {
         val db = helper.writableDatabase
         db.beginTransaction()
@@ -144,6 +155,7 @@ internal class LocalPlaylistDbStore(context: Context) {
         db.beginTransaction()
         try {
             db.delete("local_playlist_songs", "playlist_id = ? AND account_id = ?", arrayOf(id, account.current()))
+            db.delete("playlist_cover_edits", "playlist_id=? AND account_id=?", arrayOf(id,account.current()))
             db.delete("local_playlists", "id = ? AND owner_account_id = ?", arrayOf(id, account.current()))
             db.setTransactionSuccessful()
         } finally {
@@ -266,6 +278,7 @@ internal class LocalPlaylistDbStore(context: Context) {
         db.beginTransaction()
         try {
             db.delete("local_playlist_songs", "account_id=?", arrayOf(account.current()))
+            db.delete("playlist_cover_edits", "account_id=?", arrayOf(account.current()))
             db.delete("local_playlists", "owner_account_id=?", arrayOf(account.current()))
             db.setTransactionSuccessful()
         } finally {

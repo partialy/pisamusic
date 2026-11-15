@@ -393,4 +393,12 @@
 - LOCAL 明确时长字段为 `durationMs`；扫描和已下载读取等已知生产者同时生成毫秒字段与本机秒 `SongInfo.duration`。旧未知 LOCAL duration 不猜单位、不批量改写；解析优先明确毫秒并转换为秒，在线旧 duration 维持原语义。
 - 接收 LOCAL 时按私有映射恢复播放引用并核验文件可读性；无映射保留逻辑 ID 占位，有映射但缺文件同样不可播。统一歌曲行灰态及“当前设备无文件”；`SongInfo.availableForPlayback` 贯通 MusicController、PlaylistManager、PlayUrlGetter、MediaItemFactory 的单曲/队列/批量入口，逻辑 UUID 不会被当文件地址。LOCAL 下载/一起听禁用规则保留。
 - `sort_order` 保留既有顺序，新增 `sort_version/track_key` 按顺序、权威 change.version、稳定 key 排列；缺/null 不覆盖已存顺序。真实新增和显式替换才产生准确顺序事件，seed 不重报全量排序；同设备回声只确认权威排序版本，不覆盖本机元数据，曲目等量更新由本机 revision 通知 Flow。父删除与本机 tombstone 防迟到子项复活；create/add/update/remove/replace 的 DB 与 outbox 共用连接/事务，提交后发布内存与 Flow。
-- `coverResource/coverPreset` 保留缺失与显式 null 的区别；修改名称/描述不清资源，切封面或最后真实新增的有效远程图显式清互斥扩展；LOCAL/重复/缺图不改封面。旧封面清理检查全部账号及未关联引用。P1 不接上传接口、不伪造上传完成；预设或已有远程 URL 可展示，离线私有图片仍只在本机使用，P2/P3 再接账号上传队列与资源生命周期。
+- `coverResource/coverPreset` 保留缺失与显式 null 的区别；修改名称/描述不清资源，切封面或最后真实新增的有效远程图显式清互斥扩展；LOCAL/重复/缺图不改封面。旧封面清理检查全部账号及未关联引用。P1 只保留资源字段，账号上传队列与资源生命周期接入见下方 P3 规范。
+
+## P3 账号歌单封面上传（2026-11-15）
+
+- `pm_local_music.db` V16 仅新增 `playlist_cover_edits`，以账号/歌单复合键外联 V15 父表，保存私有编辑代次、预期封面、fallback、上传会话与资源标识、状态、尝试次数和真实文档时钟；不持久化七牛 token。未登录编辑保留本地图，不把旧账号任务转给新账号。
+- `playlistcover/PlaylistCoverUploadManager` 通过已有系统加密请求层与用户 JWT 调用 `playlist-covers/upload-token`、`complete`、资源查询，再使用无账号鉴权头的资源 client 按 Server 受控 key/token 七牛直传；严格复核账号、歌单、编辑代次与 uploadId。选择图片仅接受真实解码的 JPG/PNG/WebP、输入不超过 5MiB/3200 万像素，最长边 1024 缩放后重新编码 JPEG 去除 EXIF；先保存本机，再异步上传。
+- `PlaylistCoverWork` 使用联网约束和指数退避，启动/账号切换恢复当前账号任务；未关联资料导入的统一入口在事务提交后主动唤醒队列，保证晚于启动任务排空的手动导入也会上传。每条任务最多五次自动尝试。token/上传/complete 都在 DB 事务外；READY 可在重启后继续建立引用。最终同事务复核代次和当前封面、写入资源/URL/outbox，再刷新 manager；删除、恢复默认、切模板、歌曲自动封面或真正远端改封面使迟到结果失效。
+- 封面引用补写、重传与 seed 沿用最近真实整项编辑时钟，不用上传完成时间制造新编辑；同代次后续改名/简介更新该时钟，引用时重新读取最新元信息。编辑页只改名称/简介时沿用后台已完成的新封面，不能将打开页面时的旧本地图重新排队。同设备空 cover 快照回声保留当前代次本机 fallback；其他设备实际清空仍生效。
+- 同步 400 后仅对资源查询明确确认失效的引用撤销：保留原 outbox opId/时间、清失效资源字段，避免阻塞整批；保留本机 fallback 与失败提示，封面原操作菜单提供手动重传、选图和恢复默认。远端图加载失败时详情公共 binder 可回退当前账号私有图片；自动换图、本机/远端删除及清空前保存原封面与 fallback 引用，提交后按全引用差集清理私有图，检查全部账号/未关联歌单和其他 fallback 共享引用，不能只按 HTTPS 公共 cover 清理。客户端不物理删除云对象，统一由 Server 七天延迟回收。

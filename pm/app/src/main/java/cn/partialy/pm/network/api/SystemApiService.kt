@@ -64,6 +64,18 @@ import retrofit2.http.Query
 import retrofit2.http.Url
 
 interface SystemApiService {
+    @POST("api/playlist-covers/upload-token")
+    suspend fun coverUploadToken(@Header("Authorization") authorization: String,
+        @Body body: cn.partialy.pm.playlistcover.CoverTokenRequest): cn.partialy.pm.playlistcover.CoverEnvelope<cn.partialy.pm.playlistcover.CoverToken>
+
+    @POST("api/playlist-covers/complete")
+    suspend fun completeCover(@Header("Authorization") authorization: String,
+        @Body body: cn.partialy.pm.playlistcover.CoverCompleteRequest): cn.partialy.pm.playlistcover.CoverEnvelope<cn.partialy.pm.playlistcover.CoverResource>
+
+    @GET("api/playlist-covers/{resourceId}")
+    suspend fun queryCover(@Header("Authorization") authorization: String,
+        @Path("resourceId") resourceId: String): cn.partialy.pm.playlistcover.CoverEnvelope<cn.partialy.pm.playlistcover.CoverResource>
+
     @GET("api/config/app-share")
     suspend fun getAppShare(
         @Header("x-pm-device-token") deviceToken: String,

@@ -24,6 +24,10 @@ class App : Application() {
         loveManager.preloadFromDiskAsync()
         PmMessage.init(this)
         TokenManager.init(this)
+        cn.partialy.pm.network.auth.AccountSessionStore.onLibraryAccountChanged {
+            cn.partialy.pm.playlistcover.PlaylistCoverWork.request(this,replace=true)
+        }
+        cn.partialy.pm.playlistcover.PlaylistCoverWork.request(this,replace=true)
         SettingsPrefs.applyAutoAudioCacheIfNeeded(this)
         AppCompatDelegate.setDefaultNightMode(
             SettingsPrefs.toNightMode(SettingsPrefs.getThemeMode(this)),

@@ -14,10 +14,23 @@ internal class PlaylistEditCoverFiles(private val context: Context) {
     private val persistentDirectory = File(context.filesDir, "playlist_covers")
 
     fun normalize(uri: Uri): String {
+        val bytes=context.contentResolver.openInputStream(uri)?.use { input ->
+            val output=java.io.ByteArrayOutputStream()
+            val buffer=ByteArray(8192)
+            while(true) {
+                val count=input.read(buffer)
+                if(count<0) break
+                require(output.size()+count <= 5 * 1024 * 1024) { "封面不能超过 5MiB" }
+                output.write(buffer,0,count)
+            }
+            output.toByteArray().also { require(it.isNotEmpty()) }
+        } ?: error("无法读取图片")
         pendingDirectory.mkdirs()
         val output = File(pendingDirectory, "${UUID.randomUUID()}.jpg")
         // ImageDecoder 会应用 EXIF 方向，解码前限制尺寸，避免大图占满内存。
-        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
+        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(java.nio.ByteBuffer.wrap(bytes))) { decoder, info, _ ->
+            require(info.mimeType in setOf("image/jpeg","image/png","image/webp")) { "仅支持 JPG/PNG/WebP" }
+            require(info.size.width.toLong() * info.size.height <= 32_000_000) { "图片尺寸过大" }
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
             val largest = maxOf(info.size.width, info.size.height)
             if (largest > 1024) {

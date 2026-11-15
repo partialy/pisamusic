@@ -93,6 +93,8 @@ class UnassociatedLibraryImporter(private val context: Context) {
             }
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
+        // 手动导入可能晚于启动任务排空；只在事务提交后唤醒新副本的持久封面队列。
+        cn.partialy.pm.playlistcover.PlaylistCoverWork.request(context)
         imported + favoriteSongs.size + favoritePlaylists.size
     }
 }

@@ -15,13 +15,20 @@ class SyncOutboxStore(context: Context) {
 
     fun enqueue(itemType: String, itemKey: String, action: String, payloadJson: String = "{}") {
         if (itemType.isBlank() || itemKey.isBlank()) return
-        enqueueInTransaction(helper.writableDatabase, accountSnapshot(), itemType, itemKey, action, payloadJson)
+        val db=helper.writableDatabase
+        val account=accountSnapshot()
+        // 此公开入口用于 seed：沿用已知文档时钟，不能因启动/重新 seed 伪造新编辑。
+        val clock=if(itemType==SyncPayloads.TYPE_USER_PLAYLIST) db.rawQuery(
+            "SELECT COALESCE(e.document_clock,p.updated_at) FROM local_playlists p LEFT JOIN playlist_cover_edits e ON e.account_id=p.owner_account_id AND e.playlist_id=p.id WHERE p.owner_account_id=? AND p.id=?",
+            arrayOf(account,itemKey.substringAfter(":"))
+        ).use { if(it.moveToFirst()) it.getLong(0) else System.currentTimeMillis() } else System.currentTimeMillis()
+        enqueueInTransaction(db, account, itemType, itemKey, action, payloadJson,clock,false)
     }
 
     /** 调用方传入同一事务连接，账户在整批操作开始时只取一次快照。 */
     internal fun enqueueInTransaction(
         db: SQLiteDatabase, accountId: String, itemType: String, itemKey: String,
-        action: String, payloadJson: String = "{}",
+        action: String, payloadJson: String = "{}", createdAt: Long = System.currentTimeMillis(), recordDocumentEdit: Boolean = true,
     ) {
         require(itemType.isNotBlank() && itemKey.isNotBlank())
         val values = ContentValues().apply {
@@ -31,9 +38,11 @@ class SyncOutboxStore(context: Context) {
             put("action", action)
             put("account_id", accountId.trim())
             put("payload_json", payloadJson.ifBlank { "{}" })
-            put("created_at", System.currentTimeMillis())
+            put("created_at", createdAt)
         }
         db.insertOrThrow("sync_outbox", null, values)
+        if (recordDocumentEdit && itemType == SyncPayloads.TYPE_USER_PLAYLIST && action == SyncPayloads.ACTION_UPSERT)
+            cn.partialy.pm.playlistcover.PlaylistCoverStore.recordLocalEdit(db,accountId,itemKey.substringAfter(":"),createdAt)
     }
 
     internal fun accountSnapshot(): String = currentAccountId()

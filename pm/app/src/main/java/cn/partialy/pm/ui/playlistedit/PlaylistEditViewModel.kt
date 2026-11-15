@@ -30,6 +30,7 @@ data class PlaylistEditState(
     val saved: Boolean = false,
     val hasChanges: Boolean = false,
     val error: PlaylistEditError? = null,
+    val uploadStatus: String = "",
 )
 
 @HiltViewModel
@@ -77,6 +78,7 @@ class PlaylistEditViewModel @Inject constructor(
                 cover = savedState["cover"] ?: playlist.cover,
                 loading = false,
                 saved = savedState["saved"] ?: false,
+                uploadStatus = withContext(Dispatchers.IO) { manager.playlistCoverUploadStatus(id) },
             ))
         }
     }
@@ -163,8 +165,10 @@ class PlaylistEditViewModel @Inject constructor(
         check(accountGeneration == cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration) { "账号已变化，请重新打开歌单" }
         val previous = manager.getCollectedPlaylist(CollectedPlaylistType.LOCAL, playlistId)
             ?: error("歌单不存在")
-        val newFile = covers.persist(draft.cover)
-        val nextCover = newFile?.let { MinePlaylistCoverResolver.storageValueForAbsolutePath(it.absolutePath) } ?: draft.cover
+        // 编辑期间后台可能已把本机图链接成资源；只改名称/简介时沿用最新封面，避免重新排队旧图。
+        val selectedCover = if (draft.cover == savedState.get<String>("originalCover")) previous.cover else draft.cover
+        val newFile = covers.persist(selectedCover)
+        val nextCover = newFile?.let { MinePlaylistCoverResolver.storageValueForAbsolutePath(it.absolutePath) } ?: selectedCover
         try {
             val changed = manager.updateLocalPlaylistMeta(playlistId, name, draft.description, nextCover)
             check(changed || manager.getCollectedPlaylist(CollectedPlaylistType.LOCAL, playlistId)?.let {
@@ -180,6 +184,20 @@ class PlaylistEditViewModel @Inject constructor(
             covers.deleteTemporary(draft.cover)
         }
         nextCover
+    }
+
+    fun retryCoverUpload() {
+        if(!canEdit()) return
+        viewModelScope.launch {
+            val result=withContext(Dispatchers.IO) {
+                synchronized(cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary) {
+                    if(accountGeneration != cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration) false
+                    else manager.retryPlaylistCoverUpload(playlistId)
+                }
+            }
+            mutableState.value=state.value.copy(uploadStatus=withContext(Dispatchers.IO) { manager.playlistCoverUploadStatus(playlistId) },
+                error=if(result) null else PlaylistEditError.IMAGE_FAILED)
+        }
     }
 
     fun consumeError() {

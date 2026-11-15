@@ -83,6 +83,12 @@ object MinePlaylistCoverResolver {
         file.delete()
     }
 
+    internal fun privateFallback(context: Context, remoteUrl: String): File? {
+        val account=cn.partialy.pm.network.auth.AccountSessionStore.read(context).user.id
+        if(account.isBlank()) return null
+        return cn.partialy.pm.playlistcover.PlaylistCoverStore(context).privateFallback(account,remoteUrl)?.let(::localFileForCover)
+    }
+
     /** 无有效封面时按当前深浅色主题显示默认音乐封面。 */
     fun defaultLocalCoverRes(): Int = R.drawable.default_music_cover
 }

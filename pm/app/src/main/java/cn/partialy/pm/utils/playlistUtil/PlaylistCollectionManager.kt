@@ -37,6 +37,7 @@ class PlaylistCollectionManager @Inject constructor(
 ) {
     private val gson = Gson()
     private val localDb = LocalPlaylistDbStore(context)
+    private val coverEdits = cn.partialy.pm.playlistcover.PlaylistCoverStore(context)
     private val favoriteDb = FavoritePlaylistsDbStore(context)
     private val syncOutbox = SyncOutboxStore(context)
     private val indexFileName = "collected_playlists.json"
@@ -279,10 +280,11 @@ class PlaylistCollectionManager @Inject constructor(
             val removedPl = playlistsByKey[key]
             if (removedPl != null) {
                 if (type == CollectedPlaylistType.LOCAL) {
+                    val previousCoverReferences = localDb.allCoverReferences()
                     localDb.removeWithOutbox(removedPl, syncOutbox)
                     localSongsByPlaylistId.remove(id)
                     localSongsLoaded.remove(id)
-                    MinePlaylistCoverResolver.deletePersistedCoverIfUnused(context, removedPl.cover, localDb.allCoverReferences())
+                    cleanupReleasedCovers(previousCoverReferences)
                 } else {
                     favoriteDb.removePlaylist(type, id)
                 }
@@ -327,6 +329,7 @@ class PlaylistCollectionManager @Inject constructor(
             localSongsLoaded.add(id)
             refreshPlaylistsFlowLocked()
         }
+        cn.partialy.pm.playlistcover.PlaylistCoverWork.request(context)
         runCatching { SyncWorkRunner.request(context) }
             .onFailure { Log.e(TAG, "schedule playlist sync failed; outbox retained", it) }
         return id
@@ -342,6 +345,7 @@ class PlaylistCollectionManager @Inject constructor(
         if (id.isBlank()) return false
         ensureIndexLoaded()
         var changed = false
+        val previousCoverReferences=localDb.allCoverReferences()
         synchronized(lock) {
             val key = storageKey(CollectedPlaylistType.LOCAL, id)
             val cur = playlistsByKey[key] ?: return false
@@ -362,7 +366,14 @@ class PlaylistCollectionManager @Inject constructor(
                 changed = true
             }
         }
-        if (changed) SyncWorkRunner.request(context)
+        if (changed) {
+            val referenced=localDb.allCoverReferences()
+            (previousCoverReferences-referenced.toSet()).forEach { old ->
+                runCatching { MinePlaylistCoverResolver.deletePersistedCoverIfUnused(context,old,referenced) }
+            }
+            SyncWorkRunner.request(context)
+            cn.partialy.pm.playlistcover.PlaylistCoverWork.request(context)
+        }
         return changed
     }
 
@@ -388,7 +399,6 @@ class PlaylistCollectionManager @Inject constructor(
         val added = mutableListOf<SongInfo>()
         val existing = mutableListOf<SongInfo>()
         val invalid = mutableListOf<SongInfo>()
-        var oldCoverToClean: String? = null
         synchronized(lock) {
             val key = storageKey(CollectedPlaylistType.LOCAL, playlistId)
             val playlist = playlistsByKey[key] ?: return AddSongsResult(emptyList(), emptyList(), songs)
@@ -410,6 +420,7 @@ class PlaylistCollectionManager @Inject constructor(
                 coverPreset = if (autoCover != null) null else playlist.coverPreset,
                 coverResourcePresent = autoCover != null || playlist.coverResourcePresent,
                 coverPresetPresent = autoCover != null || playlist.coverPresetPresent)
+            val previousCoverReferences = if (autoCover != null) localDb.allCoverReferences() else emptyList()
             try {
                 localDb.addSongsWithOutbox(next, added, syncOutbox)
             } catch (e: Exception) {
@@ -418,16 +429,10 @@ class PlaylistCollectionManager @Inject constructor(
             }
             playlistsByKey[key] = next
             localSongsByPlaylistId[playlistId] = nextSongs.toMutableList()
-            if (next.cover != playlist.cover) oldCoverToClean = playlist.cover
+            cleanupReleasedCovers(previousCoverReferences)
             refreshPlaylistsFlowLocked()
         }
-        oldCoverToClean?.let { previous ->
-            runCatching {
-                MinePlaylistCoverResolver.deletePersistedCoverIfUnused(
-                    context, previous, localDb.allCoverReferences(),
-                )
-            }.onFailure { Log.w(TAG, "cleanup replaced playlist cover failed", it) }
-        }
+        cn.partialy.pm.playlistcover.PlaylistCoverWork.request(context)
         runCatching { SyncWorkRunner.request(context) }
             .onFailure { Log.e(TAG, "schedule playlist sync failed; outbox retained", it) }
         return AddSongsResult(added, existing, invalid)
@@ -489,7 +494,7 @@ class PlaylistCollectionManager @Inject constructor(
         }
     }
 
-    fun upsertPlaylistFromSync(playlist: cn.partialy.pm.model.CanonicalPlaylist, favorite: Boolean) {
+    fun upsertPlaylistFromSync(playlist: cn.partialy.pm.model.CanonicalPlaylist, favorite: Boolean, ownEcho: Boolean = false, documentClock: Long = 0) {
         var next = playlist.toCollectedPlaylist()
         if (next.id.isBlank()) return
         ensureIndexLoaded()
@@ -503,8 +508,13 @@ class PlaylistCollectionManager @Inject constructor(
             )
             if (favorite && next.type != CollectedPlaylistType.LOCAL) favoriteDb.upsertFromSync(next)
             else if (next.type == CollectedPlaylistType.LOCAL) {
-                localDb.upsertPlaylist(next)
-                localDb.clearParentDeleted(next.id)
+                val oldReferences = localDb.allCoverReferences()
+                val old = prior?.cover
+                next = localDb.upsertFromSync(next,ownEcho,documentClock)
+                val newReferences = localDb.allCoverReferences()
+                (oldReferences - newReferences.toSet() + listOfNotNull(old)).forEach {
+                    MinePlaylistCoverResolver.deletePersistedCoverIfUnused(context,it,newReferences)
+                }
             }
             if (next.cover.isBlank() && next.coverPreset != null) next = next.copy(cover = "preset:${next.coverPreset}")
             playlistsByKey[storageKey(next)] = next
@@ -519,10 +529,12 @@ class PlaylistCollectionManager @Inject constructor(
         synchronized(lock) {
             if (favorite && next.type != CollectedPlaylistType.LOCAL) favoriteDb.removePlaylist(next.type, next.id, recordChange = false)
             else if (next.type == CollectedPlaylistType.LOCAL) {
+                val previousCoverReferences = localDb.allCoverReferences()
                 localDb.removePlaylist(next.id)
                 localDb.markParentDeleted(playlistId = next.id)
                 localSongsByPlaylistId.remove(next.id)
                 localSongsLoaded.remove(next.id)
+                cleanupReleasedCovers(previousCoverReferences)
             }
             playlistsByKey.remove(storageKey(next))
             refreshPlaylistsFlowLocked()
@@ -558,12 +570,43 @@ class PlaylistCollectionManager @Inject constructor(
 
     fun <T> withDataLock(action: () -> T): T = synchronized(lock) { action() }
 
+
+    fun playlistCoverUploadStatus(id: String): String = synchronized(lock) {
+        coverEdits.get(accountScope.current(),id)?.let { edit -> when(edit.state) {
+            "FAILED" -> edit.error.ifBlank { "封面上传失败，可重试或恢复默认" }
+            "QUEUED" -> "封面已在本机保存，等待联网上传"
+            "UPLOADED" -> "封面文件已上传，等待确认"
+            "READY" -> "封面已上传，等待同步引用"
+            else -> ""
+        } }.orEmpty()
+    }
+
+    fun retryPlaylistCoverUpload(id: String): Boolean = synchronized(lock) {
+        if(!localDb.playlistExists(id)) return@synchronized false
+        val changed=coverEdits.retry(accountScope.current(),id)
+        if(changed) { reload(); cn.partialy.pm.playlistcover.PlaylistCoverWork.request(context); SyncWorkRunner.request(context) }
+        changed
+    }
+
     fun allLocalCoverReferences(): List<String> = synchronized(lock) { localDb.allCoverReferences() }
+
+    /** 提交后用全账号/未关联及 fallback 引用差集回收旧私有图，不能只看已变成 HTTPS 的公开 cover。 */
+    private fun cleanupReleasedCovers(previous: Collection<String>) {
+        if (previous.isEmpty()) return
+        runCatching {
+            val referenced = localDb.allCoverReferences()
+            (previous.toSet() - referenced.toSet()).forEach { old ->
+                MinePlaylistCoverResolver.deletePersistedCoverIfUnused(context, old, referenced)
+            }
+        }.onFailure { Log.w(TAG, "cleanup released playlist covers failed", it) }
+    }
 
     fun clearAll() {
         ensureIndexLoaded()
         synchronized(lock) {
+            val previousCoverReferences = localDb.allCoverReferences()
             localDb.clearAll()
+            cleanupReleasedCovers(previousCoverReferences)
             favoriteDb.clearAll()
             playlistsByKey.clear()
             localSongsByPlaylistId.clear()

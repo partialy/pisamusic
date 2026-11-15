@@ -47,11 +47,11 @@ internal class PlaylistSyncApplier(
         }
     }
 
-    fun apply(change: SyncChange, accountId: String) {
+    fun apply(change: SyncChange, accountId: String, ownEcho: Boolean = false) {
         playlistCollectionManager.withSyncGuard(accountId, change.itemType, change.itemKey) {
             when (change.itemType) {
-                SyncPayloads.TYPE_FAVORITE_PLAYLIST -> applyPlaylist(change.itemKey, change.action, change.payload, true)
-                SyncPayloads.TYPE_USER_PLAYLIST -> applyPlaylist(change.itemKey, change.action, change.payload, false)
+                SyncPayloads.TYPE_FAVORITE_PLAYLIST -> applyPlaylist(change.itemKey, change.action, change.payload, true, ownEcho, change.clientUpdatedAt)
+                SyncPayloads.TYPE_USER_PLAYLIST -> applyPlaylist(change.itemKey, change.action, change.payload, false, ownEcho, change.clientUpdatedAt)
                 SyncPayloads.TYPE_PLAYLIST_TRACK -> applyPlaylistTrack(change.itemKey, change.action, change.payload, change.version)
             }
         }
@@ -71,12 +71,12 @@ internal class PlaylistSyncApplier(
             if ((type to key) !in remote) apply(SyncChange(0, "", "", type, key, SyncPayloads.ACTION_DELETE, null, serverUpdatedAt = 0), accountId)
         }
     }
-    private fun applyPlaylist(itemKey: String, action: String, payload: Any?, favorite: Boolean) {
+    private fun applyPlaylist(itemKey: String, action: String, payload: Any?, favorite: Boolean, ownEcho: Boolean, clock: String) {
         val playlist = SyncPayloads.parsePlaylist(payload, itemKey) ?: SyncPayloads.playlistFromKey(itemKey) ?: return
         if (action == SyncPayloads.ACTION_DELETE) {
             playlistCollectionManager.removePlaylistFromSync(playlist, favorite)
         } else {
-            playlistCollectionManager.upsertPlaylistFromSync(clearLocalFileCover(playlist), favorite)
+            playlistCollectionManager.upsertPlaylistFromSync(clearLocalFileCover(playlist), favorite, ownEcho, clock.toLongOrNull() ?: runCatching { java.time.Instant.parse(clock).toEpochMilli() }.getOrDefault(0))
         }
     }
 

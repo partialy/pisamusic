@@ -19,6 +19,7 @@ class SyncManager @Inject constructor(
     private val configManager: ConfigManager,
     private val loveManager: LoveManager,
     private val playlistCollectionManager: PlaylistCollectionManager,
+    private val coverUploads: cn.partialy.pm.playlistcover.PlaylistCoverUploadManager,
 ) {
     private val outbox = SyncOutboxStore(context)
     private val mutex = Mutex()
@@ -50,7 +51,11 @@ class SyncManager @Inject constructor(
                         op.toChangeInput(SyncPayloads.parseJsonObject(op.payloadJson))
                     }
                     if (!isCurrentAccount(before.userId)) return@withLock SyncPrefs.getState(context)
-                    val result = configManager.pushSyncChanges(before.token, deviceId(), changes)
+                    val result = try { configManager.pushSyncChanges(before.token, deviceId(), changes) }
+                    catch(e: ConfigManager.ApiException) {
+                        if((e.httpStatus==400 || e.code==400) && coverUploads.recoverRejectedResources(before.userId,pending.changes)) continue
+                        throw e
+                    }
                     pushSkipped = pushSkipped || result.skipped > 0
                     if (!isCurrentAccount(before.userId)) return@withLock SyncPrefs.getState(context)
                     outbox.removeOps(pending.opIds)
@@ -183,7 +188,7 @@ class SyncManager @Inject constructor(
         synchronized(cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary) {
             if (!isCurrentAccount(accountId)) return@synchronized
             if (change.itemType == SyncPayloads.TYPE_FAVORITE_SONG) favoriteApplier.apply(change, accountId)
-            else playlistApplier.apply(change, accountId)
+            else playlistApplier.apply(change, accountId, change.deviceId == deviceId())
         }
 
     private fun deviceId(): String {

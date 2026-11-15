@@ -142,13 +142,16 @@ class PlaylistEditActivity : BaseActivity() {
     }
 
     private fun showCoverActions() {
-        ActionMenuBottomSheet.show(this, listOf(
+        val actions=mutableListOf(
             ActionMenuItem(R.drawable.ic_image_24, getString(R.string.playlist_edit_gallery)) { imagePicker.launch("image/*") },
             ActionMenuItem(R.drawable.ic_playlist_24, getString(R.string.playlist_edit_templates)) { showTemplates() },
-            ActionMenuItem(R.drawable.ic_delete_24, getString(R.string.playlist_edit_default)) { viewModel.selectCover("local_chill") },
-        ), bindHeader = { root ->
+            ActionMenuItem(R.drawable.ic_delete_24, getString(R.string.playlist_edit_default)) { viewModel.selectCover("") },
+        )
+        if(viewModel.state.value.uploadStatus.isNotBlank()) actions.add(
+            ActionMenuItem(R.drawable.ic_image_24,getString(R.string.playlist_cover_retry)) { viewModel.retryCoverUpload() })
+        ActionMenuBottomSheet.show(this, actions, bindHeader = { root ->
             root.findViewById<TextView>(R.id.songInfoTitleView).text = getString(R.string.playlist_edit_cover)
-            root.findViewById<TextView>(R.id.songInfoArtistView).text = viewModel.state.value.name
+            root.findViewById<TextView>(R.id.songInfoArtistView).text = viewModel.state.value.uploadStatus.ifBlank { viewModel.state.value.name }
             root.findViewById<android.widget.ImageView>(R.id.songInfoCoverView).setImageDrawable(binding.coverView.drawable)
         })
     }

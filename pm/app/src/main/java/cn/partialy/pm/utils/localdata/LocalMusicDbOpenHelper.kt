@@ -18,6 +18,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         createLocalSongTables(db)
         createListeningTables(db)
         AccountLibrarySchema.prepare(db)
+        cn.partialy.pm.playlistcover.PlaylistCoverSchema.create(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -57,6 +58,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         if (oldVersion < 13) migratePlaylistSongIdentity(db)
         if (oldVersion < 14) addColumnIfMissing(db, "local_songs", "album", "TEXT NOT NULL DEFAULT ''")
         if (oldVersion < 15) AccountLibrarySchema.prepare(db)
+        if (oldVersion < 16) cn.partialy.pm.playlistcover.PlaylistCoverSchema.create(db)
     }
 
     private fun createLocalPlaylistTables(db: SQLiteDatabase) {
@@ -395,7 +397,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
             sharedInstance ?: LocalMusicDbOpenHelper(context.applicationContext).also { sharedInstance = it }
         }
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 15
+        private const val DB_VERSION = 16
     }
 
     private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {
