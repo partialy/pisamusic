@@ -14,15 +14,11 @@
           </template>
         </n-button>
       </n-button-group>
-      <div style="position: relative">
+      <div class="search-shell" :class="{ focused: searchFocus }">
         <n-input
           ref="searchInput"
           placeholder="搜索"
           class="search-input"
-          :style="{
-            width: searchFocus ? '300px' : '200px',
-            marginLeft: '1rem',
-          }"
           @focus="searchFocus = true"
           @blur="mouseInTips ? null : (searchFocus = false)"
           @input="showTips"
@@ -48,15 +44,14 @@
         </n-input>
 
         <!-- search history -->
-        <TipsHistory
-          v-show="searchFocus"
+        <SearchHistoryPopover
+          :show="searchFocus"
           @mouseenter="mouseInTips = true"
           @mouseleave="mouseInTips = false"
           :tips="tips"
           :keywords="keywords"
-          class="tips-history"
           @search="handleSearchClick"
-        ></TipsHistory>
+        ></SearchHistoryPopover>
       </div>
     </div>
     <!-- 右侧内容 -->
@@ -113,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { TipsHistory } from "./search";
+import SearchHistoryPopover from "./search/SearchHistoryPopover.vue";
 import { ElectronOperation } from "@/components";
 import { SleepTimerEntry } from "./sleepTimer";
 import PlaylistLinkImportDialog from "./playList/PlaylistLinkImportDialog.vue";
@@ -457,25 +452,19 @@ onMounted(async () => {
     padding-left: 16px;
     -webkit-app-region: drag;
 
-    .search-input {
+    .search-shell {
+      position: relative;
+      width: 200px;
+      margin-left: 1rem;
+      flex-shrink: 0;
       -webkit-app-region: no-drag;
-      transition: all 0.3s ease-in-out;
-      
+      transition: width 300ms ease;
+
+      &.focused { width: 300px; }
     }
 
-    .tips-history {
-      position: absolute;
-      top: 40px;
-      left: 1rem;
-      width: 300px;
-      min-height: 100px;
-      max-height: 500px;
-      overflow-y: auto;
-      background-color: var(--surface-solid);
-      border-radius: var(--radius-control);
-      box-shadow: 0 0 10px #00000033;
-      z-index: 100;
-    }
+    .search-input { width: 100%; -webkit-app-region: no-drag; }
+
   }
 
   .left-btn {
@@ -584,5 +573,9 @@ onMounted(async () => {
       }
     }
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header .left .search-shell { transition: none; }
 }
 </style>
