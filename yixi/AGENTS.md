@@ -91,6 +91,12 @@
 
 - 本地/下载歌曲封面展示优先通过 `library:local:cover` 在 main 侧读取音频元数据图片并缓存；renderer 不直接读磁盘，元数据无封面时才使用默认封面。
 - 本地/下载歌曲右键移除统一走 `library:local:songs:remove`：普通“移除”只删除 SQLite 可见记录，“彻底删除”才删除磁盘文件；本地扫描歌曲下次重建曲库可以重新出现。
+- 文件操作统一由 `electron/download/downloadFileService.ts` 按可信 `fileId/taskId`（本地扫描按 main 索引 `localId`）执行；旧 renderer 路径只作索引查找提示，未知路径拒绝。下载删除先冻结 main 预览，默认只移除记录，实体删除必须 `deleteFiles=true` 且二次 `confirmed=true`；清除全部读取 main 全集合，processing 不可中断，未终结任务需先取消。成功同事务删除对应 legacy 原行，避免旧 read model 复活；不删除 LOCAL 稳定同步 UUID 映射。
+- 真实删除/修复复用 canonical path + dev/ino 锁、逐段 symlink/junction 拒绝及最终身份核验；其他文件/扫描实体、未完成候选、播放或暂停引用保护物理文件。实体删除共享/占用/失败时保留可重试记录；只移除记录可保留物理文件。仅准确记录、同目录同 basename 且无其他引用的 lrc/krc/yrc 可清理；未知候选/目录/缓存不扫描、不清除。
+- LOCAL 取链在 main 可信解析后预留共享锁，瞬时 file URL 携带 main 随机 token；renderer commit 后再加载、卸载旧播放器后发布当前曲目完成锁交接。准备取消/失败按 token 释放，未提交预留 60 秒过期；暂停不释放。token 不写持久化歌曲 DTO，renderer 任意路径不能生成播放引用。
+- `downloadRepairService.ts` 采用入队开关快照补缺，现存有效标签/图片/歌词不覆盖；复用歌词解析与 1024 封面候选。同目录排它副本写后验证可读性与已有字段、硬链接备份后原子替换，DB 同事务更新真实大小/时长/候选 identity。失败恢复原音频；无法安全回滚时保留备份路径与错误，不覆盖外部新文件。修复不触发重新下载或修改公共设置。
+- 删除预览只向 renderer 返回 ID，main 私下冻结每个音频的 canonical path、identity、size、缺失/不可核验状态；实体删除在同一锁内比对，缺失后出现或同大小替换也拒绝。legacy 首次查看文件详情建立候选身份基线，无基线不接受直接修复；修复同时核验原生标签逐项多重计数，未映射的 FLAC 私有多值被折叠也拒绝副本。
+- `retryDownload` 对 cancelled 明确生成新 UUID 任务并保留原取消终态，原配置不变、零字节重新授权入队，同源同质活跃任务仍复用；普通 resume 不恢复 cancelled。暂停任务可通过 `selectDownloadTaskDirectory(taskId)` 系统选择器重选目录，取消返回 null；选定后只重置传输与路径检查点，保留配置、旧候选归档，仍暂停待手动继续，不接受 renderer 提交目录路径。
 
 ## 播放音质与下载规则补充
 
@@ -106,10 +112,10 @@
 - `download:enqueue` 支持可选 main 权威 `identityRevision` 检查；`tasks/files/detail/pause/resume/pause-all/resume-all/cancel/retry` 通过 typed preload。暂停等待句柄关闭和实际字节检查点；PROCESSING 不接受暂停/取消；有限网络重试最多 2 次，迟到回调按 generation 丢弃。
 - `downloadTransfer.ts` 的受管 `downloads/tasks/<taskId>.part` 与播放 mediaCache 完全分离；不持久播放 URL，每次恢复重新授权取链。仅实际 part 长度、严格 206/Content-Range/总长及强 ETag 或 Last-Modified 一致才追加；200/416/缺失或变化校验器从零重取。未知总长、错误内容、空文件或不可读音频不能完成。
 - 完整音频排它复制后才后处理，所有音频/歌词/sidecar 不覆盖既有文件；candidate file identity 和资产 journal 记录恢复证据，未知同名文件保留并另取名字。既有下载歌词解析、元数据写入及高清封面降档由 `downloadAssets.ts` 复用。新文件实体纳入下载歌曲读取，旧 records 仅作兼容 read model，新增文件操作应使用 fileId。
-- `downloadFileLocks.ts` 按 canonical realpath 与 dev/ino 提供真实 shared/exclusive lease，拒绝路径中的 symlink/junction，供后续统一文件服务、播放引用和删除接入；旧本地删除旁路尚需文件服务阶段统一接管，不能仅靠新下载锁宣称安全删除已完成。
+- `downloadFileLocks.ts` 按 canonical realpath 与 dev/ino 提供 shared/exclusive lease，拒绝路径中的 symlink/junction；下载、修复、统一删除和 main 播放预留共用该锁。旧本地路径删除入口已改为可信索引查找，暂停播放仍保留引用；具体文件行为仍待用户运行验收。
 - `before-quit` 先禁止入队、暂停网络、等待句柄/检查点和后处理，正常完成后才关闭数据库；重复退出有保护，30 秒异常超时直接结束进程且不提前显式关闭 DB，下次启动保守恢复。
-- `本地与下载` 页固定包含本地歌曲、下载歌曲、正在下载、下载记录四个 tab；本地歌曲需要合并扫描曲库与已下载歌曲，下载歌曲只显示 `download_records` 中完成的歌曲。
-- 下载歌曲优先用 `@yortyrh/tagpilot-lib` 写入标题、歌手、专辑、封面等音频标签；歌词稳定保存为同名 `.lrc`，标签写入失败时保留缓存侧车文件并在下载记录中标记 `sidecar`。
+- `本地与下载` 页固定包含本地歌曲、下载歌曲、正在下载、下载记录四个 tab；本地歌曲合并扫描曲库与已下载歌曲，下载歌曲读取 `download_files` 完成实体及未映射的旧 `download_records` 兼容记录，不重复计数。
+- 下载歌曲优先用 `@yortyrh/tagpilot-lib` 写入标题、歌手、专辑、封面等音频标签；外置歌词按下载模式保存真实 `.krc/.yrc/.lrc`，内嵌歌词使用标准 LRC，标签写入失败保留缓存资产并在文件实体标记 `sidecar`。
 
 ## 登录 Cookie 模块规则补充
 
@@ -405,7 +411,7 @@
 - `embedDownloadTags/embedDownloadCover/embedDownloadLyrics` 独立控制普通歌曲标签、封面和内嵌歌词，关闭即跳过该类写入，保留音频原有资产；音源自定义标记仍兼容写入，不增加 pm-info。
 - `electron/download/downloadLyrics.ts` 按实际语法识别 KG KRC / WY YRC / LRC，复用 `LyricParser` 转标准逐行 LRC供内嵌。外置逐字缺失回退 LRC，全部模式保存实际可用逐字版本及逐行版本，不用 `.lrc` 冒充逐字格式。
 - 歌词 sidecar 使用音频最终 basename 与真实扩展名，排除已有音频/歌词命名冲突，独占创建避免覆盖；下载缓存使用 taskId 隔离并发。sidecar 失败记录可选资产警告，不影响已落盘音频成功状态。
-- 多歌词路径放在下载记录 `payload.downloadLyricPaths`，兼容旧 `lyricPath`，不新增数据库列；从列表移除不删文件，现有删除音频流程只清理记录中与音频同目录同 basename 且未被其他音频下载记录引用的 `.lrc/.krc/.yrc`（旧 `lyricPath` 与多路径字段均参与引用保护）。当前无取消下载 IPC，不新增管理能力。
+- 多歌词路径放在下载记录 `payload.downloadLyricPaths`，兼容旧 `lyricPath`，不新增数据库列；从列表移除不删文件，安全文件服务只清理记录中与音频同目录同 basename 且未被其他音频引用的 `.lrc/.krc/.yrc`（旧 `lyricPath` 与多路径字段均参与引用保护）。任务取消、删除与修复统一遵循上文持久下载及安全文件服务规则。
 - MP3 自定义 UTF-16 帧各字符串补 BOM；普通标签库重写歌词帧时，关闭歌词写入须恢复原 USLT，FLAC/M4A 同样不得删除既有歌词。
 
 ## 设置页分组与调整控件

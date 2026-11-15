@@ -132,10 +132,7 @@ type LocalLibraryScanStatus = {
   skipped: boolean;
 };
 
-type RemoveLocalSongResult = {
-  removed: boolean;
-  deleted: boolean;
-};
+type RemoveLocalSongResult = import("./download").LocalFileRemoveResult;
 
 type QueueSnapshot = {
   currentIndex: number;
@@ -749,7 +746,9 @@ type ElectronIpcApi = {
   setDesktopLyricPayload: (payload: DesktopLyricPayload) => void;
   patchDesktopLyricSetting: (patch: Partial<DesktopLyricSettingV2>) => void;
   setDesktopLyricLocked: (locked: boolean) => void;
-  changeCurrentSong: (currentSong: TrackSnapshot | null) => void;
+  changeCurrentSong: (currentSong: (TrackSnapshot & { url?: string }) | null) => void;
+  releaseLocalPlayback: (song: { id: string; source: string; url?: string }) => void;
+  commitLocalPlayback: (song: { id: string; source: string; url?: string }) => Promise<void>;
   isPlaying: (isPlaying: boolean) => void;
   updateTime: (t: number) => void;
   mediaControl?: (action: "play" | "pause" | "next" | "prev" | "previous", data?: unknown) => void;
@@ -859,6 +858,13 @@ type ElectronIpcApi = {
   cancelDownload: (id: string) => Promise<DownloadTaskSnapshot>;
   retryDownload: (id: string) => Promise<DownloadTaskSnapshot>;
   getDownloadDetail: (id: string) => Promise<import("./download").DownloadDetail>;
+  selectDownloadTaskDirectory: (id: string) => Promise<import("./download").DownloadTaskSnapshot | null>;
+  previewDownloadDelete: (input: { targets?: import("./download").DownloadFileTarget[]; all?: boolean }) => Promise<import("./download").DownloadDeletePreview>;
+  deleteDownloads: (input: { previewId: string; deleteFiles: boolean; confirmed?: boolean }) => Promise<import("./download").DownloadDeleteResult>;
+  getDownloadFileDetail: (target: import("./download").DownloadFileTarget) => Promise<import("./download").DownloadFileDetail>;
+  revealDownloadFile: (target: import("./download").DownloadFileTarget) => Promise<void>;
+  openDownloadDirectory: (target: import("./download").DownloadFileTarget) => Promise<void>;
+  repairDownloadFile: (target: import("./download").DownloadFileTarget) => Promise<import("./download").DownloadFileDetail>;
   listDownloadFiles: () => Promise<import("./download").DownloadFileSnapshot[]>;
   listDownloadTasks: () => Promise<DownloadTaskSnapshot[]>;
   listDownloadRecords: () => Promise<DownloadRecordItem[]>;
@@ -938,6 +944,8 @@ type ElectronIpcApi = {
   removeLocalSongFromList: (payload: {
     filePath?: string;
     deleteFile?: boolean;
+    localId?: string;
+    fileId?: string;
   }) => Promise<RemoveLocalSongResult>;
   onLocalLibraryScanStarted: (callback: (status: LocalLibraryScanStatus) => void) => () => void;
   onLocalLibraryScanFinished: (callback: (status: LocalLibraryScanStatus) => void) => () => void;

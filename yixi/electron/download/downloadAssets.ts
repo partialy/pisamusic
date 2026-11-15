@@ -156,7 +156,7 @@ function sidecarPaths(cacheRoot: string, directory: string, baseName: string, ta
   };
 }
 
-async function fetchCover(song: TrackSnapshot): Promise<CoverAsset | null> {
+export async function fetchCover(song: TrackSnapshot): Promise<CoverAsset | null> {
   for (const url of getSongCoverCandidates(song, 1024)) {
     if (!/^https?:/.test(url)) continue;
     try {

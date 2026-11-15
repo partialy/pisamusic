@@ -59,4 +59,11 @@ export const retryDownload = (id: string) => window.electronAPI.retryDownload(id
 export const pauseAllDownloads = () => window.electronAPI.pauseAllDownloads();
 export const resumeAllDownloads = () => window.electronAPI.resumeAllDownloads();
 export const getDownloadDetail = (id: string) => window.electronAPI.getDownloadDetail(id);
+export const selectDownloadTaskDirectory = (id: string) => window.electronAPI.selectDownloadTaskDirectory(id);
 export const listDownloadFiles = () => window.electronAPI.listDownloadFiles();
+export const previewDownloadDelete = (input: { targets?: import("@/types/download").DownloadFileTarget[]; all?: boolean }) => window.electronAPI.previewDownloadDelete(input);
+export const deleteDownloads = (input: { previewId: string; deleteFiles: boolean; confirmed?: boolean }) => window.electronAPI.deleteDownloads(input);
+export const getDownloadFileDetail = (target: import("@/types/download").DownloadFileTarget) => window.electronAPI.getDownloadFileDetail(target);
+export const revealDownloadFile = (target: import("@/types/download").DownloadFileTarget) => window.electronAPI.revealDownloadFile(target);
+export const openDownloadDirectory = (target: import("@/types/download").DownloadFileTarget) => window.electronAPI.openDownloadDirectory(target);
+export const repairDownloadFile = (target: import("@/types/download").DownloadFileTarget) => window.electronAPI.repairDownloadFile(target);

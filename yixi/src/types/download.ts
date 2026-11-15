@@ -18,6 +18,7 @@ export type DownloadEnqueueOptions = { identityRevision?: number };
 export type DownloadEnqueueResult = { tasks: DownloadTaskSnapshot[]; added: number; existing: number; rejected: { index: number; message: string }[] };
 export type DownloadTaskSnapshot = {
   taskId: string; fileId: string; source: string; songId: string; qualityKey: string; name: string;
+  singer?: string; album?: string; cover?: string;
   status: DownloadTaskState; progress: number; receivedBytes: number; totalBytes: number;
   speedBytesPerSecond: number; directory: string; filePath: string; error: string;
   createdAt: string; updatedAt: string; retryCount: number; pauseReason: string; generation: number;
@@ -29,3 +30,19 @@ export type DownloadFileSnapshot = {
   completedAt: string; legacyId: number | null; message: string;
 };
 export type DownloadDetail = { task: DownloadTaskSnapshot; file: DownloadFileSnapshot | null; configuration: DownloadConfiguration };
+export type DownloadFileTarget = { fileId?: string; taskId?: string };
+export type DownloadDeletePreview = { previewId: string; targets: DownloadFileTarget[]; count: number };
+export type DownloadDeleteItem = DownloadFileTarget & {
+  recordsRemoved: number; filesDeleted: number;
+  status: "removed" | "shared" | "occupied" | "failed" | "not-executed"; message: string;
+};
+export type DownloadDeleteResult = {
+  recordsRemoved: number; filesDeleted: number; sharedSkipped: number; occupied: number; failed: number; notExecuted: number;
+  items: DownloadDeleteItem[];
+};
+export type DownloadFileDetail = DownloadDetail & { stat: { exists: boolean; size: number; modifiedAt: string; identity: string; error: string } };
+export type LocalFileRemoveResult = {
+  removed: boolean; deleted: boolean;
+  status: "deleted" | "record-only" | "missing" | "shared" | "occupied" | "failed" | "not-executed";
+  reason: string;
+};

@@ -1,4 +1,5 @@
 import { captureAccountLibrary } from "../account/accountLibraryContext";
+import { reserveLocalPlayback } from "../download/localPlaybackReservation";
 import { resolveLocalTrack } from "../localLibrary/localTrackAccess";
 import { getRuntimeEndpointsCached, requestSignedGateway } from "../system/systemClient";
 import { pathToFileURL } from "url";
@@ -279,7 +280,10 @@ export async function getDynamicCover(params: DynamicCoverParams) {
 export async function resolvePlayableUrl(track: PlayableTrackPayload) {
   if (track.source === "local") {
     const resolved = resolveLocalTrack(track as import("../database/types").TrackSnapshot, captureAccountLibrary().repo);
-    return resolved.playable === true && resolved.filePath ? pathToFileURL(resolved.filePath).toString() : "";
+    if (resolved.playable !== true || !resolved.filePath) return "";
+    const token = await reserveLocalPlayback(track as import("../database/types").TrackSnapshot, resolved.filePath);
+    const url = pathToFileURL(resolved.filePath); url.searchParams.set("pisaPlayback", token);
+    return url.toString();
   }
 
   const id = track.urlParam || track.id;

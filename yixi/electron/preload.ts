@@ -104,6 +104,10 @@ const desktopLyricIpc = {
     ipcRenderer.send("desktop-lyric:set-locked", locked),
   changeCurrentSong: (currentSong: any | null) =>
     ipcRenderer.send("player:set-current-song", cloneIpcPayload(currentSong)),
+  releaseLocalPlayback: (song: { id: string; source: string; url?: string }) =>
+    ipcRenderer.send("player:release-local-file", cloneIpcPayload(song)),
+  commitLocalPlayback: (song: { id: string; source: string; url?: string }) =>
+    ipcRenderer.invoke("player:commit-local-file", cloneIpcPayload(song)),
   isPlaying: (isPlaying: boolean) => ipcRenderer.send("player:set-playing", isPlaying),
   updateTime: (time: number) => ipcRenderer.send("player:update-time", time),
   setLyrics: (lyric: { type: "krc" | "lrc"; data: string }) =>
@@ -226,7 +230,7 @@ const libraryIpc = {
   getLocalLibraryScanStatus: () => ipcRenderer.invoke("library:local:scan-status"),
   refreshLocalLibrary: () => ipcRenderer.invoke("library:local:refresh"),
   getLocalSongCover: (filePath: string) => ipcRenderer.invoke("library:local:cover", filePath),
-  removeLocalSongFromList: (payload: { filePath?: string; deleteFile?: boolean }) =>
+  removeLocalSongFromList: (payload: { filePath?: string; deleteFile?: boolean; localId?: string; fileId?: string }) =>
     ipcRenderer.invoke("library:local:songs:remove", cloneIpcPayload(payload)),
   onLocalLibraryScanStarted: (callback: (status: any) => void) =>
     on("local-library:scan-started", callback),
@@ -414,6 +418,13 @@ const downloadApiIpc = {
   cancelDownload: (id: string) => ipcRenderer.invoke("download:cancel", id),
   retryDownload: (id: string) => ipcRenderer.invoke("download:retry", id),
   getDownloadDetail: (id: string) => ipcRenderer.invoke("download:detail", id),
+  selectDownloadTaskDirectory: (id: string) => ipcRenderer.invoke("download:select-task-directory", id),
+  previewDownloadDelete: (input: { targets?: import("../src/types/download").DownloadFileTarget[]; all?: boolean }) => ipcRenderer.invoke("download:delete-preview", cloneIpcPayload(input)),
+  deleteDownloads: (input: { previewId: string; deleteFiles: boolean; confirmed?: boolean }) => ipcRenderer.invoke("download:delete", cloneIpcPayload(input)),
+  getDownloadFileDetail: (target: import("../src/types/download").DownloadFileTarget) => ipcRenderer.invoke("download:file-detail", cloneIpcPayload(target)),
+  revealDownloadFile: (target: import("../src/types/download").DownloadFileTarget) => ipcRenderer.invoke("download:reveal-file", cloneIpcPayload(target)),
+  openDownloadDirectory: (target: import("../src/types/download").DownloadFileTarget) => ipcRenderer.invoke("download:open-directory", cloneIpcPayload(target)),
+  repairDownloadFile: (target: import("../src/types/download").DownloadFileTarget) => ipcRenderer.invoke("download:repair", cloneIpcPayload(target)),
   listDownloadFiles: () => ipcRenderer.invoke("download:files"),
   listDownloadTasks: () => ipcRenderer.invoke("download:tasks"),
   listDownloadRecords: () => ipcRenderer.invoke("download:records"),

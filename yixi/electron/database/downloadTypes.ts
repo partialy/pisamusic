@@ -5,5 +5,6 @@ export type PersistedDownloadTask = DownloadTaskSnapshot & {
   validator: string; validatorKind: "etag" | "last-modified" | ""; transferComplete: boolean;
   retryAt: number; legacyId: number | null; candidateIdentity: string; candidateSize: number;
   assets: { path: string; identity: string }[];
+  retainedCandidates?: { filePath: string; identity: string; assets: { path: string; identity: string }[] }[];
 };
 export type PersistedDownloadFile = DownloadFileSnapshot;

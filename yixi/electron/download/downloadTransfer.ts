@@ -4,7 +4,7 @@ import { parseFile } from "music-metadata";
 import { getAppDataPath } from "../core/appPaths";
 import type { PersistedDownloadTask } from "../database/downloadTypes";
 import { inferAudioExtension } from "./downloadAssets";
-import { acquireFileLock } from "./downloadFileLocks";
+import { acquireFileLock, identifyFile } from "./downloadFileLocks";
 export class DownloadFailure extends Error {
   readonly recoverable: boolean;
   constructor(message: string, recoverable = false) { super(message); this.recoverable = recoverable; }
@@ -19,7 +19,11 @@ export async function removeManagedPart(task: PersistedDownloadTask) {
   try { await lstat(part); }
   catch (error: any) { if (error?.code === "ENOENT") return; throw error; }
   const lease = await acquireFileLock(part, `cleanup:${task.taskId}`, "exclusive", true);
-  try { await unlink(part).catch((error: any) => { if (error?.code !== "ENOENT") throw error; }); }
+  try {
+    const current = await identifyFile(part);
+    if (current.identity !== lease.file.identity || current.size !== lease.file.size) throw new Error("临时文件已变化，保留记录等待重试");
+    await unlink(part).catch((error: any) => { if (error?.code !== "ENOENT") throw error; });
+  }
   finally { lease.release(); }
 }
 export async function readPartSize(taskId: string) { return stat(managedPartPath(taskId)).then(info => info.size, () => 0); }

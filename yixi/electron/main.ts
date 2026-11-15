@@ -1,4 +1,5 @@
 import { shutdownDownloads } from "./download/downloadService";
+import { publishPlaybackSong, releasePlaybackSong, commitLocalPlayback, clearLocalPlaybackReservations } from "./download/localPlaybackReservation";
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
@@ -94,6 +95,11 @@ function createMainWindow() {
       sandbox: true,
     },
   });
+  mainWindow.webContents.on("render-process-gone", clearLocalPlaybackReservations);
+  mainWindow.webContents.on("destroyed", clearLocalPlaybackReservations);
+  mainWindow.webContents.on("did-start-navigation", (_event, _url, _inPlace, isMainFrame) => {
+    if (isMainFrame) clearLocalPlaybackReservations();
+  });
 
   if (!app.isPackaged) {
     void mainWindow.loadURL("http://localhost:30000");
@@ -168,9 +174,13 @@ function setupAppIpc() {
 
 function setupPlayerStateBridge() {
   ipcMain.on("player:set-current-song", (_event, song) => {
+    publishPlaybackSong(song);
     playerTray.setCurrentSong(song);
     desktopLyric.updateSong(song);
   });
+
+  ipcMain.on("player:release-local-file", (_event, song) => releasePlaybackSong(song));
+  ipcMain.handle("player:commit-local-file", (_event, song) => commitLocalPlayback(song));
 
   ipcMain.on("player:set-playing", (_event, isPlaying: boolean) => {
     playerTray.setPlaying(isPlaying);

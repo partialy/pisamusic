@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { parseFile } from "music-metadata";
 import { writeCoverImageToFile, writeTags } from "@yortyrh/tagpilot-lib";
 
 export type AudioMetadata = {
@@ -20,6 +21,7 @@ export type AudioMetadataWriteOptions = {
   embedTags: boolean;
   embedCover: boolean;
   embedLyrics: boolean;
+  customFields?: "preserve" | "missing";
 };
 
 export type AudioMetadataWriteResult = {
@@ -28,6 +30,47 @@ export type AudioMetadataWriteResult = {
 };
 
 const CUSTOM_FIELDS = ["PISAMUSIC_SOURCE", "PISAMUSIC_SONG_ID", "PISAMUSIC_QUALITY_KEY"];
+
+/** 修复专用补缺入口：只传缺失普通字段，已有歌词帧及标签由写后核验兜底保护。 */
+export async function fillMissingAudioMetadata(filePath: string, metadata: AudioMetadata, options: AudioMetadataWriteOptions) {
+  const before = await parseFile(filePath, { duration: false });
+  const common = before.common;
+  const originalMp3Lyrics = path.extname(filePath).toLowerCase() === ".mp3"
+    ? parseId3Tag(await readFile(filePath)).frames.filter(frame => frame.id === "USLT") : [];
+  const tags: Parameters<typeof writeTags>[1] = {};
+  if (!common.title && metadata.title) tags.title = metadata.title;
+  if (!common.artist && !common.artists?.length && metadata.artist) tags.artists = [metadata.artist];
+  if (!common.album && metadata.album) tags.album = metadata.album;
+  if (options.embedTags && Object.keys(tags).length) await writeTags(filePath, tags);
+  const result = await writeAudioMetadata(filePath, metadata,
+    { embedTags: false, embedCover: options.embedCover && !common.picture?.length,
+    customFields: options.embedTags ? "missing" : "preserve",
+    embedLyrics: options.embedLyrics && !common.lyrics?.length && originalMp3Lyrics.length === 0 });
+  if (!result.ok) throw new Error(result.warnings.join("；"));
+  if (originalMp3Lyrics.length) {
+    const parsed = parseId3Tag(await readFile(filePath));
+    await writeFile(filePath, Buffer.concat([buildId3v23Tag([...parsed.frames.filter(frame => frame.id !== "USLT"), ...originalMp3Lyrics]), parsed.audio]));
+  }
+  const parsedAfter = await parseFile(filePath, { duration: false });
+  const after = parsedAfter.common;
+  // 原生字段含未映射到 common 的私有、多值与图片元信息，逐项计数保护，禁止折叠丢值。
+  for (const [format, tags] of Object.entries(before.native)) {
+    const remaining = new Map<string, number>();
+    for (const tag of parsedAfter.native[format] || []) {
+      const key = JSON.stringify(tag); remaining.set(key, (remaining.get(key) || 0) + 1);
+    }
+    for (const tag of tags) {
+      const key = JSON.stringify(tag), count = remaining.get(key) || 0;
+      if (!count) throw new Error(`修复副本改变已有原生标签 ${format}/${tag.id}，已放弃替换`);
+      remaining.set(key, count - 1);
+    }
+  }
+  // 已有有效字段必须保持；不接受原生库意外清空/改写元数据的副本。
+  for (const [field, value] of Object.entries(common)) {
+    if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) continue;
+    if (JSON.stringify(value) !== JSON.stringify((after as unknown as Record<string, unknown>)[field])) throw new Error(`修复副本改变已有 ${field}，已放弃替换`);
+  }
+}
 
 export async function writeAudioMetadata(
   filePath: string,
@@ -48,7 +91,7 @@ export async function writeAudioMetadata(
     ]));
   }
 
-  if (options.embedLyrics || metadata.source || metadata.songId || metadata.qualityKey) {
+  if ((options.embedLyrics && metadata.lyrics) || (options.customFields !== "preserve" && (metadata.source || metadata.songId || metadata.qualityKey))) {
     const customResult = await writeFormatSpecificMetadata(filePath, metadata, options);
     warnings.push(...customResult.warnings);
   }
@@ -119,10 +162,11 @@ async function writeMp3CustomMetadata(
 ) {
   const buffer = await readFile(filePath);
   const parsed = parseId3Tag(buffer);
-  const frames = parsed.frames.filter((frame) => !shouldReplaceId3Frame(frame, options.embedLyrics && Boolean(metadata.lyrics)));
-  frames.push(createTxxxFrame("PISAMUSIC_SOURCE", metadata.source));
-  frames.push(createTxxxFrame("PISAMUSIC_SONG_ID", metadata.songId));
-  frames.push(createTxxxFrame("PISAMUSIC_QUALITY_KEY", metadata.qualityKey));
+  const frames = parsed.frames.filter((frame) => frame.id === "TXXX" && options.customFields ? true : !shouldReplaceId3Frame(frame, options.embedLyrics && Boolean(metadata.lyrics)));
+  for (const [field, value] of [["PISAMUSIC_SOURCE", metadata.source], ["PISAMUSIC_SONG_ID", metadata.songId], ["PISAMUSIC_QUALITY_KEY", metadata.qualityKey]]) {
+    const exists = parsed.frames.some(frame => frame.id === "TXXX" && decodeId3Text(frame.data.subarray(1)).startsWith(field));
+    if (options.customFields !== "preserve" && !(options.customFields === "missing" && exists)) frames.push(createTxxxFrame(field, value));
+  }
   if (options.embedLyrics && metadata.lyrics) {
     frames.push(createUsltFrame(metadata.lyrics));
   }
@@ -281,9 +325,9 @@ function upsertVorbisCommentBlock(
     vendor = parsed.vendor || vendor;
     parsed.comments.forEach((value, key) => comments.set(key, value));
   }
-  comments.set("PISAMUSIC_SOURCE", metadata.source);
-  comments.set("PISAMUSIC_SONG_ID", metadata.songId);
-  comments.set("PISAMUSIC_QUALITY_KEY", metadata.qualityKey);
+  for (const [field, value] of [["PISAMUSIC_SOURCE", metadata.source], ["PISAMUSIC_SONG_ID", metadata.songId], ["PISAMUSIC_QUALITY_KEY", metadata.qualityKey]]) {
+    if (options.customFields !== "preserve" && !(options.customFields === "missing" && comments.has(field))) comments.set(field, value);
+  }
   if (options.embedLyrics && metadata.lyrics) {
     comments.set("LYRICS", metadata.lyrics);
   }
@@ -399,12 +443,12 @@ function upsertIlstMetadata(
   options: AudioMetadataWriteOptions
 ) {
   const atoms = parseMp4Atoms(ilstContent, 0, ilstContent.length);
-  const filtered = atoms.filter((atom) => !shouldReplaceIlstAtom(atom, options.embedLyrics && Boolean(metadata.lyrics)));
-  const additions = [
-    createFreeformAtom("PISAMUSIC_SOURCE", metadata.source),
-    createFreeformAtom("PISAMUSIC_SONG_ID", metadata.songId),
-    createFreeformAtom("PISAMUSIC_QUALITY_KEY", metadata.qualityKey),
-  ];
+  const filtered = atoms.filter((atom) => atom.type === "----" && options.customFields ? true : !shouldReplaceIlstAtom(atom, options.embedLyrics && Boolean(metadata.lyrics)));
+  const additions: Buffer[] = [];
+  for (const [field, value] of [["PISAMUSIC_SOURCE", metadata.source], ["PISAMUSIC_SONG_ID", metadata.songId], ["PISAMUSIC_QUALITY_KEY", metadata.qualityKey]]) {
+    const exists = atoms.some(atom => atom.type === "----" && parseMp4Atoms(atom.content, 0, atom.content.length).some(child => child.type === "name" && readMp4MeanNameText(child.content) === field));
+    if (options.customFields !== "preserve" && !(options.customFields === "missing" && exists)) additions.push(createFreeformAtom(field, value));
+  }
   if (options.embedLyrics && metadata.lyrics) {
     additions.push(createMp4TextAtom("©lyr", metadata.lyrics));
   }

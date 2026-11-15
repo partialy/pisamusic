@@ -1,6 +1,7 @@
+import { removeTrustedLocalSong } from "../download/downloadFileService";
 import { BrowserWindow } from "electron";
 import { createHash } from "crypto";
-import { readdir, stat, unlink } from "fs/promises";
+import { readdir, stat } from "fs/promises";
 import { basename, dirname, extname, normalize, resolve } from "path";
 import { parseFile } from "music-metadata";
 import { getAppDatabase } from "../database";
@@ -76,51 +77,10 @@ export async function getLocalSongCover(filePath: string) {
   }
 }
 
-export async function removeLocalSongFromList(payload: { filePath?: string; deleteFile?: boolean }) {
-  const filePath = normalizeFilePath(payload.filePath);
-  if (!filePath) return { removed: false, deleted: false };
-
-  const db = getAppDatabase();
-  const allRecords = db.listDownloadRecords();
-  const records = allRecords.filter(record => normalizeFilePath(record.filePath) === filePath);
-  const sharedLyricPaths = new Set(allRecords
-    .filter(record => normalizeFilePath(record.filePath) !== filePath)
-    .flatMap(downloadRecordLyricPaths));
-  let deleted = false;
-
-  if (payload.deleteFile) {
-    try {
-      await unlink(filePath);
-      deleted = true;
-    } catch (error: any) {
-      if (error?.code !== "ENOENT") throw error;
-      deleted = true;
-    }
-  }
-
-  if (payload.deleteFile) {
-    // 同 basename 的旧音频可能共用歌词；仍被其他音频记录引用时保留。
-    const stem = filePath.slice(0, -extname(filePath).length);
-    const lyrics = records.flatMap(downloadRecordLyricPaths);
-    for (const lyric of new Set(lyrics)) {
-      if (typeof lyric !== "string") continue;
-      const target = normalizeFilePath(lyric);
-      if (sharedLyricPaths.has(target) || ![".lrc", ".krc", ".yrc"].some(ext => target === `${stem}${ext}`)) continue;
-      try { await unlink(target); } catch (error: any) {
-        if (error?.code !== "ENOENT") logger.warn(`删除下载歌词失败：${target}`, error);
-      }
-    }
-  }
-  db.removeLocalSongByFilePath(filePath);
-  db.removeDownloadRecordsByFilePath(filePath);
-  clearCoverCache(filePath);
-  return { removed: true, deleted };
-}
-
-function downloadRecordLyricPaths(record: { lyricPath?: string; payload: TrackSnapshot }) {
-  const paths = [record.lyricPath, ...(Array.isArray(record.payload.downloadLyricPaths) ? record.payload.downloadLyricPaths : [])];
-  return paths.filter((value): value is string => typeof value === "string")
-    .map(value => normalizeFilePath(value)).filter(Boolean);
+export async function removeLocalSongFromList(payload: { filePath?: string; deleteFile?: boolean; localId?: string; fileId?: string }) {
+  const result = await removeTrustedLocalSong(payload);
+  if (payload.filePath) clearCoverCache(payload.filePath);
+  return result;
 }
 
 export function startLocalLibrarySmartScan() {

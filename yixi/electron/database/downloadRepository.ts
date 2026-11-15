@@ -37,6 +37,26 @@ export class DownloadRepository {
   saveFile(file: PersistedDownloadFile) {
     this.db.prepare("UPDATE download_files SET file_path=?,data_json=? WHERE file_id=?").run(file.filePath,JSON.stringify(file),file.fileId);
   }
+  updateRepaired(task: PersistedDownloadTask, file: PersistedDownloadFile) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try { this.save(task); this.saveFile(file); this.db.exec("COMMIT"); }
+    catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
   removeFile(id: string) { this.db.prepare("DELETE FROM download_files WHERE file_id=?").run(id); }
+  /** 同事务移除精确 legacy 行，避免兼容 read model 将已移除项重新显示。 */
+  removeEntry(taskId: string, fileId?: string) {
+    const task = this.task(taskId);
+    const file = fileId ? this.file(fileId) : null;
+    if (fileId && (!file || file.taskId !== taskId)) throw new Error("下载文件映射已变化");
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if (file) this.removeFile(file.fileId);
+      this.removeTask(taskId);
+      for (const id of new Set([task?.legacyId, file?.legacyId])) {
+        if (id != null) this.db.prepare("DELETE FROM download_records WHERE id=?").run(id);
+      }
+      this.db.exec("COMMIT");
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
   removeTask(id: string) { this.db.prepare("DELETE FROM download_tasks WHERE task_id=? AND task_id NOT IN (SELECT task_id FROM download_files)").run(id); }
 }

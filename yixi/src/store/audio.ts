@@ -90,6 +90,7 @@ export const useAudioStore = defineStore("audio", () => {
   let handlingPlaybackFailure = false;
   let failureSkipCount = 0;
   let playbackBridge: PlaybackBridge | null = null;
+  let playRequestGeneration = 0;
 
   /** 由统一播放命令层安装一起听旁路桥接 */
   const setPlaybackBridge = (bridge: PlaybackBridge | null): void => {
@@ -235,6 +236,7 @@ export const useAudioStore = defineStore("audio", () => {
    * @param song 要播放的歌曲(可选)
    */
   const play = async (song?: Song | null): Promise<void> => {
+    const requestGeneration = ++playRequestGeneration;
     let shouldSignalPlay = false;
     try {
       loading.value = true;
@@ -253,6 +255,7 @@ export const useAudioStore = defineStore("audio", () => {
       }
       if (song) {
         [song] = await resolvePlayableSongs([song]);
+        if (requestGeneration !== playRequestGeneration) return;
         if (!isSongPlayable(song)) {
           window.$message?.info?.(song.source === "local" ? "本地文件不可用，请在来源设备播放" : "该歌曲不可播放");
           return;
@@ -263,12 +266,25 @@ export const useAudioStore = defineStore("audio", () => {
         currentTime.value = 0;
         duration.value = 0;
         song.url = await getPlayableUrlByMusicApi(song, getPreferredQualityKey(song.source));
+        if (requestGeneration !== playRequestGeneration) {
+          electronAPI.releaseLocalPlayback({ id: song.id, source: song.source, url: song.url });
+          return;
+        }
         if (!song.url) {
           throw new Error("play url is empty");
+        }
+        if (song.source === "local") {
+          await electronAPI.commitLocalPlayback({ id: song.id, source: song.source, url: song.url });
+          if (requestGeneration !== playRequestGeneration) {
+            electronAPI.releaseLocalPlayback({ id: song.id, source: song.source, url: song.url });
+            return;
+          }
         }
         currentSong.value = song;
         recordPlayHistory(song);
         initPlayer(song.url); // 初始化播放器并加载歌曲
+        // 先卸载旧播放器，再发布包含 main 预留 token 的瞬时 DTO；持久化仍走裁剪 DTO。
+        electronAPI.changeCurrentSong({ ...normalizeSong(song), url: song.url });
         shouldSignalPlay = true;
         return;
       }
@@ -279,6 +295,8 @@ export const useAudioStore = defineStore("audio", () => {
         shouldSignalPlay = true;
       }
     } catch (error) {
+      if (song?.source === "local") electronAPI.releaseLocalPlayback({ id: song.id, source: song.source, url: song.url });
+      if (requestGeneration !== playRequestGeneration) return;
       loading.value = false;
       console.error("播放歌曲失败:", error);
       void reportError(error, {
@@ -400,6 +418,7 @@ export const useAudioStore = defineStore("audio", () => {
    * 销毁播放器实例
    */
   const reset = (): void => {
+    playRequestGeneration++;
     listeningPlaybackAdapter.terminal(currentSong.value, duration.value * 1000, "stop");
     destroyPlayer(); // 销毁播放器
     playlist.value = []; // 清空播放列表
@@ -625,6 +644,7 @@ export const useAudioStore = defineStore("audio", () => {
     if (player.value) {
       player.value.off(); // 移除所有事件监听
       player.value.stop(); // 停止播放
+      player.value.unload();
       player.value = null;
     }
   };
@@ -709,6 +729,7 @@ export const useAudioStore = defineStore("audio", () => {
     isPlaying.value = false;
     electronAPI.isPlaying(false);
     destroyPlayer();
+    if (currentSong.value?.source === "local") electronAPI.releaseLocalPlayback({ id: currentSong.value.id, source: "local", url: currentSong.value.url });
 
     void reportError(new Error("playback failed"), {
       scope: "audio",
@@ -754,6 +775,7 @@ export const useAudioStore = defineStore("audio", () => {
     loading.value = false;
     isPlaying.value = false;
     destroyPlayer();
+    if (currentSong.value?.source === "local") electronAPI.releaseLocalPlayback({ id: currentSong.value.id, source: "local", url: currentSong.value.url });
     electronAPI.isPlaying(false);
     showLimitedWarning("播放地址获取失败，已暂停播放");
   };

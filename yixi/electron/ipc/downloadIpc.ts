@@ -1,8 +1,11 @@
 import { ipcMain } from "electron";
+import { previewDownloadDelete, deleteDownloads, getDownloadFileDetail, revealDownloadFile, openDownloadDirectory } from "../download/downloadFileService";
+import { repairDownloadFile } from "../download/downloadRepairService";
+import type { DownloadFileTarget } from "../../src/types/download";
 import {
   listDownloadedSongs, listDownloadRecords, listDownloadTasks, startDownloadTask,
   enqueueDownloads, pauseDownload, resumeDownload, pauseAllDownloads, resumeAllDownloads,
-  getDownloadDetail, listDownloadFiles, initializeDownloadService,
+  getDownloadDetail, listDownloadFiles, initializeDownloadService, selectDownloadTaskDirectory,
 } from "../download/downloadService";
 import type { DownloadEnqueueItem, DownloadEnqueueOptions } from "../../src/types/download";
 let registered = false;
@@ -24,4 +27,11 @@ export function setupDownloadIpc() {
   ipcMain.handle("download:cancel", (_event,id: string) => pauseDownload(taskId(id),true));
   ipcMain.handle("download:retry", (_event,id: string) => resumeDownload(taskId(id),true));
   ipcMain.handle("download:detail", (_event,id: string) => getDownloadDetail(taskId(id)));
+  ipcMain.handle("download:select-task-directory", (_event,id: string) => selectDownloadTaskDirectory(taskId(id)));
+  ipcMain.handle("download:delete-preview", (_event, input: { targets?: DownloadFileTarget[]; all?: boolean }) => previewDownloadDelete(input));
+  ipcMain.handle("download:delete", (_event, input: { previewId: string; deleteFiles: boolean; confirmed?: boolean }) => deleteDownloads(input));
+  ipcMain.handle("download:file-detail", (_event, target: DownloadFileTarget) => getDownloadFileDetail(target));
+  ipcMain.handle("download:reveal-file", (_event, target: DownloadFileTarget) => revealDownloadFile(target));
+  ipcMain.handle("download:open-directory", (_event, target: DownloadFileTarget) => openDownloadDirectory(target));
+  ipcMain.handle("download:repair", (_event, target: DownloadFileTarget) => repairDownloadFile(target));
 }

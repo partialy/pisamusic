@@ -29,7 +29,7 @@ export function setupLocalLibraryIpc() {
     return getLocalSongCover(filePath);
   });
 
-  ipcMain.handle("library:local:songs:remove", (_event, payload: { filePath?: string; deleteFile?: boolean }) => {
+  ipcMain.handle("library:local:songs:remove", (_event, payload: { filePath?: string; deleteFile?: boolean; localId?: string; fileId?: string }) => {
     return removeLocalSongFromList(payload);
   });
 }

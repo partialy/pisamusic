@@ -1,7 +1,10 @@
 import { identityRevision } from "../account/accountIdentity";
+import { assertDownloadIdle, stopDownloadFileOperations } from "./downloadOperationGuard";
+import { beginDownloadFileOperation } from "./downloadOperationGuard";
+import { dialog } from "electron";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { access, copyFile } from "node:fs/promises";
+import { access, copyFile, lstat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { getAppDatabase } from "../database";
 import type { DownloadRecordItem, TrackSnapshot } from "../database/types";
@@ -45,7 +48,10 @@ function advanceGeneration(task: PersistedDownloadTask) {
 }
 export function taskSnapshot(task: PersistedDownloadTask): DownloadTaskSnapshot {
   const { taskId,fileId,source,songId,qualityKey,name,status,progress,receivedBytes,totalBytes,speedBytesPerSecond,directory,filePath,error,createdAt,updatedAt,retryCount,pauseReason,generation } = task;
-  return { taskId,fileId,source,songId,qualityKey,name,status,progress,receivedBytes,totalBytes,speedBytesPerSecond,directory,filePath,error,createdAt,updatedAt,retryCount,pauseReason,generation };
+  return { taskId,fileId,source,songId,qualityKey,name,status,progress,receivedBytes,totalBytes,speedBytesPerSecond,directory,filePath,error,createdAt,updatedAt,retryCount,pauseReason,generation,
+    singer: typeof task.payload.singer === "string" ? task.payload.singer : "",
+    album: typeof task.payload.album === "string" ? task.payload.album : "",
+    cover: typeof task.payload.cover === "string" ? task.payload.cover : "" };
 }
 export function initializeDownloadService() {
   return initialization ??= (async () => {
@@ -140,6 +146,7 @@ export async function listDownloadFiles() { await initializeDownloadService(); r
 function requireTask(taskId: string) { const task = repo().task(taskId); if (!task) throw new Error("下载任务不存在"); return task; }
 export async function pauseDownload(taskId: string, cancel = false) {
   await initializeDownloadService();
+  assertDownloadIdle(taskId);
   const task = requireTask(taskId);
   if (task.status === "processing") throw new Error("后处理不可中断，请等待完成");
   if (terminal(task)) return taskSnapshot(task);
@@ -158,23 +165,56 @@ export async function pauseDownload(taskId: string, cancel = false) {
 }
 export async function resumeDownload(taskId: string, retry = false) {
   await initializeDownloadService(); if (!accepting) throw new Error("下载服务正在退出");
+  assertDownloadIdle(taskId);
   const task = requireTask(taskId);
   if (active.has(taskId)) throw new Error("任务尚未停止，请稍后继续");
-  if (task.status !== "paused" && !(retry && task.status === "failed")) return taskSnapshot(task);
-  if (retry && task.fileId) {
+  if (task.status !== "paused" && !(retry && ["failed", "cancelled"].includes(task.status))) return taskSnapshot(task);
+  const authorizedQuality = normalizeQualityKey(normalizeSource(task.source), task.qualityKey);
+  if (authorizedQuality !== task.qualityKey) throw new Error("原音质当前无权限，请重新选择音质");
+  if (retry && (task.fileId || task.status === "cancelled")) {
     // 完成实体缺失后的重试创建新任务，旧 fileId/legacy 映射原样保留。
     const existing=repo().tasks().find(item => item.taskId !== task.taskId && item.source === task.source && item.songId === task.songId && item.qualityKey === task.qualityKey && !terminal(item));
     if (existing) return taskSnapshot(existing);
     const newId=randomUUID(),now=new Date().toISOString();
     const fresh: PersistedDownloadTask={ ...task, taskId:newId,fileId:"",status:"queued",progress:0,receivedBytes:0,totalBytes:0,speedBytesPerSecond:0,
       filePath:"",error:"",createdAt:now,updatedAt:now,retryCount:0,pauseReason:"",generation:0,partPath:managedPartPath(newId),extension:"",
-      validator:"",validatorKind:"",transferComplete:false,retryAt:0,legacyId:null,candidateIdentity:"",candidateSize:0,assets:[],
+      validator:"",validatorKind:"",transferComplete:false,retryAt:0,legacyId:null,candidateIdentity:"",candidateSize:0,assets:[],retainedCandidates:[],
     };
     repo().enqueue([fresh]); schedule(); return taskSnapshot(fresh);
   }
   task.status="queued"; task.pauseReason=""; task.error=""; task.retryAt=0;
   if (retry) task.retryCount=0;
   advanceGeneration(task); schedule(); return taskSnapshot(task);
+}
+/** main 系统选择器明确重新选目录；不信任 renderer 路径，配置开关保持原快照。 */
+export async function selectDownloadTaskDirectory(taskId: string): Promise<DownloadTaskSnapshot | null> {
+  await initializeDownloadService();
+  if (!accepting) throw new Error("下载服务正在退出");
+  const finish = beginDownloadFileOperation(taskId);
+  try {
+    const task = requireTask(taskId);
+    if (task.fileId || task.status !== "paused" || active.has(taskId)) throw new Error("仅已暂停且尚未完成的任务可以更换目录");
+    const result = await dialog.showOpenDialog({ title: "更换下载目录（从零开始）", defaultPath: task.directory, properties: ["openDirectory", "createDirectory"] });
+    if (result.canceled || !result.filePaths[0]) return null;
+    if (!accepting) throw new Error("下载服务正在退出，未更改目录");
+    const directory = normalizeDirectory(result.filePaths[0]);
+    let cursor = directory;
+    while (true) {
+      if ((await lstat(cursor)).isSymbolicLink()) throw new Error("下载目录包含符号链接或重解析点");
+      const parent = path.dirname(cursor); if (parent === cursor) break; cursor = parent;
+    }
+    await access(directory, constants.W_OK);
+    const trustedDirectory = await realpath(directory);
+    if (!(await lstat(trustedDirectory)).isDirectory()) throw new Error("请选择已有目录");
+    await removeManagedPart(task);
+    if (task.filePath) (task.retainedCandidates ??= []).push({ filePath: task.filePath, identity: task.candidateIdentity, assets: task.assets });
+    task.directory = trustedDirectory; task.filePath = ""; task.candidateIdentity = ""; task.candidateSize = 0; task.assets = [];
+    task.receivedBytes = 0; task.totalBytes = 0; task.progress = 0; task.speedBytesPerSecond = 0;
+    task.validator = ""; task.validatorKind = ""; task.transferComplete = false; task.extension = ""; task.retryCount = 0; task.retryAt = 0;
+    task.partPath = managedPartPath(task.taskId); task.error = ""; task.pauseReason = "目录已更换，将从零开始；请手动继续";
+    advanceGeneration(task);
+    return taskSnapshot(requireTask(taskId));
+  } finally { finish(); }
 }
 export async function pauseAllDownloads() {
   await initializeDownloadService();
@@ -219,7 +259,7 @@ async function execute(task: PersistedDownloadTask, run: Active) {
     const quality=normalizeQualityKey(normalizeSource(task.source),task.qualityKey);
     if (quality !== task.qualityKey) throw new DownloadFailure("音质权限已变化，请重新选择音质");
     try { await access(task.directory,constants.W_OK); }
-    catch { task.status="paused"; task.pauseReason="原下载目录缺失或不可写，请恢复目录后继续"; checkpoint(task); return; }
+    catch { task.status="paused"; task.pauseReason="原下载目录缺失或不可写，请恢复原目录或更换目录后继续"; checkpoint(task); return; }
     if (run.controller.signal.aborted) throw run.controller.signal.reason;
     let complete = task.transferComplete;
     if (complete) { try { await validateAudio(managedPartPath(task.taskId),task.totalBytes); } catch { complete=false; task.transferComplete=false; } }
@@ -313,6 +353,7 @@ async function finalizeOwned(task: PersistedDownloadTask) {
 }
 export async function shutdownDownloads(timeoutMs=30000): Promise<boolean> {
   accepting=false;
+  const fileOperations = stopDownloadFileOperations();
   if (timer) { clearTimeout(timer); timer=undefined; }
   if (!initialization) return true;
   await initialization;
@@ -326,7 +367,7 @@ export async function shutdownDownloads(timeoutMs=30000): Promise<boolean> {
   }
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const settled=await Promise.race([
-    Promise.allSettled([enqueueTail,...[...active.values()].map(run=>run.promise)]).then(()=>true),
+    Promise.allSettled([enqueueTail,fileOperations,...[...active.values()].map(run=>run.promise)]).then(()=>true),
     new Promise<false>(resolve=> { timeout=setTimeout(()=>resolve(false),timeoutMs); }),
   ]);
   if (timeout) clearTimeout(timeout);
