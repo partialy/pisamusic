@@ -95,6 +95,7 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     Object.assign(content.style, {
       position: "absolute", inset: "0", width: "100%", height: "100%", margin: "0",
       background: "transparent", borderColor: "transparent", boxShadow: "none", pointerEvents: "none",
+      borderRadius: `${pill.getBoundingClientRect().height / 2}px`,
     });
     pill.appendChild(content);
     animate(content, [{ opacity: entering ? 1 : 0 }, { opacity: entering ? 0 : 1 }], {
@@ -112,16 +113,27 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     container.inert = true;
     Object.assign(container.style, {
       position: "fixed", pointerEvents: "none", zIndex: "1000", boxSizing: "border-box",
-      overflow: "hidden", borderRadius: "999px", backgroundColor: state.background,
+      overflow: "hidden", borderRadius: "0",
       left: `${state.rect.left}px`, top: `${state.rect.top}px`, height: `${state.rect.height}px`,
     });
+    // 固定端帽半径；收缩到小于一个按钮高度时只裁切，不压扁药丸。
+    const surface = document.createElement("div");
+    Object.assign(surface.style, {
+      position: "absolute", inset: "0", width: "100%", minWidth: `${state.rect.height}px`,
+      height: `${state.rect.height}px`, borderRadius: `${state.rect.height / 2}px`,
+      backgroundColor: state.background, overflow: "hidden",
+    });
+    container.appendChild(surface);
     const content = state.content;
     content.removeAttribute("id");
     Object.assign(content.style, {
       position: "absolute", left: "0", top: "0", margin: "0", boxSizing: "border-box",
       width: `${state.rect.width}px`, height: `${state.rect.height}px`, pointerEvents: "none",
     });
-    container.appendChild(content);
+    content.style.setProperty("background-color", "transparent", "important");
+    content.style.setProperty("border-radius", `${state.rect.height / 2}px`, "important");
+    for (const border of content.querySelectorAll<HTMLElement>(".n-button__border, .n-button__state-border")) border.style.borderColor = "transparent";
+    surface.appendChild(content);
     document.body.appendChild(container);
     companionOverlays.add(container);
     const visibility = button?.style.visibility;
@@ -153,7 +165,7 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     pill.setAttribute("aria-hidden", "true");
     Object.assign(pill.style, {
       position: "fixed", pointerEvents: "none", zIndex: "1000", boxSizing: "border-box",
-      border: "0", borderRadius: "999px", overflow: "hidden", color: from.color,
+      border: "0", borderRadius: `${from.rect.height / 2}px`, overflow: "hidden", color: from.color,
       left: `${from.rect.left}px`, top: `${from.rect.top}px`, width: `${from.rect.width}px`, height: `${from.rect.height}px`,
       backgroundColor: from.background,
     });

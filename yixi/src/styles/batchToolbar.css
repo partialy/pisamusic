@@ -22,3 +22,10 @@
   border: none !important;
   box-shadow: none !important;
 }
+
+/* 宽度伸缩不参与圆角过渡，按钮及装饰快照始终保持相同端帽半径。 */
+.n-button[data-batch-trigger],
+.n-button[data-batch-play-all] {
+  border-radius: calc(var(--batch-control-height, 36px) / 2) !important;
+  transition-property: background-color, color, opacity, box-shadow !important;
+}
