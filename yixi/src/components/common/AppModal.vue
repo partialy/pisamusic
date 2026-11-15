@@ -6,7 +6,8 @@
     :closable="closable && !closeDisabled"
     :mask-closable="maskClosable && !closeDisabled"
     :close-on-esc="closeOnEsc && !closeDisabled"
-    @update:show="updateShow">
+    @update:show="updateShow"
+    @after-leave="emit('afterLeave')">
     <template #header><slot name="header"><component :is="renderModalTitle(title, icon)" /></slot></template>
     <slot />
     <template v-if="$slots.footer" #footer><div class="app-modal-actions"><slot name="footer" /></div></template>
@@ -26,8 +27,8 @@ const props = withDefaults(defineProps<{
   closable?: boolean;
   maskClosable?: boolean;
   closeOnEsc?: boolean;
-}>(), { width: 440, closeDisabled: false, closable: true, maskClosable: true, closeOnEsc: true });
-const emit = defineEmits<{ (event: "update:show", value: boolean): void }>();
+}>(), { width: 440, closeDisabled: false, closable: true, maskClosable: false, closeOnEsc: true });
+const emit = defineEmits<{ (event: "update:show", value: boolean): void; (event: "afterLeave"): void }>();
 function updateShow(value: boolean) {
   if (!props.closeDisabled) emit("update:show", value);
 }

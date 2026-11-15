@@ -59,6 +59,7 @@
       preset="card"
       title="网络错误详情"
       class="detail-modal"
+      :mask-closable="false"
       :bordered="false">
       <template v-if="detail">
         <div class="detail-grid">

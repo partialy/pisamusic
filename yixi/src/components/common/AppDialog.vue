@@ -7,7 +7,7 @@
     :style="options.style"
     :close-disabled="busy || !!options.loading"
     :closable="options.closable !== false"
-    :mask-closable="options.maskClosable !== false"
+    :mask-closable="options.maskClosable === true"
     :close-on-esc="options.closeOnEsc !== false"
     :auto-focus="options.autoFocus !== false"
     :block-scroll="options.blockScroll !== false"

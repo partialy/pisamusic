@@ -22,7 +22,7 @@ export interface ConfirmDialogOptions {
 }
 const props = withDefaults(defineProps<ConfirmDialogOptions & { show?: boolean }>(), {
   show: false, title: "提示", content: "", confirmText: "确认", cancelText: "取消",
-  confirmType: "error", maskClosable: true,
+  confirmType: "error", maskClosable: false,
 });
 const emit = defineEmits<{ "update:show": [value: boolean]; confirm: []; cancel: [] }>();
 const themeStore = useThemeStore();

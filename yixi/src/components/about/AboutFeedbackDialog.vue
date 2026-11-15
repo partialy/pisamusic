@@ -4,7 +4,7 @@
     preset="card"
     title="意见反馈"
     class="about-feedback-dialog"
-    :mask-closable="!submitting"
+    :mask-closable="false"
     @update:show="handleVisibleChange">
     <div class="feedback-form">
       <label class="form-field">

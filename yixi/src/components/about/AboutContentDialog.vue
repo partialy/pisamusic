@@ -4,7 +4,7 @@
     preset="card"
     :title="title"
     class="about-content-dialog"
-    :mask-closable="true"
+    :mask-closable="false"
     @update:show="handleVisibleChange">
     <div v-if="loading" class="content-loading">
       <n-skeleton text width="80%" />

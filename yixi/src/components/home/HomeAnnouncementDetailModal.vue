@@ -1,22 +1,14 @@
 <template>
-  <n-modal
+  <AppModal
     :show="show"
+    title="公告"
+    :icon="Megaphone"
+    :width="680"
+    :closable="false"
     :mask-closable="false"
     :close-on-esc="false"
-    :internal-appear="true"
-    transform-origin="center"
-    @update:show="handleVisibleChange"
     @after-leave="emit('afterLeave')">
-    <n-card
-      class="announcement-detail-modal"
-      :bordered="false"
-      :closable="false"
-      role="dialog"
-      aria-modal="true">
-      <template #header>
-        <div class="announcement-detail-title">公告</div>
-      </template>
-
+    <div class="announcement-detail-body">
       <div class="announcement-detail-meta">
         <span>{{ announcement?.publisher || "PisaMusic Team" }}</span>
         <span>{{ announcement?.time || "刚刚" }}</span>
@@ -48,28 +40,28 @@
           </span>
         </template>
       </div>
+    </div>
 
-      <template #footer>
-        <div class="announcement-detail-footer">
-          <n-button type="primary" @click="emit('confirmed')">
-            {{ announcement?.confirmText || "我知道了" }}
-          </n-button>
-          <n-button
-            v-if="announcement?.showGotoButton && announcement?.gotoUrl"
-            secondary
-            type="primary"
-            @click="emit('goto')">
-            前往
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
+    <template #footer>
+      <n-button
+        v-if="announcement?.showGotoButton && announcement?.gotoUrl"
+        secondary
+        type="primary"
+        @click="emit('goto')">
+        前往
+      </n-button>
+      <n-button type="primary" @click="emit('confirmed')">
+        {{ announcement?.confirmText || "我知道了" }}
+      </n-button>
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { NButton, NCard, NModal } from "naive-ui";
+import { NButton } from "naive-ui";
+import { Megaphone } from "lucide-vue-next";
+import AppModal from "@/components/common/AppModal.vue";
 import {
   resolveAnnouncementColor,
   normalizeAnnouncementContent,
@@ -92,11 +84,6 @@ const emit = defineEmits<{
 
 const content = computed(() => normalizeAnnouncementContent(props.announcement?.content));
 
-function handleVisibleChange(nextVisible: boolean) {
-  if (nextVisible) return;
-  // Modal 不允许通过遮罩或 ESC 关闭，只接受底部按钮关闭。
-}
-
 async function handleHighlightAction(block: AnnouncementBlock) {
   if (block.type !== "highlight" || block.action.type === "none") return;
   try {
@@ -113,36 +100,31 @@ async function handleHighlightAction(block: AnnouncementBlock) {
 </script>
 
 <style lang="scss" scoped>
-.announcement-detail-modal {
-  width: min(680px, calc(100vw - 48px));
-  max-height: calc(100vh - 80px);
-  overflow: hidden;
-  border-radius: var(--radius-control);
-  background-color: var(--color-bg-default);
-  color: var(--color-text-default);
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.24);
-}
-
-.announcement-detail-title {
-  color: var(--color-text-default);
-  font-size: 18px;
-  font-weight: 700;
+.announcement-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .announcement-detail-meta {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
-  color: var(--color-text-secondary);
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .announcement-detail-content {
-  max-height: min(60vh, 560px);
+  max-height: min(60vh, 520px);
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  color: var(--color-text-default);
+  color: var(--text-primary);
   font-size: 14px;
   line-height: 1.8;
   white-space: pre-wrap;
@@ -176,9 +158,9 @@ async function handleHighlightAction(block: AnnouncementBlock) {
 .announcement-image-placeholder {
   display: block;
   padding: 24px 12px;
-  border: 1px dashed var(--color-border-default);
+  border: 1px dashed var(--border-subtle);
   border-radius: var(--radius-control);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .announcement-highlight {
@@ -199,11 +181,5 @@ async function handleHighlightAction(block: AnnouncementBlock) {
 .announcement-action-mark {
   margin-left: 4px;
   font-size: 12px;
-}
-
-.announcement-detail-footer {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
 }
 </style>

@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<{
   confirmText?: string;
   showDefaultButtons?: boolean;
   closeOnClickModal?: boolean;
-}>(), { visible: false, title: "提示", text: "", cancelText: "取消", confirmText: "确定", showDefaultButtons: true, closeOnClickModal: true });
+}>(), { visible: false, title: "提示", text: "", cancelText: "取消", confirmText: "确定", showDefaultButtons: true, closeOnClickModal: false });
 const emit = defineEmits<{
   "update:visible": [visible: boolean];
   confirm: [];

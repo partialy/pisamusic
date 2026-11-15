@@ -9,7 +9,7 @@ export const appModalProps = {
   internalAppear: true,
   autoFocus: true,
   trapFocus: true,
-  maskClosable: true,
+  maskClosable: false,
   closeOnEsc: true,
   bordered: false,
   role: "dialog",

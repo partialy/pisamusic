@@ -2,7 +2,7 @@
   <n-modal
     v-model:show="innerVisible"
     transform-origin="center"
-    :mask-closable="true"
+    :mask-closable="false"
     @after-leave="handleAfterLeave">
     <n-card
       class="lyric-setting-card"

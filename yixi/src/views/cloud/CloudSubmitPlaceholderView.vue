@@ -403,6 +403,7 @@
       preset="card"
       title="修改歌曲信息并重新提审"
       class="resubmit-modal"
+      :mask-closable="false"
       :style="{ width: '560px', maxWidth: '90vw' }"
     >
       <div v-if="resubmittingItem" class="resubmit-form">
