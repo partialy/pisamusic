@@ -1,17 +1,16 @@
 <template>
   <AppModal :show="show" title="分享 PisaMusic" :icon="Share2" :width="440" @update:show="emit('update:show', $event)">
     <div class="app-share-content">
-      <n-spin v-if="loading" size="small" description="正在获取当前身份的推广信息" />
+      <n-spin v-if="loading" size="small" description="正在获取分享信息" />
       <template v-if="result?.config">
         <div class="app-share-brand">
           <img v-if="result.config.iconUrl" :src="result.config.iconUrl" alt="" @error="hideBrokenIcon" />
-          <div><strong>{{ result.config.appName || 'PisaMusic' }}</strong><span v-if="result.config.version"> {{ result.config.version }}</span></div>
+          <div class="app-share-name"><strong>{{ result.config.appName || 'PisaMusic' }}</strong><span v-if="result.config.version">{{ result.config.version }}</span></div>
         </div>
-        <p v-if="result.config.description">{{ result.config.description }}</p>
+        <p v-if="result.config.description" class="share-description">{{ result.config.description }}</p>
         <p v-if="!result.verified" class="share-status" role="status">同身份缓存，当前未校验。重新获取成功前不能复制或分享。</p>
         <p v-else-if="!result.config.trackingEnabled" class="share-status" role="status">服务端未启用 PC 身份追踪，当前无法生成专属推广分享。请升级服务端或联系管理员。</p>
         <p v-else-if="!result.config.qrCodeText && !result.config.copyText" class="share-status" role="status">推广内容尚未配置，请联系管理员。</p>
-        <p v-else-if="canShare" class="share-status">当前身份已校验</p>
         <div v-if="result.config.qrCodeText" class="share-code-area">
           <div class="share-code" :class="{ 'share-code-unverified': !canShare }">
             <QrcodeVue v-if="canShare" :value="result.config.qrCodeText" :size="184" level="M" />
@@ -25,17 +24,17 @@
       <p v-if="error" role="alert" class="share-error">{{ error }}</p>
     </div>
     <template #footer>
-      <n-button round @click="emit('update:show', false)">关闭</n-button>
-      <n-button round :loading="loading" @click="load">重新获取</n-button>
-      <n-button round type="primary" :disabled="!canShare || !result?.config?.copyText" @click="copy">复制文案</n-button>
+      <n-button round @click="emit('update:show', false)"><template #icon><n-icon :component="X" /></template>关闭</n-button>
+      <n-button round :loading="loading" @click="load"><template #icon><n-icon :component="RefreshCw" /></template>重新获取</n-button>
+      <n-button round type="primary" :disabled="!canShare || !result?.config?.copyText" @click="copy"><template #icon><n-icon :component="Copy" /></template>复制文案</n-button>
     </template>
   </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { NButton, NSpin } from "naive-ui";
-import { Share2 } from "lucide-vue-next";
+import { NButton, NSpin, NIcon } from "naive-ui";
+import { Share2, X, RefreshCw, Copy } from "lucide-vue-next";
 import QrcodeVue from "qrcode.vue";
 import AppModal from "./AppModal.vue";
 import electronAPI from "@/utils/electron";
@@ -105,6 +104,8 @@ onBeforeUnmount(() => { generation++; unsubscribe(); });
 .app-share-content { display: grid; gap: 16px; color: var(--text-primary); }
 .app-share-content p { margin: 0; overflow-wrap: anywhere; }
 .app-share-brand { display: flex; align-items: center; gap: 12px; }
+.app-share-name { display: grid; gap: 4px; }
+.share-description, .share-copy { text-align: center; }
 .app-share-brand img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-control); }
 .app-share-brand span, .share-status, .share-code-area small { color: var(--text-secondary); font-size: 13px; }
 .share-code-area { display: grid; justify-items: center; gap: 12px; }
