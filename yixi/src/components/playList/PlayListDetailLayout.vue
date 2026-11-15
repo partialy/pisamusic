@@ -47,23 +47,14 @@
                   collector.containsPlaylist(listDetail) ? "取消收藏" : "收藏"
                 }}
               </n-button>
-              <n-button v-if="listDetail?.source === 'kg' || listDetail?.source === 'wy'" round secondary style="margin-left: 10px" @click="conversionVisible = true">
-                转为本地歌单
-              </n-button>
+              <n-dropdown trigger="click" :options="moreOptions" @select="handleMoreAction">
+                <n-button round secondary style="margin-left: 10px">
+                  <template #icon><n-icon :component="EllipsisVertical" /></template>
+                  更多
+                </n-button>
+              </n-dropdown>
               <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="editDialogRef?.open(listDetail)">编辑</n-button>
               <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="deleteCurrentPlaylist">删除</n-button>
-              <n-button round secondary style="margin-left: 10px" @click="openDetailPage">
-                <template #icon>
-                  <n-icon :component="Info"></n-icon>
-                </template>
-                详情
-              </n-button>
-              <n-button round secondary style="margin-left: 10px" @click="openShareDialog">
-                <template #icon>
-                  <n-icon :component="Share2"></n-icon>
-                </template>
-                分享
-              </n-button>
             </div>
 
             <n-input :style="{
@@ -121,6 +112,7 @@
 import { useRoute, useRouter } from "vue-router";
 import {
   NButton,
+  NDropdown,
   NInput,
   NTooltip,
   NText,
@@ -129,7 +121,7 @@ import {
   NEmpty,
   useMessage,
 } from "naive-ui";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
 
 import type { KGPlaylistDetailData } from "@/utils/webapi";
 import { debounce, getSongCover } from "@/utils/common";
@@ -147,7 +139,7 @@ import PlaylistEditDialog from "@/components/mine/PlaylistEditDialog.vue";
 import { usePlaylistManagement } from "@/composables/usePlaylistManagement";
 import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
-import { Info, Share2 } from "lucide-vue-next";
+import { EllipsisVertical, FolderInput, Info, Share2 } from "lucide-vue-next";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import OnlinePlaylistConversionDialog from "./OnlinePlaylistConversionDialog.vue";
 import { loadOnlinePlaylist } from "@/playlist/onlinePlaylistBatchLoader";
@@ -410,6 +402,19 @@ const playAll = async () => {
 function openDetailPage() {
   if (!listDetail.value) return;
   void openPlaylistDetail(router, listDetail.value);
+}
+
+const moreOptions = computed(() => [
+  ...(["kg", "wy"].includes(listDetail.value?.source || "")
+    ? [{ label: "转为本地歌单", key: "convert", icon: () => h(FolderInput, { size: 16 }) }] : []),
+  { label: "详情", key: "detail", icon: () => h(Info, { size: 16 }) },
+  { label: "分享", key: "share", icon: () => h(Share2, { size: 16 }) },
+]);
+
+function handleMoreAction(key: string) {
+  if (key === "convert") conversionVisible.value = true;
+  else if (key === "detail") openDetailPage();
+  else if (key === "share") openShareDialog();
 }
 
 function openShareDialog() {

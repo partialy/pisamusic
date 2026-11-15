@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory, createWebHistory, type RouteRecordRaw } from "vue-router";
 import MainLayout from "../layout/MainLayout.vue";
 import { NotFound } from "../components";
+import { openLegacyMediaDetail } from "@/share/mediaDetailRoute";
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -115,12 +116,6 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import("../components/playList/PlayListDetailLayout.vue"),
         meta: { title: "PisaMusic - 歌单详情" },
       },
-      {
-        path: "media/detail",
-        name: "MediaDetail",
-        component: () => import("../views/media/MediaDetailView.vue"),
-        meta: { title: "PisaMusic - 音乐详情" },
-      },
     ],
   },
   {
@@ -143,7 +138,12 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to, from, next) => {
+  if (to.path === "/media/detail") {
+    openLegacyMediaDetail(to.query);
+    next({ path: from.path && from.path !== "/media/detail" ? from.path : "/", query: from.path === "/media/detail" ? {} : from.query, replace: true });
+    return;
+  }
   if (to.meta.title) {
     document.title = `${to.meta.title}`;
   }

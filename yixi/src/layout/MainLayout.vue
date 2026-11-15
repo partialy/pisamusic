@@ -39,6 +39,7 @@
       </n-layout>
     </n-space>
     <AppAnnouncementAutoPopup />
+    <MediaDetailDialog />
   </div>
 </template>
 
@@ -58,6 +59,7 @@ import {
 } from "lucide-vue-next";
 import { Header } from "../components";
 import AppAnnouncementAutoPopup from "@/components/home/AppAnnouncementAutoPopup.vue";
+import MediaDetailDialog from "@/components/common/MediaDetailDialog.vue";
 import { KGIcon, NeteaseIcon } from "@/icons";
 import logo from "@/assets/pisamusic_icon_1024.png";
 import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
@@ -71,7 +73,6 @@ const isDev = import.meta.env.DEV;
 
 const routeToMenuKey = (path: string) => {
   if (path.startsWith("/recommend")) return "home";
-  if (path.startsWith("/media/detail")) return "home";
   if (path.startsWith("/playlist")) return "playlist";
   if (path.startsWith("/favorite")) return "favorite";
   if (path.startsWith("/cloud")) return "cloud";

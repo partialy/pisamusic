@@ -47,7 +47,7 @@
 - 本地歌曲（`source: "local"`）不支持一起听；云盘歌曲（`source: "cloud"`）以共享 UUID 参与房间与权威队列，`urlParam=id`，各设备经现有 main 云盘接口独立获取播放签名 URL，禁用歌曲（`playable=false`）不可加入。协议歌曲不携带 `filePath` 与真实播放 URL（`url` 发空串），远端播放时取链接口再次判断 active 状态。播放器 localStorage 兼容快照与 SQLite 队列统一使用持久化歌曲 DTO，禁止把运行中的签名播放 URL 写入快照。
 - 一起听成员头像由 main 侧 `electron/listenTogether/listenTogetherAvatar.ts` 统一把服务端相对地址转为绝对地址，空值使用服务端默认账号头像；renderer 只展示图片并使用本地默认头像作为加载失败兜底，不要回退成姓名文字。
 - 所有新增播放入口（按钮、托盘、快捷键、MediaSession、歌词点击、右键菜单、列表/队列操作、自动续播与失败跳过）必须经过 `src/listenTogether/playbackCommands.ts` 统一命令层，禁止直接调用 `useAudioStore` 的 play/next/prev/seek/switchPlayList/setPlaylist/nextPlay/removeFromPlaylist/reset；一起听权限守卫在命令层与 store，不允许只靠 disabled UI。
-- 首页歌曲网格和“查看更多”歌曲页的右键、更多按钮统一复用 `src/components/common/ContextMenu.vue`；菜单至少包含播放、下一曲播放、分享、收藏、添加到歌单、添加到播放队列和详情，详情统一进入 `/media/detail`，不得在列表组件复制一套操作逻辑。
+- 首页歌曲网格和“查看更多”歌曲页的右键、更多按钮统一复用 `src/components/common/ContextMenu.vue`；菜单至少包含播放、下一曲播放、分享、收藏、添加到歌单、添加到播放队列和详情，详情统一调用 `share/mediaDetailRoute.ts` 打开全局 `MediaDetailDialog`，不得在列表组件复制一套操作逻辑。
 - 一起听 Socket 命令可能包含 Pinia/Vue 响应式队列项，调用 preload API 前必须经过 `src/listenTogether/listenTogetherIpcPayload.ts` 转为纯 JSON DTO；不能只依赖 preload 内克隆，因为 `contextBridge` 会在进入 preload 函数前先克隆参数。
 - 一起听中“仅添加到队列/下一首播放/清空队列/整列表播放”因 PM 协议无对应命令而禁用或降级为单曲点播，不要自创 PM 不认识的队列命令。
 - 验证命令：`pnpm --dir yixi test:listen-together`（纯规则单测）与 `pnpm --dir yixi build:t`；涉及协议字段或队列行为改动时，必须与 PM 真机做跨端联调（双向房主/成员、重复歌曲 queueItemId、快速连续切歌、30 秒断线重连、权限关闭旁路审计）。
@@ -69,14 +69,14 @@
 - Header 设置菜单的“链接导入歌单”复用 `playList/PlaylistLinkImportDialog.vue`；`utils/playlistShareLinkParser.ts` 只解析 KG/WY 公开白名单 URL，不解析短链、不请求网页、不以酷狗 `src_cid` 替代分享副本。导入只打开在线详情，不自动创建自建歌单。
 - 在线详情的“转为本地歌单”使用 `playlist/onlinePlaylistBatchLoader.ts` 固定页大小读取全集，核对身份、原始数量、首尾版本与可用曲目 ID，再调用 `onlinePlaylistConversion.ts` 单次组合事务。加载可取消、保存不可中断；每次转换产生新 UUID，携带加载开始的账号世代，禁止晚响应保存到新账号。歌曲去重，明确空歌单可保存，部分加载不能转存；转换只保存曲目信息。
 
-- 桌面端歌曲/歌单详情统一使用主区域路由 `/media/detail`，菜单进入时只在 query 中携带经过白名单裁剪的 canonical payload；分享外链进入时使用 `kind=share&uuid=<uuid>` 后由 main 侧读取公开分享接口。
+- 桌面端歌曲/歌单详情统一使用 `common/MediaDetailDialog.vue` / `AppModal`，由 `MainLayout` 常驻挂载；`share/mediaDetailRoute.ts` 在 renderer 内存传递详情对象，不把本地路径与大对象写进路由。分享邀请只传 UUID，再由 main 读取公开分享接口。旧 `/media/detail` 仅消费历史 query 后回到来源页或首页，不再提供独立详情页面。
 - 分享创建和公开读取只走 main/preload 暴露的 `share:*` IPC：`electron/system/systemClient.ts` 访问外层 `server` 的 `/api/shares` 和 `/api/shares/public/:uuid`，renderer 不直接拼接 server 地址、账号 token 或加密请求。
 - 分享链接继续复用官网扫码入口 `https://pisamusic.partialy.cn/scan?type=music-share&uuid=<uuid>` 与 `pisamusic://scan?type=music-share&uuid=<uuid>`；解析规则集中在 `src/share/shareLink.ts`，不要新增 `pisamusic://share` 或顶层 `/share`。
 - 分享 payload 必须通过 `src/share/shareModels.ts` 白名单裁剪；不得包含本地 `filePath`、播放 URL、歌词正文、内嵌封面二进制或 renderer 响应式对象。
-- `/media/detail` 的分享态不展示或强调音源：歌曲展示歌手、歌名、专辑、时长和访问次数；歌单展示描述、分享人和访问次数。本地 payload 详情仍可保留来源及本地统计信息。
-- `/media/detail` 同时承载本地歌曲/歌单详情和接收分享详情，页面内不再提供独立返回按钮，统一使用全局 Header 返回；详情入口不得另建重复页面。
+- 详情弹窗的分享态不展示或强调音源：歌曲展示歌手、歌名、专辑、时长和访问次数；歌单展示描述、分享人和访问次数。本地 payload 详情仍可保留来源及本地统计信息。
+- 详情弹窗同时承载本地歌曲/歌单与接收分享，保留播放、收藏、下载和分享操作；请求结果按打开代次隔离，关闭后不接受迟到响应。本地元信息可点击复制。歌单详情头部收藏右侧的“竖向三点 + 更多”下拉统一容纳转换、详情、分享，菜单项左侧配对应图标。
 - 歌单歌曲分页拉取统一使用 `src/utils/playlistTracks.ts` 的 `resolveDynamicBatchSize(totalCount)` 动态计算单批大小（平摊约 3 批并限制在 `[50, 200]` 区间：`total <= 150` 取 50，`301` 取 101，`>= 600` 取 200）。歌单详情首屏以计算出的 `batchSize` 直接拉取第 1 页，无重复数据；流式后台加载与全量拉取全过程必须保持同一恒定 `pageSize`，尾页不缩小，规避酷狗服务端分页偏移错位。
-- Electron 外部扫码动作由 main 侧协调器缓冲冷启动/二次启动参数：一起听继续投递 `listen-together:invite`，音乐分享投递 `share:invite`，renderer 只消费只读事件并跳转详情页。
+- Electron 外部扫码动作由 main 侧协调器缓冲冷启动/二次启动参数：一起听继续投递 `listen-together:invite`，音乐分享投递 `share:invite`，renderer 只消费只读事件并打开详情弹窗。
 
 ## 服务端地址规则补充
 
@@ -427,6 +427,8 @@
 - 一起听、下载歌曲、添加到歌单、定时关闭复用 `src/components/common/AppModal.vue`；系统账号登录继续用动态 `$modal.create`，与声明式弹窗共用 `src/utils/appModal.ts` 的 card props/图标标题和 `src/styles/appModal.css` 壳层。不得嵌套第二层 Modal 或丢失动态实例 `destroy/onAfterLeave`（邀请登录后续接依赖）。
 - 统一左图标标题、右关闭、24px 横向内距、底部右对齐药丸操作、居中缩放与 Naive 默认遮罩/焦点管理。下载和添加歌单在提交期间禁止遮罩、Esc、右上关闭及取消；业务校验、尺寸与内部表单布局继续由所属组件控制。登录表单保留密码/验证码/注册分段，品牌精简为壳层标题与同步说明。
 
+- 通用弹窗统一复用 `common/AppModal.vue`：图标标题、12px 外壳、标准内距、底部药丸按钮与焦点/遮罩动画；业务通过默认内容、`header`、`footer` 插槽实现自定义 UI，不复制 Teleport/遮罩/关闭按钮。可独立设置关闭按钮、遮罩与 ESC，忙碌流程用 `closeDisabled` 禁止交互关闭。
+- 通用提示/确认使用 `common/AppDialog.vue`（`options` + 内容/底部插槽）；命令式 `window.$dialog` 由 `utils/appDialog.ts` 和 App 常驻 `AppDialogHost` 统一承载，支持异步操作、返回 false 保留弹窗、destroy 与 onAfterLeave。收藏/图片库旧 `AppConfirmDialog.open()` Promise API 仅作兼容适配；`DialogWrapper` 也只包装共享壳层。分享与退出确认复用同一 AppModal，后续不得新增独立确认框样式。
 - 新建歌单也接入 `AppModal`，添加歌单内继续新建时由 Naive 管理嵌套焦点栈；歌单 Select 菜单挂载 body，避免内部滚动区裁切。
 - 离散 message/dialog/modal API 的 ConfigProvider 使用 `theme/discreteTheme.ts` 共享响应式配置，由 App setup 的 watchEffect 同步主题/overrides；不得在模块初始化时调用 Pinia Store。Tabs 与 Checkbox 在主题适配器显式保留 Naive 3px/2px 专用形态，不继承 common 12px。
 

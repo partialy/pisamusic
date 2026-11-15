@@ -45,7 +45,7 @@ const dialogOptions = computed<DialogOptions>(() => {
     type: options.confirmType === "error" ? "error" : "info",
     maskClosable: options.maskClosable,
     style: options.background ? { background: options.background } : undefined,
-    positiveButtonProps: { type: options.confirmType || "primary", style: options.confirmColor ? { color: options.confirmColor } : undefined },
+    positiveButtonProps: { type: options.confirmType || "primary", color: options.confirmColor },
     negativeButtonProps: { type: "default", style: options.cancelColor ? { color: options.cancelColor } : undefined },
   };
 });
