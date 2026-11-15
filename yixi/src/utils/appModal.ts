@@ -6,6 +6,7 @@ export const appModalProps = {
   preset: "card" as const,
   class: "app-modal-card",
   transformOrigin: "center" as const,
+  internalAppear: true,
   autoFocus: true,
   trapFocus: true,
   maskClosable: true,

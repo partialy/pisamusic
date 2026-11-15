@@ -426,11 +426,12 @@
 - 未特别说明时，操作按钮默认采用“左侧图标 + 文案”，文字按钮保持药丸形态；后续新增或修改按钮必须遵循。本轮已覆盖详情（含接收分享）、通用确认、批量操作及其涉及页面；其他历史页面不在本轮全量翻修。头像、窗口圆形图标按钮、纯图标专用控件、Tab/分段导航保留专用形态；批量操作组按下述悬停展开规则作为明确例外。
 
 - 普通容器、菜单、输入框、普通歌曲封面使用 `--radius-control`（12px），文字操作按钮使用 `--radius-pill`（999px）。Naive UI 在 `naiveThemeAdapter.ts` 统一 common/Menu 与 Button 各尺寸；普通输入框禁止 `round` 覆盖，头像、圆形图标按钮、开关、滑块、唱片、Tab/分段导航、轨道/滚动条、微型状态/来源徽标保留专用形态。
-- 一起听、下载歌曲、添加到歌单、定时关闭复用 `src/components/common/AppModal.vue`；系统账号登录继续用动态 `$modal.create`，与声明式弹窗共用 `src/utils/appModal.ts` 的 card props/图标标题和 `src/styles/appModal.css` 壳层。不得嵌套第二层 Modal 或丢失动态实例 `destroy/onAfterLeave`（邀请登录后续接依赖）。
+- 一起听、下载歌曲、添加到歌单、定时关闭、均衡器复用 `src/components/common/AppModal.vue`；系统账号登录继续用动态 `$modal.create`，与声明式弹窗共用 `src/utils/appModal.ts` 的 card props/图标标题和 `src/styles/appModal.css` 壳层。不得嵌套第二层 Modal 或丢失动态实例 `destroy/onAfterLeave`（邀请登录后续接依赖）。
 - 统一左图标标题、右关闭、24px 横向内距、底部右对齐药丸操作、居中缩放与 Naive 默认遮罩/焦点管理。下载和添加歌单在提交期间禁止遮罩、Esc、右上关闭及取消；业务校验、尺寸与内部表单布局继续由所属组件控制。登录表单保留密码/验证码/注册分段，品牌精简为壳层标题与同步说明。
 
-- 通用弹窗统一复用 `common/AppModal.vue`：图标标题、12px 外壳、标准内距、底部药丸按钮与焦点/遮罩动画；业务通过默认内容、`header`、`footer` 插槽实现自定义 UI，不复制 Teleport/遮罩/关闭按钮。可独立设置关闭按钮、遮罩与 ESC，忙碌流程用 `closeDisabled` 禁止交互关闭。
+- 通用弹窗统一复用 `common/AppModal.vue`：图标标题、12px 外壳、标准内距、底部药丸按钮与焦点/遮罩动画；业务通过默认内容、`header`、`footer` 插槽实现自定义 UI，不复制 Teleport/遮罩/关闭按钮。共享 `appModalProps.internalAppear=true`，确保 JS 动态创建且初始 show=true 的确认框同样播放首次居中缩放与遮罩淡入动画，不能只依赖后续 show 切换。可独立设置关闭按钮、遮罩与 ESC，忙碌流程用 `closeDisabled` 禁止交互关闭。
 - 通用提示/确认使用 `common/AppDialog.vue`（`options` + 内容/底部插槽）；命令式 `window.$dialog` 由 `utils/appDialog.ts` 和 App 常驻 `AppDialogHost` 统一承载，支持异步操作、返回 false 保留弹窗、destroy 与 onAfterLeave。收藏/图片库旧 `AppConfirmDialog.open()` Promise API 仅作兼容适配；`DialogWrapper` 也只包装共享壳层。分享与退出确认复用同一 AppModal，后续不得新增独立确认框样式。
+- 均衡器使用共享 AppModal 标题与关闭按钮，宽度 660px；内容按效果开关、频响、预设、频段分组，组间 20px、组内 12px，重置与关闭置于标准底部操作区。窄窗口频段区域水平滚动，保持推子可操作，不另外定义弹窗边框/阴影/标题外壳。
 - 新建歌单也接入 `AppModal`，添加歌单内继续新建时由 Naive 管理嵌套焦点栈；歌单 Select 菜单挂载 body，避免内部滚动区裁切。
 - 离散 message/dialog/modal API 的 ConfigProvider 使用 `theme/discreteTheme.ts` 共享响应式配置，由 App setup 的 watchEffect 同步主题/overrides；不得在模块初始化时调用 Pinia Store。Tabs 保留 3px 专用圆角；所有复选框统一圆形（主题适配器 Checkbox borderRadius 为 50%，自定义复选框同样遵循），保留勾选、半选与禁用语义，不继承 common 12px。
 
@@ -466,7 +467,7 @@
 
 ## PC 统一批量操作
 
-- `batch/BatchSegmentedActions.vue` 为共享连续分段条，两端药丸、内部图标分段；默认仅图标，悬停或键盘聚焦时只展开当前项文案，移出收起。所有项有 title/aria-label，已选总数显示在组外；业务按钮组不再另起风格。
+- `batch/BatchSegmentedActions.vue` 为共享连续分段条，两端药丸、内部图标分段；默认仅图标，悬停或键盘聚焦时只展开当前项文案，移出收起；文字实际宽度、间距及透明度统一 300ms 过渡，保留减少动态效果设置。所有项有 title/aria-label，已选总数显示在组外；业务按钮组不再另起风格。
 - 在线歌单详情“更多”含编辑图标 + 多选；收藏单曲/歌单的多选在播放全部右侧（歌单无播放全部）；本地/下载四 Tab 多选在原工具栏。进入后隐藏原操作按钮并在同位置显示批量组，搜索保留。`SongList` 用 `batchExternal`、`batchToolbarTarget` 与 `enterBatch/exitBatch` 暴露外置入口，在线完整加载期间也进入准备状态并允许取消；其他未点名页面保留原能力与内部入口。
 - 在线歌单批量组：全选、反选、收藏、下载、添加到、退出；收藏单曲：全选、反选、移除、下载、添加到、退出；收藏歌单：全选、反选、移除、退出，不新增整歌单下载/添加；自建歌单详情保留原批量能力。
 - 本地歌曲/下载歌曲普通组：播放全部、刷新、多选；批量组：刷新、全选、反选、移除、添加到、退出。正在下载/下载记录普通组：刷新、多选；批量组：刷新、全选、反选、移除、退出；暂停/继续/重试等仍保留行内入口，不显示顶部全部暂停/继续/清除全部。
