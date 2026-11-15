@@ -28,7 +28,7 @@
           </div>
           <div class="operate-btn batch-operation-toolbar">
             <div v-show="!batchMode">
-              <n-button round type="primary" :loading="moreLoading" style="background-color: var(--color-primary)"
+              <n-button data-batch-play-all round type="primary" :loading="moreLoading" style="background-color: var(--color-primary)"
                 @click="playAll">
                 <template #icon>
                   <n-icon :component="PlayStatic"></n-icon>

@@ -18,16 +18,19 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
   let entered = false;
   let exitFrom: PillSnapshot | null = null;
   let lastGroup: PillSnapshot | null = null;
+  let playAllFrom: PillSnapshot | null = null;
   let observer: MutationObserver | undefined;
   let observedScope: HTMLElement | null = null;
   let overlay: HTMLElement | null = null;
   const animations = new Set<Animation>();
   const restorers = new Set<() => void>();
+  const companionOverlays = new Set<HTMLElement>();
 
   const scope = () => target.value?.parentElement || null;
   const group = () => target.value?.querySelector<HTMLElement>(".batch-segmented-actions")
     || scope()?.querySelector<HTMLElement>(".batch-segmented-actions") || null;
   const trigger = () => scope()?.querySelector<HTMLElement>("[data-batch-trigger]") || null;
+  const playAll = () => scope()?.querySelector<HTMLElement>("[data-batch-play-all]") || null;
   const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function snapshot(element: HTMLElement, copyContent = false): PillSnapshot | null {
@@ -63,6 +66,8 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     restorers.clear();
     overlay?.remove();
     overlay = null;
+    companionOverlays.forEach(element => element.remove());
+    companionOverlays.clear();
   }
 
   function reset() {
@@ -72,6 +77,7 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     entered = false;
     exitFrom = null;
     lastGroup = null;
+    playAllFrom = null;
   }
 
   function animate(element: HTMLElement, keyframes: Keyframe[], options: KeyframeAnimationOptions) {
@@ -93,6 +99,51 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     pill.appendChild(content);
     animate(content, [{ opacity: entering ? 1 : 0 }, { opacity: entering ? 0 : 1 }], {
       duration: entering ? 100 : 120, delay: entering ? 0 : DURATION - 120, easing: "ease",
+    });
+  }
+
+  /** 左边缘固定，仅伸缩背景和裁切内容，图标及文字不缩放。 */
+  function animatePlayAll(show: boolean) {
+    const button = show ? playAll() : null;
+    const state = show ? (button ? snapshot(button, true) : null) : playAllFrom;
+    if (!state?.content || reducedMotion()) return;
+    const container = document.createElement("div");
+    container.setAttribute("aria-hidden", "true");
+    container.inert = true;
+    Object.assign(container.style, {
+      position: "fixed", pointerEvents: "none", zIndex: "1000", boxSizing: "border-box",
+      overflow: "hidden", borderRadius: "999px", backgroundColor: state.background,
+      left: `${state.rect.left}px`, top: `${state.rect.top}px`, height: `${state.rect.height}px`,
+    });
+    const content = state.content;
+    content.removeAttribute("id");
+    Object.assign(content.style, {
+      position: "absolute", left: "0", top: "0", margin: "0", boxSizing: "border-box",
+      width: `${state.rect.width}px`, height: `${state.rect.height}px`, pointerEvents: "none",
+    });
+    container.appendChild(content);
+    document.body.appendChild(container);
+    companionOverlays.add(container);
+    const visibility = button?.style.visibility;
+    const wasInert = button?.inert;
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      if (button) { button.style.visibility = visibility || ""; button.inert = !!wasInert; }
+      restorers.delete(restore);
+    };
+    if (button) { button.style.visibility = "hidden"; button.inert = true; restorers.add(restore); }
+    const effect = animate(container, [
+      { width: show ? "0px" : `${state.rect.width}px` },
+      { width: show ? `${state.rect.width}px` : "0px" },
+    ], { duration: DURATION - 80, delay: show ? 80 : 0, easing: EASING });
+    void effect.finished.catch(() => undefined).finally(() => {
+      restore();
+      container.remove();
+      companionOverlays.delete(container);
+      animations.delete(effect);
+      effect.cancel();
     });
   }
 
@@ -164,6 +215,8 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
   function captureOrigin(event?: MouseEvent) {
     const element = event?.currentTarget instanceof HTMLElement ? event.currentTarget : trigger();
     origin = element ? snapshot(element, true) : null;
+    const playButton = playAll();
+    playAllFrom = playButton ? snapshot(playButton, true) : null;
   }
 
   watch(active, (value) => {
@@ -180,14 +233,16 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     const token = generation;
     if (value) {
       if (!origin || reducedMotion()) return;
+      animatePlayAll(false);
       void enter(token);
-    } else if (exitFrom && origin && !reducedMotion()) {
+    } else if (origin && !reducedMotion()) {
       const previous = exitFrom;
       void nextTick(() => {
         if (token !== generation || active.value) return;
+        animatePlayAll(true);
         const destination = trigger();
         const next = destination ? snapshot(destination, true) : null;
-        if (destination && next) void morph(previous, next, destination, false, token);
+        if (previous && destination && next) void morph(previous, next, destination, false, token);
       });
     }
   }, { flush: "post" });

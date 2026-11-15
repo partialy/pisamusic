@@ -7,7 +7,7 @@
     <div class="toolbar batch-operation-toolbar">
       <div class="toolbar-left">
         <template v-if="!isBatchMode">
-          <n-button v-if="isSongTab" round type="primary" :disabled="!currentSongs.length || busy" @click="playAll"><template #icon><n-icon :component="Play" /></template>播放全部</n-button>
+          <n-button data-batch-play-all v-if="isSongTab" round type="primary" :disabled="!currentSongs.length || busy" @click="playAll"><template #icon><n-icon :component="Play" /></template>播放全部</n-button>
           <n-button round secondary :loading="refreshing" :disabled="busy" @click="refreshCurrentTab"><template #icon><n-icon :component="RefreshCw" /></template>刷新</n-button>
           <n-button data-batch-trigger round secondary :disabled="busy || !currentItemsCount" @click="enterBatch"><template #icon><n-icon :component="SquarePen" /></template>多选</n-button>
         </template>

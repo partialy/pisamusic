@@ -21,7 +21,7 @@
     <div class="toolbar batch-operation-toolbar">
       <div class="toolbar-left">
         <template v-if="!isBatchMode">
-          <n-button v-if="activeTab === 'songs'" round type="primary" :disabled="!filteredSongs.length" @click="playAll">
+          <n-button data-batch-play-all v-if="activeTab === 'songs'" round type="primary" :disabled="!filteredSongs.length" @click="playAll">
             <template #icon><n-icon :component="Play" /></template>播放全部
           </n-button>
           <n-button data-batch-trigger round secondary :disabled="!currentItemsCount" @click="enterBatchMode">
