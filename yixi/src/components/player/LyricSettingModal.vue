@@ -112,9 +112,7 @@
           </SettingSection>
         </div>
       </div>
-      <p class="save-hint">设置即时生效并自动保存</p>
     </div>
-    <template #footer><n-button round @click="handleClose"><template #icon><n-icon :component="X" /></template>关闭</n-button></template>
   </AppModal>
   <AppImageCenterModal v-model:show="showImageCenterModal" :current-url="lyricStore.setting.backgroundImage || ''" @confirm="handleConfirmFromImageCenter" />
 </template>
@@ -132,7 +130,7 @@ import {
   NTabs,
   useMessage,
 } from "naive-ui";
-import { Images, Pipette, RotateCcw, Settings2, X } from "lucide-vue-next";
+import { Images, Pipette, RotateCcw, Settings2 } from "lucide-vue-next";
 import { useLyricStore } from "@/store/lyricStore";
 import { useThemeStore } from "@/store/theme";
 import { extractDominantColorFromUrl } from "@/utils/imageColor";
@@ -336,6 +334,5 @@ const fontOptions = [
 .recent-thumb-item { width: 44px; height: 34px; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 12px; background: var(--surface-input); cursor: pointer; }
 .recent-thumb-item:hover, .recent-thumb-item:focus-visible { border-color: var(--text-accent); }
 .recent-thumb-item.active { border-color: var(--text-accent); }
-.save-hint { margin: 0; color: var(--text-secondary); font-size: 12px; }
 @media (max-width: 680px) { .setting-row { flex-wrap: wrap; gap: 12px; } .row-control { margin-left: auto; } }
 </style>
