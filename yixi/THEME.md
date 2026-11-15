@@ -56,6 +56,7 @@
 - `--surface-app`: 视口根容器表面（纯色模式为实色底色，图片模式为透明）
 - `--surface-shell`: 导航栏等容器遮罩
 - `--surface-panel`: 播放控制条、侧边栏等通栏面板底色
+- `--surface-solid`: 不透明的历史卡片、播放队列侧栏底色，按亮暗主题适配，确保文字不受底层壁纸干扰
 - `--surface-card`: 独立卡片、列表块等次级容器底色
 - `--surface-card-hover`: 卡片悬浮底色
 - `--surface-modal`: 弹窗、模态对话框底色

@@ -5,6 +5,7 @@
 
 :root {
   --radius-control: 12px;
+  --surface-solid: #ffffff;
   --radius-pill: 999px;
   /* 基础品牌变量默认兜底 */
   --color-primary: #2897ff;

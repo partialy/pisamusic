@@ -13,7 +13,7 @@
         <div class="duration">
             <span class="duration-text">{{ formatDuration(item.duration) }}</span>
             <n-button text circle class="collect-btn" @click="collector.collectSong(props.item)"
-                :style="{ color: collector.containsSong(item) ? 'red' : '#666' }">
+                :style="{ color: collector.containsSong(item) ? 'var(--text-accent)' : 'var(--text-secondary)' }">
                 <n-icon size="22" :component="CollectIcon"></n-icon>
             </n-button>
             <n-button text circle @click="deleteSong" title="删除" class="delete-btn">
@@ -97,7 +97,7 @@ const deleteSong = () => {
         }
 
         .delete-btn {
-            color: var(--text-tertiary);
+            color: var(--text-secondary);
         }
     }
 
@@ -164,7 +164,7 @@ const deleteSong = () => {
         text-align: center;
         margin-right: 10px;
         width: 50px;
-        color: var(--text-tertiary);
+        color: var(--text-secondary);
         display: flex;
         align-items: center;
         justify-content: center;

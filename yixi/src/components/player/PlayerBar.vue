@@ -124,12 +124,9 @@
           <n-icon :component="PlayListIcon" size="24px"></n-icon>
         </template>
       </n-button>
-      <n-drawer :style="{
-        'backdrop-filter': 'blur(16px)',
-        'background': 'color-mix(in srgb, var(--color-primary) 6%, #ffffff20) !important'
-      }"
+      <n-drawer :style="{ background: 'var(--surface-solid)', color: 'var(--text-primary)' }"
       v-model:show="showSequence" placement="right" width="400px" to="body">
-        <PlaySequence class="light" />
+        <PlaySequence />
       </n-drawer>
     </div>
     <DownloadSongDialog :ref="songDownload.downloadDialogRef" />

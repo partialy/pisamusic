@@ -471,7 +471,7 @@ onMounted(async () => {
       min-height: 100px;
       max-height: 500px;
       overflow-y: auto;
-      background-color: var(--color-bg-default);
+      background-color: var(--surface-solid);
       border-radius: var(--radius-control);
       box-shadow: 0 0 10px #00000033;
       z-index: 100;

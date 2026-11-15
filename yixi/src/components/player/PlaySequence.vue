@@ -29,7 +29,7 @@
                         style="background:transparent;"
                          v-model:value="searchValue" placeholder="搜索歌曲">
                          <template #prefix>
-                            <n-icon :component="SearchIcon" color="#eee" class="search-icon"></n-icon>
+                            <n-icon :component="SearchIcon"  class="search-icon"></n-icon>
                          </template>
                          </n-input>
                         <span class="clear-search" @click="clearSearch">取消</span>
@@ -192,39 +192,19 @@ onUnmounted(() => observer.disconnect())
 </script>
 
 <style scoped lang="scss">
-.light.play-sequence {
-    .delete-icon {
-        color: #efefef !important;
-
-        &:hover {
-            color: red !important;
-        }
-    }
-
-    .search-icon {
-        color: #ddd !important;
-        font-size: 20px;
-
-        &:hover {
-            color: #fff !important;
-        }
-    }
-    .clear-search {
-        color: #ddd !important;
-    }
-}
-
 .play-sequence {
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
-    color: #eee;
+    color: var(--text-primary);
+    background: var(--surface-solid);
 
     .sequence-header {
         padding: 15px;
         width: 100%;
         height: 50px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -236,7 +216,7 @@ onUnmounted(() => observer.disconnect())
         }
 
         .delete-icon {
-            color: #efefef !important;
+            color: var(--text-secondary);
             font-size: 24px;
 
             &:hover {
@@ -249,6 +229,7 @@ onUnmounted(() => observer.disconnect())
         padding: 0 15px;
         width: 100%;
         height: 40px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -267,11 +248,11 @@ onUnmounted(() => observer.disconnect())
             -webkit-app-region: no-drag;
 
             .search-icon {
-                color: #bbb;
+                color: var(--text-secondary);
                 font-size: 20px;
 
                 &:hover {
-                    color: #fff;
+                    color: var(--text-primary);
                 }
             }
         }
@@ -281,6 +262,8 @@ onUnmounted(() => observer.disconnect())
         padding: 0 15px;
         width: 100%;
         height: 40px;
+        flex-shrink: 0;
+        background: var(--surface-solid);
         display: flex;
         align-items: center;
 
@@ -291,7 +274,7 @@ onUnmounted(() => observer.disconnect())
             opacity: 0.7;
 
             &:hover {
-                color: #fff !important;
+                color: var(--text-accent);
                 opacity: 1;
             }
         }
@@ -300,7 +283,7 @@ onUnmounted(() => observer.disconnect())
     .sequence-list {
         flex: 1;
         width: 100%;
-        height: 100%;
+        min-height: 0;
         overflow-y: auto;
         scroll-behavior: smooth;
 
@@ -315,10 +298,10 @@ onUnmounted(() => observer.disconnect())
 }
 
 :deep(.n-input__placeholder) {
-    color: #dedede;
+    color: var(--text-tertiary);
 }
 
 :deep(.n-input .n-input__input-el, .n-input .n-input__textarea-el) {
-    color: #fff;
+    color: var(--text-primary);
 }
 </style>

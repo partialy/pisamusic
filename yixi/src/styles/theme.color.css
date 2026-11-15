@@ -22,6 +22,7 @@
   --surface-panel: rgba(255, 255, 255, 0.78);
   --surface-card: rgba(255, 255, 255, 0.88);
   --surface-elevated: #ffffff;
+  --surface-solid: #ffffff;
   --surface-player: rgba(255, 255, 255, 0.88);
   --surface-input: rgba(255, 255, 255, 0.92);
   --surface-modal: var(--color-bg-track);
@@ -73,6 +74,7 @@
   --surface-panel: rgba(22, 28, 40, 0.78);
   --surface-card: rgba(30, 41, 59, 0.72);
   --surface-elevated: #1e293b;
+  --surface-solid: #1e293b;
   --surface-player: rgba(22, 28, 40, 0.88);
   --surface-input: rgba(15, 23, 42, 0.65);
   --surface-modal: var(--color-bg-track);
