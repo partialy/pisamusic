@@ -17,6 +17,9 @@
 - 歌单同步扩展统一使用 `sortOrder?:number|null`、`coverResource?:{resourceId:string}|null`、`coverPreset?:string|null`；缺字段保留、null清除，基础字段仍覆盖，delete不合并。排序同位按外层权威version再trackKey；封面类型切换显式清互斥字段，旧端仍读取cover。服务端在同步同一用户事务内校验资源本人归属、ready状态与对象可引用性，将cover规范化为权威公共URL并更新共享引用；失败整批回滚。
 - 用户歌单封面使用 `/api/playlist-covers/upload-token`、`/complete`、`/:resourceId`，仅本人JWT访问。会话绑定用户/歌单/编辑代次，真实JPG/PNG/WebP不超过5MiB，完成先核验对象和图像信息，只产生资源、不提前改歌单。`file_records`为唯一对象账本，资源/引用见Server Schema v5；最后解除引用或未引用完成满七天且上传Token过期后才认领回收。deleting不可重新引用，失败留账重试；Admin删除与账号硬删除不得绕过引用和保护期。接口DTO见[封面契约](../server/apidoc/playlistCovers/overview.md)。
 - LOCAL仅同步自建歌单安全占位：source=local，id为deviceScopeUuid:localSongUuid，urlParam=id，itemKey为playlistId|local:id；私有播放ID与文件映射留客户端，不传真实绝对路径/盘符路径/UNC/URI/歌词/Token/临时链接；公开元信息允许普通斜杠或反斜杠（如AC/DC），不得要求改写名称。新LOCAL发送可选durationMs（非负有限毫秒），消费端优先它并显式转换本机单位；duration仅保留旧字段兼容，不猜或改变在线旧payload的duration单位。白名单及长度见[推送契约](../server/apidoc/sync/pushSyncChanges.md#歌单扩展与-local-占位p1)。
+- PC schema 9 和 PM V15 起使用账号复合歌单/收藏关系，旧无归属数据保留在未关联区；登录不自动 seed 全库，显式确认导入创建新 UUID 账号歌单副本并保留原件。账号 pending 长期分区保留；favorite_playlist.favoritedAt 与 favorite_song 同为可选关系毫秒时间，不因旧端缺字段重置已知时间。
+- 两端用户封面均先保留私有本地图再排队上传（PC main 私有 settings、PM V16 私有队列表），公共 payload 不含本机位置。上传完成沿该代次最近真实用户文档编辑时钟发送引用，不以上传完成时刻压过远端新编辑；同设备空图回声保留 fallback，其他设备权威新默认图撤销旧代次。失效资源允许从本地图重传或恢复默认，云对象只由 Server 生命周期回收。
+- 自动封面两端只看最后一首真正新增歌曲：最后项为 LOCAL 或无有效远程图时保留旧封面，不向前寻找；重复项不参与选择。此边界经用户在本轮实施时进一步确认。
 - 父歌单delete同事务派生所有存活曲目墓碑；最终父墓碑阻止迟到/同批子upsert，不依赖输入顺序。派生日志各占权威version，并使用父opId与实体身份确定性派生的独立opId。accepted/skipped仅计输入，不能据push版本推进pull游标。
 - 收藏歌曲同步 payload 可选 `favoritedAt`（毫秒时间戳），表示收藏关系的创建时间；新增和 seed 从持久化记录取值，下行用于排序，缺失兼容旧端。元数据更新不得无故重置收藏时间。
 - 新端以 `protocol=2` 拉取同步；`mode=delta` 按实际返回的日志版本推进游标，不能直接跳到账号全局 `version` 或 push 返回版本。`mode=snapshot` 必须完整收集同一 `snapshotVersion` 的全部分页后再对账，版本变化时重启；快照含有的项更新、本地多余且无 pending 的项移除，未完成分页不能删除本地数据。同账号同 key 的本机待同步操作优先。
