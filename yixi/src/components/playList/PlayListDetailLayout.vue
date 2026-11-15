@@ -35,7 +35,7 @@
                 </template>
                 播放全部({{ page.total }}首)
               </n-button>
-              <n-button v-if="getDetailOrigin() !== 'local'" data-batch-trigger round secondary style="margin-left: 10px" @click="enterOnlineBatch">
+              <n-button v-if="getDetailOrigin() !== 'local'" data-batch-trigger round :bordered="false" style="margin-left: 10px" @click="enterOnlineBatch">
                 <template #icon><n-icon :component="SquarePen" /></template>多选
               </n-button>
               <n-button v-else round secondary style="margin-left: 10px" @click="collector.collectList(listDetail)">

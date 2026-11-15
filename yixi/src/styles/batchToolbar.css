@@ -10,3 +10,8 @@
   height: var(--batch-control-height);
   box-sizing: border-box;
 }
+
+.n-button[data-batch-trigger] {
+  background-color: var(--surface-card) !important;
+  color: var(--text-primary);
+}

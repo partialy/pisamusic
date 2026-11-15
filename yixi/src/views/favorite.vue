@@ -24,7 +24,7 @@
           <n-button data-batch-play-all v-if="activeTab === 'songs'" round type="primary" :disabled="!filteredSongs.length" @click="playAll">
             <template #icon><n-icon :component="Play" /></template>播放全部
           </n-button>
-          <n-button data-batch-trigger round secondary :disabled="!currentItemsCount" @click="enterBatchMode">
+          <n-button data-batch-trigger round :bordered="false" :disabled="!currentItemsCount" @click="enterBatchMode">
             <template #icon><n-icon :component="SquarePen" /></template>多选
           </n-button>
         </template>

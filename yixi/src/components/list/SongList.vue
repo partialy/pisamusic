@@ -3,7 +3,7 @@
     <div class="content-container" ref="contentConRef">
       <Teleport :to="batchToolbarTarget || 'body'" :disabled="!batchExternal || !batchToolbarTarget">
         <div v-if="batchEnabled && (!batchExternal || internalBatch || batchPreparing)" ref="batchToolbarRef" class="batch-toolbar">
-          <n-button v-if="!batchExternal && !internalBatch && !batchPreparing" data-batch-trigger round secondary @click="enterFromToolbar">
+          <n-button v-if="!batchExternal && !internalBatch && !batchPreparing" data-batch-trigger round :bordered="false" @click="enterFromToolbar">
             <template #icon><n-icon :component="SquarePen" /></template>多选
           </n-button>
           <n-button v-if="batchPreparing" round :disabled="batchDisabled" @click="exitInternalBatch()">
