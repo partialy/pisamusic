@@ -8,7 +8,6 @@ import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
@@ -21,6 +20,7 @@ import cn.partialy.pm.databinding.ActivityPlaylistDetailBinding
 import cn.partialy.pm.ui.collapsing.CollapsingHeaderPolicy
 import cn.partialy.pm.ui.dialog.SettingsOption
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
+import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import com.google.android.material.appbar.AppBarLayout
 import kotlinx.coroutines.launch
 
@@ -120,7 +120,7 @@ class PlaylistDetailInteractionController private constructor(
         binding.playlistAppBar.removeOnOffsetChangedListener(appBarOffsetListener)
         headerController.onStateChanged = null
         headerController.setActions(PlaylistDetailHeaderActions())
-        ViewCompat.setOnApplyWindowInsetsListener(binding.headerBar, null)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root, null)
         binding.headerBar.setOnClickListener(null)
         binding.headerBarContent.setOnTouchListener(null)
         binding.searchButton.setOnClickListener(null)
@@ -154,20 +154,34 @@ class PlaylistDetailInteractionController private constructor(
         val baseHeaderHeightPx = activity.resources.getDimensionPixelSize(
             R.dimen.playlist_detail_header_bar_height,
         )
-        ViewCompat.setOnApplyWindowInsetsListener(binding.headerBar) { _, insets ->
-            val statusBarTopPx = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+        val miniBottomBase = activity.resources.getDimensionPixelSize(
+            R.dimen.home_mini_player_bottom_margin,
+        )
+        val overlapPx = activity.resources.getDimensionPixelSize(
+            R.dimen.home_mini_player_overlap,
+        )
+        val miniHeightPx = activity.resources.getDimensionPixelSize(
+            R.dimen.home_mini_player_height,
+        )
+        // 统一监听根 CoordinatorLayout，避免旧系统（API < 30）下被 CollapsingToolbarLayout 消费截断。
+        binding.root.applySystemBarsInsets { insets ->
             val metrics = CollapsingHeaderPolicy.resolveLayout(
                 baseHeaderHeightPx = baseHeaderHeightPx,
-                statusBarTopPx = statusBarTopPx,
+                statusBarTopPx = insets.top,
             )
             binding.headerBar.updateLayoutParams<ViewGroup.LayoutParams> {
                 height = metrics.overlayHeightPx
             }
             binding.headerBarContent.updatePadding(top = metrics.contentPaddingTopPx)
             binding.playlistCollapsingHeader.minimumHeight = metrics.collapsingMinimumHeightPx
-            insets
+
+            binding.homeMiniPlayer.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = miniBottomBase + overlapPx + insets.bottom
+            }
+            binding.recyclerView.updatePadding(
+                bottom = miniHeightPx + miniBottomBase + insets.bottom,
+            )
         }
-        ViewCompat.requestApplyInsets(binding.headerBar)
     }
 
     private fun applyChromeState(verticalOffset: Int) {

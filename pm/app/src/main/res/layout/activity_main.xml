@@ -363,7 +363,7 @@
     </LinearLayout>
 
     <!-- 自定义左侧抽屉 -->
-    <FrameLayout
+    <cn.partialy.pm.ui.home.MainDrawerOverlayLayout
         android:id="@+id/mainDrawerOverlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -420,6 +420,6 @@
             android:elevation="6dp"
             android:focusable="true"
             android:orientation="vertical" />
-    </FrameLayout>
+    </cn.partialy.pm.ui.home.MainDrawerOverlayLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

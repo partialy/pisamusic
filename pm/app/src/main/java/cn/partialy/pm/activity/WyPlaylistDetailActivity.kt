@@ -145,7 +145,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
     /** 全屏沉浸、Insets、返回键 */
     private fun setupSystemBars() {
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = false, lightNavigationBarIcons = true)
-        applyPlaylistDetailInsets()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (::interactionController.isInitialized && interactionController.closeSearchIfOpen()) return
@@ -306,20 +305,6 @@ class WyPlaylistDetailActivity : BaseDownloadActivity() {
                 playlistCollectionManager.addNetworkPlaylist(buildWyCollectedPlaylistForStorage())
         }
         syncPlaylistCollectButton()
-    }
-
-    private fun applyPlaylistDetailInsets() {
-        val miniBottomBase = resources.getDimensionPixelSize(R.dimen.home_mini_player_bottom_margin)
-        val overlapPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_overlap)
-        val miniHeightPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_height)
-        binding.root.applySystemBarsInsets { insets ->
-            binding.recyclerView.updatePadding(
-                bottom = miniHeightPx + miniBottomBase + insets.bottom,
-            )
-            binding.homeMiniPlayer.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                bottomMargin = miniBottomBase + overlapPx + insets.bottom
-            }
-        }
     }
 
     private fun finishAnimated() {

@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
 import android.widget.PopupMenu
 import android.webkit.WebChromeClient
@@ -28,6 +29,7 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityMainBinding
 import cn.partialy.pm.databinding.MainDrawerContentBinding
+import cn.partialy.pm.ui.home.MainDrawerOverlayLayout
 import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
 import cn.partialy.pm.directmessage.DirectMessageCheckSource
 import cn.partialy.pm.directmessage.DirectMessageCoordinator
@@ -120,8 +122,11 @@ class MainActivity : BaseDownloadActivity() {
     private var homeMiniPlayerBinder: HomeMiniPlayerBinder? = null
 
     private var mainDrawerOpen = false
+    private var drawerDragStartTranslationX = 0f
     private val mainDrawerWidthPx: Int
         get() = resources.getDimensionPixelSize(R.dimen.main_drawer_width)
+    private val drawerFlingVelocityThresholdPx: Float
+        get() = ViewConfiguration.get(this).scaledMinimumFlingVelocity * 4f
     private lateinit var drawerBackCallback: OnBackPressedCallback
 
     private var drawerContentBinding: MainDrawerContentBinding? = null
@@ -379,6 +384,33 @@ class MainActivity : BaseDownloadActivity() {
 
     private fun setupMainDrawer() {
         binding.mainDrawerScrim.setOnClickListener { closeMainDrawer() }
+        binding.mainDrawerOverlay.dragListener = object : MainDrawerOverlayLayout.DragListener {
+            override fun canDragDrawer(): Boolean =
+                mainDrawerOpen && binding.mainDrawerOverlay.visibility == View.VISIBLE
+
+            override fun onDrawerDragStart() {
+                drawerDragStartTranslationX = binding.mainDrawerPanel.translationX
+                cancelMainDrawerAnimations()
+            }
+
+            override fun onDrawerDragProgress(deltaX: Float) {
+                val w = mainDrawerWidthPx.toFloat().coerceAtLeast(1f)
+                val tx = (drawerDragStartTranslationX + deltaX).coerceIn(-w, 0f)
+                binding.mainDrawerPanel.translationX = tx
+                binding.mainDrawerScrimFull.alpha = MAIN_DRAWER_SCRIM_MAX_ALPHA * (1f + tx / w)
+            }
+
+            override fun onDrawerDragEnd(deltaX: Float, velocityX: Float) {
+                val w = mainDrawerWidthPx.toFloat().coerceAtLeast(1f)
+                val tx = (drawerDragStartTranslationX + deltaX).coerceIn(-w, 0f)
+                val shouldClose = velocityX <= -drawerFlingVelocityThresholdPx || tx <= -w * 0.35f
+                if (shouldClose) {
+                    animateMainDrawerClose(currentTranslationX = tx)
+                } else {
+                    animateMainDrawerRestore(currentTranslationX = tx)
+                }
+            }
+        }
         ensureDrawerContentInflated()
     }
 
@@ -748,21 +780,28 @@ class MainActivity : BaseDownloadActivity() {
             .setInterpolator(DecelerateInterpolator())
             .start()
         binding.mainDrawerScrimFull.animate()
-            .alpha(0.45f)
+            .alpha(MAIN_DRAWER_SCRIM_MAX_ALPHA)
             .setDuration(240)
             .start()
     }
 
-    /** 关闭抽屉（点遮罩或返回键）。 */
+    /** 关闭抽屉（点遮罩、返回键或手势左滑）。 */
     fun closeMainDrawer() {
         if (!mainDrawerOpen) return
+        animateMainDrawerClose(currentTranslationX = binding.mainDrawerPanel.translationX)
+    }
+
+    private fun animateMainDrawerClose(currentTranslationX: Float) {
         mainDrawerOpen = false
         drawerBackCallback.isEnabled = false
         cancelMainDrawerAnimations()
-        val w = mainDrawerWidthPx.toFloat()
+        val w = mainDrawerWidthPx.toFloat().coerceAtLeast(1f)
+        val remainingRatio = ((w + currentTranslationX) / w).coerceIn(0f, 1f)
+        val panelDuration = (220f * remainingRatio).toLong().coerceIn(80L, 220L)
+        val scrimDuration = (200f * remainingRatio).toLong().coerceIn(80L, 200L)
         binding.mainDrawerPanel.animate()
             .translationX(-w)
-            .setDuration(220)
+            .setDuration(panelDuration)
             .setInterpolator(DecelerateInterpolator())
             .withEndAction {
                 binding.mainDrawerOverlay.visibility = View.GONE
@@ -770,7 +809,23 @@ class MainActivity : BaseDownloadActivity() {
             .start()
         binding.mainDrawerScrimFull.animate()
             .alpha(0f)
-            .setDuration(200)
+            .setDuration(scrimDuration)
+            .start()
+    }
+
+    private fun animateMainDrawerRestore(currentTranslationX: Float) {
+        cancelMainDrawerAnimations()
+        val w = mainDrawerWidthPx.toFloat().coerceAtLeast(1f)
+        val draggedRatio = (-currentTranslationX / w).coerceIn(0f, 1f)
+        val duration = (220f * draggedRatio).toLong().coerceIn(80L, 220L)
+        binding.mainDrawerPanel.animate()
+            .translationX(0f)
+            .setDuration(duration)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+        binding.mainDrawerScrimFull.animate()
+            .alpha(MAIN_DRAWER_SCRIM_MAX_ALPHA)
+            .setDuration(duration)
             .start()
     }
 
@@ -987,6 +1042,7 @@ class MainActivity : BaseDownloadActivity() {
     }
 
     companion object {
+        private const val MAIN_DRAWER_SCRIM_MAX_ALPHA = 0.45f
         private const val STATE_TOP_LEVEL_DESTINATION = "main.top_level_destination"
         const val EXTRA_SETTINGS_ACTION = "cn.partialy.pm.extra.SETTINGS_ACTION"
         private const val EXTRA_LOCAL_MODE_REASON = "cn.partialy.pm.extra.LOCAL_MODE_REASON"

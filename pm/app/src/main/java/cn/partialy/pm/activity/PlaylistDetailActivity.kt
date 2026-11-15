@@ -95,7 +95,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
         conversionCoordinator = OnlinePlaylistToLocalCoordinator(this, conversionViewModel)
 
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = false, lightNavigationBarIcons = true)
-        applyPlaylistDetailInsets()
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -261,20 +260,6 @@ class PlaylistDetailActivity : BaseDownloadActivity() {
                 playlistCollectionManager.addNetworkPlaylist(buildKgCollectedPlaylistForStorage())
         }
         syncPlaylistCollectButton()
-    }
-
-    private fun applyPlaylistDetailInsets() {
-        val miniBottomBase = resources.getDimensionPixelSize(R.dimen.home_mini_player_bottom_margin)
-        val overlapPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_overlap)
-        val miniHeightPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_height)
-        binding.root.applySystemBarsInsets { insets ->
-            binding.homeMiniPlayer.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                bottomMargin = miniBottomBase + overlapPx + insets.bottom
-            }
-
-            val listPadBottom = miniHeightPx + miniBottomBase + insets.bottom
-            binding.recyclerView.updatePadding(bottom = listPadBottom)
-        }
     }
 
     private fun finishAnimated() {

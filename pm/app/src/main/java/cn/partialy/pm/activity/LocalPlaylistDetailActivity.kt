@@ -83,7 +83,6 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
         }
 
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = false, lightNavigationBarIcons = true)
-        applyPlaylistDetailInsets()
 
         onBackPressedDispatcher.addCallback(
             this,
@@ -214,18 +213,6 @@ class LocalPlaylistDetailActivity : BaseDownloadActivity() {
         val index = songs.indexOfFirst { it.id == song.id && it.type == song.type }
         if (index < 0) return
         songs.subList(index, songs.size).takeIf { it.isNotEmpty() }?.let(musicController::setPlayList)
-    }
-
-    private fun applyPlaylistDetailInsets() {
-        val miniBottomBase = resources.getDimensionPixelSize(R.dimen.home_mini_player_bottom_margin)
-        val overlapPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_overlap)
-        val miniHeightPx = resources.getDimensionPixelSize(R.dimen.home_mini_player_height)
-        binding.root.applySystemBarsInsets { insets ->
-            binding.homeMiniPlayer.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                bottomMargin = miniBottomBase + overlapPx + insets.bottom
-            }
-            binding.recyclerView.updatePadding(bottom = miniHeightPx + miniBottomBase + insets.bottom)
-        }
     }
 
     private fun finishAnimated() {
