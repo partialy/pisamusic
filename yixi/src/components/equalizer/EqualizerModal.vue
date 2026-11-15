@@ -1,16 +1,7 @@
 <template>
   <AppModal v-model:show="equalizerStore.showModal" title="均衡器" :icon="Sliders" :width="660">
     <div class="eq-content">
-      <div class="eq-status-card">
-        <div class="eq-status-info">
-          <span class="eq-status-title">均衡器效果</span>
-          <span class="eq-status-description">{{ equalizerStore.enabled ? "已开启，调整将实时生效" : "已关闭，使用原始音效" }}</span>
-        </div>
-        <n-switch :value="equalizerStore.enabled" aria-label="启用均衡器" @update:value="equalizerStore.setEnabled" />
-      </div>
-      <section class="eq-section">
-        <div class="eq-section-title">频率响应</div>
-        <div class="eq-curve-container" :class="{ 'is-disabled': !equalizerStore.enabled }">
+      <div class="eq-curve-container" :class="{ 'is-disabled': !equalizerStore.enabled }">
           <svg
             class="eq-curve-svg"
             viewBox="0 0 600 120"
@@ -66,33 +57,22 @@
           </div>
         </div>
 
-      </section>
-      <section class="eq-section">
-        <div class="eq-section-title">音效预设</div>
-        <div class="eq-presets-wrapper">
-          <div class="presets-scroll">
-            <button
-              v-for="preset in equalizerStore.presets"
-              :key="preset.key"
-              type="button"
-              class="preset-pill"
-              :class="{ active: equalizerStore.currentPresetKey === preset.key }"
-              @click="equalizerStore.applyPreset(preset.key)"
-            >
-              {{ preset.name }}
-            </button>
-            <button
-              type="button"
-              class="preset-pill"
-              :class="{ active: equalizerStore.currentPresetKey === 'custom' }"
-              @click="equalizerStore.currentPresetKey = 'custom'"
-            >
-              自定义
-            </button>
-          </div>
-        </div>
+      <div class="eq-control-row">
+        <span class="eq-control-label">均衡器开关</span>
+        <n-switch :value="equalizerStore.enabled" aria-label="均衡器开关" @update:value="equalizerStore.setEnabled" />
+      </div>
 
-      </section>
+      <div class="eq-control-row">
+        <span class="eq-control-label">音效预设</span>
+        <n-select
+          class="eq-preset-select"
+          size="small"
+          :value="equalizerStore.currentPresetKey"
+          :options="presetOptions"
+          @update:value="handlePresetChange"
+        />
+      </div>
+
       <section class="eq-section">
         <div class="eq-section-title">频段调整</div>
         <div class="eq-faders-scroll">
@@ -161,12 +141,28 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { NButton, NIcon, NSwitch, NSlider } from "naive-ui";
+import { NButton, NIcon, NSelect, NSwitch, NSlider } from "naive-ui";
 import AppModal from "@/components/common/AppModal.vue";
 import { Sliders, RotateCcw, X } from "lucide-vue-next";
 import { useEqualizerStore } from "@/store";
 
 const equalizerStore = useEqualizerStore();
+
+const presetOptions = computed(() => [
+  ...equalizerStore.presets.map((preset) => ({
+    label: preset.name,
+    value: preset.key,
+  })),
+  { label: "自定义", value: "custom" },
+]);
+
+function handlePresetChange(key: string) {
+  if (key === "custom") {
+    equalizerStore.currentPresetKey = "custom";
+    return;
+  }
+  equalizerStore.applyPreset(key);
+}
 
 function formatGain(gain: number | undefined): string {
   const num = typeof gain === "number" ? gain : 0;
@@ -255,11 +251,10 @@ const curveAreaPath = computed(() => {
 </script>
 
 <style scoped lang="scss">
-.eq-content { display: grid; gap: 20px; user-select: none; }
-.eq-status-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-card); }
-.eq-status-info { display: grid; gap: 4px; }
-.eq-status-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.eq-status-description { font-size: 12px; color: var(--text-secondary); }
+.eq-content { display: grid; gap: 16px; user-select: none; }
+.eq-control-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.eq-control-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.eq-preset-select { width: 180px; }
 .eq-section { display: grid; gap: 12px; min-width: 0; }
 .eq-section-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 .eq-faders-scroll { overflow-x: auto; }
@@ -332,48 +327,6 @@ const curveAreaPath = computed(() => {
       color: var(--text-muted);
       font-family: monospace;
       line-height: 1;
-    }
-  }
-}
-
-.eq-presets-wrapper {
-  overflow-x: auto;
-  padding-bottom: 2px;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-
-  .presets-scroll {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: max-content;
-
-    .preset-pill {
-      padding: 4px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--border-subtle);
-      background: var(--surface-card);
-      color: var(--text-secondary);
-      font-size: 12px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.18s ease;
-
-      &:hover {
-        border-color: var(--border-default);
-        color: var(--text-primary);
-        background: var(--surface-card-hover);
-      }
-
-      &.active {
-        border-color: var(--color-primary);
-        background: var(--color-primary);
-        color: #ffffff;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-      }
     }
   }
 }
