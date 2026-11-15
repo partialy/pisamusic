@@ -3,7 +3,7 @@
     <div class="content-container" ref="contentConRef">
       <Teleport :to="batchToolbarTarget || 'body'" :disabled="!batchExternal || !batchToolbarTarget">
         <div v-if="batchEnabled && (!batchExternal || internalBatch || batchPreparing)" ref="batchToolbarRef" class="batch-toolbar">
-          <n-button v-if="!batchExternal && !internalBatch && !batchPreparing" round secondary @click="enterInternalBatch">
+          <n-button v-if="!batchExternal && !internalBatch && !batchPreparing" data-batch-trigger round secondary @click="enterFromToolbar">
             <template #icon><n-icon :component="SquarePen" /></template>多选
           </n-button>
           <n-button v-if="batchPreparing" round :disabled="batchDisabled" @click="exitInternalBatch()">
@@ -126,6 +126,7 @@ import { VirtList } from "vue-virt-list";
 import type { Song } from "@/types/song";
 import { onBeforeRouteLeave, useRouter } from "vue-router";
 import { useSongDownload } from "@/composables/useSongDownload";
+import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { openSongDetail } from "@/share/mediaDetailRoute";
 import BatchActionBar from "@/components/batch/BatchActionBar.vue";
@@ -283,6 +284,8 @@ const isIndeterminate = computed(() => {
 const height = ref(0);
 const batchToolbarHeight = ref(0);
 const batchToolbarRef = useTemplateRef("batchToolbarRef");
+const internalMorph = useBatchToolbarMorph(computed(() => !props.batchExternal && (internalBatch.value || batchPreparing.value)), batchToolbarRef);
+function enterFromToolbar(event: MouseEvent) { internalMorph.captureOrigin(event); void enterInternalBatch(); }
 const contentConRef = useTemplateRef("contentConRef");
 const virtListRef = useTemplateRef("virtListRef");
 const contextMenuRef = useTemplateRef("contextMenuRef");
@@ -336,6 +339,7 @@ onMounted(() => {
 });
 
 onBeforeRouteLeave(() => {
+  internalMorph.reset();
   exitInternalBatch(true);
   offset.value = virtListRef.value?.getOffset() || 0;
 });

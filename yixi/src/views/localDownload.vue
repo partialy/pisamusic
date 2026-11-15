@@ -9,7 +9,7 @@
         <template v-if="!isBatchMode">
           <n-button v-if="isSongTab" round type="primary" :disabled="!currentSongs.length || busy" @click="playAll"><template #icon><n-icon :component="Play" /></template>播放全部</n-button>
           <n-button round secondary :loading="refreshing" :disabled="busy" @click="refreshCurrentTab"><template #icon><n-icon :component="RefreshCw" /></template>刷新</n-button>
-          <n-button round secondary :disabled="busy || !currentItemsCount" @click="enterBatch"><template #icon><n-icon :component="SquarePen" /></template>多选</n-button>
+          <n-button data-batch-trigger round secondary :disabled="busy || !currentItemsCount" @click="enterBatch"><template #icon><n-icon :component="SquarePen" /></template>多选</n-button>
         </template>
         <div ref="batchToolbarTarget" class="batch-toolbar-target" />
       </div>
@@ -52,6 +52,7 @@ import type { Song } from "@/types/song";
 import type { DownloadTaskSnapshot, DownloadFileSnapshot, DownloadFileTarget, DownloadDeletePreview, DownloadDeleteResult } from "@/types/download";
 import { normalizeSong } from "@/utils/song";
 import { listDownloadedSongs, listDownloadTasks, listDownloadFiles, pauseDownload, resumeDownload, cancelDownload, retryDownload, selectDownloadTaskDirectory, previewDownloadDelete, deleteDownloads } from "@/utils/api/downloadAPI";
+import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 type LocalDownloadTab = "local" | "download" | "downloading" | "records";
 const playbackCommands = usePlaybackCommands(), localLibrary = useLocalLibraryStore();
@@ -63,6 +64,7 @@ const refreshing = ref(false), isBatchMode = ref(false), batchPreparing = ref(fa
 const songListRef = ref<InstanceType<typeof SongList> | null>(null);
 const taskListRef = ref<InstanceType<typeof DownloadTaskList> | null>(null);
 const batchToolbarTarget = ref<HTMLElement | null>(null);
+const batchMorph = useBatchToolbarMorph(isBatchMode, batchToolbarTarget);
 const loadError = ref(""), actionBusy = ref(""), actionMessage = ref("");
 const detailShown = ref(false), detailTarget = ref<DownloadFileTarget | null>(null);
 const failedScanPaths = ref<string[]>([]);
@@ -96,13 +98,15 @@ const deleteCount = computed(() => (deletePreview.value?.count || 0) + scanDelet
 const failedDeleteTargets = computed(() => deleteResult.value?.items.filter(item => ["failed", "occupied", "shared", "not-executed"].includes(item.status) && !!(item.fileId || item.taskId)).map(item => item.fileId ? { fileId: item.fileId } : { taskId: item.taskId }) || []);
 function playAll() { if (currentSongs.value.length) playbackCommands.playAll(currentSongs.value); }
 const currentItemsCount = computed(() => isSongTab.value ? sourceSongs.value.length : activeTab.value === "records" ? downloadTasks.value.length : ongoingTasks.value.length);
-function enterBatch() {
+function enterBatch(event: MouseEvent) {
   if (busy.value || batchPreparing.value) return;
+  batchMorph.captureOrigin(event);
   if (isSongTab.value) void songListRef.value?.enterBatch();
   else taskListRef.value?.enterBatch();
 }
 function switchTab(tab: LocalDownloadTab) {
   if (activeTab.value === tab || busy.value) return;
+  batchMorph.reset();
   songListRef.value?.exitBatch(); taskListRef.value?.exitBatch();
   isBatchMode.value = false; batchPreparing.value = false;
   activeTab.value = tab; expandHeader();

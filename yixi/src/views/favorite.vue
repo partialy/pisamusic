@@ -24,15 +24,16 @@
           <n-button v-if="activeTab === 'songs'" round type="primary" :disabled="!filteredSongs.length" @click="playAll">
             <template #icon><n-icon :component="Play" /></template>播放全部
           </n-button>
-          <n-button round secondary :disabled="!currentItemsCount" @click="enterBatchMode">
+          <n-button data-batch-trigger round secondary :disabled="!currentItemsCount" @click="enterBatchMode">
             <template #icon><n-icon :component="SquarePen" /></template>多选
           </n-button>
         </template>
-        <div ref="batchToolbarTarget" v-show="isBatchMode && activeTab === 'songs'" />
-        <template v-if="isBatchMode && activeTab === 'playlists'">
-          <BatchSegmentedActions :actions="playlistActions" @action="handlePlaylistAction" />
-          <span class="selected-count">已选择 {{ selectedKeys.size }} 个歌单</span>
-        </template>
+        <div ref="batchToolbarTarget" v-show="isBatchMode" class="favorite-batch-target">
+          <template v-if="isBatchMode && activeTab === 'playlists'">
+            <BatchSegmentedActions :actions="playlistActions" @action="handlePlaylistAction" />
+            <span class="selected-count">已选择 {{ selectedKeys.size }} 个歌单</span>
+          </template>
+        </div>
       </div>
       <n-input v-model:value="searchKey" class="favorite-search" :class="{ focused: searchFocused || searchKey }" clearable placeholder="搜索" @focus="searchFocused = true" @blur="searchFocused = false">
         <template #prefix><n-icon :component="Search" /></template>
@@ -73,6 +74,7 @@ import { NButton, NDropdown, NEmpty, NIcon, NInput } from "naive-ui";
 import { SquarePen, Play, Search, Trash2, ListChecks, ArrowLeftRight, LogOut, Square } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
+import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
 import BatchSegmentedActions from "@/components/batch/BatchSegmentedActions.vue";
 import SongList from "@/components/list/SongList.vue";
 import AppConfirmDialog from "@/components/common/AppConfirmDialog.vue";
@@ -93,6 +95,7 @@ const searchKey = ref("");
 const searchFocused = ref(false);
 const isBatchMode = ref(false);
 const batchToolbarTarget = ref<HTMLElement | null>(null);
+const batchMorph = useBatchToolbarMorph(isBatchMode, batchToolbarTarget);
 const songListRef = ref<InstanceType<typeof SongList> | null>(null);
 const selectedKeys = ref<Set<string>>(new Set());
 const isBatchDeleting = ref(false);
@@ -156,7 +159,8 @@ function handlePlaylistAction(key: string) {
   else if (key === "remove") void handleBatchDelete();
 }
 
-function enterBatchMode() {
+function enterBatchMode(event: MouseEvent) {
+  batchMorph.captureOrigin(event);
   if (activeTab.value === "songs") { void songListRef.value?.enterBatch(); return; }
   isBatchMode.value = true;
   playlistSelection.clear();
@@ -224,6 +228,7 @@ function playAll() {
 function switchFavoriteTab(tab: "songs" | "playlists") {
   if (isBatchDeleting.value) return;
   if (activeTab.value !== tab) {
+    batchMorph.reset();
     exitBatchMode();
   }
   activeTab.value = tab;
@@ -237,6 +242,7 @@ watch(searchKey, () => {
 </script>
 
 <style lang="scss" scoped>
+.favorite-batch-target { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .selected-count { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
 .toolbar-left { min-width: 0; flex-wrap: wrap; }
 .favorite-page {

@@ -35,17 +35,12 @@
                 </template>
                 播放全部({{ page.total }}首)
               </n-button>
-              <n-button round type="success" :loading="allLoading" style="
-                  background-color: var(--color-primary);
-                  margin-left: 10px;
-                " @click="collector.collectList(listDetail)">
-                <template #icon>
-                  <n-icon :component="CollectIcon" :color="collector.containsPlaylist(listDetail) ? 'red' : 'white'
-                    "></n-icon>
-                </template>
-                {{
-                  collector.containsPlaylist(listDetail) ? "取消收藏" : "收藏"
-                }}
+              <n-button v-if="getDetailOrigin() !== 'local'" data-batch-trigger round secondary style="margin-left: 10px" @click="enterOnlineBatch">
+                <template #icon><n-icon :component="SquarePen" /></template>多选
+              </n-button>
+              <n-button v-else round secondary style="margin-left: 10px" @click="collector.collectList(listDetail)">
+                <template #icon><n-icon :component="collector.containsPlaylist(listDetail) ? HeartOff : Heart" /></template>
+                {{ collector.containsPlaylist(listDetail) ? "取消收藏" : "收藏" }}
               </n-button>
               <n-dropdown trigger="click" :options="moreOptions" @select="handleMoreAction">
                 <n-button round secondary style="margin-left: 10px">
@@ -127,7 +122,7 @@ import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
 import type { KGPlaylistDetailData } from "@/utils/webapi";
 import { debounce, getSongCover } from "@/utils/common";
 import SearchIcon from "@/icons/header/SearchIcon.vue";
-import { CollectIcon, PlayStatic } from "@/icons";
+import { PlayStatic } from "@/icons";
 import { useAudioStore, useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { convertor } from "@/utils/convertor";
@@ -140,12 +135,13 @@ import PlaylistEditDialog from "@/components/mine/PlaylistEditDialog.vue";
 import { usePlaylistManagement } from "@/composables/usePlaylistManagement";
 import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
-import { EllipsisVertical, FolderInput, Info, Share2, SquarePen, Trash2 } from "lucide-vue-next";
+import { EllipsisVertical, FolderInput, Info, Share2, SquarePen, Trash2, Heart, HeartOff } from "lucide-vue-next";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import OnlinePlaylistConversionDialog from "./OnlinePlaylistConversionDialog.vue";
 import { loadOnlinePlaylist } from "@/playlist/onlinePlaylistBatchLoader";
 import { openPlaylistDetail } from "@/share/mediaDetailRoute";
 
+import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
 import SongList from "@/components/list/SongList.vue";
 import { resolveDynamicBatchSize } from "@/utils/playlistTracks";
 
@@ -162,7 +158,9 @@ const searchText = ref("");
 const songListRef = ref<InstanceType<typeof SongList> | null>(null);
 const batchToolbarTarget = ref<HTMLElement | null>(null);
 const batchMode = ref(false);
-watch(() => [route.query.id, route.query.origin], () => { batchMode.value = false; songListRef.value?.exitBatch(); });
+const batchMorph = useBatchToolbarMorph(batchMode, batchToolbarTarget);
+function enterOnlineBatch(event: MouseEvent) { batchMorph.captureOrigin(event); void songListRef.value?.enterBatch(); }
+watch(() => [route.query.id, route.query.origin], () => { batchMorph.reset(); batchMode.value = false; songListRef.value?.exitBatch(); });
 const conversionVisible = ref(false);
 const searchFocus = ref(false);
 const loading = ref(false);
@@ -410,7 +408,7 @@ function openDetailPage() {
 }
 
 const moreOptions = computed(() => [
-  ...(getDetailOrigin() !== "local" ? [{ label: "多选", key: "multiselect", icon: () => h(SquarePen, { size: 16 }) }] : []),
+  ...(getDetailOrigin() !== "local" ? [{ label: (listDetail.value && collector.containsPlaylist(listDetail.value)) ? "取消收藏" : "收藏", key: "collect", icon: () => h((listDetail.value && collector.containsPlaylist(listDetail.value)) ? HeartOff : Heart, { size: 16 }) }] : []),
   ...(["kg", "wy"].includes(listDetail.value?.source || "")
     ? [{ label: "转为本地歌单", key: "convert", icon: () => h(FolderInput, { size: 16 }) }] : []),
   { label: "详情", key: "detail", icon: () => h(Info, { size: 16 }) },
@@ -418,7 +416,7 @@ const moreOptions = computed(() => [
 ]);
 
 function handleMoreAction(key: string) {
-  if (key === "multiselect") void songListRef.value?.enterBatch();
+  if (key === "collect" && listDetail.value) void collector.collectList(listDetail.value);
   else if (key === "convert") conversionVisible.value = true;
   else if (key === "detail") openDetailPage();
   else if (key === "share") openShareDialog();
