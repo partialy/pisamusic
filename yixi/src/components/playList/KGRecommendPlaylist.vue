@@ -175,7 +175,6 @@ const toggleCollect = (event: MouseEvent) => {
     background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(8px);
     border-radius: 8px;
-    padding: 4px 6px;
     display: flex;
     align-items: center;
     justify-content: center;
