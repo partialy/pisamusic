@@ -16,6 +16,8 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
   let origin: PillSnapshot | null = null;
   let generation = 0;
   let entered = false;
+  let exitFrom: PillSnapshot | null = null;
+  let lastGroup: PillSnapshot | null = null;
   let observer: MutationObserver | undefined;
   let observedScope: HTMLElement | null = null;
   let overlay: HTMLElement | null = null;
@@ -68,6 +70,8 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     cleanup();
     origin = null;
     entered = false;
+    exitFrom = null;
+    lastGroup = null;
   }
 
   function animate(element: HTMLElement, keyframes: Keyframe[], options: KeyframeAnimationOptions) {
@@ -152,6 +156,7 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
       return;
     }
     entered = true;
+    lastGroup = snapshot(destination, true);
     observer?.disconnect();
     void morph(origin, next, destination, true, token);
   }
@@ -163,14 +168,21 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
 
   watch(active, (value) => {
     const source = !value ? group() : null;
-    const previous = source ? snapshot(source, true) : null;
-    const token = ++generation;
+    exitFrom = !value ? (source ? snapshot(source, true) : null) || lastGroup : null;
+    generation++;
     cleanup();
     entered = false;
+  }, { flush: "sync" });
+
+  // 同步阶段只保留旧组；等父子组件均完成更新后再读取恢复的入口按钮。
+  // sync watcher 内的 nextTick 可能早于本次 render 入队，导致找不到按钮而漏掉退出动画。
+  watch(active, (value) => {
+    const token = generation;
     if (value) {
       if (!origin || reducedMotion()) return;
       void enter(token);
-    } else if (previous && origin && !reducedMotion()) {
+    } else if (exitFrom && origin && !reducedMotion()) {
+      const previous = exitFrom;
       void nextTick(() => {
         if (token !== generation || active.value) return;
         const destination = trigger();
@@ -178,7 +190,7 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
         if (destination && next) void morph(previous, next, destination, false, token);
       });
     }
-  }, { flush: "sync" });
+  }, { flush: "post" });
   watch(target, () => { if (active.value && !entered && origin) void enter(generation); }, { flush: "post" });
   onBeforeUnmount(reset);
   return { captureOrigin, reset };
