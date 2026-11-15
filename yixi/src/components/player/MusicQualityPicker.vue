@@ -30,7 +30,15 @@
         @click="handleSelect(option)"
       >
         <span class="option-label" :title="option.label">{{ option.label }}</span>
-        <span v-if="!option.enabled" class="access-badge">{{ option.badge || "需登录" }}</span>
+        <div class="option-trailing">
+          <span v-if="!option.enabled" class="access-badge">{{ option.badge || "需登录" }}</span>
+          <n-icon
+            v-if="option.key === modelValue"
+            :component="Check"
+            class="option-check"
+            :size="16"
+          />
+        </div>
       </div>
     </div>
   </n-popover>
@@ -38,7 +46,8 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { NPopover } from "naive-ui";
+import { NIcon, NPopover } from "naive-ui";
+import { Check } from "lucide-vue-next";
 import type { QualityAccessOption } from "@/musicQuality/musicQualityPolicy";
 
 const props = withDefaults(
@@ -124,6 +133,18 @@ function handleSelect(option: QualityAccessOption) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .option-trailing {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .option-check {
+    flex-shrink: 0;
+    color: var(--color-primary);
   }
 
   .access-badge {

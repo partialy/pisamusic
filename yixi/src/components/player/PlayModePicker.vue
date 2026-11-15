@@ -32,6 +32,12 @@
           <n-icon v-if="option.icon" :component="option.icon" class="option-icon" size="18" />
           <span class="option-label" :title="option.label">{{ option.label }}</span>
         </div>
+        <n-icon
+          v-if="option.key === modelValue"
+          :component="Check"
+          class="option-check"
+          :size="16"
+        />
       </div>
     </div>
   </n-popover>
@@ -40,6 +46,7 @@
 <script setup lang="ts">
 import { computed, ref, type Component } from "vue";
 import { NPopover, NIcon } from "naive-ui";
+import { Check } from "lucide-vue-next";
 import type { RepeatMode } from "@/store/audio";
 import {
   ListRandomIcon,
@@ -143,6 +150,11 @@ function handleSelect(mode: RepeatMode) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .option-check {
+    flex-shrink: 0;
+    color: var(--color-primary);
   }
 }
 </style>
