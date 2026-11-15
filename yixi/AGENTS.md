@@ -478,3 +478,15 @@
 - uploadId/上传已完成/ready DTO 分别持久化；上传后未 complete 可幂等续 complete，ready 但引用未落库可重试短事务。引用更新与 outbox、本机状态原子提交；尚未引用的迟到上传留 Server 七天生命周期回收，不复活被替换/自动封面/删除的状态。已上传资源同步400时，编辑弹窗可用本机副本显式解绑重传（生成新 outbox）或恢复默认。
 - 上传引用的 outbox 沿用该封面代次最近真实用户编辑时钟（含同机后续改名/曲目修改），不能使用上传完成时刻压过他端编辑；Repository 原子维护 row/outbox/私有 editedAt，同设备远端回声不推进该时钟。每次明确本机图/默认/预设切换都生成或取消私有代次，资源/预设互斥清 null；本机图在公共歌单中 cover 为空，私有 fallback 不被同设备空 cover 回声/快照抹掉。实际应用其他设备更新时对照 deviceId/clientUpdatedAt 与本机编辑时间，较新明确恢复默认即使同为空 cover 也撤销旧上传；公共封面指纹变化同样阻止晚引用。
 - `playlist/playlistCover.ts` 解析 PM 相同逻辑预设 local_chill/focus/gaming/jazz/pop/workout（PC 使用自身矢量资源），普通自建歌单 KG 模板也按调用尺寸解析；卡片 480、详情 720，远程图加载失败回退本机副本。最后一首实际新增歌曲的自动封面规则始终生效，重复项不参与，LOCAL/无图保留原图；有有效远程图则清资源/预设使旧上传指纹失配。
+
+
+## PC 下载管理四分区 UI（P5c）
+
+- `views/localDownload.vue` 保留本地歌曲/下载歌曲/正在下载/下载记录；任务列表只读 typed main 快照，未完成与全部历史分别展示，不再通过旧负数 records id 操作文件。轮询串行、卸载停止，错误保留可重试提示。
+- `components/download/DownloadTaskList.vue` 负责九种中文状态、字节/速度/进度与单条操作；勾选按 taskId，搜索不丢筛选外选择。全部暂停/继续和清除全部覆盖 main 全集，与搜索过滤无关；PROCESSING 禁止中断。
+- 暂停任务的“更换目录（从零开始）”只传 taskId 调用 main `selectDownloadTaskDirectory` 系统选择器；取消返回 null 不报成功或失败。选定后保持暂停并明确提示零起点，其他入队配置不变，再由用户继续下载。
+- `DownloadRecordDetail.vue` 仅传 fileId/taskId 查询真实详情、定位/打开可信目录及修复；可信时长来自 file.durationMs，不推断历史未知时长；字段有效才展示并支持复制，修复失败保留错误提示。
+- `DownloadDeleteConfirm.vue` 统一 AppModal，先 main preview 冻结范围，默认仅记录，勾选物理删除再二次明确确认。执行消费 previewId，分别展示 recordsRemoved/filesDeleted/sharedSkipped/occupied/failed/notExecuted；扫描歌曲经可信索引 lookup 的旧 store 入口，保留失败与占用/共享记录并可重新确认重试，不传任意路径给系统执行。
+- 本地/下载 SongList 传完整歌曲源和 search-key，使用 local/download batch-context 与独立 key 隔离选择；行播放保留 append 行为，批量移除不受后续筛选变化影响。
+- `settingStore.local.downloadConcurrency` 默认 2，持久化归一为 1–5 整数；LocalSetting 歌曲下载组可调整，并由 main 在后续排队调度读取。目录/四种命名/标签/封面/内嵌歌词及 off/word/line/all 外置歌词仍保留，文件配置只影响新入队任务。
+- 本阶段只做类型、编译与静态审查；没有启动 App、调用真实接口/下载、执行迁移或完整测试，不把静态通过视为运行验收。

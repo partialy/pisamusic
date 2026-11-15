@@ -92,6 +92,16 @@
 
     <div class="setting-item">
       <div class="setting-info">
+        <div class="setting-title">同时下载数量</div>
+        <div class="setting-desc">最多 1–5 个任务；新排队调度使用当前设置，已有任务保留入队时的文件配置</div>
+      </div>
+      <n-select class="naming-select" :value="settingStore.local.downloadConcurrency"
+        :options="downloadConcurrencyOptions" :loading="savingConcurrency" :disabled="savingConcurrency"
+        @update:value="handleConcurrencyChange" />
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
         <div class="setting-title">歌曲命名方式</div>
         <div class="setting-desc">下载或缓存歌曲时的文件命名规则</div>
       </div>
@@ -181,6 +191,14 @@ const downloadLyricsOptions = [
   { label: "逐行歌词（LRC）", value: "line" },
   { label: "全部", value: "all" },
 ];
+const savingConcurrency = ref(false);
+const downloadConcurrencyOptions = [1, 2, 3, 4, 5].map(value => ({ label: `${value} 个任务`, value }));
+async function handleConcurrencyChange(value: number) {
+  savingConcurrency.value = true;
+  try { await settingStore.updateDownloadConcurrency(value); message.success("下载并发设置已保存"); }
+  catch (error) { message.error(error instanceof Error ? error.message : "设置保存失败"); }
+  finally { savingConcurrency.value = false; }
+}
 const songNamingOptions = [
   { label: "歌手 - 歌名", value: "artist-title" },
   { label: "歌名 - 歌手", value: "title-artist" },

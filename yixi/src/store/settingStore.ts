@@ -14,6 +14,7 @@ export type LocalSetting = {
   cacheDirectory: string;
   cacheLimitGb: number;
   downloadDirectory: string;
+  downloadConcurrency: number;
   songNamingMode: SongNamingMode;
   embedDownloadCover: boolean;
   embedDownloadLyrics: boolean;
@@ -28,6 +29,7 @@ const DEFAULT_LOCAL_SETTING: LocalSetting = {
   cacheDirectory: "",
   cacheLimitGb: 10,
   downloadDirectory: "",
+  downloadConcurrency: 2,
   songNamingMode: "artist-title",
   embedDownloadCover: true,
   embedDownloadLyrics: true,
@@ -96,6 +98,13 @@ export const useSettingStore = defineStore("setting", {
       await electronAPI.refreshMediaCachePolicy().catch(() => null);
     },
 
+    async updateDownloadConcurrency(value: number) {
+      const previous = this.local.downloadConcurrency;
+      this.local.downloadConcurrency = normalizeDownloadConcurrency(value);
+      try { await this.persistLocalSetting(); }
+      catch (error) { this.local.downloadConcurrency = previous; throw error; }
+    },
+
     async updateSongNamingMode(value: SongNamingMode) {
       this.local.songNamingMode = isSongNamingMode(value)
         ? value
@@ -161,6 +170,7 @@ function normalizeLocalSetting(
     cacheDirectory: normalizePath(input?.cacheDirectory),
     cacheLimitGb: normalizeCacheLimit(input?.cacheLimitGb ?? DEFAULT_LOCAL_SETTING.cacheLimitGb),
     downloadDirectory: normalizePath(input?.downloadDirectory),
+    downloadConcurrency: normalizeDownloadConcurrency(input?.downloadConcurrency),
     songNamingMode: isSongNamingMode(input?.songNamingMode)
       ? input.songNamingMode
       : DEFAULT_LOCAL_SETTING.songNamingMode,
@@ -174,6 +184,7 @@ function shouldPersistNormalizedSetting(
   return Boolean(
     input &&
       (!Array.isArray(input.scanDirectories) ||
+        input.downloadConcurrency !== normalizeDownloadConcurrency(input.downloadConcurrency) ||
         input.scanDirectory ||
         typeof input.embedDownloadCover !== "boolean" ||
         typeof input.embedDownloadLyrics !== "boolean" ||
@@ -204,4 +215,9 @@ function isSongNamingMode(value: unknown): value is SongNamingMode {
     value === "title" ||
     value === "index-title-artist"
   );
+}
+
+function normalizeDownloadConcurrency(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && value != null ? Math.min(5, Math.max(1, Math.round(parsed))) : 2;
 }
