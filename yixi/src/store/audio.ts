@@ -37,6 +37,13 @@ import { audioAnalyser } from "@/utils/audioAnalyser";
 // 定义重复播放模式的类型
 export type RepeatMode = "all" | "none" | "single" | "random";
 
+export type QueueAppendResult = {
+  added: Song[];
+  existing: Song[];
+  unavailable: Song[];
+  cancelled: boolean;
+};
+
 type AudioStateSnapshot = {
   volume: number;
   repeatMode: RepeatMode;
@@ -349,6 +356,24 @@ export const useAudioStore = defineStore("audio", () => {
     if (_play && list.length) {
       await play(list[0]);
     }
+  };
+
+  /** 可用性解析结束后再读取当前队列，并同步去重追加，返回本次真实结果。 */
+  const appendUniqueToPlaylist = async (songs: Song[], canApply: () => boolean = () => true): Promise<QueueAppendResult> => {
+    const resolved = await resolvePlayableSongs(songs);
+    const result: QueueAppendResult = { added: [], existing: [], unavailable: [], cancelled: false };
+    if (!canApply()) { result.cancelled = true; return result; }
+    const keyOf = (song: Song) => `${song.source}:${song.id}`;
+    const known = new Set(playlist.value.map(keyOf));
+    for (let index = 0; index < songs.length; index++) {
+      const original = songs[index], playable = resolved[index];
+      if (!isSongPlayable(playable)) { result.unavailable.push(original); continue; }
+      const key = keyOf(playable);
+      if (known.has(key)) result.existing.push(original);
+      else { known.add(key); result.added.push(playable); }
+    }
+    if (result.added.length) playlist.value = [...playlist.value, ...result.added];
+    return result;
   };
 
   /**
@@ -909,6 +934,7 @@ export const useAudioStore = defineStore("audio", () => {
     toggleRepeat,
     destroyPlayer,
     setPlaylist,
+    appendUniqueToPlaylist,
     switchPlayList,
     switchCurrentQuality,
     getPreferredQualityKey,

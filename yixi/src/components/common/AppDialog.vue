@@ -32,8 +32,8 @@
       <slot name="footer">
         <RenderContent v-if="options.action" :content="options.action" />
         <template v-else>
-          <n-button v-if="options.negativeText" v-bind="options.negativeButtonProps" round :disabled="busy || !!options.loading || options.negativeButtonProps?.disabled" @click="emit('negative', $event)">{{ options.negativeText }}</n-button>
-          <n-button v-if="options.positiveText" v-bind="options.positiveButtonProps" round :type="buttonType" :loading="busy || !!options.loading" @click="emit('positive', $event)">{{ options.positiveText }}</n-button>
+          <n-button v-if="options.negativeText" v-bind="options.negativeButtonProps" :render-icon="options.negativeButtonProps?.renderIcon || renderCancelIcon" round :disabled="busy || !!options.loading || options.negativeButtonProps?.disabled" @click="emit('negative', $event)">{{ options.negativeText }}</n-button>
+          <n-button v-if="options.positiveText" v-bind="options.positiveButtonProps" :render-icon="options.positiveButtonProps?.renderIcon || renderConfirmIcon" round :type="buttonType" :loading="busy || !!options.loading" @click="emit('positive', $event)">{{ options.positiveText }}</n-button>
         </template>
       </slot>
     </template>
@@ -41,9 +41,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, type PropType, type VNodeChild } from "vue";
+import { computed, defineComponent, h, type PropType, type VNodeChild } from "vue";
 import { NButton, NIcon, type DialogOptions } from "naive-ui";
-import { Info, TriangleAlert, CircleAlert, CircleCheck } from "lucide-vue-next";
+import { Check, Info, TriangleAlert, CircleAlert, CircleCheck, Trash2, X } from "lucide-vue-next";
 import AppModal from "./AppModal.vue";
 
 const props = withDefaults(defineProps<{ show: boolean; options: DialogOptions; busy?: boolean }>(), { busy: false });
@@ -53,6 +53,8 @@ const emit = defineEmits<{
 }>();
 const dialogIcon = computed(() => ({ warning: TriangleAlert, error: CircleAlert, success: CircleCheck, info: Info, default: Info }[props.options.type || "default"]));
 const buttonType = computed(() => props.options.positiveButtonProps?.type || (props.options.type === "error" ? "error" : "primary"));
+const renderCancelIcon = () => h(NIcon, { component: X });
+const renderConfirmIcon = () => h(NIcon, { component: props.options.type === "error" ? Trash2 : Check });
 function handleClose() {
   emit("close");
   // 由调用方决定异步关闭结果，阻止 Modal 自行隐藏。

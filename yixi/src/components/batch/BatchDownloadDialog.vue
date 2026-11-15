@@ -1,26 +1,27 @@
 <template>
-  <AppModal :show="show" title="批量下载" :close-disabled="submitting" @update:show="close">
+  <AppModal :show="show" title="批量下载" :icon="Download" :close-disabled="submitting" @update:show="close">
     <div class="batch-download-form">
       <p>共选择 {{ plan.total }} 首，可入队 {{ plan.count }} 首；不支持、不可播放及重复项跳过 {{ plan.skipped }} 首。</p>
       <label v-for="[source, songs] in plan.groups" :key="source">
         <span>{{ source.toUpperCase() }} · {{ songs.length }} 首</span>
         <n-select v-model:value="qualities[source]" :options="qualityOptions(source)" :disabled="submitting" />
       </label>
-      <div class="batch-directory"><n-input :value="directory" readonly placeholder="选择下载目录" /><n-button round :disabled="submitting" @click="chooseDirectory">选择</n-button></div>
+      <div class="batch-directory"><n-input :value="directory" readonly placeholder="选择下载目录" /><n-button round :disabled="submitting" @click="chooseDirectory"><template #icon><n-icon :component="FolderOpen" /></template>选择</n-button></div>
       <n-checkbox v-model:checked="redownload" :disabled="submitting">已完成的歌曲也重新下载，保留原文件</n-checkbox>
       <n-checkbox v-if="plan.count > 100" v-model:checked="largeConfirmed" :disabled="submitting">确认将超过 100 首歌曲加入下载队列</n-checkbox>
       <p v-if="message" role="status">{{ message }}</p>
     </div>
     <template #footer>
-      <n-button round :disabled="submitting" @click="close(false)">关闭</n-button>
-      <n-button v-if="submitting" round @click="cancelEnqueue = true">停止后续入队</n-button>
-      <n-button round type="primary" :loading="submitting" :disabled="!plan.count || (plan.count > 100 && !largeConfirmed)" @click="enqueue">加入下载队列</n-button>
+      <n-button round :disabled="submitting" @click="close(false)"><template #icon><n-icon :component="X" /></template>关闭</n-button>
+      <n-button v-if="submitting" round @click="cancelEnqueue = true"><template #icon><n-icon :component="Square" /></template>停止后续入队</n-button>
+      <n-button round type="primary" :loading="submitting" :disabled="!plan.count || (plan.count > 100 && !largeConfirmed)" @click="enqueue"><template #icon><n-icon :component="ListPlus" /></template>加入下载队列</n-button>
     </template>
   </AppModal>
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref } from "vue";
-import { NButton, NCheckbox, NInput, NSelect } from "naive-ui";
+import { NButton, NCheckbox, NIcon, NInput, NSelect } from "naive-ui";
+import { Download, FolderOpen, ListPlus, Square, X } from "lucide-vue-next";
 import AppModal from "@/components/common/AppModal.vue";
 import type { Song } from "@/types/song";
 import { planBatchDownloads } from "@/batch/BatchDownloadPlanner";

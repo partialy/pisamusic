@@ -5,7 +5,7 @@ import { isSongPlayable, resolvePlayableSongs } from "@/utils/songAvailability";
 // MediaSession、歌词点击、右键菜单、列表双击）都不允许绕过本层直接操作播放器。
 
 import type { Song } from "@/types/song";
-import { useAudioStore } from "@/store/audio";
+import { useAudioStore, type QueueAppendResult } from "@/store/audio";
 import { useListenTogetherStore } from "@/store/listenTogether";
 
 function toastInfo(message: string): void {
@@ -102,6 +102,15 @@ export function usePlaybackCommands() {
     return true;
   };
 
+  /** 批量添加目标使用：保持一起听与歌曲可用性守卫，按实际提交时的队列去重。 */
+  const appendUniqueToPlaylist = async (songs: Song[], canApply: () => boolean = () => true): Promise<QueueAppendResult> => {
+    if (listenTogether.enabled) {
+      toastInfo("一起听中暂不支持仅添加到队列，请直接点播");
+      return { added: [], existing: [], unavailable: [], cancelled: true };
+    }
+    return audio.appendUniqueToPlaylist(songs, () => !listenTogether.enabled && canApply());
+  };
+
   /** 下一首播放（插播）：一起听协议无 PLAY_NEXT，房间内禁用 */
   const playNext = async (song: Song): Promise<void> => {
     [song] = await resolvePlayableSongs([song]);
@@ -190,6 +199,7 @@ export function usePlaybackCommands() {
     playSongFromList,
     playAll,
     appendToPlaylist,
+    appendUniqueToPlaylist,
     playNext,
     playQueueItem,
     removeQueueItem,

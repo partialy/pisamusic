@@ -4,7 +4,7 @@
     <div v-if="loading" class="detail-state"><n-spin size="small" /><span>正在加载详情…</span></div>
     <div v-else-if="error" class="detail-state">
       <p>{{ error }}</p>
-      <n-button v-if="isShareMode" round secondary @click="loadDetail">重试加载</n-button>
+      <n-button v-if="isShareMode" round secondary @click="loadDetail"><template #icon><n-icon :component="RefreshCw" /></template>重试加载</n-button>
     </div>
     <div v-else-if="song || playlist" class="detail-content">
       <div class="detail-hero">
@@ -30,11 +30,11 @@
           <template #icon><n-icon :component="song ? Play : ListMusic" /></template>
           {{ song ? '立即播放' : '打开歌单' }}
         </n-button>
-        <n-button round secondary @click="toggleCollect">{{ collected ? '已收藏' : '收藏' }}</n-button>
-        <n-button v-if="song" round secondary @click="openDownload">下载</n-button>
-        <n-button round secondary @click="openShareDialog">分享</n-button>
+        <n-button round secondary @click="toggleCollect"><template #icon><n-icon :component="collected ? HeartOff : Heart" /></template>{{ collected ? '取消收藏' : '收藏' }}</n-button>
+        <n-button v-if="song" round secondary @click="openDownload"><template #icon><n-icon :component="Download" /></template>下载</n-button>
+        <n-button round secondary @click="openShareDialog"><template #icon><n-icon :component="Share2" /></template>分享</n-button>
       </template>
-      <n-button round @click="closeMediaDetail">关闭</n-button>
+      <n-button round @click="closeMediaDetail"><template #icon><n-icon :component="X" /></template>关闭</n-button>
     </template>
   </AppModal>
   <ShareDialog ref="shareDialogRef" />
@@ -45,7 +45,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { NAvatar, NButton, NIcon, NSpin } from 'naive-ui';
-import { Info, ListMusic, Play } from 'lucide-vue-next';
+import { Download, Heart, HeartOff, Info, ListMusic, Play, RefreshCw, Share2, X } from 'lucide-vue-next';
 import AppModal from './AppModal.vue';
 import ShareDialog from './ShareDialog.vue';
 import DownloadSongDialog from '@/components/player/DownloadSongDialog.vue';

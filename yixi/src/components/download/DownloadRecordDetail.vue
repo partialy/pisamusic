@@ -1,5 +1,5 @@
 <template>
-  <AppModal :show="show" title="下载详情" :width="640" :close-disabled="repairing" @update:show="emit('update:show', $event)">
+  <AppModal :show="show" title="下载详情" :icon="Info" :width="640" :close-disabled="repairing" @update:show="emit('update:show', $event)">
     <n-spin :show="loading">
       <n-alert v-if="error" type="error" :bordered="false">{{ error }}</n-alert>
       <template v-if="detail">
@@ -15,15 +15,16 @@
       <n-empty v-else-if="!loading && !error" description="暂无下载详情" />
     </n-spin>
     <template #footer>
-      <n-button round :disabled="loading || repairing" @click="load">刷新详情</n-button>
-      <n-button round :disabled="!detail || loading || repairing" @click="locate">{{ detail?.file ? '定位文件' : '打开下载目录' }}</n-button>
-      <n-button round :disabled="!detail?.file || !detail?.stat.exists || loading" :loading="repairing" @click="repair">修复信息</n-button>
+      <n-button round :disabled="loading || repairing" @click="load"><template #icon><n-icon :component="RefreshCw" /></template>刷新详情</n-button>
+      <n-button round :disabled="!detail || loading || repairing" @click="locate"><template #icon><n-icon :component="FolderOpen" /></template>{{ detail?.file ? '定位文件' : '打开下载目录' }}</n-button>
+      <n-button round :disabled="!detail?.file || !detail?.stat.exists || loading" :loading="repairing" @click="repair"><template #icon><n-icon :component="Wrench" /></template>修复信息</n-button>
     </template>
   </AppModal>
 </template>
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from "vue";
-import { NAlert, NButton, NEmpty, NImage, NSpin, NTag } from "naive-ui";
+import { NAlert, NButton, NEmpty, NIcon, NImage, NSpin, NTag } from "naive-ui";
+import { FolderOpen, Info, RefreshCw, Wrench } from "lucide-vue-next";
 import defaultCover from "@/assets/images/default-cover.png";
 import AppModal from "@/components/common/AppModal.vue";
 import type { DownloadFileDetail, DownloadFileTarget } from "@/types/download";
