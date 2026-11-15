@@ -20,21 +20,19 @@
             </div>
         </div>
 
+        <Transition name="queue-search">
+          <div v-show="showSearch" class="sequence-search-panel" :inert="!showSearch" :aria-hidden="!showSearch">
+            <div class="sequence-search">
+              <n-input clearable v-model:value="searchValue" placeholder="搜索歌曲">
+                <template #prefix><n-icon :component="SearchIcon" class="search-icon" /></template>
+              </n-input>
+              <button type="button" class="clear-search" @click="clearSearch">取消</button>
+            </div>
+          </div>
+        </Transition>
         <div class="sequence-list" ref="sequenceList">
             <VirtList ref="virtListRef" :buffer="2" :start="startIndex" :min-size="64" :list="currentList"
                 :style="{ height: height + 'px' }" item-key="key">
-                <template #stickyHeader v-if="showSearch">
-                    <div class="sequence-search" v-if="showSearch">
-                        <n-input clearable
-                        style="background:transparent;"
-                         v-model:value="searchValue" placeholder="搜索歌曲">
-                         <template #prefix>
-                            <n-icon :component="SearchIcon"  class="search-icon"></n-icon>
-                         </template>
-                         </n-input>
-                        <span class="clear-search" @click="clearSearch">取消</span>
-                    </div>
-                </template>
                 <template #default="{ itemData, index }">
                     <SequenceItem :item="itemData.song" :queue-item-id="itemData.queueItemId"
                         :index="index" :active="itemData.key === activeItemKey" />
@@ -192,6 +190,11 @@ onUnmounted(() => observer.disconnect())
 </script>
 
 <style scoped lang="scss">
+.sequence-search-panel { flex: 0 0 auto; height: 44px; overflow: hidden; }
+.queue-search-enter-active, .queue-search-leave-active { transition: height 300ms ease, opacity 300ms ease, transform 300ms ease; }
+.queue-search-enter-from, .queue-search-leave-to { height: 0; opacity: 0; transform: translateY(-8px); }
+@media (prefers-reduced-motion: reduce) { .queue-search-enter-active, .queue-search-leave-active { transition: none; } }
+
 .play-sequence {
     width: 100%;
     height: 100%;
@@ -268,6 +271,11 @@ onUnmounted(() => observer.disconnect())
         align-items: center;
 
         .clear-search {
+            border: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            font: inherit;
+            flex-shrink: 0;
             cursor: pointer;
             width: 40px;
             margin-left: 10px;
