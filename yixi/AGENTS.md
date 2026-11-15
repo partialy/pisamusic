@@ -432,7 +432,7 @@
 - 通用弹窗统一复用 `common/AppModal.vue`：图标标题、12px 外壳、标准内距、底部药丸按钮与焦点/遮罩动画；业务通过默认内容、`header`、`footer` 插槽实现自定义 UI，不复制 Teleport/遮罩/关闭按钮。可独立设置关闭按钮、遮罩与 ESC，忙碌流程用 `closeDisabled` 禁止交互关闭。
 - 通用提示/确认使用 `common/AppDialog.vue`（`options` + 内容/底部插槽）；命令式 `window.$dialog` 由 `utils/appDialog.ts` 和 App 常驻 `AppDialogHost` 统一承载，支持异步操作、返回 false 保留弹窗、destroy 与 onAfterLeave。收藏/图片库旧 `AppConfirmDialog.open()` Promise API 仅作兼容适配；`DialogWrapper` 也只包装共享壳层。分享与退出确认复用同一 AppModal，后续不得新增独立确认框样式。
 - 新建歌单也接入 `AppModal`，添加歌单内继续新建时由 Naive 管理嵌套焦点栈；歌单 Select 菜单挂载 body，避免内部滚动区裁切。
-- 离散 message/dialog/modal API 的 ConfigProvider 使用 `theme/discreteTheme.ts` 共享响应式配置，由 App setup 的 watchEffect 同步主题/overrides；不得在模块初始化时调用 Pinia Store。Tabs 与 Checkbox 在主题适配器显式保留 Naive 3px/2px 专用形态，不继承 common 12px。
+- 离散 message/dialog/modal API 的 ConfigProvider 使用 `theme/discreteTheme.ts` 共享响应式配置，由 App setup 的 watchEffect 同步主题/overrides；不得在模块初始化时调用 Pinia Store。Tabs 保留 3px 专用圆角；所有复选框统一圆形（主题适配器 Checkbox borderRadius 为 50%，自定义复选框同样遵循），保留勾选、半选与禁用语义，不继承 common 12px。
 
 - 一起听未入房面板的“自定义房间号/最大人数”并列一行；创建/加入Tab底部均以“创建房间/加入房间、关闭”排序，关闭由 Lobby emit close→Entry showPanel=false，仅收起弹窗，不退出房间、不修改房间状态。
 

@@ -128,4 +128,4 @@ ThemeStore (Pinia)
 - 五种业务弹窗统一 `AppModal` 与 `appModalProps`/`renderModalTitle`，样式集中 `appModal.css`；动态登录保持 Naive 自有生命周期、焦点陷阱与离场回调。壳层只读语义颜色，不添加背景模式分支。关闭限制必须同时覆盖标题关闭、遮罩和 Esc。
 
 - `createDiscreteApi` 创建独立注入树，必须接 `discreteThemeConfig`；App 的 `watchEffect` 同步当前 naiveTheme/overrides，保证已打开的登录、提示和确认随主题/主色更新。共享模块不引入 Store，避免模块加载阶段的 Pinia/循环依赖问题。
-- Tabs 的 tab/close 圆角保留 3px、Checkbox 保留 2px，组件私有分段样式继续覆盖这些默认值；普通容器 common 12px 不得改变专用导航和勾选框形态。
+- Tabs 的 tab/close 圆角保留 3px，Checkbox 统一圆形（borderRadius 为 50%），自定义复选框同样使用圆形；组件私有分段样式保留专用导航形态，普通容器 common 12px 不得覆盖导航和复选框形态。

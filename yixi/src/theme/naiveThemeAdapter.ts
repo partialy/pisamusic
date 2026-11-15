@@ -42,9 +42,9 @@ export function createNaiveThemeOverrides(
 
   const overrides: GlobalThemeOverrides = {
     common: commonOverrides,
-    // 专用形态不继承普通容器圆角（Naive 默认分别为 3px / 2px）。
+    // 导航保留专用圆角，复选框统一圆形，不继承普通容器圆角。
     Tabs: { tabBorderRadius: "3px", closeBorderRadius: "3px" },
-    Checkbox: { borderRadius: "2px" },
+    Checkbox: { borderRadius: "50%" },
     Button: {
       borderRadiusTiny: "999px",
       borderRadiusSmall: "999px",
