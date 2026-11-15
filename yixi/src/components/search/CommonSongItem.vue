@@ -118,12 +118,12 @@ const emit = defineEmits<{
   play: [song: Song];
   nextPlay: [song: Song];
   add: [song: Song];
-  toggleSelect: [song: Song];
+  toggleSelect: [song: Song, event?: MouseEvent];
 }>();
 
-const handleClick = () => {
+const handleClick = (event: MouseEvent) => {
   if (props.selectable) {
-    emit("toggleSelect", props.song);
+    emit("toggleSelect", props.song, event);
   }
 };
 
