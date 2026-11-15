@@ -153,9 +153,9 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
     pill.setAttribute("aria-hidden", "true");
     Object.assign(pill.style, {
       position: "fixed", pointerEvents: "none", zIndex: "1000", boxSizing: "border-box",
-      border: "1px solid", borderRadius: "999px", overflow: "hidden", color: from.color,
+      border: "0", borderRadius: "999px", overflow: "hidden", color: from.color,
       left: `${from.rect.left}px`, top: `${from.rect.top}px`, width: `${from.rect.width}px`, height: `${from.rect.height}px`,
-      backgroundColor: from.background, borderColor: from.border,
+      backgroundColor: from.background,
     });
     document.body.appendChild(pill);
     overlay = pill;
@@ -178,8 +178,8 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
       duration: 140, delay: DURATION - 140, easing: "ease",
     });
     const shape = animate(pill, [
-      { left: `${from.rect.left}px`, top: `${from.rect.top}px`, width: `${from.rect.width}px`, height: `${from.rect.height}px`, backgroundColor: from.background, borderColor: from.border },
-      { left: `${to.rect.left}px`, top: `${to.rect.top}px`, width: `${to.rect.width}px`, height: `${to.rect.height}px`, backgroundColor: to.background, borderColor: to.border },
+      { left: `${from.rect.left}px`, top: `${from.rect.top}px`, width: `${from.rect.width}px`, height: `${from.rect.height}px`, backgroundColor: from.background },
+      { left: `${to.rect.left}px`, top: `${to.rect.top}px`, width: `${to.rect.width}px`, height: `${to.rect.height}px`, backgroundColor: to.background },
     ], { duration: entering ? DURATION : DURATION - 80, delay: entering ? 0 : 80, easing: EASING });
     animate(pill, [{ opacity: 1 }, { opacity: 0 }], { duration: 100, delay: DURATION - 100, easing: "ease" });
     try {

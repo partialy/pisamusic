@@ -15,3 +15,10 @@
   background-color: var(--surface-card) !important;
   color: var(--text-primary);
 }
+
+.n-button[data-batch-trigger],
+.n-button[data-batch-trigger] > .n-button__border,
+.n-button[data-batch-trigger] > .n-button__state-border {
+  border: none !important;
+  box-shadow: none !important;
+}
