@@ -1,22 +1,5 @@
 <template>
-  <Teleport to="body">
-    <Transition name="share-modal">
-      <div v-if="show" class="share-overlay" @click.self="close">
-        <div class="share-panel" role="dialog" aria-modal="true" @click.stop>
-          <!-- Ambient Glow Effect -->
-          <div class="ambient-glow" :style="{ backgroundImage: `url(${cover})` }"></div>
-
-          <!-- Header -->
-          <header class="share-header">
-            <div class="header-badge">
-              <span class="pulse-dot"></span>
-              <span class="badge-text">PISA MUSIC SHARE</span>
-            </div>
-            <button class="close-btn" type="button" aria-label="关闭" @click="close">
-              <n-icon :component="X" size="18" />
-            </button>
-          </header>
-
+  <AppModal :show="show" title="分享" :icon="Share2" :width="480" @update:show="close">
           <div class="share-body">
             <!-- Hero Music Card -->
             <div class="music-hero-card">
@@ -127,17 +110,15 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { NButton, NIcon } from "naive-ui";
+import AppModal from "@/components/common/AppModal.vue";
 import QrcodeVue from "qrcode.vue";
-import { Check, Copy, ExternalLink, ListMusic, Music, Radio, Sparkles, X } from "lucide-vue-next";
+import { Check, Copy, ExternalLink, ListMusic, Music, Radio, Sparkles, Share2 } from "lucide-vue-next";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { defaultSongCover, getSongCover } from "@/utils/common";
 import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
@@ -277,105 +258,10 @@ defineExpose({ openForSong, openForPlaylist });
 </script>
 
 <style scoped lang="scss">
-.share-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2400;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(10, 15, 26, 0.68);
-  backdrop-filter: blur(20px) saturate(140%);
-}
-
-.share-panel {
-  position: relative;
-  width: min(480px, calc(100vw - 32px));
-  overflow: hidden;
-  border-radius: var(--radius-control);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-elevated);
-  backdrop-filter: var(--filter-panel);
-  display: flex;
-  flex-direction: column;
-}
-
-.ambient-glow {
-  position: absolute;
-  top: -80px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 380px;
-  height: 240px;
-  background-size: cover;
-  background-position: center;
-  filter: blur(64px) saturate(180%);
-  opacity: 0.28;
-  pointer-events: none;
-  border-radius: 50%;
-}
-
-.share-header {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 22px 14px;
-}
-
-.header-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-primary) 28%, transparent);
-
-  .pulse-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    box-shadow: 0 0 8px var(--color-primary);
-    animation: pulse-glow 2s infinite ease-in-out;
-  }
-
-  .badge-text {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--color-primary);
-  }
-}
-
-.close-btn {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 50%;
-  background: var(--surface-control-hover);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: var(--surface-control-active);
-    color: var(--text-primary);
-    transform: rotate(90deg);
-  }
-}
-
 .share-body {
   position: relative;
   z-index: 1;
-  padding: 0 22px 24px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -728,22 +614,4 @@ defineExpose({ openForSong, openForPlaylist });
   50% { opacity: 0.6; transform: scale(0.9); }
 }
 
-.share-modal-enter-active,
-.share-modal-leave-active {
-  transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-
-  .share-panel {
-    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-}
-
-.share-modal-enter-from,
-.share-modal-leave-to {
-  opacity: 0;
-
-  .share-panel {
-    opacity: 0;
-    transform: scale(0.94) translateY(14px);
-  }
-}
 </style>

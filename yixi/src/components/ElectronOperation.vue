@@ -23,30 +23,15 @@
         <n-icon :component="CloseIcon" class="icon"></n-icon>
       </template>
     </n-button>
-    <dialog-wrapper v-model:visible="showQuit">
-      <template #all-content>
-        <n-card
-          title="退出"
-          class="close-container"
-          closable
-          @close="handleCancel"
-        >
-          <div class="content">您点击了关闭按钮，请选择要执行的操作</div>
-          <div class="footer">
-            <div class="left">
-              <n-checkbox v-model:checked="remenber"></n-checkbox> 以后不再提示
-            </div>
-            <div class="right">
-              <n-button @click="electronAPI.closeWindow" secondary
-                >退出</n-button
-              >
-              <n-button @click="handleHide" secondary>最小化</n-button>
-              <n-button @click="handleCancel" secondary>取消</n-button>
-            </div>
-          </div>
-        </n-card>
+    <AppModal v-model:show="showQuit" title="退出" :width="500" :icon="LogOut">
+      <p>您点击了关闭按钮，请选择要执行的操作</p>
+      <n-checkbox v-model:checked="remenber">以后不再提示</n-checkbox>
+      <template #footer>
+        <n-button round @click="handleCancel">取消</n-button>
+        <n-button round secondary @click="handleHide">最小化</n-button>
+        <n-button round type="primary" @click="electronAPI.closeWindow">退出</n-button>
       </template>
-    </dialog-wrapper>
+    </AppModal>
   </div>
 </template>
 
@@ -59,8 +44,8 @@ import {
   CloseIcon,
 } from "../icons";
 import { electronAPI } from "../utils/electron";
-import { DialogWrapper } from ".";
-import { NCard } from "naive-ui";
+import AppModal from "@/components/common/AppModal.vue";
+import { LogOut } from "lucide-vue-next";
 const isFullscreen = ref(false);
 const showQuit = ref(false);
 const remenber = ref(false);
@@ -135,33 +120,4 @@ const handleCancel = () => {
   }
 }
 
-.close-container {
-  width: 500px;
-  border-radius: var(--radius-control);
-  padding: 10px;
-  background: var(--surface-modal);
-  border: 1px solid var(--border-modal);
-  box-shadow: var(--shadow-modal);
-  animation: fade-in 0.4s ease-in-out;
-  .content {
-    margin-bottom: 20px;
-  }
-
-  .footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .left {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .right {
-      display: flex;
-      gap: 10px;
-    }
-  }
-}
 </style>

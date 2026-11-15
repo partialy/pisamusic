@@ -15,6 +15,8 @@ import PlaylistCollect from "./list/PlaylistCollect.vue";
 import LoginCard from "./home/LoginCard.vue";
 import DialogWrapper from "./common/DialogWrapper.vue";
 import AppConfirmDialog from "./common/AppConfirmDialog.vue";
+import AppDialog from "./common/AppDialog.vue";
+import AppModal from "./common/AppModal.vue";
 import AppImageCenterModal from "./common/AppImageCenterModal.vue";
 export {
     Header,
@@ -33,6 +35,8 @@ export {
     LoginCard,
     DialogWrapper,
     AppConfirmDialog,
+    AppDialog,
+    AppModal,
     AppImageCenterModal
 }
 

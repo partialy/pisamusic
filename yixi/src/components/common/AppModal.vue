@@ -3,11 +3,11 @@
     v-bind="appModalProps"
     :show="show"
     :style="{ width: `min(${width}px, calc(100vw - 32px))` }"
-    :closable="!closeDisabled"
-    :mask-closable="!closeDisabled"
-    :close-on-esc="!closeDisabled"
+    :closable="closable && !closeDisabled"
+    :mask-closable="maskClosable && !closeDisabled"
+    :close-on-esc="closeOnEsc && !closeDisabled"
     @update:show="updateShow">
-    <template #header><component :is="renderModalTitle(title, icon)" /></template>
+    <template #header><slot name="header"><component :is="renderModalTitle(title, icon)" /></slot></template>
     <slot />
     <template v-if="$slots.footer" #footer><div class="app-modal-actions"><slot name="footer" /></div></template>
   </n-modal>
@@ -23,7 +23,10 @@ const props = withDefaults(defineProps<{
   icon?: Component;
   width?: number;
   closeDisabled?: boolean;
-}>(), { width: 440, closeDisabled: false });
+  closable?: boolean;
+  maskClosable?: boolean;
+  closeOnEsc?: boolean;
+}>(), { width: 440, closeDisabled: false, closable: true, maskClosable: true, closeOnEsc: true });
 const emit = defineEmits<{ (event: "update:show", value: boolean): void }>();
 function updateShow(value: boolean) {
   if (!props.closeDisabled) emit("update:show", value);
