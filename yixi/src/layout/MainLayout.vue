@@ -198,18 +198,22 @@ function renderMenuIcon(icon: Component) {
 }
 
 .right-content {
+  display: flex;
+  flex-direction: column;
   height: calc(100vh - 80px);
   background: transparent;
 
   .header {
     display: flex;
+    flex: 0 0 auto;
     width: 100%;
     background: transparent;
   }
 
   .content {
     display: flex;
-    height: calc(100% - 80px);
+    flex: 1;
+    min-height: 0;
     overflow-y: overlay;
     padding: 1rem 1.5rem 0 1rem;
     background: transparent;
