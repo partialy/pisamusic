@@ -1,93 +1,153 @@
 <template>
-  <div class="about-page">
-    <section class="hero-panel">
-      <div class="app-mark">
-        <img src="@/assets/pisamusic_icon_1024.png" alt="PisaMusic" />
-      </div>
-      <div class="hero-content">
-        <p class="eyebrow">ABOUT</p>
-        <h1>{{ about.appName || "PisaMusic" }}</h1>
-        <p class="description">
-          <n-skeleton v-if="aboutLoading" text width="260px" />
-          <span v-else>{{ about.description || "桌面端音乐播放器" }}</span>
-        </p>
-        <div class="meta-row">
-          <span>当前版本 {{ appVersion || "-" }}</span>
-          <span v-if="about.team">{{ about.team }}</span>
+  <div class="settings-stack about-setting">
+    <section class="brand-card">
+      <div class="brand-main">
+        <div class="app-mark">
+          <img src="@/assets/pisamusic_icon_1024.png" alt="PisaMusic" />
         </div>
-        <n-button round class="hero-refresh" tertiary :loading="aboutLoading" @click="loadAboutInfo">刷新信息</n-button>
-      </div>
-    </section>
-
-    <section class="info-grid">
-      <div class="info-card">
-        <div>
-          <p class="card-label">官方网站</p>
-          <h2>PisaMusic官网</h2>
-          <p class="card-desc">{{ about.websiteUrl || "https://pisamusic.partialy.cn" }}</p>
+        <div class="brand-info">
+          <div class="brand-title-row">
+            <h1>{{ about.appName || "PisaMusic" }}</h1>
+            <span class="version-badge">v{{ normalizeVersionLabel(appVersion) }}</span>
+            <span v-if="about.team" class="team-badge">{{ about.team }}</span>
+          </div>
+          <p class="brand-desc">
+            <n-skeleton v-if="aboutLoading" text width="240px" />
+            <span v-else>{{ about.description || "桌面端音乐播放器" }}</span>
+          </p>
         </div>
-        <n-button round secondary :disabled="!about.websiteUrl" @click="openWebsite">打开</n-button>
       </div>
-    </section>
-
-    <section class="update-card">
-      <div>
-        <p class="card-label">在线更新</p>
-        <h2>检查桌面端版本</h2>
-        <p>{{ updateText }}</p>
-      </div>
-      <div class="update-actions">
-        <n-button round :loading="checking" secondary @click="checkUpdate">检查更新</n-button>
-        <n-button round v-if="developmentRuntime" :loading="checking" tertiary type="primary" @click="simulateCheckUpdate">
-          模拟检查更新
+      <div class="brand-actions">
+        <n-button secondary round :loading="aboutLoading" @click="loadAboutInfo">
+          <template #icon>
+            <n-icon :component="RefreshCw" :size="15" />
+          </template>
+          刷新信息
         </n-button>
-        <n-button round v-if="canDownload" type="primary" @click="downloadUpdate">下载更新</n-button>
-        <n-button round v-if="canInstall" type="primary" @click="installUpdate">重启安装</n-button>
       </div>
     </section>
 
-    <section class="entry-list">
-      <button type="button" class="entry-item" @click="openAppShare">
-        <span class="entry-icon"><n-icon :component="Share2" size="22" /></span>
-        <span class="entry-content"><span>分享 PisaMusic</span><small>获取当前身份的专属推广二维码和文案</small></span>
-        <n-icon class="entry-arrow" :component="ChevronRight" size="18" />
-      </button>
-      <button type="button" class="entry-item" @click="openFeedback">
-        <span class="entry-icon">
-          <n-icon :component="MessageSquareText" size="22" />
-        </span>
-        <span class="entry-content">
-          <span>意见反馈</span>
-          <small>提交问题、建议和截图</small>
-        </span>
-        <n-icon class="entry-arrow" :component="ChevronRight" size="18" />
-      </button>
-      <button type="button" class="entry-item" @click="openContentDialog('agreement')">
-        <span class="entry-icon">
-          <n-icon :component="FileText" size="22" />
-        </span>
-        <span class="entry-content">
-          <span>用户协议</span>
-          <small>查看服务条款</small>
-        </span>
-        <n-icon class="entry-arrow" :component="ChevronRight" size="18" />
-      </button>
-      <button type="button" class="entry-item" @click="openContentDialog('privacy')">
-        <span class="entry-icon">
-          <n-icon :component="ShieldCheck" size="22" />
-        </span>
-        <span class="entry-content">
-          <span>隐私政策</span>
-          <small>查看数据与隐私说明</small>
-        </span>
-        <n-icon class="entry-arrow" :component="ChevronRight" size="18" />
-      </button>
-    </section>
+    <SettingSection title="版本与更新" description="检查桌面端版本更新与在线升级状态。">
+      <div class="setting-item">
+        <div class="item-leading">
+          <span class="item-icon">
+            <n-icon :component="Download" :size="18" />
+          </span>
+          <div class="setting-info">
+            <div class="setting-title-line">
+              <span class="setting-title">在线更新</span>
+              <span class="status-pill" :class="updateStatusClass">{{ updateStatusLabel }}</span>
+            </div>
+            <div class="setting-desc">{{ updateText }}</div>
+          </div>
+        </div>
+        <div class="update-actions">
+          <n-button round :loading="checking" secondary @click="checkUpdate">检查更新</n-button>
+          <n-button
+            v-if="developmentRuntime"
+            round
+            :loading="checking"
+            tertiary
+            type="primary"
+            @click="simulateCheckUpdate"
+          >
+            模拟检查更新
+          </n-button>
+          <n-button v-if="canDownload" round type="primary" @click="downloadUpdate">下载更新</n-button>
+          <n-button v-if="canInstall" round type="primary" @click="installUpdate">重启安装</n-button>
+        </div>
+      </div>
+    </SettingSection>
 
-    <footer class="copyright-footer">
-      <p class="card-label">版权信息</p>
-      <p>{{ about.copyright || "PisaMusic" }}</p>
-    </footer>
+    <SettingSection title="官方与支持" description="访问官方网站、推荐给好友或向我们反馈问题与建议。">
+      <div class="setting-item">
+        <div class="item-leading">
+          <span class="item-icon">
+            <n-icon :component="Globe" :size="18" />
+          </span>
+          <div class="setting-info">
+            <div class="setting-title">{{ about.websiteLabel || "PisaMusic 官网" }}</div>
+            <div class="setting-desc">{{ about.websiteUrl || "https://pisamusic.partialy.cn" }}</div>
+          </div>
+        </div>
+        <n-button round secondary :disabled="!about.websiteUrl" @click="openWebsite">
+          打开官网
+        </n-button>
+      </div>
+
+      <div class="setting-item">
+        <div class="item-leading">
+          <span class="item-icon">
+            <n-icon :component="Share2" :size="18" />
+          </span>
+          <div class="setting-info">
+            <div class="setting-title">分享 PisaMusic</div>
+            <div class="setting-desc">获取当前身份的专属推广二维码和文案</div>
+          </div>
+        </div>
+        <n-button round secondary @click="openAppShare">立即分享</n-button>
+      </div>
+
+      <div class="setting-item">
+        <div class="item-leading">
+          <span class="item-icon">
+            <n-icon :component="MessageSquareText" :size="18" />
+          </span>
+          <div class="setting-info">
+            <div class="setting-title">意见反馈</div>
+            <div class="setting-desc">提交问题、功能建议和截图</div>
+          </div>
+        </div>
+        <n-button round secondary @click="openFeedback">提交反馈</n-button>
+      </div>
+    </SettingSection>
+
+    <SettingSection title="协议与条款" description="查看服务条款、隐私保护说明与版权信息。">
+      <button type="button" class="setting-item action-row" @click="openContentDialog('agreement')">
+        <div class="item-leading">
+          <span class="item-icon">
+            <n-icon :component="FileText" :size="18" />
+          </span>
+          <div class="setting-info">
+            <div class="setting-title">用户协议</div>
+            <div class="setting-desc">查看服务条款与使用规范</div>
+          </div>
+        </div>
+        <span class="row-trailing">
+          <span>查看</span>
+          <n-icon :component="ChevronRight" :size="16" />
+        </span>
+      </button>
+
+      <button type="button" class="setting-item action-row" @click="openContentDialog('privacy')">
+        <div class="item-leading">
+          <span class="item-icon">
+            <n-icon :component="ShieldCheck" :size="18" />
+          </span>
+          <div class="setting-info">
+            <div class="setting-title">隐私政策</div>
+            <div class="setting-desc">查看数据与隐私保护说明</div>
+          </div>
+        </div>
+        <span class="row-trailing">
+          <span>查看</span>
+          <n-icon :component="ChevronRight" :size="16" />
+        </span>
+      </button>
+
+      <div class="setting-item">
+        <div class="item-leading">
+          <span class="item-icon">
+            <n-icon :component="Info" :size="18" />
+          </span>
+          <div class="setting-info">
+            <div class="setting-title">版权信息</div>
+            <div class="setting-desc">{{ about.copyright || "PisaMusic" }}</div>
+          </div>
+        </div>
+        <span v-if="about.team" class="copyright-team">{{ about.team }}</span>
+      </div>
+    </SettingSection>
 
     <AboutContentDialog
       v-model:show="contentDialog.show"
@@ -144,6 +204,7 @@
 </template>
 
 <script setup lang="ts">
+import SettingSection from "../SettingSection.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { NButton, NIcon, NModal, NSkeleton } from "naive-ui";
@@ -152,7 +213,10 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Globe,
+  Info,
   MessageSquareText,
+  RefreshCw,
   ShieldCheck,
   Share2,
 } from "lucide-vue-next";
@@ -203,6 +267,23 @@ const updateModalMaskStyle = {
 const checking = computed(() => state.value?.status === "checking");
 const canDownload = computed(() => state.value?.status === "available" && !state.value?.simulated);
 const canInstall = computed(() => state.value?.status === "downloaded");
+const updateStatusLabel = computed(() => {
+  const status = state.value?.status;
+  if (status === "checking") return "检查中";
+  if (status === "available") return "有新版本";
+  if (status === "downloading") return "下载中";
+  if (status === "downloaded") return "待安装";
+  if (status === "not-available") return "已是最新";
+  if (status === "error") return "检查失败";
+  if (status === "disabled") return "不可用";
+  return `v${normalizeVersionLabel(appVersion.value)}`;
+});
+const updateStatusClass = computed(() => {
+  const status = state.value?.status;
+  if (status === "available" || status === "downloaded" || status === "downloading") return "is-highlight";
+  if (status === "error") return "is-warning";
+  return "";
+});
 const updateDialogTitle = computed(() => {
   const version = updateDialogState.value?.updateInfo?.version || appVersion.value || "-";
   return `Pisa Music v${normalizeVersionLabel(version)}版本`;
@@ -428,37 +509,37 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
-.about-page {
-  width: 100%;
-  min-height: 100%;
-  padding: 8px 0 18px;
-  box-sizing: border-box;
-}
+@use "../settingLayout.scss";
 
-.hero-panel,
-.info-card,
-.update-card {
+.brand-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 20px 22px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-control);
   background: var(--surface-card);
   box-sizing: border-box;
 }
 
-.hero-panel {
+.brand-main {
   display: flex;
   align-items: center;
-  gap: 22px;
-  max-width: 860px;
-  padding: 24px;
+  gap: 16px;
+  min-width: 0;
+  flex: 1 1 280px;
 }
 
 .app-mark {
-  width: 92px;
-  height: 92px;
+  width: 64px;
+  height: 64px;
   flex: 0 0 auto;
   overflow: hidden;
   border-radius: var(--radius-control);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 
   img {
     width: 100%;
@@ -468,216 +549,150 @@ onBeforeUnmount(() => {
   }
 }
 
-.hero-content {
+.brand-info {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.eyebrow,
-.card-label {
-  margin: 0 0 8px;
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  h1 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+}
+
+.version-badge,
+.team-badge,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.version-badge {
   color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
-h1,
-h2,
-p {
+.team-badge {
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-input);
+  font-weight: 600;
+}
+
+.brand-desc {
   margin: 0;
-}
-
-h1 {
-  color: var(--text-primary);
-  font-size: 30px;
-  font-weight: 850;
-  line-height: 1.2;
-}
-
-h2 {
-  color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.3;
-}
-
-.description,
-.card-desc,
-.update-card p {
   color: var(--text-secondary);
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.55;
 }
 
-.description {
-  margin-top: 10px;
-}
-
-.meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
-
-  span {
-    border: 1px solid var(--border-subtle);
-    border-radius: 999px;
-    color: var(--text-secondary);
-    font-size: 12px;
-    padding: 5px 10px;
-  }
-}
-
-.hero-refresh {
-  margin-top: 14px;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  max-width: 860px;
-  margin-top: 18px;
-}
-
-.info-card,
-.update-card {
+.brand-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 20px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.info-card > div,
-.update-card > div:first-child {
+.item-leading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 220px;
   min-width: 0;
 }
 
-.card-desc {
-  margin-top: 8px;
-  word-break: break-all;
-}
-
-.update-card {
-  max-width: 860px;
-  margin-top: 18px;
-}
-
-.update-card h2 {
-  margin-bottom: 8px;
-}
-
-.update-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.entry-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  max-width: 860px;
-  margin-top: 18px;
-}
-
-.entry-item {
-  min-height: 96px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--surface-card);
-  color: var(--text-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 18px;
-  text-align: left;
-  backdrop-filter: blur(16px);
-  box-shadow: var(--shadow-card);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
-
-  &:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-control-hover);
-    box-shadow: var(--shadow-elevated);
-    transform: translateY(-2px);
-  }
-}
-
-.entry-icon {
-  width: 42px;
-  height: 42px;
+.item-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
   border-radius: var(--radius-control);
   color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
 }
 
-.entry-content {
-  min-width: 0;
+.setting-title-line {
   display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
-  span {
+.status-pill {
+  color: var(--text-secondary);
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+
+  &.is-highlight {
+    color: var(--color-primary);
+    border-color: color-mix(in srgb, var(--color-primary) 28%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+
+  &.is-warning {
+    color: #e03131;
+    border-color: rgba(224, 49, 49, 0.25);
+    background: rgba(224, 49, 49, 0.1);
+  }
+}
+
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.action-row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover .row-trailing {
     color: var(--text-primary);
-    font-size: 15px;
-    font-weight: 800;
-    line-height: 1.2;
-  }
-
-  small {
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.4;
+    transform: translateX(2px);
   }
 }
 
-.entry-arrow {
-  color: var(--text-tertiary);
-  flex: 0 0 auto;
+.row-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease;
 }
 
-@media (max-width: 760px) {
-  .about-page {
-    padding: 18px;
-  }
-
-  .hero-panel,
-  .info-card,
-  .update-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .entry-list {
-    grid-template-columns: 1fr;
-  }
-
-  .update-actions {
-    justify-content: flex-start;
-  }
-}
-
-.copyright-footer {
-  max-width: 860px;
-  margin-top: 22px;
-  padding: 0 2px 6px;
-  color: var(--color-text-2);
+.copyright-team {
+  color: var(--text-secondary);
   font-size: 12px;
-  line-height: 1.7;
+  flex-shrink: 0;
 }
 
 .update-modal {
@@ -713,6 +728,7 @@ h2 {
   text-align: center;
 
   h2 {
+    margin: 0;
     color: var(--text-primary);
     font-size: 20px;
     font-weight: 850;
