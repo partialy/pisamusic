@@ -6,34 +6,30 @@
     </div>
     <div class="toolbar">
       <div class="toolbar-left">
-        <template v-if="isSongTab">
-          <n-button round type="primary" :disabled="!currentSongs.length" @click="playAll"><template #icon><n-icon :component="Play" /></template>播放全部</n-button>
-          <n-button v-if="activeTab === 'local'" round secondary :loading="localLibrary.scanning" :disabled="busy" @click="refreshLocalLibrary">立即刷新</n-button>
+        <template v-if="!isBatchMode">
+          <n-button v-if="isSongTab" round type="primary" :disabled="!currentSongs.length || busy" @click="playAll"><template #icon><n-icon :component="Play" /></template>播放全部</n-button>
+          <n-button round secondary :loading="refreshing" :disabled="busy" @click="refreshCurrentTab"><template #icon><n-icon :component="RefreshCw" /></template>刷新</n-button>
+          <n-button round secondary :disabled="busy || !currentItemsCount" @click="enterBatch"><template #icon><n-icon :component="SquarePen" /></template>多选</n-button>
         </template>
-        <template v-else>
-          <n-button round secondary :loading="actionBusy === 'pause-all'" :disabled="busy || !canPause" @click="runAll('pause')">全部暂停</n-button>
-          <n-button round secondary :loading="actionBusy === 'resume-all'" :disabled="busy || !canResume" @click="runAll('resume')">全部继续</n-button>
-          <n-button round secondary type="error" :disabled="busy || !downloadTasks.length" @click="prepareDelete(undefined, true)">清除全部下载</n-button>
-        </template>
-        <n-button round secondary :loading="loading" :disabled="busy" @click="reloadDownloadData">刷新下载</n-button>
+        <div ref="batchToolbarTarget" class="batch-toolbar-target" />
       </div>
       <n-input v-model:value="searchKey" class="page-search" :class="{ focused: searchFocused || searchKey }" clearable placeholder="搜索歌名、歌手" @focus="searchFocused = true" @blur="searchFocused = false"><template #prefix><n-icon :component="Search" /></template></n-input>
     </div>
     <div v-if="activeTab === 'local' && statusText" class="scan-status">{{ statusText }}</div>
-    <n-alert v-if="loadError" type="error" class="feedback" :bordered="false">{{ loadError }}，可点击刷新下载重试。</n-alert>
+    <n-alert v-if="loadError" type="error" class="feedback" :bordered="false">{{ loadError }}，可点击刷新重试。</n-alert>
     <n-alert v-if="actionMessage" type="info" class="feedback" closable :bordered="false" @close="actionMessage = ''">{{ actionMessage }}</n-alert>
     <n-alert v-if="deleteResult" type="info" class="feedback" closable :bordered="false" @close="deleteResult = null">
       删除结果：移除记录 {{ deleteResult.recordsRemoved }}；删除文件 {{ deleteResult.filesDeleted }}；共享跳过 {{ deleteResult.sharedSkipped }}；占用 {{ deleteResult.occupied }}；失败 {{ deleteResult.failed }}；未执行 {{ deleteResult.notExecuted }}。
       <div v-if="deleteResult.items.some(item => item.message)" class="result-items"><div v-for="(item, index) in deleteResult.items.filter(item => item.message)" :key="index">{{ item.fileId || item.taskId }}：{{ item.message }}</div></div>
-      <n-button v-if="failedDeleteTargets.length || failedScanPaths.length" round size="small" :disabled="busy" @click="retryUnfinishedDelete">重新预览未完成项</n-button>
+      <n-button v-if="failedDeleteTargets.length || failedScanPaths.length" round size="small" :disabled="busy" @click="retryUnfinishedDelete"><template #icon><n-icon :component="RefreshCw" /></template>重新预览未完成项</n-button>
     </n-alert>
     <div class="page-content" @wheel.passive="handleScrollableContentWheel">
-      <SongList v-if="isSongTab && sourceSongs.length" :key="activeTab" :songs="sourceSongs" :search-key="searchKey" :min-size="64" play-mode="append"
-        removable show-footer show-header batch-enabled :batch-context="activeTab === 'download' ? 'download' : 'local'" batch-removable
-        @scroll="handleScrollableContentScroll" @scroll-to-top="handleScrollableContentTop" @remove-song="prepareSongDelete([$event])" @batch-remove="prepareSongDelete" />
+      <SongList v-if="isSongTab && (sourceSongs.length || isBatchMode)" ref="songListRef" :key="activeTab" :songs="sourceSongs" :search-key="searchKey" :min-size="64" play-mode="append"
+        removable show-footer show-header batch-enabled batch-external :batch-toolbar-target="batchToolbarTarget" :batch-refreshing="refreshing" :batch-disabled="busy" :batch-context="activeTab === 'download' ? 'download' : 'local'" batch-removable
+        @batch-mode-change="isBatchMode = $event" @batch-preparing-change="batchPreparing = $event" @batch-refresh="refreshCurrentTab" @scroll="handleScrollableContentScroll" @scroll-to-top="handleScrollableContentTop" @remove-song="prepareSongDelete([$event])" @batch-remove="prepareSongDelete" />
       <div v-else-if="!isSongTab" class="download-scroll" @scroll="handleScrollableContentScroll">
-        <DownloadTaskList :key="activeTab" :tasks="activeTab === 'records' ? downloadTasks : ongoingTasks" :search-key="searchKey" :search-terms="taskSearchTerms" :busy="busy"
-          @action="runTaskAction" @change-directory="changeTaskDirectory" @detail="openDetail" @remove="prepareDelete" />
+        <DownloadTaskList ref="taskListRef" :key="activeTab" :tasks="activeTab === 'records' ? downloadTasks : ongoingTasks" :search-key="searchKey" :search-terms="taskSearchTerms" :busy="busy" :refreshing="refreshing" :batch-toolbar-target="batchToolbarTarget"
+          @batch-mode-change="isBatchMode = $event" @refresh="refreshCurrentTab" @action="runTaskAction" @change-directory="changeTaskDirectory" @detail="openDetail" @remove="prepareDelete" />
       </div>
       <n-empty v-else class="empty-state" :description="activeTab === 'download' ? '暂无下载歌曲' : '暂无本地歌曲'" />
     </div>
@@ -44,7 +40,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { NAlert, NButton, NEmpty, NIcon, NInput } from "naive-ui";
-import { Play, Search } from "lucide-vue-next";
+import { Play, Search, RefreshCw, SquarePen } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import SongList from "@/components/list/SongList.vue";
 import DownloadTaskList from "@/components/download/DownloadTaskList.vue";
@@ -55,7 +51,7 @@ import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import type { Song } from "@/types/song";
 import type { DownloadTaskSnapshot, DownloadFileSnapshot, DownloadFileTarget, DownloadDeletePreview, DownloadDeleteResult } from "@/types/download";
 import { normalizeSong } from "@/utils/song";
-import { listDownloadedSongs, listDownloadTasks, listDownloadFiles, pauseDownload, resumeDownload, cancelDownload, retryDownload, pauseAllDownloads, resumeAllDownloads, selectDownloadTaskDirectory, previewDownloadDelete, deleteDownloads } from "@/utils/api/downloadAPI";
+import { listDownloadedSongs, listDownloadTasks, listDownloadFiles, pauseDownload, resumeDownload, cancelDownload, retryDownload, selectDownloadTaskDirectory, previewDownloadDelete, deleteDownloads } from "@/utils/api/downloadAPI";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 type LocalDownloadTab = "local" | "download" | "downloading" | "records";
 const playbackCommands = usePlaybackCommands(), localLibrary = useLocalLibraryStore();
@@ -63,7 +59,11 @@ const { songs: localSongs } = storeToRefs(localLibrary);
 const activeTab = ref<LocalDownloadTab>("local"), searchKey = ref(""), searchFocused = ref(false);
 const { isHeaderCollapsed, expandHeader, handleScrollableContentScroll, handleScrollableContentTop, handleScrollableContentWheel } = useCollapsiblePageHeader();
 const downloadedSongs = ref<Song[]>([]), downloadTasks = ref<DownloadTaskSnapshot[]>([]), downloadFiles = ref<DownloadFileSnapshot[]>([]);
-const loading = ref(false), loadError = ref(""), actionBusy = ref(""), actionMessage = ref("");
+const refreshing = ref(false), isBatchMode = ref(false), batchPreparing = ref(false);
+const songListRef = ref<InstanceType<typeof SongList> | null>(null);
+const taskListRef = ref<InstanceType<typeof DownloadTaskList> | null>(null);
+const batchToolbarTarget = ref<HTMLElement | null>(null);
+const loadError = ref(""), actionBusy = ref(""), actionMessage = ref("");
 const detailShown = ref(false), detailTarget = ref<DownloadFileTarget | null>(null);
 const failedScanPaths = ref<string[]>([]);
 const deleteShown = ref(false), deleting = ref(false), previewing = ref(false), deleteAll = ref(false);
@@ -71,8 +71,6 @@ const deletePreview = ref<DownloadDeletePreview | null>(null), scanDeleteTargets
 const busy = computed(() => !!actionBusy.value || deleting.value || previewing.value || deleteShown.value);
 let disposed = false, pollingTimer: ReturnType<typeof setTimeout> | undefined, pendingReload: Promise<void> | undefined;
 const ongoingTasks = computed(() => downloadTasks.value.filter(task => !["completed", "failed", "cancelled"].includes(task.status)));
-const canPause = computed(() => downloadTasks.value.some(task => ["queued", "preparing", "running"].includes(task.status)));
-const canResume = computed(() => downloadTasks.value.some(task => task.status === "paused"));
 const tabs = computed(() => [
   { key: "local" as const, label: "本地歌曲", count: mergedLocalSongs.value.length },
   { key: "download" as const, label: "下载歌曲", count: downloadedSongs.value.length },
@@ -97,19 +95,39 @@ const statusText = computed(() => {
 const deleteCount = computed(() => (deletePreview.value?.count || 0) + scanDeleteTargets.value.length);
 const failedDeleteTargets = computed(() => deleteResult.value?.items.filter(item => ["failed", "occupied", "shared", "not-executed"].includes(item.status) && !!(item.fileId || item.taskId)).map(item => item.fileId ? { fileId: item.fileId } : { taskId: item.taskId }) || []);
 function playAll() { if (currentSongs.value.length) playbackCommands.playAll(currentSongs.value); }
-function switchTab(tab: LocalDownloadTab) { activeTab.value = tab; expandHeader(); }
+const currentItemsCount = computed(() => isSongTab.value ? sourceSongs.value.length : activeTab.value === "records" ? downloadTasks.value.length : ongoingTasks.value.length);
+function enterBatch() {
+  if (busy.value || batchPreparing.value) return;
+  if (isSongTab.value) void songListRef.value?.enterBatch();
+  else taskListRef.value?.enterBatch();
+}
+function switchTab(tab: LocalDownloadTab) {
+  if (activeTab.value === tab || busy.value) return;
+  songListRef.value?.exitBatch(); taskListRef.value?.exitBatch();
+  isBatchMode.value = false; batchPreparing.value = false;
+  activeTab.value = tab; expandHeader();
+}
 function errorText(error: unknown) { return error instanceof Error ? error.message : String(error || "操作失败"); }
-async function refreshLocalLibrary() { try { await localLibrary.refresh(); await reloadDownloadData(); } catch (error) { window.$message.error(errorText(error)); } }
+async function refreshCurrentTab() {
+  if (refreshing.value || busy.value) return;
+  const refreshLocal = activeTab.value === "local";
+  refreshing.value = true;
+  try {
+    if (refreshLocal) await localLibrary.refresh();
+    await pendingReload;
+    await reloadDownloadData();
+  } catch (error) { if (!disposed) window.$message.error(errorText(error)); }
+  finally { if (!disposed) refreshing.value = false; }
+}
 function reloadDownloadData(): Promise<void> {
   if (pendingReload) return pendingReload;
-  loading.value = true;
   pendingReload = (async () => {
     try {
       const [songs, tasks, files] = await Promise.all([listDownloadedSongs(), listDownloadTasks(), listDownloadFiles()]);
       if (disposed) return;
       downloadedSongs.value = songs.map(song => normalizeSong(song)); downloadTasks.value = tasks; downloadFiles.value = files; loadError.value = "";
     } catch (error) { if (!disposed) loadError.value = errorText(error); }
-    finally { if (!disposed) loading.value = false; pendingReload = undefined; }
+    finally { pendingReload = undefined; }
   })();
   return pendingReload;
 }
@@ -132,16 +150,6 @@ async function changeTaskDirectory(id: string) {
     actionMessage.value = `${result.name || result.songId}：下载目录已更新，进度从零开始，其他入队配置保留。任务保持暂停，点击“继续”重新下载。`;
     await pendingReload; await reloadDownloadData();
   } catch (error) { if (!disposed) window.$message.error(errorText(error)); }
-  finally { actionBusy.value = ""; }
-}
-async function runAll(action: "pause" | "resume") {
-  if (busy.value) return;
-  actionBusy.value = `${action}-all`;
-  try {
-    const results = await (action === "pause" ? pauseAllDownloads() : resumeAllDownloads());
-    actionMessage.value = `全部${action === 'pause' ? '暂停' : '继续'}已处理，main 返回 ${results.length} 项；后处理阶段不能中断。操作包含搜索范围外的任务。`;
-    await pendingReload; await reloadDownloadData();
-  } catch (error) { window.$message.error(errorText(error)); }
   finally { actionBusy.value = ""; }
 }
 function openDetail(target: DownloadFileTarget) { detailTarget.value = { ...target }; detailShown.value = true; }
@@ -325,7 +333,9 @@ onBeforeUnmount(() => { disposed = true; if (pollingTimer) clearTimeout(pollingT
 
 .download-scroll { height: 100%; overflow: auto; }
 .empty-state { height: 100%; display: flex; align-items: center; justify-content: center; }
-.toolbar-left { flex-wrap: wrap; }
+.toolbar-left { flex-wrap: wrap; min-width: 0; }
+.batch-toolbar-target:empty { display: none; }
+.batch-toolbar-target { min-width: 0; }
 .toolbar :deep(.n-button) { border-radius: var(--radius-pill); }
 .feedback { margin-bottom: 12px; }
 .result-items { max-height: 130px; overflow: auto; margin-top: 8px; font-size: 12px; }

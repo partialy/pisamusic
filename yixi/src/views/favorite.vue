@@ -19,106 +19,30 @@
     </div>
 
     <div class="toolbar">
-      <!-- 常规模式工具栏 -->
-      <template v-if="!isBatchMode">
-        <div class="toolbar-left">
-          <n-button
-            type="primary"
-            class="play-all"
-            :disabled="activeTab !== 'songs' || filteredSongs.length === 0"
-            @click="playAll">
-            <template #icon>
-              <n-icon :component="Play" />
-            </template>
-            播放全部
+      <div class="toolbar-left">
+        <template v-if="!isBatchMode">
+          <n-button v-if="activeTab === 'songs'" round type="primary" :disabled="!filteredSongs.length" @click="playAll">
+            <template #icon><n-icon :component="Play" /></template>播放全部
           </n-button>
-        </div>
-
-        <div class="toolbar-right">
-          <n-button
-            v-if="activeTab === 'playlists'"
-            secondary
-            class="batch-btn"
-            :disabled="currentItemsCount === 0"
-            @click="enterBatchMode">
-            <template #icon>
-              <n-icon :component="CheckSquare" />
-            </template>
-            批量管理
+          <n-button round secondary :disabled="!currentItemsCount" @click="enterBatchMode">
+            <template #icon><n-icon :component="SquarePen" /></template>多选
           </n-button>
-
-          <n-input
-            v-model:value="searchKey"
-            class="favorite-search"
-            :class="{ focused: searchFocused || searchKey }"
-            clearable
-            placeholder="搜索"
-            @focus="searchFocused = true"
-            @blur="searchFocused = false">
-            <template #prefix>
-              <n-icon :component="Search" />
-            </template>
-          </n-input>
-        </div>
-      </template>
-
-      <!-- 批量模式工具栏 -->
-      <template v-else>
-        <div class="toolbar-left batch-actions">
-          <n-checkbox
-            :checked="isAllSelected"
-            :indeterminate="isIndeterminate"
-            @update:checked="toggleSelectAll">
-            全选
-          </n-checkbox>
-
-          <span class="selected-count">
-            已选择 <strong>{{ selectedKeys.size }}</strong> {{ activeTab === 'songs' ? '首歌曲' : '个歌单' }}
-          </span>
-          <n-button round size="small" :disabled="isBatchDeleting" @click="playlistSelection.invertVisible">反选</n-button>
-          <n-button v-if="isBatchDeleting" round size="small" @click="deleteController?.abort()">停止后续操作</n-button>
-
-          <n-button
-            type="error"
-            secondary
-            class="batch-delete-btn"
-            :disabled="selectedKeys.size === 0"
-            :loading="isBatchDeleting"
-            @click="handleBatchDelete">
-            <template #icon>
-              <n-icon :component="Trash2" />
-            </template>
-            取消收藏
-          </n-button>
-        </div>
-
-        <div class="toolbar-right">
-          <n-button
-            secondary
-            class="exit-batch-btn"
-            @click="exitBatchMode">
-            退出管理
-          </n-button>
-
-          <n-input
-            v-model:value="searchKey"
-            class="favorite-search"
-            :class="{ focused: searchFocused || searchKey }"
-            clearable
-            placeholder="搜索"
-            @focus="searchFocused = true"
-            @blur="searchFocused = false">
-            <template #prefix>
-              <n-icon :component="Search" />
-            </template>
-          </n-input>
-        </div>
-      </template>
+        </template>
+        <div ref="batchToolbarTarget" v-show="isBatchMode && activeTab === 'songs'" />
+        <template v-if="isBatchMode && activeTab === 'playlists'">
+          <BatchSegmentedActions :actions="playlistActions" @action="handlePlaylistAction" />
+          <span class="selected-count">已选择 {{ selectedKeys.size }} 个歌单</span>
+        </template>
+      </div>
+      <n-input v-model:value="searchKey" class="favorite-search" :class="{ focused: searchFocused || searchKey }" clearable placeholder="搜索" @focus="searchFocused = true" @blur="searchFocused = false">
+        <template #prefix><n-icon :component="Search" /></template>
+      </n-input>
     </div>
 
     <div class="favorite-content" @wheel.passive="handleScrollableContentWheel">
       <SongList
-        v-if="activeTab === 'songs' && songs.length"
+        v-if="activeTab === 'songs' && (songs.length || isBatchMode)"
+        ref="songListRef" batch-external :batch-toolbar-target="batchToolbarTarget" @batch-mode-change="isBatchMode = $event"
         :songs="songs"
         :search-key="searchKey"
         :min-size="64"
@@ -130,7 +54,7 @@
         @scroll-to-top="handleScrollableContentTop" />
 
       <PlaylistCollect
-        v-else-if="activeTab === 'playlists' && filteredPlaylists.length"
+        v-else-if="activeTab === 'playlists' && (filteredPlaylists.length || isBatchMode)"
         :playlist="filteredPlaylists"
         :selectable="isBatchMode"
         :selected-keys="selectedKeys"
@@ -145,10 +69,11 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { NButton, NCheckbox, NDropdown, NEmpty, NIcon, NInput } from "naive-ui";
-import { CheckSquare, Play, Search, Trash2 } from "lucide-vue-next";
+import { NButton, NDropdown, NEmpty, NIcon, NInput } from "naive-ui";
+import { SquarePen, Play, Search, Trash2, ListChecks, ArrowLeftRight, LogOut, Square } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
+import BatchSegmentedActions from "@/components/batch/BatchSegmentedActions.vue";
 import SongList from "@/components/list/SongList.vue";
 import AppConfirmDialog from "@/components/common/AppConfirmDialog.vue";
 import { useCollectStore } from "@/store";
@@ -167,6 +92,8 @@ const activeTab = ref<"songs" | "playlists">("songs");
 const searchKey = ref("");
 const searchFocused = ref(false);
 const isBatchMode = ref(false);
+const batchToolbarTarget = ref<HTMLElement | null>(null);
+const songListRef = ref<InstanceType<typeof SongList> | null>(null);
 const selectedKeys = ref<Set<string>>(new Set());
 const isBatchDeleting = ref(false);
 const playlistBatchMenu = ref({ show: false, x: 0, y: 0 });
@@ -210,27 +137,33 @@ const currentItemsCount = computed(() => {
   return activeTab.value === "songs" ? filteredSongs.value.length : filteredPlaylists.value.length;
 });
 const playlistSelection = useBatchSelection(playlists, filteredPlaylists, selectedKeys);
-
-const isAllSelected = computed(() => {
-  if (!currentItemsCount.value) return false;
-  if (activeTab.value === "songs") {
-    return filteredSongs.value.every((s) => selectedKeys.value.has(`${s.source}:${s.id}`));
-  } else {
-    return filteredPlaylists.value.every((p) => selectedKeys.value.has(`${p.source}:${p.id}`));
-  }
+watch(playlists, items => {
+  const available = new Set(items.map(item => `${item.source}:${item.id}`));
+  selectedKeys.value = new Set([...selectedKeys.value].filter(key => available.has(key)));
 });
 
-const isIndeterminate = computed(() => {
-  const selectedVisible = filteredPlaylists.value.filter(playlist => selectedKeys.value.has(`${playlist.source}:${playlist.id}`)).length;
-  return selectedVisible > 0 && selectedVisible < filteredPlaylists.value.length;
-});
+const playlistActions = computed(() => [
+  { key: "all", label: "全选", icon: ListChecks, disabled: isBatchDeleting.value },
+  { key: "invert", label: "反选", icon: ArrowLeftRight, disabled: isBatchDeleting.value },
+  { key: "remove", label: "移除", icon: Trash2, disabled: !selectedKeys.value.size || isBatchDeleting.value },
+  { key: "exit", label: isBatchDeleting.value ? "停止后续操作" : "退出", icon: isBatchDeleting.value ? Square : LogOut },
+]);
+function handlePlaylistAction(key: string) {
+  if (key === "exit") { if (isBatchDeleting.value) deleteController?.abort(); else exitBatchMode(); return; }
+  if (isBatchDeleting.value) return;
+  if (key === "all") playlistSelection.selectVisible(true);
+  else if (key === "invert") playlistSelection.invertVisible();
+  else if (key === "remove") void handleBatchDelete();
+}
 
 function enterBatchMode() {
+  if (activeTab.value === "songs") { void songListRef.value?.enterBatch(); return; }
   isBatchMode.value = true;
   playlistSelection.clear();
 }
 
 function exitBatchMode() {
+  songListRef.value?.exitBatch();
   isBatchMode.value = false;
   playlistSelection.clear();
   playlistBatchMenu.value.show = false;
@@ -245,9 +178,6 @@ function openPlaylistBatchContext(playlist: CommonPlaylist, event: MouseEvent) {
   playlistBatchMenu.value = { show: true, x: event.clientX, y: event.clientY };
 }
 
-function toggleSelectAll() {
-  if (!isBatchDeleting.value) playlistSelection.selectVisible(!isAllSelected.value);
-}
 
 async function handleBatchDelete() {
   if (isBatchDeleting.value) return;
@@ -278,7 +208,7 @@ async function handleBatchDelete() {
     if (!isCurrentLibraryRevision(revision)) return;
     await collector.reload();
     window.$message?.info?.(`已取消 ${result.succeeded} 个，跳过 ${result.skipped} 个，失败 ${result.failed} 个，未执行 ${result.unexecuted} 个`);
-    exitBatchMode();
+    playlistBatchMenu.value.show = false;
   } catch (error: any) {
     window.$message?.error?.(`批量取消收藏失败：${error?.message || error}`);
   } finally {
@@ -292,6 +222,7 @@ function playAll() {
 }
 
 function switchFavoriteTab(tab: "songs" | "playlists") {
+  if (isBatchDeleting.value) return;
   if (activeTab.value !== tab) {
     exitBatchMode();
   }
@@ -306,6 +237,8 @@ watch(searchKey, () => {
 </script>
 
 <style lang="scss" scoped>
+.selected-count { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+.toolbar-left { min-width: 0; flex-wrap: wrap; }
 .favorite-page {
   width: 100%;
   height: 100%;

@@ -1,13 +1,20 @@
 <template>
   <Transition name="fade" mode="out-in">
     <div class="content-container" ref="contentConRef">
-      <div v-if="batchEnabled" ref="batchToolbarRef" class="batch-toolbar">
-        <n-button v-if="!internalBatch" round secondary :loading="batchPreparing" @click="enterInternalBatch">批量管理</n-button>
-        <n-button v-if="batchPreparing" round @click="exitInternalBatch">取消加载</n-button>
-        <BatchActionBar v-if="internalBatch" ref="batchBarRef" :songs="selection.selectedSongs.value" :context="batchContext" :can-remove="batchRemovable"
-          @select-all="selection.selectVisible(true)" @invert="selection.invertVisible" @exit="exitInternalBatch"
-          @busy="batchBusy = $event" @remove="emit('batchRemove', $event)" />
-      </div>
+      <Teleport :to="batchToolbarTarget || 'body'" :disabled="!batchExternal || !batchToolbarTarget">
+        <div v-if="batchEnabled && (!batchExternal || internalBatch || batchPreparing)" ref="batchToolbarRef" class="batch-toolbar">
+          <n-button v-if="!batchExternal && !internalBatch && !batchPreparing" round secondary @click="enterInternalBatch">
+            <template #icon><n-icon :component="SquarePen" /></template>多选
+          </n-button>
+          <n-button v-if="batchPreparing" round :disabled="batchDisabled" @click="exitInternalBatch()">
+            <template #icon><n-icon :component="X" /></template>取消加载
+          </n-button>
+          <BatchActionBar v-if="internalBatch" ref="batchBarRef" :songs="selection.selectedSongs.value" :context="batchContext" :can-remove="batchRemovable"
+            :refresh-loading="batchRefreshing" :disabled="batchDisabled"
+            @select-all="selection.selectVisible(true)" @invert="selection.invertVisible" @exit="exitInternalBatch()"
+            @busy="batchBusy = $event" @remove="emit('batchRemove', $event)" @refresh="emit('batchRefresh')" />
+        </div>
+      </Teleport>
       <VirtList
         v-if="!loading"
         ref="virtListRef"
@@ -15,7 +22,7 @@
         :offset="offset"
         :min-size="minSize || 64"
         :list="renderSongs"
-        :style="{ height: Math.max(0, height - batchToolbarHeight) + 'px' , 'padding-right': '8px' }"
+        :style="{ height: Math.max(0, height - (batchExternal && batchToolbarTarget ? 0 : batchToolbarHeight)) + 'px' , 'padding-right': '8px' }"
         @scroll="emit('scroll', $event)"
         @toBottom="emit('scrollToBottom', $event)"
         @toTop="emit('scrollToTop', $event)"
@@ -106,10 +113,11 @@
 </template>
 
 <script setup lang="ts">
-import { NButton, NCheckbox } from "naive-ui";
+import { NButton, NCheckbox, NIcon } from "naive-ui";
 import { useAudioStore } from "@/store";
 import { useListenTogetherStore } from "@/store/listenTogether";
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from "vue";
+import { SquarePen, X } from "lucide-vue-next";
 import CommonSongItem from "@/components/search/CommonSongItem.vue";
 import ContextMenu from "@/components/common/ContextMenu.vue";
 import DownloadSongDialog from "@/components/player/DownloadSongDialog.vue";
@@ -149,6 +157,10 @@ const props = withDefaults(
     batchRemovable?: boolean;
     prepareBatch?: (signal?: AbortSignal) => Promise<Song[]>;
     batchSnapshotMode?: boolean;
+    batchToolbarTarget?: HTMLElement | null;
+    batchExternal?: boolean;
+    batchRefreshing?: boolean;
+    batchDisabled?: boolean;
   }>(),
   {
     playMode: "replace",
@@ -165,6 +177,9 @@ const emit = defineEmits<{
   toggleSelect: [song: Song, event?: MouseEvent];
   selectAll: [];
   batchRemove: [songs: Song[]];
+  batchModeChange: [active: boolean];
+  batchPreparingChange: [preparing: boolean];
+  batchRefresh: [];
 }>();
 
 const internalBatch = ref(false), batchPreparing = ref(false), batchBusy = ref(false);
@@ -194,14 +209,14 @@ const selection = useBatchSelection(sourceSongs, displaySongs);
 const effectiveSelectedKeys = computed(() => props.selectable ? props.selectedKeys : selection.selectedKeys.value);
 function toggleSelection(song: Song, event?: MouseEvent) {
   if (props.selectable) emit('toggleSelect', song, event);
-  else if (!batchBusy.value) selection.toggle(song, event);
+  else if (!batchBusy.value && !props.batchDisabled) selection.toggle(song, event);
 }
 function selectAllVisible() {
   if (props.selectable) emit('selectAll');
-  else if (!batchBusy.value) selection.selectVisible(!allSelected.value);
+  else if (!batchBusy.value && !props.batchDisabled) selection.selectVisible(!allSelected.value);
 }
 async function enterInternalBatch() {
-  if (batchPreparing.value) return;
+  if (internalBatch.value || batchPreparing.value || props.batchDisabled || !props.batchEnabled) return;
   const generation = ++batchGeneration;
   batchController = new AbortController();
   batchPreparing.value = true;
@@ -215,8 +230,8 @@ async function enterInternalBatch() {
   } catch (error) { if (generation === batchGeneration) window.$message.error(error instanceof Error ? error.message : '无法读取完整列表'); }
   finally { if (generation === batchGeneration) batchPreparing.value = false; }
 }
-function exitInternalBatch() {
-  if (batchBusy.value) return;
+function exitInternalBatch(force = false) {
+  if (!force && (batchBusy.value || props.batchDisabled)) return;
   batchGeneration++;
   batchController?.abort();
   internalBatch.value = false;
@@ -228,12 +243,20 @@ function exitInternalBatch() {
 function openRowContext(event: MouseEvent, song: Song) {
   event.preventDefault();
   if (internalBatch.value) {
-    if (batchBusy.value) return;
+    if (batchBusy.value || props.batchDisabled) return;
     selection.selectForContext(song);
     batchMenu.value = { show: true, x: event.clientX, y: event.clientY };
   } else contextMenuRef.value?.openContextMenu(event, { type: 'song', data: song });
 }
-const stopBatchIdentity = onLibraryIdentityChanged(() => { batchBusy.value = false; exitInternalBatch(); });
+const stopBatchIdentity = onLibraryIdentityChanged(() => { batchBusy.value = false; exitInternalBatch(true); });
+watch(() => internalBatch.value || batchPreparing.value, value => emit("batchModeChange", value), { flush: "sync" });
+watch(batchPreparing, value => emit("batchPreparingChange", value), { flush: "sync" });
+watch(sourceSongs, songs => {
+  const available = new Set(songs.map(song => `${song.source}:${song.id}`));
+  const retained = new Set([...selection.selectedKeys.value].filter(key => available.has(key)));
+  if (retained.size !== selection.selectedKeys.value.size) selection.selectedKeys.value = retained;
+});
+
 
 const isSongSelected = (song: Song) => {
   return effectiveSelectedKeys.value?.has(`${song.source}:${song.id}`) ?? false;
@@ -274,6 +297,12 @@ const observer = new ResizeObserver((entries) => {
   }
 });
 
+watch(batchToolbarRef, (element, previous) => {
+  if (previous) observer.unobserve(previous);
+  if (element) observer.observe(element);
+  else batchToolbarHeight.value = 0;
+}, { flush: "post" });
+
 const handlePlay = (song: Song) => {
   if (props.playMode === "append") {
     playbackCommands.playSongAppend(song);
@@ -307,15 +336,19 @@ onMounted(() => {
 });
 
 onBeforeRouteLeave(() => {
+  exitInternalBatch(true);
   offset.value = virtListRef.value?.getOffset() || 0;
 });
 
 onBeforeUnmount(() => {
+  exitInternalBatch(true);
   batchGeneration++;
   batchController?.abort();
   stopBatchIdentity();
   observer.disconnect();
 });
+
+defineExpose({ enterBatch: enterInternalBatch, exitBatch: () => exitInternalBatch() });
 </script>
 
 <style lang="scss" scoped>

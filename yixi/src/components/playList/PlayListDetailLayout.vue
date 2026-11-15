@@ -27,7 +27,7 @@
               item.name }}</n-tag>
           </div>
           <div class="operate-btn">
-            <div>
+            <div v-show="!batchMode">
               <n-button round type="primary" :loading="moreLoading" style="background-color: var(--color-primary)"
                 @click="playAll">
                 <template #icon>
@@ -53,10 +53,11 @@
                   更多
                 </n-button>
               </n-dropdown>
-              <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="editDialogRef?.open(listDetail)">编辑</n-button>
-              <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="deleteCurrentPlaylist">删除</n-button>
+              <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="editDialogRef?.open(listDetail)"><template #icon><n-icon :component="SquarePen" /></template>编辑</n-button>
+              <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="deleteCurrentPlaylist"><template #icon><n-icon :component="Trash2" /></template>删除</n-button>
             </div>
 
+            <div ref="batchToolbarTarget" v-show="batchMode" class="detail-batch-target" />
             <n-input :style="{
               width: searchFocus ? '150px' : '80px',
               display: 'flex',
@@ -72,7 +73,7 @@
       </div>
     </div>
     <div class="scroll-list">
-      <SongList :songs="songList" :loading="loading" :has-more="songList.length < page.total" :search-key="searchText"
+      <SongList ref="songListRef" :batch-external="getDetailOrigin() !== 'local'" :batch-toolbar-target="getDetailOrigin() !== 'local' ? batchToolbarTarget : null" @batch-mode-change="batchMode = getDetailOrigin() !== 'local' && $event" :songs="songList" :loading="loading" :has-more="songList.length < page.total" :search-key="searchText"
         batch-enabled batch-context="playlist" :batch-snapshot-mode="getDetailOrigin() !== 'local'" :batch-removable="getDetailOrigin() === 'local'" :prepare-batch="prepareBatchSongs" @batch-remove="removeBatchSongs"
         show-footer show-header @scroll="onScroll" @scroll-to-bottom="onToBottom" />
     </div>
@@ -139,7 +140,7 @@ import PlaylistEditDialog from "@/components/mine/PlaylistEditDialog.vue";
 import { usePlaylistManagement } from "@/composables/usePlaylistManagement";
 import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
-import { EllipsisVertical, FolderInput, Info, Share2 } from "lucide-vue-next";
+import { EllipsisVertical, FolderInput, Info, Share2, SquarePen, Trash2 } from "lucide-vue-next";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import OnlinePlaylistConversionDialog from "./OnlinePlaylistConversionDialog.vue";
 import { loadOnlinePlaylist } from "@/playlist/onlinePlaylistBatchLoader";
@@ -158,6 +159,10 @@ const message = useMessage();
 const route = useRoute();
 const router = useRouter();
 const searchText = ref("");
+const songListRef = ref<InstanceType<typeof SongList> | null>(null);
+const batchToolbarTarget = ref<HTMLElement | null>(null);
+const batchMode = ref(false);
+watch(() => [route.query.id, route.query.origin], () => { batchMode.value = false; songListRef.value?.exitBatch(); });
 const conversionVisible = ref(false);
 const searchFocus = ref(false);
 const loading = ref(false);
@@ -405,6 +410,7 @@ function openDetailPage() {
 }
 
 const moreOptions = computed(() => [
+  ...(getDetailOrigin() !== "local" ? [{ label: "多选", key: "multiselect", icon: () => h(SquarePen, { size: 16 }) }] : []),
   ...(["kg", "wy"].includes(listDetail.value?.source || "")
     ? [{ label: "转为本地歌单", key: "convert", icon: () => h(FolderInput, { size: 16 }) }] : []),
   { label: "详情", key: "detail", icon: () => h(Info, { size: 16 }) },
@@ -412,7 +418,8 @@ const moreOptions = computed(() => [
 ]);
 
 function handleMoreAction(key: string) {
-  if (key === "convert") conversionVisible.value = true;
+  if (key === "multiselect") void songListRef.value?.enterBatch();
+  else if (key === "convert") conversionVisible.value = true;
   else if (key === "detail") openDetailPage();
   else if (key === "share") openShareDialog();
 }
@@ -445,6 +452,8 @@ const loadAll = async (batchSize: number = page.value.size) => {
 };
 
 const initData = debounce(async () => {
+  batchMode.value = false;
+  songListRef.value?.exitBatch();
   loadVersion.value += 1;
   const request = captureDetailRequest();
   const revision = await captureLibraryRevision();
@@ -577,6 +586,7 @@ watch(
 </script>
 
 <style scoped lang="scss">
+.detail-batch-target { min-width: 0; flex: 1; max-height: 100px; overflow-y: auto; }
 @keyframes moveUp {
   0% {
     transform: translateY(0);
@@ -671,6 +681,7 @@ watch(
 
         .operate-btn {
           display: flex;
+          gap: 10px;
           align-items: center;
           justify-content: space-between;
           position: absolute;
