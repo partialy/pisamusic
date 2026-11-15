@@ -16,7 +16,7 @@
       </n-button>
 
       <n-button text title="收藏" @click.stop="handleCollect">
-        <n-icon size="24" :color="collected ? 'red' : '#b4b2b2'" class="icon"
+        <n-icon size="24" :color="collected ? '#ff5d6c' : 'var(--text-secondary)'" class="icon"
           :component="CollectIcon" />
       </n-button>
       <n-button text title="更多" @click.stop="handleMore">

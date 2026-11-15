@@ -29,7 +29,7 @@
         <template #icon>
           <n-icon size="24"
             :component="CollectIcon"
-            :color="isCollected ? '#ff5c67' : '#fefefe'" />
+            :color="isCollected ? '#ff5d6c' : 'var(--text-secondary)'" />
         </template>
       </n-button>
 

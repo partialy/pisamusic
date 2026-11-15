@@ -39,7 +39,7 @@
                 <template #icon><n-icon :component="SquarePen" /></template>多选
               </n-button>
               <n-button v-else round secondary style="margin-left: 10px" @click="collector.collectList(listDetail)">
-                <template #icon><n-icon :component="collector.containsPlaylist(listDetail) ? HeartOff : Heart" /></template>
+                <template #icon><n-icon :component="collector.containsPlaylist(listDetail) ? HeartOff : Heart" :color="collector.containsPlaylist(listDetail) ? '#ff5d6c' : 'var(--text-secondary)'" /></template>
                 {{ collector.containsPlaylist(listDetail) ? "取消收藏" : "收藏" }}
               </n-button>
               <n-dropdown trigger="click" :options="moreOptions" @select="handleMoreAction">
@@ -408,7 +408,7 @@ function openDetailPage() {
 }
 
 const moreOptions = computed(() => [
-  ...(getDetailOrigin() !== "local" ? [{ label: (listDetail.value && collector.containsPlaylist(listDetail.value)) ? "取消收藏" : "收藏", key: "collect", icon: () => h((listDetail.value && collector.containsPlaylist(listDetail.value)) ? HeartOff : Heart, { size: 16 }) }] : []),
+  ...(getDetailOrigin() !== "local" ? [{ label: (listDetail.value && collector.containsPlaylist(listDetail.value)) ? "取消收藏" : "收藏", key: "collect", icon: () => h((listDetail.value && collector.containsPlaylist(listDetail.value)) ? HeartOff : Heart, { size: 16, color: (listDetail.value && collector.containsPlaylist(listDetail.value)) ? "#ff5d6c" : "var(--text-secondary)" }) }] : []),
   ...(["kg", "wy"].includes(listDetail.value?.source || "")
     ? [{ label: "转为本地歌单", key: "convert", icon: () => h(FolderInput, { size: 16 }) }] : []),
   { label: "详情", key: "detail", icon: () => h(Info, { size: 16 }) },

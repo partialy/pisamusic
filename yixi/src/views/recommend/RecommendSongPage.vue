@@ -71,7 +71,7 @@
                 :class="{ collected: isSongCollected(song) }"
                 :aria-pressed="isSongCollected(song)"
                 @click.stop="handleCollectSong(song)">
-                <n-icon :component="CollectIcon" />
+                <n-icon :component="CollectIcon" :color="isSongCollected(song) ? '#ff5d6c' : 'var(--text-secondary)'" />
               </button>
               <button
                 type="button"
@@ -403,7 +403,7 @@ onMounted(() => {
     }
 
     &.collected {
-      color: #ff5c67;
+      color: #ff5d6c;
     }
   }
 }

@@ -58,7 +58,7 @@
       <n-button text title="收藏" @click.stop="collect.collectSong(song)">
         <n-icon
           :component="CollectIcon"
-          :color="collect.containsSong(song) ? '#ff5d6c' : 'var(--color-text-third)'"
+          :color="collect.containsSong(song) ? '#ff5d6c' : 'var(--text-secondary)'"
           class="icon"></n-icon>
       </n-button>
     </div>

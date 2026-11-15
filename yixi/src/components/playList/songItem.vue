@@ -41,7 +41,7 @@
     </div>
     <div class="operation">
       <n-button text circle @click="handleLove">
-        <n-icon :component="CollectIcon" size="24" :color="isLove ? 'red' : 'var(--text-tertiary)'"></n-icon>
+        <n-icon :component="CollectIcon" size="24" :color="isLove ? '#ff5d6c' : 'var(--text-secondary)'"></n-icon>
       </n-button>
     </div>
   </div>

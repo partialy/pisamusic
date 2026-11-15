@@ -50,7 +50,7 @@
         <template #icon>
           <n-icon
             :component="CollectIcon"
-            :color="collect.containsSong(currentSong || undefined) ? '#ff5d6c' : 'var(--color-text-secondary)'"
+            :color="collect.containsSong(currentSong || undefined) ? '#ff5d6c' : 'var(--text-secondary)'"
             size="24px" />
         </template>
       </n-button>

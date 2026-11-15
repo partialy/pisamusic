@@ -13,8 +13,8 @@
         <div class="duration">
             <span class="duration-text">{{ formatDuration(item.duration) }}</span>
             <n-button text circle class="collect-btn" @click="collector.collectSong(props.item)"
-                :style="{ color: collector.containsSong(item) ? 'var(--text-accent)' : 'var(--text-secondary)' }">
-                <n-icon size="22" :component="CollectIcon"></n-icon>
+                :aria-pressed="collector.containsSong(item)" :title="collector.containsSong(item) ? '取消收藏' : '收藏'">
+                <n-icon size="22" :color="collector.containsSong(item) ? '#ff5d6c' : 'var(--text-secondary)'" :component="CollectIcon"></n-icon>
             </n-button>
             <n-button text circle @click="deleteSong" title="删除" class="delete-btn">
                 <n-icon size="24" class="icon" :component="CloseIcon"></n-icon>

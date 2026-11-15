@@ -142,7 +142,7 @@ const createSongOptions = (song: Song) => {
       icon: renderIcon(
         CollectIcon,
         {},
-        { size: 24, color: collector.containsSong(song) ? "red" : "#999" }
+        { size: 24, color: collector.containsSong(song) ? "#ff5d6c" : "var(--text-secondary)" }
       ),
       key: "collect",
     },
@@ -241,7 +241,7 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
       icon: renderIcon(
         CollectIcon,
         {},
-        { size: 24, color: collector.containsPlaylist(playlist) ? "red" : "#999" }
+        { size: 24, color: collector.containsPlaylist(playlist) ? "#ff5d6c" : "var(--text-secondary)" }
       ),
       key: "playlist-collect",
     },
