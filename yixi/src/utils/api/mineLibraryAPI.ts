@@ -83,8 +83,25 @@ export async function replaceMineCloudSongs(cloudSource: Exclude<MineCloudSource
   });
 }
 
+export async function saveMinePlaylistEdit(input: import("@/types/playlistCover").PlaylistEditInput) {
+  return invokeMineApi("saveMinePlaylistEdit", { playlistId: input.playlistId }, async () => {
+    if (!isCurrentLibraryRevision(input.identityRevision)) throw new Error("账号已变化，请重新编辑");
+    const item = await window.electronAPI.savePlaylistEdit(input);
+    return item.payload as CommonPlaylist;
+  });
+}
+export async function removeMinePlaylist(playlistId: string, identityRevision: number) {
+  return invokeMineApi("removeMinePlaylist", { playlistId }, async () => {
+    if (!isCurrentLibraryRevision(identityRevision)) throw new Error("账号已变化，请重新确认");
+    return window.electronAPI.removeUserPlaylist({ source: "local", id: playlistId, identityRevision });
+  });
+}
+export async function retryMinePlaylistCover(playlistId: string, identityRevision: number) {
+  return invokeMineApi("retryMinePlaylistCover", { playlistId }, () => window.electronAPI.retryPlaylistCover({ playlistId, identityRevision }));
+}
+
 export async function selectPlaylistCover() {
-  return invokeMineApi("selectPlaylistCover", {}, () => window.electronAPI.selectPlaylistCover());
+  return invokeMineApi("selectPlaylistCover", {}, () => window.electronAPI.selectManagedPlaylistCover());
 }
 
 function normalizeTags(tags?: CommonPlaylist["tags"]) {

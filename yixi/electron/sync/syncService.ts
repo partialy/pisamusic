@@ -1,3 +1,4 @@
+import { acceptRemotePlaylistCover } from "../playlistCover/coverUploadManager";
 import { captureAccountLibrary, isCurrentLibrary, type AccountLibraryContext } from "../account/accountLibraryContext";
 import { onAccountIdentityChanged } from "../account/accountIdentity";
 import { logicalTrackId, seedAccountLibrary, syncPayload } from "./syncPayload";
@@ -335,6 +336,7 @@ function applyFavoritePlaylist(context: SyncContext, change: SyncChange) {
 function applyUserPlaylist(context: SyncContext, change: SyncChange) {
   const parsed = playlistFromPayloadOrKey(change.payload, change.itemKey);
   if (!parsed || parsed.source !== "local") return;
+  acceptRemotePlaylistCover(context, change, parsed.id);
   if (change.action === "delete") {
     context.repo.removeUserPlaylist(parsed.source, parsed.id, { fromSync: true });
   } else {

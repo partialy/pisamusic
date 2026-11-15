@@ -24,15 +24,16 @@
     </div>
 
     <div v-if="filteredPlaylists.length" class="playlist-grid" @scroll="emit('scroll', $event)">
-      <button
+      <article
         v-for="playlist in filteredPlaylists"
         :key="`${playlist.source}:${playlist.id}`"
         class="playlist-card"
-        type="button"
+        tabindex="0"
+        @keydown.enter.self="openPlaylist(playlist)"
         @click="openPlaylist(playlist)"
         @contextmenu.stop="openContextMenu($event, playlist)">
         <div class="cover-wrap">
-          <img :src="getPlaylistCover(playlist)" :alt="playlist.name" />
+          <img :src="getPlaylistCover(playlist, 480)" :alt="playlist.name" @error="playlistCoverFallback($event, playlist)" />
           <span class="source-badge">{{ sourceLabel(playlist.source) }}</span>
           <span class="song-count">{{ playlist.song_count || 0 }} 首</span>
         </div>
@@ -43,7 +44,12 @@
             <span v-for="tag in playlist.tags.slice(0, 3)" :key="tag.id || tag.name">{{ tag.name }}</span>
           </div>
         </div>
-      </button>
+        <div v-if="playlist.source === 'local'" class="management-actions" @click.stop>
+          <n-button quaternary size="small" @click="editDialogRef?.open(playlist)">编辑</n-button>
+          <n-button quaternary size="small" @click="confirmDelete(playlist)">删除</n-button>
+          <span v-if="playlist.coverUploadStatus && playlist.coverUploadStatus.state !== 'synced'" class="upload-state" :title="playlist.coverUploadStatus.message">{{ playlist.coverUploadStatus.state === 'failed' ? '封面上传失败' : playlist.coverUploadStatus.state === 'local' ? '本机封面' : '封面待同步' }}</span>
+        </div>
+      </article>
     </div>
 
     <n-empty
@@ -53,6 +59,7 @@
 
     <ContextMenu ref="contextMenuRef" />
     <CreatePlaylistDialog ref="createDialogRef" />
+    <PlaylistEditDialog ref="editDialogRef" />
   </div>
 </template>
 
@@ -61,17 +68,21 @@ import { computed, ref } from "vue";
 import { NButton, NEmpty, NIcon, NTabPane, NTabs } from "naive-ui";
 import { Plus, RefreshCw } from "lucide-vue-next";
 import type { CommonPlaylist } from "@/types/song";
-import { getSongCover } from "@/utils/common";
+import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
+import PlaylistEditDialog from "./PlaylistEditDialog.vue";
+import { usePlaylistManagement } from "@/composables/usePlaylistManagement";
 import { useMineLibraryStore } from "@/store";
 import { useRouter } from "vue-router";
 import ContextMenu from "@/components/common/ContextMenu.vue";
 import CreatePlaylistDialog from "@/components/mine/CreatePlaylistDialog.vue";
-import defaultCover from "@/assets/images/default-created-playlist-cover.svg";
+
 
 type PlaylistFilter = "all" | "local" | "kg" | "wy";
 
 const store = useMineLibraryStore();
 const router = useRouter();
+const { confirmDelete } = usePlaylistManagement();
+const editDialogRef = ref<InstanceType<typeof PlaylistEditDialog> | null>(null);
 const activeSource = ref<PlaylistFilter>("all");
 const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null);
 const createDialogRef = ref<InstanceType<typeof CreatePlaylistDialog> | null>(null);
@@ -93,11 +104,6 @@ function openContextMenu(event: MouseEvent, playlist: CommonPlaylist) {
     type: "playlist",
     data: playlist,
   });
-}
-
-function getPlaylistCover(playlist: CommonPlaylist) {
-  if (playlist.source === "local") return playlist.cover || defaultCover;
-  return getSongCover(playlist, 480, defaultCover);
 }
 
 function sourceLabel(source: CommonPlaylist["source"]) {
@@ -254,6 +260,9 @@ function sourceLabel(source: CommonPlaylist["source"]) {
     font-size: 11px;
   }
 }
+
+.management-actions { display: flex; align-items: center; gap: 4px; padding: 4px; :deep(.n-button) { border-radius: var(--radius-pill); } }
+.upload-state { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .empty-state {
   flex: 1;

@@ -57,7 +57,7 @@
 
           <!-- Album Art Sleeve -->
           <div class="cover-sleeve">
-            <img class="cover-img" :src="coverUrl" :alt="title" />
+            <img class="cover-img" :src="coverUrl" :alt="title" @error="displayPlaylist && playlistCoverFallback($event, displayPlaylist)" />
             <div class="cover-gloss-highlight"></div>
             <div class="cover-badge">
               <span class="badge-dot"></span>
@@ -211,10 +211,11 @@ import {
 import type { CommonPlaylist, Song } from "@/types/song";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import DownloadSongDialog from "@/components/player/DownloadSongDialog.vue";
-import { useCollectStore } from "@/store";
+import { useCollectStore, useMineLibraryStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { useSongDownload } from "@/composables/useSongDownload";
 import { defaultSongCover, formatDuration, getSongCover } from "@/utils/common";
+import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { getPublicShare } from "@/share/shareApi";
 import {
@@ -227,6 +228,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const collector = useCollectStore();
+const mineLibrary = useMineLibraryStore();
 const playbackCommands = usePlaybackCommands();
 const songDownload = useSongDownload();
 const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
@@ -255,10 +257,13 @@ const collected = computed(() => {
   return false;
 });
 
+const displayPlaylist = computed(() => playlist.value?.source === "local" && !shareRecord.value
+  ? mineLibrary.localPlaylists.find(item => item.id === playlist.value?.id) || playlist.value
+  : playlist.value);
 const coverUrl = computed(() => {
   if (song.value) return getSongCover(song.value, 720);
   if (!playlist.value) return defaultSongCover;
-  if (playlist.value.source === "local") return playlist.value.cover || defaultPlaylistCover;
+  if (playlist.value.source === "local") return getPlaylistCover(displayPlaylist.value, 720);
   return getSongCover(playlist.value, 720, defaultPlaylistCover);
 });
 

@@ -2,9 +2,9 @@ import type { PlaylistSnapshot, TrackSnapshot } from "./types";
 
 export type LibraryItemType = "favorite_song" | "favorite_playlist" | "user_playlist";
 export type LibraryScope = Readonly<{ accountId: string; deviceIdentity: string }>;
-export type LibraryWriteOptions = { fromSync?: boolean };
+export type LibraryWriteOptions = { fromSync?: boolean; clientUpdatedAt?: string };
 export type TrackWriteOptions = LibraryWriteOptions & { sortOrder?: number | null; serverVersion?: number };
-export type SyncOperationInput = { itemType: string; itemKey: string; action: "upsert" | "delete"; payload?: unknown };
+export type SyncOperationInput = { itemType: string; itemKey: string; action: "upsert" | "delete"; payload?: unknown; clientUpdatedAt?: string };
 export function captureLibraryScope(scope: LibraryScope): LibraryScope {
   if (typeof scope.accountId !== "string" || typeof scope.deviceIdentity !== "string") throw new Error("需要 main 可信账号与设备上下文");
   if (scope.accountId && !scope.deviceIdentity) throw new Error("账号写入需要长期设备身份");

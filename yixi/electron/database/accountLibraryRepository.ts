@@ -1,3 +1,4 @@
+import { notePlaylistUserEdit } from "../playlistCover/coverState";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { normalizeLimit } from "./json";
@@ -36,15 +37,18 @@ export class AccountLibraryRepository {
     return this.db.prepare("SELECT * FROM account_library_items WHERE account_id = ? AND item_type = ? AND item_key = ?")
       .get(this.scope.accountId, type, key) as ItemRow | undefined;
   }
-  private save(type: LibraryItemType, key: string, payload: unknown, createdAt?: string) {
-    const now = new Date().toISOString();
+  private save(type: LibraryItemType, key: string, payload: unknown, createdAt?: string, updatedAt?: string) {
+    const now = updatedAt ?? new Date().toISOString();
     const previous = this.row(type, key);
     this.db.prepare(`INSERT INTO account_library_items VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(account_id,item_type,item_key) DO UPDATE SET payload_json=excluded.payload_json,updated_at=excluded.updated_at`)
       .run(this.scope.accountId, type, key, JSON.stringify(payload), previous?.created_at ?? createdAt ?? now, now);
   }
   private event(input: SyncOperationInput, options: LibraryWriteOptions) {
-    if (!options.fromSync && this.scope.accountId) this.enqueueSyncOp(input);
+    if (!options.fromSync && input.itemType === "user_playlist" && input.itemKey.startsWith("local:") && input.action === "upsert") {
+      notePlaylistUserEdit(this.db, this.scope.accountId, input.itemKey.slice("local:".length), input.payload as PlaylistSnapshot, options.clientUpdatedAt ?? new Date().toISOString());
+    }
+    if (!options.fromSync && this.scope.accountId) this.enqueueSyncOp({ ...input, clientUpdatedAt: options.clientUpdatedAt });
   }
   enqueueSyncOp(input: SyncOperationInput): string | null {
     if (!input.itemType || !input.itemKey) return null;
@@ -65,7 +69,7 @@ export class AccountLibraryRepository {
         .run(this.scope.accountId, input.itemType, input.itemKey);
       const opId = randomUUID();
       this.db.prepare("INSERT INTO sync_outbox (account_id,op_id,item_type,item_key,action,payload_json,created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .run(this.scope.accountId, opId, input.itemType, input.itemKey, input.action, JSON.stringify(payload), new Date().toISOString());
+        .run(this.scope.accountId, opId, input.itemType, input.itemKey, input.action, JSON.stringify(payload), input.clientUpdatedAt ?? new Date().toISOString());
       return opId;
     });
   }
@@ -186,8 +190,9 @@ export class AccountLibraryRepository {
       const key = favoriteKey(input.source, input.id);
       const previous = this.row("user_playlist", key);
       const playlist = normalizePlaylistSnapshot({ ...(previous ? JSON.parse(previous.payload_json) : {}), ...Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) });
-      this.save("user_playlist", key, playlist);
-      this.event({ itemType: "user_playlist", itemKey: favoriteKey(playlist.source, playlist.id), action: "upsert", payload: publicPlaylist(playlist) }, options);
+      const updatedAt = options.clientUpdatedAt ?? new Date().toISOString();
+      this.save("user_playlist", key, playlist, undefined, updatedAt);
+      this.event({ itemType: "user_playlist", itemKey: favoriteKey(playlist.source, playlist.id), action: "upsert", payload: publicPlaylist(playlist) }, { ...options, clientUpdatedAt: updatedAt });
       return this.playlistItem(this.row("user_playlist", key)!);
     });
   }
@@ -251,7 +256,8 @@ export class AccountLibraryRepository {
         this.db.prepare("INSERT INTO account_playlist_tracks VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
           .run(this.scope.accountId, playlistId, key, JSON.stringify(track), sortOrder, options.fromSync ? options.serverVersion ?? order++ : order++, options.serverVersion ?? 0, new Date().toISOString());
         added.push(key);
-        if (onlineCover(track)) lastCover = track.cover;
+        // 只看最后一首真正新增歌曲；LOCAL/无图保留原封面，不向前寻找。
+        lastCover = onlineCover(track) ? track.cover : undefined;
         if (this.scope.accountId && !options.fromSync) {
           const payload: Record<string, unknown> = { ...this.trackEvent(track), sortOrder };
           this.event({ itemType: "playlist_track", itemKey: `${playlistId}|${payload.source}:${payload.id}`, action: "upsert", payload }, options);

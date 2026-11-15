@@ -37,6 +37,8 @@ export interface API {
 }
 
 export interface CommonPlaylist {
+    coverLocalPreview?: string;
+    coverUploadStatus?: import("./playlistCover").PlaylistCoverStatus;
   coverResource?: { resourceId: string } | null;
   coverPreset?: string | null;
   id: string;

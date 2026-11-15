@@ -7,6 +7,9 @@ import { createLocalTrackResolver, prepareLibraryTrack, prepareLibraryTracks } f
 import { setupAccountLibraryIpc } from "./accountLibraryIpc";
 import { assertPublicSetting } from "./publicSettingsPolicy";
 
+import { setupPlaylistCoverIpc } from "./playlistCoverIpc";
+import { decoratePlaylist, discardPlaylistCover } from "../playlistCover/coverUploadManager";
+
 let registered = false;
 
 type QueueSnapshotInput = Pick<QueueSnapshot, "currentIndex" | "queue">;
@@ -15,6 +18,7 @@ export function setupPersistenceIpc() {
   if (registered) return;
   registered = true;
   setupAccountLibraryIpc();
+  setupPlaylistCoverIpc();
 
   ipcMain.handle("settings:get", (_event, key: string) => {
     assertPublicSetting(key);
@@ -97,7 +101,7 @@ export function setupPersistenceIpc() {
   scoped("library:favorites:playlists:remove", true, (context, payload) => context.repo.removeFavoritePlaylist(payload.source, payload.id));
   scoped("library:favorites:playlists:toggle", true, (context, playlist) => context.repo.toggleFavoritePlaylist(playlist));
   scoped("library:favorites:playlists:contains", false, (context, payload) => context.repo.containsFavoritePlaylist(payload.source, payload.id));
-  scoped("library:playlists:list", false, (context, payload) => context.repo.listUserPlaylists(payload?.source));
+  scoped("library:playlists:list", false, (context, payload) => context.repo.listUserPlaylists(payload?.source).map(item => decoratePlaylist(context, item)));
   scoped("library:playlists:create", true, (context, playlist) => context.repo.createUserPlaylist(playlist).playlist);
   scoped("library:playlists:upsert", true, (context, playlist) => context.repo.upsertUserPlaylist(playlist));
   scoped("library:playlists:replace-source", true, (context, payload) => context.repo.replaceUserPlaylists(payload.source, payload.playlists));
@@ -108,7 +112,7 @@ export function setupPersistenceIpc() {
   scoped("library:playlists:tracks:add", true, (context, payload) => context.repo.addUserPlaylistTrack(payload.playlistId, readTrack(context, payload.track)));
   scoped("library:playlists:create-with-tracks", true, (context, payload) => context.repo.createUserPlaylist(payload.playlist, prepareLibraryTracks(payload.tracks, context.repo)));
   scoped("library:playlists:update", true, (context, payload) => context.repo.updateUserPlaylist(payload.playlistId, payload.patch));
-  scoped("library:playlists:remove", true, (context, payload) => context.repo.removeUserPlaylist(payload.source, payload.id));
+  scoped("library:playlists:remove", true, (context, payload) => getAppDatabase().applySyncTransaction(() => { const removed = context.repo.removeUserPlaylist(payload.source, payload.id); if (removed) discardPlaylistCover(context, payload.id); return removed; }));
   scoped("library:playlists:tracks:bulk-add", true, (context, payload) => context.repo.addUserPlaylistTracks(payload.playlistId, prepareLibraryTracks(payload.tracks, context.repo)));
   scoped("library:playlists:tracks:bulk-remove", true, (context, payload) => context.repo.removeUserPlaylistTracks(payload.playlistId, payload.keys));
 

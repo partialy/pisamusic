@@ -5,6 +5,7 @@ import { getAppDatabase } from "../database";
 import { scheduleLibrarySync } from "../sync/syncService";
 import { createLocalTrackResolver, prepareLibraryTracks } from "../localLibrary/localTrackAccess";
 import type { TrackSnapshot } from "../database/types";
+import { importUnassociatedPlaylistCovers, wakeCoverUploads } from "../playlistCover/coverUploadManager";
 const confirmations = new Map<string, { revision: number; expiresAt: number }>();
 export function setupAccountLibraryIpc() {
   ipcMain.handle("library:identity", () => {
@@ -29,9 +30,14 @@ export function setupAccountLibraryIpc() {
     const context = captureAccountLibrary();
     const confirmation = confirmations.get(confirmationId);
     if (!confirmation || confirmation.revision !== context.revision || confirmation.expiresAt < Date.now() || !context.scope.accountId) throw new Error("导入确认已过期，请重新确认账号与数量");
-    const result = context.repo.importUnassociated(createLocalTrackResolver(context.repo));
+    const result = getAppDatabase().applySyncTransaction(() => {
+      const imported = context.repo.importUnassociated(createLocalTrackResolver(context.repo));
+      importUnassociatedPlaylistCovers(context, imported.playlists);
+      return imported;
+    });
     confirmations.delete(confirmationId);
     scheduleLibrarySync();
+    wakeCoverUploads();
     BrowserWindow.getAllWindows().forEach(win => { win.webContents.send("favorites:changed"); win.webContents.send("mine-library:changed"); });
     return result;
   });

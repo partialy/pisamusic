@@ -432,7 +432,7 @@
 - `electron/database/accountLibrarySchema.ts` 将旧收藏/歌单/曲目一次性复制到空账号未关联区，保留历史表用于回溯；运行权威改为 `account_library_items` / `account_playlist_tracks`，不能再直接写旧表。账号复合主键允许不同账号收藏同歌或缓存相同远端歌单 ID。
 - `AppDatabase.accountLibrary({accountId, deviceIdentity})` 创建捕获 main 可信身份的 Repository，所有 list/pending/remove/import 都限制该账号。旧 AppDatabase API 固定适配未关联区，不根据当前登录态猜归属；运行 IPC/sync 统一从 `electron/account/accountLibraryContext.ts` 捕获 main 当前账号、长期设备身份及公开 identityRevision；禁止 renderer 指定账号或回到旧全库 seed。
 - `accountLibraryRepository.ts` 统一收藏关系、自建歌单 create/update/bulkAdd/bulkRemove/delete、数量/自动封面/outbox 同事务。通知与同步调度只能在成功返回后执行；远端 apply 使用 fromSync，排序单独传入 `sortOrder` 与权威 `serverVersion`，不得自行生成服务端版本。
-- 曲目重复添加不改变元信息、排序或自动封面，返回 added/existing；排序为 COALESCE(sort_order,fallback_order) → server_version → track_key。历史 fallback 为旧自增 ID；扩展缺省保留，null 显式清除。在线自动封面只取实际新增最后一首有有效远程图的非 LOCAL 歌曲，清空 coverResource/coverPreset；KG 模板原样保留。
+- 曲目重复添加不改变元信息、排序或自动封面，返回 added/existing；排序为 COALESCE(sort_order,fallback_order) → server_version → track_key。历史 fallback 为旧自增 ID；扩展缺省保留，null 显式清除。在线自动封面只检查最后一首实际新增歌曲：仅其为有有效远程图的非 LOCAL 歌曲时更新；最后新增为 LOCAL/无图则保留原封面，不能向前寻找，清空 coverResource/coverPreset；KG 模板原样保留。
 - `localTrackIdentityRepository.ts` 为原本机歌曲键维护长期 UUID 映射，与扫描记录删除无级联关系；不修改播放 ID、不按歌名时长猜匹配。双向查询与显式 associateLocalKey 供移动文件后确认关联；下行 resolveIncomingTrack 在原设备映射回原键，异机仍为不可播放占位。`electron/localLibrary/localTrackAccess.ts` 只按 main 索引/下载记录与显式别名恢复可读文件，不把远端 ID 当路径；缺文件不删除关系/映射。
 - `importUnassociated()` 只能在用户明确确认后调用；保留未关联原件、收藏去重且保留关系时间、自建歌单创建新 UUID 账号副本。未关联 pending 不随导入搬移或上传，其他账号 pending 永远不清除。
 - `syncService` / 收藏歌单 IPC / 托盘 / preload / renderer 已接 schema 9 账号范围；运行验收仍由用户进行。关系与 outbox 在 Repository 同事务提交，IPC 只在提交后通知与调度，不再事务外 record* 重复入队。`sync/syncPayload.ts` 为出站最终白名单，禁止发送原始 TrackSnapshot。
@@ -451,4 +451,16 @@
 - 新 typed API：`getLibraryIdentity` / `onAccountIdentityChanged`、`createUserPlaylistWithTracks`、`updateUserPlaylist`、`removeUserPlaylist`、`bulkAddUserPlaylistTracks`、`bulkRemoveUserPlaylistTracks`、`resolveLocalTracks`。create-with-tracks 与 bulk 回执基于 Repository 实际 added/existing/removed，后续 P3/P4 编辑/转换复用，不搭平行存储。
 - 设置 → 同步账号提供手动“查看并导入”，通过 `previewUnassociatedLibrary` 查询当前账号名称与未关联收藏/歌单数量；AppModal 明确确认后才调用 `importUnassociatedLibrary`。main 的一次性确认 ID 绑定身份世代、5 分钟过期，成功消费；取消不修改数据、不自动 seed，重复导入歌单会新建副本并明确告知，提交期间禁止重复/关闭。App 全局在首次登录当前账号且有未关联数据时复用同一可取消确认，main 的 account-library-import-prompt:<accountId> 记已提示；不会每次登录循环强制。手动入口随时保留。
 - LOCAL 只允许 playlist_track 跨端；LOCAL 收藏仅本机账号关系。`songAvailability.ts`、统一 playbackCommands、audio 内部续播/队列入口和 main 取链共同阻止异机/文件缺失占位，批量过滤不可用项；一起听/下载继续拒绝 LOCAL。下行关系删除仅删账号关系，不删索引或物理文件；受管文件移动/关联 UI 属后续阶段。
-- P2 封面上传/归属/引用回收、P3 编辑 UI 与 P4 完整转存交互仍按各阶段实现；P1 接入不等于这些功能或设备验收已完成。必要检查仅 TypeScript/vue-tsc 与 diff；本轮不跑 App、UI、接口、测试或迁移验证。
+- P1 账号范围、P3 编辑封面与 P4 转存已接入源码；Server 资源生命周期与真实跨设备行为仍需用户验收。必要检查仅 TypeScript/vue-tsc 与 diff，不把静态检查视为 App、UI、接口、测试或迁移验证。
+
+
+## 自建歌单编辑与封面上传
+
+- `mine/PlaylistEditDialog.vue` 统一新建与编辑外壳，`CreatePlaylistDialog` 保留 open/created 接口供添加歌单流程复用；标题、描述和最多 3 个标签保持，修改未保存关闭需确认。我的歌单与自建详情提供编辑/二次确认删除，成功后刷新索引和详情；删除仅移除关系，不删音频。
+- `playlist-cover:*` typed IPC 走 API/store，再由 main `playlistCover/coverUploadManager.ts` 组合 Repository create/update 和本机私有状态事务；renderer 只能提供受管 assetId、表单和 identityRevision，不能指定账号、磁盘路径或 JWT。列表返回仅附加本机 preview/status，不持久化到歌单公共 payload 或 sync。
+- `coverAssets.ts` 通过系统选择器收 JPG/PNG/WebP，校验扩展名、魔数、5MiB、解码和像素上限；main 重编码为最大 1024px JPEG 去附带元数据，存 `covers/playlists/<UUID>.jpg`。renderer 获得受管 ID 与预览 Data URL，不读磁盘。取消草稿不创建上传任务，不删除共享/原图。
+- 私有 `main/private/playlist-cover-assets` 与 `main/private/playlist-cover-jobs` 保存账号归属、playlistId、editGeneration、expectedLocalCover、assetId、编辑时间与有界重试检查点；不存上传 token/key/JWT，不新增 schema。未关联歌单保留本机图，不自动搬给登录账号。用户明确确认导入时，在导入事务内为新歌单复制私有封面引用、独立账号/歌单/上传代次，并显式授权新账号读取共享受管副本；源 guest 原件及其引用保留，不直接删除共享图片。重启、身份变化及每分钟网络恢复检查只恢复当前账号，最多 3 次自动尝试后需用户重试，不热循环。
+- `coverClient.ts` 沿用 requestSystem/unwrapResponse 与 main 捕获会话，请求 token→七牛实际直传→complete，核对 userId/playlistId/editGeneration/uploadId 与真实回执；401 保留失败项及会话，不调用失败会清会话的刷新入口、不降游客。每个 await 后检查身份/封面代次，停机停止回写。
+- uploadId/上传已完成/ready DTO 分别持久化；上传后未 complete 可幂等续 complete，ready 但引用未落库可重试短事务。引用更新与 outbox、本机状态原子提交；尚未引用的迟到上传留 Server 七天生命周期回收，不复活被替换/自动封面/删除的状态。已上传资源同步400时，编辑弹窗可用本机副本显式解绑重传（生成新 outbox）或恢复默认。
+- 上传引用的 outbox 沿用该封面代次最近真实用户编辑时钟（含同机后续改名/曲目修改），不能使用上传完成时刻压过他端编辑；Repository 原子维护 row/outbox/私有 editedAt，同设备远端回声不推进该时钟。每次明确本机图/默认/预设切换都生成或取消私有代次，资源/预设互斥清 null；本机图在公共歌单中 cover 为空，私有 fallback 不被同设备空 cover 回声/快照抹掉。实际应用其他设备更新时对照 deviceId/clientUpdatedAt 与本机编辑时间，较新明确恢复默认即使同为空 cover 也撤销旧上传；公共封面指纹变化同样阻止晚引用。
+- `playlist/playlistCover.ts` 解析 PM 相同逻辑预设 local_chill/focus/gaming/jazz/pop/workout（PC 使用自身矢量资源），普通自建歌单 KG 模板也按调用尺寸解析；卡片 480、详情 720，远程图加载失败回退本机副本。最后一首实际新增歌曲的自动封面规则始终生效，重复项不参与，LOCAL/无图保留原图；有有效远程图则清资源/预设使旧上传指纹失配。

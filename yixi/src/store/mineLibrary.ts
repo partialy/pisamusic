@@ -4,6 +4,9 @@ import { defineStore } from "pinia";
 import type { CommonPlaylist, Song } from "@/types/song";
 import {
   addSongToMinePlaylist,
+  saveMinePlaylistEdit,
+  removeMinePlaylist,
+  retryMinePlaylistCover,
   createMinePlaylist,
   listMineCloudSongs,
   listMinePlaylistSongs,
@@ -136,6 +139,24 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
     return playlist;
   }
 
+  async function savePlaylistEdit(input: import("@/types/playlistCover").PlaylistEditInput) {
+    const playlist = await saveMinePlaylistEdit(input);
+    await loadCache();
+    if (!isCurrentLibraryRevision(input.identityRevision)) throw new Error("账号已变化，请重新编辑");
+    return playlist;
+  }
+  async function removePlaylist(playlistId: string, revision: number) {
+    const removed = await removeMinePlaylist(playlistId, revision);
+    await loadCache();
+    if (!isCurrentLibraryRevision(revision)) throw new Error("账号已变化，请重新确认");
+    delete playlistSongs.value[playlistId];
+    return removed;
+  }
+  async function retryPlaylistCover(playlistId: string, revision: number) {
+    await retryMinePlaylistCover(playlistId, revision);
+    await loadCache();
+  }
+
   async function addSongToPlaylist(playlistId: string, song: Song) {
     const revision = await captureLibraryRevision();
     const songs = await addSongToMinePlaylist(playlistId, song);
@@ -221,6 +242,9 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
     refreshPlaylists,
     refreshCloudSongs,
     createPlaylist,
+    savePlaylistEdit,
+    removePlaylist,
+    retryPlaylistCover,
     addSongToPlaylist,
     loadPlaylistSongs,
     getPlaylistsBySource,

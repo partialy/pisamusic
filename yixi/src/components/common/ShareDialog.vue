@@ -26,7 +26,7 @@
                   <div class="vinyl-center"></div>
                 </div>
                 <div class="cover-art">
-                  <img :src="cover" :alt="title" />
+                  <img :src="cover" :alt="title" @error="target?.type === 'playlist' && playlistCoverFallback($event, target.data)" />
                   <div class="cover-gloss"></div>
                 </div>
               </div>
@@ -140,6 +140,7 @@ import QrcodeVue from "qrcode.vue";
 import { Check, Copy, ExternalLink, ListMusic, Music, Radio, Sparkles, X } from "lucide-vue-next";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { defaultSongCover, getSongCover } from "@/utils/common";
+import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { createPlaylistShare, createSongShare } from "@/share/shareApi";
 import { useUserStore } from "@/store";
@@ -193,7 +194,7 @@ const cover = computed(() => {
   const current = target.value;
   if (!current) return defaultSongCover;
   if (current.type === "song") return getSongCover(current.data, 480);
-  if (current.data.source === "local") return current.data.cover || defaultPlaylistCover;
+  if (current.data.source === "local") return getPlaylistCover(current.data, 480);
   return getSongCover(current.data, 480, defaultPlaylistCover);
 });
 

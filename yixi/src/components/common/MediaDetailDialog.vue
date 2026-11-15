@@ -43,7 +43,7 @@
 
           <div v-else-if="playlist" class="detail-body">
             <div class="hero-row">
-              <img class="cover-img" :src="playlistCover" :alt="playlist.name" />
+              <img class="cover-img" :src="playlistCover" :alt="playlist.name" @error="playlistCoverFallback($event, playlist)" />
               <div class="hero-info">
                 <div class="hero-name" :title="playlist.name">{{ playlist.name || "未知歌单" }}</div>
                 <div class="hero-sub" :title="playlist.desc">{{ playlist.desc || "暂无描述" }}</div>
@@ -79,6 +79,7 @@ import { Info, X } from "lucide-vue-next";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { useCollectStore } from "@/store";
 import { defaultSongCover, getSongCover } from "@/utils/common";
+import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 
 type DetailFieldItem = {
@@ -102,7 +103,7 @@ const songCover = computed(() => {
 const playlistCover = computed(() => {
   const target = playlist.value;
   if (!target) return defaultPlaylistCover;
-  if (target.source === "local") return target.cover || defaultPlaylistCover;
+  if (target.source === "local") return getPlaylistCover(target, 480);
   return getSongCover(target, 480, defaultPlaylistCover);
 });
 const songPath = computed(() => {

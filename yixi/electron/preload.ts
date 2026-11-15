@@ -122,6 +122,13 @@ const desktopLyricIpc = {
   ) => on("media-control", callback),
 };
 
+// 本机歌单封面：只传受管资源 ID 和公开表单，不传磁盘路径或凭据。
+const playlistCoverIpc = {
+  selectManagedPlaylistCover: () => ipcRenderer.invoke("playlist-cover:select"),
+  savePlaylistEdit: (input: import("../src/types/playlistCover").PlaylistEditInput) => ipcRenderer.invoke("playlist-cover:save-edit", cloneIpcPayload(input)),
+  retryPlaylistCover: (input: { playlistId: string; identityRevision: number }) => ipcRenderer.invoke("playlist-cover:retry", cloneIpcPayload(input)),
+};
+
 const settingsIpc = {
   getSetting: (key: string) => ipcRenderer.invoke("settings:get", key),
   setSetting: (key: string, value: any, version?: number) =>
@@ -536,6 +543,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...downloadApiIpc,
   ...mediaCacheIpc,
   ...settingsIpc,
+  ...playlistCoverIpc,
   ...shortcutIpc,
   ...libraryIpc,
   ...utilsIpc,

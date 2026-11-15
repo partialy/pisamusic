@@ -3,7 +3,7 @@
     <div class="detail-header" :style="{ height: isMini ? '120px' : '220px' }">
       <div class="detail-header-left" :style="{ width: isMini ? '100px' : '200px' }">
         <div class="detail-header-left-img" :style="{ width: isMini ? '100px' : '200px' }">
-          <img :src="detailCover" alt="detailHeader" />
+          <img :src="detailCover" alt="detailHeader" @error="playlistCoverFallback($event, listDetail)" />
         </div>
       </div>
       <div class="detail-header-right">
@@ -50,6 +50,8 @@
               <n-button v-if="listDetail?.source === 'kg' || listDetail?.source === 'wy'" round secondary style="margin-left: 10px" @click="conversionVisible = true">
                 转为本地歌单
               </n-button>
+              <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="editDialogRef?.open(listDetail)">编辑</n-button>
+              <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="deleteCurrentPlaylist">删除</n-button>
               <n-button round secondary style="margin-left: 10px" @click="openDetailPage">
                 <template #icon>
                   <n-icon :component="Info"></n-icon>
@@ -82,6 +84,7 @@
       <SongList :songs="songList" :loading="loading" :has-more="songList.length < page.total" :search-key="searchText"
         show-footer show-header @scroll="onScroll" @scroll-to-bottom="onToBottom" />
     </div>
+    <PlaylistEditDialog ref="editDialogRef" />
     <ShareDialog ref="shareDialogRef" />
     <OnlinePlaylistConversionDialog v-model:show="conversionVisible" :playlist="listDetail" />
   </div>
@@ -139,6 +142,9 @@ import type { WYPlaylistDetail } from "@/utils/webapi";
 import { getPlaylistDetail, getPlaylistTracks } from "@/utils/api/musicAPI";
 import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 import { listMinePlaylistSongs, listMinePlaylists } from "@/utils/api/mineLibraryAPI";
+import PlaylistEditDialog from "@/components/mine/PlaylistEditDialog.vue";
+import { usePlaylistManagement } from "@/composables/usePlaylistManagement";
+import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { Info, Share2 } from "lucide-vue-next";
 import ShareDialog from "@/components/common/ShareDialog.vue";
@@ -168,11 +174,22 @@ const kgListDetail = ref<KGPlaylistDetailData>();
 const wyListDetail = ref<WYPlaylistDetail>();
 
 const listDetail = ref<CommonPlaylist>();
+const editDialogRef = ref<InstanceType<typeof PlaylistEditDialog> | null>(null);
+const { confirmDelete } = usePlaylistManagement();
+function deleteCurrentPlaylist() {
+  const playlist = listDetail.value;
+  if (playlist?.source === "local") void confirmDelete(playlist, () => {
+    if (getDetailOrigin() !== "local" || String(route.query.id) !== playlist.id) return;
+    loadVersion.value++; listDetail.value = undefined; songList.value = []; allSong.value = []; localSongCache.value = [];
+    void router.replace("/mine");
+  });
+}
+
 const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
 const detailCover = computed(() => {
   const origin = getDetailOrigin();
   if (origin === "local") {
-    return listDetail.value?.cover || defaultPlaylistCover;
+    return getPlaylistCover(listDetail.value, 720);
   }
   return listDetail.value ? getSongCover(listDetail.value, 720, defaultPlaylistCover) : defaultPlaylistCover;
 });
@@ -442,7 +459,21 @@ const stopIdentityListener = onLibraryIdentityChanged(() => {
   isPlayingAllFromHere.value = false;
   void router.replace("/mine");
 });
-onUnmounted(() => { loadVersion.value++; stopIdentityListener(); });
+let metadataGeneration = 0;
+const stopPlaylistChanges = window.electronAPI.onMineLibraryChanged(async () => {
+  if (getDetailOrigin() !== "local") return;
+  const request = captureDetailRequest();
+  const revision = await captureLibraryRevision();
+  const generation = ++metadataGeneration;
+  try {
+    const playlists = await listMinePlaylists("local");
+    if (generation !== metadataGeneration || !isCurrentLibraryRevision(revision) || !isCurrentDetailRequest(request)) return;
+    const playlist = playlists.find(item => item.id === request.id);
+    if (playlist) listDetail.value = playlist;
+    else { loadVersion.value++; listDetail.value = undefined; songList.value = []; allSong.value = []; localSongCache.value = []; void router.replace("/mine"); }
+  } catch { /* 保留当前详情；下次成功通知或重新进入时恢复。 */ }
+});
+onUnmounted(() => { loadVersion.value++; metadataGeneration++; stopIdentityListener(); stopPlaylistChanges(); });
 
 onMounted(async () => {
   loading.value = true;
