@@ -1,193 +1,168 @@
 <template>
-  <n-modal
-    v-model:show="equalizerStore.showModal"
-    transform-origin="center"
-    class="equalizer-modal"
-  >
-    <n-card class="equalizer-card" :bordered="false" role="dialog" aria-modal="true">
-      <!-- 头部：标题、状态开关、操作按钮 -->
-      <div class="eq-header">
-        <div class="header-left">
-          <div class="title-icon-box" :class="{ 'is-active': equalizerStore.enabled }">
-            <Sliders :size="18" />
-          </div>
-          <div class="title-info">
-            <span class="main-title">均衡器</span>
-            <span class="status-tag" :class="{ 'is-active': equalizerStore.enabled }">
-              {{ equalizerStore.enabled ? "已开启" : "已旁路 (关闭)" }}
-            </span>
-          </div>
-          <n-switch
-            :value="equalizerStore.enabled"
-            size="small"
-            class="eq-switch"
-            @update:value="equalizerStore.setEnabled"
-          />
+  <AppModal v-model:show="equalizerStore.showModal" title="均衡器" :icon="Sliders" :width="660">
+    <div class="eq-content">
+      <div class="eq-status-card">
+        <div class="eq-status-info">
+          <span class="eq-status-title">均衡器效果</span>
+          <span class="eq-status-description">{{ equalizerStore.enabled ? "已开启，调整将实时生效" : "已关闭，使用原始音效" }}</span>
         </div>
-
-        <div class="header-right">
-          <button
-            type="button"
-            class="header-action-btn"
-            title="重置为默认平坦"
-            @click="equalizerStore.reset"
-          >
-            <RotateCcw :size="14" />
-            <span>重置</span>
-          </button>
-          <button
-            type="button"
-            class="header-close-btn"
-            title="关闭"
-            @click="equalizerStore.closeModal"
-          >
-            <X :size="16" />
-          </button>
-        </div>
+        <n-switch :value="equalizerStore.enabled" aria-label="启用均衡器" @update:value="equalizerStore.setEnabled" />
       </div>
-
-      <!-- 动态频响曲线图 (SVG 贝塞尔平滑曲线) -->
-      <div class="eq-curve-container" :class="{ 'is-disabled': !equalizerStore.enabled }">
-        <svg
-          class="eq-curve-svg"
-          viewBox="0 0 600 120"
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id="eqCurveGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="var(--color-primary, #18a058)" stop-opacity="0.35" />
-              <stop offset="100%" stop-color="var(--color-primary, #18a058)" stop-opacity="0.0" />
-            </linearGradient>
-            <linearGradient id="eqStrokeGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stop-color="var(--color-primary, #18a058)" stop-opacity="0.8" />
-              <stop offset="50%" stop-color="var(--color-primary, #18a058)" stop-opacity="1.0" />
-              <stop offset="100%" stop-color="var(--color-primary, #18a058)" stop-opacity="0.8" />
-            </linearGradient>
-          </defs>
-
-          <!-- 0 dB 中轴参考线 -->
-          <line
-            x1="0"
-            y1="60"
-            x2="600"
-            y2="60"
-            class="ref-line center-line"
-          />
-          <!-- +6dB / -6dB 辅助刻度线 -->
-          <line x1="0" y1="30" x2="600" y2="30" class="ref-line sub-line" />
-          <line x1="0" y1="90" x2="600" y2="90" class="ref-line sub-line" />
-
-          <!-- 渐变填充区域 -->
-          <path :d="curveAreaPath" class="curve-area" fill="url(#eqCurveGradient)" />
-
-          <!-- 平滑曲线描边 -->
-          <path :d="curveStrokePath" class="curve-stroke" stroke="url(#eqStrokeGradient)" />
-
-          <!-- 频段节点圆点 -->
-          <circle
-            v-for="(pt, idx) in curvePoints"
-            :key="idx"
-            :cx="pt.x"
-            :cy="pt.y"
-            r="3.5"
-            class="curve-node"
-            :class="{ 'is-active': equalizerStore.enabled }"
-          />
-        </svg>
-
-        <!-- dB 刻度指示 -->
-        <div class="scale-indicators">
-          <span class="scale-label top">+12dB</span>
-          <span class="scale-label zero">0dB</span>
-          <span class="scale-label bottom">-12dB</span>
-        </div>
-      </div>
-
-      <!-- 预设选择胶囊栏 -->
-      <div class="eq-presets-wrapper">
-        <div class="presets-scroll">
-          <button
-            v-for="preset in equalizerStore.presets"
-            :key="preset.key"
-            type="button"
-            class="preset-pill"
-            :class="{ active: equalizerStore.currentPresetKey === preset.key }"
-            @click="equalizerStore.applyPreset(preset.key)"
+      <section class="eq-section">
+        <div class="eq-section-title">频率响应</div>
+        <div class="eq-curve-container" :class="{ 'is-disabled': !equalizerStore.enabled }">
+          <svg
+            class="eq-curve-svg"
+            viewBox="0 0 600 120"
+            preserveAspectRatio="none"
           >
-            {{ preset.name }}
-          </button>
-          <button
-            type="button"
-            class="preset-pill"
-            :class="{ active: equalizerStore.currentPresetKey === 'custom' }"
-            @click="equalizerStore.currentPresetKey = 'custom'"
-          >
-            自定义
-          </button>
-        </div>
-      </div>
+            <defs>
+              <linearGradient id="eqCurveGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--color-primary, #18a058)" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="var(--color-primary, #18a058)" stop-opacity="0.0" />
+              </linearGradient>
+              <linearGradient id="eqStrokeGradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="var(--color-primary, #18a058)" stop-opacity="0.8" />
+                <stop offset="50%" stop-color="var(--color-primary, #18a058)" stop-opacity="1.0" />
+                <stop offset="100%" stop-color="var(--color-primary, #18a058)" stop-opacity="0.8" />
+              </linearGradient>
+            </defs>
 
-      <!-- 垂直推子矩阵 -->
-      <div class="eq-faders-panel" :class="{ 'is-disabled': !equalizerStore.enabled }">
-        <!-- 前级增益 (Preamp) 独立区域 -->
-        <div class="fader-col preamp-col">
-          <span class="fader-val" :class="getGainClass(equalizerStore.preamp)">
-            {{ formatGain(equalizerStore.preamp) }}
-          </span>
-          <div class="slider-track-box">
-            <n-slider
-              vertical
-              :value="equalizerStore.preamp"
-              :min="-12"
-              :max="12"
-              :step="0.5"
-              :tooltip="false"
-              :disabled="!equalizerStore.enabled"
-              class="eq-slider preamp-slider"
-              @update:value="equalizerStore.setPreampGain"
+            <!-- 0 dB 中轴参考线 -->
+            <line
+              x1="0"
+              y1="60"
+              x2="600"
+              y2="60"
+              class="ref-line center-line"
             />
-            <div class="zero-tick"></div>
+            <!-- +6dB / -6dB 辅助刻度线 -->
+            <line x1="0" y1="30" x2="600" y2="30" class="ref-line sub-line" />
+            <line x1="0" y1="90" x2="600" y2="90" class="ref-line sub-line" />
+
+            <!-- 渐变填充区域 -->
+            <path :d="curveAreaPath" class="curve-area" fill="url(#eqCurveGradient)" />
+
+            <!-- 平滑曲线描边 -->
+            <path :d="curveStrokePath" class="curve-stroke" stroke="url(#eqStrokeGradient)" />
+
+            <!-- 频段节点圆点 -->
+            <circle
+              v-for="(pt, idx) in curvePoints"
+              :key="idx"
+              :cx="pt.x"
+              :cy="pt.y"
+              r="3.5"
+              class="curve-node"
+              :class="{ 'is-active': equalizerStore.enabled }"
+            />
+          </svg>
+
+          <!-- dB 刻度指示 -->
+          <div class="scale-indicators">
+            <span class="scale-label top">+12dB</span>
+            <span class="scale-label zero">0dB</span>
+            <span class="scale-label bottom">-12dB</span>
           </div>
-          <span class="fader-label preamp-label">前级增益</span>
         </div>
 
-        <div class="fader-divider"></div>
+      </section>
+      <section class="eq-section">
+        <div class="eq-section-title">音效预设</div>
+        <div class="eq-presets-wrapper">
+          <div class="presets-scroll">
+            <button
+              v-for="preset in equalizerStore.presets"
+              :key="preset.key"
+              type="button"
+              class="preset-pill"
+              :class="{ active: equalizerStore.currentPresetKey === preset.key }"
+              @click="equalizerStore.applyPreset(preset.key)"
+            >
+              {{ preset.name }}
+            </button>
+            <button
+              type="button"
+              class="preset-pill"
+              :class="{ active: equalizerStore.currentPresetKey === 'custom' }"
+              @click="equalizerStore.currentPresetKey = 'custom'"
+            >
+              自定义
+            </button>
+          </div>
+        </div>
 
-        <!-- 10 个频段推子 -->
-        <div class="bands-faders">
-          <div
-            v-for="(freq, index) in equalizerStore.frequencies"
-            :key="freq"
-            class="fader-col band-col"
-          >
-            <span class="fader-val" :class="getGainClass(equalizerStore.gains[index])">
-              {{ formatGain(equalizerStore.gains[index]) }}
-            </span>
-            <div class="slider-track-box">
-              <n-slider
-                vertical
-                :value="equalizerStore.gains[index]"
-                :min="-12"
-                :max="12"
-                :step="0.5"
-                :tooltip="false"
-                :disabled="!equalizerStore.enabled"
-                class="eq-slider"
-                @update:value="(val: number) => equalizerStore.setBandGain(index, val)"
-              />
-              <div class="zero-tick"></div>
+      </section>
+      <section class="eq-section">
+        <div class="eq-section-title">频段调整</div>
+        <div class="eq-faders-scroll">
+          <div class="eq-faders-panel" :class="{ 'is-disabled': !equalizerStore.enabled }">
+            <!-- 前级增益 (Preamp) 独立区域 -->
+            <div class="fader-col preamp-col">
+              <span class="fader-val" :class="getGainClass(equalizerStore.preamp)">
+                {{ formatGain(equalizerStore.preamp) }}
+              </span>
+              <div class="slider-track-box">
+                <n-slider
+                  vertical
+                  :value="equalizerStore.preamp"
+                  :min="-12"
+                  :max="12"
+                  :step="0.5"
+                  :tooltip="false"
+                  :disabled="!equalizerStore.enabled"
+                  class="eq-slider preamp-slider"
+                  @update:value="equalizerStore.setPreampGain"
+                />
+                <div class="zero-tick"></div>
+              </div>
+              <span class="fader-label preamp-label">前级增益</span>
             </div>
-            <span class="fader-label">{{ formatFreq(freq) }}</span>
+
+            <div class="fader-divider"></div>
+
+            <!-- 10 个频段推子 -->
+            <div class="bands-faders">
+              <div
+                v-for="(freq, index) in equalizerStore.frequencies"
+                :key="freq"
+                class="fader-col band-col"
+              >
+                <span class="fader-val" :class="getGainClass(equalizerStore.gains[index])">
+                  {{ formatGain(equalizerStore.gains[index]) }}
+                </span>
+                <div class="slider-track-box">
+                  <n-slider
+                    vertical
+                    :value="equalizerStore.gains[index]"
+                    :min="-12"
+                    :max="12"
+                    :step="0.5"
+                    :tooltip="false"
+                    :disabled="!equalizerStore.enabled"
+                    class="eq-slider"
+                    @update:value="(val: number) => equalizerStore.setBandGain(index, val)"
+                  />
+                  <div class="zero-tick"></div>
+                </div>
+                <span class="fader-label">{{ formatFreq(freq) }}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </n-card>
-  </n-modal>
+      </section>
+    </div>
+    <template #footer>
+      <n-button round secondary @click="equalizerStore.reset"><template #icon><n-icon :component="RotateCcw" /></template>重置</n-button>
+      <n-button round @click="equalizerStore.closeModal"><template #icon><n-icon :component="X" /></template>关闭</n-button>
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { NModal, NCard, NSwitch, NSlider } from "naive-ui";
+import { NButton, NIcon, NSwitch, NSlider } from "naive-ui";
+import AppModal from "@/components/common/AppModal.vue";
 import { Sliders, RotateCcw, X } from "lucide-vue-next";
 import { useEqualizerStore } from "@/store";
 
@@ -280,126 +255,14 @@ const curveAreaPath = computed(() => {
 </script>
 
 <style scoped lang="scss">
-:global(.equalizer-modal) {
-  width: auto !important;
-}
-
-:global(.equalizer-card.n-card) {
-  width: 660px;
-  max-width: calc(100vw - 32px);
-  border-radius: var(--radius-control);
-  background: var(--surface-modal) !important;
-  backdrop-filter: var(--filter-panel, blur(16px));
-  -webkit-backdrop-filter: var(--filter-panel, blur(16px));
-  box-shadow: var(--shadow-modal);
-  border: 1px solid var(--border-modal) !important;
-  padding: 8px 12px 16px 12px;
-  user-select: none;
-}
-
-.eq-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    .title-icon-box {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: var(--radius-control);
-      background: var(--surface-input);
-      color: var(--text-secondary);
-      transition: all 0.25s ease;
-
-      &.is-active {
-        background: color-mix(in srgb, var(--color-primary) 14%, transparent);
-        color: var(--text-accent);
-      }
-    }
-
-    .title-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-
-      .main-title {
-        font-size: 15px;
-        font-weight: 700;
-        color: var(--text-primary);
-        line-height: 1.2;
-      }
-
-      .status-tag {
-        font-size: 11px;
-        color: var(--text-secondary);
-        opacity: 0.8;
-
-        &.is-active {
-          color: var(--text-accent);
-          font-weight: 600;
-          opacity: 1;
-        }
-      }
-    }
-
-    .eq-switch {
-      margin-left: 6px;
-    }
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    .header-action-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 5px 10px;
-      border-radius: var(--radius-pill);
-      border: 1px solid var(--border-subtle);
-      background: var(--surface-card);
-      color: var(--text-secondary);
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.18s ease;
-
-      &:hover {
-        border-color: var(--border-default);
-        background: var(--surface-card-hover);
-        color: var(--text-accent);
-      }
-    }
-
-    .header-close-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      border-radius: var(--radius-control);
-      border: none;
-      background: transparent;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.18s ease;
-
-      &:hover {
-        background: var(--surface-hover);
-        color: var(--text-primary);
-      }
-    }
-  }
-}
+.eq-content { display: grid; gap: 20px; user-select: none; }
+.eq-status-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-card); }
+.eq-status-info { display: grid; gap: 4px; }
+.eq-status-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.eq-status-description { font-size: 12px; color: var(--text-secondary); }
+.eq-section { display: grid; gap: 12px; min-width: 0; }
+.eq-section-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.eq-faders-scroll { overflow-x: auto; }
 
 .eq-curve-container {
   position: relative;
@@ -409,7 +272,6 @@ const curveAreaPath = computed(() => {
   background: var(--surface-input);
   border: 1px solid var(--border-subtle);
   overflow: hidden;
-  margin-bottom: 14px;
   transition: opacity 0.25s ease;
 
   &.is-disabled {
@@ -475,7 +337,6 @@ const curveAreaPath = computed(() => {
 }
 
 .eq-presets-wrapper {
-  margin-bottom: 14px;
   overflow-x: auto;
   padding-bottom: 2px;
 
@@ -521,7 +382,8 @@ const curveAreaPath = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 4px 4px 4px;
+  min-width: 520px;
+  padding: 16px 12px;
   background: var(--surface-input);
   border-radius: var(--radius-control);
   border: 1px solid var(--border-subtle);
