@@ -82,6 +82,7 @@
     </div>
     <div class="scroll-list">
       <SongList :songs="songList" :loading="loading" :has-more="songList.length < page.total" :search-key="searchText"
+        batch-enabled batch-context="playlist" :batch-snapshot-mode="getDetailOrigin() !== 'local'" :batch-removable="getDetailOrigin() === 'local'" :prepare-batch="prepareBatchSongs" @batch-remove="removeBatchSongs"
         show-footer show-header @scroll="onScroll" @scroll-to-bottom="onToBottom" />
     </div>
     <PlaylistEditDialog ref="editDialogRef" />
@@ -149,6 +150,7 @@ import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover
 import { Info, Share2 } from "lucide-vue-next";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import OnlinePlaylistConversionDialog from "./OnlinePlaylistConversionDialog.vue";
+import { loadOnlinePlaylist } from "@/playlist/onlinePlaylistBatchLoader";
 import { openPlaylistDetail } from "@/share/mediaDetailRoute";
 
 import SongList from "@/components/list/SongList.vue";
@@ -186,6 +188,33 @@ function deleteCurrentPlaylist() {
 }
 
 const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
+async function prepareBatchSongs(signal?: AbortSignal): Promise<Song[]> {
+  const request = captureDetailRequest();
+  const revision = await captureLibraryRevision();
+  const songs = request.origin === "local" ? await listMinePlaylistSongs(request.id)
+    : (await loadOnlinePlaylist(request.origin, request.id, { signal })).songs;
+  if (signal?.aborted || !isCurrentDetailRequest(request) || !isCurrentLibraryRevision(revision)) throw new Error("歌单或账号已变化，已停止读取");
+  if (request.origin === "local") { localSongCache.value = songs; allSong.value = songs; songList.value = songs; page.value.total = songs.length; }
+  return songs;
+}
+async function removeBatchSongs(songs: Song[]) {
+  const request = captureDetailRequest();
+  if (request.origin !== "local" || !songs.length) return;
+  const revision = await captureLibraryRevision();
+  const keys = songs.map(song => ({ source: song.source, id: song.id }));
+  window.$dialog.warning({ title: "移除所选歌曲？", content: `从当前自建歌单移除 ${keys.length} 首歌曲，不删除音频文件。`, positiveText: "移除", negativeText: "取消", onPositiveClick: async () => {
+    if (!isCurrentDetailRequest(request) || !isCurrentLibraryRevision(revision)) return false;
+    try {
+      const payload = { playlistId: request.id, keys, identityRevision: revision };
+      const result = await window.electronAPI.bulkRemoveUserPlaylistTracks(payload);
+      if (!isCurrentDetailRequest(request) || !isCurrentLibraryRevision(revision)) return;
+      const remaining = await listMinePlaylistSongs(request.id);
+      if (!isCurrentDetailRequest(request)) return;
+      localSongCache.value = remaining; allSong.value = remaining; songList.value = remaining; page.value.total = remaining.length;
+      window.$message.success(`已移除 ${result.removed.length} 首`);
+    } catch (error) { if (isCurrentDetailRequest(request)) window.$message.error(error instanceof Error ? error.message : "移除失败"); return false; }
+  } });
+}
 const detailCover = computed(() => {
   const origin = getDetailOrigin();
   if (origin === "local") {
@@ -469,7 +498,11 @@ const stopPlaylistChanges = window.electronAPI.onMineLibraryChanged(async () => 
     const playlists = await listMinePlaylists("local");
     if (generation !== metadataGeneration || !isCurrentLibraryRevision(revision) || !isCurrentDetailRequest(request)) return;
     const playlist = playlists.find(item => item.id === request.id);
-    if (playlist) listDetail.value = playlist;
+    if (playlist) {
+      const songs = await listMinePlaylistSongs(request.id);
+      if (generation !== metadataGeneration || !isCurrentLibraryRevision(revision) || !isCurrentDetailRequest(request)) return;
+      listDetail.value = playlist; localSongCache.value = songs; allSong.value = songs; songList.value = songs; page.value.total = songs.length;
+    }
     else { loadVersion.value++; listDetail.value = undefined; songList.value = []; allSong.value = []; localSongCache.value = []; void router.replace("/mine"); }
   } catch { /* 保留当前详情；下次成功通知或重新进入时恢复。 */ }
 });

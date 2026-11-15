@@ -80,7 +80,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   playAll: [];
-  toggleSelect: [item: CommonPlaylist];
+  toggleSelect: [item: CommonPlaylist, event?: MouseEvent];
 }>();
 
 const cover = computed(() => {
@@ -98,9 +98,9 @@ const playCount = computed(() => {
 
 const isCollected = computed(() => collector.containsPlaylist(props.item));
 
-const handleClick = () => {
+const handleClick = (event: MouseEvent) => {
   if (props.selectable) {
-    emit("toggleSelect", props.item);
+    emit("toggleSelect", props.item, event);
     return;
   }
   router.push({

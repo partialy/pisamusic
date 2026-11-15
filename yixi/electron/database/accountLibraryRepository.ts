@@ -130,6 +130,14 @@ export class AccountLibraryRepository {
     });
   }
   containsFavoriteSong(source: string, id: string) { return Boolean(this.row("favorite_song", favoriteKey(source, id))); }
+  ensureFavoriteSong(track: TrackSnapshot): boolean {
+    return this.transaction(() => {
+      const normalized = normalizeTrackSnapshot(track);
+      if (this.containsFavoriteSong(normalized.source, normalized.id)) return false;
+      this.addFavoriteSong(normalized);
+      return true;
+    });
+  }
   toggleFavoriteSong(track: TrackSnapshot) {
     return this.transaction(() => {
       if (this.containsFavoriteSong(track.source, track.id)) { this.removeFavoriteSong(track.source, track.id); return { collected: false, item: null }; }

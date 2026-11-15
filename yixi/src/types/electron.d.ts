@@ -892,6 +892,7 @@ type ElectronIpcApi = {
   saveQueueSnapshot: (snapshot: { currentIndex: number; queue: any[] }) => Promise<QueueSnapshot>;
   listFavoriteSongs: () => Promise<FavoriteSongItem[]>;
   addFavoriteSong: (track: TrackSnapshot) => Promise<FavoriteSongItem | null>;
+  ensureFavoriteSong: (track: TrackSnapshot) => Promise<{ added: boolean }>;
   removeFavoriteSong: (payload: { source: string; id: string }) => Promise<boolean>;
   toggleFavoriteSong: (track: TrackSnapshot) => Promise<{ collected: boolean; item: FavoriteSongItem | null }>;
   containsFavoriteSong: (payload: { source: string; id: string }) => Promise<boolean>;

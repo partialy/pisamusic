@@ -4,8 +4,8 @@
       <div class="song-line">
         <img :src="coverUrl" :alt="song?.name || ''" />
         <div class="song-info">
-          <div class="song-name" :title="song?.name || ''">{{ song?.name || "未知歌曲" }}</div>
-          <div class="song-meta" :title="song?.singer || ''">{{ song?.singer || "未知歌手" }}</div>
+          <div class="song-name" :title="song?.name || ''">{{ targets.length > 1 ? `已选择 ${targets.length} 首歌曲` : song?.name || "未知歌曲" }}</div>
+          <div class="song-meta" :title="song?.singer || ''">{{ targets.length > 1 ? '重复曲目将自动跳过' : song?.singer || "未知歌手" }}</div>
         </div>
       </div>
 
@@ -26,6 +26,7 @@
     </div>
 
     <template #footer>
+      <n-button round secondary :disabled="submitting" @click="openCreateDialog">新建歌单</n-button>
       <n-button quaternary class="cancel-btn" @click="closeDialog">取消</n-button>
       <n-button
         class="confirm-btn"
@@ -41,18 +42,25 @@
 
 <script setup lang="ts">
 import AppModal from "@/components/common/AppModal.vue";
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, toRaw, watch } from "vue";
 import { NButton, NSelect } from "naive-ui";
 import { PlaylistAdd } from "@/icons";
 import CreatePlaylistDialog from "@/components/mine/CreatePlaylistDialog.vue";
 import type { CommonPlaylist, Song } from "@/types/song";
 import { defaultSongCover, getSongCover } from "@/utils/common";
 import { useMineLibraryStore } from "@/store";
+import { normalizeSong } from "@/utils/song";
+import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 
 const store = useMineLibraryStore();
 const show = ref(false);
 const submitting = ref(false);
 const song = ref<Song | null>(null);
+const targets = ref<Song[]>([]);
+let revision = -1;
+let openGeneration = 0;
+const stopIdentity = onLibraryIdentityChanged(() => { openGeneration++; show.value = false; targets.value = []; song.value = null; });
+onBeforeUnmount(() => { openGeneration++; stopIdentity(); });
 const playlistId = ref("");
 const createDialogRef = ref<InstanceType<typeof CreatePlaylistDialog> | null>(null);
 
@@ -84,8 +92,18 @@ async function open(target: Song | null | undefined) {
     window.$message.warning("当前没有可添加的歌曲");
     return;
   }
+  await openMany([target]);
+}
+
+async function openMany(songs: Song[]) {
+  if (!songs.length || submitting.value) return;
+  const generation = ++openGeneration;
+  const currentRevision = await captureLibraryRevision();
   await store.init();
-  song.value = target;
+  if (generation !== openGeneration || !isCurrentLibraryRevision(currentRevision)) return;
+  revision = currentRevision;
+  targets.value = JSON.parse(JSON.stringify(songs.map(item => normalizeSong(toRaw(item))))) as Song[];
+  song.value = targets.value[0];
   playlistId.value = playlistOptions.value[0]?.value || "";
   show.value = true;
 }
@@ -104,20 +122,26 @@ async function handleCreated(playlist: CommonPlaylist) {
 }
 
 async function confirmAdd() {
-  if (!song.value || !playlistId.value) return;
+  if (!targets.value.length || !playlistId.value || submitting.value) return;
   submitting.value = true;
   try {
-    await store.addSongToPlaylist(playlistId.value, song.value);
-    window.$message.success("已添加到歌单");
+    if (!isCurrentLibraryRevision(revision)) throw new Error("账号已变化，请重新选择歌单");
+    const payload = { playlistId: playlistId.value, tracks: JSON.parse(JSON.stringify(targets.value)), identityRevision: revision };
+    const result = await window.electronAPI.bulkAddUserPlaylistTracks(payload);
+    if (!isCurrentLibraryRevision(revision)) return;
+    await store.loadCache();
+    if (!isCurrentLibraryRevision(revision)) return;
+    window.$message.success(`已添加 ${result.added.length} 首，跳过已存在 ${result.existing.length} 首`);
     show.value = false;
   } catch (error) {
+    if (!isCurrentLibraryRevision(revision)) return;
     window.$message.error(error instanceof Error ? error.message : "添加到歌单失败");
   } finally {
     submitting.value = false;
   }
 }
 
-defineExpose({ open });
+defineExpose({ open, openMany });
 </script>
 
 <style scoped lang="scss">

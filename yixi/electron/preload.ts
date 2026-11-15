@@ -188,6 +188,7 @@ const libraryIpc = {
   listFavoriteSongs: () => invokeLibrary("library:favorites:songs:list"),
   addFavoriteSong: (track: any) =>
     invokeLibrary("library:favorites:songs:add", cloneIpcPayload(track)),
+  ensureFavoriteSong: (track: any) => invokeLibrary("library:favorites:songs:ensure", cloneIpcPayload(track)),
   removeFavoriteSong: (payload: { source: string; id: string }) =>
     invokeLibrary("library:favorites:songs:remove", cloneIpcPayload(payload)),
   toggleFavoriteSong: (track: any) =>

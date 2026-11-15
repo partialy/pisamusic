@@ -36,6 +36,7 @@
           <n-button secondary class="path-btn" @click="chooseDirectory">选择</n-button>
         </div>
       </div>
+      <n-checkbox v-model:checked="redownload" :disabled="submitting">已完成时重新下载，保留原文件</n-checkbox>
     </div>
 
     <template #footer>
@@ -47,15 +48,16 @@
 
 <script setup lang="ts">
 import AppModal from "@/components/common/AppModal.vue";
-import { computed, ref } from "vue";
-import { NButton, NIcon, NInput } from "naive-ui";
+import { computed, onBeforeUnmount, ref } from "vue";
+import { NButton, NCheckbox, NIcon, NInput } from "naive-ui";
 import { Download as DownloadIcon, ChevronDown } from "lucide-vue-next";
 import type { Song } from "@/types/song";
 import { useAudioStore } from "@/store/audio";
 import { useUserStore } from "@/store";
 import { useSettingStore } from "@/store/settingStore";
 import { defaultSongCover, getSongCover } from "@/utils/common";
-import { startSongDownload } from "@/utils/api/downloadAPI";
+import { enqueueDownloads } from "@/utils/api/downloadAPI";
+import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 import { getQualityOption, getQualityOptionsForSong, isQualitySource } from "@/utils/musicQuality";
 import {
   getQualityAccessLevel,
@@ -77,6 +79,10 @@ const submitting = ref(false);
 const song = ref<Song | null>(null);
 const qualityKey = ref("");
 const directory = ref("");
+const redownload = ref(false);
+let revision = -1, generation = 0;
+const stopIdentity = onLibraryIdentityChanged(() => { generation++; show.value = false; song.value = null; });
+onBeforeUnmount(() => { generation++; stopIdentity(); });
 
 const qualityOptions = computed(() =>
   getQualityOptionsForSong(song.value, getQualityAccessLevel(userStore))
@@ -101,8 +107,13 @@ async function open(target: Song | null | undefined) {
     window.$message.warning("当前歌曲来源暂不支持下载");
     return;
   }
-  song.value = target;
+  const request = ++generation;
+  const currentRevision = await captureLibraryRevision();
   await settingStore.initLocalSetting();
+  if (request !== generation || !isCurrentLibraryRevision(currentRevision)) return;
+  revision = currentRevision;
+  song.value = target;
+  redownload.value = false;
   directory.value = settingStore.local.downloadDirectory;
   const access = getQualityAccessLevel(userStore);
   qualityKey.value = normalizeQualityKeyForAccess(
@@ -131,7 +142,7 @@ async function chooseDirectory() {
 }
 
 async function confirmDownload() {
-  if (!song.value) return;
+  if (!song.value || submitting.value || !isCurrentLibraryRevision(revision)) return;
   if (!isQualitySource(song.value.source)) {
     window.$message.warning("当前歌曲来源暂不支持下载");
     return;
@@ -153,8 +164,13 @@ async function confirmDownload() {
 
   submitting.value = true;
   try {
-    await startSongDownload(song.value, qualityKey.value, directory.value);
-    window.$message.success("已加入下载任务");
+    if (!song.value || !isCurrentLibraryRevision(revision) || !show.value) return;
+    const items = JSON.parse(JSON.stringify([{ song: song.value, qualityKey: qualityKey.value, directory: directory.value, redownload: redownload.value }]));
+    const result = await enqueueDownloads(items, { identityRevision: revision });
+    if (!isCurrentLibraryRevision(revision)) return;
+    if (result.rejected.length) throw new Error(result.rejected[0].message);
+    if (result.existing) { window.$message.info("已有相同任务或已完成文件；需要新副本时请勾选重新下载。"); return; }
+    window.$message.success(`已加入 ${result.added} 个下载任务`);
     show.value = false;
   } catch (error) {
     window.$message.error(error instanceof Error ? error.message : "创建下载任务失败");

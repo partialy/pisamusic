@@ -93,6 +93,7 @@ export function setupPersistenceIpc() {
     return context.repo.listFavoriteSongs().map(item => ({ ...item, payload: resolve(item.payload) }));
   });
   scoped("library:favorites:songs:add", true, (context, track) => context.repo.addFavoriteSong(readTrack(context, track)));
+  scoped("library:favorites:songs:ensure", true, (context, track) => ({ added: context.repo.ensureFavoriteSong(readTrack(context, track)) }));
   scoped("library:favorites:songs:remove", true, (context, payload) => context.repo.removeFavoriteSong(payload.source, payload.id));
   scoped("library:favorites:songs:toggle", true, (context, track) => context.repo.toggleFavoriteSong(readTrack(context, track)));
   scoped("library:favorites:songs:contains", false, (context, payload) => context.repo.containsFavoriteSong(payload.source, payload.id));

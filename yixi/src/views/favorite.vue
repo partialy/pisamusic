@@ -36,6 +36,7 @@
 
         <div class="toolbar-right">
           <n-button
+            v-if="activeTab === 'playlists'"
             secondary
             class="batch-btn"
             :disabled="currentItemsCount === 0"
@@ -74,6 +75,8 @@
           <span class="selected-count">
             已选择 <strong>{{ selectedKeys.size }}</strong> {{ activeTab === 'songs' ? '首歌曲' : '个歌单' }}
           </span>
+          <n-button round size="small" :disabled="isBatchDeleting" @click="playlistSelection.invertVisible">反选</n-button>
+          <n-button v-if="isBatchDeleting" round size="small" @click="deleteController?.abort()">停止后续操作</n-button>
 
           <n-button
             type="error"
@@ -115,15 +118,14 @@
 
     <div class="favorite-content" @wheel.passive="handleScrollableContentWheel">
       <SongList
-        v-if="activeTab === 'songs' && filteredSongs.length"
-        :songs="filteredSongs"
+        v-if="activeTab === 'songs' && songs.length"
+        :songs="songs"
+        :search-key="searchKey"
         :min-size="64"
-        :selectable="isBatchMode"
-        :selected-keys="selectedKeys"
+        batch-enabled
+        batch-context="favorites"
         show-footer
         show-header
-        @toggle-select="toggleSelectSong"
-        @select-all="toggleSelectAll"
         @scroll="handleScrollableContentScroll"
         @scroll-to-top="handleScrollableContentTop" />
 
@@ -132,17 +134,18 @@
         :playlist="filteredPlaylists"
         :selectable="isBatchMode"
         :selected-keys="selectedKeys"
-        @toggle-select="toggleSelectPlaylist" />
+        @toggle-select="toggleSelectPlaylist" @context-select="openPlaylistBatchContext" />
 
       <n-empty v-else class="empty-state" description="暂无收藏内容" />
     </div>
     <AppConfirmDialog ref="confirmDialogRef" />
+    <n-dropdown :show="playlistBatchMenu.show" :x="playlistBatchMenu.x" :y="playlistBatchMenu.y" trigger="manual" :options="[{ key: 'remove', label: '取消收藏所选歌单' }]" @clickoutside="playlistBatchMenu.show = false" @select="playlistBatchMenu.show = false; handleBatchDelete()" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { NButton, NCheckbox, NEmpty, NIcon, NInput } from "naive-ui";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { NButton, NCheckbox, NDropdown, NEmpty, NIcon, NInput } from "naive-ui";
 import { CheckSquare, Play, Search, Trash2 } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
@@ -151,7 +154,10 @@ import AppConfirmDialog from "@/components/common/AppConfirmDialog.vue";
 import { useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
-import type { CommonPlaylist, Song } from "@/types/song";
+import type { CommonPlaylist } from "@/types/song";
+import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
+import { runBatchAction } from "@/batch/BatchActionCoordinator";
+import { useBatchSelection } from "@/composables/useBatchSelection";
 
 const playbackCommands = usePlaybackCommands();
 const collector = useCollectStore();
@@ -163,6 +169,10 @@ const searchFocused = ref(false);
 const isBatchMode = ref(false);
 const selectedKeys = ref<Set<string>>(new Set());
 const isBatchDeleting = ref(false);
+const playlistBatchMenu = ref({ show: false, x: 0, y: 0 });
+let deleteController: AbortController | undefined;
+const stopIdentity = onLibraryIdentityChanged(() => { deleteController?.abort(); selectedKeys.value = new Set(); isBatchMode.value = false; playlistBatchMenu.value.show = false; });
+onBeforeUnmount(() => { deleteController?.abort(); stopIdentity(); });
 
 const confirmDialogRef = ref<InstanceType<typeof AppConfirmDialog> | null>(null);
 
@@ -199,6 +209,7 @@ const filteredPlaylists = computed(() => {
 const currentItemsCount = computed(() => {
   return activeTab.value === "songs" ? filteredSongs.value.length : filteredPlaylists.value.length;
 });
+const playlistSelection = useBatchSelection(playlists, filteredPlaylists, selectedKeys);
 
 const isAllSelected = computed(() => {
   if (!currentItemsCount.value) return false;
@@ -210,58 +221,39 @@ const isAllSelected = computed(() => {
 });
 
 const isIndeterminate = computed(() => {
-  if (!selectedKeys.value.size) return false;
-  return !isAllSelected.value;
+  const selectedVisible = filteredPlaylists.value.filter(playlist => selectedKeys.value.has(`${playlist.source}:${playlist.id}`)).length;
+  return selectedVisible > 0 && selectedVisible < filteredPlaylists.value.length;
 });
 
 function enterBatchMode() {
   isBatchMode.value = true;
-  selectedKeys.value = new Set();
+  playlistSelection.clear();
 }
 
 function exitBatchMode() {
   isBatchMode.value = false;
-  selectedKeys.value = new Set();
+  playlistSelection.clear();
+  playlistBatchMenu.value.show = false;
 }
 
-function toggleSelectSong(song: Song) {
-  const key = `${song.source}:${song.id}`;
-  const next = new Set(selectedKeys.value);
-  if (next.has(key)) {
-    next.delete(key);
-  } else {
-    next.add(key);
-  }
-  selectedKeys.value = next;
+function toggleSelectPlaylist(playlist: CommonPlaylist, event?: MouseEvent) {
+  if (!isBatchDeleting.value) playlistSelection.toggle(playlist, event);
 }
-
-function toggleSelectPlaylist(playlist: CommonPlaylist) {
-  const key = `${playlist.source}:${playlist.id}`;
-  const next = new Set(selectedKeys.value);
-  if (next.has(key)) {
-    next.delete(key);
-  } else {
-    next.add(key);
-  }
-  selectedKeys.value = next;
+function openPlaylistBatchContext(playlist: CommonPlaylist, event: MouseEvent) {
+  if (isBatchDeleting.value) return;
+  playlistSelection.selectForContext(playlist);
+  playlistBatchMenu.value = { show: true, x: event.clientX, y: event.clientY };
 }
 
 function toggleSelectAll() {
-  if (isAllSelected.value) {
-    selectedKeys.value = new Set();
-  } else {
-    const next = new Set<string>();
-    if (activeTab.value === "songs") {
-      filteredSongs.value.forEach((s) => next.add(`${s.source}:${s.id}`));
-    } else {
-      filteredPlaylists.value.forEach((p) => next.add(`${p.source}:${p.id}`));
-    }
-    selectedKeys.value = next;
-  }
+  if (!isBatchDeleting.value) playlistSelection.selectVisible(!isAllSelected.value);
 }
 
 async function handleBatchDelete() {
-  const count = selectedKeys.value.size;
+  if (isBatchDeleting.value) return;
+  const revision = await captureLibraryRevision();
+  const targets = JSON.parse(JSON.stringify(playlists.value.filter(p => selectedKeys.value.has(`${p.source}:${p.id}`)))) as CommonPlaylist[];
+  const count = targets.length;
   if (!count) return;
   const typeText = activeTab.value === "songs" ? "首歌曲" : "个歌单";
 
@@ -273,18 +265,19 @@ async function handleBatchDelete() {
     confirmColor: "#ff4d4f",
   });
 
-  if (!confirmed) return;
+  if (!confirmed || !isCurrentLibraryRevision(revision)) return;
 
   isBatchDeleting.value = true;
+  deleteController = new AbortController();
   try {
-    if (activeTab.value === "songs") {
-      const targets = songs.value.filter((s) => selectedKeys.value.has(`${s.source}:${s.id}`));
-      await collector.batchRemoveSongs(targets);
-    } else {
-      const targets = playlists.value.filter((p) => selectedKeys.value.has(`${p.source}:${p.id}`));
-      await collector.batchRemovePlaylists(targets);
-    }
-    window.$message?.success?.(`已取消收藏 ${count} ${typeText}`);
+    const result = await runBatchAction(targets, async playlist => {
+      if (!isCurrentLibraryRevision(revision)) throw new Error("账号已变化");
+      const payload = { source: playlist.source, id: playlist.id, identityRevision: revision };
+      return await window.electronAPI.removeFavoritePlaylist(payload) ? "succeeded" : "skipped";
+    }, { signal: deleteController.signal });
+    if (!isCurrentLibraryRevision(revision)) return;
+    await collector.reload();
+    window.$message?.info?.(`已取消 ${result.succeeded} 个，跳过 ${result.skipped} 个，失败 ${result.failed} 个，未执行 ${result.unexecuted} 个`);
     exitBatchMode();
   } catch (error: any) {
     window.$message?.error?.(`批量取消收藏失败：${error?.message || error}`);
@@ -307,7 +300,6 @@ function switchFavoriteTab(tab: "songs" | "playlists") {
 }
 
 watch(searchKey, () => {
-  selectedKeys.value = new Set();
   expandHeader();
 });
 

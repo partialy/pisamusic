@@ -16,14 +16,9 @@
         :item="i"
         :selectable="selectable"
         :selected="isPlaylistSelected(i)"
-        @toggle-select="emit('toggleSelect', $event)"
+        @toggle-select="(item, event) => emit('toggleSelect', item, event)"
         @play-all="contextMenu?.handlePlayPlaylist(i)"
-        @contextmenu.stop="
-          contextMenu?.openContextMenu($event, {
-            type: 'playlist',
-            data: i,
-          })
-        " />
+        @contextmenu.stop="openContext($event, i)" />
     </template>
     <ContextMenu ref="contextMenu" />
   </div>
@@ -50,8 +45,14 @@ const props = withDefaults(defineProps<{
 });
 
 const emit = defineEmits<{
-  toggleSelect: [item: CommonPlaylist];
+  toggleSelect: [item: CommonPlaylist, event?: MouseEvent];
+  contextSelect: [item: CommonPlaylist, event: MouseEvent];
 }>();
+function openContext(event: MouseEvent, item: CommonPlaylist) {
+  event.preventDefault();
+  if (props.selectable) emit('contextSelect', item, event);
+  else contextMenu.value?.openContextMenu(event, { type: 'playlist', data: item });
+}
 
 const isPlaylistSelected = (item: CommonPlaylist) => {
   if (!props.selectedKeys) return false;
