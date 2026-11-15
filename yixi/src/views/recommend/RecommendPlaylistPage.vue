@@ -183,7 +183,6 @@ onMounted(() => {
 .recommend-playlist-page {
   width: 100%;
   min-height: 100%;
-  padding-bottom: 32px;
 }
 
 .page-header {

@@ -211,7 +211,7 @@ function renderMenuIcon(icon: Component) {
     display: flex;
     height: calc(100% - 80px);
     overflow-y: overlay;
-    padding: 1rem 1.5rem 1rem 1rem;
+    padding: 1rem 1.5rem 0 1rem;
     background: transparent;
   }
 }
