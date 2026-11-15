@@ -4,7 +4,7 @@
       <h1>本地与下载</h1>
       <div class="page-tabs"><button v-for="tab in tabs" :key="tab.key" class="tab-btn" :class="{ active: activeTab === tab.key }" @click="switchTab(tab.key)">{{ tab.label }} <span>{{ tab.count }}</span></button></div>
     </div>
-    <div class="toolbar">
+    <div class="toolbar batch-operation-toolbar">
       <div class="toolbar-left">
         <template v-if="!isBatchMode">
           <n-button v-if="isSongTab" round type="primary" :disabled="!currentSongs.length || busy" @click="playAll"><template #icon><n-icon :component="Play" /></template>播放全部</n-button>

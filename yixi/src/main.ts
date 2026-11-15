@@ -3,6 +3,7 @@ import App from "./App.vue";
 import "./base.css";
 import "./styles/theme.tokens.css";
 import "./styles/appModal.css";
+import "./styles/batchToolbar.css";
 import "./styles/theme.color.css";
 import "./styles/theme.image.css";
 import "./anim.scss";

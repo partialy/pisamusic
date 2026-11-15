@@ -18,7 +18,7 @@
       </div>
     </div>
 
-    <div class="toolbar">
+    <div class="toolbar batch-operation-toolbar">
       <div class="toolbar-left">
         <template v-if="!isBatchMode">
           <n-button v-if="activeTab === 'songs'" round type="primary" :disabled="!filteredSongs.length" @click="playAll">

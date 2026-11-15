@@ -14,8 +14,8 @@ defineProps<{ actions: { key: string; label: string; icon: Component; disabled?:
 const emit = defineEmits<{ action: [key: string] }>();
 </script>
 <style scoped>
-.batch-segmented-actions { display: inline-flex; align-items: stretch; flex-shrink: 0; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: var(--surface-card); color: var(--text-primary); }
-.batch-segment { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; height: 36px; padding: 0 10px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; transition: background 300ms ease, color 300ms ease; }
+.batch-segmented-actions { box-sizing: border-box; height: var(--batch-control-height, 36px); display: inline-flex; align-items: stretch; flex-shrink: 0; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: var(--surface-card); color: var(--text-primary); }
+.batch-segment { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; height: 100%; padding: 0 10px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; transition: background 300ms ease, color 300ms ease; }
 .batch-segment + .batch-segment { border-left: 1px solid var(--border-subtle); }
 .batch-segment:hover:not(:disabled), .batch-segment:focus-visible { color: var(--text-accent); background: var(--surface-control-hover); }
 .batch-segment:focus-visible { outline: 2px solid var(--text-accent); outline-offset: -3px; border-radius: inherit; }

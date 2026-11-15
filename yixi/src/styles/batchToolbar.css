@@ -1,0 +1,12 @@
+.batch-operation-toolbar,
+.batch-toolbar {
+  --batch-control-height: 36px;
+  min-height: var(--batch-control-height);
+}
+
+.batch-operation-toolbar .n-button,
+.batch-toolbar > .n-button {
+  --n-height: var(--batch-control-height);
+  height: var(--batch-control-height);
+  box-sizing: border-box;
+}

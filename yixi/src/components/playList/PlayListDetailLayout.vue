@@ -26,7 +26,7 @@
               style="margin-right: 8px">{{
               item.name }}</n-tag>
           </div>
-          <div class="operate-btn">
+          <div class="operate-btn batch-operation-toolbar">
             <div v-show="!batchMode">
               <n-button round type="primary" :loading="moreLoading" style="background-color: var(--color-primary)"
                 @click="playAll">
