@@ -65,6 +65,11 @@ export class StartupWindowManager {
       this.onRejected();
       return true;
     });
+
+    ipcMain.handle("startup:quit", () => {
+      this.onRejected();
+      return true;
+    });
   }
 
   hasAcceptedAgreement(version?: number) {

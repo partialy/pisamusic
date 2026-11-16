@@ -272,13 +272,25 @@ export class DesktopLyricManager {
       this.scheduleBoundsSave(bounds);
     });
 
-    const lyricHtmlPath = path.join(__dirname, "./web/lyric-window.html");
-    this.lyricWindow.loadFile(lyricHtmlPath).catch((error) => {
-      logger.error("load desktop lyric window failed", {
-        message: error?.message,
-        stack: error?.stack,
+    this.loadLyricHtml();
+  }
+
+  private getLyricHtmlPath(): string {
+    return path.join(__dirname, "./web/lyric-window.html");
+  }
+
+  private loadLyricHtml() {
+    if (!this.lyricWindow || this.lyricWindow.isDestroyed()) return;
+    this.lyricWindow
+      .loadFile(this.getLyricHtmlPath(), {
+        query: { style: this.currentSetting.style },
+      })
+      .catch((error) => {
+        logger.error("load desktop lyric window failed", {
+          message: error?.message,
+          stack: error?.stack,
+        });
       });
-    });
   }
 
   toggle() {
@@ -357,6 +369,15 @@ export class DesktopLyricManager {
 
     this.publishSetting();
     this.notifyStateChanged();
+
+    // 切换歌词样式后若窗口已开启则自动重载，保证新样式纯净初始化。
+    if (
+      this.currentSetting.style !== prev.style &&
+      this.lyricWindow &&
+      !this.lyricWindow.isDestroyed()
+    ) {
+      this.loadLyricHtml();
+    }
   }
 
   setLyrics(payload: unknown) {

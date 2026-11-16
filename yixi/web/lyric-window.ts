@@ -2,9 +2,15 @@ import type {
   DesktopLyricBounds,
   DesktopLyricClockSync,
   DesktopLyricPayload,
+  DesktopLyricSettingV2,
   DesktopLyricSnapshot,
+  DesktopLyricStyleId,
 } from "../src/types/desktopLyric";
-import { LyricCanvasRenderer } from "./desktopLyric/LyricCanvasRenderer";
+import { isDesktopLyricStyleId } from "../src/desktopLyric/desktopLyricDefaults";
+import {
+  createDesktopLyricRenderer,
+  type IDesktopLyricRenderer,
+} from "./desktopLyric/styles";
 
 const bridge = (window as unknown as { desktopLyricWindow?: import("../src/types/desktopLyric").DesktopLyricWindowBridge })
   .desktopLyricWindow;
@@ -18,7 +24,29 @@ const lockBtn = document.getElementById("lock-btn") as HTMLElement;
 const lockIcon = document.getElementById("lock-icon") as HTMLElement;
 const unlockIcon = document.getElementById("unlock-icon") as HTMLElement;
 
-const renderer = new LyricCanvasRenderer(canvas, liveRegion);
+const initialStyleParam = new URLSearchParams(window.location.search).get("style");
+let activeStyleId: DesktopLyricStyleId = isDesktopLyricStyleId(initialStyleParam)
+  ? initialStyleParam
+  : "default";
+let renderer: IDesktopLyricRenderer = createDesktopLyricRenderer(
+  activeStyleId,
+  canvas,
+  liveRegion,
+);
+let latestLyric: DesktopLyricPayload | null = null;
+let latestClock: DesktopLyricClockSync | null = null;
+let latestSetting: DesktopLyricSettingV2 | null = null;
+
+function ensureRendererForStyle(styleId: DesktopLyricStyleId) {
+  if (styleId === activeStyleId) return;
+  renderer.dispose();
+  activeStyleId = styleId;
+  renderer = createDesktopLyricRenderer(activeStyleId, canvas, liveRegion);
+  renderer.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1);
+  if (latestSetting) renderer.setSetting(latestSetting);
+  if (latestLyric) renderer.setLyric(latestLyric);
+  if (latestClock) renderer.syncClock(latestClock);
+}
 
 let isLocked = false;
 const unsubs: Array<() => void> = [];
@@ -48,6 +76,10 @@ function updateLocked(locked: boolean) {
 
 function applySnapshot(snapshot: DesktopLyricSnapshot) {
   if (!snapshot) return;
+  latestSetting = snapshot.setting;
+  latestLyric = snapshot.lyric;
+  latestClock = snapshot.clock;
+  ensureRendererForStyle(snapshot.setting.style);
   renderer.setSetting(snapshot.setting);
   renderer.setLyric(snapshot.lyric);
   renderer.syncClock(snapshot.clock);
@@ -256,17 +288,21 @@ if (bridge) {
   unsubs.push(bridge.onSnapshot((snapshot) => applySnapshot(snapshot)));
   unsubs.push(
     bridge.onSetting((setting) => {
+      latestSetting = setting;
+      ensureRendererForStyle(setting.style);
       renderer.setSetting(setting);
       updateLocked(setting.locked);
     }),
   );
   unsubs.push(
     bridge.onLyric((lyric: DesktopLyricPayload) => {
+      latestLyric = lyric;
       renderer.setLyric(lyric);
     }),
   );
   unsubs.push(
     bridge.onClock((clock: DesktopLyricClockSync) => {
+      latestClock = clock;
       renderer.syncClock(clock);
       updatePlaying(clock.isPlaying);
     }),

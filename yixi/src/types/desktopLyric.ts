@@ -1,6 +1,17 @@
 export type DesktopLyricKind = "word" | "line";
 export type DesktopLyricControlAction = "play" | "pause" | "prev" | "next" | "close";
 
+export type DesktopLyricStyleId =
+  | "default"
+  | "typewriter"
+  | "ink"
+  | "bounce"
+  | "spotlight"
+  | "neon"
+  | "particle";
+
+export type DesktopLyricParticleDensity = "fine" | "balanced" | "light";
+
 export interface DesktopLyricWord {
   text: string;
   startTimeMs: number;
@@ -21,6 +32,79 @@ export interface DesktopLyricBounds {
   height: number;
 }
 
+export interface DesktopLyricDefaultStyleConfig {
+  textColor: string;
+  highlightColor: string;
+  animationEnabled: boolean;
+  wordScaleEnabled: boolean;
+}
+
+export interface DesktopLyricTypewriterStyleConfig {
+  textColor: string;
+  latestGlowColor: string;
+  lineRevealDurationMs: number;
+  showCursor: boolean;
+}
+
+export interface DesktopLyricInkStyleConfig {
+  unlitColor: string;
+  highlightStartColor: string;
+  highlightTipColor: string;
+  featherWidth: number;
+  liftOffset: number;
+  lineSweepDurationMs: number;
+}
+
+export interface DesktopLyricBounceStyleConfig {
+  unlitColor: string;
+  sungColor: string;
+  activeColor: string;
+  jumpHeight: number;
+  jumpScale: number;
+}
+
+export interface DesktopLyricSpotlightStyleConfig {
+  unlitColor: string;
+  sungColor: string;
+  activeColor: string;
+  glowColor: string;
+  blurIntensity: number;
+  activeScale: number;
+}
+
+export interface DesktopLyricNeonStyleConfig {
+  unlitColor: string;
+  colorStart: string;
+  colorMid: string;
+  colorEnd: string;
+  lineRevealDurationMs: number;
+  flowSpeed: number;
+}
+
+export interface DesktopLyricParticleStyleConfig {
+  unlitColor: string;
+  colorStart: string;
+  colorEnd: string;
+  gatherDurationMs: number;
+  disperseDurationMs: number;
+  particleDensity: DesktopLyricParticleDensity;
+  showAmbientSparks: boolean;
+}
+
+export interface DesktopLyricStyleConfigMap {
+  default: DesktopLyricDefaultStyleConfig;
+  typewriter: DesktopLyricTypewriterStyleConfig;
+  ink: DesktopLyricInkStyleConfig;
+  bounce: DesktopLyricBounceStyleConfig;
+  spotlight: DesktopLyricSpotlightStyleConfig;
+  neon: DesktopLyricNeonStyleConfig;
+  particle: DesktopLyricParticleStyleConfig;
+}
+
+export type DesktopLyricStylePatchMap = {
+  [K in DesktopLyricStyleId]?: Partial<DesktopLyricStyleConfigMap[K]>;
+};
+
 export interface DesktopLyricSettingV2 {
   enabled: boolean;
   locked: boolean;
@@ -29,15 +113,22 @@ export interface DesktopLyricSettingV2 {
   fontSize: number;
   fontFamily: string;
   fontWeight: number;
+  autoOutline: boolean;
+  style: DesktopLyricStyleId;
+  styles: DesktopLyricStyleConfigMap;
+  /** 默认样式兼容字段，与 styles.default 保持同步 */
   textColor: string;
   highlightColor: string;
   animationEnabled: boolean;
   wordScaleEnabled: boolean;
-  autoOutline: boolean;
 }
 
-export type DesktopLyricSettingPatch = Omit<Partial<DesktopLyricSettingV2>, "bounds"> & {
+export type DesktopLyricSettingPatch = Omit<
+  Partial<DesktopLyricSettingV2>,
+  "bounds" | "styles"
+> & {
   bounds?: Partial<DesktopLyricBounds>;
+  styles?: DesktopLyricStylePatchMap;
 };
 
 export interface DesktopLyricPayload {
@@ -69,4 +160,3 @@ export interface DesktopLyricWindowBridge {
   onLyric(callback: (lyric: DesktopLyricPayload) => void): () => void;
   onSetting(callback: (setting: DesktopLyricSettingV2) => void): () => void;
 }
-

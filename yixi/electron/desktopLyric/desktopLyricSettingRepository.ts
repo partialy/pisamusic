@@ -1,5 +1,12 @@
-import { normalizeDesktopLyricSetting } from "../../src/desktopLyric/desktopLyricDefaults";
-import type { DesktopLyricBounds, DesktopLyricSettingV2 } from "../../src/types/desktopLyric";
+import {
+  mergeDesktopLyricSetting,
+  normalizeDesktopLyricSetting,
+} from "../../src/desktopLyric/desktopLyricDefaults";
+import type {
+  DesktopLyricBounds,
+  DesktopLyricSettingPatch,
+  DesktopLyricSettingV2,
+} from "../../src/types/desktopLyric";
 import { getAppDatabase } from "../database";
 import { appStore } from "../store";
 
@@ -8,7 +15,7 @@ export const DESKTOP_LYRIC_SETTING_VERSION = 2;
 
 export interface DesktopLyricSettingRepository {
   read(): DesktopLyricSettingV2;
-  patch(patch: Partial<DesktopLyricSettingV2>): DesktopLyricSettingV2;
+  patch(patch: DesktopLyricSettingPatch): DesktopLyricSettingV2;
   saveBounds(bounds: DesktopLyricBounds): DesktopLyricSettingV2;
 }
 
@@ -75,7 +82,10 @@ export function createDesktopLyricSettingRepository(
         if (
           record.version === DESKTOP_LYRIC_SETTING_VERSION &&
           val.bounds &&
-          typeof val.bounds === "object"
+          typeof val.bounds === "object" &&
+          val.styles &&
+          typeof val.styles === "object" &&
+          typeof val.style === "string"
         ) {
           return normalizeDesktopLyricSetting(val);
         }
@@ -132,16 +142,9 @@ export function createDesktopLyricSettingRepository(
       return normalized;
     },
 
-    patch(patchData: Partial<DesktopLyricSettingV2>): DesktopLyricSettingV2 {
+    patch(patchData: DesktopLyricSettingPatch): DesktopLyricSettingV2 {
       const current = this.read();
-      const merged = normalizeDesktopLyricSetting({
-        ...current,
-        ...patchData,
-        bounds: {
-          ...current.bounds,
-          ...(patchData.bounds ?? {}),
-        },
-      });
+      const merged = mergeDesktopLyricSetting(current, patchData);
       deps.setSqliteSetting(
         DESKTOP_LYRIC_SETTING_KEY,
         merged,
