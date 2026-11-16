@@ -2,7 +2,6 @@ import type {
   DesktopLyricBounds,
   DesktopLyricClockSync,
   DesktopLyricPayload,
-  DesktopLyricSettingV2,
   DesktopLyricSnapshot,
 } from "../src/types/desktopLyric";
 import { LyricCanvasRenderer } from "./desktopLyric/LyricCanvasRenderer";
@@ -22,7 +21,6 @@ const unlockIcon = document.getElementById("unlock-icon") as HTMLElement;
 const renderer = new LyricCanvasRenderer(canvas, liveRegion);
 
 let isLocked = false;
-let currentSetting: DesktopLyricSettingV2 | null = null;
 const unsubs: Array<() => void> = [];
 
 function updatePlaying(isPlaying: boolean) {
@@ -50,7 +48,6 @@ function updateLocked(locked: boolean) {
 
 function applySnapshot(snapshot: DesktopLyricSnapshot) {
   if (!snapshot) return;
-  currentSetting = snapshot.setting;
   renderer.setSetting(snapshot.setting);
   renderer.setLyric(snapshot.lyric);
   renderer.syncClock(snapshot.clock);
@@ -99,18 +96,12 @@ lockBtn?.addEventListener("click", (e) => {
 
 document.getElementById("size-up")?.addEventListener("click", (e) => {
   e.stopPropagation();
-  if (!currentSetting) return;
-  const next = Math.min(64, currentSetting.fontSize + 2);
-  currentSetting = { ...currentSetting, fontSize: next };
-  renderer.setSetting(currentSetting);
+  bridge?.adjustFontSize(2);
 });
 
 document.getElementById("size-down")?.addEventListener("click", (e) => {
   e.stopPropagation();
-  if (!currentSetting) return;
-  const next = Math.max(10, currentSetting.fontSize - 2);
-  currentSetting = { ...currentSetting, fontSize: next };
-  renderer.setSetting(currentSetting);
+  bridge?.adjustFontSize(-2);
 });
 
 // Pointer-based Drag & Resize
@@ -265,7 +256,6 @@ if (bridge) {
   unsubs.push(bridge.onSnapshot((snapshot) => applySnapshot(snapshot)));
   unsubs.push(
     bridge.onSetting((setting) => {
-      currentSetting = setting;
       renderer.setSetting(setting);
       updateLocked(setting.locked);
     }),
@@ -286,5 +276,8 @@ if (bridge) {
 
 window.addEventListener("beforeunload", () => {
   unsubs.forEach((unsub) => unsub());
+  if (boundsRafId !== null) cancelAnimationFrame(boundsRafId);
+  pendingBounds = null;
+  window.removeEventListener("resize", handleResize);
   renderer.dispose();
 });

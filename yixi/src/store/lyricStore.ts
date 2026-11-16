@@ -4,34 +4,13 @@ import type { Song } from "@/types/song";
 import { fetchLyricsByMusicApi } from "@/utils/api/musicAPI";
 import { LyricParser, type LyricLine } from "@/utils/common/LyricParser";
 import electronAPI from "@/utils/electron";
+import { getDefaultLyricSetting, normalizeLyricSetting, type LyricSetting } from "@/utils/lyricSettings";
+export type { LyricSetting } from "@/utils/lyricSettings";
 import {
   findLyricLineIndex,
   getLyricLineText,
   normalizePlaybackTimeToMs,
 } from "@/utils/lyricLine";
-
-export interface LyricSetting {
-  useAMLyric: boolean;
-  useKRC: boolean;
-  alignPosition: number;
-  pureLyricMode?: boolean;
-  immersiveMode?: boolean;
-  useAMSpring?: boolean;
-  useAMScale?: boolean;
-  useAMBlur?: boolean;
-  lyricFontSize?: number;
-  lyricFont?: string;
-  lyricFontWeight?: boolean;
-  lyricFontColor?: string;
-  currentLyricColor?: string;
-  lyricFontOpacity?: number;
-  lyricFontShadow?: boolean;
-  showTime?: boolean;
-  backgroundMode?: "default" | "image";
-  backgroundImage?: string;
-  backgroundBlur?: number;
-  backgroundBrightness?: number;
-}
 
 type WordLyricFormat = "krc" | "yrc" | null;
 
@@ -43,30 +22,6 @@ type LyricPayload = {
 type PreferredLyricSource = "word" | "line" | "none";
 
 const emptyLyric = (): LyricPayload => ({ krc: "", lrc: "" });
-
-const defaultLyricSetting = (): LyricSetting => ({
-
-  useAMLyric: true,
-  useKRC: true,
-  pureLyricMode: false,
-  immersiveMode: false,
-  useAMSpring: true,
-  useAMScale: true,
-  useAMBlur: true,
-  alignPosition: 0.5,
-  lyricFontSize: 40,
-  lyricFont: "Microsoft YaHei",
-  lyricFontWeight: true,
-  lyricFontColor: "#ffffff",
-  currentLyricColor: "#ffffff",
-  lyricFontOpacity: 1,
-  lyricFontShadow: true,
-  showTime: true,
-  backgroundMode: "default",
-  backgroundImage: "",
-  backgroundBlur: 0,
-  backgroundBrightness: 100,
-});
 
 export const useLyricStore = defineStore("lyric", {
   state: () => ({
@@ -83,7 +38,7 @@ export const useLyricStore = defineStore("lyric", {
     lyricLoading: false,
     lyricLoaded: false,
     currentSong: null as Song | null,
-    setting: defaultLyricSetting(),
+    setting: getDefaultLyricSetting(),
   }),
 
   getters: {
@@ -102,6 +57,13 @@ export const useLyricStore = defineStore("lyric", {
     preferredAmLyrics(state): AMLyricLine[] {
       if (state.setting.useKRC && state.AMWordLyrics.length > 0) return state.AMWordLyrics;
       if (state.AMLineLyrics.length > 0) return state.AMLineLyrics;
+      if (!state.setting.useKRC) {
+        // 只有逐字源时合并为单词行，让 AM 按整句模式展示。
+        return state.AMWordLyrics.map((line) => ({
+          ...line,
+          words: [{ startTime: line.startTime, endTime: line.endTime, word: line.words.map((word) => word.word).join("") }],
+        }));
+      }
       return state.AMWordLyrics;
     },
     preferredLyricSource(state): PreferredLyricSource {
@@ -184,22 +146,32 @@ export const useLyricStore = defineStore("lyric", {
       this.lyricLoading = false;
     },
     saveSetting() {
+      Object.assign(this.setting, normalizeLyricSetting(this.setting));
       localStorage.setItem("pisa-lyric-setting", JSON.stringify(this.setting));
     },
-    resetBackgroundToDefault() {
-      this.setting.backgroundMode = "default";
-      this.setting.backgroundImage = "";
-      this.setting.backgroundBlur = 0;
-      this.setting.backgroundBrightness = 100;
+    updateSetting(patch: Partial<LyricSetting>) {
+      Object.assign(this.setting, normalizeLyricSetting({ ...this.setting, ...patch }));
       this.saveSetting();
     },
+    resetBackgroundToDefault() {
+      const defaults = getDefaultLyricSetting();
+      this.updateSetting({
+        backgroundMode: defaults.backgroundMode,
+        backgroundImage: defaults.backgroundImage,
+        backgroundBlur: defaults.backgroundBlur,
+        backgroundBrightness: defaults.backgroundBrightness,
+        backgroundFlowSpeed: defaults.backgroundFlowSpeed,
+        backgroundFps: defaults.backgroundFps,
+        backgroundRenderScale: defaults.backgroundRenderScale,
+      });
+    },
     loadSetting() {
-      const setting = localStorage.getItem("pisa-lyric-setting");
-      if (setting) {
-        this.setting = {
-          ...defaultLyricSetting(),
-          ...JSON.parse(setting),
-        };
+      try {
+        const setting = localStorage.getItem("pisa-lyric-setting");
+        Object.assign(this.setting, normalizeLyricSetting(setting ? JSON.parse(setting) : null));
+      } catch (error) {
+        Object.assign(this.setting, getDefaultLyricSetting());
+        void electronAPI.reportError(error, { scope: "lyric", action: "loadSetting" });
       }
     },
   },

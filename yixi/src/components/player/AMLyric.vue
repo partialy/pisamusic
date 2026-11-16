@@ -2,7 +2,11 @@
   <Transition>
     <div 
       :key="amLyricsData?.[0]?.startTime"
-      :class="['lyric-am', { pure: lyricStore.setting.pureLyricMode }]">
+      :class="['lyric-am', { pure: lyricStore.setting.pureLyricMode }]"
+      :style="{
+        opacity: lyricStore.setting.lyricFontOpacity,
+        filter: lyricStore.setting.lyricFontShadow ? 'drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.2))' : 'none',
+      }">
       <LyricPlayer
         :lyricLines="amLyricsData"
         :currentTime="
@@ -12,6 +16,8 @@
         :enableSpring="lyricStore.setting.useAMSpring"
         :enableScale="lyricStore.setting.useAMScale"
         :alignPosition="lyricStore.setting.alignPosition"
+        :alignAnchor="lyricStore.setting.alignAnchor"
+        :hidePassedLines="lyricStore.setting.hidePassedLines"
         :enableBlur="lyricStore.setting.useAMBlur"
         :style="{
           '--amll-lyric-view-color': lyricStore.setting.lyricFontColor,
@@ -63,7 +69,6 @@ const jumpSeek = (line: any) => {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.2));
   mask: linear-gradient(
     180deg,
     hsla(0, 0%, 100%, 0) 0,

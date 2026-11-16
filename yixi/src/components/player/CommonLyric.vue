@@ -1,12 +1,16 @@
 <template>
-  <div class="lyric-container">
+  <div
+    ref="containerRef"
+    class="lyric-container"
+    :class="{ pure: lyricStore.setting.pureLyricMode, 'show-time': lyricStore.setting.showTime }"
+    :style="{ opacity: lyricStore.setting.lyricFontOpacity }">
     <Transition name="fade" mode="out-in">
-      <n-scrollbar @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave" @wheel.passive="handleWheel">
+      <n-scrollbar ref="scrollbarRef" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave" @wheel.passive="handleWheel">
         <template #default>
-          <div class="lyric-wrapper">
+          <div ref="wrapperRef" class="lyric-wrapper" :style="wrapperStyle">
             <div
               v-for="item in displayLyrics"
-              :id="`lyric-${item.index}`"
+              :data-lyric-index="item.index"
               :key="item.line.startTime"
               class="lyric-item"
               :class="{ active: currentIndex === item.index }"
@@ -40,7 +44,7 @@
 
 <script setup lang="ts">
 import { useAudioStore, useLyricStore } from "@/store";
-import { debounce, formatDuration } from "@/utils/common";
+import { formatDuration } from "@/utils/common";
 import type { LyricWord } from "@/utils/common/LyricParser";
 import {
   findLyricLineIndex,
@@ -48,9 +52,9 @@ import {
   getLyricLineText,
   normalizePlaybackTimeToMs,
 } from "@/utils/lyricLine";
-import { NScrollbar } from "naive-ui";
+import { NScrollbar, type ScrollbarInst } from "naive-ui";
 import { storeToRefs } from "pinia";
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 
 const playerStore = useAudioStore();
@@ -60,6 +64,18 @@ const { currentTime, isPlaying } = storeToRefs(playerStore);
 
 const cursorIn = ref(false);
 const userScroll = ref(false);
+const containerRef = ref<HTMLDivElement>();
+const wrapperRef = ref<HTMLDivElement>();
+const scrollbarRef = ref<ScrollbarInst>();
+const viewportHeight = ref(0);
+let resizeObserver: ResizeObserver | undefined;
+let observedRow: HTMLElement | undefined;
+let scrollTimeout: ReturnType<typeof setTimeout> | undefined;
+const getViewport = () => containerRef.value?.querySelector<HTMLElement>(".n-scrollbar-container");
+const wrapperStyle = computed(() => ({
+  paddingTop: `${viewportHeight.value * lyricStore.setting.alignPosition}px`,
+  paddingBottom: `${viewportHeight.value * (1 - lyricStore.setting.alignPosition)}px`,
+}));
 const currentTimeMs = ref(normalizePlaybackTimeToMs(currentTime.value));
 const useWordProgress = computed(() => lyricStore.isKaraokeLyricEnabled);
 
@@ -151,16 +167,32 @@ const getWordStyle = (index: number, word: LyricWord) => {
   };
 };
 
+const findRow = (index: number) => wrapperRef.value?.querySelector<HTMLElement>(`[data-lyric-index="${index}"]`);
+const observeCurrentRow = () => {
+  if (observedRow) resizeObserver?.unobserve(observedRow);
+  observedRow = findRow(currentIndex.value) ?? undefined;
+  if (observedRow) resizeObserver?.observe(observedRow);
+};
+
 const lyricsScroll = (index: number) => {
   if (userScroll.value || index < 0) return;
-  const row = document.getElementById(`lyric-${index}`);
-  row?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const row = findRow(index);
+  const viewport = getViewport();
+  if (!row || !viewport) return;
+  const anchor = { top: 0, center: 0.5, bottom: 1 }[lyricStore.setting.alignAnchor];
+  const wrapper = wrapperRef.value!;
+  const rowTop = wrapper.getBoundingClientRect().top - viewport.getBoundingClientRect().top + viewport.scrollTop + row.offsetTop - wrapper.offsetTop;
+  scrollbarRef.value?.scrollTo({
+    top: rowTop + row.offsetHeight * anchor - viewport.clientHeight * lyricStore.setting.alignPosition,
+    behavior: "smooth",
+  });
 };
 
 watch(currentIndex, (newVal, oldVal) => {
   if (newVal === oldVal) return;
+  observeCurrentRow();
   lyricsScroll(newVal);
-});
+}, { flush: "post" });
 
 watch(
   currentTime,
@@ -188,11 +220,33 @@ watch(
   () => lyricStore.preferredLyrics,
   () => {
     syncTimeAnchor(currentTime.value);
+    observeCurrentRow();
     lyricsScroll(currentIndex.value);
-  }
+  },
+  { flush: "post" }
 );
 
-onBeforeUnmount(stopAnimation);
+watch(
+  () => [lyricStore.setting.alignPosition, lyricStore.setting.alignAnchor, lyricStore.setting.pureLyricMode, lyricStore.setting.lyricFontSize, lyricStore.setting.lyricFont, lyricStore.setting.lyricFontWeight],
+  () => lyricsScroll(currentIndex.value),
+  { flush: "post" }
+);
+
+onMounted(() => {
+  resizeObserver = new ResizeObserver(() => {
+    viewportHeight.value = getViewport()?.clientHeight ?? containerRef.value?.clientHeight ?? 0;
+    void nextTick(() => lyricsScroll(currentIndex.value));
+  });
+  if (containerRef.value) resizeObserver.observe(containerRef.value);
+  if (wrapperRef.value) resizeObserver.observe(wrapperRef.value);
+  observeCurrentRow();
+});
+
+onBeforeUnmount(() => {
+  stopAnimation();
+  resizeObserver?.disconnect();
+  clearTimeout(scrollTimeout);
+});
 
 const handleMouseEnter = () => {
   cursorIn.value = true;
@@ -201,16 +255,18 @@ const handleMouseEnter = () => {
 const handleMouseLeave = () => {
   cursorIn.value = false;
   userScroll.value = false;
+  clearTimeout(scrollTimeout);
+  lyricsScroll(currentIndex.value);
 };
 
 const handleWheel = () => {
   userScroll.value = true;
-  endScroll();
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    userScroll.value = false;
+    lyricsScroll(currentIndex.value);
+  }, 2000);
 };
-
-const endScroll = debounce(() => {
-  userScroll.value = false;
-}, 2000);
 </script>
 
 <style scoped lang="scss">
@@ -225,11 +281,18 @@ const endScroll = debounce(() => {
   }
 
   .lyric-wrapper {
-    padding: 40vh 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+  }
+
+  &.pure {
+    text-align: center;
+
+    .lyric-item {
+      transform-origin: center;
+    }
   }
 
   .lyric-item {
@@ -263,10 +326,14 @@ const endScroll = debounce(() => {
 
   .lyric-text {
     display: inline-block;
-    max-width: calc(100% - 96px);
+    max-width: 100%;
     background-clip: text;
     -webkit-background-clip: text;
     transition: color 0.2s ease;
+  }
+
+  &.show-time .lyric-text {
+    max-width: calc(100% - 96px);
   }
 
   .word-line {

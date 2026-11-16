@@ -371,12 +371,13 @@
 ## 歌词背景与主播放界面设置规则补充
 
 - 主播放界面（`MainPlayer.vue`）在右侧垂直居中位置配备毛玻璃圆形齿轮按钮（`Settings` 图标），随鼠标活动状态（`isMouseActive`）平滑淡入淡出，点击唤起紧凑型歌词设置弹窗（`LyricSettingModal.vue`）。
-- `LyricSettingModal.vue` 复用定时器同款 `AppModal`（720px），保留歌词背景/动效排版/字体颜色分段导航；内容复用 `SettingSection` 分组卡片与左文右控件，模糊/亮度使用共享 `SettingAdjustment`。不显示 footer 与“设置即时生效”说明，仅通过标准标题栏关闭；保留所有即时保存、图片库、取色及 afterLeave 行为，不再定义独立弹窗壳层与自制滑条。
-- 歌词背景支持“默认背景”（封面/流光动效）与“自定义图片”模式：
-  - 自定义图片模式下全屏渲染图片背景层（`z-index: 98`），并覆盖轻量半透明暗层与微毛玻璃（`z-index: 99`），确保在任何明亮或花哨壁纸下歌词与封面均清晰易读；
-  - 歌词背景支持调用【图片库】（`AppImageCenterModal.vue`）选择图片，支持模糊度（0-100）与亮度（0-100%）实时调节，并支持“恢复默认”一键还原为默认背景；
-  - 歌词背景相关配置（`backgroundMode`、`backgroundImage`、`backgroundBlur`、`backgroundBrightness`）持久化至 SQLite settings 的 `lyric-setting`；
-  - 外层设置页的【歌词设置】（`LyricSetting.vue`）顶部同步配备【歌词界面背景】卡片，与弹窗设置共享同一份 `lyricStore.setting`，实现双向即时响应与联动。
+- `LyricSetting.vue` 按“主播放器 / 桌面歌词 / 底栏歌词”切换。主播放器设置由 `setting/lyric/MainPlayerSettings.vue` 组合背景、排版与动效、字体与颜色三个共享分组；外层连续展示，`LyricSettingModal.vue` 在 720px `AppModal` 中按同一三段切换。字段、文案、适用条件、字体列表、图片库、取色与控件范围只维护一份；复用 `SettingSection`、`LyricSettingRow` 与 `SettingAdjustment`，不得再复制一套表单或保存监听。弹窗无 footer，关闭动画结束前保留内容。
+- `src/utils/lyricSettings.ts` 统一 `LyricSetting`、默认值与归一规则。主播放器所有设置沿用 localStorage `pisa-lyric-setting`，通过 `lyricStore.updateSetting(patch)` 立即保存；不是 SQLite `lyric-setting`。旧字段按默认值合并，损坏 JSON 回退默认并报告错误；主播放器设置与应用背景、桌面歌词持久化独立。
+- 字号 12–60px、整体文字透明度 0.01–1、垂直位置 0–1；两种渲染器均支持字体、颜色、加粗、阴影、透明度、水平居中以及 top/center/bottom 对齐锚点。AM 专属弹簧、行放大、背景行模糊与隐藏已唱歌词仅在 AM 模式展示；当前行颜色、悬停时间仅在普通模式展示。切换渲染模式保留原偏好。
+- 关闭逐字且只有 KRC/YRC 数据时，AM 使用复制的整句歌词回退，不修改原始字级数据；逐字选择作用于主播放器与桌面；底栏默认跟随，也可独立选择优先逐字或逐行显示。
+- 播放背景支持封面流光与自定义图片；图片继续使用现有图片库以及 0–100 模糊/亮度。流光进阶项默认折叠：速度 0–4（默认 2，0 必须正确传给 renderer）、30/60/120 FPS（默认 60）、渲染比例 25/50/75/100%（默认 75%，沿用当前 EplorRenderer 效果）。背景恢复默认同时重置图片参数与流光参数，不影响歌词字体或桌面配置。取色仍优先已选歌词背景图、其次应用背景图，不取歌曲封面。
+
+- 歌词设置内的“底栏歌词”Tab 由 `PlayerBarLyricSettings.vue` 管理，`src/store/playerBarLyric.ts` 统一归一与即时保存到 localStorage `pisa-playerbar-lyric-setting`。可控制显示、暂停保留、歌词模式、字体、10–22px 字号、加粗、不透明度与主题/自定义文字及逐字高亮色；默认启用、暂停显示歌手、模式跟随主播放器、16px、不加粗、完全不透明、颜色跟随主题。PlayerBar 独立选择当前歌词行，逐行模式缺 LRC 时按整句显示逐字源，不更改共享歌词数据；固定 28px 单行高度与省略行为保持。关闭歌词仍显示歌手，设置不影响主播放器或桌面。
 
 ## 桌面歌词 Canvas 架构与维护规则
 
@@ -388,7 +389,9 @@
 - 配置持久化：
   - 桌面歌词配置只持久化到 SQLite `settings` 表的 `desktop-lyric-setting`，格式固定为 `DesktopLyricSettingV2`（`version: 2`）。
   - 旧 `electron-store` 仅用于冷启动一次性只读迁移，严禁回写或恢复旧 schema。
-  - 设置变更通过 Pinia store 单一入口 `patchSetting` 提交；设置页与组件禁止 deep watch 反馈链，数字/颜色通过 300ms 防抖合并 patch，开关/锁定立即提交。
+  - 设置变更通过 Pinia store 单一入口 `patchSetting` 提交；`DesktopLyricSettingPatch` 允许仅提交部分 bounds，main 按当前原生窗口补齐，禁止设置页用旧 x/y 覆盖拖拽位置。设置页使用独立编辑草稿，禁止 deep watch 反馈链；数字/颜色通过 300ms 防抖合并 patch，开关/锁定立即提交，切换分区和卸载时发送末次待保存修改。
+  - main 将归一、落库后的完整配置通过 `desktop-lyric:setting-changed` 推给主应用，桌面窗口同步接收 setting。主应用 store 持有唯一配置/显隐订阅，先订阅再初始化快照，以内存代次防止迟到快照覆盖新事件，dispose 统一清理；不得用乐观配置替代 main 权威状态。
+  - 桌面窗口字号按钮仅通过 `adjustFontSize(-2 | 2)` 提交增量，main 校验 sender 并从当前权威字号计算、归一和保存，然后广播两端；禁止只修改 Canvas 本地设置。字号默认 40、范围 10–64；字重默认 600、范围 100–900，与设置页一致。
 - 时钟与动画规范：
   - 所有音频播放进度字段必须统一为毫秒并以 `Ms` 结尾（如 `positionMs`、`durationMs`、`receivedAtMs`），严禁使用浮点秒。
   - KRC 与 YRC 格式且带有真实字级时间跨度时才启用逐字进度与正弦缩放；普通 LRC 仅执行整行平滑变色与行过渡位移，禁止伪造逐字时间戳。

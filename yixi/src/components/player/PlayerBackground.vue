@@ -32,24 +32,24 @@ watchEffect(() => {
 });
 
 watchEffect(() => {
-  if (props.fps) bgRenderRef.value?.setFPS(props.fps);
+  if (props.fps !== undefined) bgRenderRef.value?.setFPS(props.fps);
 });
 
 watchEffect(() => {
-  if (props.playing) bgRenderRef.value?.pause();
+  if (props.playing === false) bgRenderRef.value?.pause();
   else bgRenderRef.value?.resume();
 });
 
 watchEffect(() => {
-  if (props.flowSpeed) bgRenderRef.value?.setFlowSpeed(props.flowSpeed);
+  if (props.flowSpeed !== undefined) bgRenderRef.value?.setFlowSpeed(props.flowSpeed);
 });
 
 watchEffect(() => {
-  if (props.renderScale) bgRenderRef.value?.setRenderScale(props.renderScale);
+  if (props.renderScale !== undefined) bgRenderRef.value?.setRenderScale(props.renderScale);
 });
 
 watchEffect(() => {
-  if (props.lowFreqVolume) bgRenderRef.value?.setLowFreqVolume(props.lowFreqVolume);
+  if (props.lowFreqVolume !== undefined) bgRenderRef.value?.setLowFreqVolume(props.lowFreqVolume);
 });
 
 watchEffect(() => {

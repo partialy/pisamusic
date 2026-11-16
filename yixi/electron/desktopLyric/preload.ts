@@ -13,13 +13,15 @@ import type {
 const desktopLyricWindowBridge: DesktopLyricWindowBridge = {
   ready: () => {
     ipcRenderer.send("desktop-lyric-window:ready");
-    ipcRenderer.send("desktop-lyric:ready");
   },
   control: (action: DesktopLyricControlAction) => {
     ipcRenderer.send("desktop-lyric-window:control", action);
   },
   setLocked: (locked: boolean) => {
     ipcRenderer.send("desktop-lyric-window:set-locked", locked);
+  },
+  adjustFontSize: (delta: -2 | 2) => {
+    ipcRenderer.send("desktop-lyric-window:adjust-font-size", delta);
   },
   requestBounds: (bounds: DesktopLyricBounds) => {
     ipcRenderer.send("desktop-lyric-window:request-bounds", bounds);
@@ -32,10 +34,8 @@ const desktopLyricWindowBridge: DesktopLyricWindowBridge = {
       callback(snapshot);
     };
     ipcRenderer.on("desktop-lyric-window:snapshot", handler);
-    ipcRenderer.on("desktop-lyric:snapshot", handler);
     return () => {
       ipcRenderer.removeListener("desktop-lyric-window:snapshot", handler);
-      ipcRenderer.removeListener("desktop-lyric:snapshot", handler);
     };
   },
   onClock: (callback) => {

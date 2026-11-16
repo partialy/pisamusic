@@ -36,6 +36,10 @@ export interface DesktopLyricSettingV2 {
   autoOutline: boolean;
 }
 
+export type DesktopLyricSettingPatch = Omit<Partial<DesktopLyricSettingV2>, "bounds"> & {
+  bounds?: Partial<DesktopLyricBounds>;
+};
+
 export interface DesktopLyricPayload {
   kind: DesktopLyricKind;
   lines: DesktopLyricLine[];
@@ -58,6 +62,7 @@ export interface DesktopLyricWindowBridge {
   ready(): void;
   control(action: DesktopLyricControlAction): void;
   setLocked(locked: boolean): void;
+  adjustFontSize(delta: -2 | 2): void;
   requestBounds(bounds: DesktopLyricBounds): void;
   onSnapshot(callback: (snapshot: DesktopLyricSnapshot) => void): () => void;
   onClock(callback: (clock: DesktopLyricClockSync) => void): () => void;

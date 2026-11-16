@@ -10,7 +10,12 @@
         </template>
         <!-- 默认专辑流光与封面背景 -->
         <template v-else>
-            <PlayerBackground :fps="60" :album="coverUrl"></PlayerBackground>
+            <PlayerBackground
+                :fps="lyricStore.setting.backgroundFps"
+                :flow-speed="lyricStore.setting.backgroundFlowSpeed"
+                :render-scale="lyricStore.setting.backgroundRenderScale"
+                :album="coverUrl"
+            />
             <div>
                 <img :src="coverUrl" alt="" class="bg-cover" style="width: 100%;height: 100%;object-fit: cover;" @error="handleCoverError">
             </div>

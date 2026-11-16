@@ -17,6 +17,7 @@ import type {
   DesktopLyricControlAction,
   DesktopLyricLine,
   DesktopLyricPayload,
+  DesktopLyricSettingPatch,
   DesktopLyricSettingV2,
   DesktopLyricSnapshot,
 } from "../../src/types/desktopLyric";
@@ -106,7 +107,7 @@ export class DesktopLyricManager {
     });
 
     ipcMain.on("desktop-lyric:set-style", (_event, style: unknown) => {
-      this.patchSetting(style as Partial<DesktopLyricSettingV2>);
+      this.patchSetting(style as DesktopLyricSettingPatch);
     });
 
     ipcMain.on("desktop-lyric:set-locked", (_event, locked: boolean) => {
@@ -156,6 +157,11 @@ export class DesktopLyricManager {
       }
     });
 
+    ipcMain.on("desktop-lyric-window:adjust-font-size", (event, delta: unknown) => {
+      if (!this.isLyricWindowSender(event.sender) || (delta !== -2 && delta !== 2)) return;
+      this.patchSetting({ fontSize: this.currentSetting.fontSize + delta });
+    });
+
     ipcMain.on(
       "desktop-lyric-window:request-bounds",
       (event, bounds: DesktopLyricBounds) => {
@@ -187,6 +193,7 @@ export class DesktopLyricManager {
     }
 
     this.currentSetting = this.repository.patch({ enabled: true });
+    this.publishSetting();
 
     const primaryDisplayId = screen.getPrimaryDisplay().id;
     const displays = screen.getAllDisplays().map((d) => ({
@@ -243,8 +250,8 @@ export class DesktopLyricManager {
     this.lyricWindow.on("closed", () => {
       this.flushBoundsSave();
       this.lyricWindow = null;
-      this.repository.patch({ enabled: false });
-      this.currentSetting.enabled = false;
+      this.currentSetting = this.repository.patch({ enabled: false });
+      this.publishSetting();
       this.notifyStatus(false);
       this.notifyStateChanged();
     });
@@ -285,14 +292,11 @@ export class DesktopLyricManager {
   close() {
     if (this.lyricWindow && !this.lyricWindow.isDestroyed()) {
       this.flushBoundsSave();
-      this.repository.patch({ enabled: false });
-      this.currentSetting.enabled = false;
-      this.notifyStatus(false);
       this.lyricWindow.close();
       return;
     }
-    this.repository.patch({ enabled: false });
-    this.currentSetting.enabled = false;
+    this.currentSetting = this.repository.patch({ enabled: false });
+    this.publishSetting();
     this.notifyStatus(false);
   }
 
@@ -317,17 +321,20 @@ export class DesktopLyricManager {
   }
 
   setLocked(locked: boolean) {
-    this.currentSetting = this.repository.patch({ locked });
-    this.applyMouseLock(locked);
-    this.sendToWindow("desktop-lyric:set-locked", locked);
-    this.sendToWindow("desktop-lyric-window:setting", this.currentSetting);
-    this.getMainWindow()?.webContents.send("desktop-lyric:locked-status", locked);
-    this.notifyStateChanged();
+    this.patchSetting({ locked });
   }
 
-  patchSetting(patch: Partial<DesktopLyricSettingV2>) {
+  patchSetting(patch: DesktopLyricSettingPatch) {
+    const { bounds, ...settingPatch } = patch;
+    if (bounds) this.flushBoundsSave();
     const prev = this.currentSetting;
-    this.currentSetting = this.repository.patch(patch);
+    this.currentSetting = this.repository.patch({
+      ...settingPatch,
+      ...(bounds ? {
+        // 单维度编辑从 main 当前窗口补齐位置与另一维度。
+        bounds: { ...(this.getBounds() ?? prev.bounds), ...bounds },
+      } : {}),
+    });
 
     if (
       this.lyricWindow &&
@@ -342,12 +349,13 @@ export class DesktopLyricManager {
       );
     }
 
-    if (patch.locked !== undefined && patch.locked !== prev.locked) {
+    if (this.currentSetting.locked !== prev.locked) {
       this.applyMouseLock(this.currentSetting.locked);
+      this.sendToWindow("desktop-lyric:set-locked", this.currentSetting.locked);
+      this.getMainWindow()?.webContents.send("desktop-lyric:locked-status", this.currentSetting.locked);
     }
 
-    this.sendToWindow("desktop-lyric:set-style", this.currentSetting);
-    this.sendToWindow("desktop-lyric-window:setting", this.currentSetting);
+    this.publishSetting();
     this.notifyStateChanged();
   }
 
@@ -505,6 +513,16 @@ export class DesktopLyricManager {
     const bounds = this.pendingBoundsSave;
     this.pendingBoundsSave = null;
     this.currentSetting = this.repository.saveBounds(bounds);
+    this.publishSetting();
+  }
+
+  private publishSetting() {
+    this.sendToWindow("desktop-lyric:set-style", this.currentSetting);
+    this.sendToWindow("desktop-lyric-window:setting", this.currentSetting);
+    const mainWindow = this.getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send("desktop-lyric:setting-changed", this.currentSetting);
+    }
   }
 
   private handleControl(action: DesktopLyricControlAction) {

@@ -137,38 +137,11 @@ export function setupDesktopLyricBridge(): () => void {
     },
   );
 
-  const unsubs: Array<() => void> = [];
-
-  if (window.electronAPI?.onLyricWindowStatus) {
-    unsubs.push(
-      window.electronAPI.onLyricWindowStatus((status) => {
-        desktopLyricStore.setVisible(status);
-      }),
-    );
-  }
-
-  if (window.electronAPI?.onLyricLockedStatus) {
-    unsubs.push(
-      window.electronAPI.onLyricLockedStatus((locked) => {
-        desktopLyricStore.setting.locked = locked;
-      }),
-    );
-  }
-
-  if (window.electronAPI?.onBoundsChanged) {
-    unsubs.push(
-      window.electronAPI.onBoundsChanged((bounds) => {
-        desktopLyricStore.setting.bounds.width = bounds.width;
-        desktopLyricStore.setting.bounds.height = bounds.height;
-      }),
-    );
-  }
-
   return () => {
     unwatchLyric();
     unwatchTime();
     unwatchPlaying();
     unwatchSong();
-    unsubs.forEach((unsub) => unsub());
+    desktopLyricStore.dispose();
   };
 }

@@ -20,6 +20,7 @@ import type { DirectMessageUnreadPage } from "./directMessage";
 import type {
   DesktopLyricClockSync,
   DesktopLyricPayload,
+  DesktopLyricSettingPatch,
   DesktopLyricSettingV2,
   DesktopLyricSnapshot,
 } from "./desktopLyric";
@@ -744,7 +745,8 @@ type ElectronIpcApi = {
   getDesktopLyricSnapshot: () => Promise<DesktopLyricSnapshot>;
   syncDesktopLyricClock: (clock: DesktopLyricClockSync) => void;
   setDesktopLyricPayload: (payload: DesktopLyricPayload) => void;
-  patchDesktopLyricSetting: (patch: Partial<DesktopLyricSettingV2>) => void;
+  patchDesktopLyricSetting: (patch: DesktopLyricSettingPatch) => void;
+  onDesktopLyricSettingChanged: (callback: (setting: DesktopLyricSettingV2) => void) => () => void;
   setDesktopLyricLocked: (locked: boolean) => void;
   changeCurrentSong: (currentSong: (TrackSnapshot & { url?: string }) | null) => void;
   releaseLocalPlayback: (song: { id: string; source: string; url?: string }) => void;

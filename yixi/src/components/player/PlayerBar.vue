@@ -20,7 +20,7 @@
           {{ currentSong?.name || "未知歌名" }}
         </div>
         <div class="singer-lyric">
-          <span v-if="!isPlaying" class="singer">{{
+          <span v-if="!barSetting.enabled || (!isPlaying && !barSetting.showWhenPaused)" class="singer">{{
             currentSong?.singer || "未知歌手"
           }}</span>
           <transition v-else name="fade" mode="out-in">
@@ -30,8 +30,11 @@
               class="lyric text-line-1"
               :line="currentLyricLine"
               :current-time="currentTime"
+              :style="barLyricStyle"
+              :base-color="barTextColor"
+              :active-color="barHighlightColor"
               :is-playing="isPlaying" />
-            <span v-else :key="currentLyricText" class="lyric text-line-1">{{
+            <span v-else :key="currentLyricText" class="lyric text-line-1" :style="barLyricStyle" :title="currentLyricText">{{
               currentLyricText
             }}</span>
           </transition>
@@ -175,6 +178,8 @@ import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import { useQualityUnlockFeedback } from "@/composables/useQualityUnlockFeedback";
 import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
 import PlayerBarKaraokeLyric from "./PlayerBarKaraokeLyric.vue";
+import { usePlayerBarLyricStore } from "@/store/playerBarLyric";
+import { findLyricLineIndex } from "@/utils/lyricLine";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
 import { useDesktopLyricStore } from "@/store/desktopLyric";
@@ -202,12 +207,25 @@ const currentQualityOption = computed(() => {
 });
 const { coverUrl: imgSrc } = useSongCoverUrl(currentSong);
 
+const barLyric = usePlayerBarLyricStore();
+const { setting: barSetting } = storeToRefs(barLyric);
+const preferBarWord = computed(() => barSetting.value.sourceMode === "follow" ? lyric.setting.useKRC : barSetting.value.sourceMode === "word");
+const barLines = computed(() => preferBarWord.value && lyric.wordLyrics.length ? lyric.wordLyrics : lyric.lineLyrics.length ? lyric.lineLyrics : lyric.wordLyrics);
+const currentLyricLine = computed(() => barLines.value[findLyricLineIndex(barLines.value, lyric.currentTimeMs)] ?? null);
 const currentLyricText = computed(() => {
-  const text = getLyricLineText(lyric.currentLine);
+  const text = getLyricLineText(currentLyricLine.value);
   return text || EMPTY_LYRIC_TEXT;
 });
-const currentLyricLine = computed(() => lyric.currentLine);
-const showKaraokeLyric = computed(() => lyric.isKaraokeLyricEnabled && Boolean(currentLyricLine.value));
+const showKaraokeLyric = computed(() => preferBarWord.value && lyric.wordLyrics.length > 0 && Boolean(currentLyricLine.value));
+const barTextColor = computed(() => barSetting.value.followTheme ? "var(--text-secondary)" : barSetting.value.textColor);
+const barHighlightColor = computed(() => barSetting.value.followTheme ? "var(--text-accent)" : barSetting.value.highlightColor);
+const barLyricStyle = computed(() => ({
+  fontSize: `${barSetting.value.fontSize}px`,
+  fontFamily: barSetting.value.fontFamily === "follow" ? "inherit" : barSetting.value.fontFamily,
+  fontWeight: barSetting.value.bold ? "bold" : "normal",
+  opacity: barSetting.value.opacity,
+  color: barTextColor.value,
+}));
 
 // 播放模式
 const playModeIcon = computed(() => {

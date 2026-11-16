@@ -86,6 +86,7 @@ const logIpc = {
 import type {
   DesktopLyricClockSync,
   DesktopLyricPayload,
+  DesktopLyricSettingPatch,
   DesktopLyricSettingV2,
 } from "../src/types/desktopLyric";
 
@@ -98,8 +99,10 @@ const desktopLyricIpc = {
     ipcRenderer.send("desktop-lyric:sync-clock", cloneIpcPayload(clock)),
   setDesktopLyricPayload: (payload: DesktopLyricPayload) =>
     ipcRenderer.send("desktop-lyric:set-lyrics", cloneIpcPayload(payload)),
-  patchDesktopLyricSetting: (patch: Partial<DesktopLyricSettingV2>) =>
+  patchDesktopLyricSetting: (patch: DesktopLyricSettingPatch) =>
     ipcRenderer.send("desktop-lyric:set-style", cloneIpcPayload(patch)),
+  onDesktopLyricSettingChanged: (callback: (setting: DesktopLyricSettingV2) => void) =>
+    on("desktop-lyric:setting-changed", callback),
   setDesktopLyricLocked: (locked: boolean) =>
     ipcRenderer.send("desktop-lyric:set-locked", locked),
   changeCurrentSong: (currentSong: any | null) =>
