@@ -10,6 +10,8 @@ import { normalizeSong } from "@/utils/song";
 import { useLibraryStore } from "./library";
 import { useUserStore } from "./user";
 import { useSleepTimerStore } from "./sleepTimer";
+import { useLowPowerStore } from "./lowPower";
+import { useEqualizerStore } from "./equalizerStore";
 import { listeningPlaybackAdapter } from "@/listening/listeningPlaybackAdapter";
 import { reportError } from "@/utils/errorReporter";
 import { showLimitedWarning } from "@/utils/limitedMessage";
@@ -74,6 +76,8 @@ type PlaybackBridge = {
 export const useAudioStore = defineStore("audio", () => {
   const libraryStore = useLibraryStore();
   const userStore = useUserStore();
+  const lowPowerStore = useLowPowerStore();
+  const equalizerStore = useEqualizerStore();
   const currentAccessLevel = () => getQualityAccessLevel(userStore);
   // State (状态)
   const player = ref<Howl | null>(null); // Howl音频播放器实例
@@ -123,6 +127,19 @@ export const useAudioStore = defineStore("audio", () => {
 
   // Actions (操作方法)
 
+  const shouldAttachAudioAnalyser = (): boolean => {
+    return !lowPowerStore.active || equalizerStore.enabled;
+  };
+
+  const attachAudioAnalyserIfNeeded = (): void => {
+    if (!shouldAttachAudioAnalyser()) return;
+    const audioElement = (player.value as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
+    if (audioElement) {
+      audioAnalyser.attach(audioElement);
+    }
+    void audioAnalyser.resume();
+  };
+
   /**
    * 初始化音频播放器
    * @param url 音频文件URL
@@ -142,11 +159,7 @@ export const useAudioStore = defineStore("audio", () => {
         failureSkipCount = 0;
         handlingPlaybackFailure = false;
         isPlaying.value = true;
-        void audioAnalyser.resume();
-        const audioElement = (player.value as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
-        if (audioElement) {
-          audioAnalyser.attach(audioElement);
-        }
+        attachAudioAnalyserIfNeeded();
         startProgressUpdate(); // 开始更新播放进度
         if (currentSong.value) {
           listeningPlaybackAdapter.active(currentSong.value, duration.value * 1000);
@@ -154,18 +167,22 @@ export const useAudioStore = defineStore("audio", () => {
       },
       onpause: () => {
         isPlaying.value = false;
+        stopProgressUpdate();
         listeningPlaybackAdapter.paused(currentSong.value, duration.value * 1000);
       },
       onstop: () => {
         isPlaying.value = false;
+        stopProgressUpdate();
         listeningPlaybackAdapter.paused(currentSong.value, duration.value * 1000);
       },
       onend: handleTrackEnd, // 歌曲结束时的处理
       onload: () => {
         if (player.value) {
-          const audioElement = (player.value as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
-          if (audioElement) {
-            audioAnalyser.attach(audioElement);
+          if (shouldAttachAudioAnalyser()) {
+            const audioElement = (player.value as any)?._sounds?.[0]?._node as HTMLAudioElement | undefined;
+            if (audioElement) {
+              audioAnalyser.attach(audioElement);
+            }
           }
           duration.value = player.value.duration(); // 获取歌曲总时长
           initMediaSession();
@@ -175,7 +192,9 @@ export const useAudioStore = defineStore("audio", () => {
             currentTime.value = targetTime;
           }
           if (autoPlay) {
-            void audioAnalyser.resume();
+            if (shouldAttachAudioAnalyser()) {
+              void audioAnalyser.resume();
+            }
             player.value.play();
           } else {
             isPlaying.value = false;
@@ -297,7 +316,9 @@ export const useAudioStore = defineStore("audio", () => {
       }
 
       if (player.value) {
-        void audioAnalyser.resume();
+        if (shouldAttachAudioAnalyser()) {
+          void audioAnalyser.resume();
+        }
         player.value.play(); // 开始播放
         shouldSignalPlay = true;
       }
@@ -330,6 +351,7 @@ export const useAudioStore = defineStore("audio", () => {
     if (player.value) {
       player.value.pause();
       isPlaying.value = false;
+      stopProgressUpdate();
       electronAPI.isPlaying(false);
       listeningPlaybackAdapter.paused(currentSong.value, duration.value * 1000);
     }
@@ -612,12 +634,18 @@ export const useAudioStore = defineStore("audio", () => {
 
   // 私有方法
 
+  const NORMAL_PROGRESS_INTERVAL_MS = 300;
+  const LOW_POWER_PROGRESS_INTERVAL_MS = 2500;
+
   /**
-   * 开始更新播放进度(每秒更新一次)
+   * 开始更新播放进度（低能耗模式降频至 2.5s 校准，正常模式 300ms）
    */
   const startProgressUpdate = (): void => {
     stopProgressUpdate();
-    progressInterval = setInterval(updateCurrentTime, 300);
+    const intervalMs = lowPowerStore.active
+      ? LOW_POWER_PROGRESS_INTERVAL_MS
+      : NORMAL_PROGRESS_INTERVAL_MS;
+    progressInterval = setInterval(updateCurrentTime, intervalMs);
   };
 
   // 停止更新播放进度
@@ -703,6 +731,7 @@ export const useAudioStore = defineStore("audio", () => {
   );
 
   const fetchWYCover = async () => {
+    if (lowPowerStore.active) return;
     const song = currentSong.value;
     if (!song || song.source != "wy") return;
 
@@ -721,6 +750,22 @@ export const useAudioStore = defineStore("audio", () => {
   };
 
   watch(() => currentSong.value?.id, fetchWYCover);
+
+  watch(
+    () => lowPowerStore.active,
+    (isLowPower) => {
+      if (isPlaying.value && player.value) {
+        updateCurrentTime();
+        startProgressUpdate();
+      }
+      if (!isLowPower) {
+        attachAudioAnalyserIfNeeded();
+        if (currentSong.value?.source === "wy" && !currentSong.value.d_cover) {
+          void fetchWYCover();
+        }
+      }
+    },
+  );
 
   // 状态持久化
 

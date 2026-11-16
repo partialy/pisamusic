@@ -74,6 +74,15 @@ const desktopLyricWindowBridge: DesktopLyricWindowBridge = {
       ipcRenderer.removeListener("desktop-lyric-window:setting", handler);
     };
   },
+  onLowPower: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, active: boolean) => {
+      callback(Boolean(active));
+    };
+    ipcRenderer.on("desktop-lyric-window:low-power", handler);
+    return () => {
+      ipcRenderer.removeListener("desktop-lyric-window:low-power", handler);
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld("desktopLyricWindow", desktopLyricWindowBridge);

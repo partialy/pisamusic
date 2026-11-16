@@ -57,6 +57,18 @@ const windowIpc = {
   onHideWindow: (cb: () => void) => on("window:hide", cb),
   onWindowMaximized: (callback: () => void) => on("window:maximized", callback),
   onWindowUnmaximized: (callback: () => void) => on("window:unmaximized", callback),
+  onRouteSettings: (callback: () => void) => on("route:settings", callback),
+};
+
+const lowPowerIpc = {
+  getLowPowerState: () => ipcRenderer.invoke("low-power:get-state"),
+  setAutoLowPower: (enabled: boolean) => ipcRenderer.invoke("low-power:set-auto", Boolean(enabled)),
+  enterLowPowerMode: (options?: { hideWindow?: boolean }) =>
+    ipcRenderer.invoke("low-power:enter", cloneIpcPayload(options ?? {})),
+  exitLowPowerMode: (options?: { showWindow?: boolean }) =>
+    ipcRenderer.invoke("low-power:exit", cloneIpcPayload(options ?? {})),
+  onLowPowerStateChanged: (callback: (state: import("../src/types/lowPower").LowPowerState) => void) =>
+    on("low-power:state-changed", callback),
 };
 
 const startupIpc = {
@@ -568,4 +580,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   ...cloudMusicIpc,
   ...listeningIpc,
   ...playerControlsIpc,
+  ...lowPowerIpc,
 });

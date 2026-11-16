@@ -5,19 +5,19 @@
     <div class="app-root-shell">
       <!-- 全屏覆盖背景层：铺满整个窗口（包含底部播放器 bar） -->
       <div
-        v-if="themeStore.backgroundMode === 'image' && themeStore.backgroundImage"
+        v-if="!lowPowerStore.active && themeStore.backgroundMode === 'image' && themeStore.backgroundImage"
         class="app-full-bg-layer"
       />
       <!-- 极轻薄通透的微遮罩 -->
       <div
-        v-if="themeStore.backgroundMode === 'image'"
+        v-if="!lowPowerStore.active && themeStore.backgroundMode === 'image'"
         class="app-full-bg-overlay"
       />
 
       <n-notification-provider>
         <n-message-provider>
           <n-modal-provider>
-            <div class="app-content-wrapper">
+            <div v-if="!lowPowerStore.active" class="app-content-wrapper">
               <router-view v-show="!showPlayer" v-slot="{ Component }">
                 <Transition name="main-page" mode="in-out">
                   <component :is="Component" />
@@ -29,9 +29,9 @@
               </Transition>
               <EqualizerModal />
               <AppDialogHost />
-              <ImportUnassociatedLibrary :logged-in="userStore.isLogin" auto-prompt :show-entry="false" />
-              <AppDirectMessagePopup :ready="directMessageReady" :online="directMessageOnline" />
             </div>
+            <ImportUnassociatedLibrary :logged-in="userStore.isLogin" auto-prompt :show-entry="false" />
+            <AppDirectMessagePopup :ready="directMessageReady" :online="directMessageOnline" />
           </n-modal-provider>
         </n-message-provider>
       </n-notification-provider>
@@ -55,6 +55,7 @@ import {
   useCommonStore,
   useCollectStore,
   useAudioStore,
+  useLowPowerStore,
   useLyricStore,
   useMineLibraryStore,
   useRuntimeConfigStore,
@@ -78,12 +79,14 @@ import { setupPlaybackBridge, usePlaybackCommands } from "./listenTogether/playb
 import { openSharedMediaDetail } from "./share/mediaDetailRoute";
 import { listeningPlaybackAdapter } from "./listening/listeningPlaybackAdapter";
 import { setupDesktopLyricBridge } from "./desktopLyric/desktopLyricBridge";
+import { setupLyricPlaybackBridge } from "./desktopLyric/lyricPlaybackBridge";
 import ImportUnassociatedLibrary from "./components/setting/sync/ImportUnassociatedLibrary.vue";
 import AppDirectMessagePopup from "./components/directMessage/AppDirectMessagePopup.vue";
 import AppDialogHost from "./components/common/AppDialogHost.vue";
 const player = useAudioStore();
 const commonStore = useCommonStore();
 const collector = useCollectStore();
+const lowPowerStore = useLowPowerStore();
 const lyric = useLyricStore();
 const mineLibrary = useMineLibraryStore();
 const runtimeConfig = useRuntimeConfigStore();
@@ -130,15 +133,20 @@ function setupListeners() {
     }
   );
 
+  disposeLyricPlaybackBridge = setupLyricPlaybackBridge();
   disposeDesktopLyricBridge = setupDesktopLyricBridge();
+  stopRouteSettingsListener =
+    electronAPI.onRouteSettings?.(() => {
+      commonStore.hidePlayer();
+      void router.push("/setting");
+    }) ?? null;
 
   watch(
-
-    [() => currentSong.value, followSongAccent],
-    ([newSong, enabled]) => {
+    [() => currentSong.value, followSongAccent, () => lowPowerStore.active],
+    ([newSong, enabled, isLowPower]) => {
       if (newSong) {
         const coverUrl = getSongCover(newSong);
-        if (enabled && coverUrl) {
+        if (enabled && !isLowPower && coverUrl) {
           void getColorFromUrl(coverUrl).then((color) => {
             void themeStore.setAccentColor(color);
           });
@@ -159,7 +167,9 @@ function setupListeners() {
 let updaterProgressMessage: ReturnType<typeof message.loading> | null = null;
 let lastUpdaterProgressPercent = -1;
 let stopShareInviteListener: (() => void) | null = null;
+let stopRouteSettingsListener: (() => void) | null = null;
 let disposeDesktopLyricBridge: (() => void) | null = null;
+let disposeLyricPlaybackBridge: (() => void) | null = null;
 
 function resetUpdaterProgressMessage(
   finalText?: string,
@@ -300,6 +310,7 @@ async function bootstrapApp() {
     }
 
     const results = await Promise.allSettled([
+      lowPowerStore.initialize(),
       themeStore.init(),
       isLocalMode ? Promise.resolve(null) : runtimeConfig.refresh(),
       collector.initStore(),
@@ -335,6 +346,9 @@ void bootstrapApp();
 // 离开页面保存数据
 onBeforeUnmount(() => {
   disposeDesktopLyricBridge?.();
+  disposeLyricPlaybackBridge?.();
+  stopRouteSettingsListener?.();
+  lowPowerStore.dispose();
   listeningPlaybackAdapter.sync(null, false, 0);
 
   player.saveState();

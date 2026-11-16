@@ -15,6 +15,7 @@ export class PlayerControlsActivityTracker {
   private activeSenderId: number | null = null;
   private sender: WebContents | null = null;
   private state: PlayerControlsActivityState | null = null;
+  private suspended = false;
 
   constructor(getMainWindow: () => BrowserWindow | null) {
     this.getMainWindow = getMainWindow;
@@ -29,7 +30,42 @@ export class PlayerControlsActivityTracker {
     this.activeSenderId = sender.id;
     this.state = null;
 
-    if (!app.isReady()) {
+    if (!app.isReady() || this.suspended) {
+      return;
+    }
+
+    this.startSamplingLoop();
+  }
+
+  stop(senderId?: number): void {
+    if (senderId !== undefined && this.activeSenderId !== null && senderId !== this.activeSenderId) {
+      return;
+    }
+
+    this.clearSamplingLoop();
+
+    this.sender = null;
+    this.activeSenderId = null;
+    this.state = null;
+  }
+
+  setSuspended(suspended: boolean): void {
+    if (this.suspended === suspended) return;
+    this.suspended = suspended;
+
+    if (suspended) {
+      this.clearSamplingLoop();
+      return;
+    }
+
+    if (this.sender && !this.sender.isDestroyed() && app.isReady()) {
+      this.state = null;
+      this.startSamplingLoop();
+    }
+  }
+
+  private startSamplingLoop(): void {
+    if (this.intervalId || !this.sender || this.sender.isDestroyed() || this.suspended) {
       return;
     }
 
@@ -42,23 +78,15 @@ export class PlayerControlsActivityTracker {
     this.sample();
   }
 
-  stop(senderId?: number): void {
-    if (senderId !== undefined && this.activeSenderId !== null && senderId !== this.activeSenderId) {
-      return;
-    }
-
+  private clearSamplingLoop(): void {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-
-    this.sender = null;
-    this.activeSenderId = null;
-    this.state = null;
   }
 
   markRendererInteraction(senderId: number): void {
-    if (this.activeSenderId !== senderId || !this.sender || this.sender.isDestroyed()) {
+    if (this.suspended || this.activeSenderId !== senderId || !this.sender || this.sender.isDestroyed()) {
       return;
     }
 

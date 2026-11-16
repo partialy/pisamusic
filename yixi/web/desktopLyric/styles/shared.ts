@@ -11,6 +11,7 @@ import {
 import { computeCameraTargetX, smoothCamera } from "../lyricAnimation";
 import { findLineIndex } from "../lyricLayout";
 import { createPlaybackClock, type PlaybackClock } from "../playbackClock";
+import { FrameRateLimiter } from "../frameScheduler";
 import type { IDesktopLyricRenderer } from "./types";
 
 export interface AlignedGlyphRun {
@@ -242,6 +243,7 @@ export abstract class DesktopLyricCanvasBase implements IDesktopLyricRenderer {
   protected lastFrameTime = 0;
   protected rafId: number | null = null;
   protected renderRafId: number | null = null;
+  private frameLimiter = new FrameRateLimiter();
   protected isPlaying = false;
   protected disposed = false;
 
@@ -261,7 +263,8 @@ export abstract class DesktopLyricCanvasBase implements IDesktopLyricRenderer {
     this.lineEnteredAtMs = 0;
     this.cameraX = 0;
     this.onLyricChanged();
-    this.requestRender();
+    this.frameLimiter.reset();
+    this.ensureActiveRender();
   }
 
   setSetting(setting: DesktopLyricSettingV2): void {
@@ -275,7 +278,8 @@ export abstract class DesktopLyricCanvasBase implements IDesktopLyricRenderer {
       this.cachedLayouts.clear();
     }
     this.onSettingChanged(prev, this.setting);
-    this.requestRender();
+    this.frameLimiter.reset();
+    this.ensureActiveRender();
   }
 
   syncClock(clock: DesktopLyricClockSync): void {
@@ -290,6 +294,9 @@ export abstract class DesktopLyricCanvasBase implements IDesktopLyricRenderer {
       this.requestRender();
     } else if (!this.isPlaying && clock.discontinuity) {
       this.requestRender();
+    } else if (this.isPlaying && (clock.discontinuity || this.rafId === null)) {
+      this.frameLimiter.reset();
+      this.startLoop();
     }
   }
 
@@ -309,7 +316,8 @@ export abstract class DesktopLyricCanvasBase implements IDesktopLyricRenderer {
 
     this.cachedLayouts.clear();
     this.onResized();
-    this.requestRender();
+    this.frameLimiter.reset();
+    this.ensureActiveRender();
   }
 
   dispose(): void {
@@ -363,8 +371,20 @@ export abstract class DesktopLyricCanvasBase implements IDesktopLyricRenderer {
     return posMs > layout.endTimeMs ? layout.totalWidth : 0;
   }
 
+  private ensureActiveRender(): void {
+    if (this.disposed) return;
+    if (this.isPlaying) {
+      if (this.rafId === null) {
+        this.startLoop();
+      }
+      return;
+    }
+    this.requestRender();
+  }
+
   private startLoop(): void {
     if (this.disposed) return;
+    this.frameLimiter.reset();
     if (this.renderRafId !== null) {
       cancelAnimationFrame(this.renderRafId);
       this.renderRafId = null;
@@ -393,12 +413,19 @@ export abstract class DesktopLyricCanvasBase implements IDesktopLyricRenderer {
 
   private tick(frameNow: number): void {
     if (this.disposed) return;
-    this.draw(frameNow);
-    if (this.isPlaying) {
-      this.rafId = requestAnimationFrame((now) => this.tick(now));
-    } else {
-      this.rafId = null;
+    if (this.frameLimiter.shouldDraw(frameNow)) {
+      this.draw(frameNow);
     }
+    if (!this.isPlaying) {
+      this.rafId = null;
+      return;
+    }
+    if (!this.lyric.lines || this.lyric.lines.length === 0) {
+      // 无歌词时暂停循环，等待 setLyric 重新唤醒
+      this.rafId = null;
+      return;
+    }
+    this.rafId = requestAnimationFrame((now) => this.tick(now));
   }
 
   private getLineLayout(index: number): AlignedLineLayout {

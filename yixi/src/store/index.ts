@@ -14,11 +14,13 @@ import { useListenTogetherStore } from "./listenTogether";
 import { useSleepTimerStore } from "./sleepTimer";
 import { useEqualizerStore } from "./equalizerStore";
 import { useDesktopLyricStore } from "./desktopLyric";
+import { useLowPowerStore } from "./lowPower";
 export {
   useSettingStore,
   useCommonStore,
   useLyricStore,
   useDesktopLyricStore,
+  useLowPowerStore,
   useAudioStore,
   useCollectStore,
   useLibraryStore,

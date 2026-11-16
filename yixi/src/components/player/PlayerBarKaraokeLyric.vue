@@ -14,6 +14,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import type { LyricLine, LyricWord } from "@/utils/common/LyricParser";
 import { EMPTY_LYRIC_TEXT, getLyricLineText, normalizePlaybackTimeToMs } from "@/utils/lyricLine";
+import { FrameRateLimiter } from "@/utils/frameRateLimiter";
 
 const props = withDefaults(
   defineProps<{
@@ -38,6 +39,8 @@ let rafId: number | null = null;
 const words = computed(() => props.line?.words ?? []);
 const lineText = computed(() => getLyricLineText(props.line) || EMPTY_LYRIC_TEXT);
 
+const frameLimiter = new FrameRateLimiter(60);
+
 const stopAnimation = () => {
   if (rafId === null) return;
   cancelAnimationFrame(rafId);
@@ -49,12 +52,15 @@ const renderFrame = (now: number) => {
     stopAnimation();
     return;
   }
-  animatedTimeMs.value = anchorTimeMs + (now - anchorRafTimeMs);
+  if (frameLimiter.shouldDraw(now)) {
+    animatedTimeMs.value = anchorTimeMs + (now - anchorRafTimeMs);
+  }
   rafId = requestAnimationFrame(renderFrame);
 };
 
 const startAnimation = () => {
   if (!props.isPlaying || rafId !== null) return;
+  frameLimiter.reset();
   anchorTimeMs = normalizePlaybackTimeToMs(props.currentTime);
   animatedTimeMs.value = anchorTimeMs;
   anchorRafTimeMs = performance.now();

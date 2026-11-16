@@ -1,5 +1,5 @@
 export type DesktopLyricKind = "word" | "line";
-export type DesktopLyricControlAction = "play" | "pause" | "prev" | "next" | "close";
+export type DesktopLyricControlAction = "play" | "pause" | "prev" | "next" | "close" | "restore-main";
 
 export type DesktopLyricStyleId =
   | "default"
@@ -144,6 +144,7 @@ export interface DesktopLyricClockSync {
 
 export interface DesktopLyricSnapshot {
   visible: boolean;
+  lowPowerActive?: boolean;
   lyric: DesktopLyricPayload;
   clock: DesktopLyricClockSync;
   setting: DesktopLyricSettingV2;
@@ -159,4 +160,5 @@ export interface DesktopLyricWindowBridge {
   onClock(callback: (clock: DesktopLyricClockSync) => void): () => void;
   onLyric(callback: (lyric: DesktopLyricPayload) => void): () => void;
   onSetting(callback: (setting: DesktopLyricSettingV2) => void): () => void;
+  onLowPower(callback: (active: boolean) => void): () => void;
 }

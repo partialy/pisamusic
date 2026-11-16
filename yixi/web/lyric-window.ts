@@ -74,11 +74,16 @@ function updateLocked(locked: boolean) {
   }
 }
 
+function updateLowPower(active: boolean) {
+  document.body.classList.toggle("low-power", Boolean(active));
+}
+
 function applySnapshot(snapshot: DesktopLyricSnapshot) {
   if (!snapshot) return;
   latestSetting = snapshot.setting;
   latestLyric = snapshot.lyric;
   latestClock = snapshot.clock;
+  updateLowPower(Boolean(snapshot.lowPowerActive));
   ensureRendererForStyle(snapshot.setting.style);
   renderer.setSetting(snapshot.setting);
   renderer.setLyric(snapshot.lyric);
@@ -120,6 +125,10 @@ pauseBtn?.addEventListener("click", (e) => {
 document.getElementById("close-btn")?.addEventListener("click", (e) => {
   e.stopPropagation();
   bridge?.control("close");
+});
+document.getElementById("restore-main-btn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  bridge?.control("restore-main");
 });
 lockBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -305,6 +314,11 @@ if (bridge) {
       latestClock = clock;
       renderer.syncClock(clock);
       updatePlaying(clock.isPlaying);
+    }),
+  );
+  unsubs.push(
+    bridge.onLowPower((active) => {
+      updateLowPower(active);
     }),
   );
   bridge.ready();

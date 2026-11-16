@@ -23,6 +23,9 @@ type PlayerTrayOptions = {
   isDesktopLyricVisible: () => boolean;
   onToggleDesktopLyricLock: () => void;
   isDesktopLyricLocked: () => boolean;
+  isLowPowerActive: () => boolean;
+  onToggleLowPower: () => void;
+  onShowMainWindow: () => void;
 };
 
 export class PlayerTray {
@@ -36,6 +39,9 @@ export class PlayerTray {
   private readonly isDesktopLyricVisible: () => boolean;
   private readonly onToggleDesktopLyricLock: () => void;
   private readonly isDesktopLyricLocked: () => boolean;
+  private readonly isLowPowerActive: () => boolean;
+  private readonly onToggleLowPower: () => void;
+  private readonly onShowMainWindow: () => void;
 
   constructor(options: PlayerTrayOptions) {
     this.iconPath = options.iconPath;
@@ -45,16 +51,16 @@ export class PlayerTray {
     this.isDesktopLyricVisible = options.isDesktopLyricVisible;
     this.onToggleDesktopLyricLock = options.onToggleDesktopLyricLock;
     this.isDesktopLyricLocked = options.isDesktopLyricLocked;
+    this.isLowPowerActive = options.isLowPowerActive;
+    this.onToggleLowPower = options.onToggleLowPower;
+    this.onShowMainWindow = options.onShowMainWindow;
     onAccountIdentityChanged(() => this.refresh());
   }
 
   create() {
     this.tray = new Tray(nativeImage.createFromPath(this.iconPath).resize({ width: 16, height: 16 }));
     this.tray.on("click", () => {
-      const win = this.getMainWindow();
-      if (!win) return;
-      win.show();
-      win.focus();
+      this.onShowMainWindow();
     });
     this.refresh();
   }
@@ -90,9 +96,7 @@ export class PlayerTray {
         label: playingText,
         icon: this.getTrayIcon("music"),
         click: () => {
-          const win = this.getMainWindow();
-          win?.show();
-          win?.focus();
+          this.onShowMainWindow();
         },
       },
       {
@@ -140,11 +144,19 @@ export class PlayerTray {
           setTimeout(() => this.refresh(), 50);
         },
       },
+      {
+        label: this.isLowPowerActive() ? "退出低能耗模式" : "进入低能耗模式",
+        icon: this.getTrayIcon("power"),
+        click: () => this.onToggleLowPower(),
+      },
       { type: "separator" },
       {
         label: "设置",
         icon: this.getTrayIcon("setting"),
-        click: () => this.getMainWindow()?.webContents.send("route:settings"),
+        click: () => {
+          this.onShowMainWindow();
+          this.getMainWindow()?.webContents.send("route:settings");
+        },
       },
       {
         label: "退出",

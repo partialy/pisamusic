@@ -80,6 +80,7 @@ import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import PlayerEffectLyricLine from "./PlayerEffectLyricLine.vue";
 import { getPlayerStyleTextColor, isPlayerEffectStyle } from "@/lyricStyles/playerLyricConfig";
 import { getLyricStyleEffectPadding, type EffectFont } from "@/lyricStyles/lyricStyleEffects";
+import { FrameRateLimiter } from "@/utils/frameRateLimiter";
 
 const playerStore = useAudioStore();
 const lyricStore = useLyricStore();
@@ -141,6 +142,8 @@ const currentIndex = computed(() =>
   findLyricLineIndex(lyricStore.preferredLyrics, currentTimeMs.value)
 );
 
+const frameLimiter = new FrameRateLimiter(60);
+
 const stopAnimation = () => {
   if (rafId === null) return;
   cancelAnimationFrame(rafId);
@@ -152,12 +155,15 @@ const renderFrame = (now: number) => {
     stopAnimation();
     return;
   }
-  currentTimeMs.value = anchorTimeMs + (now - anchorRafTimeMs);
+  if (frameLimiter.shouldDraw(now)) {
+    currentTimeMs.value = anchorTimeMs + (now - anchorRafTimeMs);
+  }
   rafId = requestAnimationFrame(renderFrame);
 };
 
 const startAnimation = () => {
   if (!mounted || !isPlaying.value || document.hidden || reducedMotion.value || disposed || rafId !== null) return;
+  frameLimiter.reset();
   anchorTimeMs = readAudioTimeMs();
   currentTimeMs.value = anchorTimeMs;
   anchorRafTimeMs = performance.now();

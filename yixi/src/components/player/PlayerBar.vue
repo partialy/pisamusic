@@ -160,7 +160,7 @@ import { useAudioStore, useLyricStore, useUserStore } from "@/store";
 import { PlayControlBtn, PlaySequence, VolumePanel } from ".";
 import { debounce, defaultSongCover, formatDuration } from '@/utils/common';
 import { EMPTY_LYRIC_TEXT, getLyricLineText } from "@/utils/lyricLine";
-import { computed, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import { Download as DownloadIcon } from "lucide-vue-next";
 import {
   PlayListIcon,
@@ -309,28 +309,6 @@ const showSequence = ref(false);
 const handleSeek = debounce((val: number) => {
   playbackCommands.seekSeconds(val);
 }, 50);
-
-watch(
-  () => currentTime.value,
-  (val) => {
-    lyric.currentTime = val;
-  },
-  { immediate: true }
-);
-
-const getLyric = debounce(() => {
-  lyric.currentSong = currentSong.value;
-  lyric.initLyric();
-}, 300)
-
-watch(
-  () => currentSong.value,
-  () => getLyric(),
-  {
-    immediate: true,
-    deep: true,
-  }
-);
 </script>
 
 <style lang="scss" scoped>

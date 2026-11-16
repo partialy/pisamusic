@@ -25,7 +25,8 @@
     "test:direct-message": "vitest run --config vitest.direct-message.config.ts",
     "test:playlist-tracks": "vitest run --config vitest.playlist-tracks.config.ts",
     "test:theme": "vitest run --config vitest.theme.config.ts",
-    "test:desktop-lyric": "vitest run --config vitest.desktop-lyric.config.ts"
+    "test:desktop-lyric": "vitest run --config vitest.desktop-lyric.config.ts",
+    "test:power": "vitest run --config vitest.power.config.ts"
   },
   "dependencies": {
     "@applemusic-like-lyrics/core": "^0.1.3",

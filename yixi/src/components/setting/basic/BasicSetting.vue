@@ -269,6 +269,18 @@
       v-model:show="showImageCenterModal"
       :current-url="themeStore.backgroundImage"
       @confirm="handleConfirmFromGallery" />
+
+    <SettingSection title="性能与能耗" description="管理后台省资源策略与低能耗模式。">
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">自动低能耗</div>
+          <div class="setting-desc">最小化超过10分钟进入低能耗模式，节省资源，开启后app被最小化、关闭到托盘，10分钟后进入低能耗模式</div>
+        </div>
+        <n-switch
+          :value="lowPowerStore.autoLowPowerOnMinimize"
+          @update:value="handleAutoLowPowerChange" />
+      </div>
+    </SettingSection>
   </div>
 </template>
 
@@ -300,10 +312,12 @@ import {
   type GradientDirection,
   type ThemeMode,
 } from "@/store/theme";
+import { useLowPowerStore } from "@/store/lowPower";
 import { useImageManager } from "@/composables/useImageManager";
 import AppImageCenterModal from "@/components/common/AppImageCenterModal.vue";
 
 const themeStore = useThemeStore();
+const lowPowerStore = useLowPowerStore();
 const imageManager = useImageManager();
 const { latestThreeImages } = imageManager;
 
@@ -345,6 +359,10 @@ const handleAccentColorChange = (value: string) => {
 
 const handleFollowSongAccentChange = (value: boolean) => {
   void themeStore.setFollowSongAccent(value);
+};
+
+const handleAutoLowPowerChange = (value: boolean) => {
+  void lowPowerStore.setAutoLowPower(value);
 };
 
 const handleColorfulProgressBarChange = (value: boolean) => {

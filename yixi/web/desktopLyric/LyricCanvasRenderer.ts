@@ -25,11 +25,14 @@ import {
   smoothCamera,
   wordScale,
 } from "./lyricAnimation";
+import { computeStaticIdleWakeDelayMs, FrameRateLimiter } from "./frameScheduler";
 
 export interface LyricRenderRuntime {
   now(): number;
   requestFrame(callback: FrameRequestCallback): number;
   cancelFrame(id: number): void;
+  scheduleTimeout?: (callback: () => void, ms: number) => ReturnType<typeof setTimeout>;
+  clearTimeout?: (id: ReturnType<typeof setTimeout>) => void;
 }
 
 export function getRelativeLuminance(color: string): number {
@@ -83,6 +86,8 @@ export class LyricCanvasRenderer {
   private lastFrameTime = 0;
   private rafId: number | null = null;
   private renderRafId: number | null = null;
+  private wakeTimerId: ReturnType<typeof setTimeout> | null = null;
+  private frameLimiter = new FrameRateLimiter();
   private isPlaying = false;
   private disposed = false;
 
@@ -118,7 +123,8 @@ export class LyricCanvasRenderer {
     this.previousLineIndex = -1;
     this.transitionStartTime = -1;
     this.cameraX = 0;
-    this.requestRender();
+    this.frameLimiter.reset();
+    this.ensureActiveRender();
   }
 
   setSetting(setting: DesktopLyricSettingV2): void {
@@ -133,7 +139,8 @@ export class LyricCanvasRenderer {
       this.cachedLayouts.clear();
     }
 
-    this.requestRender();
+    this.frameLimiter.reset();
+    this.ensureActiveRender();
   }
 
   syncClock(clock: DesktopLyricClockSync): void {
@@ -145,8 +152,14 @@ export class LyricCanvasRenderer {
       this.startLoop();
     } else if (!this.isPlaying && wasPlaying) {
       this.stopLoop();
+      if (clock.discontinuity) {
+        this.requestRender();
+      }
     } else if (!this.isPlaying && clock.discontinuity) {
       this.requestRender();
+    } else if (this.isPlaying && (clock.discontinuity || (this.rafId === null && this.wakeTimerId === null))) {
+      this.frameLimiter.reset();
+      this.startLoop();
     }
   }
 
@@ -166,7 +179,8 @@ export class LyricCanvasRenderer {
     }
 
     this.cachedLayouts.clear();
-    this.requestRender();
+    this.frameLimiter.reset();
+    this.ensureActiveRender();
   }
 
   dispose(): void {
@@ -179,8 +193,45 @@ export class LyricCanvasRenderer {
     this.cachedLayouts.clear();
   }
 
+  private ensureActiveRender(): void {
+    if (this.disposed) return;
+    if (this.isPlaying) {
+      this.clearWakeTimer();
+      if (this.rafId === null) {
+        this.startLoop();
+      }
+      return;
+    }
+    this.requestRender();
+  }
+
+  private clearWakeTimer(): void {
+    if (this.wakeTimerId === null) return;
+    if (this.runtime.clearTimeout) {
+      this.runtime.clearTimeout(this.wakeTimerId);
+    } else {
+      clearTimeout(this.wakeTimerId);
+    }
+    this.wakeTimerId = null;
+  }
+
+  private scheduleWake(delayMs: number): void {
+    this.clearWakeTimer();
+    const trigger = () => {
+      this.wakeTimerId = null;
+      if (!this.disposed && this.isPlaying) {
+        this.startLoop();
+      }
+    };
+    this.wakeTimerId = this.runtime.scheduleTimeout
+      ? this.runtime.scheduleTimeout(trigger, delayMs)
+      : setTimeout(trigger, delayMs);
+  }
+
   private startLoop(): void {
     if (this.disposed) return;
+    this.clearWakeTimer();
+    this.frameLimiter.reset();
     if (this.renderRafId !== null) {
       this.runtime.cancelFrame(this.renderRafId);
       this.renderRafId = null;
@@ -191,6 +242,7 @@ export class LyricCanvasRenderer {
   }
 
   private stopLoop(): void {
+    this.clearWakeTimer();
     if (this.rafId !== null) {
       this.runtime.cancelFrame(this.rafId);
       this.rafId = null;
@@ -210,12 +262,24 @@ export class LyricCanvasRenderer {
 
   private tick(frameNow: number): void {
     if (this.disposed) return;
-    this.draw(frameNow);
-    if (this.isPlaying) {
-      this.rafId = this.runtime.requestFrame((now) => this.tick(now));
-    } else {
-      this.rafId = null;
+    let wakeDelayMs: number | null = null;
+    if (this.frameLimiter.shouldDraw(frameNow)) {
+      wakeDelayMs = this.draw(frameNow);
     }
+    if (!this.isPlaying) {
+      this.rafId = null;
+      return;
+    }
+    if (wakeDelayMs === 0) {
+      this.rafId = null;
+      return;
+    }
+    if (wakeDelayMs !== null && wakeDelayMs > 0) {
+      this.rafId = null;
+      this.scheduleWake(wakeDelayMs);
+      return;
+    }
+    this.rafId = this.runtime.requestFrame((now) => this.tick(now));
   }
 
   private getLineLayout(index: number): LineLayout {
@@ -242,8 +306,8 @@ export class LyricCanvasRenderer {
     }
   }
 
-  private draw(frameNow: number): void {
-    if (!this.ctx || this.disposed) return;
+  private draw(frameNow: number): number | null {
+    if (!this.ctx || this.disposed) return 0;
 
     const dt = this.lastFrameTime > 0 ? frameNow - this.lastFrameTime : 16;
     this.lastFrameTime = frameNow;
@@ -254,7 +318,7 @@ export class LyricCanvasRenderer {
     if (!lines || lines.length === 0) {
       this.drawEmpty("暂无歌词");
       this.updateLiveRegion("暂无歌词");
-      return;
+      return 0;
     }
 
     const currentPosMs = this.clock.now(frameNow);
@@ -284,6 +348,7 @@ export class LyricCanvasRenderer {
       }
     }
 
+    const inLineTransition = this.previousLineIndex >= 0 && transitionProgress < 1;
     const transition = computeLineTransition(transitionProgress);
     const currentLayout = this.getLineLayout(this.currentLineIndex);
 
@@ -299,10 +364,14 @@ export class LyricCanvasRenderer {
     } else {
       this.cameraX = targetCameraX;
     }
+    const cameraSettled = Math.abs(targetCameraX - this.cameraX) < 0.25;
+    if (cameraSettled) {
+      this.cameraX = targetCameraX;
+    }
 
     const baselineY = Math.round(this.cssHeight / 2 + this.setting.fontSize * 0.35);
 
-    if (this.previousLineIndex >= 0 && transitionProgress < 1) {
+    if (inLineTransition) {
       const oldLayout = this.getLineLayout(this.previousLineIndex);
       this.drawSingleLine(
         oldLayout,
@@ -313,13 +382,13 @@ export class LyricCanvasRenderer {
       );
     }
 
-    const newLineAlpha = this.previousLineIndex >= 0 && transitionProgress < 1
+    const newLineAlpha = inLineTransition
       ? transition.newLine.alpha
       : 1;
-    const newLineY = this.previousLineIndex >= 0 && transitionProgress < 1
+    const newLineY = inLineTransition
       ? baselineY + transition.newLine.y
       : baselineY;
-    const newLineScale = this.previousLineIndex >= 0 && transitionProgress < 1
+    const newLineScale = inLineTransition
       ? transition.newLine.scale
       : 1;
 
@@ -330,6 +399,26 @@ export class LyricCanvasRenderer {
       newLineAlpha,
       newLineScale,
     );
+
+    const currentLine = lines[this.currentLineIndex];
+    const activeStartMs = currentLayout.runs[0]?.startTimeMs ?? currentLine.startTimeMs;
+    const activeEndMs =
+      currentLayout.runs[currentLayout.runs.length - 1]?.endTimeMs ?? currentLine.endTimeMs;
+    const nextLineStartMs =
+      this.currentLineIndex + 1 < lines.length
+        ? lines[this.currentLineIndex + 1].startTimeMs
+        : null;
+
+    return computeStaticIdleWakeDelayMs({
+      isPlaying: this.isPlaying,
+      hasLines: true,
+      inLineTransition,
+      cameraSettled,
+      currentPosMs,
+      activeStartMs,
+      activeEndMs,
+      nextLineStartMs,
+    });
   }
 
   private computeActiveCenterX(layout: LineLayout, posMs: number): number {

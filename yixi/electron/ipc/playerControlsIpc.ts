@@ -30,6 +30,10 @@ export function setupPlayerControlsIpc(getMainWindow: () => BrowserWindow | null
   }
 }
 
+export function setPlayerControlsTrackingSuspended(suspended: boolean): void {
+  tracker?.setSuspended(suspended);
+}
+
 export function disposePlayerControlsIpc(): void {
   tracker?.dispose();
   tracker = null;

@@ -48,8 +48,12 @@ import {
 } from "./mediaCache";
 import {
   disposePlayerControlsIpc,
+  setPlayerControlsTrackingSuspended,
   setupPlayerControlsIpc,
 } from "./ipc/playerControlsIpc";
+import { setupLowPowerIpc } from "./ipc/lowPowerIpc";
+import { LowPowerManager } from "./power/lowPowerManager";
+import { isWindowIdleForLowPower } from "./power/lowPowerRules";
 
 const currentFile = fileURLToPath(import.meta.url);
 const currentDir = dirname(currentFile);
@@ -61,6 +65,7 @@ let mainWindow: BrowserWindow | null = null;
 let desktopLyric: DesktopLyricManager;
 let playerTray: PlayerTray;
 let startupWindow: StartupWindowManager;
+let lowPowerManager: LowPowerManager;
 let isQuitting = false;
 let mainWindowReadyToShow = false;
 let rendererReady = false;
@@ -69,6 +74,18 @@ let appRuntimeStarted = false;
 const inviteCoordinator = new ListenTogetherInviteCoordinator({
   getMainWindow: () => mainWindow,
 });
+
+function syncPlayerControlsSuspension(): void {
+  const isLowPower = lowPowerManager?.getState().active ?? false;
+  const isIdle =
+    !mainWindow ||
+    isWindowIdleForLowPower({
+      destroyed: mainWindow.isDestroyed(),
+      visible: mainWindow.isVisible(),
+      minimized: mainWindow.isMinimized(),
+    });
+  setPlayerControlsTrackingSuspended(isLowPower || isIdle);
+}
 
 registerMediaCacheScheme();
 
@@ -93,8 +110,10 @@ function createMainWindow() {
       webSecurity: false,
       devTools: process.env.NODE_ENV === "development",
       sandbox: true,
+      backgroundThrottling: true,
     },
   });
+  lowPowerManager?.attachMainWindow(mainWindow);
   mainWindow.webContents.on("render-process-gone", clearLocalPlaybackReservations);
   mainWindow.webContents.on("destroyed", clearLocalPlaybackReservations);
   mainWindow.webContents.on("did-start-navigation", (_event, _url, _inPlace, isMainFrame) => {
@@ -169,6 +188,7 @@ function setupAppIpc() {
   setupCloudMusicIpc();
   setupListeningIpc();
   setupPlayerControlsIpc(() => mainWindow);
+  setupLowPowerIpc(lowPowerManager);
   desktopLyric.setupIpc();
 }
 
@@ -231,6 +251,10 @@ function revealMainWindowIfReady() {
 }
 
 function focusApplicationWindow() {
+  if (lowPowerManager?.getState().active) {
+    lowPowerManager.exit({ showWindow: true });
+    return;
+  }
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
@@ -251,6 +275,7 @@ function registerDefaultProtocolClient() {
 function quitApplication() {
   if (isQuitting) return;
   isQuitting = true;
+  lowPowerManager?.dispose();
   startupWindow?.destroy();
   desktopLyric?.destroy();
   playerTray?.destroy();
@@ -282,6 +307,20 @@ if (!hasSingleInstanceLock) {
       iconPath,
       getMainWindow: () => mainWindow,
       onStateChanged: () => playerTray?.refresh(),
+      onRestoreMainWindow: () => {
+        lowPowerManager?.exit({ showWindow: true });
+      },
+    });
+    lowPowerManager = new LowPowerManager({
+      getMainWindow: () => mainWindow,
+      onLowPowerChanged: (active) => {
+        desktopLyric?.setLowPowerActive(active);
+        syncPlayerControlsSuspension();
+        playerTray?.refresh();
+      },
+      onWindowActivityChanged: () => {
+        syncPlayerControlsSuspension();
+      },
     });
     playerTray = new PlayerTray({
       iconPath,
@@ -291,6 +330,13 @@ if (!hasSingleInstanceLock) {
       isDesktopLyricVisible: () => desktopLyric.isVisible(),
       onToggleDesktopLyricLock: () => desktopLyric.setLocked(!desktopLyric.isLocked()),
       isDesktopLyricLocked: () => desktopLyric.isLocked(),
+      isLowPowerActive: () => lowPowerManager.getState().active,
+      onToggleLowPower: () => {
+        lowPowerManager.toggleManual();
+      },
+      onShowMainWindow: () => {
+        focusApplicationWindow();
+      },
     });
     startupWindow = new StartupWindowManager({
       htmlPath: join(currentDir, "./web/startup-window.html"),
@@ -341,6 +387,7 @@ if (!hasSingleInstanceLock) {
       return;
     }
     isQuitting = true;
+    lowPowerManager?.dispose();
     disposePlayerControlsIpc();
     getListeningManager().shutdown();
     closeListenTogetherSocket();

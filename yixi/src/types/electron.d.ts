@@ -1024,6 +1024,15 @@ type ElectronIpcApi = {
   onPlayerControlsVisibility: (
     callback: (event: import("./playerControls").PlayerControlsVisibilityEvent) => void,
   ) => () => void;
+
+  onRouteSettings: (callback: () => void) => () => void;
+  getLowPowerState: () => Promise<import("./lowPower").LowPowerState>;
+  setAutoLowPower: (enabled: boolean) => Promise<import("./lowPower").LowPowerState>;
+  enterLowPowerMode: (options?: { hideWindow?: boolean }) => Promise<import("./lowPower").LowPowerState>;
+  exitLowPowerMode: (options?: { showWindow?: boolean }) => Promise<import("./lowPower").LowPowerState>;
+  onLowPowerStateChanged: (
+    callback: (state: import("./lowPower").LowPowerState) => void,
+  ) => () => void;
 };
 
 declare global {

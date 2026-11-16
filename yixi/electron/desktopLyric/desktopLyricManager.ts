@@ -30,6 +30,7 @@ export interface DesktopLyricManagerOptions {
   getMainWindow: () => BrowserWindow | null;
   settingRepository?: DesktopLyricSettingRepository;
   onStateChanged?: () => void;
+  onRestoreMainWindow?: () => void;
 }
 
 export class DesktopLyricManager {
@@ -38,8 +39,10 @@ export class DesktopLyricManager {
   private readonly lyricPreloadPath: string;
   private readonly getMainWindow: () => BrowserWindow | null;
   private readonly onStateChanged?: () => void;
+  private readonly onRestoreMainWindow?: () => void;
   private readonly repository: DesktopLyricSettingRepository;
   private registered = false;
+  private lowPowerActive = false;
 
   private pendingBoundsSave: DesktopLyricBounds | null = null;
   private boundsSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -61,6 +64,7 @@ export class DesktopLyricManager {
     this.iconPath = options.iconPath;
     this.getMainWindow = options.getMainWindow;
     this.onStateChanged = options.onStateChanged;
+    this.onRestoreMainWindow = options.onRestoreMainWindow;
     this.repository = options.settingRepository ?? getDefaultDesktopLyricSettingRepository();
     this.lyricPreloadPath =
       options.lyricPreloadPath ?? path.join(__dirname, "../preload/desktop-lyric.cjs");
@@ -509,10 +513,18 @@ export class DesktopLyricManager {
   getSnapshot(): DesktopLyricSnapshot {
     return {
       visible: this.isVisible(),
+      lowPowerActive: this.lowPowerActive,
       lyric: this.currentLyric,
       clock: this.currentClock,
       setting: this.currentSetting,
     };
+  }
+
+  setLowPowerActive(active: boolean) {
+    const next = Boolean(active);
+    if (this.lowPowerActive === next) return;
+    this.lowPowerActive = next;
+    this.sendToWindow("desktop-lyric-window:low-power", this.lowPowerActive);
   }
 
   private scheduleBoundsSave(bounds: DesktopLyricBounds) {
@@ -549,6 +561,10 @@ export class DesktopLyricManager {
   private handleControl(action: DesktopLyricControlAction) {
     if (action === "close") {
       this.close();
+      return;
+    }
+    if (action === "restore-main") {
+      this.onRestoreMainWindow?.();
       return;
     }
     this.getMainWindow()?.webContents.send("media-control", action);
