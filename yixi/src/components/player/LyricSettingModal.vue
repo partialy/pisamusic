@@ -1,6 +1,6 @@
 <template>
   <AppModal :show="show" title="播放页设置" :icon="Settings2" :width="720"
-    @update:show="updateShow" @after-leave="activeSection = 'background'">
+    @update:show="updateShow" @after-leave="activeSection = 'style'">
     <div class="lyric-settings">
       <n-tabs v-model:value="activeSection" type="segment" animated class="setting-tabs">
         <n-tab-pane v-for="section in PLAYER_SETTINGS_SECTIONS" :key="section.value" :name="section.value" :tab="section.label" />
@@ -22,7 +22,7 @@ import { PLAYER_SETTINGS_SECTIONS, type PlayerSettingsSection } from "@/componen
 
 withDefaults(defineProps<{ show?: boolean }>(), { show: false });
 const emit = defineEmits<{ "update:show": [value: boolean]; close: [] }>();
-const activeSection = ref<PlayerSettingsSection>("background");
+const activeSection = ref<PlayerSettingsSection>("style");
 
 function updateShow(value: boolean) {
   emit("update:show", value);

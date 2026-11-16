@@ -6,6 +6,7 @@ import { fetchLyricsByMusicApi } from "@/utils/api/musicAPI";
 import { LyricParser, type LyricLine } from "@/utils/common/LyricParser";
 import electronAPI from "@/utils/electron";
 import { getDefaultLyricSetting, normalizeLyricSetting, type LyricSetting } from "@/utils/lyricSettings";
+import { getDefaultPlayerLyricStyles, type PlayerLyricStyleId, type PlayerLyricStyleConfigMap } from "@/lyricStyles/playerLyricConfig";
 export type { LyricSetting } from "@/utils/lyricSettings";
 import {
   findLyricLineIndex,
@@ -153,6 +154,15 @@ export const useLyricStore = defineStore("lyric", {
     updateSetting(patch: Partial<LyricSetting>) {
       Object.assign(this.setting, normalizeLyricSetting({ ...this.setting, ...patch }));
       this.saveSetting();
+    },
+    updateStyleSetting<K extends PlayerLyricStyleId>(style: K, patch: Partial<PlayerLyricStyleConfigMap[K]>) {
+      this.updateSetting({ styles: {
+        ...this.setting.styles,
+        [style]: { ...this.setting.styles[style], ...patch },
+      } });
+    },
+    resetStyleSetting(style: PlayerLyricStyleId) {
+      this.updateSetting({ styles: { ...this.setting.styles, [style]: getDefaultPlayerLyricStyles()[style] } });
     },
     updateBackgroundSetting(patch: PlayerBackgroundPatch) {
       const current = this.setting.background;

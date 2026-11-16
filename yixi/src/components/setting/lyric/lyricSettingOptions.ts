@@ -35,9 +35,9 @@ export function getLyricFontOptions(current: string, desktop = false) {
 }
 
 export const PLAYER_SETTINGS_SECTIONS = [
+  { label: "歌词样式", value: "style" },
+  { label: "通用设置", value: "common" },
   { label: "背景", value: "background" },
-  { label: "排版与动效", value: "layout" },
-  { label: "字体与颜色", value: "text" },
 ] as const;
 
 export type PlayerSettingsSection = typeof PLAYER_SETTINGS_SECTIONS[number]["value"];

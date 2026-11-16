@@ -19,7 +19,7 @@
       </LyricSettingRow>
       <n-collapse :key="form.style" class="style-parameters">
         <n-collapse-item :title="`${currentStyleMeta.label}参数`" :name="form.style">
-          <DesktopLyricStyleParams
+          <LyricStyleParams
             :style-id="form.style"
             :styles="form.styles"
             @patch-style="patchStyleConfig"
@@ -126,7 +126,7 @@ import type {
   DesktopLyricStyleId,
 } from "@/types/desktopLyric";
 import SettingSection from "../SettingSection.vue";
-import DesktopLyricStyleParams from "./DesktopLyricStyleParams.vue";
+import LyricStyleParams from "./LyricStyleParams.vue";
 import LyricSettingRow from "./LyricSettingRow.vue";
 import { getLyricFontOptions } from "./lyricSettingOptions";
 

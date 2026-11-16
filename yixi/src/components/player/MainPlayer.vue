@@ -165,7 +165,7 @@ const toggleLyricVisibility = () => {
 };
 
 const AMLyricView = computed(() => {
-    return Boolean(currentSong.value?.id && lyricStore.hasLyric && lyricStore.setting.useAMLyric)
+    return Boolean(currentSong.value?.id && lyricStore.hasLyric && lyricStore.setting.style === 'amlyric')
 })
 
 const { coverUrl, onCoverError } = useSongCoverUrl(currentSong, 1024)

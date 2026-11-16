@@ -1,10 +1,6 @@
 <template>
-  <SettingSection title="歌词与排版" description="调整歌词显示方式和在播放界面中的位置。">
-    <LyricSettingRow title="AM Lyric 动效" description="关闭后使用标准歌词渲染。">
-      <n-switch :value="setting.useAMLyric" aria-label="AM Lyric 动效"
-        @update:value="value => lyric.updateSetting({ useAMLyric: value })" />
-    </LyricSettingRow>
-    <LyricSettingRow title="逐字歌词" description="优先使用逐字时间信息，同时影响桌面和底栏歌词。">
+  <SettingSection title="通用排版" description="调整歌词来源和在播放界面中的位置。">
+    <LyricSettingRow title="逐字歌词" description="优先使用逐字时间信息，同时影响桌面和默认跟随的底栏歌词。">
       <n-switch :value="setting.useKRC" aria-label="逐字歌词"
         @update:value="value => lyric.updateSetting({ useKRC: value })" />
     </LyricSettingRow>
@@ -21,29 +17,15 @@
         :min="ranges.alignPosition.min * 100" :max="ranges.alignPosition.max * 100"
         @update:value="value => lyric.updateSetting({ alignPosition: value / 100 })" />
     </LyricSettingRow>
-    <LyricSettingRow v-if="!setting.useAMLyric" title="悬停显示时间" description="鼠标移入歌词区域时，显示各行的播放时间。">
+    <LyricSettingRow v-if="setting.style !== 'amlyric'" title="悬停显示时间" description="鼠标移入歌词区域时，显示各行的播放时间。">
       <n-switch :value="setting.showTime" aria-label="悬停显示歌词时间"
         @update:value="value => lyric.updateSetting({ showTime: value })" />
     </LyricSettingRow>
     <n-collapse class="advanced-settings">
       <n-collapse-item title="进阶排版" name="alignment">
-        <LyricSettingRow title="歌词对齐锚点" description="使用当前行的顶部、中心或底部，对齐到上面设定的位置。">
+        <LyricSettingRow title="歌词对齐锚点" description="使用当前句的顶部、中心或底部，对齐到上面设定的位置。">
           <n-select :value="setting.alignAnchor" :options="anchorOptions"
             @update:value="value => lyric.updateSetting({ alignAnchor: value })" />
-        </LyricSettingRow>
-      </n-collapse-item>
-    </n-collapse>
-  </SettingSection>
-  <SettingSection v-if="setting.useAMLyric" title="AM 歌词动效" description="以下效果仅在 AM Lyric 模式下生效。">
-    <LyricSettingRow v-for="effect in amEffects" :key="effect.key" :title="effect.title" :description="effect.description">
-      <n-switch :value="setting[effect.key]" :aria-label="effect.title"
-        @update:value="value => lyric.updateSetting({ [effect.key]: value })" />
-    </LyricSettingRow>
-    <n-collapse class="advanced-settings">
-      <n-collapse-item title="更多显示选项" name="passed-lines">
-        <LyricSettingRow title="隐藏已唱歌词" description="隐藏已经播放过的歌词行，保留当前行和后续歌词。">
-          <n-switch :value="setting.hidePassedLines" aria-label="隐藏已唱歌词"
-            @update:value="value => lyric.updateSetting({ hidePassedLines: value })" />
         </LyricSettingRow>
       </n-collapse-item>
     </n-collapse>
@@ -62,15 +44,8 @@ import LyricSettingRow from "./LyricSettingRow.vue";
 const lyric = useLyricStore();
 const { setting } = storeToRefs(lyric);
 const anchorOptions = [
-  { label: "顶部", value: "top" },
-  { label: "中心", value: "center" },
-  { label: "底部", value: "bottom" },
+  { label: "顶部", value: "top" }, { label: "中心", value: "center" }, { label: "底部", value: "bottom" },
 ];
-const amEffects = [
-  { key: "useAMSpring", title: "弹簧滚动", description: "使用物理弹簧动画；关闭后使用普通过渡，减少性能开销。" },
-  { key: "useAMScale", title: "当前行放大", description: "轻微放大正在播放的歌词行。" },
-  { key: "useAMBlur", title: "背景行模糊", description: "弱化非当前歌词行，突出正在播放的唱词。" },
-] as const;
 </script>
 
 <style scoped lang="scss">

@@ -13,14 +13,14 @@
           Math.round(currentTime * 1000)
         "
         :playing="isPlaying"
-        :enableSpring="lyricStore.setting.useAMSpring"
-        :enableScale="lyricStore.setting.useAMScale"
+        :enableSpring="style.spring"
+        :enableScale="style.scale"
         :alignPosition="lyricStore.setting.alignPosition"
         :alignAnchor="lyricStore.setting.alignAnchor"
-        :hidePassedLines="lyricStore.setting.hidePassedLines"
-        :enableBlur="lyricStore.setting.useAMBlur"
+        :hidePassedLines="style.hidePassedLines"
+        :enableBlur="style.blur"
         :style="{
-          '--amll-lyric-view-color': lyricStore.setting.lyricFontColor,
+          '--amll-lyric-view-color': style.textColor,
           '--amll-lyric-player-font-size':
             lyricStore.setting.lyricFontSize + 'px',
           'font-weight': lyricStore.setting.lyricFontWeight ? 'bold' : 'normal',
@@ -40,14 +40,14 @@ import { LyricPlayer } from "@applemusic-like-lyrics/vue";
 import type { LyricLine as AMLyricLine } from "@applemusic-like-lyrics/core";
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
-import { useLyricStore, useAudioStore, useListenTogetherStore } from "@/store";
+import { useLyricStore, useAudioStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 
 const lyricStore = useLyricStore();
 const playerStore = useAudioStore();
-const listenTogether = useListenTogetherStore();
 const playbackCommands = usePlaybackCommands();
 const { isPlaying, currentTime } = storeToRefs(playerStore);
+const style = computed(() => lyricStore.setting.styles.amlyric);
 
 // 当前歌词
 const amLyricsData = computed<AMLyricLine[]>(() => {
@@ -56,10 +56,9 @@ const amLyricsData = computed<AMLyricLine[]>(() => {
 
 // 进度跳转（统一播放命令层：一起听模式服从房间权限与同步）
 const jumpSeek = (line: any) => {
-  if (!line?.line?.lyricLine?.startTime) return;
-  const time = line.line.lyricLine.startTime;
-  playbackCommands.seekSeconds(time > 1000 ? time / 1000 : time);
-  if (!listenTogether.enabled) playerStore.isPlaying = true;
+  const time = line?.line?.lyricLine?.startTime;
+  if (typeof time !== "number" || !Number.isFinite(time) || time < 0) return;
+  void playbackCommands.seekSeconds(time / 1000);
 };
 </script>
 

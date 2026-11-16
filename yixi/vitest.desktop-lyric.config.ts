@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     include: [
       "src/desktopLyric/**/*.test.ts",
+      "src/lyricStyles/**/*.test.ts",
       "electron/desktopLyric/**/*.test.ts",
       "web/desktopLyric/**/*.test.ts",
     ],

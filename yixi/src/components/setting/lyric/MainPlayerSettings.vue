@@ -1,13 +1,15 @@
 <template>
   <div class="settings-stack main-player-settings">
+    <PlayerLyricStyleSettings v-if="!section || section === 'style'" />
+    <PlayerLyricTextSettings v-if="!section || section === 'common'" />
+    <PlayerLyricLayoutSettings v-if="!section || section === 'common'" />
     <PlayerBackgroundSettings v-if="!section || section === 'background'" />
-    <PlayerLyricLayoutSettings v-if="!section || section === 'layout'" />
-    <PlayerLyricTextSettings v-if="!section || section === 'text'" />
   </div>
 </template>
 
 <script setup lang="ts">
 import PlayerBackgroundSettings from "./PlayerBackgroundSettings.vue";
+import PlayerLyricStyleSettings from "./PlayerLyricStyleSettings.vue";
 import PlayerLyricLayoutSettings from "./PlayerLyricLayoutSettings.vue";
 import PlayerLyricTextSettings from "./PlayerLyricTextSettings.vue";
 import type { PlayerSettingsSection } from "./lyricSettingOptions";

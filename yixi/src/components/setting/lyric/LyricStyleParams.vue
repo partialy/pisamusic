@@ -21,14 +21,14 @@
       <LyricSettingRow title="歌词动效" description="控制平滑滚动与换行过渡。">
         <n-switch
           :value="styles.default.animationEnabled"
-          aria-label="桌面歌词动效"
+          aria-label="歌词动效"
           @update:value="(v) => emitPatch('default', { animationEnabled: v }, true)"
         />
       </LyricSettingRow>
       <LyricSettingRow title="逐字放大" description="正在唱的字轻微放大，仅有逐字时间信息时生效。">
         <n-switch
           :value="styles.default.wordScaleEnabled"
-          aria-label="桌面歌词逐字放大"
+          aria-label="歌词逐字放大"
           @update:value="(v) => emitPatch('default', { wordScaleEnabled: v }, true)"
         />
       </LyricSettingRow>

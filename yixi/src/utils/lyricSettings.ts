@@ -1,21 +1,17 @@
 import { getDefaultBackgroundConfig, normalizeBackgroundConfig, type PlayerBackgroundConfig } from "@/playerBackground/backgroundConfig";
+import { getDefaultPlayerLyricStyles, isPlayerLyricStyle, normalizePlayerLyricStyles, type PlayerLyricStyleId, type PlayerLyricStyleConfigMap } from "@/lyricStyles/playerLyricConfig";
 export interface LyricSetting {
-  useAMLyric: boolean;
+  style: PlayerLyricStyleId;
+  styles: PlayerLyricStyleConfigMap;
   useKRC: boolean;
   alignPosition: number;
   alignAnchor: "top" | "center" | "bottom";
   pureLyricMode: boolean;
   immersiveMode: boolean;
   autoCollapsePlayQueue: boolean;
-  useAMSpring: boolean;
-  useAMScale: boolean;
-  useAMBlur: boolean;
-  hidePassedLines: boolean;
   lyricFontSize: number;
   lyricFont: string;
   lyricFontWeight: boolean;
-  lyricFontColor: string;
-  currentLyricColor: string;
   lyricFontOpacity: number;
   lyricFontShadow: boolean;
   showTime: boolean;
@@ -29,22 +25,17 @@ export const LYRIC_SETTING_RANGES = {
 } as const;
 
 export const getDefaultLyricSetting = (): LyricSetting => ({
-  useAMLyric: true,
+  style: "amlyric",
+  styles: getDefaultPlayerLyricStyles(),
   useKRC: true,
   pureLyricMode: false,
   immersiveMode: false,
   autoCollapsePlayQueue: false,
-  useAMSpring: true,
-  useAMScale: true,
-  useAMBlur: true,
   alignPosition: 0.5,
   alignAnchor: "center",
-  hidePassedLines: false,
   lyricFontSize: 40,
   lyricFont: "Microsoft YaHei",
   lyricFontWeight: true,
-  lyricFontColor: "#ffffff",
-  currentLyricColor: "#ffffff",
   lyricFontOpacity: 1,
   lyricFontShadow: true,
   showTime: true,
@@ -62,11 +53,13 @@ export function normalizeLyricSetting(input: unknown): LyricSetting {
       (setting as unknown as Record<string, unknown>)[key] = source[key];
     }
   }
-  for (const key of ["lyricFont", "lyricFontColor", "currentLyricColor"] as const) {
-    // 保留历史颜色中的 Alpha 和系统字体名称，不重新转换其格式。
+  for (const key of ["lyricFont"] as const) {
+    // 保留系统字体名称，未安装时由渲染器回退。
     const value = source[key];
     if (typeof value === "string" && value.trim()) setting[key] = value;
   }
+  setting.style = isPlayerLyricStyle(source.style) ? source.style : source.useAMLyric === false ? "default" : "amlyric";
+  setting.styles = normalizePlayerLyricStyles(source.styles, source);
   setting.background = normalizeBackgroundConfig(source.background, source);
   if (source.alignAnchor === "top" || source.alignAnchor === "center" || source.alignAnchor === "bottom") {
     setting.alignAnchor = source.alignAnchor;

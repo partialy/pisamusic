@@ -194,6 +194,10 @@ function pickColor(value: unknown, fallback: string): string {
   return isValidCssColor(value) ? value.trim() : fallback;
 }
 
+export function normalizeLyricStyleColor(value: unknown, fallback: string): string {
+  return pickColor(value, fallback);
+}
+
 function pickBool(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -234,10 +238,12 @@ export function normalizeDesktopLyricBounds(
   return { x, y, width, height };
 }
 
-function normalizeStyleSettings(
-  rawStyles: Record<string, unknown>,
-  rawRoot: Record<string, unknown>,
+export function normalizeDesktopLyricStyleSettings(
+  input: unknown,
+  legacy: unknown = {},
 ): DesktopLyricStyleConfigMap {
+  const rawStyles = asRecord(input);
+  const rawRoot = asRecord(legacy);
   const defaults = getDefaultDesktopLyricStyleSettings();
   const hasExplicitDefault =
     rawStyles.default && typeof rawStyles.default === "object" && !Array.isArray(rawStyles.default);
@@ -404,7 +410,7 @@ export function normalizeDesktopLyricSetting(input: unknown): DesktopLyricSettin
   }
   const raw = input as Record<string, unknown>;
   const rawStyles = asRecord(raw.styles);
-  const styles = normalizeStyleSettings(rawStyles, raw);
+  const styles = normalizeDesktopLyricStyleSettings(rawStyles, raw);
 
   const enabled = pickBool(raw.enabled, DEFAULT_DESKTOP_LYRIC_SETTING.enabled);
   const locked = pickBool(raw.locked, DEFAULT_DESKTOP_LYRIC_SETTING.locked);
