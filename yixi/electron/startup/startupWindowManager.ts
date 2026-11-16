@@ -1,5 +1,16 @@
-import { app, BrowserWindow, ipcMain, type BrowserWindowConstructorOptions } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  nativeTheme,
+  type BrowserWindowConstructorOptions,
+} from "electron";
+import path from "path";
 import { pathToFileURL } from "url";
+import {
+  normalizeStartupAnimationStyle,
+  type StartupAnimationStyle,
+} from "../../src/startup/startupAnimationOptions";
 import { getAppDatabase } from "../database";
 import { logger } from "../utils/logger";
 
@@ -25,6 +36,7 @@ type StartupWindowManagerOptions = {
 };
 
 export const STARTUP_AGREEMENT_SETTING_KEY = "startup-user-agreement";
+const THEME_SETTING_KEY = "app-theme";
 const DEFAULT_AGREEMENT_CONTENT: StartupAgreementContent = {
   title: "用户协议与隐私提示",
   content: "欢迎使用 PisaMusic。当前暂未获取到最新协议内容，请稍后重试。",
@@ -40,6 +52,7 @@ export class StartupWindowManager {
   private mode: StartupWindowMode = "loading";
   private agreementContent: StartupAgreementContent = DEFAULT_AGREEMENT_CONTENT;
   private registered = false;
+  private themeChangeListener: (() => void) | null = null;
 
   constructor(options: StartupWindowManagerOptions) {
     this.htmlPath = options.htmlPath;
@@ -74,7 +87,7 @@ export class StartupWindowManager {
 
   hasAcceptedAgreement(version?: number) {
     const record = getAppDatabase().getSetting<StartupAgreementRecord>(
-      STARTUP_AGREEMENT_SETTING_KEY
+      STARTUP_AGREEMENT_SETTING_KEY,
     );
     if (!record?.value?.accepted) return false;
     return version === undefined || record.value.version === version;
@@ -113,12 +126,13 @@ export class StartupWindowManager {
       skipTaskbar: true,
       hasShadow: false,
       webPreferences: {
-        sandbox: false,
-        webSecurity: false,
-        allowRunningInsecureContent: true,
+        preload: path.join(__dirname, "../preload/startup-window.cjs"),
+        sandbox: true,
+        webSecurity: true,
+        allowRunningInsecureContent: false,
         spellcheck: false,
-        nodeIntegration: true,
-        contextIsolation: false,
+        nodeIntegration: false,
+        contextIsolation: true,
       },
     } satisfies BrowserWindowConstructorOptions);
 
@@ -129,15 +143,27 @@ export class StartupWindowManager {
     });
 
     this.startupWindow.on("closed", () => {
+      this.unbindThemeListener();
       this.startupWindow = null;
     });
 
-    this.startupWindow.loadFile(this.htmlPath).catch((error) => {
-      logger.error("load startup window failed", {
-        message: error?.message,
-        stack: error?.stack,
+    this.bindThemeListener();
+
+    const style = this.readStartupAnimationStyle();
+    this.startupWindow
+      .loadFile(this.htmlPath, {
+        query: {
+          mode: this.mode,
+          style,
+          dark: nativeTheme.shouldUseDarkColors ? "1" : "0",
+        },
+      })
+      .catch((error) => {
+        logger.error("load startup window failed", {
+          message: error?.message,
+          stack: error?.stack,
+        });
       });
-    });
   }
 
   showLoading() {
@@ -147,6 +173,7 @@ export class StartupWindowManager {
   }
 
   close() {
+    this.unbindThemeListener();
     if (!this.startupWindow || this.startupWindow.isDestroyed()) return;
     const win = this.startupWindow;
     this.startupWindow = null;
@@ -171,10 +198,31 @@ export class StartupWindowManager {
         version: this.agreementContent.version,
         acceptedAt: new Date().toISOString(),
       } satisfies StartupAgreementRecord,
-      1
+      1,
     );
     this.showLoading();
     this.onAccepted();
+  }
+
+  private readStartupAnimationStyle(): StartupAnimationStyle {
+    try {
+      const record = getAppDatabase().getSetting<{ startupAnimation?: unknown }>(THEME_SETTING_KEY);
+      return normalizeStartupAnimationStyle(record?.value?.startupAnimation);
+    } catch {
+      return "default";
+    }
+  }
+
+  private bindThemeListener() {
+    if (this.themeChangeListener) return;
+    this.themeChangeListener = () => this.pushSnapshot();
+    nativeTheme.on("updated", this.themeChangeListener);
+  }
+
+  private unbindThemeListener() {
+    if (!this.themeChangeListener) return;
+    nativeTheme.off("updated", this.themeChangeListener);
+    this.themeChangeListener = null;
   }
 
   private resizeToMode() {
@@ -190,6 +238,8 @@ export class StartupWindowManager {
 
     this.startupWindow.webContents.send("startup:snapshot", {
       mode: this.mode,
+      animationStyle: this.readStartupAnimationStyle(),
+      darkAppearance: nativeTheme.shouldUseDarkColors,
       logoUrl: pathToFileURL(this.iconPath).toString(),
       appVersion: app.getVersion(),
       agreementTitle: this.agreementContent.title,

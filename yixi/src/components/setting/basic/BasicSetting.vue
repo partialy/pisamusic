@@ -46,6 +46,26 @@
         @update:value="handleFollowSongAccentChange" />
     </div>
 
+    <div class="setting-item">
+      <div class="setting-info">
+        <div class="setting-title">启动动画</div>
+        <div class="setting-desc">{{ currentStartupMeta.description }}（下次启动时生效）</div>
+      </div>
+      <n-select
+        class="startup-animation-select"
+        :value="themeStore.startupAnimation"
+        :options="startupAnimationSelectOptions"
+        @update:value="handleStartupAnimationChange" />
+    </div>
+
+    <n-collapse class="startup-preview-collapse">
+      <n-collapse-item :title="`预览效果：${currentStartupMeta.label}`" name="preview">
+        <StartupAnimationPreview
+          :style-id="themeStore.startupAnimation"
+          :default-surface="themeStore.resolvedColorScheme" />
+      </n-collapse-item>
+    </n-collapse>
+
     </SettingSection>
     <SettingSection title="应用背景" description="选择背景颜色或图片，调节图片显示效果。">
     <div class="setting-item">
@@ -218,9 +238,12 @@
 <script setup lang="ts">
 import SettingSection from "../SettingSection.vue";
 import SettingAdjustment from "../SettingAdjustment.vue";
-import { onMounted, ref } from "vue";
+import StartupAnimationPreview from "./StartupAnimationPreview.vue";
+import { computed, onMounted, ref } from "vue";
 import {
   NButton,
+  NCollapse,
+  NCollapseItem,
   NColorPicker,
   NIcon,
   NRadioButton,
@@ -229,6 +252,11 @@ import {
   NSwitch,
 } from "naive-ui";
 import { Upload, Check, Images } from "lucide-vue-next";
+import {
+  STARTUP_ANIMATION_OPTIONS,
+  getStartupAnimationMeta,
+  type StartupAnimationStyle,
+} from "@/startup/startupAnimationOptions";
 import {
   useThemeStore,
   type BackgroundMode,
@@ -264,6 +292,11 @@ const gradientDirectionOptions = [
   { label: "左上到右下", value: "135deg" },
   { label: "左下到右上", value: "45deg" },
 ];
+const startupAnimationSelectOptions = STARTUP_ANIMATION_OPTIONS.map((item) => ({
+  label: item.label,
+  value: item.value,
+}));
+const currentStartupMeta = computed(() => getStartupAnimationMeta(themeStore.startupAnimation));
 
 const handleThemeModeChange = (value: string | number) => {
   void themeStore.setMode(value as ThemeMode);
@@ -275,6 +308,10 @@ const handleAccentColorChange = (value: string) => {
 
 const handleFollowSongAccentChange = (value: boolean) => {
   void themeStore.setFollowSongAccent(value);
+};
+
+const handleStartupAnimationChange = (value: string) => {
+  void themeStore.setStartupAnimation(value as StartupAnimationStyle);
 };
 
 const handleBackgroundModeChange = (value: string) => {
@@ -364,9 +401,16 @@ const handleFileInputChange = (event: Event) => {
     flex-shrink: 0;
   }
 
-  .background-mode-select {
+  .background-mode-select,
+  .startup-animation-select {
     width: 180px;
     flex-shrink: 0;
+  }
+
+  .startup-preview-collapse {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
   }
 
   .gradient-direction {

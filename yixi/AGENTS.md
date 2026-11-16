@@ -170,6 +170,7 @@
 ## 设置与目录选择规则补充
 
 - “跟随歌曲自动换色”属于主题设置的一部分，统一写入 SQLite settings 的 `app-theme.followSongAccent`，默认关闭；renderer 监听当前歌曲时必须先判断该开关，再决定是否根据封面更新强调色。
+- “启动动画”样式同样写入 `app-theme.startupAnimation`（默认 `default`，可选 `aurora-sweep`、`vinyl-wave`、`fluid-aurora`、`star-orbit`、`ripple-field`、`aurora-horizon`）。设置页手风琴预览（`StartupAnimationPreview.vue`）与独立启动窗口（`web/startup-window.html` / `web/startup-window.ts`）共用 `src/startup/startupAnimations.css`、`src/startup/startupAnimationOptions.ts` 与 `src/startup/startupAnimationTemplates.ts`，由 main `StartupWindowManager` 读取后在首帧下发渲染。
 - “本地设置”统一通过 `src/store/settingStore.ts` 管理，并写入 SQLite settings 的 `local-setting`；当前字段包含本地扫描目录、缓存目录、缓存大小上限、下载目录和歌曲命名方式。
 - 目录选择能力统一走 `dialog:select-directory` IPC，由 `electron/ipc/dialogIpc.ts` 注册、preload 暴露 typed API；不要在 renderer 侧直接接触 Electron 原始 `dialog` 对象。
 - 在线歌曲播放缓存统一由 main 侧 `electron/mediaCache/` 管理：`music:resolve-playable-url` 返回 `pisacache://media/<cacheKey>`，协议层负责 Range、本地分片命中和远端流式落盘；renderer 不得取得源站 URL、真实缓存文件路径或索引数据库。

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PisaMusic 启动</title>
+    <link rel="stylesheet" href="../src/startup/startupAnimations.css" />
     <style>
       * {
         box-sizing: border-box;
@@ -22,20 +23,21 @@
       }
 
       body {
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
         background: transparent;
       }
 
-      .startup-card {
+      .agreement-card {
         position: relative;
         overflow: hidden;
         width: calc(100vw - 48px);
         height: calc(100vh - 48px);
-        display: flex;
+        display: none;
         flex-direction: column;
-        justify-content: center;
+        padding: 38px 42px 34px;
         border: 1px solid rgba(255, 255, 255, 0.82);
         border-radius: 28px;
         background:
@@ -46,127 +48,20 @@
         -webkit-app-region: drag;
       }
 
-      .close-button {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        z-index: 2;
-        width: 30px;
-        height: 30px;
-        display: flex;
+      .loading-viewport {
+        display: none;
+        width: 100vw;
+        height: 100vh;
         align-items: center;
         justify-content: center;
-        padding: 0;
-        border: 0;
-        border-radius: 999px;
-        background: transparent;
-        color: rgba(24, 35, 50, 0.48);
-        cursor: pointer;
-        -webkit-app-region: no-drag;
-        transition:
-          background-color 0.16s ease,
-          color 0.16s ease,
-          transform 0.16s ease;
       }
 
-      .close-button:hover {
-        background: rgba(24, 35, 50, 0.08);
-        color: #162032;
-      }
-
-      .close-button:active {
-        transform: scale(0.94);
-      }
-
-      .confirm-overlay {
-        position: absolute;
-        inset: 0;
-        z-index: 10;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        background: rgba(246, 250, 252, 0.78);
-        backdrop-filter: blur(8px);
-        -webkit-app-region: no-drag;
-      }
-
-      .confirm-overlay.is-open {
+      body[data-mode="agreement"] .agreement-card {
         display: flex;
       }
 
-      .confirm-box {
-        width: 100%;
-        max-width: 310px;
-        padding: 22px 24px 20px;
-        border: 1px solid rgba(24, 35, 50, 0.08);
-        border-radius: 20px;
-        background: rgba(255, 255, 255, 0.96);
-        box-shadow: 0 14px 30px rgba(24, 35, 50, 0.14);
-        text-align: center;
-      }
-
-      .confirm-title {
-        margin: 0;
-        font-size: 16px;
-        font-weight: 700;
-        color: #162032;
-      }
-
-      .confirm-actions {
+      body[data-mode="loading"] .loading-viewport {
         display: flex;
-        justify-content: center;
-        gap: 12px;
-        margin-top: 18px;
-      }
-
-      .confirm-button {
-        min-width: 88px;
-        height: 36px;
-        border: 0;
-        border-radius: 999px;
-        font-size: 14px;
-        font-weight: 700;
-        cursor: pointer;
-        transition:
-          transform 0.16s ease,
-          opacity 0.16s ease,
-          background-color 0.16s ease;
-      }
-
-      .confirm-button:hover {
-        transform: translateY(-1px);
-      }
-
-      .confirm-button:active {
-        transform: translateY(0);
-        opacity: 0.88;
-      }
-
-      .confirm-cancel-button {
-        background: rgba(24, 35, 50, 0.08);
-        color: #334155;
-      }
-
-      .confirm-ok-button {
-        background: #e24a4a;
-        color: #fff;
-        box-shadow: 0 8px 18px rgba(226, 74, 74, 0.24);
-      }
-
-      .panel {
-        display: none;
-        height: 100%;
-      }
-
-      body[data-mode="agreement"] .agreement-panel,
-      body[data-mode="loading"] .loading-panel {
-        display: flex;
-      }
-
-      .agreement-panel {
-        flex-direction: column;
-        padding: 38px 42px 34px;
       }
 
       .agreement-title {
@@ -240,109 +135,114 @@
         box-shadow: 0 12px 24px rgba(32, 180, 107, 0.24);
       }
 
-      .loading-panel {
+      /* 退出确认浮层 */
+      .confirm-overlay {
+        position: fixed;
+        inset: 24px;
+        z-index: 20;
+        display: none;
         align-items: center;
         justify-content: center;
-        padding: 34px;
+        padding: 20px;
+        border-radius: 28px;
+        background: rgba(246, 250, 252, 0.78);
+        backdrop-filter: blur(8px);
+        -webkit-app-region: no-drag;
       }
 
-      .loading-inner {
-        display: grid;
-        grid-template-columns: 82px auto;
-        align-items: center;
-        gap: 20px;
+      .confirm-overlay.is-open {
+        display: flex;
       }
 
-      .logo-shell {
-        width: 82px;
-        height: 82px;
-        padding: 8px;
-        border-radius: 24px;
-        background: #fff;
-        box-shadow:
-          inset 0 0 0 1px rgba(24, 35, 50, 0.08),
-          0 16px 38px rgba(40, 151, 255, 0.18);
+      .confirm-overlay.is-dark {
+        background: rgba(15, 23, 42, 0.72);
       }
 
-      #logo {
-        display: block;
+      .confirm-overlay.is-cardless {
+        inset: 0;
+        border-radius: 0;
+        background: transparent;
+        backdrop-filter: none;
+      }
+
+      .confirm-box {
         width: 100%;
-        height: 100%;
-        border-radius: 18px;
-        object-fit: cover;
+        max-width: 310px;
+        padding: 22px 24px 20px;
+        border: 1px solid rgba(24, 35, 50, 0.08);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 30px rgba(24, 35, 50, 0.14);
+        text-align: center;
       }
 
-      .brand-title {
+      .confirm-overlay.is-dark .confirm-box {
+        border-color: rgba(255, 255, 255, 0.14);
+        background: rgba(24, 34, 52, 0.95);
+        backdrop-filter: blur(14px);
+      }
+
+      .confirm-title {
         margin: 0;
-        color: #64748b;
-        font-family: Georgia, "Times New Roman", "STSong", "Songti SC", serif;
-        font-size: 28px;
-        font-style: italic;
-        font-weight: 500;
-        letter-spacing: 0.25em;
-        line-height: 1;
-      }
-
-      .loading-text {
-        grid-column: 1 / -1;
-        justify-self: center;
-        margin-top: 26px;
-        color: rgba(24, 35, 50, 0.56);
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 700;
-        letter-spacing: 0;
+        color: #162032;
       }
 
-      .loading-text span {
-        display: inline-block;
-        animation: shimmer 1.5s ease-in-out infinite;
+      .confirm-overlay.is-dark .confirm-title {
+        color: #f8fafc;
       }
 
-      .loading-text span:nth-child(1) {
-        animation-delay: 0s;
+      .confirm-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 18px;
       }
 
-      .loading-text span:nth-child(2) {
-        animation-delay: 0.12s;
+      .confirm-button {
+        min-width: 88px;
+        height: 36px;
+        border: 0;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition:
+          transform 0.16s ease,
+          opacity 0.16s ease,
+          background-color 0.16s ease;
       }
 
-      .loading-text span:nth-child(3) {
-        animation-delay: 0.24s;
+      .confirm-button:hover {
+        transform: translateY(-1px);
       }
 
-      .loading-text span:nth-child(4) {
-        animation-delay: 0.36s;
+      .confirm-button:active {
+        transform: translateY(0);
+        opacity: 0.88;
       }
 
-      .loading-text span:nth-child(5) {
-        animation-delay: 0.48s;
+      .confirm-cancel-button {
+        background: rgba(24, 35, 50, 0.08);
+        color: #334155;
       }
 
-      .loading-text span:nth-child(6) {
-        animation-delay: 0.6s;
+      .confirm-overlay.is-dark .confirm-cancel-button {
+        background: rgba(255, 255, 255, 0.12);
+        color: #e2e8f0;
       }
 
-      .loading-text span:nth-child(7) {
-        animation-delay: 0.72s;
-      }
-
-      @keyframes shimmer {
-        0%,
-        100% {
-          opacity: 0.28;
-          transform: translateY(0);
-        }
-
-        45% {
-          opacity: 1;
-          transform: translateY(-1px);
-        }
+      .confirm-ok-button {
+        background: #e24a4a;
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(226, 74, 74, 0.28);
       }
     </style>
   </head>
-  <body data-mode="loading">
-    <main class="startup-card">
-      <button class="close-button" id="close-button" type="button" aria-label="关闭" title="关闭">
+  <body data-mode="loading" data-surface="light">
+    <section class="agreement-card">
+      <button class="sa-close-button" id="close-button" type="button" aria-label="关闭" title="关闭">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path
             d="M3 3L11 11M11 3L3 11"
@@ -352,113 +252,43 @@
           />
         </svg>
       </button>
-
-      <section class="panel agreement-panel">
-        <h1 class="agreement-title" id="agreement-title">用户协议与隐私提示</h1>
-        <p class="agreement-subtitle">首次使用 PisaMusic 前，请先确认以下协议内容。<span id="agreement-version"></span></p>
-        <div class="agreement-content">
-          <span id="agreement-content">欢迎使用 PisaMusic。当前暂未获取到最新协议内容，请稍后重试。</span>
-        </div>
-        <div class="actions">
-          <button class="action-button reject-button" id="reject-button">拒绝</button>
-          <button class="action-button agree-button" id="agree-button">同意</button>
-        </div>
-      </section>
-
-      <section class="panel loading-panel">
-        <div class="loading-inner">
-          <div class="logo-shell">
-            <img id="logo" alt="PisaMusic" />
-          </div>
-          <h1 class="brand-title">Pisa Music</h1>
-          <div class="loading-text" aria-label="正在启动">
-            <span>正</span><span>在</span><span>启</span><span>动</span><span>.</span><span>.</span><span>.</span>
-          </div>
-        </div>
-      </section>
-
-      <div class="confirm-overlay" id="quit-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="quit-confirm-title">
-        <div class="confirm-box">
-          <p class="confirm-title" id="quit-confirm-title">确认停止启动App？</p>
-          <div class="confirm-actions">
-            <button class="confirm-button confirm-cancel-button" id="quit-cancel-button" type="button">取消</button>
-            <button class="confirm-button confirm-ok-button" id="quit-confirm-button" type="button">确认</button>
-          </div>
-        </div>
+      <h1 class="agreement-title" id="agreement-title">用户协议与隐私提示</h1>
+      <p class="agreement-subtitle">
+        首次使用 PisaMusic 前，请先确认以下协议内容。<span id="agreement-version"></span>
+      </p>
+      <div class="agreement-content">
+        <span id="agreement-content">欢迎使用 PisaMusic。当前暂未获取到最新协议内容，请稍后重试。</span>
       </div>
+      <div class="actions">
+        <button class="action-button reject-button" id="reject-button">拒绝</button>
+        <button class="action-button agree-button" id="agree-button">同意</button>
+      </div>
+    </section>
+
+    <main class="loading-viewport">
+      <div class="startup-stage-host" id="loading-stage-host" data-surface="light"></div>
     </main>
 
-    <script>
-      const { ipcRenderer } = require("electron");
+    <div
+      class="confirm-overlay"
+      id="quit-confirm-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quit-confirm-title"
+    >
+      <div class="confirm-box">
+        <p class="confirm-title" id="quit-confirm-title">确认停止启动App？</p>
+        <div class="confirm-actions">
+          <button class="confirm-button confirm-cancel-button" id="quit-cancel-button" type="button">
+            取消
+          </button>
+          <button class="confirm-button confirm-ok-button" id="quit-confirm-button" type="button">
+            确认
+          </button>
+        </div>
+      </div>
+    </div>
 
-      const logo = document.getElementById("logo");
-      const agreementTitle = document.getElementById("agreement-title");
-      const agreementContent = document.getElementById("agreement-content");
-      const agreementVersion = document.getElementById("agreement-version");
-      const agreeButton = document.getElementById("agree-button");
-      const rejectButton = document.getElementById("reject-button");
-      const closeButton = document.getElementById("close-button");
-      const quitConfirmOverlay = document.getElementById("quit-confirm-overlay");
-      const quitCancelButton = document.getElementById("quit-cancel-button");
-      const quitConfirmButton = document.getElementById("quit-confirm-button");
-
-      function setQuitConfirmOpen(open) {
-        quitConfirmOverlay.classList.toggle("is-open", open);
-      }
-
-      function applySnapshot(snapshot) {
-        if (!snapshot) return;
-        document.body.dataset.mode = snapshot.mode || "loading";
-        if (snapshot.logoUrl) {
-          logo.src = snapshot.logoUrl;
-        }
-        if (snapshot.agreementTitle) {
-          agreementTitle.textContent = snapshot.agreementTitle;
-        }
-        if (snapshot.agreementContent) {
-          agreementContent.textContent = snapshot.agreementContent;
-        }
-        agreementVersion.textContent = snapshot.agreementVersion
-          ? `（版本 ${snapshot.agreementVersion}）`
-          : "";
-      }
-
-      ipcRenderer.on("startup:snapshot", (_event, snapshot) => {
-        applySnapshot(snapshot);
-      });
-
-      agreeButton.addEventListener("click", () => {
-        ipcRenderer.invoke("startup:agree").catch(() => {});
-      });
-
-      rejectButton.addEventListener("click", () => {
-        ipcRenderer.invoke("startup:reject").catch(() => {});
-      });
-
-      closeButton.addEventListener("click", () => {
-        setQuitConfirmOpen(true);
-      });
-
-      quitCancelButton.addEventListener("click", () => {
-        setQuitConfirmOpen(false);
-      });
-
-      quitConfirmButton.addEventListener("click", () => {
-        quitConfirmButton.disabled = true;
-        ipcRenderer.invoke("startup:quit").catch(() => {
-          quitConfirmButton.disabled = false;
-        });
-      });
-
-      window.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && quitConfirmOverlay.classList.contains("is-open")) {
-          setQuitConfirmOpen(false);
-        }
-      });
-
-      window.addEventListener("DOMContentLoaded", () => {
-        ipcRenderer.send("startup:splash-ready");
-      });
-    </script>
+    <script type="module" src="./startup-window.ts"></script>
   </body>
 </html>

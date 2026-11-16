@@ -1,0 +1,1157 @@
+/* 启动动画共享样式：同时供 Electron 启动窗口与设置页预览组件使用 */
+.startup-stage-host {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #182332;
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  user-select: none;
+  --sa-float-title: #1e293b;
+  --sa-float-sub: rgba(30, 41, 59, 0.68);
+  --sa-float-close-bg: rgba(255, 255, 255, 0.72);
+  --sa-float-close-border: rgba(15, 23, 42, 0.1);
+  --sa-float-close-color: rgba(15, 23, 42, 0.65);
+}
+
+.startup-stage-host[data-surface="dark"] {
+  --sa-float-title: #e2e8f0;
+  --sa-float-sub: rgba(226, 232, 240, 0.78);
+  --sa-float-close-bg: rgba(30, 41, 59, 0.64);
+  --sa-float-close-border: rgba(255, 255, 255, 0.16);
+  --sa-float-close-color: rgba(248, 250, 252, 0.74);
+}
+
+/* ================================================================
+   共享动画组件：透明度逐字流光「正在启动...」与通用扫光 keyframes
+   ================================================================ */
+.sa-shimmer-text {
+  color: rgba(24, 35, 50, 0.56);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sa-shimmer-text span {
+  display: inline-block;
+  animation: saCharShimmer 1.5s ease-in-out infinite;
+}
+
+.sa-shimmer-text span:nth-child(1) { animation-delay: 0s; }
+.sa-shimmer-text span:nth-child(2) { animation-delay: 0.12s; }
+.sa-shimmer-text span:nth-child(3) { animation-delay: 0.24s; }
+.sa-shimmer-text span:nth-child(4) { animation-delay: 0.36s; }
+.sa-shimmer-text span:nth-child(5) { animation-delay: 0.48s; }
+.sa-shimmer-text span:nth-child(6) { animation-delay: 0.6s; }
+.sa-shimmer-text span:nth-child(7) { animation-delay: 0.72s; }
+
+@keyframes saCharShimmer {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes saTextSweep {
+  0% {
+    background-position: 115% 0;
+  }
+  75%,
+  100% {
+    background-position: -115% 0;
+  }
+}
+
+@keyframes saSpin360 {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ================================================================
+   样式容器：带卡片式 / 无卡片悬浮式外框形态
+   ================================================================ */
+.sa-loading-shell {
+  position: relative;
+  overflow: hidden;
+  width: calc(100% - 48px);
+  height: calc(100% - 48px);
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: drag;
+}
+
+.sa-loading-shell.is-cardless {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ================================================================
+   1. 默认样式（经典）
+   ================================================================ */
+.sa-style-default {
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(250, 254, 255, 0.92)),
+    radial-gradient(circle at 18% 18%, rgba(55, 174, 124, 0.15), transparent 34%),
+    radial-gradient(circle at 86% 20%, rgba(40, 151, 255, 0.16), transparent 30%);
+  box-shadow: 0 8px 10px rgba(24, 35, 50, 0.12);
+}
+
+.sa-default-inner {
+  display: grid;
+  grid-template-columns: 82px auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.sa-default-logo-shell {
+  width: 82px;
+  height: 82px;
+  padding: 8px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow:
+    inset 0 0 0 1px rgba(24, 35, 50, 0.08),
+    0 16px 38px rgba(40, 151, 255, 0.18);
+}
+
+.sa-default-logo-shell img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  object-fit: cover;
+}
+
+.sa-default-brand {
+  margin: 0;
+  color: #64748b;
+  font-family: Georgia, "Times New Roman", "STSong", "Songti SC", serif;
+  font-size: 28px;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  line-height: 1;
+}
+
+.sa-default-loading-text {
+  grid-column: 1 / -1;
+  justify-self: center;
+  margin-top: 6px;
+}
+
+/* ================================================================
+   2. 极光扫光 (aurora-sweep)
+   ================================================================ */
+.sa-style-aurora-sweep {
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  background:
+    radial-gradient(circle at 16% 18%, rgba(32, 180, 107, 0.18), transparent 44%),
+    radial-gradient(circle at 86% 24%, rgba(56, 189, 248, 0.2), transparent 42%),
+    radial-gradient(circle at 52% 96%, rgba(16, 185, 129, 0.12), transparent 50%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(247, 251, 255, 0.93));
+  box-shadow:
+    0 12px 24px rgba(24, 35, 50, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.sa-as-ambient-beam {
+  position: absolute;
+  top: -40%;
+  left: -40%;
+  width: 55%;
+  height: 180%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55) 50%, transparent);
+  transform: rotate(22deg);
+  animation: saAsCardSheen 4.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes saAsCardSheen {
+  0%,
+  20% {
+    transform: translateX(-140%) rotate(22deg);
+  }
+  65%,
+  100% {
+    transform: translateX(360%) rotate(22deg);
+  }
+}
+
+.sa-as-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+
+.sa-as-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.sa-as-logo-wrap {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sa-as-logo-halo {
+  position: absolute;
+  inset: -10px;
+  border-radius: 30px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(32, 180, 107, 0.45),
+    rgba(56, 189, 248, 0.55),
+    rgba(167, 243, 208, 0.35),
+    rgba(32, 180, 107, 0.45)
+  );
+  filter: blur(12px);
+  opacity: 0.65;
+  animation: saSpin360 5s linear infinite, saAsHaloPulse 2.8s ease-in-out infinite;
+}
+
+.sa-as-logo-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 25px;
+  padding: 1.5px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(32, 180, 107, 0.75),
+    rgba(56, 189, 248, 0.85),
+    rgba(255, 255, 255, 0.9),
+    rgba(32, 180, 107, 0.75)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: saSpin360 4s linear infinite;
+}
+
+@keyframes saAsHaloPulse {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+.sa-as-logo-box {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  padding: 7px;
+  border-radius: 23px;
+  background: #ffffff;
+  box-shadow:
+    0 12px 26px rgba(15, 23, 42, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+}
+
+.sa-as-logo-box img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 17px;
+  object-fit: cover;
+}
+
+.sa-as-brand-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sa-as-title-stage {
+  position: relative;
+  display: inline-block;
+  padding: 4px 2px;
+}
+
+.sa-as-title-glow {
+  position: absolute;
+  inset: 0;
+  font-family: Georgia, "Times New Roman", "STSong", serif;
+  font-size: 32px;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.05;
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(32, 180, 107, 0.55) 36%,
+    rgba(56, 189, 248, 0.95) 50%,
+    rgba(255, 255, 255, 0.95) 56%,
+    rgba(32, 180, 107, 0.5) 66%,
+    transparent 100%
+  );
+  background-size: 230% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: blur(7px);
+  opacity: 0.9;
+  animation: saTextSweep 2.6s cubic-bezier(0.35, 0, 0.25, 1) infinite;
+  pointer-events: none;
+}
+
+.sa-as-title {
+  position: relative;
+  margin: 0;
+  font-family: Georgia, "Times New Roman", "STSong", serif;
+  font-size: 32px;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.05;
+  background: linear-gradient(
+    100deg,
+    #475569 0%,
+    #475569 34%,
+    #10b981 44%,
+    #38bdf8 50%,
+    #ffffff 53%,
+    #20b46b 60%,
+    #475569 70%,
+    #475569 100%
+  );
+  background-size: 230% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(32, 180, 107, 0.16));
+  animation: saTextSweep 2.6s cubic-bezier(0.35, 0, 0.25, 1) infinite;
+}
+
+.sa-as-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: rgba(71, 85, 105, 0.68);
+}
+
+/* ================================================================
+   3. 黑胶声波 (vinyl-wave)
+   ================================================================ */
+.sa-style-vinyl-wave {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    radial-gradient(circle at 22% 50%, rgba(16, 185, 129, 0.22), transparent 52%),
+    radial-gradient(circle at 86% 20%, rgba(59, 130, 246, 0.18), transparent 44%),
+    linear-gradient(145deg, #111827, #0b1120 55%, #0f172a);
+  box-shadow:
+    0 16px 32px rgba(2, 6, 23, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.sa-vw-layout {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+}
+
+.sa-vw-stage {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.sa-vw-vinyl-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sa-vw-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(52, 211, 153, 0.45);
+  animation: saVwRipple 2.4s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+
+.sa-vw-ripple.is-delay {
+  animation-delay: 1.2s;
+}
+
+@keyframes saVwRipple {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.42);
+    opacity: 0;
+  }
+}
+
+.sa-vw-disc {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  padding: 12px;
+  background:
+    repeating-radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.06) 0,
+      rgba(255, 255, 255, 0.06) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    conic-gradient(from 0deg, #1e293b, #0f172a 25%, #334155 45%, #0f172a 70%, #1e293b);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 14px 28px rgba(0, 0, 0, 0.55);
+  animation: saSpin360 7s linear infinite;
+}
+
+.sa-vw-disc-core {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  padding: 3px;
+  background: linear-gradient(135deg, #34d399, #38bdf8);
+}
+
+.sa-vw-disc-core img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.sa-vw-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sa-vw-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sa-vw-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 0%,
+    #ffffff 45%,
+    #6ee7b7 52%,
+    #e2e8f0 60%,
+    #cbd5e1 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.25));
+  animation: saTextSweep 3s ease-in-out infinite;
+}
+
+.sa-vw-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+}
+
+.sa-vw-eq span {
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #38bdf8, #20b46b);
+  box-shadow: 0 0 8px rgba(32, 180, 107, 0.5);
+  animation: saVwEqBounce 0.9s ease-in-out infinite;
+}
+
+.sa-vw-eq span:nth-child(1) { height: 8px; animation-delay: 0s; }
+.sa-vw-eq span:nth-child(2) { height: 18px; animation-delay: 0.18s; }
+.sa-vw-eq span:nth-child(3) { height: 12px; animation-delay: 0.35s; }
+.sa-vw-eq span:nth-child(4) { height: 20px; animation-delay: 0.12s; }
+.sa-vw-eq span:nth-child(5) { height: 10px; animation-delay: 0.42s; }
+
+@keyframes saVwEqBounce {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.sa-vw-tagline {
+  font-size: 12px;
+  color: rgba(203, 213, 225, 0.72);
+  letter-spacing: 0.18em;
+}
+
+.sa-sweep-status {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: linear-gradient(
+    90deg,
+    rgba(203, 213, 225, 0.42) 0%,
+    rgba(203, 213, 225, 0.42) 34%,
+    rgba(255, 255, 255, 0.98) 50%,
+    rgba(110, 231, 183, 0.92) 56%,
+    rgba(203, 213, 225, 0.42) 68%,
+    rgba(203, 213, 225, 0.42) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: saTextSweep 2.2s ease-in-out infinite;
+}
+
+/* ================================================================
+   4. 流体极光 (fluid-aurora) —— 静止图标 + 统一「正在启动...」
+   ================================================================ */
+.sa-style-fluid-aurora {
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(244, 249, 255, 0.9));
+  box-shadow:
+    0 14px 28px rgba(30, 41, 59, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+.sa-fa-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(28px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.sa-fa-blob-1 {
+  width: 190px;
+  height: 190px;
+  top: -55px;
+  left: -30px;
+  background: rgba(52, 211, 153, 0.42);
+  animation: saFaFloat1 6.5s ease-in-out infinite;
+}
+
+.sa-fa-blob-2 {
+  width: 210px;
+  height: 210px;
+  right: -45px;
+  top: -40px;
+  background: rgba(56, 189, 248, 0.4);
+  animation: saFaFloat2 7.2s ease-in-out infinite;
+}
+
+.sa-fa-blob-3 {
+  width: 180px;
+  height: 180px;
+  bottom: -75px;
+  left: 34%;
+  background: rgba(167, 139, 250, 0.28);
+  animation: saFaFloat3 8s ease-in-out infinite;
+}
+
+@keyframes saFaFloat1 {
+  0%,
+  100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(26px, 16px) scale(1.1); }
+}
+
+@keyframes saFaFloat2 {
+  0%,
+  100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-24px, 18px) scale(0.92); }
+}
+
+@keyframes saFaFloat3 {
+  0%,
+  100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(18px, -16px) scale(1.12); }
+}
+
+.sa-fa-glass-layer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.sa-fa-logo-card {
+  width: 74px;
+  height: 74px;
+  padding: 6px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 14px 28px rgba(37, 99, 235, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.95);
+}
+
+.sa-fa-logo-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.sa-fa-letters {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 27px;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.sa-fa-letters span {
+  display: inline-block;
+  color: #1e293b;
+  animation: saFaWaveGlow 2.8s ease-in-out infinite;
+}
+
+.sa-fa-letters span.space {
+  width: 10px;
+}
+
+.sa-fa-letters span:nth-child(1) { animation-delay: 0s; }
+.sa-fa-letters span:nth-child(2) { animation-delay: 0.08s; }
+.sa-fa-letters span:nth-child(3) { animation-delay: 0.16s; }
+.sa-fa-letters span:nth-child(4) { animation-delay: 0.24s; }
+.sa-fa-letters span:nth-child(5) { animation-delay: 0.32s; }
+.sa-fa-letters span:nth-child(6) { animation-delay: 0.4s; }
+.sa-fa-letters span:nth-child(7) { animation-delay: 0.48s; }
+.sa-fa-letters span:nth-child(8) { animation-delay: 0.56s; }
+.sa-fa-letters span:nth-child(9) { animation-delay: 0.64s; }
+.sa-fa-letters span:nth-child(10) { animation-delay: 0.72s; }
+
+@keyframes saFaWaveGlow {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    color: #334155;
+    text-shadow: none;
+  }
+  28% {
+    transform: translateY(-3px);
+    color: #0ea5e9;
+    text-shadow: 0 4px 16px rgba(14, 165, 233, 0.42);
+  }
+}
+
+.sa-fa-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.sa-fa-spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(14, 165, 233, 0.22);
+  border-top-color: #20b46b;
+  border-right-color: #0ea5e9;
+  animation: saSpin360 0.85s linear infinite;
+}
+
+/* ================================================================
+   5. 星轨极光 (star-orbit) —— 无卡片悬浮
+   ================================================================ */
+.sa-so-scene {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 10px 18px 34px;
+}
+
+.sa-so-ambient-glow {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  width: 180px;
+  height: 180px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(32, 180, 107, 0.34),
+    rgba(56, 189, 248, 0.2) 48%,
+    transparent 72%
+  );
+  filter: blur(22px);
+  pointer-events: none;
+}
+
+.sa-so-orbit-stage {
+  position: relative;
+  width: 122px;
+  height: 122px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sa-so-orbit {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  pointer-events: none;
+}
+
+.sa-so-orbit-outer {
+  inset: 0;
+  border-top-color: rgba(56, 189, 248, 0.85);
+  border-right-color: rgba(32, 180, 107, 0.45);
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.5));
+  animation: saSoTiltSpinA 5.2s linear infinite;
+}
+
+.sa-so-orbit-inner {
+  inset: 11px;
+  border-bottom-color: rgba(32, 180, 107, 0.9);
+  border-left-color: rgba(167, 139, 250, 0.45);
+  filter: drop-shadow(0 0 8px rgba(32, 180, 107, 0.45));
+  animation: saSoTiltSpinB 3.8s linear infinite;
+}
+
+.sa-so-orbit-dot {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 12px #38bdf8, 0 0 4px #fff;
+}
+
+@keyframes saSoTiltSpinA {
+  from {
+    transform: rotateX(58deg) rotateY(-18deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(58deg) rotateY(-18deg) rotateZ(360deg);
+  }
+}
+
+@keyframes saSoTiltSpinB {
+  from {
+    transform: rotateX(-52deg) rotateY(22deg) rotateZ(360deg);
+  }
+  to {
+    transform: rotateX(-52deg) rotateY(22deg) rotateZ(0deg);
+  }
+}
+
+.sa-so-logo-core {
+  position: relative;
+  z-index: 2;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow:
+    0 14px 30px rgba(15, 23, 42, 0.24),
+    0 0 26px rgba(56, 189, 248, 0.25);
+}
+
+.sa-so-logo-core img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sa-so-text-col {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sa-so-title-wrap {
+  position: relative;
+}
+
+.sa-so-title-glow {
+  position: absolute;
+  inset: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: transparent;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(32, 180, 107, 0.65) 40%,
+    rgba(56, 189, 248, 0.95) 52%,
+    transparent 72%
+  );
+  background-size: 230% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: blur(8px);
+  animation: saTextSweep 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.sa-so-title {
+  position: relative;
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  background: linear-gradient(
+    95deg,
+    var(--sa-float-title) 0%,
+    var(--sa-float-title) 34%,
+    #10b981 45%,
+    #38bdf8 52%,
+    #ffffff 56%,
+    var(--sa-float-title) 68%,
+    var(--sa-float-title) 100%
+  );
+  background-size: 230% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 3px 10px rgba(15, 23, 42, 0.22));
+  animation: saTextSweep 2.6s ease-in-out infinite;
+}
+
+.sa-float-status {
+  color: var(--sa-float-sub);
+  text-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
+}
+
+/* ================================================================
+   6. 声场波动 (ripple-field) —— 无卡片悬浮
+   ================================================================ */
+.sa-rf-scene {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 30px;
+}
+
+.sa-rf-ripple-stage {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sa-rf-ripple {
+  position: absolute;
+  width: 78px;
+  height: 78px;
+  border-radius: 24px;
+  border: 1.5px solid rgba(32, 180, 107, 0.52);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.24);
+  opacity: 0;
+  pointer-events: none;
+  animation: saRfIconRipple 2.7s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+}
+
+.sa-rf-ripple.r2 {
+  border-color: rgba(56, 189, 248, 0.5);
+  animation-delay: 0.9s;
+}
+
+.sa-rf-ripple.r3 {
+  border-color: rgba(32, 180, 107, 0.42);
+  animation-delay: 1.8s;
+}
+
+@keyframes saRfIconRipple {
+  0% {
+    transform: scale(1);
+    opacity: 0.72;
+  }
+  100% {
+    transform: scale(1.62);
+    opacity: 0;
+  }
+}
+
+.sa-rf-logo {
+  position: relative;
+  z-index: 2;
+  width: 78px;
+  height: 78px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow:
+    0 14px 30px rgba(15, 23, 42, 0.22),
+    0 0 28px rgba(32, 180, 107, 0.24);
+}
+
+.sa-rf-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sa-rf-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 30px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--sa-float-title);
+  text-shadow:
+    0 4px 16px rgba(15, 23, 42, 0.18),
+    0 0 24px rgba(32, 180, 107, 0.22);
+}
+
+/* ================================================================
+   7. 跃动极光 (aurora-horizon) —— 无卡片悬浮
+   ================================================================ */
+.sa-ah-scene {
+  position: relative;
+  width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 30px;
+}
+
+.sa-ah-top-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 16px;
+}
+
+.sa-ah-logo {
+  width: 66px;
+  height: 66px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 14px 28px rgba(15, 23, 42, 0.22),
+    0 0 24px rgba(56, 189, 248, 0.3);
+}
+
+.sa-ah-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sa-ah-title-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sa-ah-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 32px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--sa-float-title);
+  text-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+}
+
+.sa-ah-sub {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  color: #10b981;
+  text-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+}
+
+.sa-ah-horizon {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 82%, transparent 100%);
+}
+
+.sa-ah-horizon::before,
+.sa-ah-horizon::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(32, 180, 107, 0.28) 0%,
+    rgba(56, 189, 248, 0.92) 25%,
+    rgba(167, 243, 208, 0.96) 38%,
+    rgba(56, 189, 248, 0.92) 52%,
+    rgba(16, 185, 129, 0.35) 75%,
+    rgba(32, 180, 107, 0.28) 100%
+  );
+  background-size: 200% 100%;
+  animation: saAhColorFlow 2.6s linear infinite;
+  pointer-events: none;
+}
+
+.sa-ah-horizon::before {
+  height: 2px;
+}
+
+.sa-ah-horizon::after {
+  height: 6px;
+  filter: blur(5px);
+  opacity: 0.65;
+}
+
+@keyframes saAhColorFlow {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.sa-ah-bottom-status {
+  margin-top: 12px;
+}
+
+/* ================================================================
+   关闭按钮（有卡片右上角 / 无卡片底部居中）
+   ================================================================ */
+.sa-close-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 8;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(24, 35, 50, 0.45);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.sa-close-button:hover {
+  background: rgba(24, 35, 50, 0.08);
+  color: #162032;
+}
+
+.sa-close-button:active {
+  transform: scale(0.94);
+}
+
+.sa-style-vinyl-wave .sa-close-button {
+  color: rgba(248, 250, 252, 0.52);
+}
+
+.sa-style-vinyl-wave .sa-close-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.sa-loading-shell.is-cardless .sa-close-button {
+  top: auto;
+  right: auto;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid var(--sa-float-close-border);
+  background: var(--sa-float-close-bg);
+  color: var(--sa-float-close-color);
+  backdrop-filter: blur(8px);
+  opacity: 0.78;
+}
+
+.sa-loading-shell.is-cardless .sa-close-button:hover {
+  opacity: 1;
+}
+
+.sa-loading-shell.is-cardless .sa-close-button:active {
+  transform: translateX(-50%) scale(0.94);
+}

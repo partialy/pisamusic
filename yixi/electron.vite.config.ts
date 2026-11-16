@@ -16,7 +16,8 @@ export default defineConfig({
         generateBundle(_options, bundle) {
           for (const [fileName, file] of Object.entries(bundle)) {
             if (
-              fileName.includes("lyric-window.html") &&
+              (fileName.includes("lyric-window.html") ||
+                fileName.includes("startup-window.html")) &&
               file.type === "asset" &&
               typeof file.source === "string"
             ) {
@@ -47,6 +48,7 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, "electron/preload.ts"),
           "desktop-lyric": resolve(__dirname, "electron/desktopLyric/preload.ts"),
+          "startup-window": resolve(__dirname, "electron/startup/preload.ts"),
         },
         output: {
           entryFileNames: "[name].cjs",

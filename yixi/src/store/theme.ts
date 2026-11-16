@@ -36,6 +36,11 @@ import {
   normalizeHexColor,
   resolveColorBackground,
 } from "@/theme/gradientThemeAdapter";
+import {
+  DEFAULT_STARTUP_ANIMATION_STYLE,
+  normalizeStartupAnimationStyle,
+  type StartupAnimationStyle,
+} from "@/startup/startupAnimationOptions";
 import type { GlobalTheme, GlobalThemeOverrides } from "naive-ui";
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
@@ -80,6 +85,7 @@ export type AppThemeSetting = {
   mode: ThemeMode;
   accentColor: string;
   followSongAccent: boolean;
+  startupAnimation?: StartupAnimationStyle;
   autoBackground: boolean;
   gradientDirection: GradientDirection;
   gradientColors: string[];
@@ -100,6 +106,7 @@ const DEFAULT_THEME: AppThemeSetting = {
   mode: "system",
   accentColor: DEFAULT_ACCENT_COLOR,
   followSongAccent: false,
+  startupAnimation: DEFAULT_STARTUP_ANIMATION_STYLE,
   autoBackground: false,
   gradientDirection: DEFAULT_GRADIENT_DIRECTION,
   gradientColors: DEFAULT_LIGHT_GRADIENT_COLORS,
@@ -114,6 +121,7 @@ export const useThemeStore = defineStore("theme", () => {
   const mode = ref<ThemeMode>(DEFAULT_THEME.mode);
   const accentColor = ref(DEFAULT_THEME.accentColor);
   const followSongAccent = ref(DEFAULT_THEME.followSongAccent);
+  const startupAnimation = ref<StartupAnimationStyle>(DEFAULT_STARTUP_ANIMATION_STYLE);
   const autoBackground = ref(DEFAULT_THEME.autoBackground);
   const gradientDirection = ref<GradientDirection>(DEFAULT_THEME.gradientDirection);
   const gradientColors = ref<string[]>([...DEFAULT_THEME.gradientColors]);
@@ -209,6 +217,11 @@ export const useThemeStore = defineStore("theme", () => {
 
   async function setFollowSongAccent(enabled: boolean) {
     followSongAccent.value = enabled;
+    await persist();
+  }
+
+  async function setStartupAnimation(style: StartupAnimationStyle) {
+    startupAnimation.value = normalizeStartupAnimationStyle(style);
     await persist();
   }
 
@@ -314,6 +327,7 @@ export const useThemeStore = defineStore("theme", () => {
       typeof theme?.followSongAccent === "boolean"
         ? theme.followSongAccent
         : DEFAULT_THEME.followSongAccent;
+    startupAnimation.value = normalizeStartupAnimationStyle(theme?.startupAnimation);
     autoBackground.value =
       typeof theme?.autoBackground === "boolean"
         ? theme.autoBackground
@@ -371,6 +385,7 @@ export const useThemeStore = defineStore("theme", () => {
       mode: mode.value,
       accentColor: normalizeHexColor(accentColor.value, DEFAULT_ACCENT_COLOR),
       followSongAccent: followSongAccent.value,
+      startupAnimation: startupAnimation.value,
       autoBackground: autoBackground.value,
       gradientDirection: gradientDirection.value,
       gradientColors: normalizeGradientColors(gradientColors.value),
@@ -425,6 +440,7 @@ export const useThemeStore = defineStore("theme", () => {
     mode,
     accentColor,
     followSongAccent,
+    startupAnimation,
     autoBackground,
     gradientDirection,
     gradientColors,
@@ -439,6 +455,7 @@ export const useThemeStore = defineStore("theme", () => {
     setAccentColor,
     resetAccentColor,
     setFollowSongAccent,
+    setStartupAnimation,
     setAutoBackground,
     setGradientDirection,
     setGradientColor,
