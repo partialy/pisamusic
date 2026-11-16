@@ -1,3 +1,4 @@
+import { getDefaultBackgroundConfig, type PlayerBackgroundPatch } from "@/playerBackground/backgroundConfig";
 import type { LyricLine as AMLyricLine } from "@applemusic-like-lyrics/core";
 import { defineStore } from "pinia";
 import type { Song } from "@/types/song";
@@ -153,17 +154,17 @@ export const useLyricStore = defineStore("lyric", {
       Object.assign(this.setting, normalizeLyricSetting({ ...this.setting, ...patch }));
       this.saveSetting();
     },
+    updateBackgroundSetting(patch: PlayerBackgroundPatch) {
+      const current = this.setting.background;
+      this.updateSetting({ background: {
+        ...current, ...patch,
+        image: { ...current.image, ...patch.image },
+        dynamic: { ...current.dynamic, ...patch.dynamic },
+        flow: { ...current.flow, ...patch.flow },
+      } });
+    },
     resetBackgroundToDefault() {
-      const defaults = getDefaultLyricSetting();
-      this.updateSetting({
-        backgroundMode: defaults.backgroundMode,
-        backgroundImage: defaults.backgroundImage,
-        backgroundBlur: defaults.backgroundBlur,
-        backgroundBrightness: defaults.backgroundBrightness,
-        backgroundFlowSpeed: defaults.backgroundFlowSpeed,
-        backgroundFps: defaults.backgroundFps,
-        backgroundRenderScale: defaults.backgroundRenderScale,
-      });
+      this.updateSetting({ background: getDefaultBackgroundConfig() });
     },
     loadSetting() {
       try {

@@ -65,7 +65,7 @@ let disposed = false;
 onBeforeUnmount(() => { disposed = true; });
 
 function activeBackgroundImage() {
-  return setting.value.backgroundImage || theme.backgroundImage || "";
+  return setting.value.background.image.url || theme.backgroundImage || "";
 }
 
 function resolveImageUrl(url: string) {
