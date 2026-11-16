@@ -5,6 +5,7 @@ export interface ApplyThemeRuntimeOptions {
   accentColor: string;
   gradientDirection: string;
   gradientColors: string[];
+  colorfulProgressColors?: string[];
   backgroundCss?: string;
   backgroundImage?: string;
   backgroundBlur?: number;
@@ -19,6 +20,7 @@ export function applyThemeRuntime(options: ApplyThemeRuntimeOptions): void {
     accentColor,
     gradientDirection,
     gradientColors,
+    colorfulProgressColors = ["#20b46b", "#38bdf8", "#a78bfa"],
     backgroundCss,
     backgroundImage,
     backgroundBlur = 0,
@@ -45,6 +47,18 @@ export function applyThemeRuntime(options: ApplyThemeRuntimeOptions): void {
   root.style.setProperty(
     "--color-text-primary-hover",
     mixColor(accentColor, "#000000", 0.16)
+  );
+  root.style.setProperty(
+    "--progress-colorful-1",
+    colorfulProgressColors[0] ?? "#20b46b"
+  );
+  root.style.setProperty(
+    "--progress-colorful-2",
+    colorfulProgressColors[1] ?? "#38bdf8"
+  );
+  root.style.setProperty(
+    "--progress-colorful-3",
+    colorfulProgressColors[2] ?? "#a78bfa"
   );
 
   // 3. 颜色模式轨道背景渐变色

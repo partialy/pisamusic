@@ -154,7 +154,7 @@
         <n-icon
           :component="EqualizerIcon"
           :size="19"
-          :color="equalizerStore.enabled ? 'var(--color-primary, #18a058)' : ''"
+          :color="equalizerStore.enabled ? '#fff' : ''"
         />
       </button>
 
@@ -549,11 +549,6 @@ const toggleMuted = () => {
       color: #ffffff;
       background: rgba(255, 255, 255, 0.12);
     }
-
-    &.eq-btn.active {
-      color: var(--color-primary, #18a058);
-      background: color-mix(in srgb, var(--color-primary, #18a058) 18%, transparent);
-    }
   }
 
   /* 中间播放控制行 */
@@ -685,10 +680,15 @@ const toggleMuted = () => {
           height: 9px;
           background-color: #ffffff;
           border-radius: 50%;
-          box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+          box-shadow: none;
           opacity: 0;
           transform: scale(0.6);
           transition: opacity 0.2s ease, transform 0.2s ease;
+
+          &:hover,
+          &:focus {
+            box-shadow: none;
+          }
         }
 
         &:hover .n-slider-handle {

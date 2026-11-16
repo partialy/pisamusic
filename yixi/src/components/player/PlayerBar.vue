@@ -1,6 +1,15 @@
 <template>
   <div class="bar-container">
-    <n-slider class="slider" :tooltip="false" :value="currentTime" :max="duration" :step="0.01"
+    <n-slider
+      class="slider"
+      :class="{
+        'is-colorful': themeStore.colorfulProgressBar,
+        'is-paused': !isPlaying,
+      }"
+      :tooltip="false"
+      :value="currentTime"
+      :max="duration"
+      :step="0.01"
       @update:value="handleSeek">
       <template #thumb>
         <n-image class="rail-img" preview-disabled :src="logo" style="width: 16px; height: 16px; border-radius: 50%" />
@@ -183,7 +192,9 @@ import { findLyricLineIndex } from "@/utils/lyricLine";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
 import { useDesktopLyricStore } from "@/store/desktopLyric";
+import { useThemeStore } from "@/store/theme";
 const player = useAudioStore();
+const themeStore = useThemeStore();
 const userStore = useUserStore();
 const { openAccountLogin } = useAccountLoginDialog();
 const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
@@ -487,7 +498,77 @@ watch(
   transition: all 0.2s ease-in-out;
 }
 
-:deep(.n-slider .n-slider-rail .n-slider-rail__fill) {
-  background: var(--color-primary);
+:deep(.slider.n-slider .n-slider-rail .n-slider-rail__fill),
+:deep(.slider.n-slider:hover .n-slider-rail .n-slider-rail__fill),
+:deep(.slider.n-slider.n-slider--active .n-slider-rail .n-slider-rail__fill) {
+  background-color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-primary) 28%, transparent) 0%,
+    color-mix(in srgb, var(--color-primary) 62%, transparent) 55%,
+    var(--color-primary) 100%
+  );
+}
+
+@keyframes colorfulProgressFlow {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 240px 0;
+  }
+}
+
+:deep(.slider.n-slider.is-colorful .n-slider-rail .n-slider-rail__fill),
+:deep(.slider.n-slider.is-colorful:hover .n-slider-rail .n-slider-rail__fill),
+:deep(.slider.n-slider.is-colorful.n-slider--active .n-slider-rail .n-slider-rail__fill) {
+  overflow: hidden;
+  background-color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    var(--progress-colorful-1, #20b46b) 0%,
+    var(--progress-colorful-2, #38bdf8) 33.3%,
+    var(--progress-colorful-3, #a78bfa) 66.6%,
+    var(--progress-colorful-1, #20b46b) 100%
+  );
+  background-size: 240px 100%;
+  background-repeat: repeat-x;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--progress-colorful-2, #38bdf8) 55%, transparent);
+  animation: colorfulProgressFlow 2.6s linear infinite;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 18px;
+    max-width: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92));
+    pointer-events: none;
+  }
+}
+
+:deep(.slider.n-slider.is-colorful.is-paused .n-slider-rail .n-slider-rail__fill) {
+  animation-play-state: paused;
+}
+
+:deep(.slider.n-slider .n-slider-handle-wrapper) {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  .rail-img {
+    scale: 0.6;
+    transition: scale 0.2s ease;
+  }
+}
+
+:deep(.slider.n-slider:hover .n-slider-handle-wrapper),
+:deep(.slider.n-slider:active .n-slider-handle-wrapper) {
+  opacity: 1;
+
+  .rail-img {
+    scale: 1;
+  }
 }
 </style>

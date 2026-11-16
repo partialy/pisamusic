@@ -48,6 +48,43 @@
 
     <div class="setting-item">
       <div class="setting-info">
+        <div class="setting-title">彩色进度条</div>
+        <div class="setting-desc">开启后，底部播放器进度条采用三色流光霓虹效果。</div>
+      </div>
+      <div class="colorful-progress-controls">
+        <n-button
+          secondary
+          circle
+          size="small"
+          title="重置流光颜色"
+          aria-label="重置流光颜色"
+          @click="themeStore.resetColorfulProgressColors">
+          <template #icon>
+            <n-icon :size="15"><RefreshCw /></n-icon>
+          </template>
+        </n-button>
+        <div class="colorful-color-dots">
+          <div
+            v-for="(color, index) in themeStore.colorfulProgressColors"
+            :key="index"
+            class="colorful-color-dot">
+            <n-color-picker
+              :value="color"
+              :show-alpha="false"
+              :modes="['hex']"
+              :render-label="() => ''"
+              @update:value="(value) => handleColorfulProgressColorChange(index, value)" />
+          </div>
+        </div>
+        <n-switch
+          :value="themeStore.colorfulProgressBar"
+          aria-label="彩色进度条"
+          @update:value="handleColorfulProgressBarChange" />
+      </div>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
         <div class="setting-title">启动动画</div>
         <div class="setting-desc">{{ currentStartupMeta.description }}（下次启动时生效）</div>
       </div>
@@ -251,7 +288,7 @@ import {
   NSelect,
   NSwitch,
 } from "naive-ui";
-import { Upload, Check, Images } from "lucide-vue-next";
+import { Upload, Check, Images, RefreshCw } from "lucide-vue-next";
 import {
   STARTUP_ANIMATION_OPTIONS,
   getStartupAnimationMeta,
@@ -308,6 +345,14 @@ const handleAccentColorChange = (value: string) => {
 
 const handleFollowSongAccentChange = (value: boolean) => {
   void themeStore.setFollowSongAccent(value);
+};
+
+const handleColorfulProgressBarChange = (value: boolean) => {
+  void themeStore.setColorfulProgressBar(value);
+};
+
+const handleColorfulProgressColorChange = (index: number, value: string) => {
+  void themeStore.setColorfulProgressColor(index, value);
 };
 
 const handleStartupAnimationChange = (value: string) => {
@@ -411,6 +456,54 @@ const handleFileInputChange = (event: Event) => {
     margin-top: 8px;
     padding-top: 12px;
     border-top: 1px solid var(--border-subtle);
+  }
+
+  .colorful-progress-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .colorful-color-dots {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .colorful-color-dot {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    border-radius: 50%;
+    transition: transform 0.16s ease;
+
+    &:hover {
+      transform: scale(1.1);
+    }
+
+    :deep(.n-color-picker) {
+      display: block;
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      border-radius: 50%;
+      overflow: hidden;
+    }
+
+    :deep(.n-color-picker__fill),
+    :deep(.n-color-picker-checkboard),
+    :deep(.n-color-picker__fill > div) {
+      border-radius: 50%;
+    }
+
+    :deep(.n-color-picker__fill) {
+      inset: 2px;
+    }
+
+    :deep(.n-color-picker__value) {
+      display: none;
+    }
   }
 
   .gradient-direction {

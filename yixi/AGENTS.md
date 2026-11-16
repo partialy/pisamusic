@@ -170,6 +170,7 @@
 ## 设置与目录选择规则补充
 
 - “跟随歌曲自动换色”属于主题设置的一部分，统一写入 SQLite settings 的 `app-theme.followSongAccent`，默认关闭；renderer 监听当前歌曲时必须先判断该开关，再决定是否根据封面更新强调色。
+- “彩色进度条”开关与三色流光色值写入 `app-theme.colorfulProgressBar`（默认关闭）与 `app-theme.colorfulProgressColors`（默认 `["#20b46b", "#38bdf8", "#a78bfa"]`），由 `applyThemeRuntime.ts` 同步到 `--progress-colorful-1..3`，开启后底栏 `PlayerBar.vue` 已走过进度条启用无缝三色流光与前沿高光锋。
 - “启动动画”样式同样写入 `app-theme.startupAnimation`（默认 `default`，可选 `aurora-sweep`、`vinyl-wave`、`fluid-aurora`、`star-orbit`、`ripple-field`、`aurora-horizon`）。设置页手风琴预览（`StartupAnimationPreview.vue`）与独立启动窗口（`web/startup-window.html` / `web/startup-window.ts`）共用 `src/startup/startupAnimations.css`、`src/startup/startupAnimationOptions.ts` 与 `src/startup/startupAnimationTemplates.ts`，由 main `StartupWindowManager` 读取后在首帧下发渲染。
 - “本地设置”统一通过 `src/store/settingStore.ts` 管理，并写入 SQLite settings 的 `local-setting`；当前字段包含本地扫描目录、缓存目录、缓存大小上限、下载目录和歌曲命名方式。
 - 目录选择能力统一走 `dialog:select-directory` IPC，由 `electron/ipc/dialogIpc.ts` 注册、preload 暴露 typed API；不要在 renderer 侧直接接触 Electron 原始 `dialog` 对象。
@@ -373,9 +374,11 @@
 ## 歌词背景与主播放界面设置规则补充
 
 - 主播放界面（`MainPlayer.vue`）在右侧垂直居中位置配备毛玻璃圆形齿轮按钮（`Settings` 图标），随鼠标活动状态（`isMouseActive`）平滑淡入淡出，点击唤起紧凑型歌词设置弹窗（`LyricSettingModal.vue`）。
-- `LyricSetting.vue` 按“主播放器 / 桌面歌词 / 底栏歌词”切换。主播放器设置由 `setting/lyric/MainPlayerSettings.vue` 组合背景、排版与动效、字体与颜色三个共享分组；外层连续展示，`LyricSettingModal.vue` 在 720px `AppModal` 中按同一三段切换。字段、文案、适用条件、字体列表、图片库、取色与控件范围只维护一份；复用 `SettingSection`、`LyricSettingRow` 与 `SettingAdjustment`，不得再复制一套表单或保存监听。弹窗无 footer，关闭动画结束前保留内容。
+- `LyricSetting.vue` 按“主播放器 / 桌面歌词 / 底栏歌词”切换。主播放器设置由 `setting/lyric/MainPlayerSettings.vue` 组合歌词样式、通用文字/排版、背景；外层连续展示，`LyricSettingModal.vue` 在 720px `AppModal` 中按“歌词样式 / 通用设置 / 背景”切换，默认打开歌词样式。样式选择器下以手风琴展示当前样式专属参数。字段、文案、适用条件、字体列表、图片库、取色与控件范围只维护一份；复用 `SettingSection`、`LyricSettingRow` 与 `SettingAdjustment`，不得复制表单或保存监听。弹窗无 footer，关闭动画结束前保留内容。
 - `src/utils/lyricSettings.ts` 统一 `LyricSetting`、默认值与归一规则。主播放器所有设置沿用 localStorage `pisa-lyric-setting`，通过 `lyricStore.updateSetting(patch)` 立即保存；不是 SQLite `lyric-setting`。旧字段按默认值合并，损坏 JSON 回退默认并报告错误；主播放器设置与应用背景、桌面歌词持久化独立。
-- 字号 12–60px、整体文字透明度 0.01–1、垂直位置 0–1；两种渲染器均支持字体、颜色、加粗、阴影、透明度、水平居中以及 top/center/bottom 对齐锚点。AM 专属弹簧、行放大、背景行模糊与隐藏已唱歌词仅在 AM 模式展示；当前行颜色、悬停时间仅在普通模式展示。切换渲染模式保留原偏好。
+- `LyricSetting.style` 固定为 `default / amlyric / typewriter / ink / bounce / spotlight / neon`，分别为现有普通歌词、AMLyric、打字机逐现、水墨流光、律动弹跳、聚光灯聚焦、流彩星尘霓虹；不接入桌面 `particle`。`styles` 独立保存七款参数，`updateStyleSetting` 深合并单款字段、`resetStyleSetting` 仅重置当前款；桌面和主播放器仅共用参数类型/默认值/范围与 `LyricStyleParams.vue` 表单，持久化值互不影响。旧 `useAMLyric` 和顶层颜色/AM 动效仅作为迁移输入，已有用户保留选择和参数，新用户初始选择仍为 AMLyric。
+- 字号 12–60px、整体文字透明度 0.01–1、垂直位置 0–1；七款共用字体、加粗、基础阴影、透明度、水平居中及 top/center/bottom 对齐锚点，专属光晕由样式颜色参数控制。默认款独立设置普通/当前行色；AMLyric 独立设置基准色、弹簧、行放大、背景行模糊及隐藏已唱行；悬停时间适用于默认和五款新样式。切换样式保留各自偏好。
+- `src/lyricStyles/` 承载播放页样式配置、可换行字形布局与五款共享纯 Canvas 绘制。桌面五款通过单行适配复用绘制，保留原相机与窗口时钟；播放页 `CommonLyric` 负责默认和五款的纵向多行列表、自动跟随、手动滚动恢复和统一跳转命令。当前句 Canvas 保留可访问文字，非激活行完整可读；长句换行保留绝对逐字时序与累计逻辑位置，扫光/打字机不因换行重置。播放页仅一个 RAF，暂停、隐藏、卸载停止；尺寸/字体变化重算布局，不改变封面和歌曲信息的整体布局。
 - 关闭逐字且只有 KRC/YRC 数据时，AM 使用复制的整句歌词回退，不修改原始字级数据；逐字选择作用于主播放器与桌面；底栏默认跟随，也可独立选择优先逐字或逐行显示。
 - 播放背景采用 `src/playerBackground/backgroundConfig.ts` 的 version 2 三模式配置，存于 `LyricSetting.background`；通过 `updateBackgroundSetting` 深合并当前模式参数并即时保存，各模式独立保留偏好。旧 flat `backgroundMode=image` 迁移图片与模糊/亮度，`default` 迁移 AML 动态背景并保留流速/帧率/清晰度；新安装和恢复默认选择 Canvas 封面流光。恢复默认只重置全部背景配置。
 - 背景设置使用模式选择器与当前模式的单个手风琴，默认收起，图片库与图片选择也在图片参数手风琴内。图片：模糊0–100默认0、亮度0–100默认100、遮罩0–80默认16；AML 动态：速度0–4默认2、帧率30/60/120默认60、清晰度25/50/75/100%默认75、亮度100、遮罩30；Canvas 流光参考 PM 四光场，速度0.5–2默认1，运动幅度/流光强度/亮度/饱和度0–100默认50，色彩跟随封面/柔和/鲜艳，帧率默认30、清晰度默认75%。动态模式暂停继续动画默认关闭；隐藏、最小化和销毁停帧，减少动画显示静态画面。背景取色为 Canvas 色板职责；文字设置取色仍优先已选图片、其次应用背景，不取歌曲封面。

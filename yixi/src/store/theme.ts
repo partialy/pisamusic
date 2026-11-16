@@ -85,6 +85,8 @@ export type AppThemeSetting = {
   mode: ThemeMode;
   accentColor: string;
   followSongAccent: boolean;
+  colorfulProgressBar?: boolean;
+  colorfulProgressColors?: string[];
   startupAnimation?: StartupAnimationStyle;
   autoBackground: boolean;
   gradientDirection: GradientDirection;
@@ -101,11 +103,18 @@ const DEFAULT_BACKGROUND_MODE: BackgroundMode = "color";
 const DEFAULT_BACKGROUND_IMAGE = PRESET_BACKGROUND_IMAGES[0].url;
 const DEFAULT_BACKGROUND_BLUR = 0;
 const DEFAULT_BACKGROUND_BRIGHTNESS = 100;
+const DEFAULT_COLORFUL_PROGRESS_COLORS: [string, string, string] = [
+  "#20b46b",
+  "#38bdf8",
+  "#a78bfa",
+];
 
 const DEFAULT_THEME: AppThemeSetting = {
   mode: "system",
   accentColor: DEFAULT_ACCENT_COLOR,
   followSongAccent: false,
+  colorfulProgressBar: false,
+  colorfulProgressColors: [...DEFAULT_COLORFUL_PROGRESS_COLORS],
   startupAnimation: DEFAULT_STARTUP_ANIMATION_STYLE,
   autoBackground: false,
   gradientDirection: DEFAULT_GRADIENT_DIRECTION,
@@ -121,6 +130,8 @@ export const useThemeStore = defineStore("theme", () => {
   const mode = ref<ThemeMode>(DEFAULT_THEME.mode);
   const accentColor = ref(DEFAULT_THEME.accentColor);
   const followSongAccent = ref(DEFAULT_THEME.followSongAccent);
+  const colorfulProgressBar = ref(Boolean(DEFAULT_THEME.colorfulProgressBar));
+  const colorfulProgressColors = ref<string[]>([...DEFAULT_COLORFUL_PROGRESS_COLORS]);
   const startupAnimation = ref<StartupAnimationStyle>(DEFAULT_STARTUP_ANIMATION_STYLE);
   const autoBackground = ref(DEFAULT_THEME.autoBackground);
   const gradientDirection = ref<GradientDirection>(DEFAULT_THEME.gradientDirection);
@@ -217,6 +228,26 @@ export const useThemeStore = defineStore("theme", () => {
 
   async function setFollowSongAccent(enabled: boolean) {
     followSongAccent.value = enabled;
+    await persist();
+  }
+
+  async function setColorfulProgressBar(enabled: boolean) {
+    colorfulProgressBar.value = enabled;
+    await persist();
+  }
+
+  async function setColorfulProgressColor(index: number, nextColor: string) {
+    if (index < 0 || index >= DEFAULT_COLORFUL_PROGRESS_COLORS.length) return;
+    const next = normalizeColorfulProgressColors(colorfulProgressColors.value);
+    next[index] = normalizeHexColor(nextColor, DEFAULT_COLORFUL_PROGRESS_COLORS[index]);
+    colorfulProgressColors.value = next;
+    applyRuntimeTheme();
+    await persist();
+  }
+
+  async function resetColorfulProgressColors() {
+    colorfulProgressColors.value = [...DEFAULT_COLORFUL_PROGRESS_COLORS];
+    applyRuntimeTheme();
     await persist();
   }
 
@@ -327,6 +358,13 @@ export const useThemeStore = defineStore("theme", () => {
       typeof theme?.followSongAccent === "boolean"
         ? theme.followSongAccent
         : DEFAULT_THEME.followSongAccent;
+    colorfulProgressBar.value =
+      typeof theme?.colorfulProgressBar === "boolean"
+        ? theme.colorfulProgressBar
+        : Boolean(DEFAULT_THEME.colorfulProgressBar);
+    colorfulProgressColors.value = normalizeColorfulProgressColors(
+      theme?.colorfulProgressColors
+    );
     startupAnimation.value = normalizeStartupAnimationStyle(theme?.startupAnimation);
     autoBackground.value =
       typeof theme?.autoBackground === "boolean"
@@ -373,6 +411,7 @@ export const useThemeStore = defineStore("theme", () => {
       accentColor: color,
       gradientDirection: gradientDirection.value,
       gradientColors: bgResult.colors,
+      colorfulProgressColors: colorfulProgressColors.value,
       backgroundCss: bgResult.backgroundCss,
       backgroundImage: backgroundImage.value,
       backgroundBlur: backgroundBlur.value,
@@ -385,6 +424,10 @@ export const useThemeStore = defineStore("theme", () => {
       mode: mode.value,
       accentColor: normalizeHexColor(accentColor.value, DEFAULT_ACCENT_COLOR),
       followSongAccent: followSongAccent.value,
+      colorfulProgressBar: colorfulProgressBar.value,
+      colorfulProgressColors: normalizeColorfulProgressColors(
+        colorfulProgressColors.value
+      ),
       startupAnimation: startupAnimation.value,
       autoBackground: autoBackground.value,
       gradientDirection: gradientDirection.value,
@@ -440,6 +483,8 @@ export const useThemeStore = defineStore("theme", () => {
     mode,
     accentColor,
     followSongAccent,
+    colorfulProgressBar,
+    colorfulProgressColors,
     startupAnimation,
     autoBackground,
     gradientDirection,
@@ -455,6 +500,9 @@ export const useThemeStore = defineStore("theme", () => {
     setAccentColor,
     resetAccentColor,
     setFollowSongAccent,
+    setColorfulProgressBar,
+    setColorfulProgressColor,
+    resetColorfulProgressColors,
     setStartupAnimation,
     setAutoBackground,
     setGradientDirection,
@@ -482,4 +530,11 @@ export const useThemeStore = defineStore("theme", () => {
 
 function isThemeMode(value: unknown): value is ThemeMode {
   return value === "light" || value === "dark" || value === "system";
+}
+
+function normalizeColorfulProgressColors(colors?: unknown): string[] {
+  const input = Array.isArray(colors) ? colors : [];
+  return DEFAULT_COLORFUL_PROGRESS_COLORS.map((fallback, idx) =>
+    normalizeHexColor(typeof input[idx] === "string" ? input[idx] : "", fallback)
+  );
 }
