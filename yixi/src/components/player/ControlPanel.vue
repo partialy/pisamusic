@@ -216,15 +216,12 @@
     <!-- 抽屉与弹窗 -->
     <n-drawer
       v-model:show="showSequence"
-      :style="{
-        'backdrop-filter': 'blur(16px)',
-        'background': '#1f1f23dd !important',
-      }"
+      :style="sequenceDrawerStyle"
       placement="right"
       width="400px"
       to="body"
     >
-      <PlaySequence />
+      <PlaySequence variant="player" />
     </n-drawer>
 
     <AddToPlaylistDialog ref="addToPlaylistDialogRef" />
@@ -233,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { NPopover, NIcon, NDrawer, NSlider } from "naive-ui";
 import { FolderPlus, Download as DownloadIcon, Sliders as EqualizerIcon } from "lucide-vue-next";
@@ -245,6 +242,8 @@ import {
   useUserStore,
   useListenTogetherStore,
   useEqualizerStore,
+  useLyricStore,
+  useThemeStore,
 } from "@/store";
 
 import { VolumePanel, AddToPlaylistDialog } from ".";
@@ -277,13 +276,26 @@ import { useAccountLoginDialog } from "@/composables/useAccountLoginDialog";
 import { useQualityUnlockFeedback } from "@/composables/useQualityUnlockFeedback";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import ListenTogetherEntry from "@/components/listenTogether/ListenTogetherEntry.vue";
-import { formatDuration } from "@/utils/common";
+import { formatDuration, getColorFromUrl } from "@/utils/common";
+import { useSongCoverUrl } from "@/composables/useSongCoverUrl";
+import { buildPlayerQueueDrawerStyle } from "@/playerBackground/playerGlassStyle";
+
+const props = withDefaults(
+  defineProps<{
+    controlsActive?: boolean;
+  }>(),
+  {
+    controlsActive: true,
+  }
+);
 
 const collect = useCollectStore();
 const player = useAudioStore();
 const userStore = useUserStore();
 const listenTogether = useListenTogetherStore();
 const equalizerStore = useEqualizerStore();
+const lyricStore = useLyricStore();
+const themeStore = useThemeStore();
 const playbackCommands = usePlaybackCommands();
 
 const { openAccountLogin } = useAccountLoginDialog();
@@ -304,6 +316,74 @@ const isCollected = computed(() => collect.containsSong(currentSong.value || und
 const muted = ref(false);
 const showSequence = ref(false);
 const addToPlaylistDialogRef = ref<InstanceType<typeof AddToPlaylistDialog> | null>(null);
+
+const AUTO_COLLAPSE_AFTER_CONTROLS_HIDE_MS = 1000;
+let queueCollapseTimer: ReturnType<typeof setTimeout> | null = null;
+
+const clearQueueCollapseTimer = () => {
+  if (queueCollapseTimer !== null) {
+    clearTimeout(queueCollapseTimer);
+    queueCollapseTimer = null;
+  }
+};
+
+watch(
+  [() => props.controlsActive, showSequence, () => lyricStore.setting.autoCollapsePlayQueue],
+  ([controlsActive, isQueueOpen, autoCollapse]) => {
+    clearQueueCollapseTimer();
+    if (!controlsActive && isQueueOpen && autoCollapse) {
+      queueCollapseTimer = setTimeout(() => {
+        queueCollapseTimer = null;
+        if (!props.controlsActive && showSequence.value && lyricStore.setting.autoCollapsePlayQueue) {
+          showSequence.value = false;
+        }
+      }, AUTO_COLLAPSE_AFTER_CONTROLS_HIDE_MS);
+    }
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => {
+  clearQueueCollapseTimer();
+});
+
+const { coverUrl } = useSongCoverUrl(currentSong);
+const backgroundColorSourceUrl = computed(() => {
+  const bg = lyricStore.setting.background;
+  if (bg.mode === "image" && bg.image.url) return bg.image.url;
+  return coverUrl.value || "";
+});
+const extractedQueueColor = ref("");
+let colorExtractSeq = 0;
+
+watch(
+  backgroundColorSourceUrl,
+  async (url) => {
+    const seq = ++colorExtractSeq;
+    if (!url) {
+      extractedQueueColor.value = "";
+      return;
+    }
+    try {
+      const color = await getColorFromUrl(url);
+      if (seq === colorExtractSeq) {
+        extractedQueueColor.value = color || "";
+      }
+    } catch {
+      if (seq === colorExtractSeq) {
+        extractedQueueColor.value = "";
+      }
+    }
+  },
+  { immediate: true }
+);
+
+const sequenceDrawerStyle = computed(() =>
+  buildPlayerQueueDrawerStyle(
+    extractedQueueColor.value || themeStore.accentColor,
+    themeStore.accentColor
+  )
+);
 
 const qualityOptions = computed(() =>
   getQualityOptionsForSong(currentSong.value, getQualityAccessLevel(userStore))

@@ -1,26 +1,6 @@
 <template>
     <div class="player-layout">
-        <!-- 歌词自定义图片背景 -->
-        <template v-if="lyricStore.setting.backgroundMode === 'image' && lyricStore.setting.backgroundImage">
-            <div
-                class="lyric-custom-bg"
-                :style="lyricCustomBgStyle"
-            />
-            <div class="lyric-custom-overlay" />
-        </template>
-        <!-- 默认专辑流光与封面背景 -->
-        <template v-else>
-            <PlayerBackground
-                :fps="lyricStore.setting.backgroundFps"
-                :flow-speed="lyricStore.setting.backgroundFlowSpeed"
-                :render-scale="lyricStore.setting.backgroundRenderScale"
-                :album="coverUrl"
-            />
-            <div>
-                <img :src="coverUrl" alt="" class="bg-cover" style="width: 100%;height: 100%;object-fit: cover;" @error="handleCoverError">
-            </div>
-            <div class="model-bg"></div>
-        </template>
+        <PlayerBackground :config="lyricStore.setting.background" :album="coverUrl" :playing="isPlaying" />
 
         <Transition name="header" mode="default">
             <div class="header-bar" v-show="isMouseActive">
@@ -129,11 +109,11 @@
         />
         <!-- 控制面板 -->
         <Transition name="ctlp" mode="default">
-            <ControlPanel class="control-panel" v-show="isMouseActive" />
+            <ControlPanel class="control-panel" :controls-active="isMouseActive" v-show="isMouseActive" />
         </Transition>
 
         <!-- 右侧垂直居中：歌词设置按钮 -->
-        <Transition name="fade" mode="default">
+        <Transition name="lyric-setting-slide" mode="default">
             <div
                 v-show="isMouseActive"
                 class="lyric-setting-entry-btn"
@@ -190,23 +170,6 @@ const AMLyricView = computed(() => {
 
 const { coverUrl, onCoverError } = useSongCoverUrl(currentSong, 1024)
 
-const lyricCustomBgStyle = computed(() => {
-    const blur = lyricStore.setting.backgroundBlur ?? 0;
-    const brightness = (lyricStore.setting.backgroundBrightness ?? 100) / 100;
-    const filters: string[] = [];
-    if (blur > 0) {
-        filters.push(`blur(${(blur * 0.4).toFixed(1)}px)`);
-    }
-    if (brightness !== 1) {
-        filters.push(`brightness(${brightness.toFixed(2)})`);
-    }
-    return {
-        backgroundImage: `url('${lyricStore.setting.backgroundImage}')`,
-        filter: filters.length > 0 ? filters.join(' ') : 'none',
-        transform: blur > 0 ? 'scale(1.06)' : 'none',
-    };
-});
-
 const songName = computed(() => {
     if (currentSong.value?.name && currentSong.value.name.includes(' - ')) {
         return currentSong.value?.name.split(' - ')[1]
@@ -237,9 +200,6 @@ watch(() => songName.value, () => {
 });
 
 
-const active = computed(() => {
-    return playerStore.isPlaying ? 'running' : 'paused'
-})
 
 const infoContainer = ref<HTMLDivElement>()
 const setCoverBgPosition = async () => {
@@ -332,15 +292,6 @@ onBeforeUnmount(() => {
     }
 }
 
-@keyframes rotate {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
 
 @keyframes slide-out {
     from {
@@ -382,10 +333,6 @@ onBeforeUnmount(() => {
     }
 }
 
-.bg-cover {
-    animation: rotate 30s linear infinite;
-    animation-play-state: v-bind(active);
-}
 
 .header-enter-active {
     animation: slide-down 0.6s ease-in-out;
@@ -401,63 +348,6 @@ onBeforeUnmount(() => {
 
 .ctlp-leave-active {
     animation: slide-out 0.6s ease-in-out;
-}
-
-.lyric-custom-bg {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    background-position: center;
-    background-size: cover;
-    background-repeat: no-repeat;
-    z-index: 98;
-    pointer-events: none;
-    transition: filter 0.2s ease, transform 0.2s ease;
-}
-
-.lyric-custom-overlay {
-    position: fixed;
-    inset: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.16);
-    z-index: 99;
-    pointer-events: none;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-
-.model-bg {
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(80px) brightness(110%);
-    -webkit-backdrop-filter: blur(80px) brightness(110%);
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 99;
-
-    &::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(to bottom,
-                rgba(255, 255, 255, 0.1) 0%,
-                rgba(0, 0, 0, 0.1) 100%);
-        pointer-events: none;
-    }
 }
 
 .player-layout {
@@ -510,6 +400,18 @@ onBeforeUnmount(() => {
 
         &:active {
             transform: translateY(-50%) scale(0.96);
+        }
+
+        // 进入从右往左滑入，退出从左往右滑出
+        &.lyric-setting-slide-enter-active,
+        &.lyric-setting-slide-leave-active {
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+        }
+
+        &.lyric-setting-slide-enter-from,
+        &.lyric-setting-slide-leave-to {
+            transform: translate(calc(100% + 36px), -50%);
+            opacity: 0;
         }
     }
 

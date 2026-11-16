@@ -1,5 +1,5 @@
 <template>
-    <div class="play-sequence">
+    <div class="play-sequence" :class="{ 'is-player-glass': variant === 'player' }">
         <div class="sequence-header">
             <span class="header-text">{{ listenTogether.enabled ? "一起听队列" : "播放队列" }}</span>
             <n-button :title="listenTogether.enabled ? '一起听中不能清空队列' : '清空列表'" text circle
@@ -23,7 +23,12 @@
         <Transition name="queue-search">
           <div v-show="showSearch" class="sequence-search-panel" :inert="!showSearch" :aria-hidden="!showSearch">
             <div class="sequence-search">
-              <n-input clearable v-model:value="searchValue" placeholder="搜索歌曲">
+              <n-input
+                clearable
+                v-model:value="searchValue"
+                placeholder="搜索歌曲"
+                :theme-overrides="searchInputThemeOverrides"
+              >
                 <template #prefix><n-icon :component="SearchIcon" class="search-icon" /></template>
               </n-input>
               <button type="button" class="clear-search" @click="clearSearch">取消</button>
@@ -64,6 +69,31 @@ import { storeToRefs } from 'pinia';
 import type { Song } from '@/types/song';
 import { fromListenTogetherSong } from '@/listenTogether/listenTogetherSong';
 import { usePlaybackCommands } from '@/listenTogether/playbackCommands';
+
+const props = withDefaults(defineProps<{
+    variant?: 'default' | 'player'
+}>(), {
+    variant: 'default'
+})
+
+const searchInputThemeOverrides = computed(() =>
+    props.variant === 'player'
+        ? {
+              color: 'rgba(255, 255, 255, 0.1)',
+              colorFocus: 'rgba(255, 255, 255, 0.15)',
+              border: '1px solid rgba(255, 255, 255, 0.16)',
+              borderHover: '1px solid rgba(255, 255, 255, 0.3)',
+              borderFocus: '1px solid rgba(255, 255, 255, 0.45)',
+              boxShadowFocus: 'none',
+              textColor: 'rgba(255, 255, 255, 0.94)',
+              placeholderColor: 'rgba(255, 255, 255, 0.48)',
+              caretColor: '#ffffff',
+              clearColor: 'rgba(255, 255, 255, 0.56)',
+              clearColorHover: 'rgba(255, 255, 255, 0.92)',
+              iconColor: 'rgba(255, 255, 255, 0.68)',
+          }
+        : undefined
+)
 
 const player = useAudioStore()
 const listenTogether = useListenTogetherStore()
@@ -311,5 +341,102 @@ onUnmounted(() => observer.disconnect())
 
 :deep(.n-input .n-input__input-el, .n-input .n-input__textarea-el) {
     color: var(--text-primary);
+}
+
+.play-sequence.is-player-glass {
+    --queue-text-primary: rgba(255, 255, 255, 0.94);
+    --queue-text-secondary: rgba(255, 255, 255, 0.68);
+    --queue-text-tertiary: rgba(255, 255, 255, 0.46);
+    --queue-row-hover: rgba(255, 255, 255, 0.09);
+    --queue-row-playing: var(--queue-accent-bg, rgba(255, 255, 255, 0.16));
+    --queue-row-playing-border: var(--queue-accent-border, rgba(255, 255, 255, 0.28));
+    --queue-accent: var(--queue-accent-color, #ffffff);
+
+    background: transparent;
+    color: var(--queue-text-primary);
+
+    .sequence-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+        .delete-icon {
+            color: var(--queue-text-secondary);
+        }
+    }
+
+    .sequence-toolbar {
+        color: var(--queue-text-secondary);
+
+        .toolbar-right .search-icon {
+            color: var(--queue-text-secondary);
+
+            &:hover {
+                color: var(--queue-text-primary);
+            }
+        }
+    }
+
+    .sequence-search {
+        background: transparent;
+
+        .clear-search {
+            color: var(--queue-text-secondary);
+            opacity: 0.85;
+
+            &:hover {
+                color: var(--queue-accent);
+                opacity: 1;
+            }
+        }
+
+        :deep(.n-input .search-icon) {
+            color: var(--queue-text-secondary);
+        }
+
+        :deep(.n-input .n-input__input-el) {
+            color: var(--queue-text-primary);
+        }
+
+        :deep(.n-input__placeholder) {
+            color: var(--queue-text-tertiary);
+        }
+    }
+
+    .sequence-list {
+        .sequence-empty {
+            color: var(--queue-text-secondary);
+        }
+
+        &::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 999px;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.32);
+            }
+        }
+
+        :deep(.n-float-button) {
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+            color: rgba(255, 255, 255, 0.92);
+
+            .n-button,
+            .n-icon {
+                color: rgba(255, 255, 255, 0.92);
+            }
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.24);
+                border-color: rgba(255, 255, 255, 0.36);
+            }
+        }
+    }
 }
 </style>

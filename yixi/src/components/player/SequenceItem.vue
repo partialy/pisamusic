@@ -14,7 +14,7 @@
             <span class="duration-text">{{ formatDuration(item.duration) }}</span>
             <n-button text circle class="collect-btn" @click="collector.collectSong(props.item)"
                 :aria-pressed="collector.containsSong(item)" :title="collector.containsSong(item) ? '取消收藏' : '收藏'">
-                <n-icon size="22" :color="collector.containsSong(item) ? '#ff5d6c' : 'var(--text-secondary)'" :component="CollectIcon"></n-icon>
+                <n-icon size="22" :color="collector.containsSong(item) ? '#ff5d6c' : undefined" :component="CollectIcon"></n-icon>
             </n-button>
             <n-button text circle @click="deleteSong" title="删除" class="delete-btn">
                 <n-icon size="24" class="icon" :component="CloseIcon"></n-icon>
@@ -73,19 +73,20 @@ const deleteSong = () => {
     justify-content: space-between;
     border: 1px solid transparent;
     border-radius: var(--radius-control);
-    color: var(--text-primary);
+    color: var(--queue-text-primary, var(--text-primary));
     transition:
         background-color 0.18s ease,
         border-color 0.18s ease,
         color 0.18s ease;
 
     &:hover {
-        background: var(--surface-row-hover);
+        background: var(--queue-row-hover, var(--surface-row-hover));
 
         .delete-btn,
         .collect-btn {
             cursor: pointer;
             display: block !important;
+            color: var(--queue-text-secondary, var(--text-secondary));
 
             &:hover {
                 color: #ef4444;
@@ -97,33 +98,33 @@ const deleteSong = () => {
         }
 
         .delete-btn {
-            color: var(--text-secondary);
+            color: var(--queue-text-secondary, var(--text-secondary));
         }
     }
 
     &.active {
-        background: var(--surface-row-playing) !important;
-        border-color: transparent !important;
+        background: var(--queue-row-playing, var(--surface-row-playing)) !important;
+        border-color: var(--queue-row-playing-border, transparent) !important;
 
         &:hover {
-            border-color: transparent !important;
+            border-color: var(--queue-row-playing-border, transparent) !important;
         }
 
         .index,
         .name {
-            color: var(--text-accent) !important;
+            color: var(--queue-accent, var(--text-accent)) !important;
         }
 
         .artist,
         .duration {
-            color: var(--text-accent) !important;
+            color: var(--queue-accent, var(--text-accent)) !important;
         }
     }
 
     .index {
         width: 40px;
         text-align: center;
-        color: var(--text-secondary);
+        color: var(--queue-text-secondary, var(--text-secondary));
     }
 
     .cover {
@@ -144,7 +145,7 @@ const deleteSong = () => {
 
         .name {
             font-size: 14px;
-            color: var(--text-primary);
+            color: var(--queue-text-primary, var(--text-primary));
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -152,7 +153,7 @@ const deleteSong = () => {
 
         .artist {
             font-size: 12px;
-            color: var(--text-secondary);
+            color: var(--queue-text-secondary, var(--text-secondary));
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -164,7 +165,7 @@ const deleteSong = () => {
         text-align: center;
         margin-right: 10px;
         width: 50px;
-        color: var(--text-secondary);
+        color: var(--queue-text-secondary, var(--text-secondary));
         display: flex;
         align-items: center;
         justify-content: center;

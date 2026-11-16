@@ -1,3 +1,4 @@
+import { getDefaultBackgroundConfig, normalizeBackgroundConfig, type PlayerBackgroundConfig } from "@/playerBackground/backgroundConfig";
 export interface LyricSetting {
   useAMLyric: boolean;
   useKRC: boolean;
@@ -5,6 +6,7 @@ export interface LyricSetting {
   alignAnchor: "top" | "center" | "bottom";
   pureLyricMode: boolean;
   immersiveMode: boolean;
+  autoCollapsePlayQueue: boolean;
   useAMSpring: boolean;
   useAMScale: boolean;
   useAMBlur: boolean;
@@ -17,22 +19,13 @@ export interface LyricSetting {
   lyricFontOpacity: number;
   lyricFontShadow: boolean;
   showTime: boolean;
-  backgroundMode: "default" | "image";
-  backgroundImage: string;
-  backgroundBlur: number;
-  backgroundBrightness: number;
-  backgroundFlowSpeed: number;
-  backgroundFps: 30 | 60 | 120;
-  backgroundRenderScale: 0.25 | 0.5 | 0.75 | 1;
+  background: PlayerBackgroundConfig;
 }
 
 export const LYRIC_SETTING_RANGES = {
   fontSize: { min: 12, max: 60, step: 1 },
   opacity: { min: 0.01, max: 1, step: 0.01 },
   alignPosition: { min: 0, max: 1, step: 0.05 },
-  backgroundBlur: { min: 0, max: 100, step: 1 },
-  backgroundBrightness: { min: 0, max: 100, step: 1 },
-  backgroundFlowSpeed: { min: 0, max: 4, step: 0.1 },
 } as const;
 
 export const getDefaultLyricSetting = (): LyricSetting => ({
@@ -40,6 +33,7 @@ export const getDefaultLyricSetting = (): LyricSetting => ({
   useKRC: true,
   pureLyricMode: false,
   immersiveMode: false,
+  autoCollapsePlayQueue: false,
   useAMSpring: true,
   useAMScale: true,
   useAMBlur: true,
@@ -54,13 +48,7 @@ export const getDefaultLyricSetting = (): LyricSetting => ({
   lyricFontOpacity: 1,
   lyricFontShadow: true,
   showTime: true,
-  backgroundMode: "default",
-  backgroundImage: "",
-  backgroundBlur: 0,
-  backgroundBrightness: 100,
-  backgroundFlowSpeed: 2,
-  backgroundFps: 60,
-  backgroundRenderScale: 0.75,
+  background: getDefaultBackgroundConfig(),
 });
 
 export function normalizeLyricSetting(input: unknown): LyricSetting {
@@ -79,25 +67,13 @@ export function normalizeLyricSetting(input: unknown): LyricSetting {
     const value = source[key];
     if (typeof value === "string" && value.trim()) setting[key] = value;
   }
-  if (typeof source.backgroundImage === "string") setting.backgroundImage = source.backgroundImage;
-  if (source.backgroundMode === "default" || source.backgroundMode === "image") {
-    setting.backgroundMode = source.backgroundMode;
-  }
+  setting.background = normalizeBackgroundConfig(source.background, source);
   if (source.alignAnchor === "top" || source.alignAnchor === "center" || source.alignAnchor === "bottom") {
     setting.alignAnchor = source.alignAnchor;
   }
   setting.lyricFontSize = normalizeNumber(source.lyricFontSize, defaults.lyricFontSize, LYRIC_SETTING_RANGES.fontSize);
   setting.lyricFontOpacity = normalizeNumber(source.lyricFontOpacity, defaults.lyricFontOpacity, LYRIC_SETTING_RANGES.opacity);
   setting.alignPosition = normalizeNumber(source.alignPosition, defaults.alignPosition, LYRIC_SETTING_RANGES.alignPosition);
-  setting.backgroundBlur = normalizeNumber(source.backgroundBlur, defaults.backgroundBlur, LYRIC_SETTING_RANGES.backgroundBlur);
-  setting.backgroundBrightness = normalizeNumber(source.backgroundBrightness, defaults.backgroundBrightness, LYRIC_SETTING_RANGES.backgroundBrightness);
-  setting.backgroundFlowSpeed = normalizeNumber(source.backgroundFlowSpeed, defaults.backgroundFlowSpeed, LYRIC_SETTING_RANGES.backgroundFlowSpeed);
-  if (source.backgroundFps === 30 || source.backgroundFps === 60 || source.backgroundFps === 120) {
-    setting.backgroundFps = source.backgroundFps;
-  }
-  if (source.backgroundRenderScale === 0.25 || source.backgroundRenderScale === 0.5 || source.backgroundRenderScale === 0.75 || source.backgroundRenderScale === 1) {
-    setting.backgroundRenderScale = source.backgroundRenderScale;
-  }
   return setting;
 }
 
