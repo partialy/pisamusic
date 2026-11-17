@@ -35,6 +35,8 @@
       :loading="loading"
       :skeleton-count="24" />
 
+    <ListEndState v-if="!loading && playlists.length" />
+
     <n-empty v-if="!loading && !playlists.length" class="empty-state" description="暂无推荐歌单" />
   </div>
 </template>
@@ -44,6 +46,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { NButton, NEmpty, NIcon } from "naive-ui";
 import { Play } from "lucide-vue-next";
+import ListEndState from "@/components/common/ListEndState.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import type { CommonPlaylist } from "@/types/song";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";

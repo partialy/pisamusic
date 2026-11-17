@@ -60,17 +60,9 @@
             @contextmenu.stop="openRowContext($event, itemData)" />
         </template>
         <template #footer v-if="showFooter">
-          <div
-            style="
-              height: 40px;
-              width: 100%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: #888;
-            ">
-            {{ (hasMore && !searchKey && !internalBatch) ? "正在加载中..." : "没有更多了~" }}
-          </div>
+          <ListEndState
+            compact
+            :loading="Boolean(hasMore && !searchKey && !internalBatch)" />
         </template>
       </VirtList>
       <template v-else>
@@ -131,6 +123,7 @@ import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { openSongDetail } from "@/share/mediaDetailRoute";
 import BatchActionBar from "@/components/batch/BatchActionBar.vue";
 import BatchActionMenu from "@/components/batch/BatchActionMenu.vue";
+import ListEndState from "@/components/common/ListEndState.vue";
 import { useBatchSelection } from "@/composables/useBatchSelection";
 import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 const player = useAudioStore();

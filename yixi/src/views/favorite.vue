@@ -54,12 +54,17 @@
         @scroll="handleScrollableContentScroll"
         @scroll-to-top="handleScrollableContentTop" />
 
-      <PlaylistCollect
+      <div
         v-else-if="activeTab === 'playlists' && (filteredPlaylists.length || isBatchMode)"
-        :playlist="filteredPlaylists"
-        :selectable="isBatchMode"
-        :selected-keys="selectedKeys"
-        @toggle-select="toggleSelectPlaylist" @context-select="openPlaylistBatchContext" />
+        class="favorite-playlist-scroll"
+        @scroll.passive="handleScrollableContentScroll">
+        <PlaylistCollect
+          :playlist="filteredPlaylists"
+          :selectable="isBatchMode"
+          :selected-keys="selectedKeys"
+          @toggle-select="toggleSelectPlaylist" @context-select="openPlaylistBatchContext" />
+        <ListEndState v-if="filteredPlaylists.length" />
+      </div>
 
       <n-empty v-else class="empty-state" description="暂无收藏内容" />
     </div>
@@ -73,6 +78,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { NButton, NDropdown, NEmpty, NIcon, NInput } from "naive-ui";
 import { SquarePen, Play, Search, Trash2, ListChecks, ArrowLeftRight, LogOut, Square } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
+import ListEndState from "@/components/common/ListEndState.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
 import BatchSegmentedActions from "@/components/batch/BatchSegmentedActions.vue";
@@ -379,6 +385,11 @@ watch(searchKey, () => {
 .favorite-content {
   flex: 1;
   min-height: 0;
+}
+
+.favorite-playlist-scroll {
+  height: 100%;
+  overflow-y: auto;
 }
 
 .empty-state {

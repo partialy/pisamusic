@@ -129,7 +129,7 @@ function resolveSettingTab(value: unknown): SettingTab {
   box-sizing: border-box;
   overflow-y: auto;
   padding-right: 12px;
-  padding-bottom: 40px;
+  padding-bottom: 16px;
   scrollbar-width: none;
   -ms-overflow-style: none;
 

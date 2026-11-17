@@ -108,21 +108,11 @@
         description="暂无歌单" />
 
       <div ref="endLineRef" class="end-line">
-        <template v-if="!initialLoading && filteredPlaylists.length && hasNext && !normalizedSearch">
-          <n-spin :show="moreLoading">
-            <template #icon>
-              <n-icon
-                :component="LoadingIcon"
-                color="var(--color-primary)" />
-            </template>
-            <template #description>正在加载更多...</template>
-          </n-spin>
-        </template>
-        <div
-          v-else-if="!initialLoading && filteredPlaylists.length && !normalizedSearch"
-          class="no-more">
-          没有更多了~
-        </div>
+        <ListEndState
+          v-if="!initialLoading && filteredPlaylists.length && !normalizedSearch"
+          :loading="hasNext"
+          :show-spin="moreLoading"
+          loading-text="正在加载更多..." />
       </div>
     </div>
 
@@ -146,10 +136,10 @@ import {
   NPopover,
   NSelect,
   NSkeleton,
-  NSpin,
   type SelectOption,
 } from "naive-ui";
 import { Play, Search } from "lucide-vue-next";
+import ListEndState from "@/components/common/ListEndState.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import {
   SceneIcon,
@@ -160,7 +150,6 @@ import {
   LanguageIcon,
   QuestionIcon,
 } from "@/icons";
-import LoadingIcon from "@/icons/common/LoadingIcon.vue";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import type { CommonPlaylist } from "@/types/song";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
@@ -678,17 +667,8 @@ onBeforeUnmount(() => {
 }
 
 .end-line {
-  height: 60px;
   width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 1rem;
-
-  .no-more {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-  }
+  margin-top: 0.5rem;
 }
 
 .scroll-top-btn {

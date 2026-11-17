@@ -1,4 +1,4 @@
-.settings-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding-bottom: 20px; container-type: inline-size; }
+.settings-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; container-type: inline-size; }
 .setting-item, .shortcut-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; min-width: 0; padding: 12px 14px; border-radius: var(--radius-control); transition: background-color .18s; }
 .setting-item:hover, .shortcut-row:hover { background: var(--surface-hover); }
 .setting-info, .item-info { flex: 1 1 200px; min-width: 0; }

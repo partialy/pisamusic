@@ -87,6 +87,7 @@
     </div>
 
     <n-empty v-else class="empty-state" description="暂无推荐歌曲" />
+    <ListEndState v-if="!loading && songs.length" />
     <ContextMenu
       ref="contextMenuRef"
       :show-download="false"
@@ -102,6 +103,7 @@ import { NButton, NEmpty, NIcon, NSkeleton } from "naive-ui";
 import { Play } from "lucide-vue-next";
 import AddToPlaylistDialog from "@/components/player/AddToPlaylistDialog.vue";
 import ContextMenu from "@/components/common/ContextMenu.vue";
+import ListEndState from "@/components/common/ListEndState.vue";
 import { CollectIcon, MoreIcon, PlaylistPlayIcon } from "@/icons";
 import type { Song } from "@/types/song";
 import { useCollectStore } from "@/store";

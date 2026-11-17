@@ -60,6 +60,7 @@
           <span v-if="playlist.coverUploadStatus && playlist.coverUploadStatus.state !== 'synced'" class="upload-state" :title="playlist.coverUploadStatus.message">{{ playlist.coverUploadStatus.state === 'failed' ? '封面上传失败' : playlist.coverUploadStatus.state === 'local' ? '本机封面' : '封面待同步' }}</span>
         </div>
       </article>
+      <ListEndState class="playlist-end-state" />
     </div>
 
     <n-empty
@@ -84,6 +85,7 @@ import PlaylistEditDialog from "./PlaylistEditDialog.vue";
 import { usePlaylistManagement } from "@/composables/usePlaylistManagement";
 import { useMineLibraryStore } from "@/store";
 import { useRouter } from "vue-router";
+import ListEndState from "@/components/common/ListEndState.vue";
 import ContextMenu from "@/components/common/ContextMenu.vue";
 import CreatePlaylistDialog from "@/components/mine/CreatePlaylistDialog.vue";
 import { useBatchSelection } from "@/composables/useBatchSelection";
@@ -209,7 +211,10 @@ function sourceLabel(source: CommonPlaylist["source"]) {
   gap: 1rem;
   padding-right: 8px;
   overflow: auto;
-  padding-bottom: 18px;
+}
+
+.playlist-end-state {
+  grid-column: 1 / -1;
 }
 
 .playlist-card {

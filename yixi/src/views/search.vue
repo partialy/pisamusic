@@ -38,6 +38,7 @@
           v-else-if="searchType == 'playlist'"
           :playlist="playlist"
           :loading="playlistLoading" />
+        <ListEndState v-if="searchType == 'playlist' && !playlistLoading && playlist.length" />
     </div>
   </div>
 </template>
@@ -54,6 +55,7 @@ import type {
   WYCloudSearchListResponse,
 } from "@/utils/webapi/types/WY/WYCloudSearchList";
 
+import ListEndState from "@/components/common/ListEndState.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import SongList from "@/components/list/SongList.vue";
 

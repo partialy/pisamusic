@@ -17,7 +17,7 @@
         <div class="setting-desc">用于按钮、进度条、选中态与 UI 主色。</div>
       </div>
       <div class="accent-setting">
-        <AccentColorPillInput
+        <AppColorPicker
           :value="themeStore.accentColor"
           @update:value="handleAccentColorChange" />
         <n-button secondary @click="themeStore.resetAccentColor">
@@ -53,19 +53,15 @@
             <n-icon :size="15"><RefreshCw /></n-icon>
           </template>
         </n-button>
-        <div class="colorful-color-dots">
-          <div
-            v-for="(color, index) in themeStore.colorfulProgressColors"
-            :key="index"
-            class="colorful-color-dot">
-            <n-color-picker
-              :value="color"
-              :show-alpha="false"
-              :modes="['hex']"
-              :render-label="() => ''"
-              @update:value="(value) => handleColorfulProgressColorChange(index, value)" />
-          </div>
-        </div>
+        <AppColorPicker
+          :single-color="false"
+          :value="colorfulProgressColorItems"
+          title="彩色进度条颜色"
+          :min-count="3"
+          :max-count="3"
+          :max-display-count="3"
+          :allow-edit-count="false"
+          @confirm="handleColorfulProgressColorsConfirm" />
         <n-switch
           :value="themeStore.colorfulProgressBar"
           aria-label="彩色进度条"
@@ -131,43 +127,25 @@
           @update:value="handleGradientDirectionChange" />
       </div>
 
-      <div class="setting-item single-column gradient-setting-item">
+      <div class="setting-item">
         <div class="setting-info">
           <div class="setting-title">渐变颜色</div>
           <div class="setting-desc">关闭自动背景后可编辑，最多 5 个颜色。</div>
         </div>
-        <div class="gradient-colors">
-          <div
-            v-for="(color, index) in themeStore.gradientColors"
-            :key="`${index}-${color}`"
-            class="gradient-color-row">
-            <n-color-picker
-              :value="color"
-              :show-alpha="false"
-              :modes="['hex']"
-              :disabled="themeStore.autoBackground"
-              @update:value="(value) => handleGradientColorChange(index, value)" />
-            <n-button
-              v-if="themeStore.gradientColors.length > 2"
-              secondary
-              circle
-              size="small"
-              :disabled="themeStore.autoBackground"
-              @click="themeStore.removeGradientColor(index)">
-              -
-            </n-button>
-          </div>
-          <div class="gradient-actions">
-            <n-button
-              secondary
-              :disabled="themeStore.autoBackground || themeStore.gradientColors.length >= 5"
-              @click="themeStore.addGradientColor">
-              添加颜色
-            </n-button>
-            <n-button secondary @click="themeStore.resetBackground">
-              恢复默认背景
-            </n-button>
-          </div>
+        <div class="gradient-setting-controls">
+          <AppColorPicker
+            :single-color="false"
+            :value="gradientColorItems"
+            title="应用背景渐变颜色"
+            :min-count="2"
+            :max-count="5"
+            :max-display-count="3"
+            :allow-edit-count="true"
+            :disabled="themeStore.autoBackground"
+            @confirm="handleGradientColorsConfirm" />
+          <n-button secondary @click="themeStore.resetBackground">
+            恢复默认背景
+          </n-button>
         </div>
       </div>
     </template>
@@ -293,13 +271,13 @@ import SettingSection from "../SettingSection.vue";
 import SettingAdjustment from "../SettingAdjustment.vue";
 import StartupAnimationPreview from "./StartupAnimationPreview.vue";
 import ThemeModeSegmented from "./ThemeModeSegmented.vue";
-import AccentColorPillInput from "./AccentColorPillInput.vue";
+import AppColorPicker from "@/components/common/AppColorPicker.vue";
+import type { ColorGroupItem } from "@/utils/colorHex";
 import { computed, onMounted, ref } from "vue";
 import {
   NButton,
   NCollapse,
   NCollapseItem,
-  NColorPicker,
   NIcon,
   NSelect,
   NSwitch,
@@ -376,12 +354,22 @@ const handleAutoLowPowerChange = (value: boolean) => {
   void lowPowerStore.setAutoLowPower(value);
 };
 
+const colorfulProgressColorItems = computed<ColorGroupItem[]>(() =>
+  themeStore.colorfulProgressColors.map((color, index) => ({
+    id: index,
+    value: color,
+  }))
+);
+
 const handleColorfulProgressBarChange = (value: boolean) => {
   void themeStore.setColorfulProgressBar(value);
 };
 
-const handleColorfulProgressColorChange = (index: number, value: string) => {
-  void themeStore.setColorfulProgressColor(index, value);
+const handleColorfulProgressColorsConfirm = (
+  _before: ColorGroupItem[],
+  after: ColorGroupItem[]
+) => {
+  void themeStore.setColorfulProgressColors(after.map((item) => item.value));
 };
 
 const handleStartupAnimationChange = (value: string) => {
@@ -400,8 +388,18 @@ const handleGradientDirectionChange = (value: string) => {
   void themeStore.setGradientDirection(value as GradientDirection);
 };
 
-const handleGradientColorChange = (index: number, value: string) => {
-  void themeStore.setGradientColor(index, value);
+const gradientColorItems = computed<ColorGroupItem[]>(() =>
+  themeStore.gradientColors.map((color, index) => ({
+    id: index,
+    value: color,
+  }))
+);
+
+const handleGradientColorsConfirm = (
+  _before: ColorGroupItem[],
+  after: ColorGroupItem[]
+) => {
+  void themeStore.setGradientColors(after.map((item) => item.value));
 };
 
 const handleSelectGalleryImage = (url: string) => {
@@ -490,78 +488,17 @@ const handleFileInputChange = (event: Event) => {
     flex-shrink: 0;
   }
 
-  .colorful-color-dots {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .colorful-color-dot {
-    width: 24px;
-    height: 24px;
-    flex: 0 0 24px;
-    border-radius: 50%;
-    transition: transform 0.16s ease;
-
-    &:hover {
-      transform: scale(1.1);
-    }
-
-    :deep(.n-color-picker) {
-      display: block;
-      width: 24px;
-      height: 24px;
-      min-width: 24px;
-      border-radius: 50%;
-      overflow: hidden;
-    }
-
-    :deep(.n-color-picker__fill),
-    :deep(.n-color-picker-checkboard),
-    :deep(.n-color-picker__fill > div) {
-      border-radius: 50%;
-    }
-
-    :deep(.n-color-picker__fill) {
-      inset: 2px;
-    }
-
-    :deep(.n-color-picker__value) {
-      display: none;
-    }
-  }
-
   .gradient-direction {
     width: 180px;
     flex-shrink: 0;
   }
 
-  .gradient-setting-item {
-    align-items: flex-start;
-  }
-
-  .gradient-colors {
-    width: 100%;
-    max-width: 400px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    flex-shrink: 0;
-  }
-
-  .gradient-color-row {
+  .gradient-setting-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
-  }
-
-  .gradient-color-row :deep(.n-color-picker) {
-    flex: 1;
-  }
-
-  .gradient-actions {
-    display: flex;
-    gap: 8px;
+    gap: 10px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
   }
 
   .image-setting-item {

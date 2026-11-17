@@ -245,6 +245,12 @@ export const useThemeStore = defineStore("theme", () => {
     await persist();
   }
 
+  async function setColorfulProgressColors(nextColors: string[]) {
+    colorfulProgressColors.value = normalizeColorfulProgressColors(nextColors);
+    applyRuntimeTheme();
+    await persist();
+  }
+
   async function resetColorfulProgressColors() {
     colorfulProgressColors.value = [...DEFAULT_COLORFUL_PROGRESS_COLORS];
     applyRuntimeTheme();
@@ -275,6 +281,12 @@ export const useThemeStore = defineStore("theme", () => {
     const colors = [...gradientColors.value];
     colors[index] = normalizeHexColor(nextColor, colors[index] ?? DEFAULT_ACCENT_COLOR);
     gradientColors.value = normalizeGradientColors(colors);
+    applyRuntimeTheme();
+    await persist();
+  }
+
+  async function setGradientColors(nextColors: string[]) {
+    gradientColors.value = normalizeGradientColors(nextColors);
     applyRuntimeTheme();
     await persist();
   }
@@ -502,11 +514,13 @@ export const useThemeStore = defineStore("theme", () => {
     setFollowSongAccent,
     setColorfulProgressBar,
     setColorfulProgressColor,
+    setColorfulProgressColors,
     resetColorfulProgressColors,
     setStartupAnimation,
     setAutoBackground,
     setGradientDirection,
     setGradientColor,
+    setGradientColors,
     addGradientColor,
     removeGradientColor,
     resetBackground,

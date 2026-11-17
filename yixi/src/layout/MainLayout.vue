@@ -212,10 +212,11 @@ function renderMenuIcon(icon: Component) {
 
   .content {
     display: flex;
+    flex-direction: column;
     flex: 1;
     min-height: 0;
     overflow-y: overlay;
-    padding: 1rem 1.5rem 1rem 1rem;
+    padding: 1rem 1.5rem 0 1rem;
     background: transparent;
   }
 }

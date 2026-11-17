@@ -30,6 +30,7 @@
       <div v-else-if="!isSongTab" class="download-scroll" @scroll="handleScrollableContentScroll">
         <DownloadTaskList ref="taskListRef" :key="activeTab" :tasks="activeTab === 'records' ? downloadTasks : ongoingTasks" :search-key="searchKey" :search-terms="taskSearchTerms" :busy="busy" :refreshing="refreshing" :batch-toolbar-target="batchToolbarTarget"
           @batch-mode-change="isBatchMode = $event" @refresh="refreshCurrentTab" @action="runTaskAction" @change-directory="changeTaskDirectory" @detail="openDetail" @remove="prepareDelete" />
+        <ListEndState v-if="(activeTab === 'records' ? downloadTasks.length : ongoingTasks.length)" />
       </div>
       <n-empty v-else class="empty-state" :description="activeTab === 'download' ? '暂无下载歌曲' : '暂无本地歌曲'" />
     </div>
@@ -42,6 +43,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { NAlert, NButton, NEmpty, NIcon, NInput } from "naive-ui";
 import { Play, Search, RefreshCw, SquarePen } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
+import ListEndState from "@/components/common/ListEndState.vue";
 import SongList from "@/components/list/SongList.vue";
 import DownloadTaskList from "@/components/download/DownloadTaskList.vue";
 import DownloadRecordDetail from "@/components/download/DownloadRecordDetail.vue";
