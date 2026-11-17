@@ -1,7 +1,15 @@
 <template>
   <div class="batch-action-bar">
     <BatchSegmentedActions :actions="actions" @action="perform" />
-    <span class="selection-count">已选择 {{ songs.length }} 首</span>
+    <span v-if="preparing" class="selection-count is-status">
+      <n-icon :component="LoadingIcon" :size="14" class="status-spin" />
+      <span>正在加载...</span>
+    </span>
+    <span v-else-if="prepareDone" class="selection-count is-status is-done">
+      <n-icon :component="CircleCheck" :size="14" class="done-icon" />
+      <span>加载完成</span>
+    </span>
+    <span v-else class="selection-count">已选择 {{ songs.length }} 首</span>
     <p v-if="result" role="status">完成 {{ result.succeeded }}，跳过 {{ result.skipped }}，失败 {{ result.failed }}，未执行 {{ result.unexecuted }} / 共 {{ result.total }}。</p>
     <details v-if="result?.errors.length"><summary>查看失败项</summary><p v-for="error in result.errors" :key="error.key">{{ error.name }}：{{ error.message }}</p></details>
     <AddToPlaylistDialog ref="playlistDialog" />
@@ -9,9 +17,10 @@
   </div>
 </template>
 <script setup lang="ts">
-import type { DialogReactive } from "naive-ui";
+import { NIcon, type DialogReactive } from "naive-ui";
 import { computed, onBeforeUnmount, ref, type Component } from "vue";
-import { CheckCheck, FlipHorizontal2, Heart, Download, ListPlus, Trash2, X, RefreshCw, Square } from "lucide-vue-next";
+import { CheckCheck, CircleCheck, FlipHorizontal2, Heart, Download, ListPlus, Trash2, X, RefreshCw, Square } from "lucide-vue-next";
+import { LoadingIcon } from "@/icons";
 import BatchSegmentedActions from "./BatchSegmentedActions.vue";
 import type { Song } from "@/types/song";
 import { useCollectStore, useListenTogetherStore } from "@/store";
@@ -20,7 +29,7 @@ import { runBatchAction, type BatchResult } from "@/batch/BatchActionCoordinator
 import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 import AddToPlaylistDialog from "@/components/player/AddToPlaylistDialog.vue";
 import BatchDownloadDialog from "./BatchDownloadDialog.vue";
-const props = withDefaults(defineProps<{ songs: Song[]; context?: "songs" | "favorites" | "playlist" | "local" | "download"; canRemove?: boolean; refreshLoading?: boolean; disabled?: boolean }>(), { context: "songs", canRemove: false });
+const props = withDefaults(defineProps<{ songs: Song[]; context?: "songs" | "favorites" | "playlist" | "local" | "download"; canRemove?: boolean; refreshLoading?: boolean; disabled?: boolean; preparing?: boolean; prepareDone?: boolean }>(), { context: "songs", canRemove: false, preparing: false, prepareDone: false });
 const emit = defineEmits<{ selectAll: []; invert: []; exit: []; remove: [songs: Song[]]; refresh: []; busy: [value: boolean] }>();
 const collector = useCollectStore(), listenTogether = useListenTogetherStore(), commands = usePlaybackCommands();
 const playlistDialog = ref<InstanceType<typeof AddToPlaylistDialog>>();
@@ -29,7 +38,7 @@ const busy = ref(false), result = ref<BatchResult | null>(null);
 let controller: AbortController | undefined, generation = 0;
 let unfavoriteDialog: DialogReactive | undefined;
 const actions = computed(() => {
-  const disabled = busy.value || props.disabled;
+  const disabled = busy.value || props.disabled || props.preparing;
   const selectedDisabled = disabled || !props.songs.length;
   const local = props.context === "local" || props.context === "download";
   const items: { key: string; label: string; icon: Component; disabled?: boolean; loading?: boolean }[] = [];
@@ -96,10 +105,10 @@ async function confirmUnfavorite() {
 }
 function perform(action: string) {
   if (action === "stop") { controller?.abort(); return; }
-  if (busy.value || props.disabled) return;
+  if (action === "exit") { if (!props.disabled) emit("exit"); return; }
+  if (busy.value || props.disabled || props.preparing) return;
   if (action === "selectAll") emit("selectAll");
   else if (action === "invert") emit("invert");
-  else if (action === "exit") emit("exit");
   else if (action === "refresh") emit("refresh");
   else if (!props.songs.length) return;
   else if (action === "download") void downloadDialog.value?.open(snapshot());
@@ -114,5 +123,9 @@ defineExpose({ perform });
 <style scoped>
 .batch-action-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0; color: var(--text-primary); }
 .selection-count { color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+.selection-count.is-status { display: inline-flex; align-items: center; gap: 4px; }
+.selection-count.is-done .done-icon { color: #10b981; }
+.status-spin { animation: batch-status-spin 1s linear infinite; }
+@keyframes batch-status-spin { to { transform: rotate(360deg); } }
 .batch-action-bar p, .batch-action-bar details { flex-basis: 100%; margin: 0; color: var(--text-secondary); font-size: 12px; }
 </style>

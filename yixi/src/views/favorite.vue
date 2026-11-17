@@ -20,14 +20,14 @@
 
     <div class="toolbar batch-operation-toolbar">
       <div class="toolbar-left">
-        <template v-if="!isBatchMode">
-          <n-button data-batch-play-all v-if="activeTab === 'songs'" round type="primary" :disabled="!filteredSongs.length" @click="playAll">
-            <template #icon><n-icon :component="Play" /></template>播放全部
-          </n-button>
-          <n-button data-batch-trigger round :bordered="false" :disabled="!currentItemsCount" @click="enterBatchMode">
-            <template #icon><n-icon :component="SquarePen" /></template>多选
-          </n-button>
-        </template>
+        <BatchSegmentedActions
+          v-show="!isBatchMode"
+          data-batch-trigger
+          always-show-label
+          aria-label="收藏操作"
+          :actions="defaultActions"
+          @action="handleDefaultAction"
+        />
         <div ref="batchToolbarTarget" v-show="isBatchMode" class="favorite-batch-target">
           <template v-if="isBatchMode && activeTab === 'playlists'">
             <BatchSegmentedActions :actions="playlistActions" @action="handlePlaylistAction" />
@@ -75,13 +75,13 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { NButton, NDropdown, NEmpty, NIcon, NInput } from "naive-ui";
+import { NDropdown, NEmpty, NIcon, NInput } from "naive-ui";
 import { SquarePen, Play, Search, Trash2, ListChecks, ArrowLeftRight, LogOut, Square } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
 import ListEndState from "@/components/common/ListEndState.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
-import BatchSegmentedActions from "@/components/batch/BatchSegmentedActions.vue";
+import BatchSegmentedActions, { type SegmentedActionItem } from "@/components/batch/BatchSegmentedActions.vue";
 import SongList from "@/components/list/SongList.vue";
 import AppConfirmDialog from "@/components/common/AppConfirmDialog.vue";
 import { useCollectStore } from "@/store";
@@ -150,6 +150,31 @@ watch(playlists, items => {
   const available = new Set(items.map(item => `${item.source}:${item.id}`));
   selectedKeys.value = new Set([...selectedKeys.value].filter(key => available.has(key)));
 });
+
+const defaultActions = computed<SegmentedActionItem[]>(() => {
+  const items: SegmentedActionItem[] = [];
+  if (activeTab.value === "songs") {
+    items.push({
+      key: "playAll",
+      label: "播放全部",
+      icon: Play,
+      primary: true,
+      disabled: !filteredSongs.value.length,
+    });
+  }
+  items.push({
+    key: "batch",
+    label: "多选",
+    icon: SquarePen,
+    disabled: !currentItemsCount.value,
+  });
+  return items;
+});
+
+function handleDefaultAction(key: string, event: MouseEvent) {
+  if (key === "playAll") playAll();
+  else if (key === "batch") enterBatchMode(event);
+}
 
 const playlistActions = computed(() => [
   { key: "all", label: "全选", icon: ListChecks, disabled: isBatchDeleting.value },

@@ -30,7 +30,7 @@
           <template #icon><n-icon :component="song ? Play : ListMusic" /></template>
           {{ song ? '立即播放' : '打开歌单' }}
         </n-button>
-        <n-button round secondary @click="toggleCollect"><template #icon><n-icon :component="collected ? HeartOff : Heart" :color="collected ? '#ff5d6c' : 'var(--text-secondary)'" /></template>{{ collected ? '取消收藏' : '收藏' }}</n-button>
+        <n-button round secondary @click="toggleCollect"><template #icon><n-icon :component="CollectIcon" :color="collected ? '#ff5d6c' : 'var(--text-secondary)'" /></template>{{ collected ? '取消收藏' : '收藏' }}</n-button>
         <n-button v-if="song" round secondary @click="openDownload"><template #icon><n-icon :component="Download" /></template>下载</n-button>
         <n-button round secondary @click="openShareDialog"><template #icon><n-icon :component="Share2" /></template>分享</n-button>
       </template>
@@ -45,7 +45,8 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { NAvatar, NButton, NIcon, NSpin } from 'naive-ui';
-import { Download, Heart, HeartOff, Info, ListMusic, Play, RefreshCw, Share2, X } from 'lucide-vue-next';
+import { Download, Info, ListMusic, Play, RefreshCw, Share2, X } from 'lucide-vue-next';
+import { CollectIcon } from '@/icons';
 import AppModal from './AppModal.vue';
 import ShareDialog from './ShareDialog.vue';
 import DownloadSongDialog from '@/components/player/DownloadSongDialog.vue';

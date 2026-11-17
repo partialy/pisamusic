@@ -27,8 +27,8 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
   const companionOverlays = new Set<HTMLElement>();
 
   const scope = () => target.value?.parentElement || null;
-  const group = () => target.value?.querySelector<HTMLElement>(".batch-segmented-actions")
-    || scope()?.querySelector<HTMLElement>(".batch-segmented-actions") || null;
+  const group = () => target.value?.querySelector<HTMLElement>(".batch-segmented-actions:not([data-batch-trigger])")
+    || scope()?.querySelector<HTMLElement>(".batch-segmented-actions:not([data-batch-trigger])") || null;
   const trigger = () => scope()?.querySelector<HTMLElement>("[data-batch-trigger]") || null;
   const playAll = () => scope()?.querySelector<HTMLElement>("[data-batch-play-all]") || null;
   const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -225,7 +225,8 @@ export function useBatchToolbarMorph(active: Readonly<Ref<boolean>>, target: Rea
   }
 
   function captureOrigin(event?: MouseEvent) {
-    const element = event?.currentTarget instanceof HTMLElement ? event.currentTarget : trigger();
+    const targetElement = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    const element = targetElement?.closest<HTMLElement>("[data-batch-trigger]") || targetElement || trigger();
     origin = element ? snapshot(element, true) : null;
     const playButton = playAll();
     playAllFrom = playButton ? snapshot(playButton, true) : null;

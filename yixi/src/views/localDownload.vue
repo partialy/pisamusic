@@ -6,11 +6,14 @@
     </div>
     <div class="toolbar batch-operation-toolbar">
       <div class="toolbar-left">
-        <template v-if="!isBatchMode">
-          <n-button data-batch-play-all v-if="isSongTab" round type="primary" :disabled="!currentSongs.length || busy" @click="playAll"><template #icon><n-icon :component="Play" /></template>播放全部</n-button>
-          <n-button round secondary :loading="refreshing" :disabled="busy" @click="refreshCurrentTab"><template #icon><n-icon :component="RefreshCw" /></template>刷新</n-button>
-          <n-button data-batch-trigger round :bordered="false" :disabled="busy || !currentItemsCount" @click="enterBatch"><template #icon><n-icon :component="SquarePen" /></template>多选</n-button>
-        </template>
+        <BatchSegmentedActions
+          v-show="!isBatchMode"
+          data-batch-trigger
+          always-show-label
+          aria-label="本地与下载操作"
+          :actions="defaultActions"
+          @action="handleDefaultAction"
+        />
         <div ref="batchToolbarTarget" class="batch-toolbar-target" />
       </div>
       <n-input v-model:value="searchKey" class="page-search" :class="{ focused: searchFocused || searchKey }" clearable placeholder="搜索歌名、歌手" @focus="searchFocused = true" @blur="searchFocused = false"><template #prefix><n-icon :component="Search" /></template></n-input>
@@ -55,6 +58,7 @@ import type { DownloadTaskSnapshot, DownloadFileSnapshot, DownloadFileTarget, Do
 import { normalizeSong } from "@/utils/song";
 import { listDownloadedSongs, listDownloadTasks, listDownloadFiles, pauseDownload, resumeDownload, cancelDownload, retryDownload, selectDownloadTaskDirectory, previewDownloadDelete, deleteDownloads } from "@/utils/api/downloadAPI";
 import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
+import BatchSegmentedActions, { type SegmentedActionItem } from "@/components/batch/BatchSegmentedActions.vue";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
 type LocalDownloadTab = "local" | "download" | "downloading" | "records";
 const playbackCommands = usePlaybackCommands(), localLibrary = useLocalLibraryStore();
@@ -100,6 +104,40 @@ const deleteCount = computed(() => (deletePreview.value?.count || 0) + scanDelet
 const failedDeleteTargets = computed(() => deleteResult.value?.items.filter(item => ["failed", "occupied", "shared", "not-executed"].includes(item.status) && !!(item.fileId || item.taskId)).map(item => item.fileId ? { fileId: item.fileId } : { taskId: item.taskId }) || []);
 function playAll() { if (currentSongs.value.length) playbackCommands.playAll(currentSongs.value); }
 const currentItemsCount = computed(() => isSongTab.value ? sourceSongs.value.length : activeTab.value === "records" ? downloadTasks.value.length : ongoingTasks.value.length);
+const defaultActions = computed<SegmentedActionItem[]>(() => {
+  const items: SegmentedActionItem[] = [];
+  if (isSongTab.value) {
+    items.push({
+      key: "playAll",
+      label: "播放全部",
+      icon: Play,
+      primary: true,
+      disabled: !currentSongs.value.length || busy.value,
+    });
+  }
+  items.push(
+    {
+      key: "refresh",
+      label: "刷新",
+      icon: RefreshCw,
+      loading: refreshing.value,
+      spinIcon: true,
+      disabled: busy.value,
+    },
+    {
+      key: "batch",
+      label: "多选",
+      icon: SquarePen,
+      disabled: busy.value || !currentItemsCount.value,
+    }
+  );
+  return items;
+});
+function handleDefaultAction(key: string, event: MouseEvent) {
+  if (key === "playAll") playAll();
+  else if (key === "refresh") void refreshCurrentTab();
+  else if (key === "batch") enterBatch(event);
+}
 function enterBatch(event: MouseEvent) {
   if (busy.value || batchPreparing.value) return;
   batchMorph.captureOrigin(event);

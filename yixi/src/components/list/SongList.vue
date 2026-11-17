@@ -2,15 +2,12 @@
   <Transition name="fade" mode="out-in">
     <div class="content-container" ref="contentConRef">
       <Teleport :to="batchToolbarTarget || 'body'" :disabled="!batchExternal || !batchToolbarTarget">
-        <div v-if="batchEnabled && (!batchExternal || internalBatch || batchPreparing)" ref="batchToolbarRef" class="batch-toolbar">
-          <n-button v-if="!batchExternal && !internalBatch && !batchPreparing" data-batch-trigger round :bordered="false" @click="enterFromToolbar">
+        <div v-if="batchEnabled && (!batchExternal || internalBatch)" ref="batchToolbarRef" class="batch-toolbar">
+          <n-button v-if="!batchExternal && !internalBatch" data-batch-trigger round :bordered="false" @click="enterFromToolbar">
             <template #icon><n-icon :component="SquarePen" /></template>多选
           </n-button>
-          <n-button v-if="batchPreparing" round :disabled="batchDisabled" @click="exitInternalBatch()">
-            <template #icon><n-icon :component="X" /></template>取消加载
-          </n-button>
           <BatchActionBar v-if="internalBatch" ref="batchBarRef" :songs="selection.selectedSongs.value" :context="batchContext" :can-remove="batchRemovable"
-            :refresh-loading="batchRefreshing" :disabled="batchDisabled"
+            :refresh-loading="batchRefreshing" :disabled="batchDisabled" :preparing="batchPreparing" :prepare-done="batchPrepareDone"
             @select-all="selection.selectVisible(true)" @invert="selection.invertVisible" @exit="exitInternalBatch()"
             @busy="batchBusy = $event" @remove="emit('batchRemove', $event)" @refresh="emit('batchRefresh')" />
         </div>
@@ -109,7 +106,7 @@ import { NButton, NCheckbox, NIcon } from "naive-ui";
 import { useAudioStore } from "@/store";
 import { useListenTogetherStore } from "@/store/listenTogether";
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from "vue";
-import { SquarePen, X } from "lucide-vue-next";
+import { SquarePen } from "lucide-vue-next";
 import CommonSongItem from "@/components/search/CommonSongItem.vue";
 import ContextMenu from "@/components/common/ContextMenu.vue";
 import DownloadSongDialog from "@/components/player/DownloadSongDialog.vue";
@@ -176,7 +173,7 @@ const emit = defineEmits<{
   batchRefresh: [];
 }>();
 
-const internalBatch = ref(false), batchPreparing = ref(false), batchBusy = ref(false);
+const internalBatch = ref(false), batchPreparing = ref(false), batchPrepareDone = ref(false), batchBusy = ref(false);
 const batchMenu = ref({ show: false, x: 0, y: 0 });
 const batchBarRef = useTemplateRef("batchBarRef");
 const batchSongs = shallowRef<Song[] | null>(null);
@@ -184,6 +181,13 @@ const sourceSongs = computed(() => internalBatch.value && props.batchSnapshotMod
 const effectiveSelectable = computed(() => props.selectable || internalBatch.value);
 let batchGeneration = 0;
 let batchController: AbortController | undefined;
+let prepareDoneTimer: ReturnType<typeof setTimeout> | undefined;
+function clearPrepareDoneTimer() {
+  if (prepareDoneTimer !== undefined) {
+    clearTimeout(prepareDoneTimer);
+    prepareDoneTimer = undefined;
+  }
+}
 
 const filteredSongs = computed(() => {
   if (!props.searchKey) return sourceSongs.value;
@@ -203,33 +207,52 @@ const selection = useBatchSelection(sourceSongs, displaySongs);
 const effectiveSelectedKeys = computed(() => props.selectable ? props.selectedKeys : selection.selectedKeys.value);
 function toggleSelection(song: Song, event?: MouseEvent) {
   if (props.selectable) emit('toggleSelect', song, event);
-  else if (!batchBusy.value && !props.batchDisabled) selection.toggle(song, event);
+  else if (!batchBusy.value && !batchPreparing.value && !props.batchDisabled) selection.toggle(song, event);
 }
 function selectAllVisible() {
   if (props.selectable) emit('selectAll');
-  else if (!batchBusy.value && !props.batchDisabled) selection.selectVisible(!allSelected.value);
+  else if (!batchBusy.value && !batchPreparing.value && !props.batchDisabled) selection.selectVisible(!allSelected.value);
 }
 async function enterInternalBatch() {
   if (internalBatch.value || batchPreparing.value || props.batchDisabled || !props.batchEnabled) return;
+  clearPrepareDoneTimer();
+  batchPrepareDone.value = false;
+  selection.clear();
+  if (!props.prepareBatch) {
+    batchSongs.value = null;
+    internalBatch.value = true;
+    return;
+  }
   const generation = ++batchGeneration;
   batchController = new AbortController();
   batchPreparing.value = true;
+  internalBatch.value = true;
   try {
     const revision = await captureLibraryRevision();
-    const complete = props.prepareBatch ? await props.prepareBatch(batchController.signal) : null;
+    const complete = await props.prepareBatch(batchController.signal);
     if (generation !== batchGeneration || !isCurrentLibraryRevision(revision)) return;
     batchSongs.value = complete;
-    selection.clear();
-    internalBatch.value = true;
-  } catch (error) { if (generation === batchGeneration) window.$message.error(error instanceof Error ? error.message : '无法读取完整列表'); }
-  finally { if (generation === batchGeneration) batchPreparing.value = false; }
+    batchPreparing.value = false;
+    batchPrepareDone.value = true;
+    prepareDoneTimer = setTimeout(() => {
+      if (generation === batchGeneration) batchPrepareDone.value = false;
+      prepareDoneTimer = undefined;
+    }, 300);
+  } catch (error) {
+    if (generation !== batchGeneration) return;
+    batchPreparing.value = false;
+    if (error instanceof DOMException && error.name === "AbortError") return;
+    window.$message.error(error instanceof Error ? error.message : '无法读取完整列表');
+  }
 }
 function exitInternalBatch(force = false) {
   if (!force && (batchBusy.value || props.batchDisabled)) return;
   batchGeneration++;
+  clearPrepareDoneTimer();
   batchController?.abort();
   internalBatch.value = false;
   batchPreparing.value = false;
+  batchPrepareDone.value = false;
   batchSongs.value = null;
   selection.clear();
   batchMenu.value.show = false;
@@ -237,7 +260,7 @@ function exitInternalBatch(force = false) {
 function openRowContext(event: MouseEvent, song: Song) {
   event.preventDefault();
   if (internalBatch.value) {
-    if (batchBusy.value || props.batchDisabled) return;
+    if (batchBusy.value || batchPreparing.value || props.batchDisabled) return;
     selection.selectForContext(song);
     batchMenu.value = { show: true, x: event.clientX, y: event.clientY };
   } else contextMenuRef.value?.openContextMenu(event, { type: 'song', data: song });
@@ -338,6 +361,7 @@ onBeforeRouteLeave(() => {
 });
 
 onBeforeUnmount(() => {
+  clearPrepareDoneTimer();
   exitInternalBatch(true);
   batchGeneration++;
   batchController?.abort();

@@ -27,30 +27,15 @@
               item.name }}</n-tag>
           </div>
           <div class="operate-btn batch-operation-toolbar">
-            <div v-show="!batchMode">
-              <n-button data-batch-play-all round type="primary" :loading="moreLoading" style="background-color: var(--color-primary)"
-                @click="playAll">
-                <template #icon>
-                  <n-icon :component="PlayStatic"></n-icon>
-                </template>
-                播放全部({{ page.total }}首)
-              </n-button>
-              <n-button v-if="getDetailOrigin() !== 'local'" data-batch-trigger round :bordered="false" style="margin-left: 10px" @click="enterOnlineBatch">
-                <template #icon><n-icon :component="SquarePen" /></template>多选
-              </n-button>
-              <n-button v-else round secondary style="margin-left: 10px" @click="collector.collectList(listDetail)">
-                <template #icon><n-icon :component="collector.containsPlaylist(listDetail) ? HeartOff : Heart" :color="collector.containsPlaylist(listDetail) ? '#ff5d6c' : 'var(--text-secondary)'" /></template>
-                {{ collector.containsPlaylist(listDetail) ? "取消收藏" : "收藏" }}
-              </n-button>
-              <n-dropdown trigger="click" :options="moreOptions" @select="handleMoreAction">
-                <n-button round secondary style="margin-left: 10px">
-                  <template #icon><n-icon :component="EllipsisVertical" /></template>
-                  更多
-                </n-button>
-              </n-dropdown>
-              <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="editDialogRef?.open(listDetail)"><template #icon><n-icon :component="SquarePen" /></template>编辑</n-button>
-              <n-button v-if="listDetail?.source === 'local'" round secondary style="margin-left: 10px" @click="deleteCurrentPlaylist"><template #icon><n-icon :component="Trash2" /></template>删除</n-button>
-            </div>
+            <BatchSegmentedActions
+              v-show="!batchMode"
+              data-batch-trigger
+              always-show-label
+              aria-label="歌单操作"
+              :actions="toolbarActions"
+              @action="handleToolbarAction"
+              @dropdown-select="handleToolbarDropdownSelect"
+            />
 
             <div ref="batchToolbarTarget" v-show="batchMode" class="detail-batch-target" />
             <n-input :style="{
@@ -68,8 +53,8 @@
       </div>
     </div>
     <div class="scroll-list">
-      <SongList ref="songListRef" :batch-external="getDetailOrigin() !== 'local'" :batch-toolbar-target="getDetailOrigin() !== 'local' ? batchToolbarTarget : null" @batch-mode-change="batchMode = getDetailOrigin() !== 'local' && $event" :songs="songList" :loading="loading" :has-more="songList.length < page.total" :search-key="searchText"
-        batch-enabled batch-context="playlist" :batch-snapshot-mode="getDetailOrigin() !== 'local'" :batch-removable="getDetailOrigin() === 'local'" :prepare-batch="prepareBatchSongs" @batch-remove="removeBatchSongs"
+      <SongList ref="songListRef" :batch-external="true" :batch-toolbar-target="batchToolbarTarget" @batch-mode-change="batchMode = $event" :songs="songList" :loading="loading" :has-more="!allTracksLoaded" :search-key="searchText"
+        batch-enabled batch-context="playlist" :batch-snapshot-mode="getDetailOrigin() !== 'local'" :batch-removable="getDetailOrigin() === 'local'" :prepare-batch="isBatchSongsReady ? undefined : prepareBatchSongs" @batch-remove="removeBatchSongs"
         show-footer show-header @scroll="onScroll" @scroll-to-bottom="onToBottom" />
     </div>
     <PlaylistEditDialog ref="editDialogRef" />
@@ -107,8 +92,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
 import {
-  NButton,
-  NDropdown,
   NInput,
   NTooltip,
   NText,
@@ -122,7 +105,7 @@ import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
 import type { KGPlaylistDetailData } from "@/utils/webapi";
 import { debounce, getSongCover } from "@/utils/common";
 import SearchIcon from "@/icons/header/SearchIcon.vue";
-import { PlayStatic } from "@/icons";
+import { CollectIcon, PlayStatic } from "@/icons";
 import { useAudioStore, useCollectStore } from "@/store";
 import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { convertor } from "@/utils/convertor";
@@ -135,12 +118,12 @@ import PlaylistEditDialog from "@/components/mine/PlaylistEditDialog.vue";
 import { usePlaylistManagement } from "@/composables/usePlaylistManagement";
 import { getPlaylistCover, playlistCoverFallback } from "@/playlist/playlistCover";
 import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
-import { EllipsisVertical, FolderInput, Info, Share2, SquarePen, Trash2, Heart, HeartOff } from "lucide-vue-next";
+import { EllipsisVertical, FolderInput, Info, Share2, SquarePen, Trash2 } from "lucide-vue-next";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import OnlinePlaylistConversionDialog from "./OnlinePlaylistConversionDialog.vue";
-import { loadOnlinePlaylist } from "@/playlist/onlinePlaylistBatchLoader";
 import { openPlaylistDetail } from "@/share/mediaDetailRoute";
 
+import BatchSegmentedActions, { type SegmentedActionItem } from "@/components/batch/BatchSegmentedActions.vue";
 import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
 import SongList from "@/components/list/SongList.vue";
 import { resolveDynamicBatchSize } from "@/utils/playlistTracks";
@@ -159,7 +142,7 @@ const songListRef = ref<InstanceType<typeof SongList> | null>(null);
 const batchToolbarTarget = ref<HTMLElement | null>(null);
 const batchMode = ref(false);
 const batchMorph = useBatchToolbarMorph(batchMode, batchToolbarTarget);
-function enterOnlineBatch(event: MouseEvent) { batchMorph.captureOrigin(event); void songListRef.value?.enterBatch(); }
+function enterPlaylistBatch(event: MouseEvent) { batchMorph.captureOrigin(event); void songListRef.value?.enterBatch(); }
 watch(() => [route.query.id, route.query.origin], () => { batchMorph.reset(); batchMode.value = false; songListRef.value?.exitBatch(); });
 const conversionVisible = ref(false);
 const searchFocus = ref(false);
@@ -167,6 +150,7 @@ const loading = ref(false);
 const loadError = ref("");
 const moreLoading = ref(false);
 const allLoading = ref(false);
+const allTracksLoaded = ref(false);
 const kgListDetail = ref<KGPlaylistDetailData>();
 const wyListDetail = ref<WYPlaylistDetail>();
 
@@ -183,14 +167,49 @@ function deleteCurrentPlaylist() {
 }
 
 const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
+const isBatchSongsReady = computed(() => {
+  if (loading.value || allLoading.value) return false;
+  if (getDetailOrigin() === "local") return Boolean(listDetail.value);
+  return allTracksLoaded.value;
+});
 async function prepareBatchSongs(signal?: AbortSignal): Promise<Song[]> {
+  if (signal?.aborted) throw new DOMException("已取消加载", "AbortError");
+  if (isBatchSongsReady.value) return [...allSong.value];
   const request = captureDetailRequest();
   const revision = await captureLibraryRevision();
-  const songs = request.origin === "local" ? await listMinePlaylistSongs(request.id)
-    : (await loadOnlinePlaylist(request.origin, request.id, { signal })).songs;
-  if (signal?.aborted || !isCurrentDetailRequest(request) || !isCurrentLibraryRevision(revision)) throw new Error("歌单或账号已变化，已停止读取");
-  if (request.origin === "local") { localSongCache.value = songs; allSong.value = songs; songList.value = songs; page.value.total = songs.length; }
-  return songs;
+  if (signal?.aborted) throw new DOMException("已取消加载", "AbortError");
+  if (!isCurrentDetailRequest(request) || !isCurrentLibraryRevision(revision)) {
+    throw new Error("歌单或账号已变化，已停止读取");
+  }
+
+  const loadPromise = loadAll(page.value.size);
+  if (signal) {
+    await Promise.race([
+      loadPromise,
+      new Promise<never>((_, reject) => {
+        if (signal.aborted) {
+          reject(new DOMException("已取消加载", "AbortError"));
+          return;
+        }
+        signal.addEventListener(
+          "abort",
+          () => reject(new DOMException("已取消加载", "AbortError")),
+          { once: true }
+        );
+      }),
+    ]);
+  } else {
+    await loadPromise;
+  }
+
+  if (signal?.aborted) throw new DOMException("已取消加载", "AbortError");
+  if (!isCurrentDetailRequest(request) || !isCurrentLibraryRevision(revision)) {
+    throw new Error("歌单或账号已变化，已停止读取");
+  }
+  if (!allTracksLoaded.value && allSong.value.length === 0) {
+    throw new Error("读取歌单歌曲失败，请稍后重试");
+  }
+  return [...allSong.value];
 }
 async function removeBatchSongs(songs: Song[]) {
   const request = captureDetailRequest();
@@ -313,11 +332,16 @@ const getListDetail = async (request: DetailRequest) => {
   convertDetail(origin);
 };
 
+let initialRawCount = 0;
 const getSongList = async (batchSize: number, request: DetailRequest) => {
   const initialSongs = await fetchPlaylistSongs(0, batchSize, request);
   if (!isCurrentDetailRequest(request)) return;
+  initialRawCount = initialSongs.length;
   songList.value = initialSongs;
   allSong.value = initialSongs;
+  if (request.origin === "local" || initialSongs.length < batchSize || initialSongs.length >= page.value.total) {
+    allTracksLoaded.value = true;
+  }
 };
 
 const fetchPlaylistSongs = async (offset: number, pageSize: number, request = captureDetailRequest()): Promise<Song[]> => {
@@ -407,17 +431,70 @@ function openDetailPage() {
   void openPlaylistDetail(router, listDetail.value);
 }
 
-const moreOptions = computed(() => [
-  ...(getDetailOrigin() !== "local" ? [{ label: (listDetail.value && collector.containsPlaylist(listDetail.value)) ? "取消收藏" : "收藏", key: "collect", icon: () => h((listDetail.value && collector.containsPlaylist(listDetail.value)) ? HeartOff : Heart, { size: 16, color: (listDetail.value && collector.containsPlaylist(listDetail.value)) ? "#ff5d6c" : "var(--text-secondary)" }) }] : []),
-  ...(["kg", "wy"].includes(listDetail.value?.source || "")
-    ? [{ label: "转为本地歌单", key: "convert", icon: () => h(FolderInput, { size: 16 }) }] : []),
-  { label: "详情", key: "detail", icon: () => h(Info, { size: 16 }) },
-  { label: "分享", key: "share", icon: () => h(Share2, { size: 16 }) },
+const moreOptions = computed(() => {
+  const isCollected = Boolean(listDetail.value && collector.containsPlaylist(listDetail.value));
+  return [
+    {
+      label: isCollected ? "取消收藏" : "收藏",
+      key: "collect",
+      icon: () =>
+        h(CollectIcon, {
+          style: {
+            width: "16px",
+            height: "16px",
+            color: isCollected ? "#ff5d6c" : "var(--text-secondary)",
+          },
+        }),
+    },
+    ...(["kg", "wy"].includes(listDetail.value?.source || "")
+      ? [{ label: "转为本地歌单", key: "convert", icon: () => h(FolderInput, { size: 16 }) }]
+      : []),
+    ...(listDetail.value?.source === "local"
+      ? [
+          { label: "编辑", key: "edit", icon: () => h(SquarePen, { size: 16 }) },
+          { label: "删除", key: "delete", icon: () => h(Trash2, { size: 16 }) },
+        ]
+      : []),
+    { label: "详情", key: "detail", icon: () => h(Info, { size: 16 }) },
+    { label: "分享", key: "share", icon: () => h(Share2, { size: 16 }) },
+  ];
+});
+
+const toolbarActions = computed<SegmentedActionItem[]>(() => [
+  {
+    key: "playAll",
+    label: `播放全部(${page.value.total}首)`,
+    icon: PlayStatic,
+    primary: true,
+    loading: moreLoading.value,
+  },
+  {
+    key: "batch",
+    label: "多选",
+    icon: SquarePen,
+  },
+  {
+    key: "more",
+    label: "更多",
+    icon: EllipsisVertical,
+    dropdownOptions: moreOptions.value,
+  },
 ]);
+
+function handleToolbarAction(key: string, event: MouseEvent) {
+  if (key === "playAll") void playAll();
+  else if (key === "batch") enterPlaylistBatch(event);
+}
+
+function handleToolbarDropdownSelect(actionKey: string, optionKey: string) {
+  if (actionKey === "more") handleMoreAction(optionKey);
+}
 
 function handleMoreAction(key: string) {
   if (key === "collect" && listDetail.value) void collector.collectList(listDetail.value);
   else if (key === "convert") conversionVisible.value = true;
+  else if (key === "edit" && listDetail.value) editDialogRef.value?.open(listDetail.value);
+  else if (key === "delete") deleteCurrentPlaylist();
   else if (key === "detail") openDetailPage();
   else if (key === "share") openShareDialog();
 }
@@ -427,26 +504,46 @@ function openShareDialog() {
   shareDialogRef.value?.openForPlaylist(listDetail.value);
 }
 
+let activeLoadAllPromise: Promise<void> | null = null;
 const loadAll = async (batchSize: number = page.value.size) => {
-  if (allLoading.value) return;
+  if (allTracksLoaded.value) return;
+  if (activeLoadAllPromise) return activeLoadAllPromise;
   const currentVersion = loadVersion.value;
   allLoading.value = true;
-  try {
-    let offset = allSong.value.length;
-    while (offset < page.value.total && currentVersion === loadVersion.value) {
-      const songs = await fetchPlaylistSongs(offset, batchSize);
-      if (!songs.length || currentVersion !== loadVersion.value) break;
-      appendUniqueSongs(songs);
-      offset += batchSize;
-      if (songs.length < batchSize) break;
+  activeLoadAllPromise = (async () => {
+    let completed = false;
+    try {
+      let offset = Math.max(initialRawCount, allSong.value.length);
+      while (offset < page.value.total && currentVersion === loadVersion.value) {
+        const songs = await fetchPlaylistSongs(offset, batchSize);
+        if (currentVersion !== loadVersion.value) return;
+        if (!songs.length) {
+          completed = true;
+          break;
+        }
+        appendUniqueSongs(songs);
+        offset += batchSize;
+        if (songs.length < batchSize) {
+          completed = true;
+          break;
+        }
+      }
+      if (offset >= page.value.total && currentVersion === loadVersion.value) {
+        completed = true;
+      }
+      if (completed && currentVersion === loadVersion.value) {
+        allTracksLoaded.value = true;
+      }
+    } catch (error) {
+      console.log("后台加载歌单歌曲失败：" + error);
+    } finally {
+      if (currentVersion === loadVersion.value) {
+        allLoading.value = false;
+      }
+      activeLoadAllPromise = null;
     }
-  } catch (error) {
-    console.log("后台加载歌单歌曲失败：" + error);
-  } finally {
-    if (currentVersion === loadVersion.value) {
-      allLoading.value = false;
-    }
-  }
+  })();
+  return activeLoadAllPromise;
 };
 
 const initData = debounce(async () => {
@@ -463,6 +560,9 @@ const initData = debounce(async () => {
     loadError.value = "";
     isPlayingAllFromHere.value = false;
     allLoading.value = false;
+    allTracksLoaded.value = false;
+    activeLoadAllPromise = null;
+    initialRawCount = 0;
     allSong.value = [];
     songList.value = [];
     localSongCache.value = [];
@@ -476,8 +576,8 @@ const initData = debounce(async () => {
     await getSongList(batchSize, request);
     if (!isCurrentDetailRequest(request)) return;
     loading.value = false;
-    if (page.value.total > allSong.value.length) {
-      setTimeout(() => { if (isCurrentDetailRequest(request)) void loadAll(batchSize); }, 100);
+    if (!allTracksLoaded.value && page.value.total > allSong.value.length) {
+      setTimeout(() => { if (isCurrentDetailRequest(request) && !allTracksLoaded.value) void loadAll(batchSize); }, 100);
     }
   } catch (error) {
     if ((request.origin === "local" && !isCurrentLibraryRevision(revision)) || !isCurrentDetailRequest(request)) return;
