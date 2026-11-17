@@ -608,6 +608,7 @@ watch(
 .play-list-detail-layout {
   margin: 0 auto;
   width: 100%;
+  height: 100%;
   max-width: 1400px;
   background: transparent;
   position: relative;
@@ -694,6 +695,7 @@ watch(
   .scroll-list {
     width: 100%;
     flex: 1;
+    min-height: 0;
     overflow: hidden;
   }
 }
