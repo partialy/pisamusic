@@ -36,9 +36,11 @@
           <n-button secondary class="path-btn" @click="chooseDirectory">选择</n-button>
         </div>
       </div>
-      <n-checkbox v-model:checked="redownload" :disabled="submitting">已完成时重新下载，保留原文件</n-checkbox>
     </div>
 
+    <template #footer-left>
+      <n-checkbox v-model:checked="redownload" :disabled="submitting">已下载则重新下载</n-checkbox>
+    </template>
     <template #footer>
       <n-button quaternary class="cancel-btn" @click="closeDialog">取消</n-button>
       <n-button class="confirm-btn" :loading="submitting" @click="confirmDownload">确定下载</n-button>

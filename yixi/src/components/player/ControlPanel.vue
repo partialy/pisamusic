@@ -23,7 +23,7 @@
         <n-icon
           :component="CollectIcon"
           :size="20"
-          :color="isCollected ? '#ff5d6c' : 'var(--text-secondary)'"
+          :color="isCollected ? '#ff5d6c' : undefined"
         />
       </button>
 

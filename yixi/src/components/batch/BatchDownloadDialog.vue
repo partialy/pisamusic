@@ -7,10 +7,12 @@
         <n-select v-model:value="qualities[source]" :options="qualityOptions(source)" :disabled="submitting" />
       </label>
       <div class="batch-directory"><n-input :value="directory" readonly placeholder="选择下载目录" /><n-button round :disabled="submitting" @click="chooseDirectory"><template #icon><n-icon :component="FolderOpen" /></template>选择</n-button></div>
-      <n-checkbox v-model:checked="redownload" :disabled="submitting">已完成的歌曲也重新下载，保留原文件</n-checkbox>
       <n-checkbox v-if="plan.count > 100" v-model:checked="largeConfirmed" :disabled="submitting">确认将超过 100 首歌曲加入下载队列</n-checkbox>
       <p v-if="message" role="status">{{ message }}</p>
     </div>
+    <template #footer-left>
+      <n-checkbox v-model:checked="redownload" :disabled="submitting">已下载则重新下载</n-checkbox>
+    </template>
     <template #footer>
       <n-button round :disabled="submitting" @click="close(false)"><template #icon><n-icon :component="X" /></template>关闭</n-button>
       <n-button v-if="submitting" round @click="cancelEnqueue = true"><template #icon><n-icon :component="Square" /></template>停止后续入队</n-button>

@@ -175,6 +175,7 @@
 - “彩色进度条”开关与三色流光色值写入 `app-theme.colorfulProgressBar`（默认关闭）与 `app-theme.colorfulProgressColors`（默认 `["#20b46b", "#38bdf8", "#a78bfa"]`），由 `applyThemeRuntime.ts` 同步到 `--progress-colorful-1..3`，开启后底栏 `PlayerBar.vue` 已走过进度条启用无缝三色流光与前沿高光锋。
 - “启动动画”样式同样写入 `app-theme.startupAnimation`（默认 `default`，可选 `aurora-sweep`、`vinyl-wave`、`fluid-aurora`、`star-orbit`、`ripple-field`、`aurora-horizon`）。设置页手风琴预览（`StartupAnimationPreview.vue`）与独立启动窗口（`web/startup-window.html` / `web/startup-window.ts`）共用 `src/startup/startupAnimations.css`、`src/startup/startupAnimationOptions.ts` 与 `src/startup/startupAnimationTemplates.ts`，由 main `StartupWindowManager` 读取后在首帧下发渲染。
 - “本地设置”统一通过 `src/store/settingStore.ts` 管理，并写入 SQLite settings 的 `local-setting`；当前字段包含本地扫描目录、缓存目录、缓存大小上限、下载目录和歌曲命名方式。
+- 窗口关闭行为（“每次询问 / 隐藏到托盘 / 关闭App”，`ask` / `tray` / `quit`）同样通过 `src/store/settingStore.ts` 写入 SQLite settings 的 `basic-setting.closeAppAction`（首次初始化兼容迁移旧 `localStorage("closeType")`），由 `BasicSetting.vue` 与 `ElectronOperation.vue` 双向同步，不要再直接写入 `localStorage`。
 - 目录选择能力统一走 `dialog:select-directory` IPC，由 `electron/ipc/dialogIpc.ts` 注册、preload 暴露 typed API；不要在 renderer 侧直接接触 Electron 原始 `dialog` 对象。
 - 在线歌曲播放缓存统一由 main 侧 `electron/mediaCache/` 管理：`music:resolve-playable-url` 返回 `pisacache://media/<cacheKey>`，协议层负责 Range、本地分片命中和远端流式落盘；renderer 不得取得源站 URL、真实缓存文件路径或索引数据库。
 - 播放缓存键固定使用 `source + songId + qualityKey`，索引独立存放在 `media-cache-index.db`，分片只允许写入缓存目录下的 `.pisamusic-cache/v1`；用户未配置目录时使用 `userData/data/media-cache` 默认目录。

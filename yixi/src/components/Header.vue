@@ -130,11 +130,13 @@ import {
   BackIcon,
   DebugIcon,
   LevelIcon,
+  LinkImportIcon,
   ListeningDurationIcon,
   MoonIcon,
   RefreshIcon,
   SearchIcon,
   SettingIcon,
+  ShareAppIcon,
   SunIcon,
 } from "@/icons";
 import {
@@ -331,7 +333,7 @@ const settingOptions = computed(() => {
     {
       label: "链接导入歌单",
       key: "playlist-import",
-      icon: renderIcon(EditIcon),
+      icon: renderIcon(LinkImportIcon),
     },
     {
       label: "均衡器",
@@ -365,7 +367,7 @@ const settingOptions = computed(() => {
       key: "about",
       icon: renderIcon(AboutIcon),
     },
-    { label: "分享 PisaMusic", key: "app-share", icon: renderIcon(AboutIcon) },
+    { label: "分享 PisaMusic", key: "app-share", icon: renderIcon(ShareAppIcon) },
     {
       label: "热重载",
       props: {

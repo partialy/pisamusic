@@ -29,7 +29,7 @@ import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 import { formatDuration } from "@/utils/common";
 import { NSlider, NImage } from "naive-ui";
 import { storeToRefs } from "pinia";
-import logo from "@/assets/pisamusic_icon_1024.png";
+const logo = `${import.meta.env.BASE_URL}pisamusic_icon_24x24.png`;
 const player = useAudioStore();
 const playbackCommands = usePlaybackCommands();
 const { currentTime, duration } = storeToRefs(player);

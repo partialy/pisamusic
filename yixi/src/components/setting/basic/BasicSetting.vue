@@ -6,17 +6,9 @@
         <div class="setting-title">主题模式</div>
         <div class="setting-desc">选择浅色、深色，或跟随系统外观。</div>
       </div>
-      <n-radio-group
-        class="theme-mode-group"
-        :value="themeStore.mode"
-        @update:value="handleThemeModeChange">
-        <n-radio-button
-          v-for="item in themeModeOptions"
-          :key="item.value"
-          :value="item.value">
-          {{ item.label }}
-        </n-radio-button>
-      </n-radio-group>
+      <ThemeModeSegmented
+        :model-value="themeStore.mode"
+        @update:model-value="handleThemeModeChange" />
     </div>
 
     <div class="setting-item">
@@ -25,10 +17,8 @@
         <div class="setting-desc">用于按钮、进度条、选中态与 UI 主色。</div>
       </div>
       <div class="accent-setting">
-        <n-color-picker
+        <AccentColorPillInput
           :value="themeStore.accentColor"
-          :show-alpha="false"
-          :modes="['hex']"
           @update:value="handleAccentColorChange" />
         <n-button secondary @click="themeStore.resetAccentColor">
           恢复默认
@@ -281,6 +271,20 @@
           @update:value="handleAutoLowPowerChange" />
       </div>
     </SettingSection>
+
+    <SettingSection title="窗口与退出" description="设置点击关闭按钮时的默认行为。">
+      <div class="setting-item">
+        <div class="setting-info">
+          <div class="setting-title">退出App时执行操作</div>
+          <div class="setting-desc">非选择“每次询问”时，关闭按钮将直接执行对应操作而不再弹出确认框。</div>
+        </div>
+        <n-select
+          class="close-action-select"
+          :value="settingStore.basic.closeAppAction"
+          :options="closeAppActionOptions"
+          @update:value="handleCloseAppActionChange" />
+      </div>
+    </SettingSection>
   </div>
 </template>
 
@@ -288,6 +292,8 @@
 import SettingSection from "../SettingSection.vue";
 import SettingAdjustment from "../SettingAdjustment.vue";
 import StartupAnimationPreview from "./StartupAnimationPreview.vue";
+import ThemeModeSegmented from "./ThemeModeSegmented.vue";
+import AccentColorPillInput from "./AccentColorPillInput.vue";
 import { computed, onMounted, ref } from "vue";
 import {
   NButton,
@@ -295,8 +301,6 @@ import {
   NCollapseItem,
   NColorPicker,
   NIcon,
-  NRadioButton,
-  NRadioGroup,
   NSelect,
   NSwitch,
 } from "naive-ui";
@@ -313,11 +317,13 @@ import {
   type ThemeMode,
 } from "@/store/theme";
 import { useLowPowerStore } from "@/store/lowPower";
+import { useSettingStore, type CloseAppAction } from "@/store/settingStore";
 import { useImageManager } from "@/composables/useImageManager";
 import AppImageCenterModal from "@/components/common/AppImageCenterModal.vue";
 
 const themeStore = useThemeStore();
 const lowPowerStore = useLowPowerStore();
+const settingStore = useSettingStore();
 const imageManager = useImageManager();
 const { latestThreeImages } = imageManager;
 
@@ -326,12 +332,13 @@ const showImageCenterModal = ref(false);
 
 onMounted(() => {
   void imageManager.loadImages();
+  void settingStore.initBasicSetting();
 });
 
-const themeModeOptions = [
-  { label: "浅色", value: "light" },
-  { label: "深色", value: "dark" },
-  { label: "跟随系统", value: "system" },
+const closeAppActionOptions: { label: string; value: CloseAppAction }[] = [
+  { label: "每次询问", value: "ask" },
+  { label: "隐藏到托盘", value: "tray" },
+  { label: "关闭App", value: "quit" },
 ];
 const backgroundModeOptions = [
   { label: "颜色", value: "color" },
@@ -349,8 +356,12 @@ const startupAnimationSelectOptions = STARTUP_ANIMATION_OPTIONS.map((item) => ({
 }));
 const currentStartupMeta = computed(() => getStartupAnimationMeta(themeStore.startupAnimation));
 
-const handleThemeModeChange = (value: string | number) => {
-  void themeStore.setMode(value as ThemeMode);
+const handleThemeModeChange = (value: ThemeMode) => {
+  void themeStore.setMode(value);
+};
+
+const handleCloseAppActionChange = (value: CloseAppAction) => {
+  void settingStore.updateCloseAppAction(value);
 };
 
 const handleAccentColorChange = (value: string) => {
@@ -454,18 +465,14 @@ const handleFileInputChange = (event: Event) => {
   .accent-setting {
     display: flex;
     align-items: center;
-    gap: 12px;
-    width: 280px;
-    max-width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .theme-mode-group {
+    gap: 10px;
+    flex-wrap: nowrap;
     flex-shrink: 0;
   }
 
   .background-mode-select,
-  .startup-animation-select {
+  .startup-animation-select,
+  .close-action-select {
     width: 180px;
     flex-shrink: 0;
   }

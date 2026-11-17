@@ -9,6 +9,12 @@ export type SongNamingMode =
   | "title"
   | "index-title-artist";
 
+export type CloseAppAction = "ask" | "tray" | "quit";
+
+export type BasicSetting = {
+  closeAppAction: CloseAppAction;
+};
+
 export type LocalSetting = {
   scanDirectories: string[];
   cacheDirectory: string;
@@ -20,6 +26,12 @@ export type LocalSetting = {
   embedDownloadLyrics: boolean;
   embedDownloadTags: boolean;
   downloadLyricsMode: DownloadLyricsMode;
+};
+
+const BASIC_SETTING_KEY = "basic-setting";
+const LEGACY_CLOSE_TYPE_KEY = "closeType";
+const DEFAULT_BASIC_SETTING: BasicSetting = {
+  closeAppAction: "ask",
 };
 
 const LOCAL_SETTING_KEY = "local-setting";
@@ -42,10 +54,44 @@ export const useSettingStore = defineStore("setting", {
     language: "zh-CN",
     quality: "128",
     directRequest: true,
+    basic: { ...DEFAULT_BASIC_SETTING } as BasicSetting,
+    basicLoaded: false,
     local: { ...DEFAULT_LOCAL_SETTING } as LocalSetting,
     localLoaded: false,
   }),
   actions: {
+    async initBasicSetting() {
+      if (this.basicLoaded) return;
+      const record = await electronAPI.getSetting<Partial<BasicSetting>>(BASIC_SETTING_KEY);
+      if (record?.value) {
+        this.basic = normalizeBasicSetting(record.value);
+        this.basicLoaded = true;
+        if (record.value.closeAppAction !== this.basic.closeAppAction) {
+          await this.persistBasicSetting();
+        }
+        return;
+      }
+      // 兼容迁移旧版 localStorage("closeType")
+      const legacy = typeof localStorage !== "undefined" ? localStorage.getItem(LEGACY_CLOSE_TYPE_KEY) : null;
+      this.basic = {
+        closeAppAction: normalizeCloseAppAction(legacy),
+      };
+      this.basicLoaded = true;
+      await this.persistBasicSetting();
+    },
+
+    async updateCloseAppAction(action: CloseAppAction) {
+      this.basic.closeAppAction = normalizeCloseAppAction(action);
+      this.basicLoaded = true;
+      await this.persistBasicSetting();
+    },
+
+    async persistBasicSetting() {
+      const normalized = normalizeBasicSetting(toRaw(this.basic));
+      this.basic = normalized;
+      await electronAPI.setSetting(BASIC_SETTING_KEY, normalized, 1);
+    },
+
     async initLocalSetting() {
       if (this.localLoaded) return;
       const record = await electronAPI.getSetting<Partial<LocalSetting> & { scanDirectory?: string }>(LOCAL_SETTING_KEY);
@@ -220,4 +266,16 @@ function isSongNamingMode(value: unknown): value is SongNamingMode {
 function normalizeDownloadConcurrency(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) && value != null ? Math.min(5, Math.max(1, Math.round(parsed))) : 2;
+}
+
+function normalizeBasicSetting(input?: Partial<BasicSetting> | null): BasicSetting {
+  return {
+    closeAppAction: normalizeCloseAppAction(input?.closeAppAction),
+  };
+}
+
+function normalizeCloseAppAction(value: unknown): CloseAppAction {
+  if (value === "tray" || value === "minimize") return "tray";
+  if (value === "quit" || value === "exit") return "quit";
+  return "ask";
 }

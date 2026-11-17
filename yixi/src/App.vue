@@ -59,6 +59,7 @@ import {
   useLyricStore,
   useMineLibraryStore,
   useRuntimeConfigStore,
+  useSettingStore,
   useShortcutStore,
   useThemeStore,
   useUserStore,
@@ -99,6 +100,7 @@ watchEffect(() => {
   };
 });
 const shortcutStore = useShortcutStore();
+const settingStore = useSettingStore();
 const userStore = useUserStore();
 const router = useRouter();
 const directMessageReady = ref(false);
@@ -311,6 +313,7 @@ async function bootstrapApp() {
 
     const results = await Promise.allSettled([
       lowPowerStore.initialize(),
+      settingStore.initBasicSetting(),
       themeStore.init(),
       isLocalMode ? Promise.resolve(null) : runtimeConfig.refresh(),
       collector.initStore(),

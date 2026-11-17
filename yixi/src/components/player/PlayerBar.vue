@@ -146,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import logo from "@/assets/pisamusic_icon_1024.png"
+const logo = `${import.meta.env.BASE_URL}pisamusic_icon_24x24.png`;
 import {
   NSlider,
   NImage,
@@ -359,6 +359,10 @@ const handleSeek = debounce((val: number) => {
   .rail-img {
     will-change: auto;
     animation: rotate 12s linear infinite;
+  }
+
+  &.is-paused .rail-img {
+    animation-play-state: paused;
   }
 }
 
