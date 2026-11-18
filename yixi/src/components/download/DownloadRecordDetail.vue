@@ -4,7 +4,7 @@
       <n-alert v-if="error" type="error" :bordered="false">{{ error }}</n-alert>
       <template v-if="detail">
         <div class="detail-heading">
-          <n-image :src="String(detail.file?.payload.cover || detail.task.cover || defaultCover)" :fallback-src="defaultCover" :width="76" :height="76" object-fit="cover" />
+          <n-image class="detail-cover" :src="coverUrl" :fallback-src="defaultCover" :width="76" :height="76" object-fit="cover" />
           <div class="heading-main"><h3>{{ detail.task.name || detail.task.songId }}</h3><p>{{ detail.file?.payload.singer || detail.task.singer || '未知歌手' }}</p><n-tag size="small" :type="detail.task.source === 'wy' ? 'error' : detail.task.source === 'kw' ? 'warning' : 'info'">{{ sourceLabel(detail.task.source) }}</n-tag> · {{ statusLabel(detail.task.status) }}</div>
         </div>
         <n-alert v-if="detail.file && !detail.stat.exists" type="warning" :bordered="false">文件不存在或不可读取：{{ detail.stat.error }}</n-alert>
@@ -27,6 +27,7 @@ import { NAlert, NButton, NEmpty, NIcon, NImage, NSpin, NTag } from "naive-ui";
 import { FolderOpen, Info, RefreshCw, Wrench } from "lucide-vue-next";
 import defaultCover from "@/assets/images/default-cover.png";
 import AppModal from "@/components/common/AppModal.vue";
+import { getSongCover } from "@/utils/common";
 import type { DownloadFileDetail, DownloadFileTarget } from "@/types/download";
 import { getDownloadFileDetail, openDownloadDirectory, repairDownloadFile, revealDownloadFile } from "@/utils/api/downloadAPI";
 import { formatBytes, formatDate, metadataLabel, qualityLabel, sourceLabel, statusLabel } from "./downloadPresentation";
@@ -35,6 +36,13 @@ const emit = defineEmits<{ (event: "update:show", show: boolean): void; (event: 
 const detail = ref<DownloadFileDetail | null>(null), loading = ref(false), repairing = ref(false), error = ref("");
 const repairMessage = ref(""), repairFailed = ref(false);
 let generation = 0;
+const coverUrl = computed(() => {
+  const value = detail.value;
+  if (!value) return defaultCover;
+  const cover = String(value.file?.payload.cover || value.task.cover || "");
+  if (!cover) return defaultCover;
+  return getSongCover({ source: value.task.source, cover } as any, 240) || defaultCover;
+});
 const fields = computed(() => {
   const value = detail.value; if (!value) return [];
   const file = value.file;
@@ -74,7 +82,9 @@ onBeforeUnmount(() => { generation++; });
 </script>
 <style scoped>
 .detail-heading { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; }
-.heading-main { min-width: 0; overflow-wrap: anywhere; }
+.detail-cover { width: 76px; height: 76px; flex: 0 0 76px; border-radius: var(--radius-control); overflow: hidden; display: block; }
+.detail-cover :deep(img) { width: 76px; height: 76px; object-fit: cover; display: block; }
+.heading-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 h3, p { margin: 0 0 8px; }
 .detail-fields { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px 12px; max-height: 45vh; overflow: auto; }
 dt, .detail-note { color: var(--text-secondary); font-size: 12px; }

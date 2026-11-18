@@ -440,6 +440,7 @@ const downloadApiIpc = {
   revealDownloadFile: (target: import("../src/types/download").DownloadFileTarget) => ipcRenderer.invoke("download:reveal-file", cloneIpcPayload(target)),
   openDownloadDirectory: (target: import("../src/types/download").DownloadFileTarget) => ipcRenderer.invoke("download:open-directory", cloneIpcPayload(target)),
   repairDownloadFile: (target: import("../src/types/download").DownloadFileTarget) => ipcRenderer.invoke("download:repair", cloneIpcPayload(target)),
+  repairDownloadFiles: (targets: import("../src/types/download").DownloadFileTarget[]) => ipcRenderer.invoke("download:repair-batch", cloneIpcPayload(targets)),
   listDownloadFiles: () => ipcRenderer.invoke("download:files"),
   listDownloadTasks: () => ipcRenderer.invoke("download:tasks"),
   listDownloadRecords: () => ipcRenderer.invoke("download:records"),

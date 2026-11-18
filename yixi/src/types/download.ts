@@ -41,6 +41,12 @@ export type DownloadDeleteResult = {
   items: DownloadDeleteItem[];
 };
 export type DownloadFileDetail = DownloadDetail & { stat: { exists: boolean; size: number; modifiedAt: string; identity: string; error: string } };
+export type DownloadBatchRepairResult = {
+  total: number;
+  repaired: number;
+  failed: number;
+  items: (DownloadFileTarget & { status: "repaired" | "failed"; message: string })[];
+};
 export type LocalFileRemoveResult = {
   removed: boolean; deleted: boolean;
   status: "deleted" | "record-only" | "missing" | "shared" | "occupied" | "failed" | "not-executed";

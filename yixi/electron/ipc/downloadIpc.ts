@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { previewDownloadDelete, deleteDownloads, getDownloadFileDetail, revealDownloadFile, openDownloadDirectory } from "../download/downloadFileService";
-import { repairDownloadFile } from "../download/downloadRepairService";
+import { repairDownloadFile, repairDownloadFiles } from "../download/downloadRepairService";
 import type { DownloadFileTarget } from "../../src/types/download";
 import {
   listDownloadedSongs, listDownloadRecords, listDownloadTasks, startDownloadTask,
@@ -34,4 +34,5 @@ export function setupDownloadIpc() {
   ipcMain.handle("download:reveal-file", (_event, target: DownloadFileTarget) => revealDownloadFile(target));
   ipcMain.handle("download:open-directory", (_event, target: DownloadFileTarget) => openDownloadDirectory(target));
   ipcMain.handle("download:repair", (_event, target: DownloadFileTarget) => repairDownloadFile(target));
+  ipcMain.handle("download:repair-batch", (_event, targets: DownloadFileTarget[]) => repairDownloadFiles(targets));
 }

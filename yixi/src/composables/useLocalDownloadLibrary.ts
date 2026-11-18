@@ -16,12 +16,17 @@ import {
   listDownloadFiles,
   listDownloadTasks,
   listDownloadedSongs,
+  openDownloadDirectory,
   pauseDownload,
   previewDownloadDelete,
+  repairDownloadFile,
+  repairDownloadFiles,
   resumeDownload,
   retryDownload,
+  revealDownloadFile,
   selectDownloadTaskDirectory,
 } from "@/utils/api/downloadAPI";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
 
 function errorText(error: unknown) {
   return error instanceof Error ? error.message : String(error || "操作失败");
@@ -39,6 +44,7 @@ const detailTarget = ref<DownloadFileTarget | null>(null);
 const failedScanPaths = ref<string[]>([]);
 const deleteShown = ref(false);
 const deleting = ref(false);
+const repairing = ref(false);
 const previewing = ref(false);
 const deleteAll = ref(false);
 const deletePreview = ref<DownloadDeletePreview | null>(null);
@@ -52,6 +58,7 @@ let libraryInitialized = false;
 
 export function useLocalDownloadLibrary(options: { poll?: boolean } = {}) {
   const localLibrary = useLocalLibraryStore();
+  const playbackCommands = usePlaybackCommands();
   const { songs: localSongs } = storeToRefs(localLibrary);
 
   const mergedLocalSongs = computed(() => {
@@ -73,6 +80,7 @@ export function useLocalDownloadLibrary(options: { poll?: boolean } = {}) {
     () =>
       Boolean(actionBusy.value) ||
       deleting.value ||
+      repairing.value ||
       previewing.value ||
       deleteShown.value
   );
@@ -198,6 +206,85 @@ export function useLocalDownloadLibrary(options: { poll?: boolean } = {}) {
   function openDetail(target: DownloadFileTarget) {
     detailTarget.value = { ...target };
     detailShown.value = true;
+  }
+
+  async function locateDownloadTarget(target: DownloadFileTarget, hasFile: boolean) {
+    try {
+      if (hasFile) await revealDownloadFile(target);
+      else await openDownloadDirectory(target);
+    } catch (error) {
+      window.$message.error(errorText(error));
+    }
+  }
+
+  function playDownloadedTask(task: DownloadTaskSnapshot) {
+    const file = downloadFiles.value.find(
+      (item) => item.fileId === task.fileId || item.taskId === task.taskId
+    );
+    const targetPath = file?.filePath || task.filePath;
+    if (!targetPath) {
+      window.$message.warning("音频文件不存在，无法播放");
+      return;
+    }
+    const matched = downloadedSongs.value.find(
+      (song) => song.filePath === targetPath || song.urlParam === targetPath
+    );
+    const durationMs =
+      file && Number.isSafeInteger(file.durationMs) && file.durationMs > 0
+        ? file.durationMs
+        : undefined;
+    const song: Song = matched || normalizeSong({
+      ...(file?.payload || {}),
+      id: targetPath,
+      source: "local",
+      urlParam: targetPath,
+      filePath: targetPath,
+      name: file?.payload?.name || task.name,
+      singer: file?.payload?.singer || task.singer || "",
+      album: file?.payload?.album || task.album || "",
+      cover: file?.payload?.cover || task.cover || "",
+      ...(durationMs ? { durationMs, duration: durationMs } : {}),
+    });
+    playbackCommands.playSingle(song);
+  }
+
+  async function repairSingleFile(target: DownloadFileTarget) {
+    if (busy.value) return;
+    repairing.value = true;
+    try {
+      const result = await repairDownloadFile(target);
+      const failed = result.file?.metadataStatus === "failed";
+      const text =
+        result.file?.message ||
+        (failed ? "修复未完成，请查看详情" : "信息补缺已完成");
+      if (failed) window.$message.warning(text);
+      else window.$message.success(text);
+      actionMessage.value = `${result.task.name || result.task.songId}：${text}`;
+      await pendingReload;
+      await reloadDownloadData();
+    } catch (error) {
+      window.$message.error(errorText(error));
+    } finally {
+      repairing.value = false;
+    }
+  }
+
+  async function repairBatchFiles(targets: DownloadFileTarget[]) {
+    if (busy.value || !targets.length) return;
+    repairing.value = true;
+    try {
+      const result = await repairDownloadFiles(targets);
+      const summary = `修复信息完成：成功 ${result.repaired} 项，失败 ${result.failed} 项。`;
+      actionMessage.value = summary;
+      if (result.failed > 0) window.$message.warning(summary);
+      else window.$message.success(summary);
+      await pendingReload;
+      await reloadDownloadData();
+    } catch (error) {
+      window.$message.error(errorText(error));
+    } finally {
+      repairing.value = false;
+    }
   }
 
   async function prepareDelete(targets?: DownloadFileTarget[], all = false) {
@@ -435,6 +522,10 @@ export function useLocalDownloadLibrary(options: { poll?: boolean } = {}) {
     runTaskAction,
     changeTaskDirectory,
     openDetail,
+    locateDownloadTarget,
+    playDownloadedTask,
+    repairSingleFile,
+    repairBatchFiles,
     prepareDelete,
     prepareSongDelete,
     retryUnfinishedDelete,

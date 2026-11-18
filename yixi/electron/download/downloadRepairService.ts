@@ -13,7 +13,8 @@ import { fillMissingAudioMetadata } from "./audioMetadataWriter";
 import { fetchCover } from "./downloadAssets";
 import { buildDownloadLyrics } from "./downloadLyrics";
 import { getDownloadFileDetail, hasOtherReference } from "./downloadFileService";
-import type { DownloadFileTarget } from "../../src/types/download";
+import { fetchLyrics } from "../music/musicService";
+import type { DownloadBatchRepairResult, DownloadFileTarget } from "../../src/types/download";
 
 export async function repairDownloadFile(target: DownloadFileTarget) {
   await initializeDownloadService();
@@ -43,9 +44,19 @@ export async function repairDownloadFile(target: DownloadFileTarget) {
         if (actual.size > 2 * 1024 * 1024) continue;
         lyrics = await readFile(actual.canonicalPath, "utf8"); if (lyrics.trim()) break;
       }
-      if (!lyrics) lyrics = buildDownloadLyrics(file.source, { lrc: "", krc: "" }, {
-        lyric: String(file.payload.lyric || ""), krc: String(file.payload.krc || ""),
-      }).standardLrc;
+      if (!lyrics) {
+        const fetched = file.source === "kg" || file.source === "wy"
+          ? await fetchLyrics({
+              source: file.source,
+              id: file.songId,
+              hash: String(file.payload.urlParam || ""),
+            }).catch(() => ({ krc: "", lrc: "" }))
+          : { krc: "", lrc: "" };
+        lyrics = buildDownloadLyrics(file.source, fetched, {
+          lyric: String(file.payload.lyric || ""),
+          krc: String(file.payload.krc || ""),
+        }).standardLrc;
+      }
     }
     let cover = null;
     if (task.configuration.embedDownloadCover && !existing.common.picture?.length) {
@@ -108,4 +119,45 @@ export async function repairDownloadFile(target: DownloadFileTarget) {
     }
     lease?.release(); finish();
   }
+}
+
+export async function repairDownloadFiles(targets: DownloadFileTarget[]): Promise<DownloadBatchRepairResult> {
+  await initializeDownloadService();
+  if (!Array.isArray(targets) || !targets.length) {
+    return { total: 0, repaired: 0, failed: 0, items: [] };
+  }
+  const seen = new Set<string>();
+  const uniqueTargets: DownloadFileTarget[] = [];
+  for (const target of targets) {
+    const key = target?.fileId ? `file:${target.fileId}` : target?.taskId ? `task:${target.taskId}` : "";
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    uniqueTargets.push(target);
+  }
+  const items: DownloadBatchRepairResult["items"] = [];
+  let repaired = 0;
+  let failed = 0;
+  for (const target of uniqueTargets) {
+    try {
+      const detail = await repairDownloadFile(target);
+      const status = detail.file?.metadataStatus === "failed" ? "failed" : "repaired";
+      if (status === "repaired") repaired += 1;
+      else failed += 1;
+      items.push({
+        ...(detail.file?.fileId ? { fileId: detail.file.fileId } : target.fileId ? { fileId: target.fileId } : {}),
+        ...(detail.task.taskId ? { taskId: detail.task.taskId } : target.taskId ? { taskId: target.taskId } : {}),
+        status,
+        message: detail.file?.message || (status === "repaired" ? "信息补缺已完成" : "修复未完成"),
+      });
+    } catch (error) {
+      failed += 1;
+      items.push({
+        ...(target.fileId ? { fileId: target.fileId } : {}),
+        ...(target.taskId ? { taskId: target.taskId } : {}),
+        status: "failed",
+        message: error instanceof Error ? error.message : String(error || "修复失败"),
+      });
+    }
+  }
+  return { total: uniqueTargets.length, repaired, failed, items };
 }

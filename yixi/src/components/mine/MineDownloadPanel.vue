@@ -82,6 +82,7 @@
           ref="taskListRef"
           :key="activeSubTab"
           :tasks="activeSubTab === 'records' ? downloadTasks : ongoingTasks"
+          :files="downloadFiles"
           :search-key="searchKey"
           :search-terms="taskSearchTerms"
           :busy="busy"
@@ -92,6 +93,10 @@
           @action="runTaskAction"
           @change-directory="changeTaskDirectory"
           @detail="openDetail"
+          @locate="locateDownloadTarget"
+          @play="playDownloadedTask"
+          @repair="repairSingleFile"
+          @batch-repair="repairBatchFiles"
           @remove="prepareDelete"
         />
         <ListEndState v-if="activeSubTab === 'records' ? downloadTasks.length : ongoingTasks.length" />
@@ -138,6 +143,7 @@ const playbackCommands = usePlaybackCommands();
 const {
   downloadedSongs,
   downloadTasks,
+  downloadFiles,
   ongoingTasks,
   refreshing,
   busy,
@@ -158,6 +164,10 @@ const {
   runTaskAction,
   changeTaskDirectory,
   openDetail,
+  locateDownloadTarget,
+  playDownloadedTask,
+  repairSingleFile,
+  repairBatchFiles,
   prepareDelete,
   prepareSongDelete,
   retryUnfinishedDelete,

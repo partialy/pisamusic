@@ -867,6 +867,7 @@ type ElectronIpcApi = {
   revealDownloadFile: (target: import("./download").DownloadFileTarget) => Promise<void>;
   openDownloadDirectory: (target: import("./download").DownloadFileTarget) => Promise<void>;
   repairDownloadFile: (target: import("./download").DownloadFileTarget) => Promise<import("./download").DownloadFileDetail>;
+  repairDownloadFiles: (targets: import("./download").DownloadFileTarget[]) => Promise<import("./download").DownloadBatchRepairResult>;
   listDownloadFiles: () => Promise<import("./download").DownloadFileSnapshot[]>;
   listDownloadTasks: () => Promise<DownloadTaskSnapshot[]>;
   listDownloadRecords: () => Promise<DownloadRecordItem[]>;

@@ -67,3 +67,4 @@ export const getDownloadFileDetail = (target: import("@/types/download").Downloa
 export const revealDownloadFile = (target: import("@/types/download").DownloadFileTarget) => window.electronAPI.revealDownloadFile(target);
 export const openDownloadDirectory = (target: import("@/types/download").DownloadFileTarget) => window.electronAPI.openDownloadDirectory(target);
 export const repairDownloadFile = (target: import("@/types/download").DownloadFileTarget) => window.electronAPI.repairDownloadFile(target);
+export const repairDownloadFiles = (targets: import("@/types/download").DownloadFileTarget[]) => window.electronAPI.repairDownloadFiles(targets);

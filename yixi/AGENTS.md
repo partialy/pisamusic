@@ -114,7 +114,7 @@
 - 完整音频排它复制后才后处理，所有音频/歌词/sidecar 不覆盖既有文件；candidate file identity 和资产 journal 记录恢复证据，未知同名文件保留并另取名字。既有下载歌词解析、元数据写入及高清封面降档由 `downloadAssets.ts` 复用。新文件实体纳入下载歌曲读取，旧 records 仅作兼容 read model，新增文件操作应使用 fileId。
 - `downloadFileLocks.ts` 按 canonical realpath 与 dev/ino 提供 shared/exclusive lease，拒绝路径中的 symlink/junction；下载、修复、统一删除和 main 播放预留共用该锁。旧本地路径删除入口已改为可信索引查找，暂停播放仍保留引用；具体文件行为仍待用户运行验收。
 - `before-quit` 先禁止入队、暂停网络、等待句柄/检查点和后处理，正常完成后才关闭数据库；重复退出有保护，30 秒异常超时直接结束进程且不提前显式关闭 DB，下次启动保守恢复。
-- 原“本地与下载”已并入 `我的` 页（`/local-download` 重定向至 `/mine?tab=local`），拆分为 `本地歌曲`（`MineLocalSongsPanel.vue`）与 `下载`（`MineDownloadPanel.vue`，内含已下载歌曲、正在下载、下载记录三个二级切换）；本地歌曲合并扫描曲库与已下载歌曲，下载歌曲读取 `download_files` 完成实体及未映射的旧 `download_records` 兼容记录，不重复计数。
+- 原“本地与下载”已并入 `我的` 页（`/local-download` 重定向至 `/mine?tab=local`），拆分为 `本地歌曲`（`MineLocalSongsPanel.vue`）与 `下载`（`MineDownloadPanel.vue`，内含已下载歌曲、正在下载、下载记录三个二级切换）；`DownloadTaskList.vue` 采用紧凑双行 + 40px 封面 + 整行进度底色，行尾仅保留极简控制图标（进行中：暂停/继续 + 取消；终态可播：播放 + 更多），其余操作（修复信息、详情、定位文件、换目录、重试、删除等）收进右键/更多菜单，多选栏支持批量修复信息。本地歌曲合并扫描曲库与已下载歌曲，下载歌曲读取 `download_files` 完成实体及未映射的旧 `download_records` 兼容记录，不重复计数。
 - 下载歌曲优先用 `@yortyrh/tagpilot-lib` 写入标题、歌手、专辑、封面等音频标签；外置歌词按下载模式保存真实 `.krc/.yrc/.lrc`，内嵌歌词使用标准 LRC，标签写入失败保留缓存资产并在文件实体标记 `sidecar`。
 
 ## 登录 Cookie 模块规则补充
@@ -419,7 +419,7 @@
 ## 下载设置与歌词资产规则补充
 
 - `src/utils/downloadSettings.ts` 统一 main/renderer 下载策略。外置歌词 `downloadLyricsMode` 为 `off/word/line/all`，新用户默认关闭；旧 `saveDownloadLyricsFile=true/false` 分别迁移为逐行/关闭。保留四项 PC 命名规则与扫描、缓存、下载目录设置。
-- `embedDownloadTags/embedDownloadCover/embedDownloadLyrics` 独立控制普通歌曲标签、封面和内嵌歌词，关闭即跳过该类写入，保留音频原有资产；音源自定义标记仍兼容写入，不增加 pm-info。
+- `embedDownloadTags/embedDownloadCover/embedDownloadLyrics` 独立控制普通歌曲标签、封面和内嵌歌词，关闭即跳过该类写入，保留音频原有资产；`audioMetadataWriter.ts` 独立于普通标签开关向 MP3（ID3 `TXXX`）、FLAC（Vorbis `pm-info`）与 M4A/AAC/MP4（`----:cn.partialy.pm:pm-info`）写入与手机端对齐的 `pm-info`（`<source>:<songId>`），不再写入标准 `comment` 备注，修复时缺失歌词支持联网拉取补缺并保留既有标签与历史自定义字段。
 - `electron/download/downloadLyrics.ts` 按实际语法识别 KG KRC / WY YRC / LRC，复用 `LyricParser` 转标准逐行 LRC供内嵌。外置逐字缺失回退 LRC，全部模式保存实际可用逐字版本及逐行版本，不用 `.lrc` 冒充逐字格式。
 - 歌词 sidecar 使用音频最终 basename 与真实扩展名，排除已有音频/歌词命名冲突，独占创建避免覆盖；下载缓存使用 taskId 隔离并发。sidecar 失败记录可选资产警告，不影响已落盘音频成功状态。
 - 多歌词路径放在下载记录 `payload.downloadLyricPaths`，兼容旧 `lyricPath`，不新增数据库列；从列表移除不删文件，安全文件服务只清理记录中与音频同目录同 basename 且未被其他音频引用的 `.lrc/.krc/.yrc`（旧 `lyricPath` 与多路径字段均参与引用保护）。任务取消、删除与修复统一遵循上文持久下载及安全文件服务规则。

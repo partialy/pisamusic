@@ -29,9 +29,17 @@ export type AudioMetadataWriteResult = {
   warnings: string[];
 };
 
-const CUSTOM_FIELDS = ["PISAMUSIC_SOURCE", "PISAMUSIC_SONG_ID", "PISAMUSIC_QUALITY_KEY"];
+const PM_INFO_FIELD = "pm-info";
+const MP4_PM_INFO_MEAN = "cn.partialy.pm";
 
-/** 修复专用补缺入口：只传缺失普通字段，已有歌词帧及标签由写后核验兜底保护。 */
+export function formatPmInfo(source: string, songId: string) {
+  const normalizedSource = source.trim().toLowerCase();
+  const normalizedId = songId.trim();
+  if (!normalizedSource || normalizedSource === "local" || !normalizedId) return "";
+  return `${normalizedSource}:${normalizedId}`;
+}
+
+/** 修复专用补缺入口：只传缺失普通字段与 pm-info，已有歌词帧及标签由写后核验兜底保护。 */
 export async function fillMissingAudioMetadata(filePath: string, metadata: AudioMetadata, options: AudioMetadataWriteOptions) {
   const before = await parseFile(filePath, { duration: false });
   const common = before.common;
@@ -42,9 +50,10 @@ export async function fillMissingAudioMetadata(filePath: string, metadata: Audio
   if (!common.artist && !common.artists?.length && metadata.artist) tags.artists = [metadata.artist];
   if (!common.album && metadata.album) tags.album = metadata.album;
   if (options.embedTags && Object.keys(tags).length) await writeTags(filePath, tags);
+  const pmInfo = formatPmInfo(metadata.source, metadata.songId);
   const result = await writeAudioMetadata(filePath, metadata,
     { embedTags: false, embedCover: options.embedCover && !common.picture?.length,
-    customFields: options.embedTags ? "missing" : "preserve",
+    customFields: pmInfo ? "missing" : "preserve",
     embedLyrics: options.embedLyrics && !common.lyrics?.length && originalMp3Lyrics.length === 0 });
   if (!result.ok) throw new Error(result.warnings.join("；"));
   if (originalMp3Lyrics.length) {
@@ -91,7 +100,8 @@ export async function writeAudioMetadata(
     ]));
   }
 
-  if ((options.embedLyrics && metadata.lyrics) || (options.customFields !== "preserve" && (metadata.source || metadata.songId || metadata.qualityKey))) {
+  const pmInfo = formatPmInfo(metadata.source, metadata.songId);
+  if ((options.embedLyrics && metadata.lyrics) || (options.customFields !== "preserve" && Boolean(pmInfo))) {
     const customResult = await writeFormatSpecificMetadata(filePath, metadata, options);
     warnings.push(...customResult.warnings);
   }
@@ -112,7 +122,6 @@ async function writeBaseTags(
       title: metadata.title,
       artists: metadata.artist ? [metadata.artist] : [],
       album: metadata.album,
-      comment: metadataComment(metadata),
     });
   }
   if (options.embedCover && metadata.cover) {
@@ -151,10 +160,6 @@ async function writeFormatSpecificMetadata(
   }
 }
 
-function metadataComment(metadata: AudioMetadata) {
-  return `source=${metadata.source}; songId=${metadata.songId}; quality=${metadata.qualityKey}`;
-}
-
 async function writeMp3CustomMetadata(
   filePath: string,
   metadata: AudioMetadata,
@@ -162,12 +167,23 @@ async function writeMp3CustomMetadata(
 ) {
   const buffer = await readFile(filePath);
   const parsed = parseId3Tag(buffer);
-  const frames = parsed.frames.filter((frame) => frame.id === "TXXX" && options.customFields ? true : !shouldReplaceId3Frame(frame, options.embedLyrics && Boolean(metadata.lyrics)));
-  for (const [field, value] of [["PISAMUSIC_SOURCE", metadata.source], ["PISAMUSIC_SONG_ID", metadata.songId], ["PISAMUSIC_QUALITY_KEY", metadata.qualityKey]]) {
-    const exists = parsed.frames.some(frame => frame.id === "TXXX" && decodeId3Text(frame.data.subarray(1)).startsWith(field));
-    if (options.customFields !== "preserve" && !(options.customFields === "missing" && exists)) frames.push(createTxxxFrame(field, value));
+  const pmInfo = formatPmInfo(metadata.source, metadata.songId);
+  const replaceLyrics = Boolean(options.embedLyrics && metadata.lyrics);
+  const replacePmInfo = Boolean(pmInfo) && options.customFields !== "preserve" && options.customFields !== "missing";
+  const hasPmInfo = parsed.frames.some(
+    (frame) => frame.id === "TXXX" && readId3TxxxDescription(frame.data).toLowerCase() === PM_INFO_FIELD
+  );
+  const frames = parsed.frames.filter((frame) => {
+    if (frame.id === "USLT") return !replaceLyrics;
+    if (frame.id === "TXXX" && replacePmInfo) {
+      return readId3TxxxDescription(frame.data).toLowerCase() !== PM_INFO_FIELD;
+    }
+    return true;
+  });
+  if (pmInfo && options.customFields !== "preserve" && !(options.customFields === "missing" && hasPmInfo)) {
+    frames.push(createTxxxFrame(PM_INFO_FIELD, pmInfo));
   }
-  if (options.embedLyrics && metadata.lyrics) {
+  if (replaceLyrics) {
     frames.push(createUsltFrame(metadata.lyrics));
   }
   const tag = buildId3v23Tag(frames);
@@ -205,11 +221,33 @@ function parseId3Tag(buffer: Buffer) {
   return { frames, audio: buffer.subarray(tagEnd) };
 }
 
-function shouldReplaceId3Frame(frame: Id3Frame, replaceLyrics: boolean) {
-  if (frame.id === "USLT") return replaceLyrics;
-  if (frame.id !== "TXXX") return false;
-  const text = decodeId3Text(frame.data.subarray(1));
-  return CUSTOM_FIELDS.some((field) => text.startsWith(field));
+function readId3TxxxDescription(frameData: Buffer) {
+  if (frameData.length < 2) return "";
+  const encoding = frameData[0];
+  const payload = frameData.subarray(1);
+  if (encoding === 1 || encoding === 2) {
+    let end = 0;
+    while (end + 1 < payload.length) {
+      if (payload[end] === 0 && payload[end + 1] === 0) break;
+      end += 2;
+    }
+    const raw = payload.subarray(0, end);
+    if (encoding === 2 || (raw[0] === 0xfe && raw[1] === 0xff)) {
+      const sliced = raw[0] === 0xfe && raw[1] === 0xff ? raw.subarray(2) : raw;
+      const swapped = Buffer.from(sliced);
+      for (let i = 0; i + 1 < swapped.length; i += 2) {
+        const tmp = swapped[i];
+        swapped[i] = swapped[i + 1];
+        swapped[i + 1] = tmp;
+      }
+      return swapped.toString("utf16le").trim();
+    }
+    const sliced = raw[0] === 0xff && raw[1] === 0xfe ? raw.subarray(2) : raw;
+    return sliced.toString("utf16le").trim();
+  }
+  const nullIndex = payload.indexOf(0);
+  const raw = nullIndex >= 0 ? payload.subarray(0, nullIndex) : payload;
+  return raw.toString(encoding === 3 ? "utf8" : "latin1").trim();
 }
 
 function createTxxxFrame(description: string, value: string): Id3Frame {
@@ -252,12 +290,6 @@ function buildId3v23Tag(frames: Id3Frame[]) {
   header[5] = 0;
   encodeSynchsafe(body.length).copy(header, 6);
   return Buffer.concat([header, body]);
-}
-
-function decodeId3Text(buffer: Buffer) {
-  if (!buffer.length) return "";
-  if (buffer[0] === 0xff && buffer[1] === 0xfe) return buffer.subarray(2).toString("utf16le");
-  return buffer.toString("utf8");
 }
 
 function decodeSynchsafe(buffer: Buffer) {
@@ -318,22 +350,26 @@ function upsertVorbisCommentBlock(
   options: AudioMetadataWriteOptions
 ) {
   const index = blocks.findIndex((block) => block.type === 4);
-  const comments = new Map<string, string>();
+  let entries: { key: string; value: string }[] = [];
   let vendor = "PisaMusic";
   if (index >= 0) {
     const parsed = parseVorbisComment(blocks[index].data);
     vendor = parsed.vendor || vendor;
-    parsed.comments.forEach((value, key) => comments.set(key, value));
+    entries = parsed.entries;
   }
-  for (const [field, value] of [["PISAMUSIC_SOURCE", metadata.source], ["PISAMUSIC_SONG_ID", metadata.songId], ["PISAMUSIC_QUALITY_KEY", metadata.qualityKey]]) {
-    if (options.customFields !== "preserve" && !(options.customFields === "missing" && comments.has(field))) comments.set(field, value);
+  const pmInfo = formatPmInfo(metadata.source, metadata.songId);
+  const hasPmInfo = entries.some((entry) => entry.key.toLowerCase() === PM_INFO_FIELD);
+  if (pmInfo && options.customFields !== "preserve" && !(options.customFields === "missing" && hasPmInfo)) {
+    entries = entries.filter((entry) => entry.key.toLowerCase() !== PM_INFO_FIELD);
+    entries.push({ key: PM_INFO_FIELD, value: pmInfo });
   }
   if (options.embedLyrics && metadata.lyrics) {
-    comments.set("LYRICS", metadata.lyrics);
+    entries = entries.filter((entry) => entry.key.toUpperCase() !== "LYRICS");
+    entries.push({ key: "LYRICS", value: metadata.lyrics });
   }
   const block: FlacBlock = {
     type: 4,
-    data: buildVorbisComment(vendor, comments),
+    data: buildVorbisComment(vendor, entries),
   };
   if (index >= 0) {
     return blocks.map((item, itemIndex) => itemIndex === index ? block : item);
@@ -350,7 +386,7 @@ function parseVorbisComment(buffer: Buffer) {
   offset += vendorLength;
   const count = buffer.readUInt32LE(offset);
   offset += 4;
-  const comments = new Map<string, string>();
+  const entries: { key: string; value: string }[] = [];
   for (let index = 0; index < count && offset + 4 <= buffer.length; index += 1) {
     const length = buffer.readUInt32LE(offset);
     offset += 4;
@@ -358,15 +394,15 @@ function parseVorbisComment(buffer: Buffer) {
     offset += length;
     const separator = raw.indexOf("=");
     if (separator > 0) {
-      comments.set(raw.slice(0, separator).toUpperCase(), raw.slice(separator + 1));
+      entries.push({ key: raw.slice(0, separator), value: raw.slice(separator + 1) });
     }
   }
-  return { vendor, comments };
+  return { vendor, entries };
 }
 
-function buildVorbisComment(vendor: string, comments: Map<string, string>) {
+function buildVorbisComment(vendor: string, commentEntries: { key: string; value: string }[]) {
   const vendorBuffer = Buffer.from(vendor, "utf8");
-  const entries = [...comments.entries()].map(([key, value]) => Buffer.from(`${key}=${value}`, "utf8"));
+  const entries = commentEntries.map(({ key, value }) => Buffer.from(`${key}=${value}`, "utf8"));
   const header = Buffer.alloc(8);
   header.writeUInt32LE(vendorBuffer.length, 0);
   header.writeUInt32LE(entries.length, 4);
@@ -443,26 +479,35 @@ function upsertIlstMetadata(
   options: AudioMetadataWriteOptions
 ) {
   const atoms = parseMp4Atoms(ilstContent, 0, ilstContent.length);
-  const filtered = atoms.filter((atom) => atom.type === "----" && options.customFields ? true : !shouldReplaceIlstAtom(atom, options.embedLyrics && Boolean(metadata.lyrics)));
+  const pmInfo = formatPmInfo(metadata.source, metadata.songId);
+  const replaceLyrics = Boolean(options.embedLyrics && metadata.lyrics);
+  const replacePmInfo = Boolean(pmInfo) && options.customFields !== "preserve" && options.customFields !== "missing";
+  const hasPmInfo = atoms.some((atom) => isPmInfoAtom(atom));
+  const filtered = atoms.filter((atom) => {
+    if (atom.type === "©lyr") return !replaceLyrics;
+    if (replacePmInfo && isPmInfoAtom(atom)) return false;
+    return true;
+  });
   const additions: Buffer[] = [];
-  for (const [field, value] of [["PISAMUSIC_SOURCE", metadata.source], ["PISAMUSIC_SONG_ID", metadata.songId], ["PISAMUSIC_QUALITY_KEY", metadata.qualityKey]]) {
-    const exists = atoms.some(atom => atom.type === "----" && parseMp4Atoms(atom.content, 0, atom.content.length).some(child => child.type === "name" && readMp4MeanNameText(child.content) === field));
-    if (options.customFields !== "preserve" && !(options.customFields === "missing" && exists)) additions.push(createFreeformAtom(field, value));
+  if (pmInfo && options.customFields !== "preserve" && !(options.customFields === "missing" && hasPmInfo)) {
+    additions.push(createFreeformAtom(PM_INFO_FIELD, pmInfo, MP4_PM_INFO_MEAN));
   }
-  if (options.embedLyrics && metadata.lyrics) {
+  if (replaceLyrics) {
     additions.push(createMp4TextAtom("©lyr", metadata.lyrics));
   }
   return Buffer.concat([...filtered.map((atom) => atom.raw), ...additions]);
 }
 
-function shouldReplaceIlstAtom(atom: Mp4Atom, replaceLyrics: boolean) {
-  if (atom.type === "©lyr") return replaceLyrics;
+function isPmInfoAtom(atom: Mp4Atom) {
   if (atom.type !== "----") return false;
   const children = parseMp4Atoms(atom.content, 0, atom.content.length);
+  const mean = children.find((child) => child.type === "mean");
   const name = children.find((child) => child.type === "name");
   if (!name) return false;
-  const value = readMp4MeanNameText(name.content);
-  return CUSTOM_FIELDS.includes(value);
+  const nameText = readMp4MeanNameText(name.content).trim().toLowerCase();
+  if (nameText !== PM_INFO_FIELD) return false;
+  const meanText = mean ? readMp4MeanNameText(mean.content).trim().toLowerCase() : "";
+  return !meanText || meanText === MP4_PM_INFO_MEAN;
 }
 
 function upsertChildAtom(
@@ -517,9 +562,9 @@ function createMp4TextAtom(type: string, value: string) {
   return createMp4Atom(type, createMp4DataAtom(value));
 }
 
-function createFreeformAtom(name: string, value: string) {
+function createFreeformAtom(name: string, value: string, mean = MP4_PM_INFO_MEAN) {
   return createMp4Atom("----", Buffer.concat([
-    createMp4MeanNameAtom("mean", "com.pisamusic"),
+    createMp4MeanNameAtom("mean", mean),
     createMp4MeanNameAtom("name", name),
     createMp4DataAtom(value),
   ]));
