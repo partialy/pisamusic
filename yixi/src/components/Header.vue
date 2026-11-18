@@ -15,7 +15,7 @@
         </n-button>
       </n-button-group>
       <div class="search-shell" :class="{ focused: searchFocus }">
-        <n-input
+        <n-input round
           ref="searchInput"
           placeholder="搜索"
           class="search-input"

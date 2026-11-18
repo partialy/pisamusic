@@ -91,7 +91,7 @@ const unsubscribe = electronAPI.onAccountIdentityChanged(() => {
   revision = -1;
   result.value = null;
   loading.value = false;
-  error.value = "身份已变化，请重新获取当前身份的推广信息";
+  error.value = "出现错误，请重新获取";
 });
 watch(() => props.show, (show) => {
   if (show) void load();

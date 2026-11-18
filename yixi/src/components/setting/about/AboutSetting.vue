@@ -59,7 +59,7 @@
       </div>
     </SettingSection>
 
-    <SettingSection title="官方与支持" description="访问官方网站、推荐给好友或向我们反馈问题与建议。">
+    <SettingSection title="官方与支持" description="访问官方网站、分享App或向我们反馈问题与建议。">
       <div class="setting-item">
         <div class="item-leading">
           <span class="item-icon">
@@ -82,7 +82,7 @@
           </span>
           <div class="setting-info">
             <div class="setting-title">分享 PisaMusic</div>
-            <div class="setting-desc">获取当前身份的专属推广二维码和文案</div>
+            <div class="setting-desc">独乐乐不如众乐乐</div>
           </div>
         </div>
         <n-button round secondary @click="openAppShare">立即分享</n-button>

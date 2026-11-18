@@ -24,6 +24,7 @@
           <div v-show="showSearch" class="sequence-search-panel" :inert="!showSearch" :aria-hidden="!showSearch">
             <div class="sequence-search">
               <n-input
+                round
                 clearable
                 v-model:value="searchValue"
                 placeholder="搜索歌曲"

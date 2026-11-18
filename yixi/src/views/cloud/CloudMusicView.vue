@@ -27,6 +27,7 @@
       <div class="toolbar-right">
         <n-input
           v-model:value="searchInput"
+          round
           class="cloud-search"
           :class="{ focused: searchFocused || searchInput }"
           clearable

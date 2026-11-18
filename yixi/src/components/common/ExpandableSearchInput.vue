@@ -1,6 +1,7 @@
 <template>
   <n-input
     :value="value"
+    round
     class="expandable-search-input"
     :class="{ focused: searchFocused || Boolean(value) }"
     :style="inputStyle"

@@ -38,7 +38,7 @@
             />
 
             <div ref="batchToolbarTarget" v-show="batchMode" class="detail-batch-target" />
-            <n-input :style="{
+            <n-input round :style="{
               width: searchFocus ? '150px' : '80px',
               display: 'flex',
               'align-items': 'center',

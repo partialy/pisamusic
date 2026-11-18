@@ -80,6 +80,7 @@
 
       <n-input
         v-model:value="searchKey"
+        round
         class="playlist-search"
         :class="{ focused: searchFocused || searchKey }"
         clearable
