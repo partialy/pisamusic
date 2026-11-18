@@ -10,10 +10,10 @@
     @after-leave="emit('afterLeave')">
     <template #header><slot name="header"><component :is="renderModalTitle(title, icon)" /></slot></template>
     <slot />
-    <template v-if="$slots.footer || $slots['footer-left']" #footer>
-      <div class="app-modal-footer" :class="{ 'has-left': Boolean($slots['footer-left']) }">
-        <div v-if="$slots['footer-left']" class="app-modal-footer-left">
-          <slot name="footer-left" />
+    <template v-if="$slots.footer || $slots['footer-options']" #footer>
+      <div class="app-modal-footer" :class="{ 'has-options': Boolean($slots['footer-options']) }">
+        <div v-if="$slots['footer-options']" class="app-modal-footer-options">
+          <slot name="footer-options" />
         </div>
         <div class="app-modal-actions"><slot name="footer" /></div>
       </div>

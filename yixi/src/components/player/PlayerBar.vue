@@ -136,8 +136,21 @@
           <n-icon :component="PlayListIcon" size="24px"></n-icon>
         </template>
       </n-button>
-      <n-drawer :style="{ background: 'var(--surface-solid)', color: 'var(--text-primary)' }"
-      v-model:show="showSequence" placement="right" width="400px" to="body">
+      <n-drawer
+        :style="{
+          '--n-color': 'var(--surface-solid)',
+          background: 'var(--surface-solid)',
+          color: 'var(--text-primary)',
+          borderLeft: '1px solid var(--border-subtle)',
+          borderTopLeftRadius: 'var(--radius-control)',
+          borderBottomLeftRadius: 'var(--radius-control)',
+          overflow: 'hidden',
+        }"
+        v-model:show="showSequence"
+        placement="right"
+        width="400px"
+        to="body"
+      >
         <PlaySequence />
       </n-drawer>
     </div>

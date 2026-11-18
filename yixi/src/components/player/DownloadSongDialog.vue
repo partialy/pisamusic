@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <template #footer-left>
+    <template #footer-options>
       <n-checkbox v-model:checked="redownload" :disabled="submitting">已下载则重新下载</n-checkbox>
     </template>
     <template #footer>

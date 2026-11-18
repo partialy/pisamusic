@@ -25,7 +25,7 @@
     </n-button>
     <AppModal v-model:show="showQuit" title="退出" :width="500" :icon="LogOut">
       <p>您点击了关闭按钮，请选择要执行的操作</p>
-      <template #footer-left>
+      <template #footer-options>
         <n-checkbox v-model:checked="remember">记住选择</n-checkbox>
       </template>
       <template #footer>

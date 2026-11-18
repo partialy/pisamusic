@@ -232,7 +232,7 @@ onUnmounted(() => observer.disconnect())
     display: flex;
     flex-direction: column;
     color: var(--text-primary);
-    background: var(--surface-solid);
+    background: transparent;
 
     .sequence-header {
         padding: 15px;
@@ -297,7 +297,7 @@ onUnmounted(() => observer.disconnect())
         width: 100%;
         height: 40px;
         flex-shrink: 0;
-        background: var(--surface-solid);
+        background: transparent;
         display: flex;
         align-items: center;
 

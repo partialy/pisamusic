@@ -15,11 +15,12 @@
 .app-modal-card.n-card > .n-card-header { padding: 20px 24px 16px; }
 .app-modal-card.n-card > .n-card__content { overflow-y: auto; min-height: 0; background: transparent; }
 .app-modal-card.n-card > .n-card__footer { padding: 16px 24px 20px; }
+.app-modal-card.n-card:has(.app-modal-footer.has-options) > .n-card__footer { padding-top: 0; }
 .app-modal-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--text-primary); }
 .app-modal-title > .n-icon { color: var(--text-accent); }
 .app-modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; width: 100%; }
-.app-modal-footer.has-left { justify-content: space-between; }
-.app-modal-footer-left { display: flex; align-items: center; min-width: 0; }
+.app-modal-footer.has-options { flex-direction: column; align-items: stretch; gap: 16px; }
+.app-modal-footer-options { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; width: 100%; }
 .app-modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
 
 .app-modal-actions > .n-button { min-width: 72px; height: 34px; }
