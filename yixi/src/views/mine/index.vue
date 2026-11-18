@@ -8,7 +8,8 @@
           :key="item.key"
           class="tab-btn"
           :class="{ active: activeTab === item.key }"
-          @click="switchMineTab(item.key)">
+          @click="switchMineTab(item.key)"
+        >
           {{ item.label }}
           <span>{{ item.meta }}</span>
         </button>
@@ -16,30 +17,67 @@
     </div>
 
     <div class="mine-content" @wheel.passive="handleScrollableContentWheel">
-      <MinePlaylistPanel
-        v-if="activeTab === 'playlist'"
-        @scroll="handleScrollableContentScroll" />
-      <MineCloudPanel
-        v-else-if="activeTab === 'cloud'"
+      <MineLocalSongsPanel
+        v-if="activeTab === 'local'"
         @scroll="handleScrollableContentScroll"
-        @scroll-to-top="handleScrollableContentTop" />
+        @scroll-to-top="handleScrollableContentTop"
+        @wheel="handleScrollableContentWheel"
+        @expand-header="expandHeader"
+      />
+      <MinePlaylistPanel
+        v-else-if="activeTab === 'playlist'"
+        @scroll="handleScrollableContentScroll"
+        @expand-header="expandHeader"
+      />
+      <MineDownloadPanel
+        v-else-if="activeTab === 'download'"
+        @scroll="handleScrollableContentScroll"
+        @scroll-to-top="handleScrollableContentTop"
+        @wheel="handleScrollableContentWheel"
+        @expand-header="expandHeader"
+      />
+      <MineCloudPanel
+        v-else-if="activeTab === 'cloud' && accounts.wy.loggedIn"
+        @scroll="handleScrollableContentScroll"
+        @scroll-to-top="handleScrollableContentTop"
+        @expand-header="expandHeader"
+      />
       <MineAccountCards v-else />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import MineAccountCards from "@/components/mine/MineAccountCards.vue";
 import MineCloudPanel from "@/components/mine/MineCloudPanel.vue";
+import MineDownloadPanel from "@/components/mine/MineDownloadPanel.vue";
+import MineLocalSongsPanel from "@/components/mine/MineLocalSongsPanel.vue";
 import MinePlaylistPanel from "@/components/mine/MinePlaylistPanel.vue";
-import { useMineLibraryStore } from "@/store";
+import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
 import { useCollapsiblePageHeader } from "@/composables/useCollapsiblePageHeader";
+import { useLocalDownloadLibrary } from "@/composables/useLocalDownloadLibrary";
+import { useMineLibraryStore } from "@/store";
 
-type MineTab = "playlist" | "cloud" | "account";
+type MineTab = "local" | "playlist" | "download" | "cloud" | "account";
 
+const VALID_TABS = new Set<MineTab>([
+  "local",
+  "playlist",
+  "download",
+  "cloud",
+  "account",
+]);
+
+const route = useRoute();
+const router = useRouter();
 const store = useMineLibraryStore();
-const activeTab = ref<MineTab>("playlist");
+const { accounts } = useCookieAccountStatus();
+const { mergedLocalSongs, downloadedSongs } = useLocalDownloadLibrary({
+  poll: false,
+});
+
 const {
   isHeaderCollapsed,
   expandHeader,
@@ -47,15 +85,71 @@ const {
   handleScrollableContentTop,
   handleScrollableContentWheel,
 } = useCollapsiblePageHeader();
-const tabs = computed(() => [
-  { key: "playlist" as const, label: "歌单", meta: store.playlists.length || "待加载" },
-  { key: "cloud" as const, label: "云盘", meta: store.cloudSongs.length || "待加载" },
-  { key: "account" as const, label: "账号", meta: "2" },
-]);
+
+function resolveMineTab(raw: unknown): MineTab {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof value === "string" && VALID_TABS.has(value as MineTab)) {
+    if (value === "cloud" && !accounts.wy.loggedIn) return "local";
+    return value as MineTab;
+  }
+  return "local";
+}
+
+const activeTab = ref<MineTab>(resolveMineTab(route.query.tab));
+
+const tabs = computed(() => {
+  const list: { key: MineTab; label: string; meta: string | number }[] = [
+    { key: "local", label: "本地歌曲", meta: mergedLocalSongs.value.length },
+    {
+      key: "playlist",
+      label: "歌单",
+      meta: store.playlists.length || "待加载",
+    },
+    { key: "download", label: "下载", meta: downloadedSongs.value.length },
+  ];
+  if (accounts.wy.loggedIn) {
+    list.push({
+      key: "cloud",
+      label: "云盘",
+      meta: store.wyCloudSongs.length || "待加载",
+    });
+  }
+  list.push({ key: "account", label: "账号", meta: "2" });
+  return list;
+});
+
 function switchMineTab(tab: MineTab) {
+  if (tab === "cloud" && !accounts.wy.loggedIn) {
+    tab = "local";
+  }
   activeTab.value = tab;
   expandHeader();
+  const nextQuery = {
+    ...route.query,
+    tab: tab === "local" ? undefined : tab,
+  };
+  void router.replace({ path: "/mine", query: nextQuery });
 }
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    const resolved = resolveMineTab(tab);
+    if (resolved !== activeTab.value) {
+      activeTab.value = resolved;
+      expandHeader();
+    }
+  }
+);
+
+watch(
+  () => accounts.wy.loggedIn,
+  (loggedIn) => {
+    if (!loggedIn && activeTab.value === "cloud") {
+      switchMineTab("local");
+    }
+  }
+);
 </script>
 
 <style scoped lang="scss">
@@ -96,7 +190,7 @@ function switchMineTab(tab: MineTab) {
 .mine-tabs {
   display: flex;
   align-items: center;
-  gap: 48px;
+  gap: 36px;
   margin-bottom: 26px;
 }
 

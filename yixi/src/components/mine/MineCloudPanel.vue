@@ -1,53 +1,92 @@
 <template>
   <div class="mine-cloud-panel">
     <div class="toolbar">
-      <n-tabs v-model:value="activeSource" type="segment" size="small" class="source-tabs">
-        <n-tab-pane name="all" tab="全部" />
-        <n-tab-pane name="private" tab="私人" />
-        <n-tab-pane name="kg" tab="KG" />
-        <n-tab-pane name="wy" tab="WY" />
-      </n-tabs>
-      <n-button secondary round :loading="store.cloudRefreshing" @click="store.refreshCloudSongs(true)">
-        <template #icon>
-          <n-icon :component="RefreshCw" />
-        </template>
-        刷新
-      </n-button>
+      <div class="toolbar-left">
+        <BatchSegmentedActions
+          always-show-label
+          aria-label="云盘操作"
+          :actions="toolbarActions"
+          @action="handleToolbarAction"
+        />
+      </div>
+      <ExpandableSearchInput v-model:value="searchKey" placeholder="搜索云盘歌曲" />
     </div>
 
-    <SongList
-      v-if="filteredSongs.length || store.cloudRefreshing"
-      :songs="filteredSongs"
-      :loading="store.cloudRefreshing && !filteredSongs.length"
-      :min-size="64"
-      show-header
-      show-footer
-      @scroll="emit('scroll', $event)"
-      @scroll-to-top="emit('scrollToTop', $event)" />
-    <n-empty v-else class="empty-state" :description="emptyDescription" />
+    <div class="panel-content">
+      <SongList
+        v-if="filteredSongs.length || store.cloudRefreshing"
+        :songs="filteredSongs"
+        :loading="store.cloudRefreshing && !filteredSongs.length"
+        :search-key="searchKey"
+        :min-size="64"
+        show-header
+        show-footer
+        @scroll="emit('scroll', $event)"
+        @scroll-to-top="emit('scrollToTop', $event)"
+      />
+      <n-empty v-else class="empty-state" :description="store.cloudError || '暂无 WY 云盘歌曲'" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { NButton, NEmpty, NIcon, NTabPane, NTabs } from "naive-ui";
-import { RefreshCw } from "lucide-vue-next";
+import { computed, ref, watch } from "vue";
+import { NEmpty } from "naive-ui";
+import { Play, RefreshCw } from "lucide-vue-next";
 import { useMineLibraryStore } from "@/store";
+import { usePlaybackCommands } from "@/listenTogether/playbackCommands";
+import BatchSegmentedActions, {
+  type SegmentedActionItem,
+} from "@/components/batch/BatchSegmentedActions.vue";
+import ExpandableSearchInput from "@/components/common/ExpandableSearchInput.vue";
 import SongList from "@/components/list/SongList.vue";
-import type { MineCloudSource } from "@/utils/api/mineLibraryAPI";
 
 const store = useMineLibraryStore();
-const activeSource = ref<MineCloudSource>("all");
+const playbackCommands = usePlaybackCommands();
+const searchKey = ref("");
+
 const emit = defineEmits<{
   scroll: [event: Event];
   scrollToTop: [event: Event];
+  expandHeader: [];
 }>();
-const filteredSongs = computed(() => store.getCloudSongsBySource(activeSource.value));
-const emptyDescription = computed(() => {
-  if (activeSource.value === "private") return "私人云盘后续接入";
-  if (activeSource.value === "kg") return "KG 云盘后续接入";
-  return store.cloudError || "暂无云盘歌曲";
+
+const filteredSongs = computed(() => {
+  const keyword = searchKey.value.trim().toLowerCase();
+  if (!keyword) return store.wyCloudSongs;
+  return store.wyCloudSongs.filter((song) =>
+    [song.name, song.singer, song.album]
+      .filter(Boolean)
+      .some((val) => val.toLowerCase().includes(keyword))
+  );
 });
+
+const toolbarActions = computed<SegmentedActionItem[]>(() => [
+  {
+    key: "playAll",
+    label: "播放全部",
+    icon: Play,
+    primary: true,
+    disabled: !filteredSongs.value.length || store.cloudRefreshing,
+  },
+  {
+    key: "refresh",
+    label: "刷新",
+    icon: RefreshCw,
+    loading: store.cloudRefreshing,
+    spinIcon: true,
+  },
+]);
+
+function handleToolbarAction(key: string) {
+  if (key === "playAll") {
+    if (filteredSongs.value.length) playbackCommands.playAll(filteredSongs.value);
+  } else if (key === "refresh") {
+    void store.refreshCloudSongs(true);
+  }
+}
+
+watch(searchKey, () => emit("expandHeader"));
 </script>
 
 <style scoped lang="scss">
@@ -67,12 +106,20 @@ const emptyDescription = computed(() => {
   margin-bottom: 18px;
 }
 
-.source-tabs {
-  width: 360px;
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .empty-state {
-  flex: 1;
+  height: 100%;
   min-height: 320px;
   display: flex;
   align-items: center;

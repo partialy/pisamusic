@@ -162,7 +162,7 @@ function deleteCurrentPlaylist() {
   if (playlist?.source === "local") void confirmDelete(playlist, () => {
     if (getDetailOrigin() !== "local" || String(route.query.id) !== playlist.id) return;
     loadVersion.value++; listDetail.value = undefined; songList.value = []; allSong.value = []; localSongCache.value = [];
-    void router.replace("/mine");
+    void router.replace({ path: "/mine", query: { tab: "playlist" } });
   });
 }
 
@@ -598,7 +598,7 @@ const stopIdentityListener = onLibraryIdentityChanged(() => {
   allSong.value = [];
   page.value.total = 0;
   isPlayingAllFromHere.value = false;
-  void router.replace("/mine");
+  void router.replace({ path: "/mine", query: { tab: "playlist" } });
 });
 let metadataGeneration = 0;
 const stopPlaylistChanges = window.electronAPI.onMineLibraryChanged(async () => {
@@ -615,7 +615,7 @@ const stopPlaylistChanges = window.electronAPI.onMineLibraryChanged(async () => 
       if (generation !== metadataGeneration || !isCurrentLibraryRevision(revision) || !isCurrentDetailRequest(request)) return;
       listDetail.value = playlist; localSongCache.value = songs; allSong.value = songs; songList.value = songs; page.value.total = songs.length;
     }
-    else { loadVersion.value++; listDetail.value = undefined; songList.value = []; allSong.value = []; localSongCache.value = []; void router.replace("/mine"); }
+    else { loadVersion.value++; listDetail.value = undefined; songList.value = []; allSong.value = []; localSongCache.value = []; void router.replace({ path: "/mine", query: { tab: "playlist" } }); }
   } catch { /* 保留当前详情；下次成功通知或重新进入时恢复。 */ }
 });
 onUnmounted(() => { loadVersion.value++; metadataGeneration++; stopIdentityListener(); stopPlaylistChanges(); });

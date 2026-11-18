@@ -35,9 +35,7 @@
           </template>
         </div>
       </div>
-      <n-input v-model:value="searchKey" class="favorite-search" :class="{ focused: searchFocused || searchKey }" clearable placeholder="搜索" @focus="searchFocused = true" @blur="searchFocused = false">
-        <template #prefix><n-icon :component="Search" /></template>
-      </n-input>
+      <ExpandableSearchInput v-model:value="searchKey" />
     </div>
 
     <div class="favorite-content" @wheel.passive="handleScrollableContentWheel">
@@ -75,9 +73,10 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { NDropdown, NEmpty, NIcon, NInput } from "naive-ui";
-import { SquarePen, Play, Search, Trash2, ListChecks, ArrowLeftRight, LogOut, Square } from "lucide-vue-next";
+import { NDropdown, NEmpty } from "naive-ui";
+import { SquarePen, Play, Trash2, ListChecks, ArrowLeftRight, LogOut, Square } from "lucide-vue-next";
 import { storeToRefs } from "pinia";
+import ExpandableSearchInput from "@/components/common/ExpandableSearchInput.vue";
 import ListEndState from "@/components/common/ListEndState.vue";
 import PlaylistCollect from "@/components/list/PlaylistCollect.vue";
 import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
@@ -98,7 +97,6 @@ const { songs, playlists } = storeToRefs(collector);
 
 const activeTab = ref<"songs" | "playlists">("songs");
 const searchKey = ref("");
-const searchFocused = ref(false);
 const isBatchMode = ref(false);
 const batchToolbarTarget = ref<HTMLElement | null>(null);
 const batchMorph = useBatchToolbarMorph(isBatchMode, batchToolbarTarget);
@@ -396,15 +394,6 @@ watch(searchKey, () => {
 .batch-delete-btn {
   height: 40px;
   border-radius: var(--radius-pill);
-}
-
-.favorite-search {
-  width: 92px;
-  transition: width 0.25s ease;
-
-  &.focused {
-    width: 220px;
-  }
 }
 
 .favorite-content {

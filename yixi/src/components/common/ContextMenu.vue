@@ -28,7 +28,7 @@ import {
   PlaylistAdd,
   SingerIcon,
 } from "@/icons";
-import { Download, Info, Share2 } from "lucide-vue-next";
+import { Download, Info, Share2, SquarePen, Trash2 } from "lucide-vue-next";
 import { useCollectStore } from "@/store";
 import { renderIcon } from "@/utils/common";
 import { fetchAllPlaylistTracks } from "@/utils/playlistTracks";
@@ -47,15 +47,19 @@ const shareDialogRef = ref<InstanceType<typeof ShareDialog> | null>(null);
 const props = withDefaults(defineProps<{
   removable?: boolean;
   showDownload?: boolean;
+  playlistEditable?: boolean;
 }>(), {
   removable: false,
   showDownload: true,
+  playlistEditable: false,
 });
 const emit = defineEmits<{
   removeSong: [song: Song];
   downloadSong: [song: Song];
   detailSong: [song: Song];
   addToPlaylist: [song: Song];
+  editPlaylist: [playlist: CommonPlaylist];
+  deletePlaylist: [playlist: CommonPlaylist];
 }>();
 
 const openContextMenu = (
@@ -213,7 +217,7 @@ const createSongOptions = (song: Song) => {
 };
 
 const createPlaylistOptions = (playlist: CommonPlaylist) => {
-  return [
+  const playlistOptions: DropdownOption[] = [
     {
       label: "播放全部",
       props: {
@@ -263,7 +267,33 @@ const createPlaylistOptions = (playlist: CommonPlaylist) => {
       icon: renderIcon(Info, {}, { size: 22 }),
       key: "playlist-detail",
     },
-  ] as DropdownOption[];
+  ];
+
+  if (props.playlistEditable && playlist.source === "local") {
+    playlistOptions.push(
+      { type: "divider", key: "playlist-divider" },
+      {
+        label: "编辑",
+        props: {
+          title: "编辑",
+          onClick: () => emit("editPlaylist", playlist),
+        },
+        icon: renderIcon(SquarePen, {}, { size: 20 }),
+        key: "playlist-edit",
+      },
+      {
+        label: "删除",
+        props: {
+          title: "删除",
+          onClick: () => emit("deletePlaylist", playlist),
+        },
+        icon: renderIcon(Trash2, {}, { size: 20 }),
+        key: "playlist-delete",
+      }
+    );
+  }
+
+  return playlistOptions;
 };
 
 const handlePlayPlaylist = async (playlist: CommonPlaylist) => {

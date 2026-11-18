@@ -72,9 +72,7 @@ const routes: Array<RouteRecordRaw> = [
       },
       {
         path: "local-download",
-        name: "LocalDownload",
-        component: () => import("../views/localDownload.vue"),
-        meta: { title: "PisaMusic - 本地与下载" },
+        redirect: { path: "/mine", query: { tab: "local" } },
       },
       {
         path: "search",

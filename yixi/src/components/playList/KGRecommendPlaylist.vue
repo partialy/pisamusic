@@ -11,13 +11,14 @@
           preview-disabled
           class="playlist-item-image-img"
           lazy
-          :src="cover" />
+          :src="cover"
+          :fallback-src="defaultPlaylistCover" />
       </div>
       <div class="playlist-select-badge" v-if="selectable" @click.stop="emit('toggleSelect', props.item)">
         <n-checkbox :checked="selected" @click.stop @update:checked="emit('toggleSelect', props.item)" />
       </div>
       <div class="playlist-source-badge" v-else-if="showIcon">
-        {{ props.item.source.toUpperCase() }}
+        {{ sourceBadgeLabel }}
       </div>
       <n-button
         v-if="showIcon && !selectable"
@@ -39,7 +40,7 @@
         leave-active-class="play-icon-leave-active">
         <div class="collect-icon" v-if="showIcon && !selectable">
           <div>
-            {{ playCount }}
+            {{ bottomMetaText }}
           </div>
           <div class="playlist-item-play-icon" title="播放全部" @click.stop="$emit('playAll')">
             <n-icon size="40" :component="PlaylistPlayIcon" />
@@ -65,6 +66,8 @@ import { computed, ref } from "vue";
 import { NImage, NButton, NIcon, NText, NTooltip, NCheckbox } from "naive-ui";
 import { CollectIcon, PlaylistPlayIcon } from "@/icons";
 import { getSongCover } from "@/utils/common";
+import { getPlaylistCover } from "@/playlist/playlistCover";
+import defaultPlaylistCover from "@/assets/images/default-created-playlist-cover.svg";
 import { useRouter } from "vue-router";
 import type { CommonPlaylist } from "@/types/song";
 import { useCollectStore } from "@/store/collect";
@@ -84,16 +87,24 @@ const emit = defineEmits<{
 }>();
 
 const cover = computed(() => {
-  return props.item.source === "local" ? props.item.cover : getSongCover(props.item, 480);
+  return props.item.source === "local"
+    ? getPlaylistCover(props.item, 480)
+    : getSongCover(props.item, 480, defaultPlaylistCover);
 });
 
-const playCount = computed(() => {
-  // @ts-ignore
-  const w = (props.item.play_count || 0) / 10000;
-  if (w >= 10000) {
-    return (w / 10000).toFixed(2) + "亿";
+const sourceBadgeLabel = computed(() =>
+  props.item.source === "local" ? "自建" : props.item.source.toUpperCase()
+);
+
+const bottomMetaText = computed(() => {
+  if (props.item.source === "local") {
+    return `${props.item.song_count || 0}首`;
   }
-  return w.toFixed(2) + "万";
+  const w = (Number(props.item.play_count) || 0) / 10000;
+  if (w >= 10000) {
+    return `${(w / 10000).toFixed(2)}亿`;
+  }
+  return `${w.toFixed(2)}万`;
 });
 
 const isCollected = computed(() => collector.containsPlaylist(props.item));

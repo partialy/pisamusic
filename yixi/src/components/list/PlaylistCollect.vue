@@ -20,7 +20,11 @@
         @play-all="contextMenu?.handlePlayPlaylist(i)"
         @contextmenu.stop="openContext($event, i)" />
     </template>
-    <ContextMenu ref="contextMenu" />
+    <ContextMenu
+      ref="contextMenu"
+      :playlist-editable="playlistEditable"
+      @edit-playlist="emit('editPlaylist', $event)"
+      @delete-playlist="emit('deletePlaylist', $event)" />
   </div>
 </template>
 
@@ -38,15 +42,19 @@ const props = withDefaults(defineProps<{
   maxRows?: number;
   selectable?: boolean;
   selectedKeys?: Set<string>;
+  playlistEditable?: boolean;
 }>(), {
   loading: false,
   skeletonCount: 12,
   selectable: false,
+  playlistEditable: false,
 });
 
 const emit = defineEmits<{
   toggleSelect: [item: CommonPlaylist, event?: MouseEvent];
   contextSelect: [item: CommonPlaylist, event: MouseEvent];
+  editPlaylist: [item: CommonPlaylist];
+  deletePlaylist: [item: CommonPlaylist];
 }>();
 function openContext(event: MouseEvent, item: CommonPlaylist) {
   event.preventDefault();

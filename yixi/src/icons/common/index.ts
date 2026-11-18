@@ -7,6 +7,7 @@ import RestoreIcon from "./RestoreIcon.vue";
 import NeteaseIcon from "./NeteaseIcon.vue";
 import KGIcon from "./KGIcon.vue";
 import DebugIcon from "./DebugIcon.vue";
+import ListUnorderedIcon from "./ListUnorderedIcon.vue";
 export {
   ArrowUpIcon,
   LoadingIcon,
@@ -16,5 +17,6 @@ export {
   RestoreIcon,
   NeteaseIcon,
   KGIcon,
-  DebugIcon
+  DebugIcon,
+  ListUnorderedIcon
 };

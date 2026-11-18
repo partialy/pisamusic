@@ -114,7 +114,7 @@
 - 完整音频排它复制后才后处理，所有音频/歌词/sidecar 不覆盖既有文件；candidate file identity 和资产 journal 记录恢复证据，未知同名文件保留并另取名字。既有下载歌词解析、元数据写入及高清封面降档由 `downloadAssets.ts` 复用。新文件实体纳入下载歌曲读取，旧 records 仅作兼容 read model，新增文件操作应使用 fileId。
 - `downloadFileLocks.ts` 按 canonical realpath 与 dev/ino 提供 shared/exclusive lease，拒绝路径中的 symlink/junction；下载、修复、统一删除和 main 播放预留共用该锁。旧本地路径删除入口已改为可信索引查找，暂停播放仍保留引用；具体文件行为仍待用户运行验收。
 - `before-quit` 先禁止入队、暂停网络、等待句柄/检查点和后处理，正常完成后才关闭数据库；重复退出有保护，30 秒异常超时直接结束进程且不提前显式关闭 DB，下次启动保守恢复。
-- `本地与下载` 页固定包含本地歌曲、下载歌曲、正在下载、下载记录四个 tab；本地歌曲合并扫描曲库与已下载歌曲，下载歌曲读取 `download_files` 完成实体及未映射的旧 `download_records` 兼容记录，不重复计数。
+- 原“本地与下载”已并入 `我的` 页（`/local-download` 重定向至 `/mine?tab=local`），拆分为 `本地歌曲`（`MineLocalSongsPanel.vue`）与 `下载`（`MineDownloadPanel.vue`，内含已下载歌曲、正在下载、下载记录三个二级切换）；本地歌曲合并扫描曲库与已下载歌曲，下载歌曲读取 `download_files` 完成实体及未映射的旧 `download_records` 兼容记录，不重复计数。
 - 下载歌曲优先用 `@yortyrh/tagpilot-lib` 写入标题、歌手、专辑、封面等音频标签；外置歌词按下载模式保存真实 `.krc/.yrc/.lrc`，内嵌歌词使用标准 LRC，标签写入失败保留缓存资产并在文件实体标记 `sidecar`。
 
 ## 登录 Cookie 模块规则补充
@@ -127,7 +127,7 @@
 - renderer 只能通过 preload 暴露的 typed API 和 `src/utils/api/cookieMusicAPI.ts` 访问登录、Cookie、账号资料与用户歌单；不要再用 localStorage 保存 KG/WY 登录态。
 - 需要 Cookie 的 KG/WY 请求直接访问 runtime endpoints 中的 `kgServer` / `wyServer`，并在 main 端通过 `requestSignedGatewayWithCookie()` 追加 Cookie 与签名；不要走 `proxy-service`。
 - 侧边栏 KG / WY 入口是登录态动态菜单：renderer 统一通过 `src/composables/useCookieAccountStatus.ts` 读取账号资料并共享状态；只有对应 Cookie 账号已登录时才显示 `/kg`、`/wy` 入口。
-- `我的` 页使用类似收藏页的标题 + tab 结构，tab 固定为账号、KG云盘、WY云盘、KG歌单、WY歌单；账号页承载 KG / WY 登录卡片，云盘页先放 `SongList` 占位，歌单页通过 Cookie API 拉取用户歌单并复用 `PlaylistCollect` 排版。设置页不再展示账号设置 tab，只保留应用配置与调试能力。
+- `我的` 页使用类似收藏页的标题 + tab 结构，顶层 tab 固定为 `本地歌曲`（默认）、`歌单`、`下载`、`云盘`（仅 WY 已登录时显示）、`账号`（支持 `/mine?tab=<key>` 同步）；`MineCloudPanel.vue` 仅保留已适配的 WY 云盘歌曲列表与刷新；`MinePlaylistPanel.vue` 复用 `PlaylistCollect`（`KGRecommendPlaylist` 在 `source === "local"` 时左下角显示 `n首`，自建歌单编辑/删除通过右键菜单及歌单详情更多菜单处理）。设置页不再展示账号设置 tab，只保留应用配置与调试能力。
 - WY 云盘歌曲通过 `cookie:wy-cloud-songs` IPC 调用 `/user/cloud`，renderer 转成 `Song[]` 后复用 `SongList`；云盘歌曲本身不带播放 URL，播放时仍交给现有 WY 取链逻辑处理。
 
 ## Electron IPC 与桌面歌词规则补充
@@ -149,8 +149,7 @@
 - 收藏键使用 `source:id`，组件判断收藏状态必须调用 `containsSong(song)` / `containsPlaylist(playlist)`，不要直接用裸 `id` 查询 `songMap` 或 `playlistMap`。
 - 歌曲收藏只能传递规范化后的 `Song` 纯 DTO；进入 IPC / SQLite 前必须经过 `normalizeSong()`，避免 Vue Proxy、嵌套响应式对象或运行时 `url` 字段进入收藏持久化。
 - 歌单收藏只能传递规范化后的 `CommonPlaylist` 纯 DTO；进入 IPC / SQLite 前必须经过 `normalizePlaylist()`，禁止把 Vue Proxy、原始接口对象、函数字段或裸 `id` 直接传入收藏链路。
-- 左侧菜单保持扁平结构：首页、歌单、收藏、我的、本地与下载、设置；不要恢复旧的自建歌单/收藏歌单侧栏区或 Netease 分组入口。
-- `我的`、`本地与下载` 当前是占位页，后续接登录、本地音乐或下载功能时再扩展对应页面。
+- 左侧菜单保持扁平结构：推荐、歌单、收藏、云盘、我的、设置；不要恢复旧的自建歌单/收藏歌单侧栏区、独立的“本地与下载”侧栏入口或 Netease 分组入口。
 
 ## 请求与配置规则补充
 
@@ -256,15 +255,15 @@
 - Windows 打包：`pnpm --dir yixi build:win`
 ## 本地曲库与下载页规则补充
 
-- “本地与下载”页面位于 `src/views/localDownload.vue`，包含“本地歌曲 / 下载歌曲”两个 tab；下载通过 main 侧真实落盘与 download_records 展示，仅支持 KG/WY/KW，不扩展云盘下载。
+- 本地与下载能力已合并至 `src/views/mine/index.vue`（`/local-download` 重定向至 `/mine?tab=local`），由 `src/composables/useLocalDownloadLibrary.ts` 管理共享状态、`MineLocalSongsPanel.vue` 承载本地曲库、`MineDownloadPanel.vue` 承载已下载歌曲/正在下载/下载记录三个子切换；下载通过 main 侧真实落盘与 `download_files` / `download_records` 展示，仅支持 KG/WY/KW，不扩展云盘下载。
 - 本地扫描目录统一存入 SQLite settings 的 `local-setting.scanDirectories`，最多 10 个；旧 `scanDirectory` 读取时只能作为兼容迁移来源，不要继续写入旧字段。
 - 本地曲库扫描只允许在 main 侧实现，入口集中在 `electron/localLibrary/localLibraryService.ts` 和 `library:local:*` IPC；renderer 不直接访问文件系统或 SQLite。
 - 本地歌曲写入 SQLite `local_songs`，扫描指纹写入 `local_library_scan_meta`；启动时智能扫描，设置变更和页面“立即刷新”强制重建。扫描失败必须保留旧库，不要先清空旧数据。
 - 本地歌曲来源使用 `source: "local"`，播放时通过 `music:resolve-playable-url` 直接转换本地文件路径，不要走 KG/WY/KW 在线取链。
 
 ## 我的页、自建歌单与云盘缓存补充
-- `我的` 页顶层入口固定为 `歌单`、`云盘`、`账号`：账号卡片保留，歌单与云盘内容分别拆到 `src/components/mine/MinePlaylistPanel.vue`、`MineCloudPanel.vue` 等组件内，不要再把大量业务逻辑堆回 `src/views/mine/index.vue`。
-- 歌单分段为 `全部 / 自建 / KG / WY`，云盘分段为 `全部 / 私人 / KG / WY`；私人云盘和 KG 云盘当前只预留入口与空态，未接入真实拉取逻辑时不要伪造数据。
+- `我的` 页顶层入口顺序为 `本地歌曲`（默认）、`歌单`、`下载`、`云盘`（仅 WY 已登录时显示）、`账号`：账号卡片保留，各子模块分别拆到 `src/components/mine/MineLocalSongsPanel.vue`、`MinePlaylistPanel.vue`、`MineDownloadPanel.vue`、`MineCloudPanel.vue`、`MineAccountCards.vue` 内，不要再把大量业务逻辑堆回 `src/views/mine/index.vue`。
+- 歌单右侧下拉过滤包含 `全部 / 自建 / KG / WY`，左侧为 `添加 / 刷新 / 多选` 胶囊组；云盘页已收敛为 WY 单源。
 - 自建歌单使用 `source: "local"`，与 KG/WY 歌单缓存统一写入 SQLite `user_playlists`；自建歌单歌曲写入 `user_playlist_tracks`，云盘歌曲缓存写入 `user_cloud_songs`。
 - `useMineLibraryStore` 负责我的页歌单与云盘缓存：启动时优先读取 SQLite，再在本次 App 生命周期内自动刷新一次网络数据；手动刷新失败时继续展示本地缓存。
 - 自建歌单标签存入 `payload_json.tags`，最多 3 个，保存前需要过滤空标签并去重。
@@ -516,7 +515,7 @@
 
 ## PC 下载管理四分区 UI（P5c）
 
-- `views/localDownload.vue` 保留本地歌曲/下载歌曲/正在下载/下载记录；任务列表只读 typed main 快照，未完成与全部历史分别展示，不再通过旧负数 records id 操作文件。轮询串行、卸载停止，错误保留可重试提示。
+- `MineLocalSongsPanel.vue` 与 `MineDownloadPanel.vue`（合并自原 `localDownload.vue`）分别承载本地歌曲与已下载歌曲/正在下载/下载记录；任务列表只读 typed main 快照，未完成与全部历史分别展示，不再通过旧负数 records id 操作文件。轮询按面板挂载引用计数串行执行、卸载停止，错误保留可重试提示。
 - `components/download/DownloadTaskList.vue` 负责九种中文状态、字节/速度/进度与单条操作；勾选按 taskId，搜索不丢筛选外选择。全部暂停/继续和清除全部覆盖 main 全集，与搜索过滤无关；PROCESSING 禁止中断。
 - 暂停任务的“更换目录（从零开始）”只传 taskId 调用 main `selectDownloadTaskDirectory` 系统选择器；取消返回 null 不报成功或失败。选定后保持暂停并明确提示零起点，其他入队配置不变，再由用户继续下载。
 - `DownloadRecordDetail.vue` 仅传 fileId/taskId 查询真实详情、定位/打开可信目录及修复；可信时长来自 file.durationMs，不推断历史未知时长；字段有效才展示并支持复制，修复失败保留错误提示。

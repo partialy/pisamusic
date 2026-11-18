@@ -49,7 +49,6 @@ import { useRoute, useRouter } from "vue-router";
 import { NIcon, NImage, NLayout, NLayoutSider, NMenu, NSpace, type MenuOption } from "naive-ui";
 import {
   Cloud,
-  Download,
   Heart,
   Home,
   ListMusic,
@@ -79,7 +78,6 @@ const routeToMenuKey = (path: string) => {
   if (path.startsWith("/mine")) return "mine";
   if (path.startsWith("/kg")) return "kg";
   if (path.startsWith("/wy")) return "wy";
-  if (path.startsWith("/local-download")) return "local-download";
   if (path.startsWith("/setting")) return "setting";
   if (path.startsWith("/debugger")) return "debugger";
   return "home";
@@ -94,7 +92,6 @@ const menuOptions = computed<MenuOption[]>(() => {
     { label: "收藏", key: "favorite", icon: renderMenuIcon(Heart) },
     { label: "云盘", key: "cloud", icon: renderMenuIcon(Cloud) },
     { label: "我的", key: "mine", icon: renderMenuIcon(UserRound) },
-    { label: "本地与下载", key: "local-download", icon: renderMenuIcon(Download) },
     { label: "设置", key: "setting", icon: renderMenuIcon(Settings) },
     ...cookieAccountMenuOptions.value,
   ];
@@ -138,7 +135,6 @@ function handleChangeMenu(key: string) {
     mine: "/mine",
     kg: "/kg",
     wy: "/wy",
-    "local-download": "/local-download",
     setting: "/setting",
     debugger: "/debugger",
   };

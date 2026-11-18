@@ -28,6 +28,7 @@
             :stroke-width="1.8"
             class="batch-segment-icon"
             :class="{ spinning: action.loading }"
+            :style="action.iconColor ? { '--segment-icon-color': action.iconColor } : undefined"
             aria-hidden="true"
           />
           <span class="batch-segment-label" aria-hidden="true">
@@ -44,6 +45,7 @@
         :disabled="action.disabled || action.loading"
         :title="action.label"
         :aria-label="action.label"
+        :aria-pressed="action.active"
         :aria-busy="action.loading || undefined"
         @click="(event) => emit('action', action.key, event)"
       >
@@ -53,6 +55,7 @@
           :stroke-width="1.8"
           class="batch-segment-icon"
           :class="{ spinning: action.loading }"
+          :style="action.iconColor ? { '--segment-icon-color': action.iconColor } : undefined"
           aria-hidden="true"
         />
         <span class="batch-segment-label" aria-hidden="true">
@@ -72,6 +75,8 @@ export interface SegmentedActionItem {
   key: string;
   label: string;
   icon: Component;
+  iconColor?: string;
+  active?: boolean;
   disabled?: boolean;
   loading?: boolean;
   primary?: boolean;
@@ -141,7 +146,8 @@ const emit = defineEmits<{
   font-weight: 600;
 }
 
-.batch-segment.is-primary + .batch-segment {
+.batch-segment.is-primary + .batch-segment,
+.batch-segment + .batch-segment.is-primary {
   border-left-color: transparent;
 }
 
@@ -173,6 +179,16 @@ const emit = defineEmits<{
   width: 17px;
   height: 17px;
   font-size: 17px;
+  color: var(--segment-icon-color, inherit);
+  transition: color 300ms ease;
+}
+
+.batch-segment.is-primary .batch-segment-icon {
+  color: inherit;
+}
+
+.batch-segment.is-primary .batch-segment-icon :deep([fill]:not([fill="none"])) {
+  fill: currentColor;
 }
 
 .batch-segment-label {
