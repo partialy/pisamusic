@@ -106,7 +106,7 @@ function createCookieOnlyProfile(source: CookieSource): CookieAccountProfile {
   };
 }
 
-function hasLoginCookie(source: CookieSource, cookie: string) {
+export function hasLoginCookie(source: CookieSource, cookie: string) {
   const trimmed = cookie.trim();
   if (!trimmed) return false;
   return source === "wy" ? trimmed.includes("MUSIC_U=") : trimmed.includes("token=");

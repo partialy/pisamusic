@@ -16,7 +16,8 @@ import {
   type CreatePlaylistPayload,
   type MineCloudSource,
 } from "@/utils/api/mineLibraryAPI";
-import { getCookieUserPlaylists, getWyCloudSongs, type CookieSource } from "@/utils/api/cookieMusicAPI";
+import { getCookieUserPlaylists, getUserCookie, getWyCloudSongs, type CookieSource } from "@/utils/api/cookieMusicAPI";
+import { hasLoginCookie } from "@/composables/useCookieAccountStatus";
 import { convertCookieUserPlaylists } from "@/utils/cookiePlaylist";
 import { convertWyCloudSongs } from "@/utils/cookieCloudSong";
 import { showLimitedWarning } from "@/utils/limitedMessage";
@@ -83,23 +84,39 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
     const revision = await captureLibraryRevision();
     if (playlistRefreshing.value) return;
     if (!force && playlists.value.length) return;
+    const [kgCookie, wyCookie] = await Promise.all([
+      getUserCookie("kg"),
+      getUserCookie("wy"),
+    ]);
+    const canFetchKg = hasLoginCookie("kg", kgCookie);
+    const canFetchWy = hasLoginCookie("wy", wyCookie);
+    if (!canFetchKg && !canFetchWy) {
+      const next = await listMinePlaylists("all");
+      if (isCurrentLibraryRevision(revision)) playlists.value = next;
+      return;
+    }
     playlistRefreshing.value = true;
     playlistError.value = "";
     try {
       const [kgResult, wyResult] = await Promise.allSettled([
-        fetchCookiePlaylists("kg"),
-        fetchCookiePlaylists("wy"),
+        canFetchKg ? fetchCookiePlaylists("kg") : Promise.resolve(null),
+        canFetchWy ? fetchCookiePlaylists("wy") : Promise.resolve(null),
       ]);
 
       if (!isCurrentLibraryRevision(revision)) return;
-      if (kgResult.status === "fulfilled") {
+      if (kgResult.status === "fulfilled" && kgResult.value) {
         await replaceMinePlaylists("kg", kgResult.value, revision);
       }
-      if (wyResult.status === "fulfilled") {
+      if (wyResult.status === "fulfilled" && wyResult.value) {
         await replaceMinePlaylists("wy", wyResult.value, revision);
       }
-      if (kgResult.status === "rejected" && wyResult.status === "rejected") {
-        throw kgResult.reason;
+      const rejectedReasons = [
+        canFetchKg && kgResult.status === "rejected" ? kgResult.reason : null,
+        canFetchWy && wyResult.status === "rejected" ? wyResult.reason : null,
+      ].filter(Boolean);
+      const totalAttempted = Number(canFetchKg) + Number(canFetchWy);
+      if (totalAttempted > 0 && rejectedReasons.length === totalAttempted) {
+        throw rejectedReasons[0];
       }
       const next = await listMinePlaylists("all");
       if (isCurrentLibraryRevision(revision)) playlists.value = next;
@@ -115,6 +132,8 @@ export const useMineLibraryStore = defineStore("mineLibrary", () => {
   async function refreshCloudSongs(force = false) {
     if (cloudRefreshing.value) return;
     if (!force && cloudSongs.value.length) return;
+    const wyCookie = await getUserCookie("wy");
+    if (!hasLoginCookie("wy", wyCookie)) return;
     cloudRefreshing.value = true;
     cloudError.value = "";
     try {

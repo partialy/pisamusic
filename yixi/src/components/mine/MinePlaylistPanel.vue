@@ -27,7 +27,17 @@
     </div>
 
     <div class="playlist-scroll" @scroll.passive="emit('scroll', $event)">
-      <template v-if="filteredPlaylists.length">
+      <n-empty
+        v-if="missingThirdPartyLogin"
+        class="empty-state"
+        description="登录三方账号后可自动同步"
+      >
+        <template #extra>
+          <n-button type="primary" round @click="emit('goAccount')">去登录</n-button>
+        </template>
+      </n-empty>
+
+      <template v-else-if="filteredPlaylists.length">
         <PlaylistCollect
           :playlist="filteredPlaylists"
           :selectable="batchMode"
@@ -64,7 +74,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { NDropdown, NEmpty } from "naive-ui";
+import { NButton, NDropdown, NEmpty } from "naive-ui";
 import {
   ArrowLeftRight,
   ListChecks,
@@ -90,6 +100,7 @@ import ExpandableSearchInput from "@/components/common/ExpandableSearchInput.vue
 import ListEndState from "@/components/common/ListEndState.vue";
 import { useBatchSelection } from "@/composables/useBatchSelection";
 import { useBatchToolbarMorph } from "@/composables/useBatchToolbarMorph";
+import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
 import { runBatchAction } from "@/batch/BatchActionCoordinator";
 import {
   captureLibraryRevision,
@@ -100,6 +111,7 @@ import {
 type PlaylistFilter = "all" | "local" | "kg" | "wy";
 
 const store = useMineLibraryStore();
+const { accounts } = useCookieAccountStatus();
 const { confirmDelete } = usePlaylistManagement();
 const editDialogRef = ref<InstanceType<typeof PlaylistEditDialog> | null>(null);
 const createDialogRef = ref<InstanceType<typeof CreatePlaylistDialog> | null>(null);
@@ -109,6 +121,7 @@ const searchKey = ref("");
 const emit = defineEmits<{
   scroll: [event: Event];
   expandHeader: [];
+  goAccount: [];
 }>();
 
 const sourceActions = computed<SegmentedActionItem[]>(() => [
@@ -158,10 +171,19 @@ let batchController: AbortController | undefined;
 
 const normalizedSearch = computed(() => searchKey.value.trim().toLowerCase());
 
+const missingThirdPartyLogin = computed(() => {
+  if (batchMode.value) return false;
+  if (activeSource.value === "kg") return !accounts.kg.loggedIn;
+  if (activeSource.value === "wy") return !accounts.wy.loggedIn;
+  return false;
+});
+
 const sourcePlaylists = computed(() =>
   batchMode.value
     ? store.localPlaylists
-    : store.getPlaylistsBySource(activeSource.value)
+    : missingThirdPartyLogin.value
+      ? []
+      : store.getPlaylistsBySource(activeSource.value)
 );
 
 const filteredPlaylists = computed(() => {
@@ -192,7 +214,7 @@ const defaultActions = computed<SegmentedActionItem[]>(() => [
     icon: RefreshCw,
     loading: store.playlistRefreshing,
     spinIcon: true,
-    disabled: batchBusy.value,
+    disabled: batchBusy.value || missingThirdPartyLogin.value,
   },
   {
     key: "batch",
@@ -255,6 +277,7 @@ function handleDefaultAction(key: string, event: MouseEvent) {
   if (key === "add") {
     createDialogRef.value?.open();
   } else if (key === "refresh") {
+    if (missingThirdPartyLogin.value) return;
     void store.refreshPlaylists(true);
   } else if (key === "batch") {
     if (batchBusy.value || !store.localPlaylists.length) return;

@@ -28,6 +28,7 @@
         v-else-if="activeTab === 'playlist'"
         @scroll="handleScrollableContentScroll"
         @expand-header="expandHeader"
+        @go-account="switchMineTab('account')"
       />
       <MineDownloadPanel
         v-else-if="activeTab === 'download'"

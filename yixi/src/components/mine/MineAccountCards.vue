@@ -71,6 +71,7 @@ import { KGIcon, NeteaseIcon } from "@/icons";
 import { renderIcon } from "@/utils/common";
 import defaultAvatar from "@/assets/defaultAdminAvatar.jpg";
 import { useCookieAccountStatus } from "@/composables/useCookieAccountStatus";
+import { useMineLibraryStore } from "@/store";
 import {
   clearUserCookie,
   refreshCookieAccount,
@@ -78,12 +79,20 @@ import {
   type CookieSource,
 } from "@/utils/api/cookieMusicAPI";
 
+const mineLibrary = useMineLibraryStore();
 const {
   accounts,
   refreshCookieAccountStatus,
   setCookieAccountStatus,
   resetCookieAccountStatus,
 } = useCookieAccountStatus();
+
+function syncAfterThirdPartyLogin(source: CookieSource) {
+  void mineLibrary.refreshPlaylists(true);
+  if (source === "wy") {
+    void mineLibrary.refreshCloudSongs(true);
+  }
+}
 
 const actionLoading = reactive<Record<CookieSource, boolean>>({
   kg: false,
@@ -134,6 +143,7 @@ function openLogin(source: CookieSource) {
         onLoginSuccess: (profile: CookieAccountProfile) => {
           setCookieAccountStatus(profile);
           void refreshCookieAccountStatus(source);
+          syncAfterThirdPartyLogin(source);
           modal.destroy();
         },
       }),
@@ -159,6 +169,7 @@ async function refreshAccount(source: CookieSource) {
 
     if (result.profile) setCookieAccountStatus(result.profile);
     await refreshCookieAccountStatus(source);
+    syncAfterThirdPartyLogin(source);
     window.$message.success(result.message || "酷狗 Cookie 刷新成功");
   } catch (error) {
     window.$message.error(error instanceof Error ? error.message : "账号 Cookie 刷新失败");
