@@ -25,7 +25,8 @@ export type ConfigGroup =
   | "listening"
   | "listen_together"
   | "storage"
-  | "announcement";
+  | "announcement"
+  | "song_download";
 
 export interface ConfigDefinition<T extends ConfigJsonValue = ConfigJsonValue> {
   key: string;

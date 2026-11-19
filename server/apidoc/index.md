@@ -31,6 +31,7 @@
 - [12. 系统基础与健康检查 (`system`)](#12-系统基础与健康检查-system)
 - [13. 管理后台 API (`admin`)](#13-管理后台-api-apiadmin)
 - [14. 网页版试听代理模块 (`webMusic`)](#14-网页版试听代理模块-apiwebmusic)
+- [15. 歌曲下载统计与配额模块 (`songDownloads`)](#15-歌曲下载统计与配额模块-apisong-downloads)
 
 ---
 
@@ -366,6 +367,16 @@
 | 分页查询专属消息发送记录 | `GET` | `/api/admin/messages` | [./admin/listDirectMessages.md](./admin/listDirectMessages.md) |
 | 删除专属消息记录 | `DELETE` | `/api/admin/messages/:id` | [./admin/deleteDirectMessage.md](./admin/deleteDirectMessage.md) |
 
+### 13.17 歌曲下载统计与配额管理
+| 接口名称 | Method | 请求路径 | 接口文档链接 |
+| :--- | :--- | :--- | :--- |
+| 获取下载统计概览与日趋势 | `GET` | `/api/admin/song-downloads/overview` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 获取歌曲下载 Top 排行 | `GET` | `/api/admin/song-downloads/top-songs` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 分页查询用户/设备下载动态 | `GET` | `/api/admin/song-downloads/records` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 读取/保存全局默认下载配额 | `GET/PUT` | `/api/admin/song-downloads/default-quota` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 分页查询用户/设备配额状态 | `GET` | `/api/admin/song-downloads/quotas` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 读取/设置单个主体配额覆盖与重置 | `GET/PUT` | `/api/admin/song-downloads/quotas/:subjectType/:subjectKey` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+
 ---
 
 ## 14. 网页版音乐代理模块 (`/api/web/music`)
@@ -378,3 +389,14 @@
 | 热门/推荐歌曲 | `GET` | `/api/web/music/recommend` | 无 (明文) | [./web/webMusic.md](./web/webMusic.md) |
 | 获取播放地址（最低码率） | `GET` | `/api/web/music/url` | 无 (明文) | [./web/webMusic.md](./web/webMusic.md) |
 | 获取歌曲歌词 | `GET` | `/api/web/music/lyric` | 无 (明文) | [./web/webMusic.md](./web/webMusic.md) |
+
+---
+
+## 15. 歌曲下载统计与配额模块 (`/api/song-downloads`)
+
+统计并限制客户端（Android / PC）单曲与批量歌曲下载次数，支持日/周/月/总次数四维度独立配额与单批次原子扣减。
+
+| 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
+| :--- | :--- | :--- | :--- | :--- |
+| 校验/扣减下载配额并记录批次 | `POST` | `/api/song-downloads/acquire` | 设备消息凭证，可选 User Token (加密) | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 查询当前主体下载配额 | `GET` | `/api/song-downloads/quota` | 设备消息凭证，可选 User Token (加密) | [./songDownloads/overview.md](./songDownloads/overview.md) |

@@ -103,3 +103,10 @@
 - Schema v5：`playlist_cover_resources`共用上传会话+资源生命周期行，`playlist_cover_refs`支持同用户多歌单共享；物理账本复用`file_records(playlist-cover)`，token返回前原子登记pending。SQLite appDb/baseline/runner及MySQL5.7增量DDL账本与结构验证全覆盖；复制/恢复纳入新表，历史v4缺新表补空。
 - sync最终胜出项同事务处理权威cover/共享引用，缺字段保留、null解绑、父删释放、no-op验证；资源不可用400，不能任传key。最后解绑或从未引用超过七天、上传token过期后，由既有syncCleanup每日门禁/维护排空有界清理。事务认领deleting+引用复核防并发重引用，612幂等；失败/中断五分钟lease后可重试，保留错误和对象账本。Admin文件删除沿用同一保护。
 - 删除用户先在用户锁事务中清引用、撤销资源/会话owner_user_id，再删除身份；保留资源与file_records以七天回收物理对象，不能用用户FK cascade丢弃回收记录。跨数据库复制不传七牛对象，副本不得与源同时启用维护清理。
+
+## 歌曲下载统计与配额 (Schema v6)
+
+- Schema v6 新增 `song_download_quota_states`、`song_download_batches`、`song_download_records` 三表（SQLite `songDownloadSchema.ts`、MySQL 5.7 `mysql/songDownloads.ts`、增量迁移 `songDownloadMigration.ts` 与结构校验 `songDownloadValidation.ts`），同步纳入 `runner.ts` 与 `operations/migrationEngine.ts` 复制/恢复校验。
+- 客户端路由 `/api/song-downloads/*`（`routes/songDownloads.ts` → `services/songDownloadService.ts` → `db/songDownloadStore.ts`）必须携带有效 `x-pm-device-token`（`401` 不降级）；已登录账号（`Authorization`）按 `user` 主体共享配额，未登录按 `device` 主体隔离。
+- `POST /api/song-downloads/acquire` 通过 `clientBatchId` 幂等防重，在同一事务内按北京时间（`utils/beijingTime.ts`）复位过期日/周（周一 0 点）/月（1 号 0 点）计数器、校验并扣减配额，然后写入批次与单曲明细；不足时只返回实时余量不扣费。
+- 默认配额由 `runtime_configs` 的 `songDownload.defaultDailyLimit` / `defaultWeeklyLimit` / `defaultMonthlyLimit` / `defaultTotalLimit` 维护（`-1` 表示不限制，初始默认日/周/月 `-1`、总数 `999999`）。管理端路由挂载 `/api/admin/song-downloads/*`（`routes/adminSongDownloads.ts` → `services/songDownloadAdminService.ts` → `db/songDownloadAdminStore.ts`）；删除用户或设备时同步清理对应 `song_download_quota_states` 覆盖记录，保留历史下载明细。

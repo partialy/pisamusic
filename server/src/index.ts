@@ -26,6 +26,7 @@ import { listenTogetherRouter } from "./routes/listenTogether";
 import { listeningRouter } from "./routes/listening";
 import { messagesRouter } from "./routes/messages";
 import { sharesRouter } from "./routes/shares";
+import { songDownloadsRouter } from "./routes/songDownloads";
 import { syncRouter } from "./routes/sync";
 import { webMusicRouter } from "./routes/webMusic";
 import { fail } from "./types/response";
@@ -209,6 +210,7 @@ app.use("/api/listen-together", listenTogetherRouter);
 app.use("/api/listening", listeningRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/shares", sharesRouter);
+app.use("/api/song-downloads", songDownloadsRouter);
 app.use("/api/cloud-music", cloudMusicRouter);
 app.use("/api/web/music", webMusicRouter);
 

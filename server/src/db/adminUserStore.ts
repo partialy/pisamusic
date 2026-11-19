@@ -1,4 +1,5 @@
 import { detachDeletedUserCovers } from "./playlistCoverStore";
+import { deleteSubjectQuotaState } from "./songDownloadStore";
 import { lockSyncUser } from "./syncStore";
 import { type DbClient as DatabaseSync } from "./core/types";
 import {
@@ -297,6 +298,7 @@ export async function deleteAdminUser(id: string): Promise<boolean> {
     if (!user) return false;
     await lockSyncUser(tx,id);
     await detachDeletedUserCovers(tx,id);
+    await deleteSubjectQuotaState(tx, "user", id);
     const result = await tx.execute("DELETE FROM users WHERE id=?", [id]);
     return result.affectedRows > 0;
   });

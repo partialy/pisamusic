@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getDeviceDb } from "../../db/deviceInfoDb";
+import { deleteSubjectQuotaState } from "../../db/songDownloadStore";
 import { fail, ok } from "../../types/response";
 
 export const adminDevicesRouter = Router();
@@ -195,7 +196,10 @@ adminDevicesRouter.delete("/device/:id", async (req, res) => {
     const db = getDeviceDb();
     const existing = (await db.queryOne("SELECT id FROM device_info WHERE id = ?", [id])) as { id: string } | undefined;
     if (!existing) return res.status(404).json(fail("Device not found", 404));
-    await db.execute("DELETE FROM device_info WHERE id = ?", [id]);
+    await db.transaction(async (tx) => {
+      await deleteSubjectQuotaState(tx, "device", `android:${id}`);
+      await tx.execute("DELETE FROM device_info WHERE id = ?", [id]);
+    });
     return res.json(ok(null, "设备已删除"));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "删除设备失败";
@@ -298,7 +302,10 @@ adminDevicesRouter.delete("/desktop-device/:id", async (req, res) => {
       | { id: string }
       | undefined;
     if (!existing) return res.status(404).json(fail("Device not found", 404));
-    await db.execute("DELETE FROM desktop_device_info WHERE id = ?", [id]);
+    await db.transaction(async (tx) => {
+      await deleteSubjectQuotaState(tx, "device", `desktop:${id}`);
+      await tx.execute("DELETE FROM desktop_device_info WHERE id = ?", [id]);
+    });
     return res.json(ok(null, "桌面设备已删除"));
   } catch (e) {
     const msg = e instanceof Error ? e.message : "删除桌面设备失败";
