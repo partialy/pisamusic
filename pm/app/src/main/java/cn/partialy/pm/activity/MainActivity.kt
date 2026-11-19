@@ -30,6 +30,7 @@ import cn.partialy.pm.activity.base.BaseDownloadActivity
 import cn.partialy.pm.databinding.ActivityMainBinding
 import cn.partialy.pm.databinding.MainDrawerContentBinding
 import cn.partialy.pm.ui.home.MainDrawerOverlayLayout
+import cn.partialy.pm.ui.home.MainStartupCoordinator
 import cn.partialy.pm.announcement.AnnouncementDetailBottomSheet
 import cn.partialy.pm.directmessage.DirectMessageCheckSource
 import cn.partialy.pm.directmessage.DirectMessageCoordinator
@@ -120,6 +121,7 @@ class MainActivity : BaseDownloadActivity() {
     private lateinit var homeAdapter: HomeFragmentStateAdapter
     private val baseBottomNavPadding by lazy { (resources.displayMetrics.density * 8).toInt() }
     private var homeMiniPlayerBinder: HomeMiniPlayerBinder? = null
+    private var startupCoordinator: MainStartupCoordinator? = null
 
     private var mainDrawerOpen = false
     private var drawerDragStartTranslationX = 0f
@@ -179,14 +181,17 @@ class MainActivity : BaseDownloadActivity() {
 
         applyWyProfileBackgroundFromLogin()
 
-        // 仅在首次创建时拉远程消息；先展示专属消息，队列结束后再展示公告，避免两个弹窗重叠。
-        if (!isLocalMode() && savedInstanceState == null &&
-            intent.getStringExtra(EXTRA_SETTINGS_ACTION) != ACTION_SETTINGS_ANNOUNCEMENTS
-        ) {
-            lifecycleScope.launch {
-                directMessageCoordinator.checkAndShow(this@MainActivity, DirectMessageCheckSource.STARTUP)
-                showUnreadAnnouncementsIfAny()
-            }
+        startupCoordinator = MainStartupCoordinator(
+            activity = this,
+            configManager = configManager,
+            directMessageCoordinator = directMessageCoordinator,
+            isLocalMode = ::isLocalMode,
+            showUnreadAnnouncements = ::showUnreadAnnouncementsIfAny,
+        ).also { coordinator ->
+            coordinator.startIfNeeded(
+                savedInstanceState = savedInstanceState,
+                skipStartupNotices = intent.getStringExtra(EXTRA_SETTINGS_ACTION) == ACTION_SETTINGS_ANNOUNCEMENTS,
+            )
         }
 
         loveManager.preloadFromDiskAsync()
@@ -376,7 +381,14 @@ class MainActivity : BaseDownloadActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        startupCoordinator?.onResume()
+    }
+
     override fun onDestroy() {
+        startupCoordinator?.onDestroy()
+        startupCoordinator = null
         homeMiniPlayerBinder?.onDestroy()
         homeMiniPlayerBinder = null
         super.onDestroy()

@@ -43,7 +43,7 @@
 
 ## Android 架构
 
-- 启动升级、网络异常 Sheet 和错误/协议弹窗禁止点击遮罩、返回或拖动关闭，只能通过按钮执行启动分支；页面销毁仍主动释放。通用加载层 `ui/dialog/PmLoadingDialog` 暂不接业务：全屏黑色透明遮罩与深色居中卡片、旋转 `ic_modal_loading_24`、默认“正在加载中...”，句柄支持主动关闭，默认 15 秒超时后关闭并经 `PmMessage.error` 提示“加载超时”。计时和动画随关闭/宿主销毁清理，后台暂停动画；只管理 UI，不隐式取消业务任务。调用约定见[组件索引](components.md)。
+- 启动升级、网络异常 Sheet 和错误/协议弹窗禁止点击遮罩、返回或拖动关闭，只能通过按钮执行启动分支；页面销毁仍主动释放。`SplashActivity` 在 `onCreate` 与 WebView 渲染并行仅拉取 `refreshBootstrapConfig()`（内含唯一 1 次服务发现，无 1000ms 固定延迟），完成后立即进入 `MainActivity`；系统账号刷新、协议校验弹窗、设备上报、版本升级弹窗（`SplashActionBottomSheet`）、专属消息与未读公告统一由 `ui/home/MainStartupCoordinator` 在主界面编排。遇到设备封禁或服务停用（`-233`）时不弹原生弹窗，立即带横向转场动画跳转全屏无返回按钮的 `ServiceInterceptActivity`（Edge-to-Edge 全屏、按 `insets / density` 注入 `--android-status-bar-height` / `--android-navigation-bar-height` CSS 变量、挂载 `window.AndroidIntercept` JSBridge，系统返回键仅通知 `window.onAndroidBackPressed` 且默认不关闭页面，当前默认加载占位 `https://example.com`）。通用加载层 `ui/dialog/PmLoadingDialog` 暂不接业务：全屏黑色透明遮罩与深色居中卡片、旋转 `ic_modal_loading_24`、默认“正在加载中...”，句柄支持主动关闭，默认 15 秒超时后关闭并经 `PmMessage.error` 提示“加载超时”。计时和动画随关闭/宿主销毁清理，后台暂停动画；只管理 UI，不隐式取消业务任务。调用约定见[组件索引](components.md)。
 - 轮廓输入框统一引用 `res/values/dimens.xml` 中的 `pm_text_input_corner_radius`（12dp）；M3 和 MaterialComponents 分别继承 `Widget.Pm.TextInput.Outlined.*` 样式，不覆盖各页面的描边、背景和错误提示。
 - `PmMessageHost` 的轻提示胶囊中心位于窗口可见区域顶部起 33%，保持 IME/状态栏/刘海安全区裁剪；单曲入队、重复、已完成和失败分别提示，批量维持数量汇总。
 - 歌单与我的收藏搜索页将 `searchHeaderBar` 和 `playAllBar` 放在同一个不透明 `searchTopContainer` 中，列表的顶部约束到容器底部，禁止使用孤立播放栏与 `bringToFront()` 补救穿透问题；工具条背景 `bg_playlist_search_play_all` 与搜索头部同色，无分割线，空结果保留 0 首但禁止播放，不改正常详情及云盘行为。
