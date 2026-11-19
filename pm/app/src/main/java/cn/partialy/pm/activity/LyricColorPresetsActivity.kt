@@ -13,23 +13,33 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.Keep
+import androidx.core.graphics.toColorInt
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityLyricColorPresetsBinding
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
+import cn.partialy.pm.ui.player.lyricstyle.ColorPresetOpResult
+import cn.partialy.pm.ui.player.lyricstyle.LyricColorPresetRegistry
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
+import cn.partialy.pm.ui.player.lyricstyle.LyricStyleColorPresetsRepository
+import cn.partialy.pm.ui.player.lyricstyle.LyricStyleParamsMeta
 import cn.partialy.pm.utils.LyricDisplayPrefs
 import org.json.JSONArray
 import org.json.JSONObject
-import androidx.core.graphics.toColorInt
 
 class LyricColorPresetsActivity : BaseActivity() {
     private lateinit var binding: ActivityLyricColorPresetsBinding
+    private var styleId: LyricEffectStyleId = LyricEffectStyleId.DEFAULT
+    private var focusSlotKey: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityLyricColorPresetsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         super.onCreate(savedInstanceState)
+
+        styleId = LyricEffectStyleId.fromId(intent.getStringExtra(EXTRA_STYLE_ID))
+        focusSlotKey = intent.getStringExtra(EXTRA_FOCUS_SLOT_KEY)?.takeIf { it.isNotBlank() }
 
         setupSystemBars()
         setupToolbar()
@@ -56,6 +66,12 @@ class LyricColorPresetsActivity : BaseActivity() {
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = if (styleId == LyricEffectStyleId.DEFAULT) {
+            getString(R.string.settings_lyric_color_presets_title)
+        } else {
+            val label = LyricStyleParamsMeta.styleLabel(this, styleId)
+            getString(R.string.lyric_color_presets_style_title, label)
+        }
         binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
@@ -79,7 +95,10 @@ class LyricColorPresetsActivity : BaseActivity() {
                 return true
             }
         }
-        wv.addJavascriptInterface(LyricColorPresetsBridge(this), "AndroidLyricColors")
+        wv.addJavascriptInterface(
+            LyricColorPresetsBridge(this, styleId, focusSlotKey),
+            "AndroidLyricColors",
+        )
         wv.loadUrl("file:///android_asset/lyric_color_presets/index.html")
     }
 
@@ -90,8 +109,21 @@ class LyricColorPresetsActivity : BaseActivity() {
     }
 
     companion object {
-        fun start(context: Context) {
-            context.startActivity(Intent(context, LyricColorPresetsActivity::class.java))
+        private const val EXTRA_STYLE_ID = "extra_style_id"
+        private const val EXTRA_FOCUS_SLOT_KEY = "extra_focus_slot_key"
+
+        fun start(
+            context: Context,
+            styleId: LyricEffectStyleId = LyricEffectStyleId.DEFAULT,
+            focusSlotKey: String? = null,
+        ) {
+            val intent = Intent(context, LyricColorPresetsActivity::class.java).apply {
+                putExtra(EXTRA_STYLE_ID, styleId.id)
+                if (!focusSlotKey.isNullOrBlank()) {
+                    putExtra(EXTRA_FOCUS_SLOT_KEY, focusSlotKey)
+                }
+            }
+            context.startActivity(intent)
             AppActivityTransitions.applyForward(context)
         }
     }
@@ -108,83 +140,76 @@ class LyricColorPresetsActivity : BaseActivity() {
 @Keep
 class LyricColorPresetsBridge(
     context: Context,
+    private val styleId: LyricEffectStyleId = LyricEffectStyleId.DEFAULT,
+    private val focusSlotKey: String? = null,
 ) {
     private val appContext = context.applicationContext
 
     @JavascriptInterface
     fun getState(): String {
-        val normal = LyricDisplayPrefs.getNormalColorRgbPresets(appContext)
-        val current = LyricDisplayPrefs.getCurrentColorArgbPresets(appContext)
+        val slots = LyricColorPresetRegistry.slotsFor(styleId)
+        val slotsJson = JSONArray()
+        slots.forEach { spec ->
+            val colors = LyricStyleColorPresetsRepository.getPresets(appContext, styleId, spec.slotKey)
+            val colorHexArray = JSONArray(
+                colors.map { c ->
+                    if (spec.allowAlpha) colorToHexArgb(c) else colorToHexRgb(c)
+                },
+            )
+            slotsJson.put(
+                JSONObject().apply {
+                    put("slotKey", spec.slotKey)
+                    put("title", LyricColorPresetRegistry.slotTitle(appContext, spec))
+                    put("allowAlpha", spec.allowAlpha)
+                    put(
+                        "defaultColor",
+                        if (spec.allowAlpha) colorToHexArgb(spec.defaultColor) else colorToHexRgb(spec.defaultColor),
+                    )
+                    put("colors", colorHexArray)
+                },
+            )
+        }
         return JSONObject().apply {
+            put("styleId", styleId.id)
+            put("styleLabel", LyricStyleParamsMeta.styleLabel(appContext, styleId))
+            put("focusSlotKey", focusSlotKey.orEmpty())
             put("maxCount", LyricDisplayPrefs.PRESET_MAX_COUNT)
             put("rowSize", LyricDisplayPrefs.PRESET_ROW_SIZE)
-            put("normal", JSONArray(normal.map { colorToHexRgb(it) }))
-            put("current", JSONArray(current.map { colorToHexArgb(it) }))
+            put("slots", slotsJson)
         }.toString()
     }
 
     @JavascriptInterface
-    fun addNormal(hex: String): String {
-        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr(getString(R.string.lyric_color_invalid))
-        val list = LyricDisplayPrefs.getNormalColorRgbPresets(appContext)
-        if (list.size >= LyricDisplayPrefs.PRESET_MAX_COUNT) {
-            return jsonErr(getString(R.string.lyric_color_limit_reached, LyricDisplayPrefs.PRESET_MAX_COUNT))
-        }
-        if (list.any { it == c }) return jsonErr(getString(R.string.lyric_color_exists))
-        val ok = LyricDisplayPrefs.addNormalColorRgbPreset(appContext, c)
-        if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_add_failed))
+    fun addColor(slotKey: String, hex: String): String {
+        val spec = LyricColorPresetRegistry.findSlot(styleId, slotKey)
+            ?: return jsonErr(appContext.getString(R.string.lyric_color_slot_invalid))
+        val parsed = parseHexColor(hex, forceOpaqueRgb = !spec.allowAlpha)
+            ?: return jsonErr(appContext.getString(R.string.lyric_color_invalid))
+        return toJsonResult(LyricStyleColorPresetsRepository.addPreset(appContext, styleId, slotKey, parsed))
     }
 
     @JavascriptInterface
-    fun addCurrent(hex: String): String {
-        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr(getString(R.string.lyric_color_invalid))
-        val list = LyricDisplayPrefs.getCurrentColorArgbPresets(appContext)
-        if (list.size >= LyricDisplayPrefs.PRESET_MAX_COUNT) {
-            return jsonErr(getString(R.string.lyric_color_limit_reached, LyricDisplayPrefs.PRESET_MAX_COUNT))
-        }
-        if (list.any { it == c }) return jsonErr(getString(R.string.lyric_color_exists))
-        val ok = LyricDisplayPrefs.addCurrentColorArgbPreset(appContext, c)
-        if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_add_failed))
+    fun removeColor(slotKey: String, hex: String): String {
+        val spec = LyricColorPresetRegistry.findSlot(styleId, slotKey)
+            ?: return jsonErr(appContext.getString(R.string.lyric_color_slot_invalid))
+        val parsed = parseHexColor(hex, forceOpaqueRgb = !spec.allowAlpha)
+            ?: return jsonErr(appContext.getString(R.string.lyric_color_invalid))
+        return toJsonResult(LyricStyleColorPresetsRepository.removePreset(appContext, styleId, slotKey, parsed))
     }
 
     @JavascriptInterface
-    fun removeNormal(hex: String): String {
-        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr(getString(R.string.lyric_color_invalid))
-        val ok = LyricDisplayPrefs.removeNormalColorRgbPreset(appContext, c)
-        if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_keep_one))
+    fun updateColor(slotKey: String, indexStr: String, hex: String): String {
+        val spec = LyricColorPresetRegistry.findSlot(styleId, slotKey)
+            ?: return jsonErr(appContext.getString(R.string.lyric_color_slot_invalid))
+        val idx = indexStr.toIntOrNull()
+            ?: return jsonErr(appContext.getString(R.string.lyric_color_index_invalid))
+        val parsed = parseHexColor(hex, forceOpaqueRgb = !spec.allowAlpha)
+            ?: return jsonErr(appContext.getString(R.string.lyric_color_invalid))
+        return toJsonResult(LyricStyleColorPresetsRepository.updatePreset(appContext, styleId, slotKey, idx, parsed))
     }
 
-    @JavascriptInterface
-    fun removeCurrent(hex: String): String {
-        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr(getString(R.string.lyric_color_invalid))
-        val ok = LyricDisplayPrefs.removeCurrentColorArgbPreset(appContext, c)
-        if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_keep_one))
-    }
-
-    @JavascriptInterface
-    fun updateNormal(indexStr: String, hex: String): String {
-        val idx = indexStr.toIntOrNull() ?: return jsonErr(getString(R.string.lyric_color_index_invalid))
-        val c = parseHexColor(hex, forceOpaqueRgb = true) ?: return jsonErr(getString(R.string.lyric_color_invalid))
-        val ok = LyricDisplayPrefs.updateNormalColorRgbPreset(appContext, idx, c)
-        if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_update_failed))
-    }
-
-    @JavascriptInterface
-    fun updateCurrent(indexStr: String, hex: String): String {
-        val idx = indexStr.toIntOrNull() ?: return jsonErr(getString(R.string.lyric_color_index_invalid))
-        val c = parseHexColor(hex, forceOpaqueRgb = false) ?: return jsonErr(getString(R.string.lyric_color_invalid))
-        val ok = LyricDisplayPrefs.updateCurrentColorArgbPreset(appContext, idx, c)
-        if (ok) LyricDisplayPrefs.ensureStyleColorsMatchPresets(appContext)
-        return if (ok) jsonOk() else jsonErr(getString(R.string.lyric_color_update_failed))
-    }
-
-    private fun getString(resId: Int, vararg args: Any): String =
-        appContext.getString(resId, *args)
+    private fun toJsonResult(res: ColorPresetOpResult): String =
+        if (res.ok) jsonOk() else jsonErr(res.errorMessage)
 
     private fun jsonOk(): String = JSONObject().put("ok", true).put("message", "").toString()
 
@@ -199,18 +224,14 @@ class LyricColorPresetsBridge(
         return String.format("#%08X", (color.toLong() and 0xFFFFFFFFL))
     }
 
-    private fun parseHexColor(hex: String, forceOpaqueRgb: Boolean): Int? {
-        var s = hex.trim()
-        if (!s.startsWith("#")) s = "#$s"
-        return try {
-            val parsed = s.toColorInt()
-            if (forceOpaqueRgb) {
-                Color.rgb(Color.red(parsed), Color.green(parsed), Color.blue(parsed))
-            } else {
-                parsed
-            }
-        } catch (_: IllegalArgumentException) {
-            null
+    private fun parseHexColor(raw: String, forceOpaqueRgb: Boolean): Int? {
+        val t = raw.trim()
+        val withHash = if (t.startsWith("#")) t else "#$t"
+        val parsed = runCatching { withHash.toColorInt() }.getOrNull() ?: return null
+        return if (forceOpaqueRgb) {
+            Color.rgb(Color.red(parsed), Color.green(parsed), Color.blue(parsed))
+        } else {
+            parsed
         }
     }
 }

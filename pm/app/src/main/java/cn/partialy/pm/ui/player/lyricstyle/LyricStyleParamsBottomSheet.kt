@@ -170,10 +170,9 @@ internal object LyricStyleParamsBottomSheet {
 
         fun addColorRow(
             container: LinearLayout,
+            slotKey: String,
             titleRes: Int,
             currentColor: Int,
-            defaultColor: Int,
-            isUnlitPalette: Boolean = false,
             onPick: (Int) -> Unit,
         ) {
             val topMargin = if (container.childCount == 0) 0 else dp(10f)
@@ -211,7 +210,7 @@ internal object LyricStyleParamsBottomSheet {
                 gravity = Gravity.CENTER_VERTICAL
             }
 
-            val candidates = buildColorCandidates(activity, currentColor, defaultColor, isUnlitPalette)
+            val candidates = buildColorCandidates(activity, styleId, slotKey, currentColor)
             var activeColor = currentColor
 
             fun renderChips() {
@@ -259,7 +258,7 @@ internal object LyricStyleParamsBottomSheet {
                 contentDescription = activity.getString(R.string.settings_lyric_color_presets_title)
                 setOnClickListener {
                     preview.setVisible(false)
-                    LyricColorPresetsActivity.start(activity)
+                    LyricColorPresetsActivity.start(activity, styleId = styleId, focusSlotKey = slotKey)
                 }
             }
             rowWrapper.addView(presetBtn)
@@ -288,10 +287,10 @@ internal object LyricStyleParamsBottomSheet {
                     addSwitchRow(motionCard, R.string.lyric_param_show_cursor, s.showCursor) { checked ->
                         updateConfig { it.copy(typewriter = it.typewriter.copy(showCursor = checked)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_text_color, s.textColorArgb, TypewriterEffectConfig().textColorArgb) { c ->
+                    addColorRow(colorCard, "textColor", R.string.lyric_param_text_color, s.textColorArgb) { c ->
                         updateConfig { it.copy(typewriter = it.typewriter.copy(textColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_latest_glow_color, s.latestGlowColorArgb, TypewriterEffectConfig().latestGlowColorArgb) { c ->
+                    addColorRow(colorCard, "latestGlowColor", R.string.lyric_param_latest_glow_color, s.latestGlowColorArgb) { c ->
                         updateConfig { it.copy(typewriter = it.typewriter.copy(latestGlowColorArgb = c)) }
                     }
                 }
@@ -325,13 +324,13 @@ internal object LyricStyleParamsBottomSheet {
                     ) { step ->
                         updateConfig { it.copy(ink = it.ink.copy(lineSweepDurationMs = 200 + step * 50)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_unlit_color, s.unlitColorArgb, InkEffectConfig().unlitColorArgb, isUnlitPalette = true) { c ->
+                    addColorRow(colorCard, "unlitColor", R.string.lyric_param_unlit_color, s.unlitColorArgb) { c ->
                         updateConfig { it.copy(ink = it.ink.copy(unlitColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_highlight_start_color, s.highlightStartColorArgb, InkEffectConfig().highlightStartColorArgb) { c ->
+                    addColorRow(colorCard, "highlightStartColor", R.string.lyric_param_highlight_start_color, s.highlightStartColorArgb) { c ->
                         updateConfig { it.copy(ink = it.ink.copy(highlightStartColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_highlight_tip_color, s.highlightTipColorArgb, InkEffectConfig().highlightTipColorArgb) { c ->
+                    addColorRow(colorCard, "highlightTipColor", R.string.lyric_param_highlight_tip_color, s.highlightTipColorArgb) { c ->
                         updateConfig { it.copy(ink = it.ink.copy(highlightTipColorArgb = c)) }
                     }
                 }
@@ -356,13 +355,13 @@ internal object LyricStyleParamsBottomSheet {
                     ) { step ->
                         updateConfig { it.copy(bounce = it.bounce.copy(jumpScale = 1f + step * 0.02f)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_unlit_color, s.unlitColorArgb, BounceEffectConfig().unlitColorArgb, isUnlitPalette = true) { c ->
+                    addColorRow(colorCard, "unlitColor", R.string.lyric_param_unlit_color, s.unlitColorArgb) { c ->
                         updateConfig { it.copy(bounce = it.bounce.copy(unlitColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_sung_color, s.sungColorArgb, BounceEffectConfig().sungColorArgb) { c ->
+                    addColorRow(colorCard, "sungColor", R.string.lyric_param_sung_color, s.sungColorArgb) { c ->
                         updateConfig { it.copy(bounce = it.bounce.copy(sungColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_active_color, s.activeColorArgb, BounceEffectConfig().activeColorArgb) { c ->
+                    addColorRow(colorCard, "activeColor", R.string.lyric_param_active_color, s.activeColorArgb) { c ->
                         updateConfig { it.copy(bounce = it.bounce.copy(activeColorArgb = c)) }
                     }
                 }
@@ -387,16 +386,16 @@ internal object LyricStyleParamsBottomSheet {
                     ) { step ->
                         updateConfig { it.copy(spotlight = it.spotlight.copy(activeScale = 1f + step * 0.01f)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_unlit_color, s.unlitColorArgb, SpotlightEffectConfig().unlitColorArgb, isUnlitPalette = true) { c ->
+                    addColorRow(colorCard, "unlitColor", R.string.lyric_param_unlit_color, s.unlitColorArgb) { c ->
                         updateConfig { it.copy(spotlight = it.spotlight.copy(unlitColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_sung_color, s.sungColorArgb, SpotlightEffectConfig().sungColorArgb) { c ->
+                    addColorRow(colorCard, "sungColor", R.string.lyric_param_sung_color, s.sungColorArgb) { c ->
                         updateConfig { it.copy(spotlight = it.spotlight.copy(sungColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_spotlight_active_color, s.activeColorArgb, SpotlightEffectConfig().activeColorArgb) { c ->
+                    addColorRow(colorCard, "activeColor", R.string.lyric_param_spotlight_active_color, s.activeColorArgb) { c ->
                         updateConfig { it.copy(spotlight = it.spotlight.copy(activeColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_spotlight_glow_color, s.glowColorArgb, SpotlightEffectConfig().glowColorArgb) { c ->
+                    addColorRow(colorCard, "glowColor", R.string.lyric_param_spotlight_glow_color, s.glowColorArgb) { c ->
                         updateConfig { it.copy(spotlight = it.spotlight.copy(glowColorArgb = c)) }
                     }
                 }
@@ -421,16 +420,16 @@ internal object LyricStyleParamsBottomSheet {
                     ) { step ->
                         updateConfig { it.copy(neon = it.neon.copy(flowSpeed = step * 0.1f)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_unlit_color, s.unlitColorArgb, NeonEffectConfig().unlitColorArgb, isUnlitPalette = true) { c ->
+                    addColorRow(colorCard, "unlitColor", R.string.lyric_param_unlit_color, s.unlitColorArgb) { c ->
                         updateConfig { it.copy(neon = it.neon.copy(unlitColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_neon_color_1, s.colorStartArgb, NeonEffectConfig().colorStartArgb) { c ->
+                    addColorRow(colorCard, "colorStart", R.string.lyric_param_neon_color_1, s.colorStartArgb) { c ->
                         updateConfig { it.copy(neon = it.neon.copy(colorStartArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_neon_color_2, s.colorMidArgb, NeonEffectConfig().colorMidArgb) { c ->
+                    addColorRow(colorCard, "colorMid", R.string.lyric_param_neon_color_2, s.colorMidArgb) { c ->
                         updateConfig { it.copy(neon = it.neon.copy(colorMidArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_neon_color_3, s.colorEndArgb, NeonEffectConfig().colorEndArgb) { c ->
+                    addColorRow(colorCard, "colorEnd", R.string.lyric_param_neon_color_3, s.colorEndArgb) { c ->
                         updateConfig { it.copy(neon = it.neon.copy(colorEndArgb = c)) }
                     }
                 }
@@ -452,16 +451,16 @@ internal object LyricStyleParamsBottomSheet {
                     addSwitchRow(motionCard, R.string.lyric_param_ocean_sway_enabled, s.swayEnabled) { checked ->
                         updateConfig { it.copy(ocean = it.ocean.copy(swayEnabled = checked)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_unlit_color, s.unlitColorArgb, OceanEffectConfig().unlitColorArgb, isUnlitPalette = true) { c ->
+                    addColorRow(colorCard, "unlitColor", R.string.lyric_param_unlit_color, s.unlitColorArgb) { c ->
                         updateConfig { it.copy(ocean = it.ocean.copy(unlitColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_sung_color, s.sungColorArgb, OceanEffectConfig().sungColorArgb) { c ->
+                    addColorRow(colorCard, "sungColor", R.string.lyric_param_sung_color, s.sungColorArgb) { c ->
                         updateConfig { it.copy(ocean = it.ocean.copy(sungColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_ocean_crest_color, s.crestColorArgb, OceanEffectConfig().crestColorArgb) { c ->
+                    addColorRow(colorCard, "crestColor", R.string.lyric_param_ocean_crest_color, s.crestColorArgb) { c ->
                         updateConfig { it.copy(ocean = it.ocean.copy(crestColorArgb = c)) }
                     }
-                    addColorRow(colorCard, R.string.lyric_param_ocean_glow_color, s.glowColorArgb, OceanEffectConfig().glowColorArgb) { c ->
+                    addColorRow(colorCard, "glowColor", R.string.lyric_param_ocean_glow_color, s.glowColorArgb) { c ->
                         updateConfig { it.copy(ocean = it.ocean.copy(glowColorArgb = c)) }
                     }
                 }
@@ -536,22 +535,16 @@ internal object LyricStyleParamsBottomSheet {
 
     private fun buildColorCandidates(
         activity: ComponentActivity,
+        styleId: LyricEffectStyleId,
+        slotKey: String,
         currentColor: Int,
-        defaultColor: Int,
-        isUnlitPalette: Boolean,
     ): List<Int> {
         val result = LinkedHashSet<Int>()
-        result += defaultColor
-        result += currentColor
-        if (isUnlitPalette) {
-            result += LyricStyleParamsMeta.DEFAULT_UNLIT_PALETTE
-            result += LyricDisplayPrefs.getNormalColorRgbPresets(activity).map { rgb ->
-                Color.argb(96, Color.red(rgb), Color.green(rgb), Color.blue(rgb))
-            }
-        } else {
-            result += LyricStyleParamsMeta.DEFAULT_EFFECT_PALETTE
-            result += LyricDisplayPrefs.getCurrentColorArgbPresets(activity)
+        val stored = LyricStyleColorPresetsRepository.getPresets(activity, styleId, slotKey)
+        if (!stored.contains(currentColor)) {
+            result += currentColor
         }
+        result += stored
         return result.toList()
     }
 

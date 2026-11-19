@@ -25,6 +25,7 @@
       --count-bg: rgba(30, 41, 59, 0.06);
       --count-fg: #475569;
       --count-border: rgba(100, 116, 139, 0.2);
+      --focus-ring: rgba(56, 189, 248, 0.55);
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -44,6 +45,7 @@
         --count-bg: rgba(148, 163, 184, 0.12);
         --count-fg: #cbd5e1;
         --count-border: rgba(148, 163, 184, 0.25);
+        --focus-ring: rgba(56, 189, 248, 0.65);
       }
     }
     .page-bg {
@@ -54,6 +56,11 @@
       border: 1px solid var(--card-border);
       border-radius: 16px;
       box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      transition: border-color .35s ease, box-shadow .35s ease;
+    }
+    .card-cp.focus-highlight {
+      border-color: var(--focus-ring);
+      box-shadow: 0 0 0 2px var(--focus-ring), 0 8px 20px rgba(15, 23, 42, 0.12);
     }
     .txt-main { color: var(--text-main); }
     .txt-sub { color: var(--text-sub); }
@@ -125,43 +132,12 @@
 </head>
 <body class="min-h-screen page-bg font-sans antialiased">
   <div class="max-w-md mx-auto px-3 pt-3 pb-24">
-
-    <!-- 与 cp-modal 一致：大圆角白卡片 -->
-    <section class="card-cp p-4 mb-3">
-      <div class="flex justify-between items-start gap-3 mb-4">
-        <div>
-          <h2 class="font-display text-xl font-bold txt-main m-0 tracking-tight">常规行颜色</h2>
-          <p class="text-[11px] font-bold txt-sub uppercase tracking-widest mt-2">RGB · 最多 <span id="max-hint">12</span> 个</p>
-        </div>
-        <span id="normal-count" class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full count-badge">0</span>
-      </div>
-      <div id="normal-grid" class="pill-row"></div>
-      <button type="button" id="btn-add-normal"
-        class="w-full mt-4 py-2.5 rounded-2xl font-display text-sm font-bold cursor-pointer transition-all duration-300 bg-blue-600 text-white border-none hover:translate-y-[-2px] hover:shadow-xl hover:opacity-90 disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed">
-        添加颜色
-      </button>
-    </section>
-
-    <section class="card-cp p-4 mb-4">
-      <div class="flex justify-between items-start gap-3 mb-4">
-        <div>
-          <h2 class="font-display text-xl font-bold txt-main m-0 tracking-tight">当前行颜色</h2>
-          <p class="text-[11px] font-bold txt-sub uppercase tracking-widest mt-2">含 Alpha</p>
-        </div>
-        <span id="current-count" class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full count-badge">0</span>
-      </div>
-      <div id="current-grid" class="pill-row"></div>
-      <button type="button" id="btn-add-current"
-        class="w-full mt-4 py-2.5 rounded-2xl font-display text-sm font-bold cursor-pointer transition-all duration-300 bg-blue-600 text-white border-none hover:translate-y-[-2px] hover:shadow-xl hover:opacity-90 disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed">
-        添加颜色
-      </button>
-    </section>
-
+    <div id="slots-container"></div>
     <p id="toast" class="hidden text-center text-sm text-amber-800 py-3 px-4 rounded-2xl bg-amber-100 border border-amber-200/80 shadow-sm"></p>
   </div>
 
   <script>
-    var DEFAULT_PRESETS = ['#ef4444','#f97316','#f59e0b','#10b981','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#000000','#64748b','#ffffff'];
+    var hasScrolledToFocus = false;
 
     function showToast(msg) {
       var el = document.getElementById('toast');
@@ -178,28 +154,25 @@
 
     function getState() {
       if (typeof AndroidLyricColors === 'undefined') {
-        return { maxCount: 12, rowSize: 6, normal: [], current: [] };
+        return { maxCount: 12, rowSize: 6, focusSlotKey: '', slots: [] };
       }
       return JSON.parse(AndroidLyricColors.getState());
     }
 
-    function run(action, arg1, arg2) {
+    function run(action, slotKey, arg1, arg2) {
       if (typeof AndroidLyricColors === 'undefined') return { ok: false, message: '未连接' };
       var s;
       switch (action) {
-        case 'addNormal': s = AndroidLyricColors.addNormal(arg1); break;
-        case 'addCurrent': s = AndroidLyricColors.addCurrent(arg1); break;
-        case 'removeNormal': s = AndroidLyricColors.removeNormal(arg1); break;
-        case 'removeCurrent': s = AndroidLyricColors.removeCurrent(arg1); break;
-        case 'updateNormal': s = AndroidLyricColors.updateNormal(arg1, arg2); break;
-        case 'updateCurrent': s = AndroidLyricColors.updateCurrent(arg1, arg2); break;
+        case 'addColor': s = AndroidLyricColors.addColor(slotKey, arg1); break;
+        case 'removeColor': s = AndroidLyricColors.removeColor(slotKey, arg1); break;
+        case 'updateColor': s = AndroidLyricColors.updateColor(slotKey, arg1, arg2); break;
         default: return { ok: false, message: '未知操作' };
       }
       return parseResult(s);
     }
 
-    /** 常规行：仅 #RRGGBB（8 位 #AARRGGBB 时取 RGB） */
-    function toNormalHex(colorStr) {
+    /** 纯 RGB：仅 #RRGGBB（8 位 #AARRGGBB 时取 RGB） */
+    function toRgbHex(colorStr) {
       if (!colorStr) return '#000000';
       colorStr = String(colorStr).trim();
       if (colorStr.indexOf('rgba') === 0 || colorStr.indexOf('rgb') === 0) {
@@ -215,8 +188,8 @@
       return '#000000';
     }
 
-    /** 当前行：#AARRGGBB */
-    function toCurrentHex(colorStr) {
+    /** 含 Alpha：#AARRGGBB */
+    function toArgbHex(colorStr) {
       if (!colorStr) return '#FFFFFFFF';
       colorStr = String(colorStr).trim();
       if (colorStr.indexOf('rgba') === 0 || colorStr.indexOf('rgb') === 0) {
@@ -234,7 +207,7 @@
       return '#FFFFFFFF';
     }
 
-    /** #AARRGGBB -> CSS rgba(...)，用于与 colorPicker 的 8 位 hex 语义对齐 */
+    /** #AARRGGBB -> CSS rgba(...)，用于与 colorPicker 对齐 */
     function argbHexToCssColor(colorStr) {
       if (!colorStr) return 'rgba(255, 255, 255, 1)';
       var h = String(colorStr).trim().replace('#', '');
@@ -254,169 +227,149 @@
       return 'rgba(255, 255, 255, 1)';
     }
 
-    function mergePresets(list) {
-      var out = [];
-      var seen = {};
-      function add(h) {
-        if (!h || seen[h]) return;
-        seen[h] = true;
-        out.push(h);
-      }
-      (list || []).forEach(function (h) {
-        var x = String(h).replace('#', '');
-        if (x.length === 8) x = x.slice(2, 8);
-        if (x.length === 6) add('#' + x.toUpperCase());
-      });
-      DEFAULT_PRESETS.forEach(add);
-      return out.slice(0, 16);
-    }
-
-    function openPickerNormal(initial, title, onPicked) {
+    function openColorPicker(allowAlpha, initial, title, onPicked) {
       if (typeof colorPicker === 'undefined') {
         showToast('取色器未加载');
         return;
       }
-      var st = getState();
-      colorPicker.show({
-        initialColor: initial,
-        title: title || '选择颜色',
-        lang: 'zh',
-        onSelect: function (c) { onPicked(toNormalHex(c)); },
-        onCancel: function () {},
-      });
-    }
-
-    function openPickerCurrent(initial, title, onPicked) {
-      if (typeof colorPicker === 'undefined') {
-        showToast('取色器未加载');
-        return;
+      if (allowAlpha) {
+        colorPicker.show({
+          initialColor: argbHexToCssColor(initial),
+          title: title || '选择颜色',
+          lang: 'zh',
+          onSelect: function (c) { onPicked(toArgbHex(c)); },
+          onCancel: function () {},
+        });
+      } else {
+        colorPicker.show({
+          initialColor: toRgbHex(initial),
+          title: title || '选择颜色',
+          lang: 'zh',
+          onSelect: function (c) { onPicked(toRgbHex(c)); },
+          onCancel: function () {},
+        });
       }
-      var st = getState();
-      colorPicker.show({
-        // 当前行在 App 侧使用 #AARRGGBB，colorPicker 的 8 位 hex 按 #RRGGBBAA 解析。
-        // 这里统一先转成 rgba(...)，避免编辑时 alpha 与通道错位。
-        initialColor: argbHexToCssColor(initial),
-        title: title || '选择颜色',
-        lang: 'zh',
-        onSelect: function (c) { onPicked(toCurrentHex(c)); },
-        onCancel: function () {},
-      });
     }
 
     function render() {
       var data = getState();
-      document.getElementById('max-hint').textContent = String(data.maxCount || 12);
-      var normal = data.normal || [];
-      var current = data.current || [];
+      var container = document.getElementById('slots-container');
+      container.innerHTML = '';
+
       var max = data.maxCount || 12;
-      document.getElementById('normal-count').textContent = normal.length + '/' + max;
-      document.getElementById('current-count').textContent = current.length + '/' + max;
+      var slots = data.slots || [];
+      var focusCardEl = null;
 
-      var ng = document.getElementById('normal-grid');
-      ng.innerHTML = '';
-      normal.forEach(function (hex, idx) {
-        var pill = document.createElement('button');
-        pill.type = 'button';
-        pill.className = 'color-pill';
-        pill.title = '点击修改';
-        pill.onclick = function (e) {
-          e.stopPropagation();
-          openPickerNormal(hex, '常规行颜色', function (out) {
-            var r = run('updateNormal', String(idx), out);
-            if (!r.ok) showToast(r.message || '更新失败');
+      slots.forEach(function (slot) {
+        var colors = slot.colors || [];
+        var allowAlpha = !!slot.allowAlpha;
+
+        var section = document.createElement('section');
+        section.className = 'card-cp p-4 mb-3';
+        section.setAttribute('data-slot-key', slot.slotKey);
+
+        if (!hasScrolledToFocus && data.focusSlotKey && slot.slotKey === data.focusSlotKey) {
+          focusCardEl = section;
+        }
+
+        var header = document.createElement('div');
+        header.className = 'flex justify-between items-start gap-3 mb-4';
+
+        var titleWrap = document.createElement('div');
+        var h2 = document.createElement('h2');
+        h2.className = 'font-display text-xl font-bold txt-main m-0 tracking-tight';
+        h2.textContent = slot.title || '';
+
+        var sub = document.createElement('p');
+        sub.className = 'text-[11px] font-bold txt-sub uppercase tracking-widest mt-2';
+        sub.textContent = (allowAlpha ? '含 Alpha · 最多 ' : 'RGB · 最多 ') + max + ' 个';
+
+        titleWrap.appendChild(h2);
+        titleWrap.appendChild(sub);
+
+        var badge = document.createElement('span');
+        badge.className = 'shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full count-badge';
+        badge.textContent = colors.length + '/' + max;
+
+        header.appendChild(titleWrap);
+        header.appendChild(badge);
+        section.appendChild(header);
+
+        var grid = document.createElement('div');
+        grid.className = 'pill-row';
+
+        colors.forEach(function (hex, idx) {
+          var pill = document.createElement('button');
+          pill.type = 'button';
+          pill.className = 'color-pill';
+          pill.title = '点击修改';
+          pill.onclick = function (e) {
+            e.stopPropagation();
+            openColorPicker(allowAlpha, hex, slot.title, function (out) {
+              var r = run('updateColor', slot.slotKey, String(idx), out);
+              if (!r.ok) showToast(r.message || '更新失败');
+              else showToast('');
+              render();
+            });
+          };
+
+          var dot = document.createElement('span');
+          dot.className = 'color-dot';
+          dot.style.background = allowAlpha ? argbHexToCssColor(hex) : toRgbHex(hex);
+
+          var code = document.createElement('span');
+          code.className = 'color-code';
+          code.textContent = allowAlpha ? toArgbHex(hex) : toRgbHex(hex);
+
+          var del = document.createElement('span');
+          del.className = 'del-pill';
+          del.textContent = '×';
+          del.onclick = function (e) {
+            e.stopPropagation();
+            var r = run('removeColor', slot.slotKey, hex);
+            if (!r.ok) showToast(r.message || '无法删除');
+            else showToast('');
+            render();
+          };
+
+          pill.appendChild(dot);
+          pill.appendChild(code);
+          pill.appendChild(del);
+          grid.appendChild(pill);
+        });
+
+        section.appendChild(grid);
+
+        var addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'w-full mt-4 py-2.5 rounded-2xl font-display text-sm font-bold cursor-pointer transition-all duration-300 bg-blue-600 text-white border-none hover:translate-y-[-2px] hover:shadow-xl hover:opacity-90 disabled:opacity-40 disabled:hover:translate-y-0 disabled:cursor-not-allowed';
+        addBtn.textContent = '添加颜色';
+        addBtn.disabled = colors.length >= max;
+        addBtn.onclick = function () {
+          var initHex = slot.defaultColor || (allowAlpha ? '#FFFFFFFF' : '#BFBFBF');
+          openColorPicker(allowAlpha, initHex, '添加' + (slot.title || '颜色'), function (out) {
+            var r = run('addColor', slot.slotKey, out);
+            if (!r.ok) showToast(r.message || '添加失败');
             else showToast('');
             render();
           });
         };
 
-        var dot = document.createElement('span');
-        dot.className = 'color-dot';
-        dot.style.backgroundColor = hex;
-
-        var code = document.createElement('span');
-        code.className = 'color-code';
-        code.textContent = toNormalHex(hex);
-
-        var del = document.createElement('span');
-        del.className = 'del-pill';
-        del.textContent = '×';
-        del.onclick = function (e) {
-          e.stopPropagation();
-          var r = run('removeNormal', hex);
-          if (!r.ok) showToast(r.message || '无法删除');
-          else showToast('');
-          render();
-        };
-
-        pill.appendChild(dot);
-        pill.appendChild(code);
-        pill.appendChild(del);
-        ng.appendChild(pill);
+        section.appendChild(addBtn);
+        container.appendChild(section);
       });
 
-      var cg = document.getElementById('current-grid');
-      cg.innerHTML = '';
-      current.forEach(function (hex, idx) {
-        var pill = document.createElement('button');
-        pill.type = 'button';
-        pill.className = 'color-pill';
-        pill.title = '点击修改';
-        pill.onclick = function (e) {
-          e.stopPropagation();
-          openPickerCurrent(hex, '当前行颜色', function (out) {
-            var r = run('updateCurrent', String(idx), out);
-            if (!r.ok) showToast(r.message || '更新失败');
-            else showToast('');
-            render();
-          });
-        };
-
-        var dot = document.createElement('span');
-        dot.className = 'color-dot';
-        dot.style.background = argbHexToCssColor(hex);
-
-        var code = document.createElement('span');
-        code.className = 'color-code';
-        code.textContent = toCurrentHex(hex);
-
-        var del = document.createElement('span');
-        del.className = 'del-pill';
-        del.textContent = '×';
-        del.onclick = function (e) {
-          e.stopPropagation();
-          var r = run('removeCurrent', hex);
-          if (!r.ok) showToast(r.message || '无法删除');
-          else showToast('');
-          render();
-        };
-
-        pill.appendChild(dot);
-        pill.appendChild(code);
-        pill.appendChild(del);
-        cg.appendChild(pill);
-      });
-
-      document.getElementById('btn-add-normal').disabled = normal.length >= max;
-      document.getElementById('btn-add-current').disabled = current.length >= max;
+      if (focusCardEl) {
+        hasScrolledToFocus = true;
+        focusCardEl.classList.add('focus-highlight');
+        setTimeout(function () {
+          focusCardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 60);
+        setTimeout(function () {
+          focusCardEl.classList.remove('focus-highlight');
+        }, 2000);
+      }
     }
-
-    document.getElementById('btn-add-normal').onclick = function () {
-      openPickerNormal('#bfbfbf', '添加常规行颜色', function (out) {
-        var r = run('addNormal', out);
-        if (!r.ok) showToast(r.message || '添加失败');
-        else showToast('');
-        render();
-      });
-    };
-
-    document.getElementById('btn-add-current').onclick = function () {
-      openPickerCurrent('#ffffff', '添加当前行颜色', function (out) {
-        var r = run('addCurrent', out);
-        if (!r.ok) showToast(r.message || '添加失败');
-        else showToast('');
-        render();
-      });
-    };
 
     document.addEventListener('DOMContentLoaded', render);
   </script>

@@ -17,6 +17,7 @@ import cn.partialy.pm.activity.StatusBarLyricSettingsActivity
 import cn.partialy.pm.databinding.BottomSheetLyricSettingsBinding
 import cn.partialy.pm.statusbarlyric.StatusBarLyricPrefs
 import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
+import cn.partialy.pm.ui.player.lyricstyle.LyricColorPresetRegistry
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectConfigRepository
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
 import cn.partialy.pm.ui.player.lyricstyle.LyricRenderFps
@@ -291,14 +292,22 @@ object LyricSettingsSheet {
             }
         }
 
-        val openColorPresets = View.OnClickListener {
+        fun openDefaultColorPresets(slotKey: String) {
             preview.setVisible(false)
             fontStepper.stop()
             enlargedStepper.stop()
-            LyricColorPresetsActivity.start(activity)
+            LyricColorPresetsActivity.start(
+                activity,
+                styleId = LyricEffectStyleId.DEFAULT,
+                focusSlotKey = slotKey,
+            )
         }
-        binding.lyricSettingsNormalColorPresetsButton.setOnClickListener(openColorPresets)
-        binding.lyricSettingsCurrentColorPresetsButton.setOnClickListener(openColorPresets)
+        binding.lyricSettingsNormalColorPresetsButton.setOnClickListener {
+            openDefaultColorPresets(LyricColorPresetRegistry.SLOT_DEFAULT_NORMAL)
+        }
+        binding.lyricSettingsCurrentColorPresetsButton.setOnClickListener {
+            openDefaultColorPresets(LyricColorPresetRegistry.SLOT_DEFAULT_CURRENT)
+        }
 
         binding.lyricSettingsStatusBarSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (syncing) return@setOnCheckedChangeListener

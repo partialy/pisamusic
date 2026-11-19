@@ -88,4 +88,8 @@ object LyricEffectConfigRepository {
 
     fun resetStyle(context: Context, styleId: LyricEffectStyleId): LyricEffectConfig =
         store(context).resetStyle(styleId)
+
+    fun invalidateCache() {
+        sharedStore?.invalidateCache()
+    }
 }

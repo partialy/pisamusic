@@ -657,6 +657,7 @@
     <string name="settings_dev_debug_title">开发者调试</string>
     <string name="settings_dev_debug_summary">查看 Cookie 等开发用途</string>
     <string name="settings_lyric_color_presets_title">歌词颜色预设</string>
+    <string name="lyric_color_presets_style_title">%1$s · 歌词颜色预设</string>
     <string name="settings_lyric_color_presets_summary">常规 %1$d，当前 %2$d</string>
     <string name="dev_debug_title">开发者调试</string>
     <string name="dev_debug_hint">查看 SQLite 中保存的第三方音乐平台 Cookie 与账号摘要，并调试带 Cookie 的接口请求。</string>
@@ -1120,6 +1121,7 @@
     <string name="lyric_color_keep_one">至少保留一个颜色</string>
     <string name="lyric_color_index_invalid">索引无效</string>
     <string name="lyric_color_update_failed">更新失败</string>
+    <string name="lyric_color_slot_invalid">无效的配色项</string>
     <string name="status_lyric_overlay_permission_required">请先开启悬浮窗权限</string>
     <string name="status_lyric_sung_color_invalid">已唱颜色格式无效</string>
     <string name="status_lyric_unsung_color_invalid">未唱颜色格式无效</string>
