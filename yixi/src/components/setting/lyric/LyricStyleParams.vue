@@ -303,6 +303,67 @@
       </LyricSettingRow>
     </template>
 
+    <!-- 海浪翻滚 -->
+    <template v-else-if="styleId === 'ocean'">
+      <LyricSettingRow title="未唱颜色">
+        <n-color-picker
+          :value="styles.ocean.unlitColor"
+          :show-alpha="true"
+          :modes="colorModes"
+          @update:value="(v) => emitPatch('ocean', { unlitColor: v }, false)"
+        />
+      </LyricSettingRow>
+      <LyricSettingRow title="已唱颜色">
+        <n-color-picker
+          :value="styles.ocean.sungColor"
+          :show-alpha="true"
+          :modes="colorModes"
+          @update:value="(v) => emitPatch('ocean', { sungColor: v }, false)"
+        />
+      </LyricSettingRow>
+      <LyricSettingRow title="波峰高亮色" description="浪尖主字及浪花的高亮颜色。">
+        <n-color-picker
+          :value="styles.ocean.crestColor"
+          :show-alpha="true"
+          :modes="colorModes"
+          @update:value="(v) => emitPatch('ocean', { crestColor: v }, false)"
+        />
+      </LyricSettingRow>
+      <LyricSettingRow title="波纹与光晕颜色">
+        <n-color-picker
+          :value="styles.ocean.glowColor"
+          :show-alpha="true"
+          :modes="colorModes"
+          @update:value="(v) => emitPatch('ocean', { glowColor: v }, false)"
+        />
+      </LyricSettingRow>
+      <LyricSettingRow title="主字跃起高度" description="波峰中心字体的最高上浮高度，紧邻左右两字自动保持一半高度。" wide>
+        <SettingAdjustment
+          :value="styles.ocean.jumpHeight"
+          label="海浪主字跃起高度"
+          :min="limits.oceanJumpHeight.min"
+          :max="limits.oceanJumpHeight.max"
+          :step="limits.oceanJumpHeight.step"
+          suffix="px"
+          @update:value="(v) => emitPatch('ocean', { jumpHeight: v }, false)"
+        />
+      </LyricSettingRow>
+      <LyricSettingRow title="显示底部线条" description="在每行歌词下方绘制同步起伏的海浪波纹线与浪花微粒。">
+        <n-switch
+          :value="styles.ocean.showWaveLine"
+          aria-label="显示海浪底部线条"
+          @update:value="(v) => emitPatch('ocean', { showWaveLine: v }, true)"
+        />
+      </LyricSettingRow>
+      <LyricSettingRow title="左右摇晃" description="翻滚时左右微倾摇晃；关闭后仅保留上下跃起。">
+        <n-switch
+          :value="styles.ocean.swayEnabled"
+          aria-label="海浪左右摇晃"
+          @update:value="(v) => emitPatch('ocean', { swayEnabled: v }, true)"
+        />
+      </LyricSettingRow>
+    </template>
+
     <!-- 粒子聚散星尘 -->
     <template v-else-if="styleId === 'particle'">
       <LyricSettingRow title="未唱颜色">

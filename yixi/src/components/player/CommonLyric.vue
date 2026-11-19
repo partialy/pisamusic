@@ -142,7 +142,14 @@ const currentIndex = computed(() =>
   findLyricLineIndex(lyricStore.preferredLyrics, currentTimeMs.value)
 );
 
-const frameLimiter = new FrameRateLimiter(60);
+const frameLimiter = new FrameRateLimiter(lyricStore.setting.fps);
+
+watch(
+  () => lyricStore.setting.fps,
+  (fps) => {
+    frameLimiter.setTargetFps(fps);
+  },
+);
 
 const stopAnimation = () => {
   if (rafId === null) return;

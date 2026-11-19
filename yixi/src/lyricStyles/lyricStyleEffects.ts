@@ -1,7 +1,8 @@
 import type { DesktopLyricStyleConfigMap } from "../types/desktopLyric";
-import { applyEffectShadow, clampProgress, glyphProgress, highlightWeight, smoothProgress, strokeEffectOutline } from "./lyricEffectDrawing";
+import { applyEffectShadow, clampProgress, drawHighlightLayers, glyphProgress, highlightWeight, smoothProgress, strokeEffectOutline } from "./lyricEffectDrawing";
+import { drawOceanEffect, getOceanEffectPadding } from "./oceanEffectDrawing";
 
-export type EffectStyleId = "typewriter" | "ink" | "bounce" | "spotlight" | "neon";
+export type EffectStyleId = "typewriter" | "ink" | "bounce" | "spotlight" | "neon" | "ocean";
 export type EffectStyleConfigMap = Pick<DesktopLyricStyleConfigMap, EffectStyleId>;
 
 export interface EffectGlyph {
@@ -64,6 +65,7 @@ export function drawLyricStyleEffect<K extends EffectStyleId>(
       case "bounce": drawBounce(config as EffectStyleConfigMap["bounce"], frame); break;
       case "spotlight": drawSpotlight(config as EffectStyleConfigMap["spotlight"], frame); break;
       case "neon": drawNeon(config as EffectStyleConfigMap["neon"], frame); break;
+      case "ocean": drawOceanEffect(config as EffectStyleConfigMap["ocean"], frame); break;
     }
   } finally {
     ctx.restore();
@@ -85,6 +87,7 @@ export function getLyricStyleEffectPadding<K extends EffectStyleId>(
     return Math.ceil(36 + style.blurIntensity * 3 + fontSize * Math.max(0, style.activeScale - 1));
   }
   if (id === "ink") return Math.ceil(24 + (config as EffectStyleConfigMap["ink"]).liftOffset);
+  if (id === "ocean") return getOceanEffectPadding(config as EffectStyleConfigMap["ocean"], fontSize);
   return 32;
 }
 
@@ -94,27 +97,6 @@ function drawGlyph(frame: LyricStyleEffectFrame, glyph: EffectGlyph, color: stri
   applyEffectShadow(ctx, font);
   ctx.fillStyle = color;
   ctx.fillText(glyph.text, glyph.x, glyph.y);
-}
-
-/** 通过绘制层交叉淡化，保留任意 CSS 颜色及其 Alpha，不限制为十六进制色。 */
-function drawHighlightLayers(frame: LyricStyleEffectFrame, text: string, x: number, y: number,
-  baseColor: string, sungColor: string, activeColor: string, sung: number, active: number, glowColor: string, glowBlur: number): void {
-  const { ctx, font } = frame;
-  const layers = [
-    { color: baseColor, weight: (1 - sung) * (1 - active), glow: false },
-    { color: sungColor, weight: sung * (1 - active), glow: false },
-    { color: activeColor, weight: active, glow: true },
-  ];
-  for (const layer of layers) {
-    if (layer.weight <= 0) continue;
-    ctx.save();
-    ctx.globalAlpha *= layer.weight;
-    strokeEffectOutline(ctx, font, layer.color, text, x, y);
-    applyEffectShadow(ctx, font, layer.glow ? glowColor : undefined, glowBlur);
-    ctx.fillStyle = layer.color;
-    ctx.fillText(text, x, y);
-    ctx.restore();
-  }
 }
 
 function drawTypewriter(style: EffectStyleConfigMap["typewriter"], frame: LyricStyleEffectFrame): void {

@@ -139,6 +139,7 @@ export class LyricCanvasRenderer {
       this.cachedLayouts.clear();
     }
 
+    this.frameLimiter.setTargetFps(this.setting.fps);
     this.frameLimiter.reset();
     this.ensureActiveRender();
   }

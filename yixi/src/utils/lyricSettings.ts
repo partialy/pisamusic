@@ -1,5 +1,6 @@
 import { getDefaultBackgroundConfig, normalizeBackgroundConfig, type PlayerBackgroundConfig } from "@/playerBackground/backgroundConfig";
 import { getDefaultPlayerLyricStyles, isPlayerLyricStyle, normalizePlayerLyricStyles, type PlayerLyricStyleId, type PlayerLyricStyleConfigMap } from "@/lyricStyles/playerLyricConfig";
+import { normalizeLyricFps, type LyricFpsOption } from "@/utils/frameRateLimiter";
 export interface LyricSetting {
   style: PlayerLyricStyleId;
   styles: PlayerLyricStyleConfigMap;
@@ -14,6 +15,7 @@ export interface LyricSetting {
   lyricFontWeight: boolean;
   lyricFontOpacity: number;
   lyricFontShadow: boolean;
+  fps: LyricFpsOption;
   showTime: boolean;
   background: PlayerBackgroundConfig;
 }
@@ -38,6 +40,7 @@ export const getDefaultLyricSetting = (): LyricSetting => ({
   lyricFontWeight: true,
   lyricFontOpacity: 1,
   lyricFontShadow: true,
+  fps: 60,
   showTime: true,
   background: getDefaultBackgroundConfig(),
 });
@@ -67,6 +70,7 @@ export function normalizeLyricSetting(input: unknown): LyricSetting {
   setting.lyricFontSize = normalizeNumber(source.lyricFontSize, defaults.lyricFontSize, LYRIC_SETTING_RANGES.fontSize);
   setting.lyricFontOpacity = normalizeNumber(source.lyricFontOpacity, defaults.lyricFontOpacity, LYRIC_SETTING_RANGES.opacity);
   setting.alignPosition = normalizeNumber(source.alignPosition, defaults.alignPosition, LYRIC_SETTING_RANGES.alignPosition);
+  setting.fps = normalizeLyricFps(source.fps, defaults.fps);
   return setting;
 }
 

@@ -3,6 +3,7 @@ import { LyricCanvasRenderer } from "../LyricCanvasRenderer";
 import { BounceLyricRenderer } from "./bounceStyle";
 import { InkFlowLyricRenderer } from "./inkFlowStyle";
 import { NeonFlowLyricRenderer } from "./neonFlowStyle";
+import { OceanLyricRenderer } from "./oceanStyle";
 import { ParticleLyricRenderer } from "./particleStyle";
 import { SpotlightLyricRenderer } from "./spotlightStyle";
 import { TypewriterLyricRenderer } from "./typewriterStyle";
@@ -26,6 +27,8 @@ export function createDesktopLyricRenderer(
       return new SpotlightLyricRenderer(canvas, liveRegion);
     case "neon":
       return new NeonFlowLyricRenderer(canvas, liveRegion);
+    case "ocean":
+      return new OceanLyricRenderer(canvas, liveRegion);
     case "particle":
       return new ParticleLyricRenderer(canvas, liveRegion);
     case "default":

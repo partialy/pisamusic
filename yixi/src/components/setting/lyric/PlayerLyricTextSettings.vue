@@ -21,6 +21,10 @@
         :min="ranges.opacity.min * 100" :max="ranges.opacity.max * 100"
         @update:value="value => lyric.updateSetting({ lyricFontOpacity: value / 100 })" />
     </LyricSettingRow>
+    <LyricSettingRow title="渲染帧率" description="控制默认及 Canvas 特效歌词的帧率（AMLyric 除外）；无限制将跑满显示器刷新率。">
+      <n-select :value="setting.fps" :options="fpsOptions"
+        @update:value="value => lyric.updateSetting({ fps: value })" />
+    </LyricSettingRow>
   </SettingSection>
 </template>
 
@@ -29,6 +33,7 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { NInputNumber, NSelect, NSwitch } from "naive-ui";
 import { useLyricStore } from "@/store/lyricStore";
+import { LYRIC_FPS_OPTIONS } from "@/utils/frameRateLimiter";
 import { getDefaultLyricSetting, LYRIC_SETTING_RANGES as ranges } from "@/utils/lyricSettings";
 import SettingSection from "../SettingSection.vue";
 import SettingAdjustment from "../SettingAdjustment.vue";
@@ -39,4 +44,5 @@ const lyric = useLyricStore();
 const { setting } = storeToRefs(lyric);
 const defaults = getDefaultLyricSetting();
 const fontOptions = computed(() => getLyricFontOptions(setting.value.lyricFont));
+const fpsOptions = LYRIC_FPS_OPTIONS;
 </script>

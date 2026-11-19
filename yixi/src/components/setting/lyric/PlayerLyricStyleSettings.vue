@@ -63,7 +63,8 @@ const currentStyle = computed(() => PLAYER_LYRIC_STYLE_OPTIONS.find(item => item
 const effectStyles = computed(() => ({
   ...getDefaultDesktopLyricStyleSettings(),
   typewriter: setting.value.styles.typewriter, ink: setting.value.styles.ink,
-  bounce: setting.value.styles.bounce, spotlight: setting.value.styles.spotlight, neon: setting.value.styles.neon,
+  bounce: setting.value.styles.bounce, spotlight: setting.value.styles.spotlight,
+  neon: setting.value.styles.neon, ocean: setting.value.styles.ocean,
 }));
 const colorModes: Array<"hex" | "rgb" | "hsl"> = ["hex", "rgb", "hsl"];
 const extractingTarget = ref<ColorTarget | null>(null);

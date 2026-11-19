@@ -6,6 +6,7 @@ import type {
   DesktopLyricStyleConfigMap,
   DesktopLyricStyleId,
 } from "../types/desktopLyric";
+import { normalizeLyricFps } from "../utils/frameRateLimiter";
 
 export const DESKTOP_LYRIC_BOUNDS_LIMITS = {
   minWidth: 500,
@@ -21,6 +22,7 @@ export const DESKTOP_LYRIC_STYLE_IDS: readonly DesktopLyricStyleId[] = [
   "bounce",
   "spotlight",
   "neon",
+  "ocean",
   "particle",
 ] as const;
 
@@ -60,6 +62,11 @@ export const DESKTOP_LYRIC_STYLE_OPTIONS: ReadonlyArray<{
     description: "多段极光流彩渐变填充并带扫描前沿高光锋。",
   },
   {
+    value: "ocean",
+    label: "海浪翻滚",
+    description: "波峰字最高跃起、左右邻字半高随波起伏，伴随海浪波纹与浪花微粒。",
+  },
+  {
     value: "particle",
     label: "粒子聚散星尘",
     description: "新句由星尘粒子汇聚成型，句末随风涣散为粒子消逝。",
@@ -77,6 +84,7 @@ export const DESKTOP_LYRIC_STYLE_LIMITS = {
   spotlightScale: { min: 1, max: 1.25, step: 0.01 },
   neonRevealMs: { min: 150, max: 1500, step: 50 },
   neonFlowSpeed: { min: 0, max: 2, step: 0.1 },
+  oceanJumpHeight: { min: 4, max: 24, step: 1 },
   particleGatherMs: { min: 250, max: 1000, step: 20 },
   particleDisperseMs: { min: 250, max: 1000, step: 20 },
 } as const;
@@ -126,6 +134,15 @@ export function getDefaultDesktopLyricStyleSettings(): DesktopLyricStyleConfigMa
       lineRevealDurationMs: 650,
       flowSpeed: 1,
     },
+    ocean: {
+      unlitColor: "rgba(241, 245, 249, 0.34)",
+      sungColor: "#38bdf8",
+      crestColor: "#e0f7ff",
+      glowColor: "rgba(56, 189, 248, 0.88)",
+      jumpHeight: 13,
+      showWaveLine: true,
+      swayEnabled: true,
+    },
     particle: {
       unlitColor: "rgba(241, 245, 249, 0.34)",
       colorStart: "#34d399",
@@ -147,6 +164,7 @@ export const DEFAULT_DESKTOP_LYRIC_SETTING: DesktopLyricSettingV2 = {
   fontFamily: "Microsoft YaHei UI",
   fontWeight: 600,
   autoOutline: true,
+  fps: 60,
   style: "default",
   styles: getDefaultDesktopLyricStyleSettings(),
   textColor: "#f5f7fb",
@@ -253,6 +271,7 @@ export function normalizeDesktopLyricStyleSettings(
   const bounce = asRecord(rawStyles.bounce);
   const spotlight = asRecord(rawStyles.spotlight);
   const neon = asRecord(rawStyles.neon);
+  const ocean = asRecord(rawStyles.ocean);
   const particle = asRecord(rawStyles.particle);
   const limits = DESKTOP_LYRIC_STYLE_LIMITS;
 
@@ -377,6 +396,21 @@ export function normalizeDesktopLyricStyleSettings(
         limits.neonFlowSpeed.max,
       ),
     },
+    ocean: {
+      unlitColor: pickColor(ocean.unlitColor, defaults.ocean.unlitColor),
+      sungColor: pickColor(ocean.sungColor, defaults.ocean.sungColor),
+      crestColor: pickColor(ocean.crestColor, defaults.ocean.crestColor),
+      glowColor: pickColor(ocean.glowColor, defaults.ocean.glowColor),
+      jumpHeight: clampNumber(
+        ocean.jumpHeight,
+        defaults.ocean.jumpHeight,
+        limits.oceanJumpHeight.min,
+        limits.oceanJumpHeight.max,
+        true,
+      ),
+      showWaveLine: pickBool(ocean.showWaveLine, defaults.ocean.showWaveLine),
+      swayEnabled: pickBool(ocean.swayEnabled, defaults.ocean.swayEnabled),
+    },
     particle: {
       unlitColor: pickColor(particle.unlitColor, defaults.particle.unlitColor),
       colorStart: pickColor(particle.colorStart, defaults.particle.colorStart),
@@ -431,6 +465,7 @@ export function normalizeDesktopLyricSetting(input: unknown): DesktopLyricSettin
     true,
   );
   const autoOutline = pickBool(raw.autoOutline, DEFAULT_DESKTOP_LYRIC_SETTING.autoOutline);
+  const fps = normalizeLyricFps(raw.fps, DEFAULT_DESKTOP_LYRIC_SETTING.fps);
   const style: DesktopLyricStyleId = isDesktopLyricStyleId(raw.style) ? raw.style : "default";
   const bounds = normalizeDesktopLyricBounds(
     raw.bounds as Partial<DesktopLyricBounds> | undefined,
@@ -445,6 +480,7 @@ export function normalizeDesktopLyricSetting(input: unknown): DesktopLyricSettin
     fontFamily,
     fontWeight,
     autoOutline,
+    fps,
     style,
     styles,
     textColor: styles.default.textColor,

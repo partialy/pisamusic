@@ -104,6 +104,16 @@
           @update:value="(value) => patchImmediately({ autoOutline: value })"
         />
       </LyricSettingRow>
+      <LyricSettingRow
+        title="渲染帧率"
+        description="控制桌面歌词 Canvas 动画帧率；无限制将跑满显示器刷新率。"
+      >
+        <n-select
+          :value="form.fps"
+          :options="fpsOptions"
+          @update:value="(value) => patchImmediately({ fps: value })"
+        />
+      </LyricSettingRow>
     </SettingSection>
   </div>
 </template>
@@ -129,6 +139,7 @@ import SettingSection from "../SettingSection.vue";
 import LyricStyleParams from "./LyricStyleParams.vue";
 import LyricSettingRow from "./LyricSettingRow.vue";
 import { getLyricFontOptions } from "./lyricSettingOptions";
+import { LYRIC_FPS_OPTIONS } from "@/utils/frameRateLimiter";
 
 const desktop = useDesktopLyricStore();
 const { setting, visible } = storeToRefs(desktop);
@@ -138,6 +149,7 @@ const changingVisibility = ref(false);
 const message = useMessage();
 
 const fontOptions = computed(() => getLyricFontOptions(form.value.fontFamily, true));
+const fpsOptions = LYRIC_FPS_OPTIONS;
 const styleSelectOptions = DESKTOP_LYRIC_STYLE_OPTIONS.map((item) => ({
   label: item.label,
   value: item.value,

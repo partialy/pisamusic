@@ -6,7 +6,7 @@ import {
 } from "../desktopLyric/desktopLyricDefaults";
 import type { DesktopLyricStyleConfigMap } from "../types/desktopLyric";
 
-export const PLAYER_EFFECT_STYLE_IDS = ["typewriter", "ink", "bounce", "spotlight", "neon"] as const;
+export const PLAYER_EFFECT_STYLE_IDS = ["typewriter", "ink", "bounce", "spotlight", "neon", "ocean"] as const;
 export type PlayerEffectStyleId = typeof PLAYER_EFFECT_STYLE_IDS[number];
 export type PlayerLyricStyleId = "default" | "amlyric" | PlayerEffectStyleId;
 
@@ -43,6 +43,7 @@ export function getDefaultPlayerLyricStyles(): PlayerLyricStyleConfigMap {
     bounce: shared.bounce,
     spotlight: shared.spotlight,
     neon: shared.neon,
+    ocean: shared.ocean,
   };
 }
 
@@ -72,7 +73,7 @@ export function normalizePlayerLyricStyles(input: unknown, legacy: Record<string
       hidePassedLines: boolean(am.hidePassedLines, legacy.hidePassedLines, defaults.amlyric.hidePassedLines),
     },
     typewriter: shared.typewriter, ink: shared.ink, bounce: shared.bounce,
-    spotlight: shared.spotlight, neon: shared.neon,
+    spotlight: shared.spotlight, neon: shared.neon, ocean: shared.ocean,
   };
 }
 

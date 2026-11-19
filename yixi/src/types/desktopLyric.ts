@@ -1,3 +1,5 @@
+import type { LyricFpsOption } from "../utils/frameRateLimiter";
+
 export type DesktopLyricKind = "word" | "line";
 export type DesktopLyricControlAction = "play" | "pause" | "prev" | "next" | "close" | "restore-main";
 
@@ -8,6 +10,7 @@ export type DesktopLyricStyleId =
   | "bounce"
   | "spotlight"
   | "neon"
+  | "ocean"
   | "particle";
 
 export type DesktopLyricParticleDensity = "fine" | "balanced" | "light";
@@ -81,6 +84,16 @@ export interface DesktopLyricNeonStyleConfig {
   flowSpeed: number;
 }
 
+export interface DesktopLyricOceanStyleConfig {
+  unlitColor: string;
+  sungColor: string;
+  crestColor: string;
+  glowColor: string;
+  jumpHeight: number;
+  showWaveLine: boolean;
+  swayEnabled: boolean;
+}
+
 export interface DesktopLyricParticleStyleConfig {
   unlitColor: string;
   colorStart: string;
@@ -98,6 +111,7 @@ export interface DesktopLyricStyleConfigMap {
   bounce: DesktopLyricBounceStyleConfig;
   spotlight: DesktopLyricSpotlightStyleConfig;
   neon: DesktopLyricNeonStyleConfig;
+  ocean: DesktopLyricOceanStyleConfig;
   particle: DesktopLyricParticleStyleConfig;
 }
 
@@ -114,6 +128,7 @@ export interface DesktopLyricSettingV2 {
   fontFamily: string;
   fontWeight: number;
   autoOutline: boolean;
+  fps: LyricFpsOption;
   style: DesktopLyricStyleId;
   styles: DesktopLyricStyleConfigMap;
   /** 默认样式兼容字段，与 styles.default 保持同步 */

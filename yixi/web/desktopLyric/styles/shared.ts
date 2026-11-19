@@ -278,6 +278,7 @@ export abstract class DesktopLyricCanvasBase implements IDesktopLyricRenderer {
       this.cachedLayouts.clear();
     }
     this.onSettingChanged(prev, this.setting);
+    this.frameLimiter.setTargetFps(this.setting.fps);
     this.frameLimiter.reset();
     this.ensureActiveRender();
   }
