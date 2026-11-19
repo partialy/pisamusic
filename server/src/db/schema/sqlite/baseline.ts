@@ -1,4 +1,5 @@
 import { PLAYLIST_COVER_SQL } from "../playlistCoverSchema";
+import { SONG_DOWNLOAD_SQL } from "../songDownloadSchema";
 /** 新空库基线；现有SQLite升级仍由appDb维护，不破坏历史数据。 */
 export const SQLITE_BASELINE_SQL = `
 CREATE TABLE IF NOT EXISTS device_info (
@@ -755,4 +756,4 @@ CREATE TABLE IF NOT EXISTS app_share_daily_stats (
  PRIMARY KEY(day,scope,share_record_key,platform_bucket)
 );
 CREATE INDEX IF NOT EXISTS idx_app_share_daily_record ON app_share_daily_stats(share_record_key,day);
-` + PLAYLIST_COVER_SQL;
+` + PLAYLIST_COVER_SQL + SONG_DOWNLOAD_SQL;

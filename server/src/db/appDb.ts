@@ -1,4 +1,5 @@
 import { PLAYLIST_COVER_SQL } from "./schema/playlistCoverSchema";
+import { SONG_DOWNLOAD_SQL } from "./schema/songDownloadSchema";
 import { APP_SHARE_TRACKING_SQL } from "./appShareTrackingSchema";
 import fs from "node:fs";
 import path from "node:path";
@@ -722,7 +723,7 @@ CREATE INDEX IF NOT EXISTS idx_listen_room_members_open
 ON listen_together_room_members(room_record_id, user_id, left_at);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_listen_room_member_open
 ON listen_together_room_members(room_record_id, user_id) WHERE left_at IS NULL;
-` + PLAYLIST_COVER_SQL;
+` + PLAYLIST_COVER_SQL + SONG_DOWNLOAD_SQL;
 
 export function initSchema(db: DatabaseSync) {
   runPreSchemaMigrations(db);
