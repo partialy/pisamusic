@@ -151,6 +151,14 @@ object ColorPickerBottomSheet {
         fun updatePreviewAndAlphaTrack() {
             val argb = currentArgb()
             previewFill.setColor(argb)
+            binding.colorPickerRgbaText.text = String.format(
+                Locale.US,
+                "RGBA(%d, %d, %d, %d)",
+                Color.red(argb),
+                Color.green(argb),
+                Color.blue(argb),
+                Color.alpha(argb),
+            )
             alphaOpaqueColor = (0xFF shl 24) or (argb and 0x00FFFFFF)
             alphaTrack.invalidateShader()
             binding.colorPickerAlphaSeekBar.invalidate()

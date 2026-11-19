@@ -7,7 +7,7 @@
     android:background="@drawable/bg_account_login_gradient"
     android:orientation="vertical">
 
-    <!-- 透明顶栏：< 返回 | 颜色管理 | 恢复默认 -->
+    <!-- 透明顶栏：< 返回 | 颜色管理 | 更多/完成 -->
     <FrameLayout
         android:id="@+id/colorManagerHeader"
         android:layout_width="match_parent"
@@ -30,26 +30,39 @@
             android:ellipsize="end"
             android:gravity="center"
             android:maxLines="1"
-            android:paddingHorizontal="84dp"
+            android:paddingHorizontal="64dp"
             android:text="@string/lyric_color_manager_title"
             android:textColor="@color/account_login_text_primary"
             android:textSize="17sp"
             android:textStyle="bold" />
 
+        <ImageButton
+            android:id="@+id/colorManagerMore"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="end|center_vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/more"
+            android:padding="12dp"
+            android:src="@drawable/ic_more_vert_24"
+            app:tint="@color/account_login_text_primary" />
+
         <TextView
-            android:id="@+id/colorManagerReset"
+            android:id="@+id/colorManagerDone"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_height="48dp"
             android:layout_gravity="end|center_vertical"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
             android:focusable="true"
             android:gravity="center"
+            android:minWidth="48dp"
             android:paddingHorizontal="12dp"
-            android:text="@string/lyric_color_manager_reset"
+            android:text="@string/lyric_color_manager_done"
             android:textColor="?attr/colorPrimary"
             android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:visibility="gone" />
     </FrameLayout>
 
     <androidx.core.widget.NestedScrollView

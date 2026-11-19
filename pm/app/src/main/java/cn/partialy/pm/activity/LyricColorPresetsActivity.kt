@@ -9,12 +9,20 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.PopupWindow
+import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
+import androidx.core.view.isVisible
 import cn.partialy.pm.R
+import com.google.android.material.color.MaterialColors
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityLyricColorPresetsBinding
 import cn.partialy.pm.databinding.ItemLyricColorGroupBinding
@@ -42,8 +50,16 @@ class LyricColorPresetsActivity : BaseActivity() {
     private var styleId: LyricEffectStyleId = LyricEffectStyleId.DEFAULT
     private var focusSlotKey: String? = null
     private var hasFocusedInitialSlot = false
+    private var isEditing = false
+    private var moreMenu: PopupWindow? = null
     private var focusAnimator: ValueAnimator? = null
     private val groupViewsBySlot = mutableMapOf<String, View>()
+
+    private val editBackCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            setEditMode(false)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityLyricColorPresetsBinding.inflate(layoutInflater)
@@ -53,6 +69,7 @@ class LyricColorPresetsActivity : BaseActivity() {
         styleId = LyricEffectStyleId.fromId(intent.getStringExtra(EXTRA_STYLE_ID))
         focusSlotKey = intent.getStringExtra(EXTRA_FOCUS_SLOT_KEY)?.takeIf { it.isNotBlank() }
 
+        onBackPressedDispatcher.addCallback(this, editBackCallback)
         setupSystemBars()
         setupHeader()
         renderGroups()
@@ -60,6 +77,8 @@ class LyricColorPresetsActivity : BaseActivity() {
     }
 
     override fun onDestroy() {
+        moreMenu?.dismiss()
+        moreMenu = null
         focusAnimator?.cancel()
         focusAnimator = null
         super.onDestroy()
@@ -93,8 +112,75 @@ class LyricColorPresetsActivity : BaseActivity() {
             val label = LyricStyleParamsMeta.styleLabel(this, styleId)
             getString(R.string.lyric_color_manager_style_title, label)
         }
-        binding.colorManagerBack.setOnClickListener { finish() }
-        binding.colorManagerReset.setOnClickListener { confirmResetDefaults() }
+        binding.colorManagerBack.setOnClickListener {
+            if (isEditing) {
+                setEditMode(false)
+            } else {
+                finish()
+            }
+        }
+        binding.colorManagerMore.setOnClickListener { showMoreMenu() }
+        binding.colorManagerDone.setOnClickListener { setEditMode(false) }
+        updateHeaderActions()
+    }
+
+    private fun updateHeaderActions() {
+        binding.colorManagerMore.isVisible = !isEditing
+        binding.colorManagerDone.isVisible = isEditing
+        editBackCallback.isEnabled = isEditing
+    }
+
+    private fun setEditMode(editing: Boolean) {
+        if (isEditing == editing) return
+        isEditing = editing
+        updateHeaderActions()
+        renderGroups()
+    }
+
+    private fun showMoreMenu() {
+        moreMenu?.dismiss()
+        val content = layoutInflater.inflate(R.layout.layout_search_source_dropdown, null, false)
+        val container = content.findViewById<LinearLayout>(R.id.searchSourceOptionsContainer)
+
+        val menuItems = listOf(
+            Triple(R.string.lyric_color_manager_edit, R.drawable.ic_edit_24) { setEditMode(true) },
+            Triple(R.string.lyric_color_manager_reset_action, R.drawable.ic_refresh_24) { confirmResetDefaults() },
+        )
+        val textColor = MaterialColors.getColor(
+            container,
+            com.google.android.material.R.attr.colorOnSurface,
+        )
+        menuItems.forEach { (titleRes, iconRes, action) ->
+            val row = layoutInflater.inflate(R.layout.item_compact_action_menu_row, container, false)
+            row.findViewById<ImageView>(R.id.actionMenuItemIcon).apply {
+                setImageResource(iconRes)
+                setColorFilter(textColor)
+            }
+            row.findViewById<TextView>(R.id.actionMenuItemText).apply {
+                setText(titleRes)
+                setTextColor(textColor)
+            }
+            row.setOnClickListener {
+                moreMenu?.dismiss()
+                action()
+            }
+            container.addView(row)
+        }
+
+        content.measure(
+            View.MeasureSpec.makeMeasureSpec(resources.displayMetrics.widthPixels - dp(32f), View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+        )
+        moreMenu = PopupWindow(
+            content,
+            content.measuredWidth.coerceAtLeast(dp(140f)),
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true,
+        ).apply {
+            isOutsideTouchable = true
+            elevation = dp(8f).toFloat()
+            showAsDropDown(binding.colorManagerMore, 0, dp(6f), Gravity.END)
+        }
     }
 
     private fun confirmResetDefaults() {
@@ -220,8 +306,16 @@ class LyricColorPresetsActivity : BaseActivity() {
                     val hex = ColorPickerBottomSheet.formatHex(colorValue, spec.allowAlpha)
                     pillBinding.colorPillDot.background = buildColorDotDrawable(colorValue)
                     pillBinding.colorPillHex.text = hex
+                    pillBinding.colorPillDelete.isVisible = isEditing
                     pillBinding.colorPillDelete.contentDescription =
                         getString(R.string.lyric_color_manager_delete_cd, hex)
+
+                    pillBinding.root.setOnLongClickListener {
+                        if (!isEditing) {
+                            setEditMode(true)
+                        }
+                        true
+                    }
 
                     pillBinding.root.setOnClickListener {
                         ColorPickerBottomSheet.show(

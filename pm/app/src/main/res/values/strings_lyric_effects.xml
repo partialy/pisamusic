@@ -68,6 +68,9 @@
     <string name="lyric_color_manager_title">颜色管理</string>
     <string name="lyric_color_manager_style_title">%1$s · 颜色管理</string>
     <string name="lyric_color_manager_reset">恢复默认</string>
+    <string name="lyric_color_manager_edit">编辑</string>
+    <string name="lyric_color_manager_reset_action">重置</string>
+    <string name="lyric_color_manager_done">完成</string>
     <string name="lyric_color_manager_reset_title">恢复默认配色</string>
     <string name="lyric_color_manager_reset_message_all">确定将默认样式的颜色预设恢复为初始配色吗？</string>
     <string name="lyric_color_manager_reset_message_style">确定将「%1$s」的颜色预设恢复为初始配色吗？</string>
