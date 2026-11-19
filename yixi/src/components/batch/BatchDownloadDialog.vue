@@ -19,6 +19,7 @@
       <n-button round type="primary" :loading="submitting" :disabled="!plan.count || (plan.count > 100 && !largeConfirmed)" @click="enqueue"><template #icon><n-icon :component="ListPlus" /></template>加入下载队列</n-button>
     </template>
   </AppModal>
+  <DownloadQuotaExceededModal :show="quotaModalShow" :result="quotaExceededResult" @update:show="quotaModalShow = $event" />
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref } from "vue";
@@ -26,6 +27,8 @@ import { NButton, NCheckbox, NIcon, NInput, NSelect } from "naive-ui";
 import { Download, FolderOpen, ListPlus, Square, X } from "lucide-vue-next";
 import AppModal from "@/components/common/AppModal.vue";
 import type { Song } from "@/types/song";
+import type { SongDownloadQuotaAcquireResult } from "@/types/download";
+import DownloadQuotaExceededModal from "@/components/download/DownloadQuotaExceededModal.vue";
 import { planBatchDownloads } from "@/batch/BatchDownloadPlanner";
 import { enqueueDownloads } from "@/utils/api/downloadAPI";
 import { getQualityOptionsForSong, type QualitySource } from "@/utils/musicQuality";
@@ -34,6 +37,7 @@ import { useAudioStore, useUserStore } from "@/store";
 import { useSettingStore } from "@/store/settingStore";
 import { captureLibraryRevision, isCurrentLibraryRevision, onLibraryIdentityChanged } from "@/utils/libraryIdentity";
 const show = ref(false), submitting = ref(false), directory = ref(""), message = ref(""), largeConfirmed = ref(false);
+const quotaModalShow = ref(false), quotaExceededResult = ref<SongDownloadQuotaAcquireResult | null>(null);
 const targets = ref<Song[]>([]);
 const redownload = ref(false), cancelEnqueue = ref(false);
 const qualities = reactive<Record<string, string>>({});
@@ -78,16 +82,18 @@ async function enqueue() {
   cancelEnqueue.value = false;
   try {
     const items = [...plan.value.groups].flatMap(([source, songs]) => songs.map(song => ({ song, qualityKey: qualities[source], directory: directory.value, redownload: redownload.value })));
+    if (items.length > 5000) { message.value = "单批次最多支持 5000 首歌曲，请分批下载。"; return; }
     const result = { added: 0, existing: 0, rejected: [] as { index: number; message: string }[], unexecuted: items.length };
-    for (let offset = 0; offset < items.length; offset += 5000) {
-      if (cancelEnqueue.value || request !== generation || !isCurrentLibraryRevision(revision)) break;
-      const batch = items.slice(offset, offset + 5000);
-      const response = await enqueueDownloads(batch, { identityRevision: revision });
-      result.added += response.added; result.existing += response.existing;
-      result.rejected.push(...response.rejected.map(item => ({ ...item, index: item.index + offset })));
-      result.unexecuted -= batch.length;
-    }
+    const response = await enqueueDownloads(items, { identityRevision: revision });
     if (request !== generation || !isCurrentLibraryRevision(revision)) return;
+    if (response.quotaExceeded) {
+      quotaExceededResult.value = response.quotaExceeded;
+      quotaModalShow.value = true;
+      return;
+    }
+    result.added += response.added; result.existing += response.existing;
+    result.rejected.push(...response.rejected);
+    result.unexecuted -= items.length;
     message.value = `已入队 ${result.added} 首，已存在 ${result.existing} 首，跳过 ${plan.value.skipped} 首，失败 ${result.rejected.length} 首，未执行 ${result.unexecuted} 首。`;
     if (result.rejected.length) message.value += ` ${result.rejected.slice(0, 3).map(item => item.message).join('；')}`;
     else if (!result.unexecuted) { window.$message.success(message.value); show.value = false; }

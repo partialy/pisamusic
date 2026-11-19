@@ -14,8 +14,36 @@ export type DownloadSongInput = {
   d_cover?: string; lyric?: string; krc?: string; vip?: boolean;
 };
 export type DownloadEnqueueItem = { song: DownloadSongInput; qualityKey?: string; directory: string; redownload?: boolean };
+export type SongDownloadQuotaDimension = {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+};
+export type SongDownloadQuotaSnapshot = {
+  subjectType: "user" | "device";
+  subjectKey: string;
+  overrideEnabled: boolean;
+  daily: SongDownloadQuotaDimension;
+  weekly: SongDownloadQuotaDimension;
+  monthly: SongDownloadQuotaDimension;
+  total: SongDownloadQuotaDimension;
+};
+export type SongDownloadQuotaAcquireResult = {
+  allowed: boolean;
+  deduplicated: boolean;
+  batchId: string | null;
+  chargedCount: number;
+  requiredCount: number;
+  quota: SongDownloadQuotaSnapshot;
+};
 export type DownloadEnqueueOptions = { identityRevision?: number };
-export type DownloadEnqueueResult = { tasks: DownloadTaskSnapshot[]; added: number; existing: number; rejected: { index: number; message: string }[] };
+export type DownloadEnqueueResult = {
+  tasks: DownloadTaskSnapshot[];
+  added: number;
+  existing: number;
+  rejected: { index: number; message: string }[];
+  quotaExceeded?: SongDownloadQuotaAcquireResult;
+};
 export type DownloadTaskSnapshot = {
   taskId: string; fileId: string; source: string; songId: string; qualityKey: string; name: string;
   singer?: string; album?: string; cover?: string;

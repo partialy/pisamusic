@@ -108,6 +108,7 @@
 - `music:resolve-playable-url` 支持 `qualityKey`；KG/WY 播放取链统一使用对应 proxy 地址且不注入 Cookie（无论是否登录第三方账号）；renderer 不直接持有 service URL 或 Cookie。
 - 下载能力集中在 `electron/download/` 和 `download:*` IPC，renderer 只能传规范化歌曲、qualityKey 和下载目录；不要在页面组件里直接写文件或嵌入音频标签。
 - 下载任务由 main `electron/download/downloadService.ts` 和 AppDatabase 私有下载仓库持久化管理，单曲 `download:start` 也包装同一批量 `download:enqueue`；renderer 不另建执行器。FIFO 默认并发 2，`local-setting.downloadConcurrency` 支持 1–5；新任务锁定目录、命名及标签/封面/内嵌和外置歌词配置。
+- 入队前由 `enqueueBatch` 先做本地查重与权限过滤，再对实际新增曲目调用 `electron/system/songDownloadQuotaClient.ts` 请求加密 `POST /api/song-downloads/acquire` 校验并扣减配额；联网失败或配额不足时阻断落库，由 `DownloadSongDialog.vue` / `BatchDownloadDialog.vue` 挂载 `DownloadQuotaExceededModal.vue`（基于 `AppModal.vue`）展示剩余配额。
 - schema 10 新建 `download_tasks`（UUID 任务/完整检查点）与 `download_files`（独立 fileId 文件实体），保留 `download_records`，只按现存 legacy id 幂等导入；旧单键已覆盖的历史不扫描或臆造。启动不联网，未完成任务统一暂停；迁移记录的缺失文件保留失败原因，不改旧表或用户音频。
 - `download:enqueue` 支持可选 main 权威 `identityRevision` 检查；`tasks/files/detail/pause/resume/pause-all/resume-all/cancel/retry` 通过 typed preload。暂停等待句柄关闭和实际字节检查点；PROCESSING 不接受暂停/取消；有限网络重试最多 2 次，迟到回调按 generation 丢弃。
 - `downloadTransfer.ts` 的受管 `downloads/tasks/<taskId>.part` 与播放 mediaCache 完全分离；不持久播放 URL，每次恢复重新授权取链。仅实际 part 长度、严格 206/Content-Range/总长及强 ETag 或 Last-Modified 一致才追加；200/416/缺失或变化校验器从零重取。未知总长、错误内容、空文件或不可读音频不能完成。

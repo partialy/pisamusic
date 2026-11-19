@@ -46,6 +46,7 @@
       <n-button class="confirm-btn" :loading="submitting" @click="confirmDownload">确定下载</n-button>
     </template>
   </AppModal>
+  <DownloadQuotaExceededModal :show="quotaModalShow" :result="quotaExceededResult" @update:show="quotaModalShow = $event" />
 </template>
 
 <script setup lang="ts">
@@ -54,6 +55,8 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import { NButton, NCheckbox, NIcon, NInput } from "naive-ui";
 import { Download as DownloadIcon, ChevronDown } from "lucide-vue-next";
 import type { Song } from "@/types/song";
+import type { SongDownloadQuotaAcquireResult } from "@/types/download";
+import DownloadQuotaExceededModal from "@/components/download/DownloadQuotaExceededModal.vue";
 import { useAudioStore } from "@/store/audio";
 import { useUserStore } from "@/store";
 import { useSettingStore } from "@/store/settingStore";
@@ -78,6 +81,8 @@ const { openAccountLogin } = useAccountLoginDialog();
 const { openQualityUnlockFeedback } = useQualityUnlockFeedback();
 const show = ref(false);
 const submitting = ref(false);
+const quotaModalShow = ref(false);
+const quotaExceededResult = ref<SongDownloadQuotaAcquireResult | null>(null);
 const song = ref<Song | null>(null);
 const qualityKey = ref("");
 const directory = ref("");
@@ -170,6 +175,11 @@ async function confirmDownload() {
     const items = JSON.parse(JSON.stringify([{ song: song.value, qualityKey: qualityKey.value, directory: directory.value, redownload: redownload.value }]));
     const result = await enqueueDownloads(items, { identityRevision: revision });
     if (!isCurrentLibraryRevision(revision)) return;
+    if (result.quotaExceeded) {
+      quotaExceededResult.value = result.quotaExceeded;
+      quotaModalShow.value = true;
+      return;
+    }
     if (result.rejected.length) throw new Error(result.rejected[0].message);
     if (result.existing) { window.$message.info("已有相同任务或已完成文件；需要新副本时请勾选重新下载。"); return; }
     window.$message.success(`已加入 ${result.added} 个下载任务`);

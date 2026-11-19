@@ -57,3 +57,9 @@
 
 - 故障上报统一使用加密 `POST /api/fault-reports`：Android `playback_fault_logs` 以 `scene=play_url` 上报 KG / WY / KW 取链和播放器失败；PC `network_error_records` 以 `scene=desktop_network` 上报经过脱敏的主进程网络错误。两端均允许匿名提交，有效账号 token 只绑定用户 ID，成功后只按本批日志 UUID 精确标记；服务端 `fault_reports` / `fault_report_logs` 按客户端日志 UUID 去重，并通过 `platform/arch` 区分 Android 与 PC。后台 `/api/admin/fault-reports` 支持两种场景筛选、详情、`pending` / `processed` 状态流转、单条 JSON、批次 ZIP 和级联删除。
 - 听歌时长与等级模块：服务端 `server/src/routes/listening.ts -> services/listeningService.ts -> db/listeningStore.ts` 保存不可变播放片段，并通过 `/api/listening/fragments/batch`、`/summary`、`/tracks` 提供账号级上报与查询；用户 ID 只取 User JWT，批量上报的设备 ID 只取必填 `x-pm-device-id`，V1 请求固定 `schemaVersion=1`、`platform=android|desktop`，不得携带播放器框架或本地路径等平台实现字段。时间统一为毫秒半开区间 `[startedAtMs, endedAtMs)`；权威总时长是同一用户所有设备、所有歌曲区间的并集，单曲统计是同一 `source + songId` 跨设备区间的并集，故单曲时长之和可以大于总时长。等级不写入用户表，后台 `/api/admin/listening/levels` 以 `expectedVersion` 乐观并发整组维护整数分钟闭区间：第一档从 0 开始、相邻档 `next.minMinutes=previous.maxMinutes+1`、只有最后一档为 `maxMinutes=null`，默认仅 Lv 1（0 分钟至无上限）；用户等级按 `floor(totalMs / 60000)` 动态推导。Android 与 PC 已接入同一 V1 契约，采集、补传与展示细节分别见 `pm/AGENTS.md` 和 `yixi/AGENTS.md`；不得再将其描述为尚未接入。
+
+## 歌曲下载统计与配额
+
+- 服务端 `POST /api/song-downloads/acquire` 与 `GET /api/song-downloads/quota` 均要求有效 `x-pm-device-token`（`401` 不降级）；已登录账号（`Authorization`）以 `user` 为主体跨端共享配额，未登录游客以 `device`（`<kind>:<deviceId>`）为主体独立配额。
+- 配额按北京时间（`Asia/Shanghai` UTC+8）计算：每日 00:00、每周一 00:00、每月 1 日 00:00 刷新周期计数，总次数不重置；全局默认通过 `runtime_configs`（`songDownload.default*Limit`，`-1` 表示不限制，初始日/周/月 `-1`、总数 `999999`）维护，并支持后台按单个用户/设备独立覆盖。
+- 客户端（PC `yixi` 与 Android `pm`）在用户选择音质并确认下载后，先本地过滤无效与已存在跳过项，仅当实际需新建任务数 `> 0` 时按批次请求 1 次 `/api/song-downloads/acquire`（携带 `clientBatchId` 幂等）；联网失败或配额不足均阻断入队，并在弹窗中展示受限维度实时余量。详情见[歌曲下载契约](../server/apidoc/songDownloads/overview.md)。

@@ -11,6 +11,7 @@ import type { DownloadRecordItem, TrackSnapshot } from "../database/types";
 import type { PersistedDownloadTask } from "../database/downloadTypes";
 import type { DownloadEnqueueItem, DownloadEnqueueOptions, DownloadEnqueueResult, DownloadTaskSnapshot, DownloadDetail, DownloadFileSnapshot } from "../../src/types/download";
 import { resolvePlayableUrl } from "../music/musicService";
+import { acquireSongDownloadQuota } from "../system/songDownloadQuotaClient";
 import { normalizeSong, normalizeSource, normalizeQualityKey, normalizeDirectory, buildBaseName, createUniqueBaseName, getDownloadMetadataOptions, processDownloadAssets } from "./downloadAssets";
 import { acquireFileLock, identifyFile } from "./downloadFileLocks";
 import { downloadCacheRoot, managedPartPath, readPartSize, removeManagedPart, transferDownload, validateAudio, DownloadFailure } from "./downloadTransfer";
@@ -115,9 +116,40 @@ async function enqueueBatch(items: DownloadEnqueueItem[], options: DownloadEnque
       added.push(task); result.tasks.push(taskSnapshot(task)); result.added++;
     } catch (error) { result.rejected.push({ index,message: error instanceof Error ? error.message : String(error) }); }
   }
-  // 全批校验后一次事务入队，调度只消费已提交任务。
+  // 全批校验后，先按实际新增数联网校验并扣减配额，再一次事务入队。
   if (!accepting) throw new Error("下载服务正在退出");
   checkIdentity();
+  if (added.length > 0) {
+    const quotaResult = await acquireSongDownloadQuota(
+      added.map((task) => ({
+        source: task.source,
+        songId: task.songId,
+        name: task.name,
+        singer: typeof task.payload.singer === "string" ? task.payload.singer : "",
+        album: typeof task.payload.album === "string" ? task.payload.album : "",
+        cover: typeof task.payload.cover === "string" ? task.payload.cover : "",
+        durationMs:
+          typeof task.payload.durationMs === "number" && Number.isFinite(task.payload.durationMs)
+            ? task.payload.durationMs
+            : typeof task.payload.duration === "number" && Number.isFinite(task.payload.duration)
+              ? Math.round(task.payload.duration * 1000)
+              : undefined,
+        qualityKey: task.qualityKey,
+      })),
+    );
+    if (!accepting) throw new Error("下载服务正在退出");
+    checkIdentity();
+    if (!quotaResult.allowed) {
+      const addedTaskIds = new Set(added.map((task) => task.taskId));
+      return {
+        tasks: result.tasks.filter((task) => !addedTaskIds.has(task.taskId)),
+        added: 0,
+        existing: result.existing,
+        rejected: result.rejected,
+        quotaExceeded: quotaResult,
+      };
+    }
+  }
   repo().enqueue(added); schedule(); return result;
 }
 export async function startDownloadTask(payload: DownloadEnqueueItem) {
