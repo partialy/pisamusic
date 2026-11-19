@@ -70,6 +70,8 @@ import cn.partialy.pm.ui.dialog.showDownloadQualityPicker
 import cn.partialy.pm.ui.player.PlayerPagesController
 import cn.partialy.pm.ui.player.LyricRow
 import cn.partialy.pm.ui.player.LyricSettingsSheet
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectConfigRepository
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
 import cn.partialy.pm.ui.player.LyricsAdapter
 import cn.partialy.pm.ui.player.background.PlayerBackgroundController
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
@@ -1359,7 +1361,9 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun applyLyricDisplayMode() {
-        val useKaraoke = LyricDisplayPrefs.isUseWordLyricEnabled(this) && lyricContent.hasWordTiming
+        val effectConfig = LyricEffectConfigRepository.read(this)
+        val useWordTiming = LyricDisplayPrefs.isUseWordLyricEnabled(this) && lyricContent.hasWordTiming
+        val useKaraoke = effectConfig.styleId != LyricEffectStyleId.DEFAULT || useWordTiming
         pages.lyrics.karaokeLyricsView.visibility = if (useKaraoke) View.VISIBLE else View.GONE
         pages.lyrics.lyricsRecyclerView.visibility = if (useKaraoke) View.GONE else View.VISIBLE
         applyListenTogetherLyricSpacing()
@@ -1411,12 +1415,16 @@ class PlayerActivity : BaseDownloadActivity() {
             lyricCurrentIndex = current.index
             lyricsAdapter.setCurrentIndex(current.index)
         }
+        val effectConfig = LyricEffectConfigRepository.read(this)
+        val useWordTiming = LyricDisplayPrefs.isUseWordLyricEnabled(this) && lyricContent.hasWordTiming
         pages.lyrics.karaokeLyricsView.bind(
             lines = lyricRows,
             currentIndex = current.index,
             positionMs = positionMs,
             style = LyricDisplayPrefs.readStyle(this),
-            isPlaying = musicController.isPlaying.value
+            isPlaying = musicController.isPlaying.value,
+            effectConfig = effectConfig,
+            useWordTiming = useWordTiming,
         )
     }
 
