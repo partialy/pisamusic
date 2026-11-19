@@ -1,6 +1,8 @@
 package cn.partialy.pm.network.api
 
 import cn.partialy.pm.appshare.AppShareResponse
+import cn.partialy.pm.download.quota.SongDownloadAcquireRequest
+import cn.partialy.pm.download.quota.SongDownloadAcquireResponse
 import cn.partialy.pm.model.AndroidStartupRequest
 import cn.partialy.pm.model.AndroidStartupResponse
 import cn.partialy.pm.model.BootstrapConfigResponse
@@ -83,6 +85,13 @@ interface SystemApiService {
         @Header("x-pm-device-token") deviceToken: String,
         @Header("Authorization") authorization: String?,
     ): AppShareResponse
+
+    @POST("api/song-downloads/acquire")
+    suspend fun acquireSongDownloadQuota(
+        @Header("Authorization") authorization: String?,
+        @Header("x-pm-device-token") deviceToken: String,
+        @Body body: SongDownloadAcquireRequest,
+    ): SongDownloadAcquireResponse
 
     @GET
     suspend fun getBootstrapConfig(@Url path: String): BootstrapConfigResponse

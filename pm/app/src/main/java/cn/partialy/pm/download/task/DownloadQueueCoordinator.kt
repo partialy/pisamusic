@@ -3,6 +3,8 @@ package cn.partialy.pm.download.task
 import android.content.Context
 import android.util.Log
 import cn.partialy.pm.download.*
+import cn.partialy.pm.download.quota.SongDownloadQuotaRepository
+import cn.partialy.pm.download.quota.SongDownloadQuotaSnapshot
 import cn.partialy.pm.model.*
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.utils.DownloadManager
@@ -24,6 +26,7 @@ data class DownloadEnqueueSummary(
     val skippedKeys: Set<String>,
     val failedKeys: Set<String>,
     val completedSkippedKeys: Set<String> = emptySet(),
+    val quotaExceeded: SongDownloadQuotaSnapshot? = null,
 )
 
 /** 仅保证进程存活期间执行；两个 FIFO worker 的槽位涵盖取链到文件处理全流程。 */
@@ -34,6 +37,7 @@ class DownloadQueueCoordinator @Inject constructor(
     private val urlResolver: DownloadUrlResolver,
     private val lyricResolver: DownloadLyricResolver,
     private val repairer: javax.inject.Provider<AudioMetadataRepairer>,
+    private val quotaRepository: SongDownloadQuotaRepository,
 ) {
     private data class Request(val taskId: String, val song: SongInfo, val choice: DownloadQualityChoice, val generation: Long = 0, val exactQuality: Boolean = false)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -88,11 +92,16 @@ class DownloadQueueCoordinator @Inject constructor(
                 val skipped = linkedSetOf<String>()
                 val completedSkipped = linkedSetOf<String>()
                 val failed = linkedSetOf<String>()
+                val pendingSongs = mutableListOf<SongInfo>()
+                val qualityKey = choice.toPlaybackQualityKey()
+                val session = AccountSessionStore.read(context)
+                val access = MusicQualityAccessState(session.loggedIn, session.vipActive)
+
                 for (song in songs.distinctBy { "${it.type}:${it.id}" }) {
                     val key = "${song.type}:${song.id}"
-                    val session = AccountSessionStore.read(context)
-                    val access = MusicQualityAccessState(session.loggedIn, session.vipActive)
-                    if (song.id.isBlank() || !song.playable || !MusicQualityAccessPolicy.isChoiceAllowed(song.type, choice, access)) {
+                    if (song.id.isBlank() || !song.playable || song.type == SongType.LOCAL ||
+                        !MusicQualityAccessPolicy.isChoiceAllowed(song.type, choice, access)
+                    ) {
                         failed += key
                         continue
                     }
@@ -100,23 +109,51 @@ class DownloadQueueCoordinator @Inject constructor(
                         it.song.type == song.type && it.song.id == song.id && it.choice == choice &&
                             repository.find(it.taskId)?.status?.isActive == true
                     }
-                    val task = if (duplicate) null else repository.enqueueTask(song, choice.toPlaybackQualityKey())
-                    if (task == null) {
+                    if (duplicate || !repository.canEnqueue(song, qualityKey)) {
                         skipped += key
-                        // 仅把真实存在文件的已完成任务归为“已下载”。
                         if (repository.tasks.value.any { existing ->
                                 existing.source == song.type && existing.songId == song.id &&
-                                    existing.qualityKey == choice.toPlaybackQualityKey() &&
+                                    existing.qualityKey == qualityKey &&
                                     existing.status == DownloadTaskStatus.COMPLETED &&
                                     existing.targetPath?.let(::File)?.isFile == true
                             }) completedSkipped += key
+                    } else {
+                        pendingSongs += song
+                    }
+                    yield()
+                }
+
+                if (pendingSongs.isEmpty()) {
+                    return@withLock DownloadEnqueueSummary(enqueued, skipped, failed, completedSkipped)
+                }
+
+                // 仅按本地过滤后的实际待下载数量向服务端原子校验并扣减配额
+                val acquireResult = quotaRepository.acquire(
+                    clientBatchId = java.util.UUID.randomUUID().toString(),
+                    songs = pendingSongs,
+                    choice = choice,
+                )
+                if (!acquireResult.allowed) {
+                    return@withLock DownloadEnqueueSummary(
+                        enqueuedKeys = emptySet(),
+                        skippedKeys = skipped,
+                        failedKeys = failed,
+                        completedSkippedKeys = completedSkipped,
+                        quotaExceeded = acquireResult.quota,
+                    )
+                }
+
+                for (song in pendingSongs) {
+                    val key = "${song.type}:${song.id}"
+                    val task = repository.enqueueTask(song, qualityKey)
+                    if (task == null) {
+                        skipped += key
                     } else {
                         val request = Request(task.id, song.copy(embeddedCoverArt = null, lyric = null), choice)
                         requests[task.id] = request
                         queue.send(request)
                         enqueued += key
                     }
-                    yield()
                 }
                 DownloadEnqueueSummary(enqueued, skipped, failed, completedSkipped)
             }

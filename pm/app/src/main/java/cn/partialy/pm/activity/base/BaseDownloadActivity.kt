@@ -19,6 +19,7 @@ import cn.partialy.pm.network.kw.KwRepository
 import cn.partialy.pm.network.cloudmusic.CloudMusicRepository
 import cn.partialy.pm.ui.dialog.showDownloadQualityConfirmDialog
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.dialog.SongDownloadQuotaDialog
 import cn.partialy.pm.ui.message.MessageType
 import cn.partialy.pm.ui.mine.planPlaylistBatchDownload
 import cn.partialy.pm.ui.mine.playlistSongKey
@@ -99,6 +100,13 @@ abstract class BaseDownloadActivity : BaseActivity() {
                     }
                     try {
                         val summary = downloadQueueCoordinator.enqueue(group, selected.choice)
+                        if (summary.quotaExceeded != null) {
+                            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && !isDestroyed && !isFinishing) {
+                                SongDownloadQuotaDialog.show(this@BaseDownloadActivity, summary.quotaExceeded)
+                            }
+                            stoppedByUser = true
+                            break
+                        }
                         enqueued += summary.enqueuedKeys.size
                         skipped += summary.skippedKeys.size
                         failed += summary.failedKeys.size
@@ -194,6 +202,13 @@ abstract class BaseDownloadActivity : BaseActivity() {
                     },
                 ) ?: return@launch
                 val summary = downloadQueueCoordinator.enqueue(songs, selected.choice)
+                if (summary.quotaExceeded != null) {
+                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && !isDestroyed && !isFinishing) {
+                        SongDownloadQuotaDialog.show(this@BaseDownloadActivity, summary.quotaExceeded)
+                    }
+                    onResult(summary)
+                    return@launch
+                }
                 val message = getString(R.string.download_queue_summary, summary.enqueuedKeys.size, summary.skippedKeys.size, summary.failedKeys.size)
                 when {
                     summary.failedKeys.isNotEmpty() -> PmMessage.warning(

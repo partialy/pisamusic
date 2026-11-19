@@ -54,12 +54,16 @@ class DownloadTaskRepository @Inject constructor(
 
     fun find(taskId: String): DownloadTask? = tasks.value.firstOrNull { it.id == taskId }
 
-    /** 原子发布排队任务，避免重复点击创建双份。 */
-    fun enqueueTask(song: SongInfo, qualityKey: String): DownloadTask? = synchronized(stateLock) {
-        if (_tasks.value.any {
+    fun canEnqueue(song: SongInfo, qualityKey: String): Boolean = synchronized(stateLock) {
+        _tasks.value.none {
             it.source == song.type && it.songId == song.id && it.qualityKey == qualityKey &&
                 (it.status.isActive || (it.status == DownloadTaskStatus.COMPLETED && it.targetPath?.let(::File)?.isFile == true))
-        }) return@synchronized null
+        }
+    }
+
+    /** 原子发布排队任务，避免重复点击创建双份。 */
+    fun enqueueTask(song: SongInfo, qualityKey: String): DownloadTask? = synchronized(stateLock) {
+        if (!canEnqueue(song, qualityKey)) return@synchronized null
         createTask(song, qualityKey)
     }
 
