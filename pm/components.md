@@ -201,3 +201,8 @@
 ## 账号未关联数据导入（2026-11-14）
 
 - `ui/dialog/UnassociatedLibraryImportPrompt` 复用 `PmMinimalDialog`，登录/注册完成与 `FavoritesSyncSettingsActivity` 的“导入本机未关联数据”共用确认；明确说明新建账号歌单副本、保留本机原件，取消不合并。确认受账号与 generation 守卫，页面销毁关闭等待，不使用通用加载框。LOCAL 异机占位复用 `SongListItemBinder` 灰态与“当前设备无文件”，更多/移除入口仍可用。
+
+## 主歌词特效与参数设置（2026-11-19）
+
+- 歌词特效专属参数 Sheet：`ui/player/lyricstyle/LyricStyleParamsBottomSheet.kt`、`res/layout/bottom_sheet_lyric_style_params.xml`；复用 `bg_lyric_settings_sheet`、顶部 `include_lyric_settings_preview` 实时预览、右上 `ic_refresh_24` 恢复当前样式默认按钮、`bg_listen_together_create_card` 分组卡片、`PmSwitch`、`bg_lyric_settings_seekbar_*` 细滑轨及圆形预设色板行；由 `LyricSettingsSheet` 显示设置区「样式参数」入口弹出（默认样式隐藏），「歌词样式」与「渲染帧率」复用 `showSettingsOptionPicker`（音质同款 Sheet）。
+- 主歌词特效引擎：`ui/player/lyricstyle/` 下的 `KaraokeLyricLayoutEngine`、`KaraokeBrowseController`、`LyricFrameRateLimiter` 与 7 款独立 `LyricEffectRenderer`，由 `KaraokeLyricsView` 组合驱动；配置通过 `utils/localdata/AppConfigStore` 写入 SQLite `app_config` 表。

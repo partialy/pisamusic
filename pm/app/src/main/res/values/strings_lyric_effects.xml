@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lyric_settings_style_label">歌词样式</string>
+    <string name="lyric_settings_style_params_label">样式参数</string>
+    <string name="lyric_settings_fps_label">渲染帧率</string>
+    <string name="lyric_settings_style_picker_title">选择歌词样式</string>
+    <string name="lyric_settings_fps_picker_title">选择渲染帧率</string>
+    <string name="lyric_settings_style_params_title">%1$s参数</string>
+    <string name="lyric_settings_style_params_restore">恢复默认参数</string>
+    <string name="lyric_settings_style_params_restored">已恢复「%1$s」默认参数</string>
+    <string name="lyric_settings_style_params_section_colors">颜色</string>
+    <string name="lyric_settings_style_params_section_motion">动效参数</string>
+
+    <string name="lyric_effect_style_default">默认</string>
+    <string name="lyric_effect_style_default_desc">经典逐字填充与可选逐字放大效果</string>
+    <string name="lyric_effect_style_typewriter">打字机</string>
+    <string name="lyric_effect_style_typewriter_desc">逐字按时间戳敲出，逐行匀速打出并附带呼吸光标</string>
+    <string name="lyric_effect_style_ink">水墨流光</string>
+    <string name="lyric_effect_style_ink_desc">水平羽化渐变扫光浸润，当前唱词轻微上浮</string>
+    <string name="lyric_effect_style_bounce">律动弹跳</string>
+    <string name="lyric_effect_style_bounce_desc">围绕字心弹性跃起并放大高亮，逐行级联轻弹</string>
+    <string name="lyric_effect_style_spotlight">聚光灯</string>
+    <string name="lyric_effect_style_spotlight_desc">切句离屏柔焦转场，当前字呈现聚光外发光高亮</string>
+    <string name="lyric_effect_style_neon">星尘霓虹</string>
+    <string name="lyric_effect_style_neon_desc">三段极光流彩渐变填充并带扫描前沿高光锋</string>
+    <string name="lyric_effect_style_ocean">海浪翻滚</string>
+    <string name="lyric_effect_style_ocean_desc">主字最高跃起、左右邻字半高随波翻滚，可选底部波纹线</string>
+
+    <string name="lyric_fps_option_value">%1$d FPS</string>
+    <string name="lyric_fps_option_unlimited_short">无限制</string>
+    <string name="lyric_fps_option_unlimited">无限制（显示器刷新率）</string>
+    <string name="lyric_fps_option_30_desc">更省电，适合轻度播放场景</string>
+    <string name="lyric_fps_option_60_desc">默认推荐，流畅度与功耗均衡</string>
+    <string name="lyric_fps_option_90_desc">高刷屏更丝滑</string>
+    <string name="lyric_fps_option_120_desc">旗舰高刷屏体验，功耗略增</string>
+    <string name="lyric_fps_option_unlimited_desc">不限制帧率，跟随屏幕刷新率跑满</string>
+
+    <string name="lyric_param_text_color">文字颜色</string>
+    <string name="lyric_param_latest_glow_color">高光与光标颜色</string>
+    <string name="lyric_param_unlit_color">未唱颜色</string>
+    <string name="lyric_param_sung_color">已唱颜色</string>
+    <string name="lyric_param_active_color">弹跳高亮色</string>
+    <string name="lyric_param_highlight_start_color">流光主色</string>
+    <string name="lyric_param_highlight_tip_color">扫光前沿色</string>
+    <string name="lyric_param_spotlight_active_color">聚光文字颜色</string>
+    <string name="lyric_param_spotlight_glow_color">聚光光晕颜色</string>
+    <string name="lyric_param_neon_color_1">流彩颜色一</string>
+    <string name="lyric_param_neon_color_2">流彩颜色二</string>
+    <string name="lyric_param_neon_color_3">流彩颜色三</string>
+    <string name="lyric_param_ocean_crest_color">波峰高亮色</string>
+    <string name="lyric_param_ocean_glow_color">波纹与光晕颜色</string>
+
+    <string name="lyric_param_line_reveal_duration">逐行显示时长</string>
+    <string name="lyric_param_show_cursor">显示尾随光标</string>
+    <string name="lyric_param_feather_width">羽化过渡宽度</string>
+    <string name="lyric_param_lift_offset">微浮高度</string>
+    <string name="lyric_param_line_sweep_duration">逐行扫亮时长</string>
+    <string name="lyric_param_bounce_jump_height">跃起高度</string>
+    <string name="lyric_param_bounce_jump_scale">跃起放大倍率</string>
+    <string name="lyric_param_spotlight_blur">柔焦模糊强度</string>
+    <string name="lyric_param_spotlight_scale">聚焦放大倍率</string>
+    <string name="lyric_param_neon_reveal_duration">逐行点亮时长</string>
+    <string name="lyric_param_neon_flow_speed">流彩流动速度</string>
+    <string name="lyric_param_ocean_jump_height">主字跃起高度</string>
+    <string name="lyric_param_ocean_show_wave_line">显示底部线条</string>
+    <string name="lyric_param_ocean_sway_enabled">左右摇晃</string>
+</resources>

@@ -120,6 +120,114 @@
                         android:textColor="?attr/colorOnSurface"
                         android:minHeight="48dp" />
                 </LinearLayout>
+                <LinearLayout
+                    android:id="@+id/lyricSettingsStyleRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/lyric_settings_style_label"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textSize="15sp"
+                        android:textColor="?attr/colorOnSurface" />
+                    <TextView
+                        android:id="@+id/lyricSettingsStyleValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="@color/settings_row_value_faded_primary"
+                        android:textSize="14sp"
+                        tools:text="海浪翻滚" />
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="4dp"
+                        android:contentDescription="@null"
+                        android:importantForAccessibility="no"
+                        app:srcCompat="@drawable/ic_chevron_right_24"
+                        app:tint="@color/colorOnBgSecond"
+                        app:tintMode="src_in" />
+                </LinearLayout>
+                <LinearLayout
+                    android:id="@+id/lyricSettingsStyleParamsRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/lyric_settings_style_params_label"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textSize="15sp"
+                        android:textColor="?attr/colorOnSurface" />
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="4dp"
+                        android:contentDescription="@null"
+                        android:importantForAccessibility="no"
+                        app:srcCompat="@drawable/ic_chevron_right_24"
+                        app:tint="@color/colorOnBgSecond"
+                        app:tintMode="src_in" />
+                </LinearLayout>
+                <LinearLayout
+                    android:id="@+id/lyricSettingsFpsRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/lyric_settings_fps_label"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                        android:textSize="15sp"
+                        android:textColor="?attr/colorOnSurface" />
+                    <TextView
+                        android:id="@+id/lyricSettingsFpsValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                        android:textColor="@color/settings_row_value_faded_primary"
+                        android:textSize="14sp"
+                        tools:text="60 FPS" />
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="4dp"
+                        android:contentDescription="@null"
+                        android:importantForAccessibility="no"
+                        app:srcCompat="@drawable/ic_chevron_right_24"
+                        app:tint="@color/colorOnBgSecond"
+                        app:tintMode="src_in" />
+                </LinearLayout>
             </LinearLayout>
             <TextView
                 android:layout_width="match_parent"

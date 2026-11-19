@@ -8,6 +8,8 @@ import android.view.View
 import android.view.ViewTreeObserver
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectConfig
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
 
 /** Sheet 专属无声预览；调用方合并宿主、IME 可见性，关闭时必须 release。 */
 class LyricPreviewController(
@@ -19,7 +21,10 @@ class LyricPreviewController(
     private val adapter = LyricsAdapter()
     private val handler = Handler(Looper.getMainLooper())
     private var style = LyricDisplayStyle.DEFAULT
+    private var effectConfig = LyricEffectConfig.DEFAULT
     private var useWordLyrics = false
+    private val useKaraokeRenderer: Boolean
+        get() = useWordLyrics || effectConfig.styleId != LyricEffectStyleId.DEFAULT
     private var visible = false
     private var released = false
     private var animationsEnabled = true
@@ -32,7 +37,7 @@ class LyricPreviewController(
     private var centerObserver: ViewTreeObserver? = null
     private val centerListener = ViewTreeObserver.OnPreDrawListener {
         val view = this.normalLyrics
-        if (!pendingCenter || view == null || !visible || useWordLyrics || released) {
+        if (!pendingCenter || view == null || !visible || useKaraokeRenderer || released) {
             cancelPendingCenter()
             true
         } else if (view.isLayoutRequested || view.isComputingLayout || view.height == 0) {
@@ -43,7 +48,7 @@ class LyricPreviewController(
     }
 
     private val layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-        if (visible && !useWordLyrics && !released) requestCenter()
+        if (visible && !useKaraokeRenderer && !released) requestCenter()
     }
 
     private val tick = object : Runnable {
@@ -62,24 +67,33 @@ class LyricPreviewController(
         normalLyrics.clipToPadding = false
         normalLyrics.addOnLayoutChangeListener(layoutListener)
         adapter.submitList(LyricPreviewSamples.lines) {
-            if (!released && visible && !useWordLyrics) requestCenter()
+            if (!released && visible && !useKaraokeRenderer) requestCenter()
         }
         karaokeLyrics.stopAnimations()
     }
 
-    fun applyStyle(style: LyricDisplayStyle, useWordLyrics: Boolean) {
+    fun applyStyle(
+        style: LyricDisplayStyle,
+        useWordLyrics: Boolean,
+        effectConfig: LyricEffectConfig = this.effectConfig,
+    ) {
         if (released) return
+        val normalizedEffect = effectConfig.normalized()
         val styleChanged = this.style != style
         val modeChanged = this.useWordLyrics != useWordLyrics
+        val effectChanged = this.effectConfig != normalizedEffect
+        val prevUseKaraoke = useKaraokeRenderer
         this.style = style
         this.useWordLyrics = useWordLyrics
+        this.effectConfig = normalizedEffect
+        val rendererChanged = prevUseKaraoke != useKaraokeRenderer
         if (styleChanged) adapter.setDisplayStyle(style)
-        if (modeChanged || styleChanged) needsKaraokeBind = true
-        if (modeChanged) karaokeLyrics?.stopAnimations()
+        if (modeChanged || styleChanged || effectChanged || rendererChanged) needsKaraokeBind = true
+        if (rendererChanged) karaokeLyrics?.stopAnimations()
         updateRendererVisibility()
         if (visible) {
             render()
-            if (!useWordLyrics) requestCenter()
+            if (!useKaraokeRenderer) requestCenter()
         }
     }
 
@@ -102,7 +116,7 @@ class LyricPreviewController(
         updateRendererVisibility()
         if (visible) {
             render()
-            if (!useWordLyrics) requestCenter()
+            if (!useKaraokeRenderer) requestCenter()
             if (animationsEnabled) handler.postDelayed(tick, TICK_MS)
         }
     }
@@ -129,9 +143,9 @@ class LyricPreviewController(
         lastPositionMs = position
         if (lineChanged) {
             adapter.setCurrentIndex(index)
-            if (!useWordLyrics) requestCenter()
+            if (!useKaraokeRenderer) requestCenter()
         }
-        if (useWordLyrics && (needsKaraokeBind || lineChanged || wrapped)) {
+        if (useKaraokeRenderer && (needsKaraokeBind || lineChanged || wrapped)) {
             karaokeLyrics?.bind(
                 lines = LyricPreviewSamples.lines,
                 currentIndex = index,
@@ -139,20 +153,22 @@ class LyricPreviewController(
                 isPlaying = animationsEnabled,
                 style = style,
                 animateTransitions = animationsEnabled,
+                effectConfig = effectConfig,
+                useWordTiming = useWordLyrics,
             )
             needsKaraokeBind = false
         }
     }
 
     private fun updateRendererVisibility() {
-        if (!visible || useWordLyrics) cancelPendingCenter()
-        normalLyrics?.visibility = if (visible && !useWordLyrics) View.VISIBLE else View.GONE
-        karaokeLyrics?.visibility = if (visible && useWordLyrics) View.VISIBLE else View.GONE
+        if (!visible || useKaraokeRenderer) cancelPendingCenter()
+        normalLyrics?.visibility = if (visible && !useKaraokeRenderer) View.VISIBLE else View.GONE
+        karaokeLyrics?.visibility = if (visible && useKaraokeRenderer) View.VISIBLE else View.GONE
     }
 
     private fun requestCenter() {
         val view = normalLyrics ?: return
-        if (!visible || useWordLyrics || released) return
+        if (!visible || useKaraokeRenderer || released) return
         pendingCenter = true
         if (centerObserver?.isAlive != true) {
             centerObserver = view.viewTreeObserver.also { it.addOnPreDrawListener(centerListener) }

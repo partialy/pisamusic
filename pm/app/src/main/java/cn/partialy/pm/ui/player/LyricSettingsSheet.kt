@@ -9,13 +9,21 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.LyricColorPresetsActivity
 import cn.partialy.pm.activity.StatusBarLyricSettingsActivity
 import cn.partialy.pm.databinding.BottomSheetLyricSettingsBinding
 import cn.partialy.pm.statusbarlyric.StatusBarLyricPrefs
+import cn.partialy.pm.ui.dialog.showSettingsOptionPicker
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectConfigRepository
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
+import cn.partialy.pm.ui.player.lyricstyle.LyricRenderFps
+import cn.partialy.pm.ui.player.lyricstyle.LyricStyleParamsBottomSheet
+import cn.partialy.pm.ui.player.lyricstyle.LyricStyleParamsMeta
 import cn.partialy.pm.utils.LyricDisplayPrefs
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 object LyricSettingsSheet {
@@ -35,8 +43,9 @@ object LyricSettingsSheet {
         )
         fun notifyChanged() {
             preview.applyStyle(
-                LyricDisplayPrefs.readStyle(activity),
-                LyricDisplayPrefs.isUseWordLyricEnabled(activity),
+                style = LyricDisplayPrefs.readStyle(activity),
+                useWordLyrics = LyricDisplayPrefs.isUseWordLyricEnabled(activity),
+                effectConfig = LyricEffectConfigRepository.read(activity),
             )
             onChanged()
         }
@@ -191,6 +200,14 @@ object LyricSettingsSheet {
                 LyricDisplayPrefs.isUseWordLyricEnabled(activity)
             binding.lyricSettingsStatusBarSwitch.isChecked = StatusBarLyricPrefs.isEnabled(activity)
 
+            val effectConfig = LyricEffectConfigRepository.read(activity)
+            binding.lyricSettingsStyleValue.text =
+                LyricStyleParamsMeta.styleLabel(activity, effectConfig.styleId)
+            binding.lyricSettingsStyleParamsRow.visibility =
+                if (effectConfig.styleId == LyricEffectStyleId.DEFAULT) View.GONE else View.VISIBLE
+            binding.lyricSettingsFpsValue.text =
+                LyricStyleParamsMeta.fpsShortLabel(activity, effectConfig.fps)
+
             when (style.alignment) {
                 LyricAlignment.START -> binding.lyricSettingsAlignGroup.check(R.id.lyricSettingsAlignStart)
                 LyricAlignment.CENTER -> binding.lyricSettingsAlignGroup.check(R.id.lyricSettingsAlignCenter)
@@ -215,6 +232,63 @@ object LyricSettingsSheet {
             fontStepper.stop()
             enlargedStepper.stop()
             StatusBarLyricSettingsActivity.start(activity)
+        }
+
+        binding.lyricSettingsStyleRow.setOnClickListener {
+            fontStepper.stop()
+            enlargedStepper.stop()
+            val current = LyricEffectConfigRepository.read(activity)
+            val options = LyricStyleParamsMeta.styleOptions(activity)
+            val selectedIndex = options.indexOfFirst { it.id == current.styleId.id }.coerceAtLeast(0)
+            activity.lifecycleScope.launch {
+                val picked = showSettingsOptionPicker(
+                    context = activity,
+                    title = activity.getString(R.string.lyric_settings_style_picker_title),
+                    options = options,
+                    selectedIndex = selectedIndex,
+                ) ?: return@launch
+                val nextStyle = LyricEffectStyleId.fromId(picked.id)
+                LyricEffectConfigRepository.update(activity) { it.withStyle(nextStyle) }
+                loadUiFromPrefs()
+            }
+        }
+
+        binding.lyricSettingsStyleParamsRow.setOnClickListener {
+            val current = LyricEffectConfigRepository.read(activity)
+            if (current.styleId == LyricEffectStyleId.DEFAULT) return@setOnClickListener
+            preview.setVisible(false)
+            fontStepper.stop()
+            enlargedStepper.stop()
+            LyricStyleParamsBottomSheet.show(
+                activity = activity,
+                styleId = current.styleId,
+                onChanged = onChanged,
+                onDismissed = {
+                    if (dialog.isShowing) {
+                        loadUiFromPrefs()
+                        preview.setVisible(true)
+                    }
+                },
+            )
+        }
+
+        binding.lyricSettingsFpsRow.setOnClickListener {
+            fontStepper.stop()
+            enlargedStepper.stop()
+            val current = LyricEffectConfigRepository.read(activity)
+            val options = LyricStyleParamsMeta.fpsOptions(activity)
+            val selectedIndex = options.indexOfFirst { it.id == current.fps.toString() }.coerceAtLeast(0)
+            activity.lifecycleScope.launch {
+                val picked = showSettingsOptionPicker(
+                    context = activity,
+                    title = activity.getString(R.string.lyric_settings_fps_picker_title),
+                    options = options,
+                    selectedIndex = selectedIndex,
+                ) ?: return@launch
+                val nextFps = LyricRenderFps.normalize(picked.id.toIntOrNull() ?: LyricRenderFps.DEFAULT)
+                LyricEffectConfigRepository.update(activity) { it.copy(fps = nextFps) }
+                loadUiFromPrefs()
+            }
         }
 
         val openColorPresets = View.OnClickListener {

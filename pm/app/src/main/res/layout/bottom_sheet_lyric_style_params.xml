@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_lyric_settings_sheet"
+    android:paddingTop="16dp">
+
+    <LinearLayout
+        android:id="@+id/styleParamsHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="12dp">
+        <TextView
+            android:id="@+id/styleParamsTitle"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+            android:textColor="?attr/colorOnSurface"
+            android:textStyle="bold"
+            tools:text="海浪翻滚参数" />
+        <ImageButton
+            android:id="@+id/styleParamsRestore"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/lyric_settings_style_params_restore"
+            android:padding="8dp"
+            android:src="@drawable/ic_refresh_24"
+            app:tint="?attr/colorOnSurfaceVariant" />
+        <ImageButton
+            android:id="@+id/styleParamsClose"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/lyric_settings_close"
+            android:padding="8dp"
+            android:src="@drawable/ic_close_24dp"
+            app:tint="?attr/colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <include
+        android:id="@+id/styleParamsPreview"
+        android:layout_width="match_parent"
+        android:layout_height="96dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="0dp"
+        layout="@layout/include_lyric_settings_preview" />
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/styleParamsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="false"
+        android:scrollbars="none"
+        android:overScrollMode="never"
+        android:clipToPadding="false">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/lyric_settings_style_params_section_motion"
+                android:textColor="@color/listen_together_field_label"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/styleParamsMotionCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_listen_together_create_card"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/lyric_settings_style_params_section_colors"
+                android:textColor="@color/listen_together_field_label"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/styleParamsColorCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_listen_together_create_card"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>
