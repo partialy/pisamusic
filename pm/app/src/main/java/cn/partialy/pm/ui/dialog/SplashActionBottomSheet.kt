@@ -96,7 +96,7 @@ object SplashActionBottomSheet {
         meta: String? = null,
         contentLines: List<String> = emptyList(),
         actions: List<Action>,
-        cancelable: Boolean = true,
+        cancelable: Boolean = false,
         onDismiss: () -> Unit = {},
     ): Handle {
         val dialog = BottomSheetDialog(
@@ -105,6 +105,7 @@ object SplashActionBottomSheet {
         )
         dialog.setContentView(R.layout.layout_splash_action_bottom_sheet)
         dialog.behavior.isHideable = cancelable
+        dialog.behavior.isDraggable = cancelable
         dialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
         dialog.setCancelable(cancelable)
         dialog.setCanceledOnTouchOutside(cancelable)
@@ -275,7 +276,7 @@ object SplashActionBottomSheet {
             meta = updateTime,
             contentLines = lines,
             actions = actions,
-            cancelable = !forceUpdate,
+            cancelable = false,
             onDismiss = {},
         )
     }
@@ -321,7 +322,7 @@ object SplashActionBottomSheet {
             meta = null,
             contentLines = listOf(desc),
             actions = actions,
-            cancelable = true,
+            cancelable = false,
             onDismiss = {},
         )
     }

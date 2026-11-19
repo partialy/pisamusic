@@ -12,6 +12,7 @@
 | Server | `server/src/`、后端脚本、数据库、存储、接口文档 | [server/AGENTS.md](server/AGENTS.md) → [后端细则](server/agents/SERVER.md) |
 | 官网（Server 下独立职责） | `server/frontend/`、`server/frontend-html/` | [官网规范](server/agents/WEBSITE.md) |
 | 跨模块契约 | 账号、同步、消息、分享、一起听、发布、云盘、统计 | [跨模块契约](agents/CROSS_MODULE.md)，仅按涉及章节读取 |
+| 迭代与发布工作台 | `sites/pisa-workbench/`，Sites 私有任务、决策、验收与发布档案 | [工作台规范](sites/pisa-workbench/AGENTS.md) |
 
 - 单模块任务只读根规范与当前模块规范；跨模块改动再加载受影响端和对应契约章节。
 - `server/AGENTS.md` 是轻量导航，避免 Admin 和官网任务自动携带整套后端细则。

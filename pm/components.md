@@ -27,6 +27,9 @@
 
 ## 弹窗与底部面板
 
+- 通用阻塞加载层使用 `PmLoadingDialog.show(activity, message, timeoutMs)`，返回句柄调用 `dismiss()` 主动关闭，`isShowing` 查询显示状态；参数均可省略，默认文案“正在加载中...”、超时 15 秒（自定义必须大于 0）。全屏半透明黑色遮罩、居中深色卡片，上方 `ic_modal_loading_24` 白色旋转图标、下方提示文案；禁止遮罩和返回关闭。超时关闭后复用 `PmMessage.error` 提示“加载超时”；主动关闭、宿主销毁不报超时，退出前台暂停旋转，关闭时清理动画和计时器。组件只管理 UI，超时不代表业务任务已取消，调用方仍须处理任务取消与过期结果；暂未接入业务。位置：`ui/dialog/PmLoadingDialog.kt`、`res/layout/dialog_pm_loading.xml`、`res/drawable/bg_pm_loading_card.xml`。
+- 启动流程使用的升级、网络异常等 `SplashActionBottomSheet` 必须禁止遮罩点击、返回及下滑关闭，通过面板按钮继续、重试或退出；启动错误和协议弹窗同样不可取消，生命周期仍可主动释放。
+
 | UI 类型 | 用途 | 优先参考位置 | 相关封装 / 样式 | 备注 |
 | --- | --- | --- | --- | --- |
 | 居中确认弹窗 | 简短确认、危险操作确认、提示、启动协议 | `pm/app/src/main/java/cn/partialy/pm/ui/dialog/PmMinimalDialog.kt` | `pm/app/src/main/res/layout/dialog_pm_minimal.xml` | 普通确认类弹窗优先使用；支持按钮文字颜色、指定宽度和正文最大高度；启动协议使用红色“退出”和蓝色“同意”。背景浅色 `#FFFFFF`、深色 `#2A2D34`，深色边框与按钮分割线使用 `#3D424C`。 |

@@ -2,7 +2,7 @@
 example/
 Splayer/
 SPlayer/
-
+sites/
 # Local backups and signing assets.
 *.zip
 *.bak
