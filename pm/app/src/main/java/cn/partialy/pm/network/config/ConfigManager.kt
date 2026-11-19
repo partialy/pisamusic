@@ -17,6 +17,9 @@ import cn.partialy.pm.model.AccountProfileUpdateRequest
 import cn.partialy.pm.model.AccountRegisterRequest
 import cn.partialy.pm.model.AccountUser
 import cn.partialy.pm.model.AgreementInfo
+import cn.partialy.pm.model.AndroidStartupData
+import cn.partialy.pm.model.AndroidStartupRequest
+import cn.partialy.pm.model.BootstrapConfigData
 import cn.partialy.pm.model.BootstrapEndpoints
 import cn.partialy.pm.model.DeviceReportRequest
 import cn.partialy.pm.model.DeviceReportResult
@@ -36,6 +39,11 @@ import cn.partialy.pm.network.gateway.GatewaySignRuntime
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
@@ -46,7 +54,12 @@ import retrofit2.HttpException
 class ConfigManager @Inject constructor(
     private val systemApiService: SystemApiService,
     private val serviceDiscoveryManager: ServiceDiscoveryManager,
+    private val startupSnapshotStore: StartupSnapshotStore,
 ) {
+    constructor(
+        systemApiService: SystemApiService,
+        serviceDiscoveryManager: ServiceDiscoveryManager,
+    ) : this(systemApiService, serviceDiscoveryManager, StartupSnapshotStore())
     class ApiException(
         val code: Int,
         override val message: String,
@@ -81,6 +94,7 @@ class ConfigManager @Inject constructor(
 
     private val bootstrapMutex = Mutex()
     private val runtimeStateLock = Any()
+    private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var runtimeGeneration = 0L
 
     @Volatile
@@ -109,12 +123,14 @@ class ConfigManager @Inject constructor(
         runtimeGeneration++
         localMode = false
         runtimeBootstrapState.set(createUnavailableState())
+        startupSnapshotStore.clear()
     }
 
     fun enterLocalMode() = synchronized(runtimeStateLock) {
         runtimeGeneration++
         localMode = true
         runtimeBootstrapState.set(createUnavailableState())
+        startupSnapshotStore.clear()
     }
 
     fun isLocalMode(): Boolean = localMode
@@ -185,10 +201,71 @@ class ConfigManager @Inject constructor(
         if (!response.success || response.code != 0) {
             throw ApiException(response.code, response.msg.ifBlank { "配置下发失败" })
         }
-        val endpoints = response.data.endpoints.toRuntimeEndpoints()
+        publishBootstrapData(discoverySnapshot, attemptGeneration, response.data)
+    }
+
+    /**
+     * SWR 聚合冷启动：
+     * 1. 优先使用缓存服务发现 origin 直接发起 POST /api/config/startup（0ms 发现等待）；
+     * 2. 若无缓存或请求在网络层失败，同步刷新服务发现选健康节点后重试；
+     * 3. 原子发布 bootstrap 运行时配置，把聚合结果暂存到 [StartupSnapshotStore]，并后台静默刷新服务发现。
+     */
+    suspend fun executeStartupBootstrap(
+        request: AndroidStartupRequest,
+        bearerToken: String?,
+        refreshDiscoveryInBackground: Boolean = true,
+    ): AndroidStartupData = bootstrapMutex.withLock {
+        val attemptGeneration = synchronized(runtimeStateLock) {
+            check(!localMode) { "本地模式禁止刷新在线配置" }
+            runtimeGeneration
+        }
+        val authorization = bearerToken?.trim()?.takeIf { it.isNotEmpty() }?.let { "Bearer $it" }
+
+        val cachedSnapshot = serviceDiscoveryManager.prepareCachedOriginForStartup()
+        var usedSnapshot = cachedSnapshot ?: refreshServiceDiscovery()
+        var hitCache = cachedSnapshot != null
+
+        val response = try {
+            systemCall("启动配置读取失败") {
+                systemApiService.androidStartup(authorization, request)
+            }
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            // 若命中了服务停用(-233)等明确业务错误，或本轮已使用最新 discovery，直接向上抛出。
+            if (!hitCache || (error is ApiException && error.code == -233)) {
+                throw error
+            }
+            usedSnapshot = refreshServiceDiscovery()
+            hitCache = false
+            systemCall("启动配置读取失败") {
+                systemApiService.androidStartup(authorization, request)
+            }
+        }
+
+        if (!response.success || response.code != 0) {
+            throw ApiException(response.code, response.msg.ifBlank { "启动配置读取失败" })
+        }
+
+        publishBootstrapData(usedSnapshot, attemptGeneration, response.data.bootstrap)
+        startupSnapshotStore.save(response.data)
+
+        if (hitCache && refreshDiscoveryInBackground) {
+            backgroundScope.launch {
+                runCatching { serviceDiscoveryManager.refresh() }
+            }
+        }
+        response.data
+    }
+
+    private suspend fun publishBootstrapData(
+        discoverySnapshot: ServiceDiscoverySnapshot,
+        attemptGeneration: Long,
+        bootstrapData: BootstrapConfigData,
+    ) {
+        val endpoints = bootstrapData.endpoints.toRuntimeEndpoints()
         val gatewaySign = RuntimeGatewaySign(
-            secret = response.data.gatewaySign.secret.ifBlank { DEFAULT_GATEWAY_SIGN.secret },
-            asValue = response.data.gatewaySign.`as`.ifBlank { DEFAULT_GATEWAY_SIGN.asValue },
+            secret = bootstrapData.gatewaySign.secret.ifBlank { DEFAULT_GATEWAY_SIGN.secret },
+            asValue = bootstrapData.gatewaySign.`as`.ifBlank { DEFAULT_GATEWAY_SIGN.asValue },
         )
         var generationAccepted = false
         val discoveryAccepted = serviceDiscoveryManager.publishIfCurrent(discoverySnapshot) {

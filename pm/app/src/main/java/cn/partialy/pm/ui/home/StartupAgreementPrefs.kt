@@ -17,6 +17,13 @@ object StartupAgreementPrefs {
         return version == null || sp.getLong(KEY_AGREEMENT_VERSION, Long.MIN_VALUE) == version
     }
 
+    fun readAcceptedVersion(context: Context): Long? {
+        val sp = context.getSharedPreferences(SPLASH_PREFS, Context.MODE_PRIVATE)
+        if (!sp.getBoolean(KEY_AGREEMENT_ACCEPTED, false)) return null
+        if (!sp.contains(KEY_AGREEMENT_VERSION)) return null
+        return sp.getLong(KEY_AGREEMENT_VERSION, Long.MIN_VALUE).takeIf { it != Long.MIN_VALUE }
+    }
+
     fun setAgreementAccepted(
         context: Context,
         accepted: Boolean,

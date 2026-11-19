@@ -13,10 +13,14 @@ import cn.partialy.pm.R
 import cn.partialy.pm.activity.ServiceInterceptActivity
 import cn.partialy.pm.directmessage.DirectMessageCheckSource
 import cn.partialy.pm.directmessage.DirectMessageCoordinator
+import cn.partialy.pm.model.AndroidStartupData
+import cn.partialy.pm.model.AnnouncementItem
 import cn.partialy.pm.model.DeviceReportResult
+import cn.partialy.pm.model.StartupAccountPayload
 import cn.partialy.pm.model.UpdateInfo
 import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.network.config.StartupSnapshotStore
 import cn.partialy.pm.sync.SyncPrefs
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.dialog.SplashActionBottomSheet
@@ -36,17 +40,17 @@ import kotlin.coroutines.resume
 
 /**
  * 主界面启动任务与按需弹窗协调器：
- * - 后台静默刷新系统账号 Token；
- * - 按需校验用户协议（首次未同意或服务端协议版本更新时弹窗）；
- * - 上报设备信息并校验设备封禁 / 服务停用（-233），触发时立即跳转 [ServiceInterceptActivity]；
- * - 按序编排主界面启动弹窗：版本升级 Sheet -> 专属消息 -> 未读公告。
+ * - 优先消费 [StartupSnapshotStore] 中由启动页聚合接口拉回的内存快照（零等待按需弹窗）；
+ * - 若未命中快照（异常恢复等场景），自动降级回单接口兜底；
+ * - 按序编排主界面启动弹窗：协议校验（仅未同意或版本变更）-> 版本升级 Sheet -> 专属消息 -> 未读公告。
  */
 class MainStartupCoordinator(
     private val activity: AppCompatActivity,
     private val configManager: ConfigManager,
+    private val startupSnapshotStore: StartupSnapshotStore,
     private val directMessageCoordinator: DirectMessageCoordinator,
     private val isLocalMode: () -> Boolean,
-    private val showUnreadAnnouncements: suspend () -> Unit,
+    private val showUnreadAnnouncements: suspend (List<AnnouncementItem>?) -> Unit,
 ) {
     private var startupTriggered = false
     private var latestDownloadUrl: String = ""
@@ -76,10 +80,17 @@ class MainStartupCoordinator(
         if (savedInstanceState != null || startupTriggered) return
         startupTriggered = true
 
+        val snapshot = if (!isLocalMode()) startupSnapshotStore.consume() else null.also {
+            startupSnapshotStore.clear()
+        }
+
+        if (snapshot != null) {
+            applyStartupSnapshot(snapshot, skipStartupNotices)
+            return
+        }
+
         if (!isLocalMode()) {
-            activity.lifecycleScope.launch(Dispatchers.IO) {
-                refreshAccountSessionIfNeeded()
-            }
+            refreshAccountSessionIfNeeded()
         }
 
         activity.lifecycleScope.launch {
@@ -91,9 +102,67 @@ class MainStartupCoordinator(
 
             if (!skipStartupNotices && !activity.isFinishing && !activity.isDestroyed) {
                 directMessageCoordinator.checkAndShow(activity, DirectMessageCheckSource.STARTUP)
-                showUnreadAnnouncements()
+                showUnreadAnnouncements(null)
             }
         }
+    }
+
+    private fun applyStartupSnapshot(snapshot: AndroidStartupData, skipStartupNotices: Boolean) {
+        applyAccountPayload(snapshot.account)
+
+        activity.lifecycleScope.launch {
+            if (!checkSnapshotAgreement(snapshot)) return@launch
+
+            if (snapshot.device.isCurrentlyLocked()) {
+                if (!activity.isFinishing && !activity.isDestroyed) {
+                    ServiceInterceptActivity.startForDeviceLocked(
+                        activity = activity,
+                        report = snapshot.device,
+                        message = snapshot.device.lockedMessage(activity),
+                    )
+                }
+                return@launch
+            }
+
+            if (!presentUpdateIfNewer(snapshot.update)) return@launch
+
+            if (!skipStartupNotices && !activity.isFinishing && !activity.isDestroyed) {
+                directMessageCoordinator.showStartupMessages(activity, snapshot.unreadMessages)
+                showUnreadAnnouncements(snapshot.announcements)
+            }
+        }
+    }
+
+    private fun applyAccountPayload(account: StartupAccountPayload) {
+        val currentSession = AccountSessionStore.read(activity)
+        when (account.status) {
+            "refreshed" -> {
+                val refreshed = account.session ?: return
+                if (!currentSession.loggedIn) return
+                if (refreshed.user.id != currentSession.user.id) {
+                    SyncPrefs.clearAccountState(activity)
+                }
+                AccountSessionStore.save(activity, refreshed)
+            }
+
+            "expired" -> {
+                if (currentSession.loggedIn) {
+                    SyncPrefs.clearAccountState(activity)
+                    AccountSessionStore.clear(activity)
+                }
+            }
+        }
+    }
+
+    private suspend fun checkSnapshotAgreement(snapshot: AndroidStartupData): Boolean {
+        val agreement = snapshot.agreement
+        val localMatches = StartupAgreementPrefs.isAgreementAccepted(activity, agreement.version)
+        if (agreement.acceptedUpToDate && localMatches) {
+            return true
+        }
+        val title = agreement.title.ifBlank { activity.getString(R.string.startup_fallback_agreement_title) }
+        val content = agreement.content.ifBlank { activity.getString(R.string.startup_fallback_agreement_text) }
+        return awaitAgreementDialog(title, content, agreement.version)
     }
 
     fun onResume() {
@@ -106,12 +175,6 @@ class MainStartupCoordinator(
         updateSheetHandle = null
     }
 
-    /**
-     * 校验用户协议：
-     * - 本地未同意过：阻塞等待协议弹窗确认后再继续；
-     * - 本地已同意过：在线校验版本号，仅当服务端协议版本变更时补弹确认框。
-     * @return true 表示可继续后续启动流程；false 表示已跳转拦截页或退出。
-     */
     private suspend fun checkAgreementOnStartup(): Boolean {
         val localAcceptedAny = StartupAgreementPrefs.isAgreementAccepted(activity)
         if (isLocalMode()) {
@@ -191,10 +254,6 @@ class MainStartupCoordinator(
         }
     }
 
-    /**
-     * 上报设备信息并检查封禁 / 服务停用状态。
-     * @return true 表示正常可继续；false 表示已触发拦截跳转。
-     */
     private suspend fun reportDeviceAndCheckIntercept(): Boolean {
         val reportResult = runCatching {
             withContext(Dispatchers.IO) {
@@ -229,10 +288,6 @@ class MainStartupCoordinator(
         )
     }
 
-    /**
-     * 检查版本更新并在需要时弹出升级 Sheet。
-     * @return true 表示无需更新或用户已跳过非强制更新；false 表示触发拦截或强制更新阻塞。
-     */
     private suspend fun checkAndShowUpdateIfNeeded(): Boolean {
         val updateResult = runCatching {
             withContext(Dispatchers.IO) {
@@ -246,12 +301,14 @@ class MainStartupCoordinator(
             }
             return true
         }
+        return presentUpdateIfNewer(updateInfo)
+    }
 
+    private suspend fun presentUpdateIfNewer(updateInfo: UpdateInfo): Boolean {
         val localVersion = activity.packageManager.getPackageInfo(activity.packageName, 0).versionName.orEmpty()
         val shouldPromptUpdate = !BuildConfig.DEBUG &&
             AppVersionComparator.isServerVersionNewer(localVersion, updateInfo.latestVersion)
         if (!shouldPromptUpdate) return true
-
         return awaitUpdateSheet(updateInfo)
     }
 

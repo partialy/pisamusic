@@ -16,10 +16,17 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ActivitySplashBinding
+import cn.partialy.pm.model.AndroidStartupRequest
+import cn.partialy.pm.network.auth.AccountSessionStore
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
+import cn.partialy.pm.ui.home.MainStartupCoordinator.Companion.isCurrentlyLocked
 import cn.partialy.pm.ui.home.MainStartupCoordinator.Companion.isServiceUnavailable
+import cn.partialy.pm.ui.home.MainStartupCoordinator.Companion.lockedMessage
+import cn.partialy.pm.ui.home.StartupAgreementPrefs
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
+import cn.partialy.pm.util.DeviceInfoCollector
+import cn.partialy.pm.utils.ServerDevicePrefs
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
@@ -34,8 +41,9 @@ import javax.inject.Inject
 
 /**
  * 原生启动页：XML 渐变品牌区 + Canvas 音柱动效，状态栏隐藏。
- * 仅拉取必须的 Bootstrap 配置（含唯一 1 次服务发现），完成后立即进入主页；
- * 协议校验、设备上报、升级弹窗及账号刷新统一交由 [MainActivity] 处理。
+ * 结合 SWR 服务发现缓存优先，在单次 `POST /api/config/startup` 内完成必须配置拉取与启动上下文聚合：
+ * - 若返回 `-233` 或设备封禁 `locked`，立即跳转全屏 [ServiceInterceptActivity]；
+ * - 否则立即进入 [MainActivity]，由 [MainStartupCoordinator] 消费内存快照零等待按需弹窗。
  */
 @SuppressLint("CustomSplashScreen")
 @AndroidEntryPoint
@@ -63,9 +71,8 @@ class SplashActivity : AppCompatActivity() {
         binding = ActivitySplashBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val baseBottomPad = resources.displayMetrics.density.let { 0 }
         binding.splashRoot.applySystemBarsInsets { insets ->
-            binding.splashRoot.updatePadding(bottom = baseBottomPad + insets.bottom)
+            binding.splashRoot.updatePadding(bottom = insets.bottom)
         }
         binding.btnEnterLocalMode.setOnClickListener {
             enterLocalModeImmediately(getString(R.string.splash_local_mode_manual_reason))
@@ -136,11 +143,34 @@ class SplashActivity : AppCompatActivity() {
             runCatching {
                 withTimeout(SPLASH_BOOTSTRAP_TIMEOUT_MS) {
                     withContext(Dispatchers.IO) {
-                        configManager.refreshBootstrapConfig()
+                        val session = AccountSessionStore.read(this@SplashActivity)
+                        val request = AndroidStartupRequest(
+                            device = DeviceInfoCollector.build(this@SplashActivity),
+                            agreementVersion = StartupAgreementPrefs.readAcceptedVersion(this@SplashActivity),
+                        )
+                        configManager.executeStartupBootstrap(
+                            request = request,
+                            bearerToken = session.token.takeIf { session.loggedIn },
+                        )
                     }
                 }
-            }.onSuccess {
+            }.onSuccess { startupData ->
                 if (hasNavigated) return@onSuccess
+                ServerDevicePrefs.saveReportIdentity(
+                    this@SplashActivity,
+                    startupData.device.id,
+                    startupData.device.messageToken,
+                )
+                if (startupData.device.isCurrentlyLocked()) {
+                    hasNavigated = true
+                    cancelLocalModeButton()
+                    ServiceInterceptActivity.startForDeviceLocked(
+                        activity = this@SplashActivity,
+                        report = startupData.device,
+                        message = startupData.device.lockedMessage(this@SplashActivity),
+                    )
+                    return@onSuccess
+                }
                 hasNavigated = true
                 cancelLocalModeButton()
                 startMainActivity()

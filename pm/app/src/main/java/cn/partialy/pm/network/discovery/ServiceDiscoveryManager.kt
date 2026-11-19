@@ -78,6 +78,36 @@ class ServiceDiscoveryManager(
 
     fun currentRealtimeBaseUrl(): String = current.get().origin.realtimeBaseUrl
 
+    /**
+     * SWR 启动缓存优先：
+     * - Debug 模式直接激活内置开发地址（0 网络阻塞）；
+     * - Release 模式若本地缓存有效且版本不低于当前内置版本，立即发布缓存首节点并跳过同步探活；
+     * - 无可用缓存时返回 null，由调用方触发同步 [refresh]。
+     */
+    suspend fun prepareCachedOriginForStartup(): ServiceDiscoverySnapshot? = refreshMutex.withLock {
+        if (isDevMode) {
+            val selectedSnapshot = ServiceDiscoverySnapshot(ServiceDiscoverySource.EMBEDDED, embeddedDocument)
+            val origin = ServiceDiscoveryRules.orderedOrigins(selectedSnapshot.document).first()
+            current.set(ResolvedDiscovery(snapshot = selectedSnapshot, origin = origin))
+            return@withLock selectedSnapshot
+        }
+
+        val previous = current.get()
+        val currentVersion = previous.snapshot.document.configVersion
+        val cachedDocument = readValidatedCache() ?: return@withLock null
+        if (cachedDocument.configVersion < currentVersion) return@withLock null
+
+        val selectedSnapshot = ServiceDiscoverySnapshot(ServiceDiscoverySource.CACHE, cachedDocument)
+        val origin = ServiceDiscoveryRules.orderedOrigins(cachedDocument).first()
+        current.set(ResolvedDiscovery(snapshot = selectedSnapshot, origin = origin))
+        if (BuildConfig.DEBUG) {
+            runCatching {
+                Log.d(TAG, "SWR 启动命中缓存服务发现 v${cachedDocument.configVersion} -> ${origin.apiBaseUrl}")
+            }
+        }
+        selectedSnapshot
+    }
+
     suspend fun refresh(): ServiceDiscoverySnapshot = refreshMutex.withLock {
         if (isDevMode) {
             if (BuildConfig.DEBUG) {

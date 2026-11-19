@@ -46,6 +46,7 @@ import cn.partialy.pm.listen.ListenTogetherScanLink
 import cn.partialy.pm.listening.ListeningManager
 import cn.partialy.pm.share.ShareLink
 import cn.partialy.pm.network.config.ConfigManager
+import cn.partialy.pm.network.config.StartupSnapshotStore
 import cn.partialy.pm.network.cookie.KugouCookieRepository
 import cn.partialy.pm.network.cookie.MusicCookieManager
 import cn.partialy.pm.network.cookie.WyCookieRepository
@@ -98,6 +99,9 @@ class MainActivity : BaseDownloadActivity() {
 
     @Inject
     lateinit var configManager: ConfigManager
+
+    @Inject
+    lateinit var startupSnapshotStore: StartupSnapshotStore
 
     @Inject
     lateinit var wyCookieRepository: WyCookieRepository
@@ -184,9 +188,10 @@ class MainActivity : BaseDownloadActivity() {
         startupCoordinator = MainStartupCoordinator(
             activity = this,
             configManager = configManager,
+            startupSnapshotStore = startupSnapshotStore,
             directMessageCoordinator = directMessageCoordinator,
             isLocalMode = ::isLocalMode,
-            showUnreadAnnouncements = ::showUnreadAnnouncementsIfAny,
+            showUnreadAnnouncements = { preloaded -> showUnreadAnnouncementsIfAny(preloaded) },
         ).also { coordinator ->
             coordinator.startIfNeeded(
                 savedInstanceState = savedInstanceState,
@@ -1000,10 +1005,12 @@ class MainActivity : BaseDownloadActivity() {
         }
     }
 
-    private suspend fun showUnreadAnnouncementsIfAny() {
-        val response = systemRepository.getAnnouncements().getOrElse { return }
-        if (!response.success || response.code != 0) return
-        val all = response.data
+    private suspend fun showUnreadAnnouncementsIfAny(preloaded: List<AnnouncementItem>? = null) {
+        val all = preloaded ?: run {
+            val response = systemRepository.getAnnouncements().getOrElse { return }
+            if (!response.success || response.code != 0) return
+            response.data
+        }
         if (all.isEmpty()) return
 
         val prefs = getSharedPreferences(APP_NOTICE_PREFS, Context.MODE_PRIVATE)

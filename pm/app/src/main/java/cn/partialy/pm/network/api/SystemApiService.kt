@@ -1,6 +1,8 @@
 package cn.partialy.pm.network.api
 
 import cn.partialy.pm.appshare.AppShareResponse
+import cn.partialy.pm.model.AndroidStartupRequest
+import cn.partialy.pm.model.AndroidStartupResponse
 import cn.partialy.pm.model.BootstrapConfigResponse
 import cn.partialy.pm.model.CheckUpdateResponse
 import cn.partialy.pm.model.DiscoverResponse
@@ -84,6 +86,12 @@ interface SystemApiService {
 
     @GET
     suspend fun getBootstrapConfig(@Url path: String): BootstrapConfigResponse
+
+    @POST("api/config/startup")
+    suspend fun androidStartup(
+        @Header("Authorization") authorization: String?,
+        @Body body: AndroidStartupRequest,
+    ): AndroidStartupResponse
 
     @GET("api/config/check-update")
     suspend fun getCheckUpdate(): CheckUpdateResponse

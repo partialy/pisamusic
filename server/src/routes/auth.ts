@@ -1,9 +1,7 @@
-import { readInstallation } from "../db/installationStore";
 import { Router } from "express";
 import type { Response } from "express";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
-import jwt from "jsonwebtoken";
 import {
   createUser,
   isValidAccountAvatarKey,
@@ -20,24 +18,19 @@ import {
   type PublicUser,
   type UserRecord,
 } from "../db/userStore";
-import { getUserAuth, getUserJwtSecret, requireUserJwt, type UserAuthedRequest } from "../middleware/requireUserJwt";
+import { getUserAuth, requireUserJwt, type UserAuthedRequest } from "../middleware/requireUserJwt";
 import { sendContactCode, sendEmailCode, verifyContactCode, verifyEmailCode, type ContactChannel, type ContactCodePurpose, type EmailCodePurpose } from "../services/emailCodeService";
 import { createAccountAvatarUploadToken, deleteAccountAvatarObject, isAccountAvatarObjectKey } from "../services/qiniuReleaseFiles";
+import { issueUserAuthToken, type UserAuthTokenResult } from "../services/userTokenService";
 import { fail, ok } from "../types/response";
 
 export const authRouter = Router();
 
-const JWT_EXPIRES_SECONDS = 7 * 24 * 60 * 60;
-const JWT_EXPIRES_IN = "7d";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^1\d{10}$/;
 const USERNAME_RE = /^[A-Za-z0-9_\-\u4e00-\u9fa5]{2,32}$/;
 
-type AuthTokenResponse = {
-  token: string;
-  expiresAt: number;
-  user: PublicUser;
-};
+type AuthTokenResponse = UserAuthTokenResult;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -119,13 +112,7 @@ function validatePassword(password: string): string | null {
 }
 
 async function issueToken(user: UserRecord | PublicUser): Promise<AuthTokenResponse> {
-  const publicUser = "passwordHash" in user ? toPublicUser(user) : user;
-  const token = jwt.sign({ sub: publicUser.id, installationId: (await readInstallation())?.installation_id }, getUserJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
-  return {
-    token,
-    expiresAt: Date.now() + JWT_EXPIRES_SECONDS * 1000,
-    user: publicUser,
-  };
+  return issueUserAuthToken(user);
 }
 
 async function loginResult(user: UserRecord): Promise<AuthTokenResponse> {

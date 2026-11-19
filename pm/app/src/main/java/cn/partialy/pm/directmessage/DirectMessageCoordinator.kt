@@ -34,9 +34,29 @@ class DirectMessageCoordinator @Inject constructor(
         if (activity.isFinishing || activity.isDestroyed) return@withLock false
         val identity = repository.captureIdentity()
         val unread = runCatching { repository.getUnread(identity) }.getOrNull() ?: return@withLock false
+        showNormalizedQueueLocked(activity, identity, unread)
+    }
+
+    /**
+     * 直接消费冷启动聚合接口带回的未读专属消息列表，不再重复请求 `/api/messages/unread`。
+     */
+    suspend fun showStartupMessages(
+        activity: Activity,
+        unread: DirectMessageUnreadPage,
+    ): Boolean = checkMutex.withLock {
+        if (activity.isFinishing || activity.isDestroyed) return@withLock false
+        val identity = repository.captureIdentity()
+        showNormalizedQueueLocked(activity, identity, unread)
+    }
+
+    private suspend fun showNormalizedQueueLocked(
+        activity: Activity,
+        identity: DirectMessageIdentitySnapshot,
+        unread: DirectMessageUnreadPage,
+    ): Boolean {
         val items = rules.normalize(unread.items)
             .filterNot { ackDispatcher.wasDismissed(it.id) }
-        if (items.isEmpty()) return@withLock false
+        if (items.isEmpty()) return false
 
         DirectMessageQueueSession(
             activity = activity,
@@ -45,7 +65,7 @@ class DirectMessageCoordinator @Inject constructor(
             rules = rules,
             ackDispatcher = ackDispatcher,
         ).showUntilFinished()
-        true
+        return true
     }
 }
 

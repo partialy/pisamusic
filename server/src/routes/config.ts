@@ -14,8 +14,15 @@ import {
   shouldBlock,
 } from "../db/configStore";
 import { readDynamicConfigById } from "../db/dynamicConfigStore";
+import { tokenFromRequest } from "../middleware/requireUserJwt";
 import { createPrivateQiniuDownloadUrl } from "../services/qiniuReleaseFiles";
 import { readHydratedAnnouncements } from "../services/announcementService";
+import { DeviceReportValidationError, resolveClientIp } from "../services/deviceReportService";
+import {
+  StartupServiceBlockedError,
+  StartupValidationError,
+  executeAndroidStartup,
+} from "../services/startupService";
 import { fail, ok } from "../types/response";
 
 export const configRouter = Router();
@@ -106,6 +113,30 @@ configRouter.get("/bootstrap", async (_req, res) => {
     res.json(ok(cfg.bootstrap));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取配置失败";
+    res.status(500).json(fail(message, 500));
+  }
+});
+
+configRouter.post("/startup", async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  try {
+    const result = await executeAndroidStartup({
+      rawBody: req.body,
+      clientIp: resolveClientIp(req),
+      bearerToken: tokenFromRequest(req),
+      absolutizeUrl: (url) => toAbsoluteUrl(url, req),
+    });
+    res.json(ok(result));
+  } catch (e) {
+    if (e instanceof StartupServiceBlockedError) {
+      res.json(fail(e.message, -233));
+      return;
+    }
+    if (e instanceof StartupValidationError || e instanceof DeviceReportValidationError) {
+      res.status(400).json(fail(e.message, 400));
+      return;
+    }
+    const message = e instanceof Error ? e.message : "启动配置读取失败";
     res.status(500).json(fail(message, 500));
   }
 });
