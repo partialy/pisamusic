@@ -109,6 +109,10 @@
     <color name="action_secondary_text">#FFFFFFFF</color>
     <color name="action_primary_text">#FFFFFFFF</color>
     <color name="settings_option_row_divider">#383D46</color>
+    <!-- 颜色管理胶囊与高亮 -->
+    <color name="lyric_color_pill_fill">#B31E2430</color>
+    <color name="lyric_color_pill_border">#2EFFFFFF</color>
+    <color name="lyric_color_group_focus_highlight">#3360A5FA</color>
 
     <!-- 导入登录表单（与 include_playlist_import_kg_login 一致） -->
     <color name="playlist_import_form_bg">#1E2126</color>

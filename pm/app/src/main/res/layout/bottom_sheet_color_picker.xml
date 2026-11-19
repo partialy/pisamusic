@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottom_radius_sheet"
+    android:orientation="vertical"
+    android:paddingBottom="16dp">
+
+    <!-- 顶部标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:id="@+id/colorPickerTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/lyric_color_picker_title"
+            android:textColor="@color/account_login_text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/colorPickerClose"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/cancel"
+            android:padding="8dp"
+            android:src="@drawable/ic_close_24dp"
+            app:tint="@color/account_login_text_secondary" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fillViewport="false"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="4dp">
+
+            <!-- 2D SV 取色面板 -->
+            <cn.partialy.pm.ui.widget.colorpicker.SatValPaletteView
+                android:id="@+id/colorPickerSatVal"
+                android:layout_width="match_parent"
+                android:layout_height="172dp" />
+
+            <!-- 色相滑条 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="46dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/lyric_color_picker_hue"
+                    android:textColor="@color/account_login_text_secondary"
+                    android:textSize="13sp" />
+
+                <SeekBar
+                    android:id="@+id/colorPickerHueSeekBar"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="1"
+                    android:max="3600"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/bg_color_slider_thumb"
+                    android:thumbOffset="10dp" />
+            </LinearLayout>
+
+            <!-- 透明度滑条（allowAlpha=true 时显示） -->
+            <LinearLayout
+                android:id="@+id/colorPickerAlphaRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="46dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/lyric_color_picker_alpha_label"
+                    android:textColor="@color/account_login_text_secondary"
+                    android:textSize="13sp" />
+
+                <SeekBar
+                    android:id="@+id/colorPickerAlphaSeekBar"
+                    android:layout_width="0dp"
+                    android:layout_height="34dp"
+                    android:layout_weight="1"
+                    android:max="255"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:splitTrack="false"
+                    android:thumb="@drawable/bg_color_slider_thumb"
+                    android:thumbOffset="10dp" />
+            </LinearLayout>
+
+            <!-- 当前色预览 + Hex 输入框 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/colorPickerPreviewSwatch"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/colorPickerHexInputLayout"
+                    style="@style/Widget.Pm.TextInput.Outlined.MaterialComponents"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:hint="@string/lyric_color_picker_hex_label"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/colorPickerHexInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:imeOptions="actionDone"
+                        android:inputType="textCapCharacters|textNoSuggestions"
+                        android:maxLength="9"
+                        android:maxLines="1"
+                        android:textColor="@color/account_login_text_primary"
+                        android:textSize="14sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <!-- 快捷推荐色圆点 -->
+            <TextView
+                android:id="@+id/colorPickerPresetLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="@string/lyric_color_picker_preset_section"
+                android:textColor="@color/account_login_text_secondary"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:id="@+id/colorPickerPresetRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="start|center_vertical"
+                android:orientation="horizontal" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- 底部操作按钮栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="20dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/colorPickerCancel"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:text="@string/cancel"
+            android:textColor="@color/action_secondary_text"
+            android:textStyle="bold"
+            app:backgroundTint="@color/action_secondary_background"
+            app:cornerRadius="26dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/colorPickerConfirm"
+            style="@style/Widget.Material3.Button"
+            android:layout_width="0dp"
+            android:layout_height="52dp"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/dialog_ok"
+            android:textColor="@color/action_primary_text"
+            android:textStyle="bold"
+            app:backgroundTint="?attr/colorPrimary"
+            app:cornerRadius="26dp" />
+    </LinearLayout>
+</LinearLayout>

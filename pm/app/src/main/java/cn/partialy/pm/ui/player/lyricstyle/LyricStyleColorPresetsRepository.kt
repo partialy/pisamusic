@@ -31,7 +31,7 @@ internal class LyricStyleColorPresetsStore(
         synchronized(lock) {
             cache[key]?.let { return it }
             val record = configStore.read(key)
-            val parsed = decodeColors(record?.valueJson, spec.defaultPresets)
+            val parsed = decodeColors(record?.valueJson, spec)
             cache[key] = parsed
             return parsed
         }
@@ -85,8 +85,24 @@ internal class LyricStyleColorPresetsStore(
         }
     }
 
+    fun resetPresetsForStyle(slots: List<LyricColorSlotSpec>) {
+        synchronized(lock) {
+            for (spec in slots) {
+                val normalized = saveListLocked(spec, spec.defaultPresets)
+                syncEffectColorAfterChange(
+                    spec = spec,
+                    oldColor = null,
+                    replacementColor = null,
+                    newList = normalized,
+                    forceDefault = true,
+                )
+            }
+        }
+    }
+
     private fun saveListLocked(spec: LyricColorSlotSpec, colors: List<Int>): List<Int> {
         val normalized = colors
+            .map { spec.normalizeColor(it) }
             .distinct()
             .take(MAX_PRESET_COUNT)
             .ifEmpty { spec.defaultPresets }
@@ -106,12 +122,14 @@ internal class LyricStyleColorPresetsStore(
         oldColor: Int?,
         replacementColor: Int? = null,
         newList: List<Int>,
+        forceDefault: Boolean = false,
     ) {
         val read = spec.readEffectColor ?: return
         val write = spec.writeEffectColor ?: return
         effectConfigStore.update { cfg ->
             val currentSelected = read(cfg)
             val nextSelected = when {
+                forceDefault -> spec.defaultColor
                 oldColor != null && replacementColor != null && currentSelected == oldColor -> replacementColor
                 newList.any { it == currentSelected } -> currentSelected
                 else -> newList.firstOrNull() ?: currentSelected
@@ -120,12 +138,13 @@ internal class LyricStyleColorPresetsStore(
         }
     }
 
-    private fun decodeColors(rawJson: String?, fallback: List<Int>): List<Int> {
+    private fun decodeColors(rawJson: String?, spec: LyricColorSlotSpec): List<Int> {
+        val fallback = spec.defaultPresets
         if (rawJson.isNullOrBlank()) return fallback
         val parsed = runCatching {
             json.decodeFromString<List<Int>>(rawJson)
         }.getOrNull() ?: return fallback
-        val normalized = parsed.distinct().take(MAX_PRESET_COUNT)
+        val normalized = parsed.map { spec.normalizeColor(it) }.distinct().take(MAX_PRESET_COUNT)
         return if (normalized.isEmpty()) fallback else normalized
     }
 
@@ -162,7 +181,7 @@ internal object LyricStyleColorPresetsRepository {
                 val configStore = AppConfigStore.shared(appCtx)
                 LyricStyleColorPresetsStore(
                     configStore = configStore,
-                    effectConfigStore = LyricEffectConfigStore(configStore),
+                    effectConfigStore = LyricEffectConfigRepository.sharedStore(appCtx),
                 ).also { sharedStore = it }
             }
         }
@@ -220,9 +239,6 @@ internal object LyricStyleColorPresetsRepository {
         }
 
         val outcome = store(context).removePreset(spec, spec.normalizeColor(color))
-        if (outcome is LyricStyleColorPresetsStore.PresetMutationOutcome.Success) {
-            LyricEffectConfigRepository.invalidateCache()
-        }
         return toOpResult(context, outcome, R.string.lyric_color_keep_one)
     }
 
@@ -241,10 +257,16 @@ internal object LyricStyleColorPresetsRepository {
         }
 
         val outcome = store(context).updatePreset(spec, index, spec.normalizeColor(color))
-        if (outcome is LyricStyleColorPresetsStore.PresetMutationOutcome.Success) {
-            LyricEffectConfigRepository.invalidateCache()
-        }
         return toOpResult(context, outcome, R.string.lyric_color_update_failed)
+    }
+
+    fun resetPresetsForStyle(context: Context, styleId: LyricEffectStyleId) {
+        if (styleId == LyricEffectStyleId.DEFAULT) {
+            LyricDisplayPrefs.resetColorPresets(context)
+            return
+        }
+        val slots = LyricColorPresetRegistry.slotsFor(styleId)
+        store(context).resetPresetsForStyle(slots)
     }
 
     private fun addDefaultPreset(

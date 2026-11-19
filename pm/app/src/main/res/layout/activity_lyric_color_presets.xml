@@ -1,38 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/lyricColorPresetsRoot"
+    android:id="@+id/colorManagerRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/home_page_bg"
-    android:fitsSystemWindows="false"
+    android:background="@drawable/bg_account_login_gradient"
     android:orientation="vertical">
 
-    <View
-        android:id="@+id/statusBarSpacer"
+    <!-- 透明顶栏：< 返回 | 颜色管理 | 恢复默认 -->
+    <FrameLayout
+        android:id="@+id/colorManagerHeader"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:background="@color/home_page_bg" />
+        android:layout_height="56dp"
+        android:paddingHorizontal="8dp">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:elevation="0dp">
+        <ImageView
+            android:id="@+id/colorManagerBack"
+            style="@style/Widget.Pm.PageLeadingAction"
+            android:layout_gravity="start|center_vertical"
+            android:contentDescription="@string/cd_back"
+            android:src="@drawable/ic_back_24"
+            app:tint="@color/account_login_text_primary" />
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+        <TextView
+            android:id="@+id/colorManagerTitle"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/home_page_bg"
-            app:navigationIcon="@drawable/ic_back_24"
-            app:title="@string/settings_lyric_color_presets_title" />
-    </com.google.android.material.appbar.AppBarLayout>
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingHorizontal="84dp"
+            android:text="@string/lyric_color_manager_title"
+            android:textColor="@color/account_login_text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
 
-    <WebView
-        android:id="@+id/lyricColorWebView"
+        <TextView
+            android:id="@+id/colorManagerReset"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_gravity="end|center_vertical"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingHorizontal="12dp"
+            android:text="@string/lyric_color_manager_reset"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/colorManagerScroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@android:color/transparent" />
+        android:clipToPadding="false"
+        android:overScrollMode="ifContentScrolls"
+        android:paddingTop="4dp"
+        android:paddingBottom="28dp">
 
+        <LinearLayout
+            android:id="@+id/colorGroupsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </androidx.core.widget.NestedScrollView>
 </LinearLayout>

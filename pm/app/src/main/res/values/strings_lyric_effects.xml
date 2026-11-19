@@ -64,4 +64,24 @@
     <string name="lyric_param_ocean_jump_height">主字跃起高度</string>
     <string name="lyric_param_ocean_show_wave_line">显示底部线条</string>
     <string name="lyric_param_ocean_sway_enabled">左右摇晃</string>
+
+    <string name="lyric_color_manager_title">颜色管理</string>
+    <string name="lyric_color_manager_style_title">%1$s · 颜色管理</string>
+    <string name="lyric_color_manager_reset">恢复默认</string>
+    <string name="lyric_color_manager_reset_title">恢复默认配色</string>
+    <string name="lyric_color_manager_reset_message_all">确定将默认样式的颜色预设恢复为初始配色吗？</string>
+    <string name="lyric_color_manager_reset_message_style">确定将「%1$s」的颜色预设恢复为初始配色吗？</string>
+    <string name="lyric_color_manager_reset_done">已恢复默认配色</string>
+    <string name="lyric_color_manager_add">添加</string>
+    <string name="lyric_color_manager_group_count">(%1$d/%2$d)</string>
+    <string name="lyric_color_manager_full_warning">颜色已满，请清理后再添加</string>
+    <string name="lyric_color_manager_delete_cd">删除颜色 %1$s</string>
+    <string name="lyric_color_picker_title">选择颜色</string>
+    <string name="lyric_color_picker_title_named">选择%1$s</string>
+    <string name="lyric_color_picker_hue">色相</string>
+    <string name="lyric_color_picker_alpha_label">透明度</string>
+    <string name="lyric_color_picker_hex_label">十六进制颜色</string>
+    <string name="lyric_color_picker_hex_hint_rgb">#RRGGBB</string>
+    <string name="lyric_color_picker_hex_hint_argb">#AARRGGBB</string>
+    <string name="lyric_color_picker_preset_section">推荐颜色</string>
 </resources>

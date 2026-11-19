@@ -161,6 +161,12 @@ object LyricDisplayPrefs {
         )
     }
 
+    fun resetColorPresets(context: Context) {
+        writePresetList(context, KEY_NORMAL_PRESETS, defaultNormalColorRgbPresets.toList(), forceOpaqueRgb = true)
+        writePresetList(context, KEY_CURRENT_PRESETS, defaultCurrentColorArgbPresets.toList(), forceOpaqueRgb = false)
+        ensureStyleColorsMatchPresets(context)
+    }
+
     private fun addPreset(context: Context, key: String, color: Int, forceOpaqueRgb: Boolean): Boolean {
         val current = readPresetList(
             context,

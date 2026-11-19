@@ -1,37 +1,49 @@
 package cn.partialy.pm.activity
 
-import android.annotation.SuppressLint
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import androidx.annotation.Keep
-import androidx.core.graphics.toColorInt
+import android.view.View
+import android.widget.LinearLayout
+import androidx.core.animation.doOnEnd
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import cn.partialy.pm.R
 import cn.partialy.pm.activity.base.BaseActivity
 import cn.partialy.pm.databinding.ActivityLyricColorPresetsBinding
+import cn.partialy.pm.databinding.ItemLyricColorGroupBinding
+import cn.partialy.pm.databinding.ItemLyricColorPillBinding
+import cn.partialy.pm.ui.dialog.ColorPickerBottomSheet
+import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.ui.insets.enableEdgeToEdgeSystemBars
-import cn.partialy.pm.ui.player.lyricstyle.ColorPresetOpResult
+import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.ui.player.lyricstyle.LyricColorPresetRegistry
+import cn.partialy.pm.ui.player.lyricstyle.LyricColorSlotSpec
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
 import cn.partialy.pm.ui.player.lyricstyle.LyricStyleColorPresetsRepository
+import cn.partialy.pm.ui.player.lyricstyle.LyricStyleColorPresetsStore
 import cn.partialy.pm.ui.player.lyricstyle.LyricStyleParamsMeta
-import cn.partialy.pm.utils.LyricDisplayPrefs
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlin.math.roundToInt
 
+/**
+ * 原生全屏 Edge-to-Edge 歌词颜色管理页：
+ * 按颜色分组展示 3 列胶囊色板，支持点击取色器编辑、右侧删除、右上角添加与全局恢复默认。
+ */
 class LyricColorPresetsActivity : BaseActivity() {
+
     private lateinit var binding: ActivityLyricColorPresetsBinding
     private var styleId: LyricEffectStyleId = LyricEffectStyleId.DEFAULT
     private var focusSlotKey: String? = null
+    private var hasFocusedInitialSlot = false
+    private var focusAnimator: ValueAnimator? = null
+    private val groupViewsBySlot = mutableMapOf<String, View>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         binding = ActivityLyricColorPresetsBinding.inflate(layoutInflater)
@@ -42,70 +54,287 @@ class LyricColorPresetsActivity : BaseActivity() {
         focusSlotKey = intent.getStringExtra(EXTRA_FOCUS_SLOT_KEY)?.takeIf { it.isNotBlank() }
 
         setupSystemBars()
-        setupToolbar()
-        setupWebView()
+        setupHeader()
+        renderGroups()
+        focusSlotIfNeeded()
+    }
+
+    override fun onDestroy() {
+        focusAnimator?.cancel()
+        focusAnimator = null
+        super.onDestroy()
     }
 
     private fun setupSystemBars() {
         val isNight = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
         enableEdgeToEdgeSystemBars(lightStatusBarIcons = !isNight, lightNavigationBarIcons = !isNight)
-        binding.lyricColorPresetsRoot.applySystemBarsInsets { insets ->
-            val lp = binding.statusBarSpacer.layoutParams
-            lp.height = insets.top
-            binding.statusBarSpacer.layoutParams = lp
-            binding.lyricColorWebView.setPadding(
-                binding.lyricColorWebView.paddingLeft,
-                binding.lyricColorWebView.paddingTop,
-                binding.lyricColorWebView.paddingRight,
-                insets.bottom,
+        val baseScrollBottomPadding = dp(28f)
+        binding.colorManagerRoot.applySystemBarsInsets { insets ->
+            binding.colorManagerRoot.setPadding(
+                insets.left,
+                insets.top,
+                insets.right,
+                0,
+            )
+            binding.colorManagerScroll.setPadding(
+                0,
+                dp(4f),
+                0,
+                baseScrollBottomPadding + insets.bottom,
             )
         }
     }
 
-    private fun setupToolbar() {
-        setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = if (styleId == LyricEffectStyleId.DEFAULT) {
-            getString(R.string.settings_lyric_color_presets_title)
+    private fun setupHeader() {
+        binding.colorManagerTitle.text = if (styleId == LyricEffectStyleId.DEFAULT) {
+            getString(R.string.lyric_color_manager_title)
         } else {
             val label = LyricStyleParamsMeta.styleLabel(this, styleId)
-            getString(R.string.lyric_color_presets_style_title, label)
+            getString(R.string.lyric_color_manager_style_title, label)
         }
-        binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.colorManagerBack.setOnClickListener { finish() }
+        binding.colorManagerReset.setOnClickListener { confirmResetDefaults() }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun setupWebView() {
-        val wv = binding.lyricColorWebView
-        wv.isVerticalScrollBarEnabled = false
-        wv.isHorizontalScrollBarEnabled = false
-        wv.overScrollMode = WebView.OVER_SCROLL_NEVER
-        wv.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+    private fun confirmResetDefaults() {
+        val message = if (styleId == LyricEffectStyleId.DEFAULT) {
+            getString(R.string.lyric_color_manager_reset_message_all)
+        } else {
+            val label = LyricStyleParamsMeta.styleLabel(this, styleId)
+            getString(R.string.lyric_color_manager_reset_message_style, label)
         }
-        wv.webChromeClient = WebChromeClient()
-        wv.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                val u = request.url.toString()
-                if (u.startsWith("file:///android_asset/")) return false
-                if (u.startsWith("https://") || u.startsWith("http://")) return false
-                return true
+        PmMinimalDialog.show(
+            context = this,
+            title = getString(R.string.lyric_color_manager_reset_title),
+            message = message,
+            cancelText = getString(R.string.cancel),
+            confirmText = getString(R.string.lyric_color_manager_reset),
+            onConfirm = {
+                LyricStyleColorPresetsRepository.resetPresetsForStyle(this, styleId)
+                renderGroups()
+                PmMessage.success(this, R.string.lyric_color_manager_reset_done)
+            },
+        )
+    }
+
+    private fun renderGroups() {
+        focusAnimator?.cancel()
+        groupViewsBySlot.clear()
+        binding.colorGroupsContainer.removeAllViews()
+
+        val slots = LyricColorPresetRegistry.slotsFor(styleId)
+        slots.forEach { spec ->
+            val groupBinding = ItemLyricColorGroupBinding.inflate(
+                layoutInflater,
+                binding.colorGroupsContainer,
+                false,
+            )
+            groupViewsBySlot[spec.slotKey] = groupBinding.root
+            bindGroup(groupBinding, spec)
+            binding.colorGroupsContainer.addView(groupBinding.root)
+        }
+    }
+
+    private fun bindGroup(
+        groupBinding: ItemLyricColorGroupBinding,
+        spec: LyricColorSlotSpec,
+    ) {
+        val slotTitle = LyricColorPresetRegistry.slotTitle(this, spec)
+        val colors = LyricStyleColorPresetsRepository.getPresets(this, styleId, spec.slotKey)
+        val maxCount = LyricStyleColorPresetsStore.MAX_PRESET_COUNT
+        val isFull = colors.size >= maxCount
+
+        groupBinding.colorGroupTitle.text = slotTitle
+        groupBinding.colorGroupCount.text = getString(
+            R.string.lyric_color_manager_group_count,
+            colors.size,
+            maxCount,
+        )
+        groupBinding.colorGroupAdd.alpha = if (isFull) 0.45f else 1f
+        groupBinding.colorGroupAdd.setOnClickListener {
+            if (isFull) {
+                PmMessage.warning(this, R.string.lyric_color_manager_full_warning)
+                return@setOnClickListener
+            }
+            val seedColor = colors.lastOrNull() ?: spec.defaultColor
+            ColorPickerBottomSheet.show(
+                activity = this,
+                initialColor = seedColor,
+                allowAlpha = spec.allowAlpha,
+                title = getString(R.string.lyric_color_picker_title_named, slotTitle),
+            ) { pickedColor ->
+                val result = LyricStyleColorPresetsRepository.addPreset(
+                    this,
+                    styleId,
+                    spec.slotKey,
+                    pickedColor,
+                )
+                if (result.ok) {
+                    renderGroups()
+                } else {
+                    PmMessage.warning(this, result.errorMessage)
+                }
             }
         }
-        wv.addJavascriptInterface(
-            LyricColorPresetsBridge(this, styleId, focusSlotKey),
-            "AndroidLyricColors",
-        )
-        wv.loadUrl("file:///android_asset/lyric_color_presets/index.html")
+
+        bindPillGrid(groupBinding.colorGroupRows, spec, slotTitle, colors)
     }
 
-    override fun onDestroy() {
-        binding.lyricColorWebView.removeJavascriptInterface("AndroidLyricColors")
-        binding.lyricColorWebView.loadUrl("about:blank")
-        super.onDestroy()
+    private fun bindPillGrid(
+        rowsContainer: LinearLayout,
+        spec: LyricColorSlotSpec,
+        slotTitle: String,
+        colors: List<Int>,
+    ) {
+        rowsContainer.removeAllViews()
+        val columnCount = 3
+        val columnGapPx = dp(8f)
+        val rowGapPx = dp(10f)
+        val chunks = colors.chunked(columnCount)
+
+        chunks.forEachIndexed { rowIndex, rowColors ->
+            val rowLayout = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                ).apply {
+                    if (rowIndex < chunks.lastIndex) bottomMargin = rowGapPx
+                }
+            }
+
+            for (col in 0 until columnCount) {
+                if (col < rowColors.size) {
+                    val colorIndex = rowIndex * columnCount + col
+                    val colorValue = rowColors[col]
+                    val pillBinding = ItemLyricColorPillBinding.inflate(
+                        layoutInflater,
+                        rowLayout,
+                        false,
+                    )
+                    val lp = pillBinding.root.layoutParams as LinearLayout.LayoutParams
+                    if (col < columnCount - 1) lp.marginEnd = columnGapPx
+                    pillBinding.root.layoutParams = lp
+
+                    val hex = ColorPickerBottomSheet.formatHex(colorValue, spec.allowAlpha)
+                    pillBinding.colorPillDot.background = buildColorDotDrawable(colorValue)
+                    pillBinding.colorPillHex.text = hex
+                    pillBinding.colorPillDelete.contentDescription =
+                        getString(R.string.lyric_color_manager_delete_cd, hex)
+
+                    pillBinding.root.setOnClickListener {
+                        ColorPickerBottomSheet.show(
+                            activity = this,
+                            initialColor = colorValue,
+                            allowAlpha = spec.allowAlpha,
+                            title = getString(R.string.lyric_color_picker_title_named, slotTitle),
+                        ) { pickedColor ->
+                            val result = LyricStyleColorPresetsRepository.updatePreset(
+                                this,
+                                styleId,
+                                spec.slotKey,
+                                colorIndex,
+                                pickedColor,
+                            )
+                            if (result.ok) {
+                                renderGroups()
+                            } else {
+                                PmMessage.warning(this, result.errorMessage)
+                            }
+                        }
+                    }
+
+                    pillBinding.colorPillDelete.setOnClickListener {
+                        val result = LyricStyleColorPresetsRepository.removePreset(
+                            this,
+                            styleId,
+                            spec.slotKey,
+                            colorValue,
+                        )
+                        if (result.ok) {
+                            renderGroups()
+                        } else {
+                            PmMessage.warning(this, result.errorMessage)
+                        }
+                    }
+
+                    rowLayout.addView(pillBinding.root)
+                } else {
+                    val spacer = View(this).apply {
+                        visibility = View.INVISIBLE
+                        layoutParams = LinearLayout.LayoutParams(0, 1, 1f).apply {
+                            if (col < columnCount - 1) marginEnd = columnGapPx
+                        }
+                    }
+                    rowLayout.addView(spacer)
+                }
+            }
+
+            rowsContainer.addView(rowLayout)
+        }
+    }
+
+    private fun buildColorDotDrawable(argb: Int): Drawable {
+        val density = resources.displayMetrics.density
+        val checkerboard = cn.partialy.pm.ui.widget.colorpicker.CheckerboardDrawable(
+            cellSizePx = 3.5f * density,
+            isCircle = true,
+        )
+        val dotFill = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(argb)
+            setStroke(dp(1f).coerceAtLeast(1), ContextCompat.getColor(this@LyricColorPresetsActivity, R.color.lyric_color_pill_border))
+        }
+        return LayerDrawable(arrayOf(checkerboard, dotFill))
+    }
+
+    private fun focusSlotIfNeeded() {
+        val targetKey = focusSlotKey
+        if (hasFocusedInitialSlot || targetKey.isNullOrBlank()) return
+        hasFocusedInitialSlot = true
+
+        binding.colorGroupsContainer.post {
+            val targetView = groupViewsBySlot[targetKey] ?: return@post
+            binding.colorManagerScroll.smoothScrollTo(0, (targetView.top - dp(8f)).coerceAtLeast(0))
+            flashGroupHighlight(targetView)
+        }
+    }
+
+    private fun flashGroupHighlight(targetView: View) {
+        if (!ValueAnimator.areAnimatorsEnabled()) return
+        val baseHighlightColor = ContextCompat.getColor(this, R.color.lyric_color_group_focus_highlight)
+        val maxAlpha = Color.alpha(baseHighlightColor).coerceAtLeast(1)
+        val highlightBg = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 16f * resources.displayMetrics.density
+            setColor(ColorUtils.setAlphaComponent(baseHighlightColor, 0))
+        }
+        targetView.background = highlightBg
+
+        focusAnimator?.cancel()
+        focusAnimator = ValueAnimator.ofInt(0, maxAlpha).apply {
+            duration = 280L
+            repeatCount = 3
+            repeatMode = ValueAnimator.REVERSE
+            addUpdateListener { anim ->
+                val alpha = anim.animatedValue as Int
+                highlightBg.setColor(ColorUtils.setAlphaComponent(baseHighlightColor, alpha))
+            }
+            doOnEnd {
+                if (targetView.background === highlightBg) {
+                    targetView.background = null
+                }
+            }
+            start()
+        }
+    }
+
+    private fun dp(value: Float): Int = (value * resources.displayMetrics.density).roundToInt()
+
+    override fun finish() {
+        super.finish()
+        AppActivityTransitions.applyBack(this)
     }
 
     companion object {
@@ -125,113 +354,6 @@ class LyricColorPresetsActivity : BaseActivity() {
             }
             context.startActivity(intent)
             AppActivityTransitions.applyForward(context)
-        }
-    }
-
-    override fun finish() {
-        super.finish()
-        AppActivityTransitions.applyBack(this)
-    }
-}
-
-/**
- * 必须 public，供 WebView JavascriptInterface 绑定。
- */
-@Keep
-class LyricColorPresetsBridge(
-    context: Context,
-    private val styleId: LyricEffectStyleId = LyricEffectStyleId.DEFAULT,
-    private val focusSlotKey: String? = null,
-) {
-    private val appContext = context.applicationContext
-
-    @JavascriptInterface
-    fun getState(): String {
-        val slots = LyricColorPresetRegistry.slotsFor(styleId)
-        val slotsJson = JSONArray()
-        slots.forEach { spec ->
-            val colors = LyricStyleColorPresetsRepository.getPresets(appContext, styleId, spec.slotKey)
-            val colorHexArray = JSONArray(
-                colors.map { c ->
-                    if (spec.allowAlpha) colorToHexArgb(c) else colorToHexRgb(c)
-                },
-            )
-            slotsJson.put(
-                JSONObject().apply {
-                    put("slotKey", spec.slotKey)
-                    put("title", LyricColorPresetRegistry.slotTitle(appContext, spec))
-                    put("allowAlpha", spec.allowAlpha)
-                    put(
-                        "defaultColor",
-                        if (spec.allowAlpha) colorToHexArgb(spec.defaultColor) else colorToHexRgb(spec.defaultColor),
-                    )
-                    put("colors", colorHexArray)
-                },
-            )
-        }
-        return JSONObject().apply {
-            put("styleId", styleId.id)
-            put("styleLabel", LyricStyleParamsMeta.styleLabel(appContext, styleId))
-            put("focusSlotKey", focusSlotKey.orEmpty())
-            put("maxCount", LyricDisplayPrefs.PRESET_MAX_COUNT)
-            put("rowSize", LyricDisplayPrefs.PRESET_ROW_SIZE)
-            put("slots", slotsJson)
-        }.toString()
-    }
-
-    @JavascriptInterface
-    fun addColor(slotKey: String, hex: String): String {
-        val spec = LyricColorPresetRegistry.findSlot(styleId, slotKey)
-            ?: return jsonErr(appContext.getString(R.string.lyric_color_slot_invalid))
-        val parsed = parseHexColor(hex, forceOpaqueRgb = !spec.allowAlpha)
-            ?: return jsonErr(appContext.getString(R.string.lyric_color_invalid))
-        return toJsonResult(LyricStyleColorPresetsRepository.addPreset(appContext, styleId, slotKey, parsed))
-    }
-
-    @JavascriptInterface
-    fun removeColor(slotKey: String, hex: String): String {
-        val spec = LyricColorPresetRegistry.findSlot(styleId, slotKey)
-            ?: return jsonErr(appContext.getString(R.string.lyric_color_slot_invalid))
-        val parsed = parseHexColor(hex, forceOpaqueRgb = !spec.allowAlpha)
-            ?: return jsonErr(appContext.getString(R.string.lyric_color_invalid))
-        return toJsonResult(LyricStyleColorPresetsRepository.removePreset(appContext, styleId, slotKey, parsed))
-    }
-
-    @JavascriptInterface
-    fun updateColor(slotKey: String, indexStr: String, hex: String): String {
-        val spec = LyricColorPresetRegistry.findSlot(styleId, slotKey)
-            ?: return jsonErr(appContext.getString(R.string.lyric_color_slot_invalid))
-        val idx = indexStr.toIntOrNull()
-            ?: return jsonErr(appContext.getString(R.string.lyric_color_index_invalid))
-        val parsed = parseHexColor(hex, forceOpaqueRgb = !spec.allowAlpha)
-            ?: return jsonErr(appContext.getString(R.string.lyric_color_invalid))
-        return toJsonResult(LyricStyleColorPresetsRepository.updatePreset(appContext, styleId, slotKey, idx, parsed))
-    }
-
-    private fun toJsonResult(res: ColorPresetOpResult): String =
-        if (res.ok) jsonOk() else jsonErr(res.errorMessage)
-
-    private fun jsonOk(): String = JSONObject().put("ok", true).put("message", "").toString()
-
-    private fun jsonErr(msg: String): String = JSONObject().put("ok", false).put("message", msg).toString()
-
-    private fun colorToHexRgb(color: Int): String {
-        val rgb = 0xFFFFFF and color
-        return String.format("#%06X", rgb)
-    }
-
-    private fun colorToHexArgb(color: Int): String {
-        return String.format("#%08X", (color.toLong() and 0xFFFFFFFFL))
-    }
-
-    private fun parseHexColor(raw: String, forceOpaqueRgb: Boolean): Int? {
-        val t = raw.trim()
-        val withHash = if (t.startsWith("#")) t else "#$t"
-        val parsed = runCatching { withHash.toColorInt() }.getOrNull() ?: return null
-        return if (forceOpaqueRgb) {
-            Color.rgb(Color.red(parsed), Color.green(parsed), Color.blue(parsed))
-        } else {
-            parsed
         }
     }
 }

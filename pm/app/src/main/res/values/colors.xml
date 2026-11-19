@@ -18,6 +18,10 @@
     <color name="action_secondary_text">#FF4A4A4A</color>
     <color name="action_primary_text">#FFFFFFFF</color>
     <color name="settings_option_row_divider">#F4F4F4</color>
+    <!-- 颜色管理胶囊与高亮 -->
+    <color name="lyric_color_pill_fill">#D9FFFFFF</color>
+    <color name="lyric_color_pill_border">#1E07152D</color>
+    <color name="lyric_color_group_focus_highlight">#220077FF</color>
     <!-- 设置页：浅灰底 + 卡片内分隔线 -->
     <color name="settings_page_background">#F2F3F5</color>
     <color name="settings_card_inset_divider">#EEEEEE</color>

@@ -76,6 +76,8 @@ object LyricEffectConfigRepository {
                 .also { sharedStore = it }
         }
 
+    internal fun sharedStore(context: Context): LyricEffectConfigStore = store(context)
+
     fun read(context: Context): LyricEffectConfig = store(context).read()
 
     fun write(context: Context, config: LyricEffectConfig): LyricEffectConfig =
