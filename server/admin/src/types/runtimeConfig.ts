@@ -17,7 +17,8 @@ export type RuntimeConfigGroup =
   | "listening"
   | "listen_together"
   | "storage"
-  | "announcement";
+  | "announcement"
+  | "song_download";
 
 export interface RuntimeConfigItem {
   key: string;

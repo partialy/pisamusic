@@ -6,6 +6,7 @@ export type AdminRouteKey =
   | "listeningLevels"
   | "devices"
   | "cloudMusic"
+  | "songDownloads"
   | "shares"
   | "listenTogether"
   | "files"
@@ -53,6 +54,7 @@ export const ADMIN_ROUTES: AdminRouteItem[] = [
   { key: "listeningLevels", path: "/listening-levels", title: "听歌等级", groupKey: "user_group", groupTitle: "用户中心" },
   { key: "devices", path: "/devices", title: "设备管理", groupKey: "user_group", groupTitle: "用户中心" },
   { key: "cloudMusic", path: "/cloud-music", title: "网盘音乐", groupKey: "media_group", groupTitle: "曲库与资源" },
+  { key: "songDownloads", path: "/song-downloads", title: "歌曲下载", groupKey: "media_group", groupTitle: "曲库与资源", hideGlobalActions: true },
   { key: "shares", path: "/shares", title: "分享管理", groupKey: "media_group", groupTitle: "曲库与资源" },
   { key: "listenTogether", path: "/listen-together", title: "一起听管理", groupKey: "media_group", groupTitle: "曲库与资源" },
   { key: "files", path: "/files", title: "文件管理", groupKey: "media_group", groupTitle: "曲库与资源" },

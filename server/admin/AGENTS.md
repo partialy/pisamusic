@@ -28,6 +28,7 @@
 - 邮件 provider 默认含 `aliyun / 阿里云`、`resend / Resend`。端点批量替换只修改 hostname，保留协议、端口、路径，替换后仍须“保存端点”。
 - 服务发现的 API / realtime 地址须为纯 origin，仅 HTTPS（开发 localhost 可用 HTTP），不带认证信息、路径、query 或 hash；更新 feed 可含路径，但必须是无认证信息、query、hash 的 HTTPS URL，后端保存时也须校验。
 - 动态配置固定 `html / string / number / url`；运行时策略通过 `/api/admin/runtime-config` 维护。听歌等级配置按 `expectedVersion` 乐观并发整组提交，区间规则查阅[跨模块契约](../../agents/CROSS_MODULE.md)。
+- 「曲库与资源 → 歌曲下载」（`/song-downloads`，页面 `SongDownloadsPage.tsx`）提供下载概览与 Recharts 趋势、Top 排行、用户/设备下载流水及全局/独立配额策略管理（对接 `/api/admin/song-downloads/*`）。
 
 ## 契约维护与验证
 

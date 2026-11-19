@@ -24,6 +24,7 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   DesktopOutlined,
+  DownloadOutlined,
   ExportOutlined,
   FileTextOutlined,
   FolderOutlined,
@@ -138,6 +139,7 @@ export default function AdminLayout() {
         label: "曲库与资源",
         children: [
           { key: "cloudMusic", icon: <CustomerServiceOutlined />, label: "网盘音乐" },
+          { key: "songDownloads", icon: <DownloadOutlined />, label: "歌曲下载" },
           { key: "shares", icon: <ShareAltOutlined />, label: "分享管理" },
           { key: "listenTogether", icon: <TeamOutlined />, label: "一起听管理" },
           { key: "files", icon: <FolderOutlined />, label: "文件管理" },

@@ -71,6 +71,7 @@ const GROUP_ORDER: { group: RuntimeConfigGroup; label: string; icon: string }[] 
   { group: "auth", label: "认证与会话", icon: "🔐" },
   { group: "verification", label: "验证码", icon: "🔑" },
   { group: "storage", label: "七牛与存储", icon: "☁️" },
+  { group: "song_download", label: "歌曲下载配额", icon: "⬇️" },
   { group: "analytics", label: "统计与留存", icon: "📊" },
   { group: "sync", label: "数据同步", icon: "🔄" },
   { group: "listening", label: "听歌上报", icon: "🎧" },

@@ -24,6 +24,7 @@ const FileManagementPage = lazy(() => import("./pages/FileManagementPage"));
 const FeedbackManagementPage = lazy(() => import("./pages/FeedbackManagementPage"));
 const FaultReportsPage = lazy(() => import("./pages/FaultReportsPage"));
 const ShareManagementPage = lazy(() => import("./pages/ShareManagementPage"));
+const SongDownloadsPage = lazy(() => import("./pages/SongDownloadsPage"));
 const UserManagementPage = lazy(() => import("./pages/UserManagementPage"));
 const ContentManagementPage = lazy(() => import("./pages/ContentManagementPage"));
 const AnnouncementsManagementPage = lazy(() => import("./pages/AnnouncementsManagementPage"));
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="/listening-levels" element={<ListeningLevelsRoute />} />
             <Route path="/devices" element={<DevicesPage />} />
             <Route path="/cloud-music" element={<CloudMusicRoute />} />
+            <Route path="/song-downloads" element={<SongDownloadsPage />} />
             <Route path="/shares" element={<ShareManagementPage />} />
             <Route path="/listen-together" element={<ListenTogetherManagementPage />} />
             <Route path="/files" element={<FileManagementPage />} />
