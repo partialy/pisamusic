@@ -71,7 +71,6 @@ import cn.partialy.pm.ui.player.PlayerPagesController
 import cn.partialy.pm.ui.player.LyricRow
 import cn.partialy.pm.ui.player.LyricSettingsSheet
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectConfigRepository
-import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
 import cn.partialy.pm.ui.player.LyricsAdapter
 import cn.partialy.pm.ui.player.background.PlayerBackgroundController
 import cn.partialy.pm.ui.insets.applySystemBarsInsets
@@ -1361,20 +1360,13 @@ class PlayerActivity : BaseDownloadActivity() {
     }
 
     private fun applyLyricDisplayMode() {
-        val effectConfig = LyricEffectConfigRepository.read(this)
-        val useWordTiming = LyricDisplayPrefs.isUseWordLyricEnabled(this) && lyricContent.hasWordTiming
-        val useKaraoke = effectConfig.styleId != LyricEffectStyleId.DEFAULT || useWordTiming
-        pages.lyrics.karaokeLyricsView.visibility = if (useKaraoke) View.VISIBLE else View.GONE
-        pages.lyrics.lyricsRecyclerView.visibility = if (useKaraoke) View.GONE else View.VISIBLE
+        // 完整歌词页统一由 KaraokeLyricsView 渲染，普通与逐字/特效共用 AMLyric 弹簧级联滚动。
+        pages.lyrics.karaokeLyricsView.visibility = View.VISIBLE
+        pages.lyrics.lyricsRecyclerView.visibility = View.GONE
         applyListenTogetherLyricSpacing()
-        if (useKaraoke) {
-            pages.lyrics.lyricCenterSeekOverlay.visibility = View.GONE
-            updateKaraokeLyricsView(currentPlaybackPositionMs())
-            startKaraokeSync()
-        } else {
-            pages.lyrics.karaokeLyricsView.resumeAutoScroll()
-            startKaraokeSync()
-        }
+        pages.lyrics.lyricCenterSeekOverlay.visibility = View.GONE
+        updateKaraokeLyricsView(currentPlaybackPositionMs())
+        startKaraokeSync()
     }
 
     private fun updateCompactLyrics(positionMs: Long) {

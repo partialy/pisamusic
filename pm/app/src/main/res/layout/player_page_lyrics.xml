@@ -69,15 +69,16 @@
         android:layout_height="match_parent"
         android:paddingHorizontal="36dp"
         android:clipToPadding="false"
-        android:overScrollMode="never" />
+        android:overScrollMode="never"
+        android:visibility="gone" />
 
             <cn.partialy.pm.ui.player.KaraokeLyricsView
         android:id="@+id/karaokeLyricsView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingHorizontal="72dp"
+        android:paddingHorizontal="48dp"
         android:paddingVertical="16dp"
-        android:visibility="gone" />
+        android:visibility="visible" />
 
             <LinearLayout
         android:id="@+id/lyricCenterSeekOverlay"

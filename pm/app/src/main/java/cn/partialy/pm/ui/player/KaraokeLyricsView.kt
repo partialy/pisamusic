@@ -1,7 +1,9 @@
 package cn.partialy.pm.ui.player
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.os.SystemClock
 import android.text.TextPaint
@@ -12,6 +14,7 @@ import android.view.View
 import cn.partialy.pm.lyric.LyricLine
 import cn.partialy.pm.ui.player.lyricstyle.KaraokeBrowseController
 import cn.partialy.pm.ui.player.lyricstyle.KaraokeLyricLayoutEngine
+import cn.partialy.pm.ui.player.lyricstyle.LyricCascadeScrollController
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectConfig
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectRenderFrame
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectRendererRegistry
@@ -24,7 +27,7 @@ import kotlin.math.roundToInt
 /**
  * 完整歌词页原生 Canvas 视图：
  * 负责 Choreographer 限帧调度与生命周期管理，
- * 折行字素布局、手动浏览回弹与 7 款样式绘制分别委托给 lyricstyle 模块。
+ * 折行字素布局、手动浏览回弹、AMLyric 级联弹簧滚动与 7 款样式绘制分别委托给 lyricstyle 模块。
  */
 class KaraokeLyricsView @JvmOverloads constructor(
     context: Context,
@@ -58,14 +61,9 @@ class KaraokeLyricsView @JvmOverloads constructor(
     private var renderingActive = true
     private var positionMs: Long = 0L
 
-    private var prevCurrentIndex: Int = -1
-    private var lineAnimStartUptimeMs: Long = 0L
-    private var lineAnimDurationMs: Long = 380L
-    private var lineAnimProgress: Float = 1f
-
-    private var scaleAnimProgress: Float = 1f
-    private var scaleAnimStartUptimeMs: Long = 0L
-    private val scaleAnimDurationMs = 300L
+    private val cascadeScroll = LyricCascadeScrollController()
+    private var lastFrameUptimeMs: Long = 0L
+    private var wasBrowsing: Boolean = false
 
     private val browseController = KaraokeBrowseController(
         context = context,
@@ -86,6 +84,12 @@ class KaraokeLyricsView @JvmOverloads constructor(
             frameScheduled = false
             if (!renderingActive || !isShown || windowVisibility != VISIBLE) return@FrameCallback
             val frameUptimeMs = frameTimeNanos / 1_000_000L
+            val dtMs = if (lastFrameUptimeMs > 0L) {
+                (frameUptimeMs - lastFrameUptimeMs).coerceIn(1L, 32L).toFloat()
+            } else {
+                16f
+            }
+            lastFrameUptimeMs = frameUptimeMs
             var needNextFrame = false
             var stateFinishedThisFrame = false
 
@@ -94,21 +98,27 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 needNextFrame = true
             }
 
-            if (lineAnimProgress < 1f) {
-                val elapsed = frameUptimeMs - lineAnimStartUptimeMs
-                lineAnimProgress = (elapsed.toFloat() / lineAnimDurationMs).coerceIn(0f, 1f)
-                if (lineAnimProgress < 1f) needNextFrame = true else stateFinishedThisFrame = true
+            if (browseController.isBrowsing) {
+                if (browseController.stepAnimation(frameUptimeMs)) {
+                    needNextFrame = true
+                }
+                if (!browseController.isBrowsing) {
+                    cascadeScroll.snapTo(currentIndex)
+                    stateFinishedThisFrame = true
+                }
+            } else {
+                if (wasBrowsing) {
+                    cascadeScroll.snapTo(currentIndex)
+                    stateFinishedThisFrame = true
+                }
+                val wasCascadeActive = cascadeScroll.hasActiveAnimation
+                if (cascadeScroll.step(dtMs)) {
+                    needNextFrame = true
+                } else if (wasCascadeActive) {
+                    stateFinishedThisFrame = true
+                }
             }
-
-            if (scaleAnimProgress < 1f) {
-                val elapsed = frameUptimeMs - scaleAnimStartUptimeMs
-                scaleAnimProgress = (elapsed.toFloat() / scaleAnimDurationMs).coerceIn(0f, 1f)
-                if (scaleAnimProgress < 1f) needNextFrame = true else stateFinishedThisFrame = true
-            }
-
-            if (browseController.stepAnimation(frameUptimeMs)) {
-                needNextFrame = true
-            }
+            wasBrowsing = browseController.isBrowsing
 
             if (stateFinishedThisFrame || (needNextFrame && frameLimiter.shouldDrawNanos(frameTimeNanos))) {
                 invalidate()
@@ -124,7 +134,9 @@ class KaraokeLyricsView @JvmOverloads constructor(
         renderingActive = active
         cancelFrame()
         if (active && isShown && windowVisibility == VISIBLE) {
-            anchorUptimeMs = SystemClock.uptimeMillis()
+            val nowUptime = SystemClock.uptimeMillis()
+            anchorUptimeMs = nowUptime
+            lastFrameUptimeMs = nowUptime
             frameLimiter.reset()
             ensureFrameScheduled()
         }
@@ -140,12 +152,14 @@ class KaraokeLyricsView @JvmOverloads constructor(
         renderers.releaseAll()
         lines = emptyList()
         currentIndex = -1
-        prevCurrentIndex = -1
+        cascadeScroll.reset(-1)
         invalidate()
     }
 
     fun resumeAutoScroll() {
         browseController.finishBrowsing(notify = true)
+        cascadeScroll.snapTo(currentIndex)
+        invalidate()
     }
 
     fun bind(
@@ -177,23 +191,12 @@ class KaraokeLyricsView @JvmOverloads constructor(
         this.effectConfig = normalizedEffect
         this.useWordTiming = useWordTiming
 
-        val lineChanged = currentIndex != this.currentIndex
-        if (lineChanged) {
-            val delta = abs(currentIndex - this.currentIndex)
-            if (this.currentIndex >= 0) {
-                lineAnimDurationMs = when {
-                    delta == 1 -> 380L
-                    delta <= 3 -> 280L
-                    else -> 180L
-                }
-                prevCurrentIndex = this.currentIndex
-                lineAnimProgress = 0f
-                lineAnimStartUptimeMs = SystemClock.uptimeMillis()
-                scaleAnimProgress = 0f
-                scaleAnimStartUptimeMs = lineAnimStartUptimeMs
-            }
-            this.currentIndex = currentIndex
+        if (linesChanged) {
+            cascadeScroll.reset(-1)
         }
+
+        val lineChanged = currentIndex != this.currentIndex
+        this.currentIndex = currentIndex
 
         val wasPlaying = this.isPlaying
         this.isPlaying = isPlaying
@@ -209,21 +212,37 @@ class KaraokeLyricsView @JvmOverloads constructor(
 
         if (oldSize != style.textSizeSp) requestLayout()
 
-        if (!animateTransitions) {
+        val animAllowed = animateTransitions && ValueAnimator.areAnimatorsEnabled()
+        if (currentIndex in lines.indices) {
+            val radius = estimatedVisibleRadius()
+            cascadeScroll.updateTarget(
+                nextCurrentIndex = currentIndex,
+                nextSelectedIndex = currentIndex,
+                animate = animAllowed && !browseController.isBrowsing,
+                visibleStart = (currentIndex - radius).coerceAtLeast(0),
+                visibleEnd = (currentIndex + radius).coerceAtMost(lines.lastIndex),
+            )
+        } else {
+            cascadeScroll.reset(-1)
+        }
+
+        if (!animAllowed) {
             stopAnimations()
             return
         }
 
         val shouldAnimate = renderingActive && (
             isPlaying ||
-                lineAnimProgress < 1f ||
-                scaleAnimProgress < 1f ||
+                cascadeScroll.hasActiveAnimation ||
                 browseController.hasActiveAnimation
             )
 
         if (shouldAnimate) {
             if (!wasPlaying || effectChanged) {
                 frameLimiter.reset()
+            }
+            if (!frameScheduled) {
+                lastFrameUptimeMs = nowUptime
             }
             ensureFrameScheduled()
         } else {
@@ -239,9 +258,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
     /** 供独立预览暂停或静态展示使用，不触发浏览返回动画。 */
     fun stopAnimations() {
         isPlaying = false
-        lineAnimProgress = 1f
-        scaleAnimProgress = 1f
-        prevCurrentIndex = currentIndex
+        cascadeScroll.snapTo(currentIndex)
         browseController.stopAll()
         cancelFrame()
         invalidate()
@@ -259,8 +276,10 @@ class KaraokeLyricsView @JvmOverloads constructor(
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        if (renderingActive && visibility == VISIBLE && (isPlaying || browseController.hasActiveAnimation)) {
-            anchorUptimeMs = SystemClock.uptimeMillis()
+        if (renderingActive && visibility == VISIBLE && (isPlaying || cascadeScroll.hasActiveAnimation || browseController.hasActiveAnimation)) {
+            val nowUptime = SystemClock.uptimeMillis()
+            anchorUptimeMs = nowUptime
+            lastFrameUptimeMs = nowUptime
             frameLimiter.reset()
             ensureFrameScheduled()
         } else {
@@ -293,31 +312,38 @@ class KaraokeLyricsView @JvmOverloads constructor(
             density = resources.displayMetrics.density,
         )
 
-        val scrollT = easeOutQuart(lineAnimProgress)
-        val scrollOffset = if (!browseController.isBrowsing && lineAnimProgress < 1f && prevCurrentIndex >= 0) {
-            (currentIndex - prevCurrentIndex) * (1f - scrollT)
-        } else {
-            0f
-        }
-
-        val centerPosition = when {
+        val isBrowsingMode = browseController.isBrowsing
+        val browseCenterPos = when {
             browseController.isAutoReturning -> browseController.returnCenterPosition
             browseController.isBrowsing -> browseController.browseCenterPosition
-            else -> currentIndex - scrollOffset
+            else -> currentIndex.toFloat()
         }.coerceIn(0f, lines.lastIndex.toFloat())
 
-        val selectedIndex = if (browseController.isBrowsing && !browseController.isAutoReturning) {
+        val selectedIndex = if (isBrowsingMode && !browseController.isAutoReturning) {
             browseController.browseCenterPosition.roundToInt().coerceIn(0, lines.lastIndex)
         } else {
             currentIndex
         }
 
-        val visibleRadius = max(1, (height / rowStride).roundToInt() / 2 + 2)
-        val first = floor(centerPosition - visibleRadius).toInt().coerceAtLeast(0)
-        val last = floor(centerPosition + visibleRadius).toInt().coerceAtMost(lines.lastIndex)
+        val windowAnchor = if (isBrowsingMode) browseCenterPos else currentIndex.toFloat()
+        val visibleRadius = estimatedVisibleRadius() + 2
+        val first = floor(windowAnchor - visibleRadius).toInt().coerceAtLeast(0)
+        val last = floor(windowAnchor + visibleRadius).toInt().coerceAtMost(lines.lastIndex)
+        val pivotX = alignmentPivotX()
 
         for (index in first..last) {
             val isSelected = index == selectedIndex
+            val lineCenterPos = if (isBrowsingMode) {
+                browseCenterPos
+            } else {
+                cascadeScroll.scrollPositionForLine(index, currentIndex).coerceIn(0f, lines.lastIndex.toFloat())
+            }
+            val emphasis = if (isBrowsingMode) {
+                if (isSelected) 1f else 0f
+            } else {
+                cascadeScroll.emphasisForLine(index, selectedIndex)
+            }
+
             paint.textSize = if (isSelected) currentTextSize else normalTextSize
             paint.isFakeBoldText = isSelected && style.currentLineBold
             paint.shader = null
@@ -327,7 +353,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 paint = paint,
                 lines = lines,
                 index = index,
-                centerPosition = centerPosition,
+                centerPosition = lineCenterPos,
                 selectedIndex = selectedIndex,
                 maxTextWidth = maxTextWidth,
                 currentTextSize = currentTextSize,
@@ -340,7 +366,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
 
             if (isSelected) {
                 val line = lines[index]
-                val showProgress = !browseController.isBrowsing || index == currentIndex
+                val showProgress = !isBrowsingMode || index == currentIndex
                 val lineEndMs = layoutEngine.resolveLineEndTimeMs(lines, index)
                 val lineDurationMs = max(1L, lineEndMs - line.startTime)
                 val elapsedMs = max(0L, positionMs - line.startTime)
@@ -381,19 +407,27 @@ class KaraokeLyricsView @JvmOverloads constructor(
                     density = resources.displayMetrics.density,
                 )
 
-                if (!browseController.isBrowsing && scaleAnimProgress < 1f) {
-                    val scale = 0.93f + 0.07f * easeOutQuad(scaleAnimProgress)
+                val minScale = if (currentTextSize > 0f) normalTextSize / currentTextSize else 1f
+                val scale = minScale + (1f - minScale) * emphasis
+                if (!isBrowsingMode && abs(scale - 1f) > 0.002f) {
                     canvas.save()
-                    canvas.translate(width / 2f, baseline)
-                    canvas.scale(scale, scale)
-                    canvas.translate(-width / 2f, -baseline)
+                    canvas.scale(scale, scale, pivotX, baseline)
                     renderer.drawCurrentLine(canvas, frame)
                     canvas.restore()
                 } else {
                     renderer.drawCurrentLine(canvas, frame)
                 }
             } else {
-                drawNormalLine(canvas, lines[index], baseline, maxTextWidth)
+                drawNormalLine(
+                    canvas = canvas,
+                    line = lines[index],
+                    baseline = baseline,
+                    maxTextWidth = maxTextWidth,
+                    emphasis = emphasis,
+                    currentTextSize = currentTextSize,
+                    normalTextSize = normalTextSize,
+                    pivotX = pivotX,
+                )
             }
         }
     }
@@ -403,13 +437,30 @@ class KaraokeLyricsView @JvmOverloads constructor(
         line: LyricLine,
         baseline: Float,
         maxTextWidth: Int,
+        emphasis: Float,
+        currentTextSize: Float,
+        normalTextSize: Float,
+        pivotX: Float,
     ) {
-        paint.textSize = normalTextSizePx()
-        paint.isFakeBoldText = false
+        val clampedEmphasis = emphasis.coerceIn(0f, 1f)
+        paint.textSize = normalTextSize
+        paint.isFakeBoldText = style.currentLineBold && clampedEmphasis >= 0.5f
         paint.shader = null
         paint.clearShadowLayer()
-        paint.color = style.resolvedNormalColor()
+        val normalColor = style.resolvedNormalColor()
+        paint.color = if (clampedEmphasis > 0.002f) {
+            blendArgb(normalColor, style.currentColorArgb, clampedEmphasis)
+        } else {
+            normalColor
+        }
         val segments = layoutEngine.wrapText(paint, line.lineText, maxTextWidth)
+        val maxScale = if (normalTextSize > 0f) currentTextSize / normalTextSize else 1f
+        val scale = 1f + (maxScale - 1f) * emphasis.coerceAtLeast(0f)
+        val needScale = abs(scale - 1f) > 0.002f
+        if (needScale) {
+            canvas.save()
+            canvas.scale(scale, scale, pivotX, baseline)
+        }
         layoutEngine.drawWrappedSegmentsCentered(
             paint = paint,
             segments = segments,
@@ -426,6 +477,9 @@ class KaraokeLyricsView @JvmOverloads constructor(
                 alignment = style.alignment,
             )
             canvas.drawText(segment.text, x, segmentBaseline, paint)
+        }
+        if (needScale) {
+            canvas.restore()
         }
     }
 
@@ -448,11 +502,25 @@ class KaraokeLyricsView @JvmOverloads constructor(
         lyricRowGapPx = lyricRowGap(),
     )
 
-    private fun easeOutQuad(t: Float) = 1f - (1f - t) * (1f - t)
+    private fun estimatedVisibleRadius(): Int {
+        if (height <= 0) return 6
+        val stride = rowStride().coerceAtLeast(1f)
+        return max(2, (height / stride).roundToInt() / 2 + 2)
+    }
 
-    private fun easeOutQuart(t: Float): Float {
-        val v = 1f - t
-        return 1f - v * v * v * v
+    private fun alignmentPivotX(): Float = when (style.alignment) {
+        LyricAlignment.START -> paddingLeft.toFloat()
+        LyricAlignment.CENTER -> width / 2f
+        LyricAlignment.END -> (width - paddingRight).toFloat()
+    }
+
+    private fun blendArgb(from: Int, to: Int, fraction: Float): Int {
+        val p = fraction.coerceIn(0f, 1f)
+        val a = (Color.alpha(from) + (Color.alpha(to) - Color.alpha(from)) * p).roundToInt().coerceIn(0, 255)
+        val r = (Color.red(from) + (Color.red(to) - Color.red(from)) * p).roundToInt().coerceIn(0, 255)
+        val g = (Color.green(from) + (Color.green(to) - Color.green(from)) * p).roundToInt().coerceIn(0, 255)
+        val b = (Color.blue(from) + (Color.blue(to) - Color.blue(from)) * p).roundToInt().coerceIn(0, 255)
+        return Color.argb(a, r, g, b)
     }
 
     private fun currentTextSizePx() =

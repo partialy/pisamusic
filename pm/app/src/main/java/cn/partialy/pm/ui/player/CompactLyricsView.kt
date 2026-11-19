@@ -17,6 +17,7 @@ import android.view.Choreographer
 import android.view.View
 import cn.partialy.pm.lyric.LyricContent
 import cn.partialy.pm.lyric.LyricLine
+import cn.partialy.pm.ui.player.lyricstyle.SpringState
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
@@ -24,7 +25,7 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * 封面三行歌词：媒体位置由 Activity 校准，Choreographer 在可见时逐帧插值。
+ * 封面三行歌词：媒体位置由 Activity 校准，Choreographer 在可见时逐帧驱动弹簧插值。
  * 不自行读取播放器；离开封面页或宿主停止立即取消帧回调。
  */
 class CompactLyricsView @JvmOverloads constructor(
@@ -40,16 +41,14 @@ class CompactLyricsView @JvmOverloads constructor(
     private var playing = false
     private var lines: List<LyricLine> = emptyList()
     private var currentIndex = -1
-    private var previousIndex = -1
     private var positionMs = 0L
     private var anchorPositionMs = 0L
     private var anchorUptimeMs = 0L
+    private var lastFrameUptimeMs = 0L
     private var style = LyricDisplayStyle.DEFAULT
     private var animate = true
     private var useWordTiming = true
-    private var lineTransitionStartMs = 0L
-    private var lineTransitionDurationMs = 380L
-    private var lineTransitionProgress = 1f
+    private val visualIndexSpring = SpringState(initialValue = 0f)
     private var fadeShader: Shader? = null
     private var fadeLeft = Float.NaN
     private var fadeRight = Float.NaN
@@ -58,14 +57,22 @@ class CompactLyricsView @JvmOverloads constructor(
         framePosted = false
         if (!canRenderFrames() || !playing) return@FrameCallback
         val nowMs = frameTimeNanos / 1_000_000L
+        val dtSec = if (lastFrameUptimeMs > 0L) {
+            (nowMs - lastFrameUptimeMs).coerceIn(1L, 32L) / 1000f
+        } else {
+            0.016f
+        }
+        lastFrameUptimeMs = nowMs
+
         if (playing) {
             positionMs = anchorPositionMs + (nowMs - anchorUptimeMs).coerceAtLeast(0L)
-            updateCurrentIndex(CompactLyricRules.currentIndex(lines, positionMs), nowMs, true)
+            updateCurrentIndex(
+                nextIndex = CompactLyricRules.currentIndex(lines, positionMs),
+                allowTransition = true,
+            )
         }
-        if (lineTransitionProgress < 1f) {
-            lineTransitionProgress = ((nowMs - lineTransitionStartMs).toFloat() /
-                lineTransitionDurationMs).coerceIn(0f, 1f)
-            if (lineTransitionProgress >= 1f) previousIndex = currentIndex
+        if (currentIndex >= 0) {
+            visualIndexSpring.step(dtSec, SPRING_OMEGA, SPRING_ZETA)
         }
         postInvalidateOnAnimation()
         scheduleFrame()
@@ -115,15 +122,15 @@ class CompactLyricsView @JvmOverloads constructor(
         }
         if (contentChanged) {
             this.currentIndex = currentIndex
-            previousIndex = currentIndex
-            lineTransitionProgress = 1f
+            visualIndexSpring.snapTo(currentIndex.coerceAtLeast(0).toFloat())
         } else {
-            updateCurrentIndex(currentIndex, nowMs,
-                isPlaying && !jumped && animateTransitions && renderingActive)
+            updateCurrentIndex(
+                nextIndex = currentIndex,
+                allowTransition = isPlaying && !jumped && animateTransitions && renderingActive,
+            )
         }
-        if (!wasPlaying && isPlaying && lineTransitionProgress < 1f) {
-            lineTransitionStartMs = nowMs -
-                (lineTransitionProgress * lineTransitionDurationMs).toLong()
+        if (!wasPlaying && isPlaying) {
+            lastFrameUptimeMs = nowMs
         }
         contentDescription = lines.getOrNull(this.currentIndex)?.lineText.orEmpty()
         if (sizeChanged) requestLayout()
@@ -139,8 +146,10 @@ class CompactLyricsView @JvmOverloads constructor(
                 (SystemClock.uptimeMillis() - anchorUptimeMs).coerceAtLeast(0L)
             removeFrame()
         } else {
+            val nowMs = SystemClock.uptimeMillis()
             anchorPositionMs = positionMs
-            anchorUptimeMs = SystemClock.uptimeMillis()
+            anchorUptimeMs = nowMs
+            lastFrameUptimeMs = nowMs
             scheduleFrame()
         }
     }
@@ -157,12 +166,22 @@ class CompactLyricsView @JvmOverloads constructor(
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        if (visibility == VISIBLE) scheduleFrame() else removeFrame()
+        if (visibility == VISIBLE) {
+            lastFrameUptimeMs = SystemClock.uptimeMillis()
+            scheduleFrame()
+        } else {
+            removeFrame()
+        }
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
         super.onWindowVisibilityChanged(visibility)
-        if (visibility == VISIBLE) scheduleFrame() else removeFrame()
+        if (visibility == VISIBLE) {
+            lastFrameUptimeMs = SystemClock.uptimeMillis()
+            scheduleFrame()
+        } else {
+            removeFrame()
+        }
     }
 
     private fun canRenderFrames(): Boolean =
@@ -183,20 +202,17 @@ class CompactLyricsView @JvmOverloads constructor(
         }
     }
 
-    private fun updateCurrentIndex(nextIndex: Int, nowMs: Long, allowTransition: Boolean) {
+    private fun updateCurrentIndex(nextIndex: Int, allowTransition: Boolean) {
         if (nextIndex == currentIndex) return
         val difference = abs(nextIndex - currentIndex)
         val smooth = allowTransition && currentIndex >= 0 && nextIndex >= 0 &&
-            difference in 1..3 && ValueAnimator.areAnimatorsEnabled()
-        previousIndex = if (smooth) currentIndex else nextIndex
+            difference in 1..6 && ValueAnimator.areAnimatorsEnabled()
         currentIndex = nextIndex
-        lineTransitionDurationMs = when (difference) {
-            1 -> 380L
-            2, 3 -> 280L
-            else -> 180L
+        if (smooth) {
+            visualIndexSpring.target = nextIndex.toFloat()
+        } else {
+            visualIndexSpring.snapTo(nextIndex.coerceAtLeast(0).toFloat())
         }
-        lineTransitionStartMs = nowMs
-        lineTransitionProgress = if (smooth) 0f else 1f
         contentDescription = lines.getOrNull(nextIndex)?.lineText.orEmpty()
     }
 
@@ -214,12 +230,11 @@ class CompactLyricsView @JvmOverloads constructor(
         val available = (width - paddingLeft - paddingRight).toFloat()
         if (available <= 0 || currentIndex !in lines.indices) return
         val row = (height - paddingTop - paddingBottom) / 3f
-        val progress = if (animate && ValueAnimator.areAnimatorsEnabled()) {
-            easeOutCubic(lineTransitionProgress)
-        } else 1f
-        val visualIndex = if (previousIndex >= 0) {
-            previousIndex + (currentIndex - previousIndex) * progress
-        } else currentIndex.toFloat()
+        val visualIndex = if (animate && ValueAnimator.areAnimatorsEnabled()) {
+            visualIndexSpring.value
+        } else {
+            currentIndex.toFloat()
+        }
         val first = (floor(visualIndex).toInt() - 2).coerceAtLeast(0)
         val last = (floor(visualIndex).toInt() + 3).coerceAtMost(lines.lastIndex)
         val normalColor = style.resolvedNormalColor()
@@ -350,14 +365,12 @@ class CompactLyricsView @JvmOverloads constructor(
 
     private fun currentSize() = sp(style.textSizeSp +
         if (style.currentLineEnlarged) style.currentLineEnlargedDxSp else 0)
-    private fun easeOutCubic(p: Float): Float {
-        val t = 1f - p
-        return 1f - t * t * t
-    }
     private fun dp(value: Float) = value * resources.displayMetrics.density
     private fun sp(value: Float) = value * resources.displayMetrics.scaledDensity
 
     private companion object {
         private const val POSITION_RESYNC_THRESHOLD_MS = 120L
+        private const val SPRING_OMEGA = 14.5f
+        private const val SPRING_ZETA = 0.88f
     }
 }
