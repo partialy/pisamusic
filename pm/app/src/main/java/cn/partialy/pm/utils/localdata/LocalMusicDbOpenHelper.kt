@@ -19,6 +19,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         createListeningTables(db)
         AccountLibrarySchema.prepare(db)
         cn.partialy.pm.playlistcover.PlaylistCoverSchema.create(db)
+        createAppConfigTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -59,6 +60,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         if (oldVersion < 14) addColumnIfMissing(db, "local_songs", "album", "TEXT NOT NULL DEFAULT ''")
         if (oldVersion < 15) AccountLibrarySchema.prepare(db)
         if (oldVersion < 16) cn.partialy.pm.playlistcover.PlaylistCoverSchema.create(db)
+        if (oldVersion < 17) createAppConfigTable(db)
     }
 
     private fun createLocalPlaylistTables(db: SQLiteDatabase) {
@@ -391,13 +393,28 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_listening_pending_account_created ON listening_pending_fragments(account_id, created_at_ms)")
     }
 
+    private fun createAppConfigTable(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS app_config (
+                config_key TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                schema_version INTEGER NOT NULL DEFAULT 1,
+                value_json TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_app_config_namespace ON app_config(namespace)")
+    }
+
     companion object {
         @Volatile private var sharedInstance: LocalMusicDbOpenHelper? = null
         fun shared(context: Context): LocalMusicDbOpenHelper = sharedInstance ?: synchronized(this) {
             sharedInstance ?: LocalMusicDbOpenHelper(context.applicationContext).also { sharedInstance = it }
         }
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 16
+        private const val DB_VERSION = 17
     }
 
     private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {
