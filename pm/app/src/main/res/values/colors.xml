@@ -230,4 +230,16 @@
     <color name="account_login_divider">#D9E2EE</color>
     <color name="account_login_brand">#18A9E6</color>
     <color name="account_login_method_bg">#FCFEFF</color>
+
+    <!-- 原生启动页 -->
+    <color name="splash_bg_start">#F0F9FF</color>
+    <color name="splash_bg_end">#FFFFFF</color>
+    <color name="splash_brand_accent">#38BDF8</color>
+    <color name="splash_title_primary">#1E293B</color>
+    <color name="splash_subtitle">#64748B</color>
+    <color name="splash_loading_text">#990284C7</color>
+    <color name="splash_local_hint">#E694A3B8</color>
+    <color name="splash_local_btn_bg">#B3F1F5F9</color>
+    <color name="splash_local_btn_stroke">#80E2E8F0</color>
+    <color name="splash_local_btn_text">#94A3B8</color>
 </resources>

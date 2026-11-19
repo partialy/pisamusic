@@ -1,23 +1,25 @@
 package cn.partialy.pm.activity
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
-import android.webkit.JavascriptInterface
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.view.View
+import android.view.animation.DecelerateInterpolator
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import cn.partialy.pm.R
 import cn.partialy.pm.databinding.ActivitySplashBinding
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.ui.dialog.PmMinimalDialog
 import cn.partialy.pm.ui.home.MainStartupCoordinator.Companion.isServiceUnavailable
+import cn.partialy.pm.ui.insets.applySystemBarsInsets
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
@@ -31,7 +33,7 @@ import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 /**
- * 启动页：全屏 WebView，状态栏隐藏。
+ * 原生启动页：XML 渐变品牌区 + Canvas 音柱动效，状态栏隐藏。
  * 仅拉取必须的 Bootstrap 配置（含唯一 1 次服务发现），完成后立即进入主页；
  * 协议校验、设备上报、升级弹窗及账号刷新统一交由 [MainActivity] 处理。
  */
@@ -44,7 +46,6 @@ class SplashActivity : AppCompatActivity() {
     private var bootstrapRequested = false
     private var pendingScanLink: String? = null
     private var localModeButtonJob: Job? = null
-    private var localModeButtonVisible = false
     private var openingMain = false
 
     @Inject
@@ -62,20 +63,22 @@ class SplashActivity : AppCompatActivity() {
         binding = ActivitySplashBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupWebView(binding.splashWebView)
-        binding.splashWebView.addJavascriptInterface(SplashJsBridge(), "AndroidSplash")
-        binding.splashWebView.loadUrl(SPLASH_WEB_URL)
+        val baseBottomPad = resources.displayMetrics.density.let { 0 }
+        binding.splashRoot.applySystemBarsInsets { insets ->
+            binding.splashRoot.updatePadding(bottom = baseBottomPad + insets.bottom)
+        }
+        binding.btnEnterLocalMode.setOnClickListener {
+            enterLocalModeImmediately(getString(R.string.splash_local_mode_manual_reason))
+        }
+        playBrandEntranceAnimation()
 
-        // 与 WebView 渲染并行立即发起 Bootstrap 配置拉取，不再阻塞等待 onPageFinished
         tryBootstrap()
 
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    val wv = binding.splashWebView
-                    if (wv.canGoBack()) wv.goBack()
-                    else finish()
+                    finish()
                 }
             },
         )
@@ -90,36 +93,35 @@ class SplashActivity : AppCompatActivity() {
     override fun onDestroy() {
         localModeButtonJob?.cancel()
         if (::binding.isInitialized) {
-            binding.splashWebView.removeJavascriptInterface("AndroidSplash")
+            binding.splashBrandGroup.animate().cancel()
+            binding.splashLocalModeBox.animate().cancel()
         }
         super.onDestroy()
     }
 
     private fun hideStatusBar() {
+        val isNight =
+            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
         WindowInsetsControllerCompat(window, window.decorView).apply {
             hide(WindowInsetsCompat.Type.statusBars())
+            isAppearanceLightNavigationBars = !isNight
             systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun setupWebView(webView: WebView) {
-        webView.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadWithOverviewMode = true
-            useWideViewPort = true
-        }
-        webView.webChromeClient = WebChromeClient()
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
-                if (localModeButtonVisible && !hasNavigated) {
-                    showLocalModeInWebView(true)
-                }
-            }
-        }
+    private fun playBrandEntranceAnimation() {
+        if (!ValueAnimator.areAnimatorsEnabled()) return
+        val offsetPx = 20f * resources.displayMetrics.density
+        binding.splashBrandGroup.alpha = 0f
+        binding.splashBrandGroup.translationY = offsetPx
+        binding.splashBrandGroup.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(600L)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
     }
 
     private fun tryBootstrap() {
@@ -176,8 +178,7 @@ class SplashActivity : AppCompatActivity() {
         localModeButtonJob = lifecycleScope.launch {
             delay(LOCAL_MODE_BUTTON_DELAY_MS)
             if (!hasNavigated && !isFinishing && !isDestroyed) {
-                localModeButtonVisible = true
-                showLocalModeInWebView(true)
+                showLocalModeBox(true)
             }
         }
     }
@@ -185,14 +186,32 @@ class SplashActivity : AppCompatActivity() {
     private fun cancelLocalModeButton() {
         localModeButtonJob?.cancel()
         localModeButtonJob = null
-        localModeButtonVisible = false
-        showLocalModeInWebView(false)
+        showLocalModeBox(false)
     }
 
-    private fun showLocalModeInWebView(show: Boolean) {
+    private fun showLocalModeBox(show: Boolean) {
         if (!::binding.isInitialized) return
-        val js = "window.showLocalMode && window.showLocalMode($show);"
-        binding.splashWebView.post { binding.splashWebView.evaluateJavascript(js, null) }
+        val box = binding.splashLocalModeBox
+        box.animate().cancel()
+        if (!show) {
+            box.visibility = View.INVISIBLE
+            box.alpha = 0f
+            return
+        }
+        box.visibility = View.VISIBLE
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            box.alpha = 1f
+            box.translationY = 0f
+            return
+        }
+        box.alpha = 0f
+        box.translationY = 6f * resources.displayMetrics.density
+        box.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(350L)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
     }
 
     private fun enterLocalModeImmediately(localModeReason: String) {
@@ -248,17 +267,7 @@ class SplashActivity : AppCompatActivity() {
         }
     }
 
-    inner class SplashJsBridge {
-        @JavascriptInterface
-        fun enterLocalMode() {
-            runOnUiThread {
-                enterLocalModeImmediately(getString(R.string.splash_local_mode_manual_reason))
-            }
-        }
-    }
-
     companion object {
-        const val SPLASH_WEB_URL = "file:///android_asset/splash/index.html"
         private const val LOCAL_MODE_BUTTON_DELAY_MS = 3_000L
         private const val SPLASH_BOOTSTRAP_TIMEOUT_MS = 10_000L
     }

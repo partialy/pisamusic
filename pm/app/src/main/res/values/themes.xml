@@ -16,14 +16,13 @@
         <item name="colorBackground">@color/white</item>
     </style>
 
-    <!-- 启动页面专用主题：全屏 WebView，状态栏由 Activity 隐藏 -->
+    <!-- 启动页面专用主题：原生渐变首帧，状态栏由 Activity 隐藏 -->
     <style name="Theme.App.Splash" parent="Theme.Pm">
-        <item name="android:windowBackground">@android:color/black</item>
-        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">@drawable/bg_splash_screen</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
     </style>
 
