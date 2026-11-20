@@ -11,6 +11,7 @@ export type SyncChangeInput = {
   action: SyncAction;
   payload?: unknown;
   clientUpdatedAt?: string;
+  baseVersion?: number | null;
 };
 export type SyncChange = SyncChangeInput & {
   version: number;

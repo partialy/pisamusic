@@ -91,6 +91,8 @@ x-pm-device-id: android-device-uuid-123
 | :--- | :--- | :--- |
 | `version` | `number` | 云端当前账号的最新同步总版本号 |
 | `mode` | `string` | snapshot 或 delta |
+| `logFloor` | `number` | 服务端已裁剪日志的水位下限（`since < logFloor` 会自动降级为 snapshot） |
+| `serverTime` | `number` | 服务端当前 UTC 毫秒时间戳（客户端用于对齐 HLC 时钟偏移） |
 | `changes` | `Array` | delta 的日志，或 snapshot 的兼容映射（结构相同） |
 | `items` | `Array` | snapshot 专用：当前页存活项，结构同 changes，action=upsert |
 | `snapshotVersion` | `number` | snapshot 一致性版本，最终对账完成后才保存到本地游标 |

@@ -33,11 +33,36 @@ function timestamp(v: unknown, now: number): string {
   // 允许五分钟时钟漂移，避免损坏的设备时间永久阻挡其他设备。
   return new Date(Math.min(n, now + 300000)).toISOString();
 }
+export type SyncAppliedItem = {
+  opId: string;
+  itemType: string;
+  itemKey: string;
+  version: number;
+  noop?: boolean;
+};
+
+export type SyncRejectedItem = {
+  opId: string;
+  itemType: string;
+  itemKey: string;
+  reason: "lww_lost" | "parent_deleted" | "duplicate_op";
+  serverVersion: number;
+};
+
+function parseBaseVersion(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)
+    throw new SyncValidationError("baseVersion 必须是非负安全整数或 null");
+  return value;
+}
+
 function normalizeChanges(raw: unknown): store.SyncChangeInput[] {
   if (!Array.isArray(raw))
     throw new SyncValidationError("changes 必须是数组");
-  if (raw.length > 500)
-    throw new SyncValidationError("单次最多推送 500 条变更");
+  const maxPush = Math.max(1, configManager.get<number>("sync.maxChangesPerPush", 500));
+  if (raw.length > maxPush)
+    throw new SyncValidationError(`单次最多推送 ${maxPush} 条变更`);
   const now = Date.now();
   return raw.map(v => {
     if (!v || typeof v !== "object" || Array.isArray(v))
@@ -51,7 +76,13 @@ function normalizeChanges(raw: unknown): store.SyncChangeInput[] {
       throw new SyncValidationError("同步变更字段无效");
     if (c.payload != null && (typeof c.payload !== "object" || Array.isArray(c.payload)))
       throw new SyncValidationError("payload 必须是对象");
-    const change = { opId, itemType, itemKey, action: action as store.SyncAction, payload: JSON.parse(canonicalPayload(action === "delete" ? {} : c.payload)), clientUpdatedAt: timestamp(c.clientUpdatedAt, now) };
+    const baseVersion = parseBaseVersion(c.baseVersion);
+    const change: store.SyncChangeInput = {
+      opId, itemType, itemKey, action: action as store.SyncAction,
+      payload: JSON.parse(canonicalPayload(action === "delete" ? {} : c.payload)),
+      clientUpdatedAt: timestamp(c.clientUpdatedAt, now),
+      ...(baseVersion !== undefined ? { baseVersion } : {}),
+    };
     validateSyncPayload(change);
     return change;
   });
@@ -60,6 +91,10 @@ export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: D
   version: number;
   accepted: number;
   skipped: number;
+  serverTime: number;
+  conflicts: number;
+  appliedItems: SyncAppliedItem[];
+  rejectedItems: SyncRejectedItem[];
 }> {
   const changes = normalizeChanges(raw);
   return db.transaction(async (tx) => {
@@ -67,9 +102,14 @@ export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: D
     const ids = [...new Set(changes.map(c => c.opId))];
     const applied = await store.findAppliedOps(tx, auth, ids);
     const unique = new Map<string, store.SyncChangeInput>();
-    for (const c of changes)
-      if (!applied.has(c.opId) && !unique.has(c.opId))
-        unique.set(c.opId, c);
+    const rejectedItems: SyncRejectedItem[] = [];
+    for (const c of changes) {
+      if (applied.has(c.opId) || unique.has(c.opId)) {
+        rejectedItems.push({ opId: c.opId, itemType: c.itemType, itemKey: c.itemKey, reason: "duplicate_op", serverVersion: 0 });
+        continue;
+      }
+      unique.set(c.opId, c);
+    }
     const inputs = [...unique.values()];
     const parentKeys = inputs.filter(c => c.itemType === "playlist_track")
       .map(c => playlistId(c.itemKey)).filter((id): id is string => id !== null)
@@ -78,22 +118,31 @@ export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: D
     const deletions = inputs.filter(c => c.itemType === "user_playlist" && c.action === "delete").map(c => c.itemKey);
     const children = await store.findPlaylistTracks(tx, auth.userId, deletions);
     const allRows = new Map([...rows, ...children].map(r => [key({ itemType: r.item_type, itemKey: r.item_key }), r]));
-    const { existing, latest, derived } = planSyncChanges(inputs, [...allRows.values()], configManager.get<boolean>("sync.lwwEnabled", true));
+    const { existing, latest, derived, conflicts, rejected } = planSyncChanges(inputs, [...allRows.values()], configManager.get<boolean>("sync.lwwEnabled", true));
+    rejectedItems.push(...rejected);
     await normalizeCoverChanges(tx, auth.userId, latest.values());
     const effective: store.SyncChangeInput[] = [];
     const clocks: store.SyncChange[] = [];
+    const appliedItems: SyncAppliedItem[] = [];
     for (const c of latest.values()) {
       const item = existing.get(key(c));
       const noop = item && (c.action === "delete" ? Number(item.deleted) === 1 : Number(item.deleted) === 0 && canonicalPayload(JSON.parse(item.payload_json)) === canonicalPayload(c.payload));
       if (noop) {
         if (time(c.clientUpdatedAt ?? "") > time(item.client_updated_at))
           clocks.push({ ...c, version: Number(item.server_version), deviceId: item.last_device_id, opId: item.last_op_id, payload: JSON.parse(item.payload_json), clientUpdatedAt: c.clientUpdatedAt ?? "", serverUpdatedAt: Number(item.server_updated_at) });
+        if (!derived.has(key(c)))
+          appliedItems.push({ opId: c.opId, itemType: c.itemType, itemKey: c.itemKey, version: Number(item.server_version), noop: true });
       }
       else
         effective.push(c);
     }
     const version = effective.length ? await store.allocateVersions(tx, auth.userId, effective.length) : current.sync_version;
-    const entries = effective.map((c, i) => ({ ...c, version: version - effective.length + i + 1, deviceId: auth.deviceId, payload: c.payload ?? {}, clientUpdatedAt: c.clientUpdatedAt ?? "", serverUpdatedAt: Date.now() }));
+    const now = Date.now();
+    const entries = effective.map((c, i) => ({ ...c, version: version - effective.length + i + 1, deviceId: auth.deviceId, payload: c.payload ?? {}, clientUpdatedAt: c.clientUpdatedAt ?? "", serverUpdatedAt: now }));
+    for (const entry of entries) {
+      if (!derived.has(key(entry)))
+        appliedItems.push({ opId: entry.opId, itemType: entry.itemType, itemKey: entry.itemKey, version: entry.version });
+    }
     // no-op 只推进冲突时钟，不改变版本/快照内容或历史设备来源。
     await store.updateItemClocks(tx, auth.userId, clocks);
     await applyCoverReferences(tx, auth.userId, latest.values());
@@ -101,7 +150,7 @@ export async function applySyncChanges(auth: store.SyncAuth, raw: unknown, db: D
     await store.insertLogs(tx, auth, entries);
     await store.insertAppliedOps(tx, auth, [...unique.values()], version);
     const accepted = effective.filter(c => !derived.has(key(c))).length;
-    return { version, accepted, skipped: changes.length - accepted };
+    return { version, accepted, skipped: changes.length - accepted, serverTime: now, conflicts, appliedItems, rejectedItems };
   });
 }
 function fromItem(r: store.SyncItemRow): store.SyncChange {
@@ -130,7 +179,8 @@ function nonnegative(value: unknown, name: string, def = 0): number {
 }
 export async function listSyncChanges(auth: store.SyncAuth, query: Record<string, unknown>, db: DbClient = getAppDb()) {
   const since = nonnegative(query.since, "since");
-  const limit = Math.max(1, Math.min(1000, nonnegative(query.limit, "limit", 1000)));
+  const maxPull = Math.max(1, configManager.get<number>("sync.maxChangesPerPull", 1000));
+  const limit = Math.max(1, Math.min(maxPull, nonnegative(query.limit, "limit", maxPull)));
   const offset = nonnegative(query.cursor, "cursor");
   const paged = String(query.protocol) === "2";
   const token = query.snapshotVersion == null ? null : nonnegative(query.snapshotVersion, "snapshotVersion");
@@ -138,16 +188,17 @@ export async function listSyncChanges(auth: store.SyncAuth, query: Record<string
     throw new SyncValidationError("快照分页缺少 snapshotVersion");
   return db.transaction(async (tx) => {
     const user = await store.lockSyncUser(tx, auth.userId), version = user.sync_version;
+    const serverTime = Date.now();
     if (since === 0 || since < user.sync_log_floor || token !== null) {
       if (token !== null && token !== version)
         throw new SyncSnapshotExpiredError("快照版本已变化，请从第一页重试");
       const rows = await store.listSnapshot(tx, auth.userId, paged ? offset : 0, paged ? limit + 1 : 2147483647, !paged);
       const hasMore = paged && rows.length > limit;
       const items = (hasMore ? rows.slice(0, limit) : rows).map(fromItem);
-      return { mode: "snapshot", version, snapshotVersion: version, items, changes: items, cursor: hasMore ? String(offset + items.length) : null, hasMore };
+      return { mode: "snapshot", version, snapshotVersion: version, logFloor: user.sync_log_floor, serverTime, items, changes: items, cursor: hasMore ? String(offset + items.length) : null, hasMore };
     }
     const rows = await store.listLogs(tx, auth.userId, since, limit + 1), hasMore = rows.length > limit;
-    return { mode: "delta", version, changes: rows.slice(0, limit).map(fromLog), hasMore };
+    return { mode: "delta", version, logFloor: user.sync_log_floor, serverTime, changes: rows.slice(0, limit).map(fromLog), hasMore };
   });
 }
 export async function cleanupSyncHistory(db: DbClient = getAppDb(), now = Date.now()): Promise<void> {

@@ -3,11 +3,13 @@ import { ACCOUNT_AVATAR_KEYS } from "../db/userStore";
 import {
   deleteAdminUser,
   listAdminUserLibraryItems,
+  listAdminUserSyncLogs,
   listAdminUsers,
   normalizeAdminAvatarKey,
   readAdminUserDetail,
   updateAdminUser,
   type AdminUserLibraryKind,
+  type AdminUserLibraryStatus,
   type AdminUserUpdateInput,
 } from "../db/adminUserStore";
 import { fail, ok } from "../types/response";
@@ -17,7 +19,8 @@ export const adminUsersRouter = Router();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[A-Za-z0-9_\-\u4e00-\u9fa5]{2,32}$/;
 const USER_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
-const LIBRARY_KINDS: readonly AdminUserLibraryKind[] = ["favoriteSongs", "favoritePlaylists", "userPlaylists", "listeningHistory"];
+const LIBRARY_KINDS: readonly AdminUserLibraryKind[] = ["favoriteSongs", "favoritePlaylists", "userPlaylists", "playlistTracks", "listeningHistory"];
+const LIBRARY_STATUSES: readonly AdminUserLibraryStatus[] = ["active", "deleted", "all"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -103,6 +106,13 @@ function normalizeLibraryKind(value: unknown): AdminUserLibraryKind | null {
     : null;
 }
 
+function normalizeLibraryStatus(value: unknown): AdminUserLibraryStatus | null {
+  if (value === undefined || value === "") return "active";
+  return typeof value === "string" && LIBRARY_STATUSES.includes(value as AdminUserLibraryStatus)
+    ? (value as AdminUserLibraryStatus)
+    : null;
+}
+
 adminUsersRouter.get("/", async (req, res) => {
   try {
     return res.json(ok((await listAdminUsers(req.query.keyword, req.query.offset, req.query.limit))));
@@ -131,11 +141,34 @@ adminUsersRouter.get("/:id/library", async (req, res) => {
     if (!id.ok) return res.status(400).json(fail(id.msg, 400));
     const kind = normalizeLibraryKind(req.query.kind);
     if (!kind) return res.status(400).json(fail("数据类型不正确", 400));
-    const page = (await listAdminUserLibraryItems(id.value, kind, req.query.offset, req.query.limit ?? 30));
+    const status = normalizeLibraryStatus(req.query.status);
+    if (!status) return res.status(400).json(fail("数据状态筛选不正确", 400));
+    const playlistId = normalizeText(req.query.playlistId, 128) || undefined;
+    const page = (await listAdminUserLibraryItems(id.value, kind, req.query.offset, req.query.limit ?? 30, { status, playlistId }));
     if (!page) return res.status(404).json(fail("用户不存在", 404));
     return res.json(ok(page));
   } catch (e) {
     const message = e instanceof Error ? e.message : "读取用户同步数据失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
+adminUsersRouter.get("/:id/sync-logs", async (req, res) => {
+  try {
+    const id = normalizeUserId(req.params.id);
+    if (!id.ok) return res.status(400).json(fail(id.msg, 400));
+    const page = await listAdminUserSyncLogs(id.value, {
+      offset: req.query.offset,
+      limit: req.query.limit ?? 30,
+      itemType: req.query.itemType,
+      action: req.query.action,
+      deviceId: req.query.deviceId,
+      keyword: req.query.keyword,
+    });
+    if (!page) return res.status(404).json(fail("用户不存在", 404));
+    return res.json(ok(page));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取用户同步日志失败";
     return res.status(500).json(fail(message, 500));
   }
 });

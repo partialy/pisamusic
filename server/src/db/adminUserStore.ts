@@ -35,6 +35,7 @@ export type AdminUserListItem = {
   vip: boolean;
   vipExpiresAt: number | null;
   syncVersion: number;
+  syncLogFloor: number;
   createdAt: number;
   updatedAt: number;
   lastLoginAt: number | null;
@@ -50,6 +51,12 @@ export type AdminUserLibraryItem = {
   cover: string;
   serverUpdatedAt: number;
   clientUpdatedAt: string;
+  deleted?: boolean;
+  serverVersion?: number;
+  lastDeviceId?: string;
+  lastOpId?: string;
+  playlistId?: string;
+  sortOrder?: number | null;
   durationMs?: number | null;
   listenedMs?: number;
   playCount?: number;
@@ -62,13 +69,36 @@ export type AdminUserDetail = AdminUserListItem & {
   library?: never;
 };
 
-export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists" | "listeningHistory";
+export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists" | "playlistTracks" | "listeningHistory";
+export type AdminUserLibraryStatus = "active" | "deleted" | "all";
 
 export type AdminUserLibraryPage = {
   items: AdminUserLibraryItem[];
   total: number;
   offset: number;
   limit: number;
+};
+
+export type AdminUserSyncLogItem = {
+  version: number;
+  opId: string;
+  deviceId: string;
+  itemType: string;
+  itemKey: string;
+  action: string;
+  summary: string;
+  payloadJson: string;
+  clientUpdatedAt: string;
+  serverUpdatedAt: number;
+};
+
+export type AdminUserSyncLogsPage = {
+  items: AdminUserSyncLogItem[];
+  total: number;
+  offset: number;
+  limit: number;
+  syncVersion: number;
+  syncLogFloor: number;
 };
 
 export type AdminUserListResult = {
@@ -96,6 +126,7 @@ type UserStatsRow = {
   vip_enabled: number;
   vip_expires_at: number | null;
   sync_version: number;
+  sync_log_floor: number;
   created_at: number;
   updated_at: number;
   last_login_at: number | null;
@@ -108,6 +139,22 @@ type UserStatsRow = {
 
 type SyncItemRow = {
   item_key: string;
+  payload_json: string;
+  deleted: number;
+  last_op_id: string;
+  last_device_id: string;
+  client_updated_at: string;
+  server_version: number;
+  server_updated_at: number;
+};
+
+type SyncLogQueryRow = {
+  version: number;
+  op_id: string;
+  device_id: string;
+  item_type: string;
+  item_key: string;
+  action: string;
   payload_json: string;
   client_updated_at: string;
   server_updated_at: number;
@@ -156,6 +203,7 @@ function mapUserRow(row: UserStatsRow): AdminUserListItem {
     vip: publicUser.vip,
     vipExpiresAt: publicUser.vipExpiresAt,
     syncVersion: user.syncVersion,
+    syncLogFloor: Number(row.sync_log_floor) || 0,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     lastLoginAt: user.lastLoginAt,
@@ -173,7 +221,7 @@ function userStatsSelect(whereSql: string): string {
   return `
     SELECT
       u.id, u.email, u.username, u.password_hash, u.avatar, u.avatar_key,
-      u.vip_enabled, u.vip_expires_at, u.sync_version, u.created_at, u.updated_at, u.last_login_at,
+      u.vip_enabled, u.vip_expires_at, u.sync_version, u.sync_log_floor, u.created_at, u.updated_at, u.last_login_at,
       COALESCE(SUM(CASE WHEN s.item_type = 'favorite_song' THEN 1 ELSE 0 END), 0) AS favorite_songs,
       COALESCE(SUM(CASE WHEN s.item_type = 'favorite_playlist' THEN 1 ELSE 0 END), 0) AS favorite_playlists,
       COALESCE(SUM(CASE WHEN s.item_type = 'user_playlist' THEN 1 ELSE 0 END), 0) AS user_playlists,
@@ -184,7 +232,7 @@ function userStatsSelect(whereSql: string): string {
     ${whereSql}
     GROUP BY
       u.id, u.email, u.username, u.password_hash, u.avatar, u.avatar_key,
-      u.vip_enabled, u.vip_expires_at, u.sync_version, u.created_at, u.updated_at, u.last_login_at
+      u.vip_enabled, u.vip_expires_at, u.sync_version, u.sync_log_floor, u.created_at, u.updated_at, u.last_login_at
   `;
 }
 
@@ -224,6 +272,7 @@ export async function listAdminUserLibraryItems(
   kind: AdminUserLibraryKind,
   rawOffset: unknown,
   rawLimit: unknown,
+  options: { status?: AdminUserLibraryStatus; playlistId?: string } = {},
 ): Promise<AdminUserLibraryPage | null> {
   if (!(await readUserById(userId))) return null;
   const db = getAppDb();
@@ -255,12 +304,85 @@ export async function listAdminUserLibraryItems(
   }
 
   const itemType = itemTypeForKind(kind);
-  const totalRow = (await db.queryOne("SELECT COUNT(*) AS total FROM user_sync_items WHERE user_id = ? AND item_type = ? AND deleted = 0", [userId, itemType])) as { total: number };
+  const status = options.status ?? "active";
+  const playlistId = kind === "playlistTracks" ? normalizeKeyword(options.playlistId) : "";
+  const conditions = ["user_id = ?", "item_type = ?"];
+  const params: Array<string | number> = [userId, itemType];
+  if (status === "active") conditions.push("deleted = 0");
+  else if (status === "deleted") conditions.push("deleted = 1");
+  if (playlistId) {
+    const prefix = `${playlistId}|`;
+    conditions.push(db.dialect === "mysql" ? "LEFT(item_key, ?) = ?" : "substr(item_key, 1, ?) = ?");
+    params.push(Array.from(prefix).length, prefix);
+  }
+  const whereSql = conditions.join(" AND ");
+  const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM user_sync_items WHERE ${whereSql}`, params)) as { total: number };
   return {
-    items: (await listUserSyncItems(db, userId, itemType, offset, limit)),
-    total: totalRow.total,
+    items: await listUserSyncItems(db, whereSql, params, itemType, offset, limit),
+    total: Number(totalRow.total) || 0,
     offset,
     limit,
+  };
+}
+
+export async function listAdminUserSyncLogs(
+  userId: string,
+  query: { offset?: unknown; limit?: unknown; itemType?: unknown; action?: unknown; deviceId?: unknown; keyword?: unknown },
+): Promise<AdminUserSyncLogsPage | null> {
+  const db = getAppDb();
+  const userRow = (await db.queryOne("SELECT sync_version, sync_log_floor FROM users WHERE id = ?", [userId])) as { sync_version: number; sync_log_floor: number } | undefined;
+  if (!userRow) return null;
+  const { offset, limit } = normalizePagination(query.offset, query.limit ?? 30);
+  const conditions = ["user_id = ?"];
+  const params: Array<string | number> = [userId];
+  const itemType = normalizeKeyword(query.itemType);
+  if (itemType && itemType !== "all") {
+    conditions.push("item_type = ?");
+    params.push(itemType);
+  }
+  const action = normalizeKeyword(query.action);
+  if (action && action !== "all") {
+    conditions.push("action = ?");
+    params.push(action);
+  }
+  const deviceId = normalizeKeyword(query.deviceId);
+  if (deviceId) {
+    conditions.push("device_id LIKE ?");
+    params.push(`%${deviceId}%`);
+  }
+  const keyword = normalizeKeyword(query.keyword);
+  if (keyword) {
+    conditions.push("(item_key LIKE ? OR op_id LIKE ?)");
+    params.push(`%${keyword}%`, `%${keyword}%`);
+  }
+  const whereSql = conditions.join(" AND ");
+  const totalRow = (await db.queryOne(`SELECT COUNT(*) AS total FROM user_sync_change_log WHERE ${whereSql}`, params)) as { total: number };
+  const rows = (await db.query(
+    `SELECT version, op_id, device_id, item_type, item_key, action, payload_json, client_updated_at, server_updated_at
+     FROM user_sync_change_log
+     WHERE ${whereSql}
+     ORDER BY version DESC
+     LIMIT ? OFFSET ?`,
+    [...params, limit, offset],
+  )) as SyncLogQueryRow[];
+  return {
+    items: rows.map((row) => ({
+      version: Number(row.version),
+      opId: row.op_id,
+      deviceId: row.device_id,
+      itemType: row.item_type,
+      itemKey: row.item_key,
+      action: row.action,
+      summary: summarizeSyncPayload(row.item_type, row.item_key, row.action, row.payload_json),
+      payloadJson: row.payload_json,
+      clientUpdatedAt: row.client_updated_at,
+      serverUpdatedAt: Number(row.server_updated_at),
+    })),
+    total: Number(totalRow.total) || 0,
+    offset,
+    limit,
+    syncVersion: Number(userRow.sync_version) || 0,
+    syncLogFloor: Number(userRow.sync_log_floor) || 0,
   };
 }
 
@@ -311,26 +433,39 @@ export function normalizeAdminAvatarKey(value: string): AccountAvatarKey | null 
 function itemTypeForKind(kind: AdminUserLibraryKind): string {
   if (kind === "favoritePlaylists") return "favorite_playlist";
   if (kind === "userPlaylists") return "user_playlist";
+  if (kind === "playlistTracks") return "playlist_track";
   return "favorite_song";
 }
 
-async function listUserSyncItems(db: DatabaseSync, userId: string, itemType: string, offset: number, limit: number): Promise<AdminUserLibraryItem[]> {
-  const rows = (await db.query(`SELECT item_key, payload_json, client_updated_at, server_updated_at
+async function listUserSyncItems(
+  db: DatabaseSync,
+  whereSql: string,
+  params: Array<string | number>,
+  itemType: string,
+  offset: number,
+  limit: number,
+): Promise<AdminUserLibraryItem[]> {
+  const rows = (await db.query(`SELECT item_key, payload_json, deleted, last_op_id, last_device_id, client_updated_at, server_version, server_updated_at
        FROM user_sync_items
-       WHERE user_id = ? AND item_type = ? AND deleted = 0
+       WHERE ${whereSql}
        ORDER BY server_updated_at DESC, item_key ASC
-       LIMIT ? OFFSET ?`, [userId, itemType, limit, offset])) as SyncItemRow[];
+       LIMIT ? OFFSET ?`, [...params, limit, offset])) as SyncItemRow[];
   return rows.map((row) => mapSyncItem(row, itemType));
 }
 
 function mapSyncItem(row: SyncItemRow, itemType: string): AdminUserLibraryItem {
   const payload = parsePayload(row.payload_json);
-  const source = stringField(payload.source) || sourceFromKey(row.item_key);
-  const itemId = stringField(payload.id) || idFromKey(row.item_key);
-  const name = stringField(payload.name) || stringField(payload.title) || row.item_key;
-  const subtitle = itemType === "favorite_song"
+  const deleted = Number(row.deleted) === 1;
+  const separatorIndex = itemType === "playlist_track" ? row.item_key.indexOf("|") : -1;
+  const playlistId = separatorIndex > 0 ? row.item_key.slice(0, separatorIndex) : undefined;
+  const trackKey = separatorIndex > 0 ? row.item_key.slice(separatorIndex + 1) : row.item_key;
+  const source = stringField(payload.source) || sourceFromKey(trackKey);
+  const itemId = stringField(payload.id) || idFromKey(trackKey);
+  const name = stringField(payload.name) || stringField(payload.title) || (deleted ? "已删除墓碑记录" : trackKey);
+  const subtitle = itemType === "favorite_song" || itemType === "playlist_track"
     ? stringField(payload.singer) || stringField(payload.artist) || stringField(payload.album)
     : stringField(payload.desc) || stringField(payload.intro) || tagsText(payload.tags);
+  const sortOrder = typeof payload.sortOrder === "number" && Number.isSafeInteger(payload.sortOrder) ? payload.sortOrder : null;
   return {
     itemKey: row.item_key,
     itemId,
@@ -338,9 +473,26 @@ function mapSyncItem(row: SyncItemRow, itemType: string): AdminUserLibraryItem {
     name,
     subtitle,
     cover: stringField(payload.cover) || stringField(payload.coverUrl),
-    serverUpdatedAt: row.server_updated_at,
+    serverUpdatedAt: Number(row.server_updated_at),
     clientUpdatedAt: row.client_updated_at,
+    deleted,
+    serverVersion: Number(row.server_version),
+    lastDeviceId: row.last_device_id,
+    lastOpId: row.last_op_id,
+    ...(playlistId ? { playlistId } : {}),
+    ...(itemType === "playlist_track" ? { sortOrder } : {}),
   };
+}
+
+function summarizeSyncPayload(itemType: string, itemKey: string, action: string, payloadJson: string): string {
+  if (action === "delete") return "墓碑删除";
+  const payload = parsePayload(payloadJson);
+  const name = stringField(payload.name) || stringField(payload.title) || itemKey;
+  if (itemType === "favorite_song" || itemType === "playlist_track") {
+    const singer = stringField(payload.singer) || stringField(payload.artist);
+    return singer ? `${name} - ${singer}` : name;
+  }
+  return name;
 }
 
 function parsePayload(raw: string): Record<string, unknown> {

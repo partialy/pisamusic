@@ -21,9 +21,11 @@
 
 | 参数名 | 类型 | 必填 | 说明与限制 |
 | :--- | :--- | :--- | :--- |
-| `kind` | `string` | 是 | 数据类型：`favoriteSongs`（收藏歌曲）/ `favoritePlaylists`（收藏歌单）/ `userPlaylists`（自建歌单）/ `listeningHistory`（听歌历史） |
+| `kind` | `string` | 是 | 数据类型：`favoriteSongs`（收藏歌曲）/ `favoritePlaylists`（收藏歌单）/ `userPlaylists`（自建歌单）/ `playlistTracks`（歌单内曲目）/ `listeningHistory`（听歌历史） |
+| `status` | `string` | 否 | 同步项状态筛选（非听歌历史生效）：`active`（默认，仅存活）/ `deleted`（仅墓碑）/ `all`（全部） |
+| `playlistId` | `string` | 否 | 仅 `kind=playlistTracks` 时生效，按指定自建歌单 ID 过滤曲目 |
 | `offset` | `number` | 否 | 分页起始偏移量，默认 0 |
-| `limit` | `number` | 否 | 每页条数（默认 30） |
+| `limit` | `number` | 否 | 每页条数（默认 30，上限 100） |
 
 ---
 
@@ -46,6 +48,10 @@
         "cover": "",
         "serverUpdatedAt": 1700000000000,
         "clientUpdatedAt": "",
+        "deleted": false,
+        "serverVersion": 45,
+        "lastDeviceId": "desktop-device-456",
+        "lastOpId": "op_fav_001",
         "durationMs": 269000,
         "listenedMs": 538000,
         "playCount": 3,

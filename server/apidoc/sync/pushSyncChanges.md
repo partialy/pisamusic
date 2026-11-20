@@ -29,6 +29,7 @@
 | `changes[].action` | `string` | 是 | `upsert` 或 `delete` |
 | `changes[].payload` | `object` | 否 | 实体数据（`action="upsert"` 时必填） |
 | `changes[].clientUpdatedAt` | `string` | 否 | 客户端发生变更的 ISO 时间字符串 |
+| `changes[].baseVersion` | `number \| null` | 否 | 可选；客户端已知的该实体最近 `server_version`，用于判断因果快进或并发冲突 |
 
 ### 请求示例
 
@@ -81,10 +82,14 @@
 | `version` | `number` | 提交后账号达到的最新同步版本号 |
 | `accepted` | `number` | 本次输入中成功应用的最终有效项数（不含派生子墓碑） |
 | `skipped` | `number` | 输入总数减 accepted：包括已处理/重复 opId、同 key 合并、相同状态 no-op、LWW 过期项、父墓碑屏蔽项 |
+| `serverTime` | `number` | 服务端落库 UTC 毫秒时间戳（客户端用于对齐 HLC 时钟偏移） |
+| `conflicts` | `number` | 本批触发 `baseVersion < server_version` 并发冲突裁决的条目数 |
+| `appliedItems` | `Array` | 已应用（含 no-op 确认）项的权威版本清单：`{ opId, itemType, itemKey, version, noop? }` |
+| `rejectedItems` | `Array` | 被拒绝/忽略项清单：`{ opId, itemType, itemKey, reason: "lww_lost" \| "parent_deleted" \| "duplicate_op", serverVersion }` |
 
 ## 合并、幂等与冲突
 
-每批在用户行锁内先批量过滤已处理 opId，再按 `(itemType,itemKey)` 合并。默认开启 `sync.lwwEnabled`，同 key 取最新 clientUpdatedAt（同时间取输入最后一条）；关闭时按输入最后一条。递归规范化对象 key 后比较 payload（数组顺序保留），相同 upsert 或已有墓碑的 delete 不分配版本、不写日志，但记入 applied_ops。较新 no-op 会推进实体冲突时钟，防止旧数据随后覆盖。
+每批在用户行锁内先批量过滤已处理 opId，再按 `(itemType,itemKey)` 合并。当客户端携带 `baseVersion` 且等于或大于库中当前 `server_version` 时，判定为因果快进（不受本地偏慢时钟触发 LWW 误拒绝）；若 `baseVersion < server_version`（发生并发修改）或未传 `baseVersion`，默认开启 `sync.lwwEnabled` 时按 `clientUpdatedAt` 做 LWW 裁决。递归规范化对象 key 后比较 payload（数组顺序保留），相同 upsert 或已有墓碑的 delete 不分配版本、不写日志，但记入 applied_ops 并返回现有 `server_version`。较新 no-op 会推进实体冲突时钟，防止旧数据随后覆盖。
 
 有效项一次性原子分配连续版本区间，批量更新 items/log/applied_ops；重复操作及整个事务失败不会产生版本空洞。客户端时间支持 ISO 字符串或毫秒数字字符串，统一存为 ISO，未来时间最多限制为服务端当前时间加五分钟，防止时钟异常永久阻塞同步。缺失时间按 0 处理。相等时间按到达顺序决定。
 

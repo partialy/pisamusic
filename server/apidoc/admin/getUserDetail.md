@@ -38,6 +38,7 @@
     "vipEnabled": true,
     "vipExpiresAt": 1735689600000,
     "syncVersion": 45,
+    "syncLogFloor": 0,
     "createdAt": 1700000000000,
     "updatedAt": 1700000050000,
     "lastLoginAt": 1700000050000,

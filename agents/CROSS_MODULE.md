@@ -23,6 +23,7 @@
 - 父歌单delete同事务派生所有存活曲目墓碑；最终父墓碑阻止迟到/同批子upsert，不依赖输入顺序。派生日志各占权威version，并使用父opId与实体身份确定性派生的独立opId。accepted/skipped仅计输入，不能据push版本推进pull游标。
 - 收藏歌曲同步 payload 可选 `favoritedAt`（毫秒时间戳），表示收藏关系的创建时间；新增和 seed 从持久化记录取值，下行用于排序，缺失兼容旧端。元数据更新不得无故重置收藏时间。
 - 新端以 `protocol=2` 拉取同步；`mode=delta` 按实际返回的日志版本推进游标，不能直接跳到账号全局 `version` 或 push 返回版本。`mode=snapshot` 必须完整收集同一 `snapshotVersion` 的全部分页后再对账，版本变化时重启；快照含有的项更新、本地多余且无 pending 的项移除，未完成分页不能删除本地数据。同账号同 key 的本机待同步操作优先。
+- 上行支持可选 `baseVersion`（实体已知最近 `server_version`）与服务端 `serverTime` 对齐的 HLC 时钟：`baseVersion >= item.server_version` 判定为因果快进，并发冲突（`baseVersion < item.server_version`）仍按 `itemKey` 集合独立合并 + LWW 裁决并返回 `appliedItems` / `rejectedItems` / `conflicts`；客户端须将同步水位、实体版本表与本地操作日志持久化到 SQLite（`pm` DB v18 / `yixi` Schema v11），同账号登出保留水位与已 seed 状态（避免重登全量 re-seed 用当前时间复活云端删除），首次 seed 沿用本地持久化历史时间。
 - 服务端兼容旧端 `changes` 字段；旧端无快照能力声明时，日志不足需返回可完整消费的兼容快照。回声过滤只应用于 delta，快照必须包含本设备来源的权威状态。设备标识使用稳定持久化身份，不能以厂商和型号作为去重身份。
 - Android“删除全部数据”只清本机，不删除云端；同时清理本机 pending 并将当前账号游标重置到 0、保持无需重新 seed，下次同步可恢复云端数据。收藏备份 ZIP 继续使用 `loveList.json` 条目，由 SQLite 按需生成，应用不再维护该文件的运行时镜像。
 
