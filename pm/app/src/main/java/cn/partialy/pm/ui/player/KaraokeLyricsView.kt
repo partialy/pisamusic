@@ -18,6 +18,7 @@ import cn.partialy.pm.ui.player.lyricstyle.LyricCascadeScrollController
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectConfig
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectRenderFrame
 import cn.partialy.pm.ui.player.lyricstyle.LyricEffectRendererRegistry
+import cn.partialy.pm.ui.player.lyricstyle.LyricEffectStyleId
 import cn.partialy.pm.ui.player.lyricstyle.LyricFrameRateLimiter
 import kotlin.math.abs
 import kotlin.math.floor
@@ -449,7 +450,7 @@ class KaraokeLyricsView @JvmOverloads constructor(
         paint.clearShadowLayer()
         val normalColor = style.resolvedNormalColor()
         paint.color = if (clampedEmphasis > 0.002f) {
-            blendArgb(normalColor, style.currentColorArgb, clampedEmphasis)
+            blendArgb(normalColor, resolveEmphasisColor(), clampedEmphasis)
         } else {
             normalColor
         }
@@ -512,6 +513,16 @@ class KaraokeLyricsView @JvmOverloads constructor(
         LyricAlignment.START -> paddingLeft.toFloat()
         LyricAlignment.CENTER -> width / 2f
         LyricAlignment.END -> (width - paddingRight).toFloat()
+    }
+
+    private fun resolveEmphasisColor(): Int = when (effectConfig.styleId) {
+        LyricEffectStyleId.DEFAULT -> style.currentColorArgb
+        LyricEffectStyleId.TYPEWRITER -> effectConfig.typewriter.textColorArgb
+        LyricEffectStyleId.INK -> effectConfig.ink.highlightStartColorArgb
+        LyricEffectStyleId.BOUNCE -> effectConfig.bounce.sungColorArgb
+        LyricEffectStyleId.SPOTLIGHT -> effectConfig.spotlight.sungColorArgb
+        LyricEffectStyleId.NEON -> effectConfig.neon.colorMidArgb
+        LyricEffectStyleId.OCEAN -> effectConfig.ocean.sungColorArgb
     }
 
     private fun blendArgb(from: Int, to: Int, fraction: Float): Int {

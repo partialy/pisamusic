@@ -375,11 +375,15 @@ internal class KaraokeLyricLayoutEngine {
         selectedExtraVerticalPaddingPx: Float,
     ): Float {
         if (index !in lines.indices) return rowStride(paint, currentTextSize, normalTextSize, lyricRowGapPx)
-        paint.textSize = if (index == selectedIndex) currentTextSize else normalTextSize
+        // 统一按激活态字号计算折行段数，确保切行缩放过程中折行断点恒定、不发生重排跳变
+        paint.textSize = currentTextSize
         val segmentCount = wrapText(paint, lines[index].lineText, maxTextWidth).size.coerceAtLeast(1)
-        val lineHeight = textHeight(paint, paint.textSize) + wrappedLineGapPx
+        val targetTextSize = if (index == selectedIndex) currentTextSize else normalTextSize
+        val scaleRatio = if (currentTextSize > 0f) targetTextSize / currentTextSize else 1f
+        val effectiveGap = wrappedLineGapPx * scaleRatio
+        val lineHeight = textHeight(paint, targetTextSize) + effectiveGap
         val extra = if (index == selectedIndex) selectedExtraVerticalPaddingPx else 0f
-        return lineHeight * segmentCount - wrappedLineGapPx + extra
+        return lineHeight * segmentCount - effectiveGap + extra
     }
 
     fun drawWrappedSegmentsCentered(
