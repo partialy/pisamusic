@@ -1,5 +1,6 @@
 import { configManager } from "../config/configManager";
 import {
+  batchUpsertQuotaStateOverride,
   getAdminQuotaStateDetail,
   queryQuotaStates,
   querySongDownloadOverview,
@@ -103,11 +104,7 @@ export async function getAdminSubjectQuotaDetail(subjectTypeRaw: unknown, subjec
   return getAdminQuotaStateDetail(parseSubjectType(subjectTypeRaw), parseSubjectKey(subjectKeyRaw));
 }
 
-export async function saveAdminSubjectQuotaOverride(
-  subjectTypeRaw: unknown,
-  subjectKeyRaw: unknown,
-  body: unknown,
-): Promise<AdminQuotaStateItem> {
+function parseQuotaOverrideFields(body: unknown) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new SongDownloadValidationError("请求体必须是对象");
   }
@@ -115,27 +112,52 @@ export async function saveAdminSubjectQuotaOverride(
   if (typeof obj.overrideEnabled !== "boolean") {
     throw new SongDownloadValidationError("overrideEnabled 必须是布尔值");
   }
+  return {
+    obj,
+    patch: {
+      overrideEnabled: obj.overrideEnabled,
+      dailyLimit: obj.overrideEnabled ? parseNullableLimit(obj.dailyLimit, "dailyLimit") : null,
+      weeklyLimit: obj.overrideEnabled ? parseNullableLimit(obj.weeklyLimit, "weeklyLimit") : null,
+      monthlyLimit: obj.overrideEnabled ? parseNullableLimit(obj.monthlyLimit, "monthlyLimit") : null,
+      totalLimit: obj.overrideEnabled ? parseNullableLimit(obj.totalLimit, "totalLimit") : null,
+      resetDayUsed: obj.resetDayUsed === true,
+      resetWeekUsed: obj.resetWeekUsed === true,
+      resetMonthUsed: obj.resetMonthUsed === true,
+      resetTotalUsed: obj.resetTotalUsed === true,
+    },
+  };
+}
+
+export async function saveAdminSubjectQuotaOverride(
+  subjectTypeRaw: unknown,
+  subjectKeyRaw: unknown,
+  body: unknown,
+): Promise<AdminQuotaStateItem> {
   const subjectType = parseSubjectType(subjectTypeRaw);
   const subjectKey = parseSubjectKey(subjectKeyRaw);
+  const { patch } = parseQuotaOverrideFields(body);
+  return upsertQuotaStateOverride({ subjectType, subjectKey, ...patch });
+}
 
-  const dailyLimit = obj.overrideEnabled ? parseNullableLimit(obj.dailyLimit, "dailyLimit") : null;
-  const weeklyLimit = obj.overrideEnabled ? parseNullableLimit(obj.weeklyLimit, "weeklyLimit") : null;
-  const monthlyLimit = obj.overrideEnabled ? parseNullableLimit(obj.monthlyLimit, "monthlyLimit") : null;
-  const totalLimit = obj.overrideEnabled ? parseNullableLimit(obj.totalLimit, "totalLimit") : null;
-
-  return upsertQuotaStateOverride({
-    subjectType,
-    subjectKey,
-    overrideEnabled: obj.overrideEnabled,
-    dailyLimit,
-    weeklyLimit,
-    monthlyLimit,
-    totalLimit,
-    resetDayUsed: obj.resetDayUsed === true,
-    resetWeekUsed: obj.resetWeekUsed === true,
-    resetMonthUsed: obj.resetMonthUsed === true,
-    resetTotalUsed: obj.resetTotalUsed === true,
-  });
+export async function saveAdminBatchSubjectQuotaOverride(
+  body: unknown,
+): Promise<{ updatedCount: number }> {
+  const { obj, patch } = parseQuotaOverrideFields(body);
+  if (!Array.isArray(obj.targets) || obj.targets.length === 0 || obj.targets.length > 500) {
+    throw new SongDownloadValidationError("targets 必须包含 1 到 500 个配置主体");
+  }
+  const deduped = new Map<string, { subjectType: SongDownloadSubjectType; subjectKey: string }>();
+  for (let i = 0; i < obj.targets.length; i++) {
+    const raw = obj.targets[i];
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new SongDownloadValidationError(`targets[${i}] 必须是对象`);
+    }
+    const item = raw as Record<string, unknown>;
+    const subjectType = parseSubjectType(item.subjectType);
+    const subjectKey = parseSubjectKey(item.subjectKey);
+    deduped.set(`${subjectType}:${subjectKey}`, { subjectType, subjectKey });
+  }
+  return batchUpsertQuotaStateOverride([...deduped.values()], patch);
 }
 
 export function getAdminDefaultQuotaLimits(): QuotaLimits {

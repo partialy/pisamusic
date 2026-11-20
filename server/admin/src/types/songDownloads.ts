@@ -83,3 +83,17 @@ export type QuotaOverridePayload = {
   resetMonthUsed?: boolean;
   resetTotalUsed?: boolean;
 };
+
+export type QuotaTargetRef = {
+  subjectType: SongDownloadSubjectType;
+  subjectKey: string;
+  displayName: string;
+  secondaryLabel?: string;
+};
+
+export type BatchQuotaOverridePayload = QuotaOverridePayload & {
+  targets: Array<{
+    subjectType: SongDownloadSubjectType;
+    subjectKey: string;
+  }>;
+};

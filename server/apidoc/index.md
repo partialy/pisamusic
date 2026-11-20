@@ -375,6 +375,7 @@
 | 分页查询用户/设备下载动态 | `GET` | `/api/admin/song-downloads/records` | [./songDownloads/overview.md](./songDownloads/overview.md) |
 | 读取/保存全局默认下载配额 | `GET/PUT` | `/api/admin/song-downloads/default-quota` | [./songDownloads/overview.md](./songDownloads/overview.md) |
 | 分页查询用户/设备配额状态 | `GET` | `/api/admin/song-downloads/quotas` | [./songDownloads/overview.md](./songDownloads/overview.md) |
+| 批量设置多主体配额覆盖与重置 | `PUT` | `/api/admin/song-downloads/quotas/batch` | [./songDownloads/overview.md](./songDownloads/overview.md) |
 | 读取/设置单个主体配额覆盖与重置 | `GET/PUT` | `/api/admin/song-downloads/quotas/:subjectType/:subjectKey` | [./songDownloads/overview.md](./songDownloads/overview.md) |
 
 ---

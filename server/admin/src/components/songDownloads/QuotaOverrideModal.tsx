@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Checkbox, Divider, InputNumber, Modal, Space, Switch, Tag, message } from "antd";
-import { saveSubjectQuotaOverride } from "../../api/songDownloads";
-import type { AdminQuotaStateItem } from "../../types/songDownloads";
+import { saveBatchSubjectQuotaOverride, saveSubjectQuotaOverride } from "../../api/songDownloads";
+import type { AdminQuotaStateItem, QuotaTargetRef } from "../../types/songDownloads";
 
 type Props = {
   open: boolean;
   target: AdminQuotaStateItem | null;
+  batchTargets?: QuotaTargetRef[];
   onClose: () => void;
-  onSaved: (updated: AdminQuotaStateItem) => void;
+  onSaved: () => void;
 };
 
 type LimitFieldProps = {
@@ -50,7 +51,10 @@ function LimitField({ label, hint, value, disabled, onChange }: LimitFieldProps)
   );
 }
 
-export default function QuotaOverrideModal({ open, target, onClose, onSaved }: Props) {
+export default function QuotaOverrideModal({ open, target, batchTargets = [], onClose, onSaved }: Props) {
+  const isBatch = batchTargets.length > 1;
+  const active = Boolean(target) || batchTargets.length > 0;
+
   const [saving, setSaving] = useState(false);
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [dailyLimit, setDailyLimit] = useState<number | null>(null);
@@ -63,23 +67,31 @@ export default function QuotaOverrideModal({ open, target, onClose, onSaved }: P
   const [resetTotalUsed, setResetTotalUsed] = useState(false);
 
   useEffect(() => {
-    if (!target) return;
-    setOverrideEnabled(target.overrideEnabled);
-    setDailyLimit(target.daily.limit);
-    setWeeklyLimit(target.weekly.limit);
-    setMonthlyLimit(target.monthly.limit);
-    setTotalLimit(target.total.limit);
+    if (!open) return;
+    if (isBatch) {
+      setOverrideEnabled(true);
+      setDailyLimit(null);
+      setWeeklyLimit(null);
+      setMonthlyLimit(null);
+      setTotalLimit(null);
+    } else if (target) {
+      setOverrideEnabled(target.overrideEnabled);
+      setDailyLimit(target.daily.limit);
+      setWeeklyLimit(target.weekly.limit);
+      setMonthlyLimit(target.monthly.limit);
+      setTotalLimit(target.total.limit);
+    }
     setResetDayUsed(false);
     setResetWeekUsed(false);
     setResetMonthUsed(false);
     setResetTotalUsed(false);
-  }, [target]);
+  }, [open, isBatch, target]);
 
   const handleSave = async () => {
-    if (!target) return;
+    if (!active) return;
     setSaving(true);
     try {
-      const updated = await saveSubjectQuotaOverride(target.subjectType, target.subjectKey, {
+      const payload = {
         overrideEnabled,
         dailyLimit: overrideEnabled ? dailyLimit : null,
         weeklyLimit: overrideEnabled ? weeklyLimit : null,
@@ -89,9 +101,18 @@ export default function QuotaOverrideModal({ open, target, onClose, onSaved }: P
         resetWeekUsed,
         resetMonthUsed,
         resetTotalUsed,
-      });
-      message.success("配额设置已更新");
-      onSaved(updated);
+      };
+      if (isBatch) {
+        const res = await saveBatchSubjectQuotaOverride({
+          targets: batchTargets.map((t) => ({ subjectType: t.subjectType, subjectKey: t.subjectKey })),
+          ...payload,
+        });
+        message.success(`已批量更新 ${res.updatedCount} 个主体的配额设置`);
+      } else if (target) {
+        await saveSubjectQuotaOverride(target.subjectType, target.subjectKey, payload);
+        message.success("配额设置已更新");
+      }
+      onSaved();
       onClose();
     } catch (err) {
       message.error(err instanceof Error ? err.message : "保存失败");
@@ -100,13 +121,16 @@ export default function QuotaOverrideModal({ open, target, onClose, onSaved }: P
     }
   };
 
+  const userCount = batchTargets.filter((t) => t.subjectType === "user").length;
+  const deviceCount = batchTargets.length - userCount;
+
   return (
     <Modal
       open={open}
       title={
         <Space>
-          <span>编辑下载配额</span>
-          {target && (
+          <span>{isBatch ? `批量配置下载配额（共 ${batchTargets.length} 项）` : "编辑下载配额"}</span>
+          {!isBatch && target && (
             <Tag color={target.subjectType === "user" ? "blue" : "purple"}>
               {target.subjectType === "user" ? "账号" : "设备"}
             </Tag>
@@ -114,21 +138,42 @@ export default function QuotaOverrideModal({ open, target, onClose, onSaved }: P
         </Space>
       }
       onCancel={onClose}
-      onOk={handleSave}
+      onOk={() => void handleSave()}
       confirmLoading={saving}
-      okText="保存"
+      okText={isBatch ? "批量保存" : "保存"}
       cancelText="取消"
-      width={520}
+      width={540}
     >
-      {target && (
+      {active && (
         <div className="space-y-3 pt-2">
-          <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            <div className="font-semibold text-slate-800">{target.displayName}</div>
-            <div className="font-mono text-slate-400">{target.subjectKey}</div>
-            <div className="mt-1">
-              当前已用：日 {target.daily.used} / 周 {target.weekly.used} / 月 {target.monthly.used} / 总 {target.total.used}
+          {isBatch ? (
+            <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 space-y-1.5">
+              <div className="font-semibold text-slate-800">
+                已选择 {batchTargets.length} 个配置主体（账号 {userCount} / 设备 {deviceCount}），保存后将统一覆盖这些主体的配额策略
+              </div>
+              <div className="max-h-20 overflow-y-auto">
+                <Space size={[4, 4]} wrap>
+                  {batchTargets.map((item) => (
+                    <Tag
+                      key={`${item.subjectType}:${item.subjectKey}`}
+                      color={item.subjectType === "user" ? "blue" : "purple"}
+                      className="!mr-0"
+                    >
+                      {item.displayName}
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
             </div>
-          </div>
+          ) : target ? (
+            <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              <div className="font-semibold text-slate-800">{target.displayName}</div>
+              <div className="font-mono text-slate-400">{target.subjectKey}</div>
+              <div className="mt-1">
+                当前已用：日 {target.daily.used} / 周 {target.weekly.used} / 月 {target.monthly.used} / 总 {target.total.used}
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex items-center justify-between py-1">
             <div>
@@ -175,16 +220,16 @@ export default function QuotaOverrideModal({ open, target, onClose, onSaved }: P
             <div className="mb-2 text-xs font-medium text-slate-500">清空已用次数（可选）</div>
             <Space wrap>
               <Checkbox checked={resetDayUsed} onChange={(e) => setResetDayUsed(e.target.checked)}>
-                清零今日 ({target.daily.used})
+                {isBatch || !target ? "清零今日已用" : `清零今日 (${target.daily.used})`}
               </Checkbox>
               <Checkbox checked={resetWeekUsed} onChange={(e) => setResetWeekUsed(e.target.checked)}>
-                清零本周 ({target.weekly.used})
+                {isBatch || !target ? "清零本周已用" : `清零本周 (${target.weekly.used})`}
               </Checkbox>
               <Checkbox checked={resetMonthUsed} onChange={(e) => setResetMonthUsed(e.target.checked)}>
-                清零本月 ({target.monthly.used})
+                {isBatch || !target ? "清零本月已用" : `清零本月 (${target.monthly.used})`}
               </Checkbox>
               <Checkbox checked={resetTotalUsed} onChange={(e) => setResetTotalUsed(e.target.checked)}>
-                清零总计 ({target.total.used})
+                {isBatch || !target ? "清零累计总计" : `清零总计 (${target.total.used})`}
               </Checkbox>
             </Space>
           </div>

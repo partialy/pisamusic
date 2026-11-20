@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card, Col, Input, InputNumber, Row, Select, Space, Switch, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { EditOutlined, ReloadOutlined, SaveOutlined, SearchOutlined } from "@ant-design/icons";
+import {
+  EditOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+  SearchOutlined,
+} from "@ant-design/icons";
 import {
   fetchDefaultDownloadQuota,
   fetchQuotaStates,
@@ -9,12 +15,27 @@ import {
   saveDefaultDownloadQuota,
 } from "../../api/songDownloads";
 import { glassCardClasses } from "../../constants/theme";
-import type { AdminQuotaStateItem, QuotaDimensionSnapshot, QuotaLimits } from "../../types/songDownloads";
+import type {
+  AdminQuotaStateItem,
+  QuotaDimensionSnapshot,
+  QuotaLimits,
+  QuotaTargetRef,
+} from "../../types/songDownloads";
 import QuotaOverrideModal from "./QuotaOverrideModal";
+import QuotaTargetPickerModal from "./QuotaTargetPickerModal";
 
 function formatDim(dim: QuotaDimensionSnapshot): string {
   if (dim.limit === null) return `已用 ${dim.used} / 不限`;
   return `余 ${dim.remaining} / ${dim.limit}（用 ${dim.used}）`;
+}
+
+function toTargetRef(item: AdminQuotaStateItem): QuotaTargetRef {
+  return {
+    subjectType: item.subjectType,
+    subjectKey: item.subjectKey,
+    displayName: item.displayName,
+    secondaryLabel: item.secondaryLabel,
+  };
 }
 
 export default function SongDownloadQuotaTab() {
@@ -33,9 +54,11 @@ export default function SongDownloadQuotaTab() {
   const [total, setTotal] = useState(0);
   const [loadingRows, setLoadingRows] = useState(false);
 
-  const [editing, setEditing] = useState<AdminQuotaStateItem | null>(null);
-  const [lookupType, setLookupType] = useState<"user" | "device">("user");
-  const [lookupKey, setLookupKey] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedTableTargets, setSelectedTableTargets] = useState<Map<string, QuotaTargetRef>>(new Map());
+  const [editingSingle, setEditingSingle] = useState<AdminQuotaStateItem | null>(null);
+  const [editingBatch, setEditingBatch] = useState<QuotaTargetRef[]>([]);
+  const [openingDetail, setOpeningDetail] = useState(false);
 
   useEffect(() => {
     fetchDefaultDownloadQuota()
@@ -79,15 +102,29 @@ export default function SongDownloadQuotaTab() {
     }
   };
 
-  const handleLookup = async () => {
-    const key = lookupKey.trim();
-    if (!key) return message.warning("请输入账号 ID 或设备键（如 android:<id> / desktop:<id>）");
-    try {
-      const detail = await fetchSubjectQuotaDetail(lookupType, key);
-      setEditing(detail);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : "查询主体配额失败");
+  const openConfigForTargets = async (targets: QuotaTargetRef[]) => {
+    if (targets.length === 0) return;
+    if (targets.length === 1) {
+      const only = targets[0]!;
+      setOpeningDetail(true);
+      try {
+        const detail = await fetchSubjectQuotaDetail(only.subjectType, only.subjectKey);
+        setEditingBatch([]);
+        setEditingSingle(detail);
+      } catch (err) {
+        message.error(err instanceof Error ? err.message : "读取主体配额失败");
+      } finally {
+        setOpeningDetail(false);
+      }
+      return;
     }
+    setEditingSingle(null);
+    setEditingBatch(targets);
+  };
+
+  const handlePickerConfirm = async (targets: QuotaTargetRef[]) => {
+    setPickerOpen(false);
+    await openConfigForTargets(targets);
   };
 
   const renderDefaultField = (key: keyof QuotaLimits, label: string, hint: string) => {
@@ -157,12 +194,21 @@ export default function SongDownloadQuotaTab() {
       title: "操作",
       width: 100,
       render: (_v, r) => (
-        <Button size="small" icon={<EditOutlined />} onClick={() => setEditing(r)}>
+        <Button
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => {
+            setEditingBatch([]);
+            setEditingSingle(r);
+          }}
+        >
           配置
         </Button>
       ),
     },
   ];
+
+  const selectedCount = selectedTableTargets.size;
 
   return (
     <div className="space-y-4">
@@ -207,58 +253,62 @@ export default function SongDownloadQuotaTab() {
         className={glassCardClasses}
         title="用户 / 设备配额与用量明细"
         extra={
-          <Space wrap>
-            <Select
-              size="small"
-              value={lookupType}
-              onChange={setLookupType}
-              className="w-24"
-              options={[
-                { value: "user", label: "账号" },
-                { value: "device", label: "设备" },
-              ]}
-            />
-            <Input
-              size="small"
-              placeholder={lookupType === "user" ? "输入 userId 直接配置" : "输入 android:<id> 或 desktop:<id>"}
-              value={lookupKey}
-              onChange={(e) => setLookupKey(e.target.value)}
-              className="w-56"
-            />
-            <Button size="small" onClick={handleLookup}>
-              按 ID 配置
-            </Button>
-          </Space>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            loading={openingDetail}
+            onClick={() => setPickerOpen(true)}
+          >
+            选择用户 / 设备配置
+          </Button>
         }
       >
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <Input
-            allowClear
-            placeholder="搜索用户名 / 邮箱 / 设备名 / ID"
-            prefix={<SearchOutlined />}
-            value={keyword}
-            onChange={(e) => {
-              setPage(1);
-              setKeyword(e.target.value);
-            }}
-            className="w-64"
-          />
-          <Select
-            value={subjectType}
-            onChange={(v) => {
-              setPage(1);
-              setSubjectType(v);
-            }}
-            className="w-28"
-            options={[
-              { value: "all", label: "全部主体" },
-              { value: "user", label: "账号" },
-              { value: "device", label: "游客设备" },
-            ]}
-          />
-          <Button icon={<ReloadOutlined />} onClick={() => void loadStates()} loading={loadingRows}>
-            刷新
-          </Button>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              allowClear
+              placeholder="搜索用户名 / 邮箱 / 设备名 / ID"
+              prefix={<SearchOutlined />}
+              value={keyword}
+              onChange={(e) => {
+                setPage(1);
+                setKeyword(e.target.value);
+              }}
+              className="w-64"
+            />
+            <Select
+              value={subjectType}
+              onChange={(v) => {
+                setPage(1);
+                setSubjectType(v);
+              }}
+              className="w-28"
+              options={[
+                { value: "all", label: "全部主体" },
+                { value: "user", label: "账号" },
+                { value: "device", label: "游客设备" },
+              ]}
+            />
+            <Button icon={<ReloadOutlined />} onClick={() => void loadStates()} loading={loadingRows}>
+              刷新
+            </Button>
+          </div>
+
+          {selectedCount > 0 && (
+            <Space>
+              <Button size="small" onClick={() => setSelectedTableTargets(new Map())}>
+                取消勾选
+              </Button>
+              <Button
+                type="primary"
+                size="small"
+                loading={openingDetail}
+                onClick={() => void openConfigForTargets([...selectedTableTargets.values()])}
+              >
+                批量配置已选 ({selectedCount})
+              </Button>
+            </Space>
+          )}
         </div>
 
         <Table
@@ -266,6 +316,31 @@ export default function SongDownloadQuotaTab() {
           loading={loadingRows}
           columns={columns}
           dataSource={rows}
+          rowSelection={{
+            selectedRowKeys: rows
+              .map((r) => `${r.subjectType}:${r.subjectKey}`)
+              .filter((k) => selectedTableTargets.has(k)),
+            onSelect: (record, selected) => {
+              const key = `${record.subjectType}:${record.subjectKey}`;
+              setSelectedTableTargets((prev) => {
+                const next = new Map(prev);
+                if (selected) next.set(key, toTargetRef(record));
+                else next.delete(key);
+                return next;
+              });
+            },
+            onSelectAll: (selected) => {
+              setSelectedTableTargets((prev) => {
+                const next = new Map(prev);
+                for (const row of rows) {
+                  const key = `${row.subjectType}:${row.subjectKey}`;
+                  if (selected) next.set(key, toTargetRef(row));
+                  else next.delete(key);
+                }
+                return next;
+              });
+            },
+          }}
           pagination={{
             current: page,
             pageSize: 20,
@@ -276,11 +351,24 @@ export default function SongDownloadQuotaTab() {
         />
       </Card>
 
+      <QuotaTargetPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onConfirm={(targets) => void handlePickerConfirm(targets)}
+      />
+
       <QuotaOverrideModal
-        open={Boolean(editing)}
-        target={editing}
-        onClose={() => setEditing(null)}
-        onSaved={() => void loadStates()}
+        open={Boolean(editingSingle) || editingBatch.length > 1}
+        target={editingSingle}
+        batchTargets={editingBatch}
+        onClose={() => {
+          setEditingSingle(null);
+          setEditingBatch([]);
+        }}
+        onSaved={() => {
+          setSelectedTableTargets(new Map());
+          void loadStates();
+        }}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import { fetchWithAuth, parseJson } from "./client";
 import type {
   AdminQuotaStateItem,
+  BatchQuotaOverridePayload,
   QuotaLimits,
   QuotaOverridePayload,
   SongDownloadOverviewStats,
@@ -102,5 +103,15 @@ export async function saveSubjectQuotaOverride(
       body: JSON.stringify(payload),
     },
   );
+  return unwrap(res);
+}
+
+export async function saveBatchSubjectQuotaOverride(
+  payload: BatchQuotaOverridePayload,
+): Promise<{ updatedCount: number }> {
+  const res = await fetchWithAuth("/api/admin/song-downloads/quotas/batch", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
   return unwrap(res);
 }

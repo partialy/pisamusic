@@ -6,6 +6,7 @@ import {
   getAdminSongDownloadRecords,
   getAdminSubjectQuotaDetail,
   getAdminTopDownloadedSongs,
+  saveAdminBatchSubjectQuotaOverride,
   saveAdminDefaultQuotaLimits,
   saveAdminSubjectQuotaOverride,
 } from "../services/songDownloadAdminService";
@@ -67,6 +68,14 @@ adminSongDownloadsRouter.get("/quotas", async (req, res) => {
     return res.json(ok(await getAdminQuotaStates(req.query as Record<string, unknown>)));
   } catch (error) {
     return handleError(res, error, "读取配额列表失败");
+  }
+});
+
+adminSongDownloadsRouter.put("/quotas/batch", async (req, res) => {
+  try {
+    return res.json(ok(await saveAdminBatchSubjectQuotaOverride(req.body), "批量下载配额已更新"));
+  } catch (error) {
+    return handleError(res, error, "批量更新下载配额失败");
   }
 });
 

@@ -73,4 +73,5 @@
 | `/api/admin/song-downloads/records?keyword&source&platform&subjectType&userId&deviceId&startDay&endDay&offset&limit` | `GET` | 用户/设备下载动态流水 |
 | `/api/admin/song-downloads/default-quota` | `GET / PUT` | 读取/保存全局默认配额（同步写入 `runtime_configs`） |
 | `/api/admin/song-downloads/quotas?subjectType=all\|user\|device&keyword&offset&limit` | `GET` | 分页查询用户/设备配额与用量状态 |
+| `/api/admin/song-downloads/quotas/batch` | `PUT` | 批量设置多个用户/设备的独立配额覆盖及计数重置（1–500 个主体） |
 | `/api/admin/song-downloads/quotas/:subjectType/:subjectKey` | `GET / PUT` | 读取/设置指定用户或设备的独立配额覆盖及计数重置 |

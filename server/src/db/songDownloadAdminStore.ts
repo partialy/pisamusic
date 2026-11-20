@@ -1,5 +1,6 @@
-import { getBeijingPeriodKeys, listRecentBeijingDays } from "../utils/beijingTime";
+import { getBeijingPeriodKeys, listRecentBeijingDays, type BeijingPeriodKeys } from "../utils/beijingTime";
 import { getAppDb } from "./appDb";
+import type { DbTransaction } from "./core/types";
 import {
   computeQuotaSnapshot,
   type QuotaStateRow,
@@ -472,88 +473,114 @@ export async function getAdminQuotaStateDetail(
   };
 }
 
+async function upsertQuotaStateInTx(
+  tx: DbTransaction,
+  input: QuotaOverrideSaveInput,
+  now: number,
+  periods: BeijingPeriodKeys,
+): Promise<void> {
+  const existing = await tx.queryOne<QuotaStateRow>(
+    `SELECT * FROM song_download_quota_states WHERE subject_type = ? AND subject_key = ?${
+      tx.dialect === "mysql" ? " FOR UPDATE" : ""
+    }`,
+    [input.subjectType, input.subjectKey],
+  );
+
+  const currentDayUsed = input.resetDayUsed
+    ? 0
+    : existing && existing.day_key === periods.dayKey
+      ? Number(existing.day_used) || 0
+      : 0;
+  const currentWeekUsed = input.resetWeekUsed
+    ? 0
+    : existing && existing.week_key === periods.weekKey
+      ? Number(existing.week_used) || 0
+      : 0;
+  const currentMonthUsed = input.resetMonthUsed
+    ? 0
+    : existing && existing.month_key === periods.monthKey
+      ? Number(existing.month_used) || 0
+      : 0;
+  const currentTotalUsed = input.resetTotalUsed ? 0 : existing ? Number(existing.total_used) || 0 : 0;
+
+  if (existing) {
+    await tx.execute(
+      `UPDATE song_download_quota_states SET
+        override_enabled = ?, daily_limit = ?, weekly_limit = ?, monthly_limit = ?, total_limit = ?,
+        day_key = ?, day_used = ?, week_key = ?, week_used = ?, month_key = ?, month_used = ?,
+        total_used = ?, updated_at = ?
+      WHERE subject_type = ? AND subject_key = ?`,
+      [
+        input.overrideEnabled ? 1 : 0,
+        input.overrideEnabled ? input.dailyLimit : null,
+        input.overrideEnabled ? input.weeklyLimit : null,
+        input.overrideEnabled ? input.monthlyLimit : null,
+        input.overrideEnabled ? input.totalLimit : null,
+        periods.dayKey,
+        currentDayUsed,
+        periods.weekKey,
+        currentWeekUsed,
+        periods.monthKey,
+        currentMonthUsed,
+        currentTotalUsed,
+        now,
+        input.subjectType,
+        input.subjectKey,
+      ],
+    );
+  } else {
+    await tx.execute(
+      `INSERT INTO song_download_quota_states (
+        subject_type, subject_key, override_enabled,
+        daily_limit, weekly_limit, monthly_limit, total_limit,
+        day_key, day_used, week_key, week_used, month_key, month_used, total_used, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        input.subjectType,
+        input.subjectKey,
+        input.overrideEnabled ? 1 : 0,
+        input.overrideEnabled ? input.dailyLimit : null,
+        input.overrideEnabled ? input.weeklyLimit : null,
+        input.overrideEnabled ? input.monthlyLimit : null,
+        input.overrideEnabled ? input.totalLimit : null,
+        periods.dayKey,
+        currentDayUsed,
+        periods.weekKey,
+        currentWeekUsed,
+        periods.monthKey,
+        currentMonthUsed,
+        currentTotalUsed,
+        now,
+      ],
+    );
+  }
+}
+
 export async function upsertQuotaStateOverride(input: QuotaOverrideSaveInput): Promise<AdminQuotaStateItem> {
   const db = getAppDb();
   const now = Date.now();
   const periods = getBeijingPeriodKeys(now);
 
   await db.transaction(async (tx) => {
-    const existing = await tx.queryOne<QuotaStateRow>(
-      `SELECT * FROM song_download_quota_states WHERE subject_type = ? AND subject_key = ?${
-        tx.dialect === "mysql" ? " FOR UPDATE" : ""
-      }`,
-      [input.subjectType, input.subjectKey],
-    );
-
-    const currentDayUsed = input.resetDayUsed
-      ? 0
-      : existing && existing.day_key === periods.dayKey
-        ? Number(existing.day_used) || 0
-        : 0;
-    const currentWeekUsed = input.resetWeekUsed
-      ? 0
-      : existing && existing.week_key === periods.weekKey
-        ? Number(existing.week_used) || 0
-        : 0;
-    const currentMonthUsed = input.resetMonthUsed
-      ? 0
-      : existing && existing.month_key === periods.monthKey
-        ? Number(existing.month_used) || 0
-        : 0;
-    const currentTotalUsed = input.resetTotalUsed ? 0 : existing ? Number(existing.total_used) || 0 : 0;
-
-    if (existing) {
-      await tx.execute(
-        `UPDATE song_download_quota_states SET
-          override_enabled = ?, daily_limit = ?, weekly_limit = ?, monthly_limit = ?, total_limit = ?,
-          day_key = ?, day_used = ?, week_key = ?, week_used = ?, month_key = ?, month_used = ?,
-          total_used = ?, updated_at = ?
-        WHERE subject_type = ? AND subject_key = ?`,
-        [
-          input.overrideEnabled ? 1 : 0,
-          input.overrideEnabled ? input.dailyLimit : null,
-          input.overrideEnabled ? input.weeklyLimit : null,
-          input.overrideEnabled ? input.monthlyLimit : null,
-          input.overrideEnabled ? input.totalLimit : null,
-          periods.dayKey,
-          currentDayUsed,
-          periods.weekKey,
-          currentWeekUsed,
-          periods.monthKey,
-          currentMonthUsed,
-          currentTotalUsed,
-          now,
-          input.subjectType,
-          input.subjectKey,
-        ],
-      );
-    } else {
-      await tx.execute(
-        `INSERT INTO song_download_quota_states (
-          subject_type, subject_key, override_enabled,
-          daily_limit, weekly_limit, monthly_limit, total_limit,
-          day_key, day_used, week_key, week_used, month_key, month_used, total_used, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          input.subjectType,
-          input.subjectKey,
-          input.overrideEnabled ? 1 : 0,
-          input.overrideEnabled ? input.dailyLimit : null,
-          input.overrideEnabled ? input.weeklyLimit : null,
-          input.overrideEnabled ? input.monthlyLimit : null,
-          input.overrideEnabled ? input.totalLimit : null,
-          periods.dayKey,
-          currentDayUsed,
-          periods.weekKey,
-          currentWeekUsed,
-          periods.monthKey,
-          currentMonthUsed,
-          currentTotalUsed,
-          now,
-        ],
-      );
-    }
+    await upsertQuotaStateInTx(tx, input, now, periods);
   });
 
   return getAdminQuotaStateDetail(input.subjectType, input.subjectKey);
+}
+
+export async function batchUpsertQuotaStateOverride(
+  targets: ReadonlyArray<{ subjectType: SongDownloadSubjectType; subjectKey: string }>,
+  patch: Omit<QuotaOverrideSaveInput, "subjectType" | "subjectKey">,
+): Promise<{ updatedCount: number }> {
+  const db = getAppDb();
+  const now = Date.now();
+  const periods = getBeijingPeriodKeys(now);
+
+  await db.transaction(async (tx) => {
+    for (const target of targets) {
+      await upsertQuotaStateInTx(tx, { ...patch, ...target }, now, periods);
+    }
+  });
+
+  return { updatedCount: targets.length };
 }
