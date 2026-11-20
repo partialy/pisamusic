@@ -1,3 +1,4 @@
+import { migrateSyncState } from "./syncStateSchema";
 import { migrateDownloads } from "./downloadSchema";
 import { migrateAccountLibrary } from "./accountLibrarySchema";
 import { randomUUID } from "node:crypto";
@@ -269,6 +270,7 @@ export function migrateDatabase(db: DatabaseSync) {
   migrateAccountLibrary(db);
   ensureDownloadRecordColumns(db);
   migrateDownloads(db);
+  migrateSyncState(db);
   ensureNetworkErrorUploadColumns(db);
   db
     .prepare(

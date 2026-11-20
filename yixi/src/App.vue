@@ -137,6 +137,10 @@ function setupListeners() {
 
   disposeLyricPlaybackBridge = setupLyricPlaybackBridge();
   disposeDesktopLyricBridge = setupDesktopLyricBridge();
+  handleWindowOnline = () => {
+    void electronAPI.notifySyncNetworkOnline?.();
+  };
+  window.addEventListener("online", handleWindowOnline);
   stopRouteSettingsListener =
     electronAPI.onRouteSettings?.(() => {
       commonStore.hidePlayer();
@@ -172,6 +176,7 @@ let stopShareInviteListener: (() => void) | null = null;
 let stopRouteSettingsListener: (() => void) | null = null;
 let disposeDesktopLyricBridge: (() => void) | null = null;
 let disposeLyricPlaybackBridge: (() => void) | null = null;
+let handleWindowOnline: (() => void) | null = null;
 
 function resetUpdaterProgressMessage(
   finalText?: string,
@@ -359,6 +364,10 @@ onBeforeUnmount(() => {
   themeStore.dispose();
   shortcutStore.dispose();
   stopShareInviteListener?.();
+  if (handleWindowOnline) {
+    window.removeEventListener("online", handleWindowOnline);
+    handleWindowOnline = null;
+  }
   clearInterval(t);
 });
 </script>

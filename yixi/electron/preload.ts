@@ -313,6 +313,7 @@ const syncIpc = {
   getSyncState: () => ipcRenderer.invoke("sync:state"),
   syncNow: () => ipcRenderer.invoke("sync:now"),
   clearSyncState: () => ipcRenderer.invoke("sync:clear-state"),
+  notifySyncNetworkOnline: () => ipcRenderer.invoke("sync:network-online"),
   onSyncChanged: (callback: (state: any) => void) => on("sync:changed", callback),
   onMineLibraryChanged: (callback: () => void) => on("mine-library:changed", callback),
 };

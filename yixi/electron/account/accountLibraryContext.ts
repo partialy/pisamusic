@@ -9,7 +9,11 @@ export function captureAccountLibrary() {
 }
 export type AccountLibraryContext = ReturnType<typeof captureAccountLibrary>;
 export function isCurrentLibrary(context: AccountLibraryContext) {
-  return context.revision === identityRevision();
+  const session = getAccountSession();
+  const activeAccountId = session.loggedIn ? session.user.id : "";
+  return context.revision === identityRevision()
+    && activeAccountId === context.scope.accountId
+    && session.token === context.session.token;
 }
 export function publicAccountSession() {
   const { loggedIn, expiresAt, user } = getAccountSession();

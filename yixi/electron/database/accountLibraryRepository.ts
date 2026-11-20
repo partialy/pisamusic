@@ -4,6 +4,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { normalizeLimit } from "./json";
 import { favoriteKey, normalizePlaylistSnapshot, normalizeTrackSnapshot } from "./normalizers";
 import { LocalTrackIdentityRepository } from "./localTrackIdentityRepository";
+import { SyncStateStore } from "./syncStateStore";
 import { captureLibraryScope, onlineCover, publicPlaylist, publicTrack, validateSortOrder } from "./accountLibraryPolicy";
 import type { LibraryItemType, LibraryScope, LibraryWriteOptions, SyncOperationInput, TrackWriteOptions } from "./accountLibraryPolicy";
 import type { FavoriteSongItem, FavoritePlaylistItem, PlaylistSnapshot, PlaylistSource, TrackSnapshot, UserPlaylistItem, UserPlaylistTrackItem } from "./types";
@@ -17,10 +18,12 @@ export class AccountLibraryRepository {
   private readonly db: DatabaseSync;
   readonly scope: LibraryScope;
   readonly identities: LocalTrackIdentityRepository;
+  readonly syncState: SyncStateStore;
   constructor(db: DatabaseSync, scope: LibraryScope) {
     this.db = db;
     this.scope = captureLibraryScope(scope);
     this.identities = new LocalTrackIdentityRepository(db);
+    this.syncState = new SyncStateStore(db);
   }
   private transaction<T>(work: () => T): T {
     // SAVEPOINT 同时兼容独立调用和 sync 外层事务；不提前发布通知。
@@ -64,17 +67,37 @@ export class AccountLibraryRepository {
         for (const field of fields) if (merged[field] === undefined && Object.prototype.hasOwnProperty.call(old, field)) merged[field] = old[field];
         payload = merged;
       }
-      // 新 opId 保护已在途旧请求的 ACK：它只能清理旧 ID，不能删掉本次更新。
+      // 新 opId 保护已在途旧请求的 ACK：它只能清理旧 ID，不能删掉本次更新；同时保留操作日志历史。
+      this.syncState.markOpHistoryCoalesced(this.scope.accountId, input.itemType, input.itemKey);
       this.db.prepare("DELETE FROM sync_outbox WHERE account_id = ? AND item_type = ? AND item_key = ?")
         .run(this.scope.accountId, input.itemType, input.itemKey);
       const opId = randomUUID();
-      this.db.prepare("INSERT INTO sync_outbox (account_id,op_id,item_type,item_key,action,payload_json,created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .run(this.scope.accountId, opId, input.itemType, input.itemKey, input.action, JSON.stringify(payload), input.clientUpdatedAt ?? new Date().toISOString());
+      const baseVersion = this.scope.accountId
+        ? this.syncState.readBaseVersion(this.scope.accountId, input.itemType, input.itemKey)
+        : 0;
+      const clientUpdatedAt = input.useHlc !== false && this.scope.accountId
+        ? this.syncState.nextLocalOperationClock(this.scope.accountId)
+        : (input.clientUpdatedAt ?? new Date().toISOString());
+      this.db.prepare("INSERT INTO sync_outbox (account_id,op_id,item_type,item_key,action,payload_json,created_at,base_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run(this.scope.accountId, opId, input.itemType, input.itemKey, input.action, JSON.stringify(payload), clientUpdatedAt, baseVersion);
+      if (this.scope.accountId) {
+        this.syncState.appendOpHistory({
+          accountId: this.scope.accountId,
+          opId,
+          itemType: input.itemType,
+          itemKey: input.itemKey,
+          action: input.action,
+          baseVersion,
+          clientUpdatedAt,
+          status: "pending",
+          detail: input.useHlc === false ? "seed" : "",
+        });
+      }
       return opId;
     });
   }
   listSyncOutbox(limit = 200) {
-    return this.db.prepare("SELECT op_id,item_type,item_key,action,payload_json,created_at,account_id FROM sync_outbox WHERE account_id = ? ORDER BY created_at,id LIMIT ?")
+    return this.db.prepare("SELECT op_id,item_type,item_key,action,payload_json,created_at,account_id,base_version FROM sync_outbox WHERE account_id = ? ORDER BY created_at,id LIMIT ?")
       .all(this.scope.accountId, normalizeLimit(limit));
   }
   listPendingSyncKeys(): { item_type: string; item_key: string }[] {

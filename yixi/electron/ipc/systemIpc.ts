@@ -26,7 +26,7 @@ import {
   updateAccountProfile,
 } from "../system/systemClient";
 import { closeListenTogetherSocket } from "../listenTogether/listenTogetherService";
-import { clearSyncState } from "../sync/syncService";
+import { onAccountLogout } from "../sync/syncService";
 import { getListeningManager } from "../listening";
 import { getDirectMessageManager } from "../directMessage/directMessageService";
 import type { FeedbackPayload } from "../system/types";
@@ -108,7 +108,7 @@ export function setupSystemIpc() {
     closeListenTogetherSocket();
     clearAccountSession();
     getDirectMessageManager().onAccountSessionChanged();
-    await clearSyncState();
+    onAccountLogout();
     return publicAccountSession();
   });
   ipcMain.handle("account:send-email-code", (_event, payload: { email: string; purpose: "register" | "login" | "reset_password" }) =>

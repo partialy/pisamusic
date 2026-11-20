@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { clearSyncState, getSyncState, syncNow } from "../sync/syncService";
+import { clearSyncState, getSyncState, notifyNetworkOnline, syncNow } from "../sync/syncService";
 
 let registered = false;
 
@@ -10,4 +10,5 @@ export function setupSyncIpc() {
   ipcMain.handle("sync:state", () => getSyncState());
   ipcMain.handle("sync:now", () => syncNow());
   ipcMain.handle("sync:clear-state", () => clearSyncState());
+  ipcMain.handle("sync:network-online", () => notifyNetworkOnline());
 }

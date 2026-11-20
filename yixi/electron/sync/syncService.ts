@@ -2,7 +2,7 @@ import { acceptRemotePlaylistCover } from "../playlistCover/coverUploadManager";
 import { captureAccountLibrary, isCurrentLibrary, type AccountLibraryContext } from "../account/accountLibraryContext";
 import { onAccountIdentityChanged } from "../account/accountIdentity";
 import { logicalTrackId, seedAccountLibrary, syncPayload } from "./syncPayload";
-import { BrowserWindow } from "electron";
+import { BrowserWindow, powerMonitor } from "electron";
 import { getAppDatabase } from "../database";
 import { normalizePlaylistSnapshot, normalizeTrackSnapshot } from "../database/normalizers";
 import type { PlaylistSnapshot, TrackSnapshot } from "../database/types";
@@ -13,12 +13,12 @@ import {
   type SyncPullResult,
 } from "../system/systemClient";
 
-const SYNC_SETTING_KEY = "sync-state";
 const TYPE_FAVORITE_SONG = "favorite_song";
 const TYPE_FAVORITE_PLAYLIST = "favorite_playlist";
 const TYPE_USER_PLAYLIST = "user_playlist";
 const TYPE_PLAYLIST_TRACK = "playlist_track";
 const DUPLICATE_PULL_GUARD_MS = 1500;
+const OUTBOX_RETRY_BACKOFF_MS = [5000, 15000, 60000, 300000];
 
 type SyncState = {
   identityRevision: number;
@@ -36,6 +36,7 @@ type SyncOutboxRow = {
   action: "upsert" | "delete";
   payload_json: string;
   created_at: string;
+  base_version?: number;
 };
 
 type SyncContext = AccountLibraryContext & { state: SyncState; token: string };
@@ -43,6 +44,7 @@ type SyncContext = AccountLibraryContext & { state: SyncState; token: string };
 let syncRunning = false;
 let syncQueued = false;
 let syncTimer: NodeJS.Timeout | null = null;
+let syncTimerDueAt = 0;
 let syncInFlight: Promise<SyncState> | null = null;
 let lastNetworkSyncAt = 0;
 let lastNetworkSyncToken = "";
@@ -51,14 +53,25 @@ let syncGeneration = 0;
 let retryAttempt = 0;
 let retryDelayMs = 0;
 
+if (typeof (powerMonitor as { on?: unknown } | undefined)?.on === "function") {
+  powerMonitor.on("resume", () => {
+    notifyNetworkOnline();
+  });
+}
+
 export function getSyncState(): SyncState {
   const context = captureAccountLibrary();
-  const saved = context.scope.accountId ? getAppDatabase().getSetting<Partial<SyncState>>(stateKey(context.scope.accountId))?.value ?? {} : {};
-  return { identityRevision: context.revision, userId: context.scope.accountId,
-    seededAccountId: saved.seededAccountId ?? "", lastVersion: saved.lastVersion ?? 0,
-    lastSyncAt: saved.lastSyncAt ?? "", lastError: saved.lastError ?? "" };
+  const saved = context.scope.accountId ? getAppDatabase().syncState.readState(context.scope.accountId) : null;
+  return {
+    identityRevision: context.revision,
+    userId: context.scope.accountId,
+    seededAccountId: saved?.seeded ? context.scope.accountId : "",
+    lastVersion: saved?.lastVersion ?? 0,
+    lastSyncAt: saved?.lastSyncAt ?? "",
+    lastError: saved?.lastError ?? "",
+  };
 }
-function stateKey(accountId: string) { return `${SYNC_SETTING_KEY}:${accountId}`; }
+
 function captureSync(): SyncContext {
   const context = captureAccountLibrary();
   return { ...context, state: getSyncState(), token: context.session.token };
@@ -86,9 +99,12 @@ async function runSyncNow(): Promise<SyncState> {
   try {
     let state = context.state;
     if (!context.token) return state;
+    const db = getAppDatabase();
     if (state.userId && state.seededAccountId !== state.userId) {
-      getAppDatabase().applySyncTransaction(() => seedAccountLibrary(context.repo));
-      saveSyncState(context, { ...state, seededAccountId: state.userId, lastVersion: 0, lastSyncAt: "", lastError: "" });
+      db.applySyncTransaction(() => {
+        seedAccountLibrary(context.repo);
+        db.syncState.markSeeded(state.userId);
+      });
       state = getSyncState();
     }
 
@@ -113,44 +129,73 @@ async function runSyncNow(): Promise<SyncState> {
             action: row.action,
             payload: row.action === "delete" ? {} : syncPayload(row.item_type, parsePayload(row.payload_json)),
             clientUpdatedAt: row.created_at,
-          }))
+            baseVersion: Number(row.base_version) || 0,
+          })),
         );
         if (!isCurrentSync(context, generation)) return getSyncState();
+        if (typeof pushed.serverTime === "number") {
+          db.syncState.updateServerClock(state.userId, pushed.serverTime);
+        }
         needsSnapshot ||= pushed.skipped > 0;
-        context.repo.removeSyncOps(pending.map((row) => row.op_id));
+        const sentOpIds = pending.map((row) => row.op_id);
+        const actionByOpId = new Map(pending.map((row) => [row.op_id, row.action]));
+        db.applySyncTransaction(() => {
+          context.repo.removeSyncOps(sentOpIds);
+          db.syncState.recordPushResults(
+            state.userId,
+            sentOpIds,
+            pushed.appliedItems ?? [],
+            pushed.rejectedItems ?? [],
+            actionByOpId,
+          );
+        });
         pending = context.repo.listSyncOutbox(200) as SyncOutboxRow[];
       }
       if (hadPending) {
-        // 推送版本不是已拉取游标；再拉一次，避免跨过其他设备同时产生的变更。
-        // skipped 可能是比起始游标更早的远端胜出，必须从快照恢复权威状态。
-        nextVersion = await pullRemoteChanges(context, needsSnapshot ? { ...state, lastVersion: 0 } : state, generation);
+        // 推送版本不是已拉取游标；再拉一次，避免跨过其他设备同时产生的变更；无冲突从 nextVersion 继续避免双拉全量。
+        nextVersion = await pullRemoteChanges(
+          context,
+          needsSnapshot ? { ...state, lastVersion: 0 } : { ...state, lastVersion: nextVersion },
+          generation,
+        );
       }
 
       if (!isCurrentSync(context, generation)) return getSyncState();
 
-      saveSyncState(context, {
-        ...state,
-        lastVersion: nextVersion,
-        lastSyncAt: new Date().toISOString(),
-        lastError: "",
-      });
+      db.syncState.markSyncSuccess(state.userId, nextVersion);
+      db.syncState.pruneOpHistory(state.userId);
       retryAttempt = 0;
       recordNetworkSync(context.token, nextVersion);
       emitSyncChanged();
     } catch (error) {
       if (!isCurrentSync(context, generation)) return getSyncState();
       const code = (error as { code?: number })?.code;
-      if (retryAttempt < 2 && (error instanceof TypeError || (typeof code === "number" && code >= 500))) retryDelayMs = 1000 * 3 ** retryAttempt++;
-      saveSyncState(context, {
-        ...state,
-        lastError: error instanceof Error ? error.message : String(error),
-      });
+      const hasOutbox = context.repo.listSyncOutbox(1).length > 0;
+      const isTransient = error instanceof TypeError || (typeof code === "number" && code >= 500) || code === undefined;
+      if (hasOutbox) {
+        retryDelayMs = OUTBOX_RETRY_BACKOFF_MS[Math.min(retryAttempt++, OUTBOX_RETRY_BACKOFF_MS.length - 1)]!;
+      } else if (retryAttempt < 2 && isTransient) {
+        retryDelayMs = 1000 * 3 ** retryAttempt++;
+      }
+      db.syncState.markSyncError(state.userId, error instanceof Error ? error.message : String(error));
       emitSyncChanged();
     }
     return getSyncState();
   } finally {
     syncRunning = false;
   }
+}
+
+export function onAccountLogout() {
+  syncGeneration++;
+  retryAttempt = 0;
+  retryDelayMs = 0;
+  clearPendingSyncTimer();
+  syncQueued = false;
+  lastNetworkSyncAt = 0;
+  lastNetworkSyncToken = "";
+  lastNetworkSyncVersion = 0;
+  emitSyncChanged();
 }
 
 export async function clearSyncState() {
@@ -162,13 +207,26 @@ export async function clearSyncState() {
   lastNetworkSyncAt = 0;
   lastNetworkSyncToken = "";
   lastNetworkSyncVersion = 0;
-  // 只重置当前账号游标，所有账号及未关联区 pending 保留。
+  // 显式清空游标仅重置当前账号 last_version 至 0，保留 seeded=1 防止重登误 re-seed。
   const accountId = captureAccountLibrary().scope.accountId;
-  if (accountId) getAppDatabase().deleteSetting(stateKey(accountId));
+  if (accountId) getAppDatabase().syncState.resetCursorOnly(accountId);
   emitSyncChanged();
   return getSyncState();
 }
-export function startSyncOnStartup() { requestSync(1500); }
+
+export function notifyNetworkOnline() {
+  const context = captureSync();
+  if (!context.token) return;
+  if (context.repo.listSyncOutbox(1).length > 0 || context.state.lastError) {
+    retryAttempt = 0;
+    requestSync(250);
+  }
+}
+
+export function startSyncOnStartup() {
+  requestSync(1500);
+}
+
 /** 旧 main 调用兼容入口：一次账号事务完成关系与 outbox，不能在已提交变更后重复调用。 */
 export function recordFavoriteSongChange(track: TrackSnapshot, action: "upsert" | "delete", options?: { schedule?: boolean }) {
   const { repo } = captureAccountLibrary();
@@ -176,7 +234,11 @@ export function recordFavoriteSongChange(track: TrackSnapshot, action: "upsert" 
   else repo.removeFavoriteSong(track.source, track.id);
   if (options?.schedule !== false) scheduleLibrarySync();
 }
-export function scheduleLibrarySync() { requestSync(500); }
+
+export function scheduleLibrarySync() {
+  requestSync(500);
+}
+
 onAccountIdentityChanged(() => {
   syncGeneration++;
   retryAttempt = 0;
@@ -186,14 +248,17 @@ onAccountIdentityChanged(() => {
   emitSyncChanged();
   requestSync(500);
 });
+
 function isCurrentSync(context: SyncContext, generation: number) {
   return generation === syncGeneration && isCurrentLibrary(context);
 }
+
 async function pullRemoteChanges(context: SyncContext, state: SyncState, generation: number): Promise<number> {
   let since = state.lastVersion;
   let snapshot: SyncChange[] = [];
   let page: { snapshotVersion: number; cursor: string } | undefined;
   let restarts = 0;
+  const db = getAppDatabase();
   while (true) {
     let result: SyncPullResult;
     try {
@@ -208,6 +273,9 @@ async function pullRemoteChanges(context: SyncContext, state: SyncState, generat
       throw error;
     }
     if (!isCurrentSync(context, generation)) return state.lastVersion;
+    if (typeof result.serverTime === "number") {
+      db.syncState.updateServerClock(state.userId, result.serverTime);
+    }
     if (result.mode === "snapshot") {
       const version = result.snapshotVersion ?? result.version;
       if (page && version !== page.snapshotVersion) throw new Error("同步快照版本不一致，请重试");
@@ -217,18 +285,43 @@ async function pullRemoteChanges(context: SyncContext, state: SyncState, generat
         page = { snapshotVersion: version, cursor: result.cursor };
         continue;
       }
-      getAppDatabase().applySyncTransaction(() => reconcileSnapshot(context, snapshot));
+      db.applySyncTransaction(() => {
+        reconcileSnapshot(context, snapshot);
+        db.syncState.clearEntityVersions(state.userId);
+        snapshot.forEach((item) => {
+          db.syncState.upsertEntityVersion(
+            state.userId,
+            item.itemType,
+            item.itemKey,
+            item.version,
+            item.action === "delete",
+          );
+        });
+        db.syncState.markSyncSuccess(state.userId, version);
+      });
       return version;
     }
     if (page) throw new Error("同步快照分页模式已改变，请重试");
-    getAppDatabase().applySyncTransaction(() => {
+    const next = Math.max(since, ...result.changes.map((change) => change.version));
+    db.applySyncTransaction(() => {
       const pending = pendingSyncKeys(context);
       result.changes.forEach((change) => {
-        if (change.deviceId !== context.scope.deviceIdentity && !hasPendingChange(change, pending)) applyRemoteChange(context, change);
+        if (change.deviceId !== context.scope.deviceIdentity && !hasPendingChange(change, pending)) {
+          applyRemoteChange(context, change);
+        }
+        db.syncState.upsertEntityVersion(
+          state.userId,
+          change.itemType,
+          change.itemKey,
+          change.version,
+          change.action === "delete",
+        );
       });
+      if (next > since) {
+        db.syncState.markSyncSuccess(state.userId, next);
+      }
     });
     // 旧服务端没有 mode/hasMore；继续拉到空页，绝不使用全局 version 跳过日志。
-    const next = Math.max(since, ...result.changes.map((change) => change.version));
     if (!result.changes.length) {
       if (result.hasMore) throw new Error("同步增量分页未前进");
       return since;
@@ -363,9 +456,15 @@ function requestSync(delayMs = 500) {
     syncQueued = true;
     return;
   }
-  if (syncTimer) return;
+  const dueAt = Date.now() + delayMs;
+  if (syncTimer) {
+    if (dueAt >= syncTimerDueAt) return;
+    clearPendingSyncTimer();
+  }
+  syncTimerDueAt = dueAt;
   syncTimer = setTimeout(() => {
     syncTimer = null;
+    syncTimerDueAt = 0;
     void syncNow();
   }, delayMs);
 }
@@ -374,6 +473,7 @@ function clearPendingSyncTimer() {
   if (!syncTimer) return;
   clearTimeout(syncTimer);
   syncTimer = null;
+  syncTimerDueAt = 0;
 }
 
 function shouldSkipDuplicatePull(context: SyncContext, nextVersion: number) {
@@ -387,19 +487,6 @@ function recordNetworkSync(token: string, version: number) {
   lastNetworkSyncAt = Date.now();
   lastNetworkSyncToken = token;
   lastNetworkSyncVersion = version;
-}
-
-function saveSyncState(context: SyncContext, state: SyncState) {
-  getAppDatabase().setSetting(
-    stateKey(context.scope.accountId),
-    {
-      lastVersion: state.lastVersion,
-      lastSyncAt: state.lastSyncAt,
-      lastError: state.lastError,
-      seededAccountId: state.seededAccountId,
-    },
-    1
-  );
 }
 
 function parsePayload(raw: string) {

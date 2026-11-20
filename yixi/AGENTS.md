@@ -318,8 +318,8 @@
 - 账号登录状态持久化到 main 侧 SQLite settings 的 `account-session`，启动后由 `useUserStore().init()` 通过 IPC 刷新 7 天账号 token；刷新失败必须清理账号态但不阻塞本地播放。
 - 用户资料页面固定为 `/user/profile` 和 `/user/editProfile`；资料读写走 main 侧账号 IPC，支持昵称、邮箱验证码换绑、上传自定义头像和恢复默认头像。自定义头像由 main 侧选择本地图片、请求 `/api/auth/avatar/upload-token`、直传七牛公开图片空间后再写入服务端资料；renderer 不直接拼 server baseURL、不持有七牛 token，也不要恢复旧的多张内置头像自选功能。
 - 桌面端同步能力由 main 侧 `electron/sync/syncService.ts` 统一编排，使用账号 token 调用服务端 `/api/sync/changes`，按账号 `user_id` 隔离数据；renderer 只能通过 preload 暴露的 `sync:state`、`sync:now`、`sync:clear-state` typed IPC 查看状态、手动同步和清理本地同步状态，不再提供同步码创建、加入或重置流程；本地同步游标必须按账号隔离，账号切换时重新 seed 本地 outbox。
-- `sync_outbox` 是本地待推送队列，账号切换重新 seed 前必须先清空旧队列；退出账号时由 main 侧账号退出 IPC 同步清理 `sync-state` 和 `sync_outbox`，不要只在 renderer store 里清理。
-- 同步状态保存到 SQLite settings 的 `sync-state`，本地待推送变更保存到 SQLite `sync_outbox`；收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更后需要写入 outbox 并触发后台增量同步。
+- `sync_outbox` 是本地待推送队列，SQLite Schema v11 新增 `sync_account_state`（取代 `settings` 的 `sync-state:<accountId>`）、`sync_entity_versions`（上行 `baseVersion`）与 `sync_op_history`（本地操作日志）；退出账号仅清理内存定时器和代次（`onAccountLogout()`），保留 SQLite 按账号隔离的 `sync_account_state` 与 `sync_outbox`，避免重登误 re-seed 复活云端删除；断网后通过指数退避及 `online` / `powerMonitor.resume` 触发补传。
+- 同步状态保存到 SQLite `sync_account_state`，本地待推送变更保存到 SQLite `sync_outbox`，本地操作历史记录到 `sync_op_history`；收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更后需要同事务写入 outbox 与操作日志并触发后台增量同步。
 - 同步 payload 只使用 `Song` / `CommonPlaylist` canonical 字段；不推送 `source=local` 歌曲，不推送播放 URL、filePath、歌词正文、内嵌封面；自建歌单本地文件封面同步时置空。
 - 远端 tombstone 应在 main 侧应用到 SQLite 后通知 renderer 刷新 `favorites:changed` / `mine-library:changed`，不要让页面组件直接写同步状态或数据库。
 - `favorite_song.payload.favoritedAt` 为正毫秒时间戳；本地收藏及 seed 从 SQLite `created_at` 取值，下行存在合法时间时覆盖该字段，缺失时保留已收藏时间，新记录回退当前时间；收藏查询按 `created_at DESC, favorite_key ASC` 排序。

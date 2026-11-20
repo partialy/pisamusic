@@ -1,5 +1,6 @@
 import { DownloadRepository } from "./downloadRepository";
 import { AccountLibraryRepository } from "./accountLibraryRepository";
+import { SyncStateStore } from "./syncStateStore";
 import type { LibraryScope, SyncOperationInput } from "./accountLibraryPolicy";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
@@ -83,6 +84,7 @@ export class AppDatabase {
   private readonly db: DatabaseSync;
   public readonly listening: ListeningStore;
   public readonly downloads: DownloadRepository;
+  public readonly syncState: SyncStateStore;
 
   constructor(filename: string) {
     this.db = new DatabaseSync(filename);
@@ -91,6 +93,7 @@ export class AppDatabase {
     migrateDatabase(this.db);
     this.listening = new ListeningStore(this.db);
     this.downloads = new DownloadRepository(this.db);
+    this.syncState = new SyncStateStore(this.db);
   }
 
   close() {

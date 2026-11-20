@@ -8,17 +8,19 @@ export function logicalTrackId(repo: AccountLibraryRepository, track: TrackSnaps
 }
 export function seedAccountLibrary(repo: AccountLibraryRepository) {
   const prepareTrack = createLocalTrackResolver(repo);
-  const enqueue = (itemType: string, itemKey: string, payload: unknown) => {
-    // 重新 seed 不覆盖尚未 ACK 的删除或更新。
-    if (!repo.listPendingSyncKeys().some(row => row.item_type === itemType && row.item_key === itemKey)) repo.enqueueSyncOp({ itemType, itemKey, action: "upsert", payload });
+  const enqueue = (itemType: string, itemKey: string, payload: unknown, historicalAt?: string) => {
+    // 重新 seed 不覆盖尚未 ACK 的删除或更新，并沿用本地持久化历史时间避免误盖云端删除。
+    if (!repo.listPendingSyncKeys().some(row => row.item_type === itemType && row.item_key === itemKey)) {
+      repo.enqueueSyncOp({ itemType, itemKey, action: "upsert", payload, clientUpdatedAt: historicalAt, useHlc: false });
+    }
   };
-  repo.listFavoriteSongs().filter(item => item.source !== "local").forEach(item => enqueue("favorite_song", item.favoriteKey, publicTrack(item.payload)));
-  repo.listFavoritePlaylists().forEach(item => enqueue("favorite_playlist", item.favoriteKey, publicPlaylist(item.payload)));
+  repo.listFavoriteSongs().filter(item => item.source !== "local").forEach(item => enqueue("favorite_song", item.favoriteKey, publicTrack(item.payload), item.createdAt));
+  repo.listFavoritePlaylists().forEach(item => enqueue("favorite_playlist", item.favoriteKey, publicPlaylist(item.payload), item.createdAt));
   repo.listUserPlaylists("local").forEach(item => {
-    enqueue("user_playlist", item.playlistKey, publicPlaylist(item.payload));
+    enqueue("user_playlist", item.playlistKey, publicPlaylist(item.payload), item.updatedAt || item.createdAt);
     repo.listUserPlaylistTracks(item.playlistId).forEach(track => {
       const id = logicalTrackId(repo, track.payload);
-      enqueue("playlist_track", `${item.playlistId}|${track.source}:${id}`, { ...publicTrack(prepareTrack(track.payload), id), sortOrder: track.sortOrder });
+      enqueue("playlist_track", `${item.playlistId}|${track.source}:${id}`, { ...publicTrack(prepareTrack(track.payload), id), sortOrder: track.sortOrder }, track.createdAt);
     });
   });
 }

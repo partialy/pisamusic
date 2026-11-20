@@ -533,6 +533,7 @@ export type SyncChangeInput = {
   action: "upsert" | "delete";
   payload: unknown;
   clientUpdatedAt: string;
+  baseVersion?: number | null;
 };
 
 export type SyncPullResult = {
@@ -543,6 +544,34 @@ export type SyncPullResult = {
   snapshotVersion?: number;
   cursor?: string | null;
   hasMore?: boolean;
+  serverTime?: number;
+  logFloor?: number;
+};
+
+export type SyncAppliedItem = {
+  opId: string;
+  itemType: string;
+  itemKey: string;
+  version: number;
+  noop?: boolean;
+};
+
+export type SyncRejectedItem = {
+  opId: string;
+  itemType: string;
+  itemKey: string;
+  reason: string;
+  serverVersion: number;
+};
+
+export type SyncPushResult = {
+  version: number;
+  accepted: number;
+  skipped: number;
+  serverTime?: number;
+  conflicts?: number;
+  appliedItems?: SyncAppliedItem[];
+  rejectedItems?: SyncRejectedItem[];
 };
 
 export async function getSyncChanges(token: string, since: number, page?: { snapshotVersion: number; cursor: string }) {
@@ -567,7 +596,7 @@ export async function getSyncChanges(token: string, since: number, page?: { snap
 }
 
 export async function pushSyncChanges(token: string, changes: SyncChangeInput[]) {
-  const response = await requestSystem<{ version: number; accepted: number; skipped: number }>(
+  const response = await requestSystem<SyncPushResult>(
     "/api/sync/changes",
     {
       method: "POST",

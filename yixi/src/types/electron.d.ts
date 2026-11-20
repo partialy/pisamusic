@@ -791,6 +791,7 @@ type ElectronIpcApi = {
   getSyncState: () => Promise<SyncState>;
   syncNow: () => Promise<SyncState>;
   clearSyncState: () => Promise<SyncState>;
+  notifySyncNetworkOnline?: () => Promise<void>;
   onSyncChanged: (callback: (state: SyncState) => void) => () => void;
   onMineLibraryChanged: (callback: () => void) => () => void;
   createShare: (payload: { type: ShareType; rawJson: unknown }) => Promise<ShareCreateResult>;
