@@ -6,7 +6,10 @@ import type {
   AdminUserFilter,
   AdminUserLibraryKind,
   AdminUserLibraryPage,
+  AdminUserLibraryStatus,
   AdminUserListItem,
+  AdminUserSyncLogFilter,
+  AdminUserSyncLogsPage,
   AdminUserUpdatePayload,
 } from "../types/config";
 import {
@@ -15,6 +18,7 @@ import {
   fetchDirectMessages,
   fetchAdminUserDetail,
   fetchAdminUserLibrary,
+  fetchAdminUserSyncLogs,
   fetchAdminUsers,
   updateAdminUser,
 } from "../api/client";
@@ -39,6 +43,8 @@ export default function UserManagementPage() {
   const [editingAdminUser, setEditingAdminUser] = useState<AdminUserListItem | null>(null);
   const [adminUserSaving, setAdminUserSaving] = useState(false);
   const [adminUserDetailTab, setAdminUserDetailTab] = useState<AdminUserDetailTab>("favoriteSongs");
+  const [adminUserLibraryStatus, setAdminUserLibraryStatus] = useState<AdminUserLibraryStatus>("active");
+  const [adminUserPlaylistFilter, setAdminUserPlaylistFilter] = useState<string | undefined>(undefined);
   const [adminUserLibraryPage, setAdminUserLibraryPage] = useState<AdminUserLibraryPage>({
     items: [],
     total: 0,
@@ -46,6 +52,16 @@ export default function UserManagementPage() {
     limit: 30,
   });
   const [adminUserLibraryLoading, setAdminUserLibraryLoading] = useState(false);
+  const [adminUserSyncLogsPage, setAdminUserSyncLogsPage] = useState<AdminUserSyncLogsPage>({
+    items: [],
+    total: 0,
+    offset: 0,
+    limit: 30,
+    syncVersion: 0,
+    syncLogFloor: 0,
+  });
+  const [adminUserSyncLogsFilter, setAdminUserSyncLogsFilter] = useState<AdminUserSyncLogFilter>({});
+  const [adminUserSyncLogsLoading, setAdminUserSyncLogsLoading] = useState(false);
   const [adminUserMessagesPage, setAdminUserMessagesPage] = useState<AdminDirectMessagePage>({
     items: [],
     total: 0,
@@ -81,15 +97,36 @@ export default function UserManagementPage() {
   };
 
   const loadAdminUserLibrary = useCallback(
-    async (userId: string, kind: AdminUserLibraryKind, offset: number) => {
+    async (
+      userId: string,
+      kind: AdminUserLibraryKind,
+      offset: number,
+      status: AdminUserLibraryStatus = "active",
+      playlistId?: string,
+    ) => {
       setAdminUserLibraryLoading(true);
       try {
-        const page = await fetchAdminUserLibrary(userId, kind, offset, 30);
+        const page = await fetchAdminUserLibrary(userId, kind, offset, 30, { status, playlistId });
         setAdminUserLibraryPage(page);
       } catch (e) {
         alert(e instanceof Error ? e.message : "加载用户同步数据失败");
       } finally {
         setAdminUserLibraryLoading(false);
+      }
+    },
+    [],
+  );
+
+  const loadAdminUserSyncLogs = useCallback(
+    async (userId: string, filter: AdminUserSyncLogFilter, offset: number) => {
+      setAdminUserSyncLogsLoading(true);
+      try {
+        const page = await fetchAdminUserSyncLogs(userId, { ...filter, offset, limit: 30 });
+        setAdminUserSyncLogsPage(page);
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "加载用户同步日志失败");
+      } finally {
+        setAdminUserSyncLogsLoading(false);
       }
     },
     [],
@@ -141,7 +178,10 @@ export default function UserManagementPage() {
       const detail = await fetchAdminUserDetail(user.id);
       setSelectedAdminUser(detail);
       setAdminUserDetailTab("favoriteSongs");
-      void loadAdminUserLibrary(detail.id, "favoriteSongs", 0);
+      setAdminUserLibraryStatus("active");
+      setAdminUserPlaylistFilter(undefined);
+      setAdminUserSyncLogsFilter({});
+      void loadAdminUserLibrary(detail.id, "favoriteSongs", 0, "active");
     } catch (e) {
       alert(e instanceof Error ? e.message : "加载用户详情失败");
     }
@@ -150,10 +190,19 @@ export default function UserManagementPage() {
   const handleAdminUserDetailTabChange = (kind: AdminUserDetailTab) => {
     if (!selectedAdminUser) return;
     setAdminUserDetailTab(kind);
+    if (kind !== "playlistTracks") setAdminUserPlaylistFilter(undefined);
     if (kind === "messages") {
       void loadAdminUserMessages(selectedAdminUser.id, 0);
+    } else if (kind === "syncLogs") {
+      void loadAdminUserSyncLogs(selectedAdminUser.id, adminUserSyncLogsFilter, 0);
     } else {
-      void loadAdminUserLibrary(selectedAdminUser.id, kind, 0);
+      void loadAdminUserLibrary(
+        selectedAdminUser.id,
+        kind,
+        0,
+        adminUserLibraryStatus,
+        kind === "playlistTracks" ? adminUserPlaylistFilter : undefined,
+      );
     }
   };
 
@@ -161,9 +210,50 @@ export default function UserManagementPage() {
     if (!selectedAdminUser) return;
     if (adminUserDetailTab === "messages") {
       void loadAdminUserMessages(selectedAdminUser.id, offset);
+    } else if (adminUserDetailTab === "syncLogs") {
+      void loadAdminUserSyncLogs(selectedAdminUser.id, adminUserSyncLogsFilter, offset);
     } else {
-      void loadAdminUserLibrary(selectedAdminUser.id, adminUserDetailTab, offset);
+      void loadAdminUserLibrary(
+        selectedAdminUser.id,
+        adminUserDetailTab,
+        offset,
+        adminUserLibraryStatus,
+        adminUserDetailTab === "playlistTracks" ? adminUserPlaylistFilter : undefined,
+      );
     }
+  };
+
+  const handleAdminUserLibraryStatusChange = (status: AdminUserLibraryStatus) => {
+    if (!selectedAdminUser) return;
+    setAdminUserLibraryStatus(status);
+    if (adminUserDetailTab !== "messages" && adminUserDetailTab !== "syncLogs") {
+      void loadAdminUserLibrary(
+        selectedAdminUser.id,
+        adminUserDetailTab,
+        0,
+        status,
+        adminUserDetailTab === "playlistTracks" ? adminUserPlaylistFilter : undefined,
+      );
+    }
+  };
+
+  const handleInspectPlaylistTracks = (playlistId: string) => {
+    if (!selectedAdminUser) return;
+    setAdminUserDetailTab("playlistTracks");
+    setAdminUserPlaylistFilter(playlistId);
+    void loadAdminUserLibrary(selectedAdminUser.id, "playlistTracks", 0, adminUserLibraryStatus, playlistId);
+  };
+
+  const handleClearPlaylistFilter = () => {
+    if (!selectedAdminUser) return;
+    setAdminUserPlaylistFilter(undefined);
+    void loadAdminUserLibrary(selectedAdminUser.id, "playlistTracks", 0, adminUserLibraryStatus);
+  };
+
+  const handleSyncLogsFilterChange = (next: AdminUserSyncLogFilter) => {
+    if (!selectedAdminUser) return;
+    setAdminUserSyncLogsFilter(next);
+    void loadAdminUserSyncLogs(selectedAdminUser.id, next, 0);
   };
 
   const directMessageComposer = useDirectMessageComposer(async (target) => {
@@ -237,12 +327,24 @@ export default function UserManagementPage() {
         <UserDetailModal
           user={selectedAdminUser}
           activeKind={adminUserDetailTab}
+          libraryStatus={adminUserLibraryStatus}
+          playlistIdFilter={adminUserPlaylistFilter}
           libraryPage={adminUserLibraryPage}
           libraryLoading={adminUserLibraryLoading}
+          syncLogsPage={adminUserSyncLogsPage}
+          syncLogsLoading={adminUserSyncLogsLoading}
+          syncLogsFilter={adminUserSyncLogsFilter}
           messagesPage={adminUserMessagesPage}
           messagesLoading={adminUserMessagesLoading}
           themeColor={themeColor}
           onKindChange={handleAdminUserDetailTabChange}
+          onLibraryStatusChange={handleAdminUserLibraryStatusChange}
+          onInspectPlaylistTracks={handleInspectPlaylistTracks}
+          onClearPlaylistFilter={handleClearPlaylistFilter}
+          onSyncLogsFilterChange={handleSyncLogsFilterChange}
+          onRefreshSyncLogs={() =>
+            void loadAdminUserSyncLogs(selectedAdminUser.id, adminUserSyncLogsFilter, adminUserSyncLogsPage.offset)
+          }
           onPageChange={handleAdminUserDetailPageChange}
           onDeleteMessage={(id) => void handleDeleteAdminUserMessage(id)}
           onClose={() => setSelectedAdminUser(null)}

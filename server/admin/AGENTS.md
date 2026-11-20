@@ -21,7 +21,7 @@
 - 发布安装包先获取上传 token、直传七牛、complete 登记，再发布版本。PC 发布页 EXE 与自动更新 installer 必须复用同一对象，上传任意一处后同步另一处地址、大小及文件引用；自动更新启用前上传真实 `latest.yml`、EXE 和可选 blockmap，不手写 `latest.yml`。
 - 文件管理增加用户歌单封面（playlist-cover）用途/标签/引用展示，pending可筛选；封面有引用或未满七天宽限期时禁止删除，不强制清引用。文件管理允许删除被版本引用的对象；界面应反映接口返回的删除状态与引用清理结果。完整删除发布历史仅允许非当前版本，当前版本须先发布替代版本。
 - App 推广图标保存才切换引用，当前图标禁止删除；二维码地址仅允许本站 HTTPS `/app-share/`，不允许手填 code。
-- 用户详情分类表格按 `/api/admin/users/:id/library` 分页，默认 30 条；不暴露密码 hash。系统 VIP 与第三方音乐账号分离，不支持永久 VIP；启用必须设置未来到期时间，关闭写入 `0 / NULL`。
+- 用户详情分类表格按 `/api/admin/users/:id/library` 分页，默认 30 条（支持 `favoriteSongs` / `favoritePlaylists` / `userPlaylists` / `playlistTracks` / `listeningHistory` 与 `active/deleted/all` 墓碑筛选），并通过 `UserSyncLogsPanel`（`/api/admin/users/:id/sync-logs`）只读排查同步变更日志与 `syncLogFloor`；不暴露密码 hash。系统 VIP 与第三方音乐账号分离，不支持永久 VIP；启用必须设置未来到期时间，关闭写入 `0 / NULL`。
 - “验证码记录”位于用户管理下方，支持多维筛选、分页和删除；保留 email / phone、用途与发送 / 验证 / 过期 / 失败状态语义。
 - 反馈与故障上报使用 `pending / processed` 两态；故障页支持 Android `play_url` 与 PC `desktop_network` 筛选、详情、JSON / ZIP 导出和级联删除。
 - 一起听后台支持在线 / 历史列表详情与在线房间安全解散，不影响普通用户接口契约。专属消息硬删除不提供客户端撤回语义；公告停用不删除历史及回执。

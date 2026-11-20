@@ -424,6 +424,7 @@ export type AdminUserListItem = {
   vip: boolean;
   vipExpiresAt: number | null;
   syncVersion: number;
+  syncLogFloor?: number;
   createdAt: number;
   updatedAt: number;
   lastLoginAt: number | null;
@@ -439,6 +440,12 @@ export type AdminUserLibraryItem = {
   cover: string;
   serverUpdatedAt: number;
   clientUpdatedAt: string;
+  deleted?: boolean;
+  serverVersion?: number;
+  lastDeviceId?: string;
+  lastOpId?: string;
+  playlistId?: string;
+  sortOrder?: number | null;
   durationMs?: number | null;
   listenedMs?: number;
   playCount?: number;
@@ -464,15 +471,47 @@ export type AdminUserFilter = {
   limit?: number;
 };
 
-export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists" | "listeningHistory";
+export type AdminUserLibraryKind = "favoriteSongs" | "favoritePlaylists" | "userPlaylists" | "playlistTracks" | "listeningHistory";
+export type AdminUserLibraryStatus = "active" | "deleted" | "all";
 
-export type AdminUserDetailTab = AdminUserLibraryKind | "messages";
+export type AdminUserDetailTab = AdminUserLibraryKind | "syncLogs" | "messages";
 
 export type AdminUserLibraryPage = {
   items: AdminUserLibraryItem[];
   total: number;
   offset: number;
   limit: number;
+};
+
+export type AdminUserSyncLogItem = {
+  version: number;
+  opId: string;
+  deviceId: string;
+  itemType: string;
+  itemKey: string;
+  action: string;
+  summary: string;
+  payloadJson: string;
+  clientUpdatedAt: string;
+  serverUpdatedAt: number;
+};
+
+export type AdminUserSyncLogsPage = {
+  items: AdminUserSyncLogItem[];
+  total: number;
+  offset: number;
+  limit: number;
+  syncVersion: number;
+  syncLogFloor: number;
+};
+
+export type AdminUserSyncLogFilter = {
+  itemType?: string;
+  action?: string;
+  deviceId?: string;
+  keyword?: string;
+  offset?: number;
+  limit?: number;
 };
 
 export type AdminUserUpdatePayload = {

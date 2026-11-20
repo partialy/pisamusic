@@ -24,8 +24,11 @@ import type {
   AdminUserFilter,
   AdminUserLibraryKind,
   AdminUserLibraryPage,
+  AdminUserLibraryStatus,
   AdminUserListItem,
   AdminUserListResponse,
+  AdminUserSyncLogFilter,
+  AdminUserSyncLogsPage,
   AdminUserUpdatePayload,
   DesktopUpdateAssetInfo,
   DirectMessageTargetKind,
@@ -729,10 +732,33 @@ export async function fetchAdminUserLibrary(
   kind: AdminUserLibraryKind,
   offset = 0,
   limit = 30,
+  options?: { status?: AdminUserLibraryStatus; playlistId?: string },
 ): Promise<AdminUserLibraryPage> {
   const params = new URLSearchParams({ kind, offset: String(offset), limit: String(limit) });
+  if (options?.status) params.set("status", options.status);
+  if (options?.playlistId) params.set("playlistId", options.playlistId);
   const res = await fetchWithAuth(`/api/admin/users/${encodeURIComponent(id)}/library?${params.toString()}`);
   const body = await parseJson<AdminUserLibraryPage>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data;
+}
+
+export async function fetchAdminUserSyncLogs(
+  id: string,
+  filter: AdminUserSyncLogFilter = {},
+): Promise<AdminUserSyncLogsPage> {
+  const params = new URLSearchParams();
+  if (filter.offset !== undefined) params.set("offset", String(filter.offset));
+  if (filter.limit !== undefined) params.set("limit", String(filter.limit));
+  if (filter.itemType && filter.itemType !== "all") params.set("itemType", filter.itemType);
+  if (filter.action && filter.action !== "all") params.set("action", filter.action);
+  if (filter.deviceId?.trim()) params.set("deviceId", filter.deviceId.trim());
+  if (filter.keyword?.trim()) params.set("keyword", filter.keyword.trim());
+  const qs = params.toString();
+  const res = await fetchWithAuth(`/api/admin/users/${encodeURIComponent(id)}/sync-logs${qs ? `?${qs}` : ""}`);
+  const body = await parseJson<AdminUserSyncLogsPage>(res);
   if (!res.ok || !body.success || body.data == null) {
     throw new Error(body.msg || `HTTP ${res.status}`);
   }

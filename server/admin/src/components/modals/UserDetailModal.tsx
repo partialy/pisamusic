@@ -3,6 +3,7 @@ import {
   Button,
   Descriptions,
   Modal,
+  Segmented,
   Space,
   Table,
   Tabs,
@@ -17,21 +18,35 @@ import type {
   AdminUserDetailTab,
   AdminUserLibraryItem,
   AdminUserLibraryPage,
+  AdminUserLibraryStatus,
+  AdminUserSyncLogFilter,
+  AdminUserSyncLogsPage,
 } from "../../types/config";
 import { formatTimestamp } from "../../utils/date";
 import UserDirectMessagesPanel from "../user/UserDirectMessagesPanel";
+import UserSyncLogsPanel from "../user/UserSyncLogsPanel";
 
 const { Text } = Typography;
 
 type Props = {
   user: AdminUserDetail;
   activeKind: AdminUserDetailTab;
+  libraryStatus: AdminUserLibraryStatus;
+  playlistIdFilter?: string;
   libraryPage: AdminUserLibraryPage;
   libraryLoading: boolean;
+  syncLogsPage: AdminUserSyncLogsPage;
+  syncLogsLoading: boolean;
+  syncLogsFilter: AdminUserSyncLogFilter;
   messagesPage: AdminDirectMessagePage;
   messagesLoading: boolean;
   themeColor: string;
   onKindChange: (kind: AdminUserDetailTab) => void;
+  onLibraryStatusChange: (status: AdminUserLibraryStatus) => void;
+  onInspectPlaylistTracks: (playlistId: string) => void;
+  onClearPlaylistFilter: () => void;
+  onSyncLogsFilterChange: (next: AdminUserSyncLogFilter) => void;
+  onRefreshSyncLogs: () => void;
   onPageChange: (offset: number) => void;
   onDeleteMessage: (id: string) => void;
   onClose: () => void;
@@ -64,11 +79,21 @@ function formatDuration(ms?: number | null): string {
 export default function UserDetailModal({
   user,
   activeKind,
+  libraryStatus,
+  playlistIdFilter,
   libraryPage,
   libraryLoading,
+  syncLogsPage,
+  syncLogsLoading,
+  syncLogsFilter,
   messagesPage,
   messagesLoading,
   onKindChange,
+  onLibraryStatusChange,
+  onInspectPlaylistTracks,
+  onClearPlaylistFilter,
+  onSyncLogsFilterChange,
+  onRefreshSyncLogs,
   onPageChange,
   onDeleteMessage,
   onClose,
@@ -145,50 +170,91 @@ export default function UserDetailModal({
           dataIndex: "name",
           key: "name",
           ellipsis: true,
-          render: (name: string) => (
-            <Text strong className="text-slate-800">
-              {name || "-"}
-            </Text>
+          render: (name: string, item) => (
+            <Space size={6}>
+              <Text strong className={item.deleted ? "text-slate-400 line-through" : "text-slate-800"}>
+                {name || "-"}
+              </Text>
+              {item.deleted ? <Tag color="red">墓碑</Tag> : null}
+            </Space>
           ),
         },
         {
           title: "来源",
           dataIndex: "source",
           key: "source",
-          width: 90,
+          width: 78,
           align: "center",
           render: (source: string) => <Tag color="blue">{sourceText(source)}</Tag>,
         },
         {
           title: "ID / 键值",
           key: "idKey",
-          width: 180,
+          width: 175,
           ellipsis: true,
           render: (_, item) => (
-            <Text copyable={{ text: item.itemId || item.itemKey }} className="font-mono text-xs text-slate-600">
+            <Text copyable={{ text: item.itemKey }} className="font-mono text-xs text-slate-600">
               {item.itemId || item.itemKey}
             </Text>
           ),
         },
         {
-          title: activeKind === "favoriteSongs" ? "歌手 / 专辑" : "描述 / 标签",
+          title: activeKind === "favoriteSongs" || activeKind === "playlistTracks" ? "歌手 / 专辑" : "描述 / 标签",
           dataIndex: "subtitle",
           key: "subtitle",
           ellipsis: true,
-          render: (sub: string) => <span className="text-slate-600 text-xs">{sub || "-"}</span>,
+          render: (sub: string, item) => (
+            <span className="text-slate-600 text-xs">
+              {activeKind === "playlistTracks" && item.sortOrder != null ? `#${item.sortOrder} · ` : ""}
+              {sub || "-"}
+            </span>
+          ),
+        },
+        {
+          title: "版本 / 设备",
+          key: "syncMeta",
+          width: 145,
+          ellipsis: true,
+          render: (_, item) => (
+            <div className="min-w-0">
+              <Tag color="cyan" className="mr-1">v{item.serverVersion ?? "-"}</Tag>
+              <div className="font-mono text-[11px] text-slate-400 truncate">{item.lastDeviceId || "-"}</div>
+            </div>
+          ),
         },
         {
           title: "更新时间",
           dataIndex: "serverUpdatedAt",
           key: "serverUpdatedAt",
-          width: 170,
+          width: 155,
           render: (ts: number) => (
             <Text type="secondary" className="text-xs">
               {formatTimestamp(ts)}
             </Text>
           ),
         },
+        ...(activeKind === "userPlaylists"
+          ? [
+              {
+                title: "操作",
+                key: "playlistAction",
+                width: 86,
+                align: "center" as const,
+                render: (_: unknown, item: AdminUserLibraryItem) => (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => onInspectPlaylistTracks(item.itemId)}
+                  >
+                    查看曲目
+                  </Button>
+                ),
+              },
+            ]
+          : []),
       ];
+
+  const isSyncEntityTab = activeKind === "favoriteSongs" || activeKind === "favoritePlaylists" || activeKind === "userPlaylists" || activeKind === "playlistTracks";
 
   const tabItems = [
     {
@@ -202,6 +268,14 @@ export default function UserDetailModal({
     {
       key: "userPlaylists",
       label: `自建歌单 (${user.stats.userPlaylists})`,
+    },
+    {
+      key: "playlistTracks",
+      label: "歌单曲目",
+    },
+    {
+      key: "syncLogs",
+      label: "同步日志",
     },
     {
       key: "listeningHistory",
@@ -231,7 +305,7 @@ export default function UserDetailModal({
           </div>
         </Space>
       }
-      width={960}
+      width={1040}
       onCancel={onClose}
       footer={[
         <Button key="close" type="primary" onClick={onClose}>
@@ -249,7 +323,10 @@ export default function UserDetailModal({
         >
           <Descriptions.Item label="邮箱">{user.email || "-"}</Descriptions.Item>
           <Descriptions.Item label="同步版本">
-            <Tag color="cyan">v{user.syncVersion}</Tag>
+            <Space size={4}>
+              <Tag color="cyan">v{user.syncVersion}</Tag>
+              <Tag color="default">日志下限 v{user.syncLogFloor ?? 0}</Tag>
+            </Space>
           </Descriptions.Item>
           <Descriptions.Item label="VIP 状态">
             {isVip ? (
@@ -285,12 +362,40 @@ export default function UserDetailModal({
             onChange={(key) => onKindChange(key as AdminUserDetailTab)}
             items={tabItems}
           />
+          {isSyncEntityTab && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <Segmented
+                size="small"
+                value={libraryStatus}
+                onChange={(val) => onLibraryStatusChange(val as AdminUserLibraryStatus)}
+                options={[
+                  { label: "仅存活", value: "active" },
+                  { label: "仅墓碑", value: "deleted" },
+                  { label: "全部", value: "all" },
+                ]}
+              />
+              {activeKind === "playlistTracks" && playlistIdFilter ? (
+                <Tag closable onClose={onClearPlaylistFilter} color="purple">
+                  歌单过滤: {playlistIdFilter}
+                </Tag>
+              ) : null}
+            </div>
+          )}
           {activeKind === "messages" ? (
             <UserDirectMessagesPanel
               page={messagesPage}
               loading={messagesLoading}
               onPageChange={onPageChange}
               onDelete={onDeleteMessage}
+            />
+          ) : activeKind === "syncLogs" ? (
+            <UserSyncLogsPanel
+              page={syncLogsPage}
+              loading={syncLogsLoading}
+              filter={syncLogsFilter}
+              onFilterChange={onSyncLogsFilterChange}
+              onPageChange={onPageChange}
+              onRefresh={onRefreshSyncLogs}
             />
           ) : (
             <Table<AdminUserLibraryItem>
