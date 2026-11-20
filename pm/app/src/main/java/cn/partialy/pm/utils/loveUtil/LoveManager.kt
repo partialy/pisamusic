@@ -293,9 +293,11 @@ class LoveManager @Inject constructor(@ApplicationContext private val context: C
             if (syncOutbox.accountSnapshot() != accountId) return
             for (song in songsByKey.values) {
                 if (song.type == SongType.LOCAL || shouldKeepLocalChange(song, accountId)) continue
+                val historicalTime = favoriteTimes[song.storageKey()]
                 syncOutbox.enqueue(
                     SyncPayloads.TYPE_FAVORITE_SONG, SyncPayloads.songKey(song),
-                    SyncPayloads.ACTION_UPSERT, SyncPayloads.songPayload(song, favoriteTimes[song.storageKey()]),
+                    SyncPayloads.ACTION_UPSERT, SyncPayloads.songPayload(song, historicalTime),
+                    historicalTimeMs = historicalTime,
                 )
             }
         }

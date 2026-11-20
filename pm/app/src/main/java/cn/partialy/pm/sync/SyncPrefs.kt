@@ -2,14 +2,9 @@ package cn.partialy.pm.sync
 
 import android.content.Context
 import cn.partialy.pm.network.auth.AccountSessionStore
+import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
 
 object SyncPrefs {
-    private const val PREFS_NAME = "pm_sync_prefs"
-    private const val KEY_USER_ID = "user_id"
-    private const val KEY_LAST_VERSION = "last_version"
-    private const val KEY_LAST_SYNC_AT = "last_sync_at"
-    private const val KEY_LAST_ERROR = "last_error"
-
     data class State(
         val token: String,
         val userId: String,
@@ -25,51 +20,47 @@ object SyncPrefs {
     }
 
     fun getState(context: Context): State {
-        val sp = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val session = AccountSessionStore.read(context)
-        val syncedUserId = sp.getString(KEY_USER_ID, "").orEmpty()
-        val sameAccount = syncedUserId == session.user.id
+        val userId = session.user.id.trim()
+        val row = if (userId.isNotBlank()) {
+            SyncClockAndStateStore.readState(LocalMusicDbOpenHelper.shared(context).readableDatabase, userId)
+        } else {
+            SyncAccountStateRow("", false, 0L, 0L, "", 0L, 0, 0L)
+        }
         return State(
             token = session.token,
-            userId = session.user.id,
+            userId = userId,
             username = session.user.username,
             email = session.user.email,
-            syncedUserId = syncedUserId,
-            lastVersion = if (sameAccount) sp.getLong(KEY_LAST_VERSION, 0L) else 0L,
-            lastSyncAt = if (sameAccount) sp.getLong(KEY_LAST_SYNC_AT, 0L) else 0L,
-            lastError = if (sameAccount) sp.getString(KEY_LAST_ERROR, "").orEmpty() else "",
+            syncedUserId = if (row.seeded) userId else "",
+            lastVersion = row.lastVersion,
+            lastSyncAt = row.lastSyncAt,
+            lastError = row.lastError,
         )
     }
 
+    fun markSeeded(context: Context, userId: String) {
+        SyncClockAndStateStore.markSeeded(LocalMusicDbOpenHelper.shared(context).writableDatabase, userId)
+    }
+
     fun resetForAccount(context: Context, userId: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_USER_ID, userId)
-            .putLong(KEY_LAST_VERSION, 0L)
-            .putLong(KEY_LAST_SYNC_AT, 0L)
-            .putString(KEY_LAST_ERROR, "")
-            .apply()
+        SyncClockAndStateStore.resetCursorOnly(LocalMusicDbOpenHelper.shared(context).writableDatabase, userId)
     }
 
     fun markSyncSuccess(context: Context, userId: String, version: Long) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_USER_ID, userId)
-            .putLong(KEY_LAST_VERSION, version)
-            .putLong(KEY_LAST_SYNC_AT, System.currentTimeMillis())
-            .putString(KEY_LAST_ERROR, "")
-            .apply()
+        SyncClockAndStateStore.markSyncSuccess(LocalMusicDbOpenHelper.shared(context).writableDatabase, userId, version)
     }
 
     fun markSyncError(context: Context, userId: String, message: String) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_USER_ID, userId)
-            .putString(KEY_LAST_ERROR, message)
-            .apply()
+        SyncClockAndStateStore.markSyncError(LocalMusicDbOpenHelper.shared(context).writableDatabase, userId, message)
     }
 
+    fun updateServerClock(context: Context, userId: String, serverTimeMs: Long) {
+        SyncClockAndStateStore.updateServerClock(LocalMusicDbOpenHelper.shared(context).writableDatabase, userId, serverTimeMs)
+    }
+
+    /** 保留按账号隔离的 SQLite 同步水位，不再在登出时擦除历史状态防止重登误 re-seed。 */
     fun clearAccountState(context: Context) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
+        // 账号切换后 getState 自动按 AccountSessionStore 当前 userId 隔离读取对应行。
     }
 }

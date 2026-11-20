@@ -9,6 +9,7 @@ internal class PlaylistSyncApplier(
 ) {
     fun seed(accountId: String) = playlistCollectionManager.withDataLock {
         if (outbox.accountSnapshot() != accountId) return@withDataLock
+        val playlistTimes = playlistCollectionManager.getLocalPlaylistTimestamps()
         playlistCollectionManager.getAllPlaylists().forEach { playlist ->
             if (playlist.type == CollectedPlaylistType.LOCAL) {
                 outbox.enqueue(
@@ -16,7 +17,9 @@ internal class PlaylistSyncApplier(
                     itemKey = SyncPayloads.playlistKey(playlist),
                     action = SyncPayloads.ACTION_UPSERT,
                     payloadJson = SyncPayloads.playlistPayload(playlist),
+                    historicalTimeMs = playlistTimes[playlist.id],
                 )
+                val songTimes = playlistCollectionManager.getLocalPlaylistSongTimestamps(playlist.id)
                 playlistCollectionManager.getLocalPlaylistSongs(playlist.id)
                     .forEach track@ { song ->
                         if (outbox.hasPending(accountId, SyncPayloads.TYPE_PLAYLIST_TRACK, SyncPayloads.playlistTrackKey(playlist.id, song))) return@track
@@ -25,6 +28,7 @@ internal class PlaylistSyncApplier(
                             itemKey = SyncPayloads.playlistTrackKey(playlist.id, song),
                             action = SyncPayloads.ACTION_UPSERT,
                             payloadJson = SyncPayloads.songPayload(song),
+                            historicalTimeMs = songTimes["${song.type.name}:${song.id}"],
                         )
                     }
             } else {
@@ -33,6 +37,7 @@ internal class PlaylistSyncApplier(
                     itemKey = SyncPayloads.playlistKey(playlist),
                     action = SyncPayloads.ACTION_UPSERT,
                     payloadJson = SyncPayloads.playlistPayload(playlist),
+                    historicalTimeMs = playlist.favoritedAt,
                 )
             }
         }

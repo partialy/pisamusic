@@ -163,6 +163,22 @@ internal class LocalPlaylistDbStore(context: Context) {
         }
     }
 
+    fun getPlaylistUpdatedAtMap(scope: String = account.current()): Map<String, Long> =
+        helper.readableDatabase.rawQuery(
+            "SELECT id, updated_at FROM local_playlists WHERE owner_account_id = ?",
+            arrayOf(scope),
+        ).use { cursor ->
+            buildMap { while (cursor.moveToNext()) put(cursor.getString(0), cursor.getLong(1)) }
+        }
+
+    fun getSongUpdatedAtMap(playlistId: String, scope: String = account.current()): Map<String, Long> =
+        helper.readableDatabase.rawQuery(
+            "SELECT song_type, song_id, updated_at FROM local_playlist_songs WHERE playlist_id = ? AND account_id = ?",
+            arrayOf(playlistId, scope),
+        ).use { cursor ->
+            buildMap { while (cursor.moveToNext()) put("${cursor.getString(0)}:${cursor.getString(1)}", cursor.getLong(2)) }
+        }
+
     fun getSongs(playlistId: String, scope: String = account.current()): List<SongInfo> {
         if (playlistId.isBlank()) return emptyList()
         val owned = helper.readableDatabase.rawQuery("SELECT 1 FROM local_playlists WHERE id=? AND owner_account_id=?", arrayOf(playlistId,scope)).use { it.moveToFirst() }

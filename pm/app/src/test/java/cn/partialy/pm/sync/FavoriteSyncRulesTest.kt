@@ -30,4 +30,13 @@ class FavoriteSyncRulesTest {
         assertNull(SyncPayloads.parseSong(mapOf("id" to "1", "source" to "kg"))!!.favoritedAt)
         assertNull(SyncPayloads.parseSong(mapOf("id" to "1", "source" to "kg", "favoritedAt" to -1))!!.favoritedAt)
     }
+
+    @Test fun hlcNeverMovesBackwardAndAppliesServerOffset() {
+        val t1 = SyncClockAndStateStore.advanceHlc(prevPt = 1000L, prevLc = 0, localNowMs = 1500L, clockOffsetMs = 5000L)
+        assertEquals(HlcTick(6500L, 0), t1)
+        val t2 = SyncClockAndStateStore.advanceHlc(prevPt = t1.pt, prevLc = t1.lc, localNowMs = 1000L, clockOffsetMs = 0L)
+        assertEquals(HlcTick(6500L, 1), t2)
+        val t3 = SyncClockAndStateStore.advanceHlc(prevPt = t2.pt, prevLc = t2.lc, localNowMs = 7000L, clockOffsetMs = 0L)
+        assertEquals(HlcTick(7000L, 0), t3)
+    }
 }

@@ -3,6 +3,7 @@ package cn.partialy.pm.sync
 import android.content.Context
 import cn.partialy.pm.network.config.ConfigManager
 import cn.partialy.pm.utils.ServerDevicePrefs
+import cn.partialy.pm.utils.localdata.LocalMusicDbOpenHelper
 import cn.partialy.pm.utils.loveUtil.LoveManager
 import cn.partialy.pm.utils.playlistUtil.PlaylistCollectionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,6 +23,7 @@ class SyncManager @Inject constructor(
     private val coverUploads: cn.partialy.pm.playlistcover.PlaylistCoverUploadManager,
 ) {
     private val outbox = SyncOutboxStore(context)
+    private val helper by lazy { LocalMusicDbOpenHelper.shared(context.applicationContext) }
     private val mutex = Mutex()
     private var syncGeneration = -1L
     private val favoriteApplier = FavoriteSongSyncApplier(loveManager)
@@ -51,23 +53,33 @@ class SyncManager @Inject constructor(
                         op.toChangeInput(SyncPayloads.parseJsonObject(op.payloadJson))
                     }
                     if (!isCurrentAccount(before.userId)) return@withLock SyncPrefs.getState(context)
-                    val result = try { configManager.pushSyncChanges(before.token, deviceId(), changes) }
-                    catch(e: ConfigManager.ApiException) {
-                        if((e.httpStatus==400 || e.code==400) && coverUploads.recoverRejectedResources(before.userId,pending.changes)) continue
+                    val result = try {
+                        configManager.pushSyncChanges(before.token, deviceId(), changes)
+                    } catch (e: ConfigManager.ApiException) {
+                        if ((e.httpStatus == 400 || e.code == 400) && coverUploads.recoverRejectedResources(before.userId, pending.changes)) continue
                         throw e
                     }
+                    result.serverTime?.let { SyncPrefs.updateServerClock(context, before.userId, it) }
                     pushSkipped = pushSkipped || result.skipped > 0
                     if (!isCurrentAccount(before.userId)) return@withLock SyncPrefs.getState(context)
-                    outbox.removeOps(pending.opIds)
+                    outbox.removeOps(
+                        opIds = pending.opIds,
+                        accountId = before.userId,
+                        appliedItems = result.appliedItems,
+                        rejectedItems = result.rejectedItems,
+                        actionByOpId = pending.changes.associate { it.opId to it.action },
+                    )
                     pushed = true
                 }
 
-                // 被 pending 遮挡的远端变更必须在 push 后重放，覆盖服务端 LWW 拒绝的本机旧值。
-                if (pushed && isCurrentAccount(before.userId)) appliedVersion = pull(before, if (pushSkipped) 0 else before.lastVersion)
+                // 被 pending 遮挡的远端变更必须在 push 后重放，覆盖服务端 LWW 拒绝的本机旧值；无冲突时从 appliedVersion 继续，避免全量双拉。
+                if (pushed && isCurrentAccount(before.userId)) {
+                    appliedVersion = pull(before, if (pushSkipped) 0L else appliedVersion)
+                }
 
-                // push 的版本可能包含尚未拉取的其他设备变更，游标只能推进到已应用的 pull 版本。
                 if (isCurrentAccount(before.userId)) {
                     SyncPrefs.markSyncSuccess(context, before.userId, appliedVersion)
+                    SyncClockAndStateStore.pruneOpHistory(helper.writableDatabase, before.userId)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -93,8 +105,13 @@ class SyncManager @Inject constructor(
         var snapshotRestarts = 0
         while (true) {
             val pulled = try {
-                configManager.getSyncChanges(before.token, ownDeviceId,
-                    if (snapshotVersion != null) 0 else appliedVersion, snapshotVersion, cursor)
+                configManager.getSyncChanges(
+                    before.token,
+                    ownDeviceId,
+                    if (snapshotVersion != null) 0 else appliedVersion,
+                    snapshotVersion,
+                    cursor,
+                )
             } catch (e: ConfigManager.ApiException) {
                 if (e.httpStatus != 409 || snapshotRestarts++ >= 2) throw e
                 snapshotVersion = null
@@ -104,6 +121,7 @@ class SyncManager @Inject constructor(
                 appliedVersion = 0
                 continue
             }
+            pulled.serverTime?.let { SyncPrefs.updateServerClock(context, before.userId, it) }
             if (!isCurrentAccount(before.userId)) return appliedVersion
             if (pulled.mode == "snapshot") {
                 val version = pulled.snapshotVersion ?: pulled.version
@@ -115,14 +133,19 @@ class SyncManager @Inject constructor(
                         ?: error("同步快照分页缺失")
                     continue
                 }
-                // 只在完整权威快照到齐后发布；自身设备的数据也要恢复。
+                // 只在完整权威快照到齐后发布；业务写入、实体版本与游标水位同库落盘。
                 loveManager.withSyncBatch {
                     if (!isCurrentAccount(before.userId)) return@withSyncBatch
                     snapshot.sortedBy { if (it.itemType == SyncPayloads.TYPE_PLAYLIST_TRACK) 1 else 0 }
                         .forEach { applyRemoteChange(it, before.userId) }
-                    loveManager.reconcileSnapshot(snapshot.filter { it.itemType == SyncPayloads.TYPE_FAVORITE_SONG }
-                        .mapTo(hashSetOf()) { it.itemKey }, initialSongs, before.userId)
+                    loveManager.reconcileSnapshot(
+                        snapshot.filter { it.itemType == SyncPayloads.TYPE_FAVORITE_SONG }
+                            .mapTo(hashSetOf()) { it.itemKey },
+                        initialSongs,
+                        before.userId,
+                    )
                     playlistApplier.reconcile(snapshot.mapTo(hashSetOf()) { it.itemType to it.itemKey }, initialPlaylists, before.userId)
+                    recordSnapshotVersionsAndWatermark(before.userId, snapshot, version)
                 }
                 appliedVersion = version
                 break
@@ -134,14 +157,68 @@ class SyncManager @Inject constructor(
                 if (!isCurrentAccount(before.userId)) return appliedVersion
                 if (change.deviceId != ownDeviceId) applyRemoteChange(change, before.userId)
                 else synchronized(cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary) {
-                    if (isCurrentAccount(before.userId)) playlistApplier.acknowledgeOwnVersion(change,before.userId)
+                    if (isCurrentAccount(before.userId)) playlistApplier.acknowledgeOwnVersion(change, before.userId)
                 }
                 appliedVersion = change.version
+            }
+            if (pulled.changes.isNotEmpty() && isCurrentAccount(before.userId)) {
+                recordDeltaVersionsAndWatermark(before.userId, pulled.changes, appliedVersion)
             }
             if (appliedVersion >= pulled.version) break
             check(appliedVersion > pageStart) { "同步日志分页缺失，请稍后重试" }
         }
         return appliedVersion
+    }
+
+    private fun recordSnapshotVersionsAndWatermark(
+        accountId: String,
+        snapshot: List<cn.partialy.pm.model.SyncChange>,
+        version: Long,
+    ) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            SyncClockAndStateStore.clearEntityVersions(db, accountId)
+            for (item in snapshot) {
+                SyncClockAndStateStore.upsertEntityVersion(
+                    db = db,
+                    accountId = accountId,
+                    itemType = item.itemType,
+                    itemKey = item.itemKey,
+                    serverVersion = item.version,
+                    deleted = item.action == SyncPayloads.ACTION_DELETE,
+                )
+            }
+            SyncClockAndStateStore.markSyncSuccess(db, accountId, version)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    private fun recordDeltaVersionsAndWatermark(
+        accountId: String,
+        changes: List<cn.partialy.pm.model.SyncChange>,
+        version: Long,
+    ) {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            for (change in changes) {
+                SyncClockAndStateStore.upsertEntityVersion(
+                    db = db,
+                    accountId = accountId,
+                    itemType = change.itemType,
+                    itemKey = change.itemKey,
+                    serverVersion = change.version,
+                    deleted = change.action == SyncPayloads.ACTION_DELETE,
+                )
+            }
+            SyncClockAndStateStore.markSyncSuccess(db, accountId, version)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
 
     private fun prepareAccountState(): SyncPrefs.State? = synchronized(cn.partialy.pm.network.auth.AccountSessionStore.libraryBoundary) {
@@ -166,18 +243,18 @@ class SyncManager @Inject constructor(
             }
             val state = SyncPrefs.getState(context)
             if (state.loggedIn) SyncPrefs.resetForAccount(context, state.userId)
-            else SyncPrefs.clearAccountState(context)
         }
     }
 
     fun clearLocalSyncState() {
-        // 退出仅清同步游标；各账号 pending 保留，永不转移给其他账号。
-        SyncPrefs.clearAccountState(context)
+        // 各账号水位和 seeded 状态已按 account_id 隔离保留在 SQLite sync_account_state 中，登出/切号不再清空避免重登误 re-seed。
     }
 
     private fun isCurrentAccount(accountId: String): Boolean =
-        SyncPrefs.getState(context).let { it.loggedIn && it.userId == accountId &&
-            syncGeneration == cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration }
+        SyncPrefs.getState(context).let {
+            it.loggedIn && it.userId == accountId &&
+                syncGeneration == cn.partialy.pm.network.auth.AccountSessionStore.libraryGeneration
+        }
 
     private fun seedInitialOutbox(accountId: String) {
         favoriteApplier.seed(accountId)

@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteOpenHelper
 
 internal class LocalMusicDbOpenHelper(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DB_NAME, null, DB_VERSION) {
+    private val appContext = context.applicationContext
 
     override fun onCreate(db: SQLiteDatabase) {
         createLocalPlaylistTables(db)
@@ -20,6 +21,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         AccountLibrarySchema.prepare(db)
         cn.partialy.pm.playlistcover.PlaylistCoverSchema.create(db)
         createAppConfigTable(db)
+        cn.partialy.pm.sync.SyncStateSchema.prepare(db, appContext)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -61,6 +63,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
         if (oldVersion < 15) AccountLibrarySchema.prepare(db)
         if (oldVersion < 16) cn.partialy.pm.playlistcover.PlaylistCoverSchema.create(db)
         if (oldVersion < 17) createAppConfigTable(db)
+        if (oldVersion < 18) cn.partialy.pm.sync.SyncStateSchema.prepare(db, appContext)
     }
 
     private fun createLocalPlaylistTables(db: SQLiteDatabase) {
@@ -414,7 +417,7 @@ internal class LocalMusicDbOpenHelper(context: Context) :
             sharedInstance ?: LocalMusicDbOpenHelper(context.applicationContext).also { sharedInstance = it }
         }
         const val DB_NAME = "pm_local_music.db"
-        private const val DB_VERSION = 17
+        private const val DB_VERSION = 18
     }
 
     private fun ensureCachedPlaybackCatalogColumns(db: SQLiteDatabase) {

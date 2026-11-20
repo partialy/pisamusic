@@ -191,6 +191,14 @@ class PlaylistCollectionManager @Inject constructor(
         }
     }
 
+    internal fun getLocalPlaylistTimestamps(): Map<String, Long> = synchronized(lock) {
+        localDb.getPlaylistUpdatedAtMap()
+    }
+
+    internal fun getLocalPlaylistSongTimestamps(playlistId: String): Map<String, Long> = synchronized(lock) {
+        localDb.getSongUpdatedAtMap(playlistId)
+    }
+
     /** 将 SQLite 中的本地歌单同步成旧版 JSON 文件，保持备份导出兼容。 */
     fun syncLegacyMirrorNow() {
         val playlists = getAllPlaylists()

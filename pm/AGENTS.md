@@ -215,7 +215,7 @@
 
 - 账号接口通过 `ConfigManager` / `SystemApiService` 访问外层服务端 `/api/auth/*`，继续走系统服务端 AES-GCM 加密链路；登录 token 由 `AccountSessionStore` 持久化并同步到 `TokenManager`。`LoginActivity` 支持用户名/邮箱/手机号密码登录及邮箱/手机号验证码登录；注册账号、找回密码由 `AccountAssistActivity` 的原生页面承载，支持邮箱/手机号切换并调用对应验证码、注册和 `reset_password` 接口。
 - 同步接口通过外层服务端 `/api/sync/*` 拉取/推送增量，使用账号 `Authorization: Bearer <userToken>` 鉴权；旧同步码创建、加入、重置和解绑设备流程已移除。
-- `SyncManager` 是手机端账号同步编排入口，负责按当前账号作用域 seed outbox、拉取/推送增量和应用远端 tombstone；未登录时只记录未关联 outbox，不主动推送；切账号重置游标，仅 seed 该账号关系，不绑定未关联数据。
+- `SyncManager` 是手机端账号同步编排入口，负责按当前账号作用域 seed outbox、拉取/推送增量和应用远端 tombstone；未登录时只记录未关联 outbox，不主动推送；`pm_local_music.db` v18 新增 `sync_account_state`（取代 `pm_sync_prefs` 存水位/seeded/HLC 偏移）、`sync_entity_versions`（提供上行 `baseVersion`）与 `sync_op_history`（本地操作日志，保留最近 1000 条 / 30 天）；同账号登出与切号保留各账号 SQLite 水位与 `seeded` 标记不再重 seed，首次 seed 严格沿用持久化历史时间。
 - 收藏歌曲以 SQLite 为权威：`loveList.json` 只首次迁移，已有 SQLite 收藏或收藏 outbox 时不再回灌镜像；显式备份导入仍允许追加。`LoveManager` 在同一锁内处理本机操作、首次 seed 和远端下行，同账号同歌曲有 pending 时保留本机最新操作；收藏增删与 outbox 同事务提交。
 - 同步运行中新增请求必须补跑；outbox 分批排空。远端同步每页最多 1000 条，按实际处理的日志版本继续拉取至追平账号版本，空缺页报错且不跳游标；成功游标只推进到已拉取并应用的版本，不能用全局响应版本或 push 版本跳过未处理的变更。
 - `sync_outbox` 表保存本地待推送 op，收藏歌曲、收藏歌单、自建歌单和自建歌单曲目变更必须写入 outbox；已登录账号时由 `SyncWorkRunner` 触发后台增量同步。
