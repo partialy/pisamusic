@@ -2,6 +2,7 @@ package cn.partialy.pm.ui.home.adapters
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -10,6 +11,7 @@ import cn.partialy.pm.databinding.ItemHomeRecommendPlaylistBinding
 import cn.partialy.pm.model.HomeRecommendPlaylist
 import cn.partialy.pm.model.toCanonicalSource
 import cn.partialy.pm.utils.SongCoverUrl
+import coil.dispose
 import coil.load
 import kotlin.math.max
 
@@ -19,10 +21,23 @@ class HomePlaylistGridAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Vh {
         val binding = ItemHomeRecommendPlaylistBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        val screenW = parent.resources.displayMetrics.widthPixels
-        val horizontalPadding = parent.resources.getDimensionPixelSize(R.dimen.pm_page_content_start) * 2
-        val itemW = max(1, (screenW - horizontalPadding) / 3)
+        val availableWidth = if (parent.measuredWidth > 0) {
+            parent.measuredWidth - parent.paddingStart - parent.paddingEnd
+        } else {
+            val screenW = parent.resources.displayMetrics.widthPixels
+            val horizontalPadding = parent.resources.getDimensionPixelSize(R.dimen.pm_page_content_start) * 2
+            screenW - horizontalPadding
+        }
+        val itemW = max(1, availableWidth / 3)
+        val coverSize = max(1, itemW - binding.root.paddingStart - binding.root.paddingEnd)
         binding.root.layoutParams = RecyclerView.LayoutParams(itemW, RecyclerView.LayoutParams.WRAP_CONTENT)
+        // 纵向网格卡片高度为 WRAP_CONTENT，必须固定封面为正方形高度，避免被占位图或大图固有高度撑高整行。
+        binding.coverContainer.minimumHeight = 0
+        binding.coverContainer.layoutParams =
+            (binding.coverContainer.layoutParams as LinearLayout.LayoutParams).apply {
+                height = coverSize
+                weight = 0f
+            }
         return Vh(binding, onItemClick)
     }
 
@@ -47,6 +62,7 @@ class HomePlaylistGridAdapter(
                     fallback(R.drawable.default_music_cover)
                 }
             } else {
+                binding.coverImageView.dispose()
                 binding.coverImageView.setImageResource(R.drawable.default_music_cover)
             }
             binding.root.setOnClickListener { onItemClick(item) }
@@ -54,7 +70,9 @@ class HomePlaylistGridAdapter(
     }
 
     private object Diff : DiffUtil.ItemCallback<HomeRecommendPlaylist>() {
-        override fun areItemsTheSame(a: HomeRecommendPlaylist, b: HomeRecommendPlaylist) = a.id == b.id
+        override fun areItemsTheSame(a: HomeRecommendPlaylist, b: HomeRecommendPlaylist) =
+            a.id == b.id && a.sourceType == b.sourceType
+
         override fun areContentsTheSame(a: HomeRecommendPlaylist, b: HomeRecommendPlaylist) = a == b
     }
 }
