@@ -201,7 +201,7 @@ class AccountProfileActivity : BaseActivity() {
     private fun showAvatarOptionsSheet() {
         val dialog = BottomSheetDialog(
             this,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val root = layoutInflater.inflate(
             R.layout.layout_bottom_radius_options_sheet,

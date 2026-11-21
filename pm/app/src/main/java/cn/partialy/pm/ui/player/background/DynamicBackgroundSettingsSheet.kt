@@ -16,7 +16,7 @@ import java.util.Locale
 internal object DynamicBackgroundSettingsSheet {
     fun show(activity: ComponentActivity, song: SongInfo?, onSaved: () -> Unit) {
         val dialog = BottomSheetDialog(
-            activity, com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            activity, R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val binding = BottomSheetDynamicBackgroundSettingsBinding.inflate(dialog.layoutInflater)
         dialog.setContentView(binding.root)

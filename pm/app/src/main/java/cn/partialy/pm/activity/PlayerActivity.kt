@@ -678,7 +678,7 @@ class PlayerActivity : BaseDownloadActivity() {
     private fun showListenTogetherSheet() {
         val dialog = BottomSheetDialog(
             this,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val sheetBinding = LayoutListenTogetherBottomSheetBinding.inflate(layoutInflater)
         listenTogetherDialog = dialog

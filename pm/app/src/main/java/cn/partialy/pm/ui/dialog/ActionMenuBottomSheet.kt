@@ -39,7 +39,7 @@ object ActionMenuBottomSheet {
     ): BottomSheetDialog {
         val dialog = BottomSheetDialog(
             activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val root = LayoutInflater.from(activity).inflate(
             R.layout.layout_action_menu_bottom_sheet,

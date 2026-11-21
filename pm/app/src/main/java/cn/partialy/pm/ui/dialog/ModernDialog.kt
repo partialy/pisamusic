@@ -75,7 +75,7 @@ class ModernDialog private constructor(
      * 显示底部弹窗
      */
     private fun showBottomDialog() {
-        bottomSheetDialog = BottomSheetDialog(context, com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog).apply {
+        bottomSheetDialog = BottomSheetDialog(context, R.style.ThemeOverlay_Pm_BottomSheetDialog).apply {
             setContentView(createBottomSheetView())
             behavior.apply {
                 isDraggable = builder.cancelable
@@ -150,7 +150,7 @@ class ModernDialog private constructor(
      * 显示下载对话框
      */
     private fun showDownloadDialog() {
-        bottomSheetDialog = BottomSheetDialog(context, com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog).apply {
+        bottomSheetDialog = BottomSheetDialog(context, R.style.ThemeOverlay_Pm_BottomSheetDialog).apply {
             setContentView(createDownloadSheetView())
             behavior.apply {
                 isDraggable = builder.cancelable

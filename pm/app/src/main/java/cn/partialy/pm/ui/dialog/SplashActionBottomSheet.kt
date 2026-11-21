@@ -101,7 +101,7 @@ object SplashActionBottomSheet {
     ): Handle {
         val dialog = BottomSheetDialog(
             activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         dialog.setContentView(R.layout.layout_splash_action_bottom_sheet)
         dialog.behavior.isHideable = cancelable

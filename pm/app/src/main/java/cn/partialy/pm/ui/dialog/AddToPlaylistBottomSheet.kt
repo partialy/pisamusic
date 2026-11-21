@@ -56,7 +56,7 @@ object AddToPlaylistBottomSheet {
         val report: (cn.partialy.pm.player.PlaylistAppendResult) -> Unit = { onResult(it); finish() }
         val dialog = BottomSheetDialog(
             activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val root = LayoutInflater.from(activity).inflate(R.layout.layout_pick_local_playlist_bottom_sheet, null)
         val empty = root.findViewById<TextView>(R.id.pickPlaylistEmptyView)

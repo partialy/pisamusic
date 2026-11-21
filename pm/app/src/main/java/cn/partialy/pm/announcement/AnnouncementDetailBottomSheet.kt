@@ -28,7 +28,7 @@ object AnnouncementDetailBottomSheet {
     ): BottomSheetDialog {
         val sheet = BottomSheetDialog(
             activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         sheet.setContentView(R.layout.layout_announcement_bottom_sheet)
         sheet.behavior.isHideable = dismissible

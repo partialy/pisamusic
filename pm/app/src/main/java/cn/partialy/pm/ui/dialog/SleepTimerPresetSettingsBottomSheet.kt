@@ -22,7 +22,7 @@ object SleepTimerPresetSettingsBottomSheet {
     ) {
         val dialog = BottomSheetDialog(
             activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val binding = BottomSheetSleepTimerPresetsBinding.inflate(dialog.layoutInflater)
         val inputLayouts: List<TextInputLayout> = listOf(

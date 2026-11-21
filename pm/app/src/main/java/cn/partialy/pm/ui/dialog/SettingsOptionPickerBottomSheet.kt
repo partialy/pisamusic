@@ -2,6 +2,7 @@ package cn.partialy.pm.ui.dialog
 
 import android.content.Context
 import android.widget.FrameLayout
+import cn.partialy.pm.R
 import cn.partialy.pm.ui.message.PmMessage
 import cn.partialy.pm.databinding.LayoutBottomRadiusOptionsSheetBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -28,7 +29,7 @@ suspend fun showSettingsOptionPicker(
     return suspendCancellableCoroutine { cont ->
         val dialog = BottomSheetDialog(
             context,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val binding = LayoutBottomRadiusOptionsSheetBinding.inflate(dialog.layoutInflater)
         binding.bottomRadiusOptionsSheetTitle.text = title

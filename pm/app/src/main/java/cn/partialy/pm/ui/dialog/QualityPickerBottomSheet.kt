@@ -34,7 +34,7 @@ suspend fun showDownloadQualityPicker(
     return suspendCancellableCoroutine { cont ->
         val dialog = BottomSheetDialog(
             context,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val binding = LayoutBottomRadiusOptionsSheetBinding.inflate(dialog.layoutInflater)
         binding.bottomRadiusOptionsSheetTitle.text =

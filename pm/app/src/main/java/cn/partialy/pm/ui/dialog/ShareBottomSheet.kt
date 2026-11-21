@@ -82,7 +82,7 @@ object ShareBottomSheet {
 
         val dialog = BottomSheetDialog(
             activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val root = activity.layoutInflater.inflate(R.layout.bottom_sheet_share, null)
         bindHeader(root, title, description, cover)

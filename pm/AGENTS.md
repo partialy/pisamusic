@@ -282,6 +282,7 @@
 - 旧 `ModernDialog` 仍保留给既有底部弹窗和单选弹窗等场景，歌曲下载进度统一在下载管理展示；不要为了普通确认弹窗继续扩展它。
 - 原生业务轻提示统一使用 `ui/message/PmMessage.info/success/warning/error`，接收 Activity、Fragment 和文本/字符串资源；旧 `BaseActivity.showMessage` 已移除。四态图标配半透明黑色胶囊，安全区/IME 上方居中、最多三行、点击透传；同窗同类型同文本 800ms 去重，Error/Warning 优先于 Success/Info，低优先级直接丢弃，不排队。返回 `MessageHandle.dismiss()`，0ms 常驻也可被替换，旧 Handle 不会关闭新提示。
 - Dialog/BottomSheet 在 `show()` 后调用 `PmMessage.register(dialog)`，通用弹窗封装已注册；独立窗口同样显式注册，detach 自动注销。消息仅在有效前台宿主展示，Activity 暂停、Fragment View 销毁、Dialog 关闭时清理，不跨页携带。WebView JS Message、确认 Dialog、带操作 Snackbar、后台通知保持各自职责。
+- 所有 `BottomSheetDialog` 统一使用 `R.style.ThemeOverlay_Pm_BottomSheetDialog`（已在 `Theme.Pm` 通过 `bottomSheetDialogTheme` 设成默认），通过 `PmBottomSheetAnimationStyle` 绑定 `pm_bottom_sheet_enter`（底部向上 260ms 减速滑起，无触底回弹、无透明度变化）与 `pm_bottom_sheet_exit`（向底部 240ms 加速收起，无透明度变化）。
 - 保存/提交成功紧接关闭或导航时统一使用 `PmMessageFlow.showSuccessThenFinish/showSuccessThenNavigate`，成功提示后等待 800ms；STOP/DESTROY 取消、检查 finishing/destroyed/STARTED，调用方消费成功事件并禁止重复提交。登录必须等待 800ms 后再完成专属消息流程，最终有效时关闭。Android 13+ 复制使用系统反馈，低版本用 Success，失败仍 Error。
 - `:app:verifyMessageUsage` 随 preBuild 检查旧消息入口和直接 Toast；唯一白名单为 `GlobalExceptionHandler.copyErrorStack` 调试故障降级的复制反馈，禁止新增普通 Toast。
 

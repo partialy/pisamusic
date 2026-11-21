@@ -43,7 +43,7 @@ object AppShareBottomSheet {
             activity.applicationContext, AppShareEntryPoint::class.java,
         ).appShareRepository()
         val dialog = BottomSheetDialog(activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog)
+            R.style.ThemeOverlay_Pm_BottomSheetDialog)
         val root = activity.layoutInflater.inflate(R.layout.bottom_sheet_app_share, null)
         val icon = root.findViewById<ImageView>(R.id.shareInfoCoverView)
         val qr = root.findViewById<ImageView>(R.id.appShareQrImage)

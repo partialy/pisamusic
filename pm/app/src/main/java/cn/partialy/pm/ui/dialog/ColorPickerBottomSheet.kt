@@ -72,7 +72,7 @@ object ColorPickerBottomSheet {
     ) {
         val dialog = BottomSheetDialog(
             activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         val binding = BottomSheetColorPickerBinding.inflate(dialog.layoutInflater)
         dialog.setContentView(binding.root)

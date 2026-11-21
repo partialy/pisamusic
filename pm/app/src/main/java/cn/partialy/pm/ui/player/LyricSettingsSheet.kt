@@ -33,7 +33,7 @@ object LyricSettingsSheet {
         val binding = BottomSheetLyricSettingsBinding.inflate(activity.layoutInflater)
         val dialog = BottomSheetDialog(
             activity,
-            com.google.android.material.R.style.ThemeOverlay_Material3_BottomSheetDialog,
+            R.style.ThemeOverlay_Pm_BottomSheetDialog,
         )
         binding.root.setBackgroundResource(R.drawable.bg_lyric_settings_sheet)
         dialog.setContentView(binding.root)
