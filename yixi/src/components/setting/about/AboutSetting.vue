@@ -53,6 +53,7 @@
           >
             模拟检查更新
           </n-button>
+          <n-button v-if="canViewNotes" round secondary @click="openUpdateDialog">更新日志</n-button>
           <n-button v-if="canDownload" round type="primary" @click="downloadUpdate">下载更新</n-button>
           <n-button v-if="canInstall" round type="primary" @click="installUpdate">重启安装</n-button>
         </div>
@@ -225,6 +226,7 @@ import AboutFeedbackDialog from "@/components/about/AboutFeedbackDialog.vue";
 import { QUALITY_UNLOCK_FEEDBACK_QUERY_VALUE } from "@/composables/useQualityUnlockFeedback";
 import electronAPI from "@/utils/electron";
 import { useAppShareDialog } from "@/composables/useAppShareDialog";
+import { normalizeReleaseNotes, normalizeVersionLabel } from "@/utils/updaterNotes";
 
 defineOptions({ name: "AboutSetting" });
 const { openAppShare } = useAppShareDialog();
@@ -267,6 +269,10 @@ const updateModalMaskStyle = {
 const checking = computed(() => state.value?.status === "checking");
 const canDownload = computed(() => state.value?.status === "available" && !state.value?.simulated);
 const canInstall = computed(() => state.value?.status === "downloaded");
+const canViewNotes = computed(() => {
+  const status = state.value?.status;
+  return Boolean(state.value?.updateInfo && (status === "available" || status === "downloading" || status === "downloaded"));
+});
 const updateStatusLabel = computed(() => {
   const status = state.value?.status;
   if (status === "checking") return "检查中";
@@ -310,36 +316,20 @@ const updateText = computed(() => {
 let disposeUpdaterState: (() => void) | undefined;
 let lastHandledManualResult = "";
 
-function normalizeReleaseNotes(value: unknown) {
-  if (Array.isArray(value)) {
-    const text = value
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (item && typeof item === "object" && "note" in item) return String(item.note ?? "");
-        return "";
-      })
-      .filter(Boolean)
-      .join("\n");
-    return text || "暂无更新说明";
-  }
-  const text = String(value ?? "").trim();
-  return text || "暂无更新说明";
-}
-
-function normalizeVersionLabel(value: string) {
-  return value.trim().replace(/^v/i, "") || "-";
-}
-
 function getManualResultKey(next: LocalUpdaterState) {
   return [
     next.status,
     next.updateInfo?.version || "",
+    normalizeReleaseNotes(next.updateInfo?.releaseNotes, ""),
     next.error || "",
     next.simulated ? "simulated" : "real",
   ].join(":");
 }
 
 function handleManualCheckResult(next: LocalUpdaterState) {
+  if (next.status === "available" && updateDialogVisible.value) {
+    updateDialogState.value = next;
+  }
   if (!next.manual) return;
   if (next.status === "checking") {
     lastHandledManualResult = "";
@@ -358,6 +348,12 @@ function handleManualCheckResult(next: LocalUpdaterState) {
     updateDialogState.value = next;
     updateDialogVisible.value = true;
   }
+}
+
+function openUpdateDialog() {
+  if (!state.value?.updateInfo) return;
+  updateDialogState.value = state.value;
+  updateDialogVisible.value = true;
 }
 
 async function loadAboutInfo() {
@@ -403,12 +399,14 @@ async function openWebsite() {
 }
 
 async function checkUpdate() {
+  lastHandledManualResult = "";
   const next = await electronAPI.checkForUpdates({ manual: true });
   state.value = next;
   handleManualCheckResult(next);
 }
 
 async function simulateCheckUpdate() {
+  lastHandledManualResult = "";
   const next = await electronAPI.simulateCheckForUpdates();
   state.value = next;
   handleManualCheckResult(next);

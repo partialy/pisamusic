@@ -18,6 +18,14 @@ type DesktopReleaseInfo = {
   officialUrl?: string;
 };
 
+type UpdateHistoryEntry = {
+  platform?: string;
+  version?: string;
+  updateContent?: string;
+  forceUpdate?: boolean;
+  updateTime?: string;
+};
+
 export type UpdaterStatus =
   | "idle"
   | "disabled"
@@ -47,6 +55,7 @@ let registered = false;
 let startupTimer: NodeJS.Timeout | null = null;
 let checkingFallbackFeeds = false;
 let updateCheckInFlight: Promise<void> | null = null;
+let pendingAvailableTask: Promise<void> | null = null;
 let currentState: UpdaterState = {
   status: "idle",
   feedUrl: "",
@@ -117,6 +126,86 @@ async function getDesktopReleaseInfo(): Promise<DesktopReleaseInfo | null> {
   }
 }
 
+function normalizeVersionKey(version?: string | null): string {
+  return String(version ?? "").trim().replace(/^v/i, "").toLowerCase();
+}
+
+function extractRawReleaseNotes(raw: UpdateInfo["releaseNotes"]): string {
+  if (typeof raw === "string") return raw.trim();
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (typeof item === "string" ? item : String(item?.note ?? "")))
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
+async function getDesktopHistoryReleaseByVersion(version: string): Promise<UpdateHistoryEntry | null> {
+  const target = normalizeVersionKey(version);
+  if (!target) return null;
+  try {
+    const response = await requestSystem<UpdateHistoryEntry[]>("/api/config/update-history", { encrypted: false });
+    if (!response.success || !Array.isArray(response.data)) return null;
+    return (
+      response.data.find(
+        (item) => item?.platform === "desktop" && normalizeVersionKey(item.version) === target,
+      ) ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function resolveDesktopReleaseMetadata(info: UpdateInfo): Promise<{
+  releaseNotes: string;
+  forceUpdate: boolean;
+  releaseDate?: string;
+}> {
+  const release = await getDesktopReleaseInfo();
+  const targetVer = normalizeVersionKey(info.version);
+  const releaseVer = normalizeVersionKey(release?.latestVersion);
+
+  if (release && (!targetVer || !releaseVer || releaseVer === targetVer)) {
+    return {
+      releaseNotes: release.updateContent?.trim() || extractRawReleaseNotes(info.releaseNotes),
+      forceUpdate: Boolean(release.forceUpdate),
+      releaseDate: release.updateTime?.trim() || info.releaseDate,
+    };
+  }
+
+  const matchedHistory = await getDesktopHistoryReleaseByVersion(info.version);
+  if (matchedHistory) {
+    return {
+      releaseNotes:
+        matchedHistory.updateContent?.trim() ||
+        release?.updateContent?.trim() ||
+        extractRawReleaseNotes(info.releaseNotes),
+      forceUpdate: Boolean(matchedHistory.forceUpdate ?? release?.forceUpdate),
+      releaseDate: matchedHistory.updateTime?.trim() || info.releaseDate,
+    };
+  }
+
+  return {
+    releaseNotes: release?.updateContent?.trim() || extractRawReleaseNotes(info.releaseNotes),
+    forceUpdate: Boolean(release?.forceUpdate),
+    releaseDate: release?.updateTime?.trim() || info.releaseDate,
+  };
+}
+
+function buildUpdateInfoWithNotes(
+  info: UpdateInfo,
+  releaseNotes: string,
+  releaseDate?: string,
+): UpdateInfo {
+  return {
+    ...info,
+    releaseNotes: releaseNotes || extractRawReleaseNotes(info.releaseNotes),
+    releaseDate: info.releaseDate || releaseDate || "",
+  } as UpdateInfo;
+}
+
 async function prepareFeeds(getMainWindow: () => BrowserWindow | null, manual: boolean) {
   if (!canUseUpdater()) {
     setState(getMainWindow, {
@@ -171,6 +260,7 @@ async function runUpdateCheck(getMainWindow: () => BrowserWindow | null, manual:
     const feeds = await prepareFeeds(getMainWindow, manual);
     if (!feeds) return;
     await checkForUpdatesWithFallback(feeds, getMainWindow, manual);
+    if (pendingAvailableTask) await pendingAvailableTask;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.warn(`自动检查更新失败：${message}`);
@@ -203,16 +293,31 @@ export function setupUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
     setState(getMainWindow, { status: "checking", progress: null, error: "", simulated: false });
   });
   autoUpdater.on("update-available", (info) => {
-    void getDesktopReleaseInfo().then((release) => {
-      setState(getMainWindow, {
-        status: "available",
-        updateInfo: info,
-        progress: null,
-        forceUpdate: Boolean(release?.forceUpdate),
-        error: "",
-        simulated: false,
+    const task = resolveDesktopReleaseMetadata(info)
+      .then((meta) => {
+        setState(getMainWindow, {
+          status: "available",
+          updateInfo: buildUpdateInfoWithNotes(info, meta.releaseNotes, meta.releaseDate),
+          progress: null,
+          forceUpdate: meta.forceUpdate,
+          error: "",
+          simulated: false,
+        });
+      })
+      .catch(() => {
+        setState(getMainWindow, {
+          status: "available",
+          updateInfo: buildUpdateInfoWithNotes(info, extractRawReleaseNotes(info.releaseNotes)),
+          progress: null,
+          forceUpdate: false,
+          error: "",
+          simulated: false,
+        });
+      })
+      .finally(() => {
+        if (pendingAvailableTask === task) pendingAvailableTask = null;
       });
-    });
+    pendingAvailableTask = task;
   });
   autoUpdater.on("update-not-available", (info) => {
     setState(getMainWindow, { status: "not-available", updateInfo: info, progress: null, forceUpdate: false, error: "", simulated: false });
@@ -221,7 +326,15 @@ export function setupUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
     setState(getMainWindow, { status: "downloading", progress, error: "", simulated: false });
   });
   autoUpdater.on("update-downloaded", (info) => {
-    setState(getMainWindow, { status: "downloaded", updateInfo: info, progress: null, error: "", simulated: false });
+    const preservedNotes = extractRawReleaseNotes(info.releaseNotes) ||
+      extractRawReleaseNotes(currentState.updateInfo?.releaseNotes);
+    setState(getMainWindow, {
+      status: "downloaded",
+      updateInfo: buildUpdateInfoWithNotes(info, preservedNotes, currentState.updateInfo?.releaseDate),
+      progress: null,
+      error: "",
+      simulated: false,
+    });
   });
   autoUpdater.on("error", (error) => {
     const message = error instanceof Error ? error.message : String(error);

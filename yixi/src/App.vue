@@ -77,6 +77,7 @@ import { getColorFromUrl, getSongCover } from "./utils/common";
 import { message } from "./utils/pure/message";
 import { normalizeSong } from "./utils/song";
 import { setupPlaybackBridge, usePlaybackCommands } from "./listenTogether/playbackCommands";
+import { normalizeReleaseNotes, normalizeVersionLabel } from "./utils/updaterNotes";
 import { openSharedMediaDetail } from "./share/mediaDetailRoute";
 import { listeningPlaybackAdapter } from "./listening/listeningPlaybackAdapter";
 import { setupDesktopLyricBridge } from "./desktopLyric/desktopLyricBridge";
@@ -192,22 +193,43 @@ function resetUpdaterProgressMessage(
 }
 
 function setupUpdaterNotifications() {
+  let lastNotifiedAvailableKey = "";
+
+  const renderAvailableContent = (versionLabel: string, notes: string) =>
+    h("div", { style: "display: grid; gap: 6px;" }, [
+      h("div", { style: "font-weight: 600;" }, `新版本 v${versionLabel} 已可用`),
+      h(
+        "div",
+        {
+          style:
+            "white-space: pre-wrap; max-height: 150px; overflow-y: auto; font-size: 12px; line-height: 1.55; opacity: 0.88;",
+        },
+        notes,
+      ),
+    ]);
+
   electronAPI.onUpdaterState?.((state) => {
     if (state.status === "available") {
       resetUpdaterProgressMessage();
       if (state.manual) return;
+      const versionLabel = normalizeVersionLabel(state.updateInfo?.version);
+      const notes = normalizeReleaseNotes(state.updateInfo?.releaseNotes);
+      const notifyKey = `${versionLabel}:${notes}:${state.simulated ? "sim" : "real"}`;
+      if (notifyKey === lastNotifiedAvailableKey) return;
+      lastNotifiedAvailableKey = notifyKey;
+
       if (state.simulated) {
         window.$notification.info({
-          title: "发现新版本",
-          content: `新版本 ${state.updateInfo?.version || ""} 已可用`,
-          duration: 8000,
+          title: `发现新版本 v${versionLabel}`,
+          content: () => renderAvailableContent(versionLabel, notes),
+          duration: 10000,
         });
         return;
       }
       window.$notification.info({
-        title: state.forceUpdate ? "发现必须更新版本" : "发现新版本",
-        content: `新版本 ${state.updateInfo?.version || ""} 已可用`,
-        duration: state.forceUpdate ? 0 : 8000,
+        title: state.forceUpdate ? `发现必须更新版本 v${versionLabel}` : `发现新版本 v${versionLabel}`,
+        content: () => renderAvailableContent(versionLabel, notes),
+        duration: state.forceUpdate ? 0 : 10000,
         action: () =>
           h(
             NButton,
@@ -231,9 +253,10 @@ function setupUpdaterNotifications() {
         }
       }
     } else if (state.status === "downloaded") {
+      const versionLabel = normalizeVersionLabel(state.updateInfo?.version);
       resetUpdaterProgressMessage("更新下载完成", "success");
       window.$notification.success({
-        title: "更新下载完成",
+        title: versionLabel !== "-" ? `新版本 v${versionLabel} 下载完成` : "更新下载完成",
         content: "重启应用后将安装新版本",
         duration: state.forceUpdate ? 0 : 10000,
         action: () =>

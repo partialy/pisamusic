@@ -251,7 +251,7 @@ type UpdaterState = {
   updateInfo: {
     version?: string;
     releaseName?: string;
-    releaseNotes?: string;
+    releaseNotes?: string | Array<{ version?: string; note?: string | null }> | null;
     releaseDate?: string;
   } | null;
   progress: {
