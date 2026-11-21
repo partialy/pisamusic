@@ -40,10 +40,14 @@ export type TopDownloadedSongItem = {
 export type SongDownloadRecordAdminItem = {
   id: string;
   batchId: string;
+  clientBatchId: string;
+  batchItemCount: number;
+  clientIp: string;
   subjectType: SongDownloadSubjectType;
   subjectKey: string;
   userId: string | null;
   username: string | null;
+  userEmail: string | null;
   deviceKind: "android" | "desktop";
   deviceId: string;
   deviceName: string | null;
@@ -272,10 +276,14 @@ export async function querySongDownloadRecords(params: {
   const rows = await db.query<{
     id: string;
     batch_id: string;
+    client_batch_id: string | null;
+    batch_item_count: number | null;
+    client_ip: string | null;
     subject_type: SongDownloadSubjectType;
     subject_key: string;
     user_id: string | null;
     username: string | null;
+    user_email: string | null;
     device_kind: "android" | "desktop";
     device_id: string;
     android_device_name: string | null;
@@ -292,13 +300,15 @@ export async function querySongDownloadRecords(params: {
     download_day: string;
     created_at: number;
   }>(
-    `SELECT r.id, r.batch_id, r.subject_type, r.subject_key, r.user_id, u.username,
+    `SELECT r.id, r.batch_id, b.client_batch_id, b.item_count AS batch_item_count, b.client_ip,
+      r.subject_type, r.subject_key, r.user_id, u.username, u.email AS user_email,
       r.device_kind, r.device_id,
       ad.device_name AS android_device_name,
       dd.device_name AS desktop_device_name,
       r.platform, r.source, r.song_id, r.song_name, r.singer, r.album,
       r.cover_url, r.duration_ms, r.quality_key, r.download_day, r.created_at
     FROM song_download_records r
+    LEFT JOIN song_download_batches b ON b.id = r.batch_id
     LEFT JOIN users u ON u.id = r.user_id
     LEFT JOIN device_info ad ON r.device_kind = 'android' AND ad.id = r.device_id
     LEFT JOIN desktop_device_info dd ON r.device_kind = 'desktop' AND dd.id = r.device_id
@@ -312,10 +322,14 @@ export async function querySongDownloadRecords(params: {
     items: rows.map((r) => ({
       id: r.id,
       batchId: r.batch_id,
+      clientBatchId: r.client_batch_id ?? "",
+      batchItemCount: Number(r.batch_item_count) || 1,
+      clientIp: r.client_ip ?? "",
       subjectType: r.subject_type,
       subjectKey: r.subject_key,
       userId: r.user_id,
       username: r.username,
+      userEmail: r.user_email,
       deviceKind: r.device_kind,
       deviceId: r.device_id,
       deviceName: r.device_kind === "android" ? r.android_device_name : r.desktop_device_name,
