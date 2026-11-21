@@ -13,6 +13,7 @@ import {
 import { fetchSongDownloadOverview, fetchTopDownloadedSongs } from "../../api/songDownloads";
 import { glassCardClasses } from "../../constants/theme";
 import type { SongDownloadOverviewStats, TopDownloadedSongItem } from "../../types/songDownloads";
+import { resolveSongCoverUrl } from "../../utils/songCover";
 
 const SOURCE_LABELS: Record<string, string> = {
   kg: "酷狗 (KG)",
@@ -60,23 +61,26 @@ export default function SongDownloadsOverviewTab({ themeColor }: { themeColor: s
     },
     {
       title: "歌曲",
-      render: (_v, r) => (
-        <div className="flex items-center gap-3">
-          {r.coverUrl ? (
-            <img src={r.coverUrl} alt="" className="h-10 w-10 rounded-lg object-cover bg-slate-100" />
-          ) : (
-            <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center text-xs text-slate-400">
-              无图
-            </div>
-          )}
-          <div className="min-w-0">
-            <div className="font-medium text-slate-800 truncate max-w-[260px]">{r.songName || "未知歌曲"}</div>
-            <div className="text-xs text-slate-500 truncate max-w-[260px]">
-              {r.singer || "未知歌手"} {r.album ? `· ${r.album}` : ""}
+      render: (_v, r) => {
+        const coverSrc = resolveSongCoverUrl(r.coverUrl, 240);
+        return (
+          <div className="flex items-center gap-3">
+            {coverSrc ? (
+              <img src={coverSrc} alt="" className="h-10 w-10 rounded-lg object-cover bg-slate-100" />
+            ) : (
+              <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center text-xs text-slate-400">
+                无图
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="font-medium text-slate-800 truncate max-w-[260px]">{r.songName || "未知歌曲"}</div>
+              <div className="text-xs text-slate-500 truncate max-w-[260px]">
+                {r.singer || "未知歌手"} {r.album ? `· ${r.album}` : ""}
+              </div>
             </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: "音源",

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card, Input, Select, Space, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { ReloadOutlined, SearchOutlined } from "@ant-design/icons";
+import { EyeOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { fetchSongDownloadRecords } from "../../api/songDownloads";
 import { glassCardClasses } from "../../constants/theme";
 import type { SongDownloadRecordItem } from "../../types/songDownloads";
+import { resolveSongCoverUrl } from "../../utils/songCover";
+import SongDownloadRecordDetailModal from "./SongDownloadRecordDetailModal";
 
 export default function SongDownloadRecordsTab() {
   const [keyword, setKeyword] = useState("");
@@ -15,6 +17,7 @@ export default function SongDownloadRecordsTab() {
   const [items, setItems] = useState<SongDownloadRecordItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [detailRecord, setDetailRecord] = useState<SongDownloadRecordItem | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,17 +52,24 @@ export default function SongDownloadRecordsTab() {
     },
     {
       title: "歌曲",
-      render: (_v, r) => (
-        <div className="flex items-center gap-2.5">
-          {r.coverUrl ? (
-            <img src={r.coverUrl} alt="" className="h-9 w-9 rounded object-cover bg-slate-100" />
-          ) : null}
-          <div className="min-w-0">
-            <div className="font-medium text-slate-800 truncate max-w-[220px]">{r.songName}</div>
-            <div className="text-xs text-slate-500 truncate max-w-[220px]">{r.singer || "未知歌手"}</div>
+      render: (_v, r) => {
+        const coverSrc = resolveSongCoverUrl(r.coverUrl, 240);
+        return (
+          <div className="flex items-center gap-2.5">
+            {coverSrc ? (
+              <img src={coverSrc} alt="" className="h-9 w-9 rounded object-cover bg-slate-100" />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded bg-slate-100 text-[10px] text-slate-400">
+                无图
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="font-medium text-slate-800 truncate max-w-[220px]">{r.songName}</div>
+              <div className="text-xs text-slate-500 truncate max-w-[220px]">{r.singer || "未知歌手"}</div>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: "音源 / 音质",
@@ -100,6 +110,15 @@ export default function SongDownloadRecordsTab() {
       dataIndex: "batchId",
       width: 140,
       render: (id: string) => <span className="font-mono text-xs text-slate-400">{id.slice(0, 8)}…</span>,
+    },
+    {
+      title: "操作",
+      width: 90,
+      render: (_v, r) => (
+        <Button size="small" icon={<EyeOutlined />} onClick={() => setDetailRecord(r)}>
+          详情
+        </Button>
+      ),
     },
   ];
 
@@ -176,6 +195,8 @@ export default function SongDownloadRecordsTab() {
           showTotal: (t) => `共 ${t} 条下载记录`,
         }}
       />
+
+      <SongDownloadRecordDetailModal record={detailRecord} onClose={() => setDetailRecord(null)} />
     </Card>
   );
 }

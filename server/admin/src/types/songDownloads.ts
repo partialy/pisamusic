@@ -39,10 +39,14 @@ export type TopDownloadedSongItem = {
 export type SongDownloadRecordItem = {
   id: string;
   batchId: string;
+  clientBatchId: string;
+  batchItemCount: number;
+  clientIp: string;
   subjectType: SongDownloadSubjectType;
   subjectKey: string;
   userId: string | null;
   username: string | null;
+  userEmail: string | null;
   deviceKind: "android" | "desktop";
   deviceId: string;
   deviceName: string | null;
