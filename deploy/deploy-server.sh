@@ -132,7 +132,6 @@ backup_database() {
     fi
   fi
 
-  # Retain latest 5 database backups
   ls -1t "$BACKUP_ROOT/db"/*.gz 2>/dev/null | tail -n +6 | xargs -r rm -f
 }
 

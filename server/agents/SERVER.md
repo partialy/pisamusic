@@ -17,7 +17,7 @@
 - 开发：`pnpm --dir server dev`
 - 构建：`pnpm --dir server build`（含测试文件）；生产构建 `pnpm --dir server build:prod`（通过 `tsconfig.build.json` 排除 `*.spec.ts`/`*.case.ts`/`*.test.ts`）
 - 全量构建：`pnpm --dir server build:all`，依次构建服务端与管理后台；生产发布全量构建：`pnpm --dir server build:release`。管理后台产物输出到 `server/web-admin/`（为忽略的构建产物，不要提交）。官网使用纯静态 `server/frontend-html/`，无需构建。
-- 自动部署流水线：`.github/workflows/deploy-server.yml` 监听 `main` 分支 `server/**` 改动，自动执行 `build:release` 并将纯净包通过 `.github/scripts/deploy-server.sh` 增量部署至宝塔 `/www/wwwroot/node/pm-server`，详见 `.github/workflows/README.md`。
+- 自动部署流水线：主用 Gitee Go（[`.workflow/deploy-server.yml`](../../.workflow/deploy-server.yml)），同时保留 GitHub Actions（[`.github/workflows/deploy-server.yml`](../../.github/workflows/deploy-server.yml)）作兼容备用；两者共享部署脚本 [`deploy/deploy-server.sh`](../../deploy/deploy-server.sh)，监听 `main` 分支 `server/**` 改动并增量部署至宝塔 `/www/wwwroot/node/pm-server`。
 - 启动构建产物：`pnpm --dir server start`
 - 默认端口：`53380`
 - 官网双端发布接口：`/api/config/releases` 返回 Android 与 PC 当前发布信息；`/api/config/check-update` 保留为 Android 旧更新接口。
