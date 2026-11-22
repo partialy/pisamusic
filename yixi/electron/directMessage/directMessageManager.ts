@@ -10,6 +10,7 @@ type DirectMessageClientLike = Pick<DirectMessageClient, "listUnread" | "markRea
 type DirectMessageManagerOptions = {
   client?: DirectMessageClientLike;
   getIdentity?: () => DirectMessageIdentitySnapshot;
+  consumeStartupPage?: () => DirectMessageUnreadPage | null;
   sleep?: (delayMs: number) => Promise<void>;
   warn?: (event: string, metadata: Record<string, unknown>) => void;
 };
@@ -21,6 +22,7 @@ function sleep(delayMs: number): Promise<void> {
 export class DirectMessageManager {
   private readonly client: DirectMessageClientLike;
   private readonly getIdentity: () => DirectMessageIdentitySnapshot;
+  private readonly consumeStartupPage?: () => DirectMessageUnreadPage | null;
   private readonly sleep: (delayMs: number) => Promise<void>;
   private readonly warn: (event: string, metadata: Record<string, unknown>) => void;
   private readonly dismissedThisProcess = new Set<string>();
@@ -35,6 +37,7 @@ export class DirectMessageManager {
     }
     this.client = options.client;
     this.getIdentity = options.getIdentity;
+    this.consumeStartupPage = options.consumeStartupPage;
     this.sleep = options.sleep ?? sleep;
     this.warn = options.warn ?? (() => undefined);
   }
@@ -47,10 +50,11 @@ export class DirectMessageManager {
     return items.filter((item) => !this.dismissedThisProcess.has(item.id));
   }
 
-  async listUnread(): Promise<DirectMessageUnreadPage> {
+  async listUnread(options: { forceRefresh?: boolean } = {}): Promise<DirectMessageUnreadPage> {
     const requestGeneration = this.generation;
     const identity = this.getIdentity();
-    const page = await this.client.listUnread(identity);
+    const startupPage = !options.forceRefresh ? this.consumeStartupPage?.() : null;
+    const page = startupPage ?? (await this.client.listUnread(identity));
     if (requestGeneration !== this.generation) {
       return { items: [], hasMore: false };
     }

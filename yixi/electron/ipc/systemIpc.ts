@@ -13,7 +13,7 @@ import {
   getRuntimeEndpointsCached,
   getRuntimeEndpointsFresh,
   getServiceAgreement,
-  getStartupServiceState,
+  waitForStartupServiceState,
   loginAccountByCode,
   loginAccountByPassword,
   refreshAccountSession,
@@ -46,16 +46,19 @@ export function setupSystemIpc() {
   });
 
   ipcMain.handle("system:get-startup-service-state", () => {
-    return getStartupServiceState();
+    return waitForStartupServiceState();
   });
 
   ipcMain.handle("system:get-runtime-endpoints", (_event, fresh?: boolean) => {
     return fresh ? getRuntimeEndpointsFresh() : getRuntimeEndpointsCached();
   });
 
-  ipcMain.handle("system:get-announcements", () => {
-    return getAnnouncements();
-  });
+  ipcMain.handle(
+    "system:get-announcements",
+    (_event, options?: { forceRefresh?: boolean }) => {
+      return getAnnouncements(options);
+    },
+  );
 
   ipcMain.handle("system:mark-announcement-read", (_event, id: string) => {
     return markAnnouncementRead(id);
@@ -84,9 +87,9 @@ export function setupSystemIpc() {
     const result = await uploadAccountAvatar();
     return { canceled: result.canceled, session: publicAccountSession() };
   });
-  ipcMain.handle("account:refresh", async () => {
+  ipcMain.handle("account:refresh", async (_event, options?: { forceNetwork?: boolean }) => {
     try {
-      const session = await refreshAccountSession();
+      const session = await refreshAccountSession(options);
       if (session?.user?.id) {
         void getListeningManager().onAccountSessionReady(session.user.id);
       } else {

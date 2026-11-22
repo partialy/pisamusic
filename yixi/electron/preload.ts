@@ -261,7 +261,8 @@ const systemIpc = {
   getStartupServiceState: () => ipcRenderer.invoke("system:get-startup-service-state"),
   getRuntimeEndpoints: (fresh?: boolean) =>
     ipcRenderer.invoke("system:get-runtime-endpoints", fresh),
-  getAnnouncements: () => ipcRenderer.invoke("system:get-announcements"),
+  getAnnouncements: (options?: { forceRefresh?: boolean }) =>
+    ipcRenderer.invoke("system:get-announcements", options),
   markAnnouncementRead: (id: string) => ipcRenderer.invoke("system:mark-announcement-read", id),
   getAboutInfo: () => ipcRenderer.invoke("system:get-about-info"),
   getAppShare: () => ipcRenderer.invoke("system:get-app-share"),
@@ -284,7 +285,8 @@ const systemIpc = {
 const accountIpc = {
   getAccountSession: () => ipcRenderer.invoke("account:session"),
   uploadAccountAvatar: () => ipcRenderer.invoke("account:upload-avatar"),
-  refreshAccountSession: () => ipcRenderer.invoke("account:refresh"),
+  refreshAccountSession: (options?: { forceNetwork?: boolean }) =>
+    ipcRenderer.invoke("account:refresh", options),
   logoutAccount: () => ipcRenderer.invoke("account:logout"),
   sendAccountEmailCode: (payload: { email: string; purpose: "register" | "login" | "reset_password" }) =>
     ipcRenderer.invoke("account:send-email-code", cloneIpcPayload(payload)),

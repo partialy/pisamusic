@@ -238,6 +238,73 @@
         color: #fff;
         box-shadow: 0 8px 18px rgba(226, 74, 74, 0.28);
       }
+
+      .confirm-retry-button {
+        background: #20b46b;
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(32, 180, 107, 0.28);
+      }
+
+      .blocked-message {
+        margin: 10px 0 0;
+        font-size: 13px;
+        line-height: 1.6;
+        color: rgba(24, 35, 50, 0.72);
+        word-break: break-word;
+      }
+
+      .confirm-overlay.is-dark .blocked-message {
+        color: rgba(226, 232, 240, 0.8);
+      }
+
+      /* 本地模式兜底入口（超过 3s 后渐显） */
+      .local-mode-bar {
+        position: fixed;
+        left: 50%;
+        bottom: 18px;
+        z-index: 12;
+        display: none;
+        transform: translateX(-50%);
+        -webkit-app-region: no-drag;
+      }
+
+      body[data-mode="loading"] .local-mode-bar.is-visible {
+        display: flex;
+      }
+
+      .local-mode-button {
+        height: 30px;
+        padding: 0 14px;
+        border: 1px solid rgba(24, 35, 50, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.9);
+        color: #334155;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(8px);
+        transition:
+          transform 0.16s ease,
+          background-color 0.16s ease,
+          opacity 0.16s ease;
+      }
+
+      .local-mode-button:hover {
+        transform: translateY(-1px);
+      }
+
+      .local-mode-button:disabled {
+        opacity: 0.65;
+        cursor: default;
+        transform: none;
+      }
+
+      .local-mode-bar.is-dark .local-mode-button {
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(24, 34, 52, 0.88);
+        color: #e2e8f0;
+      }
     </style>
   </head>
   <body data-mode="loading" data-surface="light">
@@ -267,7 +334,33 @@
 
     <main class="loading-viewport">
       <div class="startup-stage-host" id="loading-stage-host" data-surface="light"></div>
+      <div class="local-mode-bar" id="local-mode-bar">
+        <button class="local-mode-button" id="local-mode-button" type="button">
+          连接较慢？以本地模式进入
+        </button>
+      </div>
     </main>
+
+    <div
+      class="confirm-overlay"
+      id="blocked-overlay"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="blocked-title"
+    >
+      <div class="confirm-box">
+        <p class="confirm-title" id="blocked-title">当前服务不可用</p>
+        <p class="blocked-message" id="blocked-message"></p>
+        <div class="confirm-actions">
+          <button class="confirm-button confirm-cancel-button" id="blocked-quit-button" type="button">
+            退出
+          </button>
+          <button class="confirm-button confirm-retry-button" id="blocked-retry-button" type="button">
+            重试
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div
       class="confirm-overlay"

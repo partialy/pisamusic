@@ -22,6 +22,12 @@ const loadingHost = document.getElementById("loading-stage-host") as HTMLElement
 const quitConfirmOverlay = document.getElementById("quit-confirm-overlay") as HTMLElement;
 const quitCancelButton = document.getElementById("quit-cancel-button") as HTMLButtonElement;
 const quitConfirmButton = document.getElementById("quit-confirm-button") as HTMLButtonElement;
+const localModeBar = document.getElementById("local-mode-bar") as HTMLElement;
+const localModeButton = document.getElementById("local-mode-button") as HTMLButtonElement;
+const blockedOverlay = document.getElementById("blocked-overlay") as HTMLElement;
+const blockedMessageEl = document.getElementById("blocked-message") as HTMLElement;
+const blockedRetryButton = document.getElementById("blocked-retry-button") as HTMLButtonElement;
+const blockedQuitButton = document.getElementById("blocked-quit-button") as HTMLButtonElement;
 
 const initialQuery = new URLSearchParams(window.location.search);
 let currentStyle: StartupAnimationStyle = normalizeStartupAnimationStyle(
@@ -50,6 +56,9 @@ function syncOverlayStyle(mode: "agreement" | "loading", style: StartupAnimation
   document.body.dataset.cardless = isCardless ? "1" : "0";
   quitConfirmOverlay.classList.toggle("is-dark", isDarkModal);
   quitConfirmOverlay.classList.toggle("is-cardless", isCardless);
+  blockedOverlay.classList.toggle("is-dark", isDarkModal);
+  blockedOverlay.classList.toggle("is-cardless", isCardless);
+  localModeBar.classList.toggle("is-dark", isDarkModal);
 }
 
 function renderLoadingIfNeeded(force = false) {
@@ -90,6 +99,19 @@ function applySnapshot(snapshot: StartupWindowSnapshotPayload | null | undefined
     ? `（版本 ${snapshot.agreementVersion}）`
     : "";
 
+  const blockedMessage = (snapshot.blockedMessage || "").trim();
+  const isBlocked = mode === "loading" && blockedMessage.length > 0;
+  blockedMessageEl.textContent = blockedMessage;
+  blockedOverlay.classList.toggle("is-open", isBlocked);
+  blockedRetryButton.disabled = false;
+
+  const canEnterLocalMode =
+    mode === "loading" && Boolean(snapshot.localModeAvailable) && !isBlocked;
+  localModeBar.classList.toggle("is-visible", canEnterLocalMode);
+  if (!canEnterLocalMode) {
+    localModeButton.disabled = false;
+  }
+
   syncOverlayStyle(mode, currentStyle);
   renderLoadingIfNeeded();
 }
@@ -124,6 +146,27 @@ quitConfirmButton.addEventListener("click", () => {
   quitConfirmButton.disabled = true;
   bridge?.quit().catch(() => {
     quitConfirmButton.disabled = false;
+  });
+});
+
+localModeButton.addEventListener("click", () => {
+  localModeButton.disabled = true;
+  bridge?.enterLocalMode().catch(() => {
+    localModeButton.disabled = false;
+  });
+});
+
+blockedRetryButton.addEventListener("click", () => {
+  blockedRetryButton.disabled = true;
+  bridge?.retry().catch(() => {
+    blockedRetryButton.disabled = false;
+  });
+});
+
+blockedQuitButton.addEventListener("click", () => {
+  blockedQuitButton.disabled = true;
+  bridge?.quit().catch(() => {
+    blockedQuitButton.disabled = false;
   });
 });
 

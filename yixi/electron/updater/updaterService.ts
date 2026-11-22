@@ -2,7 +2,12 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import updaterPkg from "electron-updater";
 import type { ProgressInfo, UpdateInfo } from "electron-updater";
 import { getServiceDiscoverySnapshot } from "../system/serviceDiscovery";
-import { getBootstrap, requestSystem } from "../system/systemClient";
+import {
+  getBootstrap,
+  getDesktopReleaseFromStartupSnapshot,
+  getStartupServiceState,
+  requestSystem,
+} from "../system/systemClient";
 import type { BootstrapConfig } from "../system/types";
 import { logger } from "../utils/logger";
 import { resolveUpdaterFeedCandidates } from "./updaterConfig";
@@ -117,6 +122,8 @@ async function getUpdaterBootstrap() {
 }
 
 async function getDesktopReleaseInfo(): Promise<DesktopReleaseInfo | null> {
+  const cachedRelease = getDesktopReleaseFromStartupSnapshot();
+  if (cachedRelease) return cachedRelease;
   try {
     const response = await requestSystem<Record<string, DesktopReleaseInfo>>("/api/config/releases", { encrypted: false });
     if (!response.success || !response.data?.desktop) return null;
@@ -389,7 +396,7 @@ export function setupUpdaterIpc(getMainWindow: () => BrowserWindow | null) {
 }
 
 export async function startUpdaterOnStartup(getMainWindow: () => BrowserWindow | null) {
-  if (startupTimer) return;
+  if (startupTimer || getStartupServiceState().localMode) return;
   const config = resolveDesktopUpdaterConfig(await getUpdaterBootstrap());
   if (!config.checkOnStartup) return;
   startupTimer = setTimeout(() => {

@@ -1,9 +1,9 @@
-import { beginAuthAttempt, currentAuthAttempt, identityRevision, publishAccountIdentity } from "../account/accountIdentity";
 import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { app, dialog } from "electron";
+import { beginAuthAttempt, currentAuthAttempt, identityRevision, publishAccountIdentity } from "../account/accountIdentity";
 import { getAppDatabase } from "../database";
 import { logDebugRequest } from "../utils/requestDebug";
 import { decrypt, encrypt, randomFullKey } from "./encryption";
@@ -18,18 +18,25 @@ import type {
   BootstrapConfig,
   DesktopDeviceReportRequest,
   DesktopDeviceReportResult,
+  DesktopReleaseInfo,
+  DesktopStartupResult,
   FeedbackPayload,
   GatewaySignConfig,
   RuntimeEndpoints,
   StartupServiceState,
   TextContentConfig,
 } from "./types";
+import type { DirectMessageUnreadPage } from "../../src/types/directMessage";
 import type { FaultReportRequest, FaultReportSubmitData } from "../faultReport/types";
 
 const DEFAULT_GATEWAY_SIGN: GatewaySignConfig = {
   secret: "partialypartialypartialypartialy",
   as: "yixivip",
 };
+
+const BOOTSTRAP_CACHE_KEY = "desktop-bootstrap-cache";
+const STARTUP_AGREEMENT_SETTING_KEY = "startup-user-agreement";
+const STARTUP_SNAPSHOT_TTL_MS = 30_000;
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -38,18 +45,35 @@ type RequestOptions = {
   encrypted?: boolean;
   headers?: Record<string, string>;
   recordFailure?: boolean;
+  signal?: AbortSignal;
+};
+
+type DesktopStartupSnapshot = {
+  receivedAt: number;
+  bootstrap: BootstrapConfig;
+  update: DesktopReleaseInfo | null;
+  announcements: Announcement[];
+  accountConsumed: boolean;
+  unreadMessages: DirectMessageUnreadPage | null;
+  unreadConsumed: boolean;
 };
 
 let cachedBootstrap: BootstrapConfig | null = null;
 let bootstrapPromise: Promise<BootstrapConfig> | null = null;
 let deviceMessageToken: string | undefined;
+let startupSnapshot: DesktopStartupSnapshot | null = null;
+let startupGatePromise: Promise<void> | null = null;
 let startupServiceState: StartupServiceState = {
   localMode: false,
   reason: "",
   deviceId: "",
 };
 
-class DesktopDeviceLockedError extends Error {
+export class SystemServiceBlockedError extends Error {
+  readonly code = -233;
+}
+
+export class DesktopDeviceLockedError extends Error {
   readonly report: DesktopDeviceReportResult;
 
   constructor(report: DesktopDeviceReportResult) {
@@ -66,43 +90,170 @@ export function getAppVersion() {
   return app.getVersion();
 }
 
+function readBootstrapCacheFromDb(): BootstrapConfig | null {
+  if (cachedBootstrap) return cachedBootstrap;
+  try {
+    const saved = getAppDatabase().getSetting<BootstrapConfig>(BOOTSTRAP_CACHE_KEY)?.value;
+    if (saved && typeof saved === "object" && saved.endpoints) {
+      cachedBootstrap = saved;
+      return cachedBootstrap;
+    }
+  } catch {
+    // 数据库异常时回退内存默认值。
+  }
+  return null;
+}
+
+function persistBootstrapCache(bootstrap: BootstrapConfig) {
+  cachedBootstrap = bootstrap;
+  try {
+    getAppDatabase().setSetting(BOOTSTRAP_CACHE_KEY, bootstrap, 1);
+  } catch {
+    // 持久化缓存失败不阻断启动主流程。
+  }
+}
+
+function readLocalAgreementVersion(): number | undefined {
+  try {
+    const record = getAppDatabase().getSetting<{ accepted?: boolean; version?: number }>(
+      STARTUP_AGREEMENT_SETTING_KEY,
+    )?.value;
+    if (record?.accepted && typeof record.version === "number" && Number.isFinite(record.version)) {
+      return Math.trunc(record.version);
+    }
+  } catch {
+    // 读取失败时视为无本地协议记录。
+  }
+  return undefined;
+}
+
+export function setStartupStateGate(promise: Promise<void> | null) {
+  startupGatePromise = promise;
+}
+
 export async function refreshBootstrap() {
   const { bootstrapPath } = getServiceDiscoverySnapshot();
   const response = await requestSystem<BootstrapConfig>(bootstrapPath);
-  cachedBootstrap = unwrapResponse(response);
-  return cachedBootstrap;
+  const bootstrap = unwrapResponse(response);
+  persistBootstrapCache(bootstrap);
+  return bootstrap;
 }
 
 export async function getBootstrap() {
   return ensureBootstrap();
 }
 
+/**
+ * 桌面端冷启动单次聚合请求：一次完成设备上报、配置下发、协议版本比对、账号静默刷新、公告与未读消息拉取。
+ */
+export async function executeDesktopStartup(options: { signal?: AbortSignal } = {}): Promise<DesktopStartupResult> {
+  const revision = identityRevision();
+  const attempt = currentAuthAttempt();
+  const session = getAccountSession();
+  const agreementVersion = readLocalAgreementVersion();
+
+  const response = await requestSystem<DesktopStartupResult>("/api/config/desktop-startup", {
+    method: "POST",
+    token: session.loggedIn && session.token ? session.token : null,
+    body: {
+      device: buildDesktopDeviceReport(),
+      ...(agreementVersion !== undefined ? { agreementVersion } : {}),
+      unreadMessageLimit: 20,
+    },
+    signal: options.signal,
+    recordFailure: !options.signal?.aborted,
+  });
+
+  const result = unwrapResponse(response);
+  if (isDesktopDeviceLocked(result.device)) {
+    throw new DesktopDeviceLockedError(result.device);
+  }
+
+  persistBootstrapCache(result.bootstrap);
+  deviceMessageToken = result.device.messageToken;
+
+  if (revision === identityRevision() && attempt === currentAuthAttempt()) {
+    if (result.account.status === "refreshed" && result.account.session) {
+      saveAccountSession(result.account.session);
+    } else if (result.account.status === "expired" && session.loggedIn) {
+      clearAccountSession();
+    }
+  }
+
+  startupSnapshot = {
+    receivedAt: Date.now(),
+    bootstrap: result.bootstrap,
+    update: result.update ?? null,
+    announcements: Array.isArray(result.announcements) ? result.announcements : [],
+    accountConsumed: false,
+    unreadMessages: result.unreadMessages ?? null,
+    unreadConsumed: false,
+  };
+
+  startupServiceState = {
+    localMode: false,
+    reason: "",
+    deviceId: result.device.id,
+  };
+
+  return result;
+}
+
+export function activateLocalMode(reason: string): StartupServiceState {
+  readBootstrapCacheFromDb();
+  startupServiceState = {
+    localMode: true,
+    reason: reason.trim() || "服务不可用",
+    deviceId: startupServiceState.deviceId,
+  };
+  return startupServiceState;
+}
+
+export async function waitForStartupServiceState(): Promise<StartupServiceState> {
+  if (startupGatePromise) {
+    try {
+      await startupGatePromise;
+    } catch {
+      // 启动阶段异常由主流程负责降级或拦截，这里保证状态可读取。
+    }
+  }
+  return startupServiceState;
+}
+
 export async function prepareStartupServiceState() {
   try {
-    await refreshBootstrap();
-    const deviceReport = await reportDesktopDevice();
-    deviceMessageToken = deviceReport.messageToken;
-    if (isDesktopDeviceLocked(deviceReport)) {
-      throw new DesktopDeviceLockedError(deviceReport);
-    }
-    startupServiceState = {
-      localMode: false,
-      reason: "",
-      deviceId: deviceReport.id,
-    };
+    await executeDesktopStartup();
   } catch (error) {
-    if (error instanceof DesktopDeviceLockedError) throw error;
-    startupServiceState = {
-      localMode: true,
-      reason: toErrorMessage(error) || "服务不可用",
-      deviceId: startupServiceState.deviceId,
-    };
+    if (error instanceof DesktopDeviceLockedError || error instanceof SystemServiceBlockedError) {
+      throw error;
+    }
+    activateLocalMode(toErrorMessage(error) || "服务不可用");
   }
   return startupServiceState;
 }
 
 export function getStartupServiceState() {
   return startupServiceState;
+}
+
+export function getDesktopReleaseFromStartupSnapshot(): DesktopReleaseInfo | null {
+  if (!startupSnapshot) return null;
+  if (Date.now() - startupSnapshot.receivedAt > STARTUP_SNAPSHOT_TTL_MS) return null;
+  return startupSnapshot.update;
+}
+
+export function consumeStartupUnreadMessages(): DirectMessageUnreadPage | null {
+  if (!startupSnapshot || startupSnapshot.unreadConsumed || !startupSnapshot.unreadMessages) {
+    return null;
+  }
+  if (Date.now() - startupSnapshot.receivedAt > STARTUP_SNAPSHOT_TTL_MS) {
+    return null;
+  }
+  startupSnapshot.unreadConsumed = true;
+  return {
+    items: [...startupSnapshot.unreadMessages.items],
+    hasMore: startupSnapshot.unreadMessages.hasMore,
+  };
 }
 
 export function getDesktopDeviceMessageToken(): string | undefined {
@@ -123,11 +274,18 @@ export async function getGatewaySignConfigCached() {
     const bootstrap = await ensureBootstrap();
     return bootstrap.gatewaySign ?? DEFAULT_GATEWAY_SIGN;
   } catch {
-    return cachedBootstrap?.gatewaySign ?? DEFAULT_GATEWAY_SIGN;
+    return readBootstrapCacheFromDb()?.gatewaySign ?? DEFAULT_GATEWAY_SIGN;
   }
 }
 
-export async function getAnnouncements() {
+export async function getAnnouncements(options: { forceRefresh?: boolean } = {}) {
+  if (
+    !options.forceRefresh &&
+    startupSnapshot &&
+    Date.now() - startupSnapshot.receivedAt <= STARTUP_SNAPSHOT_TTL_MS
+  ) {
+    return [...startupSnapshot.announcements];
+  }
   const response = await requestSystem<Announcement[]>("/api/config/announcements");
   return unwrapResponse(response);
 }
@@ -317,9 +475,16 @@ export function getAccountSession(): AccountSession {
   return { ...normalizeAccountAuthResult(saved), loggedIn: true };
 }
 
+function invalidateStartupSnapshotSessionCaches() {
+  if (!startupSnapshot) return;
+  startupSnapshot.accountConsumed = true;
+  startupSnapshot.unreadConsumed = true;
+}
+
 export function saveAccountSession(result: AccountAuthResult): AccountSession {
   const normalized = normalizeAccountAuthResult(result);
   getAppDatabase().setSetting(ACCOUNT_SESSION_KEY, normalized, 1);
+  invalidateStartupSnapshotSessionCaches();
   publishAccountIdentity();
   return { ...normalized, loggedIn: true };
 }
@@ -327,6 +492,7 @@ export function saveAccountSession(result: AccountAuthResult): AccountSession {
 export function clearAccountSession(): AccountSession {
   beginAuthAttempt();
   getAppDatabase().deleteSetting(ACCOUNT_SESSION_KEY);
+  invalidateStartupSnapshotSessionCaches();
   publishAccountIdentity();
   return emptyAccountSession();
 }
@@ -369,10 +535,25 @@ export async function loginAccountByCode(payload: { email: string; code: string 
   return saveAccountSession(unwrapResponse(response));
 }
 
-export async function refreshAccountSession() {
+export async function refreshAccountSession(options: { forceNetwork?: boolean } = {}) {
   const revision = identityRevision();
   const attempt = currentAuthAttempt();
   const session = getAccountSession();
+
+  if (!options.forceNetwork) {
+    if (
+      startupSnapshot &&
+      !startupSnapshot.accountConsumed &&
+      Date.now() - startupSnapshot.receivedAt <= STARTUP_SNAPSHOT_TTL_MS
+    ) {
+      startupSnapshot.accountConsumed = true;
+      return session;
+    }
+    if (startupServiceState.localMode) {
+      return session;
+    }
+  }
+
   if (!session.loggedIn) return session;
   try {
     const response = await requestSystem<AccountAuthResult>("/api/auth/refresh", {
@@ -688,15 +869,22 @@ export async function requestSignedGateway<T>(
 }
 
 export function getRuntimeEndpoints(): RuntimeEndpoints {
-  return toRuntimeEndpoints(cachedBootstrap?.endpoints ?? {});
+  return toRuntimeEndpoints(readBootstrapCacheFromDb()?.endpoints ?? {});
 }
 
 export async function getRuntimeEndpointsCached() {
+  const cached = readBootstrapCacheFromDb();
+  if (cached) {
+    return toRuntimeEndpoints(cached.endpoints);
+  }
+  if (startupServiceState.localMode) {
+    return toRuntimeEndpoints({});
+  }
   try {
     const bootstrap = await ensureBootstrap();
     return toRuntimeEndpoints(bootstrap.endpoints);
   } catch {
-    return toRuntimeEndpoints(cachedBootstrap?.endpoints ?? {});
+    return toRuntimeEndpoints(readBootstrapCacheFromDb()?.endpoints ?? {});
   }
 }
 
@@ -705,12 +893,13 @@ export async function getRuntimeEndpointsFresh() {
     const bootstrap = await refreshBootstrap();
     return toRuntimeEndpoints(bootstrap.endpoints);
   } catch {
-    return toRuntimeEndpoints(cachedBootstrap?.endpoints ?? {});
+    return toRuntimeEndpoints(readBootstrapCacheFromDb()?.endpoints ?? {});
   }
 }
 
 async function ensureBootstrap() {
-  if (cachedBootstrap) return cachedBootstrap;
+  const existing = readBootstrapCacheFromDb();
+  if (existing) return existing;
   if (!bootstrapPromise) {
     bootstrapPromise = refreshBootstrap().finally(() => {
       bootstrapPromise = null;
@@ -765,6 +954,7 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
       headers: requestHeaders,
       body,
       redirect: "error",
+      signal: options.signal,
     });
     const raw = await response.text();
     const parsed = parseResponseRaw<T>(response, raw);
@@ -783,7 +973,7 @@ export async function requestSystem<T>(path: string, options: RequestOptions = {
     }
     return parsed;
   } catch (error) {
-    if (options.recordFailure !== false) {
+    if (options.recordFailure !== false && !options.signal?.aborted) {
       recordNetworkError({
         requestScope: "system",
         method,
@@ -947,6 +1137,9 @@ function desktopLockedMessage(report: DesktopDeviceReportResult) {
 }
 
 export function unwrapResponse<T>(response: ApiResponse<T>): T {
+  if (response.code === -233 && !response.success) {
+    throw new SystemServiceBlockedError(response.msg || "当前服务暂不可用");
+  }
   if (!response.success || response.code !== 0 || response.data === null) {
     throw new Error(response.msg || "server request failed");
   }

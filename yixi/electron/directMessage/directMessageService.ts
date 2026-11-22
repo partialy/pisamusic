@@ -1,4 +1,8 @@
-import { getAccountSession, getDesktopDeviceMessageToken } from "../system/systemClient";
+import {
+  consumeStartupUnreadMessages,
+  getAccountSession,
+  getDesktopDeviceMessageToken,
+} from "../system/systemClient";
 import { logger } from "../utils/logger";
 import { DirectMessageClient, type DirectMessageIdentitySnapshot } from "./directMessageClient";
 import { DirectMessageManager } from "./directMessageManager";
@@ -19,6 +23,7 @@ export function getDirectMessageManager(): DirectMessageManager {
     manager = new DirectMessageManager({
       client: new DirectMessageClient(),
       getIdentity,
+      consumeStartupPage: consumeStartupUnreadMessages,
       warn: (event, metadata) => logger.warn(event, metadata),
     });
   }

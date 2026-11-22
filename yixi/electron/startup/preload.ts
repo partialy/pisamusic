@@ -9,6 +9,8 @@ export interface StartupWindowSnapshotPayload {
   agreementTitle: string;
   agreementContent: string;
   agreementVersion: number;
+  localModeAvailable: boolean;
+  blockedMessage: string;
 }
 
 export interface StartupWindowBridge {
@@ -16,6 +18,8 @@ export interface StartupWindowBridge {
   agree(): Promise<boolean>;
   reject(): Promise<boolean>;
   quit(): Promise<boolean>;
+  enterLocalMode(): Promise<boolean>;
+  retry(): Promise<boolean>;
   onSnapshot(callback: (snapshot: StartupWindowSnapshotPayload) => void): () => void;
 }
 
@@ -31,6 +35,12 @@ const startupWindowBridge: StartupWindowBridge = {
   },
   quit() {
     return ipcRenderer.invoke("startup:quit");
+  },
+  enterLocalMode() {
+    return ipcRenderer.invoke("startup:enter-local-mode");
+  },
+  retry() {
+    return ipcRenderer.invoke("startup:retry");
   },
   onSnapshot(callback) {
     const handler = (

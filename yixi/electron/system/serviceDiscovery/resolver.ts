@@ -18,6 +18,13 @@ export type ResolveServiceDiscoveryInput = {
   explicitBaseUrl: string;
 };
 
+export type ResolveServiceDiscoveryOptions = {
+  /** 启动期缓存优先（SWR）：命中有效本地缓存时跳过远端抓取与健康探测，直接返回。 */
+  preferCacheFirst?: boolean;
+  /** 命中缓存或仅有单节点时跳过 /api/health 探测，避免增加启动阻塞延迟。 */
+  skipHealthProbe?: boolean;
+};
+
 function normalizeExplicitBaseUrl(value: string, mode: ResolveServiceDiscoveryInput["mode"]): string {
   let url: URL;
   try {
@@ -108,6 +115,7 @@ async function selectHealthyOrigin(
 export async function resolveServiceDiscovery(
   input: ResolveServiceDiscoveryInput,
   dependencies: ServiceDiscoveryDependencies,
+  options: ResolveServiceDiscoveryOptions = {},
 ): Promise<ServiceDiscoverySnapshot> {
   const explicitBaseUrl = input.explicitBaseUrl.trim();
   if (explicitBaseUrl) {
@@ -121,8 +129,19 @@ export async function resolveServiceDiscovery(
     return createOverrideSnapshot("development", DEVELOPMENT_BASE_URL);
   }
 
-  const remote = await safelyParse(dependencies.fetchRemoteDocument);
   const cache = await safelyParse(dependencies.readCachedDocument);
+  const validCache =
+    cache && cache.configVersion >= EMBEDDED_DISCOVERY_DOCUMENT.configVersion ? cache : null;
+
+  if (options.preferCacheFirst && validCache) {
+    const origins = sortServiceOrigins(validCache);
+    const origin = options.skipHealthProbe
+      ? origins[0]
+      : await selectHealthyOrigin(validCache, dependencies.probeHealth);
+    return createSnapshot("cache", validCache, origin);
+  }
+
+  const remote = await safelyParse(dependencies.fetchRemoteDocument);
   const useCache = Boolean(cache && (!remote || remote.configVersion < cache.configVersion));
   const selectedDocument = useCache
     ? cache!
@@ -143,6 +162,10 @@ export async function resolveServiceDiscovery(
     }
   }
 
-  const origin = await selectHealthyOrigin(selectedDocument, dependencies.probeHealth);
+  const origins = sortServiceOrigins(selectedDocument);
+  const origin =
+    options.skipHealthProbe || origins.length <= 1
+      ? origins[0]
+      : await selectHealthyOrigin(selectedDocument, dependencies.probeHealth);
   return createSnapshot(source, selectedDocument, origin);
 }

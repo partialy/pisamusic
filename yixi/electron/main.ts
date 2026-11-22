@@ -1,6 +1,6 @@
 import { shutdownDownloads } from "./download/downloadService";
 import { publishPlaybackSong, releasePlaybackSong, commitLocalPlayback, clearLocalPlaybackReservations } from "./download/localPlaybackReservation";
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { setupEnvironmentUserDataPaths } from "./core/appPaths";
@@ -38,8 +38,19 @@ import { refreshKgCookieIfNeeded } from "./cookie/cookieService";
 import { startLocalLibrarySmartScan } from "./localLibrary/localLibraryService";
 import { StartupWindowManager } from "./startup/startupWindowManager";
 import { startSyncOnStartup } from "./sync/syncService";
-import { initializeServiceDiscovery } from "./system/serviceDiscovery";
-import { getServiceAgreement, prepareStartupServiceState } from "./system/systemClient";
+import {
+  getServiceDiscoverySnapshot,
+  initializeServiceDiscovery,
+  refreshServiceDiscovery,
+} from "./system/serviceDiscovery";
+import {
+  DesktopDeviceLockedError,
+  SystemServiceBlockedError,
+  activateLocalMode,
+  executeDesktopStartup,
+  getStartupServiceState,
+  setStartupStateGate,
+} from "./system/systemClient";
 import { setupUpdaterIpc, startUpdaterOnStartup } from "./updater/updaterService";
 import {
   closeMediaCache,
@@ -61,6 +72,9 @@ const preloadPath = join(currentDir, "../preload", "index.cjs");
 const iconPath = join(currentDir, "../../public/pisamusic_icon_1024.png");
 const trayIconDir = join(currentDir, "../../public/tray");
 
+const STARTUP_LOCAL_MODE_PROMPT_DELAY_MS = 3_000;
+const STARTUP_TOTAL_TIMEOUT_MS = 10_000;
+
 let mainWindow: BrowserWindow | null = null;
 let desktopLyric: DesktopLyricManager;
 let playerTray: PlayerTray;
@@ -70,7 +84,14 @@ let isQuitting = false;
 let mainWindowReadyToShow = false;
 let rendererReady = false;
 let startupCompleted = false;
-let appRuntimeStarted = false;
+let startupSettled = false;
+let startupAgreementApproved = false;
+let startupBlocked = false;
+let postRevealServicesStarted = false;
+let startupPromptTimer: NodeJS.Timeout | null = null;
+let startupTimeoutTimer: NodeJS.Timeout | null = null;
+let startupAbortController: AbortController | null = null;
+let resolveStartupGate: (() => void) | null = null;
 const inviteCoordinator = new ListenTogetherInviteCoordinator({
   getMainWindow: () => mainWindow,
 });
@@ -217,37 +238,165 @@ function setupStartupBridge() {
     rendererReady = true;
     inviteCoordinator.markRendererReady();
     revealMainWindowIfReady();
-    void startUpdaterOnStartup(() => mainWindow);
   });
 }
 
-async function launchAppRuntime() {
-  if (appRuntimeStarted) return;
-  appRuntimeStarted = true;
-  startupWindow.showLoading();
-  try {
-    await initializeServiceDiscovery();
-    await prepareStartupServiceState();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "当前设备不可用";
-    dialog.showErrorBox("PisaMusic", message);
-    quitApplication();
-    return;
+function clearStartupTimers() {
+  if (startupPromptTimer) {
+    clearTimeout(startupPromptTimer);
+    startupPromptTimer = null;
   }
+  if (startupTimeoutTimer) {
+    clearTimeout(startupTimeoutTimer);
+    startupTimeoutTimer = null;
+  }
+}
+
+function resetStartupGate() {
+  startupSettled = false;
+  startupBlocked = false;
+  postRevealServicesStarted = false;
+  const gate = new Promise<void>((resolve) => {
+    resolveStartupGate = resolve;
+  });
+  setStartupStateGate(gate);
+}
+
+function completeStartupGate() {
+  if (startupSettled) return;
+  startupSettled = true;
+  clearStartupTimers();
+  startupWindow?.setLocalModeAvailable(false);
+  resolveStartupGate?.();
+  resolveStartupGate = null;
+}
+
+function enterLocalMode(reason: string) {
+  if (startupBlocked || startupSettled || isQuitting) return;
+  clearStartupTimers();
+  startupAbortController?.abort();
+  startupAbortController = null;
+  activateLocalMode(reason);
+  startupAgreementApproved = true;
+  startupWindow?.showLoading();
+  completeStartupGate();
+  createMainWindow();
+  playerTray?.create();
+  revealMainWindowIfReady();
+}
+
+async function performStartupWithRecovery(signal: AbortSignal) {
+  try {
+    return await executeDesktopStartup({ signal });
+  } catch (error) {
+    if (
+      signal.aborted ||
+      error instanceof SystemServiceBlockedError ||
+      error instanceof DesktopDeviceLockedError
+    ) {
+      throw error;
+    }
+    // 命中缓存节点失败时强刷一次服务发现并探测健康节点后重试，其余错误向上抛出走降级。
+    if (getServiceDiscoverySnapshot().source === "cache") {
+      logger.warn("缓存服务端点不可达，强刷服务发现后重试", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      await refreshServiceDiscovery({ skipHealthProbe: false });
+      if (signal.aborted) throw error;
+      return await executeDesktopStartup({ signal });
+    }
+    throw error;
+  }
+}
+
+function startPostRevealServices() {
+  if (postRevealServicesStarted) return;
+  postRevealServicesStarted = true;
+  void startUpdaterOnStartup(() => mainWindow);
+  startLocalLibrarySmartScan();
+  if (!getStartupServiceState().localMode) {
+    void refreshKgCookieIfNeeded("startup");
+    startSyncOnStartup();
+  }
+}
+
+async function launchAppRuntime() {
+  if (isQuitting) return;
+  clearStartupTimers();
+  startupAbortController?.abort();
+  startupWindow.setBlockedMessage("");
+  startupWindow.setLocalModeAvailable(false);
+  startupBlocked = false;
+
+  const controller = new AbortController();
+  startupAbortController = controller;
+
+  startupPromptTimer = setTimeout(() => {
+    if (!startupSettled && !startupBlocked && !controller.signal.aborted) {
+      startupWindow.setLocalModeAvailable(true);
+    }
+  }, STARTUP_LOCAL_MODE_PROMPT_DELAY_MS);
+
+  startupTimeoutTimer = setTimeout(() => {
+    enterLocalMode("连接服务超时，已切换本地模式");
+  }, STARTUP_TOTAL_TIMEOUT_MS);
+
+  // 先解析 SWR 缓存优先的网关快照，再立即并行创建隐藏主窗口与发起桌面聚合启动请求。
+  await initializeServiceDiscovery();
+  if (controller.signal.aborted || startupSettled) return;
+
   createMainWindow();
   playerTray.create();
-  void refreshKgCookieIfNeeded("startup");
-  startLocalLibrarySmartScan();
-  startSyncOnStartup();
+
+  try {
+    const startupResult = await performStartupWithRecovery(controller.signal);
+    if (controller.signal.aborted || startupSettled) return;
+
+    clearStartupTimers();
+    startupWindow.setLocalModeAvailable(false);
+
+    if (startupResult.agreement.acceptedUpToDate) {
+      startupAgreementApproved = true;
+      completeStartupGate();
+      revealMainWindowIfReady();
+      return;
+    }
+
+    startupAgreementApproved = false;
+    startupWindow.setAgreementContent(startupResult.agreement);
+    startupWindow.open("agreement");
+  } catch (error) {
+    if (controller.signal.aborted || startupSettled) return;
+
+    if (error instanceof SystemServiceBlockedError || error instanceof DesktopDeviceLockedError) {
+      startupBlocked = true;
+      clearStartupTimers();
+      startupWindow.setBlockedMessage(error.message || "当前服务不可用");
+      return;
+    }
+
+    const message = error instanceof Error ? error.message : "服务连接失败";
+    enterLocalMode(`${message}，已切换本地模式`);
+  }
 }
 
 function revealMainWindowIfReady() {
-  if (startupCompleted || !mainWindow || !mainWindowReadyToShow || !rendererReady) return;
+  if (
+    startupCompleted ||
+    !startupSettled ||
+    !startupAgreementApproved ||
+    !mainWindow ||
+    !mainWindowReadyToShow ||
+    !rendererReady
+  ) {
+    return;
+  }
   startupCompleted = true;
   startupWindow.close();
   mainWindow.show();
   mainWindow.focus();
   desktopLyric?.restoreIfEnabled();
+  startPostRevealServices();
 }
 
 function focusApplicationWindow() {
@@ -275,6 +424,9 @@ function registerDefaultProtocolClient() {
 function quitApplication() {
   if (isQuitting) return;
   isQuitting = true;
+  clearStartupTimers();
+  startupAbortController?.abort();
+  startupAbortController = null;
   lowPowerManager?.dispose();
   startupWindow?.destroy();
   desktopLyric?.destroy();
@@ -341,8 +493,21 @@ if (!hasSingleInstanceLock) {
     startupWindow = new StartupWindowManager({
       htmlPath: join(currentDir, "./web/startup-window.html"),
       iconPath,
-      onAccepted: () => void launchAppRuntime(),
+      onAccepted: () => {
+        startupAgreementApproved = true;
+        startupWindow.showLoading();
+        completeStartupGate();
+        revealMainWindowIfReady();
+      },
       onRejected: quitApplication,
+      onEnterLocalMode: () => {
+        enterLocalMode("已手动切换本地模式进入");
+      },
+      onRetry: () => {
+        if (startupSettled) return;
+        startupWindow.showLoading();
+        void launchAppRuntime();
+      },
     });
 
     setupAppIpc();
@@ -350,21 +515,10 @@ if (!hasSingleInstanceLock) {
     setupStartupBridge();
     startupWindow.setupIpc();
 
-    let startupAgreement: Awaited<ReturnType<typeof getServiceAgreement>> | null = null;
-    try {
-      await initializeServiceDiscovery();
-      startupAgreement = await getServiceAgreement();
-    } catch {
-      // 已接受过协议的用户可在服务暂不可用时继续启动；未接受用户使用本地兜底文案。
-    }
-    startupWindow.setAgreementContent(startupAgreement);
-
-    if (startupWindow.hasAcceptedAgreement(startupAgreement?.version)) {
-      startupWindow.open("loading");
-      void launchAppRuntime();
-    } else {
-      startupWindow.open("agreement");
-    }
+    startupAgreementApproved = startupWindow.hasAcceptedAgreement();
+    resetStartupGate();
+    startupWindow.open("loading");
+    void launchAppRuntime();
   });
 
   app.on("window-all-closed", () => {
@@ -400,11 +554,10 @@ if (!hasSingleInstanceLock) {
 
   app.on("activate", () => {
     if (mainWindow !== null || isQuitting) return;
-    if (startupWindow?.hasAcceptedAgreement()) {
-      void launchAppRuntime();
-    } else {
-      startupWindow?.open("agreement");
-    }
+    startupAgreementApproved = startupWindow?.hasAcceptedAgreement() ?? false;
+    resetStartupGate();
+    startupWindow?.open("loading");
+    void launchAppRuntime();
   });
 }
 

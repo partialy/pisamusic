@@ -1,3 +1,6 @@
+import type { AccountAuthResult } from "../../src/types/account";
+import type { DirectMessageUnreadPage } from "../../src/types/directMessage";
+
 export type ApiResponse<T> = {
   msg: string;
   code: number;
@@ -123,4 +126,37 @@ export type StartupServiceState = {
   localMode: boolean;
   reason: string;
   deviceId: string;
+};
+
+export type DesktopReleaseInfo = {
+  latestVersion: string;
+  updateTime: string;
+  forceUpdate: boolean;
+  downloadUrl: string;
+  officialUrl: string;
+  updateContent: string;
+  platformLabel?: string;
+  fileSizeText?: string;
+  available?: boolean;
+};
+
+export type DesktopStartupAgreement = {
+  version: number;
+  acceptedUpToDate: boolean;
+  title: string;
+  content: string;
+};
+
+export type DesktopStartupResult = {
+  serverTime?: number;
+  bootstrap: BootstrapConfig;
+  update: DesktopReleaseInfo | null;
+  agreement: DesktopStartupAgreement;
+  device: DesktopDeviceReportResult;
+  announcements: Announcement[];
+  account: {
+    status: "none" | "refreshed" | "expired";
+    session: AccountAuthResult | null;
+  };
+  unreadMessages: DirectMessageUnreadPage;
 };

@@ -33,6 +33,8 @@ type StartupWindowManagerOptions = {
   iconPath: string;
   onAccepted: () => void;
   onRejected: () => void;
+  onEnterLocalMode?: () => void;
+  onRetry?: () => void;
 };
 
 export const STARTUP_AGREEMENT_SETTING_KEY = "startup-user-agreement";
@@ -49,8 +51,12 @@ export class StartupWindowManager {
   private readonly iconPath: string;
   private readonly onAccepted: () => void;
   private readonly onRejected: () => void;
+  private readonly onEnterLocalMode?: () => void;
+  private readonly onRetry?: () => void;
   private mode: StartupWindowMode = "loading";
   private agreementContent: StartupAgreementContent = DEFAULT_AGREEMENT_CONTENT;
+  private localModeAvailable = false;
+  private blockedMessage = "";
   private registered = false;
   private themeChangeListener: (() => void) | null = null;
 
@@ -59,6 +65,8 @@ export class StartupWindowManager {
     this.iconPath = options.iconPath;
     this.onAccepted = options.onAccepted;
     this.onRejected = options.onRejected;
+    this.onEnterLocalMode = options.onEnterLocalMode;
+    this.onRetry = options.onRetry;
   }
 
   setupIpc() {
@@ -81,6 +89,16 @@ export class StartupWindowManager {
 
     ipcMain.handle("startup:quit", () => {
       this.onRejected();
+      return true;
+    });
+
+    ipcMain.handle("startup:enter-local-mode", () => {
+      this.onEnterLocalMode?.();
+      return true;
+    });
+
+    ipcMain.handle("startup:retry", () => {
+      this.onRetry?.();
       return true;
     });
   }
@@ -172,6 +190,22 @@ export class StartupWindowManager {
     this.pushSnapshot();
   }
 
+  setLocalModeAvailable(available: boolean) {
+    if (this.localModeAvailable === available) return;
+    this.localModeAvailable = available && !this.blockedMessage;
+    this.pushSnapshot();
+  }
+
+  setBlockedMessage(message: string) {
+    this.localModeAvailable = false;
+    this.blockedMessage = message.trim();
+    if (this.blockedMessage) {
+      this.open("loading");
+      return;
+    }
+    this.pushSnapshot();
+  }
+
   close() {
     this.unbindThemeListener();
     if (!this.startupWindow || this.startupWindow.isDestroyed()) return;
@@ -245,6 +279,8 @@ export class StartupWindowManager {
       agreementTitle: this.agreementContent.title,
       agreementContent: this.agreementContent.content,
       agreementVersion: this.agreementContent.version,
+      localModeAvailable: this.localModeAvailable,
+      blockedMessage: this.blockedMessage,
     });
   }
 }
