@@ -1,0 +1,106 @@
+name: Deploy Server
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "server/**"
+      - ".github/workflows/deploy-server.yml"
+      - ".github/scripts/deploy-server.sh"
+  workflow_dispatch:
+    inputs:
+      skip_db_backup:
+        description: "跳过部署前数据库备份 (仅紧急调试时勾选)"
+        required: false
+        type: boolean
+        default: false
+      force_install:
+        description: "强制重新安装服务端生产依赖"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-server-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: |
+            server/pnpm-lock.yaml
+            server/admin/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: |
+          pnpm --dir server install --frozen-lockfile
+          pnpm --dir server/admin install --frozen-lockfile
+
+      - name: Build server & admin (production)
+        run: pnpm --dir server build:release
+
+      - name: Package release archive
+        run: |
+          mkdir -p /tmp/release-pkg
+          cp -r server/dist /tmp/release-pkg/dist
+          cp -r server/web-admin /tmp/release-pkg/web-admin
+          cp -r server/frontend-html /tmp/release-pkg/frontend-html
+          [ -d server/static ] && cp -r server/static /tmp/release-pkg/static
+          [ -d server/discover ] && cp -r server/discover /tmp/release-pkg/discover
+          cp server/package.json server/pnpm-lock.yaml /tmp/release-pkg/
+          [ -f server/.env.example ] && cp server/.env.example /tmp/release-pkg/.env.example
+          tar -czf /tmp/server-release.tar.gz -C /tmp/release-pkg .
+          ls -lh /tmp/server-release.tar.gz
+
+      - name: Upload & deploy to Baota server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SKIP_DB_BACKUP: ${{ inputs.skip_db_backup && '1' || '0' }}
+          FORCE_INSTALL: ${{ inputs.force_install && '1' || '0' }}
+        run: |
+          if [ -z "$SSH_PRIVATE_KEY" ] || [ -z "$SERVER_HOST" ] || [ -z "$SERVER_USER" ]; then
+            echo "Missing required SSH secrets (SSH_PRIVATE_KEY, SERVER_HOST, SERVER_USER)."
+            exit 1
+          fi
+          PORT="${SERVER_PORT:-22}"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$PORT" -H "$SERVER_HOST" >> ~/.ssh/known_hosts
+
+          SSH_OPTS="-i ~/.ssh/deploy_key -p $PORT -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ConnectTimeout=20"
+          SCP_OPTS="-i ~/.ssh/deploy_key -P $PORT -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ConnectTimeout=20"
+
+          for attempt in 1 2 3; do
+            if scp $SCP_OPTS /tmp/server-release.tar.gz .github/scripts/deploy-server.sh "${SERVER_USER}@${SERVER_HOST}:/tmp/"; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "SCP upload failed after 3 attempts."
+              exit 1
+            fi
+            sleep 3
+          done
+
+          ssh $SSH_OPTS "${SERVER_USER}@${SERVER_HOST}" \
+            "sed -i 's/\r$//' /tmp/deploy-server.sh && chmod +x /tmp/deploy-server.sh && SKIP_DB_BACKUP=$SKIP_DB_BACKUP FORCE_INSTALL=$FORCE_INSTALL /tmp/deploy-server.sh /tmp/server-release.tar.gz"
