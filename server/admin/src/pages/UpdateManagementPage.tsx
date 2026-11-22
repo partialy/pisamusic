@@ -15,7 +15,9 @@ import {
   getMissingDesktopSlotLabels,
   matchAndroidReleaseFiles,
   matchDesktopReleaseFiles,
+  normalizeReleaseVersionWithV,
   parseLatestYmlVersion,
+  stripVersionPrefix,
   suggestNextVersion,
   type DesktopStagedFiles,
 } from "../utils/releaseFormHelpers";
@@ -249,10 +251,10 @@ export default function UpdateManagementPage() {
         if (ymlVersion) {
           setEditingUpdateDraft((prev) => {
             if (!prev) return prev;
-            if (prev.version.trim() !== ymlVersion) {
+            if (stripVersionPrefix(prev.version) !== stripVersionPrefix(ymlVersion)) {
               void message.warning("检测到版本不一致，请检查");
               versionManuallyEditedRef.current = true;
-              return { ...prev, version: ymlVersion };
+              return { ...prev, version: normalizeReleaseVersionWithV(ymlVersion) };
             }
             return prev;
           });

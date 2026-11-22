@@ -43,20 +43,29 @@ export function incrementVersionString(rawVersion: string, fallbackVersion: stri
   return `${prefix}${nextNum}${suffix}`;
 }
 
+export function stripVersionPrefix(rawVersion: string): string {
+  return rawVersion.trim().replace(/^[vV]+/, "");
+}
+
+export function normalizeReleaseVersionWithV(rawVersion: string): string {
+  const stripped = stripVersionPrefix(rawVersion);
+  return stripped ? `v${stripped}` : "";
+}
+
 export function suggestNextVersion(
   platform: ReleasePlatform,
   appConfigServer: AppConfigJson,
   updateHistory: UpdateHistoryItem[],
 ): string {
-  const fallback = platform === "desktop" ? "1.0.0" : "v1.0.0";
+  const fallback = "v1.0.0";
   const currentReleaseVer = appConfigServer.releases[platform]?.latestVersion?.trim();
   if (currentReleaseVer && /\d/.test(currentReleaseVer)) {
-    return incrementVersionString(currentReleaseVer, fallback);
+    return normalizeReleaseVersionWithV(incrementVersionString(currentReleaseVer, fallback));
   }
   for (let i = updateHistory.length - 1; i >= 0; i -= 1) {
     const item = updateHistory[i];
     if (item.platform === platform && item.version && /\d/.test(item.version)) {
-      return incrementVersionString(item.version, fallback);
+      return normalizeReleaseVersionWithV(incrementVersionString(item.version, fallback));
     }
   }
   return fallback;

@@ -134,7 +134,7 @@ export default function UpdateModal({
             <Input
               value={draft.version}
               onChange={(e) => onChange({ ...draft, version: e.target.value })}
-              placeholder={isDesktop ? "例如: 1.5.1" : "例如: v2.1.3"}
+              placeholder={isDesktop ? "例如: v2.0.2" : "例如: v2.1.3"}
               className="font-bold font-mono"
             />
           </div>
