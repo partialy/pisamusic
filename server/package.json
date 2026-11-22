@@ -22,7 +22,7 @@
     "test:mysql57:migration": "pnpm build && node scripts/integration-mysql57-sandbox.cjs",
     "verify:databases": "pnpm build && node scripts/verify-independent-databases.cjs",
     "verify:setup-http": "pnpm build && node scripts/verify-setup-http.cjs",
-    "build:all": "pnpm build && pnpm --dir admin build && pnpm --dir frontend build",
+    "build:all": "pnpm build && pnpm --dir admin build",
     "start": "node dist/index.js"
   },
   "keywords": [],

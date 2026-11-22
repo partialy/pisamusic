@@ -16,7 +16,7 @@
 - Node 要求：`>=22.5.0`
 - 开发：`pnpm --dir server dev`
 - 构建：`pnpm --dir server build`
-- 全量构建：`pnpm --dir server build:all`，依次构建服务端、管理后台与官网；管理后台产物输出到 `server/web-admin/`，官网产物输出到 `server/web-user/`，两者均为忽略的构建产物，不要提交。
+- 全量构建：`pnpm --dir server build:all`，依次构建服务端与管理后台；管理后台产物输出到 `server/web-admin/`（为忽略的构建产物，不要提交）。官网使用纯静态 `server/frontend-html/`，无需构建。
 - 启动构建产物：`pnpm --dir server start`
 - 默认端口：`53380`
 - 官网双端发布接口：`/api/config/releases` 返回 Android 与 PC 当前发布信息；`/api/config/check-update` 保留为 Android 旧更新接口。

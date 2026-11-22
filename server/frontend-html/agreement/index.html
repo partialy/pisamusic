@@ -91,6 +91,8 @@
     .content {
       font-size: 15px;
       color: #334155;
+      word-break: break-word;
+      white-space: pre-wrap;
     }
     .content img {
       max-width: 100%;
@@ -164,7 +166,11 @@
           pageTitle.innerText = data.title || fallbackTitle;
           document.title = `${data.title || fallbackTitle} - PisaMusic 官方文档`;
           loading.style.display = "none";
-          content.innerHTML = data.content || "<p>暂无内容</p>";
+          if (data.content && data.content.trim()) {
+            content.textContent = data.content;
+          } else {
+            content.innerHTML = '<div class="state">暂无内容</div>';
+          }
           content.style.display = "block";
         })
         .catch((err) => {

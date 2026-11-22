@@ -868,6 +868,10 @@
 
         function renderSearchResults(songs) {
           searchSongList.innerHTML = "";
+          if (!songs || songs.length === 0) {
+            searchSongList.innerHTML = '<div class="py-12 text-center text-sm text-slate-400">未找到相关歌曲，换个关键词或源试试吧</div>';
+            return;
+          }
           songs.forEach((song, idx) => {
             const row = document.createElement("div");
             row.className = "group flex items-center justify-between p-3 sm:p-4 hover:bg-slate-50/80 transition-colors cursor-pointer";

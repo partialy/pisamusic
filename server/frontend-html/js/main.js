@@ -335,7 +335,7 @@
 
         loadingEl.classList.add("hidden");
         if (data.content && data.content.trim()) {
-          contentEl.innerHTML = data.content;
+          contentEl.textContent = data.content;
           contentEl.classList.remove("hidden");
         } else {
           contentEl.innerHTML = '<div class="legal-window-state">暂无内容</div>';

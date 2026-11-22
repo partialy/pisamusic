@@ -52,16 +52,19 @@
   let leftPage = false;
   let fallbackTimer = 0;
 
+  const siteOrigin = window.location.origin && window.location.origin !== "null"
+    ? window.location.origin
+    : "https://pisamusic.partialy.cn";
   const appScheme = validRoom
     ? `pisamusic://scan?type=${encodeURIComponent(type)}&roomId=${encodeURIComponent(roomId)}`
     : "";
   const shareUrl = validShare
-    ? `https://pisamusic.partialy.cn/scan/?type=${encodeURIComponent(SHARE_TYPE)}&uuid=${encodeURIComponent(uuid)}`
+    ? `${siteOrigin}/scan/?type=${encodeURIComponent(SHARE_TYPE)}&uuid=${encodeURIComponent(uuid)}`
     : "";
   const shareAppScheme = validShare
     ? `pisamusic://scan?type=${encodeURIComponent(SHARE_TYPE)}&uuid=${encodeURIComponent(uuid)}`
     : "";
-  const defaultSocialImage = "https://pisamusic.partialy.cn/assets/app-icon.png";
+  const defaultSocialImage = `${siteOrigin}/assets/app-icon.png`;
 
   function getDeviceType() {
     const userAgent = navigator.userAgent || "";
