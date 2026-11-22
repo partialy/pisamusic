@@ -14,6 +14,7 @@
 - 管理接口继续使用现有管理员 JWT 与加密请求链路；字段及规则以 [API 索引](../apidoc/index.md)及对应模块文档为准。
 - **统一分页规范**：所有 Admin 分页列表统一传 `offset` / `limit`，响应 `data` 均已统一为 `{ list, total, offset, limit, hasMore }`（类型复用 `src/types/config.ts` 的 `PaginatedListData<T>`）。
 - 仪表盘采用 Recharts 懒加载并作为默认主页；支持 7 / 30 / 90 天零填充趋势。“官网记录”固定放在左侧菜单第三项，列表显示摘要，详情再读取完整字段；仪表盘聚合响应不得暴露明细 IP、访客 hash 或 User-Agent。
+- “接口文档”（路由 `/api-docs`，页面 `ApiDocsPage.tsx`）固定放在左侧菜单「仪表盘」下方、「用户中心」上方；通过 `vite.config.ts` 的 `server.fs.allow` 与 `src/utils/apidocRegistry.ts` 编译期打包 `server/apidoc/**/*.md` 为懒加载 chunk，解析 `index.md` 生成模块化目录树，支持全文检索、Method 筛选、代码复制、右侧 TOC 大纲与文档内相对链接跳转。
 - “官网记录”保留每日域名 UV 访问列表、下载触发列表，支持域名（全部 / 未知 / 指定）和北京时间日期范围筛选；历史空域名展示“未知域名”。第三标签“域名统计”懒加载 `WebsiteDomainStats`，通过 `/api/admin/website-records/stats` 展示 7 / 30 / 90 天 UV/PV/Android 与 PC 下载触发、补零趋势、域名占比及页面 PV 排行。累计日 UV 与仪表盘口径一致，按各域名每日 UV 相加，同访客跨域/跨日可能重复；下载触发不代表安装完成。
 - “运营与发布 → 分享记录”维护 App 推广记录，支持筛选、排序、详情事件分页、趋势、CSV 导出和单向失效；分享来源支持全部/Android/PC，列表与详情显示来源，来源筛选统一影响汇总/趋势/CSV；来源表示生成链接设备，与Android/Windows下载平台分开。筛选后UV为选中短码累计日UV之和；失效不删除、不恢复、不修改计数。推广隐私条款通过现有内容管理发布，不通过数据库迁移覆盖管理员内容。
 - 歌曲 / 歌单分享记录使用独立 `/api/admin/shares`，支持类型、分享人关键词、有效性筛选和预览 / 复制扫码链接；只支持标记失效，保留历史。

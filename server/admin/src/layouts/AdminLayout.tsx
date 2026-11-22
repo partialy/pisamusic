@@ -16,6 +16,7 @@ import {
 } from "antd";
 import {
   AlertOutlined,
+  ApiOutlined,
   BgColorsOutlined,
   BugOutlined,
   CloudUploadOutlined,
@@ -131,6 +132,7 @@ export default function AdminLayout() {
   const menuItems: MenuProps["items"] = useMemo(
     () => [
       { key: "dashboard", icon: <DashboardOutlined />, label: "仪表盘" },
+      { key: "apiDocs", icon: <ApiOutlined />, label: "接口文档" },
       {
         key: "user_group",
         icon: <TeamOutlined />,

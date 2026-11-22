@@ -11,6 +11,7 @@ import InstallationGuard from "./auth/InstallationGuard";
 import LoginPage from "./components/LoginPage";
 
 const DashboardTab = lazy(() => import("./components/tabs/DashboardTab"));
+const ApiDocsPage = lazy(() => import("./pages/ApiDocsPage"));
 const WebsiteRecordsTab = lazy(() => import("./components/tabs/WebsiteRecordsTab"));
 const CloudMusicManagementTab = lazy(() => import("./components/tabs/CloudMusicManagementTab"));
 const VerificationCodesTab = lazy(() => import("./components/tabs/VerificationCodesTab"));
@@ -85,6 +86,7 @@ export default function App() {
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/api-docs" element={<ApiDocsPage />} />
             <Route path="/users" element={<UserManagementPage />} />
             <Route path="/verification-codes" element={<VerificationCodesRoute />} />
             <Route path="/listening-levels" element={<ListeningLevelsRoute />} />

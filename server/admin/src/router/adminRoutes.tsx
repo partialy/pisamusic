@@ -1,5 +1,6 @@
 export type AdminRouteKey =
   | "dashboard"
+  | "apiDocs"
   | "websiteRecords"
   | "users"
   | "verificationCodes"
@@ -49,6 +50,7 @@ export const GROUP_TITLE_MAP: Record<AdminRouteGroupKey, string> = {
 
 export const ADMIN_ROUTES: AdminRouteItem[] = [
   { key: "dashboard", path: "/dashboard", title: "仪表盘", hideGlobalActions: true },
+  { key: "apiDocs", path: "/api-docs", title: "接口文档", hideGlobalActions: true },
   { key: "users", path: "/users", title: "用户管理", groupKey: "user_group", groupTitle: "用户中心" },
   { key: "verificationCodes", path: "/verification-codes", title: "验证码记录", groupKey: "user_group", groupTitle: "用户中心" },
   { key: "listeningLevels", path: "/listening-levels", title: "听歌等级", groupKey: "user_group", groupTitle: "用户中心" },
