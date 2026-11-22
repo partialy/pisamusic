@@ -202,7 +202,7 @@ export const useThemeStore = defineStore("theme", () => {
     const migratedTheme = savedTheme?.value ?? getLegacyTheme();
     applyTheme(migratedTheme);
     if (backgroundMode.value === "image") {
-      await refreshImageBrightness();
+      void refreshImageBrightness();
     }
 
     if (!savedTheme && migratedTheme) {

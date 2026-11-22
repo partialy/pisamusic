@@ -78,11 +78,13 @@
 - 歌单歌曲分页拉取统一使用 `src/utils/playlistTracks.ts` 的 `resolveDynamicBatchSize(totalCount)` 动态计算单批大小（平摊约 3 批并限制在 `[50, 200]` 区间：`total <= 150` 取 50，`301` 取 101，`>= 600` 取 200）。歌单详情首屏以计算出的 `batchSize` 直接拉取第 1 页，无重复数据；流式后台加载与全量拉取全过程必须保持同一恒定 `pageSize`，尾页不缩小，规避酷狗服务端分页偏移错位。
 - Electron 外部扫码动作由 main 侧协调器缓冲冷启动/二次启动参数：一起听继续投递 `listen-together:invite`，音乐分享投递 `share:invite`，renderer 只消费只读事件并打开详情弹窗。
 
-## 服务端地址规则补充
+## 服务端地址与冷启动聚合规则补充
 
 - 正式包通过 `https://pisamusic.partialy.cn/pm-config/config-v1.json` 做第 0 层服务发现；`systemClient`、一起听 Socket、账号相对头像和 updater 只能读取 `serviceDiscovery` 快照。
-- 远程失败按 cache → embedded 降级，业务探测失败才进入本地模式。
-- 本地模式仍允许自动更新，避免 API 故障时失去客户端恢复通道。
+- 服务发现采用 SWR 缓存优先：生产包启动若命中不低于内嵌版本的有效 `service_discovery_cache`，立即采用首个高优先级 origin 并跳过 `/api/health` 探测，后台静默拉取最新文档更新缓存；无有效缓存再走 remote → cache → embedded，若聚合启动因缓存节点报错，触发一次带健康探测的强制刷新切节点重试。
+- 桌面端冷启动对齐移动端聚合架构：启动即根据本地 `startup-user-agreement` 打开 `StartupWindow` 并行预加载隐藏主窗口，同时发起单次加密请求 `POST /api/config/desktop-startup`（10s 总预算，3s 后在 loading 页显露“以本地模式进入”，超时自动降级读取 SQLite `desktop-bootstrap-cache` 与本地会话）；`-233` 停服维护或 `device.locked` 封禁在启动窗严格拦截且禁止本地模式跳过。若服务端返回 `agreement.acceptedUpToDate === false`，在显露主窗口前切换至 `agreement` 模式确认最新版本。
+- 启动快照复用与首屏解耦：`systemClient` 在单次启动窗口（30s TTL）内缓冲聚合下发的 `bootstrap`、`releases.desktop`、公告列表与一次性 `unreadMessages`，供 `runtimeConfig`、`userStore`、`updaterService`、`directMessageManager` 及首页公告卡片/自动弹窗共享消费（设置页等显式操作传 `forceRefresh` 直连最新接口）。`App.vue` 首屏仅同步必要主题配置、缓存端点、账号会话与播放器状态即通知显窗，`collector`/`mineLibrary`/`shortcutStore`、壁纸亮度异步采样、本地扫描、酷狗刷新、自动更新调度与云同步统一放在显窗后执行。
+- 本地模式仍允许手动检查自动更新，避免 API 故障时失去客户端恢复通道；自动启动检查仅在在线模式下于 `startupDelayMs` 后执行。
 - 开发环境变量 `PISA_SERVER_URL` / `PM_SERVER_URL` 仍可覆盖本地服务地址。
 - API、realtime 与环境变量覆盖必须是纯 origin，不得包含路径、认证信息、query 或 hash；自动更新 feed 可包含路径，但必须是无认证信息、query、hash 的 HTTPS URL。
 - renderer 不持有或拼接服务端 baseURL；不再暴露 `system:get-base-url` 或 `getSystemBaseUrl` 兼容接口。

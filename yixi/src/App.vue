@@ -320,6 +320,27 @@ function setupAutoSaver() {
   }, 1000 * 60 * 10);
 }
 
+function scheduleDeferredStartupTasks() {
+  setTimeout(() => {
+    void Promise.allSettled([
+      collector.initStore(),
+      mineLibrary.init(),
+      shortcutStore.init(),
+    ]).then((results) => {
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") return;
+        void electronAPI.reportError(result.reason, {
+          scope: "startup",
+          action: "deferredStartupTasks",
+          taskIndex: index,
+        });
+      });
+    });
+    listeningPlaybackAdapter.sync(player.currentSong, player.isPlaying, player.duration * 1000);
+    directMessageReady.value = true;
+  }, 0);
+}
+
 async function bootstrapApp() {
   try {
     setUpWindow();
@@ -339,16 +360,14 @@ async function bootstrapApp() {
       });
     }
 
+    // 首屏关键路径仅同步必要视觉、端点缓存、账号快照与播放状态，其余库初始化移至显窗后异步执行。
     const results = await Promise.allSettled([
       lowPowerStore.initialize(),
       settingStore.initBasicSetting(),
       themeStore.init(),
-      isLocalMode ? Promise.resolve(null) : runtimeConfig.refresh(),
-      collector.initStore(),
-      mineLibrary.init(),
-      isLocalMode ? Promise.resolve(null) : userStore.init(),
+      runtimeConfig.refresh(false),
+      userStore.init(isLocalMode),
       player.loadState(),
-      shortcutStore.init(),
     ]);
 
     results.forEach((result, index) => {
@@ -359,16 +378,14 @@ async function bootstrapApp() {
         taskIndex: index,
       });
     });
-
-    listeningPlaybackAdapter.sync(player.currentSong, player.isPlaying, player.duration * 1000);
   } catch (error) {
     void electronAPI.reportError(error, {
       scope: "startup",
       action: "bootstrapApp",
     });
   } finally {
-    directMessageReady.value = true;
     electronAPI.notifyStartupReady?.();
+    scheduleDeferredStartupTasks();
   }
 }
 

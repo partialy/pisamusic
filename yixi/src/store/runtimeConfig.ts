@@ -23,14 +23,13 @@ export const useRuntimeConfigStore = defineStore("runtimeConfig", {
     isDev: true,
   }),
   actions: {
-    async refresh() {
+    async refresh(force = false) {
       if (pendingRefresh) return pendingRefresh;
       this.loading = true;
       this.error = "";
       pendingRefresh = (async () => {
         try {
-          await electronAPI.getBootstrapConfig();
-          const endpoints = await electronAPI.getRuntimeEndpoints(true);
+          const endpoints = await electronAPI.getRuntimeEndpoints(force);
           const isDev = await electronAPI.isDevelopmentRuntime();
           this.applyEndpoints(endpoints);
           this.loaded = true;

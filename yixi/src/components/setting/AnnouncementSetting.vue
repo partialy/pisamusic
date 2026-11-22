@@ -64,7 +64,7 @@ async function fetchAnnouncements() {
   try {
     const [setting, list] = await Promise.all([
       window.electronAPI.getSetting<string[]>(CONFIRMED_SETTING_KEY),
-      window.electronAPI.getAnnouncements(),
+      window.electronAPI.getAnnouncements({ forceRefresh: true }),
     ]);
     confirmedIds.value = normalizeConfirmedIds(setting);
     announcements.value = Array.isArray(list)

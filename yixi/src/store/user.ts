@@ -28,12 +28,16 @@ export const useUserStore = defineStore("user", {
     wyID: "",
   }),
   actions: {
-    async init() {
+    async init(localMode = false) {
       window.electronAPI.onAccountIdentityChanged(() => {
         void window.electronAPI.getAccountSession().then(session => this.applySession(session));
       });
       this.kgID = localStorage.getItem("kguid") || "";
       this.wyID = localStorage.getItem("wyuid") || "";
+      if (localMode) {
+        this.applySession(await window.electronAPI.getAccountSession());
+        return;
+      }
       try {
         this.applySession(await window.electronAPI.refreshAccountSession());
       } catch {
