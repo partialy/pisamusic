@@ -18,6 +18,7 @@
 | `version` | `string` | 是 | 已上传完整资产的目标版本号 |
 | `platform` | `string` | 否 | `win32`（默认） |
 | `arch` | `string` | 否 | `x64`（默认） |
+| `assetIds` | `string[]` | 否 | 精确指定待激活的 `file_records` ID 列表，传参时将精准绑定并同步修正版本号 |
 
 ### 请求示例
 

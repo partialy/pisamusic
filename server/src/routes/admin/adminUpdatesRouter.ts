@@ -8,6 +8,7 @@ import {
   createDesktopUpdateUploadRecord,
   createReleaseUploadRecord,
   publishUpdate,
+  readDesktopUpdateAssets,
   readUpdateHistory,
   updatePublishedUpdate,
 } from "../../db/configStore";
@@ -207,11 +208,24 @@ function normalizeDesktopUpdateCompletePayload(
 
 function normalizeDesktopUpdateActivatePayload(
   body: unknown,
-): { ok: true; value: { version: string; platform: "win32"; arch: "x64" } } | { ok: false; msg: string } {
+):
+  | { ok: true; value: { version: string; platform: "win32"; arch: "x64"; assetIds?: string[] } }
+  | { ok: false; msg: string } {
   if (!isRecord(body)) return { ok: false, msg: "请求体必须是对象" };
   const version = String(body.version ?? "").trim();
   if (!version) return { ok: false, msg: "version 不能为空" };
-  return { ok: true, value: { version, platform: "win32", arch: "x64" } };
+  const assetIds = Array.isArray(body.assetIds)
+    ? body.assetIds.map((item) => String(item ?? "").trim()).filter(Boolean)
+    : undefined;
+  return {
+    ok: true,
+    value: {
+      version,
+      platform: "win32",
+      arch: "x64",
+      assetIds: assetIds && assetIds.length > 0 ? assetIds : undefined,
+    },
+  };
 }
 
 // Routes
@@ -294,6 +308,18 @@ adminUpdatesRouter.post("/desktop-updates/complete", async (req, res) => {
   }
 });
 
+adminUpdatesRouter.get("/desktop-updates/assets", async (req, res) => {
+  try {
+    const version = String(req.query.version ?? "").trim();
+    if (!version) return res.status(400).json(fail("version 不能为空", 400));
+    const assets = await readDesktopUpdateAssets(version, "win32", "x64");
+    return res.json(ok({ assets }));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "读取 PC 自动更新文件失败";
+    return res.status(500).json(fail(message, 500));
+  }
+});
+
 adminUpdatesRouter.post("/desktop-updates/activate", async (req, res) => {
   try {
     const payload = normalizeDesktopUpdateActivatePayload(req.body);
@@ -302,6 +328,7 @@ adminUpdatesRouter.post("/desktop-updates/activate", async (req, res) => {
       payload.value.version,
       payload.value.platform,
       payload.value.arch,
+      payload.value.assetIds,
     );
     return res.json(ok({ assets }, "PC 自动更新版本已启用"));
   } catch (e) {

@@ -1,7 +1,10 @@
 import {
+  Alert,
+  Badge,
   Button,
   Card,
   Popconfirm,
+  Progress,
   Space,
   Table,
   Tag,
@@ -10,17 +13,27 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
+  CloudUploadOutlined,
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import type { UpdateHistoryItem } from "../../types/config";
+import type { ReleasePublishTaskItem } from "../../state/ReleasePublishQueueContext";
 
 const { Text } = Typography;
 
 type Props = {
   displayHistory: UpdateHistoryItem[];
   themeColor: string;
+  publishTasks: ReleasePublishTaskItem[];
+  publishQueueStats: {
+    total: number;
+    active: number;
+    failed: number;
+  };
+  onOpenQueueModal: () => void;
   onPublishNew: () => void;
   onEdit: (item: UpdateHistoryItem) => void;
   onDeletePackage: (item: UpdateHistoryItem) => void;
@@ -56,6 +69,9 @@ function getCurrentHistoryIds(displayHistory: UpdateHistoryItem[]): Set<string> 
 
 export default function UpdateTab({
   displayHistory,
+  publishTasks,
+  publishQueueStats,
+  onOpenQueueModal,
   onPublishNew,
   onEdit,
   onDeletePackage,
@@ -64,6 +80,8 @@ export default function UpdateTab({
   deletingHistoryId,
 }: Props) {
   const currentHistoryIds = getCurrentHistoryIds(displayHistory);
+  const runningTask = publishTasks.find((t) => t.state === "running") ?? publishTasks.find((t) => t.state === "queued");
+  const latestFailedTask = publishTasks.find((t) => t.state === "failed");
 
   const columns: ColumnsType<UpdateHistoryItem> = [
     {
@@ -232,15 +250,77 @@ export default function UpdateTab({
           </div>
         }
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={onPublishNew}
-          >
-            发布新版本
-          </Button>
+          <Space size={8}>
+            {publishQueueStats.total > 0 && (
+              <Badge
+                count={publishQueueStats.active > 0 ? publishQueueStats.active : publishQueueStats.failed}
+                status={publishQueueStats.failed > 0 && publishQueueStats.active === 0 ? "error" : "processing"}
+                size="small"
+              >
+                <Button
+                  icon={<UnorderedListOutlined />}
+                  onClick={onOpenQueueModal}
+                >
+                  发布任务进度
+                </Button>
+              </Badge>
+            )}
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={onPublishNew}
+            >
+              发布新版本
+            </Button>
+          </Space>
         }
       >
+        {(runningTask || latestFailedTask) && (
+          <Alert
+            className="!mb-4"
+            type={runningTask ? "info" : "error"}
+            showIcon
+            icon={<CloudUploadOutlined />}
+            message={
+              runningTask ? (
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-slate-800">
+                      正在后台{runningTask.mode === "create" ? "发布" : "更新"}{" "}
+                      {runningTask.draft.platform === "desktop" ? "PC 版" : "Android"}{" "}
+                      <span className="font-mono">{runningTask.draft.version}</span>（
+                      {runningTask.phase === "activating"
+                        ? "启用 PC 自动更新"
+                        : runningTask.phase === "publishing"
+                        ? "提交发布配置"
+                        : "上传安装包中"}{" "}
+                      {runningTask.overallPercent}%）
+                    </div>
+                    <Progress
+                      percent={runningTask.overallPercent}
+                      size="small"
+                      status="active"
+                      className="!mb-0 !mt-1 max-w-md"
+                    />
+                  </div>
+                  <Button size="small" type="link" onClick={onOpenQueueModal}>
+                    查看任务进度
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span>
+                    最近任务 {latestFailedTask!.draft.version} 执行失败：
+                    {latestFailedTask!.errorMessage || "未知错误"}
+                  </span>
+                  <Button size="small" type="link" danger onClick={onOpenQueueModal}>
+                    查看并重试
+                  </Button>
+                </div>
+              )
+            }
+          />
+        )}
         <Table<UpdateHistoryItem>
           rowKey="id"
           columns={columns}

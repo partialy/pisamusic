@@ -1,7 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { message } from "antd";
 import type {
   DesktopUpdateAssetInfo,
   DesktopUpdateAssetType,
+  ReleasePlatform,
   UpdateFormDraft,
   UpdateHistoryDeletionPreview,
   UpdateHistoryItem,
@@ -9,38 +11,68 @@ import type {
 import { getCurrentPlus8Time } from "../utils/date";
 import { draftToPayload, historyItemToDraft } from "../utils/updatePayload";
 import {
-  activateDesktopUpdate,
+  formatReleaseFileSize,
+  getMissingDesktopSlotLabels,
+  matchAndroidReleaseFiles,
+  matchDesktopReleaseFiles,
+  parseLatestYmlVersion,
+  suggestNextVersion,
+  type DesktopStagedFiles,
+} from "../utils/releaseFormHelpers";
+import {
   deleteReleasePackage,
   deleteUpdateHistory,
+  fetchDesktopUpdateAssets,
   fetchUpdateHistoryDeletePreview,
-  publishUpdate,
-  updatePublishedUpdate,
-  uploadDesktopUpdateAsset,
-  uploadReleasePackage,
 } from "../api/client";
 import { useAdminConfigWorkspace } from "../state/AdminConfigWorkspaceContext";
+import { useReleasePublishQueue } from "../state/ReleasePublishQueueContext";
 import { useAdminLayout } from "../layouts/AdminLayoutContext";
 import UpdateTab from "../components/tabs/UpdateTab";
 import UpdateModal from "../components/modals/UpdateModal";
 import UpdateHistoryDeletePreviewModal from "../components/modals/UpdateHistoryDeletePreviewModal";
 
+function mapAssetsByType(
+  assets: DesktopUpdateAssetInfo[],
+): Partial<Record<DesktopUpdateAssetType, DesktopUpdateAssetInfo>> {
+  const result: Partial<Record<DesktopUpdateAssetType, DesktopUpdateAssetInfo>> = {};
+  for (const asset of assets) {
+    if (asset.status !== "uploaded") continue;
+    if (!result[asset.fileType]) {
+      result[asset.fileType] = asset;
+    }
+  }
+  return result;
+}
+
 export default function UpdateManagementPage() {
   const { themeColor } = useAdminLayout();
   const { updateHistory, appConfigServer, refreshRemote } = useAdminConfigWorkspace();
+  const {
+    tasks: publishTasks,
+    stats: publishQueueStats,
+    openQueueModal,
+    enqueuePublish,
+  } = useReleasePublishQueue();
 
   const [editingUpdateDraft, setEditingUpdateDraft] = useState<UpdateFormDraft | null>(null);
   const [editingUpdateIsNew, setEditingUpdateIsNew] = useState(true);
   const [editingUpdateHistoryId, setEditingUpdateHistoryId] = useState<string | null>(null);
   const [editingUpdateIsCurrent, setEditingUpdateIsCurrent] = useState(false);
-  const [publishSaving, setPublishSaving] = useState(false);
-  const [packageUploading, setPackageUploading] = useState(false);
-  const [packageUploadProgress, setPackageUploadProgress] = useState<number | null>(null);
-  const [desktopUpdateUploading, setDesktopUpdateUploading] = useState<DesktopUpdateAssetType | null>(null);
-  const [desktopUpdateProgress, setDesktopUpdateProgress] = useState<Partial<Record<DesktopUpdateAssetType, number>>>({});
-  const [desktopUpdateAssets, setDesktopUpdateAssets] = useState<Partial<Record<DesktopUpdateAssetType, DesktopUpdateAssetInfo>>>({});
+
+  const [stagedAndroidFile, setStagedAndroidFile] = useState<File | null>(null);
+  const [stagedDesktopFiles, setStagedDesktopFiles] = useState<DesktopStagedFiles>({});
+  const [existingDesktopAssets, setExistingDesktopAssets] = useState<
+    Partial<Record<DesktopUpdateAssetType, DesktopUpdateAssetInfo>>
+  >({});
+  const [loadingExistingAssets, setLoadingExistingAssets] = useState(false);
+
   const [deletingPackageHistoryId, setDeletingPackageHistoryId] = useState<string | null>(null);
   const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
-  const [updateHistoryDeletePreview, setUpdateHistoryDeletePreview] = useState<UpdateHistoryDeletionPreview | null>(null);
+  const [updateHistoryDeletePreview, setUpdateHistoryDeletePreview] =
+    useState<UpdateHistoryDeletionPreview | null>(null);
+
+  const versionManuallyEditedRef = useRef(false);
 
   const displayHistory = useMemo(() => [...updateHistory].reverse(), [updateHistory]);
 
@@ -59,18 +91,31 @@ export default function UpdateManagementPage() {
     [appConfigServer.releases],
   );
 
+  const resetModalTransientState = () => {
+    setStagedAndroidFile(null);
+    setStagedDesktopFiles({});
+    setExistingDesktopAssets({});
+    setLoadingExistingAssets(false);
+    versionManuallyEditedRef.current = false;
+  };
+
+  const closeModal = () => {
+    setEditingUpdateDraft(null);
+    setEditingUpdateHistoryId(null);
+    setEditingUpdateIsCurrent(false);
+    resetModalTransientState();
+  };
+
   const openNewUpdate = () => {
     const plus8Time = getCurrentPlus8Time();
+    const initialPlatform: ReleasePlatform = "android";
+    resetModalTransientState();
     setEditingUpdateIsNew(true);
     setEditingUpdateHistoryId(null);
     setEditingUpdateIsCurrent(false);
-    setPackageUploadProgress(null);
-    setDesktopUpdateProgress({});
-    setDesktopUpdateAssets({});
-    setDesktopUpdateUploading(null);
     setEditingUpdateDraft({
-      platform: "android",
-      version: "v",
+      platform: initialPlatform,
+      version: suggestNextVersion(initialPlatform, appConfigServer, updateHistory),
       updateTime: plus8Time,
       forceUpdate: false,
       downloadUrl: "",
@@ -84,154 +129,223 @@ export default function UpdateManagementPage() {
   };
 
   const openEditUpdate = (item: UpdateHistoryItem) => {
+    resetModalTransientState();
+    const draft = historyItemToDraft(item);
+    if (!draft.fileSizeText && item.releaseFile?.fileSize) {
+      draft.fileSizeText = formatReleaseFileSize(item.releaseFile.fileSize);
+    }
     setEditingUpdateIsNew(false);
     setEditingUpdateHistoryId(item.id);
     setEditingUpdateIsCurrent(isCurrentReleaseHistory(item));
-    setPackageUploadProgress(null);
-    setDesktopUpdateProgress({});
-    setDesktopUpdateAssets({});
-    setDesktopUpdateUploading(null);
-    setEditingUpdateDraft(historyItemToDraft(item));
-  };
+    setEditingUpdateDraft(draft);
 
-  const handleSubmitPublish = async () => {
-    if (!editingUpdateDraft) return;
-    if (!editingUpdateIsNew && !editingUpdateHistoryId) return;
-    const payload = draftToPayload(editingUpdateDraft);
-    if (
-      !payload.latestVersion ||
-      !payload.updateTime ||
-      !payload.officialUrl ||
-      !payload.updateContent ||
-      !payload.platformLabel ||
-      (payload.platform === "android" && !payload.downloadUrl) ||
-      (payload.available && !payload.downloadUrl)
-    ) {
-      alert("请填写完整：版本号、时间、官网地址、更新说明；Android 或已开放下载的版本还需要下载地址。");
-      return;
-    }
-    setPublishSaving(true);
-    try {
-      if (payload.platform === "desktop" && payload.available && (editingUpdateIsNew || editingUpdateIsCurrent)) {
-        await activateDesktopUpdate(payload.latestVersion);
-      }
-      if (editingUpdateIsNew) {
-        await publishUpdate(payload);
-      } else {
-        await updatePublishedUpdate(editingUpdateHistoryId!, payload);
-      }
-      setEditingUpdateDraft(null);
-      setEditingUpdateHistoryId(null);
-      setEditingUpdateIsCurrent(false);
-      await refreshRemote();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "发布失败";
-      alert(msg);
-    } finally {
-      setPublishSaving(false);
+    if (item.platform === "desktop" && item.version) {
+      setLoadingExistingAssets(true);
+      void fetchDesktopUpdateAssets(item.version)
+        .then((assets) => {
+          setExistingDesktopAssets(mapAssetsByType(assets));
+        })
+        .catch(() => {
+          // 读取历史更新资产失败时不阻断打开编辑弹窗
+        })
+        .finally(() => {
+          setLoadingExistingAssets(false);
+        });
     }
   };
 
-  const formatFileSizeText = (size: number): string => {
-    if (!Number.isFinite(size) || size <= 0) return "";
-    const mb = size / 1024 / 1024;
-    if (mb >= 1) return `${mb.toFixed(mb >= 10 ? 1 : 2)}MB`;
-    return `${Math.max(1, Math.round(size / 1024))}KB`;
+  const handleDraftChange = (next: UpdateFormDraft) => {
+    if (editingUpdateDraft && next.version !== editingUpdateDraft.version) {
+      versionManuallyEditedRef.current = true;
+    }
+    setEditingUpdateDraft(next);
   };
 
-  const handleUploadReleasePackage = async (file: File) => {
-    if (!editingUpdateDraft) return;
-    setPackageUploading(true);
-    setPackageUploadProgress(0);
-    try {
-      const releaseFile = await uploadReleasePackage(
-        file,
-        editingUpdateDraft.platform,
-        editingUpdateDraft.version,
-        setPackageUploadProgress,
-      );
+  const handlePlatformChange = (nextPlatform: ReleasePlatform) => {
+    if (!editingUpdateDraft || editingUpdateDraft.platform === nextPlatform) return;
+    setStagedAndroidFile(null);
+    setStagedDesktopFiles({});
+    setExistingDesktopAssets({});
+    setEditingUpdateDraft((prev) => {
+      if (!prev) return prev;
+      const nextVersion = versionManuallyEditedRef.current
+        ? prev.version
+        : suggestNextVersion(nextPlatform, appConfigServer, updateHistory);
+      return {
+        ...prev,
+        platform: nextPlatform,
+        version: nextVersion,
+        platformLabel: nextPlatform === "desktop" ? "PC 版" : "Android",
+        available: nextPlatform === "android" ? true : prev.available,
+        downloadUrl: "",
+        fileSizeText: "",
+        releaseFileId: undefined,
+      };
+    });
+  };
+
+  const handleSelectFiles = async (files: File[]) => {
+    if (!editingUpdateDraft || files.length === 0) return;
+
+    if (editingUpdateDraft.platform === "android") {
+      const { file, ignoredCount } = matchAndroidReleaseFiles(files);
+      if (!file) {
+        void message.error("未找到 .apk 或 .aab 安装包文件，请重新选择");
+        return;
+      }
+      setStagedAndroidFile(file);
       setEditingUpdateDraft((prev) =>
         prev
           ? {
               ...prev,
-              downloadUrl: releaseFile.downloadUrl,
-              fileSizeText: formatFileSizeText(releaseFile.fileSize),
+              fileSizeText: formatReleaseFileSize(file.size) || prev.fileSizeText,
               available: true,
-              releaseFileId: releaseFile.id,
             }
           : prev,
       );
-      if (releaseFile.desktopUpdateAsset) {
-        setDesktopUpdateAssets((prev) => ({
-          ...prev,
-          [releaseFile.desktopUpdateAsset!.fileType]: releaseFile.desktopUpdateAsset,
-        }));
-        setDesktopUpdateProgress((prev) => ({
-          ...prev,
-          [releaseFile.desktopUpdateAsset!.fileType]: 100,
-        }));
+      if (ignoredCount > 0) {
+        void message.success(`已匹配安装包：${file.name}（已忽略其余 ${ignoredCount} 个文件）`);
+      } else {
+        void message.success(`已匹配安装包：${file.name}`);
       }
-    } catch (e) {
-      setPackageUploadProgress(null);
-      alert(e instanceof Error ? e.message : "上传安装包失败");
-    } finally {
-      setPackageUploading(false);
+      return;
+    }
+
+    // PC 多选匹配：latest.yml + .exe + .blockmap（均暂存，缺哪个报哪个）
+    const { matched, ignoredCount, invalidYamlNames } = matchDesktopReleaseFiles(files);
+    if (invalidYamlNames.length > 0) {
+      void message.warning(`YAML 更新文件必须命名为 latest.yml（已忽略：${invalidYamlNames.join("、")}）`);
+    }
+
+    const matchedKeys = Object.keys(matched) as DesktopUpdateAssetType[];
+    if (matchedKeys.length === 0) {
+      void message.error("未匹配到 latest.yml、.exe 或 .blockmap 文件");
+      return;
+    }
+
+    const nextStaged: DesktopStagedFiles = {
+      ...stagedDesktopFiles,
+      ...matched,
+    };
+    setStagedDesktopFiles(nextStaged);
+
+    if (matched.installer) {
+      const installerSize = formatReleaseFileSize(matched.installer.size);
+      setEditingUpdateDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              fileSizeText: installerSize || prev.fileSizeText,
+              available: true,
+            }
+          : prev,
+      );
+    }
+
+    if (matched["latest-yml"]) {
+      try {
+        const ymlText = await matched["latest-yml"].text();
+        const ymlVersion = parseLatestYmlVersion(ymlText);
+        if (ymlVersion) {
+          setEditingUpdateDraft((prev) => {
+            if (!prev) return prev;
+            if (prev.version.trim() !== ymlVersion) {
+              void message.warning("检测到版本不一致，请检查");
+              versionManuallyEditedRef.current = true;
+              return { ...prev, version: ymlVersion };
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // 读取本地 latest.yml 失败时保留原版本号
+      }
+    }
+
+    const missingLabels = getMissingDesktopSlotLabels(nextStaged, existingDesktopAssets);
+    if (missingLabels.length > 0) {
+      void message.warning(
+        `缺少必选文件：${missingLabels.join("、")}（已匹配文件已暂存，请补选）`,
+      );
+    } else if (ignoredCount > 0) {
+      void message.success(`已匹配全部 PC 必需文件（已忽略其余 ${ignoredCount} 个无关文件）`);
+    } else {
+      void message.success("已匹配全部 PC 必需文件（latest.yml、EXE、blockmap）");
     }
   };
 
-  const inferDesktopAssetType = (fileName: string): DesktopUpdateAssetType => {
-    const lower = fileName.toLowerCase();
-    if (lower === "latest.yml") return "latest-yml";
-    if (lower.endsWith(".blockmap")) return "blockmap";
-    return "installer";
-  };
-
-  const handleUploadDesktopUpdateAsset = async (file: File) => {
+  const handleSubmitPublish = () => {
     if (!editingUpdateDraft) return;
-    if (editingUpdateDraft.platform !== "desktop") return;
-    const fileType = inferDesktopAssetType(file.name);
-    setDesktopUpdateUploading(fileType);
-    setDesktopUpdateProgress((prev) => ({ ...prev, [fileType]: 0 }));
-    try {
-      const asset = await uploadDesktopUpdateAsset(file, editingUpdateDraft.version, (progress) => {
-        setDesktopUpdateProgress((prev) => ({ ...prev, [fileType]: progress }));
-      });
-      setDesktopUpdateAssets((prev) => ({ ...prev, [asset.fileType]: asset }));
-      setDesktopUpdateProgress((prev) => ({ ...prev, [asset.fileType]: 100 }));
-      if (asset.releaseFile) {
-        setEditingUpdateDraft((prev) =>
-          prev
-            ? {
-                ...prev,
-                downloadUrl: asset.releaseFile!.downloadUrl,
-                fileSizeText: formatFileSizeText(asset.releaseFile!.fileSize),
-                available: true,
-                releaseFileId: asset.releaseFile!.id,
-              }
-            : prev,
-        );
-      }
-    } catch (e) {
-      setDesktopUpdateProgress((prev) => {
-        const next = { ...prev };
-        delete next[fileType];
-        return next;
-      });
-      alert(e instanceof Error ? e.message : "上传自动更新文件失败");
-    } finally {
-      setDesktopUpdateUploading(null);
+    if (!editingUpdateIsNew && !editingUpdateHistoryId) return;
+
+    const payload = draftToPayload(editingUpdateDraft);
+    const hasValidVersion = Boolean(payload.latestVersion) && !/^[vV]$/.test(payload.latestVersion);
+    if (
+      !hasValidVersion ||
+      !payload.updateTime ||
+      !payload.officialUrl ||
+      !payload.updateContent ||
+      !payload.platformLabel
+    ) {
+      void message.error("请填写完整：版本号、发布时间、官网地址、平台显示名和更新日志");
+      return;
     }
+
+    if (payload.platform === "android") {
+      if (!stagedAndroidFile && !payload.downloadUrl) {
+        void message.error("请选择 Android 安装包（.apk/.aab）或填写直接下载地址");
+        return;
+      }
+    } else {
+      const hasStagedDesktopFiles = Object.values(stagedDesktopFiles).some(Boolean);
+      const requireDesktopTriplet =
+        editingUpdateIsNew || payload.available || hasStagedDesktopFiles;
+      if (requireDesktopTriplet) {
+        const missingLabels = getMissingDesktopSlotLabels(
+          stagedDesktopFiles,
+          existingDesktopAssets,
+        );
+        if (missingLabels.length > 0) {
+          void message.error(`缺少 PC 必选文件：${missingLabels.join("、")}`);
+          return;
+        }
+      }
+    }
+
+    enqueuePublish({
+      mode: editingUpdateIsNew ? "create" : "edit",
+      historyId: editingUpdateHistoryId ?? undefined,
+      isCurrent: editingUpdateIsCurrent,
+      draft: {
+        ...editingUpdateDraft,
+        version: payload.latestVersion,
+      },
+      androidFile: stagedAndroidFile,
+      desktopFiles:
+        editingUpdateDraft.platform === "desktop" ? { ...stagedDesktopFiles } : undefined,
+      existingDesktopAssets:
+        editingUpdateDraft.platform === "desktop" ? { ...existingDesktopAssets } : undefined,
+    });
+
+    closeModal();
+    void message.info("已提交至后台队列，正在上传并发布，可在右下角查看进度");
   };
 
   const handleDeleteReleasePackage = async (item: UpdateHistoryItem) => {
     if (!item.releaseFile || item.releaseFile.status !== "uploaded") return;
-    if (!window.confirm(`确定要删除 ${item.version} 关联的七牛安装包吗？删除后会清理发布引用和当前下载状态。`)) return;
+    if (
+      !window.confirm(
+        `确定要删除 ${item.version} 关联的七牛安装包吗？删除后会清理发布引用和当前下载状态。`,
+      )
+    ) {
+      return;
+    }
     setDeletingPackageHistoryId(item.id);
     try {
       await deleteReleasePackage(item.id);
       await refreshRemote();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "删除安装包失败");
+      void message.error(e instanceof Error ? e.message : "删除安装包失败");
     } finally {
       setDeletingPackageHistoryId(null);
     }
@@ -243,7 +357,7 @@ export default function UpdateManagementPage() {
       const preview = await fetchUpdateHistoryDeletePreview(item.id);
       setUpdateHistoryDeletePreview(preview);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "读取版本删除预览失败");
+      void message.error(e instanceof Error ? e.message : "读取版本删除预览失败");
     } finally {
       setDeletingHistoryId(null);
     }
@@ -258,7 +372,7 @@ export default function UpdateManagementPage() {
       setUpdateHistoryDeletePreview(null);
       await refreshRemote();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "删除版本及相关文件失败");
+      void message.error(e instanceof Error ? e.message : "删除版本及相关文件失败");
     } finally {
       setDeletingHistoryId(null);
     }
@@ -269,6 +383,9 @@ export default function UpdateManagementPage() {
       <UpdateTab
         displayHistory={displayHistory}
         themeColor={themeColor}
+        publishTasks={publishTasks}
+        publishQueueStats={publishQueueStats}
+        onOpenQueueModal={openQueueModal}
         onPublishNew={openNewUpdate}
         onEdit={openEditUpdate}
         onDeletePackage={(item) => void handleDeleteReleasePackage(item)}
@@ -282,21 +399,23 @@ export default function UpdateManagementPage() {
           draft={editingUpdateDraft}
           isNew={editingUpdateIsNew}
           themeColor={themeColor}
-          saving={publishSaving}
-          uploadingPackage={packageUploading}
-          uploadProgress={packageUploadProgress}
-          desktopUpdateUploading={desktopUpdateUploading}
-          desktopUpdateProgress={desktopUpdateProgress}
-          desktopUpdateAssets={desktopUpdateAssets}
-          onClose={() => {
-            setEditingUpdateDraft(null);
-            setEditingUpdateHistoryId(null);
-            setEditingUpdateIsCurrent(false);
-          }}
-          onChange={setEditingUpdateDraft}
-          onUploadPackage={(file) => void handleUploadReleasePackage(file)}
-          onUploadDesktopUpdateAsset={(file) => void handleUploadDesktopUpdateAsset(file)}
-          onSubmit={() => void handleSubmitPublish()}
+          stagedAndroidFile={stagedAndroidFile}
+          stagedDesktopFiles={stagedDesktopFiles}
+          existingDesktopAssets={existingDesktopAssets}
+          loadingExistingAssets={loadingExistingAssets}
+          onClose={closeModal}
+          onChange={handleDraftChange}
+          onPlatformChange={handlePlatformChange}
+          onSelectFiles={(files) => void handleSelectFiles(files)}
+          onClearAndroidFile={() => setStagedAndroidFile(null)}
+          onClearDesktopSlot={(slot) =>
+            setStagedDesktopFiles((prev) => {
+              const next = { ...prev };
+              delete next[slot];
+              return next;
+            })
+          }
+          onSubmit={handleSubmitPublish}
         />
       )}
 

@@ -137,14 +137,70 @@ export async function readDesktopUpdateAssets(
     .filter((asset): asset is DesktopUpdateAssetInfo => Boolean(asset));
 }
 
+async function readDesktopUpdateAssetsByIds(
+  assetIds: string[],
+  db: DbTransaction = getAppDb(),
+): Promise<DesktopUpdateAssetInfo[]> {
+  const uniqueIds = [...new Set(assetIds.map((id) => id.trim()).filter(Boolean))];
+  if (uniqueIds.length === 0) return [];
+  const placeholders = uniqueIds.map(() => "?").join(", ");
+  const rows = (await db.query(
+    `SELECT * FROM file_records
+     WHERE id IN (${placeholders})
+       AND status = 'uploaded'
+       AND asset_type IN ('latest-yml', 'installer', 'blockmap')
+     ORDER BY created_at DESC`,
+    uniqueIds,
+  )) as FileRecordRow[];
+  return rows
+    .map((row) => desktopAssetFromRecord(mapFileRecord(row)))
+    .filter((asset): asset is DesktopUpdateAssetInfo => Boolean(asset));
+}
+
+async function syncFileRecordVersionAndDesktopPlatform(
+  tx: DbTransaction,
+  fileId: string,
+  version: string,
+  forceDesktopUpdatePlatform: boolean,
+): Promise<void> {
+  const row = (await tx.queryOne("SELECT id, usage_type, platform, version, asset_type FROM file_records WHERE id = ?", [
+    fileId,
+  ])) as { id: string; usage_type: string; platform: string; version: string; asset_type: string } | undefined;
+  if (!row) return;
+  const nextPlatform =
+    forceDesktopUpdatePlatform && (row.platform === "desktop" || row.platform === DESKTOP_UPDATE_PLATFORM)
+      ? DESKTOP_UPDATE_PLATFORM
+      : row.platform;
+  const nextUsageType =
+    forceDesktopUpdatePlatform && row.asset_type === "installer" ? "desktop-update" : row.usage_type;
+  if (row.version !== version || row.platform !== nextPlatform || row.usage_type !== nextUsageType) {
+    await tx.execute("UPDATE file_records SET version = ?, platform = ?, usage_type = ? WHERE id = ?", [
+      version,
+      nextPlatform,
+      nextUsageType,
+      fileId,
+    ]);
+  }
+}
+
 export async function activateDesktopUpdateVersion(
   version: string,
   platform = "win32",
   arch = "x64",
+  assetIds?: string[],
 ): Promise<DesktopUpdateAssetInfo[]> {
   const db = getAppDb();
   return await db.transaction(async (tx) => {
-    const assets = await readDesktopUpdateAssets(version, platform, arch, tx);
+    const normalizedIds = Array.isArray(assetIds)
+      ? [...new Set(assetIds.map((id) => String(id ?? "").trim()).filter(Boolean))]
+      : [];
+    const assets =
+      normalizedIds.length > 0
+        ? await readDesktopUpdateAssetsByIds(normalizedIds, tx)
+        : await readDesktopUpdateAssets(version, platform, arch, tx);
+    if (normalizedIds.length > 0 && assets.length !== normalizedIds.length) {
+      throw new Error("部分 PC 自动更新文件不存在或已删除，请重新上传");
+    }
     const hasLatest = assets.some((asset) => asset.fileType === "latest-yml" && asset.fileName === "latest.yml");
     const hasInstaller = assets.some((asset) => asset.fileType === "installer");
     if (!hasLatest) throw new Error("缺少 latest.yml，请先上传 electron-builder 生成的 latest.yml");
@@ -156,12 +212,16 @@ export async function activateDesktopUpdateVersion(
         (row.platform === `${platform}/${arch}` || row.platform === "desktop"),
     );
     for (const asset of assets) {
+      await syncFileRecordVersionAndDesktopPlatform(tx, asset.id, version, true);
       await addFileReference(tx, asset.id, {
         type: "active-desktop-update",
         platform: "win32",
         version,
         fileName: asset.fileName,
       });
+    }
+    if (normalizedIds.length > 0) {
+      return (await readDesktopUpdateAssetsByIds(normalizedIds, tx)).map((asset) => ({ ...asset, active: true }));
     }
     return (await readDesktopUpdateAssets(version, platform, arch, tx)).map((asset) => ({ ...asset, active: true }));
   });
@@ -245,6 +305,7 @@ export async function publishUpdate(
     await insertUpdateHistory(tx, item);
     await removeFileReferences(tx, (ref) => ref.type === "current-release" && ref.platform === platform);
     if (releaseFile) {
+      await syncFileRecordVersionAndDesktopPlatform(tx, releaseFile.id, release.latestVersion, platform === "desktop");
       await addFileReference(tx, releaseFile.id, {
         type: "history",
         id: historyId,
@@ -322,6 +383,7 @@ export async function updatePublishedUpdate(
 
     await removeFileReferences(tx, (ref) => ref.type === "history" && ref.id === historyId);
     if (releaseFile) {
+      await syncFileRecordVersionAndDesktopPlatform(tx, releaseFile.id, release.latestVersion, platform === "desktop");
       await addFileReference(tx, releaseFile.id, {
         type: "history",
         id: historyId,

@@ -257,6 +257,7 @@
 | 登记已上传七牛的安装包 | `POST` | `/api/admin/release-files/complete` | [./admin/completeReleaseFileUpload.md](./admin/completeReleaseFileUpload.md) |
 | 获取 PC 自动更新文件上传凭证 | `POST` | `/api/admin/desktop-updates/upload-token` | [./admin/getDesktopUpdateUploadToken.md](./admin/getDesktopUpdateUploadToken.md) |
 | 登记已上传七牛的 PC 自动更新文件 | `POST` | `/api/admin/desktop-updates/complete` | [./admin/completeDesktopUpdateUpload.md](./admin/completeDesktopUpdateUpload.md) |
+| 查询指定版本的 PC 自动更新文件资产 | `GET` | `/api/admin/desktop-updates/assets` | [./admin/getDesktopUpdateAssets.md](./admin/getDesktopUpdateAssets.md) |
 | 启用 PC 自动更新版本 | `POST` | `/api/admin/desktop-updates/activate` | [./admin/activateDesktopUpdate.md](./admin/activateDesktopUpdate.md) |
 
 ### 13.4 设备管理

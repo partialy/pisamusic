@@ -52,6 +52,7 @@ import { loadTheme, saveTheme } from "../utils/themeStorage";
 import { useAuth } from "../auth/AuthContext";
 import { useAdminConfigWorkspace } from "../state/AdminConfigWorkspaceContext";
 import { useCloudMusicUploadQueue } from "../state/CloudMusicUploadQueueContext";
+import { useReleasePublishQueue } from "../state/ReleasePublishQueueContext";
 import {
   AdminLayoutContext,
   type AdminPageActions,
@@ -64,6 +65,7 @@ import {
 import JsonExportModal from "../components/modals/JsonExportModal";
 import ChangePasswordModal from "../components/modals/ChangePasswordModal";
 import CloudMusicUploadModal from "../components/modals/CloudMusicUploadModal";
+import ReleasePublishQueueModal from "../components/modals/ReleasePublishQueueModal";
 
 dayjs.locale("zh-cn");
 
@@ -85,6 +87,13 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const { loadError, hydrated, refreshRemote, exportPayload } = useAdminConfigWorkspace();
   const { modalOpen: uploadModalOpen, stats: uploadStats, openQueueView } = useCloudMusicUploadQueue();
+  const {
+    tasks: releaseTasks,
+    queueModalOpen: releaseQueueModalOpen,
+    stats: releaseStats,
+    openQueueModal: openReleaseQueueModal,
+  } = useReleasePublishQueue();
+  const activeReleaseTask = releaseTasks.find((item) => item.state === "running") ?? releaseTasks.find((item) => item.state === "queued");
 
   const [themeColor, setThemeColor] = useState(initialTheme.themeColor);
   const [bgIndex, setBgIndex] = useState(initialTheme.bgIndex);
@@ -477,30 +486,59 @@ export default function AdminLayout() {
 
           {/* Global Cloud Music Batch Upload & Queue Modal */}
           <CloudMusicUploadModal />
+          <ReleasePublishQueueModal />
 
-          {/* Global Floating Upload Status Pill when modal is closed */}
-          {!uploadModalOpen && (uploadStats.active > 0 || uploadStats.failed > 0) && (
-            <div className="fixed bottom-5 right-5 z-50">
-              <button
-                type="button"
-                onClick={openQueueView}
-                className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-md hover:border-blue-400 hover:shadow-xl transition-all cursor-pointer"
-              >
-                <Badge
-                  status={uploadStats.active > 0 ? "processing" : "error"}
-                />
-                <CloudUploadOutlined
-                  className={uploadStats.active > 0 ? "text-blue-600 text-base" : "text-red-500 text-base"}
-                />
-                <span className="text-xs font-bold text-slate-800">
-                  {uploadStats.active > 0
-                    ? `网盘音乐上传中 (${uploadStats.completed}/${uploadStats.total})`
-                    : `上传队列有 ${uploadStats.failed} 项失败`}
-                </span>
-                <span className="text-[11px] text-blue-600 font-semibold">
-                  查看
-                </span>
-              </button>
+          {/* Global Floating Queue Status Pills when modals are closed */}
+          {((!uploadModalOpen && (uploadStats.active > 0 || uploadStats.failed > 0)) ||
+            (!releaseQueueModalOpen && (releaseStats.active > 0 || releaseStats.failed > 0))) && (
+            <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
+              {!releaseQueueModalOpen && (releaseStats.active > 0 || releaseStats.failed > 0) && (
+                <button
+                  type="button"
+                  onClick={openReleaseQueueModal}
+                  className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-md hover:border-blue-400 hover:shadow-xl transition-all cursor-pointer"
+                >
+                  <Badge
+                    status={releaseStats.active > 0 ? "processing" : "error"}
+                  />
+                  <CloudUploadOutlined
+                    className={releaseStats.active > 0 ? "text-blue-600 text-base" : "text-red-500 text-base"}
+                  />
+                  <span className="text-xs font-bold text-slate-800">
+                    {releaseStats.active > 0
+                      ? activeReleaseTask
+                        ? `发布 ${activeReleaseTask.draft.platform === "desktop" ? "PC" : "Android"} ${activeReleaseTask.draft.version} (${activeReleaseTask.overallPercent}%)`
+                        : `版本发布后台队列 (${releaseStats.active})`
+                      : `版本发布有 ${releaseStats.failed} 项失败`}
+                  </span>
+                  <span className="text-[11px] text-blue-600 font-semibold">
+                    查看
+                  </span>
+                </button>
+              )}
+
+              {!uploadModalOpen && (uploadStats.active > 0 || uploadStats.failed > 0) && (
+                <button
+                  type="button"
+                  onClick={openQueueView}
+                  className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-md hover:border-blue-400 hover:shadow-xl transition-all cursor-pointer"
+                >
+                  <Badge
+                    status={uploadStats.active > 0 ? "processing" : "error"}
+                  />
+                  <CloudUploadOutlined
+                    className={uploadStats.active > 0 ? "text-blue-600 text-base" : "text-red-500 text-base"}
+                  />
+                  <span className="text-xs font-bold text-slate-800">
+                    {uploadStats.active > 0
+                      ? `网盘音乐上传中 (${uploadStats.completed}/${uploadStats.total})`
+                      : `上传队列有 ${uploadStats.failed} 项失败`}
+                  </span>
+                  <span className="text-[11px] text-blue-600 font-semibold">
+                    查看
+                  </span>
+                </button>
+              )}
             </div>
           )}
         </div>

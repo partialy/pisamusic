@@ -445,10 +445,24 @@ export async function uploadDesktopUpdateAsset(file: File, version: string, onPr
   return completeDesktopUpdateUpload(file, version, token, uploaded);
 }
 
-export async function activateDesktopUpdate(version: string): Promise<DesktopUpdateAssetInfo[]> {
+export async function fetchDesktopUpdateAssets(version: string): Promise<DesktopUpdateAssetInfo[]> {
+  const res = await fetchWithAuth(`/api/admin/desktop-updates/assets?version=${encodeURIComponent(version)}`);
+  const body = await parseJson<{ assets: DesktopUpdateAssetInfo[] }>(res);
+  if (!res.ok || !body.success || body.data == null) {
+    throw new Error(body.msg || `HTTP ${res.status}`);
+  }
+  return body.data.assets;
+}
+
+export async function activateDesktopUpdate(version: string, assetIds?: string[]): Promise<DesktopUpdateAssetInfo[]> {
   const res = await fetchWithAuth("/api/admin/desktop-updates/activate", {
     method: "POST",
-    body: JSON.stringify({ version, platform: "win32", arch: "x64" }),
+    body: JSON.stringify({
+      version,
+      platform: "win32",
+      arch: "x64",
+      ...(assetIds && assetIds.length > 0 ? { assetIds } : {}),
+    }),
   });
   const body = await parseJson<{ assets: DesktopUpdateAssetInfo[] }>(res);
   if (!res.ok || !body.success || body.data == null) {

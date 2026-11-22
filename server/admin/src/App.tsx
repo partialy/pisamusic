@@ -6,6 +6,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import { useAdminLayout } from "./layouts/AdminLayoutContext";
 import { AdminConfigWorkspaceProvider } from "./state/AdminConfigWorkspaceContext";
 import { CloudMusicUploadQueueProvider } from "./state/CloudMusicUploadQueueContext";
+import { ReleasePublishQueueProvider } from "./state/ReleasePublishQueueContext";
 import InstallationGuard from "./auth/InstallationGuard";
 import LoginPage from "./components/LoginPage";
 
@@ -75,7 +76,9 @@ export default function App() {
             element={
               <AdminConfigWorkspaceProvider>
                 <CloudMusicUploadQueueProvider>
-                  <AdminLayout />
+                  <ReleasePublishQueueProvider>
+                    <AdminLayout />
+                  </ReleasePublishQueueProvider>
                 </CloudMusicUploadQueueProvider>
               </AdminConfigWorkspaceProvider>
             }
