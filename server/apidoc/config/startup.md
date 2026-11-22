@@ -1,6 +1,6 @@
 # Android 冷启动聚合配置与初始化
 
-在单次加密请求内完成停服检查、Android 设备上报、系统账号令牌静默校验与刷新、未读专属消息查询，以及 `bootstrap` / `update` / `agreement` / `announcements` 配置聚合下发。原单独接口继续保留兼容历史客户端与桌面端。
+在单次加密请求内完成停服检查、Android 设备上报、系统账号令牌静默校验与刷新、未读专属消息查询，以及 `bootstrap` / `update` / `agreement` / `announcements` 配置聚合下发。PC 桌面端请使用 [`POST /api/config/desktop-startup`](./desktopStartup.md)，原单独接口继续保留兼容历史客户端。
 
 - **请求方法**：`POST`
 - **请求路径**：`/api/config/startup`

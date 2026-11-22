@@ -26,6 +26,8 @@ import {
   StartupServiceBlockedError,
   StartupValidationError,
   executeAndroidStartup,
+  executeDesktopStartup,
+  type ExecuteStartupInput,
 } from "../services/startupService";
 import { fail, ok } from "../types/response";
 
@@ -108,10 +110,14 @@ configRouter.get("/bootstrap", async (_req, res) => {
   }
 });
 
-configRouter.post("/startup", async (req, res) => {
+async function handleStartupRequest(
+  req: Request,
+  res: import("express").Response,
+  executor: (input: ExecuteStartupInput) => Promise<unknown>,
+) {
   res.setHeader("Cache-Control", "private, no-store");
   try {
-    const result = await executeAndroidStartup({
+    const result = await executor({
       rawBody: req.body,
       clientIp: resolveClientIp(req),
       bearerToken: tokenFromRequest(req),
@@ -130,6 +136,14 @@ configRouter.post("/startup", async (req, res) => {
     const message = e instanceof Error ? e.message : "启动配置读取失败";
     res.status(500).json(fail(message, 500));
   }
+}
+
+configRouter.post("/startup", async (req, res) => {
+  await handleStartupRequest(req, res, executeAndroidStartup);
+});
+
+configRouter.post("/desktop-startup", async (req, res) => {
+  await handleStartupRequest(req, res, executeDesktopStartup);
 });
 
 configRouter.get("/check-update", async (req, res) => {

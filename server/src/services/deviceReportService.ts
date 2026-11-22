@@ -8,7 +8,7 @@ const MAX_LEN = 512;
 
 export class DeviceReportValidationError extends Error {}
 
-export type AndroidDeviceReportResult = {
+export type DeviceReportResult = {
   id: string;
   messageToken: string;
   locked: boolean;
@@ -16,6 +16,9 @@ export type AndroidDeviceReportResult = {
   lastActiveAt: number;
   firstSeenAt: number;
 };
+
+export type AndroidDeviceReportResult = DeviceReportResult;
+export type DesktopDeviceReportResult = DeviceReportResult;
 
 function clip(s: string, max = MAX_LEN): string {
   const t = s.trim();
@@ -53,6 +56,17 @@ export function resolveClientIp(req: Request): string {
 export function androidDeviceFingerprint(androidId: string, model: string): string {
   return createHash("sha256")
     .update(`${androidId.trim()}\0${model.trim()}`, "utf8")
+    .digest("hex");
+}
+
+export function desktopDeviceFingerprint(
+  clientId: string,
+  hostname: string,
+  platform: string,
+  arch: string,
+): string {
+  return createHash("sha256")
+    .update(`${clientId.trim()}\0${hostname.trim()}\0${platform.trim()}\0${arch.trim()}`, "utf8")
     .digest("hex");
 }
 
@@ -142,6 +156,96 @@ export async function reportAndroidDevice(
     );
   }
 
+  return finalizeDeviceReport({
+    tableName: "device_info",
+    deviceType: "android",
+    fingerprint: fp,
+    appVersion,
+    occurredAt: now,
+  });
+}
+
+/**
+ * PC 桌面端设备上报核心逻辑：校验、入库更新、记录日活并签发 30 天设备消息令牌。
+ */
+export async function reportDesktopDevice(
+  rawBody: unknown,
+  ip: string,
+): Promise<DesktopDeviceReportResult> {
+  const body = asRecord(rawBody);
+  const clientId = clip(String(body.clientId ?? ""), 256);
+  const deviceName = clip(String(body.deviceName ?? ""));
+  const hostname = clip(String(body.hostname ?? ""));
+  const osName = clip(String(body.osName ?? ""));
+  const osVersion = clip(String(body.osVersion ?? ""));
+  const platform = clip(String(body.platform ?? ""), 64);
+  const arch = clip(String(body.arch ?? ""), 64);
+  const appVersion = clip(String(body.appVersion ?? ""), 128);
+
+  if (!clientId || !deviceName || !hostname || !osName || !osVersion || !platform || !arch || !appVersion) {
+    throw new DeviceReportValidationError("缺少必填字段");
+  }
+
+  const fp = desktopDeviceFingerprint(clientId, hostname, platform, arch);
+  const now = Date.now();
+  const db = getDeviceDb();
+  const extras = JSON.stringify(asRecord(body.extras));
+
+  type ExistingRow = {
+    id: string;
+    locked: number;
+    lock_end_time: number | null;
+  };
+  const existing = (await db.queryOne(
+    `SELECT id, locked, lock_end_time FROM desktop_device_info WHERE fingerprint = ?`,
+    [fp],
+  )) as ExistingRow | undefined;
+
+  if (existing) {
+    await db.execute(
+      `UPDATE desktop_device_info SET
+          device_name = ?,
+          hostname = ?,
+          os_name = ?,
+          os_version = ?,
+          platform = ?,
+          arch = ?,
+          app_version = ?,
+          last_active_at = ?,
+          last_seen_ip = ?,
+          extra_info = ?
+        WHERE fingerprint = ?`,
+      [deviceName, hostname, osName, osVersion, platform, arch, appVersion, now, ip, extras, fp],
+    );
+  } else {
+    const id = randomUUID();
+    await db.execute(
+      `INSERT INTO desktop_device_info (
+          id, fingerprint, device_name, hostname, os_name, os_version, platform,
+          arch, app_version, locked, lock_end_time, first_seen_at, last_active_at,
+          first_seen_ip, last_seen_ip, extra_info
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, ?)`,
+      [id, fp, deviceName, hostname, osName, osVersion, platform, arch, appVersion, now, now, ip, ip, extras],
+    );
+  }
+
+  return finalizeDeviceReport({
+    tableName: "desktop_device_info",
+    deviceType: "desktop",
+    fingerprint: fp,
+    appVersion,
+    occurredAt: now,
+  });
+}
+
+async function finalizeDeviceReport(params: {
+  tableName: "device_info" | "desktop_device_info";
+  deviceType: "android" | "desktop";
+  fingerprint: string;
+  appVersion: string;
+  occurredAt: number;
+}): Promise<DeviceReportResult> {
+  const db = getDeviceDb();
   type OutRow = {
     id: string;
     locked: number;
@@ -150,8 +254,8 @@ export async function reportAndroidDevice(
     first_seen_at: number;
   };
   const out = (await db.queryOne(
-    `SELECT id, locked, lock_end_time, last_active_at, first_seen_at FROM device_info WHERE fingerprint = ?`,
-    [fp],
+    `SELECT id, locked, lock_end_time, last_active_at, first_seen_at FROM ${params.tableName} WHERE fingerprint = ?`,
+    [params.fingerprint],
   )) as OutRow | undefined;
 
   if (!out) {
@@ -160,19 +264,23 @@ export async function reportAndroidDevice(
 
   try {
     await recordDeviceDailyActivity({
-      deviceType: "android",
+      deviceType: params.deviceType,
       deviceId: out.id,
-      appVersion,
-      occurredAt: now,
+      appVersion: params.appVersion,
+      occurredAt: params.occurredAt,
     });
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn("[analytics] recordDeviceDailyActivity (android) failed:", err);
+    console.warn(`[analytics] recordDeviceDailyActivity (${params.deviceType}) failed:`, err);
   }
 
   return {
     id: out.id,
-    messageToken: issueDeviceMessageToken({ kind: "android", deviceId: out.id, fingerprint: fp }),
+    messageToken: issueDeviceMessageToken({
+      kind: params.deviceType,
+      deviceId: out.id,
+      fingerprint: params.fingerprint,
+    }),
     locked: out.locked !== 0,
     lockEndTime: out.lock_end_time,
     lastActiveAt: out.last_active_at,

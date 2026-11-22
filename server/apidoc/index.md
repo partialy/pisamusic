@@ -64,6 +64,7 @@
 | 接口名称 | Method | 请求路径 | 鉴权要求 | 接口文档链接 |
 | :--- | :--- | :--- | :--- | :--- |
 | Android 冷启动聚合初始化 | `POST` | `/api/config/startup` | 可选 User Token (加密) | [./config/startup.md](./config/startup.md) |
+| PC 桌面端冷启动聚合初始化 | `POST` | `/api/config/desktop-startup` | 可选 User Token (加密) | [./config/desktopStartup.md](./config/desktopStartup.md) |
 | 获取启动配置与服务网关 | `GET` | `/api/config/bootstrap` | 无 (明文) | [./config/getBootstrap.md](./config/getBootstrap.md) |
 | 检查 Android 更新 (兼容旧版) | `GET` | `/api/config/check-update` | 无 (明文) | [./config/checkUpdate.md](./config/checkUpdate.md) |
 | 获取双端最新发布信息 | `GET` | `/api/config/releases` | 无 (明文) | [./config/getReleases.md](./config/getReleases.md) |
